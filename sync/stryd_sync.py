@@ -444,6 +444,8 @@ def fetch_training_plan_api(
             "target_power_max": power_max,
             "workout_description": description,
             "external_id": str(external_id) if external_id else "",
+            # Absolute instant; the day is derived client-side in viewer tz.
+            "start_time": date_str,
         }
         logger.debug(f"    {workout_date} — {workout_type} ({duration_min}min, {distance_km}km) [id={external_id}]")
         rows.append(row)
