@@ -478,3 +478,16 @@ def test_write_training_plan_move_displaces_different_id_at_target(db_with_user)
     assert len(rows) == 1
     assert rows[0].external_id == "keep-1"
     assert rows[0].date == tomorrow
+
+
+def test_upcoming_workouts_emits_iso_z_start_time():
+    """start_time must serialize as ISO with T+Z so browsers parse UTC."""
+    import pandas as pd
+    from datetime import date, timedelta
+    from api.views import upcoming_workouts
+    fut = date.today() + timedelta(days=2)
+    df = pd.DataFrame([{ "date": fut, "workout_type": "time trial",
+        "workout_description": "", "planned_duration_min": 30,
+        "start_time": pd.Timestamp("2026-06-29 16:00:00")}])
+    out = upcoming_workouts(df)
+    assert out and out[0]["start_time"].endswith("Z") and "T" in out[0]["start_time"]
