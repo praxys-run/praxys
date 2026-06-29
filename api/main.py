@@ -64,6 +64,7 @@ from sqlalchemy.orm import Session
 
 from api.auth import get_current_user_id
 from api.env_compat import getenv_compat
+from api.legal import TERMS_VERSION
 from api.version import get_api_version
 from api.views import utc_isoformat
 from db.session import get_db
@@ -210,4 +211,36 @@ def get_me(
         "is_superuser": user.is_superuser,
         "is_demo": user.is_demo,
         "created_at": utc_isoformat(user.created_at),
+        # EULA re-acceptance gate: the client compares these to decide whether
+        # to show the re-consent modal. terms_current is computed server-side
+        # so the live TERMS_VERSION stays the single source of truth.
+        "terms_version": user.terms_version,
+        "terms_current": user.terms_version == TERMS_VERSION,
+    }
+
+
+@app.post("/api/me/accept-terms")
+def accept_terms(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Record the current user's acceptance of the latest Terms/EULA version.
+
+    Stamps the live TERMS_VERSION and acceptance timestamp so a user whose
+    stored terms_version is stale (or null) clears the re-consent gate.
+    WeChat-linked users authenticate with the same JWT, so they are covered.
+    """
+    from datetime import datetime, timezone
+
+    from db.models import User
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "User not found")
+    user.terms_version = TERMS_VERSION
+    user.terms_accepted_at = datetime.now(timezone.utc)
+    db.commit()
+    return {
+        "terms_version": user.terms_version,
+        "terms_current": True,
+        "terms_accepted_at": utc_isoformat(user.terms_accepted_at),
     }
