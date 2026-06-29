@@ -55,3 +55,28 @@ def test_fetch_training_plan_parses_power_targets(mock_get):
     assert rows[0]["target_power_min"] == "238"  # round(250 * 95 / 100)
     assert rows[0]["target_power_max"] == "262"  # round(250 * 105 / 100) = 262 (banker's rounding)
     assert rows[0]["workout_type"] == "threshold"
+
+
+@patch("sync.stryd_sync.requests.get")
+def test_fetch_training_plan_date_uses_local_timezone(mock_get):
+    """Date must truncate in the workout's local tz, not UTC. A workout at
+    local midnight is serialized by Stryd as the prior day 16:00Z for +08:00;
+    truncating in UTC drops a day, so tomorrow's session shows as today."""
+    workout = {
+        "deleted": False,
+        # Tue Apr 7 00:00 +08:00 -> Mon Apr 6 16:00 UTC. Naive UTC truncation
+        # would yield 2026-04-06; the local date is 2026-04-07.
+        "date": "2026-04-06T16:00:00Z",
+        "time_zone": "Asia/Shanghai",
+        "duration": 3600,
+        "workout": {"title": "Day 11 - Time Trial", "type": "time trial", "blocks": []},
+    }
+    mock_get.return_value = MagicMock(
+        json=MagicMock(return_value={"workouts": [workout]}),
+        raise_for_status=MagicMock(),
+    )
+
+    rows = fetch_training_plan_api("user-1", "tok")
+
+    assert len(rows) == 1
+    assert rows[0]["date"] == "2026-04-07"
