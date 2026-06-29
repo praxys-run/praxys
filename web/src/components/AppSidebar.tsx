@@ -1,7 +1,9 @@
 import { NavLink, useLocation } from 'react-router-dom';
+import { useState } from 'react';
 import type { ComponentType, SVGProps } from 'react';
-import { Sun, Moon, Monitor, TrendingUp, Target, Clock, FlaskConical, Settings, LogOut, ListChecks, ShieldCheck } from 'lucide-react';
+import { Sun, Moon, Monitor, TrendingUp, Target, Clock, FlaskConical, Settings, LogOut, ListChecks, ShieldCheck, MessageSquarePlus } from 'lucide-react';
 import { PraxysFlag } from '@/components/PraxysFlag';
+import FeedbackDialog from '@/components/FeedbackDialog';
 import {
   Sidebar,
   SidebarContent,
@@ -100,6 +102,7 @@ export default function AppSidebar() {
   const setup = useSetupStatus();
   const { t, i18n } = useLingui();
   const displayName = config?.display_name || null;
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   // Active-cluster: daily-use training surfaces. Today, Training, Goal,
   // Activities. The home item stays "Today" regardless of setup state —
@@ -184,6 +187,12 @@ export default function AppSidebar() {
       )}
       <SidebarMenu>
         <SidebarMenuItem>
+          <SidebarMenuButton onClick={() => setFeedbackOpen(true)} tooltip={t`Send feedback`}>
+            <MessageSquarePlus />
+            <span>{t`Send feedback`}</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
           <SidebarMenuButton onClick={cycleTheme} tooltip={`${t`Theme`}: ${i18n._(THEME_LABEL[theme])}`}>
             <ThemeIcon />
             <span>{i18n._(THEME_LABEL[theme])}</span>
@@ -235,6 +244,7 @@ export default function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       {footerContent}
+      <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
     </Sidebar>
   );
 }
