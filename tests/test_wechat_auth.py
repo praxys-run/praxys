@@ -335,6 +335,7 @@ def test_link_with_password_binds_openid_to_existing_account(wechat_client):
             "email": "bob@example.com",
             "password": "correct-horse-battery",
             "invitation_code": invite_code,
+            "accepted_terms": True,
         },
     )
     assert reg.status_code == 200, reg.text
@@ -387,6 +388,7 @@ def test_link_with_password_wrong_password_rejected(wechat_client):
             "email": "carol@example.com",
             "password": "real-password-abc",
             "invitation_code": invite_code,
+            "accepted_terms": True,
         },
     )
 
@@ -449,6 +451,7 @@ def test_link_refuses_to_rebind_account_with_different_openid(wechat_client):
             "email": "dan@example.com",
             "password": "pw-dan-12345",
             "invitation_code": invite_code,
+            "accepted_terms": True,
         },
     )
     # First link with phone-A openid.
@@ -531,3 +534,34 @@ def test_unlink_idempotent_when_no_binding(wechat_client):
 def test_unlink_requires_authentication(wechat_client):
     no_auth = wechat_client.post("/api/auth/wechat/unlink")
     assert no_auth.status_code == 401
+
+# ---------------------------------------------------------------------------
+# EULA / Terms acceptance gate on web /api/auth/register
+# ---------------------------------------------------------------------------
+
+
+def test_register_requires_terms_acceptance(wechat_client):
+    r = wechat_client.post(
+        "/api/auth/register",
+        json={"email": "noterm@example.com", "password": "pw-123456", "invitation_code": ""},
+    )
+    assert r.status_code == 400, r.text
+    assert r.json()["detail"] == "REGISTER_TERMS_NOT_ACCEPTED"
+
+
+def test_register_records_terms_version(wechat_client):
+    r = wechat_client.post(
+        "/api/auth/register",
+        json={"email": "yesterm@example.com", "password": "pw-123456", "accepted_terms": True},
+    )
+    assert r.status_code == 200, r.text
+    from api.legal import TERMS_VERSION
+    from db.models import User
+    from db.session import SessionLocal
+    db = SessionLocal()
+    try:
+        u = db.query(User).filter(User.email == "yesterm@example.com").first()
+        assert u is not None and u.terms_version == TERMS_VERSION
+        assert u.terms_accepted_at is not None
+    finally:
+        db.close()

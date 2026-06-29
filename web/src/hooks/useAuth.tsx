@@ -14,7 +14,7 @@ interface AuthState {
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
-  register: (email: string, password: string, invitationCode?: string) => Promise<{ ok: boolean; error?: string }>;
+  register: (email: string, password: string, invitationCode?: string, acceptedTerms?: boolean) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
 }
 
@@ -126,12 +126,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const register = useCallback(async (email: string, password: string, invitationCode?: string): Promise<{ ok: boolean; error?: string }> => {
+  const register = useCallback(async (email: string, password: string, invitationCode?: string, acceptedTerms?: boolean): Promise<{ ok: boolean; error?: string }> => {
     try {
       const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, invitation_code: invitationCode || '' }),
+        body: JSON.stringify({ email, password, invitation_code: invitationCode || '', accepted_terms: !!acceptedTerms }),
       });
 
       if (!res.ok) {
@@ -145,6 +145,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         if (detail === 'REGISTER_INVALID_INVITATION') {
           return { ok: false, error: 'Invalid or already used invitation code.' };
+        }
+        if (detail === 'REGISTER_TERMS_NOT_ACCEPTED') {
+          return { ok: false, error: 'You must accept the Terms of Service to register.' };
         }
         return { ok: false, error: detail || `Registration failed (HTTP ${res.status}).` };
       }

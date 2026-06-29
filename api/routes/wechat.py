@@ -38,6 +38,7 @@ from api.invitations import (
     find_valid_invitation,
     is_admin_email,
 )
+from api.legal import TERMS_VERSION
 from db.models import User
 from db.session import get_db
 
@@ -367,6 +368,8 @@ async def wechat_register(
             wechat_unionid=unionid,
             wechat_nickname=body.nickname,
             wechat_avatar_url=body.avatar_url,
+            terms_version=TERMS_VERSION,
+            terms_accepted_at=datetime.utcnow(),
         )
         async_session.add(new_user)
         try:

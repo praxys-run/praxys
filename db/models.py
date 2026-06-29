@@ -45,6 +45,11 @@ class User(Base):
     demo_of = Column(String(36), ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    # EULA acceptance recorded at registration: proves which Terms/EULA
+    # version each user agreed to and when. See api/legal.py::TERMS_VERSION.
+    terms_version = Column(String(20), nullable=True)
+    terms_accepted_at = Column(DateTime, nullable=True)
+
     # WeChat Mini Program identity. openid is per-app, unionid spans apps under the
     # same WeChat Open Platform account. We keep email NOT NULL for FastAPI-Users
     # compatibility; WeChat-only users get the synthetic sentinel "wechat:<openid>"

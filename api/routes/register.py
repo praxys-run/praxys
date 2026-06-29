@@ -7,6 +7,7 @@ Admin email (ADMIN_EMAIL env, via getenv_compat) bypasses invitation
 checks — see api/invitations.py::is_admin_email.
 """
 import logging
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
@@ -19,6 +20,7 @@ from api.invitations import (
     find_valid_invitation,
     is_admin_email,
 )
+from api.legal import TERMS_VERSION
 from db.session import get_db
 
 logger = logging.getLogger(__name__)
@@ -30,6 +32,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
     invitation_code: str = ""
+    accepted_terms: bool = False
 
 
 @register_router.post("/register")
@@ -49,6 +52,10 @@ async def register(
     existing = db.query(User).filter(User.email == body.email).first()
     if existing:
         raise HTTPException(400, detail="REGISTER_USER_ALREADY_EXISTS")
+
+    # EULA gate: every account must accept the Terms/EULA at registration.
+    if not body.accepted_terms:
+        raise HTTPException(400, detail="REGISTER_TERMS_NOT_ACCEPTED")
 
     admin_email_bypass = is_admin_email(body.email)
     if admin_email_bypass:
@@ -109,6 +116,10 @@ async def register(
             logger.exception("register failed for %s", body.email)
             raise HTTPException(500, detail="REGISTER_CREATE_FAILED")
 
+        # Record EULA acceptance on the persisted user.
+        user.terms_version = TERMS_VERSION
+        user.terms_accepted_at = datetime.now(timezone.utc)
+        async_session.add(user)
         await async_session.commit()
 
     # Atomically claim the invitation. If we lose the race to another
