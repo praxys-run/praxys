@@ -29,13 +29,16 @@ _BEARER_RE = re.compile(r"(?i)\b(bearer|token|apikey|api[_-]?key|secret|password
 # JWTs: three base64url segments separated by dots.
 _JWT_RE = re.compile(r"\beyJ[\w-]+\.[\w-]+\.[\w-]+\b")
 
-# Common provider key prefixes (OpenAI sk-, GitHub ghp_/gho_/ghs_, AWS AKIA,
-# Slack xox..., Fernet-ish long base64). Kept as an alternation of well-known
-# shapes rather than "any long token" to limit false positives.
+# Common provider key prefixes (OpenAI sk-/sk-proj-/sk-svcacct-, GitHub
+# ghp_/gho_/ghs_/github_pat_, AWS AKIA, Slack xox...). Kept as an alternation
+# of well-known shapes rather than "any long token" to limit false positives.
+# The OpenAI and fine-grained-PAT alternatives allow '-'/'_' in the body so
+# modern hyphenated keys (sk-proj-..., github_pat_...) are matched whole.
 _KEYISH_RE = re.compile(
     r"\b("
-    r"sk-[A-Za-z0-9]{16,}"
+    r"sk-[A-Za-z0-9_-]{20,}"
     r"|gh[pousr]_[A-Za-z0-9]{20,}"
+    r"|github_pat_[A-Za-z0-9_]{20,}"
     r"|AKIA[0-9A-Z]{12,}"
     r"|xox[baprs]-[A-Za-z0-9-]{10,}"
     r")\b"

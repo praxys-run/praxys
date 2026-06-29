@@ -38,6 +38,26 @@ def test_scrub_text_redacts_pii_but_keeps_training_numbers():
     assert "165" in out
 
 
+def test_scrub_redacts_modern_api_keys():
+    """Modern hyphenated keys (OpenAI sk-proj-/sk-svcacct-, GitHub fine-grained
+    PAT) must be redacted whole — a regression guard for the older pattern that
+    stopped at the first hyphen and leaked sk-proj- keys."""
+    from api.feedback_scrub import scrub_text
+
+    secrets = [
+        "sk-proj-abcdEFGH1234567890ijklMNOP_qrst-uvwx",
+        "sk-svcacct-AbC0123456789defGHIjklMNopQR",
+        "github_pat_11ABCDEFG0aBcDeFgHiJ_KLmnopQRstuvWXyz123",
+        "sk-ABCDEFGHIJKLMNOPqrstuvwx0123456789",
+    ]
+    for secret in secrets:
+        out = scrub_text(f"my key is {secret} thanks")
+        assert secret not in out, f"leaked: {secret}"
+        assert "[redacted-key]" in out
+    # A normal hyphenated phrase that merely starts with "sk-" must survive.
+    assert "sk-based" in scrub_text("we use sk-based zones")
+
+
 def test_scrub_context_drops_unknown_keys_and_scrubs_values():
     from api.feedback_scrub import scrub_context
 
