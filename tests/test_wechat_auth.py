@@ -575,3 +575,55 @@ def test_wechat_register_requires_terms_acceptance(wechat_client):
     assert r.status_code == 400, r.text
     assert r.json()["detail"] == "REGISTER_TERMS_NOT_ACCEPTED"
 
+
+# ---------------------------------------------------------------------------
+# EULA re-acceptance gate (issue #324)
+# ---------------------------------------------------------------------------
+
+
+def _login_token(client, email: str, password: str) -> str:
+    r = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": password},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert r.status_code == 200, r.text
+    return r.json()["access_token"]
+
+
+def test_accept_terms_clears_stale_version(wechat_client):
+    email, pw = "stale@example.com", "pw-123456"
+    reg = wechat_client.post(
+        "/api/auth/register",
+        json={"email": email, "password": pw, "accepted_terms": True},
+    )
+    assert reg.status_code == 200, reg.text
+    token = _login_token(wechat_client, email, pw)
+    hdr = {"Authorization": f"Bearer {token}"}
+
+    # Force a stale terms_version to simulate a post-bump returning user.
+    from db.models import User
+    from db.session import SessionLocal
+    db = SessionLocal()
+    try:
+        u = db.query(User).filter(User.email == email).first()
+        u.terms_version = "0000.00.0"
+        db.commit()
+    finally:
+        db.close()
+
+    me = wechat_client.get("/api/auth/me", headers=hdr).json()
+    assert me["terms_current"] is False  # stale -> 1 prompt
+
+    from api.legal import TERMS_VERSION
+    acc = wechat_client.post("/api/me/accept-terms", headers=hdr)
+    assert acc.status_code == 200, acc.text
+    assert acc.json()["terms_version"] == TERMS_VERSION
+    assert acc.json()["terms_current"] is True
+
+    me2 = wechat_client.get("/api/auth/me", headers=hdr).json()
+    assert me2["terms_current"] is True  # cleared after accept
+
+
+def test_accept_terms_requires_auth(wechat_client):
+    assert wechat_client.post("/api/me/accept-terms").status_code == 401

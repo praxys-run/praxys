@@ -10,12 +10,14 @@ interface AuthState {
   isDemo: boolean;
   isAuthenticated: boolean;
   isLoading: boolean;
+  termsCurrent: boolean;
 }
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   register: (email: string, password: string, invitationCode?: string, acceptedTerms?: boolean) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
+  acceptTerms: () => Promise<boolean>;
 }
 
 // The API base URL may be empty (same origin via SWA linked backend)
@@ -29,9 +31,11 @@ const AuthContext = createContext<AuthContextType>({
   isDemo: false,
   isAuthenticated: false,
   isLoading: true,
+  termsCurrent: true,
   login: async () => ({ ok: false }),
   register: async () => ({ ok: false }),
   logout: () => {},
+  acceptTerms: async () => false,
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -40,6 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isDemo, setIsDemo] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // EULA re-acceptance gate: true until /me reports a stale terms_version.
+  const [termsCurrent, setTermsCurrent] = useState(true);
 
   // On mount, restore token from localStorage and verify it with the server.
   useEffect(() => {
@@ -77,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else if (data) {
           setIsAdmin(data.is_superuser);
           setIsDemo(data.is_demo ?? false);
+          setTermsCurrent(data.terms_current ?? true);
           setCompatItem(KEYS.authAdmin.new, KEYS.authAdmin.legacy, String(data.is_superuser));
         }
       })
@@ -115,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (me) {
               setIsAdmin(me.is_superuser);
               setIsDemo(me.is_demo ?? false);
+              setTermsCurrent(me.terms_current ?? true);
               setCompatItem(KEYS.authAdmin.new, KEYS.authAdmin.legacy, String(me.is_superuser));
             }
           })
@@ -167,13 +175,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setEmail(null);
     setIsAdmin(false);
     setIsDemo(false);
+    setTermsCurrent(true);
+  }, []);
+
+  const acceptTerms = useCallback(async (): Promise<boolean> => {
+    const tk = getCompatItem(KEYS.authToken.new, KEYS.authToken.legacy);
+    if (!tk) return false;
+    try {
+      const res = await fetch(`${API_BASE}/api/me/accept-terms`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${tk}` },
+      });
+      if (!res.ok) return false;
+      setTermsCurrent(true);
+      return true;
+    } catch {
+      return false;
+    }
   }, []);
 
   const isAuthenticated = token !== null;
 
   return (
     <AuthContext.Provider
-      value={{ token, email, isAdmin, isDemo, isAuthenticated, isLoading, login, register, logout }}
+      value={{ token, email, isAdmin, isDemo, isAuthenticated, isLoading, termsCurrent, login, register, logout, acceptTerms }}
     >
       {children}
     </AuthContext.Provider>
