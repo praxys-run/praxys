@@ -1291,7 +1291,7 @@ msgstr "Link URL (optional)"
 msgid "Link your training devices and services"
 msgstr "Link your training devices and services"
 
-#: src/components/Layout.tsx:31
+#: src/components/Layout.tsx:34
 msgid "Live demo — real training data, read-only"
 msgstr "Live demo — real training data, read-only"
 
