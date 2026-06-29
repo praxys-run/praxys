@@ -2,6 +2,7 @@ import type React from 'react';
 import { useState, useId } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { Link } from 'react-router-dom';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -30,6 +31,7 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [waitlistSuccess, setWaitlistSuccess] = useState(false);
+  const [agreedTerms, setAgreedTerms] = useState(false);
 
   const formId = useId();
 
@@ -49,11 +51,16 @@ export default function Login() {
       return;
     }
 
+    if (mode !== 'login' && !agreedTerms) {
+      setError(t`You must accept the Terms of Service to register.`);
+      return;
+    }
+
     setSubmitting(true);
 
     const result = mode === 'login'
       ? await login(email.trim(), password)
-      : await register(email.trim(), password, invitationCode.trim());
+      : await register(email.trim(), password, invitationCode.trim(), agreedTerms);
 
     setSubmitting(false);
 
@@ -483,7 +490,24 @@ export default function Login() {
                 />
               </div>
 
-              <button type="submit" className="login-submit" disabled={submitting}>
+              <label className="login-terms">
+                <input
+                  type="checkbox"
+                  checked={agreedTerms}
+                  onChange={(e) => setAgreedTerms(e.target.checked)}
+                  disabled={submitting}
+                />
+                <span>
+                  <Trans>
+                    I agree to the{' '}
+                    <Link to="/terms" target="_blank" className="login-aside-link">Terms of Service</Link>{' '}
+                    and{' '}
+                    <Link to="/privacy" target="_blank" className="login-aside-link">Privacy Policy</Link>.
+                  </Trans>
+                </span>
+              </label>
+
+              <button type="submit" className="login-submit" disabled={submitting || !agreedTerms}>
                 {submitting && <span className="login-submit-spinner" aria-hidden />}
                 {submitting ? <Trans>Creating account…</Trans> : <Trans>Create account</Trans>}
               </button>

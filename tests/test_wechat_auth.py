@@ -138,7 +138,7 @@ def test_login_returning_user_gets_jwt(wechat_client):
     ticket = login.json()["wechat_login_ticket"]
     reg = wechat_client.post(
         "/api/auth/wechat/register",
-        json={"wechat_login_ticket": ticket, "invitation_code": ""},
+        json={"wechat_login_ticket": ticket, "accepted_terms": True, "invitation_code": ""},
     )
     assert reg.status_code == 200, reg.text
 
@@ -186,7 +186,7 @@ def test_register_first_user_becomes_admin_no_invite(wechat_client):
     ticket = _get_ticket(wechat_client, "openid-first")
     r = wechat_client.post(
         "/api/auth/wechat/register",
-        json={"wechat_login_ticket": ticket, "invitation_code": ""},
+        json={"wechat_login_ticket": ticket, "accepted_terms": True, "invitation_code": ""},
     )
     assert r.status_code == 200, r.text
     token = r.json()["access_token"]
@@ -207,14 +207,14 @@ def test_register_second_user_without_invite_fails(wechat_client):
     first_ticket = _get_ticket(wechat_client, "openid-one")
     wechat_client.post(
         "/api/auth/wechat/register",
-        json={"wechat_login_ticket": first_ticket, "invitation_code": ""},
+        json={"wechat_login_ticket": first_ticket, "accepted_terms": True, "invitation_code": ""},
     )
 
     # Second user has no invitation.
     second_ticket = _get_ticket(wechat_client, "openid-two")
     r = wechat_client.post(
         "/api/auth/wechat/register",
-        json={"wechat_login_ticket": second_ticket, "invitation_code": ""},
+        json={"wechat_login_ticket": second_ticket, "accepted_terms": True, "invitation_code": ""},
     )
     assert r.status_code == 400
     assert r.json()["detail"] == "REGISTER_INVITATION_REQUIRED"
@@ -225,7 +225,7 @@ def test_register_second_user_with_valid_invite_succeeds(wechat_client):
     admin_ticket = _get_ticket(wechat_client, "openid-admin")
     admin_reg = wechat_client.post(
         "/api/auth/wechat/register",
-        json={"wechat_login_ticket": admin_ticket, "invitation_code": ""},
+        json={"wechat_login_ticket": admin_ticket, "accepted_terms": True, "invitation_code": ""},
     )
     admin_token = admin_reg.json()["access_token"]
 
@@ -242,7 +242,7 @@ def test_register_second_user_with_valid_invite_succeeds(wechat_client):
     second_ticket = _get_ticket(wechat_client, "openid-invitee")
     r = wechat_client.post(
         "/api/auth/wechat/register",
-        json={"wechat_login_ticket": second_ticket, "invitation_code": code},
+        json={"wechat_login_ticket": second_ticket, "accepted_terms": True, "invitation_code": code},
     )
     assert r.status_code == 200, r.text
     assert r.json()["access_token"]
@@ -251,7 +251,7 @@ def test_register_second_user_with_valid_invite_succeeds(wechat_client):
     third_ticket = _get_ticket(wechat_client, "openid-leech")
     r2 = wechat_client.post(
         "/api/auth/wechat/register",
-        json={"wechat_login_ticket": third_ticket, "invitation_code": code},
+        json={"wechat_login_ticket": third_ticket, "accepted_terms": True, "invitation_code": code},
     )
     assert r2.status_code == 400
 
@@ -260,13 +260,13 @@ def test_register_openid_already_bound_conflicts(wechat_client):
     ticket = _get_ticket(wechat_client, "openid-x")
     wechat_client.post(
         "/api/auth/wechat/register",
-        json={"wechat_login_ticket": ticket, "invitation_code": ""},
+        json={"wechat_login_ticket": ticket, "accepted_terms": True, "invitation_code": ""},
     )
 
     # Try to register again with the same ticket (and therefore same openid).
     r = wechat_client.post(
         "/api/auth/wechat/register",
-        json={"wechat_login_ticket": ticket, "invitation_code": ""},
+        json={"wechat_login_ticket": ticket, "accepted_terms": True, "invitation_code": ""},
     )
     assert r.status_code == 409
     assert "WECHAT_REGISTER_OPENID_ALREADY_BOUND" in r.text
@@ -277,7 +277,7 @@ def test_register_with_email_password_stores_both(wechat_client):
     r = wechat_client.post(
         "/api/auth/wechat/register",
         json={
-            "wechat_login_ticket": ticket,
+            "wechat_login_ticket": ticket, "accepted_terms": True,
             "invitation_code": "",
             "email": "alice@example.com",
             "password": "hunter2-longish",
@@ -305,7 +305,7 @@ def test_link_with_password_binds_openid_to_existing_account(wechat_client):
     admin_ticket = _get_ticket(wechat_client, "openid-seed-admin")
     wechat_client.post(
         "/api/auth/wechat/register",
-        json={"wechat_login_ticket": admin_ticket, "invitation_code": ""},
+        json={"wechat_login_ticket": admin_ticket, "accepted_terms": True, "invitation_code": ""},
     )
 
     # Now create a *separate* web-style user via the normal /api/auth/register,
@@ -335,6 +335,7 @@ def test_link_with_password_binds_openid_to_existing_account(wechat_client):
             "email": "bob@example.com",
             "password": "correct-horse-battery",
             "invitation_code": invite_code,
+            "accepted_terms": True,
         },
     )
     assert reg.status_code == 200, reg.text
@@ -346,7 +347,7 @@ def test_link_with_password_binds_openid_to_existing_account(wechat_client):
     link = wechat_client.post(
         "/api/auth/wechat/link-with-password",
         json={
-            "wechat_login_ticket": setup_ticket,
+            "wechat_login_ticket": setup_ticket, "accepted_terms": True,
             "email": "bob@example.com",
             "password": "correct-horse-battery",
         },
@@ -371,7 +372,7 @@ def test_link_with_password_wrong_password_rejected(wechat_client):
     admin_ticket = _get_ticket(wechat_client, "openid-admin-2")
     wechat_client.post(
         "/api/auth/wechat/register",
-        json={"wechat_login_ticket": admin_ticket, "invitation_code": ""},
+        json={"wechat_login_ticket": admin_ticket, "accepted_terms": True, "invitation_code": ""},
     )
     admin_token = wechat_client.post(
         "/api/auth/wechat/login", json={"js_code": "c-a2"}
@@ -387,6 +388,7 @@ def test_link_with_password_wrong_password_rejected(wechat_client):
             "email": "carol@example.com",
             "password": "real-password-abc",
             "invitation_code": invite_code,
+            "accepted_terms": True,
         },
     )
 
@@ -394,7 +396,7 @@ def test_link_with_password_wrong_password_rejected(wechat_client):
     r = wechat_client.post(
         "/api/auth/wechat/link-with-password",
         json={
-            "wechat_login_ticket": setup_ticket,
+            "wechat_login_ticket": setup_ticket, "accepted_terms": True,
             "email": "carol@example.com",
             "password": "wrong-password",
         },
@@ -419,7 +421,7 @@ def test_link_with_expired_ticket_rejected(wechat_client):
     r = wechat_client.post(
         "/api/auth/wechat/link-with-password",
         json={
-            "wechat_login_ticket": expired,
+            "wechat_login_ticket": expired, "accepted_terms": True,
             "email": "anyone@example.com",
             "password": "whatever-long",
         },
@@ -433,7 +435,7 @@ def test_link_refuses_to_rebind_account_with_different_openid(wechat_client):
     admin_ticket = _get_ticket(wechat_client, "openid-admin-3")
     wechat_client.post(
         "/api/auth/wechat/register",
-        json={"wechat_login_ticket": admin_ticket, "invitation_code": ""},
+        json={"wechat_login_ticket": admin_ticket, "accepted_terms": True, "invitation_code": ""},
     )
     admin_token = wechat_client.post(
         "/api/auth/wechat/login", json={"js_code": "c-a3"}
@@ -449,6 +451,7 @@ def test_link_refuses_to_rebind_account_with_different_openid(wechat_client):
             "email": "dan@example.com",
             "password": "pw-dan-12345",
             "invitation_code": invite_code,
+            "accepted_terms": True,
         },
     )
     # First link with phone-A openid.
@@ -456,7 +459,7 @@ def test_link_refuses_to_rebind_account_with_different_openid(wechat_client):
     first = wechat_client.post(
         "/api/auth/wechat/link-with-password",
         json={
-            "wechat_login_ticket": setup_a,
+            "wechat_login_ticket": setup_a, "accepted_terms": True,
             "email": "dan@example.com",
             "password": "pw-dan-12345",
         },
@@ -469,7 +472,7 @@ def test_link_refuses_to_rebind_account_with_different_openid(wechat_client):
     second = wechat_client.post(
         "/api/auth/wechat/link-with-password",
         json={
-            "wechat_login_ticket": setup_b,
+            "wechat_login_ticket": setup_b, "accepted_terms": True,
             "email": "dan@example.com",
             "password": "pw-dan-12345",
         },
@@ -484,7 +487,7 @@ def test_unlink_returns_was_bound_true_and_clears_openid(wechat_client):
     admin_ticket = _get_ticket(wechat_client, "openid-unlink-A")
     wechat_client.post(
         "/api/auth/wechat/register",
-        json={"wechat_login_ticket": admin_ticket, "invitation_code": ""},
+        json={"wechat_login_ticket": admin_ticket, "accepted_terms": True, "invitation_code": ""},
     )
     token = wechat_client.post(
         "/api/auth/wechat/login", json={"js_code": "c-unlink-A"}
@@ -512,7 +515,7 @@ def test_unlink_idempotent_when_no_binding(wechat_client):
     admin_ticket = _get_ticket(wechat_client, "openid-unlink-B")
     wechat_client.post(
         "/api/auth/wechat/register",
-        json={"wechat_login_ticket": admin_ticket, "invitation_code": ""},
+        json={"wechat_login_ticket": admin_ticket, "accepted_terms": True, "invitation_code": ""},
     )
     token = wechat_client.post(
         "/api/auth/wechat/login", json={"js_code": "c-unlink-B"}
@@ -531,3 +534,44 @@ def test_unlink_idempotent_when_no_binding(wechat_client):
 def test_unlink_requires_authentication(wechat_client):
     no_auth = wechat_client.post("/api/auth/wechat/unlink")
     assert no_auth.status_code == 401
+
+# ---------------------------------------------------------------------------
+# EULA / Terms acceptance gate on web /api/auth/register
+# ---------------------------------------------------------------------------
+
+
+def test_register_requires_terms_acceptance(wechat_client):
+    r = wechat_client.post(
+        "/api/auth/register",
+        json={"email": "noterm@example.com", "password": "pw-123456", "invitation_code": ""},
+    )
+    assert r.status_code == 400, r.text
+    assert r.json()["detail"] == "REGISTER_TERMS_NOT_ACCEPTED"
+
+
+def test_register_records_terms_version(wechat_client):
+    r = wechat_client.post(
+        "/api/auth/register",
+        json={"email": "yesterm@example.com", "password": "pw-123456", "accepted_terms": True},
+    )
+    assert r.status_code == 200, r.text
+    from api.legal import TERMS_VERSION
+    from db.models import User
+    from db.session import SessionLocal
+    db = SessionLocal()
+    try:
+        u = db.query(User).filter(User.email == "yesterm@example.com").first()
+        assert u is not None and u.terms_version == TERMS_VERSION
+        assert u.terms_accepted_at is not None
+    finally:
+        db.close()
+
+def test_wechat_register_requires_terms_acceptance(wechat_client):
+    ticket = _get_ticket(wechat_client, "openid-noterm")
+    r = wechat_client.post(
+        "/api/auth/wechat/register",
+        json={"wechat_login_ticket": ticket, "invitation_code": ""},
+    )
+    assert r.status_code == 400, r.text
+    assert r.json()["detail"] == "REGISTER_TERMS_NOT_ACCEPTED"
+

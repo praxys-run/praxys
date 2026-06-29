@@ -124,6 +124,8 @@ def init_db():
         ("user_config", "display_name", "VARCHAR(100) DEFAULT ''"),
         ("user_config", "language", "VARCHAR(10) DEFAULT NULL"),
         ("users", "is_demo", "BOOLEAN NOT NULL DEFAULT 0"),
+        ("users", "terms_version", "VARCHAR(20) DEFAULT NULL"),
+        ("users", "terms_accepted_at", "DATETIME DEFAULT NULL"),
         ("users", "demo_of", "VARCHAR(36) DEFAULT NULL"),
         ("users", "wechat_openid", "VARCHAR(64) DEFAULT NULL"),
         ("users", "wechat_unionid", "VARCHAR(64) DEFAULT NULL"),

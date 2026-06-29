@@ -936,3 +936,14 @@ html[lang="zh"] .login-shell {
   }
 }
 
+
+/* EULA / Terms acceptance checkbox on the register form. */
+.login-terms {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--lg-muted, var(--muted-foreground));
+}
+.login-terms input { margin-top: 0.15rem; flex: 0 0 auto; }
