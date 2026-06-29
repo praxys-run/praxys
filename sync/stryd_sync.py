@@ -350,10 +350,22 @@ def fetch_training_plan_api(
         if item.get("deleted"):
             continue
 
-        # Parse date from ISO format: "2026-04-04T02:00:00Z"
+        # Parse date from ISO format: "2026-04-04T02:00:00Z". Stryd schedules a
+        # workout at local midnight but serializes it as UTC, so truncating the
+        # date in UTC drops a calendar day for users east of UTC (a Tue workout
+        # at 00:00 +08:00 is "Mon 16:00Z" -> wrongly shows as Monday). Convert to
+        # the workout's local timezone first - matching activity parsing above -
+        # so the calendar day matches what the user scheduled.
         date_str = item.get("date", "")
+        tz_name = item.get("time_zone", "")
         try:
-            workout_date = datetime.fromisoformat(date_str.replace("Z", "+00:00")).strftime("%Y-%m-%d")
+            from zoneinfo import ZoneInfo
+            local_tz = ZoneInfo(tz_name) if tz_name else None
+        except (ImportError, KeyError):
+            local_tz = None
+        try:
+            workout_dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+            workout_date = workout_dt.astimezone(local_tz).strftime("%Y-%m-%d")
         except (ValueError, AttributeError):
             continue
 
