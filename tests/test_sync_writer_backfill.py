@@ -431,3 +431,34 @@ def test_write_training_plan_dedupes_stale_duplicate(db_with_user):
     rows = db.query(TrainingPlan).filter(TrainingPlan.external_id == "dup-1").all()
     assert len(rows) == 1
     assert rows[0].date == today + timedelta(days=1)
+
+
+def test_write_training_plan_move_displaces_different_id_at_target(db_with_user):
+    """Moving a workout onto a slot held by a different external_id must
+    displace the stale row, not trip the unique constraint and abort sync."""
+    from db import sync_writer
+    from db.models import TrainingPlan
+
+    db, user_id = db_with_user
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+    db.add(TrainingPlan(user_id=user_id, date=today, source="stryd",
+                        workout_type="time trial", external_id="keep-1"))
+    db.add(TrainingPlan(user_id=user_id, date=tomorrow, source="stryd",
+                        workout_type="time trial", external_id="stale-2"))
+    db.commit()
+
+    # Stryd now reports keep-1 on tomorrow (same type as stale-2 already there).
+    n = sync_writer.write_training_plan(user_id, [{
+        "date": tomorrow.isoformat(), "workout_type": "time trial",
+        "external_id": "keep-1",
+    }], "stryd", db)
+    db.commit()
+
+    rows = db.query(TrainingPlan).filter(
+        TrainingPlan.user_id == user_id, TrainingPlan.source == "stryd",
+    ).all()
+    assert n > 0
+    assert len(rows) == 1
+    assert rows[0].external_id == "keep-1"
+    assert rows[0].date == tomorrow

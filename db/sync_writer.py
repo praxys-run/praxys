@@ -636,6 +636,22 @@ def write_training_plan(user_id: str, rows: list[dict], source: str,
             changed = False
             # Stryd is source of truth for platform rows: move the date and
             # refresh fields so reschedules and the tz date fix propagate.
+            # Before moving, clear any *other* row already holding the target
+            # (date, type) slot — a stale Stryd entry the calendar replaced —
+            # so the move can't trip the unique constraint and roll back the
+            # whole sync. Flush the delete before the survivor's UPDATE.
+            if existing.date != d or (wt and existing.workout_type != wt):
+                conflict = db.query(TrainingPlan).filter(
+                    TrainingPlan.user_id == user_id,
+                    TrainingPlan.date == d,
+                    TrainingPlan.source == source,
+                    TrainingPlan.workout_type == wt,
+                    TrainingPlan.id != existing.id,
+                ).first()
+                if conflict is not None:
+                    db.delete(conflict)
+                    db.flush()
+                    count += 1
             if existing.date != d:
                 existing.date = d
                 changed = True
