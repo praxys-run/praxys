@@ -492,3 +492,98 @@ def test_commit_failure_after_publish_recovers_issue_created(db_with_users, monk
     fresh = db.query(Feedback).filter(Feedback.id == fid).first()
     assert fresh.status == "issue_created"
     assert fresh.github_issue_number == 101
+
+# ---------------------------------------------------------------------------
+# GitHub App auth (no-rotation alternative to the PAT)
+# ---------------------------------------------------------------------------
+
+
+def _rsa_pem():
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    return key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    ).decode()
+
+
+class _FakeResp:
+    def __init__(self, status, payload):
+        self.status_code = status
+        self._p = payload
+        self.reason_phrase = "OK"
+
+    def json(self):
+        return self._p
+
+
+def test_github_app_mints_and_caches_installation_token(monkeypatch):
+    from api import github_issues as gi
+
+    monkeypatch.delenv("PRAXYS_GITHUB_TOKEN", raising=False)
+    monkeypatch.setenv("PRAXYS_FEEDBACK_GITHUB_REPO", "owner/repo")
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_ID", "123")
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_INSTALLATION_ID", "456")
+    # single-line PEM with literal \n — the App Service storage shape
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_PRIVATE_KEY", _rsa_pem().replace("\n", "\\n"))
+    gi._install_token.update({"token": None, "exp": 0.0})
+
+    calls = {"mint": 0, "issue": 0}
+
+    def fake_post(url, **kw):
+        if url.endswith("/access_tokens"):
+            calls["mint"] += 1
+            assert kw["headers"]["Authorization"].startswith("Bearer ")
+            return _FakeResp(201, {"token": "ghs_tok", "expires_at": "2999-01-01T00:00:00Z"})
+        calls["issue"] += 1
+        return _FakeResp(201, {"number": 9, "html_url": "https://x/9"})
+
+    monkeypatch.setattr(gi.httpx, "post", fake_post)
+
+    assert gi.is_configured() is True
+    assert gi._bearer_token() == "ghs_tok"
+    gi._bearer_token()  # cached — must not re-mint
+    assert calls["mint"] == 1
+    assert gi.create_issue(title="t", body="b", labels=["bug"]) == {"number": 9, "url": "https://x/9"}
+
+
+def test_github_app_preferred_over_pat(monkeypatch):
+    from api import github_issues as gi
+
+    monkeypatch.setenv("PRAXYS_GITHUB_TOKEN", "ghp_pat")
+    monkeypatch.setenv("PRAXYS_FEEDBACK_GITHUB_REPO", "owner/repo")
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_ID", "1")
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_INSTALLATION_ID", "2")
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_PRIVATE_KEY", _rsa_pem())
+    gi._install_token.update({"token": None, "exp": 0.0})
+    monkeypatch.setattr(
+        gi.httpx, "post",
+        lambda url, **kw: _FakeResp(201, {"token": "ghs_app", "expires_at": "2999-01-01T00:00:00Z"}),
+    )
+    assert gi._bearer_token() == "ghs_app"
+
+
+def test_pat_used_when_no_app(monkeypatch):
+    from api import github_issues as gi
+
+    for v in ("PRAXYS_GITHUB_APP_ID", "PRAXYS_GITHUB_APP_INSTALLATION_ID", "PRAXYS_GITHUB_APP_PRIVATE_KEY"):
+        monkeypatch.delenv(v, raising=False)
+    monkeypatch.setenv("PRAXYS_GITHUB_TOKEN", "ghp_only")
+    monkeypatch.setenv("PRAXYS_FEEDBACK_GITHUB_REPO", "owner/repo")
+    assert gi.is_configured() is True
+    assert gi._bearer_token() == "ghp_only"
+
+
+def test_not_configured_without_creds(monkeypatch):
+    from api import github_issues as gi
+
+    for v in (
+        "PRAXYS_GITHUB_TOKEN", "PRAXYS_GITHUB_APP_ID",
+        "PRAXYS_GITHUB_APP_INSTALLATION_ID", "PRAXYS_GITHUB_APP_PRIVATE_KEY",
+    ):
+        monkeypatch.delenv(v, raising=False)
+    monkeypatch.setenv("PRAXYS_FEEDBACK_GITHUB_REPO", "owner/repo")
+    assert gi.is_configured() is False

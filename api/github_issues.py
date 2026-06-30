@@ -7,8 +7,15 @@ avoid pulling a new dependency into ``requirements.txt`` for a single POST.
 Configuration (all optional — when unset, issue creation is skipped and the
 feedback row stays at ``triaged`` for manual admin promotion):
 
-- ``PRAXYS_GITHUB_TOKEN`` — a fine-grained PAT (or GitHub App installation
-  token) with ``issues:write`` on the target repo. Treated as a secret.
+Auth — two options; the **GitHub App is preferred** because it needs no rotation:
+- **GitHub App:** ``PRAXYS_GITHUB_APP_ID`` + ``PRAXYS_GITHUB_APP_INSTALLATION_ID``
+  + ``PRAXYS_GITHUB_APP_PRIVATE_KEY`` (PEM). We sign a short-lived JWT, exchange
+  it for a ~1h installation token, and cache it — so there is nothing to rotate.
+  The app needs *Issues: write* on the target repo.
+- **PAT (fallback):** ``PRAXYS_GITHUB_TOKEN`` — a fine-grained PAT with
+  *Issues: write*. Long-lived, so it expires and must be rotated
+  (see ``docs/ops/rotate-github-pat.md``).
+
 - ``PRAXYS_FEEDBACK_GITHUB_REPO`` — ``owner/repo`` of the triage repo. Because
   the main repo is public, operators are encouraged to point this at a
   PRIVATE triage repo so even scrubbed reports aren't world-readable.
@@ -39,6 +46,7 @@ _TIMEOUT_S = 15.0
 
 
 def _token() -> str | None:
+    """Static PAT (fallback path when no GitHub App is configured)."""
     return os.environ.get("PRAXYS_GITHUB_TOKEN") or None
 
 
@@ -46,9 +54,116 @@ def _repo() -> str | None:
     return os.environ.get("PRAXYS_FEEDBACK_GITHUB_REPO") or None
 
 
+# --- GitHub App auth (preferred — no token to rotate) ----------------------
+
+def _app_id() -> str | None:
+    return os.environ.get("PRAXYS_GITHUB_APP_ID") or None
+
+
+def _app_installation_id() -> str | None:
+    return os.environ.get("PRAXYS_GITHUB_APP_INSTALLATION_ID") or None
+
+
+def _app_private_key() -> str | None:
+    raw = os.environ.get("PRAXYS_GITHUB_APP_PRIVATE_KEY") or None
+    # App Service settings commonly hold the PEM single-line with literal "\n";
+    # restore real newlines. A no-op on PEMs that already have newlines.
+    return raw.replace("\\n", "\n") if raw else None
+
+
+def _app_configured() -> bool:
+    return bool(_app_id() and _app_installation_id() and _app_private_key())
+
+
+# Cache the minted installation token until shortly before it expires (~1h
+# lifetime) so we don't re-mint on every issue. Cleared by tests.
+_install_token: dict = {"token": None, "exp": 0.0}
+
+
+def _app_jwt() -> str | None:
+    """Short-lived RS256 JWT authenticating AS the GitHub App."""
+    try:
+        import jwt  # PyJWT — already a dependency (see api/auth.py)
+    except ImportError:  # pragma: no cover
+        logger.warning("PyJWT missing — GitHub App auth unavailable")
+        return None
+    import time
+
+    app_id, key = _app_id(), _app_private_key()
+    if not app_id or not key:
+        return None
+    now = int(time.time())
+    # iat backdated 60s for clock skew; exp must be <= 10 min per GitHub.
+    payload = {"iat": now - 60, "exp": now + 9 * 60, "iss": app_id}
+    try:
+        return jwt.encode(payload, key, algorithm="RS256")
+    except Exception:
+        logger.warning("GitHub App JWT signing failed — check the private key", exc_info=True)
+        return None
+
+
+def _mint_installation_token() -> str | None:
+    """Exchange the app JWT for a ~1h installation access token, and cache it."""
+    import time
+    from datetime import datetime
+
+    app_jwt = _app_jwt()
+    installation_id = _app_installation_id()
+    if not app_jwt or not installation_id:
+        return None
+    url = f"{_API_ROOT}/app/installations/{installation_id}/access_tokens"
+    headers = {
+        "Authorization": f"Bearer {app_jwt}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": _API_VERSION,
+        "User-Agent": "praxys-feedback",
+    }
+    try:
+        resp = httpx.post(url, headers=headers, timeout=_TIMEOUT_S)
+    except httpx.HTTPError as exc:
+        logger.warning("GitHub App token mint failed (network): %s", exc)
+        return None
+    if resp.status_code != 201:
+        logger.warning(
+            "GitHub App token mint failed: HTTP %s (%s)",
+            resp.status_code, resp.reason_phrase,
+        )
+        return None
+    token = (resp.json() or {}).get("token")
+    if not token:
+        return None
+    # Refresh 5 min before the stated expiry; fall back to ~50 min.
+    exp_epoch = time.time() + 3000
+    try:
+        exp_str = (resp.json() or {}).get("expires_at")
+        if exp_str:
+            exp_epoch = datetime.fromisoformat(exp_str.replace("Z", "+00:00")).timestamp() - 300
+    except Exception:
+        pass
+    _install_token["token"] = token
+    _install_token["exp"] = exp_epoch
+    return token
+
+
+def _bearer_token() -> str | None:
+    """Resolve the GitHub API bearer token.
+
+    Prefers a cached/auto-minted GitHub App installation token (no rotation);
+    falls back to the static PAT ``PRAXYS_GITHUB_TOKEN``.
+    """
+    if _app_configured():
+        import time
+
+        cached = _install_token["token"]
+        if cached and _install_token["exp"] > time.time():
+            return cached
+        return _mint_installation_token()
+    return _token()
+
+
 def is_configured() -> bool:
-    """True iff both a token and a target repo are set."""
-    return bool(_token() and _repo())
+    """True iff a target repo and some credential (GitHub App or PAT) are set."""
+    return bool(_repo() and (_app_configured() or _token()))
 
 
 def _csv_env(name: str) -> list[str]:
@@ -80,10 +195,10 @@ def create_issue(
     the API call fails for any reason. Callers must treat ``None`` as
     "not published" and persist a retryable state.
     """
-    token, repo = _token(), _repo()
+    token, repo = _bearer_token(), _repo()
     if not token or not repo:
-        logger.info("GitHub issue creation skipped — PRAXYS_GITHUB_TOKEN / "
-                    "PRAXYS_FEEDBACK_GITHUB_REPO not configured")
+        logger.info("GitHub issue creation skipped — no GitHub App / PAT "
+                    "credential, or PRAXYS_FEEDBACK_GITHUB_REPO unset")
         return None
 
     payload: dict = {"title": title[:256], "body": body}

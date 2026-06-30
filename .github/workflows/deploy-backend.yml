@@ -72,6 +72,9 @@ jobs:
           # Optional: in-app feedback → GitHub issue auto-filing. Safe to leave
           # unset — the feature stays dormant (feedback is still captured for
           # admin review). NOT added to the required-settings check below.
+          PRAXYS_GITHUB_APP_ID: ${{ vars.PRAXYS_GITHUB_APP_ID }}
+          PRAXYS_GITHUB_APP_INSTALLATION_ID: ${{ vars.PRAXYS_GITHUB_APP_INSTALLATION_ID }}
+          PRAXYS_GITHUB_APP_PRIVATE_KEY: ${{ secrets.PRAXYS_GITHUB_APP_PRIVATE_KEY }}
           PRAXYS_GITHUB_TOKEN: ${{ secrets.PRAXYS_GITHUB_TOKEN }}
           PRAXYS_FEEDBACK_GITHUB_REPO: ${{ vars.PRAXYS_FEEDBACK_GITHUB_REPO }}
           PRAXYS_FEEDBACK_GITHUB_LABELS: ${{ vars.PRAXYS_FEEDBACK_GITHUB_LABELS }}
@@ -97,6 +100,9 @@ jobs:
               PRAXYS_JWT_SECRET="${PRAXYS_JWT_SECRET}" \
               WECHAT_MINIAPP_APPID="${WECHAT_MINIAPP_APPID}" \
               WECHAT_MINIAPP_SECRET="${WECHAT_MINIAPP_SECRET}" \
+              PRAXYS_GITHUB_APP_ID="${PRAXYS_GITHUB_APP_ID}" \
+              PRAXYS_GITHUB_APP_INSTALLATION_ID="${PRAXYS_GITHUB_APP_INSTALLATION_ID}" \
+              PRAXYS_GITHUB_APP_PRIVATE_KEY="${PRAXYS_GITHUB_APP_PRIVATE_KEY}" \
               PRAXYS_GITHUB_TOKEN="${PRAXYS_GITHUB_TOKEN}" \
               PRAXYS_FEEDBACK_GITHUB_REPO="${PRAXYS_FEEDBACK_GITHUB_REPO}" \
               PRAXYS_FEEDBACK_GITHUB_LABELS="${PRAXYS_FEEDBACK_GITHUB_LABELS}" \
