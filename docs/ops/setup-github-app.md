@@ -1,17 +1,18 @@
 # Set up the feedback GitHub App (no-rotation issue filing)
 
-> **Summary:** Configure a GitHub App so the backend mints short-lived
-> installation tokens on demand — the rotation-free alternative to the feedback
-> PAT.
-> **Use when:** Standing up feedback → GitHub issue filing for the first time, or
-> migrating off the PAT to stop dealing with [rotation](./rotate-github-pat.md).
+> **Summary:** Configure the GitHub App that lets the backend file feedback as
+> GitHub issues. It mints short-lived installation tokens on demand, so there is
+> no token to rotate.
+> **Use when:** Standing up feedback → GitHub issue filing. The App is the only
+> auth path; without it, feedback is still captured for admin-only manual
+> promotion.
 
-## Why an App instead of a PAT
+## Why a GitHub App
 
-A fine-grained PAT is long-lived and expires (manual rotation). A **GitHub App**
-issues ~1h *installation tokens* that the backend mints + caches automatically
-(`api/github_issues.py`), so there is **nothing to rotate**. When both are
-configured the App is preferred; the PAT is the fallback.
+A **GitHub App** issues ~1h *installation tokens* that the backend mints + caches
+automatically (`api/github_issues.py`), so there is **nothing to rotate** — unlike
+a long-lived personal access token. This is the sole auth path for feedback issue
+filing.
 
 ## Steps
 
@@ -71,14 +72,14 @@ by the App (e.g. `praxys-feedback[bot]`), not a personal account.
 
 ## Rollback / Recovery
 
-Remove the three App settings (or just unset them) and the backend falls back to
-the PAT, or to admin-only manual promotion if no PAT is set. The App can be
-uninstalled from the repo at any time without affecting the rest of the app.
+Unset the three App settings and feedback auto-filing goes dormant — reports are
+still captured for **admin-only manual promotion** (Admin → User Feedback). The
+App can be uninstalled from the repo at any time without affecting the rest of
+the app.
 
 ## Related
 
-- [rotate-github-pat.md](./rotate-github-pat.md) (the thing this lets you stop doing)
-- [config-and-secrets.md](./config-and-secrets.md) · `api/github_issues.py`
+- [config-and-secrets.md](./config-and-secrets.md) · [admin-tasks.md](./admin-tasks.md) · `api/github_issues.py`
 - Feedback feature: dddtc2005/praxys#328
 
 ---

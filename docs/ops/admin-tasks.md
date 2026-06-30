@@ -46,8 +46,10 @@ In-app bug reports / feature requests land in **Admin → User Feedback**
 - **Retry** — re-run triage.
 - **Reject** — discard.
 
-Auto-filing + the sensitivity gate are configured via `PRAXYS_GITHUB_TOKEN` /
-`PRAXYS_FEEDBACK_GITHUB_*` (see [config-and-secrets.md](./config-and-secrets.md)).
+Auto-filing + the sensitivity gate are configured via the GitHub App settings
+(`PRAXYS_GITHUB_APP_*` / `PRAXYS_FEEDBACK_GITHUB_*`; see
+[config-and-secrets.md](./config-and-secrets.md) and
+[setup-github-app.md](./setup-github-app.md)).
 To get emailed when something needs review, wire the alert in
 [monitoring-and-alerts.md](./monitoring-and-alerts.md).
 
