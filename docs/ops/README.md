@@ -20,6 +20,12 @@ diagnose X". It complements — and links out to — the setup-oriented
 | [monitoring-and-alerts.md](./monitoring-and-alerts.md) | You want to query a telemetry signal or wire an email/Teams alert. |
 | [admin-tasks.md](./admin-tasks.md) | You're doing an in-app admin task: invitations, roles, demo accounts, announcements, feedback triage. |
 | [setup-github-app.md](./setup-github-app.md) | Setting up feedback → GitHub issue filing (GitHub App auth — no token to rotate). |
+| [incident-response.md](./incident-response.md) | The app is down / erroring and you need first-response triage. |
+| [sync-troubleshooting.md](./sync-troubleshooting.md) | A user's data stopped updating or a connection shows `auth_required`. |
+| [backup-and-restore.md](./backup-and-restore.md) | You need to back up or restore the database. |
+| [secret-rotation.md](./secret-rotation.md) | Rotating a secret (JWT, WeChat, feedback App key, Key Vault key). |
+| [cost-and-scaling.md](./cost-and-scaling.md) | Setting cost guardrails or scaling the backend. |
+| [disaster-recovery.md](./disaster-recovery.md) | Rebuilding the whole deployment from scratch + restoring data. |
 
 ## Environment at a glance
 
@@ -43,7 +49,9 @@ Full detail: [environment.md](./environment.md).
 
 ## Coverage & roadmap
 
-This is **v1**. Incident response, backup/restore, DR, deep secret-rotation,
-scaling, cost, and sync troubleshooting are tracked in the handbook issue:
-**dddtc2005/praxys#338**. Add new runbooks against [`_TEMPLATE.md`](./_TEMPLATE.md)
-and link them from the index above.
+Incident response, backup/restore, DR, secret rotation, scaling/cost, and sync
+troubleshooting now have runbooks. Remaining open items (on-call/escalation
+definitions, RPO/RTO targets, the Key Vault re-wrap drill, optionally exposing
+runbooks as a `plugins/praxys` skill) are tracked in **dddtc2005/praxys#338** and
+flagged inline as `TODO(@dddtc2005)`. Add new runbooks against
+[`_TEMPLATE.md`](./_TEMPLATE.md) and link them from the index above.
