@@ -22,6 +22,7 @@ returns. The submit endpoint already returned 200 to the user.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -35,6 +36,31 @@ _KIND_LABEL = {"bug": "bug", "feature": "enhancement", "other": "feedback"}
 _VALID_KINDS = set(_KIND_LABEL)
 
 _TRIAGE_MODEL = llm.INSIGHT_MODEL
+
+
+def _autofile_without_ai() -> bool:
+    """Whether to auto-file to the public tracker when the LLM gate is absent.
+
+    Off by default: with no AI to judge residual sensitivity, holding for an
+    admin is the safe choice for a public repo. An operator who accepts the
+    scrub-only risk can set PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI=true.
+    """
+    return (os.environ.get("PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI", "") or "").lower() in ("1", "true", "yes")
+
+
+def _gate_blocks_publish(*, used_llm: bool, llm_flag: bool, body: str) -> bool:
+    """Decide whether to withhold a report from auto-opening a public issue.
+
+    Blocks when: (a) the scrubber removed a key/token — a strong signal the
+    user pasted a secret; (b) the LLM judged the report still sensitive; or
+    (c) there is no LLM verdict and the operator hasn't opted into scrub-only
+    auto-filing. Blocked rows are parked as ``needs_review`` for an admin.
+    """
+    if "[redacted-key]" in body or "[redacted-token]" in body:
+        return True
+    if used_llm:
+        return bool(llm_flag)
+    return not _autofile_without_ai()
 
 
 def _system_prompt() -> str:
@@ -51,7 +77,12 @@ def _system_prompt() -> str:
         "for features, and an 'Environment' bullet list from the provided context.\n"
         "- Be factual; do not invent details the user didn't provide.\n"
         "- Classify the report as exactly one kind: bug, feature, or other.\n"
-        "Respond with a JSON object: {\"kind\": str, \"title\": str, \"body\": str}."
+        "- Judge whether the report still contains personal, health, account, or "
+        "credential information that should NOT appear on a public issue tracker, "
+        "even after scrubbing. Set contains_sensitive accordingly; when unsure, "
+        "prefer true.\n"
+        "Respond with a JSON object: "
+        "{\"kind\": str, \"title\": str, \"body\": str, \"contains_sensitive\": bool}."
     )
 
 
@@ -120,6 +151,7 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
         clean_context = feedback_scrub.scrub_context(row.context_json)
 
         used_llm = False
+        llm_flag = False
         client = llm.get_client()
         title = body = None
         if client is not None:
@@ -137,6 +169,8 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
                 llm_kind = str(result.get("kind", "")).lower()
                 if llm_kind in _VALID_KINDS:
                     kind = llm_kind
+                # Missing field → treat as sensitive (fail safe).
+                llm_flag = bool(result.get("contains_sensitive", True))
                 used_llm = True
 
         if title is None or body is None:
@@ -155,7 +189,17 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
         row.ai_body = body
         row.ai_labels = labels
 
-        if github_issues.is_configured():
+        if not github_issues.is_configured():
+            # No GitHub configured — scrubbed + classified, awaiting manual
+            # promotion from the Admin page.
+            row.status = "triaged"
+            row.error = None
+        elif _gate_blocks_publish(used_llm=used_llm, llm_flag=llm_flag, body=body):
+            # The report may still carry sensitive content — don't auto-open a
+            # public issue. Park it for an admin to review / approve.
+            row.status = "needs_review"
+            row.error = None
+        else:
             issue = github_issues.create_issue(title=title, body=body, labels=labels)
             if issue and issue.get("number"):
                 row.github_issue_number = issue["number"]
@@ -165,11 +209,6 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
             else:
                 row.status = "failed"
                 row.error = "github_publish_failed"
-        else:
-            # No GitHub configured — scrubbed + classified, awaiting manual
-            # promotion from the Admin page.
-            row.status = "triaged"
-            row.error = None
 
         db.commit()
         telemetry.record_feedback(kind=kind, status=row.status)

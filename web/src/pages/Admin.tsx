@@ -143,7 +143,7 @@ export default function Admin() {
     if (res.ok) setAnnouncements((prev) => prev.filter((a) => a.id !== id));
   };
 
-  const handleFeedbackAction = async (id: number, action: 'retry' | 'reject') => {
+  const handleFeedbackAction = async (id: number, action: 'retry' | 'reject' | 'approve') => {
     setFeedbackBusy(id);
     const res = await fetch(`${API_BASE}/api/admin/feedback/${id}`, {
       method: 'PATCH',
@@ -154,6 +154,10 @@ export default function Admin() {
     if (res.ok) {
       const updated = await res.json();
       setFeedback((prev) => prev.map((f) => (f.id === id ? updated : f)));
+    } else {
+      // Approve/retry can fail server-side (e.g. GitHub publish error marks the
+      // row failed). Resync so the table reflects the persisted state.
+      fetchData();
     }
   };
 
@@ -709,7 +713,18 @@ export default function Admin() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
-                        {f.status !== 'issue_created' && (
+                        {f.status === 'needs_review' && (
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            disabled={feedbackBusy === f.id}
+                            onClick={() => handleFeedbackAction(f.id, 'approve')}
+                          >
+                            <Check className="h-3 w-3" />
+                            <Trans>Approve & file</Trans>
+                          </Button>
+                        )}
+                        {f.status !== 'issue_created' && f.status !== 'needs_review' && (
                           <Button
                             size="xs"
                             variant="outline"

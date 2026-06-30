@@ -223,6 +223,144 @@ def test_triage_is_idempotent_on_published_row(db_with_users):
 
 
 # ---------------------------------------------------------------------------
+# Sensitivity gate (same public repo + AI gate)
+# ---------------------------------------------------------------------------
+
+
+def _stub_github(monkeypatch, calls):
+    from api import feedback_triage as ft
+
+    monkeypatch.setattr(ft.github_issues, "is_configured", lambda: True)
+
+    def _create(**kwargs):
+        calls.append(kwargs)
+        return {"number": 101, "url": "https://github.com/x/y/issues/101"}
+
+    monkeypatch.setattr(ft.github_issues, "create_issue", _create)
+
+
+def _stub_llm(monkeypatch, *, sensitive):
+    from api import feedback_triage as ft
+
+    monkeypatch.setattr(ft.llm, "get_client", lambda: object())
+    monkeypatch.setattr(
+        ft.llm,
+        "chat_json",
+        lambda *a, **k: {
+            "kind": "bug",
+            "title": "Charts crash on Training",
+            "body": "The training charts fail to render.",
+            "contains_sensitive": sensitive,
+        },
+    )
+
+
+def _new_row(db, user_id, message, kind="bug"):
+    from db.models import Feedback
+
+    row = Feedback(user_id=user_id, kind=kind, message=message, status="new")
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def test_gate_holds_when_no_ai_and_public_repo(db_with_users, monkeypatch):
+    """GitHub configured but no AI to judge sensitivity → park for admin."""
+    from api.feedback_triage import triage_and_publish
+
+    db, _, _, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    row = _new_row(db, user_id, "The goal page is confusing.")
+
+    result = triage_and_publish(row.id, _session=db)
+    assert result["status"] == "needs_review"
+    assert calls == []  # nothing published
+
+
+def test_gate_autofiles_without_ai_when_opted_in(db_with_users, monkeypatch):
+    """Operator opts into scrub-only auto-filing → clean report is published."""
+    from api.feedback_triage import triage_and_publish
+
+    db, _, _, user_id = db_with_users
+    monkeypatch.setenv("PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI", "true")
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    row = _new_row(db, user_id, "The goal page is confusing.")
+
+    result = triage_and_publish(row.id, _session=db)
+    assert result["status"] == "issue_created"
+    assert len(calls) == 1
+
+
+def test_gate_holds_when_secret_present_even_if_opted_in(db_with_users, monkeypatch):
+    """A scrubbed key/token always parks the row, overriding the opt-in."""
+    from api.feedback_triage import triage_and_publish
+
+    db, _, _, user_id = db_with_users
+    monkeypatch.setenv("PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI", "true")
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    row = _new_row(db, user_id, "My key sk-proj-abcdEFGH1234567890ijklMNOP_qrst leaked")
+
+    result = triage_and_publish(row.id, _session=db)
+    assert result["status"] == "needs_review"
+    assert calls == []
+
+
+def test_gate_holds_when_llm_flags_sensitive(db_with_users, monkeypatch):
+    from api.feedback_triage import triage_and_publish
+
+    db, _, _, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    _stub_llm(monkeypatch, sensitive=True)
+    row = _new_row(db, user_id, "Something about my health data")
+
+    result = triage_and_publish(row.id, _session=db)
+    assert result["status"] == "needs_review"
+    assert result["used_llm"] is True
+    assert calls == []
+
+
+def test_gate_publishes_when_llm_says_clean(db_with_users, monkeypatch):
+    from api.feedback_triage import triage_and_publish
+
+    db, _, _, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    _stub_llm(monkeypatch, sensitive=False)
+    row = _new_row(db, user_id, "Charts fail to load on the training page")
+
+    result = triage_and_publish(row.id, _session=db)
+    assert result["status"] == "issue_created"
+    assert len(calls) == 1
+    db.refresh(row)
+    assert row.github_issue_number == 101
+
+
+def test_admin_approve_publishes_parked_row(db_with_users, monkeypatch):
+    from api.routes.feedback import update_feedback, FeedbackAction
+    from api.feedback_triage import triage_and_publish
+
+    db, _, admin_id, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    row = _new_row(db, user_id, "Parked report awaiting review")
+
+    # No AI → parked.
+    triage_and_publish(row.id, _session=db)
+    db.refresh(row)
+    assert row.status == "needs_review"
+
+    out = update_feedback(row.id, FeedbackAction(action="approve"), BackgroundTasks(), user_id=admin_id, db=db)
+    assert out["status"] == "issue_created"
+    assert out["github_issue_number"] == 101
+    assert len(calls) == 1
+
+
+# ---------------------------------------------------------------------------
 # Admin
 # ---------------------------------------------------------------------------
 

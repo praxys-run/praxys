@@ -604,7 +604,7 @@ export interface SystemAnnouncement {
 
 export type FeedbackKind = 'bug' | 'feature' | 'other';
 
-export type FeedbackStatus = 'new' | 'triaged' | 'issue_created' | 'failed' | 'rejected';
+export type FeedbackStatus = 'new' | 'triaged' | 'needs_review' | 'issue_created' | 'failed' | 'rejected';
 
 /** Client → POST /api/feedback. `context` is auto-captured diagnostics
  * (page, app version, user agent, viewport, locale); the server scrubs it to

@@ -138,7 +138,7 @@ def list_feedback(
 class FeedbackAction(BaseModel):
     """Admin action on a feedback row."""
 
-    action: Literal["retry", "reject"]
+    action: Literal["retry", "reject", "approve"]
 
 
 @router.patch("/admin/feedback/{feedback_id}")
@@ -159,6 +159,34 @@ def update_feedback(
 
     if payload.action == "reject":
         row.status = "rejected"
+        row.error = None
+        db.commit()
+        return _serialize_admin(row)
+
+    if payload.action == "approve":
+        # Human override of the sensitivity gate: publish the already-scrubbed,
+        # admin-reviewed title/body to GitHub. Used to release a needs_review row.
+        if row.status == "issue_created":
+            raise HTTPException(409, "Already published to GitHub")
+        if not row.ai_title or not row.ai_body:
+            raise HTTPException(409, "Nothing to publish yet — run triage first")
+        from api import github_issues
+
+        if not github_issues.is_configured():
+            raise HTTPException(400, "GitHub is not configured")
+        issue = github_issues.create_issue(
+            title=row.ai_title,
+            body=row.ai_body,
+            labels=list(row.ai_labels or []),
+        )
+        if not issue or not issue.get("number"):
+            row.status = "failed"
+            row.error = "github_publish_failed"
+            db.commit()
+            raise HTTPException(502, "GitHub publish failed")
+        row.github_issue_number = issue["number"]
+        row.github_issue_url = issue.get("url")
+        row.status = "issue_created"
         row.error = None
         db.commit()
         return _serialize_admin(row)
