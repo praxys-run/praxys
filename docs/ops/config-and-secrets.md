@@ -77,7 +77,7 @@ to boot without a JWT secret.
 | `WECHAT_MINIAPP_SECRET` | Rotate in mp.weixin.qq.com, update GitHub secret, re-deploy | Mini program auth briefly fails until deploy lands. |
 | `WECHAT_MINIAPP_UPLOAD_KEY` | Regenerate in mp.weixin.qq.com, update GitHub secret | Only affects mini program CI publishing. |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Update variable, re-deploy | Telemetry routes to the new resource. |
-| GitHub PAT for feedback (`PRAXYS_GITHUB_TOKEN`) | **Runbook:** [rotate-github-pat.md](./rotate-github-pat.md) (mint PAT → `gh secret set` → redeploy → verify → revoke old) | Issue auto-filing dormant until updated; rest of app unaffected. |
+| GitHub PAT for feedback (`PRAXYS_GITHUB_TOKEN`) | **Runbook:** [rotate-github-pat.md](./rotate-github-pat.md). **Better:** avoid rotation entirely with a GitHub App — [setup-github-app.md](./setup-github-app.md). | Issue auto-filing dormant until updated; rest of app unaffected. |
 | Key Vault RSA key `credential-encryption-key` | ⚠️ **High-impact** — the per-user DEKs were wrapped with the current key; rotating without a re-wrap/re-encrypt migration makes stored platform credentials undecryptable. **TODO(@dddtc2005):** document the re-wrap drill before rotating. | Users would have to reconnect platforms. |
 
 ## Related

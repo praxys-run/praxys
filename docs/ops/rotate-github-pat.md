@@ -93,11 +93,11 @@ then Retry the affected rows.
   coding agent drives steps 2–5 and rotation never silently lapses. Proactive
   expiry needs the expiry date recorded (e.g. a repo variable
   `PRAXYS_GITHUB_TOKEN_EXPIRES`); failure detection (401) needs nothing extra.
-- **Eliminate rotation entirely (best):** migrate from a PAT to a **GitHub App**.
-  The app mints short-lived *installation tokens* automatically, so there is
-  nothing to rotate. Requires a code change in `api/github_issues.py` (mint an
-  installation token on demand from the app id + private key). The app's private
-  key still rotates, but rarely.
+- **Eliminate rotation entirely (best — now supported):** use a **GitHub App**
+  instead of a PAT. The backend mints short-lived *installation tokens*
+  automatically (`api/github_issues.py`), so there is nothing to rotate. Set it
+  up once via [setup-github-app.md](./setup-github-app.md). (Only the app's
+  private key rotates, and rarely.)
 
 ## Related
 
