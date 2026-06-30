@@ -19,6 +19,7 @@ diagnose X". It complements — and links out to — the setup-oriented
 | [deploy.md](./deploy.md) | You're deploying the backend, frontend, or mini program — or need to roll back. |
 | [monitoring-and-alerts.md](./monitoring-and-alerts.md) | You want to query a telemetry signal or wire an email/Teams alert. |
 | [admin-tasks.md](./admin-tasks.md) | You're doing an in-app admin task: invitations, roles, demo accounts, announcements, feedback triage. |
+| [rotate-github-pat.md](./rotate-github-pat.md) | The feedback GitHub PAT is near expiry / expired (issues stop filing), or you're rotating on compromise. |
 
 ## Environment at a glance
 
