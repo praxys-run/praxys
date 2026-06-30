@@ -7,14 +7,11 @@ avoid pulling a new dependency into ``requirements.txt`` for a single POST.
 Configuration (all optional — when unset, issue creation is skipped and the
 feedback row stays at ``triaged`` for manual admin promotion):
 
-Auth — two options; the **GitHub App is preferred** because it needs no rotation:
-- **GitHub App:** ``PRAXYS_GITHUB_APP_ID`` + ``PRAXYS_GITHUB_APP_INSTALLATION_ID``
-  + ``PRAXYS_GITHUB_APP_PRIVATE_KEY`` (PEM). We sign a short-lived JWT, exchange
-  it for a ~1h installation token, and cache it — so there is nothing to rotate.
-  The app needs *Issues: write* on the target repo.
-- **PAT (fallback):** ``PRAXYS_GITHUB_TOKEN`` — a fine-grained PAT with
-  *Issues: write*. Long-lived, so it expires and must be rotated
-  (see ``docs/ops/rotate-github-pat.md``).
+Auth uses a **GitHub App** (no token to rotate): ``PRAXYS_GITHUB_APP_ID`` +
+``PRAXYS_GITHUB_APP_INSTALLATION_ID`` + ``PRAXYS_GITHUB_APP_PRIVATE_KEY`` (PEM).
+We sign a short-lived JWT, exchange it for a ~1h installation token, and cache
+it. The app needs *Issues: write* on the target repo. Setup:
+``docs/ops/setup-github-app.md``.
 
 - ``PRAXYS_FEEDBACK_GITHUB_REPO`` — ``owner/repo`` of the triage repo. Because
   the main repo is public, operators are encouraged to point this at a
@@ -43,11 +40,6 @@ logger = logging.getLogger(__name__)
 _API_ROOT = "https://api.github.com"
 _API_VERSION = "2022-11-28"
 _TIMEOUT_S = 15.0
-
-
-def _token() -> str | None:
-    """Static PAT (fallback path when no GitHub App is configured)."""
-    return os.environ.get("PRAXYS_GITHUB_TOKEN") or None
 
 
 def _repo() -> str | None:
@@ -146,24 +138,24 @@ def _mint_installation_token() -> str | None:
 
 
 def _bearer_token() -> str | None:
-    """Resolve the GitHub API bearer token.
+    """Return a cached/auto-minted GitHub App installation token, or ``None``.
 
-    Prefers a cached/auto-minted GitHub App installation token (no rotation);
-    falls back to the static PAT ``PRAXYS_GITHUB_TOKEN``.
+    No rotation: the token lives ~1h and is re-minted on demand just before it
+    expires. ``None`` when the GitHub App isn't configured.
     """
-    if _app_configured():
-        import time
+    if not _app_configured():
+        return None
+    import time
 
-        cached = _install_token["token"]
-        if cached and _install_token["exp"] > time.time():
-            return cached
-        return _mint_installation_token()
-    return _token()
+    cached = _install_token["token"]
+    if cached and _install_token["exp"] > time.time():
+        return cached
+    return _mint_installation_token()
 
 
 def is_configured() -> bool:
-    """True iff a target repo and some credential (GitHub App or PAT) are set."""
-    return bool(_repo() and (_app_configured() or _token()))
+    """True iff a target repo and the GitHub App credentials are set."""
+    return bool(_repo() and _app_configured())
 
 
 def _csv_env(name: str) -> list[str]:
@@ -197,8 +189,8 @@ def create_issue(
     """
     token, repo = _bearer_token(), _repo()
     if not token or not repo:
-        logger.info("GitHub issue creation skipped — no GitHub App / PAT "
-                    "credential, or PRAXYS_FEEDBACK_GITHUB_REPO unset")
+        logger.info("GitHub issue creation skipped — GitHub App not configured "
+                    "or PRAXYS_FEEDBACK_GITHUB_REPO unset")
         return None
 
     payload: dict = {"title": title[:256], "body": body}

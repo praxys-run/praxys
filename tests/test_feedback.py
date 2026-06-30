@@ -87,7 +87,9 @@ def db_with_users(monkeypatch):
     monkeypatch.setenv("PRAXYS_LOCAL_ENCRYPTION_KEY", "JKkx_5SVHKQDr0HSMrwl0KQHcA0pl5pxsYSLEAQDB4o=")
     # Triage must run in its fully-unconfigured mode: no LLM, no GitHub.
     monkeypatch.delenv("AZURE_AI_ENDPOINT", raising=False)
-    monkeypatch.delenv("PRAXYS_GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("PRAXYS_GITHUB_APP_ID", raising=False)
+    monkeypatch.delenv("PRAXYS_GITHUB_APP_INSTALLATION_ID", raising=False)
+    monkeypatch.delenv("PRAXYS_GITHUB_APP_PRIVATE_KEY", raising=False)
     monkeypatch.delenv("PRAXYS_FEEDBACK_GITHUB_REPO", raising=False)
     monkeypatch.delenv("APPLICATIONINSIGHTS_CONNECTION_STRING", raising=False)
 
@@ -523,7 +525,6 @@ class _FakeResp:
 def test_github_app_mints_and_caches_installation_token(monkeypatch):
     from api import github_issues as gi
 
-    monkeypatch.delenv("PRAXYS_GITHUB_TOKEN", raising=False)
     monkeypatch.setenv("PRAXYS_FEEDBACK_GITHUB_REPO", "owner/repo")
     monkeypatch.setenv("PRAXYS_GITHUB_APP_ID", "123")
     monkeypatch.setenv("PRAXYS_GITHUB_APP_INSTALLATION_ID", "456")
@@ -550,39 +551,12 @@ def test_github_app_mints_and_caches_installation_token(monkeypatch):
     assert gi.create_issue(title="t", body="b", labels=["bug"]) == {"number": 9, "url": "https://x/9"}
 
 
-def test_github_app_preferred_over_pat(monkeypatch):
-    from api import github_issues as gi
-
-    monkeypatch.setenv("PRAXYS_GITHUB_TOKEN", "ghp_pat")
-    monkeypatch.setenv("PRAXYS_FEEDBACK_GITHUB_REPO", "owner/repo")
-    monkeypatch.setenv("PRAXYS_GITHUB_APP_ID", "1")
-    monkeypatch.setenv("PRAXYS_GITHUB_APP_INSTALLATION_ID", "2")
-    monkeypatch.setenv("PRAXYS_GITHUB_APP_PRIVATE_KEY", _rsa_pem())
-    gi._install_token.update({"token": None, "exp": 0.0})
-    monkeypatch.setattr(
-        gi.httpx, "post",
-        lambda url, **kw: _FakeResp(201, {"token": "ghs_app", "expires_at": "2999-01-01T00:00:00Z"}),
-    )
-    assert gi._bearer_token() == "ghs_app"
-
-
-def test_pat_used_when_no_app(monkeypatch):
-    from api import github_issues as gi
-
-    for v in ("PRAXYS_GITHUB_APP_ID", "PRAXYS_GITHUB_APP_INSTALLATION_ID", "PRAXYS_GITHUB_APP_PRIVATE_KEY"):
-        monkeypatch.delenv(v, raising=False)
-    monkeypatch.setenv("PRAXYS_GITHUB_TOKEN", "ghp_only")
-    monkeypatch.setenv("PRAXYS_FEEDBACK_GITHUB_REPO", "owner/repo")
-    assert gi.is_configured() is True
-    assert gi._bearer_token() == "ghp_only"
-
-
 def test_not_configured_without_creds(monkeypatch):
     from api import github_issues as gi
 
     for v in (
-        "PRAXYS_GITHUB_TOKEN", "PRAXYS_GITHUB_APP_ID",
-        "PRAXYS_GITHUB_APP_INSTALLATION_ID", "PRAXYS_GITHUB_APP_PRIVATE_KEY",
+        "PRAXYS_GITHUB_APP_ID", "PRAXYS_GITHUB_APP_INSTALLATION_ID",
+        "PRAXYS_GITHUB_APP_PRIVATE_KEY",
     ):
         monkeypatch.delenv(v, raising=False)
     monkeypatch.setenv("PRAXYS_FEEDBACK_GITHUB_REPO", "owner/repo")
