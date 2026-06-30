@@ -18,8 +18,8 @@ filing.
 
 Gather these before step 3 — an agent can't derive them:
 - **App ID** — the app's settings page (from step 1).
-- **Installation ID** — from the install URL `…/installations/<ID>` (step 2), or
-  `gh api /repos/dddtc2005/praxys/installation --jq '.id'` (app-JWT auth).
+- **Installation ID** — the number at the end of the install URL
+  `…/installations/<ID>` (step 2). A normal `gh`/PAT token can't read it via the API.
 - **Private key** — the `.pem` downloaded in step 1 (its path on the operator's machine).
 
 ## Prerequisite — running backend build
@@ -45,14 +45,12 @@ GitHub → *Settings → Developer settings → GitHub Apps → New GitHub App*:
 ### 2. Install it on the repo  — human
 
 App → *Install App* → install on `dddtc2005/praxys` (or your triage repo), *Only
-select repositories* → that repo. After installing, the URL is
-`…/installations/<INSTALLATION_ID>` — note the **Installation ID** (or fetch it
-via the API below).
+select repositories* → that repo. After installing, the browser URL ends in
+`…/installations/<INSTALLATION_ID>` — **that number is the Installation ID.**
 
-```bash
-# Find the installation id with the app JWT (or just read it from the install URL)
-gh api /repos/dddtc2005/praxys/installation --jq '.id'   # needs app-JWT auth; the URL is easier
-```
+> Heads up: a normal `gh` / PAT token **cannot** read this via the API
+> (`gh api /repos/<owner>/<repo>/installation` requires the app's own JWT, not a
+> user token). The install URL is the reliable source.
 
 ### 3. Store the config  — agent-executable
 
@@ -81,9 +79,26 @@ The deploy's *sync settings* step pushes the variables + secret to App Service
 
 ## Verify
 
-Submit a test bug report (or Admin → User Feedback → **Retry** a `failed` row) and
-confirm it reaches `issue_created` with a real issue link. The issue is authored
-by the App (e.g. `praxys-feedback[bot]`), not a personal account.
+**Before deploy (optional, fast):** confirm the credentials are right without
+shipping anything — sign the app JWT, mint an installation token, and check the
+grant. A `201` with `"issues": "write"` means filing will work:
+
+```bash
+# needs python + cryptography/PyJWT; or do the JWT+POST by hand
+python - <<'PY'
+import jwt, time, httpx, pathlib
+app_id, inst = "<APP_ID>", "<INSTALLATION_ID>"
+key = pathlib.Path("<path/to/key.pem>").read_text()
+j = jwt.encode({"iat": int(time.time())-60, "exp": int(time.time())+540, "iss": app_id}, key, algorithm="RS256")
+r = httpx.post(f"https://api.github.com/app/installations/{inst}/access_tokens",
+               headers={"Authorization": f"Bearer {j}", "Accept": "application/vnd.github+json"})
+print(r.status_code, r.json().get("permissions"), r.json().get("repository_selection"))
+PY
+```
+
+**After deploy:** submit a test bug report (or Admin → User Feedback → **Retry** a
+`failed` row) and confirm it reaches `issue_created` with a real issue link. The
+issue is authored by the App (e.g. `praxys-feedback[bot]`), not a personal account.
 
 ## Rollback / Recovery
 
