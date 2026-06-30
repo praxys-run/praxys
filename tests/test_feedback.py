@@ -561,3 +561,24 @@ def test_not_configured_without_creds(monkeypatch):
         monkeypatch.delenv(v, raising=False)
     monkeypatch.setenv("PRAXYS_FEEDBACK_GITHUB_REPO", "owner/repo")
     assert gi.is_configured() is False
+
+def test_github_app_malformed_mint_response_returns_none(monkeypatch):
+    """A 201 with a non-JSON body must degrade to None, not raise out of
+    _bearer_token (the admin approve route calls create_issue unguarded)."""
+    from api import github_issues as gi
+
+    monkeypatch.setenv("PRAXYS_FEEDBACK_GITHUB_REPO", "owner/repo")
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_ID", "1")
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_INSTALLATION_ID", "2")
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_PRIVATE_KEY", _rsa_pem())
+    gi._install_token.update({"token": None, "exp": 0.0})
+
+    class _BadResp:
+        status_code = 201
+        reason_phrase = "Created"
+
+        def json(self):
+            raise ValueError("not json")
+
+    monkeypatch.setattr(gi.httpx, "post", lambda url, **kw: _BadResp())
+    assert gi._bearer_token() is None  # must not raise

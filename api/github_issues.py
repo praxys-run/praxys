@@ -121,13 +121,21 @@ def _mint_installation_token() -> str | None:
             resp.status_code, resp.reason_phrase,
         )
         return None
-    token = (resp.json() or {}).get("token")
+    # Parse once; a malformed-but-201 body must degrade to None (the module
+    # contract is "never raise to the caller" — the admin approve route calls
+    # create_issue without its own guard around the mint).
+    try:
+        data = resp.json() or {}
+    except Exception:
+        logger.warning("GitHub App token mint returned a non-JSON 201 body")
+        return None
+    token = data.get("token")
     if not token:
         return None
     # Refresh 5 min before the stated expiry; fall back to ~50 min.
     exp_epoch = time.time() + 3000
     try:
-        exp_str = (resp.json() or {}).get("expires_at")
+        exp_str = data.get("expires_at")
         if exp_str:
             exp_epoch = datetime.fromisoformat(exp_str.replace("Z", "+00:00")).timestamp() - 300
     except Exception:
