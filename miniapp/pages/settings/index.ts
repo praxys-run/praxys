@@ -51,6 +51,11 @@ function buildSettingsTr() {
     feedbackThanks: t('Thanks for the feedback!'),
     feedbackError: t("Couldn't send your feedback. Please try again."),
     feedbackRateLimited: t("You've sent several reports recently — please wait a few minutes before sending more."),
+    feedbackAddPhotoTitle: t('Add a screenshot?'),
+    feedbackAddPhotoContent: t('A screenshot helps us pinpoint the issue. It stays private.'),
+    feedbackAddPhoto: t('Add photo'),
+    feedbackSendWithout: t('Send without'),
+    feedbackImageTooLarge: t('Image must be under 5 MB.'),
     signOut: t('Log out'),
     deleteAccount: t('Delete my account'),
     deleteAccountHint: t('Permanently remove your account, synced data, plans, settings, and encrypted credentials.'),
@@ -82,6 +87,58 @@ function buildSettingsTr() {
 }
 
 type LanguagePref = 'auto' | 'en' | 'zh';
+
+const MAX_FEEDBACK_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB — mirrors the server cap
+
+/**
+ * Optionally let the user attach one screenshot to a feedback report (issue
+ * #337). Prompts first (opt-in), then picks a single image via wx.chooseMedia,
+ * validates its size, and returns the base64 bytes for the JSON submit — the
+ * server stores it privately and never publishes the raw image. Resolves null
+ * when the user declines, cancels, or the image is too large.
+ */
+function pickFeedbackScreenshot(tr: ReturnType<typeof buildSettingsTr>): Promise<string | null> {
+  return new Promise((resolve) => {
+    wx.showModal({
+      title: tr.feedbackAddPhotoTitle,
+      content: tr.feedbackAddPhotoContent,
+      confirmText: tr.feedbackAddPhoto,
+      cancelText: tr.feedbackSendWithout,
+      success: (res) => {
+        if (!res.confirm) {
+          resolve(null);
+          return;
+        }
+        wx.chooseMedia({
+          count: 1,
+          mediaType: ['image'],
+          sizeType: ['compressed', 'original'],
+          sourceType: ['album', 'camera'],
+          success: (media) => {
+            const file = media.tempFiles && media.tempFiles[0];
+            if (!file) {
+              resolve(null);
+              return;
+            }
+            if (file.size > MAX_FEEDBACK_IMAGE_BYTES) {
+              wx.showToast({ title: tr.feedbackImageTooLarge, icon: 'none', duration: 2000 });
+              resolve(null);
+              return;
+            }
+            try {
+              const b64 = wx.getFileSystemManager().readFileSync(file.tempFilePath, 'base64') as string;
+              resolve(b64);
+            } catch {
+              resolve(null);
+            }
+          },
+          fail: () => resolve(null),
+        });
+      },
+      fail: () => resolve(null),
+    });
+  });
+}
 
 const WEB_URL = 'https://www.praxys.run';
 
@@ -500,6 +557,7 @@ Page({
             if (!modal.confirm) return;
             const message = (modal.content ?? '').trim();
             if (!message) return;
+            const image = await pickFeedbackScreenshot(tr);
             const locale = getLanguagePreference();
             try {
               await apiPost('/api/feedback', {
@@ -512,6 +570,7 @@ Page({
                   locale,
                 },
                 locale,
+                images: image ? [image] : undefined,
               });
               wx.showToast({ title: tr.feedbackThanks, icon: 'success', duration: 1800 });
             } catch (e) {

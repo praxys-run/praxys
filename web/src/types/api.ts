@@ -614,6 +614,11 @@ export interface FeedbackRequest {
   message: string;
   context?: Record<string, string | number | boolean>;
   locale?: string;
+  /** Optional screenshots (issue #337): base64 data-URLs (`data:image/png;base64,…`).
+   * Max 3, each ≤5 MB (png/jpg/webp). Stored privately; a vision model produces a
+   * scrubbed description and sensitivity verdict — the raw image never reaches a
+   * public issue. */
+  images?: string[];
 }
 
 export interface FeedbackResponse {
@@ -638,6 +643,13 @@ export interface AdminFeedbackItem {
   github_issue_number: number | null;
   github_issue_url: string | null;
   error: string | null;
+  /** Number of attached screenshots. Each is fetched (admin-only) from
+   * `GET /api/admin/feedback/{id}/image/{index}` for index in `0..image_count-1`. */
+  image_count: number;
+  /** Vision-derived, PII-scrubbed description of the screenshot(s), or null. */
+  image_description: string | null;
+  /** Vision sensitivity verdict; null when not analysed (no vision model). */
+  image_sensitive: boolean | null;
   created_at: string | null;
   updated_at: string | null;
 }

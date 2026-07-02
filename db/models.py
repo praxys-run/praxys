@@ -518,5 +518,20 @@ class Feedback(Base):
     # Last triage/publish error (truncated) so admins can see why a row is
     # stuck in "failed" without digging through server logs.
     error = Column(String(500), nullable=True)
+    # --- Optional screenshot attachment (issue #337) ---
+    # References (storage keys) for user-attached screenshots — private,
+    # admin-only. The raw image never sits on this row or in a public issue;
+    # only the key lives here (Azure Blob now, Tencent COS later). See
+    # api/feedback_storage.py. A list of 0-3 keys, or NULL when none attached.
+    image_keys = Column(JSON, nullable=True)
+    # Vision-LLM-derived, PII-scrubbed textual description of the screenshot(s)
+    # (UI state, visible error text). This is the ONLY image-derived text that
+    # may be published to a (public) issue — never the image itself.
+    image_description = Column(Text, nullable=True)
+    # Vision sensitivity verdict feeding the same gate as the text path: True =
+    # the model saw faces / emails / names / health-or-performance data. NULL =
+    # not yet analysed (or no vision model), which the gate treats as "unsafe
+    # to auto-publish" and parks for admin review.
+    image_sensitive = Column(Boolean, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

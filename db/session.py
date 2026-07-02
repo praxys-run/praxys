@@ -137,6 +137,9 @@ def init_db():
         ("user_connections", "last_error", "VARCHAR(500) DEFAULT NULL"),
         ("training_plans", "external_id", "VARCHAR(100) DEFAULT NULL"),
         ("training_plans", "start_time", "DATETIME DEFAULT NULL"),
+        ("feedback", "image_keys", "JSON DEFAULT NULL"),
+        ("feedback", "image_description", "TEXT DEFAULT NULL"),
+        ("feedback", "image_sensitive", "BOOLEAN DEFAULT NULL"),
     ]
     _indexes = [
         # (index_name, table, column, unique)

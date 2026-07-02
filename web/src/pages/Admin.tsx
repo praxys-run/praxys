@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { Users, Ticket, Copy, Check, Trash2, Plus, ShieldCheck, ChevronUp, ChevronDown, Eye, Megaphone, MessageSquarePlus, ExternalLink, RotateCcw } from 'lucide-react';
 import type { SystemAnnouncement, AdminFeedbackItem } from '@/types/api';
+import AdminFeedbackImages from '@/components/AdminFeedbackImages';
 import { Trans, useLingui } from '@lingui/react/macro';
 
 // Surface the rows an admin should act on (needs_review, failed) at the top.
@@ -717,6 +718,24 @@ export default function Admin() {
                     <TableCell className="max-w-sm">
                       <p className="truncate text-sm" title={f.message}>{f.ai_title || f.message}</p>
                       {f.error && <p className="text-xs text-destructive">{f.error}</p>}
+                      {f.image_count > 0 && (
+                        <>
+                          {f.image_sensitive && (
+                            <Badge variant="secondary" className="mt-1">
+                              <Trans>Screenshot flagged sensitive</Trans>
+                            </Badge>
+                          )}
+                          {f.image_description && (
+                            <p
+                              className="mt-1 line-clamp-2 text-xs text-muted-foreground"
+                              title={f.image_description}
+                            >
+                              {f.image_description}
+                            </p>
+                          )}
+                          <AdminFeedbackImages feedbackId={f.id} count={f.image_count} />
+                        </>
+                      )}
                     </TableCell>
                     <TableCell>
                       {f.github_issue_url ? (

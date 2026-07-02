@@ -89,11 +89,17 @@ def chat_json(
     temperature: float = 0.3,
     retry: int = 1,
     insight_type: str | None = None,
+    images: list[str] | None = None,
 ) -> dict | None:
     """Strict JSON chat completion. Returns parsed dict or None on failure.
 
     Uses ``response_format={"type": "json_object"}`` so the model is
     constrained to emit a JSON object.
+
+    ``images`` (optional) is a list of image data URLs
+    (``data:image/png;base64,...``). When present the user turn is sent as a
+    multimodal content array (text + image parts) for vision models — used by
+    the feedback screenshot triage. The chosen ``model`` must be vision-capable.
 
     Failure handling distinguishes operator-actionable errors (auth misconfig,
     bad request — logged at ERROR, no retry) from transient errors (rate
@@ -138,6 +144,15 @@ def chat_json(
 
         AuthenticationError = BadRequestError = RateLimitError = APIError = _SdkUnavailable  # type: ignore[assignment]
 
+    # When images are supplied (feedback screenshot vision triage), the user
+    # turn becomes a multimodal content array: the text payload plus one
+    # image_url part per data URL. Text-only callers pass a plain string.
+    user_content: Any = user
+    if images:
+        user_content = [{"type": "text", "text": user}]
+        for data_url in images:
+            user_content.append({"type": "image_url", "image_url": {"url": data_url}})
+
     last_err: Exception | None = None
     for attempt in range(retry + 1):
         try:
@@ -148,7 +163,7 @@ def chat_json(
                 response_format={"type": "json_object"},
                 messages=[
                     {"role": "system", "content": system},
-                    {"role": "user", "content": user},
+                    {"role": "user", "content": user_content},
                 ],
             )
             # ``resp.usage`` is None on streaming responses; we don't stream

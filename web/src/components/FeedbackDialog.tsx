@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ClipboardEvent } from 'react';
 import { useLocation } from 'react-router-dom';
 import { API_BASE, getAuthHeaders } from '@/hooks/useApi';
 import { WEB_VERSION } from '@/lib/version';
@@ -16,12 +16,25 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Check } from 'lucide-react';
+import { Check, ImagePlus, X } from 'lucide-react';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { msg } from '@lingui/core/macro';
 import type { MessageDescriptor } from '@lingui/core';
 
 const MESSAGE_MAX = 5000;
+const MAX_IMAGES = 3;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
+const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+
+/** Read a File as a base64 data-URL (`data:image/png;base64,…`) for the API. */
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
 
 const KIND_OPTIONS: { value: FeedbackKind; label: MessageDescriptor }[] = [
   { value: 'bug', label: msg`Bug report` },
@@ -52,12 +65,22 @@ export default function FeedbackDialog({ open, onOpenChange, defaultKind = 'bug'
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [images, setImages] = useState<File[]>([]);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Object URLs for thumbnail previews, derived from the selected files and
+  // revoked when the set changes or the dialog unmounts so we don't leak them.
+  const previews = useMemo(() => images.map((f) => URL.createObjectURL(f)), [images]);
+  useEffect(() => () => previews.forEach((u) => URL.revokeObjectURL(u)), [previews]);
 
   const reset = () => {
     setMessage('');
     setKind(defaultKind);
     setDone(false);
     setError(null);
+    setImages([]);
+    setImageError(null);
     setSubmitting(false);
   };
 
@@ -74,12 +97,57 @@ export default function FeedbackDialog({ open, onOpenChange, defaultKind = 'bug'
     locale,
   });
 
+  const addFiles = (incoming: FileList | File[]) => {
+    const next = [...images];
+    let err: string | null = null;
+    for (const file of Array.from(incoming)) {
+      if (next.length >= MAX_IMAGES) {
+        err = t`You can attach up to 3 images.`;
+        break;
+      }
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+        err = t`Only PNG, JPG, or WebP images are supported.`;
+        continue;
+      }
+      if (file.size > MAX_IMAGE_BYTES) {
+        err = t`Each image must be under 5 MB.`;
+        continue;
+      }
+      next.push(file);
+    }
+    setImages(next);
+    setImageError(err);
+  };
+
+  const removeImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+    setImageError(null);
+  };
+
+  // Paste-from-clipboard: grab any image files pasted into the message box.
+  const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const pasted: File[] = [];
+    for (const item of Array.from(items)) {
+      if (item.kind === 'file') {
+        const file = item.getAsFile();
+        if (file) pasted.push(file);
+      }
+    }
+    if (pasted.length) {
+      e.preventDefault();
+      addFiles(pasted);
+    }
+  };
+
   const submit = async () => {
     const trimmed = message.trim();
     if (!trimmed) return;
     setSubmitting(true);
     setError(null);
     try {
+      const imagePayload = images.length ? await Promise.all(images.map(fileToDataUrl)) : undefined;
       const res = await fetch(`${API_BASE}/api/feedback`, {
         method: 'POST',
         headers: { ...(getAuthHeaders() as Record<string, string>), 'Content-Type': 'application/json' },
@@ -88,6 +156,7 @@ export default function FeedbackDialog({ open, onOpenChange, defaultKind = 'bug'
           message: trimmed.slice(0, MESSAGE_MAX),
           context: captureContext(),
           locale,
+          images: imagePayload,
         }),
       });
       if (res.status === 429) {
@@ -162,6 +231,7 @@ export default function FeedbackDialog({ open, onOpenChange, defaultKind = 'bug'
                 id="feedback-message"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
+                onPaste={onPaste}
                 maxLength={MESSAGE_MAX}
                 rows={5}
                 placeholder={t`What happened, or what would you like to see?`}
@@ -179,6 +249,59 @@ export default function FeedbackDialog({ open, onOpenChange, defaultKind = 'bug'
                 before sharing with our issue tracker.
               </Trans>
             </p>
+
+            <div className="space-y-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files) addFiles(e.target.files);
+                  e.target.value = '';
+                }}
+              />
+              {previews.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {previews.map((src, i) => (
+                    <div key={i} className="relative">
+                      <img
+                        src={src}
+                        alt=""
+                        className="h-16 w-16 rounded-md border border-border object-cover"
+                      />
+                      <button
+                        type="button"
+                        aria-label={t`Remove image`}
+                        onClick={() => removeImage(i)}
+                        disabled={submitting}
+                        className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-background text-muted-foreground shadow ring-1 ring-border transition-colors hover:text-foreground disabled:opacity-50"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={submitting || images.length >= MAX_IMAGES}
+              >
+                <ImagePlus className="h-4 w-4" />
+                <Trans>Add screenshot</Trans>
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                <Trans>
+                  Optional — PNG, JPG, or WebP, up to 3 images. Screenshots are kept private; we read them to describe
+                  the issue and remove anything sensitive before filing.
+                </Trans>
+              </p>
+              {imageError && <p className="text-xs text-destructive">{imageError}</p>}
+            </div>
 
             {error && (
               <Alert variant="destructive">

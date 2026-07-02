@@ -8,6 +8,7 @@ dependency-bypass pattern as tests/test_announcements.py.
 """
 from __future__ import annotations
 
+import base64
 import tempfile
 
 import pytest
@@ -618,3 +619,244 @@ def test_triage_uses_deterministic_temperature(db_with_users, monkeypatch):
     row = _new_row(db, user_id, "charts render slowly on the training page")
     triage_and_publish(row.id, _session=db)
     assert captured.get("temperature") == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Screenshot attachment: storage, vision triage, gate, admin serve (issue #337)
+# ---------------------------------------------------------------------------
+
+# A minimal valid 1x1 PNG — the magic bytes make sniff() detect image/png.
+_PNG_1PX = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
+)
+
+
+def test_storage_sniff_validate_decode():
+    from api import feedback_storage as fs
+
+    assert fs.sniff(_PNG_1PX) == "image/png"
+    assert fs.sniff(b"just some plain text, not an image at all") is None
+    assert fs.validate_image(_PNG_1PX) == "image/png"
+    # Oversize is rejected even though the magic bytes are valid.
+    assert fs.validate_image(_PNG_1PX + b"\x00" * (fs.MAX_IMAGE_BYTES + 1)) is None
+    # Both a data-URL and raw base64 decode to the same bytes.
+    raw = base64.b64encode(_PNG_1PX).decode()
+    assert fs.decode_base64_image(raw) == _PNG_1PX
+    assert fs.decode_base64_image("data:image/png;base64," + raw) == _PNG_1PX
+    assert fs.decode_base64_image("not!!valid!!base64") is None
+
+
+def test_storage_roundtrip_and_key_safety(db_with_users):
+    # db_with_users sets DATA_DIR to a temp dir → local filesystem backend.
+    from api import feedback_storage as fs
+
+    key = fs.store_image(_PNG_1PX, feedback_id=42, index=0)
+    assert key == "feedback/42/0.png"
+    got = fs.load_image(key)
+    assert got is not None and got[0] == _PNG_1PX and got[1] == "image/png"
+    # A tampered / traversal key is rejected outright.
+    assert fs.load_image("feedback/../../secret") is None
+    assert fs.load_image("feedback/42/0.exe") is None
+    # Non-image bytes are never stored.
+    assert fs.store_image(b"not an image", feedback_id=42, index=1) is None
+
+
+def _row_with_image(db, user_id, message="broken chart on training page"):
+    """Persist a feedback row with one real stored screenshot."""
+    from api import feedback_storage as fs
+    from db.models import Feedback
+
+    row = Feedback(user_id=user_id, kind="bug", message=message, status="new")
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    key = fs.store_image(_PNG_1PX, feedback_id=row.id, index=0)
+    row.image_keys = [key]
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def _stub_vision(monkeypatch, *, description, sensitive):
+    from api import feedback_triage as ft
+
+    monkeypatch.setattr(
+        ft.feedback_vision,
+        "analyze_images",
+        lambda images: {"description": description, "sensitive": sensitive},
+    )
+
+
+# --- Submit endpoint: validation + storage ---------------------------------
+
+
+def test_submit_stores_image_and_sets_keys(db_with_users):
+    from api.routes.feedback import submit_feedback, FeedbackRequest
+    from api import feedback_storage as fs
+    from db.models import Feedback
+
+    db, _, _, user_id = db_with_users
+    b64 = base64.b64encode(_PNG_1PX).decode()
+    resp = submit_feedback(
+        FeedbackRequest(kind="bug", message="broken chart", images=[b64]),
+        background_tasks=BackgroundTasks(),
+        user_id=user_id,
+        db=db,
+    )
+    row = db.query(Feedback).filter(Feedback.id == resp["id"]).first()
+    assert row.image_keys == ["feedback/%d/0.png" % row.id]
+    got = fs.load_image(row.image_keys[0])
+    assert got is not None and got[0] == _PNG_1PX
+
+
+def test_submit_rejects_non_image_before_persisting(db_with_users):
+    from api.routes.feedback import submit_feedback, FeedbackRequest
+    from db.models import Feedback
+
+    db, _, _, user_id = db_with_users
+    bad = base64.b64encode(b"definitely not an image file").decode()
+    with pytest.raises(HTTPException) as exc:
+        submit_feedback(
+            FeedbackRequest(kind="bug", message="x", images=[bad]),
+            background_tasks=BackgroundTasks(),
+            user_id=user_id,
+            db=db,
+        )
+    assert exc.value.status_code == 415
+    # Nothing was persisted — validation runs before the row is created.
+    assert db.query(Feedback).count() == 0
+
+
+def test_submit_rejects_oversize_image(db_with_users):
+    from api.routes.feedback import submit_feedback, FeedbackRequest
+    from api import feedback_storage as fs
+
+    db, _, _, user_id = db_with_users
+    big = base64.b64encode(_PNG_1PX + b"\x00" * (fs.MAX_IMAGE_BYTES + 1)).decode()
+    with pytest.raises(HTTPException) as exc:
+        submit_feedback(
+            FeedbackRequest(kind="bug", message="x", images=[big]),
+            background_tasks=BackgroundTasks(),
+            user_id=user_id,
+            db=db,
+        )
+    assert exc.value.status_code == 413
+
+
+def test_feedback_request_caps_image_count():
+    """Pydantic caps the image count at the schema level (max_length)."""
+    from api.routes.feedback import FeedbackRequest
+    from pydantic import ValidationError
+
+    b64 = base64.b64encode(_PNG_1PX).decode()
+    with pytest.raises(ValidationError):
+        FeedbackRequest(kind="bug", message="x", images=[b64, b64, b64, b64])
+
+
+# --- Triage: vision fold + gate --------------------------------------------
+
+
+def test_triage_folds_scrubbed_vision_description_and_publishes(db_with_users, monkeypatch):
+    from api.feedback_triage import triage_and_publish
+
+    db, _, _, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    _stub_llm(monkeypatch, sensitive=False)  # text path is clean
+    _stub_vision(
+        monkeypatch,
+        description="The Training page shows a broken chart. Email shown: bob@example.com",
+        sensitive=False,
+    )
+    row = _row_with_image(db, user_id)
+
+    result = triage_and_publish(row.id, _session=db)
+    assert result["status"] == "issue_created"
+    assert result["used_vision"] is True
+    assert len(calls) == 1
+    body = calls[0]["body"]
+    # The scrubbed description is folded in with the admin-console reference...
+    assert "## Screenshot" in body
+    assert "admin console" in body
+    assert "not published here" in body
+    # ...and the vision text is re-scrubbed, so no raw PII reaches the issue.
+    assert "bob@example.com" not in body
+    assert "[redacted-email]" in body
+    db.refresh(row)
+    assert row.image_sensitive is False
+    assert "[redacted-email]" in (row.image_description or "")
+    assert "screenshot" in (row.ai_labels or [])
+
+
+def test_triage_gate_holds_on_sensitive_image(db_with_users, monkeypatch):
+    """Text may be clean, but a vision-flagged sensitive image parks the row."""
+    from api.feedback_triage import triage_and_publish
+
+    db, _, _, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    _stub_llm(monkeypatch, sensitive=False)
+    _stub_vision(
+        monkeypatch,
+        description="A dashboard showing the user's face and heart-rate history",
+        sensitive=True,
+    )
+    row = _row_with_image(db, user_id)
+
+    result = triage_and_publish(row.id, _session=db)
+    assert result["status"] == "needs_review"
+    assert calls == []  # the image is never published to a public issue
+    db.refresh(row)
+    assert row.image_sensitive is True
+
+
+def test_triage_gate_holds_on_unverified_image_even_with_autofile(db_with_users, monkeypatch):
+    """A screenshot present but not vision-verified (no model configured) parks
+    the row, overriding the scrub-only autofile opt-in — an unread image is
+    unsafe to auto-publish."""
+    from api.feedback_triage import triage_and_publish
+
+    db, _, _, user_id = db_with_users
+    monkeypatch.setenv("PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI", "true")
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    # db_with_users clears AZURE_AI_ENDPOINT, so analyze_images returns None.
+    row = _row_with_image(db, user_id)
+
+    result = triage_and_publish(row.id, _session=db)
+    assert result["status"] == "needs_review"
+    assert calls == []
+    db.refresh(row)
+    assert row.image_sensitive is None
+
+
+# --- Admin image serve ------------------------------------------------------
+
+
+def test_admin_image_serve_and_404_and_authz(db_with_users):
+    from api.routes.feedback import submit_feedback, get_feedback_image, FeedbackRequest
+    from fastapi import Response
+
+    db, _, admin_id, user_id = db_with_users
+    b64 = base64.b64encode(_PNG_1PX).decode()
+    fid = submit_feedback(
+        FeedbackRequest(kind="bug", message="x", images=[b64]),
+        background_tasks=BackgroundTasks(),
+        user_id=user_id,
+        db=db,
+    )["id"]
+
+    out = get_feedback_image(fid, 0, user_id=admin_id, db=db)
+    assert isinstance(out, Response)
+    assert out.body == _PNG_1PX
+    assert out.media_type == "image/png"
+
+    # Out-of-range index → 404.
+    with pytest.raises(HTTPException) as exc:
+        get_feedback_image(fid, 5, user_id=admin_id, db=db)
+    assert exc.value.status_code == 404
+
+    # A non-admin is refused before any image is served.
+    with pytest.raises(HTTPException) as exc:
+        get_feedback_image(fid, 0, user_id=user_id, db=db)
+    assert exc.value.status_code == 403

@@ -89,12 +89,12 @@ msgid "+ {0}d projected from plan"
 msgstr "+ {0}d projected from plan"
 
 #. placeholder {0}: roleChangeUser?.email
-#: src/pages/Admin.tsx:536
+#: src/pages/Admin.tsx:537
 msgid "<0>{0}</0> will gain admin privileges. They will be able to manage all users, delete accounts, and generate invitation codes."
 msgstr "<0>{0}</0> will gain admin privileges. They will be able to manage all users, delete accounts, and generate invitation codes."
 
 #. placeholder {0}: roleChangeUser?.email
-#: src/pages/Admin.tsx:531
+#: src/pages/Admin.tsx:532
 msgid "<0>{0}</0> will lose admin privileges. They will no longer be able to manage users or invitation codes."
 msgstr "<0>{0}</0> will lose admin privileges. They will no longer be able to manage users or invitation codes."
 
@@ -222,12 +222,12 @@ msgstr "above"
 msgid "Absorbing training while maintaining fitness."
 msgstr "Absorbing training while maintaining fitness."
 
-#: src/pages/Admin.tsx:293
-#: src/pages/Admin.tsx:700
+#: src/pages/Admin.tsx:294
+#: src/pages/Admin.tsx:701
 msgid "Actions"
 msgstr "Actions"
 
-#: src/pages/Admin.tsx:652
+#: src/pages/Admin.tsx:653
 msgid "Activate"
 msgstr "Activate"
 
@@ -266,14 +266,18 @@ msgstr "Actual"
 msgid "actual vs planned, avg"
 msgstr "actual vs planned, avg"
 
+#: src/components/FeedbackDialog.tsx:295
+msgid "Add screenshot"
+msgstr "Add screenshot"
+
 #: src/components/SignalHero.tsx:22
 #: src/pages/Today.tsx:69
 msgid "Adjust Workout"
 msgstr "Adjust Workout"
 
 #: src/components/AppSidebar.tsx:134
-#: src/pages/Admin.tsx:267
-#: src/pages/Admin.tsx:314
+#: src/pages/Admin.tsx:268
+#: src/pages/Admin.tsx:315
 msgid "Admin"
 msgstr "Admin"
 
@@ -303,7 +307,7 @@ msgstr "Already have an invitation code?"
 msgid "An unexpected error occurred."
 msgstr "An unexpected error occurred."
 
-#: src/pages/Admin.tsx:746
+#: src/pages/Admin.tsx:765
 msgid "Approve & file"
 msgstr "Approve & file"
 
@@ -335,7 +339,7 @@ msgstr "Auto sync frequency"
 msgid "Auto-merged"
 msgstr "Auto-merged"
 
-#: src/pages/Admin.tsx:437
+#: src/pages/Admin.tsx:438
 msgid "Available"
 msgstr "Available"
 
@@ -385,15 +389,15 @@ msgstr "Baseline"
 msgid "below"
 msgstr "below"
 
-#: src/pages/Admin.tsx:600
+#: src/pages/Admin.tsx:601
 msgid "Body (optional)"
 msgstr "Body (optional)"
 
-#: src/components/FeedbackDialog.tsx:27
+#: src/components/FeedbackDialog.tsx:40
 msgid "Bug report"
 msgstr "Bug report"
 
-#: src/pages/Admin.tsx:684
+#: src/pages/Admin.tsx:685
 msgid "Bug reports and feature requests submitted from the app. Auto-triaged to GitHub when configured."
 msgstr "Bug reports and feature requests submitted from the app. Auto-triaged to GitHub when configured."
 
@@ -418,10 +422,10 @@ msgstr "Building toward <0>{0}</0> {distLabel}. Current {abbrev} <1>{currentStr}
 msgid "by"
 msgstr "by"
 
-#: src/components/FeedbackDialog.tsx:191
+#: src/components/FeedbackDialog.tsx:314
 #: src/components/GoalEditor.tsx:174
-#: src/pages/Admin.tsx:545
-#: src/pages/Admin.tsx:568
+#: src/pages/Admin.tsx:546
+#: src/pages/Admin.tsx:569
 #: src/pages/Settings.tsx:1011
 #: src/pages/Settings.tsx:1048
 #: src/pages/Settings.tsx:1444
@@ -481,7 +485,7 @@ msgstr "Choose which platform to use for each data type"
 msgid "Clear"
 msgstr "Clear"
 
-#: src/pages/Admin.tsx:427
+#: src/pages/Admin.tsx:428
 msgid "Click to copy"
 msgstr "Click to copy"
 
@@ -489,11 +493,11 @@ msgstr "Click to copy"
 #~ msgid "click to retry"
 #~ msgstr "click to retry"
 
-#: src/components/FeedbackDialog.tsx:134
+#: src/components/FeedbackDialog.tsx:203
 msgid "Close"
 msgstr "Close"
 
-#: src/pages/Admin.tsx:405
+#: src/pages/Admin.tsx:406
 msgid "Code"
 msgstr "Code"
 
@@ -590,7 +594,7 @@ msgstr "Cooldown"
 msgid "Could not save your email. Please email us instead."
 msgstr "Could not save your email. Please email us instead."
 
-#: src/components/FeedbackDialog.tsx:98
+#: src/components/FeedbackDialog.tsx:167
 msgid "Couldn't send your feedback. Please try again."
 msgstr "Couldn't send your feedback. Please try again."
 
@@ -599,8 +603,8 @@ msgstr "Couldn't send your feedback. Please try again."
 msgid "CP Trend"
 msgstr "CP Trend"
 
-#: src/pages/Admin.tsx:509
-#: src/pages/Admin.tsx:628
+#: src/pages/Admin.tsx:510
+#: src/pages/Admin.tsx:629
 msgid "Create"
 msgstr "Create"
 
@@ -608,7 +612,7 @@ msgstr "Create"
 msgid "Create account"
 msgstr "Create account"
 
-#: src/pages/Admin.tsx:409
+#: src/pages/Admin.tsx:410
 msgid "Created"
 msgstr "Created"
 
@@ -620,8 +624,8 @@ msgstr "Created"
 msgid "Creating account…"
 msgstr "Creating account…"
 
-#: src/pages/Admin.tsx:509
-#: src/pages/Admin.tsx:628
+#: src/pages/Admin.tsx:510
+#: src/pages/Admin.tsx:629
 msgid "Creating..."
 msgstr "Creating..."
 
@@ -684,7 +688,7 @@ msgstr "days"
 msgid "Days left"
 msgstr "Days left"
 
-#: src/pages/Admin.tsx:652
+#: src/pages/Admin.tsx:653
 msgid "Deactivate"
 msgstr "Deactivate"
 
@@ -716,21 +720,21 @@ msgstr "Delete my account?"
 msgid "Delete permanently"
 msgstr "Delete permanently"
 
-#: src/pages/Admin.tsx:558
-#: src/pages/Admin.tsx:571
+#: src/pages/Admin.tsx:559
+#: src/pages/Admin.tsx:572
 msgid "Delete User"
 msgstr "Delete User"
 
-#: src/pages/Admin.tsx:571
+#: src/pages/Admin.tsx:572
 #: src/pages/Settings.tsx:1451
 msgid "Deleting..."
 msgstr "Deleting..."
 
-#: src/pages/Admin.tsx:308
+#: src/pages/Admin.tsx:309
 msgid "Demo"
 msgstr "Demo"
 
-#: src/pages/Admin.tsx:474
+#: src/pages/Admin.tsx:475
 msgid "Demo Accounts"
 msgstr "Demo Accounts"
 
@@ -738,29 +742,29 @@ msgstr "Demo Accounts"
 msgid "Demo mode — read only"
 msgstr "Demo mode — read only"
 
-#: src/pages/Admin.tsx:516
+#: src/pages/Admin.tsx:517
 msgid "Demo users can browse your dashboard (Today, Training, Goal, History) but cannot change settings, sync data, or modify plans. Share the email and password with anyone you want to demo to."
 msgstr "Demo users can browse your dashboard (Today, Training, Goal, History) but cannot change settings, sync data, or modify plans. Share the email and password with anyone you want to demo to."
 
-#: src/pages/Admin.tsx:497
+#: src/pages/Admin.tsx:498
 msgid "demo-password"
 msgstr "demo-password"
 
-#: src/pages/Admin.tsx:487
+#: src/pages/Admin.tsx:488
 msgid "demo@example.com"
 msgstr "demo@example.com"
 
-#: src/pages/Admin.tsx:334
-#: src/pages/Admin.tsx:548
+#: src/pages/Admin.tsx:335
+#: src/pages/Admin.tsx:549
 msgid "Demote"
 msgstr "Demote"
 
-#: src/pages/Admin.tsx:331
-#: src/pages/Admin.tsx:527
+#: src/pages/Admin.tsx:332
+#: src/pages/Admin.tsx:528
 msgid "Demote to User"
 msgstr "Demote to User"
 
-#: src/components/FeedbackDialog.tsx:159
+#: src/components/FeedbackDialog.tsx:228
 msgid "Details"
 msgstr "Details"
 
@@ -789,7 +793,7 @@ msgstr "Disconnect"
 msgid "Discussion"
 msgstr "Discussion"
 
-#: src/pages/Admin.tsx:586
+#: src/pages/Admin.tsx:587
 msgid "Dismissible banners shown to all users"
 msgstr "Dismissible banners shown to all users"
 
@@ -856,6 +860,10 @@ msgstr "e.g. 42:00"
 msgid "e.g. 8:00:00"
 msgstr "e.g. 8:00:00"
 
+#: src/components/FeedbackDialog.tsx:113
+msgid "Each image must be under 5 MB."
+msgstr "Each image must be under 5 MB."
+
 #: src/pages/Science.tsx:176
 msgid "Each pillar runs a published theory you can read, verify, and swap. Praxys interprets your data through whichever framework you choose."
 msgstr "Each pillar runs a published theory you can read, verify, and swap. Praxys interprets your data through whichever framework you choose."
@@ -886,8 +894,8 @@ msgstr "elevated"
 msgid "Elevated"
 msgstr "Elevated"
 
-#: src/pages/Admin.tsx:290
-#: src/pages/Admin.tsx:484
+#: src/pages/Admin.tsx:291
+#: src/pages/Admin.tsx:485
 #: src/pages/Login.tsx:292
 #: src/pages/Login.tsx:360
 #: src/pages/Login.tsx:446
@@ -929,7 +937,7 @@ msgid "Extended rest period. Fitness declining."
 msgstr "Extended rest period. Fitness declining."
 
 #. placeholder {0}: res.status
-#: src/pages/Admin.tsx:236
+#: src/pages/Admin.tsx:237
 msgid "Failed (HTTP {0})"
 msgstr "Failed (HTTP {0})"
 
@@ -994,7 +1002,7 @@ msgstr "fatigued"
 msgid "Fatigued"
 msgstr "Fatigued"
 
-#: src/components/FeedbackDialog.tsx:28
+#: src/components/FeedbackDialog.tsx:41
 msgid "Feature request"
 msgstr "Feature request"
 
@@ -1040,7 +1048,7 @@ msgstr "form (CTL−ATL)"
 msgid "Form (TSB)"
 msgstr "Form (TSB)"
 
-#: src/components/FeedbackDialog.tsx:118
+#: src/components/FeedbackDialog.tsx:187
 msgid "Found a bug or have an idea? Tell us — reports are reviewed and triaged automatically."
 msgstr "Found a bug or have an idea? Tell us — reports are reviewed and triaged automatically."
 
@@ -1093,11 +1101,11 @@ msgstr "Garmin International and Garmin China are separate accounts. To switch, 
 msgid "Garmin native running power reads ~30% higher than Stryd for the same athlete — they measure different things. Zones and benchmarks calibrated on Stryd (most coach references, most training literature) will not directly transfer. Your power data will still be internally consistent for tracking progress, but don't compare CP values across the two systems."
 msgstr "Garmin native running power reads ~30% higher than Stryd for the same athlete — they measure different things. Zones and benchmarks calibrated on Stryd (most coach references, most training literature) will not directly transfer. Your power data will still be internally consistent for tracking progress, but don't compare CP values across the two systems."
 
-#: src/components/FeedbackDialog.tsx:29
+#: src/components/FeedbackDialog.tsx:42
 msgid "General feedback"
 msgstr "General feedback"
 
-#: src/pages/Admin.tsx:383
+#: src/pages/Admin.tsx:384
 msgid "Generate"
 msgstr "Generate"
 
@@ -1270,11 +1278,11 @@ msgstr "Invitation code"
 #~ msgid "Invitation Code"
 #~ msgstr "Invitation Code"
 
-#: src/pages/Admin.tsx:368
+#: src/pages/Admin.tsx:369
 msgid "Invitation Codes"
 msgstr "Invitation Codes"
 
-#: src/pages/Admin.tsx:699
+#: src/pages/Admin.tsx:700
 msgid "Issue"
 msgstr "Issue"
 
@@ -1339,11 +1347,11 @@ msgstr "Link at least one data source to start"
 msgid "Link Garmin, Strava, Stryd, or Oura to pull your training data"
 msgstr "Link Garmin, Strava, Stryd, or Oura to pull your training data"
 
-#: src/pages/Admin.tsx:615
+#: src/pages/Admin.tsx:616
 msgid "Link text (optional)"
 msgstr "Link text (optional)"
 
-#: src/pages/Admin.tsx:620
+#: src/pages/Admin.tsx:621
 msgid "Link URL (optional)"
 msgstr "Link URL (optional)"
 
@@ -1405,7 +1413,7 @@ msgstr "LTHR Trend"
 msgid "Main"
 msgstr "Main"
 
-#: src/pages/Admin.tsx:268
+#: src/pages/Admin.tsx:269
 msgid "Manage users and invitation codes"
 msgstr "Manage users and invitation codes"
 
@@ -1425,7 +1433,7 @@ msgid "mild fatigue"
 msgstr "mild fatigue"
 
 #. placeholder {0}: u.demo_of_email
-#: src/pages/Admin.tsx:310
+#: src/pages/Admin.tsx:311
 msgid "mirrors {0}"
 msgstr "mirrors {0}"
 
@@ -1485,11 +1493,11 @@ msgstr "Needed {abbrev}"
 msgid "Network error"
 msgstr "Network error"
 
-#: src/components/FeedbackDialog.tsx:104
+#: src/components/FeedbackDialog.tsx:173
 msgid "Network error — please try again."
 msgstr "Network error — please try again."
 
-#: src/pages/Admin.tsx:243
+#: src/pages/Admin.tsx:244
 msgid "Network error. Is the server running?"
 msgstr "Network error. Is the server running?"
 
@@ -1497,11 +1505,11 @@ msgstr "Network error. Is the server running?"
 msgid "Network error. Please email {SUPPORT_EMAIL} directly."
 msgstr "Network error. Please email {SUPPORT_EMAIL} directly."
 
-#: src/pages/Admin.tsx:593
+#: src/pages/Admin.tsx:594
 msgid "New announcement"
 msgstr "New announcement"
 
-#: src/pages/Admin.tsx:393
+#: src/pages/Admin.tsx:394
 msgid "New invitation code:"
 msgstr "New invitation code:"
 
@@ -1521,7 +1529,7 @@ msgstr "Next sync"
 msgid "No activities found."
 msgstr "No activities found."
 
-#: src/pages/Admin.tsx:634
+#: src/pages/Admin.tsx:635
 msgid "No announcements yet"
 msgstr "No announcements yet"
 
@@ -1540,7 +1548,7 @@ msgstr "no data"
 msgid "No Data"
 msgstr "No Data"
 
-#: src/pages/Admin.tsx:691
+#: src/pages/Admin.tsx:692
 msgid "No feedback yet."
 msgstr "No feedback yet."
 
@@ -1548,7 +1556,7 @@ msgstr "No feedback yet."
 msgid "No goal set. Set a race target or distance goal to unlock predictions and countdown."
 msgstr "No goal set. Set a race target or distance goal to unlock predictions and countdown."
 
-#: src/pages/Admin.tsx:417
+#: src/pages/Admin.tsx:418
 msgid "No invitation codes yet. Generate one to invite a user."
 msgstr "No invitation codes yet. Generate one to invite a user."
 
@@ -1613,11 +1621,11 @@ msgstr "Not enough data yet for weekly load comparison"
 msgid "Not set"
 msgstr "Not set"
 
-#: src/pages/Admin.tsx:406
+#: src/pages/Admin.tsx:407
 msgid "Note"
 msgstr "Note"
 
-#: src/pages/Admin.tsx:375
+#: src/pages/Admin.tsx:376
 msgid "Note (optional)"
 msgstr "Note (optional)"
 
@@ -1629,9 +1637,17 @@ msgstr "Note on Garmin native power"
 msgid "of"
 msgstr "of"
 
-#: src/pages/Admin.tsx:370
+#: src/pages/Admin.tsx:371
 msgid "One-time codes for new user registration"
 msgstr "One-time codes for new user registration"
+
+#: src/components/FeedbackDialog.tsx:109
+msgid "Only PNG, JPG, or WebP images are supported."
+msgstr "Only PNG, JPG, or WebP images are supported."
+
+#: src/components/FeedbackDialog.tsx:298
+msgid "Optional — PNG, JPG, or WebP, up to 3 images. Screenshots are kept private; we read them to describe the issue and remove anything sensitive before filing."
+msgstr "Optional — PNG, JPG, or WebP, up to 3 images. Screenshots are kept private; we read them to describe the issue and remove anything sensitive before filing."
 
 #: src/pages/Setup.tsx:761
 msgid "Optional — you can always set this later from the Goal page"
@@ -1661,7 +1677,7 @@ msgstr "Overwrite Stryd with Praxys version"
 msgid "Pace"
 msgstr "Pace"
 
-#: src/pages/Admin.tsx:494
+#: src/pages/Admin.tsx:495
 #: src/pages/Login.tsx:309
 #: src/pages/Login.tsx:463
 #: src/pages/Setup.tsx:207
@@ -1798,13 +1814,13 @@ msgstr "Proj"
 msgid "Projected"
 msgstr "Projected"
 
-#: src/pages/Admin.tsx:336
-#: src/pages/Admin.tsx:548
+#: src/pages/Admin.tsx:337
+#: src/pages/Admin.tsx:549
 msgid "Promote"
 msgstr "Promote"
 
-#: src/pages/Admin.tsx:331
-#: src/pages/Admin.tsx:527
+#: src/pages/Admin.tsx:332
+#: src/pages/Admin.tsx:528
 msgid "Promote to Admin"
 msgstr "Promote to Admin"
 
@@ -1877,7 +1893,7 @@ msgstr "Race Prediction"
 msgid "Re-push to Stryd"
 msgstr "Re-push to Stryd"
 
-#: src/pages/Admin.tsx:476
+#: src/pages/Admin.tsx:477
 msgid "Read-only accounts that mirror your dashboard data"
 msgstr "Read-only accounts that mirror your dashboard data"
 
@@ -1970,23 +1986,27 @@ msgstr "Region"
 #~ msgid "Register"
 #~ msgstr "Register"
 
-#: src/pages/Admin.tsx:292
+#: src/pages/Admin.tsx:293
 msgid "Registered"
 msgstr "Registered"
 
-#: src/pages/Admin.tsx:282
+#: src/pages/Admin.tsx:283
 msgid "Registered accounts"
 msgstr "Registered accounts"
 
-#: src/pages/Admin.tsx:767
+#: src/pages/Admin.tsx:786
 msgid "Reject"
 msgstr "Reject"
+
+#: src/components/FeedbackDialog.tsx:276
+msgid "Remove image"
+msgstr "Remove image"
 
 #: src/lib/phase-label.ts:18
 msgid "Rep"
 msgstr "Rep"
 
-#: src/pages/Admin.tsx:698
+#: src/pages/Admin.tsx:699
 msgid "Report"
 msgstr "Report"
 
@@ -2017,7 +2037,7 @@ msgstr "Resting HR"
 
 #: src/components/UpcomingPlanCard.tsx:186
 #: src/components/UpcomingPlanCard.tsx:589
-#: src/pages/Admin.tsx:757
+#: src/pages/Admin.tsx:776
 #: src/pages/Goal.tsx:443
 #: src/pages/History.tsx:53
 #: src/pages/Settings.tsx:323
@@ -2030,11 +2050,11 @@ msgstr "Retry"
 msgid "Retry push to Stryd"
 msgstr "Retry push to Stryd"
 
-#: src/pages/Admin.tsx:454
+#: src/pages/Admin.tsx:455
 msgid "Revoke"
 msgstr "Revoke"
 
-#: src/pages/Admin.tsx:439
+#: src/pages/Admin.tsx:440
 msgid "Revoked"
 msgstr "Revoked"
 
@@ -2046,7 +2066,7 @@ msgstr "RHR"
 msgid "Rising"
 msgstr "Rising"
 
-#: src/pages/Admin.tsx:291
+#: src/pages/Admin.tsx:292
 msgid "Role"
 msgstr "Role"
 
@@ -2082,18 +2102,26 @@ msgstr "Science"
 msgid "Science pillars"
 msgstr "Science pillars"
 
+#: src/pages/Admin.tsx:725
+msgid "Screenshot flagged sensitive"
+msgstr "Screenshot flagged sensitive"
+
+#: src/components/AdminFeedbackImages.tsx:74
+msgid "Screenshot unavailable"
+msgstr "Screenshot unavailable"
+
 #: src/pages/Settings.tsx:1005
 msgid "Select the region matching your COROS account."
 msgstr "Select the region matching your COROS account."
 
 #: src/components/AppSidebar.tsx:201
 #: src/components/AppSidebar.tsx:203
-#: src/components/FeedbackDialog.tsx:115
-#: src/components/FeedbackDialog.tsx:194
+#: src/components/FeedbackDialog.tsx:184
+#: src/components/FeedbackDialog.tsx:317
 msgid "Send feedback"
 msgstr "Send feedback"
 
-#: src/components/FeedbackDialog.tsx:194
+#: src/components/FeedbackDialog.tsx:317
 msgid "Sending…"
 msgstr "Sending…"
 
@@ -2225,8 +2253,8 @@ msgstr "Stable"
 msgid "Start sync"
 msgstr "Start sync"
 
-#: src/pages/Admin.tsx:407
-#: src/pages/Admin.tsx:697
+#: src/pages/Admin.tsx:408
+#: src/pages/Admin.tsx:698
 msgid "Status"
 msgstr "Status"
 
@@ -2362,7 +2390,7 @@ msgstr "Syncing…"
 msgid "System"
 msgstr "System"
 
-#: src/pages/Admin.tsx:585
+#: src/pages/Admin.tsx:586
 msgid "System Announcements"
 msgstr "System Announcements"
 
@@ -2399,7 +2427,7 @@ msgstr "Target Time"
 msgid "Tempo"
 msgstr "Tempo"
 
-#: src/components/FeedbackDialog.tsx:128
+#: src/components/FeedbackDialog.tsx:197
 msgid "Thanks for the feedback!"
 msgstr "Thanks for the feedback!"
 
@@ -2416,7 +2444,7 @@ msgid "This permanently deletes your account, synced training data, plans, setti
 msgstr "This permanently deletes your account, synced training data, plans, settings, platform connections, encrypted credentials, and any Garmin tokenstore on this device. You will be signed out immediately."
 
 #. placeholder {0}: deleteUser?.email
-#: src/pages/Admin.tsx:560
+#: src/pages/Admin.tsx:561
 msgid "This will permanently delete <0>{0}</0> and all their data (activities, config, connections, plans). This cannot be undone."
 msgstr "This will permanently delete <0>{0}</0> and all their data (activities, config, connections, plans). This cannot be undone."
 
@@ -2450,7 +2478,7 @@ msgstr "Thresholds"
 msgid "Time range"
 msgstr "Time range"
 
-#: src/pages/Admin.tsx:595
+#: src/pages/Admin.tsx:596
 msgid "Title"
 msgstr "Title"
 
@@ -2539,8 +2567,8 @@ msgstr "TSB"
 msgid "TSB (Form)"
 msgstr "TSB (Form)"
 
-#: src/components/FeedbackDialog.tsx:141
-#: src/pages/Admin.tsx:696
+#: src/components/FeedbackDialog.tsx:210
+#: src/pages/Admin.tsx:697
 msgid "Type"
 msgstr "Type"
 
@@ -2560,7 +2588,7 @@ msgstr "Units"
 msgid "Upcoming Plan"
 msgstr "Upcoming Plan"
 
-#: src/pages/Admin.tsx:548
+#: src/pages/Admin.tsx:549
 msgid "Updating..."
 msgstr "Updating..."
 
@@ -2585,23 +2613,23 @@ msgstr "Use your Garmin Connect credentials."
 msgid "Use your Stryd account credentials (stryd.com)."
 msgstr "Use your Stryd account credentials (stryd.com)."
 
-#: src/pages/Admin.tsx:435
+#: src/pages/Admin.tsx:436
 msgid "Used"
 msgstr "Used"
 
-#: src/pages/Admin.tsx:408
+#: src/pages/Admin.tsx:409
 msgid "Used By"
 msgstr "Used By"
 
-#: src/pages/Admin.tsx:316
+#: src/pages/Admin.tsx:317
 msgid "User"
 msgstr "User"
 
-#: src/pages/Admin.tsx:676
+#: src/pages/Admin.tsx:677
 msgid "User Feedback"
 msgstr "User Feedback"
 
-#: src/pages/Admin.tsx:280
+#: src/pages/Admin.tsx:281
 msgid "Users"
 msgstr "Users"
 
@@ -2651,7 +2679,7 @@ msgstr "Walking"
 msgid "Warmup"
 msgstr "Warmup"
 
-#: src/components/FeedbackDialog.tsx:177
+#: src/components/FeedbackDialog.tsx:247
 msgid "We attach basic diagnostics (page, app version, browser) and automatically remove personal details before sharing with our issue tracker."
 msgstr "We attach basic diagnostics (page, app version, browser) and automatically remove personal details before sharing with our issue tracker."
 
@@ -2659,7 +2687,7 @@ msgstr "We attach basic diagnostics (page, app version, browser) and automatical
 msgid "We're inviting runners in waves while we tighten the science. Drop your email and we'll reach back when a slot opens."
 msgstr "We're inviting runners in waves while we tighten the science. Drop your email and we'll reach back when a slot opens."
 
-#: src/components/FeedbackDialog.tsx:131
+#: src/components/FeedbackDialog.tsx:200
 msgid "We've logged it and will take a look."
 msgstr "We've logged it and will take a look."
 
@@ -2687,7 +2715,7 @@ msgstr "Weekly Volume"
 msgid "Welcome back."
 msgstr "Welcome back."
 
-#: src/components/FeedbackDialog.tsx:167
+#: src/components/FeedbackDialog.tsx:237
 msgid "What happened, or what would you like to see?"
 msgstr "What happened, or what would you like to see?"
 
@@ -2711,15 +2739,19 @@ msgstr "Will sync:"
 #~ msgid "Workout differs on Stryd — re-push to overwrite"
 #~ msgstr "Workout differs on Stryd — re-push to overwrite"
 
-#: src/pages/Admin.tsx:302
+#: src/pages/Admin.tsx:303
 msgid "you"
 msgstr "you"
+
+#: src/components/FeedbackDialog.tsx:105
+msgid "You can attach up to 3 images."
+msgstr "You can attach up to 3 images."
 
 #: src/pages/Login.tsx:55
 msgid "You must accept the Terms of Service to register."
 msgstr "You must accept the Terms of Service to register."
 
-#: src/components/FeedbackDialog.tsx:94
+#: src/components/FeedbackDialog.tsx:163
 msgid "You've sent several reports recently — please wait a few minutes before sending more."
 msgstr "You've sent several reports recently — please wait a few minutes before sending more."
 

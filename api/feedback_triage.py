@@ -27,7 +27,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from api import feedback_scrub, github_issues, llm, telemetry
+from api import feedback_scrub, feedback_storage, feedback_vision, github_issues, llm, telemetry
 
 logger = logging.getLogger(__name__)
 
@@ -48,15 +48,27 @@ def _autofile_without_ai() -> bool:
     return (os.environ.get("PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI", "") or "").lower() in ("1", "true", "yes")
 
 
-def _gate_blocks_publish(*, used_llm: bool, llm_flag: bool, body: str) -> bool:
+def _gate_blocks_publish(
+    *,
+    used_llm: bool,
+    llm_flag: bool,
+    body: str,
+    has_image: bool = False,
+    image_sensitive: Optional[bool] = None,
+) -> bool:
     """Decide whether to withhold a report from auto-opening a public issue.
 
     Blocks when: (a) the scrubber removed a key/token — a strong signal the
-    user pasted a secret; (b) the LLM judged the report still sensitive; or
-    (c) there is no LLM verdict and the operator hasn't opted into scrub-only
-    auto-filing. Blocked rows are parked as ``needs_review`` for an admin.
+    user pasted a secret; (b) an attached screenshot was flagged sensitive by
+    the vision model, or is present but could not be vision-verified
+    (``image_sensitive is None``) — an unread image is unsafe to auto-publish;
+    (c) the LLM judged the text report still sensitive; or (d) there is no LLM
+    verdict and the operator hasn't opted into scrub-only auto-filing. Blocked
+    rows are parked as ``needs_review`` for an admin.
     """
     if "[redacted-key]" in body or "[redacted-token]" in body:
+        return True
+    if has_image and (image_sensitive is None or image_sensitive):
         return True
     if used_llm:
         return bool(llm_flag)
@@ -155,6 +167,47 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
         clean_message = feedback_scrub.scrub_text(row.message)
         clean_context = feedback_scrub.scrub_context(row.context_json)
 
+        # --- Screenshot vision triage (issue #337) ---
+        # Load any attached screenshots, ask the vision model for a scrubbed
+        # description + sensitivity verdict, and record both on the row. The raw
+        # image is NEVER folded into the issue — only the scrubbed description
+        # plus an "in the admin console" reference. image_flag stays None when a
+        # screenshot is present but couldn't be vision-verified, which the gate
+        # treats as unsafe to auto-publish.
+        image_keys = list(row.image_keys or [])
+        image_section = ""
+        used_vision = False
+        image_flag: Optional[bool] = None
+        if image_keys:
+            loaded = []
+            for key in image_keys:
+                got = feedback_storage.load_image(key)
+                if got is not None:
+                    loaded.append(got)
+            vision = feedback_vision.analyze_images(loaded) if loaded else None
+            if vision is not None:
+                used_vision = True
+                description = feedback_scrub.scrub_text(vision["description"])
+                image_flag = bool(vision["sensitive"])
+                row.image_description = description
+                row.image_sensitive = image_flag
+                image_section = (
+                    f"\n\n## Screenshot\n{description}\n\n"
+                    f"_{len(image_keys)} screenshot(s) attached — view in the Praxys "
+                    f"admin console (feedback id {feedback_id}). The image itself is "
+                    f"not published here._"
+                )
+            else:
+                # No vision verdict (model unavailable or call failed). Reference
+                # the attachment but publish no image-derived text; the gate holds
+                # the row for admin review.
+                row.image_sensitive = None
+                image_section = (
+                    f"\n\n## Screenshot\n_{len(image_keys)} screenshot(s) attached — "
+                    f"view in the Praxys admin console (feedback id {feedback_id}). "
+                    f"Not analysed (no vision model); image not published here._"
+                )
+
         used_llm = False
         llm_flag = False
         client = llm.get_client()
@@ -193,6 +246,11 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
         if not title or not body:
             title, body = _rule_based(kind, clean_message, clean_context)
 
+        # Fold the (already-scrubbed) screenshot description into the body so it
+        # too passes through the final scrub below (belt-and-suspenders).
+        if image_section:
+            body = body + image_section
+
         # Belt-and-suspenders: never trust the model as the sole redactor.
         title = feedback_scrub.scrub_text(title)[:120] or f"User {kind}"
         body = feedback_scrub.scrub_text(body) + _publish_footer(feedback_id, row.user_id)
@@ -200,6 +258,8 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
         labels = [_KIND_LABEL[kind], "feedback"]
         if used_llm:
             labels.append("ai-triaged")
+        if image_keys:
+            labels.append("screenshot")
 
         row.kind = kind
         row.ai_title = title
@@ -211,7 +271,13 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
             # promotion from the Admin page.
             row.status = "triaged"
             row.error = None
-        elif _gate_blocks_publish(used_llm=used_llm, llm_flag=llm_flag, body=body):
+        elif _gate_blocks_publish(
+            used_llm=used_llm,
+            llm_flag=llm_flag,
+            body=body,
+            has_image=bool(image_keys),
+            image_sensitive=image_flag,
+        ):
             # The report may still carry sensitive content — don't auto-open a
             # public issue. Park it for an admin to review / approve.
             row.status = "needs_review"
@@ -229,7 +295,7 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
 
         db.commit()
         telemetry.record_feedback(kind=kind, status=row.status)
-        return {"status": row.status, "kind": kind, "used_llm": used_llm}
+        return {"status": row.status, "kind": kind, "used_llm": used_llm, "used_vision": used_vision}
 
     except Exception:
         logger.exception("triage_and_publish failed for feedback %s", feedback_id)
