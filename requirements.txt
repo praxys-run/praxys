@@ -49,6 +49,12 @@ fitparse>=0.6.0
 # path live, so this is a hard requirement, not optional.
 openai>=1.50.0
 
+# Azure Blob storage for private feedback screenshot attachments (issue #337).
+# Guarded import (api/feedback_storage.py): when unset/uninstalled the app falls
+# back to local filesystem storage under DATA_DIR — fine for dev, but ephemeral
+# on Azure App Service, so production configures PRAXYS_FEEDBACK_BLOB_*.
+azure-storage-blob>=12.20.0
+
 # ── Visual asset generation ──────────────────────────────────────────
 # Headless Chromium via Playwright is used by scripts/generate_og_card.py
 # to rasterize web/public/og-card*.html into PNGs for OpenGraph / WeChat

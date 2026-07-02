@@ -356,6 +356,13 @@ const EN_SETTINGS = {
   'Max HR': 'Max HR',
   'Resting HR': 'Resting HR',
   'from {0}': 'from {0}',
+  // Feedback screenshot attachment (issue #337) — mini-only prompts.
+  'Add a screenshot?': 'Add a screenshot?',
+  'A screenshot helps us pinpoint the issue. It stays private.':
+    'A screenshot helps us pinpoint the issue. It stays private.',
+  'Add photo': 'Add photo',
+  'Send without': 'Send without',
+  'Image must be under 5 MB.': 'Image must be under 5 MB.',
 };
 
 const EN_NAV_CHARTS = {
@@ -686,6 +693,13 @@ const ZH_SETTINGS = {
   'Max HR': '最大心率',
   'Resting HR': '静息心率',
   'from {0}': '来源：{0}',
+  // Feedback screenshot attachment (issue #337) — mini-only prompts.
+  'Add a screenshot?': '添加截图？',
+  'A screenshot helps us pinpoint the issue. It stays private.':
+    '截图有助于我们更快定位问题，仅供内部查看。',
+  'Add photo': '添加图片',
+  'Send without': '直接发送',
+  'Image must be under 5 MB.': '图片需小于 5 MB。',
 };
 
 const ZH_NAV_CHARTS = {

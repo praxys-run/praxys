@@ -15,11 +15,11 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Literal, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from api import telemetry
+from api import feedback_storage, telemetry
 from api.auth import get_current_user_id
 from api.feedback_triage import triage_and_publish
 from api.views import require_admin, utc_isoformat
@@ -46,6 +46,37 @@ class FeedbackRequest(BaseModel):
     # viewport, locale). Scrubbed to an allowlist before anything is published.
     context: dict[str, Any] | None = None
     locale: str = Field(default="", max_length=10)
+    # Optional screenshots (issue #337): base64 payloads (data-URL or raw). They
+    # are validated, described + sensitivity-flagged by a vision model, and
+    # stored privately — only a reference (blob key) is kept and the raw image
+    # never reaches a public issue. Capped at MAX_IMAGE_COUNT.
+    images: list[str] | None = Field(default=None, max_length=feedback_storage.MAX_IMAGE_COUNT)
+
+
+def _decode_and_validate_images(images: Optional[list[str]]) -> list[bytes]:
+    """Decode + validate base64 screenshots, raising HTTPException on any bad
+    input. Returns the decoded bytes (possibly empty). The client validates
+    too; this is the authoritative server-side backstop (issue #337).
+    """
+    if not images:
+        return []
+    if len(images) > feedback_storage.MAX_IMAGE_COUNT:
+        raise HTTPException(400, detail="FEEDBACK_TOO_MANY_IMAGES")
+    out: list[bytes] = []
+    for raw in images:
+        # Bound work before decoding: base64 is ~1.37x the raw size, so a
+        # string well over 2x the byte cap can't be an in-cap image.
+        if not isinstance(raw, str) or len(raw) > feedback_storage.MAX_IMAGE_BYTES * 2:
+            raise HTTPException(413, detail="FEEDBACK_IMAGE_TOO_LARGE")
+        data = feedback_storage.decode_base64_image(raw)
+        if data is None:
+            raise HTTPException(400, detail="FEEDBACK_IMAGE_DECODE_FAILED")
+        if len(data) > feedback_storage.MAX_IMAGE_BYTES:
+            raise HTTPException(413, detail="FEEDBACK_IMAGE_TOO_LARGE")
+        if feedback_storage.sniff(data) is None:
+            raise HTTPException(415, detail="FEEDBACK_IMAGE_UNSUPPORTED_TYPE")
+        out.append(data)
+    return out
 
 
 @router.post("/feedback")
@@ -67,6 +98,10 @@ def submit_feedback(
     if recent >= _MAX_PER_WINDOW:
         raise HTTPException(429, detail="FEEDBACK_RATE_LIMITED")
 
+    # Validate + decode screenshots up-front so a bad image is rejected before
+    # we persist anything (issue #337).
+    decoded_images = _decode_and_validate_images(body.images)
+
     try:
         row = Feedback(
             user_id=user_id,
@@ -83,6 +118,24 @@ def submit_feedback(
         db.rollback()
         logger.exception("feedback save failed for user %s", user_id)
         raise HTTPException(500, detail="FEEDBACK_SAVE_FAILED")
+
+    # Persist screenshots privately and record their keys (never the raw image)
+    # on the row. A storage failure must not fail the submit — the text report
+    # is the primary artifact — so we log and carry on with whatever stored.
+    if decoded_images:
+        keys: list[str] = []
+        for i, data in enumerate(decoded_images):
+            key = feedback_storage.store_image(data, feedback_id=row.id, index=i)
+            if key:
+                keys.append(key)
+        if keys:
+            try:
+                row.image_keys = keys
+                db.commit()
+                db.refresh(row)
+            except Exception:
+                db.rollback()
+                logger.warning("feedback image-key save failed for id=%s", row.id, exc_info=True)
 
     telemetry.record_feedback(kind=body.kind, status="new")
     background_tasks.add_task(triage_and_publish, row.id)
@@ -112,6 +165,11 @@ def _serialize_admin(row) -> dict:
         "github_issue_number": row.github_issue_number,
         "github_issue_url": row.github_issue_url,
         "error": row.error,
+        # Screenshot attachment (issue #337): count + scrubbed vision outputs.
+        # The raw image is served only via the admin image endpoint below.
+        "image_count": len(row.image_keys or []),
+        "image_description": row.image_description,
+        "image_sensitive": row.image_sensitive,
         "created_at": utc_isoformat(row.created_at),
         "updated_at": utc_isoformat(row.updated_at),
     }
@@ -161,6 +219,40 @@ def feedback_summary(
         "actionable": needs_review + failed,
         "total": sum(counts.values()),
     }
+
+
+@router.get("/admin/feedback/{feedback_id}/image/{index}")
+def get_feedback_image(
+    feedback_id: int,
+    index: int,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> Response:
+    """Serve one attached screenshot (raw bytes). Admin only, never cached.
+
+    The image is private — deliberately NOT exposed on any public issue; admins
+    view it here alongside the scrubbed report. Returns 404 when the row, index,
+    or stored object is missing.
+    """
+    require_admin(user_id, db)
+    from db.models import Feedback
+
+    row = db.query(Feedback).filter(Feedback.id == feedback_id).first()
+    if row is None:
+        raise HTTPException(404, "Feedback not found")
+    keys = list(row.image_keys or [])
+    if index < 0 or index >= len(keys):
+        raise HTTPException(404, "Image not found")
+    got = feedback_storage.load_image(keys[index])
+    if got is None:
+        raise HTTPException(404, "Image not found")
+    data, content_type = got
+    # private, no-store: an admin's own browser may hold it; shared caches must not.
+    return Response(
+        content=data,
+        media_type=content_type,
+        headers={"Cache-Control": "private, no-store"},
+    )
 
 
 class FeedbackAction(BaseModel):
