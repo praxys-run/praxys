@@ -515,13 +515,19 @@ class Feedback(Base):
     # describe their environment. Scrubbed before publication.
     context_json = Column(JSON, nullable=True)
     locale = Column(String(10), nullable=True)
-    # new | triaged | issue_created | failed | rejected
+    # new | triaged | needs_review | issue_created | resolved | failed | rejected
+    # ``resolved`` is set when the linked GitHub issue is closed (synced back via
+    # the admin "Sync from GitHub" action); a reopen flips it to issue_created.
     status = Column(String(20), nullable=False, default="new", index=True)
     # Outputs of the triage step — the scrubbed, agent-ready title/body and
     # labels that were (or would be) published. Kept for audit + admin review.
     ai_title = Column(String(200), nullable=True)
     ai_body = Column(Text, nullable=True)
     ai_labels = Column(JSON, nullable=True)
+    # LLM-suggested triage priority: low | medium | high | critical. NULL when
+    # triaged without an LLM (the rule-based fallback doesn't guess a priority)
+    # or not yet triaged. Mirrored to a ``priority: <value>`` GitHub label.
+    priority = Column(String(10), nullable=True)
     github_issue_number = Column(Integer, nullable=True)
     github_issue_url = Column(String(500), nullable=True)
     # Last triage/publish error (truncated) so admins can see why a row is

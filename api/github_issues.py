@@ -234,3 +234,44 @@ def create_issue(
 
     data = resp.json()
     return {"number": data.get("number"), "url": data.get("html_url")}
+
+
+def get_issue_state(number: int) -> dict | None:
+    """Return a linked issue's current state, or ``None``.
+
+    Shape: ``{"state": "open"|"closed", "state_reason": str|None}``. Used by the
+    admin ticket-sync action to reconcile local status with GitHub. Read-only
+    and privacy-preserving: it reads only the issue's state — no user-submitted
+    ticket text is sent to or parsed back from GitHub. ``None`` when GitHub isn't
+    configured or the fetch fails; never raises (same contract as create_issue).
+    """
+    token, repo = _bearer_token(), _repo()
+    if not token or not repo:
+        return None
+    url = f"{_API_ROOT}/repos/{repo}/issues/{number}"
+    headers = {
+        "Authorization": f"******",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": _API_VERSION,
+        "User-Agent": "praxys-feedback",
+    }
+    try:
+        resp = httpx.get(url, headers=headers, timeout=_TIMEOUT_S)
+    except httpx.HTTPError as exc:
+        logger.warning("GitHub issue state fetch failed (network): %s", exc)
+        return None
+    if resp.status_code != 200:
+        logger.warning(
+            "GitHub issue state fetch failed: HTTP %s (%s)",
+            resp.status_code, resp.reason_phrase,
+        )
+        return None
+    try:
+        data = resp.json() or {}
+    except Exception:
+        logger.warning("GitHub issue state fetch returned a non-JSON 200 body")
+        return None
+    state = data.get("state")
+    if state not in ("open", "closed"):
+        return None
+    return {"state": state, "state_reason": data.get("state_reason")}

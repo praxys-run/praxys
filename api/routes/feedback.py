@@ -1,8 +1,9 @@
 """Feedback endpoints — in-app bug reports / feature requests / general feedback.
 
-POST   /api/feedback              — any authenticated user; stores + triages
-GET    /api/admin/feedback        — admin only; list submissions
-PATCH  /api/admin/feedback/{id}   — admin only; retry triage or reject
+POST   /api/feedback               — any authenticated user; stores + triages
+GET    /api/admin/feedback         — admin only; list submissions (status filter)
+POST   /api/admin/feedback/sync    — admin only; sync status from linked issues
+PATCH  /api/admin/feedback/{id}    — admin only; retry triage / reject / approve
 
 The submit handler does the minimum synchronously (validate, persist, emit a
 telemetry signal) and hands the slow work — AI rewrite + PII scrub + GitHub
@@ -162,6 +163,7 @@ def _serialize_admin(row) -> dict:
         "ai_title": row.ai_title,
         "ai_body": row.ai_body,
         "ai_labels": row.ai_labels or [],
+        "priority": row.priority,
         "github_issue_number": row.github_issue_number,
         "github_issue_url": row.github_issue_url,
         "error": row.error,
@@ -187,7 +189,11 @@ def list_feedback(
     from db.models import Feedback
 
     q = db.query(Feedback)
-    if status:
+    if status == "active":
+        # Default admin view: in-flight tickets only — hide the terminal
+        # resolved/rejected rows so the actionable ones aren't crowded out.
+        q = q.filter(Feedback.status.notin_(("resolved", "rejected")))
+    elif status:
         q = q.filter(Feedback.status == status)
     rows = q.order_by(Feedback.created_at.desc()).limit(min(max(limit, 1), 500)).all()
     return [_serialize_admin(r) for r in rows]
@@ -219,6 +225,56 @@ def feedback_summary(
         "actionable": needs_review + failed,
         "total": sum(counts.values()),
     }
+
+
+@router.post("/admin/feedback/sync")
+def sync_feedback_status(
+    limit: int = 200,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Reconcile ticket status with each linked GitHub issue. Admin only.
+
+    A ticket filed as a GitHub issue tracks that issue's lifecycle: when the
+    issue is closed the row flips to ``resolved``; if it's reopened the row
+    flips back to ``issue_created``. Only rows that already have a linked issue
+    and sit in one of those two states are checked — triage-side statuses
+    (new / needs_review / failed / rejected) are never touched.
+
+    Privacy: read-only against GitHub, fetching only each issue's *state* — no
+    ticket text is sent. A no-op (``configured: false``) when GitHub is unset.
+    """
+    require_admin(user_id, db)
+    from api import github_issues
+    from db.models import Feedback
+
+    if not github_issues.is_configured():
+        return {"configured": False, "checked": 0, "updated": 0}
+
+    rows = (
+        db.query(Feedback)
+        .filter(
+            Feedback.github_issue_number.isnot(None),
+            Feedback.status.in_(("issue_created", "resolved")),
+        )
+        .order_by(Feedback.updated_at.desc())
+        .limit(min(max(limit, 1), 500))
+        .all()
+    )
+    checked = updated = 0
+    for row in rows:
+        state = github_issues.get_issue_state(row.github_issue_number)
+        if state is None:
+            # Unreadable (deleted / transferred / transient error) — leave as-is.
+            continue
+        checked += 1
+        new_status = "resolved" if state["state"] == "closed" else "issue_created"
+        if new_status != row.status:
+            row.status = new_status
+            updated += 1
+    if updated:
+        db.commit()
+    return {"configured": True, "checked": checked, "updated": updated}
 
 
 @router.get("/admin/feedback/{feedback_id}/image/{index}")
@@ -286,7 +342,9 @@ def update_feedback(
     if payload.action == "approve":
         # Human override of the sensitivity gate: publish the already-scrubbed,
         # admin-reviewed title/body to GitHub. Used to release a needs_review row.
-        if row.status == "issue_created":
+        # Guard on a linked issue (issue_created OR resolved) — not one status —
+        # so an already-filed row can't be re-published as a duplicate.
+        if row.github_issue_number is not None:
             raise HTTPException(409, "Already published to GitHub")
         if not row.ai_title or not row.ai_body:
             raise HTTPException(409, "Nothing to publish yet — run triage first")
@@ -311,9 +369,10 @@ def update_feedback(
         db.commit()
         return _serialize_admin(row)
 
-    # retry: reset to a re-triageable state and re-schedule. Guarded so an
-    # already-published row isn't double-filed.
-    if row.status == "issue_created":
+    # retry: reset to a re-triageable state and re-schedule. Guarded on a linked
+    # issue (issue_created OR resolved) so an already-filed row isn't double-
+    # filed — reopening a resolved ticket goes through GitHub + Sync instead.
+    if row.github_issue_number is not None:
         raise HTTPException(409, "Already published to GitHub")
     row.status = "new"
     row.error = None

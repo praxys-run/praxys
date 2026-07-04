@@ -242,20 +242,19 @@ def _stub_github(monkeypatch, calls):
     monkeypatch.setattr(ft.github_issues, "create_issue", _create)
 
 
-def _stub_llm(monkeypatch, *, sensitive):
+def _stub_llm(monkeypatch, *, sensitive, priority=None):
     from api import feedback_triage as ft
 
+    payload = {
+        "kind": "bug",
+        "title": "Charts crash on Training",
+        "body": "The training charts fail to render.",
+        "contains_sensitive": sensitive,
+    }
+    if priority is not None:
+        payload["priority"] = priority
     monkeypatch.setattr(ft.llm, "get_client", lambda: object())
-    monkeypatch.setattr(
-        ft.llm,
-        "chat_json",
-        lambda *a, **k: {
-            "kind": "bug",
-            "title": "Charts crash on Training",
-            "body": "The training charts fail to render.",
-            "contains_sensitive": sensitive,
-        },
-    )
+    monkeypatch.setattr(ft.llm, "chat_json", lambda *a, **k: payload)
 
 
 def _new_row(db, user_id, message, kind="bug"):
@@ -402,9 +401,10 @@ def test_admin_reject_and_retry(db_with_users):
     assert retried["status"] == "new"
     assert len(bg.tasks) == 1
 
-    # Retrying an already-published row is a conflict.
+    # Retrying an already-published row (linked to a GitHub issue) is a conflict.
     row = db.query(Feedback).filter(Feedback.id == fid).first()
     row.status = "issue_created"
+    row.github_issue_number = 101
     db.commit()
     with pytest.raises(HTTPException) as exc:
         update_feedback(fid, FeedbackAction(action="retry"), BackgroundTasks(), user_id=admin_id, db=db)
@@ -860,3 +860,216 @@ def test_admin_image_serve_and_404_and_authz(db_with_users):
     with pytest.raises(HTTPException) as exc:
         get_feedback_image(fid, 0, user_id=user_id, db=db)
     assert exc.value.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# Priority auto-suggestion (issue #359)
+# ---------------------------------------------------------------------------
+
+
+def test_triage_assigns_priority_from_llm(db_with_users, monkeypatch):
+    """The LLM's suggested priority lands on the row and a mirroring label."""
+    from api.feedback_triage import triage_and_publish
+
+    db, _, _, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    _stub_llm(monkeypatch, sensitive=False, priority="high")
+    row = _new_row(db, user_id, "Charts fail to load on the training page")
+
+    result = triage_and_publish(row.id, _session=db)
+    assert result["status"] == "issue_created"
+    db.refresh(row)
+    assert row.priority == "high"
+    assert "priority: high" in (row.ai_labels or [])
+    assert "priority: high" in calls[0]["labels"]
+
+
+def test_triage_ignores_invalid_priority(db_with_users, monkeypatch):
+    """A priority outside the allowed set is dropped (no label, NULL column)."""
+    from api.feedback_triage import triage_and_publish
+
+    db, _, _, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    _stub_llm(monkeypatch, sensitive=False, priority="urgent")  # not a valid bucket
+    row = _new_row(db, user_id, "Charts fail to load on the training page")
+
+    triage_and_publish(row.id, _session=db)
+    db.refresh(row)
+    assert row.priority is None
+    assert not any(str(lbl).startswith("priority:") for lbl in (row.ai_labels or []))
+
+
+def test_triage_priority_none_without_llm(db_with_users):
+    """No LLM configured → rule-based triage leaves priority unset."""
+    from api.feedback_triage import triage_and_publish
+
+    db, _, _, user_id = db_with_users
+    row = _new_row(db, user_id, "Some report with no AI available")
+
+    triage_and_publish(row.id, _session=db)
+    db.refresh(row)
+    assert row.priority is None
+
+
+# ---------------------------------------------------------------------------
+# GitHub issue status sync (issue #359)
+# ---------------------------------------------------------------------------
+
+
+def _stub_issue_state(monkeypatch, mapping):
+    """Stub github_issues so get_issue_state returns the mapped open/closed."""
+    from api import github_issues
+
+    monkeypatch.setattr(github_issues, "is_configured", lambda: True)
+
+    def _state(number):
+        st = mapping.get(number)
+        return {"state": st, "state_reason": None} if st else None
+
+    monkeypatch.setattr(github_issues, "get_issue_state", _state)
+
+
+def test_sync_marks_resolved_when_issue_closed(db_with_users, monkeypatch):
+    from api.routes.feedback import sync_feedback_status
+    from db.models import Feedback
+
+    db, _, admin_id, user_id = db_with_users
+    row = Feedback(user_id=user_id, kind="bug", message="x", status="issue_created", github_issue_number=101)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+
+    _stub_issue_state(monkeypatch, {101: "closed"})
+    out = sync_feedback_status(user_id=admin_id, db=db)
+    assert out == {"configured": True, "checked": 1, "updated": 1}
+    db.refresh(row)
+    assert row.status == "resolved"
+
+
+def test_sync_reopens_resolved_when_issue_open(db_with_users, monkeypatch):
+    from api.routes.feedback import sync_feedback_status
+    from db.models import Feedback
+
+    db, _, admin_id, user_id = db_with_users
+    row = Feedback(user_id=user_id, kind="bug", message="x", status="resolved", github_issue_number=55)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+
+    _stub_issue_state(monkeypatch, {55: "open"})
+    out = sync_feedback_status(user_id=admin_id, db=db)
+    assert out["updated"] == 1
+    db.refresh(row)
+    assert row.status == "issue_created"
+
+
+def test_sync_only_touches_linked_in_flight_rows(db_with_users, monkeypatch):
+    """Triage-side and unlinked rows are never queried or mutated."""
+    from api.routes.feedback import sync_feedback_status
+    from db.models import Feedback
+
+    db, _, admin_id, user_id = db_with_users
+    linked = Feedback(user_id=user_id, kind="bug", message="x", status="issue_created", github_issue_number=101)
+    pending = Feedback(user_id=user_id, kind="bug", message="y", status="needs_review")
+    fresh = Feedback(user_id=user_id, kind="bug", message="z", status="new")
+    declined = Feedback(user_id=user_id, kind="bug", message="w", status="rejected", github_issue_number=9)
+    db.add_all([linked, pending, fresh, declined])
+    db.commit()
+
+    _stub_issue_state(monkeypatch, {101: "closed"})
+    out = sync_feedback_status(user_id=admin_id, db=db)
+    assert out == {"configured": True, "checked": 1, "updated": 1}
+    for r in (linked, pending, fresh, declined):
+        db.refresh(r)
+    assert linked.status == "resolved"
+    assert pending.status == "needs_review"
+    assert fresh.status == "new"
+    assert declined.status == "rejected"
+
+
+def test_sync_noop_when_github_not_configured(db_with_users, monkeypatch):
+    from api.routes.feedback import sync_feedback_status
+    from api import github_issues
+    from db.models import Feedback
+
+    db, _, admin_id, user_id = db_with_users
+    db.add(Feedback(user_id=user_id, kind="bug", message="x", status="issue_created", github_issue_number=7))
+    db.commit()
+
+    monkeypatch.setattr(github_issues, "is_configured", lambda: False)
+    out = sync_feedback_status(user_id=admin_id, db=db)
+    assert out == {"configured": False, "checked": 0, "updated": 0}
+
+
+def test_sync_requires_admin(db_with_users):
+    from api.routes.feedback import sync_feedback_status
+
+    db, _, _, user_id = db_with_users
+    with pytest.raises(HTTPException) as exc:
+        sync_feedback_status(user_id=user_id, db=db)
+    assert exc.value.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# Status filtering (issue #359)
+# ---------------------------------------------------------------------------
+
+
+def test_list_active_filter_excludes_terminal(db_with_users):
+    from api.routes.feedback import list_feedback
+    from db.models import Feedback
+
+    db, _, admin_id, user_id = db_with_users
+    for st in ("new", "issue_created", "resolved", "rejected", "needs_review", "failed"):
+        db.add(Feedback(user_id=user_id, kind="bug", message="x", status=st))
+    db.commit()
+
+    active = list_feedback(status="active", user_id=admin_id, db=db)
+    statuses = {r["status"] for r in active}
+    assert "resolved" not in statuses
+    assert "rejected" not in statuses
+    assert {"new", "issue_created", "needs_review", "failed"} <= statuses
+    # priority is exposed in the serialized row.
+    assert "priority" in active[0]
+
+    # An exact status still filters precisely, including the new resolved value.
+    only_resolved = list_feedback(status="resolved", user_id=admin_id, db=db)
+    assert len(only_resolved) == 1
+    assert only_resolved[0]["status"] == "resolved"
+
+
+def test_retry_and_approve_blocked_on_linked_resolved_row(db_with_users):
+    """A resolved ticket still owns a live GitHub issue — retry/approve must be
+    refused so we never file a duplicate on the public tracker (issue #359)."""
+    from api.routes.feedback import update_feedback, FeedbackAction
+    from db.models import Feedback
+
+    db, _, admin_id, user_id = db_with_users
+    row = Feedback(
+        user_id=user_id,
+        kind="bug",
+        message="x",
+        status="resolved",
+        github_issue_number=101,
+        github_issue_url="https://github.com/x/y/issues/101",
+        ai_title="t",
+        ai_body="b",
+        ai_labels=["bug", "feedback"],
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+
+    for action in ("retry", "approve"):
+        bg = BackgroundTasks()
+        with pytest.raises(HTTPException) as exc:
+            update_feedback(row.id, FeedbackAction(action=action), bg, user_id=admin_id, db=db)
+        assert exc.value.status_code == 409, action
+        assert len(bg.tasks) == 0, action
+
+    # Untouched: still resolved and linked to the original issue (no duplicate).
+    db.refresh(row)
+    assert row.status == "resolved"
+    assert row.github_issue_number == 101

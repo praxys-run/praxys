@@ -76,11 +76,21 @@ appear in **Admin → Waitlist**.
 ## Feedback triage
 
 In-app bug reports / feature requests land in **Admin → User Feedback**
-(badge shows the count needing attention). Each row:
+(badge shows the count needing attention). The list defaults to **Active**
+tickets — use the status filter to view **All** or a single status
+(`resolved`, `rejected`, …). During AI triage each ticket is also assigned a
+**priority** (`low`/`medium`/`high`/`critical`), shown as a badge and mirrored
+to a `priority: <level>` label on the filed GitHub issue. Per-row actions:
 - **Approve & file** — publish a parked (`needs_review`) report's scrubbed
   title/body to GitHub.
 - **Retry** — re-run triage.
 - **Reject** — discard.
+
+**Sync from GitHub** reconciles each filed ticket with its linked issue: a
+closed issue flips the ticket to `resolved`, a reopened one back to
+`issue_created`. It reads only the issue *state* (no ticket text leaves) and is
+a no-op when GitHub isn't configured — no extra permission is needed beyond the
+GitHub App's existing *Issues: write*.
 
 Auto-filing + the sensitivity gate are configured via the GitHub App settings
 (`PRAXYS_GITHUB_APP_*` / `PRAXYS_FEEDBACK_GITHUB_*`; see
@@ -89,7 +99,8 @@ Auto-filing + the sensitivity gate are configured via the GitHub App settings
 To get emailed when something needs review, wire the alert in
 [monitoring-and-alerts.md](./monitoring-and-alerts.md).
 
-> The feedback feature ships in dddtc2005/praxys#328.
+> The feedback feature ships in dddtc2005/praxys#328; ticket status sync, status
+> filtering, and priority suggestions in dddtc2005/praxys#359.
 
 ## Related
 
