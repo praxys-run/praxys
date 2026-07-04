@@ -35,6 +35,10 @@ logger = logging.getLogger(__name__)
 _KIND_LABEL = {"bug": "bug", "feature": "enhancement", "other": "feedback"}
 _VALID_KINDS = set(_KIND_LABEL)
 
+# Triage priority buckets the LLM assigns (low → critical). Kept as a stable
+# English set the admin UI / GitHub labels key off.
+_VALID_PRIORITIES = {"low", "medium", "high", "critical"}
+
 _TRIAGE_MODEL = llm.INSIGHT_MODEL
 
 
@@ -97,8 +101,16 @@ def _system_prompt() -> str:
         "public tracker. A normal product bug report or feature request is NOT "
         "sensitive — return false. Default to false, and ALWAYS include the "
         "contains_sensitive field in your response.\n"
+        "- Assign a triage priority as exactly one of: low, medium, high, "
+        "critical. Judge by user impact and urgency: critical = data loss, a "
+        "security problem, or the app is unusable for many users; high = a core "
+        "feature is broken or a workflow is blocked; medium = a limited or "
+        "non-blocking bug, or a valuable feature request; low = minor polish, "
+        "cosmetic issues, or nice-to-have ideas. Default to medium when unsure. "
+        "ALWAYS include the priority field.\n"
         "Respond with a JSON object: "
-        "{\"kind\": str, \"title\": str, \"body\": str, \"contains_sensitive\": bool}."
+        "{\"kind\": str, \"title\": str, \"body\": str, "
+        "\"contains_sensitive\": bool, \"priority\": str}."
     )
 
 
@@ -210,6 +222,7 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
 
         used_llm = False
         llm_flag = False
+        priority: Optional[str] = None
         client = llm.get_client()
         title = body = None
         if client is not None:
@@ -241,6 +254,9 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
                         kind = llm_kind
                     # Missing field → treat as sensitive (fail safe).
                     llm_flag = bool(result.get("contains_sensitive", True))
+                    llm_priority = str(result.get("priority", "")).strip().lower()
+                    if llm_priority in _VALID_PRIORITIES:
+                        priority = llm_priority
                     used_llm = True
 
         if not title or not body:
@@ -258,10 +274,13 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
         labels = [_KIND_LABEL[kind], "feedback"]
         if used_llm:
             labels.append("ai-triaged")
+        if priority:
+            labels.append(f"priority: {priority}")
         if image_keys:
             labels.append("screenshot")
 
         row.kind = kind
+        row.priority = priority
         row.ai_title = title
         row.ai_body = body
         row.ai_labels = labels

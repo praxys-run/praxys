@@ -604,7 +604,11 @@ export interface SystemAnnouncement {
 
 export type FeedbackKind = 'bug' | 'feature' | 'other';
 
-export type FeedbackStatus = 'new' | 'triaged' | 'needs_review' | 'issue_created' | 'failed' | 'rejected';
+export type FeedbackStatus = 'new' | 'triaged' | 'needs_review' | 'issue_created' | 'resolved' | 'failed' | 'rejected';
+
+/** LLM-suggested triage priority. Null on a ticket triaged without an LLM
+ * (the rule-based fallback doesn't guess) or not yet triaged. */
+export type FeedbackPriority = 'low' | 'medium' | 'high' | 'critical';
 
 /** Client → POST /api/feedback. `context` is auto-captured diagnostics
  * (page, app version, user agent, viewport, locale); the server scrubs it to
@@ -640,6 +644,8 @@ export interface AdminFeedbackItem {
   ai_title: string | null;
   ai_body: string | null;
   ai_labels: string[];
+  /** LLM-suggested triage priority, or null (rule-based / not yet triaged). */
+  priority: FeedbackPriority | null;
   github_issue_number: number | null;
   github_issue_url: string | null;
   error: string | null;
@@ -661,6 +667,17 @@ export interface AdminFeedbackSummary {
   /** needs_review + failed — the rows an admin should act on. */
   actionable: number;
   total: number;
+}
+
+/** POST /api/admin/feedback/sync — reconciles ticket status with the linked
+ * GitHub issues (closed → resolved, reopened → issue_created). */
+export interface AdminFeedbackSyncResult {
+  /** False when GitHub isn't configured — the sync was a no-op. */
+  configured: boolean;
+  /** How many linked issues were successfully read from GitHub. */
+  checked: number;
+  /** How many ticket statuses changed as a result. */
+  updated: number;
 }
 
 /** GET /api/public/config — unauthenticated; drives the login page's signup path. */

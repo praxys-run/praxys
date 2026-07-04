@@ -8,6 +8,13 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Table,
   TableBody,
   TableCell,
@@ -23,8 +30,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Users, Ticket, Copy, Check, Trash2, Plus, ShieldCheck, ChevronUp, ChevronDown, Eye, Megaphone, MessageSquarePlus, ExternalLink, RotateCcw, UserPlus, Activity, Send, AlertTriangle, Mail } from 'lucide-react';
-import type { SystemAnnouncement, AdminFeedbackItem, AdminConfig, WaitlistSignupItem, WaitlistInviteResult } from '@/types/api';
+import { Users, Ticket, Copy, Check, Trash2, Plus, ShieldCheck, ChevronUp, ChevronDown, Eye, Megaphone, MessageSquarePlus, ExternalLink, RotateCcw, RefreshCw, UserPlus, Activity, Send, AlertTriangle, Mail } from 'lucide-react';
+import type { SystemAnnouncement, AdminFeedbackItem, AdminFeedbackSyncResult, FeedbackStatus, AdminConfig, WaitlistSignupItem, WaitlistInviteResult } from '@/types/api';
 import AdminFeedbackImages from '@/components/AdminFeedbackImages';
 import { Trans, useLingui } from '@lingui/react/macro';
 
@@ -35,8 +42,33 @@ const FEEDBACK_STATUS_ORDER: Record<string, number> = {
   new: 2,
   triaged: 3,
   issue_created: 4,
-  rejected: 5,
+  resolved: 5,
+  rejected: 6,
 };
+
+// Within a status, show the most urgent tickets first.
+const FEEDBACK_PRIORITY_ORDER: Record<string, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+};
+
+// Outline-badge tint per priority (amber/destructive already used elsewhere on
+// this page; primary/green stays reserved for positive signals like resolved).
+const FEEDBACK_PRIORITY_CLASS: Record<string, string> = {
+  critical: 'text-destructive border-destructive/40',
+  high: 'text-amber-600 border-amber-500/40',
+  medium: 'text-muted-foreground',
+  low: 'text-muted-foreground',
+};
+
+function feedbackStatusVariant(status: string): 'default' | 'destructive' | 'outline' | 'secondary' {
+  if (status === 'issue_created') return 'default';
+  if (status === 'failed') return 'destructive';
+  if (status === 'resolved') return 'outline';
+  return 'secondary';
+}
 
 interface UserInfo {
   id: string;
@@ -90,6 +122,9 @@ export default function Admin() {
   // Feedback
   const [feedback, setFeedback] = useState<AdminFeedbackItem[]>([]);
   const [feedbackBusy, setFeedbackBusy] = useState<number | null>(null);
+  const [feedbackFilter, setFeedbackFilter] = useState<'active' | 'all' | FeedbackStatus>('active');
+  const [feedbackSyncing, setFeedbackSyncing] = useState(false);
+  const [feedbackSyncMsg, setFeedbackSyncMsg] = useState<string | null>(null);
 
   // Registration gate + waitlist
   const [config, setConfig] = useState<AdminConfig | null>(null);
@@ -100,13 +135,23 @@ export default function Admin() {
   const [inviteResults, setInviteResults] = useState<Record<number, WaitlistInviteResult>>({});
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
+  const feedbackQuery = (filter: string) => (filter === 'all' ? '' : `?status=${filter}`);
+
+  // Refetch only the feedback list under a given status filter. Cheaper than a
+  // full fetchData() when just the ticket table needs to change.
+  const loadFeedback = (filter: 'active' | 'all' | FeedbackStatus) =>
+    fetch(`${API_BASE}/api/admin/feedback${feedbackQuery(filter)}`, { headers: getAuthHeaders() })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((f) => setFeedback(Array.isArray(f) ? f : []))
+      .catch(() => {});
+
   const fetchData = () => {
     setLoading(true);
     Promise.all([
       fetch(`${API_BASE}/api/admin/users`, { headers: getAuthHeaders() }).then((r) => r.json()),
       fetch(`${API_BASE}/api/admin/invitations`, { headers: getAuthHeaders() }).then((r) => r.json()),
       fetch(`${API_BASE}/api/announcements`, { headers: getAuthHeaders() }).then((r) => r.ok ? r.json() : []),
-      fetch(`${API_BASE}/api/admin/feedback`, { headers: getAuthHeaders() }).then((r) => r.ok ? r.json() : []),
+      fetch(`${API_BASE}/api/admin/feedback${feedbackQuery(feedbackFilter)}`, { headers: getAuthHeaders() }).then((r) => r.ok ? r.json() : []),
       fetch(`${API_BASE}/api/admin/config`, { headers: getAuthHeaders() }).then((r) => r.ok ? r.json() : null),
       fetch(`${API_BASE}/api/admin/waitlist`, { headers: getAuthHeaders() }).then((r) => r.ok ? r.json() : { signups: [] }),
     ])
@@ -176,12 +221,43 @@ export default function Admin() {
     });
     setFeedbackBusy(null);
     if (res.ok) {
-      const updated = await res.json();
-      setFeedback((prev) => prev.map((f) => (f.id === id ? updated : f)));
+      // Refetch under the current filter so a row that moved to a now-hidden
+      // status (e.g. reject → rejected) drops out of the view immediately.
+      await loadFeedback(feedbackFilter);
     } else {
       // Approve/retry can fail server-side (e.g. GitHub publish error marks the
       // row failed). Resync so the table reflects the persisted state.
       fetchData();
+    }
+  };
+
+  const handleFeedbackFilterChange = (value: string | null) => {
+    if (!value) return;
+    const filter = value as 'active' | 'all' | FeedbackStatus;
+    setFeedbackFilter(filter);
+    loadFeedback(filter);
+  };
+
+  const handleFeedbackSync = async () => {
+    setFeedbackSyncing(true);
+    setFeedbackSyncMsg(null);
+    const res = await fetch(`${API_BASE}/api/admin/feedback/sync`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+    setFeedbackSyncing(false);
+    if (res.ok) {
+      const r: AdminFeedbackSyncResult = await res.json();
+      setFeedbackSyncMsg(
+        !r.configured
+          ? t`GitHub isn't configured — nothing to sync.`
+          : r.updated > 0
+            ? t`Updated ${r.updated} of ${r.checked} linked ticket(s).`
+            : t`All ${r.checked} linked ticket(s) already up to date.`,
+      );
+      await loadFeedback(feedbackFilter);
+    } else {
+      setFeedbackSyncMsg(t`Sync failed.`);
     }
   };
 
@@ -930,26 +1006,64 @@ export default function Admin() {
       {/* User Feedback */}
       <Card className="mt-8">
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <MessageSquarePlus className="h-4 w-4" />
-            <div>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Trans>User Feedback</Trans>
-                {feedback.some((f) => f.status === 'needs_review') && (
-                  <Badge variant="secondary">
-                    {feedback.filter((f) => f.status === 'needs_review').length}
-                  </Badge>
-                )}
-              </CardTitle>
-              <CardDescription>
-                <Trans>Bug reports and feature requests submitted from the app. Auto-triaged to GitHub when configured.</Trans>
-              </CardDescription>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <MessageSquarePlus className="h-4 w-4" />
+              <div>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Trans>User Feedback</Trans>
+                  {feedback.some((f) => f.status === 'needs_review') && (
+                    <Badge variant="secondary">
+                      {feedback.filter((f) => f.status === 'needs_review').length}
+                    </Badge>
+                  )}
+                </CardTitle>
+                <CardDescription>
+                  <Trans>Bug reports and feature requests submitted from the app. Auto-triaged to GitHub when configured.</Trans>
+                </CardDescription>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={feedbackFilter} onValueChange={handleFeedbackFilterChange}>
+                <SelectTrigger size="sm" className="w-[150px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">{t`Active`}</SelectItem>
+                  <SelectItem value="all">{t`All`}</SelectItem>
+                  <SelectItem value="new">{t`New`}</SelectItem>
+                  <SelectItem value="needs_review">{t`Needs review`}</SelectItem>
+                  <SelectItem value="failed">{t`Failed`}</SelectItem>
+                  <SelectItem value="issue_created">{t`Issue created`}</SelectItem>
+                  <SelectItem value="resolved">{t`Resolved`}</SelectItem>
+                  <SelectItem value="rejected">{t`Rejected`}</SelectItem>
+                  <SelectItem value="triaged">{t`Triaged`}</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={feedbackSyncing}
+                onClick={handleFeedbackSync}
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${feedbackSyncing ? 'animate-spin' : ''}`} />
+                <Trans>Sync from GitHub</Trans>
+              </Button>
             </div>
           </div>
+          {feedbackSyncMsg && (
+            <p className="mt-2 text-xs text-muted-foreground">{feedbackSyncMsg}</p>
+          )}
         </CardHeader>
         <CardContent>
           {feedback.length === 0 ? (
-            <p className="text-sm text-muted-foreground"><Trans>No feedback yet.</Trans></p>
+            <p className="text-sm text-muted-foreground">
+              {feedbackFilter === 'active' ? (
+                <Trans>No active tickets.</Trans>
+              ) : (
+                <Trans>No tickets to show.</Trans>
+              )}
+            </p>
           ) : (
             <Table>
               <TableHeader>
@@ -963,17 +1077,32 @@ export default function Admin() {
               </TableHeader>
               <TableBody>
                 {[...feedback]
-                  .sort(
-                    (a, b) =>
-                      (FEEDBACK_STATUS_ORDER[a.status] ?? 9) - (FEEDBACK_STATUS_ORDER[b.status] ?? 9),
-                  )
+                  .sort((a, b) => {
+                    const byStatus =
+                      (FEEDBACK_STATUS_ORDER[a.status] ?? 9) - (FEEDBACK_STATUS_ORDER[b.status] ?? 9);
+                    if (byStatus !== 0) return byStatus;
+                    return (
+                      (FEEDBACK_PRIORITY_ORDER[a.priority ?? ''] ?? 9) -
+                      (FEEDBACK_PRIORITY_ORDER[b.priority ?? ''] ?? 9)
+                    );
+                  })
                   .map((f) => (
                   <TableRow key={f.id}>
                     <TableCell><Badge variant="outline">{f.kind}</Badge></TableCell>
                     <TableCell>
-                      <Badge variant={f.status === 'issue_created' ? 'default' : f.status === 'failed' ? 'destructive' : 'secondary'}>
-                        {f.status}
-                      </Badge>
+                      <div className="flex flex-col items-start gap-1">
+                        <Badge
+                          variant={feedbackStatusVariant(f.status)}
+                          className={f.status === 'resolved' ? 'text-primary border-primary/40' : undefined}
+                        >
+                          {f.status}
+                        </Badge>
+                        {f.priority && (
+                          <Badge variant="outline" className={FEEDBACK_PRIORITY_CLASS[f.priority]}>
+                            {f.priority}
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="max-w-sm">
                       <p className="truncate text-sm" title={f.message}>{f.ai_title || f.message}</p>
@@ -1025,7 +1154,7 @@ export default function Admin() {
                             <Trans>Approve & file</Trans>
                           </Button>
                         )}
-                        {f.status !== 'issue_created' && f.status !== 'needs_review' && (
+                        {f.status !== 'issue_created' && f.status !== 'needs_review' && f.status !== 'resolved' && (
                           <Button
                             size="xs"
                             variant="outline"
