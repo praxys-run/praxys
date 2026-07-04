@@ -12,6 +12,27 @@ the app uses Postgres (schema managed by Alembic, applied on boot under an
 advisory lock). This lets you deploy the Postgres-capable code first and flip
 the switch later.
 
+## Already provisioned (2026-07-04)
+
+The Flexible Server is live, so a cutover can skip steps 1-3 below:
+
+| Thing | Value |
+|---|---|
+| Server | `praxys-pg` (Burstable `Standard_B1ms`, PG 16, eastasia) |
+| FQDN | `praxys-pg.postgres.database.azure.com` |
+| Database | `praxys` |
+| Backups | PITR, 14-day retention (geo-redundant: off) |
+| Auth | Entra **and** password enabled; app MI `trainsight-app` is an Entra admin |
+| Admin (migration only) | user `praxysadmin`; password in Key Vault `kv-trainsight` secret `praxys-pg-admin-password` |
+| Firewall | `AllowAzureServices` (App Service reachability) |
+| Schema | Alembic baseline already applied (`alembic check` clean) |
+| GitHub config | variables `PRAXYS_PG_SERVER=praxys-pg`, `PRAXYS_DB_AUTH=entra` set |
+
+Remaining operator steps: **merge + deploy this PR** (SQLite still active), then
+**step 4 (dry-run)** and **step 5 (cutover)**, then **step 6**. The app connects
+keyless (Entra/MI, username `trainsight-app`); the `praxysadmin` password is only
+for the one-time data load - rotate it or disable password-auth afterward.
+
 ## Prerequisites
 
 - `az` CLI logged into the Praxys subscription (Contributor on `rg-trainsight`).
@@ -89,10 +110,12 @@ live cutover. Take a consistent SQLite snapshot (see
 # scratch DB on the server so the dry run does not touch the real target
 az postgres flexible-server db create -g rg-trainsight -s praxys-pg -d praxys_dryrun
 
-# from the repo root, with the same encryption context as prod (Key Vault access):
+# fetch the migration admin password (Key Vault) and run with the same
+# encryption context as prod (Key Vault access to the Fernet master key):
+PGPW=$(az keyvault secret show --vault-name kv-trainsight --name praxys-pg-admin-password --query value -o tsv)
 .venv/bin/python -m scripts.migrate_sqlite_to_postgres \
   --sqlite ./trainsight-snapshot.db \
-  --postgres "postgresql://trainsight-app@praxys-pg.postgres.database.azure.com:5432/praxys_dryrun?sslmode=require" \
+  --postgres "postgresql://praxysadmin:${PGPW}@praxys-pg.postgres.database.azure.com:5432/praxys_dryrun?sslmode=require" \
   --wipe --verify-decrypt
 ```
 
@@ -109,10 +132,11 @@ az webapp stop -n trainsight-app -g rg-trainsight
 # b. Final consistent SQLite snapshot (the rollback artifact) + download it.
 #    (See backup-and-restore.md -> "Steps - backup".)
 
-# c. Load prod data into the real target DB
+# c. Load prod data into the real target DB (praxysadmin password from Key Vault)
+PGPW=$(az keyvault secret show --vault-name kv-trainsight --name praxys-pg-admin-password --query value -o tsv)
 .venv/bin/python -m scripts.migrate_sqlite_to_postgres \
   --sqlite ./trainsight-final.db \
-  --postgres "postgresql://trainsight-app@praxys-pg.postgres.database.azure.com:5432/praxys?sslmode=require" \
+  --postgres "postgresql://praxysadmin:${PGPW}@praxys-pg.postgres.database.azure.com:5432/praxys?sslmode=require" \
   --wipe --verify-decrypt
 
 # d. Flip the app to Postgres: store the DSN secret, then re-deploy so
