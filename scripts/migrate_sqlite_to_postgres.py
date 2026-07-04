@@ -6,6 +6,11 @@ preserving primary keys and the opaque Fernet-encrypted credential blobs
 resets Postgres SERIAL sequences, and verifies row-count parity (and,
 optionally, that the migrated credential blobs still decrypt).
 
+Rows are streamed in bounded chunks (memory-safe for large tables such as
+activity_samples), and orphaned user foreign keys left by SQLite's lack of FK
+enforcement are cleaned during copy (nullable -> NULL, NOT NULL -> row skipped;
+both reported). See dddtc2005/praxys#366.
+
 Usage:
     python -m scripts.migrate_sqlite_to_postgres \
         --sqlite /home/data/trainsight.db \
@@ -141,17 +146,68 @@ def migrate(
                 conn.exec_driver_sql(f"TRUNCATE {names} RESTART IDENTITY CASCADE")
         print(f"wiped {len(tables)} target tables")
 
+    # Referential integrity: SQLite does not enforce foreign keys, so the
+    # source can hold rows whose user-FK points at a since-deleted user (e.g.
+    # invitations.used_by). PostgreSQL enforces FKs, so orphans are cleaned on
+    # copy: a *nullable* orphaned FK is set NULL; a NOT NULL orphaned FK row is
+    # skipped. Both are reported. See dddtc2005/praxys#366.
+    with src.connect() as sconn:
+        valid_users = {
+            x[0] for x in sconn.exec_driver_sql("SELECT id FROM users").fetchall()
+        }
+
+    def _user_fk_cols(table) -> dict[str, bool]:
+        """Return {col_name: is_nullable} for columns FK-referencing users.id."""
+        out: dict[str, bool] = {}
+        for col in table.columns:
+            for fk in col.foreign_keys:
+                ref = fk.column
+                if ref.table.name == "users" and ref.name == "id":
+                    out[col.name] = bool(col.nullable)
+        return out
+
     print("copying rows (parent tables first)...")
     counts: dict[str, int] = {}
+    nulled: dict[str, int] = {}
+    skipped: dict[str, int] = {}
     with src.connect() as sconn:
         for table in tables:
-            rows = [dict(r._mapping) for r in sconn.execute(select(table))]
-            counts[table.name] = len(rows)
-            if rows:
-                with tgt.begin() as tconn:
-                    for i in range(0, len(rows), batch):
-                        tconn.execute(insert(table), rows[i : i + batch])
-            print(f"  {table.name}: {len(rows)} rows")
+            fk_cols = _user_fk_cols(table)
+            inserted = 0
+            # Stream in bounded chunks so a large table (e.g. ~900k
+            # activity_samples) cannot exhaust memory on a small host.
+            result = sconn.execute(select(table))
+            while True:
+                chunk = result.fetchmany(batch)
+                if not chunk:
+                    break
+                rows = []
+                for r in chunk:
+                    row = dict(r._mapping)
+                    drop = False
+                    for col, nullable in fk_cols.items():
+                        val = row.get(col)
+                        if val is not None and val not in valid_users:
+                            if nullable:
+                                row[col] = None
+                                key = f"{table.name}.{col}"
+                                nulled[key] = nulled.get(key, 0) + 1
+                            else:
+                                drop = True
+                                skipped[table.name] = skipped.get(table.name, 0) + 1
+                                break
+                    if not drop:
+                        rows.append(row)
+                if rows:
+                    with tgt.begin() as tconn:
+                        tconn.execute(insert(table), rows)
+                    inserted += len(rows)
+            counts[table.name] = inserted
+            print(f"  {table.name}: {inserted} rows")
+    if nulled:
+        print(f"cleaned orphaned nullable FKs (set NULL): {nulled}")
+    if skipped:
+        print(f"skipped rows with orphaned NOT NULL FK: {skipped}")
 
     serial_tables = [t for t in _serial_id_tables() if t not in skip_tables]
     with tgt.begin() as conn:
@@ -170,9 +226,9 @@ def migrate(
             src_n = counts[table.name]
             if tgt_n != src_n:
                 mismatches += 1
-                print(f"  {table.name}: src={src_n} tgt={tgt_n} MISMATCH")
+                print(f"  {table.name}: inserted={src_n} tgt={tgt_n} MISMATCH")
             else:
-                print(f"  {table.name}: src={src_n} tgt={tgt_n} OK")
+                print(f"  {table.name}: inserted={src_n} tgt={tgt_n} OK")
     if mismatches:
         raise SystemExit(f"FAILED: {mismatches} table(s) row-count mismatch")
 

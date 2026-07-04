@@ -44,7 +44,7 @@ secret/variable (or the workflow literal) and re-deploy.
 | `PRAXYS_SMTP_HOST` / `PRAXYS_SMTP_PORT` / `PRAXYS_SMTP_USER` / `PRAXYS_SMTP_FROM` / `PRAXYS_SMTP_STARTTLS` | SMTP transport for verification + invitation emails (non-secret; the password is the secret above). **Optional.** | App Service setting (backend) |
 | `PRAXYS_APP_BASE_URL` (`https://praxys.run`) | Public origin for verify/invite links in those emails | App Service setting (backend) |
 | `PRAXYS_DB_AUTH` (`entra` or unset) | Postgres auth mode: `entra` = AAD token via managed identity, no password. **Optional.** | App Service setting (backend) |
-| `PRAXYS_PG_SERVER` | Postgres Flexible Server name; gates the pre-deploy + scheduled DB backup jobs. **Optional.** | `deploy-backend.yml`, `db-backup.yml` |
+| `PRAXYS_PG_SERVER` | Postgres Flexible Server name. **Reserved / currently unused** - the on-demand backup jobs it gated were removed (Burstable tier can't do on-demand backups; PITR covers backup). Kept for a future off-site backup job. | (reserved) |
 
 ### Azure App Service → Application settings (backend `trainsight-app`)
 Source of truth = `deploy-backend.yml`. Literals set inline: `DATA_DIR=/home/data`,
@@ -117,8 +117,10 @@ until the cutover so this can ship ahead of the migration. Full runbook:
   carries no password.
 - `PRAXYS_DB_AUTH` (**variable**) - `entra` makes the app authenticate with an
   AAD token from its managed identity (no DB password anywhere).
-- `PRAXYS_PG_SERVER` (**variable**) - the Flexible Server name; gates the
-  pre-deploy snapshot step and the scheduled `db-backup.yml` job.
+- `PRAXYS_PG_SERVER` (**variable**) - the Flexible Server name. Reserved /
+  currently unused (the on-demand backup jobs it gated were removed - Burstable
+  can't do on-demand backups; PITR covers backup). Kept for future off-site
+  backup automation.
 
 ```bash
 gh variable set PRAXYS_PG_SERVER --body "praxys-pg"
@@ -126,9 +128,11 @@ gh variable set PRAXYS_DB_AUTH   --body "entra"
 gh secret   set PRAXYS_DATABASE_URL --body "postgresql://trainsight-app@praxys-pg.postgres.database.azure.com:5432/praxys?sslmode=require"
 ```
 
-These are **optional** and NOT in the required-settings loop, so an empty value
-cannot fail a deploy (SQLite stays the fallback). Provisioning the server, PITR,
-and the MI-as-AAD-principal wiring: [postgres-migration.md](./postgres-migration.md).
+**Status (2026-07-04):** all three are **set** and production runs on Postgres.
+`PRAXYS_DATABASE_URL` = `postgresql://trainsight-app@praxys-pg.postgres.database.azure.com:5432/praxys?sslmode=require`
+(no password — Entra/MI). They remain out of the required-settings loop, so
+clearing `PRAXYS_DATABASE_URL` cleanly rolls back to the frozen SQLite file.
+Provisioning + PITR + MI-as-AAD-principal wiring: [postgres-migration.md](./postgres-migration.md).
 
 ### Self-registration gate + email
 

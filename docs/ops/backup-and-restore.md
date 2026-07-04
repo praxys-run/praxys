@@ -18,18 +18,21 @@ provisioned with `--backup-retention <days>` (7-35; the migration runbook uses
 14). This is the primary, always-on backup - the thing whose absence turned the
 2026-07-03 SQLite corruption into a near-total-data-loss event.
 
-**On-demand snapshots** add named restore points on top of PITR via the Azure
-control plane (no DB password / network access needed):
+> **Tier limitation:** `praxys-pg` is **Burstable** (B1ms), which does **not**
+> support customer *on-demand* backups - `az postgres flexible-server backup
+> create` returns `CustomerOnDemandBackupCannotBePerformedOnBurstableServer`.
+> So PITR is the backup mechanism on this tier; there are no named pre-deploy /
+> scheduled snapshots. (Named on-demand snapshots need a General Purpose /
+> Memory Optimized tier.)
 
-- **Pre-deploy:** `deploy-backend.yml` creates `predeploy-<ts>-<sha>` before
-  each deploy (gated on the `PRAXYS_PG_SERVER` variable).
-- **Scheduled:** `db-backup.yml` creates a `daily-<ts>` backup every day.
-- **Manual:**
-  ```bash
-  az postgres flexible-server backup create -g rg-trainsight -n praxys-pg \
-    --backup-name "manual-$(date -u +%Y%m%dT%H%M%SZ)"
-  az postgres flexible-server backup list -g rg-trainsight -n praxys-pg -o table
-  ```
+**Restore points without on-demand backup:**
+- **Before a risky change / deploy:** note the current UTC time and rely on PITR
+  to restore to that instant. PITR is continuous, so any second in the 14-day
+  window is a restore point - no explicit snapshot needed.
+- **Off-Azure / long-retention copy:** a logical `pg_dump` (see *Portable /
+  off-Azure copy* below). Geo-redundant backup is **off** on this server (can
+  only be set at create time), so an off-site `pg_dump` is the region-loss
+  protection - tracked as a follow-up.
 
 **Restore (PITR)** clones the server to a new server at a chosen instant:
 

@@ -147,21 +147,10 @@ jobs:
               SCM_DO_BUILD_DURING_DEPLOYMENT="true" \
               WEBSITE_HTTPLOGGING_RETENTION_DAYS="3"
 
-      - name: Pre-deploy database snapshot (#349)
-        # On-demand Postgres backup as a restore point for this deploy. Uses the
-        # control plane (no DB network access or password needed), so it works
-        # even with a private Flexible Server. Skipped until PRAXYS_PG_SERVER is
-        # set (i.e. before the SQLite->Postgres cutover). Non-fatal: a snapshot
-        # failure must not block the deploy (PITR still covers rollback).
-        if: ${{ vars.PRAXYS_PG_SERVER != '' }}
-        continue-on-error: true
-        run: |
-          BACKUP_NAME="predeploy-$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_SHA::7}"
-          echo "Creating on-demand backup ${BACKUP_NAME} on ${{ vars.PRAXYS_PG_SERVER }}"
-          az postgres flexible-server backup create \
-            --resource-group rg-trainsight \
-            --name "${{ vars.PRAXYS_PG_SERVER }}" \
-            --backup-name "${BACKUP_NAME}"
+      # NB: no pre-deploy on-demand DB snapshot. praxys-pg is a Burstable-tier
+      # Flexible Server, which does not support customer on-demand backups; the
+      # server's continuous PITR (14-day) provides the pre-deploy restore point
+      # (restore to the instant before the deploy). See docs/ops/backup-and-restore.md.
 
       - name: Deploy to App Service
         uses: azure/webapps-deploy@v3

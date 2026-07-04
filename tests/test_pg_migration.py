@@ -112,6 +112,11 @@ def test_sqlite_to_postgres_roundtrip(tmp_path, monkeypatch):
                     start_time=datetime(2026, 6, 2, 6, 0, 0), meta={"cp": 300},
                 ),
                 m.Invitation(code="MIGCODE1", created_by=uid, is_active=True, note="t"),
+                m.Invitation(
+                    code="MIGORPHAN", created_by=uid,
+                    used_by="deadbeef-0000-0000-0000-000000000000",
+                    is_active=False, note="orphan",
+                ),
                 m.CacheRevision(user_id=uid, scope="activities", revision=3),
                 m.DashboardCache(
                     user_id=uid, section="today", source_version="activities=3",
@@ -161,6 +166,11 @@ def test_sqlite_to_postgres_roundtrip(tmp_path, monkeypatch):
                     select(m.Activity.date).where(m.Activity.user_id == uid)
                 ).scalar()
                 assert str(act_date) == "2026-06-01"
+                # Orphaned FK (used_by -> deleted user) is nulled, row kept (#366).
+                orphan_used_by = c.execute(
+                    select(m.Invitation.used_by).where(m.Invitation.code == "MIGORPHAN")
+                ).scalar()
+                assert orphan_used_by is None
 
             # The application read path must work on Postgres too (regression
             # guard for the pandas read_sql :name -> %(name)s paramstyle bug).
