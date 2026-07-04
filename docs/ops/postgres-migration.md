@@ -12,26 +12,27 @@ the app uses Postgres (schema managed by Alembic, applied on boot under an
 advisory lock). This lets you deploy the Postgres-capable code first and flip
 the switch later.
 
-## Already provisioned (2026-07-04)
+## Cutover complete (2026-07-04)
 
-The Flexible Server is live, so a cutover can skip steps 1-3 below:
+**Production is live on PostgreSQL.** The steps below are retained for
+disaster-recovery / rebuild; a fresh environment reruns them. Current state:
 
 | Thing | Value |
 |---|---|
 | Server | `praxys-pg` (Burstable `Standard_B1ms`, PG 16, eastasia) |
-| FQDN | `praxys-pg.postgres.database.azure.com` |
-| Database | `praxys` |
+| FQDN | `praxys-pg.postgres.database.azure.com`, database `praxys` |
 | Backups | PITR, 14-day retention (geo-redundant: off) |
-| Auth | Entra **and** password enabled; app MI `trainsight-app` is an Entra admin |
-| Admin (migration only) | user `praxysadmin`; password in Key Vault `kv-trainsight` secret `praxys-pg-admin-password` |
-| Firewall | `AllowAzureServices` (App Service reachability) |
-| Schema | Alembic baseline already applied (`alembic check` clean) |
-| GitHub config | variables `PRAXYS_PG_SERVER=praxys-pg`, `PRAXYS_DB_AUTH=entra` set |
+| App auth | keyless Entra/MI: `PRAXYS_DATABASE_URL` (secret) + `PRAXYS_DB_AUTH=entra`; app MI `trainsight-app` is an Entra admin |
+| Admin (break-glass only) | user `praxysadmin`; password in Key Vault `kv-trainsight` secret `praxys-pg-admin-password` |
+| Firewall | `AllowAzureServices` + operator client-IP rules (add/remove per session) |
+| Schema | Alembic-managed (`alembic upgrade head` on boot) |
+| Health check | App Service health-check path = `/api/health/ready` |
+| GitHub config | secret `PRAXYS_DATABASE_URL`; variables `PRAXYS_PG_SERVER=praxys-pg`, `PRAXYS_DB_AUTH=entra` |
 
-Remaining operator steps: **merge + deploy this PR** (SQLite still active), then
-**step 4 (dry-run)** and **step 5 (cutover)**, then **step 6**. The app connects
-keyless (Entra/MI, username `trainsight-app`); the `praxysadmin` password is only
-for the one-time data load - rotate it or disable password-auth afterward.
+The legacy SQLite file remains **frozen** at `/home/data/trainsight.db` as the
+rollback artifact (see *Rollback*). Recommended hardening follow-ups: disable
+password-auth (Entra-only) once break-glass is no longer needed, and switch the
+app MI from Entra *admin* to a least-privilege DB role.
 
 ## Prerequisites
 
@@ -90,11 +91,11 @@ az postgres flexible-server microsoft-entra-admin create \
 ### 3. Register the GitHub config (do NOT flip yet)
 
 `deploy-backend.yml` syncs these to App Service on the next deploy. Setting an
-empty/absent `PRAXYS_DATABASE_URL` keeps SQLite, so registering the server var
-first (for the backup jobs) is safe.
+empty/absent `PRAXYS_DATABASE_URL` keeps SQLite, so registering the config
+ahead of the flip is safe.
 
 ```bash
-# Backup jobs (pre-deploy step + db-backup.yml) key off this:
+# Flexible Server name (reserved for future off-site backup automation):
 gh variable set PRAXYS_PG_SERVER --body "praxys-pg"
 # Keyless auth mode:
 gh variable set PRAXYS_DB_AUTH   --body "entra"
@@ -164,7 +165,7 @@ check -> path `/api/health/ready`.
 - `curl -s https://api.praxys.run/api/health/ready` -> `{"status":"ready","database":"ok"}`.
 - Log in; recent activities / recovery / plan are present.
 - Trigger a sync; it succeeds and new rows appear.
-- `az postgres flexible-server backup list -g rg-trainsight -n praxys-pg` shows
+- `az postgres flexible-server backup list -g rg-trainsight --server-name praxys-pg` shows
   the pre-deploy on-demand backup plus managed backups.
 - App logs show `Alembic migrations up to date` and `Database startup check OK (postgresql)`.
 

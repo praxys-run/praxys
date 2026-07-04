@@ -18,7 +18,7 @@
 | Backend App Service | `trainsight-app` | `deploy-backend.yml` (`--name trainsight-app`) |
 | Frontend App Service | `praxys-frontend` | `deploy-frontend-appservice.yml` |
 | App Service plan | `plan-trainsight` (Linux B1, East Asia) | `docs/deployment.md`, `frontend_server` notes |
-| PostgreSQL (post-#360) | `praxys-pg` Flexible Server (Burstable, DB `praxys`, Entra auth) | [postgres-migration.md](./postgres-migration.md); `PRAXYS_PG_SERVER` var |
+| PostgreSQL (**primary DB**, live 2026-07-04) | `praxys-pg` Flexible Server (Burstable B1ms, PG16, DB `praxys`, Entra auth, PITR 14d) | [postgres-migration.md](./postgres-migration.md); `PRAXYS_PG_SERVER` var |
 | Key Vault | `kv-trainsight` (`https://kv-trainsight.vault.azure.net`) | live `KEY_VAULT_URL` |
 | — RSA key | `trainsight-master-key` | live `KEY_VAULT_KEY_NAME` |
 | Application Insights | connection string in app settings; MI-authenticated | `.env.example`, `api/main.py` |
@@ -44,10 +44,12 @@
 
 ## Data
 
-- **Primary store:** dual-backend (#360). `PRAXYS_DATABASE_URL` unset = SQLite
-  `trainsight.db` at `DATA_DIR=/home/data` (persistent), schema via `create_all`
-  on boot; set = **Azure Database for PostgreSQL** (`praxys-pg`), schema via
-  Alembic (`alembic upgrade head` on boot, advisory-locked). See
+- **Primary store:** **Azure Database for PostgreSQL** `praxys-pg` (live since
+  2026-07-04; `PRAXYS_DATABASE_URL` set, keyless Entra/MI auth), schema via
+  Alembic (`alembic upgrade head` on boot, advisory-locked). The code is
+  dual-backend: with `PRAXYS_DATABASE_URL` unset it falls back to SQLite
+  `trainsight.db` at `DATA_DIR=/home/data` (schema via `create_all`) — used for
+  local dev / tests and as the frozen rollback artifact. See
   [postgres-migration.md](./postgres-migration.md).
 - **Platform credentials:** Fernet-encrypted in the DB; each user's Fernet DEK is
   wrapped by the Key Vault RSA master key (`db/crypto.py`).
