@@ -242,11 +242,11 @@ def _stub_github(monkeypatch, calls):
     monkeypatch.setattr(ft.github_issues, "create_issue", _create)
 
 
-def _stub_llm(monkeypatch, *, sensitive, priority=None):
+def _stub_llm(monkeypatch, *, sensitive, priority=None, kind="bug"):
     from api import feedback_triage as ft
 
     payload = {
-        "kind": "bug",
+        "kind": kind,
         "title": "Charts crash on Training",
         "body": "The training charts fail to render.",
         "contains_sensitive": sensitive,
@@ -911,6 +911,99 @@ def test_triage_priority_none_without_llm(db_with_users):
     triage_and_publish(row.id, _session=db)
     db.refresh(row)
     assert row.priority is None
+
+
+# ---------------------------------------------------------------------------
+# Loop A: agent-ready gating for the Copilot coding agent (issue #362)
+# ---------------------------------------------------------------------------
+
+_DETAILED_BUG = "The training charts fail to render after a sync completes"
+
+
+def test_triage_tags_agent_ready_for_qualifying_bug(db_with_users, monkeypatch):
+    """A clean, detailed bug earns agent-ready -- on the row and the filed issue."""
+    from api.feedback_triage import triage_and_publish
+
+    db, _, _, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    _stub_llm(monkeypatch, sensitive=False)
+    row = _new_row(db, user_id, _DETAILED_BUG)
+
+    result = triage_and_publish(row.id, _session=db)
+    assert result["status"] == "issue_created"
+    db.refresh(row)
+    assert "agent-ready" in (row.ai_labels or [])
+    assert "agent-ready" in calls[0]["labels"]
+
+
+def test_triage_no_agent_ready_for_feature(db_with_users, monkeypatch):
+    """Features are assist-not-act: published, but never auto-assigned."""
+    from api.feedback_triage import triage_and_publish
+
+    db, _, _, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    _stub_llm(monkeypatch, sensitive=False, kind="feature")
+    row = _new_row(
+        db, user_id, "Please add a weekly mileage target to the goal page", kind="feature"
+    )
+
+    result = triage_and_publish(row.id, _session=db)
+    assert result["status"] == "issue_created"
+    db.refresh(row)
+    assert "agent-ready" not in (row.ai_labels or [])
+    assert "agent-ready" not in calls[0]["labels"]
+
+
+def test_triage_no_agent_ready_when_sensitive(db_with_users, monkeypatch):
+    """A gated (sensitive) report is parked and never tagged agent-ready. The
+    label never even lands in ai_labels, so a later admin approve can't assign."""
+    from api.feedback_triage import triage_and_publish
+
+    db, _, _, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    _stub_llm(monkeypatch, sensitive=True)
+    row = _new_row(db, user_id, _DETAILED_BUG)
+
+    result = triage_and_publish(row.id, _session=db)
+    assert result["status"] == "needs_review"
+    assert calls == []  # nothing published
+    db.refresh(row)
+    assert "agent-ready" not in (row.ai_labels or [])
+
+
+def test_triage_no_agent_ready_for_low_detail_bug(db_with_users, monkeypatch):
+    """A terse bug is published but too thin to hand to the coding agent."""
+    from api.feedback_triage import triage_and_publish
+
+    db, _, _, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    _stub_llm(monkeypatch, sensitive=False)
+    row = _new_row(db, user_id, "totally broken")
+
+    result = triage_and_publish(row.id, _session=db)
+    assert result["status"] == "issue_created"
+    db.refresh(row)
+    assert "agent-ready" not in (row.ai_labels or [])
+
+
+def test_triage_no_agent_ready_without_ai_gate(db_with_users, monkeypatch):
+    """No AI to judge sensitivity -> the report is parked, not agent-tagged."""
+    from api.feedback_triage import triage_and_publish
+
+    db, _, _, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)  # GitHub configured, but no LLM stub
+    row = _new_row(db, user_id, _DETAILED_BUG)
+
+    result = triage_and_publish(row.id, _session=db)
+    assert result["status"] == "needs_review"
+    assert calls == []
+    db.refresh(row)
+    assert "agent-ready" not in (row.ai_labels or [])
 
 
 # ---------------------------------------------------------------------------

@@ -79,6 +79,43 @@ def _gate_blocks_publish(
     return not _autofile_without_ai()
 
 
+# --- Loop A: coding-agent hand-off (issue #362) ----------------------------
+#
+# The ``agent-ready`` label is the SOLE trigger for the workflow that assigns an
+# issue to the GitHub Copilot coding agent
+# (``.github/workflows/assign-copilot.yml``). Triage only tags a report that is
+# a *bug* (features are assist-not-act: a human green-lights those), that the
+# sensitivity gate did NOT withhold (a needs_review/sensitive report is never
+# auto-assigned), and that carries enough detail for a drafted fix to work from.
+# Autonomy is drafting the fix; merge stays human (branch protection).
+AGENT_READY_LABEL = "agent-ready"
+
+# Minimum word count for the scrubbed user message to count as "enough detail".
+# A terse "it's broken" should not burn a coding-agent run; a sentence or two
+# describing what happened does. Deterministic so triage stays reproducible.
+_AGENT_MIN_DETAIL_WORDS = 6
+
+
+def _has_enough_detail(message: str) -> bool:
+    """Whether a report says enough for a coding agent to attempt a fix."""
+    return len((message or "").split()) >= _AGENT_MIN_DETAIL_WORDS
+
+
+def _qualifies_for_agent(*, kind: str, gate_blocked: bool, message: str) -> bool:
+    """Whether an auto-filed report should be tagged ``agent-ready`` (Loop A).
+
+    True only for a *bug* the sensitivity gate did not withhold and that has
+    enough detail. Features, ``other``, gated (sensitive/needs_review), and
+    low-detail reports never qualify: autonomy drafts a fix, never ships it,
+    and never acts on a sensitive report (issue #362).
+    """
+    if kind != "bug":
+        return False
+    if gate_blocked:
+        return False
+    return _has_enough_detail(message)
+
+
 def _system_prompt() -> str:
     return (
         "You are a triage assistant for Praxys, an endurance-training analytics app. "
@@ -279,6 +316,24 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
         if image_keys:
             labels.append("screenshot")
 
+        # Decide the sensitivity gate once: it both routes the row (publish vs
+        # park for admin) and gates the Loop A agent-ready label below, so a
+        # withheld report can never be tagged for the coding agent (issue #362).
+        gate_blocked = _gate_blocks_publish(
+            used_llm=used_llm,
+            llm_flag=llm_flag,
+            body=body,
+            has_image=bool(image_keys),
+            image_sensitive=image_flag,
+        )
+        # Tag a qualifying bug so the labeled-issue workflow hands it to the
+        # Copilot coding agent. Never for a gated (sensitive/needs_review)
+        # report, a feature, or a low-detail one -- and because it is gated on
+        # gate_blocked it never lands in ai_labels for a parked row, so a later
+        # admin "approve" cannot auto-assign it either.
+        if _qualifies_for_agent(kind=kind, gate_blocked=gate_blocked, message=clean_message):
+            labels.append(AGENT_READY_LABEL)
+
         row.kind = kind
         row.priority = priority
         row.ai_title = title
@@ -290,13 +345,7 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
             # promotion from the Admin page.
             row.status = "triaged"
             row.error = None
-        elif _gate_blocks_publish(
-            used_llm=used_llm,
-            llm_flag=llm_flag,
-            body=body,
-            has_image=bool(image_keys),
-            image_sensitive=image_flag,
-        ):
+        elif gate_blocked:
             # The report may still carry sensitive content — don't auto-open a
             # public issue. Park it for an admin to review / approve.
             row.status = "needs_review"
