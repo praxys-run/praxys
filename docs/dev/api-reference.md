@@ -655,6 +655,58 @@ Connect a platform by storing encrypted credentials. Platform must be one of: `g
 { "status": "connected", "platform": "garmin" }
 ```
 
+### POST /api/settings/connections/garmin/login
+
+Connect Garmin interactively. Unlike the generic endpoint above (which stores
+credentials and defers login to the background sync), this validates the
+credentials up front so an account with multi-factor authentication (MFA)
+enabled can be prompted for its code. On success the credentials are persisted
+and the OAuth tokens cached for future syncs.
+
+**Request body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "garmin-password",
+  "is_cn": false
+}
+```
+
+**Response (no MFA):**
+```json
+{ "status": "connected", "platform": "garmin" }
+```
+
+**Response (MFA required):** the client must follow up with the verification
+code Garmin sends:
+```json
+{ "status": "mfa_required", "platform": "garmin" }
+```
+
+**Response (bad credentials / rate limited):**
+```json
+{ "status": "error", "message": "..." }
+```
+
+### POST /api/settings/connections/garmin/mfa
+
+Complete a pending interactive Garmin login (see above) with the MFA
+verification code. The pending login is process-local and expires after a few
+minutes; a wrong code can be retried within that window.
+
+**Request body:**
+```json
+{ "code": "123456" }
+```
+
+**Response:**
+```json
+{ "status": "connected", "platform": "garmin" }
+```
+
+A missing/expired pending login returns
+`{ "status": "error", "message": "mfa_session_expired" }`.
+
 ### DELETE /api/settings/connections/{platform}
 
 Disconnect a platform and delete stored credentials.

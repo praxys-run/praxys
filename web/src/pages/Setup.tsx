@@ -226,6 +226,10 @@ export default function Setup() {
   const [connectError, setConnectError] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [connectNotice, setConnectNotice] = useState('');
+  // Garmin MFA: an MFA-enabled account returns `mfa_required` on the initial
+  // credential submit; we then prompt for the verification code.
+  const [garminMfaRequired, setGarminMfaRequired] = useState(false);
+  const [mfaCode, setMfaCode] = useState('');
   const [pendingPrimaryPlatform, setPendingPrimaryPlatform] = useState<string | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     GARMIN_ACTIVITY_CATEGORIES.filter((c) => c.default).map((c) => c.key)
@@ -363,7 +367,13 @@ export default function Setup() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/api/settings/connections/${connectPlatform}`, {
+      // Garmin uses a dedicated interactive endpoint so an MFA-protected
+      // account can be prompted for its verification code; the generic
+      // endpoint just stores credentials without validating them.
+      const endpoint = connectPlatform === 'garmin'
+        ? `${API_BASE}/api/settings/connections/garmin/login`
+        : `${API_BASE}/api/settings/connections/${connectPlatform}`;
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { ...getAuthHeaders() as Record<string, string>, 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -373,53 +383,96 @@ export default function Setup() {
         }),
       });
       const data = await res.json();
-      if (!res.ok || data.status === 'error') {
+      if (data.status === 'mfa_required') {
+        setGarminMfaRequired(true);
+        setMfaCode('');
+      } else if (!res.ok || data.status === 'error') {
         setConnectError(data.message || `Failed to connect (HTTP ${res.status})`);
       } else {
-        // Save Garmin-specific options
-        if (connectPlatform === 'garmin') {
-          // Expand selected categories into individual Garmin API types
-          const activityTypes = GARMIN_ACTIVITY_CATEGORIES
-            .filter((c) => selectedCategories.includes(c.key))
-            .flatMap((c) => c.types as unknown as string[]);
-          await updateSettings({
-            source_options: {
-              ...config?.source_options,
-              garmin_region: garminRegion,
-              garmin_activity_types: activityTypes,
-              garmin_activity_categories: selectedCategories,
-            },
-          });
-        }
-        const justConnected = connectPlatform;
-        setConnectPlatform(null);
-        setConnectCreds({});
-        setup.refetch();
-        refetchSettings();
-
-        // Check if another platform provides the same category — prompt for primary
-        const newCategories = PLATFORM_META[justConnected]?.categories || [];
-        const overlapping: string[] = [];
-        for (const cat of newCategories) {
-          const otherProviders = setup.connectedPlatforms
-            .filter((p) => p !== justConnected && PLATFORM_META[p]?.categories.includes(cat));
-          if (otherProviders.length > 0) {
-            overlapping.push(cat);
-          }
-        }
-        if (overlapping.length > 0) {
-          // Show primary source prompt for the first overlapping category
-          const cat = overlapping[0];
-          const allProviders = [justConnected, ...setup.connectedPlatforms.filter(
-            (p) => p !== justConnected && PLATFORM_META[p]?.categories.includes(cat)
-          )];
-          setPrimaryPrompt({ category: cat.toLowerCase(), options: allProviders });
-        }
+        await finalizeConnect(connectPlatform);
       }
     } catch {
       setConnectError('Network error');
     }
     setConnecting(false);
+  };
+
+  // Shared post-connect success handling: persist Garmin options, close the
+  // dialog, refresh state, and surface the primary-source prompt when a newly
+  // connected platform overlaps an existing one.
+  const finalizeConnect = async (justConnected: string) => {
+    if (justConnected === 'garmin') {
+      const activityTypes = GARMIN_ACTIVITY_CATEGORIES
+        .filter((c) => selectedCategories.includes(c.key))
+        .flatMap((c) => c.types as unknown as string[]);
+      await updateSettings({
+        source_options: {
+          ...config?.source_options,
+          garmin_region: garminRegion,
+          garmin_activity_types: activityTypes,
+          garmin_activity_categories: selectedCategories,
+        },
+      });
+    }
+    setConnectPlatform(null);
+    setConnectCreds({});
+    setGarminMfaRequired(false);
+    setMfaCode('');
+    setup.refetch();
+    refetchSettings();
+
+    // Check if another platform provides the same category — prompt for primary
+    const newCategories = PLATFORM_META[justConnected]?.categories || [];
+    const overlapping: string[] = [];
+    for (const cat of newCategories) {
+      const otherProviders = setup.connectedPlatforms
+        .filter((p) => p !== justConnected && PLATFORM_META[p]?.categories.includes(cat));
+      if (otherProviders.length > 0) {
+        overlapping.push(cat);
+      }
+    }
+    if (overlapping.length > 0) {
+      const cat = overlapping[0];
+      const allProviders = [justConnected, ...setup.connectedPlatforms.filter(
+        (p) => p !== justConnected && PLATFORM_META[p]?.categories.includes(cat)
+      )];
+      setPrimaryPrompt({ category: cat.toLowerCase(), options: allProviders });
+    }
+  };
+
+  const handleGarminMfa = async () => {
+    const code = mfaCode.trim();
+    if (!code) return;
+    setConnecting(true);
+    setConnectError('');
+    try {
+      const res = await fetch(`${API_BASE}/api/settings/connections/garmin/mfa`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders() as Record<string, string>, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.status === 'error') {
+        if (data.message === 'mfa_session_expired') {
+          setGarminMfaRequired(false);
+          setConnectError('Verification timed out. Please reconnect and try again.');
+        } else {
+          setConnectError(data.message || `Verification failed (HTTP ${res.status})`);
+        }
+      } else {
+        await finalizeConnect('garmin');
+      }
+    } catch {
+      setConnectError('Network error');
+    }
+    setConnecting(false);
+  };
+
+  const closeConnectDialog = () => {
+    setConnectPlatform(null);
+    setGarminMfaRequired(false);
+    setMfaCode('');
+    setConnectError('');
   };
 
   const abortKickoff = (message: string) => {
@@ -783,7 +836,7 @@ export default function Setup() {
       </div>
 
       {/* Connect Platform Dialog */}
-      <Dialog open={!!connectPlatform} onOpenChange={(open) => { if (!open) setConnectPlatform(null); }}>
+      <Dialog open={!!connectPlatform} onOpenChange={(open) => { if (!open) closeConnectDialog(); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
@@ -795,7 +848,7 @@ export default function Setup() {
           </DialogHeader>
 
           {/* Show what this platform provides */}
-          {connectPlatform && (
+          {connectPlatform && !garminMfaRequired && (
             <div className="pb-2">
               <p className="text-xs text-muted-foreground mb-1.5"><Trans>Will sync:</Trans></p>
               <div className="flex flex-wrap gap-1.5">
@@ -814,7 +867,37 @@ export default function Setup() {
             </Alert>
           )}
 
-          {connectPlatform && connectPlatform !== 'strava' && (
+          {connectPlatform === 'garmin' && garminMfaRequired && (
+            <form onSubmit={(e) => { e.preventDefault(); handleGarminMfa(); }} className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                <Trans>Your Garmin account has multi-factor authentication enabled. Enter the verification code Garmin sent you to finish connecting.</Trans>
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="setup-garmin-mfa-code"><Trans>Verification code</Trans></Label>
+                <Input
+                  id="setup-garmin-mfa-code"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  className="font-data"
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value)}
+                  disabled={connecting}
+                  autoFocus
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="ghost" onClick={closeConnectDialog} disabled={connecting}>
+                  <Trans>Cancel</Trans>
+                </Button>
+                <Button type="submit" disabled={connecting || !mfaCode.trim()}>
+                  {connecting ? <Trans>Verifying...</Trans> : <Trans>Verify</Trans>}
+                </Button>
+              </div>
+            </form>
+          )}
+
+          {connectPlatform && connectPlatform !== 'strava' && !garminMfaRequired && (
             <form onSubmit={(e) => { e.preventDefault(); handleConnect(); }} className="space-y-4">
               {PLATFORM_META[connectPlatform].credFields.map((field) => (
                 <div key={field.key} className="space-y-2">
@@ -924,7 +1007,7 @@ export default function Setup() {
               )}
 
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="ghost" onClick={() => setConnectPlatform(null)} disabled={connecting}>
+                <Button type="button" variant="ghost" onClick={() => closeConnectDialog()} disabled={connecting}>
                   <Trans>Cancel</Trans>
                 </Button>
                 <Button type="submit" disabled={connecting}>
@@ -944,7 +1027,7 @@ export default function Setup() {
               </div>
 
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="ghost" onClick={() => setConnectPlatform(null)} disabled={connecting}>
+                <Button type="button" variant="ghost" onClick={() => closeConnectDialog()} disabled={connecting}>
                   <Trans>Cancel</Trans>
                 </Button>
                 <Button type="button" onClick={() => void handleConnect()} disabled={connecting}>
