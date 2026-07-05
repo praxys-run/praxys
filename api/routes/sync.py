@@ -106,11 +106,12 @@ def _garmin_token_dir(user_id: str) -> str:
     the per-user root into another user's store (or elsewhere on disk).
     """
     root = _garmin_token_root()
-    path = os.path.abspath(os.path.join(root, user_id))
+    path = os.path.normpath(os.path.join(root, user_id))
     # Require the result to be a direct child of the token root: this rejects
     # empty/"."/absolute/".."-containing ids that would escape or collapse to
-    # the root itself.
-    if os.path.dirname(path) != root:
+    # the root itself. The ``startswith`` prefix check confines the normalized
+    # path to the token root (defence against path traversal).
+    if os.path.dirname(path) != root or not path.startswith(root + os.sep):
         raise ValueError(f"Invalid user_id for Garmin token directory: {user_id!r}")
     return path
 
