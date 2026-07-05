@@ -210,6 +210,11 @@ export default function Settings() {
   const [connectError, setConnectError] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [stravaNotice, setStravaNotice] = useState('');
+  // Garmin MFA: when the account has multi-factor auth enabled, the initial
+  // credential submit returns `mfa_required` and we prompt for the code that
+  // completes the login (see api/routes/settings.py connect_garmin).
+  const [garminMfaRequired, setGarminMfaRequired] = useState(false);
+  const [mfaCode, setMfaCode] = useState('');
   // Garmin region is captured with the credentials because International and
   // CN are two independent account systems. Defaults to the current value so
   // the dialog comes up pre-filled when the user is re-entering credentials
@@ -464,41 +469,91 @@ export default function Settings() {
       if (connectPlatform === 'coros') {
         body.region = corosRegion;
       }
-      const res = await fetch(`${API_BASE}/api/settings/connections/${connectPlatform}`, {
+      // Garmin uses a dedicated interactive endpoint that validates the
+      // credentials up front so an MFA-protected account can be prompted for
+      // its code; the generic endpoint just stores credentials.
+      const endpoint = connectPlatform === 'garmin'
+        ? `${API_BASE}/api/settings/connections/garmin/login`
+        : `${API_BASE}/api/settings/connections/${connectPlatform}`;
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { ...getAuthHeaders() as Record<string, string>, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok || data.status === 'error') {
+      if (data.status === 'mfa_required') {
+        // Keep the dialog open and swap in the MFA code step.
+        setGarminMfaRequired(true);
+        setMfaCode('');
+      } else if (!res.ok || data.status === 'error') {
         setConnectError(data.message || `Failed to connect (HTTP ${res.status})`);
       } else {
-        // Mirror the region into source_options so _sync_garmin (which reads
-        // source_options.garmin_region first) stays consistent with the
-        // encrypted is_cn we just wrote. Otherwise a reconnect that changes
-        // region would leave the two fields disagreeing.
-        if (connectPlatform === 'garmin') {
-          await updateSettings({
-            source_options: {
-              ...(config?.source_options || {}),
-              garmin_region: connectRegion,
-            },
-          });
-        }
-        setConnectPlatform(null);
-        setConnectCreds({});
-        setConnectRegion('international');
-        refetch();
-        // Refresh sync status
-        fetch(`${API_BASE}/api/sync/status`, { headers: getAuthHeaders() })
-          .then((r) => r.json())
-          .then((d: SyncStatusResponse) => setSyncStatus(d))
-          .catch(() => {});
+        await finalizeConnect();
       }
     } catch {
       setConnectError('Network error');
     }
     setConnecting(false);
+  };
+
+  // Shared post-connect cleanup: mirror the Garmin region into source_options
+  // (so _sync_garmin, which reads source_options.garmin_region first, stays
+  // consistent with the encrypted is_cn), close the dialog, and refresh.
+  const finalizeConnect = async () => {
+    if (connectPlatform === 'garmin') {
+      await updateSettings({
+        source_options: {
+          ...(config?.source_options || {}),
+          garmin_region: connectRegion,
+        },
+      });
+    }
+    setConnectPlatform(null);
+    setConnectCreds({});
+    setConnectRegion('international');
+    setGarminMfaRequired(false);
+    setMfaCode('');
+    refetch();
+    fetch(`${API_BASE}/api/sync/status`, { headers: getAuthHeaders() })
+      .then((r) => r.json())
+      .then((d: SyncStatusResponse) => setSyncStatus(d))
+      .catch(() => {});
+  };
+
+  const handleGarminMfa = async () => {
+    const code = mfaCode.trim();
+    if (!code) return;
+    setConnecting(true);
+    setConnectError('');
+    try {
+      const res = await fetch(`${API_BASE}/api/settings/connections/garmin/mfa`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders() as Record<string, string>, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.status === 'error') {
+        if (data.message === 'mfa_session_expired') {
+          // Session timed out — send the user back to the credential step.
+          setGarminMfaRequired(false);
+          setConnectError('Verification timed out. Please reconnect and try again.');
+        } else {
+          setConnectError(data.message || `Verification failed (HTTP ${res.status})`);
+        }
+      } else {
+        await finalizeConnect();
+      }
+    } catch {
+      setConnectError('Network error');
+    }
+    setConnecting(false);
+  };
+
+  const closeConnectDialog = () => {
+    setConnectPlatform(null);
+    setGarminMfaRequired(false);
+    setMfaCode('');
+    setConnectError('');
   };
 
   const handleDisconnect = async (platform: string) => {
@@ -925,7 +980,7 @@ export default function Settings() {
       </div>
 
       {/* Connect Platform Dialog */}
-      <Dialog open={!!connectPlatform} onOpenChange={(open) => { if (!open) setConnectPlatform(null); }}>
+      <Dialog open={!!connectPlatform} onOpenChange={(open) => { if (!open) closeConnectDialog(); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle><Trans>Connect {connectPlatform ? (PLATFORM_META[connectPlatform]?.label || connectPlatform) : ''}</Trans></DialogTitle>
@@ -938,7 +993,39 @@ export default function Settings() {
               <AlertDescription>{connectError}</AlertDescription>
             </Alert>
           )}
-          {connectPlatform && connectPlatform !== 'strava' && PLATFORM_CRED_FIELDS[connectPlatform] && (
+          {connectPlatform === 'garmin' && garminMfaRequired && (
+            <form
+              onSubmit={(e) => { e.preventDefault(); handleGarminMfa(); }}
+              className="space-y-4"
+            >
+              <p className="text-xs text-muted-foreground">
+                <Trans>Your Garmin account has multi-factor authentication enabled. Enter the verification code Garmin sent you to finish connecting.</Trans>
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="garmin-mfa-code"><Trans>Verification code</Trans></Label>
+                <Input
+                  id="garmin-mfa-code"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  className="font-data"
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value)}
+                  disabled={connecting}
+                  autoFocus
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="ghost" onClick={closeConnectDialog} disabled={connecting}>
+                  <Trans>Cancel</Trans>
+                </Button>
+                <Button type="submit" disabled={connecting || !mfaCode.trim()}>
+                  {connecting ? <Trans>Verifying...</Trans> : <Trans>Verify</Trans>}
+                </Button>
+              </div>
+            </form>
+          )}
+          {connectPlatform && connectPlatform !== 'strava' && !garminMfaRequired && PLATFORM_CRED_FIELDS[connectPlatform] && (
             <form
               onSubmit={(e) => { e.preventDefault(); handleConnect(); }}
               className="space-y-4"
@@ -1007,7 +1094,7 @@ export default function Settings() {
                 </div>
               )}
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="ghost" onClick={() => setConnectPlatform(null)} disabled={connecting}>
+                <Button type="button" variant="ghost" onClick={() => closeConnectDialog()} disabled={connecting}>
                   <Trans>Cancel</Trans>
                 </Button>
                 <Button type="submit" disabled={connecting}>
@@ -1044,7 +1131,7 @@ export default function Settings() {
                 />
               </div>
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="ghost" onClick={() => setConnectPlatform(null)} disabled={connecting}>
+                <Button type="button" variant="ghost" onClick={() => closeConnectDialog()} disabled={connecting}>
                   <Trans>Cancel</Trans>
                 </Button>
                 <Button
