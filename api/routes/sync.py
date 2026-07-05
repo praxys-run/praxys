@@ -88,8 +88,8 @@ def _get_data_dir() -> str:
 
 def _garmin_token_root() -> str:
     """Root directory that holds per-user Garmin token sub-directories."""
-    return os.path.join(
-        os.path.dirname(_get_data_dir()), "sync", ".garmin_tokens",
+    return os.path.abspath(
+        os.path.join(os.path.dirname(_get_data_dir()), "sync", ".garmin_tokens")
     )
 
 
@@ -99,8 +99,20 @@ def _garmin_token_dir(user_id: str) -> str:
     garminconnect.Garmin.login() loads any tokens it finds at this path from
     disk without validating whose Garmin account they belong to, so a shared
     directory would leak one user's authenticated session to the next caller.
+
+    ``user_id`` is an authenticated account ID (a UUID), never free-form input,
+    but the path is validated defensively: the tokenstore isolation is a
+    security boundary, so a malformed ID must not be able to traverse out of
+    the per-user root into another user's store (or elsewhere on disk).
     """
-    return os.path.join(_garmin_token_root(), user_id)
+    root = _garmin_token_root()
+    path = os.path.abspath(os.path.join(root, user_id))
+    # Require the result to be a direct child of the token root: this rejects
+    # empty/"."/absolute/".."-containing ids that would escape or collapse to
+    # the root itself.
+    if os.path.dirname(path) != root:
+        raise ValueError(f"Invalid user_id for Garmin token directory: {user_id!r}")
+    return path
 
 
 def clear_garmin_tokens(user_id: str) -> None:
@@ -142,9 +154,9 @@ _pending_mfa_lock = threading.Lock()
 _GARMIN_MFA_TTL_SEC = 300
 
 
-def _prune_expired_mfa(now: float | None = None) -> None:
+def _prune_expired_mfa() -> None:
     """Drop pending MFA logins older than the TTL so stale clients don't leak."""
-    cutoff = (now if now is not None else time.time()) - _GARMIN_MFA_TTL_SEC
+    cutoff = time.time() - _GARMIN_MFA_TTL_SEC
     with _pending_mfa_lock:
         stale = [uid for uid, p in _pending_garmin_mfa.items() if p["created"] < cutoff]
         for uid in stale:

@@ -729,11 +729,22 @@ def connect_garmin(
     creds = {"email": body.email, "password": body.password, "is_cn": bool(body.is_cn)}
     try:
         result = begin_garmin_login(user_id, creds)
-    except (GarminConnectTooManyRequestsError, GarminConnectAuthenticationError) as e:
-        return {"status": "error", "message": str(e)}
-    except Exception as e:
+    except GarminConnectTooManyRequestsError:
+        logger.warning("Garmin login rate limited for user %s", user_id)
+        return {
+            "status": "error",
+            "message": "Too many login attempts. Please wait a few minutes and try again.",
+        }
+    except GarminConnectAuthenticationError:
+        logger.warning("Garmin login rejected credentials for user %s", user_id)
+        return {
+            "status": "error",
+            "message": "Garmin could not verify your credentials. "
+            "Check your email, password, and region, then try again.",
+        }
+    except Exception:
         logger.exception("Garmin interactive login failed for user %s", user_id)
-        return {"status": "error", "message": f"Login failed: {e}"}
+        return {"status": "error", "message": "Login failed. Please try again."}
 
     if result == "mfa_required":
         return {"status": "mfa_required", "platform": "garmin"}
@@ -767,11 +778,22 @@ def verify_garmin_mfa(
         if str(e) == "GARMIN_MFA_EXPIRED":
             return {"status": "error", "message": "mfa_session_expired"}
         raise
-    except (GarminConnectTooManyRequestsError, GarminConnectAuthenticationError) as e:
-        return {"status": "error", "message": str(e)}
-    except Exception as e:
+    except GarminConnectTooManyRequestsError:
+        logger.warning("Garmin MFA rate limited for user %s", user_id)
+        return {
+            "status": "error",
+            "message": "Too many attempts. Please wait a few minutes and try again.",
+        }
+    except GarminConnectAuthenticationError:
+        logger.warning("Garmin MFA code rejected for user %s", user_id)
+        return {
+            "status": "error",
+            "message": "The verification code was not accepted. "
+            "Check the code and try again.",
+        }
+    except Exception:
         logger.exception("Garmin MFA verification failed for user %s", user_id)
-        return {"status": "error", "message": f"MFA verification failed: {e}"}
+        return {"status": "error", "message": "MFA verification failed. Please try again."}
 
     _upsert_connection_credentials(user_id, "garmin", creds, db)
     db.commit()
