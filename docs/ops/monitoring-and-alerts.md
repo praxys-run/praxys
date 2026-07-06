@@ -145,28 +145,26 @@ retail rate per the [cost model](#alert-cost-model) below.
 | `wt-praxys-api-health` | metric (web test) | `.../api/health` reachable | 1 min | 1 | ~0.10 |
 | `praxys-feedback-needs-review` | log | `praxys.feedback` `status == needs_review` | 15 min | 3 | 0.50 |
 | `praxys-today-latency-regression` | log | `GET /api/today` avg latency > 3000 ms | 1 h | 3 | 0.50 |
+| `praxys-sync-systemic-failures` | log | `praxys.sync` — ≥5 distinct users hit a systemic `failure_class` for one platform / 15 min | 15 min | 2 | 0.50 |
+| `praxys-connect-systemic-failures` | log | `praxys.connection` — ≥5 distinct users fail connect with a systemic class / 15 min | 15 min | 2 | 0.50 |
 
-**Total ≈ 2.5–2.8 USD/mo** (the three metric alerts may fall inside the small free
-allotment, making the effective figure closer to the 2.50 log-alert subtotal).
+**Total ≈ 3.5–3.8 USD/mo** (the three metric alerts may fall inside the small free
+allotment, making the effective figure closer to the 3.50 log-alert subtotal).
 
-### Recommended: systemic connection/sync alerts (not yet provisioned)
+### Systemic connection/sync alerts (provisioned)
 
-The `praxys.sync` / `praxys.connection` **signals are live in code**, but the alerts
-below are **not yet created**. They are log alerts at the 15-min floor
-(**0.50 USD/mo each**), scoped to *systemic* `failure_class` values and gated on
-**distinct affected users** so one wrong-password user never pages. Create them via
-Logs → *New alert rule* (or `az monitor scheduled-query create`) using the
-*systemic vs individual* KQL above, then move each into the inventory table and bump
-the total (currency rule).
+`praxys-sync-systemic-failures` and `praxys-connect-systemic-failures` (in the table
+above) fire when **≥5 distinct users** hit a *systemic* `failure_class` for one
+platform in 15 min — the distinct-user gate is what separates a fleet-wide break
+(platform outage, Cloudflare block, a regression like #369) from one user's wrong
+password. Both use the *systemic vs individual* KQL above (with the
+`union (customMetrics),(customEvents)` dual-path), `Count > 0`, and the
+`praxys-feedback-ag` action group.
 
-| Proposed rule | Watches | Eval | Sev | ~USD/mo |
-|---|---|---|---|---|
-| `praxys-sync-systemic-failures` | ≥5 distinct users hit a systemic `failure_class` for one platform in 15 min | 15 min | 2 | 0.50 |
-| `praxys-connect-systemic-failures` | ≥5 distinct users fail `praxys.connection` with a systemic class in 15 min | 15 min | 2 | 0.50 |
-
-Threshold guidance: `≥5 distinct users / 15 min` filters individual noise while
-catching a fleet-wide break early; tune per active-user base. Attach the
-`praxys-feedback-ag` action group. See [Create an alert](#create-an-alert-general-recipe).
+> **Dormant until deploy.** The `praxys.sync` / `praxys.connection` signals ship in
+> the PR that added these rules; until it deploys there is no data, so the rules
+> evaluate to zero and never fire. Threshold `≥5 / 15 min` is a starting point —
+> tune to the active-user base once real volume lands.
 
 > **Currency rule.** Any PR that adds, removes, or re-tunes an alert **must update
 > this table in the same PR** — rule name, what it watches, eval frequency,
