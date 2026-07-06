@@ -51,6 +51,31 @@ auto-assigned. Use it to measure precision on real feedback before trusting the
 loop, then unset to go live. Decisions are logged as
 `change-loop agent-ready decision for feedback <id>: applied=<bool> shadow=<bool>`.
 
+### Screenshots (how the agent "sees" them)
+
+Feedback screenshots are **private by construction** (issue #337): the raw image
+stays in Blob storage and only its key lands on the row — it is **never** put in
+the (public) GitHub issue, and the coding agent has no path to it (no Azure
+credential, and giving it one would pipe potentially-PII image bytes into a
+public-repo agent).
+
+Instead, the vision model (`api/feedback_vision.py`) is the **single controlled
+image→text crossing**: at triage it writes a thorough, **PII-scrubbed** description
+of what the screenshot shows (screen, affected component, visible error text, what
+looks broken) into the issue body's `## Screenshot` section. That description —
+double-scrubbed, and only ever from a **non-sensitive** image (a screenshot the
+vision model flags sensitive parks the report as `needs_review`, so it is never
+`agent-ready`) — is what the coding agent reads. For a code-fixing agent, a
+complete scrubbed description is effectively equivalent to the image, since it
+fixes bugs by reading code and reasoning about the described symptom, not by
+pixel-measuring. The rare pixel-precise visual bug that a description cannot
+capture should be `agent_eligible=false` and handled by a human (who *can* view the
+image in the admin console).
+
+**Do not** build a second path (an MCP tool or credential) that hands the agent the
+raw image — that would breach the #337 invariant for a public repo. Enrich the
+scrubbed description instead.
+
 ## Prerequisites
 
 - Repo admin (to enable the coding agent, create labels, set branch protection).
