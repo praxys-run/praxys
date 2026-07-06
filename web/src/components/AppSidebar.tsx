@@ -1,9 +1,10 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import type { ComponentType, SVGProps } from 'react';
-import { Sun, Moon, Monitor, TrendingUp, Target, Clock, FlaskConical, Settings, LogOut, ListChecks, ShieldCheck, MessageSquarePlus } from 'lucide-react';
+import { Sun, Moon, Monitor, TrendingUp, Target, Clock, FlaskConical, Settings, LogOut, ListChecks, ShieldCheck, MessageSquarePlus, Smartphone } from 'lucide-react';
 import { PraxysFlag } from '@/components/PraxysFlag';
 import FeedbackDialog from '@/components/FeedbackDialog';
+import { MobileAppDialog } from '@/components/MobileApp';
 import {
   Sidebar,
   SidebarContent,
@@ -107,6 +108,7 @@ export default function AppSidebar() {
   const { t, i18n } = useLingui();
   const displayName = config?.display_name || null;
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [mobileAppOpen, setMobileAppOpen] = useState(false);
   // Admin-only: poll the feedback queue so a count of rows needing triage
   // (needs_review + failed) surfaces as a badge on the Admin nav item.
   const { data: feedbackSummary } = useApi<AdminFeedbackSummary>(
@@ -198,6 +200,12 @@ export default function AppSidebar() {
       )}
       <SidebarMenu>
         <SidebarMenuItem>
+          <SidebarMenuButton onClick={() => setMobileAppOpen(true)} tooltip={t`Praxys on mobile`}>
+            <Smartphone />
+            <span>{t`Praxys on mobile`}</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
           <SidebarMenuButton onClick={() => setFeedbackOpen(true)} tooltip={t`Send feedback`}>
             <MessageSquarePlus />
             <span>{t`Send feedback`}</span>
@@ -256,6 +264,7 @@ export default function AppSidebar() {
       </SidebarContent>
       {footerContent}
       <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
+      <MobileAppDialog open={mobileAppOpen} onOpenChange={setMobileAppOpen} />
     </Sidebar>
   );
 }
