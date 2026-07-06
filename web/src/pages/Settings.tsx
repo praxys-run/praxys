@@ -24,6 +24,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Link2, Gauge, SlidersHorizontal, Target, Activity, User, Check, Clock, Trash2, Loader2 } from 'lucide-react';
 import GoalEditor from '@/components/GoalEditor';
+import { MobileAppCard } from '@/components/MobileApp';
 import { formatTime, formatPace } from '@/lib/format';
 import { WEB_VERSION } from '@/lib/version';
 import { useAuth } from '@/hooks/useAuth';
@@ -1476,6 +1477,8 @@ export default function Settings() {
           </div>
         </CardContent>
       </Card>
+
+      <MobileAppCard />
 
       {/* ===== SECTION 6: Account ===== */}
       <Card className="border-destructive/30 bg-destructive/5">
