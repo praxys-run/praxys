@@ -6,7 +6,8 @@
     "pages/goal/index",
     "pages/history/index",
     "pages/settings/index",
-    "pages/science/index"
+    "pages/science/index",
+    "pages/legal/index"
   ],
   "renderer": "skyline",
   "lazyCodeLoading": "requiredComponents",

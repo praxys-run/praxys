@@ -80,6 +80,21 @@
       <button class="ts-button login-cta fade-in" style="animation-delay: 280ms"
               bindtap="onSignInTap">{{tr.signInWeChat}}</button>
 
+      <!-- Consent notice for the WeChat sign-in. The primary sign-in carries a
+           prominent agreement line with tappable links to the full Terms +
+           Privacy docs (pages/legal). WeChat audit requires the agreements be
+           reachable and consented before we collect any personal info (email
+           on the waitlist / link stages, which additionally gate on a
+           checkbox). -->
+      <view class="login-consent fade-in" style="animation-delay: 320ms">
+        <text class="login-consent-lead">{{tr.consentLead}}</text>
+        <view class="login-consent-links">
+          <text class="login-consent-link" data-kind="terms" bindtap="onOpenLegal">{{tr.termsName}}</text>
+          <text class="login-consent-dot">·</text>
+          <text class="login-consent-link" data-kind="privacy" bindtap="onOpenLegal">{{tr.privacyName}}</text>
+        </view>
+      </view>
+
       <!-- Three structural pillars. Match web's login-pillars list:
            "Today's signal · go, modify, or rest" / "Diagnosis & forecast
            you can verify" / "Cited science. No hype." Strong half of
@@ -194,6 +209,17 @@
           bindinput="onLinkPasswordInput"
         />
       </view>
+      <view class="login-agree" bindtap="onToggleAgree">
+        <view class="login-agree-box {{agreedTerms ? 'login-agree-box--on' : ''}}">
+          <text wx:if="{{agreedTerms}}" class="login-agree-tick">✓</text>
+        </view>
+        <view class="login-agree-text">
+          <text class="login-agree-lead">{{tr.agreeLead}}</text>
+          <text class="login-consent-link" data-kind="terms" catchtap="onOpenLegal">{{tr.termsName}}</text>
+          <text class="login-consent-dot">·</text>
+          <text class="login-consent-link" data-kind="privacy" catchtap="onOpenLegal">{{tr.privacyName}}</text>
+        </view>
+      </view>
       <text wx:if="{{linkError}}" class="login-error ts-destructive">{{linkError}}</text>
       <button
         class="ts-button login-cta"
@@ -254,6 +280,17 @@
           value="{{waitlistNote}}"
           bindinput="onWaitlistNoteInput"
         />
+      </view>
+      <view class="login-agree" bindtap="onToggleAgree">
+        <view class="login-agree-box {{agreedTerms ? 'login-agree-box--on' : ''}}">
+          <text wx:if="{{agreedTerms}}" class="login-agree-tick">✓</text>
+        </view>
+        <view class="login-agree-text">
+          <text class="login-agree-lead">{{tr.agreeLead}}</text>
+          <text class="login-consent-link" data-kind="terms" catchtap="onOpenLegal">{{tr.termsName}}</text>
+          <text class="login-consent-dot">·</text>
+          <text class="login-consent-link" data-kind="privacy" catchtap="onOpenLegal">{{tr.privacyName}}</text>
+        </view>
       </view>
       <text wx:if="{{waitlistError}}" class="login-error ts-destructive">{{waitlistError}}</text>
       <button

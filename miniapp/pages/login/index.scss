@@ -505,3 +505,86 @@
 .fade-in {
   animation: login-fade-in 480ms ease-out both;
 }
+
+// Consent surfaces. Passive notice under the WeChat sign-in CTA, plus the
+// explicit agree checkbox on the email-collecting stages (waitlist / link).
+// The doc links open the Terms / Privacy pages (pages/legal). Green = action /
+// link per the semantic palette; cobalt stays reserved for reasoning surfaces.
+.login-consent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 20rpx;
+  gap: 6rpx;
+}
+
+.login-consent-lead {
+  font-size: 22rpx;
+  line-height: 1.4;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.login-consent-links {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.login-consent-link {
+  font-size: 22rpx;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.login-consent-dot {
+  margin: 0 10rpx;
+  font-size: 22rpx;
+  color: var(--text-muted);
+}
+
+// Explicit consent checkbox — gates onWaitlistSubmit / onLinkSubmit.
+.login-agree {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  width: 100%;
+  margin-top: 24rpx;
+  gap: 14rpx;
+}
+
+.login-agree-box {
+  flex: none;
+  width: 34rpx;
+  height: 34rpx;
+  margin-top: 3rpx;
+  border: 2rpx solid var(--border);
+  border-radius: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--surface-subtle);
+}
+
+.login-agree-box--on {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.login-agree-tick {
+  font-size: 24rpx;
+  line-height: 1;
+  color: var(--primary-on);
+}
+
+.login-agree-text {
+  flex: 1;
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.login-agree-lead {
+  color: var(--text-muted);
+}
