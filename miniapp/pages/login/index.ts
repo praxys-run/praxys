@@ -121,6 +121,12 @@ function buildLoginTr(locale: Locale) {
     themeAuto: t('System theme'),
 
     emailPasswordRequired: t('Email and password are required'),
+
+    consentLead: t('By signing in, you agree to our'),
+    agreeLead: t('I agree to the'),
+    termsName: locale === 'zh' ? '《服务条款》' : t('Terms of Service'),
+    privacyName: locale === 'zh' ? '《隐私政策》' : t('Privacy Policy'),
+    agreeRequired: t('Please agree to the Terms and Privacy Policy first.'),
   };
 }
 
@@ -179,6 +185,8 @@ interface PageData {
   waitlistSubmitting: boolean;
   waitlistError: string;
 
+  agreedTerms: boolean;
+
   tr: ReturnType<typeof buildLoginTr>;
 }
 
@@ -197,6 +205,8 @@ interface PageMethods extends WechatMiniprogram.IAnyObject {
   onWaitlistNoteInput(e: WechatMiniprogram.Input): void;
   onWaitlistSubmit(): Promise<void>;
   onWaitlistBack(): void;
+  onToggleAgree(): void;
+  onOpenLegal(e: WechatMiniprogram.TouchEvent): void;
 }
 
 const initialLocale: Locale = 'zh';
@@ -216,6 +226,7 @@ const initialData: PageData = {
   waitlistNote: '',
   waitlistSubmitting: false,
   waitlistError: '',
+  agreedTerms: false,
   tr: buildLoginTr(initialLocale),
 };
 
@@ -262,7 +273,7 @@ Page<PageData, PageMethods>({
       }
       if (result.status === 'needs_setup' && result.wechat_login_ticket) {
         // Skip the choose-link-or-register split — register lives on web.
-        this.setData({ stage: 'link', ticket: result.wechat_login_ticket });
+        this.setData({ stage: 'link', agreedTerms: false, ticket: result.wechat_login_ticket });
         return;
       }
       this.setData({ stage: 'error', errorMessage: 'Unexpected login response' });
@@ -290,6 +301,10 @@ Page<PageData, PageMethods>({
       this.setData({ linkError: tr.emailPasswordRequired });
       return;
     }
+    if (!this.data.agreedTerms) {
+      this.setData({ linkError: tr.agreeRequired });
+      return;
+    }
     this.setData({ linkSubmitting: true, linkError: '' });
     try {
       const r = await wechatLinkWithPassword(ticket, linkEmail, linkPassword);
@@ -312,6 +327,7 @@ Page<PageData, PageMethods>({
   onWaitlistTap() {
     this.setData({
       stage: 'waitlist',
+      agreedTerms: false,
       waitlistEmail: '',
       waitlistNote: '',
       waitlistError: '',
@@ -336,6 +352,10 @@ Page<PageData, PageMethods>({
     const email = waitlistEmail.trim();
     if (!email) {
       this.setData({ waitlistError: tr.waitlistEmailRequired });
+      return;
+    }
+    if (!this.data.agreedTerms) {
+      this.setData({ waitlistError: tr.agreeRequired });
       return;
     }
     this.setData({ waitlistSubmitting: true, waitlistError: '' });
@@ -373,6 +393,25 @@ Page<PageData, PageMethods>({
       waitlistError: '',
       waitlistSubmitting: false,
     });
+  },
+
+  /**
+   * Consent checkbox toggle, shown on the email-collection stages (waitlist
+   * + link). WeChat requires explicit consent before collecting personal
+   * info (email), so onWaitlistSubmit / onLinkSubmit refuse until this is on.
+   */
+  onToggleAgree() {
+    this.setData({ agreedTerms: !this.data.agreedTerms });
+  },
+
+  /**
+   * Open the Terms or Privacy document. `data-kind` on the tapped link picks
+   * which; both render in pages/legal from the web-canonical legal content
+   * synced into utils/legal.ts.
+   */
+  onOpenLegal(e: WechatMiniprogram.TouchEvent) {
+    const kind = e.currentTarget.dataset.kind === 'privacy' ? 'privacy' : 'terms';
+    wx.navigateTo({ url: `/pages/legal/index?kind=${kind}` });
   },
 
   /**

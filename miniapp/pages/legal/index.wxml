@@ -1,0 +1,27 @@
+<view class="legal-root {{themeClass}}">
+  <nav-bar title="{{tr.navTitle}}" theme-class="{{themeClass}}" show-back="{{true}}" />
+
+  <scroll-view scroll-y="{{true}}" class="legal-scroll">
+    <view class="legal-content">
+      <text class="legal-brand">Praxys</text>
+      <text class="legal-doc-title">{{tr.navTitle}}</text>
+      <text class="legal-version">v{{version}} · {{tr.effective}} {{effectiveDate}}</text>
+
+      <view class="legal-section" wx:for="{{sections}}" wx:key="id" wx:for-item="sec">
+        <text class="legal-section-title">{{sec.title}}</text>
+        <text
+          class="legal-section-para"
+          wx:for="{{sec.body}}"
+          wx:key="*this"
+          wx:for-item="para"
+        >{{para}}</text>
+      </view>
+
+      <view class="legal-footer">
+        <text class="legal-footer-link" bindtap="onCrossLink">{{tr.crossLabel}}</text>
+        <text class="legal-footer-dot">·</text>
+        <text class="legal-footer-email" bindtap="onCopyEmail">{{supportEmail}}</text>
+      </view>
+    </view>
+  </scroll-view>
+</view>

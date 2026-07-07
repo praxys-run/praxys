@@ -32,6 +32,9 @@ const SCAN_DIRS = ['pages', 'components', 'custom-tab-bar', 'utils'];
 
 const SKIP_FILES = new Set([
   path.join(ROOT, 'utils', 'i18n-catalog.ts'),
+  // Auto-generated from web/src/lib/legal.ts; bilingual content lives inline
+  // (en/zh) and is picked by locale at render time, not via the t() catalog.
+  path.join(ROOT, 'utils', 'legal.ts'),
   path.join(ROOT, 'utils', 'i18n-extra.ts'),
   path.join(ROOT, 'utils', 'i18n.ts'),
   path.join(ROOT, 'types', 'api.ts'),

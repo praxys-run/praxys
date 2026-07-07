@@ -731,6 +731,34 @@ const ZH_NAV_CHARTS = {
     '数据不足，暂无法对比每周负荷',
 };
 
+const EN_LEGAL = {
+  // Legal / consent surfaces: the Terms & Privacy viewer (pages/legal) and the
+  // login-page consent notices. Full page titles stay bracket-free; the short
+  // doc names pick up 《》 in zh at the login call site (Chinese convention for
+  // a cited document title), so they aren't decorated here.
+  'Terms of Service': 'Terms of Service',
+  'Terms of Service & EULA': 'Terms of Service & EULA',
+  'Privacy Policy': 'Privacy Policy',
+  'Effective': 'Effective',
+  'Copied': 'Copied',
+  'By signing in, you agree to our': 'By signing in, you agree to our',
+  'I agree to the': 'I agree to the',
+  'Please agree to the Terms and Privacy Policy first.':
+    'Please agree to the Terms and Privacy Policy first.',
+};
+
+const ZH_LEGAL = {
+  'Terms of Service': '服务条款',
+  'Terms of Service & EULA': '服务条款与最终用户许可',
+  'Privacy Policy': '隐私政策',
+  'Effective': '生效日期',
+  'Copied': '已复制',
+  'By signing in, you agree to our': '登录即表示您已阅读并同意',
+  'I agree to the': '我已阅读并同意',
+  'Please agree to the Terms and Privacy Policy first.':
+    '请先阅读并同意《服务条款》与《隐私政策》。',
+};
+
 export const I18N_EXTRA: Record<Locale, Record<string, string>> = {
   en: {
     ...EN_AUTH,
@@ -741,6 +769,7 @@ export const I18N_EXTRA: Record<Locale, Record<string, string>> = {
     ...EN_HISTORY_SCIENCE,
     ...EN_SETTINGS,
     ...EN_NAV_CHARTS,
+    ...EN_LEGAL,
   },
   zh: {
     ...ZH_AUTH,
@@ -751,5 +780,6 @@ export const I18N_EXTRA: Record<Locale, Record<string, string>> = {
     ...ZH_HISTORY_SCIENCE,
     ...ZH_SETTINGS,
     ...ZH_NAV_CHARTS,
+    ...ZH_LEGAL,
   },
 };
