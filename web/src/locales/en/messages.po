@@ -759,7 +759,7 @@ msgstr "daily score"
 msgid "Dark"
 msgstr "Dark"
 
-#: src/pages/Login.tsx:698
+#: src/pages/Login.tsx:703
 msgid "Dark theme (click for system)"
 msgstr "Dark theme (click for system)"
 
@@ -912,7 +912,7 @@ msgstr "Discussion"
 msgid "Dismissible banners shown to all users"
 msgstr "Dismissible banners shown to all users"
 
-#: src/pages/Login.tsx:670
+#: src/pages/Login.tsx:675
 msgid "Display preferences"
 msgstr "Display preferences"
 
@@ -1524,7 +1524,7 @@ msgstr "Leave blank to track predicted time only"
 msgid "Light"
 msgstr "Light"
 
-#: src/pages/Login.tsx:696
+#: src/pages/Login.tsx:701
 msgid "Light theme (click for dark)"
 msgstr "Light theme (click for dark)"
 
@@ -1581,8 +1581,8 @@ msgstr "Loading…"
 #~ msgid "Log in to connect your CLI plugin"
 #~ msgstr "Log in to connect your CLI plugin"
 
-#: src/components/AppSidebar.tsx:221
-#: src/components/AppSidebar.tsx:223
+#: src/components/AppSidebar.tsx:227
+#: src/components/AppSidebar.tsx:229
 msgid "Log out"
 msgstr "Log out"
 
@@ -1695,7 +1695,7 @@ msgstr "Need 2 weeks of synced activity to compare planned vs actual. {daysToCom
 msgid "Need at least 3 activities with power data."
 msgstr "Need at least 3 activities with power data."
 
-#: src/pages/Login.tsx:668
+#: src/pages/Login.tsx:669
 msgid "Need help? {SUPPORT_EMAIL}"
 msgstr "Need help? {SUPPORT_EMAIL}"
 
@@ -2504,6 +2504,12 @@ msgstr "Sending…"
 msgid "Service Incidents"
 msgstr "Service Incidents"
 
+#: src/components/AppSidebar.tsx:215
+#: src/components/AppSidebar.tsx:217
+#: src/pages/Login.tsx:672
+msgid "Service status"
+msgstr "Service status"
+
 #: src/pages/Status.tsx:132
 msgid "Service Status"
 msgstr "Service Status"
@@ -2686,8 +2692,8 @@ msgstr "Suggestions"
 msgid "Swimming"
 msgstr "Swimming"
 
-#: src/pages/Login.tsx:675
-#: src/pages/Login.tsx:676
+#: src/pages/Login.tsx:680
+#: src/pages/Login.tsx:681
 msgid "Switch language"
 msgstr "Switch language"
 
@@ -2696,15 +2702,15 @@ msgstr "Switch language"
 msgid "Switch to {0}"
 msgstr "Switch to {0}"
 
-#: src/pages/Login.tsx:689
+#: src/pages/Login.tsx:694
 msgid "Switch to dark theme"
 msgstr "Switch to dark theme"
 
-#: src/pages/Login.tsx:692
+#: src/pages/Login.tsx:697
 msgid "Switch to light theme"
 msgstr "Switch to light theme"
 
-#: src/pages/Login.tsx:691
+#: src/pages/Login.tsx:696
 msgid "Switch to system theme"
 msgstr "Switch to system theme"
 
@@ -2794,7 +2800,7 @@ msgstr "System"
 msgid "System Announcements"
 msgstr "System Announcements"
 
-#: src/pages/Login.tsx:699
+#: src/pages/Login.tsx:704
 msgid "System theme (click for light)"
 msgstr "System theme (click for light)"
 
@@ -2835,7 +2841,7 @@ msgstr "Thanks for the feedback!"
 msgid "The status API did not respond — this itself may indicate an outage."
 msgstr "The status API did not respond — this itself may indicate an outage."
 
-#: src/components/AppSidebar.tsx:215
+#: src/components/AppSidebar.tsx:221
 msgid "Theme"
 msgstr "Theme"
 

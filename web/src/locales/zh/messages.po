@@ -759,7 +759,7 @@ msgstr "每日评分"
 msgid "Dark"
 msgstr "深色"
 
-#: src/pages/Login.tsx:698
+#: src/pages/Login.tsx:703
 msgid "Dark theme (click for system)"
 msgstr "深色主题（点击切换为系统）"
 
@@ -912,7 +912,7 @@ msgstr "讨论"
 msgid "Dismissible banners shown to all users"
 msgstr "向所有用户显示的可关闭横幅"
 
-#: src/pages/Login.tsx:670
+#: src/pages/Login.tsx:675
 msgid "Display preferences"
 msgstr "显示偏好"
 
@@ -1524,7 +1524,7 @@ msgstr "留空则仅追踪预测时间"
 msgid "Light"
 msgstr "浅色"
 
-#: src/pages/Login.tsx:696
+#: src/pages/Login.tsx:701
 msgid "Light theme (click for dark)"
 msgstr "浅色主题（点击切换为深色）"
 
@@ -1581,8 +1581,8 @@ msgstr ""
 #~ msgid "Log in to connect your CLI plugin"
 #~ msgstr "登录以连接 CLI 插件"
 
-#: src/components/AppSidebar.tsx:221
-#: src/components/AppSidebar.tsx:223
+#: src/components/AppSidebar.tsx:227
+#: src/components/AppSidebar.tsx:229
 msgid "Log out"
 msgstr "退出登录"
 
@@ -1695,7 +1695,7 @@ msgstr "需要 2 周已同步的活动数据才能对比计划与实际。还差
 msgid "Need at least 3 activities with power data."
 msgstr "需要至少 3 次带功率数据的活动。"
 
-#: src/pages/Login.tsx:668
+#: src/pages/Login.tsx:669
 msgid "Need help? {SUPPORT_EMAIL}"
 msgstr "需要帮助？{SUPPORT_EMAIL}"
 
@@ -2504,6 +2504,12 @@ msgstr "发送中…"
 msgid "Service Incidents"
 msgstr ""
 
+#: src/components/AppSidebar.tsx:215
+#: src/components/AppSidebar.tsx:217
+#: src/pages/Login.tsx:672
+msgid "Service status"
+msgstr ""
+
 #: src/pages/Status.tsx:132
 msgid "Service Status"
 msgstr ""
@@ -2686,8 +2692,8 @@ msgstr "建议"
 msgid "Swimming"
 msgstr "游泳"
 
-#: src/pages/Login.tsx:675
-#: src/pages/Login.tsx:676
+#: src/pages/Login.tsx:680
+#: src/pages/Login.tsx:681
 msgid "Switch language"
 msgstr "切换语言"
 
@@ -2696,15 +2702,15 @@ msgstr "切换语言"
 msgid "Switch to {0}"
 msgstr "切换为 {0}"
 
-#: src/pages/Login.tsx:689
+#: src/pages/Login.tsx:694
 msgid "Switch to dark theme"
 msgstr "切换到深色主题"
 
-#: src/pages/Login.tsx:692
+#: src/pages/Login.tsx:697
 msgid "Switch to light theme"
 msgstr "切换到浅色主题"
 
-#: src/pages/Login.tsx:691
+#: src/pages/Login.tsx:696
 msgid "Switch to system theme"
 msgstr "切换到系统主题"
 
@@ -2794,7 +2800,7 @@ msgstr "跟随系统"
 msgid "System Announcements"
 msgstr "系统公告"
 
-#: src/pages/Login.tsx:699
+#: src/pages/Login.tsx:704
 msgid "System theme (click for light)"
 msgstr "系统主题（点击切换到浅色）"
 
@@ -2835,7 +2841,7 @@ msgstr "感谢你的反馈！"
 msgid "The status API did not respond — this itself may indicate an outage."
 msgstr ""
 
-#: src/components/AppSidebar.tsx:215
+#: src/components/AppSidebar.tsx:221
 msgid "Theme"
 msgstr "主题"
 
