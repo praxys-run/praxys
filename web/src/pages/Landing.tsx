@@ -49,6 +49,7 @@ type Copy = {
   footerStravaNote: string;
   termsLink: string;
   privacyLink: string;
+  statusLink: string;
   vizCpLabel: string;
   vizCpDelta: string;
   vizCpUnit: string;
@@ -114,6 +115,7 @@ const COPY: Record<SupportedLocale, Copy> = {
     footerStravaNote: 'Compatible with Strava',
     termsLink: 'Terms',
     privacyLink: 'Privacy',
+    statusLink: 'Status',
     vizCpLabel: 'Your CP',
     vizCpDelta: '+6 W · 14 d',
     vizCpUnit: 'W',
@@ -175,6 +177,7 @@ const COPY: Record<SupportedLocale, Copy> = {
     footerStravaNote: 'Compatible with Strava',
     termsLink: '服务条款',
     privacyLink: '隐私政策',
+    statusLink: '服务状态',
     vizCpLabel: '你的 CP',
     vizCpDelta: '+6 W · 14 天',
     vizCpUnit: '瓦',
@@ -346,7 +349,7 @@ export default function Landing() {
             <span>{t.footerLeft}</span>
           </div>
           <span className="fnote">{t.footerStravaNote}</span>
-          <span><a href="/terms">{t.termsLink}</a> · <a href="/privacy">{t.privacyLink}</a></span>
+          <span><a href="/terms">{t.termsLink}</a> · <a href="/privacy">{t.privacyLink}</a> · <a href="/status">{t.statusLink}</a></span>
           <span>{t.footerRight}</span>
         </footer>
       </main>
