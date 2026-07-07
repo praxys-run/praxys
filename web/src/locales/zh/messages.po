@@ -317,6 +317,10 @@ msgstr "{0} 个关联工单均已是最新状态。"
 msgid "All synced"
 msgstr "全部已同步"
 
+#: src/components/StatusIndicator.tsx:27
+msgid "All systems operational"
+msgstr ""
+
 #: src/pages/Status.tsx:72
 msgid "All Systems Operational"
 msgstr ""
@@ -805,6 +809,10 @@ msgstr "定义轻松、阈值与困难的强度边界。"
 
 #: src/pages/Status.tsx:83
 msgid "Degraded"
+msgstr ""
+
+#: src/components/StatusIndicator.tsx:28
+msgid "Degraded performance"
 msgstr ""
 
 #: src/pages/Status.tsx:73
@@ -1581,8 +1589,8 @@ msgstr ""
 #~ msgid "Log in to connect your CLI plugin"
 #~ msgstr "登录以连接 CLI 插件"
 
-#: src/components/AppSidebar.tsx:227
-#: src/components/AppSidebar.tsx:229
+#: src/components/AppSidebar.tsx:221
+#: src/components/AppSidebar.tsx:223
 msgid "Log out"
 msgstr "退出登录"
 
@@ -1616,6 +1624,10 @@ msgstr ""
 
 #: src/pages/Status.tsx:75
 msgid "Major Outage"
+msgstr ""
+
+#: src/components/StatusIndicator.tsx:30
+msgid "Major service outage"
 msgstr ""
 
 #: src/pages/Admin.tsx:491
@@ -1961,6 +1973,10 @@ msgstr ""
 
 #: src/pages/Status.tsx:74
 msgid "Partial Outage"
+msgstr ""
+
+#: src/components/StatusIndicator.tsx:29
+msgid "Partial service outage"
 msgstr ""
 
 #: src/pages/Admin.tsx:921
@@ -2504,8 +2520,8 @@ msgstr "发送中…"
 msgid "Service Incidents"
 msgstr ""
 
-#: src/components/AppSidebar.tsx:215
-#: src/components/AppSidebar.tsx:217
+#: src/components/StatusIndicator.tsx:31
+#: src/components/StatusIndicator.tsx:39
 #: src/pages/Login.tsx:672
 msgid "Service status"
 msgstr ""
@@ -2841,7 +2857,7 @@ msgstr "感谢你的反馈！"
 msgid "The status API did not respond — this itself may indicate an outage."
 msgstr ""
 
-#: src/components/AppSidebar.tsx:221
+#: src/components/AppSidebar.tsx:215
 msgid "Theme"
 msgstr "主题"
 

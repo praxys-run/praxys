@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import type { ComponentType, SVGProps } from 'react';
-import { Sun, Moon, Monitor, TrendingUp, Target, Clock, FlaskConical, Settings, LogOut, ListChecks, ShieldCheck, MessageSquarePlus, Smartphone, Activity } from 'lucide-react';
+import { Sun, Moon, Monitor, TrendingUp, Target, Clock, FlaskConical, Settings, LogOut, ListChecks, ShieldCheck, MessageSquarePlus, Smartphone } from 'lucide-react';
 import { PraxysFlag } from '@/components/PraxysFlag';
 import FeedbackDialog from '@/components/FeedbackDialog';
 import { MobileAppDialog } from '@/components/MobileApp';
@@ -209,12 +209,6 @@ export default function AppSidebar() {
           <SidebarMenuButton onClick={() => setFeedbackOpen(true)} tooltip={t`Send feedback`}>
             <MessageSquarePlus />
             <span>{t`Send feedback`}</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton render={<a href="/status" target="_blank" rel="noreferrer" />} tooltip={t`Service status`}>
-            <Activity />
-            <span>{t`Service status`}</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>

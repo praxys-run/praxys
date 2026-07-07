@@ -317,6 +317,10 @@ msgstr "All {0} linked ticket(s) already up to date."
 msgid "All synced"
 msgstr "All synced"
 
+#: src/components/StatusIndicator.tsx:27
+msgid "All systems operational"
+msgstr "All systems operational"
+
 #: src/pages/Status.tsx:72
 msgid "All Systems Operational"
 msgstr "All Systems Operational"
@@ -806,6 +810,10 @@ msgstr "Defines what counts as easy, threshold, hard."
 #: src/pages/Status.tsx:83
 msgid "Degraded"
 msgstr "Degraded"
+
+#: src/components/StatusIndicator.tsx:28
+msgid "Degraded performance"
+msgstr "Degraded performance"
 
 #: src/pages/Status.tsx:73
 msgid "Degraded Performance"
@@ -1581,8 +1589,8 @@ msgstr "Loading…"
 #~ msgid "Log in to connect your CLI plugin"
 #~ msgstr "Log in to connect your CLI plugin"
 
-#: src/components/AppSidebar.tsx:227
-#: src/components/AppSidebar.tsx:229
+#: src/components/AppSidebar.tsx:221
+#: src/components/AppSidebar.tsx:223
 msgid "Log out"
 msgstr "Log out"
 
@@ -1617,6 +1625,10 @@ msgstr "Major"
 #: src/pages/Status.tsx:75
 msgid "Major Outage"
 msgstr "Major Outage"
+
+#: src/components/StatusIndicator.tsx:30
+msgid "Major service outage"
+msgstr "Major service outage"
 
 #: src/pages/Admin.tsx:491
 msgid "Manage users and invitation codes"
@@ -1962,6 +1974,10 @@ msgstr "Partial outage"
 #: src/pages/Status.tsx:74
 msgid "Partial Outage"
 msgstr "Partial Outage"
+
+#: src/components/StatusIndicator.tsx:29
+msgid "Partial service outage"
+msgstr "Partial service outage"
 
 #: src/pages/Admin.tsx:921
 #: src/pages/Login.tsx:378
@@ -2504,8 +2520,8 @@ msgstr "Sending…"
 msgid "Service Incidents"
 msgstr "Service Incidents"
 
-#: src/components/AppSidebar.tsx:215
-#: src/components/AppSidebar.tsx:217
+#: src/components/StatusIndicator.tsx:31
+#: src/components/StatusIndicator.tsx:39
 #: src/pages/Login.tsx:672
 msgid "Service status"
 msgstr "Service status"
@@ -2841,7 +2857,7 @@ msgstr "Thanks for the feedback!"
 msgid "The status API did not respond — this itself may indicate an outage."
 msgstr "The status API did not respond — this itself may indicate an outage."
 
-#: src/components/AppSidebar.tsx:221
+#: src/components/AppSidebar.tsx:215
 msgid "Theme"
 msgstr "Theme"
 
