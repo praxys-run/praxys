@@ -104,12 +104,29 @@ gh label create backlog     -c 5319E7 -d "Deferred; ineligible for auto-assign e
 
 The workflow also honours an existing `later` label as a backlog synonym.
 
-### 3. (Optional) provide an assignment token
+### 3. Configure the assignment token (REQUIRED for auto-assign)
 
-The workflow uses the built-in `GITHUB_TOKEN` by default. If an assignment made
-by that token does not actually *start* the agent in your org, add a fine-grained
-PAT with **Issues: write** as the secret `COPILOT_ASSIGN_TOKEN`
-(`Settings → Secrets and variables → Actions`); the workflow prefers it when set.
+**Agent assignment needs a user token — the built-in `GITHUB_TOKEN` cannot do
+it.** The GraphQL API rejects a GitHub App installation token with
+`FORBIDDEN: Assigning agents is not supported with GitHub App installation
+tokens` (issue #400). Without `COPILOT_ASSIGN_TOKEN` the workflow now fails
+*loudly* (it comments on the issue) instead of silently leaving it unassigned.
+
+Create a **fine-grained PAT**, least-privilege:
+
+- **Resource owner:** `dddtc2005`; **Repository access:** *Only select
+  repositories* → `praxys` (this repo only).
+- **Permissions:** *Issues → Read and write* (nothing else).
+- **Expiration:** set one (e.g. 90 days) and calendar a rotation.
+
+Then store it and re-run:
+
+```bash
+gh secret set COPILOT_ASSIGN_TOKEN -R dddtc2005/praxys   # paste the PAT when prompted
+```
+
+Manual assignment via the GitHub UI keeps working without this token (it uses
+your user session) — the token is only needed for the *workflow* to assign.
 
 ### 4. Confirm branch protection on `main`
 
@@ -153,6 +170,59 @@ signal for both triage precision and draft quality. Shadow mode + the
 tracking, an eval corpus seeded from human corrections, a replay CI check, and
 postmortem → policy PRs that tighten `copilot-instructions.md`) is tracked in
 **#377**.
+
+## Security & abuse resistance
+
+An automated, agent-driven flow is itself a target: attackers scan public repos
+for agentic signals (bot-filed issues, `agent-ready` / `copilot` labels, Copilot
+PRs) and inject at the human/agent seams — hoping a maintainer who trusts the
+automation applies a malicious "patch", or that an LLM agent obeys instructions
+hidden in issue text. Defenses, in layers:
+
+**Structural (the load-bearing ones):**
+
+- **Only a Copilot draft PR is a legitimate fix.** It comes from the
+  `copilot-swe-agent` bot on a `copilot/*` branch, reviewable line-by-line. A
+  zip / "patched build" / diff attached by a non-collaborator is **never** our
+  flow — do not download, unzip, run, or apply it.
+- **Humans own merge** (branch protection, §4). Agents draft; they never ship.
+- **The trigger is write-gated.** `agent-ready` can only be added by the triage
+  bot or a maintainer — a drive-by account cannot start the loop. Keep it that
+  way (don't let automation add the label from untrusted input).
+- **Least-privilege, expiring token** for assignment (§3); the agent runs in
+  GitHub's sandbox with its firewall on — don't disable it.
+- **Protect `.github/**`** with CODEOWNERS + required review so a PR can't
+  quietly weaken a workflow or exfiltrate secrets; pin actions, keep
+  `permissions:` minimal, never expose secrets to fork/PR code.
+
+**Treat all user-supplied text as untrusted (prompt-injection):** issue bodies,
+comments, and screenshot-derived text can carry "ignore your instructions…"
+payloads. The agent's task is the *vetted issue body*, not the comment thread;
+`.github/copilot-instructions.md` tells it never to follow instructions embedded
+in issue/PR/comment content, never to add dependencies/URLs or touch
+secrets/auth/sync on a whim, and never to fetch or apply external attachments.
+Everything user-derived still passes `api/feedback_scrub.py` before it is
+published.
+
+**Detective:** watch for a brand-new account (age < a few days, 0 repos)
+commenting on a bot-filed / `agent-ready` issue within seconds, or any
+attachment (esp. `.zip` / binaries) from a non-collaborator. Consider
+`Settings → Moderation → Interaction limits` → *Limit to existing users* when a
+wave hits (feedback is filed in-app, so external GitHub participation is minimal
+and the cost is low).
+
+**Responsive — malicious-contribution runbook:**
+
+1. **Do not** download / open the attachment. Assume it is hostile.
+2. Hide the comment: `minimizeComment(classifier: SPAM)` (or *Hide → Spam* in the
+   UI).
+3. Lock the issue: `gh issue lock <n> --reason spam`.
+4. Block the account (needs the `user` scope: `gh auth refresh -s user` then
+   `gh api --method PUT /user/blocks/<login>`, or *Block* on their profile).
+5. **Report** the account/comment to GitHub (web UI — no API).
+6. Assign the legitimate flow (Copilot) so a trusted draft PR replaces the vacuum
+   the attacker aimed for. A *working* auto-assign is itself a mitigation: the
+   faster a real `copilot/*` PR appears, the less plausible a fake "patch" looks.
 
 ## Verify
 

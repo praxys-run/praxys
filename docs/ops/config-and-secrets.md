@@ -28,7 +28,7 @@ secret/variable (or the workflow literal) and re-deploy.
 | `WECHAT_MINIAPP_APPID` / `WECHAT_MINIAPP_SECRET` | WeChat Mini Program auth | App Service setting (backend) |
 | `PRAXYS_SMTP_PASSWORD` | SMTP client authorization code (WeCom/Exmail) for verification + invitation emails. **Optional.** | App Service setting (backend) |
 | `WECHAT_MINIAPP_UPLOAD_KEY` | Mini program CI upload key | `miniapp-publish.yml` |
-| `COPILOT_ASSIGN_TOKEN` | **Optional** fine-grained PAT (*Issues: write*) so the change loop can assign the Copilot coding agent when the built-in `GITHUB_TOKEN` won't start it. Falls back to `GITHUB_TOKEN`. | `assign-copilot.yml` |
+| `COPILOT_ASSIGN_TOKEN` | **Required for workflow auto-assign** — fine-grained PAT (*Issues: write*, this repo only, with expiry). Agent assignment needs a user token; the built-in `GITHUB_TOKEN` is forbidden (issue #400). Manual UI assignment doesn't need it. | `assign-copilot.yml` |
 
 ### GitHub Actions → Variables
 `… → Variables` (non-secret; build variables are inlined into the SPA and ship to browsers)
@@ -115,9 +115,11 @@ to the Copilot coding agent. These are **repo settings, not deploy-managed**:
 
 - **Labels** `agent-ready` and `backlog` (optionally `later`) are created once
   with `gh label create` — see [change-loop.md](./change-loop.md).
-- **Optional secret** `COPILOT_ASSIGN_TOKEN` (fine-grained PAT, *Issues: write*)
-  is used by the workflow only if the built-in `GITHUB_TOKEN` won't start the
-  agent; it falls back to `GITHUB_TOKEN` when unset.
+- **Required secret for auto-assign** `COPILOT_ASSIGN_TOKEN` (fine-grained PAT,
+  *Issues: write*, this repo only, with expiry). Agent assignment needs a user
+  token — the built-in `GITHUB_TOKEN` is forbidden (issue #400); without it the
+  workflow fails loudly and a human assigns manually. See
+  [change-loop.md](./change-loop.md) §3.
 - **Optional flag** `PRAXYS_AGENT_READY_SHADOW=true` (App Service setting)
   computes the agent-ready decision but withholds the label — measure precision
   before going live (issue #377).
