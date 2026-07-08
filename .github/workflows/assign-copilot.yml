@@ -7,6 +7,14 @@ name: Change loop — assign agent-ready issues to Copilot
 # (kind=bug, not sensitive/needs_review, enough detail); a human adds it
 # manually to green-light anything else. Merge is always human (branch
 # protection): autonomy is drafting the fix, never shipping it.
+#
+# SECURITY: assigning a coding agent REQUIRES a user token (PAT/OAuth) in the
+# secret COPILOT_ASSIGN_TOKEN. The built-in GITHUB_TOKEN (a GitHub App
+# installation token) is FORBIDDEN for agent assignment by the GraphQL API, so
+# a missing token used to fail *silently* and leave an agent-ready issue
+# unassigned — a gap a drive-by "here's a patch" attacker can exploit on a
+# public repo (issue #400). This workflow now fails LOUDLY (a comment on the
+# issue) so a human always knows to assign manually.
 on:
   issues:
     # `opened` covers issues *created with* the label already applied (the
@@ -17,13 +25,18 @@ on:
     types: [opened, labeled]
 
 # Least privilege: assigning an issue needs only `issues: write`. No contents
-# or pull-requests scope — the agent opens its own PR out of band.
+# or pull-requests scope — the agent opens its own PR out of band. (The failure
+# notifier uses this same built-in token just to comment on the issue.)
 permissions:
   issues: write
 
 concurrency:
+  # One effective run per issue: an issue is often created with several labels
+  # at once, firing multiple events in the same group — cancel the superseded
+  # duplicates so we don't post duplicate failure comments. Assignment is
+  # idempotent, so cancelling a redundant in-flight run is safe.
   group: assign-copilot-${{ github.event.issue.number }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   assign-to-copilot:
@@ -39,13 +52,39 @@ jobs:
       !contains(github.event.issue.labels.*.name, 'later')
     runs-on: ubuntu-latest
     steps:
+      - name: Check the assignment token is configured
+        id: token
+        env:
+          # Mapped to an env var so we can branch on presence without putting a
+          # secret in an `if:` expression.
+          ASSIGN_TOKEN: ${{ secrets.COPILOT_ASSIGN_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -n "${ASSIGN_TOKEN:-}" ]; then
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "have=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::COPILOT_ASSIGN_TOKEN is not set. Agent assignment needs a user token (PAT/OAuth); the built-in GITHUB_TOKEN cannot assign an agent. A maintainer must assign manually. Setup: docs/ops/change-loop.md."
+          fi
+
+      - name: Comment when the token is missing, then fail loudly
+        if: steps.token.outputs.have == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh issue comment "$ISSUE" --repo "$REPO" --body \
+            "⚠️ **Change-loop auto-assign is not configured.** Assigning the Copilot coding agent needs a user token (\`COPILOT_ASSIGN_TOKEN\`); the built-in token can't do it. A maintainer should use **Assign to Copilot** manually. Setup: \`docs/ops/change-loop.md\`. Note: only a Copilot draft PR (branch \`copilot/*\`) is a legitimate fix — ignore unsolicited patches/attachments from non-collaborators."
+          # Red run so the miss is never silent.
+          exit 1
+
       - name: Resolve the Copilot coding-agent actor id
         id: copilot
+        if: steps.token.outputs.have == 'true'
         env:
-          # Prefer an operator-provided token if set (some orgs require a PAT /
-          # GitHub App token for the assignment to actually start the agent);
-          # otherwise the built-in token is enough to assign.
-          GH_TOKEN: ${{ secrets.COPILOT_ASSIGN_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.COPILOT_ASSIGN_TOKEN }}
           OWNER: ${{ github.repository_owner }}
           NAME: ${{ github.event.repository.name }}
         run: |
@@ -63,26 +102,27 @@ jobs:
             --jq '.data.repository.suggestedActors.nodes[]
                   | select(.login=="copilot-swe-agent") | .id')"
           if [ -z "$id" ]; then
-            echo "::warning::Copilot coding agent is not assignable on this repo. Enable it under Settings → Copilot → Coding agent, then re-add the label. Skipping."
+            echo "::error::Copilot coding agent is not assignable on this repo. Enable it under Settings → Copilot → Coding agent, then re-add the label."
             echo "found=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "found=true" >> "$GITHUB_OUTPUT"
-            echo "actor_id=$id" >> "$GITHUB_OUTPUT"
+            exit 1
           fi
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "actor_id=$id" >> "$GITHUB_OUTPUT"
 
       - name: Assign the issue to Copilot
-        if: steps.copilot.outputs.found == 'true'
+        if: steps.token.outputs.have == 'true' && steps.copilot.outputs.found == 'true'
         env:
-          GH_TOKEN: ${{ secrets.COPILOT_ASSIGN_TOKEN || secrets.GITHUB_TOKEN }}
+          # MUST be the user token — the built-in token is forbidden here.
+          GH_TOKEN: ${{ secrets.COPILOT_ASSIGN_TOKEN }}
           ISSUE_ID: ${{ github.event.issue.node_id }}
           ACTOR_ID: ${{ steps.copilot.outputs.actor_id }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           set -euo pipefail
           # replaceActorsForAssignable sets the assignee set to exactly Copilot.
-          # Change loop issues are freshly auto-filed and unassigned, so this is the
-          # documented, idempotent way to hand one off; re-adding the label is a
-          # harmless no-op.
+          # Change loop issues are freshly auto-filed and unassigned, so this is
+          # the documented, idempotent way to hand one off; re-adding the label
+          # is a harmless no-op.
           gh api graphql \
             -f query='mutation($assignableId:ID!,$actorIds:[ID!]!){
               replaceActorsForAssignable(input:{assignableId:$assignableId, actorIds:$actorIds}){
@@ -90,3 +130,17 @@ jobs:
               }
             }' -F assignableId="$ISSUE_ID" -F actorIds="$ACTOR_ID"
           echo "Assigned issue #$ISSUE_NUMBER to the Copilot coding agent." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report assignment failure on the issue
+        # Only for a genuine assignment error (token was present) — the
+        # missing-token path already commented above.
+        if: failure() && steps.token.outputs.have == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          gh issue comment "$ISSUE" --repo "$REPO" --body \
+            "⚠️ **Change-loop auto-assign failed** for this issue ([run]($RUN_URL)). A maintainer should assign the Copilot coding agent manually (check that \`COPILOT_ASSIGN_TOKEN\` is valid / unexpired). Only a Copilot draft PR (branch \`copilot/*\`) is a legitimate fix — ignore unsolicited patches/attachments from non-collaborators. See \`docs/ops/change-loop.md\`."
