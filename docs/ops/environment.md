@@ -23,7 +23,7 @@
 | — RSA key | `trainsight-master-key` | live `KEY_VAULT_KEY_NAME` |
 | Application Insights | connection string in app settings; MI-authenticated | `.env.example`, `api/main.py` |
 | Perf-baseline storage | `stperftrainsight` (RG `rg-trainsight`, East Asia) | `docs/perf-baselines/ci-setup.md` |
-| CI app registration | `trainsight-ci` (OIDC federated cred) | `docs/deployment.md` |
+| CI/deploy app registration | `trainsight-cicd` — appId `d3deb736-e95d-400e-b5a5-c2f76b23ae25` (OIDC federated creds `github-deploy`, `i18n`) | live `az ad app` |
 
 ## Hostnames
 
@@ -38,8 +38,10 @@
   **system-assigned managed identity** (no secret in app settings). The MI holds
   *Key Vault Crypto User* (key wrap/unwrap) and *Monitoring Metrics Publisher*.
   See `api/main.py` (managed-identity wiring) and `.env.example`.
-- **GitHub Actions → Azure:** OIDC federated credential on `trainsight-ci`,
-  subject `repo:dddtc2005/praxys:ref:refs/heads/main`. No client secret. See
+- **GitHub Actions → Azure:** OIDC federated credentials on `trainsight-cicd`
+  (subjects `repo:dddtc2005/praxys:ref:refs/heads/main` and `…:i18n-azure-openai`).
+  No client secret. Moving repos to the `praxys-run` org changes these subjects —
+  see [org-migration.md](./org-migration.md). See
   [config-and-secrets.md](./config-and-secrets.md).
 
 ## Data
