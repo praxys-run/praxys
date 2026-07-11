@@ -992,3 +992,222 @@
   color: var(--background);
 }
 
+
+/* Coach insight feedback — compact controls in the reasoning banner, with
+ * the optional comment expanding inside the receipt body. */
+.coach-banner-meta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.coach-feedback-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.coach-feedback-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid color-mix(in oklch, var(--card) 45%, transparent);
+  background: transparent;
+  color: var(--card);
+  cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.coach-feedback-icon:hover,
+.coach-feedback-icon.is-selected {
+  background: var(--card);
+  color: var(--accent-cobalt-val);
+}
+.coach-feedback-icon:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.coach-feedback-sent {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.coach-receipt > .coach-body > .coach-feedback-form {
+  margin: 2px 0 12px;
+  padding: 10px 0 12px;
+  border-top: 1px dashed var(--border);
+  border-bottom: 1px dashed var(--border);
+}
+.coach-feedback-question {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.coach-feedback-form textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 58px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--background);
+  color: var(--foreground);
+  padding: 8px 10px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.coach-feedback-form textarea:focus-visible {
+  outline: 2px solid var(--accent-cobalt-val);
+  outline-offset: 2px;
+}
+.coach-feedback-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 7px;
+}
+.coach-feedback-count {
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.coach-feedback-send {
+  border: 1px solid var(--accent-cobalt-val);
+  background: var(--accent-cobalt-val);
+  color: var(--card);
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.coach-feedback-send:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.coach-feedback-error {
+  margin: 7px 0 0;
+  color: var(--destructive);
+  font-size: 11px;
+}
+
+/* Today Decision Check — a low-frequency measurement strip, not another card. */
+.today-spread > .today-decision-check {
+  grid-column: 1 / -1;
+}
+.today-decision-check {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr);
+  gap: 24px;
+  align-items: center;
+  padding: 18px 42px 18px 0;
+  border-top: 1px dashed var(--border);
+  border-bottom: 1px dashed var(--border);
+}
+.today-decision-copy {
+  display: grid;
+  gap: 4px;
+}
+.today-decision-eyebrow {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+.today-decision-copy h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--foreground);
+}
+.today-decision-copy p,
+.today-decision-check--thanks p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.today-decision-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.today-decision-option {
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--foreground);
+  padding: 8px 10px;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease-out, background-color 120ms ease-out;
+}
+.today-decision-option:hover {
+  border-color: var(--primary);
+  background: color-mix(in oklch, var(--primary) 6%, transparent);
+}
+.today-decision-option:disabled,
+.today-decision-dismiss:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.today-decision-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--destructive);
+  font-size: 11px;
+}
+.today-decision-dismiss {
+  position: absolute;
+  top: 12px;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.today-decision-check--thanks {
+  grid-template-columns: auto 1fr;
+  justify-content: start;
+}
+
+@media (max-width: 768px) {
+  .coach-receipt > .coach-banner {
+    align-items: center;
+  }
+  .coach-banner-meta {
+    gap: 6px;
+  }
+  .coach-feedback-icon {
+    width: 34px;
+    height: 34px;
+  }
+  .today-decision-check {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding-right: 38px;
+  }
+  .today-decision-options {
+    grid-template-columns: 1fr;
+  }
+  .today-decision-option {
+    min-height: 44px;
+  }
+  .today-decision-check--thanks {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

@@ -6,13 +6,15 @@ import type { ApiError } from '../../utils/api-client';
 import type {
   AiInsight,
   AiInsightFinding,
+  InsightFeedbackVote,
   PlanData,
   RecoveryAnalysis,
   TodayResponse,
 } from '../../types/api';
 import { applyThemeChrome, themeClassName } from '../../utils/theme';
 import { t, tFmt, detectLocale } from '../../utils/i18n';
-import { coachToggleLabel, fetchInsight, localizedInsight } from '../../utils/insights';
+import { coachToggleLabel, fetchInsight, insightFeedbackState, localizedInsight } from '../../utils/insights';
+import { recordProductEventOnce } from '../../utils/product-events';
 import {
   buildShareMessage,
   buildTimelineMessage,
@@ -284,6 +286,7 @@ interface RenderState {
    *  device's local date for the loading skeleton (so the skeleton
    *  renders something reasonable rather than blank). */
   today: string;
+  asOfDate: string;
   /** Recovery-only staleness advisory (PR #254 surface) — fires only
    *  when recovery rows are ≥2 days behind. Empty string hides the
    *  banner. Suppressed when `dataStale` is also true so the
@@ -338,6 +341,9 @@ interface RenderState {
    *  collapsed, "Hide details" when expanded. Empty string hides the
    *  toggle entirely (zero findings + zero recs). */
   coachToggleLabel: string;
+  coachDatasetHash: string;
+  coachFeedbackVote: InsightFeedbackVote | '';
+  decisionCheckEligible: boolean;
 
   /** Five supporting metrics in source order: HRV, 7d Trend, RHR,
    *  Sleep, TSB. Always present once `hasResponse` is true; cells
@@ -430,6 +436,27 @@ function isDataStaleNow(dataAsOf: string | null | undefined): boolean {
   return dataLocal < todayLocal;
 }
 
+function isCurrentLocalDay(timestamp: number): boolean {
+  const value = new Date(timestamp);
+  const now = new Date();
+  return (
+    value.getFullYear() === now.getFullYear()
+    && value.getMonth() === now.getMonth()
+    && value.getDate() === now.getDate()
+  );
+}
+
+function isDecisionCheckEligibleNow(response: TodayResponse): boolean {
+  const hasDecisionContext = (
+    response.data_as_of != null || Boolean(response.signal.plan?.workout_type)
+  );
+  return (
+    hasDecisionContext
+    && !isDataStaleNow(response.data_as_of)
+    && !buildStalenessText(response.recovery_analysis ?? null, detectLocale())
+  );
+}
+
 function buildRenderState(
   response: TodayResponse | null,
   themeClass: string,
@@ -499,6 +526,11 @@ function buildRenderState(
     }
   }
   const hasCoach = coach != null;
+  const feedbackState = hasCoach
+    ? insightFeedbackState(insight)
+    : { datasetHash: '', vote: '' as InsightFeedbackVote | '' };
+  const coachDatasetHash = feedbackState.datasetHash;
+  const coachFeedbackVote = feedbackState.vote;
   const coachTr: CoachTranslations | null = hasCoach
     ? {
         mark: t('Praxys Coach'),
@@ -529,6 +561,7 @@ function buildRenderState(
   return {
     themeClass,
     today: eyebrowDate,
+    asOfDate: response.as_of_date,
     stalenessText,
     dataStale: dataStaleEffective,
     dataAsOfLabel,
@@ -553,6 +586,9 @@ function buildRenderState(
     coachTr,
     detailsOpen,
     coachToggleLabel: coachLabel,
+    coachDatasetHash,
+    coachFeedbackVote,
+    decisionCheckEligible: isDecisionCheckEligibleNow(response),
 
     cells,
 
@@ -605,6 +641,7 @@ const initialData: RenderState & RefreshState = {
   themeClass: getApp<IAppOption>().globalData.themeClass,
   chartTheme: 'light',
   today: '',
+  asOfDate: '',
   stalenessText: '',
   dataStale: false,
   dataAsOfLabel: '',
@@ -630,6 +667,9 @@ const initialData: RenderState & RefreshState = {
   coachTr: null,
   detailsOpen: false,
   coachToggleLabel: '',
+  coachDatasetHash: '',
+  coachFeedbackVote: '',
+  decisionCheckEligible: false,
 
   cells: [],
 
@@ -646,6 +686,7 @@ const initialData: RenderState & RefreshState = {
 
 // Translation table — built per page-load (Locale changes reLaunch).
 const initialTr = buildTranslations();
+let todayPageVisible = false;
 
 Page({
   data: { ...initialData, tr: initialTr },
@@ -658,6 +699,8 @@ Page({
       today: todayFormatted(),
       tr: buildTranslations(),
     });
+    const pageState = this as unknown as Record<string, unknown>;
+    pageState._locale = getApp<IAppOption>().globalData.locale;
     // Allow sharing via the WeChat ⋯ menu. Without this call, Skyline
     // pages show "当前页面未设置分享" in the system share sheet.
     wx.showShareMenu({
@@ -669,6 +712,7 @@ Page({
   },
 
   onShow() {
+    todayPageVisible = true;
     // Guarded theme update: other tabs can't be reached by getCurrentPages()
     // from Settings, so if the user changed theme while on another tab,
     // this is the first chance to apply it. Equality check prevents
@@ -687,8 +731,31 @@ Page({
       this.setData({ tr: buildTranslations() });
       void this.refetch();
     }
+    const cachedResponse = pgMut._todayResponse as TodayResponse | undefined;
+    const fetchedAt = typeof pgMut._todayResponseFetchedAt === 'number'
+      ? pgMut._todayResponseFetchedAt
+      : 0;
+    const baseEligible = cachedResponse && isCurrentLocalDay(fetchedAt)
+      ? isDecisionCheckEligibleNow(cachedResponse)
+      : false;
+    pgMut._decisionCheckBaseEligible = baseEligible;
+    if (this.data.decisionCheckEligible !== baseEligible) {
+      this.setData({ decisionCheckEligible: baseEligible });
+    }
+    if (cachedResponse) {
+      recordProductEventOnce('today_brief_rendered', cachedResponse.as_of_date);
+    }
     applyThemeChrome();
     setTabBarSelected(this, 0);
+  },
+
+  onHide() {
+    todayPageVisible = false;
+    this.setData({ decisionCheckEligible: false });
+  },
+
+  onUnload() {
+    todayPageVisible = false;
   },
 
   onShareAppMessage(options: WechatMiniprogram.Page.IShareAppMessageOption) {
@@ -756,6 +823,9 @@ Page({
    */
   onToggleCoachDetails() {
     const next = !this.data.detailsOpen;
+    if (next && this.data.asOfDate) {
+      recordProductEventOnce('today_reasoning_opened', this.data.asOfDate);
+    }
     const coach = this.data.coach;
     if (!coach) return;
     const label = coachToggleLabel(
@@ -874,7 +944,17 @@ Page({
     }
   },
 
+  onCoachFeedbackStale() {
+    void this.refetch();
+  },
+
   async refetch() {
+    const pageState = this as unknown as Record<string, unknown>;
+    const previousRequestId = typeof pageState._refetchRequestId === 'number'
+      ? pageState._refetchRequestId
+      : 0;
+    const requestId = previousRequestId + 1;
+    pageState._refetchRequestId = requestId;
     this.setData({ loading: true, errorMessage: '' });
     try {
       // The brief endpoint normally returns `{ insight: null }` when
@@ -891,26 +971,34 @@ Page({
           return null;
         }),
       ]);
+      if (pageState._refetchRequestId !== requestId) return;
       // Cache raw response so renderShareCard / onStaleShowAnyway can
       // access it without a second network round-trip.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (this as unknown as Record<string, any>)._todayResponse = response;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (this as unknown as Record<string, any>)._dailyBriefInsight = insight;
-      this.setData(
-        buildRenderState(
-          response,
-          this.data.themeClass,
-          this.data.today,
-          insight,
-          this.data.staleDismissed as boolean,
-          this.data.staleSyncing as boolean,
-        ) as Record<string, unknown>,
+      pageState._todayResponse = response;
+      pageState._todayResponseFetchedAt = Date.now();
+      pageState._dailyBriefInsight = insight;
+      const renderState = buildRenderState(
+        response,
+        this.data.themeClass,
+        this.data.today,
+        insight,
+        this.data.staleDismissed as boolean,
+        this.data.staleSyncing as boolean,
       );
+      pageState._decisionCheckBaseEligible = renderState.decisionCheckEligible;
+      renderState.decisionCheckEligible = (
+        todayPageVisible && renderState.decisionCheckEligible
+      );
+      this.setData(renderState as unknown as Record<string, unknown>);
+      if (todayPageVisible) {
+        recordProductEventOnce('today_brief_rendered', response.as_of_date);
+      }
+
       // Share card is rendered lazily on first FAB tap. Clear any stale
       // path so the old signal's card doesn't show for the new signal.
       this.setData({ shareImagePath: '', shareCardVisible: false });
     } catch (e) {
+      if (pageState._refetchRequestId !== requestId) return;
       const err = e as Partial<ApiError>;
       if (err?.code === 'UNAUTHENTICATED') {
         this.setData({ loading: false });

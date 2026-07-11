@@ -10,8 +10,8 @@ FastAPI-Users) sessions. On PostgreSQL a single psycopg3 driver backs both
 the sync and async engines.
 
 Schema management:
-- SQLite (dev / tests): ``Base.metadata.create_all`` builds the full current
-  schema on boot — fast, no migration overhead.
+- SQLite (dev / tests): ``Base.metadata.create_all`` builds new databases and
+  narrow compatibility ALTERs upgrade existing local files.
 - PostgreSQL (real deployments): Alembic owns schema evolution. ``init_db``
   runs ``alembic upgrade head`` under a Postgres advisory lock so exactly one
   worker/instance applies pending migrations.
@@ -19,7 +19,7 @@ Schema management:
 import logging
 import os
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -205,6 +205,17 @@ def is_postgres() -> bool:
     return make_url(get_database_url()).get_backend_name() == "postgresql"
 
 
+def begin_serialized_write(db: Session) -> None:
+    """Serialize a read-modify-write transaction on supported backends.
+
+    PostgreSQL callers pair this with ``FOR UPDATE`` row locks. SQLite ignores
+    ``FOR UPDATE``, so begin an immediate transaction before the first read to
+    acquire its database-wide writer lock.
+    """
+    if db.get_bind().dialect.name == "sqlite":
+        db.execute(text("BEGIN IMMEDIATE"))
+
+
 def _make_sync_engine(url: str):
     """Build a sync Engine appropriate for the URL's dialect."""
     backend = make_url(url).get_backend_name()
@@ -358,17 +369,43 @@ def init_db(force: bool = False):
     _run_startup_db_check(engine, backend)
 
 
+_SQLITE_COMPAT_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
+    "user_config": (
+        ("today_decision_check_claimed_at", "DATETIME"),
+        ("today_decision_check_shown_at", "DATETIME"),
+        ("today_decision_check_submitted_at", "DATETIME"),
+    ),
+}
+
+
+def _ensure_sqlite_compat_columns(engine_obj) -> None:
+    """Apply narrow additive upgrades to existing local SQLite databases."""
+    with engine_obj.begin() as conn:
+        for table, columns in _SQLITE_COMPAT_COLUMNS.items():
+            existing = {
+                str(row[1])
+                for row in conn.exec_driver_sql(f'PRAGMA table_info("{table}")')
+            }
+            for column, ddl_type in columns:
+                if column in existing:
+                    continue
+                conn.exec_driver_sql(
+                    f'ALTER TABLE "{table}" ADD COLUMN "{column}" {ddl_type}'
+                )
+                logger.info("Added SQLite compatibility column %s.%s", table, column)
+
+
 def _ensure_schema(engine_obj, backend: str) -> None:
     """Create / migrate the schema for the active backend.
 
-    SQLite (dev / tests) uses ``create_all`` — fast and dependency-free. On
-    PostgreSQL, Alembic owns schema evolution (baseline + future revisions),
-    replacing the legacy hand-maintained ``ALTER TABLE`` list.
+    SQLite uses ``create_all`` for new databases plus a narrow additive upgrade
+    list for existing local files. PostgreSQL uses Alembic for all evolution.
     """
     if _skip_migrations():
         return
     if backend == "sqlite":
         Base.metadata.create_all(bind=engine_obj)
+        _ensure_sqlite_compat_columns(engine_obj)
         return
     _run_alembic_upgrade(engine_obj)
 

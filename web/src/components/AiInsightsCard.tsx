@@ -1,6 +1,12 @@
-import { useState, type ReactNode } from 'react';
-import { useApi } from '@/hooks/useApi';
-import type { AiInsight, AiInsightFinding } from '@/types/api';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Check, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { API_BASE, getAuthHeaders, useApi } from '@/hooks/useApi';
+import type {
+  AiInsightResponse,
+  AiInsightFinding,
+  InsightFeedbackResponse,
+  InsightFeedbackVote,
+} from '@/types/api';
 import { msg } from '@lingui/core/macro';
 import { Trans, Plural, useLingui } from '@lingui/react/macro';
 import { useLocale } from '@/contexts/LocaleContext';
@@ -28,28 +34,16 @@ export interface CoachFallback {
 }
 
 interface Props {
-  /**
-   * The insight slot to fetch (e.g. "daily_brief", "race_forecast").
-   * Maps 1:1 to the same Praxys plugin skill name with underscores
-   * converted to hyphens — drives the embedded "Open in Claude Code"
-   * affordance at the bottom of the receipt.
-   */
+  /** The insight slot to fetch (e.g. "daily_brief", "race_forecast"). */
   insightType: string;
-  /**
-   * Optional theory attribution rendered in the muted receipt footer
-   * (e.g. "HRV-Based Recovery · Banister PMC"). When provided, the
-   * footer surfaces the science framework currently powering the
-   * insight. Without it, the footer is suppressed entirely — keeps the
-   * receipt clean when no attribution data is available at the call
-   * site.
-   */
+  /** Optional theory attribution rendered in the muted receipt footer. */
   attribution?: string;
-  /**
-   * Deterministic content shown when the LLM insight slot is empty.
-   * Without it, the component returns null on no AI insight (legacy
-   * behavior used by callers that don't have a rule-based equivalent).
-   */
+  /** Deterministic content shown when the LLM insight slot is empty. */
   fallback?: CoachFallback;
+  /** Called the first time the user expands the receipt's reasoning details. */
+  onDetailsOpen?: () => void;
+  /** Refresh the page dataset when the displayed insight version is stale. */
+  onFeedbackStale?: () => void | Promise<void>;
 }
 
 const PLUGIN_URL = 'https://github.com/praxys-run/praxys-coach-plugin#install';
@@ -67,37 +61,57 @@ function timeAgo(isoDate: string, locale: string): string {
   return rtf.format(-days, 'day');
 }
 
-/**
- * Renders the Praxys Coach receipt — square-cornered, flat cobalt
- * banner, structured findings + recommendations, embedded Claude Code
- * skill hint. The single canonical narrative-interpretation surface
- * across pages.
- *
- * Content source ordering:
- *   1. LLM insight at /api/insights/{insightType} when present.
- *   2. Caller-provided `fallback` when the LLM slot is empty.
- *   3. null (component renders nothing) when neither is available.
- *
- * The receipt always carries the same brand banner regardless of
- * source — users see Praxys Coach whether the analysis was
- * AI-generated or computed from rule-based heuristics.
- */
-export default function AiInsightsCard({ insightType, attribution, fallback }: Props) {
-  const { data } = useApi<{ insight: AiInsight | null }>(`/api/insights/${insightType}`);
+/** Render the canonical Praxys Coach receipt with AI-only feedback controls. */
+export default function AiInsightsCard({
+  insightType,
+  attribution,
+  fallback,
+  onDetailsOpen,
+  onFeedbackStale,
+}: Props) {
+  const { data, refetch } = useApi<AiInsightResponse>(`/api/insights/${insightType}`);
   const { locale } = useLocale();
   const { i18n } = useLingui();
 
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [feedbackVote, setFeedbackVote] = useState<InsightFeedbackVote | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [feedbackSending, setFeedbackSending] = useState(false);
+  const [feedbackSent, setFeedbackSent] = useState(false);
+  const [feedbackStale, setFeedbackStale] = useState(false);
+  const [feedbackError, setFeedbackError] = useState('');
 
   const insight = data?.insight;
+  const rawDatasetHash = insight?.meta.dataset_hash;
+  const datasetHash = insight?.feedback_allowed !== false
+    && typeof rawDatasetHash === 'string'
+    && /^[0-9a-f]{64}$/.test(rawDatasetHash)
+    ? rawDatasetHash
+    : null;
+  const persistedFeedback = insight?.meta.feedback;
+  const feedbackIdentityRef = useRef('');
+  feedbackIdentityRef.current = `${insightType}:${datasetHash ?? ''}`;
+
+  useEffect(() => {
+    const matchesCurrent = datasetHash
+      && persistedFeedback?.dataset_hash === datasetHash
+      && (persistedFeedback.vote === 'up' || persistedFeedback.vote === 'down');
+    setFeedbackVote(matchesCurrent ? persistedFeedback.vote : null);
+    setFeedbackSent(Boolean(matchesCurrent));
+    setFeedbackStale(false);
+    setFeedbackSending(false);
+    setFeedbackOpen(false);
+    setFeedbackComment('');
+    setFeedbackError('');
+  }, [datasetHash, persistedFeedback?.dataset_hash, persistedFeedback?.vote]);
 
   // Prefer the active-locale translation when present; fall back to
   // the top-level English fields (Issue #103 contract).
   const localized = insight && ((locale === 'zh' && insight.translations?.zh) || insight);
 
   // Resolve the actual content to render. AI takes precedence; fallback
-  // fills in when AI is silent. If neither exists the surface stays
-  // hidden — caller controls its own empty state.
+  // fills in when AI is silent. If neither exists the surface stays hidden.
   const content = localized
     ? {
         headline: localized.headline as ReactNode,
@@ -118,20 +132,125 @@ export default function AiInsightsCard({ insightType, attribution, fallback }: P
         }
       : null;
 
+  const canCollectFeedback = Boolean(content?.isAi && datasetHash);
+
+  const selectFeedback = (vote: InsightFeedbackVote) => {
+    if (feedbackSent || feedbackSending || feedbackStale) return;
+    setFeedbackVote(vote);
+    setFeedbackOpen(true);
+    setFeedbackError('');
+  };
+
+  const sendFeedback = async () => {
+    if (!feedbackVote || !datasetHash || feedbackStale) return;
+    const requestIdentity = feedbackIdentityRef.current;
+    const requestIsCurrent = () => feedbackIdentityRef.current === requestIdentity;
+    setFeedbackSending(true);
+    setFeedbackError('');
+    try {
+      const response = await fetch(`${API_BASE}/api/insights/${insightType}/feedback`, {
+        method: 'POST',
+        headers: {
+          ...(getAuthHeaders() as Record<string, string>),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          vote: feedbackVote,
+          dataset_hash: datasetHash,
+          comment: feedbackComment.trim() || null,
+        }),
+      });
+      if (!requestIsCurrent()) return;
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null) as { detail?: unknown } | null;
+        if (!requestIsCurrent()) return;
+        if (
+          response.status === 409
+          && (
+            errorBody?.detail === 'INSIGHT_FEEDBACK_STALE'
+            || errorBody?.detail === 'INSIGHT_FEEDBACK_UNVERSIONED'
+          )
+        ) {
+          setFeedbackStale(true);
+          setFeedbackError(i18n._(msg`This insight changed. Refresh the page before sending feedback.`));
+          const refreshes: Array<Promise<unknown>> = [refetch()];
+          if (onFeedbackStale) {
+            refreshes.push(Promise.resolve().then(onFeedbackStale));
+          }
+          await Promise.allSettled(refreshes);
+          if (requestIsCurrent()) setFeedbackStale(false);
+          return;
+        }
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const payload = await response.json() as InsightFeedbackResponse;
+      if (!requestIsCurrent()) return;
+      setFeedbackVote(payload.feedback.vote);
+      setFeedbackSent(true);
+      setFeedbackOpen(false);
+      setFeedbackComment('');
+    } catch {
+      if (requestIsCurrent()) {
+        setFeedbackError(i18n._(msg`Couldn't send feedback. Try again.`));
+      }
+    } finally {
+      if (requestIsCurrent()) setFeedbackSending(false);
+    }
+  };
+
   if (!content) return null;
 
-  // insightType -> plugin skill name mapping. The plugin's slash commands
-  // use kebab-case (`/praxys:race-forecast`); insight rows in the DB use
-  // snake_case (`race_forecast`). 1:1 transform.
   const skillName = insightType.replace(/_/g, '-');
   const hasDetails = content.findings.length > 0 || content.recommendations.length > 0;
+  const toggleDetails = () => {
+    if (!detailsOpen) onDetailsOpen?.();
+    setDetailsOpen((value) => !value);
+  };
 
   return (
     <aside className="coach-receipt" aria-label={i18n._(msg`Praxys Coach insight`)}>
       <div className="coach-banner">
         <span className="coach-mark"><Trans>Praxys Coach</Trans></span>
-        {content.stamp && (
-          <span className="coach-stamp font-data">{content.stamp}</span>
+        {(content.stamp || canCollectFeedback) && (
+          <div className="coach-banner-meta">
+            {content.stamp && (
+              <span className="coach-stamp font-data">{content.stamp}</span>
+            )}
+            {canCollectFeedback && (
+              feedbackSent ? (
+                <span className="coach-feedback-sent font-data" role="status">
+                  <Check size={13} aria-hidden="true" /> <Trans>Sent</Trans>
+                </span>
+              ) : (
+                <div
+                  className="coach-feedback-actions"
+                  role="group"
+                  aria-label={i18n._(msg`Was this insight useful?`)}
+                >
+                  <button
+                    type="button"
+                    className={`coach-feedback-icon ${feedbackVote === 'up' ? 'is-selected' : ''}`.trim()}
+                    aria-label={i18n._(msg`Helpful`)}
+                    aria-pressed={feedbackVote === 'up'}
+                    disabled={feedbackSending || feedbackStale}
+                    onClick={() => selectFeedback('up')}
+                  >
+                    <ThumbsUp size={14} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className={`coach-feedback-icon ${feedbackVote === 'down' ? 'is-selected' : ''}`.trim()}
+                    aria-label={i18n._(msg`Not helpful`)}
+                    aria-pressed={feedbackVote === 'down'}
+                    disabled={feedbackSending || feedbackStale}
+                    onClick={() => selectFeedback('down')}
+                  >
+                    <ThumbsDown size={14} aria-hidden="true" />
+                  </button>
+                </div>
+              )
+            )}
+          </div>
         )}
       </div>
       <div className="coach-body">
@@ -139,11 +258,42 @@ export default function AiInsightsCard({ insightType, attribution, fallback }: P
         {content.summary && (
           <p className="coach-summary">{linkifyScienceTerms(content.summary)}</p>
         )}
+        {canCollectFeedback && feedbackOpen && !feedbackSent && (
+          <div className="coach-feedback-form">
+            <p className="coach-feedback-question"><Trans>Was this insight useful?</Trans></p>
+            <label className="sr-only" htmlFor={`coach-feedback-${insightType}`}>
+              <Trans>Optional comment</Trans>
+            </label>
+            <textarea
+              id={`coach-feedback-${insightType}`}
+              value={feedbackComment}
+              maxLength={200}
+              rows={2}
+              placeholder={i18n._(msg`What was useful or missing?`)}
+              disabled={feedbackSending || feedbackStale}
+              onChange={(event) => setFeedbackComment(event.target.value)}
+            />
+            <div className="coach-feedback-form-footer">
+              <span className="coach-feedback-count font-data">{feedbackComment.length}/200</span>
+              <button
+                type="button"
+                className="coach-feedback-send"
+                disabled={feedbackSending || feedbackStale || !feedbackVote}
+                onClick={() => void sendFeedback()}
+              >
+                {feedbackSending ? <Trans>Sending...</Trans> : <Trans>Send</Trans>}
+              </button>
+            </div>
+            {feedbackError && (
+              <p className="coach-feedback-error" role="alert">{feedbackError}</p>
+            )}
+          </div>
+        )}
         {hasDetails && (
           <button
             type="button"
             className="coach-toggle font-data"
-            onClick={() => setDetailsOpen((v) => !v)}
+            onClick={toggleDetails}
             aria-expanded={detailsOpen}
           >
             <span className="coach-toggle-caret" aria-hidden="true">{detailsOpen ? '▾' : '▸'}</span>
@@ -152,19 +302,11 @@ export default function AiInsightsCard({ insightType, attribution, fallback }: P
             ) : (
               <span>
                 {content.findings.length > 0 && (
-                  <Plural
-                    value={content.findings.length}
-                    one="# finding"
-                    other="# findings"
-                  />
+                  <Plural value={content.findings.length} one="# finding" other="# findings" />
                 )}
                 {content.findings.length > 0 && content.recommendations.length > 0 && <Trans> · </Trans>}
                 {content.recommendations.length > 0 && (
-                  <Plural
-                    value={content.recommendations.length}
-                    one="# recommendation"
-                    other="# recommendations"
-                  />
+                  <Plural value={content.recommendations.length} one="# recommendation" other="# recommendations" />
                 )}
               </span>
             )}
@@ -174,10 +316,10 @@ export default function AiInsightsCard({ insightType, attribution, fallback }: P
           <>
             <p className="coach-label"><Trans>Findings</Trans></p>
             <ul className="coach-list">
-              {content.findings.map((f, i) => (
-                <li key={i} className={`coach-row coach-row-${f.type}`}>
-                  <span className="coach-tag" aria-hidden="true">[{f.type === 'positive' ? '+' : f.type === 'warning' ? '!' : '·'}]</span>
-                  <span className="coach-text">{linkifyScienceTerms(f.text)}</span>
+              {content.findings.map((finding, index) => (
+                <li key={index} className={`coach-row coach-row-${finding.type}`}>
+                  <span className="coach-tag" aria-hidden="true">[{finding.type === 'positive' ? '+' : finding.type === 'warning' ? '!' : '·'}]</span>
+                  <span className="coach-text">{linkifyScienceTerms(finding.text)}</span>
                 </li>
               ))}
             </ul>
@@ -188,18 +330,15 @@ export default function AiInsightsCard({ insightType, attribution, fallback }: P
             {content.findings.length > 0 && <hr className="coach-rule" />}
             <p className="coach-label"><Trans>Recommendations</Trans></p>
             <ol className="coach-list">
-              {content.recommendations.map((r, i) => (
-                <li key={i} className="coach-row">
+              {content.recommendations.map((recommendation, index) => (
+                <li key={index} className="coach-row">
                   <span className="coach-tag coach-tag-rec" aria-hidden="true">→</span>
-                  <span className="coach-text">{linkifyScienceTerms(r)}</span>
+                  <span className="coach-text">{linkifyScienceTerms(recommendation)}</span>
                 </li>
               ))}
             </ol>
           </>
         )}
-        {/* Claude Code plugin affordance — replaces the standalone
-            CliHint card. The slash command is the data; the receipt is
-            the carrier. */}
         <p className="coach-skill-hint">
           <Trans>
             Run{' '}

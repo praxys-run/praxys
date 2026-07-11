@@ -1,4 +1,5 @@
 import { apiPost, TOKEN_KEY } from './api-client';
+import { recordProductEvent } from './product-events';
 
 /**
  * Three-endpoint WeChat auth flow, mirroring api/routes/wechat.py:
@@ -23,6 +24,7 @@ export interface WeChatAuthResponse {
 
 export function saveToken(token: string): void {
   wx.setStorageSync(TOKEN_KEY, token);
+  void recordProductEvent('app_opened');
 }
 
 export function clearToken(): void {

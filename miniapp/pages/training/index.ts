@@ -5,11 +5,12 @@ import type { ApiError } from '../../utils/api-client';
 import type {
   AiInsight,
   AiInsightFinding,
+  InsightFeedbackVote,
   TrainingResponse,
 } from '../../types/api';
 import { applyThemeChrome, themeClassName } from '../../utils/theme';
 import { detectLocale, t, tFmt } from '../../utils/i18n';
-import { coachToggleLabel, fetchInsight, localizedInsight } from '../../utils/insights';
+import { coachToggleLabel, fetchInsight, insightFeedbackState, localizedInsight } from '../../utils/insights';
 import {
   buildShareMessage,
   buildTimelineMessage,
@@ -396,6 +397,8 @@ interface TrainingState {
    *  collapsed, "Hide details" when expanded. Empty string hides the
    *  toggle entirely (zero findings + zero recs). */
   coachToggleLabel: string;
+  coachDatasetHash: string;
+  coachFeedbackVote: InsightFeedbackVote | '';
 
   refreshing: boolean;
 }
@@ -444,6 +447,8 @@ const initialData: TrainingState = {
   coachTr: { mark: '', findings: '', recommendations: '', aria: '' },
   detailsOpen: false,
   coachToggleLabel: '',
+  coachDatasetHash: '',
+  coachFeedbackVote: '',
 
   refreshing: false,
 };
@@ -652,9 +657,11 @@ function buildState(
   // /api/insights/training_review failure.
   const locale = detectLocale();
   let coach: CoachReceipt;
+  let coachIsAi = false;
   if (insight) {
     try {
       coach = buildCoachFromInsight(insight, locale);
+      coachIsAi = true;
     } catch (e) {
       // eslint-disable-next-line no-console
       console.warn('[training] AI receipt build failed; using rule-based fallback:', e);
@@ -663,6 +670,11 @@ function buildState(
   } else {
     coach = buildCoachFallback(diagnosis, locale);
   }
+  const feedbackState = coachIsAi
+    ? insightFeedbackState(insight)
+    : { datasetHash: '', vote: '' as InsightFeedbackVote | '' };
+  const coachDatasetHash = feedbackState.datasetHash;
+  const coachFeedbackVote = feedbackState.vote;
   const coachTr: CoachTranslations = {
     mark: tr.coachMark,
     findings: tr.findings,
@@ -744,6 +756,8 @@ function buildState(
     coachTr,
     detailsOpen,
     coachToggleLabel: coachToggleLabelText,
+    coachDatasetHash,
+    coachFeedbackVote,
   };
 }
 
@@ -787,6 +801,8 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
       tr: buildTrainingTr(),
       activePill: loadActivePill(),
     });
+    const pageState = this as unknown as Record<string, unknown>;
+    pageState._locale = getApp<IAppOption>().globalData.locale;
     void this.refetch();
   },
 
@@ -879,7 +895,17 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
     this.setData({ detailsOpen: next, coachToggleLabel: label });
   },
 
+  onCoachFeedbackStale() {
+    void this.refetch();
+  },
+
   async refetch() {
+    const pageState = this as unknown as Record<string, unknown>;
+    const previousRequestId = typeof pageState._refetchRequestId === 'number'
+      ? pageState._refetchRequestId
+      : 0;
+    const requestId = previousRequestId + 1;
+    pageState._refetchRequestId = requestId;
     this.setData({ loading: true, errorMessage: '' });
     try {
       const [response, insight] = await Promise.all([
@@ -890,6 +916,7 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
           return null;
         }),
       ]);
+      if (pageState._refetchRequestId !== requestId) return;
       this.setData(
         buildState(
           response,
@@ -900,6 +927,7 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
         ) as Record<string, unknown>,
       );
     } catch (e) {
+      if (pageState._refetchRequestId !== requestId) return;
       const err = e as Partial<ApiError>;
       if (err?.code === 'UNAUTHENTICATED') {
         this.setData({ loading: false });

@@ -13,7 +13,7 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/components/AiInsightsCard.tsx:161
+#: src/components/AiInsightsCard.tsx:286
 msgid " · "
 msgstr " · "
 
@@ -31,12 +31,12 @@ msgid "(optional)"
 msgstr "（可选）"
 
 #. placeholder {0}: content.findings.length
-#: src/components/AiInsightsCard.tsx:155
+#: src/components/AiInsightsCard.tsx:284
 msgid "{0, plural, one {# finding} other {# findings}}"
 msgstr "{0, plural, other {# 条发现}}"
 
 #. placeholder {0}: content.recommendations.length
-#: src/components/AiInsightsCard.tsx:163
+#: src/components/AiInsightsCard.tsx:288
 msgid "{0, plural, one {# recommendation} other {# recommendations}}"
 msgstr "{0, plural, other {# 条建议}}"
 
@@ -214,7 +214,7 @@ msgid "6M"
 msgstr "6月"
 
 #: src/components/RecoveryPanel.tsx:141
-#: src/pages/Today.tsx:431
+#: src/pages/Today.tsx:443
 msgid "7d Trend"
 msgstr "7天趋势"
 
@@ -284,7 +284,7 @@ msgid "Add screenshot"
 msgstr "添加截图"
 
 #: src/components/SignalHero.tsx:22
-#: src/pages/Today.tsx:69
+#: src/pages/Today.tsx:71
 msgid "Adjust Workout"
 msgstr "调整训练"
 
@@ -482,7 +482,7 @@ msgid "Carry your training signal outdoors. Scan to open Praxys in WeChat."
 msgstr "把训练信号带到户外。扫码即可在微信中打开 Praxys。"
 
 #: src/components/SignalHero.tsx:23
-#: src/pages/Today.tsx:59
+#: src/pages/Today.tsx:61
 msgid "CAUTION"
 msgstr "注意"
 
@@ -493,6 +493,10 @@ msgstr "更改"
 #: src/pages/Goal.tsx:433
 msgid "Change Goal"
 msgstr "修改目标"
+
+#: src/components/TodayDecisionCheck.tsx:22
+msgid "Changed what I'll do"
+msgstr "改变了我今天的训练安排"
 
 #: src/pages/Setup.tsx:733
 msgid "Check your credentials in the connection step, then try again."
@@ -591,6 +595,10 @@ msgstr ""
 msgid "Configure your training system"
 msgstr "配置您的训练系统"
 
+#: src/components/TodayDecisionCheck.tsx:23
+msgid "Confirmed what I planned"
+msgstr "确认按原计划训练"
+
 #: src/components/SetupChecklist.tsx:51
 #: src/pages/Settings.tsx:910
 #: src/pages/Settings.tsx:1111
@@ -676,6 +684,11 @@ msgstr "无法保存您的邮箱，请直接发邮件联系我们。"
 msgid "Couldn't save. Check your connection and try again."
 msgstr "保存失败。请检查网络连接后重试。"
 
+#: src/components/AiInsightsCard.tsx:174
+#: src/components/TodayDecisionCheck.tsx:93
+msgid "Couldn't send feedback. Try again."
+msgstr "反馈发送失败，请重试。"
+
 #: src/components/FeedbackDialog.tsx:167
 msgid "Couldn't send your feedback. Please try again."
 msgstr "反馈发送失败，请重试。"
@@ -756,7 +769,7 @@ msgstr "当前设置为基于 {0} 的训练"
 msgid "Cycling"
 msgstr "骑行"
 
-#: src/pages/Today.tsx:435
+#: src/pages/Today.tsx:447
 msgid "daily score"
 msgstr "每日评分"
 
@@ -796,7 +809,7 @@ msgstr "停用"
 msgid "Declare incidents shown on the public"
 msgstr ""
 
-#: src/pages/Today.tsx:113
+#: src/pages/Today.tsx:115
 msgid "declining"
 msgstr "下降"
 
@@ -893,9 +906,21 @@ msgstr "详情"
 msgid "Diagnosis"
 msgstr "诊断"
 
+#: src/components/TodayDecisionCheck.tsx:77
+#~ msgid "Did Today change your training decision?"
+#~ msgstr "今日建议是否影响了你的训练决定？"
+
+#: src/components/TodayDecisionCheck.tsx:111
+msgid "Did today's brief affect your training decision?"
+msgstr "今日简报是否影响了你的训练决定？"
+
 #: src/pages/Login.tsx:403
 msgid "Didn't get the email?"
 msgstr "没收到邮件？"
+
+#: src/components/TodayDecisionCheck.tsx:24
+msgid "Didn't help today"
+msgstr "今天没有帮助"
 
 #: src/components/UpcomingPlanCard.tsx:201
 msgid "Differs · overwrite"
@@ -923,8 +948,9 @@ msgstr "讨论"
 
 #: src/components/StatusBanner.tsx:71
 #: src/components/SystemBanner.tsx:97
+#: src/components/TodayDecisionCheck.tsx:133
 msgid "Dismiss"
-msgstr ""
+msgstr "关闭"
 
 #: src/pages/Admin.tsx:1026
 msgid "Dismissible banners shown to all users"
@@ -1002,7 +1028,7 @@ msgid "Each pillar runs a published theory you can read, verify, and swap. Praxy
 msgstr "每个支柱运行一套已发表的理论，您可以阅读、验证、随时更换。Praxys 通过您选择的理论框架解读训练数据。"
 
 #: src/components/SignalHero.tsx:21
-#: src/pages/Today.tsx:57
+#: src/pages/Today.tsx:59
 msgid "EASY"
 msgstr "轻松"
 
@@ -1019,7 +1045,7 @@ msgstr "编辑"
 msgid "Elev"
 msgstr "爬升"
 
-#: src/pages/Today.tsx:123
+#: src/pages/Today.tsx:125
 msgid "elevated"
 msgstr "偏高"
 
@@ -1095,7 +1121,7 @@ msgstr "失败"
 msgid "Failed (HTTP {0})"
 msgstr "失败（HTTP {0}）"
 
-#: src/pages/Today.tsx:223
+#: src/pages/Today.tsx:230
 msgid "Failed to load"
 msgstr "加载失败"
 
@@ -1148,7 +1174,7 @@ msgstr "疲劳累积中"
 msgid "Fatigue is climbing — watch recovery before adding load."
 msgstr "疲劳正在上升——在增加负荷前先关注恢复。"
 
-#: src/pages/Today.tsx:280
+#: src/pages/Today.tsx:287
 msgid "fatigued"
 msgstr "疲劳"
 
@@ -1160,7 +1186,7 @@ msgstr "疲劳"
 msgid "Feature request"
 msgstr "功能建议"
 
-#: src/components/AiInsightsCard.tsx:175
+#: src/components/AiInsightsCard.tsx:296
 msgid "Findings"
 msgstr "发现"
 
@@ -1185,7 +1211,7 @@ msgid "Flat"
 msgstr "持平"
 
 #: src/components/SignalHero.tsx:20
-#: src/pages/Today.tsx:67
+#: src/pages/Today.tsx:69
 msgid "Follow Plan"
 msgstr "按计划进行"
 
@@ -1226,7 +1252,7 @@ msgstr "状态良好"
 msgid "Freshened up — good window for racing or testing."
 msgstr "充分恢复——适合比赛或测试的好时机。"
 
-#: src/pages/Today.tsx:382
+#: src/pages/Today.tsx:389
 msgid "From {dataAsOfLabel}"
 msgstr "数据自 {dataAsOfLabel}"
 
@@ -1280,12 +1306,12 @@ msgid "GitHub isn't configured — nothing to sync."
 msgstr "未配置 GitHub —— 无需同步。"
 
 #: src/components/SignalHero.tsx:20
-#: src/pages/Today.tsx:56
+#: src/pages/Today.tsx:58
 msgid "GO"
 msgstr "开练"
 
 #: src/components/SignalHero.tsx:21
-#: src/pages/Today.tsx:68
+#: src/pages/Today.tsx:70
 msgid "Go Easy"
 msgstr "轻松进行"
 
@@ -1331,11 +1357,15 @@ msgstr "有邀请码？"
 msgid "Heart Rate"
 msgstr "心率"
 
+#: src/components/AiInsightsCard.tsx:212
+msgid "Helpful"
+msgstr "有帮助"
+
 #: src/pages/Settings.tsx:769
 msgid "Hide backfill"
 msgstr "隐藏历史同步"
 
-#: src/components/AiInsightsCard.tsx:151
+#: src/components/AiInsightsCard.tsx:280
 msgid "Hide details"
 msgstr "隐藏详情"
 
@@ -1416,12 +1446,16 @@ msgstr "HRV 处于正常范围内"
 msgid "I agree to the <0>Terms of Service</0> and <1>Privacy Policy</1>."
 msgstr "我同意<0>服务条款</0>和<1>隐私政策</1>。"
 
+#: src/components/TodayDecisionCheck.tsx:25
+msgid "I'm not training today"
+msgstr "今天不训练"
+
 #: src/pages/Admin.tsx:1218
 #: src/pages/Status.tsx:92
 msgid "Identified"
 msgstr ""
 
-#: src/pages/Today.tsx:112
+#: src/pages/Today.tsx:114
 msgid "improving"
 msgstr "改善"
 
@@ -1609,7 +1643,7 @@ msgstr "退出登录"
 #~ msgid "Login"
 #~ msgstr "登录"
 
-#: src/pages/Today.tsx:124
+#: src/pages/Today.tsx:126
 msgid "low"
 msgstr "偏低"
 
@@ -1656,7 +1690,7 @@ msgstr "马拉松"
 msgid "Max HR"
 msgstr "最大心率"
 
-#: src/pages/Today.tsx:279
+#: src/pages/Today.tsx:286
 msgid "mild fatigue"
 msgstr "轻度疲劳"
 
@@ -1674,7 +1708,7 @@ msgid "Mode"
 msgstr "模式"
 
 #: src/components/SignalHero.tsx:22
-#: src/pages/Today.tsx:58
+#: src/pages/Today.tsx:60
 msgid "MODIFY"
 msgstr "调整"
 
@@ -1790,10 +1824,10 @@ msgstr "还没有公告"
 msgid "No code yet?"
 msgstr "还没有邀请码？"
 
-#: src/pages/Today.tsx:269
-#: src/pages/Today.tsx:431
-#: src/pages/Today.tsx:432
-#: src/pages/Today.tsx:433
+#: src/pages/Today.tsx:276
+#: src/pages/Today.tsx:443
+#: src/pages/Today.tsx:444
+#: src/pages/Today.tsx:445
 msgid "no data"
 msgstr "无数据"
 
@@ -1821,7 +1855,7 @@ msgstr ""
 msgid "No invitation codes yet. Generate one to invite a user."
 msgstr "尚无邀请码。生成一个以邀请用户。"
 
-#: src/pages/Today.tsx:358
+#: src/pages/Today.tsx:365
 msgid "No new HRV, sleep, or activity since."
 msgstr "此后无新的 HRV、睡眠或活动数据。"
 
@@ -1849,7 +1883,7 @@ msgstr "无训练"
 msgid "No workouts scheduled in this window."
 msgstr "此窗口内暂无安排的训练。"
 
-#: src/pages/Today.tsx:125
+#: src/pages/Today.tsx:127
 msgid "normal"
 msgstr "正常"
 
@@ -1886,6 +1920,10 @@ msgstr "数据不足，暂无法准确跟踪体能"
 msgid "Not enough data yet for weekly load comparison"
 msgstr "数据不足，暂无法对比每周负荷"
 
+#: src/components/AiInsightsCard.tsx:222
+msgid "Not helpful"
+msgstr "没有帮助"
+
 #: src/pages/Settings.tsx:1436
 msgid "Not set"
 msgstr "未设置"
@@ -1909,6 +1947,10 @@ msgstr "现已开放 · 创建您的账户"
 #: src/pages/History.tsx:88
 msgid "of"
 msgstr "共"
+
+#: src/components/TodayDecisionCheck.tsx:112
+msgid "One tap helps us make this brief more useful."
+msgstr "一键反馈，帮助我们让今日简报更实用。"
 
 #: src/pages/Admin.tsx:696
 msgid "One-time codes for new user registration"
@@ -1950,6 +1992,10 @@ msgstr "可选：PNG、JPG 或 WebP，最多 3 张图片。截图会保密；我
 msgid "Optional — you can always set this later from the Goal page"
 msgstr "可选——您随时可以从目标页面设置"
 
+#: src/components/AiInsightsCard.tsx:244
+msgid "Optional comment"
+msgstr "可选备注"
+
 #: src/components/WorkoutCard.tsx:82
 msgid "Options"
 msgstr "选项"
@@ -1966,7 +2012,7 @@ msgstr ""
 msgid "Outstanding codes"
 msgstr "未处理的代码"
 
-#: src/pages/Today.tsx:433
+#: src/pages/Today.tsx:445
 msgid "overnight score"
 msgstr "夜间评分"
 
@@ -2035,7 +2081,7 @@ msgstr "计划时间窗口"
 msgid "Planned"
 msgstr "计划"
 
-#: src/pages/Today.tsx:439
+#: src/pages/Today.tsx:451
 msgid "Planned · Today"
 msgstr "今日计划"
 
@@ -2055,7 +2101,7 @@ msgstr "请检查邮箱格式后重试。"
 msgid "Please verify your email before signing in. Check your inbox for the link."
 msgstr "请在登录前验证您的电子邮件。请查看收件箱中的链接。"
 
-#: src/pages/Today.tsx:278
+#: src/pages/Today.tsx:285
 msgid "positive"
 msgstr "状态良好"
 
@@ -2074,11 +2120,11 @@ msgstr "功率指标、阈值功率、训练计划"
 #~ msgid "Power-based training dashboard"
 #~ msgstr "功率训练仪表盘"
 
-#: src/components/AiInsightsCard.tsx:132
+#: src/components/AiInsightsCard.tsx:192
 msgid "Praxys Coach"
 msgstr "Praxys 教练"
 
-#: src/components/AiInsightsCard.tsx:130
+#: src/components/AiInsightsCard.tsx:190
 msgid "Praxys Coach insight"
 msgstr "Praxys 教练分析"
 
@@ -2212,6 +2258,11 @@ msgstr "推送到 Stryd"
 msgid "Pushing…"
 msgstr "推送中…"
 
+#: src/components/TodayDecisionCheck.tsx:101
+#: src/components/TodayDecisionCheck.tsx:110
+msgid "Quick check"
+msgstr "快速反馈"
+
 #: src/lib/display-labels.ts:74
 #: src/pages/Goal.tsx:109
 #: src/pages/Goal.tsx:127
@@ -2256,7 +2307,7 @@ msgstr "重新推送到 Stryd"
 msgid "Read-only accounts that mirror your dashboard data"
 msgstr "镜像您仪表盘数据的只读账号"
 
-#: src/pages/Today.tsx:435
+#: src/pages/Today.tsx:447
 msgid "Readiness"
 msgstr "准备度"
 
@@ -2272,7 +2323,7 @@ msgstr "可行的替代目标"
 msgid "Recommendation available"
 msgstr "有可用推荐"
 
-#: src/components/AiInsightsCard.tsx:189
+#: src/components/AiInsightsCard.tsx:310
 msgid "Recommendations"
 msgstr "建议"
 
@@ -2298,12 +2349,12 @@ msgstr "推荐"
 msgid "Recovery"
 msgstr "恢复"
 
-#: src/pages/Today.tsx:399
+#: src/pages/Today.tsx:406
 msgid "Recovery data hasn't synced yet. Showing the latest reading from {recoveryLatestLabel}."
 msgstr "今日恢复数据尚未同步，显示的是 {recoveryLatestLabel} 的最近读数。"
 
 #: src/components/SignalHero.tsx:24
-#: src/pages/Today.tsx:71
+#: src/pages/Today.tsx:73
 msgid "Recovery Day"
 msgstr "恢复日"
 
@@ -2325,7 +2376,7 @@ msgid "Redirecting..."
 msgstr "正在重定向..."
 
 #: src/components/SignalHero.tsx:23
-#: src/pages/Today.tsx:70
+#: src/pages/Today.tsx:72
 msgid "Reduce Intensity"
 msgstr "降低强度"
 
@@ -2414,11 +2465,11 @@ msgid "Rest"
 msgstr "休息"
 
 #: src/components/SignalHero.tsx:24
-#: src/pages/Today.tsx:60
+#: src/pages/Today.tsx:62
 msgid "REST"
 msgstr "休息"
 
-#: src/pages/Today.tsx:282
+#: src/pages/Today.tsx:289
 msgid "Rest day. No workout scheduled."
 msgstr "休息日。今日无训练安排。"
 
@@ -2432,7 +2483,7 @@ msgstr "静息心率"
 #: src/pages/Goal.tsx:443
 #: src/pages/History.tsx:53
 #: src/pages/Settings.tsx:330
-#: src/pages/Today.tsx:226
+#: src/pages/Today.tsx:233
 #: src/pages/Training.tsx:145
 msgid "Retry"
 msgstr "重试"
@@ -2449,7 +2500,7 @@ msgstr "撤销"
 msgid "Revoked"
 msgstr "已撤销"
 
-#: src/pages/Today.tsx:432
+#: src/pages/Today.tsx:444
 msgid "RHR"
 msgstr "静息心率"
 
@@ -2465,7 +2516,7 @@ msgstr "角色"
 msgid "Run"
 msgstr "跑步"
 
-#: src/components/AiInsightsCard.tsx:204
+#: src/components/AiInsightsCard.tsx:322
 msgid "Run <0>/praxys:{skillName}</0> in Claude Code for deeper analysis"
 msgstr "在 Claude Code 中运行 <0>/praxys:{skillName}</0> 获取深入分析"
 
@@ -2526,6 +2577,10 @@ msgstr "选择与您的 COROS 账户匹配的地区。"
 msgid "Self-registration"
 msgstr "自助注册"
 
+#: src/components/AiInsightsCard.tsx:263
+msgid "Send"
+msgstr "发送"
+
 #: src/components/AppSidebar.tsx:209
 #: src/components/AppSidebar.tsx:211
 #: src/components/FeedbackDialog.tsx:184
@@ -2537,11 +2592,19 @@ msgstr "发送反馈"
 msgid "Sending an invitation reserves a seat. Self-registration auto-closes at the cap; review readiness before raising it."
 msgstr "发送邀请会预留一个名额。自助注册会在达到上限时自动关闭；在提高上限前请先评估准备情况。"
 
+#: src/components/AiInsightsCard.tsx:263
+msgid "Sending..."
+msgstr "发送中..."
+
 #: src/components/FeedbackDialog.tsx:317
 #: src/pages/Admin.tsx:893
 #: src/pages/Login.tsx:410
 msgid "Sending…"
 msgstr "发送中…"
+
+#: src/components/AiInsightsCard.tsx:201
+msgid "Sent"
+msgstr "已发送"
 
 #: src/pages/Admin.tsx:1148
 msgid "Service Incidents"
@@ -2594,7 +2657,7 @@ msgstr "设置向导"
 #~ msgid "Show {0} more workouts"
 #~ msgstr "显示另外 {0} 项训练"
 
-#: src/pages/Today.tsx:374
+#: src/pages/Today.tsx:381
 msgid "Show anyway"
 msgstr "仍要查看"
 
@@ -2610,7 +2673,7 @@ msgstr "展开方法论详情"
 msgid "Showing"
 msgstr "显示"
 
-#: src/pages/Today.tsx:355
+#: src/pages/Today.tsx:362
 msgid "Showing yesterday's snapshot. Last reading {dataAsOfLabel}."
 msgstr "显示的是昨天的快照。最近一次读数 {dataAsOfLabel}。"
 
@@ -2641,7 +2704,7 @@ msgid "Skip for now"
 msgstr "暂时跳过"
 
 #: src/components/RecoveryPanel.tsx:174
-#: src/pages/Today.tsx:433
+#: src/pages/Today.tsx:445
 msgid "Sleep"
 msgstr "睡眠"
 
@@ -2672,8 +2735,8 @@ msgstr "来源"
 msgid "Sports science that <0>meets you</0> where you are."
 msgstr "让你<0>轻松上手</0>的运动科学。"
 
-#: src/pages/Today.tsx:111
-#: src/pages/Today.tsx:122
+#: src/pages/Today.tsx:113
+#: src/pages/Today.tsx:124
 msgid "stable"
 msgstr "稳定"
 
@@ -2719,7 +2782,7 @@ msgstr "力量训练"
 msgid "Stretch"
 msgstr "挑战目标"
 
-#: src/pages/Today.tsx:277
+#: src/pages/Today.tsx:284
 msgid "strongly positive"
 msgstr "状态极佳"
 
@@ -2798,8 +2861,8 @@ msgstr "同步起始日期："
 msgid "Sync history"
 msgstr "同步历史"
 
-#: src/pages/Today.tsx:367
-#: src/pages/Today.tsx:389
+#: src/pages/Today.tsx:374
+#: src/pages/Today.tsx:396
 msgid "Sync now"
 msgstr "立即同步"
 
@@ -2830,8 +2893,8 @@ msgid "Syncing..."
 msgstr "同步中..."
 
 #: src/components/UpcomingPlanCard.tsx:171
-#: src/pages/Today.tsx:367
-#: src/pages/Today.tsx:389
+#: src/pages/Today.tsx:374
+#: src/pages/Today.tsx:396
 msgid "Syncing…"
 msgstr "正在同步…"
 
@@ -2876,6 +2939,10 @@ msgstr "目标时间"
 msgid "Tempo"
 msgstr "节奏跑"
 
+#: src/components/TodayDecisionCheck.tsx:102
+msgid "Thanks - that helps us improve Today."
+msgstr "谢谢，这会帮助我们改进今日建议。"
+
 #: src/components/FeedbackDialog.tsx:197
 msgid "Thanks for the feedback!"
 msgstr "感谢你的反馈！"
@@ -2891,6 +2958,10 @@ msgstr "主题"
 #: src/pages/Settings.tsx:1501
 msgid "This cannot be undone. If this is the last admin account, deletion will be blocked."
 msgstr "此操作无法撤销。如果这是最后一个管理员账号，删除会被阻止。"
+
+#: src/components/AiInsightsCard.tsx:162
+msgid "This insight changed. Refresh the page before sending feedback."
+msgstr "该建议已更新。请刷新页面后再提交反馈。"
 
 #: src/pages/Verify.tsx:67
 msgid "This link is invalid or has expired. Try signing in to request a new link."
@@ -2955,8 +3026,8 @@ msgstr "距目标"
 #: src/components/AppSidebar.tsx:124
 #: src/components/charts/FitnessFatigueChart.tsx:250
 #: src/components/RecoveryPanel.tsx:118
-#: src/pages/Today.tsx:20
-#: src/pages/Today.tsx:350
+#: src/pages/Today.tsx:22
+#: src/pages/Today.tsx:357
 msgid "Today"
 msgstr "今日"
 
@@ -3178,7 +3249,7 @@ msgid "vs {0}"
 msgstr "vs {0}"
 
 #. placeholder {0}: hrv.baseline_mean_ln.toFixed(2)
-#: src/pages/Today.tsx:269
+#: src/pages/Today.tsx:276
 msgid "vs {0} baseline"
 msgstr "对比基准 {0}"
 
@@ -3201,6 +3272,11 @@ msgstr "步行"
 #: src/lib/phase-label.ts:7
 msgid "Warmup"
 msgstr "热身"
+
+#: src/components/AiInsightsCard.tsx:207
+#: src/components/AiInsightsCard.tsx:242
+msgid "Was this insight useful?"
+msgstr "这条分析有帮助吗？"
 
 #: src/pages/Admin.tsx:586
 msgid "WAU"
@@ -3257,6 +3333,10 @@ msgstr "遇到了什么问题，或希望我们做些什么？"
 #: src/components/GoalEditor.tsx:165
 msgid "What time are you working toward? Leave blank to track trend only"
 msgstr "您的目标时间是多少？留空则仅追踪趋势"
+
+#: src/components/AiInsightsCard.tsx:251
+msgid "What was useful or missing?"
+msgstr "哪些内容有帮助，或还缺少什么？"
 
 #: src/pages/Login.tsx:466
 msgid "What's your training goal? (optional)"

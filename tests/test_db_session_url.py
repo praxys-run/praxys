@@ -56,3 +56,34 @@ def test_praxys_url_takes_precedence(dbs, monkeypatch):
 def test_blank_url_falls_back_to_sqlite(dbs, monkeypatch):
     monkeypatch.setenv("PRAXYS_DATABASE_URL", "   ")
     assert dbs.get_database_url().startswith("sqlite:///")
+
+
+def test_existing_sqlite_gets_today_decision_columns(dbs, tmp_path):
+    from sqlalchemy import create_engine
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'legacy.db'}")
+    try:
+        with engine.begin() as conn:
+            conn.exec_driver_sql(
+                "CREATE TABLE user_config (user_id VARCHAR(36) PRIMARY KEY)"
+            )
+
+        dbs._ensure_schema(engine, "sqlite")
+
+        with engine.connect() as conn:
+            columns = {
+                row[1]
+                for row in conn.exec_driver_sql('PRAGMA table_info("user_config")')
+            }
+            tables = {
+                row[0]
+                for row in conn.exec_driver_sql(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'"
+                )
+            }
+        assert "today_decision_check_claimed_at" in columns
+        assert "today_decision_check_shown_at" in columns
+        assert "today_decision_check_submitted_at" in columns
+        assert "ai_insight_feedback" in tables
+    finally:
+        engine.dispose()

@@ -93,6 +93,7 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
         ActivitySample,
         ActivitySplit,
         AiInsight,
+        AiInsightFeedback,
         AppConfig,
         CacheRevision,
         DashboardCache,
@@ -127,6 +128,12 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
         db.add(FitnessData(user_id=user_id, date=date(2026, 6, 1), metric_type="cp_estimate", value=300))
         db.add(TrainingPlan(user_id=user_id, date=date(2026, 6, 2), source="ai", workout_type="easy"))
         db.add(AiInsight(user_id=user_id, insight_type="daily_brief"))
+        db.add(AiInsightFeedback(
+            user_id=user_id,
+            insight_type="daily_brief",
+            dataset_hash="a" * 64,
+            vote="up",
+        ))
         db.add(CacheRevision(user_id=user_id, scope="activities", revision=1))
         db.add(DashboardCache(user_id=user_id, section="today", source_version="v1", payload_json=b"{}"))
         db.add(Feedback(user_id=user_id, kind="bug", message="delete me", status="new"))
@@ -160,6 +167,7 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
         ActivitySample,
         ActivitySplit,
         AiInsight,
+        AiInsightFeedback,
         AppConfig,
         CacheRevision,
         DashboardCache,
@@ -182,6 +190,7 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
             ActivitySample,
             ActivitySplit,
             AiInsight,
+            AiInsightFeedback,
             CacheRevision,
             DashboardCache,
             Feedback,

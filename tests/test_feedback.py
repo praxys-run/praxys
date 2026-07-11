@@ -59,6 +59,164 @@ def test_scrub_redacts_modern_api_keys():
     assert "sk-based" in scrub_text("we use sk-based zones")
 
 
+def test_scrub_redacts_formatted_phone_and_account_numbers():
+    from api.feedback_scrub import scrub_text
+
+    raw = (
+        "Call 138-0013-8000 or (555) 123-4567. "
+        "Card 4111 1111 1111 1111. Training date 2026-07-12, power 285."
+    )
+    out = scrub_text(raw)
+
+    assert "138-0013-8000" not in out
+    assert "(555) 123-4567" not in out
+    assert "4111 1111 1111 1111" not in out
+    assert out.count("[redacted-number]") == 3
+    assert "2026-07-12" in out
+    assert "285" in out
+
+
+def test_scrub_redacts_credential_labels_with_common_phrasing():
+    from api.feedback_scrub import scrub_text
+
+    secrets = ("hunter2", "abc123", "token-value", "quoted secret")
+    raw = (
+        "my password is hunter2; API key: abc123; "
+        "Authorization: Bearer token-value; secret = 'quoted secret'"
+    )
+    out = scrub_text(raw)
+
+    for secret in secrets:
+        assert secret not in out
+    assert out.count("[redacted]") == 4
+
+def test_scrub_redacts_quoted_json_credentials_without_corrupting_json():
+    import json
+
+    from api.feedback_scrub import scrub_text
+
+    raw = json.dumps({
+        "password": "hunter2",
+        "access_token": "oauthCredential987654321",
+        "nested": {"client_secret": "clientCredential987654321"},
+        "power": 285,
+    })
+    out = scrub_text(raw)
+    parsed = json.loads(out)
+
+    assert parsed["password"] == "[redacted]"
+    assert parsed["access_token"] == "[redacted]"
+    assert parsed["nested"]["client_secret"] == "[redacted]"
+    assert parsed["power"] == 285
+
+
+def test_scrub_redacts_nested_json_credentials_without_leaking_array_values():
+    import json
+
+    from api.feedback_scrub import scrub_text
+
+    raw = json.dumps({
+        "tokens": ["firstsecret", "secondsecret"],
+        "nested": {
+            "OPENAI_API_KEY": {"primary": "thirdsecret"},
+            "connectionString": {"primary": "fourthsecret"},
+            "proxy_authorization": "fifthsecret",
+            "headers": [
+                {"Name": "Proxy-Authorization", "Value": "sixthsecret"},
+            ],
+            "note": "Contact jane@example.com after a 250 W workout",
+        },
+        "phone": 15551234567,
+        "ok": 1,
+    })
+
+    out = scrub_text(raw)
+    parsed = json.loads(out)
+
+    assert parsed["tokens"] == "[redacted]"
+    assert parsed["nested"]["OPENAI_API_KEY"] == "[redacted]"
+    assert parsed["nested"]["connectionString"] == "[redacted]"
+    assert parsed["nested"]["proxy_authorization"] == "[redacted]"
+    assert parsed["nested"]["headers"][0]["Value"] == "[redacted]"
+    assert parsed["nested"]["note"] == (
+        "Contact [redacted-email] after a 250 W workout"
+    )
+    assert parsed["phone"] == "[redacted-number]"
+    assert parsed["ok"] == 1
+    for secret in (
+        "firstsecret", "secondsecret", "thirdsecret", "fourthsecret",
+        "fifthsecret", "sixthsecret",
+    ):
+        assert secret not in out
+
+
+def test_scrub_redacts_compound_oauth_credential_labels():
+    from api.feedback_scrub import scrub_text
+
+    credentials = {
+        "access_token": "ZXhhbXBsZU9BdXRoVmFsdWU987654",
+        "refresh-token": "refreshCredential987654321",
+        "client_secret": "clientCredential987654321",
+    }
+    raw = "; ".join(f"{label}={value}" for label, value in credentials.items())
+    out = scrub_text(raw)
+
+    for value in credentials.values():
+        assert value not in out
+    assert out.count("[redacted]") == 3
+
+def test_scrub_redacts_complete_authorization_header_value():
+    from api.feedback_scrub import scrub_text
+
+    credential = "dXNlcjpwYXNzd29yZA=="
+    out = scrub_text(f"Authorization: Basic {credential}\nrequest failed")
+
+    assert credential not in out
+    assert "Authorization [redacted]" in out
+    assert "request failed" in out
+
+
+def test_scrub_redacts_connection_credentials_cookies_and_private_keys():
+    from api.feedback_scrub import scrub_text
+
+    secrets = {
+        "aws": "aws-secret-value-123",
+        "account": "azure-storage-account-key-456",
+        "database": "database-credential-value-789",
+        "cookie": "session=private-cookie-value",
+        "private_key": "private-key-material",
+        "servicebus": "servicebus-shared-key-890",
+        "uri_password": "uri-password-value-321",
+        "lowercase_key": "lowercase-private-key-654",
+    }
+    raw = (
+        f"AWS_SECRET_ACCESS_KEY={secrets['aws']}\n"
+        f"DefaultEndpointsProtocol=https;AccountKey={secrets['account']};EndpointSuffix=core.windows.net\n"
+        f"DATABASE_URL={secrets['database']}\n"
+        f"PRAXYS_DATABASE_URL=postgresql://runner:{secrets['uri_password']}@db.example.test/praxys\n"
+        f"AZURE_SERVICEBUS_CONNECTION_STRING=Endpoint=sb://bus.example.test;"
+        f"SharedAccessKeyName=Root;SharedAccessKey={secrets['servicebus']}\n"
+        f"Connection failed for postgresql://runner:{secrets['uri_password']}@db.example.test/praxys\n"
+        f"aws_secret_access_key={secrets['lowercase_key']}\n"
+        f"Cookie: {secrets['cookie']}\n"
+        "-----BEGIN PRIVATE KEY-----\n"
+        f"{secrets['private_key']}\n"
+        "-----END PRIVATE KEY-----"
+    )
+
+    out = scrub_text(raw)
+
+    for secret in secrets.values():
+        assert secret not in out
+    assert "AWS_SECRET_ACCESS_KEY=[redacted]" in out
+    assert "AccountKey=[redacted]" in out
+    assert "PRAXYS_DATABASE_URL=[redacted]" in out
+    assert "SharedAccessKey=[redacted]" in out
+    assert "aws_secret_access_key=[redacted]" in out
+    assert "postgresql://[redacted]@db.example.test/praxys" in out
+    assert "Cookie: [redacted]" in out
+    assert "[redacted-private-key]" in out
+
 def test_scrub_context_drops_unknown_keys_and_scrubs_values():
     from api.feedback_scrub import scrub_context
 
@@ -74,6 +232,27 @@ def test_scrub_context_drops_unknown_keys_and_scrubs_values():
     assert cleaned["app_version"] == "2026.06.1"
     assert "me@x.com" not in cleaned["user_agent"]
     assert "secret_field" not in cleaned
+
+
+def test_scrub_context_preserves_valid_ci_build_versions():
+    from api.feedback_scrub import scrub_context
+
+    valid = scrub_context({
+        "app_version": "2026.07.04.1234-abc1234",
+        "api_version": "2026.07.1",
+    })
+    assert valid == {
+        "app_version": "2026.07.04.1234-abc1234",
+        "api_version": "2026.07.1",
+    }
+
+    secret = "sk-abcdefghijklmnopqrstuvwxyz123456"
+    unsafe = scrub_context({
+        "app_version": "2026.07.4111111111111111",
+        "api_version": secret,
+    })
+    assert unsafe["app_version"] != "2026.07.4111111111111111"
+    assert secret not in unsafe["api_version"]
 
 
 # ---------------------------------------------------------------------------

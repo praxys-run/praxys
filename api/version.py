@@ -19,9 +19,20 @@ Resolution order:
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 _BUILD_FILE = Path(__file__).resolve().parent / "_build_version.txt"
+_BUILD_VERSION_RE = re.compile(
+    r"^(?:develop|[0-9]{4}\.(?:0[1-9]|1[0-2])\."
+    r"(?:[0-9]{1,4}|(?:0[1-9]|[12][0-9]|3[01])\."
+    r"[0-9]{1,8}-[0-9a-f]{7}))$"
+)
+
+
+def is_valid_build_version(value: object) -> bool:
+    """Return whether *value* is a supported release or CI build identifier."""
+    return isinstance(value, str) and bool(_BUILD_VERSION_RE.fullmatch(value.strip()))
 
 
 def get_api_version() -> str:

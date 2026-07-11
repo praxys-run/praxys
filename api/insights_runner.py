@@ -21,17 +21,27 @@ Tests inject ``_session=...`` to substitute an in-memory session.
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
+import threading
 from datetime import datetime
 from typing import Optional
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
+
+from api.insight_feedback import (
+    GENERATION_PROVENANCE_KEY,
+    build_generation_provenance,
+    merge_feedback_meta,
+)
 
 logger = logging.getLogger(__name__)
 
 
 GENERATORS_ORDER = ("daily_brief", "training_review", "race_forecast")
+_RUN_LOCKS = tuple(threading.Lock() for _ in range(64))
 
 
 def run_insights_for_user(
@@ -52,22 +62,63 @@ def run_insights_for_user(
 
     Returns:
         Per-insight-type status dict — one of: ``generated``, ``hash_match``,
-        ``cap_reached``, ``generator_returned_none``. A top-level ``skipped``
-        key short-circuits the whole run.
+        ``cap_reached``, ``generator_returned_none``, or ``superseded``. A
+        top-level ``skipped`` key short-circuits the whole run.
     """
     if not _has_new_rows(counts):
         return {"skipped": "no_new_rows"}
 
     if _session is not None:
-        return _run(_session, user_id)
+        return _run_serialized(_session, user_id)
 
     from db.session import SessionLocal
 
     own_session = SessionLocal()
     try:
-        return _run(own_session, user_id)
+        return _run_serialized(own_session, user_id)
     finally:
         own_session.close()
+
+
+def _generation_lock_key(user_id: str) -> int:
+    """Return a stable session-lock key for one user's LLM generation."""
+    digest = hashlib.blake2b(
+        f"insight-generation:{user_id}".encode("utf-8"),
+        digest_size=8,
+    ).digest()
+    return int.from_bytes(digest, byteorder="big", signed=True)
+
+
+def _lock_generation(db: Session, user_id: str) -> None:
+    """Serialize insight generation across PostgreSQL workers."""
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(
+            text("SELECT pg_advisory_lock(:lock_key)"),
+            {"lock_key": _generation_lock_key(user_id)},
+        )
+
+
+def _unlock_generation(db: Session, user_id: str) -> None:
+    """Release the cross-worker insight generation lock."""
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(
+            text("SELECT pg_advisory_unlock(:lock_key)"),
+            {"lock_key": _generation_lock_key(user_id)},
+        )
+
+
+def _run_serialized(db: Session, user_id: str) -> dict:
+    """Serialize one user's runners before taking the source snapshot."""
+    lock = _RUN_LOCKS[hash(user_id) % len(_RUN_LOCKS)]
+    with lock:
+        _lock_generation(db, user_id)
+        try:
+            return _run(db, user_id)
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            _unlock_generation(db, user_id)
 
 
 def _run(db: Session, user_id: str) -> dict:
@@ -94,20 +145,34 @@ def _run(db: Session, user_id: str) -> dict:
         "race_forecast": generate_race_forecast,
     }
 
-    # Building context can fail (corrupt row, missing science YAML, transient
-    # DB blip). Catch internally so the runner's "I never break sync"
-    # contract doesn't depend on caller hygiene.
+    # Build only against a stable revision vector. A sync that commits while
+    # the context is loading invalidates the first attempt; one retry gives the
+    # runner a coherent source snapshot without blocking sync writes.
+    from db.cache_revision import SCOPES, get_revisions
+
     try:
-        cfg = load_config_from_db(user_id, db)
-        pillars = dict(getattr(cfg, "science", {}) or {})
-        context = build_training_context(user_id=user_id, db=db)
+        for _attempt in range(2):
+            revisions_before = get_revisions(db, user_id, SCOPES)
+            cfg = load_config_from_db(user_id, db)
+            pillars = dict(getattr(cfg, "science", {}) or {})
+            context = build_training_context(user_id=user_id, db=db)
+            source_revisions = get_revisions(db, user_id, SCOPES)
+            if revisions_before == source_revisions:
+                break
+            db.expire_all()
+        else:
+            logger.warning("Insight context changed repeatedly for user=%s", user_id)
+            return {"skipped": "context_changed"}
     except Exception:
         logger.exception("Insight context build failed for user=%s", user_id)
         return {"skipped": "context_build_failed"}
 
+    run_started_at = datetime.utcnow()
+
     from api import telemetry
 
     results: dict[str, str] = {}
+    pending: list[tuple[str, dict, str]] = []
     for itype in GENERATORS_ORDER:
         new_hash = compute_dataset_hash(context, itype, science_pillars=pillars)
         existing = (
@@ -117,23 +182,47 @@ def _run(db: Session, user_id: str) -> dict:
         )
         if existing is not None and (existing.meta or {}).get("dataset_hash") == new_hash:
             results[itype] = "hash_match"
-            telemetry.record_coach_run(insight_type=itype, status="hash_match", user_id=user_id)
+
             continue
-        if used_today >= cap:
+        if used_today + len(pending) >= cap:
             results[itype] = "cap_reached"
-            telemetry.record_coach_run(insight_type=itype, status="cap_reached", user_id=user_id)
+
             continue
         payload = generators[itype](context, pillars)
         if payload is None:
             results[itype] = "generator_returned_none"
-            telemetry.record_coach_run(insight_type=itype, status="generator_returned_none", user_id=user_id)
+
             continue
-        _upsert_insight(db, user_id, itype, payload, new_hash)
+        pending.append((itype, payload, new_hash))
+
+    # No database row locks are held during the LLM calls above. The first
+    # upsert takes the shared source-revision transaction lock, and that lock
+    # remains held through this short write batch and commit.
+    for itype, payload, new_hash in pending:
+        if not _upsert_insight(
+            db,
+            user_id,
+            itype,
+            payload,
+            new_hash,
+            source_revisions,
+            run_started_at,
+        ):
+            results[itype] = "superseded"
+
+            continue
         used_today += 1
         results[itype] = "generated"
-        telemetry.record_coach_run(insight_type=itype, status="generated", user_id=user_id)
 
     db.commit()
+    for itype in GENERATORS_ORDER:
+        status = results.get(itype)
+        if status is not None:
+            telemetry.record_coach_run(
+                insight_type=itype,
+                status=status,
+                user_id=user_id,
+            )
     return results
 
 
@@ -170,17 +259,87 @@ def _count_today(user_id: str, db: Session) -> int:
     )
 
 
+def _insight_lock_key(user_id: str, insight_type: str) -> int:
+    """Return a stable signed 64-bit key for a PostgreSQL advisory lock."""
+    digest = hashlib.blake2b(
+        f"{user_id}:{insight_type}".encode("utf-8"),
+        digest_size=8,
+    ).digest()
+    return int.from_bytes(digest, byteorder="big", signed=True)
+
+
+def _lock_insight_version(db: Session, user_id: str, insight_type: str) -> None:
+    """Serialize cross-process PostgreSQL upserts for one insight slot."""
+    if db.get_bind().dialect.name != "postgresql":
+        return
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(:lock_key)"),
+        {"lock_key": _insight_lock_key(user_id, insight_type)},
+    )
+
+
+def _generation_started_at(meta: object) -> datetime | None:
+    """Read the source snapshot timestamp from trusted runner provenance."""
+    if not isinstance(meta, dict):
+        return None
+    provenance = meta.get(GENERATION_PROVENANCE_KEY)
+    if not isinstance(provenance, dict):
+        return None
+    value = provenance.get("run_started_at")
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
 def _upsert_insight(
-    db: Session, user_id: str, itype: str, payload: dict, dataset_hash: str
-) -> None:
-    """Upsert an AiInsight row from a generator payload."""
-    from db.models import AiInsight
+    db: Session,
+    user_id: str,
+    itype: str,
+    payload: dict,
+    dataset_hash: str,
+    source_revisions: dict[str, int],
+    run_started_at: datetime,
+) -> bool:
+    """Upsert unless a later-started runner already published this slot."""
+    from db.models import AiInsight, User
+
+    user = (
+        db.query(User)
+        .populate_existing()
+        .with_for_update()
+        .filter(User.id == user_id)
+        .first()
+    )
+    if user is None or not user.is_active:
+        return False
+
+    _lock_insight_version(db, user_id, itype)
+    from db.cache_revision import get_revisions, lock_revision_writes
+
+    lock_revision_writes(db, user_id)
+    current_revisions = get_revisions(db, user_id, source_revisions.keys())
+    if current_revisions != source_revisions:
+        return False
 
     row = (
         db.query(AiInsight)
+        .populate_existing()
+        .with_for_update()
         .filter(AiInsight.user_id == user_id, AiInsight.insight_type == itype)
         .first()
     )
+    existing_started_at = _generation_started_at(row.meta) if row is not None else None
+    if existing_started_at is not None:
+        if existing_started_at > run_started_at:
+            return False
+    elif (
+        row is not None
+        and row.generated_at is not None
+        and row.generated_at > run_started_at
+    ):
+        return False
     if row is None:
         row = AiInsight(user_id=user_id, insight_type=itype)
         db.add(row)
@@ -190,5 +349,22 @@ def _upsert_insight(
     row.recommendations = payload["recommendations"]
     row.translations = payload.get("translations") or {}
     meta_extra = payload.get("meta_extra") or {}
-    row.meta = {**(row.meta or {}), "dataset_hash": dataset_hash, **meta_extra}
+    provenance = build_generation_provenance(
+        meta_extra.get("model"),
+        meta_extra.get("pillars"),
+        run_started_at=run_started_at.isoformat(),
+        source_revisions=source_revisions,
+    )
+    row.meta = merge_feedback_meta(
+        db,
+        user_id,
+        itype,
+        {
+            **meta_extra,
+            "dataset_hash": dataset_hash,
+            GENERATION_PROVENANCE_KEY: provenance,
+        },
+        row.meta,
+    )
     row.generated_at = datetime.utcnow()
+    return True

@@ -23,11 +23,12 @@ a fresh write that landed in the same second as the prior request.
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 from datetime import datetime
 from typing import Iterable
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -46,6 +47,25 @@ SCOPES: tuple[str, ...] = (
     "plans",
     "config",
 )
+
+
+def _revision_write_lock_key(user_id: str) -> int:
+    """Return the stable PostgreSQL advisory-lock key for one user's inputs."""
+    digest = hashlib.blake2b(
+        f"cache-revisions:{user_id}".encode("utf-8"),
+        digest_size=8,
+    ).digest()
+    return int.from_bytes(digest, byteorder="big", signed=True)
+
+
+def lock_revision_writes(db: Session, user_id: str) -> None:
+    """Serialize source-revision commits with insight snapshot publication."""
+    if not user_id or db.get_bind().dialect.name != "postgresql":
+        return
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(:lock_key)"),
+        {"lock_key": _revision_write_lock_key(user_id)},
+    )
 
 
 def bump_revisions(
@@ -78,6 +98,7 @@ def bump_revisions(
         seen.add(s)
         deduped.append(s)
 
+    lock_revision_writes(db, user_id)
     now = datetime.utcnow()
     for scope in deduped:
         existing = db.execute(

@@ -1,0 +1,100 @@
+.insight-feedback {
+  margin-top: 20rpx;
+  padding-top: 18rpx;
+  border-top: 1rpx dashed var(--border-subtle);
+}
+.insight-feedback__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+.insight-feedback__question {
+  font-size: 22rpx;
+  font-weight: 600;
+  color: var(--text);
+}
+.insight-feedback__votes {
+  display: flex;
+  gap: 10rpx;
+}
+.insight-feedback__vote {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72rpx;
+  height: 64rpx;
+  min-height: 64rpx;
+  margin: 0;
+  padding: 0;
+  border: 1rpx solid var(--border-subtle);
+  border-radius: 8rpx;
+  background: transparent;
+  font-size: 30rpx;
+  line-height: 1;
+}
+.insight-feedback__vote::after,
+.insight-feedback__send::after {
+  border: none;
+}
+.insight-feedback__vote.is-selected {
+  border-color: var(--accent-cobalt);
+  background: var(--surface-subtle);
+}
+.insight-feedback__form {
+  margin-top: 16rpx;
+}
+.insight-feedback__comment {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 92rpx;
+  padding: 16rpx;
+  border: 1rpx solid var(--border-subtle);
+  border-radius: 8rpx;
+  background: var(--surface-subtle);
+  color: var(--text);
+  font-size: 24rpx;
+  line-height: 1.45;
+}
+.insight-feedback__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16rpx;
+  margin-top: 12rpx;
+}
+.insight-feedback__count {
+  color: var(--text-muted);
+  font-size: 20rpx;
+}
+.insight-feedback__send {
+  min-width: 136rpx;
+  min-height: 64rpx;
+  margin: 0;
+  padding: 0 24rpx;
+  border-radius: 8rpx;
+  background: var(--accent-cobalt);
+  color: #ffffff;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+.insight-feedback__send[disabled] {
+  opacity: 0.55;
+}
+.insight-feedback__error {
+  display: block;
+  margin-top: 10rpx;
+  color: var(--destructive);
+  font-size: 22rpx;
+}
+.insight-feedback__sent {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8rpx;
+  color: var(--accent-cobalt);
+  font-size: 21rpx;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
