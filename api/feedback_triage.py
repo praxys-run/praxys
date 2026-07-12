@@ -92,10 +92,12 @@ def _gate_blocks_publish(
 # drafting the fix; merge stays human (branch protection).
 AGENT_READY_LABEL = "agent-ready"
 
-# Minimum word count for the scrubbed user message to count as "enough detail".
 # A cheap floor beneath the model's own actionability verdict: a terse "it's
-# broken" should not burn a coding-agent run. Deterministic + reproducible.
+# broken" should not burn a coding-agent run. Whitespace-delimited languages use
+# a word floor; scripts such as Chinese that do not separate words with spaces
+# use a Unicode alphanumeric-character floor instead.
 _AGENT_MIN_DETAIL_WORDS = 6
+_AGENT_MIN_DETAIL_ALNUM_CHARS = 16
 
 
 def _agent_ready_shadow() -> bool:
@@ -109,7 +111,10 @@ def _agent_ready_shadow() -> bool:
 
 def _has_enough_detail(message: str) -> bool:
     """Whether a report says enough for a coding agent to attempt a fix."""
-    return len((message or "").split()) >= _AGENT_MIN_DETAIL_WORDS
+    text = (message or "").strip()
+    if len(text.split()) >= _AGENT_MIN_DETAIL_WORDS:
+        return True
+    return sum(char.isalnum() for char in text) >= _AGENT_MIN_DETAIL_ALNUM_CHARS
 
 
 def _qualifies_for_agent(
