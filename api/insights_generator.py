@@ -47,6 +47,14 @@ def generate_daily_brief(
     context: dict, science_pillars: dict[str, str]
 ) -> dict | None:
     """Generate today's recovery + signal one-liner narrative."""
+    restrictive_reason = _restrictive_today_fallback_reason(context)
+    if restrictive_reason is not None:
+        logger.debug(
+            "Insight %s skipped: reason=%s",
+            "daily_brief",
+            restrictive_reason,
+        )
+        return None
     return _generate(
         context=context,
         science_pillars=science_pillars,
@@ -409,6 +417,17 @@ _RESTRICTIVE_FALLBACK_REASONS = {
 }
 
 
+def _restrictive_today_fallback_reason(context: dict) -> str | None:
+    """Return the restrictive Today fallback reason, or ``None`` if not needed."""
+    today_signal = context.get("today_signal")
+    if not isinstance(today_signal, dict):
+        return None
+    recommendation = today_signal.get("recommendation")
+    if recommendation not in _RESTRICTIVE_TODAY_RECOMMENDATIONS:
+        return None
+    return _RESTRICTIVE_FALLBACK_REASONS[recommendation]
+
+
 def _validate_daily_brief_alignment(raw: dict[str, Any], context: dict) -> tuple[bool, str]:
     """Reject daily briefs that contradict the canonical Today verdict.
 
@@ -420,10 +439,10 @@ def _validate_daily_brief_alignment(raw: dict[str, Any], context: dict) -> tuple
     if not isinstance(today_signal, dict):
         return True, "ok"
 
-    recommendation = today_signal.get("recommendation")
-    if recommendation not in _RESTRICTIVE_TODAY_RECOMMENDATIONS:
+    restrictive_reason = _restrictive_today_fallback_reason(context)
+    if restrictive_reason is None:
         return True, "ok"
-    return False, _RESTRICTIVE_FALLBACK_REASONS[recommendation]
+    return False, restrictive_reason
 
 
 def _log_rejection(insight_type: str, reason: str, raw: Any) -> None:

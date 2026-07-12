@@ -210,11 +210,6 @@ def push_insight(
         client_meta,
         existing.meta if existing is not None else None,
     )
-    if body.insight_type == "daily_brief":
-        freshness = _current_daily_brief_freshness(user_id, db)
-        if freshness is not None:
-            incoming_meta[DAILY_BRIEF_FRESHNESS_KEY] = freshness
-
     if existing:
         existing.headline = body.headline
         existing.summary = body.summary

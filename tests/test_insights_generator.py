@@ -245,17 +245,17 @@ def test_daily_brief_payload_includes_canonical_today_signal(monkeypatch):
 
     ctx = _fake_context()
     ctx["today_signal"] = {
-        "recommendation": "rest",
-        "reason": "Recovery first.",
-        "alternatives": ["Walk only"],
+        "recommendation": "continue_as_planned",
+        "reason": "Signals support the planned session.",
+        "alternatives": ["Run easy if legs feel flat"],
     }
     insights_generator.generate_daily_brief(ctx, PILLARS)
 
     system_prompt = fake.chat.completions.last_call["messages"][0]["content"]
     user_msg = json.loads(fake.chat.completions.last_call["messages"][1]["content"])
     assert "today_signal" in system_prompt
-    assert user_msg["today_signal"]["recommendation"] == "rest"
-    assert user_msg["today_signal"]["alternatives"] == ["Walk only"]
+    assert user_msg["today_signal"]["recommendation"] == "continue_as_planned"
+    assert user_msg["today_signal"]["alternatives"] == ["Run easy if legs feel flat"]
 
 
 def test_daily_brief_rejects_conflicting_rest_signal(monkeypatch):
@@ -275,6 +275,22 @@ def test_daily_brief_rejects_conflicting_rest_signal(monkeypatch):
         "reason": "Recovery first.",
         "alternatives": ["Walk only"],
     }
+
+    assert insights_generator.generate_daily_brief(ctx, PILLARS) is None
+
+
+def test_daily_brief_restrictive_signal_skips_llm_call(monkeypatch):
+    ctx = _fake_context()
+    ctx["today_signal"] = {
+        "recommendation": "rest",
+        "reason": "Recovery first.",
+        "alternatives": ["Walk only"],
+    }
+    monkeypatch.setattr(
+        llm,
+        "get_client",
+        lambda: (_ for _ in ()).throw(AssertionError("LLM client should not be requested")),
+    )
 
     assert insights_generator.generate_daily_brief(ctx, PILLARS) is None
 
