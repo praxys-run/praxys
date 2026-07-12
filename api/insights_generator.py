@@ -411,7 +411,7 @@ _RESTRICTIVE_TODAY_RECOMMENDATIONS = {
     "modify",
     "reduce_intensity",
 }
-_REST_CONFLICT_TOKENS = (
+_REST_CONFLICT_TOKENS = tuple(token.casefold() for token in (
     "run",
     "jog",
     "workout",
@@ -425,8 +425,8 @@ _REST_CONFLICT_TOKENS = (
     "训练",
     "课",
     "跑",
-)
-_HARD_WORKOUT_TOKENS = (
+))
+_HARD_WORKOUT_TOKENS = tuple(token.casefold() for token in (
     "interval",
     "tempo",
     "threshold",
@@ -440,8 +440,8 @@ _HARD_WORKOUT_TOKENS = (
     "间歇",
     "节奏",
     "阈值",
-)
-_SAFE_RESTRICTIVE_TOKENS = (
+))
+_SAFE_RESTRICTIVE_TOKENS = tuple(token.casefold() for token in (
     "rest",
     "recovery",
     "recover",
@@ -479,11 +479,16 @@ _SAFE_RESTRICTIVE_TOKENS = (
     "缩短",
     "改为",
     "替换",
-)
+))
 
 
 def _validate_daily_brief_alignment(raw: dict[str, Any], context: dict) -> tuple[bool, str]:
-    """Reject daily briefs that contradict the canonical Today verdict."""
+    """Reject daily briefs that contradict the canonical Today verdict.
+
+    Returns ``(is_valid, reason_code)`` where ``reason_code`` is ``"ok"``
+    for aligned output or a short stable tag such as
+    ``"today_signal_rest_conflict"`` for logging and tests.
+    """
     today_signal = context.get("today_signal")
     if not isinstance(today_signal, dict):
         return True, "ok"
@@ -527,4 +532,4 @@ def _daily_brief_text_fragments(raw: dict[str, Any]) -> list[str]:
 
 def _contains_any(text: str, tokens: tuple[str, ...]) -> bool:
     """Return True when ``text`` contains any token in ``tokens``."""
-    return any(token.casefold() in text for token in tokens)
+    return any(token in text for token in tokens)

@@ -99,7 +99,12 @@ def _serialize_insight(
 
 
 def _current_daily_brief_hash(user_id: str, db: Session) -> str | None:
-    """Compute the current daily-brief hash, or ``None`` if unavailable."""
+    """Compute the current daily-brief hash, or ``None`` if unavailable.
+
+    Imports stay local because this route otherwise loads the heavier
+    dashboard/context builder stack eagerly at module import time, even for
+    insight reads that never need freshness validation.
+    """
     try:
         # Local imports keep this route decoupled from the heavier dashboard /
         # AI context builder modules until a daily_brief freshness check is
@@ -125,7 +130,13 @@ def _current_daily_brief_hash(user_id: str, db: Session) -> str | None:
 
 
 def _is_current_daily_brief(row: Any, current_hash: str | None) -> bool:
-    """Return whether the stored daily brief still matches today's inputs."""
+    """Return whether the stored daily brief still matches today's inputs.
+
+    Non-``daily_brief`` rows, legacy/manual rows without trusted generation
+    provenance, and rows without a valid dataset hash are treated as current.
+    The function returns ``False`` only when a runner-generated daily brief
+    has a definite dataset-hash mismatch against the current Today context.
+    """
     if row.insight_type != "daily_brief":
         return True
 
