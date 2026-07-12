@@ -123,6 +123,7 @@ def _current_daily_brief_hash(user_id: str, db: Session) -> str | None:
             "daily_brief",
             science_pillars=pillars,
         )
+        return current_hash
     except Exception:
         logger.exception(
             "Failed to validate daily_brief freshness for user=%s",

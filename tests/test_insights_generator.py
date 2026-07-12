@@ -258,7 +258,7 @@ def test_daily_brief_payload_includes_canonical_today_signal(monkeypatch):
     assert user_msg["today_signal"]["alternatives"] == ["Walk only"]
 
 
-def test_daily_brief_rejects_model_output_that_conflicts_with_rest_signal(monkeypatch):
+def test_daily_brief_rejects_conflicting_rest_signal(monkeypatch):
     bad = _valid_bilingual_response()
     bad["en"]["headline"] = "Recovered — do the planned threshold workout"
     bad["en"]["summary"] = "Ignore the caution flag and complete the hard session today."
