@@ -9,6 +9,22 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 
 
+
+def _stored_insight_meta(insight_type: str = "training_review") -> dict:
+    from db import session as db_session
+    from db.models import AiInsight
+
+    db = db_session.SessionLocal()
+    try:
+        row = db.query(AiInsight).filter(
+            AiInsight.user_id == "test-user-insights",
+            AiInsight.insight_type == insight_type,
+        ).one()
+        return dict(row.meta or {})
+    finally:
+        db.close()
+
+
 @pytest.fixture
 def insights_client(monkeypatch):
     """TestClient with a seeded user and JWT auth dependency-overridden."""
@@ -56,7 +72,7 @@ def insights_client(monkeypatch):
 
 def test_post_get_round_trip_with_translations(insights_client):
     body = {
-        "insight_type": "daily_brief",
+        "insight_type": "training_review",
         "headline": "Today: easy run",
         "summary": "HRV up; TSB +5.",
         "findings": [{"type": "positive", "text": "HRV trending up"}],
@@ -74,13 +90,48 @@ def test_post_get_round_trip_with_translations(insights_client):
     r = insights_client.post("/api/insights", json=body)
     assert r.status_code == 200, r.text
 
-    r = insights_client.get("/api/insights/daily_brief")
+    r = insights_client.get("/api/insights/training_review")
     assert r.status_code == 200
     payload = r.json()["insight"]
     assert payload["headline"] == "Today: easy run"
     assert payload["translations"]["zh"]["headline"] == "今日：轻松跑"
     assert payload["meta"]["dataset_hash"] == "abc123"
     assert payload["feedback_allowed"] is True
+
+
+def test_push_rejects_unknown_finding_type(insights_client):
+    body = {
+        "insight_type": "training_review",
+        "headline": "Volume up",
+        "summary": "Strong week.",
+        "findings": [{"type": "critical", "text": "Unsupported tone"}],
+        "recommendations": [],
+    }
+
+    response = insights_client.post("/api/insights", json=body)
+
+    assert response.status_code == 422
+
+
+def test_push_rejects_partial_translation_block(insights_client):
+    body = {
+        "insight_type": "training_review",
+        "headline": "Volume up",
+        "summary": "Strong week.",
+        "findings": [],
+        "recommendations": [],
+        "translations": {
+            "zh": {
+                "headline": "训练量上升",
+                "findings": [],
+                "recommendations": [],
+            },
+        },
+    }
+
+    response = insights_client.post("/api/insights", json=body)
+
+    assert response.status_code == 422
 
 
 def test_get_returns_empty_translations_when_legacy_row(insights_client):
@@ -100,10 +151,89 @@ def test_get_returns_empty_translations_when_legacy_row(insights_client):
     payload = r.json()["insight"]
     assert payload["translations"] == {}
 
+
+def test_daily_brief_is_permanently_suppressed(insights_client):
+    from db import session as db_session
+    from db.models import AiInsight
+
+    db = db_session.SessionLocal()
+    try:
+        db.add(AiInsight(
+            user_id="test-user-insights",
+            insight_type="daily_brief",
+            headline="Legacy generated advice",
+            summary="This persisted row must never render.",
+            findings=[],
+            recommendations=[],
+            meta={"dataset_hash": "a" * 64},
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+    direct = insights_client.get("/api/insights/daily_brief")
+    listed = insights_client.get("/api/insights")
+
+    assert direct.status_code == 200
+    assert direct.json() == {"insight": None}
+    assert "daily_brief" not in listed.json()["insights"]
+
+
+def test_daily_brief_push_and_feedback_are_rejected(insights_client):
+    body = {
+        "insight_type": "daily_brief",
+        "headline": "Contradict the canonical signal",
+        "summary": "This write path is retired.",
+        "findings": [],
+        "recommendations": [],
+        "meta": {"dataset_hash": "a" * 64},
+    }
+
+    pushed = insights_client.post("/api/insights", json=body)
+    feedback = insights_client.post(
+        "/api/insights/daily_brief/feedback",
+        json={"vote": "up", "dataset_hash": "a" * 64},
+    )
+
+    assert pushed.status_code == 410
+    assert pushed.json()["detail"] == "DAILY_BRIEF_DETERMINISTIC"
+    assert feedback.status_code == 410
+    assert feedback.json()["detail"] == "DAILY_BRIEF_DETERMINISTIC"
+
+def test_non_daily_insight_get_remains_available(insights_client):
+    body = {
+        "insight_type": "training_review",
+        "headline": "Volume up",
+        "summary": "Strong week.",
+        "findings": [],
+        "recommendations": [],
+    }
+    assert insights_client.post("/api/insights", json=body).status_code == 200
+
+    response = insights_client.get("/api/insights/training_review")
+    assert response.status_code == 200
+    assert response.json()["insight"]["headline"] == "Volume up"
+
+
+def test_non_daily_insight_list_remains_available(insights_client):
+    body = {
+        "insight_type": "training_review",
+        "headline": "Volume up",
+        "summary": "Strong week.",
+        "findings": [],
+        "recommendations": [],
+    }
+    assert insights_client.post("/api/insights", json=body).status_code == 200
+
+    response = insights_client.get("/api/insights")
+    assert response.status_code == 200
+    assert response.json()["insights"]["training_review"]["headline"] == "Volume up"
+
+
 DATASET_HASH = "a" * 64
 
 
-def _push_feedback_insight(client, *, insight_type="daily_brief", dataset_hash=DATASET_HASH):
+def _push_feedback_insight(client, *, insight_type="training_review", dataset_hash=DATASET_HASH):
     body = {
         "insight_type": insight_type,
         "headline": "A generated insight",
@@ -124,10 +254,10 @@ def test_demo_read_hides_feedback_controls(insights_client):
     from api.auth import get_current_user_id
     from api.main import app
 
-    _push_feedback_insight(insights_client)
+    _push_feedback_insight(insights_client, insight_type="training_review")
     app.dependency_overrides[get_current_user_id] = lambda: "demo-user"
 
-    response = insights_client.get("/api/insights/daily_brief")
+    response = insights_client.get("/api/insights/training_review")
     assert response.status_code == 200
     insight = response.json()["insight"]
     assert insight["feedback_allowed"] is False
@@ -143,7 +273,7 @@ def test_push_cannot_seed_feedback_and_preserves_server_vote_for_same_hash(
         lambda **kwargs: None,
     )
     submitted = insights_client.post(
-        "/api/insights/daily_brief/feedback",
+        "/api/insights/training_review/feedback",
         json={"vote": "up", "dataset_hash": DATASET_HASH},
     )
     assert submitted.status_code == 200
@@ -159,7 +289,7 @@ def test_push_cannot_seed_feedback_and_preserves_server_vote_for_same_hash(
         },
     }
     replacement = {
-        "insight_type": "daily_brief",
+        "insight_type": "training_review",
         "headline": "Regenerated",
         "summary": "Same data.",
         "findings": [],
@@ -167,8 +297,8 @@ def test_push_cannot_seed_feedback_and_preserves_server_vote_for_same_hash(
         "meta": malicious_meta,
     }
     assert insights_client.post("/api/insights", json=replacement).status_code == 200
-    same_hash = insights_client.get("/api/insights/daily_brief").json()["insight"]
-    assert same_hash["meta"]["feedback"]["vote"] == "up"
+    same_hash = _stored_insight_meta("training_review")
+    assert same_hash["feedback"]["vote"] == "up"
 
     replacement["meta"] = {
         **malicious_meta,
@@ -180,8 +310,8 @@ def test_push_cannot_seed_feedback_and_preserves_server_vote_for_same_hash(
         },
     }
     assert insights_client.post("/api/insights", json=replacement).status_code == 200
-    new_hash = insights_client.get("/api/insights/daily_brief").json()["insight"]
-    assert "feedback" not in new_hash["meta"]
+    new_hash = _stored_insight_meta("training_review")
+    assert "feedback" not in new_hash
 
 def test_submit_feedback_persists_version_state_without_comment(
     insights_client, monkeypatch,
@@ -194,7 +324,7 @@ def test_submit_feedback_persists_version_state_without_comment(
     )
 
     response = insights_client.post(
-        "/api/insights/daily_brief/feedback",
+        "/api/insights/training_review/feedback",
         json={
             "vote": "up",
             "dataset_hash": DATASET_HASH,
@@ -207,8 +337,7 @@ def test_submit_feedback_persists_version_state_without_comment(
     assert payload["duplicate"] is False
     assert payload["feedback"]["vote"] == "up"
 
-    insight = insights_client.get("/api/insights/daily_brief").json()["insight"]
-    stored = insight["meta"]["feedback"]
+    stored = _stored_insight_meta("training_review")["feedback"]
     assert stored["dataset_hash"] == DATASET_HASH
     assert stored["vote"] == "up"
     assert "comment" not in stored
@@ -221,7 +350,7 @@ def test_submit_feedback_ignores_client_controlled_telemetry_metadata(
     insights_client, monkeypatch,
 ):
     body = {
-        "insight_type": "daily_brief",
+        "insight_type": "training_review",
         "headline": "A generated insight",
         "summary": "Useful context.",
         "findings": [],
@@ -244,14 +373,14 @@ def test_submit_feedback_ignores_client_controlled_telemetry_metadata(
     )
 
     response = insights_client.post(
-        "/api/insights/daily_brief/feedback",
+        "/api/insights/training_review/feedback",
         json={"vote": "up", "dataset_hash": DATASET_HASH},
     )
 
     assert response.status_code == 200
     assert calls[0]["model"] == "unknown"
     assert calls[0]["pillars"] == {}
-    stored = insights_client.get("/api/insights/daily_brief").json()["insight"]
+    stored = insights_client.get("/api/insights/training_review").json()["insight"]
     assert "_generation_provenance" not in stored["meta"]
 
 
@@ -268,7 +397,7 @@ def test_submit_feedback_uses_server_generation_provenance(
     try:
         row = db.query(AiInsight).filter(
             AiInsight.user_id == "test-user-insights",
-            AiInsight.insight_type == "daily_brief",
+            AiInsight.insight_type == "training_review",
         ).one()
         row.meta = {
             **dict(row.meta or {}),
@@ -291,7 +420,7 @@ def test_submit_feedback_uses_server_generation_provenance(
         lambda **kwargs: calls.append(kwargs),
     )
     response = insights_client.post(
-        "/api/insights/daily_brief/feedback",
+        "/api/insights/training_review/feedback",
         json={"vote": "up", "dataset_hash": DATASET_HASH},
     )
 
@@ -319,13 +448,13 @@ def test_insight_writes_reject_inactive_account(insights_client, monkeypatch):
         lambda **kwargs: None,
     )
     feedback = insights_client.post(
-        "/api/insights/daily_brief/feedback",
+        "/api/insights/training_review/feedback",
         json={"vote": "up", "dataset_hash": DATASET_HASH},
     )
     pushed = insights_client.post(
         "/api/insights",
         json={
-            "insight_type": "daily_brief",
+            "insight_type": "training_review",
             "headline": "Late write",
             "summary": "Should be rejected.",
             "findings": [],
@@ -383,7 +512,7 @@ def test_concurrent_feedback_submissions_serialize_on_sqlite(
     with ThreadPoolExecutor(max_workers=2) as executor:
         responses = list(executor.map(
             lambda _: insights_client.post(
-                "/api/insights/daily_brief/feedback",
+                "/api/insights/training_review/feedback",
                 json=body,
             ),
             range(2),
@@ -405,8 +534,8 @@ def test_submit_feedback_is_idempotent_per_dataset_hash(insights_client, monkeyp
     )
     body = {"vote": "down", "dataset_hash": DATASET_HASH, "comment": None}
 
-    first = insights_client.post("/api/insights/daily_brief/feedback", json=body)
-    second = insights_client.post("/api/insights/daily_brief/feedback", json=body)
+    first = insights_client.post("/api/insights/training_review/feedback", json=body)
+    second = insights_client.post("/api/insights/training_review/feedback", json=body)
 
     assert first.status_code == 200
     assert second.status_code == 200
@@ -425,7 +554,7 @@ def test_feedback_idempotency_survives_dataset_regeneration(
     )
     _push_feedback_insight(insights_client, dataset_hash="a" * 64)
     first = insights_client.post(
-        "/api/insights/daily_brief/feedback",
+        "/api/insights/training_review/feedback",
         json={"vote": "up", "dataset_hash": "a" * 64},
     )
     assert first.status_code == 200
@@ -433,11 +562,11 @@ def test_feedback_idempotency_survives_dataset_regeneration(
 
     _push_feedback_insight(insights_client, dataset_hash="b" * 64)
     _push_feedback_insight(insights_client, dataset_hash="a" * 64)
-    restored = insights_client.get("/api/insights/daily_brief").json()["insight"]
-    assert restored["meta"]["feedback"]["vote"] == "up"
+    restored = _stored_insight_meta("training_review")
+    assert restored["feedback"]["vote"] == "up"
 
     repeated = insights_client.post(
-        "/api/insights/daily_brief/feedback",
+        "/api/insights/training_review/feedback",
         json={"vote": "down", "dataset_hash": "a" * 64},
     )
     assert repeated.status_code == 200
@@ -449,14 +578,14 @@ def test_feedback_idempotency_survives_dataset_regeneration(
 def test_submit_feedback_rejects_stale_or_unversioned_insight(insights_client):
     _push_feedback_insight(insights_client)
     stale = insights_client.post(
-        "/api/insights/daily_brief/feedback",
+        "/api/insights/training_review/feedback",
         json={"vote": "up", "dataset_hash": "b" * 64},
     )
     assert stale.status_code == 409
     assert stale.json()["detail"] == "INSIGHT_FEEDBACK_STALE"
 
     legacy = {
-        "insight_type": "training_review",
+        "insight_type": "race_forecast",
         "headline": "Legacy",
         "summary": "No hash.",
         "findings": [],
@@ -464,7 +593,7 @@ def test_submit_feedback_rejects_stale_or_unversioned_insight(insights_client):
     }
     assert insights_client.post("/api/insights", json=legacy).status_code == 200
     unversioned = insights_client.post(
-        "/api/insights/training_review/feedback",
+        "/api/insights/race_forecast/feedback",
         json={"vote": "down", "dataset_hash": DATASET_HASH},
     )
     assert unversioned.status_code == 409
@@ -474,7 +603,7 @@ def test_submit_feedback_rejects_stale_or_unversioned_insight(insights_client):
 def test_submit_feedback_validates_comment_and_missing_row(insights_client):
     _push_feedback_insight(insights_client)
     too_long = insights_client.post(
-        "/api/insights/daily_brief/feedback",
+        "/api/insights/training_review/feedback",
         json={"vote": "up", "dataset_hash": DATASET_HASH, "comment": "x" * 201},
     )
     assert too_long.status_code == 422
@@ -499,8 +628,8 @@ def test_submit_feedback_rate_limits_duplicate_requests(insights_client, monkeyp
     )
     body = {"vote": "up", "dataset_hash": DATASET_HASH}
 
-    first = insights_client.post("/api/insights/daily_brief/feedback", json=body)
-    duplicate = insights_client.post("/api/insights/daily_brief/feedback", json=body)
+    first = insights_client.post("/api/insights/training_review/feedback", json=body)
+    duplicate = insights_client.post("/api/insights/training_review/feedback", json=body)
 
     assert first.status_code == 200
     assert duplicate.status_code == 429
@@ -512,7 +641,7 @@ def test_submit_feedback_requires_current_authenticated_user(insights_client):
 
     app.dependency_overrides.pop(get_current_user_id)
     response = insights_client.post(
-        "/api/insights/daily_brief/feedback",
+        "/api/insights/training_review/feedback",
         json={"vote": "up", "dataset_hash": DATASET_HASH},
     )
     assert response.status_code == 401
