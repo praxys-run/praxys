@@ -219,3 +219,20 @@ def test_daily_brief_hash_changes_when_planned_today_changes():
     }}
     h_threshold = compute_dataset_hash(threshold, "daily_brief", science_pillars=PILLARS)
     assert h_easy != h_threshold
+
+
+def test_daily_brief_hash_changes_when_today_signal_changes():
+    """Canonical Today-verdict changes must invalidate the cached daily brief."""
+    rest = _ctx_daily(today_signal={
+        "recommendation": "rest",
+        "reason": "Recovery first.",
+        "alternatives": ["Walk only"],
+    })
+    follow_plan = _ctx_daily(today_signal={
+        "recommendation": "follow_plan",
+        "reason": "Recovered.",
+        "alternatives": [],
+    })
+
+    assert compute_dataset_hash(rest, "daily_brief", science_pillars=PILLARS) != \
+           compute_dataset_hash(follow_plan, "daily_brief", science_pillars=PILLARS)

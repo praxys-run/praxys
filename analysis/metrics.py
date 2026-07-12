@@ -506,7 +506,7 @@ def daily_training_signal(
             rec = "rest"
             reason = "HRV is below your personal threshold (Kiviniemi). Autonomic recovery incomplete."
             alternatives = [
-                f"Shift {planned_workout} to tomorrow if possible",
+                "Make today a full recovery day and reassess the hard session tomorrow",
                 "If you must move, walk 30 min only",
             ]
         else:

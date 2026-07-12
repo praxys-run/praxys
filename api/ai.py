@@ -138,6 +138,11 @@ def _build_context_from_data(data: dict, *, user_id: str | None = None, db=None)
         "hrv_trend_pct": recovery.get("hrv_trend_pct"),
         "sleep_score": recovery.get("sleep_score"),
     }
+    today_signal = {
+        "recommendation": signal.get("recommendation"),
+        "reason": signal.get("reason"),
+        "alternatives": signal.get("alternatives") or [],
+    }
 
     # -- Current plan --
     # `current_plan`: today + future entries, used by surfaces that need a
@@ -167,6 +172,7 @@ def _build_context_from_data(data: dict, *, user_id: str | None = None, db=None)
         "current_fitness": current_fitness,
         "recent_training": recent_training,
         "recovery_state": recovery_state,
+        "today_signal": today_signal,
         "current_plan": current_plan,
         "planned_today": planned_today,
     }

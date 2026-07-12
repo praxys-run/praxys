@@ -218,6 +218,29 @@ class TestPlannedTodayContext:
         assert ctx["planned_today"] is None
         assert ctx["current_plan"] == []
 
+    def test_today_signal_is_carried_into_context(self, monkeypatch):
+        """Daily brief context should include the canonical Today verdict."""
+        from api.ai import _build_context_from_data
+        from analysis.config import UserConfig
+
+        cfg = UserConfig()
+        monkeypatch.setattr("api.ai.load_config", lambda: cfg)
+
+        data = self._empty_data([])
+        data["signal"] = {
+            "recommendation": "rest",
+            "reason": "Recovery first.",
+            "alternatives": ["Walk only"],
+        }
+
+        ctx = _build_context_from_data(data)
+
+        assert ctx["today_signal"] == {
+            "recommendation": "rest",
+            "reason": "Recovery first.",
+            "alternatives": ["Walk only"],
+        }
+
 
 # ---------------------------------------------------------------------------
 # AiPlanProvider tests

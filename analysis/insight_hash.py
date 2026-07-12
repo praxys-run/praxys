@@ -60,6 +60,7 @@ def compute_dataset_hash(
             "tsb": _round(cf.get("tsb"), 0.5),
             "atl": _round(cf.get("atl"), 0.5),
             "ctl": _round(cf.get("ctl"), 0.5),
+            "today_signal": _project_today_signal(context.get("today_signal")),
             "planned_today": _project_plan_entry(context.get("planned_today")),
             "pillars": pillar_set,
         }
@@ -152,4 +153,15 @@ def _project_plan_entry(entry: Any) -> Any:
         "planned_distance_km": _round(entry.get("planned_distance_km"), 0.5),
         "target_power_min": _bucket(entry.get("target_power_min"), 10),
         "target_power_max": _bucket(entry.get("target_power_max"), 10),
+    }
+
+
+def _project_today_signal(entry: Any) -> Any:
+    """Keep only the Today-signal fields that materially anchor the brief."""
+    if not isinstance(entry, dict):
+        return None
+    return {
+        "recommendation": entry.get("recommendation"),
+        "reason": entry.get("reason"),
+        "alternatives": list(entry.get("alternatives") or []),
     }

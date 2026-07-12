@@ -80,6 +80,20 @@ def test_daily_training_signal_rest():
     assert "hrv" in signal["reason"].lower()
 
 
+def test_daily_training_signal_rest_keeps_alternatives_rest_compatible():
+    """Fatigued + hard workout must not pair a rest verdict with do-it-today advice."""
+    series = _make_hrv_series(50.0, 30)
+    analysis = analyze_recovery(series, today_hrv_ms=30.0)  # fatigued
+
+    signal = daily_training_signal(analysis, tsb=-10, planned_workout="long")
+
+    assert signal["recommendation"] == "rest"
+    assert signal["alternatives"] == [
+        "Make today a full recovery day and reassess the hard session tomorrow",
+        "If you must move, walk 30 min only",
+    ]
+
+
 def test_daily_training_signal_follow_plan():
     series = _make_hrv_series(50.0, 30)
     analysis = analyze_recovery(series, today_hrv_ms=60.0, today_sleep=85)  # fresh

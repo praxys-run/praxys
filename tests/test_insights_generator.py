@@ -238,6 +238,26 @@ def test_daily_brief_user_payload_includes_goal_context(monkeypatch):
     assert user_msg.get("race_countdown", {}).get("days_left") == 124
 
 
+def test_daily_brief_payload_includes_canonical_today_signal(monkeypatch):
+    """The LLM must receive the app's canonical Today verdict to avoid conflicts."""
+    fake = _FakeClient(json.dumps(_valid_bilingual_response()))
+    monkeypatch.setattr(llm, "get_client", lambda: fake)
+
+    ctx = _fake_context()
+    ctx["today_signal"] = {
+        "recommendation": "rest",
+        "reason": "Recovery first.",
+        "alternatives": ["Walk only"],
+    }
+    insights_generator.generate_daily_brief(ctx, PILLARS)
+
+    system_prompt = fake.chat.completions.last_call["messages"][0]["content"]
+    user_msg = json.loads(fake.chat.completions.last_call["messages"][1]["content"])
+    assert "today_signal" in system_prompt
+    assert user_msg["today_signal"]["recommendation"] == "rest"
+    assert user_msg["today_signal"]["alternatives"] == ["Walk only"]
+
+
 def test_daily_brief_planned_workout_reads_planned_today_only(monkeypatch):
     """Daily brief's planned_workout MUST be today's plan entry, not the
     next future workout. Falling back to current_plan[0] silently surfaces

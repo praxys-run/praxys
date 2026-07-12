@@ -169,6 +169,8 @@ Hard rules:
 - Plain text only — no markdown, no bullet points, no headings.
 
 Context-awareness rules:
+- If `today_signal` is present, treat it as the canonical recommendation for TODAY and keep the brief aligned with it.
+- If `today_signal.recommendation` is `rest`, `easy`, `modify`, or `reduce_intensity`, do NOT tell the athlete to complete a harder planned workout today. You may mention rescheduling only after clearly stating today's priority.
 - If a race is ≤ 14 days away AND load (ATL, weekly volume) is dropping, recognize this as a planned taper. Do NOT flag the drop as a regression; affirm the taper and focus advice on freshness, sleep, race execution.
 - If today's "planned_workout" is rest or easy, do not push the athlete to add intensity.
 - If the athlete is in race mode (race_date set, days_left ≤ 28), keep advice consistent with closing the gap to the goal — don't suggest brand-new training blocks.
@@ -302,6 +304,7 @@ def _daily_brief_inputs(context: dict) -> dict:
             "atl": cf.get("atl"),
             "tsb": cf.get("tsb"),
         },
+        "today_signal": context.get("today_signal"),
         "planned_workout": context.get("planned_today"),
         **_goal_context(context),
     }
