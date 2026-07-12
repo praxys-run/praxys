@@ -181,9 +181,9 @@ def _run(db: Session, user_id: str) -> dict:
             .filter(AiInsight.user_id == user_id, AiInsight.insight_type == itype)
             .first()
         )
-        freshness_matches = not (
-            itype == "daily_brief"
-            and not is_current_daily_brief_freshness(
+        freshness_matches = (
+            itype != "daily_brief"
+            or is_current_daily_brief_freshness(
                 existing.meta if existing is not None else None,
                 daily_brief_freshness,
             )

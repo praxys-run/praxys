@@ -279,7 +279,9 @@ def test_daily_brief_rejects_conflicting_rest_signal(monkeypatch):
     assert insights_generator.generate_daily_brief(ctx, PILLARS) is None
 
 
-def test_daily_brief_rejects_rest_signal_bypass_phrase(monkeypatch):
+def test_daily_brief_rejects_rest_signal_even_with_bypass_phrase(monkeypatch):
+    """Restrictive Today verdicts now fall back deterministically instead of
+    attempting any token-based semantic proof from model prose."""
     bad = _valid_bilingual_response()
     bad["en"]["summary"] = "Take a recovery walk, then complete the threshold workout."
     bad["en"]["findings"] = [

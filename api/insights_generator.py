@@ -401,6 +401,12 @@ _RESTRICTIVE_TODAY_RECOMMENDATIONS = {
     "modify",
     "reduce_intensity",
 }
+_RESTRICTIVE_FALLBACK_REASONS = {
+    "rest": "today_signal_rest_fallback",
+    "easy": "today_signal_easy_fallback",
+    "modify": "today_signal_modify_fallback",
+    "reduce_intensity": "today_signal_reduce_intensity_fallback",
+}
 
 
 def _validate_daily_brief_alignment(raw: dict[str, Any], context: dict) -> tuple[bool, str]:
@@ -417,7 +423,7 @@ def _validate_daily_brief_alignment(raw: dict[str, Any], context: dict) -> tuple
     recommendation = today_signal.get("recommendation")
     if recommendation not in _RESTRICTIVE_TODAY_RECOMMENDATIONS:
         return True, "ok"
-    return False, f"today_signal_{recommendation}_fallback"
+    return False, _RESTRICTIVE_FALLBACK_REASONS[recommendation]
 
 
 def _log_rejection(insight_type: str, reason: str, raw: Any) -> None:

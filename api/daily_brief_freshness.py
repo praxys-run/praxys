@@ -13,12 +13,12 @@ DAILY_BRIEF_FRESHNESS_KEY = "daily_brief_freshness"
 def build_daily_brief_freshness_meta(
     context: dict,
     science_pillars: dict[str, str] | None,
-    *,
-    for_date: date,
+    for_date: date | None = None,
 ) -> dict[str, str]:
     """Build the server-owned freshness payload for a daily brief."""
+    effective_date = for_date or date.today()
     return {
-        "for_date": for_date.isoformat(),
+        "for_date": effective_date.isoformat(),
         "today_hash": compute_dataset_hash(
             context,
             "daily_brief",
