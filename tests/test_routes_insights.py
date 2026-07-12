@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 
 
-def _raise_if_called(*_args, **_kwargs):
+def _fail_if_invoked(*_args, **_kwargs):
     raise AssertionError("should not be called")
 
 
@@ -218,7 +218,7 @@ def test_non_daily_insight_get_does_not_build_daily_freshness(insights_client, m
     assert insights_client.post("/api/insights", json=body).status_code == 200
     monkeypatch.setattr(
         "api.routes.insights._current_daily_brief_freshness",
-        _raise_if_called,
+        _fail_if_invoked,
     )
 
     response = insights_client.get("/api/insights/training_review")
@@ -240,7 +240,7 @@ def test_non_daily_insight_list_does_not_build_daily_freshness_without_daily_bri
     assert insights_client.post("/api/insights", json=body).status_code == 200
     monkeypatch.setattr(
         "api.routes.insights._current_daily_brief_freshness",
-        _raise_if_called,
+        _fail_if_invoked,
     )
 
     response = insights_client.get("/api/insights")

@@ -303,12 +303,12 @@ def test_daily_brief_rejects_rest_signal_bypass_phrase(monkeypatch):
 
 
 def test_daily_brief_rejects_modify_signal_continue_as_planned(monkeypatch):
-    bad = _valid_bilingual_response()
-    bad["en"]["headline"] = "Modify today, but continue as planned"
-    bad["en"]["recommendations"] = ["Continue as planned"]
-    bad["zh"]["headline"] = "今天需调整，但按计划完成"
-    bad["zh"]["recommendations"] = ["按计划完成"]
-    fake = _FakeClient(json.dumps(bad))
+    invalid_response = _valid_bilingual_response()
+    invalid_response["en"]["headline"] = "Modify today, but continue as planned"
+    invalid_response["en"]["recommendations"] = ["Continue as planned"]
+    invalid_response["zh"]["headline"] = "今天需调整，但按计划完成"
+    invalid_response["zh"]["recommendations"] = ["按计划完成"]
+    fake = _FakeClient(json.dumps(invalid_response))
     monkeypatch.setattr(llm, "get_client", lambda: fake)
 
     ctx = _fake_context()

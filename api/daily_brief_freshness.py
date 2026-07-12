@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any
 
 from analysis.insight_hash import compute_dataset_hash
 from api.insight_feedback import is_dataset_hash
+from sqlalchemy.orm import Session
 
 DAILY_BRIEF_FRESHNESS_KEY = "daily_brief_freshness"
 
@@ -27,7 +27,7 @@ def build_daily_brief_freshness_meta(
     }
 
 
-def compute_current_daily_brief_freshness(user_id: str, db: Any) -> dict[str, str]:
+def compute_current_daily_brief_freshness(user_id: str, db: Session) -> dict[str, str]:
     """Compute the current daily-brief freshness state via the lightweight Today path.
 
     Returns a server-owned dict with:

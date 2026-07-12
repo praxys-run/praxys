@@ -181,19 +181,21 @@ def _run(db: Session, user_id: str) -> dict:
             .filter(AiInsight.user_id == user_id, AiInsight.insight_type == itype)
             .first()
         )
-        if existing is not None and (existing.meta or {}).get("dataset_hash") == new_hash:
-            if (
-                itype == "daily_brief"
-                and not is_current_daily_brief_freshness(
-                    existing.meta,
-                    daily_brief_freshness,
-                )
-            ):
-                pass
-            else:
-                results[itype] = "hash_match"
+        freshness_matches = not (
+            itype == "daily_brief"
+            and not is_current_daily_brief_freshness(
+                existing.meta if existing is not None else None,
+                daily_brief_freshness,
+            )
+        )
+        if (
+            existing is not None
+            and (existing.meta or {}).get("dataset_hash") == new_hash
+            and freshness_matches
+        ):
+            results[itype] = "hash_match"
 
-                continue
+            continue
         if used_today + len(pending) >= cap:
             results[itype] = "cap_reached"
 
