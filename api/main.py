@@ -62,7 +62,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy.orm import Session
 
-from api.auth import get_current_user_id, require_write_access
+from api.auth import (
+    get_current_user_id,
+    require_account_deletion_access,
+    require_write_access,
+)
 from api.env_compat import getenv_compat
 from api.legal import TERMS_VERSION
 from api.version import get_api_version
@@ -202,10 +206,10 @@ from api.routes.feedback import router as feedback_router
 app.include_router(feedback_router, prefix="/api", tags=["feedback"])
 
 # Data routes
-from api.routes import today, training, goal, history, plan, settings, sync, science, insights, status
+from api.routes import today, training, goal, history, plan, settings, sync, science, insights, product_events, status
 from api.routes import ai as ai_routes
 
-for router_module in [today, training, goal, history, plan, settings, sync, science, ai_routes, insights, status]:
+for router_module in [today, training, goal, history, plan, settings, sync, science, ai_routes, insights, product_events, status]:
     app.include_router(router_module.router, prefix="/api")
 
 
@@ -300,7 +304,7 @@ def get_me(
 
 @app.delete("/api/me")
 def delete_me(
-    user_id: str = Depends(require_write_access),
+    user_id: str = Depends(require_account_deletion_access),
     db: Session = Depends(get_db),
 ) -> dict:
     """Delete the authenticated user account and all owned data."""

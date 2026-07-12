@@ -1,0 +1,52 @@
+<view class="insight-feedback">
+  <view wx:if="{{sent}}" class="insight-feedback__sent font-data" role="status">
+    <text aria-hidden="true">✓</text>
+    <text>{{tr.sent}}</text>
+  </view>
+  <block wx:else>
+    <view class="insight-feedback__toolbar">
+      <text class="insight-feedback__question">{{tr.question}}</text>
+      <view class="insight-feedback__votes" role="group" aria-label="{{tr.question}}">
+        <button
+          class="insight-feedback__vote {{selectedVote === 'up' ? 'is-selected' : ''}}"
+          aria-label="{{tr.helpful}}"
+          aria-pressed="{{selectedVote === 'up'}}"
+          disabled="{{submitting || stale}}"
+          bindtap="onHelpful"
+        >{{tr.helpful}}</button>
+        <button
+          class="insight-feedback__vote {{selectedVote === 'down' ? 'is-selected' : ''}}"
+          aria-label="{{tr.notHelpful}}"
+          aria-pressed="{{selectedVote === 'down'}}"
+          disabled="{{submitting || stale}}"
+          bindtap="onNotHelpful"
+        >{{tr.notHelpful}}</button>
+      </view>
+    </view>
+    <view wx:if="{{formOpen}}" class="insight-feedback__form">
+      <textarea
+        class="insight-feedback__comment"
+        value="{{comment}}"
+        maxlength="200"
+        auto-height
+        placeholder="{{tr.commentPlaceholder}}"
+        disabled="{{submitting || stale}}"
+        bindinput="onCommentInput"
+      ></textarea>
+      <view class="insight-feedback__footer">
+        <text class="insight-feedback__count font-data">{{commentLength}}/200</text>
+        <button
+          class="insight-feedback__cancel"
+          disabled="{{submitting}}"
+          bindtap="onCancel"
+        >{{tr.cancel}}</button>
+        <button
+          class="insight-feedback__send"
+          disabled="{{submitting || stale || !selectedVote}}"
+          bindtap="onSubmit"
+        >{{submitting ? tr.sending : tr.send}}</button>
+      </view>
+      <text wx:if="{{error}}" class="insight-feedback__error" role="alert">{{error}}</text>
+    </view>
+  </block>
+</view>

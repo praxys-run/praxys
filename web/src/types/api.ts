@@ -564,17 +564,85 @@ export interface AiInsightTranslation {
   recommendations: string[];
 }
 
+export type InsightFeedbackVote = 'up' | 'down';
+
+export interface AiInsightFeedbackState {
+  dataset_hash: string;
+  vote: InsightFeedbackVote;
+  submitted_at: string;
+}
+
+export interface AiInsightMeta extends Record<string, unknown> {
+  dataset_hash?: string;
+  model?: string;
+  pillars?: Record<string, string>;
+  feedback?: AiInsightFeedbackState;
+}
+
+export interface InsightFeedbackRequest {
+  vote: InsightFeedbackVote;
+  dataset_hash: string;
+  comment?: string | null;
+}
+
+export interface InsightFeedbackResponse {
+  accepted: boolean;
+  duplicate: boolean;
+  feedback: AiInsightFeedbackState;
+}
+
+export type ProductEventName =
+  | 'app_opened'
+  | 'today_brief_rendered'
+  | 'today_reasoning_opened'
+  | 'today_feedback_shown'
+  | 'today_feedback_submitted';
+
+export type TodayFeedbackResponse =
+  | 'changed_plan'
+  | 'confirmed_plan'
+  | 'not_helpful'
+  | 'not_training';
+
+export type NonDecisionProductEventName = Exclude<
+  ProductEventName,
+  'today_feedback_submitted'
+>;
+
+export type ProductEventRequest =
+  | {
+      event_name: NonDecisionProductEventName;
+      surface: 'web' | 'miniapp';
+      app_version: string;
+      response?: null;
+    }
+  | {
+      event_name: 'today_feedback_submitted';
+      surface: 'web' | 'miniapp';
+      app_version: string;
+      response: TodayFeedbackResponse;
+    };
+
+export interface ProductEventResponse {
+  accepted: boolean;
+  duplicate: boolean;
+}
 export interface AiInsight {
   headline: string;
   summary: string;
   findings: AiInsightFinding[];
   recommendations: string[];
-  meta: Record<string, unknown>;
+  meta: AiInsightMeta;
   generated_at: string | null;
+  feedback_allowed: boolean;
   // Issue #103: optional bilingual payload. The backend writes
   // ``translations.zh`` for LLM-generated rows; the frontend prefers the
   // current locale's block and falls back to the top-level English fields.
   translations?: Partial<Record<'zh' | 'en', AiInsightTranslation>>;
+}
+
+export interface AiInsightResponse {
+  insight: AiInsight | null;
 }
 
 export type AiInsightsResponse = {

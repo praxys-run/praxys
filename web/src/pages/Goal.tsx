@@ -97,7 +97,7 @@ interface StripCell {
   tone?: StripTone;
 }
 
-function TrajectoryGoal({ data }: { data: GoalResponse }) {
+function TrajectoryGoal({ data, onFeedbackStale }: { data: GoalResponse; onFeedbackStale: () => void }) {
   const { t, i18n } = useLingui();
   const predictionNote = usePredictionNote();
   const ultraNote = useUltraNote();
@@ -336,6 +336,7 @@ function TrajectoryGoal({ data }: { data: GoalResponse }) {
             insightType="race_forecast"
             attribution={attribution}
             fallback={rCheck.trend_note ? { headline: rCheck.trend_note } as CoachFallback : undefined}
+            onFeedbackStale={onFeedbackStale}
           />
         </div>
       </div>
@@ -457,7 +458,7 @@ export default function Goal() {
         />
       )}
 
-      {data && <TrajectoryGoal data={data} />}
+      {data && <TrajectoryGoal data={data} onFeedbackStale={refetch} />}
     </div>
   );
 }

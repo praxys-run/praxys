@@ -7,7 +7,7 @@ interface UseApiResult<T> {
   data: T | null;
   loading: boolean;
   error: string | null;
-  refetch: () => void;
+  refetch: () => Promise<void>;
 }
 
 interface UseApiOptions {
@@ -77,6 +77,6 @@ export function useApi<T>(url: string, options?: UseApiOptions): UseApiResult<T>
     data: data ?? null,
     loading: isLoading,
     error: error?.message ?? null,
-    refetch: () => { refetch(); },
+    refetch: async () => { await refetch(); },
   };
 }

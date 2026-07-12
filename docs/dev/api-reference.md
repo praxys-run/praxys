@@ -780,6 +780,98 @@ Trigger sync for a single source (garmin, stryd, oura). Runs in background.
 
 Trigger sync for all configured sources.
 
+## Insights and product events
+
+### POST /api/insights/{insight_type}/feedback
+
+Submit one vote for the exact generated Coach insight the authenticated user saw.
+Uses the current user's id (not demo-source data) and accepts
+`daily_brief`, `training_review`, or `race_forecast`.
+
+**Request body:**
+```json
+{
+  "vote": "up",
+  "dataset_hash": "64-character SHA-256 hex digest",
+  "comment": "Optional, at most 200 characters"
+}
+```
+
+The current row's `meta.dataset_hash` must match. One submission is accepted per
+`(user, insight_type, dataset_hash)`; repeats return `duplicate: true`, even if
+that dataset disappears during regeneration and later becomes current again.
+The durable `ai_insight_feedback` row and current `AiInsight.meta.feedback`
+contain only `dataset_hash`, `vote`, and `submitted_at`. The raw comment is not
+persisted; telemetry receives a scrubbed 120-character excerpt.
+`GET /api/insights/{insight_type}` also returns server-derived
+`feedback_allowed`; it is `false` for read-only demo views, where clients must
+hide feedback controls.
+
+**Response:**
+```json
+{
+  "accepted": true,
+  "duplicate": false,
+  "feedback": {
+    "dataset_hash": "...",
+    "vote": "up",
+    "submitted_at": "2026-07-12T08:30:00+00:00"
+  }
+}
+```
+
+Errors: `404 INSIGHT_NOT_FOUND`, `409 INSIGHT_FEEDBACK_UNVERSIONED`,
+`409 INSIGHT_FEEDBACK_STALE`, `429 INSIGHT_FEEDBACK_RATE_LIMITED`.
+
+### POST /api/product-events/today-feedback-claim
+
+Reserve the account's Today Decision Check while the client renders it. The
+request has no body and returns `{ "accepted": true, "duplicate": false }` when
+the prompt may render. A duplicate response means another client has a recent
+claim or the prompt was shown within the rolling seven-day cadence. Unconfirmed
+claims stop blocking competing renders after two minutes and do not count as
+prompt exposure unless a later submission backfills the lost confirmation.
+
+After rendering, the client confirms exposure with `today_feedback_shown` on
+`POST /api/product-events`.
+
+### POST /api/product-events
+
+Record an authenticated, privacy-safe product event from web or miniapp. The
+server derives `user_id_hash` and timestamp. Extra fields are rejected.
+`app_version` must be `develop`, a release CalVer (`YYYY.MM.MICRO`), or an
+auto-deploy build (`YYYY.MM.DD.RUN-abcdef0`). Other free-form strings are
+rejected so secrets cannot be smuggled into telemetry dimensions.
+
+**Request body:**
+```json
+{
+  "event_name": "today_feedback_submitted",
+  "surface": "miniapp",
+  "app_version": "2026.07.1",
+  "response": "confirmed_plan"
+}
+```
+
+Allowed events: `app_opened`, `today_brief_rendered`,
+`today_reasoning_opened`, `today_feedback_shown`, and
+`today_feedback_submitted`. `response` is required only for the submission event
+and must be one of `changed_plan`, `confirmed_plan`, `not_helpful`, or
+`not_training`.
+
+**Response:** `{ "accepted": true, "duplicate": false }`. Identical lifecycle
+events are short-window deduplicated. `today_feedback_shown` confirms a recent
+render claim and persists the account-wide seven-day cadence. The first
+`today_feedback_submitted` is accepted for a claimed or confirmed prompt
+within that seven-day cadence. The two-minute lease limits competing renders;
+it does not invalidate a prompt already visible to the user. A submission can
+backfill a lost render confirmation, while later answers return
+`duplicate: true`.
+
+Errors: `409 PRODUCT_EVENT_PROMPT_NOT_CLAIMED`,
+`409 PRODUCT_EVENT_PROMPT_NOT_RENDERED`, and
+`429 PRODUCT_EVENT_RATE_LIMITED` after 60 requests per user per minute.
+
 ## Health
 
 ### GET /api/health

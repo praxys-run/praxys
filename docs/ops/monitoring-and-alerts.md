@@ -10,15 +10,18 @@
 The backend ships traces, request/dependency timings, and Python logs to
 **Application Insights** automatically when `APPLICATIONINSIGHTS_CONNECTION_STRING`
 is set (it is in prod; on App Service the app authenticates via its managed
-identity — see `api/main.py`). No PII is emitted in custom signals — only
-low-cardinality dimensions.
+identity — see `api/main.py`). Raw user ids are never emitted: custom signals use
+a SHA-256 pseudonym. Product events carry only allowlisted enums and build/surface
+metadata. The one free-text field, an optional Coach-feedback comment, is
+PII/secret-scrubbed, whitespace-collapsed, and truncated to 120 characters before
+it reaches telemetry; the raw comment is never persisted or logged.
 
 Custom signals are emitted by `api/telemetry.py`. Each lands as either:
-- a **customEvent** with that name (when the optional
-  `azure-monitor-events-extension` is installed), **or**
-- a **customMetric** counter with that name (the default).
+- a **customEvent** with that name through the required
+  `azure-monitor-events-extension` runtime dependency, **or**
+- a **customMetric** counter when the extension is unavailable at runtime.
 
-Queries below `union` both shapes so they work either way.
+Queries below `union` both shapes so they remain valid during fallback.
 
 ## Signals
 
@@ -27,6 +30,8 @@ Queries below `union` both shapes so they work either way.
 | `praxys.coach_tokens` | `insight_type`, `model`, `token_type` | Azure OpenAI tokens consumed (spend) | `record_coach_tokens` |
 | `praxys.coach_run` | `insight_type`, `status`, `user_id_hash` | Insight-runner outcomes (cache hit rate) | `record_coach_run` |
 | `praxys.coach_error` | `error_class` | Operator-actionable Coach errors (Auth/BadRequest) | `record_coach_error` |
+| `praxys.coach_feedback` | `insight_type`, `dataset_hash`*, `model`, `pillars`*, `vote`, `has_comment`, `comment_length`*, `comment_excerpt`*, `user_id_hash` | Dataset-scoped feedback on generated Coach insights. `*` customEvent only; the metric fallback omits high-cardinality fields. | `record_coach_feedback` |
+| `praxys.product_event` | `event_name`, `surface`, `app_version`, `response`, `user_id_hash` | Authenticated app/Today exposure, reasoning, and Decision Check events | `record_product_event` |
 | `praxys.feedback` | `kind`, `status` | In-app feedback submissions + triage outcomes | `record_feedback` |
 | `praxys.db_health` | `status`, `backend` | DB integrity/connectivity failures (startup check + readiness probe) | `record_db_health` |
 | `praxys.sync` | `platform`, `outcome`, `failure_class`, `trigger`, `user_id_hash` | Per-platform sync attempt outcomes (success/failure + why) | `record_sync` |
@@ -81,6 +86,156 @@ pageViews
 | summarize dau = dcount(user_AuthenticatedId) by bin(timestamp, 1d)
 | render timechart
 ```
+
+### Today value and Coach feedback
+
+`praxys.product_event` is emitted by both clients through the authenticated
+`POST /api/product-events` endpoint. The server supplies the timestamp and user
+pseudonym; clients may send only the documented event/response enums — never
+health values, recommendation prose, email, OpenID, or raw ids. Because browser
+RUM currently shares the App Insights resource, these analytics are directional
+product signals rather than tamper-resistant audit or billing data; production
+should use a separate backend-only telemetry resource before treating them as
+adversarially trustworthy.
+
+Clients first reserve a two-minute render window through
+`POST /api/product-events/today-feedback-claim`. After the prompt is onscreen,
+`today_feedback_shown` confirms the claim and stores the cadence timestamp on
+`user_config.today_decision_check_shown_at`. This prevents competing web,
+miniapp, device, or worker claims without counting abandoned/lost requests as
+prompt exposure. Unconfirmed claims expire and emit no product event. A valid
+Decision Check submission can finalize a claim within the seven-day cadence if
+the separate render confirmation was lost, even after the two-minute
+competition lease expires. The backend then emits the missing shown event
+before the submission and accepts no second answer for that prompt. Clients
+also persist account-scoped local cadence as soon as the prompt renders, so a
+lost confirmation cannot cause repeated prompts on the same device; the
+confirmed server timestamp remains the cross-device authority.
+
+Today reach and Decision Check response rate by surface:
+```kql
+let product_events = union isfuzzy=true
+  (customEvents
+    | where name == "praxys.product_event"
+    | project timestamp,
+        event_name=tostring(customDimensions.event_name),
+        surface=tostring(customDimensions.surface),
+        response=tostring(customDimensions.response),
+        user=tostring(customDimensions.user_id_hash), events=1.0),
+  (customMetrics
+    | where name == "praxys.product_event"
+    | project timestamp,
+        event_name=tostring(customDimensions.event_name),
+        surface=tostring(customDimensions.surface),
+        response=tostring(customDimensions.response),
+        user=tostring(customDimensions.user_id_hash), events=todouble(valueSum));
+product_events
+| where timestamp > ago(28d)
+| summarize app_users=dcountif(user, event_name == "app_opened"),
+    today_users=dcountif(user, event_name == "today_brief_rendered"),
+    prompts=sumif(events, event_name == "today_feedback_shown"),
+    responses=sumif(events, event_name == "today_feedback_submitted")
+    by bin(timestamp, 7d), surface
+| extend today_reach_rate=iif(app_users > 0, todouble(today_users) / app_users, real(null)),
+    response_rate=iif(prompts > 0, responses / prompts, real(null))
+| order by timestamp asc, surface asc
+```
+
+Compare `today_users` with `app_users` here and with the broad WAU reported by
+Admin Usage. Broad WAU still means any authenticated activity; it is context,
+not evidence that Today delivered value.
+
+Repeated Today use across distinct weeks:
+```kql
+let product_events = union isfuzzy=true
+  (customEvents | where name == "praxys.product_event"
+    | project timestamp, event_name=tostring(customDimensions.event_name),
+        surface=tostring(customDimensions.surface), user=tostring(customDimensions.user_id_hash)),
+  (customMetrics | where name == "praxys.product_event"
+    | project timestamp, event_name=tostring(customDimensions.event_name),
+        surface=tostring(customDimensions.surface), user=tostring(customDimensions.user_id_hash));
+product_events
+| where timestamp > ago(28d) and event_name == "today_brief_rendered"
+| summarize active_weeks=dcount(startofweek(timestamp)) by user, surface
+| summarize today_users=count(), weeks_2_plus=countif(active_weeks >= 2),
+    weeks_3_plus=countif(active_weeks >= 3), weeks_4_plus=countif(active_weeks >= 4)
+    by surface
+| extend weeks_2_plus_rate=todouble(weeks_2_plus) / today_users,
+    weeks_3_plus_rate=todouble(weeks_3_plus) / today_users,
+    weeks_4_plus_rate=todouble(weeks_4_plus) / today_users
+```
+
+Decision Check outcomes and reported value rate:
+```kql
+let product_events = union isfuzzy=true
+  (customEvents | where name == "praxys.product_event"
+    | project timestamp, event_name=tostring(customDimensions.event_name),
+        response=tostring(customDimensions.response),
+        surface=tostring(customDimensions.surface), events=1.0),
+  (customMetrics | where name == "praxys.product_event"
+    | project timestamp, event_name=tostring(customDimensions.event_name),
+        response=tostring(customDimensions.response),
+        surface=tostring(customDimensions.surface), events=todouble(valueSum));
+product_events
+| where timestamp > ago(28d) and event_name == "today_feedback_submitted"
+| summarize changed_plan=sumif(events, response == "changed_plan"),
+    confirmed_plan=sumif(events, response == "confirmed_plan"),
+    not_helpful=sumif(events, response == "not_helpful"),
+    not_training=sumif(events, response == "not_training"), total=sum(events)
+    by surface
+| extend eligible_responses=total - not_training
+| extend reported_value_rate=iif(
+    eligible_responses > 0,
+    (changed_plan + confirmed_plan) / eligible_responses,
+    real(null)
+  )
+```
+
+Coach useful-vote rate by insight type:
+```kql
+let coach_feedback = union isfuzzy=true
+  (customEvents | where name == "praxys.coach_feedback"
+    | project timestamp, insight_type=tostring(customDimensions.insight_type),
+        vote=tostring(customDimensions.vote), events=1.0),
+  (customMetrics | where name == "praxys.coach_feedback"
+    | project timestamp, insight_type=tostring(customDimensions.insight_type),
+        vote=tostring(customDimensions.vote), events=todouble(valueSum));
+coach_feedback
+| where timestamp > ago(28d)
+| summarize up=sumif(events, vote == "up"), total=sum(events) by insight_type
+| extend useful_rate=up / total
+```
+Review scrubbed comment themes (customEvent path only):
+```kql
+customEvents
+| where name == "praxys.coach_feedback" and timestamp > ago(28d)
+| extend insight_type=tostring(customDimensions.insight_type),
+         vote=tostring(customDimensions.vote),
+         comment=tostring(customDimensions.comment_excerpt)
+| where isnotempty(comment)
+| project timestamp, insight_type, vote, comment
+| order by timestamp desc
+```
+
+Durable idempotency state in `ai_insight_feedback` is unique by
+`(user_id, insight_type, dataset_hash)` and contains only `dataset_hash`, `vote`,
+and `submitted_at`; the current vote is mirrored into `AiInsight.meta.feedback`
+for API reads. It deliberately excludes the raw comment. A new `dataset_hash`
+permits one new vote, while a previously seen hash remains a duplicate if it
+later becomes current again. Coach `model` and science-pillar dimensions come
+from immutable server-generation provenance rather than submission-time settings
+or pushed insight metadata. Model values remain bounded safe labels, and only registered theory ids for the
+`load`, `recovery`, `prediction`, and `zones` pillars may enter telemetry;
+unsafe values are replaced with `unknown` or omitted. CLI-pushed insights without
+server provenance report `unknown` instead of guessing current settings. Runner
+provenance also records the source revision vector; generation is serialized per
+user and revision commits share a transaction lock with publication, so an older
+snapshot cannot overwrite a newer sync result.
+
+`today_feedback_shown` is emitted only when the fresh, actionable prompt is
+rendered on a visible client. Hidden web tabs and hidden miniapp tabs neither
+claim nor confirm the prompt. Keep response rate beside Decision Check outcomes
+so non-response and respondent-selection bias remain explicit.
 
 ### Connection & sync health (per platform)
 

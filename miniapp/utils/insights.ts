@@ -10,11 +10,41 @@
  * Issue #103: top-level fields stay English; ``translations[locale]``
  * holds bilingual variants populated by the post-sync LLM runner.
  */
-import type { AiInsight, AiInsightTranslation } from '../types/api';
-import { request } from './api-client';
+import type {
+  AiInsight,
+  AiInsightResponse,
+  AiInsightTranslation,
+  InsightFeedbackResponse,
+  InsightFeedbackVote,
+} from '../types/api';
+import { apiPost, request } from './api-client';
 import { t, tFmt } from './i18n';
 
 export type InsightView = AiInsightTranslation;
+
+const DATASET_HASH_RE = /^[0-9a-f]{64}$/;
+
+/** Return the feedback version and prior vote safe to display for an insight. */
+export function insightFeedbackState(
+  insight: AiInsight | null,
+): { datasetHash: string; vote: InsightFeedbackVote | '' } {
+  const datasetHash = insight?.meta.dataset_hash;
+  if (
+    !insight
+    || insight.feedback_allowed === false
+    || typeof datasetHash !== 'string'
+    || !DATASET_HASH_RE.test(datasetHash)
+  ) {
+    return { datasetHash: '', vote: '' };
+  }
+
+  const feedback = insight.meta.feedback;
+  const vote = feedback?.dataset_hash === datasetHash
+    && (feedback.vote === 'up' || feedback.vote === 'down')
+    ? feedback.vote
+    : '';
+  return { datasetHash, vote };
+}
 
 /**
  * Pick the current-locale view of an insight, falling back to the
@@ -44,10 +74,23 @@ export function localizedInsight(
 export async function fetchInsight(
   insightType: 'daily_brief' | 'training_review' | 'race_forecast',
 ): Promise<AiInsight | null> {
-  const resp = await request<{ insight: AiInsight | null }>(
+  const resp = await request<AiInsightResponse>(
     `/api/insights/${insightType}`,
   );
   return resp.insight ?? null;
+}
+
+/** Submit one vote for the exact generated insight version shown to the user. */
+export async function submitInsightFeedback(
+  insightType: string,
+  datasetHash: string,
+  vote: InsightFeedbackVote,
+  comment: string | null,
+): Promise<InsightFeedbackResponse> {
+  return apiPost<InsightFeedbackResponse>(
+    `/api/insights/${insightType}/feedback`,
+    { vote, dataset_hash: datasetHash, comment },
+  );
 }
 
 /**

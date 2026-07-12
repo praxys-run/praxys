@@ -1,42 +1,28 @@
-"""Application Insights telemetry helpers — lazy, no-op when unconfigured.
+"""Application Insights telemetry helpers — lazy, privacy-safe, and optional.
 
-Three Coach-tier signals power the operator dashboard for issue #221:
+Coach operations, athlete feedback, product-value events, database health, and
+platform reliability all emit through this module. Structured signals prefer
+``azure-monitor-events-extension`` customEvents and fall back to OpenTelemetry
+value-1 counters when the extension is unavailable. Raw user ids are always
+hashed. Coach comments are scrubbed and truncated before event emission and are
+never included in metric dimensions.
 
-- ``record_coach_tokens(insight_type, model, prompt_tokens, completion_tokens)``
-  emits an OpenTelemetry counter ``praxys.coach_tokens`` so daily token spend
-  by ``insight_type`` is queryable in ``customMetrics``.
-- ``record_coach_run(insight_type, status, user_id)`` emits a counter
-  ``praxys.coach_run`` (or a customEvent when the events extension is
-  installed) so cache hit rate is derivable from ``status`` over time. The
-  raw user id is hashed before emission — telemetry is not a PII surface.
-- ``record_coach_error(error_class)`` emits ``praxys.coach_error`` so a
-  sustained spike in operator-actionable error classes (Auth, BadRequest)
-  pages oncall.
-
-Why a counter for coach_run / coach_error instead of a customEvent: the
-``azure-monitor-events-extension`` package is the canonical customEvent
-emitter, but it is not pulled in by ``azure-monitor-opentelemetry`` — and
-the issue forbids new dependencies. We therefore opportunistically use it
-when present and fall back to a counter (which lands in customMetrics)
-otherwise. The KQL queries documented on the issue translate directly:
-``count(status==X)`` becomes ``sum(value) where status==X`` because each
-record contributes value=1.
-
-Lazy / no-op contract: every helper short-circuits silently when the
-``APPLICATIONINSIGHTS_CONNECTION_STRING`` env var is unset (same signal
-``api/main.py`` uses to skip ``configure_azure_monitor``) or when the OTel
-meter API isn't importable — sync hooks must never break because telemetry
-is misconfigured.
+Every helper remains a no-op when ``APPLICATIONINSIGHTS_CONNECTION_STRING`` is
+unset; training and sync behavior must never depend on telemetry availability.
 """
 from __future__ import annotations
 
 import hashlib
 import logging
 import os
+import re
 from functools import lru_cache
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+_SAFE_TELEMETRY_LABEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+_SCIENCE_PILLARS = frozenset({"load", "recovery", "prediction", "zones"})
 
 
 def _telemetry_enabled() -> bool:
@@ -84,11 +70,9 @@ def _counter(name: str, description: str) -> Any | None:
 def _track_event() -> Any | None:
     """Return ``track_event`` from the events extension if installed, else None.
 
-    The extension ships as ``azure-monitor-events-extension`` and is *not*
-    a transitive dep of ``azure-monitor-opentelemetry``. Importing
-    optimistically lets us upgrade to true customEvents the moment an
-    operator opts in (e.g. by ``pip install``-ing it on the Azure App
-    Service) without changing call sites.
+    The extension is a pinned runtime dependency. The defensive import keeps
+    telemetry optional in partial development environments and lets callers
+    fall back to counters without affecting product behavior.
     """
     if not _telemetry_enabled():
         return None
@@ -110,6 +94,44 @@ def hash_user_id(user_id: str) -> str:
     """
     return hashlib.sha256(user_id.encode("utf-8")).hexdigest()[:16]
 
+
+def _emit_event_or_count(
+    name: str,
+    description: str,
+    attributes: dict[str, Any],
+) -> None:
+    """Emit a customEvent, falling back to a value-1 counter."""
+    try:
+        track = _track_event()
+    except Exception:
+        logger.warning(
+            "Could not initialize track_event for %s; falling back to counter",
+            name,
+            exc_info=True,
+        )
+        track = None
+    if track is not None:
+        try:
+            track(name, attributes)
+            return
+        except Exception:
+            logger.warning(
+                "track_event failed for %s; falling back to counter",
+                name,
+                exc_info=True,
+            )
+
+    try:
+        counter = _counter(name, description)
+    except Exception:
+        logger.warning("Could not initialize counter for %s", name, exc_info=True)
+        return
+    if counter is None:
+        return
+    try:
+        counter.add(1, attributes)
+    except Exception:
+        logger.warning("Failed to record %s", name, exc_info=True)
 
 def record_coach_tokens(
     *,
@@ -203,6 +225,141 @@ def record_coach_error(*, error_class: str) -> None:
     except Exception:
         logger.debug("record_coach_error counter failed", exc_info=True)
 
+
+def _safe_telemetry_label(value: Any) -> str:
+    """Return a bounded non-sensitive telemetry label or ``unknown``."""
+    from api.feedback_scrub import scrub_text
+
+    if not isinstance(value, str):
+        return "unknown"
+    normalized = value.strip()
+    if (
+        not _SAFE_TELEMETRY_LABEL_RE.fullmatch(normalized)
+        or scrub_text(normalized) != normalized
+    ):
+        return "unknown"
+    return normalized
+
+
+def record_coach_feedback(
+    *,
+    insight_type: str,
+    dataset_hash: str,
+    model: str,
+    pillars: dict[str, str] | None,
+    vote: str,
+    comment: str | None,
+    user_id: str,
+) -> None:
+    """Record one dataset-scoped Coach vote without retaining raw text.
+
+    The events extension path carries a scrubbed 120-character excerpt so
+    operators can review themes. The counter fallback deliberately excludes
+    the excerpt, dataset hash, and pillar set to avoid high-cardinality metric
+    dimensions.
+    """
+    from api.feedback_scrub import scrub_text
+
+    safe_insight_type = _safe_telemetry_label(insight_type)
+    safe_dataset_hash = (
+        dataset_hash
+        if isinstance(dataset_hash, str)
+        and re.fullmatch(r"[0-9a-f]{64}", dataset_hash)
+        else "unknown"
+    )
+    safe_model = _safe_telemetry_label(model)
+    safe_vote = _safe_telemetry_label(vote)
+    safe_pillars: dict[str, str] = {}
+    if isinstance(pillars, dict):
+        for key in sorted(_SCIENCE_PILLARS):
+            if key not in pillars:
+                continue
+            safe_value = _safe_telemetry_label(pillars[key])
+            if safe_value != "unknown":
+                safe_pillars[key] = safe_value
+
+    raw_comment = comment or ""
+    excerpt = " ".join(scrub_text(raw_comment).split())[:120]
+    pillar_label = "|".join(
+        f"{key}:{value}" for key, value in safe_pillars.items()
+    )
+    event_attrs: dict[str, str] = {
+        "insight_type": safe_insight_type,
+        "dataset_hash": safe_dataset_hash,
+        "model": safe_model,
+        "pillars": pillar_label,
+        "vote": safe_vote,
+        "has_comment": str(bool(raw_comment.strip())).lower(),
+        "comment_length": str(len(raw_comment)),
+        "user_id_hash": hash_user_id(user_id),
+    }
+    if excerpt:
+        event_attrs["comment_excerpt"] = excerpt
+
+    try:
+        track = _track_event()
+    except Exception:
+        logger.warning(
+            "Could not initialize track_event for praxys.coach_feedback; falling back to counter",
+            exc_info=True,
+        )
+        track = None
+    if track is not None:
+        try:
+            track("praxys.coach_feedback", event_attrs)
+            return
+        except Exception:
+            logger.warning(
+                "track_event failed for praxys.coach_feedback; falling back to counter",
+                exc_info=True,
+            )
+
+    try:
+        counter = _counter(
+            "praxys.coach_feedback",
+            "Dataset-scoped athlete votes on generated Coach insights",
+        )
+    except Exception:
+        logger.warning(
+            "Could not initialize counter for praxys.coach_feedback",
+            exc_info=True,
+        )
+        return
+    if counter is None:
+        return
+    try:
+        counter.add(1, {
+            "insight_type": safe_insight_type,
+            "model": safe_model,
+            "vote": safe_vote,
+            "has_comment": str(bool(raw_comment.strip())).lower(),
+            "user_id_hash": hash_user_id(user_id),
+        })
+    except Exception:
+        logger.warning("Failed to record praxys.coach_feedback", exc_info=True)
+
+
+def record_product_event(
+    *,
+    event_name: str,
+    surface: str,
+    app_version: str,
+    response: str | None,
+    user_id: str,
+) -> None:
+    """Record one allowlisted product event with a pseudonymous user id."""
+    attrs = {
+        "event_name": event_name,
+        "surface": surface,
+        "app_version": app_version,
+        "response": response or "",
+        "user_id_hash": hash_user_id(user_id),
+    }
+    _emit_event_or_count(
+        "praxys.product_event",
+        "Authenticated product-value events from web and miniapp",
+        attrs,
+    )
 
 def record_feedback(*, kind: str, status: str) -> None:
     """Record one user-feedback submission outcome.

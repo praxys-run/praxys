@@ -143,6 +143,57 @@ def test_helpers_noop_when_appinsights_unset(monkeypatch, reset_telemetry_caches
         insight_type="daily_brief", status="generated", user_id="u1",
     )
     telemetry.record_coach_error(error_class="Auth")
+    telemetry.record_coach_feedback(
+        insight_type="daily_brief",
+        dataset_hash="a" * 64,
+        model="gpt-test",
+        pillars=None,
+        vote="up",
+        comment="No telemetry configured",
+        user_id="u1",
+    )
+    telemetry.record_product_event(
+        event_name="app_opened",
+        surface="web",
+        app_version="develop",
+        response=None,
+        user_id="u1",
+    )
+
+
+def test_product_event_swallows_telemetry_backend_failures(
+    monkeypatch, reset_telemetry_caches,
+):
+    from api import telemetry
+
+    monkeypatch.setenv("APPLICATIONINSIGHTS_CONNECTION_STRING", "InstrumentationKey=fake")
+
+    def broken_track(*args, **kwargs):
+        raise RuntimeError("event backend unavailable")
+
+    class BrokenCounter:
+        def add(self, *args, **kwargs):
+            raise RuntimeError("metric backend unavailable")
+
+    monkeypatch.setattr(telemetry, "_track_event", lambda: broken_track)
+    monkeypatch.setattr(telemetry, "_counter", lambda *args: BrokenCounter())
+
+    telemetry.record_product_event(
+        event_name="today_brief_rendered",
+        surface="miniapp",
+        app_version="develop",
+        response=None,
+        user_id="u1",
+    )
+    telemetry.record_coach_feedback(
+        insight_type="daily_brief",
+        dataset_hash="a" * 64,
+        model="gpt-test",
+        pillars=None,
+        vote="down",
+        comment="Telemetry should not break feedback",
+        user_id="u1",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -401,17 +452,19 @@ _FAKE_PILLARS = {
 }
 
 
-def _runner_session(monkeypatch):
+def _runner_session(monkeypatch, user_id: str):
     """Build an in-memory session and stub the context + pillars used by
     ``insights_runner._run``. Returns the session — caller closes it."""
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
 
-    from db.models import Base
+    from db.models import Base, User
 
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     session = sessionmaker(bind=engine)()
+    session.add(User(id=user_id, email=f"{user_id}@example.test", hashed_password="x"))
+    session.commit()
 
     monkeypatch.setattr("api.ai.build_training_context", lambda **kw: _FAKE_CTX)
 
@@ -426,7 +479,7 @@ def test_run_insights_emits_coach_run_per_type(fake_meter, monkeypatch):
     """All three generators return None → three coach_run with that status."""
     from api import insights_runner, llm, telemetry
 
-    session = _runner_session(monkeypatch)
+    session = _runner_session(monkeypatch, "user-1")
     monkeypatch.setattr(llm, "get_client", lambda: None)
 
     insights_runner.run_insights_for_user(
@@ -455,7 +508,7 @@ def test_run_insights_emits_hash_match_status(fake_meter, monkeypatch):
     from db.models import AiInsight
     from api import insights_runner, llm
 
-    session = _runner_session(monkeypatch)
+    session = _runner_session(monkeypatch, "user-2")
 
     # Pre-seed a row per insight_type whose meta.dataset_hash matches the
     # one the runner will compute for the same context+pillars. This forces
@@ -499,7 +552,7 @@ def test_run_insights_emits_cap_reached_status(fake_meter, monkeypatch):
     from db.models import AiInsight
     from api import insights_runner, llm
 
-    session = _runner_session(monkeypatch)
+    session = _runner_session(monkeypatch, "user-3")
 
     # Cap=1 → first generate succeeds (used_today goes 0→1), then the next
     # two iterations hit the per-iteration cap branch.
@@ -543,7 +596,7 @@ def test_run_insights_no_telemetry_on_short_circuit_cap(fake_meter, monkeypatch)
     from db.models import AiInsight
     from api import insights_runner, llm
 
-    session = _runner_session(monkeypatch)
+    session = _runner_session(monkeypatch, "user-4")
     monkeypatch.setenv("PRAXYS_INSIGHT_DAILY_CAP", "0")
     monkeypatch.setattr(llm, "get_client", lambda: None)
 
@@ -696,3 +749,141 @@ def test_record_sync_failure_emits_telemetry(fake_meter, monkeypatch):
         "trigger": "scheduled",
         "user_id_hash": __import__("api.telemetry", fromlist=["hash_user_id"]).hash_user_id("user-9"),
     }
+
+# ---------------------------------------------------------------------------
+# Coach feedback + product events
+# ---------------------------------------------------------------------------
+
+
+def test_record_coach_feedback_scrubs_comment(fake_track_event):
+    from api import telemetry
+
+    calls, meter = fake_track_event
+    secret = "sk-abcdefghijklmnopqrstuvwxyz123456"
+    telemetry.record_coach_feedback(
+        insight_type="daily_brief",
+        dataset_hash="a" * 64,
+        model="gpt-test",
+        pillars={"load": "banister_pmc"},
+        vote="up",
+        comment=f"Email runner@example.com and use {secret}",
+        user_id="user-feedback",
+    )
+
+    assert len(calls) == 1
+    name, attrs = calls[0]
+    assert name == "praxys.coach_feedback"
+    assert attrs["dataset_hash"] == "a" * 64
+    assert attrs["vote"] == "up"
+    assert attrs["pillars"] == "load:banister_pmc"
+    assert "runner@example.com" not in attrs["comment_excerpt"]
+    assert secret not in attrs["comment_excerpt"]
+    assert "[redacted-email]" in attrs["comment_excerpt"]
+    assert "[redacted-key]" in attrs["comment_excerpt"]
+    assert attrs["user_id_hash"] == telemetry.hash_user_id("user-feedback")
+    assert "praxys.coach_feedback" not in meter.counters
+
+
+def test_record_coach_feedback_counter_omits_high_cardinality_text(fake_meter):
+    from api import telemetry
+
+    telemetry.record_coach_feedback(
+        insight_type="training_review",
+        dataset_hash="b" * 64,
+        model="gpt-test",
+        pillars={"load": "banister_pmc"},
+        vote="down",
+        comment="More detail please",
+        user_id="user-feedback",
+    )
+    attrs = fake_meter.counters["praxys.coach_feedback"].calls[0][1]
+    assert attrs["vote"] == "down"
+    assert attrs["has_comment"] == "true"
+    assert "comment_excerpt" not in attrs
+    assert "dataset_hash" not in attrs
+    assert "pillars" not in attrs
+
+
+def test_record_coach_feedback_sanitizes_metadata_for_custom_events(fake_track_event):
+    from api import telemetry
+
+    calls, _ = fake_track_event
+    secret = "sk-abcdefghijklmnopqrstuvwxyz123456"
+    telemetry.record_coach_feedback(
+        insight_type="daily_brief",
+        dataset_hash="c" * 64,
+        model=secret,
+        pillars={
+            "load": secret,
+            "recovery": "firstbeat_recovery",
+            "runner@example.com": "banister_pmc",
+        },
+        vote="up",
+        comment=None,
+        user_id="user-feedback",
+    )
+
+    _, attrs = calls[0]
+    assert attrs["model"] == "unknown"
+    assert attrs["pillars"] == "recovery:firstbeat_recovery"
+    assert secret not in str(attrs)
+    assert "runner@example.com" not in str(attrs)
+
+
+def test_record_coach_feedback_sanitizes_metadata_for_metric_fallback(fake_meter):
+    from api import telemetry
+
+    secret = "sk-abcdefghijklmnopqrstuvwxyz123456"
+    telemetry.record_coach_feedback(
+        insight_type="training_review",
+        dataset_hash="d" * 64,
+        model=secret,
+        pillars={"load": "banister_pmc"},
+        vote="down",
+        comment=None,
+        user_id="user-feedback",
+    )
+
+    attrs = fake_meter.counters["praxys.coach_feedback"].calls[0][1]
+    assert attrs["model"] == "unknown"
+    assert secret not in str(attrs)
+
+
+def test_record_product_event_uses_track_event(fake_track_event):
+    from api import telemetry
+
+    calls, meter = fake_track_event
+    telemetry.record_product_event(
+        event_name="today_feedback_submitted",
+        surface="miniapp",
+        app_version="2026.7.1",
+        response="changed_plan",
+        user_id="user-product",
+    )
+    assert calls == [(
+        "praxys.product_event",
+        {
+            "event_name": "today_feedback_submitted",
+            "surface": "miniapp",
+            "app_version": "2026.7.1",
+            "response": "changed_plan",
+            "user_id_hash": telemetry.hash_user_id("user-product"),
+        },
+    )]
+    assert "praxys.product_event" not in meter.counters
+
+
+def test_record_product_event_falls_back_to_counter(fake_meter):
+    from api import telemetry
+
+    telemetry.record_product_event(
+        event_name="app_opened",
+        surface="web",
+        app_version="develop",
+        response=None,
+        user_id="user-product",
+    )
+    attrs = fake_meter.counters["praxys.product_event"].calls[0][1]
+    assert attrs["event_name"] == "app_opened"
+    assert attrs["surface"] == "web"
+    assert attrs["response"] == ""

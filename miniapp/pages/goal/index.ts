@@ -2,7 +2,7 @@ import { setTabBarSelected } from '../../utils/tabbar';
 import type { IAppOption } from '../../app';
 import { apiGet, apiPut } from '../../utils/api-client';
 import type { ApiError } from '../../utils/api-client';
-import type { GoalResponse, AiInsight, AiInsightFinding } from '../../types/api';
+import type { GoalResponse, AiInsight, AiInsightFinding, InsightFeedbackVote } from '../../types/api';
 import { formatTime, formatPace } from '../../utils/format';
 import { applyThemeChrome, themeClassName } from '../../utils/theme';
 import {
@@ -13,7 +13,7 @@ import {
 } from '../../utils/share';
 import { copyUrlToClipboard } from '../../utils/markdown';
 import { t, tFmt } from '../../utils/i18n';
-import { coachToggleLabel, fetchInsight, localizedInsight } from '../../utils/insights';
+import { coachToggleLabel, fetchInsight, insightFeedbackState, localizedInsight } from '../../utils/insights';
 
 // ---- Editor distance choices (unchanged) ----
 type DistanceKey = '5k' | '10k' | 'half' | 'marathon' | '50k' | '50mi' | '100k' | '100mi';
@@ -166,6 +166,8 @@ interface GoalState {
    *  collapsed, "Hide details" when expanded. Empty string hides the
    *  toggle entirely (zero findings + zero recs). */
   coachToggleLabel: string;
+  coachDatasetHash: string;
+  coachFeedbackVote: InsightFeedbackVote | '';
 
   hasCpTrend: boolean;
   cpTrendDates: string[];
@@ -575,6 +577,11 @@ function buildGoalState(
     console.warn('[goal] coach receipt build failed; suppressing:', e);
   }
   const hasCoach = coach != null;
+  const feedbackState = hasCoach
+    ? insightFeedbackState(insight)
+    : { datasetHash: '', vote: '' as InsightFeedbackVote | '' };
+  const coachDatasetHash = feedbackState.datasetHash;
+  const coachFeedbackVote = feedbackState.vote;
   // Reset detailsOpen on every refetch — receipt content has changed
   // (different findings/recs from the new race_forecast row), so a
   // prior expanded state would surface a stale-looking detail block.
@@ -624,6 +631,8 @@ function buildGoalState(
     coachTr: hasCoach ? buildCoachTr() : null,
     detailsOpen,
     coachToggleLabel: coachLabel,
+    coachDatasetHash,
+    coachFeedbackVote,
 
     hasCpTrend,
     cpTrendDates: hasCpTrend ? trend.dates : [],
@@ -669,6 +678,8 @@ const initialData: GoalState = {
   coachTr: null,
   detailsOpen: false,
   coachToggleLabel: '',
+  coachDatasetHash: '',
+  coachFeedbackVote: '',
 
   hasCpTrend: false,
   cpTrendDates: [],
@@ -707,6 +718,8 @@ Page({
   onLoad() {
     const tc = themeClassName();
     this.setData({ themeClass: tc, chartTheme: tc === 'theme-light' ? 'light' : 'dark', tr: buildGoalTr() });
+    const pageState = this as unknown as Record<string, unknown>;
+    pageState._locale = getApp<IAppOption>().globalData.locale;
     void this.refetch();
   },
 
@@ -890,7 +903,17 @@ Page({
     }
   },
 
+  onCoachFeedbackStale() {
+    void this.refetch();
+  },
+
   async refetch() {
+    const pageState = this as unknown as Record<string, unknown>;
+    const previousRequestId = typeof pageState._refetchRequestId === 'number'
+      ? pageState._refetchRequestId
+      : 0;
+    const requestId = previousRequestId + 1;
+    pageState._refetchRequestId = requestId;
     this.setData({ loading: true, errorMessage: '' });
     try {
       const locale = (getApp<IAppOption>().globalData.locale ?? 'en') as 'en' | 'zh';
@@ -903,11 +926,13 @@ Page({
           return null;
         }),
       ]);
+      if (pageState._refetchRequestId !== requestId) return;
       this.setData({
         ...(buildGoalState(response, insight, locale, this.data.themeClass) as Record<string, unknown>),
         _response: response,
       } as Record<string, unknown>);
     } catch (e) {
+      if (pageState._refetchRequestId !== requestId) return;
       const err = e as Partial<ApiError>;
       if (err?.code === 'UNAUTHENTICATED') {
         this.setData({ loading: false });

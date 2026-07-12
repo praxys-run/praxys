@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useApi, API_BASE, getAuthHeaders } from '@/hooks/useApi';
 import type { TodayResponse, TrainingSignal } from '@/types/api';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -9,6 +9,8 @@ import { Trans, useLingui } from '@lingui/react/macro';
 import type { MessageDescriptor } from '@lingui/core';
 import { useLocale } from '@/contexts/LocaleContext';
 import AiInsightsCard, { type CoachFallback } from '@/components/AiInsightsCard';
+import TodayDecisionCheck from '@/components/TodayDecisionCheck';
+import { recordProductEventOnce } from '@/lib/product-events';
 
 // Skeleton mirrors the today-spread layout shape so the page doesn't flash
 // from the old space-y-6 grid into the new asymmetric layout when data
@@ -215,6 +217,18 @@ export default function Today() {
   const [dismissed, setDismissed] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
+  useEffect(() => {
+    if (!data?.as_of_date) return undefined;
+    const recordWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        recordProductEventOnce('today_brief_rendered', data.as_of_date);
+      }
+    };
+    recordWhenVisible();
+    document.addEventListener('visibilitychange', recordWhenVisible);
+    return () => document.removeEventListener('visibilitychange', recordWhenVisible);
+  }, [data?.as_of_date]);
+
   if (loading) return <TodaySkeleton />;
 
   if (error) {
@@ -297,6 +311,9 @@ export default function Today() {
   // banner when active, since this signal is strictly more general
   // (it fires for any stale data, not just recovery ≥2 days behind).
   const dataStale = isDataStale(data.data_as_of);
+  const hasDecisionContext = (
+    data.data_as_of != null || Boolean(signal.plan?.workout_type)
+  );
   const dataAsOfLabel = data.data_as_of ? formatDataAsOf(data.data_as_of, locale) : null;
   const showStaleBanner = dataStale && !!dataAsOfLabel && !dismissed;
   const showStaleChip = dataStale && !!dataAsOfLabel && dismissed;
@@ -425,6 +442,11 @@ export default function Today() {
           headline: signal.reason,
           recommendations: signal.alternatives,
         } as CoachFallback}
+        onDetailsOpen={() => recordProductEventOnce(
+          'today_reasoning_opened',
+          data.as_of_date,
+        )}
+        onFeedbackStale={refetch}
       />
       <div className={`today-supporting ${readinessScore != null ? 'today-supporting--6' : ''}`.trim()}>
         <div className="today-cell"><span className="today-cell-label">HRV (ln RMSSD)</span><span className="today-cell-value font-data">{hrv ? hrv.today_ln.toFixed(2) : '—'}</span><span className="today-cell-sub font-data">{hrv?.today_ms != null ? `${hrv.today_ms} ms · ` : ''}{baselineLabel}</span></div>
@@ -437,6 +459,9 @@ export default function Today() {
         <div className="today-cell"><span className="today-cell-label">TSB</span><span className={`today-cell-value font-data ${tsb > 0 ? 'today-cell-value-positive' : ''}`.trim()}>{tsbDisplay}</span><span className="today-cell-sub font-data">{tsbDescriptor}</span></div>
       </div>
       <div className="today-plan"><span className="today-plan-eyebrow"><Trans>Planned · Today</Trans></span><span className="today-plan-text">{planText}</span></div>
+      {hasDecisionContext && !dataStale && !recoveryStale && (
+        <TodayDecisionCheck key={data.as_of_date} />
+      )}
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import { themeClassName, getThemePreference } from './utils/theme';
 import { detectLocale } from './utils/i18n';
+import { getToken } from './utils/auth';
+import { recordProductEvent } from './utils/product-events';
 
 /**
  * Shape of getApp<IAppOption>().globalData.
@@ -24,6 +26,7 @@ App<IAppOption>({
     const tc = themeClassName();
     this.globalData.themeClass = tc;
     this.globalData.locale = detectLocale();
+    if (getToken()) void recordProductEvent('app_opened');
 
     // Sync window chrome background to the user's preference. The CSS
     // @media prefers-color-scheme already handles the system-auto case

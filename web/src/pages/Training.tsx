@@ -453,6 +453,7 @@ export default function Training() {
               insightType="training_review"
               attribution={theoryName}
               fallback={fallback}
+              onFeedbackStale={refetch}
             />
           </div>
         </div>

@@ -161,6 +161,13 @@
             </view>
           </block>
         </view>
+        <insight-feedback
+          wx:if="{{coachDatasetHash}}"
+          insight-type="daily_brief"
+          dataset-hash="{{coachDatasetHash}}"
+          initial-vote="{{coachFeedbackVote}}"
+          bindstale="onCoachFeedbackStale"
+        />
         <view wx:if="{{coach.attribution}}" class="coach-foot">
           <text class="coach-foot-text">{{coach.attribution}}</text>
         </view>
@@ -205,6 +212,7 @@
           class="today-warning-item ts-warning"
         >• {{item}}</text>
       </view>
+      <decision-check eligible="{{decisionCheckEligible}}" />
 
     </block>
     </view>

@@ -100,6 +100,13 @@
               </view>
             </block>
           </view>
+          <insight-feedback
+            wx:if="{{coachDatasetHash}}"
+            insight-type="race_forecast"
+            dataset-hash="{{coachDatasetHash}}"
+            initial-vote="{{coachFeedbackVote}}"
+            bindstale="onCoachFeedbackStale"
+          />
         </view>
 
         <!-- Stats strip — mode-specific cells with key metrics. -->

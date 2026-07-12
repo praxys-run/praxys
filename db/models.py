@@ -114,6 +114,9 @@ class UserConfig(Base):
     activity_routing = Column(JSON, default=dict)
     source_options = Column(JSON, default=dict)
     language = Column(String(10), nullable=True)
+    today_decision_check_claimed_at = Column(DateTime, nullable=True)
+    today_decision_check_shown_at = Column(DateTime, nullable=True)
+    today_decision_check_submitted_at = Column(DateTime, nullable=True)
 
     user = relationship("User", back_populates="config")
 
@@ -325,6 +328,34 @@ class AiInsight(Base):
 
     __table_args__ = (
         UniqueConstraint("user_id", "insight_type", name="uq_user_insight_type"),
+    )
+
+
+class AiInsightFeedback(Base):
+    """Durable, dataset-scoped feedback for generated Coach insights."""
+
+    __tablename__ = "ai_insight_feedback"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    insight_type = Column(String(30), nullable=False)
+    dataset_hash = Column(String(64), nullable=False)
+    vote = Column(String(4), nullable=False)
+    submitted_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("vote IN ('up', 'down')", name="ck_ai_insight_feedback_vote"),
+        UniqueConstraint(
+            "user_id",
+            "insight_type",
+            "dataset_hash",
+            name="uq_ai_insight_feedback_dataset",
+        ),
     )
 
 
