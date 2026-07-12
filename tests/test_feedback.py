@@ -1094,10 +1094,11 @@ def test_triage_priority_none_without_llm(db_with_users):
 
 
 # ---------------------------------------------------------------------------
-# Loop A: agent-ready gating for the Copilot coding agent (issue #362)
+# Change loop: agent-ready gating for the Copilot coding agent (issue #362)
 # ---------------------------------------------------------------------------
 
 _DETAILED_BUG = "The training charts fail to render after a sync completes"
+_DETAILED_CJK_BUG = "今日页面状态建议休息，但 Praxys 教练建议完成长距离训练，两条建议相互矛盾"
 
 
 def test_triage_tags_agent_ready_for_qualifying_bug(db_with_users, monkeypatch):
@@ -1109,6 +1110,24 @@ def test_triage_tags_agent_ready_for_qualifying_bug(db_with_users, monkeypatch):
     _stub_github(monkeypatch, calls)
     _stub_llm(monkeypatch, sensitive=False)
     row = _new_row(db, user_id, _DETAILED_BUG)
+
+    result = triage_and_publish(row.id, _session=db)
+    assert result["status"] == "issue_created"
+    assert result["agent_ready"] is True
+    db.refresh(row)
+    assert "agent-ready" in (row.ai_labels or [])
+    assert "agent-ready" in calls[0]["labels"]
+
+
+def test_triage_tags_agent_ready_for_detailed_cjk_bug(db_with_users, monkeypatch):
+    """Detailed feedback without whitespace word boundaries still qualifies."""
+    from api.feedback_triage import triage_and_publish
+
+    db, _, _, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    _stub_llm(monkeypatch, sensitive=False)
+    row = _new_row(db, user_id, _DETAILED_CJK_BUG)
 
     result = triage_and_publish(row.id, _session=db)
     assert result["status"] == "issue_created"
@@ -1155,7 +1174,8 @@ def test_triage_no_agent_ready_when_sensitive(db_with_users, monkeypatch):
     assert "agent-ready" not in (row.ai_labels or [])
 
 
-def test_triage_no_agent_ready_for_low_detail_bug(db_with_users, monkeypatch):
+@pytest.mark.parametrize("message", ["totally broken", "页面坏了"])
+def test_triage_no_agent_ready_for_low_detail_bug(db_with_users, monkeypatch, message):
     """A terse bug is published but too thin to hand to the coding agent."""
     from api.feedback_triage import triage_and_publish
 
@@ -1163,7 +1183,7 @@ def test_triage_no_agent_ready_for_low_detail_bug(db_with_users, monkeypatch):
     calls: list = []
     _stub_github(monkeypatch, calls)
     _stub_llm(monkeypatch, sensitive=False)
-    row = _new_row(db, user_id, "totally broken")
+    row = _new_row(db, user_id, message)
 
     result = triage_and_publish(row.id, _session=db)
     assert result["status"] == "issue_created"

@@ -37,7 +37,9 @@ it only when **all** of these hold (`_qualifies_for_agent` in
 3. **The sensitivity gate did not withhold it** — a `needs_review`/sensitive
    report is never tagged, and because the tag is gated on this, it never even
    lands in `ai_labels`, so a later admin *approve* cannot auto-assign it either.
-4. **It has enough detail** — a cheap word-count floor beneath the model verdict.
+4. **It has enough detail** — a cheap language-aware floor beneath the model
+   verdict: whitespace-delimited words or Unicode alphanumeric characters for
+   scripts such as Chinese.
 
 **Backlog escape hatch:** a `backlog` or `later` label makes an issue ineligible
 even if it is a bug (the workflow skips it). **Merge is always human** — autonomy
