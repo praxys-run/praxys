@@ -401,75 +401,6 @@ _RESTRICTIVE_TODAY_RECOMMENDATIONS = {
     "modify",
     "reduce_intensity",
 }
-_REST_CONFLICT_TOKENS = (
-    "run",
-    "jog",
-    "workout",
-    "session",
-    "interval",
-    "tempo",
-    "threshold",
-    "long run",
-    "按计划",
-    "完成",
-    "训练",
-    "课",
-    "跑",
-)
-_HARD_WORKOUT_TOKENS = (
-    "interval",
-    "tempo",
-    "threshold",
-    "hard",
-    "quality",
-    "race pace",
-    "vo2",
-    "z4",
-    "z5",
-    "高强度",
-    "间歇",
-    "节奏",
-    "阈值",
-)
-_SAFE_RESTRICTIVE_TOKENS = (
-    "rest",
-    "recovery",
-    "recover",
-    "walk",
-    "mobility",
-    "sleep",
-    "hydrate",
-    "tomorrow",
-    "reassess",
-    "shift",
-    "resched",
-    "move",
-    "later",
-    "easy",
-    "z1",
-    "z2",
-    "reduce",
-    "cut",
-    "shorten",
-    "replace",
-    "swap",
-    "modify",
-    "lighter",
-    "lower",
-    "休息",
-    "恢复",
-    "散步",
-    "补水",
-    "明天",
-    "改到",
-    "重新评估",
-    "轻松",
-    "降低",
-    "减少",
-    "缩短",
-    "改为",
-    "替换",
-)
 
 
 def _validate_daily_brief_alignment(raw: dict[str, Any], context: dict) -> tuple[bool, str]:
@@ -486,40 +417,7 @@ def _validate_daily_brief_alignment(raw: dict[str, Any], context: dict) -> tuple
     recommendation = today_signal.get("recommendation")
     if recommendation not in _RESTRICTIVE_TODAY_RECOMMENDATIONS:
         return True, "ok"
-
-    for text in _daily_brief_text_fragments(raw):
-        if not text:
-            continue
-        normalized = text.casefold()
-        has_safe = _contains_any(normalized, _SAFE_RESTRICTIVE_TOKENS)
-        if recommendation == "rest":
-            if _contains_any(normalized, _REST_CONFLICT_TOKENS) and not has_safe:
-                return False, "today_signal_rest_conflict"
-        elif _contains_any(normalized, _HARD_WORKOUT_TOKENS) and not has_safe:
-            return False, "today_signal_restrictive_conflict"
-    return True, "ok"
-
-
-def _daily_brief_text_fragments(raw: dict[str, Any]) -> list[str]:
-    """Return headline/summary/recommendation text fragments from both locales."""
-    fragments: list[str] = []
-    for lang in ("en", "zh"):
-        block = raw.get(lang)
-        if not isinstance(block, dict):
-            continue
-        for key in ("headline", "summary"):
-            value = block.get(key)
-            if isinstance(value, str):
-                fragments.append(value)
-        recommendations = block.get("recommendations")
-        if isinstance(recommendations, list):
-            fragments.extend(item for item in recommendations if isinstance(item, str))
-    return fragments
-
-
-def _contains_any(text: str, tokens: tuple[str, ...]) -> bool:
-    """Return True when ``text`` contains any token in ``tokens``."""
-    return any(token in text for token in tokens)
+    return False, f"today_signal_{recommendation}_fallback"
 
 
 def _log_rejection(insight_type: str, reason: str, raw: Any) -> None:

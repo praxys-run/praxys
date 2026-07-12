@@ -25,7 +25,7 @@ import hashlib
 import logging
 import os
 import threading
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from sqlalchemy import text
@@ -35,6 +35,11 @@ from api.insight_feedback import (
     GENERATION_PROVENANCE_KEY,
     build_generation_provenance,
     merge_feedback_meta,
+)
+from api.daily_brief_freshness import (
+    DAILY_BRIEF_FRESHNESS_KEY,
+    build_daily_brief_freshness_meta,
+    is_current_daily_brief_freshness,
 )
 
 logger = logging.getLogger(__name__)
@@ -159,6 +164,11 @@ def _run(db: Session, user_id: str) -> dict:
         return {"skipped": "context_build_failed"}
 
     run_started_at = datetime.utcnow()
+    daily_brief_freshness = build_daily_brief_freshness_meta(
+        context,
+        pillars,
+        for_date=date.today(),
+    )
 
     from api import telemetry
 
@@ -172,9 +182,18 @@ def _run(db: Session, user_id: str) -> dict:
             .first()
         )
         if existing is not None and (existing.meta or {}).get("dataset_hash") == new_hash:
-            results[itype] = "hash_match"
+            if (
+                itype == "daily_brief"
+                and not is_current_daily_brief_freshness(
+                    existing.meta,
+                    daily_brief_freshness,
+                )
+            ):
+                pass
+            else:
+                results[itype] = "hash_match"
 
-            continue
+                continue
         if used_today + len(pending) >= cap:
             results[itype] = "cap_reached"
 
@@ -203,6 +222,7 @@ def _run(db: Session, user_id: str) -> dict:
             new_hash,
             source_revisions,
             run_started_at,
+            daily_brief_freshness=daily_brief_freshness if itype == "daily_brief" else None,
         ):
             results[itype] = "superseded"
 
@@ -297,6 +317,7 @@ def _upsert_insight(
     dataset_hash: str,
     source_revisions: dict[str, int],
     run_started_at: datetime,
+    daily_brief_freshness: dict[str, str] | None = None,
 ) -> bool:
     """Upsert unless a later-started runner already published this slot."""
     from db.models import AiInsight, User
@@ -362,6 +383,11 @@ def _upsert_insight(
             **meta_extra,
             "dataset_hash": dataset_hash,
             GENERATION_PROVENANCE_KEY: provenance,
+            **(
+                {DAILY_BRIEF_FRESHNESS_KEY: daily_brief_freshness}
+                if itype == "daily_brief" and daily_brief_freshness is not None
+                else {}
+            ),
         },
         row.meta,
     )

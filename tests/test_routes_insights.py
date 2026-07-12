@@ -102,7 +102,7 @@ def test_get_returns_empty_translations_when_legacy_row(insights_client):
 
 
 def test_get_daily_brief_suppresses_stale_ai_row(insights_client, monkeypatch):
-    from analysis.config import UserConfig
+    from api.daily_brief_freshness import DAILY_BRIEF_FRESHNESS_KEY
     from api.insight_feedback import GENERATION_PROVENANCE_KEY
     from db import session as db_session
     from db.models import AiInsight
@@ -117,7 +117,11 @@ def test_get_daily_brief_suppresses_stale_ai_row(insights_client, monkeypatch):
             findings=[{"type": "positive", "text": "HRV trending up"}],
             recommendations=["Run easy"],
             meta={
-                "dataset_hash": "a" * 64,
+                "dataset_hash": "client-hash",
+                DAILY_BRIEF_FRESHNESS_KEY: {
+                    "for_date": "2026-07-12",
+                    "today_hash": "a" * 64,
+                },
                 GENERATION_PROVENANCE_KEY: {
                     "run_started_at": "2026-07-12T00:00:00",
                     "source_revisions": {},
@@ -129,21 +133,115 @@ def test_get_daily_brief_suppresses_stale_ai_row(insights_client, monkeypatch):
         db.close()
 
     monkeypatch.setattr(
-        "analysis.config.load_config_from_db",
-        lambda *_args, **_kwargs: UserConfig(),
-    )
-    monkeypatch.setattr(
-        "api.ai.build_training_context",
-        lambda **_kwargs: {"today_signal": {"recommendation": "rest"}},
-    )
-    monkeypatch.setattr(
-        "analysis.insight_hash.compute_dataset_hash",
-        lambda _context, _itype, science_pillars=None: "b" * 64,
+        "api.routes.insights._current_daily_brief_freshness",
+        lambda *_args, **_kwargs: {
+            "for_date": "2026-07-12",
+            "today_hash": "b" * 64,
+        },
     )
 
     response = insights_client.get("/api/insights/daily_brief")
     assert response.status_code == 200
     assert response.json()["insight"] is None
+
+
+def test_get_daily_brief_suppresses_unverifiable_row(insights_client):
+    from db import session as db_session
+    from db.models import AiInsight
+
+    db = db_session.SessionLocal()
+    try:
+        db.add(AiInsight(
+            user_id="test-user-insights",
+            insight_type="daily_brief",
+            headline="Today: easy run",
+            summary="HRV up; TSB +5.",
+            findings=[{"type": "positive", "text": "HRV trending up"}],
+            recommendations=["Run easy"],
+            meta={"dataset_hash": "a" * 64},
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+    response = insights_client.get("/api/insights/daily_brief")
+    assert response.status_code == 200
+    assert response.json()["insight"] is None
+
+
+def test_client_pushed_daily_brief_tracks_server_freshness(insights_client, monkeypatch):
+    monkeypatch.setattr(
+        "api.routes.insights._current_daily_brief_freshness",
+        lambda *_args, **_kwargs: {
+            "for_date": "2026-07-12",
+            "today_hash": "a" * 64,
+        },
+    )
+    body = {
+        "insight_type": "daily_brief",
+        "headline": "Today: easy run",
+        "summary": "HRV up; TSB +5.",
+        "findings": [{"type": "positive", "text": "HRV trending up"}],
+        "recommendations": ["Run easy"],
+        "meta": {"dataset_hash": "client-hash"},
+    }
+    assert insights_client.post("/api/insights", json=body).status_code == 200
+
+    first = insights_client.get("/api/insights/daily_brief")
+    assert first.status_code == 200
+    assert first.json()["insight"]["headline"] == "Today: easy run"
+
+    monkeypatch.setattr(
+        "api.routes.insights._current_daily_brief_freshness",
+        lambda *_args, **_kwargs: {
+            "for_date": "2026-07-12",
+            "today_hash": "b" * 64,
+        },
+    )
+    second = insights_client.get("/api/insights/daily_brief")
+    assert second.status_code == 200
+    assert second.json()["insight"] is None
+
+
+def test_non_daily_insight_get_does_not_build_daily_freshness(insights_client, monkeypatch):
+    body = {
+        "insight_type": "training_review",
+        "headline": "Volume up",
+        "summary": "Strong week.",
+        "findings": [],
+        "recommendations": [],
+    }
+    assert insights_client.post("/api/insights", json=body).status_code == 200
+    monkeypatch.setattr(
+        "api.routes.insights._current_daily_brief_freshness",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("should not be called")),
+    )
+
+    response = insights_client.get("/api/insights/training_review")
+    assert response.status_code == 200
+    assert response.json()["insight"]["headline"] == "Volume up"
+
+
+def test_non_daily_insight_list_does_not_build_daily_freshness_without_daily_brief(
+    insights_client,
+    monkeypatch,
+):
+    body = {
+        "insight_type": "training_review",
+        "headline": "Volume up",
+        "summary": "Strong week.",
+        "findings": [],
+        "recommendations": [],
+    }
+    assert insights_client.post("/api/insights", json=body).status_code == 200
+    monkeypatch.setattr(
+        "api.routes.insights._current_daily_brief_freshness",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("should not be called")),
+    )
+
+    response = insights_client.get("/api/insights")
+    assert response.status_code == 200
+    assert response.json()["insights"]["training_review"]["headline"] == "Volume up"
 
 
 DATASET_HASH = "a" * 64

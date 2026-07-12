@@ -279,6 +279,48 @@ def test_daily_brief_rejects_conflicting_rest_signal(monkeypatch):
     assert insights_generator.generate_daily_brief(ctx, PILLARS) is None
 
 
+def test_daily_brief_rejects_rest_signal_bypass_phrase(monkeypatch):
+    bad = _valid_bilingual_response()
+    bad["en"]["summary"] = "Take a recovery walk, then complete the threshold workout."
+    bad["en"]["findings"] = [
+        {"type": "warning", "text": "You can still finish the hard session after the walk."},
+    ]
+    bad["zh"]["summary"] = "先做恢复散步，然后完成阈值课。"
+    bad["zh"]["findings"] = [
+        {"type": "warning", "text": "散步后仍可完成高强度课程。"},
+    ]
+    fake = _FakeClient(json.dumps(bad))
+    monkeypatch.setattr(llm, "get_client", lambda: fake)
+
+    ctx = _fake_context()
+    ctx["today_signal"] = {
+        "recommendation": "rest",
+        "reason": "Recovery first.",
+        "alternatives": ["Walk only"],
+    }
+
+    assert insights_generator.generate_daily_brief(ctx, PILLARS) is None
+
+
+def test_daily_brief_rejects_modify_signal_continue_as_planned(monkeypatch):
+    bad = _valid_bilingual_response()
+    bad["en"]["headline"] = "Modify today, but continue as planned"
+    bad["en"]["recommendations"] = ["Continue as planned"]
+    bad["zh"]["headline"] = "今天需调整，但按计划完成"
+    bad["zh"]["recommendations"] = ["按计划完成"]
+    fake = _FakeClient(json.dumps(bad))
+    monkeypatch.setattr(llm, "get_client", lambda: fake)
+
+    ctx = _fake_context()
+    ctx["today_signal"] = {
+        "recommendation": "modify",
+        "reason": "Back off the hard session.",
+        "alternatives": ["Drop to easy run"],
+    }
+
+    assert insights_generator.generate_daily_brief(ctx, PILLARS) is None
+
+
 def test_daily_brief_planned_workout_reads_planned_today_only(monkeypatch):
     """Daily brief's planned_workout MUST be today's plan entry, not the
     next future workout. Falling back to current_plan[0] silently surfaces

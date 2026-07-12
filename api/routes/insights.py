@@ -18,6 +18,11 @@ from api.insight_feedback import (
     merge_feedback_meta as _merge_feedback_meta,
 )
 from api.auth_rate_limit import _SlidingWindow
+from api.daily_brief_freshness import (
+    DAILY_BRIEF_FRESHNESS_KEY,
+    compute_current_daily_brief_freshness,
+    is_current_daily_brief_freshness,
+)
 from api.views import utc_isoformat
 from db.session import begin_serialized_write, get_db
 
@@ -51,6 +56,7 @@ def _serialize_meta(value: object, *, feedback_allowed: bool) -> dict[str, Any]:
     """Sanitize known metadata fields while retaining unknown legacy keys."""
     meta = dict(value) if isinstance(value, dict) else {}
     meta.pop(GENERATION_PROVENANCE_KEY, None)
+    meta.pop(DAILY_BRIEF_FRESHNESS_KEY, None)
     if not isinstance(meta.get("dataset_hash"), str):
         meta.pop("dataset_hash", None)
     if not isinstance(meta.get("model"), str):
@@ -98,32 +104,13 @@ def _serialize_insight(
     }
 
 
-def _current_daily_brief_hash(user_id: str, db: Session) -> str | None:
-    """Compute the current daily-brief hash, or ``None`` if unavailable.
-
-    Imports stay local because this route otherwise loads the heavier
-    dashboard/context builder stack eagerly at module import time, even for
-    insight reads that never need freshness validation. ``None`` means the
-    hash could not be recomputed, so the read path suppresses the runner-
-    generated AI brief and falls back to deterministic Today guidance.
-    """
+def _current_daily_brief_freshness(
+    user_id: str,
+    db: Session,
+) -> dict[str, str] | None:
+    """Compute the current daily-brief freshness state, or ``None`` on failure."""
     try:
-        # Local imports keep this route decoupled from the heavier dashboard /
-        # AI context builder modules until a daily_brief freshness check is
-        # actually needed on read.
-        from analysis.config import load_config_from_db
-        from analysis.insight_hash import compute_dataset_hash
-        from api.ai import build_training_context
-
-        cfg = load_config_from_db(user_id, db)
-        pillars = dict(getattr(cfg, "science", {}))
-        context = build_training_context(user_id=user_id, db=db)
-        current_hash = compute_dataset_hash(
-            context,
-            "daily_brief",
-            science_pillars=pillars,
-        )
-        return current_hash
+        return compute_current_daily_brief_freshness(user_id, db)
     except Exception:
         logger.exception(
             "Failed to validate daily_brief freshness for user=%s",
@@ -132,26 +119,19 @@ def _current_daily_brief_hash(user_id: str, db: Session) -> str | None:
         return None
 
 
-def _is_current_daily_brief(row: Any, current_hash: str | None) -> bool:
+def _is_current_daily_brief(
+    row: Any,
+    current_freshness: dict[str, str] | None,
+) -> bool:
     """Return whether the stored daily brief still matches today's inputs.
 
-    Non-``daily_brief`` rows, legacy/manual rows without trusted generation
-    provenance, and rows without a valid dataset hash are treated as current.
-    The function returns ``False`` only when a runner-generated daily brief
-    has a definite dataset-hash mismatch against the current Today context.
+    Non-``daily_brief`` rows are always current. ``daily_brief`` rows must carry
+    trusted server-owned freshness metadata; unverifiable rows are suppressed on
+    read so the Today surface falls back to deterministic guidance.
     """
     if row.insight_type != "daily_brief":
         return True
-
-    meta = row.meta or {}
-    if not isinstance(meta, dict) or GENERATION_PROVENANCE_KEY not in meta:
-        return True
-
-    dataset_hash = meta.get("dataset_hash")
-    if not _is_dataset_hash(dataset_hash):
-        return True
-
-    return current_hash == dataset_hash
+    return is_current_daily_brief_freshness(row.meta, current_freshness)
 
 
 class InsightFinding(BaseModel):
@@ -217,6 +197,7 @@ def push_insight(
     findings_dicts = [f.model_dump() for f in body.findings]
     client_meta = dict(body.meta)
     client_meta.pop(GENERATION_PROVENANCE_KEY, None)
+    client_meta.pop(DAILY_BRIEF_FRESHNESS_KEY, None)
     incoming_meta = _merge_feedback_meta(
         db,
         user_id,
@@ -224,6 +205,10 @@ def push_insight(
         client_meta,
         existing.meta if existing is not None else None,
     )
+    if body.insight_type == "daily_brief":
+        freshness = _current_daily_brief_freshness(user_id, db)
+        if freshness is not None:
+            incoming_meta[DAILY_BRIEF_FRESHNESS_KEY] = freshness
 
     if existing:
         existing.headline = body.headline
@@ -360,7 +345,15 @@ def get_insights(
 
     feedback_allowed = current_user_id == data_user_id
     rows = db.query(AiInsight).filter(AiInsight.user_id == data_user_id).all()
-    current_daily_brief_hash = _current_daily_brief_hash(data_user_id, db)
+    needs_daily_brief_freshness = any(
+        row.insight_type == "daily_brief"
+        for row in rows
+    )
+    current_daily_brief_freshness = (
+        _current_daily_brief_freshness(data_user_id, db)
+        if needs_daily_brief_freshness
+        else None
+    )
     return {
         "insights": {
             row.insight_type: _serialize_insight(
@@ -369,7 +362,7 @@ def get_insights(
                 feedback_allowed=feedback_allowed,
             )
             for row in rows
-            if _is_current_daily_brief(row, current_daily_brief_hash)
+            if _is_current_daily_brief(row, current_daily_brief_freshness)
         }
     }
 
@@ -391,7 +384,10 @@ def get_insight(
 
     if not row:
         return {"insight": None}
-    if not _is_current_daily_brief(row, _current_daily_brief_hash(data_user_id, db)):
+    current_daily_brief_freshness = None
+    if row.insight_type == "daily_brief":
+        current_daily_brief_freshness = _current_daily_brief_freshness(data_user_id, db)
+    if not _is_current_daily_brief(row, current_daily_brief_freshness):
         return {"insight": None}
 
     return {
