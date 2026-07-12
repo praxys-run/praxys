@@ -100,6 +100,52 @@ def test_get_returns_empty_translations_when_legacy_row(insights_client):
     payload = r.json()["insight"]
     assert payload["translations"] == {}
 
+
+def test_get_daily_brief_suppresses_stale_ai_row(insights_client, monkeypatch):
+    from analysis.config import UserConfig
+    from api.insight_feedback import GENERATION_PROVENANCE_KEY
+    from db import session as db_session
+    from db.models import AiInsight
+
+    db = db_session.SessionLocal()
+    try:
+        db.add(AiInsight(
+            user_id="test-user-insights",
+            insight_type="daily_brief",
+            headline="Today: easy run",
+            summary="HRV up; TSB +5.",
+            findings=[{"type": "positive", "text": "HRV trending up"}],
+            recommendations=["Run easy"],
+            meta={
+                "dataset_hash": "a" * 64,
+                GENERATION_PROVENANCE_KEY: {
+                    "run_started_at": "2026-07-12T00:00:00",
+                    "source_revisions": {},
+                },
+            },
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+    monkeypatch.setattr(
+        "analysis.config.load_config_from_db",
+        lambda *_args, **_kwargs: UserConfig(),
+    )
+    monkeypatch.setattr(
+        "api.ai.build_training_context",
+        lambda **_kwargs: {"today_signal": {"recommendation": "rest"}},
+    )
+    monkeypatch.setattr(
+        "analysis.insight_hash.compute_dataset_hash",
+        lambda _context, _itype, science_pillars=None: "b" * 64,
+    )
+
+    response = insights_client.get("/api/insights/daily_brief")
+    assert response.status_code == 200
+    assert response.json()["insight"] is None
+
+
 DATASET_HASH = "a" * 64
 
 

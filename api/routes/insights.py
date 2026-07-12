@@ -98,6 +98,42 @@ def _serialize_insight(
     }
 
 
+def _is_current_daily_brief(row: Any, user_id: str, db: Session) -> bool:
+    """Return whether the stored daily brief still matches today's inputs."""
+    if row.insight_type != "daily_brief":
+        return True
+
+    meta = row.meta or {}
+    if not isinstance(meta, dict) or GENERATION_PROVENANCE_KEY not in meta:
+        return True
+
+    dataset_hash = meta.get("dataset_hash")
+    if not _is_dataset_hash(dataset_hash):
+        return True
+
+    try:
+        from analysis.config import load_config_from_db
+        from analysis.insight_hash import compute_dataset_hash
+        from api.ai import build_training_context
+
+        cfg = load_config_from_db(user_id, db)
+        pillars = dict(getattr(cfg, "science", {}) or {})
+        context = build_training_context(user_id=user_id, db=db)
+        current_hash = compute_dataset_hash(
+            context,
+            "daily_brief",
+            science_pillars=pillars,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to validate daily_brief freshness for user=%s",
+            user_id,
+        )
+        return False
+
+    return current_hash == dataset_hash
+
+
 class InsightFinding(BaseModel):
     type: str  # positive, warning, neutral
     text: str
@@ -312,6 +348,7 @@ def get_insights(
                 feedback_allowed=feedback_allowed,
             )
             for row in rows
+            if _is_current_daily_brief(row, data_user_id, db)
         }
     }
 
@@ -332,6 +369,8 @@ def get_insight(
     ).first()
 
     if not row:
+        return {"insight": None}
+    if not _is_current_daily_brief(row, data_user_id, db):
         return {"insight": None}
 
     return {

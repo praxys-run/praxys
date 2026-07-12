@@ -258,6 +258,27 @@ def test_daily_brief_payload_includes_canonical_today_signal(monkeypatch):
     assert user_msg["today_signal"]["alternatives"] == ["Walk only"]
 
 
+def test_daily_brief_rejects_model_output_that_conflicts_with_rest_signal(monkeypatch):
+    bad = _valid_bilingual_response()
+    bad["en"]["headline"] = "Recovered — do the planned threshold workout"
+    bad["en"]["summary"] = "Ignore the caution flag and complete the hard session today."
+    bad["en"]["recommendations"] = ["Complete the planned threshold workout today"]
+    bad["zh"]["headline"] = "您已恢复 — 完成计划中的阈值课"
+    bad["zh"]["summary"] = "忽略谨慎信号，今天完成高强度课程。"
+    bad["zh"]["recommendations"] = ["今天完成计划中的阈值课"]
+    fake = _FakeClient(json.dumps(bad))
+    monkeypatch.setattr(llm, "get_client", lambda: fake)
+
+    ctx = _fake_context()
+    ctx["today_signal"] = {
+        "recommendation": "rest",
+        "reason": "Recovery first.",
+        "alternatives": ["Walk only"],
+    }
+
+    assert insights_generator.generate_daily_brief(ctx, PILLARS) is None
+
+
 def test_daily_brief_planned_workout_reads_planned_today_only(monkeypatch):
     """Daily brief's planned_workout MUST be today's plan entry, not the
     next future workout. Falling back to current_plan[0] silently surfaces
