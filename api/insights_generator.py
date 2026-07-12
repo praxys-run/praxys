@@ -501,8 +501,7 @@ def _validate_daily_brief_alignment(raw: dict[str, Any], context: dict) -> tuple
                 normalized, _SAFE_RESTRICTIVE_TOKENS,
             ):
                 return False, "today_signal_rest_conflict"
-            continue
-        if _contains_any(normalized, _HARD_WORKOUT_TOKENS) and not _contains_any(
+        elif _contains_any(normalized, _HARD_WORKOUT_TOKENS) and not _contains_any(
             normalized, _SAFE_RESTRICTIVE_TOKENS,
         ):
             return False, "today_signal_restrictive_conflict"

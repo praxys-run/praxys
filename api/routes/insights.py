@@ -98,20 +98,12 @@ def _serialize_insight(
     }
 
 
-def _is_current_daily_brief(row: Any, user_id: str, db: Session) -> bool:
-    """Return whether the stored daily brief still matches today's inputs."""
-    if row.insight_type != "daily_brief":
-        return True
-
-    meta = row.meta or {}
-    if not isinstance(meta, dict) or GENERATION_PROVENANCE_KEY not in meta:
-        return True
-
-    dataset_hash = meta.get("dataset_hash")
-    if not _is_dataset_hash(dataset_hash):
-        return True
-
+def _current_daily_brief_hash(user_id: str, db: Session) -> str | None:
+    """Compute the current daily-brief hash, or ``None`` if unavailable."""
     try:
+        # Local imports keep this route decoupled from the heavier dashboard /
+        # AI context builder modules until a daily_brief freshness check is
+        # actually needed on read.
         from analysis.config import load_config_from_db
         from analysis.insight_hash import compute_dataset_hash
         from api.ai import build_training_context
@@ -129,7 +121,21 @@ def _is_current_daily_brief(row: Any, user_id: str, db: Session) -> bool:
             "Failed to validate daily_brief freshness for user=%s",
             user_id,
         )
-        return False
+        return None
+
+
+def _is_current_daily_brief(row: Any, current_hash: str | None) -> bool:
+    """Return whether the stored daily brief still matches today's inputs."""
+    if row.insight_type != "daily_brief":
+        return True
+
+    meta = row.meta or {}
+    if not isinstance(meta, dict) or GENERATION_PROVENANCE_KEY not in meta:
+        return True
+
+    dataset_hash = meta.get("dataset_hash")
+    if not _is_dataset_hash(dataset_hash):
+        return True
 
     return current_hash == dataset_hash
 
@@ -340,6 +346,7 @@ def get_insights(
 
     feedback_allowed = current_user_id == data_user_id
     rows = db.query(AiInsight).filter(AiInsight.user_id == data_user_id).all()
+    current_daily_brief_hash = _current_daily_brief_hash(data_user_id, db)
     return {
         "insights": {
             row.insight_type: _serialize_insight(
@@ -348,7 +355,7 @@ def get_insights(
                 feedback_allowed=feedback_allowed,
             )
             for row in rows
-            if _is_current_daily_brief(row, data_user_id, db)
+            if _is_current_daily_brief(row, current_daily_brief_hash)
         }
     }
 
@@ -370,7 +377,7 @@ def get_insight(
 
     if not row:
         return {"insight": None}
-    if not _is_current_daily_brief(row, data_user_id, db):
+    if not _is_current_daily_brief(row, _current_daily_brief_hash(data_user_id, db)):
         return {"insight": None}
 
     return {
