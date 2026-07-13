@@ -94,6 +94,23 @@ interface InvitationInfo {
 export default function Admin() {
   const { isAdmin, email: currentEmail } = useAuth();
   const { t } = useLingui();
+
+  const impactLabel = (i: IncidentImpact): string => {
+    switch (i) {
+      case 'minor': return t`Minor`;
+      case 'major': return t`Major`;
+      case 'critical': return t`Critical`;
+    }
+  };
+
+  const incidentStatusLabel = (s: IncidentStatus): string => {
+    switch (s) {
+      case 'investigating': return t`Investigating`;
+      case 'identified': return t`Identified`;
+      case 'monitoring': return t`Monitoring`;
+      case 'resolved': return t`Resolved`;
+    }
+  };
   const [users, setUsers] = useState<UserInfo[]>([]);
   const [invitations, setInvitations] = useState<InvitationInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1175,9 +1192,9 @@ export default function Admin() {
                 onChange={(e) => setIncImpact(e.target.value as IncidentImpact)}
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm"
               >
-                <option value="minor">minor</option>
-                <option value="major">major</option>
-                <option value="critical">critical</option>
+                <option value="minor">{t`Minor`}</option>
+                <option value="major">{t`Major`}</option>
+                <option value="critical">{t`Critical`}</option>
               </select>
               <Button size="sm" onClick={handleCreateIncident} disabled={incCreating || !incTitle.trim()}>
                 <Plus className="h-3.5 w-3.5 mr-1.5" />
@@ -1195,9 +1212,9 @@ export default function Admin() {
               {incidents.map((inc) => (
                 <div key={inc.id} className={`rounded-lg border p-3 text-sm ${inc.status === 'resolved' ? 'opacity-60' : ''}`}>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs shrink-0">{inc.impact}</Badge>
+                    <Badge variant="outline" className="text-xs shrink-0">{impactLabel(inc.impact)}</Badge>
                     <span className="font-medium truncate flex-1">{inc.title}</span>
-                    <Badge variant="secondary" className="text-xs shrink-0">{inc.status}</Badge>
+                    <Badge variant="secondary" className="text-xs shrink-0">{incidentStatusLabel(inc.status)}</Badge>
                     <Button
                       variant="ghost" size="sm"
                       className="h-7 w-7 p-0 text-destructive hover:text-destructive"
