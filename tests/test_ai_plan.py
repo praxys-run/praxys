@@ -58,7 +58,9 @@ def _make_plan(days: int = 28, start: date | None = None, **overrides) -> list[d
 class TestValidatePlan:
     def test_valid_plan(self, sample_context):
         from api.ai import validate_plan
-        plan = _make_plan(28)
+        today = date.today()
+        next_monday = today + timedelta(days=(-today.weekday()) % 7)
+        plan = _make_plan(28, start=next_monday)
         valid, errors = validate_plan(plan, sample_context)
         assert valid, f"Expected valid plan, got errors: {errors}"
 
