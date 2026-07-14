@@ -239,7 +239,19 @@ def test_today_payload_falls_back_to_synced_today_workout_when_preferred_plan_ha
 
     db, user_id = db_with_seeded_user
     today = date.today()
+    db.query(TrainingPlan).filter(
+        TrainingPlan.user_id == user_id,
+    ).delete(synchronize_session=False)
     db.add(UserConfigModel(user_id=user_id, preferences={"plan": "ai"}))
+    db.add(TrainingPlan(
+        user_id=user_id,
+        date=today,
+        workout_type="tempo",
+        planned_duration_min=45,
+        target_power_min=240,
+        target_power_max=260,
+        source="stryd",
+    ))
     db.add(TrainingPlan(
         user_id=user_id,
         date=today + timedelta(days=2),

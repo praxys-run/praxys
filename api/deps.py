@@ -1008,11 +1008,18 @@ def _get_todays_plan(
         return "", None
 
     def rows_for_today(frame: pd.DataFrame | None) -> pd.DataFrame:
+        """Return rows whose ``date`` resolves to the requested calendar day.
+
+        The plan frame may hold Python ``date`` objects, pandas timestamps,
+        or ISO-ish strings depending on load path. ``to_datetime`` normalizes
+        the usual cases; if nothing parses, treat the frame as unusable for
+        same-day guidance rather than guessing from opaque values.
+        """
         if frame is None or frame.empty or "date" not in frame.columns:
             return pd.DataFrame()
         parsed_dates = pd.to_datetime(frame["date"], errors="coerce")
         if parsed_dates.isna().all():
-            return frame[frame["date"] == today]
+            return pd.DataFrame()
         return frame.loc[parsed_dates.dt.date == today]
 
     today_plan = rows_for_today(plan)
