@@ -230,6 +230,32 @@ def test_today_payload_unscheduled_day_uses_neutral_verdict(db_with_seeded_user)
     assert payload["signal"]["plan"] == {}
 
 
+def test_today_payload_falls_back_to_synced_today_workout_when_preferred_plan_has_no_today_row(
+    db_with_seeded_user,
+):
+    """Today should still surface a same-day synced workout from another source."""
+    from api.routes.today import _build_today_payload
+    from db.models import TrainingPlan, UserConfig as UserConfigModel
+
+    db, user_id = db_with_seeded_user
+    today = date.today()
+    db.add(UserConfigModel(user_id=user_id, preferences={"plan": "ai"}))
+    db.add(TrainingPlan(
+        user_id=user_id,
+        date=today + timedelta(days=2),
+        workout_type="easy",
+        planned_duration_min=40,
+        source="ai",
+    ))
+    db.commit()
+
+    payload = _build_today_payload(user_id, db)
+
+    assert payload["signal"]["recommendation"] == "follow_plan"
+    assert payload["signal"]["plan"]["workout_type"] == "tempo"
+    assert payload["signal"]["plan"]["duration_min"] == 45
+
+
 def test_today_widgets_pack_returns_required_keys(db_with_seeded_user):
     from api.packs import get_today_widgets
     ctx = _ctx(db_with_seeded_user)

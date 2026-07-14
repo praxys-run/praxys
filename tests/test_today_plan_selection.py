@@ -60,3 +60,33 @@ def test_todays_plan_uses_duration_as_deterministic_hard_workout_tie_breaker():
     assert workout_type == "long_run"
     assert detail is not None
     assert detail["planned_duration_min"] == 120
+
+
+def test_todays_plan_falls_back_to_other_source_when_preferred_source_has_no_today_row():
+    """Same-day guidance should not hide a synced workout from another source."""
+    today = date(2026, 7, 12)
+    preferred_only = pd.DataFrame([
+        {
+            "date": today + pd.Timedelta(days=1),
+            "workout_type": "easy",
+            "planned_duration_min": 45,
+            "source": "ai",
+        },
+    ])
+    all_sources = pd.DataFrame([
+        {
+            "date": today,
+            "workout_type": "tempo",
+            "planned_duration_min": 60,
+            "source": "stryd",
+        },
+        *preferred_only.to_dict("records"),
+    ])
+
+    workout_type, detail = _get_todays_plan(
+        preferred_only, today, fallback_plan=all_sources,
+    )
+
+    assert workout_type == "tempo"
+    assert detail is not None
+    assert detail["source"] == "stryd"

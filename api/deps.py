@@ -998,12 +998,26 @@ def _get_latest_readiness(
 
 
 def _get_todays_plan(
-    plan: pd.DataFrame, today: date
+    plan: pd.DataFrame,
+    today: date,
+    *,
+    fallback_plan: pd.DataFrame | None = None,
 ) -> tuple[str, dict | None]:
     """Return today's most consequential planned workout deterministically."""
-    if plan.empty:
+    if plan.empty and (fallback_plan is None or fallback_plan.empty):
         return "", None
-    today_plan = plan[plan["date"] == today]
+
+    def rows_for_today(frame: pd.DataFrame | None) -> pd.DataFrame:
+        if frame is None or frame.empty or "date" not in frame.columns:
+            return pd.DataFrame()
+        parsed_dates = pd.to_datetime(frame["date"], errors="coerce")
+        if parsed_dates.isna().all():
+            return frame[frame["date"] == today]
+        return frame.loc[parsed_dates.dt.date == today]
+
+    today_plan = rows_for_today(plan)
+    if today_plan.empty and fallback_plan is not None:
+        today_plan = rows_for_today(fallback_plan)
     if today_plan.empty:
         return "", None
 
@@ -1751,7 +1765,9 @@ def get_dashboard_data(user_id: str = None, db=None) -> dict:
     guidance_tsb = current_tsb if pmc_sufficient else None
 
     # Daily training signal
-    planned_today, planned_detail = _get_todays_plan(plan, today)
+    planned_today, planned_detail = _get_todays_plan(
+        plan, today, fallback_plan=all_plans,
+    )
     # Recovery is standardized to a single HRV-based theory.
     hrv_only_mode = True
     guidance_recovery = _recovery_for_guidance(recovery_analysis)
