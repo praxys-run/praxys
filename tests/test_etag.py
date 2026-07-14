@@ -130,10 +130,10 @@ def etag_client(monkeypatch):
 # ---------------------------------------------------------------------------
 
 def test_response_versions_cover_changed_endpoints():
-    """Deployment salts invalidate pre-change Training and Plan bodies."""
+    """Deployment salts invalidate pre-change cached endpoint bodies."""
     from api.etag import ENDPOINT_RESPONSE_VERSIONS
 
-    assert ENDPOINT_RESPONSE_VERSIONS["today"] == "metric-provenance-today-v2"
+    assert ENDPOINT_RESPONSE_VERSIONS["today"] == "metric-provenance-today-v3"
     assert ENDPOINT_RESPONSE_VERSIONS["training"] == "evidence-summary-v2"
     assert ENDPOINT_RESPONSE_VERSIONS["plan"] == "connection-aware-plan-v2"
 
@@ -267,8 +267,8 @@ def test_today_cold_then_304_warm(etag_client):
     assert warm.headers.get("etag") == etag
 
 
-def test_today_schema_version_rejects_predeploy_etag(etag_client):
-    """A browser must not reuse a Today body that lacks coach_snapshot."""
+def test_today_response_version_rejects_predeploy_etag(etag_client):
+    """A browser must not reuse a Today body from the prior response version."""
     from api.etag import compute_etag, ENDPOINT_SCOPES
     from db import session as db_session
 
@@ -279,7 +279,10 @@ def test_today_schema_version_rejects_predeploy_etag(etag_client):
             db,
             user_id,
             ENDPOINT_SCOPES["today"],
-            salt=f"d={date.today().isoformat()}",
+            salt=(
+                f"d={date.today().isoformat()}"
+                "&v=metric-provenance-today-v2"
+            ),
         )
     finally:
         db.close()

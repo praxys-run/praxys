@@ -541,7 +541,9 @@ def get_signal_pack(ctx: RequestContext) -> dict:
     recovery_analysis = ctx.recovery_analysis
     guidance_recovery = _recovery_for_guidance(recovery_analysis)
 
-    planned_today, planned_detail = _get_todays_plan(ctx.plan, ctx.today)
+    planned_today, planned_detail = _get_todays_plan(
+        ctx.plan, ctx.today, fallback_plan=ctx.all_plans,
+    )
     load_theory = ctx.science.get("load")
     recovery_theory = ctx.science.get("recovery")
     recovery_params = recovery_theory.params if recovery_theory else {}
