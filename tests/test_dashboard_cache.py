@@ -217,7 +217,7 @@ def test_compute_source_version_is_deterministic(cache_client):
         assert f"d={date.today().isoformat()}" in a, (
             "today is date-salted — date.today() must appear in source_version"
         )
-        assert "v=metric-provenance-today-v2" in a
+        assert "v=metric-provenance-today-v3" in a
         training = compute_source_version(db, user_id, "training")
         assert "samples=0" in training
         assert "v=evidence-summary-v2" in training
@@ -336,10 +336,11 @@ def test_today_recomputes_prior_response_version_with_snapshot(cache_client):
     db = db_session.SessionLocal()
     try:
         current_version = compute_source_version(db, user_id, "today")
-        prior_version = "|".join(
-            part for part in current_version.split("|")
-            if not part.startswith("v=")
+        prior_version = current_version.replace(
+            "v=metric-provenance-today-v3",
+            "v=metric-provenance-today-v2",
         )
+        assert prior_version != current_version
         db.add(DashboardCache(
             user_id=user_id,
             section="today",

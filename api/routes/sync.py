@@ -685,7 +685,8 @@ def _sync_garmin(user_id: str, creds: dict, from_date: str | None,
         lt_rows = parse_lactate_threshold(lt_data)
         if not lt_rows:
             lt_rows = parse_lactate_threshold(client.get_lactate_threshold(latest=True))
-        lt_count = sync_writer.write_lactate_threshold(user_id, lt_rows, db)
+        with db.begin_nested():
+            lt_count = sync_writer.write_lactate_threshold(user_id, lt_rows, db)
     except Exception as e:
         logger.warning("Garmin lactate threshold fetch failed for user %s: %s", user_id, e)
 
@@ -731,9 +732,10 @@ def _sync_garmin(user_id: str, creds: dict, from_date: str | None,
 
     if profile_parsed:
         try:
-            profile_count = sync_writer.write_profile_thresholds(
-                user_id, profile_parsed, db,
-            )
+            with db.begin_nested():
+                profile_count = sync_writer.write_profile_thresholds(
+                    user_id, profile_parsed, db,
+                )
         except Exception as e:
             logger.warning(
                 "Garmin profile threshold write failed for user %s: %s", user_id, e,
@@ -757,7 +759,8 @@ def _sync_garmin(user_id: str, creds: dict, from_date: str | None,
         except Exception as e:
             logger.debug("Race predictions: skipped (%s)", e)
         dm_rows = parse_daily_metrics(today_str, ts, training_readiness=tr, race_predictions=rp)
-        dm_count = sync_writer.write_daily_metrics(user_id, dm_rows, db)
+        with db.begin_nested():
+            dm_count = sync_writer.write_daily_metrics(user_id, dm_rows, db)
     except Exception as e:
         logger.warning("Garmin daily metrics fetch failed for user %s: %s", user_id, e)
 
@@ -882,10 +885,11 @@ def _sync_garmin(user_id: str, creds: dict, from_date: str | None,
             # Sleep RHR feeds recovery_data per day for the HRV trend.
             # fitness_data.rest_hr_bpm (the TRIMP reference) is written by
             # write_profile_thresholds above — kept stable, not per-day noisy.
-            recovery_count = sync_writer.write_recovery(
-                user_id, [], [], {}, db,
-                garmin_recovery=recovery_rows,
-            )
+            with db.begin_nested():
+                recovery_count = sync_writer.write_recovery(
+                    user_id, [], [], {}, db,
+                    garmin_recovery=recovery_rows,
+                )
         except Exception as e:
             logger.warning(
                 "Garmin recovery write failed for user %s: %s", user_id, e,
