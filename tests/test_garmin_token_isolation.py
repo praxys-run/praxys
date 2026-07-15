@@ -6,6 +6,7 @@ the first authenticated user's OAuth session and fetch that person's data
 belong to). The fix scopes tokens per user_id and invalidates them when
 credentials change.
 """
+import contextlib
 import os
 
 import pytest
@@ -158,6 +159,9 @@ def test_sync_garmin_passes_per_user_path_to_login(tmp_path, monkeypatch) -> Non
         def commit(self):
             pass
 
+        def begin_nested(self):
+            return contextlib.nullcontext()
+
     creds_a = {"email": "a@example.com", "password": "pw"}
     creds_b = {"email": "b@example.com", "password": "pw"}
     _sync_garmin("user-a", creds_a, None, _NullDB())
@@ -251,6 +255,9 @@ def test_sync_garmin_first_time_login_passes_token_dir(tmp_path, monkeypatch) ->
         def commit(self):
             pass
 
+        def begin_nested(self):
+            return contextlib.nullcontext()
+
     _sync_garmin(
         "first-time-user", {"email": "x@example.com", "password": "pw"},
         None, _NullDB(),
@@ -325,6 +332,7 @@ def test_sync_garmin_region_prefers_source_options_over_creds(tmp_path, monkeypa
                 def first(self): return None
             return _Q()
         def commit(self): pass
+        def begin_nested(self): return contextlib.nullcontext()
 
     # Creds say is_cn=False (stale). Settings says cn. Settings must win.
     _sync_garmin(
@@ -390,6 +398,7 @@ def test_sync_garmin_region_falls_back_to_creds_when_source_options_missing(
                 def first(self): return None
             return _Q()
         def commit(self): pass
+        def begin_nested(self): return contextlib.nullcontext()
 
     _sync_garmin(
         "u2", {"email": "x@example.com", "password": "pw", "is_cn": True},
@@ -478,6 +487,7 @@ def test_sync_garmin_recovery_loop_survives_a_malformed_day(tmp_path, monkeypatc
                 def first(self): return None
             return _Q()
         def commit(self): pass
+        def begin_nested(self): return contextlib.nullcontext()
 
     result = _sync_garmin(
         "bad-day-user",
