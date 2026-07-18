@@ -11,7 +11,18 @@ on:
   bots: ["Copilot"]
   workflow_dispatch:
 if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'pull_request' && (github.event.workflow_run.conclusion == 'failure' || github.event.workflow_run.conclusion == 'timed_out')) }}
-engine: copilot
+engine:
+  id: copilot
+  model: gpt-5.4
+  env:
+    COPILOT_PROVIDER_BASE_URL: ${{ vars.AZURE_AI_ENDPOINT }}openai/v1
+    COPILOT_PROVIDER_MODEL_ID: gpt-5.4
+    COPILOT_PROVIDER_WIRE_API: responses
+  auth:
+    type: github-oidc
+    provider: azure
+    azure-tenant-id: bd18218b-ffc1-4eef-b717-fb07368336c0
+    azure-client-id: d3deb736-e95d-400e-b5a5-c2f76b23ae25
 max-ai-credits: 1200
 max-daily-ai-credits: 3000
 concurrency:
@@ -21,10 +32,14 @@ permissions:
   actions: read
   checks: read
   contents: read
+  id-token: write
   issues: read
   pull-requests: read
-  copilot-requests: write
-network: defaults
+network:
+  allowed:
+    - defaults
+    - dddtc-m7vjb0s8-eastus2.cognitiveservices.azure.com
+    - login.microsoftonline.com
 tools:
   github:
     mode: gh-proxy

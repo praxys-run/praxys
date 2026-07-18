@@ -2,8 +2,12 @@
 name: Praxys invariant review
 description: Reviews risky PRs for Praxys-specific science, contract, parity, privacy, and operations invariants
 on:
-  pull_request:
-    types: [opened, ready_for_review, synchronize]
+  workflow_run:
+    workflows: ["Backend CI"]
+    types: [completed]
+    branches:
+      - "**"
+      - "!main"
   bots: ["Copilot"]
   workflow_dispatch:
     inputs:
@@ -11,19 +15,67 @@ on:
         description: Pull request number to review
         required: true
         type: number
-if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false }}
-engine: copilot
+  permissions:
+    pull-requests: read
+  steps:
+    - name: Select eligible pull request
+      id: candidate
+      uses: actions/github-script@v9
+      env:
+        MANUAL_PR: ${{ github.event.inputs.pr_number || '' }}
+      with:
+        script: |
+          const manual = context.eventName === "workflow_dispatch";
+          const workflowPr = context.payload.workflow_run?.pull_requests?.[0]?.number;
+          const prNumber = Number(process.env.MANUAL_PR || workflowPr || 0);
+          if (!Number.isInteger(prNumber) || prNumber <= 0) {
+            core.setOutput("eligible", "false");
+            core.setOutput("pr_number", "");
+            return;
+          }
+          const { data: pr } = await github.rest.pulls.get({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: prNumber,
+          });
+          const sameRepository = pr.head.repo?.id === context.payload.repository.id;
+          const successfulPrValidation =
+            context.payload.workflow_run?.event === "pull_request" &&
+            context.payload.workflow_run?.conclusion === "success";
+          const eligible =
+            sameRepository &&
+            !pr.draft &&
+            (manual || (successfulPrValidation && pr.state === "open"));
+          core.setOutput("eligible", eligible ? "true" : "false");
+          core.setOutput("pr_number", String(prNumber));
+if: needs.pre_activation.outputs.eligible == 'true'
+engine:
+  id: copilot
+  model: gpt-5.4
+  env:
+    COPILOT_PROVIDER_BASE_URL: ${{ vars.AZURE_AI_ENDPOINT }}openai/v1
+    COPILOT_PROVIDER_MODEL_ID: gpt-5.4
+    COPILOT_PROVIDER_WIRE_API: responses
+  auth:
+    type: github-oidc
+    provider: azure
+    azure-tenant-id: bd18218b-ffc1-4eef-b717-fb07368336c0
+    azure-client-id: d3deb736-e95d-400e-b5a5-c2f76b23ae25
 max-ai-credits: 1000
 max-daily-ai-credits: 3000
 concurrency:
-  group: praxys-invariant-review-${{ github.event.pull_request.number || github.event.inputs.pr_number || github.ref || github.run_id }}
+  group: praxys-invariant-review-${{ github.event.workflow_run.pull_requests[0].number || github.event.inputs.pr_number || github.run_id }}
   cancel-in-progress: true
 permissions:
   contents: read
+  id-token: write
   issues: read
   pull-requests: read
-  copilot-requests: write
-network: defaults
+network:
+  allowed:
+    - defaults
+    - dddtc-m7vjb0s8-eastus2.cognitiveservices.azure.com
+    - login.microsoftonline.com
 tools:
   github:
     mode: gh-proxy
@@ -41,17 +93,21 @@ safe-outputs:
   report-incomplete:
     create-issue: false
 timeout-minutes: 15
+jobs:
+  pre-activation:
+    outputs:
+      eligible: ${{ steps.candidate.outputs.eligible }}
+      pr_number: ${{ steps.candidate.outputs.pr_number }}
 ---
 
 # Praxys invariant review
 
-Review the triggering pull request, or pull request
-`${{ github.event.inputs.pr_number }}` for a manual run, only for
+Review pull request `${{ needs.pre_activation.outputs.pr_number }}` only for
 repository-specific invariants that a generic code reviewer is unlikely to know.
-This complements GitHub Copilot code review; it is not a second general style
-review.
-
-If no pull-request context is available, emit `noop`.
+The deterministic pre-activation gate has already confirmed that it is
+same-repository and non-draft. Automatic runs occur only after its `Backend CI`
+workflow succeeds; manual runs may inspect a closed PR for smoke testing. This
+complements GitHub Copilot code review; it is not a second general style review.
 
 ## Safety boundaries
 

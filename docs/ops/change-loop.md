@@ -159,22 +159,30 @@ around it:
 |---|---|---|
 | `change-loop-outcomes.md` | Weekly or manual | Replaces the previous 30-day outcome report issue, or no-op |
 | `ci-failure-doctor.md` | Failed/timed-out PR validation workflow, or manual | One deduplicated PR diagnosis comment, or no-op |
-| `praxys-invariant-review.md` | Same-repo non-draft PR opened, readied, or updated; or manual dispatch | One Praxys-specific invariant comment, or no-op |
+| `praxys-invariant-review.md` | Successful `Backend CI` run for a same-repo, open, non-draft PR; or manual dispatch | One Praxys-specific invariant comment, or no-op |
 
 The editable `.md` files and generated `.lock.yml` files both live in
-`.github/workflows/`. The agents run read-only with `copilot-requests: write` for
-inference; repository writes happen only through the declared, capped
-`safe-outputs`, and each workflow also carries per-run and daily AI-credit caps.
-No-op, missing-tool, incomplete-run, and workflow-failure reports remain in
-Actions summaries rather than opening auxiliary repository issues. No PAT or new
-repository secret is required.
+`.github/workflows/`. The agents run read-only and exchange GitHub's short-lived
+OIDC token for an Azure access token; inference goes to the existing `gpt-5.4`
+deployment through `AZURE_AI_ENDPOINT`. The `trainsight-cicd` identity already
+has `Cognitive Services OpenAI User` on that resource, and these workflows run
+from the default-branch trust subject. This avoids both organization Copilot
+billing and a long-lived model API key.
+
+Repository writes happen only through the declared, capped `safe-outputs`, and
+each workflow also carries per-run and daily AI-credit caps. No-op,
+missing-tool, incomplete-run, and workflow-failure reports remain in Actions
+summaries rather than opening auxiliary repository issues. The workflows reuse
+the same public Azure tenant/application IDs as deployment automation plus the
+`AZURE_AI_ENDPOINT` repository variable; no new secret or PAT is required. Keep
+`AZURE_AI_ENDPOINT` terminated by `/` because the workflow appends `openai/v1`.
 
 Install the authoring CLI, then compile and validate after editing a source file:
 
 ```bash
 gh extension install github/gh-aw
-gh aw compile --purge
-gh aw validate
+gh aw compile --purge --no-check-update
+gh aw validate --no-check-update
 ```
 
 Use the full-repository compile rather than naming individual workflows so stale
@@ -278,6 +286,14 @@ and the cost is low).
 - A web build failure makes the required `backend-tests` aggregator fail even
   when pytest passes.
 - `gh aw validate` succeeds.
+- From `main`, a manual invariant review reaches Azure OpenAI through OIDC:
+
+  ```bash
+  gh workflow run praxys-invariant-review.lock.yml \
+    --ref main \
+    -f pr_number=<PR_NUMBER>
+  ```
+
 - A trial run operates in a temporary private repository and does not mutate the
   live repo:
 
