@@ -13,14 +13,13 @@ capacity above CP. The fit is a linear regression after reparametrising
 **Why this exists.** The app already accepts CP values written by each
 connected source (Stryd's Power Center, Garmin's ``functionalThresholdPower``
 endpoint). For a user running Stryd via Connect-IQ on Garmin but without a
-direct Stryd account, the activity-level power field carries Stryd power
-while the only CP source available is Garmin's native FTP estimate — a
-number derived from a *different* power pipeline and typically ~30 % higher
-than Stryd (see ``docs/dev/gotchas.md``). That mismatch produces wrong
-load, wrong race predictions, and wrong training targets.
+direct Stryd account, explicitly named per-split ConnectIQ power can carry
+Stryd provenance while the only CP source available is Garmin's native FTP
+estimate from a different power pipeline. Treating unverified pipelines as
+compatible produces wrong load, race predictions, and training targets.
 
-Activity-derived CP always matches the power source the activities
-actually carry, because it IS that source.
+Activity-derived CP only consumes split power with explicit provider
+provenance, so its provider remains inspectable and can be matched to workload.
 
 **Important caveat — not an all-out test.** In the laboratory CP protocol
 each predicting point is a *separate maximal effort* at a fixed duration.
@@ -39,12 +38,12 @@ reliably have; the linear work-vs-time form ``W = CP·t + W'`` is
 numerically equivalent but emphasises long-duration leverage where our
 data is thinnest. 2-parameter is the right v1 for this use case.
 
-**Data constraints.** We only have activity-level and per-split (lap)
-averages — no per-second power streams. The finest resolution for
-"best power over N seconds" is therefore the shortest lap the user
-recorded. Typical lap durations fall between ~90 s (400 m repeats) and
-~300 s (1 km splits). We bin candidate points by duration and keep the
-peak power per bin to approximate the mean-maximal power curve.
+**Data constraints.** We use per-split (lap) averages rather than unprovenanced
+activity summaries or per-second power streams. The finest resolution for
+"best power over N seconds" is therefore the shortest lap the user recorded.
+Typical lap durations fall between ~90 s (400 m repeats) and ~300 s (1 km
+splits). We bin candidate points by duration and keep the peak power per bin to
+approximate the mean-maximal power curve.
 
 Sources:
     - Monod H, Scherrer J. (1965) The work capacity of a synergic
@@ -148,6 +147,8 @@ class CpFitResult:
     r_squared: float
     points: list[tuple[float, float]]  # (duration_sec, power_watts)
     as_of: date
+    power_source: str | None = None
+    activity_type: str = "running"
 
     def to_dict(self) -> dict:
         return {
@@ -156,6 +157,8 @@ class CpFitResult:
             "r_squared": round(self.r_squared, 3),
             "point_count": len(self.points),
             "as_of": self.as_of.isoformat(),
+            "power_source": self.power_source,
+            "activity_type": self.activity_type,
         }
 
 
@@ -191,6 +194,9 @@ def collect_mean_max_points(
 def fit_cp_wprime(
     points: list[tuple[float, float]],
     as_of: date | None = None,
+    *,
+    power_source: str | None = None,
+    activity_type: str = "running",
 ) -> CpFitResult | None:
     """Least-squares fit of ``P = CP + W'/t`` to ``points``.
 
@@ -256,6 +262,8 @@ def fit_cp_wprime(
         r_squared=r_squared,
         points=valid,
         as_of=as_of or date.today(),
+        power_source=power_source,
+        activity_type=activity_type,
     )
 
 
@@ -263,16 +271,18 @@ def estimate_cp_from_activities(
     user_id: str,
     db: Session,
     *,
+    power_source: str,
     lookback_days: int = 90,
     today: date | None = None,
 ) -> CpFitResult | None:
-    """Derive a CP estimate from the user's own splits + activities.
+    """Derive a provider-specific running CP from provenance-verified splits.
 
-    Reads from ``activity_splits`` (primary source — lap-level granularity)
-    and ``activities`` (fallback — full-activity averages) over the last
-    ``lookback_days`` days. Returns ``None`` when there isn't enough data
-    for a trustworthy fit, in which case the caller should NOT write a row:
-    a missing CP beats a wrong CP.
+    Reads lap-level power from ``activity_splits`` over the last
+    ``lookback_days`` days; the joined activity supplies date and modality only.
+    Only running/trail-running observations from ``power_source`` are eligible.
+    Activity summaries and split rows without verified power provenance are
+    excluded. Returns ``None`` when there is not enough data for a trustworthy
+    fit, in which case the caller should NOT write a row.
     """
     from db.models import Activity, ActivitySplit
 
@@ -289,27 +299,21 @@ def estimate_cp_from_activities(
         .filter(
             ActivitySplit.user_id == user_id,
             Activity.date >= since,
+            Activity.activity_type.in_(("running", "trail_running")),
             ActivitySplit.duration_sec.isnot(None),
             ActivitySplit.avg_power.isnot(None),
+            ActivitySplit.power_source == power_source,
         )
         .all()
     )
-    activity_level = (
-        db.query(Activity.duration_sec, Activity.avg_power)
-        .filter(
-            Activity.user_id == user_id,
-            Activity.date >= since,
-            Activity.duration_sec.isnot(None),
-            Activity.avg_power.isnot(None),
-        )
-        .all()
-    )
-
     observations: list[tuple[float, float]] = []
     for row in splits:
         observations.append((float(row.duration_sec), float(row.avg_power)))
-    for row in activity_level:
-        observations.append((float(row.duration_sec), float(row.avg_power)))
 
     points = collect_mean_max_points(observations)
-    return fit_cp_wprime(points, as_of=as_of)
+    return fit_cp_wprime(
+        points,
+        as_of=as_of,
+        power_source=power_source,
+        activity_type="running",
+    )

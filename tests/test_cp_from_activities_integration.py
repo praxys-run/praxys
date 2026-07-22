@@ -54,7 +54,17 @@ def db_with_user(monkeypatch):
         tmpdir.cleanup()
 
 
-def _seed_cp_friendly_activities(db, user_id: str, cp: float, wp: float) -> None:
+def _seed_cp_friendly_activities(
+    db,
+    user_id: str,
+    cp: float,
+    wp: float,
+    *,
+    source: str = "garmin",
+    power_source: str | None = None,
+    id_prefix: str = "act",
+    activity_type: str = "running",
+) -> None:
     """Seed activities + splits whose best-efforts imply ``cp`` / ``wp``.
 
     One activity per bin of the fit window (3, 5, 10, 20 min). Splits inside
@@ -71,16 +81,16 @@ def _seed_cp_friendly_activities(db, user_id: str, cp: float, wp: float) -> None
         (1200.0, cp + wp / 1200.0),
     ]
     for i, (duration, power) in enumerate(efforts):
-        activity_id = f"act-{i}"
+        activity_id = f"{id_prefix}-{i}"
         db.add(Activity(
             user_id=user_id,
             activity_id=activity_id,
             date=today - timedelta(days=i * 3),  # spread within lookback
-            activity_type="running",
+            activity_type=activity_type,
             distance_km=duration / 240.0,  # nominal 4:00/km pace, not load-bearing
             duration_sec=duration,
             avg_power=power,
-            source="garmin",
+            source=source,
         ))
         db.add(ActivitySplit(
             user_id=user_id,
@@ -88,6 +98,7 @@ def _seed_cp_friendly_activities(db, user_id: str, cp: float, wp: float) -> None
             split_num=1,
             duration_sec=duration,
             avg_power=power,
+            power_source=power_source or source,
         ))
     db.commit()
 
@@ -108,6 +119,8 @@ def test_writer_persists_fit_row(db_with_user):
     assert fit is not None, "expected a fit from 4 CP-consistent efforts"
     # Recovered CP should be very close to the seeded truth.
     assert abs(fit["cp_watts"] - 260.0) < 1.0
+    assert fit["power_source"] == "garmin"
+    assert fit["activity_type"] == "running"
 
     rows = db.query(FitnessData).filter(
         FitnessData.user_id == user_id,
@@ -117,6 +130,7 @@ def test_writer_persists_fit_row(db_with_user):
     assert len(rows) == 1, "exactly one activities-sourced CP row expected"
     assert abs(rows[0].value - 260.0) < 1.0
     assert rows[0].date == date(2026, 4, 22)
+    assert rows[0].power_source == "garmin"
 
 
 def test_writer_upserts_same_day(db_with_user):
@@ -177,6 +191,93 @@ def test_writer_returns_none_and_keeps_existing_row_when_fit_fails(db_with_user)
     assert rows[0].date == date(2026, 4, 22), "old row's as_of must be preserved"
 
 
+def test_fit_ignores_activity_summaries_without_power_provenance(db_with_user):
+    """A connector name cannot stand in for the provider of summary watts."""
+    from analysis.cp_from_activities import estimate_cp_from_activities
+    from db.models import ActivitySplit
+
+    db, user_id = db_with_user
+    _seed_cp_friendly_activities(db, user_id, cp=260.0, wp=15_000.0)
+    db.query(ActivitySplit).filter(ActivitySplit.user_id == user_id).delete()
+    db.commit()
+
+    fit = estimate_cp_from_activities(
+        user_id,
+        db,
+        power_source="garmin",
+        lookback_days=60,
+        today=date(2026, 4, 22),
+    )
+
+    assert fit is None
+
+
+def test_writer_discovers_power_provider_from_splits_not_connector(db_with_user):
+    """Garmin-connected Stryd splits produce a Stryd-provenanced CP."""
+    from db.models import UserConfig
+    from db.sync_writer import update_cp_from_activities
+
+    db, user_id = db_with_user
+    _seed_cp_friendly_activities(
+        db,
+        user_id,
+        cp=260.0,
+        wp=15_000.0,
+        source="garmin",
+        power_source="stryd",
+    )
+    db.add(UserConfig(
+        user_id=user_id,
+        preferences={"activities": "garmin"},
+    ))
+    db.commit()
+
+    fit = update_cp_from_activities(
+        user_id,
+        db,
+        lookback_days=60,
+        today=date(2026, 4, 22),
+    )
+
+    assert fit is not None
+    assert abs(fit["cp_watts"] - 260.0) < 1.0
+    assert fit["power_source"] == "stryd"
+
+
+def test_writer_requires_selection_when_split_providers_are_mixed(db_with_user):
+    """Automatic CP fitting fails closed when two power providers are present."""
+    from db.sync_writer import update_cp_from_activities
+
+    db, user_id = db_with_user
+    _seed_cp_friendly_activities(
+        db,
+        user_id,
+        cp=260.0,
+        wp=15_000.0,
+        source="garmin",
+        power_source="garmin",
+        id_prefix="garmin",
+    )
+    _seed_cp_friendly_activities(
+        db,
+        user_id,
+        cp=280.0,
+        wp=15_000.0,
+        source="garmin",
+        power_source="stryd",
+        id_prefix="stryd",
+    )
+
+    fit = update_cp_from_activities(
+        user_id,
+        db,
+        lookback_days=60,
+        today=date(2026, 4, 22),
+    )
+
+    assert fit is None
+
+
 def test_writer_does_not_touch_other_source_rows(db_with_user):
     """Writing the activities row must leave Garmin/Stryd rows alone."""
     from db.sync_writer import update_cp_from_activities
@@ -211,6 +312,57 @@ def test_writer_does_not_touch_other_source_rows(db_with_user):
     assert abs(by_source["activities"] - 260.0) < 1.0
 
 
+def test_writer_fits_only_an_explicit_running_power_provider(db_with_user):
+    """A mixed connector history cannot contaminate activity-derived CP."""
+    from db.models import FitnessData
+    from db.sync_writer import update_cp_from_activities
+
+    db, user_id = db_with_user
+    _seed_cp_friendly_activities(
+        db,
+        user_id,
+        cp=260.0,
+        wp=15_000.0,
+        source="garmin",
+        id_prefix="garmin",
+    )
+    _seed_cp_friendly_activities(
+        db,
+        user_id,
+        cp=320.0,
+        wp=15_000.0,
+        source="stryd",
+        id_prefix="stryd",
+    )
+    _seed_cp_friendly_activities(
+        db,
+        user_id,
+        cp=400.0,
+        wp=15_000.0,
+        source="garmin",
+        id_prefix="bike",
+        activity_type="cycling",
+    )
+    fit = update_cp_from_activities(
+        user_id,
+        db,
+        power_source="garmin",
+        lookback_days=60,
+        today=date(2026, 4, 22),
+    )
+    db.commit()
+
+    assert fit is not None
+    assert abs(fit["cp_watts"] - 260.0) < 1.0
+    assert fit["power_source"] == "garmin"
+    row = db.query(FitnessData).filter(
+        FitnessData.user_id == user_id,
+        FitnessData.metric_type == "cp_estimate",
+        FitnessData.source == "activities",
+    ).one()
+    assert row.power_source == "garmin"
+
+
 def test_resolve_thresholds_picks_activities_when_preferred(db_with_user):
     """When user chooses 'activities' in Settings, _resolve_thresholds picks it.
 
@@ -239,10 +391,15 @@ def test_resolve_thresholds_picks_activities_when_preferred(db_with_user):
         training_base = "power"
         thresholds: dict = {}
         connections: dict = {}
-        preferences: dict = {"threshold_sources": {"cp_estimate": "activities"}}
+        preferences: dict = {
+            "activities": "garmin",
+            "threshold_sources": {"cp_estimate": "activities"},
+        }
 
     resolved = _resolve_thresholds(_Config(), user_id=user_id, db=db)
     assert resolved.cp_watts is not None
+    assert resolved.cp_source == "activities"
+    assert resolved.cp_power_provider == "garmin"
     assert abs(resolved.cp_watts - 260.0) < 1.0, (
         "with the activities preference the resolver must NOT fall through "
         "to Garmin's 340W — that's the Scenario-3 bug this feature fixes"

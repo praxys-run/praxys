@@ -124,33 +124,102 @@
   margin-top: 4rpx;
 }
 
+// ─── Heat adaptation strip ───────────────────────────────────────────
+.train-heat {
+  margin-bottom: 32rpx;
+  padding: 24rpx 0;
+  border-top: 1rpx solid var(--border-subtle);
+  border-bottom: 1rpx solid var(--border-subtle);
+}
+
+.train-heat-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.train-heat-label {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 20rpx;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.train-heat-stage {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.train-heat-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.train-heat-stage--green { color: var(--primary); }
+.train-heat-stage--amber { color: var(--warning); }
+.train-heat-stage--red { color: var(--destructive); }
+
+.train-heat-action {
+  display: block;
+  margin-top: 14rpx;
+  font-size: 28rpx;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.train-heat-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx 24rpx;
+  margin-top: 14rpx;
+  font-size: 28rpx;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
 // ─── Pill switcher ──────────────────────────────────────────────────
 //
-// Three-segment pill row sitting on the muted-track background, like
-// the language toggle on login. Active segment fills with primary
-// green + light text — solid enough to read as an interactive
-// control. The track itself is muted so inactive pills sit calmly
-// without competing.
+// Two-column switcher keeps all four labels readable and gives each
+// tab a movement-safe touch target. Active segments use action green;
+// the muted track keeps inactive choices quiet.
 .train-pills {
-  display: inline-flex;
-  flex-direction: row;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4rpx;
+  width: 100%;
+  box-sizing: border-box;
   background-color: var(--surface-subtle);
   border: 1rpx solid var(--border-subtle);
-  border-radius: 999rpx;
+  border-radius: 24rpx;
   padding: 4rpx;
   margin-bottom: 24rpx;
 }
 
 .train-pill {
-  font-size: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 88rpx;
+  box-sizing: border-box;
+  font-size: 26rpx;
   font-weight: 500;
+  text-align: center;
   color: var(--text-muted);
-  padding: 10rpx 24rpx;
-  border-radius: 999rpx;
+  padding: 12rpx 10rpx;
+  border-radius: 18rpx;
   line-height: 1.2;
-  transition: background-color 160ms ease, color 160ms ease;
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .train-pill--active {
@@ -166,6 +235,100 @@
 // to the Coach receipt.
 .train-chart-pane {
   margin-bottom: 28rpx;
+}
+
+.train-heat-timeline {
+  border-top: 1rpx solid var(--border-subtle);
+}
+
+.train-heat-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid var(--border-subtle);
+}
+
+.train-heat-row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.train-heat-date {
+  font-size: 28rpx;
+  color: var(--text-muted);
+}
+
+.train-heat-row-status {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.train-heat-row-status--counted {
+  color: var(--primary);
+}
+
+.train-heat-environment {
+  font-size: 28rpx;
+  color: var(--text);
+}
+
+.train-heat-work {
+  font-size: 28rpx;
+  color: var(--text-muted);
+}
+
+.train-heat-source-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20rpx;
+  min-height: 88rpx;
+  box-sizing: border-box;
+  padding: 16rpx 0;
+}
+
+.train-heat-source {
+  flex: 1;
+  font-size: 28rpx;
+  color: var(--text-muted);
+}
+
+.train-heat-source-action {
+  flex: none;
+  font-size: 26rpx;
+  color: var(--accent-cobalt);
+  text-decoration: underline;
+}
+
+.train-heat-methodology-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  min-height: 88rpx;
+  color: var(--accent-cobalt);
+}
+
+.train-heat-methodology-arrow {
+  width: 28rpx;
+  font-size: 26rpx;
+}
+
+.train-heat-methodology-label {
+  font-size: 28rpx;
+}
+
+.train-heat-methodology-body {
+  margin-top: 4rpx;
+}
+
+.train-heat-methodology {
+  display: block;
+  font-size: 28rpx;
+  line-height: 1.6;
 }
 
 // Zone-section label inside the Zones pill view — shown above the

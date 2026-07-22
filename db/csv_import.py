@@ -44,6 +44,42 @@ def _safe_str(val) -> str | None:
     return str(val)
 
 
+def _environment_source(
+    row: pd.Series,
+    temperature_c: float | None,
+    relative_humidity_pct: float | None,
+) -> str | None:
+    """Resolve provenance for one complete CSV environmental observation."""
+    if temperature_c is None or relative_humidity_pct is None:
+        return None
+    explicit = _safe_str(row.get("environment_source"))
+    if explicit:
+        return explicit
+    connector = _safe_str(row.get("source"))
+    if connector:
+        normalized = connector.casefold()
+        return (
+            "stryd_activity_weather"
+            if normalized == "stryd"
+            else f"{normalized}_activity_summary"
+        )
+    # This legacy importer only overlays environmental columns from power_data.csv.
+    return "stryd_activity_weather"
+
+
+def _is_indoor_stryd_activity(row: pd.Series) -> bool:
+    """Return whether legacy Stryd metadata identifies an indoor run."""
+    values = (
+        _safe_str(row.get("stryd_type")) or "",
+        _safe_str(row.get("surface_type")) or "",
+    )
+    return any(
+        marker in value.casefold()
+        for value in values
+        for marker in ("indoor", "treadmill")
+    )
+
+
 def _read_csv(path: str) -> pd.DataFrame:
     if not os.path.exists(path):
         return pd.DataFrame()
@@ -84,11 +120,40 @@ def import_csvs_for_user(user_id: str, data_dir: str, db: Session) -> dict:
         ).first()
         if exists:
             continue
+        if _is_indoor_stryd_activity(row):
+            temperature_c = None
+            relative_humidity_pct = None
+        else:
+            temperature_c = _safe_float(row.get("temperature_c"))
+            relative_humidity_pct = _safe_float(
+                row.get("relative_humidity_pct")
+            )
+            if relative_humidity_pct is None:
+                legacy_humidity = _safe_float(row.get("humidity"))
+                if legacy_humidity is not None:
+                    # ESTIMATE -- legacy Stryd exports
+                    # used both fractional and percent units. Values <=1% are
+                    # outside the model's RH range, so 0..1 is a fraction.
+                    relative_humidity_pct = (
+                        legacy_humidity * 100
+                        if 0 <= legacy_humidity <= 1
+                        else legacy_humidity
+                    )
+        if temperature_c is None or relative_humidity_pct is None:
+            temperature_c = None
+            relative_humidity_pct = None
         db.add(Activity(
             user_id=user_id, activity_id=aid, date=d,
             activity_type=_safe_str(row.get("activity_type")) or "running",
             distance_km=_safe_float(row.get("distance_km")),
             duration_sec=_safe_float(row.get("duration_sec")),
+            temperature_c=temperature_c,
+            relative_humidity_pct=relative_humidity_pct,
+            environment_source=_environment_source(
+                row,
+                temperature_c,
+                relative_humidity_pct,
+            ),
             avg_power=_safe_float(row.get("avg_power")),
             max_power=_safe_float(row.get("max_power")),
             avg_hr=_safe_float(row.get("avg_hr")),
@@ -126,6 +191,7 @@ def import_csvs_for_user(user_id: str, data_dir: str, db: Session) -> dict:
             distance_km=_safe_float(row.get("distance_km")),
             duration_sec=_safe_float(row.get("duration_sec")),
             avg_power=_safe_float(row.get("avg_power")),
+            power_source=_safe_str(row.get("power_source")),
             avg_hr=_safe_float(row.get("avg_hr")),
             max_hr=_safe_float(row.get("max_hr")),
             avg_pace_min_km=_safe_str(row.get("avg_pace_min_km")),

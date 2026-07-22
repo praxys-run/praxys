@@ -1169,6 +1169,747 @@ def compute_load_compliance_pct(
         return None
     return round(sum(ratios) / len(ratios))
 
+
+# --- Heat adaptation -------------------------------------------------------
+
+# Stull (2011) DOI: 10.1175/JAMC-D-11-0143.1 provides the humidity-aware
+# wet-bulb approximation. It does not model wind or solar radiation and must
+# not be presented as WBGT.
+# ESTIMATE -- the 18-26 C weighting ramp is a Praxys evidence scale, not a
+# threshold or dose equation published by Stull.
+_HEAT_REFERENCE_WET_BULB_C = 18.0
+_HEAT_FULL_WEIGHT_WET_BULB_C = 26.0
+
+# ESTIMATE -- hot-dry exercise can produce substantial thermoregulatory strain
+# even when evaporative potential keeps psychrometric wet bulb low. Cramer & Jay
+# (2016), DOI: 10.1016/j.autneu.2016.03.001, describe the relevant heat-balance
+# pathways, and Nielsen et al. (1993), DOI: 10.1113/jphysiol.1993.sp019482,
+# observed acclimation during exercise in 40 C dry heat. The 30-40 C ramp and
+# max-of-ramps combination are Praxys operational estimates, not published
+# physiological cutoffs. Taking the maximum preserves humid-heat evidence
+# without double-counting simultaneous dry- and wet-heat stress.
+_HEAT_REFERENCE_DRY_BULB_C = 30.0
+_HEAT_FULL_WEIGHT_DRY_BULB_C = 40.0
+
+# ESTIMATE -- these product guardrails translate consensus heat-acclimation
+# protocols into field-data evidence rather than claiming a validated dose
+# equation. The 50% CP floor excludes warm-up, cooldown, and recovery time;
+# it is not a physiological heat threshold. Typical protocols use roughly
+# 60-90 min/day for 7-14 days:
+# Racinais et al. (2015), DOI: 10.1136/bjsports-2015-094915;
+# Tyler et al. (2016), DOI: 10.1007/s40279-016-0538-5.
+_HEAT_MIN_POWER_FRACTION_CP = 0.50
+_HEAT_QUALIFYING_EFFECTIVE_MIN = 30.0
+_HEAT_ACTIVE_WINDOW_DAYS = 14
+_HEAT_ADAPTED_MIN_DAYS = 7
+_HEAT_ADAPTED_EFFECTIVE_MIN = 420.0
+_HEAT_BUILDING_MIN_DAYS = 2
+_HEAT_BUILDING_EFFECTIVE_MIN = 60.0
+HEAT_LOOKBACK_DAYS = 56
+
+# ESTIMATE -- sample rows must cover 90% of activity duration before they replace
+# complete splits. This prevents a short high-power fragment from standing in for
+# the whole session; it is a Praxys data-quality gate, not a physiological cutoff.
+_HEAT_SAMPLE_COVERAGE_RATIO = 0.90
+
+# ESTIMATE -- a timestamped power sample owns the interval to the next record
+# only when the gap is at most five seconds. This accepts common 1-2 Hz streams
+# without manufacturing coverage across smart-recording gaps. It is a Praxys
+# data-quality gate, not an exercise-science threshold.
+HEAT_SAMPLE_MAX_INTERVAL_SEC = 5.0
+
+# ESTIMATE -- evidence labels reuse the minimum day counts for "building" and
+# "likely adapted." They describe input coverage, not adaptation probabilities.
+_HEAT_CONFIDENCE_MODERATE_ACTIVITY_COUNT = 2
+_HEAT_CONFIDENCE_HIGH_ACTIVITY_COUNT = 7
+
+# PRODUCT GUARDRAIL -- keep the response and mobile timeline bounded while
+# retaining more than the 14-day active window. This is not a scientific limit.
+_HEAT_PUBLIC_SESSION_LIMIT = 20
+
+# ESTIMATE -- Daanen et al. (2018), DOI: 10.1007/s40279-017-0808-x, supports gradual
+# decay after heat acclimation and faster reacclimation, but not one universal
+# athlete-level retention curve. The 7-28 day window is therefore exposed as
+# an operational range, never an exact loss percentage.
+_HEAT_DECAY_START_DAYS = 7
+_HEAT_DECAY_END_DAYS = 28
+
+# PRODUCT GUARDRAIL -- this tracker may suppress its own normal-training action
+# when the canonical Today signal is restrictive, but it must never override
+# that signal or prescribe additional training/heat solely to change a status.
+_HEAT_RESTRICTIVE_TODAY_RECOMMENDATIONS = frozenset({
+    "unscheduled",
+    "easy",
+    "modify",
+    "reduce_intensity",
+    "rest",
+})
+_HEAT_EXPOSURE_ACTIONS = frozenset({
+    "continue_normal_training",
+    "maintain_normal_training",
+    "no_additional_heat_needed",
+})
+
+
+def _heat_number(value: object) -> float | None:
+    """Return a finite float or ``None`` for missing/invalid evidence."""
+    try:
+        out = float(value)
+    except (TypeError, ValueError):
+        return None
+    return out if math.isfinite(out) else None
+
+
+def _heat_text(value: object) -> str | None:
+    """Return stripped text or ``None`` for missing pandas/string values."""
+    if value is None or pd.isna(value):
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def estimate_wet_bulb_c(
+    temperature_c: float | int | None,
+    relative_humidity_pct: float | int | None,
+) -> float | None:
+    """Estimate a psychrometric wet-bulb proxy from air temperature and RH.
+
+    Uses Stull's empirical approximation (2011),
+    DOI: 10.1175/JAMC-D-11-0143.1. The published validity domain is
+    -20 to 50 degrees C and 5-99% RH, under the approximation's standard
+    sea-level-pressure assumption. Wind and solar radiation are absent, so
+    callers must label this as a wet-bulb proxy rather than WBGT.
+    """
+    temperature = _heat_number(temperature_c)
+    humidity = _heat_number(relative_humidity_pct)
+    if (
+        temperature is None
+        or humidity is None
+        or not -20 <= temperature <= 50
+        or not 5 <= humidity <= 99
+    ):
+        return None
+    rh = humidity
+    wet_bulb = (
+        temperature * math.atan(0.151977 * math.sqrt(rh + 8.313659))
+        + math.atan(temperature + rh)
+        - math.atan(rh - 1.676331)
+        + 0.00391838 * rh ** 1.5 * math.atan(0.023101 * rh)
+        - 4.686035
+    )
+    return round(wet_bulb, 1)
+
+
+def _heat_environment_weight(
+    temperature_c: float,
+    wet_bulb_c: float | None,
+) -> float:
+    """Return bounded heat evidence without adding dry- and wet-heat ramps."""
+    wet_weight = 0.0
+    if wet_bulb_c is not None:
+        wet_weight = max(
+            0.0,
+            min(
+                1.0,
+                (
+                    (wet_bulb_c - _HEAT_REFERENCE_WET_BULB_C)
+                    / (
+                        _HEAT_FULL_WEIGHT_WET_BULB_C
+                        - _HEAT_REFERENCE_WET_BULB_C
+                    )
+                ),
+            ),
+        )
+    dry_weight = max(
+        0.0,
+        min(
+            1.0,
+            (
+                (temperature_c - _HEAT_REFERENCE_DRY_BULB_C)
+                / (_HEAT_FULL_WEIGHT_DRY_BULB_C - _HEAT_REFERENCE_DRY_BULB_C)
+            ),
+        ),
+    )
+    return max(wet_weight, dry_weight)
+
+
+def _heat_window_stats(
+    sessions: list[dict],
+    window_end: date,
+) -> tuple[int, float]:
+    """Return unique qualifying days and effective minutes in a 14-day window."""
+    window_start = window_end - timedelta(days=_HEAT_ACTIVE_WINDOW_DAYS - 1)
+    selected = [
+        session
+        for session in sessions
+        if session["qualifies"]
+        and window_start <= session["_date"] <= window_end
+    ]
+    return (
+        len({session["_date"] for session in selected}),
+        round(
+            sum(
+                float(session["effective_heat_minutes"])
+                for session in selected
+            ),
+            1,
+        ),
+    )
+
+
+def _heat_window_is_adapted(sessions: list[dict], window_end: date) -> bool:
+    days, effective_minutes = _heat_window_stats(sessions, window_end)
+    return (
+        days >= _HEAT_ADAPTED_MIN_DAYS
+        and effective_minutes >= _HEAT_ADAPTED_EFFECTIVE_MIN
+    )
+
+
+def compute_heat_adaptation(
+    activities: pd.DataFrame,
+    splits: pd.DataFrame,
+    sample_power: pd.DataFrame | None = None,
+    *,
+    cp_watts: float | None,
+    cp_source: str | None = None,
+    cp_power_provider: str | None = None,
+    current_date: date,
+) -> dict:
+    """Estimate qualitative heat-adaptation evidence from recent sessions.
+
+    Environmental evidence takes the stronger of separate estimated wet-bulb
+    and dry-bulb ramps from connector-provided activity-summary temperature and
+    relative humidity. The ramps are never added. Workload prefers aggregated
+    per-second sample power with at least 90% duration coverage, then falls back
+    to split durations, at or above 50% of current CP. As a conservative
+    provenance guard, the provider of the selected sample/split evidence must
+    be known and match the provider behind current CP; the model never compares
+    watts across unverified provider pipelines. Activity ``avg_power`` is never
+    consulted. The returned stages and thresholds are Praxys operational
+    estimates for coaching context, not a physiological diagnosis, heat-safety
+    clearance, or exact acclimation percentage.
+    """
+    columns = {
+        "activity_id",
+        "date",
+        "activity_type",
+        "duration_sec",
+        "environment_source",
+        "temperature_c",
+        "relative_humidity_pct",
+    }
+    if activities is None or activities.empty:
+        frame = pd.DataFrame(columns=sorted(columns))
+    else:
+        frame = activities.copy()
+        for column in columns:
+            if column not in frame.columns:
+                frame[column] = pd.NA
+        frame["date"] = pd.to_datetime(frame["date"], errors="coerce").dt.date
+        cutoff = current_date - timedelta(days=HEAT_LOOKBACK_DAYS - 1)
+        frame = frame[
+            frame["date"].notna()
+            & (frame["date"] >= cutoff)
+            & (frame["date"] <= current_date)
+            & frame["activity_type"].isin(("running", "trail_running"))
+        ].copy()
+
+    split_frame = splits.copy() if splits is not None else pd.DataFrame()
+    if split_frame.empty:
+        split_frame = pd.DataFrame(
+            columns=[
+                "activity_id",
+                "split_num",
+                "duration_sec",
+                "avg_power",
+                "power_provider",
+            ]
+        )
+    for column in ("activity_id", "duration_sec", "avg_power", "power_provider"):
+        if column not in split_frame.columns:
+            split_frame[column] = pd.NA
+    split_frame["activity_id"] = split_frame["activity_id"].astype(str)
+    for column in ("duration_sec", "avg_power"):
+        numeric = pd.to_numeric(split_frame[column], errors="coerce")
+        split_frame[column] = numeric.where(np.isfinite(numeric))
+
+    sample_frame = (
+        sample_power.copy()
+        if sample_power is not None
+        else pd.DataFrame()
+    )
+    if sample_frame.empty:
+        sample_frame = pd.DataFrame(
+            columns=[
+                "activity_id",
+                "power_watts",
+                "duration_sec",
+                "power_provider",
+            ]
+        )
+    for column in (
+        "activity_id",
+        "power_watts",
+        "duration_sec",
+        "power_provider",
+    ):
+        if column not in sample_frame.columns:
+            sample_frame[column] = pd.NA
+    sample_frame["activity_id"] = sample_frame["activity_id"].astype(str)
+    for column in ("power_watts", "duration_sec"):
+        numeric = pd.to_numeric(sample_frame[column], errors="coerce")
+        sample_frame[column] = numeric.where(np.isfinite(numeric))
+
+    cp = _heat_number(cp_watts)
+    if cp is not None and cp <= 0:
+        cp = None
+    cp_origin = _heat_text(cp_source)
+    if cp_origin is not None:
+        cp_origin = cp_origin.casefold()
+    cp_provider = _heat_text(cp_power_provider)
+    if cp_provider is None and cp_origin not in {None, "activities"}:
+        cp_provider = cp_origin
+    if cp_provider is not None:
+        cp_provider = cp_provider.casefold()
+    power_floor = cp * _HEAT_MIN_POWER_FRACTION_CP if cp is not None else None
+
+    sessions: list[dict] = []
+    environment_supported = 0
+    power_evidence = 0
+    workload_supported = 0
+    source_mismatches = 0
+    source_unverified = 0
+    for _, activity in frame.iterrows():
+        activity_id = str(activity.get("activity_id", ""))
+        environment_source = _heat_text(activity.get("environment_source"))
+        if environment_source is None:
+            continue
+        temperature = _heat_number(activity.get("temperature_c"))
+        humidity = _heat_number(activity.get("relative_humidity_pct"))
+        if (
+            temperature is None
+            or humidity is None
+            or not -20 <= temperature <= 50
+            or not 0 <= humidity <= 100
+        ):
+            continue
+        wet_bulb = estimate_wet_bulb_c(temperature, humidity)
+        environment_supported += 1
+        activity_duration = _heat_number(activity.get("duration_sec"))
+
+        work_minutes = 0.0
+        workload_source = "none"
+        workload_evidence = False
+        work_seconds = 0.0
+        sample_coverage_ratio: float | None = None
+        power_provider: str | None = None
+        power_source_alignment = "unknown"
+        if activity_id:
+            activity_samples = sample_frame[
+                (sample_frame["activity_id"] == activity_id)
+                & sample_frame["duration_sec"].gt(0)
+                & sample_frame["power_watts"].notna()
+            ]
+            activity_splits = split_frame[
+                (split_frame["activity_id"] == activity_id)
+                & split_frame["duration_sec"].gt(0)
+                & split_frame["avg_power"].notna()
+            ]
+            sample_coverage_seconds = float(
+                activity_samples["duration_sec"].fillna(0).sum()
+            )
+            samples_complete = (
+                activity_duration is not None
+                and activity_duration > 0
+                and sample_coverage_seconds
+                >= activity_duration * _HEAT_SAMPLE_COVERAGE_RATIO
+            )
+            if activity_duration is not None and activity_duration > 0:
+                sample_coverage_ratio = round(
+                    min(sample_coverage_seconds / activity_duration, 1.0),
+                    3,
+                )
+
+            selected_power = pd.DataFrame()
+            selected_power_column = ""
+            if samples_complete:
+                workload_evidence = True
+                workload_source = "samples"
+                selected_power = activity_samples
+                selected_power_column = "power_watts"
+            elif not activity_splits.empty:
+                workload_evidence = True
+                workload_source = "splits"
+                selected_power = activity_splits
+                selected_power_column = "avg_power"
+            elif not activity_samples.empty:
+                workload_source = "samples_incomplete"
+
+            raw_providers = [
+                _heat_text(raw_provider)
+                for raw_provider in selected_power.get(
+                    "power_provider",
+                    pd.Series(dtype=object),
+                )
+            ]
+            provider_values = {
+                provider.casefold()
+                for provider in raw_providers
+                if provider is not None
+            }
+            has_unknown_provider = any(
+                provider is None for provider in raw_providers
+            )
+            if not has_unknown_provider and len(provider_values) == 1:
+                power_provider = next(iter(provider_values))
+                if cp_provider is not None:
+                    power_source_alignment = (
+                        "matched"
+                        if power_provider == cp_provider
+                        else "mismatch"
+                    )
+            elif not has_unknown_provider and len(provider_values) > 1:
+                power_provider = "mixed"
+                power_source_alignment = "mixed"
+
+            if workload_evidence:
+                power_evidence += 1
+                if power_source_alignment == "mismatch":
+                    source_mismatches += 1
+                elif power_source_alignment in {"unknown", "mixed"}:
+                    source_unverified += 1
+
+            if (
+                workload_evidence
+                and power_floor is not None
+                and power_source_alignment == "matched"
+            ):
+                work_seconds = float(
+                    selected_power.loc[
+                        selected_power[selected_power_column].ge(power_floor),
+                        "duration_sec",
+                    ].fillna(0).sum()
+                )
+
+        workload_evaluable = (
+            workload_evidence
+            and power_floor is not None
+            and power_source_alignment == "matched"
+        )
+        if workload_evaluable:
+            workload_supported += 1
+            if activity_duration is not None and activity_duration > 0:
+                work_seconds = min(work_seconds, activity_duration)
+            work_minutes = max(0.0, work_seconds / 60.0)
+
+        # ESTIMATE -- the stronger ramp converts environmental context into
+        # weighted evidence. The ramps are not added and do not form a
+        # validated physiological dose model.
+        environment_weight = _heat_environment_weight(temperature, wet_bulb)
+        effective_minutes = round(work_minutes * environment_weight, 1)
+        session_date = activity["date"]
+        sessions.append({
+            "_date": session_date,
+            "date": session_date.isoformat(),
+            "activity_id": activity_id,
+            "temperature_c": round(float(temperature), 1),
+            "relative_humidity_pct": round(float(humidity), 1),
+            "wet_bulb_c": wet_bulb,
+            "work_minutes": round(work_minutes, 1),
+            "effective_heat_minutes": effective_minutes,
+            "workload_evaluable": workload_evaluable,
+            "sample_coverage_ratio": sample_coverage_ratio,
+            "qualifies": (
+                workload_evaluable
+                and effective_minutes >= _HEAT_QUALIFYING_EFFECTIVE_MIN
+            ),
+            "workload_source": workload_source,
+            "power_provider": power_provider,
+            "cp_source": cp_origin,
+            "cp_power_provider": cp_provider,
+            "power_source_alignment": power_source_alignment,
+            "environment_source": environment_source,
+        })
+
+    sessions.sort(key=lambda session: session["_date"])
+    exposure_days, effective_heat_minutes = _heat_window_stats(
+        sessions, current_date,
+    )
+    current_start = current_date - timedelta(days=_HEAT_ACTIVE_WINDOW_DAYS - 1)
+    current_qualifying = [
+        session
+        for session in sessions
+        if session["qualifies"] and session["_date"] >= current_start
+    ]
+    qualifying_dates = sorted({
+        session["_date"] for session in sessions if session["qualifies"]
+    })
+    days_since_last = (
+        (current_date - qualifying_dates[-1]).days
+        if qualifying_dates else None
+    )
+
+    current_adapted = _heat_window_is_adapted(sessions, current_date)
+    historical_adapted_end: date | None = None
+    historical_block_last_exposure: date | None = None
+    if qualifying_dates:
+        cursor = qualifying_dates[0]
+        while cursor < current_date:
+            if _heat_window_is_adapted(sessions, cursor):
+                historical_adapted_end = cursor
+                window_start = cursor - timedelta(
+                    days=_HEAT_ACTIVE_WINDOW_DAYS - 1
+                )
+                block_dates = [
+                    exposure_date
+                    for exposure_date in qualifying_dates
+                    if window_start <= exposure_date <= cursor
+                ]
+                if block_dates:
+                    historical_block_last_exposure = block_dates[-1]
+            cursor += timedelta(days=1)
+
+    is_reacclimating = False
+    if not current_adapted and historical_block_last_exposure is not None:
+        post_block_dates = [
+            exposure_date
+            for exposure_date in qualifying_dates
+            if exposure_date > historical_block_last_exposure
+        ]
+        if (
+            post_block_dates
+            and days_since_last is not None
+            and days_since_last <= _HEAT_DECAY_START_DAYS
+        ):
+            exposure_sequence = [
+                historical_block_last_exposure,
+                *post_block_dates,
+            ]
+            is_reacclimating = any(
+                (later - earlier).days > _HEAT_DECAY_START_DAYS
+                for earlier, later in zip(
+                    exposure_sequence,
+                    exposure_sequence[1:],
+                )
+            )
+
+    if current_adapted:
+        stage = "likely_adapted"
+    elif historical_adapted_end is not None:
+        if is_reacclimating:
+            stage = "building"
+        elif days_since_last is not None and days_since_last <= _HEAT_DECAY_START_DAYS:
+            stage = "maintaining"
+        else:
+            stage = "decaying"
+    elif (
+        exposure_days >= _HEAT_BUILDING_MIN_DAYS
+        and effective_heat_minutes >= _HEAT_BUILDING_EFFECTIVE_MIN
+    ):
+        stage = "building"
+    else:
+        stage = "insufficient_evidence"
+
+    if current_adapted:
+        decay_state = "retained"
+    elif is_reacclimating:
+        decay_state = "reacclimating"
+    elif historical_adapted_end is None:
+        decay_state = "not_applicable"
+    elif days_since_last is not None and days_since_last <= _HEAT_DECAY_START_DAYS:
+        decay_state = "within_retention_window"
+    elif days_since_last is not None and days_since_last <= _HEAT_DECAY_END_DAYS:
+        decay_state = "early"
+    else:
+        decay_state = "advanced"
+
+    # ESTIMATE -- confidence describes evidence coverage only. It is not the
+    # probability that this individual is physiologically adapted.
+    if (
+        environment_supported >= _HEAT_CONFIDENCE_HIGH_ACTIVITY_COUNT
+        and workload_supported >= _HEAT_CONFIDENCE_HIGH_ACTIVITY_COUNT
+    ):
+        confidence = "high"
+    elif (
+        environment_supported >= _HEAT_CONFIDENCE_MODERATE_ACTIVITY_COUNT
+        and workload_supported >= _HEAT_CONFIDENCE_MODERATE_ACTIVITY_COUNT
+    ):
+        confidence = "moderate"
+    else:
+        confidence = "low"
+
+    total_activities = len(frame)
+    reason_codes: list[str] = []
+    if total_activities == 0:
+        reason_codes.append("no_recent_activities")
+    if environment_supported == 0:
+        reason_codes.append("no_supported_environment_data")
+    if cp is None:
+        reason_codes.append("missing_power_threshold")
+    elif environment_supported > 0 and workload_supported == 0:
+        if source_mismatches > 0:
+            reason_codes.append("power_source_mismatch")
+        elif source_unverified > 0:
+            reason_codes.append("power_source_unverified")
+        else:
+            reason_codes.append("insufficient_power_evidence")
+    if is_reacclimating:
+        reason_codes.append("reacclimation_evidence")
+    elif stage == "building":
+        reason_codes.append("adaptation_building")
+    elif stage == "likely_adapted":
+        reason_codes.append("recent_adapted_block")
+    elif stage == "maintaining":
+        reason_codes.append("maintenance_exposure")
+    elif stage == "decaying":
+        reason_codes.append("decay_after_gap")
+    elif not reason_codes:
+        reason_codes.append("limited_heat_exposure")
+
+    if total_activities == 0:
+        next_action = "sync_training_data"
+    elif environment_supported == 0:
+        next_action = "collect_supported_environment_data"
+    elif cp is None:
+        next_action = "set_power_threshold"
+    elif workload_supported == 0 and source_mismatches > 0:
+        next_action = "align_power_source"
+    elif workload_supported == 0 and source_unverified > 0:
+        next_action = "sync_power_provenance"
+    elif workload_supported == 0:
+        next_action = "sync_power_evidence"
+    elif stage == "likely_adapted":
+        next_action = "no_additional_heat_needed"
+    elif stage == "maintaining":
+        next_action = "maintain_normal_training"
+    else:
+        next_action = "continue_normal_training"
+
+    public_sessions = [
+        {key: value for key, value in session.items() if key != "_date"}
+        for session in reversed(sessions[-_HEAT_PUBLIC_SESSION_LIMIT:])
+    ]
+    return {
+        "stage": stage,
+        "confidence": confidence,
+        "confidence_basis": "data_coverage",
+        "model_version": "heat-adaptation-v6",
+        "cp_source": cp_origin,
+        "cp_power_provider": cp_provider,
+        "exposure_days": exposure_days,
+        "effective_heat_minutes": round(effective_heat_minutes, 1),
+        "contributing_sessions": len(current_qualifying),
+        "days_since_last_exposure": days_since_last,
+        "is_reacclimating": is_reacclimating,
+        "today_restricted": False,
+        "next_action": next_action,
+        "reason_codes": reason_codes,
+        "data_coverage": {
+            "recent_activities": total_activities,
+            "environment_supported_activities": environment_supported,
+            "power_evidence_activities": power_evidence,
+            "workload_supported_activities": workload_supported,
+            "power_source_mismatch_activities": source_mismatches,
+            "power_source_unverified_activities": source_unverified,
+        },
+        "decay": {
+            "state": decay_state,
+            "start_days": _HEAT_DECAY_START_DAYS,
+            "end_days": _HEAT_DECAY_END_DAYS,
+        },
+        "evidence_thresholds": {
+            "lookback_days": HEAT_LOOKBACK_DAYS,
+            "active_window_days": _HEAT_ACTIVE_WINDOW_DAYS,
+            "minimum_power_fraction_cp": _HEAT_MIN_POWER_FRACTION_CP,
+            "sample_coverage_ratio": _HEAT_SAMPLE_COVERAGE_RATIO,
+            "sample_max_interval_sec": HEAT_SAMPLE_MAX_INTERVAL_SEC,
+            "wet_bulb_reference_c": _HEAT_REFERENCE_WET_BULB_C,
+            "wet_bulb_full_weight_c": _HEAT_FULL_WEIGHT_WET_BULB_C,
+            "dry_bulb_reference_c": _HEAT_REFERENCE_DRY_BULB_C,
+            "dry_bulb_full_weight_c": _HEAT_FULL_WEIGHT_DRY_BULB_C,
+            "qualifying_effective_minutes": _HEAT_QUALIFYING_EFFECTIVE_MIN,
+            "likely_adapted_days": _HEAT_ADAPTED_MIN_DAYS,
+            "likely_adapted_effective_minutes": _HEAT_ADAPTED_EFFECTIVE_MIN,
+            "estimated": True,
+        },
+        "environment_proxy": {
+            "type": "temperature_humidity_evidence",
+            "wet_bulb_method": "stull_psychrometric",
+            "combination": "max",
+            "pressure_assumption": "standard_sea_level",
+            "granularity": "activity_summary",
+            "current_conditions_assessed": False,
+            "excludes": [
+                "wind",
+                "solar_radiation",
+                "within_session_weather",
+                "clothing",
+                "hydration_state",
+                "core_temperature",
+                "skin_temperature",
+            ],
+        },
+        "safety_notice_codes": [
+            "not_medical_clearance",
+            "current_conditions_not_assessed",
+            "stop_for_heat_illness_symptoms",
+        ],
+        # Kelly et al. support the female-athlete evidence caveat shown by both
+        # clients; Casa et al. support the stop/cool/urgent-care safety copy.
+        "science_sources": [
+            {
+                "id": "stull-2011",
+                "url": "https://doi.org/10.1175/JAMC-D-11-0143.1",
+            },
+            {
+                "id": "cramer-jay-2016",
+                "url": "https://doi.org/10.1016/j.autneu.2016.03.001",
+            },
+            {
+                "id": "nielsen-1993",
+                "url": "https://doi.org/10.1113/jphysiol.1993.sp019482",
+            },
+            {
+                "id": "racinais-2015",
+                "url": "https://doi.org/10.1136/bjsports-2015-094915",
+            },
+            {
+                "id": "tyler-2016",
+                "url": "https://doi.org/10.1007/s40279-016-0538-5",
+            },
+            {
+                "id": "daanen-2018",
+                "url": "https://doi.org/10.1007/s40279-017-0808-x",
+            },
+            {
+                "id": "kelly-2023",
+                "url": "https://doi.org/10.1007/s40279-023-01831-2",
+            },
+            {
+                "id": "casa-2015",
+                "url": "https://doi.org/10.4085/1062-6050-50.9.07",
+            },
+        ],
+        "sessions": public_sessions,
+    }
+
+
+def apply_heat_adaptation_guidance(
+    status: dict,
+    today_recommendation: str | None,
+) -> dict:
+    """Suppress heat-exposure suggestions when Today's verdict is restrictive."""
+    guided = dict(status)
+    restricted = (
+        today_recommendation in _HEAT_RESTRICTIVE_TODAY_RECOMMENDATIONS
+        and guided.get("next_action") in _HEAT_EXPOSURE_ACTIONS
+    )
+    guided["today_restricted"] = restricted
+    if restricted:
+        guided["next_action"] = "follow_today_signal"
+    return guided
+
+
 # --- Training diagnosis ---
 
 

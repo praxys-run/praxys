@@ -77,6 +77,7 @@ def db_with_seeded_user(monkeypatch):
             distance_km=4.0,
             duration_sec=1200.0,
             avg_power=245.0,
+            power_source="stryd",
             avg_hr=152.0,
             avg_pace_min_km="5:00",
         ))
@@ -129,6 +130,42 @@ def _ctx(db_with_seeded_user):
     return RequestContext(user_id=user_id, db=db)
 
 
+def _seed_heat_exposure(db, user_id):
+    from db.models import Activity, ActivitySplit
+
+    recent = (
+        db.query(Activity)
+        .filter(Activity.user_id == user_id)
+        .order_by(Activity.date.desc())
+        .limit(7)
+        .all()
+    )
+    for activity in recent:
+        activity.duration_sec = 3600.0
+        activity.temperature_c = 34.0
+        activity.relative_humidity_pct = 70.0
+        activity.environment_source = "stryd_activity_weather"
+        split = db.query(ActivitySplit).filter(
+            ActivitySplit.user_id == user_id,
+            ActivitySplit.activity_id == activity.activity_id,
+        ).one()
+        split.duration_sec = 3600.0
+        split.avg_power = 180.0
+    db.commit()
+
+
+def _seed_environment_only(db, user_id):
+    from db.models import Activity
+
+    for activity in db.query(Activity).filter(
+        Activity.user_id == user_id,
+    ).all():
+        activity.temperature_c = 34.0
+        activity.relative_humidity_pct = 70.0
+        activity.environment_source = "stryd_activity_weather"
+    db.commit()
+
+
 def test_request_context_caches_shared_inputs(db_with_seeded_user):
     """cached_property must hand back the same object on second access.
 
@@ -140,6 +177,132 @@ def test_request_context_caches_shared_inputs(db_with_seeded_user):
     assert ctx.thresholds is ctx.thresholds
     assert ctx.science is ctx.science
     assert ctx.fitness_series is ctx.fitness_series
+    assert ctx.heat_adaptation is ctx.heat_adaptation
+
+
+def test_heat_input_loader_weights_sample_power_by_timestamp_cadence(
+    db_with_seeded_user,
+):
+    """The bounded loader counts real intervals without bridging large gaps."""
+    from analysis.data_loader import load_heat_adaptation_inputs
+    from analysis.metrics import (
+        HEAT_LOOKBACK_DAYS,
+        HEAT_SAMPLE_MAX_INTERVAL_SEC,
+    )
+    from db.models import Activity, ActivitySample
+
+    db, user_id = db_with_seeded_user
+    activity = db.query(Activity).filter(
+        Activity.user_id == user_id,
+    ).order_by(Activity.date.desc()).first()
+    assert activity is not None
+    activity.temperature_c = 34.0
+    activity.relative_humidity_pct = 70.0
+    activity.environment_source = "stryd_activity_weather"
+    db.add_all([
+        ActivitySample(
+            user_id=user_id,
+            activity_id=activity.activity_id,
+            source="stryd",
+            t_sec=1,
+            power_watts=180.0,
+        ),
+        ActivitySample(
+            user_id=user_id,
+            activity_id=activity.activity_id,
+            source="stryd",
+            t_sec=3,
+            power_watts=180.0,
+        ),
+        ActivitySample(
+            user_id=user_id,
+            activity_id=activity.activity_id,
+            source="stryd",
+            t_sec=5,
+            power_watts=180.0,
+        ),
+        ActivitySample(
+            user_id=user_id,
+            activity_id=activity.activity_id,
+            source="stryd",
+            t_sec=20,
+            power_watts=100.0,
+        ),
+    ])
+    db.commit()
+
+    activities, _, sample_power = load_heat_adaptation_inputs(
+        user_id,
+        db,
+        current_date=date.today(),
+        sample_max_interval_sec=HEAT_SAMPLE_MAX_INTERVAL_SEC,
+        lookback_days=HEAT_LOOKBACK_DAYS,
+    )
+
+    loaded = activities.loc[
+        activities["activity_id"] == activity.activity_id,
+    ].iloc[0]
+    assert loaded["environment_source"] == "stryd_activity_weather"
+    buckets = sample_power.loc[
+        sample_power["activity_id"] == activity.activity_id,
+    ].set_index("power_watts")["duration_sec"].to_dict()
+    assert buckets == {180.0: 4}
+
+
+def test_heat_input_loader_does_not_bridge_null_power_samples(
+    db_with_seeded_user,
+):
+    """A null record terminates the preceding power sample's owned interval."""
+    from analysis.data_loader import load_heat_adaptation_inputs
+    from analysis.metrics import (
+        HEAT_LOOKBACK_DAYS,
+        HEAT_SAMPLE_MAX_INTERVAL_SEC,
+    )
+    from db.models import Activity, ActivitySample
+
+    db, user_id = db_with_seeded_user
+    activity = db.query(Activity).filter(
+        Activity.user_id == user_id,
+    ).order_by(Activity.date.desc()).first()
+    assert activity is not None
+    db.add_all([
+        ActivitySample(
+            user_id=user_id,
+            activity_id=activity.activity_id,
+            source="stryd",
+            t_sec=1,
+            power_watts=180.0,
+        ),
+        ActivitySample(
+            user_id=user_id,
+            activity_id=activity.activity_id,
+            source="stryd",
+            t_sec=2,
+            power_watts=None,
+        ),
+        ActivitySample(
+            user_id=user_id,
+            activity_id=activity.activity_id,
+            source="stryd",
+            t_sec=3,
+            power_watts=180.0,
+        ),
+    ])
+    db.commit()
+
+    _, _, sample_power = load_heat_adaptation_inputs(
+        user_id,
+        db,
+        current_date=date.today(),
+        sample_max_interval_sec=HEAT_SAMPLE_MAX_INTERVAL_SEC,
+        lookback_days=HEAT_LOOKBACK_DAYS,
+    )
+
+    buckets = sample_power.loc[
+        sample_power["activity_id"] == activity.activity_id,
+    ].set_index("power_watts")["duration_sec"].to_dict()
+    assert buckets == {180.0: 1}
+    assert set(sample_power["power_provider"]) == {"stryd"}
 
 
 def test_preferred_source_selector_uses_stable_lexical_tie_break():
@@ -327,6 +490,89 @@ def test_training_payload_exposes_server_summary_and_load_window(
     assert payload["summary"]["current_tsb"] is None
     assert payload["data_meta"]["load_time_constant_days"] == 42
     assert payload["data_meta"]["pmc_sufficient"] is False
+
+
+def test_today_and_training_payloads_expose_heat_adaptation(
+    db_with_seeded_user,
+):
+    from api.routes.today import _build_today_payload
+    from api.routes.training import _build_training_payload
+
+    db, user_id = db_with_seeded_user
+    _seed_heat_exposure(db, user_id)
+
+    today_payload = _build_today_payload(user_id, db)
+    training_payload = _build_training_payload(user_id, db)
+
+    assert today_payload["heat_adaptation"]["stage"] == "likely_adapted"
+    assert today_payload["heat_adaptation"]["today_restricted"] is False
+    assert training_payload["heat_adaptation"]["stage"] == "likely_adapted"
+    assert training_payload["heat_adaptation"]["today_restricted"] is False
+    assert training_payload["heat_adaptation"]["sessions"]
+
+
+def test_training_payload_applies_restrictive_today_heat_guard(
+    db_with_seeded_user,
+):
+    """Training keeps diagnostic evidence but never contradicts Today's rest."""
+    from api.routes.training import _build_training_payload
+    from db.models import TrainingPlan
+
+    db, user_id = db_with_seeded_user
+    _seed_heat_exposure(db, user_id)
+    plan = db.query(TrainingPlan).filter(
+        TrainingPlan.user_id == user_id,
+        TrainingPlan.date == date.today(),
+    ).one()
+    plan.workout_type = "rest"
+    plan.planned_duration_min = None
+    plan.target_power_min = None
+    plan.target_power_max = None
+    db.commit()
+
+    payload = _build_training_payload(user_id, db)
+
+    assert payload["heat_adaptation"]["stage"] == "likely_adapted"
+    assert payload["heat_adaptation"]["today_restricted"] is True
+    assert payload["heat_adaptation"]["next_action"] == "follow_today_signal"
+    assert payload["heat_adaptation"]["sessions"]
+
+
+def test_environment_evidence_does_not_change_existing_training_outputs(
+    db_with_seeded_user,
+):
+    """Adding heat context leaves canonical signal/load/diagnosis untouched."""
+    from api.routes.today import _build_today_payload
+    from api.routes.training import _build_training_payload
+
+    db, user_id = db_with_seeded_user
+    before_today = _build_today_payload(user_id, db)
+    before_training = _build_training_payload(user_id, db)
+
+    _seed_environment_only(db, user_id)
+
+    after_today = _build_today_payload(user_id, db)
+    after_training = _build_training_payload(user_id, db)
+
+    for key in ("signal", "tsb_sparkline", "warnings", "week_load"):
+        assert after_today[key] == before_today[key]
+    for key in (
+        "diagnosis",
+        "fitness_fatigue",
+        "cp_trend",
+        "weekly_review",
+        "summary",
+    ):
+        assert after_training[key] == before_training[key]
+    assert (
+        after_today["heat_adaptation"]["data_coverage"][
+            "environment_supported_activities"
+        ]
+        > before_today["heat_adaptation"]["data_coverage"][
+            "environment_supported_activities"
+        ]
+    )
+
 
 def test_race_pack_returns_required_keys(db_with_seeded_user):
     from api.packs import get_race_pack
@@ -951,6 +1197,7 @@ def test_dashboard_data_and_packs_agree_on_signal(db_with_seeded_user):
     assert pack["signal"] == full["signal"]
     assert pack["tsb_sparkline"] == full["tsb_sparkline"]
     assert pack["warnings"] == full["warnings"]
+    assert full["heat_adaptation"]["model_version"] == "heat-adaptation-v6"
 
 
 def test_build_warnings_uses_selected_cv_threshold():

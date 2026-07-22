@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Trans, useLingui } from '@lingui/react/macro';
 
 /**
@@ -35,6 +35,7 @@ export default function ScienceNote({
   sources,
 }: ScienceNoteProps) {
   const [expanded, setExpanded] = useState(false);
+  const contentId = useId();
   const { t } = useLingui();
   const resolvedSources = sources?.length
     ? sources
@@ -50,13 +51,16 @@ export default function ScienceNote({
     // a flat section ends with a ScienceNote.
     <div className="mt-4">
       <button
+        type="button"
+        aria-controls={contentId}
+        aria-expanded={expanded}
         onClick={() => setExpanded(!expanded)}
         className="text-[12px] text-accent-cobalt hover:text-accent-cobalt/80 transition-colors"
       >
         {expanded ? '\u25be' : '\u25b8'} <Trans>How this is calculated</Trans>
       </button>
       {expanded && (
-        <p className="text-[13px] text-muted-foreground mt-2 leading-relaxed">
+        <p id={contentId} className="text-[13px] text-muted-foreground mt-2 leading-relaxed">
           {text}{' '}
           {resolvedSources.map((source, index) => (
             <span key={source.url}>

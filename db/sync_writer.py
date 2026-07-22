@@ -4,12 +4,20 @@ Each function takes parsed row dicts (same format the sync parse functions
 produce) and upserts them into the appropriate DB tables.
 """
 import logging
-from datetime import date, datetime
+import math
+from datetime import date, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
 from db.cache_revision import bump_revisions, lock_revision_writes
-from db.models import Activity, ActivitySample, ActivitySplit, RecoveryData, FitnessData, TrainingPlan
+from db.models import (
+    Activity,
+    ActivitySample,
+    ActivitySplit,
+    FitnessData,
+    RecoveryData,
+    TrainingPlan,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -61,8 +69,10 @@ def _parse_dt(val) -> datetime | None:
 # fill these in without touching columns that were already populated —
 # protects against overwriting Stryd-sourced power with Garmin's reading when
 # both sources synced the same activity.
-_ACTIVITY_FILL_COLUMNS = ("avg_power", "max_power")
-_SPLIT_FILL_COLUMNS = ("avg_power",)
+_ACTIVITY_FILL_COLUMNS = (
+    "avg_power",
+    "max_power",
+)
 
 
 def _fill_missing(obj, row: dict, columns: tuple[str, ...]) -> bool:
@@ -75,11 +85,82 @@ def _fill_missing(obj, row: dict, columns: tuple[str, ...]) -> bool:
     touched = False
     for col in columns:
         if getattr(obj, col) is None:
-            val = _float(row.get(col))
+            val = (
+                _str(row.get(col))
+                if col.endswith("_source")
+                else _float(row.get(col))
+            )
             if val is not None:
                 setattr(obj, col, val)
                 touched = True
     return touched
+
+
+def _fill_split_power(obj: ActivitySplit, row: dict) -> bool:
+    """Backfill split watts and provenance without pairing different sources."""
+    incoming_power = _float(row.get("avg_power"))
+    incoming_source = _str(row.get("power_source"))
+    if incoming_power is None:
+        return False
+
+    if obj.avg_power is None:
+        if (
+            obj.power_source is not None
+            and incoming_source != obj.power_source
+        ):
+            return False
+        obj.avg_power = incoming_power
+        if obj.power_source is None:
+            obj.power_source = incoming_source
+        return True
+
+    if (
+        obj.power_source is None
+        and incoming_source is not None
+        and math.isclose(obj.avg_power, incoming_power, abs_tol=1e-6)
+    ):
+        obj.power_source = incoming_source
+        return True
+    return False
+
+
+def _activity_environment(
+    row: dict,
+) -> tuple[float | None, float | None, str | None]:
+    """Return one coherent activity-summary environment observation."""
+    temperature = _float(row.get("temperature_c"))
+    humidity = _float(row.get("relative_humidity_pct"))
+    if temperature is None or humidity is None:
+        return None, None, None
+    source = _str(row.get("environment_source"))
+    if source is None:
+        connector = (_str(row.get("source")) or "unknown").casefold()
+        source = (
+            "stryd_activity_weather"
+            if connector == "stryd"
+            else f"{connector}_activity_summary"
+        )
+    return temperature, humidity, source
+
+
+def _fill_missing_activity_environment(obj: Activity, row: dict) -> bool:
+    """Atomically backfill an environment pair without mixing observations."""
+    temperature, humidity, source = _activity_environment(row)
+    if temperature is None or humidity is None or source is None:
+        return False
+    if obj.temperature_c is None and obj.relative_humidity_pct is None:
+        obj.temperature_c = temperature
+        obj.relative_humidity_pct = humidity
+        obj.environment_source = source
+        return True
+    if (
+        obj.environment_source is None
+        and obj.temperature_c == temperature
+        and obj.relative_humidity_pct == humidity
+    ):
+        obj.environment_source = source
+        return True
+    return False
 
 
 def _pace_min_str(row: dict) -> str | None:
@@ -120,9 +201,16 @@ def write_activities(user_id: str, rows: list[dict], db: Session) -> int:
             continue
         existing_obj = existing.get(aid)
         if existing_obj is not None:
-            if _fill_missing(existing_obj, row, _ACTIVITY_FILL_COLUMNS):
+            fields_filled = _fill_missing(
+                existing_obj, row, _ACTIVITY_FILL_COLUMNS,
+            )
+            environment_filled = _fill_missing_activity_environment(
+                existing_obj, row,
+            )
+            if fields_filled or environment_filled:
                 count += 1
             continue
+        temperature, humidity, environment_source = _activity_environment(row)
         new_obj = Activity(
             user_id=user_id,
             activity_id=aid,
@@ -130,6 +218,9 @@ def write_activities(user_id: str, rows: list[dict], db: Session) -> int:
             activity_type=_str(row.get("activity_type")) or "running",
             distance_km=_float(row.get("distance_km")),
             duration_sec=_float(row.get("duration_sec")),
+            temperature_c=temperature,
+            relative_humidity_pct=humidity,
+            environment_source=environment_source,
             avg_power=_float(row.get("avg_power")),
             max_power=_float(row.get("max_power")),
             avg_hr=_float(row.get("avg_hr")),
@@ -156,8 +247,8 @@ def write_splits(user_id: str, rows: list[dict], db: Session) -> int:
     """Write split rows to DB.
 
     New (activity_id, split_num) pairs are inserted. Pre-existing rows get
-    their ``_SPLIT_FILL_COLUMNS`` topped up when still NULL — the common
-    case is native Garmin lap power that older syncs didn't parse.
+    missing power and its provider filled atomically — the common case is
+    native Garmin lap power that older syncs did not parse.
     """
     if not rows:
         return 0
@@ -177,7 +268,7 @@ def write_splits(user_id: str, rows: list[dict], db: Session) -> int:
         snum = int(snum)
         existing_obj = existing.get((aid, snum))
         if existing_obj is not None:
-            if _fill_missing(existing_obj, row, _SPLIT_FILL_COLUMNS):
+            if _fill_split_power(existing_obj, row):
                 count += 1
             continue
         new_obj = ActivitySplit(
@@ -187,6 +278,7 @@ def write_splits(user_id: str, rows: list[dict], db: Session) -> int:
             distance_km=_float(row.get("distance_km")),
             duration_sec=_float(row.get("duration_sec")),
             avg_power=_float(row.get("avg_power")),
+            power_source=_str(row.get("power_source")),
             avg_hr=_float(row.get("avg_hr")),
             max_hr=_float(row.get("max_hr")),
             avg_pace_min_km=_pace_min_str(row),
@@ -443,17 +535,26 @@ def write_profile_thresholds(
             FitnessData.user_id == user_id,
             FitnessData.date == when,
             FitnessData.metric_type == metric_type,
+            FitnessData.source == source,
         ).first()
         if exists:
+            updates: dict[str, float | str] = {
+                "value": float(val),
+                "source": source,
+            }
+            if metric_type == "cp_estimate":
+                updates["power_source"] = source
             db.query(FitnessData).filter(
                 FitnessData.user_id == user_id,
                 FitnessData.date == when,
                 FitnessData.metric_type == metric_type,
-            ).update({"value": float(val), "source": source})
+                FitnessData.source == source,
+            ).update(updates)
         else:
             db.add(FitnessData(
                 user_id=user_id, date=when,
                 metric_type=metric_type, value=float(val), source=source,
+                power_source=source if metric_type == "cp_estimate" else None,
             ))
         count += 1
     if count > 0:
@@ -461,13 +562,67 @@ def write_profile_thresholds(
     return count
 
 
-def update_cp_from_activities(user_id: str, db: Session, **kwargs) -> dict | None:
+def write_cp_estimates(
+    user_id: str,
+    values_by_date: dict[date | str, float],
+    source: str,
+    db: Session,
+) -> int:
+    """Upsert source-specific CP estimates and invalidate fitness consumers."""
+    if not values_by_date:
+        return 0
+    lock_revision_writes(db, user_id)
+    count = 0
+    for raw_date, raw_value in values_by_date.items():
+        when = _parse_date(raw_date)
+        value = _float(raw_value)
+        if when is None or value is None or value <= 0:
+            continue
+        existing = db.query(FitnessData).filter(
+            FitnessData.user_id == user_id,
+            FitnessData.date == when,
+            FitnessData.metric_type == "cp_estimate",
+            FitnessData.source == source,
+        ).first()
+        if existing is not None:
+            changed = False
+            if existing.value != value:
+                existing.value = value
+                changed = True
+            if existing.power_source != source:
+                existing.power_source = source
+                changed = True
+            if not changed:
+                continue
+        else:
+            db.add(FitnessData(
+                user_id=user_id,
+                date=when,
+                metric_type="cp_estimate",
+                value=value,
+                source=source,
+                power_source=source,
+            ))
+        count += 1
+    if count > 0:
+        bump_revisions(db, user_id, ["fitness"])
+    return count
+
+
+def update_cp_from_activities(
+    user_id: str,
+    db: Session,
+    *,
+    power_source: str | None = None,
+    **kwargs,
+) -> dict | None:
     """Derive CP from the user's recent activity power and upsert a row.
 
     Runs the 2-parameter hyperbolic fit (see
     ``analysis.cp_from_activities.estimate_cp_from_activities``) on the
-    user's own best-effort power-vs-duration observations and writes the
-    resulting CP as a ``FitnessData`` row with ``source="activities"``.
+    user's own best-effort power-vs-duration observations for one running-power
+    provider and writes the resulting CP as a ``FitnessData`` row with
+    ``source="activities"`` and that verified ``power_source``.
 
     Upserts on ``(user_id, date=as_of, metric_type="cp_estimate",
     source="activities")`` so same-day re-runs (e.g. two syncs in an hour)
@@ -482,7 +637,39 @@ def update_cp_from_activities(user_id: str, db: Session, **kwargs) -> dict | Non
     """
     from analysis.cp_from_activities import estimate_cp_from_activities
 
-    result = estimate_cp_from_activities(user_id, db, **kwargs)
+    if power_source is None:
+        as_of = kwargs.get("today") or date.today()
+        lookback_days = int(kwargs.get("lookback_days", 90))
+        since = as_of - timedelta(days=lookback_days)
+        available_sources = {
+            str(source).casefold()
+            for (source,) in db.query(ActivitySplit.power_source).join(
+                Activity,
+                (Activity.user_id == ActivitySplit.user_id)
+                & (Activity.activity_id == ActivitySplit.activity_id),
+            ).filter(
+                ActivitySplit.user_id == user_id,
+                Activity.date >= since,
+                Activity.activity_type.in_(("running", "trail_running")),
+                ActivitySplit.duration_sec.isnot(None),
+                ActivitySplit.avg_power.isnot(None),
+                ActivitySplit.power_source.isnot(None),
+            ).distinct()
+            if source
+        }
+        if len(available_sources) != 1:
+            return None
+        power_source = next(iter(available_sources))
+    if not isinstance(power_source, str) or not power_source.strip():
+        return None
+    power_source = power_source.strip().casefold()
+
+    result = estimate_cp_from_activities(
+        user_id,
+        db,
+        power_source=power_source,
+        **kwargs,
+    )
     if result is None:
         return None
 
@@ -497,10 +684,14 @@ def update_cp_from_activities(user_id: str, db: Session, **kwargs) -> dict | Non
     # skipping the bump in that case lets warm visits keep returning 304.
     changed = True
     if existing:
-        if existing.value == result.cp_watts:
+        if (
+            existing.value == result.cp_watts
+            and existing.power_source == result.power_source
+        ):
             changed = False
         else:
             existing.value = result.cp_watts
+            existing.power_source = result.power_source
     else:
         db.add(FitnessData(
             user_id=user_id,
@@ -508,6 +699,7 @@ def update_cp_from_activities(user_id: str, db: Session, **kwargs) -> dict | Non
             metric_type="cp_estimate",
             source="activities",
             value=result.cp_watts,
+            power_source=result.power_source,
         ))
     if changed:
         bump_revisions(db, user_id, ["fitness"])

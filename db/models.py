@@ -167,6 +167,9 @@ class Activity(Base):
     activity_type = Column(String(50), default="running")
     distance_km = Column(Float, nullable=True)
     duration_sec = Column(Float, nullable=True)
+    temperature_c = Column(Float, nullable=True)
+    relative_humidity_pct = Column(Float, nullable=True)
+    environment_source = Column(String(40), nullable=True)
     avg_power = Column(Float, nullable=True)
     max_power = Column(Float, nullable=True)
     avg_hr = Column(Float, nullable=True)
@@ -201,6 +204,7 @@ class ActivitySplit(Base):
     distance_km = Column(Float, nullable=True)
     duration_sec = Column(Float, nullable=True)
     avg_power = Column(Float, nullable=True)
+    power_source = Column(String(20), nullable=True)
     avg_hr = Column(Float, nullable=True)
     max_hr = Column(Float, nullable=True)
     avg_pace_min_km = Column(String(20), nullable=True)
@@ -298,6 +302,7 @@ class FitnessData(Base):
     value = Column(Float, nullable=True)
     value_str = Column(String(100), nullable=True)
     source = Column(String(20), default="garmin")
+    power_source = Column(String(20), nullable=True)
 
     __table_args__ = (
         UniqueConstraint(

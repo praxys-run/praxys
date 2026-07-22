@@ -370,6 +370,17 @@ def init_db(force: bool = False):
 
 
 _SQLITE_COMPAT_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
+    "activities": (
+        ("temperature_c", "FLOAT"),
+        ("relative_humidity_pct", "FLOAT"),
+        ("environment_source", "VARCHAR(40)"),
+    ),
+    "activity_splits": (
+        ("power_source", "VARCHAR(20)"),
+    ),
+    "fitness_data": (
+        ("power_source", "VARCHAR(20)"),
+    ),
     "user_config": (
         ("today_decision_check_claimed_at", "DATETIME"),
         ("today_decision_check_shown_at", "DATETIME"),

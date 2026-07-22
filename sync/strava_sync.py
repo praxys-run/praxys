@@ -229,6 +229,7 @@ def fetch_activity_laps(activity_id: str, access_token: str) -> list[dict]:
                 "distance_km": str(distance_km),
                 "duration_sec": str(duration_sec),
                 "avg_power": _round_or_empty(lap.get("average_watts")),
+                "power_source": "strava",
                 "avg_hr": _round_or_empty(lap.get("average_heartrate")),
                 "max_hr": _round_or_empty(lap.get("max_heartrate")),
                 "avg_cadence": _round_or_empty(lap.get("average_cadence")),
