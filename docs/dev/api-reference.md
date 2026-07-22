@@ -396,6 +396,15 @@ one configured provider at a time rather than blending overlapping sources.
     { "date": "2026-04-11", "workout_type": "threshold", "duration_min": 65, "description": "..." }
   ],
   "week_load": { "week_label": "W15", "actual": 245.3, "planned": 280.0 },
+  "heat_adaptation": {
+    "stage": "insufficient_evidence|building|likely_adapted|maintaining|decaying",
+    "confidence": "low|moderate|high",
+    "confidence_basis": "data_coverage",
+    "model_version": "heat-adaptation-v6",
+    "next_action": "continue_normal_training",
+    "today_restricted": false,
+    "sessions": []
+  },
   "warnings": ["HRV rolling mean declining"],
   "training_base": "power",
   "display": { "threshold_abbrev": "CP", "threshold_unit": "W", "load_label": "RSS" }
@@ -411,6 +420,40 @@ account has one active CTL time constant of history. A null TSB is excluded from
 same-day decisions and clients render it as unavailable rather than as a balanced
 value of zero. The one-time-constant history gate and displayed TSB labels are
 Praxys product estimates, not validated physiological cutoffs.
+
+`heat_adaptation` is a qualitative evidence tracker. It prefers
+timestamp-weighted sample power when it covers at least 90% of activity duration
+and otherwise falls back to activity splits; sample gaps over five seconds do
+not count toward coverage, and activity `avg_power` is never used for exposure
+workload. The selected sample/split provider must be known and match
+`cp_power_provider` because Garmin and Stryd running-power scales are not
+interchangeable. For `cp_source: "activities"`, `cp_power_provider` is the
+provider persisted with a provider-specific, running-only activity CP fit. The
+fit uses the configured primary activity provider when present; otherwise it is
+created only when the eligible activity set has one unambiguous provider.
+Matching split provenance is required and cycling is excluded. Sessions expose
+`power_provider`, `cp_source`, `cp_power_provider`, `power_source_alignment`,
+`sample_coverage_ratio`, and `workload_evaluable` so clients can distinguish a
+provider mismatch, unverified provenance, incomplete samples, and work that was
+genuinely below threshold.
+
+Environmental context is one provenance-tagged outdoor activity-summary
+temperature/RH pair; treadmill and indoor summary weather are discarded.
+Evidence uses the stronger of a Stull psychrometric wet-bulb ramp and a dry-bulb
+ramp; the ramps are never added, and the result is not WBGT. The Stull proxy
+assumes standard sea-level pressure and is returned as `null` outside its 5-99%
+RH domain; the independent dry-bulb ramp can still contribute. Wind, solar
+radiation, within-session weather, clothing, hydration state, and measured core
+or skin temperature are excluded. The 18-26 C wet-bulb ramp, 30-40 C dry-bulb
+ramp, max combination, 50% CP workload floor, five-second sample-interval gate,
+90% sample-coverage gate, 30-effective-minute session gate, 14-day active
+window, 2-day/60-minute Building threshold, 7-day/420-minute Likely adapted
+threshold, effective-minute weighting, and 7-28 day decay window are Praxys
+operational estimates, not validated physiological cutoffs or a dose model.
+Confidence describes evaluable data coverage, not the probability of individual
+physiological adaptation. The status is not medical clearance or a current
+heat-risk assessment, and restrictive `signal` recommendations replace its
+normal-training action with `follow_today_signal`.
 
 `coach_snapshot` is an opaque cache/source version retained for response
 compatibility. It is not an insight identifier and clients should not use it to
@@ -473,6 +516,15 @@ Training analysis and diagnosis.
     "distribution_match_pct": 83,
     "load_compliance_pct": 96
   },
+  "heat_adaptation": {
+    "stage": "maintaining",
+    "confidence": "high",
+    "confidence_basis": "data_coverage",
+    "model_version": "heat-adaptation-v6",
+    "exposure_days": 7,
+    "effective_heat_minutes": 420,
+    "sessions": ["..."]
+  },
   "workout_flags": [{ "date": "...", "flag": "good|bad", "reason": "..." }],
   "sleep_perf": {
     "pairs": [[85, 240.3], ["..."]],
@@ -511,6 +563,10 @@ rows are exact zero load; other durationless rows remain estimated.
 `load_time_constant_days` comes from the active load theory and controls
 `pmc_sufficient`. Both the one-time-constant sufficiency gate and the two-week
 minimum are Praxys product estimates rather than validated physiological cutoffs.
+
+`heat_adaptation` has the same evidence and safety contract as the Today field.
+Training applies the same Today-signal action guard while leaving its stage and
+evidence timeline diagnostic.
 
 When valid split-level intensity evidence is absent, `max`, `avg_work`,
 `supra_cp_sessions`, and `total_quality_sessions` are `null`, and

@@ -58,7 +58,7 @@ def test_blank_url_falls_back_to_sqlite(dbs, monkeypatch):
     assert dbs.get_database_url().startswith("sqlite:///")
 
 
-def test_existing_sqlite_gets_today_decision_columns(dbs, tmp_path):
+def test_existing_sqlite_gets_additive_compatibility_columns(dbs, tmp_path):
     from sqlalchemy import create_engine
 
     engine = create_engine(f"sqlite:///{tmp_path / 'legacy.db'}")
@@ -67,13 +67,30 @@ def test_existing_sqlite_gets_today_decision_columns(dbs, tmp_path):
             conn.exec_driver_sql(
                 "CREATE TABLE user_config (user_id VARCHAR(36) PRIMARY KEY)"
             )
+            conn.exec_driver_sql("CREATE TABLE activities (id INTEGER PRIMARY KEY)")
+            conn.exec_driver_sql(
+                "CREATE TABLE activity_splits (id INTEGER PRIMARY KEY)"
+            )
+            conn.exec_driver_sql(
+                "CREATE TABLE fitness_data (id INTEGER PRIMARY KEY)"
+            )
 
         dbs._ensure_schema(engine, "sqlite")
 
         with engine.connect() as conn:
-            columns = {
-                row[1]
-                for row in conn.exec_driver_sql('PRAGMA table_info("user_config")')
+            columns_by_table = {
+                table: {
+                    row[1]
+                    for row in conn.exec_driver_sql(
+                        f'PRAGMA table_info("{table}")'
+                    )
+                }
+                for table in (
+                    "user_config",
+                    "activities",
+                    "activity_splits",
+                    "fitness_data",
+                )
             }
             tables = {
                 row[0]
@@ -81,9 +98,16 @@ def test_existing_sqlite_gets_today_decision_columns(dbs, tmp_path):
                     "SELECT name FROM sqlite_master WHERE type = 'table'"
                 )
             }
-        assert "today_decision_check_claimed_at" in columns
-        assert "today_decision_check_shown_at" in columns
-        assert "today_decision_check_submitted_at" in columns
+        assert "today_decision_check_claimed_at" in columns_by_table["user_config"]
+        assert "today_decision_check_shown_at" in columns_by_table["user_config"]
+        assert "today_decision_check_submitted_at" in columns_by_table["user_config"]
+        assert {
+            "temperature_c",
+            "relative_humidity_pct",
+            "environment_source",
+        } <= columns_by_table["activities"]
+        assert "power_source" in columns_by_table["activity_splits"]
+        assert "power_source" in columns_by_table["fitness_data"]
         assert "ai_insight_feedback" in tables
     finally:
         engine.dispose()

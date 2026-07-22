@@ -955,7 +955,6 @@ def _sync_stryd(user_id: str, creds: dict, from_date: str | None,
     logger.debug("Stryd sync: %d splits, %d samples written", split_count, sample_count)
 
     # CP estimates → fitness_data table (for threshold auto-detection)
-    from db.models import FitnessData
     cp_by_date: dict = {}
     for row in activity_rows:
         d = row.get("date")
@@ -968,29 +967,12 @@ def _sync_stryd(user_id: str, creds: dict, from_date: str | None,
     # Current profile CP for today (the authoritative rolling value from Stryd)
     if current_cp:
         cp_by_date[date.today().isoformat()] = current_cp
-    cp_count = 0
-    for d_str, cp_val in cp_by_date.items():
-        from datetime import datetime as dt_cls
-        try:
-            d = dt_cls.strptime(str(d_str)[:10], "%Y-%m-%d").date()
-        except (ValueError, TypeError):
-            continue
-        existing = db.query(FitnessData).filter(
-            FitnessData.user_id == user_id,
-            FitnessData.date == d,
-            FitnessData.metric_type == "cp_estimate",
-            FitnessData.source == "stryd",
-        ).first()
-        if existing:
-            if existing.value != cp_val:
-                existing.value = cp_val
-                cp_count += 1
-        else:
-            db.add(FitnessData(
-                user_id=user_id, date=d,
-                metric_type="cp_estimate", value=cp_val, source="stryd",
-            ))
-            cp_count += 1
+    cp_count = sync_writer.write_cp_estimates(
+        user_id,
+        cp_by_date,
+        source="stryd",
+        db=db,
+    )
 
     # Training plan. Derive the athlete's tz from a recent activity so plan
     # dates resolve to the user's local day even when the server runs UTC

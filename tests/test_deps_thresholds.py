@@ -180,16 +180,22 @@ def test_resolve_thresholds_picks_preferred_source_when_multiple_present(db_with
     # Without preference: latest-by-date wins (Garmin 350).
     result = _resolve_thresholds(_fake_config(), user_id=user_id, db=db)
     assert result.cp_watts == 350.0
+    assert result.cp_source == "garmin"
+    assert result.cp_power_provider == "garmin"
 
     # With explicit Stryd preference: stale Stryd value wins over fresh Garmin.
     cfg = _fake_config(threshold_sources={"cp_estimate": "stryd"})
     result = _resolve_thresholds(cfg, user_id=user_id, db=db)
     assert result.cp_watts == 265.0
+    assert result.cp_source == "stryd"
+    assert result.cp_power_provider == "stryd"
 
     # Default to activity source: preferences.activities == "stryd" picks Stryd.
     cfg = _fake_config(activity_source="stryd")
     result = _resolve_thresholds(cfg, user_id=user_id, db=db)
     assert result.cp_watts == 265.0
+    assert result.cp_source == "stryd"
+    assert result.cp_power_provider == "stryd"
 
     # Explicit threshold_sources overrides the activity-source default.
     cfg = _fake_config(
@@ -198,6 +204,8 @@ def test_resolve_thresholds_picks_preferred_source_when_multiple_present(db_with
     )
     result = _resolve_thresholds(cfg, user_id=user_id, db=db)
     assert result.cp_watts == 350.0
+    assert result.cp_source == "garmin"
+    assert result.cp_power_provider == "garmin"
 
 
 def test_resolve_thresholds_falls_back_when_preferred_source_has_no_data(db_with_user):
@@ -217,6 +225,7 @@ def test_resolve_thresholds_falls_back_when_preferred_source_has_no_data(db_with
     cfg = _fake_config(threshold_sources={"cp_estimate": "garmin"})
     result = _resolve_thresholds(cfg, user_id=user_id, db=db)
     assert result.cp_watts == 265.0
+    assert result.cp_source == "stryd"
 
 
 def test_resolve_thresholds_no_activities_leaves_max_hr_none(db_with_user):
@@ -278,6 +287,49 @@ def test_write_profile_thresholds_upserts_existing_same_day(db_with_user):
     assert result.rest_hr_bpm == 48.0
 
 
+def test_write_profile_thresholds_keeps_cp_sources_and_provenance_separate(
+    db_with_user,
+):
+    """Cross-provider writes coexist and repair stale CP provenance."""
+    from db import sync_writer
+    from db.models import FitnessData
+
+    db, user_id = db_with_user
+    when = date(2026, 7, 16)
+
+    sync_writer.write_profile_thresholds(
+        user_id, {"cp_watts": 250}, db, source="stryd", as_of=when,
+    )
+    sync_writer.write_profile_thresholds(
+        user_id, {"cp_watts": 320}, db, source="garmin", as_of=when,
+    )
+    db.commit()
+
+    rows = db.query(FitnessData).filter(
+        FitnessData.user_id == user_id,
+        FitnessData.date == when,
+        FitnessData.metric_type == "cp_estimate",
+    ).all()
+    assert {
+        row.source: (row.value, row.power_source) for row in rows
+    } == {
+        "stryd": (250.0, "stryd"),
+        "garmin": (320.0, "garmin"),
+    }
+
+    garmin = next(row for row in rows if row.source == "garmin")
+    garmin.power_source = "stryd"
+    db.commit()
+    sync_writer.write_profile_thresholds(
+        user_id, {"cp_watts": 325}, db, source="garmin", as_of=when,
+    )
+    db.commit()
+    db.refresh(garmin)
+
+    assert garmin.value == 325.0
+    assert garmin.power_source == "garmin"
+
+
 def test_hr_base_daily_load_non_zero_via_trimp_fallback(db_with_user):
     """End-to-end regression: an HR-base user with max_hr_bpm and activities
     but no lthr_bpm (the Garmin CN shape) must still get non-zero daily load.
@@ -330,5 +382,3 @@ def test_hr_base_daily_load_non_zero_via_trimp_fallback(db_with_user):
         "HR-base daily load must be non-zero via cross-base TRIMP when "
         "max_hr_bpm is resolved, even without lthr_bpm"
     )
-
-

@@ -217,10 +217,11 @@ def test_compute_source_version_is_deterministic(cache_client):
         assert f"d={date.today().isoformat()}" in a, (
             "today is date-salted — date.today() must appear in source_version"
         )
-        assert "v=metric-provenance-today-v3" in a
+        assert "splits=0" in a
+        assert "v=heat-adaptation-today-v9" in a
         training = compute_source_version(db, user_id, "training")
         assert "samples=0" in training
-        assert "v=evidence-summary-v2" in training
+        assert "v=heat-adaptation-training-v8" in training
     finally:
         db.close()
 
@@ -337,8 +338,8 @@ def test_today_recomputes_prior_response_version_with_snapshot(cache_client):
     try:
         current_version = compute_source_version(db, user_id, "today")
         prior_version = current_version.replace(
-            "v=metric-provenance-today-v3",
-            "v=metric-provenance-today-v2",
+            "v=heat-adaptation-today-v9",
+            "v=heat-adaptation-today-v8",
         )
         assert prior_version != current_version
         db.add(DashboardCache(
@@ -361,9 +362,10 @@ def test_today_recomputes_prior_response_version_with_snapshot(cache_client):
     assert payload["coach_snapshot"] != "already-present"
 
 def test_training_cold_then_warm_hits_cache(cache_client):
-    """Direct cold/warm assertion for /api/training, plus scope isolation
-    on its unique scope (``splits``): a splits-only bump must invalidate
-    /api/training but NOT /api/today (today doesn't read splits).
+    """Direct cold/warm assertion for /api/training and shared split scope.
+
+    Heat adaptation makes split evidence part of both Training and Today, so a
+    splits-only bump must invalidate both cached representations.
     """
     from api.dashboard_cache import get_stats, reset_stats
     from db.cache_revision import bump_revisions
@@ -402,12 +404,12 @@ def test_training_cold_then_warm_hits_cache(cache_client):
         "splits bump must invalidate /api/training (splits is in its scopes)"
     )
 
-    # /api/today does NOT read splits → must still hit.
+    # Heat adaptation makes /api/today read splits too → it must miss.
     next_today = client.get("/api/today")
     assert next_today.status_code == 200
     today_stats = get_stats().get("today", {})
-    assert today_stats.get("hits") == 1, (
-        "splits bump must NOT invalidate /api/today (splits is not in its scopes)"
+    assert today_stats.get("misses") == 1, (
+        "splits bump must invalidate /api/today heat evidence"
     )
 
 

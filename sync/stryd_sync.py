@@ -174,6 +174,7 @@ def fetch_activity_splits(
             "distance_km": str(dist_km),
             "duration_sec": str(duration_sec),
             "avg_power": str(avg_power),
+            "power_source": "stryd",
             "avg_hr": str(avg_hr) if avg_hr else "",
             "avg_pace_min_km": str(avg_pace) if avg_pace else "",
         })
@@ -275,14 +276,27 @@ def fetch_activities_api(
         # Convert seconds_in_zones list to JSON string for CSV storage
         zones_list = act.get("seconds_in_zones")
         zones_str = str(zones_list) if zones_list else ""
+        stryd_type = str(act.get("type") or "")
+        surface_type = str(act.get("surface_type") or "")
+        is_indoor = any(
+            marker in value.casefold()
+            for value in (stryd_type, surface_type)
+            for marker in ("indoor", "treadmill")
+        )
+        temperature_c = (
+            "" if is_indoor else _round_or_empty(act.get("temperature"))
+        )
+        relative_humidity_pct = (
+            "" if is_indoor else _relative_humidity_pct(act.get("humidity"))
+        )
 
         row = {
             "activity_id": str(act.get("id", "")),
             "date": start_local.strftime("%Y-%m-%d"),
             "start_time": start_utc.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "name": act.get("name", ""),
-            "stryd_type": act.get("type", ""),
-            "surface_type": act.get("surface_type", ""),
+            "stryd_type": stryd_type,
+            "surface_type": surface_type,
             "avg_power": _round_or_empty(act.get("average_power")),
             "max_power": _round_or_empty(act.get("max_power")),
             "avg_hr": _round_or_empty(act.get("average_heart_rate")),
@@ -298,8 +312,13 @@ def fetch_activities_api(
             "lower_body_stress": _round_or_empty(act.get("lower_body_stress")),
             "cp_estimate": _round_or_empty(act.get("ftp")),
             "seconds_in_zones": zones_str,
-            "temperature_c": _round_or_empty(act.get("temperature")),
-            "humidity": _round_or_empty(act.get("humidity"), 3),
+            "temperature_c": temperature_c,
+            "relative_humidity_pct": relative_humidity_pct,
+            "environment_source": (
+                "stryd_activity_weather"
+                if temperature_c and relative_humidity_pct
+                else ""
+            ),
             "distance_km": str(distance_km),
             "duration_sec": str(moving_time) if moving_time is not None else "",
         }
@@ -570,6 +589,7 @@ def compute_lap_splits(activity: dict, activity_id: str) -> list[dict]:
             "distance_km": str(distance_km),
             "duration_sec": str(duration_sec),
             "avg_power": _round_or_empty(avg_power),
+            "power_source": "stryd",
             "avg_hr": _round_or_empty(avg_hr),
             "avg_cadence": _round_or_empty(avg_cadence),
             "avg_pace_sec_km": _round_or_empty(avg_pace),
@@ -588,6 +608,25 @@ def _round_or_empty(val: float | int | None, decimals: int = 1) -> str:
     if val is None:
         return ""
     return str(round(float(val), decimals))
+
+
+def _relative_humidity_pct(val: float | int | None) -> str:
+    """Normalize Stryd humidity fractions or percentages to percent units."""
+    if val is None:
+        return ""
+    try:
+        humidity = float(val)
+    except (TypeError, ValueError):
+        return ""
+    # ESTIMATE -- for connector compatibility, Stryd activity payloads have appeared
+    # in both fractional and percent units. Values at or below 1% are outside
+    # Stull's supported RH range, so interpreting 0..1 as a fraction preserves
+    # usable connector evidence without treating it as a physiological threshold.
+    if 0 <= humidity <= 1:
+        humidity *= 100
+    if not 0 <= humidity <= 100:
+        return ""
+    return str(round(humidity, 1))
 
 
 # --- Workout upload ---

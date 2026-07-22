@@ -9,6 +9,8 @@ class ThresholdEstimate:
     """Auto-detected or manually set threshold values."""
 
     cp_watts: float | None = None
+    cp_source: str | None = None
+    cp_power_provider: str | None = None
     lthr_bpm: float | None = None
     threshold_pace_sec_km: float | None = None
     max_hr_bpm: float | None = None
@@ -39,7 +41,7 @@ ACTIVITY_TYPES = [
 
 SPLIT_REQUIRED = ["activity_id", "split_num", "duration_sec"]
 SPLIT_OPTIONAL = [
-    "distance_km", "avg_power", "avg_hr", "max_hr",
+    "distance_km", "avg_power", "power_source", "avg_hr", "max_hr",
     "avg_pace_sec_km", "avg_cadence", "elevation_change_m",
 ]
 

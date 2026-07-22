@@ -406,6 +406,32 @@ const EN_NAV_CHARTS = {
     'Not enough data for weekly load comparison',
 };
 
+const EN_HEAT = {
+  '{0} sessions · {1} days · {2} effective min':
+    '{0} sessions · {1} days · {2} effective min',
+  '{0} of {1} recent activities have usable environment and power evidence':
+    '{0} of {1} recent activities have usable environment and power evidence',
+  'Last contributing session {0} days ago':
+    'Last contributing session {0} days ago',
+  '{0}°C · {1}% RH · {2}°C wet-bulb':
+    '{0}°C · {1}% RH · {2}°C wet-bulb',
+  '{0} work min · {1} effective min':
+    '{0} work min · {1} effective min',
+  'CP source': 'CP source',
+  'Power samples are present, but coverage is below the workload threshold.':
+    'Power samples are present, but coverage is below the workload threshold.',
+  'Recorded power evidence is unavailable': 'Recorded power evidence is unavailable',
+  'Sample power used': 'Sample power used',
+  'Sample power · {0}% coverage': 'Sample power · {0}% coverage',
+  'Sample-power evidence is incomplete': 'Sample-power evidence is incomplete',
+  'Samples incomplete · {0}% coverage': 'Samples incomplete · {0}% coverage',
+  'Split power fallback': 'Split power fallback',
+  'Split fallback · {0}% sample coverage':
+    'Split fallback · {0}% sample coverage',
+  'Stryd-provided activity weather': 'Stryd-provided activity weather',
+  'Connector-provided activity summary': 'Connector-provided activity summary',
+};
+
 // ---------------------------------------------------------------------------
 // Chinese translations — same key shape as the English passthroughs above,
 // values translated.
@@ -737,6 +763,32 @@ const ZH_NAV_CHARTS = {
     '数据不足，暂无法对比每周负荷',
 };
 
+const ZH_HEAT = {
+  '{0} sessions · {1} days · {2} effective min':
+    '{0} 次训练 · {1} 天 · {2} 加权分钟',
+  '{0} of {1} recent activities have usable environment and power evidence':
+    '最近 {1} 次活动中有 {0} 次具备可用的环境与功率证据',
+  'Last contributing session {0} days ago':
+    '最近一次有效训练在 {0} 天前',
+  '{0}°C · {1}% RH · {2}°C wet-bulb':
+    '{0}°C · 相对湿度 {1}% · 湿球温度 {2}°C',
+  '{0} work min · {1} effective min':
+    '运动 {0} 分钟 · 加权 {1} 分钟',
+  'CP source': 'CP 来源',
+  'Power samples are present, but coverage is below the workload threshold.':
+    '功率样本已同步，但覆盖率低于负荷证据阈值。',
+  'Recorded power evidence is unavailable': '没有可用的功率证据',
+  'Sample power used': '已使用样本功率',
+  'Sample power · {0}% coverage': '样本功率 · 覆盖率 {0}%',
+  'Sample-power evidence is incomplete': '样本功率证据不完整',
+  'Samples incomplete · {0}% coverage': '样本不完整 · 覆盖率 {0}%',
+  'Split power fallback': '已回退到分段功率',
+  'Split fallback · {0}% sample coverage':
+    '分段功率回退 · 样本覆盖率 {0}%',
+  'Stryd-provided activity weather': 'Stryd 提供的活动天气',
+  'Connector-provided activity summary': '连接器提供的活动摘要',
+};
+
 const EN_LEGAL = {
   // Legal / consent surfaces: the Terms & Privacy viewer (pages/legal) and the
   // login-page consent notices. Full page titles stay bracket-free; the short
@@ -775,6 +827,7 @@ export const I18N_EXTRA: Record<Locale, Record<string, string>> = {
     ...EN_HISTORY_SCIENCE,
     ...EN_SETTINGS,
     ...EN_NAV_CHARTS,
+    ...EN_HEAT,
     ...EN_LEGAL,
   },
   zh: {
@@ -786,6 +839,7 @@ export const I18N_EXTRA: Record<Locale, Record<string, string>> = {
     ...ZH_HISTORY_SCIENCE,
     ...ZH_SETTINGS,
     ...ZH_NAV_CHARTS,
+    ...ZH_HEAT,
     ...ZH_LEGAL,
   },
 };

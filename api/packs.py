@@ -21,8 +21,15 @@ from functools import cached_property
 import pandas as pd
 
 from analysis.config import load_config_from_db
-from analysis.data_loader import load_data_from_db, select_preferred_source
+from analysis.data_loader import (
+    load_data_from_db,
+    load_heat_adaptation_inputs,
+    select_preferred_source,
+)
 from analysis.metrics import (
+    HEAT_LOOKBACK_DAYS,
+    HEAT_SAMPLE_MAX_INTERVAL_SEC,
+    compute_heat_adaptation,
     compute_distribution_match_pct,
     compute_ewma_load,
     has_sufficient_load_history,
@@ -209,6 +216,26 @@ class RequestContext:
     def latest_cp_watts(self) -> float | None:
         cp = self.thresholds.cp_watts
         return cp if cp and cp > 0 else None
+
+    @cached_property
+    def heat_adaptation(self) -> dict:
+        """Qualitative heat-adaptation status from bounded recent evidence."""
+        activities, splits, sample_power = load_heat_adaptation_inputs(
+            self.user_id,
+            self.db,
+            current_date=self.today,
+            sample_max_interval_sec=HEAT_SAMPLE_MAX_INTERVAL_SEC,
+            lookback_days=HEAT_LOOKBACK_DAYS,
+        )
+        return compute_heat_adaptation(
+            activities,
+            splits,
+            sample_power,
+            cp_watts=self.latest_cp_watts,
+            cp_source=self.thresholds.cp_source,
+            cp_power_provider=self.thresholds.cp_power_provider,
+            current_date=self.today,
+        )
 
     @cached_property
     def science(self) -> dict:

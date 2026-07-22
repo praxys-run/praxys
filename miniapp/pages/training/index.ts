@@ -17,12 +17,18 @@ import {
   detectShareLocale,
   getShareMessage,
 } from '../../utils/share';
+import { copyUrlToClipboard } from '../../utils/markdown';
+import {
+  buildHeatAdaptationView,
+  emptyHeatAdaptationView,
+  type HeatAdaptationView,
+} from '../../utils/heat-adaptation';
 
 // Persisted active pill — same key web uses (mini program uses wx
 // storage instead of localStorage, but the chosen value is portable).
 const DIAGNOSIS_CHART_KEY = 'praxys.diagnosis_chart';
 
-type DiagnosisPill = 'form' | 'zones' | 'compliance';
+type DiagnosisPill = 'form' | 'zones' | 'compliance' | 'heat';
 
 function buildTrainingTr() {
   return {
@@ -58,6 +64,7 @@ function buildTrainingTr() {
     pillForm: t('Load balance'),
     pillZones: t('Zones'),
     pillCompliance: t('Compliance'),
+    pillHeat: t('Heat evidence'),
 
     // Insufficient-data hints. Web's PR #280 introduced countdown
     // copy ("Need N more days") so the user knows when the chart
@@ -278,6 +285,8 @@ interface TrainingState {
   diagnosisEyebrow: string;
 
   cells: StatCell[];
+  heat: HeatAdaptationView;
+  heatMethodologyExpanded: boolean;
 
   /** Active pill — drives which chart renders below the switcher. */
   activePill: DiagnosisPill;
@@ -337,6 +346,8 @@ const initialData: TrainingState = {
 
   diagnosisEyebrow: '',
   cells: [],
+  heat: emptyHeatAdaptationView(),
+  heatMethodologyExpanded: false,
 
   activePill: 'form',
   hasZones: false,
@@ -467,7 +478,8 @@ function buildState(
   const hasAnyData =
     !!diagnosis?.volume?.weekly_avg_km ||
     (distributionAvailable && distribution.length > 0) ||
-    (fitness_fatigue?.dates?.length ?? 0) > 0;
+    (fitness_fatigue?.dates?.length ?? 0) > 0 ||
+    response.heat_adaptation.sessions.length > 0;
 
   // Sufficiency — countdown copy mirrors web's PR #280 wording.
   const ffSufficient = data_meta?.pmc_sufficient ?? true;
@@ -556,6 +568,7 @@ function buildState(
 
     diagnosisEyebrow,
     cells: buildStatCells(response, tr),
+    heat: buildHeatAdaptationView(response.heat_adaptation),
 
     activePill: resolvedPill,
     hasZones,
@@ -609,7 +622,12 @@ function buildState(
 function loadActivePill(): DiagnosisPill {
   try {
     const stored = wx.getStorageSync<string>(DIAGNOSIS_CHART_KEY);
-    if (stored === 'form' || stored === 'zones' || stored === 'compliance') {
+    if (
+      stored === 'form'
+      || stored === 'zones'
+      || stored === 'compliance'
+      || stored === 'heat'
+    ) {
       return stored;
     }
   } catch {
@@ -629,10 +647,12 @@ function persistActivePill(pill: DiagnosisPill): void {
 
 interface PageMethods extends WechatMiniprogram.IAnyObject {
   onPickPill(e: WechatMiniprogram.TouchEvent): void;
+  onTapHeatSource(e: WechatMiniprogram.TouchEvent): void;
+  onToggleHeatMethodology(): void;
   onToggleCoachDetails(): void;
   onScrollRefresh(): void;
   onRetry(): void;
-  refetch(): Promise<void>;
+  refetch(options?: { background?: boolean }): Promise<void>;
 }
 
 Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
@@ -658,10 +678,16 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
     }
     const curLocale = getApp<IAppOption>().globalData.locale;
     const pgMut = this as unknown as Record<string, unknown>;
+    const returningToTab = pgMut._hasShownOnce === true;
+    pgMut._hasShownOnce = true;
+    let localeChanged = false;
     if (curLocale !== pgMut._locale) {
       pgMut._locale = curLocale;
+      localeChanged = true;
       this.setData({ tr: buildTrainingTr() });
-      void this.refetch();
+    }
+    if (returningToTab || localeChanged) {
+      void this.refetch({ background: true });
     }
     applyThemeChrome();
     setTabBarSelected(this, 1);
@@ -724,6 +750,17 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
     persistActivePill(next);
   },
 
+  onTapHeatSource(e: WechatMiniprogram.TouchEvent) {
+    const url = String(e.currentTarget.dataset.url ?? '');
+    if (url) copyUrlToClipboard(url);
+  },
+
+  onToggleHeatMethodology() {
+    this.setData({
+      heatMethodologyExpanded: !this.data.heatMethodologyExpanded,
+    });
+  },
+
   /**
    * Tap-toggle the Coach Receipt's findings + recommendations details.
    * Recompute the toggle label so "{N} findings · {M} recs" flips to
@@ -744,14 +781,17 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
     void this.refetch();
   },
 
-  async refetch() {
+  async refetch(options?: { background?: boolean }) {
     const pageState = this as unknown as Record<string, unknown>;
+    const background = options?.background === true && this.data.hasResponse;
     const previousRequestId = typeof pageState._refetchRequestId === 'number'
       ? pageState._refetchRequestId
       : 0;
     const requestId = previousRequestId + 1;
     pageState._refetchRequestId = requestId;
-    this.setData({ loading: true, errorMessage: '' });
+    this.setData(background
+      ? { errorMessage: '' }
+      : { loading: true, errorMessage: '' });
     try {
       const [response, insight] = await Promise.all([
         apiGet<TrainingResponse>('/api/training'),
@@ -779,6 +819,11 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
         return;
       }
       const detail = err?.detail ?? String(e);
+      if (background) {
+        // eslint-disable-next-line no-console
+        console.warn('[training] background refresh failed; keeping cached response:', detail);
+        return;
+      }
       this.setData({ loading: false, errorMessage: detail, hasResponse: false });
     }
   },

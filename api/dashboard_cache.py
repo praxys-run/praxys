@@ -26,7 +26,7 @@ Invalidation semantics — reuse L2's revision counters:
   scopes sorted alphabetically so two callers produce byte-identical
   strings, plus date and response-version salts where applicable.
   Example for ``today`` on 2026-04-26 with all-zero revisions:
-  ``"activities=0|config=0|fitness=0|plans=0|recovery=0|d=2026-04-26|v=metric-provenance-today-v2"``.
+  ``"activities=0|config=0|fitness=0|plans=0|recovery=0|samples=0|splits=0|d=2026-04-26|v=heat-adaptation-today-v9"``.
   Any sync-writer or settings-route bump advances the relevant scope,
   so the cached row's source_version no longer matches and the next
   read recomputes.
@@ -99,7 +99,7 @@ Section = Literal["today", "training", "goal"]
 #     band, and the locale-axis (``Accept-Language``) would require a
 #     two-key cache. Defer until measurements justify the complexity.
 SECTION_SCOPES: dict[Section, tuple[str, ...]] = {
-    "today":    ("activities", "recovery", "plans", "fitness", "config"),
+    "today":    ("activities", "splits", "samples", "recovery", "plans", "fitness", "config"),
     "training": ("activities", "splits", "samples", "recovery", "plans", "fitness", "config"),
     "goal":     ("activities", "fitness", "config"),
 }

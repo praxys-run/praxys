@@ -71,6 +71,7 @@ def generate(output_dir: str) -> None:
                 "avg_cadence": str(168 + s * 2),
                 "elevation_change_m": str(round(-2 + s * 1.5, 1)),
                 "avg_power": str(round(base_power + s * 3, 1)),
+                "power_source": "garmin",
             })
     _write_csv(os.path.join(output_dir, "garmin", "activity_splits.csv"), splits)
 
@@ -93,6 +94,7 @@ def generate(output_dir: str) -> None:
     for i in range(14):
         d = base_date + timedelta(days=i)
         power_data.append({
+            "activity_id": str(4550097443913728 + i),
             "date": d.isoformat(),
             "start_time": f"{d.isoformat()}T07:01:00Z",
             "name": f"Sample Run Day {i + 1}",
@@ -113,8 +115,9 @@ def generate(output_dir: str) -> None:
             "lower_body_stress": str(round(60 + i * 2, 1)),
             "cp_estimate": str(round(268 + i * 0.3, 1)),
             "seconds_in_zones": str([2000 + i * 50, 300 + i * 10, 100 + i * 5, 50 + i * 3, 30 + i * 2]),
-            "temperature_c": str(round(12 + i * 0.5, 1)),
-            "humidity": str(round(0.5 + i * 0.02, 3)),
+            "temperature_c": str(round(30 + i * 0.4, 1)),
+            "relative_humidity_pct": str(round(60 + i, 1)),
+            "environment_source": "stryd_activity_weather",
             "distance_km": str(round(8 + (i % 5) * 2, 1)),
             "duration_sec": str(3000 + i * 120),
         })
@@ -134,6 +137,7 @@ def generate(output_dir: str) -> None:
                 "distance_km": str(round(1.0 + s * 0.3, 3)),
                 "duration_sec": str(300 + s * 60),
                 "avg_power": str(round(base_power + s * 5, 1)),
+                "power_source": "stryd",
                 "avg_hr": str(135 + s * 7),
                 "avg_cadence": str(168 + s * 2),
                 "avg_pace_sec_km": str(round(300 + s * 10, 1)),

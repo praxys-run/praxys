@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING
 
 import pandas as pd
@@ -123,7 +123,7 @@ def match_activities(garmin: pd.DataFrame, stryd: pd.DataFrame, window_minutes: 
     stryd = stryd.copy()
 
     # Only add columns that are NEW — don't overwrite existing Garmin data
-    skip = {"date", "start_time"}
+    skip = {"activity_id", "activity_type", "date", "source", "start_time"}
     new_cols = [c for c in stryd.columns if c not in garmin.columns and c not in skip]
     shared_cols = [c for c in stryd.columns if c in garmin.columns and c not in skip]
     for col in new_cols:
@@ -281,6 +281,32 @@ def load_data(config: UserConfig, data_dir: str) -> dict[str, pd.DataFrame]:
     }
 
 
+def load_heat_adaptation_inputs_from_files(
+    power_provider: str,
+    data_dir: str,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Load provider-aligned heat evidence from backward-compatible CSVs."""
+    from analysis.providers import get_activity_provider
+
+    try:
+        provider = get_activity_provider(power_provider)
+    except KeyError:
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+
+    activities = provider.load_activities(data_dir)
+    splits = provider.load_splits(data_dir)
+    if not splits.empty:
+        splits = splits.copy()
+        if (
+            "power_provider" not in splits.columns
+            and "power_source" in splits.columns
+        ):
+            splits = splits.rename(columns={"power_source": "power_provider"})
+        if "power_provider" not in splits.columns:
+            splits["power_provider"] = power_provider
+    return activities, splits, pd.DataFrame()
+
+
 def _clean_activities(df: pd.DataFrame) -> pd.DataFrame:
     """Sort by date and remove true duplicates (same date + distance + duration)."""
     if df.empty or "date" not in df.columns:
@@ -435,6 +461,107 @@ def load_data_from_db(user_id: str, db: Session) -> dict[str, pd.DataFrame]:
         "fitness": fitness,
         "plan": plan,
     }
+
+
+def load_heat_adaptation_inputs(
+    user_id: str,
+    db: Session,
+    current_date: date,
+    sample_max_interval_sec: float,
+    lookback_days: int,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Load bounded environment, split power, and cadence-weighted sample power.
+
+    The heat tracker intentionally reads activity-level temperature/humidity
+    only as environmental context. Exercise intensity prefers timestamped
+    sample power, aggregated by exact power value in SQL to keep the request
+    bounded, with ``activity_splits.avg_power`` as fallback. A sample owns the
+    interval until the next timestamp only when that gap is positive and no
+    larger than ``sample_max_interval_sec``; larger gaps and the terminal sample
+    contribute no observed duration. Activity ``avg_power`` is never loaded for
+    this metric.
+    """
+    cutoff = current_date - timedelta(days=max(1, lookback_days) - 1)
+    activities = pd.read_sql(
+        text(
+            "SELECT activity_id, date, activity_type, duration_sec, source, "
+            "environment_source, temperature_c, relative_humidity_pct "
+            "FROM activities "
+            "WHERE user_id = :uid AND date BETWEEN :cutoff AND :current_date "
+            "  AND activity_type IN ('running', 'trail_running') "
+            "ORDER BY date"
+        ),
+        db.bind,
+        params={
+            "uid": user_id,
+            "cutoff": cutoff,
+            "current_date": current_date,
+        },
+        parse_dates=["date"],
+    )
+    if "date" in activities.columns and not activities.empty:
+        activities["date"] = pd.to_datetime(activities["date"]).dt.date
+
+    splits = pd.read_sql(
+        text(
+            "SELECT s.activity_id, s.split_num, s.duration_sec, s.avg_power, "
+            "s.power_source AS power_provider "
+            "FROM activity_splits AS s "
+            "JOIN activities AS a "
+            "  ON a.user_id = s.user_id AND a.activity_id = s.activity_id "
+            "WHERE a.user_id = :uid "
+            "  AND a.date BETWEEN :cutoff AND :current_date "
+            "  AND a.activity_type IN ('running', 'trail_running')"
+        ),
+        db.bind,
+        params={
+            "uid": user_id,
+            "cutoff": cutoff,
+            "current_date": current_date,
+        },
+    )
+    sample_power = pd.read_sql(
+        text(
+            "WITH timestamped_power AS ("
+            "  SELECT s.activity_id, s.source AS power_provider, "
+            "         s.power_watts, "
+            "         LEAD(s.t_sec) OVER ("
+            "           PARTITION BY s.user_id, s.activity_id, s.source "
+            "           ORDER BY s.t_sec"
+            "         ) - s.t_sec AS next_delta_sec "
+            "  FROM activity_samples AS s "
+            "  JOIN activities AS a "
+            "    ON a.user_id = s.user_id AND a.activity_id = s.activity_id "
+            "  WHERE a.user_id = :uid "
+            "    AND a.date BETWEEN :cutoff AND :current_date "
+            "    AND a.activity_type IN ('running', 'trail_running')"
+            ") "
+            "SELECT activity_id, power_provider, power_watts, "
+            "       SUM(CASE "
+            "         WHEN next_delta_sec > 0 "
+            "          AND next_delta_sec <= :sample_max_interval_sec "
+            "           THEN next_delta_sec "
+            "         ELSE 0 "
+            "       END) AS duration_sec "
+            "FROM timestamped_power "
+            "WHERE power_watts IS NOT NULL "
+            "GROUP BY activity_id, power_provider, power_watts "
+            "HAVING SUM(CASE "
+            "         WHEN next_delta_sec > 0 "
+            "          AND next_delta_sec <= :sample_max_interval_sec "
+            "           THEN next_delta_sec "
+            "         ELSE 0 "
+            "       END) > 0"
+        ),
+        db.bind,
+        params={
+            "uid": user_id,
+            "cutoff": cutoff,
+            "current_date": current_date,
+            "sample_max_interval_sec": sample_max_interval_sec,
+        },
+    )
+    return activities, splits, sample_power
 
 
 def load_activity_samples(

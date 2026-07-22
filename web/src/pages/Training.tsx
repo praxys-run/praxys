@@ -11,6 +11,7 @@ import UpcomingPlanCard from '@/components/UpcomingPlanCard';
 import FitnessFatigueChart from '@/components/charts/FitnessFatigueChart';
 import ComplianceChart from '@/components/charts/ComplianceChart';
 import DataHint from '@/components/DataHint';
+import HeatAdaptationPanel, { HeatExposureTimeline } from '@/components/HeatAdaptationPanel';
 import { Trans, useLingui } from '@lingui/react/macro';
 
 const DIAGNOSIS_CHART_KEY = 'praxys.diagnosis_chart';
@@ -50,7 +51,7 @@ function DiagnosisChartSwitcher({ options }: { options: DiagnosisChartOption[] }
       <div
         role="tablist"
         aria-label="Diagnosis chart"
-        className="inline-flex items-center gap-1 mb-6 rounded-full bg-muted/60 p-1 text-[11px] font-medium"
+        className="mb-6 grid w-full grid-cols-2 gap-1 rounded-xl bg-muted/60 p-1 text-[11px] font-medium sm:inline-flex sm:w-auto sm:items-center sm:rounded-full"
       >
         {options.map((opt) => {
           const isActive = opt.id === active;
@@ -66,7 +67,7 @@ function DiagnosisChartSwitcher({ options }: { options: DiagnosisChartOption[] }
                   window.localStorage.setItem(DIAGNOSIS_CHART_KEY, opt.id);
                 }
               }}
-              className={`rounded-full px-4 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              className={`min-w-0 rounded-lg px-3 py-2 text-center leading-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:rounded-full sm:px-4 sm:py-1.5 ${
                 isActive
                   ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
@@ -126,7 +127,13 @@ function TrainingSkeleton() {
 }
 
 export default function Training() {
-  const { data, loading, error, refetch } = useApi<TrainingResponse>('/api/training');
+  const { data, loading, error, refetch } = useApi<TrainingResponse>(
+    '/api/training',
+    {
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: 'always',
+    },
+  );
   const { display } = useSettings();
   const { t } = useLingui();
 
@@ -280,6 +287,8 @@ export default function Training() {
           </div>
         </div>
 
+        <HeatAdaptationPanel status={data.heat_adaptation} variant="training" />
+
         {/* 2-col deep dive — chart switcher (left, 58%) + Coach receipt
             (right, 42%). Vertical hairline anchors the split. */}
         <div className="grid grid-cols-1 gap-y-8 lg:grid-cols-[58fr_42fr] lg:gap-x-10">
@@ -337,6 +346,13 @@ export default function Training() {
                       </DataHint>
                     );
                   },
+                },
+                {
+                  id: 'heat',
+                  label: <Trans>Heat evidence</Trans>,
+                  render: () => (
+                    <HeatExposureTimeline status={data.heat_adaptation} />
+                  ),
                 },
               ]}
             />

@@ -98,8 +98,8 @@ def parse_splits(activity_id: str, splits_data: dict) -> list[dict]:
        watches and when HRM-Pro / Stryd pod is paired via ANT+.
     2. ConnectIQ developer field 10 — Stryd's ConnectIQ data-field convention,
        used when the watch doesn't expose power natively. Field numbers are
-       defined per-app so the `developerFieldName` is checked to avoid
-       accepting a non-power field that happens to share the number.
+       defined per-app, so the `developerFieldName` must explicitly identify
+       both Stryd and power before it establishes provenance.
     """
     rows = []
     laps = splits_data.get("lapDTOs", [])
@@ -119,26 +119,28 @@ def parse_splits(activity_id: str, splits_data: dict) -> list[dict]:
 
         # Prefer native Garmin power; fall back to ConnectIQ field 10.
         avg_power = ""
+        power_source = ""
         native_power = lap.get("averagePower")
         if native_power is not None:
             try:
                 avg_power = str(int(float(native_power)))
+                power_source = "garmin"
             except (ValueError, TypeError):
                 pass
         if not avg_power:
             for ciq in lap.get("connectIQMeasurement", []):
                 if ciq.get("developerFieldNumber") != 10:
                     continue
-                # Accept when the field name confirms power, or when no name
-                # is present (Stryd's historical payload). Reject if the name
-                # is set but clearly isn't power.
+                # Developer field numbers are app-scoped. A generic "power"
+                # name identifies a metric, not the app that produced it.
                 field_name = str(
                     ciq.get("developerFieldName") or ciq.get("fieldName") or ""
                 ).lower()
-                if field_name and "power" not in field_name:
+                if "stryd" not in field_name or "power" not in field_name:
                     continue
                 try:
                     avg_power = str(int(float(ciq["value"])))
+                    power_source = "stryd"
                 except (ValueError, KeyError, TypeError):
                     pass
                 break
@@ -160,6 +162,7 @@ def parse_splits(activity_id: str, splits_data: dict) -> list[dict]:
             "avg_cadence": str(int(lap["averageRunCadence"])) if lap.get("averageRunCadence") else "",
             "elevation_change_m": elev_change,
             "avg_power": avg_power,
+            "power_source": power_source,
         })
     return rows
 

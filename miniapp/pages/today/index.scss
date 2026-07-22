@@ -392,6 +392,130 @@
   color: var(--text-muted);
 }
 
+// --- Heat adaptation ---
+// Flat, full-width status row between supporting metrics and the plan.
+.today-heat {
+  padding: 28rpx 0 24rpx;
+  border-top: 1rpx solid var(--border-subtle);
+  border-bottom: 1rpx solid var(--border-subtle);
+}
+
+.today-heat-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.today-heat-label {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 20rpx;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.today-heat-stage {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.today-heat-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.today-heat-stage--green { color: var(--primary); }
+.today-heat-stage--amber { color: var(--warning); }
+.today-heat-stage--red { color: var(--destructive); }
+
+.today-heat-action {
+  display: block;
+  margin-top: 14rpx;
+  max-width: 68ch;
+  font-size: 28rpx;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.today-heat-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx 24rpx;
+  margin-top: 14rpx;
+  font-size: 28rpx;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.today-heat-methodology {
+  margin-top: 10rpx;
+}
+
+.today-heat-methodology-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  min-height: 88rpx;
+}
+
+.today-heat-methodology-arrow {
+  width: 28rpx;
+  font-size: 26rpx;
+  color: var(--accent-cobalt);
+}
+
+.today-heat-methodology-label {
+  font-size: 28rpx;
+  color: var(--accent-cobalt);
+}
+
+.today-heat-methodology-body {
+  margin-top: 8rpx;
+}
+
+.today-heat-methodology-text {
+  display: block;
+  max-width: 68ch;
+  font-size: 28rpx;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.today-heat-source-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20rpx;
+  min-height: 88rpx;
+  box-sizing: border-box;
+  padding: 16rpx 0;
+}
+
+.today-heat-source {
+  flex: 1;
+  font-size: 28rpx;
+  color: var(--text-muted);
+}
+
+.today-heat-source-action {
+  flex: none;
+  font-size: 26rpx;
+  color: var(--accent-cobalt);
+  text-decoration: underline;
+}
+
+.today-heat + .today-plan {
+  border-top: none;
+}
+
 // --- Plan one-liner ---
 //
 // Single baseline-aligned row: mono uppercase eyebrow + body text.

@@ -189,6 +189,46 @@
         </view>
       </view>
 
+      <view class="today-heat" aria-label="{{heat.label}}">
+        <view class="today-heat-head">
+          <text class="today-heat-label">{{heat.label}}</text>
+          <view class="today-heat-stage today-heat-stage--{{heat.tone}}">
+            <view class="today-heat-dot"></view>
+            <text>{{heat.stage}}</text>
+          </view>
+        </view>
+        <text class="today-heat-action">{{heat.action}}</text>
+        <view class="today-heat-meta">
+          <text class="ts-value">{{heat.evidence}}</text>
+          <text class="ts-value">{{heat.lastExposure}}</text>
+          <text>{{heat.confidence}}</text>
+        </view>
+        <view class="today-heat-methodology">
+          <view
+            class="today-heat-methodology-toggle"
+            role="button"
+            aria-expanded="{{heatMethodologyExpanded}}"
+            bindtap="toggleHeatMethodology"
+          >
+            <text class="today-heat-methodology-arrow">{{heatMethodologyExpanded ? '▾' : '▸'}}</text>
+            <text class="today-heat-methodology-label">{{heat.methodologyLabel}}</text>
+          </view>
+          <view wx:if="{{heatMethodologyExpanded}}" class="today-heat-methodology-body">
+            <text class="today-heat-methodology-text">{{heat.methodologyText}}</text>
+            <view
+              wx:for="{{heat.sources}}"
+              wx:key="id"
+              class="today-heat-source-row"
+              data-url="{{item.url}}"
+              bindtap="onTapMethodologySource"
+            >
+              <text class="today-heat-source">{{item.label}}</text>
+              <text class="today-heat-source-action">{{heat.sourceActionLabel}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
       <!--
         Plan one-liner: the day's planned workout, eyebrow + body in a
         single baseline-aligned row. Replaces the prior Upcoming

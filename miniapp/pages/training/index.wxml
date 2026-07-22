@@ -50,6 +50,22 @@
           </view>
         </view>
 
+        <view class="train-heat" aria-label="{{heat.label}}">
+          <view class="train-heat-head">
+            <text class="train-heat-label">{{heat.label}}</text>
+            <view class="train-heat-stage train-heat-stage--{{heat.tone}}">
+              <view class="train-heat-dot"></view>
+              <text>{{heat.stage}}</text>
+            </view>
+          </view>
+          <text class="train-heat-action">{{heat.action}}</text>
+          <view class="train-heat-meta">
+            <text class="ts-value">{{heat.evidence}}</text>
+            <text class="ts-value">{{heat.lastExposure}}</text>
+            <text>{{heat.confidence}}</text>
+          </view>
+        </view>
+
         <!-- Pill switcher. Persists active to wx storage so power
              users land on their preferred chart on every visit.
              Zones pill is conditional on at least one zone having
@@ -60,18 +76,31 @@
             class="train-pill {{activePill === 'form' ? 'train-pill--active' : ''}}"
             data-pill="form"
             bindtap="onPickPill"
+            role="tab"
+            aria-selected="{{activePill === 'form'}}"
           >{{tr.pillForm}}</view>
           <view
             wx:if="{{hasZones}}"
             class="train-pill {{activePill === 'zones' ? 'train-pill--active' : ''}}"
             data-pill="zones"
             bindtap="onPickPill"
+            role="tab"
+            aria-selected="{{activePill === 'zones'}}"
           >{{tr.pillZones}}</view>
           <view
             class="train-pill {{activePill === 'compliance' ? 'train-pill--active' : ''}}"
             data-pill="compliance"
             bindtap="onPickPill"
+            role="tab"
+            aria-selected="{{activePill === 'compliance'}}"
           >{{tr.pillCompliance}}</view>
+          <view
+            class="train-pill {{activePill === 'heat' ? 'train-pill--active' : ''}}"
+            data-pill="heat"
+            bindtap="onPickPill"
+            role="tab"
+            aria-selected="{{activePill === 'heat'}}"
+          >{{tr.pillHeat}}</view>
         </view>
 
         <!-- Active chart pane. One option visible at a time; the
@@ -147,6 +176,50 @@
             <view wx:else class="train-data-hint">
               <text class="train-data-hint-message ts-muted">{{complianceHintMessage}}</text>
               <text class="train-data-hint-detail ts-muted">{{complianceHintDetail}}</text>
+            </view>
+          </block>
+
+          <block wx:if="{{activePill === 'heat'}}">
+            <view wx:if="{{heat.hasSessions}}" class="train-heat-timeline">
+              <view
+                wx:for="{{heat.sessions}}"
+                wx:key="id"
+                class="train-heat-row"
+              >
+                <view class="train-heat-row-head">
+                  <text class="train-heat-date ts-value">{{item.date}}</text>
+                  <text class="train-heat-row-status train-heat-row-status--{{item.tone}}">{{item.status}}</text>
+                </view>
+                <text class="train-heat-environment ts-value">{{item.environment}}</text>
+                <text class="train-heat-work ts-value">{{item.work}} · {{item.source}}</text>
+                <text class="train-heat-work ts-muted ts-value">{{item.workloadMethod}}</text>
+                <text class="train-heat-work ts-muted">{{item.powerSource}}</text>
+              </view>
+            </view>
+            <view wx:else class="train-data-hint">
+              <text class="train-data-hint-message ts-muted">{{heat.action}}</text>
+            </view>
+            <view
+              class="train-heat-methodology-toggle"
+              role="button"
+              aria-expanded="{{heatMethodologyExpanded}}"
+              bindtap="onToggleHeatMethodology"
+            >
+              <text class="train-heat-methodology-arrow">{{heatMethodologyExpanded ? '▾' : '▸'}}</text>
+              <text class="train-heat-methodology-label">{{heat.methodologyLabel}}</text>
+            </view>
+            <view wx:if="{{heatMethodologyExpanded}}" class="train-heat-methodology-body">
+              <text class="train-methodology train-heat-methodology ts-muted">{{heat.methodologyText}}</text>
+              <view
+                wx:for="{{heat.sources}}"
+                wx:key="id"
+                class="train-heat-source-row"
+                data-url="{{item.url}}"
+                bindtap="onTapHeatSource"
+              >
+                <text class="train-heat-source">{{item.label}}</text>
+                <text class="train-heat-source-action">{{heat.sourceActionLabel}}</text>
+              </view>
             </view>
           </block>
         </view>

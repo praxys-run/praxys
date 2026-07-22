@@ -93,7 +93,11 @@ SAMPLE_LAP_DTOS = {
             "elevationGain": 10.0,
             "elevationLoss": 5.0,
             "connectIQMeasurement": [
-                {"developerFieldNumber": 10, "value": "265.0"},
+                {
+                    "developerFieldNumber": 10,
+                    "developerFieldName": "Stryd Power",
+                    "value": "265.0",
+                },
             ],
         },
         {
@@ -125,10 +129,12 @@ def test_parse_splits():
     assert r1["avg_cadence"] == "170"
     assert r1["elevation_change_m"] == "5.0"
     assert r1["avg_power"] == "265"
+    assert r1["power_source"] == "stryd"
 
     r2 = rows[1]
     assert r2["split_num"] == "2"
     assert r2["avg_power"] == ""  # no ConnectIQ power
+    assert r2["power_source"] == ""
 
 
 def test_parse_splits_empty():
@@ -248,6 +254,7 @@ def test_parse_splits_prefers_native_power_over_connectiq():
     }
     rows = parse_splits("a1", data)
     assert rows[0]["avg_power"] == "245"
+    assert rows[0]["power_source"] == "garmin"
 
 
 def test_parse_splits_connectiq_fallback_when_native_absent():
@@ -256,12 +263,57 @@ def test_parse_splits_connectiq_fallback_when_native_absent():
         "lapDTOs": [{
             "distance": 1000.0, "duration": 300.0,
             "connectIQMeasurement": [
-                {"developerFieldNumber": 10, "value": "270.0"},
+                {
+                    "developerFieldNumber": 10,
+                    "developerFieldName": "Stryd Power",
+                    "value": "270.0",
+                },
             ],
         }],
     }
     rows = parse_splits("a1", data)
     assert rows[0]["avg_power"] == "270"
+    assert rows[0]["power_source"] == "stryd"
+
+
+def test_parse_splits_ignores_unnamed_connectiq_field():
+    """An app-scoped field number alone cannot establish Stryd provenance."""
+    data = {
+        "lapDTOs": [{
+            "distance": 1000.0,
+            "duration": 300.0,
+            "connectIQMeasurement": [
+                {"developerFieldNumber": 10, "value": "270.0"},
+            ],
+        }],
+    }
+
+    rows = parse_splits("a1", data)
+
+    assert rows[0]["avg_power"] == ""
+    assert rows[0]["power_source"] == ""
+
+
+def test_parse_splits_ignores_generic_connectiq_power_field():
+    """A power metric without an explicit Stryd identity has unknown provenance."""
+    data = {
+        "lapDTOs": [{
+            "distance": 1000.0,
+            "duration": 300.0,
+            "connectIQMeasurement": [
+                {
+                    "developerFieldNumber": 10,
+                    "developerFieldName": "Running Power",
+                    "value": "270.0",
+                },
+            ],
+        }],
+    }
+
+    rows = parse_splits("a1", data)
+
+    assert rows[0]["avg_power"] == ""
+    assert rows[0]["power_source"] == ""
 
 
 def test_parse_splits_ignores_connectiq_non_power_field():

@@ -52,7 +52,8 @@ logger = logging.getLogger(__name__)
 #   /api/today       — signal pack (warnings reads cp_at_generation from
 #                      training_plans meta, so plans matters even though
 #                      the Today widget is "training-base agnostic"); plus
-#                      today_widgets which reads activities and plan.
+#                      today_widgets and heat adaptation, which read activities,
+#                      samples/splits, and plan.
 #   /api/training    — diagnosis (activities, splits, samples, recovery, fitness)
 #                      + fitness_pack (activities, plans, fitness).
 #   /api/goal        — race pack reads thresholds (fitness), latest CP
@@ -64,7 +65,7 @@ logger = logging.getLogger(__name__)
 #                      ``plans`` so the JSON-file ``stryd_status`` field
 #                      isn't served stale via 304 after a push.
 ENDPOINT_SCOPES: dict[str, tuple[str, ...]] = {
-    "today":    ("activities", "recovery", "plans", "fitness", "config"),
+    "today":    ("activities", "splits", "samples", "recovery", "plans", "fitness", "config"),
     "training": ("activities", "splits", "samples", "recovery", "plans", "fitness", "config"),
     "goal":     ("activities", "fitness", "config"),
     "history":  ("activities", "splits", "config"),

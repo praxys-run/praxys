@@ -2,12 +2,65 @@
 import os
 from datetime import date
 
+import numpy as np
 import pandas as pd
 
 from analysis.data_loader import _read_csv_safe
 from analysis.providers.base import ActivityProvider, FitnessProvider, PlanProvider
 from analysis.providers.models import ThresholdEstimate
 from analysis.providers import register_activity, register_fitness, register_plan
+
+
+def _humidity_percent(values: pd.Series) -> pd.Series:
+    """Normalize legacy Stryd humidity fractions or percentages."""
+    humidity = pd.to_numeric(values, errors="coerce")
+    humidity = humidity.where(np.isfinite(humidity))
+    fractions = humidity.between(0, 1, inclusive="both")
+    humidity = humidity.where(~fractions, humidity * 100)
+    return humidity.where(humidity.between(0, 100, inclusive="both"))
+
+
+def _canonicalize_environment(df: pd.DataFrame) -> pd.DataFrame:
+    """Add conservative outdoor provenance to legacy Stryd CSV weather."""
+    if df.empty:
+        return df
+
+    result = df.copy()
+    temperature_values = (
+        result["temperature_c"]
+        if "temperature_c" in result.columns
+        else pd.Series(np.nan, index=result.index, dtype=float)
+    )
+    temperature = pd.to_numeric(temperature_values, errors="coerce")
+    temperature = temperature.where(np.isfinite(temperature))
+
+    humidity = pd.Series(np.nan, index=result.index, dtype=float)
+    if "relative_humidity_pct" in result.columns:
+        humidity = _humidity_percent(result["relative_humidity_pct"])
+    if "humidity" in result.columns:
+        humidity = humidity.fillna(_humidity_percent(result["humidity"]))
+
+    indoor = pd.Series(False, index=result.index)
+    for column in ("stryd_type", "surface_type"):
+        if column in result.columns:
+            indoor |= (
+                result[column]
+                .fillna("")
+                .astype(str)
+                .str.contains("indoor|treadmill", case=False, regex=True)
+            )
+
+    supported = temperature.notna() & humidity.notna() & ~indoor
+    result["activity_type"] = "running"
+    result["temperature_c"] = temperature.where(supported)
+    result["relative_humidity_pct"] = humidity.where(supported)
+    result["environment_source"] = pd.Series(
+        pd.NA,
+        index=result.index,
+        dtype="object",
+    )
+    result.loc[supported, "environment_source"] = "stryd_activity_weather"
+    return result
 
 
 class StrydActivityProvider(ActivityProvider):
@@ -19,6 +72,7 @@ class StrydActivityProvider(ActivityProvider):
         self, data_dir: str, since: date | None = None
     ) -> pd.DataFrame:
         df = _read_csv_safe(os.path.join(data_dir, "stryd", "power_data.csv"))
+        df = _canonicalize_environment(df)
         if since and not df.empty and "date" in df.columns:
             df = df[df["date"] >= since]
         return df

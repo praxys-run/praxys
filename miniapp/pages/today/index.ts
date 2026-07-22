@@ -15,6 +15,11 @@ import { coachToggleLabel } from '../../utils/insights';
 import { recordProductEventOnce } from '../../utils/product-events';
 import { copyUrlToClipboard } from '../../utils/markdown';
 import {
+  buildHeatAdaptationView,
+  emptyHeatAdaptationView,
+  type HeatAdaptationView,
+} from '../../utils/heat-adaptation';
+import {
   buildShareMessage,
   buildTimelineMessage,
   detectShareLocale,
@@ -417,6 +422,9 @@ interface RenderState {
    *  readiness, and TSB. Missing values render as `—`. */
   cells: SupportingCell[];
 
+  heat: HeatAdaptationView;
+  heatMethodologyExpanded: boolean;
+
   planEyebrow: string;
   planText: string;
 
@@ -662,6 +670,9 @@ function buildRenderState(
 
     cells,
 
+    heat: buildHeatAdaptationView(response.heat_adaptation),
+    heatMethodologyExpanded: false,
+
     planEyebrow: t('Planned · Today'),
     planText: formatPlan(response.signal.plan),
 
@@ -747,6 +758,9 @@ const initialData: RenderState & RefreshState = {
   decisionCheckEligible: false,
 
   cells: [],
+
+  heat: emptyHeatAdaptationView(),
+  heatMethodologyExpanded: false,
 
   planEyebrow: '',
   planText: '',
@@ -1028,6 +1042,12 @@ Page({
 
   toggleMethodology() {
     this.setData({ methodologyExpanded: !this.data.methodologyExpanded });
+  },
+
+  toggleHeatMethodology() {
+    this.setData({
+      heatMethodologyExpanded: !this.data.heatMethodologyExpanded,
+    });
   },
 
   onTapMethodologySource(event: WechatMiniprogram.TouchEvent) {

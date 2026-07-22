@@ -11,6 +11,7 @@ from api.packs import (
     get_signal_pack,
     get_today_widgets,
 )
+from analysis.metrics import apply_heat_adaptation_guidance
 from db.session import get_db
 
 router = APIRouter()
@@ -34,6 +35,10 @@ def _build_today_payload(user_id: str, db: Session) -> dict:
     ctx = RequestContext(user_id=user_id, db=db)
     signal = get_signal_pack(ctx)
     widgets = get_today_widgets(ctx)
+    heat_adaptation = apply_heat_adaptation_guidance(
+        ctx.heat_adaptation,
+        signal["signal"].get("recommendation"),
+    )
     return {
         # Server-local calendar date the response was computed for. Clients
         # render the eyebrow against this rather than `new Date()` so a
@@ -56,6 +61,7 @@ def _build_today_payload(user_id: str, db: Session) -> dict:
         "last_activity": widgets["last_activity"],
         "week_load": widgets["week_load"],
         "upcoming": widgets["upcoming"],
+        "heat_adaptation": heat_adaptation,
         "data_meta": ctx.data_meta,
         "science_notes": ctx.science_notes,
     }

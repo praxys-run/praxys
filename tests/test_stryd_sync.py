@@ -97,3 +97,64 @@ def test_fetch_training_plan_tz_name_fallback_on_utc_server(mock_get):
     )
     rows = fetch_training_plan_api("u", "t", tz_name="Asia/Shanghai")
     assert rows[0]["date"] == "2026-06-30"
+
+
+@patch("sync.stryd_sync.requests.get")
+def test_fetch_activities_normalizes_relative_humidity_to_percent(mock_get):
+    """Stryd's fractional humidity is persisted in an explicit percent unit."""
+    activity = {
+        "id": "heat-1",
+        "start_time": 1_752_643_200,
+        "time_zone": "Asia/Shanghai",
+        "moving_time": 3600,
+        "distance": 10_000,
+        "temperature": 33.4,
+        "humidity": 0.72,
+    }
+    mock_get.return_value = MagicMock(
+        json=MagicMock(return_value={"activities": [activity]}),
+        raise_for_status=MagicMock(),
+    )
+
+    rows, _ = fetch_activities_api(
+        "user-1",
+        "token",
+        from_date="2025-07-01",
+        to_date="2025-07-31",
+    )
+
+    assert rows[0]["temperature_c"] == "33.4"
+    assert rows[0]["relative_humidity_pct"] == "72.0"
+    assert rows[0]["environment_source"] == "stryd_activity_weather"
+    assert "humidity" not in rows[0]
+
+
+@patch("sync.stryd_sync.requests.get")
+def test_fetch_activities_excludes_treadmill_weather(mock_get):
+    """Outdoor summary weather cannot stand in for treadmill conditions."""
+    activity = {
+        "id": "indoor-heat-1",
+        "start_time": 1_752_643_200,
+        "time_zone": "Asia/Shanghai",
+        "moving_time": 3600,
+        "distance": 10_000,
+        "type": "run",
+        "surface_type": "treadmill",
+        "temperature": 33.4,
+        "humidity": 0.72,
+    }
+    mock_get.return_value = MagicMock(
+        json=MagicMock(return_value={"activities": [activity]}),
+        raise_for_status=MagicMock(),
+    )
+
+    rows, _ = fetch_activities_api(
+        "user-1",
+        "token",
+        from_date="2025-07-01",
+        to_date="2025-07-31",
+    )
+
+    assert rows[0]["temperature_c"] == ""
+    assert rows[0]["relative_humidity_pct"] == ""
+    assert rows[0]["environment_source"] == ""
