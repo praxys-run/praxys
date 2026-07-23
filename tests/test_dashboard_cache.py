@@ -218,10 +218,10 @@ def test_compute_source_version_is_deterministic(cache_client):
             "today is date-salted — date.today() must appear in source_version"
         )
         assert "splits=0" in a
-        assert "v=heat-adaptation-today-v11" in a
+        assert "v=heat-adaptation-today-v12" in a
         training = compute_source_version(db, user_id, "training")
         assert "samples=0" in training
-        assert "v=heat-adaptation-training-v10" in training
+        assert "v=heat-adaptation-training-v11" in training
         goal = compute_source_version(db, user_id, "goal")
         assert "v=fixed-heat-model-goal-v1" in goal
     finally:
@@ -340,7 +340,7 @@ def test_today_recomputes_prior_response_version_with_snapshot(cache_client):
     try:
         current_version = compute_source_version(db, user_id, "today")
         prior_version = current_version.replace(
-            "v=heat-adaptation-today-v11",
+            "v=heat-adaptation-today-v12",
             "v=heat-adaptation-today-v8",
         )
         assert prior_version != current_version

@@ -466,36 +466,49 @@ def load_data_from_db(user_id: str, db: Session) -> dict[str, pd.DataFrame]:
 def load_heat_adaptation_inputs(
     user_id: str,
     db: Session,
+    activity_source: str,
     current_date: date,
     sample_max_interval_sec: float,
     lookback_days: int,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Load bounded environment, split power, and cadence-weighted sample power.
 
-    The heat tracker intentionally reads activity-level temperature/humidity
-    only as environmental context. Exercise intensity prefers timestamped
-    sample power, aggregated by exact power value in SQL to keep the request
-    bounded, with ``activity_splits.avg_power`` as fallback. A sample owns the
-    interval until the next timestamp only when that gap is positive and no
-    larger than ``sample_max_interval_sec``; larger gaps and the terminal sample
-    contribute no observed duration. Activity ``avg_power`` is never loaded for
-    this metric.
+    The selected activity provider is applied to parent activity rows and both
+    evidence joins so the same physical workout synced by multiple platforms
+    appears only once. Split/sample power provenance remains intact because a
+    Garmin activity may legitimately contain Stryd power. The heat tracker
+    intentionally reads activity-level temperature/humidity only as
+    environmental context. Exercise intensity prefers timestamped sample
+    power, aggregated by exact power value in SQL to keep the request bounded,
+    with ``activity_splits.avg_power`` as fallback. A sample owns the interval
+    until the next timestamp only when that gap is positive and no larger than
+    ``sample_max_interval_sec``; larger gaps and the terminal sample contribute
+    no observed duration. Activity ``avg_power`` is never loaded for this
+    metric.
     """
+    if not isinstance(activity_source, str) or not activity_source.strip():
+        raise ValueError("activity_source must be a non-empty provider name")
+    normalized_activity_source = activity_source.strip().casefold()
+
     cutoff = current_date - timedelta(days=max(1, lookback_days) - 1)
     activities = pd.read_sql(
         text(
-            "SELECT activity_id, date, activity_type, duration_sec, source, "
-            "environment_source, temperature_c, relative_humidity_pct "
-            "FROM activities "
-            "WHERE user_id = :uid AND date BETWEEN :cutoff AND :current_date "
-            "  AND activity_type IN ('running', 'trail_running') "
-            "ORDER BY date"
+            "SELECT a.activity_id, a.date, a.activity_type, a.duration_sec, "
+            "a.source, a.environment_source, a.temperature_c, "
+            "a.relative_humidity_pct "
+            "FROM activities AS a "
+            "WHERE a.user_id = :uid "
+            "  AND a.date BETWEEN :cutoff AND :current_date "
+            "  AND a.activity_type IN ('running', 'trail_running') "
+            "  AND LOWER(a.source) = :activity_source "
+            "ORDER BY a.date"
         ),
         db.bind,
         params={
             "uid": user_id,
             "cutoff": cutoff,
             "current_date": current_date,
+            "activity_source": normalized_activity_source,
         },
         parse_dates=["date"],
     )
@@ -511,13 +524,15 @@ def load_heat_adaptation_inputs(
             "  ON a.user_id = s.user_id AND a.activity_id = s.activity_id "
             "WHERE a.user_id = :uid "
             "  AND a.date BETWEEN :cutoff AND :current_date "
-            "  AND a.activity_type IN ('running', 'trail_running')"
+            "  AND a.activity_type IN ('running', 'trail_running') "
+            "  AND LOWER(a.source) = :activity_source"
         ),
         db.bind,
         params={
             "uid": user_id,
             "cutoff": cutoff,
             "current_date": current_date,
+            "activity_source": normalized_activity_source,
         },
     )
     sample_power = pd.read_sql(
@@ -534,7 +549,8 @@ def load_heat_adaptation_inputs(
             "    ON a.user_id = s.user_id AND a.activity_id = s.activity_id "
             "  WHERE a.user_id = :uid "
             "    AND a.date BETWEEN :cutoff AND :current_date "
-            "    AND a.activity_type IN ('running', 'trail_running')"
+            "    AND a.activity_type IN ('running', 'trail_running') "
+            "    AND LOWER(a.source) = :activity_source"
             ") "
             "SELECT activity_id, power_provider, power_watts, "
             "       SUM(CASE "
@@ -558,6 +574,7 @@ def load_heat_adaptation_inputs(
             "uid": user_id,
             "cutoff": cutoff,
             "current_date": current_date,
+            "activity_source": normalized_activity_source,
             "sample_max_interval_sec": sample_max_interval_sec,
         },
     )

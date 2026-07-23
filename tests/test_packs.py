@@ -130,6 +130,22 @@ def _ctx(db_with_seeded_user):
     return RequestContext(user_id=user_id, db=db)
 
 
+def _set_activity_source(db, user_id: str, source: str) -> None:
+    from db.models import UserConfig as UserConfigModel
+
+    row = db.query(UserConfigModel).filter(
+        UserConfigModel.user_id == user_id,
+    ).first()
+    if row is None:
+        row = UserConfigModel(user_id=user_id)
+        db.add(row)
+    row.preferences = {
+        **(row.preferences or {}),
+        "activities": source,
+    }
+    db.commit()
+
+
 def _seed_heat_exposure(db, user_id):
     from db.models import Activity, ActivitySplit
 
@@ -234,6 +250,7 @@ def test_heat_input_loader_weights_sample_power_by_timestamp_cadence(
     activities, _, sample_power = load_heat_adaptation_inputs(
         user_id,
         db,
+        activity_source="stryd",
         current_date=date.today(),
         sample_max_interval_sec=HEAT_SAMPLE_MAX_INTERVAL_SEC,
         lookback_days=HEAT_LOOKBACK_DAYS,
@@ -293,6 +310,7 @@ def test_heat_input_loader_does_not_bridge_null_power_samples(
     _, _, sample_power = load_heat_adaptation_inputs(
         user_id,
         db,
+        activity_source="stryd",
         current_date=date.today(),
         sample_max_interval_sec=HEAT_SAMPLE_MAX_INTERVAL_SEC,
         lookback_days=HEAT_LOOKBACK_DAYS,
@@ -303,6 +321,166 @@ def test_heat_input_loader_does_not_bridge_null_power_samples(
     ].set_index("power_watts")["duration_sec"].to_dict()
     assert buckets == {180.0: 1}
     assert set(sample_power["power_provider"]) == {"stryd"}
+
+
+def test_heat_adaptation_uses_one_provider_for_duplicate_activity_rows(
+    db_with_seeded_user,
+):
+    """Garmin and Stryd copies of one run produce one heat-evidence session."""
+    from analysis.data_loader import load_heat_adaptation_inputs
+    from analysis.metrics import (
+        HEAT_LOOKBACK_DAYS,
+        HEAT_SAMPLE_MAX_INTERVAL_SEC,
+    )
+    from api.packs import RequestContext
+    from db.models import (
+        Activity,
+        ActivitySample,
+        ActivitySplit,
+    )
+
+    db, user_id = db_with_seeded_user
+    _set_activity_source(db, user_id, "stryd")
+    stryd_activity = (
+        db.query(Activity)
+        .filter(
+            Activity.user_id == user_id,
+            Activity.source == "stryd",
+        )
+        .order_by(Activity.date.desc())
+        .first()
+    )
+    assert stryd_activity is not None
+    stryd_activity.duration_sec = 3600.0
+    stryd_activity.temperature_c = 34.0
+    stryd_activity.relative_humidity_pct = 70.0
+    stryd_activity.environment_source = "stryd_activity_weather"
+    stryd_split = db.query(ActivitySplit).filter(
+        ActivitySplit.user_id == user_id,
+        ActivitySplit.activity_id == stryd_activity.activity_id,
+    ).one()
+    stryd_split.duration_sec = 3600.0
+    stryd_split.avg_power = 180.0
+
+    garmin_activity_id = "garmin-duplicate-run"
+    db.add(Activity(
+        user_id=user_id,
+        activity_id=garmin_activity_id,
+        date=stryd_activity.date,
+        activity_type="running",
+        distance_km=stryd_activity.distance_km,
+        duration_sec=3600.0,
+        temperature_c=34.0,
+        relative_humidity_pct=70.0,
+        environment_source="garmin_activity_weather",
+        source="garmin",
+    ))
+    db.add(ActivitySplit(
+        user_id=user_id,
+        activity_id=garmin_activity_id,
+        split_num=1,
+        duration_sec=3600.0,
+        avg_power=180.0,
+        power_source="garmin",
+    ))
+    db.add_all([
+        ActivitySample(
+            user_id=user_id,
+            activity_id=stryd_activity.activity_id,
+            source="stryd",
+            t_sec=0,
+            power_watts=180.0,
+        ),
+        ActivitySample(
+            user_id=user_id,
+            activity_id=stryd_activity.activity_id,
+            source="stryd",
+            t_sec=1,
+            power_watts=180.0,
+        ),
+        ActivitySample(
+            user_id=user_id,
+            activity_id=garmin_activity_id,
+            source="garmin",
+            t_sec=0,
+            power_watts=180.0,
+        ),
+        ActivitySample(
+            user_id=user_id,
+            activity_id=garmin_activity_id,
+            source="garmin",
+            t_sec=1,
+            power_watts=180.0,
+        ),
+    ])
+    db.commit()
+
+    activities, splits, sample_power = load_heat_adaptation_inputs(
+        user_id,
+        db,
+        activity_source="stryd",
+        current_date=date.today(),
+        sample_max_interval_sec=HEAT_SAMPLE_MAX_INTERVAL_SEC,
+        lookback_days=HEAT_LOOKBACK_DAYS,
+    )
+    selected_ids = set(activities["activity_id"])
+    assert garmin_activity_id not in selected_ids
+    assert set(activities["source"]) == {"stryd"}
+    assert set(splits["activity_id"]).issubset(selected_ids)
+    assert set(sample_power["activity_id"]).issubset(selected_ids)
+
+    status = RequestContext(user_id=user_id, db=db).heat_adaptation
+    assert [session["activity_id"] for session in status["sessions"]] == [
+        stryd_activity.activity_id,
+    ]
+    cadence_day = next(
+        day for day in status["cadence"]
+        if day["date"] == stryd_activity.date.isoformat()
+    )
+    assert cadence_day["session_count"] == 1
+    assert cadence_day["counted_session_count"] == 1
+
+
+def test_heat_adaptation_preserves_cross_provider_power_on_selected_activity(
+    db_with_seeded_user,
+):
+    """A selected Garmin activity can qualify with provenance-tagged Stryd power."""
+    from api.packs import RequestContext
+    from db.models import (
+        Activity,
+        ActivitySplit,
+    )
+
+    db, user_id = db_with_seeded_user
+    activity = (
+        db.query(Activity)
+        .filter(Activity.user_id == user_id)
+        .order_by(Activity.date.desc())
+        .first()
+    )
+    assert activity is not None
+    activity.source = "garmin"
+    activity.duration_sec = 3600.0
+    activity.temperature_c = 34.0
+    activity.relative_humidity_pct = 70.0
+    activity.environment_source = "garmin_activity_weather"
+    split = db.query(ActivitySplit).filter(
+        ActivitySplit.user_id == user_id,
+        ActivitySplit.activity_id == activity.activity_id,
+    ).one()
+    split.duration_sec = 3600.0
+    split.avg_power = 180.0
+    split.power_source = "stryd"
+    _set_activity_source(db, user_id, "garmin")
+
+    status = RequestContext(user_id=user_id, db=db).heat_adaptation
+
+    assert [session["activity_id"] for session in status["sessions"]] == [
+        activity.activity_id,
+    ]
+    assert status["sessions"][0]["power_provider"] == "stryd"
+    assert status["sessions"][0]["power_source_alignment"] == "matched"
+    assert status["sessions"][0]["qualifies"] is True
 
 
 def test_preferred_source_selector_uses_stable_lexical_tie_break():
@@ -499,6 +677,7 @@ def test_today_and_training_payloads_expose_heat_adaptation(
     from api.routes.training import _build_training_payload
 
     db, user_id = db_with_seeded_user
+    _set_activity_source(db, user_id, "stryd")
     _seed_heat_exposure(db, user_id)
 
     today_payload = _build_today_payload(user_id, db)
@@ -524,6 +703,7 @@ def test_training_payload_applies_restrictive_today_heat_guard(
     from db.models import TrainingPlan
 
     db, user_id = db_with_seeded_user
+    _set_activity_source(db, user_id, "stryd")
     _seed_heat_exposure(db, user_id)
     plan = db.query(TrainingPlan).filter(
         TrainingPlan.user_id == user_id,
@@ -551,6 +731,7 @@ def test_environment_evidence_does_not_change_existing_training_outputs(
     from api.routes.training import _build_training_payload
 
     db, user_id = db_with_seeded_user
+    _set_activity_source(db, user_id, "stryd")
     before_today = _build_today_payload(user_id, db)
     before_training = _build_training_payload(user_id, db)
 

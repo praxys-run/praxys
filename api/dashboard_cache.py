@@ -26,7 +26,7 @@ Invalidation semantics — reuse L2's revision counters:
   scopes sorted alphabetically so two callers produce byte-identical
   strings, plus date and response-version salts where applicable.
   Example for ``today`` on 2026-04-26 with all-zero revisions:
-  ``"activities=0|config=0|fitness=0|plans=0|recovery=0|samples=0|splits=0|d=2026-04-26|v=heat-adaptation-today-v11"``.
+  ``"activities=0|config=0|fitness=0|plans=0|recovery=0|samples=0|splits=0|d=2026-04-26|v=heat-adaptation-today-v12"``.
   Any sync-writer or settings-route bump advances the relevant scope,
   so the cached row's source_version no longer matches and the next
   read recomputes.
