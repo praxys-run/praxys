@@ -1810,39 +1810,27 @@ def get_dashboard_data(user_id: str = None, db=None) -> dict:
         recovery_thresholds=recovery_params,
         hrv_only=hrv_only_mode,
     )
+    primary_activity_provider = (
+        config.preferences.get("activities") or "garmin"
+    )
     if user_id and db:
         heat_activities, heat_splits, heat_sample_power = (
             load_heat_adaptation_inputs(
                 user_id,
                 db,
+                activity_source=primary_activity_provider,
                 current_date=today,
                 sample_max_interval_sec=HEAT_SAMPLE_MAX_INTERVAL_SEC,
                 lookback_days=HEAT_LOOKBACK_DAYS,
             )
         )
     else:
-        primary_activity_provider = config.preferences.get("activities")
-        if (
-            thresholds.cp_power_provider
-            and thresholds.cp_power_provider != primary_activity_provider
-        ):
-            heat_activities, heat_splits, heat_sample_power = (
-                load_heat_adaptation_inputs_from_files(
-                    thresholds.cp_power_provider,
-                    data_dir,
-                )
+        heat_activities, heat_splits, heat_sample_power = (
+            load_heat_adaptation_inputs_from_files(
+                primary_activity_provider,
+                data_dir,
             )
-        else:
-            heat_activities = merged
-            heat_splits = data["splits"].copy()
-            if (
-                "power_provider" not in heat_splits.columns
-                and "power_source" in heat_splits.columns
-            ):
-                heat_splits = heat_splits.rename(
-                    columns={"power_source": "power_provider"},
-                )
-            heat_sample_power = pd.DataFrame()
+        )
     heat_adaptation = apply_heat_adaptation_guidance(
         compute_heat_adaptation(
             heat_activities,

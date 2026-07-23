@@ -223,6 +223,10 @@ class RequestContext:
         activities, splits, sample_power = load_heat_adaptation_inputs(
             self.user_id,
             self.db,
+            activity_source=(
+                self.config.preferences.get("activities")
+                or "garmin"
+            ),
             current_date=self.today,
             sample_max_interval_sec=HEAT_SAMPLE_MAX_INTERVAL_SEC,
             lookback_days=HEAT_LOOKBACK_DAYS,
