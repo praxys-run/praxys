@@ -17,10 +17,11 @@ import {
   detectShareLocale,
   getShareMessage,
 } from '../../utils/share';
-import { copyUrlToClipboard } from '../../utils/markdown';
 import {
   buildHeatAdaptationView,
   emptyHeatAdaptationView,
+  HEAT_HISTORY_SCROLL_KEY,
+  HEAT_HISTORY_SCROLL_TARGET,
   type HeatAdaptationView,
 } from '../../utils/heat-adaptation';
 
@@ -28,7 +29,7 @@ import {
 // storage instead of localStorage, but the chosen value is portable).
 const DIAGNOSIS_CHART_KEY = 'praxys.diagnosis_chart';
 
-type DiagnosisPill = 'form' | 'zones' | 'compliance' | 'heat';
+type DiagnosisPill = 'form' | 'zones' | 'compliance';
 
 function buildTrainingTr() {
   return {
@@ -64,7 +65,6 @@ function buildTrainingTr() {
     pillForm: t('Load balance'),
     pillZones: t('Zones'),
     pillCompliance: t('Compliance'),
-    pillHeat: t('Heat evidence'),
 
     // Insufficient-data hints. Web's PR #280 introduced countdown
     // copy ("Need N more days") so the user knows when the chart
@@ -286,7 +286,11 @@ interface TrainingState {
 
   cells: StatCell[];
   heat: HeatAdaptationView;
-  heatMethodologyExpanded: boolean;
+  heatEvidenceExpanded: boolean;
+  expandedHeatSessionId: string;
+  selectedHeatDayId: string;
+  selectedHeatDayDetail: string;
+  scrollIntoView: string;
 
   /** Active pill — drives which chart renders below the switcher. */
   activePill: DiagnosisPill;
@@ -347,7 +351,11 @@ const initialData: TrainingState = {
   diagnosisEyebrow: '',
   cells: [],
   heat: emptyHeatAdaptationView(),
-  heatMethodologyExpanded: false,
+  heatEvidenceExpanded: false,
+  expandedHeatSessionId: '',
+  selectedHeatDayId: '',
+  selectedHeatDayDetail: '',
+  scrollIntoView: '',
 
   activePill: 'form',
   hasZones: false,
@@ -558,6 +566,7 @@ function buildState(
   const diagnosisEyebrow = lookback
     ? tFmt('Last {0} weeks', lookback)
     : tr.diagnosis;
+  const heat = buildHeatAdaptationView(response.heat_adaptation);
 
   return {
     themeClass,
@@ -568,7 +577,11 @@ function buildState(
 
     diagnosisEyebrow,
     cells: buildStatCells(response, tr),
-    heat: buildHeatAdaptationView(response.heat_adaptation),
+    heat,
+    heatEvidenceExpanded: false,
+    expandedHeatSessionId: '',
+    selectedHeatDayId: heat.defaultCadenceId,
+    selectedHeatDayDetail: heat.defaultCadenceDetail,
 
     activePill: resolvedPill,
     hasZones,
@@ -626,7 +639,6 @@ function loadActivePill(): DiagnosisPill {
       stored === 'form'
       || stored === 'zones'
       || stored === 'compliance'
-      || stored === 'heat'
     ) {
       return stored;
     }
@@ -645,10 +657,27 @@ function persistActivePill(pill: DiagnosisPill): void {
   }
 }
 
+function consumeHeatHistoryScrollRequest(): boolean {
+  try {
+    if (wx.getStorageSync<string>(HEAT_HISTORY_SCROLL_KEY) !== HEAT_HISTORY_SCROLL_TARGET) {
+      return false;
+    }
+    wx.removeStorageSync(HEAT_HISTORY_SCROLL_KEY);
+    return true;
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('[training] could not consume heat-history scroll request:', e);
+    return false;
+  }
+}
+
 interface PageMethods extends WechatMiniprogram.IAnyObject {
   onPickPill(e: WechatMiniprogram.TouchEvent): void;
-  onTapHeatSource(e: WechatMiniprogram.TouchEvent): void;
-  onToggleHeatMethodology(): void;
+  onPickHeatDay(e: WechatMiniprogram.TouchEvent): void;
+  onToggleHeatEvidence(): void;
+  onToggleHeatSession(e: WechatMiniprogram.TouchEvent): void;
+  onOpenHeatScience(): void;
+  scrollToHeatIfPending(): void;
   onToggleCoachDetails(): void;
   onScrollRefresh(): void;
   onRetry(): void;
@@ -688,6 +717,10 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
     }
     if (returningToTab || localeChanged) {
       void this.refetch({ background: true });
+    }
+    if (consumeHeatHistoryScrollRequest()) {
+      pgMut._scrollToHeatPending = true;
+      this.scrollToHeatIfPending();
     }
     applyThemeChrome();
     setTabBarSelected(this, 1);
@@ -750,14 +783,40 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
     persistActivePill(next);
   },
 
-  onTapHeatSource(e: WechatMiniprogram.TouchEvent) {
-    const url = String(e.currentTarget.dataset.url ?? '');
-    if (url) copyUrlToClipboard(url);
+  onPickHeatDay(e: WechatMiniprogram.TouchEvent) {
+    const id = String(e.currentTarget.dataset.id ?? '');
+    const day = this.data.heat.cadenceDays.find((item) => item.id === id);
+    if (!day) return;
+    this.setData({
+      selectedHeatDayId: day.id,
+      selectedHeatDayDetail: day.detail,
+    });
   },
 
-  onToggleHeatMethodology() {
+  onToggleHeatEvidence() {
     this.setData({
-      heatMethodologyExpanded: !this.data.heatMethodologyExpanded,
+      heatEvidenceExpanded: !this.data.heatEvidenceExpanded,
+    });
+  },
+
+  onToggleHeatSession(e: WechatMiniprogram.TouchEvent) {
+    const id = String(e.currentTarget.dataset.id ?? '');
+    if (!id) return;
+    this.setData({
+      expandedHeatSessionId: this.data.expandedHeatSessionId === id ? '' : id,
+    });
+  },
+
+  onOpenHeatScience() {
+    wx.navigateTo({ url: '/pages/science/index?pillar=heat' }); // i18n-allow
+  },
+
+  scrollToHeatIfPending() {
+    const pageState = this as unknown as Record<string, unknown>;
+    if (pageState._scrollToHeatPending !== true || !this.data.hasResponse) return;
+    pageState._scrollToHeatPending = false;
+    this.setData({ scrollIntoView: '' }, () => {
+      this.setData({ scrollIntoView: HEAT_HISTORY_SCROLL_TARGET });
     });
   },
 
@@ -810,6 +869,7 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
           this.data.activePill,
           this.data.tr,
         ) as Record<string, unknown>,
+        () => this.scrollToHeatIfPending(),
       );
     } catch (e) {
       if (pageState._refetchRequestId !== requestId) return;

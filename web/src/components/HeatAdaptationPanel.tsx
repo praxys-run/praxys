@@ -1,6 +1,8 @@
+import { useMemo, useState } from 'react';
 import { msg } from '@lingui/core/macro';
-import type { MessageDescriptor } from '@lingui/core';
 import { Trans, useLingui } from '@lingui/react/macro';
+import { ArrowRight, ChevronDown } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import ScienceNote from '@/components/ScienceNote';
 import type {
@@ -11,255 +13,438 @@ import type {
   HeatAdaptationStatus,
 } from '@/types/api';
 
-const STAGE_LABELS: Record<HeatAdaptationStage, MessageDescriptor> = {
+const STAGE_LABELS: Record<HeatAdaptationStage, ReturnType<typeof msg>> = {
   insufficient_evidence: msg`Insufficient evidence`,
   building: msg`Building`,
   likely_adapted: msg`Likely adapted`,
   maintaining: msg`Maintaining`,
-  decaying: msg`Decaying`,
+  decaying: msg`Fading`,
 };
 
-const STAGE_TONES: Record<HeatAdaptationStage, { dot: string; text: string }> = {
-  insufficient_evidence: {
-    dot: 'bg-muted-foreground',
-    text: 'text-muted-foreground',
-  },
-  building: {
-    dot: 'bg-accent-amber',
-    text: 'text-accent-amber',
-  },
-  likely_adapted: {
-    dot: 'bg-primary',
-    text: 'text-primary',
-  },
-  maintaining: {
-    dot: 'bg-primary',
-    text: 'text-primary',
-  },
-  decaying: {
-    dot: 'bg-accent-amber',
-    text: 'text-accent-amber',
-  },
+const CONFIDENCE_LABELS: Record<HeatAdaptationConfidence, ReturnType<typeof msg>> = {
+  low: msg`Low coverage`,
+  moderate: msg`Moderate coverage`,
+  high: msg`High coverage`,
 };
 
-const CONFIDENCE_LABELS: Record<HeatAdaptationConfidence, MessageDescriptor> = {
-  low: msg`Limited data coverage`,
-  moderate: msg`Moderate data coverage`,
-  high: msg`Strong data coverage`,
+const ACTION_GUIDANCE: Partial<Record<HeatAdaptationAction, ReturnType<typeof msg>>> = {
+  sync_training_data: msg`Sync recent training to start estimating the conditions represented in your heat evidence.`,
+  collect_supported_environment_data: msg`Recent activities need supported temperature and humidity data before a condition range can be estimated.`,
+  set_power_threshold: msg`Set a power threshold so Praxys can identify sustained work without using diluted activity-average power.`,
+  align_power_source: msg`Align the activity and threshold power sources before Praxys uses these sessions in the estimate.`,
+  sync_power_provenance: msg`Sync power-source metadata so Praxys can verify that activity and threshold power are comparable.`,
+  sync_power_evidence: msg`Sync split or sample power evidence so Praxys can identify sustained work.`,
 };
 
-const ACTION_LABELS: Record<HeatAdaptationAction, MessageDescriptor> = {
-  sync_training_data: msg`Sync training data to start a heat history.`,
-  collect_supported_environment_data: msg`Temperature and humidity were not provided by your synced activities.`,
-  set_power_threshold: msg`Set a current power threshold before workload can contribute.`,
-  align_power_source: msg`Choose a power threshold from the same provider as your heat-session power.`,
-  sync_power_provenance: msg`Re-sync training data so the power provider can be verified.`,
-  sync_power_evidence: msg`Sync sample or split power so workload can contribute.`,
-  continue_normal_training: msg`Follow your existing plan; do not add load or heat solely to change this tracker.`,
-  maintain_normal_training: msg`Evidence remains recent. Follow normal training and recovery.`,
-  no_additional_heat_needed: msg`No additional heat exposure is recommended from this tracker.`,
-  follow_today_signal: msg`Follow today's training signal; do not add heat exposure today.`,
-};
+function localDate(value: string): Date {
+  return new Date(`${value.slice(0, 10)}T12:00:00`);
+}
 
-const SOURCE_LABELS: Record<string, MessageDescriptor> = {
-  'stull-2011': msg`Stull wet-bulb approximation`,
-  'cramer-jay-2016': msg`Cramer and Jay heat-balance framework`,
-  'nielsen-1993': msg`Nielsen dry-heat acclimation study`,
-  'racinais-2015': msg`Racinais heat-acclimatization consensus`,
-  'tyler-2016': msg`Tyler heat-acclimation meta-analysis`,
-  'daanen-2018': msg`Daanen decay and reacclimation review`,
-  'kelly-2023': msg`Kelly female-athlete evidence review`,
-  'casa-2015': msg`Casa exertional heat-illness guidance`,
-};
+function formatDate(value: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(localDate(value));
+}
 
-function environmentSourceLabel(source: string): MessageDescriptor {
-  if (source === 'stryd_activity_weather') {
-    return msg`Stryd-provided activity weather`;
+function formatRange(
+  min: number,
+  max: number,
+  suffix: string,
+  locale: string,
+): string {
+  const formatter = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
+  const low = formatter.format(min);
+  const high = formatter.format(max);
+  return low === high ? `${low}${suffix}` : `${low}–${high}${suffix}`;
+}
+
+function sourceLabel(session: HeatAdaptationSession): ReturnType<typeof msg> {
+  if (session.workload_source === 'samples') return msg`Power samples`;
+  if (session.workload_source === 'splits') return msg`Activity splits`;
+  if (session.workload_source === 'samples_incomplete') return msg`Incomplete power samples`;
+  return msg`No supported workload evidence`;
+}
+
+function environmentLabel(source: string): ReturnType<typeof msg> {
+  if (source === 'split_weighted') return msg`Split-weighted weather`;
+  if (source === 'activity_summary' || source.endsWith('_activity_weather')) {
+    return msg`Activity-summary weather`;
   }
-  return msg`Connector-provided activity summary`;
+  return msg`No supported weather evidence`;
 }
 
-function formatSessionDate(value: string, locale: string): string {
-  const [year, month, day] = value.split('-').map(Number);
-  if (!year || !month || !day) return value;
-  return new Date(year, month - 1, day).toLocaleDateString(
-    locale === 'zh' ? 'zh-CN' : 'en-US',
-    { month: 'short', day: 'numeric' },
+function powerAlignmentLabel(
+  alignment: HeatAdaptationSession['power_source_alignment'],
+): ReturnType<typeof msg> {
+  if (alignment === 'matched') return msg`Matched`;
+  if (alignment === 'mismatch') return msg`Mismatch`;
+  if (alignment === 'mixed') return msg`Mixed providers`;
+  return msg`Unverified`;
+}
+
+function effectiveMinutesLabel(minutes: number): ReturnType<typeof msg> {
+  return msg`${minutes} effective min`;
+}
+
+function evidenceTotalsLabel(days: number, minutes: number): ReturnType<typeof msg> {
+  return msg`${days} days · ${minutes} effective min`;
+}
+
+function stageLabel(status: HeatAdaptationStatus): ReturnType<typeof msg> {
+  return status.is_reacclimating ? msg`Reacclimating` : STAGE_LABELS[status.stage];
+}
+
+function lastExposureLabel(days: number | null): ReturnType<typeof msg> {
+  if (days == null) return msg`None in the active window`;
+  if (days === 0) return msg`Today`;
+  if (days === 1) return msg`1 day ago`;
+  return msg`${days} days ago`;
+}
+
+function stageInterpretation(status: HeatAdaptationStatus): ReturnType<typeof msg> {
+  if (status.is_reacclimating) {
+    return msg`Reacclimatization to similar conditions may be developing.`;
+  }
+  if (status.stage === 'likely_adapted') {
+    return msg`Recent training makes acclimatization to similar conditions plausible.`;
+  }
+  if (status.stage === 'maintaining') {
+    return status.recent_conditions
+      ? msg`A prior qualifying block may still be retained. The range above describes only current qualifying training.`
+      : msg`Evidence from a prior qualifying block may still be retained.`;
+  }
+  if (status.stage === 'building') {
+    return msg`Acclimatization to similar conditions may be developing, but the evidence is still limited.`;
+  }
+  if (status.stage === 'decaying') {
+    return status.recent_conditions
+      ? msg`Evidence from a prior qualifying block is fading. The range above describes only current qualifying training.`
+      : msg`Evidence from a prior qualifying block is fading.`;
+  }
+  return msg`There is not enough repeated qualifying exposure to estimate acclimatization to similar conditions.`;
+}
+
+function exclusionReason(
+  session: HeatAdaptationSession,
+  thresholdMinutes: number,
+): ReturnType<typeof msg> {
+  if (session.qualifies) {
+    return msg`Included because supported weather and workload evidence reached the session threshold.`;
+  }
+  if (session.workload_evaluable) {
+    return msg`Observed, but not included because it stayed below ${thresholdMinutes} effective heat minutes.`;
+  }
+  if (session.workload_source === 'samples_incomplete') {
+    return msg`Observed, but not included because power-sample coverage was incomplete.`;
+  }
+  if (session.power_source_alignment === 'mismatch') {
+    return msg`Observed, but not included because the activity and threshold power sources did not match.`;
+  }
+  if (session.power_source_alignment === 'unknown') {
+    return msg`Observed, but not included because the power-source match could not be verified.`;
+  }
+  if (session.power_source_alignment === 'mixed') {
+    return msg`Observed, but not included because workload evidence mixed power providers.`;
+  }
+  return msg`Observed, but not included because supported workload evidence was unavailable.`;
+}
+
+function HeatCadence({ status }: { status: HeatAdaptationStatus }) {
+  const { i18n } = useLingui();
+  const locale = i18n.locale || 'en';
+  const defaultDay = useMemo(
+    () =>
+      [...status.cadence].reverse().find((day) => day.session_count > 0)
+      ?? status.cadence.at(-1)
+      ?? null,
+    [status.cadence],
   );
-}
-
-interface HeatAdaptationPanelProps {
-  status: HeatAdaptationStatus;
-  variant: 'today' | 'training';
-}
-
-export default function HeatAdaptationPanel({
-  status,
-  variant,
-}: HeatAdaptationPanelProps) {
-  const { i18n, t } = useLingui();
-  const tone = STAGE_TONES[status.stage];
-  const stageLabel = i18n._(STAGE_LABELS[status.stage]);
-  const action = i18n._(ACTION_LABELS[status.next_action]);
-  const confidence = i18n._(CONFIDENCE_LABELS[status.confidence]);
-  const evidence = status.contributing_sessions > 0
-    ? t`${status.contributing_sessions} sessions across ${status.exposure_days} days · ${status.effective_heat_minutes} effective min`
-    : t`${status.data_coverage.workload_supported_activities} of ${status.data_coverage.recent_activities} recent activities have usable environment and power evidence`;
-  const lastExposure = status.days_since_last_exposure == null
-    ? t`No contributing heat session yet`
-    : status.days_since_last_exposure === 0
-      ? t`Last contributing session today`
-      : t`Last contributing session ${status.days_since_last_exposure} days ago`;
-  const sources = status.science_sources.map((source) => ({
-    url: source.url,
-    label: SOURCE_LABELS[source.id]
-      ? i18n._(SOURCE_LABELS[source.id])
-      : source.id,
-  }));
-  const layoutClass = variant === 'today'
-    ? 'col-span-full border-b border-border py-5'
-    : 'mb-8 border-y border-border py-5';
+  const [selectedDate, setSelectedDate] = useState<string | null>(defaultDay?.date ?? null);
+  const selected = status.cadence.find((day) => day.date === selectedDate) ?? defaultDay;
+  const peak = Math.max(...status.cadence.map((day) => day.effective_heat_minutes), 1);
 
   return (
-    <section aria-label={t`Heat adaptation`} className={layoutClass}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
-        <div className="min-w-0">
-          <p className="text-[11px] font-data font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-            <Trans>Heat adaptation</Trans>
+    <section className="border-t border-border/60 pt-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">
+            <Trans>Fourteen-day activity record</Trans>
+          </h3>
+          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
+            <Trans>Days with recorded sessions are shown below. Select a day to inspect what entered the estimate.</Trans>
           </p>
-          <div className={`mt-2 inline-flex items-center gap-2 text-[15px] font-semibold sm:text-sm ${tone.text}`}>
-            <span className={`h-2 w-2 rounded-full ${tone.dot}`} aria-hidden="true" />
-            <span>{stageLabel}</span>
-            {status.is_reacclimating && (
-              <span className="font-normal text-muted-foreground">
-                · <Trans>reacclimating</Trans>
-              </span>
-            )}
-          </div>
         </div>
-        <p className="max-w-[62ch] text-pretty text-[15px] leading-relaxed text-foreground sm:text-right sm:text-sm">
-          {action}
+        <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="size-2 rounded-sm bg-primary" aria-hidden="true" />
+            <Trans>Included</Trans>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="size-2 rounded-sm border border-dashed border-muted-foreground/70" aria-hidden="true" />
+            <Trans>Observed, not included</Trans>
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-7 gap-1.5 sm:grid-cols-[repeat(14,minmax(0,1fr))]">
+        {status.cadence.map((day) => {
+          const isSelected = selected?.date === day.date;
+          const hasIncluded = day.counted_session_count > 0;
+          const hasObserved = day.session_count > 0;
+          const intensity = hasIncluded
+            ? Math.max(0.28, Math.min(0.92, day.effective_heat_minutes / peak))
+            : 0;
+          const label = i18n._(
+            msg`${formatDate(day.date, locale)}: ${day.counted_session_count} included, ${day.session_count - day.counted_session_count} observed but not included`,
+          );
+
+          return (
+            <button
+              key={day.date}
+              type="button"
+              aria-label={label}
+              aria-pressed={isSelected}
+              onClick={() => setSelectedDate(day.date)}
+              className={`h-9 rounded-md transition-[box-shadow,background-color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                hasObserved && !hasIncluded ? 'border border-dashed border-muted-foreground/45' : ''
+              } ${isSelected ? 'ring-2 ring-foreground/75 ring-offset-2 ring-offset-background' : ''}`}
+              style={hasIncluded ? { backgroundColor: `color-mix(in srgb, var(--primary) ${Math.round(intensity * 100)}%, transparent)` } : undefined}
+            />
+          );
+        })}
+      </div>
+
+      {selected && (
+        <p className="mt-3 font-data text-xs text-muted-foreground" aria-live="polite">
+          <span className="font-medium text-foreground">{formatDate(selected.date, locale)}</span>
+          {' · '}
+          <Trans>
+            {selected.counted_session_count} included, {selected.session_count - selected.counted_session_count} observed but not included, {Math.round(selected.effective_heat_minutes)} effective min
+          </Trans>
         </p>
-      </div>
-      <div className="mt-3 grid gap-1 text-sm leading-relaxed text-muted-foreground sm:flex sm:flex-wrap sm:gap-x-6 sm:text-[11px]">
-        <span className="font-data tabular-nums">{evidence}</span>
-        <span className="font-data tabular-nums">{lastExposure}</span>
-        <span>{confidence}</span>
-      </div>
-      <div className="[&_button]:min-h-11 [&_button]:text-sm [&_a]:inline-flex [&_a]:min-h-11 [&_a]:items-center [&_p]:text-sm sm:[&_button]:min-h-0 sm:[&_button]:text-xs sm:[&_a]:min-h-0 sm:[&_p]:text-[13px]">
-        <ScienceNote
-          text={t`Heat adaptation covers acclimatization from natural heat and acclimation from controlled heat, but this tracker observes only outdoor connector weather; treadmill and indoor summary weather are discarded. It uses one activity-summary temperature/humidity pair. Environmental evidence takes the stronger of an estimated 18–26°C Stull psychrometric wet-bulb ramp at standard sea-level pressure and an estimated 30–40°C dry-bulb ramp; the ramps are never added and this is not WBGT. Outside Stull's 5–99% RH domain, only the dry-bulb ramp can contribute. Work minutes at or above 50% of a same-provider current CP are weighted by the stronger ramp, using timestamped samples when they cover at least 90% of activity duration and splits otherwise. Sample gaps over five seconds do not count toward coverage. A session counts at 30 effective minutes. Within a rolling 14-day window, 2 days and 60 effective minutes indicate Building; 7 days and 420 effective minutes indicate Likely adapted. The environmental ramps, effective minutes, stage thresholds, and the 7–28 day decay window are Praxys operational estimates; evidence labels describe data coverage, not biological certainty. Wind, solar radiation, within-session weather changes, clothing, hydration state, and measured core or skin temperature are excluded. Repeated exposure can reduce cardiovascular and thermal strain, but individual response varies and female-specific evidence remains limited. This is not medical clearance or a current heat-risk assessment: follow Today's signal, keep normal hydration and cooling available, stop immediately and begin cooling for heat-illness symptoms, and seek urgent medical help for confusion, collapse, or altered mental status.`}
-          sources={sources}
-        />
-      </div>
+      )}
     </section>
   );
 }
 
-export function HeatExposureTimeline({ status }: { status: HeatAdaptationStatus }) {
-  const { i18n, t } = useLingui();
-  const providerLabel = (provider: string | null): string => {
-    if (!provider) return i18n._(msg`unknown`);
-    if (provider === 'activities') return i18n._(msg`activity-derived`);
-    if (provider === 'mixed') return i18n._(msg`mixed`);
-    if (provider === 'stryd') return 'Stryd';
-    if (provider === 'garmin') return 'Garmin';
-    if (provider === 'coros') return 'COROS';
-    if (provider === 'strava') return 'Strava';
-    return provider;
-  };
-  const workloadMethodLabel = (session: HeatAdaptationSession): string => {
-    const coverage = session.sample_coverage_ratio == null
-      ? null
-      : Math.round(session.sample_coverage_ratio * 100);
-    switch (session.workload_source) {
-      case 'samples':
-        return coverage == null
-          ? t`Sample power`
-          : t`Sample power · ${coverage}% coverage`;
-      case 'splits':
-        return coverage == null
-          ? t`Split power`
-          : t`Split fallback · ${coverage}% sample coverage`;
-      case 'samples_incomplete':
-        return coverage == null
-          ? t`Samples incomplete`
-          : t`Samples incomplete · ${coverage}% coverage`;
-      default:
-        return t`No sample or split power`;
-    }
-  };
+function HeatEvidenceLedger({ status }: { status: HeatAdaptationStatus }) {
+  const { i18n } = useLingui();
+  const locale = i18n.locale || 'en';
+  const threshold = status.evidence_thresholds.qualifying_effective_minutes;
+  const sessions = (status.cadence ?? []).flatMap((day) =>
+    status.sessions.filter((session) => session.date === day.date),
+  ).reverse();
 
   return (
-    <section aria-label={t`Heat evidence timeline`}>
-      <div className="mb-5">
-        <p className="text-xs font-data font-semibold uppercase tracking-[0.1em] text-muted-foreground sm:text-[11px]">
-          <Trans>Heat evidence timeline</Trans>
-        </p>
-        <p className="mt-1 max-w-[70ch] text-pretty text-sm leading-relaxed text-muted-foreground">
-          <Trans>Recent connector readings and sample-first power workload used by the qualitative stage.</Trans>
-        </p>
-      </div>
-      {status.sessions.length === 0 ? (
-        <p className="border-t border-border py-6 text-sm text-muted-foreground">
-          <Trans>No recent activity has both supported temperature/humidity and sample or split-power evidence.</Trans>
+    <section className="border-t border-border/60 pt-6">
+      <h3 className="text-sm font-semibold text-foreground">
+        <Trans>Latest observed activities</Trans>
+      </h3>
+      <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
+        <Trans>Open an activity to see why it was included or left out. Exclusion only describes this estimate, not whether the session had training value.</Trans>
+      </p>
+
+      {sessions.length === 0 ? (
+        <p className="mt-4 text-sm text-muted-foreground">
+          <Trans>No recent activities are available to inspect.</Trans>
         </p>
       ) : (
-        <ol className="border-t border-border">
-          {status.sessions.map((session) => (
-            <li
-              key={`${session.activity_id}-${session.date}`}
-              className="grid gap-3 border-b border-border py-5 sm:grid-cols-[90px_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start sm:gap-5 sm:py-4"
-            >
-              <div className="flex items-center justify-between gap-4 sm:contents">
-                <time className="font-data text-sm text-muted-foreground sm:col-start-1 sm:row-start-1 sm:text-xs">
-                  {formatSessionDate(session.date, i18n.locale)}
-                </time>
-                <span className={`text-sm font-semibold sm:col-start-4 sm:row-start-1 sm:text-xs ${
-                  session.qualifies ? 'text-primary' : 'text-muted-foreground'
-                }`}>
-                  {session.workload_evaluable
-                    ? session.qualifies
-                      ? <Trans>counted</Trans>
-                      : <Trans>below threshold</Trans>
-                    : session.workload_source === 'samples_incomplete'
-                      ? <Trans>Samples incomplete</Trans>
-                      : session.workload_source === 'none'
-                        ? <Trans>Not evaluated</Trans>
-                        : session.power_source_alignment === 'mismatch'
-                          ? <Trans>Power-source mismatch</Trans>
-                          : session.power_source_alignment === 'mixed'
-                            ? <Trans>Mixed power sources</Trans>
-                            : session.power_source_alignment === 'unknown'
-                              ? <Trans>Power source unknown</Trans>
-                              : <Trans>Not evaluated</Trans>}
+        <div className="mt-4 divide-y divide-border/60">
+          {sessions.map((session) => (
+            <details key={`${session.date}-${session.activity_id}`} className="group/session">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-3 marker:hidden">
+                <span className="min-w-0">
+                  <span className="block font-data text-sm font-medium text-foreground">
+                    {formatDate(session.date, locale)}
+                  </span>
+                  <span className="mt-0.5 block font-data text-xs text-muted-foreground">
+                    {Math.round(session.temperature_c)}°C · {Math.round(session.relative_humidity_pct)}%
+                  </span>
                 </span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <span className={`text-xs font-medium ${session.qualifies ? 'text-primary' : 'text-muted-foreground'}`}>
+                    {session.qualifies
+                      ? i18n._(msg`Included in estimate`)
+                      : i18n._(msg`Observed, not included`)}
+                  </span>
+                  <ChevronDown
+                    className="size-4 text-muted-foreground transition-transform group-open/session:rotate-180"
+                    aria-hidden="true"
+                  />
+                </span>
+              </summary>
+              <div className="pb-4">
+                <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
+                  {i18n._(exclusionReason(session, threshold))}
+                </p>
+                <dl className="mt-3 grid gap-x-6 gap-y-2 text-xs sm:grid-cols-2">
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-muted-foreground"><Trans>Workload evidence</Trans></dt>
+                    <dd className="text-right text-foreground">{i18n._(sourceLabel(session))}</dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-muted-foreground"><Trans>Weather evidence</Trans></dt>
+                    <dd className="text-right text-foreground">{i18n._(environmentLabel(session.environment_source))}</dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-muted-foreground"><Trans>Effective heat time</Trans></dt>
+                    <dd className="font-data text-foreground">
+                      {i18n._(effectiveMinutesLabel(Math.round(session.effective_heat_minutes)))}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-muted-foreground"><Trans>Power-source match</Trans></dt>
+                    <dd className="text-right text-foreground">
+                      {i18n._(powerAlignmentLabel(session.power_source_alignment))}
+                    </dd>
+                  </div>
+                </dl>
               </div>
-              <span className="text-sm text-foreground sm:col-start-2 sm:row-start-1 sm:text-xs">
-                <span className="font-data">
-                  {session.wet_bulb_c == null
-                    ? t`${session.temperature_c}°C · ${session.relative_humidity_pct}% RH · wet-bulb estimate unavailable`
-                    : t`${session.temperature_c}°C · ${session.relative_humidity_pct}% RH · ${session.wet_bulb_c}°C estimated wet-bulb proxy`}
-                </span>
-                <span className="mt-1 block text-muted-foreground">
-                  {i18n._(environmentSourceLabel(session.environment_source))}
-                </span>
-              </span>
-              <span className="text-sm text-muted-foreground sm:col-start-3 sm:row-start-1 sm:text-xs">
-                <span className="block font-data text-foreground">
-                  {t`${session.work_minutes} work min · ${session.effective_heat_minutes} effective min`}
-                </span>
-                <span className="mt-1 block font-data">
-                  {workloadMethodLabel(session)}
-                </span>
-                <span className="mt-1 block">
-                  {t`Power ${providerLabel(session.power_provider)} · CP ${providerLabel(session.cp_power_provider)} · CP source ${providerLabel(session.cp_source)}`}
-                </span>
-              </span>
-            </li>
+            </details>
           ))}
-        </ol>
+        </div>
       )}
+    </section>
+  );
+}
+
+export default function HeatAdaptationPanel({ status }: { status: HeatAdaptationStatus }) {
+  const { i18n } = useLingui();
+  const locale = i18n.locale || 'en';
+  const conditions = status.recent_conditions;
+  const included = status.cadence.reduce((sum, day) => sum + day.counted_session_count, 0);
+  const observed = status.cadence.reduce((sum, day) => sum + day.session_count, 0);
+  const excluded = Math.max(0, observed - included);
+  const actionGuidance = ACTION_GUIDANCE[status.next_action];
+  const temperatureRange = conditions
+    ? formatRange(conditions.temperature_c.min, conditions.temperature_c.max, '°C', locale)
+    : null;
+  const humidityPercentRange = conditions
+    ? formatRange(conditions.relative_humidity_pct.min, conditions.relative_humidity_pct.max, '%', locale)
+    : null;
+  const humidityRange = humidityPercentRange
+    ? i18n._(msg`${humidityPercentRange} humidity`)
+    : null;
+
+  return (
+    <section
+      id="heat-adaptation"
+      className="scroll-mt-24 border-y border-border/70 py-7 sm:py-9"
+      aria-labelledby="heat-adaptation-title"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 max-w-3xl">
+          <p className="text-sm font-medium text-muted-foreground">
+            <Trans>Recent qualifying training range</Trans>
+          </p>
+          <h2 id="heat-adaptation-title" className="mt-2 text-balance text-2xl font-semibold tracking-[-0.025em] text-foreground sm:text-3xl">
+            {conditions ? (
+              <span className="font-data">
+                {temperatureRange} <span className="text-muted-foreground">·</span> {humidityRange}
+              </span>
+            ) : (
+              <Trans>No qualifying condition range yet</Trans>
+            )}
+          </h2>
+          <p className="mt-3 max-w-2xl text-pretty text-sm leading-relaxed text-foreground/85">
+            {i18n._(stageInterpretation(status))}
+          </p>
+        </div>
+        <span className="rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground">
+          {i18n._(stageLabel(status))}
+        </span>
+      </div>
+
+      <div className="mt-5 max-w-3xl">
+        {conditions ? (
+          <p className="font-data text-xs leading-relaxed text-muted-foreground">
+            <Trans>
+              Based on {conditions.qualifying_session_count} included sessions across {status.exposure_days} days in the last {status.evidence_thresholds.active_window_days} days.
+            </Trans>
+          </p>
+        ) : actionGuidance ? (
+          <p className="font-data text-sm leading-relaxed text-muted-foreground">
+            {i18n._(actionGuidance)}
+          </p>
+        ) : (
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            <Trans>
+              No recent activity reached the model's {status.evidence_thresholds.qualifying_effective_minutes}-minute inclusion threshold.
+            </Trans>
+          </p>
+        )}
+        <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+          <Trans>Past training only. This does not assess today's weather, guarantee adaptation, or replace medical guidance.</Trans>
+        </p>
+      </div>
+
+      <details className="group mt-7 border-t border-border/70">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 marker:hidden">
+          <span>
+            <span className="block text-sm font-medium text-foreground">
+              <Trans>How this estimate was built</Trans>
+            </span>
+            <span className="mt-0.5 block font-data text-xs text-muted-foreground">
+              <Trans>{included} included · {excluded} observed, not included</Trans>
+            </span>
+          </span>
+          <ChevronDown
+            className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+            aria-hidden="true"
+          />
+        </summary>
+
+        <div className="space-y-6 border-t border-border/60 pt-6">
+          <dl className="grid gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-xs text-muted-foreground"><Trans>Current evidence</Trans></dt>
+              <dd className="mt-1 font-data text-foreground">
+                {i18n._(evidenceTotalsLabel(
+                  status.exposure_days,
+                  Math.round(status.effective_heat_minutes),
+                ))}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground"><Trans>Data coverage</Trans></dt>
+              <dd className="mt-1 text-foreground">{i18n._(CONFIDENCE_LABELS[status.confidence])}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground"><Trans>Likely-adapted threshold</Trans></dt>
+              <dd className="mt-1 font-data text-foreground">
+                {i18n._(evidenceTotalsLabel(
+                  status.evidence_thresholds.likely_adapted_days,
+                  status.evidence_thresholds.likely_adapted_effective_minutes,
+                ))}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground"><Trans>Last included session</Trans></dt>
+              <dd className="mt-1 font-data text-foreground">
+                {i18n._(lastExposureLabel(status.days_since_last_exposure))}
+              </dd>
+            </div>
+          </dl>
+
+          <HeatCadence status={status} />
+          <HeatEvidenceLedger status={status} />
+
+          <div className="border-t border-border/60 pt-5">
+            <ScienceNote embedded>
+              <p>
+                <Trans>
+                  The thresholds are Praxys operational estimates grounded in heat-acclimatization research, not a direct physiological measurement.
+                </Trans>
+              </p>
+              <Link
+                to="/science#heat"
+                className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-[var(--accent-cobalt-val)] hover:underline hover:underline-offset-4"
+              >
+                <Trans>Read the active heat model</Trans>
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </Link>
+            </ScienceNote>
+          </div>
+        </div>
+      </details>
     </section>
   );
 }

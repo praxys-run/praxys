@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { Trans, useLingui } from '@lingui/react/macro';
 
 /**
@@ -22,17 +22,23 @@ export interface ScienceSource {
 }
 
 interface ScienceNoteProps {
-  text: string;
+  text?: string;
+  children?: ReactNode;
+  label?: ReactNode;
   sourceUrl?: string;
   sourceLabel?: string;
   sources?: ScienceSource[];
+  embedded?: boolean;
 }
 
 export default function ScienceNote({
   text,
+  children,
+  label,
   sourceUrl,
   sourceLabel,
   sources,
+  embedded = false,
 }: ScienceNoteProps) {
   const [expanded, setExpanded] = useState(false);
   const contentId = useId();
@@ -42,6 +48,36 @@ export default function ScienceNote({
     : sourceUrl
       ? [{ url: sourceUrl, label: sourceLabel || t`Source` }]
       : [];
+  const content = (
+    <>
+      {children ?? <p>{text}</p>}
+      {resolvedSources.length > 0 && (
+        <p className="mt-3 flex flex-wrap gap-x-2 gap-y-1">
+          {resolvedSources.map((source, index) => (
+            <span key={source.url}>
+              {index > 0 && <span aria-hidden="true">· </span>}
+              <a
+                href={source.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-accent-cobalt underline-offset-2 hover:underline"
+              >
+                {source.label}
+              </a>
+            </span>
+          ))}
+        </p>
+      )}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div className="text-[13px] leading-relaxed text-muted-foreground">
+        {content}
+      </div>
+    );
+  }
 
   return (
     // No own border. Page-level section hairlines do the separation
@@ -57,25 +93,12 @@ export default function ScienceNote({
         onClick={() => setExpanded(!expanded)}
         className="text-[12px] text-accent-cobalt hover:text-accent-cobalt/80 transition-colors"
       >
-        {expanded ? '\u25be' : '\u25b8'} <Trans>How this is calculated</Trans>
+        {expanded ? '\u25be' : '\u25b8'} {label ?? <Trans>How this is calculated</Trans>}
       </button>
       {expanded && (
-        <p id={contentId} className="text-[13px] text-muted-foreground mt-2 leading-relaxed">
-          {text}{' '}
-          {resolvedSources.map((source, index) => (
-            <span key={source.url}>
-              {index > 0 && ' · '}
-              <a
-                href={source.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-accent-cobalt underline-offset-2 hover:underline"
-              >
-                {source.label}
-              </a>
-            </span>
-          ))}
-        </p>
+        <div id={contentId} className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+          {content}
+        </div>
       )}
     </div>
   );

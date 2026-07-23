@@ -4,6 +4,8 @@
 DAILY_BRIEF_FRESHNESS_KEY = "daily_brief_freshness"
 
 # Cache/ETag salt for the deterministic /api/today representation.
-TODAY_RESPONSE_VERSION = "heat-adaptation-today-v9"
-TRAINING_RESPONSE_VERSION = "heat-adaptation-training-v8"
+TODAY_RESPONSE_VERSION = "heat-adaptation-today-v11"
+TRAINING_RESPONSE_VERSION = "heat-adaptation-training-v10"
+GOAL_RESPONSE_VERSION = "fixed-heat-model-goal-v1"
+SCIENCE_RESPONSE_VERSION = "fixed-heat-model-v1"
 PLAN_RESPONSE_VERSION = "connection-aware-plan-v2"

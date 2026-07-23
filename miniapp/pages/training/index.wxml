@@ -6,6 +6,7 @@
     refresher-enabled="{{true}}"
     refresher-triggered="{{refreshing}}"
     bindrefresherrefresh="onScrollRefresh"
+    scroll-into-view="{{scrollIntoView}}"
     class="train-scroll"
   >
     <view class="train-content">
@@ -23,19 +24,18 @@
       <state-card wx:if="{{!hasAnyData}}" type="empty" headline="{{tr.noData}}" />
 
       <!-- ═══════════════════════════════════════════════════════════
-           DIAGNOSIS · stat strip (4 numbers) + pill switcher (one
-           chart at a time) + Coach receipt below. Reading order:
-           glance the number → see the matching chart → read the
-           coach's interpretation. Same shape as web's PR #280.
+           DIAGNOSIS · stat strip + longitudinal heat story + chart
+           switcher + Coach receipt. Heat owns its own progressive
+           evidence disclosures instead of competing as a chart tab.
            ═══════════════════════════════════════════════════════════ -->
-      <block wx:if="{{hasAnyData}}">
-        <text class="train-section-eyebrow">{{tr.diagnosis}} · {{diagnosisEyebrow}}</text>
+      <block>
+        <text wx:if="{{hasAnyData}}" class="train-section-eyebrow">{{tr.diagnosis}} · {{diagnosisEyebrow}}</text>
 
         <!-- Stat strip — 2x2 grid on phone (stacked rows of two,
              columns aligned). Each cell: mono uppercase label, big
              tabular value with optional % unit, mono caption. Values
              remain neutral because these are descriptive metrics. -->
-        <view class="train-stats">
+        <view wx:if="{{hasAnyData}}" class="train-stats">
           <view
             wx:for="{{cells}}"
             wx:key="id"
@@ -50,19 +50,120 @@
           </view>
         </view>
 
-        <view class="train-heat" aria-label="{{heat.label}}">
+        <view id="heat-adaptation" class="train-heat-section" aria-label="{{heat.label}}">
           <view class="train-heat-head">
             <text class="train-heat-label">{{heat.label}}</text>
             <view class="train-heat-stage train-heat-stage--{{heat.tone}}">
-              <view class="train-heat-dot"></view>
               <text>{{heat.stage}}</text>
             </view>
           </view>
-          <text class="train-heat-action">{{heat.action}}</text>
-          <view class="train-heat-meta">
-            <text class="ts-value">{{heat.evidence}}</text>
-            <text class="ts-value">{{heat.lastExposure}}</text>
-            <text>{{heat.confidence}}</text>
+          <text class="train-heat-condition ts-value">{{heat.conditionRange}}</text>
+          <text class="train-heat-interpretation">{{heat.interpretation}}</text>
+          <text wx:if="{{heat.basis}}" class="train-heat-basis ts-value">{{heat.basis}}</text>
+          <text wx:if="{{heat.guidance}}" class="train-heat-guidance">{{heat.guidance}}</text>
+          <text class="train-heat-safety">{{heat.safetyText}}</text>
+
+          <view
+            class="train-heat-disclosure"
+            role="button"
+            aria-expanded="{{heatEvidenceExpanded}}"
+            bindtap="onToggleHeatEvidence"
+          >
+            <view class="train-heat-disclosure-copy">
+              <text>{{heat.evidenceDisclosureLabel}}</text>
+              <text class="train-heat-disclosure-meta ts-value">{{heat.evidenceDisclosureMeta}}</text>
+            </view>
+            <text class="train-heat-disclosure-arrow">{{heatEvidenceExpanded ? '▾' : '▸'}}</text>
+          </view>
+          <view wx:if="{{heatEvidenceExpanded}}" class="train-heat-evidence">
+            <view class="train-heat-evidence-summary">
+              <view wx:for="{{heat.evidenceRows}}" wx:key="id" class="train-heat-evidence-row">
+                <text class="train-heat-evidence-label">{{item.label}}</text>
+                <text class="train-heat-evidence-value ts-value">{{item.value}}</text>
+              </view>
+            </view>
+
+            <view wx:if="{{heat.showCadence}}" class="train-heat-cadence">
+              <text class="train-heat-cadence-label">{{heat.cadenceLabel}}</text>
+              <text class="train-heat-cadence-description">{{heat.cadenceDescription}}</text>
+              <view class="train-heat-cadence-legend">
+                <view class="train-heat-cadence-legend-item">
+                  <view class="train-heat-cadence-mark train-heat-cadence-mark--included"></view>
+                  <text>{{heat.includedLegend}}</text>
+                </view>
+                <view class="train-heat-cadence-legend-item">
+                  <view class="train-heat-cadence-mark train-heat-cadence-mark--observed"></view>
+                  <text>{{heat.observedLegend}}</text>
+                </view>
+              </view>
+              <view class="train-heat-cadence-grid">
+                <view wx:for="{{heat.cadenceDays}}" wx:key="id" class="train-heat-day-wrap">
+                  <view
+                    class="train-heat-day {{selectedHeatDayId === item.id ? 'train-heat-day--selected' : ''}}"
+                    data-id="{{item.id}}"
+                    bindtap="onPickHeatDay"
+                    role="button"
+                    aria-label="{{item.detail}}"
+                    aria-pressed="{{selectedHeatDayId === item.id}}"
+                  >
+                    <text class="train-heat-day-weekday">{{item.weekday}}</text>
+                    <view class="train-heat-day-marker train-heat-day-marker--{{item.state}}"></view>
+                    <text class="train-heat-day-number ts-value">{{item.dayNumber}}</text>
+                  </view>
+                </view>
+              </view>
+              <text class="train-heat-cadence-detail ts-value" aria-live="polite">{{selectedHeatDayDetail}}</text>
+            </view>
+
+            <view class="train-heat-sessions">
+              <text class="train-heat-sessions-label">{{heat.sessionsLabel}}</text>
+              <text class="train-heat-sessions-description">{{heat.sessionsDescription}}</text>
+            </view>
+            <view wx:if="{{heat.hasSessions}}">
+              <view
+                wx:for="{{heat.sessions}}"
+                wx:key="id"
+                class="train-heat-row"
+              >
+                <view
+                  class="train-heat-row-toggle"
+                  data-id="{{item.id}}"
+                  bindtap="onToggleHeatSession"
+                  role="button"
+                  aria-expanded="{{expandedHeatSessionId === item.id}}"
+                >
+                  <view class="train-heat-row-main">
+                    <view class="train-heat-row-head">
+                      <text class="train-heat-date ts-value">{{item.date}}</text>
+                      <text class="train-heat-row-status train-heat-row-status--{{item.tone}}">{{item.status}}</text>
+                    </view>
+                    <text class="train-heat-environment ts-value">{{item.environment}}</text>
+                    <text class="train-heat-effective ts-value">{{item.effective}}</text>
+                  </view>
+                  <text class="train-heat-disclosure-arrow">{{expandedHeatSessionId === item.id ? '▾' : '▸'}}</text>
+                </view>
+                <view wx:if="{{expandedHeatSessionId === item.id}}" class="train-heat-row-detail">
+                  <text class="train-heat-row-reason">{{item.reason}}</text>
+                  <text>{{item.weatherEvidence}}</text>
+                  <text>{{item.workloadMethod}}</text>
+                  <text>{{item.powerAlignment}}</text>
+                </view>
+              </view>
+            </view>
+            <view wx:else class="train-data-hint">
+              <text class="train-data-hint-message ts-muted">{{heat.emptySessionsText}}</text>
+            </view>
+            <view
+              class="train-heat-science-link"
+              role="button"
+              bindtap="onOpenHeatScience"
+            >
+              <view class="train-heat-science-copy">
+                <text class="train-heat-science-note">{{heat.scienceNote}}</text>
+                <text class="train-heat-science-action">{{heat.scienceLinkLabel}}</text>
+              </view>
+              <text class="train-heat-science-arrow" aria-hidden="true">→</text>
+            </view>
           </view>
         </view>
 
@@ -71,7 +172,7 @@
              Zones pill is conditional on at least one zone having
              a target — without it the pill renders inert and
              invites a bug. -->
-        <view class="train-pills" role="tablist" aria-label="{{tr.diagnosis}}">
+        <view wx:if="{{hasAnyData}}" class="train-pills" role="tablist" aria-label="{{tr.diagnosis}}">
           <view
             class="train-pill {{activePill === 'form' ? 'train-pill--active' : ''}}"
             data-pill="form"
@@ -94,20 +195,13 @@
             role="tab"
             aria-selected="{{activePill === 'compliance'}}"
           >{{tr.pillCompliance}}</view>
-          <view
-            class="train-pill {{activePill === 'heat' ? 'train-pill--active' : ''}}"
-            data-pill="heat"
-            bindtap="onPickPill"
-            role="tab"
-            aria-selected="{{activePill === 'heat'}}"
-          >{{tr.pillHeat}}</view>
         </view>
 
         <!-- Active chart pane. One option visible at a time; the
              switcher above flips between them. Each option carries
              its own DataHint countdown copy when the underlying
              window isn't long enough yet. -->
-        <view class="train-chart-pane">
+        <view wx:if="{{hasAnyData}}" class="train-chart-pane">
           <block wx:if="{{activePill === 'form'}}">
             <line-chart
               wx:if="{{ffSufficient}}"
@@ -179,49 +273,6 @@
             </view>
           </block>
 
-          <block wx:if="{{activePill === 'heat'}}">
-            <view wx:if="{{heat.hasSessions}}" class="train-heat-timeline">
-              <view
-                wx:for="{{heat.sessions}}"
-                wx:key="id"
-                class="train-heat-row"
-              >
-                <view class="train-heat-row-head">
-                  <text class="train-heat-date ts-value">{{item.date}}</text>
-                  <text class="train-heat-row-status train-heat-row-status--{{item.tone}}">{{item.status}}</text>
-                </view>
-                <text class="train-heat-environment ts-value">{{item.environment}}</text>
-                <text class="train-heat-work ts-value">{{item.work}} · {{item.source}}</text>
-                <text class="train-heat-work ts-muted ts-value">{{item.workloadMethod}}</text>
-                <text class="train-heat-work ts-muted">{{item.powerSource}}</text>
-              </view>
-            </view>
-            <view wx:else class="train-data-hint">
-              <text class="train-data-hint-message ts-muted">{{heat.action}}</text>
-            </view>
-            <view
-              class="train-heat-methodology-toggle"
-              role="button"
-              aria-expanded="{{heatMethodologyExpanded}}"
-              bindtap="onToggleHeatMethodology"
-            >
-              <text class="train-heat-methodology-arrow">{{heatMethodologyExpanded ? '▾' : '▸'}}</text>
-              <text class="train-heat-methodology-label">{{heat.methodologyLabel}}</text>
-            </view>
-            <view wx:if="{{heatMethodologyExpanded}}" class="train-heat-methodology-body">
-              <text class="train-methodology train-heat-methodology ts-muted">{{heat.methodologyText}}</text>
-              <view
-                wx:for="{{heat.sources}}"
-                wx:key="id"
-                class="train-heat-source-row"
-                data-url="{{item.url}}"
-                bindtap="onTapHeatSource"
-              >
-                <text class="train-heat-source">{{item.label}}</text>
-                <text class="train-heat-source-action">{{heat.sourceActionLabel}}</text>
-              </view>
-            </view>
-          </block>
         </view>
 
         <!-- Praxys Coach receipt — always rendered. AI content when a
@@ -230,7 +281,7 @@
              deterministic fallback. The receipt is the single
              narrative-interpretation surface across pages, so it
              persists with or without LLM. -->
-        <view class="coach-receipt train-coach" aria-label="{{coachTr.aria}}">
+        <view wx:if="{{hasAnyData}}" class="coach-receipt train-coach" aria-label="{{coachTr.aria}}">
           <view class="coach-banner">
             <text class="coach-mark">{{coachTr.mark}}</text>
             <text wx:if="{{coach.stamp}}" class="coach-stamp ts-value">{{coach.stamp}}</text>

@@ -452,6 +452,178 @@ def test_heat_adaptation_excludes_non_running_power():
     assert status["sessions"] == []
 
 
+def test_heat_adaptation_cadence_is_not_truncated_with_session_ledger():
+    """Daily cadence remains complete when the evidence ledger hits its cap."""
+    today = date(2026, 7, 16)
+    activities = []
+    splits = []
+    for index in range(28):
+        activity_id = f"dense-{index}"
+        activity_date = today - timedelta(days=index % 14)
+        activities.append({
+            "activity_id": activity_id,
+            "date": activity_date,
+            "activity_type": "running",
+            "duration_sec": 3600.0,
+            "temperature_c": 34.0,
+            "relative_humidity_pct": 70.0,
+            "avg_power": 0.0,
+            "source": "stryd",
+            "environment_source": "stryd_activity_weather",
+        })
+        splits.append({
+            "activity_id": activity_id,
+            "split_num": 1,
+            "duration_sec": 3600.0,
+            "avg_power": 180.0,
+            "power_provider": "stryd",
+        })
+
+    status = compute_heat_adaptation(
+        pd.DataFrame(activities),
+        pd.DataFrame(splits),
+        cp_watts=270.0,
+        cp_source="stryd",
+        current_date=today,
+    )
+
+    assert len(status["sessions"]) == 20
+    assert len(status["cadence"]) == 14
+    assert [day["date"] for day in status["cadence"]] == [
+        (today - timedelta(days=offset)).isoformat()
+        for offset in range(13, -1, -1)
+    ]
+    assert sum(day["session_count"] for day in status["cadence"]) == 28
+    assert all(day["session_count"] == 2 for day in status["cadence"])
+    assert all(day["counted_session_count"] == 2 for day in status["cadence"])
+    assert all(day["effective_heat_minutes"] == 120.0 for day in status["cadence"])
+
+
+def test_heat_adaptation_cadence_distinguishes_counted_observed_and_empty_days():
+    """Daily cadence preserves evidence state without inventing heat minutes."""
+    today = date(2026, 7, 16)
+    splits = _splits([0, 2])
+    splits.loc[splits["activity_id"] == "act-2", "duration_sec"] = 600.0
+
+    status = compute_heat_adaptation(
+        _activities(today, [0, 2]),
+        splits,
+        cp_watts=270.0,
+        cp_source="stryd",
+        current_date=today,
+    )
+    cadence = {day["date"]: day for day in status["cadence"]}
+
+    counted = cadence[today.isoformat()]
+    empty = cadence[(today - timedelta(days=1)).isoformat()]
+    observed = cadence[(today - timedelta(days=2)).isoformat()]
+    assert counted == {
+        "date": today.isoformat(),
+        "session_count": 1,
+        "counted_session_count": 1,
+        "effective_heat_minutes": 60.0,
+    }
+    assert empty["session_count"] == 0
+    assert empty["counted_session_count"] == 0
+    assert empty["effective_heat_minutes"] == 0
+    assert observed["session_count"] == 1
+    assert observed["counted_session_count"] == 0
+    assert observed["effective_heat_minutes"] == 0
+
+
+def test_heat_adaptation_reports_one_qualifying_condition_as_a_point_range():
+    """One qualifying session still identifies the represented conditions."""
+    today = date(2026, 7, 16)
+
+    status = _status(
+        today,
+        [0],
+        temperature_c=33.5,
+        relative_humidity_pct=64.0,
+    )
+
+    assert status["recent_conditions"] == {
+        "qualifying_session_count": 1,
+        "temperature_c": {"min": 33.5, "max": 33.5},
+        "relative_humidity_pct": {"min": 64.0, "max": 64.0},
+    }
+
+
+def test_heat_adaptation_condition_range_uses_only_current_qualifying_sessions():
+    """Excluded and out-of-window observations cannot widen the shown range."""
+    today = date(2026, 7, 16)
+    offsets = [0, 1, 2, 14]
+    activities = _activities(today, offsets)
+    activities.loc[activities["activity_id"] == "act-0", [
+        "temperature_c", "relative_humidity_pct",
+    ]] = [34.0, 60.0]
+    activities.loc[activities["activity_id"] == "act-1", [
+        "temperature_c", "relative_humidity_pct",
+    ]] = [36.0, 72.0]
+    # Observed but below the 30-effective-minute inclusion threshold.
+    activities.loc[activities["activity_id"] == "act-2", [
+        "temperature_c", "relative_humidity_pct",
+    ]] = [42.0, 90.0]
+    # Qualifying, but outside the active 14-day window.
+    activities.loc[activities["activity_id"] == "act-14", [
+        "temperature_c", "relative_humidity_pct",
+    ]] = [40.0, 85.0]
+    splits = _splits(offsets)
+    splits.loc[splits["activity_id"] == "act-2", "duration_sec"] = 600.0
+
+    status = compute_heat_adaptation(
+        activities,
+        splits,
+        cp_watts=270.0,
+        cp_source="stryd",
+        current_date=today,
+    )
+
+    assert status["recent_conditions"] == {
+        "qualifying_session_count": 2,
+        "temperature_c": {"min": 34.0, "max": 36.0},
+        "relative_humidity_pct": {"min": 60.0, "max": 72.0},
+    }
+
+
+def test_heat_adaptation_omits_condition_range_without_qualifying_sessions():
+    """Observed weather alone is not presented as acclimatization evidence."""
+    today = date(2026, 7, 16)
+    status = _status(today, [0], split_power=100.0)
+    empty = compute_heat_adaptation(
+        pd.DataFrame(),
+        pd.DataFrame(),
+        cp_watts=270.0,
+        cp_source="stryd",
+        current_date=today,
+    )
+
+    assert status["recent_conditions"] is None
+    assert empty["recent_conditions"] is None
+
+
+def test_heat_adaptation_missing_ids_cannot_cross_match_power_evidence():
+    """Missing identifiers fail closed instead of matching pandas sentinels."""
+    today = date(2026, 7, 16)
+    activities = _activities(today, [0])
+    activities.loc[0, "activity_id"] = pd.NA
+    splits = _splits([0])
+    splits.loc[0, "activity_id"] = pd.NA
+
+    status = compute_heat_adaptation(
+        activities,
+        splits,
+        cp_watts=270.0,
+        cp_source="stryd",
+        current_date=today,
+    )
+
+    assert status["recent_conditions"] is None
+    assert status["sessions"][0]["activity_id"] == ""
+    assert status["sessions"][0]["workload_evaluable"] is False
+    assert status["sessions"][0]["qualifies"] is False
+
+
 def test_heat_adaptation_rejects_mismatched_power_provider():
     """Garmin CP cannot classify Stryd workload on a different power scale."""
     today = date(2026, 7, 16)
@@ -553,6 +725,19 @@ def test_heat_adaptation_maintains_then_decays_after_prior_block():
     assert decaying["next_action"] == "continue_normal_training"
 
 
+def test_heat_adaptation_expires_after_decay_window():
+    """A prior adapted block no longer owns the stage after day 28."""
+    today = date(2026, 7, 16)
+    prior_block = [40, 41, 42, 43, 44, 45, 46]
+
+    status = _status(today, prior_block)
+
+    assert status["stage"] == "insufficient_evidence"
+    assert status["days_since_last_exposure"] == 40
+    assert status["decay"]["state"] == "advanced"
+    assert status["next_action"] == "continue_normal_training"
+
+
 def test_heat_adaptation_marks_reacclimation_after_one_post_gap_session():
     today = date(2026, 7, 16)
     prior_block = [24, 25, 26, 27, 28, 29, 30]
@@ -618,6 +803,48 @@ def test_heat_adaptation_reports_missing_environment_and_power_evidence():
     )
 
 
+def test_heat_adaptation_rejects_unknown_environment_provenance():
+    today = date(2026, 7, 16)
+    activities = _activities(today, [0, 1])
+    activities["environment_source"] = "weather_station_summary"
+
+    status = compute_heat_adaptation(
+        activities,
+        _splits([0, 1]),
+        cp_watts=270.0,
+        cp_source="stryd",
+        current_date=today,
+    )
+
+    assert status["stage"] == "insufficient_evidence"
+    assert status["sessions"] == []
+    assert status["data_coverage"]["environment_supported_activities"] == 0
+    assert "no_supported_environment_data" in status["reason_codes"]
+
+
+def test_heat_adaptation_accepts_supported_connector_weather_provenance():
+    today = date(2026, 7, 16)
+
+    for environment_source in (
+        "coros_activity_weather",
+        "garmin_activity_weather",
+        "stryd_activity_weather",
+    ):
+        activities = _activities(today, [0, 1])
+        activities["environment_source"] = environment_source
+
+        status = compute_heat_adaptation(
+            activities,
+            _splits([0, 1]),
+            cp_watts=270.0,
+            cp_source="stryd",
+            current_date=today,
+        )
+
+        assert status["stage"] == "building"
+        assert status["data_coverage"]["environment_supported_activities"] == 2
+
+
 def test_heat_adaptation_handles_empty_and_structurally_missing_inputs():
     today = date(2026, 7, 16)
 
@@ -640,8 +867,16 @@ def test_heat_adaptation_handles_empty_and_structurally_missing_inputs():
 
     assert empty["stage"] == "insufficient_evidence"
     assert empty["next_action"] == "sync_training_data"
+    assert len(empty["cadence"]) == 14
+    assert all(day["session_count"] == 0 for day in empty["cadence"])
+    assert all(day["counted_session_count"] == 0 for day in empty["cadence"])
+    assert all(day["effective_heat_minutes"] == 0 for day in empty["cadence"])
     assert missing_columns["stage"] == "insufficient_evidence"
     assert missing_columns["sessions"] == []
+    assert all(
+        day["session_count"] == 0
+        for day in missing_columns["cadence"]
+    )
     assert (
         missing_columns["data_coverage"]["environment_supported_activities"]
         == 0

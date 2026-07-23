@@ -407,29 +407,28 @@ const EN_NAV_CHARTS = {
 };
 
 const EN_HEAT = {
-  '{0} sessions · {1} days · {2} effective min':
-    '{0} sessions · {1} days · {2} effective min',
-  '{0} of {1} recent activities have usable environment and power evidence':
-    '{0} of {1} recent activities have usable environment and power evidence',
-  'Last contributing session {0} days ago':
-    'Last contributing session {0} days ago',
-  '{0}°C · {1}% RH · {2}°C wet-bulb':
-    '{0}°C · {1}% RH · {2}°C wet-bulb',
-  '{0} work min · {1} effective min':
-    '{0} work min · {1} effective min',
-  'CP source': 'CP source',
-  'Power samples are present, but coverage is below the workload threshold.':
-    'Power samples are present, but coverage is below the workload threshold.',
-  'Recorded power evidence is unavailable': 'Recorded power evidence is unavailable',
-  'Sample power used': 'Sample power used',
-  'Sample power · {0}% coverage': 'Sample power · {0}% coverage',
-  'Sample-power evidence is incomplete': 'Sample-power evidence is incomplete',
-  'Samples incomplete · {0}% coverage': 'Samples incomplete · {0}% coverage',
-  'Split power fallback': 'Split power fallback',
-  'Split fallback · {0}% sample coverage':
-    'Split fallback · {0}% sample coverage',
-  'Stryd-provided activity weather': 'Stryd-provided activity weather',
-  'Connector-provided activity summary': 'Connector-provided activity summary',
+  '1 day ago': '1 day ago',
+  '{0} days ago': '{0} days ago',
+  '{formatted}: {included} included, {excluded} observed but not included, {minutes} effective min':
+    '{formatted}: {included} included, {excluded} observed but not included, {minutes} effective min',
+  'Power samples · {0}% coverage': 'Power samples · {0}% coverage',
+  'Incomplete power samples · {0}% coverage': 'Incomplete power samples · {0}% coverage',
+  Matched: 'Matched',
+  Mismatch: 'Mismatch',
+  Mixed: 'Mixed',
+  Unverified: 'Unverified',
+  'Observed, but not included because it stayed below {0} effective heat minutes.':
+    'Observed, but not included because it stayed below {0} effective heat minutes.',
+  '{0}°C · {1}% humidity': '{0}°C · {1}% humidity',
+  '{0} · {1} humidity': '{0} · {1} humidity',
+  '{0} effective min': '{0} effective min',
+  'Select a day to inspect what entered the estimate.':
+    'Select a day to inspect what entered the estimate.',
+  'Based on {sessions} included sessions across {days} days in the last {window} days.':
+    'Based on {sessions} included sessions across {days} days in the last {window} days.',
+  '{0} included · {1} observed, not included':
+    '{0} included · {1} observed, not included',
+  '{0} days · {1} effective min': '{0} days · {1} effective min',
 };
 
 // ---------------------------------------------------------------------------
@@ -764,29 +763,28 @@ const ZH_NAV_CHARTS = {
 };
 
 const ZH_HEAT = {
-  '{0} sessions · {1} days · {2} effective min':
-    '{0} 次训练 · {1} 天 · {2} 加权分钟',
-  '{0} of {1} recent activities have usable environment and power evidence':
-    '最近 {1} 次活动中有 {0} 次具备可用的环境与功率证据',
-  'Last contributing session {0} days ago':
-    '最近一次有效训练在 {0} 天前',
-  '{0}°C · {1}% RH · {2}°C wet-bulb':
-    '{0}°C · 相对湿度 {1}% · 湿球温度 {2}°C',
-  '{0} work min · {1} effective min':
-    '运动 {0} 分钟 · 加权 {1} 分钟',
-  'CP source': 'CP 来源',
-  'Power samples are present, but coverage is below the workload threshold.':
-    '功率样本已同步，但覆盖率低于负荷证据阈值。',
-  'Recorded power evidence is unavailable': '没有可用的功率证据',
-  'Sample power used': '已使用样本功率',
-  'Sample power · {0}% coverage': '样本功率 · 覆盖率 {0}%',
-  'Sample-power evidence is incomplete': '样本功率证据不完整',
-  'Samples incomplete · {0}% coverage': '样本不完整 · 覆盖率 {0}%',
-  'Split power fallback': '已回退到分段功率',
-  'Split fallback · {0}% sample coverage':
-    '分段功率回退 · 样本覆盖率 {0}%',
-  'Stryd-provided activity weather': 'Stryd 提供的活动天气',
-  'Connector-provided activity summary': '连接器提供的活动摘要',
+  '1 day ago': '1 天前',
+  '{0} days ago': '{0} 天前',
+  '{formatted}: {included} included, {excluded} observed but not included, {minutes} effective min':
+    '{formatted}：纳入 {included} 次，观察到但未纳入 {excluded} 次，等效热暴露 {minutes} 分钟',
+  'Power samples · {0}% coverage': '功率采样 · 覆盖率 {0}%',
+  'Incomplete power samples · {0}% coverage': '功率采样不完整 · 覆盖率 {0}%',
+  Matched: '匹配',
+  Mismatch: '不匹配',
+  Mixed: '混合',
+  Unverified: '未验证',
+  'Observed, but not included because it stayed below {0} effective heat minutes.':
+    '已观察但未纳入，因为等效热暴露时长低于 {0} 分钟。',
+  '{0}°C · {1}% humidity': '{0}°C · 湿度 {1}%',
+  '{0} · {1} humidity': '{0} · 湿度 {1}',
+  '{0} effective min': '等效热暴露 {0} 分钟',
+  'Select a day to inspect what entered the estimate.':
+    '选择一天即可查看哪些训练进入了估算。',
+  'Based on {sessions} included sessions across {days} days in the last {window} days.':
+    '基于过去 {window} 天内纳入的 {sessions} 次训练，分布在 {days} 个训练日。',
+  '{0} included · {1} observed, not included':
+    '纳入 {0} 次 · 观察到但未纳入 {1} 次',
+  '{0} days · {1} effective min': '{0} 天 · 等效热暴露 {1} 分钟',
 };
 
 const EN_LEGAL = {

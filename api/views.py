@@ -126,7 +126,7 @@ def science_context(science: dict) -> dict:
     for each active pillar. Used to show methodology in both web and CLI.
     """
     result: dict = {}
-    for pillar in ("load", "recovery", "prediction", "zones"):
+    for pillar in ("load", "recovery", "prediction", "zones", "heat"):
         theory = science.get(pillar)
         if theory is None:
             continue

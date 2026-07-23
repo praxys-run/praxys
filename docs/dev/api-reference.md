@@ -400,9 +400,15 @@ one configured provider at a time rather than blending overlapping sources.
     "stage": "insufficient_evidence|building|likely_adapted|maintaining|decaying",
     "confidence": "low|moderate|high",
     "confidence_basis": "data_coverage",
-    "model_version": "heat-adaptation-v6",
+    "model_version": "heat-adaptation-v7",
     "next_action": "continue_normal_training",
     "today_restricted": false,
+    "recent_conditions": {
+      "qualifying_session_count": 2,
+      "temperature_c": { "min": 29.0, "max": 33.0 },
+      "relative_humidity_pct": { "min": 54.0, "max": 68.0 }
+    },
+    "cadence": [{ "date": "2026-04-08", "session_count": 1, "counted_session_count": 1, "effective_heat_minutes": 42 }],
     "sessions": []
   },
   "warnings": ["HRV rolling mean declining"],
@@ -437,6 +443,15 @@ Matching split provenance is required and cycling is excluded. Sessions expose
 provider mismatch, unverified provenance, incomplete samples, and work that was
 genuinely below threshold.
 
+`recent_conditions` summarizes only qualifying sessions inside the active
+14-day window. It is `null` when no current qualifying session exists, and
+excluded or older observations cannot widen its temperature or humidity
+range. It describes the recent training conditions represented by the model;
+it is not a target climate and does not assess current weather. For
+`maintaining` and `decaying`, the stage can come from an older qualifying
+block, so `recent_conditions` must not be presented as that historical
+block's condition range.
+
 Environmental context is one provenance-tagged outdoor activity-summary
 temperature/RH pair; treadmill and indoor summary weather are discarded.
 Evidence uses the stronger of a Stull psychrometric wet-bulb ramp and a dry-bulb
@@ -447,9 +462,11 @@ radiation, within-session weather, clothing, hydration state, and measured core
 or skin temperature are excluded. The 18-26 C wet-bulb ramp, 30-40 C dry-bulb
 ramp, max combination, 50% CP workload floor, five-second sample-interval gate,
 90% sample-coverage gate, 30-effective-minute session gate, 14-day active
-window, 2-day/60-minute Building threshold, 7-day/420-minute Likely adapted
-threshold, effective-minute weighting, and 7-28 day decay window are Praxys
-operational estimates, not validated physiological cutoffs or a dose model.
+window, general 2-day/60-minute Building threshold, resumed-exposure
+Reacclimating label, 7-day/420-minute Likely adapted threshold,
+effective-minute weighting, retention through day 7, and decay after day 7
+through day 28 are Praxys operational estimates, not validated physiological
+cutoffs or a dose model.
 Confidence describes evaluable data coverage, not the probability of individual
 physiological adaptation. The status is not medical clearance or a current
 heat-risk assessment, and restrictive `signal` recommendations replace its
@@ -517,12 +534,18 @@ Training analysis and diagnosis.
     "load_compliance_pct": 96
   },
   "heat_adaptation": {
-    "stage": "maintaining",
+    "stage": "likely_adapted",
     "confidence": "high",
     "confidence_basis": "data_coverage",
-    "model_version": "heat-adaptation-v6",
+    "model_version": "heat-adaptation-v7",
     "exposure_days": 7,
     "effective_heat_minutes": 420,
+    "recent_conditions": {
+      "qualifying_session_count": 7,
+      "temperature_c": { "min": 29.0, "max": 33.0 },
+      "relative_humidity_pct": { "min": 54.0, "max": 68.0 }
+    },
+    "cadence": [{ "date": "2026-04-08", "session_count": 1, "counted_session_count": 1, "effective_heat_minutes": 42 }],
     "sessions": ["..."]
   },
   "workout_flags": [{ "date": "...", "flag": "good|bad", "reason": "..." }],
@@ -564,9 +587,16 @@ rows are exact zero load; other durationless rows remain estimated.
 `pmc_sufficient`. Both the one-time-constant sufficiency gate and the two-week
 minimum are Praxys product estimates rather than validated physiological cutoffs.
 
-`heat_adaptation` has the same evidence and safety contract as the Today field.
-Training applies the same Today-signal action guard while leaving its stage and
-evidence timeline diagnostic.
+`heat_adaptation` has the same evidence and safety contract as the Today field,
+but Training is the client surface for the longitudinal experience.
+`recent_conditions` describes the current qualifying temperature and humidity
+range. For Building and Likely adapted, it supplies the conditions behind the
+current evidence. Maintaining and Decaying can inherit from an older block, so
+clients explicitly separate that retained/fading stage from the current range.
+`cadence` is the complete server-computed daily aggregate for the active
+window; `sessions` remains a bounded latest-evidence ledger for progressive
+disclosure. Clients keep the cadence, effective-minute mechanics, and
+inclusion reasons behind an optional evidence disclosure.
 
 When valid split-level intensity evidence is absent, `max`, `avg_work`,
 `supra_cp_sessions`, and `total_quality_sessions` are `null`, and
@@ -918,19 +948,22 @@ Disconnect a platform and delete stored credentials.
 
 ### GET /api/science
 
-Active theories, available options, and recommendations.
+Active theories, available options, fixed operational models, and
+recommendations.
 
 **Response:**
 ```json
 {
   "active": {
     "load": { "id": "banister_pmc", "name": "Banister PMC", "..." : "..." },
-    "zones": { "id": "coggan_5zone", "name": "Coggan 5-Zone", "..." : "..." }
+    "zones": { "id": "coggan_5zone", "name": "Coggan 5-Zone", "..." : "..." },
+    "heat": { "id": "praxys_heat_evidence", "name": "Praxys Heat Acclimatization Evidence", "..." : "..." }
   },
   "available": {
     "load": [{ "id": "banister_pmc", "..." : "..." }, { "id": "banister_ultra", "..." : "..." }],
     "zones": [{ "id": "coggan_5zone", "..." : "..." }, { "id": "polarized_3zone", "..." : "..." }]
   },
+  "fixed_pillars": ["heat"],
   "label_sets": [{ "id": "standard", "name": "Standard" }],
   "recommendations": [
     { "pillar": "zones", "recommended_id": "coggan_5zone", "reason": "...", "confidence": 0.85 }
@@ -941,6 +974,10 @@ Active theories, available options, and recommendations.
 ### PUT /api/science
 
 Update theory selections.
+
+Only selectable pillars (`load`, `recovery`, `prediction`, and `zones`) are
+updated. Fixed pillars such as `heat` remain active even if a client includes
+them in the request.
 
 **Request body:**
 ```json
