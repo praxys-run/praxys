@@ -1,0 +1,134 @@
+id: praxys_heat_evidence
+pillar: heat
+name: "Praxys Heat Acclimatization Evidence"
+author: Praxys
+description: >
+  A fixed Praxys operational model that interprets recent outdoor
+  temperature, humidity, and verified running-power evidence against
+  heat-acclimatization research. It estimates whether acclimatization to
+  similar recent conditions is plausible; it is not a direct physiological
+  measurement or a current-weather safety assessment.
+simple_description: >
+  Uses qualifying outdoor sessions from the latest 14 days to describe the
+  temperature and humidity range represented by recent training, then assigns
+  a conservative evidence stage. The condition range is most relevant to
+  similar conditions and is not an exact personal heat limit.
+advanced_description: |
+  ## Praxys Heat Acclimatization Evidence
+
+  **What this model answers**
+
+  The model describes the temperature and humidity range represented by
+  qualifying running sessions in the latest 14 days and asks whether repeated
+  exposure makes acclimatization to similar conditions plausible. It does not
+  compare that range with today's weather, estimate a performance penalty, or
+  confirm an individual's physiological adaptation.
+
+  **Environmental evidence**
+
+  - Activity-summary air temperature and relative humidity must come from a supported outdoor connector.
+  - Relative humidity is converted to a psychrometric wet-bulb proxy with Stull's approximation. This is not WBGT: wind, solar radiation, and within-session weather changes are absent.
+  - Praxys applies separate estimated ramps for humid heat (18-26 degrees C wet-bulb proxy) and dry heat (30-40 degrees C air temperature), then uses the stronger ramp rather than adding them.
+
+  **Workload evidence**
+
+  - Timestamped power is preferred when it covers at least 90% of activity duration; activity splits are the fallback.
+  - Work must be at or above 50% of current critical power, and the workload provider must match the provider behind critical power.
+  - Activity average power is never used because warm-up, cooldown, and recovery can dilute interval intensity.
+  - A session is included at 30 effective heat minutes, where effective minutes are work minutes multiplied by the bounded environmental weight.
+
+  **Praxys operational stages**
+
+  | Stage | Evidence interpretation |
+  |---|---|
+  | Insufficient evidence | No retained prior block and current evidence remains below the general Building threshold |
+  | Building | At least 2 qualifying days and 60 effective minutes, or qualifying exposure has resumed after a long gap from a prior block |
+  | Likely adapted | At least 7 qualifying days and 420 effective minutes in 14 days |
+  | Maintaining | A prior qualifying block remains retained through day 7 after the latest included exposure |
+  | Decaying | A prior qualifying block is more than 7 and no more than 28 days past the latest included exposure |
+
+  Typical controlled protocols use about 60-90 minutes per day for 7-14 days,
+  but the exact Praxys ramps, effective-minute calculation, stage thresholds,
+  and decay labels are product estimates rather than a validated biological
+  dose equation.
+
+  **Condition range**
+
+  The displayed range uses only sessions included in the active 14-day
+  estimate. An excluded observation cannot widen the range. The range
+  describes recent evidence, not the hottest condition an athlete can safely
+  tolerate or perform well in. During Maintaining or Decaying, the stage can
+  come from an older qualifying block; the displayed range still describes
+  only the current 14-day training and must not be read as that older block's
+  condition range.
+
+  **Limits and safety**
+
+  Individual responses vary, and the evidence base for female athletes remains
+  limited. This model is not medical clearance or a heat-illness risk
+  assessment. Stop exercise and begin cooling for heat-illness symptoms; seek
+  urgent medical help for confusion, collapse, or altered mental status.
+citations:
+  - key: stull2011
+    title: "Wet-Bulb Temperature from Relative Humidity and Air Temperature"
+    authors: "Stull, R."
+    year: 2011
+    journal: "Journal of Applied Meteorology and Climatology"
+    url: "https://doi.org/10.1175/JAMC-D-11-0143.1"
+  - key: cramerjay2016
+    title: "Biophysical aspects of human thermoregulation during heat stress"
+    authors: "Cramer, M. N.; Jay, O."
+    year: 2016
+    journal: "Autonomic Neuroscience"
+    url: "https://doi.org/10.1016/j.autneu.2016.03.001"
+  - key: nielsen1993
+    title: "Human circulatory and thermoregulatory adaptations with heat acclimation and exercise in a hot, dry environment"
+    authors: "Nielsen, B. et al."
+    year: 1993
+    journal: "The Journal of Physiology"
+    url: "https://doi.org/10.1113/jphysiol.1993.sp019482"
+  - key: racinais2015
+    title: "Consensus recommendations on training and competing in the heat"
+    authors: "Racinais, S. et al."
+    year: 2015
+    journal: "British Journal of Sports Medicine"
+    url: "https://doi.org/10.1136/bjsports-2015-094915"
+  - key: tyler2016
+    title: "The Effects of Heat Adaptation on Physiology, Perception and Exercise Performance in the Heat"
+    authors: "Tyler, C. J. et al."
+    year: 2016
+    journal: "Sports Medicine"
+    url: "https://doi.org/10.1007/s40279-016-0538-5"
+  - key: daanen2018
+    title: "A systematic review on the decay and re-induction of heat acclimation"
+    authors: "Daanen, H. A. M. et al."
+    year: 2018
+    journal: "Sports Medicine"
+    url: "https://doi.org/10.1007/s40279-017-0808-x"
+  - key: kelly2023
+    title: "Heat acclimation and acclimatisation in female athletes"
+    authors: "Kelly, M. et al."
+    year: 2023
+    journal: "Sports Medicine"
+    url: "https://doi.org/10.1007/s40279-023-01831-2"
+  - key: casa2015
+    title: "National Athletic Trainers' Association Position Statement: Exertional Heat Illnesses"
+    authors: "Casa, D. J. et al."
+    year: 2015
+    journal: "Journal of Athletic Training"
+    url: "https://doi.org/10.4085/1062-6050-50.9.07"
+params:
+  active_window_days: 14
+  minimum_power_fraction_cp: 0.5
+  sample_coverage_ratio: 0.9
+  qualifying_effective_minutes: 30
+  building_days: 2
+  building_effective_minutes: 60
+  likely_adapted_days: 7
+  likely_adapted_effective_minutes: 420
+  wet_bulb_reference_c: 18
+  wet_bulb_full_weight_c: 26
+  dry_bulb_reference_c: 30
+  dry_bulb_full_weight_c: 40
+  decay_start_days: 7
+  decay_end_days: 28

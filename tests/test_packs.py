@@ -508,6 +508,11 @@ def test_today_and_training_payloads_expose_heat_adaptation(
     assert today_payload["heat_adaptation"]["today_restricted"] is False
     assert training_payload["heat_adaptation"]["stage"] == "likely_adapted"
     assert training_payload["heat_adaptation"]["today_restricted"] is False
+    assert training_payload["heat_adaptation"]["recent_conditions"] is not None
+    assert (
+        today_payload["heat_adaptation"]["recent_conditions"]
+        == training_payload["heat_adaptation"]["recent_conditions"]
+    )
     assert training_payload["heat_adaptation"]["sessions"]
 
 
@@ -1197,7 +1202,7 @@ def test_dashboard_data_and_packs_agree_on_signal(db_with_seeded_user):
     assert pack["signal"] == full["signal"]
     assert pack["tsb_sparkline"] == full["tsb_sparkline"]
     assert pack["warnings"] == full["warnings"]
-    assert full["heat_adaptation"]["model_version"] == "heat-adaptation-v6"
+    assert full["heat_adaptation"]["model_version"] == "heat-adaptation-v7"
 
 
 def test_build_warnings_uses_selected_cv_threshold():

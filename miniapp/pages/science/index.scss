@@ -151,6 +151,35 @@
   margin-bottom: 24rpx;
 }
 
+.sci-fixed-model {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10rpx;
+  width: fit-content;
+  min-height: 64rpx;
+  box-sizing: border-box;
+  margin-bottom: 24rpx;
+  padding: 12rpx 22rpx;
+  border-radius: 999rpx;
+  background-color: var(--surface-subtle);
+}
+
+.sci-fixed-model-name {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.sci-fixed-model-tag {
+  font-family: var(--font-mono, monospace);
+  font-size: 18rpx;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+  text-transform: uppercase;
+  color: var(--accent-cobalt);
+}
+
 .sci-chiclet {
   display: flex;
   flex-direction: row;

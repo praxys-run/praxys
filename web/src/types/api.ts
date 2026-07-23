@@ -1,7 +1,7 @@
 // API response types
 
 export type TrainingBase = 'power' | 'hr' | 'pace';
-export type SciencePillar = 'load' | 'recovery' | 'prediction' | 'zones';
+export type SciencePillar = 'load' | 'recovery' | 'prediction' | 'zones' | 'heat';
 
 /** Build version of the running ``api/main.py``. The backend always
  * returns a non-empty string (``"develop"`` is the local-dev fallback),
@@ -45,6 +45,7 @@ export interface ScienceResponse {
   active: Partial<Record<SciencePillar, TheorySummary>>;
   active_labels: string;
   available: Record<SciencePillar, TheorySummary[]>;
+  fixed_pillars: SciencePillar[];
   label_sets: { id: string; name: string }[];
   recommendations: PillarRecommendation[];
 }
@@ -394,6 +395,19 @@ export interface HeatAdaptationSession {
   environment_source: string;
 }
 
+export interface HeatAdaptationCadenceDay {
+  date: string;
+  session_count: number;
+  counted_session_count: number;
+  effective_heat_minutes: number;
+}
+
+export interface HeatAdaptationRecentConditions {
+  qualifying_session_count: number;
+  temperature_c: { min: number; max: number };
+  relative_humidity_pct: { min: number; max: number };
+}
+
 export interface HeatAdaptationStatus {
   stage: HeatAdaptationStage;
   confidence: HeatAdaptationConfidence;
@@ -404,6 +418,7 @@ export interface HeatAdaptationStatus {
   exposure_days: number;
   effective_heat_minutes: number;
   contributing_sessions: number;
+  recent_conditions: HeatAdaptationRecentConditions | null;
   days_since_last_exposure: number | null;
   is_reacclimating: boolean;
   today_restricted: boolean;
@@ -466,6 +481,7 @@ export interface HeatAdaptationStatus {
     | 'stop_for_heat_illness_symptoms'
   )[];
   science_sources: { id: string; url: string }[];
+  cadence: HeatAdaptationCadenceDay[];
   sessions: HeatAdaptationSession[];
 }
 

@@ -457,6 +457,7 @@
  * call to action. */
 .today-spread.sync-stale > .today-verdict,
 .today-spread.sync-stale > .coach-receipt,
+.today-spread.sync-stale > .today-heat-constraint,
 .today-spread.sync-stale > .today-supporting {
   opacity: 0.42;
   filter: saturate(0.55);
@@ -467,6 +468,7 @@
 @media (prefers-reduced-motion: reduce) {
   .today-spread.sync-stale > .today-verdict,
   .today-spread.sync-stale > .coach-receipt,
+  .today-spread.sync-stale > .today-heat-constraint,
   .today-spread.sync-stale > .today-supporting {
     transition: none;
   }
@@ -477,12 +479,15 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 18px;
+  gap: 16px;
   padding: 24px 0;
 }
 .today-spread > .coach-receipt {
   grid-column: 2 / 3;
   align-self: start;
+}
+.today-spread > .today-heat-constraint {
+  grid-column: 1 / -1;
 }
 .today-spread > .today-supporting {
   grid-column: 1 / -1;
@@ -504,8 +509,8 @@
 .today-spread > .today-supporting > .today-cell {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 0 18px;
+  gap: 8px;
+  padding: 0 16px;
   border-right: 1px solid var(--border);
 }
 .today-spread > .today-supporting > .today-cell:last-child {
@@ -579,10 +584,10 @@
   }
   .today-spread > .today-supporting > .today-cell:nth-child(odd) {
     border-right: 1px solid var(--border);
-    padding-right: 14px;
+    padding-right: 16px;
   }
   .today-spread > .today-supporting > .today-cell:nth-child(even) {
-    padding-left: 14px;
+    padding-left: 16px;
   }
   .today-spread > .today-supporting > .today-cell:nth-last-child(-n+2) {
     border-bottom: none;

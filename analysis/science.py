@@ -1,8 +1,8 @@
-"""Science framework: load, validate, and recommend training theories.
+"""Science framework: load, validate, and recommend training models.
 
-Each pillar (load, recovery, prediction, zones) has multiple theories stored
-as YAML files in data/science/{pillar}/. Label sets (cosmetic zone names)
-are stored in data/science/labels/.
+User-selectable pillars and fixed operational models are stored as YAML files
+in ``data/science/{pillar}/``. Label sets (cosmetic zone names) are stored in
+``data/science/labels/``.
 """
 import logging
 import os
@@ -17,7 +17,10 @@ logger = logging.getLogger(__name__)
 # Data classes
 # ---------------------------------------------------------------------------
 
-PILLARS = ("load", "recovery", "prediction", "zones")
+SELECTABLE_PILLARS = ("load", "recovery", "prediction", "zones")
+FIXED_THEORY_IDS = {"heat": "praxys_heat_evidence"}
+FIXED_PILLARS = tuple(FIXED_THEORY_IDS)
+PILLARS = SELECTABLE_PILLARS + FIXED_PILLARS
 
 _SCIENCE_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "science")
 
@@ -292,7 +295,7 @@ def load_active_science(
     labels = load_labels(zone_labels, locale=locale)
     result = {}
     for pillar in PILLARS:
-        theory_id = science_choices.get(pillar)
+        theory_id = FIXED_THEORY_IDS.get(pillar) or science_choices.get(pillar)
         if not theory_id:
             available = list_theories(pillar, locale=locale)
             theory_id = available[0].id if available else None

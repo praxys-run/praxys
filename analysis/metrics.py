@@ -1227,6 +1227,15 @@ _HEAT_CONFIDENCE_HIGH_ACTIVITY_COUNT = 7
 # retaining more than the 14-day active window. This is not a scientific limit.
 _HEAT_PUBLIC_SESSION_LIMIT = 20
 
+# PRODUCT GUARDRAIL -- only connector weather payloads with explicit outdoor
+# activity provenance can contribute. Arbitrary imported labels must not become
+# supported evidence merely because they are non-empty.
+_HEAT_SUPPORTED_ENVIRONMENT_SOURCES = frozenset({
+    "coros_activity_weather",
+    "garmin_activity_weather",
+    "stryd_activity_weather",
+})
+
 # ESTIMATE -- Daanen et al. (2018), DOI: 10.1007/s40279-017-0808-x, supports gradual
 # decay after heat acclimation and faster reacclimation, but not one universal
 # athlete-level retention curve. The 7-28 day window is therefore exposed as
@@ -1428,7 +1437,7 @@ def compute_heat_adaptation(
     for column in ("activity_id", "duration_sec", "avg_power", "power_provider"):
         if column not in split_frame.columns:
             split_frame[column] = pd.NA
-    split_frame["activity_id"] = split_frame["activity_id"].astype(str)
+    split_frame["activity_id"] = split_frame["activity_id"].map(_heat_text)
     for column in ("duration_sec", "avg_power"):
         numeric = pd.to_numeric(split_frame[column], errors="coerce")
         split_frame[column] = numeric.where(np.isfinite(numeric))
@@ -1455,7 +1464,7 @@ def compute_heat_adaptation(
     ):
         if column not in sample_frame.columns:
             sample_frame[column] = pd.NA
-    sample_frame["activity_id"] = sample_frame["activity_id"].astype(str)
+    sample_frame["activity_id"] = sample_frame["activity_id"].map(_heat_text)
     for column in ("power_watts", "duration_sec"):
         numeric = pd.to_numeric(sample_frame[column], errors="coerce")
         sample_frame[column] = numeric.where(np.isfinite(numeric))
@@ -1480,9 +1489,12 @@ def compute_heat_adaptation(
     source_mismatches = 0
     source_unverified = 0
     for _, activity in frame.iterrows():
-        activity_id = str(activity.get("activity_id", ""))
+        activity_id = _heat_text(activity.get("activity_id"))
         environment_source = _heat_text(activity.get("environment_source"))
         if environment_source is None:
+            continue
+        environment_source = environment_source.casefold()
+        if environment_source not in _HEAT_SUPPORTED_ENVIRONMENT_SOURCES:
             continue
         temperature = _heat_number(activity.get("temperature_c"))
         humidity = _heat_number(activity.get("relative_humidity_pct"))
@@ -1504,7 +1516,7 @@ def compute_heat_adaptation(
         sample_coverage_ratio: float | None = None
         power_provider: str | None = None
         power_source_alignment = "unknown"
-        if activity_id:
+        if activity_id is not None:
             activity_samples = sample_frame[
                 (sample_frame["activity_id"] == activity_id)
                 & sample_frame["duration_sec"].gt(0)
@@ -1611,7 +1623,7 @@ def compute_heat_adaptation(
         sessions.append({
             "_date": session_date,
             "date": session_date.isoformat(),
-            "activity_id": activity_id,
+            "activity_id": activity_id or "",
             "temperature_c": round(float(temperature), 1),
             "relative_humidity_pct": round(float(humidity), 1),
             "wet_bulb_c": wet_bulb,
@@ -1641,6 +1653,26 @@ def compute_heat_adaptation(
         for session in sessions
         if session["qualifies"] and session["_date"] >= current_start
     ]
+    recent_conditions = None
+    if current_qualifying:
+        temperatures = [
+            float(session["temperature_c"]) for session in current_qualifying
+        ]
+        humidities = [
+            float(session["relative_humidity_pct"])
+            for session in current_qualifying
+        ]
+        recent_conditions = {
+            "qualifying_session_count": len(current_qualifying),
+            "temperature_c": {
+                "min": round(min(temperatures), 1),
+                "max": round(max(temperatures), 1),
+            },
+            "relative_humidity_pct": {
+                "min": round(min(humidities), 1),
+                "max": round(max(humidities), 1),
+            },
+        }
     qualifying_dates = sorted({
         session["_date"] for session in sessions if session["qualifies"]
     })
@@ -1695,7 +1727,11 @@ def compute_heat_adaptation(
 
     if current_adapted:
         stage = "likely_adapted"
-    elif historical_adapted_end is not None:
+    elif (
+        historical_adapted_end is not None
+        and days_since_last is not None
+        and days_since_last <= _HEAT_DECAY_END_DAYS
+    ):
         if is_reacclimating:
             stage = "building"
         elif days_since_last is not None and days_since_last <= _HEAT_DECAY_START_DAYS:
@@ -1785,6 +1821,28 @@ def compute_heat_adaptation(
     else:
         next_action = "continue_normal_training"
 
+    cadence_window_days = _HEAT_ACTIVE_WINDOW_DAYS
+    cadence_start = current_date - timedelta(days=cadence_window_days - 1)
+    cadence = []
+    for day_offset in range(cadence_window_days):
+        cadence_date = cadence_start + timedelta(days=day_offset)
+        day_sessions = [
+            session for session in sessions
+            if session["_date"] == cadence_date
+        ]
+        counted_sessions = [
+            session for session in day_sessions if session["qualifies"]
+        ]
+        cadence.append({
+            "date": cadence_date.isoformat(),
+            "session_count": len(day_sessions),
+            "counted_session_count": len(counted_sessions),
+            "effective_heat_minutes": round(sum(
+                session["effective_heat_minutes"]
+                for session in counted_sessions
+            ), 1),
+        })
+
     public_sessions = [
         {key: value for key, value in session.items() if key != "_date"}
         for session in reversed(sessions[-_HEAT_PUBLIC_SESSION_LIMIT:])
@@ -1793,12 +1851,13 @@ def compute_heat_adaptation(
         "stage": stage,
         "confidence": confidence,
         "confidence_basis": "data_coverage",
-        "model_version": "heat-adaptation-v6",
+        "model_version": "heat-adaptation-v7",
         "cp_source": cp_origin,
         "cp_power_provider": cp_provider,
         "exposure_days": exposure_days,
         "effective_heat_minutes": round(effective_heat_minutes, 1),
         "contributing_sessions": len(current_qualifying),
+        "recent_conditions": recent_conditions,
         "days_since_last_exposure": days_since_last,
         "is_reacclimating": is_reacclimating,
         "today_restricted": False,
@@ -1890,6 +1949,7 @@ def compute_heat_adaptation(
                 "url": "https://doi.org/10.4085/1062-6050-50.9.07",
             },
         ],
+        "cadence": cadence,
         "sessions": public_sessions,
     }
 

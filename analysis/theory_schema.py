@@ -60,6 +60,49 @@ class ZoneTheoryParams(BaseModel):
         return self
 
 
+class HeatTheoryParams(BaseModel):
+    """Documented parameters for the fixed heat-evidence model."""
+    active_window_days: int = Field(ge=1)
+    minimum_power_fraction_cp: float = Field(gt=0, le=1)
+    sample_coverage_ratio: float = Field(gt=0, le=1)
+    qualifying_effective_minutes: float = Field(gt=0)
+    building_days: int = Field(ge=1)
+    building_effective_minutes: float = Field(gt=0)
+    likely_adapted_days: int = Field(ge=1)
+    likely_adapted_effective_minutes: float = Field(gt=0)
+    wet_bulb_reference_c: float
+    wet_bulb_full_weight_c: float
+    dry_bulb_reference_c: float
+    dry_bulb_full_weight_c: float
+    decay_start_days: int = Field(ge=0)
+    decay_end_days: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def check_heat_model_ranges(self) -> "HeatTheoryParams":
+        """Keep the published model description internally ordered."""
+        if self.building_days > self.likely_adapted_days:
+            raise ValueError("building_days must not exceed likely_adapted_days")
+        if (
+            self.building_effective_minutes
+            > self.likely_adapted_effective_minutes
+        ):
+            raise ValueError(
+                "building_effective_minutes must not exceed "
+                "likely_adapted_effective_minutes"
+            )
+        if self.wet_bulb_reference_c >= self.wet_bulb_full_weight_c:
+            raise ValueError(
+                "wet_bulb_reference_c must be below wet_bulb_full_weight_c"
+            )
+        if self.dry_bulb_reference_c >= self.dry_bulb_full_weight_c:
+            raise ValueError(
+                "dry_bulb_reference_c must be below dry_bulb_full_weight_c"
+            )
+        if self.decay_start_days > self.decay_end_days:
+            raise ValueError("decay_start_days must not exceed decay_end_days")
+        return self
+
+
 class SignalParams(BaseModel):
     """Optional signal thresholds used by load/recovery theories."""
     readiness_rest: float = 60
@@ -91,6 +134,7 @@ PILLAR_PARAMS_SCHEMA: dict[str, type[BaseModel]] = {
     "recovery": RecoveryTheoryParams,
     "prediction": PredictionTheoryParams,
     "zones": ZoneTheoryParams,
+    "heat": HeatTheoryParams,
 }
 
 

@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useApi } from '@/hooks/useApi';
 import { useSettings } from '@/contexts/SettingsContext';
 import type { TrainingResponse } from '@/types/api';
@@ -11,7 +12,7 @@ import UpcomingPlanCard from '@/components/UpcomingPlanCard';
 import FitnessFatigueChart from '@/components/charts/FitnessFatigueChart';
 import ComplianceChart from '@/components/charts/ComplianceChart';
 import DataHint from '@/components/DataHint';
-import HeatAdaptationPanel, { HeatExposureTimeline } from '@/components/HeatAdaptationPanel';
+import HeatAdaptationPanel from '@/components/HeatAdaptationPanel';
 import { Trans, useLingui } from '@lingui/react/macro';
 
 const DIAGNOSIS_CHART_KEY = 'praxys.diagnosis_chart';
@@ -88,7 +89,7 @@ function TrainingSkeleton() {
     <div>
       <Skeleton className="h-3 w-20" />
       <div className="mt-3">
-        <Skeleton className="h-3 w-40 mb-7" />
+        <Skeleton className="mb-6 h-3 w-40" />
         <div className="flex flex-wrap gap-x-12 gap-y-6 mb-8">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i}>
@@ -98,12 +99,22 @@ function TrainingSkeleton() {
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-1 gap-y-8 lg:grid-cols-[58fr_42fr] lg:gap-x-10">
+        <div className="mb-12 border-y border-border py-8">
+          <Skeleton className="h-3 w-28" />
+          <Skeleton className="mt-4 h-7 w-72 max-w-full" />
+          <Skeleton className="mt-3 h-4 w-full max-w-xl" />
+          <div className="mt-8 grid grid-cols-7 gap-2">
+            {Array.from({ length: 14 }).map((_, i) => (
+              <Skeleton key={i} className="h-11 w-full rounded-md" />
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-y-8 lg:grid-cols-[58fr_42fr] lg:gap-x-12">
           <div>
             <Skeleton className="h-3 w-32 mb-5" />
             <Skeleton className="h-96 w-full rounded-lg" />
           </div>
-          <div className="lg:border-l lg:border-border lg:pl-10">
+          <div className="lg:border-l lg:border-border lg:pl-12">
             <div className="coach-receipt">
               <div className="coach-banner">
                 <Skeleton className="h-3 w-32 bg-card/30" />
@@ -136,6 +147,26 @@ export default function Training() {
   );
   const { display } = useSettings();
   const { t } = useLingui();
+  const location = useLocation();
+  const heatAnchorScrollKey = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (
+      loading
+      || !data
+      || location.hash !== '#heat-adaptation'
+      || heatAnchorScrollKey.current === location.key
+    ) {
+      return undefined;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById('heat-adaptation');
+      if (!target) return;
+      target.scrollIntoView({ block: 'start' });
+      heatAnchorScrollKey.current = location.key;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [data, loading, location.hash, location.key]);
 
   const activeDisplay = data?.display ?? display;
 
@@ -209,7 +240,7 @@ export default function Training() {
           at the corresponding chart in the switcher.
           ════════════════════════════════════════════════════════════════ */}
       <section aria-label={t`Diagnosis`} className="mt-3">
-        <div className="flex items-baseline justify-between mb-7">
+        <div className="mb-6 flex items-baseline justify-between">
           <p className="text-[10px] font-data uppercase tracking-[0.18em] text-foreground font-semibold">
             <Trans>Diagnosis</Trans>
             <span className="text-muted-foreground font-normal tracking-[0.14em] ml-2">
@@ -220,7 +251,7 @@ export default function Training() {
 
         {/* Stat strip — full-width one-liner. Wraps to 2x2 at narrow
             viewports. */}
-        <div className="grid grid-cols-2 gap-x-10 gap-y-6 sm:flex sm:flex-wrap sm:gap-x-14 lg:gap-x-20 mb-8">
+        <div className="mb-8 grid grid-cols-2 gap-x-8 gap-y-6 sm:flex sm:flex-wrap sm:gap-x-12 lg:gap-x-16">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
               <Trans>TSB</Trans>
@@ -287,11 +318,11 @@ export default function Training() {
           </div>
         </div>
 
-        <HeatAdaptationPanel status={data.heat_adaptation} variant="training" />
+        <HeatAdaptationPanel status={data.heat_adaptation} />
 
         {/* 2-col deep dive — chart switcher (left, 58%) + Coach receipt
             (right, 42%). Vertical hairline anchors the split. */}
-        <div className="grid grid-cols-1 gap-y-8 lg:grid-cols-[58fr_42fr] lg:gap-x-10">
+        <div className="grid grid-cols-1 gap-y-8 lg:grid-cols-[58fr_42fr] lg:gap-x-12">
           <div className="lg:col-start-1 lg:row-start-1">
             <DiagnosisChartSwitcher
               options={[
@@ -347,17 +378,10 @@ export default function Training() {
                     );
                   },
                 },
-                {
-                  id: 'heat',
-                  label: <Trans>Heat evidence</Trans>,
-                  render: () => (
-                    <HeatExposureTimeline status={data.heat_adaptation} />
-                  ),
-                },
               ]}
             />
           </div>
-          <div className="lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border lg:pl-10">
+          <div className="lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border lg:pl-12">
             <AiInsightsCard
               insightType="training_review"
               attribution={theoryName}
@@ -373,7 +397,7 @@ export default function Training() {
           so the wrapper just provides vertical breathing room and a
           hairline separator from Diagnosis above.
           ════════════════════════════════════════════════════════════════ */}
-      <div className="mt-12 border-t border-border pt-10">
+      <div className="mt-12 border-t border-border pt-12">
         <UpcomingPlanCard />
       </div>
     </div>

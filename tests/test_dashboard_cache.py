@@ -218,10 +218,12 @@ def test_compute_source_version_is_deterministic(cache_client):
             "today is date-salted — date.today() must appear in source_version"
         )
         assert "splits=0" in a
-        assert "v=heat-adaptation-today-v9" in a
+        assert "v=heat-adaptation-today-v11" in a
         training = compute_source_version(db, user_id, "training")
         assert "samples=0" in training
-        assert "v=heat-adaptation-training-v8" in training
+        assert "v=heat-adaptation-training-v10" in training
+        goal = compute_source_version(db, user_id, "goal")
+        assert "v=fixed-heat-model-goal-v1" in goal
     finally:
         db.close()
 
@@ -338,7 +340,7 @@ def test_today_recomputes_prior_response_version_with_snapshot(cache_client):
     try:
         current_version = compute_source_version(db, user_id, "today")
         prior_version = current_version.replace(
-            "v=heat-adaptation-today-v9",
+            "v=heat-adaptation-today-v11",
             "v=heat-adaptation-today-v8",
         )
         assert prior_version != current_version
@@ -360,6 +362,38 @@ def test_today_recomputes_prior_response_version_with_snapshot(cache_client):
     payload = response.json()
     assert "legacy" not in payload
     assert payload["coach_snapshot"] != "already-present"
+
+
+def test_goal_recomputes_prior_response_version(cache_client):
+    """A deployment salt prevents replaying Goal without the new science note."""
+    from api.dashboard_cache import compute_source_version
+    from db import session as db_session
+    from db.models import DashboardCache
+
+    client, user_id = cache_client
+    db = db_session.SessionLocal()
+    try:
+        current_version = compute_source_version(db, user_id, "goal")
+        prior_version = current_version.replace(
+            "v=fixed-heat-model-goal-v1",
+            "v=pre-heat-science-goal",
+        )
+        assert prior_version != current_version
+        db.add(DashboardCache(
+            user_id=user_id,
+            section="goal",
+            source_version=prior_version,
+            payload_json=b'{"legacy":true}',
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+    response = client.get("/api/goal")
+
+    assert response.status_code == 200
+    assert "legacy" not in response.json()
+
 
 def test_training_cold_then_warm_hits_cache(cache_client):
     """Direct cold/warm assertion for /api/training and shared split scope.

@@ -34,7 +34,9 @@ from sqlalchemy.orm import Session
 
 from api.auth import get_data_user_id
 from api.daily_brief_freshness import (
+    GOAL_RESPONSE_VERSION,
     PLAN_RESPONSE_VERSION,
+    SCIENCE_RESPONSE_VERSION,
     TODAY_RESPONSE_VERSION,
     TRAINING_RESPONSE_VERSION,
 )
@@ -90,6 +92,8 @@ _DATE_SALTED_ENDPOINTS: frozenset[str] = frozenset({"today", "training", "goal",
 ENDPOINT_RESPONSE_VERSIONS: dict[str, str] = {
     "today": TODAY_RESPONSE_VERSION,
     "training": TRAINING_RESPONSE_VERSION,
+    "goal": GOAL_RESPONSE_VERSION,
+    "science": SCIENCE_RESPONSE_VERSION,
     "plan": PLAN_RESPONSE_VERSION,
 }
 

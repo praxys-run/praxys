@@ -1,0 +1,124 @@
+id: praxys_heat_evidence
+pillar: heat
+name: "Praxys 热适应证据模型"
+author: Praxys
+description: >
+  Praxys 的固定操作性模型，依据热适应研究解读近期户外温度、湿度和经过验证的
+  跑步功率证据。它估计运动员是否可能已适应相近的近期环境；这不是直接的生理
+  测量，也不是当前天气下的安全评估。
+simple_description: >
+  使用最近 14 天内符合条件的户外训练，描述近期训练所代表的温度和湿度范围，
+  并给出保守的证据阶段。该环境范围主要适用于相近条件，不代表个人精确的耐热
+  上限。
+advanced_description: |
+  ## Praxys 热适应证据模型
+
+  **这个模型回答什么**
+
+  模型描述最近 14 天内符合条件的跑步训练所代表的温度和湿度范围，并判断重复
+  暴露是否使运动员可能已适应相近环境。它不会把该范围与今天的天气比较，不会
+  估算表现损失，也不能确认个人已产生生理适应。
+
+  **环境证据**
+
+  - 活动摘要中的气温和相对湿度必须来自支持的户外数据连接。
+  - 相对湿度通过 Stull 近似式转换为湿球温度代理值。这不是 WBGT，因为不包含风、太阳辐射和训练过程中的天气变化。
+  - Praxys 分别使用湿热估计区间（湿球代理值 18-26 摄氏度）和干热估计区间（气温 30-40 摄氏度），取两者中较强的权重，而不是相加。
+
+  **训练负荷证据**
+
+  - 时间戳功率覆盖活动时长至少 90% 时优先使用；否则回退到活动分段功率。
+  - 有效训练时间必须达到当前临界功率的 50% 以上，而且训练功率来源必须与临界功率来源一致。
+  - 不使用活动平均功率，因为热身、放松和恢复段会稀释间歇强度。
+  - 单次训练达到 30 个有效热分钟后纳入估计；有效热分钟等于有效训练分钟乘以有界环境权重。
+
+  **Praxys 操作性阶段**
+
+  | 阶段 | 证据解释 |
+  |---|---|
+  | 证据不足 | 没有仍在保持的历史训练区块，且当前证据尚未达到一般的“建立中”阈值 |
+  | 建立中 | 至少 2 个符合条件的训练日和 60 个有效热分钟，或在历史训练区块后经过较长间隔又恢复了合格暴露 |
+  | 可能已适应 | 14 天内至少 7 个符合条件的训练日和 420 个有效热分钟 |
+  | 维持中 | 距最近一次纳入的暴露不超过 7 天，历史合格训练区块仍处于估计保持期 |
+  | 衰减中 | 距最近一次纳入的暴露已超过 7 天但不超过 28 天，历史合格训练区块正在衰减 |
+
+  典型受控方案大约为每天 60-90 分钟，持续 7-14 天；但 Praxys 使用的具体环境
+  区间、有效热分钟计算、阶段阈值和衰减标签属于产品估计，并非经过验证的生物学
+  剂量公式。
+
+  **环境范围**
+
+  显示的范围只使用当前 14 天估计中被纳入的训练。未纳入的观测不会扩大范围。
+  该范围描述近期证据，不代表运动员能够安全承受或保持表现的最热环境。在“保持”
+  或“减弱”阶段，阶段判断可能来自更早的合格训练区块；显示范围仍只描述当前 14 天
+  的训练，不能视为该历史区块的环境范围。
+
+  **限制与安全**
+
+  个体反应存在差异，女性运动员相关证据仍然有限。本模型不是医疗许可，也不是
+  热病风险评估。出现热病症状时应停止运动并立即降温；如出现意识混乱、倒地或
+  精神状态改变，应立即寻求急诊医疗帮助。
+citations:
+  - key: stull2011
+    title: "Wet-Bulb Temperature from Relative Humidity and Air Temperature"
+    authors: "Stull, R."
+    year: 2011
+    journal: "Journal of Applied Meteorology and Climatology"
+    url: "https://doi.org/10.1175/JAMC-D-11-0143.1"
+  - key: cramerjay2016
+    title: "Biophysical aspects of human thermoregulation during heat stress"
+    authors: "Cramer, M. N.; Jay, O."
+    year: 2016
+    journal: "Autonomic Neuroscience"
+    url: "https://doi.org/10.1016/j.autneu.2016.03.001"
+  - key: nielsen1993
+    title: "Human circulatory and thermoregulatory adaptations with heat acclimation and exercise in a hot, dry environment"
+    authors: "Nielsen, B. et al."
+    year: 1993
+    journal: "The Journal of Physiology"
+    url: "https://doi.org/10.1113/jphysiol.1993.sp019482"
+  - key: racinais2015
+    title: "Consensus recommendations on training and competing in the heat"
+    authors: "Racinais, S. et al."
+    year: 2015
+    journal: "British Journal of Sports Medicine"
+    url: "https://doi.org/10.1136/bjsports-2015-094915"
+  - key: tyler2016
+    title: "The Effects of Heat Adaptation on Physiology, Perception and Exercise Performance in the Heat"
+    authors: "Tyler, C. J. et al."
+    year: 2016
+    journal: "Sports Medicine"
+    url: "https://doi.org/10.1007/s40279-016-0538-5"
+  - key: daanen2018
+    title: "A systematic review on the decay and re-induction of heat acclimation"
+    authors: "Daanen, H. A. M. et al."
+    year: 2018
+    journal: "Sports Medicine"
+    url: "https://doi.org/10.1007/s40279-017-0808-x"
+  - key: kelly2023
+    title: "Heat acclimation and acclimatisation in female athletes"
+    authors: "Kelly, M. et al."
+    year: 2023
+    journal: "Sports Medicine"
+    url: "https://doi.org/10.1007/s40279-023-01831-2"
+  - key: casa2015
+    title: "National Athletic Trainers' Association Position Statement: Exertional Heat Illnesses"
+    authors: "Casa, D. J. et al."
+    year: 2015
+    journal: "Journal of Athletic Training"
+    url: "https://doi.org/10.4085/1062-6050-50.9.07"
+params:
+  active_window_days: 14
+  minimum_power_fraction_cp: 0.5
+  sample_coverage_ratio: 0.9
+  qualifying_effective_minutes: 30
+  building_days: 2
+  building_effective_minutes: 60
+  likely_adapted_days: 7
+  likely_adapted_effective_minutes: 420
+  wet_bulb_reference_c: 18
+  wet_bulb_full_weight_c: 26
+  dry_bulb_reference_c: 30
+  dry_bulb_full_weight_c: 40
+  decay_start_days: 7
+  decay_end_days: 28

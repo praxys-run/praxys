@@ -11,13 +11,14 @@ import { applyThemeChrome, themeClassName } from '../../utils/theme';
 import { parseMarkdown, copyUrlToClipboard } from '../../utils/markdown';
 import { t, tFmt } from '../../utils/i18n';
 
-const ALL_PILLARS: SciencePillar[] = ['load', 'recovery', 'prediction', 'zones'];
+const ALL_PILLARS: SciencePillar[] = ['load', 'recovery', 'prediction', 'zones', 'heat'];
 
 const PILLAR_NUMS: Record<SciencePillar, string> = {
   load: '01',
   recovery: '02',
   prediction: '03',
   zones: '04',
+  heat: '05',
 };
 
 function buildScienceTr() {
@@ -25,9 +26,9 @@ function buildScienceTr() {
     navTitle: t('Training science'),
     failedToLoad: t('Failed to load'),
     retry: t('Retry'),
-    eyebrow: t('Four-pillar framework'),
+    eyebrow: t('Scientific models'),
     intro: t(
-      'Each pillar runs a published theory you can read, verify, and swap. Praxys interprets your data through whichever framework you choose.',
+      'Read the evidence behind each model. Where alternatives exist, you can preview and switch them; fixed operational models stay explicit.',
     ),
     references: t('References'),
     tapToCopy: t('tap to copy URL'),
@@ -39,6 +40,7 @@ function buildScienceTr() {
     activeTag: t('Active'),
     previewingTag: t('Previewing'),
     recommendedTag: t('Recommended'),
+    fixedModelTag: t('Active fixed model'),
     by: t('by'),
   };
 }
@@ -49,6 +51,7 @@ function pillarLabels(): Record<SciencePillar, string> {
     recovery: t('Recovery'),
     prediction: t('Race Prediction'),
     zones: t('Training Zones'),
+    heat: t('Heat Adaptation'),
   };
 }
 
@@ -58,6 +61,7 @@ function pillarQuestions(): Record<SciencePillar, string> {
     recovery: t("Reads readiness from the body's signals."),
     prediction: t('Estimates race performance from current fitness.'),
     zones: t('Defines what counts as easy, threshold, hard.'),
+    heat: t('Estimates acclimatization from recent qualifying conditions.'),
   };
 }
 
@@ -91,9 +95,11 @@ interface DetailView {
   label: string;
   question: string;
   hasActive: boolean;
+  isFixed: boolean;
   chiclets: ChicletRow[];
   /** Theory currently shown in the body (active or previewed). */
   shownAuthor: string;
+  shownName: string;
   shownAuthorVisible: boolean;
   shownDescription: string;
   shownAdvancedHtml: string;
@@ -188,7 +194,8 @@ function buildPillarTabs(
   return ALL_PILLARS.map((pillar) => {
     const active = response.active?.[pillar];
     const rec = response.recommendations?.find((r) => r.pillar === pillar);
-    const recAvailable = !!(rec && rec.recommended_id !== active?.id);
+    const isFixed = response.fixed_pillars?.includes(pillar) ?? false;
+    const recAvailable = !isFixed && !!(rec && rec.recommended_id !== active?.id);
     return {
       pillar,
       num: PILLAR_NUMS[pillar],
@@ -208,12 +215,16 @@ function buildDetail(
   tr: { switchToFmt: string },
 ): DetailView {
   const active = response.active?.[pillar];
-  const alternatives = response.available?.[pillar] ?? [];
+  const isFixed = response.fixed_pillars?.includes(pillar) ?? false;
+  const alternatives = isFixed ? [] : response.available?.[pillar] ?? [];
   const recommendation: PillarRecommendation | undefined =
     response.recommendations?.find((r) => r.pillar === pillar);
 
-  const isPreviewMode = !!(previewId && previewId !== active?.id);
-  const previewedTheory = previewId ? alternatives.find((t) => t.id === previewId) : undefined;
+  const effectivePreviewId = isFixed ? undefined : previewId;
+  const isPreviewMode = !!(effectivePreviewId && effectivePreviewId !== active?.id);
+  const previewedTheory = effectivePreviewId
+    ? alternatives.find((t) => t.id === effectivePreviewId)
+    : undefined;
   const shownTheory: TheorySummary | undefined = isPreviewMode ? previewedTheory : active;
 
   const chiclets: ChicletRow[] = alternatives.map((t) => {
@@ -243,7 +254,8 @@ function buildDetail(
   const hasRecHint =
     !!recommendedDifferent &&
     !!recommendedTheory &&
-    previewId !== recommendation!.recommended_id;
+    !isFixed &&
+    effectivePreviewId !== recommendation!.recommended_id;
 
   let advancedHtml = '';
   let hasAdvanced = false;
@@ -268,8 +280,10 @@ function buildDetail(
     label: labels[pillar],
     question: questions[pillar],
     hasActive: !!active,
+    isFixed,
     chiclets,
     shownAuthor: shownTheory?.author ?? '',
+    shownName: shownTheory?.name ?? '',
     shownAuthorVisible: !!shownTheory && !!shownTheory.author && shownTheory.author !== 'system',
     shownDescription: shownTheory?.simple_description || shownTheory?.description || '',
     shownAdvancedHtml: advancedHtml,
@@ -292,8 +306,10 @@ Page({
     tr: buildScienceTr(),
   },
 
-  onLoad() {
-    this.setData({ themeClass: themeClassName(), tr: buildScienceTr() });
+  onLoad(options?: { pillar?: string }) {
+    const requested = options?.pillar as SciencePillar | undefined;
+    const focused = requested && ALL_PILLARS.includes(requested) ? requested : 'load';
+    this.setData({ themeClass: themeClassName(), tr: buildScienceTr(), focused });
     void this.refetch();
   },
 
@@ -331,6 +347,7 @@ Page({
     if (!id) return;
     const focused = this.data.focused as SciencePillar;
     const response = (this.data as { _response?: ScienceResponse })._response;
+    if (response?.fixed_pillars?.includes(focused)) return;
     const active = response?.active?.[focused];
     const previewing = { ...(this.data.previewing as Partial<Record<SciencePillar, string>>) };
     if (id === active?.id) {
@@ -371,6 +388,8 @@ Page({
     const previewing = this.data.previewing as Partial<Record<SciencePillar, string>>;
     const id = previewing[focused];
     if (!id) return;
+    const response = (this.data as { _response?: ScienceResponse })._response;
+    if (response?.fixed_pillars?.includes(focused)) return;
     if (this.data.selectingPillar) return;
     this.setData({ selectingPillar: focused });
     try {

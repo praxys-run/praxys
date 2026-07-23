@@ -11,7 +11,6 @@ import { useLocale } from '@/contexts/LocaleContext';
 import AiInsightsCard, { type CoachFallback } from '@/components/AiInsightsCard';
 import TodayDecisionCheck from '@/components/TodayDecisionCheck';
 import ScienceNote from '@/components/ScienceNote';
-import HeatAdaptationPanel from '@/components/HeatAdaptationPanel';
 import { recordProductEventOnce } from '@/lib/product-events';
 
 
@@ -370,7 +369,8 @@ export default function Today() {
 
   const verdictText = i18n._(VERDICT_LABEL[signal.recommendation] ?? VERDICT_LABEL.follow_plan);
   const verdictSubtitle = i18n._(VERDICT_SUBTITLE[signal.recommendation] ?? VERDICT_SUBTITLE.follow_plan);
-  const tone = TONE_CLASSES[VERDICT_TONE[signal.recommendation] ?? 'amber'];
+  const signalTone = VERDICT_TONE[signal.recommendation] ?? 'amber';
+  const tone = TONE_CLASSES[signalTone];
   const hrv = ra?.hrv ?? null;
   const trendArrow = hrv ? TREND_ARROW[hrv.trend] : '—';
   const trendLabel = hrv ? i18n._(HRV_TREND_LABEL[hrv.trend]) : '—';
@@ -587,7 +587,6 @@ export default function Today() {
         )}
         <div className="today-cell"><span className="today-cell-label">TSB</span><span className={`today-cell-value font-data ${tsb != null && tsb > 0 ? 'today-cell-value-positive' : ''}`.trim()}>{tsbDisplay}</span><span className="today-cell-sub font-data">{tsbDescriptor}</span></div>
       </div>
-      <HeatAdaptationPanel status={data.heat_adaptation} variant="today" />
       <div className="today-plan"><span className="today-plan-eyebrow"><Trans>Planned · Today</Trans></span><span className="today-plan-text">{planText}</span></div>
       <div className="today-methodology">
         <ScienceNote
