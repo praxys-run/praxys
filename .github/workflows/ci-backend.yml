@@ -28,7 +28,7 @@ jobs:
     name: python-tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
 
       - uses: actions/setup-python@v6
         with:
@@ -46,7 +46,7 @@ jobs:
     name: web-build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
 
       - uses: actions/setup-node@v6
         with:
