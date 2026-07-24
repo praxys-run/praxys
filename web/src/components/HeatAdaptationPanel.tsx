@@ -482,7 +482,6 @@ export default function HeatAdaptationPanel({ status }: { status: HeatAdaptation
     : defaultDay?.date ?? null;
   const thresholdDays = status.evidence_thresholds.likely_adapted_days;
   const thresholdMinutes = status.evidence_thresholds.likely_adapted_effective_minutes;
-  const effectiveHeatDisplay = formatThresholdNumber(status.effective_heat_minutes, locale);
   const showThresholdProgress = status.stage !== 'maintaining' && status.stage !== 'decaying';
   const stageComesFromPriorBlock = status.stage === 'maintaining' || status.stage === 'decaying';
 
@@ -615,8 +614,8 @@ export default function HeatAdaptationPanel({ status }: { status: HeatAdaptation
                   label={<Trans>Effective heat</Trans>}
                   current={status.effective_heat_minutes}
                   target={thresholdMinutes}
-                  valueLabel={i18n._(msg`${effectiveHeatDisplay} / ${thresholdMinutes} min`)}
-                  ariaLabel={i18n._(msg`Effective heat: ${effectiveHeatDisplay} of ${thresholdMinutes} minutes`)}
+                  valueLabel={i18n._(msg`${formatThresholdNumber(status.effective_heat_minutes, locale)} / ${thresholdMinutes} min`)}
+                  ariaLabel={i18n._(msg`Effective heat: ${formatThresholdNumber(status.effective_heat_minutes, locale)} of ${thresholdMinutes} minutes`)}
                 />
               </div>
             </section>
