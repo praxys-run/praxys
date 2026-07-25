@@ -10,6 +10,7 @@ WORKFLOW = ROOT / ".github" / "workflows" / "change-loop-outcomes.md"
 def test_outcome_observer_uses_issue_first_readiness_attribution() -> None:
     """Reports must measure real loop stages instead of raw PR creation noise."""
     workflow = WORKFLOW.read_text(encoding="utf-8").replace("\r\n", "\n")
+    flattened = " ".join(workflow.split())
 
     assert "### A. Change-loop issue cohort" in workflow
     assert "first `agent-ready` timestamp and actor" in workflow
@@ -18,6 +19,8 @@ def test_outcome_observer_uses_issue_first_readiness_attribution() -> None:
     assert "`action_required` with no jobs is `approval-gated`" in workflow
     assert "`baseline/default-branch`" in workflow
     assert "checks: read" in workflow
+    assert "comments from 24 hours before through 24 hours after" in flattened
+    assert "Use `manual` only when no such recovery statement exists." in flattened
 
 
 def test_outcome_observer_separates_tests_and_gates_autonomy_evidence() -> None:

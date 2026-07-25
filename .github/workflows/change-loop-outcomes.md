@@ -112,6 +112,15 @@ window, including issues that never produced a PR. Record:
 - the first explicitly associated coding-agent PR and its creation time;
 - issue outcome and close reason.
 
+For every human-added `agent-ready` label, inspecting issue comments from 24
+hours before through 24 hours after the label event is required cohort evidence,
+not optional corroboration. Use `manual-recovery` when a maintainer explicitly
+identifies a triage miss or false negative and says the label was manually
+restored, even when that explanation was posted after the label event. Use
+`manual` only when no such recovery statement exists. These trigger categories
+are mutually exclusive, and the report must link the issue without quoting the
+feedback or recovery comment.
+
 Also include linked `agent-ready` issues whose trigger predates the window when
 their coding-agent PR was created in the window. Mark these as `carry-in` and do
 not include them in trigger-rate denominators.
