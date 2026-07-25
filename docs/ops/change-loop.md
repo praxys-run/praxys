@@ -244,6 +244,10 @@ minutes so the agent retains time to classify the evidence, write cache memory,
 and emit the report. Unresolved fields stay `unknown`; do not trade explicit
 limitations for an exhaustive search that produces no report.
 
+CI attribution uses check-run output, annotations, and job-step metadata only.
+The observer does not download raw workflow/job logs, and pre-readiness failures
+remain context rather than triggering an attribution investigation.
+
 Those outcomes train both triage precision and draft quality. They also provide
 the evidence for a future `review-required | auto-merge-candidate` policy. A
 narrow class enters shadow evaluation only after repeated clean outcomes; the

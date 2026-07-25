@@ -47,6 +47,5 @@ def test_outcome_observer_reserves_time_to_emit_a_report() -> None:
     assert "timeout-minutes: 20" in workflow
     assert "Stop starting new evidence queries after 12 minutes" in flattened
     assert "mark unresolved fields `unknown`" in flattened
-    assert (
-        "at most one bounded log excerpt per distinct failure signature" in flattened
-    )
+    assert "never download raw workflow or job logs" in flattened
+    assert "Pre-readiness non-passes do not trigger" in flattened
