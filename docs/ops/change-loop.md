@@ -20,7 +20,7 @@ a maintainer manually adds `agent-ready`  ────────────�
                           .github/workflows/assign-copilot.yml  ──assigns──▶  Copilot coding agent
                                                                                       │ opens
                                                                                       ▼
-                    draft PR ──▶ agentic observe/review layer ──▶ human review + merge (protected)
+                    draft PR ──▶ checks + outcome observer ──▶ maintainer-controlled merge (today)
 ```
 
 `agent-ready` is the **sole trigger**; a bare issue-open never fires. Triage adds
@@ -47,8 +47,11 @@ eligible assignment job, so a later unrelated label cannot cancel an
 `agent-ready` assignment before it starts.
 
 **Backlog escape hatch:** a `backlog` or `later` label makes an issue ineligible
-even if it is a bug (the workflow skips it). **Merge is always human** — autonomy
-is *drafting* the fix; branch protection keeps a human in the loop.
+even if it is a bug (the workflow skips it). **Today, merge is
+maintainer-controlled** — the coding agent drafts and never decides whether its
+own PR can merge. The target state is selective review: a separate risk policy
+can eventually route repeatedly proven narrow changes to policy-owned auto-merge,
+while sensitive, broad, uncertain, or failing changes still require a human.
 
 ### Shadow mode
 
@@ -137,16 +140,27 @@ your user session) — the token is only needed for the *workflow* to assign.
 
 ### 4. Confirm branch protection on `main`
 
-So the agent can draft but never ship, protect `main`:
+Protect `main` so the coding agent cannot ship or bypass checks:
 
-- **Require a pull request before merging** with **at least 1 approving review**.
+- **Require a pull request before merging.**
 - **Require status checks to pass** — the `backend-tests` check from
   `.github/workflows/ci-backend.yml`. It is a stable aggregator that requires both
   backend pytest and the web production build. Add it once that workflow has run
   on a PR so the check name is selectable.
 
+The repository ruleset currently requires one approval and squash merge, with an
+`Always` bypass for the repo-admin role so the solo maintainer can merge a green
+PR without a formal self-approval. That makes review maintainer-controlled, not
+mechanically universal. Do not grant the coding agent that bypass.
+
+Future no-review merges must use a separate policy-owned identity or ruleset path
+that is limited to promoted change classes and still requires all checks. Do not
+reuse the broad repo-admin bypass, and do not let the implementation agent label
+its own PR as eligible.
+
 ```bash
-gh api repos/praxys-run/praxys/branches/main/protection --jq '{reviews:.required_pull_request_reviews, checks:.required_status_checks}'
+gh api repos/praxys-run/praxys/branches/main/protection --jq '{checks:.required_status_checks}'
+gh api repos/praxys-run/praxys/rulesets --jq '.[] | {id,name,enforcement}'
 ```
 
 ### 5. Operate the GitHub Agentic Workflows layer
@@ -157,7 +171,7 @@ around it:
 
 | Source workflow | Trigger | Safe output |
 |---|---|---|
-| `change-loop-outcomes.md` | Weekly or manual | Replaces the previous 30-day outcome report issue, or no-op |
+| `change-loop-outcomes.md` | Weekly or manual | Replaces the previous issue-first 30-day lifecycle/quality report, or no-op |
 | `ci-failure-doctor.md` | Failed/timed-out PR validation workflow, or manual | One deduplicated PR diagnosis comment, or no-op |
 | `praxys-invariant-review.md` | Successful `Backend CI` run for a same-repo, open, non-draft PR; or manual dispatch | One Praxys-specific invariant comment, or no-op |
 
@@ -213,13 +227,18 @@ initialization must not overwrite its Python/Node test environment.
 
 ## Self-improvement
 
-The change loop is meant to get better every iteration (each feedback → draft PR →
-review). The human's action on the draft (merged clean / merged-with-edits /
-rejected) and on the issue (kept / relabelled / closed-not-a-bug) is the training
-signal for both triage precision and draft quality. Shadow mode + the
-`agent_eligible` gate are the first instrumentation; the full loop (outcome
-tracking, an eval corpus seeded from human corrections, a replay CI check, and
-postmortem → policy PRs that tighten `copilot-instructions.md`) is tracked in
+The change loop is meant to get better across iterations. The weekly observer
+starts from every `agent-ready` issue, tracks assignment and PR latency, excludes
+explicit smoke tests from quality totals, measures CI only after the first
+review handoff, attributes failures to the PR vs baseline/infrastructure, and
+records correction rounds, missing tests, reverts, and reopens. Its report is a
+GitHub-native baseline, not yet the durable outcome store.
+
+Those outcomes train both triage precision and draft quality. They also provide
+the evidence for a future `review-required | auto-merge-candidate` policy. A
+narrow class enters shadow evaluation only after repeated clean outcomes; the
+implementation agent never evaluates itself. Durable outcome capture, an eval
+corpus, replay CI, shadow comparison/promotion, and policy PRs are tracked in
 **#377**.
 
 ## Security & abuse resistance
@@ -236,7 +255,9 @@ hidden in issue text. Defenses, in layers:
   `copilot-swe-agent` bot on a `copilot/*` branch, reviewable line-by-line. A
   zip / "patched build" / diff attached by a non-collaborator is **never** our
   flow — do not download, unzip, run, or apply it.
-- **Humans own merge** (branch protection, §4). Agents draft; they never ship.
+- **The merge path is policy-owned** (§4). Today the maintainer decides. A future
+  no-review path must be independently allowlisted and check-gated; the coding
+  agent never self-approves or receives a broad bypass.
 - **The trigger is write-gated.** `agent-ready` can only be added by the triage
   bot or a maintainer — a drive-by account cannot start the loop. Keep it that
   way (don't let automation add the label from untrusted input).
@@ -285,6 +306,10 @@ and the cost is low).
 - Shadow mode on → no label is applied, but the decision is logged.
 - A web build failure makes the required `backend-tests` aggregator fail even
   when pytest passes.
+- A manual `Change loop outcomes` run reports explicit operational tests
+  separately, starts the feedback cohort from `agent-ready` issue timelines, and
+  does not count `action_required` or a corroborated baseline failure as an agent
+  code failure.
 - `gh aw validate` succeeds.
 - From `main`, a manual invariant review reaches Azure OpenAI through OIDC:
 
@@ -294,11 +319,16 @@ and the cost is low).
     -f pr_number=<PR_NUMBER>
   ```
 
-- A trial run operates in a temporary private repository and does not mutate the
-  live repo:
+- `gh aw trial` installs the workflow and captures safe outputs in an isolated
+  private repository, but the Azure federated credential intentionally trusts
+  only this repository's default-branch subject. Model inference from a temporary
+  trial host therefore fails unless that host is separately allowlisted. Do not
+  broaden production OIDC trust only for a trial; compile and validate locally,
+  then use a manual dispatch on `main` after merge for the end-to-end check.
 
-Resolve the source to an absolute path before `gh aw trial`; trial mode changes
-its working directory after cloning the isolated host repository.
+If a dedicated trial identity is configured later, resolve the source to an
+absolute path before `gh aw trial`; trial mode changes its working directory
+after cloning the isolated host repository.
 
 ```powershell
 $workflow = (Resolve-Path .github\workflows\praxys-invariant-review.md).Path
@@ -338,4 +368,4 @@ gh run list --workflow=assign-copilot.yml -R praxys-run/praxys --limit 5
 - Design: praxys-run/praxys#362 (the change loop); #361 (backend pytest gate); #377 (self-improvement).
 
 ---
-_Last reviewed: 2026-07-18 · Owner: @dddtc2005_
+_Last reviewed: 2026-07-25 · Owner: @dddtc2005_
