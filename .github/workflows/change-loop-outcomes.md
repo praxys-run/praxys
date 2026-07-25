@@ -50,7 +50,7 @@ safe-outputs:
     create-issue: false
   report-incomplete:
     create-issue: false
-timeout-minutes: 15
+timeout-minutes: 20
 ---
 
 # Change-loop outcome observer
@@ -68,6 +68,28 @@ modify code, labels, issues, pull requests, settings, or agent policy.
   attachments, execute changed code, or expose secrets or user-feedback text.
 - Do not quote feedback bodies. Link to issues and PRs instead.
 - Emit exactly one `create_issue` safe output or one `noop` safe output.
+
+## Execution budget
+
+Record the wall-clock start time before gathering evidence. Stop starting new
+evidence queries after 12 minutes and reserve the remaining runtime for
+classification, aggregation, cache memory, and the safe output. When the budget
+expires, keep the factual evidence already collected and mark unresolved fields
+`unknown`; a complete report with explicit limitations is better than timing out
+without a report. Check elapsed time with `date +%s` before optional
+corroboration queries.
+
+Keep retrieval proportional to the small 30-day cohorts:
+
+- project API responses to only the fields required below and keep bulky results
+  in files instead of returning them to the model;
+- once issue and PR numbers are known, query timelines, commits, checks, and runs
+  only for those entries rather than downloading repository-wide histories;
+- use check output or annotations before logs, fetch at most one bounded log
+  excerpt per distinct failure signature, and reuse corroboration when multiple
+  PRs have the same signature;
+- skip optional corroboration when it cannot fit the evidence budget and use
+  `unknown` rather than repeatedly retrying or expanding the search.
 
 ## Cohorts
 

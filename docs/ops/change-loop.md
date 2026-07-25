@@ -234,6 +234,11 @@ review handoff, attributes failures to the PR vs baseline/infrastructure, and
 records correction rounds, missing tests, reverts, and reopens. Its report is a
 GitHub-native baseline, not yet the durable outcome store.
 
+The workflow has a 20-minute runtime ceiling. Evidence gathering stops after 12
+minutes so the agent retains time to classify the evidence, write cache memory,
+and emit the report. Unresolved fields stay `unknown`; do not trade explicit
+limitations for an exhaustive search that produces no report.
+
 Those outcomes train both triage precision and draft quality. They also provide
 the evidence for a future `review-required | auto-merge-candidate` policy. A
 narrow class enters shadow evaluation only after repeated clean outcomes; the
@@ -309,7 +314,8 @@ and the cost is low).
 - A manual `Change loop outcomes` run reports explicit operational tests
   separately, starts the feedback cohort from `agent-ready` issue timelines, and
   does not count `action_required` or a corroborated baseline failure as an agent
-  code failure.
+  code failure. Allow up to 20 minutes; a successful run creates the replacement
+  report before closing the older report.
 - `gh aw validate` succeeds.
 - From `main`, a manual invariant review reaches Azure OpenAI through OIDC:
 
