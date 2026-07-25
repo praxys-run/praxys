@@ -34,3 +34,16 @@ def test_outcome_observer_separates_tests_and_gates_autonomy_evidence() -> None:
     assert "no recorded correction after first readiness" in workflow
     assert "Never recommend immediate auto-merge" in workflow
     assert "`schema_version: 2`" in workflow
+
+
+def test_outcome_observer_reserves_time_to_emit_a_report() -> None:
+    """Evidence gathering must finish before the workflow runtime is exhausted."""
+    workflow = WORKFLOW.read_text(encoding="utf-8").replace("\r\n", "\n")
+    flattened = " ".join(workflow.split())
+
+    assert "timeout-minutes: 20" in workflow
+    assert "Stop starting new evidence queries after 12 minutes" in flattened
+    assert "mark unresolved fields `unknown`" in flattened
+    assert (
+        "at most one bounded log excerpt per distinct failure signature" in flattened
+    )
