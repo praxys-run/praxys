@@ -85,9 +85,10 @@ Keep retrieval proportional to the small 30-day cohorts:
   in files instead of returning them to the model;
 - once issue and PR numbers are known, query timelines, commits, checks, and runs
   only for those entries rather than downloading repository-wide histories;
-- use check output or annotations before logs, fetch at most one bounded log
-  excerpt per distinct failure signature, and reuse corroboration when multiple
-  PRs have the same signature;
+- never download raw workflow or job logs; use check-run output, annotations, and
+  job-step metadata, and classify unresolved evidence as `unknown`;
+- do not investigate pre-readiness non-passes beyond recording their run result;
+  they are operational context, not readiness-attribution candidates;
 - skip optional corroboration when it cannot fit the evidence budget and use
   `unknown` rather than repeatedly retrying or expanding the search.
 
@@ -215,10 +216,12 @@ readiness. Record separately:
 3. the first executed readiness run with jobs; and
 4. the final merge-head `Backend CI` result.
 
-`action_required` with no jobs is `approval-gated`, not a code failure. For the
-first executed readiness result that does not pass, inspect the failed job,
-smallest useful log excerpt, changed paths, and corroborating repository
-evidence. Classify it as exactly one of:
+`action_required` with no jobs is `approval-gated`, not a code failure.
+Pre-readiness non-passes do not trigger failure-attribution queries. For the
+first executed readiness result that does not pass, inspect failed job-step
+metadata, check-run output or annotations, changed paths, and corroborating
+repository evidence. Do not download raw workflow or job logs. Classify it as
+exactly one of:
 
 - `pr-caused`;
 - `baseline/default-branch`;
