@@ -234,6 +234,11 @@ review handoff, attributes failures to the PR vs baseline/infrastructure, and
 records correction rounds, missing tests, reverts, and reopens. Its report is a
 GitHub-native baseline, not yet the durable outcome store.
 
+For human-added `agent-ready` labels, the observer checks comments immediately
+around the label event. An explicit maintainer statement that triage missed the
+issue and the label was manually restored is counted as `manual-recovery`, even
+when the explanation follows the label.
+
 The workflow has a 20-minute runtime ceiling. Evidence gathering stops after 12
 minutes so the agent retains time to classify the evidence, write cache memory,
 and emit the report. Unresolved fields stay `unknown`; do not trade explicit
