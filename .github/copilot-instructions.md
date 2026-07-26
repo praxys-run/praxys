@@ -56,6 +56,11 @@ When you (the GitHub Copilot coding agent) are assigned an issue labeled
 
 - **Always add or update a test** that fails before your change and passes
   after. Backend tests live in `tests/`.
+- **Keep the PR in draft while the patch is still moving.** Mark it ready only
+  after implementation, tests, documentation, and the final diff are stable and
+  the required validation has run on that head. If code changes after the first
+  ready-for-review handoff, convert it back to draft before continuing and mark
+  it ready again only after the new head stabilizes.
 - **Run the backend suite before opening the PR**: `python -m pytest tests/`
   (your environment is preinstalled via `.github/workflows/copilot-setup-steps.yml`
   — Python deps + a bootstrap `.env` — so it runs out of the box). For web

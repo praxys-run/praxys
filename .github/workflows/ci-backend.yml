@@ -43,6 +43,9 @@ jobs:
       - name: Run backend tests
         run: python -m pytest tests/ -v
 
+      - name: Validate selective-review promotions
+        run: python scripts/validate_review_policy.py
+
   web-build:
     name: web-build
     runs-on: ubuntu-latest

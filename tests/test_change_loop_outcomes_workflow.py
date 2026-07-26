@@ -5,6 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOW = ROOT / ".github" / "workflows" / "change-loop-outcomes.md"
+COPILOT_INSTRUCTIONS = ROOT / ".github" / "copilot-instructions.md"
 
 
 def test_outcome_observer_uses_issue_first_readiness_attribution() -> None:
@@ -49,3 +50,13 @@ def test_outcome_observer_reserves_time_to_emit_a_report() -> None:
     assert "mark unresolved fields `unknown`" in flattened
     assert "never download raw workflow or job logs" in flattened
     assert "Pre-readiness non-passes do not trigger" in flattened
+
+
+def test_coding_agent_keeps_pr_draft_until_the_patch_stabilizes() -> None:
+    """The first ready-for-review boundary must represent a real handoff."""
+    instructions = COPILOT_INSTRUCTIONS.read_text(encoding="utf-8")
+    flattened = " ".join(instructions.split())
+
+    assert "Keep the PR in draft while the patch is still moving." in instructions
+    assert "If code changes after the first ready-for-review handoff" in flattened
+    assert "convert it back to draft" in flattened

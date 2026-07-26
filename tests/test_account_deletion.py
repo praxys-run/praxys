@@ -88,6 +88,7 @@ def account_client(monkeypatch):
 
 def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
     """Insert one row in every user-owned table account deletion must purge."""
+    from db.agent_loop import record_decision, record_outcome
     from db.models import (
         Activity,
         ActivitySample,
@@ -136,12 +137,38 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
         ))
         db.add(CacheRevision(user_id=user_id, scope="activities", revision=1))
         db.add(DashboardCache(user_id=user_id, section="today", source_version="v1", payload_json=b"{}"))
-        db.add(Feedback(user_id=user_id, kind="bug", message="delete me", status="new"))
+        feedback = Feedback(
+            user_id=user_id,
+            kind="bug",
+            message="delete me",
+            status="new",
+        )
+        db.add(feedback)
         db.add(UserConfig(user_id="demo-user", display_name="Demo"))
         used = Invitation(code="TS-USED-0001", created_by="admin", used_by=user_id, is_active=False)
         made = Invitation(code="TS-MADE-0001", created_by=user_id, is_active=True)
         db.add_all([used, made])
         db.flush()
+        decision = record_decision(
+            db,
+            loop="change",
+            subject_type="feedback",
+            subject_ref=str(feedback.id),
+            policy_name="change.agent_ready",
+            policy_version="agent-ready-v2",
+            prompt_version=None,
+            model="rule-based",
+            mode="active",
+            input_data={"message_sha256": "a" * 64},
+            output_data={"agent_ready_candidate": False},
+        )
+        record_outcome(
+            db,
+            decision_id=decision.id,
+            outcome_type="held_for_review",
+            source="triage",
+            payload={"status": "needs_review"},
+        )
         # A waitlist lead linked to the invitation the user *created*: it must
         # survive the user's deletion with invitation_id detached (issue #366).
         db.add(WaitlistSignup(email="lead@example.test", invitation_id=made.id))
@@ -166,6 +193,8 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
         Activity,
         ActivitySample,
         ActivitySplit,
+        AgentDecision,
+        AgentOutcome,
         AiInsight,
         AiInsightFeedback,
         AppConfig,
@@ -201,6 +230,8 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
             UserConnection,
         ):
             assert db.query(model).filter(model.user_id.in_(["delete-me", "demo-user"])).count() == 0
+        assert db.query(AgentDecision).count() == 0
+        assert db.query(AgentOutcome).count() == 0
         assert db.query(Invitation).filter(
             (Invitation.used_by == "delete-me") | (Invitation.created_by == "delete-me")
         ).count() == 0

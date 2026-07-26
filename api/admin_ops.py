@@ -1,8 +1,10 @@
 """Privacy-safe aggregate data for the admin operations overview."""
 from __future__ import annotations
 
+import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any, Literal, TypeVar
 
 from pydantic import BaseModel
@@ -18,7 +20,7 @@ from api.admin_azure_monitor import (
 )
 from api.routes.status import component_health_snapshot
 from api.views import utc_isoformat
-from db.models import Feedback, ServiceIncident
+from db.models import AgentDecision, AgentOutcome, Feedback, ServiceIncident
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +119,24 @@ class OpsProductValueData(BaseModel):
 
 class OpsProductValueSection(OpsSectionMeta):
     data: OpsProductValueData | None = None
+
+
+class OpsAgentLearningData(BaseModel):
+    decisions_total: int
+    outcomes_total: int
+    shadow_decisions: int
+    agent_ready_candidates: int
+    agent_ready_applied: int
+    human_overrides: int
+    merged_pull_requests: int
+    decision_policy_version: str
+    review_policy_version: str
+    promoted_classes: list[str]
+    autonomy_level: Literal["draft_with_review", "policy_gated_auto_merge"]
+
+
+class OpsAgentLearningSection(OpsSectionMeta):
+    data: OpsAgentLearningData | None = None
 
 
 class OpsServiceTelemetryData(BaseModel):
@@ -256,6 +276,7 @@ class OpsSummaryResponse(BaseModel):
     attention: OpsAttentionSection
     service_health: OpsServiceHealthSection
     product_value: OpsProductValueSection
+    agent_learning: OpsAgentLearningSection
     service_telemetry: OpsServiceTelemetrySection
     product_telemetry: OpsProductTelemetrySection
     azure_alerts: OpsAzureAlertsSection
@@ -264,6 +285,9 @@ class OpsSummaryResponse(BaseModel):
 
 
 _SECTION_FAILURE_REASON: OpsReason = "section_refresh_failed"
+_POLICY_PATH = (
+    Path(__file__).resolve().parent.parent / "config" / "agent-loop-policies.json"
+)
 _AzureData = TypeVar("_AzureData", bound=BaseModel)
 _AzureSection = TypeVar("_AzureSection", bound=OpsSectionMeta)
 
@@ -416,6 +440,79 @@ def _product_value_data(db: Session) -> OpsProductValueData:
     )
 
 
+def _agent_learning_data(db: Session, window: OpsWindow) -> OpsAgentLearningData:
+    cutoff = datetime.utcnow() - {
+        "24h": timedelta(hours=24),
+        "7d": timedelta(days=7),
+        "28d": timedelta(days=28),
+    }[window]
+    decisions = (
+        db.query(
+            AgentDecision.id,
+            AgentDecision.mode,
+            AgentDecision.policy_version,
+            AgentDecision.output_json,
+        )
+        .filter(
+            AgentDecision.loop == "change",
+            AgentDecision.created_at >= cutoff,
+        )
+        .order_by(AgentDecision.created_at.asc(), AgentDecision.id.asc())
+        .all()
+    )
+    outcome_rows = (
+        db.query(AgentOutcome.outcome_type, func.count(AgentOutcome.id))
+        .join(AgentDecision, AgentDecision.id == AgentOutcome.decision_id)
+        .filter(
+            AgentDecision.loop == "change",
+            AgentOutcome.observed_at >= cutoff,
+        )
+        .group_by(AgentOutcome.outcome_type)
+        .all()
+    )
+    outcome_counts = {kind: int(count) for kind, count in outcome_rows}
+    policy = json.loads(_POLICY_PATH.read_text(encoding="utf-8"))
+    review_policy = policy["change"]["selective_review"]
+    promoted_classes = [
+        str(item["name"]) if isinstance(item, dict) else str(item)
+        for item in review_policy["promoted_classes"]
+    ]
+    policy_versions = [
+        str(row.policy_version) for row in decisions if row.policy_version
+    ]
+    decision_policy_version = (
+        policy_versions[-1]
+        if policy_versions
+        else str(policy["change"]["agent_ready"]["version"])
+    )
+    return OpsAgentLearningData(
+        decisions_total=len(decisions),
+        outcomes_total=sum(outcome_counts.values()),
+        shadow_decisions=sum(row.mode == "shadow" for row in decisions),
+        agent_ready_candidates=sum(
+            bool((row.output_json or {}).get("agent_ready_candidate"))
+            for row in decisions
+        ),
+        agent_ready_applied=sum(
+            bool((row.output_json or {}).get("agent_ready_applied"))
+            for row in decisions
+        ),
+        human_overrides=sum(
+            outcome_counts.get(kind, 0)
+            for kind in ("human_approved", "human_rejected")
+        ),
+        merged_pull_requests=outcome_counts.get("github_pull_merged", 0),
+        decision_policy_version=decision_policy_version,
+        review_policy_version=str(review_policy["version"]),
+        promoted_classes=promoted_classes,
+        autonomy_level=(
+            "policy_gated_auto_merge"
+            if promoted_classes
+            else "draft_with_review"
+        ),
+    )
+
+
 def build_ops_summary(db: Session, window: OpsWindow) -> OpsSummaryResponse:
     """Build an aggregate-only operations snapshot with section isolation.
 
@@ -463,6 +560,22 @@ def build_ops_summary(db: Session, window: OpsWindow) -> OpsSummaryResponse:
             )
         )
 
+    try:
+        agent_learning = OpsAgentLearningSection(
+            **_fresh_meta("praxys_database", window, generated_at),
+            data=_agent_learning_data(db, window),
+        )
+    except Exception:
+        logger.exception("admin ops: agent learning section failed")
+        db.rollback()
+        agent_learning = OpsAgentLearningSection(
+            **_unavailable_meta(
+                "praxys_database",
+                window,
+                _SECTION_FAILURE_REASON,
+            )
+        )
+
     # The Azure sections can wait up to the overall telemetry deadline. End the
     # read transaction first so degraded Azure Monitor cannot pin a pooled
     # PostgreSQL connection for every concurrent admin request.
@@ -500,6 +613,7 @@ def build_ops_summary(db: Session, window: OpsWindow) -> OpsSummaryResponse:
         attention=attention,
         service_health=service_health,
         product_value=product_value,
+        agent_learning=agent_learning,
         service_telemetry=service_telemetry,
         product_telemetry=product_telemetry,
         azure_alerts=azure_alerts,

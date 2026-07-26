@@ -9,7 +9,9 @@ dependency-bypass pattern as tests/test_announcements.py.
 from __future__ import annotations
 
 import base64
+import json
 import tempfile
+from datetime import datetime
 
 import pytest
 from fastapi import BackgroundTasks, HTTPException
@@ -668,9 +670,10 @@ def test_empty_llm_output_does_not_drop_user_report(db_with_users, monkeypatch):
 
 def test_commit_failure_after_publish_recovers_issue_created(db_with_users, monkeypatch):
     """If the post-create commit fails, the row still ends issue_created (with
-    the issue number) so a retry can't file a duplicate."""
+    the issue number) and the outcome remains attached to the attempted decision."""
     from api.feedback_triage import triage_and_publish
-    from db.models import Feedback
+    from db.agent_loop import record_decision
+    from db.models import AgentDecision, AgentOutcome, Feedback
 
     db, _, _, user_id = db_with_users
     monkeypatch.setenv("PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI", "true")
@@ -678,6 +681,21 @@ def test_commit_failure_after_publish_recovers_issue_created(db_with_users, monk
     _stub_github(monkeypatch, calls)
     row = _new_row(db, user_id, "A clean bug report")
     fid = row.id
+    older = record_decision(
+        db,
+        loop="change",
+        subject_type="feedback",
+        subject_ref=str(fid),
+        policy_name="previous-policy",
+        policy_version="v0",
+        prompt_version=None,
+        model=None,
+        mode="active",
+        input_data={"message_sha256": "older"},
+        output_data={"status": "failed"},
+    )
+    older_id = older.id
+    db.commit()
 
     real_commit = db.commit
     state = {"n": 0}
@@ -696,6 +714,18 @@ def test_commit_failure_after_publish_recovers_issue_created(db_with_users, monk
     fresh = db.query(Feedback).filter(Feedback.id == fid).first()
     assert fresh.status == "issue_created"
     assert fresh.github_issue_number == 101
+    decisions = (
+        db.query(AgentDecision)
+        .filter(
+            AgentDecision.subject_type == "feedback",
+            AgentDecision.subject_ref == str(fid),
+        )
+        .all()
+    )
+    assert len(decisions) == 2
+    current = next(item for item in decisions if item.id != older_id)
+    outcome = db.query(AgentOutcome).one()
+    assert outcome.decision_id == current.id
 
 # ---------------------------------------------------------------------------
 # GitHub App auth (no-rotation alternative to the PAT)
@@ -784,6 +814,112 @@ def test_github_app_malformed_mint_response_returns_none(monkeypatch):
 
     monkeypatch.setattr(gi.httpx, "post", lambda url, **kw: _BadResp())
     assert gi._bearer_token() is None  # must not raise
+
+
+def test_github_issue_outcome_fetches_only_structured_state(monkeypatch):
+    """Reconciliation reads labels and closing PR state without issue/PR text."""
+    from api import github_issues as gi
+
+    monkeypatch.setattr(gi, "_bearer_token", lambda: "ghs_token")
+    monkeypatch.setattr(gi, "_repo", lambda: "owner/repo")
+    captured = {}
+
+    def fake_post(url, **kwargs):
+        captured.update(kwargs["json"])
+        captured["authorization"] = kwargs["headers"]["Authorization"]
+        return _FakeResp(
+            200,
+            {
+                "data": {
+                    "repository": {
+                        "issue": {
+                            "state": "CLOSED",
+                            "stateReason": "COMPLETED",
+                            "closedAt": "2026-07-20T01:00:00Z",
+                            "updatedAt": "2026-07-20T01:00:00Z",
+                            "labels": {"nodes": [{"name": "agent-ready"}]},
+                            "closedByPullRequestsReferences": {
+                                "nodes": [
+                                    {
+                                        "number": 42,
+                                        "state": "MERGED",
+                                        "isDraft": False,
+                                        "merged": True,
+                                        "updatedAt": "2026-07-20T00:59:00Z",
+                                        "mergedAt": "2026-07-20T00:59:00Z",
+                                        "closedAt": "2026-07-20T00:59:00Z",
+                                        "url": "https://github.com/owner/repo/pull/42",
+                                    }
+                                ]
+                            },
+                        }
+                    }
+                }
+            },
+        )
+
+    monkeypatch.setattr(gi.httpx, "post", fake_post)
+    outcome = gi.get_issue_outcome(9)
+    assert captured["authorization"] == "Bearer ghs_token"
+    assert captured["variables"]["number"] == 9
+    assert outcome == {
+        "state": "closed",
+        "state_reason": "completed",
+        "closed_at": "2026-07-20T01:00:00Z",
+        "updated_at": "2026-07-20T01:00:00Z",
+        "agent_ready": True,
+        "closing_pull_requests": [
+            {
+                "number": 42,
+                "state": "merged",
+                "is_draft": False,
+                "merged": True,
+                "updated_at": "2026-07-20T00:59:00Z",
+                "merged_at": "2026-07-20T00:59:00Z",
+                "closed_at": "2026-07-20T00:59:00Z",
+                "url": "https://github.com/owner/repo/pull/42",
+            }
+        ],
+    }
+    query = captured["query"]
+    for forbidden in ("title", "body", "comments", "commits", "reviews", "author"):
+        assert forbidden not in query
+
+
+def test_github_issue_outcome_falls_back_without_pull_permission(monkeypatch):
+    """Existing issue-only App grants still reconcile close/reopen state."""
+    from api import github_issues as gi
+
+    monkeypatch.setattr(gi, "_bearer_token", lambda: "ghs_token")
+    monkeypatch.setattr(gi, "_repo", lambda: "owner/repo")
+    monkeypatch.setattr(
+        gi.httpx,
+        "post",
+        lambda *args, **kwargs: _FakeResp(
+            200,
+            {"errors": [{"type": "FORBIDDEN"}]},
+        ),
+    )
+    monkeypatch.setattr(
+        gi,
+        "get_issue_state",
+        lambda number: {
+            "state": "closed",
+            "state_reason": "completed",
+            "closed_at": "2026-07-20T01:00:00Z",
+            "updated_at": "2026-07-20T01:00:00Z",
+        },
+    )
+
+    assert gi.get_issue_outcome(9) == {
+        "state": "closed",
+        "state_reason": "completed",
+        "closed_at": "2026-07-20T01:00:00Z",
+        "updated_at": "2026-07-20T01:00:00Z",
+        "agent_ready": False,
+        "closing_pull_requests": [],
+    }
+
 
 # ---------------------------------------------------------------------------
 # Sensitivity-gate calibration (over-flagging fix)
@@ -1140,6 +1276,130 @@ def test_triage_tags_agent_ready_for_qualifying_bug(db_with_users, monkeypatch):
     assert "agent-ready" in calls[0]["labels"]
 
 
+def test_triage_persists_privacy_minimized_decision_and_outcome(
+    db_with_users,
+    monkeypatch,
+):
+    """The durable trace stores structured facts, never feedback text."""
+    from api.feedback_triage import triage_and_publish
+    from db.models import AgentDecision, AgentOutcome
+
+    db, _, _, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    _stub_llm(monkeypatch, sensitive=False)
+    message = (
+        "The training charts fail after sync; contact jane@example.com for details"
+    )
+    row = _new_row(db, user_id, message)
+    row.locale = "a@b.co"
+    db.commit()
+
+    triage_and_publish(row.id, _session=db)
+    decision = (
+        db.query(AgentDecision)
+        .filter(AgentDecision.subject_ref == str(row.id))
+        .one()
+    )
+    serialized_input = json.dumps(decision.input_json)
+    assert message not in serialized_input
+    assert "jane@example.com" not in serialized_input
+    assert "a@b.co" not in serialized_input
+    assert decision.input_json["locale"] == "other"
+    assert decision.policy_name == "change.agent_ready"
+    assert decision.mode == "active"
+    assert decision.output_json["agent_ready_candidate"] is True
+    assert decision.output_json["agent_ready_applied"] is True
+    outcomes = (
+        db.query(AgentOutcome)
+        .filter(AgentOutcome.decision_id == decision.id)
+        .all()
+    )
+    assert [outcome.outcome_type for outcome in outcomes] == [
+        "github_issue_created"
+    ]
+
+
+def test_agent_ready_applied_requires_successful_github_publish(
+    db_with_users,
+    monkeypatch,
+):
+    """Policy intent is not counted as an applied label without a filed issue."""
+    from api import feedback_triage as ft
+    from api.feedback_triage import triage_and_publish
+    from db.models import AgentDecision
+
+    db, _, _, user_id = db_with_users
+    _stub_llm(monkeypatch, sensitive=False)
+    monkeypatch.setattr(ft.github_issues, "is_configured", lambda: False)
+    row = _new_row(
+        db,
+        user_id,
+        "Training charts fail after every sync with the same rendering error",
+    )
+
+    result = triage_and_publish(row.id, _session=db)
+    decision = (
+        db.query(AgentDecision)
+        .filter(AgentDecision.subject_ref == str(row.id))
+        .one()
+    )
+
+    assert result["status"] == "triaged"
+    assert result["agent_ready"] is False
+    assert decision.output_json["agent_ready_candidate"] is True
+    assert decision.output_json["agent_ready_requested"] is True
+    assert decision.output_json["agent_ready_applied"] is False
+
+
+def test_outcome_deduplication_preserves_outer_transaction(db_with_users):
+    """A duplicate snapshot is ignored without poisoning surrounding writes."""
+    from db.agent_loop import record_decision, record_outcome
+    from db.models import AgentOutcome
+
+    db, _, _, user_id = db_with_users
+    feedback = _new_row(db, user_id, "A detailed reproducible report")
+    decision = record_decision(
+        db,
+        loop="change",
+        subject_type="feedback",
+        subject_ref=str(feedback.id),
+        policy_name="change.agent_ready",
+        policy_version="agent-ready-v2",
+        prompt_version=None,
+        model="rule-based",
+        mode="active",
+        input_data={"message_sha256": "a" * 64},
+        output_data={"agent_ready_candidate": True},
+    )
+    first = record_outcome(
+        db,
+        decision_id=decision.id,
+        outcome_type="github_issue_closed",
+        source="github",
+        payload={"state": "closed"},
+        dedupe_key="issue:101:closed:2026-07-20T01:00:00Z",
+    )
+    db.commit()
+
+    feedback.status = "resolved"
+    duplicate = record_outcome(
+        db,
+        decision_id=decision.id,
+        outcome_type="github_issue_closed",
+        source="github",
+        payload={"state": "closed"},
+        dedupe_key="issue:101:closed:2026-07-20T01:00:00Z",
+    )
+    db.commit()
+
+    assert first is not None
+    assert duplicate is None
+    db.refresh(feedback)
+    assert feedback.status == "resolved"
+    assert db.query(AgentOutcome).count() == 1
+
+
 def test_triage_tags_agent_ready_for_detailed_cjk_bug(db_with_users, monkeypatch):
     """Detailed feedback without whitespace word boundaries still qualifies."""
     from api.feedback_triage import triage_and_publish
@@ -1265,6 +1525,16 @@ def test_triage_shadow_mode_withholds_agent_ready(db_with_users, monkeypatch):
     db.refresh(row)
     assert "agent-ready" not in (row.ai_labels or [])
     assert "agent-ready" not in calls[0]["labels"]
+    from db.models import AgentDecision
+
+    decision = (
+        db.query(AgentDecision)
+        .filter(AgentDecision.subject_ref == str(row.id))
+        .one()
+    )
+    assert decision.mode == "shadow"
+    assert decision.output_json["agent_ready_candidate"] is True
+    assert decision.output_json["agent_ready_applied"] is False
 
 
 # ---------------------------------------------------------------------------
@@ -1273,16 +1543,27 @@ def test_triage_shadow_mode_withholds_agent_ready(db_with_users, monkeypatch):
 
 
 def _stub_issue_state(monkeypatch, mapping):
-    """Stub github_issues so get_issue_state returns the mapped open/closed."""
+    """Stub structured GitHub issue/closing-PR outcome reconciliation."""
     from api import github_issues
 
     monkeypatch.setattr(github_issues, "is_configured", lambda: True)
 
     def _state(number):
         st = mapping.get(number)
-        return {"state": st, "state_reason": None} if st else None
+        if not st:
+            return None
+        if isinstance(st, dict):
+            return st
+        return {
+            "state": st,
+            "state_reason": None,
+            "closed_at": None,
+            "updated_at": None,
+            "agent_ready": False,
+            "closing_pull_requests": [],
+        }
 
-    monkeypatch.setattr(github_issues, "get_issue_state", _state)
+    monkeypatch.setattr(github_issues, "get_issue_outcome", _state)
 
 
 def test_sync_marks_resolved_when_issue_closed(db_with_users, monkeypatch):
@@ -1300,6 +1581,225 @@ def test_sync_marks_resolved_when_issue_closed(db_with_users, monkeypatch):
     assert out == {"configured": True, "checked": 1, "updated": 1}
     db.refresh(row)
     assert row.status == "resolved"
+
+
+def test_sync_records_external_label_and_merged_pull_outcomes(
+    db_with_users,
+    monkeypatch,
+):
+    from api.routes.feedback import sync_feedback_status
+    from db.agent_loop import record_decision
+    from db.models import AgentOutcome, Feedback
+
+    db, _, admin_id, user_id = db_with_users
+    row = Feedback(
+        user_id=user_id,
+        kind="bug",
+        message="x",
+        status="issue_created",
+        github_issue_number=101,
+    )
+    db.add(row)
+    db.flush()
+    decision = record_decision(
+        db,
+        loop="change",
+        subject_type="feedback",
+        subject_ref=str(row.id),
+        policy_name="change.agent_ready",
+        policy_version="agent-ready-v2",
+        prompt_version=None,
+        model="test",
+        mode="active",
+        input_data={"detail_word_count": 1, "detail_alnum_count": 20},
+        output_data={
+            "agent_ready_candidate": False,
+            "agent_ready_applied": False,
+        },
+    )
+    db.commit()
+
+    _stub_issue_state(
+        monkeypatch,
+        {
+            101: {
+                "state": "closed",
+                "state_reason": "completed",
+                "closed_at": "2026-07-20T01:00:00Z",
+                "updated_at": "2026-07-20T01:00:00Z",
+                "agent_ready": True,
+                "closing_pull_requests": [
+                    {
+                        "number": 42,
+                        "state": "merged",
+                        "is_draft": False,
+                        "merged": True,
+                        "updated_at": "2026-07-20T00:59:00Z",
+                        "merged_at": "2026-07-20T00:59:00Z",
+                        "closed_at": "2026-07-20T00:59:00Z",
+                        "url": "https://github.com/owner/repo/pull/42",
+                    }
+                ],
+            }
+        },
+    )
+    out = sync_feedback_status(user_id=admin_id, db=db)
+    assert out == {"configured": True, "checked": 1, "updated": 1}
+    outcome_types = {
+        row.outcome_type
+        for row in db.query(AgentOutcome)
+        .filter(AgentOutcome.decision_id == decision.id)
+        .all()
+    }
+    assert outcome_types == {
+        "github_issue_closed",
+        "github_pull_merged",
+        "external_agent_ready",
+    }
+    merged = (
+        db.query(AgentOutcome)
+        .filter(
+            AgentOutcome.decision_id == decision.id,
+            AgentOutcome.outcome_type == "github_pull_merged",
+        )
+        .one()
+    )
+    assert merged.observed_at == datetime(2026, 7, 20, 0, 59)
+
+    _stub_issue_state(
+        monkeypatch,
+        {
+            101: {
+                "state": "closed",
+                "state_reason": "completed",
+                "closed_at": "2026-07-20T01:00:00Z",
+                "updated_at": "2026-07-20T02:00:00Z",
+                "agent_ready": True,
+                "closing_pull_requests": [
+                    {
+                        "number": 42,
+                        "state": "merged",
+                        "is_draft": False,
+                        "merged": True,
+                        "updated_at": "2026-07-20T02:00:00Z",
+                        "merged_at": "2026-07-20T00:59:00Z",
+                        "closed_at": "2026-07-20T00:59:00Z",
+                        "url": "https://github.com/owner/repo/pull/42",
+                    }
+                ],
+            }
+        },
+    )
+    sync_feedback_status(user_id=admin_id, db=db)
+    assert (
+        db.query(AgentOutcome)
+        .filter(
+            AgentOutcome.decision_id == decision.id,
+            AgentOutcome.outcome_type == "github_pull_merged",
+        )
+        .count()
+        == 1
+    )
+
+
+def test_sync_records_pull_draft_to_ready_transition(db_with_users, monkeypatch):
+    """A ready-for-review handoff remains visible as a distinct PR outcome."""
+    from api import github_issues
+    from api.routes.feedback import sync_feedback_status
+    from db.agent_loop import record_decision
+    from db.models import AgentOutcome, Feedback
+
+    db, _, admin_id, user_id = db_with_users
+    row = Feedback(
+        user_id=user_id,
+        kind="bug",
+        message="x",
+        status="issue_created",
+        github_issue_number=101,
+    )
+    db.add(row)
+    db.flush()
+    decision = record_decision(
+        db,
+        loop="change",
+        subject_type="feedback",
+        subject_ref=str(row.id),
+        policy_name="change.agent_ready",
+        policy_version="agent-ready-v2",
+        prompt_version=None,
+        model="test",
+        mode="active",
+        input_data={"detail_word_count": 1, "detail_alnum_count": 20},
+        output_data={
+            "agent_ready_candidate": True,
+            "agent_ready_applied": True,
+        },
+    )
+    db.commit()
+
+    outcomes = [
+        {
+            "state": "open",
+            "state_reason": None,
+            "closed_at": None,
+            "updated_at": "2026-07-20T00:10:00Z",
+            "agent_ready": True,
+            "closing_pull_requests": [
+                {
+                    "number": 42,
+                    "state": "open",
+                    "is_draft": True,
+                    "merged": False,
+                    "updated_at": "2026-07-20T00:10:00Z",
+                    "merged_at": None,
+                    "closed_at": None,
+                    "url": "https://github.com/owner/repo/pull/42",
+                }
+            ],
+        },
+        {
+            "state": "open",
+            "state_reason": None,
+            "closed_at": None,
+            "updated_at": "2026-07-20T00:20:00Z",
+            "agent_ready": True,
+            "closing_pull_requests": [
+                {
+                    "number": 42,
+                    "state": "open",
+                    "is_draft": False,
+                    "merged": False,
+                    "updated_at": "2026-07-20T00:20:00Z",
+                    "merged_at": None,
+                    "closed_at": None,
+                    "url": "https://github.com/owner/repo/pull/42",
+                }
+            ],
+        },
+    ]
+    monkeypatch.setattr(github_issues, "is_configured", lambda: True)
+    monkeypatch.setattr(
+        github_issues,
+        "get_issue_outcome",
+        lambda number: outcomes.pop(0),
+    )
+
+    sync_feedback_status(user_id=admin_id, db=db)
+    sync_feedback_status(user_id=admin_id, db=db)
+
+    pull_outcomes = (
+        db.query(AgentOutcome)
+        .filter(
+            AgentOutcome.decision_id == decision.id,
+            AgentOutcome.outcome_type == "github_pull_open",
+        )
+        .order_by(AgentOutcome.id.asc())
+        .all()
+    )
+    assert [item.payload_json["is_draft"] for item in pull_outcomes] == [
+        True,
+        False,
+    ]
 
 
 def test_sync_reopens_resolved_when_issue_open(db_with_users, monkeypatch):
