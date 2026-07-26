@@ -709,7 +709,16 @@ def translate_yaml_tree(source_dir: Path, target_dir: Path, language: str) -> No
             ),
         )
         translated = _parse_yaml_response(text, list(to_translate.keys()))
-        new_data = dict(data)
+        if "pillar" in data:
+            # Theory locale files carry prose only. Parameters, citations, and
+            # registry links remain canonical in the English source.
+            new_data = {
+                key: data[key]
+                for key in ("id", "pillar")
+                if key in data
+            }
+        else:
+            new_data = dict(data)
         new_data.update(translated)
 
         dst_path.parent.mkdir(parents=True, exist_ok=True)

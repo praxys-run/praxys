@@ -1,0 +1,413 @@
+schema_version: 1
+id: sdr-heat-adaptation-v1
+version: 1
+title: "Interpret recent heat exposure as qualitative adaptation evidence"
+status: accepted
+decision_date: 2026-07-25
+owners:
+  - team:praxys
+human_reviewers:
+  - github:dddtc2005
+model_version: heat-adaptation-v7
+evidence_review_ids:
+  - evidence-heat-adaptation-v1
+  - evidence-heat-decay-v1
+  - evidence-environmental-performance-v1
+evidence_claim_ids:
+  - environment.stull-wet-bulb-proxy
+  - environment.heat-balance-multifactor
+  - environment.relative-humidity-insufficient
+  - heat-adaptation.hot-dry-primary
+  - heat-adaptation.repeated-exposure
+  - heat-adaptation.female-response
+  - heat-decay.system-specific
+  - heat-decay.reinduction-faster
+  - heat-decay.no-seven-day-plateau
+  - heat-safety.separate-from-adaptation
+  - environment.wbgt-population-performance
+  - environment.temperature-nonlinear
+  - environment.hot-dry-and-humid
+  - environment.full-wbgt-inputs
+  - environment.no-universal-personal-correction
+accepted_interpretation: >
+  Praxys may present a conservative qualitative stage based on recent,
+  provider-verifiable outdoor temperature, humidity, and provider-aligned
+  split or sample power. The result describes exposure evidence compatible with
+  adaptation to similar conditions; it is not a direct physiological measure,
+  personal heat limit, performance correction, current-condition assessment,
+  or medical safety decision. Stage thresholds and environmental weighting are
+  explicit Praxys heuristics. Retention must be described as gradual and
+  response-specific rather than fully preserved through a fixed plateau.
+rejected_alternatives:
+  - alternative: Present a universal 0 to 100 acclimation score or exact personal adaptation percentage.
+    rationale: >
+      The reviewed systems adapt and decay differently, and the field inputs do
+      not directly measure physiological adaptation.
+  - alternative: Apply one population heat coefficient to recorded pace, power, load, critical power, or race forecasts.
+    rationale: >
+      Population performance effects vary by discipline, performance level,
+      acclimation, and environmental measurement method.
+  - alternative: Use activity average power to decide whether exposure counts.
+    rationale: >
+      Warm-up, cooldown, recovery, and stops dilute activity averages; only
+      provider-aligned samples or splits can represent workload.
+  - alternative: Treat the Stull psychrometric wet-bulb proxy as outdoor WBGT.
+    rationale: >
+      Outdoor WBGT also requires natural wet-bulb and globe-temperature inputs,
+      including wind and solar radiation.
+  - alternative: Treat adaptation as fully retained through day seven and then decaying uniformly.
+    rationale: >
+      Daanen's seven-day value was a review inclusion criterion, while observed
+      heart-rate and core-temperature adaptation declined progressively and
+      sweat-rate retention followed a different course.
+  - alternative: Infer a strong stage from duration, pace, or heart rate when compatible power provenance is absent.
+    rationale: >
+      A validated low-confidence non-power path does not yet exist; omission is
+      safer than manufacturing equivalent evidence.
+model_parameters:
+  - name: wet_bulb_method
+    value: stull_psychrometric
+    classification: published
+    evidence_claim_ids:
+      - environment.stull-wet-bulb-proxy
+    applies_to: analysis.metrics.estimate_wet_bulb_c
+  - name: wet_bulb_valid_temperature_c
+    value: [-20, 50]
+    classification: published
+    evidence_claim_ids:
+      - environment.stull-wet-bulb-proxy
+    applies_to: analysis.metrics.estimate_wet_bulb_c
+  - name: wet_bulb_valid_relative_humidity_pct
+    value: [5, 99]
+    classification: published
+    evidence_claim_ids:
+      - environment.stull-wet-bulb-proxy
+    applies_to: analysis.metrics.estimate_wet_bulb_c
+  - name: wet_bulb_cold_corner_temperature_below_c
+    value: 0
+    classification: guardrail
+    evidence_claim_ids:
+      - environment.stull-wet-bulb-proxy
+    rationale: >
+      Stull excludes combinations of low humidity and cold temperature but does
+      not define a simple rectangular boundary in the abstract. Praxys uses
+      zero degrees C as one conservative edge; this has no physiological
+      meaning and is immaterial to heat-exposure scoring.
+    applies_to: analysis.metrics.estimate_wet_bulb_c
+  - name: wet_bulb_cold_corner_humidity_below_pct
+    value: 50
+    classification: guardrail
+    evidence_claim_ids:
+      - environment.stull-wet-bulb-proxy
+    rationale: >
+      Stull excludes combinations of low humidity and cold temperature but does
+      not define a simple rectangular boundary in the abstract. Praxys treats
+      relative humidity below fifty percent as the other conservative edge;
+      this has no physiological meaning.
+    applies_to: analysis.metrics.estimate_wet_bulb_c
+  - name: activity_environment_temperature_c
+    value: [-20, 50]
+    classification: guardrail
+    rationale: >
+      Rejects implausible or corrupt activity-summary weather while retaining
+      the full marginal temperature range needed by the wet-bulb proxy and
+      separate dry-heat ramp. It is not a safety or adaptation threshold.
+    applies_to: analysis.metrics.compute_heat_adaptation
+  - name: activity_environment_relative_humidity_pct
+    value: [0, 100]
+    classification: guardrail
+    rationale: >
+      Restricts connector activity-summary humidity to its physical percentage
+      range. Values outside Stull's narrower range may still support the
+      separate dry-heat ramp; this is not a physiological threshold.
+    applies_to: analysis.metrics.compute_heat_adaptation
+  - name: value_precision_decimals
+    value: 1
+    classification: guardrail
+    rationale: >
+      Keeps public values and threshold comparisons deterministic at one
+      decimal place. The quantization has no physiological meaning.
+    applies_to: analysis.metrics.compute_heat_adaptation
+  - name: active_window_days
+    value: 14
+    classification: estimate
+    evidence_claim_ids:
+      - heat-adaptation.repeated-exposure
+    rationale: >
+      Uses the upper edge of the common one-to-two-week evidence window as a
+      bounded operational lookback; it is not a biological expiry date.
+    applies_to: data/science/heat/praxys_heat_evidence.yaml#params.active_window_days
+  - name: minimum_power_fraction_cp
+    value: 0.5
+    classification: guardrail
+    evidence_claim_ids:
+      - heat-adaptation.hot-dry-primary
+    rationale: >
+      Excludes low-work warm-up, cooldown, and recovery time. Fifty percent CP
+      is not the sixty percent VO2max protocol used by Nielsen and is not a
+      published adaptation threshold.
+    applies_to: data/science/heat/praxys_heat_evidence.yaml#params.minimum_power_fraction_cp
+  - name: sample_coverage_ratio
+    value: 0.9
+    classification: guardrail
+    rationale: >
+      Prevents a short high-power sample fragment from replacing complete
+      splits; this is a data-quality rule with no physiological meaning.
+    applies_to: data/science/heat/praxys_heat_evidence.yaml#params.sample_coverage_ratio
+  - name: qualifying_effective_minutes
+    value: 30
+    classification: estimate
+    evidence_claim_ids:
+      - heat-adaptation.repeated-exposure
+    rationale: >
+      Represents a conservative product floor below common controlled sessions;
+      no reviewed source validates thirty weighted field minutes as sufficient.
+    applies_to: data/science/heat/praxys_heat_evidence.yaml#params.qualifying_effective_minutes
+  - name: building_days
+    value: 2
+    classification: estimate
+    evidence_claim_ids:
+      - heat-adaptation.repeated-exposure
+    rationale: >
+      Gives early repeated exposure a cautious Building label without claiming
+      physiological adaptation; no paper defines this boundary.
+    applies_to: data/science/heat/praxys_heat_evidence.yaml#params.building_days
+  - name: building_effective_minutes
+    value: 60
+    classification: estimate
+    evidence_claim_ids:
+      - heat-adaptation.repeated-exposure
+    rationale: >
+      Pairs the two-day Building heuristic with weighted exposure time; it is
+      not a validated dose equation.
+    applies_to: data/science/heat/praxys_heat_evidence.yaml#params.building_effective_minutes
+  - name: likely_adapted_days
+    value: 7
+    classification: estimate
+    evidence_claim_ids:
+      - heat-adaptation.repeated-exposure
+    rationale: >
+      Seven qualifying days is the optimistic edge of evidence commonly
+      spanning roughly 7 to 14 days, so the stage remains "likely" and
+      qualitative rather than confirming adaptation.
+    applies_to: data/science/heat/praxys_heat_evidence.yaml#params.likely_adapted_days
+  - name: likely_adapted_effective_minutes
+    value: 420
+    classification: estimate
+    evidence_claim_ids:
+      - heat-adaptation.repeated-exposure
+    rationale: >
+      Seven nominal sixty-minute weighted days make the day threshold harder to
+      satisfy with brief or marginal exposure; the total is a Praxys heuristic.
+    applies_to: data/science/heat/praxys_heat_evidence.yaml#params.likely_adapted_effective_minutes
+  - name: wet_bulb_reference_c
+    value: 18
+    classification: estimate
+    evidence_claim_ids:
+      - environment.stull-wet-bulb-proxy
+      - environment.wbgt-population-performance
+    rationale: >
+      Starts an operational humid-heat weighting ramp; no reviewed source
+      defines 18 degrees C psychrometric wet bulb as an adaptation threshold.
+    applies_to: data/science/heat/praxys_heat_evidence.yaml#params.wet_bulb_reference_c
+  - name: wet_bulb_full_weight_c
+    value: 26
+    classification: estimate
+    evidence_claim_ids:
+      - environment.stull-wet-bulb-proxy
+      - environment.wbgt-population-performance
+    rationale: >
+      Caps the operational humid-heat ramp; psychrometric wet bulb is not WBGT
+      and 26 degrees C is not a published full-dose boundary.
+    applies_to: data/science/heat/praxys_heat_evidence.yaml#params.wet_bulb_full_weight_c
+  - name: dry_bulb_reference_c
+    value: 30
+    classification: estimate
+    evidence_claim_ids:
+      - heat-adaptation.hot-dry-primary
+      - environment.heat-balance-multifactor
+    rationale: >
+      Starts a separate hot-dry field-evidence ramp below common laboratory
+      protocols; no reviewed source defines 30 degrees C as a minimum threshold.
+    applies_to: data/science/heat/praxys_heat_evidence.yaml#params.dry_bulb_reference_c
+  - name: dry_bulb_full_weight_c
+    value: 40
+    classification: estimate
+    evidence_claim_ids:
+      - heat-adaptation.hot-dry-primary
+    rationale: >
+      Uses the controlled Nielsen hot-dry condition as the upper operational
+      anchor without treating it as a universal physiological cutoff.
+    applies_to: data/science/heat/praxys_heat_evidence.yaml#params.dry_bulb_full_weight_c
+  - name: decay_start_days
+    value: 7
+    classification: estimate
+    evidence_claim_ids:
+      - heat-decay.system-specific
+      - heat-decay.no-seven-day-plateau
+    rationale: >
+      Separates Maintaining from Decaying product copy but does not imply full
+      retention through day seven; Daanen used seven days as an inclusion rule.
+    applies_to: data/science/heat/praxys_heat_evidence.yaml#params.decay_start_days
+  - name: decay_end_days
+    value: 28
+    classification: estimate
+    evidence_claim_ids:
+      - heat-decay.system-specific
+      - heat-decay.reinduction-faster
+    rationale: >
+      Bounds retained-history copy at four weeks, when group-level heart-rate
+      and core-temperature adaptation may have substantially declined; the
+      paper does not define a universal 28-day endpoint.
+    applies_to: data/science/heat/praxys_heat_evidence.yaml#params.decay_end_days
+  - name: reacclimation_min_post_gap_sessions
+    value: 1
+    classification: estimate
+    evidence_claim_ids:
+      - heat-decay.reinduction-faster
+    rationale: >
+      One qualifying exposure after a gap is enough to label the evidence as
+      reacclimating, not to claim completed physiological reacclimation. No
+      reviewed source validates a one-session biological threshold.
+    applies_to: analysis.metrics.compute_heat_adaptation
+  - name: environment_weight_combination
+    value: max
+    classification: estimate
+    evidence_claim_ids:
+      - environment.heat-balance-multifactor
+      - environment.relative-humidity-insufficient
+    rationale: >
+      Uses the stronger dry- or humid-heat ramp without double-counting them;
+      this is not a validated physiological dose equation.
+    applies_to: analysis.metrics._heat_environment_weight
+  - name: lookback_days
+    value: 56
+    classification: guardrail
+    rationale: >
+      Keeps enough history to find a prior qualifying block and the 28-day
+      recency band while bounding data loading.
+    applies_to: analysis.metrics.HEAT_LOOKBACK_DAYS
+  - name: sample_max_interval_sec
+    value: 5
+    classification: guardrail
+    rationale: >
+      Accepts common one- to two-hertz streams without manufacturing duration
+      across smart-recording gaps.
+    applies_to: analysis.metrics.HEAT_SAMPLE_MAX_INTERVAL_SEC
+  - name: confidence_moderate_activity_count
+    value: 2
+    classification: guardrail
+    rationale: >
+      Labels input coverage only and mirrors the Building day count; it is not
+      the probability that an athlete is adapted.
+    applies_to: analysis.metrics._HEAT_CONFIDENCE_MODERATE_ACTIVITY_COUNT
+  - name: confidence_high_activity_count
+    value: 7
+    classification: guardrail
+    rationale: >
+      Labels input coverage only and mirrors the likely-adapted day count; it
+      is not physiological confidence.
+    applies_to: analysis.metrics._HEAT_CONFIDENCE_HIGH_ACTIVITY_COUNT
+  - name: public_session_limit
+    value: 20
+    classification: guardrail
+    rationale: >
+      Bounds API and mobile timeline payloads while retaining more than the
+      active fourteen-day window.
+    applies_to: analysis.metrics._HEAT_PUBLIC_SESSION_LIMIT
+  - name: supported_environment_sources
+    value:
+      - coros_activity_weather
+      - garmin_activity_weather
+      - stryd_activity_weather
+    classification: guardrail
+    rationale: >
+      Only explicit outdoor connector weather provenance may contribute;
+      arbitrary imported labels cannot become supported evidence.
+    applies_to: analysis.metrics._HEAT_SUPPORTED_ENVIRONMENT_SOURCES
+  - name: eligible_activity_types
+    value:
+      - running
+      - trail_running
+    classification: guardrail
+    rationale: >
+      Restricts the first model to locomotor activities for which the workload
+      and product interpretation were implemented and tested.
+    applies_to: analysis.metrics.HEAT_ELIGIBLE_ACTIVITY_TYPES and analysis.data_loader.load_heat_adaptation_inputs
+  - name: provider_alignment_required
+    value: true
+    classification: guardrail
+    rationale: >
+      Prevents watts from different or unknown provider pipelines being treated
+      as directly comparable to the current critical-power source.
+    applies_to: analysis.metrics.compute_heat_adaptation
+  - name: restrictive_today_recommendations
+    value:
+      - unscheduled
+      - easy
+      - modify
+      - reduce_intensity
+      - rest
+    classification: guardrail
+    rationale: >
+      Enumerates canonical Today states that must suppress this tracker's own
+      normal-training action so heat evidence never overrides recovery guidance.
+    applies_to: analysis.metrics._HEAT_RESTRICTIVE_TODAY_RECOMMENDATIONS
+  - name: heat_exposure_actions
+    value:
+      - continue_normal_training
+      - maintain_normal_training
+      - no_additional_heat_needed
+    classification: guardrail
+    rationale: >
+      Limits suppression to actions owned by the heat tracker rather than
+      mutating unrelated canonical Today output.
+    applies_to: analysis.metrics._HEAT_EXPOSURE_ACTIONS
+applicability:
+  - Recent outdoor running or trail-running sessions with supported activity weather
+  - Timestamped or split power whose provider is known and matches the critical-power provider
+  - Qualitative evidence about adaptation to conditions similar to recent included sessions
+user_facing_claim_limits:
+  - Say "evidence consistent with" or "likely adapted," never confirm physiological adaptation
+  - Do not show an exact acclimation or decay percentage
+  - Do not call the Stull proxy WBGT or ambient measurement when provenance does not support it
+  - Do not claim a personal heat limit, safety state, hydration state, or core temperature
+  - Do not apply population performance coefficients as personal corrections
+  - Keep English and Chinese meaning aligned while resolving shared citations from this registry
+safety_implications:
+  - Prior adaptation evidence cannot override the canonical Today recommendation
+  - The tracker must not prescribe extra heat solely to improve a stage
+  - Heat-illness symptoms require stop-and-cool guidance and urgent care for confusion, collapse, or altered mental state
+privacy_implications:
+  - Use activity-level environmental provenance without exposing precise GPS
+  - Do not infer or persist medical status from weather or wearable observations
+validation_plan:
+  - Keep unit tests for split/sample workload selection and the prohibition on activity average power
+  - Validate every theory parameter and code-facing source link against this accepted SDR
+  - Backtest any stage or ramp change before a model-version bump
+  - Add matched-workload heart-rate validation as a separately reviewed phase
+  - Re-run science review when a source, claim, parameter, or user-facing interpretation changes
+falsification_conditions:
+  - Field validation shows stages do not discriminate matched-workload response or repeat reliably
+  - New synthesis contradicts the assumed acquisition or decay time course
+  - Provider weather provenance is too biased or incomplete for the stated condition range
+  - A threshold change cannot be justified as evidence-linked or explicitly heuristic
+affected_surfaces:
+  models:
+    - heat/praxys_heat_evidence
+  apis:
+    - dashboard.heat_adaptation
+    - training.heat_adaptation
+  clients:
+    - web/Training heat-adaptation panel
+    - miniapp/training heat-adaptation sheet
+    - Today heat-adaptation summaries
+  science_notes:
+    - Heat adaptation theory detail
+    - Heat adaptation evidence sources
+supersedes: []
+decision_notes:
+  - The qualitative model shipped in PR #446 and was refined in PRs #449, #450, and #451.
+  - Issues #444, #457, and #459 preserve the maintainer-vetted research and product boundaries.
+  - The published Stull temperature and humidity ranges are marginal bounds, not a fully valid rectangle; the explicit cold/low-humidity guardrail preserves that exclusion.
+  - Acceptance records an existing shipped product interpretation; future behavior changes require a superseding SDR and model-version bump.

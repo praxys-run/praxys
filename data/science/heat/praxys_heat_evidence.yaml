@@ -2,6 +2,8 @@ id: praxys_heat_evidence
 pillar: heat
 name: "Praxys Heat Acclimatization Evidence"
 author: Praxys
+model_version: heat-adaptation-v7
+science_decision_id: sdr-heat-adaptation-v1
 description: >
   A fixed Praxys operational model that interprets recent outdoor
   temperature, humidity, and verified running-power evidence against
@@ -44,8 +46,8 @@ advanced_description: |
   | Insufficient evidence | No retained prior block and current evidence remains below the general Building threshold |
   | Building | At least 2 qualifying days and 60 effective minutes, or qualifying exposure has resumed after a long gap from a prior block |
   | Likely adapted | At least 7 qualifying days and 420 effective minutes in 14 days |
-  | Maintaining | A prior qualifying block remains retained through day 7 after the latest included exposure |
-  | Decaying | A prior qualifying block is more than 7 and no more than 28 days past the latest included exposure |
+  | Maintaining | The latest included exposure is no more than 7 days ago; some prior adaptation may persist, but complete retention is not assumed |
+  | Decaying | The latest included exposure is more than 7 and no more than 28 days ago; response-specific adaptations may be declining at different rates |
 
   Typical controlled protocols use about 60-90 minutes per day for 7-14 days,
   but the exact Praxys ramps, effective-minute calculation, stage thresholds,
@@ -68,55 +70,6 @@ advanced_description: |
   limited. This model is not medical clearance or a heat-illness risk
   assessment. Stop exercise and begin cooling for heat-illness symptoms; seek
   urgent medical help for confusion, collapse, or altered mental status.
-citations:
-  - key: stull2011
-    title: "Wet-Bulb Temperature from Relative Humidity and Air Temperature"
-    authors: "Stull, R."
-    year: 2011
-    journal: "Journal of Applied Meteorology and Climatology"
-    url: "https://doi.org/10.1175/JAMC-D-11-0143.1"
-  - key: cramerjay2016
-    title: "Biophysical aspects of human thermoregulation during heat stress"
-    authors: "Cramer, M. N.; Jay, O."
-    year: 2016
-    journal: "Autonomic Neuroscience"
-    url: "https://doi.org/10.1016/j.autneu.2016.03.001"
-  - key: nielsen1993
-    title: "Human circulatory and thermoregulatory adaptations with heat acclimation and exercise in a hot, dry environment"
-    authors: "Nielsen, B. et al."
-    year: 1993
-    journal: "The Journal of Physiology"
-    url: "https://doi.org/10.1113/jphysiol.1993.sp019482"
-  - key: racinais2015
-    title: "Consensus recommendations on training and competing in the heat"
-    authors: "Racinais, S. et al."
-    year: 2015
-    journal: "British Journal of Sports Medicine"
-    url: "https://doi.org/10.1136/bjsports-2015-094915"
-  - key: tyler2016
-    title: "The Effects of Heat Adaptation on Physiology, Perception and Exercise Performance in the Heat"
-    authors: "Tyler, C. J. et al."
-    year: 2016
-    journal: "Sports Medicine"
-    url: "https://doi.org/10.1007/s40279-016-0538-5"
-  - key: daanen2018
-    title: "A systematic review on the decay and re-induction of heat acclimation"
-    authors: "Daanen, H. A. M. et al."
-    year: 2018
-    journal: "Sports Medicine"
-    url: "https://doi.org/10.1007/s40279-017-0808-x"
-  - key: kelly2023
-    title: "Heat acclimation and acclimatisation in female athletes"
-    authors: "Kelly, M. et al."
-    year: 2023
-    journal: "Sports Medicine"
-    url: "https://doi.org/10.1007/s40279-023-01831-2"
-  - key: casa2015
-    title: "National Athletic Trainers' Association Position Statement: Exertional Heat Illnesses"
-    authors: "Casa, D. J. et al."
-    year: 2015
-    journal: "Journal of Athletic Training"
-    url: "https://doi.org/10.4085/1062-6050-50.9.07"
 params:
   active_window_days: 14
   minimum_power_fraction_cp: 0.5

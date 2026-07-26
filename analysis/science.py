@@ -1,8 +1,9 @@
 """Science framework: load, validate, and recommend training models.
 
 User-selectable pillars and fixed operational models are stored as YAML files
-in ``data/science/{pillar}/``. Label sets (cosmetic zone names) are stored in
-``data/science/labels/``.
+in ``data/science/{pillar}/``. Linked models resolve citations and parameter
+provenance through the versioned evidence registry. Label sets (cosmetic zone
+names) are stored in ``data/science/labels/``.
 """
 import logging
 import os
@@ -23,6 +24,22 @@ FIXED_PILLARS = tuple(FIXED_THEORY_IDS)
 PILLARS = SELECTABLE_PILLARS + FIXED_PILLARS
 
 _SCIENCE_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "science")
+_LOCALIZED_THEORY_FIELDS = frozenset({
+    "name",
+    "description",
+    "simple_description",
+    "advanced_description",
+})
+_LEGACY_UNREGISTERED_THEORIES = frozenset({
+    "load/banister_pmc",
+    "load/banister_ultra",
+    "prediction/critical_power",
+    "prediction/riegel",
+    "recovery/hrv_based",
+    "zones/coggan_5zone",
+    "zones/polarized_3zone",
+    "zones/pyramidal_3zone",
+})
 
 
 @dataclass
@@ -33,6 +50,8 @@ class Citation:
     authors: str | None = None
     journal: str | None = None
     url: str | None = None
+    doi: str | None = None
+    pmid: str | None = None
     note: str | None = None
 
 
@@ -71,6 +90,9 @@ class Theory:
     advanced_description: str = ""
     author: str = "system"
     citations: list[Citation] = field(default_factory=list)
+    science_decision_id: str | None = None
+    evidence_review_ids: list[str] = field(default_factory=list)
+    model_version: str | None = None
     params: dict[str, Any] = field(default_factory=dict)
     tsb_zones: list[TsbZone] = field(default_factory=list)
     # Populated after merging with label file:
@@ -121,6 +143,25 @@ def _parse_tsb_zones(raw: list[dict] | None) -> list[TsbZone]:
     return [TsbZone(min=z.get("min"), max=z.get("max")) for z in raw]
 
 
+def _theory_provenance_values(
+    params: dict[str, Any],
+    signal: dict[str, Any],
+    diagnosis: dict[str, Any],
+    tsb_zones: list[dict] | None,
+) -> dict[str, Any]:
+    """Collect every canonical value that can change theory behavior."""
+    values = dict(params)
+    values.update(
+        (f"signal.{name}", value) for name, value in signal.items()
+    )
+    values.update(
+        (f"diagnosis.{name}", value) for name, value in diagnosis.items()
+    )
+    if tsb_zones is not None:
+        values["tsb_zones"] = tsb_zones
+    return values
+
+
 def _locale_theory_path(pillar: str, theory_id: str, locale: str | None) -> str:
     """Return the YAML path for a theory, preferring `<locale>/<pillar>/<id>.yaml`
     and falling back to the English tree at `<pillar>/<id>.yaml`. Missing locales
@@ -137,9 +178,9 @@ def load_theory(pillar: str, theory_id: str, locale: str | None = None) -> Theor
     """Load a single theory YAML file.
 
     When `locale` is set and a matching file exists under
-    `data/science/<locale>/<pillar>/<theory_id>.yaml` it takes precedence over
-    the English source. Missing translations silently fall back to English so
-    newly added theories keep working in every locale.
+    `data/science/<locale>/<pillar>/<theory_id>.yaml`, its user-facing prose
+    overrides the English source. Scientific parameters and provenance always
+    come from English. Missing translations silently fall back to English.
 
     Validates params against the pillar-specific Pydantic schema at load time.
     Raises pydantic.ValidationError if required fields are missing or wrong type.
@@ -150,16 +191,89 @@ def load_theory(pillar: str, theory_id: str, locale: str | None = None) -> Theor
         validate_theory_params,
     )
 
+    base_path = os.path.join(_SCIENCE_DIR, pillar, f"{theory_id}.yaml")
     path = _locale_theory_path(pillar, theory_id, locale)
+    if not os.path.exists(base_path):
+        raise FileNotFoundError(f"English base theory not found: {base_path}")
     if not os.path.exists(path):
         raise FileNotFoundError(f"Theory not found: {path}")
-    with open(path, encoding="utf-8") as f:
-        data = yaml.safe_load(f)
+    with open(base_path, encoding="utf-8") as f:
+        base_data = yaml.safe_load(f)
+    if path == base_path:
+        data = base_data
+    else:
+        with open(path, encoding="utf-8") as f:
+            localized_data = yaml.safe_load(f)
+        # English is authoritative for parameters and provenance. Localized
+        # files may override prose while omitting shared registry metadata.
+        localized_overrides = {
+            key: value
+            for key, value in (localized_data or {}).items()
+            if key in _LOCALIZED_THEORY_FIELDS
+        }
+        data = {**base_data, **localized_overrides}
 
     # Validate and retain normalized/defaulted theory configuration.
     params = validate_theory_params(pillar, data.get("params", {}))
-    signal = validate_signal_params(data.get("signal", {}))
-    diagnosis = validate_diagnosis_params(data.get("diagnosis", {}))
+    signal = validate_signal_params(
+        data.get("signal", {}),
+        apply_defaults=pillar == "load",
+    )
+    diagnosis = validate_diagnosis_params(
+        data.get("diagnosis", {}),
+        apply_defaults=pillar == "load",
+    )
+    science_decision_id = data.get("science_decision_id")
+    model_version = data.get("model_version")
+    model_key = f"{pillar}/{theory_id}"
+    evidence_review_ids: list[str] = []
+    citations = _parse_citations(data.get("citations"))
+    if science_decision_id:
+        if data.get("citations"):
+            raise ValueError(
+                f"Theory {pillar}/{theory_id} must resolve citations from "
+                f"{science_decision_id}, not duplicate them"
+            )
+        if not model_version:
+            raise ValueError(
+                f"Theory {pillar}/{theory_id} requires model_version"
+            )
+        if pillar == "load" and not data.get("tsb_zones"):
+            raise ValueError(
+                f"Registered load theory {model_key} requires tsb_zones"
+            )
+        from analysis.evidence_registry import load_science_registry
+
+        registry = load_science_registry()
+        decision = registry.validate_theory_link(
+            decision_id=science_decision_id,
+            model_key=model_key,
+            model_version=model_version,
+            params=_theory_provenance_values(
+                params,
+                signal,
+                diagnosis,
+                data.get("tsb_zones"),
+            ),
+        )
+        evidence_review_ids = list(decision.evidence_review_ids)
+        citations = [
+            Citation(
+                key=source.id,
+                title=source.title,
+                year=source.year,
+                authors="; ".join(source.authors),
+                journal=source.journal,
+                url=source.stable_url,
+                doi=source.doi,
+                pmid=source.pmid,
+            )
+            for source in registry.citations_for_decision(science_decision_id)
+        ]
+    elif model_key not in _LEGACY_UNREGISTERED_THEORIES:
+        raise ValueError(
+            f"Theory {model_key} must link an accepted Science Decision Record"
+        )
 
     theory = Theory(
         id=data["id"],
@@ -169,7 +283,10 @@ def load_theory(pillar: str, theory_id: str, locale: str | None = None) -> Theor
         simple_description=data.get("simple_description", ""),
         advanced_description=data.get("advanced_description", ""),
         author=data.get("author", "system"),
-        citations=_parse_citations(data.get("citations")),
+        citations=citations,
+        science_decision_id=science_decision_id,
+        evidence_review_ids=evidence_review_ids,
+        model_version=model_version,
         params=params,
         tsb_zones=_parse_tsb_zones(data.get("tsb_zones")),
         signal=signal,

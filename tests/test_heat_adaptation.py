@@ -121,6 +121,9 @@ def test_estimate_wet_bulb_c_matches_stull_and_rejects_invalid_inputs():
     assert estimate_wet_bulb_c(30.0, 100.0) is None
     assert estimate_wet_bulb_c(55.0, 70.0) is None
     assert estimate_wet_bulb_c(30.0, 2.0) is None
+    assert estimate_wet_bulb_c(-20.0, 5.0) is None
+    assert estimate_wet_bulb_c(-1.0, 49.0) is None
+    assert estimate_wet_bulb_c(-1.0, 50.0) is not None
 
 
 def test_heat_adaptation_counts_hot_dry_exposure_without_double_counting():

@@ -151,17 +151,25 @@ def validate_theory_params(pillar: str, params: dict[str, Any]) -> dict[str, Any
     return validated.model_dump()
 
 
-def validate_signal_params(signal: dict[str, Any]) -> dict[str, Any]:
-    """Validate signal params if present."""
-    if not signal:
+def validate_signal_params(
+    signal: dict[str, Any],
+    *,
+    apply_defaults: bool = False,
+) -> dict[str, Any]:
+    """Validate signal params when present or when runtime defaults apply."""
+    if not signal and not apply_defaults:
         return signal
     validated = SignalParams.model_validate(signal)
     return validated.model_dump()
 
 
-def validate_diagnosis_params(diagnosis: dict[str, Any]) -> dict[str, Any]:
-    """Validate diagnosis params if present."""
-    if not diagnosis:
+def validate_diagnosis_params(
+    diagnosis: dict[str, Any],
+    *,
+    apply_defaults: bool = False,
+) -> dict[str, Any]:
+    """Validate diagnosis params when present or when runtime defaults apply."""
+    if not diagnosis and not apply_defaults:
         return diagnosis
     validated = DiagnosisParams.model_validate(diagnosis)
     return validated.model_dump()
