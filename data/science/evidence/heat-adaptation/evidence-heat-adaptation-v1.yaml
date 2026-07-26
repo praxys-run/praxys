@@ -1,0 +1,268 @@
+schema_version: 1
+id: evidence-heat-adaptation-v1
+version: 1
+title: "Repeated-exposure heat adaptation"
+research_question: >
+  What does human exercise research support about the acquisition and
+  interpretation of heat adaptation after repeated exercise-heat exposure?
+topic: heat-adaptation
+status: accepted
+authors:
+  - agent:github-copilot
+human_reviewers:
+  - github:dddtc2005
+created_on: 2026-07-25
+reviewed_on: 2026-07-25
+intended_product_purpose: >
+  Bound the evidence claims used by the Praxys heat-adaptation tracker without
+  treating an exposure count as a direct physiological measurement.
+scope:
+  population:
+    - Trained and recreationally active adults
+    - Competitive endurance athletes
+    - Female athletes where sex-disaggregated evidence is available
+  intervention_or_exposure:
+    - Repeated exercise in controlled or naturally hot environments
+  comparator:
+    - Pre-acclimation baseline
+    - Shorter versus longer heat-adaptation protocols
+  outcomes:
+    - Core and skin temperature responses
+    - Heart-rate and sweat responses
+    - Exercise capacity or performance in heat
+method:
+  review_type: rapid
+  search_date: 2026-07-25
+  sources:
+    - name: Crossref DOI API
+      search_string: >
+        GET /works/{doi} for 10.1113/jphysiol.1993.sp019482,
+        10.1136/bjsports-2015-094915, 10.1007/s40279-016-0538-5,
+        10.1007/s40279-023-01831-2, and 10.4085/1062-6050-50.9.07
+    - name: PubMed E-utilities
+      search_string: >
+        10.1113/jphysiol.1993.sp019482[aid] OR
+        10.1136/bjsports-2015-094915[aid] OR
+        10.1007/s40279-016-0538-5[aid] OR
+        10.1007/s40279-023-01831-2[aid] OR
+        10.4085/1062-6050-50.9.07[aid]
+  inclusion_criteria:
+    - Human exercise-heat research, systematic reviews, or consensus guidance
+    - Sources that report adaptation time course, response, or safety boundaries
+    - Stable DOI metadata and an abstract or indexed record
+  exclusion_criteria:
+    - Non-human studies
+    - Passive-heat-only protocols as the sole evidence for exercise exposure
+    - Medical treatment claims outside the tracker safety boundary
+  quality_appraisal: >
+    Evidence strength reflects study design, sample size, protocol
+    heterogeneity, population coverage, and whether the claim is primary,
+    meta-analytic, or consensus evidence.
+  method_limitations:
+    - Known-source verification rather than a comprehensive discovery search
+    - Claims were checked against indexed abstracts and metadata, not every full text
+    - Tyler 2016 and Casa 2015 have published errata that must be checked before using corrected numeric details
+claims:
+  - id: heat-adaptation.repeated-exposure
+    statement: >
+      Repeated exercise-heat exposure over roughly one to two weeks produces
+      meaningful thermoregulatory, cardiovascular, perceptual, and performance
+      adaptations; protocol duration and response magnitude vary.
+    source_ids:
+      - nielsen-1993
+      - racinais-2015
+      - tyler-2016
+      - kelly-2023
+    evidence_strength: high
+    effect_estimates:
+      - metric: Common protocol duration
+        range_low: 7
+        range_high: 14
+        unit: days
+        context: Consensus and meta-analytic range; longer protocols can produce greater adaptation
+      - metric: Female protocol duration associated with favorable moderators
+        range_low: 8
+        range_high: 14
+        unit: days
+        context: Kelly 2023 female-specific meta-analysis
+    applicable_population:
+      - Adults exercising repeatedly in hot conditions
+      - Endurance athletes represented by the included literature
+    domain:
+      - Heat adaptation acquisition
+      - Exercise in heat
+    limitations:
+      - Protocols and environmental conditions are heterogeneous
+      - Evidence remains predominantly male despite newer female-specific synthesis
+      - A population protocol does not confirm adaptation in one athlete
+      - No included source validates a wearable-derived exposure score
+  - id: heat-adaptation.hot-dry-primary
+    statement: >
+      In a small controlled hot-dry study, 9 to 12 consecutive exercise days at
+      40 degrees C and 10 percent relative humidity improved endurance and
+      attenuated heart-rate and core-temperature rise while increasing sweating.
+    source_ids:
+      - nielsen-1993
+    evidence_strength: low
+    effect_estimates:
+      - metric: Mean endurance time change
+        estimate: 67
+        unit: percent
+        context: Eight participants exercising to exhaustion at 60 percent VO2max
+      - metric: Mean protocol duration
+        range_low: 9
+        range_high: 12
+        unit: consecutive days
+        context: Controlled 40 degrees C and 10 percent relative humidity
+    applicable_population:
+      - Trained adults similar to the eight-person study sample
+    domain:
+      - Hot-dry exercise
+      - Controlled laboratory acclimation
+    limitations:
+      - Eight participants and no female-specific result
+      - Hot-dry exercise-to-exhaustion protocol limits field generalization
+      - Sixty percent VO2max is not interchangeable with fifty percent critical power
+  - id: heat-adaptation.female-response
+    statement: >
+      Female-specific synthesis supports reductions in resting and exercising
+      core temperature, skin temperature, and heart rate plus increased sweat
+      rate and improved performance, but did not find significant plasma-volume
+      expansion.
+    source_ids:
+      - kelly-2023
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Exercise core-temperature standardized effect
+        estimate: -0.81
+        range_low: -1.01
+        range_high: -0.60
+        unit: standardized effect size
+        context: Female-specific meta-analysis
+      - metric: Performance standardized effect
+        estimate: 1.00
+        range_low: 0.56
+        range_high: 1.45
+        unit: standardized effect size
+        context: Female-specific meta-analysis
+    applicable_population:
+      - Trained and recreationally active females
+    domain:
+      - Sex-specific heat adaptation
+    limitations:
+      - Thirty studies were included and protocols remained heterogeneous
+      - Search coverage ended in December 2022
+      - Female decay and re-induction rates were not established
+  - id: heat-safety.separate-from-adaptation
+    statement: >
+      Evidence of prior adaptation is not medical clearance or a current
+      heat-illness risk assessment; exertional heat-illness prevention,
+      recognition, immediate cooling, and emergency response require separate
+      safety guidance.
+    source_ids:
+      - casa-2015
+    evidence_strength: moderate
+    applicable_population:
+      - Competitive athletes and physically active people in hot conditions
+    domain:
+      - Exertional heat-illness safety
+      - Product claim boundaries
+    limitations:
+      - Clinical position statement rather than a performance study
+      - The 2017 erratum must be consulted before using corrected numeric details
+citations:
+  - id: nielsen-1993
+    title: "Human circulatory and thermoregulatory adaptations with heat acclimation and exercise in a hot, dry environment"
+    authors:
+      - B. Nielsen
+      - J. R. Hales
+      - S. Strange
+      - N. J. Christensen
+      - J. Warberg
+      - B. Saltin
+    year: 1993
+    journal: The Journal of Physiology
+    doi: 10.1113/jphysiol.1993.sp019482
+    pmid: "8487204"
+  - id: racinais-2015
+    title: "Consensus recommendations on training and competing in the heat"
+    authors:
+      - S. Racinais
+      - J. M. Alonso
+      - A. J. Coutts
+      - A. D. Flouris
+      - O. Girard
+      - J. Gonzalez-Alonso
+      - C. Hausswirth
+      - O. Jay
+      - J. K. W. Lee
+      - N. Mitchell
+      - G. P. Nassis
+      - L. Nybo
+      - B. M. Pluim
+      - B. Roelands
+      - M. N. Sawka
+      - J. Wingo
+      - J. D. Periard
+    year: 2015
+    journal: British Journal of Sports Medicine
+    doi: 10.1136/bjsports-2015-094915
+    pmid: "26069301"
+  - id: tyler-2016
+    title: "The Effects of Heat Adaptation on Physiology, Perception and Exercise Performance in the Heat: A Meta-Analysis"
+    authors:
+      - Christopher J. Tyler
+      - Tom Reeve
+      - Gary J. Hodges
+      - Stephen S. Cheung
+    year: 2016
+    journal: Sports Medicine
+    doi: 10.1007/s40279-016-0538-5
+    pmid: "27106556"
+  - id: kelly-2023
+    title: "Heat Adaptation for Females: A Systematic Review and Meta-Analysis of Physiological Adaptations and Exercise Performance in the Heat"
+    authors:
+      - Monica K. Kelly
+      - Steven J. Bowe
+      - William T. Jardine
+      - Dominique Condo
+      - John H. Guy
+      - Rodney J. Snow
+      - Aaron J. Carr
+    year: 2023
+    journal: Sports Medicine
+    doi: 10.1007/s40279-023-01831-2
+    pmid: "37222863"
+  - id: casa-2015
+    title: "National Athletic Trainers' Association Position Statement: Exertional Heat Illnesses"
+    authors:
+      - Douglas J. Casa
+      - Julie K. DeMartini
+      - Michael F. Bergeron
+      - David Csillan
+      - E. Randy Eichner
+      - Rebecca M. Lopez
+      - Michael S. Ferrara
+      - Kevin C. Miller
+      - Francis O'Connor
+      - Michael N. Sawka
+      - Susan W. Yeargin
+    year: 2015
+    journal: Journal of Athletic Training
+    doi: 10.4085/1062-6050-50.9.07
+    pmid: "26381473"
+known_gaps:
+  - Minimum effective exposure intensity and duration for variable outdoor field training
+  - Validation of wearable-derived effective heat minutes against physiological adaptation
+  - Sex-differentiated decay and re-induction evidence
+  - Recreational and older-athlete protocol evidence
+conflicting_findings:
+  - Male-dominated literature often reports plasma-volume expansion, while Kelly 2023 found no significant female plasma-volume change
+  - Longer protocols generally produce greater adaptation, so a single day-count boundary cannot represent all response systems
+follow_up_questions:
+  - Which field measurements can validate that an exposure-count model tracks individual response?
+  - What low-confidence evidence path is appropriate when compatible power data is unavailable?
+  - Do the Tyler 2016 or Casa 2015 errata alter any values later used by Praxys?
+review_notes:
+  - Product scope was maintainer-vetted in issues #457 and #459.
+  - The shipped qualitative tracker originated in PR #446 and was refined in PRs #449 and #451.

@@ -26,7 +26,7 @@ const METRIC_STAGE_LABELS: Record<HeatAdaptationStage, ReturnType<typeof msg>> =
   insufficient_evidence: msg`Not established`,
   building: msg`Developing`,
   likely_adapted: msg`Likely adapted`,
-  maintaining: msg`Likely retained`,
+  maintaining: msg`Some adaptation may persist`,
   decaying: msg`Fading`,
 };
 
@@ -116,13 +116,19 @@ function metricStageLabel(status: HeatAdaptationStatus): ReturnType<typeof msg> 
 function stageConclusion(status: HeatAdaptationStatus): ReturnType<typeof msg> {
   if (status.is_reacclimating) return msg`Heat adaptation may be rebuilding.`;
   if (status.stage === 'likely_adapted') {
+    if (
+      status.days_since_last_exposure != null
+      && status.days_since_last_exposure > 0
+    ) {
+      return msg`Recent training meets the model's exposure threshold, but response-specific adaptation evidence may already be declining since the latest qualifying session.`;
+    }
     return msg`Likely adapted to similar recent conditions.`;
   }
   if (status.stage === 'maintaining') {
-    return msg`Prior heat adaptation is likely still retained.`;
+    return msg`Some prior heat adaptation may persist, while response-specific evidence may already be declining.`;
   }
   if (status.stage === 'building') return msg`Heat adaptation may be developing.`;
-  if (status.stage === 'decaying') return msg`Prior heat adaptation evidence is fading.`;
+  if (status.stage === 'decaying') return msg`Prior heat adaptation evidence may be declining.`;
   return msg`Heat adaptation is not established.`;
 }
 
@@ -131,20 +137,26 @@ function stageInterpretation(status: HeatAdaptationStatus): ReturnType<typeof ms
     return msg`Qualifying exposure has resumed after a longer gap, but current evidence is still limited.`;
   }
   if (status.stage === 'likely_adapted') {
+    if (
+      status.days_since_last_exposure != null
+      && status.days_since_last_exposure > 0
+    ) {
+      return msg`The rolling exposure threshold is still met, but it does not establish a retention plateau; response-specific adaptations may already be declining.`;
+    }
     return msg`Recent training meets the model's conservative evidence threshold for acclimatization to similar conditions.`;
   }
   if (status.stage === 'maintaining') {
     return status.recent_conditions
-      ? msg`A prior qualifying block remains inside the model's operational retention window. The range shown here describes current qualifying evidence, not that retained block.`
-      : msg`A prior qualifying block remains inside the model's operational retention window.`;
+      ? msg`A prior qualifying block can still inform this qualitative stage, but response-specific adaptations may already be declining. The range shown here describes current qualifying evidence, not that prior block.`
+      : msg`A prior qualifying block can still inform this qualitative stage, but response-specific adaptations may already be declining.`;
   }
   if (status.stage === 'building') {
     return msg`Recent training clears the Building threshold but remains below the conservative Likely adapted stage.`;
   }
   if (status.stage === 'decaying') {
     return status.recent_conditions
-      ? msg`The last qualifying block is beyond the initial retention window, so retained evidence is declining. The range shown here describes current qualifying evidence, not that prior block.`
-      : msg`The last qualifying block is beyond the initial retention window, so retained evidence is declining.`;
+      ? msg`A prior qualifying block still informs this qualitative stage, but response-specific adaptation evidence is declining. The range shown here describes current qualifying evidence, not that prior block.`
+      : msg`A prior qualifying block still informs this qualitative stage, but response-specific adaptation evidence is declining.`;
   }
   return msg`Recent training remains below the model's Building threshold.`;
 }

@@ -1172,9 +1172,30 @@ def compute_load_compliance_pct(
 
 # --- Heat adaptation -------------------------------------------------------
 
+_HEAT_SCIENCE_DECISION_ID = "sdr-heat-adaptation-v1"
+_HEAT_MODEL_VERSION = "heat-adaptation-v8"
+
 # Stull (2011) DOI: 10.1175/JAMC-D-11-0143.1 provides the humidity-aware
 # wet-bulb approximation. It does not model wind or solar radiation and must
 # not be presented as WBGT.
+_HEAT_WET_BULB_METHOD = "stull_psychrometric"
+_HEAT_WET_BULB_VALID_TEMPERATURE_C = (-20.0, 50.0)
+_HEAT_WET_BULB_VALID_RELATIVE_HUMIDITY_PCT = (5.0, 99.0)
+# PRODUCT GUARDRAIL -- Stull excludes combinations of low humidity and cold
+# temperature without defining a simple rectangular boundary in the abstract.
+# This conservative corner is immaterial to heat-exposure scoring but prevents
+# the published marginal ranges from being misread as a fully valid rectangle.
+_HEAT_WET_BULB_COLD_CORNER_TEMPERATURE_BELOW_C = 0.0
+_HEAT_WET_BULB_COLD_CORNER_HUMIDITY_BELOW_PCT = 50.0
+# PRODUCT GUARDRAIL -- retain plausible connector values for dry-heat scoring
+# while rejecting corrupt activity-summary weather. These are data gates, not
+# the narrower Stull formula domain or physiological safety limits.
+_HEAT_ACTIVITY_ENVIRONMENT_TEMPERATURE_C = (-20.0, 50.0)
+_HEAT_ACTIVITY_ENVIRONMENT_RELATIVE_HUMIDITY_PCT = (0.0, 100.0)
+# PRODUCT GUARDRAIL -- environmental and exposure values used by stage
+# boundaries share deterministic one-decimal quantization. Coverage ratios keep
+# their raw value so the public diagnostic cannot round across its threshold.
+_HEAT_VALUE_PRECISION_DECIMALS = 1
 # ESTIMATE -- the 18-26 C weighting ramp is a Praxys evidence scale, not a
 # threshold or dose equation published by Stull.
 _HEAT_REFERENCE_WET_BULB_C = 18.0
@@ -1190,35 +1211,39 @@ _HEAT_FULL_WEIGHT_WET_BULB_C = 26.0
 # without double-counting simultaneous dry- and wet-heat stress.
 _HEAT_REFERENCE_DRY_BULB_C = 30.0
 _HEAT_FULL_WEIGHT_DRY_BULB_C = 40.0
+_HEAT_ENVIRONMENT_WEIGHT_COMBINATION = "max"
 
-# ESTIMATE -- these product guardrails translate consensus heat-acclimation
-# protocols into field-data evidence rather than claiming a validated dose
-# equation. The 50% CP floor excludes warm-up, cooldown, and recovery time;
-# it is not a physiological heat threshold. Typical protocols use roughly
-# 60-90 min/day for 7-14 days:
+# PRODUCT GUARDRAIL -- the 50% CP floor excludes warm-up, cooldown, and recovery
+# time; it is not a physiological heat threshold.
+_HEAT_MIN_POWER_FRACTION_CP = 0.50
+
+# ESTIMATE -- these thresholds translate consensus heat-acclimation protocols
+# into field-data evidence rather than claiming a validated dose equation.
+# Typical protocols use roughly 60-90 min/day for 7-14 days:
 # Racinais et al. (2015), DOI: 10.1136/bjsports-2015-094915;
 # Tyler et al. (2016), DOI: 10.1007/s40279-016-0538-5.
-_HEAT_MIN_POWER_FRACTION_CP = 0.50
 _HEAT_QUALIFYING_EFFECTIVE_MIN = 30.0
 _HEAT_ACTIVE_WINDOW_DAYS = 14
 _HEAT_ADAPTED_MIN_DAYS = 7
 _HEAT_ADAPTED_EFFECTIVE_MIN = 420.0
 _HEAT_BUILDING_MIN_DAYS = 2
 _HEAT_BUILDING_EFFECTIVE_MIN = 60.0
+
+# PRODUCT GUARDRAIL -- retain enough history to detect a prior qualifying block
+# and its bounded decay band without loading unbounded activity history.
 HEAT_LOOKBACK_DAYS = 56
 
-# ESTIMATE -- sample rows must cover 90% of activity duration before they replace
-# complete splits. This prevents a short high-power fragment from standing in for
-# the whole session; it is a Praxys data-quality gate, not a physiological cutoff.
+# PRODUCT GUARDRAIL -- sample rows must cover 90% of activity duration before
+# they replace complete splits. This prevents a short high-power fragment from
+# standing in for the whole session.
 _HEAT_SAMPLE_COVERAGE_RATIO = 0.90
 
-# ESTIMATE -- a timestamped power sample owns the interval to the next record
+# PRODUCT GUARDRAIL -- a timestamped power sample owns the interval to the next record
 # only when the gap is at most five seconds. This accepts common 1-2 Hz streams
-# without manufacturing coverage across smart-recording gaps. It is a Praxys
-# data-quality gate, not an exercise-science threshold.
+# without manufacturing coverage across smart-recording gaps.
 HEAT_SAMPLE_MAX_INTERVAL_SEC = 5.0
 
-# ESTIMATE -- evidence labels reuse the minimum day counts for "building" and
+# PRODUCT GUARDRAIL -- evidence labels reuse the minimum day counts for "building" and
 # "likely adapted." They describe input coverage, not adaptation probabilities.
 _HEAT_CONFIDENCE_MODERATE_ACTIVITY_COUNT = 2
 _HEAT_CONFIDENCE_HIGH_ACTIVITY_COUNT = 7
@@ -1235,13 +1260,19 @@ _HEAT_SUPPORTED_ENVIRONMENT_SOURCES = frozenset({
     "garmin_activity_weather",
     "stryd_activity_weather",
 })
+HEAT_ELIGIBLE_ACTIVITY_TYPES = frozenset({"running", "trail_running"})
+_HEAT_PROVIDER_ALIGNMENT_REQUIRED = True
 
 # ESTIMATE -- Daanen et al. (2018), DOI: 10.1007/s40279-017-0808-x, supports gradual
 # decay after heat acclimation and faster reacclimation, but not one universal
-# athlete-level retention curve. The 7-28 day window is therefore exposed as
-# an operational range, never an exact loss percentage.
+# athlete-level retention curve. The 7- and 28-day boundaries separate
+# qualitative product stages; they never imply a fully retained plateau or an
+# exact loss percentage.
 _HEAT_DECAY_START_DAYS = 7
 _HEAT_DECAY_END_DAYS = 28
+# ESTIMATE -- one current qualifying session after a gap is enough to describe
+# evidence as reacclimating, not to claim that reacclimation is complete.
+_HEAT_REACCLIMATION_MIN_POST_GAP_SESSIONS = 1
 
 # PRODUCT GUARDRAIL -- this tracker may suppress its own normal-training action
 # when the canonical Today signal is restrictive, but it must never override
@@ -1285,17 +1316,26 @@ def estimate_wet_bulb_c(
 
     Uses Stull's empirical approximation (2011),
     DOI: 10.1175/JAMC-D-11-0143.1. The published validity domain is
-    -20 to 50 degrees C and 5-99% RH, under the approximation's standard
-    sea-level-pressure assumption. Wind and solar radiation are absent, so
-    callers must label this as a wet-bulb proxy rather than WBGT.
+    -20 to 50 degrees C and 5-99% RH, excluding combinations of low humidity
+    and cold temperature, under the standard sea-level-pressure assumption.
+    Praxys conservatively excludes values below 0 C with RH below 50%. Wind and
+    solar radiation are absent, so callers must label this as a wet-bulb proxy
+    rather than WBGT.
     """
     temperature = _heat_number(temperature_c)
     humidity = _heat_number(relative_humidity_pct)
+    min_temperature, max_temperature = _HEAT_WET_BULB_VALID_TEMPERATURE_C
+    min_humidity, max_humidity = _HEAT_WET_BULB_VALID_RELATIVE_HUMIDITY_PCT
     if (
         temperature is None
         or humidity is None
-        or not -20 <= temperature <= 50
-        or not 5 <= humidity <= 99
+        or not min_temperature <= temperature <= max_temperature
+        or not min_humidity <= humidity <= max_humidity
+        or (
+            temperature
+            < _HEAT_WET_BULB_COLD_CORNER_TEMPERATURE_BELOW_C
+            and humidity < _HEAT_WET_BULB_COLD_CORNER_HUMIDITY_BELOW_PCT
+        )
     ):
         return None
     rh = humidity
@@ -1306,7 +1346,7 @@ def estimate_wet_bulb_c(
         + 0.00391838 * rh ** 1.5 * math.atan(0.023101 * rh)
         - 4.686035
     )
-    return round(wet_bulb, 1)
+    return round(wet_bulb, _HEAT_VALUE_PRECISION_DECIMALS)
 
 
 def _heat_environment_weight(
@@ -1339,7 +1379,12 @@ def _heat_environment_weight(
             ),
         ),
     )
-    return max(wet_weight, dry_weight)
+    if _HEAT_ENVIRONMENT_WEIGHT_COMBINATION == "max":
+        return max(wet_weight, dry_weight)
+    raise ValueError(
+        "Unsupported heat environment weight combination: "
+        f"{_HEAT_ENVIRONMENT_WEIGHT_COMBINATION}"
+    )
 
 
 def _heat_window_stats(
@@ -1361,7 +1406,7 @@ def _heat_window_stats(
                 float(session["effective_heat_minutes"])
                 for session in selected
             ),
-            1,
+            _HEAT_VALUE_PRECISION_DECIMALS,
         ),
     )
 
@@ -1420,7 +1465,7 @@ def compute_heat_adaptation(
             frame["date"].notna()
             & (frame["date"] >= cutoff)
             & (frame["date"] <= current_date)
-            & frame["activity_type"].isin(("running", "trail_running"))
+            & frame["activity_type"].isin(HEAT_ELIGIBLE_ACTIVITY_TYPES)
         ].copy()
 
     split_frame = splits.copy() if splits is not None else pd.DataFrame()
@@ -1498,11 +1543,21 @@ def compute_heat_adaptation(
             continue
         temperature = _heat_number(activity.get("temperature_c"))
         humidity = _heat_number(activity.get("relative_humidity_pct"))
+        min_activity_temperature, max_activity_temperature = (
+            _HEAT_ACTIVITY_ENVIRONMENT_TEMPERATURE_C
+        )
+        min_activity_humidity, max_activity_humidity = (
+            _HEAT_ACTIVITY_ENVIRONMENT_RELATIVE_HUMIDITY_PCT
+        )
         if (
             temperature is None
             or humidity is None
-            or not -20 <= temperature <= 50
-            or not 0 <= humidity <= 100
+            or not (
+                min_activity_temperature
+                <= temperature
+                <= max_activity_temperature
+            )
+            or not min_activity_humidity <= humidity <= max_activity_humidity
         ):
             continue
         wet_bulb = estimate_wet_bulb_c(temperature, humidity)
@@ -1516,6 +1571,7 @@ def compute_heat_adaptation(
         sample_coverage_ratio: float | None = None
         power_provider: str | None = None
         power_source_alignment = "unknown"
+        provider_alignment_satisfied = not _HEAT_PROVIDER_ALIGNMENT_REQUIRED
         if activity_id is not None:
             activity_samples = sample_frame[
                 (sample_frame["activity_id"] == activity_id)
@@ -1537,9 +1593,9 @@ def compute_heat_adaptation(
                 >= activity_duration * _HEAT_SAMPLE_COVERAGE_RATIO
             )
             if activity_duration is not None and activity_duration > 0:
-                sample_coverage_ratio = round(
-                    min(sample_coverage_seconds / activity_duration, 1.0),
-                    3,
+                sample_coverage_ratio = min(
+                    sample_coverage_seconds / activity_duration,
+                    1.0,
                 )
 
             selected_power = pd.DataFrame()
@@ -1583,6 +1639,10 @@ def compute_heat_adaptation(
             elif not has_unknown_provider and len(provider_values) > 1:
                 power_provider = "mixed"
                 power_source_alignment = "mixed"
+            provider_alignment_satisfied = (
+                not _HEAT_PROVIDER_ALIGNMENT_REQUIRED
+                or power_source_alignment == "matched"
+            )
 
             if workload_evidence:
                 power_evidence += 1
@@ -1594,7 +1654,7 @@ def compute_heat_adaptation(
             if (
                 workload_evidence
                 and power_floor is not None
-                and power_source_alignment == "matched"
+                and provider_alignment_satisfied
             ):
                 work_seconds = float(
                     selected_power.loc[
@@ -1606,7 +1666,7 @@ def compute_heat_adaptation(
         workload_evaluable = (
             workload_evidence
             and power_floor is not None
-            and power_source_alignment == "matched"
+            and provider_alignment_satisfied
         )
         if workload_evaluable:
             workload_supported += 1
@@ -1618,16 +1678,28 @@ def compute_heat_adaptation(
         # weighted evidence. The ramps are not added and do not form a
         # validated physiological dose model.
         environment_weight = _heat_environment_weight(temperature, wet_bulb)
-        effective_minutes = round(work_minutes * environment_weight, 1)
+        effective_minutes = round(
+            work_minutes * environment_weight,
+            _HEAT_VALUE_PRECISION_DECIMALS,
+        )
         session_date = activity["date"]
         sessions.append({
             "_date": session_date,
             "date": session_date.isoformat(),
             "activity_id": activity_id or "",
-            "temperature_c": round(float(temperature), 1),
-            "relative_humidity_pct": round(float(humidity), 1),
+            "temperature_c": round(
+                float(temperature),
+                _HEAT_VALUE_PRECISION_DECIMALS,
+            ),
+            "relative_humidity_pct": round(
+                float(humidity),
+                _HEAT_VALUE_PRECISION_DECIMALS,
+            ),
             "wet_bulb_c": wet_bulb,
-            "work_minutes": round(work_minutes, 1),
+            "work_minutes": round(
+                work_minutes,
+                _HEAT_VALUE_PRECISION_DECIMALS,
+            ),
             "effective_heat_minutes": effective_minutes,
             "workload_evaluable": workload_evaluable,
             "sample_coverage_ratio": sample_coverage_ratio,
@@ -1665,12 +1737,24 @@ def compute_heat_adaptation(
         recent_conditions = {
             "qualifying_session_count": len(current_qualifying),
             "temperature_c": {
-                "min": round(min(temperatures), 1),
-                "max": round(max(temperatures), 1),
+                "min": round(
+                    min(temperatures),
+                    _HEAT_VALUE_PRECISION_DECIMALS,
+                ),
+                "max": round(
+                    max(temperatures),
+                    _HEAT_VALUE_PRECISION_DECIMALS,
+                ),
             },
             "relative_humidity_pct": {
-                "min": round(min(humidities), 1),
-                "max": round(max(humidities), 1),
+                "min": round(
+                    min(humidities),
+                    _HEAT_VALUE_PRECISION_DECIMALS,
+                ),
+                "max": round(
+                    max(humidities),
+                    _HEAT_VALUE_PRECISION_DECIMALS,
+                ),
             },
         }
     qualifying_dates = sorted({
@@ -1709,7 +1793,7 @@ def compute_heat_adaptation(
             if exposure_date > historical_block_last_exposure
         ]
         if (
-            post_block_dates
+            len(post_block_dates) >= _HEAT_REACCLIMATION_MIN_POST_GAP_SESSIONS
             and days_since_last is not None
             and days_since_last <= _HEAT_DECAY_START_DAYS
         ):
@@ -1747,19 +1831,19 @@ def compute_heat_adaptation(
         stage = "insufficient_evidence"
 
     if current_adapted:
-        decay_state = "retained"
+        decay_state = "recent_threshold_met"
     elif is_reacclimating:
         decay_state = "reacclimating"
     elif historical_adapted_end is None:
         decay_state = "not_applicable"
     elif days_since_last is not None and days_since_last <= _HEAT_DECAY_START_DAYS:
-        decay_state = "within_retention_window"
+        decay_state = "adaptation_may_persist"
     elif days_since_last is not None and days_since_last <= _HEAT_DECAY_END_DAYS:
-        decay_state = "early"
+        decay_state = "evidence_declining"
     else:
-        decay_state = "advanced"
+        decay_state = "evidence_limited"
 
-    # ESTIMATE -- confidence describes evidence coverage only. It is not the
+    # PRODUCT GUARDRAIL -- confidence describes evidence coverage only. It is not the
     # probability that this individual is physiologically adapted.
     if (
         environment_supported >= _HEAT_CONFIDENCE_HIGH_ACTIVITY_COUNT
@@ -1837,10 +1921,13 @@ def compute_heat_adaptation(
             "date": cadence_date.isoformat(),
             "session_count": len(day_sessions),
             "counted_session_count": len(counted_sessions),
-            "effective_heat_minutes": round(sum(
-                session["effective_heat_minutes"]
-                for session in counted_sessions
-            ), 1),
+            "effective_heat_minutes": round(
+                sum(
+                    session["effective_heat_minutes"]
+                    for session in counted_sessions
+                ),
+                _HEAT_VALUE_PRECISION_DECIMALS,
+            ),
         })
 
     public_sessions = [
@@ -1851,11 +1938,14 @@ def compute_heat_adaptation(
         "stage": stage,
         "confidence": confidence,
         "confidence_basis": "data_coverage",
-        "model_version": "heat-adaptation-v7",
+        "model_version": _HEAT_MODEL_VERSION,
         "cp_source": cp_origin,
         "cp_power_provider": cp_provider,
         "exposure_days": exposure_days,
-        "effective_heat_minutes": round(effective_heat_minutes, 1),
+        "effective_heat_minutes": round(
+            effective_heat_minutes,
+            _HEAT_VALUE_PRECISION_DECIMALS,
+        ),
         "contributing_sessions": len(current_qualifying),
         "recent_conditions": recent_conditions,
         "days_since_last_exposure": days_since_last,
@@ -1893,8 +1983,8 @@ def compute_heat_adaptation(
         },
         "environment_proxy": {
             "type": "temperature_humidity_evidence",
-            "wet_bulb_method": "stull_psychrometric",
-            "combination": "max",
+            "wet_bulb_method": _HEAT_WET_BULB_METHOD,
+            "combination": _HEAT_ENVIRONMENT_WEIGHT_COMBINATION,
             "pressure_assumption": "standard_sea_level",
             "granularity": "activity_summary",
             "current_conditions_assessed": False,
@@ -1913,8 +2003,8 @@ def compute_heat_adaptation(
             "current_conditions_not_assessed",
             "stop_for_heat_illness_symptoms",
         ],
-        # Kelly et al. support the female-athlete evidence caveat shown by both
-        # clients; Casa et al. support the stop/cool/urgent-care safety copy.
+        # Keep this pure-function payload I/O-free. Registry tests require this
+        # link-only projection to match _HEAT_SCIENCE_DECISION_ID exactly.
         "science_sources": [
             {
                 "id": "stull-2011",
@@ -1923,6 +2013,10 @@ def compute_heat_adaptation(
             {
                 "id": "cramer-jay-2016",
                 "url": "https://doi.org/10.1016/j.autneu.2016.03.001",
+            },
+            {
+                "id": "periard-2021",
+                "url": "https://doi.org/10.1152/physrev.00038.2020",
             },
             {
                 "id": "nielsen-1993",
@@ -1937,16 +2031,32 @@ def compute_heat_adaptation(
                 "url": "https://doi.org/10.1007/s40279-016-0538-5",
             },
             {
-                "id": "daanen-2018",
-                "url": "https://doi.org/10.1007/s40279-017-0808-x",
-            },
-            {
                 "id": "kelly-2023",
                 "url": "https://doi.org/10.1007/s40279-023-01831-2",
             },
             {
+                "id": "daanen-2018",
+                "url": "https://doi.org/10.1007/s40279-017-0808-x",
+            },
+            {
                 "id": "casa-2015",
                 "url": "https://doi.org/10.4085/1062-6050-50.9.07",
+            },
+            {
+                "id": "mantzios-2022",
+                "url": "https://doi.org/10.1249/MSS.0000000000002769",
+            },
+            {
+                "id": "el-helou-2012",
+                "url": "https://doi.org/10.1371/journal.pone.0037407",
+            },
+            {
+                "id": "baillot-2021",
+                "url": "https://doi.org/10.3390/life11111149",
+            },
+            {
+                "id": "liljegren-2008",
+                "url": "https://doi.org/10.1080/15459620802310770",
             },
         ],
         "cadence": cadence,
