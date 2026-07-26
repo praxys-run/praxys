@@ -1173,7 +1173,7 @@ def compute_load_compliance_pct(
 # --- Heat adaptation -------------------------------------------------------
 
 _HEAT_SCIENCE_DECISION_ID = "sdr-heat-adaptation-v1"
-_HEAT_MODEL_VERSION = "heat-adaptation-v7"
+_HEAT_MODEL_VERSION = "heat-adaptation-v8"
 
 # Stull (2011) DOI: 10.1175/JAMC-D-11-0143.1 provides the humidity-aware
 # wet-bulb approximation. It does not model wind or solar radiation and must
@@ -1192,8 +1192,9 @@ _HEAT_WET_BULB_COLD_CORNER_HUMIDITY_BELOW_PCT = 50.0
 # the narrower Stull formula domain or physiological safety limits.
 _HEAT_ACTIVITY_ENVIRONMENT_TEMPERATURE_C = (-20.0, 50.0)
 _HEAT_ACTIVITY_ENVIRONMENT_RELATIVE_HUMIDITY_PCT = (0.0, 100.0)
-# PRODUCT GUARDRAIL -- public values and values used by stage boundaries share
-# deterministic one-decimal quantization. The precision has no physiology.
+# PRODUCT GUARDRAIL -- environmental and exposure values used by stage
+# boundaries share deterministic one-decimal quantization. Coverage ratios keep
+# their raw value so the public diagnostic cannot round across its threshold.
 _HEAT_VALUE_PRECISION_DECIMALS = 1
 # ESTIMATE -- the 18-26 C weighting ramp is a Praxys evidence scale, not a
 # threshold or dose equation published by Stull.
@@ -1264,8 +1265,9 @@ _HEAT_PROVIDER_ALIGNMENT_REQUIRED = True
 
 # ESTIMATE -- Daanen et al. (2018), DOI: 10.1007/s40279-017-0808-x, supports gradual
 # decay after heat acclimation and faster reacclimation, but not one universal
-# athlete-level retention curve. The 7-28 day window is therefore exposed as
-# an operational range, never an exact loss percentage.
+# athlete-level retention curve. The 7- and 28-day boundaries separate
+# qualitative product stages; they never imply a fully retained plateau or an
+# exact loss percentage.
 _HEAT_DECAY_START_DAYS = 7
 _HEAT_DECAY_END_DAYS = 28
 # ESTIMATE -- one current qualifying session after a gap is enough to describe
@@ -1591,9 +1593,9 @@ def compute_heat_adaptation(
                 >= activity_duration * _HEAT_SAMPLE_COVERAGE_RATIO
             )
             if activity_duration is not None and activity_duration > 0:
-                sample_coverage_ratio = round(
-                    min(sample_coverage_seconds / activity_duration, 1.0),
-                    3,
+                sample_coverage_ratio = min(
+                    sample_coverage_seconds / activity_duration,
+                    1.0,
                 )
 
             selected_power = pd.DataFrame()
@@ -1829,17 +1831,17 @@ def compute_heat_adaptation(
         stage = "insufficient_evidence"
 
     if current_adapted:
-        decay_state = "retained"
+        decay_state = "recent_threshold_met"
     elif is_reacclimating:
         decay_state = "reacclimating"
     elif historical_adapted_end is None:
         decay_state = "not_applicable"
     elif days_since_last is not None and days_since_last <= _HEAT_DECAY_START_DAYS:
-        decay_state = "within_retention_window"
+        decay_state = "adaptation_may_persist"
     elif days_since_last is not None and days_since_last <= _HEAT_DECAY_END_DAYS:
-        decay_state = "early"
+        decay_state = "evidence_declining"
     else:
-        decay_state = "advanced"
+        decay_state = "evidence_limited"
 
     # PRODUCT GUARDRAIL -- confidence describes evidence coverage only. It is not the
     # probability that this individual is physiologically adapted.

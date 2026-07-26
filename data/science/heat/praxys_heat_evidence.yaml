@@ -2,7 +2,7 @@ id: praxys_heat_evidence
 pillar: heat
 name: "Praxys Heat Acclimatization Evidence"
 author: Praxys
-model_version: heat-adaptation-v7
+model_version: heat-adaptation-v8
 science_decision_id: sdr-heat-adaptation-v1
 description: >
   A fixed Praxys operational model that interprets recent outdoor
@@ -45,8 +45,8 @@ advanced_description: |
   |---|---|
   | Insufficient evidence | No retained prior block and current evidence remains below the general Building threshold |
   | Building | At least 2 qualifying days and 60 effective minutes, or qualifying exposure has resumed after a long gap from a prior block |
-  | Likely adapted | At least 7 qualifying days and 420 effective minutes in 14 days |
-  | Maintaining | The latest included exposure is no more than 7 days ago; some prior adaptation may persist, but complete retention is not assumed |
+  | Likely adapted | At least 7 qualifying days and 420 effective minutes in 14 days; when the latest exposure is not today, response-specific evidence may already be declining |
+  | Maintaining | The latest included exposure is no more than 7 days ago; some response-specific adaptation may persist while other evidence may already be declining, so no retention plateau is assumed |
   | Decaying | The latest included exposure is more than 7 and no more than 28 days ago; response-specific adaptations may be declining at different rates |
 
   Typical controlled protocols use about 60-90 minutes per day for 7-14 days,

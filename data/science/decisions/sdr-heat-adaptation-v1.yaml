@@ -3,12 +3,12 @@ id: sdr-heat-adaptation-v1
 version: 1
 title: "Interpret recent heat exposure as qualitative adaptation evidence"
 status: accepted
-decision_date: 2026-07-25
+decision_date: 2026-07-26
 owners:
   - team:praxys
 human_reviewers:
   - github:dddtc2005
-model_version: heat-adaptation-v7
+model_version: heat-adaptation-v8
 evidence_review_ids:
   - evidence-heat-adaptation-v1
   - evidence-heat-decay-v1
@@ -125,8 +125,10 @@ model_parameters:
     value: 1
     classification: guardrail
     rationale: >
-      Keeps public values and threshold comparisons deterministic at one
-      decimal place. The quantization has no physiological meaning.
+      Keeps environmental and exposure values used by stage comparisons
+      deterministic at one decimal place. Coverage ratios remain unrounded so
+      they cannot cross the ninety-percent threshold through display
+      quantization. The precision has no physiological meaning.
     applies_to: analysis.metrics.compute_heat_adaptation
   - name: active_window_days
     value: 14
@@ -411,3 +413,7 @@ decision_notes:
   - Issues #444, #457, and #459 preserve the maintainer-vetted research and product boundaries.
   - The published Stull temperature and humidity ranges are marginal bounds, not a fully valid rectangle; the explicit cold/low-humidity guardrail preserves that exclusion.
   - Acceptance records an existing shipped product interpretation; future behavior changes require a superseding SDR and model-version bump.
+  - >
+    Version 8 replaces fixed-window and retained decay-state labels plus
+    stronger retained client copy with gradual, response-specific wording;
+    thresholds and physiological interpretation are unchanged.

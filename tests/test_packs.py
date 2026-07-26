@@ -1418,7 +1418,7 @@ def test_dashboard_data_and_packs_agree_on_signal(db_with_seeded_user):
     assert pack["signal"] == full["signal"]
     assert pack["tsb_sparkline"] == full["tsb_sparkline"]
     assert pack["warnings"] == full["warnings"]
-    assert full["heat_adaptation"]["model_version"] == "heat-adaptation-v7"
+    assert full["heat_adaptation"]["model_version"] == "heat-adaptation-v8"
 
 
 def test_build_warnings_uses_selected_cv_threshold():

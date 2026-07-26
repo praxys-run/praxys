@@ -1,0 +1,181 @@
+schema_version: 1
+id: sdr-environmental-performance-v1
+version: 1
+title: "Present environmental conditions as bounded performance context"
+status: accepted
+decision_date: 2026-07-26
+owners:
+  - team:praxys
+human_reviewers:
+  - github:dddtc2005
+model_version: environmental-performance-context-v1
+evidence_review_ids:
+  - evidence-environmental-performance-v1
+evidence_claim_ids:
+  - environment.heat-balance-multifactor
+  - environment.relative-humidity-insufficient
+  - environment.wbgt-population-performance
+  - environment.temperature-nonlinear
+  - environment.marathon-wbgt-performance-level
+  - environment.humidity-fixed-temperature-capacity
+  - environment.solar-radiation-first-order
+  - environment.stull-wet-bulb-proxy
+  - environment.full-wbgt-inputs
+  - environment.wet-bulb-not-safety-boundary
+  - environment.morphology-not-sex-coefficient
+  - environment.no-universal-personal-correction
+accepted_interpretation: >
+  The first environmental-performance surface is retrospective context for a
+  completed activity. Praxys may show connector-provided air temperature and
+  relative humidity plus derived dew point, vapor pressure, and the existing
+  Stull psychrometric wet-bulb proxy when provenance and method labels remain
+  explicit. Psychrometric wet bulb is never WBGT. Outdoor WBGT or globe
+  estimates require wind, solar radiation, moisture input, pressure input or an
+  explicit pressure assumption, and a documented method, with provider,
+  dataset, model or algorithm version, and
+  measured-versus-modeled provenance. Population studies remain context rather
+  than personal corrections. Personal pace-at-power or heart-rate-at-power
+  observations require a separately validated matched-sample design with
+  adequate split-level workload evidence and environmental spread. Heat
+  adaptation may appear as an adjacent qualitative qualifier, but it cannot
+  numerically discount the acute environmental context or count the same
+  conditions twice. A Today or forecast surface is deferred until Praxys has a
+  real current-weather or forecast input and explicit location choice.
+rejected_alternatives:
+  - alternative: Show current-weather or Today environmental advice before a real forecast or current-weather input exists.
+    rationale: >
+      Completed-activity connector weather cannot establish present or future
+      conditions.
+  - alternative: Label the Stull temperature-and-relative-humidity proxy as WBGT.
+    rationale: >
+      It estimates psychrometric wet bulb at a pressure assumption and omits the
+      natural wet-bulb and globe components required for outdoor WBGT.
+  - alternative: Estimate outdoor WBGT or globe temperature without wind, solar radiation, moisture, pressure input or assumption, and method provenance.
+    rationale: >
+      Solar and air movement are first-order heat-exchange inputs, and a number
+      without provider, dataset, version, and measured-versus-modeled provenance
+      would overstate accuracy.
+  - alternative: Apply a universal heat pace correction or produce a counterfactual finish time.
+    rationale: >
+      Reviewed associations vary by population, discipline, ability, endpoint,
+      and environmental method. Time-to-exhaustion findings are not pace
+      coefficients.
+  - alternative: Numerically reduce an acute environmental effect using the heat-adaptation stage.
+    rationale: >
+      The adaptation stage is qualitative exposure evidence, not a measured
+      personal modifier, and reusing the same conditions would double-count
+      environmental evidence.
+  - alternative: Add a sex coefficient to personalize environmental performance context.
+    rationale: >
+      Morphology explained more thermoeffector variation than sex alone in the
+      reviewed controlled study; Praxys also does not infer morphology from
+      activity records.
+  - alternative: Infer a saved home or training location from historical route traces.
+    rationale: >
+      Forecast access requires explicit user choice. Historical routes are not
+      consent to create a persistent location profile.
+  - alternative: Treat 35 degrees C wet bulb or any environmental proxy as a universal safety boundary.
+    rationale: >
+      Empirical limits vary by temperature, vapor pressure, population, and
+      metabolic demand, and Praxys is not a medical or heat-illness system.
+model_parameters: []
+applicability:
+  - Retrospective context for completed outdoor activities with explicit connector weather provenance
+  - Derived dew point, vapor pressure, or Stull psychrometric wet bulb when inputs, assumptions, units, and method version are disclosed
+  - Outdoor WBGT or globe estimates only when all required meteorological inputs and model provenance are available
+  - Population environmental-performance evidence presented as context, not as an individual causal estimate
+  - Future personal observations only after a separately reviewed matched-sample and split-level validation phase
+user_facing_claim_limits:
+  - Start with completed-activity context; do not imply today's or future weather from historical activity data
+  - Never call psychrometric wet bulb WBGT
+  - >
+    When wind or solar radiation is absent, state that radiant and convective
+    load are unobserved, confidence is limited, and outdoor WBGT or globe
+    temperature is unavailable
+  - >
+    For modeled weather, disclose provider, dataset, model or algorithm version,
+    lookup time, spatial or temporal resolution when available, and whether each
+    input was measured, interpolated, reanalyzed, or forecast
+  - Do not show a universal personal pace correction or counterfactual finish time
+  - >
+    Do not present personal pace-at-power or heart-rate-at-power effects until a
+    validated minimum matched-sample count, split-level workload rule, and
+    environmental-spread requirement are accepted in a superseding SDR
+  - Keep heat adaptation qualitative and adjacent; do not numerically discount or double-count the acute environmental context
+  - Do not add a sex coefficient or infer morphology
+  - Do not infer core temperature, hydration state, medical safety, or heat illness
+safety_implications:
+  - Environmental context is not medical clearance, a heat-illness prediction, or a safe-to-train decision
+  - The popular 35 degrees C psychrometric wet-bulb threshold must not be used as a product safety boundary
+  - Current or forecast context cannot override the canonical recovery and training recommendation
+  - Missing wind or solar radiation must reduce the claim, not be silently filled by a reassuring default
+privacy_implications:
+  - Use connector-provided historical environmental fields before any external enrichment
+  - >
+    Historical weather or reanalysis enrichment requires consent and may send
+    only coarse location and activity time; never send or store a route trace
+    for weather lookup
+  - >
+    Forecasts require an explicit choice among a saved coarse training
+    location, a per-workout location, or one-time client location permission
+  - Do not infer home or training locations from past routes
+  - Persist consent and weather provenance, and support disabling enrichment and removing saved locations
+  - One-time client location permission must not create a saved location unless the user separately chooses to save it
+validation_plan:
+  - >
+    Phase 1: ship retrospective connector-field context only, with unit tests
+    for provenance, psychrometric labels, missing-input confidence, and no route
+    trace access
+  - >
+    Phase 2: backtest consented coarse historical weather or reanalysis
+    enrichment against connector fields by provider, geography, season,
+    altitude, and data resolution before enabling it by default
+  - >
+    Phase 3: validate full outdoor WBGT or globe estimates only with complete
+    wind, solar, moisture, pressure input or explicit pressure assumption, and
+    versioned algorithms against measured reference data
+  - >
+    Phase 4: preregister matched personal pace-at-power or heart-rate-at-power
+    analyses using split-level workload, sufficient repeated samples, and
+    environmental spread; report uncertainty and withhold results when support
+    is insufficient
+  - >
+    Phase 5: add forecast or Today context only after explicit location consent,
+    forecast provenance, stale-data behavior, and location deletion flows pass
+    privacy and product validation
+falsification_conditions:
+  - Connector or enriched environmental fields cannot be reconciled to documented provenance and units
+  - Missing wind or solar radiation produces estimates users interpret as complete outdoor heat load
+  - Backtesting shows unacceptable provider, geography, altitude, season, or resolution bias
+  - Personal matched-sample observations are unstable across holdout activities or fail to separate workload from environment
+  - Users interpret population context as a personal correction, safety state, or counterfactual result
+  - Location handling sends or persists route traces or creates saved locations without explicit consent
+affected_surfaces:
+  models:
+    - environmental-performance/context
+  apis:
+    - future completed-activity environmental context
+    - future consented historical weather enrichment
+    - future current-weather or forecast context
+  clients:
+    - future web and miniapp completed-activity context
+    - future web and miniapp location consent and deletion controls
+    - future Today context only after real current-weather or forecast input
+  science_notes:
+    - Environmental performance context methodology
+    - Weather provenance and confidence limits
+supersedes: []
+decision_notes:
+  - Product scope was maintainer-vetted in issues #444, #457, and #459.
+  - >
+    Acceptance records product and research boundaries for phased implementation;
+    it does not claim that a current environmental-performance model or forecast
+    surface has shipped.
+  - >
+    The linked evidence review is a rapid known-source review. Source-specific
+    abstract, indexed-metadata, and full-text verification depth is recorded in
+    claim limitations and review notes.
+  - >
+    Numeric sample sufficiency, environmental spread, enrichment resolution,
+    and confidence thresholds remain intentionally unset pending validation; a
+    future implementation must register them as estimates or guardrails.

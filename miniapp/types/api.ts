@@ -438,10 +438,10 @@ export interface HeatAdaptationStatus {
   decay: {
     state:
       | 'not_applicable'
-      | 'retained'
-      | 'within_retention_window'
-      | 'early'
-      | 'advanced'
+      | 'recent_threshold_met'
+      | 'adaptation_may_persist'
+      | 'evidence_declining'
+      | 'evidence_limited'
       | 'reacclimating';
     start_days: number;
     end_days: number;

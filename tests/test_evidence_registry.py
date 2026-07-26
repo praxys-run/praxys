@@ -31,7 +31,10 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "evidence-heat-adaptation-v1",
         "evidence-heat-decay-v1",
     }
-    assert set(registry.decisions) == {"sdr-heat-adaptation-v1"}
+    assert set(registry.decisions) == {
+        "sdr-environmental-performance-v1",
+        "sdr-heat-adaptation-v1",
+    }
     assert all(
         review.status == "accepted"
         for review in registry.evidence_reviews.values()
@@ -39,10 +42,84 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
 
     decision = registry.decisions["sdr-heat-adaptation-v1"]
     assert decision.status == "accepted"
-    assert decision.model_version == "heat-adaptation-v7"
+    assert decision.model_version == "heat-adaptation-v8"
     assert decision.model_version == metrics._HEAT_MODEL_VERSION
     assert set(decision.evidence_review_ids) == set(registry.evidence_reviews)
     assert decision.human_reviewers == ["github:dddtc2005"]
+
+
+def test_environmental_performance_decision_preserves_product_boundaries() -> None:
+    registry = load_science_registry()
+    decision = registry.decisions["sdr-environmental-performance-v1"]
+    review = registry.evidence_reviews["evidence-environmental-performance-v1"]
+
+    assert decision.status == "accepted"
+    assert decision.model_version == "environmental-performance-context-v1"
+    assert decision.evidence_review_ids == [review.id]
+    assert decision.model_parameters == []
+    assert {
+        "environment.marathon-wbgt-performance-level",
+        "environment.humidity-fixed-temperature-capacity",
+        "environment.solar-radiation-first-order",
+        "environment.wet-bulb-not-safety-boundary",
+        "environment.morphology-not-sex-coefficient",
+    } <= set(decision.evidence_claim_ids)
+
+    limits = " ".join(decision.user_facing_claim_limits)
+    privacy = " ".join(decision.privacy_implications)
+    assert "Never call psychrometric wet bulb WBGT" in limits
+    assert "counterfactual finish time" in limits
+    assert "Do not infer core temperature" in limits
+    assert "never send or store a route trace" in privacy
+    assert "Do not infer home or training locations" in privacy
+
+
+def test_environmental_sources_record_verified_identifiers_and_review_depth() -> None:
+    review = load_science_registry().evidence_reviews[
+        "evidence-environmental-performance-v1"
+    ]
+    sources = {source.id: source for source in review.citations}
+
+    expected = {
+        "ely-2007": ("10.1249/mss.0b013e31802d3aba", "17473775"),
+        "maughan-otani-watson-2012": (
+            "10.1007/s00421-011-2206-7",
+            "22012542",
+        ),
+        "otani-2016": ("10.1007/s00421-016-3335-9", "26842928"),
+        "vecellio-2022": (
+            "10.1152/japplphysiol.00738.2021",
+            "34913738",
+        ),
+        "notley-2017": ("10.1113/EP086112", "28231604"),
+    }
+    assert {
+        source_id: (sources[source_id].doi, sources[source_id].pmid)
+        for source_id in expected
+    } == expected
+
+    notes = " ".join(review.review_notes)
+    limitations = " ".join(review.method.method_limitations)
+    assert "PubMed abstracts" in notes
+    assert "PubMed Central full text" in notes
+    assert "only the Vecellio 2022 claim received a full-text check" in limitations
+
+
+def test_heat_retention_copy_rejects_a_fixed_plateau() -> None:
+    root = Path(__file__).resolve().parents[1]
+    source_paths = [
+        root / "web" / "src" / "components" / "HeatAdaptationPanel.tsx",
+        root / "miniapp" / "utils" / "heat-adaptation.ts",
+        root / "data" / "science" / "heat" / "praxys_heat_evidence.yaml",
+        root / "data" / "science" / "zh" / "heat" / "praxys_heat_evidence.yaml",
+    ]
+    copy = "\n".join(path.read_text(encoding="utf-8") for path in source_paths)
+
+    assert "likely still retained" not in copy
+    assert "operational retention window" not in copy
+    assert "initial retention window" not in copy
+    assert "response-specific" in copy
+    assert "may already be declining" in copy
 
 
 def test_heat_theory_links_to_accepted_decision_and_shared_citations() -> None:

@@ -334,7 +334,7 @@ def test_heat_adaptation_falls_back_when_samples_are_sparse():
     assert status["evidence_thresholds"]["sample_max_interval_sec"] == 5.0
     assert {
         session["sample_coverage_ratio"] for session in status["sessions"]
-    } == {round(60 / 3600, 3)}
+    } == {60 / 3600}
 
 
 def test_heat_adaptation_uses_samples_at_exactly_ninety_percent_coverage():
@@ -358,6 +358,7 @@ def test_heat_adaptation_uses_samples_at_exactly_ninety_percent_coverage():
     assert exact["sessions"][0]["sample_coverage_ratio"] == 0.9
     assert exact["sessions"][0]["work_minutes"] == 54.0
     assert below["sessions"][0]["workload_source"] == "splits"
+    assert below["sessions"][0]["sample_coverage_ratio"] < 0.9
     assert below["sessions"][0]["work_minutes"] == 0.0
 
 
@@ -721,10 +722,10 @@ def test_heat_adaptation_maintains_then_decays_after_prior_block():
     assert maintaining["stage"] == "maintaining"
     assert maintaining["next_action"] == "maintain_normal_training"
     assert maintaining["days_since_last_exposure"] == 3
-    assert maintaining["decay"]["state"] == "within_retention_window"
+    assert maintaining["decay"]["state"] == "adaptation_may_persist"
     assert decaying["stage"] == "decaying"
     assert decaying["days_since_last_exposure"] == 10
-    assert decaying["decay"]["state"] == "early"
+    assert decaying["decay"]["state"] == "evidence_declining"
     assert decaying["next_action"] == "continue_normal_training"
 
 
@@ -737,7 +738,7 @@ def test_heat_adaptation_expires_after_decay_window():
 
     assert status["stage"] == "insufficient_evidence"
     assert status["days_since_last_exposure"] == 40
-    assert status["decay"]["state"] == "advanced"
+    assert status["decay"]["state"] == "evidence_limited"
     assert status["next_action"] == "continue_normal_training"
 
 
@@ -762,7 +763,7 @@ def test_heat_adaptation_stale_reacclimation_returns_to_decay():
     assert status["stage"] == "decaying"
     assert status["days_since_last_exposure"] == 20
     assert status["is_reacclimating"] is False
-    assert status["decay"]["state"] == "early"
+    assert status["decay"]["state"] == "evidence_declining"
 
 
 def test_heat_adaptation_reacclimates_after_a_later_long_gap():
@@ -785,7 +786,7 @@ def test_heat_adaptation_clears_reacclimation_after_new_completed_block():
 
     assert status["stage"] == "likely_adapted"
     assert status["is_reacclimating"] is False
-    assert status["decay"]["state"] == "retained"
+    assert status["decay"]["state"] == "recent_threshold_met"
 
 
 def test_heat_adaptation_reports_missing_environment_and_power_evidence():

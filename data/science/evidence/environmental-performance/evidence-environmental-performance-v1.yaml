@@ -13,7 +13,7 @@ authors:
 human_reviewers:
   - github:dddtc2005
 created_on: 2026-07-25
-reviewed_on: 2026-07-25
+reviewed_on: 2026-07-26
 intended_product_purpose: >
   Bound environmental context and proxy claims, distinguish psychrometric wet
   bulb from outdoor WBGT, and prevent one population coefficient from becoming
@@ -43,7 +43,10 @@ method:
         10.1016/j.autneu.2016.03.001, 10.1152/physrev.00038.2020,
         10.1249/MSS.0000000000002769,
         10.1371/journal.pone.0037407, 10.3390/life11111149, and
-        10.1080/15459620802310770
+        10.1080/15459620802310770,
+        10.1249/mss.0b013e31802d3aba,
+        10.1007/s00421-011-2206-7, 10.1007/s00421-016-3335-9,
+        10.1152/japplphysiol.00738.2021, and 10.1113/EP086112
     - name: PubMed E-utilities
       search_string: >
         10.1016/j.autneu.2016.03.001[aid] OR
@@ -51,7 +54,16 @@ method:
         10.1249/MSS.0000000000002769[aid] OR
         10.1371/journal.pone.0037407[aid] OR
         10.3390/life11111149[aid] OR
-        10.1080/15459620802310770[aid]
+        10.1080/15459620802310770[aid] OR
+        10.1249/mss.0b013e31802d3aba[aid] OR
+        10.1007/s00421-011-2206-7[aid] OR
+        10.1007/s00421-016-3335-9[aid] OR
+        10.1152/japplphysiol.00738.2021[aid] OR
+        10.1113/EP086112[aid]
+    - name: PubMed Central
+      search_string: >
+        Full-text check of PMCID PMC8799385 for
+        10.1152/japplphysiol.00738.2021
   inclusion_criteria:
     - Human thermoregulation or endurance-performance research
     - Large observational, controlled, integrative-review, or validated environmental-model evidence
@@ -68,7 +80,8 @@ method:
     claim.
   method_limitations:
     - Known-source verification rather than a comprehensive discovery search
-    - Claims were checked against indexed abstracts and metadata, not every full text
+    - Claims were checked against indexed abstracts and metadata; only the
+      Vecellio 2022 claim received a full-text check
     - Discipline-specific coefficients and interaction effects need deeper extraction
 claims:
   - id: environment.heat-balance-multifactor
@@ -157,6 +170,86 @@ claims:
       - Single race-time weather measurements do not capture within-race variation
       - Separate factor analyses may not resolve temperature-humidity interactions
       - Road-marathon findings are not a universal training or trail correction
+  - id: environment.marathon-wbgt-performance-level
+    statement: >
+      Across seven North American marathons, performance slowed progressively
+      as race-level WBGT increased from 5 to 25 degrees C, and slower finishing
+      populations were affected more than faster runners; these are
+      population-level road-marathon associations, not personal corrections.
+    source_ids:
+      - ely-2007
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Top-male slowing relative to course record
+        range_low: 1.7
+        range_high: 4.5
+        unit: percent
+        context: >
+          Mean slowing across WBGT quartiles from 5.1-10 to 20.1-25 degrees C
+    applicable_population:
+      - Road-marathon populations represented in the seven-race historical dataset
+    domain:
+      - Population endurance performance
+      - Road-marathon WBGT associations
+    limitations:
+      - Retrospective observational race analysis cannot establish an individual causal effect
+      - Place-based groups are not matched personal observations
+      - PubMed abstract checked; full text was not reviewed in this rapid review
+      - The result must not become a universal pace coefficient or counterfactual finish time
+  - id: environment.humidity-fixed-temperature-capacity
+    statement: >
+      In eight men cycling at 70 percent of maximum oxygen uptake at a fixed
+      warm temperature, time to exhaustion decreased as relative humidity
+      increased; this supports humidity as relevant context but not a pace or
+      time-trial coefficient.
+    source_ids:
+      - maughan-otani-watson-2012
+    evidence_strength: low
+    effect_estimates:
+      - metric: Mean time to exhaustion
+        range_low: 46
+        range_high: 68
+        unit: minutes
+        context: >
+          80 to 24 percent relative humidity, respectively, at 30.2 degrees C
+          during cycling at 70 percent maximum oxygen uptake
+    applicable_population:
+      - Men performing prolonged moderate-intensity cycling in a controlled warm chamber
+    domain:
+      - Humidity and exercise capacity
+      - Controlled laboratory exposure
+    limitations:
+      - Eight male volunteers
+      - Time to exhaustion is not equivalent to self-paced performance or pace
+      - One fixed temperature and one exercise modality
+      - PubMed abstract checked; full text was not reviewed in this rapid review
+  - id: environment.solar-radiation-first-order
+    statement: >
+      In eight men cycling at a fixed 30 degrees C and 50 percent relative
+      humidity, time to exhaustion fell progressively as simulated solar
+      radiation increased, supporting solar radiation as a first-order input
+      rather than an ignorable detail in outdoor environmental estimates.
+    source_ids:
+      - otani-2016
+    evidence_strength: low
+    effect_estimates:
+      - metric: Mean time to exhaustion
+        range_low: 23
+        range_high: 46
+        unit: minutes
+        context: >
+          800 to 0 watts per square metre simulated solar radiation,
+          respectively, at fixed temperature and relative humidity
+    applicable_population:
+      - Men performing prolonged moderate-intensity cycling in a controlled hot chamber
+    domain:
+      - Solar radiation
+      - Controlled laboratory exposure
+    limitations:
+      - Eight male volunteers
+      - Time to exhaustion is not a pace or race-performance coefficient
+      - Simulated chamber radiation does not reproduce every outdoor exposure geometry
+      - PubMed abstract checked; full text was not reviewed in this rapid review
   - id: environment.hot-dry-and-humid
     statement: >
       In ten heat-acclimated cyclists, both hot-dry and hot-humid conditions
@@ -234,6 +327,72 @@ claims:
       - Solar radiation and wind inputs are not always available
       - Validation sites were primarily U.S. industrial locations
       - WBGT context does not prove an individual performance or illness response
+  - id: environment.wet-bulb-not-safety-boundary
+    statement: >
+      Empirical uncompensable-heat limits in young healthy adults occurred below
+      the popular 35 degrees C psychrometric wet-bulb threshold and varied with
+      temperature and ambient vapor pressure, so 35 degrees C wet bulb is not a
+      valid universal product safety boundary.
+    source_ids:
+      - vecellio-2022
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Mean critical wet-bulb temperature in warm-humid protocols
+        range_low: 30.34
+        range_high: 30.96
+        unit: degrees C psychrometric wet bulb
+        context: >
+          Young healthy adults performing low-intensity cycling in controlled
+          warm-humid environments
+      - metric: Critical wet-bulb temperature in hot-dry protocols
+        range_low: 25.75
+        range_high: 27.82
+        unit: degrees C psychrometric wet bulb
+        context: >
+          Young healthy adults performing low-intensity cycling in controlled
+          hot-dry environments
+    applicable_population:
+      - Young healthy adults under the controlled low-metabolic-rate protocols studied
+    domain:
+      - Environmental limits
+      - Wet-bulb safety-claim boundary
+    limitations:
+      - Twenty-four young healthy adults; results do not define an individual exercise safety threshold
+      - Low-intensity chamber protocols do not directly represent endurance training or racing
+      - Full text checked in PubMed Central
+      - Praxys must not infer safety, heat illness, hydration, or core temperature from this evidence
+  - id: environment.morphology-not-sex-coefficient
+    statement: >
+      During compensable exercise with equivalent heat-loss requirements,
+      mass-specific surface area explained more inter-individual thermoeffector
+      variability than sex alone; the evidence does not support adding a simple
+      sex coefficient to an environmental-performance model.
+    source_ids:
+      - notley-2017
+    evidence_strength: low
+    effect_estimates:
+      - metric: Thermoeffector variance explained by mass-specific surface area
+        range_low: 10
+        range_high: 48
+        unit: percent
+        context: >
+          Cutaneous vasomotor and sudomotor responses during controlled
+          compensable cycling
+      - metric: Remaining variability explained by sex after adjustment
+        estimate: 5
+        unit: percent or less
+        context: >
+          After accounting for mean-body-temperature change and morphology
+    applicable_population:
+      - Adults performing compensable steady-state cycling under the studied conditions
+    domain:
+      - Individual variability
+      - Morphology and sex
+    limitations:
+      - Sixty participants under one compensable environment and two work rates
+      - Thermoeffector responses are not direct endurance-performance coefficients
+      - PubMed abstract checked; full text was not reviewed in this rapid review
+      - The finding does not justify inferring body morphology from activity data
   - id: environment.no-universal-personal-correction
     statement: >
       Environmental performance effects vary by discipline, performance level,
@@ -319,6 +478,62 @@ citations:
     journal: Life
     doi: 10.3390/life11111149
     pmid: "34833025"
+  - id: ely-2007
+    title: "Impact of weather on marathon-running performance"
+    authors:
+      - Matthew R. Ely
+      - Samuel N. Cheuvront
+      - William O. Roberts
+      - Scott J. Montain
+    year: 2007
+    journal: Medicine and Science in Sports and Exercise
+    doi: 10.1249/mss.0b013e31802d3aba
+    pmid: "17473775"
+  - id: maughan-otani-watson-2012
+    title: "Influence of relative humidity on prolonged exercise capacity in a warm environment"
+    authors:
+      - Ronald J. Maughan
+      - Hidenori Otani
+      - Phillip Watson
+    year: 2012
+    journal: European Journal of Applied Physiology
+    doi: 10.1007/s00421-011-2206-7
+    pmid: "22012542"
+  - id: otani-2016
+    title: "Effects of solar radiation on endurance exercise capacity in a hot environment"
+    authors:
+      - Hidenori Otani
+      - Mitsuharu Kaya
+      - Akira Tamaki
+      - Phillip Watson
+      - Ronald J. Maughan
+    year: 2016
+    journal: European Journal of Applied Physiology
+    doi: 10.1007/s00421-016-3335-9
+    pmid: "26842928"
+  - id: vecellio-2022
+    title: "Evaluating the 35 degrees C wet-bulb temperature adaptability threshold for young, healthy subjects (PSU HEAT Project)"
+    authors:
+      - Daniel J. Vecellio
+      - S. Tony Wolf
+      - Rachel M. Cottle
+      - W. Larry Kenney
+    year: 2022
+    journal: Journal of Applied Physiology
+    doi: 10.1152/japplphysiol.00738.2021
+    pmid: "34913738"
+  - id: notley-2017
+    title: "Variations in body morphology explain sex differences in thermoeffector function during compensable heat stress"
+    authors:
+      - Sean R. Notley
+      - Joonhee Park
+      - Kyoko Tagami
+      - Norikazu Ohnishi
+      - Nigel A. S. Taylor
+    year: 2017
+    journal: Experimental Physiology
+    doi: 10.1113/EP086112
+    pmid: "28231604"
   - id: liljegren-2008
     title: "Modeling the Wet Bulb Globe Temperature Using Standard Meteorological Measurements"
     authors:
@@ -336,6 +551,7 @@ known_gaps:
   - Discipline-specific effects for trail running, cycling, and interval training
   - Direct solar, wind, clothing, and route-exposure data in ordinary activity records
   - Validation of environmental proxies at altitude and across weather providers
+  - Validated minimum matched-sample and environmental-spread requirements for personal pace-at-power or heart-rate-at-power observations
 conflicting_findings:
   - El Helou 2012 did not find an independent humidity effect in mass marathons, while Mantzios 2022 found all four weather parameters informative in elite events
   - A small humid-heat cycling study found earlier central motor-drive reduction, but it cannot establish a population humidity coefficient
@@ -346,3 +562,12 @@ follow_up_questions:
 review_notes:
   - Product scope was maintainer-vetted in issues #444 and #459.
   - Population effects are recorded as context and must not alter recorded performance or existing forecasts.
+  - >
+    Crossref and PubMed/Europe PMC indexed metadata were checked for all five
+    sources added on 2026-07-26. Ely 2007, Maughan et al. 2012, Otani et al.
+    2016, and Notley et al. 2017 claims were checked against PubMed abstracts;
+    Vecellio et al. 2022 was checked against its PubMed Central full text.
+  - >
+    This remains a rapid known-source review. Abstract-derived effect estimates
+    preserve the reported study context and must not be promoted to personal
+    coefficients without full-text extraction and independent validation.
