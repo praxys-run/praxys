@@ -269,11 +269,43 @@ protected by a checked-in, text-free replay corpus:
 python scripts/replay_agent_policy.py
 ```
 
-Those outcomes train both triage precision and draft quality. They also provide
-the evidence for a future `review-required | auto-merge-candidate` policy. A
-narrow class enters shadow evaluation only after repeated clean outcomes; the
-implementation agent never evaluates itself. Shadow comparison/promotion and
-policy PRs remain tracked in **#377**.
+Those outcomes train both triage precision and draft quality. They also feed the
+default-off `review-required | auto-merge-candidate` policy:
+
+- `analysis/review_policy.py` is the pure classifier and promotion evaluator.
+- `data/agent_evals/change/review_promotion.json` stores text-free completed-PR
+  evidence. Each bucket is bound to the exact class/sensitive-path/check policy
+  fingerprint, and duplicate PR numbers cannot inflate the sample.
+- `scripts/validate_review_policy.py` blocks unsupported promotions.
+- The required `backend-tests` CI path runs that validator on every PR.
+- `selective-review.yml` evaluates same-repo Copilot PRs from trusted
+  default-branch code. It requires a closing issue that still has `agent-ready`
+  plus the trusted Copilot assignment/cross-reference lifecycle that created the
+  PR. It denies non-`main` bases, incomplete/truncated file inventories,
+  sensitive paths, missing checks, draft PRs, post-ready commits, requested
+  changes, unpromoted classes, and missing tests where applicable.
+- A qualifying PR is approved by the independent review-policy App, then normal
+  squash auto-merge is enabled. The App never bypasses the ruleset or checks.
+- Every reevaluation first marks the PR head's `selective-review-policy` status
+  pending. It becomes successful only after the run safely revokes stale state
+  or completes approval/auto-merge setup; failures remain merge-blocking.
+- `selective-review-issue-guard.yml` re-dispatches linked open PRs when the
+  issue is closed, reopened, relabeled, or reassigned; a no-longer-qualifying
+  PR has policy auto-merge disabled and receives a blocking App review.
+- `change-loop-policy-tuner.md` can edit only the proposals JSON and can create
+  only a draft PR; it cannot edit deployed policy, approve, or merge.
+
+The initial `promoted_classes` list is empty. Runtime is independently default
+off through `PRAXYS_SELECTIVE_REVIEW_ENABLED`. For rollback, set
+`PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH=true`, then dispatch the workflow with
+`selective-review-emergency-stop.yml`; it replaces policy approval with a
+blocking review and disables pending auto-merge. Per-PR evaluation uses
+per-PR concurrency, so unrelated events cannot discard a revocation. The gate
+also refuses autonomy unless the effective main-branch rules require an
+independent approval and invalidate it after a later push, and unless required
+checks are strict against the latest `main`.
+Provisioning and promotion steps:
+[setup-review-policy-app.md](./setup-review-policy-app.md).
 
 ## Security & abuse resistance
 
@@ -289,9 +321,10 @@ hidden in issue text. Defenses, in layers:
   `copilot-swe-agent` bot on a `copilot/*` branch, reviewable line-by-line. A
   zip / "patched build" / diff attached by a non-collaborator is **never** our
   flow — do not download, unzip, run, or apply it.
-- **The merge path is policy-owned** (§4). Today the maintainer decides. A future
-  no-review path must be independently allowlisted and check-gated; the coding
-  agent never self-approves or receives a broad bypass.
+- **The merge path is policy-owned** (§4). Unpromoted, sensitive, ambiguous, or
+  unstable PRs remain human-reviewed. A promoted no-review path is independently
+  allowlisted and check-gated; the coding agent never self-approves or receives a
+  bypass.
 - **The trigger is write-gated.** `agent-ready` can only be added by the triage
   bot or a maintainer — a drive-by account cannot start the loop. Keep it that
   way (don't let automation add the label from untrusted input).
@@ -344,6 +377,11 @@ and the cost is low).
   `agent-ready` recovery, and closing-PR state without fetching tracker text.
 - Admin **Operations → Agent learning** shows aggregate decision/outcome counts
   and `draft-with-review` while no class is promoted.
+- `python scripts/validate_review_policy.py` succeeds; with the committed empty
+  allowlist, a manual `Selective review gate` run reports `review-required`.
+- `gh aw validate --no-check-update` succeeds and the policy tuner lock contains
+  an exclusive `allowed-files` restriction for
+  `config/agent-loop-policy-proposals.json`.
 - A web build failure makes the required `backend-tests` aggregator fail even
   when pytest passes.
 - A manual `Change loop outcomes` run reports explicit operational tests

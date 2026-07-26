@@ -1,0 +1,38 @@
+name: Review policy validation
+
+on:
+  pull_request:
+    paths:
+      - "analysis/review_policy.py"
+      - "config/agent-loop-policies.json"
+      - "data/agent_evals/change/review_promotion.json"
+      - "scripts/validate_review_policy.py"
+      - "tests/test_review_policy.py"
+  push:
+    branches: [main]
+    paths:
+      - "analysis/review_policy.py"
+      - "config/agent-loop-policies.json"
+      - "data/agent_evals/change/review_promotion.json"
+      - "scripts/validate_review_policy.py"
+      - "tests/test_review_policy.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Validate promotion evidence
+        run: python scripts/validate_review_policy.py
+      - name: Compile policy modules
+        run: >-
+          python -m py_compile analysis/review_policy.py
+          scripts/validate_review_policy.py
+          scripts/selective_review_gate.py

@@ -95,21 +95,23 @@ should run on the same six rails:
    `scripts/replay_agent_policy.py`; pytest makes it a CI gate.
 4. **Shadow → promote.** Run a candidate policy in *compute-but-don't-act* mode
    against live traffic, compare to the current policy **and** to eventual
-   outcomes, and promote only if it wins. *Today:* the change loop has the
-   *compute-but-don't-act* half (`PRAXYS_AGENT_READY_SHADOW`); it logs but does
-   **not** yet compare/promote. *Gap:* the compare + promote half.
+   outcomes, and promote only if it wins. *Built for Loop A:* the deterministic
+   PR classifier runs default-off, and `scripts/validate_review_policy.py` blocks
+   promotion without the checked-in completed-PR evidence bar.
 5. **Policy-as-code + policy PRs.** The things agents tune — prompts, thresholds,
    `copilot-instructions.md`, runbooks — are versioned files. Improvement =
    the meta-agent opens a **PR** to change them, **gated by the eval harness +
-   human review**. Auditable, revertible, never a hidden weight update. *Today:*
-   prompts/instructions are already files; nothing opens tuning PRs yet.
+   human review**. Auditable, revertible, never a hidden weight update. *Built
+   for Loop A:* `change-loop-policy-tuner.md` can open a draft PR that modifies
+   only the proposals file; it cannot edit deployed policy, approve, or merge.
 6. **Metrics + an autonomy ladder.** Track acceptance rate, human-edit distance,
    MTTR, precision/recall, % autonomous vs escalated — and use them to move each
    task-type up or down the autonomy ladder (§5). *Today:* the 30-day observer
    reports lifecycle, readiness-CI attribution, corrections, test coverage, and
    reverts. *Built in part:* Admin Ops now shows durable decision/outcome counts
-   and the versioned autonomy state from `config/agent-loop-policies.json`;
-   per-class shadow/promotion evidence remains the Phase 2 gap.
+   and the versioned autonomy state from `config/agent-loop-policies.json`.
+   Per-class promotion evidence lives in
+   `data/agent_evals/change/review_promotion.json`.
 
 ## 5. Autonomy ladder & guardrails
 
@@ -120,12 +122,12 @@ it, and always revertible:
 suggest-only  →  draft-with-review  →  policy-gated auto-merge  →  autonomous(narrow)
 ```
 
-The change loop is currently **draft-with-maintainer-controlled-merge**. The
-target is **selective review**: an independent risk policy routes sensitive or
-uncertain PRs to a human while a repeatedly proven, narrow class can eventually
-merge without human review. The implementation agent never decides that its own
-PR is safe. Promotion starts in shadow mode and requires clean checks, no
-recorded corrections, enough post-merge observation, and a fast rollback.
+The change loop is **selective-review capable but default-off**: an independent
+risk policy routes sensitive or uncertain PRs to a human while a repeatedly
+proven, explicitly promoted narrow class can merge without human review. The
+implementation agent never decides that its own PR is safe. Promotion starts in
+shadow mode and requires clean checks, no recorded corrections, enough
+post-merge observation, and a fast kill switch.
 
 **Non-negotiable guardrails** (apply to every loop):
 
@@ -162,9 +164,9 @@ observer; generic `AgentDecision` / `AgentOutcome` records; GitHub issue/closing
 PR reconciliation; the checked-in replay corpus; Admin Ops learning aggregates;
 `feedback_scrub` + private-by-construction guardrails; the ops-agent skeleton.
 
-**Missing (the substrate):** the shadow *compare/promote* half including the
-selective-review classifier (rail 4), policy-PR generation (rail 5), and
-per-change-class promotion evidence plus the independent merge gate (rail 6).
+**Remaining generalization:** reuse these rails for incident and product loops,
+grow privacy-safe eval corpora, and promote a narrow Loop A class only after it
+accumulates the required clean evidence. No class is promoted at initial rollout.
 
 **Phases** (tracked in **#377**):
 
@@ -173,10 +175,10 @@ per-change-class promotion evidence plus the independent merge gate (rail 6).
   learn edge.
 - **Phase 1 — eval (built for `change.agent_ready`).** A correction-derived seed
   corpus and replay CI gate protect the deterministic assignment policy.
-- **Phase 2 — close the loop.** Shadow-classify `review-required` vs a named
-  narrow auto-merge candidate; promote only proven classes through an independent
-  merge policy; add a meta-agent that turns recurring misses into policy PRs and
-  a metrics/autonomy dashboard.
+- **Phase 2 — close the loop (built, default-off).** Shadow-classify
+  `review-required` vs a named narrow candidate; validate promotions against
+  completed outcomes; approve through an independent App; provide an immediate
+  kill switch; and constrain the meta-agent to draft proposal PRs.
 
 Start where signal is densest (the change loop's triage policy), prove the outer
 loop end-to-end on that one policy, then generalize the substrate to the incident
