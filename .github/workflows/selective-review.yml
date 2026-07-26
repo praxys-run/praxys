@@ -1,0 +1,279 @@
+name: Selective review gate
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review, edited]
+  workflow_run:
+    workflows: ["Backend CI"]
+    types: [completed]
+    branches-ignore: [main]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to evaluate
+        required: false
+        type: number
+
+permissions:
+  actions: read
+  checks: read
+  contents: read
+  issues: read
+  pull-requests: read
+  statuses: write
+
+concurrency:
+  group: selective-review-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || inputs.pr_number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve pull request number
+        id: target
+        env:
+          EVENT_PR_NUMBER: ${{ github.event.pull_request.number }}
+          WORKFLOW_PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          INPUT_PR_NUMBER: ${{ inputs.pr_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for value in "$EVENT_PR_NUMBER" "$WORKFLOW_PR_NUMBER" "$INPUT_PR_NUMBER"; do
+            if [[ -n "$value" && "$value" != "0" ]]; then
+              echo "pr_number=$value" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "pr_number=" >> "$GITHUB_OUTPUT"
+
+      - name: Mark policy gate pending
+        if: steps.target.outputs.pr_number != ''
+        id: gate-status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          head_sha="$(
+            gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq .head.sha
+          )"
+          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/statuses/${head_sha}" \
+            -f state=pending \
+            -f context=selective-review-policy \
+            -f description="Selective-review policy is evaluating this head." \
+            --silent
+
+      - uses: actions/checkout@v7
+        if: always()
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Mint independent policy App token
+        if: >-
+          always() &&
+          steps.target.outputs.pr_number != '' &&
+          vars.PRAXYS_REVIEW_POLICY_APP_ID != ''
+        id: policy-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.PRAXYS_REVIEW_POLICY_APP_ID }}
+          private-key: ${{ secrets.PRAXYS_REVIEW_POLICY_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Require the policy App for targeted pull requests
+        if: always() && steps.target.outputs.pr_number != ''
+        env:
+          POLICY_APP_TOKEN: ${{ steps.policy-token.outputs.token }}
+          POLICY_APP_SLUG: ${{ steps.policy-token.outputs.app-slug }}
+        shell: bash
+        run: |
+          if [[ -z "$POLICY_APP_TOKEN" || -z "$POLICY_APP_SLUG" ]]; then
+            echo "::error::The selective-review policy App is not configured."
+            exit 1
+          fi
+
+      - name: Revoke prior policy state before evaluation
+        if: always() && steps.policy-token.outputs.token != ''
+        env:
+          GH_TOKEN: ${{ steps.policy-token.outputs.token }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+          POLICY_APP_LOGIN: ${{ steps.policy-token.outputs.app-slug }}[bot]
+        run: bash .github/scripts/revoke-selective-review.sh
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Evaluate deterministic review policy
+        id: policy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+          SELECTIVE_REVIEW_ENABLED: ${{ vars.PRAXYS_SELECTIVE_REVIEW_ENABLED }}
+          SELECTIVE_REVIEW_KILL_SWITCH: ${{ vars.PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH }}
+          POLICY_APP_LOGIN: ${{ steps.policy-token.outputs.app-slug }}[bot]
+        run: python scripts/selective_review_gate.py
+
+      - name: Re-evaluate current policy state
+        if: steps.policy.outputs.decision == 'auto-merge-candidate'
+        id: final-policy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_PR_NUMBER: ${{ steps.policy.outputs.pr_number }}
+          SELECTIVE_REVIEW_ENABLED: ${{ vars.PRAXYS_SELECTIVE_REVIEW_ENABLED }}
+          SELECTIVE_REVIEW_KILL_SWITCH: ${{ vars.PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH }}
+          POLICY_APP_LOGIN: ${{ steps.policy-token.outputs.app-slug }}[bot]
+        run: python scripts/selective_review_gate.py
+
+      - name: Revoke policy state after non-candidate or evaluation failure
+        if: >-
+          always() &&
+          steps.policy-token.outputs.token != '' &&
+          steps.final-policy.outputs.decision != 'auto-merge-candidate'
+        env:
+          GH_TOKEN: ${{ steps.policy-token.outputs.token }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+          POLICY_APP_LOGIN: ${{ steps.policy-token.outputs.app-slug }}[bot]
+        run: bash .github/scripts/revoke-selective-review.sh
+
+      - name: Recheck runtime controls before approval
+        if: steps.final-policy.outputs.decision == 'auto-merge-candidate'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          POLICY_APP_TOKEN: ${{ steps.policy-token.outputs.token }}
+          POLICY_APP_SLUG: ${{ steps.policy-token.outputs.app-slug }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$POLICY_APP_TOKEN" || -z "$POLICY_APP_SLUG" ]]; then
+            echo "::error::The selective-review policy App is not configured."
+            exit 1
+          fi
+          enabled="$(
+            gh api "repos/${GITHUB_REPOSITORY}/actions/variables/PRAXYS_SELECTIVE_REVIEW_ENABLED" \
+              --jq '.value | ascii_downcase'
+          )"
+          kill_switch="$(
+            gh api "repos/${GITHUB_REPOSITORY}/actions/variables/PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH" \
+              --jq '.value | ascii_downcase'
+          )"
+          if [[ "$enabled" != "true" || "$kill_switch" == "true" ]]; then
+            echo "::error::Selective review was disabled after policy evaluation."
+            exit 1
+          fi
+
+      - name: Approve through the independent policy App
+        if: steps.final-policy.outputs.decision == 'auto-merge-candidate'
+        env:
+          GH_TOKEN: ${{ steps.policy-token.outputs.token }}
+          PR_NUMBER: ${{ steps.final-policy.outputs.pr_number }}
+          POLICY_VERSION: ${{ steps.final-policy.outputs.policy_version }}
+          HEAD_SHA: ${{ steps.final-policy.outputs.head_sha }}
+          BASE_REF: ${{ steps.final-policy.outputs.base_ref }}
+          BASE_SHA: ${{ steps.final-policy.outputs.base_sha }}
+        run: |
+          set -euo pipefail
+          marker="selective-review:${POLICY_VERSION}:${HEAD_SHA}"
+          current_pull="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          current_head="$(jq -r '.head.sha' <<< "$current_pull")"
+          current_base_ref="$(jq -r '.base.ref' <<< "$current_pull")"
+          current_base_sha="$(
+            gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${BASE_REF}" \
+              --jq .object.sha
+          )"
+          if [[ "$current_head" != "$HEAD_SHA" ||
+            "$current_base_ref" != "$BASE_REF" ||
+            "$current_base_sha" != "$BASE_SHA" ]]; then
+            echo "::error::Pull request refs changed after policy evaluation."
+            exit 1
+          fi
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews" \
+            -f event=APPROVE \
+            -f commit_id="$HEAD_SHA" \
+            -f body="Approved by the independent selective-review policy App. (${marker})"
+
+      - name: Recheck runtime controls before auto-merge
+        if: steps.final-policy.outputs.decision == 'auto-merge-candidate'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          enabled="$(
+            gh api "repos/${GITHUB_REPOSITORY}/actions/variables/PRAXYS_SELECTIVE_REVIEW_ENABLED" \
+              --jq '.value | ascii_downcase'
+          )"
+          kill_switch="$(
+            gh api "repos/${GITHUB_REPOSITORY}/actions/variables/PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH" \
+              --jq '.value | ascii_downcase'
+          )"
+          if [[ "$enabled" != "true" || "$kill_switch" == "true" ]]; then
+            echo "::error::Selective review was disabled before auto-merge."
+            exit 1
+          fi
+
+      - name: Enable normal squash auto-merge
+        if: steps.final-policy.outputs.decision == 'auto-merge-candidate'
+        env:
+          GH_TOKEN: ${{ steps.policy-token.outputs.token }}
+          PR_NUMBER: ${{ steps.final-policy.outputs.pr_number }}
+          HEAD_SHA: ${{ steps.final-policy.outputs.head_sha }}
+          BASE_REF: ${{ steps.final-policy.outputs.base_ref }}
+          BASE_SHA: ${{ steps.final-policy.outputs.base_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          current_pull="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          current_head="$(jq -r '.head.sha' <<< "$current_pull")"
+          current_base_ref="$(jq -r '.base.ref' <<< "$current_pull")"
+          current_base_sha="$(
+            gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${BASE_REF}" \
+              --jq .object.sha
+          )"
+          if [[ "$current_head" != "$HEAD_SHA" ||
+            "$current_base_ref" != "$BASE_REF" ||
+            "$current_base_sha" != "$BASE_SHA" ]]; then
+            echo "::error::Pull request refs changed before auto-merge."
+            exit 1
+          fi
+          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --auto --squash --delete-branch --match-head-commit "$HEAD_SHA"
+
+      - name: Revoke policy state after action failure
+        if: failure() && steps.policy-token.outputs.token != ''
+        env:
+          GH_TOKEN: ${{ steps.policy-token.outputs.token }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+          POLICY_APP_LOGIN: ${{ steps.policy-token.outputs.app-slug }}[bot]
+        run: bash .github/scripts/revoke-selective-review.sh
+
+      - name: Mark policy gate safe
+        if: success() && steps.gate-status.outputs.head_sha != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ steps.gate-status.outputs.head_sha }}
+        run: |
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
+            -f state=success \
+            -f context=selective-review-policy \
+            -f description="Selective-review policy completed safely." \
+            --silent
+
+      - name: Mark policy gate failed
+        if: failure() && steps.gate-status.outputs.head_sha != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ steps.gate-status.outputs.head_sha }}
+        run: |
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
+            -f state=failure \
+            -f context=selective-review-policy \
+            -f description="Selective-review policy failed; human intervention is required." \
+            --silent

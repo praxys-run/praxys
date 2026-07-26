@@ -8,6 +8,7 @@ on:
       - 'analysis/**'
       - 'sync/**'
       - 'db/**'
+      - 'config/agent-loop-policies.json'
       - 'data/science/**'
       - 'tests/**'
       - 'requirements.txt'

@@ -121,7 +121,8 @@ or `28d` (default `24h`). Every section includes `source`, `window`, `freshness`
 Database-backed attention/activity aggregates and live component health are
 combined with aggregate-only telemetry from the trusted backend Application
 Insights component: request/availability health, Azure alert instances,
-Today/Decision Check/Coach value signals, sync reliability, systemic failure
+Today/Decision Check/Coach value signals, durable agent decision/outcome
+aggregates, sync reliability, systemic failure
 clusters (at least five distinct users across systemic failure classes for one
 platform within 15 minutes), and connection outcomes. The response contains no emails, user IDs or
 pseudonyms, feedback text/screenshots, invitation codes, Coach comments, raw log
@@ -144,6 +145,7 @@ cache and may explicitly report `freshness: "stale"`.
   },
   "service_health": {"source": "live_probe", "window": "live", "freshness": "fresh", "as_of": "...", "reason": null, "data": {"overall": "operational", "components": [], "postgres_active_connections": 5, "postgres_max_connections": 100, "postgres_connection_utilization": 0.05}},
   "product_value": {"source": "praxys_database", "window": "rolling_1d_7d_30d", "freshness": "fresh", "as_of": "...", "reason": null, "data": {"registered_users": 12, "dau": 4, "wau": 9, "mau": 11, "directional": true}},
+  "agent_learning": {"source": "praxys_database", "window": "24h", "freshness": "fresh", "as_of": "...", "reason": null, "data": {"decisions_total": 5, "outcomes_total": 7, "shadow_decisions": 1, "agent_ready_candidates": 3, "agent_ready_applied": 2, "human_overrides": 1, "merged_pull_requests": 2, "decision_policy_version": "agent-ready-v2", "review_policy_version": "selective-review-v1", "promoted_classes": [], "autonomy_level": "draft_with_review"}},
   "service_telemetry": {"source": "azure_monitor", "window": "24h", "freshness": "fresh", "as_of": "...", "reason": null, "data": {"requests": 100, "failed_requests": 4, "server_errors": 2, "failed_request_rate": 0.04, "server_error_rate": 0.02, "p95_request_ms": 480.0, "availability_checks": 24, "failed_availability_checks": 1, "availability_rate": 0.9583, "p95_availability_ms": 210.0, "database_health_failures": 0}},
   "product_telemetry": {"source": "azure_monitor", "window": "28d", "freshness": "fresh", "as_of": "...", "reason": null, "data": {"surfaces": [{"surface": "web", "app_users": 10, "today_users": 8, "today_reach_rate": 0.8, "decision_prompts": 6, "decision_responses": 4, "decision_response_rate": 0.6667, "reported_value_rate": 0.75, "repeated_users": 5, "repeated_rate": 0.625}], "coach": [{"insight_type": "daily_brief", "useful_votes": 7, "total_votes": 9, "useful_rate": 0.7778}]}},
   "azure_alerts": {"source": "azure_monitor", "window": "24h", "freshness": "fresh", "as_of": "...", "reason": null, "data": {"total": 1, "firing": 0, "resolved": 1, "severity": {"sev0": 0, "sev1": 1, "sev2": 0, "sev3": 0, "sev4": 0}, "states": {"new": 1, "acknowledged": 0, "closed": 0}, "rules": [{"rule": "wt-praxys-api-health", "severity": "Sev1", "firing": 0, "resolved": 1, "last_changed_at": "..."}]}},

@@ -106,6 +106,14 @@ style:
     - bpm
 
 terms:
+  # Agentic change-loop operations
+  - en: Agent
+    zh: 智能体
+    note: Autonomous coding or operations agent, not a human representative.
+  - en: Policy gate
+    zh: 策略门禁
+    note: Automated policy enforcement before approval or merge.
+
   # Training signals / categories
   - en: Recovery
     zh: 恢复

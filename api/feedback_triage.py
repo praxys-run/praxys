@@ -27,7 +27,27 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from api import feedback_scrub, feedback_storage, feedback_vision, github_issues, llm, telemetry
+from analysis.agent_policy import (
+    AGENT_READY_POLICY_NAME,
+    AGENT_READY_POLICY_VERSION,
+    AgentReadyFacts,
+    evaluate_agent_ready,
+    has_enough_detail,
+    message_detail_counts,
+)
+from api import (
+    feedback_scrub,
+    feedback_storage,
+    feedback_vision,
+    github_issues,
+    llm,
+    telemetry,
+)
+from db.agent_loop import (
+    canonical_json_hash,
+    record_decision,
+    record_outcome,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -92,14 +112,6 @@ def _gate_blocks_publish(
 # drafting the fix; merge stays human (branch protection).
 AGENT_READY_LABEL = "agent-ready"
 
-# A cheap floor beneath the model's own actionability verdict: a terse "it's
-# broken" should not burn a coding-agent run. Whitespace-delimited languages use
-# a word floor; scripts such as Chinese that do not separate words with spaces
-# use a Unicode alphanumeric-character floor instead.
-_AGENT_MIN_DETAIL_WORDS = 6
-_AGENT_MIN_DETAIL_ALNUM_CHARS = 16
-
-
 def _agent_ready_shadow() -> bool:
     """Shadow mode: compute the agent-ready decision but never apply the label.
 
@@ -109,12 +121,20 @@ def _agent_ready_shadow() -> bool:
     return (os.environ.get("PRAXYS_AGENT_READY_SHADOW", "") or "").lower() in ("1", "true", "yes")
 
 
+def _decision_locale(locale: str | None) -> str:
+    """Reduce client locale input to a privacy-safe language bucket."""
+    normalized = (locale or "").strip().lower().replace("_", "-")
+    if normalized == "zh" or normalized.startswith("zh-"):
+        return "zh"
+    if normalized == "en" or normalized.startswith("en-"):
+        return "en"
+    return "other"
+
+
 def _has_enough_detail(message: str) -> bool:
     """Whether a report says enough for a coding agent to attempt a fix."""
-    text = (message or "").strip()
-    if len(text.split()) >= _AGENT_MIN_DETAIL_WORDS:
-        return True
-    return sum(char.isalnum() for char in text) >= _AGENT_MIN_DETAIL_ALNUM_CHARS
+    word_count, alnum_count = message_detail_counts((message or "").strip())
+    return has_enough_detail(word_count, alnum_count)
 
 
 def _qualifies_for_agent(
@@ -130,13 +150,16 @@ def _qualifies_for_agent(
     qualify: autonomy drafts a fix, never ships it, and never acts on a
     sensitive or not-really-a-bug report (issue #362).
     """
-    if kind != "bug":
-        return False
-    if gate_blocked:
-        return False
-    if not agent_eligible:
-        return False
-    return _has_enough_detail(message)
+    word_count, alnum_count = message_detail_counts((message or "").strip())
+    return evaluate_agent_ready(
+        AgentReadyFacts(
+            kind=kind,
+            gate_blocked=gate_blocked,
+            agent_eligible=bool(agent_eligible),
+            detail_word_count=word_count,
+            detail_alnum_count=alnum_count,
+        )
+    ).eligible
 
 
 def _system_prompt() -> str:
@@ -225,7 +248,7 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
         _session: Test-only injected session; otherwise a fresh ``SessionLocal``
             is opened and owned by this function.
     """
-    from db.models import Feedback
+    from db.models import AgentDecision, Feedback
     from db.session import SessionLocal
 
     owns_session = _session is None
@@ -236,8 +259,15 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
 
     row = None
     issue: dict | None = None
+    decision_id: str | None = None
+    decision_kwargs: dict | None = None
     try:
-        row = db.query(Feedback).filter(Feedback.id == feedback_id).first()
+        row = (
+            db.query(Feedback)
+            .filter(Feedback.id == feedback_id)
+            .with_for_update()
+            .first()
+        )
         if row is None:
             logger.warning("triage_and_publish: feedback %s not found", feedback_id)
             return {"status": "error", "reason": "not_found"}
@@ -245,7 +275,8 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
             # Idempotent: don't re-publish an already-handled row.
             return {"status": "skipped", "reason": row.status}
 
-        kind = row.kind if row.kind in _VALID_KINDS else "other"
+        reported_kind = row.kind if row.kind in _VALID_KINDS else "other"
+        kind = reported_kind
         clean_message = feedback_scrub.scrub_text(row.message)
         clean_context = feedback_scrub.scrub_context(row.context_json)
 
@@ -371,20 +402,28 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
         # it never lands in ai_labels for a parked row, so a later admin
         # "approve" cannot auto-assign it either. Shadow mode computes the same
         # decision but withholds the label so we can measure precision first.
-        wants_agent = _qualifies_for_agent(
-            kind=kind,
-            gate_blocked=gate_blocked,
-            agent_eligible=agent_eligible,
-            message=clean_message,
+        detail_word_count, detail_alnum_count = message_detail_counts(clean_message)
+        agent_ready_decision = evaluate_agent_ready(
+            AgentReadyFacts(
+                kind=kind,
+                gate_blocked=gate_blocked,
+                agent_eligible=bool(agent_eligible),
+                detail_word_count=detail_word_count,
+                detail_alnum_count=detail_alnum_count,
+            )
         )
         shadow = _agent_ready_shadow()
-        if wants_agent and not shadow:
+        if agent_ready_decision.eligible and not shadow:
             labels.append(AGENT_READY_LABEL)
-        if wants_agent:
-            logger.info(
-                "change-loop agent-ready decision for feedback %s: applied=%s shadow=%s",
-                feedback_id, wants_agent and not shadow, shadow,
-            )
+        logger.info(
+            "change-loop agent-ready decision for feedback %s: "
+            "candidate=%s applied=%s shadow=%s reason=%s",
+            feedback_id,
+            agent_ready_decision.eligible,
+            AGENT_READY_LABEL in labels,
+            shadow,
+            agent_ready_decision.reason,
+        )
 
         row.kind = kind
         row.priority = priority
@@ -392,16 +431,62 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
         row.ai_body = body
         row.ai_labels = labels
 
+        decision_kwargs = {
+            "loop": "change",
+            "subject_type": "feedback",
+            "subject_ref": str(feedback_id),
+            "policy_name": AGENT_READY_POLICY_NAME,
+            "policy_version": AGENT_READY_POLICY_VERSION,
+            "prompt_version": (
+                canonical_json_hash(_system_prompt())[:16] if used_llm else None
+            ),
+            "model": _TRIAGE_MODEL if used_llm else "rule-based",
+            "mode": "shadow" if shadow else "active",
+            "input_data": {
+                "reported_kind": reported_kind,
+                "locale": _decision_locale(row.locale),
+                "message_sha256": canonical_json_hash(clean_message),
+                "detail_word_count": detail_word_count,
+                "detail_alnum_count": detail_alnum_count,
+                "context_keys": sorted(clean_context),
+                "has_image": bool(image_keys),
+                "image_description_sha256": (
+                    canonical_json_hash(row.image_description)
+                    if row.image_description
+                    else None
+                ),
+                "image_sensitive": row.image_sensitive,
+            },
+            "output_data": {
+                "kind": kind,
+                "priority": priority,
+                "contains_sensitive": llm_flag if used_llm else None,
+                "agent_eligible": agent_eligible,
+                "gate_blocked": gate_blocked,
+                "agent_ready_candidate": agent_ready_decision.eligible,
+                "agent_ready_requested": AGENT_READY_LABEL in labels,
+                "agent_ready_applied": False,
+                "agent_ready_reason": agent_ready_decision.reason,
+                "labels": labels,
+                "used_llm": used_llm,
+                "used_vision": used_vision,
+            },
+        }
+        decision = record_decision(db, **decision_kwargs)
+        decision_id = decision.id
+
         if not github_issues.is_configured():
             # No GitHub configured — scrubbed + classified, awaiting manual
             # promotion from the Admin page.
             row.status = "triaged"
             row.error = None
+            outcome_type = "triaged_without_publish"
         elif gate_blocked:
             # The report may still carry sensitive content — don't auto-open a
             # public issue. Park it for an admin to review / approve.
             row.status = "needs_review"
             row.error = None
+            outcome_type = "held_for_review"
         else:
             issue = github_issues.create_issue(title=title, body=body, labels=labels)
             if issue and issue.get("number"):
@@ -409,9 +494,35 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
                 row.github_issue_url = issue.get("url")
                 row.status = "issue_created"
                 row.error = None
+                outcome_type = "github_issue_created"
+                if AGENT_READY_LABEL in labels:
+                    applied_output = {
+                        **decision.output_json,
+                        "agent_ready_applied": True,
+                    }
+                    decision.output_json = applied_output
+                    decision_kwargs["output_data"] = applied_output
             else:
                 row.status = "failed"
                 row.error = "github_publish_failed"
+                outcome_type = "github_publish_failed"
+
+        outcome_payload = {"status": row.status}
+        if row.github_issue_number is not None:
+            outcome_payload.update(
+                {
+                    "issue_number": row.github_issue_number,
+                    "issue_url": row.github_issue_url,
+                }
+            )
+        record_outcome(
+            db,
+            decision_id=decision.id,
+            outcome_type=outcome_type,
+            source="github" if outcome_type.startswith("github_") else "triage",
+            payload=outcome_payload,
+            dedupe_key=outcome_type,
+        )
 
         db.commit()
         telemetry.record_feedback(kind=kind, status=row.status)
@@ -420,10 +531,12 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
             "kind": kind,
             "used_llm": used_llm,
             "used_vision": used_vision,
-            "agent_ready": AGENT_READY_LABEL in labels,
+            "agent_ready": bool(
+                (decision.output_json or {}).get("agent_ready_applied")
+            ),
         }
 
-    except Exception:
+    except Exception as exc:
         logger.exception("triage_and_publish failed for feedback %s", feedback_id)
         try:
             # If create_issue already opened a GitHub issue but the commit
@@ -438,9 +551,45 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
                     recovered.github_issue_url = issue.get("url")
                     recovered.status = "issue_created"
                     recovered.error = None
+                    outcome_type = "github_issue_created"
                 else:
                     recovered.status = "failed"
                     recovered.error = "triage_exception"
+                    outcome_type = "triage_failed"
+                decision = (
+                    db.query(AgentDecision)
+                    .filter(AgentDecision.id == decision_id)
+                    .first()
+                    if decision_id
+                    else None
+                )
+                if decision is None and decision_kwargs is not None:
+                    decision = record_decision(db, **decision_kwargs)
+                    decision_id = decision.id
+                if decision is not None and decision.id == decision_id:
+                    payload = {
+                        "status": recovered.status,
+                        "error_type": type(exc).__name__,
+                    }
+                    if recovered.github_issue_number is not None:
+                        payload.update(
+                            {
+                                "issue_number": recovered.github_issue_number,
+                                "issue_url": recovered.github_issue_url,
+                            }
+                        )
+                    record_outcome(
+                        db,
+                        decision_id=decision.id,
+                        outcome_type=outcome_type,
+                        source=(
+                            "github"
+                            if outcome_type == "github_issue_created"
+                            else "triage"
+                        ),
+                        payload=payload,
+                        dedupe_key=outcome_type,
+                    )
                 db.commit()
                 telemetry.record_feedback(kind=recovered.kind, status=recovered.status)
                 return {"status": recovered.status}
