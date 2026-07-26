@@ -181,7 +181,7 @@ from contradicting the canonical verdict.
 
 **Hook points.** `api/routes/sync.py::_run_sync()` (the API-triggered path) and `db/sync_scheduler.py::_sync_connection()` (background scheduler) both call `run_insights_for_user(user_id, db, counts)` after `db.commit()`, wrapped in try/except.
 
-**Auth.** `api/llm.py::get_client()` uses `DefaultAzureCredential` + `get_bearer_token_provider` — same scaffolding as `scripts/translate_missing.py`. No API key path. Reasoning deployment configured via `PRAXYS_INSIGHT_MODEL`; translation deployment via `TRANSLATE_MODEL`.
+**Auth.** `api/llm.py::get_client()` uses `DefaultAzureCredential` + `get_bearer_token_provider` — same scaffolding as `scripts/translate_missing.py`. No API key path. Reasoning deployment configured via `PRAXYS_INSIGHT_MODEL`; new-string translation via `TRANSLATE_MODEL`; native-language catalog editor/critic review via `TRANSLATE_REVIEW_MODEL`.
 
 **Mini program.** Training and Goal render the same durable insight receipts as
 web with deterministic fallbacks. Today renders only the canonical deterministic
