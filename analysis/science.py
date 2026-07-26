@@ -102,7 +102,7 @@ class Theory:
     diagnosis: dict[str, Any] = field(default_factory=dict)
     # Zone framework specific:
     zone_boundaries: dict[str, list[float]] = field(default_factory=dict)
-    zone_names: dict[str, list[str]] = field(default_factory=dict)
+    zone_names: list[str] | dict[str, list[str]] = field(default_factory=dict)
     zone_count: int = 5
     target_distribution: list[float] = field(default_factory=list)
     # Prediction specific:
@@ -205,12 +205,23 @@ def load_theory(pillar: str, theory_id: str, locale: str | None = None) -> Theor
         with open(path, encoding="utf-8") as f:
             localized_data = yaml.safe_load(f)
         # English is authoritative for parameters and provenance. Localized
-        # files may override prose while omitting shared registry metadata.
+        # files may override prose and the presentation-only zone names while
+        # omitting shared registry metadata.
         localized_overrides = {
             key: value
             for key, value in (localized_data or {}).items()
             if key in _LOCALIZED_THEORY_FIELDS
         }
+        localized_params = (localized_data or {}).get("params")
+        if (
+            pillar == "zones"
+            and isinstance(localized_params, dict)
+            and "zone_names" in localized_params
+        ):
+            localized_overrides["params"] = {
+                **base_data.get("params", {}),
+                "zone_names": localized_params["zone_names"],
+            }
         data = {**base_data, **localized_overrides}
 
     # Validate and retain normalized/defaulted theory configuration.

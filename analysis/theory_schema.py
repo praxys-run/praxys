@@ -48,6 +48,17 @@ class ZoneTheoryParams(BaseModel):
                     f"boundaries[{base}] has {len(bounds)} values, "
                     f"expected {expected_boundaries} (zone_count={self.zone_count})"
                 )
+        zone_name_sets = (
+            {"default": self.zone_names}
+            if isinstance(self.zone_names, list)
+            else self.zone_names
+        )
+        for base, names in zone_name_sets.items():
+            if len(names) != self.zone_count:
+                raise ValueError(
+                    f"zone_names[{base}] has {len(names)} values, "
+                    f"expected {self.zone_count}"
+                )
         if len(self.target_distribution) != self.zone_count:
             raise ValueError(
                 "target_distribution must contain one value per zone "

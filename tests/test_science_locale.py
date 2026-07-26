@@ -8,6 +8,26 @@ import yaml
 import analysis.science as science
 
 
+ZONE_THEORIES = (
+    (
+        "coggan_5zone",
+        {
+            "power": ["恢复", "耐力", "节奏跑", "乳酸阈", "VO2max"],
+            "hr": ["恢复", "耐力", "节奏跑", "乳酸阈", "VO2max"],
+            "pace": ["恢复", "耐力", "节奏跑", "乳酸阈", "VO2max"],
+        },
+    ),
+    (
+        "polarized_3zone",
+        ["第 1 区（轻松）", "第 2 区（中等）", "第 3 区（高强度）"],
+    ),
+    (
+        "pyramidal_3zone",
+        ["第 1 区（轻松）", "第 2 区（中等）", "第 3 区（高强度）"],
+    ),
+)
+
+
 def _write_theory(path: Path, name: str, description: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(yaml.safe_dump({
@@ -66,6 +86,72 @@ def test_localized_file_cannot_override_canonical_science_fields(
     assert theory.params["atl_time_constant"] == 7
     assert theory.science_decision_id is None
     assert theory.citations == []
+
+
+@pytest.mark.parametrize(("theory_id", "expected_names"), ZONE_THEORIES)
+def test_real_zh_zone_theories_localize_names_only(
+    theory_id: str,
+    expected_names: list[str] | dict[str, list[str]],
+) -> None:
+    en = science.load_theory("zones", theory_id)
+    zh = science.load_theory("zones", theory_id, locale="zh")
+
+    assert zh.zone_names == expected_names
+    assert zh.zone_names != en.zone_names
+    assert zh.zone_boundaries == en.zone_boundaries
+    assert zh.target_distribution == en.target_distribution
+    assert {
+        key: value for key, value in zh.params.items() if key != "zone_names"
+    } == {
+        key: value for key, value in en.params.items() if key != "zone_names"
+    }
+    assert zh.citations == en.citations
+    assert zh.tsb_zones == en.tsb_zones
+
+
+def test_localized_zone_params_cannot_override_behavioral_values(
+    tmp_path: Path,
+) -> None:
+    base = {
+        "id": "coggan_5zone",
+        "pillar": "zones",
+        "name": "Test zones",
+        "description": "English",
+        "params": {
+            "zone_count": 3,
+            "boundaries": {"power": [0.8, 1.0]},
+            "zone_names": ["Easy", "Moderate", "Hard"],
+            "target_distribution": [0.8, 0.05, 0.15],
+        },
+    }
+    localized = {
+        **base,
+        "name": "测试区间",
+        "params": {
+            "zone_count": 2,
+            "boundaries": {"power": [0.5]},
+            "zone_names": ["轻松", "中等", "高强度"],
+            "target_distribution": [0.5, 0.5],
+        },
+    }
+    en_path = tmp_path / "zones" / "coggan_5zone.yaml"
+    zh_path = tmp_path / "zh" / "zones" / "coggan_5zone.yaml"
+    en_path.parent.mkdir(parents=True)
+    zh_path.parent.mkdir(parents=True)
+    en_path.write_text(yaml.safe_dump(base, sort_keys=False), encoding="utf-8")
+    zh_path.write_text(
+        yaml.safe_dump(localized, sort_keys=False),
+        encoding="utf-8",
+    )
+
+    with patch.object(science, "_SCIENCE_DIR", str(tmp_path)):
+        theory = science.load_theory("zones", "coggan_5zone", locale="zh")
+
+    assert theory.name == "测试区间"
+    assert theory.zone_names == ["轻松", "中等", "高强度"]
+    assert theory.zone_count == 3
+    assert theory.zone_boundaries == {"power": [0.8, 1.0]}
+    assert theory.target_distribution == [0.8, 0.05, 0.15]
 
 
 def test_loader_falls_back_when_locale_missing(tmp_path: Path) -> None:
