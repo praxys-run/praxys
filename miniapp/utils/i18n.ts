@@ -50,9 +50,9 @@ export function detectLocale(): Locale {
 /**
  * Translate a string. Resolution order:
  *   1. `I18N_EXTRA` — mini-program-local strings (login copy, switch-
- *      account modal, sync-now button, …). Hand-written; takes
- *      precedence so we can override any web translation that doesn't
- *      fit the mini-program voice.
+ *      account modal, sync-now button, …). Hand-written and checked against
+ *      the shared glossary. If a key also exists in the web catalog, CI
+ *      requires the Chinese value to match so the two clients cannot drift.
  *   2. `I18N_CATALOG` — auto-synced from web's lingui .po files. The
  *      vast majority of keys live here.
  *   3. The key itself — same fallback as lingui's default behavior.

@@ -1259,6 +1259,10 @@ msgstr "Create an account"
 msgid "Create and manage dismissible banners shown to all users."
 msgstr "Create and manage dismissible banners shown to all users."
 
+#: src/pages/admin/AdminIncidents.tsx:190
+msgid "Create service incident"
+msgstr "Create service incident"
+
 #: src/pages/Login.tsx:322
 msgid "Create your account."
 msgstr "Create your account."
@@ -1282,14 +1286,14 @@ msgstr "Creating account…"
 #~ msgstr "Creating..."
 
 #: src/pages/admin/AdminCommunications.tsx:219
-#: src/pages/admin/AdminIncidents.tsx:189
+#: src/pages/admin/AdminIncidents.tsx:190
 #: src/pages/admin/AdminUsers.tsx:1008
 msgid "Creating…"
 msgstr "Creating…"
 
 #: src/pages/admin/AdminFeedback.tsx:94
 #: src/pages/admin/AdminIncidents.tsx:31
-#: src/pages/admin/AdminIncidents.tsx:185
+#: src/pages/admin/AdminIncidents.tsx:186
 #: src/pages/Status.tsx:102
 msgid "Critical"
 msgstr "Critical"
@@ -1446,8 +1450,8 @@ msgid "Decision response rate"
 msgstr "Decision response rate"
 
 #: src/pages/admin/AdminIncidents.tsx:153
-msgid "Declare incidents shown on the public"
-msgstr "Declare incidents shown on the public"
+#~ msgid "Declare incidents shown on the public"
+#~ msgstr "Declare incidents shown on the public"
 
 #: src/pages/Today.tsx:120
 #~ msgid "declining"
@@ -2495,7 +2499,7 @@ msgid "I'm not training today"
 msgstr "I'm not training today"
 
 #: src/pages/admin/AdminIncidents.tsx:40
-#: src/pages/admin/AdminIncidents.tsx:244
+#: src/pages/admin/AdminIncidents.tsx:245
 #: src/pages/Status.tsx:92
 msgid "Identified"
 msgstr "Identified"
@@ -2938,7 +2942,7 @@ msgstr "Maintaining"
 #~ msgstr "Maintaining recent heat adaptation"
 
 #: src/pages/admin/AdminIncidents.tsx:29
-#: src/pages/admin/AdminIncidents.tsx:184
+#: src/pages/admin/AdminIncidents.tsx:185
 #: src/pages/Status.tsx:101
 msgid "Major"
 msgstr "Major"
@@ -3018,7 +3022,7 @@ msgid "Mini program"
 msgstr "Mini program"
 
 #: src/pages/admin/AdminIncidents.tsx:27
-#: src/pages/admin/AdminIncidents.tsx:183
+#: src/pages/admin/AdminIncidents.tsx:184
 #: src/pages/Status.tsx:100
 msgid "Minor"
 msgstr "Minor"
@@ -3078,7 +3082,7 @@ msgid "MODIFY"
 msgstr "MODIFY"
 
 #: src/pages/admin/AdminIncidents.tsx:42
-#: src/pages/admin/AdminIncidents.tsx:254
+#: src/pages/admin/AdminIncidents.tsx:255
 #: src/pages/Status.tsx:93
 msgid "Monitoring"
 msgstr "Monitoring"
@@ -3206,7 +3210,7 @@ msgstr "New"
 msgid "New announcement"
 msgstr "New announcement"
 
-#: src/pages/admin/AdminIncidents.tsx:165
+#: src/pages/admin/AdminIncidents.tsx:166
 msgid "New incident"
 msgstr "New incident"
 
@@ -3328,7 +3332,7 @@ msgstr "No heat evidence"
 msgid "No incidents reported recently."
 msgstr "No incidents reported recently."
 
-#: src/pages/admin/AdminIncidents.tsx:197
+#: src/pages/admin/AdminIncidents.tsx:198
 msgid "No incidents yet"
 msgstr "No incidents yet"
 
@@ -3633,7 +3637,7 @@ msgstr "Open"
 #~ msgid "Open an activity to see why it was included or left out. Exclusion only describes this estimate, not whether the session had training value."
 #~ msgstr "Open an activity to see why it was included or left out. Exclusion only describes this estimate, not whether the session had training value."
 
-#: src/pages/admin/AdminIncidents.tsx:198
+#: src/pages/admin/AdminIncidents.tsx:199
 msgid "Open an incident here when you need to communicate a live service issue."
 msgstr "Open an incident here when you need to communicate a live service issue."
 
@@ -3654,8 +3658,8 @@ msgid "Open feedback"
 msgstr "Open feedback"
 
 #: src/pages/admin/AdminIncidents.tsx:189
-msgid "Open incident"
-msgstr "Open incident"
+#~ msgid "Open incident"
+#~ msgstr "Open incident"
 
 #: src/pages/admin/AdminOps.tsx:442
 #~ msgid "Open telemetry queries"
@@ -3669,7 +3673,7 @@ msgstr "Open WeChat, tap the Scan button, and point your camera at this code to 
 msgid "Open, update, resolve, and remove incidents shown on the public status page."
 msgstr "Open, update, resolve, and remove incidents shown on the public status page."
 
-#: src/pages/admin/AdminIncidents.tsx:173
+#: src/pages/admin/AdminIncidents.tsx:174
 msgid "Opening update message (optional)"
 msgstr "Opening update message (optional)"
 
@@ -4071,6 +4075,10 @@ msgstr "Public status"
 msgid "Publish a banner above to communicate maintenance windows, launches, or onboarding news."
 msgstr "Publish a banner above to communicate maintenance windows, launches, or onboarding news."
 
+#: src/pages/admin/AdminIncidents.tsx:153
+msgid "Publish service updates on the <0>public status page</0>."
+msgstr "Publish service updates on the <0>public status page</0>."
+
 #: src/components/SetupChecklist.tsx:56
 msgid "Pull your latest activities, power data, and recovery metrics"
 msgstr "Pull your latest activities, power data, and recovery metrics"
@@ -4467,7 +4475,6 @@ msgstr "Region"
 
 #: src/pages/admin/AdminOps.tsx:764
 #: src/pages/admin/AdminUsers.tsx:456
-#: src/pages/admin/AdminUsers.tsx:579
 msgid "Registered"
 msgstr "Registered"
 
@@ -4482,6 +4489,10 @@ msgstr "Registered accounts."
 #: src/pages/admin/AdminUsers.tsx:385
 msgid "Registration"
 msgstr "Registration"
+
+#: src/pages/admin/AdminUsers.tsx:579
+msgid "Registration date"
+msgstr "Registration date"
 
 #: src/pages/admin/AdminUsers.tsx:340
 msgid "Registration settings unavailable"
@@ -4552,7 +4563,7 @@ msgstr "Request p95"
 msgid "Resend verification email"
 msgstr "Resend verification email"
 
-#: src/pages/admin/AdminIncidents.tsx:263
+#: src/pages/admin/AdminIncidents.tsx:264
 msgid "Resolve"
 msgstr "Resolve"
 
@@ -5055,8 +5066,8 @@ msgid "Status"
 msgstr "Status"
 
 #: src/pages/admin/AdminIncidents.tsx:155
-msgid "status page"
-msgstr "status page"
+#~ msgid "status page"
+#~ msgstr "status page"
 
 #: src/lib/phase-label.ts:12
 msgid "Steady"
@@ -5495,7 +5506,7 @@ msgstr "Time range"
 msgid "Title"
 msgstr "Title"
 
-#: src/pages/admin/AdminIncidents.tsx:168
+#: src/pages/admin/AdminIncidents.tsx:169
 msgid "Title (e.g. Elevated API latency)"
 msgstr "Title (e.g. Elevated API latency)"
 
@@ -5703,7 +5714,7 @@ msgstr "Up to date"
 msgid "Upcoming Plan"
 msgstr "Upcoming Plan"
 
-#: src/pages/admin/AdminIncidents.tsx:229
+#: src/pages/admin/AdminIncidents.tsx:230
 msgid "Update message (optional)"
 msgstr "Update message (optional)"
 

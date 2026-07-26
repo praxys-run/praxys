@@ -2,7 +2,7 @@
 /*
  * i18n coverage detector for the mini program.
  *
- * Three passes; each prints findings, exit non-zero if anything fires:
+ * Four passes; each prints findings, exit non-zero if anything fires:
  *
  *   1. Hardcoded text in WXML — element body text plus a known set of
  *      user-visible attribute values (title, placeholder, aria-label,
@@ -21,11 +21,17 @@
  *      and NOT in the allowlist. Heuristic; same-line `// i18n-allow`
  *      silences a false positive.
  *
+ *   4. Native-Chinese quality for mini-only catalog entries — EN/ZH key and
+ *      placeholder parity, shared glossary terminology/tone/typography rules,
+ *      and zero unexplained drift when a key also exists in the web catalog.
+ *
  * Wired into `npm run typecheck` via `pretypecheck` so CI catches gaps.
  */
 
 const fs = require('fs');
 const path = require('path');
+const ts = require('typescript');
+const { parse: parseYaml } = require('yaml');
 
 const ROOT = path.resolve(__dirname, '..');
 const SCAN_DIRS = ['pages', 'components', 'custom-tab-bar', 'utils'];
@@ -175,25 +181,17 @@ function loadCatalogKeys() {
   const collected = new Set();
   // i18n-catalog.ts: scoped to the `zh: {…}` block (catalog has both en
   //   and zh under a single I18N_CATALOG export, and we only care about zh).
-  // i18n-extra.ts:  scan every `const ZH_…` per-section literal. The
-  //   per-locale objects are split across multiple consts so each is
-  //   small enough to spot duplicates in by hand; there's no single
-  //   `zh: {…}` block to anchor on. Picking up every ZH_* literal is
-  //   more robust.
+  // i18n-extra.ts: follow only the sections actually spread into the
+  // exported I18N_EXTRA.zh object. Dead declarations must not make a key
+  // appear available when runtime lookup cannot reach it.
   const catalogPath = path.join(ROOT, 'utils', 'i18n-catalog.ts');
   if (fs.existsSync(catalogPath)) {
     const txt = fs.readFileSync(catalogPath, 'utf8');
     const zhStart = txt.search(/(?:^|[^A-Za-z0-9_])(?:"zh"|zh)\s*:\s*\{/m);
     if (zhStart >= 0) extractKeysFromBlock(txt, zhStart, collected);
   }
-  const extraPath = path.join(ROOT, 'utils', 'i18n-extra.ts');
-  if (fs.existsSync(extraPath)) {
-    const txt = fs.readFileSync(extraPath, 'utf8');
-    const declRe = /\bconst\s+ZH_[A-Z0-9_]+\s*=\s*\{/g;
-    let m;
-    while ((m = declRe.exec(txt))) {
-      extractKeysFromBlock(txt, m.index, collected);
-    }
+  for (const key of loadExtraCatalog('zh').keys()) {
+    collected.add(key);
   }
   return collected;
 }
@@ -218,6 +216,256 @@ function extractKeysFromBlock(txt, anchor, out) {
   while ((m = keyRe.exec(block))) {
     const key = unescapeStr(m[1] ?? m[2] ?? m[3] ?? '');
     if (key) out.add(key);
+  }
+}
+
+function propertyName(node) {
+  if (ts.isIdentifier(node) || ts.isStringLiteralLike(node)) return node.text;
+  return null;
+}
+
+function loadExtraCatalog(locale) {
+  const file = path.join(ROOT, 'utils', 'i18n-extra.ts');
+  const text = fs.readFileSync(file, 'utf8');
+  const source = ts.createSourceFile(
+    file,
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const entries = new Map();
+  const objects = new Map();
+
+  for (const statement of source.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name)) continue;
+      if (!declaration.initializer || !ts.isObjectLiteralExpression(declaration.initializer)) continue;
+      objects.set(declaration.name.text, declaration.initializer);
+    }
+  }
+
+  const exported = objects.get('I18N_EXTRA');
+  if (exported == null) throw new Error('I18N_EXTRA export is missing');
+  const localeProperty = exported.properties.find((property) => (
+    ts.isPropertyAssignment(property) && propertyName(property.name) === locale
+  ));
+  if (
+    localeProperty == null ||
+    !ts.isPropertyAssignment(localeProperty) ||
+    !ts.isObjectLiteralExpression(localeProperty.initializer)
+  ) {
+    throw new Error(`I18N_EXTRA.${locale} object is missing`);
+  }
+
+  for (const spread of localeProperty.initializer.properties) {
+    if (!ts.isSpreadAssignment(spread) || !ts.isIdentifier(spread.expression)) {
+      throw new Error(`I18N_EXTRA.${locale} must contain named object spreads only`);
+    }
+    const sectionName = spread.expression.text;
+    const section = objects.get(sectionName);
+    if (section == null) {
+      throw new Error(`I18N_EXTRA.${locale} spreads missing section ${sectionName}`);
+    }
+    for (const property of section.properties) {
+      if (!ts.isPropertyAssignment(property)) continue;
+      const key = propertyName(property.name);
+      if (key == null || !ts.isStringLiteralLike(property.initializer)) continue;
+      if (entries.has(key)) {
+        throw new Error(`I18N_EXTRA.${locale} contains duplicate key ${key}`);
+      }
+      const position = source.getLineAndCharacterOfPosition(property.getStart(source));
+      entries.set(key, {
+        value: property.initializer.text,
+        line: position.line + 1,
+        file,
+      });
+    }
+  }
+  return entries;
+}
+
+function loadSyncedZhCatalog() {
+  const file = path.join(ROOT, 'utils', 'i18n-catalog.ts');
+  const text = fs.readFileSync(file, 'utf8');
+  const source = ts.createSourceFile(
+    file,
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const entries = new Map();
+  for (const statement of source.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || declaration.name.text !== 'I18N_CATALOG') continue;
+      const initializer = declaration.initializer;
+      if (!initializer || !ts.isObjectLiteralExpression(initializer)) continue;
+      const zhProperty = initializer.properties.find((property) => (
+        ts.isPropertyAssignment(property) && propertyName(property.name) === 'zh'
+      ));
+      if (
+        !zhProperty ||
+        !ts.isPropertyAssignment(zhProperty) ||
+        !ts.isObjectLiteralExpression(zhProperty.initializer)
+      ) {
+        continue;
+      }
+      for (const property of zhProperty.initializer.properties) {
+        if (!ts.isPropertyAssignment(property)) continue;
+        const key = propertyName(property.name);
+        if (key == null || !ts.isStringLiteralLike(property.initializer)) continue;
+        entries.set(key, property.initializer.text);
+      }
+    }
+  }
+  return entries;
+}
+
+function loadChineseQualityRules() {
+  const glossary = path.resolve(ROOT, '..', 'scripts', 'i18n_glossary.yaml');
+  const data = parseYaml(fs.readFileSync(glossary, 'utf8')) ?? {};
+  const style = data.style ?? {};
+  const forbidden = (style.forbidden_target ?? [])
+    .filter((item) => (
+      item && typeof item.term === 'string' && typeof item.prefer === 'string'
+    ))
+    .map((item) => ({ term: item.term, prefer: item.prefer }));
+  const exact = new Map(
+    (style.exact_translations ?? [])
+      .filter((item) => (
+        item && typeof item.source === 'string' && typeof item.target === 'string'
+      ))
+      .map((item) => [item.source, item.target]),
+  );
+  return { forbidden, exact };
+}
+
+function placeholderNames(text) {
+  return [...text.matchAll(/\{([A-Za-z_][A-Za-z0-9_]*|\d+)\}/g)]
+    .map((match) => match[1])
+    .sort();
+}
+
+// A shared key normally must use web's canonical Chinese. Add an entry only
+// when the mobile interaction genuinely requires different copy, and explain
+// why so the exception is reviewable rather than silent terminology drift.
+const MINI_TRANSLATION_OVERRIDES = new Map([
+  // ['English key', 'Reason the mobile interaction needs different wording'],
+]);
+
+function scanExtraCatalogQuality(findings) {
+  const en = loadExtraCatalog('en');
+  const zh = loadExtraCatalog('zh');
+  const syncedZh = loadSyncedZhCatalog();
+  const rules = loadChineseQualityRules();
+
+  for (const [key, entry] of en) {
+    if (!zh.has(key)) {
+      findings.push({
+        file: entry.file,
+        line: entry.line,
+        kind: 'missing-zh-extra',
+        text: key,
+      });
+    }
+  }
+  for (const [key, entry] of zh) {
+    if (!en.has(key)) {
+      findings.push({
+        file: entry.file,
+        line: entry.line,
+        kind: 'orphan-zh-extra',
+        text: key,
+      });
+      continue;
+    }
+    const source = key;
+    const translation = entry.value;
+    const sourcePlaceholders = placeholderNames(source);
+    const targetPlaceholders = placeholderNames(translation);
+    if (JSON.stringify(sourcePlaceholders) !== JSON.stringify(targetPlaceholders)) {
+      findings.push({
+        file: entry.file,
+        line: entry.line,
+        kind: 'zh-structure',
+        text: `${source} -> ${translation}`,
+      });
+    }
+    const expected = rules.exact.get(source);
+    if (expected != null && translation !== expected) {
+      findings.push({
+        file: entry.file,
+        line: entry.line,
+        kind: 'zh-canonical',
+        text: `${source} -> ${translation}; expected ${expected}`,
+      });
+    }
+    for (const rule of rules.forbidden) {
+      if (!translation.includes(rule.term)) continue;
+      findings.push({
+        file: entry.file,
+        line: entry.line,
+        kind: 'zh-style',
+        text: `${source} -> contains ${rule.term}; prefer ${rule.prefer}`,
+      });
+    }
+    if (/[\u3400-\u9fff]/.test(translation)) {
+      if (translation.includes('...')) {
+        findings.push({
+          file: entry.file,
+          line: entry.line,
+          kind: 'zh-typography',
+          text: `${source} -> use …`,
+        });
+      }
+      if (/\s[—–]\s/.test(translation)) {
+        findings.push({
+          file: entry.file,
+          line: entry.line,
+          kind: 'zh-typography',
+          text: `${source} -> replace spaced dash with Chinese punctuation`,
+        });
+      }
+      if (/(?<![A-Za-z])vs\.?(?![A-Za-z])/i.test(translation)) {
+        findings.push({
+          file: entry.file,
+          line: entry.line,
+          kind: 'zh-typography',
+          text: `${source} -> translate literal vs`,
+        });
+      }
+    }
+    const canonical = syncedZh.get(source);
+    const overrideReason = MINI_TRANSLATION_OVERRIDES.get(source);
+    if (canonical != null && canonical !== translation && !overrideReason) {
+      findings.push({
+        file: entry.file,
+        line: entry.line,
+        kind: 'zh-override-drift',
+        text: `${source} -> mini ${translation}; web ${canonical}`,
+      });
+    }
+    if (canonical != null && canonical === translation && overrideReason) {
+      findings.push({
+        file: entry.file,
+        line: entry.line,
+        kind: 'zh-stale-override',
+        text: `${source} no longer differs from web; remove its override rationale`,
+      });
+    }
+  }
+  for (const [key, reason] of MINI_TRANSLATION_OVERRIDES) {
+    if (!reason.trim() || !zh.has(key) || !syncedZh.has(key)) {
+      findings.push({
+        file: path.join(ROOT, 'scripts', 'check-i18n.cjs'),
+        line: 0,
+        kind: 'zh-invalid-override',
+        text: `${key} must overlap both catalogs and include a non-empty rationale`,
+      });
+    }
   }
 }
 
@@ -354,6 +602,7 @@ function main() {
   const knownKeys = loadCatalogKeys();
   for (const f of tsFiles) scanTsKeys(f, findings, knownKeys);
   for (const f of tsFiles) scanTsLiterals(f, findings);
+  scanExtraCatalogQuality(findings);
 
   const byKind = new Map();
   for (const f of findings) {
@@ -377,7 +626,7 @@ function main() {
     process.exit(0);
   }
   console.log(`\n[i18n-check] ${total} finding(s) total. ` +
-    `Wrap with t()/tFmt()/tNamed() and add zh entries (web .po or miniapp i18n-extra.ts).`);
+    `Fix coverage/copy in the web .po or miniapp i18n-extra.ts; shared rules live in scripts/i18n_glossary.yaml.`);
   process.exit(1);
 }
 
