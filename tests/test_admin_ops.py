@@ -246,6 +246,7 @@ def test_ops_summary_aggregates_attention_without_pii(env, monkeypatch):
         lambda: ("https://portal.azure.com/alerts", "https://portal.azure.com/logs"),
     )
 
+    from db.agent_loop import record_decision, record_outcome
     from db.models import Feedback, ServiceIncident, User
 
     db = db_session.SessionLocal()
@@ -280,6 +281,36 @@ def test_ops_summary_aggregates_attention_without_pii(env, monkeypatch):
             ),
         ]
     )
+    decision = record_decision(
+        db,
+        loop="change",
+        subject_type="feedback",
+        subject_ref="123",
+        policy_name="change.agent_ready",
+        policy_version="agent-ready-v2",
+        prompt_version="prompt-v1",
+        model="test-model",
+        mode="active",
+        input_data={"message_sha256": "a" * 64},
+        output_data={
+            "agent_ready_candidate": True,
+            "agent_ready_applied": True,
+        },
+    )
+    record_outcome(
+        db,
+        decision_id=decision.id,
+        outcome_type="human_rejected",
+        source="admin",
+        payload={"status": "rejected"},
+    )
+    record_outcome(
+        db,
+        decision_id=decision.id,
+        outcome_type="github_pull_merged",
+        source="github",
+        payload={"pull_number": 42},
+    )
     db.commit()
     admin_id = admin.id
     db.close()
@@ -293,6 +324,7 @@ def test_ops_summary_aggregates_attention_without_pii(env, monkeypatch):
         "attention",
         "service_health",
         "product_value",
+        "agent_learning",
         "service_telemetry",
         "product_telemetry",
         "azure_alerts",
@@ -330,6 +362,19 @@ def test_ops_summary_aggregates_attention_without_pii(env, monkeypatch):
     }
     assert body["product_value"]["data"]["registered_users"] == 1
     assert body["product_value"]["data"]["directional"] is True
+    assert body["agent_learning"]["data"] == {
+        "decisions_total": 1,
+        "outcomes_total": 2,
+        "shadow_decisions": 0,
+        "agent_ready_candidates": 1,
+        "agent_ready_applied": 1,
+        "human_overrides": 1,
+        "merged_pull_requests": 1,
+        "decision_policy_version": "agent-ready-v2",
+        "review_policy_version": "selective-review-v1",
+        "promoted_classes": [],
+        "autonomy_level": "draft_with_review",
+    }
     assert body["service_telemetry"]["data"]["server_error_rate"] == 0.02
     assert body["product_telemetry"]["data"]["surfaces"][0]["today_reach_rate"] == 0.8
     assert body["product_telemetry"]["window"] == "28d"
@@ -385,6 +430,7 @@ def test_ops_summary_partial_failure_isolated(env, monkeypatch):
     assert body["attention"]["reason"] == "section_refresh_failed"
     assert body["service_health"]["freshness"] == "fresh"
     assert body["product_value"]["freshness"] == "fresh"
+    assert body["agent_learning"]["freshness"] == "fresh"
     assert body["service_telemetry"]["freshness"] == "unavailable"
     assert (
         body["service_telemetry"]["reason"]

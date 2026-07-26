@@ -5,10 +5,12 @@ import {
   AlertOctagon,
   AlertTriangle,
   ArrowUpRight,
+  Bot,
   CheckCircle2,
   CloudOff,
   Database,
   ExternalLink,
+  GitPullRequest,
   MessageSquareWarning,
   RefreshCw,
   Server,
@@ -381,6 +383,8 @@ export default function AdminOps() {
   const incidentDetail = attention?.active_incidents.slice(0, 2).map((incident) => incident.title).join(' · ');
   const service = data.service_health.data;
   const product = data.product_value.data;
+  const agentLearningSection = data.agent_learning;
+  const agentLearning = agentLearningSection?.data ?? null;
   const postgresActiveConnections = service?.postgres_active_connections ?? null;
   const postgresMaxConnections = service?.postgres_max_connections ?? null;
   const postgresConnectionUtilization =
@@ -859,6 +863,88 @@ export default function AdminOps() {
           </div>
         </section>
       </div>
+
+      {agentLearningSection ? (
+        <section aria-labelledby="agent-learning-heading" className="border-t border-border pt-7">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex items-start gap-3">
+              <div
+                className={cn(
+                  'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+                  agentLearning
+                    ? agentLearning.autonomy_level === 'policy_gated_auto_merge'
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-accent-amber/10 text-accent-amber'
+                    : 'bg-muted text-muted-foreground',
+                )}
+              >
+                <Bot className="h-4 w-4" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 id="agent-learning-heading" className="text-base font-semibold text-foreground">
+                    <Trans>Agent learning</Trans>
+                  </h3>
+                  {agentLearning ? (
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        agentLearning.autonomy_level === 'policy_gated_auto_merge'
+                          ? 'border-primary/30 text-primary'
+                          : 'border-accent-amber/40 text-accent-amber',
+                      )}
+                    >
+                      {agentLearning.autonomy_level === 'policy_gated_auto_merge'
+                        ? t`Policy-gated auto-merge`
+                        : t`Review required`}
+                    </Badge>
+                  ) : null}
+                </div>
+                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                  {agentLearning
+                    ? agentLearning.autonomy_level === 'policy_gated_auto_merge'
+                      ? t`${agentLearning.promoted_classes.length} narrow change class(es) may merge through the independent policy gate.`
+                      : t`No change class is promoted. Decisions and outcomes are being recorded while merge remains review-gated.`
+                    : t`The agent decision and outcome aggregate could not be refreshed.`}
+                </p>
+                <SectionMeta meta={agentLearningSection} stale={snapshotStale} className="mt-3" />
+              </div>
+            </div>
+            {agentLearning ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <GitPullRequest className="h-4 w-4" />
+                <span>
+                  <Trans>
+                    Policy {agentLearning.review_policy_version} · decision {agentLearning.decision_policy_version}
+                  </Trans>
+                </span>
+              </div>
+            ) : null}
+          </div>
+          {agentLearning ? (
+            <>
+              <dl className="mt-5 grid grid-cols-2 border-y border-border sm:grid-cols-4">
+                {[
+                  { label: t`Decisions`, value: agentLearning.decisions_total },
+                  { label: t`Agent-ready candidates`, value: agentLearning.agent_ready_candidates },
+                  { label: t`Human overrides`, value: agentLearning.human_overrides },
+                  { label: t`Merged PR outcomes`, value: agentLearning.merged_pull_requests },
+                ].map((metric) => (
+                  <div key={metric.label} className="border-b border-border px-3 py-4 sm:border-b-0 sm:border-r sm:last:border-r-0">
+                    <dt className="text-[11px] text-muted-foreground">{metric.label}</dt>
+                    <dd className="mt-1 font-data text-lg font-semibold text-foreground">{metric.value}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-3 text-xs text-muted-foreground">
+                <Trans>
+                  {agentLearning.shadow_decisions} shadow decisions · {agentLearning.agent_ready_applied} labels applied · {agentLearning.outcomes_total} durable outcomes
+                </Trans>
+              </p>
+            </>
+          ) : null}
+        </section>
+      ) : null}
 
       <section aria-labelledby="platform-health-heading" className="border-t border-border pt-7">
         <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-start">

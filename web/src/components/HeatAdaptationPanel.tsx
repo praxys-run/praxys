@@ -1,22 +1,11 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { msg } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
-import { ArrowRight, CalendarDays, ChevronRight, X } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import ScienceNote from '@/components/ScienceNote';
-import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
-import { useIsMobile } from '@/hooks/use-mobile';
 import type {
   HeatAdaptationAction,
   HeatAdaptationConfidence,
@@ -37,7 +26,7 @@ const METRIC_STAGE_LABELS: Record<HeatAdaptationStage, ReturnType<typeof msg>> =
   insufficient_evidence: msg`Not established`,
   building: msg`Developing`,
   likely_adapted: msg`Likely adapted`,
-  maintaining: msg`Likely retained`,
+  maintaining: msg`Some adaptation may persist`,
   decaying: msg`Fading`,
 };
 
@@ -127,13 +116,19 @@ function metricStageLabel(status: HeatAdaptationStatus): ReturnType<typeof msg> 
 function stageConclusion(status: HeatAdaptationStatus): ReturnType<typeof msg> {
   if (status.is_reacclimating) return msg`Heat adaptation may be rebuilding.`;
   if (status.stage === 'likely_adapted') {
+    if (
+      status.days_since_last_exposure != null
+      && status.days_since_last_exposure > 0
+    ) {
+      return msg`Recent training meets the model's exposure threshold, but response-specific adaptation evidence may already be declining since the latest qualifying session.`;
+    }
     return msg`Likely adapted to similar recent conditions.`;
   }
   if (status.stage === 'maintaining') {
-    return msg`Prior heat adaptation is likely still retained.`;
+    return msg`Some prior heat adaptation may persist, while response-specific evidence may already be declining.`;
   }
   if (status.stage === 'building') return msg`Heat adaptation may be developing.`;
-  if (status.stage === 'decaying') return msg`Prior heat adaptation evidence is fading.`;
+  if (status.stage === 'decaying') return msg`Prior heat adaptation evidence may be declining.`;
   return msg`Heat adaptation is not established.`;
 }
 
@@ -142,20 +137,26 @@ function stageInterpretation(status: HeatAdaptationStatus): ReturnType<typeof ms
     return msg`Qualifying exposure has resumed after a longer gap, but current evidence is still limited.`;
   }
   if (status.stage === 'likely_adapted') {
+    if (
+      status.days_since_last_exposure != null
+      && status.days_since_last_exposure > 0
+    ) {
+      return msg`The rolling exposure threshold is still met, but it does not establish a retention plateau; response-specific adaptations may already be declining.`;
+    }
     return msg`Recent training meets the model's conservative evidence threshold for acclimatization to similar conditions.`;
   }
   if (status.stage === 'maintaining') {
     return status.recent_conditions
-      ? msg`A prior qualifying block remains inside the model's operational retention window. The range shown here describes current qualifying evidence, not that retained block.`
-      : msg`A prior qualifying block remains inside the model's operational retention window.`;
+      ? msg`A prior qualifying block can still inform this qualitative stage, but response-specific adaptations may already be declining. The range shown here describes current qualifying evidence, not that prior block.`
+      : msg`A prior qualifying block can still inform this qualitative stage, but response-specific adaptations may already be declining.`;
   }
   if (status.stage === 'building') {
     return msg`Recent training clears the Building threshold but remains below the conservative Likely adapted stage.`;
   }
   if (status.stage === 'decaying') {
     return status.recent_conditions
-      ? msg`The last qualifying block is beyond the initial retention window, so retained evidence is declining. The range shown here describes current qualifying evidence, not that prior block.`
-      : msg`The last qualifying block is beyond the initial retention window, so retained evidence is declining.`;
+      ? msg`A prior qualifying block still informs this qualitative stage, but response-specific adaptation evidence is declining. The range shown here describes current qualifying evidence, not that prior block.`
+      : msg`A prior qualifying block still informs this qualitative stage, but response-specific adaptation evidence is declining.`;
   }
   return msg`Recent training remains below the model's Building threshold.`;
 }
@@ -303,17 +304,17 @@ function HeatCadence({
               }`}
             >
               <span className="flex items-baseline justify-between gap-1">
-                <span className="hidden text-[10px] uppercase tracking-wide text-muted-foreground sm:inline">
+                <span className="hidden text-[11px] uppercase tracking-wide text-muted-foreground sm:inline">
                   {formatWeekday(day.date, locale)}
                 </span>
                 <span className="font-data text-[11px] font-semibold text-foreground sm:text-xs">
                   {formatDayNumber(day.date, locale)}
                 </span>
               </span>
-              <span className="mt-0.5 block truncate font-data text-[8px] font-semibold text-foreground sm:mt-2 sm:text-[11px]">
+              <span className="mt-0.5 block truncate font-data text-[11px] font-semibold text-foreground sm:mt-2">
                 {hasObserved ? `${Math.round(day.effective_heat_minutes)}m` : '—'}
               </span>
-              <span className="mt-0.5 hidden text-[8px] font-medium text-muted-foreground sm:block">
+              <span className="mt-0.5 hidden text-[11px] font-medium text-muted-foreground sm:block">
                 {hasIncluded
                   ? i18n._(msg`Included`)
                   : hasObserved
@@ -331,7 +332,7 @@ function HeatCadence({
             <p className="font-data text-sm font-semibold text-foreground">
               {formatDate(selected.date, locale)}
             </p>
-            <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+            <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
               selected.counted_session_count > 0
                 ? 'bg-primary/15 text-foreground'
                 : selected.session_count > 0
@@ -405,7 +406,7 @@ function HeatEvidenceForDay({
                     {Math.round(session.temperature_c)}°C · {Math.round(session.relative_humidity_pct)}%
                   </p>
                 </div>
-                <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                   session.qualifies
                     ? 'bg-primary/15 text-foreground'
                     : 'bg-accent-amber/15 text-foreground'
@@ -450,24 +451,69 @@ function HeatEvidenceForDay({
   );
 }
 
-export default function HeatAdaptationPanel({ status }: { status: HeatAdaptationStatus }) {
+export function HeatAdaptationMetricValue({ status }: { status: HeatAdaptationStatus }) {
+  const { i18n } = useLingui();
+  return <>{i18n._(metricStageLabel(status))}</>;
+}
+
+export function HeatAdaptationMetricContext({ status }: { status: HeatAdaptationStatus }) {
   const { i18n } = useLingui();
   const locale = i18n.locale || 'en';
-  const isMobile = useIsMobile();
+  const temperatureRange = status.recent_conditions
+    ? formatRange(
+        status.recent_conditions.temperature_c.min,
+        status.recent_conditions.temperature_c.max,
+        '°C',
+        locale,
+      )
+    : null;
+
+  if (status.stage === 'maintaining' || status.stage === 'decaying') {
+    return <Trans>Current evidence</Trans>;
+  }
+  if (temperatureRange) {
+    return <>{temperatureRange} <span aria-hidden="true">·</span> <Trans>evidence</Trans></>;
+  }
+  return <Trans>Open evidence</Trans>;
+}
+
+export function HeatAdaptationSheetDescription({ status }: { status: HeatAdaptationStatus }) {
+  const { i18n } = useLingui();
+  const locale = i18n.locale || 'en';
+  const conditions = status.recent_conditions;
+  const temperatureRange = conditions
+    ? formatRange(conditions.temperature_c.min, conditions.temperature_c.max, '°C', locale)
+    : null;
+  const humidityRange = conditions
+    ? i18n._(
+        msg`${formatRange(
+          conditions.relative_humidity_pct.min,
+          conditions.relative_humidity_pct.max,
+          '%',
+          locale,
+        )} humidity`,
+      )
+    : null;
+
+  return temperatureRange && humidityRange ? (
+    <>
+      <Trans>Current qualifying evidence</Trans>{' '}
+      <span aria-hidden="true">·</span> {temperatureRange}{' '}
+      <span aria-hidden="true">·</span> {humidityRange}
+    </>
+  ) : (
+    <Trans>No current qualifying condition range yet</Trans>
+  );
+}
+
+export default function HeatAdaptationDetail({ status }: { status: HeatAdaptationStatus }) {
+  const { i18n } = useLingui();
+  const locale = i18n.locale || 'en';
   const conditions = status.recent_conditions;
   const included = status.cadence.reduce((sum, day) => sum + day.counted_session_count, 0);
   const observed = status.cadence.reduce((sum, day) => sum + day.session_count, 0);
   const excluded = Math.max(0, observed - included);
   const actionGuidance = ACTION_GUIDANCE[status.next_action];
-  const temperatureRange = conditions
-    ? formatRange(conditions.temperature_c.min, conditions.temperature_c.max, '°C', locale)
-    : null;
-  const humidityPercentRange = conditions
-    ? formatRange(conditions.relative_humidity_pct.min, conditions.relative_humidity_pct.max, '%', locale)
-    : null;
-  const humidityRange = humidityPercentRange
-    ? i18n._(msg`${humidityPercentRange} humidity`)
-    : null;
   const defaultDay = useMemo(
     () =>
       [...status.cadence].reverse().find((day) => day.session_count > 0)
@@ -476,93 +522,17 @@ export default function HeatAdaptationPanel({ status }: { status: HeatAdaptation
     [status.cadence],
   );
   const [selectedDate, setSelectedDate] = useState<string | null>(defaultDay?.date ?? null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const activeSelectedDate = status.cadence.some((day) => day.date === selectedDate)
     ? selectedDate
     : defaultDay?.date ?? null;
   const thresholdDays = status.evidence_thresholds.likely_adapted_days;
   const thresholdMinutes = status.evidence_thresholds.likely_adapted_effective_minutes;
   const showThresholdProgress = status.stage !== 'maintaining' && status.stage !== 'decaying';
-  const stageComesFromPriorBlock = status.stage === 'maintaining' || status.stage === 'decaying';
 
   return (
-    <Sheet>
-      <div id="heat-adaptation" className="min-w-0 scroll-mt-24">
-        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          <Trans>Heat adaptation</Trans>
-        </p>
-        <p className="text-2xl font-semibold leading-none text-foreground">
-          {i18n._(metricStageLabel(status))}
-        </p>
-        <SheetTrigger
-          render={(
-            <Button
-              variant="outline"
-              size="xs"
-              className="mt-1 max-w-full border-foreground/25 text-foreground"
-            />
-          )}
-        >
-          <CalendarDays className="size-3" aria-hidden="true" />
-          <span className="sm:hidden"><Trans>Evidence</Trans></span>
-          <span className="hidden min-w-0 truncate font-data sm:inline">
-            {stageComesFromPriorBlock ? (
-              <Trans>Current evidence</Trans>
-            ) : temperatureRange ? (
-              <>
-                {temperatureRange} <span aria-hidden="true">·</span> <Trans>evidence</Trans>
-              </>
-            ) : (
-              <Trans>Open evidence</Trans>
-            )}
-          </span>
-          <ChevronRight className="size-3" aria-hidden="true" />
-        </SheetTrigger>
-      </div>
-
-      <SheetContent
-        side={isMobile ? 'bottom' : 'right'}
-        initialFocus={closeButtonRef}
-        showCloseButton={false}
-        className={`gap-0 overflow-hidden p-0 ${
-          isMobile
-            ? 'max-h-[92dvh] w-full rounded-t-xl'
-            : 'w-full sm:!max-w-[34rem]'
-        }`}
-      >
-        <SheetClose
-          render={(
-            <Button
-              ref={closeButtonRef}
-              variant="ghost"
-              size="icon-sm"
-              className="absolute right-3 top-3 z-10"
-            />
-          )}
-        >
-          <X aria-hidden="true" />
-          <span className="sr-only"><Trans>Close</Trans></span>
-        </SheetClose>
-        <SheetHeader className="shrink-0 px-5 pb-4 pt-5 pr-14 sm:px-7 sm:pb-5 sm:pt-7">
-          <SheetTitle className="text-xl font-semibold tracking-[-0.02em]">
-            <Trans>Heat adaptation</Trans>
-          </SheetTitle>
-          <SheetDescription className="font-data">
-            {temperatureRange && humidityRange ? (
-              <>
-                <Trans>Current qualifying evidence</Trans>{' '}
-                <span aria-hidden="true">·</span> {temperatureRange}{' '}
-                <span aria-hidden="true">·</span> {humidityRange}
-              </>
-            ) : (
-              <Trans>No current qualifying condition range yet</Trans>
-            )}
-          </SheetDescription>
-        </SheetHeader>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-7 sm:px-7">
-          <div className="flex flex-wrap items-center gap-3 rounded-lg bg-muted/35 p-4">
-            <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${stageToneClass(status)}`}>
+    <>
+      <div className="flex flex-wrap items-center gap-3 rounded-lg bg-muted/35 p-4">
+            <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${stageToneClass(status)}`}>
               {i18n._(stageLabel(status))}
             </span>
             <p className="font-data text-xs text-muted-foreground">
@@ -571,7 +541,7 @@ export default function HeatAdaptationPanel({ status }: { status: HeatAdaptation
           </div>
 
           <section className="mt-6" aria-labelledby="heat-conclusion-title">
-            <p className="font-data text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            <p className="font-data text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               <Trans>Current conclusion</Trans>
             </p>
             <h3 id="heat-conclusion-title" className="mt-2 text-lg font-semibold tracking-[-0.015em] text-foreground">
@@ -661,9 +631,7 @@ export default function HeatAdaptationPanel({ status }: { status: HeatAdaptation
                 <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
             </ScienceNote>
-          </div>
-        </div>
-      </SheetContent>
-    </Sheet>
+      </div>
+    </>
   );
 }

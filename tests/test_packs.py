@@ -202,6 +202,7 @@ def test_heat_input_loader_weights_sample_power_by_timestamp_cadence(
     """The bounded loader counts real intervals without bridging large gaps."""
     from analysis.data_loader import load_heat_adaptation_inputs
     from analysis.metrics import (
+        HEAT_ELIGIBLE_ACTIVITY_TYPES,
         HEAT_LOOKBACK_DAYS,
         HEAT_SAMPLE_MAX_INTERVAL_SEC,
     )
@@ -254,6 +255,7 @@ def test_heat_input_loader_weights_sample_power_by_timestamp_cadence(
         current_date=date.today(),
         sample_max_interval_sec=HEAT_SAMPLE_MAX_INTERVAL_SEC,
         lookback_days=HEAT_LOOKBACK_DAYS,
+        eligible_activity_types=HEAT_ELIGIBLE_ACTIVITY_TYPES,
     )
 
     loaded = activities.loc[
@@ -266,12 +268,39 @@ def test_heat_input_loader_weights_sample_power_by_timestamp_cadence(
     assert buckets == {180.0: 4}
 
 
+def test_heat_input_loader_uses_supplied_activity_types(
+    db_with_seeded_user,
+):
+    """The registry-owned activity set controls every bounded heat query."""
+    from analysis.data_loader import load_heat_adaptation_inputs
+    from analysis.metrics import (
+        HEAT_LOOKBACK_DAYS,
+        HEAT_SAMPLE_MAX_INTERVAL_SEC,
+    )
+
+    db, user_id = db_with_seeded_user
+    activities, splits, sample_power = load_heat_adaptation_inputs(
+        user_id,
+        db,
+        activity_source="stryd",
+        current_date=date.today(),
+        sample_max_interval_sec=HEAT_SAMPLE_MAX_INTERVAL_SEC,
+        lookback_days=HEAT_LOOKBACK_DAYS,
+        eligible_activity_types={"cycling"},
+    )
+
+    assert activities.empty
+    assert splits.empty
+    assert sample_power.empty
+
+
 def test_heat_input_loader_does_not_bridge_null_power_samples(
     db_with_seeded_user,
 ):
     """A null record terminates the preceding power sample's owned interval."""
     from analysis.data_loader import load_heat_adaptation_inputs
     from analysis.metrics import (
+        HEAT_ELIGIBLE_ACTIVITY_TYPES,
         HEAT_LOOKBACK_DAYS,
         HEAT_SAMPLE_MAX_INTERVAL_SEC,
     )
@@ -314,6 +343,7 @@ def test_heat_input_loader_does_not_bridge_null_power_samples(
         current_date=date.today(),
         sample_max_interval_sec=HEAT_SAMPLE_MAX_INTERVAL_SEC,
         lookback_days=HEAT_LOOKBACK_DAYS,
+        eligible_activity_types=HEAT_ELIGIBLE_ACTIVITY_TYPES,
     )
 
     buckets = sample_power.loc[
@@ -329,6 +359,7 @@ def test_heat_adaptation_uses_one_provider_for_duplicate_activity_rows(
     """Garmin and Stryd copies of one run produce one heat-evidence session."""
     from analysis.data_loader import load_heat_adaptation_inputs
     from analysis.metrics import (
+        HEAT_ELIGIBLE_ACTIVITY_TYPES,
         HEAT_LOOKBACK_DAYS,
         HEAT_SAMPLE_MAX_INTERVAL_SEC,
     )
@@ -422,6 +453,7 @@ def test_heat_adaptation_uses_one_provider_for_duplicate_activity_rows(
         current_date=date.today(),
         sample_max_interval_sec=HEAT_SAMPLE_MAX_INTERVAL_SEC,
         lookback_days=HEAT_LOOKBACK_DAYS,
+        eligible_activity_types=HEAT_ELIGIBLE_ACTIVITY_TYPES,
     )
     selected_ids = set(activities["activity_id"])
     assert garmin_activity_id not in selected_ids
@@ -668,6 +700,9 @@ def test_training_payload_exposes_server_summary_and_load_window(
     assert payload["summary"]["current_tsb"] is None
     assert payload["data_meta"]["load_time_constant_days"] == 42
     assert payload["data_meta"]["pmc_sufficient"] is False
+    volume = payload["diagnosis"]["volume"]
+    assert {"weekly_avg_km", "trend", "weeks", "weekly_km"} <= set(volume)
+    assert len(volume["weeks"]) == len(volume["weekly_km"])
 
 
 def test_today_and_training_payloads_expose_heat_adaptation(
@@ -1383,7 +1418,7 @@ def test_dashboard_data_and_packs_agree_on_signal(db_with_seeded_user):
     assert pack["signal"] == full["signal"]
     assert pack["tsb_sparkline"] == full["tsb_sparkline"]
     assert pack["warnings"] == full["warnings"]
-    assert full["heat_adaptation"]["model_version"] == "heat-adaptation-v7"
+    assert full["heat_adaptation"]["model_version"] == "heat-adaptation-v8"
 
 
 def test_build_warnings_uses_selected_cv_threshold():

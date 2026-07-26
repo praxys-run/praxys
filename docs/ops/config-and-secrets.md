@@ -31,6 +31,8 @@ transient — the next deploy overwrites them.**
 | `PRAXYS_SMTP_PASSWORD` | SMTP client authorization code (WeCom/Exmail) for verification + invitation emails. **Optional.** | App Service setting (backend) |
 | `WECHAT_MINIAPP_UPLOAD_KEY` | Mini program CI upload key | `miniapp-publish.yml` |
 | `COPILOT_ASSIGN_TOKEN` | **Required for workflow auto-assign** — fine-grained PAT (*Issues: write*, this repo only, with expiry). Agent assignment needs a user token; the built-in `GITHUB_TOKEN` is forbidden (issue #400). Manual UI assignment doesn't need it. | `assign-copilot.yml` |
+| `PRAXYS_GITHUB_APP_PRIVATE_KEY` | Feedback GitHub App private key. The app has Issues read/write and Pull requests read; tokens are minted on demand. | App Service setting (backend) |
+| `PRAXYS_REVIEW_POLICY_APP_PRIVATE_KEY` | Independent selective-review App key. The App has Contents write + Pull requests write solely to approve qualifying PRs and enable normal auto-merge. | `selective-review.yml` |
 
 ### GitHub Actions → Variables
 `… → Variables` (non-secret; build variables are inlined into the SPA and ship to browsers)
@@ -39,6 +41,8 @@ transient — the next deploy overwrites them.**
 |---|---|---|
 | `VITE_API_URL` (`https://api.praxys.run`) | API base baked into the SPA | `deploy-frontend-appservice.yml` build |
 | `AZURE_AI_ENDPOINT` | Azure OpenAI endpoint for insights, triage, i18n, and Agentic Workflows. Keep the trailing `/`; the agent workflows append `openai/v1`. | App Service setting + `i18n.yml` + Agentic Workflow `.md` sources |
+| `TRANSLATE_MODEL` (`gpt-5.4-mini`) | Optional deployment override for translating newly extracted UI strings and science copy. | `i18n.yml`; script default applies when unset |
+| `TRANSLATE_REVIEW_MODEL` (`gpt-5.4`) | Optional stronger deployment override for the weekly native-Chinese catalog review. | `i18n.yml`; script default applies when unset |
 | `KEY_VAULT_URL` / `KEY_VAULT_KEY_NAME` | Key Vault + RSA key name | App Service setting |
 | `PRAXYS_FEEDBACK_BLOB_ACCOUNT_URL` (`https://stperftrainsight.blob.core.windows.net`) | Private Blob store for feedback screenshots (keyless via MI) | App Service setting (backend) |
 | `PRAXYS_FEEDBACK_BLOB_CONTAINER` (`feedback-screenshots`) | Blob container for screenshots | App Service setting (backend) |
@@ -46,60 +50,73 @@ transient — the next deploy overwrites them.**
 | `PRAXYS_APP_BASE_URL` (`https://praxys.run`) | Public origin for verify/invite links in those emails | App Service setting (backend) |
 | `PRAXYS_DB_AUTH` (`entra` or unset) | Postgres auth mode: `entra` = AAD token via managed identity, no password. **Optional.** | App Service setting (backend) |
 | `PRAXYS_PG_SERVER` | Postgres Flexible Server name. **Reserved / currently unused** - the on-demand backup jobs it gated were removed (Burstable tier can't do on-demand backups; PITR covers backup). Kept for a future off-site backup job. | (reserved) |
+| `PRAXYS_GITHUB_APP_ID` / `PRAXYS_GITHUB_APP_INSTALLATION_ID` | Feedback GitHub App identifiers. | App Service setting (backend) |
+| `PRAXYS_FEEDBACK_GITHUB_REPO` / `PRAXYS_FEEDBACK_GITHUB_LABELS` / `PRAXYS_FEEDBACK_GITHUB_ASSIGNEES` | Feedback issue target and optional issue metadata. | App Service setting (backend) |
+| `PRAXYS_REVIEW_POLICY_APP_ID` | App ID for the independent selective-review GitHub App. | `selective-review.yml` |
+| `PRAXYS_SELECTIVE_REVIEW_ENABLED` | Master enable; absent/anything except `true` keeps every PR review-required. | `selective-review.yml` |
+| `PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH` | Emergency stop; `true` disables approval even when the master enable and class promotion are active. | `selective-review.yml` |
 
 ### GitHub Actions → Workflow permissions
 
-The i18n workflow uses `GITHUB_TOKEN` plus explicit `contents: write` and
-`pull-requests: write` job permissions to update `i18n/refresh-zh` and open its
-review PR. GitHub also has an independent **Allow GitHub Actions to create and
-approve pull requests** gate. A repository transfer into an organization can
-inherit that organization's disabled gate even when workflow YAML, secrets, and
-variables transfer successfully.
+The i18n workflow uses its built-in `GITHUB_TOKEN` to update
+`i18n/refresh-zh` and open the review PR. GitHub suppresses normal
+`pull_request` workflow events for PRs opened by that token, so `i18n.yml`
+explicitly uses the permitted `workflow_dispatch` exception: it dispatches
+Backend CI and Miniapp build on the bot branch, then waits for Backend CI. Do
+not remove that chain; otherwise automated translation PRs lose their required
+validation. Their semantic review already happened inside `i18n.yml` through
+the independent editor/critic pair; the invariant workflow remains the
+additional guard for ordinary human/Copilot PRs that change copy.
 
-Source of truth:
+The same workflow runs a deterministic Chinese catalog gate on every relevant
+PR. After extraction it immediately reviews up to 200 newly introduced or
+resurrected strings, including translations recovered from obsolete catalog
+history; overflow still enters the weekly rotation. On Monday at 02:17 UTC it
+also reviews one stable eighth of the active catalog (capped at 200 entries)
+with `TRANSLATE_REVIEW_MODEL`, then applies a revision only when a separate
+critic pass agrees at high confidence. At the current catalog size every string
+therefore receives a page-context-aware native-language pass within eight weeks
+without accepting subjective synonym churn. The shard uses an epoch-based week
+number so year boundaries cannot skip it; if a future shard exceeds the cap,
+its window rotates on the next cycle instead of starving the tail. The
+scheduled run updates the same `i18n/refresh-zh` branch and still requires human
+review. A manual dispatch with
+`full_review=true` reviews the entire catalog and has materially higher model
+cost because both editor and critic run; use it for a terminology or voice
+reset, not routine maintenance.
 
-- Organization prerequisite: `praxys-run → Settings → Actions → General →
-  Workflow permissions`.
-- Repository setting: `praxys-run/praxys → Settings → Actions → General →
-  Workflow permissions`.
-- Keep **Default workflow permissions** at `read`; the workflow grants only the
-  writes its job needs.
-- Enable PR creation for `praxys-run/praxys` only. Keep
-  `praxys-run/praxys-coach-plugin` and `praxys-run/praxys-ops-agent` disabled.
+`TRANSLATE_MAX` is atomic: if missing copy exceeds the configured limit, the
+job stops before any billable model call. If an individual output still fails
+the deterministic gate (for example, a malformed placeholder), the workflow
+opens the translation PR so successful work is not lost, then marks the run
+failed; the PR's required checks remain red until a human repairs the entry.
 
-Provision the current least-privilege state:
+Mini-program-only copy remains in `miniapp/utils/i18n-extra.ts`. Its existing
+`npm run check-i18n` gate reads the same glossary and rejects missing/renamed
+placeholders, English-style Chinese typography, banned translationese, and
+canonical-term drift. Shared web/mini keys must match unless
+`MINI_TRANSLATION_OVERRIDES` records a reviewed mobile-specific rationale. The
+Praxys invariant Agentic Workflow then reviews
+user-facing copy changes for semantic/native-language quality after `Backend CI`.
 
-```bash
-# The organization gate must allow repository-level opt-in.
-gh api -X PUT orgs/praxys-run/actions/permissions/workflow \
-  -f default_workflow_permissions=read \
-  -F can_approve_pull_request_reviews=true
+Provision and verify:
 
-gh api -X PUT repos/praxys-run/praxys/actions/permissions/workflow \
-  -f default_workflow_permissions=read \
-  -F can_approve_pull_request_reviews=true
+1. Keep repository **Default workflow permissions** at `read`, but enable
+   **Allow GitHub Actions to create and approve pull requests** for
+   `praxys-run/praxys`. The workflow grants only its translation job the
+   explicit `actions: write`, `contents: write`, and `pull-requests: write`
+   permissions it needs.
+2. Verify the repository gate:
 
-# Explicitly retain the disabled state on repositories that do not create PRs.
-for repo in praxys-coach-plugin praxys-ops-agent; do
-  gh api -X PUT "repos/praxys-run/$repo/actions/permissions/workflow" \
-    -f default_workflow_permissions=read \
-    -F can_approve_pull_request_reviews=false
-done
-```
+   ```bash
+   gh api repos/praxys-run/praxys/actions/permissions/workflow
+   ```
 
-Verify:
-
-```bash
-gh api orgs/praxys-run/actions/permissions/workflow
-for repo in praxys praxys-coach-plugin praxys-ops-agent; do
-  gh api "repos/praxys-run/$repo/actions/permissions/workflow"
-done
-```
-
-If `i18n.yml` pushes `i18n/refresh-zh` but fails at **Open pull request** with
-`GitHub Actions is not permitted to create or approve pull requests`, restore
-these gates and rerun the failed job. This setting was restored on 2026-07-24
-after the org migration exposed the missing post-transfer step.
+   `can_approve_pull_request_reviews` must be `true`. If the organization blocks
+   repository opt-in, an organization owner must enable the corresponding gate
+   first.
+3. Dispatch `i18n.yml`. Confirm the generated PR receives manual-dispatch runs
+   for Backend CI and Miniapp build on `i18n/refresh-zh`.
 
 Application Insights resource names are tracked in
 `.github/azure-observability.env`, not repository variables. The deploy
@@ -374,8 +391,25 @@ to the Copilot coding agent. These are **repo settings, not deploy-managed**:
   before going live (issue #377).
 - **Agent environment:** `.github/workflows/copilot-setup-steps.yml` preinstalls
   the toolchain so the agent can run `pytest` / `npm` deterministically.
-- The **workflow file is the source of truth** for the trigger + assignment
-  logic; branch protection on `main` keeps merge human.
+- **Versioned policy metadata:** `config/agent-loop-policies.json` is committed
+  code config. It names the active assignment policy, narrow candidate classes,
+  protected paths, evidence thresholds, and promoted classes. Promotion is
+  blocked by `scripts/validate_review_policy.py` unless the checked-in evidence
+  meets the full bar.
+- **Selective-review runtime controls** are repository Actions variables:
+  `PRAXYS_SELECTIVE_REVIEW_ENABLED` defaults to `false`;
+  `PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH=true` stops approval immediately. The
+  independent App identity is
+  `PRAXYS_REVIEW_POLICY_APP_ID` +
+  `PRAXYS_REVIEW_POLICY_APP_PRIVATE_KEY`; workflows derive the exact bot login
+  from the minted token's App slug. Provisioning:
+  [setup-review-policy-app.md](./setup-review-policy-app.md).
+- The repository setting **Allow auto-merge** is enabled once for
+  `selective-review.yml`. Auto-merge remains squash-only and obeys the active
+  ruleset plus `backend-tests`; the policy App is never a bypass actor. The
+  rules require one approval, invalidate it after later pushes, and require the
+  branch to be up to date before merging. Both `backend-tests` and the explicit
+  `selective-review-policy` status are required.
 
 ### Azure Database for PostgreSQL (#360)
 
@@ -495,4 +529,4 @@ outgrown.
   (source of truth for App Service settings and telemetry routing)
 
 ---
-_Last reviewed: 2026-07-18 · Owner: @dddtc2005_
+_Last reviewed: 2026-07-25 · Owner: @dddtc2005_

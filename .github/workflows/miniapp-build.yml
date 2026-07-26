@@ -25,6 +25,7 @@ on:
       - 'miniapp/**'
       - 'web/src/locales/**'
       - '.github/workflows/miniapp-build.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -46,6 +47,16 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Typecheck (also runs sync-types + sync-i18n)
         run: npm run typecheck
+      - name: Require generated miniapp sources to be committed
+        run: |
+          if ! git diff --exit-code -- \
+            types/api.ts \
+            utils/i18n-catalog.ts \
+            utils/legal.ts; then
+            echo "::error::Generated miniapp sources are stale."
+            echo "::error::Run 'npm run typecheck' in miniapp/ and commit the result."
+            exit 1
+          fi
       - name: Verify expected pages exist
         run: |
           for p in login today training goal history settings science; do

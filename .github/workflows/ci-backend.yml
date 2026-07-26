@@ -14,6 +14,7 @@ name: Backend CI
 on:
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 # One in-flight run per PR; cancel the previous when new commits land.
 concurrency:
@@ -41,6 +42,9 @@ jobs:
 
       - name: Run backend tests
         run: python -m pytest tests/ -v
+
+      - name: Validate selective-review promotions
+        run: python scripts/validate_review_policy.py
 
   web-build:
     name: web-build

@@ -7,7 +7,113 @@
 # Format: one row per term. Leave a locale empty if the English form is
 # canonical (e.g., "HRV", "TSB", "CP" are acronyms that stay English in zh).
 
+style:
+  principles:
+    - 面向中国大陆耐力运动用户，写自然的产品中文，不照搬英文语序。
+    - 语气简洁、直接、专业但不官僚；按钮用明确动作，说明文字像教练在解释。
+    - 能省略主语和物主代词时就省略；确需指代用户时用“你”，不用过度正式的“您”。
+    - 标签要和同一页面的相邻标签结构平行，避免同一概念在不同页面换词。
+    - 使用中文标点和中文排版；技术缩写、品牌名、公式、单位及占位符保持原样。
+    - 优先表达用户能做什么或看到什么，避免“进行”“实现”“提供方”等翻译腔。
+  forbidden_target:
+    - term: 您
+      prefer: 省略主语；确需指代时用“你”
+    - term: 账户
+      prefer: 账号
+    - term: 电子邮件
+      prefer: 邮箱
+    - term: 等候名单
+      prefer: 候补名单
+    - term: 等待名单
+      prefer: 候补名单
+    - term: 仪表盘
+      prefer: 主页
+    - term: 仪表板
+      prefer: 主页
+    - term: 拉取
+      prefer: 同步或获取
+    - term: 速率限制
+      prefer: 访问频率限制或限流
+    - term: 合规度
+      prefer: 计划完成度
+    - term: 提供方
+      prefer: 数据来源
+    - term: 恢复度
+      prefer: 准备度
+  exact_translations:
+    - source: Follow Plan
+      target: 按计划训练
+    - source: Go Easy
+      target: 轻松训练
+    - source: No Data
+      target: 暂无数据
+    - source: Waitlist
+      target: 候补名单
+    - source: Dashboard
+      target: 主页
+    - source: Weekly volume
+      target: 周里程
+    - source: Weekly Volume
+      target: 周里程
+    - source: Sleep Score
+      target: 睡眠评分
+    - source: Training Zones
+      target: 训练区间
+    - source: Public status
+      target: 公开状态页
+    - source: Comfortable
+      target: 稳妥目标
+    - source: Stretch
+      target: 挑战目标
+    - source: Activities
+      target: 活动
+    - source: Weekly Load Compliance
+      target: 周训练负荷完成度
+    - source: Change Goal
+      target: 调整目标
+    - source: Target Time
+      target: 目标完赛时间
+    - source: optional
+      target: 选填
+    - source: Sub-3 marathon · 100K · stay healthy…
+      target: 全马破三 · 100K · 保持健康…
+  allowed_same_as_source:
+    - Praxys
+    - Garmin
+    - Stryd
+    - Oura
+    - Strava
+    - COROS
+    - HRV
+    - TSB
+    - CTL
+    - ATL
+    - CP
+    - FTP
+    - VO2max
+    - RSS
+    - rTSS
+    - TRIMP
+    - LTHR
+    - MFA
+    - MAU
+    - WAU
+    - Web
+    - Azure Monitor
+    - demo-password
+    - km
+    - W
+    - bpm
+
 terms:
+  # Agentic change-loop operations
+  - en: Agent
+    zh: 智能体
+    note: Autonomous coding or operations agent, not a human representative.
+  - en: Policy gate
+    zh: 策略门禁
+    note: Automated policy enforcement before approval or merge.
+
   # Training signals / categories
   - en: Recovery
     zh: 恢复
@@ -22,11 +128,11 @@ terms:
   - en: Normal
     zh: 正常
   - en: No Data
-    zh: 无数据
+    zh: 暂无数据
   - en: Follow Plan
-    zh: 按计划进行
+    zh: 按计划训练
   - en: Go Easy
-    zh: 轻松进行
+    zh: 轻松训练
   - en: Modify
     zh: 调整
   - en: Adjust Workout
@@ -108,6 +214,19 @@ terms:
   - en: Volume
     zh: 里程
     note: Context-dependent; "weekly volume" = 周里程.
+  - en: Weekly volume
+    zh: 周里程
+  - en: Training volume
+    zh: 训练量
+    note: Use 训练量 only when the concept is broader than running distance.
+  - en: Training load
+    zh: 训练负荷
+  - en: Compliance
+    zh: 计划完成度
+    note: A comparison with the planned load, not regulatory compliance.
+  - en: Readiness
+    zh: 准备度
+    note: Wearable/training metric. Do not alternate with 恢复度.
 
   # Acronyms — keep English
   - en: HRV
@@ -171,6 +290,24 @@ terms:
     note: Disambiguate from "Settings" (设置) — Setup is the onboarding flow.
   - en: Admin
     zh: 管理
+  - en: Account
+    zh: 账号
+    note: Mainland consumer-product wording; 账户 sounds financial or bureaucratic.
+  - en: Email
+    zh: 邮箱
+  - en: Waitlist
+    zh: 候补名单
+  - en: Dashboard
+    zh: 主页
+    note: The main product screen, not an analytics dashboard for operators.
+  - en: Insight
+    zh: 训练解读
+    note: Product coaching content. Use 分析 only when referring to the analysis process.
+  - en: Invitation code
+    zh: 邀请码
+  - en: Data provider
+    zh: 数据来源
+    note: Prefer 数据来源 in user-facing UI; 提供方 is technical implementation language.
   - en: Edit
     zh: 编辑
   - en: Cancel

@@ -12,9 +12,10 @@ Run from the project root with the venv active. On Windows: `.venv\Scripts\pytho
 | [`migrate_csv_to_db.py`](./migrate_csv_to_db.py) | Migrate legacy CSV data + `config.json` into SQLite | Historical one-shot for the CSV → DB architecture change. Safe to ignore on fresh installs. |
 | [`generate_sample_data.py`](./generate_sample_data.py) | Regenerate synthetic fixtures in `data/sample/` | After a schema change that affects test CSVs. |
 | [`seed_sample_data.py`](./seed_sample_data.py) | Copy `data/sample/` → `data/` for a quick-start empty-install demo | **Never run when real user data exists in the DB** — overwrites. |
-| [`translate_missing.py`](./translate_missing.py) | Fill missing Lingui `.po` entries and science YAMLs via Claude | After `lingui extract` produces new untranslated keys, or after adding an English science YAML without a `zh/` counterpart. Requires `ANTHROPIC_API_KEY`. |
+| [`translate_missing.py`](./translate_missing.py) | Translate new copy and review existing Lingui `.po` entries with page context via Azure AI | `po` fills new strings; `review-po` runs a bounded native-language pass over a stable catalog shard. Requires `AZURE_AI_ENDPOINT` and Azure credentials. |
+| [`check_i18n_quality.py`](./check_i18n_quality.py) | Enforce catalog coverage, placeholders, canonical terms, voice rules, and Chinese typography | Before committing catalog changes; it also runs in the i18n PR workflow and after every automated translation/review pass. |
 | [`export_brand_icons.py`](./export_brand_icons.py) | Render the Praxys flag mark SVG → PNG at several sizes | When the brand SVG changes and raster assets (mini-program icons, favicons) need re-exporting. |
-| `i18n_glossary.yaml` | Terminology reference consumed by `translate_missing.py` | Not a script — edit when a domain term needs a fixed translation. |
+| `i18n_glossary.yaml` | Chinese voice guide and canonical terminology consumed by both i18n scripts | Not a script — edit when product tone or a domain term intentionally changes, then sweep the catalog in the same PR. |
 
 ## Quick-start tips
 

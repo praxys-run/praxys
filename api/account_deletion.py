@@ -12,6 +12,8 @@ from db.models import (
     Activity,
     ActivitySample,
     ActivitySplit,
+    AgentDecision,
+    AgentOutcome,
     AiInsight,
     AiInsightFeedback,
     AppConfig,
@@ -72,6 +74,14 @@ def _delete_user_owned_rows(db: Session, user_id: str) -> None:
     * ``app_config.updated_by`` (nullable) — the operator flag row is kept; only
       the "who last changed this" reference is nulled.
     """
+    feedback_refs = [
+        str(feedback_id)
+        for (feedback_id,) in db.query(Feedback.id)
+        .filter(Feedback.user_id == user_id)
+        .with_for_update()
+        .all()
+    ]
+
     for model in (
         ActivitySample,
         ActivitySplit,
@@ -88,6 +98,24 @@ def _delete_user_owned_rows(db: Session, user_id: str) -> None:
         Feedback,
     ):
         db.query(model).filter(model.user_id == user_id).delete(synchronize_session=False)
+
+    if feedback_refs:
+        decision_ids = [
+            decision_id
+            for (decision_id,) in db.query(AgentDecision.id)
+            .filter(
+                AgentDecision.subject_type == "feedback",
+                AgentDecision.subject_ref.in_(feedback_refs),
+            )
+            .all()
+        ]
+        if decision_ids:
+            db.query(AgentOutcome).filter(
+                AgentOutcome.decision_id.in_(decision_ids)
+            ).delete(synchronize_session=False)
+            db.query(AgentDecision).filter(
+                AgentDecision.id.in_(decision_ids)
+            ).delete(synchronize_session=False)
 
     # Invitations this user created (created_by is NOT NULL, so it can't be
     # nulled). Detach any waitlist signups linked to them first so that FK

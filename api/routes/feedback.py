@@ -13,7 +13,7 @@ so the user gets an instant 200. See that module for the pipeline.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
@@ -24,6 +24,7 @@ from api import feedback_storage, telemetry
 from api.auth import get_current_user_id
 from api.feedback_triage import triage_and_publish
 from api.views import require_admin, utc_isoformat
+from db.agent_loop import latest_decision, record_outcome
 from db.session import get_db
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,52 @@ router = APIRouter()
 # spend) by holding the submit button.
 _MAX_PER_WINDOW = 5
 _WINDOW = timedelta(minutes=5)
+
+
+def _record_feedback_outcome(
+    db: Session,
+    feedback_id: int,
+    *,
+    outcome_type: str,
+    source: str,
+    payload: dict[str, Any],
+    dedupe_key: str | None = None,
+    observed_at: datetime | None = None,
+) -> bool:
+    """Append an outcome when the feedback row has a structured decision."""
+    decision = latest_decision(
+        db,
+        loop="change",
+        subject_type="feedback",
+        subject_ref=str(feedback_id),
+    )
+    if decision is None:
+        return False
+    return (
+        record_outcome(
+            db,
+            decision_id=decision.id,
+            outcome_type=outcome_type,
+            source=source,
+            payload=payload,
+            dedupe_key=dedupe_key,
+            observed_at=observed_at,
+        )
+        is not None
+    )
+
+
+def _github_observed_at(value: str | None) -> datetime | None:
+    """Parse a GitHub ISO timestamp into the database's naive UTC convention."""
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is not None:
+        return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    return parsed
 
 
 class FeedbackRequest(BaseModel):
@@ -241,8 +288,9 @@ def sync_feedback_status(
     and sit in one of those two states are checked — triage-side statuses
     (new / needs_review / failed / rejected) are never touched.
 
-    Privacy: read-only against GitHub, fetching only each issue's *state* — no
-    ticket text is sent. A no-op (``configured: false``) when GitHub is unset.
+    Privacy: read-only against GitHub, fetching only issue state, labels, and
+    closing-PR state — no ticket/PR text, comments, commits, or reviews. A no-op
+    (``configured: false``) when GitHub is unset.
     """
     require_admin(user_id, db)
     from api import github_issues
@@ -262,17 +310,114 @@ def sync_feedback_status(
         .all()
     )
     checked = updated = 0
+    changed = False
     for row in rows:
-        state = github_issues.get_issue_state(row.github_issue_number)
-        if state is None:
+        outcome = github_issues.get_issue_outcome(row.github_issue_number)
+        if outcome is None:
             # Unreadable (deleted / transferred / transient error) — leave as-is.
             continue
         checked += 1
-        new_status = "resolved" if state["state"] == "closed" else "issue_created"
+        new_status = (
+            "resolved" if outcome["state"] == "closed" else "issue_created"
+        )
         if new_status != row.status:
+            prior_status = row.status
             row.status = new_status
             updated += 1
-    if updated:
+            changed = True
+            changed = _record_feedback_outcome(
+                db,
+                row.id,
+                outcome_type=(
+                    "github_issue_closed"
+                    if new_status == "resolved"
+                    else "github_issue_reopened"
+                ),
+                source="github",
+                payload={
+                    "issue_number": row.github_issue_number,
+                    "state": outcome["state"],
+                    "state_reason": outcome["state_reason"],
+                    "prior_status": prior_status,
+                    "status": new_status,
+                    "closed_at": outcome["closed_at"],
+                    "updated_at": outcome["updated_at"],
+                },
+                dedupe_key=(
+                    f"issue:{row.github_issue_number}:{outcome['state']}:"
+                    f"{outcome['updated_at'] or outcome['closed_at'] or 'unknown'}"
+                ),
+                observed_at=_github_observed_at(
+                    outcome["closed_at"] or outcome["updated_at"]
+                ),
+            ) or changed
+
+        decision = latest_decision(
+            db,
+            loop="change",
+            subject_type="feedback",
+            subject_ref=str(row.id),
+        )
+        if (
+            decision is not None
+            and outcome["agent_ready"]
+            and not bool((decision.output_json or {}).get("agent_ready_applied"))
+        ):
+            changed = _record_feedback_outcome(
+                db,
+                row.id,
+                outcome_type="external_agent_ready",
+                source="github",
+                payload={"issue_number": row.github_issue_number},
+                dedupe_key=f"issue:{row.github_issue_number}",
+            ) or changed
+
+        for pull in outcome["closing_pull_requests"]:
+            pull_type = (
+                "github_pull_merged"
+                if pull["merged"]
+                else (
+                    "github_pull_closed"
+                    if pull["state"] == "closed"
+                    else "github_pull_open"
+                )
+            )
+            if pull["merged"]:
+                event_key = (
+                    f"pull:{pull['number']}:merged:"
+                    f"{pull['merged_at'] or 'unknown'}"
+                )
+                event_time = pull["merged_at"]
+            elif pull["state"] == "closed":
+                event_key = (
+                    f"pull:{pull['number']}:closed:"
+                    f"{pull['closed_at'] or 'unknown'}"
+                )
+                event_time = pull["closed_at"]
+            else:
+                event_key = (
+                    f"pull:{pull['number']}:open:draft:{pull['is_draft']}"
+                )
+                event_time = pull["updated_at"]
+            changed = _record_feedback_outcome(
+                db,
+                row.id,
+                outcome_type=pull_type,
+                source="github",
+                payload={
+                    "pull_number": pull["number"],
+                    "state": pull["state"],
+                    "is_draft": pull["is_draft"],
+                    "merged": pull["merged"],
+                    "updated_at": pull["updated_at"],
+                    "merged_at": pull["merged_at"],
+                    "closed_at": pull["closed_at"],
+                    "url": pull["url"],
+                },
+                dedupe_key=event_key,
+                observed_at=_github_observed_at(event_time),
+            ) or changed
+    if changed:
         db.commit()
     return {"configured": True, "checked": checked, "updated": updated}
 
@@ -336,6 +481,13 @@ def update_feedback(
     if payload.action == "reject":
         row.status = "rejected"
         row.error = None
+        _record_feedback_outcome(
+            db,
+            row.id,
+            outcome_type="human_rejected",
+            source="admin",
+            payload={"status": row.status},
+        )
         db.commit()
         return _serialize_admin(row)
 
@@ -360,12 +512,30 @@ def update_feedback(
         if not issue or not issue.get("number"):
             row.status = "failed"
             row.error = "github_publish_failed"
+            _record_feedback_outcome(
+                db,
+                row.id,
+                outcome_type="human_approve_publish_failed",
+                source="admin",
+                payload={"status": row.status},
+            )
             db.commit()
             raise HTTPException(502, "GitHub publish failed")
         row.github_issue_number = issue["number"]
         row.github_issue_url = issue.get("url")
         row.status = "issue_created"
         row.error = None
+        _record_feedback_outcome(
+            db,
+            row.id,
+            outcome_type="human_approved",
+            source="admin",
+            payload={
+                "status": row.status,
+                "issue_number": row.github_issue_number,
+                "issue_url": row.github_issue_url,
+            },
+        )
         db.commit()
         return _serialize_admin(row)
 
@@ -376,6 +546,13 @@ def update_feedback(
         raise HTTPException(409, "Already published to GitHub")
     row.status = "new"
     row.error = None
+    _record_feedback_outcome(
+        db,
+        row.id,
+        outcome_type="human_retry",
+        source="admin",
+        payload={"status": row.status},
+    )
     db.commit()
     background_tasks.add_task(triage_and_publish, row.id)
     return _serialize_admin(row)

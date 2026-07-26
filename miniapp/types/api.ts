@@ -438,10 +438,10 @@ export interface HeatAdaptationStatus {
   decay: {
     state:
       | 'not_applicable'
-      | 'retained'
-      | 'within_retention_window'
-      | 'early'
-      | 'advanced'
+      | 'recent_threshold_met'
+      | 'adaptation_may_persist'
+      | 'evidence_declining'
+      | 'evidence_limited'
       | 'reacclimating';
     start_days: number;
     end_days: number;
@@ -551,6 +551,11 @@ export interface DiagnosisData {
   volume: {
     weekly_avg_km: number;
     trend: string;
+    /** ISO dates marking the end of each seven-day bucket, oldest first.
+     * Optional only during frontend-before-backend rolling deploys. */
+    weeks?: string[];
+    /** Positionally aligned with `weeks`; rollout-optional for old backends. */
+    weekly_km?: number[];
   };
   distribution: ZoneDistribution[];
   zone_ranges: ZoneRange[];
@@ -1088,6 +1093,28 @@ export interface AdminOpsProductValueSection extends AdminOpsSectionMeta {
   data: AdminOpsProductValueData | null;
 }
 
+export type AdminOpsAgentAutonomyLevel =
+  | 'draft_with_review'
+  | 'policy_gated_auto_merge';
+
+export interface AdminOpsAgentLearningData {
+  decisions_total: number;
+  outcomes_total: number;
+  shadow_decisions: number;
+  agent_ready_candidates: number;
+  agent_ready_applied: number;
+  human_overrides: number;
+  merged_pull_requests: number;
+  decision_policy_version: string;
+  review_policy_version: string;
+  promoted_classes: string[];
+  autonomy_level: AdminOpsAgentAutonomyLevel;
+}
+
+export interface AdminOpsAgentLearningSection extends AdminOpsSectionMeta {
+  data: AdminOpsAgentLearningData | null;
+}
+
 export interface AdminOpsServiceTelemetryData {
   requests: number;
   failed_requests: number;
@@ -1226,6 +1253,8 @@ export interface AdminOpsSummary {
   attention: AdminOpsAttentionSection;
   service_health: AdminOpsServiceHealthSection;
   product_value: AdminOpsProductValueSection;
+  /** Optional during a rolling deploy from the pre-learning operations API. */
+  agent_learning?: AdminOpsAgentLearningSection;
   /** Optional during a rolling deploy from the Phase 1 operations API. */
   service_telemetry?: AdminOpsServiceTelemetrySection;
   /** Optional during a rolling deploy from the Phase 1 operations API. */

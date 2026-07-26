@@ -27,6 +27,7 @@ from analysis.data_loader import (
     select_preferred_source,
 )
 from analysis.metrics import (
+    HEAT_ELIGIBLE_ACTIVITY_TYPES,
     HEAT_LOOKBACK_DAYS,
     HEAT_SAMPLE_MAX_INTERVAL_SEC,
     compute_heat_adaptation,
@@ -230,6 +231,7 @@ class RequestContext:
             current_date=self.today,
             sample_max_interval_sec=HEAT_SAMPLE_MAX_INTERVAL_SEC,
             lookback_days=HEAT_LOOKBACK_DAYS,
+            eligible_activity_types=HEAT_ELIGIBLE_ACTIVITY_TYPES,
         )
         return compute_heat_adaptation(
             activities,
