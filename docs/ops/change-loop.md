@@ -58,8 +58,9 @@ while sensitive, broad, uncertain, or failing changes still require a human.
 Set `PRAXYS_AGENT_READY_SHADOW=true` (App Service setting) to compute the
 `agent-ready` decision and log it **without** applying the label — nothing is
 auto-assigned. Use it to measure precision on real feedback before trusting the
-loop, then unset to go live. Decisions are logged as
-`change-loop agent-ready decision for feedback <id>: applied=<bool> shadow=<bool>`.
+loop, then unset to go live. Decisions are logged and persisted as structured
+`AgentDecision` rows with policy/model/mode metadata and privacy-minimized input
+facts.
 
 ### Screenshots (how the agent "sees" them)
 
@@ -211,8 +212,10 @@ initialization must not overwrite its Python/Node test environment.
 - **Repo-wide instructions (the "prompt"):** the issue body *is* the task prompt;
   durable guidance lives in `.github/copilot-instructions.md` ("Coding-agent
   guidance") — always add a test, run `pytest`, follow the 7-step metric
-  checklist, keep metrics pure, never weaken scrub / tokenstore invariants. Edit
-  there rather than stuffing per-issue boilerplate into the public tracker.
+  checklist, keep metrics pure, never weaken scrub / tokenstore invariants, and
+  keep the PR draft until the implementation/tests/final diff are stable. A code
+  push after the first ready handoff returns the PR to draft before more work.
+  Edit there rather than stuffing per-issue boilerplate into the public tracker.
 - **Environment:** `.github/workflows/copilot-setup-steps.yml` preinstalls Python
   + deps (and Node/web) and bootstraps a throwaway `.env`, so the agent can run
   `pytest` / `npm` deterministically instead of rediscovering the toolchain. It
@@ -227,12 +230,23 @@ initialization must not overwrite its Python/Node test environment.
 
 ## Self-improvement
 
-The change loop is meant to get better across iterations. The weekly observer
-starts from every `agent-ready` issue, tracks assignment and PR latency, excludes
-explicit smoke tests from quality totals, measures CI only after the first
-review handoff, attributes failures to the PR vs baseline/infrastructure, and
-records correction rounds, missing tests, reverts, and reopens. Its report is a
-GitHub-native baseline, not yet the durable outcome store.
+The change loop is meant to get better across iterations. Every triage decision
+now writes an append-only `AgentDecision`; triage results, admin overrides,
+issue close/reopen state, externally observed `agent-ready`, and closing-PR
+state write append-only `AgentOutcome` rows. The records contain hashes, counts,
+allowlisted context keys, policy/model versions, and public GitHub identifiers
+only — never raw feedback or screenshot bytes.
+
+The admin **Sync from GitHub** action performs the issue/closing-PR
+reconciliation. The feedback GitHub App therefore needs **Issues: read/write**
+and **Pull requests: read**. It selects no issue/PR titles, bodies, comments,
+commits, reviews, or authors.
+
+The weekly observer starts from every `agent-ready` issue, tracks assignment and
+PR latency, excludes explicit smoke tests from quality totals, measures CI only
+after the first review handoff, attributes failures to the PR vs
+baseline/infrastructure, and records correction rounds, missing tests, reverts,
+and reopens. Its report remains the richer GitHub-native period view.
 
 For human-added `agent-ready` labels, the observer checks comments immediately
 around the label event. An explicit maintainer statement that triage missed the
@@ -248,12 +262,18 @@ CI attribution uses check-run output, annotations, and job-step metadata only.
 The observer does not download raw workflow/job logs, and pre-readiness failures
 remain context rather than triggering an attribution investigation.
 
+The deterministic assignment policy is versioned as `change.agent_ready` and
+protected by a checked-in, text-free replay corpus:
+
+```bash
+python scripts/replay_agent_policy.py
+```
+
 Those outcomes train both triage precision and draft quality. They also provide
 the evidence for a future `review-required | auto-merge-candidate` policy. A
 narrow class enters shadow evaluation only after repeated clean outcomes; the
-implementation agent never evaluates itself. Durable outcome capture, an eval
-corpus, replay CI, shadow comparison/promotion, and policy PRs are tracked in
-**#377**.
+implementation agent never evaluates itself. Shadow comparison/promotion and
+policy PRs remain tracked in **#377**.
 
 ## Security & abuse resistance
 
@@ -317,7 +337,13 @@ and the cost is low).
   `copilot-swe-agent` as an assignee; a draft PR follows.
 - A **feature**, a **not-actionable** bug, a `backlog`/`later` bug, or a
   `needs_review`/sensitive report is never auto-assigned.
-- Shadow mode on → no label is applied, but the decision is logged.
+- Shadow mode on → no label is applied, but the decision is durably recorded
+  with its policy/model/mode and privacy-minimized inputs.
+- `python scripts/replay_agent_policy.py` reports 100% on the checked-in corpus.
+- Admin **Feedback → Sync from GitHub** records issue transitions, manual
+  `agent-ready` recovery, and closing-PR state without fetching tracker text.
+- Admin **Operations → Agent learning** shows aggregate decision/outcome counts
+  and `draft-with-review` while no class is promoted.
 - A web build failure makes the required `backend-tests` aggregator fail even
   when pytest passes.
 - A manual `Change loop outcomes` run reports explicit operational tests

@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "change": {
+    "agent_ready": {
+      "policy_name": "change.agent_ready",
+      "version": "agent-ready-v2"
+    },
+    "selective_review": {
+      "version": "selective-review-v1",
+      "default_decision": "review-required",
+      "promoted_classes": [],
+      "promotion_requirements": {
+        "minimum_completed_prs": 5,
+        "minimum_observation_days": 7,
+        "maximum_correction_rate": 0.0,
+        "maximum_pr_caused_failure_rate": 0.0,
+        "maximum_revert_or_reopen_rate": 0.0,
+        "minimum_test_policy_rate": 1.0
+      }
+    }
+  }
+}

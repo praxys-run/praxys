@@ -31,6 +31,7 @@ transient — the next deploy overwrites them.**
 | `PRAXYS_SMTP_PASSWORD` | SMTP client authorization code (WeCom/Exmail) for verification + invitation emails. **Optional.** | App Service setting (backend) |
 | `WECHAT_MINIAPP_UPLOAD_KEY` | Mini program CI upload key | `miniapp-publish.yml` |
 | `COPILOT_ASSIGN_TOKEN` | **Required for workflow auto-assign** — fine-grained PAT (*Issues: write*, this repo only, with expiry). Agent assignment needs a user token; the built-in `GITHUB_TOKEN` is forbidden (issue #400). Manual UI assignment doesn't need it. | `assign-copilot.yml` |
+| `PRAXYS_GITHUB_APP_PRIVATE_KEY` | Feedback GitHub App private key. The app has Issues read/write and Pull requests read; tokens are minted on demand. | App Service setting (backend) |
 
 ### GitHub Actions → Variables
 `… → Variables` (non-secret; build variables are inlined into the SPA and ship to browsers)
@@ -46,6 +47,8 @@ transient — the next deploy overwrites them.**
 | `PRAXYS_APP_BASE_URL` (`https://praxys.run`) | Public origin for verify/invite links in those emails | App Service setting (backend) |
 | `PRAXYS_DB_AUTH` (`entra` or unset) | Postgres auth mode: `entra` = AAD token via managed identity, no password. **Optional.** | App Service setting (backend) |
 | `PRAXYS_PG_SERVER` | Postgres Flexible Server name. **Reserved / currently unused** - the on-demand backup jobs it gated were removed (Burstable tier can't do on-demand backups; PITR covers backup). Kept for a future off-site backup job. | (reserved) |
+| `PRAXYS_GITHUB_APP_ID` / `PRAXYS_GITHUB_APP_INSTALLATION_ID` | Feedback GitHub App identifiers. | App Service setting (backend) |
+| `PRAXYS_FEEDBACK_GITHUB_REPO` / `PRAXYS_FEEDBACK_GITHUB_LABELS` / `PRAXYS_FEEDBACK_GITHUB_ASSIGNEES` | Feedback issue target and optional issue metadata. | App Service setting (backend) |
 
 ### GitHub Actions → Workflow permissions
 
@@ -374,8 +377,12 @@ to the Copilot coding agent. These are **repo settings, not deploy-managed**:
   before going live (issue #377).
 - **Agent environment:** `.github/workflows/copilot-setup-steps.yml` preinstalls
   the toolchain so the agent can run `pytest` / `npm` deterministically.
+- **Versioned policy metadata:** `config/agent-loop-policies.json` is committed
+  code config. It names the active assignment policy and keeps selective review
+  default-deny with an empty promoted-class list. `deploy-backend.yml` watches
+  the file so Admin Ops reports the deployed autonomy state.
 - The **workflow file is the source of truth** for the trigger + assignment
-  logic; branch protection on `main` keeps merge human.
+  logic; branch protection on `main` keeps merge review-gated.
 
 ### Azure Database for PostgreSQL (#360)
 
@@ -495,4 +502,4 @@ outgrown.
   (source of truth for App Service settings and telemetry routing)
 
 ---
-_Last reviewed: 2026-07-18 · Owner: @dddtc2005_
+_Last reviewed: 2026-07-25 · Owner: @dddtc2005_

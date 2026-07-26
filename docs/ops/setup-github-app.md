@@ -37,10 +37,19 @@ GitHub → *Settings → Developer settings → GitHub Apps → New GitHub App*:
 - **Name:** e.g. `praxys-feedback`.
 - **Homepage URL:** `https://www.praxys.run` (anything valid).
 - **Webhook:** uncheck *Active* (we don't receive webhooks).
-- **Permissions → Repository → Issues:** **Read and write**. No other permissions.
+- **Permissions → Repository → Issues:** **Read and write**.
+- **Permissions → Repository → Pull requests:** **Read-only**. This is used only
+  to read numeric/state metadata for PRs that close a feedback issue; the backend
+  never requests PR text, comments, commits, reviews, or authors.
 - **Where can this App be installed:** *Only on this account*.
 - Create, then note the **App ID**.
 - *Generate a private key* → downloads a `.pem`. Keep it secret.
+
+For an existing installation, adding Pull requests permission creates a pending
+permission update. An organization owner must approve it from the app's
+installation settings (or reinstall the app) before closing-PR outcomes appear.
+Until approval, issue close/reopen sync continues through the state-only
+fallback. Re-run the token-grant check below to verify `pull_requests: read`.
 
 ### 2. Install it on the repo  — human
 
@@ -81,7 +90,8 @@ The deploy's *sync settings* step pushes the variables + secret to App Service
 
 **Before deploy (optional, fast):** confirm the credentials are right without
 shipping anything — sign the app JWT, mint an installation token, and check the
-grant. A `201` with `"issues": "write"` means filing will work:
+grant. A `201` with `"issues": "write"` and `"pull_requests": "read"` means
+filing and outcome reconciliation will work:
 
 ```bash
 # needs python + cryptography/PyJWT; or do the JWT+POST by hand
@@ -99,6 +109,8 @@ PY
 **After deploy:** submit a test bug report (or Admin → User Feedback → **Retry** a
 `failed` row) and confirm it reaches `issue_created` with a real issue link. The
 issue is authored by the App (e.g. `praxys-feedback[bot]`), not a personal account.
+Close it with a PR, run Admin → User Feedback → **Sync from GitHub**, and confirm
+the ticket resolves and Admin → Operations records the closing-PR outcome.
 
 ## Rollback / Recovery
 
@@ -113,4 +125,4 @@ the app.
 - Feedback feature: praxys-run/praxys#328
 
 ---
-_Last reviewed: 2026-06-30 · Owner: @dddtc2005_
+_Last reviewed: 2026-07-25 · Owner: @dddtc2005_

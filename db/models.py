@@ -605,6 +605,72 @@ class Feedback(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 
+class AgentDecision(Base):
+    """Append-only, privacy-minimized record of an agent policy decision."""
+
+    __tablename__ = "agent_decisions"
+    __table_args__ = (
+        Index("ix_agent_decisions_loop_created", "loop", "created_at"),
+        Index(
+            "ix_agent_decisions_subject",
+            "subject_type",
+            "subject_ref",
+            "created_at",
+        ),
+    )
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    loop = Column(String(30), nullable=False)
+    subject_type = Column(String(40), nullable=False)
+    subject_ref = Column(String(120), nullable=False)
+    policy_name = Column(String(100), nullable=False)
+    policy_version = Column(String(100), nullable=False)
+    prompt_version = Column(String(64), nullable=True)
+    model = Column(String(100), nullable=True)
+    mode = Column(String(20), nullable=False, default="active")
+    input_sha256 = Column(String(64), nullable=False, index=True)
+    input_json = Column(JSON, nullable=False, default=dict)
+    output_json = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    outcomes = relationship(
+        "AgentOutcome",
+        back_populates="decision",
+        cascade="all, delete-orphan",
+        order_by="AgentOutcome.observed_at",
+    )
+
+
+class AgentOutcome(Base):
+    """Append-only observation joined to the decision that produced an action."""
+
+    __tablename__ = "agent_outcomes"
+    __table_args__ = (
+        UniqueConstraint(
+            "decision_id",
+            "fingerprint",
+            name="uq_agent_outcomes_decision_fingerprint",
+        ),
+        Index("ix_agent_outcomes_type_observed", "outcome_type", "observed_at"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    decision_id = Column(
+        String(36),
+        ForeignKey("agent_decisions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    outcome_type = Column(String(60), nullable=False)
+    source = Column(String(40), nullable=False)
+    fingerprint = Column(String(64), nullable=False)
+    payload_json = Column(JSON, nullable=False, default=dict)
+    observed_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    decision = relationship("AgentDecision", back_populates="outcomes")
+
+
 class AppConfig(Base):
     """System-wide operational config as a small key-value store.
 

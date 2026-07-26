@@ -10,7 +10,8 @@ feedback row stays at ``triaged`` for manual admin promotion):
 Auth uses a **GitHub App** (no token to rotate): ``PRAXYS_GITHUB_APP_ID`` +
 ``PRAXYS_GITHUB_APP_INSTALLATION_ID`` + ``PRAXYS_GITHUB_APP_PRIVATE_KEY`` (PEM).
 We sign a short-lived JWT, exchange it for a ~1h installation token, and cache
-it. The app needs *Issues: write* on the target repo. Setup:
+it. The app needs *Issues: write* and *Pull requests: read* on the target repo.
+The latter is used only to reconcile closing-PR outcome metadata. Setup:
 ``docs/ops/setup-github-app.md``.
 
 - ``PRAXYS_FEEDBACK_GITHUB_REPO`` — ``owner/repo`` of the triage repo. Because
@@ -239,18 +240,17 @@ def create_issue(
 def get_issue_state(number: int) -> dict | None:
     """Return a linked issue's current state, or ``None``.
 
-    Shape: ``{"state": "open"|"closed", "state_reason": str|None}``. Used by the
-    admin ticket-sync action to reconcile local status with GitHub. Read-only
-    and privacy-preserving: it reads only the issue's state — no user-submitted
-    ticket text is sent to or parsed back from GitHub. ``None`` when GitHub isn't
-    configured or the fetch fails; never raises (same contract as create_issue).
+    Used as a state-only fallback when the installation has not yet approved
+    Pull requests read permission. Read-only and privacy-preserving: it reads
+    only issue lifecycle fields — no user-submitted ticket text is parsed.
+    ``None`` when GitHub isn't configured or the fetch fails.
     """
     token, repo = _bearer_token(), _repo()
     if not token or not repo:
         return None
     url = f"{_API_ROOT}/repos/{repo}/issues/{number}"
     headers = {
-        "Authorization": f"******",
+        "Authorization": f"Bearer {token}",
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": _API_VERSION,
         "User-Agent": "praxys-feedback",
@@ -274,4 +274,138 @@ def get_issue_state(number: int) -> dict | None:
     state = data.get("state")
     if state not in ("open", "closed"):
         return None
-    return {"state": state, "state_reason": data.get("state_reason")}
+    return {
+        "state": state,
+        "state_reason": data.get("state_reason"),
+        "closed_at": data.get("closed_at"),
+        "updated_at": data.get("updated_at"),
+    }
+
+
+def _state_only_outcome(number: int) -> dict | None:
+    """Adapt the REST issue state response to the richer outcome contract."""
+    state = get_issue_state(number)
+    if state is None:
+        return None
+    return {
+        **state,
+        "agent_ready": False,
+        "closing_pull_requests": [],
+    }
+
+
+def get_issue_outcome(number: int) -> dict | None:
+    """Return issue state, labels, and closing-PR metadata without fetching text.
+
+    The GraphQL selection deliberately excludes issue/PR titles, bodies, comments,
+    authors, commits, and reviews. This gives the learning substrate durable
+    outcome facts without copying user feedback back out of the public tracker.
+    """
+    token, repo = _bearer_token(), _repo()
+    if not token or not repo or "/" not in repo:
+        return None
+    owner, name = repo.split("/", 1)
+    query = """
+    query FeedbackOutcome($owner: String!, $name: String!, $number: Int!) {
+      repository(owner: $owner, name: $name) {
+        issue(number: $number) {
+          state
+          stateReason
+          closedAt
+          updatedAt
+          labels(first: 100) { nodes { name } }
+          closedByPullRequestsReferences(first: 10) {
+            nodes {
+              number
+              state
+              isDraft
+              merged
+              updatedAt
+              mergedAt
+              closedAt
+              url
+            }
+          }
+        }
+      }
+    }
+    """
+    headers = {
+        "Authorization": "Bearer " + token,
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": _API_VERSION,
+        "User-Agent": "praxys-feedback",
+    }
+    try:
+        resp = httpx.post(
+            f"{_API_ROOT}/graphql",
+            json={
+                "query": query,
+                "variables": {
+                    "owner": owner,
+                    "name": name,
+                    "number": number,
+                },
+            },
+            headers=headers,
+            timeout=_TIMEOUT_S,
+        )
+    except httpx.HTTPError as exc:
+        logger.warning("GitHub issue outcome fetch failed (network): %s", exc)
+        return _state_only_outcome(number)
+    if resp.status_code != 200:
+        logger.warning(
+            "GitHub issue outcome fetch failed: HTTP %s (%s)",
+            resp.status_code,
+            resp.reason_phrase,
+        )
+        return _state_only_outcome(number)
+    try:
+        payload = resp.json() or {}
+    except Exception:
+        logger.warning("GitHub issue outcome fetch returned a non-JSON 200 body")
+        return _state_only_outcome(number)
+    if payload.get("errors"):
+        logger.warning(
+            "GitHub issue outcome query returned GraphQL errors; "
+            "falling back to issue state only"
+        )
+        return _state_only_outcome(number)
+    issue = ((payload.get("data") or {}).get("repository") or {}).get("issue")
+    if not isinstance(issue, dict):
+        return _state_only_outcome(number)
+    state = str(issue.get("state", "")).lower()
+    if state not in ("open", "closed"):
+        return _state_only_outcome(number)
+    labels = sorted(
+        str(node.get("name"))
+        for node in ((issue.get("labels") or {}).get("nodes") or [])
+        if isinstance(node, dict) and node.get("name")
+    )
+    pulls = []
+    for pull in (
+        (issue.get("closedByPullRequestsReferences") or {}).get("nodes") or []
+    ):
+        if not isinstance(pull, dict) or not pull.get("number"):
+            continue
+        pulls.append(
+            {
+                "number": int(pull["number"]),
+                "state": str(pull.get("state", "")).lower(),
+                "is_draft": bool(pull.get("isDraft")),
+                "merged": bool(pull.get("merged")),
+                "updated_at": pull.get("updatedAt"),
+                "merged_at": pull.get("mergedAt"),
+                "closed_at": pull.get("closedAt"),
+                "url": pull.get("url"),
+            }
+        )
+    state_reason = issue.get("stateReason")
+    return {
+        "state": state,
+        "state_reason": str(state_reason).lower() if state_reason else None,
+        "closed_at": issue.get("closedAt"),
+        "updated_at": issue.get("updatedAt"),
+        "agent_ready": "agent-ready" in labels,
+        "closing_pull_requests": pulls,
+    }

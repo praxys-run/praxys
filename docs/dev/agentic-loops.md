@@ -1,7 +1,9 @@
 # Agentic loops — the self-improvement platform
 
-**Status:** Design / north-star. The **change loop** (#362, PR #373) is the first
-instance; most of the shared substrate below is not built yet (tracked in #377).
+**Status:** Active implementation. The **change loop** (#362, PR #373) is the
+first instance. Durable decision/outcome records, a seed replay corpus, and
+aggregate learning metrics are built; selective-review promotion remains tracked
+in #377.
 **Question:** How do AI agents run in *loops* — not one-shot pipelines — that
 learn from outcomes to improve the Praxys product *and* its operations?
 
@@ -75,22 +77,22 @@ Every decision point — triage `kind`, `agent_eligible`, priority, sensitivity,
 RCA hypothesis, mitigation choice, prioritization — is a **policy**. Each policy
 should run on the same six rails:
 
-1. **Trace log.** Record every decision: inputs (scrubbed), the *policy version*,
-   the model, and the output. *Today:* App Insights + `api/telemetry.py` log
-   feature/usage events; agent **decisions** are only `logger.info`-level (see
-   `api/feedback_triage.py` `change-loop agent-ready decision …`). *Gap:* a
-   structured, queryable decisions store.
+1. **Trace log.** Record every decision: privacy-minimized structured inputs, the
+   *policy version*, the model, mode, and output. *Built:* generic append-only
+   `AgentDecision` rows; Loop A stores hashes/counts/allowlisted context keys
+   rather than duplicating feedback text.
 2. **Outcome capture** (the feedback edge). A reconciler that records what the
    human/world actually did — PR merged/edited/rejected, issue close-reason, alert
    resolved/recurred. **This is the missing edge that makes shadow mode able to
-   learn.** *Today:* `change-loop-outcomes.md` provides a weekly, issue-first
-   GitHub observer and period aggregate, but not a durable per-decision store.
-   *Gap:* a structured reconciler that joins decisions to GitHub/telemetry
-   outcomes and seeds replay examples.
+   learn.** *Built:* generic append-only `AgentOutcome` rows record triage,
+   admin override, issue close/reopen, externally observed `agent-ready`, and
+   closing-PR state. `change-loop-outcomes.md` remains the richer GitHub-native
+   observer.
 3. **Eval corpus + replay.** Labeled examples harvested from human corrections, +
    an offline/CI runner that *scores* a policy and blocks regressions when a
-   prompt/threshold changes. *Today:* none. *Gap:* seed a corpus from #2, add a
-   replay check.
+   prompt/threshold changes. *Built:* the structured, text-free seed corpus at
+   `data/agent_evals/change/agent_ready.json` and
+   `scripts/replay_agent_policy.py`; pytest makes it a CI gate.
 4. **Shadow → promote.** Run a candidate policy in *compute-but-don't-act* mode
    against live traffic, compare to the current policy **and** to eventual
    outcomes, and promote only if it wins. *Today:* the change loop has the
@@ -105,7 +107,9 @@ should run on the same six rails:
    MTTR, precision/recall, % autonomous vs escalated — and use them to move each
    task-type up or down the autonomy ladder (§5). *Today:* the 30-day observer
    reports lifecycle, readiness-CI attribution, corrections, test coverage, and
-   reverts; durable metrics and change-class promotion state do not exist.
+   reverts. *Built in part:* Admin Ops now shows durable decision/outcome counts
+   and the versioned autonomy state from `config/agent-loop-policies.json`;
+   per-class shadow/promotion evidence remains the Phase 2 gap.
 
 ## 5. Autonomy ladder & guardrails
 
@@ -154,21 +158,21 @@ recorded corrections, enough post-merge observation, and a fast rollback.
 **Have:** App Insights + `api/telemetry.py`; the change loop
 (`api/feedback_triage.py`, `.github/workflows/assign-copilot.yml`,
 `copilot-setup-steps.yml`); the shadow *primitive*; the issue-first 30-day outcome
-observer; `feedback_scrub` + private-by-construction guardrails; the ops-agent
-skeleton.
+observer; generic `AgentDecision` / `AgentOutcome` records; GitHub issue/closing
+PR reconciliation; the checked-in replay corpus; Admin Ops learning aggregates;
+`feedback_scrub` + private-by-construction guardrails; the ops-agent skeleton.
 
-**Missing (the substrate):** durable decision/outcome records (rails 1–2), the
-eval corpus + replay (rail 3), the shadow *compare/promote* half including the
-selective-review classifier (rail 4), policy-PR generation (rail 5), and durable
-agent-quality metrics + promotion state (rail 6).
+**Missing (the substrate):** the shadow *compare/promote* half including the
+selective-review classifier (rail 4), policy-PR generation (rail 5), and
+per-change-class promotion evidence plus the independent merge gate (rail 6).
 
 **Phases** (tracked in **#377**):
 
-- **Phase 0 — instrument.** The GitHub-native observer establishes the baseline;
-  add structured decision logging + durable outcome capture. Shadow mode already
-  lets us collect "what would the loop have done" safely.
-- **Phase 1 — eval.** Seed the corpus from human corrections; add a replay CI
-  check that gates prompt/threshold changes.
+- **Phase 0 — instrument (built).** The GitHub-native observer establishes the
+  baseline; structured decision logging and durable outcome capture preserve the
+  learn edge.
+- **Phase 1 — eval (built for `change.agent_ready`).** A correction-derived seed
+  corpus and replay CI gate protect the deterministic assignment policy.
 - **Phase 2 — close the loop.** Shadow-classify `review-required` vs a named
   narrow auto-merge candidate; promote only proven classes through an independent
   merge policy; add a meta-agent that turns recurring misses into policy PRs and
