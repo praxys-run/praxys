@@ -618,7 +618,7 @@ msgstr "智能体学习"
 
 #: src/pages/admin/AdminOps.tsx:929
 msgid "Agent-ready candidates"
-msgstr "agent-ready 候选项"
+msgstr "可由智能体处理的候选项"
 
 #. placeholder {0}: alerts.total
 #. placeholder {1}: alerts.resolved
@@ -3962,7 +3962,7 @@ msgstr "登录前请先验证邮箱。请查看收件箱中的验证链接。"
 #. placeholder {1}: agentLearning.decision_policy_version
 #: src/pages/admin/AdminOps.tsx:917
 msgid "Policy {0} · decision {1}"
-msgstr "审核策略 {0} · 决策策略 {1}"
+msgstr "策略 {0} · 决策 {1}"
 
 #: src/pages/admin/AdminOps.tsx:898
 msgid "Policy-gated auto-merge"
@@ -6290,10 +6290,12 @@ msgstr "Praxys 邀请"
 #. placeholder {0}: result.code
 #. placeholder {1}: result.invite_url
 #: src/pages/admin/AdminUsers.tsx:830
-msgid "Your Praxys invitation code: {0}\n"
+msgid ""
+"Your Praxys invitation code: {0}\n"
 "\n"
 "Finish registering here: {1}"
-msgstr "Praxys 邀请码：{0}\n"
+msgstr ""
+"Praxys 邀请码：{0}\n"
 "\n"
 "注册链接：{1}"
 
