@@ -4,10 +4,12 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import translate_missing as tm  # noqa: E402
 from translate_missing import (  # noqa: E402
     _extract_context,
     _group_by_screen,
@@ -469,3 +471,44 @@ def test_review_cli_accepts_review_cycle_without_model_call(tmp_path, monkeypatc
     )
 
     assert translate_cli_main() == 0
+
+
+def test_theory_translation_keeps_science_metadata_canonical(
+    tmp_path,
+    monkeypatch,
+):
+    source_dir = tmp_path / "science"
+    source_path = source_dir / "load" / "example.yaml"
+    source_path.parent.mkdir(parents=True)
+    source_path.write_text(
+        yaml.safe_dump({
+            "id": "example",
+            "pillar": "load",
+            "name": "Example",
+            "description": "English description",
+            "science_decision_id": "sdr-example-v1",
+            "model_version": "example-v1",
+            "params": {"constant": 42},
+            "citations": [{"id": "source"}],
+        }, sort_keys=False),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(tm, "_client", lambda: object())
+    monkeypatch.setattr(
+        tm,
+        "_complete",
+        lambda *_args: "[name]\nTranslated\n\n[description]\nLocalized",
+    )
+
+    target_dir = tmp_path / "zh"
+    tm.translate_yaml_tree(source_dir, target_dir, "Chinese")
+    translated = yaml.safe_load(
+        (target_dir / "load" / "example.yaml").read_text(encoding="utf-8")
+    )
+
+    assert translated == {
+        "id": "example",
+        "pillar": "load",
+        "name": "Translated",
+        "description": "Localized",
+    }

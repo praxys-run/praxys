@@ -19,6 +19,8 @@ Garmin/Stryd/Oura APIs
    ├── zones.py          Zone boundary calculation
    ├── config.py         User config (DB-backed with file fallback)
    ├── science.py        Theory loading from YAML
+   ├── evidence_registry.py
+   │                     Evidence + decision validation
    └── providers/        Platform-specific data adapters
         |
    api/               FastAPI application
@@ -148,7 +150,21 @@ Demo accounts let admins share a live, read-only view of their dashboard with ot
 Training theories (load models, zone frameworks, prediction methods, recovery protocols) are YAML files in `data/science/`. The user selects one theory per pillar in their config. This means:
 - Metrics adapt to the selected theory (zone boundaries, time constants, etc.)
 - New theories can be added by creating a YAML file — no code changes
-- Citations link back to the original research papers
+- Linked theories resolve citations from the versioned evidence registry rather
+  than duplicating bibliographic metadata in English and Chinese files
+
+`analysis/evidence_registry.py` strictly validates two separate record graphs:
+
+- `data/science/evidence/` preserves reproducible literature searches, bounded
+  claims, evidence strength, applicability, limitations, and citation metadata.
+- `data/science/decisions/` records the human-reviewed product interpretation,
+  rejected alternatives, published-versus-Praxys parameter provenance,
+  validation/falsification plans, affected surfaces, and supersession history.
+
+Accepted theory YAML links an exact model version to an accepted SDR. The loader
+rejects missing claims, conflicting citation identifiers, unreviewed decisions,
+or parameters whose value/provenance differs from the linked decision. The
+generated `data/science/REGISTRY.md` is the human-readable lifecycle index.
 
 ### Multi-Source Data Merging
 
@@ -248,6 +264,7 @@ Each sync script (`garmin_sync.py`, `stryd_sync.py`, `oura_sync.py`) is self-con
 - **`metrics.py`**: ~40 pure functions covering RSS, TRIMP, EWMA, TSB, predictions, diagnosis, recovery analysis
 - **`zones.py`**: Computes zone ranges from threshold + boundary fractions
 - **`science.py`**: Loads YAML theories, merges with label sets, provides `load_active_science()`
+- **`evidence_registry.py`**: Validates evidence reviews, SDRs, citations, claims, parameter provenance, and supersession
 - **`training_base.py`**: Display config per training base (labels, units, abbreviations)
 - **`providers/`**: Platform-specific adapters for threshold detection and plan loading
 

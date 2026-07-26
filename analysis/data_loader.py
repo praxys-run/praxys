@@ -8,10 +8,10 @@ from __future__ import annotations
 import logging
 import os
 from datetime import date, datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Collection
 
 import pandas as pd
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 
 logger = logging.getLogger(__name__)
 
@@ -470,6 +470,7 @@ def load_heat_adaptation_inputs(
     current_date: date,
     sample_max_interval_sec: float,
     lookback_days: int,
+    eligible_activity_types: Collection[str],
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Load bounded environment, split power, and cadence-weighted sample power.
 
@@ -489,6 +490,13 @@ def load_heat_adaptation_inputs(
     if not isinstance(activity_source, str) or not activity_source.strip():
         raise ValueError("activity_source must be a non-empty provider name")
     normalized_activity_source = activity_source.strip().casefold()
+    normalized_activity_types = tuple(sorted({
+        str(activity_type).strip().casefold()
+        for activity_type in eligible_activity_types
+        if str(activity_type).strip()
+    }))
+    if not normalized_activity_types:
+        raise ValueError("eligible_activity_types must not be empty")
 
     cutoff = current_date - timedelta(days=max(1, lookback_days) - 1)
     activities = pd.read_sql(
@@ -499,16 +507,17 @@ def load_heat_adaptation_inputs(
             "FROM activities AS a "
             "WHERE a.user_id = :uid "
             "  AND a.date BETWEEN :cutoff AND :current_date "
-            "  AND a.activity_type IN ('running', 'trail_running') "
+            "  AND LOWER(a.activity_type) IN :eligible_activity_types "
             "  AND LOWER(a.source) = :activity_source "
             "ORDER BY a.date"
-        ),
+        ).bindparams(bindparam("eligible_activity_types", expanding=True)),
         db.bind,
         params={
             "uid": user_id,
             "cutoff": cutoff,
             "current_date": current_date,
             "activity_source": normalized_activity_source,
+            "eligible_activity_types": normalized_activity_types,
         },
         parse_dates=["date"],
     )
@@ -524,15 +533,16 @@ def load_heat_adaptation_inputs(
             "  ON a.user_id = s.user_id AND a.activity_id = s.activity_id "
             "WHERE a.user_id = :uid "
             "  AND a.date BETWEEN :cutoff AND :current_date "
-            "  AND a.activity_type IN ('running', 'trail_running') "
+            "  AND LOWER(a.activity_type) IN :eligible_activity_types "
             "  AND LOWER(a.source) = :activity_source"
-        ),
+        ).bindparams(bindparam("eligible_activity_types", expanding=True)),
         db.bind,
         params={
             "uid": user_id,
             "cutoff": cutoff,
             "current_date": current_date,
             "activity_source": normalized_activity_source,
+            "eligible_activity_types": normalized_activity_types,
         },
     )
     sample_power = pd.read_sql(
@@ -549,7 +559,7 @@ def load_heat_adaptation_inputs(
             "    ON a.user_id = s.user_id AND a.activity_id = s.activity_id "
             "  WHERE a.user_id = :uid "
             "    AND a.date BETWEEN :cutoff AND :current_date "
-            "    AND a.activity_type IN ('running', 'trail_running') "
+            "    AND LOWER(a.activity_type) IN :eligible_activity_types "
             "    AND LOWER(a.source) = :activity_source"
             ") "
             "SELECT activity_id, power_provider, power_watts, "
@@ -568,13 +578,14 @@ def load_heat_adaptation_inputs(
             "           THEN next_delta_sec "
             "         ELSE 0 "
             "       END) > 0"
-        ),
+        ).bindparams(bindparam("eligible_activity_types", expanding=True)),
         db.bind,
         params={
             "uid": user_id,
             "cutoff": cutoff,
             "current_date": current_date,
             "activity_source": normalized_activity_source,
+            "eligible_activity_types": normalized_activity_types,
             "sample_max_interval_sec": sample_max_interval_sec,
         },
     )
