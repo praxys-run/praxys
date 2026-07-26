@@ -241,6 +241,12 @@ jobs:
       - name: Regenerate miniapp catalog
         run: node miniapp/scripts/sync-i18n.cjs
 
+      - name: Discard install-only lockfile normalization
+        run: |
+          # npm install can rewrite platform metadata under a different npm
+          # version. Dependency lock updates belong in separate PRs.
+          git restore -- web/package-lock.json
+
       - name: Open pull request
         id: create-pr
         uses: peter-evans/create-pull-request@v8
