@@ -149,15 +149,19 @@ Protect `main` so the coding agent cannot ship or bypass checks:
   backend pytest and the web production build. Add it once that workflow has run
   on a PR so the check name is selectable.
 
-The repository ruleset currently requires one approval and squash merge, with an
-`Always` bypass for the repo-admin role so the solo maintainer can merge a green
-PR without a formal self-approval. That makes review maintainer-controlled, not
-mechanically universal. Do not grant the coding agent that bypass.
+Repository ruleset `default` (id `15208143`) requires a pull request and
+squash-only merge, and blocks branch deletion and non-fast-forward updates. Its
+`required_approving_review_count` is `0`: human review is encouraged for risky,
+security-sensitive, or science-affecting changes, but it is not a mandatory
+merge gate for the solo-maintainer workflow. The classic `backend-tests` status
+check remains required with admin enforcement.
 
-Future no-review merges must use a separate policy-owned identity or ruleset path
-that is limited to promoted change classes and still requires all checks. Do not
-reuse the broad repo-admin bypass, and do not let the implementation agent label
-its own PR as eligible.
+The ruleset retains an `Always` bypass for the repository-role admin. Normal
+green PRs do not need that bypass now that no approval is required; keep it as a
+maintainer capability and never grant it to the coding agent. Any future
+policy-owned auto-merge path must remain independently allowlisted and
+check-gated rather than reusing this broad bypass, and the implementation agent
+must not label its own PR as eligible.
 
 ```bash
 gh api repos/praxys-run/praxys/branches/main/protection --jq '{checks:.required_status_checks}'
@@ -174,7 +178,7 @@ around it:
 |---|---|---|
 | `change-loop-outcomes.md` | Weekly or manual | Replaces the previous issue-first 30-day lifecycle/quality report, or no-op |
 | `ci-failure-doctor.md` | Failed/timed-out PR validation workflow, or manual | One deduplicated PR diagnosis comment, or no-op |
-| `praxys-invariant-review.md` | Successful `Backend CI` run for a same-repo, open, non-draft PR; or manual dispatch | One Praxys-specific invariant comment, or no-op |
+| `praxys-invariant-review.md` | Successful `Backend CI` run for a same-repo, open, non-draft PR; or manual dispatch | One Praxys-specific science, contract, parity, privacy, native-Chinese, or operations invariant comment; or no-op |
 
 The editable `.md` files and generated `.lock.yml` files both live in
 `.github/workflows/`. The agents run read-only and exchange GitHub's short-lived
@@ -321,18 +325,21 @@ hidden in issue text. Defenses, in layers:
   `copilot-swe-agent` bot on a `copilot/*` branch, reviewable line-by-line. A
   zip / "patched build" / diff attached by a non-collaborator is **never** our
   flow — do not download, unzip, run, or apply it.
-- **The merge path is policy-owned** (§4). Unpromoted, sensitive, ambiguous, or
-  unstable PRs remain human-reviewed. A promoted no-review path is independently
-  allowlisted and check-gated; the coding agent never self-approves or receives a
-  bypass.
+- **The merge path is policy-owned** (§4). Before selective review is
+  provisioned, a maintainer decides whether a green PR is ready; human review is
+  strongly expected for risky, security-sensitive, or science-affecting changes
+  but is not imposed universally. Under selective review, unpromoted, sensitive,
+  ambiguous, or unstable PRs require human approval, while only a proven narrow
+  class can receive the independent policy App's approval. The coding agent
+  never self-approves or receives a bypass.
 - **The trigger is write-gated.** `agent-ready` can only be added by the triage
   bot or a maintainer — a drive-by account cannot start the loop. Keep it that
   way (don't let automation add the label from untrusted input).
 - **Least-privilege, expiring token** for assignment (§3); the agent runs in
   GitHub's sandbox with its firewall on — don't disable it.
-- **Protect `.github/**`** with CODEOWNERS + required review so a PR can't
-  quietly weaken a workflow or exfiltrate secrets; pin actions, keep
-  `permissions:` minimal, never expose secrets to fork/PR code.
+- **Treat `.github/**` changes as high risk.** Keep CODEOWNERS as an ownership
+  signal and obtain human review before merging workflow or policy changes; pin
+  actions, keep `permissions:` minimal, and never expose secrets to fork/PR code.
 
 **Treat all user-supplied text as untrusted (prompt-injection):** issue bodies,
 comments, and screenshot-derived text can carry "ignore your instructions…"
@@ -447,4 +454,4 @@ gh run list --workflow=assign-copilot.yml -R praxys-run/praxys --limit 5
 - Design: praxys-run/praxys#362 (the change loop); #361 (backend pytest gate); #377 (self-improvement).
 
 ---
-_Last reviewed: 2026-07-25 · Owner: @dddtc2005_
+_Last reviewed: 2026-07-26 · Owner: @dddtc2005_

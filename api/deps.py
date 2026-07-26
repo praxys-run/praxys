@@ -19,6 +19,7 @@ from analysis.providers.models import ThresholdEstimate
 from analysis.training_base import get_display_config
 from analysis.science import load_active_science
 from analysis.metrics import (
+    HEAT_ELIGIBLE_ACTIVITY_TYPES,
     HEAT_LOOKBACK_DAYS,
     HEAT_SAMPLE_MAX_INTERVAL_SEC,
     compute_ewma_load,
@@ -1822,6 +1823,7 @@ def get_dashboard_data(user_id: str = None, db=None) -> dict:
                 current_date=today,
                 sample_max_interval_sec=HEAT_SAMPLE_MAX_INTERVAL_SEC,
                 lookback_days=HEAT_LOOKBACK_DAYS,
+                eligible_activity_types=HEAT_ELIGIBLE_ACTIVITY_TYPES,
             )
         )
     else:

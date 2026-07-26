@@ -402,7 +402,7 @@ one configured provider at a time rather than blending overlapping sources.
     "stage": "insufficient_evidence|building|likely_adapted|maintaining|decaying",
     "confidence": "low|moderate|high",
     "confidence_basis": "data_coverage",
-    "model_version": "heat-adaptation-v7",
+    "model_version": "heat-adaptation-v8",
     "next_action": "continue_normal_training",
     "today_restricted": false,
     "recent_conditions": {
@@ -544,7 +544,7 @@ Training analysis and diagnosis.
     "stage": "likely_adapted",
     "confidence": "high",
     "confidence_basis": "data_coverage",
-    "model_version": "heat-adaptation-v7",
+    "model_version": "heat-adaptation-v8",
     "exposure_days": 7,
     "effective_heat_minutes": 420,
     "recent_conditions": {

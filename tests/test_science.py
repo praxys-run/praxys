@@ -94,6 +94,15 @@ class TestLoadTheory:
 
         assert params.model_dump()["target_distribution"] == [0.8, 0.05, 0.15]
 
+    def test_zone_schema_rejects_wrong_zone_name_count(self):
+        with pytest.raises(ValueError, match=r"zone_names\[default\]"):
+            ZoneTheoryParams(
+                zone_count=3,
+                boundaries={"power": [0.82, 1.0]},
+                zone_names=["Easy", "Hard"],
+                target_distribution=[0.8, 0.05, 0.15],
+            )
+
     @pytest.mark.parametrize(
         "target_distribution",
         [

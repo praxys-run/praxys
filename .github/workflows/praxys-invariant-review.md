@@ -1,6 +1,6 @@
 ---
 name: Praxys invariant review
-description: Reviews risky PRs for Praxys-specific science, contract, parity, privacy, and operations invariants
+description: Reviews risky PRs for Praxys-specific science, contract, parity, privacy, localization, and operations invariants
 on:
   workflow_run:
     workflows: ["Backend CI"]
@@ -153,6 +153,24 @@ Apply only the sections relevant to the changed files:
 6. **Verification**
    - Behavior changes add or update a focused test.
    - Generated files and source-of-truth files are changed together where required.
+7. **Native Chinese localization**
+   - Apply this section when a PR changes user-facing copy, the Lingui catalogs,
+     `miniapp/utils/i18n-extra.ts`, the glossary, or the i18n automation.
+   - Simplified Chinese should read like Mainland consumer fitness-product copy,
+     not a sentence-by-sentence translation: natural word order, concise labels,
+     Chinese punctuation, and parallel neighboring actions.
+   - Follow `scripts/i18n_glossary.yaml`: omit second-person pronouns where natural,
+     use `你` rather than `您` when needed, and keep canonical product/training terms
+     consistent across web and miniapp.
+   - Preserve every placeholder, Lingui tag, intentional line break, technical
+     acronym, and product meaning. Flag segmented source sentences whose markup
+     prevents Chinese from reordering naturally.
+   - A miniapp override that shares an English key with the web catalog should use
+     the canonical Chinese wording unless the mobile interaction genuinely needs
+     different copy. Do not accept unexplained synonym drift.
+   - For i18n automation changes, require bounded cost, explicit structure
+     validation, untrusted-context handling, deterministic gates, and human review
+     before generated copy merges.
 
 ## Output
 
