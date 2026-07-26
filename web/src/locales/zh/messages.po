@@ -95,7 +95,7 @@ msgstr "纳入 {0} 次 · 已观察但未纳入 {1} 次 · 等效热暴露 {2} �
 #. placeholder {0}: agentLearning.promoted_classes.length
 #: src/pages/admin/AdminOps.tsx:906
 msgid "{0} narrow change class(es) may merge through the independent policy gate."
-msgstr ""
+msgstr "{0} 个窄范围变更类别可通过独立策略门禁自动合并。"
 
 #. placeholder {0}: status.data_coverage.workload_supported_activities
 #. placeholder {1}: status.data_coverage.recent_activities
@@ -141,7 +141,7 @@ msgstr "已完成 {0}/{1} 步"
 #. placeholder {2}: agentLearning.outcomes_total
 #: src/pages/admin/AdminOps.tsx:940
 msgid "{0} shadow decisions · {1} labels applied · {2} durable outcomes"
-msgstr ""
+msgstr "{0} 个影子决策 · 已应用 {1} 个标签 · {2} 个持久化结果"
 
 #. placeholder {0}: session.work_minutes
 #. placeholder {1}: session.effective_heat_minutes
@@ -614,11 +614,11 @@ msgstr "有氧"
 
 #: src/pages/admin/AdminOps.tsx:886
 msgid "Agent learning"
-msgstr ""
+msgstr "智能体学习"
 
 #: src/pages/admin/AdminOps.tsx:929
 msgid "Agent-ready candidates"
-msgstr ""
+msgstr "agent-ready 候选项"
 
 #. placeholder {0}: alerts.total
 #. placeholder {1}: alerts.resolved
@@ -1470,7 +1470,7 @@ msgstr "决策反馈率"
 
 #: src/pages/admin/AdminOps.tsx:928
 msgid "Decisions"
-msgstr ""
+msgstr "决策"
 
 #: src/pages/admin/AdminIncidents.tsx:153
 #~ msgid "Declare incidents shown on the public"
@@ -2559,7 +2559,7 @@ msgstr "HRV 变异性偏高（CV {cv}%），高于所设训练警戒阈值。"
 
 #: src/pages/admin/AdminOps.tsx:930
 msgid "Human overrides"
-msgstr ""
+msgstr "人工改判"
 
 #: src/pages/Login.tsx:638
 msgid "I agree to the <0>Terms of Service</0> and <1>Privacy Policy</1>."
@@ -3085,7 +3085,7 @@ msgstr "中"
 
 #: src/pages/admin/AdminOps.tsx:931
 msgid "Merged PR outcomes"
-msgstr ""
+msgstr "已合并 PR 结果"
 
 #: src/pages/admin/AdminOps.tsx:345
 msgid "MFA"
@@ -3359,7 +3359,7 @@ msgstr "未触发 Azure 警报"
 
 #: src/pages/admin/AdminOps.tsx:907
 msgid "No change class is promoted. Decisions and outcomes are being recorded while merge remains review-gated."
-msgstr ""
+msgstr "尚未将任何变更类别提升为免审类别。系统正在记录决策和结果，合并仍需审核。"
 
 #: src/pages/admin/AdminOps.tsx:847
 msgid "No Coach votes were recorded in this window."
@@ -3962,11 +3962,11 @@ msgstr "登录前请先验证邮箱。请查看收件箱中的验证链接。"
 #. placeholder {1}: agentLearning.decision_policy_version
 #: src/pages/admin/AdminOps.tsx:917
 msgid "Policy {0} · decision {1}"
-msgstr ""
+msgstr "审核策略 {0} · 决策策略 {1}"
 
 #: src/pages/admin/AdminOps.tsx:898
 msgid "Policy-gated auto-merge"
-msgstr ""
+msgstr "策略门禁自动合并"
 
 #: src/pages/Today.tsx:303
 #~ msgid "positive"
@@ -4809,7 +4809,7 @@ msgstr "审核报告、管理截图，并同步关联的 GitHub issue。"
 
 #: src/pages/admin/AdminOps.tsx:899
 msgid "Review required"
-msgstr ""
+msgstr "需要审核"
 
 #: src/pages/admin/AdminUsers.tsx:788
 msgid "Revoke"
@@ -5558,7 +5558,7 @@ msgstr "当前负荷模型的长期时间常数为 {loadTimeConstantDays} 天，
 
 #: src/pages/admin/AdminOps.tsx:908
 msgid "The agent decision and outcome aggregate could not be refreshed."
-msgstr ""
+msgstr "无法刷新智能体决策与结果汇总。"
 
 #: src/pages/admin/AdminOps.tsx:598
 msgid "The alert summary could not be refreshed."
