@@ -354,10 +354,10 @@
 // (e.g. the 7d Trend arrow + sub line) crowd the rule visually.
 .today-cell:nth-child(odd):not(.today-cell--span) {
   border-right: 1rpx solid var(--border-subtle);
-  padding-right: 28rpx;
+  padding-right: 32rpx;
 }
 .today-cell:nth-child(even) {
-  padding-left: 28rpx;
+  padding-left: 32rpx;
 }
 
 .today-cell--span {

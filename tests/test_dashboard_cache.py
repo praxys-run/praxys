@@ -217,10 +217,13 @@ def test_compute_source_version_is_deterministic(cache_client):
         assert f"d={date.today().isoformat()}" in a, (
             "today is date-salted — date.today() must appear in source_version"
         )
-        assert "v=metric-provenance-today-v3" in a
+        assert "splits=0" in a
+        assert "v=heat-adaptation-today-v13" in a
         training = compute_source_version(db, user_id, "training")
         assert "samples=0" in training
-        assert "v=evidence-summary-v2" in training
+        assert "v=peer-metric-volume-training-v13" in training
+        goal = compute_source_version(db, user_id, "goal")
+        assert "v=fixed-heat-model-goal-v2" in goal
     finally:
         db.close()
 
@@ -337,8 +340,8 @@ def test_today_recomputes_prior_response_version_with_snapshot(cache_client):
     try:
         current_version = compute_source_version(db, user_id, "today")
         prior_version = current_version.replace(
-            "v=metric-provenance-today-v3",
-            "v=metric-provenance-today-v2",
+            "v=heat-adaptation-today-v13",
+            "v=heat-adaptation-today-v12",
         )
         assert prior_version != current_version
         db.add(DashboardCache(
@@ -360,10 +363,43 @@ def test_today_recomputes_prior_response_version_with_snapshot(cache_client):
     assert "legacy" not in payload
     assert payload["coach_snapshot"] != "already-present"
 
+
+def test_goal_recomputes_prior_response_version(cache_client):
+    """A deployment salt prevents replaying Goal without the new science note."""
+    from api.dashboard_cache import compute_source_version
+    from db import session as db_session
+    from db.models import DashboardCache
+
+    client, user_id = cache_client
+    db = db_session.SessionLocal()
+    try:
+        current_version = compute_source_version(db, user_id, "goal")
+        prior_version = current_version.replace(
+            "v=fixed-heat-model-goal-v2",
+            "v=fixed-heat-model-goal-v1",
+        )
+        assert prior_version != current_version
+        db.add(DashboardCache(
+            user_id=user_id,
+            section="goal",
+            source_version=prior_version,
+            payload_json=b'{"legacy":true}',
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+    response = client.get("/api/goal")
+
+    assert response.status_code == 200
+    assert "legacy" not in response.json()
+
+
 def test_training_cold_then_warm_hits_cache(cache_client):
-    """Direct cold/warm assertion for /api/training, plus scope isolation
-    on its unique scope (``splits``): a splits-only bump must invalidate
-    /api/training but NOT /api/today (today doesn't read splits).
+    """Direct cold/warm assertion for /api/training and shared split scope.
+
+    Heat adaptation makes split evidence part of both Training and Today, so a
+    splits-only bump must invalidate both cached representations.
     """
     from api.dashboard_cache import get_stats, reset_stats
     from db.cache_revision import bump_revisions
@@ -402,12 +438,12 @@ def test_training_cold_then_warm_hits_cache(cache_client):
         "splits bump must invalidate /api/training (splits is in its scopes)"
     )
 
-    # /api/today does NOT read splits → must still hit.
+    # Heat adaptation makes /api/today read splits too → it must miss.
     next_today = client.get("/api/today")
     assert next_today.status_code == 200
     today_stats = get_stats().get("today", {})
-    assert today_stats.get("hits") == 1, (
-        "splits bump must NOT invalidate /api/today (splits is not in its scopes)"
+    assert today_stats.get("misses") == 1, (
+        "splits bump must invalidate /api/today heat evidence"
     )
 
 

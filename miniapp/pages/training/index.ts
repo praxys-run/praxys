@@ -17,12 +17,24 @@ import {
   detectShareLocale,
   getShareMessage,
 } from '../../utils/share';
+import {
+  buildHeatAdaptationView,
+  emptyHeatAdaptationView,
+  HEAT_HISTORY_SCROLL_KEY,
+  HEAT_HISTORY_SCROLL_TARGET,
+  type HeatAdaptationView,
+  type HeatSessionRow,
+} from '../../utils/heat-adaptation';
 
-// Persisted active pill — same key web uses (mini program uses wx
-// storage instead of localStorage, but the chosen value is portable).
-const DIAGNOSIS_CHART_KEY = 'praxys.diagnosis_chart';
+type TrainingMetricId = 'tsb' | 'dist' | 'load' | 'volume' | 'heat';
 
-type DiagnosisPill = 'form' | 'zones' | 'compliance';
+function isTrainingMetricId(value: string): value is TrainingMetricId {
+  return value === 'tsb'
+    || value === 'dist'
+    || value === 'load'
+    || value === 'volume'
+    || value === 'heat';
+}
 
 function buildTrainingTr() {
   return {
@@ -36,11 +48,10 @@ function buildTrainingTr() {
     // Diagnosis section eyebrow.
     diagnosis: t('Diagnosis'),
 
-    // Stat strip — labels, sub-text, units. The four metrics answer
-    // four distinct training questions: TSB (form), Distribution
-    // (zone mix vs target), Load compliance (planned vs actual), and
-    // Volume (amount of work). Strip order matches pill order so eye
-    // → number → chart is one motion.
+    // Peer metric index.
+    peerMetrics: t('Peer metrics'),
+    peerMetricsHint: t('Select a metric to inspect its chart or evidence.'),
+    details: t('Details'),
     statTsbLabel: t('TSB'),
     statTsbSubPositive: t('long-term load above recent load'),
     statTsbSubBalanced: t('modeled loads balanced'),
@@ -51,19 +62,43 @@ function buildTrainingTr() {
     statLoadLabel: t('Load compliance'),
     statLoadSub: t('actual vs planned, avg'),
     statVolumeLabel: t('Volume'),
+    statVolumeUnit: t('km/wk'),
 
-    // Pill switcher labels. Compact for the phone-width row; the
-    // chart heading below carries the full context (e.g. the FF
-    // chart still shows "Fitness · Fatigue · Form" as legend).
-    pillForm: t('Load balance'),
-    pillZones: t('Zones'),
-    pillCompliance: t('Compliance'),
+    tsbDetailTitle: t('Load balance'),
+    tsbDetailDescription: t(
+      'Long-term load, recent load, and their modeled balance over time.',
+    ),
+    tsbMethodology: t(
+      'CTL models longer-term training load, ATL models recent training load, and TSB is their difference. These are load-model estimates, not direct measures of recovery or readiness.',
+    ),
+    distributionDetailTitle: t('Zone distribution'),
+    distributionDetailDescription: t(
+      'Observed time in each intensity zone compared with the selected training theory.',
+    ),
+    loadDetailTitle: t('Load compliance'),
+    loadDetailDescription: t(
+      'Actual and planned weekly load across the recent training window.',
+    ),
+    volumeDetailTitle: t('Weekly volume'),
+    volumeDetailDescription: t(
+      'Recorded distance in non-overlapping seven-day buckets, including weeks with no recorded distance.',
+    ),
 
     // Insufficient-data hints. Web's PR #280 introduced countdown
     // copy ("Need N more days") so the user knows when the chart
     // will become useful. Mini program inherits the same threshold.
     pmcMessage: t('Not enough data yet for stable load tracking'),
     loadMessage: t('Not enough data yet for weekly load comparison'),
+    distributionMessage: t('Not enough complete intensity data for zone comparison'),
+    distributionHint: t(
+      'Sync split or sample data with enough duration coverage to compare against the selected theory.',
+    ),
+    volumeMessage: t('No weekly distance history yet'),
+    volumeHint: t('Sync recent activities to populate the weekly distance series.'),
+    volumePendingMessage: t('Weekly chart temporarily unavailable'),
+    volumePendingHint: t(
+      'The weekly history will appear after the data service update completes.',
+    ),
 
     // Compliance bar legend.
     plannedLabel: t('Planned'),
@@ -74,6 +109,13 @@ function buildTrainingTr() {
     complianceMethodology: t(
       'Compliance is the mean weekly actual-to-planned load ratio across completed weeks where actual and planned load both use exact selected-base inputs and the plan target is positive. Estimated weeks stay in the chart but are excluded from the summary. This is an execution comparison, not a quality, safety, recovery, or readiness score.',
     ),
+    volumeMethodology: t(
+      'Each value is a non-overlapping seven-day bucket ending on the shown date. Weeks with no recorded distance remain in the series and average. Trend labels use a Praxys estimate: the newer half must differ from the older half by more than 10%; this is not a readiness score.',
+    ),
+    distanceUnit: t('km'),
+    weeklyAverage: t('Weekly average'),
+    weeklyValues: t('Weekly values'),
+    trend: t('Trend'),
 
     // Coach receipt fallback strings.
     weeklyReady: t('Weekly diagnosis ready.'),
@@ -255,8 +297,8 @@ interface SeriesPayload {
 }
 
 interface StatCell {
-  /** `tsb` | `dist` | `load` | `volume` — drives the wx:key. */
-  id: string;
+  id: TrainingMetricId;
+  anchorId: string;
   label: string;
   value: string;
   sub: string;
@@ -278,12 +320,18 @@ interface TrainingState {
   diagnosisEyebrow: string;
 
   cells: StatCell[];
+  heat: HeatAdaptationView;
+  activeMetric: TrainingMetricId | '';
+  metricSheetTitle: string;
+  metricSheetDescription: string;
+  expandedHeatSessionId: string;
+  selectedHeatDayId: string;
+  selectedHeatDayDetail: string;
+  selectedHeatDayHasEvidence: boolean;
+  selectedHeatSessions: HeatSessionRow[];
+  scrollIntoView: string;
 
-  /** Active pill — drives which chart renders below the switcher. */
-  activePill: DiagnosisPill;
-  /** True iff the response contains any zone targets to render the
-   *  "Zones" pill against. Hides the pill (and skips it on persist
-   *  rehydrate) when there's nothing to show. */
+  /** True iff the response contains complete zone targets to render. */
   hasZones: boolean;
 
   // Form (Fitness/Fatigue) chart.
@@ -307,6 +355,16 @@ interface TrainingState {
   compliancePlanned: number[];
   complianceActual: number[];
   complianceEstimated: boolean[];
+
+  // Weekly distance.
+  volumeSufficient: boolean;
+  volumeHintMessage: string;
+  volumeHintDetail: string;
+  volumeSummary: string;
+  volumeTrend: string;
+  volumeDates: string[];
+  volumeKm: number[];
+  volumePoints: Array<{ id: string; week: string; distance: string }>;
 
   // Coach Receipt — always populated (LLM if present, rule-based
   // fallback otherwise). Web Training never nil-renders the receipt
@@ -337,8 +395,17 @@ const initialData: TrainingState = {
 
   diagnosisEyebrow: '',
   cells: [],
+  heat: emptyHeatAdaptationView(),
+  activeMetric: '',
+  metricSheetTitle: '',
+  metricSheetDescription: '',
+  expandedHeatSessionId: '',
+  selectedHeatDayId: '',
+  selectedHeatDayDetail: '',
+  selectedHeatDayHasEvidence: false,
+  selectedHeatSessions: [],
+  scrollIntoView: '',
 
-  activePill: 'form',
   hasZones: false,
 
   ffSufficient: true,
@@ -359,6 +426,15 @@ const initialData: TrainingState = {
   compliancePlanned: [],
   complianceActual: [],
   complianceEstimated: [],
+
+  volumeSufficient: false,
+  volumeHintMessage: '',
+  volumeHintDetail: '',
+  volumeSummary: '',
+  volumeTrend: '',
+  volumeDates: [],
+  volumeKm: [],
+  volumePoints: [],
 
   coach: {
     stamp: '',
@@ -383,13 +459,14 @@ function clampPct(v: number): number {
 
 
 /**
- * Build the four stat-strip cells from the server-owned summary.
+ * Build the five peer-metric rows from the server-owned summary.
  * Values stay neutral because TSB and execution ratios are descriptive,
  * not physiological quality, safety, or readiness scores.
  */
 function buildStatCells(
   response: TrainingResponse,
   tr: ReturnType<typeof buildTrainingTr>,
+  heat: HeatAdaptationView,
 ): StatCell[] {
   const cells: StatCell[] = [];
 
@@ -410,6 +487,7 @@ function buildStatCells(
   }
   cells.push({
     id: 'tsb',
+    anchorId: 'metric-tsb',
     label: tr.statTsbLabel,
     value: tsbValue,
     sub: tsbSub,
@@ -420,6 +498,7 @@ function buildStatCells(
   const theoryName = response.diagnosis?.theory_name;
   cells.push({
     id: 'dist',
+    anchorId: 'metric-distribution',
     label: tr.statDistLabel,
     value: distMatch != null ? `${distMatch}` : '—',
     sub: theoryName
@@ -431,6 +510,7 @@ function buildStatCells(
   const loadCompliance = response.summary.load_compliance_pct;
   cells.push({
     id: 'load',
+    anchorId: 'metric-load',
     label: tr.statLoadLabel,
     value: loadCompliance != null ? `${loadCompliance}` : '—',
     sub: tr.statLoadSub,
@@ -439,24 +519,79 @@ function buildStatCells(
 
   // Volume — weekly average km. Foreground default tone (no verdict).
   const weeklyKm = response.diagnosis?.volume?.weekly_avg_km;
+  const volumeAvailable = hasVolumeSummary(response.diagnosis?.volume);
   const lookback = response.diagnosis?.lookback_weeks ?? 0;
   cells.push({
     id: 'volume',
+    anchorId: 'metric-volume',
     label: tr.statVolumeLabel,
-    value: weeklyKm != null ? weeklyKm.toFixed(1) : '—',
-    sub: tFmt('km / week, {0}wk avg', lookback),
+    value: volumeAvailable && weeklyKm != null ? weeklyKm.toFixed(1) : '—',
+    sub: tFmt('{0}-week average', lookback),
+    unit: volumeAvailable ? tr.statVolumeUnit : '',
+  });
+
+  cells.push({
+    id: 'heat',
+    anchorId: HEAT_HISTORY_SCROLL_TARGET,
+    label: heat.label,
+    value: heat.metricValue,
+    sub: heat.metricAction,
     unit: '',
   });
 
   return cells;
 }
 
+function metricSheetCopy(
+  metric: TrainingMetricId | '',
+  tr: ReturnType<typeof buildTrainingTr>,
+  heat: HeatAdaptationView,
+): { title: string; description: string } {
+  if (metric === 'tsb') {
+    return { title: tr.tsbDetailTitle, description: tr.tsbDetailDescription };
+  }
+  if (metric === 'dist') {
+    return {
+      title: tr.distributionDetailTitle,
+      description: tr.distributionDetailDescription,
+    };
+  }
+  if (metric === 'load') {
+    return { title: tr.loadDetailTitle, description: tr.loadDetailDescription };
+  }
+  if (metric === 'volume') {
+    return { title: tr.volumeDetailTitle, description: tr.volumeDetailDescription };
+  }
+  if (metric === 'heat') {
+    return { title: heat.label, description: heat.conditionRange };
+  }
+  return { title: '', description: '' };
+}
+
+function hasVolumeSummary(
+  volume: TrainingResponse['diagnosis']['volume'] | undefined,
+): boolean {
+  if (!volume) return false;
+  return volume.weeks === undefined
+    ? volume.weekly_avg_km > 0
+    : volume.weeks.length > 0;
+}
+
+function formatVolumeWeek(value: string): string {
+  const [year, month, day] = value.split('-').map(Number);
+  if (!year || !month || !day) return value;
+  return new Date(year, month - 1, day).toLocaleDateString(
+    detectLocale() === 'zh' ? 'zh-CN' : 'en-US',
+    { year: 'numeric', month: 'short', day: 'numeric' },
+  );
+}
+
 function buildState(
   response: TrainingResponse,
   themeClass: string,
   insight: AiInsight | null,
-  activePill: DiagnosisPill,
   tr: ReturnType<typeof buildTrainingTr>,
+  activeMetric: TrainingMetricId | '',
 ): Partial<TrainingState> {
   const { diagnosis, fitness_fatigue, weekly_review, data_meta } = response;
   const distribution = diagnosis?.distribution ?? [];
@@ -465,9 +600,10 @@ function buildState(
     distributionAvailable && distribution.some((z) => z.target_pct != null);
   const dataDays = data_meta?.data_days ?? 0;
   const hasAnyData =
-    !!diagnosis?.volume?.weekly_avg_km ||
+    hasVolumeSummary(diagnosis?.volume) ||
     (distributionAvailable && distribution.length > 0) ||
-    (fitness_fatigue?.dates?.length ?? 0) > 0;
+    (fitness_fatigue?.dates?.length ?? 0) > 0 ||
+    response.heat_adaptation.sessions.length > 0;
 
   // Sufficiency — countdown copy mirrors web's PR #280 wording.
   const ffSufficient = data_meta?.pmc_sufficient ?? true;
@@ -536,16 +672,20 @@ function buildState(
     detailsOpen,
   );
 
-  // Active pill: if the persisted choice is `zones` but the response
-  // has no targets, fall back to `form`. Same defensive default web
-  // applies via the `?` chain on options.
-  const resolvedPill: DiagnosisPill =
-    activePill === 'zones' && !hasZones ? 'form' : activePill;
-
   const lookback = diagnosis?.lookback_weeks;
   const diagnosisEyebrow = lookback
     ? tFmt('Last {0} weeks', lookback)
     : tr.diagnosis;
+  const heat = buildHeatAdaptationView(response.heat_adaptation);
+  const defaultHeatDay = heat.cadenceDays.find((day) => day.id === heat.defaultCadenceId);
+  const sheetCopy = metricSheetCopy(activeMetric, tr, heat);
+  const volumeWeeks = diagnosis?.volume?.weeks ?? [];
+  const volumeKm = diagnosis?.volume?.weekly_km ?? [];
+  const volumeAverage = diagnosis?.volume?.weekly_avg_km ?? 0;
+  const volumeSeriesPending = diagnosis?.volume != null && (
+    diagnosis.volume.weeks === undefined || diagnosis.volume.weekly_km === undefined
+  );
+  const volumeSufficient = volumeWeeks.length > 0 && volumeWeeks.length === volumeKm.length;
 
   return {
     themeClass,
@@ -555,9 +695,17 @@ function buildState(
     hasAnyData,
 
     diagnosisEyebrow,
-    cells: buildStatCells(response, tr),
+    cells: buildStatCells(response, tr, heat),
+    heat,
+    activeMetric,
+    metricSheetTitle: sheetCopy.title,
+    metricSheetDescription: sheetCopy.description,
+    expandedHeatSessionId: '',
+    selectedHeatDayId: heat.defaultCadenceId,
+    selectedHeatDayDetail: heat.defaultCadenceDetail,
+    selectedHeatDayHasEvidence: defaultHeatDay?.hasEvidence ?? false,
+    selectedHeatSessions: heat.sessions.filter((session) => session.dateKey === heat.defaultCadenceId),
 
-    activePill: resolvedPill,
     hasZones,
 
     ffSufficient,
@@ -596,6 +744,24 @@ function buildState(
       ),
     ),
 
+    volumeSufficient,
+    volumeHintMessage: volumeSeriesPending ? tr.volumePendingMessage : tr.volumeMessage,
+    volumeHintDetail: volumeSeriesPending ? tr.volumePendingHint : tr.volumeHint,
+    volumeSummary: tNamed('{lookback}-week average · {average} km/week', {
+      lookback: diagnosis?.lookback_weeks ?? 0,
+      average: volumeAverage.toFixed(1),
+    }),
+    volumeTrend: t(diagnosis?.volume?.trend ?? 'insufficient_data'),
+    volumeDates: volumeWeeks,
+    volumeKm,
+    volumePoints: volumeSufficient
+      ? volumeWeeks.map((week, index) => ({
+          id: week,
+          week: formatVolumeWeek(week),
+          distance: `${volumeKm[index].toFixed(1)} ${tr.distanceUnit}`,
+        }))
+      : [],
+
 
     coach,
     coachTr,
@@ -606,33 +772,32 @@ function buildState(
   };
 }
 
-function loadActivePill(): DiagnosisPill {
+function consumeHeatHistoryScrollRequest(): boolean {
   try {
-    const stored = wx.getStorageSync<string>(DIAGNOSIS_CHART_KEY);
-    if (stored === 'form' || stored === 'zones' || stored === 'compliance') {
-      return stored;
+    if (wx.getStorageSync<string>(HEAT_HISTORY_SCROLL_KEY) !== HEAT_HISTORY_SCROLL_TARGET) {
+      return false;
     }
-  } catch {
-    // Storage unavailable on first launch is fine — fall through to default.
-  }
-  return 'form';
-}
-
-function persistActivePill(pill: DiagnosisPill): void {
-  try {
-    wx.setStorageSync(DIAGNOSIS_CHART_KEY, pill);
+    wx.removeStorageSync(HEAT_HISTORY_SCROLL_KEY);
+    return true;
   } catch (e) {
     // eslint-disable-next-line no-console
-    console.warn('[training] could not persist active pill:', e);
+    console.warn('[training] could not consume heat-history scroll request:', e);
+    return false;
   }
 }
 
 interface PageMethods extends WechatMiniprogram.IAnyObject {
-  onPickPill(e: WechatMiniprogram.TouchEvent): void;
+  onOpenMetricDetail(e: WechatMiniprogram.TouchEvent): void;
+  onCloseMetricDetail(): void;
+  onBlockMetricSheetTap(): void;
+  onPickHeatDay(e: WechatMiniprogram.TouchEvent): void;
+  onToggleHeatSession(e: WechatMiniprogram.TouchEvent): void;
+  onOpenHeatScience(): void;
+  scrollToHeatIfPending(): void;
   onToggleCoachDetails(): void;
   onScrollRefresh(): void;
   onRetry(): void;
-  refetch(): Promise<void>;
+  refetch(options?: { background?: boolean }): Promise<void>;
 }
 
 Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
@@ -644,7 +809,6 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
       themeClass: tc,
       chartTheme: tc === 'theme-light' ? 'light' : 'dark',
       tr: buildTrainingTr(),
-      activePill: loadActivePill(),
     });
     const pageState = this as unknown as Record<string, unknown>;
     pageState._locale = getApp<IAppOption>().globalData.locale;
@@ -658,10 +822,20 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
     }
     const curLocale = getApp<IAppOption>().globalData.locale;
     const pgMut = this as unknown as Record<string, unknown>;
+    const returningToTab = pgMut._hasShownOnce === true;
+    pgMut._hasShownOnce = true;
+    let localeChanged = false;
     if (curLocale !== pgMut._locale) {
       pgMut._locale = curLocale;
+      localeChanged = true;
       this.setData({ tr: buildTrainingTr() });
-      void this.refetch();
+    }
+    if (returningToTab || localeChanged) {
+      void this.refetch({ background: true });
+    }
+    if (consumeHeatHistoryScrollRequest()) {
+      pgMut._scrollToHeatPending = true;
+      this.scrollToHeatIfPending();
     }
     applyThemeChrome();
     setTabBarSelected(this, 1);
@@ -710,18 +884,67 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
     void this.refetch();
   },
 
-  /**
-   * Pill switcher tap. The `data-pill` attribute on the WXML tap
-   * surface carries the next chart id. Persist the choice so the user
-   * lands on their preferred chart on every visit, matching web's
-   * `localStorage.setItem(DIAGNOSIS_CHART_KEY, …)` behavior.
-   */
-  onPickPill(e: WechatMiniprogram.TouchEvent) {
-    const next = e.currentTarget.dataset.pill as DiagnosisPill | undefined;
-    if (!next || next === this.data.activePill) return;
-    if (next === 'zones' && !this.data.hasZones) return;
-    this.setData({ activePill: next });
-    persistActivePill(next);
+  onOpenMetricDetail(e: WechatMiniprogram.TouchEvent) {
+    const metric = String(e.currentTarget.dataset.metric ?? '');
+    if (!isTrainingMetricId(metric)) return;
+    const copy = metricSheetCopy(metric, this.data.tr, this.data.heat);
+    this.setData({
+      activeMetric: metric,
+      metricSheetTitle: copy.title,
+      metricSheetDescription: copy.description,
+    });
+  },
+
+  onCloseMetricDetail() {
+    this.setData({
+      activeMetric: '',
+      metricSheetTitle: '',
+      metricSheetDescription: '',
+    });
+  },
+
+  onBlockMetricSheetTap() {
+    // Prevent taps inside the sheet from reaching the dismiss backdrop.
+  },
+
+  onPickHeatDay(e: WechatMiniprogram.TouchEvent) {
+    const id = String(e.currentTarget.dataset.id ?? '');
+    const day = this.data.heat.cadenceDays.find((item) => item.id === id);
+    if (!day) return;
+    this.setData({
+      selectedHeatDayId: day.id,
+      selectedHeatDayDetail: day.detail,
+      selectedHeatDayHasEvidence: day.hasEvidence,
+      selectedHeatSessions: this.data.heat.sessions.filter((session) => session.dateKey === day.id),
+      expandedHeatSessionId: '',
+    });
+  },
+
+  onToggleHeatSession(e: WechatMiniprogram.TouchEvent) {
+    const id = String(e.currentTarget.dataset.id ?? '');
+    if (!id) return;
+    this.setData({
+      expandedHeatSessionId: this.data.expandedHeatSessionId === id ? '' : id,
+    });
+  },
+
+  onOpenHeatScience() {
+    wx.navigateTo({ url: '/pages/science/index?pillar=heat' }); // i18n-allow
+  },
+
+  scrollToHeatIfPending() {
+    const pageState = this as unknown as Record<string, unknown>;
+    if (pageState._scrollToHeatPending !== true || !this.data.hasResponse) return;
+    pageState._scrollToHeatPending = false;
+    const copy = metricSheetCopy('heat', this.data.tr, this.data.heat);
+    this.setData({ scrollIntoView: '' }, () => {
+      this.setData({
+        scrollIntoView: HEAT_HISTORY_SCROLL_TARGET,
+        activeMetric: 'heat',
+        metricSheetTitle: copy.title,
+        metricSheetDescription: copy.description,
+      });
+    });
   },
 
   /**
@@ -744,14 +967,17 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
     void this.refetch();
   },
 
-  async refetch() {
+  async refetch(options?: { background?: boolean }) {
     const pageState = this as unknown as Record<string, unknown>;
+    const background = options?.background === true && this.data.hasResponse;
     const previousRequestId = typeof pageState._refetchRequestId === 'number'
       ? pageState._refetchRequestId
       : 0;
     const requestId = previousRequestId + 1;
     pageState._refetchRequestId = requestId;
-    this.setData({ loading: true, errorMessage: '' });
+    this.setData(background
+      ? { errorMessage: '' }
+      : { loading: true, errorMessage: '' });
     try {
       const [response, insight] = await Promise.all([
         apiGet<TrainingResponse>('/api/training'),
@@ -767,9 +993,10 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
           response,
           this.data.themeClass,
           insight,
-          this.data.activePill,
           this.data.tr,
+          this.data.activeMetric,
         ) as Record<string, unknown>,
+        () => this.scrollToHeatIfPending(),
       );
     } catch (e) {
       if (pageState._refetchRequestId !== requestId) return;
@@ -779,6 +1006,11 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
         return;
       }
       const detail = err?.detail ?? String(e);
+      if (background) {
+        // eslint-disable-next-line no-console
+        console.warn('[training] background refresh failed; keeping cached response:', detail);
+        return;
+      }
       this.setData({ loading: false, errorMessage: detail, hasResponse: false });
     }
   },

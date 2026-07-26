@@ -661,7 +661,6 @@ function buildRenderState(
     decisionCheckEligible: isDecisionCheckEligibleNow(response),
 
     cells,
-
     planEyebrow: t('Planned · Today'),
     planText: formatPlan(response.signal.plan),
 
@@ -747,7 +746,6 @@ const initialData: RenderState & RefreshState = {
   decisionCheckEligible: false,
 
   cells: [],
-
   planEyebrow: '',
   planText: '',
 

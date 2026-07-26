@@ -18,13 +18,13 @@ msgid " · "
 msgstr " · "
 
 #. placeholder {0}: data.diagnosis.lookback_weeks
-#: src/pages/Training.tsx:209
+#: src/pages/Training.tsx:367
 msgid "· last {0} weeks"
 msgstr "· 最近 {0} 周"
 
 #: src/pages/Setup.tsx:676
 msgid "(Garmin rate limits apply)"
-msgstr "（受 Garmin 速率限制影响）"
+msgstr "（受 Garmin 访问频率限制）"
 
 #: src/components/GoalEditor.tsx:152
 msgid "(optional)"
@@ -45,11 +45,127 @@ msgstr "{0, plural, other {# 条建议}}"
 msgid "{0, plural, one {# workout} other {# workouts}}"
 msgstr "{0, plural, other {# 次训练}}"
 
+#. placeholder {0}: status.exposure_days
+#: src/components/HeatAdaptationPanel.tsx:580
+msgid "{0} / {thresholdDays} days"
+msgstr "{0} / {thresholdDays} 天"
+
+#. placeholder {0}: formatThresholdNumber(status.effective_heat_minutes, locale)
+#: src/components/HeatAdaptationPanel.tsx:587
+msgid "{0} / {thresholdMinutes} min"
+msgstr "{0} / {thresholdMinutes} 分钟"
+
+#. placeholder {0}: status.contributing_sessions
+#. placeholder {1}: status.exposure_days
+#. placeholder {2}: status.evidence_thresholds.active_window_days
+#: src/components/HeatAdaptationPanel.tsx:465
+#~ msgid "{0} counted sessions across {1} exposure days in the rolling {2}-day window."
+#~ msgstr "滚动 {2} 天窗口内，共 {0} 次训练计入证据，分布在 {1} 个热暴露日。"
+
+#. placeholder {0}: status.days_since_last_exposure
+#: src/components/HeatAdaptationPanel.tsx:384
+#~ msgid "{0} days ago"
+#~ msgstr "{0} 天前"
+
+#. placeholder {0}: session.effective_heat_minutes
+#: src/components/HeatAdaptationPanel.tsx:389
+#: src/components/HeatAdaptationPanel.tsx:397
+#~ msgid "{0} effective min"
+#~ msgstr "{0} 加权分钟"
+
+#. placeholder {0}: formatRange( conditions.relative_humidity_pct.min, conditions.relative_humidity_pct.max, '%', locale, )
+#: src/components/HeatAdaptationPanel.tsx:489
+msgid "{0} humidity"
+msgstr "湿度 {0}"
+
+#. placeholder {0}: selected.counted_session_count
+#. placeholder {1}: selected.session_count - selected.counted_session_count
+#. placeholder {2}: Math.round(selected.effective_heat_minutes)
+#: src/components/HeatAdaptationPanel.tsx:350
+msgid "{0} included · {1} observed, not included · {2} effective min"
+msgstr "纳入 {0} 次 · 已观察但未纳入 {1} 次 · 等效热暴露 {2} 分钟"
+
+#. placeholder {0}: selected.counted_session_count
+#. placeholder {1}: selected.session_count - selected.counted_session_count
+#. placeholder {2}: Math.round(selected.effective_heat_minutes)
+#: src/components/HeatAdaptationPanel.tsx:219
+#~ msgid "{0} included, {1} observed but not included, {2} effective min"
+#~ msgstr "纳入 {0} 次，观察到但未纳入 {1} 次，等效热暴露 {2} 分钟"
+
+#. placeholder {0}: agentLearning.promoted_classes.length
+#: src/pages/admin/AdminOps.tsx:906
+msgid "{0} narrow change class(es) may merge through the independent policy gate."
+msgstr "{0} 个窄范围变更类别可通过独立策略门禁自动合并。"
+
+#. placeholder {0}: status.data_coverage.workload_supported_activities
+#. placeholder {1}: status.data_coverage.recent_activities
+#: src/components/HeatAdaptationPanel.tsx:107
+#~ msgid "{0} of {1} recent activities have usable environment and power evidence"
+#~ msgstr "最近 {1} 次活动中有 {0} 次具备可用的环境与功率证据"
+
+#. placeholder {0}: status.data_coverage.workload_supported_activities
+#. placeholder {1}: status.data_coverage.recent_activities
+#: src/components/HeatAdaptationPanel.tsx:94
+#~ msgid "{0} of {1} recent activities have usable environment and split-power evidence"
+#~ msgstr "最近 {1} 次活动中有 {0} 次具备可用的环境与分段功率证据"
+
+#. placeholder {0}: status.data_coverage.workload_supported_activities
+#. placeholder {1}: status.data_coverage.recent_activities
+#: src/components/HeatAdaptationPanel.tsx:473
+#: src/components/HeatAdaptationPanel.tsx:533
+#~ msgid "{0} of {1} recent activities usable"
+#~ msgstr "近期 {1} 次活动中有 {0} 次可用"
+
 #. placeholder {0}: setup.completed
 #. placeholder {1}: setup.total
 #: src/pages/Setup.tsx:561
 msgid "{0} of {1} steps complete"
-msgstr "第 {0} 步，共 {1} 步"
+msgstr "已完成 {0}/{1} 步"
+
+#. placeholder {0}: status.contributing_sessions
+#. placeholder {1}: status.exposure_days
+#. placeholder {2}: status.effective_heat_minutes
+#: src/components/HeatAdaptationPanel.tsx:472
+#~ msgid "{0} sessions · {1} days · {2} effective min"
+#~ msgstr "{0} 次训练 · {1} 天 · {2} 加权分钟"
+
+#. placeholder {0}: status.contributing_sessions
+#. placeholder {1}: status.exposure_days
+#. placeholder {2}: status.effective_heat_minutes
+#: src/components/HeatAdaptationPanel.tsx:106
+#~ msgid "{0} sessions across {1} days · {2} effective min"
+#~ msgstr "{0} 次训练，覆盖 {1} 天 · {2} 加权分钟"
+
+#. placeholder {0}: agentLearning.shadow_decisions
+#. placeholder {1}: agentLearning.agent_ready_applied
+#. placeholder {2}: agentLearning.outcomes_total
+#: src/pages/admin/AdminOps.tsx:940
+msgid "{0} shadow decisions · {1} labels applied · {2} durable outcomes"
+msgstr "{0} 个影子决策 · 已应用 {1} 个标签 · {2} 个持久化结果"
+
+#. placeholder {0}: session.work_minutes
+#. placeholder {1}: session.effective_heat_minutes
+#: src/components/HeatAdaptationPanel.tsx:416
+#~ msgid "{0} work min · {1} effective min"
+#~ msgstr "运动 {0} 分钟 · 加权 {1} 分钟"
+
+#. placeholder {0}: data.diagnosis.lookback_weeks
+#: src/pages/Training.tsx:317
+msgid "{0}-week average"
+msgstr "{0}周平均"
+
+#. placeholder {0}: formatDate(day.date, locale)
+#. placeholder {1}: day.counted_session_count
+#. placeholder {2}: day.session_count - day.counted_session_count
+#: src/components/HeatAdaptationPanel.tsx:196
+#~ msgid "{0}: {1} included, {2} observed but not included"
+#~ msgstr "{0}：纳入 {1} 次，观察到但未纳入 {2} 次"
+
+#. placeholder {0}: formatDate(day.date, locale)
+#. placeholder {1}: day.counted_session_count
+#: src/components/HeatAdaptationPanel.tsx:292
+msgid "{0}: {1} included, {excluded} observed but not included"
+msgstr "{0}：纳入 {1} 次，已观察但未纳入 {excluded} 次"
 
 #. placeholder {0}: tDisplay(d.name, i18n)
 #. placeholder {1}: d.actual
@@ -60,6 +176,37 @@ msgstr "第 {0} 步，共 {1} 步"
 #~ msgid "{0}: {1}% ({2}pp {3} {4}% target)"
 #~ msgstr "{0}：{1}%（{2}pp {3} 目标 {4}%）"
 
+#. placeholder {0}: session.temperature_c
+#. placeholder {1}: session.relative_humidity_pct
+#: src/components/HeatAdaptationPanel.tsx:386
+#~ msgid "{0}°C · {1}% RH"
+#~ msgstr "{0}°C · 相对湿度 {1}%"
+
+#. placeholder {0}: session.temperature_c
+#. placeholder {1}: session.relative_humidity_pct
+#. placeholder {2}: session.wet_bulb_c
+#: src/components/HeatAdaptationPanel.tsx:242
+#~ msgid "{0}°C · {1}% RH · {2}°C estimated wet-bulb proxy"
+#~ msgstr "{0}°C · 相对湿度 {1}% · 估算湿球温度代理值 {2}°C"
+
+#. placeholder {0}: session.temperature_c
+#. placeholder {1}: session.relative_humidity_pct
+#. placeholder {2}: session.wet_bulb_c
+#: src/components/HeatAdaptationPanel.tsx:182
+#~ msgid "{0}°C · {1}% RH · {2}°C wet-bulb"
+#~ msgstr "{0}°C · 相对湿度 {1}% · 湿球温度 {2}°C"
+
+#. placeholder {0}: session.temperature_c
+#. placeholder {1}: session.relative_humidity_pct
+#: src/components/HeatAdaptationPanel.tsx:241
+#~ msgid "{0}°C · {1}% RH · wet-bulb estimate unavailable"
+#~ msgstr "{0}°C · 相对湿度 {1}% · 无法估算湿球温度"
+
+#. placeholder {0}: session.wet_bulb_c
+#: src/components/HeatAdaptationPanel.tsx:408
+#~ msgid "{0}°C estimated wet-bulb proxy"
+#~ msgstr "{0}°C 估算湿球温度代理值"
+
 #: src/pages/Goal.tsx:214
 msgid "{abbrev} is <0>{dirLabel}</0>. Add more activities for a race-time prediction."
 msgstr "{abbrev} <0>{dirLabel}</0>。再同步一些活动后即可生成比赛时间预测。"
@@ -69,14 +216,55 @@ msgstr "{abbrev} <0>{dirLabel}</0>。再同步一些活动后即可生成比赛�
 msgid "{completed} of {0} steps complete"
 msgstr "已完成 {completed} / {0} 步"
 
+#: src/components/HeatAdaptationPanel.tsx:88
+#~ msgid "{days} days · {minutes} effective min"
+#~ msgstr "{days} 天 · 等效热暴露 {minutes} 分钟"
+
+#: src/components/HeatAdaptationPanel.tsx:168
+msgid "{days} days ago"
+msgstr "{days} 天前"
+
+#: src/components/HeatAdaptationPanel.tsx:618
+#~ msgid "{effectiveHeatDisplay} / {thresholdMinutes} min"
+#~ msgstr ""
+
+#: src/components/HeatAdaptationPanel.tsx:175
+#~ msgid "{formatted} · activity not counted toward the current stage"
+#~ msgstr "{formatted} · 活动未计入当前阶段"
+
+#. placeholder {0}: cadenceDay.effective_heat_minutes
+#: src/components/HeatAdaptationPanel.tsx:172
+#~ msgid "{formatted} · counted · {0} effective min"
+#~ msgstr ""
+
+#: src/components/HeatAdaptationPanel.tsx:173
+#~ msgid "{formatted} · counted · {effectiveMinutes} effective min"
+#~ msgstr "{formatted} · 已计入 · {effectiveMinutes} 加权分钟"
+
+#: src/components/HeatAdaptationPanel.tsx:176
+#~ msgid "{formatted} · no supported activity"
+#~ msgstr "{formatted} · 无受支持活动"
+
+#: src/components/HeatAdaptationPanel.tsx:469
+#~ msgid "{humidityPercentRange} humidity"
+#~ msgstr "湿度 {humidityPercentRange}"
+
+#: src/components/HeatAdaptationPanel.tsx:539
+msgid "{included} included · {excluded} observed, not included"
+msgstr "纳入 {included} 次 · 已观察但未纳入 {excluded} 次"
+
+#: src/components/HeatAdaptationPanel.tsx:105
+msgid "{minutes} effective min"
+msgstr "等效热暴露 {minutes} 分钟"
+
 #: src/components/RecoveryPanel.tsx:159
-#: src/pages/Today.tsx:581
+#: src/pages/Today.tsx:582
 msgid "{observationCount}-observation Trend"
-msgstr "{observationCount} 次观测趋势"
+msgstr "{observationCount}次观测趋势"
 
 #: src/components/DiagnosisCard.tsx:60
 msgid "{topZoneName} / Quality"
-msgstr "{topZoneName} / 质量"
+msgstr "{topZoneName}／高质量训练"
 
 #: src/pages/History.tsx:41
 msgid "{total, plural, one {# activity} other {# activities}}"
@@ -96,7 +284,7 @@ msgstr "计划中还有 {0} 天预测"
 #. placeholder {0}: roleChangeUser?.email
 #: src/pages/admin/AdminUsers.tsx:1034
 msgid "<0>{0}</0> will gain admin privileges. They will be able to manage all users, delete accounts, and generate invitation codes."
-msgstr "<0>{0}</0> 将获得管理员权限。他们将能够管理所有用户、删除账户并生成邀请码。"
+msgstr "<0>{0}</0> 将获得管理员权限。之后可管理所有用户、删除账号并生成邀请码。"
 
 #. placeholder {0}: roleChangeUser?.email
 #: src/pages/admin/AdminUsers.tsx:1029
@@ -106,35 +294,39 @@ msgstr "<0>{0}</0> 将失去管理员权限。他们将不再能够管理用户�
 #. placeholder {0}: formatTime(rc.target_time_sec!)
 #: src/pages/Goal.tsx:152
 msgid "<0>{days}</0> days to race day. Today's prediction is <1>{predicted}</1> against a target of <2>{0}</2>."
-msgstr "距比赛日还有 <0>{days}</0> 天。当前预测 <1>{predicted}</1>，目标 <2>{0}</2>。"
+msgstr "距比赛日还有 <0>{days}</0> 天。今日预测 <1>{predicted}</1>，目标 <2>{0}</2>。"
 
 #: src/pages/Goal.tsx:160
 msgid "<0>{days}</0> days to race day. Today's prediction is <1>{predicted}</1>."
-msgstr "距比赛日还有 <0>{days}</0> 天。当前预测 <1>{predicted}</1>。"
+msgstr "距比赛日还有 <0>{days}</0> 天。今日预测 <1>{predicted}</1>。"
 
 #: src/pages/Login.tsx:532
 msgid "<0>Almost there.</0> We sent a verification link to your email. Click it to activate your account, then sign in."
-msgstr "<0>快好了。</0> 我们已向你的邮箱发送了一条验证链接。点击它以激活你的账户，然后登录。"
+msgstr "<0>就差一步。</0> 验证链接已发送到你的邮箱。点击链接激活账号，然后登录。"
 
 #: src/pages/Login.tsx:274
 msgid "<0>Cited science.</0> No hype."
-msgstr "<0>有据可查的科学。</0> 不夸大。"
+msgstr "<0>科学有据。</0> 不靠噱头。"
 
 #: src/pages/Login.tsx:266
 msgid "<0>Diagnosis & forecast</0> you can verify."
-msgstr "<0>诊断与预测</0>，可供你验证。"
+msgstr "<0>诊断与预测</0>，经得起验证。"
 
 #: src/pages/Login.tsx:258
 msgid "<0>Today's signal</0> · go, modify, or rest."
-msgstr "<0>今日信号</0> · 继续、调整，或休息。"
+msgstr "<0>今日信号</0> · 按计划训练、调整，或休息。"
 
 #: src/pages/Login.tsx:503
 msgid "<0>You're on the list.</0> We'll reach out from <1>{SUPPORT_EMAIL}</1> when a slot opens."
-msgstr "<0>你已在名单上。</0> 当有名额开放时，我们会通过 <1>{SUPPORT_EMAIL}</1> 联系你。"
+msgstr "<0>你已进入候补名单。</0> 有名额时，我们会通过 <1>{SUPPORT_EMAIL}</1> 联系你。"
 
 #: src/pages/Setup.tsx:675
 msgid "~{estimatedActivities} activities, ~{estimatedMinutes} min"
 msgstr "约 {estimatedActivities} 项活动，约 {estimatedMinutes} 分钟"
+
+#: src/components/HeatAdaptationPanel.tsx:167
+msgid "1 day ago"
+msgstr "1 天前"
 
 #: src/pages/Setup.tsx:185
 msgid "1 month"
@@ -177,11 +369,11 @@ msgstr "1年"
 msgid "2 wk"
 msgstr "2 周"
 
-#: src/pages/admin/AdminOps.tsx:168
+#: src/pages/admin/AdminOps.tsx:170
 msgid "24 hours"
 msgstr "24 小时"
 
-#: src/pages/admin/AdminOps.tsx:172
+#: src/pages/admin/AdminOps.tsx:174
 msgid "28 days"
 msgstr "28 天"
 
@@ -226,7 +418,7 @@ msgstr "6 个月"
 msgid "6M"
 msgstr "6月"
 
-#: src/pages/admin/AdminOps.tsx:170
+#: src/pages/admin/AdminOps.tsx:172
 msgid "7 days"
 msgstr "7 天"
 
@@ -234,6 +426,37 @@ msgstr "7 天"
 #: src/pages/Today.tsx:557
 #~ msgid "7d Trend"
 #~ msgstr "7天趋势"
+
+#: src/components/HeatAdaptationPanel.tsx:57
+#~ msgid "A normal warm-weather session can maintain adaptation when recovery allows."
+#~ msgstr "恢复状态允许时，一次正常的温热环境训练即可帮助维持热适应。"
+
+#: src/components/HeatAdaptationPanel.tsx:151
+msgid "A prior qualifying block can still inform this qualitative stage, but response-specific adaptations may already be declining."
+msgstr "先前符合条件的训练区块仍可为这一阶段提供定性依据，但不同适应反应可能已经开始减弱。"
+
+#: src/components/HeatAdaptationPanel.tsx:150
+msgid "A prior qualifying block can still inform this qualitative stage, but response-specific adaptations may already be declining. The range shown here describes current qualifying evidence, not that prior block."
+msgstr "先前符合条件的训练区块仍可为这一阶段提供定性依据，但不同适应反应可能已经开始减弱。此处显示的范围仅描述当前符合条件的证据，并非该先前训练区块的环境范围。"
+
+#: src/components/HeatAdaptationPanel.tsx:111
+#~ msgid "A prior qualifying block may still be retained. The range above describes only current qualifying training."
+#~ msgstr "更早的合格训练区块所形成的适应可能仍在保持；上方范围仅描述当前符合条件的训练。"
+
+#~ msgid "A prior qualifying block remains inside the model's operational retention window."
+#~ msgstr "先前符合条件的训练区块仍处于模型设定的保留窗口内。"
+
+#: src/components/HeatAdaptationPanel.tsx:138
+#~ msgid "A prior qualifying block remains inside the model's operational retention window. The range shown here describes current qualifying evidence, not that retained block."
+#~ msgstr "先前符合条件的训练区块仍处于模型设定的保留窗口内。此处显示的范围仅描述当前符合条件的证据，并非该保留区块的环境范围。"
+
+#: src/components/HeatAdaptationPanel.tsx:159
+msgid "A prior qualifying block still informs this qualitative stage, but response-specific adaptation evidence is declining."
+msgstr "此前一段达标训练仍可作为当前定性阶段的依据，但不同适应反应的证据正在减弱。"
+
+#: src/components/HeatAdaptationPanel.tsx:158
+msgid "A prior qualifying block still informs this qualitative stage, but response-specific adaptation evidence is declining. The range shown here describes current qualifying evidence, not that prior block."
+msgstr "此前一段达标训练仍可作为当前定性阶段的依据，但不同适应反应的证据正在减弱。这里显示的是当前达标训练的证据范围，并非此前那段训练。"
 
 #: src/pages/Training.tsx:189
 #~ msgid "above"
@@ -255,9 +478,13 @@ msgstr "高于参考区间"
 #~ msgid "Absorbing training while maintaining fitness."
 #~ msgstr "在保持体能的同时吸收训练负荷。"
 
-#: src/pages/admin/AdminOps.tsx:326
+#: src/pages/admin/AdminOps.tsx:328
 msgid "Access blocked"
-msgstr "访问受阻"
+msgstr "访问被阻止"
+
+#: src/components/HeatAdaptationPanel.tsx:115
+#~ msgid "Acclimatization to similar conditions may be developing, but the evidence is still limited."
+#~ msgstr "你可能正在适应相似环境，但目前证据仍有限。"
 
 #: src/pages/admin/AdminUsers.tsx:874
 msgid "Action"
@@ -274,17 +501,21 @@ msgid "Activate"
 msgstr "激活"
 
 #: src/pages/admin/AdminFeedback.tsx:228
-#: src/pages/Science.tsx:406
-#: src/pages/Science.tsx:554
+#: src/pages/Science.tsx:421
+#: src/pages/Science.tsx:569
 msgid "Active"
 msgstr "当前使用"
 
+#: src/pages/Science.tsx:380
+msgid "Active fixed model"
+msgstr "当前固定模型"
+
 #: src/pages/Status.tsx:191
 msgid "Active Incidents"
-msgstr "当前事件"
+msgstr "当前故障"
 
 #. placeholder {0}: incidents.total
-#: src/pages/admin/AdminOps.tsx:546
+#: src/pages/admin/AdminOps.tsx:550
 msgid "Active incidents: {0}"
 msgstr "活跃事件：{0}"
 
@@ -303,24 +534,52 @@ msgstr "仅活动数据：跑步、骑行、配速、心率、路线数据"
 #: src/pages/Settings.tsx:1119
 #: src/pages/Setup.tsx:1048
 msgid "Activities-only connection"
-msgstr "仅限活动连接"
+msgstr "仅同步活动"
+
+#: src/components/HeatAdaptationPanel.tsx:380
+msgid "Activity evidence"
+msgstr "活动证据"
 
 #: src/pages/admin/AdminUsers.tsx:501
 msgid "Activity gauge"
-msgstr "活跃度指标"
+msgstr "活跃度"
+
+#: src/components/HeatAdaptationPanel.tsx:214
+#~ msgid "Activity not counted"
+#~ msgstr "活动未计入"
+
+#: src/components/HeatAdaptationPanel.tsx:82
+msgid "Activity splits"
+msgstr "活动分段"
 
 #: src/pages/Setup.tsx:978
 msgid "Activity types to sync"
 msgstr "要同步的活动类型"
+
+#: src/components/HeatAdaptationPanel.tsx:321
+#~ msgid "activity-derived"
+#~ msgstr "活动推导"
+
+#: src/components/HeatAdaptationPanel.tsx:90
+msgid "Activity-summary weather"
+msgstr "活动汇总天气"
 
 #: src/components/charts/ComplianceChart.tsx:105
 #: src/components/charts/ComplianceChart.tsx:154
 msgid "Actual"
 msgstr "实际"
 
-#: src/pages/Training.tsx:265
+#: src/pages/Training.tsx:299
+msgid "Actual and planned weekly load across the recent training window."
+msgstr "近期训练窗口内每周实际负荷与计划负荷的对比。"
+
+#: src/pages/Training.tsx:296
 msgid "actual vs planned, avg"
-msgstr "实际 vs 计划，平均"
+msgstr "实际/计划比均值"
+
+#: src/components/HeatAdaptationPanel.tsx:56
+#~ msgid "Adaptation evidence is recent. Keep normal training; extra heat is not required."
+#~ msgstr "近期证据支持热适应状态。保持正常训练即可，无需额外增加热暴露。"
 
 #: src/components/FeedbackDialog.tsx:295
 msgid "Add screenshot"
@@ -339,11 +598,11 @@ msgstr "管理"
 
 #: src/pages/admin/AdminLayout.tsx:38
 msgid "Admin console"
-msgstr "管理控制台"
+msgstr "管理后台"
 
 #: src/pages/admin/AdminLayout.tsx:45
 msgid "Admin sections"
-msgstr "管理区域"
+msgstr "管理模块"
 
 #: src/pages/Science.tsx:133
 #~ msgid "Advanced"
@@ -353,11 +612,23 @@ msgstr "管理区域"
 msgid "Aerobic"
 msgstr "有氧"
 
+#: src/pages/admin/AdminOps.tsx:886
+msgid "Agent learning"
+msgstr "智能体学习"
+
+#: src/pages/admin/AdminOps.tsx:929
+msgid "Agent-ready candidates"
+msgstr "agent-ready 候选项"
+
 #. placeholder {0}: alerts.total
 #. placeholder {1}: alerts.resolved
-#: src/pages/admin/AdminOps.tsx:593
+#: src/pages/admin/AdminOps.tsx:597
 msgid "Alert instances in view: {0}. Resolved in the selected window: {1}."
 msgstr "当前视图中的告警实例：{0}。所选时间范围内已恢复：{1}。"
+
+#: src/components/HeatAdaptationPanel.tsx:43
+msgid "Align the activity and threshold power sources before Praxys uses these sessions in the estimate."
+msgstr "先统一活动功率和阈值功率的数据来源，Praxys 才会把这些训练纳入估算。"
 
 #: src/components/charts/CpTrendChart.tsx:56
 #: src/pages/admin/AdminFeedback.tsx:229
@@ -370,7 +641,7 @@ msgstr "全部"
 msgid "All {0} linked ticket(s) already up to date."
 msgstr "{0} 个关联工单均已是最新状态。"
 
-#: src/pages/admin/AdminOps.tsx:446
+#: src/pages/admin/AdminOps.tsx:450
 msgid "All components operational"
 msgstr "所有组件运行正常"
 
@@ -380,7 +651,7 @@ msgstr "全部已同步"
 
 #: src/components/StatusIndicator.tsx:27
 msgid "All systems operational"
-msgstr "所有系统运行正常"
+msgstr "系统运行正常"
 
 #: src/pages/Status.tsx:72
 msgid "All Systems Operational"
@@ -395,7 +666,7 @@ msgstr "已有邀请码？"
 msgid "An unexpected error occurred."
 msgstr "发生了意外错误。"
 
-#: src/pages/admin/AdminOps.tsx:472
+#: src/pages/admin/AdminOps.tsx:476
 msgid "API"
 msgstr "API"
 
@@ -411,17 +682,17 @@ msgstr "亚洲/中国"
 #~ msgid "ATL (Fatigue)"
 #~ msgstr "ATL（疲劳）"
 
-#: src/components/charts/FitnessFatigueChart.tsx:282
+#: src/components/charts/FitnessFatigueChart.tsx:315
 msgid "ATL (recent load)"
 msgstr "ATL（近期负荷）"
 
-#: src/pages/admin/AdminOps.tsx:999
+#: src/pages/admin/AdminOps.tsx:1085
 msgid "attempts"
 msgstr "尝试次数"
 
 #: src/pages/Login.tsx:330
 msgid "Authentication mode"
-msgstr "认证模式"
+msgstr "登录方式"
 
 #: src/pages/Setup.tsx:204
 msgid "Authorize Praxys with Strava in your browser. Praxys only syncs activities from Strava."
@@ -443,7 +714,7 @@ msgstr "自动合并"
 #~ msgid "Availability"
 #~ msgstr "可用性"
 
-#: src/pages/admin/AdminOps.tsx:702
+#: src/pages/admin/AdminOps.tsx:706
 msgid "Availability rate"
 msgstr "可用率"
 
@@ -463,32 +734,32 @@ msgstr "平均功率"
 msgid "Avg Work {intensityLabel}"
 msgstr "平均工作 {intensityLabel}"
 
-#: src/pages/admin/AdminOps.tsx:589
+#: src/pages/admin/AdminOps.tsx:593
 msgid "Azure alert state unavailable"
-msgstr "Azure 警报状态不可用"
+msgstr "Azure 警报状态暂不可用"
 
 #. placeholder {0}: alerts.firing
-#: src/pages/admin/AdminOps.tsx:431
+#: src/pages/admin/AdminOps.tsx:435
 msgid "Azure alerts firing: {0}"
 msgstr "Azure 告警触发：{0}"
 
-#: src/pages/admin/AdminOps.tsx:897
+#: src/pages/admin/AdminOps.tsx:983
 msgid "Azure logs"
 msgstr "Azure 日志"
 
-#: src/pages/admin/AdminOps.tsx:157
+#: src/pages/admin/AdminOps.tsx:159
 msgid "Azure Monitor"
 msgstr "Azure Monitor"
 
-#: src/pages/admin/AdminOps.tsx:289
+#: src/pages/admin/AdminOps.tsx:291
 msgid "Azure Monitor could not refresh this section."
 msgstr "Azure Monitor 无法刷新此部分。"
 
-#: src/pages/admin/AdminOps.tsx:285
+#: src/pages/admin/AdminOps.tsx:287
 msgid "Azure Monitor did not respond before the operations deadline."
 msgstr "Azure Monitor 在运维截止时间前没有响应。"
 
-#: src/pages/admin/AdminOps.tsx:287
+#: src/pages/admin/AdminOps.tsx:289
 msgid "Azure Monitor returned an incomplete result, so this section was not refreshed."
 msgstr "Azure Monitor 返回了不完整的结果，因此此部分未刷新。"
 
@@ -511,9 +782,9 @@ msgstr "同步全部历史数据"
 
 #: src/pages/Settings.tsx:769
 msgid "Backfill..."
-msgstr "同步历史数据..."
+msgstr "同步历史数据中…"
 
-#: src/pages/admin/AdminOps.tsx:476
+#: src/pages/admin/AdminOps.tsx:480
 msgid "Background sync"
 msgstr "后台同步"
 
@@ -527,13 +798,20 @@ msgstr "后台同步"
 
 #: src/components/charts/ComplianceChart.tsx:112
 msgid "Bars marked with ~ use estimated load because selected-base activity or plan inputs are incomplete. Estimated weeks remain visible but are excluded from the summary."
-msgstr "标有 ~ 的柱状值使用估算负荷，因为当前训练基准所需的活动或计划输入不完整。估算周仍会显示，但不会计入汇总。"
+msgstr "标有 ~ 的柱状条使用估算负荷，因为所选基准下的活动或计划数据不完整。估算周仍会显示，但不计入汇总。"
+
+#. placeholder {0}: conditions.qualifying_session_count
+#. placeholder {1}: status.exposure_days
+#. placeholder {2}: status.evidence_thresholds.active_window_days
+#: src/components/HeatAdaptationPanel.tsx:359
+#~ msgid "Based on {0} included sessions across {1} days in the last {2} days."
+#~ msgstr "基于过去 {2} 天内纳入的 {0} 次训练，分布在 {1} 个训练日。"
 
 #. placeholder {0}: recommendedTheory.name
 #. placeholder {1}: recommendation!.reason
-#: src/pages/Science.tsx:391
+#: src/pages/Science.tsx:406
 msgid "Based on your training, <0>{0}</0> may fit better — {1}"
-msgstr "根据您的训练，<0>{0}</0> 可能更合适 — {1}"
+msgstr "根据你的训练，<0>{0}</0>可能更合适——{1}"
 
 #: src/pages/Science.tsx:156
 #~ msgid "Based on your training, we suggest <0>{0}</0> — {1}"
@@ -559,6 +837,14 @@ msgstr "低于基线"
 msgid "Below caution band"
 msgstr "低于警戒区间"
 
+#: src/components/HeatAdaptationPanel.tsx:224
+#~ msgid "below threshold"
+#~ msgstr "低于证据阈值"
+
+#: src/components/HeatAdaptationPanel.tsx:331
+#~ msgid "Below threshold"
+#~ msgstr "未达阈值"
+
 #: src/pages/admin/AdminCommunications.tsx:160
 msgid "Bilingual announcement banners for product-wide communication."
 msgstr "面向全产品沟通的双语公告横幅。"
@@ -568,9 +854,13 @@ msgstr "面向全产品沟通的双语公告横幅。"
 msgid "Body (optional)"
 msgstr "正文（可选）"
 
+#: src/components/HeatAdaptationPanel.tsx:571
+msgid "Both thresholds must be met. The bars describe model evidence, not a biological adaptation percentage."
+msgstr "必须同时达到两个阈值。这些进度条表示模型证据，而不是生理适应百分比。"
+
 #: src/pages/admin/AdminFeedback.tsx:107
 msgid "Bug"
-msgstr "错误"
+msgstr "缺陷"
 
 #: src/components/FeedbackDialog.tsx:40
 msgid "Bug report"
@@ -578,7 +868,7 @@ msgstr "问题反馈"
 
 #: src/pages/admin/AdminFeedback.tsx:218
 msgid "Bug reports and feature requests submitted from the app."
-msgstr "应用内提交的错误报告和功能请求。"
+msgstr "应用内提交的缺陷报告和功能请求。"
 
 #: src/pages/Admin.tsx:1268
 #~ msgid "Bug reports and feature requests submitted from the app. Auto-triaged to GitHub when configured."
@@ -586,11 +876,23 @@ msgstr "应用内提交的错误报告和功能请求。"
 
 #: src/components/GoalEditor.tsx:116
 msgid "Build fitness over time"
-msgstr "随时间持续提升体能"
+msgstr "长期提升体能"
+
+#: src/components/HeatAdaptationPanel.tsx:55
+#~ msgid "Build gradually; do not add intensity solely for heat."
+#~ msgstr "逐步建立热适应；不要只为热暴露而额外提高强度。"
+
+#: src/components/HeatAdaptationPanel.tsx:19
+msgid "Building"
+msgstr "适应中"
 
 #: src/components/charts/FormSparkline.tsx:28
 #~ msgid "Building fitness with manageable fatigue."
 #~ msgstr "以可控的疲劳提升体能。"
+
+#: src/components/HeatAdaptationPanel.tsx:456
+#~ msgid "Building heat-adaptation evidence"
+#~ msgstr "正在建立热适应证据"
 
 #: src/pages/Goal.tsx:183
 msgid "Building toward {distLabel}. Current {abbrev} <0>{currentStr}{unit}</0>, need <1>{targetStr}{unit}</1>."
@@ -599,9 +901,9 @@ msgstr "正在追求 {distLabel}。当前 {abbrev} <0>{currentStr}{unit}</0>，�
 #. placeholder {0}: formatTime(rc.target_time_sec!)
 #: src/pages/Goal.tsx:175
 msgid "Building toward <0>{0}</0> {distLabel}. Current {abbrev} <1>{currentStr}{unit}</1>, need <2>{targetStr}{unit}</2>."
-msgstr "正在追求 <0>{0}</0> {distLabel}。当前 {abbrev} <1>{currentStr}{unit}</1>，目标 <2>{targetStr}{unit}</2>。"
+msgstr "目标是 <0>{0}</0> {distLabel}。当前 {abbrev} <1>{currentStr}{unit}</1>，还需达到 <2>{targetStr}{unit}</2>。"
 
-#: src/pages/Science.tsx:401
+#: src/pages/Science.tsx:416
 msgid "by"
 msgstr "作者"
 
@@ -620,17 +922,21 @@ msgstr "作者"
 msgid "Cancel"
 msgstr "取消"
 
-#: src/pages/Science.tsx:436
+#: src/pages/Science.tsx:451
 msgid "Cancel preview"
 msgstr "取消预览"
 
-#: src/pages/admin/AdminOps.tsx:324
+#: src/pages/admin/AdminOps.tsx:326
 msgid "CAPTCHA required"
 msgstr "需要 CAPTCHA"
 
 #: src/components/MobileApp.tsx:95
 msgid "Carry your training signal outdoors. Scan to open Praxys in WeChat."
 msgstr "把训练信号带到户外。扫码即可在微信中打开 Praxys。"
+
+#: src/components/HeatAdaptationPanel.tsx:75
+#~ msgid "Casa exertional heat-illness guidance"
+#~ msgstr "Casa 劳力性热病防护指南"
 
 #: src/components/SignalHero.tsx:24
 #: src/pages/Today.tsx:64
@@ -639,19 +945,19 @@ msgstr "注意"
 
 #: src/components/SetupChecklist.tsx:67
 msgid "Change"
-msgstr "更改"
+msgstr "修改"
 
 #: src/pages/Goal.tsx:434
 msgid "Change Goal"
-msgstr "修改目标"
+msgstr "调整目标"
 
 #: src/components/TodayDecisionCheck.tsx:22
 msgid "Changed what I'll do"
-msgstr "改变了我今天的训练安排"
+msgstr "调整了今天的训练安排"
 
 #: src/pages/Setup.tsx:750
 msgid "Check your credentials in the connection step, then try again."
-msgstr "请在连接步骤中检查您的凭据，然后重试。"
+msgstr "请在连接步骤检查账号信息，然后重试。"
 
 #: src/pages/Settings.tsx:954
 #: src/pages/Settings.tsx:1052
@@ -663,17 +969,21 @@ msgstr "中国"
 msgid "Chinese"
 msgstr "中文"
 
+#: src/components/HeatAdaptationPanel.tsx:58
+#~ msgid "Choose a power threshold from the same provider as your heat-session power."
+#~ msgstr "请选择与热环境训练功率来自同一提供方的功率阈值。"
+
 #: src/components/GoalEditor.tsx:99
 msgid "Choose a race target or track continuous improvement."
-msgstr "选择一个比赛目标，或追踪持续提升。"
+msgstr "选择比赛目标，或持续追踪进步。"
 
 #: src/pages/Setup.tsx:640
 msgid "Choose how much historical data to pull"
-msgstr "选择要拉取的历史数据量"
+msgstr "选择要同步多少历史数据"
 
 #: src/pages/Setup.tsx:1082
 msgid "Choose primary source"
-msgstr "选择主要数据源"
+msgstr "选择首选数据来源"
 
 #: src/components/SetupChecklist.tsx:63
 #: src/pages/Setup.tsx:774
@@ -682,11 +992,11 @@ msgstr "选择训练基准"
 
 #: src/pages/Settings.tsx:1230
 msgid "Choose which platform to use for each data type"
-msgstr "为每种数据类型选择使用的平台"
+msgstr "为每类数据选择使用哪个平台"
 
 #: src/pages/Settings.tsx:793
 msgid "Clear"
-msgstr "清除"
+msgstr "清空"
 
 #: src/pages/admin/AdminUsers.tsx:755
 msgid "Click to copy"
@@ -697,6 +1007,7 @@ msgstr "点击复制"
 #~ msgstr "点击重试"
 
 #: src/components/FeedbackDialog.tsx:203
+#: src/components/MetricDetailSheet.tsx:65
 msgid "Close"
 msgstr "关闭"
 
@@ -708,9 +1019,9 @@ msgstr "已关闭"
 msgid "Closed · cap reached"
 msgstr "已关闭 · 已达上限"
 
-#: src/pages/admin/AdminOps.tsx:825
+#: src/pages/admin/AdminOps.tsx:829
 msgid "Coach useful-vote rate"
-msgstr "Coach 有用票比例"
+msgstr "Coach 有用投票率"
 
 #: src/pages/admin/AdminOps.tsx:780
 #~ msgid "Coach usefulness"
@@ -734,11 +1045,11 @@ msgstr "已为 {1} 创建代码 {0}。邮件未发送，请复制代码或使用
 
 #: src/pages/Goal.tsx:372
 msgid "Comfortable"
-msgstr "轻松目标"
+msgstr "稳妥目标"
 
 #: src/components/WorkoutCard.tsx:100
 msgid "Coming Up"
-msgstr "即将到来"
+msgstr "接下来"
 
 #: src/pages/admin/AdminUsers.tsx:470
 msgid "Committed / cap"
@@ -747,12 +1058,12 @@ msgstr "已承诺 / 上限"
 #: src/pages/admin/AdminCommunications.tsx:142
 #: src/pages/admin/AdminLayout.tsx:26
 msgid "Communications"
-msgstr "通知"
+msgstr "公告"
 
 #: src/components/SetupChecklist.tsx:98
 #: src/pages/Setup.tsx:560
 msgid "Complete these steps to unlock your training insights"
-msgstr "完成这些步骤以解锁您的训练解读"
+msgstr "完成以下步骤，解锁训练解读"
 
 #: src/components/charts/ComplianceChart.tsx:171
 #~ msgid "Compliance compares the load you actually accumulated each week (Actual) against the load your plan called for (Planned). The percentage above each bar shows how close you came: green for 80–120% (on target), amber under 80%, red over 120%. The load metric (RSS or W-equivalent) is set by your training base."
@@ -760,7 +1071,7 @@ msgstr "完成这些步骤以解锁您的训练解读"
 
 #: src/components/charts/ComplianceChart.tsx:166
 msgid "Compliance is the mean weekly actual-to-planned load ratio across completed weeks where actual and planned load both use exact selected-base inputs and the plan target is positive. Estimated weeks stay in the chart but are excluded from the summary. This is an execution comparison, not a quality, safety, recovery, or readiness score."
-msgstr "负荷合规度是对已完成且计划目标为正、实际负荷和计划负荷均使用当前训练基准精确输入的周次，计算每周实际负荷与计划负荷比值的平均值。估算周会保留在图表中，但不计入汇总。它仅用于描述计划执行情况，不代表训练质量、安全性、恢复状态或准备度。"
+msgstr "计划完成度是已完成周中每周实际负荷与计划负荷比值的平均值；仅统计计划目标为正，且实际负荷和计划负荷都基于所选基准精确计算的周。估算周仍会显示在图表中，但不计入汇总。这只是计划执行对比，不代表训练质量、安全性、恢复或准备度。"
 
 #: src/components/charts/ComplianceChart.tsx:162
 #~ msgid "Compliance is the mean weekly actual-to-planned load ratio across completed weeks with a positive plan target. It is an execution comparison, not a quality, safety, recovery, or readiness score. The load unit follows your training base."
@@ -780,7 +1091,7 @@ msgstr "组件"
 
 #: src/pages/Settings.tsx:640
 msgid "Configure your training system"
-msgstr "配置您的训练系统"
+msgstr "设置训练系统"
 
 #: src/components/TodayDecisionCheck.tsx:23
 msgid "Confirmed what I planned"
@@ -811,7 +1122,7 @@ msgstr "连接平台"
 msgid "Connect a platform first"
 msgstr "请先连接一个平台"
 
-#: src/pages/admin/AdminOps.tsx:354
+#: src/pages/admin/AdminOps.tsx:356
 #: src/pages/Settings.tsx:869
 msgid "Connected"
 msgstr "已连接"
@@ -823,21 +1134,25 @@ msgstr "已连接平台"
 #: src/pages/Settings.tsx:1111
 #: src/pages/Setup.tsx:1039
 msgid "Connecting..."
-msgstr "连接中..."
+msgstr "连接中…"
 
-#: src/pages/admin/AdminOps.tsx:982
+#: src/pages/admin/AdminOps.tsx:1068
 msgid "Connection funnel"
 msgstr "连接转化漏斗"
+
+#: src/components/HeatAdaptationPanel.tsx:82
+#~ msgid "Connector-provided activity summary"
+#~ msgstr "连接器提供的活动摘要"
 
 #: src/pages/Settings.tsx:1121
 #: src/pages/Setup.tsx:1050
 msgid "Continue in your browser to authorize Strava. Praxys imports activities from Strava, while recovery, fitness, and plans come from your other connected platforms."
-msgstr "继续在浏览器中授权 Strava。Praxys 会从 Strava 导入活动，而恢复、体能和计划则来自您连接的其他平台。"
+msgstr "请在浏览器中继续完成 Strava 授权。Praxys 会从 Strava 导入活动；恢复、体能和训练计划则来自你连接的其他平台。"
 
 #: src/pages/Settings.tsx:1152
 #: src/pages/Setup.tsx:1059
 msgid "Continue to Strava"
-msgstr "继续前往 Strava"
+msgstr "前往 Strava"
 
 #: src/components/GoalEditor.tsx:115
 msgid "Continuous"
@@ -849,7 +1164,12 @@ msgstr "持续提升"
 
 #: src/pages/Setup.tsx:822
 msgid "Continuous improvement configured"
-msgstr "已配置持续提升"
+msgstr "已设置持续提升目标"
+
+#. placeholder {0}: status.sessions.length
+#: src/components/HeatAdaptationPanel.tsx:387
+#~ msgid "Contributing evidence · {0}"
+#~ msgstr "计入证据 · {0}"
 
 #: src/pages/Admin.tsx:539
 #~ msgid "Control self-registration and the committed-seat cap"
@@ -866,7 +1186,7 @@ msgstr "放松"
 #: src/pages/admin/AdminUsers.tsx:849
 #: src/pages/admin/AdminUsers.tsx:891
 msgid "Copy code"
-msgstr "复制代码"
+msgstr "复制邀请码"
 
 #: src/pages/Science.tsx:255
 #~ msgid "Cosmetic — changes names and colors without affecting calculations"
@@ -874,7 +1194,7 @@ msgstr "复制代码"
 
 #: src/pages/Login.tsx:182
 msgid "Could not save your email. Please email us instead."
-msgstr "无法保存您的邮箱，请直接发邮件联系我们。"
+msgstr "无法保存邮箱，请直接发邮件联系我们。"
 
 #: src/pages/admin/AdminUsers.tsx:329
 #~ msgid "Couldn't load admin management data"
@@ -892,7 +1212,7 @@ msgstr "无法加载反馈队列"
 msgid "Couldn't load incidents"
 msgstr "无法加载事件"
 
-#: src/pages/admin/AdminOps.tsx:269
+#: src/pages/admin/AdminOps.tsx:271
 msgid "Couldn't load operations summary"
 msgstr "无法加载运营摘要"
 
@@ -918,6 +1238,15 @@ msgstr "反馈发送失败，请重试。"
 msgid "Couldn't update feedback."
 msgstr "无法更新反馈。"
 
+#: src/components/HeatAdaptationPanel.tsx:223
+#~ msgid "counted"
+#~ msgstr "已计入"
+
+#: src/components/HeatAdaptationPanel.tsx:210
+#: src/components/HeatAdaptationPanel.tsx:331
+#~ msgid "Counted"
+#~ msgstr "已计入"
+
 #: src/pages/admin/AdminOps.tsx:558
 #~ msgid "Counts use authenticated request activity. Today reach and Coach usefulness stay unavailable until trusted telemetry is separated."
 #~ msgstr "这些计数基于已认证请求活动。在可信遥测完成分离前，今日触达和教练有效性仍不可用。"
@@ -926,6 +1255,10 @@ msgstr "无法更新反馈。"
 #: src/lib/display-labels.ts:62
 msgid "CP Trend"
 msgstr "CP 趋势"
+
+#: src/components/HeatAdaptationPanel.tsx:69
+#~ msgid "Cramer and Jay heat-balance framework"
+#~ msgstr "Cramer 与 Jay 热平衡框架"
 
 #: src/pages/admin/AdminCommunications.tsx:219
 #: src/pages/admin/AdminUsers.tsx:1008
@@ -939,15 +1272,19 @@ msgstr "创建账号"
 
 #: src/pages/Login.tsx:424
 msgid "Create an account"
-msgstr "创建账户"
+msgstr "创建账号"
 
 #: src/pages/admin/AdminCommunications.tsx:145
 msgid "Create and manage dismissible banners shown to all users."
-msgstr "创建和管理向所有用户显示的可关闭横幅。"
+msgstr "创建和管理向所有用户显示、可关闭的横幅公告。"
+
+#: src/pages/admin/AdminIncidents.tsx:190
+msgid "Create service incident"
+msgstr "创建服务事件"
 
 #: src/pages/Login.tsx:322
 msgid "Create your account."
-msgstr "创建你的账户。"
+msgstr "创建账号。"
 
 #: src/pages/admin/AdminUsers.tsx:736
 msgid "Created"
@@ -959,7 +1296,7 @@ msgstr "创建时间"
 
 #: src/pages/Login.tsx:649
 msgid "Creating account…"
-msgstr "正在创建账户…"
+msgstr "正在创建账号…"
 
 #: src/pages/Admin.tsx:966
 #: src/pages/Admin.tsx:1111
@@ -968,14 +1305,14 @@ msgstr "正在创建账户…"
 #~ msgstr "创建中..."
 
 #: src/pages/admin/AdminCommunications.tsx:219
-#: src/pages/admin/AdminIncidents.tsx:189
+#: src/pages/admin/AdminIncidents.tsx:190
 #: src/pages/admin/AdminUsers.tsx:1008
 msgid "Creating…"
 msgstr "正在创建…"
 
 #: src/pages/admin/AdminFeedback.tsx:94
 #: src/pages/admin/AdminIncidents.tsx:31
-#: src/pages/admin/AdminIncidents.tsx:185
+#: src/pages/admin/AdminIncidents.tsx:186
 #: src/pages/Status.tsx:102
 msgid "Critical"
 msgstr "严重"
@@ -988,25 +1325,29 @@ msgstr "阈值功率"
 #. placeholder {0}: incidents.critical
 #. placeholder {1}: incidents.major
 #. placeholder {2}: incidents.minor
-#: src/pages/admin/AdminOps.tsx:553
+#: src/pages/admin/AdminOps.tsx:557
 msgid "Critical: {0}. Major: {1}. Minor: {2}."
 msgstr "严重：{0}。重大：{1}。轻微：{2}。"
 
 #: src/pages/Setup.tsx:1021
 msgid "Cross-training activities affect your overall training load and recovery"
-msgstr "交叉训练活动会影响您的整体训练负荷与恢复"
+msgstr "交叉训练也会影响整体训练负荷和恢复"
 
 #: src/components/charts/FitnessFatigueChart.tsx:281
 #~ msgid "CTL (Fitness)"
 #~ msgstr "CTL（体能）"
 
-#: src/components/charts/FitnessFatigueChart.tsx:281
+#: src/components/charts/FitnessFatigueChart.tsx:314
 msgid "CTL (long-term load)"
 msgstr "CTL（长期负荷）"
 
 #: src/components/charts/FormSparkline.tsx:254
 msgid "CTL and ATL are long-term and recent modeled training loads. TSB = CTL − ATL; it is not a direct measure of recovery or readiness."
-msgstr "CTL 和 ATL 分别是长期与近期训练负荷模型。TSB = CTL − ATL；它不是恢复或准备度的直接测量。"
+msgstr "CTL 和 ATL 分别代表长期和近期的模型训练负荷。TSB = CTL − ATL；它不能直接反映恢复或准备度。"
+
+#: src/components/charts/FitnessFatigueChart.tsx:334
+msgid "CTL models longer-term training load, ATL models recent training load, and TSB is their difference. These are load-model estimates, not direct measures of recovery or readiness."
+msgstr "CTL 反映较长期的训练负荷，ATL 反映近期训练负荷，TSB 是两者的差值。这些都是负荷模型的估算结果，不是恢复或准备度的直接指标。"
 
 #: src/pages/admin/AdminOps.tsx:432
 #~ msgid "Curated alert summaries are not connected yet."
@@ -1025,20 +1366,36 @@ msgstr "当前 {abbrev}"
 msgid "Current {metricName}"
 msgstr "当前 {metricName}"
 
+#: src/components/HeatAdaptationPanel.tsx:545
+msgid "Current conclusion"
+msgstr "当前结论"
+
+#: src/components/HeatAdaptationPanel.tsx:472
+msgid "Current evidence"
+msgstr "当前证据"
+
+#: src/components/HeatAdaptationPanel.tsx:500
+msgid "Current qualifying evidence"
+msgstr "当前符合条件的证据"
+
 #. placeholder {0}: config?.training_base || 'power'
 #: src/components/SetupChecklist.tsx:64
 msgid "Currently set to {0}-based training"
-msgstr "当前设置为基于 {0} 的训练"
+msgstr "当前为基于 {0} 的训练"
 
 #: src/pages/Setup.tsx:165
 msgid "Cycling"
 msgstr "骑行"
 
-#: src/pages/admin/AdminOps.tsx:309
+#: src/components/HeatAdaptationPanel.tsx:73
+#~ msgid "Daanen decay and reacclimation review"
+#~ msgstr "Daanen 热适应衰减与再适应综述"
+
+#: src/pages/admin/AdminOps.tsx:311
 msgid "Daily brief"
 msgstr "每日简报"
 
-#: src/pages/Today.tsx:400
+#: src/pages/Today.tsx:401
 msgid "daily score"
 msgstr "每日评分"
 
@@ -1050,6 +1407,10 @@ msgstr "深色"
 msgid "Dark theme (click for system)"
 msgstr "深色主题（点击切换为系统）"
 
+#: src/components/HeatAdaptationPanel.tsx:596
+msgid "Data coverage"
+msgstr "数据覆盖情况"
+
 #: src/pages/Settings.tsx:1229
 msgid "Data Preferences"
 msgstr "数据偏好"
@@ -1058,20 +1419,20 @@ msgstr "数据偏好"
 msgid "Data synced successfully"
 msgstr "数据同步成功"
 
-#: src/pages/admin/AdminOps.tsx:474
+#: src/pages/admin/AdminOps.tsx:478
 msgid "Database"
 msgstr "数据库"
 
-#: src/pages/admin/AdminOps.tsx:714
+#: src/pages/admin/AdminOps.tsx:718
 msgid "Database health failures"
-msgstr "数据库健康检查失败次数"
+msgstr "数据库健康检查失败"
 
-#: src/pages/admin/AdminOps.tsx:761
+#: src/pages/admin/AdminOps.tsx:765
 #: src/pages/admin/AdminUsers.tsx:135
 msgid "DAU"
 msgstr "日活用户数"
 
-#: src/pages/admin/AdminOps.tsx:854
+#: src/pages/admin/AdminOps.tsx:858
 msgid "DAU, WAU, and MAU use authenticated request activity for context. Today and Coach metrics use trusted backend telemetry."
 msgstr "DAU、WAU 和 MAU 以已认证请求活动为统计依据；Today 与 Coach 指标来自可信后端遥测。"
 
@@ -1087,21 +1448,33 @@ msgstr "天"
 msgid "Days left"
 msgstr "剩余天数"
 
+#: src/components/HeatAdaptationPanel.tsx:172
+#~ msgid "Days with recorded sessions are shown below. Select a day to inspect what entered the estimate."
+#~ msgstr "下方显示有活动记录的日期。选择一天即可查看哪些训练进入了估算。"
+
 #: src/pages/admin/AdminCommunications.tsx:261
 msgid "Deactivate"
 msgstr "停用"
+
+#: src/components/HeatAdaptationPanel.tsx:22
+#~ msgid "Decaying"
+#~ msgstr "衰减中"
 
 #: src/pages/admin/AdminOps.tsx:752
 #~ msgid "Decision response"
 #~ msgstr "决策响应"
 
-#: src/pages/admin/AdminOps.tsx:797
+#: src/pages/admin/AdminOps.tsx:801
 msgid "Decision response rate"
-msgstr "决策检查响应率"
+msgstr "决策反馈率"
+
+#: src/pages/admin/AdminOps.tsx:928
+msgid "Decisions"
+msgstr "决策"
 
 #: src/pages/admin/AdminIncidents.tsx:153
-msgid "Declare incidents shown on the public"
-msgstr "发布将在公开"
+#~ msgid "Declare incidents shown on the public"
+#~ msgstr "在公开状态页发布事故通报"
 
 #: src/pages/Today.tsx:120
 #~ msgid "declining"
@@ -1111,15 +1484,19 @@ msgstr "发布将在公开"
 #~ msgid "Declining"
 #~ msgstr "下降中"
 
+#: src/components/charts/WeeklyVolumeChart.tsx:20
+msgid "Decreasing"
+msgstr "下降"
+
 #: src/pages/admin/AdminCommunications.tsx:173
 msgid "Default (English)"
 msgstr "默认（英文）"
 
 #: src/pages/Science.tsx:28
 msgid "Defines what counts as easy, threshold, hard."
-msgstr "定义轻松、阈值与困难的强度边界。"
+msgstr "划分轻松、阈值和高强度的范围。"
 
-#: src/pages/admin/AdminOps.tsx:461
+#: src/pages/admin/AdminOps.tsx:465
 #: src/pages/Status.tsx:83
 msgid "Degraded"
 msgstr "性能下降"
@@ -1130,7 +1507,7 @@ msgstr "性能下降"
 
 #: src/pages/Status.tsx:73
 msgid "Degraded Performance"
-msgstr "性能下降"
+msgstr "性能降级"
 
 #: src/pages/Settings.tsx:1492
 msgid "Delete account"
@@ -1138,11 +1515,11 @@ msgstr "删除账号"
 
 #: src/pages/Settings.tsx:1512
 msgid "Delete my account"
-msgstr "删除我的账号"
+msgstr "删除账号"
 
 #: src/pages/Settings.tsx:1521
 msgid "Delete my account?"
-msgstr "删除我的账号？"
+msgstr "删除账号？"
 
 #: src/pages/Settings.tsx:1550
 msgid "Delete permanently"
@@ -1160,7 +1537,7 @@ msgstr "删除用户"
 
 #: src/pages/Settings.tsx:1550
 msgid "Deleting..."
-msgstr "删除中..."
+msgstr "删除中…"
 
 #: src/pages/admin/AdminUsers.tsx:1076
 msgid "Deleting…"
@@ -1172,19 +1549,19 @@ msgstr "演示"
 
 #: src/pages/admin/AdminUsers.tsx:967
 msgid "Demo accounts"
-msgstr "演示账户"
+msgstr "演示账号"
 
 #: src/pages/Admin.tsx:931
 #~ msgid "Demo Accounts"
 #~ msgstr "演示账号"
 
-#: src/pages/Science.tsx:440
+#: src/pages/Science.tsx:455
 msgid "Demo mode — read only"
-msgstr "演示模式 — 仅供查看"
+msgstr "演示模式——只读"
 
 #: src/pages/admin/AdminUsers.tsx:1013
 msgid "Demo users can browse your dashboard (Today, Training, Goal, History) but cannot change settings, sync data, or modify plans. Share the email and password with anyone you want to demo to."
-msgstr "演示用户可以浏览您的仪表盘（今日、训练、目标、历史），但不能更改设置、同步数据或修改计划。请把邮箱和密码分享给任何您想演示的人。"
+msgstr "演示账号可查看主页（今日、训练、目标、历史），但不能更改设置、同步数据或修改计划。如需演示，分享账号的邮箱和密码即可。"
 
 #: src/pages/admin/AdminUsers.tsx:995
 msgid "demo-password"
@@ -1204,12 +1581,21 @@ msgstr "降级"
 msgid "Demote to User"
 msgstr "降级为普通用户"
 
+#: src/components/HeatAdaptationPanel.tsx:391
+msgid "Detailed activity evidence is unavailable for this day."
+msgstr "当天暂无详细活动证据。"
+
 #: src/components/FeedbackDialog.tsx:228
+#: src/pages/Training.tsx:79
 msgid "Details"
 msgstr "详情"
 
-#: src/pages/Training.tsx:204
-#: src/pages/Training.tsx:207
+#: src/components/HeatAdaptationPanel.tsx:27
+msgid "Developing"
+msgstr "形成中"
+
+#: src/pages/Training.tsx:363
+#: src/pages/Training.tsx:365
 msgid "Diagnosis"
 msgstr "诊断"
 
@@ -1219,7 +1605,7 @@ msgstr "诊断"
 
 #: src/components/TodayDecisionCheck.tsx:160
 msgid "Did today's brief affect your training decision?"
-msgstr "今日简报是否影响了你的训练决定？"
+msgstr "今日简报影响了你的训练安排吗？"
 
 #: src/pages/Login.tsx:403
 msgid "Didn't get the email?"
@@ -1227,11 +1613,11 @@ msgstr "没收到邮件？"
 
 #: src/components/TodayDecisionCheck.tsx:24
 msgid "Didn't help today"
-msgstr "今天没有帮助"
+msgstr "今天没帮上忙"
 
 #: src/components/UpcomingPlanCard.tsx:201
 msgid "Differs · overwrite"
-msgstr "存在差异 · 覆盖"
+msgstr "有差异·覆盖"
 
 #: src/components/UpcomingPlanCard.tsx:171
 #~ msgid "Differs on Stryd — click to re-push and overwrite."
@@ -1239,9 +1625,9 @@ msgstr "存在差异 · 覆盖"
 
 #: src/pages/Goal.tsx:294
 msgid "Direction"
-msgstr "趋势"
+msgstr "趋势方向"
 
-#: src/pages/admin/AdminOps.tsx:753
+#: src/pages/admin/AdminOps.tsx:757
 msgid "Directional"
 msgstr "方向性指标"
 
@@ -1251,7 +1637,7 @@ msgstr "方向性指标"
 
 #: src/pages/admin/AdminUsers.tsx:427
 msgid "Disabled. Click to open"
-msgstr "已关闭。点击开启"
+msgstr "已关闭，点击开启"
 
 #: src/pages/Settings.tsx:973
 msgid "Disconnect"
@@ -1280,16 +1666,22 @@ msgid "Dist"
 msgstr "距离"
 
 #: src/components/ActivityCard.tsx:75
+#: src/components/charts/WeeklyVolumeChart.tsx:89
+#: src/components/charts/WeeklyVolumeChart.tsx:98
 #: src/components/GoalEditor.tsx:122
 #: src/pages/Settings.tsx:1351
 msgid "Distance"
 msgstr "距离"
 
+#: src/pages/Training.tsx:301
+#~ msgid "Distance in non-overlapping seven-day buckets, including zero-activity weeks."
+#~ msgstr "按互不重叠的 7 天周期统计距离，包括零活动周。"
+
 #: src/components/ZoneAnalysisCard.tsx:92
 #~ msgid "Distribution deviates from target"
 #~ msgstr "分布偏离目标"
 
-#: src/pages/Training.tsx:238
+#: src/pages/Training.tsx:264
 msgid "Distribution match"
 msgstr "分布匹配度"
 
@@ -1303,11 +1695,11 @@ msgstr "分布匹配度使用 Bray-Curtis 相似度比较实际与目标的各�
 
 #: src/pages/Settings.tsx:1403
 msgid "Drive your zone calculations and training load. Values come from connected sources; pick which source to use when you have more than one."
-msgstr "驱动您的区间计算和训练负荷。数值来自已连接的数据源；当有多个数据源时，请选择要使用的来源。"
+msgstr "用于区间计算和训练负荷。数值来自已连接的数据来源；有多个时，选择要使用的来源。"
 
 #: src/pages/Today.tsx:284
 msgid "Drop intensity by one zone"
-msgstr "将强度降低一个区间"
+msgstr "强度下调一个区间"
 
 #: src/pages/Today.tsx:279
 #~ msgid "Drop intensity by one zone\" \"降低一个训练区间的强度"
@@ -1363,8 +1755,16 @@ msgid "Each image must be under 5 MB."
 msgstr "每张图片需小于 5 MB。"
 
 #: src/pages/Science.tsx:176
-msgid "Each pillar runs a published theory you can read, verify, and swap. Praxys interprets your data through whichever framework you choose."
-msgstr "每个支柱运行一套已发表的理论，您可以阅读、验证、随时更换。Praxys 通过您选择的理论框架解读训练数据。"
+#~ msgid "Each pillar runs a published theory you can read, verify, and swap. Praxys interprets your data through whichever framework you choose."
+#~ msgstr "每个支柱运行一套已发表的理论，您可以阅读、验证、随时更换。Praxys 通过您选择的理论框架解读训练数据。"
+
+#: src/components/charts/WeeklyVolumeChart.tsx:111
+msgid "Each value is a non-overlapping seven-day bucket ending on the shown date. Weeks with no recorded distance remain in the series and average. Trend labels use a Praxys estimate: the newer half must differ from the older half by more than 10%; this is not a readiness score."
+msgstr "每个数值代表截至所示日期的一个互不重叠的 7 天周期。没有记录到距离的周仍计入序列和平均值。趋势标签采用 Praxys 估算规则：后半段相较前半段必须变化超过 10%；这不是准备度评分。"
+
+#: src/components/charts/WeeklyVolumeChart.tsx:110
+#~ msgid "Each value is a non-overlapping seven-day bucket ending on the shown date. Zero-activity weeks remain in the series and average; the trend compares the older and newer halves. This is a Praxys operational summary, not a readiness score."
+#~ msgstr "每个数值代表截至所示日期的一个互不重叠的 7 天周期。零活动周仍计入序列和平均值；趋势比较前后两个半段。这是 Praxys 的运营性摘要，并非准备度评分。"
 
 #: src/components/SignalHero.tsx:22
 #: src/pages/Today.tsx:62
@@ -1379,6 +1779,27 @@ msgstr "轻松跑"
 #: src/pages/Setup.tsx:825
 msgid "Edit"
 msgstr "编辑"
+
+#: src/components/HeatAdaptationPanel.tsx:584
+msgid "Effective heat"
+msgstr "等效热暴露"
+
+#: src/components/HeatAdaptationPanel.tsx:270
+#~ msgid "Effective heat minutes"
+#~ msgstr "热暴露加权分钟"
+
+#: src/components/HeatAdaptationPanel.tsx:434
+msgid "Effective heat time"
+msgstr "等效热暴露时长"
+
+#. placeholder {0}: formatThresholdNumber(status.effective_heat_minutes, locale)
+#: src/components/HeatAdaptationPanel.tsx:588
+msgid "Effective heat: {0} of {thresholdMinutes} minutes"
+msgstr "等效热暴露：{0} / {thresholdMinutes} 分钟"
+
+#: src/components/HeatAdaptationPanel.tsx:619
+#~ msgid "Effective heat: {effectiveHeatDisplay} of {thresholdMinutes} minutes"
+#~ msgstr ""
 
 #: src/components/ActivityCard.tsx:128
 msgid "Elev"
@@ -1412,7 +1833,7 @@ msgstr "请输入邮箱和密码。"
 
 #: src/pages/admin/AdminUsers.tsx:407
 msgid "Email is not configured. Open sign-ups will not be email-verified, and invitation codes can't be emailed automatically. Copy them manually until SMTP is configured."
-msgstr "未配置邮件。开放注册将不进行邮箱验证，邀请代码也无法自动发送。在配置 SMTP 前请手动复制。"
+msgstr "邮箱未配置。开放注册将不做邮箱验证，邀请码也无法自动发送。配置 SMTP 前请手动复制。"
 
 #: src/pages/Login.tsx:151
 msgid "Email is required."
@@ -1432,16 +1853,20 @@ msgstr "邮箱已验证"
 
 #: src/pages/admin/AdminUsers.tsx:427
 msgid "Enabled. Click to close"
-msgstr "已开启。点击关闭"
+msgstr "已开启，点击关闭"
 
 #: src/lib/display-labels.ts:43
 msgid "Endurance"
 msgstr "耐力"
 
-#: src/pages/admin/AdminOps.tsx:358
+#: src/pages/admin/AdminOps.tsx:360
 #: src/pages/Settings.tsx:892
 msgid "Error"
 msgstr "错误"
+
+#: src/pages/Science.tsx:29
+msgid "Estimates acclimatization from recent qualifying conditions."
+msgstr "根据近期符合条件的环境估算热适应。"
 
 #: src/pages/Science.tsx:27
 msgid "Estimates race performance from current fitness."
@@ -1454,11 +1879,64 @@ msgstr "欧盟"
 #. placeholder {0}: option.hours
 #: src/pages/Settings.tsx:831
 msgid "Every <0>{0}</0> hours"
-msgstr "每 <0>{0}</0> 小时"
+msgstr "每<0>{0}</0>小时"
+
+#: src/components/HeatAdaptationPanel.tsx:475
+msgid "evidence"
+msgstr "证据"
+
+#: src/components/HeatAdaptationPanel.tsx:507
+#~ msgid "Evidence"
+#~ msgstr "证据"
+
+#: src/components/HeatAdaptationPanel.tsx:529
+#~ msgid "Evidence coverage"
+#~ msgstr "证据覆盖度"
+
+#: src/components/HeatAdaptationPanel.tsx:89
+#~ msgid "Evidence for acclimatization to similar conditions is fading."
+#~ msgstr "对相似环境的热适应证据正在减弱。"
+
+#: src/components/HeatAdaptationPanel.tsx:120
+#~ msgid "Evidence from a prior qualifying block is fading."
+#~ msgstr "更早合格训练区块的适应证据正在减弱。"
+
+#: src/components/HeatAdaptationPanel.tsx:119
+#~ msgid "Evidence from a prior qualifying block is fading. The range above describes only current qualifying training."
+#~ msgstr "更早合格训练区块的适应证据正在减弱；上方范围仅描述当前符合条件的训练。"
+
+#: src/components/HeatAdaptationPanel.tsx:112
+#~ msgid "Evidence from a prior qualifying block may still be retained."
+#~ msgstr "更早合格训练区块所形成的适应可能仍在保持。"
+
+#: src/components/HeatAdaptationPanel.tsx:58
+#~ msgid "Evidence is decaying. Build back gradually; reacclimation may be faster than the first block."
+#~ msgstr "热适应证据正在衰减。请逐步恢复；再适应可能比首次建立更快。"
+
+#: src/components/HeatAdaptationPanel.tsx:62
+#~ msgid "Evidence remains recent. Follow normal training and recovery."
+#~ msgstr "近期证据仍然有效。请按正常计划训练并关注恢复。"
+
+#: src/components/HeatAdaptationPanel.tsx:279
+#~ msgid "Evidence toward likely adapted"
+#~ msgstr "达到“可能已适应”的证据进度"
+
+#: src/components/HeatAdaptationPanel.tsx:568
+msgid "Evidence toward Likely adapted"
+msgstr "达到“可能已适应”的证据进度"
+
+#: src/components/HeatAdaptationPanel.tsx:265
+#~ msgid "Exposure days"
+#~ msgstr "热暴露日"
 
 #: src/components/charts/FormSparkline.tsx:32
 #~ msgid "Extended rest period. Fitness declining."
 #~ msgstr "长时间休息期。体能在下降。"
+
+#: src/components/HeatAdaptationPanel.tsx:22
+#: src/components/HeatAdaptationPanel.tsx:30
+msgid "Fading"
+msgstr "减退中"
 
 #: src/pages/admin/AdminFeedback.tsx:85
 #: src/pages/admin/AdminFeedback.tsx:232
@@ -1476,7 +1954,7 @@ msgstr "创建公告失败。"
 
 #: src/pages/admin/AdminUsers.tsx:311
 msgid "Failed to create demo account."
-msgstr "创建演示账户失败。"
+msgstr "创建演示账号失败。"
 
 #: src/pages/admin/AdminIncidents.tsx:59
 msgid "Failed to create incident."
@@ -1496,7 +1974,7 @@ msgstr "删除用户失败。"
 
 #: src/pages/admin/AdminUsers.tsx:202
 msgid "Failed to generate invitation code."
-msgstr "生成邀请代码失败。"
+msgstr "生成邀请码失败。"
 
 #: src/pages/Today.tsx:333
 msgid "Failed to load"
@@ -1514,7 +1992,7 @@ msgstr "目标数据加载失败"
 #~ msgid "Failed to load science data"
 #~ msgstr "加载科学数据失败"
 
-#: src/pages/Science.tsx:83
+#: src/pages/Science.tsx:84
 msgid "Failed to load science data."
 msgstr "加载科学数据失败。"
 
@@ -1522,7 +2000,7 @@ msgstr "加载科学数据失败。"
 msgid "Failed to load settings"
 msgstr "加载设置失败"
 
-#: src/pages/Training.tsx:140
+#: src/pages/Training.tsx:178
 msgid "Failed to load training data"
 msgstr "训练数据加载失败"
 
@@ -1532,7 +2010,7 @@ msgstr "训练计划加载失败"
 
 #: src/pages/admin/AdminUsers.tsx:224
 msgid "Failed to revoke invitation code."
-msgstr "撤销邀请代码失败。"
+msgstr "撤销邀请码失败。"
 
 #: src/components/GoalEditor.tsx:86
 msgid "Failed to save goal"
@@ -1555,13 +2033,13 @@ msgid "Failed to update user role."
 msgstr "更新用户角色失败。"
 
 #. placeholder {0}: platform.systemic_failures.length
-#: src/pages/admin/AdminOps.tsx:612
+#: src/pages/admin/AdminOps.tsx:616
 msgid "Failure classes observed: {0}."
 msgstr "观察到的失败类别：{0}。"
 
-#: src/pages/admin/AdminOps.tsx:967
+#: src/pages/admin/AdminOps.tsx:1053
 msgid "failures"
-msgstr "失败"
+msgstr "次失败"
 
 #: src/pages/Today.tsx:120
 msgid "falling"
@@ -1605,26 +2083,26 @@ msgstr "功能建议"
 msgid "Feedback"
 msgstr "反馈"
 
-#: src/pages/admin/AdminOps.tsx:568
+#: src/pages/admin/AdminOps.tsx:572
 msgid "Feedback queue is clear"
-msgstr "反馈队列已清空"
+msgstr "反馈队列暂无待处理项"
 
 #. placeholder {0}: feedback.actionable
-#: src/pages/admin/AdminOps.tsx:567
+#: src/pages/admin/AdminOps.tsx:571
 msgid "Feedback requiring action: {0}"
 msgstr "需要处理的反馈：{0}"
 
-#: src/pages/admin/AdminOps.tsx:569
+#: src/pages/admin/AdminOps.tsx:573
 msgid "Feedback state unavailable"
 msgstr "反馈状态不可用"
 
 #: src/pages/admin/AdminFeedback.tsx:196
 msgid "Feedback triage"
-msgstr "反馈分诊"
+msgstr "反馈处理"
 
 #: src/components/AiInsightsCard.tsx:266
 msgid "Findings"
-msgstr "发现"
+msgstr "解读要点"
 
 #: src/pages/Settings.tsx:57
 #: src/pages/Settings.tsx:1315
@@ -1638,7 +2116,7 @@ msgstr "体能"
 
 #: src/pages/Goal.tsx:192
 msgid "flat"
-msgstr "平稳"
+msgstr "持平"
 
 #: src/pages/Goal.tsx:52
 msgid "Flat"
@@ -1647,7 +2125,15 @@ msgstr "持平"
 #: src/components/SignalHero.tsx:20
 #: src/pages/Today.tsx:72
 msgid "Follow Plan"
-msgstr "按计划进行"
+msgstr "按计划训练"
+
+#: src/components/HeatAdaptationPanel.tsx:64
+#~ msgid "Follow today's training signal; do not add heat exposure today."
+#~ msgstr "遵循今日训练信号；今天不要额外增加热暴露。"
+
+#: src/components/HeatAdaptationPanel.tsx:61
+#~ msgid "Follow your existing plan; do not add load or heat solely to change this tracker."
+#~ msgstr "请遵循现有训练计划；不要仅为改变此追踪状态而额外增加负荷或热暴露。"
 
 #: src/components/charts/FitnessFatigueChart.tsx:64
 #: src/components/charts/FitnessFatigueChart.tsx:202
@@ -1664,15 +2150,23 @@ msgstr "按计划进行"
 
 #: src/components/FeedbackDialog.tsx:187
 msgid "Found a bug or have an idea? Tell us — reports are reviewed and triaged automatically."
-msgstr "发现问题或有好想法？告诉我们——反馈会被自动审阅和分流。"
+msgstr "发现问题或有想法？告诉我们。反馈会自动审阅并分流。"
 
 #: src/pages/Science.tsx:229
 #~ msgid "Four pillars power your analysis. Each uses a published theory you can understand, verify, and change."
 #~ msgstr "四大支柱驱动您的分析。每一支柱都采用可理解、可验证、可更改的已发表理论。"
 
 #: src/pages/Science.tsx:170
-msgid "Four-pillar framework"
-msgstr "四大支柱框架"
+#~ msgid "Four-pillar framework"
+#~ msgstr "四大支柱框架"
+
+#: src/components/HeatAdaptationPanel.tsx:204
+#~ msgid "Fourteen days of supported activity evidence, not a biological adaptation score."
+#~ msgstr "基于 14 天受支持活动的证据，并非生理适应百分比。"
+
+#: src/components/HeatAdaptationPanel.tsx:258
+msgid "Fourteen-day activity record"
+msgstr "14天活动记录"
 
 #: src/pages/admin/AdminOps.tsx:119
 #~ msgid "Fresh"
@@ -1686,9 +2180,9 @@ msgstr "四大支柱框架"
 #~ msgid "Freshened up — good window for racing or testing."
 #~ msgstr "充分恢复——适合比赛或测试的好时机。"
 
-#: src/pages/Today.tsx:529
+#: src/pages/Today.tsx:530
 msgid "From {dataAsOfLabel}"
-msgstr "数据自 {dataAsOfLabel}"
+msgstr "数据截至 {dataAsOfLabel}"
 
 #: src/pages/Today.tsx:172
 msgid "from {label}"
@@ -1709,19 +2203,19 @@ msgstr "差距"
 
 #: src/pages/Settings.tsx:1069
 msgid "Garmin International and Garmin China are separate account systems. Pick the one your credentials belong to."
-msgstr "Garmin International 和 Garmin China 是两个独立的账号系统。请选择您的凭据所属的系统。"
+msgstr "Garmin International 和 Garmin China 是两套独立的账号系统。请选择账号所属的系统。"
 
 #: src/pages/Settings.tsx:959
 msgid "Garmin International and Garmin China are separate accounts. To switch, disconnect and reconnect with the other account."
-msgstr "Garmin International 和 Garmin China 是两个独立的账号。要切换，请断开连接并使用另一个账号重新连接。"
+msgstr "Garmin International 和 Garmin China 是两套独立的账号。要切换，请先断开连接，再用另一个账号重新连接。"
 
 #: src/pages/Settings.tsx:1207
 msgid "Garmin native running power reads ~30% higher than Stryd for the same athlete — they measure different things. Zones and benchmarks calibrated on Stryd (most coach references, most training literature) will not directly transfer. Your power data will still be internally consistent for tracking progress, but don't compare CP values across the two systems."
-msgstr "Garmin 原生跑步功率同一位运动员读取值通常比 Stryd 高约 30%——它们测量的是不同的东西。基于 Stryd 校准的功率区间和基准值（大多数教练参考、大多数训练文献）不能直接套用。您的功率数据在跟踪进展时仍会保持内部一致性，但不要跨这两个系统比较 CP 值。"
+msgstr "对同一位运动员，Garmin 原生跑步功率通常比 Stryd 高约 30%——两者测量的内容不同。基于 Stryd 校准的功率区间和基准（大多数教练资料和训练文献）不能直接套用。功率数据用于追踪自身变化时仍保持一致，但不要跨两个系统比较 CP。"
 
 #: src/components/FeedbackDialog.tsx:42
 msgid "General feedback"
-msgstr "一般反馈"
+msgstr "其他反馈"
 
 #: src/pages/admin/AdminUsers.tsx:708
 msgid "Generate"
@@ -1729,7 +2223,7 @@ msgstr "生成"
 
 #: src/pages/Setup.tsx:206
 msgid "Generate a token at cloud.ouraring.com/personal-access-tokens."
-msgstr "请在 cloud.ouraring.com/personal-access-tokens 生成一个令牌。"
+msgstr "请前往 cloud.ouraring.com/personal-access-tokens 生成令牌。"
 
 #: src/pages/admin/AdminUsers.tsx:708
 msgid "Generating…"
@@ -1759,11 +2253,11 @@ msgstr "开练"
 #: src/components/SignalHero.tsx:22
 #: src/pages/Today.tsx:74
 msgid "Go Easy"
-msgstr "轻松进行"
+msgstr "轻松训练"
 
 #: src/pages/Setup.tsx:849
 msgid "Go to dashboard"
-msgstr "前往仪表盘"
+msgstr "前往主页"
 
 #: src/pages/Verify.tsx:57
 msgid "Go to sign in"
@@ -1803,25 +2297,92 @@ msgstr "有邀请码？"
 msgid "Heart Rate"
 msgstr "心率"
 
+#: src/pages/Training.tsx:346
+#: src/pages/Training.tsx:349
+msgid "Heat adaptation"
+msgstr "热适应"
+
+#: src/pages/Science.tsx:29
+msgid "Heat Adaptation"
+msgstr "热适应"
+
+#: src/components/HeatAdaptationPanel.tsx:151
+#~ msgid "Heat adaptation covers acclimatization from natural heat and acclimation from controlled heat, but this tracker observes only outdoor connector weather; treadmill and indoor summary weather are discarded. It uses one activity-summary temperature/humidity pair. Environmental evidence takes the stronger of an estimated 18–26°C Stull psychrometric wet-bulb ramp at standard sea-level pressure and an estimated 30–40°C dry-bulb ramp; the ramps are never added and this is not WBGT. Outside Stull's 5–99% RH domain, only the dry-bulb ramp can contribute. Work minutes at or above 50% of a same-provider current CP are weighted by the stronger ramp, using timestamped samples when they cover at least 90% of activity duration and splits otherwise. Sample gaps over five seconds do not count toward coverage. A session counts at 30 effective minutes. Within a rolling 14-day window, 2 days and 60 effective minutes indicate Building; 7 days and 420 effective minutes indicate Likely adapted. The environmental ramps, effective minutes, stage thresholds, and the 7–28 day decay window are Praxys operational estimates; evidence labels describe data coverage, not biological certainty. Wind, solar radiation, within-session weather changes, clothing, hydration state, and measured core or skin temperature are excluded. Repeated exposure can reduce cardiovascular and thermal strain, but individual response varies and female-specific evidence remains limited. This is not medical clearance or a current heat-risk assessment: follow Today's signal, keep normal hydration and cooling available, stop immediately and begin cooling for heat-illness symptoms, and seek urgent medical help for confusion, collapse, or altered mental status."
+#~ msgstr "热适应涵盖自然热环境下的热习服（acclimatization）和受控热环境下的热习服（acclimation），但本追踪器只采集室外连接器天气；跑步机和室内活动的摘要天气会被丢弃。它使用一组活动摘要温湿度。环境证据取两条估算线性权重坡度中较强者：在标准海平面气压下 18–26°C 的 Stull 估算湿球温度坡度，以及 30–40°C 的干球温度坡度；二者不会相加，结果也不是 WBGT。超出 Stull 的 5–99% 相对湿度适用范围时，只有干球温度坡度可贡献证据。达到同一提供方当前 CP 50% 及以上的训练分钟，会按较强的环境坡度加权；时间戳样本覆盖至少 90% 活动时长时使用样本功率，否则使用分段功率。超过 5 秒的样本间隔不计入覆盖率。单次训练达到 30 个加权分钟才计入。在滚动 14 天窗口内，2 天且 60 个加权分钟表示“建立中”；7 天且 420 个加权分钟表示“可能已适应”。环境权重坡度、加权分钟、阶段阈值和 7–28 天衰减窗口均为 Praxys 的操作性估算；证据标签描述数据覆盖度，不代表个体生理适应的确定性。模型不包含风速、太阳辐射、训练过程中的天气变化、服装、补水状态，以及实测核心体温或皮肤温度。反复热暴露可降低心血管和热应激，但个体反应不同，针对女性的证据仍有限。这不构成医疗许可，也不评估当前热风险：请遵循今日信号，保持正常补水并准备降温措施；一旦出现热病症状，应立即停止热暴露并开始降温；如出现意识混乱、虚脱或精神状态改变，应立即寻求紧急医疗救助。"
+
+#: src/components/HeatAdaptationPanel.tsx:147
+#~ msgid "Heat adaptation covers acclimatization from natural heat and acclimation from controlled heat. This tracker uses one connector-provided activity-summary temperature/humidity pair, Stull's psychrometric wet-bulb proxy at standard sea-level pressure, and sample power relative to a same-provider current CP, with splits only when samples cover less than 90% of activity duration. Effective minutes, stage thresholds, and the 7–28 day decay window are Praxys operational estimates; evidence labels describe data coverage, not biological certainty. Wind, solar radiation, and within-session weather changes are excluded. Repeated exposure can reduce cardiovascular and thermal strain, but individual response varies and female-specific evidence remains limited. This is not medical clearance or a current heat-risk assessment: follow Today's signal, keep normal hydration and cooling available, stop immediately and begin cooling for heat-illness symptoms, and seek urgent medical help for confusion, collapse, or altered mental status."
+#~ msgstr "热适应涵盖自然热环境下的热习服（acclimatization）和受控热环境下的热习服（acclimation）。本追踪器使用连接器提供的一组活动摘要温湿度、在标准海平面气压假设下的 Stull 湿球温度代理值，以及相对于同一提供方当前 CP 的逐秒样本功率；当样本覆盖不足活动时长的 90% 时才回退到分段功率。加权分钟、阶段阈值和 7–28 天衰减窗口均为 Praxys 的操作性估算；证据标签描述数据覆盖度，不代表个体生理适应的确定性。模型不包含风速、太阳辐射和训练过程中的天气变化。反复热暴露可降低心血管和热应激，但个体反应不同，针对女性的证据仍有限。这不构成医疗许可，也不评估当前热风险：请遵循今日信号，保持正常补水并准备降温措施；一旦出现热病症状，应立即停止热暴露并开始降温；如出现意识混乱、虚脱或精神状态改变，应立即寻求紧急医疗救助。"
+
+#: src/components/HeatAdaptationPanel.tsx:145
+#~ msgid "Heat adaptation covers acclimatization from natural heat and acclimation from controlled heat. This tracker uses one connector-provided activity-summary temperature/humidity pair, Stull's psychrometric wet-bulb proxy at standard sea-level pressure, and sample power relative to current CP, with splits only when samples are unavailable. Effective minutes, stage thresholds, and the 7–28 day decay window are Praxys operational estimates; evidence labels describe data coverage, not biological certainty. Wind, solar radiation, and within-session weather changes are excluded. Repeated exposure can reduce cardiovascular and thermal strain, but individual response varies and female-specific evidence remains limited. This is not medical clearance or a current heat-risk assessment: follow Today's signal, keep normal hydration and cooling available, and reduce or stop for heat-illness symptoms."
+#~ msgstr "热适应涵盖自然热环境下的热习服（acclimatization）和受控热环境下的热习服（acclimation）。本追踪器使用连接器提供的一组活动摘要温湿度、在标准海平面气压假设下的 Stull 湿球温度代理值，以及相对于当前 CP 的逐秒样本功率；无样本时才回退到分段功率。加权分钟、阶段阈值和 7–28 天衰减窗口均为 Praxys 的操作性估算；证据标签描述数据覆盖度，不代表个体生理适应的确定性。模型不包含风速、太阳辐射和训练过程中的天气变化。反复热暴露可降低心血管和热应激，但个体反应不同，针对女性的证据仍有限。这不构成医疗许可，也不评估当前热风险：请遵循今日信号，保持正常补水并准备降温措施；如出现热病症状，应降低强度或停止训练。"
+
+#: src/components/HeatAdaptationPanel.tsx:149
+#~ msgid "Heat adaptation covers acclimatization from natural heat and acclimation from controlled heat. This tracker uses one connector-provided activity-summary temperature/humidity pair, Stull's psychrometric wet-bulb proxy at standard sea-level pressure, and timestamp-weighted sample power relative to a same-provider current CP, with splits only when samples cover less than 90% of activity duration. Sample gaps over five seconds do not count toward coverage. Effective minutes, stage thresholds, and the 7–28 day decay window are Praxys operational estimates; evidence labels describe data coverage, not biological certainty. Wind, solar radiation, and within-session weather changes are excluded. Repeated exposure can reduce cardiovascular and thermal strain, but individual response varies and female-specific evidence remains limited. This is not medical clearance or a current heat-risk assessment: follow Today's signal, keep normal hydration and cooling available, stop immediately and begin cooling for heat-illness symptoms, and seek urgent medical help for confusion, collapse, or altered mental status."
+#~ msgstr "热适应涵盖自然热环境下的热习服（acclimatization）和受控热环境下的热习服（acclimation）。本追踪器使用连接器提供的一组活动摘要温湿度、在标准海平面气压假设下的 Stull 湿球温度代理值，以及相对于同一提供方当前 CP、按时间戳间隔加权的样本功率；当样本覆盖不足活动时长的 90% 时才回退到分段功率。超过 5 秒的样本间隔不计入覆盖率。加权分钟、阶段阈值和 7–28 天衰减窗口均为 Praxys 的操作性估算；证据标签描述数据覆盖度，不代表个体生理适应的确定性。模型不包含风速、太阳辐射和训练过程中的天气变化。反复热暴露可降低心血管和热应激，但个体反应不同，针对女性的证据仍有限。这不构成医疗许可，也不评估当前热风险：请遵循今日信号，保持正常补水并准备降温措施；一旦出现热病症状，应立即停止热暴露并开始降温；如出现意识混乱、虚脱或精神状态改变，应立即寻求紧急医疗救助。"
+
+#: src/components/HeatAdaptationPanel.tsx:151
+#~ msgid "Heat adaptation covers acclimatization from natural heat and acclimation from controlled heat. This tracker uses one connector-provided activity-summary temperature/humidity pair. Environmental evidence takes the stronger of an estimated 18–26°C Stull psychrometric wet-bulb ramp and an estimated 30–40°C dry-bulb ramp; the ramps are never added and this is not WBGT. Workload uses timestamp-weighted sample power relative to a same-provider current CP, with splits only when samples cover less than 90% of activity duration. Sample gaps over five seconds do not count toward coverage. The environmental ramps, effective minutes, stage thresholds, and the 7–28 day decay window are Praxys operational estimates; evidence labels describe data coverage, not biological certainty. Wind, solar radiation, within-session weather changes, clothing, hydration state, and measured core or skin temperature are excluded. Repeated exposure can reduce cardiovascular and thermal strain, but individual response varies and female-specific evidence remains limited. This is not medical clearance or a current heat-risk assessment: follow Today's signal, keep normal hydration and cooling available, stop immediately and begin cooling for heat-illness symptoms, and seek urgent medical help for confusion, collapse, or altered mental status."
+#~ msgstr "热适应涵盖自然热环境下的热习服（acclimatization）和受控热环境下的热习服（acclimation）。本追踪器使用连接器提供的一组活动摘要温湿度。环境证据取两条估算线性权重坡度中较强者：18–26°C 的 Stull 估算湿球温度坡度与 30–40°C 的干球温度坡度；二者不会相加，结果也不是 WBGT。训练负荷使用相对于同一提供方当前 CP、按时间戳间隔加权的样本功率；当样本覆盖不足活动时长的 90% 时才回退到分段功率。超过 5 秒的样本间隔不计入覆盖率。环境权重坡度、加权分钟、阶段阈值和 7–28 天衰减窗口均为 Praxys 的操作性估算；证据标签描述数据覆盖度，不代表个体生理适应的确定性。模型不包含风速、太阳辐射、训练过程中的天气变化、服装、补水状态，以及实测核心体温或皮肤温度。反复热暴露可降低心血管和热应激，但个体反应不同，针对女性的证据仍有限。这不构成医疗许可，也不评估当前热风险：请遵循今日信号，保持正常补水并准备降温措施；一旦出现热病症状，应立即停止热暴露并开始降温；如出现意识混乱、虚脱或精神状态改变，应立即寻求紧急医疗救助。"
+
+#: src/components/HeatAdaptationPanel.tsx:132
+msgid "Heat adaptation is not established."
+msgstr "热适应尚未形成。"
+
+#: src/components/HeatAdaptationPanel.tsx:130
+msgid "Heat adaptation may be developing."
+msgstr "热适应可能正在形成。"
+
+#: src/components/HeatAdaptationPanel.tsx:117
+msgid "Heat adaptation may be rebuilding."
+msgstr "热适应可能正在恢复。"
+
+#: src/components/HeatAdaptationPanel.tsx:126
+#: src/components/HeatAdaptationPanel.tsx:131
+#~ msgid "Heat constraint"
+#~ msgstr "热暴露限制"
+
+#: src/pages/Training.tsx:352
+#~ msgid "Heat evidence"
+#~ msgstr "热适应证据"
+
+#: src/components/HeatAdaptationPanel.tsx:194
+#: src/components/HeatAdaptationPanel.tsx:197
+#~ msgid "Heat evidence timeline"
+#~ msgstr "热适应证据时间线"
+
+#: src/components/HeatAdaptationPanel.tsx:461
+#~ msgid "Heat-adaptation evidence is decaying"
+#~ msgstr "热适应证据正在衰减"
+
 #: src/components/AiInsightsCard.tsx:324
 msgid "Helpful"
 msgstr "有帮助"
 
 #: src/pages/Settings.tsx:769
 msgid "Hide backfill"
-msgstr "隐藏历史同步"
+msgstr "收起历史同步"
 
 #: src/components/AiInsightsCard.tsx:250
 msgid "Hide details"
-msgstr "隐藏详情"
+msgstr "收起详情"
 
-#: src/pages/Science.tsx:463
+#: src/pages/Science.tsx:478
 msgid "Hide methodology details"
 msgstr "收起方法论详情"
 
 #: src/pages/admin/AdminFeedback.tsx:96
 msgid "High"
 msgstr "高"
+
+#: src/components/HeatAdaptationPanel.tsx:47
+#~ msgid "High confidence"
+#~ msgstr "高置信度"
+
+#: src/components/HeatAdaptationPanel.tsx:36
+msgid "High coverage"
+msgstr "覆盖度高"
 
 #: src/components/charts/FormSparkline.tsx:31
 #~ msgid "High fatigue accumulation. Prioritize recovery."
@@ -1851,22 +2412,30 @@ msgstr "历史同步可能需要几分钟"
 #~ msgid "How does training stress become fitness?"
 #~ msgstr "训练应激如何转化为体能？"
 
+#: src/components/HeatAdaptationPanel.tsx:562
+#~ msgid "How heat adaptation is estimated"
+#~ msgstr "热适应如何估算"
+
 #: src/pages/Science.tsx:28
 #~ msgid "How is intensity classified?"
 #~ msgstr "如何分类训练强度？"
 
 #: src/pages/Settings.tsx:809
 msgid "How often Praxys pulls new data in the background. Lower frequency uses less network and respects platform rate limits."
-msgstr "Praxys 后台拉取新数据的频率。较低频率占用更少网络流量，并尊重平台的速率限制。"
+msgstr "Praxys 在后台同步新数据的频率。降低频率可减少网络使用，也能避免触发平台访问频率限制。"
 
-#: src/components/ScienceNote.tsx:56
+#: src/components/HeatAdaptationPanel.tsx:383
+#~ msgid "How this estimate was built"
+#~ msgstr "这项估算如何得出"
+
+#: src/components/ScienceNote.tsx:96
 msgid "How this is calculated"
-msgstr "计算方法"
+msgstr "计算方式"
 
 #: src/pages/Settings.tsx:1169
 #: src/pages/Setup.tsx:775
 msgid "How your zones and training load are calculated"
-msgstr "如何计算您的区间与训练负荷"
+msgstr "区间和训练负荷的计算方式"
 
 #: src/components/SplitBreakdown.tsx:49
 msgid "HR"
@@ -1906,7 +2475,7 @@ msgstr "HRV 分析"
 
 #: src/pages/Today.tsx:255
 msgid "HRV is above your personal reference band. Follow the plan as written."
-msgstr "HRV 高于您的个人参考区间。按原计划完成训练。"
+msgstr "HRV 高于你的个人参考区间。按计划训练。"
 
 #: src/pages/Today.tsx:250
 #~ msgid "HRV is above your personal reference band. Follow the plan as written.\" \"HRV 高于您的个人参考区间。按原计划训练。"
@@ -1914,11 +2483,11 @@ msgstr "HRV 高于您的个人参考区间。按原计划完成训练。"
 
 #: src/components/RecoveryPanel.tsx:18
 msgid "HRV is above your Praxys reference band"
-msgstr "HRV 高于您的 Praxys 参考区间"
+msgstr "HRV 高于你的 Praxys 参考区间"
 
 #: src/pages/Today.tsx:241
 msgid "HRV is below your personal caution band. Keep today easy to support recovery."
-msgstr "HRV 低于您的个人警戒区间。今天保持轻松，以支持恢复。"
+msgstr "HRV 低于你的个人警戒区间。今天轻松练，帮助恢复。"
 
 #: src/pages/Today.tsx:236
 #~ msgid "HRV is below your personal caution band. Keep today easy to support recovery.\" \"HRV 低于您的个人警戒区间。今天保持轻松，以支持恢复。"
@@ -1926,7 +2495,7 @@ msgstr "HRV 低于您的个人警戒区间。今天保持轻松，以支持恢�
 
 #: src/pages/Today.tsx:239
 msgid "HRV is below your personal caution band. Treat this as a recovery signal, not a diagnosis."
-msgstr "HRV 低于您的个人警戒区间。请将其视为恢复信号，而非诊断。"
+msgstr "HRV 低于你的个人警戒区间。这是恢复信号，不是诊断。"
 
 #: src/pages/Today.tsx:234
 #~ msgid "HRV is below your personal caution band. Treat this as a recovery signal, not a diagnosis.\" \"HRV 低于您的个人警戒区间。请将其视为恢复提示，而非诊断结论。"
@@ -1934,7 +2503,7 @@ msgstr "HRV 低于您的个人警戒区间。请将其视为恢复信号，而�
 
 #: src/components/RecoveryPanel.tsx:20
 msgid "HRV is below your Praxys caution band"
-msgstr "HRV 低于您的 Praxys 警戒区间"
+msgstr "HRV 低于你的 Praxys 警戒区间"
 
 #: src/pages/Today.tsx:242
 #~ msgid "HRV is normal but modeled load balance is low (TSB {tsb}). Modify the hard session."
@@ -1946,11 +2515,11 @@ msgstr "HRV 低于您的 Praxys 警戒区间"
 
 #: src/pages/Today.tsx:243
 msgid "HRV is within your personal reference band, but modeled load balance is low (TSB {tsb}). Modify the hard session."
-msgstr "HRV 处于您的个人参考区间内，但模型估算的负荷平衡偏低（TSB {tsb}）。请调整高强度训练。"
+msgstr "HRV 处于你的个人参考区间内，但模型估算的负荷平衡偏低（TSB {tsb}）。调整高强度训练。"
 
 #: src/components/RecoveryPanel.tsx:19
 msgid "HRV is within your Praxys reference band"
-msgstr "HRV 处于您的 Praxys 参考区间内"
+msgstr "HRV 处于你的 Praxys 参考区间内"
 
 #: src/pages/Today.tsx:244
 #~ msgid "HRV rolling mean is declining. Reduce intensity as a conservative coaching adjustment."
@@ -1962,11 +2531,11 @@ msgstr "HRV 处于您的 Praxys 参考区间内"
 
 #: src/pages/Today.tsx:245
 msgid "HRV rolling mean is lower than its prior window. Reduce intensity as a conservative coaching adjustment."
-msgstr "HRV 滚动均值低于前一个窗口。作为保守的训练调整，请降低强度。"
+msgstr "HRV 滚动均值低于前一个窗口。保守起见，降低强度。"
 
 #: src/pages/Today.tsx:247
 msgid "HRV rolling mean is lower than its prior window. Stay easy today."
-msgstr "HRV 滚动均值低于前一个窗口。今天保持轻松。"
+msgstr "HRV 滚动均值低于前一窗口。今天轻松训练。"
 
 #: src/pages/Today.tsx:246
 #~ msgid "HRV trend is declining. Stay easy today."
@@ -1978,7 +2547,7 @@ msgstr "HRV 滚动均值低于前一个窗口。今天保持轻松。"
 
 #: src/pages/Today.tsx:249
 msgid "HRV variability is high (CV {cv}%), above the selected coaching caution threshold."
-msgstr "HRV 变异性较高（CV {cv}%），超过所选的训练警戒阈值。"
+msgstr "HRV 变异性偏高（CV {cv}%），高于所设训练警戒阈值。"
 
 #: src/pages/Today.tsx:244
 #~ msgid "HRV variability is high (CV {cv}%), above the selected coaching caution threshold.\" \"HRV 变异性较高（CV {cv}%），超过所选训练警戒阈值。"
@@ -1987,6 +2556,10 @@ msgstr "HRV 变异性较高（CV {cv}%），超过所选的训练警戒阈值。
 #: src/components/RecoveryPanel.tsx:19
 #~ msgid "HRV within normal range"
 #~ msgstr "HRV 处于正常范围内"
+
+#: src/pages/admin/AdminOps.tsx:930
+msgid "Human overrides"
+msgstr "人工改判"
 
 #: src/pages/Login.tsx:638
 msgid "I agree to the <0>Terms of Service</0> and <1>Privacy Policy</1>."
@@ -1997,10 +2570,10 @@ msgid "I'm not training today"
 msgstr "今天不训练"
 
 #: src/pages/admin/AdminIncidents.tsx:40
-#: src/pages/admin/AdminIncidents.tsx:244
+#: src/pages/admin/AdminIncidents.tsx:245
 #: src/pages/Status.tsx:92
 msgid "Identified"
-msgstr "已确认"
+msgstr "已定位"
 
 #: src/pages/Today.tsx:119
 #~ msgid "improving"
@@ -2014,13 +2587,39 @@ msgstr "已确认"
 msgid "Incident management"
 msgstr "事件管理"
 
-#: src/pages/admin/AdminOps.tsx:548
+#: src/pages/admin/AdminOps.tsx:552
 msgid "Incident state unavailable"
 msgstr "事件状态不可用"
 
 #: src/pages/admin/AdminLayout.tsx:25
 msgid "Incidents"
 msgstr "事件"
+
+#: src/components/HeatAdaptationPanel.tsx:267
+#: src/components/HeatAdaptationPanel.tsx:319
+msgid "Included"
+msgstr "已纳入"
+
+#: src/components/HeatAdaptationPanel.tsx:176
+msgid "Included because supported weather and workload evidence reached the session threshold."
+msgstr "已纳入：受支持的天气和负荷证据达到了单次训练阈值。"
+
+#: src/components/HeatAdaptationPanel.tsx:343
+#: src/components/HeatAdaptationPanel.tsx:415
+msgid "Included in estimate"
+msgstr "已纳入估算"
+
+#: src/components/HeatAdaptationPanel.tsx:83
+msgid "Incomplete power samples"
+msgstr "功率采样不完整"
+
+#: src/components/charts/WeeklyVolumeChart.tsx:19
+msgid "Increasing"
+msgstr "上升"
+
+#: src/components/HeatAdaptationPanel.tsx:573
+#~ msgid "Indoor summary weather, wind, solar radiation, within-session weather changes, clothing, hydration state, and measured core or skin temperature are excluded."
+#~ msgstr "室内活动摘要天气、风速、太阳辐射、训练过程中的天气变化、服装、补水状态，以及实测核心体温或皮肤温度均未纳入。"
 
 #: src/pages/admin/AdminCommunications.tsx:32
 #: src/pages/admin/AdminCommunications.tsx:203
@@ -2030,6 +2629,14 @@ msgstr "信息"
 #: src/components/RecoveryPanel.tsx:21
 msgid "Insufficient current HRV data for comparison"
 msgstr "当前 HRV 数据不足，无法比较"
+
+#: src/components/charts/WeeklyVolumeChart.tsx:22
+msgid "Insufficient data"
+msgstr "数据不足"
+
+#: src/components/HeatAdaptationPanel.tsx:18
+msgid "Insufficient evidence"
+msgstr "证据不足"
 
 #: src/components/RecoveryPanel.tsx:21
 #~ msgid "Insufficient HRV data for analysis"
@@ -2067,7 +2674,7 @@ msgstr "邀请码（可选）"
 
 #: src/pages/admin/AdminUsers.tsx:684
 msgid "Invitation codes"
-msgstr "邀请代码"
+msgstr "邀请码"
 
 #: src/pages/Admin.tsx:711
 #~ msgid "Invitation Codes"
@@ -2075,13 +2682,13 @@ msgstr "邀请代码"
 
 #: src/pages/admin/AdminUsers.tsx:356
 msgid "Invitation codes unavailable"
-msgstr "邀请代码不可用"
+msgstr "邀请码不可用"
 
 #. placeholder {0}: result.email
 #. placeholder {1}: result.code
 #: src/pages/admin/AdminUsers.tsx:837
 msgid "Invitation emailed to {0} · code {1}"
-msgstr "邀请已通过邮件发送至 {0} · 代码 {1}"
+msgstr "邀请邮件已发送至 {0} · 邀请码 {1}"
 
 #: src/pages/admin/AdminUsers.tsx:943
 msgid "Invite"
@@ -2098,7 +2705,7 @@ msgstr "工单"
 #: src/pages/admin/AdminFeedback.tsx:81
 #: src/pages/admin/AdminFeedback.tsx:233
 msgid "Issue created"
-msgstr "已建 Issue"
+msgstr "已创建 Issue"
 
 #: src/pages/Login.tsx:435
 #: src/pages/Login.tsx:482
@@ -2119,10 +2726,18 @@ msgstr "如有可选活动，请保持轻松且简短"
 #~ msgid "Keep any optional movement easy and short\" \"可选活动请保持轻松且时间短"
 #~ msgstr ""
 
+#: src/components/HeatAdaptationPanel.tsx:74
+#~ msgid "Kelly female-athlete evidence review"
+#~ msgstr "Kelly 女性运动员证据综述"
+
 #. placeholder {0}: data.diagnosis.lookback_weeks
-#: src/pages/Training.tsx:278
-msgid "km / week, {0}wk avg"
-msgstr "公里 / 周，{0} 周均值"
+#: src/pages/Training.tsx:308
+#~ msgid "km / week, {0}wk avg"
+#~ msgstr "公里 / 周，{0} 周均值"
+
+#: src/pages/Training.tsx:316
+msgid "km/wk"
+msgstr "公里/周"
 
 #: src/lib/display-labels.ts:59
 msgid "Lactate Threshold HR"
@@ -2134,11 +2749,28 @@ msgstr "语言"
 
 #: src/components/charts/FormSparkline.tsx:229
 msgid "Last 14 days"
-msgstr "过去 14 天"
+msgstr "近14天"
 
 #: src/components/LastActivityCard.tsx:43
 msgid "Last Activity"
 msgstr "上次活动"
+
+#. placeholder {0}: status.days_since_last_exposure
+#: src/components/HeatAdaptationPanel.tsx:450
+#~ msgid "Last contributing session {0} days ago"
+#~ msgstr "最近一次有效训练在 {0} 天前"
+
+#: src/components/HeatAdaptationPanel.tsx:447
+#~ msgid "Last contributing session today"
+#~ msgstr "最近一次有效训练在今天"
+
+#: src/components/HeatAdaptationPanel.tsx:449
+#~ msgid "Last contributing session yesterday"
+#~ msgstr "最近一次计入训练在昨天"
+
+#: src/components/HeatAdaptationPanel.tsx:600
+msgid "Last included session"
+msgstr "最近一次纳入训练"
 
 #: src/pages/admin/AdminOps.tsx:453
 #~ msgid "Last known state"
@@ -2146,18 +2778,18 @@ msgstr "上次活动"
 
 #. placeholder {0}: componentStatusLabel(component.status)
 #. placeholder {0}: overallLabel(service.overall)
-#: src/pages/admin/AdminOps.tsx:641
-#: src/pages/admin/AdminOps.tsx:670
+#: src/pages/admin/AdminOps.tsx:645
+#: src/pages/admin/AdminOps.tsx:674
 msgid "Last known: {0}"
-msgstr "最近已知状态：{0}"
+msgstr "最近状态：{0}"
 
-#: src/pages/admin/AdminOps.tsx:587
+#: src/pages/admin/AdminOps.tsx:591
 msgid "Last known: {alertTitle}"
-msgstr "上次已知：{alertTitle}"
+msgstr "最近状态：{alertTitle}"
 
-#: src/pages/admin/AdminOps.tsx:606
+#: src/pages/admin/AdminOps.tsx:610
 msgid "Last known: {systemicTitle}"
-msgstr "上次已知：{systemicTitle}"
+msgstr "最近状态：{systemicTitle}"
 
 #. placeholder {0}: status.error
 #: src/pages/Settings.tsx:943
@@ -2173,13 +2805,17 @@ msgstr "上次同步 {0}"
 msgid "Last updated"
 msgstr "最近更新"
 
+#: src/components/HeatAdaptationPanel.tsx:239
+#~ msgid "Latest observed activities"
+#~ msgstr "最近观察到的活动"
+
 #: src/pages/Login.tsx:160
 #~ msgid "Leave blank for the first account. Required after that."
 #~ msgstr "首个账号可留空，之后必填。"
 
 #: src/components/GoalEditor.tsx:164
 msgid "Leave blank to track predicted time only"
-msgstr "留空则仅追踪预测时间"
+msgstr "留空则只追踪预测完赛时间"
 
 #: src/components/AppSidebar.tsx:36
 msgid "Light"
@@ -2189,13 +2825,46 @@ msgstr "浅色"
 msgid "Light theme (click for dark)"
 msgstr "浅色主题（点击切换为深色）"
 
+#: src/components/HeatAdaptationPanel.tsx:20
+#: src/components/HeatAdaptationPanel.tsx:28
+msgid "Likely adapted"
+msgstr "可能已适应"
+
+#: src/components/HeatAdaptationPanel.tsx:458
+#~ msgid "Likely adapted to recent heat"
+#~ msgstr "近期热适应证据已达到“可能已适应”"
+
+#: src/components/HeatAdaptationPanel.tsx:125
+msgid "Likely adapted to similar recent conditions."
+msgstr "可能已适应近期类似环境。"
+
+#: src/components/HeatAdaptationPanel.tsx:29
+#~ msgid "Likely retained"
+#~ msgstr "可能仍保留"
+
+#: src/components/HeatAdaptationPanel.tsx:411
+#~ msgid "Likely-adapted threshold"
+#~ msgstr "可能已适应阈值"
+
+#: src/components/HeatAdaptationPanel.tsx:49
+#~ msgid "Limited data coverage"
+#~ msgstr "数据覆盖有限"
+
+#: src/components/HeatAdaptationPanel.tsx:45
+#~ msgid "Limited evidence"
+#~ msgstr "证据有限"
+
+#: src/components/HeatAdaptationPanel.tsx:577
+#~ msgid "Limits and safety"
+#~ msgstr "限制与安全"
+
 #: src/pages/Setup.tsx:584
 msgid "Link at least one data source to start"
 msgstr "至少关联一个数据源以开始"
 
 #: src/components/SetupChecklist.tsx:48
 msgid "Link Garmin, Strava, Stryd, or Oura to pull your training data"
-msgstr "关联 Garmin、Strava、Stryd 或 Oura 以拉取您的训练数据"
+msgstr "连接 Garmin、Strava、Stryd 或 Oura，同步训练数据"
 
 #: src/pages/admin/AdminCommunications.tsx:178
 #: src/pages/admin/AdminCommunications.tsx:191
@@ -2204,25 +2873,25 @@ msgstr "链接文本（可选）"
 
 #: src/pages/admin/AdminCommunications.tsx:208
 msgid "Link URL (optional)"
-msgstr "链接 URL（可选）"
+msgstr "链接地址（可选）"
 
 #: src/pages/Settings.tsx:765
 msgid "Link your training devices and services"
-msgstr "关联您的训练设备与服务"
+msgstr "连接训练设备和服务"
 
-#: src/pages/admin/AdminOps.tsx:164
+#: src/pages/admin/AdminOps.tsx:166
 msgid "Live"
 msgstr "实时"
 
-#: src/pages/admin/AdminOps.tsx:695
+#: src/pages/admin/AdminOps.tsx:699
 msgid "Live component health is unavailable."
 msgstr "实时组件健康状态不可用。"
 
 #: src/components/Layout.tsx:36
 msgid "Live demo — real training data, read-only"
-msgstr "直播演示 — 真实训练数据，只读"
+msgstr "实时演示：真实训练数据，仅供查看"
 
-#: src/pages/admin/AdminOps.tsx:155
+#: src/pages/admin/AdminOps.tsx:157
 msgid "Live probe"
 msgstr "实时探测"
 
@@ -2242,8 +2911,9 @@ msgstr "负荷（跑步压力分 RSS）"
 msgid "Load & Fitness"
 msgstr "负荷与体能"
 
-#: src/components/charts/FitnessFatigueChart.tsx:64
-#: src/components/charts/FitnessFatigueChart.tsx:202
+#: src/components/charts/FitnessFatigueChart.tsx:87
+#: src/components/charts/FitnessFatigueChart.tsx:235
+#: src/pages/Training.tsx:244
 msgid "Load balance"
 msgstr "负荷平衡"
 
@@ -2251,10 +2921,10 @@ msgstr "负荷平衡"
 msgid "Load balance (TSB)"
 msgstr "负荷平衡（TSB）"
 
-#: src/pages/Training.tsx:256
-#: src/pages/Training.tsx:326
+#: src/pages/Training.tsx:293
+#: src/pages/Training.tsx:297
 msgid "Load compliance"
-msgstr "负荷合规度"
+msgstr "计划完成度"
 
 #: src/pages/Status.tsx:176
 msgid "Loading components…"
@@ -2281,26 +2951,30 @@ msgstr "退出登录"
 #~ msgid "Login"
 #~ msgstr "登录"
 
-#: src/pages/Training.tsx:291
-msgid "Long-term / Recent / Balance"
-msgstr "长期负荷 / 近期负荷 / 平衡"
+#: src/pages/Training.tsx:322
+#~ msgid "Long-term / Recent / Balance"
+#~ msgstr "长期负荷 / 近期负荷 / 平衡"
 
 #: src/components/charts/FormSparkline.tsx:27
 msgid "Long-term and recent modeled loads are near balance."
 msgstr "长期与近期模型负荷接近平衡。"
 
-#: src/components/charts/FitnessFatigueChart.tsx:52
-#: src/components/charts/FitnessFatigueChart.tsx:194
+#: src/components/charts/FitnessFatigueChart.tsx:75
+#: src/components/charts/FitnessFatigueChart.tsx:227
 msgid "Long-term load"
 msgstr "长期负荷"
 
-#: src/pages/Training.tsx:230
+#: src/pages/Training.tsx:240
 msgid "long-term load above recent load"
 msgstr "长期负荷高于近期负荷"
 
 #: src/pages/Training.tsx:233
 #~ msgid "long-term load higher"
 #~ msgstr "长期负荷较高"
+
+#: src/pages/Training.tsx:246
+msgid "Long-term load, recent load, and their modeled balance over time."
+msgstr "长期负荷、近期负荷及两者随时间变化的模型平衡。"
 
 #: src/components/charts/FormSparkline.tsx:26
 msgid "Long-term modeled load is above recent modeled load."
@@ -2314,9 +2988,17 @@ msgstr "长期模型负荷高于近期模型负荷。"
 msgid "Low"
 msgstr "偏低"
 
+#: src/components/HeatAdaptationPanel.tsx:45
+#~ msgid "Low confidence"
+#~ msgstr "低置信度"
+
+#: src/components/HeatAdaptationPanel.tsx:34
+msgid "Low coverage"
+msgstr "覆盖度低"
+
 #: src/pages/Settings.tsx:102
 msgid "LTHR"
-msgstr "乳酸阈值心率"
+msgstr "LTHR"
 
 #: src/lib/display-labels.ts:63
 msgid "LTHR Trend"
@@ -2326,8 +3008,16 @@ msgstr "LTHR 趋势"
 msgid "Main"
 msgstr "主训练"
 
+#: src/components/HeatAdaptationPanel.tsx:21
+msgid "Maintaining"
+msgstr "维持中"
+
+#: src/components/HeatAdaptationPanel.tsx:460
+#~ msgid "Maintaining recent heat adaptation"
+#~ msgstr "正在维持近期热适应"
+
 #: src/pages/admin/AdminIncidents.tsx:29
-#: src/pages/admin/AdminIncidents.tsx:184
+#: src/pages/admin/AdminIncidents.tsx:185
 #: src/pages/Status.tsx:101
 msgid "Major"
 msgstr "重大"
@@ -2337,19 +3027,19 @@ msgid "Major Outage"
 msgstr "大范围服务中断"
 
 #: src/components/StatusIndicator.tsx:30
-#: src/pages/admin/AdminOps.tsx:452
+#: src/pages/admin/AdminOps.tsx:456
 msgid "Major service outage"
 msgstr "大范围服务中断"
 
 #: src/pages/Today.tsx:274
 msgid "Make today a full recovery day and reassess the hard session tomorrow"
-msgstr "今天安排完整恢复，明天再重新评估高强度训练"
+msgstr "今天作为恢复日，明天再评估高强度训练"
 
 #: src/pages/Today.tsx:269
 #~ msgid "Make today a full recovery day and reassess the hard session tomorrow\" \"今天安排为完整恢复日，明天再评估高强度训练"
 #~ msgstr ""
 
-#: src/pages/admin/AdminOps.tsx:559
+#: src/pages/admin/AdminOps.tsx:563
 msgid "Manage incidents"
 msgstr "管理事件"
 
@@ -2365,9 +3055,9 @@ msgstr "管理席位、角色、邀请和候补名单接入。"
 msgid "Management routes for access, communications, and service status."
 msgstr "用于访问权限、通知和服务状态的管理入口。"
 
-#: src/pages/admin/AdminOps.tsx:270
+#: src/pages/admin/AdminOps.tsx:272
 msgid "Management routes remain available. Retry the aggregate health snapshot."
-msgstr "管理入口仍可使用。请重试聚合健康快照。"
+msgstr "管理入口仍可用。请重试获取聚合健康快照。"
 
 #: src/components/GoalEditor.tsx:54
 #: src/lib/display-labels.ts:66
@@ -2376,7 +3066,11 @@ msgstr "管理入口仍可使用。请重试聚合健康快照。"
 msgid "Marathon"
 msgstr "马拉松"
 
-#: src/pages/admin/AdminOps.tsx:763
+#: src/components/HeatAdaptationPanel.tsx:98
+msgid "Matched"
+msgstr "匹配"
+
+#: src/pages/admin/AdminOps.tsx:767
 #: src/pages/admin/AdminUsers.tsx:137
 msgid "MAU"
 msgstr "MAU"
@@ -2389,25 +3083,29 @@ msgstr "最大心率"
 msgid "Medium"
 msgstr "中"
 
-#: src/pages/admin/AdminOps.tsx:343
+#: src/pages/admin/AdminOps.tsx:931
+msgid "Merged PR outcomes"
+msgstr "已合并 PR 结果"
+
+#: src/pages/admin/AdminOps.tsx:345
 msgid "MFA"
 msgstr "MFA"
 
-#: src/pages/admin/AdminOps.tsx:330
-#: src/pages/admin/AdminOps.tsx:356
+#: src/pages/admin/AdminOps.tsx:332
+#: src/pages/admin/AdminOps.tsx:358
 msgid "MFA required"
-msgstr "需要 MFA"
+msgstr "需 MFA"
 
 #: src/pages/Today.tsx:304
 #~ msgid "mild fatigue"
 #~ msgstr "轻度疲劳"
 
-#: src/pages/admin/AdminOps.tsx:300
+#: src/pages/admin/AdminOps.tsx:302
 msgid "Mini program"
 msgstr "小程序"
 
 #: src/pages/admin/AdminIncidents.tsx:27
-#: src/pages/admin/AdminIncidents.tsx:183
+#: src/pages/admin/AdminIncidents.tsx:184
 #: src/pages/Status.tsx:100
 msgid "Minor"
 msgstr "轻微"
@@ -2415,19 +3113,51 @@ msgstr "轻微"
 #. placeholder {0}: user.demo_of_email
 #: src/pages/admin/AdminUsers.tsx:609
 msgid "mirrors {0}"
-msgstr "镜像 {0}"
+msgstr "对应 {0}"
+
+#: src/components/HeatAdaptationPanel.tsx:99
+msgid "Mismatch"
+msgstr "不匹配"
+
+#: src/components/HeatAdaptationPanel.tsx:322
+#~ msgid "mixed"
+#~ msgstr "混合"
+
+#: src/components/HeatAdaptationPanel.tsx:336
+#~ msgid "Mixed power sources"
+#~ msgstr "功率来源混合"
+
+#: src/components/HeatAdaptationPanel.tsx:100
+msgid "Mixed providers"
+msgstr "数据来源混合"
 
 #: src/pages/Settings.tsx:1345
 msgid "Mode"
 msgstr "模式"
 
-#: src/pages/Training.tsx:228
+#: src/pages/Training.tsx:238
 msgid "modeled balance (CTL−ATL)"
-msgstr "模型化负荷平衡（CTL−ATL）"
+msgstr "模型估算平衡（CTL−ATL）"
 
-#: src/pages/Training.tsx:233
+#: src/pages/Training.tsx:243
 msgid "modeled loads balanced"
-msgstr "模型化负荷处于平衡"
+msgstr "模型估算负荷处于平衡"
+
+#: src/components/HeatAdaptationPanel.tsx:46
+#~ msgid "Moderate confidence"
+#~ msgstr "中等置信度"
+
+#: src/components/HeatAdaptationPanel.tsx:35
+msgid "Moderate coverage"
+msgstr "覆盖度中等"
+
+#: src/components/HeatAdaptationPanel.tsx:50
+#~ msgid "Moderate data coverage"
+#~ msgstr "数据覆盖中等"
+
+#: src/components/HeatAdaptationPanel.tsx:46
+#~ msgid "Moderate evidence"
+#~ msgstr "证据中等"
 
 #: src/components/SignalHero.tsx:23
 #: src/pages/Today.tsx:63
@@ -2435,14 +3165,14 @@ msgid "MODIFY"
 msgstr "调整"
 
 #: src/pages/admin/AdminIncidents.tsx:42
-#: src/pages/admin/AdminIncidents.tsx:254
+#: src/pages/admin/AdminIncidents.tsx:255
 #: src/pages/Status.tsx:93
 msgid "Monitoring"
-msgstr "监控中"
+msgstr "观察中"
 
-#: src/pages/admin/AdminOps.tsx:906
+#: src/pages/admin/AdminOps.tsx:992
 msgid "Monitoring runbook"
-msgstr "监控运行手册"
+msgstr "监控手册"
 
 #: src/pages/Goal.tsx:285
 msgid "months"
@@ -2454,7 +3184,7 @@ msgstr "需要更多历史 HRV 观测值才能建立个人恢复区间。请按�
 
 #: src/components/RecoveryPanel.tsx:115
 msgid "More historical HRV observations are needed before Praxys can form a personal recovery band. Keep syncing your device."
-msgstr "需要更多历史 HRV 观测值才能建立个人恢复区间。请继续同步设备。"
+msgstr "还需要更多历史 HRV 数据，Praxys 才能建立你的个人恢复区间。请继续同步设备。"
 
 #. placeholder {0}: tDisplay(worstDeviation.name, i18n)
 #. placeholder {1}: worstDeviation.actual
@@ -2473,19 +3203,19 @@ msgstr "需要更多历史 HRV 观测值才能建立个人恢复区间。请继�
 #. placeholder {0}: primaryPrompt?.category
 #: src/pages/Setup.tsx:1084
 msgid "Multiple platforms provide <0>{0}</0> data. Which should be the primary source?"
-msgstr "多个平台提供 <0>{0}</0> 数据。应将哪个作为主要来源？"
+msgstr "多个平台都提供 <0>{0}</0> 数据。要将哪个设为主要来源？"
 
 #: src/pages/Today.tsx:124
 msgid "near baseline"
-msgstr "接近基线"
+msgstr "接近基准"
 
 #: src/components/RecoveryPanel.tsx:32
 msgid "Near baseline"
-msgstr "接近基线"
+msgstr "接近基准"
 
-#: src/pages/Training.tsx:334
+#: src/pages/Training.tsx:306
 msgid "Need 2 weeks of synced activity to compare planned vs actual. {daysToCompare} more days to go."
-msgstr "需要 2 周已同步的活动数据才能对比计划与实际。还差 {daysToCompare} 天。"
+msgstr "需要 2 周已同步的活动数据才能对比计划与实际。还需 {daysToCompare} 天。"
 
 #: src/pages/Training.tsx:112
 #~ msgid "Need at least 3 activities with power data to plot a meaningful trend."
@@ -2501,9 +3231,9 @@ msgstr "需要帮助？{SUPPORT_EMAIL}"
 
 #: src/pages/Goal.tsx:255
 msgid "Needed {abbrev}"
-msgstr "所需 {abbrev}"
+msgstr "所需{abbrev}"
 
-#: src/pages/admin/AdminOps.tsx:532
+#: src/pages/admin/AdminOps.tsx:536
 msgid "Needs attention"
 msgstr "需要关注"
 
@@ -2516,11 +3246,11 @@ msgstr "需审核"
 #. placeholder {1}: feedback.failed
 #. placeholder {2}: feedback.critical
 #. placeholder {3}: feedback.high
-#: src/pages/admin/AdminOps.tsx:574
+#: src/pages/admin/AdminOps.tsx:578
 msgid "Needs review: {0}. Failed: {1}. Critical: {2}. High: {3}."
 msgstr "待审核：{0}。失败：{1}。严重：{2}。高优先级：{3}。"
 
-#: src/pages/Today.tsx:411
+#: src/pages/Today.tsx:412
 msgid "negative balance"
 msgstr "负平衡"
 
@@ -2528,7 +3258,7 @@ msgstr "负平衡"
 #~ msgid "negative balance\" \"负平衡"
 #~ msgstr ""
 
-#: src/pages/admin/AdminOps.tsx:334
+#: src/pages/admin/AdminOps.tsx:336
 #: src/pages/Settings.tsx:588
 msgid "Network error"
 msgstr "网络错误"
@@ -2552,11 +3282,11 @@ msgstr "网络错误——请重试。"
 #: src/pages/admin/AdminUsers.tsx:294
 #: src/pages/admin/AdminUsers.tsx:318
 msgid "Network error. Is the server running?"
-msgstr "网络错误。服务器在运行吗？"
+msgstr "网络错误。服务器是否已启动？"
 
 #: src/pages/Login.tsx:188
 msgid "Network error. Please email {SUPPORT_EMAIL} directly."
-msgstr "网络错误。请直接发送邮件至 {SUPPORT_EMAIL}。"
+msgstr "网络错误。请直接发邮件到 {SUPPORT_EMAIL}。"
 
 #: src/pages/admin/AdminFeedback.tsx:75
 #: src/pages/admin/AdminFeedback.tsx:230
@@ -2567,7 +3297,7 @@ msgstr "新建"
 msgid "New announcement"
 msgstr "新公告"
 
-#: src/pages/admin/AdminIncidents.tsx:165
+#: src/pages/admin/AdminIncidents.tsx:166
 msgid "New incident"
 msgstr "新建事件"
 
@@ -2577,7 +3307,7 @@ msgstr "新邀请码："
 
 #: src/pages/Login.tsx:418
 msgid "New to Praxys?"
-msgstr "你是第一次接触 Praxys 吗？"
+msgstr "第一次使用 Praxys？"
 
 #: src/pages/admin/AdminFeedback.tsx:254
 msgid "Newly triaged work will appear here when admin action is needed."
@@ -2591,13 +3321,17 @@ msgstr "下一页"
 msgid "Next sync"
 msgstr "下次同步"
 
-#: src/pages/admin/AdminOps.tsx:547
+#: src/components/HeatAdaptationPanel.tsx:70
+#~ msgid "Nielsen dry-heat acclimation study"
+#~ msgstr "Nielsen 干热适应研究"
+
+#: src/pages/admin/AdminOps.tsx:551
 msgid "No active service incidents"
-msgstr "没有活跃服务事件"
+msgstr "当前无服务异常"
 
 #: src/pages/admin/AdminFeedback.tsx:251
 msgid "No active tickets"
-msgstr "没有活跃工单"
+msgstr "暂无活跃工单"
 
 #: src/pages/Admin.tsx:1308
 #~ msgid "No active tickets."
@@ -2605,7 +3339,11 @@ msgstr "没有活跃工单"
 
 #: src/pages/History.tsx:62
 msgid "No activities found."
-msgstr "未找到活动。"
+msgstr "暂无活动。"
+
+#: src/components/HeatAdaptationPanel.tsx:63
+#~ msgid "No additional heat exposure is recommended from this tracker."
+#~ msgstr "本追踪器不建议额外增加热暴露。"
 
 #: src/pages/admin/AdminUsers.tsx:540
 msgid "No admin configuration found"
@@ -2615,11 +3353,15 @@ msgstr "未找到管理配置"
 msgid "No announcements yet"
 msgstr "还没有公告"
 
-#: src/pages/admin/AdminOps.tsx:432
+#: src/pages/admin/AdminOps.tsx:436
 msgid "No Azure alerts firing"
 msgstr "未触发 Azure 警报"
 
-#: src/pages/admin/AdminOps.tsx:843
+#: src/pages/admin/AdminOps.tsx:907
+msgid "No change class is promoted. Decisions and outcomes are being recorded while merge remains review-gated."
+msgstr "尚未将任何变更类别提升为免审类别。系统正在记录决策和结果，合并仍需审核。"
+
+#: src/pages/admin/AdminOps.tsx:847
 msgid "No Coach votes were recorded in this window."
 msgstr "在此时间窗口内未记录 Coach 投票。"
 
@@ -2627,30 +3369,42 @@ msgstr "在此时间窗口内未记录 Coach 投票。"
 msgid "No code yet?"
 msgstr "还没有邀请码？"
 
-#: src/pages/admin/AdminOps.tsx:1006
+#: src/pages/admin/AdminOps.tsx:1092
 msgid "No connection attempts were recorded in this window."
 msgstr "在此时间窗口内未记录连接尝试。"
 
+#: src/components/HeatAdaptationPanel.tsx:445
+#~ msgid "No contributing heat session yet"
+#~ msgstr "尚无可计入的热环境训练"
+
 #: src/components/RecoveryPanel.tsx:21
 msgid "No current classification"
-msgstr "当前无法分类"
+msgstr "当前暂无分类"
 
-#: src/pages/Today.tsx:379
-#: src/pages/Today.tsx:392
-#: src/pages/Today.tsx:395
-#: src/pages/Today.tsx:398
-#: src/pages/Today.tsx:401
-#: src/pages/Today.tsx:581
+#: src/components/HeatAdaptationPanel.tsx:505
+msgid "No current qualifying condition range yet"
+msgstr "目前尚无符合条件的环境范围"
+
+#: src/pages/Today.tsx:380
+#: src/pages/Today.tsx:393
+#: src/pages/Today.tsx:396
+#: src/pages/Today.tsx:399
+#: src/pages/Today.tsx:402
+#: src/pages/Today.tsx:582
 msgid "no data"
-msgstr "无数据"
+msgstr "暂无数据"
 
 #: src/components/RecoveryPanel.tsx:21
 #~ msgid "No Data"
 #~ msgstr "无数据"
 
-#: src/pages/admin/AdminOps.tsx:575
+#: src/components/HeatAdaptationPanel.tsx:322
+msgid "No evidence"
+msgstr "暂无记录"
+
+#: src/pages/admin/AdminOps.tsx:579
 msgid "No feedback rows are waiting for review or retry."
-msgstr "没有等待审核或重试的反馈。"
+msgstr "没有等待审核或重试的反馈记录。"
 
 #: src/pages/Admin.tsx:952
 #~ msgid "No feedback yet."
@@ -2658,25 +3412,30 @@ msgstr "没有等待审核或重试的反馈。"
 
 #: src/pages/Settings.tsx:1373
 msgid "No goal set. Set a race target or distance goal to unlock predictions and countdown."
-msgstr "尚未设定目标。设定比赛目标或距离目标以解锁预测与倒计时。"
+msgstr "尚未设置目标。设置比赛目标或距离目标后可查看预测和倒计时。"
+
+#: src/components/HeatAdaptationPanel.tsx:275
+#: src/components/HeatAdaptationPanel.tsx:346
+msgid "No heat evidence"
+msgstr "无热暴露记录"
 
 #: src/pages/Status.tsx:214
 msgid "No incidents reported recently."
-msgstr "最近未报告任何事件。"
+msgstr "最近没有报告故障。"
 
-#: src/pages/admin/AdminIncidents.tsx:197
+#: src/pages/admin/AdminIncidents.tsx:198
 msgid "No incidents yet"
 msgstr "暂无事件"
 
 #: src/pages/admin/AdminUsers.tsx:744
 msgid "No invitation codes yet. Generate one to invite a user."
-msgstr "尚无邀请码。生成一个以邀请用户。"
+msgstr "还没有邀请码。生成一个即可邀请用户。"
 
-#: src/pages/admin/AdminOps.tsx:345
+#: src/pages/admin/AdminOps.tsx:347
 msgid "No MFA"
 msgstr "无需 MFA"
 
-#: src/pages/Today.tsx:505
+#: src/pages/Today.tsx:506
 msgid "No new HRV, sleep, or activity since."
 msgstr "此后无新的 HRV、睡眠或活动数据。"
 
@@ -2687,33 +3446,84 @@ msgstr "无计划"
 
 #: src/components/WeeklyLoadMini.tsx:61
 msgid "No planned load this week"
-msgstr "本周没有计划负荷"
+msgstr "本周暂无计划负荷"
+
+#: src/components/HeatAdaptationPanel.tsx:541
+#~ msgid "No qualifying condition range yet"
+#~ msgstr "尚无符合条件的环境范围"
+
+#: src/components/HeatAdaptationPanel.tsx:247
+#~ msgid "No recent activities are available to inspect."
+#~ msgstr "暂无可查看的近期活动。"
+
+#: src/components/HeatAdaptationPanel.tsx:370
+#~ msgid "No recent activity has both supported temperature/humidity and sample or split-power evidence."
+#~ msgstr "近期没有同时具备可用温湿度和逐秒样本或分段功率证据的活动。"
+
+#: src/components/HeatAdaptationPanel.tsx:159
+#~ msgid "No recent activity has both supported temperature/humidity and split-power evidence."
+#~ msgstr "近期没有同时具备可用温湿度与分段功率证据的活动。"
+
+#. placeholder {0}: status.evidence_thresholds.qualifying_effective_minutes
+#: src/components/HeatAdaptationPanel.tsx:369
+#~ msgid "No recent activity reached the model's {0}-minute inclusion threshold."
+#~ msgstr "近期没有活动达到模型设定的 {0} 分钟纳入阈值。"
+
+#: src/components/HeatAdaptationPanel.tsx:374
+#~ msgid "No recorded activity for this day."
+#~ msgstr "当天没有记录到活动。"
+
+#: src/components/HeatAdaptationPanel.tsx:452
+#~ msgid "No reliable heat history yet"
+#~ msgstr "尚无可靠的热适应历史"
+
+#: src/components/HeatAdaptationPanel.tsx:358
+#~ msgid "No sample or split power"
+#~ msgstr "无样本或分段功率"
+
+#: src/components/HeatAdaptationPanel.tsx:262
+#: src/components/HeatAdaptationPanel.tsx:309
+#: src/components/HeatAdaptationPanel.tsx:333
+#~ msgid "No session"
+#~ msgstr "无训练"
 
 #: src/components/SplitBreakdown.tsx:36
 msgid "No split data available."
 msgstr "没有可用的分段数据。"
 
-#: src/pages/admin/AdminOps.tsx:940
+#: src/components/HeatAdaptationPanel.tsx:393
+msgid "No supported heat evidence for this day."
+msgstr "当天没有受支持的热暴露证据。"
+
+#: src/components/HeatAdaptationPanel.tsx:92
+msgid "No supported weather evidence"
+msgstr "无受支持的天气证据"
+
+#: src/components/HeatAdaptationPanel.tsx:84
+msgid "No supported workload evidence"
+msgstr "无受支持的负荷证据"
+
+#: src/pages/admin/AdminOps.tsx:1026
 msgid "No sync attempts were recorded in this window."
 msgstr "在此时间窗口内未记录同步尝试。"
 
-#: src/pages/admin/AdminOps.tsx:975
+#: src/pages/admin/AdminOps.tsx:1061
 msgid "No systemic failure classes were recorded in this window."
 msgstr "在此时间窗口内未记录系统性故障类别。"
 
-#: src/pages/admin/AdminOps.tsx:437
+#: src/pages/admin/AdminOps.tsx:441
 msgid "No systemic sync failures"
 msgstr "无系统性同步失败"
 
 #: src/pages/admin/AdminFeedback.tsx:251
 msgid "No tickets to show"
-msgstr "没有可显示的工单"
+msgstr "暂无可显示的工单"
 
 #: src/pages/Admin.tsx:1310
 #~ msgid "No tickets to show."
 #~ msgstr "没有可显示的工单。"
 
-#: src/pages/admin/AdminOps.tsx:819
+#: src/pages/admin/AdminOps.tsx:823
 msgid "No Today events were recorded in this window."
 msgstr "在此时间窗口内未记录 Today 事件。"
 
@@ -2723,15 +3533,19 @@ msgstr "未找到用户。"
 
 #: src/pages/admin/AdminUsers.tsx:881
 msgid "No waitlist signups yet."
-msgstr "目前还没有候补名单注册。"
+msgstr "候补名单里还没人报名。"
+
+#: src/pages/Training.tsx:331
+msgid "No weekly distance history yet"
+msgstr "暂无每周距离历史"
 
 #: src/components/WorkoutCard.tsx:40
 msgid "No Workout"
-msgstr "无训练"
+msgstr "无训练安排"
 
 #: src/pages/Today.tsx:223
 msgid "No workout is scheduled, and HRV is below your personal caution band. Keep the day restorative rather than adding a hard session."
-msgstr "今天没有安排训练，且 HRV 低于您的个人警戒区间。保持恢复性活动，不要额外增加高强度训练。"
+msgstr "今天没有安排训练，且 HRV 低于你的个人警戒区间。今天以恢复为主，不要额外加高强度训练。"
 
 #: src/pages/Today.tsx:222
 #~ msgid "No workout is scheduled, and HRV is below your personal caution band. Keep the day restorative rather than adding a hard session.\" \"今天没有安排训练，且 HRV 低于您的个人警戒区间。请以恢复为主，不要额外增加高强度训练。"
@@ -2739,7 +3553,7 @@ msgstr "今天没有安排训练，且 HRV 低于您的个人警戒区间。保�
 
 #: src/pages/Today.tsx:225
 msgid "No workout is scheduled, and modeled load balance is low (TSB {tsb}). Avoid adding intensity today."
-msgstr "今天没有安排训练，且模型化负荷平衡偏低（TSB {tsb}）。今天不要额外增加强度。"
+msgstr "今天没有安排训练，且负荷平衡偏低（TSB {tsb}）。今天不要额外加强度。"
 
 #: src/pages/Today.tsx:224
 #~ msgid "No workout is scheduled, and modeled load balance is low (TSB {tsb}). Avoid adding intensity today.\" \"今天没有安排训练，且模型估算的负荷平衡偏低（TSB {tsb}）。今天不要额外增加强度。"
@@ -2758,13 +3572,17 @@ msgstr "今天没有安排训练。仅在符合整体计划时增加训练。"
 msgid "No Workout Scheduled"
 msgstr "今日无训练安排"
 
-#: src/pages/Today.tsx:413
+#: src/pages/Today.tsx:414
 msgid "No workout scheduled."
 msgstr "今日无训练安排。"
 
 #: src/components/UpcomingPlanCard.tsx:664
 msgid "No workouts scheduled in this window."
-msgstr "此窗口内暂无安排的训练。"
+msgstr "这段时间内暂无训练安排。"
+
+#: src/components/HeatAdaptationPanel.tsx:165
+msgid "None in the active window"
+msgstr "当前时间窗口内无记录"
 
 #: src/pages/Today.tsx:132
 #~ msgid "normal"
@@ -2775,9 +3593,17 @@ msgstr "此窗口内暂无安排的训练。"
 #~ msgid "Normal"
 #~ msgstr "正常"
 
+#: src/components/HeatAdaptationPanel.tsx:558
+#~ msgid "Not a current heat-risk assessment or medical clearance."
+#~ msgstr "这不是当前热风险评估，也不构成医疗许可。"
+
 #: src/pages/Settings.tsx:872
 msgid "Not connected"
 msgstr "未连接"
+
+#: src/pages/Training.tsx:278
+msgid "Not enough complete intensity data for zone comparison"
+msgstr "完整强度数据不足，暂无法比较分区"
 
 #: src/pages/Training.tsx:102
 #~ msgid "Not enough data for accurate fitness tracking"
@@ -2789,7 +3615,7 @@ msgstr "未连接"
 
 #: src/pages/Goal.tsx:223
 msgid "Not enough data to show CP trend"
-msgstr "数据不足以显示 CP 趋势"
+msgstr "数据不足，无法显示 CP 趋势"
 
 #: src/pages/Training.tsx:126
 #~ msgid "Not enough data to show sleep vs performance"
@@ -2799,21 +3625,30 @@ msgstr "数据不足以显示 CP 趋势"
 #~ msgid "Not enough data yet for accurate fitness tracking"
 #~ msgstr "数据不足，暂无法准确跟踪体能"
 
-#: src/pages/Training.tsx:298
+#: src/pages/Training.tsx:252
 msgid "Not enough data yet for stable load tracking"
-msgstr "数据不足，暂无法稳定评估负荷"
+msgstr "数据不足，暂无法稳定跟踪负荷"
 
-#: src/pages/Training.tsx:333
+#: src/pages/Training.tsx:305
 msgid "Not enough data yet for weekly load comparison"
 msgstr "数据不足，暂无法对比每周负荷"
 
-#: src/pages/Today.tsx:407
+#: src/pages/Today.tsx:408
 msgid "not enough load history"
 msgstr "负荷历史不足"
 
+#: src/components/HeatAdaptationPanel.tsx:26
+msgid "Not established"
+msgstr "尚未建立"
+
+#: src/components/HeatAdaptationPanel.tsx:334
+#: src/components/HeatAdaptationPanel.tsx:338
+#~ msgid "Not evaluated"
+#~ msgstr "未评估"
+
 #: src/components/AiInsightsCard.tsx:334
 msgid "Not helpful"
-msgstr "没有帮助"
+msgstr "帮助不大"
 
 #: src/pages/Settings.tsx:1436
 msgid "Not set"
@@ -2833,7 +3668,45 @@ msgstr "关于 Garmin 原生功率的说明"
 
 #: src/pages/Login.tsx:209
 msgid "Now open · Create your account"
-msgstr "现已开放 · 创建您的账户"
+msgstr "现已开放 · 创建账号"
+
+#: src/components/HeatAdaptationPanel.tsx:271
+#: src/components/HeatAdaptationPanel.tsx:321
+msgid "Observed"
+msgstr "已记录"
+
+#: src/pages/Training.tsx:272
+msgid "Observed time in each intensity zone compared with the selected training theory."
+msgstr "将各强度分区的实际用时与所选训练理论进行比较。"
+
+#: src/components/HeatAdaptationPanel.tsx:179
+msgid "Observed, but not included because it stayed below {thresholdMinutes} effective heat minutes."
+msgstr "已记录，但未纳入，因为等效热暴露时长未达到 {thresholdMinutes} 分钟。"
+
+#: src/components/HeatAdaptationPanel.tsx:182
+msgid "Observed, but not included because power-sample coverage was incomplete."
+msgstr "已记录，但未纳入，因为功率采样覆盖不完整。"
+
+#: src/components/HeatAdaptationPanel.tsx:193
+msgid "Observed, but not included because supported workload evidence was unavailable."
+msgstr "已观察但未纳入，因为缺少受支持的负荷证据。"
+
+#: src/components/HeatAdaptationPanel.tsx:185
+msgid "Observed, but not included because the activity and threshold power sources did not match."
+msgstr "已记录，但未纳入，因为活动功率与阈值功率的数据来源不一致。"
+
+#: src/components/HeatAdaptationPanel.tsx:188
+msgid "Observed, but not included because the power-source match could not be verified."
+msgstr "已记录，但未纳入，因为无法确认功率数据来源是否一致。"
+
+#: src/components/HeatAdaptationPanel.tsx:191
+msgid "Observed, but not included because workload evidence mixed power providers."
+msgstr "已记录，但未纳入，因为训练负荷证据混用了多个功率数据来源。"
+
+#: src/components/HeatAdaptationPanel.tsx:345
+#: src/components/HeatAdaptationPanel.tsx:416
+msgid "Observed, not included"
+msgstr "已记录，未纳入"
 
 #: src/pages/History.tsx:88
 msgid "of"
@@ -2849,7 +3722,7 @@ msgstr "一键反馈，帮助我们让今日简报更实用。"
 
 #: src/pages/admin/AdminUsers.tsx:690
 msgid "One-time codes for new user registration."
-msgstr "用于新用户注册的一次性代码。"
+msgstr "新用户注册用的一次性邀请码。"
 
 #: src/components/FeedbackDialog.tsx:109
 msgid "Only PNG, JPG, or WebP images are supported."
@@ -2863,25 +3736,33 @@ msgstr "开放"
 #~ msgid "Open alert runbook"
 #~ msgstr "打开警报运行手册"
 
-#: src/pages/admin/AdminIncidents.tsx:198
+#: src/components/HeatAdaptationPanel.tsx:242
+#~ msgid "Open an activity to see why it was included or left out. Exclusion only describes this estimate, not whether the session had training value."
+#~ msgstr "展开活动可查看纳入或排除原因。排除仅针对这项估算，不代表该训练没有价值。"
+
+#: src/pages/admin/AdminIncidents.tsx:199
 msgid "Open an incident here when you need to communicate a live service issue."
-msgstr "需要传达实时服务问题时，请在此创建事件。"
+msgstr "需要通报正在发生的服务问题时，可在这里创建事件。"
 
-#: src/pages/admin/AdminOps.tsx:598
+#: src/pages/admin/AdminOps.tsx:602
 msgid "Open Azure alerts"
-msgstr "打开 Azure 警报"
+msgstr "查看 Azure 警报"
 
-#: src/pages/admin/AdminOps.tsx:617
+#: src/pages/admin/AdminOps.tsx:621
 msgid "Open Azure logs"
-msgstr "打开 Azure 日志"
+msgstr "查看 Azure 日志"
 
-#: src/pages/admin/AdminOps.tsx:579
+#: src/components/HeatAdaptationPanel.tsx:477
+msgid "Open evidence"
+msgstr "查看证据"
+
+#: src/pages/admin/AdminOps.tsx:583
 msgid "Open feedback"
-msgstr "打开反馈"
+msgstr "查看反馈"
 
 #: src/pages/admin/AdminIncidents.tsx:189
-msgid "Open incident"
-msgstr "创建事件"
+#~ msgid "Open incident"
+#~ msgstr "发布事故"
 
 #: src/pages/admin/AdminOps.tsx:442
 #~ msgid "Open telemetry queries"
@@ -2895,17 +3776,17 @@ msgstr "打开微信，点击扫一扫，对准二维码，即可在手机上使
 msgid "Open, update, resolve, and remove incidents shown on the public status page."
 msgstr "创建、更新、解决和删除公共状态页上显示的事件。"
 
-#: src/pages/admin/AdminIncidents.tsx:173
+#: src/pages/admin/AdminIncidents.tsx:174
 msgid "Opening update message (optional)"
 msgstr "初始更新信息（可选）"
 
-#: src/pages/admin/AdminOps.tsx:459
+#: src/pages/admin/AdminOps.tsx:463
 #: src/pages/Status.tsx:82
 msgid "Operational"
 msgstr "运行正常"
 
 #: src/pages/admin/AdminLayout.tsx:22
-#: src/pages/admin/AdminOps.tsx:487
+#: src/pages/admin/AdminOps.tsx:491
 msgid "Operations"
 msgstr "运营"
 
@@ -2915,7 +3796,7 @@ msgstr "运营"
 
 #: src/pages/admin/AdminCommunications.tsx:186
 msgid "optional"
-msgstr "可选"
+msgstr "选填"
 
 #: src/components/FeedbackDialog.tsx:298
 msgid "Optional — PNG, JPG, or WebP, up to 3 images. Screenshots are kept private; we read them to describe the issue and remove anything sensitive before filing."
@@ -2923,7 +3804,7 @@ msgstr "可选：PNG、JPG 或 WebP，最多 3 张图片。截图会保密；我
 
 #: src/pages/Setup.tsx:831
 msgid "Optional — you can always set this later from the Goal page"
-msgstr "可选——您随时可以从目标页面设置"
+msgstr "可选，之后也可以在目标页面设置"
 
 #: src/components/AiInsightsCard.tsx:348
 msgid "Optional comment"
@@ -2941,16 +3822,20 @@ msgstr "其他"
 msgid "Other Signals"
 msgstr "其他信号"
 
-#: src/pages/admin/AdminOps.tsx:465
+#: src/pages/admin/AdminOps.tsx:469
 #: src/pages/Status.tsx:85
 msgid "Outage"
 msgstr "服务中断"
 
+#: src/components/HeatAdaptationPanel.tsx:567
+#~ msgid "Outdoor connector temperature and humidity plus work at or above 50% of a same-provider current CP. Timestamped samples need at least 90% duration coverage; splits are the fallback. A session counts at 30 effective minutes."
+#~ msgstr "室外连接器提供的温度和湿度，加上达到同一提供方当前 CP 50% 及以上的训练负荷。时间戳样本需覆盖至少 90% 的活动时长；否则回退到分段数据。单次训练达到 30 个加权分钟才计入。"
+
 #: src/pages/admin/AdminUsers.tsx:462
 msgid "Outstanding codes"
-msgstr "未处理的代码"
+msgstr "未使用的邀请码"
 
-#: src/pages/Today.tsx:397
+#: src/pages/Today.tsx:398
 msgid "overnight score"
 msgstr "夜间评分"
 
@@ -2966,17 +3851,17 @@ msgstr "用 Praxys 版本覆盖 Stryd"
 msgid "Pace"
 msgstr "配速"
 
-#: src/pages/admin/AdminOps.tsx:463
+#: src/pages/admin/AdminOps.tsx:467
 #: src/pages/Status.tsx:84
 msgid "Partial outage"
 msgstr "部分中断"
 
 #: src/pages/Status.tsx:74
 msgid "Partial Outage"
-msgstr "部分中断"
+msgstr "部分服务中断"
 
 #: src/components/StatusIndicator.tsx:29
-#: src/pages/admin/AdminOps.tsx:450
+#: src/pages/admin/AdminOps.tsx:454
 msgid "Partial service outage"
 msgstr "部分服务中断"
 
@@ -2989,15 +3874,27 @@ msgstr "密码"
 
 #: src/pages/Status.tsx:210
 msgid "Past Incidents"
-msgstr "历史事件"
+msgstr "历史故障"
+
+#: src/components/HeatAdaptationPanel.tsx:622
+msgid "Past training only. This does not assess today's weather, guarantee adaptation, or replace medical guidance."
+msgstr "仅基于过往训练；不评估今日天气，不保证已经适应，也不能替代医疗建议。"
+
+#: src/components/HeatAdaptationPanel.tsx:556
+#~ msgid "Past-exposure estimate only."
+#~ msgstr "仅估算过往热暴露。"
 
 #: src/components/DiagnosisCard.tsx:48
 msgid "Peak Interval {intensityLabel}"
 msgstr "峰值间歇 {intensityLabel}"
 
+#: src/pages/Training.tsx:375
+msgid "Peer metrics"
+msgstr "训练指标"
+
 #: src/pages/Settings.tsx:1494
 msgid "Permanently remove your Praxys account, synced data, plans, settings, and encrypted credentials."
-msgstr "永久删除您的 Praxys 账号、同步数据、计划、设置和加密凭据。"
+msgstr "永久删除 Praxys 账号、已同步数据、计划、设置和加密凭据。"
 
 #: src/pages/Setup.tsx:214
 msgid "Personal Access Token"
@@ -3014,14 +3911,14 @@ msgstr "计划同步目标"
 
 #: src/components/UpcomingPlanCard.tsx:351
 msgid "Plan window"
-msgstr "计划时间窗口"
+msgstr "计划范围"
 
 #: src/components/charts/ComplianceChart.tsx:101
 #: src/components/charts/ComplianceChart.tsx:146
 msgid "Planned"
 msgstr "计划"
 
-#: src/pages/Today.tsx:589
+#: src/pages/Today.tsx:590
 msgid "Planned · Today"
 msgstr "今日计划"
 
@@ -3037,19 +3934,19 @@ msgstr "计划训练"
 #~ msgid "Platform aggregates are not connected yet."
 #~ msgstr "尚未接入平台聚合数据。"
 
-#: src/pages/admin/AdminOps.tsx:613
+#: src/pages/admin/AdminOps.tsx:617
 msgid "Platform aggregates could not be refreshed."
 msgstr "无法刷新平台聚合数据。"
 
-#: src/pages/admin/AdminOps.tsx:332
+#: src/pages/admin/AdminOps.tsx:334
 msgid "Platform error"
 msgstr "平台错误"
 
-#: src/pages/admin/AdminOps.tsx:880
+#: src/pages/admin/AdminOps.tsx:966
 msgid "Platform health"
 msgstr "平台健康"
 
-#: src/pages/admin/AdminOps.tsx:885
+#: src/pages/admin/AdminOps.tsx:971
 msgid "Platform telemetry is unavailable."
 msgstr "平台遥测不可用。"
 
@@ -3059,13 +3956,23 @@ msgstr "请检查邮箱格式后重试。"
 
 #: src/pages/Login.tsx:117
 msgid "Please verify your email before signing in. Check your inbox for the link."
-msgstr "请在登录前验证您的电子邮件。请查看收件箱中的链接。"
+msgstr "登录前请先验证邮箱。请查看收件箱中的验证链接。"
+
+#. placeholder {0}: agentLearning.review_policy_version
+#. placeholder {1}: agentLearning.decision_policy_version
+#: src/pages/admin/AdminOps.tsx:917
+msgid "Policy {0} · decision {1}"
+msgstr "审核策略 {0} · 决策策略 {1}"
+
+#: src/pages/admin/AdminOps.tsx:898
+msgid "Policy-gated auto-merge"
+msgstr "策略门禁自动合并"
 
 #: src/pages/Today.tsx:303
 #~ msgid "positive"
 #~ msgstr "状态良好"
 
-#: src/pages/Today.tsx:408
+#: src/pages/Today.tsx:409
 msgid "positive balance"
 msgstr "正平衡"
 
@@ -3073,9 +3980,9 @@ msgstr "正平衡"
 #~ msgid "positive balance\" \"正平衡"
 #~ msgstr ""
 
-#: src/pages/admin/AdminOps.tsx:680
+#: src/pages/admin/AdminOps.tsx:684
 msgid "PostgreSQL connections"
-msgstr "PostgreSQL 连接"
+msgstr "PostgreSQL 连接数"
 
 #: src/components/SplitBreakdown.tsx:48
 #: src/lib/display-labels.ts:54
@@ -3084,13 +3991,53 @@ msgstr "PostgreSQL 连接"
 msgid "Power"
 msgstr "功率"
 
+#. placeholder {0}: session.power_provider ?? i18n._(msg`unknown`)
+#. placeholder {1}: session.cp_power_provider ?? i18n._(msg`unknown`)
+#: src/components/HeatAdaptationPanel.tsx:194
+#~ msgid "Power {0} · CP {1}"
+#~ msgstr "功率 {0} · CP {1}"
+
+#. placeholder {0}: providerLabel(session.power_provider)
+#. placeholder {1}: providerLabel(session.cp_power_provider)
+#. placeholder {2}: providerLabel(session.cp_source)
+#: src/components/HeatAdaptationPanel.tsx:204
+#~ msgid "Power {0} · CP {1} · CP origin {2}"
+#~ msgstr "功率 {0} · CP {1} · CP 来源 {2}"
+
+#. placeholder {0}: localizedProviderLabel(session.power_provider)
+#. placeholder {1}: localizedProviderLabel(session.cp_power_provider)
+#. placeholder {2}: localizedProviderLabel(session.cp_source)
+#: src/components/HeatAdaptationPanel.tsx:420
+#~ msgid "Power {0} · CP {1} · CP source {2}"
+#~ msgstr "功率 {0} · CP {1} · CP 来源 {2}"
+
 #: src/pages/Setup.tsx:196
 msgid "Power metrics, Critical Power, training plans"
 msgstr "功率指标、阈值功率、训练计划"
 
+#: src/components/HeatAdaptationPanel.tsx:81
+msgid "Power samples"
+msgstr "功率数据点"
+
+#: src/components/HeatAdaptationPanel.tsx:337
+#~ msgid "Power source unknown"
+#~ msgstr "功率来源未知"
+
+#: src/components/HeatAdaptationPanel.tsx:208
+#~ msgid "Power source unverified"
+#~ msgstr "功率来源未验证"
+
 #: src/pages/Login.tsx:72
 #~ msgid "Power-based training dashboard"
 #~ msgstr "功率训练仪表盘"
+
+#: src/components/HeatAdaptationPanel.tsx:440
+msgid "Power-source match"
+msgstr "功率数据源匹配"
+
+#: src/components/HeatAdaptationPanel.tsx:335
+#~ msgid "Power-source mismatch"
+#~ msgstr "功率来源不匹配"
 
 #: src/components/RecoveryPanel.tsx:227
 #~ msgid "Praxys adapts individualized HRV-guided training and ln(RMSSD) trend monitoring into operational reference bands. The exact Fresh, Normal, and Fatigued cutoffs are product guardrails, not thresholds validated by the cited studies. CV above {cvThreshold}% is also a coaching caution flag, not a diagnosis. Sleep, readiness, RHR, and TSB remain separate informational context."
@@ -3110,11 +4057,15 @@ msgstr "Praxys 教练"
 
 #: src/components/AiInsightsCard.tsx:229
 msgid "Praxys Coach insight"
-msgstr "Praxys 教练分析"
+msgstr "Praxys 教练解读"
 
-#: src/pages/admin/AdminOps.tsx:153
+#: src/pages/admin/AdminOps.tsx:155
 msgid "Praxys database"
 msgstr "Praxys 数据库"
+
+#: src/components/HeatAdaptationPanel.tsx:463
+#~ msgid "Praxys does not yet have enough supported weather and power evidence to estimate a stage."
+#~ msgstr "Praxys 尚无足够的受支持天气和功率证据来估算阶段。"
 
 #: src/components/StatusBanner.tsx:47
 msgid "Praxys is experiencing a major service outage."
@@ -3122,11 +4073,11 @@ msgstr "Praxys 正在经历大范围服务中断。"
 
 #: src/components/StatusBanner.tsx:49
 msgid "Praxys is experiencing a partial service outage."
-msgstr "Praxys 正在经历部分服务中断。"
+msgstr "Praxys 当前部分服务中断。"
 
 #: src/components/StatusBanner.tsx:50
 msgid "Praxys is experiencing degraded performance."
-msgstr "Praxys 当前性能下降。"
+msgstr "Praxys 当前服务性能下降。"
 
 #: src/pages/Login.tsx:323
 msgid "Praxys is in private alpha."
@@ -3146,22 +4097,22 @@ msgstr "在手机上使用 Praxys"
 #: src/pages/Goal.tsx:278
 #: src/pages/Goal.tsx:303
 msgid "Predicted"
-msgstr "预测"
+msgstr "预计"
 
 #: src/pages/Goal.tsx:78
 msgid "Predicted using Riegel's formula (T₂ = T₁ × (D₂/D₁)^1.06), treating threshold pace as ~10K effort."
-msgstr "使用 Riegel 公式预测（T₂ = T₁ × (D₂/D₁)^1.06），将阈值配速视为约 10K 强度。"
+msgstr "按 Riegel 公式预测（T₂ = T₁ × (D₂/D₁)^1.06），将阈值配速近似视为 10K 比赛强度。"
 
 #: src/pages/Goal.tsx:73
 msgid "Predicted using Stryd race power model (5K at 103.8% CP, marathon at 89.9% CP)."
-msgstr "使用 Stryd 比赛功率模型预测（5K 为 103.8% CP，马拉松为 89.9% CP）。"
+msgstr "按 Stryd 比赛功率模型预测（5K 取 103.8% CP，马拉松取 89.9% CP）。"
 
 #: src/pages/Login.tsx:653
 msgid "Prefer to wait?"
 msgstr "想先等等？"
 
-#: src/pages/Science.tsx:411
-#: src/pages/Science.tsx:559
+#: src/pages/Science.tsx:426
+#: src/pages/Science.tsx:574
 msgid "Previewing"
 msgstr "预览中"
 
@@ -3176,7 +4127,19 @@ msgstr "作为 {0} 的主要来源"
 
 #: src/pages/Settings.tsx:62
 msgid "Primary source for workout data"
-msgstr "训练数据的主要来源"
+msgstr "训练数据首选来源"
+
+#: src/components/HeatAdaptationPanel.tsx:125
+#~ msgid "Prior heat adaptation evidence is fading."
+#~ msgstr "先前的热适应证据正在减弱。"
+
+#: src/components/HeatAdaptationPanel.tsx:131
+msgid "Prior heat adaptation evidence may be declining."
+msgstr "先前热适应的证据可能正在减弱。"
+
+#: src/components/HeatAdaptationPanel.tsx:122
+#~ msgid "Prior heat adaptation is likely still retained."
+#~ msgstr "先前的热适应可能仍然保留。"
 
 #: src/pages/Login.tsx:210
 msgid "Private alpha · Invitation only"
@@ -3184,13 +4147,13 @@ msgstr "内测中 · 仅限邀请"
 
 #: src/pages/Today.tsx:294
 msgid "Proceed but monitor heart-rate drift during the session"
-msgstr "继续训练，但请监测训练过程中的心率漂移"
+msgstr "继续训练，但注意观察训练中的心率漂移"
 
 #: src/pages/Today.tsx:289
 #~ msgid "Proceed but monitor heart-rate drift during the session\" \"继续训练，但监测训练中的心率漂移"
 #~ msgstr ""
 
-#: src/pages/admin/AdminOps.tsx:749
+#: src/pages/admin/AdminOps.tsx:753
 msgid "Product value"
 msgstr "产品价值"
 
@@ -3206,8 +4169,8 @@ msgstr "个人资料"
 msgid "Proj"
 msgstr "预测"
 
-#: src/components/charts/FitnessFatigueChart.tsx:45
-#: src/components/charts/FitnessFatigueChart.tsx:207
+#: src/components/charts/FitnessFatigueChart.tsx:68
+#: src/components/charts/FitnessFatigueChart.tsx:240
 msgid "Projected"
 msgstr "预测"
 
@@ -3219,7 +4182,7 @@ msgstr "提升"
 #: src/pages/admin/AdminUsers.tsx:635
 #: src/pages/admin/AdminUsers.tsx:1025
 msgid "Promote to Admin"
-msgstr "提升为管理员"
+msgstr "设为管理员"
 
 #: src/pages/Admin.tsx:820
 #~ msgid "Prospective users — generate an invitation code and email it"
@@ -3227,19 +4190,23 @@ msgstr "提升为管理员"
 
 #: src/pages/admin/AdminUsers.tsx:819
 msgid "Prospective users: generate invitation codes and follow up by email."
-msgstr "潜在用户：生成邀请代码并通过邮件跟进。"
+msgstr "潜在用户：生成邀请码，并通过邮件跟进。"
 
-#: src/pages/admin/AdminOps.tsx:740
+#: src/pages/admin/AdminOps.tsx:744
 msgid "Public status"
-msgstr "公共状态"
+msgstr "公开状态页"
 
 #: src/pages/admin/AdminCommunications.tsx:228
 msgid "Publish a banner above to communicate maintenance windows, launches, or onboarding news."
 msgstr "在上方发布横幅，用于通知维护窗口、功能上线或接入消息。"
 
+#: src/pages/admin/AdminIncidents.tsx:153
+msgid "Publish service updates on the <0>public status page</0>."
+msgstr "在<0>公开状态页</0>发布服务动态。"
+
 #: src/components/SetupChecklist.tsx:56
 msgid "Pull your latest activities, power data, and recovery metrics"
-msgstr "拉取您最近的活动、功率数据和恢复指标"
+msgstr "同步最新活动、功率数据和恢复指标"
 
 #: src/pages/Today.tsx:286
 msgid "Push {workout} to tomorrow"
@@ -3247,7 +4214,7 @@ msgstr "将 {workout} 推迟到明天"
 
 #: src/pages/Today.tsx:278
 msgid "Push {workout} to tomorrow if tomorrow is rest/easy"
-msgstr "如果明天是休息或轻松训练日，将 {workout} 推迟到明天"
+msgstr "如果明天安排休息或轻松训练，把 {workout} 挪到明天"
 
 #: src/pages/Today.tsx:273
 #~ msgid "Push {workout} to tomorrow if tomorrow is rest/easy\" \"如果明天是休息或轻松日，将 {workout} 推迟到明天"
@@ -3267,11 +4234,11 @@ msgstr "如果明天是休息或轻松训练日，将 {workout} 推迟到明天"
 
 #: src/components/UpcomingPlanCard.tsx:181
 msgid "Push failed — click to retry"
-msgstr "推送失败 — 点击重试"
+msgstr "推送失败，点击重试"
 
 #: src/components/UpcomingPlanCard.tsx:230
 msgid "Push this workout to your Stryd calendar."
-msgstr "将此训练推送至您的 Stryd 日历。"
+msgstr "将这次训练推送到 Stryd 日历。"
 
 #: src/components/UpcomingPlanCard.tsx:231
 #: src/components/UpcomingPlanCard.tsx:644
@@ -3285,6 +4252,19 @@ msgstr "推送到 Stryd"
 #: src/components/UpcomingPlanCard.tsx:634
 msgid "Pushing…"
 msgstr "推送中…"
+
+#: src/components/HeatAdaptationPanel.tsx:577
+msgid "Qualifying days"
+msgstr "达标天数"
+
+#. placeholder {0}: status.exposure_days
+#: src/components/HeatAdaptationPanel.tsx:581
+msgid "Qualifying days: {0} of {thresholdDays}"
+msgstr "达标天数：{0}/{thresholdDays}"
+
+#: src/components/HeatAdaptationPanel.tsx:137
+msgid "Qualifying exposure has resumed after a longer gap, but current evidence is still limited."
+msgstr "较长间隔后已恢复达标热暴露，但当前证据仍然有限。"
 
 #: src/components/TodayDecisionCheck.tsx:137
 #: src/components/TodayDecisionCheck.tsx:158
@@ -3306,7 +4286,7 @@ msgstr "比赛日期"
 msgid "Race date is required"
 msgstr "请填写比赛日期"
 
-#: src/pages/admin/AdminOps.tsx:313
+#: src/pages/admin/AdminOps.tsx:315
 msgid "Race forecast"
 msgstr "比赛预测"
 
@@ -3317,19 +4297,23 @@ msgstr "比赛目标"
 
 #: src/pages/Setup.tsx:822
 msgid "Race goal configured"
-msgstr "已配置比赛目标"
+msgstr "已设置比赛目标"
 
 #: src/pages/Science.tsx:27
 msgid "Race Prediction"
 msgstr "比赛预测"
 
+#: src/components/HeatAdaptationPanel.tsx:71
+#~ msgid "Racinais heat-acclimatization consensus"
+#~ msgstr "Racinais 热适应共识"
+
 #: src/components/ZoneAnalysisCard.tsx:63
 #~ msgid "Range"
 #~ msgstr "范围"
 
-#: src/pages/admin/AdminOps.tsx:322
+#: src/pages/admin/AdminOps.tsx:324
 msgid "Rate limited"
-msgstr "触发限流"
+msgstr "已限流"
 
 #: src/pages/admin/AdminUsers.tsx:941
 msgid "Re-invite"
@@ -3339,26 +4323,66 @@ msgstr "重新邀请"
 msgid "Re-push to Stryd"
 msgstr "重新推送到 Stryd"
 
+#: src/components/HeatAdaptationPanel.tsx:59
+#~ msgid "Re-sync training data so the power provider can be verified."
+#~ msgstr "重新同步训练数据，以验证功率提供方。"
+
+#: src/components/HeatAdaptationPanel.tsx:497
+#~ msgid "reacclimating"
+#~ msgstr "再适应中"
+
+#: src/components/HeatAdaptationPanel.tsx:109
+msgid "Reacclimating"
+msgstr "重新适应中"
+
+#: src/components/HeatAdaptationPanel.tsx:104
+#~ msgid "Reacclimatization to similar conditions may be developing."
+#~ msgstr "你可能正在重新适应相似环境。"
+
+#: src/components/HeatAdaptationPanel.tsx:630
+msgid "Read the active heat model"
+msgstr "查看当前热适应模型"
+
+#: src/pages/Science.tsx:180
+msgid "Read the evidence behind each model. Where alternatives exist, you can preview and switch them; fixed operational models stay explicit."
+msgstr "查看每个模型背后的证据。存在备选模型时可预览并切换；固定的操作模型也会明确标示。"
+
 #: src/pages/Admin.tsx:933
 #~ msgid "Read-only accounts that mirror your dashboard data"
 #~ msgstr "镜像您仪表盘数据的只读账号"
 
 #: src/pages/admin/AdminUsers.tsx:970
 msgid "Read-only accounts that mirror your dashboard data."
-msgstr "镜像你仪表盘数据的只读账户。"
+msgstr "镜像主页数据的只读账号。"
 
 #: src/components/RecoveryPanel.tsx:199
-#: src/pages/Today.tsx:585
+#: src/pages/Today.tsx:586
 msgid "Readiness"
 msgstr "准备度"
 
 #: src/pages/Science.tsx:26
 msgid "Reads readiness from the body's signals."
-msgstr "通过身体信号读取训练准备度。"
+msgstr "根据身体信号判断准备度。"
 
 #: src/pages/Goal.tsx:369
 msgid "Realistic alternative targets"
 msgstr "可行的替代目标"
+
+#: src/components/HeatAdaptationPanel.tsx:113
+msgid "Rebuilding"
+msgstr "重建中"
+
+#: src/components/HeatAdaptationPanel.tsx:455
+#~ msgid "Rebuilding heat-adaptation evidence"
+#~ msgstr "正在重建热适应证据"
+
+#: src/components/HeatAdaptationPanel.tsx:538
+#~ msgid "Recency"
+#~ msgstr "证据时效"
+
+#: src/components/HeatAdaptationPanel.tsx:41
+msgid "Recent activities need supported temperature and humidity data before a condition range can be estimated."
+msgstr "近期活动需要包含受支持的温度和湿度数据，才能估算环境范围。"
 
 #. placeholder {0}: alerts.total
 #. placeholder {1}: alerts.resolved
@@ -3366,20 +4390,48 @@ msgstr "可行的替代目标"
 #~ msgid "Recent alert instances: {0}. Resolved: {1}."
 #~ msgstr "最近告警实例：{0}。已恢复：{1}。"
 
+#: src/components/HeatAdaptationPanel.tsx:200
+#~ msgid "Recent connector readings and sample-first power workload used by the qualitative stage."
+#~ msgstr "近期连接器环境读数，以及以秒级样本优先计算的功率负荷，用于定性阶段判断。"
+
+#: src/components/HeatAdaptationPanel.tsx:162
+#~ msgid "Recent connector readings and split-derived workload used by the qualitative stage."
+#~ msgstr "用于定性阶段判断的近期连接器环境读数与分段功率负荷。"
+
+#: src/components/HeatAdaptationPanel.tsx:523
+#~ msgid "Recent evidence"
+#~ msgstr "近期证据"
+
+#: src/components/HeatAdaptationPanel.tsx:467
+#~ msgid "Recent evidence meets the operational threshold for likely adaptation."
+#~ msgstr "近期证据已达到“可能已适应”的操作阈值。"
+
+#: src/components/HeatAdaptationPanel.tsx:469
+#~ msgid "Recent evidence remains inside the estimated retention window."
+#~ msgstr "近期证据仍在估算的保持窗口内。"
+
+#: src/components/HeatAdaptationPanel.tsx:83
+#~ msgid "Recent evidence suggests acclimatization to similar conditions may be retained."
+#~ msgstr "近期证据表明，你对相似环境的热适应可能仍在保持。"
+
+#: src/components/HeatAdaptationPanel.tsx:201
+#~ msgid "Recent heat cadence"
+#~ msgstr "近期热暴露节奏"
+
 #: src/pages/Today.tsx:233
 msgid "Recent HRV observations have no measurable variation, so Praxys cannot form a reliable recovery band yet. Follow the plan without an HRV-based adjustment."
 msgstr "近期 HRV 观测值没有可测变化，Praxys 暂时无法建立可靠的恢复区间。请按计划训练，暂不进行基于 HRV 的调整。"
 
 #: src/components/RecoveryPanel.tsx:113
 msgid "Recent HRV observations have no measurable variation, so Praxys cannot form a reliable recovery band yet. Keep syncing to add natural variation."
-msgstr "近期 HRV 观测值没有可测变化，Praxys 暂时无法建立可靠的恢复区间。请继续同步，以积累自然波动。"
+msgstr "近期 HRV 观测值没有可测波动，因此 Praxys 暂时还无法建立可靠的恢复区间。继续同步，积累自然波动。"
 
-#: src/components/charts/FitnessFatigueChart.tsx:58
-#: src/components/charts/FitnessFatigueChart.tsx:198
+#: src/components/charts/FitnessFatigueChart.tsx:81
+#: src/components/charts/FitnessFatigueChart.tsx:231
 msgid "Recent load"
 msgstr "近期负荷"
 
-#: src/pages/Training.tsx:232
+#: src/pages/Training.tsx:242
 msgid "recent load above long-term load"
 msgstr "近期负荷高于长期负荷"
 
@@ -3411,13 +4463,37 @@ msgstr "近期模型负荷明显高于长期模型负荷。"
 msgid "Recent modeled load is substantially below long-term modeled load."
 msgstr "近期模型负荷明显低于长期模型负荷。"
 
+#: src/components/HeatAdaptationPanel.tsx:336
+#~ msgid "Recent qualifying training range"
+#~ msgstr "近期符合条件的训练环境"
+
+#: src/components/HeatAdaptationPanel.tsx:154
+msgid "Recent training clears the Building threshold but remains below the conservative Likely adapted stage."
+msgstr "近期训练已达到“建立中”阈值，但仍低于保守的“可能已适应”阶段。"
+
+#: src/components/HeatAdaptationPanel.tsx:107
+#~ msgid "Recent training makes acclimatization to similar conditions plausible."
+#~ msgstr "近期训练表明，你可能已经适应相似环境。"
+
+#: src/components/HeatAdaptationPanel.tsx:146
+msgid "Recent training meets the model's conservative evidence threshold for acclimatization to similar conditions."
+msgstr "近期训练已达到模型针对相似环境下热适应设定的保守证据阈值。"
+
+#: src/components/HeatAdaptationPanel.tsx:123
+msgid "Recent training meets the model's exposure threshold, but response-specific adaptation evidence may already be declining since the latest qualifying session."
+msgstr "近期训练达到模型的暴露阈值，但自最近一次符合条件的训练后，不同适应反应的证据可能已经开始减弱。"
+
+#: src/components/HeatAdaptationPanel.tsx:161
+msgid "Recent training remains below the model's Building threshold."
+msgstr "近期训练仍低于模型的“建立中”阈值。"
+
 #: src/pages/admin/AdminUsers.tsx:504
 msgid "Recent usage across the registered base."
 msgstr "已注册用户的近期使用情况。"
 
-#: src/pages/Science.tsx:220
+#: src/pages/Science.tsx:224
 msgid "Recommendation available"
-msgstr "有可用推荐"
+msgstr "有建议可供查看"
 
 #: src/components/AiInsightsCard.tsx:280
 msgid "Recommendations"
@@ -3427,12 +4503,16 @@ msgstr "建议"
 msgid "recommended"
 msgstr "推荐"
 
-#: src/pages/Science.tsx:389
-#: src/pages/Science.tsx:564
+#: src/pages/Science.tsx:404
+#: src/pages/Science.tsx:579
 #: src/pages/Setup.tsx:665
 #: src/pages/Setup.tsx:801
 msgid "Recommended"
 msgstr "推荐"
+
+#: src/pages/Training.tsx:320
+msgid "Recorded distance in non-overlapping seven-day buckets, including weeks with no recorded distance."
+msgstr "按不重叠的 7 天区间统计已记录距离，包括没有距离记录的周。"
 
 #: src/components/RecoveryPanel.tsx:57
 #: src/components/RecoveryPanel.tsx:58
@@ -3445,9 +4525,9 @@ msgstr "推荐"
 msgid "Recovery"
 msgstr "恢复"
 
-#: src/pages/Today.tsx:546
+#: src/pages/Today.tsx:547
 msgid "Recovery data hasn't synced yet. Showing the latest reading from {recoveryLatestLabel}."
-msgstr "今日恢复数据尚未同步，显示的是 {recoveryLatestLabel} 的最近读数。"
+msgstr "恢复数据尚未同步，当前显示最近一次读数（{recoveryLatestLabel}）。"
 
 #: src/components/SignalHero.tsx:25
 #: src/pages/Today.tsx:77
@@ -3476,7 +4556,7 @@ msgstr "恢复分析需要当前 HRV 数据。请连接或同步支持 HRV 的�
 
 #: src/pages/Today.tsx:257
 msgid "Recovery signals are within their recent reference bands. Follow the plan as written."
-msgstr "恢复信号均处于近期参考区间内。请按原计划训练。"
+msgstr "恢复信号都在近期参考区间内。按计划训练。"
 
 #: src/pages/Today.tsx:256
 #~ msgid "Recovery signals are within your normal range. Follow the plan as written."
@@ -3501,28 +4581,28 @@ msgstr "恢复状态"
 #: src/pages/Settings.tsx:1152
 #: src/pages/Setup.tsx:1059
 msgid "Redirecting..."
-msgstr "正在重定向..."
+msgstr "跳转中…"
 
 #: src/components/SignalHero.tsx:24
 #: src/pages/Today.tsx:76
 msgid "Reduce Intensity"
 msgstr "降低强度"
 
-#: src/pages/Science.tsx:483
+#: src/pages/Science.tsx:498
 msgid "References"
 msgstr "参考文献"
 
-#: src/pages/admin/AdminOps.tsx:514
+#: src/pages/admin/AdminOps.tsx:518
 #: src/pages/Status.tsx:152
 #: src/pages/Status.tsx:155
 msgid "Refresh"
 msgstr "刷新"
 
-#: src/pages/Today.tsx:491
+#: src/pages/Today.tsx:492
 msgid "Refresh failed"
 msgstr "刷新失败"
 
-#: src/pages/admin/AdminOps.tsx:525
+#: src/pages/admin/AdminOps.tsx:529
 msgid "Refresh failed. Showing the last successful snapshot."
 msgstr "刷新失败，正在显示上次成功的快照。"
 
@@ -3542,11 +4622,10 @@ msgstr "地区"
 #~ msgid "Register"
 #~ msgstr "注册"
 
-#: src/pages/admin/AdminOps.tsx:764
+#: src/pages/admin/AdminOps.tsx:768
 #: src/pages/admin/AdminUsers.tsx:456
-#: src/pages/admin/AdminUsers.tsx:579
 msgid "Registered"
-msgstr "注册于"
+msgstr "已注册"
 
 #: src/pages/Admin.tsx:625
 #~ msgid "Registered accounts"
@@ -3554,15 +4633,19 @@ msgstr "注册于"
 
 #: src/pages/admin/AdminUsers.tsx:567
 msgid "Registered accounts."
-msgstr "已注册账户。"
+msgstr "已注册账号。"
 
 #: src/pages/admin/AdminUsers.tsx:385
 msgid "Registration"
 msgstr "注册"
 
+#: src/pages/admin/AdminUsers.tsx:579
+msgid "Registration date"
+msgstr "注册时间"
+
 #: src/pages/admin/AdminUsers.tsx:340
 msgid "Registration settings unavailable"
-msgstr "注册设置不可用"
+msgstr "注册设置暂不可用"
 
 #: src/pages/admin/AdminFeedback.tsx:358
 msgid "Reject"
@@ -3575,7 +4658,7 @@ msgstr "已拒绝"
 
 #: src/pages/admin/AdminUsers.tsx:541
 msgid "Reload the page or verify the management endpoints are available."
-msgstr "请重新加载页面，或确认管理端点可用。"
+msgstr "重新加载页面，或确认管理接口可用。"
 
 #: src/pages/admin/AdminUsers.tsx:478
 msgid "Remaining"
@@ -3583,7 +4666,7 @@ msgstr "剩余"
 
 #: src/components/FeedbackDialog.tsx:276
 msgid "Remove image"
-msgstr "移除图片"
+msgstr "删除图片"
 
 #: src/lib/phase-label.ts:18
 msgid "Rep"
@@ -3593,7 +4676,7 @@ msgstr "组"
 #~ msgid "Repeated use"
 #~ msgstr "重复使用"
 
-#: src/pages/admin/AdminOps.tsx:809
+#: src/pages/admin/AdminOps.tsx:813
 msgid "Repeated weekly use"
 msgstr "每周重复使用率"
 
@@ -3605,7 +4688,7 @@ msgstr "反馈内容"
 #~ msgid "Reported value"
 #~ msgstr "报告值"
 
-#: src/pages/admin/AdminOps.tsx:803
+#: src/pages/admin/AdminOps.tsx:807
 msgid "Reported value rate"
 msgstr "用户自报价值率"
 
@@ -3613,15 +4696,15 @@ msgstr "用户自报价值率"
 msgid "Request an invite"
 msgstr "申请邀请"
 
-#: src/pages/admin/AdminOps.tsx:726
+#: src/pages/admin/AdminOps.tsx:730
 msgid "Request and availability telemetry is unavailable."
-msgstr "请求和可用性遥测不可用。"
+msgstr "请求和可用性遥测数据暂不可用。"
 
 #: src/pages/Login.tsx:348
 msgid "Request invite"
 msgstr "申请邀请"
 
-#: src/pages/admin/AdminOps.tsx:710
+#: src/pages/admin/AdminOps.tsx:714
 msgid "Request p95"
 msgstr "请求 p95"
 
@@ -3629,9 +4712,9 @@ msgstr "请求 p95"
 msgid "Resend verification email"
 msgstr "重新发送验证邮件"
 
-#: src/pages/admin/AdminIncidents.tsx:263
+#: src/pages/admin/AdminIncidents.tsx:264
 msgid "Resolve"
-msgstr "解决"
+msgstr "标记为已解决"
 
 #: src/pages/admin/AdminFeedback.tsx:83
 #: src/pages/admin/AdminFeedback.tsx:234
@@ -3664,7 +4747,7 @@ msgstr "已安排休息日。按计划休息并优先恢复。"
 
 #: src/pages/Today.tsx:270
 msgid "Rest, walk, or do gentle mobility"
-msgstr "休息、散步或进行轻柔的灵活性活动"
+msgstr "休息、散步或做些轻柔的活动度练习"
 
 #: src/pages/Today.tsx:265
 #~ msgid "Rest, walk, or do gentle mobility\" \"休息、散步或进行轻柔的活动度练习"
@@ -3672,7 +4755,7 @@ msgstr "休息、散步或进行轻柔的灵活性活动"
 
 #: src/pages/Today.tsx:253
 msgid "Resting heart rate is elevated above your baseline. This can be a caution signal, but it is not diagnostic."
-msgstr "静息心率高于您的基线。这可能是警戒信号，但不构成诊断。"
+msgstr "静息心率高于你的基准。这可能是提醒信号，但不能作为诊断依据。"
 
 #: src/pages/Today.tsx:248
 #~ msgid "Resting heart rate is elevated above your baseline. This can be a caution signal, but it is not diagnostic.\" \"静息心率高于您的基准。这可以作为警戒提示，但并非诊断结论。"
@@ -3691,8 +4774,8 @@ msgstr "静息心率"
 #: src/pages/History.tsx:53
 #: src/pages/Settings.tsx:330
 #: src/pages/Today.tsx:336
-#: src/pages/Today.tsx:494
-#: src/pages/Training.tsx:143
+#: src/pages/Today.tsx:495
+#: src/pages/Training.tsx:181
 msgid "Retry"
 msgstr "重试"
 
@@ -3714,11 +4797,19 @@ msgstr "请重试加载已提交报告和 GitHub 同步状态。"
 
 #: src/pages/admin/AdminIncidents.tsx:124
 msgid "Retry to load the public status incidents feed."
-msgstr "请重试加载公共状态事件源。"
+msgstr "重试加载公开状态页的事件列表。"
+
+#: src/components/HeatAdaptationPanel.tsx:141
+#~ msgid "Review heat history"
+#~ msgstr "查看热适应历史"
 
 #: src/pages/admin/AdminFeedback.tsx:199
 msgid "Review reports, manage screenshots, and sync linked GitHub issues."
 msgstr "审核报告、管理截图，并同步关联的 GitHub issue。"
+
+#: src/pages/admin/AdminOps.tsx:899
+msgid "Review required"
+msgstr "需要审核"
 
 #: src/pages/admin/AdminUsers.tsx:788
 msgid "Revoke"
@@ -3728,7 +4819,7 @@ msgstr "撤销"
 msgid "Revoked"
 msgstr "已撤销"
 
-#: src/pages/Today.tsx:582
+#: src/pages/Today.tsx:583
 msgid "RHR"
 msgstr "静息心率"
 
@@ -3745,7 +4836,7 @@ msgstr "上升"
 msgid "Role"
 msgstr "角色"
 
-#: src/pages/admin/AdminOps.tsx:166
+#: src/pages/admin/AdminOps.tsx:168
 msgid "Rolling 1 / 7 / 30 days"
 msgstr "滚动 1 / 7 / 30 天"
 
@@ -3785,6 +4876,28 @@ msgstr "改为轻松跑"
 msgid "Running"
 msgstr "跑步"
 
+#. placeholder {0}: Math.round(session.sample_coverage_ratio * 100)
+#: src/components/HeatAdaptationPanel.tsx:208
+#~ msgid "Sample coverage {0}%"
+#~ msgstr "样本覆盖率 {0}%"
+
+#: src/components/HeatAdaptationPanel.tsx:347
+#~ msgid "Sample power"
+#~ msgstr "样本功率"
+
+#: src/components/HeatAdaptationPanel.tsx:348
+#~ msgid "Sample power · {coverage}% coverage"
+#~ msgstr "样本功率 · 覆盖率 {coverage}%"
+
+#: src/components/HeatAdaptationPanel.tsx:333
+#: src/components/HeatAdaptationPanel.tsx:355
+#~ msgid "Samples incomplete"
+#~ msgstr "逐秒样本不完整"
+
+#: src/components/HeatAdaptationPanel.tsx:356
+#~ msgid "Samples incomplete · {coverage}% coverage"
+#~ msgstr "样本不完整 · 覆盖率 {coverage}%"
+
 #: src/pages/admin/AdminUsers.tsx:447
 msgid "Save"
 msgstr "保存"
@@ -3799,27 +4912,35 @@ msgstr "已保存"
 
 #: src/components/GoalEditor.tsx:177
 msgid "Saving..."
-msgstr "保存中..."
+msgstr "保存中…"
 
 #: src/pages/Login.tsx:482
 msgid "Saving…"
-msgstr "正在保存…"
+msgstr "保存中…"
 
 #: src/components/AppSidebar.tsx:131
 msgid "Science"
 msgstr "科学"
 
+#: src/pages/Science.tsx:227
+msgid "Science models"
+msgstr "科学模型"
+
 #: src/pages/Science.tsx:223
-msgid "Science pillars"
-msgstr "科学支柱"
+#~ msgid "Science pillars"
+#~ msgstr "科学支柱"
+
+#: src/pages/Science.tsx:174
+msgid "Scientific models"
+msgstr "科学模型"
 
 #: src/pages/admin/AdminFeedback.tsx:297
 msgid "Screenshot flagged sensitive"
-msgstr "截图被标记为敏感"
+msgstr "截图已标记为敏感"
 
 #: src/components/AdminFeedbackImages.tsx:72
 msgid "Screenshot unavailable"
-msgstr "截图不可用"
+msgstr "无法显示截图"
 
 #: src/pages/admin/AdminUsers.tsx:436
 msgid "Seat cap"
@@ -3828,11 +4949,19 @@ msgstr "名额上限"
 #: src/pages/Settings.tsx:1102
 #: src/pages/Setup.tsx:1030
 msgid "Securely signing in to Garmin. This can take 15-30 seconds because Garmin rate-limits automated logins. Please keep this window open."
-msgstr "正在安全登录 Garmin。由于 Garmin 对自动登录设有频率限制，这可能需要 15-30 秒。请保持此窗口打开。"
+msgstr "正在安全登录 Garmin。由于 Garmin 会限制自动登录频率，这可能需要 15-30 秒。请不要关闭此窗口。"
+
+#: src/components/HeatAdaptationPanel.tsx:261
+msgid "Select a day to inspect what entered the estimate."
+msgstr "选择一天，查看当天哪些训练被纳入估算。"
+
+#: src/pages/Training.tsx:378
+msgid "Select a metric to inspect its chart or evidence."
+msgstr "选择一个指标，查看图表或依据。"
 
 #: src/pages/Settings.tsx:1094
 msgid "Select the region matching your COROS account."
-msgstr "选择与您的 COROS 账户匹配的地区。"
+msgstr "选择与你的 COROS 账号对应的地区。"
 
 #: src/pages/admin/AdminUsers.tsx:418
 msgid "Self-registration"
@@ -3859,7 +4988,7 @@ msgstr "发送邀请会占用一个席位。达到上限时自助注册会自动
 
 #: src/components/AiInsightsCard.tsx:375
 msgid "Sending..."
-msgstr "发送中..."
+msgstr "发送中…"
 
 #: src/components/FeedbackDialog.tsx:317
 #: src/pages/admin/AdminUsers.tsx:939
@@ -3871,11 +5000,11 @@ msgstr "发送中…"
 msgid "Sent"
 msgstr "已发送"
 
-#: src/pages/admin/AdminOps.tsx:706
+#: src/pages/admin/AdminOps.tsx:710
 msgid "Server error rate"
 msgstr "服务器错误率"
 
-#: src/pages/admin/AdminOps.tsx:631
+#: src/pages/admin/AdminOps.tsx:635
 msgid "Service health"
 msgstr "服务健康"
 
@@ -3887,7 +5016,7 @@ msgstr "服务事件"
 #~ msgid "Service Incidents"
 #~ msgstr "服务事件"
 
-#: src/pages/admin/AdminOps.tsx:448
+#: src/pages/admin/AdminOps.tsx:452
 msgid "Service performance degraded"
 msgstr "服务性能下降"
 
@@ -3901,16 +5030,33 @@ msgstr "服务状态"
 msgid "Service Status"
 msgstr "服务状态"
 
+#: src/components/HeatAdaptationPanel.tsx:317
+#~ msgid "Session evidence"
+#~ msgstr "训练记录证据"
+
+#. placeholder {0}: status.sessions.length
+#: src/components/HeatAdaptationPanel.tsx:316
+#~ msgid "Session evidence · latest {0}"
+#~ msgstr "训练记录证据 · 最近 {0} 条"
+
+#: src/components/HeatAdaptationPanel.tsx:57
+#~ msgid "Set a current power threshold before workload can contribute."
+#~ msgstr "先设置当前功率阈值，训练负荷才能计入。"
+
 #: src/components/SetupChecklist.tsx:71
 #: src/pages/Setup.tsx:813
 msgid "Set a goal"
 msgstr "设定目标"
 
+#: src/components/HeatAdaptationPanel.tsx:42
+msgid "Set a power threshold so Praxys can identify sustained work without using diluted activity-average power."
+msgstr "请设置功率阈值，让 Praxys 无需使用被热身和放松稀释的活动平均功率，也能识别持续做功。"
+
 #: src/components/SetupChecklist.tsx:75
 #: src/pages/Settings.tsx:1337
 #: src/pages/Setup.tsx:834
 msgid "Set goal"
-msgstr "设定目标"
+msgstr "设置目标"
 
 #: src/pages/Setup.tsx:557
 msgid "Set up Praxys"
@@ -3918,11 +5064,11 @@ msgstr "设置 Praxys"
 
 #: src/components/GoalEditor.tsx:96
 msgid "Set Your Goal"
-msgstr "设置您的目标"
+msgstr "设置目标"
 
 #: src/pages/Settings.tsx:706
 msgid "Set your name"
-msgstr "设置您的名字"
+msgstr "设置名字"
 
 #: src/components/AppSidebar.tsx:135
 #: src/pages/Settings.tsx:638
@@ -3936,7 +5082,7 @@ msgstr "设置向导"
 
 #: src/pages/Today.tsx:290
 msgid "Shorten the session if fatigue develops"
-msgstr "如果出现疲劳，请缩短训练时间"
+msgstr "如果感到疲劳，就缩短训练"
 
 #: src/pages/Today.tsx:285
 #~ msgid "Shorten the session if fatigue develops\" \"如果出现疲劳，请缩短训练"
@@ -3946,7 +5092,7 @@ msgstr "如果出现疲劳，请缩短训练时间"
 #~ msgid "Show {0} more workouts"
 #~ msgstr "显示另外 {0} 项训练"
 
-#: src/pages/Today.tsx:521
+#: src/pages/Today.tsx:522
 msgid "Show anyway"
 msgstr "仍要查看"
 
@@ -3954,23 +5100,23 @@ msgstr "仍要查看"
 #~ msgid "Show less"
 #~ msgstr "显示更少"
 
-#: src/pages/Science.tsx:465
+#: src/pages/Science.tsx:480
 msgid "Show methodology details"
 msgstr "展开方法论详情"
 
 #: src/pages/History.tsx:84
 msgid "Showing"
-msgstr "显示"
+msgstr "显示第"
 
-#: src/pages/Today.tsx:493
+#: src/pages/Today.tsx:494
 msgid "Showing the last available data."
-msgstr "正在显示上次可用的数据。"
+msgstr "当前显示的是最近一次可用数据。"
 
 #: src/pages/Today.tsx:469
 #~ msgid "Showing the last available data.\" \"正在显示最近一次可用数据。"
 #~ msgstr ""
 
-#: src/pages/Today.tsx:502
+#: src/pages/Today.tsx:503
 msgid "Showing yesterday's snapshot. Last reading {dataAsOfLabel}."
 msgstr "显示的是昨天的快照。最近一次读数 {dataAsOfLabel}。"
 
@@ -3982,7 +5128,7 @@ msgstr "登录"
 
 #: src/pages/Login.tsx:308
 msgid "Sign in to connect your CLI plugin."
-msgstr "登录以连接您的 CLI 插件。"
+msgstr "登录以连接 CLI 插件。"
 
 #: src/pages/Login.tsx:113
 #~ msgid "Signing in..."
@@ -3998,10 +5144,10 @@ msgstr "正在登录…"
 
 #: src/pages/Setup.tsx:849
 msgid "Skip for now"
-msgstr "暂时跳过"
+msgstr "先跳过"
 
 #: src/components/RecoveryPanel.tsx:190
-#: src/pages/Today.tsx:583
+#: src/pages/Today.tsx:584
 msgid "Sleep"
 msgstr "睡眠"
 
@@ -4021,7 +5167,7 @@ msgstr "睡眠评分偏低（{sleep}）。考虑降低今天的训练强度。"
 
 #: src/components/charts/SleepPerfChart.tsx:34
 msgid "Sleep Score vs {metricLabel}"
-msgstr "睡眠得分 vs {metricLabel}"
+msgstr "睡眠得分与{metricLabel}"
 
 #: src/pages/Setup.tsx:197
 msgid "Sleep score, HRV, readiness"
@@ -4029,9 +5175,9 @@ msgstr "睡眠得分、HRV、准备度"
 
 #: src/pages/Settings.tsx:63
 msgid "Sleep, HRV, readiness"
-msgstr "睡眠、HRV、恢复度"
+msgstr "睡眠、HRV、准备度"
 
-#: src/pages/Today.tsx:410
+#: src/pages/Today.tsx:411
 msgid "slightly negative"
 msgstr "轻微负平衡"
 
@@ -4039,7 +5185,7 @@ msgstr "轻微负平衡"
 #~ msgid "slightly negative\" \"轻度负平衡"
 #~ msgstr ""
 
-#: src/pages/Today.tsx:409
+#: src/pages/Today.tsx:410
 msgid "slightly positive"
 msgstr "轻微正平衡"
 
@@ -4048,14 +5194,34 @@ msgstr "轻微正平衡"
 #~ msgstr ""
 
 #. placeholder {0}: formatTimestamp(data.generated_at, i18n.locale)
-#: src/pages/admin/AdminOps.tsx:535
+#: src/pages/admin/AdminOps.tsx:539
 msgid "Snapshot {0}"
 msgstr "快照 {0}"
 
-#: src/components/ScienceNote.tsx:42
+#: src/components/HeatAdaptationPanel.tsx:29
+msgid "Some adaptation may persist"
+msgstr "部分适应可能仍然存在"
+
+#: src/components/HeatAdaptationPanel.tsx:128
+msgid "Some prior heat adaptation may persist, while response-specific evidence may already be declining."
+msgstr "部分既往热适应可能仍然存在，但不同适应反应的证据可能已经开始减弱。"
+
+#: src/components/ScienceNote.tsx:49
 #: src/pages/Goal.tsx:383
 msgid "Source"
 msgstr "来源"
+
+#: src/components/HeatAdaptationPanel.tsx:352
+#~ msgid "Split fallback · {coverage}% sample coverage"
+#~ msgstr "分段功率回退 · 样本覆盖率 {coverage}%"
+
+#: src/components/HeatAdaptationPanel.tsx:351
+#~ msgid "Split power"
+#~ msgstr "分段功率"
+
+#: src/components/HeatAdaptationPanel.tsx:88
+msgid "Split-weighted weather"
+msgstr "按分段加权的天气"
 
 #: src/pages/Login.tsx:249
 msgid "Sports science that <0>meets you</0> where you are."
@@ -4063,31 +5229,32 @@ msgstr "让你<0>轻松上手</0>的运动科学。"
 
 #: src/pages/Today.tsx:118
 msgid "stable"
-msgstr "稳定"
+msgstr "平稳"
 
+#: src/components/charts/WeeklyVolumeChart.tsx:21
 #: src/components/RecoveryPanel.tsx:26
 msgid "Stable"
 msgstr "稳定"
 
-#: src/pages/admin/AdminOps.tsx:144
+#: src/pages/admin/AdminOps.tsx:146
 msgid "Stale"
-msgstr "已过期"
+msgstr "数据已过期"
 
-#: src/pages/admin/AdminOps.tsx:347
+#: src/pages/admin/AdminOps.tsx:349
 msgid "Standard"
-msgstr "标准流程"
+msgstr "标准"
 
 #: src/pages/Setup.tsx:685
 msgid "Start sync"
 msgstr "开始同步"
 
-#: src/pages/admin/AdminOps.tsx:490
+#: src/pages/admin/AdminOps.tsx:494
 msgid "Start with operator action, then use health and usage context to choose the next workflow."
-msgstr "先处理运维事项，再结合健康和使用情况选择下一步工作流。"
+msgstr "先处理运维事项，再结合系统健康和使用情况选择下一步流程。"
 
 #: src/pages/Status.tsx:266
 msgid "Started"
-msgstr "开始于"
+msgstr "开始时间"
 
 #: src/pages/admin/AdminFeedback.tsx:263
 #: src/pages/admin/AdminUsers.tsx:734
@@ -4096,8 +5263,8 @@ msgid "Status"
 msgstr "状态"
 
 #: src/pages/admin/AdminIncidents.tsx:155
-msgid "status page"
-msgstr "状态页面上显示的事件"
+#~ msgid "status page"
+#~ msgstr "状态页"
 
 #: src/lib/phase-label.ts:12
 msgid "Steady"
@@ -4119,30 +5286,46 @@ msgstr "力量训练"
 msgid "Stretch"
 msgstr "挑战目标"
 
+#: src/components/HeatAdaptationPanel.tsx:51
+#~ msgid "Strong data coverage"
+#~ msgstr "数据覆盖充分"
+
+#: src/components/HeatAdaptationPanel.tsx:47
+#~ msgid "Strong evidence"
+#~ msgstr "证据充分"
+
 #: src/pages/Today.tsx:302
 #~ msgid "strongly positive"
 #~ msgstr "状态极佳"
 
+#: src/components/HeatAdaptationPanel.tsx:80
+#~ msgid "Stryd-provided activity weather"
+#~ msgstr "Stryd 提供的活动天气"
+
+#: src/components/HeatAdaptationPanel.tsx:68
+#~ msgid "Stull wet-bulb approximation"
+#~ msgstr "Stull 湿球温度近似"
+
 #: src/pages/Login.tsx:472
 msgid "Sub-3 marathon · 100K · stay healthy…"
-msgstr "3小时内完赛马拉松 · 100公里 · 保持健康…"
+msgstr "全马破三 · 100K · 保持健康…"
 
 #: src/pages/admin/AdminCommunications.tsx:36
 #: src/pages/admin/AdminCommunications.tsx:205
 msgid "Success"
 msgstr "成功"
 
-#: src/pages/admin/AdminOps.tsx:930
+#: src/pages/admin/AdminOps.tsx:1016
 msgid "successful"
-msgstr "成功"
+msgstr "成功率"
 
 #: src/components/DiagnosisCard.tsx:94
 msgid "Suggestions"
 msgstr "建议"
 
-#: src/pages/admin/AdminOps.tsx:494
+#: src/pages/admin/AdminOps.tsx:498
 msgid "Summary window"
-msgstr "摘要时间范围"
+msgstr "汇总时间范围"
 
 #: src/pages/Today.tsx:282
 msgid "Swap {workout} for easy run"
@@ -4162,9 +5345,9 @@ msgid "Switch language"
 msgstr "切换语言"
 
 #. placeholder {0}: previewedTheory.name
-#: src/pages/Science.tsx:428
+#: src/pages/Science.tsx:443
 msgid "Switch to {0}"
-msgstr "切换为 {0}"
+msgstr "切换到 {0}"
 
 #: src/pages/Login.tsx:694
 msgid "Switch to dark theme"
@@ -4217,20 +5400,52 @@ msgstr "同步起始日期："
 
 #: src/pages/Setup.tsx:650
 msgid "Sync history"
-msgstr "同步历史"
+msgstr "同步历史数据"
 
-#: src/pages/Today.tsx:514
-#: src/pages/Today.tsx:536
+#: src/pages/Today.tsx:515
+#: src/pages/Today.tsx:537
 msgid "Sync now"
 msgstr "立即同步"
 
-#: src/pages/admin/AdminOps.tsx:916
+#: src/components/HeatAdaptationPanel.tsx:44
+msgid "Sync power-source metadata so Praxys can verify that activity and threshold power are comparable."
+msgstr "同步功率数据来源信息，Praxys 才能验证活动功率与阈值功率是否可比。"
+
+#: src/pages/Training.tsx:336
+msgid "Sync recent activities to populate the weekly distance series."
+msgstr "同步近期活动以生成每周距离序列。"
+
+#: src/components/HeatAdaptationPanel.tsx:40
+msgid "Sync recent training to start estimating the conditions represented in your heat evidence."
+msgstr "先同步近期训练，Praxys 才能开始估算热适应证据对应的环境条件。"
+
+#: src/pages/admin/AdminOps.tsx:1002
 msgid "Sync reliability"
 msgstr "同步可靠性"
 
+#: src/components/HeatAdaptationPanel.tsx:60
+#~ msgid "Sync sample or split power so workload can contribute."
+#~ msgstr "同步逐秒样本或分段功率后，训练负荷才能计入。"
+
+#: src/pages/Training.tsx:279
+msgid "Sync split or sample data with enough duration coverage to compare against the selected theory."
+msgstr "同步覆盖时长足够的分段或采样数据，以便与所选理论比较。"
+
+#: src/components/HeatAdaptationPanel.tsx:45
+msgid "Sync split or sample power evidence so Praxys can identify sustained work."
+msgstr "同步分段或采样功率数据，帮助 Praxys 识别持续发力的训练段。"
+
+#: src/components/HeatAdaptationPanel.tsx:54
+#~ msgid "Sync split-level power so workload can contribute."
+#~ msgstr "同步分段功率数据，训练负荷才能计入。"
+
 #: src/components/UpcomingPlanCard.tsx:235
 msgid "Sync to Stryd"
-msgstr "同步至 Stryd"
+msgstr "同步到 Stryd"
+
+#: src/components/HeatAdaptationPanel.tsx:55
+#~ msgid "Sync training data to start a heat history."
+#~ msgstr "同步训练数据以开始建立热适应历史。"
 
 #: src/components/SetupChecklist.tsx:55
 #: src/pages/Setup.tsx:636
@@ -4252,13 +5467,13 @@ msgstr "同步中"
 
 #: src/pages/Setup.tsx:682
 msgid "Syncing..."
-msgstr "同步中..."
+msgstr "同步中…"
 
 #: src/components/UpcomingPlanCard.tsx:171
-#: src/pages/Today.tsx:514
-#: src/pages/Today.tsx:536
+#: src/pages/Today.tsx:515
+#: src/pages/Today.tsx:537
 msgid "Syncing…"
-msgstr "正在同步…"
+msgstr "同步中…"
 
 #: src/components/AppSidebar.tsx:37
 msgid "System"
@@ -4274,9 +5489,9 @@ msgstr "系统公告"
 
 #: src/pages/Login.tsx:704
 msgid "System theme (click for light)"
-msgstr "系统主题（点击切换到浅色）"
+msgstr "系统主题（点击切换为浅色）"
 
-#: src/pages/admin/AdminOps.tsx:946
+#: src/pages/admin/AdminOps.tsx:1032
 msgid "Systemic failure classes"
 msgstr "系统性故障类别"
 
@@ -4284,13 +5499,13 @@ msgstr "系统性故障类别"
 #~ msgid "Systemic sync failures affect {systemicAffectedUsers} users"
 #~ msgstr "系统性同步失败影响 {systemicAffectedUsers} 名用户"
 
-#: src/pages/admin/AdminOps.tsx:436
+#: src/pages/admin/AdminOps.tsx:440
 msgid "Systemic sync failures affected {systemicAffectedUsers} users in this window"
-msgstr "此时间窗口内，系统性同步故障影响了 {systemicAffectedUsers} 位用户"
+msgstr "此时间范围内，系统性同步故障影响了 {systemicAffectedUsers} 位用户"
 
-#: src/pages/admin/AdminOps.tsx:608
+#: src/pages/admin/AdminOps.tsx:612
 msgid "Systemic sync failures unavailable"
-msgstr "系统性同步失败数据不可用"
+msgstr "系统性同步故障数据不可用"
 
 #: src/components/ZoneAnalysisCard.tsx:45
 #~ msgid "target"
@@ -4314,11 +5529,15 @@ msgstr "瞄准一场比赛或追踪持续提升"
 #: src/components/GoalEditor.tsx:152
 #: src/pages/Settings.tsx:1364
 msgid "Target Time"
-msgstr "目标时间"
+msgstr "目标完赛时间"
 
 #: src/pages/admin/AdminOps.tsx:599
 #~ msgid "Telemetry trust boundary"
 #~ msgstr "遥测信任边界"
+
+#: src/components/HeatAdaptationPanel.tsx:56
+#~ msgid "Temperature and humidity were not provided by your synced activities."
+#~ msgstr "已同步的活动未提供温度和湿度数据。"
 
 #: src/lib/display-labels.ts:44
 #: src/lib/phase-label.ts:14
@@ -4333,29 +5552,52 @@ msgstr "谢谢，这会帮助我们改进今日建议。"
 msgid "Thanks for the feedback!"
 msgstr "感谢你的反馈！"
 
-#: src/pages/Training.tsx:299
+#: src/pages/Training.tsx:253
 msgid "The active load model uses a {loadTimeConstantDays}-day long-term time constant. Need {daysToPmc} more days of history."
-msgstr "当前负荷模型采用 {loadTimeConstantDays} 天的长期时间常数。还需要 {daysToPmc} 天的历史数据。"
+msgstr "当前负荷模型的长期时间常数为 {loadTimeConstantDays} 天，还需要 {daysToPmc} 天历史数据。"
 
-#: src/pages/admin/AdminOps.tsx:594
+#: src/pages/admin/AdminOps.tsx:908
+msgid "The agent decision and outcome aggregate could not be refreshed."
+msgstr "无法刷新智能体决策与结果汇总。"
+
+#: src/pages/admin/AdminOps.tsx:598
 msgid "The alert summary could not be refreshed."
 msgstr "无法刷新警报摘要。"
 
-#: src/pages/admin/AdminOps.tsx:283
+#: src/pages/admin/AdminOps.tsx:285
 msgid "The Azure Monitor query client is unavailable in this deployment."
-msgstr "此部署中未提供 Azure Monitor 查询客户端。"
+msgstr "此部署中无法使用 Azure Monitor 查询客户端。"
 
-#: src/pages/admin/AdminOps.tsx:576
+#: src/components/HeatAdaptationPanel.tsx:579
+#~ msgid "The environmental ramps, effective minutes, stage thresholds, and 7–28 day decay window are Praxys operational estimates. Evidence coverage is not biological certainty. Individual responses vary, and female-athlete evidence remains limited. Stop and begin cooling for heat-illness symptoms; seek urgent medical help for confusion, collapse, or altered mental status."
+#~ msgstr "环境权重坡度、加权分钟、阶段阈值和 7–28 天衰减窗口均为 Praxys 的操作性估算。证据覆盖度不代表生理适应的确定性。个体反应存在差异，针对女性运动员的证据仍然有限。如出现热病症状，请停止训练并开始降温；如出现意识混乱、虚脱或精神状态改变，应立即寻求紧急医疗救助。"
+
+#: src/components/HeatAdaptationPanel.tsx:625
+#~ msgid "The environmental ramps, effective minutes, stage thresholds, and 7–28 day decay window are Praxys operational estimates. Evidence coverage is not biological certainty. Stop and begin cooling for heat-illness symptoms; seek urgent medical help for confusion, collapse, or altered mental status."
+#~ msgstr "环境权重坡度、加权分钟、阶段阈值和 7–28 天衰减窗口均为 Praxys 的操作性估算。证据覆盖度不代表生理适应的确定性。如出现热病症状，请停止训练并开始降温；如出现意识混乱、虚脱或精神状态改变，应立即寻求紧急医疗救助。"
+
+#: src/pages/admin/AdminOps.tsx:580
 msgid "The feedback aggregate could not be refreshed."
-msgstr "无法刷新反馈聚合数据。"
+msgstr "无法刷新反馈汇总。"
 
-#: src/pages/admin/AdminOps.tsx:555
+#: src/pages/admin/AdminOps.tsx:559
 msgid "The incident aggregate could not be refreshed."
 msgstr "无法刷新事件聚合数据。"
 
+#: src/components/HeatAdaptationPanel.tsx:470
+#~ msgid "The last counted exposure is moving through the estimated decay window."
+#~ msgstr "最近一次计入的热暴露正处于估算的衰减窗口内。"
+
+#~ msgid "The last qualifying block is beyond the initial retention window, so retained evidence is declining."
+#~ msgstr "距上一个符合条件的训练区块已超过初始保留窗口，因此保留证据正在下降。"
+
+#: src/components/HeatAdaptationPanel.tsx:146
+#~ msgid "The last qualifying block is beyond the initial retention window, so retained evidence is declining. The range shown here describes current qualifying evidence, not that prior block."
+#~ msgstr "距上一个符合条件的训练区块已超过初始保留窗口，因此保留证据正在下降。此处显示的范围仅描述当前符合条件的证据，并非先前训练区块的环境范围。"
+
 #: src/pages/Today.tsx:231
 msgid "The latest HRV reading is out of date. Follow the plan without an HRV-based recovery adjustment."
-msgstr "最新 HRV 读数已过期。按原计划训练，不进行基于 HRV 的恢复调整。"
+msgstr "最新 HRV 读数已过时。按计划训练，不做基于 HRV 的恢复调整。"
 
 #: src/pages/Today.tsx:230
 #~ msgid "The latest HRV reading is out of date. Follow the plan without an HRV-based recovery adjustment.\" \"最近一次 HRV 读数已过期。请按计划训练，但不要进行基于 HRV 的恢复调整。"
@@ -4369,25 +5611,49 @@ msgstr "最新 HRV 读数过旧，不能用于当日恢复分类。请同步设�
 #~ msgid "The latest HRV reading is too old for a same-day recovery classification. Sync your device to refresh it.\" \"最近一次 HRV 读数过旧，无法用于当日恢复分类。请同步设备以刷新数据。"
 #~ msgstr ""
 
-#: src/pages/admin/AdminOps.tsx:554
+#: src/pages/admin/AdminOps.tsx:558
 msgid "The public status feed has no unresolved incidents."
 msgstr "公共状态源中没有未解决事件。"
+
+#: src/components/HeatAdaptationPanel.tsx:144
+msgid "The rolling exposure threshold is still met, but it does not establish a retention plateau; response-specific adaptations may already be declining."
+msgstr "滚动暴露阈值仍然满足，但这并不代表存在保留平台期；不同适应反应可能已经开始减弱。"
+
+#: src/components/HeatAdaptationPanel.tsx:383
+msgid "The selected day's activities show why each session entered or stayed outside the estimate."
+msgstr "所选日期的活动会说明每次训练为何被纳入估算，或为何仍未纳入。"
 
 #: src/pages/Status.tsx:142
 msgid "The status API did not respond — this itself may indicate an outage."
 msgstr "状态 API 未响应，这本身可能表示服务中断。"
 
+#: src/components/HeatAdaptationPanel.tsx:617
+msgid "The thresholds are Praxys operational estimates grounded in heat-acclimatization research, not a direct physiological measurement."
+msgstr "这些阈值是 Praxys 基于热适应研究设定的操作性估计，并非直接的生理测量。"
+
+#: src/pages/Training.tsx:335
+msgid "The weekly history will appear after the data service update completes."
+msgstr "数据服务更新完成后，每周历史图表将自动显示。"
+
 #: src/components/AppSidebar.tsx:219
 msgid "Theme"
 msgstr "主题"
 
+#: src/components/HeatAdaptationPanel.tsx:122
+#~ msgid "There is not enough repeated qualifying exposure to estimate acclimatization to similar conditions."
+#~ msgstr "重复且符合条件的暴露还不够，暂时无法估算你是否适应相似环境。"
+
 #: src/pages/Settings.tsx:1501
 msgid "This cannot be undone. If this is the last admin account, deletion will be blocked."
-msgstr "此操作无法撤销。如果这是最后一个管理员账号，删除会被阻止。"
+msgstr "此操作无法撤销。如果这是最后一个管理员账号，将无法删除。"
 
 #: src/components/AiInsightsCard.tsx:193
 msgid "This insight changed. Refresh the page before sending feedback."
-msgstr "该建议已更新。请刷新页面后再提交反馈。"
+msgstr "这条解读已更新。请先刷新页面，再提交反馈。"
+
+#: src/components/HeatAdaptationPanel.tsx:559
+msgid "This is an inference from training evidence in similar conditions, not a direct physiological measurement."
+msgstr "这是基于相似环境下训练证据的推断，并非直接的生理测量。"
 
 #: src/pages/Verify.tsx:67
 msgid "This link is invalid or has expired. Try signing in to request a new link."
@@ -4399,7 +5665,11 @@ msgstr "本页面每 30 秒自动刷新。"
 
 #: src/pages/Settings.tsx:1523
 msgid "This permanently deletes your account, synced training data, plans, settings, platform connections, encrypted credentials, and any Garmin tokenstore on this device. You will be signed out immediately."
-msgstr "这会永久删除您的账号、同步训练数据、计划、设置、平台连接、加密凭据，以及此设备上的 Garmin 令牌存储。您会立即退出登录。"
+msgstr "这会永久删除账号、已同步的训练数据、计划、设置、平台连接、加密凭据，以及此设备上的 Garmin 登录令牌。删除后会立即退出登录。"
+
+#: src/components/HeatAdaptationPanel.tsx:137
+#~ msgid "This qualitative tracker uses connector-provided air temperature and relative humidity, Stull's natural-shade wet-bulb approximation, and split-level power relative to current CP. Effective minutes are weighted evidence, not literal exposure time. Wind and solar radiation are excluded, and the stage thresholds plus 7–28 day decay window are Praxys operational estimates rather than a medical or physiological diagnosis."
+#~ msgstr "此定性追踪器使用连接器提供的气温和相对湿度、Stull 自然阴影湿球温度近似，以及相对于当前 CP 的分段功率。加权分钟是证据权重，并非实际暴露时长。模型不包含风速和太阳辐射；阶段阈值与 7–28 天衰减窗口均为 Praxys 的操作性估算，不构成医学或生理诊断。"
 
 #: src/pages/admin/AdminUsers.tsx:341
 #: src/pages/admin/AdminUsers.tsx:349
@@ -4415,11 +5685,11 @@ msgstr "这将永久删除 <0>{0}</0> 及其所有数据（活动、配置、连
 
 #: src/components/UpcomingPlanCard.tsx:196
 msgid "This workout differs on Stryd — click to overwrite with the Praxys version."
-msgstr "Stryd 上的此训练有差异 — 点击用 Praxys 版本覆盖。"
+msgstr "Stryd 上这次训练与 Praxys 版本不一致，点击可用 Praxys 版本覆盖。"
 
 #: src/components/UpcomingPlanCard.tsx:160
 msgid "This workout was imported from Stryd."
-msgstr "此训练来自 Stryd 导入。"
+msgstr "此训练由 Stryd 导入。"
 
 #: src/lib/display-labels.ts:45
 #: src/lib/phase-label.ts:15
@@ -4448,7 +5718,7 @@ msgstr "时间范围"
 msgid "Title"
 msgstr "标题"
 
-#: src/pages/admin/AdminIncidents.tsx:168
+#: src/pages/admin/AdminIncidents.tsx:169
 msgid "Title (e.g. Elevated API latency)"
 msgstr "标题（例如：API 延迟升高）"
 
@@ -4457,10 +5727,11 @@ msgid "To target"
 msgstr "距目标"
 
 #: src/components/AppSidebar.tsx:124
-#: src/components/charts/FitnessFatigueChart.tsx:250
+#: src/components/charts/FitnessFatigueChart.tsx:283
+#: src/components/HeatAdaptationPanel.tsx:166
 #: src/components/RecoveryPanel.tsx:136
 #: src/pages/Today.tsx:24
-#: src/pages/Today.tsx:488
+#: src/pages/Today.tsx:489
 msgid "Today"
 msgstr "今日"
 
@@ -4468,11 +5739,11 @@ msgstr "今日"
 msgid "TODAY"
 msgstr "今日"
 
-#: src/pages/admin/AdminOps.tsx:850
+#: src/pages/admin/AdminOps.tsx:854
 msgid "Today and Coach telemetry is unavailable."
-msgstr "今日和教练遥测不可用。"
+msgstr "今日和 Coach 遥测数据暂不可用。"
 
-#: src/pages/admin/AdminOps.tsx:781
+#: src/pages/admin/AdminOps.tsx:785
 msgid "Today engagement"
 msgstr "Today 互动"
 
@@ -4480,19 +5751,19 @@ msgstr "Today 互动"
 #~ msgid "Today reach"
 #~ msgstr "今日到达"
 
-#: src/pages/admin/AdminOps.tsx:791
+#: src/pages/admin/AdminOps.tsx:795
 msgid "Today reach rate"
 msgstr "Today 触达率"
 
 #: src/pages/Goal.tsx:198
 msgid "Today's <0>{distLabel}</0> prediction is <1>{predicted}</1>. {abbrev} is <2>{dirLabel}</2> at <3>{slopeStr}</3>."
-msgstr "当前 <0>{distLabel}</0> 预测 <1>{predicted}</1>。{abbrev} 趋势 <2>{dirLabel}</2>（<3>{slopeStr}</3>）。"
+msgstr "今日 <0>{distLabel}</0> 预计成绩为 <1>{predicted}</1>。{abbrev} 呈 <2>{dirLabel}</2>趋势，变化速率为 <3>{slopeStr}</3>。"
 
 #: src/pages/Goal.tsx:207
 msgid "Today's <0>{distLabel}</0> prediction is <1>{predicted}</1>. {abbrev} is <2>{dirLabel}</2>."
-msgstr "当前 <0>{distLabel}</0> 预测 <1>{predicted}</1>。{abbrev} 趋势 <2>{dirLabel}</2>。"
+msgstr "今日 <0>{distLabel}</0> 预计成绩为 <1>{predicted}</1>。{abbrev} 呈 <2>{dirLabel}</2>趋势。"
 
-#: src/pages/Today.tsx:427
+#: src/pages/Today.tsx:428
 msgid "Today's recommendation combines the scheduled workout with Praxys operational adaptations of your active recovery and load models. HRV requires a current reading, while TSB is modeled load balance rather than a direct measure of fatigue. Praxys TSB display labels and the one-CTL-window history gate are operational estimates, not validated cutoffs. These coaching guardrails are not a medical diagnosis."
 msgstr "今日建议将计划训练与 Praxys 对当前恢复模型和负荷模型的操作性调整相结合。HRV 需要最新读数，而 TSB 是模型化的负荷平衡，并非疲劳的直接测量。Praxys 的 TSB 显示标签和一个 CTL 时间常数的历史门槛属于操作性估算，并非经验证的阈值。这些训练指导不构成医疗诊断。"
 
@@ -4510,9 +5781,9 @@ msgstr "今日建议将计划训练与 Praxys 对当前恢复模型和负荷模�
 
 #: src/components/RecoveryPanel.tsx:89
 msgid "Today's recovery hasn't synced yet. Showing the latest reading from {latestDateLabel}."
-msgstr "今日的恢复尚未同步。显示 {latestDateLabel} 的最新读数。"
+msgstr "今日恢复数据还未同步，当前显示的是 {latestDateLabel} 的最新读数。"
 
-#: src/pages/admin/AdminOps.tsx:328
+#: src/pages/admin/AdminOps.tsx:330
 msgid "Token rejected"
 msgstr "令牌被拒绝"
 
@@ -4522,7 +5793,7 @@ msgstr "当前网络请求次数过多，请直接发邮件联系我们。"
 
 #: src/pages/admin/AdminUsers.tsx:512
 msgid "Total users tracked"
-msgstr "已跟踪用户总数"
+msgstr "已记录用户总数"
 
 #: src/pages/Goal.tsx:141
 msgid "Tracking"
@@ -4530,10 +5801,10 @@ msgstr "跟踪"
 
 #: src/components/GoalEditor.tsx:112
 msgid "Train toward a specific race date"
-msgstr "围绕特定比赛日期进行训练"
+msgstr "围绕某场比赛备赛"
 
 #: src/components/AppSidebar.tsx:125
-#: src/pages/Training.tsx:188
+#: src/pages/Training.tsx:360
 msgid "Training"
 msgstr "训练"
 
@@ -4553,11 +5824,11 @@ msgstr "训练诊断"
 #~ msgid "Training plan & targets"
 #~ msgstr "训练计划与目标"
 
-#: src/pages/admin/AdminOps.tsx:311
+#: src/pages/admin/AdminOps.tsx:313
 msgid "Training review"
 msgstr "训练复盘"
 
-#: src/pages/Science.tsx:173
+#: src/pages/Science.tsx:177
 msgid "Training Science"
 msgstr "训练科学"
 
@@ -4567,18 +5838,22 @@ msgstr "训练区间"
 
 #: src/pages/Science.tsx:25
 msgid "Translates training stress into fitness."
-msgstr "将训练应激转化为体能。"
+msgstr "把训练负荷转化为体能。"
+
+#: src/components/charts/WeeklyVolumeChart.tsx:57
+msgid "Trend"
+msgstr "趋势"
 
 #: src/pages/admin/AdminFeedback.tsx:77
 #: src/pages/admin/AdminFeedback.tsx:236
 msgid "Triaged"
 msgstr "已分类"
 
-#: src/pages/admin/AdminOps.tsx:281
+#: src/pages/admin/AdminOps.tsx:283
 msgid "Trusted Azure telemetry is not configured for this deployment."
-msgstr "此部署未配置受信任的 Azure 遥测。"
+msgstr "此部署未配置可信的 Azure 遥测。"
 
-#: src/pages/admin/AdminOps.tsx:884
+#: src/pages/admin/AdminOps.tsx:970
 msgid "Trusted sync and connection outcomes from the backend telemetry boundary."
 msgstr "来自后端可信遥测边界的同步与连接结果。"
 
@@ -4588,13 +5863,13 @@ msgstr "来自后端可信遥测边界的同步与连接结果。"
 
 #: src/components/UpcomingPlanCard.tsx:658
 msgid "Try a longer window above."
-msgstr "尝试上方更长的时间窗口。"
+msgstr "试试上方更长的时间窗口。"
 
 #: src/pages/admin/AdminFeedback.tsx:255
 msgid "Try another filter or sync again after new reports arrive."
-msgstr "请尝试其他筛选条件，或在新报告到达后再次同步。"
+msgstr "试试其他筛选条件，或等有新报告后再同步。"
 
-#: src/pages/Training.tsx:219
+#: src/pages/Training.tsx:233
 msgid "TSB"
 msgstr "TSB"
 
@@ -4602,9 +5877,13 @@ msgstr "TSB"
 #~ msgid "TSB (Form)"
 #~ msgstr "TSB（状态）"
 
-#: src/components/charts/FitnessFatigueChart.tsx:283
+#: src/components/charts/FitnessFatigueChart.tsx:316
 msgid "TSB (load balance)"
 msgstr "TSB（负荷平衡）"
+
+#: src/components/HeatAdaptationPanel.tsx:72
+#~ msgid "Tyler heat-acclimation meta-analysis"
+#~ msgstr "Tyler 热适应荟萃分析"
 
 #: src/components/FeedbackDialog.tsx:210
 #: src/pages/admin/AdminFeedback.tsx:262
@@ -4617,13 +5896,13 @@ msgstr "请输入 DELETE 确认。"
 
 #: src/pages/Goal.tsx:86
 msgid "Ultra distance power fractions (50K+) are estimates with limited research backing. Riegel's exponent is validated only up to marathon distance. Predictions beyond marathon carry significantly higher uncertainty due to factors like fueling, terrain, heat, and pacing strategy that dominate ultra performance but are not captured by power/pace models."
-msgstr "超长距离功率分数（50K+）为估算值，研究支持有限。Riegel 指数仅在马拉松距离内得到验证。超过马拉松的预测因补给、地形、气温和配速策略等因素而具有更高不确定性，这些因素主导超马表现，但不在功率/配速模型的覆盖范围内。"
+msgstr "50K 及以上超长距离的功率比例为估算值，目前研究支持有限。Riegel 指数仅验证到马拉松距离。超过马拉松的预测不确定性会明显升高，因为补给、地形、高温和配速策略等因素对超马表现影响更大，而这些并未被功率/配速模型纳入。"
 
 #: src/pages/Status.tsx:76
 msgid "Unable to reach the status service"
 msgstr "无法连接状态服务"
 
-#: src/pages/admin/AdminOps.tsx:146
+#: src/pages/admin/AdminOps.tsx:148
 msgid "Unavailable"
 msgstr "不可用"
 
@@ -4631,26 +5910,34 @@ msgstr "不可用"
 msgid "Units"
 msgstr "单位"
 
-#: src/pages/admin/AdminOps.tsx:336
-msgid "Unknown failure"
-msgstr "未知故障"
+#: src/components/HeatAdaptationPanel.tsx:318
+#~ msgid "unknown"
+#~ msgstr "未知"
 
-#: src/pages/admin/AdminOps.tsx:142
+#: src/pages/admin/AdminOps.tsx:338
+msgid "Unknown failure"
+msgstr "未知错误"
+
+#: src/components/HeatAdaptationPanel.tsx:101
+msgid "Unverified"
+msgstr "未验证"
+
+#: src/pages/admin/AdminOps.tsx:144
 msgid "Up to date"
 msgstr "最新"
 
 #: src/components/UpcomingPlanCard.tsx:613
 msgid "Upcoming Plan"
-msgstr "即将到来的计划"
+msgstr "近期计划"
 
-#: src/pages/admin/AdminIncidents.tsx:229
+#: src/pages/admin/AdminIncidents.tsx:230
 msgid "Update message (optional)"
 msgstr "更新信息（可选）"
 
 #. placeholder {0}: formatTimestamp(meta.as_of, i18n.locale)
-#: src/pages/admin/AdminOps.tsx:185
+#: src/pages/admin/AdminOps.tsx:187
 msgid "Updated {0}"
-msgstr "更新于 {0}"
+msgstr "更新于{0}"
 
 #. placeholder {0}: result.updated
 #. placeholder {1}: result.checked
@@ -4664,15 +5951,15 @@ msgstr "已更新 {1} 个关联工单中的 {0} 个。"
 
 #: src/pages/admin/AdminUsers.tsx:1047
 msgid "Updating…"
-msgstr "正在更新…"
+msgstr "更新中…"
 
 #: src/pages/Settings.tsx:1077
 msgid "US"
-msgstr "美国"
+msgstr "US"
 
-#: src/pages/admin/AdminOps.tsx:774
+#: src/pages/admin/AdminOps.tsx:778
 msgid "Usage aggregates are unavailable."
-msgstr "使用聚合数据不可用。"
+msgstr "暂无使用汇总数据。"
 
 #: src/pages/admin/AdminOps.tsx:525
 #~ msgid "Usage proxy"
@@ -4693,11 +5980,11 @@ msgstr "通过微信小程序，随时随地使用 Praxys"
 
 #: src/pages/Setup.tsx:203
 msgid "Use your Garmin Connect credentials."
-msgstr "使用您的 Garmin Connect 账号凭据。"
+msgstr "使用 Garmin Connect 账号信息。"
 
 #: src/pages/Setup.tsx:205
 msgid "Use your Stryd account credentials (stryd.com)."
-msgstr "使用您的 Stryd 账号凭据（stryd.com）。"
+msgstr "使用你的 Stryd 账号登录信息（stryd.com）。"
 
 #: src/pages/admin/AdminUsers.tsx:764
 msgid "Used"
@@ -4723,7 +6010,7 @@ msgstr "用户反馈"
 #~ msgid "User Feedback"
 #~ msgstr "用户反馈"
 
-#: src/pages/admin/AdminOps.tsx:965
+#: src/pages/admin/AdminOps.tsx:1051
 msgid "users"
 msgstr "用户"
 
@@ -4734,11 +6021,11 @@ msgstr "用户"
 
 #: src/pages/admin/AdminUsers.tsx:329
 msgid "Users and access"
-msgstr "用户与访问权限"
+msgstr "用户与权限"
 
 #: src/pages/admin/AdminUsers.tsx:348
 msgid "Users unavailable"
-msgstr "用户数据不可用"
+msgstr "用户数据暂不可用"
 
 #: src/pages/Settings.tsx:1007
 #: src/pages/Setup.tsx:893
@@ -4747,7 +6034,7 @@ msgstr "验证码"
 
 #: src/pages/Login.tsx:400
 msgid "Verification email sent. Check your inbox."
-msgstr "验证邮件已发送。请查看您的收件箱。"
+msgstr "验证邮件已发送。请查看收件箱。"
 
 #: src/pages/Verify.tsx:64
 msgid "Verification failed"
@@ -4760,14 +6047,14 @@ msgstr "验证"
 
 #: src/pages/Verify.tsx:45
 msgid "Verifying your email…"
-msgstr "正在验证您的邮箱…"
+msgstr "正在验证邮箱…"
 
 #: src/pages/Settings.tsx:1025
 #: src/pages/Setup.tsx:911
 msgid "Verifying..."
 msgstr "验证中…"
 
-#: src/pages/Science.tsx:505
+#: src/pages/Science.tsx:520
 msgid "view"
 msgstr "查看"
 
@@ -4787,35 +6074,35 @@ msgstr "VO2max"
 msgid "VO2max, CP, LTHR, training status"
 msgstr "VO2max、CP、LTHR、训练状态"
 
-#: src/pages/Training.tsx:270
+#: src/pages/Training.tsx:314
 msgid "Volume"
 msgstr "里程"
 
 #. placeholder {0}: data.diagnosis.theory_name
-#: src/pages/Training.tsx:248
+#: src/pages/Training.tsx:268
 msgid "vs {0}"
-msgstr "vs {0}"
+msgstr "对比{0}"
 
 #. placeholder {0}: hrv.baseline_mean_ln.toFixed(2)
-#: src/pages/Today.tsx:379
+#: src/pages/Today.tsx:380
 msgid "vs {0} baseline"
 msgstr "对比基准 {0}"
 
 #: src/components/ZoneAnalysisCard.tsx:79
 msgid "vs {theoryName}"
-msgstr "vs {theoryName}"
+msgstr "对比 {theoryName}"
 
-#: src/pages/Training.tsx:250
+#: src/pages/Training.tsx:269
 msgid "vs target zones"
-msgstr "vs 目标区间"
+msgstr "对比目标区间"
 
 #: src/pages/admin/AdminUsers.tsx:813
 msgid "Waitlist"
-msgstr "等候名单"
+msgstr "候补名单"
 
 #: src/pages/admin/AdminUsers.tsx:364
 msgid "Waitlist unavailable"
-msgstr "等候名单不可用"
+msgstr "候补名单不可用"
 
 #: src/pages/Setup.tsx:168
 msgid "Walking"
@@ -4833,28 +6120,32 @@ msgstr "警告"
 #: src/components/AiInsightsCard.tsx:315
 #: src/components/AiInsightsCard.tsx:319
 msgid "Was this insight useful?"
-msgstr "这条分析有帮助吗？"
+msgstr "这条解读有帮助吗？"
 
-#: src/pages/admin/AdminOps.tsx:762
+#: src/pages/admin/AdminOps.tsx:766
 #: src/pages/admin/AdminUsers.tsx:136
 msgid "WAU"
 msgstr "WAU"
 
 #: src/components/FeedbackDialog.tsx:247
 msgid "We attach basic diagnostics (page, app version, browser) and automatically remove personal details before sharing with our issue tracker."
-msgstr "我们会附带基础诊断信息（页面、应用版本、浏览器），并在同步到问题追踪系统前自动移除个人信息。"
+msgstr "会附带基础诊断信息（页面、应用版本、浏览器），并在发送到问题追踪系统前自动移除个人信息。"
 
 #: src/pages/Login.tsx:437
 msgid "We're inviting runners in waves while we tighten the science. Drop your email and we'll reach back when a slot opens."
-msgstr "我们正在分批邀请跑者，期间会持续打磨科学方法。留下邮箱，有空位时我们会与您联系。"
+msgstr "我们正在分批邀请跑者，并持续打磨科学方法。留下邮箱，有名额时我们会联系你。"
 
 #: src/components/FeedbackDialog.tsx:200
 msgid "We've logged it and will take a look."
 msgstr "我们已记录，会尽快查看。"
 
-#: src/pages/admin/AdminOps.tsx:298
+#: src/components/HeatAdaptationPanel.tsx:430
+msgid "Weather evidence"
+msgstr "天气证据"
+
+#: src/pages/admin/AdminOps.tsx:300
 msgid "Web"
-msgstr "Web"
+msgstr "网页端"
 
 #: src/components/MobileApp.tsx:67
 msgid "WeChat Mini Program"
@@ -4864,7 +6155,20 @@ msgstr "微信小程序"
 msgid "WeChat Mini Program QR code"
 msgstr "微信小程序二维码"
 
-#: src/pages/Training.tsx:171
+#. placeholder {0}: formatWeekEnding(String(value), locale)
+#: src/components/charts/WeeklyVolumeChart.tsx:88
+msgid "Week ending {0}"
+msgstr "截至 {0} 的一周"
+
+#: src/components/charts/WeeklyVolumeChart.tsx:51
+msgid "Weekly average"
+msgstr "周平均"
+
+#: src/pages/Training.tsx:330
+msgid "Weekly chart temporarily unavailable"
+msgstr "每周图表暂时不可用"
+
+#: src/pages/Training.tsx:199
 msgid "Weekly diagnosis ready."
 msgstr "周度诊断已就绪。"
 
@@ -4880,6 +6184,10 @@ msgstr "周训练负荷"
 #~ msgid "Weekly Review"
 #~ msgstr "周度回顾"
 
+#: src/pages/Training.tsx:318
+msgid "Weekly volume"
+msgstr "周里程"
+
 #: src/components/DiagnosisCard.tsx:42
 msgid "Weekly Volume"
 msgstr "周里程"
@@ -4888,13 +6196,25 @@ msgstr "周里程"
 msgid "Welcome back."
 msgstr "欢迎回来。"
 
+#: src/components/HeatAdaptationPanel.tsx:407
+#~ msgid "Wet-bulb estimate unavailable"
+#~ msgstr "无法估算湿球温度"
+
+#: src/components/HeatAdaptationPanel.tsx:565
+#~ msgid "What counts"
+#~ msgstr "计入内容"
+
+#: src/components/HeatAdaptationPanel.tsx:571
+#~ msgid "What does not count"
+#~ msgstr "未计入内容"
+
 #: src/components/FeedbackDialog.tsx:237
 msgid "What happened, or what would you like to see?"
 msgstr "遇到了什么问题，或希望我们做些什么？"
 
 #: src/components/GoalEditor.tsx:165
 msgid "What time are you working toward? Leave blank to track trend only"
-msgstr "您的目标时间是多少？留空则仅追踪趋势"
+msgstr "目标完赛时间是多少？留空则只追踪趋势"
 
 #: src/components/AiInsightsCard.tsx:355
 msgid "What was useful or missing?"
@@ -4902,7 +6222,7 @@ msgstr "哪些内容有帮助，或还缺少什么？"
 
 #: src/pages/Login.tsx:466
 msgid "What's your training goal? (optional)"
-msgstr "您的训练目标是什么？（可选）"
+msgstr "训练目标是什么？（可选）"
 
 #: src/pages/Settings.tsx:67
 msgid "Where Praxys pushes your plan. Per-workout sync state shows in Training."
@@ -4910,11 +6230,15 @@ msgstr "Praxys 将计划推送到的目标平台。每个训练的同步状态�
 
 #: src/pages/Setup.tsx:870
 msgid "Will sync:"
-msgstr "将同步："
+msgstr "将同步以下内容："
 
 #: src/components/RecoveryPanel.tsx:19
 msgid "Within reference band"
 msgstr "处于参考区间内"
+
+#: src/components/HeatAdaptationPanel.tsx:426
+msgid "Workload evidence"
+msgstr "负荷证据"
 
 #: src/components/UpcomingPlanCard.tsx:162
 #~ msgid "Workout differs on Stryd — re-push to overwrite"
@@ -4922,7 +6246,7 @@ msgstr "处于参考区间内"
 
 #: src/pages/admin/AdminUsers.tsx:597
 msgid "you"
-msgstr "您"
+msgstr "你"
 
 #: src/components/FeedbackDialog.tsx:105
 msgid "You can attach up to 3 images."
@@ -4944,24 +6268,24 @@ msgstr "you@example.com"
 
 #: src/pages/Verify.tsx:54
 msgid "Your account is active. You can now sign in."
-msgstr "您的账户已激活。现在可以登录了。"
+msgstr "账号已激活，现在可以登录了。"
 
 #: src/pages/Settings.tsx:1004
 #: src/pages/Setup.tsx:890
 msgid "Your Garmin account has multi-factor authentication enabled. Enter the verification code Garmin sent you to finish connecting."
-msgstr "您的 Garmin 账户已启用多重身份验证。请输入 Garmin 发送给您的验证码以完成连接。"
+msgstr "你的 Garmin 账号已启用多重验证。输入 Garmin 发送的验证码，完成连接。"
 
 #: src/pages/Settings.tsx:666
 msgid "Your identity in Praxys"
-msgstr "您在 Praxys 的身份"
+msgstr "Praxys 账号信息"
 
 #: src/pages/Settings.tsx:692
 msgid "Your name"
-msgstr "您的名字"
+msgstr "姓名"
 
 #: src/pages/admin/AdminUsers.tsx:829
 msgid "Your Praxys invitation"
-msgstr "你的 Praxys 邀请"
+msgstr "Praxys 邀请"
 
 #. placeholder {0}: result.code
 #. placeholder {1}: result.invite_url
@@ -4969,9 +6293,9 @@ msgstr "你的 Praxys 邀请"
 msgid "Your Praxys invitation code: {0}\n"
 "\n"
 "Finish registering here: {1}"
-msgstr "你的 Praxys 邀请代码：{0}\n"
+msgstr "Praxys 邀请码：{0}\n"
 "\n"
-"请在此完成注册：{1}"
+"注册链接：{1}"
 
 #: src/pages/Settings.tsx:1127
 msgid "Your Strava API Client ID"
@@ -5001,11 +6325,11 @@ msgstr "第 3 区（高强度）"
 #~ msgid "Zone Analysis"
 #~ msgstr "区间分析"
 
-#: src/pages/Training.tsx:312
+#: src/pages/Training.tsx:270
 msgid "Zone distribution"
 msgstr "区间分布"
 
-#: src/pages/Science.tsx:186
+#: src/pages/Science.tsx:190
 msgid "Zone labels"
 msgstr "区间标签"
 

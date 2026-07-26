@@ -3,14 +3,21 @@ from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
 from api.auth import get_data_user_id, require_write_access
-from api.etag import ENDPOINT_SCOPES, ETagGuard, compute_etag
+from api.etag import (
+    ENDPOINT_RESPONSE_VERSIONS,
+    ENDPOINT_SCOPES,
+    ETagGuard,
+    compute_etag,
+)
 from analysis.config import (
     load_config_from_db,
     save_config_to_db,
 )
 from analysis.metrics import get_distance_config
 from analysis.science import (
+    FIXED_PILLARS,
     PILLARS,
+    SELECTABLE_PILLARS,
     list_theories,
     list_label_sets,
     load_active_science,
@@ -78,8 +85,12 @@ def get_science(
     locale = _resolve_locale(config.language, request)
     # Salt with the resolved locale because /api/science varies on
     # Accept-Language even when no config field changed.
+    response_version = ENDPOINT_RESPONSE_VERSIONS["science"]
     etag = compute_etag(
-        db, user_id, ENDPOINT_SCOPES["science"], salt=f"locale={locale or ''}",
+        db,
+        user_id,
+        ENDPOINT_SCOPES["science"],
+        salt=f"locale={locale or ''}|v={response_version}",
     )
     guard = ETagGuard(etag, request.headers.get("if-none-match"))
     if guard.is_match:
@@ -131,6 +142,7 @@ def get_science(
         "active": active,
         "active_labels": config.zone_labels,
         "available": available,
+        "fixed_pillars": list(FIXED_PILLARS),
         "label_sets": label_sets,
         "recommendations": [
             {
@@ -155,7 +167,7 @@ def update_science(
 
     if "science" in body:
         for pillar, theory_id in body["science"].items():
-            if pillar in PILLARS and isinstance(theory_id, str):
+            if pillar in SELECTABLE_PILLARS and isinstance(theory_id, str):
                 # When changing zone theory, validate first and apply boundaries
                 if pillar == "zones":
                     try:

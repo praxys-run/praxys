@@ -218,6 +218,9 @@ const EN_TODAY = {
   increasing: 'Increasing',
   decreasing: 'Decreasing',
   stable: 'Stable',
+  'Weekly distance': 'Weekly distance',
+  '{lookback}-week average · {average} km/week':
+    '{lookback}-week average · {average} km/week',
   'What metric Praxys uses to measure intensity. Power needs Stryd; Pace works with anything that gives you GPS.':
     'What metric Praxys uses to measure intensity. Power needs Stryd; Pace works with anything that gives you GPS.',
   'Unbind your WeChat profile from this Praxys account so you can sign in as a different user.':
@@ -280,6 +283,7 @@ const EN_TRAINING = {
   'No training data yet. Sync Garmin / Stryd from the web app (Settings → Sync) to populate this view.':
     'No training data yet. Sync Garmin / Stryd from the web app (Settings → Sync) to populate this view.',
   Volume: 'Volume',
+  'Weekly values': 'Weekly values',
   'Fitness & Fatigue': 'Fitness & Fatigue',
   Consistency: 'Consistency',
   Zones: 'Zones',
@@ -299,6 +303,13 @@ const EN_TRAINING = {
   '{0} sessions · gaps ≥7d: {1} · longest: {2}d':
     '{0} sessions · gaps ≥7d: {1} · longest: {2}d',
   '{0} · {1}': '{0} · {1}',
+  'Not included': 'Not included',
+  "No recent activity reached the model's {0}-minute inclusion threshold.":
+    "No recent activity reached the model's {0}-minute inclusion threshold.",
+  '{0} · evidence': '{0} · evidence',
+  '{current} / {target} days': '{current} / {target} days',
+  '{current} / {target} min': '{current} / {target} min',
+  'Likely-adapted threshold': 'Likely-adapted threshold',
   // Detail messages
   'Sync activities together with sleep data (Garmin, Oura, or similar) so we can pair them by date.':
     'Sync activities together with sleep data (Garmin, Oura, or similar) so we can pair them by date.',
@@ -406,6 +417,31 @@ const EN_NAV_CHARTS = {
     'Not enough data for weekly load comparison',
 };
 
+const EN_HEAT = {
+  '1 day ago': '1 day ago',
+  '{0} days ago': '{0} days ago',
+  '{formatted}: {included} included, {excluded} observed but not included, {minutes} effective min':
+    '{formatted}: {included} included, {excluded} observed but not included, {minutes} effective min',
+  'Power samples · {0}% coverage': 'Power samples · {0}% coverage',
+  'Incomplete power samples · {0}% coverage': 'Incomplete power samples · {0}% coverage',
+  Matched: 'Matched',
+  Mismatch: 'Mismatch',
+  Mixed: 'Mixed',
+  Unverified: 'Unverified',
+  'Observed, but not included because it stayed below {0} effective heat minutes.':
+    'Observed, but not included because it stayed below {0} effective heat minutes.',
+  '{0}°C · {1}% humidity': '{0}°C · {1}% humidity',
+  '{0} · {1} humidity': '{0} · {1} humidity',
+  '{0} effective min': '{0} effective min',
+  'Select a day to inspect what entered the estimate.':
+    'Select a day to inspect what entered the estimate.',
+  'Based on {sessions} included sessions across {days} days in the last {window} days.':
+    'Based on {sessions} included sessions across {days} days in the last {window} days.',
+  '{0} included · {1} observed, not included':
+    '{0} included · {1} observed, not included',
+  '{0} days · {1} effective min': '{0} days · {1} effective min',
+};
+
 // ---------------------------------------------------------------------------
 // Chinese translations — same key shape as the English passthroughs above,
 // values translated.
@@ -425,16 +461,16 @@ const ZH_AUTH = {
   'WeChat sign-in is not configured on this server.': '此服务器尚未配置微信登录。',
   'Your session expired. Please sign in again.': '会话已过期，请重新登录。',
   'Sign in to Praxys': '登录 Praxys',
-  'Link to Praxys': '关联 Praxys 账号',
+  'Link to Praxys': '绑定 Praxys 账号',
   email: '邮箱',
   password: '密码',
   'Email and password are required': '请填写邮箱和密码',
   'New here? Sign up at': '没有账号？立即注册',
   'New here?': '没有账号？',
-  'Have an invitation code?': '已有邀请码？',
+  'Have an invitation code?': '有邀请码？',
   'Register on praxys.run': '前往 praxys.run 注册',
   'Then come back and sign in with WeChat above.':
-    '注册完成后，返回此页面用上方的微信登录按钮即可。',
+    '注册完成后，回到这里用微信登录。',
   'Back to sign in': '返回登录',
   'tap to copy URL': '点击复制链接',
   'URL copied': '链接已复制',
@@ -444,30 +480,30 @@ const ZH_AUTH = {
   Switch: '切换',
   Cancel: '取消',
   'Switch Praxys account': '切换 Praxys 账号',
-  'Delete my account': '删除我的账号',
-  'Delete my account?': '删除我的账号？',
+  'Delete my account': '删除账号',
+  'Delete my account?': '删除账号？',
   Delete: '删除',
   'Permanently remove your account, synced data, plans, settings, and encrypted credentials.':
-    '永久删除您的账号、同步数据、计划、设置和加密凭据。',
+    '永久删除账号、已同步数据、计划、设置和加密凭据。',
   'This permanently deletes your Praxys account and training data. Type DELETE to confirm.':
-    '这会永久删除您的 Praxys 账号和训练数据。请输入 DELETE 确认。',
+    '这会永久删除 Praxys 账号和训练数据。输入 DELETE 确认。',
   'Type DELETE here': '在这里输入 DELETE',
   'Type DELETE to confirm.': '请输入 DELETE 确认。',
   "Couldn't delete your account. Please try again or contact support if it keeps failing.":
     '账号删除失败。请重试；如持续失败，请联系客服。',
   'Unlinking…': '正在解绑…',
-  // Login-page-only zh copy. Pillars use 您 (formal you) per the
-  // project-wide i18n terminology preference.
+  // Login-page-only zh copy. Omit second-person pronouns where natural;
+  // use 你 rather than the overly formal 您 when one is needed.
   "Today's signal.": '今日信号。',
-  ' Go, modify, or rest.': '训练、调整或休息。',
+  ' Go, modify, or rest.': '按计划训练、调整或休息。',
   'Diagnosis & forecast': '诊断与预测',
-  ' you can verify.': '可由您验证。',
-  'Cited science.': '有据可查的科学。',
-  ' No hype.': '不浮夸。',
-  'Sub-3 marathon · 100K · stay healthy…': '破三马拉松 · 100 公里 · 保持健康…',
-  "You're on the list.": '已加入等待名单。',
+  ' you can verify.': '经得起验证。',
+  'Cited science.': '科学有据。',
+  ' No hype.': '不靠噱头。',
+  'Sub-3 marathon · 100K · stay healthy…': '全马破三 · 100K · 保持健康…',
+  "You're on the list.": '你已进入候补名单。',
   "We'll reach out from support@praxys.run when a slot opens.":
-    '名额开放时我们会通过 support@praxys.run 联系您。',
+    '有名额时，我们会通过 support@praxys.run 联系你。',
   'Light theme': '浅色主题',
   'Dark theme': '深色主题',
   'System theme': '跟随系统',
@@ -484,11 +520,11 @@ const ZH_AUTH = {
 const ZH_GOAL = {
   'Use this': '使用此理论',
   'Failed to switch theory': '切换理论失败',
-  'Change Goal': '修改目标',
-  'Set Your Goal': '设定目标',
+  'Change Goal': '调整目标',
+  'Set Your Goal': '设置目标',
   'Goal type': '目标类型',
   'Race Goal': '比赛目标',
-  'Train toward a specific race date': '为特定比赛日期训练',
+  'Train toward a specific race date': '围绕某场比赛备赛',
   Continuous: '持续提升',
   'Build fitness over time': '长期提升体能',
   Distance: '距离',
@@ -499,27 +535,27 @@ const ZH_GOAL = {
   'Save Goal': '保存目标',
   'Saving…': '保存中…',
   'Race date is required': '请填写比赛日期',
-  'Invalid time format. Use H:MM:SS or H:MM': '时间格式无效，请使用 H:MM:SS 或 H:MM',
+  'Invalid time format. Use H:MM:SS or H:MM': '时间格式无效。请使用 H:MM:SS 或 H:MM',
   'Failed to save goal': '保存目标失败',
   '0:00:00 = no target time': '0:00:00 = 不设目标时间',
-  'Leave blank to track predicted time only': '留空仅显示预测完赛时间',
+  'Leave blank to track predicted time only': '留空则只追踪预测完赛时间',
   'What time are you working toward? Leave blank to track trend only':
-    '您的目标时间是？留空仅追踪趋势',
-  Comfortable: '稳健',
-  Stretch: '冲击',
+    '目标完赛时间是多少？留空则只追踪趋势',
+  Comfortable: '稳妥目标',
+  Stretch: '挑战目标',
   'Realistic targets': '可行的目标',
-  'How this is calculated': '计算方式说明',
-  'Praxys Coach guidance': 'Praxys Coach 指导',
-  "Today's recommendation is computed deterministically from your active recovery theory, recent training load, and scheduled workout. Praxys applies conservative product guardrails when fatigue or recovery signals conflict with the plan; these are coaching heuristics, not a medical diagnosis.": '今日建议由当前恢复理论、近期训练负荷和计划训练确定性计算得出。当疲劳或恢复信号与计划冲突时，Praxys 会采用保守的产品保护规则；这些是训练建议启发式规则，不是医学诊断。',
+  'How this is calculated': '计算方式',
+  'Praxys Coach guidance': 'Praxys Coach 建议',
+  "Today's recommendation is computed deterministically from your active recovery theory, recent training load, and scheduled workout. Praxys applies conservative product guardrails when fatigue or recovery signals conflict with the plan; these are coaching heuristics, not a medical diagnosis.": '今日建议根据当前恢复理论、近期训练负荷和计划训练按固定规则生成。当疲劳或恢复信号与计划冲突时，Praxys 会采用保守的保护规则。这些只是训练建议，不是医学诊断。',
   'Copy source URL': '复制来源链接',
-  Predicted: '预测',
+  Predicted: '预计',
   Target: '目标',
   '+ Set target': '+ 设置目标',
   'CP trend': 'CP 趋势',
   Needed: '所需',
   Gap: '差距',
-  'Source — tap to copy URL': '来源 — 点击复制链接',
-  'Discussion — tap to copy URL': '讨论 — 点击复制链接',
+  'Source — tap to copy URL': '来源：轻触复制链接',
+  'Discussion — tap to copy URL': '说明：轻触复制链接',
   'Ultra distance caveat': '超长距离说明',
   // Goal status badge values (lowercase API keys)
   on_track: '达标',
@@ -529,31 +565,31 @@ const ZH_GOAL = {
   unknown: '—',
   // Discard-edits modal
   'Discard changes?': '放弃修改？',
-  'Your goal edits will be lost.': '您当前的目标修改将丢失。',
+  'Your goal edits will be lost.': '当前修改将不会保存。',
   Discard: '放弃',
   'Keep editing': '继续编辑',
   // Science notes
   'Predicted using Stryd race power model (5K at 103.8% CP, marathon at 89.9% CP).':
-    '依据 Stryd 比赛功率模型预测 (5K 为阈值功率的 103.8%，全程马拉松为 89.9%)。',
+    '按 Stryd 比赛功率模型预测（5K 取 103.8% CP，马拉松取 89.9% CP）。',
   "Predicted using Riegel's formula (T₂ = T₁ × (D₂/D₁)^1.06), treating threshold pace as ~10K effort.":
-    '依据 Riegel 公式预测 (T₂ = T₁ × (D₂/D₁)^1.06)，将阈值配速视为约 10K 强度。',
+    '按 Riegel 公式预测（T₂ = T₁ × (D₂/D₁)^1.06），将阈值配速近似视为 10K 比赛强度。',
   "Ultra distance power fractions (50K+) are estimates with limited research backing. Riegel's exponent is validated only up to marathon distance. Predictions beyond marathon carry significantly higher uncertainty due to factors like fueling, terrain, heat, and pacing strategy that dominate ultra performance but are not captured by power/pace models.":
-    '超长距离 (50K 及以上) 的功率分配比例为估算值，研究数据有限。Riegel 公式的指数仅在全程马拉松以内得到验证。马拉松以上距离的预测不确定性显著上升，因为补给、地形、温度和配速策略等主导超长距离表现的因素无法被功率/配速模型完全捕捉。',
+    '50K 及以上超长距离的功率比例为估算值，目前研究支持有限。Riegel 指数仅验证到马拉松距离。超过马拉松的预测不确定性会明显升高，因为补给、地形、高温和配速策略等因素对超马表现影响更大，而这些并未被功率/配速模型纳入。',
   // Unified goal headline zh translations
   '{0} days to race day. Today\'s prediction is {1} against a target of {2}.':
     '距比赛日还有 {0} 天。今日预测 {1}，目标 {2}。',
   '{0} days to race day. Today\'s prediction is {1}.':
     '距比赛日还有 {0} 天。今日预测 {1}。',
   'Building toward {0} {1}. Current {2} {3}{4}, need {5}{4}.':
-    '冲刺 {1} {0}。当前{2} {3}{4}，目标 {5}{4}。',
+    '目标是 {1} {0} 完赛。当前 {2} 为 {3}{4}，还需达到 {5}{4}。',
   'Building toward {0}. Current {1} {2}{3}, need {4}{3}.':
-    '冲刺 {0}。当前{1} {2}{3}，目标 {4}{3}。',
+    '以 {0} 为目标。当前 {1} 为 {2}{3}，还需达到 {4}{3}。',
   'Today\'s {0} prediction is {1}. {2} is {3} at {4}.':
-    '今日{0}预测 {1}。{2}趋势{3}，速率{4}。',
+    '今日 {0} 预计成绩为 {1}。{2} 呈 {3}趋势，变化速率为 {4}。',
   'Today\'s {0} prediction is {1}. {2} is {3}.':
-    '今日{0}预测 {1}。{2}趋势{3}。',
+    '今日 {0} 预计成绩为 {1}。{2} 呈 {3}趋势。',
   '{0} is {1}. Add more activities for a race-time prediction.':
-    '{0}趋势{1}。积累更多训练数据以获取比赛预测成绩。',
+    '{0} 呈 {1}趋势。再同步一些活动，即可生成比赛时间预测。',
   'Days left': '剩余天数',
   'To target': '距目标',
   Direction: '趋势方向',
@@ -575,10 +611,13 @@ const ZH_TODAY = {
   increasing: '上升中',
   decreasing: '下降中',
   stable: '平稳',
+  'Weekly distance': '周里程',
+  '{lookback}-week average · {average} km/week':
+    '近 {lookback} 周平均 · {average} 公里/周',
   'What metric Praxys uses to measure intensity. Power needs Stryd; Pace works with anything that gives you GPS.':
-    'Praxys 用于衡量训练强度的指标。功率需要 Stryd；配速适用于任何具备 GPS 的设备。',
+    'Praxys 用这个指标衡量训练强度。功率需使用 Stryd；只要设备支持 GPS，即可使用配速。',
   'Unbind your WeChat profile from this Praxys account so you can sign in as a different user.':
-    '解除当前 Praxys 账号与微信的关联，以便您切换到其他账号。',
+    '解除微信与当前 Praxys 账号的绑定，以便切换到其他账号。',
   Splits: '分段',
   more: '更多',
   References: '参考文献',
@@ -588,21 +627,21 @@ const ZH_TODAY = {
   'data points': '个数据点',
   km: '公里',
   time: '时间',
-  'avg W': '均功',
-  'avg HR': '均心率',
-  Peaked: '超量',
-  Fresh: '恢复良好',
-  Neutral: '中性',
+  'avg W': '平均功率',
+  'avg HR': '平均心率',
+  Peaked: '巅峰状态',
+  Fresh: '状态良好',
+  Neutral: '状态平衡',
   Fatigued: '疲劳',
   'Over-fatigued': '过度疲劳',
   'Zone distribution': '区间分布',
   Rising: '上升',
   Falling: '下降',
-  Flat: '平稳',
+  Flat: '持平',
   'Avg power': '平均功率',
   'No data available yet.': '暂无数据。',
-  'No TSB data yet': '暂无状态 (TSB) 数据',
-  HRV: '心率变异 (HRV)',
+  'No TSB data yet': '暂无负荷平衡（TSB）数据',
+  HRV: 'HRV',
   'Upcoming workouts': '计划训练',
   'Last activity': '最近活动',
   Close: '关闭',
@@ -613,34 +652,35 @@ const ZH_TODAY = {
   'HRV (ln RMSSD)': 'HRV (ln RMSSD)',
   TSB: 'TSB',
   // Signal subtitles
-  'Follow Plan': '执行计划',
-  'Go Easy': '轻松进行',
+  'Follow Plan': '按计划训练',
+  'Go Easy': '轻松训练',
   'Adjust Workout': '调整训练',
   'Reduce Intensity': '降低强度',
   'Recovery Day': '恢复日',
   // Stale-data advisory. `{0}` is the localized reading-date chip
   // ("Apr 24" / "4月24日") supplied by tFmt.
   "Recovery data hasn't synced yet. Showing the latest reading from {0}.":
-    '今日恢复数据尚未同步，显示的是 {0} 的最近读数。',
+    '恢复数据尚未同步，当前显示最近一次读数（{0}）。',
   // Page-level data-staleness banner — anchored on data_as_of timestamp.
   // `{0}` is the localized "Sat 9:00 PM" / "周六 21:00" stamp.
   "Showing yesterday's snapshot. Last reading {0}.":
     '显示的是昨天的快照。最近一次读数 {0}。',
   'No new HRV, sleep, or activity since.': '此后无新的 HRV、睡眠或活动数据。',
   'Show anyway': '仍要查看',
-  'From {0}': '数据自 {0}',
+  'From {0}': '数据截至 {0}',
 };
 
 const ZH_TRAINING = {
   'No training data yet. Sync Garmin / Stryd from the web app (Settings → Sync) to populate this view.':
-    '暂无训练数据。请在网页端 (设置 → 同步) 同步 Garmin / Stryd 数据以填充此视图。',
-  Volume: '训练量',
+    '暂无训练数据。请先在网页端的“设置 → 同步”中同步 Garmin / Stryd 数据。',
+  Volume: '里程',
+  'Weekly values': '每周数据',
   'Fitness & Fatigue': '体能与疲劳',
   Consistency: '训练频率',
   Zones: '区间',
-  Compliance: '负荷',
+  Compliance: '计划完成度',
   'Long-term load (CTL)': '长期负荷（CTL）',
-  'Recent load (ATL)': '近期负荷（ATL）',
+  'Recent load (ATL)': '短期负荷（ATL）',
   'Load balance (TSB)': '负荷平衡（TSB）',
   'Last {0} weeks': '近 {0} 周',
   '{0} km/week': '{0} 公里/周',
@@ -648,31 +688,38 @@ const ZH_TRAINING = {
   '{0} sessions · gaps ≥7d: {1} · longest: {2}d':
     '{0} 次训练 · ≥7 天间隔：{1} 次 · 最长间隔：{2} 天',
   '{0} · {1}': '{0} · {1}',
+  'Not included': '未纳入',
+  "No recent activity reached the model's {0}-minute inclusion threshold.":
+    '近期没有活动达到模型设定的 {0} 分钟纳入阈值。',
+  '{0} · evidence': '{0} · 依据',
+  '{current} / {target} days': '{current} / {target} 天',
+  '{current} / {target} min': '{current} / {target} 分钟',
+  'Likely-adapted threshold': '“可能已适应”阈值',
   'Sync activities together with sleep data (Garmin, Oura, or similar) so we can pair them by date.':
-    '请同时同步活动与睡眠数据 (Garmin、Oura 或类似设备)，以便按日期匹配。',
+    '同时同步活动与睡眠数据（Garmin、Oura 或类似设备），以便按日期匹配。',
   'Sync at least 2 weeks of data to compare planned vs actual training load.':
-    '请同步至少 2 周的数据，以便对比计划与实际训练负荷。',
+    '至少同步 2 周数据，即可对比计划与实际训练负荷。',
   'Planned bars are estimated — your plan has no RSS targets for this base.':
-    '计划数值为估算结果——您的训练计划在当前基准下未设置 RSS 目标。',
+    '计划负荷柱为估算值——当前训练基准下，训练计划未设置 RSS 目标。',
 };
 
 const ZH_COACH = {
-  '{0} findings': '{0} 条发现',
+  '{0} findings': '{0} 个要点',
   '{0} recommendations': '{0} 条建议',
-  '{0} findings · {1} recommendations': '{0} 条发现 · {1} 条建议',
+  '{0} findings · {1} recommendations': '{0} 个要点 · {1} 条建议',
 };
 
 const ZH_HISTORY_SCIENCE = {
   'Loading more…': '正在加载更多…',
-  'Tap to view {0} splits': '点击查看 {0} 个分段',
+  'Tap to view {0} splits': '轻触查看 {0} 个分段',
   'End of activities': '已加载全部活动',
   '{0} total · showing {1}': '共 {0} 条 · 当前显示 {1}',
   "Praxys's numbers come from published research. These are the theories currently powering your dashboard, plus the alternatives you could switch to on the web.":
-    'Praxys 的数据均来自已发表的研究文献。以下是当前驱动您仪表板的理论，以及您可在网页端切换的替代方案。',
-  'Based on your training, we suggest': '根据您的训练数据，我们推荐',
-  'No active theory configured.': '尚未配置启用的理论。',
+    'Praxys 的各项数据均有已发表研究作为依据。下面列出当前用于生成主页数据的理论，以及可在网页端切换的其他理论。',
+  'Based on your training, we suggest': '根据近期训练，我们建议',
+  'No active theory configured.': '尚未启用任何理论。',
   '{0} label sets available — switch on the web.':
-    '可选的区间标签集共 {0} 套——请在网页端切换。',
+    '共有 {0} 套区间标签方案，可在网页端切换。',
 };
 
 const ZH_SETTINGS = {
@@ -681,20 +728,20 @@ const ZH_SETTINGS = {
   metric: '公制',
   imperial: '英制',
   Connections: '已连接平台',
-  'Manage connections from the web app.': '请在网页端管理已连接的平台。',
+  'Manage connections from the web app.': '已连接平台请前往网页端管理。',
   "No platforms connected. Link Garmin / Stryd / Oura from the web app — their OAuth flows aren't supported in mini programs.":
-    '尚未连接任何平台。请在网页端连接 Garmin / Stryd / Oura——这些平台的 OAuth 授权流程在小程序中不受支持。',
+    '尚未连接平台。请前往网页端连接 Garmin / Stryd / Oura；小程序暂不支持这些平台的 OAuth 授权。',
   'Auto-detected from synced fitness data; override on the web.':
-    '依据已同步的体能数据自动识别；如需覆盖，请在网页端修改。',
+    '根据已同步的体能数据自动识别；如需调整，请前往网页端。',
   'No thresholds yet. Sync Garmin / Stryd data to auto-detect CP, LTHR, and pace — or enter values manually on the web.':
-    '暂无阈值数据。请同步 Garmin / Stryd 数据以自动识别阈值功率、乳酸阈值心率和阈值配速；您也可以在网页端手动填入。',
-  'Browse the load / recovery / prediction / zone theories': '浏览负荷 / 恢复 / 预测 / 区间四类理论',
+    '暂无阈值数据。同步 Garmin / Stryd 后可自动识别 CP、LTHR 和阈值配速，也可在网页端手动填写。',
+  'Browse the load / recovery / prediction / zone theories': '浏览负荷、恢复、预测和区间理论',
   'Open Praxys on web': '在网页端打开 Praxys',
   "This unlinks your WeChat profile from the current Praxys account. You'll be signed out and can sign in to a different account on next launch.":
-    '此操作将解除您的微信账号与当前 Praxys 账号的关联。您将被退出登录，下次启动时可使用其他账号登录。',
+    '这会解除微信与当前 Praxys 账号的绑定并退出登录。下次打开时可登录其他账号。',
   // Threshold labels — preferred zh terminology per project conventions.
   CP: '阈值功率 (CP)',
-  LTHR: '乳酸阈值心率 (LTHR)',
+  LTHR: 'LTHR',
   'Threshold pace': '阈值配速',
   'Max HR': '最大心率',
   'Resting HR': '静息心率',
@@ -705,14 +752,14 @@ const ZH_SETTINGS = {
     '截图有助于我们更快定位问题，仅供内部查看。',
   'Add photo': '添加图片',
   'Send without': '直接发送',
-  'Image must be under 5 MB.': '图片需小于 5 MB。',
+  'Image must be under 5 MB.': '图片不得超过 5 MB。',
 };
 
 const ZH_NAV_CHARTS = {
   Today: '今日',
   'Avg Pace': '平均配速',
   Training: '训练',
-  Activities: '活动记录',
+  Activities: '活动',
   Goal: '目标',
   Settings: '设置',
   'Training Science': '训练科学',
@@ -721,20 +768,45 @@ const ZH_NAV_CHARTS = {
   'Sleep Score vs Avg Power': '睡眠评分与平均功率',
   'Sleep Score vs {0}': '睡眠评分与{0}',
   'Avg Power': '平均功率',
-  'Fitness (CTL)': '体能 (CTL)',
-  'Fatigue (ATL)': '疲劳 (ATL)',
+  'Fitness (CTL)': '体能（CTL）',
+  'Fatigue (ATL)': '疲劳（ATL）',
   'Not enough data': '数据不足',
   'No data': '暂无数据',
   'Sleep {0} · {1}': '睡眠 {0} · {1}',
   // Mini-program-only Training-page strings — see EN_NAV_CHARTS for context.
-  'Weekly Load Compliance': '每周负荷合规度',
+  'Weekly Load Compliance': '周训练负荷完成度',
   'Not enough data for accurate fitness tracking': '数据不足，暂无法准确跟踪体能',
   'Sync at least 6 weeks of activity data to see meaningful fitness, fatigue, and form curves.':
-    '请至少同步 6 周的活动数据以显示有意义的体能、疲劳和状态曲线。',
+    '至少同步 6 周活动数据，才能查看有参考价值的体能、疲劳和状态曲线。',
   'Not enough data to show sleep vs performance':
     '数据不足，暂无法显示睡眠与表现的关系',
   'Not enough data for weekly load comparison':
     '数据不足，暂无法对比每周负荷',
+};
+
+const ZH_HEAT = {
+  '1 day ago': '1 天前',
+  '{0} days ago': '{0} 天前',
+  '{formatted}: {included} included, {excluded} observed but not included, {minutes} effective min':
+    '{formatted}：纳入 {included} 次，已记录但未纳入 {excluded} 次，等效热暴露 {minutes} 分钟',
+  'Power samples · {0}% coverage': '功率数据点 · 覆盖率 {0}%',
+  'Incomplete power samples · {0}% coverage': '功率数据点不完整 · 覆盖率 {0}%',
+  Matched: '匹配',
+  Mismatch: '不匹配',
+  Mixed: '混合',
+  Unverified: '未验证',
+  'Observed, but not included because it stayed below {0} effective heat minutes.':
+    '已记录，但未纳入，因为等效热暴露时长未达到 {0} 分钟。',
+  '{0}°C · {1}% humidity': '{0}°C · 湿度 {1}%',
+  '{0} · {1} humidity': '{0} · 湿度 {1}',
+  '{0} effective min': '等效热暴露 {0} 分钟',
+  'Select a day to inspect what entered the estimate.':
+    '选择一天，查看当天哪些训练被纳入估算。',
+  'Based on {sessions} included sessions across {days} days in the last {window} days.':
+    '基于过去 {window} 天内纳入的 {sessions} 次训练，分布在 {days} 个训练日。',
+  '{0} included · {1} observed, not included':
+    '纳入 {0} 次 · 已记录但未纳入 {1} 次',
+  '{0} days · {1} effective min': '{0} 天 · 等效热暴露 {1} 分钟',
 };
 
 const EN_LEGAL = {
@@ -755,11 +827,11 @@ const EN_LEGAL = {
 
 const ZH_LEGAL = {
   'Terms of Service': '服务条款',
-  'Terms of Service & EULA': '服务条款与最终用户许可',
+  'Terms of Service & EULA': '服务条款与最终用户许可协议',
   'Privacy Policy': '隐私政策',
   'Effective': '生效日期',
   'Copied': '已复制',
-  'By signing in, you agree to our': '登录即表示您已阅读并同意',
+  'By signing in, you agree to our': '登录即表示已阅读并同意',
   'I agree to the': '我已阅读并同意',
   'Please agree to the Terms and Privacy Policy first.':
     '请先阅读并同意《服务条款》与《隐私政策》。',
@@ -775,6 +847,7 @@ export const I18N_EXTRA: Record<Locale, Record<string, string>> = {
     ...EN_HISTORY_SCIENCE,
     ...EN_SETTINGS,
     ...EN_NAV_CHARTS,
+    ...EN_HEAT,
     ...EN_LEGAL,
   },
   zh: {
@@ -786,6 +859,7 @@ export const I18N_EXTRA: Record<Locale, Record<string, string>> = {
     ...ZH_HISTORY_SCIENCE,
     ...ZH_SETTINGS,
     ...ZH_NAV_CHARTS,
+    ...ZH_HEAT,
     ...ZH_LEGAL,
   },
 };

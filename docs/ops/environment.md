@@ -72,7 +72,7 @@
 ## Repo governance
 
 - **Owner:** the repos live in the **`praxys-run`** org (GitHub **Free**; public repos keep branch protection + unlimited Actions minutes). Migrated from the `dddtc2005` personal account on 2026-07-10 — see [org-migration.md](./org-migration.md).
-- **`main` protection is two layers.** (1) **Classic branch protection**: required status check `backend-tests` (`ci-backend.yml`, #361) blocks merge on a failing `pytest`, **admins included** (`enforce_admins`); managed via `repos/praxys-run/praxys/branches/main/protection`. (2) **Repo ruleset `default`** (id `15208143`): **squash-only** merges + **1 required review**, with a **repo-admin `Always` bypass** so the solo maintainer self-merges a green PR; managed via the rulesets API. ⚠️ **Transfer gotcha:** moving a repo between accounts **wipes the ruleset's `bypass_actors`** — after the org migration the bypass list was empty (deadlocking solo self-merge) and had to be restored (`PUT repos/praxys-run/praxys/rulesets/15208143`, requires `admin:org` scope + the full ruleset body).
+- **`main` protection is two layers.** (1) **Classic branch protection**: required status check `backend-tests` (`ci-backend.yml`, #361) blocks merge on a failing `pytest`, **admins included** (`enforce_admins`); managed via `repos/praxys-run/praxys/branches/main/protection`. (2) **Repo ruleset `default`** (id `15208143`): a pull request is required, merges are **squash-only**, and deletion plus non-fast-forward updates are blocked. Since 2026-07-26, `required_approving_review_count` is **`0`**: human review remains encouraged for risky, security-sensitive, or science-affecting changes, but it is not a mandatory merge gate for the solo-maintainer workflow. The ruleset retains the repository-role admin `Always` bypass as a maintainer capability; normal green PRs do not need it. Managed via the rulesets API. ⚠️ **Transfer gotcha:** moving a repo between accounts **wipes the ruleset's `bypass_actors`** — after the org migration the bypass list was empty (then deadlocking solo self-merge under the former one-approval policy) and had to be restored (`PUT repos/praxys-run/praxys/rulesets/15208143`, requires `admin:org` scope + the full ruleset body). Transfers must still restore the bypass deliberately if this admin capability is meant to remain.
 
 ## Related
 
@@ -80,4 +80,4 @@
 - `docs/deployment.md` (one-time Azure setup) · `docs/perf-baselines/azure-provisioning.md`
 
 ---
-_Last reviewed: 2026-07-18 · Owner: @dddtc2005_
+_Last reviewed: 2026-07-26 · Owner: @dddtc2005_

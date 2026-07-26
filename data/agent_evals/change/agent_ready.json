@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "policy_name": "change.agent_ready",
+  "policy_version": "agent-ready-v2",
+  "cases": [
+    {
+      "id": "actionable-bug",
+      "source": "synthetic",
+      "facts": {
+        "kind": "bug",
+        "gate_blocked": false,
+        "agent_eligible": true,
+        "detail_word_count": 8,
+        "detail_alnum_count": 42
+      },
+      "expected": true
+    },
+    {
+      "id": "manual-recovery-cjk",
+      "source": "github-issue-418",
+      "facts": {
+        "kind": "bug",
+        "gate_blocked": false,
+        "agent_eligible": true,
+        "detail_word_count": 1,
+        "detail_alnum_count": 18
+      },
+      "expected": true
+    },
+    {
+      "id": "sensitive-bug",
+      "source": "synthetic",
+      "facts": {
+        "kind": "bug",
+        "gate_blocked": true,
+        "agent_eligible": true,
+        "detail_word_count": 10,
+        "detail_alnum_count": 55
+      },
+      "expected": false
+    },
+    {
+      "id": "feature-request",
+      "source": "synthetic",
+      "facts": {
+        "kind": "feature",
+        "gate_blocked": false,
+        "agent_eligible": true,
+        "detail_word_count": 12,
+        "detail_alnum_count": 60
+      },
+      "expected": false
+    },
+    {
+      "id": "non-actionable-bug",
+      "source": "synthetic",
+      "facts": {
+        "kind": "bug",
+        "gate_blocked": false,
+        "agent_eligible": false,
+        "detail_word_count": 9,
+        "detail_alnum_count": 48
+      },
+      "expected": false
+    },
+    {
+      "id": "vague-bug",
+      "source": "synthetic",
+      "facts": {
+        "kind": "bug",
+        "gate_blocked": false,
+        "agent_eligible": true,
+        "detail_word_count": 2,
+        "detail_alnum_count": 6
+      },
+      "expected": false
+    }
+  ]
+}

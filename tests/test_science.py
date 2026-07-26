@@ -7,6 +7,8 @@ from analysis.theory_schema import (
 )
 
 from analysis.science import (
+    FIXED_PILLARS,
+    SELECTABLE_PILLARS,
     load_theory,
     load_labels,
     list_theories,
@@ -54,6 +56,14 @@ class TestLoadTheory:
         assert theory.params["rolling_days"] == 7
         assert theory.params["baseline_days"] == 30
 
+    def test_load_fixed_heat_evidence_model(self):
+        theory = load_theory("heat", "praxys_heat_evidence")
+        assert theory.id == "praxys_heat_evidence"
+        assert theory.pillar == "heat"
+        assert theory.params["active_window_days"] == 14
+        assert theory.params["likely_adapted_effective_minutes"] == 420
+        assert len(theory.citations) >= 6
+
     def test_load_ultra_diagnosis_defaults_are_retained(self):
         theory = load_theory("load", "banister_ultra")
         assert theory.diagnosis["work_split_max_sec"] == 3600
@@ -83,6 +93,15 @@ class TestLoadTheory:
         )
 
         assert params.model_dump()["target_distribution"] == [0.8, 0.05, 0.15]
+
+    def test_zone_schema_rejects_wrong_zone_name_count(self):
+        with pytest.raises(ValueError, match=r"zone_names\[default\]"):
+            ZoneTheoryParams(
+                zone_count=3,
+                boundaries={"power": [0.82, 1.0]},
+                zone_names=["Easy", "Hard"],
+                target_distribution=[0.8, 0.05, 0.15],
+            )
 
     @pytest.mark.parametrize(
         "target_distribution",
@@ -130,6 +149,12 @@ class TestListTheories:
         theories = list_theories("recovery")
         assert len(theories) == 1
         assert theories[0].id == "hrv_based"
+
+    def test_heat_has_one_fixed_model(self):
+        theories = list_theories("heat")
+        assert FIXED_PILLARS == ("heat",)
+        assert "heat" not in SELECTABLE_PILLARS
+        assert [theory.id for theory in theories] == ["praxys_heat_evidence"]
 
 
 class TestLabels:
@@ -204,6 +229,7 @@ class TestLoadActiveScience:
         assert "recovery" in active
         assert "prediction" in active
         assert "zones" in active
+        assert active["heat"].id == "praxys_heat_evidence"
 
     def test_load_theory_has_labeled_tsb_zones(self):
         choices = {"load": "banister_pmc"}
@@ -232,7 +258,7 @@ class TestLoadActiveScience:
 
 
 class TestRecommendScience:
-    def test_returns_all_pillars(self):
+    def test_returns_all_selectable_pillars(self):
         import pandas as pd
         recs = recommend_science(
             pd.DataFrame(), pd.DataFrame(), None, ["garmin"], "power",
@@ -242,6 +268,7 @@ class TestRecommendScience:
         assert "recovery" in pillars
         assert "prediction" in pillars
         assert "zones" in pillars
+        assert "heat" not in pillars
 
     def test_ultra_recommends_banister_ultra(self):
         import pandas as pd

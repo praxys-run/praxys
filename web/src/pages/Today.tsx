@@ -369,7 +369,8 @@ export default function Today() {
 
   const verdictText = i18n._(VERDICT_LABEL[signal.recommendation] ?? VERDICT_LABEL.follow_plan);
   const verdictSubtitle = i18n._(VERDICT_SUBTITLE[signal.recommendation] ?? VERDICT_SUBTITLE.follow_plan);
-  const tone = TONE_CLASSES[VERDICT_TONE[signal.recommendation] ?? 'amber'];
+  const signalTone = VERDICT_TONE[signal.recommendation] ?? 'amber';
+  const tone = TONE_CLASSES[signalTone];
   const hrv = ra?.hrv ?? null;
   const trendArrow = hrv ? TREND_ARROW[hrv.trend] : '—';
   const trendLabel = hrv ? i18n._(HRV_TREND_LABEL[hrv.trend]) : '—';

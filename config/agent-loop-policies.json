@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "change": {
+    "agent_ready": {
+      "policy_name": "change.agent_ready",
+      "version": "agent-ready-v2"
+    },
+    "selective_review": {
+      "version": "selective-review-v1",
+      "classifier_semantics": "review-policy-v1",
+      "default_decision": "review-required",
+      "allowed_authors": [
+        "Copilot"
+      ],
+      "allowed_base_branches": [
+        "main"
+      ],
+      "trusted_assignment_actors": [
+        "dddtc2005",
+        "github-actions[bot]"
+      ],
+      "assignment_assignee_login": "Copilot",
+      "maximum_assignment_to_pr_minutes": 30,
+      "maximum_pr_cross_reference_minutes": 10,
+      "disqualifying_issue_labels": [
+        "backlog",
+        "later"
+      ],
+      "required_checks": [
+        "backend-tests"
+      ],
+      "merge_gate_status": "selective-review-policy",
+      "runtime": {
+        "enabled_variable": "PRAXYS_SELECTIVE_REVIEW_ENABLED",
+        "kill_switch_variable": "PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH",
+        "policy_app_id_variable": "PRAXYS_REVIEW_POLICY_APP_ID",
+        "policy_app_private_key_secret": "PRAXYS_REVIEW_POLICY_APP_PRIVATE_KEY"
+      },
+      "sensitive_paths": [
+        ".github/**",
+        "alembic/**",
+        "api/auth.py",
+        "api/users.py",
+        "api/account_deletion.py",
+        "api/feedback*.py",
+        "api/routes/feedback.py",
+        "api/routes/register.py",
+        "api/routes/wechat.py",
+        "analysis/metrics.py",
+        "analysis/science.py",
+        "config/**",
+        "data/science/**",
+        "db/**",
+        "docs/ops/**",
+        "miniapp/utils/auth.ts",
+        "requirements*.txt",
+        "sync/**",
+        "web/package-lock.json",
+        "web/package.json",
+        "web/src/contexts/AuthContext.tsx",
+        "web/src/lib/legal.ts"
+      ],
+      "candidate_classes": {
+        "documentation-only": {
+          "allowed_paths": [
+            "docs/**"
+          ],
+          "denied_paths": [
+            "docs/ops/**"
+          ],
+          "test_policy": "not-applicable"
+        },
+        "translation-catalog-only": {
+          "allowed_paths": [
+            "web/src/locales/**"
+          ],
+          "denied_paths": [],
+          "test_policy": "not-applicable"
+        }
+      },
+      "promoted_classes": [],
+      "promotion_requirements": {
+        "minimum_completed_prs": 5,
+        "minimum_observation_days": 7,
+        "maximum_correction_rate": 0.0,
+        "maximum_pr_caused_failure_rate": 0.0,
+        "maximum_revert_or_reopen_rate": 0.0,
+        "minimum_test_policy_rate": 1.0
+      },
+      "demotion_triggers": {
+        "any_post_promotion_correction": true,
+        "any_pr_caused_failure": true,
+        "any_revert_or_reopen": true,
+        "missing_required_check": true
+      }
+    }
+  }
+}

@@ -150,11 +150,12 @@ export default function AdminIncidents() {
                 <Trans>Service incidents</Trans>
               </CardTitle>
               <CardDescription className="text-xs">
-                <Trans>Declare incidents shown on the public</Trans>{' '}
-                <a href="/status" target="_blank" rel="noreferrer" className="text-primary hover:underline">
-                  <Trans>status page</Trans>
-                </a>
-                .
+                <Trans>
+                  Publish service updates on the{' '}
+                  <a href="/status" target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                    public status page
+                  </a>.
+                </Trans>
               </CardDescription>
             </div>
           </div>
@@ -186,7 +187,7 @@ export default function AdminIncidents() {
               </select>
               <Button type="button" size="sm" onClick={() => void handleCreateIncident()} disabled={incCreating || !incTitle.trim()}>
                 <Plus className="mr-1.5 h-3.5 w-3.5" />
-                {incCreating ? <Trans>Creating…</Trans> : <Trans>Open incident</Trans>}
+                {incCreating ? <Trans>Creating…</Trans> : <Trans>Create service incident</Trans>}
               </Button>
             </div>
             {incError ? <p className="text-xs text-destructive">{incError}</p> : null}

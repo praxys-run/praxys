@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { Trans, useLingui } from '@lingui/react/macro';
 
 /**
@@ -22,45 +22,40 @@ export interface ScienceSource {
 }
 
 interface ScienceNoteProps {
-  text: string;
+  text?: string;
+  children?: ReactNode;
+  label?: ReactNode;
   sourceUrl?: string;
   sourceLabel?: string;
   sources?: ScienceSource[];
+  embedded?: boolean;
 }
 
 export default function ScienceNote({
   text,
+  children,
+  label,
   sourceUrl,
   sourceLabel,
   sources,
+  embedded = false,
 }: ScienceNoteProps) {
   const [expanded, setExpanded] = useState(false);
+  const contentId = useId();
   const { t } = useLingui();
   const resolvedSources = sources?.length
     ? sources
     : sourceUrl
       ? [{ url: sourceUrl, label: sourceLabel || t`Source` }]
       : [];
-
-  return (
-    // No own border. Page-level section hairlines do the separation
-    // work in flat-page contexts; on surfaces that still need a
-    // visual divider above the note (Goal's trajectory block), the
-    // parent provides it. Eliminates the "double-hairline" look when
-    // a flat section ends with a ScienceNote.
-    <div className="mt-4">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="text-[12px] text-accent-cobalt hover:text-accent-cobalt/80 transition-colors"
-      >
-        {expanded ? '\u25be' : '\u25b8'} <Trans>How this is calculated</Trans>
-      </button>
-      {expanded && (
-        <p className="text-[13px] text-muted-foreground mt-2 leading-relaxed">
-          {text}{' '}
+  const content = (
+    <>
+      {children ?? <p>{text}</p>}
+      {resolvedSources.length > 0 && (
+        <p className="mt-3 flex flex-wrap gap-x-2 gap-y-1">
           {resolvedSources.map((source, index) => (
             <span key={source.url}>
-              {index > 0 && ' · '}
+              {index > 0 && <span aria-hidden="true">· </span>}
               <a
                 href={source.url}
                 target="_blank"
@@ -72,6 +67,38 @@ export default function ScienceNote({
             </span>
           ))}
         </p>
+      )}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div className="text-[13px] leading-relaxed text-muted-foreground">
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    // No own border. Page-level section hairlines do the separation
+    // work in flat-page contexts; on surfaces that still need a
+    // visual divider above the note (Goal's trajectory block), the
+    // parent provides it. Eliminates the "double-hairline" look when
+    // a flat section ends with a ScienceNote.
+    <div className="mt-4">
+      <button
+        type="button"
+        aria-controls={contentId}
+        aria-expanded={expanded}
+        onClick={() => setExpanded(!expanded)}
+        className="text-[12px] text-accent-cobalt hover:text-accent-cobalt/80 transition-colors"
+      >
+        {expanded ? '\u25be' : '\u25b8'} {label ?? <Trans>How this is calculated</Trans>}
+      </button>
+      {expanded && (
+        <div id={contentId} className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+          {content}
+        </div>
       )}
     </div>
   );

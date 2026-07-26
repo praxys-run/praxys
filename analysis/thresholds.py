@@ -64,4 +64,7 @@ def resolve_thresholds_to_estimate(
     for key in ("cp_watts", "lthr_bpm", "threshold_pace_sec_km", "max_hr_bpm", "rest_hr_bpm"):
         if key in detected:
             setattr(result, key, detected[key]["value"])
+            if key == "cp_watts":
+                result.cp_source = detected[key]["source"]
+                result.cp_power_provider = detected[key]["source"]
     return result

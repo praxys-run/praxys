@@ -6,6 +6,7 @@ on:
     paths:
       - 'web/src/**'
       - 'data/science/**'
+      - 'scripts/check_i18n_quality.py'
       - 'scripts/translate_missing.py'
       - 'scripts/i18n_glossary.yaml'
       - '.github/workflows/i18n.yml'
@@ -14,7 +15,21 @@ on:
     paths:
       - 'web/src/**'
       - 'web/src/locales/**'
+      - 'scripts/check_i18n_quality.py'
+      - 'scripts/i18n_glossary.yaml'
+      - 'scripts/translate_missing.py'
+      - '.github/workflows/i18n.yml'
+  schedule:
+    # One stable eighth of the catalog per week; every active string gets a
+    # native-language review at least once every eight weeks.
+    - cron: '17 2 * * 1'
   workflow_dispatch:
+    inputs:
+      full_review:
+        description: Review the entire active Chinese catalog (higher AI cost)
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   # Runs on every PR: fails if the source catalog in en/messages.po is out
@@ -41,6 +56,10 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
       - name: Install web deps
         working-directory: web
         run: npm install --no-audit --no-fund
@@ -59,6 +78,14 @@ jobs:
             exit 1
           fi
 
+      - name: Check Chinese catalog quality
+        run: |
+          pip install pyyaml
+          python scripts/check_i18n_quality.py \
+            --source web/src/locales/en/messages.po \
+            --target web/src/locales/zh/messages.po \
+            --glossary scripts/i18n_glossary.yaml
+
   # Runs on push to main: extracts, translates missing zh entries through an
   # Azure AI Foundry deployment (with glossary + placeholder validation + cost
   # cap), and opens a PR. Human reviews the zh diff before merging.
@@ -76,15 +103,25 @@ jobs:
   # (plus any additional refs you want to run from). The app needs
   # "Cognitive Services OpenAI User" on the Foundry resource — scope it there,
   # not at subscription level.
+  # PRs created with GITHUB_TOKEN do not emit pull_request workflow events.
+  # After opening the PR, this workflow explicitly dispatches required
+  # validation on the bot branch and waits for Backend CI. Semantic review has
+  # already run as the independent editor/critic pair above.
   translate:
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
+    env:
+      TRANSLATE_MODEL: ${{ vars.TRANSLATE_MODEL || 'gpt-5.4-mini' }}
+      TRANSLATE_REVIEW_MODEL: ${{ vars.TRANSLATE_REVIEW_MODEL || 'gpt-5.4' }}
     permissions:
+      actions: write
       contents: write
       pull-requests: write
       id-token: write  # required for OIDC token exchange with Azure AD
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v6
         with:
@@ -111,6 +148,20 @@ jobs:
       - name: Install translator deps
         run: pip install openai azure-identity pyyaml
 
+      - name: Snapshot zh catalog before extraction
+        env:
+          BEFORE_SHA: ${{ github.event.before || '' }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" = "push" ] &&
+             [ -n "$BEFORE_SHA" ] &&
+             [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ] &&
+             git cat-file -e "$BEFORE_SHA:web/src/locales/zh/messages.po" 2>/dev/null; then
+            git show "$BEFORE_SHA:web/src/locales/zh/messages.po" > /tmp/zh-before-extract.po
+          else
+            cp web/src/locales/zh/messages.po /tmp/zh-before-extract.po
+          fi
+
       - name: Extract source catalog
         working-directory: web
         run: npm run i18n:extract:ci
@@ -118,15 +169,56 @@ jobs:
       - name: Fill missing zh entries (catalog)
         env:
           AZURE_AI_ENDPOINT: ${{ vars.AZURE_AI_ENDPOINT }}
-          # Cost cap — only translate this many entries per run. Remaining
-          # empties get filled on subsequent runs. Raise via env override if
-          # you want bulk catch-up.
+          # Atomic cost cap — oversized batches fail before any model call.
           TRANSLATE_MAX: '100'
         run: |
           python scripts/translate_missing.py po \
             --source web/src/locales/en/messages.po \
             --target web/src/locales/zh/messages.po \
+            --source-root web \
             --language "Simplified Chinese"
+
+      - name: Review newly active zh copy
+        env:
+          AZURE_AI_ENDPOINT: ${{ vars.AZURE_AI_ENDPOINT }}
+        run: |
+          python scripts/translate_missing.py review-po \
+            --source web/src/locales/en/messages.po \
+            --target web/src/locales/zh/messages.po \
+            --source-root web \
+            --language "Simplified Chinese" \
+            --review-shards 1 \
+            --review-shard 0 \
+            --max-reviews 200 \
+            --new-since-catalog /tmp/zh-before-extract.po
+
+      - name: Review existing zh copy as native product Chinese
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        env:
+          AZURE_AI_ENDPOINT: ${{ vars.AZURE_AI_ENDPOINT }}
+          FULL_REVIEW: ${{ github.event.inputs.full_review || 'false' }}
+        run: |
+          if [ "$FULL_REVIEW" = "true" ]; then
+            SHARDS=1
+            SHARD=0
+            MAX_REVIEWS=0
+          else
+            SHARDS=8
+            WEEK=$(( $(date -u +%s) / 604800 ))
+            SHARD=$(( WEEK % SHARDS ))
+            CYCLE=$(( WEEK / SHARDS ))
+            MAX_REVIEWS=200
+          fi
+          CYCLE=${CYCLE:-0}
+          python scripts/translate_missing.py review-po \
+            --source web/src/locales/en/messages.po \
+            --target web/src/locales/zh/messages.po \
+            --source-root web \
+            --language "Simplified Chinese" \
+            --review-shards "$SHARDS" \
+            --review-shard "$SHARD" \
+            --max-reviews "$MAX_REVIEWS" \
+            --review-cycle "$CYCLE"
 
       - name: Fill missing zh science YAML
         env:
@@ -137,33 +229,97 @@ jobs:
             --target-dir data/science/zh \
             --language "Simplified Chinese"
 
+      - name: Enforce Chinese terminology, structure, and typography
+        id: quality
+        continue-on-error: true
+        run: |
+          python scripts/check_i18n_quality.py \
+            --source web/src/locales/en/messages.po \
+            --target web/src/locales/zh/messages.po \
+            --glossary scripts/i18n_glossary.yaml
+
+      - name: Regenerate miniapp catalog
+        run: node miniapp/scripts/sync-i18n.cjs
+
       - name: Open pull request
+        id: create-pr
         uses: peter-evans/create-pull-request@v8
         with:
-          commit-message: 'i18n: refresh zh translations'
-          title: 'i18n: refresh zh translations'
+          commit-message: 'i18n: improve native Chinese copy'
+          title: 'i18n: improve native Chinese copy'
           branch: i18n/refresh-zh
           delete-branch: true
           body: |
-            Automated translation refresh.
+            Automated Simplified Chinese translation and native-copy review.
 
             Review the diff in `web/src/locales/zh/messages.po` and
             `data/science/zh/` before merging. The translator:
+            - Groups strings by screen and includes nearby source code so the
+              model sees real page context rather than an opaque line number.
+            - Immediately reviews up to 200 newly introduced or resurrected
+              strings after extraction, including translations recovered from
+              history; overflow enters the weekly rotation.
+            - Reviews one stable catalog shard each week, covering every active
+              string within eight weeks. Manual runs can request a full review.
+            - Applies a revision only when an independent critic agrees at high
+              confidence, preventing subjective synonym churn.
             - Uses `scripts/i18n_glossary.yaml` for canonical terminology
-              (CP, 阈值功率, 乳酸阈值, etc.). Update the glossary if you want
-              a term rendered differently going forward.
+              and Chinese voice rules. Update the glossary when the product
+              intentionally changes a term or tone choice.
             - Preserves ICU placeholders (`{count}`, `{name, plural, ...}`)
-              and Lingui XML tags (`<0>`) — rejects translations that drop
-              or add them.
+              Lingui XML tags (`<0>`), and intentional line breaks — rejects
+              revisions that drop or add them.
+            - Runs a deterministic quality gate for terminology, protected
+              tokens, catalog coverage, and Chinese typography.
             - Caps at `TRANSLATE_MAX` entries per run (default 100) so a
-              bulk re-translation can't burn the API budget in one shot.
+              bulk re-translation fails before it can burn the API budget.
+            - Regenerates the checked-in miniapp catalog in the same PR.
 
             If the diff looks off:
             - Wrong term: edit the glossary row and re-run the workflow.
-            - Missing placeholder: leave empty; it retries next run. If the
-              rejection is chronic, the source string likely needs a
-              friendlier shape.
+            - Missing placeholder: fix the empty entry in this PR. If rejection
+              is chronic, the source string likely needs a friendlier shape.
             - Rewording of an edit: port the old zh from git history
               (`git log -p -- web/src/locales/zh/messages.po`) since Lingui
               extraction drops the old msgid when the English source is
               edited.
+
+      - name: Dispatch required validation on translation branch
+        id: validation
+        if: steps.create-pr.outputs.pull-request-number != ''
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ steps.create-pr.outputs.pull-request-head-sha }}
+          PR_BRANCH: i18n/refresh-zh
+        run: |
+          gh workflow run ci-backend.yml --ref "$PR_BRANCH"
+          gh workflow run miniapp-build.yml --ref "$PR_BRANCH"
+
+          run_id=""
+          for _attempt in $(seq 1 30); do
+            run_id=$(gh run list \
+              --workflow ci-backend.yml \
+              --branch "$PR_BRANCH" \
+              --event workflow_dispatch \
+              --limit 20 \
+              --json databaseId,headSha \
+              --jq ".[] | select(.headSha == \"$HEAD_SHA\") | .databaseId" \
+              | head -1)
+            if [ -n "$run_id" ]; then
+              break
+            fi
+            sleep 2
+          done
+          if [ -z "$run_id" ]; then
+            echo "::error::Backend CI dispatch did not appear for $HEAD_SHA."
+            exit 1
+          fi
+          gh run watch "$run_id" --exit-status
+
+      - name: Fail when generated PR needs human repair
+        if: steps.quality.outcome == 'failure' || steps.validation.outcome == 'failure'
+        run: |
+          echo "::error::The translation PR was created, but quality or required validation failed."
+          echo "::error::Repair the flagged entries in that PR before merging."
+          exit 1

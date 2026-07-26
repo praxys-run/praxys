@@ -38,6 +38,9 @@ sections with an explicit `source`, `window`, `freshness`, and `as_of` value:
   Decision Check response/value rates, repeated use, and Coach usefulness.
   Trusted product telemetry uses a fixed trailing 28-day window so repeated
   weekly use remains meaningful.
+- **Agent learning:** durable change-loop decision/outcome counts, shadow and
+  human-override totals, merged-PR outcomes, policy versions, and the current
+  autonomy level. It exposes aggregates only, never decision inputs.
 - **Azure alerts and platform health:** selected-window alert history plus any
   currently fired retained alert, per-platform sync reliability, systemic
   failure clusters (at least five distinct users across systemic failure
@@ -133,9 +136,11 @@ to a `priority: <level>` label on the filed GitHub issue. Per-row actions:
 
 **Sync from GitHub** reconciles each filed ticket with its linked issue: a
 closed issue flips the ticket to `resolved`, a reopened one back to
-`issue_created`. It reads only the issue *state* (no ticket text leaves) and is
-a no-op when GitHub isn't configured — no extra permission is needed beyond the
-GitHub App's existing *Issues: write*.
+`issue_created`. It also records externally observed `agent-ready` presence and
+the state of PRs that close the issue. The GraphQL selection contains only state,
+labels, timestamps, PR numbers, and URLs — no ticket/PR text, comments, commits, reviews,
+or authors. It is a no-op when GitHub isn't configured; the App needs *Issues:
+read/write* plus *Pull requests: read*.
 
 Auto-filing + the sensitivity gate are configured via the GitHub App settings
 (`PRAXYS_GITHUB_APP_*` / `PRAXYS_FEEDBACK_GITHUB_*`; see

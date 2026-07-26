@@ -1,0 +1,154 @@
+schema_version: 1
+id: evidence-heat-decay-v1
+version: 1
+title: "Heat adaptation decay and re-induction"
+research_question: >
+  What does human evidence support about the time course, system specificity,
+  and re-induction of heat adaptation after heat exposure stops?
+topic: heat-decay
+status: accepted
+authors:
+  - agent:github-copilot
+human_reviewers:
+  - github:dddtc2005
+created_on: 2026-07-25
+reviewed_on: 2026-07-25
+intended_product_purpose: >
+  Prevent Praxys from presenting a fixed retention plateau or one exact
+  personal adaptation-loss percentage after a gap in heat exposure.
+scope:
+  population:
+    - Heat-acclimated adults represented in the included studies
+    - Predominantly trained male participants
+  intervention_or_exposure:
+    - Cessation of a heat-acclimation block
+    - Re-exposure after heat-acclimation decay
+  comparator:
+    - Measurements immediately after heat acclimation
+    - Original acclimation versus re-acclimation
+  outcomes:
+    - End-exercise heart rate
+    - End-exercise core temperature
+    - Sweat rate
+    - Re-acclimation speed
+method:
+  review_type: rapid
+  search_date: 2026-07-25
+  sources:
+    - name: Crossref DOI API
+      search_string: GET /works/10.1007/s40279-017-0808-x
+    - name: PubMed E-utilities
+      search_string: 10.1007/s40279-017-0808-x[aid]
+  inclusion_criteria:
+    - Human heat-acclimation decay or re-induction research
+    - Systematic synthesis reporting system-specific decay or re-acclimation
+    - Stable DOI metadata and an indexed abstract
+  exclusion_criteria:
+    - Acquisition-only studies without a decay interval
+    - Non-human studies
+    - Exact individual decay predictions unsupported by longitudinal validation
+  quality_appraisal: >
+    The central source is a systematic review and meta-analysis, but confidence
+    is reduced for individual prediction by the small study base, heterogeneous
+    protocols, and predominantly male samples.
+  method_limitations:
+    - One central systematic review rather than an independent updated search
+    - Abstract and indexed full-text metadata were used for this rapid review
+    - The included studies used heterogeneous acclimation and decay protocols
+claims:
+  - id: heat-decay.system-specific
+    statement: >
+      End-exercise heart-rate and core-temperature adaptations decline
+      progressively after heat acclimation, while sweat-rate retention follows
+      a different time course; adaptation cannot be represented by one
+      system-independent plateau or percentage.
+    source_ids:
+      - daanen-2018
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: End-exercise heart-rate adaptation decay
+        estimate: 2.3
+        unit: percent per day
+        context: Meta-analytic central estimate after heat acclimation
+      - metric: End-exercise core-temperature adaptation decay
+        estimate: 2.6
+        unit: percent per day
+        context: Meta-analytic central estimate after heat acclimation
+    applicable_population:
+      - Trained adults represented by twelve heterogeneous studies
+    domain:
+      - Heat-acclimation decay
+      - Heart-rate and core-temperature response
+    limitations:
+      - Twelve studies met the review criteria
+      - Protocols lacked standardization
+      - Participants were predominantly male
+      - Daily rates are group-level central estimates, not personal linear trajectories
+      - Sweat-rate decay was not related to decay days in the same way
+  - id: heat-decay.reinduction-faster
+    statement: >
+      Re-acclimation of heart-rate and core-temperature responses can occur
+      substantially faster than original acclimation after prior adaptation,
+      but the evidence base is small.
+    source_ids:
+      - daanen-2018
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Re-acclimation speed relative to original acclimation
+        range_low: 8
+        range_high: 12
+        unit: times faster
+        context: Heart-rate and core-temperature responses across eight re-acclimation studies
+    applicable_population:
+      - Previously heat-acclimated adults represented by the review
+    domain:
+      - Heat re-induction
+      - Re-acclimation
+    limitations:
+      - Only eight included studies investigated re-acclimation
+      - The 8 to 12 times value is reported in the indexed review abstract and remains a group-level synthesis
+      - The estimate does not establish a personal return date or retained percentage
+  - id: heat-decay.no-seven-day-plateau
+    statement: >
+      Seven days without heat exposure was an inclusion criterion in the
+      systematic review, not evidence that adaptation is fully retained through
+      day seven; gradual recency language is more defensible than a no-loss
+      plateau.
+    source_ids:
+      - daanen-2018
+    evidence_strength: moderate
+    applicable_population:
+      - Heat-acclimated adults represented by the review
+    domain:
+      - Product interpretation boundary
+      - Heat-adaptation retention
+    limitations:
+      - This claim distinguishes review methodology from biological inference
+      - The underlying literature does not establish one universal nonlinear decay curve
+citations:
+  - id: daanen-2018
+    title: "Heat Acclimation Decay and Re-Induction: A Systematic Review and Meta-Analysis"
+    authors:
+      - Hein A. M. Daanen
+      - Sebastien Racinais
+      - Julien D. Periard
+    year: 2018
+    journal: Sports Medicine
+    doi: 10.1007/s40279-017-0808-x
+    pmid: "29129022"
+known_gaps:
+  - Sex-disaggregated decay and re-induction rates
+  - Nonlinear and response-specific decay curves with uncertainty
+  - Field validation using ordinary athlete training and wearable data
+  - Effects of the original heat dose, duration, and environment on later retention
+conflicting_findings:
+  - Heart-rate, core-temperature, and sweat adaptations do not decay as one system
+  - Longer or differently intense initial protocols affect retention differently by outcome
+follow_up_questions:
+  - Which recency bands best preserve uncertainty without implying exact personal loss?
+  - Can matched-workload heart-rate observations validate retained adaptation in the field?
+  - How should re-acclimation be described when the prior block itself was inferred?
+review_notes:
+  - Product scope was maintainer-vetted in issues #457 and #459.
+  - The record explicitly separates Daanen's study inclusion criterion from a biological threshold.
+  - The 8 to 12 times faster re-induction value was verified against the indexed Daanen 2018 abstract.

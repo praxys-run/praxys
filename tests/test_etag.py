@@ -133,8 +133,10 @@ def test_response_versions_cover_changed_endpoints():
     """Deployment salts invalidate pre-change cached endpoint bodies."""
     from api.etag import ENDPOINT_RESPONSE_VERSIONS
 
-    assert ENDPOINT_RESPONSE_VERSIONS["today"] == "metric-provenance-today-v3"
-    assert ENDPOINT_RESPONSE_VERSIONS["training"] == "evidence-summary-v2"
+    assert ENDPOINT_RESPONSE_VERSIONS["today"] == "heat-adaptation-today-v13"
+    assert ENDPOINT_RESPONSE_VERSIONS["training"] == "peer-metric-volume-training-v13"
+    assert ENDPOINT_RESPONSE_VERSIONS["goal"] == "fixed-heat-model-goal-v2"
+    assert ENDPOINT_RESPONSE_VERSIONS["science"] == "fixed-heat-model-v2"
     assert ENDPOINT_RESPONSE_VERSIONS["plan"] == "connection-aware-plan-v2"
 
 

@@ -84,7 +84,8 @@ class UserConfig:
         "target_time_sec": 0,
     })
 
-    # Science framework: one theory per pillar
+    # User-selectable science framework: one theory per configurable pillar.
+    # Fixed operational models (currently heat) are loaded independently.
     science: dict[str, str] = field(default_factory=lambda: {
         "load": "banister_pmc",
         "recovery": "hrv_based",

@@ -48,6 +48,17 @@ class ZoneTheoryParams(BaseModel):
                     f"boundaries[{base}] has {len(bounds)} values, "
                     f"expected {expected_boundaries} (zone_count={self.zone_count})"
                 )
+        zone_name_sets = (
+            {"default": self.zone_names}
+            if isinstance(self.zone_names, list)
+            else self.zone_names
+        )
+        for base, names in zone_name_sets.items():
+            if len(names) != self.zone_count:
+                raise ValueError(
+                    f"zone_names[{base}] has {len(names)} values, "
+                    f"expected {self.zone_count}"
+                )
         if len(self.target_distribution) != self.zone_count:
             raise ValueError(
                 "target_distribution must contain one value per zone "
@@ -57,6 +68,49 @@ class ZoneTheoryParams(BaseModel):
             raise ValueError("target_distribution values must be between 0 and 1")
         if abs(sum(self.target_distribution) - 1.0) > 1e-6:
             raise ValueError("target_distribution values must sum to 1.0")
+        return self
+
+
+class HeatTheoryParams(BaseModel):
+    """Documented parameters for the fixed heat-evidence model."""
+    active_window_days: int = Field(ge=1)
+    minimum_power_fraction_cp: float = Field(gt=0, le=1)
+    sample_coverage_ratio: float = Field(gt=0, le=1)
+    qualifying_effective_minutes: float = Field(gt=0)
+    building_days: int = Field(ge=1)
+    building_effective_minutes: float = Field(gt=0)
+    likely_adapted_days: int = Field(ge=1)
+    likely_adapted_effective_minutes: float = Field(gt=0)
+    wet_bulb_reference_c: float
+    wet_bulb_full_weight_c: float
+    dry_bulb_reference_c: float
+    dry_bulb_full_weight_c: float
+    decay_start_days: int = Field(ge=0)
+    decay_end_days: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def check_heat_model_ranges(self) -> "HeatTheoryParams":
+        """Keep the published model description internally ordered."""
+        if self.building_days > self.likely_adapted_days:
+            raise ValueError("building_days must not exceed likely_adapted_days")
+        if (
+            self.building_effective_minutes
+            > self.likely_adapted_effective_minutes
+        ):
+            raise ValueError(
+                "building_effective_minutes must not exceed "
+                "likely_adapted_effective_minutes"
+            )
+        if self.wet_bulb_reference_c >= self.wet_bulb_full_weight_c:
+            raise ValueError(
+                "wet_bulb_reference_c must be below wet_bulb_full_weight_c"
+            )
+        if self.dry_bulb_reference_c >= self.dry_bulb_full_weight_c:
+            raise ValueError(
+                "dry_bulb_reference_c must be below dry_bulb_full_weight_c"
+            )
+        if self.decay_start_days > self.decay_end_days:
+            raise ValueError("decay_start_days must not exceed decay_end_days")
         return self
 
 
@@ -91,6 +145,7 @@ PILLAR_PARAMS_SCHEMA: dict[str, type[BaseModel]] = {
     "recovery": RecoveryTheoryParams,
     "prediction": PredictionTheoryParams,
     "zones": ZoneTheoryParams,
+    "heat": HeatTheoryParams,
 }
 
 
@@ -107,17 +162,25 @@ def validate_theory_params(pillar: str, params: dict[str, Any]) -> dict[str, Any
     return validated.model_dump()
 
 
-def validate_signal_params(signal: dict[str, Any]) -> dict[str, Any]:
-    """Validate signal params if present."""
-    if not signal:
+def validate_signal_params(
+    signal: dict[str, Any],
+    *,
+    apply_defaults: bool = False,
+) -> dict[str, Any]:
+    """Validate signal params when present or when runtime defaults apply."""
+    if not signal and not apply_defaults:
         return signal
     validated = SignalParams.model_validate(signal)
     return validated.model_dump()
 
 
-def validate_diagnosis_params(diagnosis: dict[str, Any]) -> dict[str, Any]:
-    """Validate diagnosis params if present."""
-    if not diagnosis:
+def validate_diagnosis_params(
+    diagnosis: dict[str, Any],
+    *,
+    apply_defaults: bool = False,
+) -> dict[str, Any]:
+    """Validate diagnosis params when present or when runtime defaults apply."""
+    if not diagnosis and not apply_defaults:
         return diagnosis
     validated = DiagnosisParams.model_validate(diagnosis)
     return validated.model_dump()

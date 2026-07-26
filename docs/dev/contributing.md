@@ -76,26 +76,88 @@ How to extend Praxys with new features.
 
 ## Adding a New Science Theory
 
-1. **Create YAML file** in `data/science/{pillar}/{theory_id}.yaml`:
+Science changes use two linked, versioned records before implementation:
+
+- An **Evidence Review** records what the literature supports.
+- A **Science Decision Record (SDR)** records how Praxys applies that evidence.
+
+Every new theory added after the registry introduction must link an accepted
+SDR. Unlinked pre-existing theories remain supported only as a legacy migration
+exception; do not use that compatibility path for new science.
+
+Use a **rapid review** for a bounded product question when the important
+databases, exact search strings, inclusion/exclusion rules, applicability,
+limitations, and known conflicts can be recorded reproducibly. Use a
+**rigorous review** when the decision is safety-critical, evidence is broad or
+materially conflicting, a quantitative effect will drive user-facing output,
+or the result is intended to support several models. A rigorous review should
+add a protocol, duplicate screening or extraction where practical, a formal
+risk-of-bias/quality appraisal, and a complete search log. Label the method
+honestly; neither level lets schema validation declare a paper true.
+
+1. **Add an Evidence Review** at
+   `data/science/evidence/{topic}/evidence-{topic}-v{N}.yaml`:
+   - Identify authors, human reviewers, review dates, purpose, and lifecycle
+     status.
+   - Preserve the exact searches, search date, selection rules, scope,
+     evidence strength, effect estimates, applicability, limitations,
+     conflicting findings, gaps, and follow-up questions.
+   - Give every claim and citation a stable ID. Include a DOI, PMID, or stable
+     URL for each citation; identifier syntax checks do not verify correctness.
+
+2. **Add an SDR** at
+   `data/science/decisions/sdr-{decision}-v{N}.yaml`:
+   - Link the exact evidence-review and claim IDs used.
+   - Record the accepted interpretation, rejected alternatives, claim limits,
+     applicability, safety/privacy implications, validation and falsification
+     plans, and every affected model/API/client/`ScienceNote`.
+   - Classify every model value as `published`, `estimate`, or `guardrail`.
+     Published values require a supporting claim; estimates and guardrails
+     require an explicit Praxys rationale. This includes `params` plus
+     behavior-driving `signal`, `diagnosis`, and `tsb_zones` values.
+   - Only an identified human reviewer may move a record to `accepted`. Agents
+     may prepare `draft` records but cannot accept or ship a science decision.
+
+3. **Create or update the canonical English theory YAML** in
+   `data/science/{pillar}/{theory_id}.yaml`:
    ```yaml
    id: theory_id
    pillar: load|recovery|prediction|zones
    name: "Display Name"
+   model_version: model-v1
+   science_decision_id: sdr-example-v1
    description: Brief description
    simple_description: Plain-language explanation
    advanced_description: |
      Detailed technical explanation with formulas and tables.
-   citations:
-     - key: author2020
-       title: "Paper Title"
-       year: 2020
    params:
      # Theory-specific parameters
    ```
 
-2. **No code changes needed** — the science framework auto-discovers YAML files
+   Linked theories resolve citations from the registry; do not copy citation
+   metadata into theory or locale files. Localized YAML should contain only
+   translated user-facing prose and identifiers needed by the locale loader.
 
-3. **Test** by selecting the theory in Settings or via `/science` skill
+4. **Regenerate the index**:
+   `python scripts/generate_science_registry_index.py`.
+
+5. **Validate** with
+   `python -m pytest tests/test_evidence_registry.py tests/test_science.py`.
+   Then test the theory in Settings or through the `/science` skill.
+
+### Updating a review without rewriting history
+
+Do not edit the methods, claims, interpretations, or parameter rationale in an
+accepted record. Add a new version with a new record ID, set its `supersedes`
+link, and update only the old record's lifecycle metadata to `superseded` plus
+`superseded_by`. Add or supersede the linked SDR, bump the implementation model
+version when behavior changes, update the theory's `science_decision_id`, and
+regenerate `data/science/REGISTRY.md`. Retain retired and superseded files so a
+past model version remains auditable.
+
+When a new review version uses the same paper, repeat its stable citation ID
+and identical metadata; the registry de-duplicates that source across versions.
+Use new, globally unique claim IDs for the new review's claims.
 
 ## Keeping UI and CLI Skills in Sync
 

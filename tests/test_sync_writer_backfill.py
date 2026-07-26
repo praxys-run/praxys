@@ -132,6 +132,7 @@ def test_write_splits_backfills_native_power(db_with_user):
         "duration_sec": "300",
         "avg_hr": "150",
         "avg_power": "245",
+        "power_source": "garmin",
     }], db)
     db.commit()
 
@@ -141,6 +142,7 @@ def test_write_splits_backfills_native_power(db_with_user):
         ActivitySplit.split_num == 1,
     ).one()
     assert split.avg_power == 245.0
+    assert split.power_source == "garmin"
 
 
 def test_write_splits_preserves_existing_ciq_power(db_with_user):
@@ -154,6 +156,7 @@ def test_write_splits_preserves_existing_ciq_power(db_with_user):
         "activity_id": "act-1", "split_num": "1",
         "distance_km": "1.0", "duration_sec": "300",
         "avg_power": "270",  # old CIQ read
+        "power_source": "stryd",
     }], db)
     db.commit()
 
@@ -161,6 +164,7 @@ def test_write_splits_preserves_existing_ciq_power(db_with_user):
         "activity_id": "act-1", "split_num": "1",
         "distance_km": "1.0", "duration_sec": "300",
         "avg_power": "240",  # new native read — different value
+        "power_source": "garmin",
     }], db)
     db.commit()
 
@@ -169,6 +173,73 @@ def test_write_splits_preserves_existing_ciq_power(db_with_user):
         ActivitySplit.split_num == 1,
     ).one()
     assert split.avg_power == 270.0
+    assert split.power_source == "stryd"
+
+
+def test_write_splits_does_not_label_retained_watts_from_different_source(
+    db_with_user,
+):
+    """Unknown legacy watts stay unknown when the incoming value differs."""
+    from db import sync_writer
+    from db.models import ActivitySplit
+
+    db, user_id = db_with_user
+    sync_writer.write_splits(user_id, [{
+        "activity_id": "act-1",
+        "split_num": "1",
+        "duration_sec": "300",
+        "avg_power": "270",
+    }], db)
+    db.commit()
+
+    count = sync_writer.write_splits(user_id, [{
+        "activity_id": "act-1",
+        "split_num": "1",
+        "duration_sec": "300",
+        "avg_power": "240",
+        "power_source": "garmin",
+    }], db)
+    db.commit()
+
+    split = db.query(ActivitySplit).filter(
+        ActivitySplit.activity_id == "act-1",
+        ActivitySplit.split_num == 1,
+    ).one()
+    assert count == 0
+    assert split.avg_power == 270.0
+    assert split.power_source is None
+
+
+def test_write_splits_backfills_source_only_for_matching_watts(db_with_user):
+    """A same-value re-sync may safely establish missing provenance."""
+    from db import sync_writer
+    from db.models import ActivitySplit
+
+    db, user_id = db_with_user
+    sync_writer.write_splits(user_id, [{
+        "activity_id": "act-1",
+        "split_num": "1",
+        "duration_sec": "300",
+        "avg_power": "270",
+    }], db)
+    db.commit()
+
+    count = sync_writer.write_splits(user_id, [{
+        "activity_id": "act-1",
+        "split_num": "1",
+        "duration_sec": "300",
+        "avg_power": "270",
+        "power_source": "stryd",
+    }], db)
+    db.commit()
+
+    split = db.query(ActivitySplit).filter(
+        ActivitySplit.activity_id == "act-1",
+        ActivitySplit.split_num == 1,
+    ).one()
+    assert count == 1
+    assert split.avg_power == 270.0
+    assert split.power_source == "stryd"
 
 
 def test_write_activities_new_row_still_inserts(db_with_user):
@@ -219,6 +290,121 @@ def test_write_activities_nothing_to_fill_returns_zero(db_with_user):
     db.commit()
 
     assert count == 0
+
+
+def test_write_activities_persists_and_backfills_environment(db_with_user):
+    """A re-sync can add Stryd environment evidence without clobbering it."""
+    from db import sync_writer
+    from db.models import Activity
+
+    db, user_id = db_with_user
+    today = date.today()
+    base = {
+        "activity_id": "heat-1",
+        "date": today.isoformat(),
+        "duration_sec": "3600",
+        "avg_power": "220",
+    }
+
+    sync_writer.write_activities(user_id, [base], db)
+    db.commit()
+    sync_writer.write_activities(user_id, [{
+        **base,
+        "temperature_c": "33.4",
+        "relative_humidity_pct": "72.0",
+        "environment_source": "stryd_activity_weather",
+    }], db)
+    db.commit()
+
+    row = db.query(Activity).filter(Activity.activity_id == "heat-1").one()
+    assert row.temperature_c == 33.4
+    assert row.relative_humidity_pct == 72.0
+    assert row.environment_source == "stryd_activity_weather"
+
+    sync_writer.write_activities(user_id, [{
+        **base,
+        "temperature_c": "31.0",
+        "relative_humidity_pct": "65.0",
+        "environment_source": "other_activity_summary",
+    }], db)
+    db.commit()
+
+    db.refresh(row)
+    assert row.temperature_c == 33.4
+    assert row.relative_humidity_pct == 72.0
+    assert row.environment_source == "stryd_activity_weather"
+
+
+def test_write_activities_does_not_persist_partial_environment_pair(
+    db_with_user,
+):
+    """Temperature and RH are one observation and cannot be mixed across syncs."""
+    from db import sync_writer
+    from db.models import Activity
+
+    db, user_id = db_with_user
+    today = date.today()
+    base = {
+        "activity_id": "heat-partial",
+        "date": today.isoformat(),
+        "duration_sec": "3600",
+        "source": "stryd",
+    }
+
+    sync_writer.write_activities(user_id, [{
+        **base,
+        "temperature_c": "33.4",
+    }], db)
+    db.commit()
+    sync_writer.write_activities(user_id, [{
+        **base,
+        "relative_humidity_pct": "72.0",
+    }], db)
+    db.commit()
+
+    row = db.query(Activity).filter(
+        Activity.activity_id == "heat-partial",
+    ).one()
+    assert row.temperature_c is None
+    assert row.relative_humidity_pct is None
+    assert row.environment_source is None
+
+
+def test_write_cp_estimates_bumps_fitness_revision_only_on_change(db_with_user):
+    """A Stryd CP-only sync invalidates Today/Training heat calculations."""
+    from db import sync_writer
+    from db.cache_revision import get_revisions
+
+    db, user_id = db_with_user
+    today = date.today()
+
+    assert get_revisions(db, user_id, ["fitness"])["fitness"] == 0
+    assert sync_writer.write_cp_estimates(
+        user_id,
+        {today: 270.0},
+        source="stryd",
+        db=db,
+    ) == 1
+    db.commit()
+    assert get_revisions(db, user_id, ["fitness"])["fitness"] == 1
+
+    assert sync_writer.write_cp_estimates(
+        user_id,
+        {today: 270.0},
+        source="stryd",
+        db=db,
+    ) == 0
+    db.commit()
+    assert get_revisions(db, user_id, ["fitness"])["fitness"] == 1
+
+    assert sync_writer.write_cp_estimates(
+        user_id,
+        {today: 280.0},
+        source="stryd",
+        db=db,
+    ) == 1
+    db.commit()
+    assert get_revisions(db, user_id, ["fitness"])["fitness"] == 2
 
 
 # ---------------------------------------------------------------------------

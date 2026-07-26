@@ -6,7 +6,13 @@ from sqlalchemy.orm import Session
 from api.auth import get_data_user_id
 from api.dashboard_cache import cached_or_compute
 from api.etag import CACHE_CONTROL, ETagGuard, etag_guard_for_endpoint
-from api.packs import RequestContext, get_diagnosis_pack, get_fitness_pack
+from api.packs import (
+    RequestContext,
+    get_diagnosis_pack,
+    get_fitness_pack,
+    get_signal_pack,
+)
+from analysis.metrics import apply_heat_adaptation_guidance
 from db.session import get_db
 
 router = APIRouter()
@@ -17,6 +23,11 @@ def _build_training_payload(user_id: str, db: Session) -> dict:
     ctx = RequestContext(user_id=user_id, db=db)
     diagnosis = get_diagnosis_pack(ctx)
     fitness = get_fitness_pack(ctx)
+    signal = get_signal_pack(ctx)
+    heat_adaptation = apply_heat_adaptation_guidance(
+        ctx.heat_adaptation,
+        signal["signal"].get("recommendation"),
+    )
     return {
         "diagnosis": diagnosis["diagnosis"],
         "fitness_fatigue": fitness["fitness_fatigue"],
@@ -29,6 +40,7 @@ def _build_training_payload(user_id: str, db: Session) -> dict:
         },
         "workout_flags": diagnosis["workout_flags"],
         "sleep_perf": diagnosis["sleep_perf"],
+        "heat_adaptation": heat_adaptation,
         "training_base": ctx.config.training_base,
         "display": ctx.display,
         "data_meta": ctx.data_meta,

@@ -121,7 +121,8 @@ or `28d` (default `24h`). Every section includes `source`, `window`, `freshness`
 Database-backed attention/activity aggregates and live component health are
 combined with aggregate-only telemetry from the trusted backend Application
 Insights component: request/availability health, Azure alert instances,
-Today/Decision Check/Coach value signals, sync reliability, systemic failure
+Today/Decision Check/Coach value signals, durable agent decision/outcome
+aggregates, sync reliability, systemic failure
 clusters (at least five distinct users across systemic failure classes for one
 platform within 15 minutes), and connection outcomes. The response contains no emails, user IDs or
 pseudonyms, feedback text/screenshots, invitation codes, Coach comments, raw log
@@ -144,6 +145,7 @@ cache and may explicitly report `freshness: "stale"`.
   },
   "service_health": {"source": "live_probe", "window": "live", "freshness": "fresh", "as_of": "...", "reason": null, "data": {"overall": "operational", "components": [], "postgres_active_connections": 5, "postgres_max_connections": 100, "postgres_connection_utilization": 0.05}},
   "product_value": {"source": "praxys_database", "window": "rolling_1d_7d_30d", "freshness": "fresh", "as_of": "...", "reason": null, "data": {"registered_users": 12, "dau": 4, "wau": 9, "mau": 11, "directional": true}},
+  "agent_learning": {"source": "praxys_database", "window": "24h", "freshness": "fresh", "as_of": "...", "reason": null, "data": {"decisions_total": 5, "outcomes_total": 7, "shadow_decisions": 1, "agent_ready_candidates": 3, "agent_ready_applied": 2, "human_overrides": 1, "merged_pull_requests": 2, "decision_policy_version": "agent-ready-v2", "review_policy_version": "selective-review-v1", "promoted_classes": [], "autonomy_level": "draft_with_review"}},
   "service_telemetry": {"source": "azure_monitor", "window": "24h", "freshness": "fresh", "as_of": "...", "reason": null, "data": {"requests": 100, "failed_requests": 4, "server_errors": 2, "failed_request_rate": 0.04, "server_error_rate": 0.02, "p95_request_ms": 480.0, "availability_checks": 24, "failed_availability_checks": 1, "availability_rate": 0.9583, "p95_availability_ms": 210.0, "database_health_failures": 0}},
   "product_telemetry": {"source": "azure_monitor", "window": "28d", "freshness": "fresh", "as_of": "...", "reason": null, "data": {"surfaces": [{"surface": "web", "app_users": 10, "today_users": 8, "today_reach_rate": 0.8, "decision_prompts": 6, "decision_responses": 4, "decision_response_rate": 0.6667, "reported_value_rate": 0.75, "repeated_users": 5, "repeated_rate": 0.625}], "coach": [{"insight_type": "daily_brief", "useful_votes": 7, "total_votes": 9, "useful_rate": 0.7778}]}},
   "azure_alerts": {"source": "azure_monitor", "window": "24h", "freshness": "fresh", "as_of": "...", "reason": null, "data": {"total": 1, "firing": 0, "resolved": 1, "severity": {"sev0": 0, "sev1": 1, "sev2": 0, "sev3": 0, "sev4": 0}, "states": {"new": 1, "acknowledged": 0, "closed": 0}, "rules": [{"rule": "wt-praxys-api-health", "severity": "Sev1", "firing": 0, "resolved": 1, "last_changed_at": "..."}]}},
@@ -396,6 +398,21 @@ one configured provider at a time rather than blending overlapping sources.
     { "date": "2026-04-11", "workout_type": "threshold", "duration_min": 65, "description": "..." }
   ],
   "week_load": { "week_label": "W15", "actual": 245.3, "planned": 280.0 },
+  "heat_adaptation": {
+    "stage": "insufficient_evidence|building|likely_adapted|maintaining|decaying",
+    "confidence": "low|moderate|high",
+    "confidence_basis": "data_coverage",
+    "model_version": "heat-adaptation-v8",
+    "next_action": "continue_normal_training",
+    "today_restricted": false,
+    "recent_conditions": {
+      "qualifying_session_count": 2,
+      "temperature_c": { "min": 29.0, "max": 33.0 },
+      "relative_humidity_pct": { "min": 54.0, "max": 68.0 }
+    },
+    "cadence": [{ "date": "2026-04-08", "session_count": 1, "counted_session_count": 1, "effective_heat_minutes": 42 }],
+    "sessions": []
+  },
   "warnings": ["HRV rolling mean declining"],
   "training_base": "power",
   "display": { "threshold_abbrev": "CP", "threshold_unit": "W", "load_label": "RSS" }
@@ -412,6 +429,51 @@ same-day decisions and clients render it as unavailable rather than as a balance
 value of zero. The one-time-constant history gate and displayed TSB labels are
 Praxys product estimates, not validated physiological cutoffs.
 
+`heat_adaptation` is a qualitative evidence tracker. It prefers
+timestamp-weighted sample power when it covers at least 90% of activity duration
+and otherwise falls back to activity splits; sample gaps over five seconds do
+not count toward coverage, and activity `avg_power` is never used for exposure
+workload. The selected sample/split provider must be known and match
+`cp_power_provider` because Garmin and Stryd running-power scales are not
+interchangeable. For `cp_source: "activities"`, `cp_power_provider` is the
+provider persisted with a provider-specific, running-only activity CP fit. The
+fit uses the configured primary activity provider when present; otherwise it is
+created only when the eligible activity set has one unambiguous provider.
+Matching split provenance is required and cycling is excluded. Sessions expose
+`power_provider`, `cp_source`, `cp_power_provider`, `power_source_alignment`,
+`sample_coverage_ratio`, and `workload_evaluable` so clients can distinguish a
+provider mismatch, unverified provenance, incomplete samples, and work that was
+genuinely below threshold.
+
+`recent_conditions` summarizes only qualifying sessions inside the active
+14-day window. It is `null` when no current qualifying session exists, and
+excluded or older observations cannot widen its temperature or humidity
+range. It describes the recent training conditions represented by the model;
+it is not a target climate and does not assess current weather. For
+`maintaining` and `decaying`, the stage can come from an older qualifying
+block, so `recent_conditions` must not be presented as that historical
+block's condition range.
+
+Environmental context is one provenance-tagged outdoor activity-summary
+temperature/RH pair; treadmill and indoor summary weather are discarded.
+Evidence uses the stronger of a Stull psychrometric wet-bulb ramp and a dry-bulb
+ramp; the ramps are never added, and the result is not WBGT. The Stull proxy
+assumes standard sea-level pressure and is returned as `null` outside its 5-99%
+RH domain; the independent dry-bulb ramp can still contribute. Wind, solar
+radiation, within-session weather, clothing, hydration state, and measured core
+or skin temperature are excluded. The 18-26 C wet-bulb ramp, 30-40 C dry-bulb
+ramp, max combination, 50% CP workload floor, five-second sample-interval gate,
+90% sample-coverage gate, 30-effective-minute session gate, 14-day active
+window, general 2-day/60-minute Building threshold, resumed-exposure
+Reacclimating label, 7-day/420-minute Likely adapted threshold,
+effective-minute weighting, retention through day 7, and decay after day 7
+through day 28 are Praxys operational estimates, not validated physiological
+cutoffs or a dose model.
+Confidence describes evaluable data coverage, not the probability of individual
+physiological adaptation. The status is not medical clearance or a current
+heat-risk assessment, and restrictive `signal` recommendations replace its
+normal-training action with `follow_today_signal`.
+
 `coach_snapshot` is an opaque cache/source version retained for response
 compatibility. It is not an insight identifier and clients should not use it to
 request same-day prose.
@@ -427,7 +489,12 @@ Training analysis and diagnosis.
 {
   "diagnosis": {
     "lookback_weeks": 6,
-    "volume": { "weekly_avg_km": 51.6, "trend": "stable" },
+    "volume": {
+      "weekly_avg_km": 51.6,
+      "trend": "stable",
+      "weeks": ["2026-04-20", "2026-04-27", "2026-05-04", "2026-05-11", "2026-05-18", "2026-05-25"],
+      "weekly_km": [48.3, 52.1, 54.5, 49.2, 52.8, 52.7]
+    },
     "consistency": { "total_sessions": 18, "weeks_with_gaps": 1, "longest_gap_days": 4 },
     "interval_power": {
       "max": 292,
@@ -473,6 +540,21 @@ Training analysis and diagnosis.
     "distribution_match_pct": 83,
     "load_compliance_pct": 96
   },
+  "heat_adaptation": {
+    "stage": "likely_adapted",
+    "confidence": "high",
+    "confidence_basis": "data_coverage",
+    "model_version": "heat-adaptation-v8",
+    "exposure_days": 7,
+    "effective_heat_minutes": 420,
+    "recent_conditions": {
+      "qualifying_session_count": 7,
+      "temperature_c": { "min": 29.0, "max": 33.0 },
+      "relative_humidity_pct": { "min": 54.0, "max": 68.0 }
+    },
+    "cadence": [{ "date": "2026-04-08", "session_count": 1, "counted_session_count": 1, "effective_heat_minutes": 42 }],
+    "sessions": ["..."]
+  },
   "workout_flags": [{ "date": "...", "flag": "good|bad", "reason": "..." }],
   "sleep_perf": {
     "pairs": [[85, 240.3], ["..."]],
@@ -503,6 +585,11 @@ less. `load_compliance_pct` uses only completed weeks where both actual and
 planned load have exact selected-base inputs and the plan target is positive.
 It is `null` until at least two such weeks exist. A week is complete only after
 Sunday has passed and daily load contains all seven Monday-through-Sunday dates.
+`diagnosis.volume.weeks` is oldest-first and always aligns positionally with
+`weekly_km`. Both arrays are empty when no recent distance history is available;
+a non-empty all-zero series is valid recorded data and yields `weekly_avg_km: 0`.
+Trend labels use a Praxys estimate that requires the newer half to differ from
+the older half by more than 10%.
 The result is a descriptive mean actual-to-planned load ratio, not a quality,
 safety, recovery, or readiness score. `week_actual_estimated` and
 `week_planned_estimated` provide the per-week provenance; estimated bars remain
@@ -511,6 +598,17 @@ rows are exact zero load; other durationless rows remain estimated.
 `load_time_constant_days` comes from the active load theory and controls
 `pmc_sufficient`. Both the one-time-constant sufficiency gate and the two-week
 minimum are Praxys product estimates rather than validated physiological cutoffs.
+
+`heat_adaptation` has the same evidence and safety contract as the Today field,
+but Training is the client surface for the longitudinal experience.
+`recent_conditions` describes the current qualifying temperature and humidity
+range. For Building and Likely adapted, it supplies the conditions behind the
+current evidence. Maintaining and Decaying can inherit from an older block, so
+clients explicitly separate that retained/fading stage from the current range.
+`cadence` is the complete server-computed daily aggregate for the active
+window; `sessions` remains a bounded latest-evidence ledger for progressive
+disclosure. Clients keep the cadence, effective-minute mechanics, and
+inclusion reasons behind an optional evidence disclosure.
 
 When valid split-level intensity evidence is absent, `max`, `avg_work`,
 `supra_cp_sessions`, and `total_quality_sessions` are `null`, and
@@ -862,19 +960,22 @@ Disconnect a platform and delete stored credentials.
 
 ### GET /api/science
 
-Active theories, available options, and recommendations.
+Active theories, available options, fixed operational models, and
+recommendations.
 
 **Response:**
 ```json
 {
   "active": {
     "load": { "id": "banister_pmc", "name": "Banister PMC", "..." : "..." },
-    "zones": { "id": "coggan_5zone", "name": "Coggan 5-Zone", "..." : "..." }
+    "zones": { "id": "coggan_5zone", "name": "Coggan 5-Zone", "..." : "..." },
+    "heat": { "id": "praxys_heat_evidence", "name": "Praxys Heat Acclimatization Evidence", "..." : "..." }
   },
   "available": {
     "load": [{ "id": "banister_pmc", "..." : "..." }, { "id": "banister_ultra", "..." : "..." }],
     "zones": [{ "id": "coggan_5zone", "..." : "..." }, { "id": "polarized_3zone", "..." : "..." }]
   },
+  "fixed_pillars": ["heat"],
   "label_sets": [{ "id": "standard", "name": "Standard" }],
   "recommendations": [
     { "pillar": "zones", "recommended_id": "coggan_5zone", "reason": "...", "confidence": 0.85 }
@@ -885,6 +986,10 @@ Active theories, available options, and recommendations.
 ### PUT /api/science
 
 Update theory selections.
+
+Only selectable pillars (`load`, `recovery`, `prediction`, and `zones`) are
+updated. Fixed pillars such as `heat` remain active even if a client includes
+them in the request.
 
 **Request body:**
 ```json

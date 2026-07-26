@@ -9,11 +9,19 @@ from dotenv import load_dotenv
 logger = logging.getLogger(__name__)
 
 from analysis.config import load_config
-from analysis.data_loader import load_data, select_preferred_source
+from analysis.data_loader import (
+    load_data,
+    load_heat_adaptation_inputs,
+    load_heat_adaptation_inputs_from_files,
+    select_preferred_source,
+)
 from analysis.providers.models import ThresholdEstimate
 from analysis.training_base import get_display_config
 from analysis.science import load_active_science
 from analysis.metrics import (
+    HEAT_ELIGIBLE_ACTIVITY_TYPES,
+    HEAT_LOOKBACK_DAYS,
+    HEAT_SAMPLE_MAX_INTERVAL_SEC,
     compute_ewma_load,
     compute_tsb,
     compute_activity_load,
@@ -34,6 +42,8 @@ from analysis.metrics import (
     compute_trimp,
     compute_rtss,
     analyze_recovery,
+    apply_heat_adaptation_guidance,
+    compute_heat_adaptation,
     project_tsb,
     is_hard_workout,
     is_rest_workout,
@@ -87,7 +97,9 @@ def _resolve_thresholds(
         activity_source = config.preferences.get("activities") or None
         threshold_sources = config.preferences.get("threshold_sources") or {}
 
-        def _latest(metric_type: str) -> float | None:
+        def _latest(
+            metric_type: str,
+        ) -> tuple[float | None, str | None, str | None]:
             """Pick the best fitness_data row for this metric.
 
             Preferred-source-first, fall back to latest-by-date if the
@@ -109,7 +121,7 @@ def _resolve_thresholds(
                     .first()
                 )
                 if row and row.value:
-                    return float(row.value)
+                    return float(row.value), row.source, row.power_source
                 # Preferred source exists in the user's preferences but has no
                 # rows. Log at debug so the surprising-but-correct fallback
                 # ("I picked Stryd, why am I seeing Garmin's value?") is
@@ -119,7 +131,9 @@ def _resolve_thresholds(
                     "data; falling back to latest-by-date", preferred, metric_type,
                 )
             row = base.order_by(FitnessData.date.desc()).first()
-            return float(row.value) if row and row.value else None
+            if row and row.value:
+                return float(row.value), row.source, row.power_source
+            return None, None, None
 
         _METRIC_MAP = {
             "cp_estimate": "cp_watts",
@@ -129,9 +143,19 @@ def _resolve_thresholds(
             "rest_hr_bpm": "rest_hr_bpm",
         }
         for db_metric, est_attr in _METRIC_MAP.items():
-            val = _latest(db_metric)
+            val, provider_source, power_source = _latest(db_metric)
             if val is not None:
                 setattr(result, est_attr, val)
+                if db_metric == "cp_estimate":
+                    result.cp_source = provider_source
+                    result.cp_power_provider = (
+                        power_source
+                        or (
+                            provider_source
+                            if provider_source != "activities"
+                            else None
+                        )
+                    )
 
         # Derived fallback: Garmin writes per-activity max_hr but no
         # max_hr_bpm fitness_data record, so TRIMP would be skipped for
@@ -1787,6 +1811,40 @@ def get_dashboard_data(user_id: str = None, db=None) -> dict:
         recovery_thresholds=recovery_params,
         hrv_only=hrv_only_mode,
     )
+    primary_activity_provider = (
+        config.preferences.get("activities") or "garmin"
+    )
+    if user_id and db:
+        heat_activities, heat_splits, heat_sample_power = (
+            load_heat_adaptation_inputs(
+                user_id,
+                db,
+                activity_source=primary_activity_provider,
+                current_date=today,
+                sample_max_interval_sec=HEAT_SAMPLE_MAX_INTERVAL_SEC,
+                lookback_days=HEAT_LOOKBACK_DAYS,
+                eligible_activity_types=HEAT_ELIGIBLE_ACTIVITY_TYPES,
+            )
+        )
+    else:
+        heat_activities, heat_splits, heat_sample_power = (
+            load_heat_adaptation_inputs_from_files(
+                primary_activity_provider,
+                data_dir,
+            )
+        )
+    heat_adaptation = apply_heat_adaptation_guidance(
+        compute_heat_adaptation(
+            heat_activities,
+            heat_splits,
+            heat_sample_power,
+            cp_watts=latest_cp_watts,
+            cp_source=thresholds.cp_source,
+            cp_power_provider=thresholds.cp_power_provider,
+            current_date=today,
+        ),
+        signal.get("recommendation"),
+    )
 
     # Chart data
     display_days = 60
@@ -1901,6 +1959,7 @@ def get_dashboard_data(user_id: str = None, db=None) -> dict:
         "sleep_perf": sleep_perf,
         "warnings": warnings,
         "diagnosis": diagnosis,
+        "heat_adaptation": heat_adaptation,
         "latest_cp": latest_cp,
         "activities": activities_list,
         "training_base": config.training_base,

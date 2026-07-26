@@ -4,7 +4,7 @@
 // API response types
 
 export type TrainingBase = 'power' | 'hr' | 'pace';
-export type SciencePillar = 'load' | 'recovery' | 'prediction' | 'zones';
+export type SciencePillar = 'load' | 'recovery' | 'prediction' | 'zones' | 'heat';
 
 /** Build version of the running ``api/main.py``. The backend always
  * returns a non-empty string (``"develop"`` is the local-dev fallback),
@@ -48,6 +48,7 @@ export interface ScienceResponse {
   active: Partial<Record<SciencePillar, TheorySummary>>;
   active_labels: string;
   available: Record<SciencePillar, TheorySummary[]>;
+  fixed_pillars: SciencePillar[];
   label_sets: { id: string; name: string }[];
   recommendations: PillarRecommendation[];
 }
@@ -353,6 +354,140 @@ export interface UpcomingWorkout {
   description?: string | null;
 }
 
+export type HeatAdaptationStage =
+  | 'insufficient_evidence'
+  | 'building'
+  | 'likely_adapted'
+  | 'maintaining'
+  | 'decaying';
+
+export type HeatAdaptationConfidence = 'low' | 'moderate' | 'high';
+
+export type HeatAdaptationAction =
+  | 'sync_training_data'
+  | 'collect_supported_environment_data'
+  | 'set_power_threshold'
+  | 'align_power_source'
+  | 'sync_power_provenance'
+  | 'sync_power_evidence'
+  | 'continue_normal_training'
+  | 'maintain_normal_training'
+  | 'no_additional_heat_needed'
+  | 'follow_today_signal';
+
+export interface HeatAdaptationSession {
+  date: string;
+  activity_id: string;
+  temperature_c: number;
+  relative_humidity_pct: number;
+  wet_bulb_c: number | null;
+  work_minutes: number;
+  effective_heat_minutes: number;
+  workload_evaluable: boolean;
+  sample_coverage_ratio: number | null;
+  qualifies: boolean;
+  workload_source:
+    | 'samples'
+    | 'splits'
+    | 'none'
+    | 'samples_incomplete';
+  power_provider: string | null;
+  cp_source: string | null;
+  cp_power_provider: string | null;
+  power_source_alignment: 'matched' | 'mismatch' | 'unknown' | 'mixed';
+  environment_source: string;
+}
+
+export interface HeatAdaptationCadenceDay {
+  date: string;
+  session_count: number;
+  counted_session_count: number;
+  effective_heat_minutes: number;
+}
+
+export interface HeatAdaptationRecentConditions {
+  qualifying_session_count: number;
+  temperature_c: { min: number; max: number };
+  relative_humidity_pct: { min: number; max: number };
+}
+
+export interface HeatAdaptationStatus {
+  stage: HeatAdaptationStage;
+  confidence: HeatAdaptationConfidence;
+  confidence_basis: 'data_coverage';
+  model_version: string;
+  cp_source: string | null;
+  cp_power_provider: string | null;
+  exposure_days: number;
+  effective_heat_minutes: number;
+  contributing_sessions: number;
+  recent_conditions: HeatAdaptationRecentConditions | null;
+  days_since_last_exposure: number | null;
+  is_reacclimating: boolean;
+  today_restricted: boolean;
+  next_action: HeatAdaptationAction;
+  reason_codes: string[];
+  data_coverage: {
+    recent_activities: number;
+    environment_supported_activities: number;
+    power_evidence_activities: number;
+    workload_supported_activities: number;
+    power_source_mismatch_activities: number;
+    power_source_unverified_activities: number;
+  };
+  decay: {
+    state:
+      | 'not_applicable'
+      | 'recent_threshold_met'
+      | 'adaptation_may_persist'
+      | 'evidence_declining'
+      | 'evidence_limited'
+      | 'reacclimating';
+    start_days: number;
+    end_days: number;
+  };
+  evidence_thresholds: {
+    lookback_days: number;
+    active_window_days: number;
+    minimum_power_fraction_cp: number;
+    sample_coverage_ratio: number;
+    sample_max_interval_sec: number;
+    wet_bulb_reference_c: number;
+    wet_bulb_full_weight_c: number;
+    dry_bulb_reference_c: number;
+    dry_bulb_full_weight_c: number;
+    qualifying_effective_minutes: number;
+    likely_adapted_days: number;
+    likely_adapted_effective_minutes: number;
+    estimated: boolean;
+  };
+  environment_proxy: {
+    type: 'temperature_humidity_evidence';
+    wet_bulb_method: 'stull_psychrometric';
+    combination: 'max';
+    pressure_assumption: 'standard_sea_level';
+    granularity: 'activity_summary';
+    current_conditions_assessed: false;
+    excludes: (
+      | 'wind'
+      | 'solar_radiation'
+      | 'within_session_weather'
+      | 'clothing'
+      | 'hydration_state'
+      | 'core_temperature'
+      | 'skin_temperature'
+    )[];
+  };
+  safety_notice_codes: (
+    | 'not_medical_clearance'
+    | 'current_conditions_not_assessed'
+    | 'stop_for_heat_illness_symptoms'
+  )[];
+  science_sources: { id: string; url: string }[];
+  cadence: HeatAdaptationCadenceDay[];
+  sessions: HeatAdaptationSession[];
+}
+
 export interface TodayResponse {
   /** ISO `YYYY-MM-DD` — server-local calendar date the response was
    *  computed for. Clients should render the eyebrow against this rather
@@ -378,6 +513,7 @@ export interface TodayResponse {
   last_activity: LastActivity | null;
   week_load: WeekLoad | null;
   upcoming: UpcomingWorkout[];
+  heat_adaptation: HeatAdaptationStatus;
   data_meta: DataMeta;
   science_notes: ScienceNotes;
 }
@@ -415,6 +551,11 @@ export interface DiagnosisData {
   volume: {
     weekly_avg_km: number;
     trend: string;
+    /** ISO dates marking the end of each seven-day bucket, oldest first.
+     * Optional only during frontend-before-backend rolling deploys. */
+    weeks?: string[];
+    /** Positionally aligned with `weeks`; rollout-optional for old backends. */
+    weekly_km?: number[];
   };
   distribution: ZoneDistribution[];
   zone_ranges: ZoneRange[];
@@ -505,6 +646,7 @@ export interface TrainingResponse {
   summary: TrainingSummary;
   workout_flags: WorkoutFlag[];
   sleep_perf: SleepPerfData;
+  heat_adaptation: HeatAdaptationStatus;
   training_base?: TrainingBase;
   display?: DisplayConfig;
   data_meta?: DataMeta;
@@ -951,6 +1093,28 @@ export interface AdminOpsProductValueSection extends AdminOpsSectionMeta {
   data: AdminOpsProductValueData | null;
 }
 
+export type AdminOpsAgentAutonomyLevel =
+  | 'draft_with_review'
+  | 'policy_gated_auto_merge';
+
+export interface AdminOpsAgentLearningData {
+  decisions_total: number;
+  outcomes_total: number;
+  shadow_decisions: number;
+  agent_ready_candidates: number;
+  agent_ready_applied: number;
+  human_overrides: number;
+  merged_pull_requests: number;
+  decision_policy_version: string;
+  review_policy_version: string;
+  promoted_classes: string[];
+  autonomy_level: AdminOpsAgentAutonomyLevel;
+}
+
+export interface AdminOpsAgentLearningSection extends AdminOpsSectionMeta {
+  data: AdminOpsAgentLearningData | null;
+}
+
 export interface AdminOpsServiceTelemetryData {
   requests: number;
   failed_requests: number;
@@ -1089,6 +1253,8 @@ export interface AdminOpsSummary {
   attention: AdminOpsAttentionSection;
   service_health: AdminOpsServiceHealthSection;
   product_value: AdminOpsProductValueSection;
+  /** Optional during a rolling deploy from the pre-learning operations API. */
+  agent_learning?: AdminOpsAgentLearningSection;
   /** Optional during a rolling deploy from the Phase 1 operations API. */
   service_telemetry?: AdminOpsServiceTelemetrySection;
   /** Optional during a rolling deploy from the Phase 1 operations API. */

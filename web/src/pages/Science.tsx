@@ -26,6 +26,7 @@ const PILLARS: PillarMeta[] = [
   { key: 'recovery',   num: '02', label: msg`Recovery`,         question: msg`Reads readiness from the body's signals.` },
   { key: 'prediction', num: '03', label: msg`Race Prediction`, question: msg`Estimates race performance from current fitness.` },
   { key: 'zones',      num: '04', label: msg`Training Zones`,  question: msg`Defines what counts as easy, threshold, hard.` },
+  { key: 'heat',       num: '05', label: msg`Heat Adaptation`, question: msg`Estimates acclimatization from recent qualifying conditions.` },
 ];
 
 const PILLAR_KEYS = PILLARS.map((p) => p.key);
@@ -88,13 +89,15 @@ export default function Science() {
   const meta = PILLARS.find((p) => p.key === focused)!;
   const active = science.active[focused];
   const alternatives = science.available[focused] ?? [];
+  const isFixed = science.fixed_pillars.includes(focused);
   const recommendation = science.recommendations.find((r) => r.pillar === focused);
-  const previewId = previewing[focused];
+  const previewId = isFixed ? undefined : previewing[focused];
   const isPreviewMode = Boolean(previewId && previewId !== active?.id);
   const shownTheory: TheorySummary | undefined =
     isPreviewMode ? alternatives.find((t) => t.id === previewId) : active;
 
   const handleChicletClick = (id: string) => {
+    if (isFixed) return;
     if (id === active?.id) {
       // Re-activating active chiclet cancels any preview.
       setPreviewing((p) => ({ ...p, [focused]: undefined }));
@@ -135,6 +138,7 @@ export default function Science() {
           active={active}
           shown={shownTheory}
           alternatives={alternatives}
+          isFixed={isFixed}
           recommendation={recommendation}
           isPreviewMode={isPreviewMode}
           previewId={previewId}
@@ -167,15 +171,15 @@ function PageHeader({
     <header className="mb-10 flex flex-col gap-6 lg:mb-14 lg:flex-row lg:items-end lg:justify-between">
       <div>
         <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-2">
-          <Trans>Four-pillar framework</Trans>
+          <Trans>Scientific models</Trans>
         </p>
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">
           <Trans>Training Science</Trans>
         </h1>
         <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
           <Trans>
-            Each pillar runs a published theory you can read, verify, and swap.
-            Praxys interprets your data through whichever framework you choose.
+            Read the evidence behind each model. Where alternatives exist, you
+            can preview and switch them; fixed operational models stay explicit.
           </Trans>
         </p>
       </div>
@@ -220,7 +224,7 @@ function PillarRail({
   const recAvailableAria = i18n._(msg`Recommendation available`);
   return (
     <nav
-      aria-label={i18n._(msg`Science pillars`)}
+      aria-label={i18n._(msg`Science models`)}
       className={cn(
         '-mx-4 flex gap-2 overflow-x-auto px-4 pb-3 border-b border-border',
         // Desktop: vertical rail with right border.
@@ -276,12 +280,12 @@ function PillarRailItem({
         // Mobile: pill chip
         'rounded-md border px-3 py-2 min-w-[160px]',
         isFocused
-          ? 'border-foreground/30 bg-secondary'
+          ? 'border-[var(--accent-cobalt-val)]/45 bg-secondary'
           : 'border-transparent bg-transparent hover:bg-secondary/60',
-        // Desktop: full-width row, no chip border, left edge indicator instead
-        'lg:rounded-none lg:border-0 lg:border-l-2 lg:border-l-transparent lg:bg-transparent lg:px-4 lg:py-3 lg:min-w-0',
+        // Desktop: retain the complete focus boundary instead of a side stripe.
+        'lg:w-full lg:min-w-0 lg:px-4 lg:py-3',
         'lg:hover:bg-secondary/40',
-        isFocused && 'lg:border-l-[var(--accent-cobalt-val)] lg:bg-secondary/60',
+        isFocused && 'lg:bg-secondary/60',
         'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
       )}
     >
@@ -320,6 +324,7 @@ function PillarDetail({
   active,
   shown,
   alternatives,
+  isFixed,
   recommendation,
   isPreviewMode,
   previewId,
@@ -335,6 +340,7 @@ function PillarDetail({
   active: TheorySummary | undefined;
   shown: TheorySummary | undefined;
   alternatives: TheorySummary[];
+  isFixed: boolean;
   recommendation: PillarRecommendation | undefined;
   isPreviewMode: boolean;
   previewId: string | undefined;
@@ -367,18 +373,27 @@ function PillarDetail({
         </h2>
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-2">
-        {alternatives.map((t) => (
-          <Chiclet
-            key={t.id}
-            theory={t}
-            isActive={t.id === active.id}
-            isPreviewing={t.id === previewId && previewId !== active.id}
-            isRecommended={Boolean(recommendation && recommendation.recommended_id === t.id) && t.id !== active.id}
-            onClick={() => onChiclet(t.id)}
-          />
-        ))}
-      </div>
+      {isFixed ? (
+        <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-secondary px-3.5 py-1.5 text-xs font-medium text-foreground">
+          <span>{active.name}</span>
+          <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--accent-cobalt-val)]">
+            ·&nbsp;<Trans>Active fixed model</Trans>
+          </span>
+        </div>
+      ) : (
+        <div className="mb-6 flex flex-wrap gap-2">
+          {alternatives.map((t) => (
+            <Chiclet
+              key={t.id}
+              theory={t}
+              isActive={t.id === active.id}
+              isPreviewing={t.id === previewId && previewId !== active.id}
+              isRecommended={Boolean(recommendation && recommendation.recommended_id === t.id) && t.id !== active.id}
+              onClick={() => onChiclet(t.id)}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Hide the rec hint once the user starts previewing the recommended theory — the
        * chiclet's amber halo plus the body's "Previewing" tag carry the message; a third
@@ -401,7 +416,7 @@ function PillarDetail({
               <Trans>by</Trans> <span className="text-foreground/80">{shown.author}</span>
             </span>
           )}
-          {!isPreviewMode && (
+          {!isPreviewMode && !isFixed && (
             <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--accent-cobalt-val)]">
               <Trans>Active</Trans>
             </span>
@@ -580,7 +595,7 @@ function ScienceSkeleton() {
       </div>
       <div className="grid gap-6 lg:grid-cols-[260px_1fr] lg:gap-12">
         <div className="flex flex-col gap-4">
-          {[...Array(4)].map((_, i) => (
+          {[...Array(5)].map((_, i) => (
             <div key={i} className="space-y-2">
               <Skeleton className="h-4 w-32" />
               <Skeleton className="h-3 w-24" />

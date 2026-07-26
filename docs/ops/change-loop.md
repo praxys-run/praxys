@@ -20,7 +20,7 @@ a maintainer manually adds `agent-ready`  ────────────�
                           .github/workflows/assign-copilot.yml  ──assigns──▶  Copilot coding agent
                                                                                       │ opens
                                                                                       ▼
-                    draft PR ──▶ agentic observe/review layer ──▶ human review + merge (protected)
+                    draft PR ──▶ checks + outcome observer ──▶ maintainer-controlled merge (today)
 ```
 
 `agent-ready` is the **sole trigger**; a bare issue-open never fires. Triage adds
@@ -47,16 +47,20 @@ eligible assignment job, so a later unrelated label cannot cancel an
 `agent-ready` assignment before it starts.
 
 **Backlog escape hatch:** a `backlog` or `later` label makes an issue ineligible
-even if it is a bug (the workflow skips it). **Merge is always human** — autonomy
-is *drafting* the fix; branch protection keeps a human in the loop.
+even if it is a bug (the workflow skips it). **Today, merge is
+maintainer-controlled** — the coding agent drafts and never decides whether its
+own PR can merge. The target state is selective review: a separate risk policy
+can eventually route repeatedly proven narrow changes to policy-owned auto-merge,
+while sensitive, broad, uncertain, or failing changes still require a human.
 
 ### Shadow mode
 
 Set `PRAXYS_AGENT_READY_SHADOW=true` (App Service setting) to compute the
 `agent-ready` decision and log it **without** applying the label — nothing is
 auto-assigned. Use it to measure precision on real feedback before trusting the
-loop, then unset to go live. Decisions are logged as
-`change-loop agent-ready decision for feedback <id>: applied=<bool> shadow=<bool>`.
+loop, then unset to go live. Decisions are logged and persisted as structured
+`AgentDecision` rows with policy/model/mode metadata and privacy-minimized input
+facts.
 
 ### Screenshots (how the agent "sees" them)
 
@@ -137,16 +141,31 @@ your user session) — the token is only needed for the *workflow* to assign.
 
 ### 4. Confirm branch protection on `main`
 
-So the agent can draft but never ship, protect `main`:
+Protect `main` so the coding agent cannot ship or bypass checks:
 
-- **Require a pull request before merging** with **at least 1 approving review**.
+- **Require a pull request before merging.**
 - **Require status checks to pass** — the `backend-tests` check from
   `.github/workflows/ci-backend.yml`. It is a stable aggregator that requires both
   backend pytest and the web production build. Add it once that workflow has run
   on a PR so the check name is selectable.
 
+Repository ruleset `default` (id `15208143`) requires a pull request and
+squash-only merge, and blocks branch deletion and non-fast-forward updates. Its
+`required_approving_review_count` is `0`: human review is encouraged for risky,
+security-sensitive, or science-affecting changes, but it is not a mandatory
+merge gate for the solo-maintainer workflow. The classic `backend-tests` status
+check remains required with admin enforcement.
+
+The ruleset retains an `Always` bypass for the repository-role admin. Normal
+green PRs do not need that bypass now that no approval is required; keep it as a
+maintainer capability and never grant it to the coding agent. Any future
+policy-owned auto-merge path must remain independently allowlisted and
+check-gated rather than reusing this broad bypass, and the implementation agent
+must not label its own PR as eligible.
+
 ```bash
-gh api repos/praxys-run/praxys/branches/main/protection --jq '{reviews:.required_pull_request_reviews, checks:.required_status_checks}'
+gh api repos/praxys-run/praxys/branches/main/protection --jq '{checks:.required_status_checks}'
+gh api repos/praxys-run/praxys/rulesets --jq '.[] | {id,name,enforcement}'
 ```
 
 ### 5. Operate the GitHub Agentic Workflows layer
@@ -157,9 +176,9 @@ around it:
 
 | Source workflow | Trigger | Safe output |
 |---|---|---|
-| `change-loop-outcomes.md` | Weekly or manual | Replaces the previous 30-day outcome report issue, or no-op |
+| `change-loop-outcomes.md` | Weekly or manual | Replaces the previous issue-first 30-day lifecycle/quality report, or no-op |
 | `ci-failure-doctor.md` | Failed/timed-out PR validation workflow, or manual | One deduplicated PR diagnosis comment, or no-op |
-| `praxys-invariant-review.md` | Successful `Backend CI` run for a same-repo, open, non-draft PR; or manual dispatch | One Praxys-specific invariant comment, or no-op |
+| `praxys-invariant-review.md` | Successful `Backend CI` run for a same-repo, open, non-draft PR; or manual dispatch | One Praxys-specific science, contract, parity, privacy, native-Chinese, or operations invariant comment; or no-op |
 
 The editable `.md` files and generated `.lock.yml` files both live in
 `.github/workflows/`. The agents run read-only and exchange GitHub's short-lived
@@ -197,8 +216,10 @@ initialization must not overwrite its Python/Node test environment.
 - **Repo-wide instructions (the "prompt"):** the issue body *is* the task prompt;
   durable guidance lives in `.github/copilot-instructions.md` ("Coding-agent
   guidance") — always add a test, run `pytest`, follow the 7-step metric
-  checklist, keep metrics pure, never weaken scrub / tokenstore invariants. Edit
-  there rather than stuffing per-issue boilerplate into the public tracker.
+  checklist, keep metrics pure, never weaken scrub / tokenstore invariants, and
+  keep the PR draft until the implementation/tests/final diff are stable. A code
+  push after the first ready handoff returns the PR to draft before more work.
+  Edit there rather than stuffing per-issue boilerplate into the public tracker.
 - **Environment:** `.github/workflows/copilot-setup-steps.yml` preinstalls Python
   + deps (and Node/web) and bootstraps a throwaway `.env`, so the agent can run
   `pytest` / `npm` deterministically instead of rediscovering the toolchain. It
@@ -213,14 +234,82 @@ initialization must not overwrite its Python/Node test environment.
 
 ## Self-improvement
 
-The change loop is meant to get better every iteration (each feedback → draft PR →
-review). The human's action on the draft (merged clean / merged-with-edits /
-rejected) and on the issue (kept / relabelled / closed-not-a-bug) is the training
-signal for both triage precision and draft quality. Shadow mode + the
-`agent_eligible` gate are the first instrumentation; the full loop (outcome
-tracking, an eval corpus seeded from human corrections, a replay CI check, and
-postmortem → policy PRs that tighten `copilot-instructions.md`) is tracked in
-**#377**.
+The change loop is meant to get better across iterations. Every triage decision
+now writes an append-only `AgentDecision`; triage results, admin overrides,
+issue close/reopen state, externally observed `agent-ready`, and closing-PR
+state write append-only `AgentOutcome` rows. The records contain hashes, counts,
+allowlisted context keys, policy/model versions, and public GitHub identifiers
+only — never raw feedback or screenshot bytes.
+
+The admin **Sync from GitHub** action performs the issue/closing-PR
+reconciliation. The feedback GitHub App therefore needs **Issues: read/write**
+and **Pull requests: read**. It selects no issue/PR titles, bodies, comments,
+commits, reviews, or authors.
+
+The weekly observer starts from every `agent-ready` issue, tracks assignment and
+PR latency, excludes explicit smoke tests from quality totals, measures CI only
+after the first review handoff, attributes failures to the PR vs
+baseline/infrastructure, and records correction rounds, missing tests, reverts,
+and reopens. Its report remains the richer GitHub-native period view.
+
+For human-added `agent-ready` labels, the observer checks comments immediately
+around the label event. An explicit maintainer statement that triage missed the
+issue and the label was manually restored is counted as `manual-recovery`, even
+when the explanation follows the label.
+
+The workflow has a 20-minute runtime ceiling. Evidence gathering stops after 12
+minutes so the agent retains time to classify the evidence, write cache memory,
+and emit the report. Unresolved fields stay `unknown`; do not trade explicit
+limitations for an exhaustive search that produces no report.
+
+CI attribution uses check-run output, annotations, and job-step metadata only.
+The observer does not download raw workflow/job logs, and pre-readiness failures
+remain context rather than triggering an attribution investigation.
+
+The deterministic assignment policy is versioned as `change.agent_ready` and
+protected by a checked-in, text-free replay corpus:
+
+```bash
+python scripts/replay_agent_policy.py
+```
+
+Those outcomes train both triage precision and draft quality. They also feed the
+default-off `review-required | auto-merge-candidate` policy:
+
+- `analysis/review_policy.py` is the pure classifier and promotion evaluator.
+- `data/agent_evals/change/review_promotion.json` stores text-free completed-PR
+  evidence. Each bucket is bound to the exact class/sensitive-path/check policy
+  fingerprint, and duplicate PR numbers cannot inflate the sample.
+- `scripts/validate_review_policy.py` blocks unsupported promotions.
+- The required `backend-tests` CI path runs that validator on every PR.
+- `selective-review.yml` evaluates same-repo Copilot PRs from trusted
+  default-branch code. It requires a closing issue that still has `agent-ready`
+  plus the trusted Copilot assignment/cross-reference lifecycle that created the
+  PR. It denies non-`main` bases, incomplete/truncated file inventories,
+  sensitive paths, missing checks, draft PRs, post-ready commits, requested
+  changes, unpromoted classes, and missing tests where applicable.
+- A qualifying PR is approved by the independent review-policy App, then normal
+  squash auto-merge is enabled. The App never bypasses the ruleset or checks.
+- Every reevaluation first marks the PR head's `selective-review-policy` status
+  pending. It becomes successful only after the run safely revokes stale state
+  or completes approval/auto-merge setup; failures remain merge-blocking.
+- `selective-review-issue-guard.yml` re-dispatches linked open PRs when the
+  issue is closed, reopened, relabeled, or reassigned; a no-longer-qualifying
+  PR has policy auto-merge disabled and receives a blocking App review.
+- `change-loop-policy-tuner.md` can edit only the proposals JSON and can create
+  only a draft PR; it cannot edit deployed policy, approve, or merge.
+
+The initial `promoted_classes` list is empty. Runtime is independently default
+off through `PRAXYS_SELECTIVE_REVIEW_ENABLED`. For rollback, set
+`PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH=true`, then dispatch the workflow with
+`selective-review-emergency-stop.yml`; it replaces policy approval with a
+blocking review and disables pending auto-merge. Per-PR evaluation uses
+per-PR concurrency, so unrelated events cannot discard a revocation. The gate
+also refuses autonomy unless the effective main-branch rules require an
+independent approval and invalidate it after a later push, and unless required
+checks are strict against the latest `main`.
+Provisioning and promotion steps:
+[setup-review-policy-app.md](./setup-review-policy-app.md).
 
 ## Security & abuse resistance
 
@@ -236,15 +325,21 @@ hidden in issue text. Defenses, in layers:
   `copilot-swe-agent` bot on a `copilot/*` branch, reviewable line-by-line. A
   zip / "patched build" / diff attached by a non-collaborator is **never** our
   flow — do not download, unzip, run, or apply it.
-- **Humans own merge** (branch protection, §4). Agents draft; they never ship.
+- **The merge path is policy-owned** (§4). Before selective review is
+  provisioned, a maintainer decides whether a green PR is ready; human review is
+  strongly expected for risky, security-sensitive, or science-affecting changes
+  but is not imposed universally. Under selective review, unpromoted, sensitive,
+  ambiguous, or unstable PRs require human approval, while only a proven narrow
+  class can receive the independent policy App's approval. The coding agent
+  never self-approves or receives a bypass.
 - **The trigger is write-gated.** `agent-ready` can only be added by the triage
   bot or a maintainer — a drive-by account cannot start the loop. Keep it that
   way (don't let automation add the label from untrusted input).
 - **Least-privilege, expiring token** for assignment (§3); the agent runs in
   GitHub's sandbox with its firewall on — don't disable it.
-- **Protect `.github/**`** with CODEOWNERS + required review so a PR can't
-  quietly weaken a workflow or exfiltrate secrets; pin actions, keep
-  `permissions:` minimal, never expose secrets to fork/PR code.
+- **Treat `.github/**` changes as high risk.** Keep CODEOWNERS as an ownership
+  signal and obtain human review before merging workflow or policy changes; pin
+  actions, keep `permissions:` minimal, and never expose secrets to fork/PR code.
 
 **Treat all user-supplied text as untrusted (prompt-injection):** issue bodies,
 comments, and screenshot-derived text can carry "ignore your instructions…"
@@ -282,9 +377,25 @@ and the cost is low).
   `copilot-swe-agent` as an assignee; a draft PR follows.
 - A **feature**, a **not-actionable** bug, a `backlog`/`later` bug, or a
   `needs_review`/sensitive report is never auto-assigned.
-- Shadow mode on → no label is applied, but the decision is logged.
+- Shadow mode on → no label is applied, but the decision is durably recorded
+  with its policy/model/mode and privacy-minimized inputs.
+- `python scripts/replay_agent_policy.py` reports 100% on the checked-in corpus.
+- Admin **Feedback → Sync from GitHub** records issue transitions, manual
+  `agent-ready` recovery, and closing-PR state without fetching tracker text.
+- Admin **Operations → Agent learning** shows aggregate decision/outcome counts
+  and `draft-with-review` while no class is promoted.
+- `python scripts/validate_review_policy.py` succeeds; with the committed empty
+  allowlist, a manual `Selective review gate` run reports `review-required`.
+- `gh aw validate --no-check-update` succeeds and the policy tuner lock contains
+  an exclusive `allowed-files` restriction for
+  `config/agent-loop-policy-proposals.json`.
 - A web build failure makes the required `backend-tests` aggregator fail even
   when pytest passes.
+- A manual `Change loop outcomes` run reports explicit operational tests
+  separately, starts the feedback cohort from `agent-ready` issue timelines, and
+  does not count `action_required` or a corroborated baseline failure as an agent
+  code failure. Allow up to 20 minutes; a successful run creates the replacement
+  report before closing the older report.
 - `gh aw validate` succeeds.
 - From `main`, a manual invariant review reaches Azure OpenAI through OIDC:
 
@@ -294,11 +405,16 @@ and the cost is low).
     -f pr_number=<PR_NUMBER>
   ```
 
-- A trial run operates in a temporary private repository and does not mutate the
-  live repo:
+- `gh aw trial` installs the workflow and captures safe outputs in an isolated
+  private repository, but the Azure federated credential intentionally trusts
+  only this repository's default-branch subject. Model inference from a temporary
+  trial host therefore fails unless that host is separately allowlisted. Do not
+  broaden production OIDC trust only for a trial; compile and validate locally,
+  then use a manual dispatch on `main` after merge for the end-to-end check.
 
-Resolve the source to an absolute path before `gh aw trial`; trial mode changes
-its working directory after cloning the isolated host repository.
+If a dedicated trial identity is configured later, resolve the source to an
+absolute path before `gh aw trial`; trial mode changes its working directory
+after cloning the isolated host repository.
 
 ```powershell
 $workflow = (Resolve-Path .github\workflows\praxys-invariant-review.md).Path
@@ -338,4 +454,4 @@ gh run list --workflow=assign-copilot.yml -R praxys-run/praxys --limit 5
 - Design: praxys-run/praxys#362 (the change loop); #361 (backend pytest gate); #377 (self-improvement).
 
 ---
-_Last reviewed: 2026-07-18 · Owner: @dddtc2005_
+_Last reviewed: 2026-07-26 · Owner: @dddtc2005_

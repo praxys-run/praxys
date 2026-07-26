@@ -66,6 +66,7 @@ def test_splits_still_computed_correctly():
     assert len(splits) == 2
     assert splits[0]["activity_id"] == "act-1"
     assert splits[0]["duration_sec"] == "5"
+    assert splits[0]["power_source"] == "stryd"
 
 
 # --- Samples field mapping ---

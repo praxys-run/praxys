@@ -576,7 +576,7 @@ export default function AdminUsers() {
               <TableRow>
                 <TableHead><Trans>Email</Trans></TableHead>
                 <TableHead><Trans>Role</Trans></TableHead>
-                <TableHead><Trans>Registered</Trans></TableHead>
+                <TableHead><Trans>Registration date</Trans></TableHead>
                 <TableHead className="w-32 text-right"><Trans>Actions</Trans></TableHead>
               </TableRow>
             </TableHeader>

@@ -196,7 +196,15 @@ class TestFitCpWprime:
         assert result is not None
         d = result.to_dict()
         # Round-trip-style check: dict keys and value types
-        assert set(d.keys()) == {"cp_watts", "w_prime_joules", "r_squared", "point_count", "as_of"}
+        assert set(d.keys()) == {
+            "cp_watts",
+            "w_prime_joules",
+            "r_squared",
+            "point_count",
+            "as_of",
+            "power_source",
+            "activity_type",
+        }
         assert isinstance(d["cp_watts"], float)
         assert isinstance(d["w_prime_joules"], float)
         assert isinstance(d["r_squared"], float)

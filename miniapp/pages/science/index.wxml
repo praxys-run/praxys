@@ -58,7 +58,11 @@
                touch device is poor affordance compared to wrapping to
                a second row. Use a plain wrapping flex view to match
                web. -->
-          <view class="sci-chiclets-wrap">
+          <view wx:if="{{detail.isFixed}}" class="sci-fixed-model">
+            <text class="sci-fixed-model-name">{{detail.shownName}}</text>
+            <text class="sci-fixed-model-tag">{{tr.fixedModelTag}}</text>
+          </view>
+          <view wx:else class="sci-chiclets-wrap">
             <view
               wx:for="{{detail.chiclets}}"
               wx:key="id"
@@ -89,7 +93,7 @@
             <view class="sci-status-line">
               <text wx:if="{{detail.shownAuthorVisible}}" class="sci-status-author">{{tr.by}} <text class="sci-status-author-name">{{detail.shownAuthor}}</text></text>
               <text wx:if="{{detail.isPreviewMode}}" class="sci-status-tag sci-status-tag--previewing">{{tr.previewingTag}}</text>
-              <text wx:else class="sci-status-tag sci-status-tag--active">{{tr.activeTag}}</text>
+              <text wx:elif="{{!detail.isFixed}}" class="sci-status-tag sci-status-tag--active">{{tr.activeTag}}</text>
             </view>
             <text class="sci-description">{{detail.shownDescription}}</text>
           </view>
