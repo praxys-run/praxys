@@ -101,6 +101,7 @@ def test_existing_sqlite_gets_additive_compatibility_columns(dbs, tmp_path):
         assert "today_decision_check_claimed_at" in columns_by_table["user_config"]
         assert "today_decision_check_shown_at" in columns_by_table["user_config"]
         assert "today_decision_check_submitted_at" in columns_by_table["user_config"]
+        assert "plan_management" in columns_by_table["user_config"]
         assert {
             "temperature_c",
             "relative_humidity_pct",

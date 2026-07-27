@@ -106,6 +106,7 @@ class UserConfig(Base):
     unit_system = Column(String(10), default="metric")
     training_base = Column(String(10), default="power")
     preferences = Column(JSON, default=dict)
+    plan_management = Column(JSON, default=dict)
     thresholds = Column(JSON, default=dict)
     zones = Column(JSON, default=dict)
     goal = Column(JSON, default=dict)

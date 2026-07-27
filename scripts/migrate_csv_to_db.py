@@ -113,6 +113,7 @@ def migrate(data_dir: str, email: str = "local@praxys.dev", password: str = "cha
             cfg = UserConfig(
                 user_id=user_id,
                 training_base=config.training_base,
+                plan_management=config.plan_management,
                 thresholds=config.thresholds,
                 zones=config.zones or {k: list(v) for k, v in DEFAULT_ZONES.items()},
                 goal=config.goal,

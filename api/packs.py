@@ -20,10 +20,11 @@ from functools import cached_property
 
 import pandas as pd
 
-from analysis.config import load_config_from_db
+from analysis.config import is_praxys_managed_plan, load_config_from_db
 from analysis.data_loader import (
     load_data_from_db,
     load_heat_adaptation_inputs,
+    select_plan_for_analysis,
     select_preferred_source,
 )
 from analysis.metrics import (
@@ -201,11 +202,8 @@ class RequestContext:
 
     @cached_property
     def plan(self) -> pd.DataFrame:
-        """One preferred plan source for analysis and same-day guidance."""
-        return select_preferred_source(
-            self.all_plans,
-            self.config.preferences.get("plan"),
-        )
+        """Canonical plan source for analysis and same-day guidance."""
+        return select_plan_for_analysis(self.all_plans, self.config)
 
     @cached_property
     def thresholds(self) -> ThresholdEstimate:
@@ -575,7 +573,11 @@ def get_signal_pack(ctx: RequestContext) -> dict:
     guidance_recovery = _recovery_for_guidance(recovery_analysis)
 
     planned_today, planned_detail = _get_todays_plan(
-        ctx.plan, ctx.today, fallback_plan=ctx.all_plans,
+        ctx.plan,
+        ctx.today,
+        fallback_plan=(
+            None if is_praxys_managed_plan(ctx.config) else ctx.all_plans
+        ),
     )
     load_theory = ctx.science.get("load")
     recovery_theory = ctx.science.get("recovery")

@@ -382,6 +382,7 @@ _SQLITE_COMPAT_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
         ("power_source", "VARCHAR(20)"),
     ),
     "user_config": (
+        ("plan_management", "JSON"),
         ("today_decision_check_claimed_at", "DATETIME"),
         ("today_decision_check_shown_at", "DATETIME"),
         ("today_decision_check_submitted_at", "DATETIME"),
