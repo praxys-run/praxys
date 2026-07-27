@@ -8,12 +8,12 @@ import logging
 import os
 from urllib.parse import parse_qsl, urlencode, urlparse, urlsplit, urlunsplit
 from dataclasses import asdict
-from typing import Any
+from typing import Any, Literal
 
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,10 @@ from analysis.config import (
     save_config,
     load_config_from_db,
     save_config_to_db,
+    normalize_plan_management,
+    PlatformName,
     TrainingBase,
+    UserConfig,
     PLATFORM_CAPABILITIES,
 )
 from analysis.providers import available_providers
@@ -46,6 +49,17 @@ SUPPORTED_LANGUAGES = {"en", "zh"}
 _STRAVA_STATE_TTL_MINUTES = 10
 
 
+class PlanManagementUpdate(BaseModel):
+    """Partial managed-plan ownership update."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    mode: Literal["external", "praxys"] | None = None
+    execution_target: PlatformName | None = None
+    delivery_enabled: bool | None = None
+    adjustment_policy: Literal["suggest_only"] | None = None
+
+
 class SettingsUpdate(BaseModel):
     """Partial update for user settings."""
 
@@ -55,12 +69,62 @@ class SettingsUpdate(BaseModel):
     # dict[str, Any] so the nested `threshold_sources` mapping
     # (e.g. {"threshold_sources": {"cp_estimate": "stryd"}}) flows through.
     preferences: dict[str, Any] | None = None
+    plan_management: PlanManagementUpdate | None = None
     training_base: TrainingBase | None = None
     thresholds: dict[str, Any] | None = None
     zones: dict[str, list[float]] | None = None
     goal: dict[str, Any] | None = None
     source_options: dict[str, Any] | None = None
     language: str | None = None
+
+
+def _legacy_execution_target(plan_source: object) -> str | None:
+    """Return a plan-capable provider from a legacy preference value."""
+    if not isinstance(plan_source, str):
+        return None
+    target = plan_source.strip().casefold()
+    caps = PLATFORM_CAPABILITIES.get(target)
+    return target if caps and caps.get("plan") else None
+
+
+def _apply_plan_management_update(
+    config: UserConfig,
+    update: PlanManagementUpdate,
+) -> None:
+    """Validate and merge an explicit managed-plan settings update."""
+    changes = update.model_dump(exclude_unset=True)
+    for required_field in ("mode", "delivery_enabled", "adjustment_policy"):
+        if required_field in changes and changes[required_field] is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"plan_management.{required_field} cannot be null",
+            )
+
+    candidate = {**config.plan_management, **changes}
+    if candidate.get("delivery_enabled"):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Managed-plan delivery is not available yet. "
+                "Plan ownership can be selected without enabling platform writes."
+            ),
+        )
+
+    target = candidate.get("execution_target")
+    if target is not None:
+        if target not in config.connections:
+            raise HTTPException(
+                status_code=400,
+                detail="Plan execution target must be a connected platform",
+            )
+        caps = PLATFORM_CAPABILITIES.get(target)
+        if not caps or not caps.get("plan"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"{target} does not support plan delivery",
+            )
+
+    config.plan_management = normalize_plan_management(candidate)
 
 
 def _detect_thresholds_from_db(user_id: str, db) -> dict:
@@ -282,6 +346,20 @@ def update_settings(
         config.connections = body.connections
     if body.preferences is not None:
         config.preferences.update(body.preferences)
+        if (
+            body.plan_management is None
+            and config.plan_management["mode"] == "external"
+            and "plan" in body.preferences
+        ):
+            legacy_target = _legacy_execution_target(body.preferences["plan"])
+            if legacy_target not in config.connections:
+                legacy_target = None
+            config.plan_management = normalize_plan_management({
+                **config.plan_management,
+                "execution_target": legacy_target,
+            })
+    if body.plan_management is not None:
+        _apply_plan_management_update(config, body.plan_management)
     # `thresholds` updates are accepted-and-dropped: manual numeric overrides
     # are no longer supported; source selection lives in
     # ``preferences.threshold_sources``. Kept in the schema for API compat

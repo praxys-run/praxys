@@ -134,6 +134,161 @@ def test_get_settings_exposes_sync_interval_options(api_client):
     assert body["default_sync_interval_hours"] == 6
 
 
+def _seed_connection(user_id: str, platform: str) -> None:
+    """Insert a connected platform row for settings validation tests."""
+    from db import session as db_session
+    from db.models import UserConnection
+
+    db = db_session.SessionLocal()
+    try:
+        db.add(UserConnection(
+            user_id=user_id,
+            platform=platform,
+            status="connected",
+            preferences={"plan": platform == "stryd"},
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+
+def test_get_settings_exposes_safe_plan_management_defaults(api_client):
+    client, _ = api_client
+    res = client.get("/api/settings")
+    assert res.status_code == 200, res.text
+    assert res.json()["config"]["plan_management"] == {
+        "mode": "external",
+        "execution_target": None,
+        "delivery_enabled": False,
+        "adjustment_policy": "suggest_only",
+    }
+
+
+def test_settings_roundtrip_explicit_praxys_ownership(api_client):
+    client, user_id = api_client
+    _seed_connection(user_id, "stryd")
+
+    res = client.put("/api/settings", json={
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "stryd",
+            "delivery_enabled": False,
+            "adjustment_policy": "suggest_only",
+        },
+    })
+    assert res.status_code == 200, res.text
+    assert res.json()["config"]["plan_management"]["mode"] == "praxys"
+
+    got = client.get("/api/settings")
+    assert got.status_code == 200, got.text
+    assert got.json()["config"]["plan_management"] == {
+        "mode": "praxys",
+        "execution_target": "stryd",
+        "delivery_enabled": False,
+        "adjustment_policy": "suggest_only",
+    }
+
+
+def test_settings_rejects_unconnected_plan_target(api_client):
+    client, _ = api_client
+    res = client.put("/api/settings", json={
+        "plan_management": {"execution_target": "stryd"},
+    })
+    assert res.status_code == 400, res.text
+    assert "connected platform" in res.json()["detail"]
+
+
+def test_settings_rejects_delivery_enablement_before_delivery_exists(api_client):
+    client, user_id = api_client
+    _seed_connection(user_id, "stryd")
+    res = client.put("/api/settings", json={
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "stryd",
+            "delivery_enabled": True,
+        },
+    })
+    assert res.status_code == 409, res.text
+    assert "not available yet" in res.json()["detail"]
+
+
+@pytest.mark.parametrize(
+    "plan_management",
+    [
+        {"mode": "automatic"},
+        {"adjustment_policy": "autonomous"},
+        {"unknown_field": True},
+    ],
+)
+def test_settings_strictly_validates_plan_management(
+    api_client,
+    plan_management,
+):
+    client, _ = api_client
+    res = client.put("/api/settings", json={
+        "plan_management": plan_management,
+    })
+    assert res.status_code == 422, res.text
+
+
+def test_legacy_plan_preference_seeds_target_without_adoption(api_client):
+    client, user_id = api_client
+    _seed_connection(user_id, "stryd")
+
+    res = client.put("/api/settings", json={
+        "preferences": {"plan": "stryd"},
+    })
+    assert res.status_code == 200, res.text
+    assert res.json()["config"]["plan_management"] == {
+        "mode": "external",
+        "execution_target": "stryd",
+        "delivery_enabled": False,
+        "adjustment_policy": "suggest_only",
+    }
+
+
+def test_legacy_full_preferences_save_does_not_target_disconnected_stryd(
+    api_client,
+):
+    client, _ = api_client
+    res = client.put("/api/settings", json={
+        "preferences": {
+            "activities": "garmin",
+            "recovery": "oura",
+            "plan": "stryd",
+        },
+    })
+    assert res.status_code == 200, res.text
+    assert res.json()["config"]["plan_management"]["execution_target"] is None
+
+
+def test_legacy_preferences_save_does_not_clobber_managed_target(api_client):
+    client, user_id = api_client
+    _seed_connection(user_id, "stryd")
+    adopted = client.put("/api/settings", json={
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "stryd",
+        },
+    })
+    assert adopted.status_code == 200, adopted.text
+
+    saved = client.put("/api/settings", json={
+        "preferences": {
+            "activities": "garmin",
+            "recovery": "oura",
+            "plan": "ai",
+        },
+    })
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["config"]["plan_management"] == {
+        "mode": "praxys",
+        "execution_target": "stryd",
+        "delivery_enabled": False,
+        "adjustment_policy": "suggest_only",
+    }
+
+
 # --- Threshold source selection (clean-break: no manual overrides) ---
 
 

@@ -569,6 +569,41 @@ def test_request_context_honors_recovery_and_plan_preferences(
     assert ctx.plan.iloc[0]["workout_type"] == "easy"
 
 
+def test_request_context_praxys_mode_uses_only_praxys_rows(
+    db_with_seeded_user,
+):
+    """Managed mode never falls back to a platform-authored plan."""
+    from api.packs import RequestContext
+    from db.models import TrainingPlan, UserConfig as UserConfigModel
+
+    db, user_id = db_with_seeded_user
+    today = date.today()
+    db.add(UserConfigModel(
+        user_id=user_id,
+        preferences={"plan": "stryd"},
+        plan_management={
+            "mode": "praxys",
+            "execution_target": "stryd",
+            "delivery_enabled": False,
+            "adjustment_policy": "suggest_only",
+        },
+    ))
+    db.add(TrainingPlan(
+        user_id=user_id,
+        date=today,
+        workout_type="threshold",
+        planned_duration_min=50,
+        source="ai",
+    ))
+    db.commit()
+
+    ctx = RequestContext(user_id=user_id, db=db)
+
+    assert set(ctx.all_plans["source"]) == {"ai", "stryd"}
+    assert set(ctx.plan["source"]) == {"ai"}
+    assert ctx.plan.iloc[0]["workout_type"] == "threshold"
+
+
 def test_signal_pack_returns_required_keys(db_with_seeded_user):
     from api.packs import get_signal_pack
     ctx = _ctx(db_with_seeded_user)
@@ -639,6 +674,50 @@ def test_today_payload_fallback_to_synced_workout(
     assert payload["signal"]["recommendation"] == "follow_plan"
     assert payload["signal"]["plan"]["workout_type"] == "tempo"
     assert payload["signal"]["plan"]["duration_min"] == 45
+
+
+def test_today_payload_praxys_mode_does_not_fallback_to_synced_workout(
+    db_with_seeded_user,
+):
+    """A managed plan gap stays unscheduled instead of changing ownership."""
+    from api.routes.today import _build_today_payload
+    from db.models import TrainingPlan, UserConfig as UserConfigModel
+
+    db, user_id = db_with_seeded_user
+    today = date.today()
+    db.query(TrainingPlan).filter(
+        TrainingPlan.user_id == user_id,
+    ).delete(synchronize_session=False)
+    db.add(UserConfigModel(
+        user_id=user_id,
+        preferences={"plan": "ai"},
+        plan_management={
+            "mode": "praxys",
+            "execution_target": "stryd",
+            "delivery_enabled": False,
+            "adjustment_policy": "suggest_only",
+        },
+    ))
+    db.add(TrainingPlan(
+        user_id=user_id,
+        date=today,
+        workout_type="tempo",
+        planned_duration_min=45,
+        source="stryd",
+    ))
+    db.add(TrainingPlan(
+        user_id=user_id,
+        date=today + timedelta(days=2),
+        workout_type="easy",
+        planned_duration_min=40,
+        source="ai",
+    ))
+    db.commit()
+
+    payload = _build_today_payload(user_id, db)
+
+    assert payload["signal"]["recommendation"] == "unscheduled"
+    assert payload["signal"]["plan"] == {}
 
 
 def test_today_widgets_pack_returns_required_keys(db_with_seeded_user):

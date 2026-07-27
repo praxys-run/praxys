@@ -173,11 +173,18 @@ Activities can come from Garmin, Stryd, or Coros. `data_loader.py` merges them:
 - Secondary sources enrich with additional columns (e.g., Stryd adds power to Garmin activities)
 - Matching uses date + timestamp proximity (handles timezone differences)
 
-Analytical recovery and training-plan inputs are intentionally not blended. The
-configured provider wins when it has rows; otherwise Praxys selects one
-deterministic fallback by newest row, row count, then source name. The plan
-management endpoint still loads all AI and Stryd rows because it must compare
-them to derive sync state.
+Analytical recovery inputs are intentionally not blended: the configured
+provider wins when it has rows, otherwise Praxys selects one deterministic
+fallback by newest row, row count, then source name.
+
+Plan ownership is separate from provider preference. `config.plan_management`
+contains `mode`, `execution_target`, `delivery_enabled`, and
+`adjustment_policy`. External mode preserves the legacy
+`config.preferences.plan` preferred-source fallback. Praxys mode treats only
+Praxys-authored (`source='ai'`) rows as canonical; platform rows remain loaded
+for management and later reconciliation but never silently become the plan.
+The additive contract defaults to external mode with delivery disabled, so
+existing users are not enrolled in platform writes.
 
 ### LLM-backed Insights
 

@@ -8,6 +8,7 @@ from analysis.config import (
     load_config,
     save_config,
     _migrate_config,
+    default_plan_management,
     DEFAULT_ZONES,
 )
 
@@ -22,6 +23,10 @@ class TestUserConfigDefaults:
         assert config.preferences["activities"] == "garmin"
         assert config.preferences["recovery"] == "oura"
         assert config.preferences["plan"] == "stryd"
+
+    def test_default_plan_management_is_safe(self):
+        config = UserConfig()
+        assert config.plan_management == default_plan_management()
 
     def test_default_training_base(self):
         config = UserConfig()
@@ -55,19 +60,60 @@ class TestMigrateConfig:
         assert migrated["preferences"]["activities"] == "garmin"
         assert migrated["preferences"]["recovery"] == "oura"
         assert migrated["preferences"]["plan"] == "stryd"
+        assert migrated["plan_management"] == {
+            "mode": "external",
+            "execution_target": "stryd",
+            "delivery_enabled": False,
+            "adjustment_policy": "suggest_only",
+        }
 
-    def test_new_format_unchanged(self):
+    def test_new_format_gains_safe_plan_management_contract(self):
         new = {
             "connections": ["garmin"],
             "preferences": {"activities": "garmin"},
         }
         migrated = _migrate_config(new)
-        assert migrated == new
+        assert migrated["connections"] == ["garmin"]
+        assert migrated["preferences"] == {"activities": "garmin"}
+        assert migrated["plan_management"] == default_plan_management()
 
     def test_empty_sources_handled(self):
         old = {"sources": {"activities": "", "health": "", "plan": ""}}
         migrated = _migrate_config(old)
         assert migrated["connections"] == []
+
+    def test_legacy_ai_preference_does_not_auto_adopt_managed_mode(self):
+        migrated = _migrate_config({
+            "connections": ["stryd"],
+            "preferences": {
+                "activities": "stryd",
+                "recovery": "",
+                "plan": "ai",
+            },
+        })
+        assert migrated["preferences"]["plan"] == "ai"
+        assert migrated["plan_management"] == default_plan_management()
+
+    def test_disconnected_legacy_plan_provider_does_not_seed_target(self):
+        migrated = _migrate_config({
+            "connections": ["garmin"],
+            "preferences": {"activities": "garmin", "plan": "stryd"},
+        })
+        assert migrated["plan_management"] == default_plan_management()
+
+    def test_explicit_plan_management_is_not_rederived(self):
+        explicit = {
+            "mode": "praxys",
+            "execution_target": None,
+            "delivery_enabled": False,
+            "adjustment_policy": "suggest_only",
+        }
+        migrated = _migrate_config({
+            "connections": ["stryd"],
+            "preferences": {"plan": "stryd"},
+            "plan_management": explicit,
+        })
+        assert migrated["plan_management"] == explicit
 
 
 class TestLoadSaveConfig:
@@ -81,6 +127,7 @@ class TestLoadSaveConfig:
             loaded = load_config(path)
             assert loaded.training_base == "hr"
             assert loaded.connections == ["garmin"]
+            assert loaded.plan_management == default_plan_management()
 
     def test_load_missing_file_returns_defaults(self):
         config = load_config("/nonexistent/path/config.json")
@@ -101,6 +148,20 @@ class TestLoadSaveConfig:
                 data = json.load(f)
             assert "connections" in data
             assert "training_base" in data
+            assert data["plan_management"] == default_plan_management()
+
+    def test_plan_management_roundtrip(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "config.json")
+            config = UserConfig(plan_management={
+                "mode": "praxys",
+                "execution_target": "stryd",
+                "delivery_enabled": False,
+                "adjustment_policy": "suggest_only",
+            })
+            save_config(config, path)
+            loaded = load_config(path)
+            assert loaded.plan_management == config.plan_management
 
 
 class TestActivityRouting:

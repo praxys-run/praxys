@@ -12,6 +12,8 @@ TrainingBase = Literal["power", "hr", "pace"]
 PlatformName = Literal["garmin", "stryd", "strava", "oura", "coros"]
 PlanSource = Literal["garmin", "stryd", "strava", "oura", "coros", "ai"]
 DataCategory = Literal["activities", "recovery", "fitness", "plan"]
+PlanManagementMode = Literal["external", "praxys"]
+PlanAdjustmentPolicy = Literal["suggest_only"]
 
 # Default zone boundaries as fractions of threshold value.
 # 4 boundaries define 5 zones (Z1..Z5).
@@ -40,6 +42,80 @@ PLATFORM_CAPABILITIES: dict[str, PlatformCaps] = {
 }
 
 
+class PlanManagement(TypedDict):
+    """Ownership and delivery intent for future planned workouts."""
+
+    mode: PlanManagementMode
+    execution_target: str | None
+    delivery_enabled: bool
+    adjustment_policy: PlanAdjustmentPolicy
+
+
+def default_plan_management() -> PlanManagement:
+    """Return the safe default managed-plan contract."""
+    return {
+        "mode": "external",
+        "execution_target": None,
+        "delivery_enabled": False,
+        "adjustment_policy": "suggest_only",
+    }
+
+
+def normalize_plan_management(
+    value: object,
+    *,
+    legacy_plan_source: str | None = None,
+) -> PlanManagement:
+    """Normalize persisted managed-plan settings without auto-adopting a plan.
+
+    Missing legacy configs remain in external mode. A plan-capable provider in
+    ``preferences.plan`` may seed the execution target, but delivery always
+    stays disabled until a later explicit adoption flow enables it.
+    """
+    raw = value if isinstance(value, dict) else {}
+
+    mode = raw.get("mode", "external")
+    if mode not in {"external", "praxys"}:
+        logger.warning("Invalid plan management mode %r; using external", mode)
+        mode = "external"
+
+    raw_target = raw.get("execution_target")
+    if raw_target is None and not raw and legacy_plan_source != "ai":
+        raw_target = legacy_plan_source
+    target = str(raw_target).strip().casefold() if raw_target else None
+    if target:
+        caps = PLATFORM_CAPABILITIES.get(target)
+        if not caps or not caps.get("plan"):
+            logger.warning(
+                "Invalid plan execution target %r; clearing it",
+                raw_target,
+            )
+            target = None
+
+    delivery_enabled = raw.get("delivery_enabled", False)
+    if not isinstance(delivery_enabled, bool):
+        logger.warning(
+            "Invalid plan delivery_enabled %r; using false",
+            delivery_enabled,
+        )
+        delivery_enabled = False
+
+    adjustment_policy = raw.get("adjustment_policy", "suggest_only")
+    if adjustment_policy != "suggest_only":
+        logger.warning(
+            "Invalid plan adjustment policy %r; using suggest_only",
+            adjustment_policy,
+        )
+        adjustment_policy = "suggest_only"
+
+    return {
+        "mode": mode,
+        "execution_target": target,
+        "delivery_enabled": delivery_enabled,
+        "adjustment_policy": adjustment_policy,
+    }
+
+
 @dataclass
 class UserConfig:
     """Top-level user configuration stored as JSON."""
@@ -62,6 +138,10 @@ class UserConfig:
         "recovery": "oura",
         "plan": "stryd",
     })
+
+    # Explicit plan ownership. ``preferences.plan`` remains the legacy
+    # analytical read-source selector during the compatibility period.
+    plan_management: PlanManagement = field(default_factory=default_plan_management)
 
     training_base: TrainingBase = "power"
 
@@ -112,6 +192,7 @@ class UserConfig:
 
     def __post_init__(self) -> None:
         """Validate cross-field constraints."""
+        self.plan_management = normalize_plan_management(self.plan_management)
         # Validate preferences reference connected platforms with matching capabilities.
         # "ai" is a special plan source — not a platform, so skip platform checks for it.
         for category, platform in self.preferences.items():
@@ -134,6 +215,25 @@ class UserConfig:
             self.activity_routing["default"] = self.preferences.get(
                 "activities", "garmin"
             )
+
+
+def is_praxys_managed_plan(config: object) -> bool:
+    """Return whether Praxys owns the user's canonical future plan."""
+    plan_management = getattr(config, "plan_management", None)
+    return (
+        isinstance(plan_management, dict)
+        and plan_management.get("mode") == "praxys"
+    )
+
+
+def plan_analysis_source(config: object) -> str:
+    """Return the source analytical views should treat as canonical."""
+    if is_praxys_managed_plan(config):
+        return "ai"
+    preferences = getattr(config, "preferences", None)
+    if not isinstance(preferences, dict):
+        return ""
+    return str(preferences.get("plan") or "")
 
 
 # ---------------------------------------------------------------------------
@@ -167,6 +267,15 @@ def _migrate_config(data: dict) -> dict:
     prefs = data.get("preferences", {})
     if prefs.get("activities") and "activity_routing" not in data:
         data["activity_routing"] = {"default": prefs["activities"]}
+
+    if "plan_management" not in data:
+        legacy_target = prefs.get("plan")
+        if legacy_target not in data.get("connections", []):
+            legacy_target = None
+        data["plan_management"] = normalize_plan_management(
+            None,
+            legacy_plan_source=legacy_target,
+        )
 
     return data
 
@@ -208,6 +317,7 @@ def load_config_from_db(user_id: str, db) -> UserConfig:
     from db.models import UserConfig as UserConfigModel
 
     row = db.query(UserConfigModel).filter(UserConfigModel.user_id == user_id).first()
+    connections = _get_connections_from_db(user_id, db)
     if not row:
         # Fresh user with no saved settings yet. UserConfig()'s default
         # `connections` field contains ["garmin","stryd","oura"] — a leftover
@@ -215,7 +325,7 @@ def load_config_from_db(user_id: str, db) -> UserConfig:
         # page to show platforms as connected when the user has never linked
         # them. Always derive connections from the database instead.
         fresh = UserConfig()
-        fresh.connections = _get_connections_from_db(user_id, db)
+        fresh.connections = connections
         return fresh
 
     # Preferences: use stored preferences if set, otherwise derive from connections
@@ -223,12 +333,19 @@ def load_config_from_db(user_id: str, db) -> UserConfig:
     derived_prefs = _get_preferences_from_db(user_id, db)
     # Merge: stored prefs take priority, fill gaps from derived
     merged_prefs = {**derived_prefs, **stored_prefs}
+    plan_management = normalize_plan_management(
+        getattr(row, "plan_management", None),
+        legacy_plan_source=merged_prefs.get("plan"),
+    )
+    if plan_management["execution_target"] not in connections:
+        plan_management["execution_target"] = None
 
     return UserConfig(
         display_name=row.display_name or "",
         unit_system=getattr(row, "unit_system", "metric") or "metric",
-        connections=_get_connections_from_db(user_id, db),
+        connections=connections,
         preferences=merged_prefs,
+        plan_management=plan_management,
         training_base=row.training_base or "power",
         thresholds=row.thresholds or {},
         zones=row.zones or {k: list(v) for k, v in DEFAULT_ZONES.items()},
@@ -311,6 +428,7 @@ def save_config_to_db(user_id: str, config: UserConfig, db) -> None:
     row.unit_system = config.unit_system
     row.training_base = config.training_base
     row.preferences = config.preferences
+    row.plan_management = dict(config.plan_management)
     row.thresholds = config.thresholds
     row.zones = config.zones
     row.goal = config.goal

@@ -70,6 +70,12 @@ def test_sqlite_to_postgres_roundtrip(tmp_path, monkeypatch):
             session.add_all([
                 m.UserConfig(
                     user_id=uid, display_name="Mig", preferences={"k": 1},
+                    plan_management={
+                        "mode": "external",
+                        "execution_target": None,
+                        "delivery_enabled": False,
+                        "adjustment_policy": "suggest_only",
+                    },
                     thresholds={"cp": 300}, zones={}, goal={}, science={},
                     activity_routing={}, source_options={},
                 ),
@@ -162,6 +168,11 @@ def test_sqlite_to_postgres_roundtrip(tmp_path, monkeypatch):
                 ).one()
                 assert ins[0]["zh"]["headline"] == "nihao"
                 assert ins[1] == ["r1", "r2"]
+                plan_management = c.execute(
+                    select(m.UserConfig.plan_management)
+                    .where(m.UserConfig.user_id == uid)
+                ).scalar()
+                assert plan_management["mode"] == "external"
                 act_date = c.execute(
                     select(m.Activity.date).where(m.Activity.user_id == uid)
                 ).scalar()

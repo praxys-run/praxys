@@ -183,7 +183,7 @@ def load_data(config: UserConfig, data_dir: str) -> dict[str, pd.DataFrame]:
     (e.g. Stryd power overlay on Garmin activities).
     Fitness is auto-merged from all connected fitness providers.
     """
-    from analysis.config import PLATFORM_CAPABILITIES
+    from analysis.config import PLATFORM_CAPABILITIES, plan_analysis_source
     from analysis.providers import (
         get_activity_provider,
         get_recovery_provider,
@@ -194,7 +194,7 @@ def load_data(config: UserConfig, data_dir: str) -> dict[str, pd.DataFrame]:
     connections = config.connections
     activity_source = config.preferences.get("activities", "garmin")
     recovery_source = config.preferences.get("recovery", "oura")
-    plan_source = config.preferences.get("plan", "")
+    plan_source = plan_analysis_source(config)
 
     # --- Activities: primary + enrichment from other connected sources ---
     activity_provider = get_activity_provider(activity_source)
@@ -389,6 +389,26 @@ def select_preferred_source(
             fallback_key,
         )
     return df.loc[source_keys == fallback_key].copy().reset_index(drop=True)
+
+
+def select_plan_for_analysis(
+    df: pd.DataFrame,
+    config: UserConfig,
+) -> pd.DataFrame:
+    """Select the canonical plan without blending ownership modes.
+
+    External mode preserves the legacy preferred-source fallback. Praxys mode
+    is strict: only Praxys-authored (``source='ai'``) rows are canonical, and
+    platform rows remain available separately for reconciliation.
+    """
+    from analysis.config import is_praxys_managed_plan
+
+    if not is_praxys_managed_plan(config):
+        return select_preferred_source(df, config.preferences.get("plan"))
+    if df.empty or "source" not in df.columns:
+        return df
+    source_keys = df["source"].fillna("").astype(str).str.strip().str.casefold()
+    return df.loc[source_keys == "ai"].copy().reset_index(drop=True)
 
 
 # ---------------------------------------------------------------------------

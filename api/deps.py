@@ -8,11 +8,16 @@ from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
-from analysis.config import load_config
+from analysis.config import (
+    is_praxys_managed_plan,
+    load_config,
+    plan_analysis_source,
+)
 from analysis.data_loader import (
     load_data,
     load_heat_adaptation_inputs,
     load_heat_adaptation_inputs_from_files,
+    select_plan_for_analysis,
     select_preferred_source,
 )
 from analysis.providers.models import ThresholdEstimate
@@ -1568,7 +1573,7 @@ def _build_warnings(
         warnings.append(
             f"Modeled load balance below the coaching caution band (TSB = {current_tsb:.0f})"
         )
-    if config.preferences.get("plan") == "ai" and data_dir:
+    if plan_analysis_source(config) == "ai" and data_dir:
         from api.ai import check_plan_staleness
         warnings.extend(check_plan_staleness(data_dir, latest_cp_watts))
     return warnings
@@ -1646,9 +1651,7 @@ def get_dashboard_data(user_id: str = None, db=None) -> dict:
         data["recovery"], config.preferences.get("recovery"),
     )
     all_plans = data["plan"].copy()
-    data["plan"] = select_preferred_source(
-        data["plan"], config.preferences.get("plan"),
-    )
+    data["plan"] = select_plan_for_analysis(data["plan"], config)
     merged = data["activities"]
 
     # Deduplicate activities by primary source preference.
@@ -1799,7 +1802,11 @@ def get_dashboard_data(user_id: str = None, db=None) -> dict:
 
     # Daily training signal
     planned_today, planned_detail = _get_todays_plan(
-        plan, today, fallback_plan=all_plans,
+        plan,
+        today,
+        fallback_plan=(
+            None if is_praxys_managed_plan(config) else all_plans
+        ),
     )
     # Recovery is standardized to a single HRV-based theory.
     hrv_only_mode = True

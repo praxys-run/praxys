@@ -817,6 +817,12 @@ Current configuration, platform capabilities, and detected thresholds.
   "config": {
     "connections": ["garmin", "stryd", "oura"],
     "preferences": { "activities": "garmin", "recovery": "oura", "plan": "ai" },
+    "plan_management": {
+      "mode": "external",
+      "execution_target": "stryd",
+      "delivery_enabled": false,
+      "adjustment_policy": "suggest_only"
+    },
     "training_base": "power",
     "thresholds": { "cp_watts": null, "lthr_bpm": null, "source": "auto" },
     "zones": { "power": [0.55, 0.75, 0.90, 1.05] },
@@ -844,9 +850,24 @@ Update settings (partial update).
 ```json
 {
   "training_base": "hr",
-  "goal": { "distance": "half_marathon", "target_time_sec": 5400 }
+  "goal": { "distance": "half_marathon", "target_time_sec": 5400 },
+  "plan_management": {
+    "mode": "praxys",
+    "execution_target": "stryd",
+    "delivery_enabled": false,
+    "adjustment_policy": "suggest_only"
+  }
 }
 ```
+
+`plan_management.mode` is `external` or `praxys`. Praxys mode makes
+Praxys-authored rows canonical but does not itself write to a platform.
+`execution_target` must be a connected plan-capable platform. During the
+foundation rollout, `delivery_enabled=true` returns 409 because automatic
+delivery has not shipped yet. `suggest_only` is the only adjustment policy.
+Legacy `preferences.plan` remains supported as the external-mode analytical
+source selector and may seed the execution target, but it never activates
+managed mode or delivery.
 
 ### GET /api/settings/connections
 
