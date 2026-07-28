@@ -41,7 +41,7 @@ msgid "{0, plural, one {# recommendation} other {# recommendations}}"
 msgstr "{0, plural, other {# 条建议}}"
 
 #. placeholder {0}: data.workouts.length
-#: src/components/UpcomingPlanCard.tsx:620
+#: src/components/UpcomingPlanCard.tsx:671
 msgid "{0, plural, one {# workout} other {# workouts}}"
 msgstr "{0, plural, other {# 次训练}}"
 
@@ -645,7 +645,7 @@ msgstr "{0} 个关联工单均已是最新状态。"
 msgid "All components operational"
 msgstr "所有组件运行正常"
 
-#: src/components/UpcomingPlanCard.tsx:639
+#: src/components/UpcomingPlanCard.tsx:690
 msgid "All synced"
 msgstr "全部已同步"
 
@@ -2004,7 +2004,7 @@ msgstr "加载设置失败"
 msgid "Failed to load training data"
 msgstr "训练数据加载失败"
 
-#: src/components/UpcomingPlanCard.tsx:586
+#: src/components/UpcomingPlanCard.tsx:637
 msgid "Failed to load training plan"
 msgstr "训练计划加载失败"
 
@@ -3576,7 +3576,7 @@ msgstr "今日无训练安排"
 msgid "No workout scheduled."
 msgstr "今日无训练安排。"
 
-#: src/components/UpcomingPlanCard.tsx:664
+#: src/components/UpcomingPlanCard.tsx:715
 msgid "No workouts scheduled in this window."
 msgstr "这段时间内暂无训练安排。"
 
@@ -4241,7 +4241,7 @@ msgid "Push this workout to your Stryd calendar."
 msgstr "将这次训练推送到 Stryd 日历。"
 
 #: src/components/UpcomingPlanCard.tsx:231
-#: src/components/UpcomingPlanCard.tsx:644
+#: src/components/UpcomingPlanCard.tsx:695
 msgid "Push to Stryd"
 msgstr "推送到 Stryd"
 
@@ -4249,7 +4249,7 @@ msgstr "推送到 Stryd"
 #~ msgid "Pushing..."
 #~ msgstr "正在推送..."
 
-#: src/components/UpcomingPlanCard.tsx:634
+#: src/components/UpcomingPlanCard.tsx:685
 msgid "Pushing…"
 msgstr "推送中…"
 
@@ -4766,7 +4766,7 @@ msgid "Resting HR"
 msgstr "静息心率"
 
 #: src/components/UpcomingPlanCard.tsx:186
-#: src/components/UpcomingPlanCard.tsx:589
+#: src/components/UpcomingPlanCard.tsx:640
 #: src/pages/admin/AdminFeedback.tsx:347
 #: src/pages/admin/AdminRouteState.tsx:36
 #: src/pages/admin/AdminUsers.tsx:544
@@ -5861,7 +5861,7 @@ msgstr "来自后端可信遥测边界的同步与连接结果。"
 #~ msgid "Trusted Today signals"
 #~ msgstr "受信任的今日信号"
 
-#: src/components/UpcomingPlanCard.tsx:658
+#: src/components/UpcomingPlanCard.tsx:709
 msgid "Try a longer window above."
 msgstr "试试上方更长的时间窗口。"
 
@@ -5926,7 +5926,7 @@ msgstr "未验证"
 msgid "Up to date"
 msgstr "最新"
 
-#: src/components/UpcomingPlanCard.tsx:613
+#: src/components/UpcomingPlanCard.tsx:664
 msgid "Upcoming Plan"
 msgstr "近期计划"
 
@@ -6290,12 +6290,10 @@ msgstr "Praxys 邀请"
 #. placeholder {0}: result.code
 #. placeholder {1}: result.invite_url
 #: src/pages/admin/AdminUsers.tsx:830
-msgid ""
-"Your Praxys invitation code: {0}\n"
+msgid "Your Praxys invitation code: {0}\n"
 "\n"
 "Finish registering here: {1}"
-msgstr ""
-"Praxys 邀请码：{0}\n"
+msgstr "Praxys 邀请码：{0}\n"
 "\n"
 "注册链接：{1}"
 
