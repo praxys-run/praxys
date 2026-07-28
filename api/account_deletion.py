@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import logging
+import glob
+import os
 from dataclasses import dataclass
 
 from fastapi import HTTPException
@@ -22,6 +24,9 @@ from db.models import (
     Feedback,
     FitnessData,
     Invitation,
+    PlanDelivery,
+    PlanDeliveryAttempt,
+    PlanRevision,
     RecoveryData,
     TrainingPlan,
     User,
@@ -30,6 +35,7 @@ from db.models import (
     WaitlistSignup,
 )
 from db.cache_revision import lock_revision_writes
+from db.plan_ledger import legacy_stryd_status_lock, lock_plan_writes
 from db.session import begin_serialized_write
 
 logger = logging.getLogger(__name__)
@@ -81,6 +87,16 @@ def _delete_user_owned_rows(db: Session, user_id: str) -> None:
         .with_for_update()
         .all()
     ]
+    delivery_ids = [
+        delivery_id
+        for (delivery_id,) in db.query(PlanDelivery.id)
+        .filter(PlanDelivery.user_id == user_id)
+        .all()
+    ]
+    if delivery_ids:
+        db.query(PlanDeliveryAttempt).filter(
+            PlanDeliveryAttempt.delivery_id.in_(delivery_ids)
+        ).delete(synchronize_session=False)
 
     for model in (
         ActivitySample,
@@ -89,6 +105,8 @@ def _delete_user_owned_rows(db: Session, user_id: str) -> None:
         RecoveryData,
         FitnessData,
         TrainingPlan,
+        PlanDelivery,
+        PlanRevision,
         UserConnection,
         UserConfig,
         AiInsightFeedback,
@@ -158,6 +176,32 @@ def _clear_tokenstore(user_id: str) -> None:
             "User %s deleted but Garmin tokenstore cleanup failed; orphan directory left on disk.",
             user_id,
         )
+
+
+def _clear_legacy_plan_status(db: Session, user_id: str) -> None:
+    """Remove pre-ledger Stryd status files and quarantine/import archives."""
+    from api.routes import plan as plan_route
+
+    lock_plan_writes(db, user_id)
+    path = plan_route._stryd_push_status_path(user_id)
+    try:
+        with legacy_stryd_status_lock(
+            os.path.dirname(path),
+            user_id,
+        ):
+            for candidate in [path, *glob.glob(f"{path}.*")]:
+                try:
+                    os.unlink(candidate)
+                except FileNotFoundError:
+                    continue
+                except OSError:
+                    logger.exception(
+                        "User %s deleted but legacy plan-status cleanup failed for %s.",
+                        user_id,
+                        candidate,
+                    )
+    finally:
+        db.rollback()
 
 
 def delete_user_account(
@@ -244,5 +288,6 @@ def delete_user_account(
 
     for deleted_user_id in deleted_user_ids:
         _clear_tokenstore(deleted_user_id)
+        _clear_legacy_plan_status(db, deleted_user_id)
 
     return AccountDeletionResult(email=email, deleted_user_ids=deleted_user_ids)

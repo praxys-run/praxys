@@ -15,7 +15,7 @@ and the bump points in ``db/sync_writer.py`` + the config-mutation routes):
     samples     — ActivitySample rows
     recovery    — RecoveryData rows (Oura sleep/HRV/RHR + Garmin variants)
     fitness     — FitnessData rows (CP, LTHR, threshold pace, max/rest HR)
-    plans       — TrainingPlan rows (Stryd push, AI plan upload/upsert/delete)
+    plans       — TrainingPlan rows plus plan revision/delivery ledger state
     config      — UserConfig rows (settings, science choice, goal updates)
 
 A counter beats a timestamp because two writes within the same wall-clock

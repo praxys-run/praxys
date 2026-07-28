@@ -38,7 +38,7 @@ Garmin/Stryd/Oura APIs → sync/*.py → db/sync_writer.py → SQLite (trainsigh
 
 ### Data storage
 
-Sync pipelines write directly to SQLite (`trainsight.db`) via `db/sync_writer.py` — there are no live CSVs. Tables: `activities`, `activity_splits`, `recovery_data`, `fitness_data`, `training_plans`, `users`, `user_config`, `user_connections`. `data/sample/` holds synthetic CSVs used only by tests and seed scripts.
+Sync pipelines write directly to SQLite (`trainsight.db`) via `db/sync_writer.py` — there are no live CSVs. Core tables include `activities`, `activity_splits`, `recovery_data`, `fitness_data`, `training_plans`, `plan_revisions`, `plan_deliveries`, `plan_delivery_attempts`, `users`, `user_config`, and `user_connections`. `data/sample/` holds synthetic CSVs used only by tests and seed scripts.
 
 ## Scientific Rigor
 

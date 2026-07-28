@@ -481,6 +481,131 @@ class TrainingPlan(Base):
     )
 
 
+class PlanRevision(Base):
+    """Append-only audit event for a canonical plan mutation."""
+
+    __tablename__ = "plan_revisions"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    operation = Column(String(30), nullable=False)
+    actor_type = Column(String(20), nullable=False)
+    actor_id = Column(String(100), nullable=True)
+    origin = Column(String(80), nullable=False)
+    before_snapshot = Column(JSON, nullable=False, default=list)
+    after_snapshot = Column(JSON, nullable=False, default=list)
+    details = Column(JSON, nullable=False, default=dict)
+    idempotency_key = Column(String(128), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "idempotency_key",
+            name="uq_plan_revision_user_idempotency",
+        ),
+        Index("ix_plan_revisions_user_created", "user_id", "created_at"),
+    )
+
+
+class PlanDelivery(Base):
+    """Current provider-neutral delivery state for one workout version."""
+
+    __tablename__ = "plan_deliveries"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    canonical_key = Column(String(120), nullable=False)
+    workout_date = Column(Date, nullable=False)
+    workout_version = Column(String(64), nullable=False)
+    target = Column(String(20), nullable=False)
+    state = Column(String(20), nullable=False, default="pending")
+    external_id = Column(String(200), nullable=True)
+    last_error = Column(Text, nullable=True)
+    delivered_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "state IN ('pending','delivering','synced','conflict','failed','removed')",
+            name="ck_plan_deliveries_state",
+        ),
+        UniqueConstraint(
+            "user_id",
+            "target",
+            "canonical_key",
+            "workout_version",
+            name="uq_plan_delivery_version_target",
+        ),
+        Index(
+            "ix_plan_deliveries_user_target_date",
+            "user_id",
+            "target",
+            "workout_date",
+        ),
+        Index(
+            "ix_plan_deliveries_user_target_external",
+            "user_id",
+            "target",
+            "external_id",
+        ),
+    )
+
+
+class PlanDeliveryAttempt(Base):
+    """Append-only attempt history for a plan delivery or removal."""
+
+    __tablename__ = "plan_delivery_attempts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    delivery_id = Column(
+        String(36),
+        ForeignKey("plan_deliveries.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    attempt_number = Column(Integer, nullable=False)
+    operation = Column(String(20), nullable=False)
+    state = Column(String(20), nullable=False)
+    external_id = Column(String(200), nullable=True)
+    error = Column(Text, nullable=True)
+    response = Column(JSON, nullable=True)
+    started_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "state IN ('pending','delivering','synced','conflict','failed','removed')",
+            name="ck_plan_delivery_attempts_state",
+        ),
+        CheckConstraint(
+            "operation IN ('deliver','remove','import')",
+            name="ck_plan_delivery_attempts_operation",
+        ),
+        UniqueConstraint(
+            "delivery_id",
+            "attempt_number",
+            name="uq_plan_delivery_attempt_number",
+        ),
+    )
+
+
 class SystemAnnouncement(Base):
     """Admin-configurable site-wide notification banners.
 

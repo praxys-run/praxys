@@ -78,6 +78,9 @@ Training data is stored in a SQLite database (`DATA_DIR/trainsight.db`) via SQLA
 | `RecoveryData` | `recovery_data` | Sleep and readiness data (HRV, sleep score, resting HR, body temp) |
 | `FitnessData` | `fitness_data` | Per-metric fitness tracking (VO2max, CP estimate, LTHR, max HR) |
 | `TrainingPlan` | `training_plans` | Planned workouts from Stryd or AI (targets, description, meta) |
+| `PlanRevision` | `plan_revisions` | Append-only plan mutation events with actor/origin and before/after snapshots |
+| `PlanDelivery` | `plan_deliveries` | Provider-neutral current state for one canonical workout content version and target |
+| `PlanDeliveryAttempt` | `plan_delivery_attempts` | Append-only deliver/remove/import attempt history |
 
 **Session management** (`db/session.py`):
 - `init_db()` creates both sync and async engines, runs `create_all()`, then applies lightweight schema migrations
@@ -185,6 +188,22 @@ Praxys-authored (`source='ai'`) rows as canonical; platform rows remain loaded
 for management and later reconciliation but never silently become the plan.
 The additive contract defaults to external mode with delivery disabled, so
 existing users are not enrolled in platform writes.
+
+Plan mutations write immutable `PlanRevision` events in the same transaction as
+their `TrainingPlan` changes. Platform delivery rows are keyed by a stable
+logical workout slot plus a SHA-256 fingerprint of delivery-relevant content;
+attempts append beneath that identity, so a retry cannot duplicate a successful
+delivery of the same version. The former per-user Stryd push-status JSON is
+lazy-reconciled through an ordered snapshot cursor. During rolling deployment it
+is retained and dual-written after successful push/delete operations so old
+workers remain compatible; additions, replacements, and removals are reflected
+without certifying unknown content as the current version. Corrupt files are
+quarantined and never converted into successful delivery state. A verified
+ledger row is authoritative over a stale legacy snapshot, including after
+removal, so an old worker cannot resurrect a deleted delivery. Per-user database
+locks plus a cross-process file lock serialize cursor/file changes on both
+PostgreSQL and SQLite, and dual-writes verify the user still exists so an
+in-flight request cannot recreate status after account deletion.
 
 ### LLM-backed Insights
 

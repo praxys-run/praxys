@@ -49,6 +49,18 @@ def api_client(monkeypatch):
     from db.session import get_db
 
     user_id = "test-user-plan-sync-state"
+    from db.models import User
+
+    seed_db = db_session.SessionLocal()
+    try:
+        seed_db.add(User(
+            id=user_id,
+            email="plan-sync-state@example.test",
+            hashed_password="test",
+        ))
+        seed_db.commit()
+    finally:
+        seed_db.close()
 
     def _override_user():
         return user_id
@@ -102,6 +114,55 @@ def _seed_rows(user_id: str, rows: list[dict]) -> None:
                 external_id=r.get("external_id"),
                 planned_duration_min=r.get("planned_duration_min"),
             ))
+        db.commit()
+    finally:
+        db.close()
+
+
+def _seed_synced_delivery(
+    user_id: str,
+    workout_date: date,
+    workout_type: str,
+    external_id: str,
+    *,
+    workout_description: str = "",
+) -> None:
+    """Persist one successful Stryd delivery for the current AI version."""
+    from db import session as db_session
+    from db.plan_ledger import (
+        begin_delivery_attempt,
+        complete_delivery_attempt,
+        get_or_create_delivery,
+    )
+
+    db = db_session.SessionLocal()
+    try:
+        delivery, _ = get_or_create_delivery(
+            db,
+            user_id=user_id,
+            target="stryd",
+            snapshot={
+                "date": workout_date,
+                "source": "ai",
+                "workout_type": workout_type,
+                "workout_description": workout_description,
+            },
+        )
+        delivery, attempt, disposition = begin_delivery_attempt(
+            db,
+            delivery,
+            operation="deliver",
+        )
+        assert disposition == "started"
+        assert attempt is not None
+        complete_delivery_attempt(
+            db,
+            user_id=user_id,
+            delivery_id=delivery.id,
+            attempt_id=attempt.id,
+            attempt_state="synced",
+            external_id=external_id,
+        )
         db.commit()
     finally:
         db.close()
@@ -163,13 +224,9 @@ def test_ai_row_takes_precedence_when_date_collides(api_client):
 
 def test_sync_state_synced_when_external_id_matches_push_log(api_client):
     """An AI row + Stryd row at the same date with matching ids → ``synced``."""
-    from api.routes.plan import _save_push_status
-
     client, user_id = api_client
     target = date.today() + timedelta(days=3)
-    _save_push_status(user_id, {
-        target.isoformat(): {"workout_id": "stryd-abc", "status": "pushed"},
-    })
+    _seed_synced_delivery(user_id, target, "threshold", "stryd-abc")
     _seed_rows(user_id, [
         {"date": target, "source": "ai", "workout_type": "threshold"},
         {
@@ -188,13 +245,9 @@ def test_sync_state_mismatch_when_external_id_diverges(api_client):
     This is the case the UI must catch before re-pushing — typically the
     user edited the workout directly inside Stryd's calendar.
     """
-    from api.routes.plan import _save_push_status
-
     client, user_id = api_client
     target = date.today() + timedelta(days=4)
-    _save_push_status(user_id, {
-        target.isoformat(): {"workout_id": "stryd-old", "status": "pushed"},
-    })
+    _seed_synced_delivery(user_id, target, "intervals", "stryd-old")
     _seed_rows(user_id, [
         {"date": target, "source": "ai", "workout_type": "intervals"},
         {
@@ -214,13 +267,9 @@ def test_sync_state_synced_when_pushed_but_stryd_not_yet_resynced(api_client):
     that don't share the frontend's optimistic ``pushStatus`` map
     (mini-program, MCP). Otherwise they'd offer to push again.
     """
-    from api.routes.plan import _save_push_status
-
     client, user_id = api_client
     target = date.today() + timedelta(days=6)
-    _save_push_status(user_id, {
-        target.isoformat(): {"workout_id": "stryd-just-pushed", "status": "pushed"},
-    })
+    _seed_synced_delivery(user_id, target, "easy", "stryd-just-pushed")
     _seed_rows(user_id, [
         {"date": target, "source": "ai", "workout_type": "easy"},
     ])
@@ -234,13 +283,9 @@ def test_sync_state_uses_workout_type_match_when_multiple_stryd_rows(api_client)
     pick the row whose ``workout_type`` matches the AI row, not
     arbitrarily the last-iterated one.
     """
-    from api.routes.plan import _save_push_status
-
     client, user_id = api_client
     target = date.today() + timedelta(days=2)
-    _save_push_status(user_id, {
-        target.isoformat(): {"workout_id": "stryd-threshold", "status": "pushed"},
-    })
+    _seed_synced_delivery(user_id, target, "threshold", "stryd-threshold")
     _seed_rows(user_id, [
         # AI plan: a threshold workout.
         {"date": target, "source": "ai", "workout_type": "threshold"},
@@ -270,6 +315,30 @@ def test_sync_state_not_synced_when_no_stryd_row(api_client):
     ])
     body = client.get("/api/plan").json()
     assert body["workouts"][0]["sync_state"] == "not_synced"
+
+
+def test_changed_workout_version_preserves_prior_external_id_for_replacement(
+    api_client,
+):
+    client, user_id = api_client
+    target = date.today() + timedelta(days=5)
+    _seed_synced_delivery(
+        user_id,
+        target,
+        "easy",
+        "stryd-old-version",
+        workout_description="Original prescription",
+    )
+    _seed_rows(user_id, [{
+        "date": target,
+        "source": "ai",
+        "workout_type": "easy",
+        "workout_description": "Adjusted prescription",
+    }])
+
+    body = client.get("/api/plan").json()
+    assert body["workouts"][0]["sync_state"] == "not_synced"
+    assert body["stryd_status"][target.isoformat()]["workout_id"] == "stryd-old-version"
 
 
 def test_stryd_only_row_surfaces_with_source_tag(api_client):

@@ -1,97 +1,749 @@
-"""Stryd push-status must be isolated per user.
-
-A single shared `stryd_push_status.json` used to leak one user's workout IDs
-and push timestamps to every other caller of ``GET /api/plan/stryd-status``.
-Scoping by user_id at the storage layer is the fix; these tests lock the
-invariant down behaviorally.
-"""
+"""Legacy Stryd push-status import and per-user isolation."""
+import glob
+import json
 import os
+from datetime import datetime, timedelta
 
 import pytest
 
 
-@pytest.fixture(autouse=True)
-def _tmpdir_data(tmp_path, monkeypatch):
-    """Redirect the module's _DATA_DIR into a scratch directory per test."""
-    from api.routes import plan as plan_mod
+@pytest.fixture
+def ledger_db(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("PRAXYS_DATABASE_URL", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
 
-    scratch = tmp_path / "data"
-    scratch.mkdir()
-    monkeypatch.setattr(plan_mod, "_DATA_DIR", str(scratch))
-    monkeypatch.setattr(
-        plan_mod, "_STRYD_PUSH_STATUS_DIR",
-        os.path.join(str(scratch), "ai", "stryd_push_status"),
-    )
-    yield
+    from db import session as db_session
+
+    db_session.engine = None
+    db_session.SessionLocal = None
+    db_session.async_engine = None
+    db_session.AsyncSessionLocal = None
+    db_session.init_db()
+
+    db = db_session.SessionLocal()
+    from db.models import User
+
+    for user_id in (
+        "alice",
+        "corrupt-user",
+        "invalid-user",
+        "rolling-user",
+        "repeat-user",
+        "verified-rolling-user",
+        "fenced-remove-user",
+    ):
+        db.add(User(
+            id=user_id,
+            email=f"{user_id}@example.test",
+            hashed_password="test",
+        ))
+    db.commit()
+    status_dir = tmp_path / "ai" / "stryd_push_status"
+    status_dir.mkdir(parents=True)
+    try:
+        yield db, status_dir
+    finally:
+        db.close()
+        if db_session.engine is not None:
+            db_session.engine.dispose()
+        if db_session.async_engine is not None:
+            import asyncio
+
+            try:
+                asyncio.run(db_session.async_engine.dispose())
+            except RuntimeError:
+                pass
+        db_session.engine = None
+        db_session.SessionLocal = None
+        db_session.async_engine = None
+        db_session.AsyncSessionLocal = None
 
 
-def test_path_is_unique_per_user():
-    from api.routes.plan import _stryd_push_status_path
+def _write_status(status_dir, user_id: str, payload) -> str:
+    from db.plan_ledger import legacy_stryd_status_path
 
-    a = _stryd_push_status_path("user-a")
-    b = _stryd_push_status_path("user-b")
+    path = legacy_stryd_status_path(str(status_dir), user_id)
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle)
+    return path
+
+
+def test_path_is_unique_per_user(ledger_db):
+    _, status_dir = ledger_db
+    from db.plan_ledger import legacy_stryd_status_path
+
+    a = legacy_stryd_status_path(str(status_dir), "user-a")
+    b = legacy_stryd_status_path(str(status_dir), "user-b")
     assert a != b
     assert a.endswith("user-a.json")
     assert b.endswith("user-b.json")
 
 
-def test_save_and_load_roundtrip_per_user():
-    from api.routes.plan import _load_push_status, _save_push_status
+def test_import_is_idempotent_and_preserves_status_shape(ledger_db):
+    db, status_dir = ledger_db
+    from db.models import PlanDelivery, PlanDeliveryAttempt, PlanRevision
+    from db.plan_ledger import (
+        delivery_status_for_snapshots,
+        import_legacy_stryd_status,
+    )
 
-    _save_push_status("alice", {"2026-05-01": {"workout_id": "alice-w1"}})
-    assert _load_push_status("alice") == {"2026-05-01": {"workout_id": "alice-w1"}}
+    path = _write_status(
+        status_dir,
+        "alice",
+        {
+            "2026-05-01": {
+                "workout_id": "alice-w1",
+                "pushed_at": "2026-04-30T12:00:00+00:00",
+                "status": "pushed",
+            }
+        },
+    )
+    assert import_legacy_stryd_status(
+        db,
+        user_id="alice",
+        status_dir=str(status_dir),
+    ) == "imported"
+    assert os.path.exists(path)
+    assert glob.glob(f"{path}.imported-*") == []
+
+    status = delivery_status_for_snapshots(
+        db,
+        user_id="alice",
+        target="stryd",
+        current_snapshots={},
+    )
+    assert status["2026-05-01"]["workout_id"] == "alice-w1"
+    assert status["2026-05-01"]["status"] == "pushed"
+    assert db.query(PlanDelivery).filter_by(user_id="alice").count() == 1
+    assert db.query(PlanDeliveryAttempt).count() == 1
+    assert db.query(PlanRevision).filter_by(
+        user_id="alice",
+        operation="legacy_import",
+    ).count() == 1
+    assert os.path.exists(path)
+
+    _write_status(
+        status_dir,
+        "alice",
+        {
+            "2026-05-01": {
+                "workout_id": "alice-w1",
+                "pushed_at": "2026-04-30T12:00:00+00:00",
+                "status": "pushed",
+            }
+        },
+    )
+    assert import_legacy_stryd_status(
+        db,
+        user_id="alice",
+        status_dir=str(status_dir),
+    ) == "already_imported"
+    assert db.query(PlanDelivery).filter_by(user_id="alice").count() == 1
+    assert db.query(PlanDeliveryAttempt).count() == 1
+    assert db.query(PlanRevision).filter_by(
+        user_id="alice",
+        operation="legacy_import",
+    ).count() == 1
 
 
-def test_one_users_save_is_invisible_to_another():
-    """The core regression: one user's writes must NOT leak via another's read."""
-    from api.routes.plan import _load_push_status, _save_push_status
+def test_one_users_import_is_invisible_to_another(ledger_db):
+    db, status_dir = ledger_db
+    from db.plan_ledger import (
+        delivery_status_for_snapshots,
+        import_legacy_stryd_status,
+    )
 
-    _save_push_status("alice", {"2026-05-01": {"workout_id": "alice-w1"}})
-    assert _load_push_status("bob") == {}, "Bob must not see Alice's push history"
+    _write_status(
+        status_dir,
+        "alice",
+        {"2026-05-01": {"workout_id": "alice-w1"}},
+    )
+    import_legacy_stryd_status(db, user_id="alice", status_dir=str(status_dir))
+
+    assert delivery_status_for_snapshots(
+        db,
+        user_id="alice",
+        target="stryd",
+        current_snapshots={},
+    )["2026-05-01"]["workout_id"] == "alice-w1"
+    assert delivery_status_for_snapshots(
+        db,
+        user_id="bob",
+        target="stryd",
+        current_snapshots={},
+    ) == {}
 
 
-def test_missing_user_returns_empty_dict():
-    """Never-pushed users must see an empty status without raising."""
-    from api.routes.plan import _load_push_status
+def test_missing_user_returns_empty_status(ledger_db):
+    db, status_dir = ledger_db
+    from db.plan_ledger import (
+        delivery_status_for_snapshots,
+        import_legacy_stryd_status,
+    )
 
-    assert _load_push_status("never-pushed") == {}
+    assert import_legacy_stryd_status(
+        db,
+        user_id="never-pushed",
+        status_dir=str(status_dir),
+    ) == "missing"
+    assert delivery_status_for_snapshots(
+        db,
+        user_id="never-pushed",
+        target="stryd",
+        current_snapshots={},
+    ) == {}
 
 
-def test_corrupt_file_quarantines_rather_than_overwriting(tmp_path):
-    """A corrupt file must be preserved under a quarantine name, not silently
-    overwritten by the next save. Returning {} keeps the endpoint responsive
-    without destroying recoverable history."""
-    import glob
+def test_deleted_user_legacy_file_cannot_recreate_ledger_state(ledger_db):
+    db, status_dir = ledger_db
+    from db.models import PlanDelivery, PlanRevision
+    from db.plan_ledger import (
+        import_legacy_stryd_status,
+        write_legacy_stryd_status,
+    )
 
-    from api.routes import plan as plan_mod
-    from api.routes.plan import _load_push_status
+    path = _write_status(
+        status_dir,
+        "deleted-user",
+        {"2026-05-01": {"workout_id": "deleted-id"}},
+    )
+    assert import_legacy_stryd_status(
+        db,
+        user_id="deleted-user",
+        status_dir=str(status_dir),
+    ) == "missing_user"
+    assert db.query(PlanDelivery).filter_by(user_id="deleted-user").count() == 0
+    assert db.query(PlanRevision).filter_by(user_id="deleted-user").count() == 0
 
-    path = plan_mod._stryd_push_status_path("corrupt-user")
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w") as f:
-        f.write("{this is not json")
+    with pytest.raises(LookupError):
+        write_legacy_stryd_status(
+            db,
+            status_dir=str(status_dir),
+            user_id="deleted-user",
+            workout_date="2026-05-02",
+            external_id="new-id",
+            pushed_at="2026-05-01T12:00:00+00:00",
+        )
+    with open(path, encoding="utf-8") as handle:
+        assert json.load(handle) == {
+            "2026-05-01": {"workout_id": "deleted-id"}
+        }
 
-    assert _load_push_status("corrupt-user") == {}
-    # Original file is gone, renamed with a .corrupt-<stamp> suffix.
+
+def test_corrupt_file_is_quarantined_without_inventing_success(ledger_db):
+    db, status_dir = ledger_db
+    from db.models import PlanDelivery
+    from db.plan_ledger import import_legacy_stryd_status, legacy_stryd_status_path
+
+    path = legacy_stryd_status_path(str(status_dir), "corrupt-user")
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write("{this is not json")
+
+    assert import_legacy_stryd_status(
+        db,
+        user_id="corrupt-user",
+        status_dir=str(status_dir),
+    ) == "corrupt"
     assert not os.path.exists(path)
-    quarantines = glob.glob(f"{path}.corrupt-*")
-    assert len(quarantines) == 1
+    assert len(glob.glob(f"{path}.corrupt-*")) == 1
+    assert db.query(PlanDelivery).filter_by(user_id="corrupt-user").count() == 0
 
 
-def test_save_cleans_up_tmp_file_on_rename_failure(tmp_path, monkeypatch):
-    """If os.replace raises, the .tmp must not leak on disk."""
-    from api.routes import plan as plan_mod
-    from api.routes.plan import _save_push_status
+def test_invalid_entries_are_skipped_without_success_rows(ledger_db):
+    db, status_dir = ledger_db
+    from db.models import PlanDelivery, PlanRevision
+    from db.plan_ledger import import_legacy_stryd_status
 
-    user_id = "user-rename-fail"
-    target = plan_mod._stryd_push_status_path(user_id)
+    _write_status(
+        status_dir,
+        "invalid-user",
+        {
+            "not-a-date": {"workout_id": "x"},
+            "2026-05-01": {"status": "failed"},
+            "2026-05-02": "not-an-object",
+            "2026-05-03": {"workout_id": "unsafe?id"},
+        },
+    )
+    assert import_legacy_stryd_status(
+        db,
+        user_id="invalid-user",
+        status_dir=str(status_dir),
+    ) == "imported"
+    assert db.query(PlanDelivery).filter_by(user_id="invalid-user").count() == 0
+    revision = db.query(PlanRevision).filter_by(user_id="invalid-user").one()
+    assert revision.details == {"imported": 0, "skipped": 4, "entries": {}}
 
-    def _boom(src, dst):
-        raise OSError("simulated rename failure")
 
-    monkeypatch.setattr("os.replace", _boom)
+def test_changed_legacy_snapshot_reconciles_replacements_and_removals(ledger_db):
+    db, status_dir = ledger_db
+    from db.models import PlanDelivery, PlanDeliveryAttempt
+    from db.plan_ledger import (
+        delivery_status_for_snapshots,
+        import_legacy_stryd_status,
+    )
 
-    with pytest.raises(OSError):
-        _save_push_status(user_id, {"2026-05-01": {"workout_id": "x"}})
+    _write_status(
+        status_dir,
+        "rolling-user",
+        {
+            "2026-05-01": {"workout_id": "old-a"},
+            "2026-05-02": {"workout_id": "old-b"},
+        },
+    )
+    assert import_legacy_stryd_status(
+        db,
+        user_id="rolling-user",
+        status_dir=str(status_dir),
+    ) == "imported"
 
-    assert not os.path.exists(target + ".tmp"), "orphan .tmp was left behind"
+    _write_status(
+        status_dir,
+        "rolling-user",
+        {"2026-05-01": {"workout_id": "new-a"}},
+    )
+    assert import_legacy_stryd_status(
+        db,
+        user_id="rolling-user",
+        status_dir=str(status_dir),
+    ) == "imported"
+
+    status = delivery_status_for_snapshots(
+        db,
+        user_id="rolling-user",
+        target="stryd",
+        current_snapshots={},
+    )
+    assert status == {
+        "2026-05-01": {
+            "workout_id": "new-a",
+            "status": "pushed",
+            "pushed_at": status["2026-05-01"]["pushed_at"],
+        }
+    }
+    rows = db.query(PlanDelivery).filter_by(user_id="rolling-user").order_by(
+        PlanDelivery.workout_date,
+    ).all()
+    assert [(row.external_id, row.state) for row in rows] == [
+        ("new-a", "synced"),
+        ("old-b", "removed"),
+    ]
+    attempts = db.query(PlanDeliveryAttempt).order_by(
+        PlanDeliveryAttempt.delivery_id,
+        PlanDeliveryAttempt.attempt_number,
+    ).all()
+    assert sum(attempt.state == "removed" for attempt in attempts) == 2
+    assert sum(attempt.state == "synced" for attempt in attempts) == 3
+
+
+def test_legacy_snapshot_cursor_handles_historical_digest_repeats(ledger_db):
+    db, status_dir = ledger_db
+    from db.models import PlanDelivery
+    from db.plan_ledger import import_legacy_stryd_status
+
+    snapshot_a = {"2026-05-01": {"workout_id": "a"}}
+    snapshot_ab = {
+        **snapshot_a,
+        "2026-05-02": {"workout_id": "b"},
+    }
+    for payload in (snapshot_a, snapshot_ab, snapshot_a):
+        _write_status(status_dir, "repeat-user", payload)
+        assert import_legacy_stryd_status(
+            db,
+            user_id="repeat-user",
+            status_dir=str(status_dir),
+        ) == "imported"
+
+    rows = db.query(PlanDelivery).filter_by(user_id="repeat-user").order_by(
+        PlanDelivery.workout_date,
+    ).all()
+    assert [(row.external_id, row.state) for row in rows] == [
+        ("a", "synced"),
+        ("b", "removed"),
+    ]
+
+
+def test_old_worker_delete_marks_verified_delivery_removed(ledger_db):
+    db, status_dir = ledger_db
+    from db.plan_ledger import (
+        begin_delivery_attempt,
+        complete_delivery_attempt,
+        get_or_create_delivery,
+        import_legacy_stryd_status,
+        write_legacy_stryd_status,
+    )
+
+    delivery, _ = get_or_create_delivery(
+        db,
+        user_id="verified-rolling-user",
+        target="stryd",
+        snapshot={
+            "date": "2026-05-03",
+            "source": "ai",
+            "workout_type": "easy",
+            "workout_description": "Verified version",
+        },
+    )
+    delivery, attempt, disposition = begin_delivery_attempt(
+        db,
+        delivery,
+        operation="deliver",
+    )
+    assert disposition == "started"
+    assert attempt is not None
+    complete_delivery_attempt(
+        db,
+        user_id="verified-rolling-user",
+        delivery_id=delivery.id,
+        attempt_id=attempt.id,
+        attempt_state="synced",
+        external_id="verified-id",
+    )
+    db.commit()
+    write_legacy_stryd_status(
+        db,
+        status_dir=str(status_dir),
+        user_id="verified-rolling-user",
+        workout_date="2026-05-03",
+        external_id="verified-id",
+        pushed_at="2026-05-02T12:00:00+00:00",
+    )
+    assert import_legacy_stryd_status(
+        db,
+        user_id="verified-rolling-user",
+        status_dir=str(status_dir),
+    ) == "already_imported"
+
+    _write_status(status_dir, "verified-rolling-user", {})
+    assert import_legacy_stryd_status(
+        db,
+        user_id="verified-rolling-user",
+        status_dir=str(status_dir),
+    ) == "imported"
+    db.refresh(delivery)
+    assert delivery.state == "removed"
+
+    _write_status(
+        status_dir,
+        "verified-rolling-user",
+        {"2026-05-03": {"workout_id": "verified-id"}},
+    )
+    assert import_legacy_stryd_status(
+        db,
+        user_id="verified-rolling-user",
+        status_dir=str(status_dir),
+    ) == "imported"
+    db.refresh(delivery)
+    assert delivery.state == "removed"
+    rows = db.query(type(delivery)).filter_by(
+        user_id="verified-rolling-user",
+    ).all()
+    assert sorted(
+        (row.workout_version.startswith("legacy-unknown:"), row.state)
+        for row in rows
+    ) == [(False, "removed")]
+
+
+def test_superseded_removal_cannot_overwrite_successful_retry(ledger_db):
+    db, _ = ledger_db
+    from db.plan_ledger import (
+        DELIVERY_ATTEMPT_LEASE,
+        begin_delivery_attempt,
+        complete_delivery_attempt,
+        get_or_create_delivery,
+    )
+
+    delivery, _ = get_or_create_delivery(
+        db,
+        user_id="fenced-remove-user",
+        target="stryd",
+        snapshot={
+            "date": "2026-05-04",
+            "source": "ai",
+            "workout_type": "easy",
+        },
+    )
+    delivery, deliver_attempt, disposition = begin_delivery_attempt(
+        db,
+        delivery,
+        operation="deliver",
+    )
+    assert disposition == "started"
+    assert deliver_attempt is not None
+    assert complete_delivery_attempt(
+        db,
+        user_id="fenced-remove-user",
+        delivery_id=delivery.id,
+        attempt_id=deliver_attempt.id,
+        attempt_state="synced",
+        external_id="fenced-id",
+    )
+    db.commit()
+
+    delivery, first_remove, disposition = begin_delivery_attempt(
+        db,
+        delivery,
+        operation="remove",
+    )
+    assert disposition == "started"
+    assert first_remove is not None
+    first_remove.started_at = (
+        datetime.utcnow() - DELIVERY_ATTEMPT_LEASE - timedelta(seconds=1)
+    )
+    db.commit()
+
+    delivery, retry_remove, disposition = begin_delivery_attempt(
+        db,
+        delivery,
+        operation="remove",
+    )
+    assert disposition == "started"
+    assert retry_remove is not None
+    db.commit()
+    assert complete_delivery_attempt(
+        db,
+        user_id="fenced-remove-user",
+        delivery_id=delivery.id,
+        attempt_id=retry_remove.id,
+        attempt_state="removed",
+        external_id="fenced-id",
+    )
+    db.commit()
+
+    assert not complete_delivery_attempt(
+        db,
+        user_id="fenced-remove-user",
+        delivery_id=delivery.id,
+        attempt_id=first_remove.id,
+        attempt_state="failed",
+        delivery_state="synced",
+        error="late failure",
+    )
+    db.commit()
+    db.refresh(delivery)
+    assert delivery.state == "removed"
+
+
+def test_late_removal_success_dominates_retry_failure(ledger_db):
+    db, _ = ledger_db
+    from db.plan_ledger import (
+        DELIVERY_ATTEMPT_LEASE,
+        begin_delivery_attempt,
+        complete_delivery_attempt,
+        get_or_create_delivery,
+    )
+
+    user_id = "fenced-remove-user"
+    delivery, _ = get_or_create_delivery(
+        db,
+        user_id=user_id,
+        target="stryd",
+        snapshot={
+            "date": "2026-05-05",
+            "source": "ai",
+            "workout_type": "easy",
+        },
+    )
+    delivery, deliver_attempt, disposition = begin_delivery_attempt(
+        db,
+        delivery,
+        operation="deliver",
+    )
+    assert disposition == "started"
+    assert deliver_attempt is not None
+    assert complete_delivery_attempt(
+        db,
+        user_id=user_id,
+        delivery_id=delivery.id,
+        attempt_id=deliver_attempt.id,
+        attempt_state="synced",
+        external_id="late-success-id",
+    )
+    db.commit()
+
+    delivery, first_remove, disposition = begin_delivery_attempt(
+        db,
+        delivery,
+        operation="remove",
+    )
+    assert disposition == "started"
+    assert first_remove is not None
+    first_remove.started_at = (
+        datetime.utcnow() - DELIVERY_ATTEMPT_LEASE - timedelta(seconds=1)
+    )
+    db.commit()
+
+    delivery, retry_remove, disposition = begin_delivery_attempt(
+        db,
+        delivery,
+        operation="remove",
+    )
+    assert disposition == "started"
+    assert retry_remove is not None
+    db.commit()
+
+    assert not complete_delivery_attempt(
+        db,
+        user_id=user_id,
+        delivery_id=delivery.id,
+        attempt_id=first_remove.id,
+        attempt_state="removed",
+        external_id="late-success-id",
+    )
+    db.commit()
+    assert not complete_delivery_attempt(
+        db,
+        user_id=user_id,
+        delivery_id=delivery.id,
+        attempt_id=retry_remove.id,
+        attempt_state="failed",
+        delivery_state="synced",
+        error="retry failed after prior success",
+    )
+    db.commit()
+
+    db.refresh(delivery)
+    assert delivery.state == "removed"
+
+
+def test_stale_legacy_success_does_not_resurrect_removed_delivery(ledger_db):
+    db, status_dir = ledger_db
+    from db.plan_ledger import (
+        begin_delivery_attempt,
+        complete_delivery_attempt,
+        get_or_create_delivery,
+        legacy_stryd_status_path,
+        write_legacy_stryd_status,
+    )
+
+    user_id = "rolling-user"
+    delivery, _ = get_or_create_delivery(
+        db,
+        user_id=user_id,
+        target="stryd",
+        snapshot={
+            "date": "2026-05-06",
+            "source": "ai",
+            "workout_type": "easy",
+        },
+    )
+    delivery, deliver_attempt, disposition = begin_delivery_attempt(
+        db,
+        delivery,
+        operation="deliver",
+    )
+    assert disposition == "started"
+    assert deliver_attempt is not None
+    assert complete_delivery_attempt(
+        db,
+        user_id=user_id,
+        delivery_id=delivery.id,
+        attempt_id=deliver_attempt.id,
+        attempt_state="synced",
+        external_id="removed-before-legacy-id",
+    )
+    db.commit()
+
+    delivery, remove_attempt, disposition = begin_delivery_attempt(
+        db,
+        delivery,
+        operation="remove",
+    )
+    assert disposition == "started"
+    assert remove_attempt is not None
+    assert complete_delivery_attempt(
+        db,
+        user_id=user_id,
+        delivery_id=delivery.id,
+        attempt_id=remove_attempt.id,
+        attempt_state="removed",
+        external_id="removed-before-legacy-id",
+    )
+    db.commit()
+
+    write_legacy_stryd_status(
+        db,
+        status_dir=str(status_dir),
+        user_id=user_id,
+        workout_date="2026-05-06",
+        external_id="removed-before-legacy-id",
+        pushed_at="2026-05-05T12:00:00+00:00",
+    )
+
+    assert not os.path.exists(
+        legacy_stryd_status_path(str(status_dir), user_id)
+    )
+    rows = db.query(type(delivery)).filter_by(user_id=user_id).all()
+    assert [(row.workout_version.startswith("legacy-unknown:"), row.state) for row in rows] == [
+        (False, "removed")
+    ]
+
+
+def test_raw_stale_legacy_snapshot_does_not_resurrect_removed_delivery(ledger_db):
+    db, status_dir = ledger_db
+    from db.plan_ledger import (
+        begin_delivery_attempt,
+        complete_delivery_attempt,
+        get_or_create_delivery,
+        import_legacy_stryd_status,
+    )
+
+    user_id = "repeat-user"
+    delivery, _ = get_or_create_delivery(
+        db,
+        user_id=user_id,
+        target="stryd",
+        snapshot={
+            "date": "2026-05-07",
+            "source": "ai",
+            "workout_type": "easy",
+        },
+    )
+    delivery, deliver_attempt, disposition = begin_delivery_attempt(
+        db,
+        delivery,
+        operation="deliver",
+    )
+    assert disposition == "started"
+    assert deliver_attempt is not None
+    assert complete_delivery_attempt(
+        db,
+        user_id=user_id,
+        delivery_id=delivery.id,
+        attempt_id=deliver_attempt.id,
+        attempt_state="synced",
+        external_id="raw-stale-id",
+    )
+    db.commit()
+    delivery, remove_attempt, disposition = begin_delivery_attempt(
+        db,
+        delivery,
+        operation="remove",
+    )
+    assert disposition == "started"
+    assert remove_attempt is not None
+    assert complete_delivery_attempt(
+        db,
+        user_id=user_id,
+        delivery_id=delivery.id,
+        attempt_id=remove_attempt.id,
+        attempt_state="removed",
+        external_id="raw-stale-id",
+    )
+    db.commit()
+
+    _write_status(
+        status_dir,
+        user_id,
+        {"2026-05-07": {"workout_id": "raw-stale-id", "status": "pushed"}},
+    )
+    assert import_legacy_stryd_status(
+        db,
+        user_id=user_id,
+        status_dir=str(status_dir),
+    ) == "imported"
+
+    rows = db.query(type(delivery)).filter_by(user_id=user_id).all()
+    assert [(row.workout_version.startswith("legacy-unknown:"), row.state) for row in rows] == [
+        (False, "removed")
+    ]

@@ -394,6 +394,9 @@ export default function UpcomingPlanCard() {
   const [pushErrors, setPushErrors] = useState<Record<string, string>>({});
   const [pushing, setPushing] = useState(false);
   const [pushingDates, setPushingDates] = useState<Set<string>>(new Set());
+  const [optimisticPushedDates, setOptimisticPushedDates] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Stryd connection status — read from SettingsContext rather than firing
   // a second /api/settings request.
@@ -413,6 +416,7 @@ export default function UpcomingPlanCard() {
   useEffect(() => {
     if (data?.stryd_status) {
       setPushStatus(data.stryd_status);
+      setOptimisticPushedDates(new Set());
     }
   }, [data?.stryd_status]);
 
@@ -425,13 +429,16 @@ export default function UpcomingPlanCard() {
       // already on Stryd by definition.
       if (workout.source === 'stryd') return 'native';
       // Server-derived sync_state is the source of truth for AI rows.
-      // The local `pushStatus` map only matters for optimistic updates
-      // between a successful push and the next /api/plan refetch.
+      if (optimisticPushedDates.has(date)) return 'pushed';
       if (workout.sync_state === 'mismatch') return 'mismatch';
-      if (workout.sync_state === 'synced' || pushStatus[date]) return 'pushed';
+      if (workout.sync_state === 'synced') return 'pushed';
+      // Compatibility fallback for an older backend that does not emit
+      // sync_state yet. On the current contract, a historical pushStatus ID
+      // must not certify a revised workout as synced.
+      if (workout.sync_state === undefined && pushStatus[date]) return 'pushed';
       return 'none';
     },
-    [pushingDates, pushErrors, pushStatus],
+    [pushingDates, pushErrors, pushStatus, optimisticPushedDates],
   );
 
   const handlePushResults = useCallback(
@@ -466,6 +473,13 @@ export default function UpcomingPlanCard() {
 
         return next;
       });
+      setOptimisticPushedDates((prev) => {
+        const next = new Set(prev);
+        for (const result of results) {
+          if (result.status === 'success') next.add(result.date);
+        }
+        return next;
+      });
     },
     [],
   );
@@ -492,7 +506,7 @@ export default function UpcomingPlanCard() {
         // If already pushed, delete the old workout from Stryd first
         const existing = pushStatus[date];
         if (existing?.workout_id) {
-          const resp = await fetch(`${API_BASE}/api/plan/stryd-workout/${existing.workout_id}`, { method: 'DELETE', headers: getAuthHeaders() });
+          const resp = await fetch(`${API_BASE}/api/plan/stryd-workout/${encodeURIComponent(existing.workout_id)}`, { method: 'DELETE', headers: getAuthHeaders() });
           if (!resp.ok) {
             const err = await resp.json().catch(() => ({ detail: `HTTP ${resp.status}` }));
             throw new Error(err.detail || `HTTP ${resp.status}`);
@@ -501,6 +515,11 @@ export default function UpcomingPlanCard() {
           setPushStatus((prev) => {
             const next = { ...prev };
             delete next[date];
+            return next;
+          });
+          setOptimisticPushedDates((prev) => {
+            const next = new Set(prev);
+            next.delete(date);
             return next;
           });
         }
@@ -526,13 +545,8 @@ export default function UpcomingPlanCard() {
     [pushingDates, pushStatus, handlePushResults],
   );
 
-  // Push all unpushed AI workouts. Mirrors the ``aiPushable`` filter
-  // used to render the count beside the button — both must agree, or
-  // the button will offer to push N rows then push N±k after a
-  // round-trip. Specifically: must be ``source='ai'`` (Stryd-native
-  // rows would create *duplicates* on Stryd if pushed back),
-  // non-rest, and either not yet synced (``not_synced``) or diverged
-  // (``mismatch`` — re-push to overwrite).
+  // Push all unsynced AI workouts. Historical IDs are deleted one at a time
+  // before replacement, so an edited version never creates a duplicate.
   const pushAll = useCallback(async () => {
     if (!data) return;
 
@@ -541,7 +555,7 @@ export default function UpcomingPlanCard() {
         (w) => w.source === 'ai'
           && w.workout_type.toLowerCase() !== 'rest'
           && (w.sync_state === 'not_synced' || w.sync_state === 'mismatch')
-          && !pushStatus[w.date],
+          && !optimisticPushedDates.has(w.date),
       )
       .map((w) => w.date);
 
@@ -552,19 +566,56 @@ export default function UpcomingPlanCard() {
     setPushErrors({});
 
     try {
-      const { results } = await pushDatesToStryd(datesToPush);
-      handlePushResults(results, datesToPush);
-    } catch (e) {
-      const newErrors: Record<string, string> = {};
-      for (const d of datesToPush) {
-        newErrors[d] = e instanceof Error ? e.message : 'Push failed';
+      for (const date of datesToPush) {
+        let deleted = false;
+        try {
+          const existing = pushStatus[date];
+          if (existing?.workout_id) {
+            const response = await fetch(
+              `${API_BASE}/api/plan/stryd-workout/${encodeURIComponent(existing.workout_id)}`,
+              { method: 'DELETE', headers: getAuthHeaders() },
+            );
+            if (!response.ok) {
+              const error = await response.json().catch(
+                () => ({ detail: `HTTP ${response.status}` }),
+              );
+              throw new Error(error.detail || `HTTP ${response.status}`);
+            }
+            deleted = true;
+            setPushStatus((prev) => {
+              const next = { ...prev };
+              delete next[date];
+              return next;
+            });
+          }
+
+          const { results } = await pushDatesToStryd([date]);
+          const adjustedResults = deleted
+            ? results.map((result) => (
+                result.status === 'error'
+                  ? {
+                      ...result,
+                      error: `${result.error} (the previous Stryd workout was deleted before the new one failed — click Sync to upload again)`,
+                    }
+                  : result
+              ))
+            : results;
+          handlePushResults(adjustedResults, [date]);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Push failed';
+          setPushErrors((prev) => ({
+            ...prev,
+            [date]: deleted
+              ? `${message} (the previous Stryd workout was deleted before the new one failed — click Sync to upload again)`
+              : message,
+          }));
+        }
       }
-      setPushErrors(newErrors);
     } finally {
       setPushing(false);
       setPushingDates(new Set());
     }
-  }, [data, pushStatus, handlePushResults]);
+  }, [data, pushStatus, optimisticPushedDates, handlePushResults]);
 
   if (loading) {
     return (
@@ -600,7 +651,7 @@ export default function UpcomingPlanCard() {
     (w) => w.source === 'ai'
       && w.workout_type.toLowerCase() !== 'rest'
       && (w.sync_state === 'not_synced' || w.sync_state === 'mismatch')
-      && !pushStatus[w.date],
+      && !optimisticPushedDates.has(w.date),
   );
   const unpushedCount = aiPushable.length;
   const allSynced = unpushedCount === 0
