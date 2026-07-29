@@ -1,16 +1,15 @@
 """Upcoming training plan endpoint with Stryd push integration."""
 import json
 import logging
+import math
 import os
 from datetime import date, datetime, timedelta, timezone
-from typing import Mapping
 
 import pandas as pd
-import requests
-from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -21,14 +20,23 @@ from api.daily_brief_freshness import PLAN_RESPONSE_VERSION
 from api.deps import get_dashboard_data
 from api.etag import CACHE_CONTROL, ENDPOINT_SCOPES, ETagGuard, compute_etag
 from api.packs import RequestContext
+from api.plan_delivery import (
+    DeliveryAccountMismatchError,
+    DeliveryAccountVerificationError,
+    DeliveryBusyError,
+    DeliveryCredentialsInvalid,
+    DeliveryCredentialsUnavailable,
+    DeliveryFinalizationError,
+    DeliveryNotFoundError,
+    DeliveryRemovalFailedError,
+    DeliveryStartError,
+    PlanDeliveryService,
+    ProviderAuthenticationError,
+    load_plan_delivery_adapter,
+)
 from db.cache_revision import bump_revisions
 from db.plan_ledger import (
-    begin_delivery_attempt,
-    complete_delivery_attempt,
     delivery_status_for_snapshots,
-    find_delivery_by_external_id,
-    find_unverified_delivery_for_date,
-    get_or_create_delivery,
     import_legacy_stryd_status,
     legacy_stryd_status_path,
     lock_plan_writes,
@@ -37,7 +45,6 @@ from db.plan_ledger import (
     remove_legacy_stryd_status,
     write_legacy_stryd_status,
 )
-from db.models import TrainingPlan
 from db.session import get_db
 
 router = APIRouter()
@@ -339,6 +346,31 @@ class PushStrydRequest(BaseModel):
     workout_dates: list[str]
 
 
+def _resolve_stryd_delivery_cp(data: dict) -> float | None:
+    """Resolve the CP value used to build Stryd workout blocks."""
+    latest_cp = data.get("latest_cp")
+    try:
+        parsed_latest = float(latest_cp)
+    except (TypeError, ValueError):
+        parsed_latest = 0.0
+    if math.isfinite(parsed_latest) and parsed_latest > 0:
+        return parsed_latest
+
+    activities = data.get("activities", pd.DataFrame())
+    if not isinstance(activities, pd.DataFrame) or activities.empty:
+        return None
+    if "cp_estimate" not in activities.columns:
+        return None
+    valid_cp = activities["cp_estimate"].dropna()
+    if valid_cp.empty:
+        return None
+    try:
+        cp_watts = float(valid_cp.iloc[-1])
+    except (TypeError, ValueError):
+        return None
+    return cp_watts if math.isfinite(cp_watts) and cp_watts > 0 else None
+
+
 @router.post("/plan/push-stryd")
 def push_plan_to_stryd(
     request: PushStrydRequest,
@@ -349,13 +381,6 @@ def push_plan_to_stryd(
 
     Converts AI plan workouts to Stryd structured format and uploads them.
     """
-    from sync.stryd_sync import (
-        _login_api,
-        _STRYD_WORKOUT_TYPES,
-        build_workout_blocks,
-        create_workout_api,
-    )
-
     db.rollback()
     import_legacy_stryd_status(
         db,
@@ -363,19 +388,34 @@ def push_plan_to_stryd(
         status_dir=_STRYD_PUSH_STATUS_DIR,
     )
 
-    # Load Stryd credentials
-    load_dotenv(os.path.join(os.path.dirname(__file__), "..", "..", "sync", ".env"))
-    email = os.environ.get("STRYD_EMAIL")
-    password = os.environ.get("STRYD_PASSWORD")
-    if not email or not password:
-        raise HTTPException(status_code=400, detail="STRYD_EMAIL / STRYD_PASSWORD not configured")
-
-    # Login to Stryd
+    service = PlanDeliveryService(
+        db=db,
+        user_id=current_user_id,
+        target="stryd",
+        adapter_loader=lambda: load_plan_delivery_adapter(
+            db,
+            user_id=current_user_id,
+            target="stryd",
+        ),
+    )
     try:
-        stryd_user_id, token = _login_api(email, password)
-    except Exception as e:
-        logger.error("Stryd login failed: %s", e)
-        raise HTTPException(status_code=502, detail="Stryd login failed. Check your credentials in sync/.env")
+        service.authenticate()
+    except DeliveryCredentialsUnavailable as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="No Stryd credentials. Connect Stryd in Settings first.",
+        ) from exc
+    except DeliveryCredentialsInvalid as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Stored Stryd credentials are unavailable. Reconnect Stryd.",
+        ) from exc
+    except ProviderAuthenticationError as exc:
+        logger.error("Stryd login failed for user=%s", current_user_id)
+        raise HTTPException(
+            status_code=502,
+            detail="Stryd login failed. Reconnect Stryd and try again.",
+        ) from exc
 
     # Analytical views use one preferred plan source, but pushing must always
     # select the AI-authored rows from the complete source set.
@@ -393,22 +433,7 @@ def push_plan_to_stryd(
     if plan_df.empty:
         raise HTTPException(status_code=404, detail="No AI-authored training plan found")
 
-    # Get current CP for block building
-    cp_watts = None
-    latest_cp = data.get("latest_cp")
-    if latest_cp and float(latest_cp) > 0:
-        cp_watts = float(latest_cp)
-    # Fallback: try from latest activities
-    if not cp_watts:
-        activities = data.get("activities", pd.DataFrame())
-        if not isinstance(activities, pd.DataFrame) or activities.empty:
-            pass
-        else:
-            cp_col = "cp_estimate" if "cp_estimate" in activities.columns else None
-            if cp_col:
-                valid_cp = activities[cp_col].dropna()
-                if not valid_cp.empty:
-                    cp_watts = float(valid_cp.iloc[-1])
+    cp_watts = _resolve_stryd_delivery_cp(data)
     if not cp_watts:
         raise HTTPException(
             status_code=422,
@@ -435,7 +460,14 @@ def push_plan_to_stryd(
                 external_id=workout_id,
                 pushed_at=timestamp.isoformat(),
             )
-        except Exception:
+        except (
+            OSError,
+            ValueError,
+            LookupError,
+            json.JSONDecodeError,
+            SQLAlchemyError,
+        ):
+            db.rollback()
             logger.exception(
                 "Delivery persisted but legacy status dual-write failed for user=%s date=%s",
                 current_user_id,
@@ -482,6 +514,15 @@ def push_plan_to_stryd(
                 })
                 db.rollback()
                 continue
+            current_cp_watts = _resolve_stryd_delivery_cp(current_data)
+            if not current_cp_watts:
+                results.append({
+                    "date": workout_date,
+                    "status": "error",
+                    "error": "Critical Power became unavailable before delivery",
+                })
+                db.rollback()
+                continue
 
             row = matching.iloc[0]
             workout_type = str(row.get("workout_type", ""))
@@ -494,98 +535,30 @@ def push_plan_to_stryd(
                 db.rollback()
                 continue
             workout = plan_snapshot(row)
-
-            delivery, delivery_created = get_or_create_delivery(
-                db,
-                user_id=current_user_id,
-                target="stryd",
-                snapshot=workout,
-            )
             existing_stryd_rows = current_all_plans[
                 (current_source == "stryd")
                 & (current_all_plans["date"].astype(str) == workout_date)
             ]
-            if (
-                not existing_stryd_rows.empty
-                and not (delivery.state == "synced" and delivery.external_id)
-            ):
-                results.append({
-                    "date": workout_date,
-                    "status": "error",
-                    "error": (
-                        "A Stryd workout already exists on this date and must "
-                        "be reconciled before delivery"
-                    ),
-                })
-                if delivery_created:
-                    db.delete(delivery)
-                    db.commit()
-                else:
-                    db.rollback()
-                continue
-            unverified = find_unverified_delivery_for_date(
-                db,
-                user_id=current_user_id,
-                target="stryd",
-                workout_date=date.fromisoformat(workout_date),
-            )
-            if unverified is not None:
-                results.append({
-                    "date": workout_date,
-                    "status": "error",
-                    "error": (
-                        "Delivery outcome is uncertain; sync Stryd before retrying"
-                    ),
-                })
-                if delivery_created:
-                    db.delete(delivery)
-                    db.commit()
-                else:
-                    db.rollback()
-                continue
-            delivery, attempt, disposition = begin_delivery_attempt(
-                db,
-                delivery,
-                operation="deliver",
-            )
-            if disposition == "already_complete":
-                external_id = str(delivery.external_id)
-                delivered_at = delivery.delivered_at
-                db.rollback()
-                _write_legacy_compat(
-                    workout_date,
-                    external_id,
-                    delivered_at,
+            observed_external_ids: tuple[str, ...] | None
+            if existing_stryd_rows.empty:
+                observed_external_ids = None
+            elif "external_id" not in existing_stryd_rows.columns:
+                observed_external_ids = ()
+            else:
+                observed_external_ids = tuple(
+                    external_id
+                    for raw_id in existing_stryd_rows["external_id"]
+                    if (external_id := normalize_stryd_workout_id(raw_id))
                 )
-                results.append({
-                    "date": workout_date,
-                    "status": "success",
-                    "workout_id": external_id,
-                })
-                continue
-            if disposition == "reconciliation_required":
-                results.append({
-                    "date": workout_date,
-                    "status": "error",
-                    "error": (
-                        "Delivery outcome is uncertain; sync Stryd before retrying"
-                    ),
-                })
-                if delivery_created:
-                    db.delete(delivery)
-                    db.commit()
-                else:
-                    db.rollback()
-                continue
-            assert attempt is not None
-            delivery_id = delivery.id
-            attempt_id = attempt.id
-            bump_revisions(db, current_user_id, ["plans"])
-            db.commit()
-        except Exception as exc:
+            outcome = service.deliver(
+                workout,
+                threshold_value=current_cp_watts,
+                observed_external_ids=observed_external_ids,
+            )
+        except SQLAlchemyError as exc:
             db.rollback()
             logger.exception(
-                "Failed to start Stryd delivery for user=%s date=%s",
+                "Failed to read current plan for Stryd delivery user=%s date=%s",
                 current_user_id,
                 workout_date,
             )
@@ -596,176 +569,17 @@ def push_plan_to_stryd(
             })
             continue
 
-        def _record_failure(message: str) -> None:
-            try:
-                complete_delivery_attempt(
-                    db,
-                    user_id=current_user_id,
-                    delivery_id=delivery_id,
-                    attempt_id=attempt_id,
-                    attempt_state="failed",
-                    error=message,
-                )
-                bump_revisions(db, current_user_id, ["plans"])
-                db.commit()
-            except Exception:
-                db.rollback()
-                logger.exception(
-                    "Failed to persist Stryd delivery failure for user=%s date=%s",
-                    current_user_id,
-                    workout_date,
-                )
-
-        def _record_conflict(detail: str) -> None:
-            message = (
-                "Stryd delivery outcome is uncertain; sync Stryd before retrying"
-            )
-            try:
-                complete_delivery_attempt(
-                    db,
-                    user_id=current_user_id,
-                    delivery_id=delivery_id,
-                    attempt_id=attempt_id,
-                    attempt_state="conflict",
-                    error=f"{message}: {detail}",
-                )
-                bump_revisions(db, current_user_id, ["plans"])
-                db.commit()
-            except Exception:
-                db.rollback()
-                logger.exception(
-                    "Failed to persist ambiguous Stryd delivery for user=%s date=%s",
-                    current_user_id,
-                    workout_date,
-                )
-
-        try:
-            blocks = build_workout_blocks(workout, cp_watts)
-            stryd_type = _STRYD_WORKOUT_TYPES.get(workout_type.lower(), "")
-            title = f"{workout_type.replace('_', ' ').title()}"
-            description = str(workout.get("workout_description") or "")
-        except Exception as exc:
-            logger.error(
-                "Failed to prepare Stryd workout for %s: %s: %s",
+        result = {"date": workout_date, "status": outcome.status}
+        if outcome.status == "success" and outcome.external_id:
+            result["workout_id"] = outcome.external_id
+            _write_legacy_compat(
                 workout_date,
-                type(exc).__name__,
-                exc,
+                outcome.external_id,
+                outcome.delivered_at,
             )
-            _record_failure(str(exc))
-            results.append({
-                "date": workout_date,
-                "status": "error",
-                "error": str(exc),
-            })
-            continue
-
-        try:
-            result = create_workout_api(
-                user_id=stryd_user_id,
-                token=token,
-                workout_date=workout_date,
-                title=title,
-                blocks=blocks,
-                workout_type=stryd_type,
-                description=description,
-            )
-        except (requests.Timeout, requests.ConnectionError) as e:
-            _record_conflict(str(e))
-            results.append({
-                "date": workout_date,
-                "status": "error",
-                "error": (
-                    "Stryd delivery outcome is uncertain; sync Stryd before retrying"
-                ),
-            })
-            continue
-        except requests.HTTPError as e:
-            detail = str(e)
-            status_code = e.response.status_code if e.response is not None else None
-            if e.response is not None:
-                try:
-                    detail = e.response.json().get("message", detail)
-                except (ValueError, AttributeError):
-                    pass
-            if status_code is None or status_code == 408 or status_code >= 500:
-                _record_conflict(detail)
-                results.append({
-                    "date": workout_date,
-                    "status": "error",
-                    "error": (
-                        "Stryd delivery outcome is uncertain; sync Stryd before retrying"
-                    ),
-                })
-                continue
-            message = f"Stryd API error: {detail}"
-            _record_failure(message)
-            results.append({"date": workout_date, "status": "error", "error": message})
-            continue
-        except Exception as e:
-            logger.error(
-                "Ambiguous Stryd response for %s: %s: %s",
-                workout_date,
-                type(e).__name__,
-                e,
-            )
-            _record_conflict(str(e))
-            results.append({
-                "date": workout_date,
-                "status": "error",
-                "error": (
-                    "Stryd delivery outcome is uncertain; sync Stryd before retrying"
-                ),
-            })
-            continue
-
-        raw_workout_id = result.get("id") if isinstance(result, Mapping) else None
-        workout_id = normalize_stryd_workout_id(raw_workout_id)
-        if not workout_id:
-            _record_conflict("Stryd response did not include a workout id")
-            results.append({
-                "date": workout_date,
-                "status": "error",
-                "error": (
-                    "Stryd delivery outcome is uncertain; sync Stryd before retrying"
-                ),
-            })
-            continue
-        try:
-            complete_delivery_attempt(
-                db,
-                user_id=current_user_id,
-                delivery_id=delivery_id,
-                attempt_id=attempt_id,
-                attempt_state="synced",
-                external_id=workout_id,
-                response=result,
-            )
-            bump_revisions(db, current_user_id, ["plans"])
-            db.commit()
-        except Exception:
-            db.rollback()
-            logger.exception(
-                "Stryd accepted workout but ledger commit failed for user=%s date=%s id=%s",
-                current_user_id,
-                workout_date,
-                workout_id,
-            )
-            results.append({
-                "date": workout_date,
-                "status": "error",
-                "error": "Stryd accepted the workout, but delivery state could not be finalized",
-            })
-            continue
-        results.append({
-            "date": workout_date,
-            "status": "success",
-            "workout_id": workout_id,
-        })
-        _write_legacy_compat(
-            workout_date,
-            workout_id,
-            datetime.now(timezone.utc),
-        )
+        elif outcome.error:
+            result["error"] = outcome.error
+        results.append(result)
 
     return {"results": results}
 
@@ -777,8 +591,6 @@ def delete_stryd_workout(
     db: Session = Depends(get_db),
 ) -> dict:
     """Delete a previously pushed workout from Stryd."""
-    from sync.stryd_sync import _login_api, delete_workout_api
-
     normalized_workout_id = normalize_stryd_workout_id(workout_id)
     if normalized_workout_id is None:
         raise HTTPException(status_code=400, detail="Invalid Stryd workout id")
@@ -790,171 +602,58 @@ def delete_stryd_workout(
         user_id=current_user_id,
         status_dir=_STRYD_PUSH_STATUS_DIR,
     )
-    lock_plan_writes(db, current_user_id)
-    delivery = find_delivery_by_external_id(
-        db,
+    service = PlanDeliveryService(
+        db=db,
         user_id=current_user_id,
         target="stryd",
-        external_id=workout_id,
-    )
-    if delivery is None:
-        db.rollback()
-        raise HTTPException(
-            status_code=404,
-            detail="No Stryd delivery found for this user and workout",
-        )
-
-    previous_state = delivery.state
-    if previous_state == "delivering" and delivery.external_id:
-        # A stale remove attempt can be retried after its lease expires.
-        # Restore the known pre-remove state if the repeated DELETE fails.
-        previous_state = "synced"
-    try:
-        delivery, attempt, disposition = begin_delivery_attempt(
-            db,
-            delivery,
-            operation="remove",
-        )
-        if disposition == "already_complete":
-            db.rollback()
-            try:
-                remove_legacy_stryd_status(
-                    db,
-                    status_dir=_STRYD_PUSH_STATUS_DIR,
-                    user_id=current_user_id,
-                    external_id=workout_id,
-                )
-            except Exception:
-                logger.exception(
-                    "Legacy removal cleanup failed for user=%s workout=%s",
-                    current_user_id,
-                    workout_id,
-                )
-            return {"deleted": True, "workout_id": workout_id}
-        if disposition == "reconciliation_required":
-            db.rollback()
-            raise HTTPException(
-                status_code=409,
-                detail="Stryd workout delivery is already being updated",
-            )
-        assert attempt is not None
-        delivery_id = delivery.id
-        attempt_id = attempt.id
-        bump_revisions(db, current_user_id, ["plans"])
-        db.commit()
-    except HTTPException:
-        raise
-    except Exception as exc:
-        db.rollback()
-        logger.exception(
-            "Failed to start Stryd removal for user=%s workout=%s",
-            current_user_id,
-            workout_id,
-        )
-        raise HTTPException(
-            status_code=500,
-            detail="Could not start Stryd workout removal",
-        ) from exc
-
-    def _record_removal_failure(message: str) -> bool:
-        try:
-            updated = complete_delivery_attempt(
-                db,
-                user_id=current_user_id,
-                delivery_id=delivery_id,
-                attempt_id=attempt_id,
-                attempt_state="failed",
-                delivery_state=previous_state,
-                error=message,
-            )
-            current_delivery = find_delivery_by_external_id(
-                db,
-                user_id=current_user_id,
-                target="stryd",
-                external_id=workout_id,
-            )
-            removed_won = (
-                not updated
-                and current_delivery is not None
-                and current_delivery.state == "removed"
-            )
-            bump_revisions(db, current_user_id, ["plans"])
-            db.commit()
-            return removed_won
-        except Exception:
-            db.rollback()
-            logger.exception(
-                "Failed to persist Stryd removal failure for user=%s workout=%s",
-                current_user_id,
-                workout_id,
-            )
-            return False
-
-    load_dotenv(os.path.join(os.path.dirname(__file__), "..", "..", "sync", ".env"))
-    email = os.environ.get("STRYD_EMAIL")
-    password = os.environ.get("STRYD_PASSWORD")
-    if not email or not password:
-        _record_removal_failure("STRYD_EMAIL / STRYD_PASSWORD not configured")
-        raise HTTPException(
-            status_code=400,
-            detail="STRYD_EMAIL / STRYD_PASSWORD not configured",
-        )
-
-    try:
-        stryd_user_id, token = _login_api(email, password)
-    except Exception as e:
-        logger.error("Stryd login failed: %s", e)
-        if _record_removal_failure(str(e)):
-            return {"deleted": True, "workout_id": workout_id}
-        raise HTTPException(
-            status_code=502,
-            detail="Stryd login failed. Check your credentials in sync/.env",
-        )
-
-    already_absent = False
-    try:
-        delete_workout_api(stryd_user_id, token, workout_id)
-    except requests.HTTPError as e:
-        if e.response is not None and e.response.status_code == 404:
-            already_absent = True
-        else:
-            if _record_removal_failure(str(e)):
-                return {"deleted": True, "workout_id": workout_id}
-            raise HTTPException(status_code=502, detail=f"Stryd delete failed: {e}")
-    except Exception as e:
-        logger.error("Stryd delete failed: %s", e)
-        if _record_removal_failure(str(e)):
-            return {"deleted": True, "workout_id": workout_id}
-        raise HTTPException(status_code=502, detail="Failed to delete from Stryd")
-
-    try:
-        complete_delivery_attempt(
+        adapter_loader=lambda: load_plan_delivery_adapter(
             db,
             user_id=current_user_id,
-            delivery_id=delivery_id,
-            attempt_id=attempt_id,
-            attempt_state="removed",
-            external_id=workout_id,
-            response={"already_absent": already_absent},
-        )
-        db.query(TrainingPlan).filter(
-            TrainingPlan.user_id == current_user_id,
-            TrainingPlan.source == "stryd",
-            TrainingPlan.external_id == workout_id,
-        ).delete(synchronize_session=False)
-        bump_revisions(db, current_user_id, ["plans"])
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        logger.exception(
-            "Stryd workout deleted but ledger finalization failed for user=%s workout=%s",
-            current_user_id,
-            workout_id,
-        )
+            target="stryd",
+        ),
+    )
+    try:
+        service.remove(workout_id)
+    except DeliveryNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except DeliveryBusyError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except DeliveryAccountMismatchError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except DeliveryAccountVerificationError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except DeliveryCredentialsUnavailable as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="No Stryd credentials. Connect Stryd in Settings first.",
+        ) from exc
+    except DeliveryCredentialsInvalid as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Stored Stryd credentials are unavailable. Reconnect Stryd.",
+        ) from exc
+    except ProviderAuthenticationError as exc:
+        logger.error("Stryd login failed for user=%s", current_user_id)
+        raise HTTPException(
+            status_code=502,
+            detail="Stryd login failed. Reconnect Stryd and try again.",
+        ) from exc
+    except DeliveryStartError as exc:
         raise HTTPException(
             status_code=500,
-            detail="Stryd workout was deleted, but delivery state could not be finalized",
+            detail=str(exc),
         ) from exc
+    except DeliveryRemovalFailedError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Stryd delete failed: {exc}",
+        ) from exc
+    except DeliveryFinalizationError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        ) from exc
+
     try:
         remove_legacy_stryd_status(
             db,
@@ -962,7 +661,8 @@ def delete_stryd_workout(
             user_id=current_user_id,
             external_id=workout_id,
         )
-    except Exception:
+    except (OSError, ValueError, json.JSONDecodeError):
+        db.rollback()
         logger.exception(
             "Stryd removal persisted but legacy status dual-write failed for user=%s workout=%s",
             current_user_id,

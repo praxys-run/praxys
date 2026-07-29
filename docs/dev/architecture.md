@@ -29,6 +29,7 @@ Garmin/Stryd/Oura APIs
    ├── users.py          FastAPI-Users integration
    ├── deps.py           Data layer (get_dashboard_data())
    ├── ai.py             AI context builder + plan validation
+   ├── plan_delivery/    Provider-neutral workout delivery + adapters
    └── routes/           Thin endpoint handlers
         |
    ┌────┴────────────┐
@@ -79,7 +80,7 @@ Training data is stored in a SQLite database (`DATA_DIR/trainsight.db`) via SQLA
 | `FitnessData` | `fitness_data` | Per-metric fitness tracking (VO2max, CP estimate, LTHR, max HR) |
 | `TrainingPlan` | `training_plans` | Planned workouts from Stryd or AI (targets, description, meta) |
 | `PlanRevision` | `plan_revisions` | Append-only plan mutation events with actor/origin and before/after snapshots |
-| `PlanDelivery` | `plan_deliveries` | Provider-neutral current state for one canonical workout content version and target |
+| `PlanDelivery` | `plan_deliveries` | Provider-neutral state for one canonical workout/provider-payload version, including plan-version and provider-account fencing |
 | `PlanDeliveryAttempt` | `plan_delivery_attempts` | Append-only deliver/remove/import attempt history |
 
 **Session management** (`db/session.py`):
@@ -87,9 +88,11 @@ Training data is stored in a SQLite database (`DATA_DIR/trainsight.db`) via SQLA
 - `get_db()` is a FastAPI dependency yielding sync sessions
 - `get_async_db()` yields async sessions for FastAPI-Users
 
-### Auto-Migration
+### Schema Migration
 
-`init_db()` in `db/session.py` includes a lightweight migration system that runs on every startup. After `create_all()` (which only creates new tables), it inspects existing tables for missing columns and runs `ALTER TABLE ... ADD COLUMN` statements. This avoids needing a full Alembic setup for simple schema additions. New columns are registered in the `_migrations` list inside `init_db()`.
+SQLite development databases use `create_all()` plus narrow additive
+compatibility columns in `db/session.py`. PostgreSQL deployments run Alembic
+to the current head during startup.
 
 ### Authentication
 
@@ -114,6 +117,20 @@ Platform credentials (Garmin/Stryd passwords, Oura tokens) are stored encrypted 
 4. Both `encrypted_credentials` and `wrapped_dek` are stored as binary columns on `UserConnection`
 
 If `KEY_VAULT_URL` is set, the `CredentialVault` initializes an Azure `CryptographyClient`. Otherwise, it falls back to local Fernet encryption. If neither is configured, it generates an ephemeral key and logs a warning (credentials will not survive restarts).
+
+### Plan Delivery Boundary
+
+`api/plan_delivery/` separates provider-neutral orchestration from Stryd API
+details. The service authenticates before starting a durable attempt, scopes
+credentials and ledger rows to the authenticated Praxys user, and records a
+fingerprint of the exact provider payload (including CP-derived workout
+blocks). The canonical Praxys plan version remains separate so API sync state
+does not depend on provider-specific serialization.
+
+Successful creates persist the authenticated provider account ID. A later
+delete is refused if the user has reconnected a different provider account.
+Replacement is intentionally a confirmed delete followed by create so a
+partial failure is explicit and recoverable rather than success-shaped.
 
 ### Admin System
 
@@ -193,7 +210,13 @@ Plan mutations write immutable `PlanRevision` events in the same transaction as
 their `TrainingPlan` changes. Platform delivery rows are keyed by a stable
 logical workout slot plus a SHA-256 fingerprint of delivery-relevant content;
 attempts append beneath that identity, so a retry cannot duplicate a successful
-delivery of the same version. The former per-user Stryd push-status JSON is
+delivery of the same version. Provider writes run through
+`api/plan_delivery/`: the service owns ledger transitions and fencing, while
+provider adapters own authentication plus create/delete/calendar operations.
+Adapters receive credentials resolved from the caller's encrypted
+`UserConnection`; the Stryd adapter never reads another user's connection.
+
+The former per-user Stryd push-status JSON is
 lazy-reconciled through an ordered snapshot cursor. During rolling deployment it
 is retained and dual-written after successful push/delete operations so old
 workers remain compatible; additions, replacements, and removals are reflected

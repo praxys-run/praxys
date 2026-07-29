@@ -4,12 +4,13 @@ Runs as a daemon thread started on app boot. Every CHECK_INTERVAL seconds,
 scans user_connections for stale entries and triggers sync for each.
 Syncs are staggered (one at a time, small delay between) to avoid rate limits.
 """
-import json
 import logging
 import os
 import threading
 import time
 from datetime import datetime, timedelta
+
+from db.connection_credentials import CredentialAccessError
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,9 @@ def classify_sync_failure(exc: BaseException) -> tuple[str, bool]:
       browser before reconnecting. The marker survives the library's
       "All login strategies exhausted: …" wrapping because the wrapped
       response dict is preserved in the message.
+    * ``CredentialAccessError`` — the encrypted connection exists but its
+      envelope cannot be opened or decoded. Waiting cannot repair stored
+      ciphertext; the user must reconnect to replace it.
 
     Anything else is treated as transient — the caller applies exponential
     backoff and tries again later.
@@ -85,6 +89,8 @@ def classify_sync_failure(exc: BaseException) -> tuple[str, bool]:
     msg = str(exc) or ""
 
     if cls_name == "GarminConnectAuthenticationError":
+        return ("auth_required", True)
+    if isinstance(exc, CredentialAccessError):
         return ("auth_required", True)
     if "CAPTCHA_REQUIRED" in msg:
         return ("auth_required", True)
@@ -347,21 +353,26 @@ def _sync_connection(user_id: str, platform: str, db):
 
     Uses the sync route's fetch + DB write functions (no CSV intermediate).
     """
+    from db.connection_credentials import load_connection_credentials
     from db.models import UserConnection
-    from db.crypto import get_vault
 
     conn = db.query(UserConnection).filter(
         UserConnection.user_id == user_id,
         UserConnection.platform == platform,
     ).first()
-    if not conn or not conn.encrypted_credentials:
+    if not conn:
         logger.warning("No credentials for user=%s platform=%s", user_id, platform)
         return
 
-    # Decrypt credentials
-    vault = get_vault()
-    creds_json = vault.decrypt(conn.encrypted_credentials, conn.wrapped_dek)
-    creds = json.loads(creds_json)
+    credentials = load_connection_credentials(
+        db,
+        user_id=user_id,
+        platform=platform,
+    )
+    if credentials is None:
+        logger.warning("No credentials for user=%s platform=%s", user_id, platform)
+        return
+    creds = credentials
 
     # Use the sync route's direct DB write functions
     from api.routes.sync import (

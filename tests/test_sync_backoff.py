@@ -130,6 +130,19 @@ def test_classify_generic_connection_error_is_transient() -> None:
     assert terminal is False
 
 
+def test_classify_unreadable_credentials_is_terminal() -> None:
+    """Encrypted credentials that cannot be read require reconnection."""
+    from db.connection_credentials import CredentialAccessError
+    from db.sync_scheduler import classify_sync_failure
+
+    status, terminal = classify_sync_failure(
+        CredentialAccessError("stored credentials could not be decrypted")
+    )
+
+    assert status == "auth_required"
+    assert terminal is True
+
+
 # ---------------------------------------------------------------------------
 # _record_sync_failure — DB-level integration
 # ---------------------------------------------------------------------------

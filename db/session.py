@@ -387,6 +387,10 @@ _SQLITE_COMPAT_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
         ("today_decision_check_shown_at", "DATETIME"),
         ("today_decision_check_submitted_at", "DATETIME"),
     ),
+    "plan_deliveries": (
+        ("plan_version", "VARCHAR(64)"),
+        ("provider_account_id", "VARCHAR(200)"),
+    ),
 }
 
 
@@ -405,6 +409,12 @@ def _ensure_sqlite_compat_columns(engine_obj) -> None:
                     f'ALTER TABLE "{table}" ADD COLUMN "{column}" {ddl_type}'
                 )
                 logger.info("Added SQLite compatibility column %s.%s", table, column)
+            if table == "plan_deliveries":
+                conn.exec_driver_sql(
+                    'UPDATE "plan_deliveries" '
+                    'SET "plan_version" = "workout_version" '
+                    'WHERE "plan_version" IS NULL'
+                )
 
 
 def _ensure_schema(engine_obj, backend: str) -> None:

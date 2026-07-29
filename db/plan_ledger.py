@@ -259,13 +259,15 @@ def get_or_create_delivery(
     target: str,
     snapshot: Mapping[str, Any] | Any,
     workout_version_override: str | None = None,
+    plan_version_override: str | None = None,
 ) -> tuple[PlanDelivery, bool]:
     """Return the stable delivery row for a workout version and target."""
     lock_plan_writes(db, user_id)
     normalized = plan_snapshot(snapshot)
     workout_date = date.fromisoformat(str(normalized["date"]))
     key = canonical_workout_key(normalized)
-    version = workout_version_override or workout_version(normalized)
+    plan_version = plan_version_override or workout_version(normalized)
+    version = workout_version_override or plan_version
     existing = db.execute(
         select(PlanDelivery).where(
             PlanDelivery.user_id == user_id,
@@ -275,6 +277,8 @@ def get_or_create_delivery(
         )
     ).scalar_one_or_none()
     if existing is not None:
+        if existing.plan_version != plan_version:
+            existing.plan_version = plan_version
         return existing, False
 
     delivery = PlanDelivery(
@@ -282,6 +286,7 @@ def get_or_create_delivery(
         canonical_key=key,
         workout_date=workout_date,
         workout_version=version,
+        plan_version=plan_version,
         target=target,
         state="pending",
     )
@@ -298,6 +303,8 @@ def get_or_create_delivery(
                 PlanDelivery.workout_version == version,
             )
         ).scalar_one()
+        if delivery.plan_version != plan_version:
+            delivery.plan_version = plan_version
         return delivery, False
     return delivery, True
 
@@ -333,15 +340,19 @@ def begin_delivery_attempt(
     ).scalars().all()
     locked = next(row for row in slot_rows if row.id == delivery.id)
 
-    if operation == "deliver" and any(
-        row.id != locked.id
-        and (
-            row.state in {"delivering", "conflict"}
-            or (row.state == "synced" and row.external_id is not None)
-        )
-        for row in slot_rows
-    ):
-        return locked, None, "reconciliation_required"
+    if operation == "deliver":
+        if any(
+            row.id != locked.id and row.state in {"delivering", "conflict"}
+            for row in slot_rows
+        ):
+            return locked, None, "reconciliation_required"
+        if any(
+            row.id != locked.id
+            and row.state == "synced"
+            and row.external_id is not None
+            for row in slot_rows
+        ):
+            return locked, None, "replacement_required"
 
     if operation == "deliver" and locked.state == "synced" and locked.external_id:
         return locked, None, "already_complete"
@@ -401,6 +412,7 @@ def complete_delivery_attempt(
     external_id: str | None = None,
     error: str | None = None,
     response: Mapping[str, Any] | None = None,
+    provider_account_id: str | None = None,
 ) -> bool:
     """Stage a terminal result if this attempt still owns the delivery."""
     if attempt_state not in PLAN_DELIVERY_STATES:
@@ -478,6 +490,8 @@ def complete_delivery_attempt(
 
     locked_delivery.state = final_delivery_state
     locked_delivery.external_id = external_id or locked_delivery.external_id
+    if provider_account_id is not None:
+        locked_delivery.provider_account_id = provider_account_id
     locked_delivery.last_error = error
     locked_delivery.updated_at = now
     if final_delivery_state == "synced":
@@ -554,12 +568,15 @@ def delivery_status_for_snapshots(
     for delivery in rows:
         date_key = delivery.workout_date.isoformat()
         current_version = current_versions.get(date_key)
+        delivery_plan_version = (
+            delivery.plan_version or delivery.workout_version
+        )
         if (
             not include_prior_versions
-            and delivery.workout_version != current_version
+            and delivery_plan_version != current_version
         ):
             continue
-        priority = int(current_version == delivery.workout_version)
+        priority = int(current_version == delivery_plan_version)
         if priority < priorities.get(date_key, -1):
             continue
         entry = {
@@ -954,6 +971,7 @@ def _import_legacy_stryd_status_locked(
                 target="stryd",
                 snapshot=snapshot,
                 workout_version_override=legacy_unknown_version(snapshot),
+                plan_version_override=legacy_unknown_version(snapshot),
             )
             if (
                 not created
