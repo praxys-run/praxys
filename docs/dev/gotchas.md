@@ -159,6 +159,23 @@ render read-only with a source badge.
 - `write_lactate_threshold` and `write_daily_metrics` are insert-only (existing rows skipped) — they're time-series of fresh values, so per-date idempotency is the right semantics.
 - Recovery (`recovery_data`) is update-capable per date (see `write_recovery`'s Garmin branch) so a partial first-sync row can be topped up on a later sync that returns HRV where the first didn't.
 
+## Managed-plan provider ownership
+
+- Praxys may create, replace, or remove only workouts represented by the
+  authenticated user's delivery ledger. A manual workout or another coach's
+  workout on the same date is not a conflict by itself and must remain
+  untouched.
+- Reconciliation identity is never just a date. Canonical rows use durable
+  workout UUIDs; target rows use provider external IDs; normalized content
+  fingerprints detect edits and stale IDs.
+- A successful target sync may infer absence only for the same provider account
+  and only when both the delivery's prior date and the observation's current
+  date are inside its conservatively covered calendar window. A known workout
+  moved outside the current window remains present. Never treat a different
+  account's empty calendar as deletion of the prior account's plan.
+- Fingerprint fallback is read-only. It can present a stale-ID candidate, but
+  only an external ID already owned by the user's ledger may be deleted.
+
 ## Activity weather support
 
 - Stryd activity summaries already provide temperature plus relative humidity.

@@ -23,6 +23,7 @@ from db.models import (
     PlanDelivery,
     PlanDeliveryAttempt,
     PlanRevision,
+    TrainingPlan,
     User,
 )
 from db.session import begin_serialized_write
@@ -35,6 +36,7 @@ PLAN_DELIVERY_STATES = frozenset(
 DELIVERY_ATTEMPT_LEASE = timedelta(minutes=5)
 
 _SNAPSHOT_FIELDS = (
+    "canonical_id",
     "date",
     "workout_type",
     "planned_duration_min",
@@ -197,11 +199,16 @@ def plan_snapshot(record: Any) -> dict[str, Any]:
 
 def canonical_workout_key(snapshot: Mapping[str, Any]) -> str:
     """Return the stable logical key used across versions of one workout slot."""
+    canonical_id = str(snapshot.get("canonical_id") or "").strip()
+    source = str(snapshot.get("source") or "ai").strip().lower()
+    if canonical_id:
+        return f"{source}:{canonical_id}"
+
     workout_date = str(snapshot.get("date") or "")
     if not workout_date:
         raise ValueError("plan snapshot must include a date")
-    source = str(snapshot.get("source") or "ai").strip().lower()
-    return f"{source}:{workout_date}"
+    workout_type = str(snapshot.get("workout_type") or "unknown").strip().casefold()
+    return f"{source}:{workout_date}:{workout_type or 'unknown'}"
 
 
 def legacy_unknown_version(snapshot: Mapping[str, Any]) -> str:
@@ -213,6 +220,7 @@ def workout_version(snapshot: Mapping[str, Any]) -> str:
     """Hash delivery-relevant workout content into an immutable version id."""
     normalized = plan_snapshot(snapshot)
     normalized.pop("meta", None)
+    normalized.pop("canonical_id", None)
     payload = json.dumps(
         normalized,
         sort_keys=True,
@@ -252,6 +260,110 @@ def record_plan_revision(
     return revision
 
 
+def record_plan_revision_idempotent(
+    db: Session,
+    *,
+    user_id: str,
+    operation: str,
+    actor_type: str,
+    actor_id: str | None,
+    origin: str,
+    before: Sequence[Any],
+    after: Sequence[Any],
+    details: Mapping[str, Any] | None,
+    idempotency_key: str,
+) -> tuple[PlanRevision, bool]:
+    """Stage a revision once and return the existing row on an exact retry."""
+    lock_plan_writes(db, user_id)
+    existing = db.execute(
+        select(PlanRevision).where(
+            PlanRevision.user_id == user_id,
+            PlanRevision.idempotency_key == idempotency_key,
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        return existing, False
+
+    try:
+        with db.begin_nested():
+            revision = record_plan_revision(
+                db,
+                user_id=user_id,
+                operation=operation,
+                actor_type=actor_type,
+                actor_id=actor_id,
+                origin=origin,
+                before=before,
+                after=after,
+                details=details,
+                idempotency_key=idempotency_key,
+            )
+    except IntegrityError:
+        revision = db.execute(
+            select(PlanRevision).where(
+                PlanRevision.user_id == user_id,
+                PlanRevision.idempotency_key == idempotency_key,
+            )
+        ).scalar_one()
+        return revision, False
+    return revision, True
+
+
+def _legacy_rekey_target(
+    db: Session,
+    *,
+    user_id: str,
+    source: str,
+    workout_date: date,
+    workout_type: str,
+    legacy_delivery: PlanDelivery,
+) -> str:
+    legacy_untyped_key = f"{source}:{workout_date.isoformat()}"
+    candidates: list[tuple[str, str]] = []
+    rows = db.execute(
+        select(TrainingPlan).where(
+            TrainingPlan.user_id == user_id,
+            TrainingPlan.source == source,
+            TrainingPlan.date == workout_date,
+        )
+    ).scalars().all()
+    for row in rows:
+        snapshot = plan_snapshot(row)
+        if not snapshot.get("canonical_id"):
+            continue
+        candidate_type = str(
+            snapshot.get("workout_type") or "unknown"
+        ).strip().casefold()
+        if (
+            legacy_delivery.canonical_key != legacy_untyped_key
+            and candidate_type != workout_type
+        ):
+            continue
+        candidates.append((
+            canonical_workout_key(snapshot),
+            workout_version(snapshot),
+        ))
+
+    if len(candidates) == 1:
+        return candidates[0][0]
+
+    legacy_versions = {
+        legacy_delivery.workout_version,
+        legacy_delivery.plan_version,
+    }
+    matching_keys = {
+        candidate_key
+        for candidate_key, candidate_version in candidates
+        if candidate_version in legacy_versions
+    }
+    if len(matching_keys) == 1:
+        return matching_keys.pop()
+
+    raise ValueError(
+        "ambiguous legacy delivery identity requires reconciliation"
+    )
+
+
 def get_or_create_delivery(
     db: Session,
     *,
@@ -260,6 +372,7 @@ def get_or_create_delivery(
     snapshot: Mapping[str, Any] | Any,
     workout_version_override: str | None = None,
     plan_version_override: str | None = None,
+    provider_content_version_override: str | None = None,
 ) -> tuple[PlanDelivery, bool]:
     """Return the stable delivery row for a workout version and target."""
     lock_plan_writes(db, user_id)
@@ -276,9 +389,71 @@ def get_or_create_delivery(
             PlanDelivery.workout_version == version,
         )
     ).scalar_one_or_none()
+    if existing is None:
+        source = str(normalized.get("source") or "ai").strip().lower()
+        workout_type = str(
+            normalized.get("workout_type") or "unknown"
+        ).strip().casefold()
+        legacy_keys = {
+            f"{source}:{workout_date.isoformat()}",
+            (
+                f"{source}:{workout_date.isoformat()}:"
+                f"{workout_type or 'unknown'}"
+            ),
+        }
+        legacy_keys.discard(key)
+        if legacy_keys:
+            legacy_rows = db.execute(
+                select(PlanDelivery).where(
+                    PlanDelivery.user_id == user_id,
+                    PlanDelivery.target == target,
+                    PlanDelivery.canonical_key.in_(legacy_keys),
+                )
+            ).scalars().all()
+            active_legacy = [
+                row for row in legacy_rows if row.state != "removed"
+            ]
+            version_matches = [
+                row for row in legacy_rows
+                if row.workout_version == version
+            ]
+            if len(active_legacy) > 1 or len(version_matches) > 1:
+                raise ValueError(
+                    "ambiguous legacy delivery identity requires reconciliation"
+                )
+            rows_to_rekey = {
+                row.id: row
+                for row in [*active_legacy, *version_matches]
+            }
+            for legacy_row in rows_to_rekey.values():
+                if normalized.get("canonical_id"):
+                    legacy_row.canonical_key = _legacy_rekey_target(
+                        db,
+                        user_id=user_id,
+                        source=source,
+                        workout_date=workout_date,
+                        workout_type=workout_type,
+                        legacy_delivery=legacy_row,
+                    )
+                else:
+                    legacy_row.canonical_key = key
+            matching_versions = [
+                row for row in version_matches
+                if row.canonical_key == key
+            ]
+            if matching_versions:
+                existing = matching_versions[0]
     if existing is not None:
         if existing.plan_version != plan_version:
             existing.plan_version = plan_version
+        if (
+            provider_content_version_override is not None
+            and existing.provider_content_version
+            != provider_content_version_override
+        ):
+            existing.provider_content_version = (
+                provider_content_version_override
+            )
         return existing, False
 
     delivery = PlanDelivery(
@@ -287,6 +462,7 @@ def get_or_create_delivery(
         workout_date=workout_date,
         workout_version=version,
         plan_version=plan_version,
+        provider_content_version=provider_content_version_override,
         target=target,
         state="pending",
     )
@@ -305,8 +481,58 @@ def get_or_create_delivery(
         ).scalar_one()
         if delivery.plan_version != plan_version:
             delivery.plan_version = plan_version
+        if (
+            provider_content_version_override is not None
+            and delivery.provider_content_version
+            != provider_content_version_override
+        ):
+            delivery.provider_content_version = (
+                provider_content_version_override
+            )
         return delivery, False
     return delivery, True
+
+
+def append_delivery_event(
+    db: Session,
+    delivery: PlanDelivery,
+    *,
+    operation: str,
+    state: str,
+    external_id: str | None,
+    response: Mapping[str, Any] | None = None,
+    error: str | None = None,
+    completed_at: datetime | None = None,
+) -> PlanDeliveryAttempt:
+    """Append a terminal audit event without performing provider I/O."""
+    if operation not in {"deliver", "remove", "import"}:
+        raise ValueError(f"unsupported delivery operation: {operation}")
+    if state not in PLAN_DELIVERY_STATES:
+        raise ValueError(f"unsupported delivery state: {state}")
+    lock_plan_writes(db, delivery.user_id)
+    latest_number = db.execute(
+        select(func.coalesce(func.max(PlanDeliveryAttempt.attempt_number), 0))
+        .where(PlanDeliveryAttempt.delivery_id == delivery.id)
+    ).scalar_one()
+    timestamp = completed_at or datetime.utcnow()
+    attempt = PlanDeliveryAttempt(
+        delivery_id=delivery.id,
+        attempt_number=int(latest_number) + 1,
+        operation=operation,
+        state=state,
+        external_id=external_id,
+        error=error,
+        response=(
+            _json_value(dict(response or {}))
+            if response is not None
+            else None
+        ),
+        started_at=timestamp,
+        completed_at=timestamp,
+    )
+    db.add(attempt)
+    db.flush()
+    return attempt
 
 
 def begin_delivery_attempt(
@@ -505,15 +731,20 @@ def find_delivery_by_external_id(
     user_id: str,
     target: str,
     external_id: str,
+    provider_account_id: str | None = None,
 ) -> PlanDelivery | None:
     """Find the newest delivery row associated with a provider workout id."""
-    return db.execute(
-        select(PlanDelivery)
-        .where(
-            PlanDelivery.user_id == user_id,
-            PlanDelivery.target == target,
-            PlanDelivery.external_id == external_id,
+    statement = select(PlanDelivery).where(
+        PlanDelivery.user_id == user_id,
+        PlanDelivery.target == target,
+        PlanDelivery.external_id == external_id,
+    )
+    if provider_account_id is not None:
+        statement = statement.where(
+            PlanDelivery.provider_account_id == provider_account_id
         )
+    return db.execute(
+        statement
         .order_by(PlanDelivery.updated_at.desc(), PlanDelivery.created_at.desc())
     ).scalars().first()
 
@@ -561,11 +792,35 @@ def delivery_status_for_snapshots(
             PlanDelivery.external_id.is_not(None),
         )
         .order_by(PlanDelivery.updated_at.asc(), PlanDelivery.created_at.asc())
-    ).scalars()
+    ).scalars().all()
+    delivery_ids = [row.id for row in rows]
+    attempts = (
+        db.execute(
+            select(
+                PlanDeliveryAttempt.delivery_id,
+                PlanDeliveryAttempt.operation,
+                PlanDeliveryAttempt.response,
+            ).where(PlanDeliveryAttempt.delivery_id.in_(delivery_ids))
+        ).all()
+        if delivery_ids
+        else []
+    )
+    status_eligible: set[str] = set()
+    for delivery_id, operation, response in attempts:
+        if operation == "deliver":
+            status_eligible.add(delivery_id)
+        elif (
+            operation == "import"
+            and isinstance(response, Mapping)
+            and response.get("legacy_import") is True
+        ):
+            status_eligible.add(delivery_id)
 
     status: dict[str, dict[str, str]] = {}
     priorities: dict[str, int] = {}
     for delivery in rows:
+        if delivery.id not in status_eligible:
+            continue
         date_key = delivery.workout_date.isoformat()
         current_version = current_versions.get(date_key)
         delivery_plan_version = (
@@ -619,7 +874,7 @@ def write_legacy_stryd_status(
         select(PlanDelivery.id).where(
             PlanDelivery.user_id == user_id,
             PlanDelivery.target == "stryd",
-            PlanDelivery.canonical_key == f"ai:{workout_date}",
+            PlanDelivery.workout_date == date.fromisoformat(workout_date),
             PlanDelivery.external_id == external_id,
             PlanDelivery.state == "synced",
             ~PlanDelivery.workout_version.startswith("legacy-unknown:"),
@@ -920,6 +1175,29 @@ def _import_legacy_stryd_status_locked(
                 external_id=previous_external_id,
             )
             if previous_delivery is None or previous_delivery.state == "removed":
+                continue
+            current_delivery = (
+                find_delivery_by_external_id(
+                    db,
+                    user_id=user_id,
+                    target="stryd",
+                    external_id=current_external_id,
+                )
+                if current_external_id
+                else None
+            )
+            if (
+                current_delivery is not None
+                and current_delivery.state == "synced"
+                and not current_delivery.workout_version.startswith(
+                    "legacy-unknown:"
+                )
+                and current_delivery.canonical_key
+                != previous_delivery.canonical_key
+            ):
+                # The compatibility file can represent only one workout per
+                # date. Replacing its date entry must not tombstone a separate
+                # verified canonical workout that still exists at the target.
                 continue
             previous_delivery.state = "removed"
             previous_delivery.last_error = None

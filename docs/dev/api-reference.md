@@ -694,15 +694,15 @@ Paginated activity history.
 
 ### GET /api/plan
 
-The user's plan within a window, plus per-row Stryd sync state. `sync_state` is
-authoritative for the current Praxys-authored version. `stryd_status` keeps the
-legacy date-keyed response shape and may retain a prior successful workout ID so
-clients can delete it before replacing an edited version; its source of truth is
-the database delivery ledger rather than JSON files.
+The user's plan within a window, plus stable per-workout Stryd reconciliation.
+`reconciliation` is authoritative and joins by durable canonical identity,
+provider external ID, and normalized provider-content fingerprint. It never
+collapses workouts by date, so manual or coach-authored workouts can coexist
+with one or more Praxys workouts on the same day.
 
-The canonical plan is the AI-authored one (`source='ai'`). Stryd rows in the
-same window inform each AI row's `sync_state`; dates with no AI counterpart are
-returned as `source='stryd'` workout rows.
+`sync_state` remains as a backward-compatible summary. `stryd_status` keeps the
+legacy date-keyed pushed-workout shape; it includes outbound Praxys deliveries,
+not target workouts accepted into the canonical plan.
 
 **Query params:**
 - `start` *(YYYY-MM-DD, default = today)* — window start.
@@ -714,14 +714,32 @@ returned as `source='stryd'` workout rows.
 {
   "workouts": [
     {
+      "canonical_id": "f0219570-4bda-49df-86a7-1b73ad80af6c",
       "date": "2026-04-11",
+      "source": "ai",
       "workout_type": "threshold",
       "duration_min": 65,
       "distance_km": 11.0,
       "power_min": 235,
       "power_max": 255,
       "description": "WU 10min, 2x20min @235-255W...",
-      "sync_state": "synced"
+      "sync_state": "mismatch",
+      "reconciliation": {
+        "id": "delivery:311ef6f2-c119-4bfd-a0e7-b697403bcb21",
+        "state": "target_edited",
+        "conflict": true,
+        "target": "stryd",
+        "external_id": "stryd_123",
+        "match_basis": "external_id",
+        "reason": "content_changed",
+        "resolutions": ["restore_praxys", "accept_target"],
+        "target_workout": {
+          "date": "2026-04-11",
+          "workout_type": "threshold",
+          "planned_duration_min": 60,
+          "workout_description": "Edited on Stryd"
+        }
+      }
     }
   ],
   "stryd_status": {
@@ -732,13 +750,13 @@ returned as `source='stryd'` workout rows.
 }
 ```
 
-`sync_state` is one of:
-- `synced` — Stryd has a matching workout whose id equals the one we
-  logged on push (a re-push is a no-op).
-- `mismatch` — Stryd has a workout on this date but Praxys does not recognise
-  its ID as the current managed delivery. The backend will not overwrite an
-  unowned workout; clients should ask the user to resolve the conflict.
-- `not_synced` — No Stryd workout on this date.
+Detailed reconciliation states are `matching`, `pending_observation`,
+`not_delivered`, `target_only`, `target_edited`, `target_deleted`,
+`canonical_changed`, and `delivery_failed`. Conflict responses advertise only
+the currently safe explicit actions in `resolutions`.
+
+The legacy `sync_state` maps matching/pending to `synced`, undelivered to
+`not_synced`, and conflicts to `mismatch`.
 
 `sync_target` is `"stryd"` when the user has a Stryd connection, else
 `null` — clients can hide the entire sync column when it's `null`.
@@ -756,14 +774,17 @@ fallback is local development with an explicit
 
 Delivery identity is `(user, target, canonical workout key, provider-payload
 fingerprint)`. The fingerprint covers the exact transformed request, including
-CP-derived workout blocks; the canonical Praxys content version is tracked
-separately for UI sync state. Retrying a definite provider rejection appends an
-attempt to the same delivery row. Ambiguous post-send outcomes require
-reconciliation, and an edited payload cannot be delivered until the prior
-Praxys-managed provider workout is removed. Retrying an already-synced payload
-returns its existing workout ID without creating a duplicate. When calendar
-data is present, the observed provider ID must match a caller-owned ledger ID;
-an external workout is blocked before the provider create call.
+CP-derived workout blocks. A second normalized fingerprint excludes volatile
+provider UUIDs so target-side edits can be detected reliably. Retrying a
+definite provider rejection appends an attempt to the same delivery row.
+Ambiguous outcomes and edits to a Praxys-owned target workout require explicit
+reconciliation. Retrying an already-synced payload returns its existing workout
+ID without creating a duplicate.
+
+Unowned Stryd workouts never block a create and are never deleted or replaced.
+If a requested date contains multiple Praxys workouts, each durable canonical
+workout is delivered independently and response entries include
+`canonical_id` and `workout_type`.
 
 **Request body:**
 ```json
@@ -778,6 +799,36 @@ an external workout is blocked before the provider create call.
   ]
 }
 ```
+
+### POST /api/plan/reconciliation/resolve
+
+Apply one explicit conflict resolution. `reconciliation_id` is the opaque,
+user-scoped conflict-generation ID returned by `GET /api/plan`. Retrying the
+same successful ID returns its recorded result even after reconciliation state
+has advanced; a later conflict receives a different opaque ID. Mutation
+requests must send the complete opaque ID, including its generation token.
+
+**Request body:**
+```json
+{
+  "reconciliation_id": "delivery:311ef6f2-c119-4bfd-a0e7-b697403bcb21",
+  "action": "restore_praxys"
+}
+```
+
+Actions:
+- `restore_praxys` — confirm/remove only the caller-owned prior target ID, then
+  deliver the current canonical version. Delete-success/create-failure remains
+  visible and retryable. If a stale external ID points to exactly matching
+  normalized content, the ledger is rebound without an unnecessary provider
+  write.
+- `accept_target` — transactionally copy the stored normalized Stryd workout
+  into the canonical Praxys row, preserve target provenance in plan metadata,
+  and append both a plan revision and import delivery event.
+
+Both actions are idempotent for the same reconciliation subject and canonical
+version. Account changes, stale/unowned delete candidates, and changed
+observations return `409` instead of mutating either side.
 
 ### DELETE /api/plan/stryd-workout/{workout_id}
 
@@ -808,9 +859,12 @@ planned_distance_km,target_power_min,target_power_max,workout_description`.
 - `mode=replace` *(default)* — delete every future AI plan row for the user,
   then insert the payload. Past rows survive. Used by full-plan generation
   (the AI training-plan skill writes a 28-day window).
-- `mode=merge` — upsert by `(user, date, source='ai')`. Only the dates in the
-  payload are touched; other AI rows (past and future) are preserved. Used
-  for partial edits like shifting a single workout.
+- `mode=merge` — replace only the dates present in the payload; other AI rows
+  are preserved. Multiple workouts on one date are supported. Unique exact
+  content matches retain their durable `canonical_id`; after those matches,
+  one remaining old and new row on a date are treated as an unambiguous edit.
+  Ambiguous same-date groups receive fresh identities rather than transferring
+  delivery ownership by row order.
 
 **Response:** `{ "status": "saved", "rows": <int>, "mode": "replace"|"merge" }`
 
@@ -836,7 +890,9 @@ day so you don't have to round-trip the whole future window.
 }
 ```
 
-**Response:** the upserted row (`id`, `date`, `workout_type`, …, `source`).
+**Response:** the upserted row (`id`, `canonical_id`, `date`,
+`workout_type`, `planned_duration_min`, `planned_distance_km`,
+`target_power_min`, `target_power_max`, `workout_description`, `source`).
 
 The row and its append-only `upsert` revision event commit atomically.
 

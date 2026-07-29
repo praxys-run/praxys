@@ -18,8 +18,9 @@ Schema management:
 """
 import logging
 import os
+from uuid import uuid4
 
-from sqlalchemy import create_engine, event, text
+from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -387,8 +388,12 @@ _SQLITE_COMPAT_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
         ("today_decision_check_shown_at", "DATETIME"),
         ("today_decision_check_submitted_at", "DATETIME"),
     ),
+    "training_plans": (
+        ("canonical_id", "VARCHAR(36)"),
+    ),
     "plan_deliveries": (
         ("plan_version", "VARCHAR(64)"),
+        ("provider_content_version", "VARCHAR(64)"),
         ("provider_account_id", "VARCHAR(200)"),
     ),
 }
@@ -415,6 +420,57 @@ def _ensure_sqlite_compat_columns(engine_obj) -> None:
                     'SET "plan_version" = "workout_version" '
                     'WHERE "plan_version" IS NULL'
                 )
+            elif table == "training_plans":
+                missing_ids = conn.exec_driver_sql(
+                    'SELECT "id" FROM "training_plans" '
+                    'WHERE "canonical_id" IS NULL OR "canonical_id" = \'\''
+                ).scalars().all()
+                for plan_id in missing_ids:
+                    conn.exec_driver_sql(
+                        'UPDATE "training_plans" SET "canonical_id" = ? '
+                        'WHERE "id" = ?',
+                        (str(uuid4()), plan_id),
+                    )
+
+
+def _ensure_sqlite_training_plan_identity(engine_obj) -> None:
+    """Replace the legacy date/type uniqueness rule with canonical identity."""
+    constraints = inspect(engine_obj).get_unique_constraints("training_plans")
+    legacy_constraint = next(
+        (
+            item
+            for item in constraints
+            if item.get("name") == "uq_user_date_plan"
+            or item.get("column_names")
+            == ["user_id", "date", "source", "workout_type"]
+        ),
+        None,
+    )
+    if legacy_constraint is None:
+        return
+
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+
+    with engine_obj.begin() as conn:
+        operations = Operations(MigrationContext.configure(conn))
+        with operations.batch_alter_table(
+            "training_plans",
+            recreate="always",
+            naming_convention={
+                "uq": "uq_%(table_name)s_%(column_0_name)s",
+            },
+        ) as batch_op:
+            batch_op.drop_constraint(
+                legacy_constraint.get("name")
+                or "uq_training_plans_user_id",
+                type_="unique",
+            )
+            batch_op.create_unique_constraint(
+                "uq_training_plan_user_canonical",
+                ["user_id", "canonical_id"],
+            )
+    logger.info("Migrated SQLite training-plan identity constraints")
 
 
 def _ensure_schema(engine_obj, backend: str) -> None:
@@ -428,6 +484,7 @@ def _ensure_schema(engine_obj, backend: str) -> None:
     if backend == "sqlite":
         Base.metadata.create_all(bind=engine_obj)
         _ensure_sqlite_compat_columns(engine_obj)
+        _ensure_sqlite_training_plan_identity(engine_obj)
         return
     _run_alembic_upgrade(engine_obj)
 

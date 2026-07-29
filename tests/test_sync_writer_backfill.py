@@ -635,9 +635,8 @@ def test_write_training_plan_dedupes_stale_duplicate(db_with_user):
     assert rows[0].date == today + timedelta(days=1)
 
 
-def test_write_training_plan_move_displaces_different_id_at_target(db_with_user):
-    """Moving a workout onto a slot held by a different external_id must
-    displace the stale row, not trip the unique constraint and abort sync."""
+def test_write_training_plan_move_preserves_different_id_at_target(db_with_user):
+    """Moving onto a same-day/type workout keeps both external identities."""
     from db import sync_writer
     from db.models import TrainingPlan
 
@@ -659,11 +658,38 @@ def test_write_training_plan_move_displaces_different_id_at_target(db_with_user)
 
     rows = db.query(TrainingPlan).filter(
         TrainingPlan.user_id == user_id, TrainingPlan.source == "stryd",
-    ).all()
+    ).order_by(TrainingPlan.external_id).all()
     assert n > 0
-    assert len(rows) == 1
-    assert rows[0].external_id == "keep-1"
-    assert rows[0].date == tomorrow
+    assert len(rows) == 2
+    assert [row.external_id for row in rows] == ["keep-1", "stale-2"]
+    assert all(row.date == tomorrow for row in rows)
+
+
+def test_write_training_plan_keeps_same_date_type_external_ids(db_with_user):
+    from db import sync_writer
+    from db.models import TrainingPlan
+
+    db, user_id = db_with_user
+    target = date.today().isoformat()
+    sync_writer.write_training_plan(user_id, [
+        {
+            "date": target,
+            "workout_type": "easy run",
+            "external_id": "easy-am",
+        },
+        {
+            "date": target,
+            "workout_type": "easy run",
+            "external_id": "easy-pm",
+        },
+    ], "stryd", db)
+    db.commit()
+
+    rows = db.query(TrainingPlan).filter(
+        TrainingPlan.user_id == user_id,
+        TrainingPlan.source == "stryd",
+    ).order_by(TrainingPlan.external_id).all()
+    assert [row.external_id for row in rows] == ["easy-am", "easy-pm"]
 
 
 def test_upcoming_workouts_emits_iso_z_start_time():

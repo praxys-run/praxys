@@ -447,6 +447,11 @@ class TrainingPlan(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    canonical_id = Column(
+        String(36),
+        nullable=False,
+        default=lambda: str(uuid4()),
+    )
     date = Column(Date, nullable=False)
     workout_type = Column(String(50), nullable=True)
     planned_duration_min = Column(Float, nullable=True)
@@ -476,7 +481,9 @@ class TrainingPlan(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "user_id", "date", "source", "workout_type", name="uq_user_date_plan"
+            "user_id",
+            "canonical_id",
+            name="uq_training_plan_user_canonical",
         ),
     )
 
@@ -532,6 +539,9 @@ class PlanDelivery(Base):
     workout_version = Column(String(64), nullable=False)
     # Canonical Praxys plan-content version used by API sync-state projection.
     plan_version = Column(String(64), nullable=True)
+    # Provider-normalized content fingerprint. Unlike workout_version, this
+    # excludes volatile provider identifiers such as block UUIDs.
+    provider_content_version = Column(String(64), nullable=True)
     target = Column(String(20), nullable=False)
     state = Column(String(20), nullable=False, default="pending")
     external_id = Column(String(200), nullable=True)
@@ -607,6 +617,74 @@ class PlanDeliveryAttempt(Base):
             "delivery_id",
             "attempt_number",
             name="uq_plan_delivery_attempt_number",
+        ),
+    )
+
+
+class PlanTargetCalendarSync(Base):
+    """Latest successful provider-calendar snapshot for one user and target."""
+
+    __tablename__ = "plan_target_calendar_syncs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    target = Column(String(20), nullable=False)
+    provider_account_id = Column(String(200), nullable=False)
+    window_start = Column(Date, nullable=False)
+    window_end = Column(Date, nullable=False)
+    synced_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "target",
+            name="uq_plan_target_calendar_sync",
+        ),
+    )
+
+
+class PlanTargetWorkout(Base):
+    """One normalized workout observed on an execution-target calendar."""
+
+    __tablename__ = "plan_target_workouts"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    target = Column(String(20), nullable=False)
+    provider_account_id = Column(String(200), nullable=False)
+    external_id = Column(String(200), nullable=False)
+    workout_date = Column(Date, nullable=False)
+    start_time = Column(DateTime, nullable=True)
+    normalized_workout = Column(JSON, nullable=False, default=dict)
+    content_fingerprint = Column(String(64), nullable=True)
+    payload_fingerprint = Column(String(64), nullable=True)
+    present = Column(Boolean, nullable=False, default=True)
+    observed_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "target",
+            "provider_account_id",
+            "external_id",
+            name="uq_plan_target_workout_external",
+        ),
+        Index(
+            "ix_plan_target_workouts_user_target_date",
+            "user_id",
+            "target",
+            "provider_account_id",
+            "workout_date",
         ),
     )
 

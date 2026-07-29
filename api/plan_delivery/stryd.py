@@ -1,7 +1,6 @@
 """Stryd implementation of the provider-neutral delivery contract."""
 from __future__ import annotations
 
-import hashlib
 import json
 import uuid
 from typing import Any, Mapping
@@ -195,18 +194,16 @@ class StrydPlanDeliveryAdapter:
         """Prepare and hash one deterministic Stryd create request."""
         payload = self._prepare_workout(workout, threshold_value)
         try:
-            encoded = json.dumps(
-                payload,
-                sort_keys=True,
-                separators=(",", ":"),
-                ensure_ascii=True,
-                allow_nan=False,
-            ).encode("utf-8")
+            version = stryd_sync.stryd_delivery_payload_fingerprint(payload)
+            content_version = (
+                stryd_sync.stryd_delivery_content_fingerprint(payload)
+            )
         except (TypeError, ValueError) as exc:
             raise ProviderRequestError(str(exc)) from exc
         return PreparedWorkoutDelivery(
-            version=hashlib.sha256(encoded).hexdigest(),
+            version=version,
             request=payload,
+            content_version=content_version,
         )
 
     def create_workout(

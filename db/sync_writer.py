@@ -852,32 +852,25 @@ def write_training_plan(user_id: str, rows: list[dict], source: str,
                 if len(matches) > 1:
                     db.flush()
         if existing is None:
-            existing = db.query(TrainingPlan).filter(
+            fallback_query = db.query(TrainingPlan).filter(
                 TrainingPlan.user_id == user_id,
                 TrainingPlan.date == d,
                 TrainingPlan.source == source,
                 TrainingPlan.workout_type == wt,
-            ).first()
+            )
+            if new_external_id:
+                # Date/type matching exists only to adopt pre-ID legacy rows.
+                # A different external ID is a distinct same-day workout.
+                fallback_query = fallback_query.filter(
+                    TrainingPlan.external_id.is_(None)
+                )
+            existing = fallback_query.first()
         if existing:
             changed = False
             # Stryd is source of truth for platform rows: move the date and
             # refresh fields so reschedules and the tz date fix propagate.
-            # Before moving, clear any *other* row already holding the target
-            # (date, type) slot — a stale Stryd entry the calendar replaced —
-            # so the move can't trip the unique constraint and roll back the
-            # whole sync. Flush the delete before the survivor's UPDATE.
-            if existing.date != d or (wt and existing.workout_type != wt):
-                conflict = db.query(TrainingPlan).filter(
-                    TrainingPlan.user_id == user_id,
-                    TrainingPlan.date == d,
-                    TrainingPlan.source == source,
-                    TrainingPlan.workout_type == wt,
-                    TrainingPlan.id != existing.id,
-                ).first()
-                if conflict is not None:
-                    db.delete(conflict)
-                    db.flush()
-                    count += 1
+            # Another external ID on the destination date/type is a separate
+            # workout and must remain untouched.
             if existing.date != d:
                 existing.date = d
                 changed = True
@@ -918,3 +911,28 @@ def write_training_plan(user_id: str, rows: list[dict], source: str,
     if count > 0:
         bump_revisions(db, user_id, ["plans"])
     return count
+
+
+def prune_training_plan_window(
+    user_id: str,
+    *,
+    source: str,
+    observed_external_ids: set[str],
+    window_start: date,
+    window_end: date,
+    db: Session,
+) -> int:
+    """Remove stale provider plan rows absent from a successful calendar sync."""
+    stale_rows = db.query(TrainingPlan).filter(
+        TrainingPlan.user_id == user_id,
+        TrainingPlan.source == source,
+        TrainingPlan.date >= window_start,
+        TrainingPlan.date <= window_end,
+        TrainingPlan.external_id.is_not(None),
+        ~TrainingPlan.external_id.in_(observed_external_ids),
+    ).all()
+    for row in stale_rows:
+        db.delete(row)
+    if stale_rows:
+        bump_revisions(db, user_id, ["plans"])
+    return len(stale_rows)

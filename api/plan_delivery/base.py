@@ -11,6 +11,7 @@ class PreparedWorkoutDelivery:
 
     version: str
     request: Mapping[str, Any]
+    content_version: str | None = None
 
 
 @dataclass(frozen=True)

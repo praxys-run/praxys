@@ -901,7 +901,7 @@ def test_changed_threshold_requires_owned_workout_replacement(
     assert len(_delivery_rows("threshold-version-user")) == 1
 
 
-def test_synced_delivery_requires_exact_observed_external_id(
+def test_synced_delivery_ignores_unowned_same_date_workout(
     api_client,
     monkeypatch,
 ):
@@ -959,11 +959,15 @@ def test_synced_delivery_requires_exact_observed_external_id(
     )
 
     assert first.json()["results"][0]["status"] == "success"
-    assert "different Stryd workout" in second.json()["results"][0]["error"]
+    assert second.json()["results"][0] == {
+        "date": workout_date,
+        "status": "success",
+        "workout_id": "owned-external-id",
+    }
     assert calls["create"] == 1
 
 
-def test_synced_delivery_rejects_extra_unowned_calendar_id(
+def test_synced_delivery_preserves_extra_unowned_calendar_id(
     api_client,
     monkeypatch,
 ):
@@ -1029,11 +1033,15 @@ def test_synced_delivery_rejects_extra_unowned_calendar_id(
     )
 
     assert first.json()["results"][0]["status"] == "success"
-    assert "different Stryd workout" in second.json()["results"][0]["error"]
+    assert second.json()["results"][0] == {
+        "date": workout_date,
+        "status": "success",
+        "workout_id": "owned-id",
+    }
     assert calls["create"] == 1
 
 
-def test_calendar_id_owned_on_other_date_does_not_authorize_delivery(
+def test_calendar_id_owned_on_other_date_does_not_block_new_delivery(
     api_client,
     monkeypatch,
 ):
@@ -1091,8 +1099,12 @@ def test_calendar_id_owned_on_other_date_does_not_authorize_delivery(
         json={"workout_dates": [workout_date]},
     )
 
-    assert "different Stryd workout" in response.json()["results"][0]["error"]
-    assert calls["create"] == 0
+    assert response.json()["results"][0] == {
+        "date": workout_date,
+        "status": "success",
+        "workout_id": "duplicate-id",
+    }
+    assert calls["create"] == 1
 
 
 def test_identical_push_rejects_reconnected_provider_account(
@@ -1381,7 +1393,7 @@ def test_delete_requires_callers_delivery_before_external_call(
     assert calls == {"login": 0, "delete": 0}
 
 
-def test_existing_stryd_row_blocks_duplicate_provider_create(
+def test_existing_unowned_stryd_row_does_not_block_praxys_delivery(
     api_client,
     monkeypatch,
 ):
@@ -1430,10 +1442,94 @@ def test_existing_stryd_row_blocks_duplicate_provider_create(
         json={"workout_dates": [workout_date]},
     )
 
-    result = response.json()["results"][0]
-    assert "reconciled" in result["error"]
-    assert calls["create"] == 0
-    assert _delivery_rows("provider-row-user") == []
+    assert response.json()["results"][0] == {
+        "date": workout_date,
+        "status": "success",
+        "workout_id": "duplicate-id",
+    }
+    assert calls["create"] == 1
+    assert _delivery_rows("provider-row-user") == [{
+        "date": workout_date,
+        "external_id": "duplicate-id",
+        "state": "synced",
+    }]
+
+
+def test_push_delivers_multiple_praxys_workouts_on_same_date(
+    api_client,
+    monkeypatch,
+):
+    workout_date = "2026-08-09"
+    all_plans = pd.DataFrame([
+        {
+            "canonical_id": "11111111-1111-1111-1111-111111111111",
+            "date": workout_date,
+            "source": "ai",
+            "workout_type": "easy",
+            "workout_description": "Morning",
+        },
+        {
+            "canonical_id": "22222222-2222-2222-2222-222222222222",
+            "date": workout_date,
+            "source": "ai",
+            "workout_type": "easy",
+            "workout_description": "Evening",
+        },
+    ])
+    calls = {"create": 0}
+
+    def _create(**kwargs):
+        calls["create"] += 1
+        return {"id": f"same-day-{calls['create']}"}
+
+    monkeypatch.setenv("STRYD_EMAIL", "stub@example.com")
+    monkeypatch.setenv("STRYD_PASSWORD", "stub")
+    monkeypatch.setattr(
+        "sync.stryd_sync._login_api",
+        lambda email, password: ("sid", "token"),
+    )
+    monkeypatch.setattr("sync.stryd_sync.create_workout_api", _create)
+    monkeypatch.setattr(
+        "api.routes.plan.get_dashboard_data",
+        lambda user_id, db: {
+            "plan": all_plans,
+            "all_plans": all_plans,
+            "latest_cp": 260.0,
+            "activities": pd.DataFrame(),
+        },
+    )
+    api_client["current"]["value"] = "same-day-praxys-user"
+
+    response = api_client["client"].post(
+        "/api/plan/push-stryd",
+        json={"workout_dates": [workout_date]},
+    )
+
+    assert response.status_code == 200, response.text
+    results = response.json()["results"]
+    assert [result["workout_id"] for result in results] == [
+        "same-day-1",
+        "same-day-2",
+    ]
+    assert {
+        result["canonical_id"] for result in results
+    } == {
+        "11111111-1111-1111-1111-111111111111",
+        "22222222-2222-2222-2222-222222222222",
+    }
+    assert calls["create"] == 2
+    assert _delivery_rows("same-day-praxys-user") == [
+        {
+            "date": workout_date,
+            "external_id": "same-day-1",
+            "state": "synced",
+        },
+        {
+            "date": workout_date,
+            "external_id": "same-day-2",
+            "state": "synced",
+        },
+    ]
 
 
 def test_conflict_blocks_delivery_of_edited_version(api_client, monkeypatch):

@@ -4,6 +4,7 @@ import logging
 import math
 import os
 from datetime import date, datetime, timedelta, timezone
+from typing import Literal
 
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -20,6 +21,10 @@ from api.daily_brief_freshness import PLAN_RESPONSE_VERSION
 from api.deps import get_dashboard_data
 from api.etag import CACHE_CONTROL, ENDPOINT_SCOPES, ETagGuard, compute_etag
 from api.packs import RequestContext
+from api.plan_reconciliation import (
+    build_plan_reconciliation,
+    reconciliation_sync_state,
+)
 from api.plan_delivery import (
     DeliveryAccountMismatchError,
     DeliveryAccountVerificationError,
@@ -32,7 +37,16 @@ from api.plan_delivery import (
     DeliveryStartError,
     PlanDeliveryService,
     ProviderAuthenticationError,
+    ProviderRequestError,
     load_plan_delivery_adapter,
+)
+from api.plan_reconciliation import load_plan_reconciliation_item
+from api.plan_resolution import (
+    PlanResolutionConflict,
+    PlanResolutionProviderError,
+    accept_target_version,
+    completed_plan_resolution,
+    restore_praxys_version,
 )
 from db.cache_revision import bump_revisions
 from db.plan_ledger import (
@@ -173,18 +187,12 @@ def get_plan(
     user_id: str = Depends(get_data_user_id),
     db: Session = Depends(get_db),
 ):
-    """Return all plan rows in a window with per-row sync state.
+    """Return plan rows with stable provider reconciliation details.
 
-    Each workout carries its ``source`` (``ai`` | ``stryd``). When a date
-    has both an AI and a Stryd row, the AI row wins and the Stryd row is
-    used purely to derive ``sync_state`` (synced / mismatch / not_synced)
-    — that surfaces "did your Praxys-authored plan land on Stryd?" while
-    still showing the user every scheduled workout.
-
-    Stryd-only rows surface with ``source='stryd'`` and no ``sync_state``:
-    they live natively on Stryd, so the AI-vs-Stryd sync question doesn't
-    apply. The UI labels them by source so users who imported a coach's
-    plan from Stryd still see something here.
+    Provider observations are joined by delivery identity and normalized
+    content, never collapsed by date. The legacy three-value ``sync_state``
+    remains for current clients while ``reconciliation`` exposes the precise
+    state and explicit resolution operations needed by managed-plan clients.
 
     Window framing is mixed into the ETag salt so two clients hitting
     different windows can't bleed cache into each other. The delivery ledger
@@ -211,6 +219,13 @@ def get_plan(
     ctx = RequestContext(user_id=user_id, db=db)
     plan_df = ctx.all_plans
     sync_target = _resolve_sync_target(ctx)
+    reconciliation = build_plan_reconciliation(
+        db,
+        user_id=user_id,
+        target="stryd",
+        start=start_d,
+        end=end_d,
+    )
     current_snapshots: dict[str, dict] = {}
     if not plan_df.empty and "date" in plan_df.columns:
         current_rows = (
@@ -250,52 +265,88 @@ def get_plan(
             if has_source else windowed.iloc[0:0]
         )
 
-        # Stryd allows multiple workouts on the same date (AM run +
-        # PM strides, race + shakeout). Group rows-per-date so the
-        # AI sync_state derivation can pick the best match by
-        # workout_type instead of arbitrarily collapsing to the
-        # last-iterated row.
-        stryd_by_date: dict[str, list[pd.Series]] = {}
-        for _, srow in stryd_rows.iterrows():
-            sd = srow["date"]
-            key = sd.isoformat() if hasattr(sd, "isoformat") else str(sd)
-            stryd_by_date.setdefault(key, []).append(srow)
+        if reconciliation is not None:
+            for _, row in ai_rows.sort_values(["date", "id"]).iterrows():
+                workout = _row_to_workout(row, source="ai")
+                canonical_id = str(row.get("canonical_id") or "")
+                item = reconciliation.canonical_items.get(canonical_id)
+                if item is not None:
+                    workout["sync_state"] = reconciliation_sync_state(
+                        item.state
+                    )
+                    workout["reconciliation"] = item.to_dict()
+                workouts.append(workout)
+            for _, row in stryd_rows.iterrows():
+                if normalize_stryd_workout_id(row.get("external_id")) is None:
+                    workouts.append(_row_to_workout(row, source="stryd"))
+        else:
+            # Compatibility fallback until the first successful calendar
+            # snapshot has populated the reconciliation observation ledger.
+            stryd_by_date: dict[str, list[pd.Series]] = {}
+            for _, srow in stryd_rows.iterrows():
+                sd = srow["date"]
+                key = sd.isoformat() if hasattr(sd, "isoformat") else str(sd)
+                stryd_by_date.setdefault(key, []).append(srow)
 
-        def _best_stryd_match(rows: list[pd.Series], wt: str) -> pd.Series:
-            """Pick the Stryd row whose workout_type matches ``wt``,
-            falling back to the first row when nothing matches. AI
-            plans are typically one-per-date, so a match means we're
-            comparing apples to apples."""
-            wt_lower = (wt or "").lower()
-            for r in rows:
-                if str(r.get("workout_type", "")).lower() == wt_lower:
-                    return r
-            return rows[0]
+            def _best_stryd_match(
+                rows: list[pd.Series],
+                wt: str,
+            ) -> pd.Series:
+                wt_lower = (wt or "").lower()
+                for candidate in rows:
+                    if (
+                        str(candidate.get("workout_type", "")).lower()
+                        == wt_lower
+                    ):
+                        return candidate
+                return rows[0]
 
-        ai_dates: set[str] = set()
-        for _, row in ai_rows.sort_values("date").iterrows():
-            workout = _row_to_workout(row, source="ai")
-            ai_wt = workout.get("workout_type", "")
-            stryd_match_by_date = {
-                d: _best_stryd_match(rows, ai_wt)
-                for d, rows in stryd_by_date.items()
-            }
-            workout["sync_state"] = _compute_ai_sync_state(
-                workout["date"], current_delivery_status, stryd_match_by_date,
+            ai_dates: set[str] = set()
+            for _, row in ai_rows.sort_values("date").iterrows():
+                workout = _row_to_workout(row, source="ai")
+                ai_wt = workout.get("workout_type", "")
+                stryd_match_by_date = {
+                    d: _best_stryd_match(rows, ai_wt)
+                    for d, rows in stryd_by_date.items()
+                }
+                workout["sync_state"] = _compute_ai_sync_state(
+                    workout["date"],
+                    current_delivery_status,
+                    stryd_match_by_date,
+                )
+                ai_dates.add(workout["date"])
+                workouts.append(workout)
+
+            for date_str, srows in stryd_by_date.items():
+                if date_str in ai_dates:
+                    continue
+                for srow in srows:
+                    workouts.append(
+                        _row_to_workout(srow, source="stryd")
+                    )
+
+    if reconciliation is not None:
+        for item in reconciliation.target_only_items:
+            observation = item.observation
+            assert observation is not None
+            workout = _row_to_workout(
+                observation.normalized_workout,
+                source="stryd",
             )
-            ai_dates.add(workout["date"])
+            workout["reconciliation"] = item.to_dict()
             workouts.append(workout)
 
-        # Stryd rows on dates the AI plan doesn't cover — show them
-        # all (each as its own row) so the user still sees their
-        # imported / coach-authored Stryd workouts.
-        for date_str, srows in stryd_by_date.items():
-            if date_str in ai_dates:
-                continue
-            for srow in srows:
-                workouts.append(_row_to_workout(srow, source="stryd"))
-
-        workouts.sort(key=lambda w: w["date"])
+    workouts.sort(
+        key=lambda workout: (
+            workout["date"],
+            0 if workout["source"] == "ai" else 1,
+            str(
+                (workout.get("reconciliation") or {}).get("id")
+                or workout.get("canonical_id")
+                or ""
+            ),
+        )
+    )
 
     body = {
         "workouts": workouts,
@@ -324,6 +375,9 @@ def _row_to_workout(row, *, source: str) -> dict:
             "" if pd.isna(raw_workout_type) else str(raw_workout_type)
         ),
     }
+    canonical_id = row.get("canonical_id")
+    if pd.notna(canonical_id) and canonical_id:
+        workout["canonical_id"] = str(canonical_id)
     st = row.get("start_time")
     if pd.notna(st) and st != "":
         # Absolute instant; client buckets the day in viewer tz.
@@ -344,6 +398,11 @@ def _row_to_workout(row, *, source: str) -> dict:
 
 class PushStrydRequest(BaseModel):
     workout_dates: list[str]
+
+
+class ResolvePlanReconciliationRequest(BaseModel):
+    reconciliation_id: str
+    action: Literal["restore_praxys", "accept_target"]
 
 
 def _resolve_stryd_delivery_cp(data: dict) -> float | None:
@@ -524,37 +583,52 @@ def push_plan_to_stryd(
                 db.rollback()
                 continue
 
-            row = matching.iloc[0]
-            workout_type = str(row.get("workout_type", ""))
-            if is_rest_workout(workout_type):
-                results.append({
-                    "date": workout_date,
-                    "status": "error",
-                    "error": "Rest day — nothing to push",
-                })
-                db.rollback()
-                continue
-            workout = plan_snapshot(row)
-            existing_stryd_rows = current_all_plans[
-                (current_source == "stryd")
-                & (current_all_plans["date"].astype(str) == workout_date)
+            sort_columns = [
+                column
+                for column in ("date", "id", "workout_type")
+                if column in matching.columns
             ]
-            observed_external_ids: tuple[str, ...] | None
-            if existing_stryd_rows.empty:
-                observed_external_ids = None
-            elif "external_id" not in existing_stryd_rows.columns:
-                observed_external_ids = ()
-            else:
-                observed_external_ids = tuple(
-                    external_id
-                    for raw_id in existing_stryd_rows["external_id"]
-                    if (external_id := normalize_stryd_workout_id(raw_id))
+            matching = matching.sort_values(sort_columns)
+            multiple = len(matching.index) > 1
+            for _, row in matching.iterrows():
+                workout_type = str(row.get("workout_type", ""))
+                identity = (
+                    {
+                        "canonical_id": str(row.get("canonical_id") or ""),
+                        "workout_type": workout_type,
+                    }
+                    if multiple
+                    else {}
                 )
-            outcome = service.deliver(
-                workout,
-                threshold_value=current_cp_watts,
-                observed_external_ids=observed_external_ids,
-            )
+                if is_rest_workout(workout_type):
+                    results.append({
+                        "date": workout_date,
+                        "status": "error",
+                        "error": "Rest day — nothing to push",
+                        **identity,
+                    })
+                    continue
+                workout = plan_snapshot(row)
+                outcome = service.deliver(
+                    workout,
+                    threshold_value=current_cp_watts,
+                    observed_external_ids=None,
+                )
+                result = {
+                    "date": workout_date,
+                    "status": outcome.status,
+                    **identity,
+                }
+                if outcome.status == "success" and outcome.external_id:
+                    result["workout_id"] = outcome.external_id
+                    _write_legacy_compat(
+                        workout_date,
+                        outcome.external_id,
+                        outcome.delivered_at,
+                    )
+                elif outcome.error:
+                    result["error"] = outcome.error
+                results.append(result)
         except SQLAlchemyError as exc:
             db.rollback()
             logger.exception(
@@ -569,19 +643,157 @@ def push_plan_to_stryd(
             })
             continue
 
-        result = {"date": workout_date, "status": outcome.status}
-        if outcome.status == "success" and outcome.external_id:
-            result["workout_id"] = outcome.external_id
-            _write_legacy_compat(
-                workout_date,
-                outcome.external_id,
-                outcome.delivered_at,
-            )
-        elif outcome.error:
-            result["error"] = outcome.error
-        results.append(result)
-
     return {"results": results}
+
+
+@router.post("/plan/reconciliation/resolve")
+def resolve_plan_reconciliation(
+    request: ResolvePlanReconciliationRequest,
+    current_user_id: str = Depends(require_write_access),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Apply one explicit Stryd/Praxys conflict resolution."""
+    db.rollback()
+    if "@" not in request.reconciliation_id:
+        raise HTTPException(
+            status_code=400,
+            detail="A generation-bearing reconciliation ID is required",
+        )
+    completed = completed_plan_resolution(
+        db,
+        user_id=current_user_id,
+        target="stryd",
+        reconciliation_id=request.reconciliation_id,
+        action=request.action,
+    )
+    if completed is not None:
+        return {
+            "status": "resolved",
+            "action": completed.action,
+            "reconciliation_id": completed.reconciliation_id,
+            "revision_id": completed.revision_id,
+            "canonical_id": completed.canonical_id,
+            "external_id": completed.external_id,
+        }
+    item = load_plan_reconciliation_item(
+        db,
+        user_id=current_user_id,
+        target="stryd",
+        reconciliation_id=request.reconciliation_id,
+    )
+    if item is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Plan reconciliation item not found",
+        )
+    if request.action not in item.resolutions:
+        raise HTTPException(
+            status_code=409,
+            detail="This resolution is not valid for the current conflict",
+        )
+
+    try:
+        if request.action == "accept_target":
+            result = accept_target_version(
+                db,
+                user_id=current_user_id,
+                target="stryd",
+                item=item,
+            )
+        else:
+            data = get_dashboard_data(user_id=current_user_id, db=db)
+            cp_watts = _resolve_stryd_delivery_cp(data)
+            if not cp_watts:
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        "Cannot determine Critical Power from your data. "
+                        "Sync recent power activities before restoring Stryd."
+                    ),
+                )
+            result = restore_praxys_version(
+                db,
+                user_id=current_user_id,
+                target="stryd",
+                item=item,
+                threshold_value=cp_watts,
+                adapter_loader=lambda: load_plan_delivery_adapter(
+                    db,
+                    user_id=current_user_id,
+                    target="stryd",
+                ),
+            )
+    except HTTPException:
+        db.rollback()
+        raise
+    except PlanResolutionConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except PlanResolutionProviderError as exc:
+        db.rollback()
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except DeliveryNotFoundError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (
+        DeliveryBusyError,
+        DeliveryAccountMismatchError,
+    ) as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except DeliveryAccountVerificationError as exc:
+        db.rollback()
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except DeliveryCredentialsUnavailable as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="No Stryd credentials. Connect Stryd in Settings first.",
+        ) from exc
+    except DeliveryCredentialsInvalid as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Stored Stryd credentials are unavailable. Reconnect Stryd.",
+        ) from exc
+    except (ProviderAuthenticationError, ProviderRequestError) as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=502,
+            detail=f"Stryd restore failed: {exc}",
+        ) from exc
+    except (
+        DeliveryStartError,
+        DeliveryFinalizationError,
+    ) as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except DeliveryRemovalFailedError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=502,
+            detail=f"Stryd delete failed: {exc}",
+        ) from exc
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception(
+            "Plan reconciliation resolution failed for user=%s item=%s",
+            current_user_id,
+            request.reconciliation_id,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Could not finalize plan reconciliation",
+        ) from exc
+
+    return {
+        "status": "resolved",
+        "action": result.action,
+        "reconciliation_id": result.reconciliation_id,
+        "revision_id": result.revision_id,
+        "canonical_id": result.canonical_id,
+        "external_id": result.external_id,
+    }
 
 
 @router.delete("/plan/stryd-workout/{workout_id}")
