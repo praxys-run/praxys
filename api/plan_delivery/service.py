@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any, Callable, Mapping
@@ -25,6 +24,7 @@ from api.plan_delivery.credentials import (
 )
 from db.cache_revision import bump_revisions
 from db.models import TrainingPlan
+from db.plan_reconciliation import mark_target_workout_absent
 from db.plan_ledger import (
     begin_delivery_attempt,
     complete_delivery_attempt,
@@ -150,7 +150,7 @@ class PlanDeliveryService:
         snapshot: Mapping[str, Any],
         *,
         threshold_value: float,
-        observed_external_ids: Collection[str] | None,
+        observed_external_ids: object = None,
     ) -> DeliveryResult:
         """Deliver one canonical workout version to the configured target."""
         workout_date = str(snapshot["date"])
@@ -173,6 +173,9 @@ class PlanDeliveryService:
                 target=self.target,
                 snapshot=snapshot,
                 workout_version_override=prepared.version,
+                provider_content_version_override=(
+                    prepared.content_version or prepared.version
+                ),
             )
             if (
                 delivery.provider_account_id
@@ -186,40 +189,6 @@ class PlanDeliveryService:
                         f"different {provider_name} account"
                     ),
                 )
-            observed_ids = {
-                str(external_id).strip()
-                for external_id in observed_external_ids or ()
-                if str(external_id).strip()
-            }
-            if observed_external_ids is not None:
-                observed_deliveries_owned = bool(observed_ids) and all(
-                    (
-                        owned := find_delivery_by_external_id(
-                            self.db,
-                            user_id=self.user_id,
-                            target=self.target,
-                            external_id=external_id,
-                        )
-                    ) is not None
-                    and owned.state != "removed"
-                    and owned.workout_date == delivery.workout_date
-                    and owned.canonical_key == delivery.canonical_key
-                    and (
-                        owned.provider_account_id is None
-                        or owned.provider_account_id == provider_account_id
-                    )
-                    for external_id in observed_ids
-                )
-                if not observed_deliveries_owned:
-                    self._cleanup_new_delivery(delivery, delivery_created)
-                    return DeliveryResult(
-                        status="error",
-                        error=(
-                            f"A different {provider_name} workout exists on "
-                            "this date and must be reconciled before delivery"
-                        ),
-                    )
-
             unverified = find_unverified_delivery_for_date(
                 self.db,
                 user_id=self.user_id,
@@ -513,6 +482,13 @@ class PlanDeliveryService:
                 TrainingPlan.source == self.target,
                 TrainingPlan.external_id == external_id,
             ).delete(synchronize_session=False)
+            mark_target_workout_absent(
+                self.db,
+                user_id=self.user_id,
+                target=self.target,
+                provider_account_id=provider_account_id,
+                external_id=external_id,
+            )
             self.db.commit()
         except SQLAlchemyError as exc:
             self.db.rollback()

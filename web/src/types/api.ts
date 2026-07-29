@@ -187,25 +187,65 @@ export interface PlanData {
 }
 
 /**
- * Per-row Stryd sync state, derived server-side for AI-source rows by
- * joining against (a) Praxys's push log and (b) Stryd-imported plan
- * rows on the same date. Stryd-source rows omit this field — they live
- * natively on Stryd, so the AI-vs-Stryd sync question doesn't apply.
+ * Backward-compatible summary of detailed provider reconciliation.
  *
- * - `synced`     — Stryd has a workout on this date and its id matches
- *                  the one we logged on push (a re-push is a no-op).
- * - `mismatch`   — Stryd has a workout on this date but its id is
- *                  unknown to us (user-edited on Stryd, or never pushed).
- *                  UI confirms before overwriting.
- * - `not_synced` — No Stryd workout on this date.
+ * New clients should use `reconciliation`; this field remains for current
+ * sync icons and maps matching/pending to `synced`, conflicts to `mismatch`,
+ * and an undelivered canonical workout to `not_synced`.
  */
 export type PlanSyncState = 'synced' | 'mismatch' | 'not_synced';
 
 /** Origin of a planned workout: AI/Praxys-authored or imported from Stryd. */
 export type PlanWorkoutSource = 'ai' | 'stryd';
 
+export type PlanReconciliationState =
+  | 'matching'
+  | 'pending_observation'
+  | 'not_delivered'
+  | 'target_only'
+  | 'target_edited'
+  | 'target_deleted'
+  | 'canonical_changed'
+  | 'delivery_failed';
+
+export type PlanResolutionAction = 'restore_praxys' | 'accept_target';
+
+export interface PlanTargetWorkoutSnapshot {
+  date: string;
+  workout_type: string;
+  planned_duration_min?: number | null;
+  planned_distance_km?: number | null;
+  target_power_min?: number | null;
+  target_power_max?: number | null;
+  target_hr_min?: number | null;
+  target_hr_max?: number | null;
+  target_pace_min?: string | null;
+  target_pace_max?: string | null;
+  workout_description?: string;
+  start_time?: string | null;
+}
+
+export interface PlanReconciliation {
+  /** Opaque, user-scoped identity passed to the resolution endpoint. */
+  id: string;
+  state: PlanReconciliationState;
+  conflict: boolean;
+  target: 'stryd';
+  resolutions: PlanResolutionAction[];
+  canonical_id?: string;
+  delivery_id?: string;
+  target_workout_id?: string;
+  external_id?: string;
+  match_basis?: 'external_id' | 'fingerprint';
+  reason?: string;
+  last_error?: string;
+  target_workout?: PlanTargetWorkoutSnapshot;
+}
+
 export interface PlannedWorkout {
   date: string;
+  /** Durable Praxys workout identity; present on canonical AI rows. */
+  canonical_id?: string;
   /** Absolute UTC instant of workout start; bucket the day in viewer tz. */
   start_time?: string | null;
   workout_type: string;
@@ -219,6 +259,8 @@ export interface PlannedWorkout {
   source: PlanWorkoutSource;
   /** Present only on AI-source rows. Drives the per-row sync icon. */
   sync_state?: PlanSyncState;
+  /** Provider reconciliation for canonical and target-only workouts. */
+  reconciliation?: PlanReconciliation;
 }
 
 export interface PlanResponse {
@@ -232,9 +274,43 @@ export interface PlanResponse {
   window: { start: string; end: string };
 }
 
+export interface PlanWorkoutMutationResponse {
+  id: number;
+  canonical_id: string;
+  date: string;
+  workout_type: string;
+  planned_duration_min: number | null;
+  planned_distance_km: number | null;
+  target_power_min: number | null;
+  target_power_max: number | null;
+  workout_description: string;
+  source: 'ai';
+}
+
 export type StrydPushResult =
-  | { date: string; status: 'success'; workout_id: string }
-  | { date: string; status: 'error'; error: string };
+  | {
+      date: string;
+      status: 'success';
+      workout_id: string;
+      canonical_id?: string;
+      workout_type?: string;
+    }
+  | {
+      date: string;
+      status: 'error';
+      error: string;
+      canonical_id?: string;
+      workout_type?: string;
+    };
+
+export interface PlanResolutionResponse {
+  status: 'resolved';
+  action: PlanResolutionAction;
+  reconciliation_id: string;
+  revision_id: string;
+  canonical_id: string;
+  external_id?: string | null;
+}
 
 export interface StrydPushStatusEntry {
   workout_id: string;

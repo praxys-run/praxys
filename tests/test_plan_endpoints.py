@@ -107,6 +107,7 @@ def _list_plan_rows(user_id: str) -> list[dict]:
         ).order_by(TrainingPlan.date).all()
         return [
             {
+                "canonical_id": r.canonical_id,
                 "date": r.date.isoformat(),
                 "workout_type": r.workout_type,
                 "workout_description": r.workout_description,
@@ -239,6 +240,69 @@ class TestUploadMergeMode:
         assert len(rows) == 2
         assert {r["date"] for r in rows} == {d_existing, d_new}
 
+    def test_merge_preserves_canonical_identity_across_type_edit(
+        self,
+        api_client,
+    ):
+        client, user_id = api_client
+        target = (date.today() + timedelta(days=2)).isoformat()
+        _seed_plan(user_id, [(target, "easy", "before")])
+        before = _list_plan_rows(user_id)[0]["canonical_id"]
+
+        response = client.post("/api/plan/upload?mode=merge", json={
+            "csv": "date,workout_type,workout_description\n"
+                   f"{target},threshold,after\n",
+        })
+
+        assert response.status_code == 200, response.text
+        after = _list_plan_rows(user_id)[0]
+        assert after["canonical_id"] == before
+        assert after["workout_type"] == "threshold"
+
+    def test_upload_allows_multiple_same_type_workouts_on_one_date(
+        self,
+        api_client,
+    ):
+        client, user_id = api_client
+        target = (date.today() + timedelta(days=3)).isoformat()
+
+        response = client.post("/api/plan/upload?mode=merge", json={
+            "csv": "date,workout_type,workout_description\n"
+                   f"{target},easy,Morning\n"
+                   f"{target},easy,Evening\n",
+        })
+
+        assert response.status_code == 200, response.text
+        rows = _list_plan_rows(user_id)
+        assert len(rows) == 2
+        assert len({row["canonical_id"] for row in rows}) == 2
+
+    def test_merge_does_not_transfer_identity_by_same_type_row_order(
+        self,
+        api_client,
+    ):
+        client, user_id = api_client
+        target = (date.today() + timedelta(days=3)).isoformat()
+        _seed_plan(user_id, [
+            (target, "easy", "Morning"),
+            (target, "easy", "Evening"),
+        ])
+        before = {
+            row["workout_description"]: row["canonical_id"]
+            for row in _list_plan_rows(user_id)
+        }
+
+        response = client.post("/api/plan/upload?mode=merge", json={
+            "csv": "date,workout_type,workout_description\n"
+                   f"{target},easy,Evening\n",
+        })
+
+        assert response.status_code == 200, response.text
+        rows = _list_plan_rows(user_id)
+        assert len(rows) == 1
+        assert rows[0]["workout_description"] == "Evening"
+        assert rows[0]["canonical_id"] == before["Evening"]
+
 
 # ---------------------------------------------------------------------------
 # PUT /api/plan/{date}
@@ -271,6 +335,11 @@ class TestUpsertPlanDay:
             (target, "easy", "old"),
             (other, "rest", "untouched"),
         ])
+        canonical_id = next(
+            row["canonical_id"]
+            for row in _list_plan_rows(user_id)
+            if row["date"] == target
+        )
 
         res = client.put(f"/api/plan/{target}", json={
             "workout_type": "threshold",
@@ -281,7 +350,34 @@ class TestUpsertPlanDay:
         rows = {r["date"]: r for r in _list_plan_rows(user_id)}
         assert rows[target]["workout_type"] == "threshold"
         assert rows[target]["workout_description"] == "New workout"
+        assert rows[target]["canonical_id"] == canonical_id
         assert rows[other]["workout_description"] == "untouched"
+
+    def test_put_reuses_only_unique_exact_identity_on_ambiguous_day(
+        self,
+        api_client,
+    ):
+        client, user_id = api_client
+        target = (date.today() + timedelta(days=4)).isoformat()
+        _seed_plan(user_id, [
+            (target, "easy", "Morning"),
+            (target, "easy", "Evening"),
+        ])
+        before = {
+            row["workout_description"]: row["canonical_id"]
+            for row in _list_plan_rows(user_id)
+        }
+
+        response = client.put(f"/api/plan/{target}", json={
+            "workout_type": "easy",
+            "workout_description": "Evening",
+        })
+
+        assert response.status_code == 200, response.text
+        assert response.json()["canonical_id"] == before["Evening"]
+        rows = _list_plan_rows(user_id)
+        assert len(rows) == 1
+        assert rows[0]["canonical_id"] == before["Evening"]
 
     def test_put_rejects_bad_date(self, api_client):
         client, _ = api_client
@@ -349,6 +445,7 @@ def test_plan_mutations_append_before_and_after_revisions(api_client):
                f"{target},easy,Initial workout\n",
     })
     assert upload.status_code == 200, upload.text
+    uploaded_canonical_id = _list_plan_rows(user_id)[0]["canonical_id"]
 
     upsert = client.put(f"/api/plan/{target}", json={
         "workout_type": "threshold",
@@ -369,10 +466,14 @@ def test_plan_mutations_append_before_and_after_revisions(api_client):
     assert all(row["actor_id"] == user_id for row in revisions)
     assert revisions[0]["origin"] == "api.plan.upload"
     assert revisions[0]["before"] == []
+    assert revisions[0]["after"][0]["canonical_id"] == uploaded_canonical_id
     assert revisions[0]["after"][0]["workout_description"] == "Initial workout"
+    assert revisions[1]["before"][0]["canonical_id"] == uploaded_canonical_id
+    assert revisions[1]["after"][0]["canonical_id"] == uploaded_canonical_id
     assert revisions[1]["before"][0]["workout_type"] == "easy"
     assert revisions[1]["after"][0]["workout_type"] == "threshold"
     assert revisions[2]["before"][0]["workout_description"] == "Adjusted workout"
+    assert revisions[2]["before"][0]["canonical_id"] == uploaded_canonical_id
     assert revisions[2]["after"] == []
 
 
@@ -380,6 +481,7 @@ def test_revision_failure_rolls_back_plan_change(api_client, monkeypatch):
     client, user_id = api_client
     target = (date.today() + timedelta(days=9)).isoformat()
     _seed_plan(user_id, [(target, "easy", "Keep this row")])
+    canonical_id = _list_plan_rows(user_id)[0]["canonical_id"]
 
     def _fail_revision(*args, **kwargs):
         raise RuntimeError("revision write failed")
@@ -392,6 +494,7 @@ def test_revision_failure_rolls_back_plan_change(api_client, monkeypatch):
         })
 
     assert _list_plan_rows(user_id) == [{
+        "canonical_id": canonical_id,
         "date": target,
         "workout_type": "easy",
         "workout_description": "Keep this row",

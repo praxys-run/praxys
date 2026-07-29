@@ -8,6 +8,7 @@ from sync.stryd_sync import (
     _workout_type_from_name,
     fetch_activities_api,
     fetch_training_plan_api,
+    stryd_delivery_content_fingerprint,
 )
 
 
@@ -16,6 +17,46 @@ def test_workout_type_from_name():
     assert _workout_type_from_name("Day 48 - Long") == "long"
     assert _workout_type_from_name("Day 47 - Recovery") == "recovery"
     assert _workout_type_from_name("Custom Name") == "custom name"
+
+
+def test_delivery_content_fingerprint_ignores_provider_uuids():
+    base = {
+        "workout_date": "2026-08-04",
+        "title": "Threshold",
+        "workout_type": "threshold",
+        "description": "3x8min",
+        "blocks": [{
+            "uuid": "block-a",
+            "repeat": 3,
+            "segments": [{
+                "uuid": "segment-a",
+                "intensity_class": "work",
+                "intensity_percent": {"min": 95, "max": 100},
+            }],
+        }],
+    }
+    regenerated = {
+        **base,
+        "blocks": [{
+            **base["blocks"][0],
+            "uuid": "block-b",
+            "segments": [{
+                **base["blocks"][0]["segments"][0],
+                "uuid": "segment-b",
+            }],
+        }],
+    }
+    edited = {
+        **regenerated,
+        "description": "4x8min",
+    }
+
+    assert stryd_delivery_content_fingerprint(base) == (
+        stryd_delivery_content_fingerprint(regenerated)
+    )
+    assert stryd_delivery_content_fingerprint(base) != (
+        stryd_delivery_content_fingerprint(edited)
+    )
 
 
 # --- fetch_training_plan_api parses power targets ---
@@ -31,6 +72,7 @@ def test_fetch_training_plan_parses_power_targets(mock_get):
         "workout": {
             "title": "Day 10 - Threshold",
             "type": "threshold",
+            "desc": "Edited on Stryd",
             "blocks": [
                 {
                     "repeat": 1,
@@ -56,6 +98,9 @@ def test_fetch_training_plan_parses_power_targets(mock_get):
     assert rows[0]["target_power_min"] == "238"  # round(250 * 95 / 100)
     assert rows[0]["target_power_max"] == "262"  # round(250 * 105 / 100) = 262 (banker's rounding)
     assert rows[0]["workout_type"] == "threshold"
+    assert rows[0]["workout_description"] == "Edited on Stryd"
+    assert len(rows[0]["provider_content_fingerprint"]) == 64
+    assert len(rows[0]["provider_payload_fingerprint"]) == 64
 
 
 @patch("sync.stryd_sync.requests.get")

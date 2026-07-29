@@ -1,8 +1,10 @@
 """AI-related endpoints: training context, plan upload, per-day upsert/delete."""
 import csv
 import io
+from collections import defaultdict
 from datetime import date, datetime
 from typing import Optional
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -12,7 +14,12 @@ from api.auth import get_data_user_id, require_write_access
 from api.deps import get_dashboard_data
 from db.cache_revision import bump_revisions
 from db.models import TrainingPlan
-from db.plan_ledger import lock_plan_writes, plan_snapshot, record_plan_revision
+from db.plan_ledger import (
+    lock_plan_writes,
+    plan_snapshot,
+    record_plan_revision,
+    workout_version,
+)
 from db.session import get_db
 
 router = APIRouter()
@@ -47,6 +54,7 @@ class PlanWorkout(BaseModel):
 def _row_to_response(plan: TrainingPlan) -> dict:
     return {
         "id": plan.id,
+        "canonical_id": plan.canonical_id,
         "date": plan.date.isoformat() if plan.date else None,
         "workout_type": plan.workout_type,
         "planned_duration_min": plan.planned_duration_min,
@@ -56,6 +64,49 @@ def _row_to_response(plan: TrainingPlan) -> dict:
         "workout_description": plan.workout_description,
         "source": plan.source,
     }
+
+
+def _reuse_canonical_ids(
+    plans: list[TrainingPlan],
+    existing: list[TrainingPlan],
+) -> None:
+    """Preserve logical workout identity across replace-style plan writes."""
+    existing_by_version: dict[str, list[TrainingPlan]] = defaultdict(list)
+    plans_by_version: dict[str, list[TrainingPlan]] = defaultdict(list)
+    for row in existing:
+        if row.canonical_id:
+            existing_by_version[workout_version(plan_snapshot(row))].append(row)
+    for plan in plans:
+        plans_by_version[workout_version(plan_snapshot(plan))].append(plan)
+
+    matched_existing: set[str] = set()
+    for version, version_plans in plans_by_version.items():
+        version_existing = existing_by_version.get(version, [])
+        if len(version_plans) == 1 and len(version_existing) == 1:
+            row = version_existing[0]
+            version_plans[0].canonical_id = row.canonical_id
+            matched_existing.add(row.canonical_id)
+
+    unmatched_existing_by_date: dict[date, list[TrainingPlan]] = defaultdict(list)
+    unmatched_plans_by_date: dict[date, list[TrainingPlan]] = defaultdict(list)
+    for row in existing:
+        if row.canonical_id and row.canonical_id not in matched_existing:
+            unmatched_existing_by_date[row.date].append(row)
+    for plan in plans:
+        if not plan.canonical_id:
+            unmatched_plans_by_date[plan.date].append(plan)
+
+    for workout_date, date_plans in unmatched_plans_by_date.items():
+        date_existing = unmatched_existing_by_date.get(workout_date, [])
+        if len(date_plans) == 1 and len(date_existing) == 1:
+            date_plans[0].canonical_id = date_existing[0].canonical_id
+
+
+def _assign_missing_canonical_ids(plans: list[TrainingPlan]) -> None:
+    """Assign durable identities before revision snapshots are recorded."""
+    for plan in plans:
+        if not plan.canonical_id:
+            plan.canonical_id = str(uuid4())
 
 
 def _parse_csv_row(row: dict, row_index: int) -> dict:
@@ -131,6 +182,8 @@ def upload_plan(
             )
         before_rows = affected.order_by(TrainingPlan.date, TrainingPlan.id).all()
         before = [plan_snapshot(row) for row in before_rows]
+        _reuse_canonical_ids(parsed_rows, before_rows)
+        _assign_missing_canonical_ids(parsed_rows)
         for row in before_rows:
             db.expunge(row)
         affected.delete(synchronize_session=False)
@@ -199,6 +252,8 @@ def upsert_plan_day(
         )
         before_rows = existing.order_by(TrainingPlan.id).all()
         before = [plan_snapshot(row) for row in before_rows]
+        _reuse_canonical_ids([plan], before_rows)
+        _assign_missing_canonical_ids([plan])
         for row in before_rows:
             db.expunge(row)
         existing.delete(synchronize_session=False)

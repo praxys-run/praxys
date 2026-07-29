@@ -3,6 +3,8 @@
 Provides login, activity fetch, training plan fetch, lap split computation,
 and workout upload/delete via the Stryd calendar and activity APIs.
 """
+import hashlib
+import json
 import logging
 import re
 import uuid
@@ -27,6 +29,53 @@ STRYD_ACTIVITY_API = "https://api.stryd.com/b/api/v1/activities/{activity_id}"
 STRYD_WORKOUT_API = "https://api.stryd.com/b/api/v1/users/{user_id}/workouts"
 STRYD_ESTIMATE_API = "https://api.stryd.com/b/api/v1/users/workouts/estimate"
 STRYD_USER_API = "https://api.stryd.com/b/api/v1/users/{user_id}"
+
+
+def _normalize_stryd_content_value(value):
+    """Remove provider-generated identifiers from comparable workout content."""
+    if isinstance(value, dict):
+        return {
+            str(key): _normalize_stryd_content_value(item)
+            for key, item in value.items()
+            if key != "uuid"
+        }
+    if isinstance(value, list):
+        return [_normalize_stryd_content_value(item) for item in value]
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    return value
+
+
+def normalize_stryd_delivery_content(payload: dict) -> dict:
+    """Return the stable Stryd fields used to detect target-side edits."""
+    return {
+        "workout_date": str(payload.get("workout_date") or ""),
+        "title": str(payload.get("title") or ""),
+        "blocks": _normalize_stryd_content_value(payload.get("blocks") or []),
+        "workout_type": str(payload.get("workout_type") or ""),
+        "description": str(payload.get("description") or ""),
+    }
+
+
+def _fingerprint_json(payload: dict) -> str:
+    encoded = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def stryd_delivery_content_fingerprint(payload: dict) -> str:
+    """Hash normalized Stryd content while ignoring volatile identifiers."""
+    return _fingerprint_json(normalize_stryd_delivery_content(payload))
+
+
+def stryd_delivery_payload_fingerprint(payload: dict) -> str:
+    """Hash the exact provider request shape used by the delivery ledger."""
+    return _fingerprint_json(payload)
 
 
 def _login_api(email: str, password: str) -> tuple[str, str]:
@@ -398,6 +447,18 @@ def fetch_training_plan_api(
         workout_info = item.get("workout", {})
         title = workout_info.get("title", "")
         workout_type = workout_info.get("type", "") or _workout_type_from_name(title)
+        provider_description = str(
+            workout_info.get("desc")
+            or workout_info.get("description")
+            or ""
+        ).strip()
+        provider_payload = {
+            "workout_date": workout_date,
+            "title": str(title or ""),
+            "blocks": workout_info.get("blocks", []) or [],
+            "workout_type": str(workout_info.get("type", "") or ""),
+            "description": provider_description,
+        }
 
         # Total duration and distance from the top-level summary
         duration_sec = item.get("duration", 0) or 0
@@ -449,7 +510,10 @@ def fetch_training_plan_api(
                     part = f"{repeat}x({part})"
                 desc_parts.append(part)
 
-        description = " | ".join(desc_parts) if desc_parts else title
+        generated_description = (
+            " | ".join(desc_parts) if desc_parts else title
+        )
+        description = provider_description or generated_description
 
         # Stryd's workout `id` is the external identifier we persist as
         # `external_id`. Lets the /api/plan join logic distinguish
@@ -468,6 +532,12 @@ def fetch_training_plan_api(
             "external_id": str(external_id) if external_id else "",
             # Absolute instant; the day is derived client-side in viewer tz.
             "start_time": date_str,
+            "provider_content_fingerprint": (
+                stryd_delivery_content_fingerprint(provider_payload)
+            ),
+            "provider_payload_fingerprint": (
+                stryd_delivery_payload_fingerprint(provider_payload)
+            ),
         }
         logger.debug(f"    {workout_date} — {workout_type} ({duration_min}min, {distance_km}km) [id={external_id}]")
         rows.append(row)

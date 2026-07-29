@@ -78,10 +78,12 @@ Training data is stored in a SQLite database (`DATA_DIR/trainsight.db`) via SQLA
 | `ActivitySplit` | `activity_splits` | Per-interval split data within activities (split-level power, pace, HR) |
 | `RecoveryData` | `recovery_data` | Sleep and readiness data (HRV, sleep score, resting HR, body temp) |
 | `FitnessData` | `fitness_data` | Per-metric fitness tracking (VO2max, CP estimate, LTHR, max HR) |
-| `TrainingPlan` | `training_plans` | Planned workouts from Stryd or AI (targets, description, meta) |
+| `TrainingPlan` | `training_plans` | Planned workouts from Stryd or AI, with durable canonical workout identity |
 | `PlanRevision` | `plan_revisions` | Append-only plan mutation events with actor/origin and before/after snapshots |
-| `PlanDelivery` | `plan_deliveries` | Provider-neutral state for one canonical workout/provider-payload version, including plan-version and provider-account fencing |
+| `PlanDelivery` | `plan_deliveries` | Provider-neutral state for one canonical workout/provider-payload version, including normalized content and provider-account fencing |
 | `PlanDeliveryAttempt` | `plan_delivery_attempts` | Append-only deliver/remove/import attempt history |
+| `PlanTargetCalendarSync` | `plan_target_calendar_syncs` | Latest successful account-fenced target-calendar coverage window |
+| `PlanTargetWorkout` | `plan_target_workouts` | Normalized target workout observations and confirmed absences keyed by external ID |
 
 **Session management** (`db/session.py`):
 - `init_db()` creates both sync and async engines, runs `create_all()`, then applies lightweight schema migrations
@@ -124,13 +126,16 @@ If `KEY_VAULT_URL` is set, the `CredentialVault` initializes an Azure `Cryptogra
 details. The service authenticates before starting a durable attempt, scopes
 credentials and ledger rows to the authenticated Praxys user, and records a
 fingerprint of the exact provider payload (including CP-derived workout
-blocks). The canonical Praxys plan version remains separate so API sync state
-does not depend on provider-specific serialization.
+blocks), plus a normalized content fingerprint that excludes volatile provider
+identifiers. The canonical Praxys plan version remains separate so
+reconciliation can distinguish a Praxys edit from a target edit.
 
 Successful creates persist the authenticated provider account ID. A later
 delete is refused if the user has reconnected a different provider account.
 Replacement is intentionally a confirmed delete followed by create so a
 partial failure is explicit and recoverable rather than success-shaped.
+Unowned provider workouts are never deleted and do not block Praxys from adding
+a separate workout on the same date.
 
 ### Admin System
 
@@ -207,14 +212,40 @@ The additive contract defaults to external mode with delivery disabled, so
 existing users are not enrolled in platform writes.
 
 Plan mutations write immutable `PlanRevision` events in the same transaction as
-their `TrainingPlan` changes. Platform delivery rows are keyed by a stable
-logical workout slot plus a SHA-256 fingerprint of delivery-relevant content;
+their `TrainingPlan` changes. Each plan row has a durable UUID that survives
+unique content matches or otherwise unambiguous one-to-one edits and permits
+multiple same-day/same-type workouts. Ambiguous replacement groups receive new
+UUIDs rather than transferring delivery ownership by row order. Modern delivery
+rows bind only to that exact UUID; content/date heuristics are restricted to
+legacy rows that predate canonical identity. Platform
+delivery rows are keyed by that logical workout plus a SHA-256 fingerprint of
+delivery-relevant content;
 attempts append beneath that identity, so a retry cannot duplicate a successful
 delivery of the same version. Provider writes run through
 `api/plan_delivery/`: the service owns ledger transitions and fencing, while
 provider adapters own authentication plus create/delete/calendar operations.
 Adapters receive credentials resolved from the caller's encrypted
 `UserConnection`; the Stryd adapter never reads another user's connection.
+
+Successful Stryd syncs also write an account-fenced calendar snapshot. Every
+external ID is retained as a normalized observation; previously observed or
+Praxys-delivered IDs are marked absent only inside the conservatively covered
+sync window for the same provider account. Fetch-start generations prevent an
+older concurrent provider read from overwriting a newer snapshot.
+`GET /api/plan` joins these
+observations to canonical workouts globally before filtering the requested
+display window, preventing a moved owned workout from appearing target-only.
+Exact external IDs win;
+a unique date/fingerprint match is surfaced only as a stale-ID conflict
+candidate and never authorizes deletion.
+
+Conflict resolution is always explicit. Accepting the target version updates
+the canonical plan, revision, delivery binding, and provenance in one database
+transaction. Restoring Praxys records an idempotent revision, then runs the
+owned-ID remove/create saga through `PlanDeliveryService`; partial outcomes
+remain retryable delivery attempts. Client-visible reconciliation IDs include a
+frozen conflict-generation token, so an exact successful HTTP retry can recover
+its prior revision/result without reapplying a later state.
 
 The former per-user Stryd push-status JSON is
 lazy-reconciled through an ordered snapshot cursor. During rolling deployment it
@@ -226,7 +257,9 @@ ledger row is authoritative over a stale legacy snapshot, including after
 removal, so an old worker cannot resurrect a deleted delivery. Per-user database
 locks plus a cross-process file lock serialize cursor/file changes on both
 PostgreSQL and SQLite, and dual-writes verify the user still exists so an
-in-flight request cannot recreate status after account deletion.
+in-flight request cannot recreate status after account deletion. Because the
+legacy file holds only one ID per date, replacing that entry between two
+verified, distinct canonical workouts never tombstones either same-day delivery.
 
 ### LLM-backed Insights
 

@@ -104,6 +104,8 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
         PlanDelivery,
         PlanDeliveryAttempt,
         PlanRevision,
+        PlanTargetCalendarSync,
+        PlanTargetWorkout,
         RecoveryData,
         TrainingPlan,
         User,
@@ -158,6 +160,21 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
             operation="deliver",
             state="synced",
             external_id="stryd-delete-me",
+        ))
+        db.add(PlanTargetCalendarSync(
+            user_id=user_id,
+            target="stryd",
+            provider_account_id="stryd-account",
+            window_start=date(2026, 6, 1),
+            window_end=date(2026, 6, 30),
+        ))
+        db.add(PlanTargetWorkout(
+            user_id=user_id,
+            target="stryd",
+            provider_account_id="stryd-account",
+            external_id="stryd-delete-me",
+            workout_date=date(2026, 6, 2),
+            normalized_workout={"date": "2026-06-02"},
         ))
         db.add(AiInsight(user_id=user_id, insight_type="daily_brief"))
         db.add(AiInsightFeedback(
@@ -237,6 +254,8 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
         PlanDelivery,
         PlanDeliveryAttempt,
         PlanRevision,
+        PlanTargetCalendarSync,
+        PlanTargetWorkout,
         RecoveryData,
         TrainingPlan,
         User,
@@ -258,6 +277,8 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
             DashboardCache,
             Feedback,
             FitnessData,
+            PlanTargetCalendarSync,
+            PlanTargetWorkout,
             PlanDelivery,
             PlanRevision,
             RecoveryData,

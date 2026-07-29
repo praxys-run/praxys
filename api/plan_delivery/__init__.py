@@ -9,6 +9,7 @@ from api.plan_delivery.base import (
     PlanDeliveryAdapter,
     PreparedWorkoutDelivery,
     ProviderAuthenticationError,
+    ProviderRequestError,
 )
 from api.plan_delivery.credentials import (
     DeliveryCredentialsInvalid,
@@ -84,6 +85,7 @@ __all__ = [
     "PlanDeliveryService",
     "PreparedWorkoutDelivery",
     "ProviderAuthenticationError",
+    "ProviderRequestError",
     "RemovalResult",
     "UnsupportedDeliveryTargetError",
     "load_plan_delivery_adapter",

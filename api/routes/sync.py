@@ -1019,6 +1019,8 @@ def _sync_stryd(user_id: str, creds: dict, from_date: str | None,
                 db) -> dict:
     """Fetch Stryd data and write directly to DB."""
     from db import sync_writer
+    from db.models import PlanDelivery
+    from db.plan_reconciliation import record_target_calendar_sync
     from sync.stryd_sync import (
         _login_api, fetch_activities_api, fetch_training_plan_api,
         fetch_current_cp,
@@ -1094,8 +1096,71 @@ def _sync_stryd(user_id: str, creds: dict, from_date: str | None,
     # (Stryd serializes a local-midnight workout as UTC; truncating in UTC
     # drops a day east of UTC).
     user_tz = next((a.get("time_zone") for a in _raw if a.get("time_zone")), None)
-    plan_rows = fetch_training_plan_api(stryd_user_id, token, tz_name=user_tz)
-    plan_count = sync_writer.write_training_plan(user_id, plan_rows, "stryd", db)
+    today = date.today()
+    farthest_delivery = db.query(PlanDelivery.workout_date).filter(
+        PlanDelivery.user_id == user_id,
+        PlanDelivery.target == "stryd",
+        PlanDelivery.provider_account_id == str(stryd_user_id),
+        PlanDelivery.state != "removed",
+        PlanDelivery.workout_date >= today,
+    ).order_by(PlanDelivery.workout_date.desc()).first()
+    farthest_days = (
+        (farthest_delivery[0] - today).days
+        if farthest_delivery is not None
+        else 0
+    )
+    days_ahead = min(365, max(16, farthest_days + 31))
+    calendar_fetch_started_at = datetime.utcnow()
+    plan_rows = fetch_training_plan_api(
+        stryd_user_id,
+        token,
+        cp_watts=current_cp,
+        days_ahead=days_ahead,
+        days_back=2,
+        tz_name=user_tz,
+    )
+    # The raw API window is UTC/server based while Stryd workouts are bucketed
+    # to the athlete's local day. Excluding one edge day on each side avoids
+    # false deletions caused by that timezone conversion.
+    covered_start = today - timedelta(days=1)
+    covered_end = today + timedelta(days=days_ahead - 1)
+    observed_external_ids = {
+        str(row.get("external_id") or "").strip()
+        for row in plan_rows
+        if str(row.get("external_id") or "").strip()
+    }
+    snapshot_changes = record_target_calendar_sync(
+        db,
+        user_id=user_id,
+        target="stryd",
+        provider_account_id=str(stryd_user_id),
+        rows=plan_rows,
+        window_start=covered_start,
+        window_end=covered_end,
+        observed_at=calendar_fetch_started_at,
+    )
+    if snapshot_changes is None:
+        plan_count = 0
+        logger.info(
+            "Ignored stale Stryd calendar fetch for user=%s started_at=%s",
+            user_id,
+            calendar_fetch_started_at.isoformat(),
+        )
+    else:
+        plan_count = sync_writer.write_training_plan(
+            user_id,
+            plan_rows,
+            "stryd",
+            db,
+        )
+        plan_count += sync_writer.prune_training_plan_window(
+            user_id,
+            source="stryd",
+            observed_external_ids=observed_external_ids,
+            window_start=covered_start,
+            window_end=covered_end,
+            db=db,
+        )
 
     return {"activities": act_count, "splits": split_count, "cp_estimates": cp_count, "plan": plan_count}
 

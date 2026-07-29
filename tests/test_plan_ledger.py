@@ -1,5 +1,23 @@
 """Unit and schema tests for the managed-plan revision/delivery ledger."""
 from datetime import date
+import logging
+
+import pytest
+
+
+@pytest.fixture
+def preserve_logger_disabled_state():
+    """Restore loggers disabled by Alembic's in-process logging setup."""
+    states = {
+        name: logger.disabled
+        for name, logger in logging.root.manager.loggerDict.items()
+        if isinstance(logger, logging.Logger)
+    }
+    yield
+    for name, disabled in states.items():
+        logger = logging.root.manager.loggerDict.get(name)
+        if isinstance(logger, logging.Logger):
+            logger.disabled = disabled
 
 
 def test_workout_version_is_content_stable_and_meta_independent():
@@ -24,6 +42,24 @@ def test_workout_version_is_content_stable_and_meta_independent():
 
     assert workout_version(base) == workout_version(same_content)
     assert workout_version(base) != workout_version(changed)
+
+
+def test_canonical_identity_is_stable_but_not_part_of_content_version():
+    from db.plan_ledger import canonical_workout_key, workout_version
+
+    first = {
+        "canonical_id": "11111111-1111-1111-1111-111111111111",
+        "date": date(2026, 8, 10),
+        "source": "ai",
+        "workout_type": "easy",
+    }
+    second = {
+        **first,
+        "canonical_id": "22222222-2222-2222-2222-222222222222",
+    }
+
+    assert workout_version(first) == workout_version(second)
+    assert canonical_workout_key(first) != canonical_workout_key(second)
 
 
 def test_sqlite_init_adds_ledger_tables_to_existing_database(tmp_path, monkeypatch):
@@ -53,6 +89,8 @@ def test_sqlite_init_adds_ledger_tables_to_existing_database(tmp_path, monkeypat
             "plan_revisions",
             "plan_deliveries",
             "plan_delivery_attempts",
+            "plan_target_calendar_syncs",
+            "plan_target_workouts",
         }.issubset(tables)
     finally:
         if db_session.engine is not None:
@@ -76,7 +114,83 @@ def test_alembic_head_includes_plan_ledger():
 
     config = Config("alembic.ini")
     script = ScriptDirectory.from_config(config)
-    assert script.get_current_head() == "3c4d5e6f7081"
+    assert script.get_current_head() == "4d5e6f708192"
+
+
+def test_alembic_canonical_default_supports_old_worker_inserts(
+    tmp_path,
+    monkeypatch,
+    preserve_logger_disabled_state,
+):
+    from alembic import command
+    from alembic.config import Config
+    from sqlalchemy import create_engine
+
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("PRAXYS_DATABASE_URL", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    from db import session as db_session
+
+    db_session.dispose_engines()
+    config = Config("alembic.ini")
+    command.upgrade(config, "head")
+    migrated = create_engine(db_session.get_database_url())
+    try:
+        with migrated.begin() as conn:
+            conn.exec_driver_sql(
+                """
+                INSERT INTO users (
+                    id, email, hashed_password, is_active, is_superuser,
+                    is_verified, is_demo
+                ) VALUES (
+                    'rolling-user', 'rolling@example.com', 'hash',
+                    1, 0, 0, 0
+                )
+                """
+            )
+            for description in ("Morning", "Evening"):
+                conn.exec_driver_sql(
+                    """
+                    INSERT INTO training_plans (
+                        user_id, date, workout_type, workout_description, source
+                    ) VALUES (
+                        'rolling-user', '2026-08-04', 'easy', ?, 'ai'
+                    )
+                    """,
+                    (description,),
+                )
+            canonical_ids = conn.exec_driver_sql(
+                """
+                SELECT canonical_id
+                FROM training_plans
+                WHERE user_id = 'rolling-user'
+                ORDER BY id
+                """
+            ).scalars().all()
+        assert len(canonical_ids) == 2
+        assert len(set(canonical_ids)) == 2
+        assert all(len(canonical_id) == 36 for canonical_id in canonical_ids)
+        migrated.dispose()
+        with pytest.raises(
+            RuntimeError,
+            match="Cannot downgrade plan reconciliation",
+        ):
+            command.downgrade(config, "3c4d5e6f7081")
+        verification = create_engine(db_session.get_database_url())
+        try:
+            with verification.connect() as conn:
+                assert conn.exec_driver_sql(
+                    "SELECT version_num FROM alembic_version"
+                ).scalar_one() == "4d5e6f708192"
+                assert conn.exec_driver_sql(
+                    "SELECT COUNT(*) FROM plan_target_workouts"
+                ).scalar_one() == 0
+        finally:
+            verification.dispose()
+    finally:
+        migrated.dispose()
+        db_session.dispose_engines()
 
 
 def test_sqlite_init_backfills_delivery_identity_columns(tmp_path, monkeypatch):
@@ -135,7 +249,11 @@ def test_sqlite_init_backfills_delivery_identity_columns(tmp_path, monkeypatch):
                 "plan_deliveries"
             )
         }
-        assert {"plan_version", "provider_account_id"}.issubset(columns)
+        assert {
+            "plan_version",
+            "provider_content_version",
+            "provider_account_id",
+        }.issubset(columns)
         with db_session.engine.connect() as conn:
             plan_version = conn.execute(
                 text(
@@ -144,6 +262,97 @@ def test_sqlite_init_backfills_delivery_identity_columns(tmp_path, monkeypatch):
                 )
             ).scalar_one()
         assert plan_version == "legacy-version"
+    finally:
+        if db_session.engine is not None:
+            db_session.engine.dispose()
+        if db_session.async_engine is not None:
+            import asyncio
+
+            try:
+                asyncio.run(db_session.async_engine.dispose())
+            except RuntimeError:
+                pass
+        db_session.engine = None
+        db_session.SessionLocal = None
+        db_session.async_engine = None
+        db_session.AsyncSessionLocal = None
+
+
+def test_sqlite_init_migrates_training_plan_identity_constraint(
+    tmp_path,
+    monkeypatch,
+):
+    from sqlalchemy import create_engine, inspect
+
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("PRAXYS_DATABASE_URL", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    sqlite_path = tmp_path / "trainsight.db"
+    legacy = create_engine(f"sqlite:///{sqlite_path}")
+    with legacy.begin() as conn:
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE training_plans (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id VARCHAR(36) NOT NULL,
+                date DATE NOT NULL,
+                workout_type VARCHAR(50),
+                source VARCHAR(20),
+                CONSTRAINT uq_user_date_plan
+                    UNIQUE (user_id, date, source, workout_type)
+            )
+            """
+        )
+        conn.exec_driver_sql(
+            """
+            INSERT INTO training_plans (
+                user_id, date, workout_type, source
+            ) VALUES (
+                'legacy-user', '2026-08-04', 'easy', 'ai'
+            )
+            """
+        )
+    legacy.dispose()
+
+    from db import session as db_session
+
+    db_session.engine = None
+    db_session.SessionLocal = None
+    db_session.async_engine = None
+    db_session.AsyncSessionLocal = None
+    try:
+        db_session.init_db()
+        constraints = inspect(
+            db_session.engine
+        ).get_unique_constraints("training_plans")
+        assert all(
+            item["column_names"]
+            != ["user_id", "date", "source", "workout_type"]
+            for item in constraints
+        )
+        assert any(
+            item["column_names"] == ["user_id", "canonical_id"]
+            for item in constraints
+        )
+        with db_session.engine.begin() as conn:
+            canonical_id = conn.exec_driver_sql(
+                "SELECT canonical_id FROM training_plans WHERE id = 1"
+            ).scalar_one()
+            assert canonical_id
+            conn.exec_driver_sql(
+                """
+                INSERT INTO training_plans (
+                    user_id, canonical_id, date, workout_type, source
+                ) VALUES (
+                    'legacy-user',
+                    '22222222-2222-2222-2222-222222222222',
+                    '2026-08-04',
+                    'easy',
+                    'ai'
+                )
+                """
+            )
     finally:
         if db_session.engine is not None:
             db_session.engine.dispose()

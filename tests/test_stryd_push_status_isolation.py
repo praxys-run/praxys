@@ -2,7 +2,7 @@
 import glob
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -78,6 +78,202 @@ def test_path_is_unique_per_user(ledger_db):
     assert a != b
     assert a.endswith("user-a.json")
     assert b.endswith("user-b.json")
+
+
+def test_modern_delivery_rekeys_active_legacy_slot_before_replacement(
+    ledger_db,
+):
+    db, _ = ledger_db
+    from db.plan_ledger import (
+        begin_delivery_attempt,
+        complete_delivery_attempt,
+        get_or_create_delivery,
+    )
+    from db.models import TrainingPlan
+
+    legacy, _ = get_or_create_delivery(
+        db,
+        user_id="rolling-user",
+        target="stryd",
+        snapshot={
+            "date": "2026-05-01",
+            "source": "ai",
+            "workout_type": "easy",
+            "workout_description": "Version A",
+        },
+    )
+    legacy, attempt, disposition = begin_delivery_attempt(
+        db,
+        legacy,
+        operation="deliver",
+    )
+    assert disposition == "started"
+    assert attempt is not None
+    complete_delivery_attempt(
+        db,
+        user_id="rolling-user",
+        delivery_id=legacy.id,
+        attempt_id=attempt.id,
+        attempt_state="synced",
+        external_id="legacy-version-a",
+    )
+    db.commit()
+
+    canonical_id = "11111111-1111-1111-1111-111111111111"
+    db.add(TrainingPlan(
+        user_id="rolling-user",
+        canonical_id=canonical_id,
+        date=date(2026, 5, 1),
+        source="ai",
+        workout_type="easy",
+        workout_description="Version B",
+    ))
+    db.flush()
+
+    replacement, created = get_or_create_delivery(
+        db,
+        user_id="rolling-user",
+        target="stryd",
+        snapshot={
+            "canonical_id": canonical_id,
+            "date": "2026-05-01",
+            "source": "ai",
+            "workout_type": "easy",
+            "workout_description": "Version B",
+        },
+    )
+    assert created is True
+    db.refresh(legacy)
+    assert legacy.canonical_key == replacement.canonical_key
+
+    _, retry_attempt, retry_disposition = begin_delivery_attempt(
+        db,
+        replacement,
+        operation="deliver",
+    )
+    assert retry_attempt is None
+    assert retry_disposition == "replacement_required"
+
+
+def test_legacy_delivery_rekeys_to_unique_same_slot_content_match(ledger_db):
+    db, _ = ledger_db
+    from db.models import TrainingPlan
+    from db.plan_ledger import get_or_create_delivery
+
+    legacy_snapshot = {
+        "date": "2026-05-01",
+        "source": "ai",
+        "workout_type": "easy",
+        "workout_description": "Version A",
+    }
+    legacy, _ = get_or_create_delivery(
+        db,
+        user_id="rolling-user",
+        target="stryd",
+        snapshot=legacy_snapshot,
+    )
+    first_id = "11111111-1111-1111-1111-111111111111"
+    second_id = "22222222-2222-2222-2222-222222222222"
+    db.add_all([
+        TrainingPlan(
+            user_id="rolling-user",
+            canonical_id=first_id,
+            date=date(2026, 5, 1),
+            source="ai",
+            workout_type="easy",
+            workout_description="Version A",
+        ),
+        TrainingPlan(
+            user_id="rolling-user",
+            canonical_id=second_id,
+            date=date(2026, 5, 1),
+            source="ai",
+            workout_type="easy",
+            workout_description="Version B",
+        ),
+    ])
+    db.flush()
+
+    second, created = get_or_create_delivery(
+        db,
+        user_id="rolling-user",
+        target="stryd",
+        snapshot={
+            **legacy_snapshot,
+            "canonical_id": second_id,
+            "workout_description": "Version B",
+        },
+    )
+    assert created is True
+    db.refresh(legacy)
+    assert legacy.canonical_key == f"ai:{first_id}"
+    assert second.canonical_key == f"ai:{second_id}"
+
+    first, created = get_or_create_delivery(
+        db,
+        user_id="rolling-user",
+        target="stryd",
+        snapshot={**legacy_snapshot, "canonical_id": first_id},
+    )
+    assert created is False
+    assert first.id == legacy.id
+
+
+def test_legacy_delivery_rekey_fails_closed_for_ambiguous_same_slot(ledger_db):
+    db, _ = ledger_db
+    from db.models import TrainingPlan
+    from db.plan_ledger import get_or_create_delivery
+
+    legacy, _ = get_or_create_delivery(
+        db,
+        user_id="rolling-user",
+        target="stryd",
+        snapshot={
+            "date": "2026-05-01",
+            "source": "ai",
+            "workout_type": "easy",
+            "workout_description": "Legacy only",
+        },
+    )
+    legacy_key = legacy.canonical_key
+    db.add_all([
+        TrainingPlan(
+            user_id="rolling-user",
+            canonical_id="11111111-1111-1111-1111-111111111111",
+            date=date(2026, 5, 1),
+            source="ai",
+            workout_type="easy",
+            workout_description="Morning",
+        ),
+        TrainingPlan(
+            user_id="rolling-user",
+            canonical_id="22222222-2222-2222-2222-222222222222",
+            date=date(2026, 5, 1),
+            source="ai",
+            workout_type="easy",
+            workout_description="Evening",
+        ),
+    ])
+    db.flush()
+
+    with pytest.raises(
+        ValueError,
+        match="ambiguous legacy delivery identity requires reconciliation",
+    ):
+        get_or_create_delivery(
+            db,
+            user_id="rolling-user",
+            target="stryd",
+            snapshot={
+                "canonical_id": "11111111-1111-1111-1111-111111111111",
+                "date": "2026-05-01",
+                "source": "ai",
+                "workout_type": "easy",
+                "workout_description": "Morning",
+            },
+        )
+    db.refresh(legacy)
+    assert legacy.canonical_key == legacy_key
 
 
 def test_import_is_idempotent_and_preserves_status_shape(ledger_db):
