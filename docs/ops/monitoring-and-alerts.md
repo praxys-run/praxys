@@ -642,10 +642,36 @@ frequency change that saves money; slowing one past 15 min saves nothing. To cut
 noise, tune the window/threshold rather than deleting. Update the inventory table
 after any change.
 
+## GitHub automation health
+
+Selective review is repository governance rather than an Azure Monitor signal,
+so it has no alert-rule charge and is not included in the Azure inventory
+subtotal above. Its required commit status and Actions run are the operational
+health surface.
+
+| Workflow | Healthy default-off result | Privileged result | Failure response |
+|---|---|---|---|
+| `Selective review gate` | Run succeeds as `review-required`; summary says `Policy App required: false`; token step is skipped | An exact promoted candidate or detected stale policy state mints the dedicated App token, rechecks exact refs, and approves or revokes | Keep/restore `PRAXYS_SELECTIVE_REVIEW_ENABLED=false`; inspect the run; restore App credentials before stale-state cleanup |
+| `Selective review issue guard` | Linked issue changes dispatch a fresh evaluation and leave the current head pending until it completes | A no-longer-valid candidate is revoked by the policy App | Set the kill switch and dispatch the emergency stop if reevaluation cannot complete |
+| `Selective review emergency stop` | No active policy state means no App token is needed | With the kill switch set, immediately fails affected heads, quiesces in-flight gates, reasserts current-head barriers, then disables policy-owned auto-merge and replaces policy approval through the exact App identity | Treat the failed status as the merge barrier; any merge race fails the run; restore/rotate the App identity, rerun, and verify every affected PR is neutralized |
+
+Inspect recent runs and the status on a PR head:
+
+```bash
+gh run list --workflow=selective-review.yml \
+  --repo praxys-run/praxys --limit 10
+gh pr checks <PR_NUMBER> --repo praxys-run/praxys
+```
+
+An absent policy App is healthy only when no privileged action is needed. A
+candidate or stale-state cleanup that cannot mint the App token must remain
+failed because the required `selective-review-policy` status is the fail-closed
+merge barrier.
+
 ## Related
 
 - `api/telemetry.py` (signal emitters) · [cost-and-scaling.md](./cost-and-scaling.md) (budget + LLM spend) · [admin-tasks.md](./admin-tasks.md) (feedback triage)
 - In-app: Admin → User Feedback (badge + Approve/Retry/Reject).
 
 ---
-_Last reviewed: 2026-07-18 · Owner: @dddtc2005 · Alert inventory + cost model current as of this review._
+_Last reviewed: 2026-07-29 · Owner: @dddtc2005 · Alert inventory + cost model current as of this review._

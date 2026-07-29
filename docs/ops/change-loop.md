@@ -277,6 +277,9 @@ Those outcomes train both triage precision and draft quality. They also feed the
 default-off `review-required | auto-merge-candidate` policy:
 
 - `analysis/review_policy.py` is the pure classifier and promotion evaluator.
+- The committed enforcement model is
+  `independent-github-app-approval`: AI reviews are evidence, while only the
+  deterministic policy and dedicated App identity authorize autonomous merge.
 - `data/agent_evals/change/review_promotion.json` stores text-free completed-PR
   evidence. Each bucket is bound to the exact class/sensitive-path/check policy
   fingerprint, and duplicate PR numbers cannot inflate the sample.
@@ -288,6 +291,10 @@ default-off `review-required | auto-merge-candidate` policy:
   PR. It denies non-`main` bases, incomplete/truncated file inventories,
   sensitive paths, missing checks, draft PRs, post-ready commits, requested
   changes, unpromoted classes, and missing tests where applicable.
+- Evaluation happens before App-token creation. Disabled, unpromoted, sensitive,
+  and otherwise review-required PRs finish successfully without App
+  configuration. A token is required only for an exact enabled candidate or for
+  cleanup of bot-authored stale policy state.
 - A qualifying PR is approved by the independent review-policy App, then normal
   squash auto-merge is enabled. The App never bypasses the ruleset or checks.
 - Every reevaluation first marks the PR head's `selective-review-policy` status
@@ -302,12 +309,17 @@ default-off `review-required | auto-merge-candidate` policy:
 The initial `promoted_classes` list is empty. Runtime is independently default
 off through `PRAXYS_SELECTIVE_REVIEW_ENABLED`. For rollback, set
 `PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH=true`, then dispatch the workflow with
-`selective-review-emergency-stop.yml`; it replaces policy approval with a
-blocking review and disables pending auto-merge. Per-PR evaluation uses
-per-PR concurrency, so unrelated events cannot discard a revocation. The gate
-also refuses autonomy unless the effective main-branch rules require an
-independent approval and invalidate it after a later push, and unless required
-checks are strict against the latest `main`.
+`selective-review-emergency-stop.yml`; it first fails the required policy status
+on every affected head, cancels and waits for in-flight gate runs, and
+reasserts the barrier on current heads before replacing policy approval with a
+blocking review and disabling pending auto-merge through the verified App
+identity. The ordinary gate rechecks the kill switch before publishing success.
+Foreign bot ownership, a merge race, or incomplete cleanup remains failed
+rather than reporting success.
+Per-PR evaluation uses per-PR concurrency, so unrelated events cannot discard a
+revocation. The gate also refuses autonomy unless the effective main-branch
+rules require an independent approval and invalidate it after a later push, and
+unless required checks are strict against the latest `main`.
 Provisioning and promotion steps:
 [setup-review-policy-app.md](./setup-review-policy-app.md).
 

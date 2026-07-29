@@ -4,8 +4,10 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: read
   pull-requests: read
+  statuses: write
 
 concurrency:
   group: selective-review-emergency-stop
@@ -25,7 +27,174 @@ jobs:
             exit 1
           fi
 
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Block active policy state before privileged cleanup
+        id: barrier
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          affected_file="$RUNNER_TEMP/selective-review-prs.txt"
+          : > "$affected_file"
+          pulls_json="$(
+            gh api "repos/${GITHUB_REPOSITORY}/pulls?state=open&per_page=100" \
+              --paginate --slurp
+          )"
+          pull_rows="$(
+            jq -r \
+              '.[][] | [.number, .head.sha, (.auto_merge != null)] | @tsv' \
+              <<< "$pulls_json"
+          )"
+          affected=0
+          while IFS=$'\t' read -r pr_number head_sha auto_merge_enabled; do
+            [[ -n "$pr_number" ]] || continue
+            reviews_json="$(
+              gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}/reviews?per_page=100" \
+                --paginate --slurp
+            )"
+            active_policy_count="$(
+              jq --argjson auto_merge "$auto_merge_enabled" '
+                [.[][] |
+                  select(
+                    (((.user.type // "") | ascii_downcase) == "bot") or
+                    (((.user.login // "") | ascii_downcase) | endswith("[bot]"))
+                  ) |
+                  select(
+                    (.body // "") |
+                    test("\\(selective-review:[A-Za-z0-9._-]+:[0-9a-f]{40}\\)$|\\(selective-review-(revoked|emergency-stop)\\)")
+                  ) |
+                  {
+                    login: ((.user.login // "") | ascii_downcase),
+                    submitted_at: (.submitted_at // ""),
+                    id: (.id // 0),
+                    state: (.state // ""),
+                    body: (.body // "")
+                  }
+                ] |
+                sort_by([.login, .submitted_at, .id]) |
+                group_by(.login) |
+                map(last) |
+                [.[] |
+                  select(
+                    (
+                      .state == "APPROVED" and
+                      ((.body // "") | test("\\(selective-review:[A-Za-z0-9._-]+:[0-9a-f]{40}\\)$"))
+                    ) or
+                    $auto_merge
+                  )
+                ] |
+                length
+              ' <<< "$reviews_json"
+            )"
+            if (( active_policy_count == 0 )); then
+              continue
+            fi
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/statuses/${head_sha}" \
+              -f state=failure \
+              -f context=selective-review-policy \
+              -f description="Emergency stop requires policy-state cleanup." \
+              --silent
+            echo "$pr_number" >> "$affected_file"
+            affected=$((affected + 1))
+          done <<< "$pull_rows"
+          echo "affected=$affected" >> "$GITHUB_OUTPUT"
+          echo "Blocked ${affected} active selective-review pull request(s)." \
+            >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Quiesce in-flight selective-review runs
+        id: quiesce
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          active_statuses='["queued","in_progress","waiting","requested","pending"]'
+          runs_json="$(
+            gh api \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/selective-review.yml/runs?per_page=100" \
+              --paginate --slurp
+          )"
+          run_ids="$(
+            jq -r --argjson statuses "$active_statuses" \
+              '.[] | .workflow_runs[]? | select(.status as $status | $statuses | index($status)) | .id' \
+              <<< "$runs_json"
+          )"
+          while IFS= read -r run_id; do
+            [[ -n "$run_id" ]] || continue
+            gh api -X POST \
+              "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/cancel" \
+              --silent || true
+          done <<< "$run_ids"
+
+          active_count=1
+          for _ in {1..60}; do
+            runs_json="$(
+              gh api \
+                "repos/${GITHUB_REPOSITORY}/actions/workflows/selective-review.yml/runs?per_page=100" \
+                --paginate --slurp
+            )"
+            active_count="$(
+              jq -r --argjson statuses "$active_statuses" \
+                '[.[] | .workflow_runs[]? | select(.status as $status | $statuses | index($status))] | length' \
+                <<< "$runs_json"
+            )"
+            (( active_count == 0 )) && break
+            sleep 2
+          done
+          if (( active_count != 0 )); then
+            echo "::error::Selective-review runs did not quiesce before emergency cleanup."
+            exit 1
+          fi
+
+      - name: Reassert emergency barriers after quiescence
+        id: final-barrier
+        if: always() && steps.barrier.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          affected_file="$RUNNER_TEMP/selective-review-prs.txt"
+          if [[ ! -f "$affected_file" ]]; then
+            echo "::error::Emergency cleanup target list is missing."
+            exit 1
+          fi
+          merge_races=()
+          while IFS= read -r pr_number; do
+            [[ -n "$pr_number" ]] || continue
+            pull_json="$(
+              gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}"
+            )"
+            if [[ "$(jq -r '.merged' <<< "$pull_json")" == "true" ]]; then
+              merge_races+=("#${pr_number}")
+              continue
+            fi
+            [[ "$(jq -r '.state' <<< "$pull_json")" == "open" ]] || continue
+            current_head="$(jq -r '.head.sha' <<< "$pull_json")"
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/statuses/${current_head}" \
+              -f state=failure \
+              -f context=selective-review-policy \
+              -f description="Emergency stop requires policy-state cleanup." \
+              --silent
+          done < "$affected_file"
+          if (( ${#merge_races[@]} > 0 )); then
+            printf '%s\n' \
+              "Merge races detected during emergency quiescence: ${merge_races[*]}" \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Mint independent policy App token
+        if: >-
+          steps.quiesce.outcome == 'success' &&
+          steps.final-barrier.outcome == 'success' &&
+          steps.barrier.outputs.affected != '0' &&
+          vars.PRAXYS_REVIEW_POLICY_APP_ID != '' &&
+          vars.PRAXYS_REVIEW_POLICY_APP_SLUG != ''
         id: policy-token
         uses: actions/create-github-app-token@v2
         with:
@@ -36,138 +205,59 @@ jobs:
           permission-contents: write
           permission-pull-requests: write
 
+      - name: Require the exact policy App identity
+        id: policy-app
+        if: >-
+          always() &&
+          steps.barrier.outcome == 'success' &&
+          steps.quiesce.outcome == 'success' &&
+          steps.final-barrier.outcome == 'success' &&
+          steps.barrier.outputs.affected != '0'
+        env:
+          POLICY_APP_TOKEN: ${{ steps.policy-token.outputs.token }}
+          POLICY_APP_SLUG: ${{ steps.policy-token.outputs.app-slug }}
+          EXPECTED_POLICY_APP_SLUG: ${{ vars.PRAXYS_REVIEW_POLICY_APP_SLUG }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$EXPECTED_POLICY_APP_SLUG" ]]; then
+            echo "::error::PRAXYS_REVIEW_POLICY_APP_SLUG is required for emergency cleanup."
+            exit 1
+          fi
+          if [[ -z "$POLICY_APP_TOKEN" || -z "$POLICY_APP_SLUG" ]]; then
+            echo "::error::Could not resolve the selective-review App identity."
+            exit 1
+          fi
+          if [[ "$POLICY_APP_SLUG" != "$EXPECTED_POLICY_APP_SLUG" ]]; then
+            echo "::error::The minted policy App identity does not match the configured slug."
+            exit 1
+          fi
+
       - name: Neutralize policy-enabled auto-merge
+        if: steps.policy-app.outcome == 'success'
         env:
           GH_TOKEN: ${{ steps.policy-token.outputs.token }}
           POLICY_APP_LOGIN: ${{ steps.policy-token.outputs.app-slug }}[bot]
         shell: bash
         run: |
           set -uo pipefail
-          if [[ "$POLICY_APP_LOGIN" == "[bot]" ]]; then
-            echo "::error::Could not resolve the selective-review App identity."
+          affected_file="$RUNNER_TEMP/selective-review-prs.txt"
+          if [[ ! -f "$affected_file" ]]; then
+            echo "::error::Emergency cleanup target list is missing."
             exit 1
           fi
-          affected=0
+          neutralized=0
           failures=()
-          if ! pr_numbers="$(
-            gh api "repos/${GITHUB_REPOSITORY}/pulls?state=open&per_page=100" \
-              --paginate --slurp | jq -r '.[][] | .number'
-          )"; then
-            echo "::error::Could not enumerate open pull requests."
-            exit 1
-          fi
           while IFS= read -r pr_number; do
             [[ -n "$pr_number" ]] || continue
-            if ! pull_json="$(
-              gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}"
-            )"; then
-              failures+=("#${pr_number}:read-pull-request")
-              continue
+            if PR_NUMBER="$pr_number" REQUIRE_POLICY_STATE=true \
+              bash .github/scripts/revoke-selective-review.sh; then
+              neutralized=$((neutralized + 1))
+            else
+              failures+=("#${pr_number}:cleanup")
             fi
-            if ! state="$(jq -er '.state' <<< "$pull_json")"; then
-              failures+=("#${pr_number}:parse-pull-request")
-              continue
-            fi
-            [[ "$state" == "open" ]] || continue
-            if ! current_head="$(jq -er '.head.sha' <<< "$pull_json")"; then
-              failures+=("#${pr_number}:parse-head")
-              continue
-            fi
-            if ! reviews_json="$(
-              gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}/reviews?per_page=100" \
-                --paginate --slurp
-            )"; then
-              failures+=("#${pr_number}:read-reviews")
-              continue
-            fi
-            if ! policy_review_count="$(
-              jq --arg login "${POLICY_APP_LOGIN,,}" \
-                '[.[][] | select(((.user.login // "") | ascii_downcase) == $login) | select((.body // "") | test("\\(selective-review:[A-Za-z0-9._-]+:[0-9a-f]{40}\\)$"))] | length' \
-                <<< "$reviews_json"
-            )"; then
-              failures+=("#${pr_number}:parse-reviews")
-              continue
-            fi
-            if (( policy_review_count == 0 )); then
-              continue
-            fi
-            affected=$((affected + 1))
-            if ! auto_merge_enabled="$(
-              jq -r '.auto_merge != null' <<< "$pull_json"
-            )"; then
-              failures+=("#${pr_number}:parse-auto-merge")
-              continue
-            fi
-            if [[ "$auto_merge_enabled" != "true" &&
-              "$auto_merge_enabled" != "false" ]]; then
-              failures+=("#${pr_number}:invalid-auto-merge-state")
-              continue
-            fi
-            if [[ "$auto_merge_enabled" == "true" ]]; then
-              if ! gh pr merge "$pr_number" --repo "$GITHUB_REPOSITORY" --disable-auto; then
-                failures+=("#${pr_number}:disable-auto-merge")
-              fi
-            fi
-            if ! gh api -X POST "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}/reviews" \
-              -f event=REQUEST_CHANGES \
-              -f commit_id="$current_head" \
-              -f body="Selective-review kill switch activated; human review is required. (selective-review-emergency-stop)" \
-              >/dev/null; then
-              failures+=("#${pr_number}:request-changes")
-            fi
-            if ! final_pull_json="$(
-              gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}"
-            )"; then
-              failures+=("#${pr_number}:verify-pull-request")
-              continue
-            fi
-            if ! final_state="$(jq -er '.state' <<< "$final_pull_json")" ||
-              ! final_merged="$(jq -r '.merged' <<< "$final_pull_json")"; then
-              failures+=("#${pr_number}:parse-final-pull-request")
-              continue
-            fi
-            if [[ "$final_merged" != "true" && "$final_merged" != "false" ]]; then
-              failures+=("#${pr_number}:invalid-final-merged-state")
-              continue
-            fi
-            if [[ "$final_state" != "open" ]]; then
-              if [[ "$final_merged" == "true" ]]; then
-                failures+=("#${pr_number}:merged-during-emergency-stop")
-              fi
-              continue
-            fi
-            if ! final_auto_merge="$(
-              jq -r '.auto_merge != null' <<< "$final_pull_json"
-            )"; then
-              failures+=("#${pr_number}:parse-final-auto-merge")
-              continue
-            fi
-            if [[ "$final_auto_merge" != "true" &&
-              "$final_auto_merge" != "false" ]]; then
-              failures+=("#${pr_number}:invalid-final-auto-merge-state")
-              continue
-            fi
-            if ! final_reviews_json="$(
-              gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}/reviews?per_page=100" \
-                --paginate --slurp
-            )"; then
-              failures+=("#${pr_number}:verify-reviews")
-              continue
-            fi
-            if ! latest_policy_review_is_emergency="$(
-              jq --arg login "${POLICY_APP_LOGIN,,}" \
-                '[.[][] | select(((.user.login // "") | ascii_downcase) == $login) | select((.body // "") | test("selective-review"))] | sort_by(.submitted_at) | last | (.state == "CHANGES_REQUESTED" and ((.body // "") | contains("selective-review-emergency-stop")))' \
-                <<< "$final_reviews_json"
-            )"; then
-              failures+=("#${pr_number}:parse-final-reviews")
-              continue
-            fi
-            if [[ "$final_auto_merge" == "true" ||
-              "$latest_policy_review_is_emergency" != "true" ]]; then
-              failures+=("#${pr_number}:final-state-not-neutralized")
-            fi
-          done <<< "$pr_numbers"
-          echo "Neutralized selective-review state on ${affected} open pull request(s)." \
+          done < "$affected_file"
+          echo "Neutralized selective-review state on ${neutralized} open pull request(s)." \
             >> "$GITHUB_STEP_SUMMARY"
           if (( ${#failures[@]} > 0 )); then
             printf '%s\n' "Cleanup failures: ${failures[*]}" >> "$GITHUB_STEP_SUMMARY"

@@ -2,7 +2,8 @@
 
 > **Summary:** Provision the independent GitHub App that approves qualifying
 > low-risk Copilot PRs and enables normal auto-merge without bypassing checks.
-> **Use when:** Enabling or rotating Loop A selective review.
+> **Use when:** Preparing to enable, smoke-test, or rotate Loop A selective
+> review. Ordinary review-required operation does not need this App.
 
 ## Prerequisites
 
@@ -11,6 +12,20 @@
 - `gh auth status` succeeds for the repository.
 - A class is not promoted until `python scripts/validate_review_policy.py`
   succeeds with at least five clean, seven-day observations.
+
+## Selected trust model
+
+Praxys uses the **approval model**: a dedicated GitHub App is the independent
+identity that submits `APPROVE` and enables normal squash auto-merge only after
+deterministic policy checks. Copilot Code Review, Rubber Duck, and the Praxys
+invariant reviewer remain useful evidence, but none is an approval identity or
+the merge trust boundary.
+
+The policy is intentionally safe before this App exists. When selective review
+is disabled, no class is promoted, or a PR is otherwise review-required, the
+workflow succeeds without minting or requiring App credentials. The App becomes
+mandatory only for an exact autonomous candidate or cleanup of previously
+created policy-App state.
 
 ## Steps
 
@@ -33,17 +48,22 @@ independent merge-gate identity and is not a ruleset bypass actor.
 
 ### 2. Store the App identity
 
-Generate a private key from the App settings page, note the App ID, then set:
+Generate a private key from the App settings page, note the App ID and URL slug,
+then set:
 
 ```bash
 gh variable set PRAXYS_REVIEW_POLICY_APP_ID \
   --repo praxys-run/praxys --body "<APP_ID>"
 
+gh variable set PRAXYS_REVIEW_POLICY_APP_SLUG \
+  --repo praxys-run/praxys --body "<APP_SLUG>"
+
 gh secret set PRAXYS_REVIEW_POLICY_APP_PRIVATE_KEY \
   --repo praxys-run/praxys < path/to/praxys-review-policy.pem
 ```
 
-Delete the downloaded key after the Actions secret is confirmed.
+The slug is the App URL component without the `[bot]` suffix. Delete the
+downloaded key after the Actions secret is confirmed.
 
 ### 3. Provision runtime controls default-off
 
@@ -77,6 +97,14 @@ Before enabling the runtime, edit **Settings → Rules → Rulesets → default*
 Provisioning the App does not approve anything: the committed
 `promoted_classes` list starts empty and the runtime enable variable starts
 `false`.
+
+Default-off behavior:
+
+| Policy result | App credentials |
+|---|---|
+| Disabled, unpromoted, sensitive, or otherwise review-required | Not read or required |
+| Enabled exact promoted candidate | Required; absence fails closed |
+| Prior bot-authored policy approval/auto-merge needs cleanup | Required; absence leaves the required policy status failed |
 
 ### 4. Promote one proven class
 
@@ -126,10 +154,12 @@ gh workflow run selective-review.yml \
 ```
 
 For an unpromoted or sensitive PR, the Actions summary must say
-`review-required` and no App review appears. For an enabled, promoted, same-repo
-Copilot PR that closes an `agent-ready` issue, has a stable ready handoff, and
-passes `backend-tests`, the App submits one approval and
-`gh pr merge --auto --squash` schedules the normal merge.
+`review-required`, `Policy App required: false`, and no App-token step or review
+appears. This remains true when the App variables and secret are completely
+absent. For an enabled, promoted, same-repo Copilot PR that closes an
+`agent-ready` issue, has a stable ready handoff, and passes `backend-tests`, the
+App submits one approval and `gh pr merge --auto --squash` schedules the normal
+merge.
 
 ## Rollback / Recovery
 
@@ -143,13 +173,27 @@ gh workflow run selective-review-emergency-stop.yml \
   --repo praxys-run/praxys
 ```
 
-The emergency job refuses to run until the kill-switch variable is true. On
-every affected open PR it replaces the policy App's approval with a blocking
-`REQUEST_CHANGES` review and disables auto-merge. Confirm the workflow succeeds
-before treating the stop as complete. Then open a policy PR removing the
-affected class from `promoted_classes` and record the correction, failure,
-revert, or reopen in the evidence corpus. Never add the policy App as a ruleset
-bypass actor.
+The emergency job refuses to run until the kill-switch variable is true. It
+immediately marks every head with active selective-review state as failed under
+the required `selective-review-policy` context, cancels and waits for in-flight
+gate runs, then reasserts the barrier on each current head before minting App
+credentials. Initially affected PRs remain in the cleanup set, so a merge during
+quiescence fails the run instead of disappearing from the open-PR scan. The job
+then verifies the exact App identity, rejects state owned by any other bot,
+replaces the policy App's approval with a blocking `REQUEST_CHANGES` review, and
+disables auto-merge. The ordinary gate also rechecks the kill switch before it
+may post success. If credentials or cleanup fail, the failed status remains the
+merge barrier. Confirm the workflow succeeds before treating the stop as
+complete.
+Then open a policy PR removing the affected class from `promoted_classes` and
+record the correction, failure, revert, or reopen in the evidence corpus. Never
+add the policy App as a ruleset bypass actor.
+
+If stale autonomous state exists but App credentials cannot be minted, the
+workflow leaves `selective-review-policy` failed. Once that status is required,
+the stale approval or auto-merge display cannot produce a merge. Restore the App
+identity, rerun the gate, and then run the emergency stop if broad cleanup is
+needed.
 
 If the App key is exposed, generate a replacement key, update
 `PRAXYS_REVIEW_POLICY_APP_PRIVATE_KEY`, verify one manual workflow dispatch, then

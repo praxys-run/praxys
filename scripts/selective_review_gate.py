@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -18,7 +19,17 @@ if str(ROOT) not in sys.path:
 
 from analysis.review_policy import (  # noqa: E402
     PullRequestFacts,
+    apply_runtime_controls,
     evaluate_selective_review,
+)
+
+
+_POLICY_APPROVAL_MARKER = re.compile(
+    r"\(selective-review:[A-Za-z0-9._-]+:[0-9a-f]{40}\)$"
+)
+_POLICY_REVOCATION_MARKERS = (
+    "selective-review-revoked",
+    "selective-review-emergency-stop",
 )
 
 
@@ -27,6 +38,20 @@ def _parse_time(value: str | None) -> datetime | None:
         return None
     parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     return parsed.astimezone(timezone.utc)
+
+
+def _review_order(
+    row: dict[str, Any],
+    submitted: datetime,
+    position: int,
+) -> tuple[datetime, int]:
+    """Return a stable chronological key for reviews submitted together."""
+    raw_id = row.get("id")
+    try:
+        review_id = int(raw_id)
+    except (TypeError, ValueError):
+        review_id = position
+    return submitted, review_id
 
 
 def _request_json(path: str) -> tuple[Any, dict[str, str]]:
@@ -113,8 +138,8 @@ def _changes_requested(
     reviews: list[dict[str, Any]],
     policy_app_login: str = "",
 ) -> bool:
-    latest_by_reviewer: dict[str, tuple[datetime, str]] = {}
-    for row in reviews:
+    latest_by_reviewer: dict[str, tuple[tuple[datetime, int], str]] = {}
+    for position, row in enumerate(reviews):
         login = str((row.get("user") or {}).get("login") or "")
         submitted = _parse_time(row.get("submitted_at"))
         if not login or submitted is None:
@@ -126,16 +151,64 @@ def _changes_requested(
         if (
             login.lower() == policy_app_login.lower()
             and state == "CHANGES_REQUESTED"
-            and (
-                "selective-review-revoked" in body
-                or "selective-review-emergency-stop" in body
-            )
+            and any(marker in body for marker in _POLICY_REVOCATION_MARKERS)
         ):
             continue
+        order = _review_order(row, submitted, position)
         current = latest_by_reviewer.get(login)
-        if current is None or submitted > current[0]:
-            latest_by_reviewer[login] = (submitted, state)
+        if current is None or order > current[0]:
+            latest_by_reviewer[login] = (order, state)
     return any(state == "CHANGES_REQUESTED" for _, state in latest_by_reviewer.values())
+
+
+def _policy_app_login(slug: str) -> str:
+    normalized = slug.strip()
+    if not normalized:
+        return ""
+    return normalized if normalized.lower().endswith("[bot]") else f"{normalized}[bot]"
+
+
+def _policy_state_present(
+    reviews: list[dict[str, Any]],
+    *,
+    auto_merge_enabled: bool,
+) -> bool:
+    """Return whether a bot-authored selective-review state still needs cleanup."""
+    latest_by_bot: dict[str, tuple[tuple[datetime, int], str, str]] = {}
+    for position, row in enumerate(reviews):
+        user = row.get("user") or {}
+        login = str(user.get("login") or "")
+        user_type = str(user.get("type") or "")
+        submitted = _parse_time(row.get("submitted_at"))
+        state = str(row.get("state") or "")
+        body = str(row.get("body") or "").strip()
+        is_bot = user_type.lower() == "bot" or login.lower().endswith("[bot]")
+        is_approval = bool(_POLICY_APPROVAL_MARKER.search(body))
+        is_revocation = any(
+            marker in body for marker in _POLICY_REVOCATION_MARKERS
+        )
+        if (
+            not login
+            or not is_bot
+            or submitted is None
+            or state not in ("APPROVED", "CHANGES_REQUESTED", "DISMISSED")
+            or not (is_approval or is_revocation)
+        ):
+            continue
+        order = _review_order(row, submitted, position)
+        current = latest_by_bot.get(login.lower())
+        if current is None or order > current[0]:
+            latest_by_bot[login.lower()] = (
+                order,
+                state,
+                "approval" if is_approval else "revocation",
+            )
+
+    active_approval = any(
+        state == "APPROVED" and marker_type == "approval"
+        for _, state, marker_type in latest_by_bot.values()
+    )
+    return active_approval or (auto_merge_enabled and bool(latest_by_bot))
 
 
 def _check_states(
@@ -429,6 +502,8 @@ def main() -> int:
     if pr_number is None:
         _write_output("skip", "true")
         _write_output("decision", "review-required")
+        _write_output("policy_state_present", "false")
+        _write_output("needs_policy_app", "false")
         _write_summary(["## Selective review", "", "No pull request was associated with this run."])
         return 0
 
@@ -495,7 +570,7 @@ def main() -> int:
         ready_head_sha=_ready_head_sha(timeline),
         changes_requested=_changes_requested(
             reviews,
-            os.environ.get("POLICY_APP_LOGIN", ""),
+            _policy_app_login(os.environ.get("POLICY_APP_SLUG", "")),
         ),
         agent_ready_issue_linked=_has_agent_ready_closing_issue(
             repository,
@@ -511,17 +586,18 @@ def main() -> int:
     policy_result = evaluate_selective_review(facts, policy)
     enabled = os.environ.get("SELECTIVE_REVIEW_ENABLED", "").lower() == "true"
     kill_switch = os.environ.get("SELECTIVE_REVIEW_KILL_SWITCH", "").lower() == "true"
-    runtime_reasons = list(policy_result.reasons)
-    if not enabled:
-        runtime_reasons.append("selective_review_disabled")
-    if kill_switch:
-        runtime_reasons.append("kill_switch_enabled")
-    decision = (
-        "auto-merge-candidate"
-        if policy_result.disposition == "auto-merge-candidate"
-        and enabled
-        and not kill_switch
-        else "review-required"
+    runtime_result = apply_runtime_controls(
+        policy_result,
+        enabled=enabled,
+        kill_switch=kill_switch,
+    )
+    policy_state_present = _policy_state_present(
+        reviews,
+        auto_merge_enabled=pull.get("auto_merge") is not None,
+    )
+    needs_policy_app = (
+        runtime_result.disposition == "auto-merge-candidate"
+        or policy_state_present
     )
 
     _write_output("skip", "false")
@@ -532,10 +608,12 @@ def main() -> int:
     _write_output("policy_version", str(policy["version"]))
     _write_output("change_class", policy_result.change_class or "unclassified")
     _write_output("policy_decision", policy_result.disposition)
-    _write_output("decision", decision)
+    _write_output("decision", runtime_result.disposition)
     _write_output("enabled", str(enabled).lower())
     _write_output("kill_switch", str(kill_switch).lower())
-    _write_output("reasons", ",".join(dict.fromkeys(runtime_reasons)))
+    _write_output("policy_state_present", str(policy_state_present).lower())
+    _write_output("needs_policy_app", str(needs_policy_app).lower())
+    _write_output("reasons", ",".join(runtime_result.reasons))
     _write_summary(
         [
             "## Selective review",
@@ -544,8 +622,10 @@ def main() -> int:
             f"- Policy: `{policy['version']}`",
             f"- Class: `{policy_result.change_class or 'unclassified'}`",
             f"- Policy disposition: `{policy_result.disposition}`",
-            f"- Runtime disposition: `{decision}`",
-            f"- Reasons: `{','.join(dict.fromkeys(runtime_reasons)) or 'none'}`",
+            f"- Runtime disposition: `{runtime_result.disposition}`",
+            f"- Prior autonomous state: `{str(policy_state_present).lower()}`",
+            f"- Policy App required: `{str(needs_policy_app).lower()}`",
+            f"- Reasons: `{','.join(runtime_result.reasons) or 'none'}`",
             "",
             "The workflow never bypasses branch protection; qualifying PRs receive an "
             "independent App approval and normal squash auto-merge.",

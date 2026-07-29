@@ -9,6 +9,8 @@ import pytest
 from analysis.review_policy import (
     PromotionObservation,
     PullRequestFacts,
+    ReviewDecision,
+    apply_runtime_controls,
     class_policy_fingerprint,
     classify_change,
     evaluate_promotion,
@@ -21,6 +23,7 @@ POLICY = {
     "version": "selective-review-test-v1",
     "classifier_semantics": "review-policy-test-v1",
     "default_decision": "review-required",
+    "enforcement_model": "independent-github-app-approval",
     "allowed_authors": ["Copilot"],
     "allowed_base_branches": ["main"],
     "trusted_assignment_actors": ["maintainer"],
@@ -110,6 +113,36 @@ def test_unpromoted_class_remains_review_required():
     assert decision.disposition == "review-required"
     assert decision.change_class == "documentation-only"
     assert decision.reasons == ("class_not_promoted:documentation-only",)
+
+
+def test_runtime_controls_are_default_off_and_kill_switch_closed():
+    candidate = ReviewDecision(
+        disposition="auto-merge-candidate",
+        change_class="documentation-only",
+        reasons=(),
+    )
+    disabled = apply_runtime_controls(
+        candidate,
+        enabled=False,
+        kill_switch=False,
+    )
+    assert disabled.disposition == "review-required"
+    assert disabled.reasons == ("selective_review_disabled",)
+
+    killed = apply_runtime_controls(
+        candidate,
+        enabled=True,
+        kill_switch=True,
+    )
+    assert killed.disposition == "review-required"
+    assert killed.reasons == ("kill_switch_enabled",)
+
+    enabled = apply_runtime_controls(
+        candidate,
+        enabled=True,
+        kill_switch=False,
+    )
+    assert enabled == candidate
 
 
 def test_promoted_class_passes_only_after_stable_handoff():
@@ -270,6 +303,27 @@ def test_promotion_thresholds_cannot_be_weakened():
     }
     with pytest.raises(ValueError, match="minimum_completed_prs_below_floor"):
         validate_promoted_classes(policy, {"classes": {}})
+
+
+def test_promotion_requires_the_independent_app_approval_model():
+    selective = deepcopy(POLICY)
+    selective["enforcement_model"] = "status-check"
+    selective["promotion_requirements"] = {
+        "minimum_completed_prs": 5,
+        "minimum_observation_days": 7,
+        "maximum_correction_rate": 0.0,
+        "maximum_pr_caused_failure_rate": 0.0,
+        "maximum_revert_or_reopen_rate": 0.0,
+        "minimum_test_policy_rate": 1.0,
+    }
+    with pytest.raises(
+        ValueError,
+        match="enforcement_model_must_use_independent_app_approval",
+    ):
+        validate_promoted_classes(
+            {"change": {"selective_review": selective}},
+            {"classes": {}},
+        )
 
 
 def test_promotion_evidence_is_bound_to_the_exact_class_policy():

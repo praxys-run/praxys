@@ -9,6 +9,7 @@
       "version": "selective-review-v1",
       "classifier_semantics": "review-policy-v1",
       "default_decision": "review-required",
+      "enforcement_model": "independent-github-app-approval",
       "allowed_authors": [
         "Copilot"
       ],
@@ -34,6 +35,7 @@
         "enabled_variable": "PRAXYS_SELECTIVE_REVIEW_ENABLED",
         "kill_switch_variable": "PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH",
         "policy_app_id_variable": "PRAXYS_REVIEW_POLICY_APP_ID",
+        "policy_app_slug_variable": "PRAXYS_REVIEW_POLICY_APP_SLUG",
         "policy_app_private_key_secret": "PRAXYS_REVIEW_POLICY_APP_PRIVATE_KEY"
       },
       "sensitive_paths": [

@@ -3,11 +3,11 @@
   "as_of": "2026-07-25",
   "classes": {
     "documentation-only": {
-      "policy_fingerprint": "462b4205749abb10d7efec94aa284b72c7d3b3c5251c6d45c4c3ee2ef1b34457",
+      "policy_fingerprint": "2aa059daeacdfd3c8466e93a958c8ec6dba9e6dac9a74ff4e40d74caaeb50c03",
       "observations": []
     },
     "translation-catalog-only": {
-      "policy_fingerprint": "c6eabbfe5ac5046ac130973b0572a647ebe526dab0c4eb11475d6d8880ff7428",
+      "policy_fingerprint": "d3e8c30ea951b43108b9b1907e7eee7a0859bc66b10b49b332520ed0f3633137",
       "observations": []
     },
     "full-stack": {

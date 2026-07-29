@@ -72,41 +72,6 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
 
-      - name: Mint independent policy App token
-        if: >-
-          always() &&
-          steps.target.outputs.pr_number != '' &&
-          vars.PRAXYS_REVIEW_POLICY_APP_ID != ''
-        id: policy-token
-        uses: actions/create-github-app-token@v2
-        with:
-          app-id: ${{ vars.PRAXYS_REVIEW_POLICY_APP_ID }}
-          private-key: ${{ secrets.PRAXYS_REVIEW_POLICY_APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
-          permission-contents: write
-          permission-pull-requests: write
-
-      - name: Require the policy App for targeted pull requests
-        if: always() && steps.target.outputs.pr_number != ''
-        env:
-          POLICY_APP_TOKEN: ${{ steps.policy-token.outputs.token }}
-          POLICY_APP_SLUG: ${{ steps.policy-token.outputs.app-slug }}
-        shell: bash
-        run: |
-          if [[ -z "$POLICY_APP_TOKEN" || -z "$POLICY_APP_SLUG" ]]; then
-            echo "::error::The selective-review policy App is not configured."
-            exit 1
-          fi
-
-      - name: Revoke prior policy state before evaluation
-        if: always() && steps.policy-token.outputs.token != ''
-        env:
-          GH_TOKEN: ${{ steps.policy-token.outputs.token }}
-          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
-          POLICY_APP_LOGIN: ${{ steps.policy-token.outputs.app-slug }}[bot]
-        run: bash .github/scripts/revoke-selective-review.sh
-
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
@@ -118,33 +83,92 @@ jobs:
           INPUT_PR_NUMBER: ${{ steps.target.outputs.pr_number }}
           SELECTIVE_REVIEW_ENABLED: ${{ vars.PRAXYS_SELECTIVE_REVIEW_ENABLED }}
           SELECTIVE_REVIEW_KILL_SWITCH: ${{ vars.PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH }}
-          POLICY_APP_LOGIN: ${{ steps.policy-token.outputs.app-slug }}[bot]
+          POLICY_APP_SLUG: ${{ vars.PRAXYS_REVIEW_POLICY_APP_SLUG }}
         run: python scripts/selective_review_gate.py
 
+      - name: Mint independent policy App token
+        if: >-
+          steps.policy.outputs.needs_policy_app == 'true' &&
+          vars.PRAXYS_REVIEW_POLICY_APP_ID != '' &&
+          vars.PRAXYS_REVIEW_POLICY_APP_SLUG != ''
+        id: policy-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.PRAXYS_REVIEW_POLICY_APP_ID }}
+          private-key: ${{ secrets.PRAXYS_REVIEW_POLICY_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Require the policy App for autonomous action or cleanup
+        id: policy-app
+        if: always() && steps.policy.outputs.needs_policy_app == 'true'
+        env:
+          POLICY_APP_TOKEN: ${{ steps.policy-token.outputs.token }}
+          POLICY_APP_SLUG: ${{ steps.policy-token.outputs.app-slug }}
+          EXPECTED_POLICY_APP_SLUG: ${{ vars.PRAXYS_REVIEW_POLICY_APP_SLUG }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$EXPECTED_POLICY_APP_SLUG" ]]; then
+            echo "::error::PRAXYS_REVIEW_POLICY_APP_SLUG is required for autonomous action or cleanup."
+            exit 1
+          fi
+          if [[ -z "$POLICY_APP_TOKEN" || -z "$POLICY_APP_SLUG" ]]; then
+            echo "::error::The selective-review policy App is required for this candidate or stale-state cleanup."
+            exit 1
+          fi
+          if [[ "$POLICY_APP_SLUG" != "$EXPECTED_POLICY_APP_SLUG" ]]; then
+            echo "::error::The minted policy App identity does not match the configured slug."
+            exit 1
+          fi
+
+      - name: Neutralize prior policy state before privileged action
+        if: always() && steps.policy-app.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ steps.policy-token.outputs.token }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+          POLICY_APP_LOGIN: ${{ steps.policy-token.outputs.app-slug }}[bot]
+          REQUIRE_POLICY_STATE: ${{ steps.policy.outputs.policy_state_present }}
+        run: bash .github/scripts/revoke-selective-review.sh
+
       - name: Re-evaluate current policy state
-        if: steps.policy.outputs.decision == 'auto-merge-candidate'
+        if: >-
+          steps.policy.outputs.decision == 'auto-merge-candidate' &&
+          steps.policy-app.outcome == 'success'
         id: final-policy
         env:
           GH_TOKEN: ${{ github.token }}
           INPUT_PR_NUMBER: ${{ steps.policy.outputs.pr_number }}
           SELECTIVE_REVIEW_ENABLED: ${{ vars.PRAXYS_SELECTIVE_REVIEW_ENABLED }}
           SELECTIVE_REVIEW_KILL_SWITCH: ${{ vars.PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH }}
-          POLICY_APP_LOGIN: ${{ steps.policy-token.outputs.app-slug }}[bot]
+          POLICY_APP_SLUG: ${{ steps.policy-token.outputs.app-slug }}
         run: python scripts/selective_review_gate.py
 
-      - name: Revoke policy state after non-candidate or evaluation failure
-        if: >-
-          always() &&
-          steps.policy-token.outputs.token != '' &&
-          steps.final-policy.outputs.decision != 'auto-merge-candidate'
+      - name: Require the same exact refs after privileged setup
+        if: steps.final-policy.outputs.decision == 'auto-merge-candidate'
         env:
-          GH_TOKEN: ${{ steps.policy-token.outputs.token }}
-          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
-          POLICY_APP_LOGIN: ${{ steps.policy-token.outputs.app-slug }}[bot]
-        run: bash .github/scripts/revoke-selective-review.sh
+          INITIAL_HEAD_SHA: ${{ steps.policy.outputs.head_sha }}
+          INITIAL_BASE_REF: ${{ steps.policy.outputs.base_ref }}
+          INITIAL_BASE_SHA: ${{ steps.policy.outputs.base_sha }}
+          FINAL_HEAD_SHA: ${{ steps.final-policy.outputs.head_sha }}
+          FINAL_BASE_REF: ${{ steps.final-policy.outputs.base_ref }}
+          FINAL_BASE_SHA: ${{ steps.final-policy.outputs.base_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$FINAL_HEAD_SHA" != "$INITIAL_HEAD_SHA" ||
+            "$FINAL_BASE_REF" != "$INITIAL_BASE_REF" ||
+            "$FINAL_BASE_SHA" != "$INITIAL_BASE_SHA" ]]; then
+            echo "::error::Pull request refs changed during privileged policy setup."
+            exit 1
+          fi
 
       - name: Recheck runtime controls before approval
-        if: steps.final-policy.outputs.decision == 'auto-merge-candidate'
+        if: >-
+          steps.policy-app.outcome == 'success' &&
+          steps.final-policy.outputs.decision == 'auto-merge-candidate'
         env:
           GH_TOKEN: ${{ github.token }}
           POLICY_APP_TOKEN: ${{ steps.policy-token.outputs.token }}
@@ -170,7 +194,9 @@ jobs:
           fi
 
       - name: Approve through the independent policy App
-        if: steps.final-policy.outputs.decision == 'auto-merge-candidate'
+        if: >-
+          steps.policy-app.outcome == 'success' &&
+          steps.final-policy.outputs.decision == 'auto-merge-candidate'
         env:
           GH_TOKEN: ${{ steps.policy-token.outputs.token }}
           PR_NUMBER: ${{ steps.final-policy.outputs.pr_number }}
@@ -220,7 +246,9 @@ jobs:
           fi
 
       - name: Enable normal squash auto-merge
-        if: steps.final-policy.outputs.decision == 'auto-merge-candidate'
+        if: >-
+          steps.policy-app.outcome == 'success' &&
+          steps.final-policy.outputs.decision == 'auto-merge-candidate'
         env:
           GH_TOKEN: ${{ steps.policy-token.outputs.token }}
           PR_NUMBER: ${{ steps.final-policy.outputs.pr_number }}
@@ -246,25 +274,45 @@ jobs:
           gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
             --auto --squash --delete-branch --match-head-commit "$HEAD_SHA"
 
-      - name: Revoke policy state after action failure
-        if: failure() && steps.policy-token.outputs.token != ''
-        env:
-          GH_TOKEN: ${{ steps.policy-token.outputs.token }}
-          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
-          POLICY_APP_LOGIN: ${{ steps.policy-token.outputs.app-slug }}[bot]
-        run: bash .github/scripts/revoke-selective-review.sh
-
       - name: Mark policy gate safe
         if: success() && steps.gate-status.outputs.head_sha != ''
         env:
           GH_TOKEN: ${{ github.token }}
           HEAD_SHA: ${{ steps.gate-status.outputs.head_sha }}
+        shell: bash
         run: |
+          set -euo pipefail
+          variables_json="$(
+            gh api "repos/${GITHUB_REPOSITORY}/actions/variables?per_page=100" \
+              --paginate --slurp
+          )"
+          kill_switch="$(
+            jq -r '
+              [.[] | .variables[]? |
+                select(.name == "PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH") |
+                .value
+              ] |
+              last // "false" |
+              ascii_downcase
+            ' <<< "$variables_json"
+          )"
+          if [[ "$kill_switch" == "true" ]]; then
+            echo "::error::Selective review was emergency-stopped before policy completion."
+            exit 1
+          fi
           gh api -X POST "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
             -f state=success \
             -f context=selective-review-policy \
             -f description="Selective-review policy completed safely." \
             --silent
+
+      - name: Revoke policy state after action failure
+        if: failure() && steps.policy-app.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ steps.policy-token.outputs.token }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+          POLICY_APP_LOGIN: ${{ steps.policy-token.outputs.app-slug }}[bot]
+        run: bash .github/scripts/revoke-selective-review.sh
 
       - name: Mark policy gate failed
         if: failure() && steps.gate-status.outputs.head_sha != ''
