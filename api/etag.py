@@ -63,9 +63,8 @@ logger = logging.getLogger(__name__)
 #   /api/history     — activities + splits only; goal/recovery edits do
 #                      NOT bust the History page.
 #   /api/science     — config only; sync writes do NOT bust Science.
-#   /api/plan        — plan rows plus config-derived connection state. Stryd push/delete handlers also bump
-#                      ``plans`` so the JSON-file ``stryd_status`` field
-#                      isn't served stale via 304 after a push.
+#   /api/plan        — plan rows, delivery-ledger state, and config-derived
+#                      connection state. Delivery transitions bump ``plans``.
 ENDPOINT_SCOPES: dict[str, tuple[str, ...]] = {
     "today":    ("activities", "splits", "samples", "recovery", "plans", "fitness", "config"),
     "training": ("activities", "splits", "samples", "recovery", "plans", "fitness", "config"),

@@ -694,12 +694,15 @@ Paginated activity history.
 
 ### GET /api/plan
 
-The user's AI plan within a window, plus per-row Stryd sync state and the
-caller's Stryd push history.
+The user's plan within a window, plus per-row Stryd sync state. `sync_state` is
+authoritative for the current Praxys-authored version. `stryd_status` keeps the
+legacy date-keyed response shape and may retain a prior successful workout ID so
+clients can delete it before replacing an edited version; its source of truth is
+the database delivery ledger rather than JSON files.
 
-The canonical plan is the AI-authored one (`source='ai'`); Stryd plan rows
-in the same window are surfaced as a `sync_state` flag on each AI row and
-as `stryd_only_dates` for Stryd entries with no AI counterpart.
+The canonical plan is the AI-authored one (`source='ai'`). Stryd rows in the
+same window inform each AI row's `sync_state`; dates with no AI counterpart are
+returned as `source='stryd'` workout rows.
 
 **Query params:**
 - `start` *(YYYY-MM-DD, default = today)* — window start.
@@ -725,7 +728,6 @@ as `stryd_only_dates` for Stryd entries with no AI counterpart.
     "2026-04-11": { "workout_id": "stryd_123", "pushed_at": "...", "status": "pushed" }
   },
   "sync_target": "stryd",
-  "stryd_only_dates": ["2026-04-13"],
   "window": { "start": "2026-04-11", "end": "2026-04-25" }
 }
 ```
@@ -745,6 +747,14 @@ as `stryd_only_dates` for Stryd entries with no AI counterpart.
 
 Push only Praxys-authored plan rows (`source = "ai"`) to the Stryd calendar. Imported Stryd rows are never eligible, even when they are the analytically preferred plan source.
 
+Delivery identity is `(user, target, canonical workout key, workout content
+version)`. Retrying a definite provider rejection appends an attempt to the same
+delivery row. Ambiguous post-send outcomes require reconciliation, and an edited
+version cannot be delivered until the prior provider workout is removed.
+Retrying an already-synced version returns its existing workout id without
+creating a duplicate on Stryd. If a different Stryd workout already exists on
+the requested date, delivery is blocked before the provider create call.
+
 **Request body:**
 ```json
 { "workout_dates": ["2026-04-11", "2026-04-12"] }
@@ -754,14 +764,19 @@ Push only Praxys-authored plan rows (`source = "ai"`) to the Stryd calendar. Imp
 ```json
 {
   "results": [
-    { "date": "2026-04-11", "status": "pushed", "workout_id": "stryd_123" }
+    { "date": "2026-04-11", "status": "success", "workout_id": "stryd_123" }
   ]
 }
 ```
 
 ### DELETE /api/plan/stryd-workout/{workout_id}
 
-Remove a workout from Stryd calendar.
+Remove a workout from Stryd calendar and transition its delivery-ledger row to
+`removed`. Removal attempts remain auditable; a failed removal keeps the prior
+successful delivery state. An interrupted removal can be retried after its lease
+expires; attempt fencing prevents a late superseded result from undoing the
+newer outcome. The workout ID must belong to the caller's delivery ledger;
+unknown IDs return `404` before any Stryd request.
 
 ### POST /api/plan/upload
 
@@ -778,6 +793,9 @@ planned_distance_km,target_power_min,target_power_max,workout_description`.
   for partial edits like shifting a single workout.
 
 **Response:** `{ "status": "saved", "rows": <int>, "mode": "replace"|"merge" }`
+
+The plan-row mutation, cache-revision bump, and append-only `upload` revision
+event (actor, origin, before snapshot, after snapshot) commit atomically.
 
 ### PUT /api/plan/{date}
 
@@ -800,10 +818,14 @@ day so you don't have to round-trip the whole future window.
 
 **Response:** the upserted row (`id`, `date`, `workout_type`, …, `source`).
 
+The row and its append-only `upsert` revision event commit atomically.
+
 ### DELETE /api/plan/{date}
 
 Delete the AI plan workout(s) for the given date (`YYYY-MM-DD`). Idempotent —
 deleting a missing date returns `{ "status": "deleted", "rows": 0 }`.
+Every request appends a `delete` revision event with its before snapshot and an
+empty after snapshot; a real deletion and its event commit atomically.
 
 ## Settings
 

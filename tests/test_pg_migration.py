@@ -117,6 +117,34 @@ def test_sqlite_to_postgres_roundtrip(tmp_path, monkeypatch):
                     planned_distance_km=8.0, source="ai",
                     start_time=datetime(2026, 6, 2, 6, 0, 0), meta={"cp": 300},
                 ),
+                m.PlanRevision(
+                    id="22222222-2222-2222-2222-222222222222",
+                    user_id=uid,
+                    operation="upsert",
+                    actor_type="user",
+                    actor_id=uid,
+                    origin="migration-test",
+                    before_snapshot=[],
+                    after_snapshot=[{"date": "2026-06-02", "source": "ai"}],
+                    details={"reason": "test"},
+                ),
+                m.PlanDelivery(
+                    id="33333333-3333-3333-3333-333333333333",
+                    user_id=uid,
+                    canonical_key="ai:2026-06-02",
+                    workout_date=date(2026, 6, 2),
+                    workout_version="c" * 64,
+                    target="stryd",
+                    state="synced",
+                    external_id="stryd-migration",
+                ),
+                m.PlanDeliveryAttempt(
+                    delivery_id="33333333-3333-3333-3333-333333333333",
+                    attempt_number=1,
+                    operation="deliver",
+                    state="synced",
+                    external_id="stryd-migration",
+                ),
                 m.Invitation(code="MIGCODE1", created_by=uid, is_active=True, note="t"),
                 m.Invitation(
                     code="MIGORPHAN", created_by=uid,
@@ -173,6 +201,14 @@ def test_sqlite_to_postgres_roundtrip(tmp_path, monkeypatch):
                     .where(m.UserConfig.user_id == uid)
                 ).scalar()
                 assert plan_management["mode"] == "external"
+                delivery_state = c.execute(
+                    select(m.PlanDelivery.state)
+                    .where(m.PlanDelivery.user_id == uid)
+                ).scalar()
+                assert delivery_state == "synced"
+                assert c.execute(
+                    select(func.count()).select_from(m.PlanDeliveryAttempt)
+                ).scalar() == 1
                 act_date = c.execute(
                     select(m.Activity.date).where(m.Activity.user_id == uid)
                 ).scalar()

@@ -101,6 +101,9 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
         Feedback,
         FitnessData,
         Invitation,
+        PlanDelivery,
+        PlanDeliveryAttempt,
+        PlanRevision,
         RecoveryData,
         TrainingPlan,
         User,
@@ -128,6 +131,34 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
         db.add(RecoveryData(user_id=user_id, date=date(2026, 6, 1), source="oura"))
         db.add(FitnessData(user_id=user_id, date=date(2026, 6, 1), metric_type="cp_estimate", value=300))
         db.add(TrainingPlan(user_id=user_id, date=date(2026, 6, 2), source="ai", workout_type="easy"))
+        revision = PlanRevision(
+            user_id=user_id,
+            operation="upsert",
+            actor_type="user",
+            actor_id=user_id,
+            origin="test",
+            before_snapshot=[],
+            after_snapshot=[],
+            details={},
+        )
+        delivery = PlanDelivery(
+            user_id=user_id,
+            canonical_key="ai:2026-06-02",
+            workout_date=date(2026, 6, 2),
+            workout_version="a" * 64,
+            target="stryd",
+            state="synced",
+            external_id="stryd-delete-me",
+        )
+        db.add_all([revision, delivery])
+        db.flush()
+        db.add(PlanDeliveryAttempt(
+            delivery_id=delivery.id,
+            attempt_number=1,
+            operation="deliver",
+            state="synced",
+            external_id="stryd-delete-me",
+        ))
         db.add(AiInsight(user_id=user_id, insight_type="daily_brief"))
         db.add(AiInsightFeedback(
             user_id=user_id,
@@ -203,6 +234,9 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
         Feedback,
         FitnessData,
         Invitation,
+        PlanDelivery,
+        PlanDeliveryAttempt,
+        PlanRevision,
         RecoveryData,
         TrainingPlan,
         User,
@@ -224,12 +258,15 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
             DashboardCache,
             Feedback,
             FitnessData,
+            PlanDelivery,
+            PlanRevision,
             RecoveryData,
             TrainingPlan,
             UserConfig,
             UserConnection,
         ):
             assert db.query(model).filter(model.user_id.in_(["delete-me", "demo-user"])).count() == 0
+        assert db.query(PlanDeliveryAttempt).count() == 0
         assert db.query(AgentDecision).count() == 0
         assert db.query(AgentOutcome).count() == 0
         assert db.query(Invitation).filter(
@@ -298,6 +335,32 @@ def test_inactive_account_can_retry_cleanup(account_client, monkeypatch):
         assert db.query(User).filter(User.id.in_(["delete-me", "demo-user"])).count() == 0
     finally:
         db.close()
+
+
+def test_delete_me_removes_legacy_plan_status_files(
+    account_client,
+    monkeypatch,
+    tmp_path,
+):
+    import glob
+    import os
+
+    client, db_session = account_client
+    _seed_account_rows(db_session)
+
+    from api.routes import plan as plan_route
+
+    monkeypatch.setattr(plan_route, "_STRYD_PUSH_STATUS_DIR", str(tmp_path))
+    path = plan_route._stryd_push_status_path("delete-me")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    for candidate in (path, f"{path}.imported-old", f"{path}.corrupt-old"):
+        with open(candidate, "w", encoding="utf-8") as handle:
+            handle.write("{}")
+
+    response = client.delete("/api/me")
+    assert response.status_code == 200, response.text
+    assert not os.path.exists(path)
+    assert glob.glob(f"{path}.*") == []
 
 
 def test_delete_access_accepts_valid_token_for_inactive_user(account_client):
@@ -604,6 +667,9 @@ def test_delete_user_account_no_dangling_fk_under_enforcement(monkeypatch):
         Base,
         Feedback,
         Invitation,
+        PlanDelivery,
+        PlanDeliveryAttempt,
+        PlanRevision,
         User,
         UserConfig,
         WaitlistSignup,
@@ -644,6 +710,34 @@ def test_delete_user_account_no_dangling_fk_under_enforcement(monkeypatch):
         db.add(UserConfig(user_id="target", display_name="T"))
         db.add(Activity(user_id="target", activity_id="a1", date=date(2026, 6, 1)))
         db.add(Feedback(user_id="target", kind="bug", message="hi", status="new"))
+        revision = PlanRevision(
+            user_id="target",
+            operation="upsert",
+            actor_type="user",
+            actor_id="target",
+            origin="test",
+            before_snapshot=[],
+            after_snapshot=[],
+            details={},
+        )
+        delivery = PlanDelivery(
+            user_id="target",
+            canonical_key="ai:2026-06-02",
+            workout_date=date(2026, 6, 2),
+            workout_version="b" * 64,
+            target="stryd",
+            state="synced",
+            external_id="stryd-target",
+        )
+        db.add_all([revision, delivery])
+        db.flush()
+        db.add(PlanDeliveryAttempt(
+            delivery_id=delivery.id,
+            attempt_number=1,
+            operation="deliver",
+            state="synced",
+            external_id="stryd-target",
+        ))
         made = Invitation(code="TS-MADE-9999", created_by="target", is_active=True)
         used = Invitation(code="TS-USED-9999", created_by="admin", used_by="target", is_active=True)
         db.add_all([made, used])
@@ -671,6 +765,9 @@ def test_delete_user_account_no_dangling_fk_under_enforcement(monkeypatch):
         assert used_row.is_active is False
         # Invitation the user *created* is deleted (created_by is NOT NULL).
         assert db.query(Invitation).filter(Invitation.code == "TS-MADE-9999").count() == 0
+        assert db.query(PlanRevision).filter(PlanRevision.user_id == "target").count() == 0
+        assert db.query(PlanDelivery).filter(PlanDelivery.user_id == "target").count() == 0
+        assert db.query(PlanDeliveryAttempt).count() == 0
         # Waitlist lead kept with its (now-deleted) invitation link nulled.
         wl = db.query(WaitlistSignup).filter(WaitlistSignup.email == "w1@x.test").one()
         assert wl.invitation_id is None

@@ -117,6 +117,31 @@ def _list_plan_rows(user_id: str) -> list[dict]:
         db.close()
 
 
+def _list_revisions(user_id: str) -> list[dict]:
+    from db import session as db_session
+    from db.models import PlanRevision
+
+    db = db_session.SessionLocal()
+    try:
+        rows = db.query(PlanRevision).filter(
+            PlanRevision.user_id == user_id,
+        ).order_by(PlanRevision.created_at, PlanRevision.id).all()
+        return [
+            {
+                "operation": row.operation,
+                "actor_type": row.actor_type,
+                "actor_id": row.actor_id,
+                "origin": row.origin,
+                "before": row.before_snapshot,
+                "after": row.after_snapshot,
+                "details": row.details,
+            }
+            for row in rows
+        ]
+    finally:
+        db.close()
+
+
 # ---------------------------------------------------------------------------
 # POST /api/plan/upload — replace mode (default, backwards-compat)
 # ---------------------------------------------------------------------------
@@ -313,3 +338,62 @@ def test_upload_rejects_invalid_mode(api_client):
     })
     # FastAPI returns 422 for query validation failures
     assert res.status_code == 422
+
+
+def test_plan_mutations_append_before_and_after_revisions(api_client):
+    client, user_id = api_client
+    target = (date.today() + timedelta(days=8)).isoformat()
+
+    upload = client.post("/api/plan/upload?mode=merge", json={
+        "csv": "date,workout_type,workout_description\n"
+               f"{target},easy,Initial workout\n",
+    })
+    assert upload.status_code == 200, upload.text
+
+    upsert = client.put(f"/api/plan/{target}", json={
+        "workout_type": "threshold",
+        "workout_description": "Adjusted workout",
+    })
+    assert upsert.status_code == 200, upsert.text
+
+    delete = client.delete(f"/api/plan/{target}")
+    assert delete.status_code == 200, delete.text
+
+    revisions = _list_revisions(user_id)
+    assert [row["operation"] for row in revisions] == [
+        "upload",
+        "upsert",
+        "delete",
+    ]
+    assert all(row["actor_type"] == "user" for row in revisions)
+    assert all(row["actor_id"] == user_id for row in revisions)
+    assert revisions[0]["origin"] == "api.plan.upload"
+    assert revisions[0]["before"] == []
+    assert revisions[0]["after"][0]["workout_description"] == "Initial workout"
+    assert revisions[1]["before"][0]["workout_type"] == "easy"
+    assert revisions[1]["after"][0]["workout_type"] == "threshold"
+    assert revisions[2]["before"][0]["workout_description"] == "Adjusted workout"
+    assert revisions[2]["after"] == []
+
+
+def test_revision_failure_rolls_back_plan_change(api_client, monkeypatch):
+    client, user_id = api_client
+    target = (date.today() + timedelta(days=9)).isoformat()
+    _seed_plan(user_id, [(target, "easy", "Keep this row")])
+
+    def _fail_revision(*args, **kwargs):
+        raise RuntimeError("revision write failed")
+
+    monkeypatch.setattr("api.routes.ai.record_plan_revision", _fail_revision)
+    with pytest.raises(RuntimeError, match="revision write failed"):
+        client.put(f"/api/plan/{target}", json={
+            "workout_type": "threshold",
+            "workout_description": "Must roll back",
+        })
+
+    assert _list_plan_rows(user_id) == [{
+        "date": target,
+        "workout_type": "easy",
+        "workout_description": "Keep this row",
+    }]
+    assert _list_revisions(user_id) == []

@@ -12,6 +12,7 @@ from api.auth import get_data_user_id, require_write_access
 from api.deps import get_dashboard_data
 from db.cache_revision import bump_revisions
 from db.models import TrainingPlan
+from db.plan_ledger import lock_plan_writes, plan_snapshot, record_plan_revision
 from db.session import get_db
 
 router = APIRouter()
@@ -112,26 +113,48 @@ def upload_plan(
             **kwargs,
         ))
 
-    if mode == "replace":
-        db.query(TrainingPlan).filter(
-            TrainingPlan.user_id == user_id,
-            TrainingPlan.source == "ai",
-            TrainingPlan.date >= date.today(),
-        ).delete(synchronize_session=False)
-    else:  # merge: clear only the dates we're about to write
-        target_dates = {p.date for p in parsed_rows if p.date is not None}
-        if target_dates:
-            db.query(TrainingPlan).filter(
+    target_dates = {p.date for p in parsed_rows if p.date is not None}
+    try:
+        db.rollback()
+        lock_plan_writes(db, user_id)
+        if mode == "replace":
+            affected = db.query(TrainingPlan).filter(
+                TrainingPlan.user_id == user_id,
+                TrainingPlan.source == "ai",
+                TrainingPlan.date >= date.today(),
+            )
+        else:
+            affected = db.query(TrainingPlan).filter(
                 TrainingPlan.user_id == user_id,
                 TrainingPlan.source == "ai",
                 TrainingPlan.date.in_(target_dates),
-            ).delete(synchronize_session=False)
+            )
+        before_rows = affected.order_by(TrainingPlan.date, TrainingPlan.id).all()
+        before = [plan_snapshot(row) for row in before_rows]
+        for row in before_rows:
+            db.expunge(row)
+        affected.delete(synchronize_session=False)
 
-    for plan in parsed_rows:
-        db.add(plan)
+        for plan in parsed_rows:
+            db.add(plan)
 
-    bump_revisions(db, user_id, ["plans"])
-    db.commit()
+        record_plan_revision(
+            db,
+            user_id=user_id,
+            operation="upload",
+            actor_type="user",
+            actor_id=user_id,
+            origin="api.plan.upload",
+            before=before,
+            after=parsed_rows,
+            details={"mode": mode, "rows": len(parsed_rows)},
+        )
+        bump_revisions(db, user_id, ["plans"])
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
     return {"status": "saved", "rows": len(parsed_rows), "mode": mode}
 
 
@@ -154,12 +177,6 @@ def upsert_plan_day(
     except ValueError:
         raise HTTPException(400, "date must be YYYY-MM-DD")
 
-    db.query(TrainingPlan).filter(
-        TrainingPlan.user_id == user_id,
-        TrainingPlan.source == "ai",
-        TrainingPlan.date == d,
-    ).delete(synchronize_session=False)
-
     plan = TrainingPlan(
         user_id=user_id,
         date=d,
@@ -172,9 +189,36 @@ def upsert_plan_day(
         source="ai",
         meta={"uploaded_at": datetime.utcnow().isoformat()},
     )
-    db.add(plan)
-    bump_revisions(db, user_id, ["plans"])
-    db.commit()
+    try:
+        db.rollback()
+        lock_plan_writes(db, user_id)
+        existing = db.query(TrainingPlan).filter(
+            TrainingPlan.user_id == user_id,
+            TrainingPlan.source == "ai",
+            TrainingPlan.date == d,
+        )
+        before_rows = existing.order_by(TrainingPlan.id).all()
+        before = [plan_snapshot(row) for row in before_rows]
+        for row in before_rows:
+            db.expunge(row)
+        existing.delete(synchronize_session=False)
+        db.add(plan)
+        record_plan_revision(
+            db,
+            user_id=user_id,
+            operation="upsert",
+            actor_type="user",
+            actor_id=user_id,
+            origin="api.plan.upsert",
+            before=before,
+            after=[plan],
+            details={"date": plan_date},
+        )
+        bump_revisions(db, user_id, ["plans"])
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     db.refresh(plan)
     return _row_to_response(plan)
 
@@ -191,12 +235,34 @@ def delete_plan_day(
     except ValueError:
         raise HTTPException(400, "date must be YYYY-MM-DD")
 
-    deleted = db.query(TrainingPlan).filter(
-        TrainingPlan.user_id == user_id,
-        TrainingPlan.source == "ai",
-        TrainingPlan.date == d,
-    ).delete(synchronize_session=False)
-    if deleted:
-        bump_revisions(db, user_id, ["plans"])
-    db.commit()
+    try:
+        db.rollback()
+        lock_plan_writes(db, user_id)
+        existing = db.query(TrainingPlan).filter(
+            TrainingPlan.user_id == user_id,
+            TrainingPlan.source == "ai",
+            TrainingPlan.date == d,
+        )
+        before_rows = existing.order_by(TrainingPlan.id).all()
+        before = [plan_snapshot(row) for row in before_rows]
+        for row in before_rows:
+            db.expunge(row)
+        deleted = existing.delete(synchronize_session=False)
+        record_plan_revision(
+            db,
+            user_id=user_id,
+            operation="delete",
+            actor_type="user",
+            actor_id=user_id,
+            origin="api.plan.delete",
+            before=before,
+            after=[],
+            details={"date": plan_date, "rows": deleted},
+        )
+        if deleted:
+            bump_revisions(db, user_id, ["plans"])
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     return {"status": "deleted", "rows": deleted, "date": plan_date}
