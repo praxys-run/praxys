@@ -1,3 +1,4 @@
+from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -97,6 +98,26 @@ def test_fetch_training_plan_tz_name_fallback_on_utc_server(mock_get):
     )
     rows = fetch_training_plan_api("u", "t", tz_name="Asia/Shanghai")
     assert rows[0]["date"] == "2026-06-30"
+
+
+@patch("sync.stryd_sync.requests.get")
+def test_fetch_training_plan_days_back_expands_lower_bound(mock_get):
+    """A buffered verification query must include the full prior UTC day."""
+    mock_get.return_value = MagicMock(
+        json=MagicMock(return_value={"workouts": []}),
+        raise_for_status=MagicMock(),
+    )
+
+    fetch_training_plan_api("u", "t", days_back=3)
+
+    params = mock_get.call_args.kwargs["params"]
+    expected_start = int(
+        datetime.combine(
+            date.today() - timedelta(days=3),
+            datetime.min.time(),
+        ).timestamp()
+    )
+    assert params["from"] == expected_start
 
 
 @patch("sync.stryd_sync.requests.get")

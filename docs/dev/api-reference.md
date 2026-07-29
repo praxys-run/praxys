@@ -735,9 +735,9 @@ returned as `source='stryd'` workout rows.
 `sync_state` is one of:
 - `synced` — Stryd has a matching workout whose id equals the one we
   logged on push (a re-push is a no-op).
-- `mismatch` — Stryd has a workout on this date but we don't recognise
-  its id (user-edited on Stryd, or never pushed). The UI confirms before
-  overwriting.
+- `mismatch` — Stryd has a workout on this date but Praxys does not recognise
+  its ID as the current managed delivery. The backend will not overwrite an
+  unowned workout; clients should ask the user to resolve the conflict.
 - `not_synced` — No Stryd workout on this date.
 
 `sync_target` is `"stryd"` when the user has a Stryd connection, else
@@ -747,13 +747,23 @@ returned as `source='stryd'` workout rows.
 
 Push only Praxys-authored plan rows (`source = "ai"`) to the Stryd calendar. Imported Stryd rows are never eligible, even when they are the analytically preferred plan source.
 
-Delivery identity is `(user, target, canonical workout key, workout content
-version)`. Retrying a definite provider rejection appends an attempt to the same
-delivery row. Ambiguous post-send outcomes require reconciliation, and an edited
-version cannot be delivered until the prior provider workout is removed.
-Retrying an already-synced version returns its existing workout id without
-creating a duplicate on Stryd. If a different Stryd workout already exists on
-the requested date, delivery is blocked before the provider create call.
+The endpoint authenticates with the caller's encrypted Stryd
+`UserConnection`; global environment credentials are never shared across
+users. Missing or unreadable stored credentials return `400` with a reconnect
+instruction, and a provider login rejection returns `502`. The only environment
+fallback is local development with an explicit
+`PRAXYS_STRYD_ENV_USER_ID=<authenticated-user-id>` pin.
+
+Delivery identity is `(user, target, canonical workout key, provider-payload
+fingerprint)`. The fingerprint covers the exact transformed request, including
+CP-derived workout blocks; the canonical Praxys content version is tracked
+separately for UI sync state. Retrying a definite provider rejection appends an
+attempt to the same delivery row. Ambiguous post-send outcomes require
+reconciliation, and an edited payload cannot be delivered until the prior
+Praxys-managed provider workout is removed. Retrying an already-synced payload
+returns its existing workout ID without creating a duplicate. When calendar
+data is present, the observed provider ID must match a caller-owned ledger ID;
+an external workout is blocked before the provider create call.
 
 **Request body:**
 ```json
@@ -777,6 +787,16 @@ successful delivery state. An interrupted removal can be retried after its lease
 expires; attempt fencing prevents a late superseded result from undoing the
 newer outcome. The workout ID must belong to the caller's delivery ledger;
 unknown IDs return `404` before any Stryd request.
+
+Removal uses the same caller-owned encrypted connection. Unknown IDs are
+rejected before credentials are loaded. New deliveries also persist the
+authenticated provider account identity, so reconnecting a different Stryd
+account blocks deletion with `409`. Credential/authentication failures occur
+before the provider attempt; provider and finalization failures remain explicit
+and never return a success-shaped fallback. Migrated rows that predate stored
+provider-account identity are verified against the live current-account
+calendar before their first removal; a missing/moved ID requires reconciliation
+instead of treating a cross-account `404` as success.
 
 ### POST /api/plan/upload
 

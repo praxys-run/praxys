@@ -2,7 +2,7 @@
 import json
 import os
 import tempfile
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock
 
 import pandas as pd
@@ -45,7 +45,8 @@ def api_client(monkeypatch, tmp_path):
     def _override_current_user():
         user_id = current_user_id["value"]
         if user_id not in ensured_users:
-            from db.models import User
+            from db.crypto import get_vault
+            from db.models import User, UserConnection
 
             db = db_session.SessionLocal()
             try:
@@ -54,6 +55,21 @@ def api_client(monkeypatch, tmp_path):
                         id=user_id,
                         email=f"{user_id}@example.test",
                         hashed_password="test",
+                    ))
+                if db.query(UserConnection).filter_by(
+                    user_id=user_id,
+                    platform="stryd",
+                ).first() is None:
+                    encrypted, wrapped_dek = get_vault().encrypt(json.dumps({
+                        "email": f"{user_id}@stryd.test",
+                        "password": f"password-{user_id}",
+                    }))
+                    db.add(UserConnection(
+                        user_id=user_id,
+                        platform="stryd",
+                        encrypted_credentials=encrypted,
+                        wrapped_dek=wrapped_dek,
+                        status="connected",
                     ))
                     db.commit()
                 ensured_users.add(user_id)
@@ -93,12 +109,72 @@ def api_client(monkeypatch, tmp_path):
         tmpdir.cleanup()
 
 
+def _store_stryd_credentials(
+    user_id: str,
+    *,
+    email: str,
+    password: str,
+) -> None:
+    from db import session as db_session
+    from db.crypto import get_vault
+    from db.models import UserConnection
+
+    db = db_session.SessionLocal()
+    try:
+        encrypted, wrapped_dek = get_vault().encrypt(json.dumps({
+            "email": email,
+            "password": password,
+        }))
+        connection = db.query(UserConnection).filter_by(
+            user_id=user_id,
+            platform="stryd",
+        ).one()
+        connection.encrypted_credentials = encrypted
+        connection.wrapped_dek = wrapped_dek
+        connection.status = "connected"
+        db.commit()
+    finally:
+        db.close()
+
+
+def _delete_stryd_credentials(user_id: str) -> None:
+    from db import session as db_session
+    from db.models import UserConnection
+
+    db = db_session.SessionLocal()
+    try:
+        db.query(UserConnection).filter_by(
+            user_id=user_id,
+            platform="stryd",
+        ).delete(synchronize_session=False)
+        db.commit()
+    finally:
+        db.close()
+
+
+def _corrupt_stryd_credentials(user_id: str) -> None:
+    from db import session as db_session
+    from db.models import UserConnection
+
+    db = db_session.SessionLocal()
+    try:
+        connection = db.query(UserConnection).filter_by(
+            user_id=user_id,
+            platform="stryd",
+        ).one()
+        connection.encrypted_credentials = b"not-a-fernet-token"
+        db.commit()
+    finally:
+        db.close()
+
+
 def _seed_synced_delivery(
     user_id: str,
     workout_date: str,
     external_id: str,
     *,
     workout_type: str = "easy_run",
+    provider_account_id: str | None = None,
 ) -> None:
     from db import session as db_session
     from db.plan_ledger import (
@@ -134,6 +210,7 @@ def _seed_synced_delivery(
             attempt_id=attempt.id,
             attempt_state="synced",
             external_id=external_id,
+            provider_account_id=provider_account_id,
         )
         db.commit()
     finally:
@@ -309,6 +386,233 @@ def test_plan_get_etag_flips_after_stryd_push(api_client, monkeypatch):
         "ETag did not flip after Stryd push — stryd_status served stale via 304"
     )
     assert "2026-05-07" in after.json()["stryd_status"]
+
+
+def test_push_uses_calling_users_encrypted_stryd_credentials(
+    api_client,
+    monkeypatch,
+):
+    workout_date = "2026-05-07"
+    plan_df = pd.DataFrame([{
+        "date": workout_date,
+        "workout_type": "easy",
+        "planned_duration_min": 45,
+        "workout_description": "easy",
+        "target_power_min": 200,
+        "target_power_max": 230,
+        "source": "ai",
+    }])
+    monkeypatch.setattr(
+        "api.routes.plan.get_dashboard_data",
+        lambda user_id, db: {
+            "plan": plan_df,
+            "all_plans": plan_df,
+            "latest_cp": 260.0,
+            "activities": pd.DataFrame(),
+        },
+    )
+    monkeypatch.setattr(
+        "sync.stryd_sync.build_workout_blocks",
+        lambda workout, cp: [],
+    )
+    logins: list[tuple[str, str]] = []
+
+    def _login(email: str, password: str) -> tuple[str, str]:
+        logins.append((email, password))
+        return f"provider-{email}", f"token-{email}"
+
+    monkeypatch.setattr("sync.stryd_sync._login_api", _login)
+    monkeypatch.setattr(
+        "sync.stryd_sync.create_workout_api",
+        lambda **kwargs: {"id": f"id-{kwargs['user_id']}"},
+    )
+    monkeypatch.setenv("STRYD_EMAIL", "global@example.test")
+    monkeypatch.setenv("STRYD_PASSWORD", "global-password")
+
+    for user_id, email, password in (
+        ("credential-alice", "alice@stryd.test", "alice-secret"),
+        ("credential-bob", "bob@stryd.test", "bob-secret"),
+    ):
+        api_client["current"]["value"] = user_id
+        assert api_client["client"].get("/api/plan").status_code == 200
+        _store_stryd_credentials(
+            user_id,
+            email=email,
+            password=password,
+        )
+        response = api_client["client"].post(
+            "/api/plan/push-stryd",
+            json={"workout_dates": [workout_date]},
+        )
+        assert response.status_code == 200, response.text
+
+    assert logins == [
+        ("alice@stryd.test", "alice-secret"),
+        ("bob@stryd.test", "bob-secret"),
+    ]
+
+
+def test_unpinned_global_stryd_credentials_are_not_used(
+    api_client,
+    monkeypatch,
+):
+    user_id = "no-stryd-credentials"
+    api_client["current"]["value"] = user_id
+    assert api_client["client"].get("/api/plan").status_code == 200
+    _delete_stryd_credentials(user_id)
+
+    monkeypatch.setenv("PRAXYS_ENV", "development")
+    monkeypatch.delenv("PRAXYS_STRYD_ENV_USER_ID", raising=False)
+    monkeypatch.setenv("STRYD_EMAIL", "global@example.test")
+    monkeypatch.setenv("STRYD_PASSWORD", "global-password")
+    monkeypatch.setattr(
+        "api.plan_delivery.credentials.dotenv_values",
+        lambda path: {},
+    )
+    calls = {"login": 0}
+
+    def _login(email: str, password: str) -> tuple[str, str]:
+        calls["login"] += 1
+        return "provider-user", "token"
+
+    monkeypatch.setattr("sync.stryd_sync._login_api", _login)
+    response = api_client["client"].post(
+        "/api/plan/push-stryd",
+        json={"workout_dates": ["2026-05-07"]},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "No Stryd credentials. Connect Stryd in Settings first."
+    )
+    assert calls["login"] == 0
+
+
+def test_unreadable_stored_stryd_credentials_require_reconnect(
+    api_client,
+    monkeypatch,
+):
+    user_id = "corrupt-stryd-credentials"
+    api_client["current"]["value"] = user_id
+    assert api_client["client"].get("/api/plan").status_code == 200
+    _corrupt_stryd_credentials(user_id)
+    calls = {"login": 0}
+
+    def _login(email: str, password: str) -> tuple[str, str]:
+        calls["login"] += 1
+        return "provider-user", "token"
+
+    monkeypatch.setattr("sync.stryd_sync._login_api", _login)
+    response = api_client["client"].post(
+        "/api/plan/push-stryd",
+        json={"workout_dates": ["2026-05-07"]},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "Stored Stryd credentials are unavailable. Reconnect Stryd."
+    )
+    assert calls["login"] == 0
+
+
+def test_key_vault_credential_failure_requires_reconnect(
+    api_client,
+    monkeypatch,
+):
+    from azure.core.exceptions import AzureError
+
+    user_id = "key-vault-failure-user"
+    api_client["current"]["value"] = user_id
+    assert api_client["client"].get("/api/plan").status_code == 200
+
+    class FailingVault:
+        def decrypt(self, encrypted_data, wrapped_dek):
+            raise AzureError("key vault unavailable")
+
+    monkeypatch.setattr(
+        "db.connection_credentials.get_vault",
+        lambda: FailingVault(),
+    )
+    calls = {"login": 0}
+
+    def _login(email: str, password: str) -> tuple[str, str]:
+        calls["login"] += 1
+        return "provider-user", "token"
+
+    monkeypatch.setattr("sync.stryd_sync._login_api", _login)
+    response = api_client["client"].post(
+        "/api/plan/push-stryd",
+        json={"workout_dates": ["2026-05-07"]},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "Stored Stryd credentials are unavailable. Reconnect Stryd."
+    )
+    assert calls["login"] == 0
+
+
+def test_pinned_development_user_can_use_legacy_stryd_environment(
+    api_client,
+    monkeypatch,
+):
+    user_id = "legacy-local-user"
+    workout_date = "2026-05-07"
+    api_client["current"]["value"] = user_id
+    assert api_client["client"].get("/api/plan").status_code == 200
+    _delete_stryd_credentials(user_id)
+
+    monkeypatch.setenv("PRAXYS_ENV", "development")
+    monkeypatch.setenv("PRAXYS_STRYD_ENV_USER_ID", user_id)
+    monkeypatch.setenv("STRYD_EMAIL", "local@example.test")
+    monkeypatch.setenv("STRYD_PASSWORD", "local-password")
+    monkeypatch.setattr(
+        "api.plan_delivery.credentials.dotenv_values",
+        lambda path: {},
+    )
+    captured: dict[str, str] = {}
+
+    def _login(email: str, password: str) -> tuple[str, str]:
+        captured.update(email=email, password=password)
+        return "local-provider-user", "local-token"
+
+    plan_df = pd.DataFrame([{
+        "date": workout_date,
+        "workout_type": "easy",
+        "planned_duration_min": 45,
+        "workout_description": "easy",
+        "source": "ai",
+    }])
+    monkeypatch.setattr("sync.stryd_sync._login_api", _login)
+    monkeypatch.setattr(
+        "sync.stryd_sync.build_workout_blocks",
+        lambda workout, cp: [],
+    )
+    monkeypatch.setattr(
+        "sync.stryd_sync.create_workout_api",
+        lambda **kwargs: {"id": "legacy-local-id"},
+    )
+    monkeypatch.setattr(
+        "api.routes.plan.get_dashboard_data",
+        lambda user_id, db: {
+            "plan": plan_df,
+            "all_plans": plan_df,
+            "latest_cp": 260.0,
+            "activities": pd.DataFrame(),
+        },
+    )
+
+    response = api_client["client"].post(
+        "/api/plan/push-stryd",
+        json={"workout_dates": [workout_date]},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["results"][0]["workout_id"] == "legacy-local-id"
+    assert captured == {
+        "email": "local@example.test",
+        "password": "local-password",
+    }
 
 
 def test_push_endpoint_persists_under_calling_user(api_client, monkeypatch):
@@ -539,6 +843,309 @@ def test_successful_delivery_is_idempotent_for_same_workout_version(
         "operation": "deliver",
         "state": "synced",
     }]
+
+
+def test_changed_threshold_requires_owned_workout_replacement(
+    api_client,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "sync.stryd_sync._login_api",
+        lambda email, password: ("threshold-account", "token"),
+    )
+    monkeypatch.setattr(
+        "sync.stryd_sync.build_workout_blocks",
+        lambda workout, cp: [{"target_power": cp}],
+    )
+    calls = {"create": 0}
+
+    def _create(**kwargs):
+        calls["create"] += 1
+        return {"id": "threshold-version-id"}
+
+    monkeypatch.setattr("sync.stryd_sync.create_workout_api", _create)
+    workout_date = "2026-08-04"
+    cp = {"value": 260.0}
+    plan_df = pd.DataFrame([{
+        "date": workout_date,
+        "source": "ai",
+        "workout_type": "easy",
+        "workout_description": "Threshold-sensitive payload",
+    }])
+    monkeypatch.setattr(
+        "api.routes.plan.get_dashboard_data",
+        lambda user_id, db: {
+            "plan": plan_df,
+            "all_plans": plan_df,
+            "latest_cp": cp["value"],
+            "activities": pd.DataFrame(),
+        },
+    )
+
+    api_client["current"]["value"] = "threshold-version-user"
+    first = api_client["client"].post(
+        "/api/plan/push-stryd",
+        json={"workout_dates": [workout_date]},
+    )
+    cp["value"] = 270.0
+    second = api_client["client"].post(
+        "/api/plan/push-stryd",
+        json={"workout_dates": [workout_date]},
+    )
+
+    assert first.json()["results"][0]["status"] == "success"
+    assert "removed before replacement" in (
+        second.json()["results"][0]["error"]
+    )
+    assert calls["create"] == 1
+    assert len(_delivery_rows("threshold-version-user")) == 1
+
+
+def test_synced_delivery_requires_exact_observed_external_id(
+    api_client,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "sync.stryd_sync._login_api",
+        lambda email, password: ("exact-id-account", "token"),
+    )
+    monkeypatch.setattr(
+        "sync.stryd_sync.build_workout_blocks",
+        lambda workout, cp: [],
+    )
+    calls = {"create": 0}
+
+    def _create(**kwargs):
+        calls["create"] += 1
+        return {"id": "owned-external-id"}
+
+    monkeypatch.setattr("sync.stryd_sync.create_workout_api", _create)
+    workout_date = "2026-08-04"
+    provider_id = {"value": None}
+
+    def _dashboard(user_id, db):
+        rows = [{
+            "date": workout_date,
+            "source": "ai",
+            "workout_type": "easy",
+            "workout_description": "Exact identity",
+        }]
+        if provider_id["value"] is not None:
+            rows.append({
+                "date": workout_date,
+                "source": "stryd",
+                "workout_type": "easy",
+                "external_id": provider_id["value"],
+            })
+        plan_df = pd.DataFrame(rows)
+        return {
+            "plan": plan_df,
+            "all_plans": plan_df,
+            "latest_cp": 260.0,
+            "activities": pd.DataFrame(),
+        }
+
+    monkeypatch.setattr("api.routes.plan.get_dashboard_data", _dashboard)
+    api_client["current"]["value"] = "exact-id-user"
+
+    first = api_client["client"].post(
+        "/api/plan/push-stryd",
+        json={"workout_dates": [workout_date]},
+    )
+    provider_id["value"] = "different-external-id"
+    second = api_client["client"].post(
+        "/api/plan/push-stryd",
+        json={"workout_dates": [workout_date]},
+    )
+
+    assert first.json()["results"][0]["status"] == "success"
+    assert "different Stryd workout" in second.json()["results"][0]["error"]
+    assert calls["create"] == 1
+
+
+def test_synced_delivery_rejects_extra_unowned_calendar_id(
+    api_client,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "sync.stryd_sync._login_api",
+        lambda email, password: ("extra-id-account", "token"),
+    )
+    monkeypatch.setattr(
+        "sync.stryd_sync.build_workout_blocks",
+        lambda workout, cp: [],
+    )
+    calls = {"create": 0}
+
+    def _create(**kwargs):
+        calls["create"] += 1
+        return {"id": "owned-id"}
+
+    monkeypatch.setattr("sync.stryd_sync.create_workout_api", _create)
+    workout_date = "2026-08-04"
+    include_calendar = {"value": False}
+
+    def _dashboard(user_id, db):
+        rows = [{
+            "date": workout_date,
+            "source": "ai",
+            "workout_type": "easy",
+            "workout_description": "Extra identity",
+        }]
+        if include_calendar["value"]:
+            rows.extend([
+                {
+                    "date": workout_date,
+                    "source": "stryd",
+                    "workout_type": "easy",
+                    "external_id": "owned-id",
+                },
+                {
+                    "date": workout_date,
+                    "source": "stryd",
+                    "workout_type": "easy",
+                    "external_id": "unowned-id",
+                },
+            ])
+        plan_df = pd.DataFrame(rows)
+        return {
+            "plan": plan_df,
+            "all_plans": plan_df,
+            "latest_cp": 260.0,
+            "activities": pd.DataFrame(),
+        }
+
+    monkeypatch.setattr("api.routes.plan.get_dashboard_data", _dashboard)
+    api_client["current"]["value"] = "extra-id-user"
+
+    first = api_client["client"].post(
+        "/api/plan/push-stryd",
+        json={"workout_dates": [workout_date]},
+    )
+    include_calendar["value"] = True
+    second = api_client["client"].post(
+        "/api/plan/push-stryd",
+        json={"workout_dates": [workout_date]},
+    )
+
+    assert first.json()["results"][0]["status"] == "success"
+    assert "different Stryd workout" in second.json()["results"][0]["error"]
+    assert calls["create"] == 1
+
+
+def test_calendar_id_owned_on_other_date_does_not_authorize_delivery(
+    api_client,
+    monkeypatch,
+):
+    user_id = "moved-calendar-id-user"
+    moved_id = "moved-owned-id"
+    _seed_synced_delivery(
+        user_id,
+        "2026-08-03",
+        moved_id,
+        provider_account_id="moved-id-account",
+    )
+    monkeypatch.setattr(
+        "sync.stryd_sync._login_api",
+        lambda email, password: ("moved-id-account", "token"),
+    )
+    monkeypatch.setattr(
+        "sync.stryd_sync.build_workout_blocks",
+        lambda workout, cp: [],
+    )
+    calls = {"create": 0}
+
+    def _create(**kwargs):
+        calls["create"] += 1
+        return {"id": "duplicate-id"}
+
+    monkeypatch.setattr("sync.stryd_sync.create_workout_api", _create)
+    workout_date = "2026-08-04"
+    plan_df = pd.DataFrame([
+        {
+            "date": workout_date,
+            "source": "ai",
+            "workout_type": "easy",
+            "workout_description": "Moved provider row",
+        },
+        {
+            "date": workout_date,
+            "source": "stryd",
+            "workout_type": "easy",
+            "external_id": moved_id,
+        },
+    ])
+    monkeypatch.setattr(
+        "api.routes.plan.get_dashboard_data",
+        lambda user_id, db: {
+            "plan": plan_df,
+            "all_plans": plan_df,
+            "latest_cp": 260.0,
+            "activities": pd.DataFrame(),
+        },
+    )
+    api_client["current"]["value"] = user_id
+
+    response = api_client["client"].post(
+        "/api/plan/push-stryd",
+        json={"workout_dates": [workout_date]},
+    )
+
+    assert "different Stryd workout" in response.json()["results"][0]["error"]
+    assert calls["create"] == 0
+
+
+def test_identical_push_rejects_reconnected_provider_account(
+    api_client,
+    monkeypatch,
+):
+    account_id = {"value": "original-provider-account"}
+    monkeypatch.setattr(
+        "sync.stryd_sync._login_api",
+        lambda email, password: (account_id["value"], "token"),
+    )
+    monkeypatch.setattr(
+        "sync.stryd_sync.build_workout_blocks",
+        lambda workout, cp: [],
+    )
+    calls = {"create": 0}
+
+    def _create(**kwargs):
+        calls["create"] += 1
+        return {"id": "old-account-workout"}
+
+    monkeypatch.setattr("sync.stryd_sync.create_workout_api", _create)
+    workout_date = "2026-08-04"
+    plan_df = pd.DataFrame([{
+        "date": workout_date,
+        "source": "ai",
+        "workout_type": "easy",
+        "workout_description": "Account fenced",
+    }])
+    monkeypatch.setattr(
+        "api.routes.plan.get_dashboard_data",
+        lambda user_id, db: {
+            "plan": plan_df,
+            "all_plans": plan_df,
+            "latest_cp": 260.0,
+            "activities": pd.DataFrame(),
+        },
+    )
+    api_client["current"]["value"] = "account-fenced-push-user"
+
+    first = api_client["client"].post(
+        "/api/plan/push-stryd",
+        json={"workout_dates": [workout_date]},
+    )
+    account_id["value"] = "different-provider-account"
+    second = api_client["client"].post(
+        "/api/plan/push-stryd",
+        json={"workout_dates": [workout_date]},
+    )
+
+    assert first.json()["results"][0]["status"] == "success"
+    assert "different Stryd account" in second.json()["results"][0]["error"]
+    assert calls["create"] == 1
 
 
 def test_failed_retry_reuses_delivery_and_appends_attempt(api_client, monkeypatch):
@@ -934,7 +1541,7 @@ def test_synced_prior_version_must_be_removed_before_replacement(
         json={"workout_dates": [workout_date]},
     )
 
-    assert "uncertain" in response.json()["results"][0]["error"]
+    assert "removed before replacement" in response.json()["results"][0]["error"]
     assert calls["create"] == 0
     assert _delivery_rows(user_id) == [{
         "external_id": "prior-version-id",
@@ -1004,8 +1611,18 @@ def test_delete_endpoint_touches_only_calling_users_status(api_client, monkeypat
     from db import session as db_session
     from db.models import TrainingPlan, User
 
-    _seed_synced_delivery("alice", "2026-05-01", "shared-id")
-    _seed_synced_delivery("bob", "2026-05-01", "shared-id")
+    _seed_synced_delivery(
+        "alice",
+        "2026-05-01",
+        "shared-id",
+        provider_account_id="stryd-user-id",
+    )
+    _seed_synced_delivery(
+        "bob",
+        "2026-05-01",
+        "shared-id",
+        provider_account_id="stryd-user-id",
+    )
     db = db_session.SessionLocal()
     try:
         for user_id in ("alice", "bob"):
@@ -1063,13 +1680,158 @@ def test_delete_endpoint_touches_only_calling_users_status(api_client, monkeypat
     assert os.path.exists(plan_mod._stryd_push_status_path("alice"))
 
 
+def test_delete_rejects_reconnected_different_provider_account(
+    api_client,
+    monkeypatch,
+):
+    user_id = "provider-account-fence-user"
+    external_id = "provider-account-workout"
+    _seed_synced_delivery(
+        user_id,
+        "2026-05-03",
+        external_id,
+        provider_account_id="original-provider-account",
+    )
+    calls = {"delete": 0}
+
+    monkeypatch.setattr(
+        "sync.stryd_sync._login_api",
+        lambda email, password: ("different-provider-account", "token"),
+    )
+
+    def _delete(*args):
+        calls["delete"] += 1
+
+    monkeypatch.setattr("sync.stryd_sync.delete_workout_api", _delete)
+    api_client["current"]["value"] = user_id
+
+    response = api_client["client"].delete(
+        f"/api/plan/stryd-workout/{external_id}",
+    )
+
+    assert response.status_code == 409
+    assert "different Stryd account" in response.json()["detail"]
+    assert calls["delete"] == 0
+    assert _delivery_rows(user_id)[0]["state"] == "synced"
+    assert _attempt_rows(user_id) == [{
+        "number": 1,
+        "operation": "deliver",
+        "state": "synced",
+    }]
+
+
+def test_delete_verifies_migrated_delivery_on_current_calendar(
+    api_client,
+    monkeypatch,
+):
+    from db import session as db_session
+    from db.models import PlanDelivery
+
+    user_id = "migrated-removal-user"
+    external_id = "migrated-removal-id"
+    workout_date = (date.today() + timedelta(days=2)).isoformat()
+    _seed_synced_delivery(user_id, workout_date, external_id)
+    calls = {"calendar": 0, "delete": 0}
+
+    monkeypatch.setattr(
+        "sync.stryd_sync._login_api",
+        lambda email, password: ("verified-current-account", "token"),
+    )
+
+    def _calendar(
+        provider_user_id,
+        token,
+        *,
+        cp_watts,
+        days_ahead,
+        days_back,
+        tz_name,
+    ):
+        calls["calendar"] += 1
+        assert days_ahead >= 14
+        assert days_back == 3
+        shifted_date = (
+            date.fromisoformat(workout_date) - timedelta(days=1)
+        ).isoformat()
+        return [{"date": shifted_date, "external_id": external_id}]
+
+    def _delete(*args):
+        calls["delete"] += 1
+
+    monkeypatch.setattr(
+        "sync.stryd_sync.fetch_training_plan_api",
+        _calendar,
+    )
+    monkeypatch.setattr("sync.stryd_sync.delete_workout_api", _delete)
+    api_client["current"]["value"] = user_id
+
+    response = api_client["client"].delete(
+        f"/api/plan/stryd-workout/{external_id}",
+    )
+
+    assert response.status_code == 200, response.text
+    assert calls == {"calendar": 1, "delete": 1}
+    db = db_session.SessionLocal()
+    try:
+        delivery = db.query(PlanDelivery).filter_by(user_id=user_id).one()
+        assert delivery.state == "removed"
+        assert delivery.provider_account_id == "verified-current-account"
+    finally:
+        db.close()
+
+
+def test_delete_rejects_unverified_migrated_delivery(
+    api_client,
+    monkeypatch,
+):
+    user_id = "unverified-migrated-removal-user"
+    external_id = "unverified-migrated-id"
+    workout_date = (date.today() + timedelta(days=2)).isoformat()
+    _seed_synced_delivery(user_id, workout_date, external_id)
+    calls = {"delete": 0}
+
+    monkeypatch.setattr(
+        "sync.stryd_sync._login_api",
+        lambda email, password: ("different-current-account", "token"),
+    )
+    monkeypatch.setattr(
+        "sync.stryd_sync.fetch_training_plan_api",
+        lambda *args, **kwargs: [],
+    )
+
+    def _delete(*args):
+        calls["delete"] += 1
+
+    monkeypatch.setattr("sync.stryd_sync.delete_workout_api", _delete)
+    api_client["current"]["value"] = user_id
+
+    response = api_client["client"].delete(
+        f"/api/plan/stryd-workout/{external_id}",
+    )
+
+    assert response.status_code == 409
+    assert "could not be verified" in response.json()["detail"]
+    assert calls["delete"] == 0
+    assert _delivery_rows(user_id)[0]["state"] == "synced"
+    assert _attempt_rows(user_id) == [{
+        "number": 1,
+        "operation": "deliver",
+        "state": "synced",
+    }]
+
+
 def test_stale_removal_attempt_can_be_retried(api_client, monkeypatch):
     from db import session as db_session
     from db.models import PlanDelivery
     from db.plan_ledger import DELIVERY_ATTEMPT_LEASE, begin_delivery_attempt
 
     user_id = "stale-remove-user"
-    _seed_synced_delivery(user_id, "2026-05-02", "stale-remove-id")
+    _seed_synced_delivery(
+        user_id,
+        "2026-05-02",
+        "stale-remove-id",
+        provider_account_id="sid",
+    )
     db = db_session.SessionLocal()
     try:
         delivery = db.query(PlanDelivery).filter_by(user_id=user_id).one()

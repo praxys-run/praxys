@@ -527,10 +527,15 @@ class PlanDelivery(Base):
     )
     canonical_key = Column(String(120), nullable=False)
     workout_date = Column(Date, nullable=False)
+    # Provider-payload fingerprint. This legacy column name is retained so
+    # existing uniqueness constraints continue to fence duplicate writes.
     workout_version = Column(String(64), nullable=False)
+    # Canonical Praxys plan-content version used by API sync-state projection.
+    plan_version = Column(String(64), nullable=True)
     target = Column(String(20), nullable=False)
     state = Column(String(20), nullable=False, default="pending")
     external_id = Column(String(200), nullable=True)
+    provider_account_id = Column(String(200), nullable=True)
     last_error = Column(Text, nullable=True)
     delivered_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)

@@ -329,27 +329,27 @@ def complete_garmin_mfa(user_id: str, code: str) -> dict:
 def _get_credentials(user_id: str, platform: str, db: Session) -> dict | None:
     """Get decrypted credentials for a user's platform connection.
 
-    Returns credential dict or None if not connected. Falls back to env vars
-    when auth is disabled (dev mode).
+    Returns credential dict or None if not connected.
     """
-    from db.models import UserConnection
+    from db.connection_credentials import (
+        CredentialAccessError,
+        load_connection_credentials,
+    )
 
-    conn = db.query(UserConnection).filter(
-        UserConnection.user_id == user_id,
-        UserConnection.platform == platform,
-    ).first()
-
-    if conn and conn.encrypted_credentials and conn.wrapped_dek:
-        from db.crypto import get_vault
-        vault = get_vault()
-        try:
-            creds_json = vault.decrypt(conn.encrypted_credentials, conn.wrapped_dek)
-            return json.loads(creds_json)
-        except Exception as e:
-            logger.warning("Failed to decrypt credentials for %s/%s: %s",
-                           user_id, platform, e)
-
-    return None
+    try:
+        return load_connection_credentials(
+            db,
+            user_id=user_id,
+            platform=platform,
+        )
+    except CredentialAccessError as exc:
+        logger.warning(
+            "Failed to decode credentials for user=%s platform=%s: %s",
+            user_id,
+            platform,
+            exc,
+        )
+        return None
 
 
 def _persist_credentials(user_id: str, platform: str, creds: dict, db: Session) -> None:

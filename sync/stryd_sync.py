@@ -335,6 +335,7 @@ def fetch_training_plan_api(
     cp_watts: float | None = None,
     days_ahead: int = 14,
     tz_name: str | None = None,
+    days_back: int = 0,
 ) -> list[dict]:
     """Fetch upcoming planned workouts from the Stryd calendar API.
 
@@ -345,11 +346,13 @@ def fetch_training_plan_api(
     Args:
         cp_watts: Current CP in watts (for converting % targets to absolute watts).
                   If None, power targets are omitted.
+        days_back: Extra server-calendar days to include before today.
     """
     today = date.today()
+    start = today - timedelta(days=max(days_back, 0))
     end = today + timedelta(days=days_ahead)
 
-    from_ts = int(datetime.combine(today, datetime.min.time()).timestamp())
+    from_ts = int(datetime.combine(start, datetime.min.time()).timestamp())
     to_ts = int(datetime.combine(end, datetime.max.time()).timestamp())
 
     url = STRYD_CALENDAR_API.format(user_id=user_id)
