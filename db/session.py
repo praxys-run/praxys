@@ -577,8 +577,36 @@ def _ensure_schema(engine_obj, backend: str) -> None:
         Base.metadata.create_all(bind=engine_obj)
         _ensure_sqlite_compat_columns(engine_obj)
         _ensure_sqlite_training_plan_identity(engine_obj)
+        _normalize_praxys_plan_sources(engine_obj)
         return
     _run_alembic_upgrade(engine_obj)
+    _normalize_praxys_plan_sources(engine_obj)
+
+
+def _normalize_praxys_plan_sources(engine_obj) -> None:
+    """Contract legacy Praxys ownership aliases without changing identity."""
+    from analysis.config import (
+        LEGACY_PRAXYS_PLAN_SOURCE,
+        PRAXYS_PLAN_SOURCE,
+    )
+
+    with engine_obj.begin() as conn:
+        result = conn.execute(
+            text(
+                "UPDATE training_plans "
+                "SET source = :canonical_source "
+                "WHERE source = :legacy_source"
+            ),
+            {
+                "canonical_source": PRAXYS_PLAN_SOURCE,
+                "legacy_source": LEGACY_PRAXYS_PLAN_SOURCE,
+            },
+        )
+    if result.rowcount and result.rowcount > 0:
+        logger.info(
+            "Normalized %d legacy Praxys plan source rows",
+            result.rowcount,
+        )
 
 
 def _run_alembic_upgrade(engine_obj) -> None:

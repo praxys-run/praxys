@@ -458,9 +458,9 @@ def test_sqlite_init_migrates_training_plan_identity_constraint(
             """
             INSERT INTO training_plans (
                 user_id, date, workout_type, source
-            ) VALUES (
-                'legacy-user', '2026-08-04', 'easy', 'ai'
-            )
+            ) VALUES
+                ('legacy-user', '2026-08-04', 'easy', 'ai'),
+                ('legacy-user', '2026-08-05', 'long_run', 'stryd')
             """
         )
     legacy.dispose()
@@ -494,8 +494,17 @@ def test_sqlite_init_migrates_training_plan_identity_constraint(
                 """
             ).one()
             assert canonical_id
-            assert source == "ai"
+            assert source == "praxys"
             assert origin == "legacy"
+            external_source, external_origin = conn.exec_driver_sql(
+                """
+                SELECT source, workout_origin
+                FROM training_plans
+                WHERE id = 2
+                """
+            ).one()
+            assert external_source == "stryd"
+            assert external_origin == "imported"
             conn.exec_driver_sql(
                 """
                 INSERT INTO training_plans (
@@ -509,6 +518,17 @@ def test_sqlite_init_migrates_training_plan_identity_constraint(
                 )
                 """
             )
+        db_session._normalize_praxys_plan_sources(db_session.engine)
+        db_session._normalize_praxys_plan_sources(db_session.engine)
+        with db_session.engine.connect() as conn:
+            assert conn.exec_driver_sql(
+                """
+                SELECT source
+                FROM training_plans
+                WHERE canonical_id =
+                    '22222222-2222-2222-2222-222222222222'
+                """
+            ).scalar_one() == "praxys"
     finally:
         if db_session.engine is not None:
             db_session.engine.dispose()

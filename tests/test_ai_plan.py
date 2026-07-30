@@ -321,7 +321,7 @@ class TestAiPlanProvider:
             df = provider.load_plan(tmpdir)
             assert len(df) == 2
             assert df.iloc[0]["workout_type"] == "easy"
-            assert set(df["source"]) == {"ai"}
+            assert set(df["source"]) == {"praxys"}
             assert set(df["workout_origin"]) == {"generated"}
 
     def test_load_plan_handles_unquoted_commas(self):

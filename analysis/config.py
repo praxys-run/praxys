@@ -32,12 +32,10 @@ PlanAdjustmentPolicy = Literal["suggest_only"]
 
 PRAXYS_PLAN_SOURCE = "praxys"
 LEGACY_PRAXYS_PLAN_SOURCE = "ai"
-# Expand release: retain the legacy storage value until every deployed reader
-# understands both aliases. The contract release flips this constant to the
-# explicit source without changing call sites.
-PRAXYS_PLAN_WRITE_SOURCE = LEGACY_PRAXYS_PLAN_SOURCE
-# New workers read both aliases while older deployed workers still read/write
-# ``ai``. Ownership exposed to clients is always the explicit Praxys source.
+# The expand release centralized this write value on ``ai`` until every
+# deployed reader understood both aliases. Contract writes now use the explicit
+# ownership source while reads retain the legacy alias for compatibility.
+PRAXYS_PLAN_WRITE_SOURCE = PRAXYS_PLAN_SOURCE
 PRAXYS_PLAN_SOURCES: tuple[str, ...] = (
     PRAXYS_PLAN_SOURCE,
     LEGACY_PRAXYS_PLAN_SOURCE,
