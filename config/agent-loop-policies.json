@@ -6,10 +6,10 @@
       "version": "agent-ready-v2"
     },
     "selective_review": {
-      "version": "selective-review-v1",
-      "classifier_semantics": "review-policy-v1",
+      "version": "selective-review-v2",
+      "classifier_semantics": "review-policy-v2",
       "default_decision": "review-required",
-      "enforcement_model": "independent-github-app-approval",
+      "enforcement_model": "deterministic-required-status",
       "allowed_authors": [
         "Copilot"
       ],

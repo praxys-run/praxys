@@ -184,10 +184,14 @@ def evaluate_selective_review(
         reasons.append("changed_file_list_incomplete")
     if not facts.repository_auto_merge_enabled:
         reasons.append("repository_auto_merge_disabled")
-    if facts.required_approving_review_count < 1:
-        reasons.append("independent_approval_not_required")
-    if not facts.approval_invalidated_on_push:
-        reasons.append("stale_policy_approval_not_invalidated")
+    enforcement_model = str(policy.get("enforcement_model") or "")
+    if enforcement_model == "independent-github-app-approval":
+        if facts.required_approving_review_count < 1:
+            reasons.append("independent_approval_not_required")
+        if not facts.approval_invalidated_on_push:
+            reasons.append("stale_policy_approval_not_invalidated")
+    elif enforcement_model != "deterministic-required-status":
+        reasons.append("unsupported_enforcement_model")
     if not facts.required_status_checks_strict:
         reasons.append("required_checks_do_not_require_latest_base")
 
@@ -483,11 +487,8 @@ def validate_promoted_classes(
         errors.append("classifier_semantics_missing")
     if selective.get("default_decision") != "review-required":
         errors.append("default_decision_must_require_review")
-    if (
-        selective.get("enforcement_model")
-        != "independent-github-app-approval"
-    ):
-        errors.append("enforcement_model_must_use_independent_app_approval")
+    if selective.get("enforcement_model") != "deterministic-required-status":
+        errors.append("enforcement_model_must_use_deterministic_status")
     if set(selective.get("allowed_base_branches") or []) != {"main"}:
         errors.append("allowed_base_branches_must_be_main")
     if "Copilot" not in set(selective.get("allowed_authors") or []):

@@ -28,9 +28,13 @@ def test_selective_review_workflow_is_default_off_and_never_bypasses():
     assert "BASE_SHA" in workflow
     assert "-f commit_id=\"$HEAD_SHA\"" in workflow
     assert "group: selective-review-${{" in workflow
+    assert "actions/variables/PRAXYS_SELECTIVE_REVIEW" not in workflow
     assert workflow.count(
-        "actions/variables/PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH"
+        "RUNTIME_ENABLED: ${{ vars.PRAXYS_SELECTIVE_REVIEW_ENABLED }}"
     ) == 2
+    assert workflow.count(
+        "RUNTIME_KILL_SWITCH: ${{ vars.PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH }}"
+    ) == 3
     assert "set -euo pipefail" in workflow
     assert "steps.policy-token.outputs.app-slug" in workflow
     assert "Require the policy App for targeted pull requests" not in workflow
@@ -48,7 +52,6 @@ def test_selective_review_workflow_is_default_off_and_never_bypasses():
         "Revoke policy state after action failure", 1
     )[0]
     assert "RUNTIME_KILL_SWITCH: ${{ vars.PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH }}" in safe_step
-    assert "actions/variables/" not in safe_step
     assert "2>/dev/null || printf 'false'" not in workflow
     assert workflow.index("Mark policy gate safe") < workflow.index(
         "Revoke policy state after action failure"

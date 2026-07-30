@@ -153,8 +153,9 @@ Repository ruleset `default` (id `15208143`) requires a pull request and
 squash-only merge, and blocks branch deletion and non-fast-forward updates. Its
 `required_approving_review_count` is `0`: human review is encouraged for risky,
 security-sensitive, or science-affecting changes, but it is not a mandatory
-merge gate for the solo-maintainer workflow. The classic `backend-tests` status
-check remains required with admin enforcement.
+merge gate for the solo-maintainer workflow. The ruleset requires
+`backend-tests` and `selective-review-policy` against the latest `main`; classic
+branch protection also keeps `backend-tests` required with admin enforcement.
 
 The ruleset retains an `Always` bypass for the repository-role admin. Normal
 green PRs do not need that bypass now that no approval is required; keep it as a
@@ -278,8 +279,10 @@ default-off `review-required | auto-merge-candidate` policy:
 
 - `analysis/review_policy.py` is the pure classifier and promotion evaluator.
 - The committed enforcement model is
-  `independent-github-app-approval`: AI reviews are evidence, while only the
-  deterministic policy and dedicated App identity authorize autonomous merge.
+  `deterministic-required-status`: `backend-tests` and
+  `selective-review-policy` are required against the latest base. AI reviews
+  and the dedicated App approval are defense-in-depth evidence, not the merge
+  authority.
 - `data/agent_evals/change/review_promotion.json` stores text-free completed-PR
   evidence. Each bucket is bound to the exact class/sensitive-path/check policy
   fingerprint, and duplicate PR numbers cannot inflate the sample.
@@ -295,8 +298,9 @@ default-off `review-required | auto-merge-candidate` policy:
   and otherwise review-required PRs finish successfully without App
   configuration. A token is required only for an exact enabled candidate or for
   cleanup of bot-authored stale policy state.
-- A qualifying PR is approved by the independent review-policy App, then normal
-  squash auto-merge is enabled. The App never bypasses the ruleset or checks.
+- A qualifying PR receives a defense-in-depth approval from the review-policy
+  App, then normal squash auto-merge is enabled. The App never bypasses the
+  ruleset or checks.
 - Every reevaluation first marks the PR head's `selective-review-policy` status
   pending. It becomes successful only after the run safely revokes stale state
   or completes approval/auto-merge setup; failures remain merge-blocking.
@@ -317,9 +321,10 @@ identity. The ordinary gate rechecks the kill switch before publishing success.
 Foreign bot ownership, a merge race, or incomplete cleanup remains failed
 rather than reporting success.
 Per-PR evaluation uses per-PR concurrency, so unrelated events cannot discard a
-revocation. The gate also refuses autonomy unless the effective main-branch
-rules require an independent approval and invalidate it after a later push, and
-unless required checks are strict against the latest `main`.
+revocation. The gate refuses autonomy unless the effective main-branch rules
+require both `backend-tests` and `selective-review-policy` and make those checks
+strict against the latest `main`. The ruleset deliberately requires zero
+approvals for the solo-maintainer workflow.
 Provisioning and promotion steps:
 [setup-review-policy-app.md](./setup-review-policy-app.md).
 
@@ -341,9 +346,9 @@ hidden in issue text. Defenses, in layers:
   provisioned, a maintainer decides whether a green PR is ready; human review is
   strongly expected for risky, security-sensitive, or science-affecting changes
   but is not imposed universally. Under selective review, unpromoted, sensitive,
-  ambiguous, or unstable PRs require human approval, while only a proven narrow
-  class can receive the independent policy App's approval. The coding agent
-  never self-approves or receives a bypass.
+  ambiguous, or unstable PRs require a human merge decision, while only a proven
+  narrow class can receive the independent policy App's defense-in-depth
+  approval. The coding agent never self-approves or receives a bypass.
 - **The trigger is write-gated.** `agent-ready` can only be added by the triage
   bot or a maintainer — a drive-by account cannot start the loop. Keep it that
   way (don't let automation add the label from untrusted input).
