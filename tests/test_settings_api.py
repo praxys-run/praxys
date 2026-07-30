@@ -198,9 +198,20 @@ def test_settings_rejects_unconnected_plan_target(api_client):
     assert "connected platform" in res.json()["detail"]
 
 
-def test_settings_rejects_delivery_enablement_before_delivery_exists(api_client):
+def test_settings_enables_delivery_and_runs_post_commit_hook(
+    api_client,
+    monkeypatch,
+):
     client, user_id = api_client
     _seed_connection(user_id, "stryd")
+    calls: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        "api.plan_delivery.rolling.trigger_managed_plan_delivery",
+        lambda called_user_id, *, trigger: calls.append(
+            (called_user_id, trigger)
+        ),
+    )
+
     res = client.put("/api/settings", json={
         "plan_management": {
             "mode": "praxys",
@@ -208,8 +219,47 @@ def test_settings_rejects_delivery_enablement_before_delivery_exists(api_client)
             "delivery_enabled": True,
         },
     })
-    assert res.status_code == 409, res.text
-    assert "not available yet" in res.json()["detail"]
+
+    assert res.status_code == 200, res.text
+    assert res.json()["config"]["plan_management"]["delivery_enabled"] is True
+    assert calls == [(user_id, "plan_management_enabled")]
+
+
+def test_leaving_managed_mode_pauses_without_cleanup_hook(
+    api_client,
+    monkeypatch,
+):
+    client, user_id = api_client
+    _seed_connection(user_id, "stryd")
+    calls: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        "api.plan_delivery.rolling.trigger_managed_plan_delivery",
+        lambda called_user_id, *, trigger: calls.append(
+            (called_user_id, trigger)
+        ),
+    )
+    enabled = client.put("/api/settings", json={
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "stryd",
+            "delivery_enabled": True,
+        },
+    })
+    assert enabled.status_code == 200, enabled.text
+    calls.clear()
+
+    disabled = client.put("/api/settings", json={
+        "plan_management": {"mode": "external"},
+    })
+
+    assert disabled.status_code == 200, disabled.text
+    assert disabled.json()["config"]["plan_management"] == {
+        "mode": "external",
+        "execution_target": "stryd",
+        "delivery_enabled": False,
+        "adjustment_policy": "suggest_only",
+    }
+    assert calls == []
 
 
 @pytest.mark.parametrize(

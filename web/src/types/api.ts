@@ -77,11 +77,19 @@ export interface SettingsPreferences extends Partial<Record<DataCategory, Platfo
   threshold_sources?: Partial<Record<string, string>>;
 }
 
+export interface PlanManagementConfig {
+  mode: 'external' | 'praxys';
+  execution_target: PlatformName | null;
+  delivery_enabled: boolean;
+  adjustment_policy: 'suggest_only';
+}
+
 export interface SettingsConfig {
   display_name: string;
   unit_system: UnitSystem;
   connections: PlatformName[];
   preferences: SettingsPreferences;
+  plan_management: PlanManagementConfig;
   training_base: TrainingBase;
   thresholds: Record<string, number | string | null>;
   zones: Record<string, number[]>;
@@ -89,6 +97,10 @@ export interface SettingsConfig {
   source_options: Record<string, unknown>;
   /** UI language preference ("en" | "zh"). `null` means auto-detect from browser. */
   language: UiLanguage | null;
+}
+
+export interface SettingsUpdate extends Omit<Partial<SettingsConfig>, 'plan_management'> {
+  plan_management?: Partial<PlanManagementConfig>;
 }
 
 export interface ThresholdValue {

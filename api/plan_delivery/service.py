@@ -17,6 +17,7 @@ from api.plan_delivery.base import (
     ProviderRejectedError,
     ProviderRemovalError,
     ProviderRequestError,
+    ProviderTransientError,
 )
 from api.plan_delivery.credentials import (
     DeliveryCredentialsInvalid,
@@ -31,6 +32,7 @@ from db.plan_ledger import (
     find_delivery_by_external_id,
     find_unverified_delivery_for_date,
     get_or_create_delivery,
+    workout_version,
 )
 
 logger = logging.getLogger(__name__)
@@ -38,12 +40,14 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class DeliveryResult:
-    """One manual delivery outcome."""
+    """One delivery outcome."""
 
     status: str
     external_id: str | None = None
     error: str | None = None
     delivered_at: datetime | None = None
+    error_category: str | None = None
+    retryable: bool = False
 
 
 @dataclass(frozen=True)
@@ -80,6 +84,10 @@ class DeliveryRemovalFailedError(RuntimeError):
 
 class DeliveryFinalizationError(RuntimeError):
     """The provider changed but the durable ledger could not be finalized."""
+
+
+class DeliveryMutationBlockedError(RuntimeError):
+    """A fresh managed-delivery gate blocked provider mutation."""
 
 
 class PlanDeliveryService:
@@ -145,12 +153,76 @@ class PlanDeliveryService:
             self.db.commit()
         return updated
 
+    def _record_preflight_delivery_failure(
+        self,
+        snapshot: Mapping[str, Any],
+        *,
+        error: ProviderRequestError,
+        attempt_context: Mapping[str, Any] | None,
+    ) -> DeliveryResult:
+        """Persist a definite no-write preparation failure."""
+        canonical_version = workout_version(snapshot)
+        try:
+            delivery, _ = get_or_create_delivery(
+                self.db,
+                user_id=self.user_id,
+                target=self.target,
+                snapshot=snapshot,
+                workout_version_override=canonical_version,
+                provider_content_version_override=canonical_version,
+            )
+            delivery, attempt, disposition = begin_delivery_attempt(
+                self.db,
+                delivery,
+                operation="deliver",
+            )
+            if disposition != "started" or attempt is None:
+                self.db.rollback()
+                return DeliveryResult(
+                    status="error",
+                    error=str(error),
+                    error_category="invalid_workout",
+                )
+            attempt.response = dict(attempt_context or {})
+            delivery_id = delivery.id
+            attempt_id = attempt.id
+            bump_revisions(self.db, self.user_id, ["plans"])
+            self.db.commit()
+            self._record_terminal_attempt(
+                delivery_id=delivery_id,
+                attempt_id=attempt_id,
+                state="failed",
+                error=str(error),
+                response={
+                    **dict(attempt_context or {}),
+                    "canonical_version": canonical_version,
+                    "error_category": "invalid_workout",
+                    "retryable": False,
+                },
+            )
+        except (SQLAlchemyError, ValueError):
+            self.db.rollback()
+            logger.exception(
+                "Failed to persist delivery preflight failure "
+                "user=%s target=%s date=%s",
+                self.user_id,
+                self.target,
+                snapshot.get("date"),
+            )
+        return DeliveryResult(
+            status="error",
+            error=str(error),
+            error_category="invalid_workout",
+        )
+
     def deliver(
         self,
         snapshot: Mapping[str, Any],
         *,
         threshold_value: float,
         observed_external_ids: object = None,
+        attempt_context: Mapping[str, Any] | None = None,
+        mutation_guard: Callable[[], None] | None = None,
     ) -> DeliveryResult:
         """Deliver one canonical workout version to the configured target."""
         workout_date = str(snapshot["date"])
@@ -163,8 +235,14 @@ class PlanDeliveryService:
             )
             adapter.authenticate()
             provider_account_id = adapter.account_id
+            if mutation_guard is not None:
+                mutation_guard()
         except ProviderRequestError as exc:
-            return DeliveryResult(status="error", error=str(exc))
+            return self._record_preflight_delivery_failure(
+                snapshot,
+                error=exc,
+                attempt_context=attempt_context,
+            )
 
         try:
             delivery, delivery_created = get_or_create_delivery(
@@ -188,6 +266,7 @@ class PlanDeliveryService:
                         f"This {provider_name} delivery belongs to a "
                         f"different {provider_name} account"
                     ),
+                    error_category="provider_account_mismatch",
                 )
             unverified = find_unverified_delivery_for_date(
                 self.db,
@@ -202,6 +281,7 @@ class PlanDeliveryService:
                     error=(
                         f"Delivery outcome is uncertain; sync {provider_name} before retrying"
                     ),
+                    error_category="reconciliation_required",
                 )
 
             delivery, attempt, disposition = begin_delivery_attempt(
@@ -225,6 +305,7 @@ class PlanDeliveryService:
                     error=(
                         f"Delivery outcome is uncertain; sync {provider_name} before retrying"
                     ),
+                    error_category="reconciliation_required",
                 )
             if disposition == "replacement_required":
                 self._cleanup_new_delivery(delivery, delivery_created)
@@ -234,8 +315,11 @@ class PlanDeliveryService:
                         f"The existing Praxys-managed {provider_name} workout "
                         "must be removed before replacement"
                     ),
+                    error_category="replacement_required",
                 )
             assert attempt is not None
+            if attempt_context is not None:
+                attempt.response = dict(attempt_context)
             delivery_id = delivery.id
             attempt_id = attempt.id
             bump_revisions(self.db, self.user_id, ["plans"])
@@ -251,21 +335,61 @@ class PlanDeliveryService:
             return DeliveryResult(
                 status="error",
                 error=f"Could not start delivery: {exc}",
+                error_category="ledger_start_failed",
+                retryable=True,
             )
 
         try:
+            if mutation_guard is not None:
+                mutation_guard()
             provider_result = adapter.create_workout(prepared)
             if provider_result.provider_account_id != provider_account_id:
                 raise ProviderOutcomeUnknownError(
                     f"{provider_name} account changed during delivery"
                 )
-        except (ProviderRequestError, ProviderRejectedError) as exc:
+        except DeliveryMutationBlockedError as exc:
+            response = {
+                **dict(attempt_context or {}),
+                "error_category": "delivery_gate_changed",
+                "retryable": True,
+                "counts_toward_retry_limit": False,
+            }
             try:
                 self._record_terminal_attempt(
                     delivery_id=delivery_id,
                     attempt_id=attempt_id,
                     state="failed",
                     error=str(exc),
+                    response=response,
+                )
+            except SQLAlchemyError:
+                self.db.rollback()
+                logger.exception(
+                    "Failed to persist delivery gate change for "
+                    "user=%s target=%s date=%s",
+                    self.user_id,
+                    self.target,
+                    workout_date,
+                )
+            return DeliveryResult(
+                status="error",
+                error=str(exc),
+                error_category="delivery_gate_changed",
+                retryable=True,
+            )
+        except ProviderTransientError as exc:
+            response = {
+                **dict(attempt_context or {}),
+                "error_category": "provider_transient",
+                "retryable": True,
+            }
+            try:
+                self._record_terminal_attempt(
+                    delivery_id=delivery_id,
+                    attempt_id=attempt_id,
+                    state="failed",
+                    error=str(exc),
+                    response=response,
                 )
             except SQLAlchemyError:
                 self.db.rollback()
@@ -275,18 +399,56 @@ class PlanDeliveryService:
                     self.user_id,
                     workout_date,
                 )
-            return DeliveryResult(status="error", error=str(exc))
+            return DeliveryResult(
+                status="error",
+                error=str(exc),
+                error_category="provider_transient",
+                retryable=True,
+            )
+        except (ProviderRequestError, ProviderRejectedError) as exc:
+            response = {
+                **dict(attempt_context or {}),
+                "error_category": "provider_rejected",
+                "retryable": False,
+            }
+            try:
+                self._record_terminal_attempt(
+                    delivery_id=delivery_id,
+                    attempt_id=attempt_id,
+                    state="failed",
+                    error=str(exc),
+                    response=response,
+                )
+            except SQLAlchemyError:
+                self.db.rollback()
+                logger.exception(
+                    "Failed to persist %s delivery failure for user=%s date=%s",
+                    self.target,
+                    self.user_id,
+                    workout_date,
+                )
+            return DeliveryResult(
+                status="error",
+                error=str(exc),
+                error_category="provider_rejected",
+            )
         except ProviderOutcomeUnknownError as exc:
             message = (
                 f"{provider_name} delivery outcome is uncertain; "
                 f"sync {provider_name} before retrying"
             )
+            response = {
+                **dict(attempt_context or {}),
+                "error_category": "provider_outcome_unknown",
+                "retryable": False,
+            }
             try:
                 self._record_terminal_attempt(
                     delivery_id=delivery_id,
                     attempt_id=attempt_id,
                     state="conflict",
                     error=f"{message}: {exc}",
+                    response=response,
                 )
             except SQLAlchemyError:
                 self.db.rollback()
@@ -296,15 +458,23 @@ class PlanDeliveryService:
                     self.user_id,
                     workout_date,
                 )
-            return DeliveryResult(status="error", error=message)
+            return DeliveryResult(
+                status="error",
+                error=message,
+                error_category="provider_outcome_unknown",
+            )
 
         try:
+            response = {
+                **dict(provider_result.response),
+                **dict(attempt_context or {}),
+            }
             self._record_terminal_attempt(
                 delivery_id=delivery_id,
                 attempt_id=attempt_id,
                 state="synced",
                 external_id=provider_result.external_id,
-                response=provider_result.response,
+                response=response,
                 provider_account_id=provider_result.provider_account_id,
             )
         except SQLAlchemyError:
@@ -322,6 +492,7 @@ class PlanDeliveryService:
                     f"{provider_name} accepted the workout, but delivery state could not "
                     "be finalized"
                 ),
+                error_category="ledger_finalization_failed",
             )
         return DeliveryResult(
             status="success",
@@ -329,7 +500,13 @@ class PlanDeliveryService:
             delivered_at=datetime.utcnow(),
         )
 
-    def remove(self, external_id: str) -> RemovalResult:
+    def remove(
+        self,
+        external_id: str,
+        *,
+        attempt_context: Mapping[str, Any] | None = None,
+        mutation_guard: Callable[[], None] | None = None,
+    ) -> RemovalResult:
         """Remove one caller-owned provider workout and finalize its ledger."""
         provider_name = self.target.capitalize()
         delivery = find_delivery_by_external_id(
@@ -386,6 +563,8 @@ class PlanDeliveryService:
                 f"This {provider_name} delivery belongs to a different "
                 f"{provider_name} account"
             )
+        if mutation_guard is not None:
+            mutation_guard()
 
         previous_state = delivery.state
         if previous_state == "delivering" and delivery.external_id:
@@ -405,6 +584,8 @@ class PlanDeliveryService:
                     f"{provider_name} workout delivery is already being updated"
                 )
             assert attempt is not None
+            if attempt_context is not None:
+                attempt.response = dict(attempt_context)
             delivery_id = delivery.id
             attempt_id = attempt.id
             bump_revisions(self.db, self.user_id, ["plans"])
@@ -423,7 +604,13 @@ class PlanDeliveryService:
                 f"Could not start {provider_name} workout removal"
             ) from exc
 
-        def record_failure(message: str) -> bool:
+        def record_failure(
+            message: str,
+            *,
+            error_category: str,
+            retryable: bool,
+            counts_toward_retry_limit: bool = True,
+        ) -> bool:
             try:
                 updated = self._record_terminal_attempt(
                     delivery_id=delivery_id,
@@ -431,6 +618,14 @@ class PlanDeliveryService:
                     state="failed",
                     delivery_state=previous_state,
                     error=message,
+                    response={
+                        **dict(attempt_context or {}),
+                        "error_category": error_category,
+                        "retryable": retryable,
+                        "counts_toward_retry_limit": (
+                            counts_toward_retry_limit
+                        ),
+                    },
                 )
                 current = find_delivery_by_external_id(
                     self.db,
@@ -454,27 +649,49 @@ class PlanDeliveryService:
                 return False
 
         try:
+            if mutation_guard is not None:
+                mutation_guard()
             provider_result = adapter.delete_workout(external_id)
+        except DeliveryMutationBlockedError as exc:
+            record_failure(
+                str(exc),
+                error_category="delivery_gate_changed",
+                retryable=True,
+                counts_toward_retry_limit=False,
+            )
+            raise
         except (
             DeliveryCredentialsUnavailable,
             DeliveryCredentialsInvalid,
             ProviderAuthenticationError,
         ) as exc:
-            if record_failure(str(exc)):
+            if record_failure(
+                str(exc),
+                error_category="provider_authentication",
+                retryable=True,
+            ):
                 return RemovalResult(external_id=external_id)
             raise
         except ProviderRemovalError as exc:
-            if record_failure(str(exc)):
+            if record_failure(
+                str(exc),
+                error_category="provider_removal",
+                retryable=True,
+            ):
                 return RemovalResult(external_id=external_id)
             raise DeliveryRemovalFailedError(str(exc)) from exc
 
         try:
+            response = {
+                "already_absent": provider_result.already_absent,
+                **dict(attempt_context or {}),
+            }
             self._record_terminal_attempt(
                 delivery_id=delivery_id,
                 attempt_id=attempt_id,
                 state="removed",
                 external_id=external_id,
-                response={"already_absent": provider_result.already_absent},
+                response=response,
                 commit=False,
             )
             self.db.query(TrainingPlan).filter(

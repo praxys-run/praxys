@@ -137,6 +137,22 @@ partial failure is explicit and recoverable rather than success-shaped.
 Unowned provider workouts are never deleted and do not block Praxys from adding
 a separate workout on the same date.
 
+`api/plan_delivery/rolling.py` applies that boundary to the next 14 calendar
+days. Every provider mutation rechecks Praxys ownership mode, explicit delivery
+consent, adapter capability, and the current connection status. A fresh target
+calendar snapshot then gates each workout through reconciliation: matching or
+pending observations are no-ops, target edits/deletions remain explicit
+conflicts, and accepted canonical edits replace only the exact UUID-owned
+delivery. Deleting a canonical workout while managed removes that owned target
+workout; leaving managed mode or pausing delivery never performs cleanup.
+
+Plan commits and delivery commits remain separate. Settings adoption and
+committed plan upload/upsert/delete operations start a best-effort post-commit
+pass, while the existing background scheduler advances the rolling horizon and
+retries safe failures. Automatic retries are durable, exponential, capped, and
+limited to definite retry-safe outcomes; ambiguous create outcomes remain
+conflicts to prevent duplicate workouts.
+
 ### Admin System
 
 Admin endpoints (`api/routes/admin.py`) are gated by `is_superuser=True` on the authenticated user. Capabilities:
@@ -206,10 +222,11 @@ Plan ownership is separate from provider preference. `config.plan_management`
 contains `mode`, `execution_target`, `delivery_enabled`, and
 `adjustment_policy`. External mode preserves the legacy
 `config.preferences.plan` preferred-source fallback. Praxys mode treats only
-Praxys-authored (`source='ai'`) rows as canonical; platform rows remain loaded
-for management and later reconciliation but never silently become the plan.
-The additive contract defaults to external mode with delivery disabled, so
-existing users are not enrolled in platform writes.
+the Praxys-owned compatibility lane (`source='ai'`) as canonical; platform rows
+remain loaded for management and reconciliation but never silently become the
+plan. The additive contract defaults to external mode with delivery disabled,
+so existing users are not enrolled in platform writes. Enabling delivery
+requires an actively connected target with a registered plan adapter.
 
 Plan mutations write immutable `PlanRevision` events in the same transaction as
 their `TrainingPlan` changes. Each plan row has a durable UUID that survives

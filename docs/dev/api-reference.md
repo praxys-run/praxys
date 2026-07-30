@@ -903,6 +903,11 @@ deleting a missing date returns `{ "status": "deleted", "rows": 0 }`.
 Every request appends a `delete` revision event with its before snapshot and an
 empty after snapshot; a real deletion and its event commit atomically.
 
+After a successful upload, upsert, or real deletion commits, Praxys starts a
+best-effort rolling-delivery pass. The plan mutation remains successful if the
+provider is unavailable. External writes occur only when managed mode and
+delivery consent are already enabled.
+
 ## Settings
 
 ### GET /api/settings
@@ -952,17 +957,22 @@ Update settings (partial update).
   "plan_management": {
     "mode": "praxys",
     "execution_target": "stryd",
-    "delivery_enabled": false,
+    "delivery_enabled": true,
     "adjustment_policy": "suggest_only"
   }
 }
 ```
 
 `plan_management.mode` is `external` or `praxys`. Praxys mode makes
-Praxys-authored rows canonical but does not itself write to a platform.
-`execution_target` must be a connected plan-capable platform. During the
-foundation rollout, `delivery_enabled=true` returns 409 because automatic
-delivery has not shipped yet. `suggest_only` is the only adjustment policy.
+Praxys-owned rows canonical. `execution_target` must be an actively connected
+plan-capable platform with a registered delivery adapter. Setting
+`delivery_enabled=true` commits explicit consent and then starts a best-effort
+delivery pass for today through day 13. The same rolling pass runs after
+committed plan mutations and on scheduler ticks. Repeated runs are idempotent;
+target edits/deletions and uncertain provider outcomes block only the affected
+workout. Setting `delivery_enabled=false` pauses new writes and retries
+immediately. Switching to `external` also pauses delivery but keeps workouts
+already delivered to the target. `suggest_only` is the only adjustment policy.
 Legacy `preferences.plan` remains supported as the external-mode analytical
 source selector and may seed the execution target, but it never activates
 managed mode or delivery.

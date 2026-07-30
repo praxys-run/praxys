@@ -17,6 +17,7 @@ from api.plan_delivery.base import (
     ProviderRemoveResult,
     ProviderRemovalError,
     ProviderRequestError,
+    ProviderTransientError,
 )
 from db.plan_ledger import normalize_stryd_workout_id
 from sync import stryd_sync
@@ -228,6 +229,10 @@ class StrydPlanDeliveryAdapter:
             detail = self._http_detail(exc)
             if status_code is None or status_code == 408 or status_code >= 500:
                 raise ProviderOutcomeUnknownError(detail) from exc
+            if status_code == 429:
+                raise ProviderTransientError(
+                    f"Stryd API rate limit: {detail}"
+                ) from exc
             raise ProviderRejectedError(f"Stryd API error: {detail}") from exc
         except requests.RequestException as exc:
             raise ProviderOutcomeUnknownError(str(exc)) from exc

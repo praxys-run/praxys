@@ -34,7 +34,9 @@ from analysis.thresholds import detect_thresholds
 from analysis.training_base import get_display_config
 from api.auth import get_data_user_id, require_write_access
 from api.env_compat import getenv_compat
+from api.plan_delivery import is_plan_delivery_target_registered
 from api.views import utc_isoformat
+from db.models import UserConnection
 from db.session import get_db
 from db.sync_scheduler import (
     ALLOWED_SYNC_INTERVAL_HOURS,
@@ -90,6 +92,9 @@ def _legacy_execution_target(plan_source: object) -> str | None:
 def _apply_plan_management_update(
     config: UserConfig,
     update: PlanManagementUpdate,
+    *,
+    user_id: str,
+    db: Session,
 ) -> None:
     """Validate and merge an explicit managed-plan settings update."""
     changes = update.model_dump(exclude_unset=True)
@@ -101,17 +106,28 @@ def _apply_plan_management_update(
             )
 
     candidate = {**config.plan_management, **changes}
+    if (
+        changes.get("mode") == "external"
+        and "delivery_enabled" not in changes
+    ):
+        candidate["delivery_enabled"] = False
     if candidate.get("delivery_enabled"):
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "Managed-plan delivery is not available yet. "
-                "Plan ownership can be selected without enabling platform writes."
-            ),
-        )
+        if candidate.get("mode") != "praxys":
+            raise HTTPException(
+                status_code=400,
+                detail="Managed-plan delivery requires Praxys mode",
+            )
+        if not candidate.get("execution_target"):
+            raise HTTPException(
+                status_code=400,
+                detail="Managed-plan delivery requires an execution target",
+            )
 
     target = candidate.get("execution_target")
-    if target is not None:
+    if target is not None and (
+        "execution_target" in changes
+        or candidate.get("delivery_enabled")
+    ):
         if target not in config.connections:
             raise HTTPException(
                 status_code=400,
@@ -122,6 +138,20 @@ def _apply_plan_management_update(
             raise HTTPException(
                 status_code=400,
                 detail=f"{target} does not support plan delivery",
+            )
+        if not is_plan_delivery_target_registered(target):
+            raise HTTPException(
+                status_code=409,
+                detail=f"{target} plan delivery is not available",
+            )
+        connection = db.query(UserConnection).filter(
+            UserConnection.user_id == user_id,
+            UserConnection.platform == target,
+        ).first()
+        if connection is None or connection.status != "connected":
+            raise HTTPException(
+                status_code=409,
+                detail="Plan execution target must be actively connected",
             )
 
     config.plan_management = normalize_plan_management(candidate)
@@ -335,6 +365,7 @@ def update_settings(
 ) -> dict:
     """Update user settings and persist to database."""
     config = load_config_from_db(user_id, db)
+    prior_plan_management = dict(config.plan_management)
 
     if body.display_name is not None:
         config.display_name = body.display_name
@@ -359,7 +390,12 @@ def update_settings(
                 "execution_target": legacy_target,
             })
     if body.plan_management is not None:
-        _apply_plan_management_update(config, body.plan_management)
+        _apply_plan_management_update(
+            config,
+            body.plan_management,
+            user_id=user_id,
+            db=db,
+        )
     # `thresholds` updates are accepted-and-dropped: manual numeric overrides
     # are no longer supported; source selection lives in
     # ``preferences.threshold_sources``. Kept in the schema for API compat
@@ -401,6 +437,25 @@ def update_settings(
     from db.cache_revision import bump_revisions
     bump_revisions(db, user_id, ["config"])
     save_config_to_db(user_id, config, db)
+
+    if (
+        config.plan_management["mode"] == "praxys"
+        and config.plan_management["delivery_enabled"]
+        and config.plan_management != prior_plan_management
+    ):
+        try:
+            from api.plan_delivery.rolling import trigger_managed_plan_delivery
+
+            trigger_managed_plan_delivery(
+                user_id,
+                trigger="plan_management_enabled",
+            )
+        except Exception:
+            logger.exception(
+                "Post-commit managed delivery hook failed user=%s "
+                "trigger=plan_management_enabled",
+                user_id,
+            )
 
     return {
         "status": "ok",

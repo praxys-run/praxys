@@ -17,11 +17,11 @@ from db.connection_credentials import (
 logger = logging.getLogger(__name__)
 
 
-class DeliveryCredentialsUnavailable(RuntimeError):
+class DeliveryCredentialsUnavailable(CredentialAccessError):
     """No credentials are available for the requested delivery target."""
 
 
-class DeliveryCredentialsInvalid(RuntimeError):
+class DeliveryCredentialsInvalid(CredentialAccessError):
     """Stored credentials require the user to reconnect the platform."""
 
 

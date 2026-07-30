@@ -10,8 +10,19 @@ from typing import Any, Callable, Mapping
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from api.plan_delivery.base import PlanDeliveryAdapter
-from api.plan_delivery.service import PlanDeliveryService
+from api.plan_delivery.base import (
+    PlanDeliveryAdapter,
+    ProviderAuthenticationError,
+    ProviderRequestError,
+)
+from api.plan_delivery.credentials import (
+    DeliveryCredentialsInvalid,
+    DeliveryCredentialsUnavailable,
+)
+from api.plan_delivery.service import (
+    DeliveryMutationBlockedError,
+    PlanDeliveryService,
+)
 from api.plan_reconciliation import PlanReconciliationItem
 from db.cache_revision import bump_revisions
 from db.models import (
@@ -475,6 +486,10 @@ def _record_restore_revision(
     target: str,
     item: PlanReconciliationItem,
     canonical: TrainingPlan,
+    actor_type: str,
+    actor_id: str | None,
+    origin: str,
+    trigger: str | None,
 ) -> tuple[PlanRevision, dict[str, Any], str]:
     snapshot = plan_snapshot(canonical)
     current_version = workout_version(snapshot)
@@ -486,9 +501,9 @@ def _record_restore_revision(
         db,
         user_id=user_id,
         operation="restore_target",
-        actor_type="user",
-        actor_id=user_id,
-        origin="api.plan.reconciliation.restore",
+        actor_type=actor_type,
+        actor_id=actor_id,
+        origin=origin,
         before=[snapshot],
         after=[snapshot],
         details={
@@ -502,6 +517,7 @@ def _record_restore_revision(
                 if item.delivery is not None
                 else None
             ),
+            **({"trigger": trigger} if trigger else {}),
         },
         idempotency_key=idempotency_key,
     )
@@ -816,6 +832,8 @@ def _record_restore_preflight_failure(
     delivery_id: str,
     revision_id: str,
     error: Exception,
+    canonical_version: str,
+    attempt_context: Mapping[str, Any] | None,
 ) -> None:
     """Best-effort delivery event for a restore that failed before provider I/O."""
     try:
@@ -835,9 +853,33 @@ def _record_restore_preflight_failure(
             external_id=delivery.external_id,
             error=str(error),
             response={
+                **dict(attempt_context or {}),
                 "resolution": "restore_praxys",
                 "revision_id": revision_id,
                 "preflight": True,
+                "canonical_version": canonical_version,
+                "error_category": (
+                    "invalid_workout"
+                    if isinstance(error, ProviderRequestError)
+                    else "provider_authentication"
+                    if isinstance(
+                        error,
+                        (
+                            DeliveryCredentialsInvalid,
+                            DeliveryCredentialsUnavailable,
+                            ProviderAuthenticationError,
+                        ),
+                    )
+                    else "reconciliation_required"
+                ),
+                "retryable": isinstance(
+                    error,
+                    (
+                        DeliveryCredentialsInvalid,
+                        DeliveryCredentialsUnavailable,
+                        ProviderAuthenticationError,
+                    ),
+                ),
             },
         )
         bump_revisions(db, user_id, ["plans"])
@@ -859,6 +901,12 @@ def restore_praxys_version(
     item: PlanReconciliationItem,
     threshold_value: float,
     adapter_loader: Callable[[], PlanDeliveryAdapter],
+    actor_type: str = "user",
+    actor_id: str | None = None,
+    origin: str = "api.plan.reconciliation.restore",
+    trigger: str | None = None,
+    attempt_context: Mapping[str, Any] | None = None,
+    mutation_guard: Callable[[], None] | None = None,
 ) -> PlanResolutionResult:
     """Restore the current canonical version with retry-safe provider writes."""
     if item.canonical is None or item.delivery is None:
@@ -920,6 +968,14 @@ def restore_praxys_version(
         target=target,
         item=item,
         canonical=canonical,
+        actor_type=actor_type,
+        actor_id=(
+            user_id
+            if actor_type == "user" and actor_id is None
+            else actor_id
+        ),
+        origin=origin,
+        trigger=trigger,
     )
 
     try:
@@ -937,13 +993,21 @@ def restore_praxys_version(
             raise PlanResolutionConflict(
                 "Delivery belongs to a different provider account"
             )
-    except Exception as exc:
+    except (
+        DeliveryCredentialsInvalid,
+        DeliveryCredentialsUnavailable,
+        PlanResolutionConflict,
+        ProviderAuthenticationError,
+        ProviderRequestError,
+    ) as exc:
         _record_restore_preflight_failure(
             db,
             user_id=user_id,
             delivery_id=prior_delivery_id,
             revision_id=revision.id,
             error=exc,
+            canonical_version=expected_plan_version,
+            attempt_context=attempt_context,
         )
         raise
 
@@ -1003,7 +1067,15 @@ def restore_praxys_version(
             target=target,
             item=item,
         )
-        service.remove(item.delivery.external_id)
+        service.remove(
+            item.delivery.external_id,
+            attempt_context={
+                **dict(attempt_context or {}),
+                "resolution": "restore_praxys",
+                "revision_id": revision.id,
+            },
+            mutation_guard=mutation_guard,
+        )
     _assert_resolution_generation(
         db,
         user_id=user_id,
@@ -1014,7 +1086,17 @@ def restore_praxys_version(
         snapshot,
         threshold_value=threshold_value,
         observed_external_ids=None,
+        attempt_context={
+            **dict(attempt_context or {}),
+            "resolution": "restore_praxys",
+            "revision_id": revision.id,
+        },
+        mutation_guard=mutation_guard,
     )
+    if outcome.error_category == "delivery_gate_changed":
+        raise DeliveryMutationBlockedError(
+            outcome.error or "Managed delivery gate changed"
+        )
     if outcome.status != "success" or not outcome.external_id:
         raise PlanResolutionProviderError(
             outcome.error or "Provider restore did not complete"

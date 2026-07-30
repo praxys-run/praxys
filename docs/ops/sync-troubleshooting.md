@@ -1,8 +1,8 @@
 # Sync troubleshooting
 
 > **Summary:** Diagnose and recover stuck platform syncs (Garmin / Stryd / Oura).
-> **Use when:** A user's dashboard data stops updating, or a connection card shows
-> `auth_required`.
+> **Use when:** A user's dashboard data or managed workouts stop updating, or a
+> connection card shows `auth_required`.
 
 Domain detail lives in [`docs/dev/gotchas.md`](../dev/gotchas.md) → "Garmin sync";
 this is the operational quick-path.
@@ -56,10 +56,36 @@ All per-source failures log at `warning`+ (debug once hid CN failures for months
 Aggregate warnings fire at ≥ max(3, total/2) failures; HRV/sleep circuit-break
 after 5 consecutive. Check `az webapp log tail -n trainsight-app -g rg-trainsight`.
 
+## Managed-plan delivery is paused or stuck
+
+Rolling delivery shares the background scheduler and the target's
+`UserConnection`, but it remains default-off. Confirm these conditions before
+investigating the provider:
+
+1. `user_config.plan_management` has `mode=praxys`,
+   `delivery_enabled=true`, and the expected `execution_target`.
+2. The target connection is `connected`. Credential decode failures move it to
+   `auth_required`; reconnecting is the recovery path.
+3. Search logs for `Managed delivery blocked`, `Managed removal failed`, or
+   `Managed replacement blocked`. The logged category is safe to use for
+   triage; provider credentials and payloads are never logged.
+4. Inspect `plan_delivery_attempts.response` for `managed_delivery=true`,
+   `error_category`, and `retryable`.
+
+HTTP 429 creates and idempotent removals use durable exponential retry (15
+minutes initially, capped at 6 hours and 5 failed automatic attempts).
+Timeouts, HTTP 408/5xx creates, target edits/deletions, and account mismatches do
+not auto-retry because the provider outcome or ownership is unresolved. Resolve
+the affected workout through plan reconciliation instead of deleting unrelated
+target workouts. Pausing delivery or switching to external mode takes effect
+before the next write and intentionally keeps already-delivered workouts.
+
 ## Verify
 
 After recovery: trigger a sync (Settings → Sync, or `POST /api/sync`), confirm the
 connection card leaves `auth_required` and new activities/recovery rows appear.
+For managed plans, confirm the next scheduler tick creates only missing
+Praxys-owned workouts inside the 14-day horizon.
 
 ## Related
 

@@ -15,6 +15,11 @@ DataCategory = Literal["activities", "recovery", "fitness", "plan"]
 PlanManagementMode = Literal["external", "praxys"]
 PlanAdjustmentPolicy = Literal["suggest_only"]
 
+# The persisted canonical-plan source is still ``ai`` for rolling-deploy
+# compatibility. Issue #504 will migrate ownership to ``praxys`` and split
+# true workout provenance into a separate field.
+PRAXYS_PLAN_SOURCES: tuple[str, ...] = ("ai",)
+
 # Default zone boundaries as fractions of threshold value.
 # 4 boundaries define 5 zones (Z1..Z5).
 DEFAULT_ZONES: dict[str, list[float]] = {
@@ -226,10 +231,15 @@ def is_praxys_managed_plan(config: object) -> bool:
     )
 
 
+def is_praxys_plan_source(value: object) -> bool:
+    """Return whether a stored source belongs to the Praxys canonical lane."""
+    return str(value or "").strip().casefold() in PRAXYS_PLAN_SOURCES
+
+
 def plan_analysis_source(config: object) -> str:
     """Return the source analytical views should treat as canonical."""
     if is_praxys_managed_plan(config):
-        return "ai"
+        return PRAXYS_PLAN_SOURCES[0]
     preferences = getattr(config, "preferences", None)
     if not isinstance(preferences, dict):
         return ""

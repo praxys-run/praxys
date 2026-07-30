@@ -32,9 +32,11 @@ az appservice plan update -n plan-trainsight -g rg-trainsight --number-of-worker
 
 **Scale-out caveat (important):** each worker runs its own background **sync
 scheduler** (`db/sync_scheduler.py`, started per-worker in `api/main.py`).
-Per-row `last_sync` checks make duplicate ticks idempotent, but to run exactly
-one scheduler set `PRAXYS_SYNC_SCHEDULER=false` on N-1 workers, or keep a
-single-worker deployment. Verify behaviour before relying on multi-worker.
+Per-row `last_sync` checks and the plan-delivery ledger make duplicate writes
+idempotent, but duplicate workers still repeat provider calendar reads and
+compete for the same retry work. To run exactly one scheduler set
+`PRAXYS_SYNC_SCHEDULER=false` on N-1 workers, or keep a single-worker
+deployment. Verify behaviour before relying on multi-worker.
 
 **Database and scale-out (#360):** true scale-out (multiple instances) is only
 safe once the DB is **PostgreSQL** - the legacy SQLite file on `/home` needs a

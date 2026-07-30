@@ -5,6 +5,7 @@ import pytest
 from db.sync_scheduler import (
     ALLOWED_SYNC_INTERVAL_HOURS,
     DEFAULT_SYNC_INTERVAL_HOURS,
+    _run_managed_delivery_tick,
     get_user_sync_interval_hours,
     normalize_sync_interval_hours,
 )
@@ -37,3 +38,31 @@ def test_normalize_sync_interval_hours_rejects_invalid_values(hours: object) -> 
 def test_get_user_sync_interval_hours_fallbacks(source_options: dict | None, expected: int) -> None:
     """Scheduler should safely fall back to default on missing/invalid config."""
     assert get_user_sync_interval_hours(source_options) == expected
+
+
+def test_scheduler_tick_runs_managed_delivery(monkeypatch) -> None:
+    """Each scheduler cycle should run the isolated managed-plan retry pass."""
+    calls: list[str] = []
+    monkeypatch.setattr(
+        "api.plan_delivery.rolling.run_scheduled_managed_deliveries",
+        lambda: calls.append("managed"),
+    )
+
+    _run_managed_delivery_tick()
+
+    assert calls == ["managed"]
+
+
+def test_scheduler_tick_isolates_managed_delivery_failure(
+    monkeypatch,
+) -> None:
+    """Managed delivery failures must not escape into the sync scheduler."""
+    def fail() -> None:
+        raise RuntimeError("managed delivery failed")
+
+    monkeypatch.setattr(
+        "api.plan_delivery.rolling.run_scheduled_managed_deliveries",
+        fail,
+    )
+
+    _run_managed_delivery_tick()

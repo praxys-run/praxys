@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from api.plan_delivery.base import (
     PlanDeliveryAdapter,
     ProviderAuthenticationError,
+    ProviderTransientError,
 )
 from api.plan_delivery.service import PlanDeliveryService
 from api.plan_delivery.stryd import StrydPlanDeliveryAdapter
@@ -123,6 +124,35 @@ def test_stryd_adapter_sends_the_prepared_payload_unchanged(monkeypatch):
         for key, value in captured.items()
         if key not in {"user_id", "token"}
     } == prepared.request
+
+
+def test_stryd_adapter_marks_rate_limit_as_safely_retryable(monkeypatch):
+    monkeypatch.setattr(
+        "sync.stryd_sync._login_api",
+        lambda email, password: ("provider-user", "provider-token"),
+    )
+
+    def _rate_limited(**kwargs):
+        response = requests.Response()
+        response.status_code = 429
+        raise requests.HTTPError("rate limited", response=response)
+
+    monkeypatch.setattr("sync.stryd_sync.create_workout_api", _rate_limited)
+    adapter = StrydPlanDeliveryAdapter({
+        "email": "runner@example.test",
+        "password": "secret",
+    })
+    prepared = adapter.prepare_workout(
+        {
+            "date": "2026-08-02",
+            "workout_type": "easy",
+            "planned_duration_min": 45,
+        },
+        threshold_value=280.0,
+    )
+
+    with pytest.raises(ProviderTransientError):
+        adapter.create_workout(prepared)
 
 
 def test_stryd_prepared_payload_is_stable_and_tracks_threshold():

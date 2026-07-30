@@ -13,6 +13,7 @@ import time
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Iterator, Mapping, Sequence
+from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -209,6 +210,17 @@ def canonical_workout_key(snapshot: Mapping[str, Any]) -> str:
         raise ValueError("plan snapshot must include a date")
     workout_type = str(snapshot.get("workout_type") or "unknown").strip().casefold()
     return f"{source}:{workout_date}:{workout_type or 'unknown'}"
+
+
+def canonical_id_from_workout_key(canonical_key: str) -> str | None:
+    """Return the UUID from a modern canonical key, excluding legacy slots."""
+    _, separator, candidate = str(canonical_key or "").partition(":")
+    if not separator:
+        return None
+    try:
+        return str(UUID(candidate))
+    except (ValueError, AttributeError):
+        return None
 
 
 def legacy_unknown_version(snapshot: Mapping[str, Any]) -> str:
