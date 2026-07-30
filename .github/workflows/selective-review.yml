@@ -279,24 +279,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           HEAD_SHA: ${{ steps.gate-status.outputs.head_sha }}
+          RUNTIME_KILL_SWITCH: ${{ vars.PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH }}
         shell: bash
         run: |
           set -euo pipefail
-          variables_json="$(
-            gh api "repos/${GITHUB_REPOSITORY}/actions/variables?per_page=100" \
-              --paginate --slurp
-          )"
-          kill_switch="$(
-            jq -r '
-              [.[] | .variables[]? |
-                select(.name == "PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH") |
-                .value
-              ] |
-              last // "false" |
-              ascii_downcase
-            ' <<< "$variables_json"
-          )"
-          if [[ "$kill_switch" == "true" ]]; then
+          if [[ "${RUNTIME_KILL_SWITCH,,}" == "true" ]]; then
             echo "::error::Selective review was emergency-stopped before policy completion."
             exit 1
           fi
