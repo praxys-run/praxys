@@ -155,6 +155,54 @@ def test_modern_delivery_rekeys_active_legacy_slot_before_replacement(
     assert retry_disposition == "replacement_required"
 
 
+def test_new_worker_adopts_old_worker_delivery_identity(ledger_db):
+    db, _ = ledger_db
+    from db.models import PlanDelivery
+    from db.plan_ledger import (
+        canonical_workout_key,
+        get_or_create_delivery,
+        workout_version,
+    )
+
+    canonical_id = "11111111-1111-1111-1111-111111111111"
+    legacy_snapshot = {
+        "canonical_id": canonical_id,
+        "date": "2026-05-02",
+        "source": "ai",
+        "workout_type": "easy",
+        "workout_description": "Compatibility",
+    }
+    version = workout_version(legacy_snapshot)
+    old_delivery = PlanDelivery(
+        user_id="rolling-user",
+        canonical_key=canonical_workout_key(legacy_snapshot),
+        canonical_id=None,
+        workout_date=date(2026, 5, 2),
+        workout_version=version,
+        plan_version=version,
+        target="stryd",
+        state="pending",
+    )
+    db.add(old_delivery)
+    db.commit()
+
+    delivery, created = get_or_create_delivery(
+        db,
+        user_id="rolling-user",
+        target="stryd",
+        snapshot={
+            **legacy_snapshot,
+            "source": "praxys",
+            "workout_origin": "generated",
+        },
+    )
+
+    assert created is False
+    assert delivery.id == old_delivery.id
+    assert delivery.canonical_id == canonical_id
+    assert delivery.canonical_key == f"ai:{canonical_id}"
+
+
 def test_legacy_delivery_rekeys_to_unique_same_slot_content_match(ledger_db):
     db, _ = ledger_db
     from db.models import TrainingPlan
@@ -207,7 +255,9 @@ def test_legacy_delivery_rekeys_to_unique_same_slot_content_match(ledger_db):
     assert created is True
     db.refresh(legacy)
     assert legacy.canonical_key == f"ai:{first_id}"
+    assert legacy.canonical_id == first_id
     assert second.canonical_key == f"ai:{second_id}"
+    assert second.canonical_id == second_id
 
     first, created = get_or_create_delivery(
         db,

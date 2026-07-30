@@ -12,7 +12,14 @@ from datetime import date, datetime, timedelta
 
 import pandas as pd
 
-from analysis.config import load_config, load_config_from_db
+from analysis.config import (
+    LEGACY_PRAXYS_PLAN_SOURCE,
+    PRAXYS_PLAN_SOURCE,
+    is_praxys_plan_source,
+    load_config,
+    load_config_from_db,
+    normalize_workout_origin,
+)
 from analysis.metrics import is_hard_workout, is_rest_workout
 
 
@@ -171,6 +178,19 @@ def _build_context_from_data(data: dict, *, user_id: str | None = None, db=None)
             wp = {k: (v if pd.notna(v) else None) for k, v in row.to_dict().items()}
             row_date = wp.get("date")
             wp["date"] = str(row_date) if row_date is not None else ""
+            raw_source = wp.get("source")
+            raw_origin = wp.pop("workout_origin", None)
+            if is_praxys_plan_source(raw_source):
+                # Keep the context compatible with existing skill clients while
+                # exposing explicit ownership and provenance.
+                wp["source"] = LEGACY_PRAXYS_PLAN_SOURCE
+                wp["owner"] = PRAXYS_PLAN_SOURCE
+            else:
+                wp["owner"] = "external"
+            wp["origin"] = normalize_workout_origin(
+                raw_origin,
+                source=raw_source,
+            )
             current_plan.append(wp)
             if planned_today is None and row_date == today:
                 planned_today = wp

@@ -441,7 +441,7 @@ class DashboardCache(Base):
 
 
 class TrainingPlan(Base):
-    """Planned workouts (from Stryd, AI-generated, etc.)."""
+    """Planned workouts from Praxys or an external platform."""
 
     __tablename__ = "training_plans"
 
@@ -463,10 +463,20 @@ class TrainingPlan(Base):
     target_pace_min = Column(String(20), nullable=True)
     target_pace_max = Column(String(20), nullable=True)
     workout_description = Column(Text, nullable=True)
-    source = Column(String(20), default="stryd")  # stryd or ai
+    # Ownership lane. ``ai`` remains a read-compatible legacy alias for
+    # Praxys rows during rolling deployment.
+    source = Column(String(20), default="stryd")
+    # How the current workout content entered this row. Ownership and
+    # provenance intentionally remain independent.
+    workout_origin = Column(
+        String(30),
+        nullable=False,
+        default="legacy",
+        server_default="legacy",
+    )
     # External platform's identifier for this workout, when the plan
     # row was imported from a platform calendar (e.g. Stryd's workout
-    # `id`). NULL for AI-generated rows. Lets `/api/plan` join AI rows
+    # `id`). NULL for Praxys-owned rows. Lets `/api/plan` join Praxys rows
     # against platform rows on date and detect mismatches: if Praxys
     # pushed a workout, we know its external_id from the push log; if
     # the platform has a workout with a different external_id on that
@@ -477,7 +487,7 @@ class TrainingPlan(Base):
     # a workout belongs to: clients bucket it in the viewer's tz. `date` is
     # a server-truncated fallback for backend windowing and legacy rows.
     start_time = Column(DateTime, nullable=True)
-    meta = Column(JSON, nullable=True)  # for AI plans: generated_at, cp_at_generation
+    meta = Column(JSON, nullable=True)  # generation and provider provenance details
 
     __table_args__ = (
         UniqueConstraint(
@@ -533,6 +543,10 @@ class PlanDelivery(Base):
         index=True,
     )
     canonical_key = Column(String(120), nullable=False)
+    # Durable UUID identity for modern Praxys workouts. ``canonical_key`` is
+    # retained as a compatibility encoding for older deployed workers and
+    # date-based legacy delivery rows.
+    canonical_id = Column(String(36), nullable=True)
     workout_date = Column(Date, nullable=False)
     # Provider-payload fingerprint. This legacy column name is retained so
     # existing uniqueness constraints continue to fence duplicate writes.
@@ -567,6 +581,14 @@ class PlanDelivery(Base):
             "canonical_key",
             "workout_version",
             name="uq_plan_delivery_version_target",
+        ),
+        Index(
+            "uq_plan_delivery_canonical_version_target",
+            "user_id",
+            "target",
+            "canonical_id",
+            "workout_version",
+            unique=True,
         ),
         Index(
             "ix_plan_deliveries_user_target_date",

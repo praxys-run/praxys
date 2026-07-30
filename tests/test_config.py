@@ -4,11 +4,16 @@ import os
 import tempfile
 
 from analysis.config import (
+    PRAXYS_PLAN_SOURCE,
+    PRAXYS_PLAN_WRITE_SOURCE,
     UserConfig,
     load_config,
     save_config,
     _migrate_config,
     default_plan_management,
+    normalize_plan_source,
+    normalize_workout_origin,
+    plan_analysis_source,
     DEFAULT_ZONES,
 )
 
@@ -27,6 +32,26 @@ class TestUserConfigDefaults:
     def test_default_plan_management_is_safe(self):
         config = UserConfig()
         assert config.plan_management == default_plan_management()
+
+    def test_managed_plan_uses_explicit_praxys_source(self):
+        config = UserConfig(plan_management={
+            "mode": "praxys",
+            "execution_target": "stryd",
+            "delivery_enabled": False,
+            "adjustment_policy": "suggest_only",
+        })
+        assert plan_analysis_source(config) == PRAXYS_PLAN_SOURCE
+
+    def test_expand_release_keeps_legacy_write_alias(self):
+        assert PRAXYS_PLAN_WRITE_SOURCE == "ai"
+
+    def test_legacy_plan_source_normalizes_to_praxys(self):
+        assert normalize_plan_source("ai") == PRAXYS_PLAN_SOURCE
+        assert normalize_plan_source("praxys") == PRAXYS_PLAN_SOURCE
+
+    def test_workout_origin_defaults_follow_ownership(self):
+        assert normalize_workout_origin(None, source="ai") == "legacy"
+        assert normalize_workout_origin(None, source="stryd") == "imported"
 
     def test_default_training_base(self):
         config = UserConfig()

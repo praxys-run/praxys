@@ -2,8 +2,8 @@
 
 Covers the contract change in the Plan reshape:
 
-- The canonical plan is the AI-authored one (`source='ai'`); Stryd plan
-  rows in the same window become `sync_state` flags on AI rows that share
+- The canonical plan is the Praxys-owned one; Stryd plan
+  rows in the same window become `sync_state` flags on Praxys rows that share
   a date and `stryd_only_dates` for orphan Stryd rows.
 - ``?start=&end=`` clamps the response window and is salted into the
   ETag so two clients on different windows can't bleed cache.
@@ -15,6 +15,12 @@ import tempfile
 from datetime import date, datetime, timedelta
 
 import pytest
+
+from analysis.config import (
+    PRAXYS_PLAN_SOURCE,
+    PRAXYS_PLAN_SOURCES,
+    PRAXYS_PLAN_WRITE_SOURCE,
+)
 
 
 @pytest.fixture
@@ -232,6 +238,10 @@ def test_get_plan_returns_window_with_source_tag(api_client):
         (ai_day.isoformat(), "ai"),
         (stryd_day.isoformat(), "stryd"),
     ]
+    assert [(w["owner"], w["origin"]) for w in workouts] == [
+        ("praxys", "legacy"),
+        ("external", "imported"),
+    ]
     # The retired ``cp_current`` field must not return.
     assert "cp_current" not in body
     # Window echo helps clients page without restating the math themselves.
@@ -254,6 +264,7 @@ def test_ai_row_takes_precedence_when_date_collides(api_client):
     workouts = client.get("/api/plan").json()["workouts"]
     assert len(workouts) == 1
     assert workouts[0]["source"] == "ai"
+    assert workouts[0]["owner"] == "praxys"
     assert workouts[0]["workout_type"] == "threshold"
 
 
@@ -578,7 +589,7 @@ def test_modern_delivery_never_transfers_to_replacement_canonical(api_client):
     try:
         original = db.query(TrainingPlan).filter(
             TrainingPlan.user_id == user_id,
-            TrainingPlan.source == "ai",
+            TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
         ).one()
         original_id = original.canonical_id
     finally:
@@ -920,7 +931,7 @@ def test_windowed_view_cannot_reclassify_moved_owned_workout_as_target_only(
     try:
         canonical_id = db.query(TrainingPlan.canonical_id).filter(
             TrainingPlan.user_id == user_id,
-            TrainingPlan.source == "ai",
+            TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
         ).scalar()
     finally:
         db.close()
@@ -977,7 +988,7 @@ def test_windowed_view_cannot_reclassify_moved_owned_workout_as_target_only(
     try:
         assert db.query(TrainingPlan).filter(
             TrainingPlan.user_id == user_id,
-            TrainingPlan.source == "ai",
+            TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
         ).count() == 1
         assert db.query(PlanDelivery).filter(
             PlanDelivery.user_id == user_id,
@@ -1071,7 +1082,7 @@ def test_reconciliation_detects_canonical_change_after_delivery(api_client):
     try:
         row = db.query(TrainingPlan).filter(
             TrainingPlan.user_id == user_id,
-            TrainingPlan.source == "ai",
+            TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
             TrainingPlan.date == target,
         ).one()
         row.workout_description = "Adjusted in Praxys"
@@ -1253,7 +1264,8 @@ def test_accept_target_is_transactional_and_records_provenance(api_client):
             TrainingPlan.user_id == user_id,
             TrainingPlan.canonical_id == canonical_id,
         ).one()
-        assert canonical.source == "ai"
+        assert canonical.source == PRAXYS_PLAN_WRITE_SOURCE
+        assert canonical.workout_origin == "accepted_target"
         assert canonical.workout_description == "Imported coach session"
         assert canonical.meta["accepted_from_target"]["external_id"] == (
             "coach-target"
@@ -1320,7 +1332,7 @@ def test_accept_target_failure_rolls_back_canonical_and_ledger(
     try:
         assert db.query(TrainingPlan).filter(
             TrainingPlan.user_id == user_id,
-            TrainingPlan.source == "ai",
+            TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
         ).count() == 0
         assert db.query(PlanRevision).filter(
             PlanRevision.user_id == user_id,
@@ -1503,7 +1515,7 @@ def test_accept_target_rejects_concurrent_canonical_edit(api_client):
         try:
             canonical = other_db.query(TrainingPlan).filter(
                 TrainingPlan.user_id == user_id,
-                TrainingPlan.source == "ai",
+                TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
             ).one()
             canonical.workout_description = "Concurrent Praxys edit"
             other_db.commit()
@@ -1523,7 +1535,7 @@ def test_accept_target_rejects_concurrent_canonical_edit(api_client):
         db.rollback()
         canonical = db.query(TrainingPlan).filter(
             TrainingPlan.user_id == user_id,
-            TrainingPlan.source == "ai",
+            TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
         ).one()
         assert canonical.workout_description == "Concurrent Praxys edit"
         assert db.query(PlanRevision).filter(
@@ -1883,7 +1895,7 @@ def test_restore_rebind_rejects_concurrent_canonical_edit(
             try:
                 canonical = other_db.query(TrainingPlan).filter(
                     TrainingPlan.user_id == user_id,
-                    TrainingPlan.source == "ai",
+                    TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
                 ).one()
                 canonical.workout_description = "Concurrent Praxys edit"
                 other_db.commit()
@@ -1995,7 +2007,7 @@ def test_restore_revalidates_before_delete_create_provider_mutation(
             try:
                 canonical = other_db.query(TrainingPlan).filter(
                     TrainingPlan.user_id == user_id,
-                    TrainingPlan.source == "ai",
+                    TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
                 ).one()
                 canonical.workout_description = "Concurrent Praxys edit"
                 other_db.commit()
@@ -2077,7 +2089,7 @@ def test_restore_retries_conflict_after_newer_sync_confirms_absence(
     try:
         canonical = db.query(TrainingPlan).filter(
             TrainingPlan.user_id == user_id,
-            TrainingPlan.source == "ai",
+            TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
         ).one()
         delivery, _ = get_or_create_delivery(
             db,
@@ -2218,7 +2230,7 @@ def test_restore_conflict_checks_original_uncertain_fingerprint(
     try:
         canonical = db.query(TrainingPlan).filter(
             TrainingPlan.user_id == user_id,
-            TrainingPlan.source == "ai",
+            TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
         ).one()
         delivery, _ = get_or_create_delivery(
             db,
@@ -2345,7 +2357,7 @@ def test_restore_conflict_falls_back_to_original_payload_fingerprint(
     try:
         canonical = db.query(TrainingPlan).filter(
             TrainingPlan.user_id == user_id,
-            TrainingPlan.source == "ai",
+            TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
         ).one()
         delivery, _ = get_or_create_delivery(
             db,
@@ -2469,7 +2481,7 @@ def test_accept_import_does_not_complete_restore_receipt(api_client):
     try:
         canonical = db.query(TrainingPlan).filter(
             TrainingPlan.user_id == user_id,
-            TrainingPlan.source == "ai",
+            TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
         ).one()
         snapshot = plan_snapshot(canonical)
         revision, _ = record_plan_revision_idempotent(

@@ -183,6 +183,29 @@ class TestPlannedTodayContext:
         assert ctx["planned_today"]["workout_type"] == "easy"
         assert ctx["planned_today"]["date"] == today.isoformat()
 
+    def test_praxys_plan_context_uses_compatibility_source_and_provenance(
+        self,
+        monkeypatch,
+    ):
+        from api.ai import _build_context_from_data
+        from analysis.config import UserConfig
+
+        monkeypatch.setattr("api.ai.load_config", lambda: UserConfig())
+        today = date.today()
+        data = self._empty_data([{
+            "date": today,
+            "workout_type": "easy",
+            "source": "praxys",
+            "workout_origin": "generated",
+        }])
+
+        workout = _build_context_from_data(data)["planned_today"]
+
+        assert workout["source"] == "ai"
+        assert workout["owner"] == "praxys"
+        assert workout["origin"] == "generated"
+        assert "workout_origin" not in workout
+
     def test_planned_today_none_when_today_is_unscheduled(self, monkeypatch):
         """A future entry must not be presented as today's workout."""
         from api.ai import _build_context_from_data
@@ -298,6 +321,8 @@ class TestAiPlanProvider:
             df = provider.load_plan(tmpdir)
             assert len(df) == 2
             assert df.iloc[0]["workout_type"] == "easy"
+            assert set(df["source"]) == {"ai"}
+            assert set(df["workout_origin"]) == {"generated"}
 
     def test_load_plan_handles_unquoted_commas(self):
         """Descriptions with commas should be preserved even without quoting."""
@@ -331,6 +356,12 @@ class TestAiPlanProvider:
         from analysis.providers import get_plan_provider
         provider = get_plan_provider("ai")
         assert provider.name == "ai"
+
+    def test_praxys_provider_alias_registered(self):
+        from analysis.providers import get_plan_provider
+        from analysis.providers.ai import AiPlanProvider
+
+        assert isinstance(get_plan_provider("praxys"), AiPlanProvider)
 
 
 # ---------------------------------------------------------------------------

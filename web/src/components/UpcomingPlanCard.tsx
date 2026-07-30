@@ -332,6 +332,11 @@ async function pushDatesToStryd(dates: string[]): Promise<{
   return resp.json();
 }
 
+function isPraxysOwned(workout: PlannedWorkout): boolean {
+  return workout.owner === 'praxys'
+    || (workout.owner === undefined && workout.source === 'ai');
+}
+
 function WindowPills({
   active,
   onChange,
@@ -545,14 +550,14 @@ export default function UpcomingPlanCard() {
     [pushingDates, pushStatus, handlePushResults],
   );
 
-  // Push all unsynced AI workouts. Historical IDs are deleted one at a time
+  // Push all unsynced Praxys workouts. Historical IDs are deleted one at a time
   // before replacement, so an edited version never creates a duplicate.
   const pushAll = useCallback(async () => {
     if (!data) return;
 
     const datesToPush = data.workouts
       .filter(
-        (w) => w.source === 'ai'
+        (w) => isPraxysOwned(w)
           && w.workout_type.toLowerCase() !== 'rest'
           && (w.sync_state === 'not_synced' || w.sync_state === 'mismatch')
           && !optimisticPushedDates.has(w.date),
@@ -647,15 +652,15 @@ export default function UpcomingPlanCard() {
   // Header chrome: eyebrow + window pills (left) and Push All + count
   // (right). Stays the same in empty / populated states so the user
   // can switch windows without the chrome jumping around.
-  const aiPushable = data.workouts.filter(
-    (w) => w.source === 'ai'
+  const praxysPushable = data.workouts.filter(
+    (w) => isPraxysOwned(w)
       && w.workout_type.toLowerCase() !== 'rest'
       && (w.sync_state === 'not_synced' || w.sync_state === 'mismatch')
       && !optimisticPushedDates.has(w.date),
   );
-  const unpushedCount = aiPushable.length;
+  const unpushedCount = praxysPushable.length;
   const allSynced = unpushedCount === 0
-    && data.workouts.some((w) => w.source === 'ai');
+    && data.workouts.some(isPraxysOwned);
 
   const header = (
     <div className="flex flex-wrap items-center justify-between gap-3 mb-5">

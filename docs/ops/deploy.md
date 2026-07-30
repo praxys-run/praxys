@@ -79,6 +79,14 @@ There are **no deployment slots** on the B1 plan, so rollback = re-deploy a know
    change is transparent to it. A genuinely *destructive* schema change would
    need a forward-fix, not a rollback.
 
+   A rollback commit must still retain every Alembic revision already stamped
+   in the database. Reverting application code while deleting a newly applied
+   migration file makes Alembic fail with `Can't locate revision identified
+   by ...` before the old app can start. When reverting a migration-bearing
+   change, restore the prior application behavior but keep the migration file
+   as an immutable compatibility artifact; do not redeploy an artifact whose
+   migration graph predates the current database revision.
+
 > Config-only revert (a bad App Service setting): fix the GitHub secret/variable
 > and re-deploy — don't hand-edit the portal (it's overwritten next deploy).
 

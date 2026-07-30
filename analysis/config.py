@@ -10,15 +10,45 @@ logger = logging.getLogger(__name__)
 
 TrainingBase = Literal["power", "hr", "pace"]
 PlatformName = Literal["garmin", "stryd", "strava", "oura", "coros"]
-PlanSource = Literal["garmin", "stryd", "strava", "oura", "coros", "ai"]
+PlanSource = Literal[
+    "garmin",
+    "stryd",
+    "strava",
+    "oura",
+    "coros",
+    "praxys",
+    "ai",
+]
+WorkoutOrigin = Literal[
+    "generated",
+    "accepted_target",
+    "manual",
+    "imported",
+    "legacy",
+]
 DataCategory = Literal["activities", "recovery", "fitness", "plan"]
 PlanManagementMode = Literal["external", "praxys"]
 PlanAdjustmentPolicy = Literal["suggest_only"]
 
-# The persisted canonical-plan source is still ``ai`` for rolling-deploy
-# compatibility. Issue #504 will migrate ownership to ``praxys`` and split
-# true workout provenance into a separate field.
-PRAXYS_PLAN_SOURCES: tuple[str, ...] = ("ai",)
+PRAXYS_PLAN_SOURCE = "praxys"
+LEGACY_PRAXYS_PLAN_SOURCE = "ai"
+# Expand release: retain the legacy storage value until every deployed reader
+# understands both aliases. The contract release flips this constant to the
+# explicit source without changing call sites.
+PRAXYS_PLAN_WRITE_SOURCE = LEGACY_PRAXYS_PLAN_SOURCE
+# New workers read both aliases while older deployed workers still read/write
+# ``ai``. Ownership exposed to clients is always the explicit Praxys source.
+PRAXYS_PLAN_SOURCES: tuple[str, ...] = (
+    PRAXYS_PLAN_SOURCE,
+    LEGACY_PRAXYS_PLAN_SOURCE,
+)
+WORKOUT_ORIGINS: frozenset[str] = frozenset({
+    "generated",
+    "accepted_target",
+    "manual",
+    "imported",
+    "legacy",
+})
 
 # Default zone boundaries as fractions of threshold value.
 # 4 boundaries define 5 zones (Z1..Z5).
@@ -85,7 +115,11 @@ def normalize_plan_management(
         mode = "external"
 
     raw_target = raw.get("execution_target")
-    if raw_target is None and not raw and legacy_plan_source != "ai":
+    if (
+        raw_target is None
+        and not raw
+        and not is_praxys_plan_source(legacy_plan_source)
+    ):
         raw_target = legacy_plan_source
     target = str(raw_target).strip().casefold() if raw_target else None
     if target:
@@ -199,12 +233,12 @@ class UserConfig:
         """Validate cross-field constraints."""
         self.plan_management = normalize_plan_management(self.plan_management)
         # Validate preferences reference connected platforms with matching capabilities.
-        # "ai" is a special plan source — not a platform, so skip platform checks for it.
+        # Praxys ownership aliases are plan sources, not platforms.
         for category, platform in self.preferences.items():
             if not platform:
                 continue
-            if category == "plan" and platform == "ai":
-                continue  # AI is a valid plan source, not a platform
+            if category == "plan" and is_praxys_plan_source(platform):
+                continue  # Praxys is a plan source, not a platform.
             if platform not in self.connections:
                 continue  # Tolerate — platform may be disconnected temporarily
             caps = PLATFORM_CAPABILITIES.get(platform)
@@ -236,14 +270,34 @@ def is_praxys_plan_source(value: object) -> bool:
     return str(value or "").strip().casefold() in PRAXYS_PLAN_SOURCES
 
 
+def normalize_plan_source(value: object) -> str:
+    """Return the canonical ownership source while accepting legacy aliases."""
+    normalized = str(value or "").strip().casefold()
+    return PRAXYS_PLAN_SOURCE if normalized in PRAXYS_PLAN_SOURCES else normalized
+
+
+def normalize_workout_origin(
+    value: object,
+    *,
+    source: object = None,
+) -> str:
+    """Return a supported workout provenance value."""
+    normalized = str(value or "").strip().casefold()
+    if not is_praxys_plan_source(source) and normalized in {"", "legacy"}:
+        return "imported"
+    if normalized in WORKOUT_ORIGINS:
+        return normalized
+    return "legacy" if is_praxys_plan_source(source) else "imported"
+
+
 def plan_analysis_source(config: object) -> str:
     """Return the source analytical views should treat as canonical."""
     if is_praxys_managed_plan(config):
-        return PRAXYS_PLAN_SOURCES[0]
+        return PRAXYS_PLAN_SOURCE
     preferences = getattr(config, "preferences", None)
     if not isinstance(preferences, dict):
         return ""
-    return str(preferences.get("plan") or "")
+    return normalize_plan_source(preferences.get("plan"))
 
 
 # ---------------------------------------------------------------------------

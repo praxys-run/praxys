@@ -279,6 +279,7 @@ def import_csvs_for_user(user_id: str, data_dir: str, db: Session) -> dict:
             continue
         db.add(TrainingPlan(
             user_id=user_id, date=d, source="stryd",
+            workout_origin="imported",
             workout_type=wt,
             planned_duration_min=_safe_float(row.get("planned_duration_min")),
             target_power_min=_safe_float(row.get("target_power_min")),

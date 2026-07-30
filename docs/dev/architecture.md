@@ -78,7 +78,7 @@ Training data is stored in a SQLite database (`DATA_DIR/trainsight.db`) via SQLA
 | `ActivitySplit` | `activity_splits` | Per-interval split data within activities (split-level power, pace, HR) |
 | `RecoveryData` | `recovery_data` | Sleep and readiness data (HRV, sleep score, resting HR, body temp) |
 | `FitnessData` | `fitness_data` | Per-metric fitness tracking (VO2max, CP estimate, LTHR, max HR) |
-| `TrainingPlan` | `training_plans` | Planned workouts from Stryd or AI, with durable canonical workout identity |
+| `TrainingPlan` | `training_plans` | Canonical Praxys-owned or imported provider workouts, with explicit provenance and durable workout identity |
 | `PlanRevision` | `plan_revisions` | Append-only plan mutation events with actor/origin and before/after snapshots |
 | `PlanDelivery` | `plan_deliveries` | Provider-neutral state for one canonical workout/provider-payload version, including normalized content and provider-account fencing |
 | `PlanDeliveryAttempt` | `plan_delivery_attempts` | Append-only deliver/remove/import attempt history |
@@ -222,21 +222,36 @@ Plan ownership is separate from provider preference. `config.plan_management`
 contains `mode`, `execution_target`, `delivery_enabled`, and
 `adjustment_policy`. External mode preserves the legacy
 `config.preferences.plan` preferred-source fallback. Praxys mode treats only
-the Praxys-owned compatibility lane (`source='ai'`) as canonical; platform rows
-remain loaded for management and reconciliation but never silently become the
-plan. The additive contract defaults to external mode with delivery disabled,
-so existing users are not enrolled in platform writes. Enabling delivery
-requires an actively connected target with a registered plan adapter.
+the explicit Praxys-owned lane (`source='praxys'`) as canonical; historical
+`source='ai'` rows remain a read-compatible storage alias during the
+expand/contract rollout. The expand release keeps writes on `ai` while
+centralizing the storage alias behind `PRAXYS_PLAN_WRITE_SOURCE`; the additive
+migration backfills provenance without rewriting ownership values, so an older
+binary can still read the plan during deployment or rollback. The contract
+release flips that one write constant and normalizes rows only after every
+deployed reader accepts both aliases. Platform rows remain loaded for
+management and reconciliation but never silently become the plan. The additive
+contract defaults to external mode with delivery disabled, so existing users
+are not enrolled in platform writes. Enabling delivery requires an actively
+connected target with a registered plan adapter.
+
+Ownership and authorship are separate. `TrainingPlan.source` identifies the
+owner lane, while `TrainingPlan.workout_origin` records whether content was
+`generated`, `accepted_target`, `manual`, `imported`, or retained as `legacy`
+history.
 
 Plan mutations write immutable `PlanRevision` events in the same transaction as
 their `TrainingPlan` changes. Each plan row has a durable UUID that survives
 unique content matches or otherwise unambiguous one-to-one edits and permits
 multiple same-day/same-type workouts. Ambiguous replacement groups receive new
 UUIDs rather than transferring delivery ownership by row order. Modern delivery
-rows bind only to that exact UUID; content/date heuristics are restricted to
-legacy rows that predate canonical identity. Platform
-delivery rows are keyed by that logical workout plus a SHA-256 fingerprint of
-delivery-relevant content;
+rows bind `PlanDelivery.canonical_id` to that exact UUID; content/date heuristics
+are restricted to legacy rows that predate canonical identity. The legacy
+`canonical_key` value `ai:<uuid>` is deliberately frozen as a compatibility
+namespace so old and new workers converge on the same delivery row during a
+rolling deployment; its prefix no longer denotes ownership or AI authorship.
+Platform delivery rows are keyed by that logical workout plus a SHA-256
+fingerprint of delivery-relevant content;
 attempts append beneath that identity, so a retry cannot duplicate a successful
 delivery of the same version. Provider writes run through
 `api/plan_delivery/`: the service owns ledger transitions and fencing, while

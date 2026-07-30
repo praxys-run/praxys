@@ -207,8 +207,19 @@ export interface PlanData {
  */
 export type PlanSyncState = 'synced' | 'mismatch' | 'not_synced';
 
-/** Origin of a planned workout: AI/Praxys-authored or imported from Stryd. */
+/** Deprecated compatibility label retained for older cached clients. */
 export type PlanWorkoutSource = 'ai' | 'stryd';
+
+/** Who controls future mutations for this planned workout. */
+export type PlanWorkoutOwner = 'praxys' | 'external';
+
+/** How the current workout content entered its ownership lane. */
+export type PlanWorkoutOrigin =
+  | 'generated'
+  | 'accepted_target'
+  | 'manual'
+  | 'imported'
+  | 'legacy';
 
 export type PlanReconciliationState =
   | 'matching'
@@ -256,7 +267,7 @@ export interface PlanReconciliation {
 
 export interface PlannedWorkout {
   date: string;
-  /** Durable Praxys workout identity; present on canonical AI rows. */
+  /** Durable Praxys workout identity; present on canonical Praxys rows. */
   canonical_id?: string;
   /** Absolute UTC instant of workout start; bucket the day in viewer tz. */
   start_time?: string | null;
@@ -266,10 +277,13 @@ export interface PlannedWorkout {
   power_min?: number;
   power_max?: number;
   description?: string;
-  /** Authoring system. `'ai'` rows are Praxys-authored and may be pushed
-   *  to Stryd; `'stryd'` rows were imported from Stryd directly. */
+  /** @deprecated Use `owner` and `origin`; retained during client rollout. */
   source: PlanWorkoutSource;
-  /** Present only on AI-source rows. Drives the per-row sync icon. */
+  /** Optional only while a new frontend may briefly talk to the prior API. */
+  owner?: PlanWorkoutOwner;
+  /** Optional only while a new frontend may briefly talk to the prior API. */
+  origin?: PlanWorkoutOrigin;
+  /** Present only on Praxys-owned rows. Drives the per-row sync icon. */
   sync_state?: PlanSyncState;
   /** Provider reconciliation for canonical and target-only workouts. */
   reconciliation?: PlanReconciliation;
@@ -296,7 +310,10 @@ export interface PlanWorkoutMutationResponse {
   target_power_min: number | null;
   target_power_max: number | null;
   workout_description: string;
+  /** @deprecated Use `owner` and `origin`; retained during client rollout. */
   source: 'ai';
+  owner: 'praxys';
+  origin: PlanWorkoutOrigin;
 }
 
 export type StrydPushResult =
