@@ -41,7 +41,7 @@ msgid "{0, plural, one {# recommendation} other {# recommendations}}"
 msgstr "{0, plural, one {# recommendation} other {# recommendations}}"
 
 #. placeholder {0}: data.workouts.length
-#: src/components/UpcomingPlanCard.tsx:671
+#: src/components/UpcomingPlanCard.tsx:676
 msgid "{0, plural, one {# workout} other {# workouts}}"
 msgstr "{0, plural, one {# workout} other {# workouts}}"
 
@@ -332,7 +332,7 @@ msgstr "1 day ago"
 msgid "1 month"
 msgstr "1 month"
 
-#: src/components/UpcomingPlanCard.tsx:344
+#: src/components/UpcomingPlanCard.tsx:349
 msgid "1 wk"
 msgstr "1 wk"
 
@@ -365,7 +365,7 @@ msgstr "10K"
 msgid "1Y"
 msgstr "1Y"
 
-#: src/components/UpcomingPlanCard.tsx:345
+#: src/components/UpcomingPlanCard.tsx:350
 msgid "2 wk"
 msgstr "2 wk"
 
@@ -385,7 +385,7 @@ msgstr "3 months"
 msgid "3M"
 msgstr "3M"
 
-#: src/components/UpcomingPlanCard.tsx:346
+#: src/components/UpcomingPlanCard.tsx:351
 msgid "4 wk"
 msgstr "4 wk"
 
@@ -646,7 +646,7 @@ msgstr "All {0} linked ticket(s) already up to date."
 msgid "All components operational"
 msgstr "All components operational"
 
-#: src/components/UpcomingPlanCard.tsx:690
+#: src/components/UpcomingPlanCard.tsx:695
 msgid "All synced"
 msgstr "All synced"
 
@@ -1997,7 +1997,7 @@ msgstr "Failed to load settings"
 msgid "Failed to load training data"
 msgstr "Failed to load training data"
 
-#: src/components/UpcomingPlanCard.tsx:637
+#: src/components/UpcomingPlanCard.tsx:642
 msgid "Failed to load training plan"
 msgstr "Failed to load training plan"
 
@@ -3509,7 +3509,7 @@ msgstr "No Workout Scheduled"
 msgid "No workout scheduled."
 msgstr "No workout scheduled."
 
-#: src/components/UpcomingPlanCard.tsx:715
+#: src/components/UpcomingPlanCard.tsx:720
 msgid "No workouts scheduled in this window."
 msgstr "No workouts scheduled in this window."
 
@@ -3842,7 +3842,7 @@ msgstr "Plan"
 msgid "Plan sync target"
 msgstr "Plan sync target"
 
-#: src/components/UpcomingPlanCard.tsx:351
+#: src/components/UpcomingPlanCard.tsx:356
 msgid "Plan window"
 msgstr "Plan window"
 
@@ -4154,7 +4154,7 @@ msgid "Push this workout to your Stryd calendar."
 msgstr "Push this workout to your Stryd calendar."
 
 #: src/components/UpcomingPlanCard.tsx:231
-#: src/components/UpcomingPlanCard.tsx:695
+#: src/components/UpcomingPlanCard.tsx:700
 msgid "Push to Stryd"
 msgstr "Push to Stryd"
 
@@ -4162,7 +4162,7 @@ msgstr "Push to Stryd"
 #~ msgid "Pushing..."
 #~ msgstr "Pushing..."
 
-#: src/components/UpcomingPlanCard.tsx:685
+#: src/components/UpcomingPlanCard.tsx:690
 msgid "Pushing…"
 msgstr "Pushing…"
 
@@ -4651,7 +4651,7 @@ msgid "Resting HR"
 msgstr "Resting HR"
 
 #: src/components/UpcomingPlanCard.tsx:186
-#: src/components/UpcomingPlanCard.tsx:640
+#: src/components/UpcomingPlanCard.tsx:645
 #: src/pages/admin/AdminFeedback.tsx:347
 #: src/pages/admin/AdminRouteState.tsx:36
 #: src/pages/admin/AdminUsers.tsx:544
@@ -5699,7 +5699,7 @@ msgstr "Trusted sync and connection outcomes from the backend telemetry boundary
 #~ msgid "Trusted Today signals"
 #~ msgstr "Trusted Today signals"
 
-#: src/components/UpcomingPlanCard.tsx:709
+#: src/components/UpcomingPlanCard.tsx:714
 msgid "Try a longer window above."
 msgstr "Try a longer window above."
 
@@ -5764,7 +5764,7 @@ msgstr "Unverified"
 msgid "Up to date"
 msgstr "Up to date"
 
-#: src/components/UpcomingPlanCard.tsx:664
+#: src/components/UpcomingPlanCard.tsx:669
 msgid "Upcoming Plan"
 msgstr "Upcoming Plan"
 

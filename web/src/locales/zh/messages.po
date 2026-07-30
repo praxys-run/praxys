@@ -41,7 +41,7 @@ msgid "{0, plural, one {# recommendation} other {# recommendations}}"
 msgstr "{0, plural, other {# 条建议}}"
 
 #. placeholder {0}: data.workouts.length
-#: src/components/UpcomingPlanCard.tsx:671
+#: src/components/UpcomingPlanCard.tsx:676
 msgid "{0, plural, one {# workout} other {# workouts}}"
 msgstr "{0, plural, other {# 次训练}}"
 
@@ -332,7 +332,7 @@ msgstr "1 天前"
 msgid "1 month"
 msgstr "1 个月"
 
-#: src/components/UpcomingPlanCard.tsx:344
+#: src/components/UpcomingPlanCard.tsx:349
 msgid "1 wk"
 msgstr "1 周"
 
@@ -365,7 +365,7 @@ msgstr "10公里"
 msgid "1Y"
 msgstr "1年"
 
-#: src/components/UpcomingPlanCard.tsx:345
+#: src/components/UpcomingPlanCard.tsx:350
 msgid "2 wk"
 msgstr "2 周"
 
@@ -385,7 +385,7 @@ msgstr "3 个月"
 msgid "3M"
 msgstr "3月"
 
-#: src/components/UpcomingPlanCard.tsx:346
+#: src/components/UpcomingPlanCard.tsx:351
 msgid "4 wk"
 msgstr "4 周"
 
@@ -645,7 +645,7 @@ msgstr "{0} 个关联工单均已是最新状态。"
 msgid "All components operational"
 msgstr "所有组件运行正常"
 
-#: src/components/UpcomingPlanCard.tsx:690
+#: src/components/UpcomingPlanCard.tsx:695
 msgid "All synced"
 msgstr "全部已同步"
 
@@ -2004,7 +2004,7 @@ msgstr "加载设置失败"
 msgid "Failed to load training data"
 msgstr "训练数据加载失败"
 
-#: src/components/UpcomingPlanCard.tsx:637
+#: src/components/UpcomingPlanCard.tsx:642
 msgid "Failed to load training plan"
 msgstr "训练计划加载失败"
 
@@ -3576,7 +3576,7 @@ msgstr "今日无训练安排"
 msgid "No workout scheduled."
 msgstr "今日无训练安排。"
 
-#: src/components/UpcomingPlanCard.tsx:715
+#: src/components/UpcomingPlanCard.tsx:720
 msgid "No workouts scheduled in this window."
 msgstr "这段时间内暂无训练安排。"
 
@@ -3909,7 +3909,7 @@ msgstr "计划"
 msgid "Plan sync target"
 msgstr "计划同步目标"
 
-#: src/components/UpcomingPlanCard.tsx:351
+#: src/components/UpcomingPlanCard.tsx:356
 msgid "Plan window"
 msgstr "计划范围"
 
@@ -4241,7 +4241,7 @@ msgid "Push this workout to your Stryd calendar."
 msgstr "将这次训练推送到 Stryd 日历。"
 
 #: src/components/UpcomingPlanCard.tsx:231
-#: src/components/UpcomingPlanCard.tsx:695
+#: src/components/UpcomingPlanCard.tsx:700
 msgid "Push to Stryd"
 msgstr "推送到 Stryd"
 
@@ -4249,7 +4249,7 @@ msgstr "推送到 Stryd"
 #~ msgid "Pushing..."
 #~ msgstr "正在推送..."
 
-#: src/components/UpcomingPlanCard.tsx:685
+#: src/components/UpcomingPlanCard.tsx:690
 msgid "Pushing…"
 msgstr "推送中…"
 
@@ -4766,7 +4766,7 @@ msgid "Resting HR"
 msgstr "静息心率"
 
 #: src/components/UpcomingPlanCard.tsx:186
-#: src/components/UpcomingPlanCard.tsx:640
+#: src/components/UpcomingPlanCard.tsx:645
 #: src/pages/admin/AdminFeedback.tsx:347
 #: src/pages/admin/AdminRouteState.tsx:36
 #: src/pages/admin/AdminUsers.tsx:544
@@ -5861,7 +5861,7 @@ msgstr "来自后端可信遥测边界的同步与连接结果。"
 #~ msgid "Trusted Today signals"
 #~ msgstr "受信任的今日信号"
 
-#: src/components/UpcomingPlanCard.tsx:709
+#: src/components/UpcomingPlanCard.tsx:714
 msgid "Try a longer window above."
 msgstr "试试上方更长的时间窗口。"
 
@@ -5926,7 +5926,7 @@ msgstr "未验证"
 msgid "Up to date"
 msgstr "最新"
 
-#: src/components/UpcomingPlanCard.tsx:664
+#: src/components/UpcomingPlanCard.tsx:669
 msgid "Upcoming Plan"
 msgstr "近期计划"
 
