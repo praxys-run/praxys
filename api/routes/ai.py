@@ -1,6 +1,7 @@
 """AI-related endpoints: training context, plan upload, per-day upsert/delete."""
 import csv
 import io
+import logging
 from collections import defaultdict
 from datetime import date, datetime
 from typing import Optional
@@ -23,6 +24,7 @@ from db.plan_ledger import (
 from db.session import get_db
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/ai/context")
@@ -107,6 +109,20 @@ def _assign_missing_canonical_ids(plans: list[TrainingPlan]) -> None:
     for plan in plans:
         if not plan.canonical_id:
             plan.canonical_id = str(uuid4())
+
+
+def _trigger_managed_delivery(user_id: str, *, trigger: str) -> None:
+    """Run the post-commit delivery hook without changing mutation success."""
+    try:
+        from api.plan_delivery.rolling import trigger_managed_plan_delivery
+
+        trigger_managed_plan_delivery(user_id, trigger=trigger)
+    except Exception:
+        logger.exception(
+            "Post-commit managed delivery hook failed user=%s trigger=%s",
+            user_id,
+            trigger,
+        )
 
 
 def _parse_csv_row(row: dict, row_index: int) -> dict:
@@ -208,6 +224,7 @@ def upload_plan(
         db.rollback()
         raise
 
+    _trigger_managed_delivery(user_id, trigger="plan_upload")
     return {"status": "saved", "rows": len(parsed_rows), "mode": mode}
 
 
@@ -275,6 +292,7 @@ def upsert_plan_day(
         db.rollback()
         raise
     db.refresh(plan)
+    _trigger_managed_delivery(user_id, trigger="plan_upsert")
     return _row_to_response(plan)
 
 
@@ -320,4 +338,6 @@ def delete_plan_day(
     except Exception:
         db.rollback()
         raise
+    if deleted:
+        _trigger_managed_delivery(user_id, trigger="plan_delete")
     return {"status": "deleted", "rows": deleted, "date": plan_date}

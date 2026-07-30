@@ -109,7 +109,13 @@ def _short_error(exc: BaseException) -> str:
     return f"{type(exc).__name__}: {msg}" if msg else type(exc).__name__
 
 
-def _record_sync_failure(conn, exc: BaseException, db, trigger: str = "unknown") -> None:
+def _record_sync_failure(
+    conn,
+    exc: BaseException,
+    db,
+    trigger: str = "unknown",
+    expected_credential_generation: str | None = None,
+) -> bool:
     """Update a connection row after a sync failure with classification + backoff.
 
     Rolls back any pending state from the failed sync, then writes the
@@ -123,7 +129,40 @@ def _record_sync_failure(conn, exc: BaseException, db, trigger: str = "unknown")
         pass
 
     if str(exc) == "SYNC_USER_DELETED":
-        return
+        return False
+
+    fresh = None
+    if expected_credential_generation is not None:
+        try:
+            from db.connection_credentials import (
+                connection_credentials_generation,
+            )
+            from db.models import UserConnection
+
+            fresh = db.query(UserConnection).filter(
+                UserConnection.id == conn.id,
+            ).with_for_update().first()
+            if (
+                fresh is None
+                or connection_credentials_generation(fresh)
+                != expected_credential_generation
+            ):
+                db.rollback()
+                logger.info(
+                    "Ignoring stale sync failure after credential change: "
+                    "user=%s platform=%s",
+                    getattr(conn, "user_id", "?"),
+                    getattr(conn, "platform", "?"),
+                )
+                return False
+        except Exception:
+            db.rollback()
+            logger.exception(
+                "Failed to fence stale sync failure for user=%s platform=%s",
+                getattr(conn, "user_id", "?"),
+                getattr(conn, "platform", "?"),
+            )
+            return False
 
     # Fleet-level telemetry: emit before the DB bookkeeping so a spike in a
     # systemic failure_class across many distinct users stays visible even if
@@ -144,11 +183,12 @@ def _record_sync_failure(conn, exc: BaseException, db, trigger: str = "unknown")
         # Re-fetch in case rollback detached state from the prior session.
         from db.models import UserConnection
 
-        fresh = db.query(UserConnection).filter(
-            UserConnection.id == conn.id,
-        ).first()
         if fresh is None:
-            return
+            fresh = db.query(UserConnection).filter(
+                UserConnection.id == conn.id,
+            ).with_for_update().first()
+        if fresh is None:
+            return False
 
         new_failures = (fresh.consecutive_failures or 0) + 1
         status, terminal = classify_sync_failure(exc)
@@ -171,6 +211,7 @@ def _record_sync_failure(conn, exc: BaseException, db, trigger: str = "unknown")
             fresh.user_id, fresh.platform, status, new_failures,
             fresh.next_retry_at,
         )
+        return True
     except Exception:
         logger.exception(
             "Failed to record sync failure metadata for user=%s platform=%s",
@@ -180,6 +221,7 @@ def _record_sync_failure(conn, exc: BaseException, db, trigger: str = "unknown")
             db.rollback()
         except Exception:
             pass
+        return False
 
 
 def reset_connection_backoff(conn) -> None:
@@ -276,7 +318,18 @@ def _scheduler_loop():
             _check_and_sync()
         except Exception:
             logger.exception("Scheduler tick failed")
+        _run_managed_delivery_tick()
         _stop_event.wait(CHECK_INTERVAL_SEC)
+
+
+def _run_managed_delivery_tick() -> None:
+    """Run managed-plan retries without disrupting regular platform sync."""
+    try:
+        from api.plan_delivery.rolling import run_scheduled_managed_deliveries
+
+        run_scheduled_managed_deliveries()
+    except Exception:
+        logger.exception("Managed-plan delivery scheduler tick failed")
 
 
 def _check_and_sync():

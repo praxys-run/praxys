@@ -9,7 +9,12 @@ from api.plan_delivery.base import (
     PlanDeliveryAdapter,
     PreparedWorkoutDelivery,
     ProviderAuthenticationError,
+    ProviderOutcomeUnknownError,
+    ProviderReadError,
+    ProviderRejectedError,
+    ProviderRemovalError,
     ProviderRequestError,
+    ProviderTransientError,
 )
 from api.plan_delivery.credentials import (
     DeliveryCredentialsInvalid,
@@ -21,6 +26,7 @@ from api.plan_delivery.service import (
     DeliveryAccountVerificationError,
     DeliveryBusyError,
     DeliveryFinalizationError,
+    DeliveryMutationBlockedError,
     DeliveryNotFoundError,
     DeliveryRemovalFailedError,
     DeliveryResult,
@@ -50,6 +56,11 @@ def register_plan_delivery_adapter(
     _ADAPTER_TYPES[target] = adapter_type
 
 
+def is_plan_delivery_target_registered(target: str) -> bool:
+    """Return whether a provider adapter is registered for the target."""
+    return target in _ADAPTER_TYPES
+
+
 def load_plan_delivery_adapter(
     db: Session,
     *,
@@ -77,6 +88,7 @@ __all__ = [
     "DeliveryCredentialsInvalid",
     "DeliveryCredentialsUnavailable",
     "DeliveryFinalizationError",
+    "DeliveryMutationBlockedError",
     "DeliveryNotFoundError",
     "DeliveryRemovalFailedError",
     "DeliveryResult",
@@ -85,9 +97,15 @@ __all__ = [
     "PlanDeliveryService",
     "PreparedWorkoutDelivery",
     "ProviderAuthenticationError",
+    "ProviderOutcomeUnknownError",
+    "ProviderReadError",
+    "ProviderRejectedError",
+    "ProviderRemovalError",
     "ProviderRequestError",
+    "ProviderTransientError",
     "RemovalResult",
     "UnsupportedDeliveryTargetError",
+    "is_plan_delivery_target_registered",
     "load_plan_delivery_adapter",
     "register_plan_delivery_adapter",
 ]

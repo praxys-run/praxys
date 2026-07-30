@@ -1,6 +1,7 @@
 """Shared access to encrypted per-user platform credentials."""
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import Any
 
@@ -14,6 +15,15 @@ from db.models import UserConnection
 
 class CredentialAccessError(RuntimeError):
     """Stored platform credentials exist but cannot be decoded safely."""
+
+
+def connection_credentials_generation(connection: UserConnection) -> str:
+    """Fingerprint one connection's encrypted credential generation."""
+    digest = hashlib.sha256()
+    digest.update(bytes(connection.encrypted_credentials or b""))
+    digest.update(b"\0")
+    digest.update(bytes(connection.wrapped_dek or b""))
+    return f"{connection.id}:{digest.hexdigest()}"
 
 
 def load_connection_credentials(

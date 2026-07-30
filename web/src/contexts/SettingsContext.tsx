@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import type { DisplayConfig, SettingsConfig, SettingsResponse, TrainingBase, ThresholdValue, DetectedThreshold } from '../types/api';
+import type { DisplayConfig, SettingsConfig, SettingsResponse, SettingsUpdate, TrainingBase, ThresholdValue, DetectedThreshold } from '../types/api';
 import { API_BASE, getAuthHeaders } from '../hooks/useApi';
 
 interface SettingsContextValue {
@@ -13,7 +13,7 @@ interface SettingsContextValue {
   detectedThresholds: Record<string, DetectedThreshold>;
   loading: boolean;
   error: string | null;
-  updateSettings: (update: Partial<SettingsConfig>) => Promise<void>;
+  updateSettings: (update: SettingsUpdate) => Promise<void>;
   refetch: () => void;
 }
 
@@ -87,7 +87,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true; };
   }, [fetchKey]);
 
-  const updateSettings = async (update: Partial<SettingsConfig>) => {
+  const updateSettings = async (update: SettingsUpdate) => {
     const res = await fetch(`${API_BASE}/api/settings`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },

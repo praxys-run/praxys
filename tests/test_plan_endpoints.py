@@ -436,6 +436,57 @@ def test_upload_rejects_invalid_mode(api_client):
     assert res.status_code == 422
 
 
+def test_plan_mutation_hooks_run_after_commit(api_client, monkeypatch):
+    client, user_id = api_client
+    target = (date.today() + timedelta(days=8)).isoformat()
+    observed: list[tuple[str, int, str | None]] = []
+
+    def capture_hook(called_user_id: str, *, trigger: str) -> None:
+        from db import session as db_session
+        from db.models import PlanRevision, TrainingPlan
+
+        db = db_session.SessionLocal()
+        try:
+            revisions = db.query(PlanRevision).filter(
+                PlanRevision.user_id == called_user_id,
+            ).count()
+            row = db.query(TrainingPlan).filter(
+                TrainingPlan.user_id == called_user_id,
+                TrainingPlan.date == date.fromisoformat(target),
+            ).first()
+            observed.append((
+                trigger,
+                revisions,
+                row.workout_description if row is not None else None,
+            ))
+        finally:
+            db.close()
+
+    monkeypatch.setattr(
+        "api.plan_delivery.rolling.trigger_managed_plan_delivery",
+        capture_hook,
+    )
+
+    upload = client.post("/api/plan/upload?mode=merge", json={
+        "csv": "date,workout_type,workout_description\n"
+               f"{target},easy,Uploaded\n",
+    })
+    upsert = client.put(f"/api/plan/{target}", json={
+        "workout_type": "threshold",
+        "workout_description": "Updated",
+    })
+    deleted = client.delete(f"/api/plan/{target}")
+
+    assert upload.status_code == 200, upload.text
+    assert upsert.status_code == 200, upsert.text
+    assert deleted.status_code == 200, deleted.text
+    assert observed == [
+        ("plan_upload", 1, "Uploaded"),
+        ("plan_upsert", 2, "Updated"),
+        ("plan_delete", 3, None),
+    ]
+
+
 def test_plan_mutations_append_before_and_after_revisions(api_client):
     client, user_id = api_client
     target = (date.today() + timedelta(days=8)).isoformat()

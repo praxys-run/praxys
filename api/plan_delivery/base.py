@@ -46,6 +46,10 @@ class ProviderRejectedError(PlanDeliveryProviderError):
     """The provider definitely rejected a request."""
 
 
+class ProviderTransientError(PlanDeliveryProviderError):
+    """The provider safely rejected a request that may be retried later."""
+
+
 class ProviderOutcomeUnknownError(PlanDeliveryProviderError):
     """The request may have reached the provider, so retry requires reconciliation."""
 
