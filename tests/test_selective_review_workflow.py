@@ -43,7 +43,12 @@ def test_selective_review_workflow_is_default_off_and_never_bypasses():
     assert workflow.count("steps.policy-app.outcome == 'success'") == 6
     assert "REQUIRE_POLICY_STATE: ${{ steps.policy.outputs.policy_state_present }}" in workflow
     assert "Selective review was emergency-stopped before policy completion." in workflow
-    assert 'actions/variables?per_page=100' in workflow
+    assert 'actions/variables?per_page=100' not in workflow
+    safe_step = workflow.split("Mark policy gate safe", 1)[1].split(
+        "Revoke policy state after action failure", 1
+    )[0]
+    assert "RUNTIME_KILL_SWITCH: ${{ vars.PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH }}" in safe_step
+    assert "actions/variables/" not in safe_step
     assert "2>/dev/null || printf 'false'" not in workflow
     assert workflow.index("Mark policy gate safe") < workflow.index(
         "Revoke policy state after action failure"
