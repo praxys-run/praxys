@@ -1,7 +1,7 @@
 # Set up the selective-review policy App
 
-> **Summary:** Provision the independent GitHub App that approves qualifying
-> low-risk Copilot PRs and enables normal auto-merge without bypassing checks.
+> **Summary:** Provision the dedicated GitHub App that performs privileged
+> selective-review actions without bypassing required checks.
 > **Use when:** Preparing to enable, smoke-test, or rotate Loop A selective
 > review. Ordinary review-required operation does not need this App.
 
@@ -15,11 +15,15 @@
 
 ## Selected trust model
 
-Praxys uses the **approval model**: a dedicated GitHub App is the independent
-identity that submits `APPROVE` and enables normal squash auto-merge only after
-deterministic policy checks. Copilot Code Review, Rubber Duck, and the Praxys
-invariant reviewer remain useful evidence, but none is an approval identity or
-the merge trust boundary.
+Praxys uses the **deterministic required-status model**. The main-branch rules
+require `backend-tests` and `selective-review-policy` against the latest base,
+with zero mandatory approvals. Those statuses are the merge authority.
+
+The dedicated GitHub App remains a separate privileged identity that submits an
+advisory `APPROVE`, revokes policy-owned state, and enables normal squash
+auto-merge only after the deterministic policy passes. Copilot Code Review,
+Rubber Duck, the Praxys invariant reviewer, and the App approval are
+defense-in-depth evidence; none replaces the required statuses.
 
 The policy is intentionally safe before this App exists. When selective review
 is disabled, no class is promoted, or a PR is otherwise review-required, the
@@ -44,7 +48,7 @@ GitHub → **Settings → Developer settings → GitHub Apps → New GitHub App*
 - Install only on `praxys-run/praxys`.
 
 Do not reuse the feedback App or the coding-agent identity. The policy App is an
-independent merge-gate identity and is not a ruleset bypass actor.
+independent privileged identity and is not a ruleset bypass actor.
 
 ### 2. Store the App identity
 
@@ -73,18 +77,16 @@ gh variable set PRAXYS_SELECTIVE_REVIEW_ENABLED \
 gh variable set PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH \
   --repo praxys-run/praxys --body "false"
 
-# Auto-merge still obeys the ruleset, approvals, and required checks.
+# Auto-merge still obeys the ruleset and required checks.
 gh api -X PATCH repos/praxys-run/praxys -F allow_auto_merge=true
 ```
 
 Before enabling the runtime, edit **Settings → Rules → Rulesets → default**:
 
 - Require a pull request before merging.
-- Require **1 approving review**.
-- Enable **Dismiss stale pull request approvals when new commits are pushed**
-  (or require approval of the most recent reviewable push).
-- Keep squash as the only merge method and `backend-tests` as the required
-  check.
+- Keep `required_approving_review_count` at **0**. Human and App reviews are
+  encouraged evidence, not the formal merge gate for the solo-maintainer flow.
+- Keep squash as the only merge method.
 - Add both `backend-tests` and `selective-review-policy` to the ruleset's
   **Require status checks to pass** rule and enable **Require branches to be up
   to date before merging**. The policy workflow marks its explicit status
@@ -158,8 +160,9 @@ For an unpromoted or sensitive PR, the Actions summary must say
 appears. This remains true when the App variables and secret are completely
 absent. For an enabled, promoted, same-repo Copilot PR that closes an
 `agent-ready` issue, has a stable ready handoff, and passes `backend-tests`, the
-App submits one approval and `gh pr merge --auto --squash` schedules the normal
-merge.
+App submits one defense-in-depth approval and `gh pr merge --auto --squash`
+schedules the normal merge. GitHub merges only after both required statuses are
+successful on the current head and latest `main`.
 
 ## Rollback / Recovery
 

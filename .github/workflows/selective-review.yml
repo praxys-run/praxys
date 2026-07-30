@@ -170,9 +170,10 @@ jobs:
           steps.policy-app.outcome == 'success' &&
           steps.final-policy.outputs.decision == 'auto-merge-candidate'
         env:
-          GH_TOKEN: ${{ github.token }}
           POLICY_APP_TOKEN: ${{ steps.policy-token.outputs.token }}
           POLICY_APP_SLUG: ${{ steps.policy-token.outputs.app-slug }}
+          RUNTIME_ENABLED: ${{ vars.PRAXYS_SELECTIVE_REVIEW_ENABLED }}
+          RUNTIME_KILL_SWITCH: ${{ vars.PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH }}
         shell: bash
         run: |
           set -euo pipefail
@@ -180,15 +181,8 @@ jobs:
             echo "::error::The selective-review policy App is not configured."
             exit 1
           fi
-          enabled="$(
-            gh api "repos/${GITHUB_REPOSITORY}/actions/variables/PRAXYS_SELECTIVE_REVIEW_ENABLED" \
-              --jq '.value | ascii_downcase'
-          )"
-          kill_switch="$(
-            gh api "repos/${GITHUB_REPOSITORY}/actions/variables/PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH" \
-              --jq '.value | ascii_downcase'
-          )"
-          if [[ "$enabled" != "true" || "$kill_switch" == "true" ]]; then
+          if [[ "${RUNTIME_ENABLED,,}" != "true" ||
+            "${RUNTIME_KILL_SWITCH,,}" == "true" ]]; then
             echo "::error::Selective review was disabled after policy evaluation."
             exit 1
           fi
@@ -228,19 +222,13 @@ jobs:
       - name: Recheck runtime controls before auto-merge
         if: steps.final-policy.outputs.decision == 'auto-merge-candidate'
         env:
-          GH_TOKEN: ${{ github.token }}
+          RUNTIME_ENABLED: ${{ vars.PRAXYS_SELECTIVE_REVIEW_ENABLED }}
+          RUNTIME_KILL_SWITCH: ${{ vars.PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH }}
         shell: bash
         run: |
           set -euo pipefail
-          enabled="$(
-            gh api "repos/${GITHUB_REPOSITORY}/actions/variables/PRAXYS_SELECTIVE_REVIEW_ENABLED" \
-              --jq '.value | ascii_downcase'
-          )"
-          kill_switch="$(
-            gh api "repos/${GITHUB_REPOSITORY}/actions/variables/PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH" \
-              --jq '.value | ascii_downcase'
-          )"
-          if [[ "$enabled" != "true" || "$kill_switch" == "true" ]]; then
+          if [[ "${RUNTIME_ENABLED,,}" != "true" ||
+            "${RUNTIME_KILL_SWITCH,,}" == "true" ]]; then
             echo "::error::Selective review was disabled before auto-merge."
             exit 1
           fi

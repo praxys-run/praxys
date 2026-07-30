@@ -666,10 +666,11 @@ gh pr checks <PR_NUMBER> --repo praxys-run/praxys
 An absent policy App is healthy only when no privileged action is needed. A
 candidate or stale-state cleanup that cannot mint the App token must remain
 failed because the required `selective-review-policy` status is the fail-closed
-merge barrier. Default-off completion uses the workflow's injected
-`PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH` value; `GITHUB_TOKEN` cannot call the
-repository Actions-variables REST endpoint, so ordinary review-required runs
-must not depend on that API.
+merge barrier. Runtime rechecks use workflow-injected repository variables;
+`GITHUB_TOKEN` cannot call the repository Actions-variables REST endpoint.
+For an immediate mid-run stop, set the kill switch and dispatch the emergency
+workflow: it cancels gate runs and reasserts failed required statuses after
+quiescence, so a stale workflow variable snapshot is not the final authority.
 
 ## Related
 

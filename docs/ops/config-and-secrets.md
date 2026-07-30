@@ -425,10 +425,10 @@ to the Copilot coding agent. These are **repo settings, not deploy-managed**:
   [setup-review-policy-app.md](./setup-review-policy-app.md).
 - The repository setting **Allow auto-merge** is enabled once for
   `selective-review.yml`. Auto-merge remains squash-only and obeys the active
-  ruleset plus `backend-tests`; the policy App is never a bypass actor. The
-  rules require one approval, invalidate it after later pushes, and require the
-  branch to be up to date before merging. Both `backend-tests` and the explicit
-  `selective-review-policy` status are required.
+  ruleset; the policy App is never a bypass actor. The rules require zero
+  approvals but require the branch to be up to date before merging. Both
+  `backend-tests` and the explicit `selective-review-policy` status are required
+  on the current head.
 
 ### Azure Database for PostgreSQL (#360)
 

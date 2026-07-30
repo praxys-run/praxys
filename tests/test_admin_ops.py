@@ -371,7 +371,7 @@ def test_ops_summary_aggregates_attention_without_pii(env, monkeypatch):
         "human_overrides": 1,
         "merged_pull_requests": 1,
         "decision_policy_version": "agent-ready-v2",
-        "review_policy_version": "selective-review-v1",
+        "review_policy_version": "selective-review-v2",
         "promoted_classes": [],
         "autonomy_level": "draft_with_review",
     }

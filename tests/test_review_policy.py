@@ -23,7 +23,7 @@ POLICY = {
     "version": "selective-review-test-v1",
     "classifier_semantics": "review-policy-test-v1",
     "default_decision": "review-required",
-    "enforcement_model": "independent-github-app-approval",
+    "enforcement_model": "deterministic-required-status",
     "allowed_authors": ["Copilot"],
     "allowed_base_branches": ["main"],
     "trusted_assignment_actors": ["maintainer"],
@@ -66,8 +66,8 @@ def _facts(**overrides):
         "changes_requested": False,
         "agent_ready_issue_linked": True,
         "repository_auto_merge_enabled": True,
-        "required_approving_review_count": 1,
-        "approval_invalidated_on_push": True,
+        "required_approving_review_count": 0,
+        "approval_invalidated_on_push": False,
         "required_status_checks_strict": True,
     }
     values.update(overrides)
@@ -182,9 +182,25 @@ def test_repository_merge_guardrails_fail_closed():
     )
     assert decision.disposition == "review-required"
     assert "repository_auto_merge_disabled" in decision.reasons
+    assert "required_checks_do_not_require_latest_base" in decision.reasons
+
+
+def test_independent_approval_model_still_requires_fresh_approval():
+    policy = {
+        **POLICY,
+        "enforcement_model": "independent-github-app-approval",
+        "promoted_classes": ["documentation-only"],
+    }
+    decision = evaluate_selective_review(
+        _facts(
+            required_approving_review_count=0,
+            approval_invalidated_on_push=False,
+        ),
+        policy,
+    )
+    assert decision.disposition == "review-required"
     assert "independent_approval_not_required" in decision.reasons
     assert "stale_policy_approval_not_invalidated" in decision.reasons
-    assert "required_checks_do_not_require_latest_base" in decision.reasons
 
 
 def test_pr_must_close_an_agent_ready_issue():
@@ -305,9 +321,9 @@ def test_promotion_thresholds_cannot_be_weakened():
         validate_promoted_classes(policy, {"classes": {}})
 
 
-def test_promotion_requires_the_independent_app_approval_model():
+def test_promotion_requires_the_deterministic_status_model():
     selective = deepcopy(POLICY)
-    selective["enforcement_model"] = "status-check"
+    selective["enforcement_model"] = "independent-github-app-approval"
     selective["promotion_requirements"] = {
         "minimum_completed_prs": 5,
         "minimum_observation_days": 7,
@@ -318,7 +334,7 @@ def test_promotion_requires_the_independent_app_approval_model():
     }
     with pytest.raises(
         ValueError,
-        match="enforcement_model_must_use_independent_app_approval",
+        match="enforcement_model_must_use_deterministic_status",
     ):
         validate_promoted_classes(
             {"change": {"selective_review": selective}},
