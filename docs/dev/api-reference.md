@@ -717,6 +717,8 @@ not target workouts accepted into the canonical plan.
       "canonical_id": "f0219570-4bda-49df-86a7-1b73ad80af6c",
       "date": "2026-04-11",
       "source": "ai",
+      "owner": "praxys",
+      "origin": "generated",
       "workout_type": "threshold",
       "duration_min": 65,
       "distance_km": 11.0,
@@ -750,6 +752,13 @@ not target workouts accepted into the canonical plan.
 }
 ```
 
+`owner` is authoritative: `"praxys"` identifies a canonical workout managed by
+Praxys, while `"external"` identifies a provider- or coach-owned workout.
+`origin` is one of `generated`, `accepted_target`, `manual`, `imported`, or
+`legacy` and describes how the current content entered that owner lane.
+`source` is a deprecated `"ai" | "stryd"` compatibility field retained for
+cached clients; new clients must not infer ownership or authorship from it.
+
 Detailed reconciliation states are `matching`, `pending_observation`,
 `not_delivered`, `target_only`, `target_edited`, `target_deleted`,
 `canonical_changed`, and `delivery_failed`. Conflict responses advertise only
@@ -763,7 +772,8 @@ The legacy `sync_state` maps matching/pending to `synced`, undelivered to
 
 ### POST /api/plan/push-stryd
 
-Push only Praxys-authored plan rows (`source = "ai"`) to the Stryd calendar. Imported Stryd rows are never eligible, even when they are the analytically preferred plan source.
+Push only Praxys-owned plan rows to the Stryd calendar. Imported Stryd rows are
+never eligible, even when they are the analytically preferred plan source.
 
 The endpoint authenticates with the caller's encrypted Stryd
 `UserConnection`; global environment credentials are never shared across
@@ -795,7 +805,11 @@ workout is delivered independently and response entries include
 ```json
 {
   "results": [
-    { "date": "2026-04-11", "status": "success", "workout_id": "stryd_123" }
+    {
+      "date": "2026-04-11",
+      "status": "success",
+      "workout_id": "stryd_123"
+    }
   ]
 }
 ```
@@ -851,15 +865,17 @@ instead of treating a cross-account `404` as success.
 
 ### POST /api/plan/upload
 
-Upload an AI-generated training plan as CSV text. The body is `{"csv": "..."}`
+Upload a Praxys-generated training plan as CSV text. The body is
+`{"csv": "..."}`
 where the CSV uses the columns `date,workout_type,planned_duration_min,
 planned_distance_km,target_power_min,target_power_max,workout_description`.
 
 **Query params:**
-- `mode=replace` *(default)* — delete every future AI plan row for the user,
+- `mode=replace` *(default)* — delete every future Praxys-owned plan row for the user,
   then insert the payload. Past rows survive. Used by full-plan generation
   (the AI training-plan skill writes a 28-day window).
-- `mode=merge` — replace only the dates present in the payload; other AI rows
+- `mode=merge` — replace only the dates present in the payload; other
+  Praxys-owned rows
   are preserved. Multiple workouts on one date are supported. Unique exact
   content matches retain their durable `canonical_id`; after those matches,
   one remaining old and new row on a date are treated as an unambiguous edit.
@@ -873,10 +889,11 @@ event (actor, origin, before snapshot, after snapshot) commit atomically.
 
 ### PUT /api/plan/{date}
 
-Upsert a single AI plan workout for the given date (`YYYY-MM-DD`). Replaces any
-existing `(user, date, source='ai')` row(s) with one new row from the body;
-other dates are untouched. Prefer this over `/plan/upload` when editing one
-day so you don't have to round-trip the whole future window.
+Upsert a single Praxys-owned plan workout for the given date (`YYYY-MM-DD`).
+Replaces any existing Praxys-owned row(s) for that user and date with one new
+row from the body; external rows and other dates are untouched. Prefer this
+over `/plan/upload` when editing one day so you don't have to round-trip the
+whole future window.
 
 **Request body:**
 ```json
@@ -892,14 +909,16 @@ day so you don't have to round-trip the whole future window.
 
 **Response:** the upserted row (`id`, `canonical_id`, `date`,
 `workout_type`, `planned_duration_min`, `planned_distance_km`,
-`target_power_min`, `target_power_max`, `workout_description`, `source`).
+`target_power_min`, `target_power_max`, `workout_description`, deprecated
+`source`, `owner`, `origin`).
 
 The row and its append-only `upsert` revision event commit atomically.
 
 ### DELETE /api/plan/{date}
 
-Delete the AI plan workout(s) for the given date (`YYYY-MM-DD`). Idempotent —
-deleting a missing date returns `{ "status": "deleted", "rows": 0 }`.
+Delete the Praxys-owned plan workout(s) for the given date (`YYYY-MM-DD`).
+External workouts remain untouched. The operation is idempotent — deleting a
+missing date returns `{ "status": "deleted", "rows": 0 }`.
 Every request appends a `delete` revision event with its before snapshot and an
 empty after snapshot; a real deletion and its event commit atomically.
 

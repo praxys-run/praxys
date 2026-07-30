@@ -56,8 +56,8 @@ from db.models import (
 from db.connection_credentials import connection_credentials_generation
 from db.plan_ledger import (
     DELIVERY_ATTEMPT_LEASE,
-    canonical_id_from_workout_key,
     canonical_workout_key,
+    delivery_canonical_id,
     complete_delivery_attempt,
     lock_plan_writes,
     plan_snapshot,
@@ -918,8 +918,8 @@ def run_rolling_delivery_for_user(
         )
         .order_by(TrainingPlan.date, TrainingPlan.id)
     ).scalars().all()
-    canonical_keys = {
-        canonical_workout_key(plan_snapshot(canonical))
+    canonical_ids = {
+        canonical.canonical_id
         for canonical in canonicals
     }
     owned_deliveries = db.execute(
@@ -1066,8 +1066,8 @@ def run_rolling_delivery_for_user(
     items: list[ManagedDeliveryItemResult] = []
 
     for delivery in owned_deliveries:
-        canonical_id = canonical_id_from_workout_key(delivery.canonical_key)
-        if canonical_id is None or delivery.canonical_key in canonical_keys:
+        canonical_id = delivery_canonical_id(delivery)
+        if canonical_id is None or canonical_id in canonical_ids:
             continue
         gate = _delivery_gate(db, user_id)
         if not gate.enabled or gate.target != target:

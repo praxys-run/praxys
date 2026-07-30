@@ -7,9 +7,13 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from typing import Any, Callable, Mapping
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from analysis.config import (
+    PRAXYS_PLAN_SOURCES,
+    PRAXYS_PLAN_WRITE_SOURCE,
+)
 from api.plan_delivery.base import (
     PlanDeliveryAdapter,
     ProviderAuthenticationError,
@@ -36,6 +40,7 @@ from db.models import (
 from db.plan_ledger import (
     append_delivery_event,
     canonical_workout_key,
+    delivery_canonical_id,
     get_or_create_delivery,
     lock_plan_writes,
     plan_snapshot,
@@ -106,6 +111,7 @@ def completed_plan_resolution(
         )
 
     canonical_key = canonical_workout_key(snapshot)
+    canonical_id = str(snapshot.get("canonical_id") or "").strip() or None
     expected_plan_version = workout_version(snapshot)
     completed_attempts = db.execute(
         select(PlanDeliveryAttempt, PlanDelivery)
@@ -116,7 +122,14 @@ def completed_plan_resolution(
         .where(
             PlanDelivery.user_id == user_id,
             PlanDelivery.target == target,
-            PlanDelivery.canonical_key == canonical_key,
+            (
+                or_(
+                    PlanDelivery.canonical_id == canonical_id,
+                    PlanDelivery.canonical_key == canonical_key,
+                )
+                if canonical_id
+                else PlanDelivery.canonical_key == canonical_key
+            ),
             PlanDelivery.plan_version == expected_plan_version,
             PlanDeliveryAttempt.operation.in_(("deliver", "import")),
             PlanDeliveryAttempt.state == "synced",
@@ -200,7 +213,8 @@ def _apply_target_snapshot(
     for field in _PLAN_FIELDS:
         setattr(plan, field, snapshot.get(field))
     plan.start_time = _parse_start_time(snapshot.get("start_time"))
-    plan.source = "ai"
+    plan.source = PRAXYS_PLAN_WRITE_SOURCE
+    plan.workout_origin = "accepted_target"
     plan.external_id = None
 
 
@@ -267,12 +281,16 @@ def accept_target_version(
             raise PlanResolutionConflict(
                 "Prior target acceptance did not finish"
             )
-        canonical_id = accepted_delivery.canonical_key.split(":", 1)[-1]
+        canonical_id = delivery_canonical_id(accepted_delivery)
+        if canonical_id is None:
+            raise PlanResolutionConflict(
+                "Prior target acceptance has no canonical identity"
+            )
         accepted_canonical = db.execute(
             select(TrainingPlan)
             .where(
                 TrainingPlan.user_id == user_id,
-                TrainingPlan.source == "ai",
+                TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
                 TrainingPlan.canonical_id == canonical_id,
             )
             .with_for_update()
@@ -325,7 +343,7 @@ def accept_target_version(
             select(TrainingPlan)
             .where(
                 TrainingPlan.user_id == user_id,
-                TrainingPlan.source == "ai",
+                TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
                 TrainingPlan.canonical_id == canonical_id,
             )
             .with_for_update()
@@ -374,7 +392,11 @@ def accept_target_version(
         )
     before = [plan_snapshot(canonical)] if canonical is not None else []
     if canonical is None:
-        canonical = TrainingPlan(user_id=user_id, source="ai")
+        canonical = TrainingPlan(
+            user_id=user_id,
+            source=PRAXYS_PLAN_WRITE_SOURCE,
+            workout_origin="accepted_target",
+        )
         db.add(canonical)
 
     target_snapshot = dict(observation.normalized_workout or {})
@@ -544,7 +566,7 @@ def _bind_confirmed_restore(
         select(TrainingPlan)
         .where(
             TrainingPlan.user_id == user_id,
-            TrainingPlan.source == "ai",
+            TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
             TrainingPlan.canonical_id == canonical_id,
         )
         .with_for_update()
@@ -657,7 +679,7 @@ def _assert_canonical_version(
         select(TrainingPlan)
         .where(
             TrainingPlan.user_id == user_id,
-            TrainingPlan.source == "ai",
+            TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
             TrainingPlan.canonical_id == canonical_id,
         )
         .with_for_update()
@@ -688,7 +710,7 @@ def _assert_resolution_generation(
             select(TrainingPlan)
             .where(
                 TrainingPlan.user_id == user_id,
-                TrainingPlan.source == "ai",
+                TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
                 TrainingPlan.canonical_id == item.canonical.canonical_id,
             )
             .with_for_update()
@@ -922,7 +944,7 @@ def restore_praxys_version(
         select(TrainingPlan)
         .where(
             TrainingPlan.user_id == user_id,
-            TrainingPlan.source == "ai",
+            TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
             TrainingPlan.canonical_id == canonical_id,
         )
         .with_for_update()

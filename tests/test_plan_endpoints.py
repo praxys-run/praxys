@@ -14,6 +14,12 @@ from datetime import date, timedelta
 
 import pytest
 
+from analysis.config import (
+    PRAXYS_PLAN_SOURCE,
+    PRAXYS_PLAN_SOURCES,
+    PRAXYS_PLAN_WRITE_SOURCE,
+)
+
 
 @pytest.fixture
 def api_client(monkeypatch):
@@ -75,7 +81,7 @@ def api_client(monkeypatch):
 
 
 def _seed_plan(user_id: str, days: list[tuple[str, str, str]]):
-    """Insert (date_iso, workout_type, description) rows as source='ai'."""
+    """Insert legacy Praxys rows to verify rolling-read compatibility."""
     from datetime import datetime
     from db import session as db_session
     from db.models import TrainingPlan
@@ -103,7 +109,7 @@ def _list_plan_rows(user_id: str) -> list[dict]:
     try:
         rows = db.query(TrainingPlan).filter(
             TrainingPlan.user_id == user_id,
-            TrainingPlan.source == "ai",
+            TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
         ).order_by(TrainingPlan.date).all()
         return [
             {
@@ -111,6 +117,8 @@ def _list_plan_rows(user_id: str) -> list[dict]:
                 "date": r.date.isoformat(),
                 "workout_type": r.workout_type,
                 "workout_description": r.workout_description,
+                "source": r.source,
+                "workout_origin": r.workout_origin,
             }
             for r in rows
         ]
@@ -172,6 +180,8 @@ class TestUploadReplaceMode:
         rows = _list_plan_rows(user_id)
         assert len(rows) == 1, "replace mode wiped existing future rows"
         assert rows[0]["date"] == new_date
+        assert rows[0]["source"] == PRAXYS_PLAN_WRITE_SOURCE
+        assert rows[0]["workout_origin"] == "generated"
 
     def test_replace_preserves_past_rows(self, api_client):
         client, user_id = api_client
@@ -326,6 +336,8 @@ class TestUpsertPlanDay:
         assert body["workout_type"] == "easy"
         assert body["planned_duration_min"] == 45
         assert body["source"] == "ai"
+        assert body["owner"] == PRAXYS_PLAN_SOURCE
+        assert body["origin"] == "manual"
 
     def test_put_replaces_existing_day_only(self, api_client):
         client, user_id = api_client
@@ -549,5 +561,7 @@ def test_revision_failure_rolls_back_plan_change(api_client, monkeypatch):
         "date": target,
         "workout_type": "easy",
         "workout_description": "Keep this row",
+        "source": "ai",
+        "workout_origin": "legacy",
     }]
     assert _list_revisions(user_id) == []

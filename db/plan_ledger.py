@@ -15,10 +15,17 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any, Iterator, Mapping, Sequence
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from analysis.config import (
+    LEGACY_PRAXYS_PLAN_SOURCE,
+    PRAXYS_PLAN_SOURCE,
+    PRAXYS_PLAN_SOURCES,
+    is_praxys_plan_source,
+    normalize_workout_origin,
+)
 from db.cache_revision import bump_revisions, lock_revision_writes
 from db.models import (
     PlanDelivery,
@@ -50,6 +57,7 @@ _SNAPSHOT_FIELDS = (
     "target_pace_max",
     "workout_description",
     "source",
+    "workout_origin",
     "start_time",
     "meta",
 )
@@ -194,14 +202,29 @@ def plan_snapshot(record: Any) -> dict[str, Any]:
         field: _json_value(_read_field(record, field))
         for field in _SNAPSHOT_FIELDS
     }
-    snapshot["source"] = snapshot.get("source") or "ai"
+    snapshot["source"] = snapshot.get("source") or PRAXYS_PLAN_SOURCE
+    snapshot["workout_origin"] = normalize_workout_origin(
+        snapshot.get("workout_origin"),
+        source=snapshot["source"],
+    )
     return snapshot
+
+
+def _delivery_key_source(source: object) -> str:
+    normalized = str(source or "").strip().casefold()
+    if is_praxys_plan_source(normalized):
+        # Frozen storage namespace for old workers. This is an encoding only;
+        # canonical UUID, not this prefix, is the modern delivery identity.
+        return LEGACY_PRAXYS_PLAN_SOURCE
+    return normalized
 
 
 def canonical_workout_key(snapshot: Mapping[str, Any]) -> str:
     """Return the stable logical key used across versions of one workout slot."""
     canonical_id = str(snapshot.get("canonical_id") or "").strip()
-    source = str(snapshot.get("source") or "ai").strip().lower()
+    source = _delivery_key_source(
+        snapshot.get("source") or PRAXYS_PLAN_SOURCE
+    )
     if canonical_id:
         return f"{source}:{canonical_id}"
 
@@ -214,13 +237,26 @@ def canonical_workout_key(snapshot: Mapping[str, Any]) -> str:
 
 def canonical_id_from_workout_key(canonical_key: str) -> str | None:
     """Return the UUID from a modern canonical key, excluding legacy slots."""
-    _, separator, candidate = str(canonical_key or "").partition(":")
-    if not separator:
+    prefix, separator, candidate = str(canonical_key or "").partition(":")
+    if (
+        not separator
+        or prefix.strip().casefold() not in PRAXYS_PLAN_SOURCES
+    ):
         return None
     try:
         return str(UUID(candidate))
     except (ValueError, AttributeError):
         return None
+
+
+def delivery_canonical_id(delivery: PlanDelivery) -> str | None:
+    """Return one delivery's durable UUID, including legacy key fallback."""
+    if delivery.canonical_id:
+        try:
+            return str(UUID(delivery.canonical_id))
+        except (ValueError, AttributeError):
+            return None
+    return canonical_id_from_workout_key(delivery.canonical_key)
 
 
 def legacy_unknown_version(snapshot: Mapping[str, Any]) -> str:
@@ -233,6 +269,11 @@ def workout_version(snapshot: Mapping[str, Any]) -> str:
     normalized = plan_snapshot(snapshot)
     normalized.pop("meta", None)
     normalized.pop("canonical_id", None)
+    normalized.pop("workout_origin", None)
+    if is_praxys_plan_source(normalized.get("source")):
+        # Preserve hashes produced before source="praxys" so ownership and
+        # provenance migrations never trigger provider replacements.
+        normalized["source"] = LEGACY_PRAXYS_PLAN_SOURCE
     payload = json.dumps(
         normalized,
         sort_keys=True,
@@ -329,13 +370,21 @@ def _legacy_rekey_target(
     workout_date: date,
     workout_type: str,
     legacy_delivery: PlanDelivery,
-) -> str:
-    legacy_untyped_key = f"{source}:{workout_date.isoformat()}"
-    candidates: list[tuple[str, str]] = []
+) -> tuple[str, str]:
+    source_aliases = (
+        PRAXYS_PLAN_SOURCES
+        if is_praxys_plan_source(source)
+        else (source,)
+    )
+    legacy_untyped_keys = {
+        f"{alias}:{workout_date.isoformat()}"
+        for alias in source_aliases
+    }
+    candidates: list[tuple[str, str, str]] = []
     rows = db.execute(
         select(TrainingPlan).where(
             TrainingPlan.user_id == user_id,
-            TrainingPlan.source == source,
+            TrainingPlan.source.in_(source_aliases),
             TrainingPlan.date == workout_date,
         )
     ).scalars().all()
@@ -347,25 +396,26 @@ def _legacy_rekey_target(
             snapshot.get("workout_type") or "unknown"
         ).strip().casefold()
         if (
-            legacy_delivery.canonical_key != legacy_untyped_key
+            legacy_delivery.canonical_key not in legacy_untyped_keys
             and candidate_type != workout_type
         ):
             continue
         candidates.append((
             canonical_workout_key(snapshot),
+            str(snapshot["canonical_id"]),
             workout_version(snapshot),
         ))
 
     if len(candidates) == 1:
-        return candidates[0][0]
+        return candidates[0][0], candidates[0][1]
 
     legacy_versions = {
         legacy_delivery.workout_version,
         legacy_delivery.plan_version,
     }
     matching_keys = {
-        candidate_key
-        for candidate_key, candidate_version in candidates
+        (candidate_key, candidate_id)
+        for candidate_key, candidate_id, candidate_version in candidates
         if candidate_version in legacy_versions
     }
     if len(matching_keys) == 1:
@@ -391,27 +441,47 @@ def get_or_create_delivery(
     normalized = plan_snapshot(snapshot)
     workout_date = date.fromisoformat(str(normalized["date"]))
     key = canonical_workout_key(normalized)
+    canonical_id = str(normalized.get("canonical_id") or "").strip() or None
     plan_version = plan_version_override or workout_version(normalized)
     version = workout_version_override or plan_version
+    identity_filter = (
+        or_(
+            PlanDelivery.canonical_id == canonical_id,
+            PlanDelivery.canonical_key == key,
+        )
+        if canonical_id
+        else PlanDelivery.canonical_key == key
+    )
     existing = db.execute(
         select(PlanDelivery).where(
             PlanDelivery.user_id == user_id,
             PlanDelivery.target == target,
-            PlanDelivery.canonical_key == key,
+            identity_filter,
             PlanDelivery.workout_version == version,
         )
     ).scalar_one_or_none()
     if existing is None:
-        source = str(normalized.get("source") or "ai").strip().lower()
+        source = str(
+            normalized.get("source") or PRAXYS_PLAN_SOURCE
+        ).strip().lower()
+        source_aliases = (
+            PRAXYS_PLAN_SOURCES
+            if is_praxys_plan_source(source)
+            else (source,)
+        )
         workout_type = str(
             normalized.get("workout_type") or "unknown"
         ).strip().casefold()
         legacy_keys = {
-            f"{source}:{workout_date.isoformat()}",
-            (
-                f"{source}:{workout_date.isoformat()}:"
-                f"{workout_type or 'unknown'}"
-            ),
+            legacy_key
+            for source_alias in source_aliases
+            for legacy_key in (
+                f"{source_alias}:{workout_date.isoformat()}",
+                (
+                    f"{source_alias}:{workout_date.isoformat()}:"
+                    f"{workout_type or 'unknown'}"
+                ),
+            )
         }
         legacy_keys.discard(key)
         if legacy_keys:
@@ -439,7 +509,10 @@ def get_or_create_delivery(
             }
             for legacy_row in rows_to_rekey.values():
                 if normalized.get("canonical_id"):
-                    legacy_row.canonical_key = _legacy_rekey_target(
+                    (
+                        legacy_row.canonical_key,
+                        legacy_row.canonical_id,
+                    ) = _legacy_rekey_target(
                         db,
                         user_id=user_id,
                         source=source,
@@ -449,13 +522,22 @@ def get_or_create_delivery(
                     )
                 else:
                     legacy_row.canonical_key = key
+                    legacy_row.canonical_id = canonical_id
             matching_versions = [
                 row for row in version_matches
                 if row.canonical_key == key
+                or (
+                    canonical_id is not None
+                    and row.canonical_id == canonical_id
+                )
             ]
             if matching_versions:
                 existing = matching_versions[0]
     if existing is not None:
+        if canonical_id and existing.canonical_id != canonical_id:
+            existing.canonical_id = canonical_id
+        if canonical_id and existing.canonical_key != key:
+            existing.canonical_key = key
         if existing.plan_version != plan_version:
             existing.plan_version = plan_version
         if (
@@ -471,6 +553,7 @@ def get_or_create_delivery(
     delivery = PlanDelivery(
         user_id=user_id,
         canonical_key=key,
+        canonical_id=canonical_id,
         workout_date=workout_date,
         workout_version=version,
         plan_version=plan_version,
@@ -483,11 +566,19 @@ def get_or_create_delivery(
             db.add(delivery)
             db.flush()
     except IntegrityError:
+        identity_filter = (
+            or_(
+                PlanDelivery.canonical_id == canonical_id,
+                PlanDelivery.canonical_key == key,
+            )
+            if canonical_id
+            else PlanDelivery.canonical_key == key
+        )
         delivery = db.execute(
             select(PlanDelivery).where(
                 PlanDelivery.user_id == user_id,
                 PlanDelivery.target == target,
-                PlanDelivery.canonical_key == key,
+                identity_filter,
                 PlanDelivery.workout_version == version,
             )
         ).scalar_one()
@@ -571,7 +662,14 @@ def begin_delivery_attempt(
         .where(
             PlanDelivery.user_id == delivery.user_id,
             PlanDelivery.target == delivery.target,
-            PlanDelivery.canonical_key == delivery.canonical_key,
+            (
+                or_(
+                    PlanDelivery.canonical_id == delivery.canonical_id,
+                    PlanDelivery.canonical_key == delivery.canonical_key,
+                )
+                if delivery.canonical_id
+                else PlanDelivery.canonical_key == delivery.canonical_key
+            ),
         )
         .order_by(PlanDelivery.created_at.asc(), PlanDelivery.id.asc())
         .with_for_update()
@@ -1115,7 +1213,7 @@ def _import_legacy_stryd_status_locked(
         snapshot = plan_snapshot(
             {
                 "date": workout_date,
-                "source": "ai",
+                "source": LEGACY_PRAXYS_PLAN_SOURCE,
                 "workout_type": None,
             }
         )
@@ -1204,8 +1302,16 @@ def _import_legacy_stryd_status_locked(
                 and not current_delivery.workout_version.startswith(
                     "legacy-unknown:"
                 )
-                and current_delivery.canonical_key
-                != previous_delivery.canonical_key
+                and (
+                    delivery_canonical_id(current_delivery)
+                    != delivery_canonical_id(previous_delivery)
+                    if (
+                        delivery_canonical_id(current_delivery)
+                        and delivery_canonical_id(previous_delivery)
+                    )
+                    else current_delivery.canonical_key
+                    != previous_delivery.canonical_key
+                )
             ):
                 # The compatibility file can represent only one workout per
                 # date. Replacing its date entry must not tombstone a separate

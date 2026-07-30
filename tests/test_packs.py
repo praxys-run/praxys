@@ -593,14 +593,15 @@ def test_request_context_praxys_mode_uses_only_praxys_rows(
         date=today,
         workout_type="threshold",
         planned_duration_min=50,
-        source="ai",
+        source="praxys",
+        workout_origin="generated",
     ))
     db.commit()
 
     ctx = RequestContext(user_id=user_id, db=db)
 
-    assert set(ctx.all_plans["source"]) == {"ai", "stryd"}
-    assert set(ctx.plan["source"]) == {"ai"}
+    assert set(ctx.all_plans["source"]) == {"praxys", "stryd"}
+    assert set(ctx.plan["source"]) == {"praxys"}
     assert ctx.plan.iloc[0]["workout_type"] == "threshold"
 
 
@@ -665,7 +666,8 @@ def test_today_payload_fallback_to_synced_workout(
         date=today + timedelta(days=2),
         workout_type="easy",
         planned_duration_min=40,
-        source="ai",
+        source="praxys",
+        workout_origin="generated",
     ))
     db.commit()
 
@@ -710,7 +712,8 @@ def test_today_payload_praxys_mode_does_not_fallback_to_synced_workout(
         date=today + timedelta(days=2),
         workout_type="easy",
         planned_duration_min=40,
-        source="ai",
+        source="praxys",
+        workout_origin="generated",
     ))
     db.commit()
 

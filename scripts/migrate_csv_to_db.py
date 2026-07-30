@@ -33,6 +33,7 @@ from db.models import (
     FitnessData,
     TrainingPlan,
 )
+from analysis.config import PRAXYS_PLAN_WRITE_SOURCE
 import db.session as db_session
 from analysis.config import load_config, DEFAULT_ZONES
 from analysis.data_loader import load_all_data
@@ -363,6 +364,7 @@ def migrate(data_dir: str, email: str = "local@praxys.dev", password: str = "cha
                 target_pace_max=_safe_str(row.get("target_pace_max")),
                 workout_description=_safe_str(row.get("workout_description")),
                 source="stryd",
+                workout_origin="imported",
             )
             db.add(tp)
             plan_count += 1
@@ -386,7 +388,8 @@ def migrate(data_dir: str, email: str = "local@praxys.dev", password: str = "cha
                         target_power_min=_safe_float(row.get("target_power_min")),
                         target_power_max=_safe_float(row.get("target_power_max")),
                         workout_description=_safe_str(row.get("workout_description")),
-                        source="ai",
+                        source=PRAXYS_PLAN_WRITE_SOURCE,
+                        workout_origin="generated",
                     )
                     db.add(tp)
                     plan_count += 1

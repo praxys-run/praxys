@@ -15,6 +15,13 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
+from analysis.config import (
+    LEGACY_PRAXYS_PLAN_SOURCE,
+    PRAXYS_PLAN_SOURCE,
+    PRAXYS_PLAN_SOURCES,
+    is_praxys_plan_source,
+    normalize_workout_origin,
+)
 from analysis.metrics import is_rest_workout
 from api.auth import get_data_user_id, require_write_access
 from api.daily_brief_freshness import PLAN_RESPONSE_VERSION
@@ -62,6 +69,14 @@ from db.plan_ledger import (
 from db.session import get_db
 
 router = APIRouter()
+
+
+def _praxys_plan_mask(frame: pd.DataFrame) -> pd.Series:
+    """Return a compatibility mask for Praxys-owned plan rows."""
+    sources = (
+        frame["source"].fillna("").astype(str).str.strip().str.casefold()
+    )
+    return sources.isin(PRAXYS_PLAN_SOURCES)
 
 _DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data")
 _STRYD_PUSH_STATUS_DIR = os.path.join(_DATA_DIR, "ai", "stryd_push_status")
@@ -229,7 +244,7 @@ def get_plan(
     current_snapshots: dict[str, dict] = {}
     if not plan_df.empty and "date" in plan_df.columns:
         current_rows = (
-            plan_df[plan_df["source"] == "ai"]
+            plan_df[_praxys_plan_mask(plan_df)]
             if "source" in plan_df.columns
             else plan_df
         )
@@ -257,8 +272,10 @@ def get_plan(
             (plan_df["date"] >= start_d) & (plan_df["date"] <= end_d)
         ]
         has_source = "source" in windowed.columns
-        ai_rows = (
-            windowed[windowed["source"] == "ai"] if has_source else windowed
+        praxys_rows = (
+            windowed[_praxys_plan_mask(windowed)]
+            if has_source
+            else windowed
         )
         stryd_rows = (
             windowed[windowed["source"] == "stryd"]
@@ -266,8 +283,11 @@ def get_plan(
         )
 
         if reconciliation is not None:
-            for _, row in ai_rows.sort_values(["date", "id"]).iterrows():
-                workout = _row_to_workout(row, source="ai")
+            for _, row in praxys_rows.sort_values(["date", "id"]).iterrows():
+                workout = _row_to_workout(
+                    row,
+                    source=LEGACY_PRAXYS_PLAN_SOURCE,
+                )
                 canonical_id = str(row.get("canonical_id") or "")
                 item = reconciliation.canonical_items.get(canonical_id)
                 if item is not None:
@@ -301,12 +321,15 @@ def get_plan(
                         return candidate
                 return rows[0]
 
-            ai_dates: set[str] = set()
-            for _, row in ai_rows.sort_values("date").iterrows():
-                workout = _row_to_workout(row, source="ai")
-                ai_wt = workout.get("workout_type", "")
+            praxys_dates: set[str] = set()
+            for _, row in praxys_rows.sort_values("date").iterrows():
+                workout = _row_to_workout(
+                    row,
+                    source=LEGACY_PRAXYS_PLAN_SOURCE,
+                )
+                praxys_workout_type = workout.get("workout_type", "")
                 stryd_match_by_date = {
-                    d: _best_stryd_match(rows, ai_wt)
+                    d: _best_stryd_match(rows, praxys_workout_type)
                     for d, rows in stryd_by_date.items()
                 }
                 workout["sync_state"] = _compute_ai_sync_state(
@@ -314,11 +337,11 @@ def get_plan(
                     current_delivery_status,
                     stryd_match_by_date,
                 )
-                ai_dates.add(workout["date"])
+                praxys_dates.add(workout["date"])
                 workouts.append(workout)
 
             for date_str, srows in stryd_by_date.items():
-                if date_str in ai_dates:
+                if date_str in praxys_dates:
                     continue
                 for srow in srows:
                     workouts.append(
@@ -339,7 +362,7 @@ def get_plan(
     workouts.sort(
         key=lambda workout: (
             workout["date"],
-            0 if workout["source"] == "ai" else 1,
+            0 if workout["owner"] == PRAXYS_PLAN_SOURCE else 1,
             str(
                 (workout.get("reconciliation") or {}).get("id")
                 or workout.get("canonical_id")
@@ -371,6 +394,16 @@ def _row_to_workout(row, *, source: str) -> dict:
     workout: dict = {
         "date": date_str,
         "source": source,
+        "owner": (
+            PRAXYS_PLAN_SOURCE
+            if is_praxys_plan_source(row.get("source"))
+            or is_praxys_plan_source(source)
+            else "external"
+        ),
+        "origin": normalize_workout_origin(
+            row.get("workout_origin"),
+            source=row.get("source") or source,
+        ),
         "workout_type": (
             "" if pd.isna(raw_workout_type) else str(raw_workout_type)
         ),
@@ -436,9 +469,9 @@ def push_plan_to_stryd(
     current_user_id: str = Depends(require_write_access),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Push selected AI plan workouts to Stryd calendar.
+    """Push selected Praxys plan workouts to Stryd calendar.
 
-    Converts AI plan workouts to Stryd structured format and uploads them.
+    Converts Praxys workouts to Stryd structured format and uploads them.
     """
     db.rollback()
     import_legacy_stryd_status(
@@ -476,8 +509,8 @@ def push_plan_to_stryd(
             detail="Stryd login failed. Reconnect Stryd and try again.",
         ) from exc
 
-    # Analytical views use one preferred plan source, but pushing must always
-    # select the AI-authored rows from the complete source set.
+    # Analytical views use one preferred source, but pushing must always
+    # select Praxys-owned rows from the complete source set.
     data = get_dashboard_data(user_id=current_user_id, db=db)
     all_plans: pd.DataFrame = data.get("all_plans", pd.DataFrame())
     if all_plans.empty:
@@ -485,12 +518,11 @@ def push_plan_to_stryd(
     if "source" not in all_plans.columns:
         raise HTTPException(
             status_code=409,
-            detail="Training plan source is unavailable; sync or regenerate the AI plan before pushing.",
+            detail="Training plan source is unavailable; sync or regenerate the Praxys plan before pushing.",
         )
-    source = all_plans["source"].fillna("").astype(str).str.strip().str.casefold()
-    plan_df = all_plans[source == "ai"].copy()
+    plan_df = all_plans[_praxys_plan_mask(all_plans)].copy()
     if plan_df.empty:
-        raise HTTPException(status_code=404, detail="No AI-authored training plan found")
+        raise HTTPException(status_code=404, detail="No Praxys training plan found")
 
     cp_watts = _resolve_stryd_delivery_cp(data)
     if not cp_watts:
@@ -554,14 +586,9 @@ def push_plan_to_stryd(
                 })
                 db.rollback()
                 continue
-            current_source = (
-                current_all_plans["source"]
-                .fillna("")
-                .astype(str)
-                .str.strip()
-                .str.casefold()
-            )
-            current_plan = current_all_plans[current_source == "ai"]
+            current_plan = current_all_plans[
+                _praxys_plan_mask(current_all_plans)
+            ]
             matching = current_plan[
                 current_plan["date"].astype(str) == workout_date
             ]

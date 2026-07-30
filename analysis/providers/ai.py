@@ -5,6 +5,7 @@ from datetime import date
 
 import pandas as pd
 
+from analysis.config import PRAXYS_PLAN_WRITE_SOURCE
 from analysis.providers.base import PlanProvider
 from analysis.providers import register_plan
 
@@ -63,9 +64,13 @@ class AiPlanProvider(PlanProvider):
                 df["date"], format="%Y-%m-%d", errors="coerce",
             ).dt.date
             df = df.dropna(subset=["date"])
+        if not df.empty:
+            df["source"] = PRAXYS_PLAN_WRITE_SOURCE
+            df["workout_origin"] = "generated"
         if since and not df.empty and "date" in df.columns:
             df = df[df["date"] >= since]
         return df
 
 
 register_plan("ai", AiPlanProvider)
+register_plan("praxys", AiPlanProvider)

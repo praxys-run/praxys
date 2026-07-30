@@ -16,9 +16,10 @@ Schema management:
   runs ``alembic upgrade head`` under a Postgres advisory lock so exactly one
   worker/instance applies pending migrations.
 """
+import json
 import logging
 import os
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.engine.url import make_url
@@ -390,8 +391,10 @@ _SQLITE_COMPAT_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
     ),
     "training_plans": (
         ("canonical_id", "VARCHAR(36)"),
+        ("workout_origin", "VARCHAR(30) NOT NULL DEFAULT 'legacy'"),
     ),
     "plan_deliveries": (
+        ("canonical_id", "VARCHAR(36)"),
         ("plan_version", "VARCHAR(64)"),
         ("provider_content_version", "VARCHAR(64)"),
         ("provider_account_id", "VARCHAR(200)"),
@@ -431,6 +434,95 @@ def _ensure_sqlite_compat_columns(engine_obj) -> None:
                         'WHERE "id" = ?',
                         (str(uuid4()), plan_id),
                     )
+                meta_projection = (
+                    '"meta"'
+                    if "meta" in existing
+                    else "NULL AS meta"
+                )
+                rows = conn.exec_driver_sql(
+                    'SELECT "id", "source", '
+                    f'{meta_projection}, "workout_origin" '
+                    'FROM "training_plans"'
+                ).all()
+                for plan_id, source, raw_meta, workout_origin in rows:
+                    normalized_source = str(source or "").strip().casefold()
+                    meta = raw_meta
+                    if isinstance(meta, str):
+                        try:
+                            meta = json.loads(meta)
+                        except (TypeError, ValueError):
+                            meta = None
+                    if normalized_source in {"ai", "praxys"}:
+                        origin = (
+                            "accepted_target"
+                            if isinstance(meta, dict)
+                            and isinstance(
+                                meta.get("accepted_from_target"),
+                                dict,
+                            )
+                            else str(workout_origin or "legacy")
+                        )
+                        conn.exec_driver_sql(
+                            'UPDATE "training_plans" '
+                            'SET "workout_origin" = ? '
+                            'WHERE "id" = ?',
+                            (origin, plan_id),
+                        )
+                    elif workout_origin in (None, "", "legacy"):
+                        conn.exec_driver_sql(
+                            'UPDATE "training_plans" '
+                            'SET "workout_origin" = ? WHERE "id" = ?',
+                            ("imported", plan_id),
+                        )
+
+        delivery_rows = conn.exec_driver_sql(
+            'SELECT "id", "user_id", "target", "canonical_key", '
+            '"workout_version", "canonical_id" FROM "plan_deliveries"'
+        ).all()
+        delivery_identities: dict[tuple[str, str, str, str], str] = {}
+        for (
+            delivery_id,
+            user_id,
+            target,
+            canonical_key,
+            version,
+            stored_canonical_id,
+        ) in delivery_rows:
+            canonical_id = stored_canonical_id
+            if not canonical_id:
+                prefix, separator, candidate = str(
+                    canonical_key or ""
+                ).partition(":")
+                if (
+                    separator
+                    and prefix.strip().casefold() in {"ai", "praxys"}
+                ):
+                    try:
+                        canonical_id = str(UUID(candidate))
+                    except (ValueError, AttributeError):
+                        canonical_id = None
+            if not canonical_id:
+                continue
+            identity = (user_id, target, canonical_id, version)
+            duplicate_id = delivery_identities.get(identity)
+            if duplicate_id is not None and duplicate_id != delivery_id:
+                raise RuntimeError(
+                    "Duplicate plan delivery canonical identity "
+                    f"{identity!r}: {duplicate_id}, {delivery_id}"
+                )
+            delivery_identities[identity] = delivery_id
+            conn.exec_driver_sql(
+                'UPDATE "plan_deliveries" '
+                'SET "canonical_id" = ?, "canonical_key" = ? '
+                'WHERE "id" = ?',
+                (canonical_id, f"ai:{canonical_id}", delivery_id),
+            )
+        conn.exec_driver_sql(
+            'CREATE UNIQUE INDEX IF NOT EXISTS '
+            '"uq_plan_delivery_canonical_version_target" '
+            'ON "plan_deliveries" '
+            '("user_id", "target", "canonical_id", "workout_version")'
+        )
 
 
 def _ensure_sqlite_training_plan_identity(engine_obj) -> None:

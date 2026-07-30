@@ -11,6 +11,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from analysis.config import (
+    LEGACY_PRAXYS_PLAN_SOURCE,
+    PRAXYS_PLAN_SOURCE,
+    PRAXYS_PLAN_SOURCES,
+    PRAXYS_PLAN_WRITE_SOURCE,
+)
 from api.auth import get_data_user_id, require_write_access
 from api.deps import get_dashboard_data
 from db.cache_revision import bump_revisions
@@ -64,7 +70,10 @@ def _row_to_response(plan: TrainingPlan) -> dict:
         "target_power_min": plan.target_power_min,
         "target_power_max": plan.target_power_max,
         "workout_description": plan.workout_description,
-        "source": plan.source,
+        # Deprecated compatibility value for older cached clients.
+        "source": LEGACY_PRAXYS_PLAN_SOURCE,
+        "owner": PRAXYS_PLAN_SOURCE,
+        "origin": plan.workout_origin,
     }
 
 
@@ -154,15 +163,13 @@ def upload_plan(
     user_id: str = Depends(require_write_access),
     db: Session = Depends(get_db),
 ):
-    """Upload an AI-generated training plan as CSV text.
+    """Upload a Praxys-generated training plan as CSV text.
 
-    `mode=replace` (default, backwards-compatible): delete every future AI
+    `mode=replace` (default, backwards-compatible): delete every future Praxys
     plan row for the user, then insert the payload. Past rows are preserved.
 
-    `mode=merge`: upsert by `(user, date, source='ai')` — only the dates
-    present in the payload are touched; all other AI rows (past and future)
-    are left alone. Use this when shifting or editing individual workouts
-    without resending the whole plan window.
+    `mode=merge`: upsert the Praxys-owned dates present in the payload while
+    leaving other past and future canonical rows alone.
     """
     reader = csv.DictReader(io.StringIO(payload.csv))
     rows = list(reader)
@@ -175,7 +182,8 @@ def upload_plan(
         kwargs = _parse_csv_row(row, i)
         parsed_rows.append(TrainingPlan(
             user_id=user_id,
-            source="ai",
+            source=PRAXYS_PLAN_WRITE_SOURCE,
+            workout_origin="generated",
             meta={"uploaded_at": datetime.utcnow().isoformat()},
             **kwargs,
         ))
@@ -187,13 +195,13 @@ def upload_plan(
         if mode == "replace":
             affected = db.query(TrainingPlan).filter(
                 TrainingPlan.user_id == user_id,
-                TrainingPlan.source == "ai",
+                TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
                 TrainingPlan.date >= date.today(),
             )
         else:
             affected = db.query(TrainingPlan).filter(
                 TrainingPlan.user_id == user_id,
-                TrainingPlan.source == "ai",
+                TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
                 TrainingPlan.date.in_(target_dates),
             )
         before_rows = affected.order_by(TrainingPlan.date, TrainingPlan.id).all()
@@ -235,9 +243,9 @@ def upsert_plan_day(
     user_id: str = Depends(require_write_access),
     db: Session = Depends(get_db),
 ):
-    """Upsert a single AI plan workout for the given date (YYYY-MM-DD).
+    """Upsert one manually authored Praxys workout for the given date.
 
-    Replaces any existing AI rows for `(user, date)` with one new row from
+    Replaces any existing Praxys rows for `(user, date)` with one new row from
     the payload. Other dates are untouched. Use this for partial edits —
     e.g. shifting a single workout — instead of round-tripping the whole
     future plan via /plan/upload.
@@ -256,7 +264,8 @@ def upsert_plan_day(
         target_power_min=workout.target_power_min,
         target_power_max=workout.target_power_max,
         workout_description=workout.workout_description or "",
-        source="ai",
+        source=PRAXYS_PLAN_WRITE_SOURCE,
+        workout_origin="manual",
         meta={"uploaded_at": datetime.utcnow().isoformat()},
     )
     try:
@@ -264,7 +273,7 @@ def upsert_plan_day(
         lock_plan_writes(db, user_id)
         existing = db.query(TrainingPlan).filter(
             TrainingPlan.user_id == user_id,
-            TrainingPlan.source == "ai",
+            TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
             TrainingPlan.date == d,
         )
         before_rows = existing.order_by(TrainingPlan.id).all()
@@ -302,7 +311,7 @@ def delete_plan_day(
     user_id: str = Depends(require_write_access),
     db: Session = Depends(get_db),
 ):
-    """Delete the AI plan workout(s) for the given date (YYYY-MM-DD)."""
+    """Delete the Praxys plan workout(s) for the given date."""
     try:
         d = datetime.strptime(plan_date, "%Y-%m-%d").date()
     except ValueError:
@@ -313,7 +322,7 @@ def delete_plan_day(
         lock_plan_writes(db, user_id)
         existing = db.query(TrainingPlan).filter(
             TrainingPlan.user_id == user_id,
-            TrainingPlan.source == "ai",
+            TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
             TrainingPlan.date == d,
         )
         before_rows = existing.order_by(TrainingPlan.id).all()

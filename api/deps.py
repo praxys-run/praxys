@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 from analysis.config import (
     is_praxys_managed_plan,
+    is_praxys_plan_source,
     load_config,
     plan_analysis_source,
 )
@@ -1573,7 +1574,7 @@ def _build_warnings(
         warnings.append(
             f"Modeled load balance below the coaching caution band (TSB = {current_tsb:.0f})"
         )
-    if plan_analysis_source(config) == "ai" and data_dir:
+    if is_praxys_plan_source(plan_analysis_source(config)) and data_dir:
         from api.ai import check_plan_staleness
         warnings.extend(check_plan_staleness(data_dir, latest_cp_watts))
     return warnings

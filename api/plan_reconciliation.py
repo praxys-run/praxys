@@ -11,6 +11,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from analysis.config import PRAXYS_PLAN_SOURCES
 from db.models import (
     PlanDelivery,
     PlanTargetCalendarSync,
@@ -19,6 +20,7 @@ from db.models import (
 )
 from db.plan_ledger import (
     canonical_workout_key,
+    delivery_canonical_id,
     plan_snapshot,
     workout_version,
 )
@@ -307,6 +309,13 @@ def _select_canonical(
     observation: PlanTargetWorkout | None,
     canonicals: list[TrainingPlan],
 ) -> TrainingPlan | None:
+    canonical_id = delivery_canonical_id(delivery)
+    if canonical_id is not None:
+        id_matches = [
+            row for row in canonicals if row.canonical_id == canonical_id
+        ]
+        return id_matches[0] if len(id_matches) == 1 else None
+
     key_matches = [
         row
         for row in canonicals
@@ -367,7 +376,7 @@ def build_plan_reconciliation(
 
     canonical_query = select(TrainingPlan).where(
         TrainingPlan.user_id == user_id,
-        TrainingPlan.source == "ai",
+        TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
     )
     canonicals = db.execute(
         canonical_query.order_by(TrainingPlan.date, TrainingPlan.id)
@@ -594,7 +603,7 @@ def load_plan_reconciliation_item(
     canonicals = db.execute(
         select(TrainingPlan).where(
             TrainingPlan.user_id == user_id,
-            TrainingPlan.source == "ai",
+            TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
         )
     ).scalars().all()
     canonical = _select_canonical(delivery, observation, canonicals)

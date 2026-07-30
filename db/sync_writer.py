@@ -9,6 +9,7 @@ from datetime import date, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
+from analysis.config import normalize_workout_origin
 from db.cache_revision import bump_revisions, lock_revision_writes
 from db.models import (
     Activity,
@@ -867,6 +868,13 @@ def write_training_plan(user_id: str, rows: list[dict], source: str,
             existing = fallback_query.first()
         if existing:
             changed = False
+            normalized_origin = normalize_workout_origin(
+                existing.workout_origin,
+                source=existing.source,
+            )
+            if normalized_origin != "imported":
+                existing.workout_origin = "imported"
+                changed = True
             # Stryd is source of truth for platform rows: move the date and
             # refresh fields so reschedules and the tz date fix propagate.
             # Another external ID on the destination date/type is a separate
@@ -898,6 +906,7 @@ def write_training_plan(user_id: str, rows: list[dict], source: str,
             continue
         db.add(TrainingPlan(
             user_id=user_id, date=d, source=source,
+            workout_origin="imported",
             workout_type=wt,
             planned_duration_min=_float(row.get("planned_duration_min")),
             planned_distance_km=_float(row.get("planned_distance_km")),

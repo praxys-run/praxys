@@ -34,6 +34,8 @@ def test_workout_version_is_content_stable_and_meta_independent():
     same_content = {
         **base,
         "meta": {"uploaded_at": "2026-07-28T02:00:00"},
+        "source": "praxys",
+        "workout_origin": "manual",
     }
     changed = {
         **base,
@@ -60,6 +62,10 @@ def test_canonical_identity_is_stable_but_not_part_of_content_version():
 
     assert workout_version(first) == workout_version(second)
     assert canonical_workout_key(first) != canonical_workout_key(second)
+    assert canonical_workout_key(first) == canonical_workout_key({
+        **first,
+        "source": "praxys",
+    })
 
 
 def test_sqlite_init_adds_ledger_tables_to_existing_database(tmp_path, monkeypatch):
@@ -114,7 +120,7 @@ def test_alembic_head_includes_plan_ledger():
 
     config = Config("alembic.ini")
     script = ScriptDirectory.from_config(config)
-    assert script.get_current_head() == "4d5e6f708192"
+    assert script.get_current_head() == "5e6f708192a3"
 
 
 def test_alembic_canonical_default_supports_old_worker_inserts(
@@ -168,9 +174,18 @@ def test_alembic_canonical_default_supports_old_worker_inserts(
                 ORDER BY id
                 """
             ).scalars().all()
+            origins = conn.exec_driver_sql(
+                """
+                SELECT workout_origin
+                FROM training_plans
+                WHERE user_id = 'rolling-user'
+                ORDER BY id
+                """
+            ).scalars().all()
         assert len(canonical_ids) == 2
         assert len(set(canonical_ids)) == 2
         assert all(len(canonical_id) == 36 for canonical_id in canonical_ids)
+        assert origins == ["legacy", "legacy"]
         migrated.dispose()
         with pytest.raises(
             RuntimeError,
@@ -188,6 +203,139 @@ def test_alembic_canonical_default_supports_old_worker_inserts(
                 ).scalar_one() == 0
         finally:
             verification.dispose()
+    finally:
+        migrated.dispose()
+        db_session.dispose_engines()
+
+
+def test_alembic_migrates_plan_ownership_origin_and_delivery_uuid(
+    tmp_path,
+    monkeypatch,
+    preserve_logger_disabled_state,
+):
+    from alembic import command
+    from alembic.config import Config
+    from sqlalchemy import create_engine
+
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("PRAXYS_DATABASE_URL", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    from db import session as db_session
+
+    db_session.dispose_engines()
+    config = Config("alembic.ini")
+    command.upgrade(config, "4d5e6f708192")
+    migrated = create_engine(db_session.get_database_url())
+    canonical_id = "11111111-1111-1111-1111-111111111111"
+    accepted_id = "22222222-2222-2222-2222-222222222222"
+    try:
+        with migrated.begin() as conn:
+            conn.exec_driver_sql(
+                """
+                INSERT INTO users (
+                    id, email, hashed_password, is_active, is_superuser,
+                    is_verified, is_demo
+                ) VALUES (
+                    'migration-user', 'migration@example.com', 'hash',
+                    1, 0, 0, 0
+                )
+                """
+            )
+            conn.exec_driver_sql(
+                """
+                INSERT INTO training_plans (
+                    user_id, canonical_id, date, workout_type, source, meta
+                ) VALUES
+                    (
+                        'migration-user', ?, '2026-08-04', 'easy', 'ai',
+                        '{"generated_at":"2026-07-30"}'
+                    ),
+                    (
+                        'migration-user', ?, '2026-08-05', 'tempo', 'ai',
+                        '{"accepted_from_target":{"target":"stryd"}}'
+                    ),
+                    (
+                        'migration-user',
+                        '33333333-3333-3333-3333-333333333333',
+                        '2026-08-06', 'long_run', 'stryd', '{}'
+                    )
+                """,
+                (canonical_id, accepted_id),
+            )
+            conn.exec_driver_sql(
+                """
+                INSERT INTO plan_deliveries (
+                    id, user_id, canonical_key, workout_date,
+                    workout_version, plan_version, target, state,
+                    created_at, updated_at
+                ) VALUES (
+                    'migration-delivery', 'migration-user', ?,
+                    '2026-08-04', ?, ?, 'stryd', 'synced',
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                )
+                """,
+                (
+                    f"praxys:{canonical_id}",
+                    "a" * 64,
+                    "b" * 64,
+                ),
+            )
+
+        command.upgrade(config, "head")
+        with migrated.connect() as conn:
+            plan_rows = conn.exec_driver_sql(
+                """
+                SELECT canonical_id, source, workout_origin
+                FROM training_plans
+                WHERE user_id = 'migration-user'
+                ORDER BY date
+                """
+            ).all()
+            delivery = conn.exec_driver_sql(
+                """
+                SELECT canonical_id, canonical_key
+                FROM plan_deliveries
+                WHERE id = 'migration-delivery'
+                """
+            ).one()
+
+        assert plan_rows == [
+            (canonical_id, "ai", "legacy"),
+            (accepted_id, "ai", "accepted_target"),
+            (
+                "33333333-3333-3333-3333-333333333333",
+                "stryd",
+                "imported",
+            ),
+        ]
+        assert delivery == (canonical_id, f"ai:{canonical_id}")
+
+        command.downgrade(config, "4d5e6f708192")
+        with migrated.connect() as conn:
+            plan_columns = {
+                row[1]
+                for row in conn.exec_driver_sql(
+                    'PRAGMA table_info("training_plans")'
+                )
+            }
+            delivery_columns = {
+                row[1]
+                for row in conn.exec_driver_sql(
+                    'PRAGMA table_info("plan_deliveries")'
+                )
+            }
+            sources = conn.exec_driver_sql(
+                """
+                SELECT source
+                FROM training_plans
+                WHERE user_id = 'migration-user'
+                ORDER BY date
+                """
+            ).scalars().all()
+        assert "workout_origin" not in plan_columns
+        assert "canonical_id" not in delivery_columns
+        assert sources == ["ai", "ai", "stryd"]
     finally:
         migrated.dispose()
         db_session.dispose_engines()
@@ -250,18 +398,20 @@ def test_sqlite_init_backfills_delivery_identity_columns(tmp_path, monkeypatch):
             )
         }
         assert {
+            "canonical_id",
             "plan_version",
             "provider_content_version",
             "provider_account_id",
         }.issubset(columns)
         with db_session.engine.connect() as conn:
-            plan_version = conn.execute(
+            plan_version, canonical_id = conn.execute(
                 text(
-                    "SELECT plan_version FROM plan_deliveries "
+                    "SELECT plan_version, canonical_id FROM plan_deliveries "
                     "WHERE id = 'legacy-delivery'"
                 )
-            ).scalar_one()
+            ).one()
         assert plan_version == "legacy-version"
+        assert canonical_id is None
     finally:
         if db_session.engine is not None:
             db_session.engine.dispose()
@@ -336,10 +486,16 @@ def test_sqlite_init_migrates_training_plan_identity_constraint(
             for item in constraints
         )
         with db_session.engine.begin() as conn:
-            canonical_id = conn.exec_driver_sql(
-                "SELECT canonical_id FROM training_plans WHERE id = 1"
-            ).scalar_one()
+            canonical_id, source, origin = conn.exec_driver_sql(
+                """
+                SELECT canonical_id, source, workout_origin
+                FROM training_plans
+                WHERE id = 1
+                """
+            ).one()
             assert canonical_id
+            assert source == "ai"
+            assert origin == "legacy"
             conn.exec_driver_sql(
                 """
                 INSERT INTO training_plans (

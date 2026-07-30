@@ -161,6 +161,17 @@ render read-only with a source badge.
 
 ## Managed-plan provider ownership
 
+- Canonical workouts managed by Praxys persist as
+  `TrainingPlan.source="praxys"`. `workout_origin` separately records whether
+  the content was generated, manually edited, accepted from an execution
+  target, imported, or retained as legacy history. Treat historical
+  `source="ai"` as a read-compatible ownership alias only, and make API clients
+  use `owner` / `origin` rather than derive semantics from the deprecated
+  `source` response field. During the expand phase, both existing rows and new
+  writes retain `ai` through the centralized `PRAXYS_PLAN_WRITE_SOURCE`;
+  otherwise an older binary can miss or duplicate a newly written `praxys`
+  row. Flip the write constant and normalize storage only in a later contract
+  release after every deployed reader accepts both aliases.
 - Praxys may create, replace, or remove only workouts represented by the
   authenticated user's delivery ledger. A manual workout or another coach's
   workout on the same date is not a conflict by itself and must remain
@@ -168,6 +179,10 @@ render read-only with a source badge.
 - Reconciliation identity is never just a date. Canonical rows use durable
   workout UUIDs; target rows use provider external IDs; normalized content
   fingerprints detect edits and stale IDs.
+- Modern delivery rows identify the workout with `PlanDelivery.canonical_id`.
+  Do not rename the legacy `canonical_key` prefix from `ai:<uuid>` to
+  `praxys:<uuid>`: it is a frozen storage namespace that lets mixed-version
+  workers reuse the same external-delivery ledger row, not an ownership label.
 - A successful target sync may infer absence only for the same provider account
   and only when both the delivery's prior date and the observation's current
   date are inside its conservatively covered calendar window. A known workout

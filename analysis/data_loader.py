@@ -13,6 +13,12 @@ from typing import TYPE_CHECKING, Collection
 import pandas as pd
 from sqlalchemy import bindparam, text
 
+from analysis.config import (
+    PRAXYS_PLAN_SOURCES,
+    is_praxys_managed_plan,
+    normalize_plan_source,
+)
+
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
@@ -353,8 +359,8 @@ def select_preferred_source(
         return df
 
     source_names = df["source"].fillna("").astype(str).str.strip()
-    source_keys = source_names.str.casefold()
-    preferred_key = str(preferred_source or "").strip().casefold()
+    source_keys = source_names.str.casefold().map(normalize_plan_source)
+    preferred_key = normalize_plan_source(preferred_source)
     if preferred_key and (source_keys == preferred_key).any():
         return df.loc[source_keys == preferred_key].copy().reset_index(drop=True)
 
@@ -398,17 +404,17 @@ def select_plan_for_analysis(
     """Select the canonical plan without blending ownership modes.
 
     External mode preserves the legacy preferred-source fallback. Praxys mode
-    is strict: only Praxys-authored (``source='ai'``) rows are canonical, and
-    platform rows remain available separately for reconciliation.
+    is strict: only Praxys-owned rows are canonical, and platform rows remain
+    available separately for reconciliation.
     """
-    from analysis.config import is_praxys_managed_plan
-
     if not is_praxys_managed_plan(config):
         return select_preferred_source(df, config.preferences.get("plan"))
     if df.empty or "source" not in df.columns:
         return df
     source_keys = df["source"].fillna("").astype(str).str.strip().str.casefold()
-    return df.loc[source_keys == "ai"].copy().reset_index(drop=True)
+    return df.loc[source_keys.isin(PRAXYS_PLAN_SOURCES)].copy().reset_index(
+        drop=True
+    )
 
 
 # ---------------------------------------------------------------------------
