@@ -93,6 +93,7 @@ def class_policy_fingerprint(policy: dict[str, Any], class_name: str) -> str:
         "candidate_class": candidate_classes[class_name],
         "classifier_semantics": policy.get("classifier_semantics"),
         "default_decision": policy.get("default_decision"),
+        "enforcement_model": policy.get("enforcement_model"),
         "policy_version": policy.get("version"),
         "promotion_requirements": policy.get("promotion_requirements", {}),
         "required_checks": policy.get("required_checks", []),
@@ -222,6 +223,32 @@ def evaluate_selective_review(
             "auto-merge-candidate" if not unique_reasons else "review-required"
         ),
         change_class=change_class,
+        reasons=unique_reasons,
+    )
+
+
+def apply_runtime_controls(
+    decision: ReviewDecision,
+    *,
+    enabled: bool,
+    kill_switch: bool,
+) -> ReviewDecision:
+    """Apply default-off runtime controls to a deterministic policy decision."""
+    reasons = list(decision.reasons)
+    if not enabled:
+        reasons.append("selective_review_disabled")
+    if kill_switch:
+        reasons.append("kill_switch_enabled")
+    unique_reasons = tuple(dict.fromkeys(reasons))
+    return ReviewDecision(
+        disposition=(
+            "auto-merge-candidate"
+            if decision.disposition == "auto-merge-candidate"
+            and enabled
+            and not kill_switch
+            else "review-required"
+        ),
+        change_class=decision.change_class,
         reasons=unique_reasons,
     )
 
@@ -456,6 +483,11 @@ def validate_promoted_classes(
         errors.append("classifier_semantics_missing")
     if selective.get("default_decision") != "review-required":
         errors.append("default_decision_must_require_review")
+    if (
+        selective.get("enforcement_model")
+        != "independent-github-app-approval"
+    ):
+        errors.append("enforcement_model_must_use_independent_app_approval")
     if set(selective.get("allowed_base_branches") or []) != {"main"}:
         errors.append("allowed_base_branches_must_be_main")
     if "Copilot" not in set(selective.get("allowed_authors") or []):
