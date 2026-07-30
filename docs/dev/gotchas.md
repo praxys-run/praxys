@@ -167,11 +167,10 @@ render read-only with a source badge.
   target, imported, or retained as legacy history. Treat historical
   `source="ai"` as a read-compatible ownership alias only, and make API clients
   use `owner` / `origin` rather than derive semantics from the deprecated
-  `source` response field. During the expand phase, both existing rows and new
-  writes retain `ai` through the centralized `PRAXYS_PLAN_WRITE_SOURCE`;
-  otherwise an older binary can miss or duplicate a newly written `praxys`
-  row. Flip the write constant and normalize storage only in a later contract
-  release after every deployed reader accepts both aliases.
+  `source` response field. The expand release retained `ai` through the
+  centralized `PRAXYS_PLAN_WRITE_SOURCE`; the contract release now writes
+  `praxys` and normalizes legacy rows at startup. Keep both aliases in every
+  read path until the compatibility window is deliberately closed.
 - Praxys may create, replace, or remove only workouts represented by the
   authenticated user's delivery ledger. A manual workout or another coach's
   workout on the same date is not a conflict by itself and must remain

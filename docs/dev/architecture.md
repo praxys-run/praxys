@@ -224,16 +224,16 @@ contains `mode`, `execution_target`, `delivery_enabled`, and
 `config.preferences.plan` preferred-source fallback. Praxys mode treats only
 the explicit Praxys-owned lane (`source='praxys'`) as canonical; historical
 `source='ai'` rows remain a read-compatible storage alias during the
-expand/contract rollout. The expand release keeps writes on `ai` while
-centralizing the storage alias behind `PRAXYS_PLAN_WRITE_SOURCE`; the additive
-migration backfills provenance without rewriting ownership values, so an older
-binary can still read the plan during deployment or rollback. The contract
-release flips that one write constant and normalizes rows only after every
-deployed reader accepts both aliases. Platform rows remain loaded for
-management and reconciliation but never silently become the plan. The additive
-contract defaults to external mode with delivery disabled, so existing users
-are not enrolled in platform writes. Enabling delivery requires an actively
-connected target with a registered plan adapter.
+expand/contract rollout. The expand release centralized writes behind
+`PRAXYS_PLAN_WRITE_SOURCE` while retaining `ai`; after that release deployed,
+the contract release flipped the constant to `praxys` and added an idempotent
+startup normalization for legacy rows. Reads continue accepting both aliases,
+so a late expand worker or rollback to the expand release remains safe.
+Platform rows remain loaded for management and reconciliation but never
+silently become the plan. The additive contract defaults to external mode with
+delivery disabled, so existing users are not enrolled in platform writes.
+Enabling delivery requires an actively connected target with a registered plan
+adapter.
 
 Ownership and authorship are separate. `TrainingPlan.source` identifies the
 owner lane, while `TrainingPlan.workout_origin` records whether content was

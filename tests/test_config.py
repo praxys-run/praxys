@@ -42,8 +42,8 @@ class TestUserConfigDefaults:
         })
         assert plan_analysis_source(config) == PRAXYS_PLAN_SOURCE
 
-    def test_expand_release_keeps_legacy_write_alias(self):
-        assert PRAXYS_PLAN_WRITE_SOURCE == "ai"
+    def test_contract_release_uses_explicit_write_source(self):
+        assert PRAXYS_PLAN_WRITE_SOURCE == PRAXYS_PLAN_SOURCE
 
     def test_legacy_plan_source_normalizes_to_praxys(self):
         assert normalize_plan_source("ai") == PRAXYS_PLAN_SOURCE
