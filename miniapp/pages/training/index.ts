@@ -877,6 +877,10 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
 
   onScrollRefresh() {
     this.setData({ refreshing: true });
+    const managedPlan = this.selectComponent(
+      '#training-managed-plan',
+    ) as unknown as { refresh?: () => Promise<void> } | null;
+    void managedPlan?.refresh?.();
     void this.refetch().finally(() => this.setData({ refreshing: false }));
   },
 

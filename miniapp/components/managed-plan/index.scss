@@ -1,0 +1,330 @@
+.managed-plan {
+  margin-bottom: 36rpx;
+}
+
+.managed-plan__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24rpx;
+  margin-bottom: 20rpx;
+}
+
+.managed-plan__title {
+  display: block;
+  color: var(--text);
+  font-size: 30rpx;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.managed-plan__conflicts {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  line-height: 1.35;
+}
+
+.managed-plan__count {
+  display: flex;
+  flex: none;
+  align-items: baseline;
+  gap: 8rpx;
+  color: var(--text-muted);
+}
+
+.managed-plan__count-value {
+  color: var(--text);
+  font-size: 28rpx;
+  font-weight: 650;
+}
+
+.managed-plan__count-label {
+  max-width: 180rpx;
+  font-size: 20rpx;
+  line-height: 1.2;
+  text-align: right;
+}
+
+.managed-plan__management {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  padding: 20rpx 0;
+  border-top: 1rpx solid var(--border-subtle);
+  border-bottom: 1rpx solid var(--border-subtle);
+}
+
+.managed-plan__management-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.managed-plan__management-heading {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  color: var(--text);
+  font-size: 25rpx;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.managed-plan__state-dot {
+  width: 14rpx;
+  height: 14rpx;
+  flex: none;
+  border-radius: 50%;
+  background-color: var(--text-muted);
+}
+
+.managed-plan__management--positive .managed-plan__state-dot {
+  background-color: var(--primary);
+}
+
+.managed-plan__management--warning .managed-plan__state-dot {
+  background-color: var(--warning);
+}
+
+.managed-plan__management-detail {
+  display: block;
+  margin-top: 6rpx;
+  color: var(--text-muted);
+  font-size: 21rpx;
+  line-height: 1.45;
+}
+
+.managed-plan__manage,
+.managed-plan__retry {
+  min-height: 88rpx;
+  margin: 0;
+  padding: 0 8rpx 0 24rpx;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: 22rpx;
+  font-weight: 650;
+  line-height: 88rpx;
+}
+
+.managed-plan__manage::after,
+.managed-plan__retry::after,
+.managed-plan__status::after {
+  border: 0;
+}
+
+.managed-plan__loading {
+  padding: 28rpx 0 8rpx;
+}
+
+.managed-plan__skeleton {
+  height: 72rpx;
+  margin-bottom: 12rpx;
+}
+
+.managed-plan__skeleton--short {
+  width: 72%;
+}
+
+.managed-plan__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  padding: 24rpx 0;
+}
+
+.managed-plan__error-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.managed-plan__error-title,
+.managed-plan__error-detail {
+  display: block;
+}
+
+.managed-plan__error-title {
+  color: var(--destructive);
+  font-size: 24rpx;
+  font-weight: 650;
+}
+
+.managed-plan__error-detail {
+  margin-top: 4rpx;
+  color: var(--text-muted);
+  font-size: 21rpx;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.managed-plan__empty {
+  display: block;
+  padding: 28rpx 0;
+  color: var(--text-muted);
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.managed-plan__workouts {
+  border-bottom: 1rpx solid var(--border-subtle);
+}
+
+.managed-plan__workout {
+  display: flex;
+  min-height: 112rpx;
+  box-sizing: border-box;
+  align-items: center;
+  gap: 18rpx;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid var(--border-subtle);
+}
+
+.managed-plan__workout:last-child {
+  border-bottom: 0;
+}
+
+.managed-plan__date {
+  display: flex;
+  width: 64rpx;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+}
+
+.managed-plan__weekday {
+  color: var(--text-muted);
+  font-size: 18rpx;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.managed-plan__day {
+  color: var(--text);
+  font-size: 30rpx;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.managed-plan__workout-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.managed-plan__workout-type,
+.managed-plan__details,
+.managed-plan__description {
+  display: block;
+}
+
+.managed-plan__workout-type {
+  color: var(--text);
+  font-size: 25rpx;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.managed-plan__details,
+.managed-plan__description {
+  margin-top: 4rpx;
+  color: var(--text-muted);
+  font-size: 20rpx;
+  line-height: 1.4;
+}
+
+.managed-plan__description {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.managed-plan__status {
+  display: inline-flex;
+  min-height: 72rpx;
+  max-width: 210rpx;
+  box-sizing: border-box;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 10rpx 18rpx;
+  border: 0;
+  border-radius: 999rpx;
+  font-size: 20rpx;
+  font-weight: 650;
+  line-height: 1.25;
+  text-align: center;
+}
+
+button.managed-plan__status {
+  min-height: 88rpx;
+}
+
+.managed-plan__status--static {
+  min-height: 56rpx;
+}
+
+.managed-plan__status--neutral {
+  background-color: var(--surface-subtle);
+  color: var(--text-muted);
+}
+
+.managed-plan__status--positive {
+  background-color: rgba(30, 142, 91, 0.12);
+  color: var(--primary);
+}
+
+.managed-plan__status--warning {
+  background-color: rgba(217, 119, 6, 0.12);
+  color: var(--warning);
+}
+
+.managed-plan__status--danger {
+  background-color: rgba(217, 58, 44, 0.12);
+  color: var(--destructive);
+}
+
+.managed-plan__status--reasoning {
+  background-color: rgba(46, 113, 198, 0.12);
+  color: var(--accent-cobalt);
+}
+
+.managed-plan__status:disabled {
+  opacity: 0.5;
+}
+
+.managed-plan__boundary {
+  display: block;
+  padding: 18rpx 0 0;
+  color: var(--text-muted);
+  font-size: 21rpx;
+  line-height: 1.5;
+}
+
+.managed-plan__action-error {
+  display: block;
+  margin-top: 16rpx;
+  color: var(--destructive);
+  font-size: 22rpx;
+  line-height: 1.45;
+}
+
+.managed-plan--today {
+  margin-top: -8rpx;
+  margin-bottom: 24rpx;
+}
+
+.managed-plan--today .managed-plan__management {
+  padding-top: 16rpx;
+  padding-bottom: 16rpx;
+}
+
+.managed-plan--today .managed-plan__workouts {
+  border-bottom: 0;
+}
+
+.managed-plan--today .managed-plan__workout {
+  min-height: 96rpx;
+  padding: 12rpx 0;
+}

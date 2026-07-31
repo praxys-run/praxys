@@ -198,6 +198,7 @@
         <text class="today-plan-eyebrow">{{planEyebrow}}</text>
         <text class="today-plan-text">{{planText}}</text>
       </view>
+      <managed-plan id="today-managed-plan" scope="today" />
 
       <view class="today-methodology">
         <view class="today-methodology-toggle" bindtap="toggleMethodology">

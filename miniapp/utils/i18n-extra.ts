@@ -377,6 +377,12 @@ const EN_SETTINGS = {
   'Add photo': 'Add photo',
   'Send without': 'Send without',
   'Image must be under 5 MB.': 'Image must be under 5 MB.',
+  'Managed mode is off, but cleanup did not finish.':
+    'Managed mode is off, but cleanup did not finish.',
+  Removed: 'Removed',
+  Confirm: 'Confirm',
+  'Keep future workouts': 'Keep future workouts',
+  '{0} Praxys · {1} external': '{0} Praxys · {1} external',
 };
 
 const EN_NAV_CHARTS = {
@@ -753,6 +759,12 @@ const ZH_SETTINGS = {
   'Add photo': '添加图片',
   'Send without': '直接发送',
   'Image must be under 5 MB.': '图片不得超过 5 MB。',
+  'Managed mode is off, but cleanup did not finish.':
+    '托管模式已关闭，但清理未完成。',
+  Removed: '已移除',
+  Confirm: '确认',
+  'Keep future workouts': '保留未来训练',
+  '{0} Praxys · {1} external': 'Praxys 训练 {0} 个 · 外部训练 {1} 个',
 };
 
 const ZH_NAV_CHARTS = {

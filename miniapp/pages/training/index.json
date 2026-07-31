@@ -6,7 +6,8 @@
     "scatter-chart": "/components/scatter-chart/index",
     "bar-chart": "/components/bar-chart/index",
     "state-card": "../../components/state-card/index",
-    "insight-feedback": "/components/insight-feedback/index"
+    "insight-feedback": "/components/insight-feedback/index",
+    "managed-plan": "/components/managed-plan/index"
   },
   "backgroundColor": "@bgColor",
   "backgroundColorBottom": "@bgColor",

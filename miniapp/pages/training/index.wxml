@@ -11,6 +11,7 @@
     aria-hidden="{{activeMetric !== ''}}"
   >
     <view class="train-content">
+    <managed-plan id="training-managed-plan" scope="window" />
 
     <block wx:if="{{loading && !hasResponse}}">
       <state-card type="loading" />

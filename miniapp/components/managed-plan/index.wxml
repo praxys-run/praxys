@@ -1,0 +1,90 @@
+<view class="managed-plan managed-plan--{{scope}}">
+  <view wx:if="{{scope === 'window'}}" class="managed-plan__header">
+    <view>
+      <text class="managed-plan__title">{{tr.upcomingPlan}}</text>
+      <text wx:if="{{conflictCount}}" class="managed-plan__conflicts ts-warning">
+        {{conflictCount}} · {{tr.reviewConflict}}
+      </text>
+    </view>
+    <view wx:if="{{hasResponse}}" class="managed-plan__count">
+      <text class="managed-plan__count-value ts-value">{{workoutCount}}</text>
+      <text class="managed-plan__count-label">{{tr.upcomingWorkouts}}</text>
+    </view>
+  </view>
+
+  <view
+    wx:if="{{hasResponse}}"
+    class="managed-plan__management managed-plan__management--{{managementTone}}"
+  >
+    <view class="managed-plan__management-copy">
+      <view class="managed-plan__management-heading">
+        <view class="managed-plan__state-dot"></view>
+        <text>{{managementTitle}}</text>
+      </view>
+      <text class="managed-plan__management-detail">{{managementDetail}}</text>
+    </view>
+    <button
+      class="managed-plan__manage"
+      bindtap="onManagePlan"
+    >{{managementAction}}</button>
+  </view>
+
+  <view wx:if="{{loading && !hasResponse}}" class="managed-plan__loading">
+    <view class="ts-skeleton managed-plan__skeleton"></view>
+    <view class="ts-skeleton managed-plan__skeleton managed-plan__skeleton--short"></view>
+  </view>
+
+  <view wx:elif="{{errorMessage}}" class="managed-plan__error" role="alert">
+    <view class="managed-plan__error-copy">
+      <text class="managed-plan__error-title">{{tr.failedToLoad}}</text>
+      <text class="managed-plan__error-detail">{{errorMessage}}</text>
+    </view>
+    <button class="managed-plan__retry" bindtap="onRetry">{{tr.retry}}</button>
+  </view>
+
+  <block wx:elif="{{hasResponse}}">
+    <text
+      wx:if="{{scope === 'window' && !hasWorkouts}}"
+      class="managed-plan__empty"
+    >{{tr.noWorkouts}}</text>
+
+    <view wx:if="{{hasWorkouts}}" class="managed-plan__workouts">
+      <view
+        wx:for="{{workouts}}"
+        wx:key="key"
+        class="managed-plan__workout"
+      >
+        <view wx:if="{{scope === 'window'}}" class="managed-plan__date">
+          <text class="managed-plan__weekday">{{item.weekday}}</text>
+          <text class="managed-plan__day ts-value">{{item.day}}</text>
+        </view>
+        <view class="managed-plan__workout-copy">
+          <text class="managed-plan__workout-type">{{item.workoutType}}</text>
+          <text wx:if="{{item.details}}" class="managed-plan__details ts-value">{{item.details}}</text>
+          <text wx:if="{{item.description && scope === 'window'}}" class="managed-plan__description">{{item.description}}</text>
+        </view>
+        <button
+          wx:if="{{item.action}}"
+          class="managed-plan__status managed-plan__status--{{item.statusTone}}"
+          data-key="{{item.key}}"
+          data-action="{{item.action}}"
+          disabled="{{item.actionDisabled}}"
+          bindtap="onWorkoutAction"
+        >{{item.statusLabel}}</button>
+        <view
+          wx:else
+          class="managed-plan__status managed-plan__status--static managed-plan__status--{{item.statusTone}}"
+        >{{item.statusLabel}}</view>
+      </view>
+    </view>
+
+    <text
+      wx:if="{{scope === 'window'}}"
+      class="managed-plan__boundary"
+    >{{tr.externalWorkoutsUntouched}}</text>
+  </block>
+
+  <text wx:if="{{actionError}}" class="managed-plan__action-error" role="alert">
+    {{actionError}}
+  </text>
+</view>

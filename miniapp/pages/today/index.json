@@ -4,7 +4,8 @@
     "nav-bar": "/components/nav-bar/index",
     "line-chart": "/components/line-chart/index",
     "state-card": "../../components/state-card/index",
-    "decision-check": "/components/decision-check/index"
+    "decision-check": "/components/decision-check/index",
+    "managed-plan": "/components/managed-plan/index"
   },
   "backgroundColor": "@bgColor",
   "backgroundColorBottom": "@bgColor",
