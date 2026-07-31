@@ -41,7 +41,7 @@ msgid "{0, plural, one {# recommendation} other {# recommendations}}"
 msgstr "{0, plural, other {# 条建议}}"
 
 #. placeholder {0}: data.workouts.length
-#: src/components/UpcomingPlanCard.tsx:913
+#: src/components/UpcomingPlanCard.tsx:947
 msgid "{0, plural, one {# workout} other {# workouts}}"
 msgstr "{0, plural, other {# 次训练}}"
 
@@ -221,7 +221,7 @@ msgstr "{abbrev} <0>{dirLabel}</0>。再同步一些活动后即可生成比赛�
 msgid "{completed} of {0} steps complete"
 msgstr "已完成 {completed} / {0} 步"
 
-#: src/components/UpcomingPlanCard.tsx:906
+#: src/components/UpcomingPlanCard.tsx:940
 msgid "{conflictCount, plural, one {# needs review} other {# need review}}"
 msgstr "{conflictCount, plural, other {# 个待处理}}"
 
@@ -275,7 +275,7 @@ msgstr "等效热暴露 {minutes} 分钟"
 msgid "{observationCount}-observation Trend"
 msgstr "{observationCount}次观测趋势"
 
-#: src/components/UpcomingPlanCard.tsx:619
+#: src/components/UpcomingPlanCard.tsx:620
 msgid "{target} version"
 msgstr "{target} 版本"
 
@@ -354,7 +354,7 @@ msgstr "1 天前"
 msgid "1 month"
 msgstr "1 个月"
 
-#: src/components/UpcomingPlanCard.tsx:127
+#: src/components/UpcomingPlanCard.tsx:128
 msgid "1 wk"
 msgstr "1 周"
 
@@ -391,7 +391,7 @@ msgstr "14 天托管窗口"
 msgid "1Y"
 msgstr "1年"
 
-#: src/components/UpcomingPlanCard.tsx:128
+#: src/components/UpcomingPlanCard.tsx:129
 msgid "2 wk"
 msgstr "2 周"
 
@@ -411,7 +411,7 @@ msgstr "3 个月"
 msgid "3M"
 msgstr "3月"
 
-#: src/components/UpcomingPlanCard.tsx:129
+#: src/components/UpcomingPlanCard.tsx:130
 msgid "4 wk"
 msgstr "4 周"
 
@@ -635,7 +635,7 @@ msgstr "管理后台"
 msgid "Admin sections"
 msgstr "管理模块"
 
-#: src/components/UpcomingPlanCard.tsx:214
+#: src/components/UpcomingPlanCard.tsx:215
 msgid "Adopt in Settings"
 msgstr "前往设置启用"
 
@@ -710,7 +710,7 @@ msgstr "此窗口内另有 <0>{0}</0> 个训练"
 msgid "API"
 msgstr "API"
 
-#: src/components/UpcomingPlanCard.tsx:683
+#: src/components/UpcomingPlanCard.tsx:684
 msgid "Applying…"
 msgstr "正在应用…"
 
@@ -957,7 +957,7 @@ msgstr "作者"
 #: src/components/ManagedPlanSettingsCard.tsx:617
 #: src/components/ManagedPlanSettingsCard.tsx:770
 #: src/components/ManagedPlanSettingsCard.tsx:789
-#: src/components/UpcomingPlanCard.tsx:675
+#: src/components/UpcomingPlanCard.tsx:676
 #: src/pages/admin/AdminUsers.tsx:1043
 #: src/pages/admin/AdminUsers.tsx:1073
 #: src/pages/Settings.tsx:1023
@@ -1153,7 +1153,7 @@ msgstr "确认管理边界后，Praxys 才会写入 {targetLabel}。"
 msgid "Confirmed what I planned"
 msgstr "确认按原计划训练"
 
-#: src/components/UpcomingPlanCard.tsx:326
+#: src/components/UpcomingPlanCard.tsx:327
 msgid "Conflict retained"
 msgstr "冲突已保留"
 
@@ -1260,7 +1260,7 @@ msgstr "放松"
 msgid "Copy code"
 msgstr "复制邀请码"
 
-#: src/components/UpcomingPlanCard.tsx:668
+#: src/components/UpcomingPlanCard.tsx:669
 msgid "copy the target workout into Praxys; future management follows that version."
 msgstr "将目标平台上的训练复制到 Praxys，之后以该版本为准。"
 
@@ -1289,8 +1289,8 @@ msgstr "无法暂停下发"
 msgid "Could not remove future delivered workouts"
 msgstr "无法移除未来已下发的训练"
 
-#: src/components/UpcomingPlanCard.tsx:842
-#: src/components/UpcomingPlanCard.tsx:853
+#: src/components/UpcomingPlanCard.tsx:876
+#: src/components/UpcomingPlanCard.tsx:887
 msgid "Could not resolve this workout"
 msgstr "无法处理此训练"
 
@@ -1645,12 +1645,12 @@ msgstr "删除中…"
 msgid "Deleting…"
 msgstr "正在删除…"
 
-#: src/components/UpcomingPlanCard.tsx:439
+#: src/components/UpcomingPlanCard.tsx:440
 msgid "Deliver now"
 msgstr "立即下发"
 
-#: src/components/UpcomingPlanCard.tsx:813
-#: src/components/UpcomingPlanCard.tsx:820
+#: src/components/UpcomingPlanCard.tsx:847
+#: src/components/UpcomingPlanCard.tsx:854
 msgid "Delivery failed"
 msgstr "下发失败"
 
@@ -2062,11 +2062,11 @@ msgstr "执行平台"
 #~ msgstr "长时间休息期。体能在下降。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:289
-#: src/components/UpcomingPlanCard.tsx:315
+#: src/components/UpcomingPlanCard.tsx:316
 msgid "External"
 msgstr "外部"
 
-#: src/components/UpcomingPlanCard.tsx:189
+#: src/components/UpcomingPlanCard.tsx:190
 msgid "External plan mode"
 msgstr "外部计划模式"
 
@@ -2141,7 +2141,7 @@ msgstr "加载设置失败"
 msgid "Failed to load training data"
 msgstr "训练数据加载失败"
 
-#: src/components/UpcomingPlanCard.tsx:878
+#: src/components/UpcomingPlanCard.tsx:912
 msgid "Failed to load training plan"
 msgstr "训练计划加载失败"
 
@@ -2724,7 +2724,7 @@ msgstr "已定位"
 #~ msgid "Improving"
 #~ msgstr "改善中"
 
-#: src/components/UpcomingPlanCard.tsx:355
+#: src/components/UpcomingPlanCard.tsx:356
 msgid "In sync"
 msgstr "一致"
 
@@ -2875,7 +2875,7 @@ msgstr "如有可选活动，请保持轻松且简短"
 msgid "Keep future workouts on {targetLabel}"
 msgstr "保留 {targetLabel} 上的未来训练"
 
-#: src/components/UpcomingPlanCard.tsx:662
+#: src/components/UpcomingPlanCard.tsx:663
 msgid "keep the Praxys workout canonical and replace or recreate the target version."
 msgstr "继续以 Praxys 训练为准，并替换或重新创建目标平台版本。"
 
@@ -3209,7 +3209,7 @@ msgstr "今天作为恢复日，明天再评估高强度训练"
 #~ msgid "Make today a full recovery day and reassess the hard session tomorrow\" \"今天安排为完整恢复日，明天再评估高强度训练"
 #~ msgstr ""
 
-#: src/components/UpcomingPlanCard.tsx:214
+#: src/components/UpcomingPlanCard.tsx:215
 msgid "Manage in Settings"
 msgstr "前往设置管理"
 
@@ -3225,15 +3225,15 @@ msgstr "管理席位、角色、邀请和候补名单接入。"
 #~ msgid "Manage users and invitation codes"
 #~ msgstr "管理用户和邀请码"
 
-#: src/components/UpcomingPlanCard.tsx:187
+#: src/components/UpcomingPlanCard.tsx:188
 msgid "Managed by Praxys"
 msgstr "由 Praxys 托管"
 
-#: src/components/UpcomingPlanCard.tsx:944
+#: src/components/UpcomingPlanCard.tsx:978
 msgid "Managed delivery is active, but this window contains no Praxys-owned workouts. External workouts remain untouched."
 msgstr "托管下发已启用，但此窗口内没有 Praxys 管理的训练。外部训练保持不变。"
 
-#: src/components/UpcomingPlanCard.tsx:188
+#: src/components/UpcomingPlanCard.tsx:189
 msgid "Managed delivery paused"
 msgstr "托管下发已暂停"
 
@@ -3307,8 +3307,8 @@ msgstr "需 MFA"
 #~ msgstr "轻度疲劳"
 
 #: src/components/ManagedPlanSettingsCard.tsx:421
-#: src/components/UpcomingPlanCard.tsx:605
-#: src/components/UpcomingPlanCard.tsx:627
+#: src/components/UpcomingPlanCard.tsx:606
+#: src/components/UpcomingPlanCard.tsx:628
 msgid "min"
 msgstr "分钟"
 
@@ -3610,7 +3610,7 @@ msgstr "暂无数据"
 #~ msgid "No Data"
 #~ msgstr "无数据"
 
-#: src/components/UpcomingPlanCard.tsx:814
+#: src/components/UpcomingPlanCard.tsx:848
 msgid "No delivery result was returned for this workout"
 msgstr "未返回此训练的下发结果"
 
@@ -3767,7 +3767,7 @@ msgstr "暂无每周距离历史"
 msgid "No Workout"
 msgstr "无训练安排"
 
-#: src/components/UpcomingPlanCard.tsx:640
+#: src/components/UpcomingPlanCard.tsx:641
 msgid "No workout is present on {target}."
 msgstr "{target} 上没有此训练。"
 
@@ -3804,7 +3804,7 @@ msgstr "今日无训练安排"
 msgid "No workout scheduled."
 msgstr "今日无训练安排。"
 
-#: src/components/UpcomingPlanCard.tsx:929
+#: src/components/UpcomingPlanCard.tsx:963
 msgid "No workouts scheduled in this window."
 msgstr "这段时间内暂无训练安排。"
 
@@ -4122,7 +4122,7 @@ msgid "Pause delivery"
 msgstr "暂停下发"
 
 #: src/components/ManagedPlanSettingsCard.tsx:286
-#: src/components/UpcomingPlanCard.tsx:343
+#: src/components/UpcomingPlanCard.tsx:344
 msgid "Paused"
 msgstr "已暂停"
 
@@ -4159,7 +4159,7 @@ msgstr "计划托管"
 #~ msgid "Plan sync target"
 #~ msgstr "计划同步目标"
 
-#: src/components/UpcomingPlanCard.tsx:134
+#: src/components/UpcomingPlanCard.tsx:135
 msgid "Plan window"
 msgstr "计划范围"
 
@@ -4301,7 +4301,7 @@ msgstr "功率数据源匹配"
 msgid "Praxys adapts individualized HRV-guided training and ln(RMSSD) trend monitoring into operational reference bands. The exact reference-band and caution-band cutoffs are product guardrails, not thresholds validated by the cited studies. CV above {cvThreshold}% is also a coaching caution flag, not a diagnosis. Sleep, readiness, RHR, and TSB remain separate informational context."
 msgstr "Praxys 将个体化 HRV 引导训练和 ln(RMSSD) 趋势监测转化为可执行的参考区间。具体的参考区间和警戒区间界限是产品保护规则，并非引用研究验证的阈值。CV 高于 {cvThreshold}% 同样只是训练警戒提示，不构成诊断。睡眠、准备度、静息心率和 TSB 均作为独立的信息背景。"
 
-#: src/components/UpcomingPlanCard.tsx:590
+#: src/components/UpcomingPlanCard.tsx:591
 msgid "Praxys and {target} have different versions. Choose which one becomes canonical."
 msgstr "Praxys 与 {target} 上的版本不同。请选择之后以哪个版本为准。"
 
@@ -4325,7 +4325,7 @@ msgstr "Praxys 教练"
 msgid "Praxys Coach insight"
 msgstr "Praxys 教练解读"
 
-#: src/components/UpcomingPlanCard.tsx:588
+#: src/components/UpcomingPlanCard.tsx:589
 msgid "Praxys could not finish delivery. Retrying keeps the Praxys version canonical."
 msgstr "Praxys 未能完成下发。重试后仍以 Praxys 版本为准。"
 
@@ -4353,7 +4353,7 @@ msgstr "Praxys 当前服务性能下降。"
 msgid "Praxys is in private alpha."
 msgstr "Praxys 目前处于私测 alpha 阶段。"
 
-#: src/components/UpcomingPlanCard.tsx:205
+#: src/components/UpcomingPlanCard.tsx:206
 msgid "Praxys is read-only and leaves every target workout untouched."
 msgstr "Praxys 仅会读取计划，不会更改目标平台上的任何训练。"
 
@@ -4371,7 +4371,7 @@ msgstr "手机版 Praxys"
 msgid "Praxys on your phone"
 msgstr "在手机上使用 Praxys"
 
-#: src/components/UpcomingPlanCard.tsx:333
+#: src/components/UpcomingPlanCard.tsx:334
 msgid "Praxys only"
 msgstr "仅 Praxys"
 
@@ -4383,7 +4383,7 @@ msgstr "Praxys 只会更改自己创建或明确采纳的训练。手动添加�
 msgid "Praxys owns the plan; delivery is paused."
 msgstr "计划仍由 Praxys 管理，下发已暂停。"
 
-#: src/components/UpcomingPlanCard.tsx:599
+#: src/components/UpcomingPlanCard.tsx:600
 msgid "Praxys version"
 msgstr "Praxys 版本"
 
@@ -4564,7 +4564,7 @@ msgstr "达标天数：{0}/{thresholdDays}"
 msgid "Qualifying exposure has resumed after a longer gap, but current evidence is still limited."
 msgstr "较长间隔后已恢复达标热暴露，但当前证据仍然有限。"
 
-#: src/components/UpcomingPlanCard.tsx:445
+#: src/components/UpcomingPlanCard.tsx:446
 msgid "Queued"
 msgstr "等待下发"
 
@@ -4816,7 +4816,7 @@ msgstr "推荐"
 msgid "Recommended. Delivered workouts stay on the calendar; Praxys simply stops managing them."
 msgstr "推荐。已下发的训练会保留在日历中，Praxys 只停止继续管理。"
 
-#: src/components/UpcomingPlanCard.tsx:196
+#: src/components/UpcomingPlanCard.tsx:197
 msgid "Reconnect {target} to continue delivery. The Praxys plan remains canonical."
 msgstr "重新连接 {target} 后可继续下发。仍以 Praxys 计划为准。"
 
@@ -5041,7 +5041,7 @@ msgstr "重新发送验证邮件"
 msgid "Resolve"
 msgstr "标记为已解决"
 
-#: src/components/UpcomingPlanCard.tsx:580
+#: src/components/UpcomingPlanCard.tsx:581
 msgid "Resolve workout conflict"
 msgstr "处理训练冲突"
 
@@ -5094,15 +5094,15 @@ msgstr "静息心率高于你的基准。这可能是提醒信号，但不能作
 msgid "Resting HR"
 msgstr "静息心率"
 
-#: src/components/UpcomingPlanCard.tsx:695
+#: src/components/UpcomingPlanCard.tsx:696
 msgid "Restore Praxys"
 msgstr "恢复 Praxys 版本"
 
-#: src/components/UpcomingPlanCard.tsx:661
+#: src/components/UpcomingPlanCard.tsx:662
 msgid "Restore Praxys:"
 msgstr "恢复 Praxys 版本："
 
-#: src/components/UpcomingPlanCard.tsx:692
+#: src/components/UpcomingPlanCard.tsx:693
 msgid "Restoring…"
 msgstr "正在恢复…"
 
@@ -5115,8 +5115,8 @@ msgid "Resume managed delivery?"
 msgstr "恢复托管下发？"
 
 #: src/components/ManagedPlanSettingsCard.tsx:401
-#: src/components/UpcomingPlanCard.tsx:293
-#: src/components/UpcomingPlanCard.tsx:882
+#: src/components/UpcomingPlanCard.tsx:294
+#: src/components/UpcomingPlanCard.tsx:916
 #: src/pages/admin/AdminFeedback.tsx:347
 #: src/pages/admin/AdminRouteState.tsx:36
 #: src/pages/admin/AdminUsers.tsx:544
@@ -5134,8 +5134,8 @@ msgstr "重试"
 msgid "Retry cleanup"
 msgstr "重试清理"
 
-#: src/components/UpcomingPlanCard.tsx:399
-#: src/components/UpcomingPlanCard.tsx:694
+#: src/components/UpcomingPlanCard.tsx:400
+#: src/components/UpcomingPlanCard.tsx:695
 msgid "Retry delivery"
 msgstr "重试下发"
 
@@ -5143,7 +5143,7 @@ msgstr "重试下发"
 #~ msgid "Retry push to Stryd"
 #~ msgstr "重试推送到 Stryd"
 
-#: src/components/UpcomingPlanCard.tsx:579
+#: src/components/UpcomingPlanCard.tsx:580
 msgid "Retry this delivery?"
 msgstr "重试下发此训练？"
 
@@ -5163,7 +5163,7 @@ msgstr "请重试加载已提交报告和 GitHub 同步状态。"
 msgid "Retry to load the public status incidents feed."
 msgstr "重试加载公开状态页的事件列表。"
 
-#: src/components/UpcomingPlanCard.tsx:288
+#: src/components/UpcomingPlanCard.tsx:289
 msgid "Retry workout action"
 msgstr "重试此训练操作"
 
@@ -5175,8 +5175,8 @@ msgstr "查看并启用"
 msgid "Review and resume"
 msgstr "查看并恢复"
 
-#: src/components/UpcomingPlanCard.tsx:384
-#: src/components/UpcomingPlanCard.tsx:414
+#: src/components/UpcomingPlanCard.tsx:385
+#: src/components/UpcomingPlanCard.tsx:415
 msgid "Review conflict"
 msgstr "处理冲突"
 
@@ -5340,7 +5340,7 @@ msgstr "选择一天，查看当天哪些训练被纳入估算。"
 msgid "Select a metric to inspect its chart or evidence."
 msgstr "选择一个指标，查看图表或依据。"
 
-#: src/components/UpcomingPlanCard.tsx:199
+#: src/components/UpcomingPlanCard.tsx:200
 msgid "Select an execution target in Settings to continue delivery."
 msgstr "请先在设置中选择执行平台，再继续下发。"
 
@@ -5828,7 +5828,7 @@ msgstr "同步分段或采样功率数据，帮助 Praxys 识别持续发力的�
 #~ msgid "Sync split-level power so workload can contribute."
 #~ msgstr "同步分段功率数据，训练负荷才能计入。"
 
-#: src/components/UpcomingPlanCard.tsx:424
+#: src/components/UpcomingPlanCard.tsx:425
 msgid "Sync target to review"
 msgstr "同步目标平台后处理"
 
@@ -6015,11 +6015,11 @@ msgstr "托管窗口已更新。请先查看刷新后的预览，再启用托管
 msgid "The next {MANAGED_PLAN_WINDOW_DAYS} days roll forward automatically; <0>{0}</0> workouts are currently in scope."
 msgstr "未来 {MANAGED_PLAN_WINDOW_DAYS} 天会自动滚动；当前窗口内有 <0>{0}</0> 个训练。"
 
-#: src/components/UpcomingPlanCard.tsx:202
+#: src/components/UpcomingPlanCard.tsx:203
 msgid "The Praxys plan is preserved; no target workouts will change."
 msgstr "Praxys 计划会保留，目标平台上的训练不会更改。"
 
-#: src/components/UpcomingPlanCard.tsx:586
+#: src/components/UpcomingPlanCard.tsx:587
 msgid "The Praxys workout is missing from {target}. Restoring it keeps the Praxys version canonical."
 msgstr "{target} 上缺少此 Praxys 训练。恢复后仍以 Praxys 版本为准。"
 
@@ -6028,7 +6028,7 @@ msgid "The public status feed has no unresolved incidents."
 msgstr "公共状态源中没有未解决事件。"
 
 #. placeholder {0}: target ?? 'your target'
-#: src/components/UpcomingPlanCard.tsx:193
+#: src/components/UpcomingPlanCard.tsx:194
 msgid "The rolling 14-day window is delivered to {0}."
 msgstr "滚动的 14 天窗口会下发到 {0}。"
 
@@ -6044,7 +6044,7 @@ msgstr "所选日期的活动会说明每次训练为何被纳入估算，或为
 msgid "The status API did not respond — this itself may indicate an outage."
 msgstr "状态 API 未响应，这本身可能表示服务中断。"
 
-#: src/components/UpcomingPlanCard.tsx:641
+#: src/components/UpcomingPlanCard.tsx:642
 msgid "The target version is unavailable."
 msgstr "目标平台版本不可用。"
 
@@ -6108,7 +6108,7 @@ msgstr "这将永久删除 <0>{0}</0> 及其所有数据（活动、配置、连
 #~ msgid "This workout differs on Stryd — click to overwrite with the Praxys version."
 #~ msgstr "Stryd 上这次训练与 Praxys 版本不一致，点击可用 Praxys 版本覆盖。"
 
-#: src/components/UpcomingPlanCard.tsx:584
+#: src/components/UpcomingPlanCard.tsx:585
 msgid "This workout stays external unless you explicitly make it canonical in Praxys."
 msgstr "除非明确采纳到 Praxys，否则此训练会保持为外部训练。"
 
@@ -6160,7 +6160,7 @@ msgstr "距目标"
 msgid "Today"
 msgstr "今日"
 
-#: src/components/UpcomingPlanCard.tsx:496
+#: src/components/UpcomingPlanCard.tsx:497
 msgid "TODAY"
 msgstr "今日"
 
@@ -6286,7 +6286,7 @@ msgstr "来自后端可信遥测边界的同步与连接结果。"
 #~ msgid "Trusted Today signals"
 #~ msgstr "受信任的今日信号"
 
-#: src/components/UpcomingPlanCard.tsx:931
+#: src/components/UpcomingPlanCard.tsx:965
 msgid "Try a longer window above."
 msgstr "试试上方更长的时间窗口。"
 
@@ -6351,7 +6351,7 @@ msgstr "未验证"
 msgid "Up to date"
 msgstr "最新"
 
-#: src/components/UpcomingPlanCard.tsx:899
+#: src/components/UpcomingPlanCard.tsx:933
 msgid "Upcoming Plan"
 msgstr "近期计划"
 
@@ -6390,15 +6390,15 @@ msgstr "暂无使用汇总数据。"
 #~ msgid "Usage proxy"
 #~ msgstr "使用代理指标"
 
-#: src/components/UpcomingPlanCard.tsx:683
+#: src/components/UpcomingPlanCard.tsx:684
 msgid "Use {target} version"
 msgstr "采用 {target} 版本"
 
-#: src/components/UpcomingPlanCard.tsx:667
+#: src/components/UpcomingPlanCard.tsx:668
 msgid "Use {target}:"
 msgstr "采用 {target}："
 
-#: src/components/UpcomingPlanCard.tsx:309
+#: src/components/UpcomingPlanCard.tsx:310
 msgid "Use in Praxys"
 msgstr "采纳到 Praxys"
 
@@ -6415,7 +6415,7 @@ msgstr "通过微信小程序，随时随地使用 Praxys"
 #~ msgid "Use this"
 #~ msgstr "使用此项"
 
-#: src/components/UpcomingPlanCard.tsx:578
+#: src/components/UpcomingPlanCard.tsx:579
 msgid "Use this {target} workout in Praxys?"
 msgstr "将此 {target} 训练采纳到 Praxys？"
 
@@ -6486,7 +6486,7 @@ msgstr "验证失败"
 msgid "Verify"
 msgstr "验证"
 
-#: src/components/UpcomingPlanCard.tsx:365
+#: src/components/UpcomingPlanCard.tsx:366
 msgid "Verifying"
 msgstr "正在核对"
 
@@ -6681,7 +6681,7 @@ msgstr "将同步以下内容："
 msgid "Within reference band"
 msgstr "处于参考区间内"
 
-#: src/components/UpcomingPlanCard.tsx:276
+#: src/components/UpcomingPlanCard.tsx:277
 msgid "Working…"
 msgstr "处理中…"
 

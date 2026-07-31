@@ -41,7 +41,7 @@ msgid "{0, plural, one {# recommendation} other {# recommendations}}"
 msgstr "{0, plural, one {# recommendation} other {# recommendations}}"
 
 #. placeholder {0}: data.workouts.length
-#: src/components/UpcomingPlanCard.tsx:913
+#: src/components/UpcomingPlanCard.tsx:947
 msgid "{0, plural, one {# workout} other {# workouts}}"
 msgstr "{0, plural, one {# workout} other {# workouts}}"
 
@@ -221,7 +221,7 @@ msgstr "{abbrev} is <0>{dirLabel}</0>. Add more activities for a race-time predi
 msgid "{completed} of {0} steps complete"
 msgstr "{completed} of {0} steps complete"
 
-#: src/components/UpcomingPlanCard.tsx:906
+#: src/components/UpcomingPlanCard.tsx:940
 msgid "{conflictCount, plural, one {# needs review} other {# need review}}"
 msgstr "{conflictCount, plural, one {# needs review} other {# need review}}"
 
@@ -275,7 +275,7 @@ msgstr "{minutes} effective min"
 msgid "{observationCount}-observation Trend"
 msgstr "{observationCount}-observation Trend"
 
-#: src/components/UpcomingPlanCard.tsx:619
+#: src/components/UpcomingPlanCard.tsx:620
 msgid "{target} version"
 msgstr "{target} version"
 
@@ -354,7 +354,7 @@ msgstr "1 day ago"
 msgid "1 month"
 msgstr "1 month"
 
-#: src/components/UpcomingPlanCard.tsx:127
+#: src/components/UpcomingPlanCard.tsx:128
 msgid "1 wk"
 msgstr "1 wk"
 
@@ -391,7 +391,7 @@ msgstr "14-day managed window"
 msgid "1Y"
 msgstr "1Y"
 
-#: src/components/UpcomingPlanCard.tsx:128
+#: src/components/UpcomingPlanCard.tsx:129
 msgid "2 wk"
 msgstr "2 wk"
 
@@ -411,7 +411,7 @@ msgstr "3 months"
 msgid "3M"
 msgstr "3M"
 
-#: src/components/UpcomingPlanCard.tsx:129
+#: src/components/UpcomingPlanCard.tsx:130
 msgid "4 wk"
 msgstr "4 wk"
 
@@ -636,7 +636,7 @@ msgstr "Admin console"
 msgid "Admin sections"
 msgstr "Admin sections"
 
-#: src/components/UpcomingPlanCard.tsx:214
+#: src/components/UpcomingPlanCard.tsx:215
 msgid "Adopt in Settings"
 msgstr "Adopt in Settings"
 
@@ -711,7 +711,7 @@ msgstr "And <0>{0}</0> more in this window"
 msgid "API"
 msgstr "API"
 
-#: src/components/UpcomingPlanCard.tsx:683
+#: src/components/UpcomingPlanCard.tsx:684
 msgid "Applying…"
 msgstr "Applying…"
 
@@ -958,7 +958,7 @@ msgstr "by"
 #: src/components/ManagedPlanSettingsCard.tsx:617
 #: src/components/ManagedPlanSettingsCard.tsx:770
 #: src/components/ManagedPlanSettingsCard.tsx:789
-#: src/components/UpcomingPlanCard.tsx:675
+#: src/components/UpcomingPlanCard.tsx:676
 #: src/pages/admin/AdminUsers.tsx:1043
 #: src/pages/admin/AdminUsers.tsx:1073
 #: src/pages/Settings.tsx:1023
@@ -1154,7 +1154,7 @@ msgstr "Confirm the boundary before Praxys writes to {targetLabel}."
 msgid "Confirmed what I planned"
 msgstr "Confirmed what I planned"
 
-#: src/components/UpcomingPlanCard.tsx:326
+#: src/components/UpcomingPlanCard.tsx:327
 msgid "Conflict retained"
 msgstr "Conflict retained"
 
@@ -1261,7 +1261,7 @@ msgstr "Cooldown"
 msgid "Copy code"
 msgstr "Copy code"
 
-#: src/components/UpcomingPlanCard.tsx:668
+#: src/components/UpcomingPlanCard.tsx:669
 msgid "copy the target workout into Praxys; future management follows that version."
 msgstr "copy the target workout into Praxys; future management follows that version."
 
@@ -1290,8 +1290,8 @@ msgstr "Could not pause delivery"
 msgid "Could not remove future delivered workouts"
 msgstr "Could not remove future delivered workouts"
 
-#: src/components/UpcomingPlanCard.tsx:842
-#: src/components/UpcomingPlanCard.tsx:853
+#: src/components/UpcomingPlanCard.tsx:876
+#: src/components/UpcomingPlanCard.tsx:887
 msgid "Could not resolve this workout"
 msgstr "Could not resolve this workout"
 
@@ -1646,12 +1646,12 @@ msgstr "Deleting..."
 msgid "Deleting…"
 msgstr "Deleting…"
 
-#: src/components/UpcomingPlanCard.tsx:439
+#: src/components/UpcomingPlanCard.tsx:440
 msgid "Deliver now"
 msgstr "Deliver now"
 
-#: src/components/UpcomingPlanCard.tsx:813
-#: src/components/UpcomingPlanCard.tsx:820
+#: src/components/UpcomingPlanCard.tsx:847
+#: src/components/UpcomingPlanCard.tsx:854
 msgid "Delivery failed"
 msgstr "Delivery failed"
 
@@ -2055,11 +2055,11 @@ msgstr "Execution target"
 #~ msgstr "Extended rest period. Fitness declining."
 
 #: src/components/ManagedPlanSettingsCard.tsx:289
-#: src/components/UpcomingPlanCard.tsx:315
+#: src/components/UpcomingPlanCard.tsx:316
 msgid "External"
 msgstr "External"
 
-#: src/components/UpcomingPlanCard.tsx:189
+#: src/components/UpcomingPlanCard.tsx:190
 msgid "External plan mode"
 msgstr "External plan mode"
 
@@ -2134,7 +2134,7 @@ msgstr "Failed to load settings"
 msgid "Failed to load training data"
 msgstr "Failed to load training data"
 
-#: src/components/UpcomingPlanCard.tsx:878
+#: src/components/UpcomingPlanCard.tsx:912
 msgid "Failed to load training plan"
 msgstr "Failed to load training plan"
 
@@ -2681,7 +2681,7 @@ msgstr "Identified"
 #~ msgid "Improving"
 #~ msgstr "Improving"
 
-#: src/components/UpcomingPlanCard.tsx:355
+#: src/components/UpcomingPlanCard.tsx:356
 msgid "In sync"
 msgstr "In sync"
 
@@ -2828,7 +2828,7 @@ msgstr "Keep any optional movement easy and short"
 msgid "Keep future workouts on {targetLabel}"
 msgstr "Keep future workouts on {targetLabel}"
 
-#: src/components/UpcomingPlanCard.tsx:662
+#: src/components/UpcomingPlanCard.tsx:663
 msgid "keep the Praxys workout canonical and replace or recreate the target version."
 msgstr "keep the Praxys workout canonical and replace or recreate the target version."
 
@@ -3158,7 +3158,7 @@ msgstr "Major service outage"
 msgid "Make today a full recovery day and reassess the hard session tomorrow"
 msgstr "Make today a full recovery day and reassess the hard session tomorrow"
 
-#: src/components/UpcomingPlanCard.tsx:214
+#: src/components/UpcomingPlanCard.tsx:215
 msgid "Manage in Settings"
 msgstr "Manage in Settings"
 
@@ -3174,15 +3174,15 @@ msgstr "Manage seats, roles, invitations, and waitlist onboarding."
 #~ msgid "Manage users and invitation codes"
 #~ msgstr "Manage users and invitation codes"
 
-#: src/components/UpcomingPlanCard.tsx:187
+#: src/components/UpcomingPlanCard.tsx:188
 msgid "Managed by Praxys"
 msgstr "Managed by Praxys"
 
-#: src/components/UpcomingPlanCard.tsx:944
+#: src/components/UpcomingPlanCard.tsx:978
 msgid "Managed delivery is active, but this window contains no Praxys-owned workouts. External workouts remain untouched."
 msgstr "Managed delivery is active, but this window contains no Praxys-owned workouts. External workouts remain untouched."
 
-#: src/components/UpcomingPlanCard.tsx:188
+#: src/components/UpcomingPlanCard.tsx:189
 msgid "Managed delivery paused"
 msgstr "Managed delivery paused"
 
@@ -3256,8 +3256,8 @@ msgstr "MFA required"
 #~ msgstr "mild fatigue"
 
 #: src/components/ManagedPlanSettingsCard.tsx:421
-#: src/components/UpcomingPlanCard.tsx:605
-#: src/components/UpcomingPlanCard.tsx:627
+#: src/components/UpcomingPlanCard.tsx:606
+#: src/components/UpcomingPlanCard.tsx:628
 msgid "min"
 msgstr "min"
 
@@ -3555,7 +3555,7 @@ msgstr "no data"
 #~ msgid "No Data"
 #~ msgstr "No Data"
 
-#: src/components/UpcomingPlanCard.tsx:814
+#: src/components/UpcomingPlanCard.tsx:848
 msgid "No delivery result was returned for this workout"
 msgstr "No delivery result was returned for this workout"
 
@@ -3712,7 +3712,7 @@ msgstr "No weekly distance history yet"
 msgid "No Workout"
 msgstr "No Workout"
 
-#: src/components/UpcomingPlanCard.tsx:640
+#: src/components/UpcomingPlanCard.tsx:641
 msgid "No workout is present on {target}."
 msgstr "No workout is present on {target}."
 
@@ -3737,7 +3737,7 @@ msgstr "No Workout Scheduled"
 msgid "No workout scheduled."
 msgstr "No workout scheduled."
 
-#: src/components/UpcomingPlanCard.tsx:929
+#: src/components/UpcomingPlanCard.tsx:963
 msgid "No workouts scheduled in this window."
 msgstr "No workouts scheduled in this window."
 
@@ -4055,7 +4055,7 @@ msgid "Pause delivery"
 msgstr "Pause delivery"
 
 #: src/components/ManagedPlanSettingsCard.tsx:286
-#: src/components/UpcomingPlanCard.tsx:343
+#: src/components/UpcomingPlanCard.tsx:344
 msgid "Paused"
 msgstr "Paused"
 
@@ -4092,7 +4092,7 @@ msgstr "Plan management"
 #~ msgid "Plan sync target"
 #~ msgstr "Plan sync target"
 
-#: src/components/UpcomingPlanCard.tsx:134
+#: src/components/UpcomingPlanCard.tsx:135
 msgid "Plan window"
 msgstr "Plan window"
 
@@ -4226,7 +4226,7 @@ msgstr "Power-source match"
 msgid "Praxys adapts individualized HRV-guided training and ln(RMSSD) trend monitoring into operational reference bands. The exact reference-band and caution-band cutoffs are product guardrails, not thresholds validated by the cited studies. CV above {cvThreshold}% is also a coaching caution flag, not a diagnosis. Sleep, readiness, RHR, and TSB remain separate informational context."
 msgstr "Praxys adapts individualized HRV-guided training and ln(RMSSD) trend monitoring into operational reference bands. The exact reference-band and caution-band cutoffs are product guardrails, not thresholds validated by the cited studies. CV above {cvThreshold}% is also a coaching caution flag, not a diagnosis. Sleep, readiness, RHR, and TSB remain separate informational context."
 
-#: src/components/UpcomingPlanCard.tsx:590
+#: src/components/UpcomingPlanCard.tsx:591
 msgid "Praxys and {target} have different versions. Choose which one becomes canonical."
 msgstr "Praxys and {target} have different versions. Choose which one becomes canonical."
 
@@ -4250,7 +4250,7 @@ msgstr "Praxys Coach"
 msgid "Praxys Coach insight"
 msgstr "Praxys Coach insight"
 
-#: src/components/UpcomingPlanCard.tsx:588
+#: src/components/UpcomingPlanCard.tsx:589
 msgid "Praxys could not finish delivery. Retrying keeps the Praxys version canonical."
 msgstr "Praxys could not finish delivery. Retrying keeps the Praxys version canonical."
 
@@ -4278,7 +4278,7 @@ msgstr "Praxys is experiencing degraded performance."
 msgid "Praxys is in private alpha."
 msgstr "Praxys is in private alpha."
 
-#: src/components/UpcomingPlanCard.tsx:205
+#: src/components/UpcomingPlanCard.tsx:206
 msgid "Praxys is read-only and leaves every target workout untouched."
 msgstr "Praxys is read-only and leaves every target workout untouched."
 
@@ -4296,7 +4296,7 @@ msgstr "Praxys on mobile"
 msgid "Praxys on your phone"
 msgstr "Praxys on your phone"
 
-#: src/components/UpcomingPlanCard.tsx:333
+#: src/components/UpcomingPlanCard.tsx:334
 msgid "Praxys only"
 msgstr "Praxys only"
 
@@ -4308,7 +4308,7 @@ msgstr "Praxys only changes workouts it created or you explicitly adopt. Manual 
 msgid "Praxys owns the plan; delivery is paused."
 msgstr "Praxys owns the plan; delivery is paused."
 
-#: src/components/UpcomingPlanCard.tsx:599
+#: src/components/UpcomingPlanCard.tsx:600
 msgid "Praxys version"
 msgstr "Praxys version"
 
@@ -4477,7 +4477,7 @@ msgstr "Qualifying days: {0} of {thresholdDays}"
 msgid "Qualifying exposure has resumed after a longer gap, but current evidence is still limited."
 msgstr "Qualifying exposure has resumed after a longer gap, but current evidence is still limited."
 
-#: src/components/UpcomingPlanCard.tsx:445
+#: src/components/UpcomingPlanCard.tsx:446
 msgid "Queued"
 msgstr "Queued"
 
@@ -4729,7 +4729,7 @@ msgstr "Recommended"
 msgid "Recommended. Delivered workouts stay on the calendar; Praxys simply stops managing them."
 msgstr "Recommended. Delivered workouts stay on the calendar; Praxys simply stops managing them."
 
-#: src/components/UpcomingPlanCard.tsx:196
+#: src/components/UpcomingPlanCard.tsx:197
 msgid "Reconnect {target} to continue delivery. The Praxys plan remains canonical."
 msgstr "Reconnect {target} to continue delivery. The Praxys plan remains canonical."
 
@@ -4938,7 +4938,7 @@ msgstr "Resend verification email"
 msgid "Resolve"
 msgstr "Resolve"
 
-#: src/components/UpcomingPlanCard.tsx:580
+#: src/components/UpcomingPlanCard.tsx:581
 msgid "Resolve workout conflict"
 msgstr "Resolve workout conflict"
 
@@ -4979,15 +4979,15 @@ msgstr "Resting heart rate is elevated above your baseline. This can be a cautio
 msgid "Resting HR"
 msgstr "Resting HR"
 
-#: src/components/UpcomingPlanCard.tsx:695
+#: src/components/UpcomingPlanCard.tsx:696
 msgid "Restore Praxys"
 msgstr "Restore Praxys"
 
-#: src/components/UpcomingPlanCard.tsx:661
+#: src/components/UpcomingPlanCard.tsx:662
 msgid "Restore Praxys:"
 msgstr "Restore Praxys:"
 
-#: src/components/UpcomingPlanCard.tsx:692
+#: src/components/UpcomingPlanCard.tsx:693
 msgid "Restoring…"
 msgstr "Restoring…"
 
@@ -5000,8 +5000,8 @@ msgid "Resume managed delivery?"
 msgstr "Resume managed delivery?"
 
 #: src/components/ManagedPlanSettingsCard.tsx:401
-#: src/components/UpcomingPlanCard.tsx:293
-#: src/components/UpcomingPlanCard.tsx:882
+#: src/components/UpcomingPlanCard.tsx:294
+#: src/components/UpcomingPlanCard.tsx:916
 #: src/pages/admin/AdminFeedback.tsx:347
 #: src/pages/admin/AdminRouteState.tsx:36
 #: src/pages/admin/AdminUsers.tsx:544
@@ -5019,8 +5019,8 @@ msgstr "Retry"
 msgid "Retry cleanup"
 msgstr "Retry cleanup"
 
-#: src/components/UpcomingPlanCard.tsx:399
-#: src/components/UpcomingPlanCard.tsx:694
+#: src/components/UpcomingPlanCard.tsx:400
+#: src/components/UpcomingPlanCard.tsx:695
 msgid "Retry delivery"
 msgstr "Retry delivery"
 
@@ -5028,7 +5028,7 @@ msgstr "Retry delivery"
 #~ msgid "Retry push to Stryd"
 #~ msgstr "Retry push to Stryd"
 
-#: src/components/UpcomingPlanCard.tsx:579
+#: src/components/UpcomingPlanCard.tsx:580
 msgid "Retry this delivery?"
 msgstr "Retry this delivery?"
 
@@ -5048,7 +5048,7 @@ msgstr "Retry to load submitted reports and GitHub sync state."
 msgid "Retry to load the public status incidents feed."
 msgstr "Retry to load the public status incidents feed."
 
-#: src/components/UpcomingPlanCard.tsx:288
+#: src/components/UpcomingPlanCard.tsx:289
 msgid "Retry workout action"
 msgstr "Retry workout action"
 
@@ -5060,8 +5060,8 @@ msgstr "Review and activate"
 msgid "Review and resume"
 msgstr "Review and resume"
 
-#: src/components/UpcomingPlanCard.tsx:384
-#: src/components/UpcomingPlanCard.tsx:414
+#: src/components/UpcomingPlanCard.tsx:385
+#: src/components/UpcomingPlanCard.tsx:415
 msgid "Review conflict"
 msgstr "Review conflict"
 
@@ -5213,7 +5213,7 @@ msgstr "Select a day to inspect what entered the estimate."
 msgid "Select a metric to inspect its chart or evidence."
 msgstr "Select a metric to inspect its chart or evidence."
 
-#: src/components/UpcomingPlanCard.tsx:199
+#: src/components/UpcomingPlanCard.tsx:200
 msgid "Select an execution target in Settings to continue delivery."
 msgstr "Select an execution target in Settings to continue delivery."
 
@@ -5677,7 +5677,7 @@ msgstr "Sync split or sample power evidence so Praxys can identify sustained wor
 #~ msgid "Sync split-level power so workload can contribute."
 #~ msgstr "Sync split-level power so workload can contribute."
 
-#: src/components/UpcomingPlanCard.tsx:424
+#: src/components/UpcomingPlanCard.tsx:425
 msgid "Sync target to review"
 msgstr "Sync target to review"
 
@@ -5857,11 +5857,11 @@ msgstr "The managed window changed. Review the refreshed preview before enabling
 msgid "The next {MANAGED_PLAN_WINDOW_DAYS} days roll forward automatically; <0>{0}</0> workouts are currently in scope."
 msgstr "The next {MANAGED_PLAN_WINDOW_DAYS} days roll forward automatically; <0>{0}</0> workouts are currently in scope."
 
-#: src/components/UpcomingPlanCard.tsx:202
+#: src/components/UpcomingPlanCard.tsx:203
 msgid "The Praxys plan is preserved; no target workouts will change."
 msgstr "The Praxys plan is preserved; no target workouts will change."
 
-#: src/components/UpcomingPlanCard.tsx:586
+#: src/components/UpcomingPlanCard.tsx:587
 msgid "The Praxys workout is missing from {target}. Restoring it keeps the Praxys version canonical."
 msgstr "The Praxys workout is missing from {target}. Restoring it keeps the Praxys version canonical."
 
@@ -5870,7 +5870,7 @@ msgid "The public status feed has no unresolved incidents."
 msgstr "The public status feed has no unresolved incidents."
 
 #. placeholder {0}: target ?? 'your target'
-#: src/components/UpcomingPlanCard.tsx:193
+#: src/components/UpcomingPlanCard.tsx:194
 msgid "The rolling 14-day window is delivered to {0}."
 msgstr "The rolling 14-day window is delivered to {0}."
 
@@ -5886,7 +5886,7 @@ msgstr "The selected day's activities show why each session entered or stayed ou
 msgid "The status API did not respond — this itself may indicate an outage."
 msgstr "The status API did not respond — this itself may indicate an outage."
 
-#: src/components/UpcomingPlanCard.tsx:641
+#: src/components/UpcomingPlanCard.tsx:642
 msgid "The target version is unavailable."
 msgstr "The target version is unavailable."
 
@@ -5950,7 +5950,7 @@ msgstr "This will permanently delete <0>{0}</0> and all their data (activities, 
 #~ msgid "This workout differs on Stryd — click to overwrite with the Praxys version."
 #~ msgstr "This workout differs on Stryd — click to overwrite with the Praxys version."
 
-#: src/components/UpcomingPlanCard.tsx:584
+#: src/components/UpcomingPlanCard.tsx:585
 msgid "This workout stays external unless you explicitly make it canonical in Praxys."
 msgstr "This workout stays external unless you explicitly make it canonical in Praxys."
 
@@ -6002,7 +6002,7 @@ msgstr "To target"
 msgid "Today"
 msgstr "Today"
 
-#: src/components/UpcomingPlanCard.tsx:496
+#: src/components/UpcomingPlanCard.tsx:497
 msgid "TODAY"
 msgstr "TODAY"
 
@@ -6124,7 +6124,7 @@ msgstr "Trusted sync and connection outcomes from the backend telemetry boundary
 #~ msgid "Trusted Today signals"
 #~ msgstr "Trusted Today signals"
 
-#: src/components/UpcomingPlanCard.tsx:931
+#: src/components/UpcomingPlanCard.tsx:965
 msgid "Try a longer window above."
 msgstr "Try a longer window above."
 
@@ -6189,7 +6189,7 @@ msgstr "Unverified"
 msgid "Up to date"
 msgstr "Up to date"
 
-#: src/components/UpcomingPlanCard.tsx:899
+#: src/components/UpcomingPlanCard.tsx:933
 msgid "Upcoming Plan"
 msgstr "Upcoming Plan"
 
@@ -6228,15 +6228,15 @@ msgstr "Usage aggregates are unavailable."
 #~ msgid "Usage proxy"
 #~ msgstr "Usage proxy"
 
-#: src/components/UpcomingPlanCard.tsx:683
+#: src/components/UpcomingPlanCard.tsx:684
 msgid "Use {target} version"
 msgstr "Use {target} version"
 
-#: src/components/UpcomingPlanCard.tsx:667
+#: src/components/UpcomingPlanCard.tsx:668
 msgid "Use {target}:"
 msgstr "Use {target}:"
 
-#: src/components/UpcomingPlanCard.tsx:309
+#: src/components/UpcomingPlanCard.tsx:310
 msgid "Use in Praxys"
 msgstr "Use in Praxys"
 
@@ -6253,7 +6253,7 @@ msgstr "Use Praxys on the go with the WeChat Mini Program"
 #~ msgid "Use this"
 #~ msgstr "Use this"
 
-#: src/components/UpcomingPlanCard.tsx:578
+#: src/components/UpcomingPlanCard.tsx:579
 msgid "Use this {target} workout in Praxys?"
 msgstr "Use this {target} workout in Praxys?"
 
@@ -6324,7 +6324,7 @@ msgstr "Verification failed"
 msgid "Verify"
 msgstr "Verify"
 
-#: src/components/UpcomingPlanCard.tsx:365
+#: src/components/UpcomingPlanCard.tsx:366
 msgid "Verifying"
 msgstr "Verifying"
 
@@ -6519,7 +6519,7 @@ msgstr "Will sync:"
 msgid "Within reference band"
 msgstr "Within reference band"
 
-#: src/components/UpcomingPlanCard.tsx:276
+#: src/components/UpcomingPlanCard.tsx:277
 msgid "Working…"
 msgstr "Working…"
 
