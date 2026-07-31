@@ -237,6 +237,14 @@ class PlanDeliveryService:
             provider_account_id = adapter.account_id
             if mutation_guard is not None:
                 mutation_guard()
+        except DeliveryMutationBlockedError as exc:
+            self.db.rollback()
+            return DeliveryResult(
+                status="error",
+                error=str(exc),
+                error_category="delivery_gate_changed",
+                retryable=True,
+            )
         except ProviderRequestError as exc:
             return self._record_preflight_delivery_failure(
                 snapshot,

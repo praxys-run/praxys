@@ -28,6 +28,7 @@ from db.models import (
     PlanDelivery,
     PlanDeliveryAttempt,
     PlanRevision,
+    PlanTargetCalendarSync,
     TrainingPlan,
     User,
     UserConfig,
@@ -225,6 +226,7 @@ def _run(
     adapter: FakeDeliveryAdapter,
     *,
     now: datetime,
+    window_start: date | None = None,
     trigger: str = "test",
 ):
     return run_rolling_delivery_for_user(
@@ -232,6 +234,7 @@ def _run(
         user_id=USER_ID,
         trigger=trigger,
         now=now,
+        window_start=window_start,
         adapter_loader=lambda session, user_id, target: adapter,
         threshold_loader=lambda session, user_id: CP_WATTS,
     )
@@ -292,10 +295,23 @@ def test_delivery_uses_exact_fourteen_day_horizon(managed_db):
         description="Rest",
     )
 
-    result = _run(db, adapter, now=datetime(2026, 8, 1, 9))
+    operational_now = datetime(2026, 8, 2, 18)
+    result = _run(
+        db,
+        adapter,
+        now=operational_now,
+        window_start=today,
+    )
 
     assert result.window_start == "2026-08-01"
     assert result.window_end == "2026-08-14"
+    calendar_sync = db.execute(
+        select(PlanTargetCalendarSync).where(
+            PlanTargetCalendarSync.user_id == USER_ID,
+            PlanTargetCalendarSync.target == TARGET,
+        )
+    ).scalar_one()
+    assert calendar_sync.synced_at == operational_now
     assert {
         row["date"] for row in adapter.calendar
     } == {"2026-08-01", "2026-08-14"}

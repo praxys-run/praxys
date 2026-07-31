@@ -50,7 +50,7 @@ export interface ScienceResponse {
   recommendations: PillarRecommendation[];
 }
 export type PlatformName = 'garmin' | 'strava' | 'stryd' | 'oura' | 'coros';
-export type PlanSourceName = PlatformName | 'ai';
+export type PlanSourceName = PlatformName | 'ai' | 'praxys';
 export type DataCategory = 'activities' | 'recovery' | 'fitness' | 'plan';
 
 export interface DisplayConfig {
@@ -73,7 +73,11 @@ export type UiLanguage = 'en' | 'zh';
  *  / plan) carry a single provider name; `threshold_sources` carries the
  *  user's chosen source per threshold metric (e.g. `cp_estimate: "stryd"`)
  *  when the auto-selected source isn't what they want. */
-export interface SettingsPreferences extends Partial<Record<DataCategory, PlatformName | PlanSourceName>> {
+export interface SettingsPreferences {
+  activities?: PlatformName;
+  recovery?: PlatformName;
+  fitness?: PlatformName;
+  plan?: PlanSourceName;
   threshold_sources?: Partial<Record<string, string>>;
 }
 
@@ -101,6 +105,7 @@ export interface SettingsConfig {
 
 export interface SettingsUpdate extends Omit<Partial<SettingsConfig>, 'plan_management'> {
   plan_management?: Partial<PlanManagementConfig>;
+  managed_plan_preview_start?: string;
 }
 
 export interface ThresholdValue {
@@ -127,16 +132,29 @@ export interface DetectedThreshold {
 
 export interface SettingsResponse {
   config: SettingsConfig;
+  connection_statuses: Partial<Record<PlatformName, PlatformConnectionStatus>>;
   platform_capabilities: Partial<Record<PlatformName, Partial<Record<DataCategory, boolean>>>>;
-  available_providers: Partial<Record<DataCategory, PlatformName[]>>;
+  available_providers: {
+    activities?: PlatformName[];
+    recovery?: PlatformName[];
+    fitness?: PlatformName[];
+    plan?: PlanSourceName[];
+  };
   available_bases: TrainingBase[];
   display: DisplayConfig;
   detected_thresholds: Record<string, DetectedThreshold>;
   effective_thresholds: Record<string, ThresholdValue>;
 }
 
+export type PlatformConnectionStatus =
+  | 'connected'
+  | 'error'
+  | 'auth_required'
+  | 'expired'
+  | 'disconnected';
+
 export interface PlatformConnection {
-  status: string;
+  status: PlatformConnectionStatus;
   last_sync: string | null;
   has_credentials: boolean;
   // Scheduler retry-state surfaced for UI: when status is "error", the
@@ -339,6 +357,23 @@ export interface PlanResolutionResponse {
   revision_id: string;
   canonical_id: string;
   external_id?: string | null;
+}
+
+export interface PlanCleanupItem {
+  canonical_id: string | null;
+  workout_date: string;
+  external_id: string | null;
+  status: 'removed' | 'already_absent' | 'blocked' | 'failed';
+  reason: string | null;
+}
+
+export interface PlanCleanupResponse {
+  status: 'complete' | 'partial';
+  target: PlatformName | null;
+  window: { start: string; end: null };
+  removed_count: number;
+  remaining_count: number;
+  items: PlanCleanupItem[];
 }
 
 export interface StrydPushStatusEntry {

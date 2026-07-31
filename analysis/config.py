@@ -395,11 +395,21 @@ def load_config_from_db(user_id: str, db) -> UserConfig:
     derived_prefs = _get_preferences_from_db(user_id, db)
     # Merge: stored prefs take priority, fill gaps from derived
     merged_prefs = {**derived_prefs, **stored_prefs}
+    stored_plan_management = getattr(row, "plan_management", None)
     plan_management = normalize_plan_management(
-        getattr(row, "plan_management", None),
+        stored_plan_management,
         legacy_plan_source=merged_prefs.get("plan"),
     )
-    if plan_management["execution_target"] not in connections:
+    has_persisted_execution_target = (
+        isinstance(stored_plan_management, dict)
+        and bool(stored_plan_management.get("execution_target"))
+    )
+    # Keep explicit managed-plan intent through a disconnect. Only a target
+    # inferred from the legacy preference disappears with its connection.
+    if (
+        plan_management["execution_target"] not in connections
+        and not has_persisted_execution_target
+    ):
         plan_management["execution_target"] = None
 
     return UserConfig(

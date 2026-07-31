@@ -41,9 +41,14 @@ msgid "{0, plural, one {# recommendation} other {# recommendations}}"
 msgstr "{0, plural, other {# 条建议}}"
 
 #. placeholder {0}: data.workouts.length
-#: src/components/UpcomingPlanCard.tsx:676
+#: src/components/UpcomingPlanCard.tsx:947
 msgid "{0, plural, one {# workout} other {# workouts}}"
 msgstr "{0, plural, other {# 次训练}}"
+
+#. placeholder {0}: praxysWorkouts.length
+#: src/components/ManagedPlanSettingsCard.tsx:371
+msgid "{0, plural, one {Praxys workout} other {Praxys workouts}}"
+msgstr "{0, plural, other {# 个 Praxys 训练}}"
 
 #. placeholder {0}: status.exposure_days
 #: src/components/HeatAdaptationPanel.tsx:580
@@ -216,6 +221,14 @@ msgstr "{abbrev} <0>{dirLabel}</0>。再同步一些活动后即可生成比赛�
 msgid "{completed} of {0} steps complete"
 msgstr "已完成 {completed} / {0} 步"
 
+#: src/components/UpcomingPlanCard.tsx:940
+msgid "{conflictCount, plural, one {# needs review} other {# need review}}"
+msgstr "{conflictCount, plural, other {# 个待处理}}"
+
+#: src/components/UpcomingPlanCard.tsx:847
+#~ msgid "{conflictCount} need review"
+#~ msgstr "{conflictCount} 个待处理"
+
 #: src/components/HeatAdaptationPanel.tsx:88
 #~ msgid "{days} days · {minutes} effective min"
 #~ msgstr "{days} 天 · 等效热暴露 {minutes} 分钟"
@@ -262,6 +275,10 @@ msgstr "等效热暴露 {minutes} 分钟"
 msgid "{observationCount}-observation Trend"
 msgstr "{observationCount}次观测趋势"
 
+#: src/components/UpcomingPlanCard.tsx:620
+msgid "{target} version"
+msgstr "{target} 版本"
+
 #: src/components/DiagnosisCard.tsx:60
 msgid "{topZoneName} / Quality"
 msgstr "{topZoneName}／高质量训练"
@@ -280,6 +297,11 @@ msgstr "{total, plural, other {同步失败：{1} 个来源中的 # 个。}}"
 #: src/components/charts/FormSparkline.tsx:232
 msgid "+ {0}d projected from plan"
 msgstr "计划中还有 {0} 天预测"
+
+#. placeholder {0}: externalWorkouts.length
+#: src/components/ManagedPlanSettingsCard.tsx:379
+msgid "<0>{0}</0> external left untouched"
+msgstr "<0>{0}</0> 个外部训练保持不变"
 
 #. placeholder {0}: roleChangeUser?.email
 #: src/pages/admin/AdminUsers.tsx:1034
@@ -332,7 +354,7 @@ msgstr "1 天前"
 msgid "1 month"
 msgstr "1 个月"
 
-#: src/components/UpcomingPlanCard.tsx:349
+#: src/components/UpcomingPlanCard.tsx:128
 msgid "1 wk"
 msgstr "1 周"
 
@@ -345,27 +367,31 @@ msgid "100 Mi"
 msgstr "100 英里"
 
 #: src/lib/display-labels.ts:73
-#: src/pages/Settings.tsx:188
+#: src/pages/Settings.tsx:189
 msgid "100 Mile"
 msgstr "100英里"
 
 #: src/components/GoalEditor.tsx:57
 #: src/lib/display-labels.ts:72
-#: src/pages/Settings.tsx:187
+#: src/pages/Settings.tsx:188
 msgid "100K"
 msgstr "100公里"
 
 #: src/components/GoalEditor.tsx:52
 #: src/lib/display-labels.ts:69
-#: src/pages/Settings.tsx:182
+#: src/pages/Settings.tsx:183
 msgid "10K"
 msgstr "10公里"
+
+#: src/components/ManagedPlanSettingsCard.tsx:353
+msgid "14-day managed window"
+msgstr "14 天托管窗口"
 
 #: src/components/charts/CpTrendChart.tsx:55
 msgid "1Y"
 msgstr "1年"
 
-#: src/components/UpcomingPlanCard.tsx:350
+#: src/components/UpcomingPlanCard.tsx:129
 msgid "2 wk"
 msgstr "2 周"
 
@@ -385,7 +411,7 @@ msgstr "3 个月"
 msgid "3M"
 msgstr "3月"
 
-#: src/components/UpcomingPlanCard.tsx:351
+#: src/components/UpcomingPlanCard.tsx:130
 msgid "4 wk"
 msgstr "4 周"
 
@@ -394,19 +420,19 @@ msgid "50 Mi"
 msgstr "50 英里"
 
 #: src/lib/display-labels.ts:71
-#: src/pages/Settings.tsx:186
+#: src/pages/Settings.tsx:187
 msgid "50 Mile"
 msgstr "50英里"
 
 #: src/components/GoalEditor.tsx:55
 #: src/lib/display-labels.ts:70
-#: src/pages/Settings.tsx:185
+#: src/pages/Settings.tsx:186
 msgid "50K"
 msgstr "50公里"
 
 #: src/components/GoalEditor.tsx:51
 #: src/lib/display-labels.ts:68
-#: src/pages/Settings.tsx:181
+#: src/pages/Settings.tsx:182
 msgid "5K"
 msgstr "5公里"
 
@@ -500,6 +526,11 @@ msgstr "操作"
 msgid "Activate"
 msgstr "激活"
 
+#: src/components/ManagedPlanSettingsCard.tsx:627
+msgid "Activate managed plan"
+msgstr "启用托管计划"
+
+#: src/components/ManagedPlanSettingsCard.tsx:280
 #: src/pages/admin/AdminFeedback.tsx:228
 #: src/pages/Science.tsx:421
 #: src/pages/Science.tsx:569
@@ -521,8 +552,8 @@ msgstr "活跃事件：{0}"
 
 #: src/components/AppSidebar.tsx:127
 #: src/pages/History.tsx:38
-#: src/pages/Settings.tsx:55
-#: src/pages/Settings.tsx:62
+#: src/pages/Settings.tsx:56
+#: src/pages/Settings.tsx:67
 #: src/pages/Setup.tsx:221
 msgid "Activities"
 msgstr "活动"
@@ -531,7 +562,7 @@ msgstr "活动"
 msgid "Activities only: runs, rides, pace, heart rate, route data"
 msgstr "仅活动数据：跑步、骑行、配速、心率、路线数据"
 
-#: src/pages/Settings.tsx:1119
+#: src/pages/Settings.tsx:1120
 #: src/pages/Setup.tsx:1048
 msgid "Activities-only connection"
 msgstr "仅同步活动"
@@ -604,6 +635,10 @@ msgstr "管理后台"
 msgid "Admin sections"
 msgstr "管理模块"
 
+#: src/components/UpcomingPlanCard.tsx:215
+msgid "Adopt in Settings"
+msgstr "前往设置启用"
+
 #: src/pages/Science.tsx:133
 #~ msgid "Advanced"
 #~ msgstr "详细"
@@ -646,8 +681,8 @@ msgid "All components operational"
 msgstr "所有组件运行正常"
 
 #: src/components/UpcomingPlanCard.tsx:695
-msgid "All synced"
-msgstr "全部已同步"
+#~ msgid "All synced"
+#~ msgstr "全部已同步"
 
 #: src/components/StatusIndicator.tsx:27
 msgid "All systems operational"
@@ -666,15 +701,24 @@ msgstr "已有邀请码？"
 msgid "An unexpected error occurred."
 msgstr "发生了意外错误。"
 
+#. placeholder {0}: praxysWorkouts.length - previewWorkouts.length
+#: src/components/ManagedPlanSettingsCard.tsx:428
+msgid "And <0>{0}</0> more in this window"
+msgstr "此窗口内另有 <0>{0}</0> 个训练"
+
 #: src/pages/admin/AdminOps.tsx:476
 msgid "API"
 msgstr "API"
+
+#: src/components/UpcomingPlanCard.tsx:684
+msgid "Applying…"
+msgstr "正在应用…"
 
 #: src/pages/admin/AdminFeedback.tsx:335
 msgid "Approve & file"
 msgstr "批准并提交"
 
-#: src/pages/Settings.tsx:1077
+#: src/pages/Settings.tsx:1078
 msgid "Asia/CN"
 msgstr "亚洲/中国"
 
@@ -698,11 +742,11 @@ msgstr "登录方式"
 msgid "Authorize Praxys with Strava in your browser. Praxys only syncs activities from Strava."
 msgstr "请在浏览器中为 Praxys 授权 Strava。Praxys 仅从 Strava 同步活动数据。"
 
-#: src/pages/Settings.tsx:749
+#: src/pages/Settings.tsx:750
 msgid "Auto"
 msgstr "自动"
 
-#: src/pages/Settings.tsx:807
+#: src/pages/Settings.tsx:808
 msgid "Auto sync frequency"
 msgstr "自动同步频率"
 
@@ -776,11 +820,11 @@ msgstr "返回 Praxys"
 msgid "Back to sign in"
 msgstr "返回登录"
 
-#: src/pages/Settings.tsx:790
+#: src/pages/Settings.tsx:791
 msgid "Backfill All"
 msgstr "同步全部历史数据"
 
-#: src/pages/Settings.tsx:769
+#: src/pages/Settings.tsx:770
 msgid "Backfill..."
 msgstr "同步历史数据中…"
 
@@ -910,11 +954,15 @@ msgstr "作者"
 #: src/components/AiInsightsCard.tsx:367
 #: src/components/FeedbackDialog.tsx:314
 #: src/components/GoalEditor.tsx:174
+#: src/components/ManagedPlanSettingsCard.tsx:617
+#: src/components/ManagedPlanSettingsCard.tsx:770
+#: src/components/ManagedPlanSettingsCard.tsx:789
+#: src/components/UpcomingPlanCard.tsx:676
 #: src/pages/admin/AdminUsers.tsx:1043
 #: src/pages/admin/AdminUsers.tsx:1073
-#: src/pages/Settings.tsx:1022
-#: src/pages/Settings.tsx:1108
-#: src/pages/Settings.tsx:1145
+#: src/pages/Settings.tsx:1023
+#: src/pages/Settings.tsx:1109
+#: src/pages/Settings.tsx:1146
 #: src/pages/Settings.tsx:1543
 #: src/pages/Setup.tsx:908
 #: src/pages/Setup.tsx:1036
@@ -959,8 +1007,8 @@ msgstr "调整了今天的训练安排"
 msgid "Check your credentials in the connection step, then try again."
 msgstr "请在连接步骤检查账号信息，然后重试。"
 
-#: src/pages/Settings.tsx:954
-#: src/pages/Settings.tsx:1052
+#: src/pages/Settings.tsx:955
+#: src/pages/Settings.tsx:1053
 msgid "China"
 msgstr "中国"
 
@@ -990,11 +1038,15 @@ msgstr "选择首选数据来源"
 msgid "Choose training base"
 msgstr "选择训练基准"
 
-#: src/pages/Settings.tsx:1230
+#: src/pages/Settings.tsx:1239
 msgid "Choose which platform to use for each data type"
 msgstr "为每类数据选择使用哪个平台"
 
-#: src/pages/Settings.tsx:793
+#: src/components/ManagedPlanSettingsCard.tsx:306
+msgid "Choose who controls the plan and where Praxys delivers it"
+msgstr "选择由谁管理计划，以及 Praxys 将训练下发到哪个平台"
+
+#: src/pages/Settings.tsx:794
 msgid "Clear"
 msgstr "清空"
 
@@ -1089,17 +1141,25 @@ msgstr "当前无法获取组件健康状态。"
 msgid "Components"
 msgstr "组件"
 
-#: src/pages/Settings.tsx:640
+#: src/pages/Settings.tsx:641
 msgid "Configure your training system"
 msgstr "设置训练系统"
+
+#: src/components/ManagedPlanSettingsCard.tsx:565
+msgid "Confirm the boundary before Praxys writes to {targetLabel}."
+msgstr "确认管理边界后，Praxys 才会写入 {targetLabel}。"
 
 #: src/components/TodayDecisionCheck.tsx:23
 msgid "Confirmed what I planned"
 msgstr "确认按原计划训练"
 
+#: src/components/UpcomingPlanCard.tsx:327
+msgid "Conflict retained"
+msgstr "冲突已保留"
+
 #: src/components/SetupChecklist.tsx:51
-#: src/pages/Settings.tsx:910
-#: src/pages/Settings.tsx:1111
+#: src/pages/Settings.tsx:911
+#: src/pages/Settings.tsx:1112
 #: src/pages/Setup.tsx:625
 #: src/pages/Setup.tsx:1039
 msgid "Connect"
@@ -1107,7 +1167,7 @@ msgstr "连接"
 
 #. placeholder {0}: connectPlatform ? (PLATFORM_META[connectPlatform]?.label || connectPlatform) : ''
 #. placeholder {0}: connectPlatform ? PLATFORM_META[connectPlatform]?.label : ''
-#: src/pages/Settings.tsx:988
+#: src/pages/Settings.tsx:989
 #: src/pages/Setup.tsx:860
 msgid "Connect {0}"
 msgstr "连接 {0}"
@@ -1122,16 +1182,28 @@ msgstr "连接平台"
 msgid "Connect a platform first"
 msgstr "请先连接一个平台"
 
+#: src/components/ManagedPlanSettingsCard.tsx:470
+msgid "Connect a supported execution platform above before adopting managed delivery."
+msgstr "请先在上方连接支持的执行平台，再启用托管下发。"
+
+#: src/components/ManagedPlanSettingsCard.tsx:457
+msgid "Connect a supported platform first"
+msgstr "请先连接支持的平台"
+
+#: src/components/ManagedPlanSettingsCard.tsx:443
+#~ msgid "Connect Stryd above before adopting managed delivery."
+#~ msgstr "请先在上方连接 Stryd，再启用托管下发。"
+
 #: src/pages/admin/AdminOps.tsx:356
-#: src/pages/Settings.tsx:869
+#: src/pages/Settings.tsx:870
 msgid "Connected"
 msgstr "已连接"
 
-#: src/pages/Settings.tsx:764
+#: src/pages/Settings.tsx:765
 msgid "Connected Platforms"
 msgstr "已连接平台"
 
-#: src/pages/Settings.tsx:1111
+#: src/pages/Settings.tsx:1112
 #: src/pages/Setup.tsx:1039
 msgid "Connecting..."
 msgstr "连接中…"
@@ -1144,12 +1216,12 @@ msgstr "连接转化漏斗"
 #~ msgid "Connector-provided activity summary"
 #~ msgstr "连接器提供的活动摘要"
 
-#: src/pages/Settings.tsx:1121
+#: src/pages/Settings.tsx:1122
 #: src/pages/Setup.tsx:1050
 msgid "Continue in your browser to authorize Strava. Praxys imports activities from Strava, while recovery, fitness, and plans come from your other connected platforms."
 msgstr "请在浏览器中继续完成 Strava 授权。Praxys 会从 Strava 导入活动；恢复、体能和训练计划则来自你连接的其他平台。"
 
-#: src/pages/Settings.tsx:1152
+#: src/pages/Settings.tsx:1153
 #: src/pages/Setup.tsx:1059
 msgid "Continue to Strava"
 msgstr "前往 Strava"
@@ -1188,9 +1260,39 @@ msgstr "放松"
 msgid "Copy code"
 msgstr "复制邀请码"
 
+#: src/components/UpcomingPlanCard.tsx:669
+msgid "copy the target workout into Praxys; future management follows that version."
+msgstr "将目标平台上的训练复制到 Praxys，之后以该版本为准。"
+
 #: src/pages/Science.tsx:255
 #~ msgid "Cosmetic — changes names and colors without affecting calculations"
 #~ msgstr "仅外观——更改名称与颜色，不影响计算"
+
+#: src/components/ManagedPlanSettingsCard.tsx:198
+msgid "Could not enable managed delivery"
+msgstr "无法启用托管下发"
+
+#: src/components/ManagedPlanSettingsCard.tsx:254
+msgid "Could not leave managed mode"
+msgstr "无法退出托管模式"
+
+#: src/components/ManagedPlanSettingsCard.tsx:398
+msgid "Could not load the managed-window preview."
+msgstr "无法加载托管窗口预览。"
+
+#: src/components/ManagedPlanSettingsCard.tsx:212
+msgid "Could not pause delivery"
+msgstr "无法暂停下发"
+
+#: src/components/ManagedPlanSettingsCard.tsx:226
+#: src/components/ManagedPlanSettingsCard.tsx:271
+msgid "Could not remove future delivered workouts"
+msgstr "无法移除未来已下发的训练"
+
+#: src/components/UpcomingPlanCard.tsx:876
+#: src/components/UpcomingPlanCard.tsx:887
+msgid "Could not resolve this workout"
+msgstr "无法处理此训练"
 
 #: src/pages/Login.tsx:182
 msgid "Could not save your email. Please email us instead."
@@ -1318,7 +1420,7 @@ msgid "Critical"
 msgstr "严重"
 
 #: src/lib/display-labels.ts:58
-#: src/pages/Settings.tsx:101
+#: src/pages/Settings.tsx:102
 msgid "Critical Power"
 msgstr "阈值功率"
 
@@ -1411,7 +1513,7 @@ msgstr "深色主题（点击切换为系统）"
 msgid "Data coverage"
 msgstr "数据覆盖情况"
 
-#: src/pages/Settings.tsx:1229
+#: src/pages/Settings.tsx:1238
 msgid "Data Preferences"
 msgstr "数据偏好"
 
@@ -1543,6 +1645,15 @@ msgstr "删除中…"
 msgid "Deleting…"
 msgstr "正在删除…"
 
+#: src/components/UpcomingPlanCard.tsx:440
+msgid "Deliver now"
+msgstr "立即下发"
+
+#: src/components/UpcomingPlanCard.tsx:847
+#: src/components/UpcomingPlanCard.tsx:854
+msgid "Delivery failed"
+msgstr "下发失败"
+
 #: src/pages/admin/AdminUsers.tsx:605
 msgid "Demo"
 msgstr "演示"
@@ -1616,8 +1727,8 @@ msgid "Didn't help today"
 msgstr "今天没帮上忙"
 
 #: src/components/UpcomingPlanCard.tsx:201
-msgid "Differs · overwrite"
-msgstr "有差异·覆盖"
+#~ msgid "Differs · overwrite"
+#~ msgstr "有差异·覆盖"
 
 #: src/components/UpcomingPlanCard.tsx:171
 #~ msgid "Differs on Stryd — click to re-push and overwrite."
@@ -1631,6 +1742,10 @@ msgstr "趋势方向"
 msgid "Directional"
 msgstr "方向性指标"
 
+#: src/components/ManagedPlanSettingsCard.tsx:599
+msgid "Disable delivery from any other planner first. Two planners can create overlapping sessions."
+msgstr "请先关闭其他计划工具的下发功能。多个计划工具可能生成重复训练。"
+
 #: src/pages/Admin.tsx:560
 #~ msgid "Disabled — click to open"
 #~ msgstr "已禁用 — 点击打开"
@@ -1639,7 +1754,7 @@ msgstr "方向性指标"
 msgid "Disabled. Click to open"
 msgstr "已关闭，点击开启"
 
-#: src/pages/Settings.tsx:973
+#: src/pages/Settings.tsx:974
 msgid "Disconnect"
 msgstr "断开连接"
 
@@ -1692,6 +1807,10 @@ msgstr "分布匹配度使用 Bray-Curtis 相似度比较实际与目标的各�
 #: src/components/ZoneAnalysisCard.tsx:139
 #~ msgid "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. It appears only when every recent activity has complete split or sample intensity evidence."
 #~ msgstr "分布匹配度使用 Bray-Curtis 相似度比较实际与目标的各训练区间时长占比。仅当近期每次活动都有完整的分段或采样强度证据时才会显示。"
+
+#: src/components/ManagedPlanSettingsCard.tsx:757
+msgid "Done"
+msgstr "完成"
 
 #: src/pages/Settings.tsx:1403
 msgid "Drive your zone calculations and training load. Values come from connected sources; pick which source to use when you have more than one."
@@ -1855,12 +1974,16 @@ msgstr "邮箱已验证"
 msgid "Enabled. Click to close"
 msgstr "已开启，点击关闭"
 
+#: src/components/ManagedPlanSettingsCard.tsx:624
+msgid "Enabling…"
+msgstr "正在启用…"
+
 #: src/lib/display-labels.ts:43
 msgid "Endurance"
 msgstr "耐力"
 
 #: src/pages/admin/AdminOps.tsx:360
-#: src/pages/Settings.tsx:892
+#: src/pages/Settings.tsx:893
 msgid "Error"
 msgstr "错误"
 
@@ -1872,12 +1995,12 @@ msgstr "根据近期符合条件的环境估算热适应。"
 msgid "Estimates race performance from current fitness."
 msgstr "基于当前体能估算比赛表现。"
 
-#: src/pages/Settings.tsx:1077
+#: src/pages/Settings.tsx:1078
 msgid "EU"
 msgstr "欧盟"
 
 #. placeholder {0}: option.hours
-#: src/pages/Settings.tsx:831
+#: src/pages/Settings.tsx:832
 msgid "Every <0>{0}</0> hours"
 msgstr "每<0>{0}</0>小时"
 
@@ -1925,6 +2048,11 @@ msgstr "证据"
 msgid "Evidence toward Likely adapted"
 msgstr "达到“可能已适应”的证据进度"
 
+#: src/components/ManagedPlanSettingsCard.tsx:449
+#: src/components/ManagedPlanSettingsCard.tsx:495
+msgid "Execution target"
+msgstr "执行平台"
+
 #: src/components/HeatAdaptationPanel.tsx:265
 #~ msgid "Exposure days"
 #~ msgstr "热暴露日"
@@ -1932,6 +2060,15 @@ msgstr "达到“可能已适应”的证据进度"
 #: src/components/charts/FormSparkline.tsx:32
 #~ msgid "Extended rest period. Fitness declining."
 #~ msgstr "长时间休息期。体能在下降。"
+
+#: src/components/ManagedPlanSettingsCard.tsx:289
+#: src/components/UpcomingPlanCard.tsx:316
+msgid "External"
+msgstr "外部"
+
+#: src/components/UpcomingPlanCard.tsx:190
+msgid "External plan mode"
+msgstr "外部计划模式"
 
 #: src/components/HeatAdaptationPanel.tsx:22
 #: src/components/HeatAdaptationPanel.tsx:30
@@ -1996,7 +2133,7 @@ msgstr "目标数据加载失败"
 msgid "Failed to load science data."
 msgstr "加载科学数据失败。"
 
-#: src/pages/Settings.tsx:328
+#: src/pages/Settings.tsx:329
 msgid "Failed to load settings"
 msgstr "加载设置失败"
 
@@ -2004,7 +2141,7 @@ msgstr "加载设置失败"
 msgid "Failed to load training data"
 msgstr "训练数据加载失败"
 
-#: src/components/UpcomingPlanCard.tsx:642
+#: src/components/UpcomingPlanCard.tsx:912
 msgid "Failed to load training plan"
 msgstr "训练计划加载失败"
 
@@ -2104,7 +2241,7 @@ msgstr "反馈处理"
 msgid "Findings"
 msgstr "解读要点"
 
-#: src/pages/Settings.tsx:57
+#: src/pages/Settings.tsx:58
 #: src/pages/Settings.tsx:1315
 #: src/pages/Setup.tsx:223
 msgid "Fitness"
@@ -2188,28 +2325,32 @@ msgstr "数据截至 {dataAsOfLabel}"
 msgid "from {label}"
 msgstr "来自 {label}"
 
-#: src/pages/Settings.tsx:117
+#: src/pages/Settings.tsx:118
 msgid "From activities"
 msgstr "来自活动"
 
 #: src/components/UpcomingPlanCard.tsx:162
-msgid "From Stryd"
-msgstr "来自 Stryd"
+#~ msgid "From Stryd"
+#~ msgstr "来自 Stryd"
+
+#: src/components/ManagedPlanSettingsCard.tsx:668
+msgid "Future delivered workouts"
+msgstr "未来已下发的训练"
 
 #: src/pages/Goal.tsx:262
 #: src/pages/Goal.tsx:272
 msgid "Gap"
 msgstr "差距"
 
-#: src/pages/Settings.tsx:1069
+#: src/pages/Settings.tsx:1070
 msgid "Garmin International and Garmin China are separate account systems. Pick the one your credentials belong to."
 msgstr "Garmin International 和 Garmin China 是两套独立的账号系统。请选择账号所属的系统。"
 
-#: src/pages/Settings.tsx:959
+#: src/pages/Settings.tsx:960
 msgid "Garmin International and Garmin China are separate accounts. To switch, disconnect and reconnect with the other account."
 msgstr "Garmin International 和 Garmin China 是两套独立的账号。要切换，请先断开连接，再用另一个账号重新连接。"
 
-#: src/pages/Settings.tsx:1207
+#: src/pages/Settings.tsx:1216
 msgid "Garmin native running power reads ~30% higher than Stryd for the same athlete — they measure different things. Zones and benchmarks calibrated on Stryd (most coach references, most training literature) will not directly transfer. Your power data will still be internally consistent for tracking progress, but don't compare CP values across the two systems."
 msgstr "对同一位运动员，Garmin 原生跑步功率通常比 Stryd 高约 30%——两者测量的内容不同。基于 Stryd 校准的功率区间和基准（大多数教练资料和训练文献）不能直接套用。功率数据用于追踪自身变化时仍保持一致，但不要跨两个系统比较 CP。"
 
@@ -2283,7 +2424,7 @@ msgid "Half"
 msgstr "半程"
 
 #: src/lib/display-labels.ts:67
-#: src/pages/Settings.tsx:183
+#: src/pages/Settings.tsx:184
 msgid "Half Marathon"
 msgstr "半程马拉松"
 
@@ -2292,7 +2433,7 @@ msgid "Have an invitation code?"
 msgstr "有邀请码？"
 
 #: src/lib/display-labels.ts:55
-#: src/pages/Settings.tsx:81
+#: src/pages/Settings.tsx:82
 #: src/pages/Setup.tsx:178
 msgid "Heart Rate"
 msgstr "心率"
@@ -2360,7 +2501,7 @@ msgstr "热适应可能正在恢复。"
 msgid "Helpful"
 msgstr "有帮助"
 
-#: src/pages/Settings.tsx:769
+#: src/pages/Settings.tsx:770
 msgid "Hide backfill"
 msgstr "收起历史同步"
 
@@ -2396,7 +2537,7 @@ msgstr "变异性偏高"
 msgid "Hiking"
 msgstr "徒步"
 
-#: src/pages/Settings.tsx:795
+#: src/pages/Settings.tsx:796
 msgid "Historical sync may take several minutes"
 msgstr "历史同步可能需要几分钟"
 
@@ -2420,7 +2561,7 @@ msgstr "历史同步可能需要几分钟"
 #~ msgid "How is intensity classified?"
 #~ msgstr "如何分类训练强度？"
 
-#: src/pages/Settings.tsx:809
+#: src/pages/Settings.tsx:810
 msgid "How often Praxys pulls new data in the background. Lower frequency uses less network and respects platform rate limits."
 msgstr "Praxys 在后台同步新数据的频率。降低频率可减少网络使用，也能避免触发平台访问频率限制。"
 
@@ -2432,7 +2573,7 @@ msgstr "Praxys 在后台同步新数据的频率。降低频率可减少网络�
 msgid "How this is calculated"
 msgstr "计算方式"
 
-#: src/pages/Settings.tsx:1169
+#: src/pages/Settings.tsx:1178
 #: src/pages/Setup.tsx:775
 msgid "How your zones and training load are calculated"
 msgstr "区间和训练负荷的计算方式"
@@ -2583,6 +2724,10 @@ msgstr "已定位"
 #~ msgid "Improving"
 #~ msgstr "改善中"
 
+#: src/components/UpcomingPlanCard.tsx:356
+msgid "In sync"
+msgstr "一致"
+
 #: src/pages/admin/AdminIncidents.tsx:135
 msgid "Incident management"
 msgstr "事件管理"
@@ -2646,8 +2791,8 @@ msgstr "证据不足"
 msgid "Intensity distribution is unavailable until valid workout intensity data is synced."
 msgstr "尚未同步有效的训练强度数据，暂无法显示强度分布。"
 
-#: src/pages/Settings.tsx:955
-#: src/pages/Settings.tsx:1052
+#: src/pages/Settings.tsx:956
+#: src/pages/Settings.tsx:1053
 msgid "International"
 msgstr "国际"
 
@@ -2726,6 +2871,14 @@ msgstr "如有可选活动，请保持轻松且简短"
 #~ msgid "Keep any optional movement easy and short\" \"可选活动请保持轻松且时间短"
 #~ msgstr ""
 
+#: src/components/ManagedPlanSettingsCard.tsx:687
+msgid "Keep future workouts on {targetLabel}"
+msgstr "保留 {targetLabel} 上的未来训练"
+
+#: src/components/UpcomingPlanCard.tsx:663
+msgid "keep the Praxys workout canonical and replace or recreate the target version."
+msgstr "继续以 Praxys 训练为准，并替换或重新创建目标平台版本。"
+
 #: src/components/HeatAdaptationPanel.tsx:74
 #~ msgid "Kelly female-athlete evidence review"
 #~ msgstr "Kelly 女性运动员证据综述"
@@ -2743,7 +2896,7 @@ msgstr "公里/周"
 msgid "Lactate Threshold HR"
 msgstr "乳酸阈值心率"
 
-#: src/pages/Settings.tsx:732
+#: src/pages/Settings.tsx:733
 msgid "Language"
 msgstr "语言"
 
@@ -2792,12 +2945,12 @@ msgid "Last known: {systemicTitle}"
 msgstr "最近状态：{systemicTitle}"
 
 #. placeholder {0}: status.error
-#: src/pages/Settings.tsx:943
+#: src/pages/Settings.tsx:944
 msgid "Last sync failed: {0}"
 msgstr "上次同步失败：{0}"
 
 #. placeholder {0}: new Date(status.last_sync).toLocaleString()
-#: src/pages/Settings.tsx:937
+#: src/pages/Settings.tsx:938
 msgid "Last synced {0}"
 msgstr "上次同步 {0}"
 
@@ -2816,6 +2969,23 @@ msgstr "最近更新"
 #: src/components/GoalEditor.tsx:164
 msgid "Leave blank to track predicted time only"
 msgstr "留空则只追踪预测完赛时间"
+
+#: src/components/ManagedPlanSettingsCard.tsx:524
+#: src/components/ManagedPlanSettingsCard.tsx:798
+msgid "Leave managed mode"
+msgstr "退出托管模式"
+
+#: src/components/ManagedPlanSettingsCard.tsx:645
+msgid "Leave managed mode?"
+msgstr "退出托管模式？"
+
+#: src/components/ManagedPlanSettingsCard.tsx:797
+msgid "Leaving…"
+msgstr "正在退出…"
+
+#: src/components/ManagedPlanSettingsCard.tsx:562
+msgid "Let Praxys manage this plan?"
+msgstr "让 Praxys 托管此计划？"
 
 #: src/components/AppSidebar.tsx:36
 msgid "Light"
@@ -2875,7 +3045,7 @@ msgstr "链接文本（可选）"
 msgid "Link URL (optional)"
 msgstr "链接地址（可选）"
 
-#: src/pages/Settings.tsx:765
+#: src/pages/Settings.tsx:766
 msgid "Link your training devices and services"
 msgstr "连接训练设备和服务"
 
@@ -2996,7 +3166,7 @@ msgstr "偏低"
 msgid "Low coverage"
 msgstr "覆盖度低"
 
-#: src/pages/Settings.tsx:102
+#: src/pages/Settings.tsx:103
 msgid "LTHR"
 msgstr "LTHR"
 
@@ -3039,6 +3209,10 @@ msgstr "今天作为恢复日，明天再评估高强度训练"
 #~ msgid "Make today a full recovery day and reassess the hard session tomorrow\" \"今天安排为完整恢复日，明天再评估高强度训练"
 #~ msgstr ""
 
+#: src/components/UpcomingPlanCard.tsx:215
+msgid "Manage in Settings"
+msgstr "前往设置管理"
+
 #: src/pages/admin/AdminOps.tsx:563
 msgid "Manage incidents"
 msgstr "管理事件"
@@ -3051,6 +3225,34 @@ msgstr "管理席位、角色、邀请和候补名单接入。"
 #~ msgid "Manage users and invitation codes"
 #~ msgstr "管理用户和邀请码"
 
+#: src/components/UpcomingPlanCard.tsx:188
+msgid "Managed by Praxys"
+msgstr "由 Praxys 托管"
+
+#: src/components/UpcomingPlanCard.tsx:978
+msgid "Managed delivery is active, but this window contains no Praxys-owned workouts. External workouts remain untouched."
+msgstr "托管下发已启用，但此窗口内没有 Praxys 管理的训练。外部训练保持不变。"
+
+#: src/components/UpcomingPlanCard.tsx:189
+msgid "Managed delivery paused"
+msgstr "托管下发已暂停"
+
+#: src/components/ManagedPlanSettingsCard.tsx:747
+msgid "Managed mode is off, but cleanup did not finish. {actionError}"
+msgstr "托管模式已关闭，但清理未完成。{actionError}"
+
+#. placeholder {0}: cleanupResult.removed_count
+#. placeholder {1}: cleanupResult.remaining_count
+#: src/components/ManagedPlanSettingsCard.tsx:736
+msgid "Managed mode is off. <0>{0}</0> deliveries are clear; <1>{1}</1> still need review for {cleanupTargetLabel}."
+msgstr "托管模式已关闭。已有 <0>{0}</0> 个交付项处理完成；仍有 <1>{1}</1> 个需要检查 {cleanupTargetLabel} 状态。"
+
+#. placeholder {0}: cleanupResult.removed_count
+#. placeholder {1}: cleanupResult.remaining_count
+#: src/components/ManagedPlanSettingsCard.tsx:689
+#~ msgid "Managed mode is off. <0>{0}</0> deliveries are clear; <1>{1}</1> still need review for {targetLabel}."
+#~ msgstr "托管模式已关闭。已有 <0>{0}</0> 个交付项处理完成；仍有 <1>{1}</1> 个需要检查 {targetLabel} 状态。"
+
 #: src/pages/admin/AdminLayout.tsx:41
 msgid "Management routes for access, communications, and service status."
 msgstr "用于访问权限、通知和服务状态的管理入口。"
@@ -3059,9 +3261,13 @@ msgstr "用于访问权限、通知和服务状态的管理入口。"
 msgid "Management routes remain available. Retry the aggregate health snapshot."
 msgstr "管理入口仍可用。请重试获取聚合健康快照。"
 
+#: src/components/ManagedPlanSettingsCard.tsx:591
+msgid "Manual and other-coach workouts remain external and will not be edited or deleted."
+msgstr "手动添加及其他教练安排的训练仍属于外部训练，不会被修改或删除。"
+
 #: src/components/GoalEditor.tsx:54
 #: src/lib/display-labels.ts:66
-#: src/pages/Settings.tsx:184
+#: src/pages/Settings.tsx:185
 #: src/pages/Settings.tsx:1353
 msgid "Marathon"
 msgstr "马拉松"
@@ -3075,7 +3281,7 @@ msgstr "匹配"
 msgid "MAU"
 msgstr "MAU"
 
-#: src/pages/Settings.tsx:104
+#: src/pages/Settings.tsx:105
 msgid "Max HR"
 msgstr "最大心率"
 
@@ -3099,6 +3305,12 @@ msgstr "需 MFA"
 #: src/pages/Today.tsx:304
 #~ msgid "mild fatigue"
 #~ msgstr "轻度疲劳"
+
+#: src/components/ManagedPlanSettingsCard.tsx:421
+#: src/components/UpcomingPlanCard.tsx:606
+#: src/components/UpcomingPlanCard.tsx:628
+msgid "min"
+msgstr "分钟"
 
 #: src/pages/admin/AdminOps.tsx:302
 msgid "Mini program"
@@ -3259,7 +3471,7 @@ msgstr "负平衡"
 #~ msgstr ""
 
 #: src/pages/admin/AdminOps.tsx:336
-#: src/pages/Settings.tsx:588
+#: src/pages/Settings.tsx:589
 msgid "Network error"
 msgstr "网络错误"
 
@@ -3317,7 +3529,7 @@ msgstr "新分诊且需要管理员处理的工作会显示在这里。"
 msgid "Next"
 msgstr "下一页"
 
-#: src/pages/Settings.tsx:813
+#: src/pages/Settings.tsx:814
 msgid "Next sync"
 msgstr "下次同步"
 
@@ -3398,6 +3610,10 @@ msgstr "暂无数据"
 #~ msgid "No Data"
 #~ msgstr "无数据"
 
+#: src/components/UpcomingPlanCard.tsx:848
+msgid "No delivery result was returned for this workout"
+msgstr "未返回此训练的下发结果"
+
 #: src/components/HeatAdaptationPanel.tsx:322
 msgid "No evidence"
 msgstr "暂无记录"
@@ -3447,6 +3663,10 @@ msgstr "无计划"
 #: src/components/WeeklyLoadMini.tsx:61
 msgid "No planned load this week"
 msgstr "本周暂无计划负荷"
+
+#: src/components/ManagedPlanSettingsCard.tsx:438
+msgid "No Praxys workouts are scheduled in this window. Future Praxys-created workouts will enter the rolling window automatically."
+msgstr "此窗口内暂无 Praxys 训练。之后由 Praxys 创建的训练会自动进入滚动窗口。"
 
 #: src/components/HeatAdaptationPanel.tsx:541
 #~ msgid "No qualifying condition range yet"
@@ -3515,6 +3735,10 @@ msgstr "在此时间窗口内未记录系统性故障类别。"
 msgid "No systemic sync failures"
 msgstr "无系统性同步失败"
 
+#: src/components/ManagedPlanSettingsCard.tsx:147
+msgid "No target selected"
+msgstr "未选择执行平台"
+
 #: src/pages/admin/AdminFeedback.tsx:251
 msgid "No tickets to show"
 msgstr "暂无可显示的工单"
@@ -3542,6 +3766,10 @@ msgstr "暂无每周距离历史"
 #: src/components/WorkoutCard.tsx:40
 msgid "No Workout"
 msgstr "无训练安排"
+
+#: src/components/UpcomingPlanCard.tsx:641
+msgid "No workout is present on {target}."
+msgstr "{target} 上没有此训练。"
 
 #: src/pages/Today.tsx:223
 msgid "No workout is scheduled, and HRV is below your personal caution band. Keep the day restorative rather than adding a hard session."
@@ -3576,7 +3804,7 @@ msgstr "今日无训练安排"
 msgid "No workout scheduled."
 msgstr "今日无训练安排。"
 
-#: src/components/UpcomingPlanCard.tsx:720
+#: src/components/UpcomingPlanCard.tsx:963
 msgid "No workouts scheduled in this window."
 msgstr "这段时间内暂无训练安排。"
 
@@ -3597,7 +3825,7 @@ msgstr "当前时间窗口内无记录"
 #~ msgid "Not a current heat-risk assessment or medical clearance."
 #~ msgstr "这不是当前热风险评估，也不构成医疗许可。"
 
-#: src/pages/Settings.tsx:872
+#: src/pages/Settings.tsx:873
 msgid "Not connected"
 msgstr "未连接"
 
@@ -3662,7 +3890,7 @@ msgstr "备注"
 msgid "Note (optional)"
 msgstr "备注（可选）"
 
-#: src/pages/Settings.tsx:1204
+#: src/pages/Settings.tsx:1213
 msgid "Note on Garmin native power"
 msgstr "关于 Garmin 原生功率的说明"
 
@@ -3727,6 +3955,11 @@ msgstr "新用户注册用的一次性邀请码。"
 #: src/components/FeedbackDialog.tsx:109
 msgid "Only PNG, JPG, or WebP images are supported."
 msgstr "仅支持 PNG、JPG 或 WebP 图片。"
+
+#: src/components/ManagedPlanSettingsCard.tsx:650
+#: src/components/ManagedPlanSettingsCard.tsx:724
+msgid "Only workouts recorded in Praxys's delivery ledger are removed. Manual and other-coach workouts stay untouched."
+msgstr "只会移除 Praxys 下发记录中的训练。手动添加及其他教练安排的训练保持不变。"
 
 #: src/pages/admin/AdminUsers.tsx:388
 msgid "Open"
@@ -3840,13 +4073,13 @@ msgid "overnight score"
 msgstr "夜间评分"
 
 #: src/components/UpcomingPlanCard.tsx:197
-msgid "Overwrite Stryd with Praxys version"
-msgstr "用 Praxys 版本覆盖 Stryd"
+#~ msgid "Overwrite Stryd with Praxys version"
+#~ msgstr "用 Praxys 版本覆盖 Stryd"
 
 #: src/components/ActivityCard.tsx:121
 #: src/components/SplitBreakdown.tsx:50
 #: src/lib/display-labels.ts:56
-#: src/pages/Settings.tsx:90
+#: src/pages/Settings.tsx:91
 #: src/pages/Setup.tsx:180
 msgid "Pace"
 msgstr "配速"
@@ -3884,6 +4117,19 @@ msgstr "仅基于过往训练；不评估今日天气，不保证已经适应，
 #~ msgid "Past-exposure estimate only."
 #~ msgstr "仅估算过往热暴露。"
 
+#: src/components/ManagedPlanSettingsCard.tsx:506
+msgid "Pause delivery"
+msgstr "暂停下发"
+
+#: src/components/ManagedPlanSettingsCard.tsx:286
+#: src/components/UpcomingPlanCard.tsx:344
+msgid "Paused"
+msgstr "已暂停"
+
+#: src/components/ManagedPlanSettingsCard.tsx:506
+msgid "Pausing…"
+msgstr "正在暂停…"
+
 #: src/components/DiagnosisCard.tsx:48
 msgid "Peak Interval {intensityLabel}"
 msgstr "峰值间歇 {intensityLabel}"
@@ -3900,16 +4146,20 @@ msgstr "永久删除 Praxys 账号、已同步数据、计划、设置和加密�
 msgid "Personal Access Token"
 msgstr "个人访问令牌"
 
-#: src/pages/Settings.tsx:58
+#: src/pages/Settings.tsx:59
 #: src/pages/Setup.tsx:224
 msgid "Plan"
 msgstr "计划"
 
-#: src/pages/Settings.tsx:67
-msgid "Plan sync target"
-msgstr "计划同步目标"
+#: src/components/ManagedPlanSettingsCard.tsx:303
+msgid "Plan management"
+msgstr "计划托管"
 
-#: src/components/UpcomingPlanCard.tsx:356
+#: src/pages/Settings.tsx:67
+#~ msgid "Plan sync target"
+#~ msgstr "计划同步目标"
+
+#: src/components/UpcomingPlanCard.tsx:135
 msgid "Plan window"
 msgstr "计划范围"
 
@@ -3986,7 +4236,7 @@ msgstr "PostgreSQL 连接数"
 
 #: src/components/SplitBreakdown.tsx:48
 #: src/lib/display-labels.ts:54
-#: src/pages/Settings.tsx:72
+#: src/pages/Settings.tsx:73
 #: src/pages/Setup.tsx:176
 msgid "Power"
 msgstr "功率"
@@ -4051,6 +4301,22 @@ msgstr "功率数据源匹配"
 msgid "Praxys adapts individualized HRV-guided training and ln(RMSSD) trend monitoring into operational reference bands. The exact reference-band and caution-band cutoffs are product guardrails, not thresholds validated by the cited studies. CV above {cvThreshold}% is also a coaching caution flag, not a diagnosis. Sleep, readiness, RHR, and TSB remain separate informational context."
 msgstr "Praxys 将个体化 HRV 引导训练和 ln(RMSSD) 趋势监测转化为可执行的参考区间。具体的参考区间和警戒区间界限是产品保护规则，并非引用研究验证的阈值。CV 高于 {cvThreshold}% 同样只是训练警戒提示，不构成诊断。睡眠、准备度、静息心率和 TSB 均作为独立的信息背景。"
 
+#: src/components/UpcomingPlanCard.tsx:591
+msgid "Praxys and {target} have different versions. Choose which one becomes canonical."
+msgstr "Praxys 与 {target} 上的版本不同。请选择之后以哪个版本为准。"
+
+#: src/components/ManagedPlanSettingsCard.tsx:323
+msgid "Praxys automatically keeps its workouts in the next 14 days aligned with {targetLabel}."
+msgstr "Praxys 会自动保持未来 14 天的训练与 {targetLabel} 一致。"
+
+#: src/components/ManagedPlanSettingsCard.tsx:575
+msgid "Praxys becomes canonical for its own and explicitly adopted workouts."
+msgstr "Praxys 创建或明确采纳的训练将以 Praxys 版本为准。"
+
+#: src/components/ManagedPlanSettingsCard.tsx:333
+msgid "Praxys can analyze this schedule, but it will not create, replace, or remove target workouts."
+msgstr "Praxys 可以分析此日程，但不会在目标平台创建、替换或移除训练。"
+
 #: src/components/AiInsightsCard.tsx:231
 msgid "Praxys Coach"
 msgstr "Praxys 教练"
@@ -4058,6 +4324,10 @@ msgstr "Praxys 教练"
 #: src/components/AiInsightsCard.tsx:229
 msgid "Praxys Coach insight"
 msgstr "Praxys 教练解读"
+
+#: src/components/UpcomingPlanCard.tsx:589
+msgid "Praxys could not finish delivery. Retrying keeps the Praxys version canonical."
+msgstr "Praxys 未能完成下发。重试后仍以 Praxys 版本为准。"
 
 #: src/pages/admin/AdminOps.tsx:155
 msgid "Praxys database"
@@ -4083,6 +4353,14 @@ msgstr "Praxys 当前服务性能下降。"
 msgid "Praxys is in private alpha."
 msgstr "Praxys 目前处于私测 alpha 阶段。"
 
+#: src/components/UpcomingPlanCard.tsx:206
+msgid "Praxys is read-only and leaves every target workout untouched."
+msgstr "Praxys 仅会读取计划，不会更改目标平台上的任何训练。"
+
+#: src/components/ManagedPlanSettingsCard.tsx:317
+msgid "Praxys is your active planner."
+msgstr "Praxys 正在负责制定训练计划。"
+
 #: src/components/AppSidebar.tsx:207
 #: src/components/AppSidebar.tsx:209
 msgid "Praxys on mobile"
@@ -4092,6 +4370,26 @@ msgstr "手机版 Praxys"
 #: src/components/MobileApp.tsx:117
 msgid "Praxys on your phone"
 msgstr "在手机上使用 Praxys"
+
+#: src/components/UpcomingPlanCard.tsx:334
+msgid "Praxys only"
+msgstr "仅 Praxys"
+
+#: src/components/ManagedPlanSettingsCard.tsx:343
+msgid "Praxys only changes workouts it created or you explicitly adopt. Manual workouts and workouts from another coach stay untouched. To avoid overlapping sessions, use one planner at a time."
+msgstr "Praxys 只会更改自己创建或明确采纳的训练。手动添加及其他教练安排的训练保持不变。为避免训练重叠，请一次只使用一个计划工具。"
+
+#: src/components/ManagedPlanSettingsCard.tsx:318
+msgid "Praxys owns the plan; delivery is paused."
+msgstr "计划仍由 Praxys 管理，下发已暂停。"
+
+#: src/components/UpcomingPlanCard.tsx:600
+msgid "Praxys version"
+msgstr "Praxys 版本"
+
+#: src/components/ManagedPlanSettingsCard.tsx:655
+msgid "Praxys will stop changing the target calendar. Your canonical Praxys plan remains available for analysis."
+msgstr "Praxys 将停止更改目标日历。Praxys 计划仍会保留，可继续用于分析。"
 
 #: src/pages/Goal.tsx:241
 #: src/pages/Goal.tsx:278
@@ -4121,11 +4419,11 @@ msgid "Previous"
 msgstr "上一页"
 
 #. placeholder {0}: CAPABILITY_LABELS[cat] ? i18n._(CAPABILITY_LABELS[cat]) : cat
-#: src/pages/Settings.tsx:929
+#: src/pages/Settings.tsx:930
 msgid "Primary for {0}"
 msgstr "作为 {0} 的主要来源"
 
-#: src/pages/Settings.tsx:62
+#: src/pages/Settings.tsx:67
 msgid "Primary source for workout data"
 msgstr "训练数据首选来源"
 
@@ -4161,7 +4459,7 @@ msgstr "产品价值"
 #~ msgid "productive load"
 #~ msgstr "负荷富有成效"
 
-#: src/pages/Settings.tsx:665
+#: src/pages/Settings.tsx:666
 msgid "Profile"
 msgstr "个人资料"
 
@@ -4233,25 +4531,25 @@ msgstr "如果明天安排休息或轻松训练，把 {workout} 挪到明天"
 #~ msgstr "推送失败"
 
 #: src/components/UpcomingPlanCard.tsx:181
-msgid "Push failed — click to retry"
-msgstr "推送失败，点击重试"
+#~ msgid "Push failed — click to retry"
+#~ msgstr "推送失败，点击重试"
 
 #: src/components/UpcomingPlanCard.tsx:230
-msgid "Push this workout to your Stryd calendar."
-msgstr "将这次训练推送到 Stryd 日历。"
+#~ msgid "Push this workout to your Stryd calendar."
+#~ msgstr "将这次训练推送到 Stryd 日历。"
 
 #: src/components/UpcomingPlanCard.tsx:231
 #: src/components/UpcomingPlanCard.tsx:700
-msgid "Push to Stryd"
-msgstr "推送到 Stryd"
+#~ msgid "Push to Stryd"
+#~ msgstr "推送到 Stryd"
 
 #: src/components/UpcomingPlanCard.tsx:520
 #~ msgid "Pushing..."
 #~ msgstr "正在推送..."
 
 #: src/components/UpcomingPlanCard.tsx:690
-msgid "Pushing…"
-msgstr "推送中…"
+#~ msgid "Pushing…"
+#~ msgstr "推送中…"
 
 #: src/components/HeatAdaptationPanel.tsx:577
 msgid "Qualifying days"
@@ -4265,6 +4563,10 @@ msgstr "达标天数：{0}/{thresholdDays}"
 #: src/components/HeatAdaptationPanel.tsx:137
 msgid "Qualifying exposure has resumed after a longer gap, but current evidence is still limited."
 msgstr "较长间隔后已恢复达标热暴露，但当前证据仍然有限。"
+
+#: src/components/UpcomingPlanCard.tsx:446
+msgid "Queued"
+msgstr "等待下发"
 
 #: src/components/TodayDecisionCheck.tsx:137
 #: src/components/TodayDecisionCheck.tsx:158
@@ -4320,8 +4622,8 @@ msgid "Re-invite"
 msgstr "重新邀请"
 
 #: src/components/UpcomingPlanCard.tsx:215
-msgid "Re-push to Stryd"
-msgstr "重新推送到 Stryd"
+#~ msgid "Re-push to Stryd"
+#~ msgstr "重新推送到 Stryd"
 
 #: src/components/HeatAdaptationPanel.tsx:59
 #~ msgid "Re-sync training data so the power provider can be verified."
@@ -4499,7 +4801,7 @@ msgstr "有建议可供查看"
 msgid "Recommendations"
 msgstr "建议"
 
-#: src/pages/Settings.tsx:835
+#: src/pages/Settings.tsx:836
 msgid "recommended"
 msgstr "推荐"
 
@@ -4510,6 +4812,18 @@ msgstr "推荐"
 msgid "Recommended"
 msgstr "推荐"
 
+#: src/components/ManagedPlanSettingsCard.tsx:694
+msgid "Recommended. Delivered workouts stay on the calendar; Praxys simply stops managing them."
+msgstr "推荐。已下发的训练会保留在日历中，Praxys 只停止继续管理。"
+
+#: src/components/UpcomingPlanCard.tsx:197
+msgid "Reconnect {target} to continue delivery. The Praxys plan remains canonical."
+msgstr "重新连接 {target} 后可继续下发。仍以 Praxys 计划为准。"
+
+#: src/components/ManagedPlanSettingsCard.tsx:539
+msgid "Reconnect {targetLabel} above before managed delivery can continue."
+msgstr "请先在上方重新连接 {targetLabel}，再继续托管下发。"
+
 #: src/pages/Training.tsx:320
 msgid "Recorded distance in non-overlapping seven-day buckets, including weeks with no recorded distance."
 msgstr "按不重叠的 7 天区间统计已记录距离，包括没有距离记录的周。"
@@ -4519,8 +4833,8 @@ msgstr "按不重叠的 7 天区间统计已记录距离，包括没有距离记
 #: src/lib/display-labels.ts:42
 #: src/lib/phase-label.ts:16
 #: src/pages/Science.tsx:26
-#: src/pages/Settings.tsx:56
-#: src/pages/Settings.tsx:63
+#: src/pages/Settings.tsx:57
+#: src/pages/Settings.tsx:68
 #: src/pages/Setup.tsx:222
 msgid "Recovery"
 msgstr "恢复"
@@ -4578,7 +4892,7 @@ msgstr "恢复状态"
 #~ msgid "Recovery status uses ln(RMSSD) compared to your personal baseline. 'Fatigued' = below baseline mean minus 1 SD (Kiviniemi et al, 2007 threshold). 'Fresh' = above baseline mean plus 0.5 SD (Plews et al, 2012 smallest worthwhile change). The 7-day trend and CV are monitored per Plews. CV above {cvThreshold}% is a Praxys caution flag for unusual variability, not a diagnosis. Sleep, readiness, RHR, and TSB remain informational context."
 #~ msgstr "恢复状态通过将 ln(RMSSD) 与您的个人基准比较来判断。‘疲劳’= 低于基准均值 1 个标准差（Kiviniemi 等，2007）。‘充分恢复’= 高于基准均值 0.5 个标准差（Plews 等，2012，最小有意义变化）。按 Plews 方法监测 7 天趋势和 CV。CV 高于 {cvThreshold}% 是 Praxys 对异常波动的警戒提示，不是诊断。睡眠、准备度、静息心率和 TSB 仅作为信息性上下文。"
 
-#: src/pages/Settings.tsx:1152
+#: src/pages/Settings.tsx:1153
 #: src/pages/Setup.tsx:1059
 msgid "Redirecting..."
 msgstr "跳转中…"
@@ -4610,9 +4924,9 @@ msgstr "刷新失败，正在显示上次成功的快照。"
 #~ msgid "Refresh failed\" \"刷新失败"
 #~ msgstr ""
 
-#: src/pages/Settings.tsx:951
-#: src/pages/Settings.tsx:1050
-#: src/pages/Settings.tsx:1075
+#: src/pages/Settings.tsx:952
+#: src/pages/Settings.tsx:1051
+#: src/pages/Settings.tsx:1076
 #: src/pages/Setup.tsx:936
 #: src/pages/Setup.tsx:957
 msgid "Region"
@@ -4664,9 +4978,20 @@ msgstr "重新加载页面，或确认管理接口可用。"
 msgid "Remaining"
 msgstr "剩余"
 
+#: src/components/ManagedPlanSettingsCard.tsx:479
+#: src/components/ManagedPlanSettingsCard.tsx:644
+#: src/components/ManagedPlanSettingsCard.tsx:717
+msgid "Remove future Praxys deliveries"
+msgstr "移除未来由 Praxys 下发的训练"
+
 #: src/components/FeedbackDialog.tsx:276
 msgid "Remove image"
 msgstr "删除图片"
+
+#: src/components/ManagedPlanSettingsCard.tsx:760
+#: src/components/ManagedPlanSettingsCard.tsx:778
+msgid "Removing…"
+msgstr "正在移除…"
 
 #: src/lib/phase-label.ts:18
 msgid "Rep"
@@ -4716,6 +5041,10 @@ msgstr "重新发送验证邮件"
 msgid "Resolve"
 msgstr "标记为已解决"
 
+#: src/components/UpcomingPlanCard.tsx:581
+msgid "Resolve workout conflict"
+msgstr "处理训练冲突"
+
 #: src/pages/admin/AdminFeedback.tsx:83
 #: src/pages/admin/AdminFeedback.tsx:234
 #: src/pages/admin/AdminIncidents.tsx:44
@@ -4761,27 +5090,62 @@ msgstr "静息心率高于你的基准。这可能是提醒信号，但不能作
 #~ msgid "Resting heart rate is elevated above your baseline. This can be a caution signal, but it is not diagnostic.\" \"静息心率高于您的基准。这可以作为警戒提示，但并非诊断结论。"
 #~ msgstr ""
 
-#: src/pages/Settings.tsx:105
+#: src/pages/Settings.tsx:106
 msgid "Resting HR"
 msgstr "静息心率"
 
-#: src/components/UpcomingPlanCard.tsx:186
-#: src/components/UpcomingPlanCard.tsx:645
+#: src/components/UpcomingPlanCard.tsx:696
+msgid "Restore Praxys"
+msgstr "恢复 Praxys 版本"
+
+#: src/components/UpcomingPlanCard.tsx:662
+msgid "Restore Praxys:"
+msgstr "恢复 Praxys 版本："
+
+#: src/components/UpcomingPlanCard.tsx:693
+msgid "Restoring…"
+msgstr "正在恢复…"
+
+#: src/components/ManagedPlanSettingsCard.tsx:626
+msgid "Resume delivery"
+msgstr "恢复下发"
+
+#: src/components/ManagedPlanSettingsCard.tsx:561
+msgid "Resume managed delivery?"
+msgstr "恢复托管下发？"
+
+#: src/components/ManagedPlanSettingsCard.tsx:401
+#: src/components/UpcomingPlanCard.tsx:294
+#: src/components/UpcomingPlanCard.tsx:916
 #: src/pages/admin/AdminFeedback.tsx:347
 #: src/pages/admin/AdminRouteState.tsx:36
 #: src/pages/admin/AdminUsers.tsx:544
 #: src/pages/Goal.tsx:444
 #: src/pages/History.tsx:53
-#: src/pages/Settings.tsx:330
+#: src/pages/Settings.tsx:331
 #: src/pages/Today.tsx:336
 #: src/pages/Today.tsx:495
 #: src/pages/Training.tsx:181
 msgid "Retry"
 msgstr "重试"
 
+#: src/components/ManagedPlanSettingsCard.tsx:760
+#: src/components/ManagedPlanSettingsCard.tsx:779
+msgid "Retry cleanup"
+msgstr "重试清理"
+
+#: src/components/UpcomingPlanCard.tsx:400
+#: src/components/UpcomingPlanCard.tsx:695
+msgid "Retry delivery"
+msgstr "重试下发"
+
 #: src/components/UpcomingPlanCard.tsx:182
-msgid "Retry push to Stryd"
-msgstr "重试推送到 Stryd"
+#~ msgid "Retry push to Stryd"
+#~ msgstr "重试推送到 Stryd"
+
+#: src/components/UpcomingPlanCard.tsx:580
+msgid "Retry this delivery?"
+msgstr "重试下发此训练？"
 
 #: src/pages/admin/AdminCommunications.tsx:131
 msgid "Retry to load public communication banners."
@@ -4798,6 +5162,23 @@ msgstr "请重试加载已提交报告和 GitHub 同步状态。"
 #: src/pages/admin/AdminIncidents.tsx:124
 msgid "Retry to load the public status incidents feed."
 msgstr "重试加载公开状态页的事件列表。"
+
+#: src/components/UpcomingPlanCard.tsx:289
+msgid "Retry workout action"
+msgstr "重试此训练操作"
+
+#: src/components/ManagedPlanSettingsCard.tsx:488
+msgid "Review and activate"
+msgstr "查看并启用"
+
+#: src/components/ManagedPlanSettingsCard.tsx:516
+msgid "Review and resume"
+msgstr "查看并恢复"
+
+#: src/components/UpcomingPlanCard.tsx:385
+#: src/components/UpcomingPlanCard.tsx:415
+msgid "Review conflict"
+msgstr "处理冲突"
 
 #: src/components/HeatAdaptationPanel.tsx:141
 #~ msgid "Review heat history"
@@ -4946,7 +5327,7 @@ msgstr "无法显示截图"
 msgid "Seat cap"
 msgstr "名额上限"
 
-#: src/pages/Settings.tsx:1102
+#: src/pages/Settings.tsx:1103
 #: src/pages/Setup.tsx:1030
 msgid "Securely signing in to Garmin. This can take 15-30 seconds because Garmin rate-limits automated logins. Please keep this window open."
 msgstr "正在安全登录 Garmin。由于 Garmin 会限制自动登录频率，这可能需要 15-30 秒。请不要关闭此窗口。"
@@ -4959,9 +5340,17 @@ msgstr "选择一天，查看当天哪些训练被纳入估算。"
 msgid "Select a metric to inspect its chart or evidence."
 msgstr "选择一个指标，查看图表或依据。"
 
-#: src/pages/Settings.tsx:1094
+#: src/components/UpcomingPlanCard.tsx:200
+msgid "Select an execution target in Settings to continue delivery."
+msgstr "请先在设置中选择执行平台，再继续下发。"
+
+#: src/pages/Settings.tsx:1095
 msgid "Select the region matching your COROS account."
 msgstr "选择与你的 COROS 账号对应的地区。"
+
+#: src/components/ManagedPlanSettingsCard.tsx:469
+msgid "Selecting a target does not enable delivery. You will confirm the managed window next."
+msgstr "选择执行平台不会立即启用下发。下一步会先确认托管窗口。"
 
 #: src/pages/admin/AdminUsers.tsx:418
 msgid "Self-registration"
@@ -5066,12 +5455,12 @@ msgstr "设置 Praxys"
 msgid "Set Your Goal"
 msgstr "设置目标"
 
-#: src/pages/Settings.tsx:706
+#: src/pages/Settings.tsx:707
 msgid "Set your name"
 msgstr "设置名字"
 
 #: src/components/AppSidebar.tsx:135
-#: src/pages/Settings.tsx:638
+#: src/pages/Settings.tsx:639
 msgid "Settings"
 msgstr "设置"
 
@@ -5173,7 +5562,7 @@ msgstr "睡眠得分与{metricLabel}"
 msgid "Sleep score, HRV, readiness"
 msgstr "睡眠得分、HRV、准备度"
 
-#: src/pages/Settings.tsx:63
+#: src/pages/Settings.tsx:68
 msgid "Sleep, HRV, readiness"
 msgstr "睡眠、HRV、准备度"
 
@@ -5270,11 +5659,11 @@ msgstr "状态"
 msgid "Steady"
 msgstr "匀速"
 
-#: src/pages/Settings.tsx:1125
+#: src/pages/Settings.tsx:1126
 msgid "Strava Client ID"
 msgstr "Strava 客户端 ID"
 
-#: src/pages/Settings.tsx:1134
+#: src/pages/Settings.tsx:1135
 msgid "Strava Client Secret"
 msgstr "Strava 客户端密钥"
 
@@ -5362,7 +5751,7 @@ msgid "Switch to system theme"
 msgstr "切换到系统主题"
 
 #: src/components/SetupChecklist.tsx:59
-#: src/pages/Settings.tsx:894
+#: src/pages/Settings.tsx:895
 msgid "Sync"
 msgstr "同步"
 
@@ -5370,7 +5759,7 @@ msgstr "同步"
 #~ msgid "Sync activities together with sleep data (Garmin, Oura, or similar) so we can pair them by date."
 #~ msgstr "将活动与睡眠数据（Garmin、Oura 或类似设备）同步，以便我们按日期配对。"
 
-#: src/pages/Settings.tsx:772
+#: src/pages/Settings.tsx:773
 msgid "Sync All"
 msgstr "全部同步"
 
@@ -5394,7 +5783,7 @@ msgstr "同步失败。"
 msgid "Sync from GitHub"
 msgstr "从 GitHub 同步"
 
-#: src/pages/Settings.tsx:780
+#: src/pages/Settings.tsx:781
 msgid "Sync from:"
 msgstr "同步起始日期："
 
@@ -5439,9 +5828,13 @@ msgstr "同步分段或采样功率数据，帮助 Praxys 识别持续发力的�
 #~ msgid "Sync split-level power so workload can contribute."
 #~ msgstr "同步分段功率数据，训练负荷才能计入。"
 
+#: src/components/UpcomingPlanCard.tsx:425
+msgid "Sync target to review"
+msgstr "同步目标平台后处理"
+
 #: src/components/UpcomingPlanCard.tsx:235
-msgid "Sync to Stryd"
-msgstr "同步到 Stryd"
+#~ msgid "Sync to Stryd"
+#~ msgstr "同步到 Stryd"
 
 #: src/components/HeatAdaptationPanel.tsx:55
 #~ msgid "Sync training data to start a heat history."
@@ -5452,16 +5845,15 @@ msgstr "同步到 Stryd"
 msgid "Sync your data"
 msgstr "同步数据"
 
-#: src/components/UpcomingPlanCard.tsx:220
-#: src/pages/Settings.tsx:890
+#: src/pages/Settings.tsx:891
 msgid "Synced"
 msgstr "已同步"
 
 #: src/components/UpcomingPlanCard.tsx:214
-msgid "Synced to Stryd. Click to re-push."
-msgstr "已同步至 Stryd。点击重新推送。"
+#~ msgid "Synced to Stryd. Click to re-push."
+#~ msgstr "已同步至 Stryd。点击重新推送。"
 
-#: src/pages/Settings.tsx:887
+#: src/pages/Settings.tsx:888
 msgid "Syncing"
 msgstr "同步中"
 
@@ -5469,7 +5861,6 @@ msgstr "同步中"
 msgid "Syncing..."
 msgstr "同步中…"
 
-#: src/components/UpcomingPlanCard.tsx:171
 #: src/pages/Today.tsx:515
 #: src/pages/Today.tsx:537
 msgid "Syncing…"
@@ -5568,6 +5959,10 @@ msgstr "无法刷新警报摘要。"
 msgid "The Azure Monitor query client is unavailable in this deployment."
 msgstr "此部署中无法使用 Azure Monitor 查询客户端。"
 
+#: src/components/ManagedPlanSettingsCard.tsx:328
+msgid "The canonical Praxys plan is preserved. Existing target workouts stay in place until you resume or leave."
+msgstr "Praxys 计划会完整保留。恢复下发或退出托管前，目标平台上的现有训练保持不变。"
+
 #: src/components/HeatAdaptationPanel.tsx:579
 #~ msgid "The environmental ramps, effective minutes, stage thresholds, and 7–28 day decay window are Praxys operational estimates. Evidence coverage is not biological certainty. Individual responses vary, and female-athlete evidence remains limited. Stop and begin cooling for heat-illness symptoms; seek urgent medical help for confusion, collapse, or altered mental status."
 #~ msgstr "环境权重坡度、加权分钟、阶段阈值和 7–28 天衰减窗口均为 Praxys 的操作性估算。证据覆盖度不代表生理适应的确定性。个体反应存在差异，针对女性运动员的证据仍然有限。如出现热病症状，请停止训练并开始降温；如出现意识混乱、虚脱或精神状态改变，应立即寻求紧急医疗救助。"
@@ -5611,9 +6006,31 @@ msgstr "最新 HRV 读数过旧，不能用于当日恢复分类。请同步设�
 #~ msgid "The latest HRV reading is too old for a same-day recovery classification. Sync your device to refresh it.\" \"最近一次 HRV 读数过旧，无法用于当日恢复分类。请同步设备以刷新数据。"
 #~ msgstr ""
 
+#: src/components/ManagedPlanSettingsCard.tsx:179
+msgid "The managed window changed. Review the refreshed preview before enabling delivery."
+msgstr "托管窗口已更新。请先查看刷新后的预览，再启用托管下发。"
+
+#. placeholder {0}: praxysWorkouts.length
+#: src/components/ManagedPlanSettingsCard.tsx:583
+msgid "The next {MANAGED_PLAN_WINDOW_DAYS} days roll forward automatically; <0>{0}</0> workouts are currently in scope."
+msgstr "未来 {MANAGED_PLAN_WINDOW_DAYS} 天会自动滚动；当前窗口内有 <0>{0}</0> 个训练。"
+
+#: src/components/UpcomingPlanCard.tsx:203
+msgid "The Praxys plan is preserved; no target workouts will change."
+msgstr "Praxys 计划会保留，目标平台上的训练不会更改。"
+
+#: src/components/UpcomingPlanCard.tsx:587
+msgid "The Praxys workout is missing from {target}. Restoring it keeps the Praxys version canonical."
+msgstr "{target} 上缺少此 Praxys 训练。恢复后仍以 Praxys 版本为准。"
+
 #: src/pages/admin/AdminOps.tsx:558
 msgid "The public status feed has no unresolved incidents."
 msgstr "公共状态源中没有未解决事件。"
+
+#. placeholder {0}: target ?? 'your target'
+#: src/components/UpcomingPlanCard.tsx:194
+msgid "The rolling 14-day window is delivered to {0}."
+msgstr "滚动的 14 天窗口会下发到 {0}。"
 
 #: src/components/HeatAdaptationPanel.tsx:144
 msgid "The rolling exposure threshold is still met, but it does not establish a retention plateau; response-specific adaptations may already be declining."
@@ -5626,6 +6043,10 @@ msgstr "所选日期的活动会说明每次训练为何被纳入估算，或为
 #: src/pages/Status.tsx:142
 msgid "The status API did not respond — this itself may indicate an outage."
 msgstr "状态 API 未响应，这本身可能表示服务中断。"
+
+#: src/components/UpcomingPlanCard.tsx:642
+msgid "The target version is unavailable."
+msgstr "目标平台版本不可用。"
 
 #: src/components/HeatAdaptationPanel.tsx:617
 msgid "The thresholds are Praxys operational estimates grounded in heat-acclimatization research, not a direct physiological measurement."
@@ -5684,12 +6105,16 @@ msgid "This will permanently delete <0>{0}</0> and all their data (activities, c
 msgstr "这将永久删除 <0>{0}</0> 及其所有数据（活动、配置、连接、计划）。此操作无法撤销。"
 
 #: src/components/UpcomingPlanCard.tsx:196
-msgid "This workout differs on Stryd — click to overwrite with the Praxys version."
-msgstr "Stryd 上这次训练与 Praxys 版本不一致，点击可用 Praxys 版本覆盖。"
+#~ msgid "This workout differs on Stryd — click to overwrite with the Praxys version."
+#~ msgstr "Stryd 上这次训练与 Praxys 版本不一致，点击可用 Praxys 版本覆盖。"
+
+#: src/components/UpcomingPlanCard.tsx:585
+msgid "This workout stays external unless you explicitly make it canonical in Praxys."
+msgstr "除非明确采纳到 Praxys，否则此训练会保持为外部训练。"
 
 #: src/components/UpcomingPlanCard.tsx:160
-msgid "This workout was imported from Stryd."
-msgstr "此训练由 Stryd 导入。"
+#~ msgid "This workout was imported from Stryd."
+#~ msgstr "此训练由 Stryd 导入。"
 
 #: src/lib/display-labels.ts:45
 #: src/lib/phase-label.ts:15
@@ -5697,7 +6122,7 @@ msgid "Threshold"
 msgstr "乳酸阈"
 
 #: src/lib/display-labels.ts:60
-#: src/pages/Settings.tsx:103
+#: src/pages/Settings.tsx:104
 msgid "Threshold Pace"
 msgstr "阈值配速"
 
@@ -5735,7 +6160,7 @@ msgstr "距目标"
 msgid "Today"
 msgstr "今日"
 
-#: src/components/UpcomingPlanCard.tsx:278
+#: src/components/UpcomingPlanCard.tsx:497
 msgid "TODAY"
 msgstr "今日"
 
@@ -5808,7 +6233,7 @@ msgstr "围绕某场比赛备赛"
 msgid "Training"
 msgstr "训练"
 
-#: src/pages/Settings.tsx:1168
+#: src/pages/Settings.tsx:1177
 msgid "Training Base"
 msgstr "训练基准"
 
@@ -5861,7 +6286,7 @@ msgstr "来自后端可信遥测边界的同步与连接结果。"
 #~ msgid "Trusted Today signals"
 #~ msgstr "受信任的今日信号"
 
-#: src/components/UpcomingPlanCard.tsx:714
+#: src/components/UpcomingPlanCard.tsx:965
 msgid "Try a longer window above."
 msgstr "试试上方更长的时间窗口。"
 
@@ -5906,7 +6331,7 @@ msgstr "无法连接状态服务"
 msgid "Unavailable"
 msgstr "不可用"
 
-#: src/pages/Settings.tsx:718
+#: src/pages/Settings.tsx:719
 msgid "Units"
 msgstr "单位"
 
@@ -5926,7 +6351,7 @@ msgstr "未验证"
 msgid "Up to date"
 msgstr "最新"
 
-#: src/components/UpcomingPlanCard.tsx:669
+#: src/components/UpcomingPlanCard.tsx:933
 msgid "Upcoming Plan"
 msgstr "近期计划"
 
@@ -5953,7 +6378,7 @@ msgstr "已更新 {1} 个关联工单中的 {0} 个。"
 msgid "Updating…"
 msgstr "更新中…"
 
-#: src/pages/Settings.tsx:1077
+#: src/pages/Settings.tsx:1078
 msgid "US"
 msgstr "US"
 
@@ -5964,6 +6389,18 @@ msgstr "暂无使用汇总数据。"
 #: src/pages/admin/AdminOps.tsx:525
 #~ msgid "Usage proxy"
 #~ msgstr "使用代理指标"
+
+#: src/components/UpcomingPlanCard.tsx:684
+msgid "Use {target} version"
+msgstr "采用 {target} 版本"
+
+#: src/components/UpcomingPlanCard.tsx:668
+msgid "Use {target}:"
+msgstr "采用 {target}："
+
+#: src/components/UpcomingPlanCard.tsx:310
+msgid "Use in Praxys"
+msgstr "采纳到 Praxys"
 
 #: src/pages/Login.tsx:492
 #: src/pages/Login.tsx:521
@@ -5977,6 +6414,10 @@ msgstr "通过微信小程序，随时随地使用 Praxys"
 #: src/pages/Science.tsx:175
 #~ msgid "Use this"
 #~ msgstr "使用此项"
+
+#: src/components/UpcomingPlanCard.tsx:579
+msgid "Use this {target} workout in Praxys?"
+msgstr "将此 {target} 训练采纳到 Praxys？"
 
 #: src/pages/Setup.tsx:203
 msgid "Use your Garmin Connect credentials."
@@ -6027,7 +6468,7 @@ msgstr "用户与权限"
 msgid "Users unavailable"
 msgstr "用户数据暂不可用"
 
-#: src/pages/Settings.tsx:1007
+#: src/pages/Settings.tsx:1008
 #: src/pages/Setup.tsx:893
 msgid "Verification code"
 msgstr "验证码"
@@ -6040,16 +6481,20 @@ msgstr "验证邮件已发送。请查看收件箱。"
 msgid "Verification failed"
 msgstr "验证失败"
 
-#: src/pages/Settings.tsx:1025
+#: src/pages/Settings.tsx:1026
 #: src/pages/Setup.tsx:911
 msgid "Verify"
 msgstr "验证"
+
+#: src/components/UpcomingPlanCard.tsx:366
+msgid "Verifying"
+msgstr "正在核对"
 
 #: src/pages/Verify.tsx:45
 msgid "Verifying your email…"
 msgstr "正在验证邮箱…"
 
-#: src/pages/Settings.tsx:1025
+#: src/pages/Settings.tsx:1026
 #: src/pages/Setup.tsx:911
 msgid "Verifying..."
 msgstr "验证中…"
@@ -6062,7 +6507,7 @@ msgstr "查看"
 msgid "View status"
 msgstr "查看状态"
 
-#: src/pages/Settings.tsx:640
+#: src/pages/Settings.tsx:641
 msgid "Viewing configuration (read-only demo)"
 msgstr "查看配置（只读演示）"
 
@@ -6225,8 +6670,8 @@ msgid "What's your training goal? (optional)"
 msgstr "训练目标是什么？（可选）"
 
 #: src/pages/Settings.tsx:67
-msgid "Where Praxys pushes your plan. Per-workout sync state shows in Training."
-msgstr "Praxys 将计划推送到的目标平台。每个训练的同步状态显示在训练页。"
+#~ msgid "Where Praxys pushes your plan. Per-workout sync state shows in Training."
+#~ msgstr "Praxys 将计划推送到的目标平台。每个训练的同步状态显示在训练页。"
 
 #: src/pages/Setup.tsx:870
 msgid "Will sync:"
@@ -6235,6 +6680,10 @@ msgstr "将同步以下内容："
 #: src/components/RecoveryPanel.tsx:19
 msgid "Within reference band"
 msgstr "处于参考区间内"
+
+#: src/components/UpcomingPlanCard.tsx:277
+msgid "Working…"
+msgstr "处理中…"
 
 #: src/components/HeatAdaptationPanel.tsx:426
 msgid "Workload evidence"
@@ -6270,16 +6719,20 @@ msgstr "you@example.com"
 msgid "Your account is active. You can now sign in."
 msgstr "账号已激活，现在可以登录了。"
 
-#: src/pages/Settings.tsx:1004
+#: src/components/ManagedPlanSettingsCard.tsx:319
+msgid "Your external planner remains in control."
+msgstr "计划仍由外部工具管理。"
+
+#: src/pages/Settings.tsx:1005
 #: src/pages/Setup.tsx:890
 msgid "Your Garmin account has multi-factor authentication enabled. Enter the verification code Garmin sent you to finish connecting."
 msgstr "你的 Garmin 账号已启用多重验证。输入 Garmin 发送的验证码，完成连接。"
 
-#: src/pages/Settings.tsx:666
+#: src/pages/Settings.tsx:667
 msgid "Your identity in Praxys"
 msgstr "Praxys 账号信息"
 
-#: src/pages/Settings.tsx:692
+#: src/pages/Settings.tsx:693
 msgid "Your name"
 msgstr "姓名"
 
@@ -6297,11 +6750,11 @@ msgstr "Praxys 邀请码：{0}\n"
 "\n"
 "注册链接：{1}"
 
-#: src/pages/Settings.tsx:1127
+#: src/pages/Settings.tsx:1128
 msgid "Your Strava API Client ID"
 msgstr "你的 Strava API 客户端 ID"
 
-#: src/pages/Settings.tsx:1137
+#: src/pages/Settings.tsx:1138
 msgid "Your Strava API Client Secret"
 msgstr "你的 Strava API 客户端密钥"
 
@@ -6337,7 +6790,7 @@ msgstr "区间标签"
 #~ msgid "Zone Labels"
 #~ msgstr "区间标签"
 
-#: src/pages/Settings.tsx:73
+#: src/pages/Settings.tsx:74
 msgid "Zones & load from Critical Power"
 msgstr "基于阈值功率的区间与负荷"
 
@@ -6345,12 +6798,12 @@ msgstr "基于阈值功率的区间与负荷"
 msgid "Zones & load from Critical Power (best with Stryd)"
 msgstr "基于阈值功率的区间与负荷（搭配 Stryd 效果最佳）"
 
-#: src/pages/Settings.tsx:82
+#: src/pages/Settings.tsx:83
 #: src/pages/Setup.tsx:178
 msgid "Zones & load from Lactate Threshold HR"
 msgstr "基于乳酸阈值心率的区间与负荷"
 
-#: src/pages/Settings.tsx:91
+#: src/pages/Settings.tsx:92
 #: src/pages/Setup.tsx:180
 msgid "Zones & load from Threshold Pace"
 msgstr "基于阈值配速的区间与负荷"

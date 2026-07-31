@@ -3,7 +3,7 @@
 Supports both file-based (backward compat) and DB-based config persistence.
 When user_id and db are available (from auth), uses DB; otherwise falls back to files.
 """
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 import logging
 import os
 from urllib.parse import parse_qsl, urlencode, urlparse, urlsplit, urlunsplit
@@ -14,6 +14,7 @@ import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, ConfigDict
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -72,6 +73,7 @@ class SettingsUpdate(BaseModel):
     # (e.g. {"threshold_sources": {"cp_estimate": "stryd"}}) flows through.
     preferences: dict[str, Any] | None = None
     plan_management: PlanManagementUpdate | None = None
+    managed_plan_preview_start: date | None = None
     training_base: TrainingBase | None = None
     thresholds: dict[str, Any] | None = None
     zones: dict[str, list[float]] | None = None
@@ -261,6 +263,23 @@ def _detect_thresholds_from_db(user_id: str, db) -> dict:
     return result
 
 
+def _connection_statuses(
+    db: Session,
+    *,
+    user_id: str,
+) -> dict[str, str]:
+    """Return fresh mutation-relevant status for each configured platform."""
+    connections = db.execute(
+        select(UserConnection)
+        .where(UserConnection.user_id == user_id)
+        .execution_options(populate_existing=True)
+    ).scalars().all()
+    return {
+        connection.platform: connection.status or "disconnected"
+        for connection in connections
+    }
+
+
 def resolve_thresholds(
     config_thresholds: dict,
     detected: dict,
@@ -338,9 +357,12 @@ def get_settings(
         threshold_sources=config.preferences.get("threshold_sources"),
         activity_source=config.preferences.get("activities"),
     )
-
     return {
         "config": asdict(config),
+        "connection_statuses": _connection_statuses(
+            db,
+            user_id=user_id,
+        ),
         "platform_capabilities": PLATFORM_CAPABILITIES,
         "available_providers": {
             "activities": avail.get("activities", []),
@@ -429,6 +451,25 @@ def update_settings(
             )
         config.language = body.language
 
+    managed_delivery_transition = (
+        config.plan_management["mode"] == "praxys"
+        and config.plan_management["delivery_enabled"]
+        and config.plan_management != prior_plan_management
+    )
+    if (
+        managed_delivery_transition
+        and body.managed_plan_preview_start is not None
+        and body.managed_plan_preview_start
+        != datetime.now(timezone.utc).date()
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "The managed-plan preview expired. "
+                "Refresh the preview before enabling delivery."
+            ),
+        )
+
     # Bust ETag caches keyed on config (Today, Training, Goal, History,
     # Science). A settings edit can flip training_base, language, or goal —
     # any of which alters every endpoint's payload, so we bump unconditionally.
@@ -438,18 +479,21 @@ def update_settings(
     bump_revisions(db, user_id, ["config"])
     save_config_to_db(user_id, config, db)
 
-    if (
-        config.plan_management["mode"] == "praxys"
-        and config.plan_management["delivery_enabled"]
-        and config.plan_management != prior_plan_management
-    ):
+    if managed_delivery_transition:
         try:
             from api.plan_delivery.rolling import trigger_managed_plan_delivery
 
-            trigger_managed_plan_delivery(
-                user_id,
-                trigger="plan_management_enabled",
-            )
+            if body.managed_plan_preview_start is not None:
+                trigger_managed_plan_delivery(
+                    user_id,
+                    trigger="plan_management_enabled",
+                    window_start=body.managed_plan_preview_start,
+                )
+            else:
+                trigger_managed_plan_delivery(
+                    user_id,
+                    trigger="plan_management_enabled",
+                )
         except Exception:
             logger.exception(
                 "Post-commit managed delivery hook failed user=%s "
@@ -461,6 +505,10 @@ def update_settings(
         "status": "ok",
         "config": asdict(config),
         "display": get_display_config(config.training_base),
+        "connection_statuses": _connection_statuses(
+            db,
+            user_id=user_id,
+        ),
     }
 
 

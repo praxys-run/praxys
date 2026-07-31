@@ -4,7 +4,7 @@ import logging
 import math
 import os
 from datetime import date, datetime, timedelta, timezone
-from typing import Literal
+from typing import Callable, Literal, Mapping
 
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -39,36 +39,144 @@ from api.plan_delivery import (
     DeliveryCredentialsInvalid,
     DeliveryCredentialsUnavailable,
     DeliveryFinalizationError,
+    DeliveryMutationBlockedError,
     DeliveryNotFoundError,
     DeliveryRemovalFailedError,
     DeliveryStartError,
     PlanDeliveryService,
     ProviderAuthenticationError,
     ProviderRequestError,
+    capture_delivery_connection_generation,
+    guard_delivery_connection,
     load_plan_delivery_adapter,
 )
 from api.plan_reconciliation import load_plan_reconciliation_item
+from api.plan_cleanup import (
+    PlanCleanupAmbiguousTargets,
+    PlanCleanupRequiresExternalMode,
+    cleanup_future_plan_deliveries,
+)
 from api.plan_resolution import (
     PlanResolutionConflict,
     PlanResolutionProviderError,
     accept_target_version,
     completed_plan_resolution,
+    resumable_plan_resolution,
     restore_praxys_version,
 )
 from db.cache_revision import bump_revisions
 from db.plan_ledger import (
     delivery_status_for_snapshots,
+    has_unresolved_legacy_stryd_corruption,
     import_legacy_stryd_status,
     legacy_stryd_status_path,
     lock_plan_writes,
     normalize_stryd_workout_id,
     plan_snapshot,
     remove_legacy_stryd_status,
+    workout_version,
     write_legacy_stryd_status,
 )
 from db.session import get_db
 
 router = APIRouter()
+
+
+def _provider_mutation_guard(
+    db: Session,
+    *,
+    user_id: str,
+    target: str,
+) -> Callable[[], None] | None:
+    """Capture a live connection and return its just-in-time mutation fence."""
+    try:
+        # Pinned local-development credentials intentionally have no
+        # UserConnection row; the credential resolver remains their gate.
+        generation = capture_delivery_connection_generation(
+            db,
+            user_id=user_id,
+            target=target,
+            allow_missing=True,
+        )
+    except DeliveryMutationBlockedError as exc:
+        label = target.capitalize()
+        raise HTTPException(
+            status_code=409,
+            detail=f"{label} is not actively connected. Reconnect {label} before changing workouts.",
+        ) from exc
+    if generation is None:
+        return None
+    return lambda: guard_delivery_connection(
+        db,
+        user_id=user_id,
+        target=target,
+        expected_generation=generation,
+    )
+
+
+def _canonical_provider_mutation_guard(
+    db: Session,
+    *,
+    user_id: str,
+    snapshot: Mapping[str, object],
+    connection_guard: Callable[[], None] | None,
+) -> Callable[[], None]:
+    """Fence one provider write on the current canonical workout version."""
+    raw_canonical_id = snapshot.get("canonical_id")
+    canonical_id = (
+        str(raw_canonical_id).strip()
+        if raw_canonical_id is not None and pd.notna(raw_canonical_id)
+        else ""
+    )
+    expected_date = date.fromisoformat(str(snapshot["date"]))
+    expected_type = str(
+        snapshot.get("workout_type") or ""
+    ).strip().casefold()
+    expected_version = workout_version(snapshot)
+
+    def guard() -> None:
+        if connection_guard is not None:
+            connection_guard()
+        else:
+            lock_plan_writes(db, user_id)
+        current_data = get_dashboard_data(user_id=user_id, db=db)
+        all_plans = current_data.get("all_plans", pd.DataFrame())
+        if (
+            not isinstance(all_plans, pd.DataFrame)
+            or all_plans.empty
+            or "source" not in all_plans.columns
+        ):
+            raise DeliveryMutationBlockedError(
+                "canonical_changed_during_delivery"
+            )
+        candidates = all_plans[_praxys_plan_mask(all_plans)]
+        if canonical_id and "canonical_id" in candidates.columns:
+            candidates = candidates[
+                candidates["canonical_id"].fillna("").astype(str)
+                == canonical_id
+            ]
+        else:
+            candidates = candidates[
+                candidates["date"].astype(str)
+                == expected_date.isoformat()
+            ]
+        matching = [
+            plan_snapshot(candidate)
+            for _, candidate in candidates.iterrows()
+            if (
+                canonical_id
+                or str(
+                    candidate.get("workout_type") or ""
+                ).strip().casefold() == expected_type
+            )
+            and workout_version(plan_snapshot(candidate)) == expected_version
+        ]
+        if len(matching) != 1:
+            raise DeliveryMutationBlockedError(
+                "canonical_changed_during_delivery"
+            )
+
+    return guard
 
 
 def _praxys_plan_mask(frame: pd.DataFrame) -> pd.Series:
@@ -93,10 +201,9 @@ def _stryd_push_status_path(user_id: str) -> str:
 _MAX_WINDOW_DAYS = 365
 # Default forward offset when no ``end`` is supplied. ``end`` is
 # inclusive, so a forward offset of 14 returns 15 calendar days
-# ([today, today+14]). Frontend pills mirror this offset semantic
-# (1wk = +6, 2wk = +13, 4wk = +27 if exact 7/14/28-day inclusive
-# windows are needed; current frontend uses +N which yields N+1 days
-# inclusive — accepted for the eyebrow's "≈ N weeks" framing).
+# ([today, today+14]) for backward compatibility. Named frontend windows
+# send both bounds explicitly and use +6/+13/+27 for exact 7/14/28-day
+# inclusive ranges.
 _DEFAULT_FORWARD_DAYS = 14
 
 
@@ -178,7 +285,7 @@ def _compute_ai_sync_state(
 
 
 def _resolve_sync_target(ctx: RequestContext) -> str | None:
-    """Name of the platform AI plan rows get pushed to.
+    """Name of the platform Praxys plan rows get pushed to.
 
     Today only Stryd is wired up as a write target; surfacing it as a
     derived field (rather than free-form preference) lets the UI decide
@@ -431,11 +538,16 @@ def _row_to_workout(row, *, source: str) -> dict:
 
 class PushStrydRequest(BaseModel):
     workout_dates: list[str]
+    canonical_ids: list[str] | None = None
 
 
 class ResolvePlanReconciliationRequest(BaseModel):
     reconciliation_id: str
     action: Literal["restore_praxys", "accept_target"]
+
+
+class CleanupPlanDeliveriesRequest(BaseModel):
+    scope: Literal["future"]
 
 
 def _resolve_stryd_delivery_cp(data: dict) -> float | None:
@@ -478,6 +590,11 @@ def push_plan_to_stryd(
         db,
         user_id=current_user_id,
         status_dir=_STRYD_PUSH_STATUS_DIR,
+    )
+    mutation_guard = _provider_mutation_guard(
+        db,
+        user_id=current_user_id,
+        target="stryd",
     )
 
     service = PlanDeliveryService(
@@ -533,6 +650,7 @@ def push_plan_to_stryd(
 
     db.rollback()
     results = []
+    requested_canonical_ids = set(request.canonical_ids or [])
 
     def _write_legacy_compat(
         workout_date: str,
@@ -592,11 +710,30 @@ def push_plan_to_stryd(
             matching = current_plan[
                 current_plan["date"].astype(str) == workout_date
             ]
+            if requested_canonical_ids:
+                if "canonical_id" not in matching.columns:
+                    results.append({
+                        "date": workout_date,
+                        "status": "error",
+                        "error": "Canonical workout identity is unavailable",
+                    })
+                    db.rollback()
+                    continue
+                matching = matching[
+                    matching["canonical_id"]
+                    .fillna("")
+                    .astype(str)
+                    .isin(requested_canonical_ids)
+                ]
             if matching.empty:
                 results.append({
                     "date": workout_date,
                     "status": "error",
-                    "error": "No workout found for this date",
+                    "error": (
+                        "No requested workout found for this date"
+                        if requested_canonical_ids
+                        else "No workout found for this date"
+                    ),
                 })
                 db.rollback()
                 continue
@@ -616,7 +753,10 @@ def push_plan_to_stryd(
                 if column in matching.columns
             ]
             matching = matching.sort_values(sort_columns)
-            multiple = len(matching.index) > 1
+            include_identity = (
+                len(matching.index) > 1
+                or bool(requested_canonical_ids)
+            )
             for _, row in matching.iterrows():
                 workout_type = str(row.get("workout_type", ""))
                 identity = (
@@ -624,7 +764,7 @@ def push_plan_to_stryd(
                         "canonical_id": str(row.get("canonical_id") or ""),
                         "workout_type": workout_type,
                     }
-                    if multiple
+                    if include_identity
                     else {}
                 )
                 if is_rest_workout(workout_type):
@@ -636,10 +776,17 @@ def push_plan_to_stryd(
                     })
                     continue
                 workout = plan_snapshot(row)
+                workout_guard = _canonical_provider_mutation_guard(
+                    db,
+                    user_id=current_user_id,
+                    snapshot=workout,
+                    connection_guard=mutation_guard,
+                )
                 outcome = service.deliver(
                     workout,
                     threshold_value=current_cp_watts,
                     observed_external_ids=None,
+                    mutation_guard=workout_guard,
                 )
                 result = {
                     "date": workout_date,
@@ -707,6 +854,16 @@ def resolve_plan_reconciliation(
         user_id=current_user_id,
         target="stryd",
         reconciliation_id=request.reconciliation_id,
+        allow_owned_removal_retry=(
+            request.action == "restore_praxys"
+            and resumable_plan_resolution(
+                db,
+                user_id=current_user_id,
+                target="stryd",
+                reconciliation_id=request.reconciliation_id,
+                action=request.action,
+            )
+        ),
     )
     if item is None:
         raise HTTPException(
@@ -728,6 +885,11 @@ def resolve_plan_reconciliation(
                 item=item,
             )
         else:
+            mutation_guard = _provider_mutation_guard(
+                db,
+                user_id=current_user_id,
+                target="stryd",
+            )
             data = get_dashboard_data(user_id=current_user_id, db=db)
             cp_watts = _resolve_stryd_delivery_cp(data)
             if not cp_watts:
@@ -749,6 +911,7 @@ def resolve_plan_reconciliation(
                     user_id=current_user_id,
                     target="stryd",
                 ),
+                mutation_guard=mutation_guard,
             )
     except HTTPException:
         db.rollback()
@@ -756,6 +919,23 @@ def resolve_plan_reconciliation(
     except PlanResolutionConflict as exc:
         db.rollback()
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except DeliveryMutationBlockedError as exc:
+        db.rollback()
+        if str(exc) in {
+            "canonical_changed_during_restore",
+            "reconciliation_changed_during_restore",
+        }:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "The plan reconciliation changed during restore. "
+                    "Refresh the plan and try again."
+                ),
+            ) from exc
+        raise HTTPException(
+            status_code=409,
+            detail="Stryd connection changed. Reconnect Stryd and try again.",
+        ) from exc
     except PlanResolutionProviderError as exc:
         db.rollback()
         raise HTTPException(status_code=502, detail=str(exc)) from exc
@@ -823,6 +1003,75 @@ def resolve_plan_reconciliation(
     }
 
 
+@router.post("/plan/deliveries/cleanup")
+def cleanup_plan_deliveries(
+    request: CleanupPlanDeliveriesRequest,
+    current_user_id: str = Depends(require_write_access),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Remove future target workouts that belong to the caller's ledger."""
+    del request
+    db.rollback()
+    legacy_import = import_legacy_stryd_status(
+        db,
+        user_id=current_user_id,
+        status_dir=_STRYD_PUSH_STATUS_DIR,
+    )
+    if (
+        legacy_import == "corrupt"
+        or has_unresolved_legacy_stryd_corruption(
+            db,
+            user_id=current_user_id,
+        )
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Legacy Stryd delivery state requires review before cleanup",
+        )
+    try:
+        result = cleanup_future_plan_deliveries(
+            db,
+            user_id=current_user_id,
+        )
+    except PlanCleanupRequiresExternalMode as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except PlanCleanupAmbiguousTargets as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    if result.target == "stryd":
+        for item in result.items:
+            if (
+                item.status not in {"removed", "already_absent"}
+                or not item.external_id
+            ):
+                continue
+            try:
+                remove_legacy_stryd_status(
+                    db,
+                    status_dir=_STRYD_PUSH_STATUS_DIR,
+                    user_id=current_user_id,
+                    external_id=item.external_id,
+                )
+            except (
+                OSError,
+                ValueError,
+                LookupError,
+                json.JSONDecodeError,
+                SQLAlchemyError,
+            ):
+                db.rollback()
+                logger.exception(
+                    "Plan cleanup persisted but legacy status removal failed "
+                    "user=%s workout=%s",
+                    current_user_id,
+                    item.external_id,
+                )
+
+    return result.to_dict()
+
+
 @router.delete("/plan/stryd-workout/{workout_id}")
 def delete_stryd_workout(
     workout_id: str,
@@ -841,6 +1090,11 @@ def delete_stryd_workout(
         user_id=current_user_id,
         status_dir=_STRYD_PUSH_STATUS_DIR,
     )
+    mutation_guard = _provider_mutation_guard(
+        db,
+        user_id=current_user_id,
+        target="stryd",
+    )
     service = PlanDeliveryService(
         db=db,
         user_id=current_user_id,
@@ -852,11 +1106,19 @@ def delete_stryd_workout(
         ),
     )
     try:
-        service.remove(workout_id)
+        service.remove(
+            workout_id,
+            mutation_guard=mutation_guard,
+        )
     except DeliveryNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except DeliveryBusyError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except DeliveryMutationBlockedError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail="Stryd connection changed. Reconnect Stryd and try again.",
+        ) from exc
     except DeliveryAccountMismatchError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except DeliveryAccountVerificationError as exc:

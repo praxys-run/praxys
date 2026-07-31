@@ -24,6 +24,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Link2, Gauge, SlidersHorizontal, Target, Activity, User, Check, Clock, Trash2, Loader2 } from 'lucide-react';
 import GoalEditor from '@/components/GoalEditor';
+import ManagedPlanSettingsCard from '@/components/ManagedPlanSettingsCard';
 import { MobileAppCard } from '@/components/MobileApp';
 import StatusIndicator from '@/components/StatusIndicator';
 import { formatTime, formatPace } from '@/lib/format';
@@ -58,13 +59,13 @@ const CAPABILITY_LABELS: Record<string, MessageDescriptor> = {
   plan: msg`Plan`,
 };
 
-const PREFERENCE_CATEGORIES: { key: string; label: MessageDescriptor; desc: MessageDescriptor }[] = [
+const PREFERENCE_CATEGORIES: {
+  key: 'activities' | 'recovery';
+  label: MessageDescriptor;
+  desc: MessageDescriptor;
+}[] = [
   { key: 'activities', label: msg`Activities`, desc: msg`Primary source for workout data` },
   { key: 'recovery', label: msg`Recovery`, desc: msg`Sleep, HRV, readiness` },
-  // Plan is always managed inside Praxys; this preference picks where
-  // Praxys pushes your authored plan to. Per-workout sync state
-  // (synced / mismatch / not synced) shows on each row in Training.
-  { key: 'plan', label: msg`Plan sync target`, desc: msg`Where Praxys pushes your plan. Per-workout sync state shows in Training.` },
 ];
 
 const BASE_CONFIG: Record<TrainingBase, { label: MessageDescriptor; desc: MessageDescriptor; icon: React.ReactNode }> = {
@@ -194,7 +195,7 @@ export default function Settings() {
   const location = useLocation();
   const navigate = useNavigate();
   const {
-    config, platformCapabilities, availableProviders, availableBases,
+    config, connectionStatuses, platformCapabilities, availableProviders, availableBases,
     effectiveThresholds, detectedThresholds, loading, error, updateSettings, refetch,
   } = useSettings();
   const { email: authEmail, isDemo, logout } = useAuth();
@@ -1157,7 +1158,15 @@ export default function Settings() {
         </DialogContent>
       </Dialog>
 
-      {/* ===== SECTION 2: Training Base ===== */}
+      {/* ===== SECTION 2: Plan Management ===== */}
+      <ManagedPlanSettingsCard
+        config={config}
+        connectionStatuses={connectionStatuses}
+        platformCapabilities={platformCapabilities}
+        updateSettings={updateSettings}
+      />
+
+      {/* ===== SECTION 3: Training Base ===== */}
       <Card className="mb-8">
         <CardHeader>
           <div className="flex items-center gap-2.5">
@@ -1218,7 +1227,7 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* ===== SECTION 3: Data Preferences ===== */}
+      {/* ===== SECTION 4: Data Preferences ===== */}
       <Card className="mb-8">
         <CardHeader>
           <div className="flex items-center gap-2.5">
@@ -1233,22 +1242,13 @@ export default function Settings() {
         </CardHeader>
         <CardContent className="space-y-3">
           {PREFERENCE_CATEGORIES.map(({ key, label, desc }) => {
-            // Plan sync target is a write destination, not a read source —
-            // 'ai' isn't a target you can push to, only the platform names
-            // (currently just 'stryd') belong here. Activities/recovery
-            // keep their full provider lists.
-            const providers = (availableProviders[key as keyof typeof availableProviders] || []).filter(
-              (p: string) => (connections as string[]).includes(p),
+            const providers = (availableProviders[key] ?? []).filter(
+              (provider) => connections.includes(provider),
             );
-            // Sanitise: a legacy DB row might have ``preferences.plan = 'ai'``
-            // from before the reframe. The toggle group renders one item per
-            // entry in ``providers``; if ``current`` doesn't match any of
-            // them, the whole group shows nothing selected and the user has
-            // to click to "fix" a state that's actually just stale config.
-            // Falling back to providers[0] surfaces the auto-selected target
-            // until the user explicitly picks otherwise (next save persists).
-            const rawCurrent = (config.preferences as Record<string, string>)[key];
-            const current = providers.includes(rawCurrent) ? rawCurrent : providers[0];
+            const rawCurrent = config.preferences[key];
+            const current = rawCurrent && providers.includes(rawCurrent)
+              ? rawCurrent
+              : providers[0];
 
             // No connection that can serve this category — surface the
             // gap so the user knows why they can't pick anything, rather
@@ -1320,7 +1320,7 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* ===== SECTION 4: Goal ===== */}
+      {/* ===== SECTION 5: Goal ===== */}
       <Card className="mb-8">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -1386,7 +1386,7 @@ export default function Settings() {
         onSave={handleGoalSave}
       />
 
-      {/* ===== SECTION 5: Thresholds =====
+      {/* ===== SECTION 6: Thresholds =====
            Read-only by design: every value comes from a connected source
            or a calculation on the user's own data. When a metric has more
            than one source (e.g. Stryd + Garmin for CP), the user picks
@@ -1481,7 +1481,7 @@ export default function Settings() {
 
       <MobileAppCard />
 
-      {/* ===== SECTION 6: Account ===== */}
+      {/* ===== SECTION 7: Account ===== */}
       <Card className="border-destructive/30 bg-destructive/5">
         <CardHeader>
           <div className="flex items-center gap-2.5">

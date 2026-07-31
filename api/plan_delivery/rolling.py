@@ -878,12 +878,13 @@ def run_rolling_delivery_for_user(
     user_id: str,
     trigger: str,
     now: datetime | None = None,
+    window_start: date | None = None,
     adapter_loader: AdapterLoader = _default_adapter_loader,
     threshold_loader: ThresholdLoader = _default_threshold_loader,
 ) -> ManagedDeliveryRunResult:
     """Reconcile and deliver one user's managed plan for 14 calendar days."""
     timestamp = now or datetime.utcnow()
-    window_start, window_end = _window(timestamp.date())
+    window_start, window_end = _window(window_start or timestamp.date())
     gate = _delivery_gate(db, user_id)
     if not gate.enabled:
         return ManagedDeliveryRunResult(
@@ -1530,6 +1531,7 @@ def trigger_managed_plan_delivery(
     user_id: str,
     *,
     trigger: str,
+    window_start: date | None = None,
 ) -> ManagedDeliveryRunResult | None:
     """Run one post-commit delivery pass without changing mutation success."""
     from db.session import SessionLocal, init_db
@@ -1541,6 +1543,7 @@ def trigger_managed_plan_delivery(
             db,
             user_id=user_id,
             trigger=trigger,
+            window_start=window_start,
         )
     except Exception:
         db.rollback()

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import glob
 import json
 import logging
 import math
@@ -16,7 +17,7 @@ from typing import Any, Iterator, Mapping, Sequence
 from uuid import UUID
 
 from sqlalchemy import func, or_, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from analysis.config import (
@@ -548,6 +549,7 @@ def get_or_create_delivery(
             existing.provider_content_version = (
                 provider_content_version_override
             )
+        db.flush()
         return existing, False
 
     delivery = PlanDelivery(
@@ -674,7 +676,14 @@ def begin_delivery_attempt(
         .order_by(PlanDelivery.created_at.asc(), PlanDelivery.id.asc())
         .with_for_update()
     ).scalars().all()
-    locked = next(row for row in slot_rows if row.id == delivery.id)
+    locked = next(
+        (row for row in slot_rows if row.id == delivery.id),
+        None,
+    )
+    if locked is None:
+        raise ValueError(
+            "delivery row left its canonical slot before attempt start"
+        )
 
     if operation == "deliver":
         if any(
@@ -998,6 +1007,14 @@ def write_legacy_stryd_status(
             external_id,
         )
         return
+    if has_unresolved_legacy_stryd_corruption(db, user_id=user_id):
+        db.rollback()
+        logger.warning(
+            "Skipped legacy Stryd status write for user %s because "
+            "quarantined state requires an authoritative recovery snapshot",
+            user_id,
+        )
+        return
     with legacy_stryd_status_lock(status_dir, user_id):
         path = legacy_stryd_status_path(status_dir, user_id)
         payload: dict[str, Any] = {}
@@ -1103,6 +1120,144 @@ def _legacy_entries_from_revision(revision: PlanRevision | None) -> dict[str, di
     }
 
 
+def _legacy_revision_has_unresolved_corruption(
+    revision: PlanRevision | None,
+) -> bool:
+    return bool(
+        revision is not None
+        and isinstance(revision.details, Mapping)
+        and revision.details.get("unresolved_corruption") is True
+    )
+
+
+def _legacy_corrupt_archive_paths(path: str) -> list[str]:
+    return sorted(glob.glob(f"{glob.escape(path)}.corrupt-*"))
+
+
+def _read_latest_legacy_corrupt_archive(
+    archive_paths: Sequence[str],
+    *,
+    user_id: str,
+) -> bytes:
+    if not archive_paths:
+        return b""
+    try:
+        with open(archive_paths[-1], "rb") as handle:
+            return handle.read()
+    except OSError:
+        logger.warning(
+            "Could not read quarantined legacy Stryd state for user=%s",
+            user_id,
+        )
+        return b""
+
+
+def _legacy_archives_resolved(
+    revision: PlanRevision | None,
+    *,
+    archive_paths: Sequence[str],
+) -> bool:
+    if not archive_paths:
+        return True
+    if (
+        revision is None
+        or _legacy_revision_has_unresolved_corruption(revision)
+        or not isinstance(revision.details, Mapping)
+    ):
+        return False
+    resolved_names = revision.details.get("resolved_corrupt_archives")
+    if isinstance(resolved_names, list) and {
+        os.path.basename(archive_path)
+        for archive_path in archive_paths
+    }.issubset({
+        str(name)
+        for name in resolved_names
+    }):
+        return True
+    return False
+
+
+def _latest_legacy_stryd_revision(
+    db: Session,
+    *,
+    user_id: str,
+) -> PlanRevision | None:
+    return db.execute(
+        select(PlanRevision)
+        .where(
+            PlanRevision.user_id == user_id,
+            PlanRevision.origin == "legacy.stryd_push_status",
+        )
+        .order_by(PlanRevision.created_at.desc(), PlanRevision.id.desc())
+    ).scalars().first()
+
+
+def has_unresolved_legacy_stryd_corruption(
+    db: Session,
+    *,
+    user_id: str,
+) -> bool:
+    """Return whether a quarantined legacy snapshot still needs review."""
+    return _legacy_revision_has_unresolved_corruption(
+        _latest_legacy_stryd_revision(db, user_id=user_id)
+    )
+
+
+def _record_legacy_stryd_corruption(
+    db: Session,
+    *,
+    user_id: str,
+    raw: bytes,
+) -> bool:
+    """Persist a durable cleanup fence before quarantining corrupt state."""
+    digest = hashlib.sha256(raw).hexdigest()
+    previous_revision = _latest_legacy_stryd_revision(
+        db,
+        user_id=user_id,
+    )
+    if (
+        _legacy_revision_has_unresolved_corruption(previous_revision)
+        and isinstance(previous_revision.details, Mapping)
+        and previous_revision.details.get("content_sha256") == digest
+    ):
+        db.rollback()
+        return True
+    previous_token = (
+        previous_revision.id if previous_revision is not None else "initial"
+    )
+    previous_entries = _legacy_entries_from_revision(previous_revision)
+    try:
+        record_plan_revision(
+            db,
+            user_id=user_id,
+            operation="legacy_import",
+            actor_type="system",
+            actor_id=None,
+            origin="legacy.stryd_push_status",
+            before=[],
+            after=[],
+            details={
+                "imported": 0,
+                "skipped": 0,
+                "entries": previous_entries,
+                "unresolved_corruption": True,
+                "content_sha256": digest,
+            },
+            idempotency_key=(
+                f"legacy-stryd-corrupt:{digest}:after:{previous_token}"
+            ),
+        )
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception(
+            "Failed to persist corrupt legacy Stryd marker for user=%s",
+            user_id,
+        )
+        return False
+    return True
+
+
 def _append_legacy_attempt(
     db: Session,
     delivery: PlanDelivery,
@@ -1137,24 +1292,47 @@ def import_legacy_stryd_status(
     *,
     user_id: str,
     status_dir: str,
+    authoritative_recovery: bool = False,
 ) -> str:
     """Reconcile one user's current legacy Stryd JSON snapshot into the ledger."""
     path = legacy_stryd_status_path(status_dir, user_id)
-    if not os.path.exists(path):
+    if (
+        not os.path.exists(path)
+        and not _legacy_corrupt_archive_paths(path)
+    ):
         return "missing"
     lock_plan_writes(db, user_id)
     if not _user_exists(db, user_id):
         db.rollback()
         return "missing_user"
     with legacy_stryd_status_lock(status_dir, user_id):
-        if not os.path.exists(path):
-            db.rollback()
-            return "missing"
-        return _import_legacy_stryd_status_locked(
+        if os.path.exists(path):
+            return _import_legacy_stryd_status_locked(
+                db,
+                user_id=user_id,
+                path=path,
+                authoritative_recovery=authoritative_recovery,
+            )
+        archive_paths = _legacy_corrupt_archive_paths(path)
+        previous_revision = _latest_legacy_stryd_revision(
             db,
             user_id=user_id,
-            path=path,
         )
+        if _legacy_archives_resolved(
+            previous_revision,
+            archive_paths=archive_paths,
+        ):
+            db.rollback()
+            return "missing"
+        _record_legacy_stryd_corruption(
+            db,
+            user_id=user_id,
+            raw=_read_latest_legacy_corrupt_archive(
+                archive_paths,
+                user_id=user_id,
+            ),
+        )
+        return "corrupt"
 
 
 def _import_legacy_stryd_status_locked(
@@ -1162,9 +1340,11 @@ def _import_legacy_stryd_status_locked(
     *,
     user_id: str,
     path: str,
+    authoritative_recovery: bool,
 ) -> str:
     """Reconcile a compatibility snapshot while its file lock is held."""
 
+    raw = b""
     try:
         with open(path, "rb") as handle:
             raw = handle.read()
@@ -1178,19 +1358,56 @@ def _import_legacy_stryd_status_locked(
             path,
             exc,
         )
-        _archive_legacy_file(path, "corrupt")
-        db.rollback()
+        if _record_legacy_stryd_corruption(
+            db,
+            user_id=user_id,
+            raw=raw,
+        ):
+            _archive_legacy_file(path, "corrupt")
         return "corrupt"
 
-    previous_revision = db.execute(
-        select(PlanRevision)
-        .where(
-            PlanRevision.user_id == user_id,
-            PlanRevision.origin == "legacy.stryd_push_status",
-        )
-        .order_by(PlanRevision.created_at.desc(), PlanRevision.id.desc())
-    ).scalars().first()
+    previous_revision = _latest_legacy_stryd_revision(
+        db,
+        user_id=user_id,
+    )
     previous_entries = _legacy_entries_from_revision(previous_revision)
+    archive_paths = _legacy_corrupt_archive_paths(path)
+    archives_resolved = _legacy_archives_resolved(
+        previous_revision,
+        archive_paths=archive_paths,
+    )
+    recovery_required = (
+        _legacy_revision_has_unresolved_corruption(previous_revision)
+        or not archives_resolved
+    )
+    if recovery_required and not authoritative_recovery:
+        if not _legacy_revision_has_unresolved_corruption(previous_revision):
+            _record_legacy_stryd_corruption(
+                db,
+                user_id=user_id,
+                raw=_read_latest_legacy_corrupt_archive(
+                    archive_paths,
+                    user_id=user_id,
+                ),
+            )
+        else:
+            db.rollback()
+        return "corrupt"
+    if recovery_required:
+        if not _legacy_revision_has_unresolved_corruption(previous_revision):
+            _record_legacy_stryd_corruption(
+                db,
+                user_id=user_id,
+                raw=_read_latest_legacy_corrupt_archive(
+                    archive_paths,
+                    user_id=user_id,
+                ),
+            )
+        previous_revision = _latest_legacy_stryd_revision(
+            db,
+            user_id=user_id,
+        )
+        previous_entries = _legacy_entries_from_revision(previous_revision)
 
     parsed: list[tuple[str, dict[str, Any], str, datetime | None]] = []
     normalized_entries: dict[str, dict[str, Any]] = {}
@@ -1231,6 +1448,8 @@ def _import_legacy_stryd_status_locked(
 
     if (
         previous_revision is not None
+        and not _legacy_revision_has_unresolved_corruption(previous_revision)
+        and archives_resolved
         and normalized_entries == previous_entries
     ):
         db.rollback()
@@ -1261,6 +1480,16 @@ def _import_legacy_stryd_status_locked(
                 "imported": len(parsed),
                 "skipped": skipped,
                 "entries": normalized_entries,
+                **(
+                    {
+                        "resolved_corrupt_archives": [
+                            os.path.basename(archive_path)
+                            for archive_path in archive_paths
+                        ],
+                    }
+                    if archive_paths
+                    else {}
+                ),
             },
             idempotency_key=idempotency_key,
         )
