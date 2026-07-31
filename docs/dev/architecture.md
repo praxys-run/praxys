@@ -144,7 +144,10 @@ calendar snapshot then gates each workout through reconciliation: matching or
 pending observations are no-ops, target edits/deletions remain explicit
 conflicts, and accepted canonical edits replace only the exact UUID-owned
 delivery. Deleting a canonical workout while managed removes that owned target
-workout; leaving managed mode or pausing delivery never performs cleanup.
+workout. Pausing delivery never performs cleanup. Leaving managed mode keeps
+target workouts by default; a separate, explicit cleanup can remove future
+workouts recorded in the caller's delivery ledger only after external mode has
+disabled further writes.
 
 Plan commits and delivery commits remain separate. Settings adoption and
 committed plan upload/upsert/delete operations start a best-effort post-commit
@@ -233,7 +236,9 @@ Platform rows remain loaded for management and reconciliation but never
 silently become the plan. The additive contract defaults to external mode with
 delivery disabled, so existing users are not enrolled in platform writes.
 Enabling delivery requires an actively connected target with a registered plan
-adapter.
+adapter. Once selected, that target remains part of the managed-plan intent
+through a disconnect so the UI can request reconnection and later clean up the
+correct delivery ledger; provider writes remain gated on the live connection.
 
 Ownership and authorship are separate. `TrainingPlan.source` identifies the
 owner lane, while `TrainingPlan.workout_origin` records whether content was

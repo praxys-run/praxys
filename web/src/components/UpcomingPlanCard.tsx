@@ -1,16 +1,55 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useApi, API_BASE, getAuthHeaders } from '@/hooks/useApi';
-import type { PlanResponse, PlannedWorkout, StrydPushStatus, StrydPushResult } from '@/types/api';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Trans, useLingui, Plural } from '@lingui/react/macro';
-import { useLocale } from '@/contexts/LocaleContext';
-import { useSettings } from '@/contexts/SettingsContext';
+import {
+  useCallback,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
+import { Link } from 'react-router-dom';
+import { Plural, Trans, useLingui } from '@lingui/react/macro';
+import {
+  Check,
+  CircleAlert,
+  CloudUpload,
+  LoaderCircle,
+  Pause,
+  RefreshCw,
+  ShieldCheck,
+  TriangleAlert,
+} from 'lucide-react';
 
-// Window pill choices for the Plan section. Days, not weeks, because
-// the API speaks day-resolution and the user reads "next 14 days" the
-// same way they read "two weeks." Persist the choice so power users
-// land on their preferred view every visit.
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useSettings } from '@/contexts/SettingsContext';
+import { useLocale } from '@/contexts/LocaleContext';
+import {
+  apiFetch,
+  extractErrorMessage,
+  useApi,
+} from '@/hooks/useApi';
+import {
+  isPraxysOwned,
+  managedPlanState,
+  planWindowUrl,
+  type ManagedPlanState,
+} from '@/lib/plan';
+import type {
+  PlanReconciliation,
+  PlanResolutionAction,
+  PlanResolutionResponse,
+  PlanResponse,
+  PlannedWorkout,
+  StrydPushResult,
+} from '@/types/api';
+
 const WINDOW_OPTIONS = [
   { id: '1wk', days: 7 },
   { id: '2wk', days: 14 },
@@ -19,39 +58,24 @@ const WINDOW_OPTIONS = [
 type WindowId = typeof WINDOW_OPTIONS[number]['id'];
 const WINDOW_STORAGE_KEY = 'praxys.plan_window';
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function endIso(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-// Workout-type chips lean on the semantic palette only.
-//   primary       — easy / recovery (action: go and run easy)
-//   muted         — long (steady aerobic methodology slot, restrained)
-//   accent-amber  — tempo / threshold (caution: at the line)
-//   destructive   — interval / repetition (this costs you)
-//   muted         — unknown types (no accent rather than reaching for blue/purple)
 const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
-  easy:       { bg: 'bg-primary/15',      text: 'text-primary' },
-  recovery:   { bg: 'bg-primary/15',      text: 'text-primary' },
-  long:       { bg: 'bg-muted',           text: 'text-foreground' },
-  tempo:      { bg: 'bg-accent-amber/15', text: 'text-accent-amber' },
-  threshold:  { bg: 'bg-accent-amber/15', text: 'text-accent-amber' },
-  interval:   { bg: 'bg-destructive/15',  text: 'text-destructive' },
-  repetition: { bg: 'bg-destructive/15',  text: 'text-destructive' },
+  easy: { bg: 'bg-primary/15', text: 'text-primary' },
+  recovery: { bg: 'bg-primary/15', text: 'text-primary' },
+  long: { bg: 'bg-muted', text: 'text-foreground' },
+  tempo: { bg: 'bg-accent-amber/15', text: 'text-accent-amber' },
+  threshold: { bg: 'bg-accent-amber/15', text: 'text-accent-amber' },
+  interval: { bg: 'bg-destructive/15', text: 'text-destructive' },
+  repetition: { bg: 'bg-destructive/15', text: 'text-destructive' },
 };
-
 const DEFAULT_COLOR = { bg: 'bg-muted', text: 'text-muted-foreground' };
+const STATUS_BASE =
+  'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-medium';
 
 function getTypeColor(type: string) {
   const key = type.toLowerCase().replace(/\s+/g, ' ');
   if (TYPE_COLORS[key]) return TYPE_COLORS[key];
-  for (const [k, v] of Object.entries(TYPE_COLORS)) {
-    if (key.includes(k)) return v;
+  for (const [candidate, color] of Object.entries(TYPE_COLORS)) {
+    if (key.includes(candidate)) return color;
   }
   return DEFAULT_COLOR;
 }
@@ -59,282 +83,36 @@ function getTypeColor(type: string) {
 function formatType(type: string): string {
   return type
     .split(/[\s_]+/)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 }
 
-function formatDate(dateStr: string, locale: string, startTime?: string | null): { day: string; weekday: string; isToday: boolean } {
-  // Bucket the day from the absolute instant in the viewer's tz; the
-  // truncated `date` is a fallback for legacy rows without start_time.
-  const d = startTime ? new Date(startTime) : new Date(dateStr + 'T00:00:00');
+function formatDate(
+  dateStr: string,
+  locale: string,
+  startTime?: string | null,
+): { day: string; weekday: string; isToday: boolean } {
+  const date = startTime
+    ? new Date(startTime)
+    : new Date(`${dateStr}T00:00:00`);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const dd = new Date(d); dd.setHours(0, 0, 0, 0);
-  const isToday = dd.getTime() === today.getTime();
+  const workoutDay = new Date(date);
+  workoutDay.setHours(0, 0, 0, 0);
   return {
-    day: d.getDate().toString().padStart(2, '0'),
-    weekday: d.toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US', { weekday: 'short' }).toUpperCase(),
-    isToday,
+    day: date.getDate().toString().padStart(2, '0'),
+    weekday: date.toLocaleDateString(
+      locale === 'zh' ? 'zh-CN' : 'en-US',
+      { weekday: 'short' },
+    ).toUpperCase(),
+    isToday: workoutDay.getTime() === today.getTime(),
   };
 }
 
-// Server-truth states (`pushed`, `mismatch`, `not_synced`, `native`) are
-// merged with transient local states (`pushing`, `error`) to yield a
-// single per-row badge state. The resolver in the parent picks one.
-type PushState =
-  | 'none'        // AI row, never pushed (sync_state='not_synced')
-  | 'pushed'      // AI row, server says 'synced'
-  | 'pushing'     // local optimistic — push request in flight
-  | 'error'       // local optimistic — push request failed
-  | 'mismatch'    // AI row + Stryd row exist but ids don't match
-  | 'native';     // workout originated on Stryd (source='stryd')
-
-const UploadIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <path d="M8 2v8M5 7l3-3 3 3M3 12h10" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-const SpinnerIcon = ({ className }: { className?: string }) => (
-  <svg className={`animate-spin ${className}`} viewBox="0 0 24 24" fill="none">
-    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-  </svg>
-);
-
-const CheckIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M3 8.5l3 3 7-7" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-const ErrorIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 16 16" fill="currentColor">
-    <path d="M8 1a7 7 0 100 14A7 7 0 008 1zM7 5h2v4H7V5zm0 5h2v2H7v-2z" />
-  </svg>
-);
-
-const RefreshIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <path d="M2.5 8a5.5 5.5 0 019.3-4M13.5 8a5.5 5.5 0 01-9.3 4" strokeLinecap="round" />
-    <path d="M12 1.5v3h-3M4 11.5v3h3" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-const WarningIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 16 16" fill="currentColor">
-    <path d="M7.13 1.66a1 1 0 011.74 0l6.31 11.18A1 1 0 0114.31 14.5H1.69a1 1 0 01-.87-1.66L7.13 1.66zM7 6h2v4H7V6zm0 5h2v2H7v-2z" />
-  </svg>
-);
-
-// Always-visible labeled pill for the per-row sync state. The earlier
-// design hid action affordances behind hover (`group-hover:text-…`), so
-// users on touch devices and anyone scanning the list at a glance had
-// no way to see what to do — the only way to discover "push" was to
-// hover every row. Showing the action explicitly trades a few px of
-// horizontal space for a clearer single-click CTA.
-const PILL_BASE =
-  'inline-flex items-center gap-1.5 shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ' +
-  'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
-const PILL_CLICKABLE = 'cursor-pointer';
-const PILL_STATIC = 'cursor-default';
-
-function StrydStatusBadge({
-  state,
-  error,
-  onPush,
-  showStryd,
-}: {
-  state: PushState;
-  error?: string;
-  onPush?: () => void;
-  showStryd: boolean;
-}) {
-  const { t } = useLingui();
-  if (!showStryd) return null;
-
-  if (state === 'native') {
-    return (
-      <span
-        className={`${PILL_BASE} ${PILL_STATIC} bg-muted text-muted-foreground`}
-        title={t`This workout was imported from Stryd.`}
-      >
-        <Trans>From Stryd</Trans>
-      </span>
-    );
-  }
-
-  if (state === 'pushing') {
-    return (
-      <span className={`${PILL_BASE} ${PILL_STATIC} bg-accent-cobalt/10 text-accent-cobalt`}>
-        <SpinnerIcon className="h-3 w-3" />
-        <Trans>Syncing…</Trans>
-      </span>
-    );
-  }
-
-  if (state === 'error') {
-    return (
-      <button
-        type="button"
-        onClick={onPush}
-        title={error || t`Push failed — click to retry`}
-        aria-label={t`Retry push to Stryd`}
-        className={`${PILL_BASE} ${PILL_CLICKABLE} bg-destructive/10 text-destructive hover:bg-destructive/15`}
-      >
-        <ErrorIcon className="h-3 w-3" />
-        <Trans>Retry</Trans>
-      </button>
-    );
-  }
-
-  if (state === 'mismatch') {
-    return (
-      <button
-        type="button"
-        onClick={onPush}
-        title={t`This workout differs on Stryd — click to overwrite with the Praxys version.`}
-        aria-label={t`Overwrite Stryd with Praxys version`}
-        className={`${PILL_BASE} ${PILL_CLICKABLE} bg-accent-amber/10 text-accent-amber hover:bg-accent-amber/15`}
-      >
-        <WarningIcon className="h-3 w-3" />
-        <Trans>Differs · overwrite</Trans>
-      </button>
-    );
-  }
-
-  if (state === 'pushed') {
-    // Synced — clicking re-pushes (after deleting the prior workout
-    // server-side). Keep a soft hover state so the affordance is
-    // discoverable without screaming for attention.
-    return (
-      <button
-        type="button"
-        onClick={onPush}
-        title={t`Synced to Stryd. Click to re-push.`}
-        aria-label={t`Re-push to Stryd`}
-        className={`${PILL_BASE} ${PILL_CLICKABLE} bg-primary/10 text-primary hover:bg-primary/15 [&>svg.check]:inline [&>svg.refresh]:hidden hover:[&>svg.check]:hidden hover:[&>svg.refresh]:inline`}
-      >
-        <CheckIcon className="check h-3 w-3" />
-        <RefreshIcon className="refresh h-3 w-3" />
-        <Trans>Synced</Trans>
-      </button>
-    );
-  }
-
-  // state === 'none' — never pushed. The clear primary CTA: click to push.
-  return (
-    <button
-      type="button"
-      onClick={onPush}
-      title={t`Push this workout to your Stryd calendar.`}
-      aria-label={t`Push to Stryd`}
-      className={`${PILL_BASE} ${PILL_CLICKABLE} bg-accent-cobalt/10 text-accent-cobalt hover:bg-accent-cobalt/20`}
-    >
-      <UploadIcon className="h-3 w-3" />
-      <Trans>Sync to Stryd</Trans>
-    </button>
-  );
-}
-
-function WorkoutRow({
-  workout,
-  pushState,
-  pushError,
-  showStryd,
-  onPushSingle,
-}: {
-  workout: PlannedWorkout;
-  pushState: PushState;
-  pushError?: string;
-  showStryd: boolean;
-  onPushSingle: (date: string) => void;
-}) {
-  const { t } = useLingui();
-  const { locale } = useLocale();
-  const { day, weekday, isToday } = formatDate(workout.date, locale, workout.start_time);
-  const color = getTypeColor(workout.workout_type);
-  const isRest = workout.workout_type.toLowerCase() === 'rest';
-
-  const details: string[] = [];
-  if (workout.duration_min != null) details.push(`${Math.round(workout.duration_min)}m`);
-  if (workout.distance_km != null) details.push(`${workout.distance_km}km`);
-  if (workout.power_min != null && workout.power_max != null)
-    details.push(`${workout.power_min}\u2013${workout.power_max}W`);
-
-  return (
-    <div
-      className={`group flex items-center gap-3 py-2.5 px-3 rounded-lg transition-colors ${
-        isToday
-          ? 'bg-primary/5 ring-1 ring-primary/30'
-          : 'hover:bg-muted/50'
-      }`}
-    >
-      {/* Date column */}
-      <div className="flex flex-col items-center w-10 shrink-0">
-        <span className={`text-[10px] font-semibold tracking-wider ${
-          isToday ? 'text-primary' : 'text-muted-foreground'
-        }`}>
-          {isToday ? t`TODAY` : weekday}
-        </span>
-        <span className={`font-data text-lg leading-tight ${
-          isToday ? 'text-primary font-bold' : 'text-muted-foreground'
-        }`}>
-          {day}
-        </span>
-      </div>
-
-      {/* Divider */}
-      <div className={`w-px h-8 ${isToday ? 'bg-primary/30' : 'bg-border'}`} />
-
-      {/* Type badge + details */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold ${color.bg} ${color.text}`}>
-            {formatType(workout.workout_type)}
-          </span>
-          {details.length > 0 && (
-            <span className="font-data text-xs text-muted-foreground truncate">
-              {details.join(' · ')}
-            </span>
-          )}
-        </div>
-        {workout.description && (
-          <p className="text-xs text-muted-foreground mt-0.5 truncate">{workout.description}</p>
-        )}
-      </div>
-
-      {/* Stryd sync status / push button */}
-      {!isRest && (
-        <StrydStatusBadge
-          state={pushState}
-          error={pushError}
-          showStryd={showStryd}
-          onPush={() => onPushSingle(workout.date)}
-        />
-      )}
-    </div>
-  );
-}
-
-async function pushDatesToStryd(dates: string[]): Promise<{
-  results: StrydPushResult[];
-}> {
-  const resp = await fetch(`${API_BASE}/api/plan/push-stryd`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() as Record<string, string> },
-    body: JSON.stringify({ workout_dates: dates }),
-  });
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({ detail: `HTTP ${resp.status}` }));
-    throw new Error(err.detail || `HTTP ${resp.status}`);
-  }
-  return resp.json();
-}
-
-function isPraxysOwned(workout: PlannedWorkout): boolean {
-  return workout.owner === 'praxys'
-    || (workout.owner === undefined && workout.source === 'ai');
+function workoutKey(workout: PlannedWorkout): string {
+  return workout.canonical_id
+    ?? workout.reconciliation?.id
+    ?? `${workout.source}-${workout.date}-${workout.workout_type}`;
 }
 
 function WindowPills({
@@ -352,61 +130,662 @@ function WindowPills({
   };
   return (
     <div
-      role="tablist"
+      role="group"
       aria-label={t`Plan window`}
-      className="inline-flex items-center gap-1 rounded-full bg-muted/60 p-1 text-[11px] font-medium"
+      className="inline-flex items-center gap-1 rounded-full bg-muted/60 p-1"
     >
-      {WINDOW_OPTIONS.map((opt) => {
-        const isActive = opt.id === active;
+      {WINDOW_OPTIONS.map((option) => {
+        const selected = option.id === active;
         return (
-          <button
-            key={opt.id}
+          <Button
+            key={option.id}
             type="button"
-            role="tab"
-            aria-selected={isActive}
-            onClick={() => onChange(opt.id)}
-            className={`rounded-full px-3 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-              isActive
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+            aria-pressed={selected}
+            variant="ghost"
+            size="xs"
+            onClick={() => onChange(option.id)}
+            className={`rounded-full px-3 ${
+              selected
+                ? 'bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground'
+                : 'text-muted-foreground'
             }`}
           >
-            {labels[opt.id]}
-          </button>
+            {labels[option.id]}
+          </Button>
         );
       })}
     </div>
   );
 }
 
+function ManagementStrip({
+  state,
+  target,
+  targetConnected,
+}: {
+  state: ManagedPlanState;
+  target: string | null;
+  targetConnected: boolean;
+}) {
+  return (
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-y border-border py-3">
+      <div className="flex min-w-0 items-start gap-2.5">
+        {state === 'active' && targetConnected && (
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+        )}
+        {state === 'active' && !targetConnected && (
+          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-accent-amber" aria-hidden="true" />
+        )}
+        {state === 'paused' && (
+          <Pause className="mt-0.5 h-4 w-4 shrink-0 text-accent-amber" aria-hidden="true" />
+        )}
+        {state === 'external' && (
+          <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        )}
+        <div>
+          <p className="text-xs font-medium text-foreground">
+            {state === 'active' && <Trans>Managed by Praxys</Trans>}
+            {state === 'paused' && <Trans>Managed delivery paused</Trans>}
+            {state === 'external' && <Trans>External plan mode</Trans>}
+          </p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+            {state === 'active' && targetConnected && (
+              <Trans>The rolling 14-day window is delivered to {target ?? 'your target'}.</Trans>
+            )}
+            {state === 'active' && !targetConnected && target && (
+              <Trans>Reconnect {target} to continue delivery. The Praxys plan remains canonical.</Trans>
+            )}
+            {state === 'active' && !targetConnected && !target && (
+              <Trans>Select an execution target in Settings to continue delivery.</Trans>
+            )}
+            {state === 'paused' && (
+              <Trans>The Praxys plan is preserved; no target workouts will change.</Trans>
+            )}
+            {state === 'external' && (
+              <Trans>Praxys is read-only and leaves every target workout untouched.</Trans>
+            )}
+          </p>
+        </div>
+      </div>
+      <Link
+        to="/settings"
+        className="text-xs font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {state === 'external' ? <Trans>Adopt in Settings</Trans> : <Trans>Manage in Settings</Trans>}
+      </Link>
+    </div>
+  );
+}
+
+function StaticStatus({
+  tone,
+  icon,
+  children,
+}: {
+  tone: string;
+  icon?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <span className={`${STATUS_BASE} ${tone}`}>
+      {icon}
+      {children}
+    </span>
+  );
+}
+
+function DeliveryStatus({
+  workout,
+  managementState,
+  target,
+  working,
+  actionsDisabled,
+  error,
+  onDeliver,
+  onReview,
+}: {
+  workout: PlannedWorkout;
+  managementState: ManagedPlanState;
+  target: string | null;
+  working: boolean;
+  actionsDisabled: boolean;
+  error?: string;
+  onDeliver: () => void;
+  onReview: () => void;
+}) {
+  const { t } = useLingui();
+  const reconciliation = workout.reconciliation;
+  const isOwned = isPraxysOwned(workout);
+  const isRest = workout.workout_type.toLowerCase() === 'rest';
+  const canAccept = reconciliation?.resolutions.includes('accept_target');
+  const hasConflict = reconciliation?.conflict === true
+    || workout.sync_state === 'mismatch';
+
+  if (isRest) return null;
+  if (working) {
+    return (
+      <StaticStatus
+        tone="bg-accent-cobalt/10 text-accent-cobalt"
+        icon={(
+          <LoaderCircle
+            className="h-3 w-3 animate-spin motion-reduce:animate-none"
+            aria-hidden="true"
+          />
+        )}
+      >
+        <Trans>Working…</Trans>
+      </StaticStatus>
+    );
+  }
+  if (error) {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="xs"
+        disabled={actionsDisabled}
+        title={error}
+        aria-label={t`Retry workout action`}
+        onClick={reconciliation ? onReview : onDeliver}
+        className={`${STATUS_BASE} bg-destructive/10 text-destructive hover:bg-destructive/15 hover:text-destructive`}
+      >
+        <RefreshCw className="h-3 w-3" aria-hidden="true" />
+        <Trans>Retry</Trans>
+      </Button>
+    );
+  }
+
+  if (!isOwned) {
+    if (canAccept) {
+      return (
+        <Button
+          type="button"
+          variant="ghost"
+          size="xs"
+          disabled={actionsDisabled}
+          onClick={onReview}
+          className={`${STATUS_BASE} bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary`}
+        >
+          <Trans>Use in Praxys</Trans>
+        </Button>
+      );
+    }
+    return (
+      <StaticStatus tone="bg-muted text-muted-foreground">
+        <Trans>External</Trans>
+      </StaticStatus>
+    );
+  }
+
+  if (managementState !== 'active' && hasConflict) {
+    return (
+      <StaticStatus
+        tone="bg-accent-amber/10 text-accent-amber"
+        icon={<TriangleAlert className="h-3 w-3" aria-hidden="true" />}
+      >
+        <Trans>Conflict retained</Trans>
+      </StaticStatus>
+    );
+  }
+  if (managementState === 'external') {
+    return (
+      <StaticStatus tone="bg-muted text-muted-foreground">
+        <Trans>Praxys only</Trans>
+      </StaticStatus>
+    );
+  }
+  if (managementState === 'paused') {
+    return (
+      <StaticStatus
+        tone="bg-accent-amber/10 text-accent-amber"
+        icon={<Pause className="h-3 w-3" aria-hidden="true" />}
+      >
+        <Trans>Paused</Trans>
+      </StaticStatus>
+    );
+  }
+
+  const state = reconciliation?.state;
+  if (state === 'matching' || workout.sync_state === 'synced') {
+    return (
+      <StaticStatus
+        tone="bg-primary/10 text-primary"
+        icon={<Check className="h-3 w-3" aria-hidden="true" />}
+      >
+        <Trans>In sync</Trans>
+      </StaticStatus>
+    );
+  }
+  if (state === 'pending_observation') {
+    return (
+      <StaticStatus
+        tone="bg-accent-cobalt/10 text-accent-cobalt"
+        icon={<LoaderCircle className="h-3 w-3" aria-hidden="true" />}
+      >
+        <Trans>Verifying</Trans>
+      </StaticStatus>
+    );
+  }
+  if (
+    state === 'target_edited'
+    || state === 'canonical_changed'
+    || state === 'target_deleted'
+  ) {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="xs"
+        disabled={actionsDisabled}
+        onClick={onReview}
+        className={`${STATUS_BASE} bg-accent-amber/10 text-accent-amber hover:bg-accent-amber/15 hover:text-accent-amber`}
+      >
+        <TriangleAlert className="h-3 w-3" aria-hidden="true" />
+        <Trans>Review conflict</Trans>
+      </Button>
+    );
+  }
+  if (state === 'delivery_failed') {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="xs"
+        disabled={actionsDisabled}
+        onClick={onReview}
+        className={`${STATUS_BASE} bg-destructive/10 text-destructive hover:bg-destructive/15 hover:text-destructive`}
+      >
+        <RefreshCw className="h-3 w-3" aria-hidden="true" />
+        <Trans>Retry delivery</Trans>
+      </Button>
+    );
+  }
+  if (workout.sync_state === 'mismatch' && reconciliation) {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="xs"
+        disabled={actionsDisabled}
+        onClick={onReview}
+        className={`${STATUS_BASE} bg-accent-amber/10 text-accent-amber hover:bg-accent-amber/15 hover:text-accent-amber`}
+      >
+        <TriangleAlert className="h-3 w-3" aria-hidden="true" />
+        <Trans>Review conflict</Trans>
+      </Button>
+    );
+  }
+  if (workout.sync_state === 'mismatch') {
+    return (
+      <StaticStatus
+        tone="bg-accent-amber/10 text-accent-amber"
+        icon={<TriangleAlert className="h-3 w-3" aria-hidden="true" />}
+      >
+        <Trans>Sync target to review</Trans>
+      </StaticStatus>
+    );
+  }
+  if (target === 'stryd') {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="xs"
+        disabled={actionsDisabled}
+        onClick={onDeliver}
+        className={`${STATUS_BASE} bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary`}
+      >
+        <CloudUpload className="h-3 w-3" aria-hidden="true" />
+        <Trans>Deliver now</Trans>
+      </Button>
+    );
+  }
+  return (
+    <StaticStatus tone="bg-accent-cobalt/10 text-accent-cobalt">
+      <Trans>Queued</Trans>
+    </StaticStatus>
+  );
+}
+
+function WorkoutRow({
+  workout,
+  managementState,
+  target,
+  working,
+  actionsDisabled,
+  error,
+  onDeliver,
+  onReview,
+}: {
+  workout: PlannedWorkout;
+  managementState: ManagedPlanState;
+  target: string | null;
+  working: boolean;
+  actionsDisabled: boolean;
+  error?: string;
+  onDeliver: () => void;
+  onReview: () => void;
+}) {
+  const { t } = useLingui();
+  const { locale } = useLocale();
+  const { day, weekday, isToday } = formatDate(
+    workout.date,
+    locale,
+    workout.start_time,
+  );
+  const color = getTypeColor(workout.workout_type);
+  const details: string[] = [];
+  if (workout.duration_min != null) details.push(`${Math.round(workout.duration_min)}m`);
+  if (workout.distance_km != null) details.push(`${workout.distance_km}km`);
+  if (workout.power_min != null && workout.power_max != null) {
+    details.push(`${workout.power_min}\u2013${workout.power_max}W`);
+  }
+
+  return (
+    <div
+      className={`grid grid-cols-[2.5rem_1px_minmax(0,1fr)] items-center gap-x-3 gap-y-2 rounded-lg px-3 py-2.5 transition-colors sm:grid-cols-[2.5rem_1px_minmax(0,1fr)_auto] ${
+        isToday
+          ? 'bg-primary/5 ring-1 ring-primary/30'
+          : 'hover:bg-muted/50'
+      }`}
+    >
+      <div className="flex flex-col items-center">
+        <span className={`text-[10px] font-semibold tracking-wider ${
+          isToday ? 'text-primary' : 'text-muted-foreground'
+        }`}>
+          {isToday ? t`TODAY` : weekday}
+        </span>
+        <span className={`font-data text-lg leading-tight ${
+          isToday ? 'font-bold text-primary' : 'text-muted-foreground'
+        }`}>
+          {day}
+        </span>
+      </div>
+
+      <div className={`h-8 w-px ${isToday ? 'bg-primary/30' : 'bg-border'}`} />
+
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className={`inline-flex rounded px-2 py-0.5 text-xs font-semibold ${color.bg} ${color.text}`}>
+            {formatType(workout.workout_type)}
+          </span>
+          {details.length > 0 && (
+            <span className="truncate font-data text-xs text-muted-foreground">
+              {details.join(' · ')}
+            </span>
+          )}
+        </div>
+        {workout.description && (
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            {workout.description}
+          </p>
+        )}
+        {error && (
+          <p className="mt-1 text-[11px] leading-relaxed text-destructive" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+
+      <div className="col-start-3 justify-self-start sm:col-start-4 sm:row-start-1 sm:justify-self-end">
+        <DeliveryStatus
+          workout={workout}
+          managementState={managementState}
+          target={target}
+          working={working}
+          actionsDisabled={actionsDisabled}
+          error={error}
+          onDeliver={onDeliver}
+          onReview={onReview}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ConflictDialog({
+  workout,
+  open,
+  working,
+  error,
+  onOpenChange,
+  onResolve,
+}: {
+  workout: PlannedWorkout | null;
+  open: boolean;
+  working: boolean;
+  error: string | null;
+  onOpenChange: (open: boolean) => void;
+  onResolve: (action: PlanResolutionAction) => void;
+}) {
+  const reconciliation = workout?.reconciliation;
+  if (!workout || !reconciliation) return null;
+  const target = reconciliation.target === 'stryd' ? 'Stryd' : reconciliation.target;
+  const canRestore = reconciliation.resolutions.includes('restore_praxys');
+  const canAccept = reconciliation.resolutions.includes('accept_target');
+  const targetWorkout = reconciliation.target_workout;
+  const targetOnly = reconciliation.state === 'target_only';
+  const targetDeleted = reconciliation.state === 'target_deleted';
+  const deliveryFailed = reconciliation.state === 'delivery_failed';
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>
+            {targetOnly && <Trans>Use this {target} workout in Praxys?</Trans>}
+            {deliveryFailed && <Trans>Retry this delivery?</Trans>}
+            {!targetOnly && !deliveryFailed && <Trans>Resolve workout conflict</Trans>}
+          </DialogTitle>
+          <DialogDescription>
+            {targetOnly ? (
+              <Trans>This workout stays external unless you explicitly make it canonical in Praxys.</Trans>
+            ) : targetDeleted ? (
+              <Trans>The Praxys workout is missing from {target}. Restoring it keeps the Praxys version canonical.</Trans>
+            ) : deliveryFailed ? (
+              <Trans>Praxys could not finish delivery. Retrying keeps the Praxys version canonical.</Trans>
+            ) : (
+              <Trans>Praxys and {target} have different versions. Choose which one becomes canonical.</Trans>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="divide-y divide-border border-y border-border">
+          {!targetOnly && (
+            <div className="py-3">
+              <p className="text-[11px] font-data uppercase tracking-wider text-muted-foreground">
+                <Trans>Praxys version</Trans>
+              </p>
+              <p className="mt-1 text-sm font-medium text-foreground">
+                {formatType(workout.workout_type)}
+                {workout.duration_min != null && (
+                  <span className="ml-2 font-data text-xs font-normal text-muted-foreground">
+                    {Math.round(workout.duration_min)} <Trans>min</Trans>
+                  </span>
+                )}
+              </p>
+              {workout.description && (
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  {workout.description}
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="py-3">
+            <p className="text-[11px] font-data uppercase tracking-wider text-muted-foreground">
+              <Trans>{target} version</Trans>
+            </p>
+            {targetWorkout ? (
+              <>
+                <p className="mt-1 text-sm font-medium text-foreground">
+                  {formatType(targetWorkout.workout_type)}
+                  {targetWorkout.planned_duration_min != null && (
+                    <span className="ml-2 font-data text-xs font-normal text-muted-foreground">
+                      {Math.round(targetWorkout.planned_duration_min)} <Trans>min</Trans>
+                    </span>
+                  )}
+                </p>
+                {targetWorkout.workout_description && (
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    {targetWorkout.workout_description}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {targetDeleted
+                  ? <Trans>No workout is present on {target}.</Trans>
+                  : <Trans>The target version is unavailable.</Trans>}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {reconciliation.last_error && (
+          <Alert variant="destructive">
+            <AlertDescription>{reconciliation.last_error}</AlertDescription>
+          </Alert>
+        )}
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="space-y-2 text-xs leading-relaxed text-muted-foreground">
+          {canRestore && (
+            <p>
+              <strong className="font-medium text-foreground"><Trans>Restore Praxys:</Trans></strong>{' '}
+              <Trans>keep the Praxys workout canonical and replace or recreate the target version.</Trans>
+            </p>
+          )}
+          {canAccept && (
+            <p>
+              <strong className="font-medium text-foreground"><Trans>Use {target}:</Trans></strong>{' '}
+              <Trans>copy the target workout into Praxys; future management follows that version.</Trans>
+            </p>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" disabled={working} onClick={() => onOpenChange(false)}>
+            <Trans>Cancel</Trans>
+          </Button>
+          {canAccept && (
+            <Button
+              variant={canRestore ? 'outline' : 'default'}
+              disabled={working}
+              onClick={() => onResolve('accept_target')}
+            >
+              {working ? <Trans>Applying…</Trans> : <Trans>Use {target} version</Trans>}
+            </Button>
+          )}
+          {canRestore && (
+            <Button disabled={working} onClick={() => onResolve('restore_praxys')}>
+              {working
+                ? <Trans>Restoring…</Trans>
+                : deliveryFailed
+                  ? <Trans>Retry delivery</Trans>
+                  : <Trans>Restore Praxys</Trans>}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+async function pushWorkout(
+  workout: PlannedWorkout,
+  fallbackError: string,
+  missingResultError: string,
+): Promise<void> {
+  const request: {
+    workout_dates: string[];
+    canonical_ids?: string[];
+  } = {
+    workout_dates: [workout.date],
+  };
+  if (workout.canonical_id) {
+    request.canonical_ids = [workout.canonical_id];
+  }
+  const response = await apiFetch('/api/plan/push-stryd', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) {
+    throw new Error(
+      await extractErrorMessage(response, fallbackError),
+    );
+  }
+  const body = await response.json() as { results: StrydPushResult[] };
+  const result = body.results.find(
+    (candidate) =>
+      candidate.canonical_id === workout.canonical_id
+      || (
+        candidate.canonical_id == null
+        && candidate.date === workout.date
+      ),
+  );
+  if (!result) throw new Error(missingResultError);
+  if (result.status === 'error') throw new Error(result.error);
+}
+
+async function resolveWorkout(
+  reconciliation: PlanReconciliation,
+  action: PlanResolutionAction,
+  fallbackError: string,
+): Promise<PlanResolutionResponse> {
+  const response = await apiFetch('/api/plan/reconciliation/resolve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      reconciliation_id: reconciliation.id,
+      action,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(
+      await extractErrorMessage(response, fallbackError),
+    );
+  }
+  return response.json() as Promise<PlanResolutionResponse>;
+}
+
 export default function UpcomingPlanCard() {
+  const { t } = useLingui();
+  const { config: settings } = useSettings();
   const [windowId, setWindowId] = useState<WindowId>(() => {
     if (typeof window === 'undefined') return '2wk';
     const stored = window.localStorage.getItem(WINDOW_STORAGE_KEY) as WindowId | null;
-    return stored && WINDOW_OPTIONS.some((o) => o.id === stored) ? stored : '2wk';
+    return stored && WINDOW_OPTIONS.some((option) => option.id === stored)
+      ? stored
+      : '2wk';
   });
-  const windowDays = WINDOW_OPTIONS.find((o) => o.id === windowId)?.days ?? 14;
-
-  // Window in the URL keeps queryKey-keyed cache entries distinct per
-  // window, so toggling 1wk ↔ 4wk doesn't replay the wrong cached body.
-  const planUrl = useMemo(
-    () => `/api/plan?start=${todayIso()}&end=${endIso(windowDays)}`,
-    [windowDays],
-  );
+  const windowDays =
+    WINDOW_OPTIONS.find((option) => option.id === windowId)?.days ?? 14;
+  const planUrl = useMemo(() => planWindowUrl(windowDays), [windowDays]);
   const { data, loading, error, refetch } = useApi<PlanResponse>(planUrl);
+  const [workingKey, setWorkingKey] = useState<string | null>(null);
+  const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
+  const [reviewWorkout, setReviewWorkout] = useState<PlannedWorkout | null>(null);
+  const [dialogError, setDialogError] = useState<string | null>(null);
 
-  const [pushStatus, setPushStatus] = useState<StrydPushStatus>({});
-  const [pushErrors, setPushErrors] = useState<Record<string, string>>({});
-  const [pushing, setPushing] = useState(false);
-  const [pushingDates, setPushingDates] = useState<Set<string>>(new Set());
-  const [optimisticPushedDates, setOptimisticPushedDates] = useState<Set<string>>(
-    new Set(),
-  );
-
-  // Stryd connection status — read from SettingsContext rather than firing
-  // a second /api/settings request.
-  const { config: settings } = useSettings();
-  const hasStryd = Boolean(settings?.connections?.includes('stryd'));
+  const planManagement = settings?.plan_management ?? {
+    mode: 'external' as const,
+    execution_target: null,
+    delivery_enabled: false,
+    adjustment_policy: 'suggest_only' as const,
+  };
+  const managementState = managedPlanState(planManagement);
+  const executionTarget = planManagement.execution_target ?? data?.sync_target ?? null;
+  const targetConnected = executionTarget != null
+    && (settings?.connections ?? []).includes(executionTarget);
+  const targetLabel = executionTarget === 'stryd'
+    ? 'Stryd'
+    : executionTarget;
 
   const handleWindowChange = useCallback((next: WindowId) => {
     setWindowId(next);
@@ -415,220 +794,72 @@ export default function UpcomingPlanCard() {
     }
   }, []);
 
-  // Mirror server stryd_status into local state so push/delete handlers can
-  // apply optimistic updates without waiting for a refetch; the next /api/plan
-  // response resyncs us to the server view.
-  useEffect(() => {
-    if (data?.stryd_status) {
-      setPushStatus(data.stryd_status);
-      setOptimisticPushedDates(new Set());
-    }
-  }, [data?.stryd_status]);
-
-  const getPushState = useCallback(
-    (workout: PlannedWorkout): PushState => {
-      const date = workout.date;
-      if (pushingDates.has(date)) return 'pushing';
-      if (pushErrors[date]) return 'error';
-      // Stryd-source rows have no AI/Stryd sync question — they are
-      // already on Stryd by definition.
-      if (workout.source === 'stryd') return 'native';
-      // Server-derived sync_state is the source of truth for AI rows.
-      if (optimisticPushedDates.has(date)) return 'pushed';
-      if (workout.sync_state === 'mismatch') return 'mismatch';
-      if (workout.sync_state === 'synced') return 'pushed';
-      // Compatibility fallback for an older backend that does not emit
-      // sync_state yet. On the current contract, a historical pushStatus ID
-      // must not certify a revised workout as synced.
-      if (workout.sync_state === undefined && pushStatus[date]) return 'pushed';
-      return 'none';
-    },
-    [pushingDates, pushErrors, pushStatus, optimisticPushedDates],
-  );
-
-  const handlePushResults = useCallback(
-    (results: StrydPushResult[], dates: string[]) => {
-      setPushStatus((prev) => {
-        const next = { ...prev };
-        for (const r of results) {
-          if (r.status === 'success') {
-            next[r.date] = {
-              workout_id: r.workout_id,
-              pushed_at: new Date().toISOString(),
-              status: 'pushed',
-            };
-          }
-        }
-        return next;
-      });
-
-      setPushErrors((prev) => {
-        const next = { ...prev };
-
-        // Clear errors for dates we just retried
-        for (const d of dates) delete next[d];
-
-        for (const r of results) {
-          if (r.status === 'success') {
-            delete next[r.date];
-          } else {
-            next[r.date] = r.error;
-          }
-        }
-
-        return next;
-      });
-      setOptimisticPushedDates((prev) => {
-        const next = new Set(prev);
-        for (const result of results) {
-          if (result.status === 'success') next.add(result.date);
-        }
-        return next;
-      });
-    },
-    [],
-  );
-
-  // Push a single workout (or re-push by deleting old one first).
-  //
-  // Edge case worth knowing: when re-pushing (existing workout_id), we
-  // DELETE first, then POST. If the DELETE succeeds but the POST fails,
-  // the user lands in ``error`` state with the prior workout already
-  // gone from Stryd. Re-clicking is the correct recovery — the second
-  // attempt skips the DELETE branch (pushStatus was cleared) and just
-  // creates a fresh workout. The user's intent ("overwrite the Stryd
-  // version with mine") is consistent across the failure modes; we
-  // surface the partial failure via the error pill rather than try to
-  // be clever about rolling back.
-  const pushSingle = useCallback(
-    async (date: string) => {
-      if (pushingDates.has(date)) return;
-
-      setPushingDates((prev) => new Set(prev).add(date));
-
-      let deleted = false;
-      try {
-        // If already pushed, delete the old workout from Stryd first
-        const existing = pushStatus[date];
-        if (existing?.workout_id) {
-          const resp = await fetch(`${API_BASE}/api/plan/stryd-workout/${encodeURIComponent(existing.workout_id)}`, { method: 'DELETE', headers: getAuthHeaders() });
-          if (!resp.ok) {
-            const err = await resp.json().catch(() => ({ detail: `HTTP ${resp.status}` }));
-            throw new Error(err.detail || `HTTP ${resp.status}`);
-          }
-          deleted = true;
-          setPushStatus((prev) => {
-            const next = { ...prev };
-            delete next[date];
-            return next;
-          });
-          setOptimisticPushedDates((prev) => {
-            const next = new Set(prev);
-            next.delete(date);
-            return next;
-          });
-        }
-
-        const { results } = await pushDatesToStryd([date]);
-        handlePushResults(results, [date]);
-      } catch (e) {
-        const baseMsg = e instanceof Error ? e.message : 'Push failed';
-        setPushErrors((prev) => ({
-          ...prev,
-          [date]: deleted
-            ? `${baseMsg} (the previous Stryd workout was deleted before the new one failed — click Sync to upload again)`
-            : baseMsg,
-        }));
-      } finally {
-        setPushingDates((prev) => {
-          const next = new Set(prev);
-          next.delete(date);
-          return next;
-        });
-      }
-    },
-    [pushingDates, pushStatus, handlePushResults],
-  );
-
-  // Push all unsynced Praxys workouts. Historical IDs are deleted one at a time
-  // before replacement, so an edited version never creates a duplicate.
-  const pushAll = useCallback(async () => {
-    if (!data) return;
-
-    const datesToPush = data.workouts
-      .filter(
-        (w) => isPraxysOwned(w)
-          && w.workout_type.toLowerCase() !== 'rest'
-          && (w.sync_state === 'not_synced' || w.sync_state === 'mismatch')
-          && !optimisticPushedDates.has(w.date),
-      )
-      .map((w) => w.date);
-
-    if (datesToPush.length === 0) return;
-
-    setPushing(true);
-    setPushingDates(new Set(datesToPush));
-    setPushErrors({});
-
+  const deliverWorkout = async (workout: PlannedWorkout) => {
+    const key = workoutKey(workout);
+    setWorkingKey(key);
+    setRowErrors((current) => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
     try {
-      for (const date of datesToPush) {
-        let deleted = false;
-        try {
-          const existing = pushStatus[date];
-          if (existing?.workout_id) {
-            const response = await fetch(
-              `${API_BASE}/api/plan/stryd-workout/${encodeURIComponent(existing.workout_id)}`,
-              { method: 'DELETE', headers: getAuthHeaders() },
-            );
-            if (!response.ok) {
-              const error = await response.json().catch(
-                () => ({ detail: `HTTP ${response.status}` }),
-              );
-              throw new Error(error.detail || `HTTP ${response.status}`);
-            }
-            deleted = true;
-            setPushStatus((prev) => {
-              const next = { ...prev };
-              delete next[date];
-              return next;
-            });
-          }
-
-          const { results } = await pushDatesToStryd([date]);
-          const adjustedResults = deleted
-            ? results.map((result) => (
-                result.status === 'error'
-                  ? {
-                      ...result,
-                      error: `${result.error} (the previous Stryd workout was deleted before the new one failed — click Sync to upload again)`,
-                    }
-                  : result
-              ))
-            : results;
-          handlePushResults(adjustedResults, [date]);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Push failed';
-          setPushErrors((prev) => ({
-            ...prev,
-            [date]: deleted
-              ? `${message} (the previous Stryd workout was deleted before the new one failed — click Sync to upload again)`
-              : message,
-          }));
-        }
-      }
+      await pushWorkout(
+        workout,
+        t`Delivery failed`,
+        t`No delivery result was returned for this workout`,
+      );
+      await refetch();
+    } catch (actionError) {
+      setRowErrors((current) => ({
+        ...current,
+        [key]: actionError instanceof Error ? actionError.message : t`Delivery failed`,
+      }));
     } finally {
-      setPushing(false);
-      setPushingDates(new Set());
+      setWorkingKey(null);
     }
-  }, [data, pushStatus, optimisticPushedDates, handlePushResults]);
+  };
+
+  const review = (workout: PlannedWorkout) => {
+    setDialogError(null);
+    setReviewWorkout(workout);
+  };
+
+  const resolve = async (action: PlanResolutionAction) => {
+    const reconciliation = reviewWorkout?.reconciliation;
+    if (!reviewWorkout || !reconciliation) return;
+    const key = workoutKey(reviewWorkout);
+    setWorkingKey(key);
+    setDialogError(null);
+    try {
+      await resolveWorkout(
+        reconciliation,
+        action,
+        t`Could not resolve this workout`,
+      );
+      setReviewWorkout(null);
+      setRowErrors((current) => {
+        const next = { ...current };
+        delete next[key];
+        return next;
+      });
+      await refetch();
+    } catch (actionError) {
+      setDialogError(
+        actionError instanceof Error ? actionError.message : t`Could not resolve this workout`,
+      );
+    } finally {
+      setWorkingKey(null);
+    }
+  };
 
   if (loading) {
     return (
       <section>
-        <Skeleton className="h-3 w-32 mb-5" />
+        <Skeleton className="mb-5 h-3 w-32" />
+        <Skeleton className="mb-5 h-12 w-full" />
         <div className="space-y-2">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-12 rounded-lg" />
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-14 rounded-lg" />
           ))}
         </div>
       </section>
@@ -637,88 +868,63 @@ export default function UpcomingPlanCard() {
 
   if (error) {
     return (
-      <section className="flex items-center justify-between gap-3">
+      <section className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm text-destructive"><Trans>Failed to load training plan</Trans></p>
           <p className="text-xs text-muted-foreground">{error}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()}><Trans>Retry</Trans></Button>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
+          <Trans>Retry</Trans>
+        </Button>
       </section>
     );
   }
 
   if (!data) return null;
 
-  // Header chrome: eyebrow + window pills (left) and Push All + count
-  // (right). Stays the same in empty / populated states so the user
-  // can switch windows without the chrome jumping around.
-  const praxysPushable = data.workouts.filter(
-    (w) => isPraxysOwned(w)
-      && w.workout_type.toLowerCase() !== 'rest'
-      && (w.sync_state === 'not_synced' || w.sync_state === 'mismatch')
-      && !optimisticPushedDates.has(w.date),
-  );
-  const unpushedCount = praxysPushable.length;
-  const allSynced = unpushedCount === 0
-    && data.workouts.some(isPraxysOwned);
-
+  const praxysCount = data.workouts.filter(isPraxysOwned).length;
+  const conflictCount = data.workouts.filter(
+    (workout) => workout.reconciliation?.conflict,
+  ).length;
   const header = (
-    <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-      <div className="flex items-center gap-3">
-        <p className="text-[10px] font-data uppercase tracking-[0.14em] text-muted-foreground">
-          <Trans>Upcoming Plan</Trans>
-        </p>
-        <WindowPills active={windowId} onChange={handleWindowChange} />
+    <>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <p className="text-[10px] font-data uppercase tracking-[0.14em] text-muted-foreground">
+            <Trans>Upcoming Plan</Trans>
+          </p>
+          <WindowPills active={windowId} onChange={handleWindowChange} />
+        </div>
+        <div className="flex items-center gap-3 font-data text-[11px] text-muted-foreground">
+          {conflictCount > 0 && (
+            <span className="text-accent-amber">
+              <Plural
+                value={conflictCount}
+                one="# needs review"
+                other="# need review"
+              />
+            </span>
+          )}
+          <Plural value={data.workouts.length} one="# workout" other="# workouts" />
+        </div>
       </div>
-      <div className="flex items-center gap-3">
-        {data.workouts.length > 0 && (
-          <span className="text-[11px] text-muted-foreground font-data">
-            <Plural value={data.workouts.length} one="# workout" other="# workouts" />
-          </span>
-        )}
-        {hasStryd && data.workouts.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 px-3 text-[11px] gap-1.5"
-            disabled={pushing || allSynced}
-            onClick={pushAll}
-          >
-            {pushing ? (
-              <>
-                <SpinnerIcon className="h-3 w-3" />
-                <Trans>Pushing…</Trans>
-              </>
-            ) : allSynced ? (
-              <>
-                <CheckIcon className="h-3 w-3" />
-                <Trans>All synced</Trans>
-              </>
-            ) : (
-              <>
-                <UploadIcon className="h-3 w-3" />
-                <Trans>Push to Stryd</Trans>
-                {unpushedCount > 0 && (
-                  <span className="font-data ml-0.5">({unpushedCount})</span>
-                )}
-              </>
-            )}
-          </Button>
-        )}
-      </div>
-    </div>
+      <ManagementStrip
+        state={managementState}
+        target={targetLabel}
+        targetConnected={targetConnected}
+      />
+    </>
   );
 
   if (data.workouts.length === 0) {
-    const widerHint = windowId !== '4wk'
-      ? <Trans>Try a longer window above.</Trans>
-      : null;
     return (
       <section>
         {header}
         <p className="text-sm text-muted-foreground">
           <Trans>No workouts scheduled in this window.</Trans>
-          {widerHint && <span className="ml-1">{widerHint}</span>}
+          {windowId !== '4wk' && (
+            <span className="ml-1"><Trans>Try a longer window above.</Trans></span>
+          )}
         </p>
       </section>
     );
@@ -727,18 +933,50 @@ export default function UpcomingPlanCard() {
   return (
     <section>
       {header}
+      {managementState === 'active' && praxysCount === 0 && (
+        <Alert className="mb-4 border-accent-cobalt/25 bg-accent-cobalt/5">
+          <AlertDescription className="text-xs text-foreground">
+            <Trans>
+              Managed delivery is active, but this window contains no Praxys-owned workouts. External workouts remain untouched.
+            </Trans>
+          </AlertDescription>
+        </Alert>
+      )}
       <div className="space-y-1">
-        {data.workouts.map((w) => (
-          <WorkoutRow
-            key={`${w.source}-${w.date}`}
-            workout={w}
-            pushState={getPushState(w)}
-            pushError={pushErrors[w.date]}
-            showStryd={hasStryd}
-            onPushSingle={pushSingle}
-          />
-        ))}
+        {data.workouts.map((workout) => {
+          const key = workoutKey(workout);
+          return (
+            <WorkoutRow
+              key={key}
+              workout={workout}
+              managementState={managementState}
+              target={executionTarget}
+              working={workingKey === key}
+              actionsDisabled={
+                workingKey != null
+                || (managementState === 'active' && !targetConnected)
+              }
+              error={rowErrors[key]}
+              onDeliver={() => deliverWorkout(workout)}
+              onReview={() => review(workout)}
+            />
+          );
+        })}
       </div>
+
+      <ConflictDialog
+        workout={reviewWorkout}
+        open={reviewWorkout != null}
+        working={reviewWorkout != null && workingKey === workoutKey(reviewWorkout)}
+        error={dialogError}
+        onOpenChange={(open) => {
+          if (!open && workingKey == null) {
+            setReviewWorkout(null);
+            setDialogError(null);
+          }
+        }}
+        onResolve={resolve}
+      />
     </section>
   );
 }

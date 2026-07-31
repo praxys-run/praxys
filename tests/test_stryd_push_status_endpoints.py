@@ -1455,9 +1455,27 @@ def test_existing_unowned_stryd_row_does_not_block_praxys_delivery(
     }]
 
 
-def test_push_delivers_multiple_praxys_workouts_on_same_date(
+@pytest.mark.parametrize(
+    ("selected_id", "expected_ids"),
+    [
+        (
+            None,
+            [
+                "11111111-1111-1111-1111-111111111111",
+                "22222222-2222-2222-2222-222222222222",
+            ],
+        ),
+        (
+            "22222222-2222-2222-2222-222222222222",
+            ["22222222-2222-2222-2222-222222222222"],
+        ),
+    ],
+)
+def test_push_delivers_selected_praxys_workouts_on_same_date(
     api_client,
     monkeypatch,
+    selected_id,
+    expected_ids,
 ):
     workout_date = "2026-08-09"
     all_plans = pd.DataFrame([
@@ -1500,35 +1518,27 @@ def test_push_delivers_multiple_praxys_workouts_on_same_date(
     )
     api_client["current"]["value"] = "same-day-praxys-user"
 
+    request = {"workout_dates": [workout_date]}
+    if selected_id is not None:
+        request["canonical_ids"] = [selected_id]
     response = api_client["client"].post(
         "/api/plan/push-stryd",
-        json={"workout_dates": [workout_date]},
+        json=request,
     )
 
     assert response.status_code == 200, response.text
     results = response.json()["results"]
-    assert [result["workout_id"] for result in results] == [
-        "same-day-1",
-        "same-day-2",
-    ]
     assert {
         result["canonical_id"] for result in results
-    } == {
-        "11111111-1111-1111-1111-111111111111",
-        "22222222-2222-2222-2222-222222222222",
-    }
-    assert calls["create"] == 2
+    } == set(expected_ids)
+    assert calls["create"] == len(expected_ids)
     assert _delivery_rows("same-day-praxys-user") == [
         {
             "date": workout_date,
-            "external_id": "same-day-1",
+            "external_id": f"same-day-{index}",
             "state": "synced",
-        },
-        {
-            "date": workout_date,
-            "external_id": "same-day-2",
-            "state": "synced",
-        },
+        }
+        for index in range(1, len(expected_ids) + 1)
     ]
 
 

@@ -48,6 +48,10 @@ from api.plan_delivery import (
     load_plan_delivery_adapter,
 )
 from api.plan_reconciliation import load_plan_reconciliation_item
+from api.plan_cleanup import (
+    PlanCleanupRequiresExternalMode,
+    cleanup_future_plan_deliveries,
+)
 from api.plan_resolution import (
     PlanResolutionConflict,
     PlanResolutionProviderError,
@@ -93,10 +97,9 @@ def _stryd_push_status_path(user_id: str) -> str:
 _MAX_WINDOW_DAYS = 365
 # Default forward offset when no ``end`` is supplied. ``end`` is
 # inclusive, so a forward offset of 14 returns 15 calendar days
-# ([today, today+14]). Frontend pills mirror this offset semantic
-# (1wk = +6, 2wk = +13, 4wk = +27 if exact 7/14/28-day inclusive
-# windows are needed; current frontend uses +N which yields N+1 days
-# inclusive — accepted for the eyebrow's "≈ N weeks" framing).
+# ([today, today+14]) for backward compatibility. Named frontend windows
+# send both bounds explicitly and use +6/+13/+27 for exact 7/14/28-day
+# inclusive ranges.
 _DEFAULT_FORWARD_DAYS = 14
 
 
@@ -178,7 +181,7 @@ def _compute_ai_sync_state(
 
 
 def _resolve_sync_target(ctx: RequestContext) -> str | None:
-    """Name of the platform AI plan rows get pushed to.
+    """Name of the platform Praxys plan rows get pushed to.
 
     Today only Stryd is wired up as a write target; surfacing it as a
     derived field (rather than free-form preference) lets the UI decide
@@ -431,11 +434,16 @@ def _row_to_workout(row, *, source: str) -> dict:
 
 class PushStrydRequest(BaseModel):
     workout_dates: list[str]
+    canonical_ids: list[str] | None = None
 
 
 class ResolvePlanReconciliationRequest(BaseModel):
     reconciliation_id: str
     action: Literal["restore_praxys", "accept_target"]
+
+
+class CleanupPlanDeliveriesRequest(BaseModel):
+    scope: Literal["future"]
 
 
 def _resolve_stryd_delivery_cp(data: dict) -> float | None:
@@ -533,6 +541,7 @@ def push_plan_to_stryd(
 
     db.rollback()
     results = []
+    requested_canonical_ids = set(request.canonical_ids or [])
 
     def _write_legacy_compat(
         workout_date: str,
@@ -592,11 +601,30 @@ def push_plan_to_stryd(
             matching = current_plan[
                 current_plan["date"].astype(str) == workout_date
             ]
+            if requested_canonical_ids:
+                if "canonical_id" not in matching.columns:
+                    results.append({
+                        "date": workout_date,
+                        "status": "error",
+                        "error": "Canonical workout identity is unavailable",
+                    })
+                    db.rollback()
+                    continue
+                matching = matching[
+                    matching["canonical_id"]
+                    .fillna("")
+                    .astype(str)
+                    .isin(requested_canonical_ids)
+                ]
             if matching.empty:
                 results.append({
                     "date": workout_date,
                     "status": "error",
-                    "error": "No workout found for this date",
+                    "error": (
+                        "No requested workout found for this date"
+                        if requested_canonical_ids
+                        else "No workout found for this date"
+                    ),
                 })
                 db.rollback()
                 continue
@@ -616,7 +644,10 @@ def push_plan_to_stryd(
                 if column in matching.columns
             ]
             matching = matching.sort_values(sort_columns)
-            multiple = len(matching.index) > 1
+            include_identity = (
+                len(matching.index) > 1
+                or bool(requested_canonical_ids)
+            )
             for _, row in matching.iterrows():
                 workout_type = str(row.get("workout_type", ""))
                 identity = (
@@ -624,7 +655,7 @@ def push_plan_to_stryd(
                         "canonical_id": str(row.get("canonical_id") or ""),
                         "workout_type": workout_type,
                     }
-                    if multiple
+                    if include_identity
                     else {}
                 )
                 if is_rest_workout(workout_type):
@@ -821,6 +852,56 @@ def resolve_plan_reconciliation(
         "canonical_id": result.canonical_id,
         "external_id": result.external_id,
     }
+
+
+@router.post("/plan/deliveries/cleanup")
+def cleanup_plan_deliveries(
+    request: CleanupPlanDeliveriesRequest,
+    current_user_id: str = Depends(require_write_access),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Remove future target workouts that belong to the caller's ledger."""
+    del request
+    db.rollback()
+    try:
+        result = cleanup_future_plan_deliveries(
+            db,
+            user_id=current_user_id,
+        )
+    except PlanCleanupRequiresExternalMode as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    if result.target == "stryd":
+        for item in result.items:
+            if (
+                item.status not in {"removed", "already_absent"}
+                or not item.external_id
+            ):
+                continue
+            try:
+                remove_legacy_stryd_status(
+                    db,
+                    status_dir=_STRYD_PUSH_STATUS_DIR,
+                    user_id=current_user_id,
+                    external_id=item.external_id,
+                )
+            except (
+                OSError,
+                ValueError,
+                LookupError,
+                json.JSONDecodeError,
+                SQLAlchemyError,
+            ):
+                db.rollback()
+                logger.exception(
+                    "Plan cleanup persisted but legacy status removal failed "
+                    "user=%s workout=%s",
+                    current_user_id,
+                    item.external_id,
+                )
+
+    return result.to_dict()
 
 
 @router.delete("/plan/stryd-workout/{workout_id}")

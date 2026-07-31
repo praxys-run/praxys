@@ -6,8 +6,8 @@ import { API_BASE, getAuthHeaders } from '../hooks/useApi';
 interface SettingsContextValue {
   config: SettingsConfig | null;
   display: DisplayConfig | null;
-  platformCapabilities: Record<string, Record<string, boolean>>;
-  availableProviders: Record<string, string[]>;
+  platformCapabilities: SettingsResponse['platform_capabilities'];
+  availableProviders: SettingsResponse['available_providers'];
   availableBases: TrainingBase[];
   effectiveThresholds: Record<string, ThresholdValue>;
   detectedThresholds: Record<string, DetectedThreshold>;
@@ -45,8 +45,12 @@ const SettingsContext = createContext<SettingsContextValue>({
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<SettingsConfig | null>(null);
   const [display, setDisplay] = useState<DisplayConfig>(DEFAULT_DISPLAY);
-  const [platformCapabilities, setPlatformCapabilities] = useState<Record<string, Record<string, boolean>>>({});
-  const [availableProviders, setAvailableProviders] = useState<Record<string, string[]>>({});
+  const [platformCapabilities, setPlatformCapabilities] = useState<
+    SettingsResponse['platform_capabilities']
+  >({});
+  const [availableProviders, setAvailableProviders] = useState<
+    SettingsResponse['available_providers']
+  >({});
   const [availableBases, setAvailableBases] = useState<TrainingBase[]>(['power', 'hr', 'pace']);
   const [effectiveThresholds, setEffectiveThresholds] = useState<Record<string, ThresholdValue>>({});
   const [detectedThresholds, setDetectedThresholds] = useState<Record<string, DetectedThreshold>>({});
@@ -77,6 +81,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setAvailableBases(data.available_bases);
         setEffectiveThresholds(data.effective_thresholds ?? {});
         setDetectedThresholds(data.detected_thresholds ?? {});
+        setError(null);
         setLoading(false);
       })
       .catch((err) => {

@@ -262,6 +262,137 @@ def test_leaving_managed_mode_pauses_without_cleanup_hook(
     assert calls == []
 
 
+def test_disconnecting_target_preserves_managed_plan_intent(api_client):
+    client, user_id = api_client
+    _seed_connection(user_id, "stryd")
+    adopted = client.put("/api/settings", json={
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "stryd",
+            "delivery_enabled": True,
+        },
+    })
+    assert adopted.status_code == 200, adopted.text
+
+    disconnected = client.delete("/api/settings/connections/stryd")
+    assert disconnected.status_code == 200, disconnected.text
+
+    settings = client.get("/api/settings")
+    assert settings.status_code == 200, settings.text
+    assert settings.json()["config"]["plan_management"] == {
+        "mode": "praxys",
+        "execution_target": "stryd",
+        "delivery_enabled": True,
+        "adjustment_policy": "suggest_only",
+    }
+    assert "stryd" not in settings.json()["config"]["connections"]
+
+
+def test_cleanup_endpoint_rejects_before_leaving_managed_mode(api_client):
+    client, user_id = api_client
+    _seed_connection(user_id, "stryd")
+    adopted = client.put("/api/settings", json={
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "stryd",
+            "delivery_enabled": False,
+        },
+    })
+    assert adopted.status_code == 200, adopted.text
+
+    cleanup = client.post(
+        "/api/plan/deliveries/cleanup",
+        json={"scope": "future"},
+    )
+
+    assert cleanup.status_code == 409, cleanup.text
+    assert "Leave managed mode" in cleanup.json()["detail"]
+
+
+def test_cleanup_endpoint_removes_future_delivery_after_leave(
+    api_client,
+    monkeypatch,
+):
+    from datetime import date, timedelta
+    from uuid import uuid4
+
+    from api.plan_delivery.base import ProviderRemoveResult
+    from db import session as db_session
+    from db.models import PlanDelivery
+
+    client, user_id = api_client
+    _seed_connection(user_id, "stryd")
+    configured = client.put("/api/settings", json={
+        "plan_management": {
+            "mode": "external",
+            "execution_target": "stryd",
+            "delivery_enabled": False,
+        },
+    })
+    assert configured.status_code == 200, configured.text
+
+    canonical_id = str(uuid4())
+    db = db_session.SessionLocal()
+    try:
+        delivery = PlanDelivery(
+            user_id=user_id,
+            canonical_key=f"ai:{canonical_id}",
+            canonical_id=canonical_id,
+            workout_date=date.today() + timedelta(days=1),
+            workout_version="cleanup-endpoint-version",
+            plan_version="cleanup-endpoint-plan-version",
+            provider_content_version="cleanup-endpoint-content-version",
+            target="stryd",
+            state="synced",
+            external_id="cleanup-endpoint-workout",
+            provider_account_id="cleanup-endpoint-account",
+        )
+        db.add(delivery)
+        db.commit()
+        delivery_id = delivery.id
+    finally:
+        db.close()
+
+    class CleanupAdapter:
+        target = "stryd"
+        display_name = "Cleanup adapter"
+
+        def __init__(self):
+            self.deleted: list[str] = []
+
+        @property
+        def account_id(self) -> str:
+            return "cleanup-endpoint-account"
+
+        def authenticate(self) -> None:
+            return None
+
+        def delete_workout(self, external_id: str) -> ProviderRemoveResult:
+            self.deleted.append(external_id)
+            return ProviderRemoveResult()
+
+    adapter = CleanupAdapter()
+    monkeypatch.setattr(
+        "api.plan_cleanup.load_plan_delivery_adapter",
+        lambda db, *, user_id, target: adapter,
+    )
+
+    cleanup = client.post(
+        "/api/plan/deliveries/cleanup",
+        json={"scope": "future"},
+    )
+
+    assert cleanup.status_code == 200, cleanup.text
+    assert cleanup.json()["status"] == "complete"
+    assert cleanup.json()["removed_count"] == 1
+    assert adapter.deleted == ["cleanup-endpoint-workout"]
+    db = db_session.SessionLocal()
+    try:
+        assert db.get(PlanDelivery, delivery_id).state == "removed"
+    finally:
+        db.close()
+
+
 @pytest.mark.parametrize(
     "plan_management",
     [

@@ -794,11 +794,16 @@ ID without creating a duplicate.
 Unowned Stryd workouts never block a create and are never deleted or replaced.
 If a requested date contains multiple Praxys workouts, each durable canonical
 workout is delivered independently and response entries include
-`canonical_id` and `workout_type`.
+`canonical_id` and `workout_type`. Clients performing a row-level action can
+also send `canonical_ids`; the endpoint then delivers only matching workouts
+on the requested dates. Omitting it preserves the date-level behavior.
 
 **Request body:**
 ```json
-{ "workout_dates": ["2026-04-11", "2026-04-12"] }
+{
+  "workout_dates": ["2026-04-11"],
+  "canonical_ids": ["4ac3254f-23cf-4f1f-a609-927f37d5e763"]
+}
 ```
 
 **Response:**
@@ -807,6 +812,8 @@ workout is delivered independently and response entries include
   "results": [
     {
       "date": "2026-04-11",
+      "canonical_id": "4ac3254f-23cf-4f1f-a609-927f37d5e763",
+      "workout_type": "threshold",
       "status": "success",
       "workout_id": "stryd_123"
     }
@@ -862,6 +869,44 @@ and never return a success-shaped fallback. Migrated rows that predate stored
 provider-account identity are verified against the live current-account
 calendar before their first removal; a missing/moved ID requires reconciliation
 instead of treating a cross-account `404` as success.
+
+### POST /api/plan/deliveries/cleanup
+
+Explicitly remove future workouts recorded in the caller's provider-neutral
+delivery ledger. The caller must switch to external mode first; requests while
+Praxys still owns the plan return `409`. This ordering disables new writes
+before any provider cleanup starts, so an interrupted cleanup fails safe.
+
+**Request body:**
+```json
+{ "scope": "future" }
+```
+
+**Response:**
+```json
+{
+  "status": "complete|partial",
+  "target": "stryd",
+  "window": { "start": "2026-04-11", "end": null },
+  "removed_count": 3,
+  "remaining_count": 1,
+  "items": [
+    {
+      "canonical_id": "f0219570-4bda-49df-86a7-1b73ad80af6c",
+      "workout_date": "2026-04-12",
+      "external_id": "stryd_124",
+      "status": "removed|already_absent|blocked|failed",
+      "reason": null
+    }
+  ]
+}
+```
+
+Only ledger-owned, successfully delivered future workouts are removal
+candidates. Manual workouts and workouts owned by another planner have no
+Praxys delivery row and remain untouched. Busy, conflicted, account-mismatched,
+or failed deliveries remain visible as `blocked`/`failed`; the response is
+`partial` and can be retried while external mode remains active.
 
 ### POST /api/plan/upload
 
@@ -991,7 +1036,8 @@ committed plan mutations and on scheduler ticks. Repeated runs are idempotent;
 target edits/deletions and uncertain provider outcomes block only the affected
 workout. Setting `delivery_enabled=false` pauses new writes and retries
 immediately. Switching to `external` also pauses delivery but keeps workouts
-already delivered to the target. `suggest_only` is the only adjustment policy.
+already delivered to the target unless the user separately confirms
+`POST /api/plan/deliveries/cleanup`. `suggest_only` is the only adjustment policy.
 Legacy `preferences.plan` remains supported as the external-mode analytical
 source selector and may seed the execution target, but it never activates
 managed mode or delivery.
