@@ -12,7 +12,24 @@ import type { ThemePref } from '../../utils/theme';
 import type { IAppOption } from '../../app';
 import { getLanguagePreference, setLanguagePreference } from '../../utils/share';
 import { t, tFmt } from '../../utils/i18n';
-import type { SettingsResponse } from '../../types/api';
+import {
+  beginManagedPlanRequest,
+  formatWorkoutType,
+  invalidateManagedPlanRequests,
+  isPraxysOwned,
+  isLatestManagedPlanRequest,
+  managedPlanState,
+  managedPlanWindow,
+  planWindowUrl,
+} from '../../utils/managed-plan';
+import type {
+  PlanCleanupResponse,
+  PlanResponse,
+  PlatformName,
+  SettingsResponse,
+  SettingsUpdate,
+} from '../../types/api';
+import type { ManagedPlanState } from '../../utils/managed-plan';
 import { MINIAPP_BUILD_VERSION } from '../../utils/version';
 
 function buildSettingsTr() {
@@ -83,6 +100,82 @@ function buildSettingsTr() {
     trainingBasePower: t('Power'),
     trainingBaseHr: t('Heart rate'),
     trainingBasePace: t('Pace'),
+    planManagement: t('Plan management'),
+    active: t('Active'),
+    paused: t('Paused'),
+    external: t('External'),
+    activePlanner: t('Praxys is your active planner.'),
+    pausedPlanner: t('Praxys owns the plan; delivery is paused.'),
+    externalPlanner: t('Your external planner remains in control.'),
+    activePlannerDetail: t(
+      'Praxys automatically keeps its workouts in the next 14 days aligned with {targetLabel}.',
+    ),
+    pausedPlannerDetail: t(
+      'The canonical Praxys plan is preserved. Existing target workouts stay in place until you resume or leave.',
+    ),
+    externalPlannerDetail: t(
+      'Praxys can analyze this schedule, but it will not create, replace, or remove target workouts.',
+    ),
+    ownershipBoundary: t(
+      'Praxys only changes workouts it created or you explicitly adopt. Manual workouts and workouts from another coach stay untouched. To avoid overlapping sessions, use one planner at a time.',
+    ),
+    managedWindow: t('14-day managed window'),
+    noPraxysWorkouts: t(
+      'No Praxys workouts are scheduled in this window. Future Praxys-created workouts will enter the rolling window automatically.',
+    ),
+    previewFailed: t('Could not load the managed-window preview.'),
+    executionTarget: t('Execution target'),
+    connectTarget: t('Connect a supported platform first'),
+    targetSelectionHint: t(
+      'Selecting a target does not enable delivery. You will confirm the managed window next.',
+    ),
+    connectTargetHint: t(
+      'Connect a supported execution platform above before adopting managed delivery.',
+    ),
+    reviewAndActivate: t('Review and activate'),
+    reviewAndResume: t('Review and resume'),
+    pauseDelivery: t('Pause delivery'),
+    leaveManagedMode: t('Leave managed mode'),
+    removeFutureDeliveries: t('Remove future Praxys deliveries'),
+    retryCleanup: t('Retry cleanup'),
+    cleanupIncomplete: t('Managed mode is off, but cleanup did not finish.'),
+    removed: t('Removed'),
+    remaining: t('Remaining'),
+    retryPreview: t('Retry'),
+    enabling: t('Enabling…'),
+    pausing: t('Pausing…'),
+    leaving: t('Leaving…'),
+    removing: t('Removing…'),
+    confirm: t('Confirm'),
+    cancel: t('Cancel'),
+    adoptTitle: t('Let Praxys manage this plan?'),
+    resumeTitle: t('Resume managed delivery?'),
+    confirmBoundary: t('Confirm the boundary before Praxys writes to {targetLabel}.'),
+    canonicalBoundary: t(
+      'Praxys becomes canonical for its own and explicitly adopted workouts.',
+    ),
+    manualBoundary: t(
+      'Manual and other-coach workouts remain external and will not be edited or deleted.',
+    ),
+    plannerWarning: t(
+      'Disable delivery from any other planner first. Two planners can create overlapping sessions.',
+    ),
+    stalePreview: t(
+      'The managed window changed. Review the refreshed preview before enabling delivery.',
+    ),
+    enableFailed: t('Could not enable managed delivery'),
+    pauseFailed: t('Could not pause delivery'),
+    leaveTitle: t('Leave managed mode?'),
+    keepFuture: t('Keep future workouts'),
+    keepFutureDetail: t(
+      'Recommended. Delivered workouts stay on the calendar; Praxys simply stops managing them.',
+    ),
+    removeFutureDetail: t(
+      "Only workouts recorded in Praxys's delivery ledger are removed. Manual and other-coach workouts stay untouched.",
+    ),
+    leaveFailed: t('Could not leave managed mode'),
+    cleanupFailed: t('Could not remove future delivered workouts'),
+    done: t('Done'),
   };
 }
 
@@ -190,6 +283,18 @@ interface ThresholdRow {
   origin: string;
 }
 
+interface PlanPreviewRow {
+  key: string;
+  date: string;
+  workoutType: string;
+  details: string;
+}
+
+interface PlanTargetOption {
+  key: PlatformName;
+  label: string;
+}
+
 interface ThemeOption {
   key: ThemePref;
   label: string;
@@ -224,6 +329,31 @@ interface SettingsState {
   trainingBase: 'power' | 'hr' | 'pace';
   /** Human-readable label for the active training base, e.g. "Power". */
   trainingBaseLabel: string;
+
+  planManagementState: ManagedPlanState;
+  planStateLabel: string;
+  planStateTitle: string;
+  planStateDetail: string;
+  planTargetOptions: PlanTargetOption[];
+  configuredPlanTarget: PlatformName | '';
+  configuredPlanTargetLabel: string;
+  selectedPlanTarget: PlatformName | '';
+  selectedPlanTargetLabel: string;
+  configuredPlanTargetConnected: boolean;
+  planLoading: boolean;
+  planPreviewError: string;
+  hasPlanPreview: boolean;
+  planWindowLabel: string;
+  planPraxysCount: number;
+  planExternalCount: number;
+  planPreviewRows: PlanPreviewRow[];
+  planPreviewMoreCount: number;
+  planAction: string;
+  planActionError: string;
+  planCleanupPartial: boolean;
+  planCleanupRemoved: number;
+  planCleanupRemaining: number;
+  planCleanupTarget: string;
 
   webUrl: string;
 
@@ -276,6 +406,53 @@ function trainingBaseLabelFor(base: string): string {
   return t('Pace');
 }
 
+function planStateCopy(
+  state: ManagedPlanState,
+  targetLabel: string,
+): { label: string; title: string; detail: string } {
+  const tr = buildSettingsTr();
+  if (state === 'active') {
+    return {
+      label: tr.active,
+      title: tr.activePlanner,
+      detail: tr.activePlannerDetail.replace('{targetLabel}', targetLabel),
+    };
+  }
+  if (state === 'paused') {
+    return {
+      label: tr.paused,
+      title: tr.pausedPlanner,
+      detail: tr.pausedPlannerDetail,
+    };
+  }
+  return {
+    label: tr.external,
+    title: tr.externalPlanner,
+    detail: tr.externalPlannerDetail,
+  };
+}
+
+function formatPlanDate(value: string): string {
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(
+    getApp<IAppOption>().globalData.locale === 'zh' ? 'zh-CN' : 'en-US',
+    { month: 'short', day: 'numeric' },
+  );
+}
+
+function planTargetOptions(response: SettingsResponse): PlanTargetOption[] {
+  return response.config.connections
+    .filter((target) => (
+      response.connection_statuses[target] === 'connected'
+      && response.platform_capabilities[target]?.plan === true
+    ))
+    .map((target) => ({
+      key: target,
+      label: formatPlatform(target),
+    }));
+}
+
 const initialData: SettingsState = {
   themeClass: getApp<IAppOption>().globalData.themeClass,
   loading: true,
@@ -292,6 +469,30 @@ const initialData: SettingsState = {
   thresholdRows: [],
   trainingBase: 'pace',
   trainingBaseLabel: t('Pace'),
+  planManagementState: 'external',
+  planStateLabel: t('External'),
+  planStateTitle: '',
+  planStateDetail: '',
+  planTargetOptions: [],
+  configuredPlanTarget: '',
+  configuredPlanTargetLabel: t('Connect a supported platform first'),
+  selectedPlanTarget: '',
+  selectedPlanTargetLabel: t('Connect a supported platform first'),
+  configuredPlanTargetConnected: false,
+  planLoading: true,
+  planPreviewError: '',
+  hasPlanPreview: false,
+  planWindowLabel: '',
+  planPraxysCount: 0,
+  planExternalCount: 0,
+  planPreviewRows: [],
+  planPreviewMoreCount: 0,
+  planAction: '',
+  planActionError: '',
+  planCleanupPartial: false,
+  planCleanupRemoved: 0,
+  planCleanupRemaining: 0,
+  planCleanupTarget: '',
   webUrl: WEB_URL,
   syncing: false,
   syncMessage: '',
@@ -397,6 +598,21 @@ function buildSettingsState(response: SettingsResponse): Partial<SettingsState> 
   const hasThresholds = thresholdRows.some((r) => r.display !== '—');
 
   const trainingBase = (config.training_base as 'power' | 'hr' | 'pace') ?? 'pace';
+  const targets = planTargetOptions(response);
+  const configuredTarget = config.plan_management.execution_target;
+  const configuredTargetConnected = configuredTarget != null
+    && targets.some((target) => target.key === configuredTarget);
+  const selectedTarget = configuredTargetConnected
+    ? configuredTarget
+    : targets[0]?.key ?? '';
+  const selectedTargetLabel = selectedTarget
+    ? formatPlatform(selectedTarget)
+    : t('Connect a supported platform first');
+  const managementState = managedPlanState(config.plan_management);
+  const stateCopy = planStateCopy(
+    managementState,
+    configuredTarget ? formatPlatform(configuredTarget) : selectedTargetLabel,
+  );
   return {
     loading: false,
     errorMessage: '',
@@ -408,6 +624,52 @@ function buildSettingsState(response: SettingsResponse): Partial<SettingsState> 
     thresholdRows,
     trainingBase,
     trainingBaseLabel: trainingBaseLabelFor(trainingBase),
+    planManagementState: managementState,
+    planStateLabel: stateCopy.label,
+    planStateTitle: stateCopy.title,
+    planStateDetail: stateCopy.detail,
+    planTargetOptions: targets,
+    configuredPlanTarget: configuredTarget ?? '',
+    configuredPlanTargetLabel: configuredTarget
+      ? formatPlatform(configuredTarget)
+      : t('Connect a supported platform first'),
+    selectedPlanTarget: selectedTarget,
+    selectedPlanTargetLabel: selectedTargetLabel,
+    configuredPlanTargetConnected: configuredTargetConnected,
+  };
+}
+
+function buildPlanPreviewState(response: PlanResponse): Partial<SettingsState> {
+  const praxysWorkouts = response.workouts.filter(isPraxysOwned);
+  const externalWorkouts = response.workouts.filter(
+    (workout) => !isPraxysOwned(workout),
+  );
+  const previewRows: PlanPreviewRow[] = praxysWorkouts.slice(0, 4).map((workout) => {
+    const details: string[] = [];
+    if (workout.duration_min != null) {
+      details.push(`${Math.round(workout.duration_min)} min`);
+    }
+    if (workout.distance_km != null) {
+      details.push(`${workout.distance_km} km`);
+    }
+    return {
+      key: workout.canonical_id
+        ?? workout.reconciliation?.id
+        ?? `${workout.date}-${workout.workout_type}`,
+      date: formatPlanDate(workout.date),
+      workoutType: t(formatWorkoutType(workout.workout_type)),
+      details: details.join(' · '),
+    };
+  });
+  return {
+    planLoading: false,
+    planPreviewError: '',
+    hasPlanPreview: true,
+    planWindowLabel: `${formatPlanDate(response.window.start)} – ${formatPlanDate(response.window.end)}`,
+    planPraxysCount: praxysWorkouts.length,
+    planExternalCount: externalWorkouts.length,
+    planPreviewRows: previewRows,
+    planPreviewMoreCount: Math.max(praxysWorkouts.length - previewRows.length, 0),
   };
 }
 
@@ -432,6 +694,15 @@ Page({
   onShow() {
     applyThemeChrome();
     setTabBarSelected(this, 4);
+    const pageState = this as unknown as Record<string, unknown>;
+    if (pageState._hasShownOnce === true) {
+      void this.refetch();
+    }
+    pageState._hasShownOnce = true;
+  },
+
+  onUnload() {
+    invalidateManagedPlanRequests(this);
   },
 
   onRetry() {
@@ -439,18 +710,319 @@ Page({
   },
 
   async refetch() {
-    this.setData({ loading: true, errorMessage: '' });
+    const requestGeneration = beginManagedPlanRequest(this);
+    this.setData(this.data.hasResponse
+      ? { errorMessage: '', planLoading: true }
+      : { loading: true, errorMessage: '', planLoading: true });
     try {
       const response = await apiGet<SettingsResponse>('/api/settings');
+      if (!isLatestManagedPlanRequest(this, requestGeneration)) return;
       this.setData(buildSettingsState(response) as Record<string, unknown>);
+      await this.refetchPlan(requestGeneration);
     } catch (e) {
+      if (!isLatestManagedPlanRequest(this, requestGeneration)) return;
       const err = e as Partial<ApiError>;
       if (err?.code === 'UNAUTHENTICATED') {
-        this.setData({ loading: false });
+        this.setData({ loading: false, planLoading: false });
         return;
       }
       const detail = err?.detail ?? String(e);
-      this.setData({ loading: false, errorMessage: detail, hasResponse: false });
+      this.setData({
+        loading: false,
+        planLoading: false,
+        errorMessage: detail,
+        hasResponse: false,
+      });
+    }
+  },
+
+  async refetchPlan(existingGeneration?: number) {
+    const requestGeneration = existingGeneration
+      ?? beginManagedPlanRequest(this);
+    const pageState = this as unknown as Record<string, unknown>;
+    this.setData({ planLoading: true, planPreviewError: '' });
+    try {
+      const response = await apiGet<PlanResponse>(planWindowUrl());
+      if (!isLatestManagedPlanRequest(this, requestGeneration)) return;
+      pageState._managedPlanPreview = response;
+      this.setData(buildPlanPreviewState(response) as Record<string, unknown>);
+    } catch (e) {
+      if (!isLatestManagedPlanRequest(this, requestGeneration)) return;
+      const err = e as Partial<ApiError>;
+      if (err?.code === 'UNAUTHENTICATED') {
+        this.setData({ planLoading: false });
+        return;
+      }
+      pageState._managedPlanPreview = undefined;
+      this.setData({
+        planLoading: false,
+        planPreviewError: err?.detail ?? String(e),
+        hasPlanPreview: false,
+      });
+    }
+  },
+
+  onPickPlanTarget() {
+    if (
+      this.data.planManagementState !== 'external'
+      || this.data.planAction
+      || this.data.planLoading
+      || this.data.planTargetOptions.length === 0
+    ) {
+      return;
+    }
+    wx.showActionSheet({
+      itemList: this.data.planTargetOptions.map((target) => target.label),
+      success: (result) => {
+        const target = this.data.planTargetOptions[result.tapIndex];
+        if (!target) return;
+        this.setData({
+          selectedPlanTarget: target.key,
+          selectedPlanTargetLabel: target.label,
+          planActionError: '',
+        });
+      },
+    });
+  },
+
+  onReviewManagedPlan() {
+    if (this.data.planAction || this.data.planLoading) return;
+    const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+    if (this.data.planCleanupPartial) {
+      this.setData({ planActionError: tr.cleanupIncomplete });
+      return;
+    }
+    const mode = this.data.planManagementState === 'paused' ? 'resume' : 'adopt';
+    const target = mode === 'resume'
+      ? this.data.configuredPlanTarget
+      : this.data.selectedPlanTarget;
+    if (
+      !target
+      || (mode === 'resume' && !this.data.configuredPlanTargetConnected)
+    ) {
+      wx.showToast({ title: tr.connectTarget, icon: 'none', duration: 1800 });
+      return;
+    }
+
+    const pageState = this as unknown as Record<string, unknown>;
+    const preview = pageState._managedPlanPreview as PlanResponse | undefined;
+    const expectedWindow = managedPlanWindow();
+    if (
+      preview == null
+      || preview.window.start !== expectedWindow.start
+      || preview.window.end !== expectedWindow.end
+    ) {
+      this.setData({ planActionError: tr.stalePreview });
+      void this.refetchPlan();
+      return;
+    }
+
+    const targetLabel = formatPlatform(target);
+    const content = [
+      tr.confirmBoundary.replace('{targetLabel}', targetLabel),
+      tr.canonicalBoundary,
+      `${tr.managedWindow}: ${this.data.planWindowLabel}`,
+      tFmt(
+        '{0} Praxys · {1} external',
+        this.data.planPraxysCount,
+        this.data.planExternalCount,
+      ),
+      tr.manualBoundary,
+      tr.plannerWarning,
+    ].join('\n\n');
+    wx.showModal({
+      title: mode === 'resume' ? tr.resumeTitle : tr.adoptTitle,
+      content,
+      confirmText: tr.confirm,
+      cancelText: tr.cancel,
+      success: (result) => {
+        if (result.confirm) {
+          void this.enableManagedPlan(mode, target, expectedWindow.start);
+        }
+      },
+    });
+  },
+
+  async enableManagedPlan(
+    mode: 'adopt' | 'resume',
+    target: PlatformName,
+    previewStart: string,
+  ) {
+    if (
+      this.data.planAction
+      || this.data.planLoading
+      || this.data.planCleanupPartial
+    ) {
+      return;
+    }
+    const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+    this.setData({ planAction: mode, planActionError: '' });
+    const update: SettingsUpdate = {
+      managed_plan_preview_start: previewStart,
+      plan_management: {
+        mode: 'praxys',
+        execution_target: target,
+        delivery_enabled: true,
+        adjustment_policy: 'suggest_only',
+      },
+    };
+    try {
+      await apiPut('/api/settings', update);
+      await this.refetch();
+    } catch (e) {
+      const err = e as Partial<ApiError>;
+      if (err?.code === 'UNAUTHENTICATED') return;
+      this.setData({
+        planActionError: err?.detail ?? tr.enableFailed,
+      });
+    } finally {
+      this.setData({ planAction: '' });
+    }
+  },
+
+  async onPauseManagedPlan() {
+    if (this.data.planAction || this.data.planLoading) return;
+    const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+    this.setData({ planAction: 'pause', planActionError: '' });
+    try {
+      await apiPut('/api/settings', {
+        plan_management: { delivery_enabled: false },
+      } satisfies SettingsUpdate);
+      await this.refetch();
+    } catch (e) {
+      const err = e as Partial<ApiError>;
+      if (err?.code === 'UNAUTHENTICATED') return;
+      this.setData({ planActionError: err?.detail ?? tr.pauseFailed });
+    } finally {
+      this.setData({ planAction: '' });
+    }
+  },
+
+  onLeaveManagedPlan() {
+    if (this.data.planAction || this.data.planLoading) return;
+    const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+    wx.showActionSheet({
+      itemList: [tr.keepFuture, tr.removeFutureDeliveries],
+      success: (result) => {
+        const removeFuture = result.tapIndex === 1;
+        wx.showModal({
+          title: tr.leaveTitle,
+          content: removeFuture ? tr.removeFutureDetail : tr.keepFutureDetail,
+          confirmText: tr.confirm,
+          cancelText: tr.cancel,
+          success: (confirmation) => {
+            if (confirmation.confirm) {
+              void this.runLeaveManagedPlan(removeFuture);
+            }
+          },
+        });
+      },
+    });
+  },
+
+  async runLeaveManagedPlan(removeFuture: boolean) {
+    if (this.data.planAction) return;
+    const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+    let managedModeDisabled = false;
+    let cleanupIncomplete = false;
+    this.setData({
+      planAction: 'leave',
+      planActionError: '',
+      planCleanupPartial: false,
+    });
+    try {
+      await apiPut('/api/settings', {
+        plan_management: {
+          mode: 'external',
+          delivery_enabled: false,
+        },
+      } satisfies SettingsUpdate);
+      managedModeDisabled = true;
+      if (removeFuture) {
+        this.setData({ planAction: 'cleanup' });
+        const cleanup = await this.cleanupFuturePlanDeliveries();
+        cleanupIncomplete = cleanup.status === 'partial';
+        this.setData({
+          planCleanupPartial: cleanupIncomplete,
+          planCleanupRemoved: cleanup.removed_count,
+          planCleanupRemaining: cleanup.remaining_count,
+          planCleanupTarget: cleanup.target
+            ? formatPlatform(cleanup.target)
+            : '',
+        });
+      }
+      await this.refetch();
+      if (!cleanupIncomplete) {
+        wx.showToast({ title: tr.done, icon: 'success', duration: 1400 });
+      }
+    } catch (e) {
+      const err = e as Partial<ApiError>;
+      if (err?.code === 'UNAUTHENTICATED') return;
+      if (managedModeDisabled) await this.refetch();
+      const detail = err?.detail ?? tr.leaveFailed;
+      this.setData({
+        planActionError: managedModeDisabled
+          ? `${tr.cleanupIncomplete} ${detail}`
+          : detail,
+      });
+    } finally {
+      this.setData({ planAction: '' });
+    }
+  },
+
+  cleanupFuturePlanDeliveries(): Promise<PlanCleanupResponse> {
+    return apiPost<PlanCleanupResponse>(
+      '/api/plan/deliveries/cleanup',
+      { scope: 'future' },
+    );
+  },
+
+  onRemoveFuturePlanDeliveries() {
+    if (this.data.planAction || this.data.planLoading) return;
+    const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+    wx.showModal({
+      title: tr.removeFutureDeliveries,
+      content: tr.removeFutureDetail,
+      confirmText: tr.confirm,
+      cancelText: tr.cancel,
+      success: (result) => {
+        if (result.confirm) void this.onRetryPlanCleanup();
+      },
+    });
+  },
+
+  async onRetryPlanCleanup() {
+    if (
+      this.data.planAction
+      || this.data.planLoading
+      || this.data.planManagementState !== 'external'
+    ) {
+      return;
+    }
+    const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+    this.setData({ planAction: 'cleanup', planActionError: '' });
+    try {
+      const cleanup = await this.cleanupFuturePlanDeliveries();
+      this.setData({
+        planCleanupPartial: cleanup.status === 'partial',
+        planCleanupRemoved: cleanup.removed_count,
+        planCleanupRemaining: cleanup.remaining_count,
+        planCleanupTarget: cleanup.target
+          ? formatPlatform(cleanup.target)
+          : '',
+      });
+      await this.refetchPlan();
+      if (cleanup.status === 'complete') {
+        wx.showToast({ title: tr.done, icon: 'success', duration: 1400 });
+      }
+    } catch (e) {
+      const err = e as Partial<ApiError>;
+      if (err?.code === 'UNAUTHENTICATED') return;
+      this.setData({
+        planActionError: `${tr.cleanupIncomplete} ${err?.detail ?? tr.cleanupFailed}`,
+      });
+    } finally {
+      this.setData({ planAction: '' });
     }
   },
 

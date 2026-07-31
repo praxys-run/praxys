@@ -52,6 +52,161 @@
         <text wx:else class="settings-empty ts-muted">{{tr.noPlatformsHint}}</text>
       </view>
 
+      <view class="ts-section settings-plan">
+        <view class="settings-plan-head">
+          <text class="ts-section-label settings-plan-label">{{tr.planManagement}}</text>
+          <text class="settings-plan-state settings-plan-state--{{planManagementState}}">
+            {{planStateLabel}}
+          </text>
+        </view>
+        <text class="settings-plan-title">{{planStateTitle}}</text>
+        <text class="settings-plan-detail">{{planStateDetail}}</text>
+
+        <view class="settings-plan-boundary">
+          <view class="settings-plan-boundary-mark"></view>
+          <text>{{tr.ownershipBoundary}}</text>
+        </view>
+
+        <view class="settings-plan-preview">
+          <view class="settings-plan-preview-head">
+            <view>
+              <text class="settings-plan-preview-title">{{tr.managedWindow}}</text>
+              <text wx:if="{{planWindowLabel}}" class="settings-plan-preview-window ts-value">
+                {{planWindowLabel}}
+              </text>
+            </view>
+            <view wx:if="{{hasPlanPreview}}" class="settings-plan-preview-stats">
+              <text>
+                <text class="ts-value">{{planPraxysCount}}</text> Praxys
+              </text>
+              <text wx:if="{{planExternalCount}}">
+                <text class="ts-value">{{planExternalCount}}</text> {{tr.external}}
+              </text>
+            </view>
+          </view>
+
+          <view wx:if="{{planLoading}}" class="settings-plan-preview-loading">
+            <view class="ts-skeleton settings-plan-skeleton"></view>
+            <view class="ts-skeleton settings-plan-skeleton settings-plan-skeleton--short"></view>
+          </view>
+          <view wx:elif="{{planPreviewError}}" class="settings-plan-preview-error">
+            <view>
+              <text class="settings-plan-preview-error-title">{{tr.previewFailed}}</text>
+              <text class="settings-plan-preview-error-detail">{{planPreviewError}}</text>
+            </view>
+            <button class="settings-plan-link" bindtap="refetchPlan">{{tr.retryPreview}}</button>
+          </view>
+          <block wx:elif="{{hasPlanPreview}}">
+            <view wx:if="{{planPreviewRows.length}}" class="settings-plan-preview-list">
+              <view
+                wx:for="{{planPreviewRows}}"
+                wx:key="key"
+                class="settings-plan-preview-row"
+              >
+                <text class="settings-plan-preview-date ts-value">{{item.date}}</text>
+                <view class="settings-plan-preview-copy">
+                  <text class="settings-plan-preview-workout">{{item.workoutType}}</text>
+                  <text wx:if="{{item.details}}" class="settings-plan-preview-details ts-value">{{item.details}}</text>
+                </view>
+              </view>
+              <text wx:if="{{planPreviewMoreCount}}" class="settings-plan-preview-more">
+                +{{planPreviewMoreCount}}
+              </text>
+            </view>
+            <text wx:else class="settings-plan-preview-empty">{{tr.noPraxysWorkouts}}</text>
+          </block>
+        </view>
+
+        <view
+          class="settings-pick-row settings-plan-target {{planManagementState !== 'external' || !planTargetOptions.length ? 'settings-plan-target--static' : ''}}"
+          bindtap="onPickPlanTarget"
+        >
+          <text class="settings-pick-label">{{tr.executionTarget}}</text>
+          <view class="settings-pick-right">
+            <text class="settings-pick-value ts-value">
+              {{planManagementState === 'external' ? selectedPlanTargetLabel : configuredPlanTargetLabel}}
+            </text>
+            <text
+              wx:if="{{planManagementState === 'external' && planTargetOptions.length}}"
+              class="settings-pick-chev ts-muted"
+            >›</text>
+          </view>
+        </view>
+        <text
+          wx:if="{{planManagementState === 'external'}}"
+          class="settings-plan-target-hint"
+        >
+          {{planTargetOptions.length ? tr.targetSelectionHint : tr.connectTargetHint}}
+        </text>
+        <text
+          wx:elif="{{!configuredPlanTargetConnected}}"
+          class="settings-plan-target-hint settings-plan-target-hint--warning"
+        >{{tr.connectTargetHint}}</text>
+
+        <view class="settings-plan-actions">
+          <block wx:if="{{planManagementState === 'external'}}">
+            <button
+              class="ts-button settings-plan-action"
+              disabled="{{planAction || planLoading || planCleanupPartial || !hasPlanPreview || !selectedPlanTarget}}"
+              bindtap="onReviewManagedPlan"
+            >
+              {{planAction === 'adopt' ? tr.enabling : tr.reviewAndActivate}}
+            </button>
+            <button
+              wx:if="{{!planCleanupPartial}}"
+              class="ts-button ts-button--secondary settings-plan-action"
+              disabled="{{planAction || planLoading}}"
+              bindtap="onRemoveFuturePlanDeliveries"
+            >{{tr.removeFutureDeliveries}}</button>
+          </block>
+          <block wx:elif="{{planManagementState === 'active'}}">
+            <button
+              class="ts-button ts-button--secondary settings-plan-action"
+              disabled="{{planAction || planLoading}}"
+              bindtap="onPauseManagedPlan"
+            >{{planAction === 'pause' ? tr.pausing : tr.pauseDelivery}}</button>
+            <button
+              class="ts-button ts-button--ghost settings-plan-action"
+              disabled="{{planAction || planLoading}}"
+              bindtap="onLeaveManagedPlan"
+            >{{planAction === 'leave' || planAction === 'cleanup' ? tr.leaving : tr.leaveManagedMode}}</button>
+          </block>
+          <block wx:else>
+            <button
+              class="ts-button settings-plan-action"
+              disabled="{{planAction || planLoading || planCleanupPartial || !hasPlanPreview || !configuredPlanTargetConnected}}"
+              bindtap="onReviewManagedPlan"
+            >{{planAction === 'resume' ? tr.enabling : tr.reviewAndResume}}</button>
+            <button
+              class="ts-button ts-button--ghost settings-plan-action"
+              disabled="{{planAction || planLoading}}"
+              bindtap="onLeaveManagedPlan"
+            >{{planAction === 'leave' || planAction === 'cleanup' ? tr.leaving : tr.leaveManagedMode}}</button>
+          </block>
+        </view>
+
+        <view
+          wx:if="{{planCleanupPartial && planManagementState === 'external'}}"
+          class="settings-plan-cleanup"
+          role="alert"
+        >
+          <text class="settings-plan-cleanup-title">{{tr.cleanupIncomplete}}</text>
+          <view class="settings-plan-cleanup-counts">
+            <text>{{tr.removed}} <text class="ts-value">{{planCleanupRemoved}}</text></text>
+            <text>{{tr.remaining}} <text class="ts-value">{{planCleanupRemaining}}</text></text>
+            <text wx:if="{{planCleanupTarget}}" class="ts-value">{{planCleanupTarget}}</text>
+          </view>
+          <button
+            class="ts-button ts-button--secondary settings-plan-action settings-plan-cleanup-action"
+            disabled="{{planAction || planLoading}}"
+            bindtap="onRetryPlanCleanup"
+          >{{planAction === 'cleanup' ? tr.removing : tr.retryCleanup}}</button>
+        </view>
+        <text wx:if="{{planActionError}}" class="settings-plan-error" role="alert">
+          {{planActionError}}
+        </text>
+      </view>
+
       <view class="ts-section">
         <view class="settings-pick-row" bindtap="onPickTrainingBase">
           <text class="settings-pick-label ts-muted">{{tr.trainingBase}}</text>

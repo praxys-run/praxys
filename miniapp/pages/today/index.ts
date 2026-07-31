@@ -892,6 +892,10 @@ Page({
     // We mirror Webview's onPullDownRefresh semantics: refetch and let
     // the refresher unwind once the data settles.
     this.setData({ refreshing: true });
+    const managedPlan = this.selectComponent(
+      '#today-managed-plan',
+    ) as unknown as { refresh?: () => Promise<void> } | null;
+    void managedPlan?.refresh?.();
     void this.refetch().finally(() => this.setData({ refreshing: false }));
   },
 
