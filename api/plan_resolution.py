@@ -27,7 +27,10 @@ from api.plan_delivery.service import (
     DeliveryMutationBlockedError,
     PlanDeliveryService,
 )
-from api.plan_reconciliation import PlanReconciliationItem
+from api.plan_reconciliation import (
+    PlanReconciliationItem,
+    plan_target_calendar_generation,
+)
 from db.cache_revision import bump_revisions
 from db.models import (
     PlanDelivery,
@@ -163,6 +166,84 @@ def completed_plan_resolution(
         revision_id=revision.id,
         canonical_id=canonical_id,
         external_id=attempt.external_id or delivery.external_id,
+    )
+
+
+def resumable_plan_resolution(
+    db: Session,
+    *,
+    user_id: str,
+    target: str,
+    reconciliation_id: str,
+    action: str,
+) -> bool:
+    """Return whether an exact restore has a proven interrupted removal."""
+    base_id, separator, resolution_identity = reconciliation_id.partition("@")
+    if not separator or not resolution_identity:
+        return False
+    revision = _existing_revision(
+        db,
+        user_id=user_id,
+        idempotency_key=_resolution_key(action, resolution_identity),
+    )
+    details = revision.details if revision is not None else None
+    if (
+        revision is None
+        or revision.operation != "restore_target"
+        or not isinstance(details, Mapping)
+        or details.get("target") != target
+        or details.get("reconciliation_id") != reconciliation_id
+        or not base_id.startswith("delivery:")
+    ):
+        return False
+    delivery = db.execute(
+        select(PlanDelivery).where(
+            PlanDelivery.id == base_id.removeprefix("delivery:"),
+            PlanDelivery.user_id == user_id,
+            PlanDelivery.target == target,
+        )
+    ).scalar_one_or_none()
+    if delivery is None or delivery.state not in {"removed", "failed"}:
+        return False
+    attempts = db.execute(
+        select(PlanDeliveryAttempt).where(
+            PlanDeliveryAttempt.delivery_id == delivery.id,
+            PlanDeliveryAttempt.completed_at.is_not(None),
+        )
+    ).scalars().all()
+
+    def belongs_to_restore(
+        attempt: PlanDeliveryAttempt,
+        *,
+        operation: str,
+        state: str,
+    ) -> bool:
+        response = attempt.response
+        return bool(
+            attempt.operation == operation
+            and attempt.state == state
+            and isinstance(response, Mapping)
+            and response.get("resolution") == "restore_praxys"
+            and response.get("revision_id") == revision.id
+        )
+
+    removal_completed = any(
+        belongs_to_restore(
+            attempt,
+            operation="remove",
+            state="removed",
+        )
+        for attempt in attempts
+    )
+    if not removal_completed:
+        return False
+    return delivery.state == "removed" or any(
+        belongs_to_restore(
+            attempt,
+            operation="deliver",
+            state="failed",
+        )
+        for attempt in attempts
     )
 
 
@@ -386,6 +467,15 @@ def accept_target_version(
         canonical=canonical,
         observation=observation,
         delivery=current_delivery,
+        calendar_generation=(
+            _locked_target_calendar_generation(
+                db,
+                user_id=user_id,
+                target=target,
+            )
+            if item.calendar_generation is not None
+            else None
+        ),
     ):
         raise PlanResolutionConflict(
             "Plan reconciliation changed before acceptance"
@@ -695,12 +785,153 @@ def _assert_canonical_version(
         )
 
 
+def _locked_target_calendar_generation(
+    db: Session,
+    *,
+    user_id: str,
+    target: str,
+    presence_overrides: Mapping[str, bool] | None = None,
+) -> str | None:
+    calendar_sync = db.execute(
+        select(PlanTargetCalendarSync)
+        .where(
+            PlanTargetCalendarSync.user_id == user_id,
+            PlanTargetCalendarSync.target == target,
+        )
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).scalar_one_or_none()
+    if calendar_sync is None:
+        return None
+    observations = db.execute(
+        select(PlanTargetWorkout)
+        .where(
+            PlanTargetWorkout.user_id == user_id,
+            PlanTargetWorkout.target == target,
+            PlanTargetWorkout.provider_account_id
+            == calendar_sync.provider_account_id,
+        )
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).scalars().all()
+    return plan_target_calendar_generation(
+        calendar_sync,
+        observations,
+        presence_overrides=presence_overrides,
+    )
+
+
+def _calendar_presence_overrides(
+    item: PlanReconciliationItem,
+) -> dict[str, bool] | None:
+    if item.observation is None:
+        return None
+    return {
+        item.observation.id: bool(item.calendar_observation_present),
+    }
+
+
+def _restore_provider_mutation_guard(
+    db: Session,
+    *,
+    user_id: str,
+    target: str,
+    item: PlanReconciliationItem,
+    canonical_id: str,
+    expected_plan_version: str,
+    connection_guard: Callable[[], None] | None,
+) -> tuple[Callable[[], None], Callable[[], None]]:
+    """Hold the plan-write fence while revalidating one restore mutation."""
+    expected_observation_present = {"value": item.observation_present}
+    generation_presence_overrides = _calendar_presence_overrides(item)
+
+    def guard() -> None:
+        if connection_guard is not None:
+            connection_guard()
+        lock_plan_writes(db, user_id)
+        canonical = db.execute(
+            select(TrainingPlan)
+            .where(
+                TrainingPlan.user_id == user_id,
+                TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
+                TrainingPlan.canonical_id == canonical_id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).scalar_one_or_none()
+        if (
+            canonical is None
+            or workout_version(plan_snapshot(canonical))
+            != expected_plan_version
+        ):
+            raise DeliveryMutationBlockedError(
+                "canonical_changed_during_restore"
+            )
+        observation = None
+        if item.observation is not None:
+            observation = db.execute(
+                select(PlanTargetWorkout)
+                .where(
+                    PlanTargetWorkout.id == item.observation.id,
+                    PlanTargetWorkout.user_id == user_id,
+                    PlanTargetWorkout.target == target,
+                )
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            ).scalar_one_or_none()
+        delivery = None
+        if item.delivery is not None:
+            delivery = db.execute(
+                select(PlanDelivery)
+                .where(
+                    PlanDelivery.id == item.delivery.id,
+                    PlanDelivery.user_id == user_id,
+                    PlanDelivery.target == target,
+                )
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            ).scalar_one_or_none()
+        if not item.matches_current(
+            canonical=canonical,
+            observation=observation,
+            delivery=delivery,
+            calendar_generation=(
+                _locked_target_calendar_generation(
+                    db,
+                    user_id=user_id,
+                    target=target,
+                    presence_overrides=generation_presence_overrides,
+                )
+                if item.calendar_generation is not None
+                else None
+            ),
+        ):
+            raise DeliveryMutationBlockedError(
+                "reconciliation_changed_during_restore"
+            )
+        if (
+            observation is not None
+            and bool(observation.present)
+            != expected_observation_present["value"]
+        ):
+            raise DeliveryMutationBlockedError(
+                "reconciliation_changed_during_restore"
+            )
+
+    def expect_removed_observation() -> None:
+        if item.observation is not None:
+            expected_observation_present["value"] = False
+
+    return guard, expect_removed_observation
+
+
 def _assert_resolution_generation(
     db: Session,
     *,
     user_id: str,
     target: str,
     item: PlanReconciliationItem,
+    expected_observation_present: bool | None = None,
 ) -> None:
     db.rollback()
     lock_plan_writes(db, user_id)
@@ -726,6 +957,8 @@ def _assert_resolution_generation(
             )
             .with_for_update()
         ).scalar_one_or_none()
+        if expected_observation_present is None:
+            expected_observation_present = item.observation_present
     delivery = None
     if item.delivery is not None:
         delivery = db.execute(
@@ -741,7 +974,22 @@ def _assert_resolution_generation(
         canonical=canonical,
         observation=observation,
         delivery=delivery,
+        calendar_generation=(
+            _locked_target_calendar_generation(
+                db,
+                user_id=user_id,
+                target=target,
+                presence_overrides=_calendar_presence_overrides(item),
+            )
+            if item.calendar_generation is not None
+            else None
+        ),
     )
+    if (
+        observation is not None
+        and bool(observation.present) != expected_observation_present
+    ):
+        matches = False
     db.rollback()
     if not matches:
         raise PlanResolutionConflict(
@@ -975,10 +1223,25 @@ def restore_praxys_version(
         ).scalar_one_or_none()
     if (
         current_delivery is None
+        or (
+            current_observation is not None
+            and bool(current_observation.present)
+            != item.observation_present
+        )
         or not item.matches_current(
             canonical=canonical,
             observation=current_observation,
             delivery=current_delivery,
+            calendar_generation=(
+                _locked_target_calendar_generation(
+                    db,
+                    user_id=user_id,
+                    target=target,
+                    presence_overrides=_calendar_presence_overrides(item),
+                )
+                if item.calendar_generation is not None
+                else None
+            ),
         )
     ):
         raise PlanResolutionConflict(
@@ -998,6 +1261,18 @@ def restore_praxys_version(
         ),
         origin=origin,
         trigger=trigger,
+    )
+    (
+        provider_mutation_guard,
+        expect_removed_observation,
+    ) = _restore_provider_mutation_guard(
+        db,
+        user_id=user_id,
+        target=target,
+        item=item,
+        canonical_id=canonical_id,
+        expected_plan_version=expected_plan_version,
+        connection_guard=mutation_guard,
     )
 
     try:
@@ -1082,7 +1357,16 @@ def restore_praxys_version(
         target=target,
         adapter_loader=lambda: adapter,
     )
-    if item.delivery.external_id and item.delivery.state != "removed":
+    removed_owned_observation = False
+    owned_observation_already_removed = (
+        item.calendar_observation_present is True
+        and item.observation_present is False
+    )
+    if (
+        item.delivery.external_id
+        and item.delivery.state != "removed"
+        and not owned_observation_already_removed
+    ):
         _assert_resolution_generation(
             db,
             user_id=user_id,
@@ -1096,13 +1380,18 @@ def restore_praxys_version(
                 "resolution": "restore_praxys",
                 "revision_id": revision.id,
             },
-            mutation_guard=mutation_guard,
+            mutation_guard=provider_mutation_guard,
         )
+        expect_removed_observation()
+        removed_owned_observation = True
     _assert_resolution_generation(
         db,
         user_id=user_id,
         target=target,
         item=item,
+        expected_observation_present=(
+            False if removed_owned_observation else None
+        ),
     )
     outcome = service.deliver(
         snapshot,
@@ -1113,7 +1402,7 @@ def restore_praxys_version(
             "resolution": "restore_praxys",
             "revision_id": revision.id,
         },
-        mutation_guard=mutation_guard,
+        mutation_guard=provider_mutation_guard,
     )
     if outcome.error_category == "delivery_gate_changed":
         raise DeliveryMutationBlockedError(

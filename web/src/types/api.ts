@@ -105,6 +105,7 @@ export interface SettingsConfig {
 
 export interface SettingsUpdate extends Omit<Partial<SettingsConfig>, 'plan_management'> {
   plan_management?: Partial<PlanManagementConfig>;
+  managed_plan_preview_start?: string;
 }
 
 export interface ThresholdValue {
@@ -131,6 +132,7 @@ export interface DetectedThreshold {
 
 export interface SettingsResponse {
   config: SettingsConfig;
+  connection_statuses: Partial<Record<PlatformName, PlatformConnectionStatus>>;
   platform_capabilities: Partial<Record<PlatformName, Partial<Record<DataCategory, boolean>>>>;
   available_providers: {
     activities?: PlatformName[];
@@ -144,8 +146,15 @@ export interface SettingsResponse {
   effective_thresholds: Record<string, ThresholdValue>;
 }
 
+export type PlatformConnectionStatus =
+  | 'connected'
+  | 'error'
+  | 'auth_required'
+  | 'expired'
+  | 'disconnected';
+
 export interface PlatformConnection {
-  status: string;
+  status: PlatformConnectionStatus;
   last_sync: string | null;
   has_credentials: boolean;
   // Scheduler retry-state surfaced for UI: when status is "error", the

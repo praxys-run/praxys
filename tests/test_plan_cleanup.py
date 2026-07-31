@@ -1,7 +1,7 @@
 """Future-delivery cleanup tests for leaving managed-plan mode."""
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -9,11 +9,19 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from api.plan_cleanup import (
+    PlanCleanupAmbiguousTargets,
     PlanCleanupRequiresExternalMode,
     cleanup_future_plan_deliveries,
 )
 from api.plan_delivery.base import ProviderRemoveResult
-from db.models import Base, PlanDelivery, User, UserConfig
+from db.models import (
+    Base,
+    PlanDelivery,
+    PlanDeliveryAttempt,
+    User,
+    UserConfig,
+    UserConnection,
+)
 
 
 USER_ID = "plan-cleanup-user"
@@ -63,6 +71,11 @@ def cleanup_db(tmp_path):
             "adjustment_policy": "suggest_only",
         },
     ))
+    db.add(UserConnection(
+        user_id=USER_ID,
+        platform=TARGET,
+        status="connected",
+    ))
     db.commit()
     try:
         yield db
@@ -77,6 +90,7 @@ def _add_delivery(
     *,
     state: str = "synced",
     external_id: str | None,
+    target: str = TARGET,
 ) -> PlanDelivery:
     canonical_id = str(uuid4())
     delivery = PlanDelivery(
@@ -87,7 +101,7 @@ def _add_delivery(
         workout_version=str(uuid4()).replace("-", ""),
         plan_version=str(uuid4()).replace("-", ""),
         provider_content_version=str(uuid4()).replace("-", ""),
-        target=TARGET,
+        target=target,
         state=state,
         external_id=external_id,
         provider_account_id=ACCOUNT_ID,
@@ -189,3 +203,208 @@ def test_cleanup_without_target_is_a_noop(cleanup_db):
     assert result.status == "complete"
     assert result.target is None
     assert result.items == ()
+
+
+def test_cleanup_infers_ledger_target_when_config_target_is_cleared(
+    cleanup_db,
+):
+    db = cleanup_db
+    today = date(2026, 8, 1)
+    delivery = _add_delivery(
+        db,
+        today + timedelta(days=1),
+        external_id="owned-with-cleared-target",
+    )
+    config = db.execute(
+        select(UserConfig).where(UserConfig.user_id == USER_ID)
+    ).scalar_one()
+    config.plan_management = {
+        "mode": "external",
+        "execution_target": None,
+        "delivery_enabled": False,
+        "adjustment_policy": "suggest_only",
+    }
+    db.commit()
+    adapter = FakeCleanupAdapter()
+
+    result = cleanup_future_plan_deliveries(
+        db,
+        user_id=USER_ID,
+        today=today,
+        adapter_loader=lambda: adapter,
+    )
+
+    assert result.status == "complete"
+    assert result.target == TARGET
+    assert result.removed_count == 1
+    assert adapter.deleted == ["owned-with-cleared-target"]
+    assert db.get(PlanDelivery, delivery.id).state == "removed"
+
+
+def test_cleanup_blocks_multiple_outstanding_targets(cleanup_db):
+    db = cleanup_db
+    today = date(2026, 8, 1)
+    _add_delivery(
+        db,
+        today + timedelta(days=1),
+        external_id="stryd-owned",
+    )
+    _add_delivery(
+        db,
+        today + timedelta(days=2),
+        external_id="garmin-owned",
+        target="garmin",
+    )
+
+    with pytest.raises(
+        PlanCleanupAmbiguousTargets,
+        match="multiple execution targets",
+    ):
+        cleanup_future_plan_deliveries(
+            db,
+            user_id=USER_ID,
+            today=today,
+            adapter_loader=lambda: FakeCleanupAdapter(),
+        )
+
+
+def test_cleanup_reports_conflict_without_external_id(cleanup_db):
+    db = cleanup_db
+    today = date(2026, 8, 1)
+    _add_delivery(
+        db,
+        today + timedelta(days=1),
+        state="conflict",
+        external_id=None,
+    )
+    adapter = FakeCleanupAdapter()
+
+    result = cleanup_future_plan_deliveries(
+        db,
+        user_id=USER_ID,
+        today=today,
+        adapter_loader=lambda: adapter,
+    )
+
+    assert result.status == "partial"
+    assert result.removed_count == 0
+    assert result.remaining_count == 1
+    assert result.items[0].status == "blocked"
+    assert result.items[0].reason == "delivery_conflict"
+    assert adapter.authenticate_calls == 0
+
+
+def test_cleanup_retries_expired_removal_lease(cleanup_db):
+    db = cleanup_db
+    today = date(2026, 8, 1)
+    delivery = _add_delivery(
+        db,
+        today + timedelta(days=1),
+        state="delivering",
+        external_id="stale-removal",
+    )
+    db.add(PlanDeliveryAttempt(
+        delivery_id=delivery.id,
+        attempt_number=1,
+        operation="remove",
+        state="delivering",
+        external_id=delivery.external_id,
+        started_at=datetime.utcnow() - timedelta(minutes=6),
+    ))
+    db.commit()
+    adapter = FakeCleanupAdapter()
+
+    result = cleanup_future_plan_deliveries(
+        db,
+        user_id=USER_ID,
+        today=today,
+        adapter_loader=lambda: adapter,
+    )
+
+    assert result.status == "complete"
+    assert result.removed_count == 1
+    assert result.remaining_count == 0
+    assert adapter.deleted == ["stale-removal"]
+    assert db.get(PlanDelivery, delivery.id).state == "removed"
+
+
+def test_cleanup_stops_when_managed_state_changes(cleanup_db):
+    db = cleanup_db
+    today = date(2026, 8, 1)
+    first = _add_delivery(
+        db,
+        today + timedelta(days=1),
+        external_id="first-owned",
+    )
+    second = _add_delivery(
+        db,
+        today + timedelta(days=2),
+        external_id="second-owned",
+    )
+
+    class StateChangingAdapter(FakeCleanupAdapter):
+        def delete_workout(
+            self,
+            external_id: str,
+        ) -> ProviderRemoveResult:
+            result = super().delete_workout(external_id)
+            if len(self.deleted) == 1:
+                config = db.execute(
+                    select(UserConfig).where(UserConfig.user_id == USER_ID)
+                ).scalar_one()
+                config.plan_management = {
+                    "mode": "praxys",
+                    "execution_target": TARGET,
+                    "delivery_enabled": True,
+                    "adjustment_policy": "suggest_only",
+                }
+                db.commit()
+            return result
+
+    adapter = StateChangingAdapter()
+    result = cleanup_future_plan_deliveries(
+        db,
+        user_id=USER_ID,
+        today=today,
+        adapter_loader=lambda: adapter,
+    )
+
+    assert result.status == "partial"
+    assert result.removed_count == 1
+    assert result.remaining_count == 1
+    assert adapter.deleted == ["first-owned"]
+    assert db.get(PlanDelivery, first.id).state == "removed"
+    assert db.get(PlanDelivery, second.id).state == "synced"
+    assert result.items[1].reason == "managed_plan_state_changed"
+
+
+def test_cleanup_blocks_degraded_connection(cleanup_db):
+    db = cleanup_db
+    today = date(2026, 8, 1)
+    delivery = _add_delivery(
+        db,
+        today + timedelta(days=1),
+        external_id="owned-but-disconnected",
+    )
+    connection = db.execute(
+        select(UserConnection).where(UserConnection.user_id == USER_ID)
+    ).scalar_one()
+    connection.status = "auth_required"
+    db.commit()
+    adapter = FakeCleanupAdapter()
+
+    result = cleanup_future_plan_deliveries(
+        db,
+        user_id=USER_ID,
+        today=today,
+        adapter_loader=lambda: adapter,
+    )
+
+    assert result.status == "partial"
+    assert result.removed_count == 0
+    assert result.remaining_count == 1
+    assert result.items[0].external_id == delivery.external_id
+    assert result.items[0].status == "failed"
+    assert result.items[0].reason == "connection_auth_required"
+    assert adapter.authenticate_calls == 0
+    assert adapter.deleted == []

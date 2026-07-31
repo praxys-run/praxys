@@ -9,7 +9,10 @@ from api.plan_delivery.base import (
     ProviderAuthenticationError,
     ProviderTransientError,
 )
-from api.plan_delivery.service import PlanDeliveryService
+from api.plan_delivery.service import (
+    DeliveryMutationBlockedError,
+    PlanDeliveryService,
+)
 from api.plan_delivery.stryd import StrydPlanDeliveryAdapter
 
 
@@ -243,6 +246,80 @@ def test_delivery_authenticates_before_starting_ledger_attempt(tmp_path):
             )
         assert db.query(PlanDelivery).count() == 0
         assert db.query(PlanDeliveryAttempt).count() == 0
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_delivery_reports_preflight_mutation_guard_change(tmp_path):
+    from api.plan_delivery.base import PreparedWorkoutDelivery
+    from db.models import Base, PlanDelivery, User
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'delivery-guard.db'}")
+    Base.metadata.create_all(engine)
+    db = sessionmaker(bind=engine)()
+    db.add(User(
+        id="guard-change-user",
+        email="guard-change@example.test",
+        hashed_password="test",
+    ))
+    db.commit()
+
+    class GuardedAdapter:
+        target = "stryd"
+        display_name = "Stryd"
+        account_id = "provider-account"
+
+        def authenticate(self) -> None:
+            return None
+
+        def prepare_workout(
+            self,
+            workout,
+            *,
+            threshold_value,
+        ) -> PreparedWorkoutDelivery:
+            return PreparedWorkoutDelivery(
+                version="a" * 64,
+                request={},
+            )
+
+        def create_workout(self, prepared):
+            raise AssertionError("create must not run")
+
+        def delete_workout(self, external_id):
+            raise AssertionError("delete must not run")
+
+        def fetch_calendar(self, **kwargs):
+            raise AssertionError("calendar must not run")
+
+    def block_mutation() -> None:
+        raise DeliveryMutationBlockedError("connection_changed")
+
+    service = PlanDeliveryService(
+        db=db,
+        user_id="guard-change-user",
+        target="stryd",
+        adapter_loader=GuardedAdapter,
+    )
+
+    try:
+        result = service.deliver(
+            {
+                "date": "2026-08-03",
+                "source": "ai",
+                "workout_type": "easy",
+            },
+            threshold_value=280.0,
+            observed_external_ids=None,
+            mutation_guard=block_mutation,
+        )
+
+        assert result.status == "error"
+        assert result.error == "connection_changed"
+        assert result.error_category == "delivery_gate_changed"
+        assert result.retryable is True
+        assert db.query(PlanDelivery).count() == 0
     finally:
         db.close()
         engine.dispose()

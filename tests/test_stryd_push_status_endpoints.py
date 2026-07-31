@@ -168,6 +168,22 @@ def _corrupt_stryd_credentials(user_id: str) -> None:
         db.close()
 
 
+def _set_stryd_connection_status(user_id: str, status: str) -> None:
+    from db import session as db_session
+    from db.models import UserConnection
+
+    db = db_session.SessionLocal()
+    try:
+        connection = db.query(UserConnection).filter_by(
+            user_id=user_id,
+            platform="stryd",
+        ).one()
+        connection.status = status
+        db.commit()
+    finally:
+        db.close()
+
+
 def _seed_synced_delivery(
     user_id: str,
     workout_date: str,
@@ -513,6 +529,84 @@ def test_unreadable_stored_stryd_credentials_require_reconnect(
         "Stored Stryd credentials are unavailable. Reconnect Stryd."
     )
     assert calls["login"] == 0
+
+
+@pytest.mark.parametrize("status", ["error", "auth_required"])
+def test_push_blocks_non_live_stryd_connection(
+    api_client,
+    monkeypatch,
+    status: str,
+):
+    user_id = f"non-live-stryd-{status}"
+    api_client["current"]["value"] = user_id
+    assert api_client["client"].get("/api/plan").status_code == 200
+    _set_stryd_connection_status(user_id, status)
+    calls = {"login": 0}
+
+    def _login(email: str, password: str) -> tuple[str, str]:
+        calls["login"] += 1
+        return "provider-user", "token"
+
+    monkeypatch.setattr("sync.stryd_sync._login_api", _login)
+    response = api_client["client"].post(
+        "/api/plan/push-stryd",
+        json={"workout_dates": ["2026-05-07"]},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        "Stryd is not actively connected. "
+        "Reconnect Stryd before changing workouts."
+    )
+    assert calls["login"] == 0
+
+
+def test_provider_mutation_guard_rechecks_canonical_version(api_client):
+    from api.plan_delivery import DeliveryMutationBlockedError
+    from api.routes.plan import _canonical_provider_mutation_guard
+    from db import session as db_session
+    from db.models import TrainingPlan
+    from db.plan_ledger import plan_snapshot
+
+    user_id = "canonical-guard-user"
+    api_client["current"]["value"] = user_id
+    assert api_client["client"].get("/api/plan").status_code == 200
+
+    db = db_session.SessionLocal()
+    try:
+        row = TrainingPlan(
+            user_id=user_id,
+            canonical_id="d2a8a631-e29e-45d7-b10a-af580fb19861",
+            date=date(2026, 5, 7),
+            source="praxys",
+            workout_type="threshold",
+            workout_description="Original version",
+        )
+        db.add(row)
+        db.commit()
+        snapshot = plan_snapshot(row)
+        guard = _canonical_provider_mutation_guard(
+            db,
+            user_id=user_id,
+            snapshot=snapshot,
+            connection_guard=None,
+        )
+
+        guard()
+        db.rollback()
+        current = db.get(TrainingPlan, row.id)
+        assert current is not None
+        current.workout_description = "Changed concurrently"
+        db.commit()
+
+        with pytest.raises(
+            DeliveryMutationBlockedError,
+            match="canonical_changed_during_delivery",
+        ):
+            guard()
+    finally:
+        db.rollback()
+        db.close()
 
 
 def test_key_vault_credential_failure_requires_reconnect(
@@ -1709,6 +1803,149 @@ def test_push_imports_legacy_status_before_external_call(api_client, monkeypatch
     assert "uncertain" in response.json()["results"][0]["error"]
     assert calls["create"] == 0
     assert _delivery_rows("legacy-before-push")[0]["state"] == "synced"
+
+
+def test_cleanup_imports_legacy_status_before_deciding_complete(
+    api_client,
+    monkeypatch,
+):
+    from api.plan_delivery.base import ProviderRemoveResult
+    from api.routes import plan as plan_mod
+
+    user_id = "legacy-before-cleanup"
+    api_client["current"]["value"] = user_id
+    configured = api_client["client"].put("/api/settings", json={
+        "plan_management": {
+            "mode": "external",
+            "execution_target": None,
+            "delivery_enabled": False,
+        },
+    })
+    assert configured.status_code == 200, configured.text
+
+    workout_date = (date.today() + timedelta(days=1)).isoformat()
+    path = plan_mod._stryd_push_status_path(user_id)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump({
+            workout_date: {
+                "workout_id": "legacy-cleanup-id",
+                "status": "pushed",
+            }
+        }, handle)
+
+    class CleanupAdapter:
+        target = "stryd"
+        display_name = "Stryd"
+        account_id = "legacy-cleanup-account"
+
+        def __init__(self) -> None:
+            self.deleted: list[str] = []
+
+        def authenticate(self) -> None:
+            return None
+
+        def fetch_calendar(self, **kwargs):
+            return [{
+                "date": workout_date,
+                "external_id": "legacy-cleanup-id",
+            }]
+
+        def delete_workout(
+            self,
+            external_id: str,
+        ) -> ProviderRemoveResult:
+            self.deleted.append(external_id)
+            return ProviderRemoveResult()
+
+    adapter = CleanupAdapter()
+    monkeypatch.setattr(
+        "api.plan_cleanup.load_plan_delivery_adapter",
+        lambda db, *, user_id, target: adapter,
+    )
+
+    response = api_client["client"].post(
+        "/api/plan/deliveries/cleanup",
+        json={"scope": "future"},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "complete"
+    assert response.json()["target"] == "stryd"
+    assert response.json()["removed_count"] == 1
+    assert adapter.deleted == ["legacy-cleanup-id"]
+
+
+def test_cleanup_remains_blocked_after_plan_quarantines_legacy_state(
+    api_client,
+):
+    from api.routes import plan as plan_mod
+
+    user_id = "legacy-corrupt-cleanup"
+    api_client["current"]["value"] = user_id
+    configured = api_client["client"].put("/api/settings", json={
+        "plan_management": {
+            "mode": "external",
+            "execution_target": None,
+            "delivery_enabled": False,
+        },
+    })
+    assert configured.status_code == 200, configured.text
+
+    path = plan_mod._stryd_push_status_path(user_id)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write("{not valid json")
+
+    plan_response = api_client["client"].get("/api/plan")
+    assert plan_response.status_code == 200, plan_response.text
+    assert not os.path.exists(path)
+
+    first = api_client["client"].post(
+        "/api/plan/deliveries/cleanup",
+        json={"scope": "future"},
+    )
+    second = api_client["client"].post(
+        "/api/plan/deliveries/cleanup",
+        json={"scope": "future"},
+    )
+
+    assert first.status_code == 409, first.text
+    assert second.status_code == 409, second.text
+    assert "requires review" in first.json()["detail"]
+    assert second.json()["detail"] == first.json()["detail"]
+
+
+def test_cleanup_backfills_predeployment_corrupt_archive(api_client):
+    from api.routes import plan as plan_mod
+
+    user_id = "legacy-archived-cleanup"
+    api_client["current"]["value"] = user_id
+    configured = api_client["client"].put("/api/settings", json={
+        "plan_management": {
+            "mode": "external",
+            "execution_target": None,
+            "delivery_enabled": False,
+        },
+    })
+    assert configured.status_code == 200, configured.text
+
+    path = plan_mod._stryd_push_status_path(user_id)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(
+        f"{path}.corrupt-20260731T120000Z",
+        "w",
+        encoding="utf-8",
+    ) as handle:
+        handle.write("{quarantined before cleanup shipped")
+
+    response = api_client["client"].post(
+        "/api/plan/deliveries/cleanup",
+        json={"scope": "future"},
+    )
+
+    assert response.status_code == 409, response.text
+    assert "requires review" in response.json()["detail"]
 
 
 def test_delete_endpoint_touches_only_calling_users_status(api_client, monkeypatch):

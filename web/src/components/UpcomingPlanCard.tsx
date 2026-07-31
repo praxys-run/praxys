@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -546,6 +547,7 @@ function WorkoutRow({
 function ConflictDialog({
   workout,
   open,
+  targetConnected,
   working,
   error,
   onOpenChange,
@@ -553,6 +555,7 @@ function ConflictDialog({
 }: {
   workout: PlannedWorkout | null;
   open: boolean;
+  targetConnected: boolean;
   working: boolean;
   error: string | null;
   onOpenChange: (open: boolean) => void;
@@ -682,7 +685,10 @@ function ConflictDialog({
             </Button>
           )}
           {canRestore && (
-            <Button disabled={working} onClick={() => onResolve('restore_praxys')}>
+            <Button
+              disabled={working || !targetConnected}
+              onClick={() => onResolve('restore_praxys')}
+            >
               {working
                 ? <Trans>Restoring…</Trans>
                 : deliveryFailed
@@ -756,7 +762,7 @@ async function resolveWorkout(
 
 export default function UpcomingPlanCard() {
   const { t } = useLingui();
-  const { config: settings } = useSettings();
+  const { config: settings, connectionStatuses } = useSettings();
   const [windowId, setWindowId] = useState<WindowId>(() => {
     if (typeof window === 'undefined') return '2wk';
     const stored = window.localStorage.getItem(WINDOW_STORAGE_KEY) as WindowId | null;
@@ -766,7 +772,40 @@ export default function UpcomingPlanCard() {
   });
   const windowDays =
     WINDOW_OPTIONS.find((option) => option.id === windowId)?.days ?? 14;
-  const planUrl = useMemo(() => planWindowUrl(windowDays), [windowDays]);
+  const [utcDay, setUtcDay] = useState(
+    () => new Date().toISOString().slice(0, 10),
+  );
+  useEffect(() => {
+    let timer: number | undefined;
+    const refreshUtcDay = () => {
+      setUtcDay(new Date().toISOString().slice(0, 10));
+    };
+    const scheduleMidnightRefresh = () => {
+      const now = new Date();
+      const nextMidnight = Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() + 1,
+      );
+      timer = window.setTimeout(() => {
+        refreshUtcDay();
+        scheduleMidnightRefresh();
+      }, Math.max(nextMidnight - now.getTime(), 1));
+    };
+    window.addEventListener('focus', refreshUtcDay);
+    scheduleMidnightRefresh();
+    return () => {
+      window.removeEventListener('focus', refreshUtcDay);
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, []);
+  const planUrl = useMemo(
+    () => planWindowUrl(
+      windowDays,
+      new Date(`${utcDay}T00:00:00Z`),
+    ),
+    [windowDays, utcDay],
+  );
   const { data, loading, error, refetch } = useApi<PlanResponse>(planUrl);
   const [workingKey, setWorkingKey] = useState<string | null>(null);
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
@@ -782,7 +821,7 @@ export default function UpcomingPlanCard() {
   const managementState = managedPlanState(planManagement);
   const executionTarget = planManagement.execution_target ?? data?.sync_target ?? null;
   const targetConnected = executionTarget != null
-    && (settings?.connections ?? []).includes(executionTarget);
+    && connectionStatuses[executionTarget] === 'connected';
   const targetLabel = executionTarget === 'stryd'
     ? 'Stryd'
     : executionTarget;
@@ -945,6 +984,10 @@ export default function UpcomingPlanCard() {
       <div className="space-y-1">
         {data.workouts.map((workout) => {
           const key = workoutKey(workout);
+          const canResolveLocally = (
+            workout.reconciliation?.resolutions.includes('accept_target')
+            ?? false
+          );
           return (
             <WorkoutRow
               key={key}
@@ -954,7 +997,11 @@ export default function UpcomingPlanCard() {
               working={workingKey === key}
               actionsDisabled={
                 workingKey != null
-                || (managementState === 'active' && !targetConnected)
+                || (
+                  managementState === 'active'
+                  && !targetConnected
+                  && !canResolveLocally
+                )
               }
               error={rowErrors[key]}
               onDeliver={() => deliverWorkout(workout)}
@@ -967,6 +1014,7 @@ export default function UpcomingPlanCard() {
       <ConflictDialog
         workout={reviewWorkout}
         open={reviewWorkout != null}
+        targetConnected={targetConnected}
         working={reviewWorkout != null && workingKey === workoutKey(reviewWorkout)}
         error={dialogError}
         onOpenChange={(open) => {

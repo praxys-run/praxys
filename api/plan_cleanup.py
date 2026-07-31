@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from analysis.config import normalize_plan_management
 from api.plan_delivery import (
+    DeliveryMutationBlockedError,
     DeliveryAccountMismatchError,
     DeliveryAccountVerificationError,
     DeliveryBusyError,
@@ -23,14 +24,20 @@ from api.plan_delivery import (
     PlanDeliveryService,
     ProviderAuthenticationError,
     UnsupportedDeliveryTargetError,
+    capture_delivery_connection_generation,
     load_plan_delivery_adapter,
 )
-from db.models import PlanDelivery, UserConfig
-from db.plan_ledger import delivery_canonical_id
+from db.connection_credentials import connection_credentials_generation
+from db.models import PlanDelivery, UserConfig, UserConnection
+from db.plan_ledger import delivery_canonical_id, lock_plan_writes
 
 
 class PlanCleanupRequiresExternalMode(RuntimeError):
     """Cleanup was requested before managed delivery was disabled."""
+
+
+class PlanCleanupAmbiguousTargets(RuntimeError):
+    """Cleanup found outstanding deliveries for more than one target."""
 
 
 PlanCleanupItemStatus = Literal[
@@ -136,45 +143,58 @@ def cleanup_future_plan_deliveries(
             "Leave managed mode before removing delivered workouts"
         )
 
-    target = plan_management["execution_target"]
-    if not target:
-        return PlanCleanupResult(
-            status="complete",
-            target=None,
-            window_start=start.isoformat(),
-            removed_count=0,
-            remaining_count=0,
-        )
+    configured_target = plan_management["execution_target"]
 
     deliveries = db.execute(
         select(PlanDelivery)
         .where(
             PlanDelivery.user_id == user_id,
-            PlanDelivery.target == target,
             PlanDelivery.workout_date >= start,
             PlanDelivery.state != "removed",
-            PlanDelivery.external_id.is_not(None),
         )
         .order_by(PlanDelivery.workout_date, PlanDelivery.created_at)
     ).scalars().all()
     if not deliveries:
         return PlanCleanupResult(
             status="complete",
-            target=target,
+            target=configured_target,
             window_start=start.isoformat(),
             removed_count=0,
             remaining_count=0,
         )
+    delivery_targets = sorted({
+        str(delivery.target).strip()
+        for delivery in deliveries
+        if str(delivery.target).strip()
+    })
+    if len(delivery_targets) != 1:
+        raise PlanCleanupAmbiguousTargets(
+            "Outstanding Praxys deliveries span multiple execution targets"
+        )
+    target = delivery_targets[0]
 
     results: list[PlanCleanupItemResult] = []
     removable = [
         delivery
         for delivery in deliveries
-        if delivery.state == "synced" and delivery.external_id
+        if delivery.state in {"synced", "delivering"}
+        and delivery.external_id
     ]
     removable_ids = {delivery.id for delivery in removable}
     for delivery in deliveries:
         if delivery.id not in removable_ids:
+            if (
+                delivery.external_id is None
+                and delivery.state in {"pending", "failed"}
+            ):
+                results.append(
+                    _item(
+                        delivery,
+                        status="already_absent",
+                        reason="no_provider_workout",
+                    )
+                )
+                continue
             results.append(
                 _item(
                     delivery,
@@ -184,6 +204,24 @@ def cleanup_future_plan_deliveries(
             )
 
     if removable:
+        try:
+            connection_generation = capture_delivery_connection_generation(
+                db,
+                user_id=user_id,
+                target=target,
+            )
+        except DeliveryMutationBlockedError as exc:
+            results.extend(
+                _item(
+                    delivery,
+                    status="failed",
+                    reason=str(exc),
+                )
+                for delivery in removable
+            )
+            connection_generation = None
+
+    if removable and connection_generation is not None:
         loader = adapter_loader or (
             lambda: load_plan_delivery_adapter(
                 db,
@@ -211,7 +249,67 @@ def cleanup_future_plan_deliveries(
                 for delivery in removable
             )
         else:
+            blocked_reason: str | None = None
+
+            def mutation_guard() -> None:
+                lock_plan_writes(db, user_id)
+                fresh_config = db.execute(
+                    select(UserConfig)
+                    .where(UserConfig.user_id == user_id)
+                    .with_for_update()
+                    .execution_options(populate_existing=True)
+                ).scalar_one_or_none()
+                fresh_management = normalize_plan_management(
+                    fresh_config.plan_management
+                    if fresh_config is not None
+                    else None
+                )
+                if (
+                    fresh_management["mode"] != "external"
+                    or fresh_management["delivery_enabled"]
+                    or (
+                        fresh_management["execution_target"]
+                        != configured_target
+                    )
+                ):
+                    raise DeliveryMutationBlockedError(
+                        "managed_plan_state_changed"
+                    )
+                connection = db.execute(
+                    select(UserConnection)
+                    .where(
+                        UserConnection.user_id == user_id,
+                        UserConnection.platform == target,
+                    )
+                    .with_for_update()
+                    .execution_options(populate_existing=True)
+                ).scalar_one_or_none()
+                if connection is None:
+                    raise DeliveryMutationBlockedError(
+                        "connection_missing"
+                    )
+                if connection.status != "connected":
+                    raise DeliveryMutationBlockedError(
+                        f"connection_{connection.status}"
+                    )
+                if (
+                    connection_credentials_generation(connection)
+                    != connection_generation
+                ):
+                    raise DeliveryMutationBlockedError(
+                        "connection_changed"
+                    )
+
             for delivery in removable:
+                if blocked_reason is not None:
+                    results.append(
+                        _item(
+                            delivery,
+                            status="blocked",
+                            reason=blocked_reason,
+                        )
+                    )
+                    continue
                 try:
                     removal = service.remove(
                         str(delivery.external_id),
@@ -219,6 +317,16 @@ def cleanup_future_plan_deliveries(
                             "managed_cleanup": True,
                             "trigger": "leave_managed_mode",
                         },
+                        mutation_guard=mutation_guard,
+                    )
+                except DeliveryMutationBlockedError as exc:
+                    blocked_reason = str(exc)
+                    results.append(
+                        _item(
+                            delivery,
+                            status="blocked",
+                            reason=blocked_reason,
+                        )
                     )
                 except DeliveryBusyError:
                     results.append(

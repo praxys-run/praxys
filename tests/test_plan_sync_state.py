@@ -1951,9 +1951,14 @@ def test_restore_rebind_rejects_concurrent_canonical_edit(
     assert reconciliation["state"] != "matching"
 
 
+@pytest.mark.parametrize(
+    "changed_generation",
+    ["canonical", "observation", "inserted_observation"],
+)
 def test_restore_revalidates_before_delete_create_provider_mutation(
     api_client,
     monkeypatch,
+    changed_generation,
 ):
     from api.plan_delivery.base import (
         PreparedWorkoutDelivery,
@@ -2000,19 +2005,6 @@ def test_restore_revalidates_before_delete_create_provider_mutation(
             return None
 
         def prepare_workout(self, workout, *, threshold_value):
-            from db import session as db_session
-            from db.models import TrainingPlan
-
-            other_db = db_session.SessionLocal()
-            try:
-                canonical = other_db.query(TrainingPlan).filter(
-                    TrainingPlan.user_id == user_id,
-                    TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
-                ).one()
-                canonical.workout_description = "Concurrent Praxys edit"
-                other_db.commit()
-            finally:
-                other_db.close()
             return PreparedWorkoutDelivery(
                 version="d" * 64,
                 request={},
@@ -2036,10 +2028,80 @@ def test_restore_revalidates_before_delete_create_provider_mutation(
 
     from api.routes import plan as plan_mod
 
+    guard_calls = {"count": 0}
+
+    def _provider_guard(*args, **kwargs):
+        def guard():
+            guard_calls["count"] += 1
+            if guard_calls["count"] != 2:
+                return
+            from db import session as db_session
+            from db.models import PlanTargetWorkout, TrainingPlan
+
+            other_db = db_session.SessionLocal()
+            try:
+                if changed_generation == "canonical":
+                    canonical = other_db.query(TrainingPlan).filter(
+                        TrainingPlan.user_id == user_id,
+                        TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
+                    ).one()
+                    canonical.workout_description = "Concurrent Praxys edit"
+                elif changed_generation == "observation":
+                    observation = other_db.query(PlanTargetWorkout).filter(
+                        PlanTargetWorkout.user_id == user_id,
+                        PlanTargetWorkout.external_id == "owned-edited-id",
+                    ).one()
+                    changed = dict(observation.normalized_workout)
+                    changed["workout_description"] = "New target edit"
+                    observation.normalized_workout = changed
+                    observation.content_fingerprint = "f" * 64
+                else:
+                    from db.plan_reconciliation import (
+                        record_target_calendar_sync,
+                    )
+
+                    record_target_calendar_sync(
+                        other_db,
+                        user_id=user_id,
+                        target="stryd",
+                        provider_account_id="stryd-account",
+                        rows=[
+                            {
+                                "date": target.isoformat(),
+                                "workout_type": "easy",
+                                "workout_description": "Edited on Stryd",
+                                "external_id": "owned-edited-id",
+                                "provider_content_fingerprint": "b" * 64,
+                                "provider_payload_fingerprint": "c" * 64,
+                            },
+                            {
+                                "date": target.isoformat(),
+                                "workout_type": "easy",
+                                "workout_description": "Matching replacement",
+                                "external_id": "concurrent-match-id",
+                                "provider_content_fingerprint": "a" * 64,
+                                "provider_payload_fingerprint": "9" * 64,
+                            },
+                        ],
+                        window_start=target - timedelta(days=2),
+                        window_end=target + timedelta(days=2),
+                        observed_at=datetime.utcnow() + timedelta(seconds=1),
+                    )
+                other_db.commit()
+            finally:
+                other_db.close()
+
+        return guard
+
     monkeypatch.setattr(
         plan_mod,
         "_resolve_stryd_delivery_cp",
         lambda data: 280.0,
+    )
+    monkeypatch.setattr(
+        plan_mod,
+        "_provider_mutation_guard",
+        _provider_guard,
     )
     monkeypatch.setattr(
         plan_mod,
@@ -2055,8 +2117,9 @@ def test_restore_revalidates_before_delete_create_provider_mutation(
     )
 
     assert response.status_code == 409, response.text
-    assert "changed before provider mutation" in response.json()["detail"]
+    assert "changed during restore" in response.json()["detail"]
     assert calls == {"create": 0, "delete": 0}
+    assert guard_calls["count"] == 2
 
 
 def test_restore_retries_conflict_after_newer_sync_confirms_absence(
@@ -2532,9 +2595,11 @@ def test_accept_import_does_not_complete_restore_receipt(api_client):
         db.close()
 
 
+@pytest.mark.parametrize("reuse_delivery", [False, True])
 def test_restore_retry_after_create_failure_is_idempotent(
     api_client,
     monkeypatch,
+    reuse_delivery,
 ):
     from api.plan_delivery.base import (
         PreparedWorkoutDelivery,
@@ -2550,7 +2615,7 @@ def test_restore_retry_after_create_failure_is_idempotent(
         "source": "ai",
         "workout_type": "tempo",
     }])
-    _seed_synced_delivery(
+    delivery_id = _seed_synced_delivery(
         user_id,
         target,
         "tempo",
@@ -2558,6 +2623,17 @@ def test_restore_retry_after_create_failure_is_idempotent(
         provider_content_version="a" * 64,
         provider_account_id="stryd-account",
     )
+    from db import session as db_session
+    from db.models import PlanDelivery
+
+    db = db_session.SessionLocal()
+    try:
+        seeded_delivery_version = db.get(
+            PlanDelivery,
+            delivery_id,
+        ).workout_version
+    finally:
+        db.close()
     _seed_target_snapshot(user_id, [{
         "date": target.isoformat(),
         "workout_type": "tempo",
@@ -2580,7 +2656,11 @@ def test_restore_retry_after_create_failure_is_idempotent(
 
         def prepare_workout(self, workout, *, threshold_value):
             return PreparedWorkoutDelivery(
-                version="d" * 64,
+            version=(
+                seeded_delivery_version
+                if reuse_delivery
+                else "d" * 64
+            ),
                 request={},
                 content_version="e" * 64,
             )

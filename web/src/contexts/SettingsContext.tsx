@@ -6,6 +6,7 @@ import { API_BASE, getAuthHeaders } from '../hooks/useApi';
 interface SettingsContextValue {
   config: SettingsConfig | null;
   display: DisplayConfig | null;
+  connectionStatuses: SettingsResponse['connection_statuses'];
   platformCapabilities: SettingsResponse['platform_capabilities'];
   availableProviders: SettingsResponse['available_providers'];
   availableBases: TrainingBase[];
@@ -31,6 +32,7 @@ const DEFAULT_DISPLAY: DisplayConfig = {
 const SettingsContext = createContext<SettingsContextValue>({
   config: null,
   display: DEFAULT_DISPLAY,
+  connectionStatuses: {},
   platformCapabilities: {},
   availableProviders: {},
   availableBases: ['power', 'hr', 'pace'],
@@ -42,9 +44,18 @@ const SettingsContext = createContext<SettingsContextValue>({
   refetch: () => {},
 });
 
+interface SettingsUpdateResponse {
+  config: SettingsConfig;
+  display: DisplayConfig;
+  connection_statuses?: SettingsResponse['connection_statuses'];
+}
+
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<SettingsConfig | null>(null);
   const [display, setDisplay] = useState<DisplayConfig>(DEFAULT_DISPLAY);
+  const [connectionStatuses, setConnectionStatuses] = useState<
+    SettingsResponse['connection_statuses']
+  >({});
   const [platformCapabilities, setPlatformCapabilities] = useState<
     SettingsResponse['platform_capabilities']
   >({});
@@ -76,6 +87,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         setConfig(data.config);
         setDisplay(data.display);
+        setConnectionStatuses(data.connection_statuses ?? {});
         setPlatformCapabilities(data.platform_capabilities ?? {});
         setAvailableProviders(data.available_providers ?? {});
         setAvailableBases(data.available_bases);
@@ -91,6 +103,16 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       });
     return () => { cancelled = true; };
   }, [fetchKey]);
+
+  useEffect(() => {
+    const refreshAfterBackground = () => {
+      setFetchKey((key) => key + 1);
+    };
+    window.addEventListener('focus', refreshAfterBackground);
+    return () => {
+      window.removeEventListener('focus', refreshAfterBackground);
+    };
+  }, []);
 
   const updateSettings = async (update: SettingsUpdate) => {
     const res = await fetch(`${API_BASE}/api/settings`, {
@@ -114,16 +136,19 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       } catch { /* response not JSON — fall back to status code */ }
       throw new Error(detail || `HTTP ${res.status}`);
     }
-    const data = await res.json();
+    const data = await res.json() as SettingsUpdateResponse;
     setConfig(data.config);
     setDisplay(data.display);
+    if (data.connection_statuses) {
+      setConnectionStatuses(data.connection_statuses);
+    }
   };
 
   const refetch = useCallback(() => setFetchKey((k) => k + 1), []);
 
   return (
     <SettingsContext.Provider
-      value={{ config, display, platformCapabilities, availableProviders, availableBases, effectiveThresholds, detectedThresholds, loading, error, updateSettings, refetch }}
+      value={{ config, display, connectionStatuses, platformCapabilities, availableProviders, availableBases, effectiveThresholds, detectedThresholds, loading, error, updateSettings, refetch }}
     >
       {children}
     </SettingsContext.Provider>

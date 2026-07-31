@@ -147,7 +147,25 @@ delivery. Deleting a canonical workout while managed removes that owned target
 workout. Pausing delivery never performs cleanup. Leaving managed mode keeps
 target workouts by default; a separate, explicit cleanup can remove future
 workouts recorded in the caller's delivery ledger only after external mode has
-disabled further writes.
+disabled further writes. Cleanup repeats that lifecycle check and fences every
+delete on the unchanged target, live connection status, and credential
+generation. Uncertain ledger rows remain visible as partial cleanup rather than
+being mistaken for an empty provider calendar.
+
+Explicit row delivery uses the same just-in-time connection-generation fence
+and re-reads the exact canonical UUID/version while holding the plan-write lock
+immediately before provider I/O. A concurrent plan edit or deletion therefore
+blocks the stale write instead of creating an obsolete target workout.
+Reconciliation restore applies the same composite connection and canonical
+version fence before each provider delete or create. Its opaque generation
+also fingerprints the complete semantic target-calendar snapshot, preventing
+a concurrent sync from introducing an unseen matching workout mid-resolution
+without invalidating IDs for timestamp-only refreshes.
+Adoption previews and rolling delivery use the same 14-day UTC window. The
+settings mutation carries the reviewed start date, rejects an expired preview,
+and pins the immediate delivery pass to that boundary without backdating its
+retry or observation clock. Overnight-open clients rotate their query window
+at UTC midnight.
 
 Plan commits and delivery commits remain separate. Settings adoption and
 committed plan upload/upsert/delete operations start a best-effort post-commit
@@ -282,14 +300,24 @@ transaction. Restoring Praxys records an idempotent revision, then runs the
 owned-ID remove/create saga through `PlanDeliveryService`; partial outcomes
 remain retryable delivery attempts. Client-visible reconciliation IDs include a
 frozen conflict-generation token, so an exact successful HTTP retry can recover
-its prior revision/result without reapplying a later state.
+its prior revision/result without reapplying a later state. An interrupted
+remove/create retry can reconstruct only its own recorded removal transition;
+the durable revision, successful-removal attempt, and unchanged remainder of
+the calendar generation remain mandatory.
 
 The former per-user Stryd push-status JSON is
 lazy-reconciled through an ordered snapshot cursor. During rolling deployment it
 is retained and dual-written after successful push/delete operations so old
 workers remain compatible; additions, replacements, and removals are reflected
 without certifying unknown content as the current version. Corrupt files are
-quarantined and never converted into successful delivery state. A verified
+quarantined and never converted into successful delivery state. Their durable
+unresolved marker keeps cleanup blocked after quarantine until a
+provenance-marked authoritative recovery import or explicit review;
+pre-marker quarantine archives are backfilled on first cleanup. Routine valid
+files remain non-authoritative while fenced, including files recreated by an
+older deployed worker. Compatibility dual-writes are suspended on marker-aware
+workers, so a newly delivered subset cannot masquerade as a recovery snapshot.
+A verified
 ledger row is authoritative over a stale legacy snapshot, including after
 removal, so an old worker cannot resurrect a deleted delivery. Per-user database
 locks plus a cross-process file lock serialize cursor/file changes on both

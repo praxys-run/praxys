@@ -33,11 +33,62 @@ _CONFLICT_STATES = {
 }
 
 
+def plan_target_calendar_generation(
+    calendar_sync: PlanTargetCalendarSync,
+    observations: list[PlanTargetWorkout],
+    *,
+    presence_overrides: Mapping[str, bool] | None = None,
+) -> str:
+    """Return a stable semantic generation for one target-calendar snapshot."""
+    overrides = presence_overrides or {}
+    payload = {
+        "sync": {
+            "id": calendar_sync.id,
+            "provider_account_id": calendar_sync.provider_account_id,
+            "window_start": calendar_sync.window_start.isoformat(),
+            "window_end": calendar_sync.window_end.isoformat(),
+        },
+        "observations": [
+            {
+                "id": observation.id,
+                "provider_account_id": observation.provider_account_id,
+                "external_id": observation.external_id,
+                "workout_date": observation.workout_date.isoformat(),
+                "start_time": (
+                    observation.start_time.isoformat()
+                    if observation.start_time is not None
+                    else None
+                ),
+                "normalized_workout": observation.normalized_workout,
+                "content_fingerprint": observation.content_fingerprint,
+                "payload_fingerprint": observation.payload_fingerprint,
+                "present": overrides.get(
+                    observation.id,
+                    bool(observation.present),
+                ),
+            }
+            for observation in sorted(
+                observations,
+                key=lambda row: (row.external_id, row.id),
+            )
+        ],
+    }
+    encoded = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        default=str,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def _resolution_identity(
     *,
     canonical: TrainingPlan | None,
     observation: PlanTargetWorkout | None,
     delivery: PlanDelivery | None,
+    calendar_generation: str | None,
 ) -> str:
     payload = {
         "canonical_version": (
@@ -71,6 +122,7 @@ def _resolution_identity(
             if observation is not None
             else None
         ),
+        "calendar_generation": calendar_generation,
     }
     encoded = json.dumps(
         payload,
@@ -92,9 +144,31 @@ class PlanReconciliationItem:
     delivery: PlanDelivery | None
     match_basis: str | None = None
     reason: str | None = None
+    calendar_generation: str | None = None
+    calendar_observation_present: bool | None = field(
+        default=None,
+        repr=False,
+    )
+    observation_present: bool | None = field(init=False, repr=False)
     resolution_identity: str = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
+        current_observation_present = (
+            bool(self.observation.present)
+            if self.observation is not None
+            else None
+        )
+        if self.calendar_observation_present is None:
+            object.__setattr__(
+                self,
+                "calendar_observation_present",
+                current_observation_present,
+            )
+        object.__setattr__(
+            self,
+            "observation_present",
+            current_observation_present,
+        )
         object.__setattr__(
             self,
             "resolution_identity",
@@ -102,6 +176,7 @@ class PlanReconciliationItem:
                 canonical=self.canonical,
                 observation=self.observation,
                 delivery=self.delivery,
+                calendar_generation=self.calendar_generation,
             ),
         )
 
@@ -111,12 +186,14 @@ class PlanReconciliationItem:
         canonical: TrainingPlan | None,
         observation: PlanTargetWorkout | None,
         delivery: PlanDelivery | None,
+        calendar_generation: str | None = None,
     ) -> bool:
         """Return whether locked rows still represent this conflict."""
         return self.resolution_identity == _resolution_identity(
             canonical=canonical,
             observation=observation,
             delivery=delivery,
+            calendar_generation=calendar_generation,
         )
 
     @property
@@ -179,6 +256,7 @@ class PlanReconciliationView:
     canonical_items: Mapping[str, PlanReconciliationItem]
     target_only_items: tuple[PlanReconciliationItem, ...]
     calendar_sync: PlanTargetCalendarSync
+    calendar_generation: str
     consumed_observation_ids: frozenset[str]
 
     def item_by_id(self, reconciliation_id: str) -> PlanReconciliationItem | None:
@@ -395,6 +473,10 @@ def build_plan_reconciliation(
             PlanTargetWorkout.external_id,
         )
     ).scalars().all()
+    calendar_generation = plan_target_calendar_generation(
+        calendar_sync,
+        observations,
+    )
     observations_by_external = {
         row.external_id: row for row in observations
     }
@@ -478,6 +560,7 @@ def build_plan_reconciliation(
             delivery=delivery,
             match_basis=match_basis,
             reason=reason,
+            calendar_generation=calendar_generation,
         )
         canonical_items[canonical.canonical_id] = item
         consumed_canonicals.add(canonical.canonical_id)
@@ -493,6 +576,7 @@ def build_plan_reconciliation(
             canonical=canonical,
             observation=None,
             delivery=None,
+            calendar_generation=calendar_generation,
         )
 
     target_only: list[PlanReconciliationItem] = []
@@ -510,6 +594,7 @@ def build_plan_reconciliation(
                 canonical=None,
                 observation=observation,
                 delivery=None,
+                calendar_generation=calendar_generation,
             )
         )
 
@@ -525,6 +610,7 @@ def build_plan_reconciliation(
         canonical_items=visible_canonical_items,
         target_only_items=tuple(target_only),
         calendar_sync=calendar_sync,
+        calendar_generation=calendar_generation,
         consumed_observation_ids=frozenset(consumed_observations),
     )
 
@@ -535,6 +621,7 @@ def load_plan_reconciliation_item(
     user_id: str,
     target: str,
     reconciliation_id: str,
+    allow_owned_removal_retry: bool = False,
 ) -> PlanReconciliationItem | None:
     """Load a current item, retaining removed deliveries for safe retries."""
     view = build_plan_reconciliation(
@@ -570,6 +657,7 @@ def load_plan_reconciliation_item(
             canonical=None,
             observation=observation,
             delivery=None,
+            calendar_generation=view.calendar_generation,
         )
         if separator and item.resolution_identity != expected_identity:
             return None
@@ -624,7 +712,40 @@ def load_plan_reconciliation_item(
         delivery=delivery,
         match_basis="external_id" if observation is not None else None,
         reason=reason,
+        calendar_generation=view.calendar_generation,
     )
     if separator and item.resolution_identity != expected_identity:
-        return None
+        if (
+            not allow_owned_removal_retry
+            or observation is None
+            or observation.present
+            or delivery.state not in {"removed", "failed"}
+        ):
+            return None
+        observations = db.execute(
+            select(PlanTargetWorkout).where(
+                PlanTargetWorkout.user_id == user_id,
+                PlanTargetWorkout.target == target,
+                PlanTargetWorkout.provider_account_id
+                == view.calendar_sync.provider_account_id,
+            )
+        ).scalars().all()
+        retry_item = PlanReconciliationItem(
+            id=base_id,
+            state=state,
+            canonical=canonical,
+            observation=observation,
+            delivery=delivery,
+            match_basis="external_id",
+            reason=reason,
+            calendar_generation=plan_target_calendar_generation(
+                view.calendar_sync,
+                observations,
+                presence_overrides={observation.id: True},
+            ),
+            calendar_observation_present=True,
+        )
+        if retry_item.resolution_identity != expected_identity:
+            return None
+        return retry_item
     return item

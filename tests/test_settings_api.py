@@ -5,6 +5,7 @@ the unit-level normalize is tested in test_sync_scheduler.py; this file
 proves the API translates a ValueError into a structured 400 response and
 that the settings GET surfaces the allowed-options contract the UI depends on.
 """
+from datetime import datetime, timezone
 import os
 import tempfile
 
@@ -134,7 +135,12 @@ def test_get_settings_exposes_sync_interval_options(api_client):
     assert body["default_sync_interval_hours"] == 6
 
 
-def _seed_connection(user_id: str, platform: str) -> None:
+def _seed_connection(
+    user_id: str,
+    platform: str,
+    *,
+    status: str = "connected",
+) -> None:
     """Insert a connected platform row for settings validation tests."""
     from db import session as db_session
     from db.models import UserConnection
@@ -144,12 +150,28 @@ def _seed_connection(user_id: str, platform: str) -> None:
         db.add(UserConnection(
             user_id=user_id,
             platform=platform,
-            status="connected",
+            status=status,
             preferences={"plan": platform == "stryd"},
         ))
         db.commit()
     finally:
         db.close()
+
+
+def test_get_settings_distinguishes_configured_from_live_connections(
+    api_client,
+):
+    client, user_id = api_client
+    _seed_connection(user_id, "stryd", status="auth_required")
+
+    response = client.get("/api/settings")
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["config"]["connections"] == ["stryd"]
+    assert body["connection_statuses"] == {
+        "stryd": "auth_required",
+    }
 
 
 def test_get_settings_exposes_safe_plan_management_defaults(api_client):
@@ -204,15 +226,17 @@ def test_settings_enables_delivery_and_runs_post_commit_hook(
 ):
     client, user_id = api_client
     _seed_connection(user_id, "stryd")
-    calls: list[tuple[str, str]] = []
+    preview_start = datetime.now(timezone.utc).date().isoformat()
+    calls: list[tuple[str, str, str]] = []
     monkeypatch.setattr(
         "api.plan_delivery.rolling.trigger_managed_plan_delivery",
-        lambda called_user_id, *, trigger: calls.append(
-            (called_user_id, trigger)
+        lambda called_user_id, *, trigger, window_start: calls.append(
+            (called_user_id, trigger, window_start.isoformat())
         ),
     )
 
     res = client.put("/api/settings", json={
+        "managed_plan_preview_start": preview_start,
         "plan_management": {
             "mode": "praxys",
             "execution_target": "stryd",
@@ -222,7 +246,88 @@ def test_settings_enables_delivery_and_runs_post_commit_hook(
 
     assert res.status_code == 200, res.text
     assert res.json()["config"]["plan_management"]["delivery_enabled"] is True
-    assert calls == [(user_id, "plan_management_enabled")]
+    assert res.json()["connection_statuses"] == {
+        "stryd": "connected",
+    }
+    assert calls == [
+        (user_id, "plan_management_enabled", preview_start),
+    ]
+
+
+def test_settings_rejects_expired_preview_before_enabling_delivery(
+    api_client,
+    monkeypatch,
+):
+    client, user_id = api_client
+    _seed_connection(user_id, "stryd")
+    calls: list[str] = []
+    monkeypatch.setattr(
+        "api.plan_delivery.rolling.trigger_managed_plan_delivery",
+        lambda *args, **kwargs: calls.append("called"),
+    )
+
+    response = client.put("/api/settings", json={
+        "managed_plan_preview_start": "2000-01-01",
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "stryd",
+            "delivery_enabled": True,
+        },
+    })
+
+    assert response.status_code == 409, response.text
+    assert "preview expired" in response.json()["detail"]
+    assert calls == []
+    settings = client.get("/api/settings").json()
+    assert settings["config"]["plan_management"]["mode"] == "external"
+    assert settings["config"]["plan_management"]["delivery_enabled"] is False
+
+
+def test_settings_update_returns_post_hook_connection_status(
+    api_client,
+    monkeypatch,
+):
+    from db import session as db_session
+    from db.models import UserConnection
+
+    client, user_id = api_client
+    _seed_connection(user_id, "stryd")
+
+    def degrade_connection(
+        called_user_id: str,
+        *,
+        trigger: str,
+    ) -> None:
+        assert called_user_id == user_id
+        assert trigger == "plan_management_enabled"
+        db = db_session.SessionLocal()
+        try:
+            connection = db.query(UserConnection).filter_by(
+                user_id=user_id,
+                platform="stryd",
+            ).one()
+            connection.status = "error"
+            db.commit()
+        finally:
+            db.close()
+
+    monkeypatch.setattr(
+        "api.plan_delivery.rolling.trigger_managed_plan_delivery",
+        degrade_connection,
+    )
+
+    response = client.put("/api/settings", json={
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "stryd",
+            "delivery_enabled": True,
+        },
+    })
+
+    assert response.status_code == 200, response.text
+    assert response.json()["connection_statuses"] == {
+        "stryd": "error",
+    }
 
 
 def test_leaving_managed_mode_pauses_without_cleanup_hook(

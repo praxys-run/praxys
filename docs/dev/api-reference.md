@@ -849,7 +849,12 @@ Actions:
 
 Both actions are idempotent for the same reconciliation subject and canonical
 version. Account changes, stale/unowned delete candidates, and changed
-observations return `409` instead of mutating either side.
+observations return `409` instead of mutating either side. The opaque generation
+also covers the complete target-calendar snapshot, so a concurrent sync that
+introduces a newly matching workout invalidates the resolution before provider
+I/O. If restore removal succeeds but recreation fails, the same ID can resume
+only from its durable revision plus successful-removal attempt, and only while
+every unrelated calendar observation remains unchanged.
 
 ### DELETE /api/plan/stryd-workout/{workout_id}
 
@@ -876,6 +881,17 @@ Explicitly remove future workouts recorded in the caller's provider-neutral
 delivery ledger. The caller must switch to external mode first; requests while
 Praxys still owns the plan return `409`. This ordering disables new writes
 before any provider cleanup starts, so an interrupted cleanup fails safe.
+Every delete rechecks external mode, the unchanged execution target, an
+actively connected provider, and the credential generation before touching the
+provider.
+Cleanup imports any legacy Stryd delivery snapshot before deciding that the
+ledger is clear. A corrupt snapshot is quarantined with a durable unresolved
+marker, so later retries continue returning `409` until valid legacy state is
+imported through an explicitly authoritative recovery or the marker is
+reviewed. Quarantine archives created by workers deployed before cleanup
+existed are backfilled into the same fence. Routine files recreated by an older
+worker remain non-authoritative; marker-aware compatibility dual-writes are
+suppressed while unresolved.
 
 **Request body:**
 ```json
@@ -902,11 +918,19 @@ before any provider cleanup starts, so an interrupted cleanup fails safe.
 }
 ```
 
-Only ledger-owned, successfully delivered future workouts are removal
-candidates. Manual workouts and workouts owned by another planner have no
-Praxys delivery row and remain untouched. Busy, conflicted, account-mismatched,
-or failed deliveries remain visible as `blocked`/`failed`; the response is
-`partial` and can be retried while external mode remains active.
+Every non-removed future ledger row appears in the result. Ledger-owned
+workouts with a confirmed external ID are removal candidates, including an
+expired in-progress removal lease; uncertain rows without an external ID remain
+visible instead of producing a false `complete`. Manual workouts and workouts
+owned by another planner have no Praxys delivery row and remain untouched.
+If the stored execution target was cleared or changed, cleanup infers a single
+outstanding ledger target. Deliveries spanning multiple targets return `409`
+instead of silently skipping one target.
+Busy, conflicted, account-mismatched, degraded-connection, or failed deliveries
+remain `blocked`/`failed`; the response is `partial` and can be retried while
+external mode remains active. `removed_count` counts both provider deletions
+and rows confirmed already absent; inspect each item status when that
+distinction matters.
 
 ### POST /api/plan/upload
 
@@ -996,6 +1020,11 @@ Current configuration, platform capabilities, and detected thresholds.
     "goal": { "distance": "marathon", "target_time_sec": 10800 },
     "science": { "load": "banister_pmc", "zones": "coggan_5zone" }
   },
+  "connection_statuses": {
+    "garmin": "connected",
+    "stryd": "auth_required",
+    "oura": "connected"
+  },
   "platform_capabilities": {
     "garmin": { "activities": true, "recovery": true, "fitness": true, "plan": false }
   },
@@ -1009,6 +1038,11 @@ Current configuration, platform capabilities, and detected thresholds.
 }
 ```
 
+`config.connections` retains configured platforms in `error` or
+`auth_required` so analytical preferences and execution-target intent remain
+stable. `connection_statuses` is the live mutation gate; provider workout
+actions require the selected target to be exactly `connected`.
+
 ### PUT /api/settings
 
 Update settings (partial update).
@@ -1018,6 +1052,7 @@ Update settings (partial update).
 {
   "training_base": "hr",
   "goal": { "distance": "half_marathon", "target_time_sec": 5400 },
+  "managed_plan_preview_start": "2026-07-31",
   "plan_management": {
     "mode": "praxys",
     "execution_target": "stryd",
@@ -1034,13 +1069,33 @@ plan-capable platform with a registered delivery adapter. Setting
 delivery pass for today through day 13. The same rolling pass runs after
 committed plan mutations and on scheduler ticks. Repeated runs are idempotent;
 target edits/deletions and uncertain provider outcomes block only the affected
-workout. Setting `delivery_enabled=false` pauses new writes and retries
+workout. The settings UI sends `managed_plan_preview_start` with the reviewed
+UTC window. If that date is no longer current, the update returns `409`
+without enabling delivery; the immediate pass uses the same start date so it
+cannot include an unreviewed day across a browser/server midnight boundary.
+Retry backoff and calendar-observation ordering continue using the actual
+execution timestamp.
+Setting `delivery_enabled=false` pauses new writes and retries
 immediately. Switching to `external` also pauses delivery but keeps workouts
 already delivered to the target unless the user separately confirms
 `POST /api/plan/deliveries/cleanup`. `suggest_only` is the only adjustment policy.
 Legacy `preferences.plan` remains supported as the external-mode analytical
 source selector and may seed the execution target, but it never activates
 managed mode or delivery.
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "config": { "..." : "..." },
+  "display": { "..." : "..." },
+  "connection_statuses": { "stryd": "connected" }
+}
+```
+
+The returned connection statuses are read after the post-commit delivery hook,
+so clients can disable provider actions immediately if activation degraded the
+connection.
 
 ### GET /api/settings/connections
 

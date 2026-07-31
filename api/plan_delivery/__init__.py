@@ -21,6 +21,10 @@ from api.plan_delivery.credentials import (
     DeliveryCredentialsUnavailable,
     resolve_delivery_credentials,
 )
+from api.plan_delivery.guards import (
+    capture_delivery_connection_generation,
+    guard_delivery_connection,
+)
 from api.plan_delivery.service import (
     DeliveryAccountMismatchError,
     DeliveryAccountVerificationError,
@@ -105,6 +109,8 @@ __all__ = [
     "ProviderTransientError",
     "RemovalResult",
     "UnsupportedDeliveryTargetError",
+    "capture_delivery_connection_generation",
+    "guard_delivery_connection",
     "is_plan_delivery_target_registered",
     "load_plan_delivery_adapter",
     "register_plan_delivery_adapter",

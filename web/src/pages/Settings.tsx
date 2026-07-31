@@ -195,7 +195,7 @@ export default function Settings() {
   const location = useLocation();
   const navigate = useNavigate();
   const {
-    config, platformCapabilities, availableProviders, availableBases,
+    config, connectionStatuses, platformCapabilities, availableProviders, availableBases,
     effectiveThresholds, detectedThresholds, loading, error, updateSettings, refetch,
   } = useSettings();
   const { email: authEmail, isDemo, logout } = useAuth();
@@ -1161,6 +1161,7 @@ export default function Settings() {
       {/* ===== SECTION 2: Plan Management ===== */}
       <ManagedPlanSettingsCard
         config={config}
+        connectionStatuses={connectionStatuses}
         platformCapabilities={platformCapabilities}
         updateSettings={updateSettings}
       />

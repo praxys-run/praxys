@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Plural, Trans, useLingui } from '@lingui/react/macro';
 import {
   CalendarSync,
@@ -40,6 +40,7 @@ import { useLocale } from '@/contexts/LocaleContext';
 import {
   MANAGED_PLAN_WINDOW_DAYS,
   isPraxysOwned,
+  managedPlanWindow,
   managedPlanState,
   planWindowUrl,
 } from '@/lib/plan';
@@ -65,6 +66,7 @@ type LeaveChoice = 'keep' | 'remove';
 
 interface ManagedPlanSettingsCardProps {
   config: SettingsConfig;
+  connectionStatuses: SettingsResponse['connection_statuses'];
   platformCapabilities: SettingsResponse['platform_capabilities'];
   updateSettings: (update: SettingsUpdate) => Promise<void>;
 }
@@ -85,12 +87,13 @@ function formatWorkoutType(value: string): string {
 
 export default function ManagedPlanSettingsCard({
   config,
+  connectionStatuses,
   platformCapabilities,
   updateSettings,
 }: ManagedPlanSettingsCardProps) {
   const { t } = useLingui();
   const { locale } = useLocale();
-  const planUrl = useMemo(() => planWindowUrl(), []);
+  const planUrl = planWindowUrl();
   const {
     data: plan,
     loading: planLoading,
@@ -100,7 +103,10 @@ export default function ManagedPlanSettingsCard({
   const management = config.plan_management;
   const state = managedPlanState(management);
   const connectedTargets = config.connections.filter(
-    (target) => platformCapabilities[target]?.plan === true,
+    (target) => (
+      connectionStatuses[target] === 'connected'
+      && platformCapabilities[target]?.plan === true
+    ),
   );
   const configuredTarget = management.execution_target;
   const [targetChoice, setTargetChoice] = useState<PlatformName | null>(null);
@@ -139,6 +145,9 @@ export default function ManagedPlanSettingsCard({
   const targetLabel = displayTarget
     ? PLATFORM_LABELS[displayTarget] ?? displayTarget
     : t`No target selected`;
+  const cleanupTargetLabel = cleanupResult?.target
+    ? PLATFORM_LABELS[cleanupResult.target] ?? cleanupResult.target
+    : targetLabel;
 
   const resetLeaveDialog = (open: boolean) => {
     setLeaveOpen(open);
@@ -149,16 +158,33 @@ export default function ManagedPlanSettingsCard({
     }
   };
 
+  const openCleanupRecovery = () => {
+    setLeaveChoice('remove');
+    setCleanupResult(null);
+    setActionError(null);
+    setLeaveOpen(true);
+  };
+
   const confirmManagedMode = async () => {
     const actionTarget = confirmMode === 'resume'
       ? configuredTarget
       : selectedTarget;
     if (!actionTarget) return;
+    const expectedWindow = managedPlanWindow();
+    if (
+      plan == null
+      || plan.window.start !== expectedWindow.start
+      || plan.window.end !== expectedWindow.end
+    ) {
+      setActionError(t`The managed window changed. Review the refreshed preview before enabling delivery.`);
+      return;
+    }
     const nextAction = confirmMode === 'resume' ? 'resume' : 'adopt';
     setAction(nextAction);
     setActionError(null);
     try {
       await updateSettings({
+        managed_plan_preview_start: expectedWindow.start,
         plan_management: {
           mode: 'praxys',
           execution_target: actionTarget,
@@ -444,15 +470,24 @@ export default function ManagedPlanSettingsCard({
                     : <Trans>Connect a supported execution platform above before adopting managed delivery.</Trans>}
                 </p>
               </div>
-              <Button
-                disabled={!targetAvailable || action != null || plan == null}
-                onClick={() => {
-                  setActionError(null);
-                  setConfirmMode('adopt');
-                }}
-              >
-                <Trans>Review and activate</Trans>
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  disabled={action != null}
+                  onClick={openCleanupRecovery}
+                >
+                  <Trans>Remove future Praxys deliveries</Trans>
+                </Button>
+                <Button
+                  disabled={!targetAvailable || action != null || plan == null}
+                  onClick={() => {
+                    setActionError(null);
+                    setConfirmMode('adopt');
+                  }}
+                >
+                  <Trans>Review and activate</Trans>
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -581,7 +616,10 @@ export default function ManagedPlanSettingsCard({
             >
               <Trans>Cancel</Trans>
             </Button>
-            <Button disabled={action != null} onClick={confirmManagedMode}>
+            <Button
+              disabled={action != null || planLoading || plan == null}
+              onClick={confirmManagedMode}
+            >
               {action === 'adopt' || action === 'resume'
                 ? <Trans>Enabling…</Trans>
                 : confirmMode === 'resume'
@@ -601,18 +639,31 @@ export default function ManagedPlanSettingsCard({
       >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle><Trans>Leave managed mode?</Trans></DialogTitle>
+            <DialogTitle>
+              {state === 'external'
+                ? <Trans>Remove future Praxys deliveries</Trans>
+                : <Trans>Leave managed mode?</Trans>}
+            </DialogTitle>
             <DialogDescription>
-              <Trans>
-                Praxys will stop changing the target calendar. Your canonical Praxys plan remains available for analysis.
-              </Trans>
+              {state === 'external'
+                ? (
+                  <Trans>
+                    Only workouts recorded in Praxys's delivery ledger are removed. Manual and other-coach workouts stay untouched.
+                  </Trans>
+                )
+                : (
+                  <Trans>
+                    Praxys will stop changing the target calendar. Your canonical Praxys plan remains available for analysis.
+                  </Trans>
+                )}
             </DialogDescription>
           </DialogHeader>
 
-          <fieldset
-            disabled={leaveOptionsDisabled}
-            className="space-y-2"
-          >
+          {state !== 'external' && (
+            <fieldset
+              disabled={leaveOptionsDisabled}
+              className="space-y-2"
+            >
             <legend className="sr-only">
               {t`Future delivered workouts`}
             </legend>
@@ -675,14 +726,15 @@ export default function ManagedPlanSettingsCard({
                 </Trans>
               </span>
             </label>
-          </fieldset>
+            </fieldset>
+          )}
 
           {cleanupResult?.status === 'partial' && (
             <Alert className="border-accent-amber/30 bg-accent-amber/8">
               <TriangleAlert className="text-accent-amber" aria-hidden="true" />
               <AlertDescription className="text-xs text-foreground">
                 <Trans>
-                  Managed mode is off. <span className="font-data">{cleanupResult.removed_count}</span> workouts were removed, but <span className="font-data">{cleanupResult.remaining_count}</span> could not be removed and remain on {targetLabel}.
+                  Managed mode is off. <span className="font-data">{cleanupResult.removed_count}</span> deliveries are clear; <span className="font-data">{cleanupResult.remaining_count}</span> still need review for {cleanupTargetLabel}.
                 </Trans>
               </AlertDescription>
             </Alert>
@@ -706,6 +758,25 @@ export default function ManagedPlanSettingsCard({
                 </Button>
                 <Button variant="destructive" disabled={action != null} onClick={retryCleanup}>
                   {action === 'cleanup' ? <Trans>Removing…</Trans> : <Trans>Retry cleanup</Trans>}
+                </Button>
+              </>
+            ) : state === 'external' ? (
+              <>
+                <Button
+                  variant="outline"
+                  disabled={action != null}
+                  onClick={() => resetLeaveDialog(false)}
+                >
+                  <Trans>Cancel</Trans>
+                </Button>
+                <Button
+                  variant="destructive"
+                  disabled={action != null}
+                  onClick={retryCleanup}
+                >
+                  {action === 'cleanup'
+                    ? <Trans>Removing…</Trans>
+                    : <Trans>Retry cleanup</Trans>}
                 </Button>
               </>
             ) : (

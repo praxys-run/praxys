@@ -480,7 +480,11 @@ def test_deleted_user_legacy_file_cannot_recreate_ledger_state(ledger_db):
 def test_corrupt_file_is_quarantined_without_inventing_success(ledger_db):
     db, status_dir = ledger_db
     from db.models import PlanDelivery
-    from db.plan_ledger import import_legacy_stryd_status, legacy_stryd_status_path
+    from db.plan_ledger import (
+        has_unresolved_legacy_stryd_corruption,
+        import_legacy_stryd_status,
+        legacy_stryd_status_path,
+    )
 
     path = legacy_stryd_status_path(str(status_dir), "corrupt-user")
     with open(path, "w", encoding="utf-8") as handle:
@@ -494,6 +498,223 @@ def test_corrupt_file_is_quarantined_without_inventing_success(ledger_db):
     assert not os.path.exists(path)
     assert len(glob.glob(f"{path}.corrupt-*")) == 1
     assert db.query(PlanDelivery).filter_by(user_id="corrupt-user").count() == 0
+    assert has_unresolved_legacy_stryd_corruption(
+        db,
+        user_id="corrupt-user",
+    )
+    assert import_legacy_stryd_status(
+        db,
+        user_id="corrupt-user",
+        status_dir=str(status_dir),
+    ) == "corrupt"
+    assert has_unresolved_legacy_stryd_corruption(
+        db,
+        user_id="corrupt-user",
+    )
+
+    _write_status(status_dir, "corrupt-user", {})
+    assert import_legacy_stryd_status(
+        db,
+        user_id="corrupt-user",
+        status_dir=str(status_dir),
+    ) == "corrupt"
+    assert has_unresolved_legacy_stryd_corruption(
+        db,
+        user_id="corrupt-user",
+    )
+    assert import_legacy_stryd_status(
+        db,
+        user_id="corrupt-user",
+        status_dir=str(status_dir),
+        authoritative_recovery=True,
+    ) == "imported"
+    assert not has_unresolved_legacy_stryd_corruption(
+        db,
+        user_id="corrupt-user",
+    )
+
+
+def test_dual_write_cannot_resolve_corrupt_legacy_state(ledger_db):
+    db, status_dir = ledger_db
+    from db.plan_ledger import (
+        begin_delivery_attempt,
+        complete_delivery_attempt,
+        get_or_create_delivery,
+        has_unresolved_legacy_stryd_corruption,
+        import_legacy_stryd_status,
+        legacy_stryd_status_path,
+        write_legacy_stryd_status,
+    )
+
+    path = _write_status(
+        status_dir,
+        "corrupt-user",
+        {"2026-05-01": {"workout_id": "legacy-owned-id"}},
+    )
+    assert import_legacy_stryd_status(
+        db,
+        user_id="corrupt-user",
+        status_dir=str(status_dir),
+    ) == "imported"
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write("{truncated")
+    assert import_legacy_stryd_status(
+        db,
+        user_id="corrupt-user",
+        status_dir=str(status_dir),
+    ) == "corrupt"
+
+    delivery, _ = get_or_create_delivery(
+        db,
+        user_id="corrupt-user",
+        target="stryd",
+        snapshot={
+            "date": "2026-05-02",
+            "source": "ai",
+            "workout_type": "easy",
+        },
+    )
+    delivery, attempt, disposition = begin_delivery_attempt(
+        db,
+        delivery,
+        operation="deliver",
+    )
+    assert disposition == "started"
+    assert attempt is not None
+    complete_delivery_attempt(
+        db,
+        user_id="corrupt-user",
+        delivery_id=delivery.id,
+        attempt_id=attempt.id,
+        attempt_state="synced",
+        external_id="new-owned-id",
+    )
+    db.commit()
+
+    write_legacy_stryd_status(
+        db,
+        status_dir=str(status_dir),
+        user_id="corrupt-user",
+        workout_date="2026-05-02",
+        external_id="new-owned-id",
+        pushed_at="2026-05-01T12:00:00+00:00",
+    )
+
+    assert not os.path.exists(
+        legacy_stryd_status_path(str(status_dir), "corrupt-user")
+    )
+    assert has_unresolved_legacy_stryd_corruption(
+        db,
+        user_id="corrupt-user",
+    )
+    legacy = db.query(type(delivery)).filter_by(
+        user_id="corrupt-user",
+        external_id="legacy-owned-id",
+    ).one()
+    assert legacy.state == "synced"
+
+    _write_status(
+        status_dir,
+        "corrupt-user",
+        {"2026-05-02": {"workout_id": "new-owned-id"}},
+    )
+    assert import_legacy_stryd_status(
+        db,
+        user_id="corrupt-user",
+        status_dir=str(status_dir),
+    ) == "corrupt"
+    db.refresh(legacy)
+    assert legacy.state == "synced"
+    assert has_unresolved_legacy_stryd_corruption(
+        db,
+        user_id="corrupt-user",
+    )
+
+
+def test_preexisting_corrupt_archive_is_backfilled_before_cleanup(ledger_db):
+    db, status_dir = ledger_db
+    from db.plan_ledger import (
+        has_unresolved_legacy_stryd_corruption,
+        import_legacy_stryd_status,
+        legacy_stryd_status_path,
+    )
+
+    path = legacy_stryd_status_path(str(status_dir), "corrupt-user")
+    archive_path = f"{path}.corrupt-20260731T120000Z"
+    with open(archive_path, "w", encoding="utf-8") as handle:
+        handle.write("{quarantined by an older worker")
+
+    assert import_legacy_stryd_status(
+        db,
+        user_id="corrupt-user",
+        status_dir=str(status_dir),
+    ) == "corrupt"
+    assert has_unresolved_legacy_stryd_corruption(
+        db,
+        user_id="corrupt-user",
+    )
+
+    _write_status(status_dir, "corrupt-user", {})
+    assert import_legacy_stryd_status(
+        db,
+        user_id="corrupt-user",
+        status_dir=str(status_dir),
+    ) == "corrupt"
+    assert import_legacy_stryd_status(
+        db,
+        user_id="corrupt-user",
+        status_dir=str(status_dir),
+        authoritative_recovery=True,
+    ) == "imported"
+    os.remove(path)
+    assert import_legacy_stryd_status(
+        db,
+        user_id="corrupt-user",
+        status_dir=str(status_dir),
+    ) == "missing"
+    assert not has_unresolved_legacy_stryd_corruption(
+        db,
+        user_id="corrupt-user",
+    )
+
+
+def test_unmarked_valid_import_cannot_resolve_corrupt_archive(ledger_db):
+    db, status_dir = ledger_db
+    from db.plan_ledger import (
+        has_unresolved_legacy_stryd_corruption,
+        import_legacy_stryd_status,
+        legacy_stryd_status_path,
+    )
+
+    path = _write_status(
+        status_dir,
+        "corrupt-user",
+        {"2026-05-02": {"workout_id": "partial-old-worker-id"}},
+    )
+    assert import_legacy_stryd_status(
+        db,
+        user_id="corrupt-user",
+        status_dir=str(status_dir),
+    ) == "imported"
+    with open(
+        f"{path}.corrupt-20260731T120000Z",
+        "w",
+        encoding="utf-8",
+    ) as handle:
+        handle.write("{older quarantined state")
+
+    assert import_legacy_stryd_status(
+        db,
+        user_id="corrupt-user",
+        status_dir=str(status_dir),
+    ) == "corrupt"
+    assert has_unresolved_legacy_stryd_corruption(
+        db,
+        user_id="corrupt-user",
+    )
+    assert os.path.exists(
+        legacy_stryd_status_path(str(status_dir), "corrupt-user")
+    )
 
 
 def test_invalid_entries_are_skipped_without_success_rows(ledger_db):
