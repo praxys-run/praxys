@@ -1,4 +1,39 @@
 {
   "schema_version": 1,
-  "proposals": []
+  "proposals": [
+    {
+      "id": "ready-handoff-stability-v1",
+      "status": "proposed",
+      "observed_pattern": "Recent change-loop evidence shows a repeated unstable review handoff: 3 of the 5 completed full-stack observations in data/agent_evals/change/review_promotion.json were corrected after ready, and the two latest 30-day outcome reports both called out post-ready instability or missing post-ready required-check executions around the review boundary.",
+      "evidence_links": [
+        "https://github.com/praxys-run/praxys/issues/467",
+        "https://github.com/praxys-run/praxys/issues/464",
+        "https://github.com/praxys-run/praxys/pull/421",
+        "https://github.com/praxys-run/praxys/pull/424",
+        "https://github.com/praxys-run/praxys/pull/425",
+        "https://github.com/praxys-run/praxys/pull/429"
+      ],
+      "suggested_policy_change": {
+        "scope": "change.selective_review",
+        "summary": "Add a stable-ready requirement before any future selective-review promotion or auto-review decision can treat a PR as handoff-complete.",
+        "details": [
+          "Require the current head SHA to match the SHA present when the PR most recently entered ready_for_review.",
+          "Require at least one required check execution on or after that most recent ready_for_review transition before a class can be counted as promotion-ready or eligible for automated review handling.",
+          "Treat any post-ready head change or missing post-ready required-check execution as review-required until a maintainer-owned policy change deliberately allows otherwise."
+        ]
+      },
+      "expected_benefit": "This narrows promotion and auto-review candidates to PRs that have actually stabilized at handoff, reducing the repeated 'ready too early' miss pattern without broadening the allowlist.",
+      "risks": [
+        "Some otherwise-safe PRs may stay in review-required longer if checks finish before the final ready_for_review event.",
+        "Timeline or check-attribution edge cases could undercount eligible PRs until the evaluation logic is hardened."
+      ],
+      "rollback": "Drop the stable-ready gate and return to the current promotion/auto-review criteria if it materially increases false negatives or proves too sensitive to GitHub timeline quirks.",
+      "eval_cases_needed_before_promotion": [
+        "A draft-born Copilot PR that changes after its first ready_for_review event must remain review-required until a new ready_for_review event occurs on the final head and a required check runs afterward.",
+        "A PR whose last required check completed before the final ready_for_review event must remain review-required and must not count as a successful promotion observation.",
+        "A stable PR with no post-ready head changes and a passing required check after the final ready_for_review event must still remain eligible for promotion evaluation.",
+        "Historical outcome replay should show that PRs #421, #424, and #425 fail the stable-ready gate, while PR #429 fails specifically for missing an executed post-ready required check."
+      ]
+    }
+  ]
 }
