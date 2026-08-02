@@ -39,6 +39,11 @@ advanced_description: |
   - 没有当前 HRV 时，不做基于 HRV 的恢复调整。
   - 历史值完全相同时，估计离散度为零；Praxys 会显示无数据，而不会虚构参考区间。
 
+  **自动调整边界：**
+  - 自动修改要求当日 HRV；昨天的读数可以用于建议，但不能改动计划。
+  - 只有一项由 Praxys 生成的高强度训练时才符合条件。手动创建、采纳、导入和外部训练均排除在外。
+  - 有界操作只会在不移动日期的情况下将该训练改为休息。均值减一个标准差的触发线和改为休息日的规则属于保守的产品估算；两项引用研究均未验证这一操作映射或临床处方。
+
 citations:
   - key: plews2012
     title: Heart rate variability in elite triathletes, is variation in variability the key to effective training?

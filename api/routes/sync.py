@@ -388,6 +388,33 @@ def _get_strava_client_config(creds: dict | None = None) -> tuple[str, str]:
     return client_id, client_secret
 
 
+def _run_post_sync_plan_adjustment(
+    user_id: str,
+    *,
+    source: str,
+) -> None:
+    """Run opted-in deterministic adjustment without changing sync success."""
+    try:
+        from api.plan_adjustments import run_plan_adjustment_for_user
+
+        result = run_plan_adjustment_for_user(
+            user_id,
+            trigger=f"manual_sync:{source}",
+        )
+        logger.info(
+            "Plan adjustment for user=%s source=%s: %s",
+            user_id,
+            source,
+            result.get("status"),
+        )
+    except Exception:
+        logger.exception(
+            "Post-sync plan adjustment failed for user=%s source=%s",
+            user_id,
+            source,
+        )
+
+
 def _run_sync(user_id: str, source: str, creds: dict,
               from_date: str | None = None) -> None:
     """Run sync for a single source. Called in a background thread.
@@ -485,6 +512,8 @@ def _run_sync(user_id: str, source: str, creds: dict,
             )
         except Exception:
             pass
+
+        _run_post_sync_plan_adjustment(user_id, source=source)
 
         # Post-sync LLM insight generation. Best-effort: failures here must
         # never break the sync. The runner is content-addressable (skips when

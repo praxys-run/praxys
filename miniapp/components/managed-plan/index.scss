@@ -110,8 +110,64 @@
 
 .managed-plan__manage::after,
 .managed-plan__retry::after,
+.managed-plan__adjustment-action::after,
 .managed-plan__status::after {
   border: 0;
+}
+
+.managed-plan__adjustment {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  margin-top: 18rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 12rpx;
+  background-color: var(--surface-subtle);
+}
+
+.managed-plan__adjustment--warning {
+  background-color: rgba(217, 119, 6, 0.09);
+}
+
+.managed-plan__adjustment-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.managed-plan__adjustment-title,
+.managed-plan__adjustment-detail {
+  display: block;
+}
+
+.managed-plan__adjustment-title {
+  color: var(--text);
+  font-size: 22rpx;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.managed-plan__adjustment-detail {
+  margin-top: 5rpx;
+  color: var(--text-muted);
+  font-size: 19rpx;
+  line-height: 1.45;
+}
+
+.managed-plan__adjustment-action {
+  min-height: 88rpx;
+  flex: none;
+  margin: 0;
+  padding: 0 8rpx 0 20rpx;
+  border: 0;
+  background-color: transparent;
+  color: var(--primary);
+  font-size: 20rpx;
+  font-weight: 650;
+  line-height: 88rpx;
+}
+
+.managed-plan__adjustment-action:disabled {
+  opacity: 0.5;
 }
 
 .managed-plan__loading {

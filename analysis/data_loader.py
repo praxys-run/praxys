@@ -23,6 +23,12 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from analysis.config import UserConfig
+    from db.models import (
+        PlanDelivery,
+        PlanTargetCalendarSync,
+        PlanTargetWorkout,
+        TrainingPlan,
+    )
     from sqlalchemy.orm import Session
 
 
@@ -487,6 +493,190 @@ def load_data_from_db(user_id: str, db: Session) -> dict[str, pd.DataFrame]:
         "fitness": fitness,
         "plan": plan,
     }
+
+
+def load_plan_adjustment_inputs(
+    user_id: str,
+    db: Session,
+    *,
+    current_date: date,
+    recovery_source: str | None,
+    target: str | None,
+    for_update: bool = False,
+) -> tuple[
+    list[TrainingPlan],
+    bool,
+    pd.DataFrame,
+    PlanDelivery | None,
+    PlanTargetCalendarSync | None,
+    list[PlanTargetWorkout],
+]:
+    """Load the bounded plan, recovery, activity, and target-state inputs.
+
+    Automatic adjustment never reads activity intensity. The activity query
+    selects only an ID so it can prevent rewriting a slot after execution may
+    already have started. Recovery rows retain the same deterministic provider
+    selection used by the dashboard without loading activity metrics. Target
+    rows are limited to the configured provider account for the one canonical
+    workout under consideration.
+    """
+    from sqlalchemy import select
+
+    from db.models import (
+        Activity,
+        PlanDelivery,
+        PlanTargetCalendarSync,
+        PlanTargetWorkout,
+        RecoveryData,
+        TrainingPlan,
+    )
+    from db.plan_ledger import (
+        canonical_workout_key,
+        delivery_canonical_id,
+        plan_snapshot,
+        workout_version,
+    )
+
+    plan_query = (
+        select(TrainingPlan)
+        .where(
+            TrainingPlan.user_id == user_id,
+            TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
+            TrainingPlan.date == current_date,
+        )
+        .order_by(TrainingPlan.id)
+    )
+    if for_update:
+        plan_query = plan_query.with_for_update().execution_options(
+            populate_existing=True
+        )
+    workouts = list(db.execute(plan_query).scalars().all())
+    activity_id = db.execute(
+        select(Activity.id)
+        .where(
+            Activity.user_id == user_id,
+            Activity.date == current_date,
+        )
+        .limit(1)
+    ).scalar_one_or_none()
+    recovery_rows = db.execute(
+        select(
+            RecoveryData.date,
+            RecoveryData.readiness_score,
+            RecoveryData.hrv_avg,
+            RecoveryData.resting_hr,
+            RecoveryData.sleep_score,
+            RecoveryData.source,
+        )
+        .where(
+            RecoveryData.user_id == user_id,
+            RecoveryData.date <= current_date,
+        )
+        .order_by(RecoveryData.date, RecoveryData.id)
+    ).mappings().all()
+    recovery = pd.DataFrame(
+        recovery_rows,
+        columns=(
+            "date",
+            "readiness_score",
+            "hrv_avg",
+            "resting_hr",
+            "sleep_score",
+            "source",
+        ),
+    )
+    recovery = select_preferred_source(recovery, recovery_source)
+
+    active_delivery = None
+    calendar_sync = None
+    target_workouts: list[PlanTargetWorkout] = []
+    canonical_id = (
+        str(workouts[0].canonical_id or "") if len(workouts) == 1 else ""
+    )
+    if target and canonical_id:
+        delivery_query = (
+            select(PlanDelivery)
+            .where(
+                PlanDelivery.user_id == user_id,
+                PlanDelivery.target == target,
+                PlanDelivery.state != "removed",
+            )
+            .order_by(
+                PlanDelivery.updated_at.desc(),
+                PlanDelivery.created_at.desc(),
+            )
+        )
+        if for_update:
+            delivery_query = delivery_query.with_for_update().execution_options(
+                populate_existing=True
+            )
+        deliveries = db.execute(delivery_query).scalars().all()
+        active_delivery = next(
+            (
+                delivery
+                for delivery in deliveries
+                if delivery_canonical_id(delivery) == canonical_id
+            ),
+            None,
+        )
+        if active_delivery is None:
+            snapshot = plan_snapshot(workouts[0])
+            canonical_key = canonical_workout_key(snapshot)
+            current_version = workout_version(snapshot)
+            active_delivery = next(
+                (
+                    delivery
+                    for delivery in deliveries
+                    if delivery_canonical_id(delivery) is None
+                    and (
+                        delivery.canonical_key == canonical_key
+                        or (
+                            delivery.plan_version
+                            or delivery.workout_version
+                        ) == current_version
+                        or delivery.workout_date == workouts[0].date
+                    )
+                ),
+                None,
+            )
+        if active_delivery is not None:
+            calendar_query = select(PlanTargetCalendarSync).where(
+                PlanTargetCalendarSync.user_id == user_id,
+                PlanTargetCalendarSync.target == target,
+            )
+            if for_update:
+                calendar_query = (
+                    calendar_query.with_for_update().execution_options(
+                        populate_existing=True
+                    )
+                )
+            calendar_sync = db.execute(
+                calendar_query
+            ).scalar_one_or_none()
+            if calendar_sync is not None:
+                target_query = select(PlanTargetWorkout).where(
+                    PlanTargetWorkout.user_id == user_id,
+                    PlanTargetWorkout.target == target,
+                    PlanTargetWorkout.provider_account_id
+                    == calendar_sync.provider_account_id,
+                )
+                if for_update:
+                    target_query = (
+                        target_query.with_for_update().execution_options(
+                            populate_existing=True
+                        )
+                    )
+                target_workouts = list(
+                    db.execute(target_query).scalars().all()
+                )
+    return (
+        workouts,
+        activity_id is not None,
+        recovery,
+        active_delivery,
+        calendar_sync,
+        target_workouts,
+    )
 
 
 def load_heat_adaptation_inputs(

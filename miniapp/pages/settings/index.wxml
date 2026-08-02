@@ -185,6 +185,83 @@
           </block>
         </view>
 
+        <view wx:if="{{adjustmentSupported}}" class="settings-adjustment">
+          <view class="settings-adjustment-head">
+            <view class="settings-adjustment-copy">
+              <view class="settings-adjustment-title-row">
+                <text class="settings-adjustment-title">{{tr.automaticGuardrail}}</text>
+                <text class="settings-adjustment-state settings-adjustment-state--{{adjustmentEnabled ? 'on' : 'off'}}">
+                  {{adjustmentEnabled ? tr.on : tr.off}}
+                </text>
+              </view>
+              <text class="settings-adjustment-detail">
+                {{planManagementState === 'external'
+                  ? tr.adoptBeforeAutomatic
+                  : adjustmentEnabled
+                    ? tr.automaticEnabledDetail
+                    : tr.suggestionOnlyDetail}}
+              </text>
+            </view>
+            <button
+              wx:if="{{planManagementState !== 'external'}}"
+              class="ts-button ts-button--secondary settings-adjustment-action"
+              disabled="{{adjustmentAction || planAction || planLoading}}"
+              bindtap="onReviewAutomaticAdjustment"
+            >
+              {{adjustmentEnabled
+                ? adjustmentAction === 'disable' ? tr.turningOff : tr.turnOff
+                : tr.reviewAndTurnOn}}
+            </button>
+          </view>
+
+          <button
+            class="settings-plan-link settings-adjustment-science"
+            bindtap="onShowAdjustmentScience"
+          >{{tr.whyConservative}}</button>
+          <text class="settings-adjustment-science-copy">{{tr.conservativeDetail}}</text>
+          <view class="settings-adjustment-sources">
+            <button
+              class="settings-plan-link settings-adjustment-source"
+              data-source="plews"
+              bindtap="onCopyAdjustmentSource"
+            >{{tr.plewsSource}}</button>
+            <button
+              class="settings-plan-link settings-adjustment-source"
+              data-source="kiviniemi"
+              bindtap="onCopyAdjustmentSource"
+            >{{tr.kiviniemiSource}}</button>
+          </view>
+
+          <view wx:if="{{planAdjustmentRows.length}}" class="settings-adjustment-history">
+            <text class="settings-adjustment-history-title">{{tr.recentAutomaticChanges}}</text>
+            <view
+              wx:for="{{planAdjustmentRows}}"
+              wx:key="id"
+              class="settings-adjustment-row"
+            >
+              <view class="settings-adjustment-row-copy">
+                <view class="settings-adjustment-row-head">
+                  <text class="settings-adjustment-date ts-value">{{item.date}}</text>
+                  <text class="settings-adjustment-change">{{item.change}}</text>
+                  <text class="settings-adjustment-status">{{item.status}}</text>
+                </view>
+                <text class="settings-adjustment-row-detail">{{item.detail}}</text>
+              </view>
+              <button
+                wx:if="{{item.canUndo}}"
+                class="settings-plan-link settings-adjustment-undo"
+                data-id="{{item.id}}"
+                disabled="{{adjustmentAction}}"
+                bindtap="onUndoPlanAdjustment"
+              >{{adjustmentAction ? tr.restoring : tr.restoreWorkout}}</button>
+            </view>
+          </view>
+
+          <text wx:if="{{adjustmentError}}" class="settings-plan-error" role="alert">
+            {{adjustmentError}}
+          </text>
+        </view>
+
         <view
           wx:if="{{planCleanupPartial && planManagementState === 'external'}}"
           class="settings-plan-cleanup"

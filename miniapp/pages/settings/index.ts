@@ -12,17 +12,20 @@ import type { ThemePref } from '../../utils/theme';
 import type { IAppOption } from '../../app';
 import { getLanguagePreference, setLanguagePreference } from '../../utils/share';
 import { t, tFmt } from '../../utils/i18n';
+import { copyUrlToClipboard } from '../../utils/markdown';
 import {
   beginManagedPlanRequest,
   formatWorkoutType,
   invalidateManagedPlanRequests,
   isPraxysOwned,
   isLatestManagedPlanRequest,
+  managedPlanPreviewUrl,
   managedPlanState,
   managedPlanWindow,
-  planWindowUrl,
 } from '../../utils/managed-plan';
 import type {
+  PlanAdjustment,
+  PlanAdjustmentHistoryResponse,
   PlanCleanupResponse,
   PlanResponse,
   PlatformName,
@@ -31,6 +34,20 @@ import type {
 } from '../../types/api';
 import type { ManagedPlanState } from '../../utils/managed-plan';
 import { MINIAPP_BUILD_VERSION } from '../../utils/version';
+
+const ADJUSTMENT_SOURCES = {
+  plews: 'https://doi.org/10.1007/s00421-012-2354-4',
+  kiviniemi: 'https://doi.org/10.1007/s00421-007-0552-2',
+} as const;
+
+function deviceTimeZone(): string | null {
+  try {
+    const value = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return value?.trim() || null;
+  } catch {
+    return null;
+  }
+}
 
 function buildSettingsTr() {
   return {
@@ -176,6 +193,62 @@ function buildSettingsTr() {
     leaveFailed: t('Could not leave managed mode'),
     cleanupFailed: t('Could not remove future delivered workouts'),
     done: t('Done'),
+    automaticGuardrail: t('Automatic recovery guardrail'),
+    on: t('On'),
+    off: t('Off'),
+    adoptBeforeAutomatic: t(
+      'Adopt Praxys as your planner before enabling automatic changes. Coaching remains suggestion-only.',
+    ),
+    automaticEnabledDetail: t(
+      "After a sync, Praxys may replace today's single Praxys-generated hard workout with rest only when same-day HRV crosses your personal caution band.",
+    ),
+    suggestionOnlyDetail: t(
+      'Coaching is suggestion-only. Praxys will not change a workout from recovery signals.',
+    ),
+    reviewAndTurnOn: t('Review and turn on'),
+    turnOff: t('Turn off'),
+    turningOff: t('Turning off…'),
+    whyConservative: t('Why this is conservative'),
+    conservativeDetail: t(
+      'This guardrail uses individualized HRV guidance and never loads activity intensity. The exact caution band and rest-day action are conservative product estimates, not diagnoses or clinically validated prescriptions. Prior-day, missing, or inconsistent recovery; a completed activity; multiple Praxys workouts; or an uncertain target calendar keeps the plan unchanged. Load, sleep, and other caution signals remain suggestions.',
+    ),
+    recentAutomaticChanges: t('Recent automatic changes'),
+    applied: t('Applied'),
+    restored: t('Restored'),
+    changedLater: t('Changed later'),
+    currentHrvCaution: t('Current HRV crossed your personal caution band.'),
+    restoreWorkout: t('Restore workout'),
+    restoring: t('Restoring…'),
+    unknownDate: t('Unknown date'),
+    workout: t('Workout'),
+    rest: t('Rest'),
+    automaticConsentTitle: t('Turn on conservative plan changes?'),
+    automaticConsentIntro: t(
+      'This permission is separate from managed delivery. Review the exact boundary before opting in.',
+    ),
+    automaticConsentRule: t(
+      "Only today's single Praxys-generated hard workout can become rest, and only for same-day individualized HRV below the caution band.",
+    ),
+    automaticConsentBoundary: t(
+      'External, manual, and other-coach workouts are never changed. Uncertain or stale evidence makes no change.',
+    ),
+    automaticConsentUndo: t(
+      'Every change is recorded here and can be restored while that exact workout version is still current.',
+    ),
+    keepSuggestionOnly: t('Keep suggestion-only'),
+    turnOn: t('Turn on'),
+    updateAutomaticFailed: t('Could not update automatic plan changes'),
+    restoreWorkoutFailed: t('Could not restore the previous workout'),
+    adjustmentHistoryFailed: t('Could not load automatic change history.'),
+    timeZoneUnavailable: t(
+      'Praxys could not determine your time zone. Check your device settings and try again.',
+    ),
+    evidenceTitle: t('Individualized HRV evidence'),
+    evidenceDetail: t(
+      'Praxys uses individualized HRV guidance from Plews et al. (2012) and Kiviniemi et al. (2007). The exact caution band and rest-day action are conservative product estimates, not diagnoses or clinically validated prescriptions.',
+    ),
+    plewsSource: t('Plews et al. (2012) source'),
+    kiviniemiSource: t('Kiviniemi et al. (2007) source'),
   };
 }
 
@@ -290,6 +363,15 @@ interface PlanPreviewRow {
   details: string;
 }
 
+interface PlanAdjustmentRow {
+  id: string;
+  date: string;
+  change: string;
+  status: string;
+  detail: string;
+  canUndo: boolean;
+}
+
 interface PlanTargetOption {
   key: PlatformName;
   label: string;
@@ -354,6 +436,11 @@ interface SettingsState {
   planCleanupRemoved: number;
   planCleanupRemaining: number;
   planCleanupTarget: string;
+  adjustmentEnabled: boolean;
+  adjustmentAction: string;
+  adjustmentError: string;
+  adjustmentSupported: boolean;
+  planAdjustmentRows: PlanAdjustmentRow[];
 
   webUrl: string;
 
@@ -493,6 +580,11 @@ const initialData: SettingsState = {
   planCleanupRemoved: 0,
   planCleanupRemaining: 0,
   planCleanupTarget: '',
+  adjustmentEnabled: false,
+  adjustmentAction: '',
+  adjustmentError: '',
+  adjustmentSupported: false,
+  planAdjustmentRows: [],
   webUrl: WEB_URL,
   syncing: false,
   syncMessage: '',
@@ -636,10 +728,21 @@ function buildSettingsState(response: SettingsResponse): Partial<SettingsState> 
     selectedPlanTarget: selectedTarget,
     selectedPlanTargetLabel: selectedTargetLabel,
     configuredPlanTargetConnected: configuredTargetConnected,
+    adjustmentEnabled:
+      config.plan_management.adjustment_policy === 'auto_conservative',
   };
 }
 
-function buildPlanPreviewState(response: PlanResponse): Partial<SettingsState> {
+function adjustmentStatusLabel(adjustment: PlanAdjustment): string {
+  if (adjustment.status === 'undone') return t('Restored');
+  if (adjustment.status === 'superseded') return t('Changed later');
+  return t('Applied');
+}
+
+function buildPlanPreviewState(
+  response: PlanResponse,
+  history: PlanAdjustment[],
+): Partial<SettingsState> {
   const praxysWorkouts = response.workouts.filter(isPraxysOwned);
   const externalWorkouts = response.workouts.filter(
     (workout) => !isPraxysOwned(workout),
@@ -661,6 +764,22 @@ function buildPlanPreviewState(response: PlanResponse): Partial<SettingsState> {
       details: details.join(' · '),
     };
   });
+  const adjustmentRows: PlanAdjustmentRow[] = history
+    .slice(0, 5)
+    .map((adjustment) => ({
+      id: adjustment.id,
+      date: adjustment.workout_date
+        ? formatPlanDate(adjustment.workout_date)
+        : t('Unknown date'),
+      change: `${
+        t(formatWorkoutType(adjustment.before.workout_type ?? t('Workout')))
+      } \u2192 ${
+        t(formatWorkoutType(adjustment.after.workout_type ?? t('Rest')))
+      }`,
+      status: adjustmentStatusLabel(adjustment),
+      detail: t('Current HRV crossed your personal caution band.'),
+      canUndo: adjustment.can_undo,
+    }));
   return {
     planLoading: false,
     planPreviewError: '',
@@ -670,6 +789,8 @@ function buildPlanPreviewState(response: PlanResponse): Partial<SettingsState> {
     planExternalCount: externalWorkouts.length,
     planPreviewRows: previewRows,
     planPreviewMoreCount: Math.max(praxysWorkouts.length - previewRows.length, 0),
+    adjustmentSupported: response.adjustments !== undefined,
+    planAdjustmentRows: adjustmentRows,
   };
 }
 
@@ -742,10 +863,33 @@ Page({
     const pageState = this as unknown as Record<string, unknown>;
     this.setData({ planLoading: true, planPreviewError: '' });
     try {
-      const response = await apiGet<PlanResponse>(planWindowUrl());
+      const response = await apiGet<PlanResponse>(managedPlanPreviewUrl());
+      if (!isLatestManagedPlanRequest(this, requestGeneration)) return;
+      let history = response.adjustments ?? [];
+      let adjustmentError = '';
+      if (response.adjustments !== undefined) {
+        try {
+          const adjustmentHistory = await apiGet<PlanAdjustmentHistoryResponse>(
+            '/api/plan/adjustments?limit=20', // i18n-allow
+          );
+          history = adjustmentHistory.items;
+        } catch (historyFailure) {
+          const apiError = historyFailure as Partial<ApiError>;
+          if (apiError.code === 'UNAUTHENTICATED') throw historyFailure;
+          adjustmentError = apiError.detail
+            ?? (this.data.tr as ReturnType<typeof buildSettingsTr>)
+              .adjustmentHistoryFailed;
+        }
+      }
       if (!isLatestManagedPlanRequest(this, requestGeneration)) return;
       pageState._managedPlanPreview = response;
-      this.setData(buildPlanPreviewState(response) as Record<string, unknown>);
+      this.setData({
+        ...buildPlanPreviewState(
+          response,
+          history,
+        ),
+        adjustmentError,
+      } as Record<string, unknown>);
     } catch (e) {
       if (!isLatestManagedPlanRequest(this, requestGeneration)) return;
       const err = e as Partial<ApiError>;
@@ -758,6 +902,7 @@ Page({
         planLoading: false,
         planPreviewError: err?.detail ?? String(e),
         hasPlanPreview: false,
+        adjustmentSupported: false,
       });
     }
   },
@@ -857,13 +1002,19 @@ Page({
     }
     const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
     this.setData({ planAction: mode, planActionError: '' });
+    const athleteTimezone = deviceTimeZone();
     const update: SettingsUpdate = {
       managed_plan_preview_start: previewStart,
+      ...(athleteTimezone
+        ? { source_options: { athlete_timezone: athleteTimezone } }
+        : {}),
       plan_management: {
         mode: 'praxys',
         execution_target: target,
         delivery_enabled: true,
-        adjustment_policy: 'suggest_only',
+        ...(mode === 'adopt'
+          ? { adjustment_policy: 'suggest_only' as const }
+          : {}),
       },
     };
     try {
@@ -896,6 +1047,123 @@ Page({
     } finally {
       this.setData({ planAction: '' });
     }
+  },
+
+  onReviewAutomaticAdjustment() {
+    if (
+      !this.data.adjustmentSupported
+      || this.data.adjustmentAction
+      || this.data.planLoading
+    ) return;
+    const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+    if (this.data.planManagementState === 'external') {
+      wx.showToast({
+        title: tr.adoptBeforeAutomatic,
+        icon: 'none',
+        duration: 2400,
+      });
+      return;
+    }
+    if (this.data.adjustmentEnabled) {
+      void this.setAutomaticAdjustmentPolicy('suggest_only');
+      return;
+    }
+    wx.showModal({
+      title: tr.automaticConsentTitle,
+      content: [
+        tr.automaticConsentIntro,
+        tr.automaticConsentRule,
+        tr.automaticConsentBoundary,
+        tr.automaticConsentUndo,
+      ].join('\n\n'),
+      confirmText: tr.turnOn,
+      cancelText: tr.cancel,
+      success: (result) => {
+        if (result.confirm) {
+          void this.setAutomaticAdjustmentPolicy('auto_conservative');
+        }
+      },
+    });
+  },
+
+  async setAutomaticAdjustmentPolicy(
+    policy: 'suggest_only' | 'auto_conservative',
+  ) {
+    if (!this.data.adjustmentSupported || this.data.adjustmentAction) return;
+    const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+    const athleteTimezone = (
+      policy === 'auto_conservative' ? deviceTimeZone() : null
+    );
+    if (policy === 'auto_conservative' && !athleteTimezone) {
+      this.setData({ adjustmentError: tr.timeZoneUnavailable });
+      return;
+    }
+    this.setData({
+      adjustmentAction: policy === 'auto_conservative' ? 'enable' : 'disable',
+      adjustmentError: '',
+    });
+    try {
+      await apiPut('/api/settings', {
+        ...(athleteTimezone
+          ? { source_options: { athlete_timezone: athleteTimezone } }
+          : {}),
+        plan_management: { adjustment_policy: policy },
+      } satisfies SettingsUpdate);
+      await this.refetch();
+    } catch (error) {
+      const apiError = error as Partial<ApiError>;
+      if (apiError.code === 'UNAUTHENTICATED') return;
+      this.setData({
+        adjustmentError: apiError.detail ?? tr.updateAutomaticFailed,
+      });
+    } finally {
+      this.setData({ adjustmentAction: '' });
+    }
+  },
+
+  async onUndoPlanAdjustment(event: WechatMiniprogram.TouchEvent) {
+    if (!this.data.adjustmentSupported || this.data.adjustmentAction) return;
+    const revisionId = String(event.currentTarget.dataset.id ?? '');
+    if (!revisionId) return;
+    const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+    this.setData({
+      adjustmentAction: `undo:${revisionId}`,
+      adjustmentError: '',
+    });
+    try {
+      await apiPost(
+        `/api/plan/adjustments/${encodeURIComponent(revisionId)}/undo`,
+        {},
+      );
+      await this.refetch();
+    } catch (error) {
+      const apiError = error as Partial<ApiError>;
+      if (apiError.code === 'UNAUTHENTICATED') return;
+      if (apiError.status === 409) await this.refetch();
+      this.setData({
+        adjustmentError: apiError.detail ?? tr.restoreWorkoutFailed,
+      });
+    } finally {
+      this.setData({ adjustmentAction: '' });
+    }
+  },
+
+  onShowAdjustmentScience() {
+    const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+    wx.showModal({
+      title: tr.evidenceTitle,
+      content: tr.evidenceDetail,
+      showCancel: false,
+      confirmText: tr.done,
+    });
+  },
+
+  onCopyAdjustmentSource(event: WechatMiniprogram.TouchEvent) {
+    const key = String(
+      event.currentTarget.dataset.source ?? '',
+    ) as keyof typeof ADJUSTMENT_SOURCES;
+    const url = ADJUSTMENT_SOURCES[key];
+    if (url) copyUrlToClipboard(url);
   },
 
   onLeaveManagedPlan() {

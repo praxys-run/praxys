@@ -85,7 +85,7 @@ export interface PlanManagementConfig {
   mode: 'external' | 'praxys';
   execution_target: PlatformName | null;
   delivery_enabled: boolean;
-  adjustment_policy: 'suggest_only';
+  adjustment_policy: 'suggest_only' | 'auto_conservative';
 }
 
 export interface SettingsConfig {
@@ -307,6 +307,58 @@ export interface PlannedWorkout {
   reconciliation?: PlanReconciliation;
 }
 
+export type PlanAdjustmentStatus = 'active' | 'undone' | 'superseded';
+
+export interface PlanAdjustmentWorkoutSnapshot {
+  canonical_id: string | null;
+  date: string | null;
+  workout_type: string | null;
+  planned_duration_min: number | null;
+  planned_distance_km: number | null;
+  target_power_min: number | null;
+  target_power_max: number | null;
+  workout_description: string | null;
+}
+
+export interface PlanAdjustmentCitation {
+  label: string;
+  url: string;
+}
+
+export interface PlanAdjustment {
+  id: string;
+  created_at: string;
+  status: PlanAdjustmentStatus;
+  can_undo: boolean;
+  workout_date: string | null;
+  before: PlanAdjustmentWorkoutSnapshot;
+  after: PlanAdjustmentWorkoutSnapshot;
+  rule: {
+    id?: string;
+    version?: string;
+    classification?: 'product_estimate';
+  };
+  reason_code: string | null;
+  rationale: string | null;
+  evidence: Record<string, unknown>;
+  bounds: Record<string, unknown>;
+  citations: PlanAdjustmentCitation[];
+  delivery: Record<string, unknown>;
+  undo_revision_id: string | null;
+}
+
+export interface PlanAdjustmentHistoryResponse {
+  items: PlanAdjustment[];
+}
+
+export interface PlanAdjustmentUndoResponse {
+  status: 'undone' | 'already_undone';
+  adjustment_revision_id: string;
+  revision_id: string;
+  delivery?: Record<string, unknown>;
+  delivery_audit_status?: 'recorded' | 'pending';
+}
+
 export interface PlanResponse {
   workouts: PlannedWorkout[];
   /** Stryd push history. Used to be served by GET /api/plan/stryd-status. */
@@ -316,6 +368,8 @@ export interface PlanResponse {
   sync_target: 'stryd' | null;
   /** Server-resolved query window — clients echo this back when paging. */
   window: { start: string; end: string };
+  /** Durable, newest-first conservative changes in the requested window. */
+  adjustments?: PlanAdjustment[];
 }
 
 export interface PlanWorkoutMutationResponse {

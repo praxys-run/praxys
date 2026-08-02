@@ -137,7 +137,7 @@ def test_response_versions_cover_changed_endpoints():
     assert ENDPOINT_RESPONSE_VERSIONS["training"] == "peer-metric-volume-training-v13"
     assert ENDPOINT_RESPONSE_VERSIONS["goal"] == "fixed-heat-model-goal-v2"
     assert ENDPOINT_RESPONSE_VERSIONS["science"] == "fixed-heat-model-v2"
-    assert ENDPOINT_RESPONSE_VERSIONS["plan"] == "owned-plan-provenance-v4"
+    assert ENDPOINT_RESPONSE_VERSIONS["plan"] == "conservative-adjustment-v5"
 
 
 

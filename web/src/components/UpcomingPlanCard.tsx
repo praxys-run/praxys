@@ -14,6 +14,7 @@ import {
   LoaderCircle,
   Pause,
   RefreshCw,
+  RotateCcw,
   ShieldCheck,
   TriangleAlert,
 } from 'lucide-react';
@@ -37,6 +38,7 @@ import {
   useApi,
 } from '@/hooks/useApi';
 import {
+  athletePlanWindow,
   isPraxysOwned,
   managedPlanState,
   planWindowUrl,
@@ -108,6 +110,13 @@ function formatDate(
     ).toUpperCase(),
     isToday: workoutDay.getTime() === today.getTime(),
   };
+}
+
+function formatNoticeDate(dateStr: string, locale: string): string {
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString(
+    locale === 'zh' ? 'zh-CN' : 'en-US',
+    { month: 'short', day: 'numeric' },
+  );
 }
 
 function workoutKey(workout: PlannedWorkout): string {
@@ -762,6 +771,7 @@ async function resolveWorkout(
 
 export default function UpcomingPlanCard() {
   const { t } = useLingui();
+  const { locale } = useLocale();
   const { config: settings, connectionStatuses } = useSettings();
   const [windowId, setWindowId] = useState<WindowId>(() => {
     if (typeof window === 'undefined') return '2wk';
@@ -772,45 +782,44 @@ export default function UpcomingPlanCard() {
   });
   const windowDays =
     WINDOW_OPTIONS.find((option) => option.id === windowId)?.days ?? 14;
-  const [utcDay, setUtcDay] = useState(
-    () => new Date().toISOString().slice(0, 10),
+  const [localDay, setLocalDay] = useState(
+    () => athletePlanWindow(1).start,
   );
   useEffect(() => {
     let timer: number | undefined;
-    const refreshUtcDay = () => {
-      setUtcDay(new Date().toISOString().slice(0, 10));
+    const refreshLocalDay = () => {
+      setLocalDay(athletePlanWindow(1).start);
     };
     const scheduleMidnightRefresh = () => {
       const now = new Date();
-      const nextMidnight = Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate() + 1,
-      );
+      const nextMidnight = new Date(now);
+      nextMidnight.setHours(24, 0, 0, 0);
       timer = window.setTimeout(() => {
-        refreshUtcDay();
+        refreshLocalDay();
         scheduleMidnightRefresh();
-      }, Math.max(nextMidnight - now.getTime(), 1));
+      }, Math.max(nextMidnight.getTime() - now.getTime(), 1));
     };
-    window.addEventListener('focus', refreshUtcDay);
+    window.addEventListener('focus', refreshLocalDay);
     scheduleMidnightRefresh();
     return () => {
-      window.removeEventListener('focus', refreshUtcDay);
+      window.removeEventListener('focus', refreshLocalDay);
       if (timer !== undefined) window.clearTimeout(timer);
     };
   }, []);
   const planUrl = useMemo(
     () => planWindowUrl(
       windowDays,
-      new Date(`${utcDay}T00:00:00Z`),
+      new Date(`${localDay}T12:00:00`),
     ),
-    [windowDays, utcDay],
+    [windowDays, localDay],
   );
   const { data, loading, error, refetch } = useApi<PlanResponse>(planUrl);
   const [workingKey, setWorkingKey] = useState<string | null>(null);
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
   const [reviewWorkout, setReviewWorkout] = useState<PlannedWorkout | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
+  const [undoingAdjustment, setUndoingAdjustment] = useState<string | null>(null);
+  const [adjustmentError, setAdjustmentError] = useState<string | null>(null);
 
   const planManagement = settings?.plan_management ?? {
     mode: 'external' as const,
@@ -891,6 +900,34 @@ export default function UpcomingPlanCard() {
     }
   };
 
+  const undoAdjustment = async (revisionId: string) => {
+    setUndoingAdjustment(revisionId);
+    setAdjustmentError(null);
+    try {
+      const response = await apiFetch(
+        `/api/plan/adjustments/${encodeURIComponent(revisionId)}/undo`,
+        { method: 'POST' },
+      );
+      if (!response.ok) {
+        const message = await extractErrorMessage(
+          response,
+          t`Could not restore the previous workout`,
+        );
+        if (response.status === 409) await refetch();
+        throw new Error(message);
+      }
+      await refetch();
+    } catch (actionError) {
+      setAdjustmentError(
+        actionError instanceof Error
+          ? actionError.message
+          : t`Could not restore the previous workout`,
+      );
+    } finally {
+      setUndoingAdjustment(null);
+    }
+  };
+
   if (loading) {
     return (
       <section>
@@ -925,6 +962,7 @@ export default function UpcomingPlanCard() {
   const conflictCount = data.workouts.filter(
     (workout) => workout.reconciliation?.conflict,
   ).length;
+  const latestAdjustment = data.adjustments?.[0];
   const header = (
     <>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -952,6 +990,74 @@ export default function UpcomingPlanCard() {
         target={targetLabel}
         targetConnected={targetConnected}
       />
+      {latestAdjustment && (
+        <Alert
+          className={`mb-5 ${
+            latestAdjustment.status === 'active'
+              ? 'border-accent-amber/30 bg-accent-amber/8'
+              : 'border-border bg-muted/35'
+          }`}
+        >
+          <ShieldCheck
+            className={
+              latestAdjustment.status === 'active'
+                ? 'text-accent-amber'
+                : 'text-muted-foreground'
+            }
+            aria-hidden="true"
+          />
+          <AlertDescription>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold text-foreground">
+                  {latestAdjustment.status === 'active' && (
+                    <Trans>Praxys made a conservative plan change</Trans>
+                  )}
+                  {latestAdjustment.status === 'undone' && (
+                    <Trans>The previous workout was restored</Trans>
+                  )}
+                  {latestAdjustment.status === 'superseded' && (
+                    <Trans>An earlier automatic change was superseded</Trans>
+                  )}
+                </p>
+                <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                  {latestAdjustment.workout_date && (
+                    <span className="font-data">
+                      {formatNoticeDate(latestAdjustment.workout_date, locale)}
+                      {' \u00b7 '}
+                    </span>
+                  )}
+                  <span className="font-medium text-foreground">
+                    {formatType(latestAdjustment.before.workout_type ?? t`Workout`)}
+                    {' \u2192 '}
+                    {formatType(latestAdjustment.after.workout_type ?? t`Rest`)}
+                  </span>
+                  {' \u00b7 '}
+                  <Trans>Current HRV crossed your personal caution band.</Trans>
+                </p>
+              </div>
+              {latestAdjustment.can_undo && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={undoingAdjustment != null}
+                  onClick={() => void undoAdjustment(latestAdjustment.id)}
+                >
+                  <RotateCcw aria-hidden="true" />
+                  {undoingAdjustment === latestAdjustment.id
+                    ? <Trans>Restoring…</Trans>
+                    : <Trans>Restore workout</Trans>}
+                </Button>
+              )}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+      {adjustmentError && (
+        <Alert variant="destructive" className="mt-2">
+          <AlertDescription>{adjustmentError}</AlertDescription>
+        </Alert>
+      )}
     </>
   );
 

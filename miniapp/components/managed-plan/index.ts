@@ -12,6 +12,7 @@ import {
   workoutKey,
 } from '../../utils/managed-plan';
 import type {
+  PlanAdjustment,
   PlanReconciliation,
   PlanResolutionAction,
   PlanResolutionResponse,
@@ -32,6 +33,14 @@ interface WorkoutStatus {
   tone: StatusTone;
   action: WorkoutAction;
   disabled: boolean;
+}
+
+interface AdjustmentNoticeView {
+  id: string;
+  title: string;
+  detail: string;
+  tone: 'neutral' | 'warning';
+  canUndo: boolean;
 }
 
 interface WorkoutView {
@@ -85,6 +94,15 @@ function translations() {
     couldNotResolve: t('Could not resolve this workout'),
     deliveryFailed: t('Delivery failed'),
     missingDeliveryResult: t('No delivery result was returned for this workout'),
+    conservativeChange: t('Praxys made a conservative plan change'),
+    previousWorkoutRestored: t('The previous workout was restored'),
+    adjustmentSuperseded: t('An earlier automatic change was superseded'),
+    currentHrvCaution: t('Current HRV crossed your personal caution band.'),
+    restoreWorkout: t('Restore workout'),
+    restoring: t('Restoring…'),
+    restoreWorkoutFailed: t('Could not restore the previous workout'),
+    workout: t('Workout'),
+    rest: t('Rest'),
   };
 }
 
@@ -364,6 +382,36 @@ function buildWorkoutViews(
   });
 }
 
+function adjustmentNotice(
+  adjustment: PlanAdjustment | undefined,
+): AdjustmentNoticeView | null {
+  if (!adjustment) return null;
+  const dateLabel = adjustment.workout_date
+    ? new Date(`${adjustment.workout_date}T00:00:00`).toLocaleDateString(
+      detectLocale() === 'zh' ? 'zh-CN' : 'en-US',
+      { month: 'short', day: 'numeric' },
+    )
+    : '';
+  const before = t(formatWorkoutType(adjustment.before.workout_type ?? t('Workout')));
+  const after = t(formatWorkoutType(adjustment.after.workout_type ?? t('Rest')));
+  const title = adjustment.status === 'undone'
+    ? t('The previous workout was restored')
+    : adjustment.status === 'superseded'
+      ? t('An earlier automatic change was superseded')
+      : t('Praxys made a conservative plan change');
+  return {
+    id: adjustment.id,
+    title,
+    detail: [
+      dateLabel,
+      `${before} \u2192 ${after}`,
+      t('Current HRV crossed your personal caution band.'),
+    ].filter(Boolean).join(' \u00b7 '),
+    tone: adjustment.status === 'active' ? 'warning' : 'neutral',
+    canUndo: adjustment.can_undo,
+  };
+}
+
 function resolutionLabel(
   action: PlanResolutionAction,
   reconciliation: PlanReconciliation,
@@ -441,26 +489,56 @@ Component({
     target: '' as string,
     targetConnected: false,
     workingKey: '',
+    hasAdjustment: false,
+    adjustment: null as AdjustmentNoticeView | null,
+    adjustmentWorking: false,
     tr: translations(),
   },
 
   lifetimes: {
     attached() {
       this.setData({ tr: translations() });
+      this.scheduleMidnightRefresh();
       void this.refresh();
     },
     detached() {
+      this.clearMidnightRefresh();
       invalidateManagedPlanRequests(this);
     },
   },
 
   pageLifetimes: {
     show() {
+      this.scheduleMidnightRefresh();
       if (this.data.hasResponse) void this.refresh();
     },
   },
 
   methods: {
+    clearMidnightRefresh() {
+      const componentState = this as unknown as {
+        _localMidnightTimer?: number;
+      };
+      if (componentState._localMidnightTimer !== undefined) {
+        clearTimeout(componentState._localMidnightTimer);
+        componentState._localMidnightTimer = undefined;
+      }
+    },
+
+    scheduleMidnightRefresh() {
+      this.clearMidnightRefresh();
+      const now = new Date();
+      const nextMidnight = new Date(now);
+      nextMidnight.setHours(24, 0, 0, 0);
+      const componentState = this as unknown as {
+        _localMidnightTimer?: number;
+      };
+      componentState._localMidnightTimer = setTimeout(() => {
+        void this.refresh();
+        this.scheduleMidnightRefresh();
+      }, Math.max(nextMidnight.getTime() - now.getTime(), 1));
+    },
+
     async refresh() {
       const requestGeneration = beginManagedPlanRequest(this);
       const isBackground = this.data.hasResponse;
@@ -498,6 +576,7 @@ Component({
           && settings.connection_statuses[target] === 'connected';
         const management = managementCopy(state, target, targetConnected);
         const rawWorkouts = plan.workouts;
+        const latestAdjustment = adjustmentNotice(plan.adjustments?.[0]);
         const workingKey = this.data.workingKey;
         this.setData({
           loading: false,
@@ -526,6 +605,9 @@ Component({
           target: target ?? '',
           targetConnected,
           workingKey,
+          hasAdjustment: latestAdjustment != null,
+          adjustment: latestAdjustment,
+          adjustmentWorking: false,
         });
       } catch (error) {
         if (!isLatestManagedPlanRequest(this, requestGeneration)) return;
@@ -542,6 +624,38 @@ Component({
       }
     },
 
+    async onUndoAdjustment() {
+      const adjustment = this.data.adjustment as AdjustmentNoticeView | null;
+      if (
+        !adjustment?.canUndo
+        || this.data.adjustmentWorking
+        || this.data.workingKey
+        || this.data.refreshing
+      ) {
+        return;
+      }
+      this.setData({ adjustmentWorking: true, actionError: '' });
+      try {
+        await apiPost(
+          `/api/plan/adjustments/${encodeURIComponent(adjustment.id)}/undo`,
+          {},
+        );
+        await this.refresh();
+      } catch (error) {
+        const apiError = error as Partial<ApiError>;
+        if (apiError.code === 'UNAUTHENTICATED') return;
+        if (apiError.status === 409) await this.refresh();
+        this.setData({
+          actionError: apiError.detail
+            ?? (error instanceof Error
+              ? error.message
+              : this.data.tr.restoreWorkoutFailed),
+        });
+      } finally {
+        this.setData({ adjustmentWorking: false });
+      }
+    },
+
     onRetry() {
       void this.refresh();
     },
@@ -551,7 +665,11 @@ Component({
     },
 
     onWorkoutAction(event: WechatMiniprogram.TouchEvent) {
-      if (this.data.workingKey || this.data.refreshing) return;
+      if (
+        this.data.workingKey
+        || this.data.refreshing
+        || this.data.adjustmentWorking
+      ) return;
       const key = String(event.currentTarget.dataset.key ?? '');
       const action = String(event.currentTarget.dataset.action ?? '') as WorkoutAction;
       const workout = this.data.rawWorkouts.find(

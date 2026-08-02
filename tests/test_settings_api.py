@@ -254,6 +254,44 @@ def test_settings_enables_delivery_and_runs_post_commit_hook(
     ]
 
 
+def test_settings_accepts_current_athlete_local_preview(
+    api_client,
+    monkeypatch,
+):
+    client, user_id = api_client
+    _seed_connection(user_id, "stryd")
+
+    class FixedDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            value = datetime(2026, 9, 14, 12, tzinfo=timezone.utc)
+            return value.astimezone(tz) if tz is not None else value.replace(
+                tzinfo=None
+            )
+
+    monkeypatch.setattr("api.routes.settings.datetime", FixedDateTime)
+    calls: list[str] = []
+    monkeypatch.setattr(
+        "api.plan_delivery.rolling.trigger_managed_plan_delivery",
+        lambda user_id, *, trigger, window_start: calls.append(
+            window_start.isoformat()
+        ),
+    )
+
+    response = client.put("/api/settings", json={
+        "managed_plan_preview_start": "2026-09-15",
+        "source_options": {"athlete_timezone": "Pacific/Kiritimati"},
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "stryd",
+            "delivery_enabled": True,
+        },
+    })
+
+    assert response.status_code == 200, response.text
+    assert calls == ["2026-09-15"]
+
+
 def test_settings_rejects_expired_preview_before_enabling_delivery(
     api_client,
     monkeypatch,
@@ -393,6 +431,91 @@ def test_disconnecting_target_preserves_managed_plan_intent(api_client):
     assert "stryd" not in settings.json()["config"]["connections"]
 
 
+def test_adjustment_consent_can_be_revoked_after_target_disconnect(
+    api_client,
+    monkeypatch,
+):
+    client, user_id = api_client
+    _seed_connection(user_id, "stryd")
+    monkeypatch.setattr(
+        "api.plan_adjustments.run_plan_adjustment_for_user",
+        lambda *args, **kwargs: {"status": "no_change"},
+    )
+    monkeypatch.setattr(
+        "api.plan_delivery.rolling.trigger_managed_plan_delivery",
+        lambda *args, **kwargs: None,
+    )
+    adopted = client.put("/api/settings", json={
+        "source_options": {"athlete_timezone": "UTC"},
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "stryd",
+            "delivery_enabled": True,
+            "adjustment_policy": "auto_conservative",
+        },
+    })
+    assert adopted.status_code == 200, adopted.text
+    disconnected = client.delete("/api/settings/connections/stryd")
+    assert disconnected.status_code == 200, disconnected.text
+
+    revoked = client.put("/api/settings", json={
+        "plan_management": {"adjustment_policy": "suggest_only"},
+    })
+
+    assert revoked.status_code == 200, revoked.text
+    assert revoked.json()["config"]["plan_management"] == {
+        "mode": "praxys",
+        "execution_target": "stryd",
+        "delivery_enabled": True,
+        "adjustment_policy": "suggest_only",
+    }
+
+
+def test_legacy_resume_payload_preserves_adjustment_consent(
+    api_client,
+    monkeypatch,
+):
+    client, user_id = api_client
+    _seed_connection(user_id, "stryd")
+    monkeypatch.setattr(
+        "api.plan_adjustments.run_plan_adjustment_for_user",
+        lambda *args, **kwargs: {"status": "no_change"},
+    )
+    monkeypatch.setattr(
+        "api.plan_delivery.rolling.trigger_managed_plan_delivery",
+        lambda *args, **kwargs: None,
+    )
+    configured = client.put("/api/settings", json={
+        "source_options": {"athlete_timezone": "UTC"},
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "stryd",
+            "delivery_enabled": False,
+            "adjustment_policy": "auto_conservative",
+        },
+    })
+    assert configured.status_code == 200, configured.text
+
+    resumed = client.put("/api/settings", json={
+        "managed_plan_preview_start": (
+            datetime.now(timezone.utc).date().isoformat()
+        ),
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "stryd",
+            "delivery_enabled": True,
+            # N-1 clients sent this placeholder during every resume.
+            "adjustment_policy": "suggest_only",
+        },
+    })
+
+    assert resumed.status_code == 200, resumed.text
+    assert (
+        resumed.json()["config"]["plan_management"]["adjustment_policy"]
+        == "auto_conservative"
+    )
+
+
 def test_cleanup_endpoint_rejects_before_leaving_managed_mode(api_client):
     client, user_id = api_client
     _seed_connection(user_id, "stryd")
@@ -515,6 +638,125 @@ def test_settings_strictly_validates_plan_management(
         "plan_management": plan_management,
     })
     assert res.status_code == 422, res.text
+
+
+def test_auto_adjustment_requires_praxys_mode(api_client):
+    client, _ = api_client
+
+    res = client.put("/api/settings", json={
+        "plan_management": {
+            "adjustment_policy": "auto_conservative",
+        },
+    })
+
+    assert res.status_code == 400, res.text
+    assert "requires Praxys mode" in res.json()["detail"]
+
+
+@pytest.mark.parametrize(
+    "source_options",
+    [None, {"athlete_timezone": "not/a-timezone"}],
+)
+def test_auto_adjustment_requires_valid_athlete_timezone(
+    api_client,
+    source_options,
+):
+    client, _ = api_client
+    payload = {
+        "plan_management": {
+            "mode": "praxys",
+            "adjustment_policy": "auto_conservative",
+        },
+    }
+    if source_options is not None:
+        payload["source_options"] = source_options
+
+    res = client.put("/api/settings", json=payload)
+
+    assert res.status_code == 400, res.text
+    assert "timezone" in res.json()["detail"].lower()
+
+
+def test_auto_adjustment_requires_explicit_consent_and_resets_on_exit(
+    api_client,
+    monkeypatch,
+):
+    client, user_id = api_client
+    calls: list[tuple[str, str]] = []
+
+    def capture(called_user_id: str, *, trigger: str) -> dict:
+        calls.append((called_user_id, trigger))
+        return {"status": "no_change"}
+
+    monkeypatch.setattr(
+        "api.plan_adjustments.run_plan_adjustment_for_user",
+        capture,
+    )
+    enabled = client.put("/api/settings", json={
+        "source_options": {"athlete_timezone": "Asia/Shanghai"},
+        "plan_management": {
+            "mode": "praxys",
+            "adjustment_policy": "auto_conservative",
+        },
+    })
+    repeated = client.put("/api/settings", json={
+        "plan_management": {
+            "adjustment_policy": "auto_conservative",
+        },
+    })
+    disabled = client.put("/api/settings", json={
+        "plan_management": {"mode": "external"},
+    })
+
+    assert enabled.status_code == 200, enabled.text
+    assert enabled.json()["config"]["plan_management"]["adjustment_policy"] == (
+        "auto_conservative"
+    )
+    assert enabled.json()["config"]["source_options"]["athlete_timezone"] == (
+        "Asia/Shanghai"
+    )
+    assert repeated.status_code == 200, repeated.text
+    assert disabled.status_code == 200, disabled.text
+    assert disabled.json()["config"]["plan_management"]["adjustment_policy"] == (
+        "suggest_only"
+    )
+    assert calls == [(user_id, "adjustment_policy_enabled")]
+
+
+def test_combined_consent_adjusts_before_initial_delivery(
+    api_client,
+    monkeypatch,
+):
+    client, user_id = api_client
+    _seed_connection(user_id, "stryd")
+    calls: list[str] = []
+
+    monkeypatch.setattr(
+        "api.plan_adjustments.run_plan_adjustment_for_user",
+        lambda user_id, *, trigger: (
+            calls.append(f"adjust:{trigger}") or {"status": "adjusted"}
+        ),
+    )
+    monkeypatch.setattr(
+        "api.plan_delivery.rolling.trigger_managed_plan_delivery",
+        lambda user_id, *, trigger, window_start=None: (
+            calls.append(f"deliver:{trigger}") or None
+        ),
+    )
+
+    res = client.put("/api/settings", json={
+        "managed_plan_preview_start": datetime.now(timezone.utc).date().isoformat(),
+        "source_options": {"athlete_timezone": "America/Los_Angeles"},
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "stryd",
+            "delivery_enabled": True,
+            "adjustment_policy": "auto_conservative",
+        },
+    })
+
+    assert res.status_code == 200, res.text
+    assert calls == ["adjust:adjustment_policy_enabled"]
 
 
 def test_legacy_plan_preference_seeds_target_without_adoption(api_client):

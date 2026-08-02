@@ -382,6 +382,49 @@ def _classify_delivery(
     return "pending_observation", "awaiting_calendar_sync"
 
 
+def classify_plan_delivery_snapshot(
+    *,
+    canonical: TrainingPlan,
+    delivery: PlanDelivery,
+    calendar_sync: PlanTargetCalendarSync,
+    observations: list[PlanTargetWorkout],
+) -> tuple[str, str | None, PlanTargetWorkout | None]:
+    """Classify one delivery from already-loaded target-calendar evidence."""
+    observation = next(
+        (
+            row
+            for row in observations
+            if delivery.external_id
+            and row.external_id == delivery.external_id
+        ),
+        None,
+    )
+    match_basis = "external_id" if observation is not None else None
+    if (
+        (observation is None or not observation.present)
+        and delivery.provider_content_version
+    ):
+        fingerprint_matches = [
+            row
+            for row in observations
+            if row.present
+            and row.workout_date == delivery.workout_date
+            and row.content_fingerprint
+            == delivery.provider_content_version
+        ]
+        if len(fingerprint_matches) == 1:
+            observation = fingerprint_matches[0]
+            match_basis = "fingerprint"
+    state, reason = _classify_delivery(
+        canonical=canonical,
+        observation=observation,
+        delivery=delivery,
+        calendar_sync=calendar_sync,
+        match_basis=match_basis,
+    )
+    return state, reason, observation
+
+
 def _select_canonical(
     delivery: PlanDelivery,
     observation: PlanTargetWorkout | None,

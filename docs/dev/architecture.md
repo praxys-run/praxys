@@ -161,11 +161,13 @@ version fence before each provider delete or create. Its opaque generation
 also fingerprints the complete semantic target-calendar snapshot, preventing
 a concurrent sync from introducing an unseen matching workout mid-resolution
 without invalidating IDs for timestamp-only refreshes.
-Adoption previews and rolling delivery use the same 14-day UTC window. The
-settings mutation carries the reviewed start date, rejects an expired preview,
-and pins the immediate delivery pass to that boundary without backdating its
-retry or observation clock. Overnight-open clients rotate their query window
-at UTC midnight.
+Adoption previews retain the 14-day UTC delivery window and persist the
+detected IANA timezone. Daily plan views use the device-local date so
+athlete-local automatic changes stay visible across UTC midnight. The settings
+mutation carries the reviewed start date, accepts the current athlete-local
+date plus the current UTC date for rolling client compatibility, rejects an
+expired preview, and pins the immediate delivery pass to that boundary without
+backdating its retry or observation clock.
 
 Plan commits and delivery commits remain separate. Settings adoption and
 committed plan upload/upsert/delete operations start a best-effort post-commit
@@ -257,6 +259,41 @@ Enabling delivery requires an actively connected target with a registered plan
 adapter. Once selected, that target remains part of the managed-plan intent
 through a disconnect so the UI can request reconnection and later clean up the
 correct delivery ledger; provider writes remain gated on the live connection.
+
+Automatic plan adjustment is a second, independent consent boundary.
+`suggest_only` remains the default in every ownership mode.
+`auto_conservative` is available only while Praxys owns the canonical plan and
+is reset when the user leaves that mode. Consent also persists the device's
+valid IANA timezone in `source_options.athlete_timezone`; adjustment evaluation
+derives the plan day in that athlete-local timezone and fails closed when the
+timezone is absent or invalid. Consent updates do not depend on execution-target
+connectivity, and the compatibility layer preserves an existing opt-in when an
+older client resumes paused delivery with its historical `suggest_only`
+placeholder. The pure evaluator in
+`analysis/plan_adjustments.py` currently permits one bounded action: replace
+today's single Praxys-generated hard workout with rest when same-day
+individualized HRV is below its personal caution band and a dedicated HRV-only
+daily signal agrees. The adjustment loader selects only plan rows, recovery
+observations, and an activity-existence ID; activity intensity is never loaded.
+Prior-day, stale, missing, or internally inconsistent recovery; manual or
+adopted provenance; an already-recorded activity; ambiguous plan rows; changed
+canonical content; or uncertain target state fails closed. Target evidence is
+loaded through the same bounded loader and is current only when the latest
+calendar snapshot covers the athlete-local workout date and refreshed its
+matching observation. The threshold and rest-day mapping are explicit product
+estimates, not diagnoses or clinically validated prescriptions. Manual and
+scheduled syncs invoke the isolated lifecycle before post-sync insight
+generation; mutation, undo, and audit-recovery delivery passes are pinned to
+the snapshot's logical workout date.
+
+The lifecycle serializes with plan delivery and reconciliation, re-evaluates
+all evidence under the plan-write fence, and records the mutation plus delivery
+consequence as append-only `PlanRevision` events. Undo restores only an exact
+still-current after-snapshot, including provenance and metadata; later edits
+turn the history item into `superseded` rather than being overwritten. The
+mutation revision is also a durable pending-delivery record. A later identical
+evaluation retries a missing consequence record only while that exact adjusted
+snapshot remains current.
 
 Ownership and authorship are separate. `TrainingPlan.source` identifies the
 owner lane, while `TrainingPlan.workout_origin` records whether content was
