@@ -619,6 +619,55 @@ def _login_garmin_with_cn_fallback(client, creds: dict, token_dir: str) -> None:
         inner.dump(token_dir)
 
 
+def _persist_garmin_calendar_snapshot(
+    db: Session,
+    *,
+    user_id: str,
+    provider_account_id: str,
+    rows: list[dict],
+    window_start: date,
+    window_end: date,
+    observed_at: datetime,
+) -> int:
+    """Atomically persist one complete read-only Garmin calendar snapshot."""
+    from db import sync_writer
+    from db.plan_reconciliation import record_target_calendar_sync
+
+    observed_external_ids = {
+        str(row.get("external_id") or "").strip()
+        for row in rows
+        if str(row.get("external_id") or "").strip()
+    }
+    with db.begin_nested():
+        snapshot_changes = record_target_calendar_sync(
+            db,
+            user_id=user_id,
+            target="garmin",
+            provider_account_id=provider_account_id,
+            rows=rows,
+            window_start=window_start,
+            window_end=window_end,
+            observed_at=observed_at,
+        )
+        if snapshot_changes is None:
+            return 0
+        changed = sync_writer.write_training_plan(
+            user_id,
+            rows,
+            "garmin",
+            db,
+        )
+        changed += sync_writer.prune_training_plan_window(
+            user_id,
+            source="garmin",
+            observed_external_ids=observed_external_ids,
+            window_start=window_start,
+            window_end=window_end,
+            db=db,
+        )
+    return changed
+
+
 def _sync_garmin(user_id: str, creds: dict, from_date: str | None,
                  db) -> dict:
     """Fetch Garmin data and write directly to DB."""
@@ -635,6 +684,10 @@ def _sync_garmin(user_id: str, creds: dict, from_date: str | None,
         parse_activity_weather, parse_heart_rates, parse_running_ftp,
         RATE_LIMIT_DELAY,
         GARMIN_MAX_CHART_SIZE,
+        GARMIN_CALENDAR_DAYS_AHEAD,
+        GARMIN_CALENDAR_DAYS_BACK,
+        fetch_training_plan_api,
+        garmin_provider_account_id,
     )
     import time
 
@@ -666,6 +719,61 @@ def _sync_garmin(user_id: str, creds: dict, from_date: str | None,
     # raises, the exception is caught internally, and the credentials flow
     # runs. On success it writes garmin_tokens.json back to the same path.
     _login_garmin_with_cn_fallback(client, creds, token_dir)
+
+    # Fetch read-only workout-calendar evidence before any DB writes. Auth and
+    # rate-limit failures must reach the normal source backoff path, but doing
+    # so after activities/recovery were staged would roll those successful
+    # writes back. Non-auth endpoint/schema failures remain calendar-local and
+    # preserve the last complete snapshot.
+    plan_rows: list[dict] | None = None
+    provider_account_id: str | None = None
+    calendar_today = date.today()
+    calendar_window_start = (
+        calendar_today - timedelta(days=GARMIN_CALENDAR_DAYS_BACK)
+    )
+    calendar_window_end = (
+        calendar_today + timedelta(days=GARMIN_CALENDAR_DAYS_AHEAD)
+    )
+    calendar_fetch_started_at = datetime.now(timezone.utc).replace(
+        tzinfo=None
+    )
+    calendar_reader = getattr(client, "get_scheduled_workouts", None)
+    if not callable(calendar_reader):
+        logger.warning(
+            "Garmin workout calendar method is unavailable for user %s",
+            user_id,
+        )
+    else:
+        try:
+            provider_account_id = garmin_provider_account_id(
+                user_id=user_id,
+                display_name=getattr(client, "display_name", None),
+                is_cn=is_cn,
+            )
+            plan_rows = fetch_training_plan_api(
+                client,
+                window_start=calendar_window_start,
+                window_end=calendar_window_end,
+            )
+        except (
+            GarminConnectAuthenticationError,
+            GarminConnectTooManyRequestsError,
+        ):
+            raise
+        except GarminConnectConnectionError as e:
+            if _exception_status_code(e) in {401, 429}:
+                raise
+            logger.warning(
+                "Garmin workout calendar fetch failed for user %s: %s",
+                user_id,
+                e,
+            )
+        except (TypeError, ValueError) as e:
+            logger.warning(
+                "Garmin workout calendar payload was unavailable for user %s: %s",
+                user_id,
+                e,
+            )
 
     end = date.today().isoformat()
     start = from_date or (date.today() - timedelta(days=7)).isoformat()
@@ -1039,9 +1147,32 @@ def _sync_garmin(user_id: str, creds: dict, from_date: str | None,
                 "Garmin recovery write failed for user %s: %s", user_id, e,
             )
 
+    # Persist only after every covered month was fetched and parsed. This does
+    # not enable Garmin as a delivery target; issue #484 remains the write-
+    # feasibility gate.
+    plan_count = 0
+    if plan_rows is not None and provider_account_id is not None:
+        try:
+            plan_count = _persist_garmin_calendar_snapshot(
+                db,
+                user_id=user_id,
+                provider_account_id=provider_account_id,
+                rows=plan_rows,
+                window_start=calendar_window_start,
+                window_end=calendar_window_end,
+                observed_at=calendar_fetch_started_at,
+            )
+        except Exception as e:
+            logger.warning(
+                "Garmin workout calendar write failed for user %s: %s",
+                user_id,
+                e,
+            )
+
     return {"activities": act_count, "splits": split_count,
             "lactate_threshold": lt_count, "profile": profile_count,
-            "daily_metrics": dm_count, "recovery": recovery_count}
+            "daily_metrics": dm_count, "recovery": recovery_count,
+            "plan": plan_count}
 
 
 def _sync_stryd(user_id: str, creds: dict, from_date: str | None,

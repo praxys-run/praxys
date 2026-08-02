@@ -1,8 +1,287 @@
 """Garmin Connect data parsing — fetch/parse layer for the sync API route."""
 
+import hashlib
+import json
 import math
+from collections.abc import Mapping
+from datetime import date
+from typing import Any
 
 RATE_LIMIT_DELAY = 0.5  # seconds between per-activity API calls
+GARMIN_CALENDAR_DAYS_BACK = 2
+GARMIN_CALENDAR_DAYS_AHEAD = 31
+
+
+def garmin_provider_account_id(
+    *,
+    user_id: str,
+    display_name: str,
+    is_cn: bool,
+) -> str:
+    """Return a private account fence for one authenticated Garmin profile."""
+    normalized_user_id = str(user_id or "").strip()
+    normalized_display_name = str(display_name or "").strip()
+    if not normalized_user_id or not normalized_display_name:
+        raise ValueError("Garmin account identity is unavailable")
+    region = "cn" if is_cn else "international"
+    digest = hashlib.sha256(
+        (
+            f"{normalized_user_id}\0{region}\0{normalized_display_name}"
+        ).encode("utf-8")
+    ).hexdigest()
+    return f"{region}:{digest}"
+
+
+def _garmin_calendar_items(payload: object) -> list[Mapping[str, Any]]:
+    if not isinstance(payload, Mapping):
+        raise ValueError("Garmin calendar payload must be an object")
+    items = payload.get("calendarItems")
+    if not isinstance(items, list):
+        raise ValueError(
+            "Garmin calendar payload must contain a calendarItems list"
+        )
+    if not all(isinstance(item, Mapping) for item in items):
+        raise ValueError("Garmin calendarItems must contain objects")
+    return items
+
+
+def _garmin_calendar_date(value: object) -> date | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        return date.fromisoformat(value.strip()[:10])
+    except ValueError:
+        return None
+
+
+def _garmin_calendar_id(value: object) -> str | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return str(value) if value > 0 else None
+    if isinstance(value, str):
+        normalized = value.strip()
+        if normalized.isdecimal() and int(normalized) > 0:
+            return str(int(normalized))
+    return None
+
+
+def _garmin_calendar_number(value: object) -> float | None:
+    if value in (None, ""):
+        return None
+    if isinstance(value, bool):
+        raise ValueError("Garmin calendar numeric field is invalid")
+    try:
+        result = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "Garmin calendar numeric field is invalid"
+        ) from exc
+    if not math.isfinite(result) or result < 0:
+        raise ValueError("Garmin calendar numeric field is invalid")
+    return result
+
+
+def _garmin_calendar_value(
+    item: Mapping[str, Any],
+    *keys: str,
+) -> object:
+    for key in keys:
+        value = item.get(key)
+        if value not in (None, ""):
+            return value
+    return None
+
+
+def _garmin_calendar_text(value: object) -> str:
+    if isinstance(value, Mapping):
+        for key in (
+            "typeKey",
+            "workoutTypeKey",
+            "sportTypeKey",
+            "key",
+        ):
+            nested = value.get(key)
+            if isinstance(nested, str) and nested.strip():
+                return nested.strip()
+        return ""
+    return str(value or "").strip()
+
+
+def _garmin_calendar_fingerprint(item: Mapping[str, Any]) -> str:
+    encoded = json.dumps(
+        dict(item),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def parse_scheduled_workouts(
+    payload: object,
+    *,
+    window_start: date,
+    window_end: date,
+) -> list[dict[str, Any]]:
+    """Normalize one Garmin calendar month into read-only plan evidence.
+
+    Garmin returns a mixed calendar. Only scheduled workout instances are
+    retained, and every retained row must have its own schedule identity.
+    A template ``workoutId`` is deliberately not used as ``external_id``
+    because the same template can be scheduled more than once.
+
+    Raw response fixture:
+    https://github.com/kgabryje/garmin-mcp/blob/1d4c72732d5f37cb9df4fa7545c32a6450bf3cc9/tests/fixtures/scheduled_workouts.json
+    """
+    if window_end < window_start:
+        raise ValueError("Garmin calendar window is inverted")
+
+    rows: list[dict[str, Any]] = []
+    for item in _garmin_calendar_items(payload):
+        item_type = item.get("itemType")
+        if not isinstance(item_type, str) or not item_type.strip():
+            raise ValueError("Garmin calendar item is missing itemType")
+        if item_type.strip().casefold() != "workout":
+            continue
+
+        external_id = _garmin_calendar_id(item.get("id"))
+        if external_id is None or len(external_id) > 100:
+            raise ValueError(
+                "Garmin workout is missing a stable scheduled-workout id"
+            )
+        workout_id = _garmin_calendar_id(item.get("workoutId"))
+        if workout_id is None:
+            raise ValueError(
+                "Garmin workout is missing its workout template id"
+            )
+
+        workout_date = _garmin_calendar_date(item.get("date"))
+        if workout_date is None:
+            raise ValueError("Garmin workout is missing a valid calendar date")
+        if not window_start <= workout_date <= window_end:
+            continue
+
+        title = item.get("title")
+        if not isinstance(title, str) or not title.strip():
+            raise ValueError("Garmin workout is missing its title")
+        title = title.strip()
+        workout_type = _garmin_calendar_text(
+            item.get("workoutType")
+            or item.get("sportTypeKey")
+            or "workout"
+        ).replace("_", " ").strip().casefold()
+        if not workout_type or len(workout_type) > 50:
+            raise ValueError("Garmin workout has an invalid workout type")
+        description = _garmin_calendar_text(
+            item.get("description") or title
+        )
+
+        duration_seconds = _garmin_calendar_number(
+            _garmin_calendar_value(
+                item,
+                "duration",
+                "durationInSeconds",
+                "estimatedDurationInSecs",
+            )
+        )
+        distance_meters = _garmin_calendar_number(
+            _garmin_calendar_value(
+                item,
+                "distance",
+                "distanceInMeters",
+                "estimatedDistanceInMeters",
+            )
+        )
+
+        row: dict[str, Any] = {
+            "date": workout_date.isoformat(),
+            "workout_type": workout_type,
+            "planned_duration_min": (
+                str(round(duration_seconds / 60, 1))
+                if duration_seconds is not None
+                else ""
+            ),
+            "planned_distance_km": (
+                str(round(distance_meters / 1000, 1))
+                if distance_meters is not None
+                else ""
+            ),
+            "workout_description": description,
+            "external_id": external_id,
+            "provider_payload_fingerprint": (
+                _garmin_calendar_fingerprint(item)
+            ),
+        }
+        rows.append(row)
+    return rows
+
+
+def _garmin_calendar_months(
+    window_start: date,
+    window_end: date,
+) -> list[tuple[int, int]]:
+    cursor = date(window_start.year, window_start.month, 1)
+    final_month = date(window_end.year, window_end.month, 1)
+    months: list[tuple[int, int]] = []
+    while cursor <= final_month:
+        months.append((cursor.year, cursor.month))
+        cursor = (
+            date(cursor.year + 1, 1, 1)
+            if cursor.month == 12
+            else date(cursor.year, cursor.month + 1, 1)
+        )
+    return months
+
+
+def fetch_training_plan_api(
+    client: Any,
+    *,
+    window_start: date,
+    window_end: date,
+) -> list[dict[str, Any]]:
+    """Fetch a complete bounded Garmin scheduled-workout calendar window."""
+    if window_end < window_start:
+        raise ValueError("Garmin calendar window is inverted")
+
+    by_external_id: dict[str, dict[str, Any]] = {}
+    for year, month in _garmin_calendar_months(window_start, window_end):
+        payload = client.get_scheduled_workouts(year, month)
+        for row in parse_scheduled_workouts(
+            payload,
+            window_start=window_start,
+            window_end=window_end,
+        ):
+            external_id = str(row["external_id"])
+            existing = by_external_id.get(external_id)
+            if existing is not None:
+                comparable_existing = {
+                    key: value
+                    for key, value in existing.items()
+                    if key != "provider_payload_fingerprint"
+                }
+                comparable_row = {
+                    key: value
+                    for key, value in row.items()
+                    if key != "provider_payload_fingerprint"
+                }
+                if comparable_existing != comparable_row:
+                    raise ValueError(
+                        "Garmin calendar returned a conflicting duplicate "
+                        f"scheduled-workout id: {external_id}"
+                    )
+                existing["provider_payload_fingerprint"] = min(
+                    str(existing["provider_payload_fingerprint"]),
+                    str(row["provider_payload_fingerprint"]),
+                )
+            else:
+                by_external_id[external_id] = row
+
+    return sorted(
+        by_external_id.values(),
+        key=lambda row: (str(row["date"]), str(row["external_id"])),
+    )
 
 
 def parse_activity_weather(weather: dict | None) -> dict[str, str]:

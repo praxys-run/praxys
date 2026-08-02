@@ -15,6 +15,9 @@ from sync.garmin_sync import (
     parse_garmin_recovery,
     parse_heart_rates,
     parse_running_ftp,
+    fetch_training_plan_api,
+    garmin_provider_account_id,
+    parse_scheduled_workouts,
     parse_splits,
     parse_user_profile,
 )
@@ -24,6 +27,236 @@ def _garmin_connection_error(status_code):
     return GarminConnectConnectionError(
         f"API call client error ({status_code}): API Error {status_code}",
     )
+
+
+def test_parse_scheduled_workouts_normalizes_only_workout_items():
+    rows = parse_scheduled_workouts(
+        {
+            "calendarItems": [
+                {
+                    "id": 7001,
+                    "itemType": "workout",
+                    "date": "2026-08-05",
+                    "title": "Threshold 5 x 5",
+                    "workoutId": 9001,
+                    "sportTypeKey": "running",
+                    "duration": 3600,
+                    "distance": 10000,
+                },
+                {
+                    "id": 7002,
+                    "itemType": "event",
+                    "date": "2026-08-06",
+                    "title": "Race reminder",
+                },
+            ]
+        },
+        window_start=date(2026, 8, 1),
+        window_end=date(2026, 8, 31),
+    )
+
+    assert rows == [
+        {
+            "date": "2026-08-05",
+            "workout_type": "running",
+            "planned_duration_min": "60.0",
+            "planned_distance_km": "10.0",
+            "workout_description": "Threshold 5 x 5",
+            "external_id": "7001",
+            "provider_payload_fingerprint": rows[0][
+                "provider_payload_fingerprint"
+            ],
+        }
+    ]
+    assert len(rows[0]["provider_payload_fingerprint"]) == 64
+
+
+def test_parse_scheduled_workouts_rejects_ambiguous_workout_identity():
+    with pytest.raises(
+        ValueError,
+        match="stable scheduled-workout id",
+    ):
+        parse_scheduled_workouts(
+            {
+                "calendarItems": [{
+                    "itemType": "workout",
+                    "date": "2026-08-05",
+                    "workoutId": 9001,
+                    "title": "Threshold",
+                }]
+            },
+            window_start=date(2026, 8, 1),
+            window_end=date(2026, 8, 31),
+        )
+
+
+def test_parse_scheduled_workouts_preserves_zero_duration_and_distance():
+    rows = parse_scheduled_workouts(
+        {
+            "calendarItems": [{
+                "id": 7001,
+                "workoutId": 9001,
+                "itemType": "workout",
+                "date": "2026-08-05",
+                "title": "Mobility",
+                "sportTypeKey": "strength_training",
+                "duration": 0,
+                "distance": 0,
+            }]
+        },
+        window_start=date(2026, 8, 1),
+        window_end=date(2026, 8, 31),
+    )
+
+    assert rows[0]["planned_duration_min"] == "0.0"
+    assert rows[0]["planned_distance_km"] == "0.0"
+
+
+def test_parse_scheduled_workouts_rejects_unknown_payload_shape():
+    with pytest.raises(ValueError, match="calendarItems"):
+        parse_scheduled_workouts(
+            {"items": []},
+            window_start=date(2026, 8, 1),
+            window_end=date(2026, 8, 31),
+        )
+
+
+def test_parse_scheduled_workouts_rejects_invalid_optional_numbers():
+    with pytest.raises(ValueError, match="numeric field"):
+        parse_scheduled_workouts(
+            {
+                "calendarItems": [{
+                    "id": 7001,
+                    "workoutId": 9001,
+                    "itemType": "workout",
+                    "date": "2026-08-05",
+                    "title": "Easy",
+                    "sportTypeKey": "running",
+                    "duration": "unknown",
+                }]
+            },
+            window_start=date(2026, 8, 1),
+            window_end=date(2026, 8, 31),
+        )
+
+
+def test_fetch_training_plan_api_reads_each_covered_month_once():
+    class FakeGarmin:
+        def __init__(self):
+            self.calls = []
+
+        def get_scheduled_workouts(self, year, month):
+            self.calls.append((year, month))
+            return {
+                "calendarItems": [{
+                    "id": year * 100 + month,
+                    "workoutId": year * 1000 + month,
+                    "itemType": "workout",
+                    "date": (
+                        "2026-12-31"
+                        if month == 12
+                        else "2027-01-02"
+                    ),
+                    "title": "Easy run",
+                    "sportTypeKey": "running",
+                }]
+            }
+
+    client = FakeGarmin()
+    rows = fetch_training_plan_api(
+        client,
+        window_start=date(2026, 12, 31),
+        window_end=date(2027, 1, 2),
+    )
+
+    assert client.calls == [(2026, 12), (2027, 1)]
+    assert [row["date"] for row in rows] == [
+        "2026-12-31",
+        "2027-01-02",
+    ]
+
+
+def test_fetch_training_plan_api_rejects_conflicting_duplicate_ids():
+    class FakeGarmin:
+        def get_scheduled_workouts(self, year, month):
+            return {
+                "calendarItems": [
+                    {
+                        "id": 7001,
+                        "workoutId": 9001,
+                        "itemType": "workout",
+                        "date": "2026-08-05",
+                        "title": "Easy",
+                        "sportTypeKey": "running",
+                    },
+                    {
+                        "id": 7001,
+                        "workoutId": 9002,
+                        "itemType": "workout",
+                        "date": "2026-08-06",
+                        "title": "Threshold",
+                        "sportTypeKey": "running",
+                    },
+                ]
+            }
+
+    with pytest.raises(ValueError, match="conflicting duplicate"):
+        fetch_training_plan_api(
+            FakeGarmin(),
+            window_start=date(2026, 8, 1),
+            window_end=date(2026, 8, 31),
+        )
+
+
+def test_fetch_training_plan_api_dedupes_same_workout_with_month_noise():
+    class FakeGarmin:
+        def get_scheduled_workouts(self, year, month):
+            base = {
+                "id": 7001,
+                "workoutId": 9001,
+                "itemType": "workout",
+                "date": "2026-08-05",
+                "title": "Easy",
+                "sportTypeKey": "running",
+            }
+            return {
+                "calendarItems": [
+                    {**base, "monthDisplayOffset": 0},
+                    {**base, "monthDisplayOffset": 1},
+                ]
+            }
+
+    rows = fetch_training_plan_api(
+        FakeGarmin(),
+        window_start=date(2026, 8, 1),
+        window_end=date(2026, 8, 31),
+    )
+
+    assert len(rows) == 1
+    assert rows[0]["external_id"] == "7001"
+
+
+def test_garmin_provider_account_id_is_private_stable_and_region_scoped():
+    international = garmin_provider_account_id(
+        user_id="user-1",
+        display_name="runner@example",
+        is_cn=False,
+    )
+    repeated = garmin_provider_account_id(
+        user_id="user-1",
+        display_name="runner@example",
+        is_cn=False,
+    )
+    china = garmin_provider_account_id(
+        user_id="user-1",
+        display_name="runner@example",
+        is_cn=True,
+    )
+
+    assert international == repeated
+    assert international != china
+    assert "runner@example" not in international
+    assert international.startswith("international:")
 
 
 def test_parse_activity_weather_converts_fahrenheit_to_celsius():
