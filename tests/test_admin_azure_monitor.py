@@ -31,7 +31,13 @@ def reset_monitor(monkeypatch):
 def test_unconfigured_adapter_is_explicitly_unavailable() -> None:
     snapshots = monitor.get_ops_telemetry("24h")
 
-    assert set(snapshots) == {"alerts", "service", "product", "platform"}
+    assert set(snapshots) == {
+        "alerts",
+        "service",
+        "product",
+        "platform",
+        "managed",
+    }
     assert all(item.freshness == "unavailable" for item in snapshots.values())
     assert all(
         item.reason == "azure_telemetry_not_configured"
@@ -70,7 +76,7 @@ def test_section_results_are_cached_per_window(monkeypatch) -> None:
     first = monitor.get_ops_telemetry("24h")
     second = monitor.get_ops_telemetry("24h")
 
-    assert len(calls) == 4
+    assert len(calls) == 5
     assert ("product", "28d") in calls
     assert all(item.freshness == "fresh" for item in first.values())
     assert all(item.freshness == "fresh" for item in second.values())
@@ -200,7 +206,12 @@ def test_logs_query_rejects_partial_results(monkeypatch) -> None:
 
 def test_queries_use_application_insights_resource_schema() -> None:
     combined = "\n".join(
-        (monitor._SERVICE_QUERY, monitor._PRODUCT_QUERY, monitor._PLATFORM_QUERY)
+        (
+            monitor._SERVICE_QUERY,
+            monitor._PRODUCT_QUERY,
+            monitor._PLATFORM_QUERY,
+            monitor._MANAGED_PLAN_QUERY,
+        )
     )
 
     assert "AppRequests" not in combined
@@ -216,6 +227,16 @@ def test_queries_use_application_insights_resource_schema() -> None:
     assert "cluster_users >= 5" in monitor._PLATFORM_QUERY
     assert "by cluster_start, platform\n" in monitor._PLATFORM_QUERY
     assert "by cluster_start, platform, failure_class" not in monitor._PLATFORM_QUERY
+    assert "praxys.managed_plan" in monitor._MANAGED_PLAN_QUERY
+    assert "provider_auth" in monitor._MANAGED_PLAN_QUERY
+    assert "percentilew(duration_ms, duration_samples, 95)" in (
+        monitor._MANAGED_PLAN_QUERY
+    )
+    assert "duration_samples=coalesce(tolong(valueCount), 1)" in (
+        monitor._MANAGED_PLAN_QUERY
+    )
+    assert 'latency_source == "event"' in monitor._MANAGED_PLAN_QUERY
+    assert "raw_latency_count == 0" in monitor._MANAGED_PLAN_QUERY
 
 
 def test_product_and_platform_rows_are_aggregate_only(monkeypatch) -> None:
@@ -290,6 +311,42 @@ def test_product_and_platform_rows_are_aggregate_only(monkeypatch) -> None:
     assert platform["systemic_failures"][0]["affected_users"] == 3
     assert "user_id" not in repr(product)
     assert "user_id" not in repr(platform)
+
+
+def test_managed_plan_rows_are_aggregate_only(monkeypatch) -> None:
+    monkeypatch.setattr(
+        monitor,
+        "_query_rows",
+        lambda resource_id, window, query: [{
+            "delivery_runs": 12,
+            "complete_runs": 9,
+            "partial_runs": 2,
+            "blocked_runs": 1,
+            "retry_runs": 3,
+            "item_mutations": 18,
+            "successful_mutations": 15,
+            "failed_mutations": 3,
+            "conflicts": 2,
+            "provider_failures": 2,
+            "auth_failures": 1,
+            "praxys_failures": 0,
+            "affected_users": 2,
+            "p95_delivery_ms": 842.5,
+            "adoptions": 4,
+            "pauses": 1,
+            "resumes": 1,
+            "leaves": 0,
+            "resolutions": 2,
+            "cleanups": 1,
+        }],
+    )
+
+    managed = monitor._query_managed_plan(RESOURCE_ID, "7d")
+
+    assert managed["delivery_runs"] == 12
+    assert managed["provider_failures"] == 2
+    assert managed["p95_delivery_ms"] == 842.5
+    assert "user_id" not in managed
 
 
 def test_alert_instances_are_aggregated_by_rule(monkeypatch) -> None:

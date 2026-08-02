@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import importlib
 import tempfile
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -207,6 +207,33 @@ def _trusted_azure_snapshots():
                 ],
             },
         ),
+        "managed": AzureSectionSnapshot(
+            freshness="fresh",
+            as_of=as_of,
+            reason=None,
+            data={
+                "delivery_runs": 12,
+                "complete_runs": 9,
+                "partial_runs": 2,
+                "blocked_runs": 1,
+                "retry_runs": 3,
+                "item_mutations": 18,
+                "successful_mutations": 15,
+                "failed_mutations": 3,
+                "conflicts": 2,
+                "provider_failures": 2,
+                "auth_failures": 1,
+                "praxys_failures": 0,
+                "affected_users": 2,
+                "p95_delivery_ms": 842.5,
+                "adoptions": 4,
+                "pauses": 1,
+                "resumes": 1,
+                "leaves": 0,
+                "resolutions": 2,
+                "cleanups": 1,
+            },
+        ),
     }
 
 
@@ -329,6 +356,8 @@ def test_ops_summary_aggregates_attention_without_pii(env, monkeypatch):
         "product_telemetry",
         "azure_alerts",
         "platform_health",
+        "managed_plan_telemetry",
+        "managed_plans",
         "links",
     }
 
@@ -390,6 +419,11 @@ def test_ops_summary_aggregates_attention_without_pii(env, monkeypatch):
         "failures": 3,
         "affected_users": 3,
     }
+    assert body["managed_plan_telemetry"]["freshness"] == "fresh"
+    assert body["managed_plan_telemetry"]["data"]["delivery_runs"] == 12
+    assert body["managed_plan_telemetry"]["data"]["p95_delivery_ms"] == 842.5
+    assert body["managed_plans"]["source"] == "praxys_database"
+    assert body["managed_plans"]["data"]["attention_required"] == 0
     assert body["links"]["azure_alerts"] == "https://portal.azure.com/alerts"
     assert body["links"]["azure_logs"] == "https://portal.azure.com/logs"
     assert body["links"]["telemetry_trust_issue"].endswith("/issues/417")
@@ -436,3 +470,163 @@ def test_ops_summary_partial_failure_isolated(env, monkeypatch):
         body["service_telemetry"]["reason"]
         == "azure_telemetry_not_configured"
     )
+
+
+def test_managed_plan_attention_is_admin_only_no_store_and_private(env):
+    client, db_session = env
+    admin_headers = _admin_headers(client)
+    code = client.post(
+        "/api/admin/invitations",
+        headers=admin_headers,
+        json={},
+    ).json()["code"]
+    assert _register(
+        client,
+        "runner@praxys.run",
+        invitation_code=code,
+    ).status_code == 200
+    normal_headers = {
+        "Authorization": f"Bearer {_login(client, 'runner@praxys.run')}"
+    }
+
+    from db.models import (
+        PlanDelivery,
+        PlanDeliveryAttempt,
+        User,
+    )
+
+    db = db_session.SessionLocal()
+    admin = db.query(User).filter(
+        User.email == "admin@praxys.run"
+    ).one()
+    delivery = PlanDelivery(
+        user_id=admin.id,
+        canonical_key="ai:private-canonical-id",
+        canonical_id="private-canonical-id",
+        workout_date=date.today() + timedelta(days=1),
+        workout_version="a" * 64,
+        plan_version="a" * 64,
+        target="stryd",
+        state="conflict",
+        external_id="private-provider-workout",
+        provider_account_id="private-provider-account",
+        last_error="runner@example.test private provider error",
+    )
+    db.add(delivery)
+    db.flush()
+    db.add(PlanDeliveryAttempt(
+        delivery_id=delivery.id,
+        attempt_number=1,
+        operation="deliver",
+        state="conflict",
+        external_id="private-provider-workout",
+        error="runner@example.test private attempt error",
+        response={
+            "managed_delivery": True,
+            "retryable": False,
+            "error_category": "provider_outcome_unknown",
+        },
+        completed_at=datetime.utcnow(),
+    ))
+    db.commit()
+    admin_id = admin.id
+    recovery_id = delivery.id
+    db.close()
+
+    assert client.get(
+        "/api/admin/managed-plans/attention"
+    ).status_code == 401
+    assert client.get(
+        "/api/admin/managed-plans/attention",
+        headers=normal_headers,
+    ).status_code == 403
+    response = client.get(
+        "/api/admin/managed-plans/attention",
+        headers=admin_headers,
+    )
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "private, no-store"
+    item = response.json()["items"][0]
+    assert item["recovery_id"] == recovery_id
+    assert item["issue"] == "provider_outcome_unknown"
+    assert item["recovery_supported"] is False
+    assert item["recovery_blocked_reason"] == "user_resolution_required"
+
+    serialized = response.text
+    assert admin_id not in serialized
+    assert "private-canonical-id" not in serialized
+    assert "private-provider-workout" not in serialized
+    assert "private-provider-account" not in serialized
+    assert "runner@example.test" not in serialized
+
+    rejected = client.post(
+        f"/api/admin/managed-plans/recover/{recovery_id}",
+        headers=admin_headers,
+        json={"expected_version": item["expected_version"]},
+    )
+    assert rejected.status_code == 409
+    assert rejected.headers["cache-control"] == "private, no-store"
+    assert rejected.json()["detail"] == {
+        "code": "MANAGED_PLAN_RECOVERY_UNSUPPORTED",
+        "message": "user_resolution_required",
+    }
+
+
+@pytest.mark.parametrize(
+    ("error_type", "expected_code"),
+    [
+        (
+            "busy",
+            "MANAGED_PLAN_RECOVERY_BUSY",
+        ),
+        (
+            "stale",
+            "MANAGED_PLAN_RECOVERY_STALE",
+        ),
+        (
+            "unsupported",
+            "MANAGED_PLAN_RECOVERY_UNSUPPORTED",
+        ),
+    ],
+)
+def test_managed_plan_recovery_409_errors_are_discriminated(
+    env,
+    monkeypatch,
+    error_type,
+    expected_code,
+):
+    client, _ = env
+    admin_headers = _admin_headers(client)
+
+    from api.managed_plan_ops import (
+        ManagedPlanRecoveryBusy,
+        ManagedPlanRecoveryStale,
+        ManagedPlanRecoveryUnsupported,
+    )
+    from api.routes import admin as admin_routes
+
+    errors = {
+        "busy": ManagedPlanRecoveryBusy("recovery busy"),
+        "stale": ManagedPlanRecoveryStale("recovery stale"),
+        "unsupported": ManagedPlanRecoveryUnsupported(
+            "recovery unsupported"
+        ),
+    }
+
+    def fail_recovery(*args, **kwargs):
+        raise errors[error_type]
+
+    monkeypatch.setattr(
+        admin_routes,
+        "recover_managed_plan_delivery",
+        fail_recovery,
+    )
+    response = client.post(
+        "/api/admin/managed-plans/recover/recovery-id",
+        headers=admin_headers,
+        json={"expected_version": "v" * 20},
+    )
+
+    assert response.status_code == 409
+    assert response.headers["cache-control"] == "private, no-store"
+    assert response.json()["detail"]["code"] == expected_code

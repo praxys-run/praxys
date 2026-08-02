@@ -23,6 +23,15 @@ from api.plan_delivery.base import (
 )
 from api.plan_delivery.credentials import DeliveryCredentialsInvalid
 from api.plan_delivery.rolling import run_rolling_delivery_for_user
+from api.plan_reconciliation import build_plan_reconciliation
+from api.plan_resolution import restore_praxys_version
+from api.managed_plan_ops import (
+    ManagedPlanRecoveryBusy,
+    ManagedPlanRecoveryStale,
+    list_managed_plan_attention,
+    recover_managed_plan_delivery,
+)
+from api.plan_cleanup import cleanup_future_plan_deliveries
 from db.models import (
     Base,
     PlanDelivery,
@@ -34,7 +43,12 @@ from db.models import (
     UserConfig,
     UserConnection,
 )
-from db.plan_ledger import DELIVERY_ATTEMPT_LEASE, plan_snapshot
+from db.plan_ledger import (
+    DELIVERY_ATTEMPT_LEASE,
+    append_delivery_event,
+    get_or_create_delivery,
+    plan_snapshot,
+)
 
 
 USER_ID = "managed-delivery-user"
@@ -279,6 +293,25 @@ def test_default_off_modes_make_zero_provider_calls(
     assert adapter.fetch_attempts == 0
     assert adapter.create_attempts == 0
     assert adapter.delete_attempts == 0
+
+
+def test_missing_delivery_adapter_is_blocked_as_praxys_defect(
+    managed_db,
+    monkeypatch,
+):
+    db, adapter = managed_db
+    _add_plan(db, date(2026, 8, 2))
+    monkeypatch.setattr(
+        "api.plan_delivery.rolling.is_plan_delivery_target_registered",
+        lambda target: False,
+    )
+
+    result = _run(db, adapter, now=datetime(2026, 8, 1, 9))
+
+    assert result.status == "blocked"
+    assert result.reason == "delivery_adapter_unavailable"
+    assert adapter.fetch_attempts == 0
+    assert adapter.create_attempts == 0
 
 
 def test_delivery_uses_exact_fourteen_day_horizon(managed_db):
@@ -592,6 +625,10 @@ def test_invalid_replacement_preflight_is_not_retried(managed_db):
     )
 
     failed = _run(db, adapter, now=datetime(2026, 8, 1, 10))
+    attention = list_managed_plan_attention(
+        db,
+        now=datetime(2026, 8, 1, 10, 30),
+    ).items[0]
     attempts_after_failure = adapter.prepare_attempts
     blocked = _run(db, adapter, now=datetime(2026, 8, 1, 11))
     attempts_after_block = adapter.prepare_attempts
@@ -600,12 +637,193 @@ def test_invalid_replacement_preflight_is_not_retried(managed_db):
     corrected = _run(db, adapter, now=datetime(2026, 8, 1, 12))
 
     assert failed.items[0].status == "failed"
+    assert attention.state == "synced"
+    assert attention.operation == "deliver"
+    assert attention.issue == "delivery_failed"
+    assert attention.failure_domain == "praxys"
+    assert attention.recovery_supported is False
     assert blocked.items[0].status == "blocked"
     assert blocked.items[0].reason == "failure_not_retryable"
     assert corrected.items[0].status == "replaced"
     assert attempts_after_block == attempts_after_failure
     assert adapter.prepare_attempts == 4
     assert adapter.delete_attempts == 1
+
+
+def test_reverted_canonical_clears_obsolete_preflight_attention(managed_db):
+    db, adapter = managed_db
+    plan = _add_plan(db, date(2026, 8, 3), description="Original")
+    _run(db, adapter, now=datetime(2026, 8, 1, 9))
+    plan.workout_description = "Invalid edit"
+    db.commit()
+    adapter.prepare_failures.append(
+        ProviderRequestError("invalid replacement")
+    )
+    _run(db, adapter, now=datetime(2026, 8, 1, 10))
+
+    plan.workout_description = "Original"
+    db.commit()
+    attention = list_managed_plan_attention(
+        db,
+        now=datetime(2026, 8, 1, 11),
+    )
+
+    assert attention.items == []
+
+
+def test_deleted_canonical_clears_failed_create_attention(managed_db):
+    db, adapter = managed_db
+    plan = _add_plan(db, date(2026, 8, 3))
+    adapter.create_failures.append(ProviderTransientError("provider down"))
+    _run(db, adapter, now=datetime(2026, 8, 1, 9))
+    assert list_managed_plan_attention(
+        db,
+        now=datetime(2026, 8, 1, 10),
+    ).items
+
+    db.delete(plan)
+    db.commit()
+
+    assert list_managed_plan_attention(
+        db,
+        now=datetime(2026, 8, 1, 11),
+    ).items == []
+
+
+def test_recovery_preflight_failure_cannot_create_new_delivery_version(
+    managed_db,
+):
+    db, adapter = managed_db
+    plan = _add_plan(db, date(2026, 8, 3), description="Initial")
+    adapter.create_failures.append(ProviderTransientError("provider down"))
+    _run(db, adapter, now=datetime(2026, 8, 1, 9))
+    plan.workout_description = "Corrected"
+    db.commit()
+    attention = list_managed_plan_attention(
+        db,
+        now=datetime(2026, 8, 1, 10),
+    ).items[0]
+    adapter.prepare_failures.append(
+        ProviderRequestError("invalid corrected workout")
+    )
+
+    recover_managed_plan_delivery(
+        db,
+        admin_user_id="admin-user",
+        delivery_id=attention.recovery_id,
+        expected_version=attention.expected_version,
+        now=datetime(2026, 8, 1, 10, 5),
+        adapter_loader=lambda session, user_id, target: adapter,
+        threshold_loader=lambda session, user_id: CP_WATTS,
+    )
+    deliveries = db.execute(
+        select(PlanDelivery).where(
+            PlanDelivery.canonical_id == plan.canonical_id
+        )
+    ).scalars().all()
+
+    assert [delivery.id for delivery in deliveries] == [
+        attention.recovery_id
+    ]
+
+
+def test_recovery_blocks_superseding_attempt_during_authentication(managed_db):
+    db, adapter = managed_db
+    plan = _add_plan(db, date(2026, 8, 3))
+    adapter.create_failures.append(ProviderTransientError("provider down"))
+    _run(db, adapter, now=datetime(2026, 8, 1, 9))
+    attention = list_managed_plan_attention(
+        db,
+        now=datetime(2026, 8, 1, 10),
+    ).items[0]
+    callback_attempt = adapter.authenticate_attempts + 2
+
+    def supersede(attempt_number: int) -> None:
+        if attempt_number != callback_attempt:
+            return
+        adapter.on_authenticate = None
+        delivery = db.get(PlanDelivery, attention.recovery_id)
+        assert delivery is not None
+        append_delivery_event(
+            db,
+            delivery,
+            operation="deliver",
+            state="failed",
+            external_id=None,
+            error="newer worker failure",
+            response={
+                "managed_delivery": True,
+                "retryable": True,
+                "trigger": "concurrent_worker",
+            },
+        )
+        delivery.state = "failed"
+        delivery.updated_at = datetime.utcnow()
+        db.commit()
+
+    adapter.on_authenticate = supersede
+    recover_managed_plan_delivery(
+        db,
+        admin_user_id="admin-user",
+        delivery_id=attention.recovery_id,
+        expected_version=attention.expected_version,
+        now=datetime(2026, 8, 1, 10, 5),
+        adapter_loader=lambda session, user_id, target: adapter,
+        threshold_loader=lambda session, user_id: CP_WATTS,
+    )
+
+    assert adapter.create_attempts == 1
+    assert adapter.calendar == []
+
+
+def test_removal_recovery_rechecks_canonical_during_authentication(managed_db):
+    db, adapter = managed_db
+    plan = _add_plan(db, date(2026, 8, 3))
+    canonical_id = plan.canonical_id
+    workout_date = plan.date
+    _run(db, adapter, now=datetime(2026, 8, 1, 9))
+    db.delete(plan)
+    db.commit()
+    adapter.delete_failures.append(
+        ProviderRemovalError("provider removal failed")
+    )
+    _run(db, adapter, now=datetime(2026, 8, 1, 10))
+    attention = list_managed_plan_attention(
+        db,
+        now=datetime(2026, 8, 1, 11),
+    ).items[0]
+    callback_attempt = adapter.authenticate_attempts + 2
+
+    def recreate_canonical(attempt_number: int) -> None:
+        if attempt_number != callback_attempt:
+            return
+        adapter.on_authenticate = None
+        db.add(
+            TrainingPlan(
+                user_id=USER_ID,
+                canonical_id=canonical_id,
+                date=workout_date,
+                workout_type="tempo",
+                planned_duration_min=50,
+                workout_description="Recreated during recovery",
+                source="ai",
+            )
+        )
+        db.commit()
+
+    adapter.on_authenticate = recreate_canonical
+    recover_managed_plan_delivery(
+        db,
+        admin_user_id="admin-user",
+        delivery_id=attention.recovery_id,
+        expected_version=attention.expected_version,
+        now=datetime(2026, 8, 1, 11, 5),
+        adapter_loader=lambda session, user_id, target: adapter,
+        threshold_loader=lambda session, user_id: CP_WATTS,
+    )
+
+    assert adapter.delete_attempts == 1
+    assert len(adapter.calendar) == 1
 
 
 def test_inferred_absence_does_not_delete_hidden_moved_workout(managed_db):
@@ -1138,3 +1356,674 @@ def test_leaving_managed_mode_keeps_delivered_workouts(managed_db):
     assert len(adapter.calendar) == 1
     delivery = db.execute(select(PlanDelivery)).scalar_one()
     assert delivery.state == "synced"
+
+
+def test_managed_plan_full_lifecycle_preserves_external_workout(managed_db):
+    db, adapter = managed_db
+    today = date(2026, 8, 1)
+    plan = _add_plan(db, today + timedelta(days=2))
+    config = db.get(UserConfig, USER_ID)
+    config.plan_management = {
+        **config.plan_management,
+        "mode": "external",
+        "delivery_enabled": False,
+    }
+    manual_id = "external-coach-workout"
+    adapter.calendar.append({
+        "date": plan.date.isoformat(),
+        "workout_type": "manual",
+        "workout_description": "External coach workout",
+        "external_id": manual_id,
+        "provider_content_fingerprint": "external-content",
+        "provider_payload_fingerprint": "external-payload",
+    })
+    db.commit()
+
+    config.plan_management = {
+        **config.plan_management,
+        "mode": "praxys",
+        "delivery_enabled": True,
+    }
+    db.commit()
+    adopted = _run(db, adapter, now=datetime(2026, 8, 1, 9))
+    managed = next(
+        row for row in adapter.calendar
+        if row["external_id"] != manual_id
+    )
+    managed["workout_description"] = "Edited outside Praxys"
+    managed["provider_content_fingerprint"] = "external-edit"
+    conflicted = _run(db, adapter, now=datetime(2026, 8, 1, 10))
+
+    reconciliation = build_plan_reconciliation(
+        db,
+        user_id=USER_ID,
+        target=TARGET,
+        start=today,
+        end=today + timedelta(days=13),
+    )
+    assert reconciliation is not None
+    item = reconciliation.canonical_items[plan.canonical_id]
+    resolved = restore_praxys_version(
+        db,
+        user_id=USER_ID,
+        target=TARGET,
+        item=item,
+        threshold_value=CP_WATTS,
+        adapter_loader=lambda: adapter,
+    )
+
+    config = db.get(UserConfig, USER_ID)
+    config.plan_management = {
+        **config.plan_management,
+        "delivery_enabled": False,
+    }
+    db.commit()
+    paused = _run(db, adapter, now=datetime(2026, 8, 1, 11))
+    config.plan_management = {
+        **config.plan_management,
+        "delivery_enabled": True,
+    }
+    db.commit()
+    resumed = _run(db, adapter, now=datetime(2026, 8, 1, 12))
+    config.plan_management = {
+        **config.plan_management,
+        "mode": "external",
+        "delivery_enabled": False,
+    }
+    db.commit()
+    left = _run(db, adapter, now=datetime(2026, 8, 1, 13))
+    cleanup = cleanup_future_plan_deliveries(
+        db,
+        user_id=USER_ID,
+        today=today,
+        adapter_loader=lambda: adapter,
+    )
+
+    assert adopted.items[0].status == "delivered"
+    assert any(
+        result.status == "blocked" and result.reason == "target_edited"
+        for result in conflicted.items
+    )
+    assert resolved.action == "restore_praxys"
+    assert paused.status == "skipped"
+    assert paused.reason == "delivery_paused"
+    assert resumed.status == "complete"
+    assert left.status == "skipped"
+    assert left.reason == "external_mode"
+    assert cleanup.status == "complete"
+    assert cleanup.removed_count == 1
+    assert [row["external_id"] for row in adapter.calendar] == [manual_id]
+    assert db.get(TrainingPlan, plan.id) is not None
+
+
+def test_managed_attention_classifies_retry_exhaustion_without_pii(
+    managed_db,
+):
+    db, adapter = managed_db
+    started_at = datetime.utcnow()
+    _add_plan(db, started_at.date() + timedelta(days=2))
+    adapter.create_failures.extend(
+        ProviderTransientError("private provider detail")
+        for _ in range(5)
+    )
+    for attempt_number in range(5):
+        _run(
+            db,
+            adapter,
+            now=started_at + timedelta(hours=7 * attempt_number),
+        )
+
+    response = list_managed_plan_attention(
+        db,
+        now=started_at + timedelta(hours=36),
+    )
+
+    assert len(response.items) == 1
+    item = response.items[0]
+    assert item.issue == "retry_exhausted"
+    assert item.failure_domain == "provider"
+    assert item.recovery_supported is True
+    assert item.operation == "deliver"
+    assert item.attempt_count == 5
+    serialized = response.model_dump_json()
+    assert "managed-delivery@example.test" not in serialized
+    assert ACCOUNT_ID not in serialized
+    assert "private provider detail" not in serialized
+
+
+def test_operator_recovery_reconciles_and_replays_one_exhausted_failure(
+    managed_db,
+):
+    db, adapter = managed_db
+    started_at = datetime.utcnow()
+    _add_plan(db, started_at.date() + timedelta(days=2))
+    adapter.create_failures.extend(
+        ProviderTransientError("provider rate limit")
+        for _ in range(5)
+    )
+    for attempt_number in range(5):
+        _run(
+            db,
+            adapter,
+            now=started_at + timedelta(hours=7 * attempt_number),
+        )
+    attention = list_managed_plan_attention(
+        db,
+        now=started_at + timedelta(hours=36),
+    ).items[0]
+    untouched = _add_plan(
+        db,
+        started_at.date() + timedelta(days=3),
+        description="Not part of operator recovery",
+    )
+
+    recovered = recover_managed_plan_delivery(
+        db,
+        admin_user_id="admin-user",
+        delivery_id=attention.recovery_id,
+        expected_version=attention.expected_version,
+        now=started_at + timedelta(hours=36),
+        adapter_loader=lambda session, user_id, target: adapter,
+        threshold_loader=lambda session, user_id: CP_WATTS,
+    )
+    repeated = recover_managed_plan_delivery(
+        db,
+        admin_user_id="admin-user",
+        delivery_id=attention.recovery_id,
+        expected_version=attention.expected_version,
+        now=started_at + timedelta(hours=36, minutes=1),
+        adapter_loader=lambda session, user_id, target: adapter,
+        threshold_loader=lambda session, user_id: CP_WATTS,
+    )
+
+    assert recovered.status == "complete"
+    assert recovered.final_state == "synced"
+    assert recovered.successful_items == 1
+    assert repeated == recovered
+    assert adapter.create_attempts == 6
+    assert len(adapter.calendar) == 1
+    assert db.execute(
+        select(PlanDelivery).where(
+            PlanDelivery.canonical_id == untouched.canonical_id
+        )
+    ).scalar_one_or_none() is None
+    revisions = db.execute(
+        select(PlanRevision)
+        .where(PlanRevision.origin == "admin.managed_plan_recovery")
+        .order_by(PlanRevision.created_at, PlanRevision.id)
+    ).scalars().all()
+    assert [revision.operation for revision in revisions] == [
+        "managed_recovery_requested",
+        "managed_recovery_completed",
+    ]
+    assert all(
+        len(revision.idempotency_key) <= 128
+        for revision in revisions
+    )
+    assert revisions[0].actor_type == "admin"
+    assert revisions[0].actor_id == "admin-user"
+    assert revisions[1].details["response"]["final_state"] == "synced"
+
+
+def test_operator_stale_inflight_recovery_does_not_duplicate_provider_workout(
+    managed_db,
+):
+    db, adapter = managed_db
+    delivered_at = datetime.utcnow() - timedelta(minutes=15)
+    stuck_at = delivered_at + timedelta(minutes=5)
+    _add_plan(db, delivered_at.date() + timedelta(days=2))
+    delivered = _run(db, adapter, now=delivered_at)
+    delivery = db.execute(select(PlanDelivery)).scalar_one()
+    first_attempt = db.execute(
+        select(PlanDeliveryAttempt)
+        .where(PlanDeliveryAttempt.delivery_id == delivery.id)
+    ).scalar_one()
+    delivery.state = "delivering"
+    delivery.external_id = None
+    delivery.updated_at = stuck_at
+    db.add(PlanDeliveryAttempt(
+        delivery_id=delivery.id,
+        attempt_number=2,
+        operation="deliver",
+        state="delivering",
+        external_id=None,
+        response={
+            **first_attempt.response,
+            "managed_delivery": True,
+        },
+        started_at=stuck_at,
+    ))
+    db.commit()
+    recovery_at = datetime.utcnow()
+    attention = list_managed_plan_attention(
+        db,
+        now=recovery_at,
+    ).items[0]
+
+    recovered = recover_managed_plan_delivery(
+        db,
+        admin_user_id="admin-user",
+        delivery_id=attention.recovery_id,
+        expected_version=attention.expected_version,
+        now=recovery_at,
+        adapter_loader=lambda session, user_id, target: adapter,
+        threshold_loader=lambda session, user_id: CP_WATTS,
+    )
+
+    assert delivered.items[0].status == "delivered"
+    assert attention.issue == "stuck_inflight"
+    assert recovered.status == "complete"
+    assert recovered.final_state == "synced"
+    assert adapter.create_attempts == 1
+    assert len(adapter.calendar) == 1
+
+
+def test_attention_excludes_failed_version_superseded_by_synced_delivery(
+    managed_db,
+):
+    db, adapter = managed_db
+    started_at = datetime.utcnow()
+    plan = _add_plan(db, started_at.date() + timedelta(days=2))
+    adapter.create_failures.extend(
+        ProviderTransientError("provider rate limit")
+        for _ in range(5)
+    )
+    for attempt_number in range(5):
+        _run(
+            db,
+            adapter,
+            now=started_at + timedelta(hours=7 * attempt_number),
+        )
+    stale_attention = list_managed_plan_attention(
+        db,
+        now=started_at + timedelta(hours=35),
+    ).items[0]
+    plan.workout_description = "Corrected after retry exhaustion"
+    db.commit()
+
+    corrected = _run(
+        db,
+        adapter,
+        now=started_at + timedelta(hours=36),
+    )
+    attention = list_managed_plan_attention(
+        db,
+        now=started_at + timedelta(hours=37),
+    )
+    deliveries = db.execute(
+        select(PlanDelivery).where(
+            PlanDelivery.canonical_id == plan.canonical_id
+        )
+    ).scalars().all()
+
+    assert corrected.items[0].status == "delivered"
+    assert sorted(delivery.state for delivery in deliveries) == [
+        "failed",
+        "synced",
+    ]
+    assert attention.items == []
+    with pytest.raises(ManagedPlanRecoveryStale):
+        recover_managed_plan_delivery(
+            db,
+            admin_user_id="admin-user",
+            delivery_id=stale_attention.recovery_id,
+            expected_version=stale_attention.expected_version,
+            now=started_at + timedelta(hours=37),
+            adapter_loader=lambda session, user_id, target: adapter,
+            threshold_loader=lambda session, user_id: CP_WATTS,
+        )
+    assert adapter.create_attempts == 6
+    config = db.get(UserConfig, USER_ID)
+    config.plan_management = {
+        **config.plan_management,
+        "mode": "external",
+        "delivery_enabled": False,
+    }
+    db.commit()
+    cleanup = cleanup_future_plan_deliveries(
+        db,
+        user_id=USER_ID,
+        today=started_at.date(),
+        adapter_loader=lambda: adapter,
+    )
+    post_cleanup = list_managed_plan_attention(
+        db,
+        now=started_at + timedelta(hours=38),
+    )
+
+    assert cleanup.status == "complete"
+    assert post_cleanup.items == []
+    assert {
+        delivery.state
+        for delivery in db.execute(
+            select(PlanDelivery).where(
+                PlanDelivery.canonical_id == plan.canonical_id
+            )
+        ).scalars()
+    } == {"removed"}
+
+
+def test_attention_recovers_exhausted_managed_removal(managed_db):
+    db, adapter = managed_db
+    started_at = datetime.utcnow()
+    plan = _add_plan(db, started_at.date() + timedelta(days=2))
+    _run(db, adapter, now=started_at)
+    db.delete(plan)
+    db.commit()
+    adapter.delete_failures.extend(
+        ProviderRemovalError("provider removal failed")
+        for _ in range(5)
+    )
+    for attempt_number in range(5):
+        failed = _run(
+            db,
+            adapter,
+            now=started_at + timedelta(hours=1 + 7 * attempt_number),
+        )
+        assert failed.items[0].status == "failed"
+
+    attention = list_managed_plan_attention(
+        db,
+        now=started_at + timedelta(hours=36),
+    ).items[0]
+    recovered = recover_managed_plan_delivery(
+        db,
+        admin_user_id="admin-user",
+        delivery_id=attention.recovery_id,
+        expected_version=attention.expected_version,
+        now=started_at + timedelta(hours=36),
+        adapter_loader=lambda session, user_id, target: adapter,
+        threshold_loader=lambda session, user_id: CP_WATTS,
+    )
+
+    assert attention.state == "synced"
+    assert attention.operation == "remove"
+    assert attention.issue == "retry_exhausted"
+    assert attention.failure_domain == "provider"
+    assert attention.recovery_supported is True
+    assert recovered.status == "complete"
+    assert recovered.final_state == "removed"
+    assert recovered.successful_items == 1
+    assert adapter.delete_attempts == 6
+    assert adapter.calendar == []
+
+
+def test_operator_recovery_rejects_canonical_change_after_queue(managed_db):
+    db, adapter = managed_db
+    started_at = datetime.utcnow()
+    plan = _add_plan(db, started_at.date() + timedelta(days=2))
+    adapter.create_failures.append(
+        ProviderTransientError("provider rate limit")
+    )
+    _run(db, adapter, now=started_at)
+    attention = list_managed_plan_attention(
+        db,
+        now=started_at + timedelta(hours=1),
+    ).items[0]
+    plan.workout_description = "Changed after queue snapshot"
+    db.commit()
+
+    with pytest.raises(ManagedPlanRecoveryStale):
+        recover_managed_plan_delivery(
+            db,
+            admin_user_id="admin-user",
+            delivery_id=attention.recovery_id,
+            expected_version=attention.expected_version,
+            now=started_at + timedelta(hours=1),
+            adapter_loader=lambda session, user_id, target: adapter,
+            threshold_loader=lambda session, user_id: CP_WATTS,
+        )
+
+    assert adapter.create_attempts == 1
+    assert adapter.calendar == []
+
+
+def test_operator_recovery_starts_one_stale_pending_delivery(managed_db):
+    db, adapter = managed_db
+    recovery_at = datetime.utcnow()
+    plan = _add_plan(db, recovery_at.date() + timedelta(days=2))
+    snapshot = plan_snapshot(plan)
+    prepared = adapter.prepare_workout(
+        snapshot,
+        threshold_value=CP_WATTS,
+    )
+    delivery, _ = get_or_create_delivery(
+        db,
+        user_id=USER_ID,
+        target=TARGET,
+        snapshot=snapshot,
+        workout_version_override=prepared.version,
+        provider_content_version_override=prepared.content_version,
+    )
+    delivery.updated_at = (
+        recovery_at - DELIVERY_ATTEMPT_LEASE - timedelta(seconds=1)
+    )
+    db.commit()
+    attention = list_managed_plan_attention(
+        db,
+        now=recovery_at,
+    ).items[0]
+
+    recovered = recover_managed_plan_delivery(
+        db,
+        admin_user_id="admin-user",
+        delivery_id=attention.recovery_id,
+        expected_version=attention.expected_version,
+        now=recovery_at,
+        adapter_loader=lambda session, user_id, target: adapter,
+        threshold_loader=lambda session, user_id: CP_WATTS,
+    )
+
+    assert attention.issue == "stale_pending"
+    assert attention.recovery_supported is True
+    assert recovered.status == "complete"
+    assert recovered.final_state == "synced"
+    assert recovered.successful_items == 1
+    assert adapter.create_attempts == 1
+    assert len(adapter.calendar) == 1
+
+
+def test_operator_recovery_never_writes_different_pending_version(
+    managed_db,
+):
+    db, adapter = managed_db
+    recovery_at = datetime.utcnow()
+    plan = _add_plan(db, recovery_at.date() + timedelta(days=2))
+    delivery, _ = get_or_create_delivery(
+        db,
+        user_id=USER_ID,
+        target=TARGET,
+        snapshot=plan_snapshot(plan),
+    )
+    delivery.updated_at = (
+        recovery_at - DELIVERY_ATTEMPT_LEASE - timedelta(seconds=1)
+    )
+    db.commit()
+    attention = list_managed_plan_attention(
+        db,
+        now=recovery_at,
+    ).items[0]
+
+    recovered = recover_managed_plan_delivery(
+        db,
+        admin_user_id="admin-user",
+        delivery_id=attention.recovery_id,
+        expected_version=attention.expected_version,
+        now=recovery_at,
+        adapter_loader=lambda session, user_id, target: adapter,
+        threshold_loader=lambda session, user_id: CP_WATTS,
+    )
+
+    assert recovered.status == "partial"
+    assert recovered.final_state == "pending"
+    assert recovered.failed_items == 1
+    assert adapter.create_attempts == 0
+    assert adapter.calendar == []
+    assert db.execute(select(PlanDelivery)).scalars().all() == [delivery]
+
+
+def test_operator_recovery_rejects_stale_queue_version(managed_db):
+    db, adapter = managed_db
+    started_at = datetime.utcnow()
+    _add_plan(db, started_at.date() + timedelta(days=2))
+    adapter.create_failures.append(
+        ProviderTransientError("provider rate limit")
+    )
+    _run(db, adapter, now=started_at)
+    attention = list_managed_plan_attention(
+        db,
+        now=started_at + timedelta(hours=1),
+    ).items[0]
+    delivery = db.get(PlanDelivery, attention.recovery_id)
+    delivery.updated_at = delivery.updated_at + timedelta(seconds=1)
+    db.commit()
+
+    with pytest.raises(ManagedPlanRecoveryStale):
+        recover_managed_plan_delivery(
+            db,
+            admin_user_id="admin-user",
+            delivery_id=attention.recovery_id,
+            expected_version=attention.expected_version,
+            now=started_at + timedelta(hours=1),
+            adapter_loader=lambda session, user_id, target: adapter,
+            threshold_loader=lambda session, user_id: CP_WATTS,
+        )
+
+    assert adapter.create_attempts == 1
+
+
+def test_operator_recovery_rejects_equivalent_active_request(managed_db):
+    db, adapter = managed_db
+    started_at = datetime.utcnow()
+    _add_plan(db, started_at.date() + timedelta(days=2))
+    adapter.create_failures.append(
+        ProviderTransientError("provider rate limit")
+    )
+    _run(db, adapter, now=started_at)
+    attention = list_managed_plan_attention(
+        db,
+        now=started_at + timedelta(hours=1),
+    ).items[0]
+    db.add(PlanRevision(
+        user_id=USER_ID,
+        operation="managed_recovery_requested",
+        actor_type="admin",
+        actor_id="first-admin",
+        origin="admin.managed_plan_recovery",
+        before_snapshot=[],
+        after_snapshot=[],
+        details={
+            "delivery_id": attention.recovery_id,
+            "expected_version": attention.expected_version,
+        },
+        idempotency_key="managed-recovery-active",
+        created_at=started_at + timedelta(hours=1),
+    ))
+    db.commit()
+
+    with pytest.raises(ManagedPlanRecoveryBusy):
+        recover_managed_plan_delivery(
+            db,
+            admin_user_id="second-admin",
+            delivery_id=attention.recovery_id,
+            expected_version=attention.expected_version,
+            now=started_at + timedelta(hours=1, minutes=1),
+            adapter_loader=lambda session, user_id, target: adapter,
+            threshold_loader=lambda session, user_id: CP_WATTS,
+        )
+
+    assert adapter.create_attempts == 1
+
+
+def test_operator_recovery_takes_over_expired_request_lease(managed_db):
+    db, adapter = managed_db
+    started_at = datetime.utcnow()
+    _add_plan(db, started_at.date() + timedelta(days=2))
+    adapter.create_failures.append(
+        ProviderTransientError("provider rate limit")
+    )
+    _run(db, adapter, now=started_at)
+    recovery_at = started_at + timedelta(hours=1)
+    attention = list_managed_plan_attention(
+        db,
+        now=recovery_at,
+    ).items[0]
+    db.add(PlanRevision(
+        user_id=USER_ID,
+        operation="managed_recovery_requested",
+        actor_type="admin",
+        actor_id="first-admin",
+        origin="admin.managed_plan_recovery",
+        before_snapshot=[],
+        after_snapshot=[],
+        details={
+            "delivery_id": attention.recovery_id,
+            "expected_version": attention.expected_version,
+        },
+        idempotency_key="managed-recovery-expired",
+        created_at=recovery_at - timedelta(minutes=6),
+    ))
+    db.commit()
+
+    result = recover_managed_plan_delivery(
+        db,
+        admin_user_id="second-admin",
+        delivery_id=attention.recovery_id,
+        expected_version=attention.expected_version,
+        now=recovery_at,
+        adapter_loader=lambda session, user_id, target: adapter,
+        threshold_loader=lambda session, user_id: CP_WATTS,
+    )
+
+    assert result.status == "complete"
+    assert adapter.create_attempts == 2
+    revisions = db.execute(
+        select(PlanRevision).where(
+            PlanRevision.origin == "admin.managed_plan_recovery",
+        )
+    ).scalars().all()
+    assert sum(
+        revision.operation == "managed_recovery_requested"
+        for revision in revisions
+    ) == 2
+    assert sum(
+        revision.operation == "managed_recovery_completed"
+        for revision in revisions
+    ) == 1
+
+
+def test_unknown_provider_outcome_remains_user_resolved(managed_db):
+    db, _ = managed_db
+    plan = _add_plan(db, datetime.utcnow().date() + timedelta(days=2))
+    delivery = PlanDelivery(
+        user_id=USER_ID,
+        canonical_key=f"ai:{plan.canonical_id}",
+        canonical_id=plan.canonical_id,
+        workout_date=plan.date,
+        workout_version="a" * 64,
+        plan_version="a" * 64,
+        target=TARGET,
+        state="conflict",
+    )
+    db.add(delivery)
+    db.flush()
+    db.add(PlanDeliveryAttempt(
+        delivery_id=delivery.id,
+        attempt_number=1,
+        operation="deliver",
+        state="conflict",
+        response={
+            "managed_delivery": True,
+            "retryable": False,
+            "error_category": "provider_outcome_unknown",
+        },
+        completed_at=datetime.utcnow(),
+    ))
+    db.commit()
+
+    item = list_managed_plan_attention(db).items[0]
+
+    assert item.issue == "provider_outcome_unknown"
+    assert item.failure_domain == "provider"
+    assert item.recovery_supported is False
+    assert item.recovery_blocked_reason == "user_resolution_required"

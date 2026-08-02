@@ -6,20 +6,24 @@ import {
   AlertTriangle,
   ArrowUpRight,
   Bot,
+  CalendarClock,
   CheckCircle2,
   CloudOff,
   Database,
   ExternalLink,
   GitPullRequest,
+  Loader2,
   MessageSquareWarning,
   RefreshCw,
+  RotateCcw,
   Server,
   ShieldAlert,
+  X,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useApi } from '@/hooks/useApi';
+import { apiFetch, useApi } from '@/hooks/useApi';
 import { cn } from '@/lib/utils';
 import { Trans, useLingui } from '@lingui/react/macro';
 import type {
@@ -29,6 +33,10 @@ import type {
   AdminOpsSectionWindow,
   AdminOpsSummary,
   AdminOpsWindow,
+  AdminManagedPlanAttentionItem,
+  AdminManagedPlanAttentionResponse,
+  AdminManagedPlanRecoveryErrorCode,
+  AdminManagedPlanRecoveryResponse,
   ComponentStatus,
   OverallStatus,
 } from '@/types/api';
@@ -96,6 +104,32 @@ function unavailableAzureMeta(window: AdminOpsSectionWindow): AdminOpsSectionMet
     as_of: null,
     reason: 'azure_telemetry_not_configured',
   };
+}
+
+function isManagedRecoveryErrorCode(
+  value: unknown,
+): value is AdminManagedPlanRecoveryErrorCode {
+  return (
+    value === 'MANAGED_PLAN_RECOVERY_NOT_FOUND'
+    || value === 'MANAGED_PLAN_RECOVERY_BUSY'
+    || value === 'MANAGED_PLAN_RECOVERY_STALE'
+    || value === 'MANAGED_PLAN_RECOVERY_UNSUPPORTED'
+  );
+}
+
+async function managedRecoveryErrorCode(
+  response: Response,
+): Promise<AdminManagedPlanRecoveryErrorCode | null> {
+  try {
+    const payload: unknown = await response.json();
+    if (!payload || typeof payload !== 'object') return null;
+    const detail = Reflect.get(payload, 'detail');
+    if (!detail || typeof detail !== 'object') return null;
+    const code = Reflect.get(detail, 'code');
+    return isManagedRecoveryErrorCode(code) ? code : null;
+  } catch {
+    return null;
+  }
 }
 
 function AdminOpsSkeleton() {
@@ -199,6 +233,7 @@ function AttentionRow({
   detail,
   to,
   href,
+  anchor,
   action,
 }: {
   Icon: typeof CheckCircle2;
@@ -208,6 +243,7 @@ function AttentionRow({
   detail?: string;
   to?: string;
   href?: string;
+  anchor?: string;
   action: string;
 }) {
   const styles = ATTENTION_TONE[tone];
@@ -235,6 +271,13 @@ function AttentionRow({
         >
           {actionContent}
         </Link>
+      ) : anchor ? (
+        <a
+          href={anchor}
+          className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+        >
+          {actionContent}
+        </a>
       ) : href ? (
         <a
           href={href}
@@ -252,8 +295,27 @@ function AttentionRow({
 export default function AdminOps() {
   const { t, i18n } = useLingui();
   const [window, setWindow] = useState<AdminOpsWindow>('24h');
+  const [confirmingRecoveryId, setConfirmingRecoveryId] = useState<string | null>(null);
+  const [runningRecoveryId, setRunningRecoveryId] = useState<string | null>(null);
+  const [recoveryNotice, setRecoveryNotice] = useState<{
+    tone: 'success' | 'error';
+    message: string;
+  } | null>(null);
   const { data, loading, stale, error, refetch } = useApi<AdminOpsSummary>(
     `/api/admin/ops/summary?window=${window}`,
+    {
+      refetchInterval: 60000,
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: 'always',
+    },
+  );
+  const {
+    data: managedAttention,
+    loading: managedAttentionLoading,
+    error: managedAttentionError,
+    refetch: refetchManagedAttention,
+  } = useApi<AdminManagedPlanAttentionResponse>(
+    '/api/admin/managed-plans/attention',
     {
       refetchInterval: 60000,
       refetchOnMount: 'always',
@@ -363,6 +425,73 @@ export default function AdminOps() {
     }
   };
 
+  const managedIssueLabel = (item: AdminManagedPlanAttentionItem): string => {
+    switch (item.issue) {
+      case 'stale_pending':
+        return t`Delivery never started`;
+      case 'stuck_inflight':
+        return t`Delivery is stuck in progress`;
+      case 'delivery_failed':
+        return t`Delivery failed`;
+      case 'retry_exhausted':
+        return t`Automatic retries exhausted`;
+      case 'delivery_conflict':
+        return t`Workout conflict requires athlete input`;
+      case 'provider_outcome_unknown':
+        return t`Provider outcome is uncertain`;
+    }
+  };
+
+  const managedIssueDescription = (item: AdminManagedPlanAttentionItem): string => {
+    if (!item.recovery_supported) {
+      switch (item.recovery_blocked_reason) {
+        case 'user_resolution_required':
+          return t`Do not replay this item. The athlete must resolve it from the plan reconciliation flow.`;
+        case 'failure_not_retryable':
+          return t`Do not replay this item. Its failure is marked non-retryable by the delivery safety policy.`;
+        case 'attempt_not_managed':
+        case 'failure_not_managed':
+          return t`Automated recovery is unavailable because this attempt was not recorded by the managed-delivery worker.`;
+        default:
+          return t`Automated recovery is unavailable for this item.`;
+      }
+    }
+    if (item.issue === 'stuck_inflight') {
+      return t`Refresh the provider calendar first, then replay only if the prior write is confirmed absent.`;
+    }
+    return t`Refresh the provider calendar, re-check ownership, and allow one fenced retry for this item.`;
+  };
+
+  const managedBlockedLabel = (item: AdminManagedPlanAttentionItem): string => {
+    switch (item.recovery_blocked_reason) {
+      case 'user_resolution_required':
+        return t`Athlete action required`;
+      case 'failure_not_retryable':
+        return t`Replay blocked by safety policy`;
+      default:
+        return t`Automated recovery unavailable`;
+    }
+  };
+
+  const failureDomainLabel = (domain: string): string => {
+    switch (domain) {
+      case 'provider_auth':
+        return t`Provider authentication`;
+      case 'provider':
+        return t`Provider failure`;
+      case 'praxys':
+        return t`Praxys defect`;
+      case 'conflict':
+        return t`Ownership conflict`;
+      case 'policy':
+        return t`Safety policy`;
+      case 'none':
+        return t`No failure`;
+      default:
+        return t`Unclassified`;
+    }
+  };
+
   const attention = data.attention.data;
   const incidents = attention?.incident_counts;
   const feedback = attention?.feedback;
@@ -401,8 +530,22 @@ export default function AdminOps() {
     ...unavailableAzureMeta(window),
     data: null,
   };
+  const managedTelemetrySection = data.managed_plan_telemetry ?? {
+    ...unavailableAzureMeta(window),
+    data: null,
+  };
+  const managedHealthSection = data.managed_plans ?? {
+    source: 'praxys_database' as const,
+    window: 'live' as const,
+    freshness: 'unavailable' as const,
+    as_of: null,
+    reason: 'section_refresh_failed' as const,
+    data: null,
+  };
   const alerts = alertsSection.data;
   const platform = platformSection.data;
+  const managedTelemetry = managedTelemetrySection.data;
+  const managedHealth = managedHealthSection.data;
   const snapshotStale = Boolean(error) || stale;
   const alertsLastKnown = snapshotStale || alertsSection.freshness === 'stale';
   const platformLastKnown = snapshotStale || platformSection.freshness === 'stale';
@@ -419,6 +562,16 @@ export default function AdminOps() {
     : systemicAffectedUsers > 0
       ? 'warning'
       : platformLastKnown
+        ? 'warning'
+        : 'clear';
+  const managedAttentionCount = Math.max(
+    managedHealth?.attention_required ?? 0,
+    managedAttention?.items.length ?? 0,
+  );
+  const managedTone: AttentionTone =
+    !managedHealth && !managedAttention
+      ? 'unavailable'
+      : managedAttentionCount > 0
         ? 'warning'
         : 'clear';
   const alertDetail = alerts?.rules
@@ -440,9 +593,94 @@ export default function AdminOps() {
       ? t`Systemic sync failures affected ${systemicAffectedUsers} users in this window`
       : t`No systemic sync failures`
     : '';
+  const managedTitle =
+    managedHealth || managedAttention
+      ? managedAttentionCount > 0
+        ? t`Managed-plan deliveries needing attention: ${managedAttentionCount}`
+        : t`Managed-plan delivery queue is clear`
+      : '';
   const azureAlertsUrl = data.links.azure_alerts ?? data.links.monitoring_docs;
   const azureLogsUrl = data.links.azure_logs ?? data.links.monitoring_docs;
   const OverallIcon = service ? (snapshotStale ? AlertTriangle : OVERALL_ICON[service.overall]) : CloudOff;
+
+  const handleRecovery = async (
+    item: AdminManagedPlanAttentionItem,
+  ): Promise<void> => {
+    if (runningRecoveryId !== null) return;
+    setRunningRecoveryId(item.recovery_id);
+    setConfirmingRecoveryId(null);
+    setRecoveryNotice(null);
+    try {
+      let response: Response;
+      try {
+        response = await apiFetch(
+          `/api/admin/managed-plans/recover/${item.recovery_id}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              expected_version: item.expected_version,
+            }),
+          },
+        );
+      } catch {
+        throw new Error(t`Network error. Refresh the queue and try again.`);
+      }
+      if (!response.ok) {
+        const errorCode = await managedRecoveryErrorCode(response);
+        switch (errorCode) {
+          case 'MANAGED_PLAN_RECOVERY_NOT_FOUND':
+            throw new Error(t`This queue item no longer exists. Refresh the queue.`);
+          case 'MANAGED_PLAN_RECOVERY_BUSY':
+            throw new Error(t`Another recovery is already running for this delivery. The queue has been refreshed.`);
+          case 'MANAGED_PLAN_RECOVERY_STALE':
+            throw new Error(t`This delivery changed before recovery started. Review the refreshed queue.`);
+          case 'MANAGED_PLAN_RECOVERY_UNSUPPORTED':
+            throw new Error(t`This delivery cannot be replayed automatically. Review the refreshed queue for the required action.`);
+          default:
+            if (response.status === 404) {
+              throw new Error(t`This queue item no longer exists. Refresh the queue.`);
+            }
+            if (response.status === 409) {
+              throw new Error(t`Recovery could not start because the delivery state changed. Review the refreshed queue.`);
+            }
+            throw new Error(t`Recovery could not be completed. Refresh the queue and try again.`);
+        }
+      }
+      const result = (await response.json()) as AdminManagedPlanRecoveryResponse;
+      if (result.status !== 'complete') {
+        switch (result.status) {
+          case 'partial':
+            throw new Error(t`Recovery completed only partially. Review the refreshed queue before taking another action.`);
+          case 'blocked':
+            throw new Error(t`Recovery was blocked after provider reconciliation. Review the refreshed queue.`);
+          case 'skipped':
+            throw new Error(t`Recovery was skipped because delivery eligibility changed. Review the refreshed queue.`);
+        }
+      }
+      setRecoveryNotice({
+        tone: 'success',
+        message:
+          result.successful_items > 0
+            ? t`Recovery completed after a fresh provider reconciliation.`
+            : t`Reconciliation completed without replaying a workout.`,
+      });
+    } catch (recoveryError) {
+      setRecoveryNotice({
+        tone: 'error',
+        message:
+          recoveryError instanceof Error
+            ? recoveryError.message
+            : t`Network error. Refresh the queue and try again.`,
+      });
+    } finally {
+      try {
+        await Promise.all([refetchManagedAttention(), refetch()]);
+      } finally {
+        setRunningRecoveryId(null);
+      }
+    }
+  };
 
   const overallLabel = (status: OverallStatus): string => {
     switch (status) {
@@ -513,7 +751,12 @@ export default function AdminOps() {
               </button>
             ))}
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => void refetch()}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void Promise.all([refetch(), refetchManagedAttention()])}
+          >
             <RefreshCw className="h-3.5 w-3.5" />
             <Trans>Refresh</Trans>
           </Button>
@@ -620,12 +863,374 @@ export default function AdminOps() {
             href={azureLogsUrl}
             action={t`Open Azure logs`}
           />
+          <AttentionRow
+            Icon={
+              managedHealth || managedAttention
+                ? managedAttentionCount > 0
+                  ? CalendarClock
+                  : CheckCircle2
+                : CloudOff
+            }
+            tone={managedTone}
+            title={
+              managedHealth || managedAttention
+                ? managedTitle
+                : t`Managed-plan delivery state unavailable`
+            }
+            description={
+              managedHealth
+                ? t`Recoverable: ${managedHealth.recoverable}. Retry exhausted: ${managedHealth.retry_exhausted}. Stuck in progress: ${managedHealth.stuck_inflight}.`
+                : managedAttention
+                  ? t`The bounded operator queue is available, but aggregate delivery health could not be refreshed.`
+                  : t`Managed-plan diagnostics could not be refreshed.`
+            }
+            anchor="#managed-plan-delivery"
+            action={t`Review delivery queue`}
+          />
         </div>
         <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
           <SectionMeta meta={data.attention} stale={snapshotStale} />
           <SectionMeta meta={alertsSection} stale={snapshotStale} />
           <SectionMeta meta={platformSection} stale={snapshotStale} />
+          <SectionMeta meta={managedHealthSection} stale={snapshotStale} />
         </div>
+      </section>
+
+      <section
+        id="managed-plan-delivery"
+        aria-labelledby="managed-plan-delivery-heading"
+        className="scroll-mt-6 border-t border-border pt-7"
+      >
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <div
+              className={cn(
+                'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+                managedAttentionCount > 0
+                  ? 'bg-accent-amber/10 text-accent-amber'
+                  : managedHealth || managedAttention
+                    ? 'bg-primary/10 text-primary'
+                    : 'bg-muted text-muted-foreground',
+              )}
+            >
+              <CalendarClock className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <h3
+                id="managed-plan-delivery-heading"
+                className="text-base font-semibold text-foreground"
+              >
+                <Trans>Managed plan delivery</Trans>
+              </h3>
+              <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                <Trans>
+                  Diagnose Praxys-owned workout delivery without exposing athlete identity or provider workout data.
+                </Trans>
+              </p>
+              <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
+                <SectionMeta meta={managedHealthSection} stale={snapshotStale} />
+                <SectionMeta meta={managedTelemetrySection} stale={snapshotStale} />
+              </div>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void Promise.all([refetchManagedAttention(), refetch()])}
+            disabled={runningRecoveryId !== null}
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            <Trans>Refresh delivery state</Trans>
+          </Button>
+        </div>
+
+        {managedHealth ? (
+          <>
+            <dl className="mt-5 grid grid-cols-2 border-y border-border sm:grid-cols-4">
+              {[
+                { label: t`Managed athletes`, value: managedHealth.adopted_users },
+                { label: t`Delivery enabled`, value: managedHealth.delivery_enabled_users },
+                { label: t`Paused`, value: managedHealth.paused_users },
+                { label: t`Needs attention`, value: managedHealth.attention_required },
+              ].map((metric) => (
+                <div
+                  key={metric.label}
+                  className="border-b border-border px-3 py-4 sm:border-b-0 sm:border-r sm:last:border-r-0"
+                >
+                  <dt className="text-[11px] text-muted-foreground">{metric.label}</dt>
+                  <dd className="mt-1 font-data text-lg font-semibold text-foreground">
+                    {metric.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
+              <span>
+                <Trans>
+                  Synced <strong className="font-data font-semibold text-foreground">{managedHealth.states.synced}</strong>
+                </Trans>
+              </span>
+              <span>
+                <Trans>
+                  Pending <strong className="font-data font-semibold text-foreground">{managedHealth.states.pending}</strong>
+                </Trans>
+              </span>
+              <span>
+                <Trans>
+                  In progress <strong className="font-data font-semibold text-foreground">{managedHealth.states.delivering}</strong>
+                </Trans>
+              </span>
+              <span>
+                <Trans>
+                  Failed <strong className="font-data font-semibold text-foreground">{managedHealth.states.failed}</strong>
+                </Trans>
+              </span>
+              <span>
+                <Trans>
+                  Conflict <strong className="font-data font-semibold text-foreground">{managedHealth.states.conflict}</strong>
+                </Trans>
+              </span>
+            </div>
+          </>
+        ) : (
+          <p className="mt-5 text-sm text-muted-foreground">
+            <Trans>Managed-plan database health is unavailable.</Trans>
+          </p>
+        )}
+
+        {managedTelemetry ? (
+          <div className="mt-6">
+            <h4 className="text-sm font-semibold text-foreground">
+              <Trans>Delivery outcomes</Trans>
+            </h4>
+            <dl className="mt-2 grid grid-cols-2 border-y border-border sm:grid-cols-5">
+              {[
+                { label: t`Runs`, value: String(managedTelemetry.delivery_runs) },
+                {
+                  label: t`Completed`,
+                  value: formatPercent(
+                    managedTelemetry.delivery_runs > 0
+                      ? managedTelemetry.complete_runs / managedTelemetry.delivery_runs
+                      : null,
+                  ),
+                },
+                {
+                  label: t`Provider / auth failures`,
+                  value: String(
+                    managedTelemetry.provider_failures + managedTelemetry.auth_failures,
+                  ),
+                },
+                { label: t`Praxys defects`, value: String(managedTelemetry.praxys_failures) },
+                { label: t`Run p95`, value: formatDuration(managedTelemetry.p95_delivery_ms) },
+              ].map((metric) => (
+                <div
+                  key={metric.label}
+                  className="border-b border-border px-3 py-3 sm:border-b-0 sm:border-r sm:last:border-r-0"
+                >
+                  <dt className="text-[11px] text-muted-foreground">{metric.label}</dt>
+                  <dd className="mt-1 font-data text-sm font-semibold text-foreground">
+                    {metric.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ) : null}
+
+        <div className="mt-7 flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h4 className="text-sm font-semibold text-foreground">
+              <Trans>Operator queue</Trans>
+            </h4>
+            <p className="mt-1 text-xs text-muted-foreground">
+              <Trans>
+                Recovery always reconciles the provider calendar first. Conflicts and uncertain provider outcomes stay athlete-resolved.
+              </Trans>
+            </p>
+          </div>
+          {managedAttention?.generated_at ? (
+            <p className="font-data text-[11px] text-muted-foreground">
+              <Trans>Updated {formatTimestamp(managedAttention.generated_at, i18n.locale)}</Trans>
+            </p>
+          ) : null}
+        </div>
+
+        <div aria-live="polite" className="mt-3">
+          {recoveryNotice ? (
+            <div
+              role={recoveryNotice.tone === 'error' ? 'alert' : 'status'}
+              className={cn(
+                'flex items-start gap-2 rounded-lg border px-3 py-2 text-xs',
+                recoveryNotice.tone === 'error'
+                  ? 'border-accent-red/30 bg-accent-red/5 text-accent-red'
+                  : 'border-primary/30 bg-primary/5 text-foreground',
+              )}
+            >
+              {recoveryNotice.tone === 'error' ? (
+                <AlertOctagon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              ) : (
+                <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+              )}
+              <span>{recoveryNotice.message}</span>
+            </div>
+          ) : null}
+        </div>
+
+        {managedAttentionLoading ? (
+          <div className="mt-3 divide-y divide-border overflow-hidden rounded-xl border border-border">
+            {[0, 1].map((item) => (
+              <div key={item} className="space-y-2 px-4 py-4">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-3 w-full max-w-xl" />
+              </div>
+            ))}
+          </div>
+        ) : managedAttentionError ? (
+          <div className="mt-3 flex flex-col gap-3 rounded-xl border border-accent-amber/40 bg-accent-amber/5 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-accent-amber" />
+              <p className="text-sm text-foreground">
+                <Trans>The managed-plan operator queue could not be loaded.</Trans>
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void refetchManagedAttention()}
+            >
+              <Trans>Retry queue</Trans>
+            </Button>
+          </div>
+        ) : managedAttention && managedAttention.items.length > 0 ? (
+          <div className="mt-3 divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            {managedAttention.items.map((item) => {
+              const isConfirming = confirmingRecoveryId === item.recovery_id;
+              const isRunning = runningRecoveryId === item.recovery_id;
+              return (
+                <div key={item.recovery_id} className="px-4 py-4">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-data text-xs font-semibold text-foreground">
+                          <Trans>Athlete {item.user_id_hash}</Trans>
+                        </p>
+                        <Badge variant="outline" className="h-5 capitalize">
+                          {item.target}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'h-5',
+                            item.recovery_supported
+                              ? 'border-accent-amber/40 text-accent-amber'
+                              : 'border-border text-muted-foreground',
+                          )}
+                        >
+                          {failureDomainLabel(item.failure_domain)}
+                        </Badge>
+                      </div>
+                      <p className="mt-2 text-sm font-semibold text-foreground">
+                        {managedIssueLabel(item)}
+                      </p>
+                      <p className="mt-1 max-w-3xl text-xs text-muted-foreground">
+                        {managedIssueDescription(item)}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-data text-[11px] text-muted-foreground">
+                        <span>
+                          <Trans>Attempts {item.attempt_count}</Trans>
+                        </span>
+                        <span>
+                          <Trans>
+                            Updated {formatTimestamp(item.updated_at, i18n.locale)}
+                          </Trans>
+                        </span>
+                        {item.operation ? (
+                          <span className="capitalize">
+                            <Trans>Operation {item.operation}</Trans>
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                    {item.recovery_supported ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => {
+                          setRecoveryNotice(null);
+                          setConfirmingRecoveryId(item.recovery_id);
+                        }}
+                        disabled={runningRecoveryId !== null}
+                        aria-expanded={isConfirming}
+                        aria-controls={`confirm-recovery-${item.recovery_id}`}
+                      >
+                        {isRunning ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                        ) : (
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        )}
+                        <Trans>Reconcile and replay</Trans>
+                      </Button>
+                    ) : (
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {managedBlockedLabel(item)}
+                      </span>
+                    )}
+                  </div>
+
+                  {isConfirming ? (
+                    <div
+                      id={`confirm-recovery-${item.recovery_id}`}
+                      className="mt-4 flex flex-col gap-3 rounded-lg border border-accent-amber/40 bg-accent-amber/5 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <p className="max-w-3xl text-xs text-foreground">
+                        <Trans>
+                          Confirm one fenced replay. Praxys will refresh the provider calendar and stop if ownership or delivery state changed.
+                        </Trans>
+                      </p>
+                      <div className="flex shrink-0 flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setConfirmingRecoveryId(null)}
+                          disabled={isRunning}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          <Trans>Cancel</Trans>
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => void handleRecovery(item)}
+                          disabled={isRunning}
+                        >
+                          {isRunning ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                          ) : (
+                            <RotateCcw className="h-3.5 w-3.5" />
+                          )}
+                          <Trans>Confirm replay</Trans>
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-3 rounded-xl border border-dashed border-border px-4 py-8 text-center">
+            <CheckCircle2 className="mx-auto h-5 w-5 text-primary" />
+            <p className="mt-2 text-sm font-medium text-foreground">
+              <Trans>No managed deliveries need operator action.</Trans>
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              <Trans>Automatic delivery is within policy, or athlete-owned conflicts remain in the athlete workflow.</Trans>
+            </p>
+          </div>
+        )}
       </section>
 
       <div className="grid gap-8 xl:grid-cols-2">

@@ -36,6 +36,7 @@ from analysis.config import (
 from analysis.providers import available_providers
 from analysis.thresholds import detect_thresholds
 from analysis.training_base import get_display_config
+from api import telemetry
 from api.auth import get_data_user_id, require_write_access
 from api.env_compat import getenv_compat
 from api.plan_delivery import is_plan_delivery_target_registered
@@ -53,6 +54,26 @@ router = APIRouter()
 
 SUPPORTED_LANGUAGES = {"en", "zh"}
 _STRAVA_STATE_TTL_MINUTES = 10
+
+
+def _plan_management_transition(
+    before: dict[str, Any],
+    after: dict[str, Any],
+) -> str | None:
+    """Return the operator-facing lifecycle transition, if one occurred."""
+    if before["mode"] != "praxys" and after["mode"] == "praxys":
+        return "adopt"
+    if before["mode"] == "praxys" and after["mode"] != "praxys":
+        return "leave"
+    if before["mode"] != "praxys" or after["mode"] != "praxys":
+        return None
+    if before["delivery_enabled"] and not after["delivery_enabled"]:
+        return "pause"
+    if not before["delivery_enabled"] and after["delivery_enabled"]:
+        return "resume"
+    if before["execution_target"] != after["execution_target"]:
+        return "change_target"
+    return None
 
 
 class PlanManagementUpdate(BaseModel):
@@ -531,6 +552,10 @@ def update_settings(
         and config.plan_management["delivery_enabled"]
         and config.plan_management != prior_plan_management
     )
+    plan_management_transition = _plan_management_transition(
+        prior_plan_management,
+        config.plan_management,
+    )
     adjustment_policy_transition = (
         config.plan_management["mode"] == "praxys"
         and config.plan_management["adjustment_policy"] == "auto_conservative"
@@ -562,6 +587,19 @@ def update_settings(
     from db.cache_revision import bump_revisions
     bump_revisions(db, user_id, ["config"])
     save_config_to_db(user_id, config, db)
+    if plan_management_transition is not None:
+        telemetry.record_managed_plan_event(
+            category="lifecycle",
+            action=plan_management_transition,
+            outcome="success",
+            user_id=user_id,
+            target=(
+                prior_plan_management.get("execution_target")
+                if plan_management_transition == "leave"
+                else config.plan_management.get("execution_target")
+            ),
+            trigger="settings",
+        )
 
     adjustment_run = None
     if adjustment_policy_transition:

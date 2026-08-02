@@ -18,6 +18,10 @@ from api.admin_azure_monitor import (
     azure_portal_links,
     get_ops_telemetry,
 )
+from api.managed_plan_ops import (
+    ManagedPlanHealthData,
+    managed_plan_health_data,
+)
 from api.routes.status import component_health_snapshot
 from api.views import utc_isoformat
 from db.models import AgentDecision, AgentOutcome, Feedback, ServiceIncident
@@ -255,6 +259,37 @@ class OpsPlatformHealthSection(OpsSectionMeta):
     data: OpsPlatformHealthData | None = None
 
 
+class OpsManagedPlanTelemetryData(BaseModel):
+    delivery_runs: int
+    complete_runs: int
+    partial_runs: int
+    blocked_runs: int
+    retry_runs: int
+    item_mutations: int
+    successful_mutations: int
+    failed_mutations: int
+    conflicts: int
+    provider_failures: int
+    auth_failures: int
+    praxys_failures: int
+    affected_users: int
+    p95_delivery_ms: float | None
+    adoptions: int
+    pauses: int
+    resumes: int
+    leaves: int
+    resolutions: int
+    cleanups: int
+
+
+class OpsManagedPlanTelemetrySection(OpsSectionMeta):
+    data: OpsManagedPlanTelemetryData | None = None
+
+
+class OpsManagedPlanHealthSection(OpsSectionMeta):
+    data: ManagedPlanHealthData | None = None
+
+
 class OpsLinks(BaseModel):
     users: str
     feedback: str
@@ -281,6 +316,8 @@ class OpsSummaryResponse(BaseModel):
     product_telemetry: OpsProductTelemetrySection
     azure_alerts: OpsAzureAlertsSection
     platform_health: OpsPlatformHealthSection
+    managed_plan_telemetry: OpsManagedPlanTelemetrySection
+    managed_plans: OpsManagedPlanHealthSection
     links: OpsLinks
 
 
@@ -576,6 +613,22 @@ def build_ops_summary(db: Session, window: OpsWindow) -> OpsSummaryResponse:
             )
         )
 
+    try:
+        managed_plans = OpsManagedPlanHealthSection(
+            **_fresh_meta("praxys_database", "live", generated_at),
+            data=managed_plan_health_data(db),
+        )
+    except Exception:
+        logger.exception("admin ops: managed plans section failed")
+        db.rollback()
+        managed_plans = OpsManagedPlanHealthSection(
+            **_unavailable_meta(
+                "praxys_database",
+                "live",
+                _SECTION_FAILURE_REASON,
+            )
+        )
+
     # The Azure sections can wait up to the overall telemetry deadline. End the
     # read transaction first so degraded Azure Monitor cannot pin a pooled
     # PostgreSQL connection for every concurrent admin request.
@@ -605,6 +658,12 @@ def build_ops_summary(db: Session, window: OpsWindow) -> OpsSummaryResponse:
         OpsPlatformHealthData,
         OpsPlatformHealthSection,
     )
+    managed_plan_telemetry = _azure_section(
+        azure["managed"],
+        window,
+        OpsManagedPlanTelemetryData,
+        OpsManagedPlanTelemetrySection,
+    )
     azure_alerts_url, azure_logs_url = azure_portal_links()
 
     return OpsSummaryResponse(
@@ -618,6 +677,8 @@ def build_ops_summary(db: Session, window: OpsWindow) -> OpsSummaryResponse:
         product_telemetry=product_telemetry,
         azure_alerts=azure_alerts,
         platform_health=platform_health,
+        managed_plan_telemetry=managed_plan_telemetry,
+        managed_plans=managed_plans,
         links=OpsLinks(
             users="/admin/users",
             feedback="/admin/feedback",

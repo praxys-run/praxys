@@ -4,17 +4,29 @@ set -Eeuo pipefail
 readonly BACKEND_APP_SERVICE="trainsight-app"
 readonly API_WEBTEST_NAME="wt-praxys-api-health"
 readonly SCHEDULED_QUERY_API_VERSION="2026-03-01"
+readonly MANAGED_PLAN_PROVIDER_ALERT="praxys-managed-plan-provider-failures"
+readonly MANAGED_PLAN_DEFECT_ALERT="praxys-managed-plan-defects"
+readonly OPERATIONS_ACTION_GROUP="praxys-feedback-ag"
+readonly OPERATIONS_EMAIL_RECEIVER="support@praxys.run"
 readonly BACKEND_ALERT_NAMES=(
   "praxys-db-health-unhealthy"
   "praxys-feedback-needs-review"
   "praxys-today-latency-regression"
   "praxys-sync-systemic-failures"
   "praxys-connect-systemic-failures"
+  "${MANAGED_PLAN_PROVIDER_ALERT}"
+  "${MANAGED_PLAN_DEFECT_ALERT}"
 )
 
 fail() {
   echo "ERROR: $*" >&2
   return 1
+}
+
+is_managed_plan_alert() {
+  local alert_name="$1"
+  [[ "${alert_name}" == "${MANAGED_PLAN_PROVIDER_ALERT}" ||
+     "${alert_name}" == "${MANAGED_PLAN_DEFECT_ALERT}" ]]
 }
 
 require_env() {
@@ -287,6 +299,230 @@ recreate_scheduled_alert() {
   fi
 }
 
+managed_plan_alert_definition() {
+  local alert_name="$1"
+  local scope="$2"
+  local action_group_id="$3"
+  local location="$4"
+  local description query
+  local severity=2
+
+  case "${alert_name}" in
+    "${MANAGED_PLAN_PROVIDER_ALERT}")
+      description="Five or more athletes hit managed-plan provider/auth failures for one execution target in 15 minutes."
+      query="$(cat <<'KQL'
+let managed = union isfuzzy=true
+  (customEvents
+   | where name == "praxys.managed_plan"
+   | project target=tostring(customDimensions.target),
+       outcome=tostring(customDimensions.outcome),
+       failure_domain=tostring(customDimensions.failure_domain),
+       user=tostring(customDimensions.user_id_hash)),
+  (customMetrics
+   | where name == "praxys.managed_plan"
+   | project target=tostring(customDimensions.target),
+       outcome=tostring(customDimensions.outcome),
+       failure_domain=tostring(customDimensions.failure_domain),
+       user=tostring(customDimensions.user_id_hash));
+managed
+| where outcome in ("failed", "blocked", "partial")
+| where failure_domain in ("provider", "provider_auth")
+| where target != "none" and isnotempty(user)
+| summarize affected_users=dcount(user), failures=count()
+    by target, failure_domain
+| where affected_users >= 5
+KQL
+)"
+      ;;
+    "${MANAGED_PLAN_DEFECT_ALERT}")
+      description="A managed-plan delivery hit a known Praxys ledger, reconciliation, finalization, or adapter defect."
+      query="$(cat <<'KQL'
+union isfuzzy=true
+  (customEvents
+   | where name == "praxys.managed_plan"
+   | project action=tostring(customDimensions.action),
+       outcome=tostring(customDimensions.outcome),
+       target=tostring(customDimensions.target),
+       reason=tostring(customDimensions.reason),
+       failure_domain=tostring(customDimensions.failure_domain),
+       user=tostring(customDimensions.user_id_hash)),
+  (customMetrics
+   | where name == "praxys.managed_plan"
+   | project action=tostring(customDimensions.action),
+       outcome=tostring(customDimensions.outcome),
+       target=tostring(customDimensions.target),
+       reason=tostring(customDimensions.reason),
+       failure_domain=tostring(customDimensions.failure_domain),
+       user=tostring(customDimensions.user_id_hash))
+| where outcome in ("failed", "blocked", "partial")
+| where failure_domain == "praxys"
+| summarize failures=count(), affected_users=dcountif(user, isnotempty(user))
+    by target, action, reason
+| where failures > 0
+KQL
+)"
+      ;;
+    *)
+      fail "unknown managed-plan alert: ${alert_name}"
+      ;;
+  esac
+
+  jq -S -c -n \
+    --arg location "${location}" \
+    --arg scope "${scope}" \
+    --arg action_group_id "${action_group_id}" \
+    --arg display_name "${alert_name}" \
+    --arg description "${description}" \
+    --arg query "${query}" \
+    --argjson severity "${severity}" \
+    '{
+      location: $location,
+      kind: "LogAlert",
+      tags: {
+        managedBy: "deploy-backend",
+        workload: "managed-plan"
+      },
+      properties: {
+        displayName: $display_name,
+        description: $description,
+        severity: $severity,
+        enabled: true,
+        evaluationFrequency: "PT15M",
+        windowSize: "PT15M",
+        scopes: [$scope],
+        targetResourceTypes: ["Microsoft.Insights/components"],
+        criteria: {
+          allOf: [{
+            query: $query,
+            timeAggregation: "Count",
+            operator: "GreaterThan",
+            threshold: 0,
+            failingPeriods: {
+              numberOfEvaluationPeriods: 1,
+              minFailingPeriodsToAlert: 1
+            },
+            criterionType: "StaticThresholdCriterion"
+          }]
+        },
+        autoMitigate: true,
+        checkWorkspaceAlertsStorageConfigured: false,
+        skipQueryValidation: false,
+        actions: {
+          actionGroups: [$action_group_id],
+          customProperties: {}
+        }
+      }
+    }'
+}
+
+upsert_managed_plan_alert() {
+  local alert_name="$1"
+  local alert_id="$2"
+  local scope="$3"
+  local action_group_id="$4"
+  local location="$5"
+  local body output actual expected_query
+
+  body="$(
+    managed_plan_alert_definition \
+      "${alert_name}" \
+      "${scope}" \
+      "${action_group_id}" \
+      "${location}"
+  )"
+  expected_query="$(jq -r '.properties.criteria.allOf[0].query' <<< "${body}")"
+
+  local attempt
+  for attempt in {1..5}; do
+    if output="$(az rest \
+      --method put \
+      --url "$(scheduled_alert_url "${alert_id}")" \
+      --headers "Content-Type=application/json" \
+      --body "${body}" \
+      --output none 2>&1)"; then
+      break
+    fi
+    if [[ "${attempt}" == "5" ]]; then
+      echo "${output}" >&2
+      return 1
+    fi
+    sleep "$((attempt * 2))"
+  done
+
+  actual="$(az rest \
+    --method get \
+    --url "$(scheduled_alert_url "${alert_id}")" \
+    -o json)"
+  jq -e \
+    --arg scope "${scope}" \
+    --arg action_group_id "${action_group_id}" \
+    --arg location "${location}" \
+    --arg expected_query "${expected_query}" \
+    '
+      def lower: ascii_downcase;
+      (.location | lower) == ($location | lower)
+      and .kind == "LogAlert"
+      and .tags.managedBy == "deploy-backend"
+      and .tags.workload == "managed-plan"
+      and .properties.enabled == true
+      and .properties.severity == 2
+      and .properties.evaluationFrequency == "PT15M"
+      and .properties.windowSize == "PT15M"
+      and (.properties.scopes | length) == 1
+      and (.properties.scopes[0] | lower) == ($scope | lower)
+      and (.properties.actions.actionGroups | length) == 1
+      and (.properties.actions.actionGroups[0] | lower)
+          == ($action_group_id | lower)
+      and .properties.criteria.allOf[0].query == $expected_query
+      and .properties.criteria.allOf[0].operator == "GreaterThan"
+      and .properties.criteria.allOf[0].threshold == 0
+    ' <<< "${actual}" >/dev/null ||
+    fail "managed-plan alert verification failed: ${alert_name}"
+}
+
+ensure_managed_plan_alerts() {
+  local telemetry_scope="$1"
+  local action_group_json action_group_id resource_group_id location
+  local alert_name alert_id
+  action_group_json="$(az monitor action-group show \
+    --resource-group "${AZURE_RESOURCE_GROUP}" \
+    --name "${OPERATIONS_ACTION_GROUP}" \
+    -o json)"
+  jq -e \
+    --arg receiver "${OPERATIONS_EMAIL_RECEIVER}" \
+    '
+      .enabled == true
+      and any(
+        .emailReceivers[]?;
+        ((.emailAddress // "") | ascii_downcase)
+            == ($receiver | ascii_downcase)
+        and ((.status // "") | ascii_downcase) == "enabled"
+      )
+    ' <<< "${action_group_json}" >/dev/null ||
+    fail "${OPERATIONS_ACTION_GROUP} or its ${OPERATIONS_EMAIL_RECEIVER} receiver is disabled"
+  action_group_id="$(jq -r '.id // empty' <<< "${action_group_json}")"
+  resource_group_id="$(az group show \
+    --name "${AZURE_RESOURCE_GROUP}" \
+    --query id -o tsv)"
+  location="$(az resource show \
+    --ids "${telemetry_scope}" \
+    --query location -o tsv)"
+  [[ -n "${action_group_id}" && -n "${resource_group_id}" && -n "${location}" ]] ||
+    fail "managed-plan alert resources could not be resolved"
+
+  for alert_name in \
+    "${MANAGED_PLAN_PROVIDER_ALERT}" \
+    "${MANAGED_PLAN_DEFECT_ALERT}"; do
+    alert_id="${resource_group_id}/providers/Microsoft.Insights/scheduledQueryRules/${alert_name}"
+    upsert_managed_plan_alert \
+      "${alert_name}" \
+      "${alert_id}" \
+      "${telemetry_scope}" \
+      "${action_group_id}" \
+      "${location}"
+  done
+}
+
 backend_preflight() {
   load_boundary_resources
   verify_resource_context_access
@@ -356,6 +592,23 @@ backend_preflight() {
     fail "backend Application Insights connection string is empty"
 
   verify_anonymous_ingestion_rejected "${connection_string}"
+
+  local current_admin_resource_id managed_alert_scope
+  current_admin_resource_id="$(az webapp config appsettings list \
+    --resource-group "${AZURE_RESOURCE_GROUP}" \
+    --name "${BACKEND_APP_SERVICE}" \
+    --query "[?name=='PRAXYS_BACKEND_APPINSIGHTS_RESOURCE_ID'].value | [0]" \
+    -o tsv)"
+  if [[ -z "${current_admin_resource_id}" ]]; then
+    managed_alert_scope="${FRONTEND_AI_ID}"
+  elif ids_equal "${current_admin_resource_id}" "${FRONTEND_AI_ID}"; then
+    managed_alert_scope="${FRONTEND_AI_ID}"
+  elif ids_equal "${current_admin_resource_id}" "${BACKEND_AI_ID}"; then
+    managed_alert_scope="${BACKEND_AI_ID}"
+  else
+    fail "current admin telemetry resource is outside the trusted cutover pair"
+  fi
+  ensure_managed_plan_alerts "${managed_alert_scope}"
 
   echo "::add-mask::${connection_string}"
   write_github_env "APPLICATIONINSIGHTS_CONNECTION_STRING" "${connection_string}"
@@ -447,16 +700,25 @@ telemetry_cutover() {
   [[ -n "${old_connection_string}" ]] &&
     echo "::add-mask::${old_connection_string}"
 
+  local -a active_alert_names=()
   local -a alert_ids=()
   local -a old_alert_jsons=()
   local -a old_alert_scopes=()
   local alert_name alert_id alert_json alert_scope scope_count
   for alert_name in "${BACKEND_ALERT_NAMES[@]}"; do
-    alert_id="$(az resource show \
-      --resource-group "${AZURE_RESOURCE_GROUP}" \
-      --name "${alert_name}" \
-      --resource-type Microsoft.Insights/scheduledQueryRules \
-      --query id -o tsv)"
+    if ! alert_id="$(az resource show \
+        --resource-group "${AZURE_RESOURCE_GROUP}" \
+        --name "${alert_name}" \
+        --resource-type Microsoft.Insights/scheduledQueryRules \
+        --query id -o tsv 2>/dev/null)" ||
+       [[ -z "${alert_id}" ]]; then
+      if [[ "${target}" == "frontend" ]] &&
+         is_managed_plan_alert "${alert_name}"; then
+        echo "Skipping missing deployment-owned managed-plan alert during rollback: ${alert_name}" >&2
+        continue
+      fi
+      fail "required backend alert not found: ${alert_name}"
+    fi
     alert_json="$(az rest \
       --method get \
       --url "$(scheduled_alert_url "${alert_id}")" \
@@ -469,6 +731,7 @@ telemetry_cutover() {
        ! ids_equal "${alert_scope}" "${BACKEND_AI_ID}"; then
       fail "${alert_name} has an unexpected scope: ${alert_scope}"
     fi
+    active_alert_names+=("${alert_name}")
     alert_ids+=("${alert_id}")
     old_alert_jsons+=("${alert_json}")
     old_alert_scopes+=("${alert_scope}")
@@ -746,12 +1009,9 @@ telemetry_cutover() {
       fail "admin telemetry resource must be unset outside the trusted backend boundary"
   fi
 
-  for alert_name in "${BACKEND_ALERT_NAMES[@]}"; do
-    alert_id="$(az resource show \
-      --resource-group "${AZURE_RESOURCE_GROUP}" \
-      --name "${alert_name}" \
-      --resource-type Microsoft.Insights/scheduledQueryRules \
-      --query id -o tsv)"
+  for index in "${!alert_ids[@]}"; do
+    alert_name="${active_alert_names[$index]}"
+    alert_id="${alert_ids[$index]}"
     alert_scope="$(az rest \
       --method get \
       --url "$(scheduled_alert_url "${alert_id}")" \

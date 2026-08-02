@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, Callable, Mapping
@@ -9,6 +10,7 @@ from typing import Any, Callable, Mapping
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from api import telemetry
 from analysis.config import (
     PLATFORM_CAPABILITIES,
     PRAXYS_PLAN_SOURCES,
@@ -97,6 +99,20 @@ class ManagedDeliveryRunResult:
     window_end: str
     items: tuple[ManagedDeliveryItemResult, ...] = ()
     reason: str | None = None
+
+
+@dataclass(frozen=True)
+class ManagedDeliveryReplayFence:
+    """Freshness fence for one explicit operator retry override."""
+
+    delivery_id: str
+    expected_updated_at: datetime
+    expected_attempt_id: int | None
+    expected_attempt_number: int
+    expected_state: str
+    expected_operation: str | None
+    expected_canonical_id: str | None
+    expected_canonical_version: str | None
 
 
 @dataclass(frozen=True)
@@ -604,6 +620,7 @@ def _retry_eligibility(
     now: datetime,
     allow_initial: bool = False,
     expected_canonical_version: str | None = None,
+    operator_retry_override: bool | None = None,
 ) -> tuple[bool, str | None]:
     attempts = db.execute(
         select(PlanDeliveryAttempt)
@@ -616,6 +633,8 @@ def _retry_eligibility(
             PlanDeliveryAttempt.id,
         )
     ).scalars().all()
+    if operator_retry_override is False:
+        return False, "operator_recovery_stale"
     if not attempts:
         return (
             (True, None)
@@ -657,6 +676,8 @@ def _retry_eligibility(
         return False, "failure_not_retryable"
     if (latest.response or {}).get("error_category") == "delivery_gate_changed":
         return True, None
+    if operator_retry_override:
+        return True, None
     failure_count = sum(
         (attempt.response or {}).get(
             "counts_toward_retry_limit",
@@ -671,6 +692,128 @@ def _retry_eligibility(
     if now < completed_at + automatic_retry_delay(failure_count):
         return False, "retry_backoff"
     return True, None
+
+
+def _operator_retry_override(
+    db: Session,
+    delivery: PlanDelivery,
+    replay: ManagedDeliveryReplayFence | None,
+    *,
+    operation: str,
+) -> bool | None:
+    """Return whether ``replay`` still fences the selected retryable failure."""
+    if (
+        replay is None
+        or delivery.id != replay.delivery_id
+        or replay.expected_operation != operation
+    ):
+        return None
+    return _replay_fence_matches(db, replay, allow_started=False)
+
+
+def _replay_fence_matches(
+    db: Session,
+    replay: ManagedDeliveryReplayFence,
+    *,
+    allow_started: bool,
+) -> bool:
+    delivery = db.execute(
+        select(PlanDelivery)
+        .where(PlanDelivery.id == replay.delivery_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).scalar_one_or_none()
+    if delivery is None:
+        return False
+    latest = db.execute(
+        select(PlanDeliveryAttempt)
+        .where(PlanDeliveryAttempt.delivery_id == delivery.id)
+        .order_by(
+            PlanDeliveryAttempt.attempt_number.desc(),
+            PlanDeliveryAttempt.id.desc(),
+        )
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).scalars().first()
+    if replay.expected_canonical_id is not None:
+        canonical = _current_canonical(
+            db,
+            user_id=delivery.user_id,
+            canonical_id=replay.expected_canonical_id,
+        )
+        current_version = (
+            workout_version(plan_snapshot(canonical))
+            if canonical is not None
+            else None
+        )
+        if current_version != replay.expected_canonical_version:
+            return False
+
+    latest_response = (
+        latest.response if latest is not None and isinstance(latest.response, dict)
+        else {}
+    )
+    original_attempt = bool(
+        (latest.id if latest is not None else None)
+        == replay.expected_attempt_id
+        and (
+            latest is None
+            or latest.operation == replay.expected_operation
+        )
+    )
+    original_delivery = bool(
+        delivery.updated_at == replay.expected_updated_at
+        or (
+            replay.expected_state == "delivering"
+            and latest is not None
+            and latest.state == "failed"
+            and latest_response.get("recovered_from_calendar") is True
+            and latest_response.get("retryable") is True
+        )
+    )
+    if original_attempt and original_delivery:
+        return True
+    if not allow_started or latest is None:
+        return False
+
+    expected_recovery_attempt = replay.expected_attempt_number + 1
+    is_this_recovery = bool(
+        latest.attempt_number == expected_recovery_attempt
+        and latest_response.get("managed_delivery") is True
+        and latest_response.get("trigger") == "admin_recovery"
+    )
+    if not is_this_recovery:
+        return False
+    if (
+        latest.operation == replay.expected_operation
+        and latest.state == "delivering"
+        and delivery.state == "delivering"
+    ):
+        return True
+    return bool(
+        replay.expected_operation == "deliver"
+        and latest.operation == "remove"
+        and latest.state in {"delivering", "removed"}
+        and latest_response.get("resolution") == "restore_praxys"
+        and delivery.state in {"delivering", "removed"}
+    )
+
+
+def _replay_protected_guard(
+    db: Session,
+    replay: ManagedDeliveryReplayFence | None,
+    base_guard: Callable[[], None],
+) -> Callable[[], None]:
+    def guard() -> None:
+        base_guard()
+        if replay is not None and not _replay_fence_matches(
+            db,
+            replay,
+            allow_started=True,
+        ):
+            raise DeliveryMutationBlockedError("operator_recovery_stale")
+
+    return guard
 
 
 def _current_canonical(
@@ -755,6 +898,7 @@ def _remove_owned_delivery(
     timestamp: datetime,
     attempt_context: Mapping[str, Any],
     mutation_guard: Callable[[], None],
+    replay: ManagedDeliveryReplayFence | None,
 ) -> tuple[ManagedDeliveryItemResult, bool]:
     safe, reason = _owned_removal_safe(
         db,
@@ -779,6 +923,12 @@ def _remove_owned_delivery(
         operation="remove",
         now=timestamp,
         allow_initial=True,
+        operator_retry_override=_operator_retry_override(
+            db,
+            delivery,
+            replay,
+            operation="remove",
+        ),
     )
     if not retryable:
         return (
@@ -881,21 +1031,52 @@ def run_rolling_delivery_for_user(
     window_start: date | None = None,
     adapter_loader: AdapterLoader = _default_adapter_loader,
     threshold_loader: ThresholdLoader = _default_threshold_loader,
+    replay: ManagedDeliveryReplayFence | None = None,
 ) -> ManagedDeliveryRunResult:
     """Reconcile and deliver one user's managed plan for 14 calendar days."""
+    started_at = time.monotonic()
+
+    def finish(result: ManagedDeliveryRunResult) -> ManagedDeliveryRunResult:
+        duration_ms = int((time.monotonic() - started_at) * 1000)
+        telemetry.record_managed_plan_event(
+            category="delivery_run",
+            action="reconcile_and_deliver",
+            outcome=result.status,
+            user_id=user_id,
+            target=result.target,
+            trigger=trigger,
+            reason=result.reason,
+            duration_ms=duration_ms,
+        )
+        for item in result.items:
+            telemetry.record_managed_plan_event(
+                category="delivery_item",
+                action=item.action,
+                outcome=item.status,
+                user_id=user_id,
+                target=result.target,
+                trigger=trigger,
+                reason=item.reason,
+            )
+        return result
+
     timestamp = now or datetime.utcnow()
     window_start, window_end = _window(window_start or timestamp.date())
     gate = _delivery_gate(db, user_id)
     if not gate.enabled:
-        return ManagedDeliveryRunResult(
+        return finish(ManagedDeliveryRunResult(
             user_id=user_id,
             trigger=trigger,
-            status="skipped",
+            status=(
+                "blocked"
+                if gate.reason == "delivery_adapter_unavailable"
+                else "skipped"
+            ),
             target=gate.target,
             window_start=window_start.isoformat(),
             window_end=window_end.isoformat(),
             reason=gate.reason,
-        )
+        ))
     assert gate.target is not None
     assert gate.connection is not None
     target = gate.target
@@ -933,14 +1114,14 @@ def run_rolling_delivery_for_user(
         )
     ).scalars().all()
     if not canonicals and not owned_deliveries:
-        return ManagedDeliveryRunResult(
+        return finish(ManagedDeliveryRunResult(
             user_id=user_id,
             trigger=trigger,
             status="complete",
             target=target,
             window_start=window_start.isoformat(),
             window_end=window_end.isoformat(),
-        )
+        ))
 
     threshold_value = threshold_loader(db, user_id)
     try:
@@ -959,7 +1140,7 @@ def run_rolling_delivery_for_user(
         )
     except DeliveryMutationBlockedError as exc:
         db.rollback()
-        return ManagedDeliveryRunResult(
+        return finish(ManagedDeliveryRunResult(
             user_id=user_id,
             trigger=trigger,
             status="skipped",
@@ -967,7 +1148,7 @@ def run_rolling_delivery_for_user(
             window_start=window_start.isoformat(),
             window_end=window_end.isoformat(),
             reason=str(exc),
-        )
+        ))
     except (
         DeliveryCredentialsInvalid,
         DeliveryCredentialsUnavailable,
@@ -991,7 +1172,7 @@ def run_rolling_delivery_for_user(
             trigger,
             category,
         )
-        return ManagedDeliveryRunResult(
+        return finish(ManagedDeliveryRunResult(
             user_id=user_id,
             trigger=trigger,
             status="blocked",
@@ -999,7 +1180,7 @@ def run_rolling_delivery_for_user(
             window_start=window_start.isoformat(),
             window_end=window_end.isoformat(),
             reason=category,
-        )
+        ))
 
     if not _record_connection_success(
         db,
@@ -1007,7 +1188,7 @@ def run_rolling_delivery_for_user(
         target=target,
         connection_generation=connection_generation,
     ):
-        return ManagedDeliveryRunResult(
+        return finish(ManagedDeliveryRunResult(
             user_id=user_id,
             trigger=trigger,
             status="skipped",
@@ -1015,7 +1196,7 @@ def run_rolling_delivery_for_user(
             window_start=window_start.isoformat(),
             window_end=window_end.isoformat(),
             reason="connection_changed",
-        )
+        ))
     _recover_managed_inflight_attempts(
         db,
         user_id=user_id,
@@ -1032,7 +1213,7 @@ def run_rolling_delivery_for_user(
         end=window_end,
     )
     if reconciliation is None:
-        return ManagedDeliveryRunResult(
+        return finish(ManagedDeliveryRunResult(
             user_id=user_id,
             trigger=trigger,
             status="blocked",
@@ -1040,7 +1221,7 @@ def run_rolling_delivery_for_user(
             window_start=window_start.isoformat(),
             window_end=window_end.isoformat(),
             reason="calendar_reconciliation_unavailable",
-        )
+        ))
 
     service = PlanDeliveryService(
         db=db,
@@ -1064,9 +1245,19 @@ def run_rolling_delivery_for_user(
             "preexisting_external_ids": sorted(observed_external_ids),
         }
 
+    provider_mutation_guard = _replay_protected_guard(
+        db,
+        replay,
+        mutation_guard,
+    )
     items: list[ManagedDeliveryItemResult] = []
 
     for delivery in owned_deliveries:
+        if replay is not None and (
+            delivery.id != replay.delivery_id
+            or replay.expected_operation != "remove"
+        ):
+            continue
         canonical_id = delivery_canonical_id(delivery)
         if canonical_id is None or canonical_id in canonical_ids:
             continue
@@ -1091,7 +1282,8 @@ def run_rolling_delivery_for_user(
             trigger=trigger,
             timestamp=timestamp,
             attempt_context=attempt_context(),
-            mutation_guard=mutation_guard,
+            mutation_guard=provider_mutation_guard,
+            replay=replay,
         )
         items.append(removal_result)
         if stop_batch:
@@ -1112,6 +1304,39 @@ def run_rolling_delivery_for_user(
                 reason="reconciliation_item_missing",
             ))
             continue
+        if (
+            replay is not None
+            and (
+                item.delivery is None
+                or item.delivery.id != replay.delivery_id
+            )
+        ):
+            continue
+        if (
+            replay is not None
+            and replay.expected_operation == "deliver"
+            and (
+                replay.expected_canonical_version is None
+                or workout_version(plan_snapshot(canonical))
+                != replay.expected_canonical_version
+            )
+        ):
+            items.append(_result(
+                canonical_id,
+                canonical.date,
+                "deliver",
+                "skipped",
+                reason="canonical_changed_during_recovery",
+            ))
+            continue
+        replay_stale_pending = bool(
+            replay is not None
+            and item.delivery is not None
+            and item.delivery.id == replay.delivery_id
+            and item.delivery.state == "pending"
+            and replay.expected_attempt_id is None
+            and item.observation is None
+        )
         if is_rest_workout(workout_type):
             if item.state == "not_delivered" or (
                 item.state == "delivery_failed"
@@ -1175,18 +1400,22 @@ def run_rolling_delivery_for_user(
                     external_id=item.delivery.external_id,
                 ))
                 break
-            rest_mutation_guard = mutation_guard
+            rest_mutation_guard = provider_mutation_guard
             if current_rest is not None:
                 expected_rest_version = workout_version(
                     plan_snapshot(current_rest)
                 )
-                rest_mutation_guard = lambda: _rest_mutation_guard(
+                rest_mutation_guard = _replay_protected_guard(
                     db,
-                    user_id=user_id,
-                    target=target,
-                    connection_generation=connection_generation,
-                    canonical_id=canonical_id,
-                    expected_version=expected_rest_version,
+                    replay,
+                    lambda: _rest_mutation_guard(
+                        db,
+                        user_id=user_id,
+                        target=target,
+                        connection_generation=connection_generation,
+                        canonical_id=canonical_id,
+                        expected_version=expected_rest_version,
+                    ),
                 )
             removal_result, stop_batch = _remove_owned_delivery(
                 db,
@@ -1200,6 +1429,7 @@ def run_rolling_delivery_for_user(
                 timestamp=timestamp,
                 attempt_context=attempt_context(),
                 mutation_guard=rest_mutation_guard,
+                replay=replay,
             )
             items.append(removal_result)
             if stop_batch:
@@ -1208,19 +1438,29 @@ def run_rolling_delivery_for_user(
 
         action = "deliver"
         if item.state in {"matching", "pending_observation"}:
-            items.append(_result(
-                canonical_id,
-                canonical.date,
-                action,
-                "skipped",
-                reason=item.state,
-                external_id=(
-                    item.delivery.external_id
-                    if item.delivery is not None
-                    else None
-                ),
-            ))
-            continue
+            if not replay_stale_pending:
+                items.append(_result(
+                    canonical_id,
+                    canonical.date,
+                    action,
+                    (
+                        "blocked"
+                        if (
+                            replay is not None
+                            and item.delivery is not None
+                            and item.delivery.id == replay.delivery_id
+                            and item.delivery.state == "pending"
+                        )
+                        else "skipped"
+                    ),
+                    reason=item.state,
+                    external_id=(
+                        item.delivery.external_id
+                        if item.delivery is not None
+                        else None
+                    ),
+                ))
+                continue
         if item.state == "canonical_changed":
             action = "replace"
         elif item.state == "delivery_failed":
@@ -1248,6 +1488,12 @@ def run_rolling_delivery_for_user(
                     item.delivery,
                     operation="deliver",
                     now=timestamp,
+                    operator_retry_override=_operator_retry_override(
+                        db,
+                        item.delivery,
+                        replay,
+                        operation="deliver",
+                    ),
                 )
                 if not retryable:
                     items.append(_result(
@@ -1258,7 +1504,7 @@ def run_rolling_delivery_for_user(
                         reason=reason,
                     ))
                     continue
-        elif item.state != "not_delivered":
+        elif item.state != "not_delivered" and not replay_stale_pending:
             items.append(_result(
                 canonical_id,
                 canonical.date,
@@ -1319,6 +1565,12 @@ def run_rolling_delivery_for_user(
                 now=timestamp,
                 allow_initial=True,
                 expected_canonical_version=expected_version,
+                operator_retry_override=_operator_retry_override(
+                    db,
+                    item.delivery,
+                    replay,
+                    operation="deliver",
+                ),
             )
             if not retryable:
                 items.append(_result(
@@ -1336,6 +1588,12 @@ def run_rolling_delivery_for_user(
                 operation="remove",
                 now=timestamp,
                 allow_initial=True,
+                operator_retry_override=_operator_retry_override(
+                    db,
+                    item.delivery,
+                    replay,
+                    operation="remove",
+                ),
             )
             if not retryable:
                 items.append(_result(
@@ -1348,13 +1606,17 @@ def run_rolling_delivery_for_user(
                 ))
                 continue
             try:
-                canonical_mutation_guard = lambda: _canonical_mutation_guard(
+                canonical_mutation_guard = _replay_protected_guard(
                     db,
-                    user_id=user_id,
-                    target=target,
-                    connection_generation=connection_generation,
-                    canonical_id=canonical_id,
-                    expected_version=expected_version,
+                    replay,
+                    lambda: _canonical_mutation_guard(
+                        db,
+                        user_id=user_id,
+                        target=target,
+                        connection_generation=connection_generation,
+                        canonical_id=canonical_id,
+                        expected_version=expected_version,
+                    ),
                 )
                 restored = restore_praxys_version(
                     db,
@@ -1439,13 +1701,17 @@ def run_rolling_delivery_for_user(
 
         try:
             expected_version = workout_version(plan_snapshot(current))
-            canonical_mutation_guard = lambda: _canonical_mutation_guard(
+            canonical_mutation_guard = _replay_protected_guard(
                 db,
-                user_id=user_id,
-                target=target,
-                connection_generation=connection_generation,
-                canonical_id=canonical_id,
-                expected_version=expected_version,
+                replay,
+                lambda: _canonical_mutation_guard(
+                    db,
+                    user_id=user_id,
+                    target=target,
+                    connection_generation=connection_generation,
+                    canonical_id=canonical_id,
+                    expected_version=expected_version,
+                ),
             )
             outcome = service.deliver(
                 plan_snapshot(current),
@@ -1453,6 +1719,11 @@ def run_rolling_delivery_for_user(
                 observed_external_ids=None,
                 attempt_context=attempt_context(),
                 mutation_guard=canonical_mutation_guard,
+                expected_delivery_id=(
+                    replay.delivery_id
+                    if replay is not None
+                    else None
+                ),
             )
         except DeliveryMutationBlockedError as exc:
             items.append(_result(
@@ -1516,7 +1787,7 @@ def run_rolling_delivery_for_user(
         failed,
         blocked,
     )
-    return ManagedDeliveryRunResult(
+    return finish(ManagedDeliveryRunResult(
         user_id=user_id,
         trigger=trigger,
         status="partial" if failed or blocked else "complete",
@@ -1524,7 +1795,7 @@ def run_rolling_delivery_for_user(
         window_start=window_start.isoformat(),
         window_end=window_end.isoformat(),
         items=tuple(items),
-    )
+    ))
 
 
 def trigger_managed_plan_delivery(

@@ -31,9 +31,18 @@ class _FakeCounter:
         self.calls.append((amount, dict(attributes or {})))
 
 
+class _FakeHistogram:
+    def __init__(self) -> None:
+        self.calls: list[tuple[float, dict]] = []
+
+    def record(self, amount: float, attributes: dict | None = None) -> None:
+        self.calls.append((amount, dict(attributes or {})))
+
+
 class _FakeMeter:
     def __init__(self) -> None:
         self.counters: dict[str, _FakeCounter] = {}
+        self.histograms: dict[str, _FakeHistogram] = {}
 
     def create_counter(self, name: str, description: str = "") -> _FakeCounter:
         # OTel meters return the same instrument across repeat calls — mirror
@@ -43,13 +52,23 @@ class _FakeMeter:
             self.counters[name] = _FakeCounter()
         return self.counters[name]
 
+    def create_histogram(
+        self,
+        name: str,
+        description: str = "",
+        unit: str = "",
+    ) -> _FakeHistogram:
+        if name not in self.histograms:
+            self.histograms[name] = _FakeHistogram()
+        return self.histograms[name]
+
 
 def _clear_caches() -> None:
     from api import telemetry
 
     # Tolerate the case where a prior fixture monkeypatched these to plain
     # callables (no .cache_clear) — we only need to drop real lru_caches.
-    for name in ("_meter", "_counter", "_track_event"):
+    for name in ("_meter", "_counter", "_histogram", "_track_event"):
         fn = getattr(telemetry, name, None)
         clear = getattr(fn, "cache_clear", None)
         if callable(clear):
@@ -158,6 +177,14 @@ def test_helpers_noop_when_appinsights_unset(monkeypatch, reset_telemetry_caches
         app_version="develop",
         response=None,
         user_id="u1",
+    )
+    telemetry.record_managed_plan_event(
+        category="delivery_run",
+        action="run",
+        outcome="complete",
+        user_id="u1",
+        target="stryd",
+        duration_ms=120,
     )
 
 
@@ -884,3 +911,96 @@ def test_record_product_event_falls_back_to_counter(fake_meter):
     assert attrs["event_name"] == "app_opened"
     assert attrs["surface"] == "web"
     assert attrs["response"] == ""
+
+
+# ---------------------------------------------------------------------------
+# Managed-plan operations
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("reason", "expected"),
+    [
+        ("DeliveryCredentialsInvalid", "provider_auth"),
+        ("provider_transient", "provider"),
+        ("DeliveryRemovalFailedError", "provider"),
+        ("ledger_start_failed", "praxys"),
+        ("invalid_workout", "praxys"),
+        ("target_workout_edited", "conflict"),
+        ("retry_limit_reached", "policy"),
+        (None, "none"),
+        ("unclassified_stable_reason", "unknown"),
+    ],
+)
+def test_managed_plan_failure_domain(reason, expected):
+    from api import telemetry
+
+    assert telemetry.managed_plan_failure_domain(reason) == expected
+
+
+def test_record_managed_plan_event_is_privacy_safe(fake_track_event):
+    from api import telemetry
+
+    calls, meter = fake_track_event
+    secret = "runner@example.test"
+    telemetry.record_managed_plan_event(
+        category="delivery_run",
+        action="run",
+        outcome="partial",
+        user_id="managed-user",
+        target="stryd",
+        trigger="scheduled",
+        reason=secret,
+        failure_domain="not-a-domain",
+        duration_ms=9_999_999,
+    )
+
+    assert len(calls) == 1
+    name, attrs = calls[0]
+    assert name == "praxys.managed_plan"
+    assert attrs == {
+        "category": "delivery_run",
+        "action": "run",
+        "outcome": "partial",
+        "target": "stryd",
+        "trigger": "scheduled",
+        "reason": "unknown",
+        "failure_domain": "unknown",
+        "user_id_hash": telemetry.hash_user_id("managed-user"),
+        "duration_ms": 3_600_000,
+    }
+    assert secret not in str(attrs)
+    histogram = meter.histograms[
+        "praxys.managed_plan.delivery_latency"
+    ]
+    assert histogram.calls == [(
+        3_600_000,
+        {
+            "target": "stryd",
+            "trigger": "scheduled",
+            "outcome": "partial",
+        },
+    )]
+
+
+def test_record_managed_plan_event_falls_back_to_metrics(fake_meter):
+    from api import telemetry
+
+    telemetry.record_managed_plan_event(
+        category="delivery_item",
+        action="deliver",
+        outcome="failed",
+        user_id="managed-user",
+        target="stryd",
+        trigger="admin_recovery",
+        reason="provider_transient",
+        duration_ms=450,
+    )
+
+    attrs = fake_meter.counters["praxys.managed_plan"].calls[0][1]
+    assert attrs["failure_domain"] == "provider"
+    assert attrs["reason"] == "provider_transient"
+    assert attrs["user_id_hash"] == telemetry.hash_user_id("managed-user")
+    assert fake_meter.histograms[
+        "praxys.managed_plan.delivery_latency"
+    ].calls[0][0] == 450

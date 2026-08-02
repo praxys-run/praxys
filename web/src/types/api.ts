@@ -1422,6 +1422,120 @@ export interface AdminOpsPlatformHealthSection extends AdminOpsSectionMeta {
   data: AdminOpsPlatformHealthData | null;
 }
 
+export interface AdminOpsManagedPlanTelemetryData {
+  delivery_runs: number;
+  complete_runs: number;
+  partial_runs: number;
+  blocked_runs: number;
+  retry_runs: number;
+  item_mutations: number;
+  successful_mutations: number;
+  failed_mutations: number;
+  conflicts: number;
+  provider_failures: number;
+  auth_failures: number;
+  praxys_failures: number;
+  affected_users: number;
+  p95_delivery_ms: number | null;
+  adoptions: number;
+  pauses: number;
+  resumes: number;
+  leaves: number;
+  resolutions: number;
+  cleanups: number;
+}
+
+export interface AdminOpsManagedPlanTelemetrySection extends AdminOpsSectionMeta {
+  data: AdminOpsManagedPlanTelemetryData | null;
+}
+
+export interface AdminOpsManagedPlanDeliveryStates {
+  pending: number;
+  delivering: number;
+  synced: number;
+  conflict: number;
+  failed: number;
+}
+
+export interface AdminOpsManagedPlanHealthData {
+  adopted_users: number;
+  delivery_enabled_users: number;
+  paused_users: number;
+  active_deliveries: number;
+  states: AdminOpsManagedPlanDeliveryStates;
+  attention_required: number;
+  recoverable: number;
+  retry_exhausted: number;
+  stuck_inflight: number;
+  oldest_attention_at: string | null;
+}
+
+export interface AdminOpsManagedPlanHealthSection extends AdminOpsSectionMeta {
+  data: AdminOpsManagedPlanHealthData | null;
+}
+
+export type AdminManagedPlanAttentionIssue =
+  | 'stale_pending'
+  | 'stuck_inflight'
+  | 'delivery_failed'
+  | 'retry_exhausted'
+  | 'delivery_conflict'
+  | 'provider_outcome_unknown';
+
+export type AdminManagedPlanRecoveryBlockedReason =
+  | 'attempt_not_managed'
+  | 'failure_not_managed'
+  | 'failure_not_retryable'
+  | 'user_resolution_required';
+
+export interface AdminManagedPlanAttentionItem {
+  recovery_id: string;
+  user_id_hash: string;
+  target: string;
+  state: string;
+  operation: string | null;
+  issue: AdminManagedPlanAttentionIssue;
+  failure_domain: string;
+  attempt_count: number;
+  last_attempt_at: string | null;
+  updated_at: string;
+  expected_version: string;
+  recovery_supported: boolean;
+  recovery_blocked_reason: AdminManagedPlanRecoveryBlockedReason | null;
+}
+
+/** GET /api/admin/managed-plans/attention. */
+export interface AdminManagedPlanAttentionResponse {
+  generated_at: string;
+  items: AdminManagedPlanAttentionItem[];
+}
+
+/** POST /api/admin/managed-plans/recover/{recovery_id}. */
+export interface AdminManagedPlanRecoveryResponse {
+  status: 'complete' | 'partial' | 'blocked' | 'skipped';
+  target: string;
+  reason: string | null;
+  final_state: string;
+  attempted_items: number;
+  successful_items: number;
+  failed_items: number;
+  blocked_items: number;
+  audit_revision_id: string;
+}
+
+export type AdminManagedPlanRecoveryErrorCode =
+  | 'MANAGED_PLAN_RECOVERY_NOT_FOUND'
+  | 'MANAGED_PLAN_RECOVERY_BUSY'
+  | 'MANAGED_PLAN_RECOVERY_STALE'
+  | 'MANAGED_PLAN_RECOVERY_UNSUPPORTED';
+
+export interface AdminManagedPlanRecoveryErrorResponse {
+  detail: {
+    code: AdminManagedPlanRecoveryErrorCode;
+    message: string;
+  };
+}
+
 export interface AdminOpsLinks {
   users: string;
   feedback: string;
@@ -1454,6 +1568,10 @@ export interface AdminOpsSummary {
   azure_alerts?: AdminOpsAzureAlertsSection;
   /** Optional during a rolling deploy from the Phase 1 operations API. */
   platform_health?: AdminOpsPlatformHealthSection;
+  /** Optional during a rolling deploy from the managed-plan operations API. */
+  managed_plan_telemetry?: AdminOpsManagedPlanTelemetrySection;
+  /** Optional during a rolling deploy from the managed-plan operations API. */
+  managed_plans?: AdminOpsManagedPlanHealthSection;
   links: AdminOpsLinks;
 }
 /** GET /api/public/config — unauthenticated; drives the login page's signup path. */

@@ -50,6 +50,7 @@ custom signals in the table below belong to `appi-praxys-backend`.
 | `praxys.db_health` | `status`, `backend` | DB integrity/connectivity failures (startup check + readiness probe) | `record_db_health` |
 | `praxys.sync` | `platform`, `outcome`, `failure_class`, `trigger`, `user_id_hash` | Per-platform sync attempt outcomes (success/failure + why) | `record_sync` |
 | `praxys.connection` | `platform`, `flow`, `stage`, `outcome`, `failure_class`, `region`, `user_id_hash` | Account-connect attempts; `flow` is the Garmin **mfa** vs **non_mfa** sub-category | `record_connection` |
+| `praxys.managed_plan` | `category`, `action`, `outcome`, `target`, `trigger`, `reason`, `failure_domain`, `user_id_hash`; `duration_ms`* | Managed-plan lifecycle, reconciliation, cleanup, delivery-run, item, and operator-recovery outcomes. `*` customEvent only; the metric fallback records latency separately as `praxys.managed_plan.delivery_latency`. | `record_managed_plan_event` |
 
 > `praxys.feedback`'s `status` dimension includes `needs_review` — the trigger for
 > the feedback alert below.
@@ -60,6 +61,12 @@ custom signals in the table below belong to `appi-praxys-backend`.
 > `mfa_unattended`, `platform_error`, `network_error`, `unknown`) in
 > `api/telemetry.py` (`USER_FAULT_FAILURE_CLASSES` / `SYSTEMIC_FAILURE_CLASSES`).
 > `token_rejected` is the class the upstream #369 widget-token break would have lit up.
+>
+> `praxys.managed_plan` maps bounded reasons into `provider_auth`, `provider`,
+> `praxys`, `conflict`, `policy`, `none`, or `unknown`. The signal never includes
+> provider account/workout ids, canonical workout ids, dates/content, credentials,
+> raw errors, email, or the raw user id. The 16-character user pseudonym exists
+> only to distinguish one athlete's failure from a fleet-wide incident.
 
 ## Querying (Logs blade → KQL)
 
@@ -79,7 +86,7 @@ subscription-wide read grant. The resource ID is deployment-derived as
 `PRAXYS_BACKEND_APPINSIGHTS_RESOURCE_ID` and is removed by the
 `rollback-to-frontend` path.
 
-`api/admin_azure_monitor.py` owns a static allowlist of three KQL queries:
+`api/admin_azure_monitor.py` owns a static allowlist of four KQL queries:
 
 - `requests` + `availabilityResults` for request volume/failures, p95 latency,
   availability, and `praxys.db_health`;
@@ -87,7 +94,9 @@ subscription-wide read grant. The resource ID is deployment-derived as
   value signals; and
 - `customEvents` + `customMetrics` for sync reliability, systemic failure
   clusters (at least five distinct users across systemic failure classes for
-  one platform in 15 minutes), and connection outcomes.
+  one platform in 15 minutes), and connection outcomes; and
+- `customEvents` + `customMetrics` for aggregate managed-plan delivery,
+  failure-domain, lifecycle, recovery, and p95 run-latency outcomes.
 
 These are Application Insights **resource-context** table aliases, and every
 query also filters `_ResourceId` to the configured backend component. Distinct
@@ -102,10 +111,11 @@ connection counts come from aggregate `pg_stat_activity`, not Azure Metrics.
 The console refreshes in the browser every minute, but Azure reads are cached
 server-side for three minutes per section and selected window. Product value
 always uses a trailing 28-day query so repeated weekly use is meaningful;
-alerts, service, and platform health follow the selected window. Failed refreshes
-may serve the last good service/platform/alert value for up to 15 minutes and
+alerts, service, platform health, and managed-plan telemetry follow the selected
+window. Failed refreshes may serve the last good
+service/platform/managed-plan/alert value for up to 15 minutes and
 product aggregates for up to 60 minutes; failures without a usable snapshot are
-negative-cached for 20 seconds. The three KQL calls run concurrently with an
+negative-cached for 20 seconds. The four KQL calls run concurrently with an
 8-second server timeout and a 12-second overall deadline, so one slow Azure
 section cannot block the database-backed admin workflows. These on-demand reads
 create no alert-rule charge; Log Analytics cost remains the data scanned within
@@ -380,6 +390,61 @@ customMetrics
 > in `customEvents`, but one series per user in `customMetrics`. Production
 > queries union both tables so migration does not create a blind spot.
 
+### Managed-plan delivery
+
+Use the bounded `failure_domain` to separate execution-platform incidents from
+Praxys defects. Do not alert on raw `reason` alone and do not add provider ids or
+workout content to this signal.
+
+```kql
+let managed = union isfuzzy=true
+  (customEvents
+   | where name == "praxys.managed_plan"
+   | project timestamp,
+       category=tostring(customDimensions.category),
+       action=tostring(customDimensions.action),
+       outcome=tostring(customDimensions.outcome),
+       target=tostring(customDimensions.target),
+       trigger=tostring(customDimensions.trigger),
+       reason=tostring(customDimensions.reason),
+       failure_domain=tostring(customDimensions.failure_domain),
+       user=tostring(customDimensions.user_id_hash),
+       events=1.0),
+  (customMetrics
+   | where name == "praxys.managed_plan"
+   | project timestamp,
+       category=tostring(customDimensions.category),
+       action=tostring(customDimensions.action),
+       outcome=tostring(customDimensions.outcome),
+       target=tostring(customDimensions.target),
+       trigger=tostring(customDimensions.trigger),
+       reason=tostring(customDimensions.reason),
+       failure_domain=tostring(customDimensions.failure_domain),
+       user=tostring(customDimensions.user_id_hash),
+       events=coalesce(valueSum, value, todouble(valueCount), 0.0));
+managed
+| where timestamp > ago(7d)
+| summarize events=sum(events), affected_users=dcountif(user, isnotempty(user))
+    by category, action, outcome, target, failure_domain, reason
+| order by events desc
+```
+
+Interpretation:
+
+- `provider_auth`: reconnect/rotate the athlete's execution-target credentials;
+  alert only when at least five distinct athletes fail for the same target in
+  15 minutes.
+- `provider`: execution-platform rejection, transient failure, or uncertain
+  result; the systemic rule uses the same five-athlete gate.
+- `praxys`: a known ledger start/finalization, reconciliation, or adapter defect;
+  one occurrence is operator-actionable and pages.
+- `conflict`: ownership/content disagreement. This is athlete-resolved in the
+  plan reconciliation flow and is never blindly replayed.
+- `policy`: expected safety gates such as pause, retry backoff/limit, connection
+  change, or unavailable threshold. Diagnose the prerequisite; do not page.
+- `unknown`: inspect the bounded category/action/reason and classify it in code
+  before adding an alert.
+
 ## Alert inventory (source of truth)
 
 Every rule below lives in `rg-trainsight` (region **eastasia**) and routes to the
@@ -396,9 +461,11 @@ retail rate per the [cost model](#alert-cost-model) below.
 | `praxys-today-latency-regression` | log | `appi-praxys-backend` | `GET /api/today` avg latency > 3000 ms | 1 h | 3 | 0.50 |
 | `praxys-sync-systemic-failures` | log | `appi-praxys-backend` | `praxys.sync` — ≥5 distinct users hit systemic failure classes for one platform / 15 min | 15 min | 2 | 0.50 |
 | `praxys-connect-systemic-failures` | log | `appi-praxys-backend` | `praxys.connection` — ≥5 distinct users fail connect with systemic classes for one platform / 15 min | 15 min | 2 | 0.50 |
+| `praxys-managed-plan-provider-failures` | log | `appi-praxys-backend` | `praxys.managed_plan` — ≥5 distinct users hit `provider` / `provider_auth` failures for one execution target / 15 min | 15 min | 2 | 0.50 |
+| `praxys-managed-plan-defects` | log | `appi-praxys-backend` | `praxys.managed_plan` — any known `praxys` ledger/reconciliation/finalization/adapter defect | 15 min | 2 | 0.50 |
 
-**Total ≈ 3.5–3.8 USD/mo** (the three metric alerts may fall inside the small free
-allotment, making the effective figure closer to the 3.50 log-alert subtotal).
+**Total ≈ 4.5–4.8 USD/mo** (the three metric alerts may fall inside the small free
+allotment, making the effective figure closer to the 4.50 log-alert subtotal).
 
 ### Systemic connection/sync alerts (provisioned)
 
@@ -416,6 +483,62 @@ rules scoped to `appi-praxys-backend` on every backend deployment.
 > the PR that added these rules; until it deploys there is no data, so the rules
 > evaluate to zero and never fire. Threshold `≥5 / 15 min` is a starting point —
 > tune to the active-user base once real volume lands.
+
+### Managed-plan alerts (deployment-owned)
+
+`scripts/appinsights_boundary.sh backend-preflight` idempotently creates or
+updates both managed-plan rules **before** telemetry cutover, validates their
+KQL, 15-minute cadence, Sev 2 threshold, exact component scope, and sole action
+group `praxys-feedback-ag`. Preflight also refuses to provision the rules unless
+that action group and its `support@praxys.run` email receiver are enabled. It
+then includes both rules in `BACKEND_ALERT_NAMES`, so the cutover transaction
+migrates and verifies them with every other backend log alert. The definitions
+are source-controlled; do not tune them only in the Azure portal.
+
+- `praxys-managed-plan-provider-failures` groups failed/blocked/partial events
+  by execution target and `provider` / `provider_auth`, then returns a row only
+  at **≥5 distinct athlete pseudonyms**. A single expired credential does not
+  page.
+- `praxys-managed-plan-defects` returns a row for any failed/blocked/partial
+  event with the centrally allowlisted `praxys` domain. These are defects in
+  ledger start/finalization, reconciliation, or adapter wiring, so one event is
+  actionable.
+
+Provision or repair the checked-in definitions without deploying application
+code:
+
+```bash
+set -a
+source .github/azure-observability.env
+set +a
+export GITHUB_ENV=$(mktemp)
+bash scripts/appinsights_boundary.sh backend-preflight
+rm -f "$GITHUB_ENV"
+```
+
+Verify both definitions and the paging route:
+
+```bash
+for rule in \
+  praxys-managed-plan-provider-failures \
+  praxys-managed-plan-defects; do
+  az monitor scheduled-query show -g rg-trainsight -n "$rule" \
+    --query '{name:name,scope:scopes[0],enabled:enabled,severity:severity,frequency:evaluationFrequency,actionGroups:actions.actionGroups}' \
+    -o json
+done
+```
+
+Both scopes must be `appi-praxys-backend`, both frequencies `PT15M`, both
+severities `2`, and each `actionGroups` array must contain exactly the
+`praxys-feedback-ag` resource id. The action group and its
+`support@praxys.run` receiver must both report `Enabled`. To roll back only
+these two rules, delete them by exact name; the next backend preflight recreates
+them. To roll back the entire telemetry trust boundary, use
+`bash scripts/appinsights_boundary.sh rollback-to-frontend`; its guarded
+transaction preserves each existing rule and restores every prior scope on
+failure. If a partial preflight never created one of these deployment-owned
+rules, standalone rollback logs and skips that missing rule rather than
+blocking recovery.
 
 > **Currency rule.** Any PR that adds, removes, or re-tunes an alert **must update
 > this table in the same PR** — rule name, what it watches, eval frequency,
