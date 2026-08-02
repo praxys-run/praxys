@@ -46,7 +46,10 @@ fingerprint/account history, not JS signals (closed PR #257).
   read; `Garmin workout calendar payload was unavailable` means the
   undocumented response no longer matched the verified `calendarItems` shape.
   Both preserve the last complete snapshot instead of inferring deletions.
-  Garmin delivery stays unavailable until #484/#485.
+  Garmin delivery remains unavailable: the
+  [#484 feasibility study](../studies/garmin-workout-delivery-feasibility.md)
+  rejected production consumer-API writes, and #485 is blocked pending the
+  official Training API contract.
 
 ## Per-user token store (security-critical)
 

@@ -200,9 +200,15 @@ render read-only with a source badge.
 - Garmin calendar observations use the scheduled-instance `id`, never the
   reusable template `workoutId`, as their external identity. Account fences
   hash the authenticated Garmin display name with the Praxys user and region;
-  the profile name is not persisted in reconciliation tables. Garmin remains
-  `plan: false` in `PLATFORM_CAPABILITIES` until #484 confirms safe write,
-  replacement, and deletion semantics and #485 registers the adapter.
+  the profile name is not persisted in reconciliation tables.
+- Garmin remains `plan: false` in `PLATFORM_CAPABILITIES`. The
+  [#484 feasibility study](../studies/garmin-workout-delivery-feasibility.md)
+  found the undocumented consumer write operations but rejected production
+  enablement: template and scheduled-instance IDs need durable staged
+  ownership, structured target fidelity and CN parity are unverified, and an
+  official Garmin Training API exists for this purpose. Keep #485 blocked
+  until that supported contract is available or an explicitly accepted
+  fallback passes both region test matrices.
 
 ## Activity weather support
 
