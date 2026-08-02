@@ -87,6 +87,17 @@ connection card leaves `auth_required` and new activities/recovery rows appear.
 For managed plans, confirm the next scheduler tick creates only missing
 Praxys-owned workouts inside the 14-day horizon.
 
+For users who separately enabled conservative automatic adjustment, search for
+`Plan adjustment for user=` after the sync completion log. `adjusted` means the
+canonical mutation committed; provider delivery may still report its own
+best-effort outcome. `suggestion`, `no_change`, and `disabled` are successful
+fail-closed decisions, not sync failures. An exception is logged as
+`Post-sync plan adjustment failed` and intentionally does not change the
+platform sync result. `Plan adjustment delivery audit remains pending` means
+the canonical change committed but its append-only delivery-consequence event
+did not; the next evaluation of the same still-current adjustment retries that
+audit path.
+
 ## Related
 
 - [incident-response.md](./incident-response.md) · `docs/dev/gotchas.md` · `scripts/garmin_diagnose.py`

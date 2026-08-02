@@ -491,6 +491,28 @@ def _sync_connection(user_id: str, platform: str, db):
     except Exception:
         pass
 
+    # Conservative plan changes are separately consented and deterministic.
+    # Run before generated insights so both surfaces observe the same plan.
+    try:
+        from api.plan_adjustments import run_plan_adjustment_for_user
+
+        adjustment_result = run_plan_adjustment_for_user(
+            user_id,
+            trigger=f"scheduled_sync:{platform}",
+        )
+        logger.info(
+            "Plan adjustment for user=%s platform=%s: %s",
+            user_id,
+            platform,
+            adjustment_result.get("status"),
+        )
+    except Exception:
+        logger.exception(
+            "Post-sync plan adjustment failed for user=%s platform=%s",
+            user_id,
+            platform,
+        )
+
     # Post-sync LLM insight generation. Best-effort; never raises.
     try:
         from api.insights_runner import run_insights_for_user

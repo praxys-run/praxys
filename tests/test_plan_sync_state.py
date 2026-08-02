@@ -182,6 +182,85 @@ def _seed_synced_delivery(
     return delivery_id
 
 
+def test_plan_exposes_adjustment_history_and_exact_undo(api_client):
+    client, user_id = api_client
+    from db import session as db_session
+    from db.models import TrainingPlan
+    from db.plan_ledger import plan_snapshot, record_plan_revision
+
+    today = date.today()
+    db = db_session.SessionLocal()
+    try:
+        plan = TrainingPlan(
+            user_id=user_id,
+            date=today,
+            source="praxys",
+            workout_origin="generated",
+            workout_type="threshold",
+            planned_duration_min=50,
+            workout_description="Threshold repeats",
+        )
+        db.add(plan)
+        db.flush()
+        before = plan_snapshot(plan)
+        plan.workout_type = "rest"
+        plan.planned_duration_min = None
+        plan.workout_description = "Rest after current HRV caution"
+        after = plan_snapshot(plan)
+        revision = record_plan_revision(
+            db,
+            user_id=user_id,
+            operation="auto_adjustment",
+            actor_type="system",
+            actor_id="conservative-adjustment-v1",
+            origin="api.plan_adjustments",
+            before=[before],
+            after=[after],
+            details={
+                "rule": {
+                    "id": "hrv_below_hard_to_rest",
+                    "version": "1",
+                },
+                "reason_code": "hrv_below_hard",
+                "rationale": "Current HRV crossed the personal caution band.",
+                "evidence": {"hrv_latest_date": today.isoformat()},
+                "bounds": {"workouts_changed": 1},
+                "citations": [],
+                "delivery": {"status": "pending"},
+            },
+            idempotency_key=f"auto-adjust:1:{plan.canonical_id}:{today}",
+        )
+        db.commit()
+        revision_id = revision.id
+    finally:
+        db.close()
+
+    plan_response = client.get(
+        f"/api/plan?start={today.isoformat()}&end={today.isoformat()}"
+    )
+    history_response = client.get("/api/plan/adjustments")
+    undo_response = client.post(
+        f"/api/plan/adjustments/{revision_id}/undo"
+    )
+
+    assert plan_response.status_code == 200, plan_response.text
+    assert plan_response.json()["adjustments"][0]["id"] == revision_id
+    assert history_response.status_code == 200, history_response.text
+    assert history_response.json()["items"][0]["can_undo"] is True
+    assert undo_response.status_code == 200, undo_response.text
+    assert undo_response.json()["status"] == "undone"
+
+    db = db_session.SessionLocal()
+    try:
+        restored = db.query(TrainingPlan).filter(
+            TrainingPlan.user_id == user_id,
+        ).one()
+        assert restored.workout_type == "threshold"
+        assert restored.planned_duration_min == 50
+    finally:
+        db.close()
+
+
 def _seed_target_snapshot(
     user_id: str,
     rows: list[dict],

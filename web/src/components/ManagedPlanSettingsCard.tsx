@@ -4,10 +4,13 @@ import {
   CalendarSync,
   Check,
   CirclePause,
+  HeartPulse,
+  RotateCcw,
   ShieldCheck,
   TriangleAlert,
 } from 'lucide-react';
 
+import ScienceNote from '@/components/ScienceNote';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -40,11 +43,12 @@ import { useLocale } from '@/contexts/LocaleContext';
 import {
   MANAGED_PLAN_WINDOW_DAYS,
   isPraxysOwned,
+  managedPlanPreviewUrl,
   managedPlanWindow,
   managedPlanState,
-  planWindowUrl,
 } from '@/lib/plan';
 import type {
+  PlanAdjustmentHistoryResponse,
   PlanCleanupResponse,
   PlanResponse,
   PlatformName,
@@ -85,6 +89,15 @@ function formatWorkoutType(value: string): string {
     .join(' ');
 }
 
+function browserTimeZone(): string | null {
+  try {
+    const value = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return value?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 export default function ManagedPlanSettingsCard({
   config,
   connectionStatuses,
@@ -93,13 +106,21 @@ export default function ManagedPlanSettingsCard({
 }: ManagedPlanSettingsCardProps) {
   const { t } = useLingui();
   const { locale } = useLocale();
-  const planUrl = planWindowUrl();
+  const planUrl = managedPlanPreviewUrl();
   const {
     data: plan,
     loading: planLoading,
     error: planError,
     refetch: refetchPlan,
   } = useApi<PlanResponse>(planUrl);
+  const {
+    data: adjustmentHistory,
+    error: adjustmentHistoryError,
+    refetch: refetchAdjustmentHistory,
+  } = useApi<PlanAdjustmentHistoryResponse>(
+    '/api/plan/adjustments?limit=20',
+    { enabled: plan?.adjustments !== undefined },
+  );
   const management = config.plan_management;
   const state = managedPlanState(management);
   const connectedTargets = config.connections.filter(
@@ -128,12 +149,21 @@ export default function ManagedPlanSettingsCard({
   const [actionError, setActionError] = useState<string | null>(null);
   const [cleanupResult, setCleanupResult] =
     useState<PlanCleanupResponse | null>(null);
+  const [adjustmentConsentOpen, setAdjustmentConsentOpen] = useState(false);
+  const [adjustmentAction, setAdjustmentAction] =
+    useState<'enable' | 'disable' | null>(null);
+  const [undoingAdjustment, setUndoingAdjustment] = useState<string | null>(null);
+  const [adjustmentError, setAdjustmentError] = useState<string | null>(null);
 
   const praxysWorkouts = plan?.workouts.filter(isPraxysOwned) ?? [];
   const externalWorkouts = plan?.workouts.filter(
     (workout) => !isPraxysOwned(workout),
   ) ?? [];
   const previewWorkouts = praxysWorkouts.slice(0, 4);
+  const adjustments = adjustmentHistory?.items ?? plan?.adjustments ?? [];
+  const adjustmentSupported = plan?.adjustments !== undefined;
+  const adjustmentEnabled =
+    management.adjustment_policy === 'auto_conservative';
   const configuredTargetAvailable = configuredTarget != null
     && connectedTargets.includes(configuredTarget);
   const targetAvailable = state === 'external'
@@ -180,16 +210,22 @@ export default function ManagedPlanSettingsCard({
       return;
     }
     const nextAction = confirmMode === 'resume' ? 'resume' : 'adopt';
+    const athleteTimezone = browserTimeZone();
     setAction(nextAction);
     setActionError(null);
     try {
       await updateSettings({
         managed_plan_preview_start: expectedWindow.start,
+        ...(athleteTimezone
+          ? { source_options: { athlete_timezone: athleteTimezone } }
+          : {}),
         plan_management: {
           mode: 'praxys',
           execution_target: actionTarget,
           delivery_enabled: true,
-          adjustment_policy: 'suggest_only',
+          ...(confirmMode === 'adopt'
+            ? { adjustment_policy: 'suggest_only' as const }
+            : {}),
         },
       });
       await refetchPlan();
@@ -271,6 +307,80 @@ export default function ManagedPlanSettingsCard({
       setActionError(error instanceof Error ? error.message : t`Could not remove future delivered workouts`);
     } finally {
       setAction(null);
+    }
+  };
+
+  const saveAdjustmentPolicy = async (
+    policy: 'suggest_only' | 'auto_conservative',
+  ) => {
+    if (!adjustmentSupported) return;
+    const athleteTimezone = (
+      policy === 'auto_conservative' ? browserTimeZone() : null
+    );
+    if (policy === 'auto_conservative' && !athleteTimezone) {
+      setAdjustmentError(t`Praxys could not determine your time zone. Check your device settings and try again.`);
+      return;
+    }
+    const nextAction = policy === 'auto_conservative' ? 'enable' : 'disable';
+    setAdjustmentAction(nextAction);
+    setAdjustmentError(null);
+    try {
+      await updateSettings({
+        ...(athleteTimezone
+          ? { source_options: { athlete_timezone: athleteTimezone } }
+          : {}),
+        plan_management: { adjustment_policy: policy },
+      });
+      await Promise.all([
+        refetchPlan(),
+        ...(adjustmentSupported ? [refetchAdjustmentHistory()] : []),
+      ]);
+      if (policy === 'auto_conservative') setAdjustmentConsentOpen(false);
+    } catch (error) {
+      setAdjustmentError(
+        error instanceof Error
+          ? error.message
+          : t`Could not update automatic plan changes`,
+      );
+    } finally {
+      setAdjustmentAction(null);
+    }
+  };
+
+  const undoAdjustment = async (revisionId: string) => {
+    if (!adjustmentSupported) return;
+    setUndoingAdjustment(revisionId);
+    setAdjustmentError(null);
+    try {
+      const response = await apiFetch(
+        `/api/plan/adjustments/${encodeURIComponent(revisionId)}/undo`,
+        { method: 'POST' },
+      );
+      if (!response.ok) {
+        const message = await extractErrorMessage(
+          response,
+          t`Could not restore the previous workout`,
+        );
+        if (response.status === 409) {
+          await Promise.all([
+            refetchPlan(),
+            refetchAdjustmentHistory(),
+          ]);
+        }
+        throw new Error(message);
+      }
+      await Promise.all([
+        refetchPlan(),
+        ...(adjustmentSupported ? [refetchAdjustmentHistory()] : []),
+      ]);
+    } catch (error) {
+      setAdjustmentError(
+        error instanceof Error
+          ? error.message
+          : t`Could not restore the previous workout`,
+      );
+    } finally {
+      setUndoingAdjustment(null);
     }
   };
 
@@ -542,6 +652,174 @@ export default function ManagedPlanSettingsCard({
               </AlertDescription>
             </Alert>
           )}
+
+          {adjustmentSupported && (
+            <div className="border-t border-border pt-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex max-w-2xl items-start gap-3">
+                <HeartPulse
+                  className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+                  aria-hidden="true"
+                />
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-foreground">
+                      <Trans>Automatic recovery guardrail</Trans>
+                    </p>
+                    <Badge
+                      variant="secondary"
+                      className={
+                        adjustmentEnabled
+                          ? 'bg-primary/12 text-primary hover:bg-primary/12'
+                          : undefined
+                      }
+                    >
+                      {adjustmentEnabled ? <Trans>On</Trans> : <Trans>Off</Trans>}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    {state === 'external' ? (
+                      <Trans>
+                        Adopt Praxys as your planner before enabling automatic changes. Coaching remains suggestion-only.
+                      </Trans>
+                    ) : adjustmentEnabled ? (
+                      <Trans>
+                        After a sync, Praxys may replace today's single Praxys-generated hard workout with rest only when same-day HRV crosses your personal caution band.
+                      </Trans>
+                    ) : (
+                      <Trans>
+                        Coaching is suggestion-only. Praxys will not change a workout from recovery signals.
+                      </Trans>
+                    )}
+                  </p>
+                </div>
+              </div>
+              {state !== 'external' && (
+                adjustmentEnabled ? (
+                  <Button
+                    variant="outline"
+                    disabled={adjustmentAction != null}
+                    onClick={() => void saveAdjustmentPolicy('suggest_only')}
+                  >
+                    {adjustmentAction === 'disable'
+                      ? <Trans>Turning off…</Trans>
+                      : <Trans>Turn off</Trans>}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    disabled={adjustmentAction != null}
+                    onClick={() => {
+                      setAdjustmentError(null);
+                      setAdjustmentConsentOpen(true);
+                    }}
+                  >
+                    <Trans>Review and turn on</Trans>
+                  </Button>
+                )
+              )}
+            </div>
+
+            <ScienceNote
+              label={<Trans>Why this is conservative</Trans>}
+              sources={[
+                {
+                  label: 'Plews et al. (2012)',
+                  url: 'https://doi.org/10.1007/s00421-012-2354-4',
+                },
+                {
+                  label: 'Kiviniemi et al. (2007)',
+                  url: 'https://doi.org/10.1007/s00421-007-0552-2',
+                },
+              ]}
+            >
+              <p>
+                <Trans>
+                  This guardrail uses individualized HRV guidance and never loads activity intensity. The exact caution band and rest-day action are conservative product estimates, not diagnoses or clinically validated prescriptions. Prior-day, missing, or inconsistent recovery; a completed activity; multiple Praxys workouts; or an uncertain target calendar keeps the plan unchanged. Load, sleep, and other caution signals remain suggestions.
+                </Trans>
+              </p>
+            </ScienceNote>
+
+            {adjustments.length > 0 && (
+              <div className="mt-5 border-t border-border pt-4">
+                <p className="text-xs font-semibold text-foreground">
+                  <Trans>Recent automatic changes</Trans>
+                </p>
+                <div className="mt-2 divide-y divide-border">
+                  {adjustments.slice(0, 5).map((adjustment) => (
+                    <div
+                      key={adjustment.id}
+                      className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                          <span className="font-data text-muted-foreground">
+                            {adjustment.workout_date
+                              ? formatDate(adjustment.workout_date, locale)
+                              : <Trans>Unknown date</Trans>}
+                          </span>
+                          <span className="font-medium text-foreground">
+                            {formatWorkoutType(
+                              adjustment.before.workout_type ?? t`Workout`,
+                            )}
+                            {' \u2192 '}
+                            {formatWorkoutType(
+                              adjustment.after.workout_type ?? t`Rest`,
+                            )}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {adjustment.status === 'active' && <Trans>Applied</Trans>}
+                            {adjustment.status === 'undone' && <Trans>Restored</Trans>}
+                            {adjustment.status === 'superseded' && <Trans>Changed later</Trans>}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                          <Trans>Current HRV crossed your personal caution band.</Trans>
+                        </p>
+                      </div>
+                      {adjustment.can_undo && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={undoingAdjustment != null}
+                          onClick={() => void undoAdjustment(adjustment.id)}
+                        >
+                          <RotateCcw aria-hidden="true" />
+                          {undoingAdjustment === adjustment.id
+                            ? <Trans>Restoring…</Trans>
+                            : <Trans>Restore workout</Trans>}
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+              {adjustmentHistoryError && (
+                <Alert variant="destructive" className="mt-4">
+                  <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                    <span className="text-xs">
+                      <Trans>Could not load automatic change history.</Trans>
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => refetchAdjustmentHistory()}
+                    >
+                      <Trans>Retry</Trans>
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {adjustmentError && (
+                <Alert variant="destructive" className="mt-4">
+                  <AlertDescription>{adjustmentError}</AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -625,6 +903,77 @@ export default function ManagedPlanSettingsCard({
                 : confirmMode === 'resume'
                   ? <Trans>Resume delivery</Trans>
                   : <Trans>Activate managed plan</Trans>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={adjustmentConsentOpen}
+        onOpenChange={(open) => {
+          if (adjustmentAction == null) {
+            setAdjustmentConsentOpen(open);
+            if (!open) setAdjustmentError(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle><Trans>Turn on conservative plan changes?</Trans></DialogTitle>
+            <DialogDescription>
+              <Trans>
+                This permission is separate from managed delivery. Review the exact boundary before opting in.
+              </Trans>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 text-sm">
+            <div className="flex gap-3">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+              <p>
+                <Trans>
+                  Only today's single Praxys-generated hard workout can become rest, and only for same-day individualized HRV below the caution band.
+                </Trans>
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent-cobalt" aria-hidden="true" />
+              <p>
+                <Trans>
+                  External, manual, and other-coach workouts are never changed. Uncertain or stale evidence makes no change.
+                </Trans>
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <RotateCcw className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+              <p>
+                <Trans>
+                  Every change is recorded here and can be restored while that exact workout version is still current.
+                </Trans>
+              </p>
+            </div>
+            {adjustmentError && (
+              <Alert variant="destructive">
+                <AlertDescription>{adjustmentError}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={adjustmentAction != null}
+              onClick={() => setAdjustmentConsentOpen(false)}
+            >
+              <Trans>Keep suggestion-only</Trans>
+            </Button>
+            <Button
+              disabled={adjustmentAction != null}
+              onClick={() => void saveAdjustmentPolicy('auto_conservative')}
+            >
+              {adjustmentAction === 'enable'
+                ? <Trans>Turning on…</Trans>
+                : <Trans>Turn on guardrail</Trans>}
             </Button>
           </DialogFooter>
         </DialogContent>

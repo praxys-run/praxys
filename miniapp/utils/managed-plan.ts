@@ -31,6 +31,13 @@ function utcIsoDate(value: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+function localIsoDate(value: Date): string {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function managedPlanWindow(
   days = MANAGED_PLAN_WINDOW_DAYS,
   now = new Date(),
@@ -43,7 +50,27 @@ export function managedPlanWindow(
   };
 }
 
+export function athletePlanWindow(
+  days = MANAGED_PLAN_WINDOW_DAYS,
+  now = new Date(),
+): { start: string; end: string } {
+  const end = new Date(now);
+  end.setDate(end.getDate() + Math.max(days - 1, 0));
+  return {
+    start: localIsoDate(now),
+    end: localIsoDate(end),
+  };
+}
+
 export function planWindowUrl(
+  days = MANAGED_PLAN_WINDOW_DAYS,
+  now = new Date(),
+): string {
+  const { start, end } = athletePlanWindow(days, now);
+  return `/api/plan?start=${start}&end=${end}`;
+}
+
+export function managedPlanPreviewUrl(
   days = MANAGED_PLAN_WINDOW_DAYS,
   now = new Date(),
 ): string {

@@ -11,7 +11,9 @@ from analysis.config import (
     save_config,
     _migrate_config,
     default_plan_management,
+    normalize_plan_management,
     normalize_plan_source,
+    normalize_athlete_timezone,
     normalize_workout_origin,
     plan_analysis_source,
     DEFAULT_ZONES,
@@ -41,6 +43,30 @@ class TestUserConfigDefaults:
             "adjustment_policy": "suggest_only",
         })
         assert plan_analysis_source(config) == PRAXYS_PLAN_SOURCE
+
+    def test_conservative_adjustment_policy_roundtrips(self):
+        config = UserConfig(plan_management={
+            "mode": "praxys",
+            "execution_target": None,
+            "delivery_enabled": False,
+            "adjustment_policy": "auto_conservative",
+        })
+        assert config.plan_management["adjustment_policy"] == "auto_conservative"
+
+    def test_athlete_timezone_requires_valid_iana_name(self):
+        assert normalize_athlete_timezone("Asia/Shanghai") == "Asia/Shanghai"
+        assert normalize_athlete_timezone("  UTC  ") == "UTC"
+        assert normalize_athlete_timezone("not/a-timezone") is None
+        assert normalize_athlete_timezone(None) is None
+
+    def test_external_mode_normalizes_to_suggestion_only(self):
+        normalized = normalize_plan_management({
+            "mode": "external",
+            "execution_target": None,
+            "delivery_enabled": False,
+            "adjustment_policy": "auto_conservative",
+        })
+        assert normalized["adjustment_policy"] == "suggest_only"
 
     def test_contract_release_uses_explicit_write_source(self):
         assert PRAXYS_PLAN_WRITE_SOURCE == PRAXYS_PLAN_SOURCE

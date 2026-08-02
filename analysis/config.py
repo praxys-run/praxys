@@ -5,6 +5,7 @@ import os
 from dataclasses import dataclass, field, asdict
 from typing import Literal
 from typing_extensions import TypedDict
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,8 @@ WorkoutOrigin = Literal[
 ]
 DataCategory = Literal["activities", "recovery", "fitness", "plan"]
 PlanManagementMode = Literal["external", "praxys"]
-PlanAdjustmentPolicy = Literal["suggest_only"]
+PlanAdjustmentPolicy = Literal["suggest_only", "auto_conservative"]
+ATHLETE_TIMEZONE_OPTION = "athlete_timezone"
 
 PRAXYS_PLAN_SOURCE = "praxys"
 LEGACY_PRAXYS_PLAN_SOURCE = "ai"
@@ -47,6 +49,20 @@ WORKOUT_ORIGINS: frozenset[str] = frozenset({
     "imported",
     "legacy",
 })
+
+
+def normalize_athlete_timezone(value: object) -> str | None:
+    """Return a valid IANA athlete timezone name, or ``None``."""
+    if not isinstance(value, str):
+        return None
+    timezone_name = value.strip()
+    if not timezone_name:
+        return None
+    try:
+        ZoneInfo(timezone_name)
+    except (ZoneInfoNotFoundError, ValueError):
+        return None
+    return timezone_name
 
 # Default zone boundaries as fractions of threshold value.
 # 4 boundaries define 5 zones (Z1..Z5).
@@ -138,10 +154,15 @@ def normalize_plan_management(
         delivery_enabled = False
 
     adjustment_policy = raw.get("adjustment_policy", "suggest_only")
-    if adjustment_policy != "suggest_only":
+    if adjustment_policy not in {"suggest_only", "auto_conservative"}:
         logger.warning(
             "Invalid plan adjustment policy %r; using suggest_only",
             adjustment_policy,
+        )
+        adjustment_policy = "suggest_only"
+    if mode != "praxys" and adjustment_policy != "suggest_only":
+        logger.warning(
+            "Automatic plan adjustment requires Praxys mode; using suggest_only",
         )
         adjustment_policy = "suggest_only"
 

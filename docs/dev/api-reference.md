@@ -748,7 +748,26 @@ not target workouts accepted into the canonical plan.
     "2026-04-11": { "workout_id": "stryd_123", "pushed_at": "...", "status": "pushed" }
   },
   "sync_target": "stryd",
-  "window": { "start": "2026-04-11", "end": "2026-04-25" }
+  "window": { "start": "2026-04-11", "end": "2026-04-25" },
+  "adjustments": [
+    {
+      "id": "7aa4d296-7022-41f9-8c53-3fd97d9e9895",
+      "created_at": "2026-04-11T06:15:00Z",
+      "status": "active",
+      "can_undo": true,
+      "workout_date": "2026-04-11",
+      "before": { "canonical_id": "f0219570-4bda-49df-86a7-1b73ad80af6c", "workout_type": "threshold" },
+      "after": { "canonical_id": "f0219570-4bda-49df-86a7-1b73ad80af6c", "workout_type": "rest" },
+      "rule": {
+        "id": "hrv_below_hard_to_rest",
+        "version": "1",
+        "classification": "product_estimate"
+      },
+      "reason_code": "hrv_below_hard",
+      "evidence": { "hrv_latest_date": "2026-04-11" },
+      "delivery": { "status": "complete" }
+    }
+  ]
 }
 ```
 
@@ -769,6 +788,52 @@ The legacy `sync_state` maps matching/pending to `synced`, undelivered to
 
 `sync_target` is `"stryd"` when the user has a Stryd connection, else
 `null` — clients can hide the entire sync column when it's `null`.
+
+`adjustments` is newest-first durable audit history filtered to the requested
+workout-date window. `active` means the exact after-snapshot is still current,
+`undone` means the user restored it, and `superseded` means a later edit makes
+exact undo unsafe. `can_undo` is the authoritative action gate.
+
+### GET /api/plan/adjustments
+
+Return up to 50 newest automatic plan changes, independent of the plan display
+window.
+
+**Query params:** `limit` *(1–50, default 20)*.
+
+**Response:**
+```json
+{
+  "items": [
+    {
+      "id": "7aa4d296-7022-41f9-8c53-3fd97d9e9895",
+      "status": "active",
+      "can_undo": true,
+      "workout_date": "2026-04-11",
+      "before": { "workout_type": "threshold", "planned_duration_min": 65 },
+      "after": { "workout_type": "rest", "planned_duration_min": null },
+      "reason_code": "hrv_below_hard",
+      "citations": [
+        {
+          "label": "Plews et al. (2012)",
+          "url": "https://doi.org/10.1007/s00421-012-2354-4"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### POST /api/plan/adjustments/{revision_id}/undo
+
+Restore the exact before-snapshot of one caller-owned automatic adjustment.
+The current canonical workout must still match that adjustment's after-version;
+otherwise the endpoint returns `409` rather than overwriting a later plan edit.
+An unknown or other-user revision returns `404`. Exact retries return
+`already_undone` with the original undo revision. A new undo response includes
+`delivery_audit_status` as `recorded` or `pending`; `pending` means the
+canonical restore succeeded but its append-only delivery consequence still
+needs recovery.
 
 ### POST /api/plan/push-stryd
 
@@ -1014,6 +1079,9 @@ Current configuration, platform capabilities, and detected thresholds.
       "delivery_enabled": false,
       "adjustment_policy": "suggest_only"
     },
+    "source_options": {
+      "athlete_timezone": "America/Los_Angeles"
+    },
     "training_base": "power",
     "thresholds": { "cp_watts": null, "lthr_bpm": null, "source": "auto" },
     "zones": { "power": [0.55, 0.75, 0.90, 1.05] },
@@ -1053,6 +1121,9 @@ Update settings (partial update).
   "training_base": "hr",
   "goal": { "distance": "half_marathon", "target_time_sec": 5400 },
   "managed_plan_preview_start": "2026-07-31",
+  "source_options": {
+    "athlete_timezone": "America/Los_Angeles"
+  },
   "plan_management": {
     "mode": "praxys",
     "execution_target": "stryd",
@@ -1070,15 +1141,46 @@ delivery pass for today through day 13. The same rolling pass runs after
 committed plan mutations and on scheduler ticks. Repeated runs are idempotent;
 target edits/deletions and uncertain provider outcomes block only the affected
 workout. The settings UI sends `managed_plan_preview_start` with the reviewed
-UTC window. If that date is no longer current, the update returns `409`
-without enabling delivery; the immediate pass uses the same start date so it
-cannot include an unreviewed day across a browser/server midnight boundary.
+UTC delivery window and also persists the detected IANA timezone. Daily plan
+views use the device-local calendar day so an athlete-local automatic change
+remains visible across UTC midnight. The server accepts either the current
+athlete-local date or the current UTC date for rolling client compatibility.
+If the submitted date is no longer current, the update returns `409` without
+enabling delivery; the immediate pass uses the same start date so it cannot
+include an unreviewed day across a browser/server midnight boundary.
 Retry backoff and calendar-observation ordering continue using the actual
 execution timestamp.
 Setting `delivery_enabled=false` pauses new writes and retries
 immediately. Switching to `external` also pauses delivery but keeps workouts
 already delivered to the target unless the user separately confirms
-`POST /api/plan/deliveries/cleanup`. `suggest_only` is the only adjustment policy.
+`POST /api/plan/deliveries/cleanup`.
+
+`adjustment_policy` is separately consented and defaults to `suggest_only`.
+`auto_conservative` is accepted only in Praxys mode; leaving Praxys mode resets
+it to `suggest_only`. Enabling it also requires
+`source_options.athlete_timezone` to contain a valid IANA timezone name. The
+clients persist their detected device timezone with the consent update; the
+server uses that timezone to derive the athlete-local plan date and fails
+closed when it is missing or invalid. Policy-only updates remain available
+while an execution target is disconnected, so consent can always be revoked.
+For rolling compatibility, a paused Praxys plan that already opted in ignores
+the `suggest_only` placeholder sent by older clients during resume; policy
+changes remain a separate settings action. In v1, a successful manual or
+scheduled sync may replace
+today's single Praxys-generated hard workout with rest only when same-day,
+individualized HRV is below the personal lower caution band and the dedicated
+HRV-only daily signal independently resolves to `hrv_below_hard`. The policy
+never loads activity intensity and never changes manual, adopted, imported, or
+external workouts. Missing, stale, internally inconsistent, or prior-day
+recovery; an activity already recorded today; multiple Praxys plan rows;
+changed canonical content; or missing/stale/pending/conflicting target evidence
+fails closed without mutation. A target-calendar snapshot must cover the
+athlete-local workout date, and its matching observation must come from that
+latest snapshot. TSB, sleep, trends, and other caution signals remain
+suggestions. Enabling the policy runs one immediate, post-commit evaluation;
+delivery and audit recovery are pinned to the adjusted snapshot's workout
+date. Results appear through the plan adjustment history endpoints.
+
 Legacy `preferences.plan` remains supported as the external-mode analytical
 source selector and may seed the execution target, but it never activates
 managed mode or delivery.

@@ -117,7 +117,90 @@ def test_run_sync_completes_when_insight_runner_raises(sync_setup, monkeypatch):
         assert conn.status == "connected"
         assert conn.last_sync is not None
 
-        # Runner exploded → no AiInsight rows written.
+        # Runner exploded -> no AiInsight rows written.
         assert db.query(AiInsight).filter_by(user_id=user_id).count() == 0
     finally:
         db.close()
+
+
+def test_manual_sync_runs_adjustment_before_insights(sync_setup, monkeypatch):
+    user_id, _ = sync_setup
+    calls: list[str] = []
+
+    from api.routes import sync as sync_module
+
+    monkeypatch.setattr(
+        sync_module,
+        "_sync_garmin",
+        lambda user_id, creds, from_date, db: {"activities": 1},
+    )
+    monkeypatch.setattr(
+        "api.plan_adjustments.run_plan_adjustment_for_user",
+        lambda user_id, *, trigger: (
+            calls.append(f"adjust:{trigger}") or {"status": "no_change"}
+        ),
+    )
+    monkeypatch.setattr(
+        "api.insights_runner.run_insights_for_user",
+        lambda user_id, db, counts: (
+            calls.append("insights") or {"daily_brief": "generated"}
+        ),
+    )
+
+    sync_module._run_sync(user_id, "garmin", {"email": "e", "password": "p"})
+
+    assert calls == ["adjust:manual_sync:garmin", "insights"]
+
+
+def test_scheduled_sync_runs_adjustment_before_insights(
+    sync_setup,
+    monkeypatch,
+):
+    user_id, _ = sync_setup
+    calls: list[str] = []
+
+    from api.routes import sync as sync_module
+    from db import sync_scheduler
+    from db.models import UserConnection
+    from db.session import SessionLocal
+
+    db = SessionLocal()
+    try:
+        db.add(UserConnection(
+            user_id=user_id,
+            platform="garmin",
+            encrypted_credentials=b"x",
+            wrapped_dek=b"x",
+            status="connected",
+        ))
+        db.commit()
+        monkeypatch.setattr(
+            "db.connection_credentials.load_connection_credentials",
+            lambda db, *, user_id, platform: {
+                "email": "e",
+                "password": "p",
+            },
+        )
+        monkeypatch.setattr(
+            sync_module,
+            "_sync_garmin",
+            lambda user_id, creds, from_date, db: {"activities": 1},
+        )
+        monkeypatch.setattr(
+            "api.plan_adjustments.run_plan_adjustment_for_user",
+            lambda user_id, *, trigger: (
+                calls.append(f"adjust:{trigger}") or {"status": "no_change"}
+            ),
+        )
+        monkeypatch.setattr(
+            "api.insights_runner.run_insights_for_user",
+            lambda user_id, db, counts: (
+                calls.append("insights") or {"daily_brief": "generated"}
+            ),
+        )
+
+        sync_scheduler._sync_connection(user_id, "garmin", db)
+    finally:
+        db.close()
+
+    assert calls == ["adjust:scheduled_sync:garmin", "insights"]

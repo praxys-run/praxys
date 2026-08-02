@@ -9,6 +9,7 @@ import os
 from urllib.parse import parse_qsl, urlencode, urlparse, urlsplit, urlunsplit
 from dataclasses import asdict
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -20,11 +21,13 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 from analysis.config import (
+    ATHLETE_TIMEZONE_OPTION,
     load_config,
     save_config,
     load_config_from_db,
     save_config_to_db,
     normalize_plan_management,
+    normalize_athlete_timezone,
     PlatformName,
     TrainingBase,
     UserConfig,
@@ -60,7 +63,10 @@ class PlanManagementUpdate(BaseModel):
     mode: Literal["external", "praxys"] | None = None
     execution_target: PlatformName | None = None
     delivery_enabled: bool | None = None
-    adjustment_policy: Literal["suggest_only"] | None = None
+    adjustment_policy: Literal[
+        "suggest_only",
+        "auto_conservative",
+    ] | None = None
 
 
 class SettingsUpdate(BaseModel):
@@ -91,6 +97,22 @@ def _legacy_execution_target(plan_source: object) -> str | None:
     return target if caps and caps.get("plan") else None
 
 
+def _valid_managed_preview_dates(
+    config: UserConfig,
+    *,
+    now: datetime,
+) -> set[date]:
+    """Return current UTC and athlete-local dates accepted from clients."""
+    utc_now = now.astimezone(timezone.utc)
+    valid_dates = {utc_now.date()}
+    timezone_name = normalize_athlete_timezone(
+        config.source_options.get(ATHLETE_TIMEZONE_OPTION)
+    )
+    if timezone_name is not None:
+        valid_dates.add(utc_now.astimezone(ZoneInfo(timezone_name)).date())
+    return valid_dates
+
+
 def _apply_plan_management_update(
     config: UserConfig,
     update: PlanManagementUpdate,
@@ -107,12 +129,39 @@ def _apply_plan_management_update(
                 detail=f"plan_management.{required_field} cannot be null",
             )
 
+    prior_management = config.plan_management
+    if (
+        prior_management["mode"] == "praxys"
+        and not prior_management["delivery_enabled"]
+        and prior_management["adjustment_policy"] == "auto_conservative"
+        and changes.get("mode", "praxys") == "praxys"
+        and changes.get("delivery_enabled") is True
+        and changes.get("adjustment_policy") == "suggest_only"
+    ):
+        # Older clients sent their pre-feature placeholder on every resume.
+        # Consent is independent from delivery, so that payload must not
+        # silently revoke a policy the user enabled with a newer client.
+        changes["adjustment_policy"] = "auto_conservative"
+
     candidate = {**config.plan_management, **changes}
     if (
         changes.get("mode") == "external"
         and "delivery_enabled" not in changes
     ):
         candidate["delivery_enabled"] = False
+    if (
+        changes.get("mode") == "external"
+        and "adjustment_policy" not in changes
+    ):
+        candidate["adjustment_policy"] = "suggest_only"
+    if (
+        candidate.get("adjustment_policy") == "auto_conservative"
+        and candidate.get("mode") != "praxys"
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Automatic plan adjustment requires Praxys mode",
+        )
     if candidate.get("delivery_enabled"):
         if candidate.get("mode") != "praxys":
             raise HTTPException(
@@ -128,7 +177,7 @@ def _apply_plan_management_update(
     target = candidate.get("execution_target")
     if target is not None and (
         "execution_target" in changes
-        or candidate.get("delivery_enabled")
+        or changes.get("delivery_enabled") is True
     ):
         if target not in config.connections:
             raise HTTPException(
@@ -435,6 +484,19 @@ def update_settings(
         config.goal.update(body.goal)
     if body.source_options is not None:
         source_options_update = dict(body.source_options)
+        if ATHLETE_TIMEZONE_OPTION in source_options_update:
+            athlete_timezone = normalize_athlete_timezone(
+                source_options_update[ATHLETE_TIMEZONE_OPTION]
+            )
+            if athlete_timezone is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "source_options.athlete_timezone must be a valid "
+                        "IANA timezone"
+                    ),
+                )
+            source_options_update[ATHLETE_TIMEZONE_OPTION] = athlete_timezone
         if "sync_interval_hours" in source_options_update:
             try:
                 source_options_update["sync_interval_hours"] = normalize_sync_interval_hours(
@@ -450,17 +512,39 @@ def update_settings(
                 detail=f"Unsupported language: {body.language}. Supported: {sorted(SUPPORTED_LANGUAGES)}",
             )
         config.language = body.language
+    if (
+        config.plan_management["adjustment_policy"] == "auto_conservative"
+        and normalize_athlete_timezone(
+            config.source_options.get(ATHLETE_TIMEZONE_OPTION)
+        )
+        is None
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Automatic plan adjustment requires a valid athlete timezone"
+            ),
+        )
 
     managed_delivery_transition = (
         config.plan_management["mode"] == "praxys"
         and config.plan_management["delivery_enabled"]
         and config.plan_management != prior_plan_management
     )
+    adjustment_policy_transition = (
+        config.plan_management["mode"] == "praxys"
+        and config.plan_management["adjustment_policy"] == "auto_conservative"
+        and prior_plan_management.get("adjustment_policy")
+        != "auto_conservative"
+    )
     if (
         managed_delivery_transition
         and body.managed_plan_preview_start is not None
         and body.managed_plan_preview_start
-        != datetime.now(timezone.utc).date()
+        not in _valid_managed_preview_dates(
+            config,
+            now=datetime.now(timezone.utc),
+        )
     ):
         raise HTTPException(
             status_code=409,
@@ -479,7 +563,26 @@ def update_settings(
     bump_revisions(db, user_id, ["config"])
     save_config_to_db(user_id, config, db)
 
-    if managed_delivery_transition:
+    adjustment_run = None
+    if adjustment_policy_transition:
+        try:
+            from api.plan_adjustments import run_plan_adjustment_for_user
+
+            adjustment_run = run_plan_adjustment_for_user(
+                user_id,
+                trigger="adjustment_policy_enabled",
+            )
+        except Exception:
+            logger.exception(
+                "Consent-time plan adjustment failed user=%s",
+                user_id,
+            )
+
+    adjustment_delivered = (
+        isinstance(adjustment_run, dict)
+        and adjustment_run.get("status") == "adjusted"
+    )
+    if managed_delivery_transition and not adjustment_delivered:
         try:
             from api.plan_delivery.rolling import trigger_managed_plan_delivery
 

@@ -383,6 +383,12 @@ const EN_SETTINGS = {
   Confirm: 'Confirm',
   'Keep future workouts': 'Keep future workouts',
   '{0} Praxys · {1} external': '{0} Praxys · {1} external',
+  'Turn on': 'Turn on',
+  'Individualized HRV evidence': 'Individualized HRV evidence',
+  'Praxys uses individualized HRV guidance from Plews et al. (2012) and Kiviniemi et al. (2007). The exact caution band and rest-day action are conservative product estimates, not diagnoses or clinically validated prescriptions.':
+    'Praxys uses individualized HRV guidance from Plews et al. (2012) and Kiviniemi et al. (2007). The exact caution band and rest-day action are conservative product estimates, not diagnoses or clinically validated prescriptions.',
+  'Plews et al. (2012) source': 'Plews et al. (2012) source',
+  'Kiviniemi et al. (2007) source': 'Kiviniemi et al. (2007) source',
 };
 
 const EN_NAV_CHARTS = {
@@ -765,6 +771,12 @@ const ZH_SETTINGS = {
   Confirm: '确认',
   'Keep future workouts': '保留未来训练',
   '{0} Praxys · {1} external': 'Praxys 训练 {0} 个 · 外部训练 {1} 个',
+  'Turn on': '启用',
+  'Individualized HRV evidence': '个体化 HRV 依据',
+  'Praxys uses individualized HRV guidance from Plews et al. (2012) and Kiviniemi et al. (2007). The exact caution band and rest-day action are conservative product estimates, not diagnoses or clinically validated prescriptions.':
+    'Praxys 采用 Plews 等（2012）和 Kiviniemi 等（2007）的个体化 HRV 训练指导。具体警戒区间与改为休息日的规则属于保守的产品估算，并非诊断或经临床验证的处方。',
+  'Plews et al. (2012) source': 'Plews 等（2012）来源',
+  'Kiviniemi et al. (2007) source': 'Kiviniemi 等（2007）来源',
 };
 
 const ZH_NAV_CHARTS = {

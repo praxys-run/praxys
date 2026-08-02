@@ -56,6 +56,12 @@ from api.plan_cleanup import (
     PlanCleanupRequiresExternalMode,
     cleanup_future_plan_deliveries,
 )
+from api.plan_adjustments import (
+    PlanAdjustmentConflictError,
+    PlanAdjustmentNotFoundError,
+    list_plan_adjustments,
+    undo_plan_adjustment,
+)
 from api.plan_resolution import (
     PlanResolutionConflict,
     PlanResolutionProviderError,
@@ -483,12 +489,58 @@ def get_plan(
         "stryd_status": push_status,
         "sync_target": sync_target,
         "window": {"start": start_d.isoformat(), "end": end_d.isoformat()},
+        "adjustments": list_plan_adjustments(
+            db,
+            user_id=user_id,
+            limit=20,
+            start=start_d,
+            end=end_d,
+        )["items"],
     }
     return Response(
         content=json.dumps(body),
         media_type="application/json",
         headers={"ETag": guard.etag, "Cache-Control": CACHE_CONTROL},
     )
+
+
+@router.get("/plan/adjustments")
+def get_plan_adjustments(
+    limit: int = Query(20, ge=1, le=50),
+    user_id: str = Depends(get_data_user_id),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Return the user's durable automatic-change notices."""
+    return list_plan_adjustments(
+        db,
+        user_id=user_id,
+        limit=limit,
+    )
+
+
+@router.post("/plan/adjustments/{revision_id}/undo")
+def restore_plan_adjustment(
+    revision_id: str,
+    user_id: str = Depends(require_write_access),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Undo an automatic change only while its exact result remains current."""
+    try:
+        return undo_plan_adjustment(
+            db,
+            user_id=user_id,
+            revision_id=revision_id,
+        )
+    except PlanAdjustmentNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail="Automatic plan adjustment not found",
+        ) from exc
+    except PlanAdjustmentConflictError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(exc),
+        ) from exc
 
 
 def _row_to_workout(row, *, source: str) -> dict:

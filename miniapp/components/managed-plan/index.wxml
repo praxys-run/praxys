@@ -29,6 +29,22 @@
     >{{managementAction}}</button>
   </view>
 
+  <view
+    wx:if="{{hasResponse && hasAdjustment}}"
+    class="managed-plan__adjustment managed-plan__adjustment--{{adjustment.tone}}"
+  >
+    <view class="managed-plan__adjustment-copy">
+      <text class="managed-plan__adjustment-title">{{adjustment.title}}</text>
+      <text class="managed-plan__adjustment-detail">{{adjustment.detail}}</text>
+    </view>
+    <button
+      wx:if="{{adjustment.canUndo}}"
+      class="managed-plan__adjustment-action"
+      disabled="{{adjustmentWorking || workingKey || refreshing}}"
+      bindtap="onUndoAdjustment"
+    >{{adjustmentWorking ? tr.restoring : tr.restoreWorkout}}</button>
+  </view>
+
   <view wx:if="{{loading && !hasResponse}}" class="managed-plan__loading">
     <view class="ts-skeleton managed-plan__skeleton"></view>
     <view class="ts-skeleton managed-plan__skeleton managed-plan__skeleton--short"></view>
