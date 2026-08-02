@@ -68,26 +68,79 @@ after 5 consecutive. Check `az webapp log tail -n trainsight-app -g rg-trainsigh
 ## Managed-plan delivery is paused or stuck
 
 Rolling delivery shares the background scheduler and the target's
-`UserConnection`, but it remains default-off. Confirm these conditions before
-investigating the provider:
+`UserConnection`, but remains default-off. Each run refreshes the execution
+target calendar, reconciles ownership, and then considers only Praxys-owned
+ledger rows in a 14-day horizon. Manual workouts and workouts from another coach
+are observations/conflicts, never mutation candidates.
 
-1. `user_config.plan_management` has `mode=praxys`,
-   `delivery_enabled=true`, and the expected `execution_target`.
-2. The target connection is `connected`. Credential decode failures move it to
-   `auth_required`; reconnecting is the recovery path.
-3. Search logs for `Managed delivery blocked`, `Managed removal failed`, or
-   `Managed replacement blocked`. The logged category is safe to use for
-   triage; provider credentials and payloads are never logged.
-4. Inspect `plan_delivery_attempts.response` for `managed_delivery=true`,
-   `error_category`, and `retryable`.
+Start in **Admin → Operations → Managed plan delivery**. The aggregate separates
+enabled/paused athletes, durable delivery states, retry exhaustion, and stuck
+in-flight attempts. The operator queue is pseudonymous and intentionally omits
+email, raw user id, provider account/workout ids, canonical ids, workout
+date/content, credentials, and raw errors.
+It shows only the latest authoritative version for each canonical workout.
+Failed managed removals remain visible even though their delivery row safely
+returns to `synced` until deletion succeeds.
 
-HTTP 429 creates and idempotent removals use durable exponential retry (15
-minutes initially, capped at 6 hours and 5 failed automatic attempts).
-Timeouts, HTTP 408/5xx creates, target edits/deletions, and account mismatches do
-not auto-retry because the provider outcome or ownership is unresolved. Resolve
-the affected workout through plan reconciliation instead of deleting unrelated
-target workouts. Pausing delivery or switching to external mode takes effect
-before the next write and intentionally keeps already-delivered workouts.
+### Diagnose
+
+1. Confirm the managed-plan aggregate shows the athlete as adopted and delivery
+   enabled. If the athlete intentionally paused or left managed mode, do not
+   override that policy.
+2. Use the queue's failure domain:
+   - **Provider authentication**: ask the athlete to reconnect the execution
+     target. Credential rotation changes the connection generation and fences
+     every stale delivery attempt.
+   - **Provider failure**: check the provider status and the
+     `praxys-managed-plan-provider-failures` alert. One athlete's bad credential
+     is not systemic; five affected athletes for one target in 15 minutes pages.
+   - **Praxys defect**: use the `praxys-managed-plan-defects` alert and inspect
+     safe `praxys.managed_plan` category/action/reason dimensions.
+   - **Ownership conflict / uncertain provider outcome**: the athlete must use
+     plan reconciliation. Never force replay.
+3. If needed, search logs for `Managed delivery blocked`, `Managed removal
+   failed`, or `Managed replacement blocked`. Logged categories are bounded;
+   provider credentials and payloads are never logged.
+
+### Recover
+
+Automatic retry is durable: 15 minutes initially, exponential backoff capped at
+6 hours, with at most five failed automatic attempts after the last success.
+For a queue item marked **recoverable**, choose **Reconcile and replay**, read
+the inline safety statement, then confirm:
+
+1. The backend checks the queue's exact delivery version under the per-user plan
+   write lock. A changed row returns HTTP 409 and refreshes the queue.
+2. It fetches a fresh provider calendar before any mutation and recovers an
+   expired in-flight attempt from observed provider state.
+3. It allows one retry-limit/backoff override only for the selected delivery,
+   latest attempt, state, and operation. All ownership, provider-account,
+   connection-generation, canonical-version, pause, and target gates still
+   apply.
+4. It appends `managed_recovery_requested` and
+   `managed_recovery_completed` audit revisions. Equivalent requests within the
+   lease are idempotent/busy; do not submit repeatedly.
+
+Do **not** edit `plan_deliveries` or `plan_delivery_attempts` by hand. Do not
+mark a provider write successful from a log line, and do not replay
+`provider_outcome_unknown`, target edits/deletions, account mismatches, or
+non-managed failures. Those states are intentionally non-replayable because a
+blind create/remove could duplicate or delete someone else's workout.
+
+### Pause, leave, cleanup, and rollback
+
+- **Pause** stops before the next provider write and keeps delivered workouts.
+  Resume starts with fresh calendar reconciliation.
+- **Leave managed mode** also keeps delivered workouts by default. If the
+  athlete explicitly requests cleanup, the cleanup endpoint removes only
+  future ledger-owned workouts; external/manual workouts remain untouched.
+  Failed cleanup stays visible and retryable through its normal guarded path.
+- **Application rollback** never deletes canonical plans: they remain in the
+  Praxys database. Delivery uniqueness, attempt leases, provider-calendar
+  refresh, account/ownership checks, and the frozen legacy `ai:` compatibility
+  namespace prevent old/new workers from creating duplicate target workouts.
+  Roll back code through the normal deployment workflow; do not roll back by
+  deleting ledger rows.
 
 ## Verify
 
@@ -108,6 +161,12 @@ platform sync result. `Plan adjustment delivery audit remains pending` means
 the canonical change committed but its append-only delivery-consequence event
 did not; the next evaluation of the same still-current adjustment retries that
 audit path.
+
+For an operator recovery, refresh Admin Operations and confirm the selected row
+left the queue or moved to an explicitly athlete-resolved conflict. Confirm the
+append-only request/completion revisions exist and that the provider calendar
+contains at most one ledger-owned copy. Verify any manual or other-coach workout
+that shared the calendar is unchanged.
 
 ## Related
 

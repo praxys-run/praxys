@@ -159,11 +159,12 @@ class PlanDeliveryService:
         *,
         error: ProviderRequestError,
         attempt_context: Mapping[str, Any] | None,
+        expected_delivery_id: str | None,
     ) -> DeliveryResult:
         """Persist a definite no-write preparation failure."""
         canonical_version = workout_version(snapshot)
         try:
-            delivery, _ = get_or_create_delivery(
+            delivery, delivery_created = get_or_create_delivery(
                 self.db,
                 user_id=self.user_id,
                 target=self.target,
@@ -171,6 +172,16 @@ class PlanDeliveryService:
                 workout_version_override=canonical_version,
                 provider_content_version_override=canonical_version,
             )
+            if (
+                expected_delivery_id is not None
+                and delivery.id != expected_delivery_id
+            ):
+                self._cleanup_new_delivery(delivery, delivery_created)
+                return DeliveryResult(
+                    status="error",
+                    error="Delivery version changed before recovery",
+                    error_category="recovery_delivery_changed",
+                )
             delivery, attempt, disposition = begin_delivery_attempt(
                 self.db,
                 delivery,
@@ -223,6 +234,7 @@ class PlanDeliveryService:
         observed_external_ids: object = None,
         attempt_context: Mapping[str, Any] | None = None,
         mutation_guard: Callable[[], None] | None = None,
+        expected_delivery_id: str | None = None,
     ) -> DeliveryResult:
         """Deliver one canonical workout version to the configured target."""
         workout_date = str(snapshot["date"])
@@ -246,10 +258,22 @@ class PlanDeliveryService:
                 retryable=True,
             )
         except ProviderRequestError as exc:
+            if mutation_guard is not None:
+                try:
+                    mutation_guard()
+                except DeliveryMutationBlockedError as guard_exc:
+                    self.db.rollback()
+                    return DeliveryResult(
+                        status="error",
+                        error=str(guard_exc),
+                        error_category="delivery_gate_changed",
+                        retryable=True,
+                    )
             return self._record_preflight_delivery_failure(
                 snapshot,
                 error=exc,
                 attempt_context=attempt_context,
+                expected_delivery_id=expected_delivery_id,
             )
 
         try:
@@ -263,6 +287,16 @@ class PlanDeliveryService:
                     prepared.content_version or prepared.version
                 ),
             )
+            if (
+                expected_delivery_id is not None
+                and delivery.id != expected_delivery_id
+            ):
+                self._cleanup_new_delivery(delivery, delivery_created)
+                return DeliveryResult(
+                    status="error",
+                    error="Delivery version changed before recovery",
+                    error_category="recovery_delivery_changed",
+                )
             if (
                 delivery.provider_account_id
                 and delivery.provider_account_id != provider_account_id

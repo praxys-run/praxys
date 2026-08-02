@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import Callable, Literal
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from analysis.config import normalize_plan_management
+from api import telemetry
 from api.plan_delivery import (
     DeliveryMutationBlockedError,
     DeliveryAccountMismatchError,
@@ -28,8 +29,13 @@ from api.plan_delivery import (
     load_plan_delivery_adapter,
 )
 from db.connection_credentials import connection_credentials_generation
+from db.cache_revision import bump_revisions
 from db.models import PlanDelivery, UserConfig, UserConnection
-from db.plan_ledger import delivery_canonical_id, lock_plan_writes
+from db.plan_ledger import (
+    append_delivery_event,
+    delivery_canonical_id,
+    lock_plan_writes,
+)
 
 
 class PlanCleanupRequiresExternalMode(RuntimeError):
@@ -88,6 +94,37 @@ class PlanCleanupResult:
 
 
 AdapterLoader = Callable[[], PlanDeliveryAdapter]
+
+
+def _finish_cleanup(
+    *,
+    user_id: str,
+    result: PlanCleanupResult,
+) -> PlanCleanupResult:
+    telemetry.record_managed_plan_event(
+        category="cleanup",
+        action="remove_future",
+        outcome=result.status,
+        user_id=user_id,
+        target=result.target,
+        trigger="leave_managed_mode",
+        reason=(
+            "remaining_deliveries"
+            if result.remaining_count > 0
+            else None
+        ),
+    )
+    for item in result.items:
+        telemetry.record_managed_plan_event(
+            category="cleanup_item",
+            action="remove",
+            outcome=item.status,
+            user_id=user_id,
+            target=result.target,
+            trigger="leave_managed_mode",
+            reason=item.reason,
+        )
+    return result
 
 
 def _item(
@@ -155,12 +192,15 @@ def cleanup_future_plan_deliveries(
         .order_by(PlanDelivery.workout_date, PlanDelivery.created_at)
     ).scalars().all()
     if not deliveries:
-        return PlanCleanupResult(
+        return _finish_cleanup(
+            user_id=user_id,
+            result=PlanCleanupResult(
             status="complete",
             target=configured_target,
             window_start=start.isoformat(),
             removed_count=0,
             remaining_count=0,
+            ),
         )
     delivery_targets = sorted({
         str(delivery.target).strip()
@@ -174,6 +214,7 @@ def cleanup_future_plan_deliveries(
     target = delivery_targets[0]
 
     results: list[PlanCleanupItemResult] = []
+    terminalized_absent = False
     removable = [
         delivery
         for delivery in deliveries
@@ -187,6 +228,22 @@ def cleanup_future_plan_deliveries(
                 delivery.external_id is None
                 and delivery.state in {"pending", "failed"}
             ):
+                delivery.state = "removed"
+                delivery.last_error = None
+                delivery.updated_at = datetime.utcnow()
+                append_delivery_event(
+                    db,
+                    delivery,
+                    operation="remove",
+                    state="removed",
+                    external_id=None,
+                    response={
+                        "cleanup": "leave_managed_mode",
+                        "already_absent": True,
+                        "ledger_only": True,
+                    },
+                )
+                terminalized_absent = True
                 results.append(
                     _item(
                         delivery,
@@ -202,6 +259,10 @@ def cleanup_future_plan_deliveries(
                     reason=f"delivery_{delivery.state}",
                 )
             )
+
+    if terminalized_absent:
+        bump_revisions(db, user_id, ["plans"])
+        db.commit()
 
     if removable:
         try:
@@ -418,11 +479,14 @@ def cleanup_future_plan_deliveries(
         for item in results
     )
     remaining_count = len(results) - removed_count
-    return PlanCleanupResult(
-        status="complete" if remaining_count == 0 else "partial",
-        target=target,
-        window_start=start.isoformat(),
-        removed_count=removed_count,
-        remaining_count=remaining_count,
-        items=tuple(results),
+    return _finish_cleanup(
+        user_id=user_id,
+        result=PlanCleanupResult(
+            status="complete" if remaining_count == 0 else "partial",
+            target=target,
+            window_start=start.isoformat(),
+            removed_count=removed_count,
+            remaining_count=remaining_count,
+            items=tuple(results),
+        ),
     )

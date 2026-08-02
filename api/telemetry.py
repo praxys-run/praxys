@@ -66,6 +66,23 @@ def _counter(name: str, description: str) -> Any | None:
     return meter.create_counter(name=name, description=description)
 
 
+@lru_cache(maxsize=4)
+def _histogram(
+    name: str,
+    description: str,
+    unit: str,
+) -> Any | None:
+    """Return a memoised OTel ``Histogram`` for bounded numeric signals."""
+    meter = _meter()
+    if meter is None:
+        return None
+    return meter.create_histogram(
+        name=name,
+        description=description,
+        unit=unit,
+    )
+
+
 @lru_cache(maxsize=1)
 def _track_event() -> Any | None:
     """Return ``track_event`` from the events extension if installed, else None.
@@ -570,3 +587,223 @@ def record_connection(
         counter.add(1, attrs)
     except Exception:
         logger.debug("record_connection counter failed", exc_info=True)
+
+
+# ---------------------------------------------------------------------------
+# Managed-plan observability
+# ---------------------------------------------------------------------------
+
+_MANAGED_PLAN_FAILURE_DOMAINS = frozenset({
+    "none",
+    "provider_auth",
+    "provider",
+    "praxys",
+    "conflict",
+    "policy",
+    "unknown",
+})
+_MANAGED_PLAN_AUTH_FAILURES = frozenset({
+    "deliverycredentialsinvalid",
+    "deliverycredentialsunavailable",
+    "providerauthenticationerror",
+    "provider_authentication",
+    "provider_authentication_failed",
+    "credentials_invalid",
+    "credentials_unavailable",
+})
+_MANAGED_PLAN_PROVIDER_FAILURES = frozenset({
+    "providerreaderror",
+    "providerrequesterror",
+    "planresolutionprovidererror",
+    "provider_transient",
+    "provider_rejected",
+    "provider_removal",
+    "provider_outcome_unknown",
+    "provider_account_mismatch",
+    "provider_account_changed",
+    "provider_account_verification_failed",
+    "provider_removal_failed",
+    "deliveryremovalfailederror",
+})
+_MANAGED_PLAN_PRAXYS_FAILURES = frozenset({
+    "deliveryfinalizationerror",
+    "deliverystarterror",
+    "ledger_finalization_failed",
+    "ledger_start_failed",
+    "calendar_reconciliation_unavailable",
+    "reconciliation_item_missing",
+    "delivery_adapter_unavailable",
+    "invalid_workout",
+    "removal_finalization_failed",
+    "removal_start_failed",
+})
+_MANAGED_PLAN_CONFLICT_FAILURES = frozenset({
+    "plan_resolution_conflict",
+    "reconciliation_required",
+    "replacement_required",
+    "target_edited",
+    "target_deleted",
+    "target_workout_absent",
+    "target_workout_edited",
+    "target_workout_moved",
+    "delivery_conflict",
+})
+_MANAGED_PLAN_POLICY_FAILURES = frozenset({
+    "external_mode",
+    "delivery_paused",
+    "execution_target_missing",
+    "execution_target_unsupported",
+    "connection_missing",
+    "connection_changed",
+    "managed_plan_state_changed",
+    "threshold_unavailable",
+    "retry_backoff",
+    "retry_limit_reached",
+    "failure_not_retryable",
+    "failure_not_automatic",
+    "recovery_delivery_changed",
+    "recovery_incomplete",
+})
+
+
+def managed_plan_failure_domain(reason: str | None) -> str:
+    """Classify a bounded managed-plan reason for operator alert routing."""
+    if not reason:
+        return "none"
+    normalized = reason.strip().casefold()
+    if normalized.startswith("connection_auth"):
+        return "provider_auth"
+    if normalized.startswith("connection_"):
+        return "policy"
+    if normalized in _MANAGED_PLAN_AUTH_FAILURES:
+        return "provider_auth"
+    if normalized in _MANAGED_PLAN_PROVIDER_FAILURES:
+        return "provider"
+    if normalized in _MANAGED_PLAN_PRAXYS_FAILURES:
+        return "praxys"
+    if normalized in _MANAGED_PLAN_CONFLICT_FAILURES:
+        return "conflict"
+    if normalized in _MANAGED_PLAN_POLICY_FAILURES:
+        return "policy"
+    if normalized.startswith("delivery_"):
+        return "conflict"
+    return "unknown"
+
+
+def record_managed_plan_event(
+    *,
+    category: str,
+    action: str,
+    outcome: str,
+    user_id: str,
+    target: str | None = None,
+    trigger: str | None = None,
+    reason: str | None = None,
+    failure_domain: str | None = None,
+    duration_ms: int | None = None,
+) -> None:
+    """Record one privacy-safe managed-plan lifecycle or delivery outcome.
+
+    Provider ids, canonical ids, workout content, credentials, and raw errors
+    are intentionally absent. Labels are bounded and scrubbed before emission;
+    only the user pseudonym can correlate repeated events.
+    """
+    try:
+        user_id_hash = hash_user_id(user_id)
+    except Exception:
+        logger.debug(
+            "record_managed_plan_event: bad user_id, skipping",
+            exc_info=True,
+        )
+        return
+
+    safe_reason = _safe_telemetry_label(reason) if reason else "none"
+    domain = failure_domain or managed_plan_failure_domain(reason)
+    if domain not in _MANAGED_PLAN_FAILURE_DOMAINS:
+        domain = "unknown"
+    attrs = {
+        "category": _safe_telemetry_label(category),
+        "action": _safe_telemetry_label(action),
+        "outcome": _safe_telemetry_label(outcome),
+        "target": _safe_telemetry_label(target) if target else "none",
+        "trigger": _safe_telemetry_label(trigger) if trigger else "none",
+        "reason": safe_reason,
+        "failure_domain": domain,
+        "user_id_hash": user_id_hash,
+    }
+    bounded_duration = (
+        min(max(int(duration_ms), 0), 3_600_000)
+        if duration_ms is not None
+        else None
+    )
+
+    try:
+        track = _track_event()
+    except Exception:
+        logger.warning(
+            "Could not initialize track_event for praxys.managed_plan; "
+            "falling back to counter",
+            exc_info=True,
+        )
+        track = None
+    if track is not None:
+        try:
+            event_attrs = dict(attrs)
+            if bounded_duration is not None:
+                event_attrs["duration_ms"] = bounded_duration
+            track("praxys.managed_plan", event_attrs)
+        except Exception:
+            logger.warning(
+                "track_event failed for praxys.managed_plan; "
+                "falling back to counter",
+                exc_info=True,
+            )
+        else:
+            if bounded_duration is None:
+                return
+            try:
+                histogram = _histogram(
+                    "praxys.managed_plan.delivery_latency",
+                    "Managed-plan reconciliation and delivery run latency",
+                    "ms",
+                )
+                if histogram is not None:
+                    histogram.record(
+                        bounded_duration,
+                        {
+                            "target": attrs["target"],
+                            "trigger": attrs["trigger"],
+                            "outcome": attrs["outcome"],
+                        },
+                    )
+            except Exception:
+                logger.debug(
+                    "record_managed_plan_event histogram failed",
+                    exc_info=True,
+                )
+            return
+
+    try:
+        counter = _counter(
+            "praxys.managed_plan",
+            "Managed-plan lifecycle and delivery outcomes",
+        )
+        if counter is not None:
+            counter.add(1, attrs)
+        if bounded_duration is not None:
+            histogram = _histogram(
+                "praxys.managed_plan.delivery_latency",
+                "Managed-plan reconciliation and delivery run latency",
+                "ms",
+            )
+            if histogram is not None:
+                histogram.record(
+                    bounded_duration,
+                    {
+                        "target": attrs["target"],
+                        "trigger": attrs["trigger"],
+                        "outcome": attrs["outcome"],
+                    },
+                )
+    except Exception:
+        logger.warning("Failed to record praxys.managed_plan", exc_info=True)

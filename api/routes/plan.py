@@ -23,6 +23,7 @@ from analysis.config import (
     normalize_workout_origin,
 )
 from analysis.metrics import is_rest_workout
+from api import telemetry
 from api.auth import get_data_user_id, require_write_access
 from api.daily_brief_freshness import PLAN_RESPONSE_VERSION
 from api.deps import get_dashboard_data
@@ -1045,6 +1046,14 @@ def resolve_plan_reconciliation(
             detail="Could not finalize plan reconciliation",
         ) from exc
 
+    telemetry.record_managed_plan_event(
+        category="resolution",
+        action=request.action,
+        outcome="success",
+        user_id=current_user_id,
+        target="stryd",
+        trigger="user_resolution",
+    )
     return {
         "status": "resolved",
         "action": result.action,

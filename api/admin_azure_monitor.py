@@ -45,7 +45,7 @@ _WINDOWS: dict[AzureWindow, timedelta] = {
     "7d": timedelta(days=7),
     "28d": timedelta(days=28),
 }
-_QUERY_VERSION = "2026-07-19-v1"
+_QUERY_VERSION = "2026-08-03-v2"
 _FRESH_TTL_SECONDS = 180.0
 _NEGATIVE_TTL_SECONDS = 20.0
 _TOTAL_DEADLINE_SECONDS = 12.0
@@ -54,8 +54,9 @@ _STALE_LIMIT_SECONDS = {
     "service": 15 * 60.0,
     "product": 60 * 60.0,
     "platform": 15 * 60.0,
+    "managed": 15 * 60.0,
 }
-_SECTION_NAMES = ("alerts", "service", "product", "platform")
+_SECTION_NAMES = ("alerts", "service", "product", "platform", "managed")
 _SYSTEMIC_FAILURE_CLASSES = (
     "rate_limited",
     "captcha_required",
@@ -103,7 +104,7 @@ _IN_FLIGHT: dict[
     Future[AzureSectionSnapshot],
 ] = {}
 _STATE_LOCK = threading.Lock()
-_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="admin-azure")
+_EXECUTOR = ThreadPoolExecutor(max_workers=5, thread_name_prefix="admin-azure")
 
 
 _SERVICE_QUERY = r"""
@@ -437,6 +438,174 @@ union sync_summary, systemic_total, systemic_failures, connections
 """
 
 
+_MANAGED_PLAN_QUERY = r"""
+let rid = tolower("__RESOURCE_ID__");
+let managed =
+    union isfuzzy=true
+        (customEvents
+            | where tolower(_ResourceId) == rid
+                and name == "praxys.managed_plan"
+            | project
+                category=tostring(customDimensions["category"]),
+                action=tostring(customDimensions["action"]),
+                outcome=tostring(customDimensions["outcome"]),
+                trigger=tostring(customDimensions["trigger"]),
+                failure_domain=tostring(customDimensions["failure_domain"]),
+                user=tostring(customDimensions["user_id_hash"]),
+                duration_ms=todouble(customDimensions["duration_ms"]),
+                duration_samples=coalesce(tolong(itemCount), 1),
+                latency_source="event",
+                events=todouble(itemCount)),
+        (customMetrics
+            | where tolower(_ResourceId) == rid
+                and name == "praxys.managed_plan"
+            | project
+                category=tostring(customDimensions["category"]),
+                action=tostring(customDimensions["action"]),
+                outcome=tostring(customDimensions["outcome"]),
+                trigger=tostring(customDimensions["trigger"]),
+                failure_domain=tostring(customDimensions["failure_domain"]),
+                user=tostring(customDimensions["user_id_hash"]),
+                duration_ms=real(null),
+                duration_samples=0,
+                latency_source="none",
+                events=coalesce(valueSum, value, todouble(valueCount), 0.0)),
+        (customMetrics
+            | where tolower(_ResourceId) == rid
+                and name == "praxys.managed_plan.delivery_latency"
+            | project
+                category="delivery_run",
+                action="run",
+                outcome=tostring(customDimensions["outcome"]),
+                trigger=tostring(customDimensions["trigger"]),
+                failure_domain="none",
+                user="",
+                duration_ms=coalesce(
+                    value,
+                    valueSum / iif(valueCount > 0, todouble(valueCount), 1.0)
+                ),
+                duration_samples=coalesce(tolong(valueCount), 1),
+                latency_source="histogram",
+                events=0.0);
+let summary =
+    managed
+    | summarize
+        delivery_runs=sumif(events, category == "delivery_run"),
+        complete_runs=sumif(
+            events,
+            category == "delivery_run" and outcome == "complete"
+        ),
+        partial_runs=sumif(
+            events,
+            category == "delivery_run" and outcome == "partial"
+        ),
+        blocked_runs=sumif(
+            events,
+            category == "delivery_run" and outcome == "blocked"
+        ),
+        retry_runs=sumif(
+            events,
+            category == "delivery_run"
+                and trigger in ("scheduled_retry", "admin_recovery")
+        ),
+        item_mutations=sumif(events, category == "delivery_item"),
+        successful_mutations=sumif(
+            events,
+            category == "delivery_item"
+                and outcome in ("delivered", "replaced", "removed")
+        ),
+        failed_mutations=sumif(
+            events,
+            category == "delivery_item" and outcome == "failed"
+        ),
+        conflicts=sumif(
+            events,
+            category == "delivery_item" and failure_domain == "conflict"
+        ),
+        provider_failures=sumif(
+            events,
+            failure_domain == "provider"
+                and outcome in ("failed", "blocked", "partial")
+        ),
+        auth_failures=sumif(
+            events,
+            failure_domain == "provider_auth"
+                and outcome in ("failed", "blocked", "partial")
+        ),
+        praxys_failures=sumif(
+            events,
+            failure_domain == "praxys"
+                and outcome in ("failed", "blocked", "partial")
+        ),
+        affected_users=tolong(dcountif(
+            user,
+            failure_domain in ("provider", "provider_auth", "praxys")
+                and isnotempty(user)
+        )),
+        adoptions=sumif(
+            events,
+            category == "lifecycle" and action == "adopt"
+        ),
+        pauses=sumif(
+            events,
+            category == "lifecycle" and action == "pause"
+        ),
+        resumes=sumif(
+            events,
+            category == "lifecycle" and action == "resume"
+        ),
+        leaves=sumif(
+            events,
+            category == "lifecycle" and action == "leave"
+        ),
+        resolutions=sumif(events, category == "resolution"),
+        cleanups=sumif(events, category == "cleanup");
+let raw_latency =
+    managed
+    | where category == "delivery_run"
+        and latency_source == "event"
+        and isnotnull(duration_ms)
+        and duration_samples > 0;
+let raw_latency_count = toscalar(raw_latency | count);
+let histogram_latency =
+    managed
+    | where category == "delivery_run"
+        and latency_source == "histogram"
+        and raw_latency_count == 0
+        and isnotnull(duration_ms)
+        and duration_samples > 0;
+let latency =
+    union raw_latency, histogram_latency
+    | summarize p95_delivery_ms=todouble(
+        percentilew(duration_ms, duration_samples, 95)
+    );
+summary
+| extend join_key=1
+| join kind=fullouter (latency | extend join_key=1) on join_key
+| project
+    delivery_runs=coalesce(delivery_runs, 0.0),
+    complete_runs=coalesce(complete_runs, 0.0),
+    partial_runs=coalesce(partial_runs, 0.0),
+    blocked_runs=coalesce(blocked_runs, 0.0),
+    retry_runs=coalesce(retry_runs, 0.0),
+    item_mutations=coalesce(item_mutations, 0.0),
+    successful_mutations=coalesce(successful_mutations, 0.0),
+    failed_mutations=coalesce(failed_mutations, 0.0),
+    conflicts=coalesce(conflicts, 0.0),
+    provider_failures=coalesce(provider_failures, 0.0),
+    auth_failures=coalesce(auth_failures, 0.0),
+    praxys_failures=coalesce(praxys_failures, 0.0),
+    affected_users=coalesce(affected_users, 0),
+    p95_delivery_ms,
+    adoptions=coalesce(adoptions, 0.0),
+    pauses=coalesce(pauses, 0.0),
+    resumes=coalesce(resumes, 0.0),
+    leaves=coalesce(leaves, 0.0),
+    resolutions=coalesce(resolutions, 0.0),
+    cleanups=coalesce(cleanups, 0.0)
+"""
+
+
 def _configured_resource_id() -> str | None:
     value = os.environ.get(_RESOURCE_ENV, "").strip().rstrip("/")
     if not value:
@@ -670,6 +839,40 @@ def _query_platform(resource_id: str, window: AzureWindow) -> dict[str, Any]:
         "systemic_affected_users": systemic_affected_users,
         "systemic_failures": failures,
         "connections": connections,
+    }
+
+
+def _query_managed_plan(
+    resource_id: str,
+    window: AzureWindow,
+) -> dict[str, Any]:
+    rows = _query_rows(resource_id, window, _MANAGED_PLAN_QUERY)
+    row = rows[0] if rows else {}
+    return {
+        key: _as_int(row.get(key))
+        for key in (
+            "delivery_runs",
+            "complete_runs",
+            "partial_runs",
+            "blocked_runs",
+            "retry_runs",
+            "item_mutations",
+            "successful_mutations",
+            "failed_mutations",
+            "conflicts",
+            "provider_failures",
+            "auth_failures",
+            "praxys_failures",
+            "affected_users",
+            "adoptions",
+            "pauses",
+            "resumes",
+            "leaves",
+            "resolutions",
+            "cleanups",
+        )
+    } | {
+        "p95_delivery_ms": _as_float(row.get("p95_delivery_ms")),
     }
 
 
@@ -909,6 +1112,7 @@ def _query_section(
         "service": _query_service,
         "product": _query_product,
         "platform": _query_platform,
+        "managed": _query_managed_plan,
     }
     return loaders[section](resource_id, window)
 

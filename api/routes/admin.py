@@ -12,6 +12,17 @@ from api import app_config, email_content, email_sender, invitations
 from api.account_deletion import begin_active_admin_guard
 from api.admin_ops import OpsSummaryResponse, OpsWindow, build_ops_summary
 from api.auth import get_current_user_id
+from api.managed_plan_ops import (
+    ManagedPlanAttentionResponse,
+    ManagedPlanRecoveryBusy,
+    ManagedPlanRecoveryNotFound,
+    ManagedPlanRecoveryRequest,
+    ManagedPlanRecoveryResponse,
+    ManagedPlanRecoveryStale,
+    ManagedPlanRecoveryUnsupported,
+    list_managed_plan_attention,
+    recover_managed_plan_delivery,
+)
 from api.views import utc_isoformat, require_admin as _require_admin
 from db.session import get_db
 
@@ -20,6 +31,7 @@ router = APIRouter(prefix="/admin")
 # Emailed invitation codes expire so a leaked/forwarded link cannot be redeemed
 # indefinitely. Admin-generated codes (the /invitations button) stay non-expiring.
 INVITE_EXPIRY_DAYS = 14
+_PRIVATE_NO_STORE = {"Cache-Control": "private, no-store"}
 
 
 # ---------------------------------------------------------------------------
@@ -40,6 +52,80 @@ def get_ops_summary(
     # cache. Future Azure-backed subsections will own their short server-side TTL.
     response.headers["Cache-Control"] = "private, no-store"
     return build_ops_summary(db, window)
+
+
+@router.get(
+    "/managed-plans/attention",
+    response_model=ManagedPlanAttentionResponse,
+)
+def get_managed_plan_attention(
+    response: Response,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> ManagedPlanAttentionResponse:
+    """Return the pseudonymous failed/stuck managed-delivery queue."""
+    _require_admin(user_id, db)
+    response.headers["Cache-Control"] = "private, no-store"
+    return list_managed_plan_attention(db)
+
+
+@router.post(
+    "/managed-plans/recover/{recovery_id}",
+    response_model=ManagedPlanRecoveryResponse,
+)
+def recover_managed_plan(
+    recovery_id: str,
+    body: ManagedPlanRecoveryRequest,
+    response: Response,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> ManagedPlanRecoveryResponse:
+    """Run a fresh, fenced reconcile-and-replay for one managed delivery."""
+    _require_admin(user_id, db)
+    response.headers["Cache-Control"] = "private, no-store"
+    try:
+        return recover_managed_plan_delivery(
+            db,
+            admin_user_id=user_id,
+            delivery_id=recovery_id,
+            expected_version=body.expected_version,
+        )
+    except ManagedPlanRecoveryNotFound as exc:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "MANAGED_PLAN_RECOVERY_NOT_FOUND",
+                "message": str(exc),
+            },
+            headers=_PRIVATE_NO_STORE,
+        ) from exc
+    except ManagedPlanRecoveryBusy as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "MANAGED_PLAN_RECOVERY_BUSY",
+                "message": str(exc),
+            },
+            headers=_PRIVATE_NO_STORE,
+        ) from exc
+    except ManagedPlanRecoveryStale as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "MANAGED_PLAN_RECOVERY_STALE",
+                "message": str(exc),
+            },
+            headers=_PRIVATE_NO_STORE,
+        ) from exc
+    except ManagedPlanRecoveryUnsupported as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "MANAGED_PLAN_RECOVERY_UNSUPPORTED",
+                "message": str(exc),
+            },
+            headers=_PRIVATE_NO_STORE,
+        ) from exc
 
 
 # ---------------------------------------------------------------------------

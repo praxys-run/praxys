@@ -276,7 +276,14 @@ create `APPLICATIONINSIGHTS_CONNECTION_STRING` or
    backend local-auth disabled, exact-resource `Monitoring Metrics Publisher`
    and `Monitoring Reader` RBAC for the effective runtime managed identity, and
    a 401/403 response when an anonymous forged `praxys.product_event` is sent
-   with the backend instrumentation key.
+   with the backend instrumentation key. It also idempotently upserts the
+   source-controlled `praxys-managed-plan-provider-failures` and
+   `praxys-managed-plan-defects` scheduled-query rules at the currently active
+   telemetry scope and verifies that each routes only to the existing
+   `praxys-feedback-ag` action group. Provisioning fails closed if the action
+   group or its `support@praxys.run` email receiver is disabled. This requires
+   no new secret or repository variable; the deploy identity's resource-group
+   Contributor grant owns the rules and the action-group lookup.
 2. The backend cutover updates the App Service routing plus all backend alert
    scopes as one rollback-guarded operation. Azure makes scheduled-query scopes
    immutable, so the helper preserves each full rule definition and recreates
@@ -285,6 +292,9 @@ create `APPLICATIONINSIGHTS_CONNECTION_STRING` or
    rule (criteria, actions, severity, cadence, identity, and tags). The same
    transaction writes `PRAXYS_BACKEND_APPINSIGHTS_RESOURCE_ID`, enabling the
    admin operations console only while the trusted backend boundary is active.
+   Standalone rollback tolerates either deployment-owned managed-plan rule being
+   absent after a partial preflight and migrates only the alert resources that
+   actually exist.
 3. `frontend-resolve` refuses to build unless only the frontend component allows
    local auth, then injects that frontend connection string into Vite.
 

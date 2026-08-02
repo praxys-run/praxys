@@ -80,6 +80,19 @@ def test_backend_workflow_enforces_server_only_ingestion() -> None:
     assert "recreate_scheduled_alert" in script
     assert "del(.createdWithApiVersion)" in script
     assert "praxys-db-health-unhealthy" in script
+    assert "praxys-managed-plan-provider-failures" in script
+    assert "praxys-managed-plan-defects" in script
+    assert "praxys-feedback-ag" in script
+    assert "support@praxys.run" in script
+    assert "ensure_managed_plan_alerts" in script
+    assert ".enabled == true" in script
+    assert ".emailReceivers[]?" in script
+    assert "Skipping missing deployment-owned managed-plan alert during rollback" in script
+    assert "active_alert_names" in script
+    assert 'failure_domain in ("provider", "provider_auth")' in script
+    assert 'failure_domain == "praxys"' in script
+    assert "affected_users >= 5" in script
+    assert 'evaluationFrequency: "PT15M"' in script
     assert "wt-praxys-api-health" in script
     cutover = script.split("telemetry_cutover()", 1)[1]
     backend_branch, frontend_branch = cutover.split("frontend)", 1)
