@@ -176,6 +176,14 @@ retries safe failures. Automatic retries are durable, exponential, capped, and
 limited to definite retry-safe outcomes; ambiguous create outcomes remain
 conflicts to prevent duplicate workouts.
 
+Garmin remains a read-only reconciliation target. The
+[Garmin workout-delivery feasibility study](../studies/garmin-workout-delivery-feasibility.md)
+found that the undocumented consumer endpoints expose the necessary
+operations, but their two-ID, two-POST lifecycle does not satisfy the current
+ledger's ownership and idempotency guarantees, and live CN write parity is
+unverified. Production Garmin delivery stays disabled while Praxys pursues
+Garmin's official OAuth2 Training API.
+
 ### Admin System
 
 Admin endpoints (`api/routes/admin.py`) are gated by `is_superuser=True` on the authenticated user. Capabilities:
@@ -322,10 +330,11 @@ Adapters receive credentials resolved from the caller's encrypted
 Successful Stryd and Garmin syncs also write account-fenced calendar
 snapshots. Garmin's path is deliberately read-only: it records scheduled
 workouts for reconciliation evidence but does not advertise Garmin as a plan
-delivery target. Garmin writes remain gated by the feasibility decision in
-#484 and the adapter in #485. Every external ID is retained as a normalized
-observation; previously observed or Praxys-delivered IDs are marked absent only
-inside the conservatively covered sync window for the same provider account.
+delivery target. #484 rejected production use of the undocumented consumer
+write endpoints, so #485 remains blocked while Praxys pursues Garmin's official
+Training API. Every external ID is retained as a normalized observation;
+previously observed or Praxys-delivered IDs are marked absent only inside the
+conservatively covered sync window for the same provider account.
 Fetch-start generations prevent an older concurrent provider read from
 overwriting a newer snapshot.
 `GET /api/plan` joins these
