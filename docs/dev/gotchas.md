@@ -189,6 +189,20 @@ render read-only with a source badge.
   account's empty calendar as deletion of the prior account's plan.
 - Fingerprint fallback is read-only. It can present a stale-ID candidate, but
   only an external ID already owned by the user's ledger may be deleted.
+- Garmin calendar reads do not imply Garmin write support. The sync path reads
+  `/calendar-service/year/{year}/month/{month-1}` through
+  `garminconnect.get_scheduled_workouts()` and requires the verified raw
+  `calendarItems` contract (`id`, `workoutId`, `date`, `title`, `itemType`).
+  The public fixture pinning that undocumented shape is
+  [`kgabryje/garmin-mcp@1d4c727`](https://github.com/kgabryje/garmin-mcp/blob/1d4c72732d5f37cb9df4fa7545c32a6450bf3cc9/tests/fixtures/scheduled_workouts.json).
+  A malformed month or failed month fetch aborts the complete snapshot, so it
+  cannot falsely mark prior Garmin workouts absent.
+- Garmin calendar observations use the scheduled-instance `id`, never the
+  reusable template `workoutId`, as their external identity. Account fences
+  hash the authenticated Garmin display name with the Praxys user and region;
+  the profile name is not persisted in reconciliation tables. Garmin remains
+  `plan: false` in `PLATFORM_CAPABILITIES` until #484 confirms safe write,
+  replacement, and deletion semantics and #485 registers the adapter.
 
 ## Activity weather support
 

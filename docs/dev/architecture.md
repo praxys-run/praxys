@@ -319,11 +319,15 @@ provider adapters own authentication plus create/delete/calendar operations.
 Adapters receive credentials resolved from the caller's encrypted
 `UserConnection`; the Stryd adapter never reads another user's connection.
 
-Successful Stryd syncs also write an account-fenced calendar snapshot. Every
-external ID is retained as a normalized observation; previously observed or
-Praxys-delivered IDs are marked absent only inside the conservatively covered
-sync window for the same provider account. Fetch-start generations prevent an
-older concurrent provider read from overwriting a newer snapshot.
+Successful Stryd and Garmin syncs also write account-fenced calendar
+snapshots. Garmin's path is deliberately read-only: it records scheduled
+workouts for reconciliation evidence but does not advertise Garmin as a plan
+delivery target. Garmin writes remain gated by the feasibility decision in
+#484 and the adapter in #485. Every external ID is retained as a normalized
+observation; previously observed or Praxys-delivered IDs are marked absent only
+inside the conservatively covered sync window for the same provider account.
+Fetch-start generations prevent an older concurrent provider read from
+overwriting a newer snapshot.
 `GET /api/plan` joins these
 observations to canonical workouts globally before filtering the requested
 display window, preventing a moved owned workout from appearing target-only.

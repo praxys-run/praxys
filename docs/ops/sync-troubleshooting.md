@@ -41,6 +41,12 @@ fingerprint/account history, not JS signals (closed PR #257).
 - Individual CN endpoints 400/404 even on healthy accounts (LTHR, some training
   status). Each endpoint has its own try/except + a 5-strike circuit breaker, so
   one failure doesn't sink the sync. LTHR may need manual entry.
+- Scheduled-workout calendar reads use the same region-routed client but remain
+  read-only. `Garmin workout calendar fetch failed` means a month could not be
+  read; `Garmin workout calendar payload was unavailable` means the
+  undocumented response no longer matched the verified `calendarItems` shape.
+  Both preserve the last complete snapshot instead of inferring deletions.
+  Garmin delivery stays unavailable until #484/#485.
 
 ## Per-user token store (security-critical)
 
@@ -84,8 +90,10 @@ before the next write and intentionally keeps already-delivered workouts.
 
 After recovery: trigger a sync (Settings → Sync, or `POST /api/sync`), confirm the
 connection card leaves `auth_required` and new activities/recovery rows appear.
-For managed plans, confirm the next scheduler tick creates only missing
-Praxys-owned workouts inside the 14-day horizon.
+A healthy Garmin read also has no calendar warning and refreshes only
+Garmin-sourced external plan observations inside its bounded window. It never
+writes to Garmin. For managed plans, confirm the next scheduler tick creates
+only missing Praxys-owned workouts inside the 14-day horizon.
 
 For users who separately enabled conservative automatic adjustment, search for
 `Plan adjustment for user=` after the sync completion log. `adjusted` means the
@@ -103,4 +111,4 @@ audit path.
 - [incident-response.md](./incident-response.md) · `docs/dev/gotchas.md` · `scripts/garmin_diagnose.py`
 
 ---
-_Last reviewed: 2026-06-30 · Owner: @dddtc2005_
+_Last reviewed: 2026-08-02 · Owner: @dddtc2005_

@@ -178,3 +178,236 @@ def test_independent_write_sections_all_succeed_when_no_failures(db_with_user):
     assert db.query(Activity).filter_by(user_id=user_id).count() == 1
     assert db.query(FitnessData).filter_by(user_id=user_id).count() >= 1
     assert db.query(RecoveryData).filter_by(user_id=user_id).count() == 1
+
+
+def test_garmin_calendar_snapshot_persists_and_prunes_atomically(
+    db_with_user,
+):
+    """A successful empty follow-up snapshot removes only covered Garmin rows."""
+    from datetime import date, datetime, timedelta
+
+    from api.plan_reconciliation import build_plan_reconciliation
+    from api.routes.sync import _persist_garmin_calendar_snapshot
+    from db.models import (
+        PlanTargetCalendarSync,
+        PlanTargetWorkout,
+        TrainingPlan,
+    )
+
+    db, user_id = db_with_user
+    today = date.today()
+    window_start = today - timedelta(days=2)
+    window_end = today + timedelta(days=31)
+    observed_at = datetime(2026, 8, 2, 8, 0, 0)
+    rows = [{
+        "date": (today + timedelta(days=1)).isoformat(),
+        "workout_type": "threshold",
+        "planned_duration_min": "45.0",
+        "workout_description": "Threshold",
+        "external_id": "garmin-schedule-1",
+        "provider_payload_fingerprint": "a" * 64,
+    }]
+
+    created = _persist_garmin_calendar_snapshot(
+        db,
+        user_id=user_id,
+        provider_account_id="international:account",
+        rows=rows,
+        window_start=window_start,
+        window_end=window_end,
+        observed_at=observed_at,
+    )
+    db.commit()
+
+    assert created > 0
+    plan = db.query(TrainingPlan).filter_by(
+        user_id=user_id,
+        source="garmin",
+    ).one()
+    assert plan.external_id == "garmin-schedule-1"
+    assert plan.workout_origin == "imported"
+    calendar_sync = db.query(PlanTargetCalendarSync).filter_by(
+        user_id=user_id,
+        target="garmin",
+    ).one()
+    assert calendar_sync.provider_account_id == "international:account"
+    observation = db.query(PlanTargetWorkout).filter_by(
+        user_id=user_id,
+        target="garmin",
+    ).one()
+    assert observation.present is True
+    assert observation.payload_fingerprint == "a" * 64
+    reconciliation = build_plan_reconciliation(
+        db,
+        user_id=user_id,
+        target="garmin",
+        start=today,
+        end=window_end,
+    )
+    assert reconciliation is not None
+    assert len(reconciliation.target_only_items) == 1
+    assert reconciliation.target_only_items[0].state == "target_only"
+    assert (
+        reconciliation.target_only_items[0].observation.external_id
+        == "garmin-schedule-1"
+    )
+
+    removed = _persist_garmin_calendar_snapshot(
+        db,
+        user_id=user_id,
+        provider_account_id="international:account",
+        rows=[],
+        window_start=window_start,
+        window_end=window_end,
+        observed_at=observed_at + timedelta(minutes=1),
+    )
+    db.commit()
+
+    assert removed > 0
+    assert db.query(TrainingPlan).filter_by(
+        user_id=user_id,
+        source="garmin",
+    ).count() == 0
+    db.refresh(observation)
+    assert observation.present is False
+
+
+def test_sync_garmin_persists_calendar_through_authenticated_client(
+    db_with_user,
+    monkeypatch,
+):
+    """The production Garmin sync path writes a complete calendar snapshot."""
+    from datetime import date, timedelta
+    from types import SimpleNamespace
+
+    from api.routes.sync import _sync_garmin
+    from db.models import PlanTargetWorkout, TrainingPlan
+
+    db, user_id = db_with_user
+    workout_date = date.today() + timedelta(days=1)
+
+    class FakeGarmin:
+        display_name = "garmin-profile"
+
+        def __init__(self, email, password, is_cn=False):
+            self.client = SimpleNamespace()
+
+        def login(self, token_dir):
+            return None
+
+        def get_scheduled_workouts(self, year, month):
+            if (year, month) != (
+                workout_date.year,
+                workout_date.month,
+            ):
+                return {"calendarItems": []}
+            return {
+                "calendarItems": [{
+                    "id": 7001,
+                    "workoutId": 9001,
+                    "itemType": "workout",
+                    "date": workout_date.isoformat(),
+                    "title": "Tomorrow's threshold",
+                    "sportTypeKey": "running",
+                    "duration": 2700,
+                }]
+            }
+
+        def get_activities_by_date(self, *args, **kwargs):
+            return []
+
+        def get_lactate_threshold(self, **kwargs):
+            return []
+
+        def get_user_profile(self):
+            return {}
+
+        def get_heart_rates(self, activity_date):
+            return {}
+
+        def connectapi(self, path):
+            return {}
+
+        def get_training_status(self, activity_date):
+            return {}
+
+        def get_training_readiness(self, activity_date):
+            return None
+
+        def get_race_predictions(self):
+            return None
+
+        def get_hrv_data(self, activity_date):
+            return None
+
+        def get_sleep_data(self, activity_date):
+            return None
+
+    monkeypatch.setattr("garminconnect.Garmin", FakeGarmin)
+    monkeypatch.setattr("sync.garmin_sync.RATE_LIMIT_DELAY", 0)
+
+    result = _sync_garmin(
+        user_id,
+        {"email": "runner@example.test", "password": "secret"},
+        date.today().isoformat(),
+        db,
+    )
+    db.commit()
+
+    assert result["plan"] == 1
+    plan = db.query(TrainingPlan).filter_by(
+        user_id=user_id,
+        source="garmin",
+    ).one()
+    assert plan.date == workout_date
+    assert plan.external_id == "7001"
+    observation = db.query(PlanTargetWorkout).filter_by(
+        user_id=user_id,
+        target="garmin",
+    ).one()
+    assert observation.external_id == "7001"
+    assert observation.present is True
+
+
+def test_sync_garmin_calendar_rate_limit_happens_before_data_writes(
+    db_with_user,
+    monkeypatch,
+):
+    """Calendar backoff cannot roll back activity rows staged earlier."""
+    from types import SimpleNamespace
+
+    from garminconnect.exceptions import GarminConnectTooManyRequestsError
+
+    from api.routes.sync import _sync_garmin
+    from db.models import Activity
+
+    db, user_id = db_with_user
+
+    class RateLimitedGarmin:
+        display_name = "garmin-profile"
+
+        def __init__(self, email, password, is_cn=False):
+            self.client = SimpleNamespace()
+
+        def login(self, token_dir):
+            return None
+
+        def get_scheduled_workouts(self, year, month):
+            raise GarminConnectTooManyRequestsError("rate limited")
+
+        def get_activities_by_date(self, *args, **kwargs):
+            raise AssertionError(
+                "activity fetch must not start after calendar backoff"
+            )
+
+    monkeypatch.setattr("garminconnect.Garmin", RateLimitedGarmin)
+
+    with pytest.raises(GarminConnectTooManyRequestsError):
+        _sync_garmin(
+            user_id,
+            {"email": "runner@example.test", "password": "secret"},
+            None,
+            db,
+        )
+
+    assert db.query(Activity).filter_by(user_id=user_id).count() == 0
