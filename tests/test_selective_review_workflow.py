@@ -151,6 +151,24 @@ def test_policy_tuner_can_only_open_draft_proposal_prs():
     ).exists()
 
 
+def test_policy_tuner_rejects_stale_or_duplicate_proposals():
+    source = (
+        ROOT / ".github" / "workflows" / "change-loop-policy-tuner.md"
+    ).read_text(encoding="utf-8")
+    for path in (
+        "analysis/review_policy.py",
+        "scripts/selective_review_gate.py",
+        "tests/test_review_policy.py",
+        "tests/test_selective_review_workflow.py",
+    ):
+        assert path in source
+    assert "active selective-review `version` and `classifier_semantics`" in source
+    assert "predates those semantics" in source
+    assert "already enforced" in source
+    assert "emit `noop`" in source
+    assert "`current_policy_gap`" in source
+
+
 def test_ready_handoff_is_bound_to_the_head_sha():
     timeline = [
         {"event": "committed", "sha": "head-a"},

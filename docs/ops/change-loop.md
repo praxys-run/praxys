@@ -308,7 +308,11 @@ default-off `review-required | auto-merge-candidate` policy:
   issue is closed, reopened, relabeled, or reassigned; a no-longer-qualifying
   PR has policy auto-merge disabled and receives a blocking App review.
 - `change-loop-policy-tuner.md` can edit only the proposals JSON and can create
-  only a draft PR; it cannot edit deployed policy, approve, or merge.
+  only a draft PR; it cannot edit deployed policy, approve, or merge. Before it
+  drafts, it must inspect the current evaluator and tests, prove an unresolved
+  file/symbol-level gap, and use evidence from the active policy semantics (or
+  an explicit replay against them). Already-enforced, superseded, stale, or
+  deliberately rejected suggestions produce no PR.
 
 The initial `promoted_classes` list is empty. Runtime is independently default
 off through `PRAXYS_SELECTIVE_REVIEW_ENABLED`. For rollback, set
