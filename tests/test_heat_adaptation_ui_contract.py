@@ -153,7 +153,13 @@ def test_heat_safety_notices_render_from_server_codes_on_both_clients() -> None:
         assert code in mini_heat
 
     assert "<HeatSafetyNotices codes={status.safety_notice_codes} />" in web_heat
+    assert "function normalizeSafetyNoticeCodes(codes: unknown)" in web_heat
+    assert "if (!Array.isArray(codes))" in web_heat
+    assert "[...DEFAULT_SAFETY_NOTICE_CODES]" in web_heat
     assert "buildSafetyNotices(status.safety_notice_codes)" in mini_heat
+    assert "function buildSafetyNotices(codes: unknown)" in mini_heat
+    assert "codes.filter(isHeatSafetyNoticeCode)" in mini_heat
+    assert ": DEFAULT_SAFETY_NOTICE_CODES" in mini_heat
     assert "safetyNotices: buildSafetyNotices(DEFAULT_SAFETY_NOTICE_CODES)" in mini_heat
     assert 'wx:for="{{heat.safetyNotices}}"' in mini_training
     assert "{{heat.safetyLabel}}" in mini_training

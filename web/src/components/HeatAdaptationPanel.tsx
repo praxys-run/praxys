@@ -53,6 +53,25 @@ const SAFETY_NOTICE_COPY: Record<HeatSafetyNoticeCode, ReturnType<typeof msg>> =
   stop_for_heat_illness_symptoms: msg`Stop activity if heat-illness symptoms develop, and seek medical care.`,
 };
 
+const DEFAULT_SAFETY_NOTICE_CODES: readonly HeatSafetyNoticeCode[] = [
+  'not_medical_clearance',
+  'current_conditions_not_assessed',
+  'stop_for_heat_illness_symptoms',
+];
+
+function normalizeSafetyNoticeCodes(codes: unknown): HeatSafetyNoticeCode[] {
+  if (!Array.isArray(codes)) return [...DEFAULT_SAFETY_NOTICE_CODES];
+
+  const knownCodes = codes.filter(
+    (code): code is HeatSafetyNoticeCode => (
+      typeof code === 'string'
+      && Object.prototype.hasOwnProperty.call(SAFETY_NOTICE_COPY, code)
+    ),
+  );
+  const uniqueCodes = [...new Set(knownCodes)];
+  return uniqueCodes.length > 0 ? uniqueCodes : [...DEFAULT_SAFETY_NOTICE_CODES];
+}
+
 function localDate(value: string): Date {
   return new Date(`${value.slice(0, 10)}T12:00:00`);
 }
@@ -211,10 +230,9 @@ function stageToneClass(status: HeatAdaptationStatus): string {
   return 'bg-muted text-muted-foreground';
 }
 
-function HeatSafetyNotices({ codes }: { codes: HeatSafetyNoticeCode[] }) {
+function HeatSafetyNotices({ codes }: { codes: unknown }) {
   const { i18n } = useLingui();
-
-  if (codes.length === 0) return null;
+  const safetyCodes = normalizeSafetyNoticeCodes(codes);
 
   return (
     <section
@@ -231,7 +249,7 @@ function HeatSafetyNotices({ codes }: { codes: HeatSafetyNoticeCode[] }) {
             <Trans>Heat safety</Trans>
           </h3>
           <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs leading-relaxed text-foreground/80">
-            {codes.map((code) => (
+            {safetyCodes.map((code) => (
               <li key={code}>{i18n._(SAFETY_NOTICE_COPY[code])}</li>
             ))}
           </ul>

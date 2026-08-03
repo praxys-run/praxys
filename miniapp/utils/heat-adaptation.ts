@@ -151,8 +151,22 @@ function safetyNoticeText(code: HeatSafetyNoticeCode): string {
   }
 }
 
-function buildSafetyNotices(codes: readonly HeatSafetyNoticeCode[]): string[] {
-  return codes.map(safetyNoticeText);
+function isHeatSafetyNoticeCode(code: unknown): code is HeatSafetyNoticeCode {
+  return (
+    typeof code === 'string'
+    && DEFAULT_SAFETY_NOTICE_CODES.includes(code as HeatSafetyNoticeCode)
+  );
+}
+
+function buildSafetyNotices(codes: unknown): string[] {
+  const knownCodes = Array.isArray(codes)
+    ? codes.filter(isHeatSafetyNoticeCode)
+    : [];
+  const uniqueCodes = [...new Set(knownCodes)];
+  const safetyCodes = uniqueCodes.length > 0
+    ? uniqueCodes
+    : DEFAULT_SAFETY_NOTICE_CODES;
+  return safetyCodes.map(safetyNoticeText);
 }
 
 function stageLabel(status: HeatAdaptationStatus): string {
