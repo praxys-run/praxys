@@ -55,6 +55,7 @@
         "db/**",
         "docs/ops/**",
         "docs/science/**",
+        "docs/dev/contributing.md",
         "miniapp/utils/auth.ts",
         "requirements*.txt",
         "sync/**",
@@ -71,7 +72,8 @@
           ],
           "denied_paths": [
             "docs/ops/**",
-            "docs/science/**"
+            "docs/science/**",
+            "docs/dev/contributing.md"
           ],
           "test_policy": "not-applicable"
         },

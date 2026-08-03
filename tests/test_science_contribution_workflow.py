@@ -95,6 +95,7 @@ def test_science_review_is_layered_and_human_owned() -> None:
     reviewer = _source(SCIENCE_REVIEWER)
     codeowners = _source(CODEOWNERS)
     normalized_guide = " ".join(guide.lower().split())
+    normalized_reviewer = " ".join(reviewer.split())
 
     for layer in (
         "deterministic checks",
@@ -105,16 +106,24 @@ def test_science_review_is_layered_and_human_owned() -> None:
         "superseded",
         "urgent safety correction",
         "not currently a ruleset-enforced approval gate",
+        "legacy review predates `verification:` entries",
     ):
         assert layer in normalized_guide
     assert "External source content: not verified" in reviewer
     assert "recorded verification level" in reviewer
-    assert "missing entries, duplicate entries, unknown citation IDs" in reviewer
+    assert (
+        "missing entries, duplicate entries, unknown citation IDs"
+        in normalized_reviewer
+    )
+    assert "Legacy lifecycle-only exception" in reviewer
+    assert "method, claims, and citations are unchanged" in reviewer
     assert "does **not** duplicate citation metadata" in reviewer
     for science_path in (
         "/analysis/",
         "/data/science/",
         "/docs/science/",
+        "/docs/dev/contributing.md",
+        "/api/packs.py",
         "/api/deps.py",
         "/api/routes/science.py",
         "/api/routes/training.py",
@@ -134,6 +143,7 @@ def test_science_review_is_layered_and_human_owned() -> None:
         "/miniapp/pages/training/",
         "/miniapp/pages/settings/",
         "/miniapp/utils/heat-adaptation.ts",
+        "/miniapp/utils/i18n-extra.ts",
         "/miniapp/types/api.ts",
         "/.github/ISSUE_TEMPLATE/science-correction.yml",
         "/.github/PULL_REQUEST_TEMPLATE/science-change.md",
@@ -145,7 +155,9 @@ def test_science_review_is_layered_and_human_owned() -> None:
 def test_science_codeowners_resolve_representative_product_surfaces() -> None:
     """Scientific claims in both clients request the current science owner."""
     for path in (
+        "docs/dev/contributing.md",
         "api/deps.py",
+        "api/packs.py",
         "api/routes/science.py",
         "api/routes/training.py",
         "api/routes/today.py",
@@ -161,6 +173,7 @@ def test_science_codeowners_resolve_representative_product_surfaces() -> None:
         "miniapp/pages/training/index.wxml",
         "miniapp/pages/settings/index.ts",
         "miniapp/utils/heat-adaptation.ts",
+        "miniapp/utils/i18n-extra.ts",
         "miniapp/types/api.ts",
         "docs/science/contributing.md",
     ):

@@ -39,13 +39,18 @@ POLICY = {
         "alembic/**",
         "docs/ops/**",
         "docs/science/**",
+        "docs/dev/contributing.md",
         "web/src/locales/**",
     ],
     "promoted_classes": [],
     "candidate_classes": {
         "documentation-only": {
             "allowed_paths": ["docs/**"],
-            "denied_paths": ["docs/ops/**", "docs/science/**"],
+            "denied_paths": [
+                "docs/ops/**",
+                "docs/science/**",
+                "docs/dev/contributing.md",
+            ],
             "test_policy": "not-applicable",
         },
         "translation-catalog-only": {
@@ -109,6 +114,13 @@ def test_classifies_only_exclusive_narrow_paths():
     assert (
         classify_change(
             ("docs/science/contributing.md",),
+            POLICY["candidate_classes"],
+        )
+        is None
+    )
+    assert (
+        classify_change(
+            ("docs/dev/contributing.md",),
             POLICY["candidate_classes"],
         )
         is None
@@ -189,6 +201,13 @@ def test_sensitive_paths_fail_closed_even_if_class_is_promoted():
     assert science_decision.disposition == "review-required"
     assert "sensitive_path_changed" in science_decision.reasons
 
+    developer_science_decision = evaluate_selective_review(
+        _facts(changed_files=("docs/dev/contributing.md",)),
+        policy,
+    )
+    assert developer_science_decision.disposition == "review-required"
+    assert "sensitive_path_changed" in developer_science_decision.reasons
+
     translation_decision = evaluate_selective_review(
         _facts(changed_files=("web/src/locales/en/messages.po",)),
         policy,
@@ -204,8 +223,12 @@ def test_checked_in_policy_protects_science_docs_from_documentation_promotion():
     )["change"]["selective_review"]
 
     assert "docs/science/**" in policy["sensitive_paths"]
+    assert "docs/dev/contributing.md" in policy["sensitive_paths"]
     assert "web/src/locales/**" in policy["sensitive_paths"]
     assert "docs/science/**" in policy["candidate_classes"][
+        "documentation-only"
+    ]["denied_paths"]
+    assert "docs/dev/contributing.md" in policy["candidate_classes"][
         "documentation-only"
     ]["denied_paths"]
 

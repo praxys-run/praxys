@@ -294,7 +294,8 @@ default-off `review-required | auto-merge-candidate` policy:
   PR. It denies non-`main` bases, incomplete/truncated file inventories,
   sensitive paths, missing checks, draft PRs, post-ready commits, requested
   changes, unpromoted classes, and missing tests where applicable.
-- `docs/science/**` is both a sensitive path and denied from the
+- `docs/science/**` and the normative science workflow in
+  `docs/dev/contributing.md` are sensitive paths denied from the
   `documentation-only` candidate class. Scientific contribution guidance cannot
   become policy-owned auto-merge work through a future documentation-class
   promotion; CODEOWNERS routes it to the current science owner. This prevents

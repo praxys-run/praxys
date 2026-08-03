@@ -19,7 +19,9 @@
 /analysis/                         @dddtc2005
 /data/science/                     @dddtc2005
 /docs/science/                     @dddtc2005
+/docs/dev/contributing.md          @dddtc2005
 /api/deps.py                       @dddtc2005
+/api/packs.py                      @dddtc2005
 /api/views.py                      @dddtc2005
 /api/routes/science.py             @dddtc2005
 /api/routes/training.py            @dddtc2005
@@ -45,6 +47,7 @@
 /miniapp/pages/goal/                @dddtc2005
 /miniapp/pages/settings/            @dddtc2005
 /miniapp/utils/heat-adaptation.ts   @dddtc2005
+/miniapp/utils/i18n-extra.ts        @dddtc2005
 /miniapp/types/api.ts               @dddtc2005
 /web/src/locales/                   @dddtc2005
 /.github/CODEOWNERS                 @dddtc2005

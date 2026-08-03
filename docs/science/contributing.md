@@ -77,6 +77,11 @@ Review or SDR. Create a new version, mark the earlier record as superseded only
 when the successor and affected decision are ready together, and record why the
 product interpretation changed and which model versions are affected.
 
+When an accepted legacy review predates `Verification:` entries, changing only
+its lifecycle fields to `superseded` and `superseded_by` does not require
+rewriting its historical `review_notes`. The successor review must contain the
+complete verification record.
+
 An evidence correction can be accepted without an immediate code change. If
 the correction needs implementation, the record should link a separate issue
 or pull request that owns the behavior change.

@@ -26,14 +26,21 @@ Always report this boundary before discussing citations:
 External source content: not verified by this local-only reviewer.
 ```
 
-For every changed Evidence Review, compare its citation IDs with the recorded
-`Verification:` entries in `review_notes`. Require exactly one recognized level
-per citation: `full-text`, `abstract`, `metadata`, or `inaccessible`. Report
-missing entries, duplicate entries, unknown citation IDs, malformed entries,
-and unrecognized levels as issues. Report each **recorded verification level**
-and whether the cited claim is appropriately limited for that level. Never
-change that statement to "verified" unless this reviewer actually had the
-source content available.
+For every new or substantively changed Evidence Review, compare its citation
+IDs with the recorded `Verification:` entries in `review_notes`. Require
+exactly one recognized level per citation: `full-text`, `abstract`, `metadata`,
+or `inaccessible`. Report missing entries, duplicate entries, unknown citation
+IDs, malformed entries, and unrecognized levels as issues. Report each
+**recorded verification level** and whether the cited claim is appropriately
+limited for that level. Never change that statement to "verified" unless this
+reviewer actually had the source content available.
+
+Legacy lifecycle-only exception: an accepted Evidence Review that predates
+verification entries may be changed only from `accepted` to `superseded` and
+given `superseded_by` without retroactively rewriting `review_notes`. Confirm
+that its method, claims, and citations are unchanged and that the versioned
+successor has a complete verification entry for every citation. Any substantive
+or citation change removes this exception.
 
 ## What to Check
 
@@ -95,9 +102,10 @@ This is a secondary check — focus primarily on the Python/YAML layer.
 
 1. Read the changed files in `analysis/` or `data/science/`
 2. For each formula or constant, check for an adjacent citation comment
-3. For each Evidence Review citation, compare citation IDs to the complete
-   recorded verification set and distinguish it from independent external
-   verification
+3. For each new or substantively changed Evidence Review citation, compare
+   citation IDs to the complete recorded verification set and distinguish it
+   from independent external verification. For a legacy lifecycle-only change,
+   verify the exception's narrow diff and the successor's complete entries.
 4. Report findings as:
    - **Missing citation**: constant/formula at file:line has no source
    - **Unflagged estimate**: value at file:line appears to be an estimate but isn't marked
