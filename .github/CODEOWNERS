@@ -11,3 +11,18 @@
 /scripts/translate_missing.py  @dddtc2005
 /scripts/i18n_glossary.yaml    @dddtc2005
 /.github/workflows/i18n.yml    @dddtc2005
+
+# Science changes have one explicit owner until an independent science-review
+# team is established. The contribution guide makes that current limitation
+# visible to submitters; this ownership rule must not be read as independent
+# scientific approval.
+/analysis/                         @dddtc2005
+/data/science/                     @dddtc2005
+/docs/science/                     @dddtc2005
+/web/src/components/ScienceNote.tsx @dddtc2005
+/web/src/pages/Science.tsx          @dddtc2005
+/miniapp/pages/science/             @dddtc2005
+/web/src/locales/                   @dddtc2005
+/.github/ISSUE_TEMPLATE/science-correction.yml @dddtc2005
+/.github/PULL_REQUEST_TEMPLATE/science-change.md @dddtc2005
+/.claude/agents/science-reviewer.md             @dddtc2005

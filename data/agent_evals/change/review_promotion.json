@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "as_of": "2026-07-29",
+  "as_of": "2026-08-03",
   "classes": {
     "documentation-only": {
-      "policy_fingerprint": "5a8c537a75fe50ef2ac12a8549c8fdb70c5561cb18d6679dfaff27ab382a5907",
+      "policy_fingerprint": "cae94c9c9572c24ba1b21d904607c5470a4c5ea9bc0ed1e94e5d1b38f52a93a6",
       "observations": []
     },
     "translation-catalog-only": {
-      "policy_fingerprint": "cd7a1c2b92f8ce91f69873d2e3db1401b1c3997131fb7fb3d83dde9e7a1532e7",
+      "policy_fingerprint": "ff30bda9e6b0ab46995c7b7691701f9ddda104af1e8cdf05d310c2e38556a002",
       "observations": []
     },
     "full-stack": {

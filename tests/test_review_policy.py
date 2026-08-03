@@ -33,12 +33,19 @@ POLICY = {
     "disqualifying_issue_labels": ["backlog", "later"],
     "required_checks": ["backend-tests"],
     "merge_gate_status": "selective-review-policy",
-    "sensitive_paths": [".github/**", "db/**", "alembic/**", "docs/ops/**"],
+    "sensitive_paths": [
+        ".github/**",
+        "db/**",
+        "alembic/**",
+        "docs/ops/**",
+        "docs/science/**",
+        "web/src/locales/**",
+    ],
     "promoted_classes": [],
     "candidate_classes": {
         "documentation-only": {
             "allowed_paths": ["docs/**"],
-            "denied_paths": ["docs/ops/**"],
+            "denied_paths": ["docs/ops/**", "docs/science/**"],
             "test_policy": "not-applicable",
         },
         "translation-catalog-only": {
@@ -97,6 +104,13 @@ def test_classifies_only_exclusive_narrow_paths():
     )
     assert (
         classify_change(("docs/ops/change-loop.md",), POLICY["candidate_classes"])
+        is None
+    )
+    assert (
+        classify_change(
+            ("docs/science/contributing.md",),
+            POLICY["candidate_classes"],
+        )
         is None
     )
     assert (
@@ -167,6 +181,33 @@ def test_sensitive_paths_fail_closed_even_if_class_is_promoted():
     )
     assert decision.disposition == "review-required"
     assert "sensitive_path_changed" in decision.reasons
+
+    science_decision = evaluate_selective_review(
+        _facts(changed_files=("docs/science/contributing.md",)),
+        policy,
+    )
+    assert science_decision.disposition == "review-required"
+    assert "sensitive_path_changed" in science_decision.reasons
+
+    translation_decision = evaluate_selective_review(
+        _facts(changed_files=("web/src/locales/en/messages.po",)),
+        policy,
+    )
+    assert translation_decision.disposition == "review-required"
+    assert "sensitive_path_changed" in translation_decision.reasons
+
+
+def test_checked_in_policy_protects_science_docs_from_documentation_promotion():
+    root = Path(__file__).resolve().parent.parent
+    policy = json.loads(
+        (root / "config" / "agent-loop-policies.json").read_text()
+    )["change"]["selective_review"]
+
+    assert "docs/science/**" in policy["sensitive_paths"]
+    assert "web/src/locales/**" in policy["sensitive_paths"]
+    assert "docs/science/**" in policy["candidate_classes"][
+        "documentation-only"
+    ]["denied_paths"]
 
 
 def test_repository_merge_guardrails_fail_closed():

@@ -1,0 +1,92 @@
+name: Science correction or evidence proposal
+description: Challenge a scientific claim, product interpretation, formula, or user-facing science copy.
+title: "[Science] "
+labels:
+  - science
+  - evidence review
+  - science correction
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve Praxys science. You do not need to write code.
+
+        Do not include health records, credentials, athlete-identifying data, or copyrighted full-text paper content. A maintainer will assess the evidence and may create a separate Evidence Review, Science Decision Record, or implementation issue.
+  - type: textarea
+    id: challenged_claim
+    attributes:
+      label: Claim or product interpretation to correct
+      description: Quote or link the affected metric, theory, user-facing copy, or product behavior. Explain what is inaccurate or incomplete.
+      placeholder: "The current claim says ...; the concern is ..."
+    validations:
+      required: true
+  - type: textarea
+    id: affected_surface
+    attributes:
+      label: Affected surface
+      description: Name the metric, theory, formula, Evidence Review, SDR, API field, or user-facing copy if known.
+      placeholder: "Heat adaptation tracker, sdr-heat-adaptation-v1, Training heat detail"
+    validations:
+      required: true
+  - type: textarea
+    id: proposed_correction
+    attributes:
+      label: Proposed correction
+      description: State the revised claim, interpretation, or boundary. It is fine to say that the correct action is uncertainty or removal.
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: Sources and verification level
+      description: Provide DOI, PMID, or stable links. State whether you reviewed full text, an abstract/indexed record, metadata only, or could not access the source.
+      placeholder: |
+        DOI/PMID/link:
+        Verification level:
+        Why it supports or limits the correction:
+    validations:
+      required: true
+  - type: textarea
+    id: applicability
+    attributes:
+      label: Population, protocol, and outcome
+      description: Describe the relevant population, intervention or exposure, comparator, and outcome. Include conditions that limit generalization.
+      placeholder: "Population ...; protocol/exposure ...; comparator ...; outcome ..."
+    validations:
+      required: true
+  - type: textarea
+    id: conflicts_and_limitations
+    attributes:
+      label: Conflicts, limitations, and competing evidence
+      description: Note evidence that disagrees, important methodological limits, and unanswered questions.
+    validations:
+      required: true
+  - type: textarea
+    id: product_impact
+    attributes:
+      label: Expected product impact
+      description: Explain whether this changes wording, a guardrail, a model parameter, a safety boundary, or only future research.
+    validations:
+      required: true
+  - type: dropdown
+    id: urgency
+    attributes:
+      label: Safety urgency
+      description: Select urgent only when a current claim could create an immediate, material safety risk.
+      options:
+        - Not urgent
+        - Potential safety concern
+        - Urgent safety concern
+      default: 0
+    validations:
+      required: true
+  - type: input
+    id: contributor_role
+    attributes:
+      label: Contributor role (optional)
+      description: For example, coach, athlete, researcher, clinician, or developer.
+  - type: textarea
+    id: conflicts_of_interest
+    attributes:
+      label: Conflict-of-interest disclosure (optional)
+      description: Disclose relevant financial, professional, or study-author relationships.
