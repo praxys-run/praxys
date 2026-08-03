@@ -4,6 +4,8 @@ from pathlib import Path
 
 import yaml
 
+from analysis.evidence_registry import EvidenceReview
+
 
 ROOT = Path(__file__).resolve().parent.parent
 ISSUE_FORM = ROOT / ".github" / "ISSUE_TEMPLATE" / "science-correction.yml"
@@ -12,10 +14,34 @@ CODEOWNERS = ROOT / ".github" / "CODEOWNERS"
 SCIENCE_REVIEWER = ROOT / ".claude" / "agents" / "science-reviewer.md"
 CONTRIBUTING = ROOT / "docs" / "science" / "contributing.md"
 README = ROOT / "README.md"
+SAMPLE_EVIDENCE_REVIEW = (
+    ROOT
+    / "data"
+    / "science"
+    / "evidence"
+    / "heat-adaptation"
+    / "evidence-heat-adaptation-v1.yaml"
+)
 
 
 def _source(path: Path) -> str:
     return path.read_text(encoding="utf-8").replace("\r\n", "\n")
+
+
+def _codeowners_for(path: str) -> list[str]:
+    owners: list[str] = []
+    for raw_line in _source(CODEOWNERS).splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        pattern, *candidate_owners = line.split()
+        normalized = pattern.lstrip("/")
+        if (
+            (pattern.endswith("/") and path.startswith(normalized))
+            or path == normalized
+        ):
+            owners = candidate_owners
+    return owners
 
 
 def test_science_correction_form_captures_evidence_without_code() -> None:
@@ -78,6 +104,7 @@ def test_science_review_is_layered_and_human_owned() -> None:
         "verification:",
         "superseded",
         "urgent safety correction",
+        "not currently a ruleset-enforced approval gate",
     ):
         assert layer in normalized_guide
     assert "External source content: not verified" in reviewer
@@ -89,13 +116,52 @@ def test_science_review_is_layered_and_human_owned() -> None:
         "/data/science/",
         "/docs/science/",
         "/web/src/components/ScienceNote.tsx",
+        "/web/src/components/HeatAdaptationPanel.tsx",
+        "/web/src/components/RecoveryPanel.tsx",
+        "/web/src/components/charts/",
         "/web/src/pages/Science.tsx",
         "/miniapp/pages/science/",
+        "/miniapp/pages/training/",
+        "/miniapp/utils/heat-adaptation.ts",
         "/.github/ISSUE_TEMPLATE/science-correction.yml",
         "/.github/PULL_REQUEST_TEMPLATE/science-change.md",
         "/.claude/agents/science-reviewer.md",
     ):
         assert science_path in codeowners
+
+
+def test_science_codeowners_resolve_representative_product_surfaces() -> None:
+    """Scientific claims in both clients request the current science owner."""
+    for path in (
+        "web/src/components/HeatAdaptationPanel.tsx",
+        "web/src/components/RecoveryPanel.tsx",
+        "web/src/components/charts/FitnessFatigueChart.tsx",
+        "miniapp/pages/training/index.wxml",
+        "miniapp/utils/heat-adaptation.ts",
+        "docs/science/contributing.md",
+    ):
+        assert _codeowners_for(path) == ["@dddtc2005"]
+
+
+def test_documented_verification_entry_is_valid_evidence_review_yaml() -> None:
+    """Contributors can paste the documented verification entry into a review."""
+    guide = _source(CONTRIBUTING)
+    yaml_example = guide.split("```yaml", 1)[1].split("```", 1)[0]
+    review_notes = yaml.safe_load(yaml_example)["review_notes"]
+    raw_review = yaml.safe_load(_source(SAMPLE_EVIDENCE_REVIEW))
+    raw_review["review_notes"] = review_notes
+
+    review = EvidenceReview.model_validate(raw_review)
+
+    assert isinstance(review.review_notes[0], str)
+    assert review.review_notes[0].startswith("Verification:")
+
+
+def test_named_science_pr_template_has_a_direct_compare_link() -> None:
+    """GitHub contributors can actually load the named pull-request template."""
+    guide = _source(CONTRIBUTING)
+
+    assert "/compare?expand=1&template=science-change.md" in guide
 
 
 def test_science_contribution_guide_is_linked_from_readme() -> None:

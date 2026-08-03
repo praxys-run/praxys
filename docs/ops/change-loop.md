@@ -297,7 +297,9 @@ default-off `review-required | auto-merge-candidate` policy:
 - `docs/science/**` is both a sensitive path and denied from the
   `documentation-only` candidate class. Scientific contribution guidance cannot
   become policy-owned auto-merge work through a future documentation-class
-  promotion; it remains human-reviewed.
+  promotion; CODEOWNERS routes it to the current science owner. This prevents
+  policy-owned auto-merge, but the current zero-approval ruleset does not
+  independently enforce an approving review.
 - `web/src/locales/**` is also sensitive. The current catalogs mix ordinary UI
   strings with scientific claims, so no translation-only PR can enter a future
   policy-owned auto-merge path until scientific copy has an independently

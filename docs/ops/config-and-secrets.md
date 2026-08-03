@@ -424,7 +424,9 @@ to the Copilot coding agent. These are **repo settings, not deploy-managed**:
   meets the full bar. `docs/science/**` is a protected path and explicitly
   excluded from documentation-only promotion, while `web/src/locales/**` is
   protected because the shared catalogs contain scientific copy. Both stay
-  human-reviewed.
+  outside policy-owned auto-merge and are routed through CODEOWNERS. This is a
+  documented human-review requirement, not currently a ruleset-enforced
+  approval gate; the solo-maintainer ruleset still requires zero approvals.
 - **Selective-review runtime controls** are repository Actions variables:
   `PRAXYS_SELECTIVE_REVIEW_ENABLED` defaults to `false`;
   `PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH=true` stops approval immediately. The

@@ -23,9 +23,9 @@ is tracked separately so evidence review does not depend on writing code.
 When a maintainer transfers a proposal into an Evidence Review, add exactly one
 `review_notes` entry for each citation:
 
-```text
-Verification: <citation-id> - <full-text|abstract|metadata|inaccessible>;
-<where checked>; <YYYY-MM-DD>.
+```yaml
+review_notes:
+  - "Verification: <citation-id> - <full-text|abstract|metadata|inaccessible>; <where checked>; <YYYY-MM-DD>."
 ```
 
 Use `full-text` only when the relevant source text was actually reviewed.
@@ -37,11 +37,15 @@ duplicate, malformed, and unknown citation-ID entries.
 
 ### Science implementation pull request
 
-Choose the **Science change** pull-request template for a change to a formula,
-constant, theory, `docs/science/`, scientific UI copy, or evidence record. The
-template links the evidence and decision to the implementation, asks for test
-and validation/falsification coverage, and checks web/miniapp and
-English/Chinese parity.
+Open the
+[Science change pull-request form](https://github.com/praxys-run/praxys/compare?expand=1&template=science-change.md)
+after pushing a branch for a change to a formula, constant, theory,
+`docs/science/`, scientific UI copy, or evidence record. GitHub does not show a
+chooser for named pull-request templates, so use that link (or add
+`?template=science-change.md` to the compare URL). The template links the
+evidence and decision to the implementation, asks for test and
+validation/falsification coverage, and checks web/miniapp and English/Chinese
+parity.
 
 ## How review works
 
@@ -56,6 +60,11 @@ Praxys uses three distinct review layers:
 The current science owner is **@dddtc2005**. There is no configured
 independent science reviewer or team yet, so submissions must make that
 limitation visible rather than imply independent review occurred.
+
+Science-sensitive paths are excluded from policy-owned auto-merge and
+CODEOWNERS requests the current owner. Human science approval is a documented
+maintainer gate, but it is not currently a ruleset-enforced approval gate: the
+solo-maintainer ruleset requires zero approving reviews.
 
 ## Disagreement, corrections, and history
 
