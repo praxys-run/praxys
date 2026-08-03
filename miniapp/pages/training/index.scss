@@ -629,11 +629,36 @@
 }
 
 .train-heat-safety {
+  margin-top: 32rpx;
+  padding: 24rpx 0;
+  border-top: 1rpx solid var(--warning);
+  border-bottom: 1rpx solid var(--warning);
+}
+
+.train-heat-safety-label {
   display: block;
-  margin-top: 20rpx;
-  font-size: 22rpx;
+  font-size: 25rpx;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.train-heat-safety-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  margin-top: 14rpx;
+  font-size: 23rpx;
   line-height: 1.55;
-  color: var(--text-muted);
+  color: var(--text);
+}
+
+.train-heat-safety-mark {
+  flex: none;
+  width: 10rpx;
+  height: 10rpx;
+  margin-top: 13rpx;
+  border-radius: 999rpx;
+  background-color: var(--warning);
 }
 
 .train-heat-science-link {

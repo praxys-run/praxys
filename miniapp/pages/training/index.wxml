@@ -398,7 +398,13 @@
           </view>
 
           <text wx:if="{{heat.guidance}}" class="train-heat-guidance">{{heat.guidance}}</text>
-          <text class="train-heat-safety">{{heat.safetyText}}</text>
+          <view wx:if="{{heat.safetyNotices.length}}" class="train-heat-safety" aria-role="note">
+            <text class="train-heat-safety-label">{{heat.safetyLabel}}</text>
+            <view wx:for="{{heat.safetyNotices}}" wx:key="*this" class="train-heat-safety-item">
+              <view class="train-heat-safety-mark" aria-hidden="true"></view>
+              <text>{{item}}</text>
+            </view>
+          </view>
           <view
             class="train-heat-science-link"
             aria-role="button"

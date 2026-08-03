@@ -138,6 +138,33 @@ def test_training_owns_the_longitudinal_heat_story() -> None:
     assert "activeMetric: 'heat'" in mini_training_ts
 
 
+def test_heat_safety_notices_render_from_server_codes_on_both_clients() -> None:
+    """Heat safety limits stay visible across the web and miniapp detail views."""
+    web_heat = _source(WEB_HEAT)
+    mini_training = _source(MINI_TRAINING)
+    mini_heat = _source(MINI_HEAT)
+
+    for code in (
+        "not_medical_clearance",
+        "current_conditions_not_assessed",
+        "stop_for_heat_illness_symptoms",
+    ):
+        assert code in web_heat
+        assert code in mini_heat
+
+    assert "<HeatSafetyNotices codes={status.safety_notice_codes} />" in web_heat
+    assert "function normalizeSafetyNoticeCodes(codes: unknown)" in web_heat
+    assert "if (!Array.isArray(codes))" in web_heat
+    assert "[...DEFAULT_SAFETY_NOTICE_CODES]" in web_heat
+    assert "buildSafetyNotices(status.safety_notice_codes)" in mini_heat
+    assert "function buildSafetyNotices(codes: unknown)" in mini_heat
+    assert "codes.filter(isHeatSafetyNoticeCode)" in mini_heat
+    assert ": DEFAULT_SAFETY_NOTICE_CODES" in mini_heat
+    assert "safetyNotices: buildSafetyNotices(DEFAULT_SAFETY_NOTICE_CODES)" in mini_heat
+    assert 'wx:for="{{heat.safetyNotices}}"' in mini_training
+    assert "{{heat.safetyLabel}}" in mini_training
+
+
 def test_science_shows_heat_as_active_fixed_model() -> None:
     """Heat methodology is visible without presenting a fake switch."""
     web_science = _source(WEB_SCIENCE)
