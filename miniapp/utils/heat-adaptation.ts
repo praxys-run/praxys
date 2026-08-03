@@ -12,6 +12,14 @@ export type HeatTone = 'neutral' | 'amber' | 'green';
 export const HEAT_HISTORY_SCROLL_KEY = 'praxys.training_scroll_target';
 export const HEAT_HISTORY_SCROLL_TARGET = 'heat-adaptation';
 
+type HeatSafetyNoticeCode = HeatAdaptationStatus['safety_notice_codes'][number];
+
+const DEFAULT_SAFETY_NOTICE_CODES: readonly HeatSafetyNoticeCode[] = [
+  'not_medical_clearance',
+  'current_conditions_not_assessed',
+  'stop_for_heat_illness_symptoms',
+];
+
 export interface HeatCadenceDay {
   id: string;
   weekday: string;
@@ -56,7 +64,8 @@ export interface HeatAdaptationView {
   interpretation: string;
   basis: string;
   guidance: string;
-  safetyText: string;
+  safetyLabel: string;
+  safetyNotices: string[];
 
   showThresholdProgress: boolean;
   thresholdLabel: string;
@@ -129,6 +138,35 @@ function formatRange(min: number, max: number, suffix: string): string {
   const low = formatter.format(min);
   const high = formatter.format(max);
   return low === high ? `${low}${suffix}` : `${low}–${high}${suffix}`;
+}
+
+function safetyNoticeText(code: HeatSafetyNoticeCode): string {
+  switch (code) {
+    case 'not_medical_clearance':
+      return t('This is not medical clearance or a personal heat-tolerance assessment.');
+    case 'current_conditions_not_assessed':
+      return t("This evaluates past training only; it does not assess today's weather or conditions.");
+    case 'stop_for_heat_illness_symptoms':
+      return t('Stop activity if heat-illness symptoms develop, and seek medical care.');
+  }
+}
+
+function isHeatSafetyNoticeCode(code: unknown): code is HeatSafetyNoticeCode {
+  return (
+    typeof code === 'string'
+    && DEFAULT_SAFETY_NOTICE_CODES.includes(code as HeatSafetyNoticeCode)
+  );
+}
+
+function buildSafetyNotices(codes: unknown): string[] {
+  const knownCodes = Array.isArray(codes)
+    ? codes.filter(isHeatSafetyNoticeCode)
+    : [];
+  const uniqueCodes = [...new Set(knownCodes)];
+  const safetyCodes = uniqueCodes.length > 0
+    ? uniqueCodes
+    : DEFAULT_SAFETY_NOTICE_CODES;
+  return safetyCodes.map(safetyNoticeText);
 }
 
 function stageLabel(status: HeatAdaptationStatus): string {
@@ -382,7 +420,8 @@ export function emptyHeatAdaptationView(): HeatAdaptationView {
     interpretation: '',
     basis: '',
     guidance: '',
-    safetyText: t("Past training only. This does not assess today's weather, guarantee adaptation, or replace medical guidance."),
+    safetyLabel: t('Heat safety'),
+    safetyNotices: buildSafetyNotices(DEFAULT_SAFETY_NOTICE_CODES),
     showThresholdProgress: false,
     thresholdLabel: t('Evidence toward Likely adapted'),
     thresholdDescription: t('Both thresholds must be met. The bars describe model evidence, not a biological adaptation percentage.'),
@@ -483,7 +522,8 @@ export function buildHeatAdaptationView(status: HeatAdaptationStatus): HeatAdapt
     interpretation: stageInterpretation(status),
     basis,
     guidance,
-    safetyText: t("Past training only. This does not assess today's weather, guarantee adaptation, or replace medical guidance."),
+    safetyLabel: t('Heat safety'),
+    safetyNotices: buildSafetyNotices(status.safety_notice_codes),
     showThresholdProgress: status.stage !== 'maintaining' && status.stage !== 'decaying',
     thresholdLabel: t('Evidence toward Likely adapted'),
     thresholdDescription: t('Both thresholds must be met. The bars describe model evidence, not a biological adaptation percentage.'),
