@@ -42,7 +42,9 @@ def test_science_research_skill_has_a_discoverable_canonical_workflow() -> None:
         "Decision proposal mode must draft",
         "leave\n  `supersedes` empty",
         "apply the lifecycle change atomically",
-        "explicitly approves that mode",
+        "requester explicitly approves",
+        "every accepted SDR",
+        "all governed theory/model references",
         "First fixture: heat adaptation and environmental performance",
         "plugins/praxys/",
     ):
@@ -70,3 +72,6 @@ def test_science_research_skill_is_documented_as_developer_only() -> None:
     assert "praxys-science-research-claude" in skills_doc
     assert "browse/select only" in skills_doc
     assert ".github/skills/science-research/SKILL.md" in contributing_doc
+    assert "leave `supersedes` empty" in contributing_doc
+    assert "every accepted SDR" in contributing_doc
+    assert "Only after explicit human approval" in contributing_doc

@@ -161,12 +161,19 @@ honestly; neither level lets schema validation declare a paper true.
 ### Updating a review without rewriting history
 
 Do not edit the methods, claims, interpretations, or parameter rationale in an
-accepted record. Add a new version with a new record ID, set its `supersedes`
-link, and update only the old record's lifecycle metadata to `superseded` plus
-`superseded_by`. Add or supersede the linked SDR, bump the implementation model
-version when behavior changes, update the theory's `science_decision_id`, and
-regenerate `data/science/REGISTRY.md`. Retain retired and superseded files so a
-past model version remains auditable.
+accepted record. While a successor is under review, add the new version with
+`status: draft`, leave `supersedes` empty, and leave the accepted predecessor
+unchanged. Enumerate every accepted SDR that references the predecessor and
+draft successor decision coverage for all of them before proposing a lifecycle
+transition.
+
+Only after explicit human approval should one atomic change accept the
+successor Evidence Review and successor SDRs, activate reciprocal
+`supersedes`/`superseded_by` links, mark every replaced record `superseded`,
+bump implementation model versions when behavior changes, and update all
+governed theories' `science_decision_id` values. Regenerate
+`data/science/REGISTRY.md` in that approved change. Retain retired and
+superseded files so a past model version remains auditable.
 
 When a new review version uses the same paper, repeat its stable citation ID
 and identical metadata; the registry de-duplicates that source across versions.
