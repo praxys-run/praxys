@@ -28,8 +28,9 @@ Research-only work may create a new Evidence Review in `draft` status. It must
 not transition or supersede an accepted Evidence Review that an accepted SDR
 references, because that lifecycle change requires revising the SDR in the
 same decision. When research challenges such evidence, finish the evidence
-bundle, identify the affected SDR, and move to Decision proposal mode for the
-coordinated record change.
+bundle, identify the affected SDR, and stop with an escalation note. Move to
+Decision proposal mode only after the requester explicitly approves that mode
+switch and the coordinated record change.
 
 Research-only work must not change an accepted SDR, a theory, a model, API
 behavior, or user-facing product claim.
@@ -120,12 +121,20 @@ Follow the existing registry schema and lifecycle:
 
 - Create Evidence Reviews under
   `data/science/evidence/<topic>/evidence-<topic>-v<N>.yaml`.
-- Preserve accepted reviews. For a substantive correction, create `v<N+1>`,
-  set its `supersedes`, and update the prior record's lifecycle metadata only.
-- Before completing that lifecycle transition, check whether an accepted SDR
-  references the prior review. If it does, Decision proposal mode must draft
-  the successor review and SDR together; Research-only mode stops at the
+- Preserve accepted reviews while a successor is being drafted. For a
+  substantive correction, create `v<N+1>` with `status: draft`, leave
+  `supersedes` empty, and leave the accepted predecessor unchanged. Record the
+  proposed predecessor/successor transition in the handoff instead of making
+  the registry internally invalid before approval.
+- Check whether an accepted SDR references the prior review. If it does,
+  Decision proposal mode must draft the successor review and SDR together,
+  both without active supersession links; Research-only mode stops at the
   evidence bundle and escalation note.
+- After explicit human approval, apply the lifecycle change atomically:
+  accept the successor Evidence Review and SDR, activate both reciprocal
+  supersession links, mark both predecessors `superseded`, and update the
+  governed theory/model reference in the same approved change. An agent may
+  prepare that transition but may not apply or claim the approval.
 - Put search provenance in `method`, per-source verification in `review_notes`,
   claim strength in `claims`, and uncertainty in claim limitations, gaps, and
   conflicting findings.

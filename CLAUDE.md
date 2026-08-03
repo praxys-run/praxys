@@ -269,7 +269,7 @@ Automations live in `.claude/` and are committed so every contributor using Clau
 
 The repository-owned `science-research` Agent Skill lives at
 `.github/skills/science-research/SKILL.md`, with a thin Claude Code entry point
-at `.claude/skills/science-research/SKILL.md` named
+at `.claude/skills/praxys-science-research-claude/SKILL.md` named
 `praxys-science-research-claude` for direct invocation. It supports explicit
 Research-only and Decision proposal modes for versioned Evidence Reviews and
 draft SDRs, but never accepts a record or merges a science change without human

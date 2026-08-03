@@ -12,7 +12,7 @@ Praxys has two skill surfaces:
 `science-research` is the repository-owned skill at
 `.github/skills/science-research/SKILL.md`. It is auto-discoverable by Copilot
 and has a thin Claude Code entry point at
-`.claude/skills/science-research/SKILL.md`. Invoke the Claude entry point
+`.claude/skills/praxys-science-research-claude/SKILL.md`. Invoke the Claude entry point
 directly as `praxys-science-research-claude`; its distinct name prevents a
 second project-skill discovery match while it delegates to the same canonical
 policy.

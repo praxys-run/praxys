@@ -7,7 +7,13 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 COPILOT_SKILL = ROOT / ".github" / "skills" / "science-research" / "SKILL.md"
-CLAUDE_SKILL = ROOT / ".claude" / "skills" / "science-research" / "SKILL.md"
+CLAUDE_SKILL = (
+    ROOT
+    / ".claude"
+    / "skills"
+    / "praxys-science-research-claude"
+    / "SKILL.md"
+)
 SKILLS_DOC = ROOT / "docs" / "skills.md"
 CONTRIBUTING_DOC = ROOT / "docs" / "dev" / "contributing.md"
 
@@ -34,6 +40,9 @@ def test_science_research_skill_has_a_discoverable_canonical_workflow() -> None:
         "metric-addition-reviewer",
         "api-contract-reviewer",
         "Decision proposal mode must draft",
+        "leave\n  `supersedes` empty",
+        "apply the lifecycle change atomically",
+        "explicitly approves that mode",
         "First fixture: heat adaptation and environmental performance",
         "plugins/praxys/",
     ):
@@ -44,7 +53,9 @@ def test_claude_entry_point_delegates_to_canonical_skill() -> None:
     """Claude Code uses the same policy without a second copy to maintain."""
     source = _source(CLAUDE_SKILL)
 
-    assert "name: praxys-science-research-claude" in source
+    _, frontmatter, _ = source.split("---", 2)
+    metadata = yaml.safe_load(frontmatter)
+    assert metadata["name"] == CLAUDE_SKILL.parent.name
     assert "disable-model-invocation: true" in source
     assert "../../../.github/skills/science-research/SKILL.md" in source
     assert "Do not duplicate or weaken those rules here." in source
