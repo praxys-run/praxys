@@ -1,8 +1,40 @@
-# CLI Skills
+# CLI and Repository Skills
 
-Praxys includes 8 AI skills that provide access to all training features via Claude Code and Copilot CLI. No web UI needed.
+Praxys has two skill surfaces:
 
-## Requirements
+- **Athlete-facing plugin skills** provide access to shipped training features
+  through Claude Code and Copilot CLI. No web UI is needed.
+- **Repository developer skills** guide maintainers through implementation and
+  evidence work. They are not exposed as athlete coaching features.
+
+## Developer science research
+
+`science-research` is the repository-owned skill at
+`.github/skills/science-research/SKILL.md`. It is auto-discoverable by Copilot
+and has a thin Claude Code entry point at
+`.claude/skills/science-research/SKILL.md`. Invoke the Claude entry point
+directly as `praxys-science-research-claude`; its distinct name prevents a
+second project-skill discovery match while it delegates to the same canonical
+policy.
+
+Use it to research a bounded science question, verify literature metadata and
+claim limits, update a versioned Evidence Review, or prepare a draft Science
+Decision Record (SDR) and product impact map. It has two explicit modes:
+
+- **Research-only** updates evidence in draft form without changing accepted
+  product behavior.
+- **Decision proposal** adds a draft SDR, alternatives, claim boundaries,
+  validation plan, and implementation/reviewer map for human review.
+
+It preserves historical records, requires search provenance and source
+verification levels, and never accepts or merges science on an agent's behalf.
+
+This is deliberately separate from the athlete-facing `/science` plugin skill.
+`/science` remains browse/select only for shipped theories; it does not
+research literature or change Evidence Reviews, SDRs, formulas, or product
+behavior.
+
+## Athlete-facing plugin requirements
 
 - [Claude Code](https://claude.com/claude-code) or [GitHub Copilot CLI](https://githubnext.com/projects/copilot-cli/)
 - Python 3.11+ with project dependencies installed (`pip install -r requirements.txt`)
@@ -103,7 +135,7 @@ The plugin provides an MCP server (`plugins/praxys/mcp-server/server.py`) that e
 
 Each tool works in both remote mode (HTTP to the deployed API) and local mode (direct Python imports). The mode is determined by the `PRAXYS_URL` environment variable.
 
-## Available Skills
+## Available Athlete-Facing Skills
 
 ### /setup
 
@@ -122,6 +154,10 @@ Configure connections, training base, thresholds, and goals.
 Browse and select training science theories across 4 pillars.
 
 **When to use:** Choosing between zone frameworks, understanding different load models, switching prediction methods.
+
+This skill explains and selects shipped theories only. Maintainers researching
+evidence or proposing a product interpretation use the repository
+`science-research` skill instead.
 
 **Examples:**
 - "What zone theories are available?"

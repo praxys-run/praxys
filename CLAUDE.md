@@ -265,6 +265,17 @@ Automations live in `.claude/` and are committed so every contributor using Clau
 | `race-forecast` | Race prediction + goal feasibility |
 | `add-metric` | Scaffold a new metric end-to-end |
 
+### Repository developer science research
+
+The repository-owned `science-research` Agent Skill lives at
+`.github/skills/science-research/SKILL.md`, with a thin Claude Code entry point
+at `.claude/skills/science-research/SKILL.md` named
+`praxys-science-research-claude` for direct invocation. It supports explicit
+Research-only and Decision proposal modes for versioned Evidence Reviews and
+draft SDRs, but never accepts a record or merges a science change without human
+approval. This does not expand the athlete-facing `science` skill beyond
+browsing and selecting shipped theories.
+
 The MCP server (`plugins/praxys/mcp-server/server.py`) runs in dual mode — local (direct DB) or remote (HTTP + JWT via `PRAXYS_URL`).
 
 AI features are always optional; the app works fully without `AZURE_AI_ENDPOINT` (the post-sync LLM insight runner falls back to rule-based prose, and the training-context builder still feeds skill-side AI plan generation). When set, Azure OpenAI powers the bilingual insight generator (`api/insights_generator.py`), plan validator, and the `AiPlanProvider` that loads `data/ai/training_plan.csv`.

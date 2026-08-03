@@ -81,6 +81,19 @@ Science changes use two linked, versioned records before implementation:
 - An **Evidence Review** records what the literature supports.
 - A **Science Decision Record (SDR)** records how Praxys applies that evidence.
 
+### Research before changing science
+
+Use the repository-owned
+[`science-research`](../../.github/skills/science-research/SKILL.md) skill
+before changing a scientific claim, formula, constant, safety boundary, theory,
+or user-facing interpretation. Its **Research-only** mode creates a bounded,
+auditable evidence update without changing accepted behavior; its **Decision
+proposal** mode adds a draft SDR, alternatives, claim limits, validation plan,
+and implementation/reviewer map for human review.
+
+The athlete-facing `/science` plugin skill remains browse/select only. It does
+not research literature, edit evidence records, or make product decisions.
+
 Every new theory added after the registry introduction must link an accepted
 SDR. Unlinked pre-existing theories remain supported only as a legacy migration
 exception; do not use that compatibility path for new science.
