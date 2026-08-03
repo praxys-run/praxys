@@ -115,18 +115,26 @@ def test_science_review_is_layered_and_human_owned() -> None:
         "/analysis/",
         "/data/science/",
         "/docs/science/",
+        "/api/deps.py",
+        "/api/routes/science.py",
+        "/api/routes/training.py",
+        "/api/routes/today.py",
         "/web/src/components/ScienceNote.tsx",
         "/web/src/components/HeatAdaptationPanel.tsx",
         "/web/src/components/RecoveryPanel.tsx",
         "/web/src/components/ManagedPlanSettingsCard.tsx",
+        "/web/src/components/SplitBreakdown.tsx",
         "/web/src/components/charts/",
         "/web/src/contexts/ScienceContext.tsx",
+        "/web/src/lib/workout-parser.ts",
         "/web/src/pages/Science.tsx",
         "/web/src/pages/Training.tsx",
+        "/web/src/types/api.ts",
         "/miniapp/pages/science/",
         "/miniapp/pages/training/",
         "/miniapp/pages/settings/",
         "/miniapp/utils/heat-adaptation.ts",
+        "/miniapp/types/api.ts",
         "/.github/ISSUE_TEMPLATE/science-correction.yml",
         "/.github/PULL_REQUEST_TEMPLATE/science-change.md",
         "/.claude/agents/science-reviewer.md",
@@ -137,15 +145,23 @@ def test_science_review_is_layered_and_human_owned() -> None:
 def test_science_codeowners_resolve_representative_product_surfaces() -> None:
     """Scientific claims in both clients request the current science owner."""
     for path in (
+        "api/deps.py",
+        "api/routes/science.py",
+        "api/routes/training.py",
+        "api/routes/today.py",
         "web/src/components/HeatAdaptationPanel.tsx",
         "web/src/components/RecoveryPanel.tsx",
         "web/src/components/ManagedPlanSettingsCard.tsx",
+        "web/src/components/SplitBreakdown.tsx",
         "web/src/components/charts/FitnessFatigueChart.tsx",
         "web/src/contexts/ScienceContext.tsx",
+        "web/src/lib/workout-parser.ts",
         "web/src/pages/Training.tsx",
+        "web/src/types/api.ts",
         "miniapp/pages/training/index.wxml",
         "miniapp/pages/settings/index.ts",
         "miniapp/utils/heat-adaptation.ts",
+        "miniapp/types/api.ts",
         "docs/science/contributing.md",
     ):
         assert _codeowners_for(path) == ["@dddtc2005"]
@@ -169,7 +185,11 @@ def test_named_science_pr_template_has_a_direct_compare_link() -> None:
     """GitHub contributors can actually load the named pull-request template."""
     guide = _source(CONTRIBUTING)
 
-    assert "/compare?expand=1&template=science-change.md" in guide
+    assert (
+        "/compare/main...YOUR-BRANCH?quick_pull=1&template=science-change.md"
+        in guide
+    )
+    assert "generic branch picker" in guide
 
 
 def test_science_contribution_guide_is_linked_from_readme() -> None:

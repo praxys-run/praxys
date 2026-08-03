@@ -37,15 +37,19 @@ duplicate, malformed, and unknown citation-ID entries.
 
 ### Science implementation pull request
 
-Open the
-[Science change pull-request form](https://github.com/praxys-run/praxys/compare?expand=1&template=science-change.md)
-after pushing a branch for a change to a formula, constant, theory,
-`docs/science/`, scientific UI copy, or evidence record. GitHub does not show a
-chooser for named pull-request templates, so use that link (or add
-`?template=science-change.md` to the compare URL). The template links the
-evidence and decision to the implementation, asks for test and
-validation/falsification coverage, and checks web/miniapp and English/Chinese
-parity.
+After pushing a branch for a change to a formula, constant, theory,
+`docs/science/`, scientific UI copy, or evidence record, replace
+`YOUR-BRANCH` in this URL and open it directly:
+
+```text
+https://github.com/praxys-run/praxys/compare/main...YOUR-BRANCH?quick_pull=1&template=science-change.md
+```
+
+For a fork, use `OWNER:BRANCH` instead of `YOUR-BRANCH`. Do not rely on
+GitHub's generic branch picker: it drops the named-template parameter when it
+redirects to the selected comparison. The template links the evidence and
+decision to the implementation, asks for test and validation/falsification
+coverage, and checks web/miniapp and English/Chinese parity.
 
 ## How review works
 
