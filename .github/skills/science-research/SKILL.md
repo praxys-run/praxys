@@ -178,7 +178,8 @@ before requesting human review:
 
 | Changed surface | Required review |
 | --- | --- |
-| `analysis/` or `data/science/` | `science-reviewer` for local citation, estimate, and record checks. It does not replace external source verification or human approval. |
+| Scientific implementation in `analysis/`, theory YAML, formulas, constants, or user-facing scientific claims | `science-reviewer` for local citation and estimate checks. It does not replace external source verification or human approval. |
+| Evidence Review or SDR only | Run deterministic registry validation and request human science review. Run `science-reviewer` only when the installed reviewer explicitly supports registry records; it must not require theory-only fields such as `description`, `params`, or a duplicated `citations` array. |
 | A new or modified metric | `metric-addition-reviewer` for the full metric delivery path. |
 | `api/deps.py`, `api/routes/`, `api/views.py`, or `web/src/types/api.ts` | `api-contract-reviewer` for response/type compatibility. |
 | Web feature, type, or copy | Review the matching miniapp surface, type sync, i18n, and write behavior; either implement parity or record a labeled follow-up gap. |

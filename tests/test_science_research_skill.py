@@ -37,6 +37,8 @@ def test_science_research_skill_has_a_discoverable_canonical_workflow() -> None:
         "human reviewer",
         "activity `avg_power`",
         "science-reviewer",
+        "Evidence Review or SDR only",
+        "must not require theory-only fields",
         "metric-addition-reviewer",
         "api-contract-reviewer",
         "Decision proposal mode must draft",
