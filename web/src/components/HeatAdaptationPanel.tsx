@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { msg } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
-import { ArrowRight } from 'lucide-react';
+import { AlertTriangle, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import ScienceNote from '@/components/ScienceNote';
@@ -44,6 +44,33 @@ const ACTION_GUIDANCE: Partial<Record<HeatAdaptationAction, ReturnType<typeof ms
   sync_power_provenance: msg`Sync power-source metadata so Praxys can verify that activity and threshold power are comparable.`,
   sync_power_evidence: msg`Sync split or sample power evidence so Praxys can identify sustained work.`,
 };
+
+type HeatSafetyNoticeCode = HeatAdaptationStatus['safety_notice_codes'][number];
+
+const SAFETY_NOTICE_COPY: Record<HeatSafetyNoticeCode, ReturnType<typeof msg>> = {
+  not_medical_clearance: msg`This is not medical clearance or a personal heat-tolerance assessment.`,
+  current_conditions_not_assessed: msg`This evaluates past training only; it does not assess today's weather or conditions.`,
+  stop_for_heat_illness_symptoms: msg`Stop activity if heat-illness symptoms develop, and seek medical care.`,
+};
+
+const DEFAULT_SAFETY_NOTICE_CODES: readonly HeatSafetyNoticeCode[] = [
+  'not_medical_clearance',
+  'current_conditions_not_assessed',
+  'stop_for_heat_illness_symptoms',
+];
+
+function normalizeSafetyNoticeCodes(codes: unknown): HeatSafetyNoticeCode[] {
+  if (!Array.isArray(codes)) return [...DEFAULT_SAFETY_NOTICE_CODES];
+
+  const knownCodes = codes.filter(
+    (code): code is HeatSafetyNoticeCode => (
+      typeof code === 'string'
+      && Object.prototype.hasOwnProperty.call(SAFETY_NOTICE_COPY, code)
+    ),
+  );
+  const uniqueCodes = [...new Set(knownCodes)];
+  return uniqueCodes.length > 0 ? uniqueCodes : [...DEFAULT_SAFETY_NOTICE_CODES];
+}
 
 function localDate(value: string): Date {
   return new Date(`${value.slice(0, 10)}T12:00:00`);
@@ -201,6 +228,35 @@ function stageToneClass(status: HeatAdaptationStatus): string {
     return 'bg-accent-amber/15 text-foreground';
   }
   return 'bg-muted text-muted-foreground';
+}
+
+function HeatSafetyNotices({ codes }: { codes: unknown }) {
+  const { i18n } = useLingui();
+  const safetyCodes = normalizeSafetyNoticeCodes(codes);
+
+  return (
+    <section
+      className="mt-6 border-y border-accent-amber/40 bg-accent-amber/10 px-4 py-3"
+      aria-labelledby="heat-safety-title"
+    >
+      <div className="flex gap-3">
+        <AlertTriangle
+          className="mt-0.5 size-4 shrink-0 text-accent-amber"
+          aria-hidden="true"
+        />
+        <div className="min-w-0">
+          <h3 id="heat-safety-title" className="text-sm font-semibold text-foreground">
+            <Trans>Heat safety</Trans>
+          </h3>
+          <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs leading-relaxed text-foreground/80">
+            {safetyCodes.map((code) => (
+              <li key={code}>{i18n._(SAFETY_NOTICE_COPY[code])}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function EvidenceProgress({
@@ -562,6 +618,8 @@ export default function HeatAdaptationDetail({ status }: { status: HeatAdaptatio
             </p>
           </section>
 
+          <HeatSafetyNotices codes={status.safety_notice_codes} />
+
           {showThresholdProgress && (
             <section className="mt-7" aria-labelledby="heat-threshold-title">
               <h3 id="heat-threshold-title" className="text-sm font-semibold text-foreground">
@@ -616,11 +674,6 @@ export default function HeatAdaptationDetail({ status }: { status: HeatAdaptatio
               <p>
                 <Trans>
                   The thresholds are Praxys operational estimates grounded in heat-acclimatization research, not a direct physiological measurement.
-                </Trans>
-              </p>
-              <p className="mt-2">
-                <Trans>
-                  Past training only. This does not assess today's weather, guarantee adaptation, or replace medical guidance.
                 </Trans>
               </p>
               <Link
