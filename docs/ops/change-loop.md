@@ -294,6 +294,17 @@ default-off `review-required | auto-merge-candidate` policy:
   PR. It denies non-`main` bases, incomplete/truncated file inventories,
   sensitive paths, missing checks, draft PRs, post-ready commits, requested
   changes, unpromoted classes, and missing tests where applicable.
+- `docs/science/**` and the normative science workflow in
+  `docs/dev/contributing.md` are sensitive paths denied from the
+  `documentation-only` candidate class. Scientific contribution guidance cannot
+  become policy-owned auto-merge work through a future documentation-class
+  promotion; CODEOWNERS routes it to the current science owner. This prevents
+  policy-owned auto-merge, but the current zero-approval ruleset does not
+  independently enforce an approving review.
+- `web/src/locales/**` is also sensitive. The current catalogs mix ordinary UI
+  strings with scientific claims, so no translation-only PR can enter a future
+  policy-owned auto-merge path until scientific copy has an independently
+  protected surface.
 - Evaluation happens before App-token creation. Disabled, unpromoted, sensitive,
   and otherwise review-required PRs finish successfully without App
   configuration. A token is required only for an exact enabled candidate or for

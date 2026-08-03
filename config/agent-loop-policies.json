@@ -54,11 +54,14 @@
         "data/science/**",
         "db/**",
         "docs/ops/**",
+        "docs/science/**",
+        "docs/dev/contributing.md",
         "miniapp/utils/auth.ts",
         "requirements*.txt",
         "sync/**",
         "web/package-lock.json",
         "web/package.json",
+        "web/src/locales/**",
         "web/src/contexts/AuthContext.tsx",
         "web/src/lib/legal.ts"
       ],
@@ -68,7 +71,9 @@
             "docs/**"
           ],
           "denied_paths": [
-            "docs/ops/**"
+            "docs/ops/**",
+            "docs/science/**",
+            "docs/dev/contributing.md"
           ],
           "test_policy": "not-applicable"
         },

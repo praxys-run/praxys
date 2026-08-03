@@ -11,3 +11,48 @@
 /scripts/translate_missing.py  @dddtc2005
 /scripts/i18n_glossary.yaml    @dddtc2005
 /.github/workflows/i18n.yml    @dddtc2005
+
+# Science changes have one explicit owner until an independent science-review
+# team is established. The contribution guide makes that current limitation
+# visible to submitters; this ownership rule must not be read as independent
+# scientific approval.
+/analysis/                         @dddtc2005
+/data/science/                     @dddtc2005
+/docs/science/                     @dddtc2005
+/docs/dev/contributing.md          @dddtc2005
+/api/deps.py                       @dddtc2005
+/api/packs.py                      @dddtc2005
+/api/views.py                      @dddtc2005
+/api/routes/science.py             @dddtc2005
+/api/routes/training.py            @dddtc2005
+/api/routes/today.py               @dddtc2005
+/api/routes/goal.py                @dddtc2005
+/web/src/components/ScienceNote.tsx @dddtc2005
+/web/src/components/HeatAdaptationPanel.tsx @dddtc2005
+/web/src/components/RecoveryPanel.tsx       @dddtc2005
+/web/src/components/ZoneAnalysisCard.tsx    @dddtc2005
+/web/src/components/ManagedPlanSettingsCard.tsx @dddtc2005
+/web/src/components/SplitBreakdown.tsx      @dddtc2005
+/web/src/components/charts/                 @dddtc2005
+/web/src/contexts/ScienceContext.tsx         @dddtc2005
+/web/src/lib/workout-parser.ts               @dddtc2005
+/web/src/pages/Science.tsx          @dddtc2005
+/web/src/pages/Goal.tsx             @dddtc2005
+/web/src/pages/Today.tsx            @dddtc2005
+/web/src/pages/Training.tsx         @dddtc2005
+/web/src/types/api.ts               @dddtc2005
+/miniapp/pages/science/             @dddtc2005
+/miniapp/pages/training/            @dddtc2005
+/miniapp/pages/today/               @dddtc2005
+/miniapp/pages/goal/                @dddtc2005
+/miniapp/pages/settings/            @dddtc2005
+/miniapp/utils/heat-adaptation.ts   @dddtc2005
+/miniapp/utils/i18n-extra.ts        @dddtc2005
+/miniapp/types/api.ts               @dddtc2005
+/web/src/locales/                   @dddtc2005
+/.github/CODEOWNERS                 @dddtc2005
+/.github/ISSUE_TEMPLATE/science-correction.yml @dddtc2005
+/.github/PULL_REQUEST_TEMPLATE/science-change.md @dddtc2005
+/.claude/agents/science-reviewer.md             @dddtc2005
+/config/agent-loop-policies.json                @dddtc2005
+/data/agent_evals/change/review_promotion.json  @dddtc2005

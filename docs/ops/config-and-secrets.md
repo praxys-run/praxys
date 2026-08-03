@@ -421,7 +421,13 @@ to the Copilot coding agent. These are **repo settings, not deploy-managed**:
   code config. It names the active assignment policy, narrow candidate classes,
   protected paths, evidence thresholds, and promoted classes. Promotion is
   blocked by `scripts/validate_review_policy.py` unless the checked-in evidence
-  meets the full bar.
+  meets the full bar. `docs/science/**` and `docs/dev/contributing.md` are
+  protected paths explicitly excluded from documentation-only promotion, while
+  `web/src/locales/**` is protected because the shared catalogs contain
+  scientific copy. These paths stay outside policy-owned auto-merge and are
+  routed through CODEOWNERS. This is a documented human-review requirement,
+  not currently a ruleset-enforced approval gate; the solo-maintainer ruleset
+  still requires zero approvals.
 - **Selective-review runtime controls** are repository Actions variables:
   `PRAXYS_SELECTIVE_REVIEW_ENABLED` defaults to `false`;
   `PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH=true` stops approval immediately. The
