@@ -51,12 +51,12 @@ msgid "{0, plural, one {Praxys workout} other {Praxys workouts}}"
 msgstr "{0, plural, other {# 个 Praxys 训练}}"
 
 #. placeholder {0}: status.exposure_days
-#: src/components/HeatAdaptationPanel.tsx:580
+#: src/components/HeatAdaptationPanel.tsx:620
 msgid "{0} / {thresholdDays} days"
 msgstr "{0} / {thresholdDays} 天"
 
 #. placeholder {0}: formatThresholdNumber(status.effective_heat_minutes, locale)
-#: src/components/HeatAdaptationPanel.tsx:587
+#: src/components/HeatAdaptationPanel.tsx:627
 msgid "{0} / {thresholdMinutes} min"
 msgstr "{0} / {thresholdMinutes} 分钟"
 
@@ -79,14 +79,14 @@ msgstr "{0} / {thresholdMinutes} 分钟"
 #~ msgstr "{0} 加权分钟"
 
 #. placeholder {0}: formatRange( conditions.relative_humidity_pct.min, conditions.relative_humidity_pct.max, '%', locale, )
-#: src/components/HeatAdaptationPanel.tsx:489
+#: src/components/HeatAdaptationPanel.tsx:527
 msgid "{0} humidity"
 msgstr "湿度 {0}"
 
 #. placeholder {0}: selected.counted_session_count
 #. placeholder {1}: selected.session_count - selected.counted_session_count
 #. placeholder {2}: Math.round(selected.effective_heat_minutes)
-#: src/components/HeatAdaptationPanel.tsx:350
+#: src/components/HeatAdaptationPanel.tsx:388
 msgid "{0} included · {1} observed, not included · {2} effective min"
 msgstr "纳入 {0} 次 · 已观察但未纳入 {1} 次 · 等效热暴露 {2} 分钟"
 
@@ -168,7 +168,7 @@ msgstr "{0}周平均"
 
 #. placeholder {0}: formatDate(day.date, locale)
 #. placeholder {1}: day.counted_session_count
-#: src/components/HeatAdaptationPanel.tsx:292
+#: src/components/HeatAdaptationPanel.tsx:330
 msgid "{0}: {1} included, {excluded} observed but not included"
 msgstr "{0}：纳入 {1} 次，已观察但未纳入 {excluded} 次"
 
@@ -233,7 +233,7 @@ msgstr "{conflictCount, plural, other {# 个待处理}}"
 #~ msgid "{days} days · {minutes} effective min"
 #~ msgstr "{days} 天 · 等效热暴露 {minutes} 分钟"
 
-#: src/components/HeatAdaptationPanel.tsx:168
+#: src/components/HeatAdaptationPanel.tsx:176
 msgid "{days} days ago"
 msgstr "{days} 天前"
 
@@ -262,11 +262,11 @@ msgstr "{days} 天前"
 #~ msgid "{humidityPercentRange} humidity"
 #~ msgstr "湿度 {humidityPercentRange}"
 
-#: src/components/HeatAdaptationPanel.tsx:539
+#: src/components/HeatAdaptationPanel.tsx:577
 msgid "{included} included · {excluded} observed, not included"
 msgstr "纳入 {included} 次 · 已观察但未纳入 {excluded} 次"
 
-#: src/components/HeatAdaptationPanel.tsx:105
+#: src/components/HeatAdaptationPanel.tsx:113
 msgid "{minutes} effective min"
 msgstr "等效热暴露 {minutes} 分钟"
 
@@ -346,7 +346,7 @@ msgstr "<0>你已进入候补名单。</0> 有名额时，我们会通过 <1>{SU
 msgid "~{estimatedActivities} activities, ~{estimatedMinutes} min"
 msgstr "约 {estimatedActivities} 项活动，约 {estimatedMinutes} 分钟"
 
-#: src/components/HeatAdaptationPanel.tsx:167
+#: src/components/HeatAdaptationPanel.tsx:175
 msgid "1 day ago"
 msgstr "1 天前"
 
@@ -457,11 +457,11 @@ msgstr "7 天"
 #~ msgid "A normal warm-weather session can maintain adaptation when recovery allows."
 #~ msgstr "恢复状态允许时，一次正常的温热环境训练即可帮助维持热适应。"
 
-#: src/components/HeatAdaptationPanel.tsx:151
+#: src/components/HeatAdaptationPanel.tsx:159
 msgid "A prior qualifying block can still inform this qualitative stage, but response-specific adaptations may already be declining."
 msgstr "先前符合条件的训练区块仍可为这一阶段提供定性依据，但不同适应反应可能已经开始减弱。"
 
-#: src/components/HeatAdaptationPanel.tsx:150
+#: src/components/HeatAdaptationPanel.tsx:158
 msgid "A prior qualifying block can still inform this qualitative stage, but response-specific adaptations may already be declining. The range shown here describes current qualifying evidence, not that prior block."
 msgstr "先前符合条件的训练区块仍可为这一阶段提供定性依据，但不同适应反应可能已经开始减弱。此处显示的范围仅描述当前符合条件的证据，并非该先前训练区块的环境范围。"
 
@@ -476,11 +476,11 @@ msgstr "先前符合条件的训练区块仍可为这一阶段提供定性依据
 #~ msgid "A prior qualifying block remains inside the model's operational retention window. The range shown here describes current qualifying evidence, not that retained block."
 #~ msgstr "先前符合条件的训练区块仍处于模型设定的保留窗口内。此处显示的范围仅描述当前符合条件的证据，并非该保留区块的环境范围。"
 
-#: src/components/HeatAdaptationPanel.tsx:159
+#: src/components/HeatAdaptationPanel.tsx:167
 msgid "A prior qualifying block still informs this qualitative stage, but response-specific adaptation evidence is declining."
 msgstr "此前一段达标训练仍可作为当前定性阶段的依据，但不同适应反应的证据正在减弱。"
 
-#: src/components/HeatAdaptationPanel.tsx:158
+#: src/components/HeatAdaptationPanel.tsx:166
 msgid "A prior qualifying block still informs this qualitative stage, but response-specific adaptation evidence is declining. The range shown here describes current qualifying evidence, not that prior block."
 msgstr "此前一段达标训练仍可作为当前定性阶段的依据，但不同适应反应的证据正在减弱。这里显示的是当前达标训练的证据范围，并非此前那段训练。"
 
@@ -567,7 +567,7 @@ msgstr "仅活动数据：跑步、骑行、配速、心率、路线数据"
 msgid "Activities-only connection"
 msgstr "仅同步活动"
 
-#: src/components/HeatAdaptationPanel.tsx:380
+#: src/components/HeatAdaptationPanel.tsx:418
 msgid "Activity evidence"
 msgstr "活动证据"
 
@@ -579,7 +579,7 @@ msgstr "活跃度"
 #~ msgid "Activity not counted"
 #~ msgstr "活动未计入"
 
-#: src/components/HeatAdaptationPanel.tsx:82
+#: src/components/HeatAdaptationPanel.tsx:90
 msgid "Activity splits"
 msgstr "活动分段"
 
@@ -591,7 +591,7 @@ msgstr "要同步的活动类型"
 #~ msgid "activity-derived"
 #~ msgstr "活动推导"
 
-#: src/components/HeatAdaptationPanel.tsx:90
+#: src/components/HeatAdaptationPanel.tsx:98
 msgid "Activity-summary weather"
 msgstr "活动汇总天气"
 
@@ -960,7 +960,7 @@ msgstr "面向全产品沟通的双语公告横幅。"
 msgid "Body (optional)"
 msgstr "正文（可选）"
 
-#: src/components/HeatAdaptationPanel.tsx:571
+#: src/components/HeatAdaptationPanel.tsx:611
 msgid "Both thresholds must be met. The bars describe model evidence, not a biological adaptation percentage."
 msgstr "必须同时达到两个阈值。这些进度条表示模型证据，而不是生理适应百分比。"
 
@@ -1571,11 +1571,11 @@ msgstr "当前 {abbrev}"
 msgid "Current {metricName}"
 msgstr "当前 {metricName}"
 
-#: src/components/HeatAdaptationPanel.tsx:545
+#: src/components/HeatAdaptationPanel.tsx:583
 msgid "Current conclusion"
 msgstr "当前结论"
 
-#: src/components/HeatAdaptationPanel.tsx:472
+#: src/components/HeatAdaptationPanel.tsx:510
 msgid "Current evidence"
 msgstr "当前证据"
 
@@ -1584,7 +1584,7 @@ msgstr "当前证据"
 msgid "Current HRV crossed your personal caution band."
 msgstr "当前 HRV 低于个人警戒区间。"
 
-#: src/components/HeatAdaptationPanel.tsx:500
+#: src/components/HeatAdaptationPanel.tsx:538
 msgid "Current qualifying evidence"
 msgstr "当前符合条件的证据"
 
@@ -1617,7 +1617,7 @@ msgstr "深色"
 msgid "Dark theme (click for system)"
 msgstr "深色主题（点击切换为系统）"
 
-#: src/components/HeatAdaptationPanel.tsx:596
+#: src/components/HeatAdaptationPanel.tsx:636
 msgid "Data coverage"
 msgstr "数据覆盖情况"
 
@@ -1817,7 +1817,7 @@ msgstr "降级"
 msgid "Demote to User"
 msgstr "降级为普通用户"
 
-#: src/components/HeatAdaptationPanel.tsx:391
+#: src/components/HeatAdaptationPanel.tsx:429
 msgid "Detailed activity evidence is unavailable for this day."
 msgstr "当天暂无详细活动证据。"
 
@@ -2036,7 +2036,7 @@ msgstr "轻松跑"
 msgid "Edit"
 msgstr "编辑"
 
-#: src/components/HeatAdaptationPanel.tsx:584
+#: src/components/HeatAdaptationPanel.tsx:624
 msgid "Effective heat"
 msgstr "等效热暴露"
 
@@ -2044,12 +2044,12 @@ msgstr "等效热暴露"
 #~ msgid "Effective heat minutes"
 #~ msgstr "热暴露加权分钟"
 
-#: src/components/HeatAdaptationPanel.tsx:434
+#: src/components/HeatAdaptationPanel.tsx:472
 msgid "Effective heat time"
 msgstr "等效热暴露时长"
 
 #. placeholder {0}: formatThresholdNumber(status.effective_heat_minutes, locale)
-#: src/components/HeatAdaptationPanel.tsx:588
+#: src/components/HeatAdaptationPanel.tsx:628
 msgid "Effective heat: {0} of {thresholdMinutes} minutes"
 msgstr "等效热暴露：{0} / {thresholdMinutes} 分钟"
 
@@ -2145,7 +2145,7 @@ msgstr "每<0>{0}</0>小时"
 msgid "Every change is recorded here and can be restored while that exact workout version is still current."
 msgstr "每次调整都会记录在这里；只要该训练的当前版本未发生变化，就可以恢复。"
 
-#: src/components/HeatAdaptationPanel.tsx:475
+#: src/components/HeatAdaptationPanel.tsx:513
 msgid "evidence"
 msgstr "证据"
 
@@ -2185,7 +2185,7 @@ msgstr "证据"
 #~ msgid "Evidence toward likely adapted"
 #~ msgstr "达到“可能已适应”的证据进度"
 
-#: src/components/HeatAdaptationPanel.tsx:568
+#: src/components/HeatAdaptationPanel.tsx:608
 msgid "Evidence toward Likely adapted"
 msgstr "达到“可能已适应”的证据进度"
 
@@ -2451,7 +2451,7 @@ msgstr "发现问题或有想法？告诉我们。反馈会自动审阅并分流
 #~ msgid "Fourteen days of supported activity evidence, not a biological adaptation score."
 #~ msgstr "基于 14 天受支持活动的证据，并非生理适应百分比。"
 
-#: src/components/HeatAdaptationPanel.tsx:258
+#: src/components/HeatAdaptationPanel.tsx:296
 msgid "Fourteen-day activity record"
 msgstr "14天活动记录"
 
@@ -2617,15 +2617,15 @@ msgstr "热适应"
 #~ msgid "Heat adaptation covers acclimatization from natural heat and acclimation from controlled heat. This tracker uses one connector-provided activity-summary temperature/humidity pair. Environmental evidence takes the stronger of an estimated 18–26°C Stull psychrometric wet-bulb ramp and an estimated 30–40°C dry-bulb ramp; the ramps are never added and this is not WBGT. Workload uses timestamp-weighted sample power relative to a same-provider current CP, with splits only when samples cover less than 90% of activity duration. Sample gaps over five seconds do not count toward coverage. The environmental ramps, effective minutes, stage thresholds, and the 7–28 day decay window are Praxys operational estimates; evidence labels describe data coverage, not biological certainty. Wind, solar radiation, within-session weather changes, clothing, hydration state, and measured core or skin temperature are excluded. Repeated exposure can reduce cardiovascular and thermal strain, but individual response varies and female-specific evidence remains limited. This is not medical clearance or a current heat-risk assessment: follow Today's signal, keep normal hydration and cooling available, stop immediately and begin cooling for heat-illness symptoms, and seek urgent medical help for confusion, collapse, or altered mental status."
 #~ msgstr "热适应涵盖自然热环境下的热习服（acclimatization）和受控热环境下的热习服（acclimation）。本追踪器使用连接器提供的一组活动摘要温湿度。环境证据取两条估算线性权重坡度中较强者：18–26°C 的 Stull 估算湿球温度坡度与 30–40°C 的干球温度坡度；二者不会相加，结果也不是 WBGT。训练负荷使用相对于同一提供方当前 CP、按时间戳间隔加权的样本功率；当样本覆盖不足活动时长的 90% 时才回退到分段功率。超过 5 秒的样本间隔不计入覆盖率。环境权重坡度、加权分钟、阶段阈值和 7–28 天衰减窗口均为 Praxys 的操作性估算；证据标签描述数据覆盖度，不代表个体生理适应的确定性。模型不包含风速、太阳辐射、训练过程中的天气变化、服装、补水状态，以及实测核心体温或皮肤温度。反复热暴露可降低心血管和热应激，但个体反应不同，针对女性的证据仍有限。这不构成医疗许可，也不评估当前热风险：请遵循今日信号，保持正常补水并准备降温措施；一旦出现热病症状，应立即停止热暴露并开始降温；如出现意识混乱、虚脱或精神状态改变，应立即寻求紧急医疗救助。"
 
-#: src/components/HeatAdaptationPanel.tsx:132
+#: src/components/HeatAdaptationPanel.tsx:140
 msgid "Heat adaptation is not established."
 msgstr "热适应尚未形成。"
 
-#: src/components/HeatAdaptationPanel.tsx:130
+#: src/components/HeatAdaptationPanel.tsx:138
 msgid "Heat adaptation may be developing."
 msgstr "热适应可能正在形成。"
 
-#: src/components/HeatAdaptationPanel.tsx:117
+#: src/components/HeatAdaptationPanel.tsx:125
 msgid "Heat adaptation may be rebuilding."
 msgstr "热适应可能正在恢复。"
 
@@ -2642,6 +2642,10 @@ msgstr "热适应可能正在恢复。"
 #: src/components/HeatAdaptationPanel.tsx:197
 #~ msgid "Heat evidence timeline"
 #~ msgstr "热适应证据时间线"
+
+#: src/components/HeatAdaptationPanel.tsx:231
+msgid "Heat safety"
+msgstr "高温安全"
 
 #: src/components/HeatAdaptationPanel.tsx:461
 #~ msgid "Heat-adaptation evidence is decaying"
@@ -2895,21 +2899,21 @@ msgstr "事件状态不可用"
 msgid "Incidents"
 msgstr "事件"
 
-#: src/components/HeatAdaptationPanel.tsx:267
-#: src/components/HeatAdaptationPanel.tsx:319
+#: src/components/HeatAdaptationPanel.tsx:305
+#: src/components/HeatAdaptationPanel.tsx:357
 msgid "Included"
 msgstr "已纳入"
 
-#: src/components/HeatAdaptationPanel.tsx:176
+#: src/components/HeatAdaptationPanel.tsx:184
 msgid "Included because supported weather and workload evidence reached the session threshold."
 msgstr "已纳入：受支持的天气和负荷证据达到了单次训练阈值。"
 
-#: src/components/HeatAdaptationPanel.tsx:343
-#: src/components/HeatAdaptationPanel.tsx:415
+#: src/components/HeatAdaptationPanel.tsx:381
+#: src/components/HeatAdaptationPanel.tsx:453
 msgid "Included in estimate"
 msgstr "已纳入估算"
 
-#: src/components/HeatAdaptationPanel.tsx:83
+#: src/components/HeatAdaptationPanel.tsx:91
 msgid "Incomplete power samples"
 msgstr "功率采样不完整"
 
@@ -3080,7 +3084,7 @@ msgstr "上次活动"
 #~ msgid "Last contributing session yesterday"
 #~ msgstr "最近一次计入训练在昨天"
 
-#: src/components/HeatAdaptationPanel.tsx:600
+#: src/components/HeatAdaptationPanel.tsx:640
 msgid "Last included session"
 msgstr "最近一次纳入训练"
 
@@ -3163,7 +3167,7 @@ msgstr "可能已适应"
 #~ msgid "Likely adapted to recent heat"
 #~ msgstr "近期热适应证据已达到“可能已适应”"
 
-#: src/components/HeatAdaptationPanel.tsx:125
+#: src/components/HeatAdaptationPanel.tsx:133
 msgid "Likely adapted to similar recent conditions."
 msgstr "可能已适应近期类似环境。"
 
@@ -3459,7 +3463,7 @@ msgstr "手动添加及其他教练安排的训练仍属于外部训练，不会
 msgid "Marathon"
 msgstr "马拉松"
 
-#: src/components/HeatAdaptationPanel.tsx:98
+#: src/components/HeatAdaptationPanel.tsx:106
 msgid "Matched"
 msgstr "匹配"
 
@@ -3514,7 +3518,7 @@ msgstr "轻微"
 msgid "mirrors {0}"
 msgstr "对应 {0}"
 
-#: src/components/HeatAdaptationPanel.tsx:99
+#: src/components/HeatAdaptationPanel.tsx:107
 msgid "Mismatch"
 msgstr "不匹配"
 
@@ -3526,7 +3530,7 @@ msgstr "不匹配"
 #~ msgid "Mixed power sources"
 #~ msgstr "功率来源混合"
 
-#: src/components/HeatAdaptationPanel.tsx:100
+#: src/components/HeatAdaptationPanel.tsx:108
 msgid "Mixed providers"
 msgstr "数据来源混合"
 
@@ -3786,7 +3790,7 @@ msgstr "在此时间窗口内未记录连接尝试。"
 msgid "No current classification"
 msgstr "当前暂无分类"
 
-#: src/components/HeatAdaptationPanel.tsx:505
+#: src/components/HeatAdaptationPanel.tsx:543
 msgid "No current qualifying condition range yet"
 msgstr "目前尚无符合条件的环境范围"
 
@@ -3807,7 +3811,7 @@ msgstr "暂无数据"
 msgid "No delivery result was returned for this workout"
 msgstr "未返回此训练的下发结果"
 
-#: src/components/HeatAdaptationPanel.tsx:322
+#: src/components/HeatAdaptationPanel.tsx:360
 msgid "No evidence"
 msgstr "暂无记录"
 
@@ -3827,8 +3831,8 @@ msgstr "没有等待审核或重试的反馈记录。"
 msgid "No goal set. Set a race target or distance goal to unlock predictions and countdown."
 msgstr "尚未设置目标。设置比赛目标或距离目标后可查看预测和倒计时。"
 
-#: src/components/HeatAdaptationPanel.tsx:275
-#: src/components/HeatAdaptationPanel.tsx:346
+#: src/components/HeatAdaptationPanel.tsx:313
+#: src/components/HeatAdaptationPanel.tsx:384
 msgid "No heat evidence"
 msgstr "无热暴露记录"
 
@@ -3912,15 +3916,15 @@ msgstr "此窗口内暂无 Praxys 训练。之后由 Praxys 创建的训练会�
 msgid "No split data available."
 msgstr "没有可用的分段数据。"
 
-#: src/components/HeatAdaptationPanel.tsx:393
+#: src/components/HeatAdaptationPanel.tsx:431
 msgid "No supported heat evidence for this day."
 msgstr "当天没有受支持的热暴露证据。"
 
-#: src/components/HeatAdaptationPanel.tsx:92
+#: src/components/HeatAdaptationPanel.tsx:100
 msgid "No supported weather evidence"
 msgstr "无受支持的天气证据"
 
-#: src/components/HeatAdaptationPanel.tsx:84
+#: src/components/HeatAdaptationPanel.tsx:92
 msgid "No supported workload evidence"
 msgstr "无受支持的负荷证据"
 
@@ -4009,7 +4013,7 @@ msgstr "今日无训练安排。"
 msgid "No workouts scheduled in this window."
 msgstr "这段时间内暂无训练安排。"
 
-#: src/components/HeatAdaptationPanel.tsx:165
+#: src/components/HeatAdaptationPanel.tsx:173
 msgid "None in the active window"
 msgstr "当前时间窗口内无记录"
 
@@ -4099,8 +4103,8 @@ msgstr "关于 Garmin 原生功率的说明"
 msgid "Now open · Create your account"
 msgstr "现已开放 · 创建账号"
 
-#: src/components/HeatAdaptationPanel.tsx:271
-#: src/components/HeatAdaptationPanel.tsx:321
+#: src/components/HeatAdaptationPanel.tsx:309
+#: src/components/HeatAdaptationPanel.tsx:359
 msgid "Observed"
 msgstr "已记录"
 
@@ -4108,32 +4112,32 @@ msgstr "已记录"
 msgid "Observed time in each intensity zone compared with the selected training theory."
 msgstr "将各强度分区的实际用时与所选训练理论进行比较。"
 
-#: src/components/HeatAdaptationPanel.tsx:179
+#: src/components/HeatAdaptationPanel.tsx:187
 msgid "Observed, but not included because it stayed below {thresholdMinutes} effective heat minutes."
 msgstr "已记录，但未纳入，因为等效热暴露时长未达到 {thresholdMinutes} 分钟。"
 
-#: src/components/HeatAdaptationPanel.tsx:182
+#: src/components/HeatAdaptationPanel.tsx:190
 msgid "Observed, but not included because power-sample coverage was incomplete."
 msgstr "已记录，但未纳入，因为功率采样覆盖不完整。"
 
-#: src/components/HeatAdaptationPanel.tsx:193
+#: src/components/HeatAdaptationPanel.tsx:201
 msgid "Observed, but not included because supported workload evidence was unavailable."
 msgstr "已观察但未纳入，因为缺少受支持的负荷证据。"
 
-#: src/components/HeatAdaptationPanel.tsx:185
+#: src/components/HeatAdaptationPanel.tsx:193
 msgid "Observed, but not included because the activity and threshold power sources did not match."
 msgstr "已记录，但未纳入，因为活动功率与阈值功率的数据来源不一致。"
 
-#: src/components/HeatAdaptationPanel.tsx:188
+#: src/components/HeatAdaptationPanel.tsx:196
 msgid "Observed, but not included because the power-source match could not be verified."
 msgstr "已记录，但未纳入，因为无法确认功率数据来源是否一致。"
 
-#: src/components/HeatAdaptationPanel.tsx:191
+#: src/components/HeatAdaptationPanel.tsx:199
 msgid "Observed, but not included because workload evidence mixed power providers."
 msgstr "已记录，但未纳入，因为训练负荷证据混用了多个功率数据来源。"
 
-#: src/components/HeatAdaptationPanel.tsx:345
-#: src/components/HeatAdaptationPanel.tsx:416
+#: src/components/HeatAdaptationPanel.tsx:383
+#: src/components/HeatAdaptationPanel.tsx:454
 msgid "Observed, not included"
 msgstr "已记录，未纳入"
 
@@ -4202,7 +4206,7 @@ msgstr "查看 Azure 警报"
 msgid "Open Azure logs"
 msgstr "查看 Azure 日志"
 
-#: src/components/HeatAdaptationPanel.tsx:477
+#: src/components/HeatAdaptationPanel.tsx:515
 msgid "Open evidence"
 msgstr "查看证据"
 
@@ -4336,8 +4340,8 @@ msgid "Past Incidents"
 msgstr "历史故障"
 
 #: src/components/HeatAdaptationPanel.tsx:622
-msgid "Past training only. This does not assess today's weather, guarantee adaptation, or replace medical guidance."
-msgstr "仅基于过往训练；不评估今日天气，不保证已经适应，也不能替代医疗建议。"
+#~ msgid "Past training only. This does not assess today's weather, guarantee adaptation, or replace medical guidance."
+#~ msgstr "仅基于过往训练；不评估今日天气，不保证已经适应，也不能替代医疗建议。"
 
 #: src/components/HeatAdaptationPanel.tsx:556
 #~ msgid "Past-exposure estimate only."
@@ -4497,7 +4501,7 @@ msgstr "功率"
 msgid "Power metrics, Critical Power, training plans"
 msgstr "功率指标、阈值功率、训练计划"
 
-#: src/components/HeatAdaptationPanel.tsx:81
+#: src/components/HeatAdaptationPanel.tsx:89
 msgid "Power samples"
 msgstr "功率数据点"
 
@@ -4513,7 +4517,7 @@ msgstr "功率数据点"
 #~ msgid "Power-based training dashboard"
 #~ msgstr "功率训练仪表盘"
 
-#: src/components/HeatAdaptationPanel.tsx:440
+#: src/components/HeatAdaptationPanel.tsx:478
 msgid "Power-source match"
 msgstr "功率数据源匹配"
 
@@ -4679,7 +4683,7 @@ msgstr "训练数据首选来源"
 #~ msgid "Prior heat adaptation evidence is fading."
 #~ msgstr "先前的热适应证据正在减弱。"
 
-#: src/components/HeatAdaptationPanel.tsx:131
+#: src/components/HeatAdaptationPanel.tsx:139
 msgid "Prior heat adaptation evidence may be declining."
 msgstr "先前热适应的证据可能正在减弱。"
 
@@ -4815,16 +4819,16 @@ msgstr "如果明天安排休息或轻松训练，把 {workout} 挪到明天"
 #~ msgid "Pushing…"
 #~ msgstr "推送中…"
 
-#: src/components/HeatAdaptationPanel.tsx:577
+#: src/components/HeatAdaptationPanel.tsx:617
 msgid "Qualifying days"
 msgstr "达标天数"
 
 #. placeholder {0}: status.exposure_days
-#: src/components/HeatAdaptationPanel.tsx:581
+#: src/components/HeatAdaptationPanel.tsx:621
 msgid "Qualifying days: {0} of {thresholdDays}"
 msgstr "达标天数：{0}/{thresholdDays}"
 
-#: src/components/HeatAdaptationPanel.tsx:137
+#: src/components/HeatAdaptationPanel.tsx:145
 msgid "Qualifying exposure has resumed after a longer gap, but current evidence is still limited."
 msgstr "较长间隔后已恢复达标热暴露，但当前证据仍然有限。"
 
@@ -4897,7 +4901,7 @@ msgstr "重新邀请"
 #~ msgid "reacclimating"
 #~ msgstr "再适应中"
 
-#: src/components/HeatAdaptationPanel.tsx:109
+#: src/components/HeatAdaptationPanel.tsx:117
 msgid "Reacclimating"
 msgstr "重新适应中"
 
@@ -4905,7 +4909,7 @@ msgstr "重新适应中"
 #~ msgid "Reacclimatization to similar conditions may be developing."
 #~ msgstr "你可能正在重新适应相似环境。"
 
-#: src/components/HeatAdaptationPanel.tsx:630
+#: src/components/HeatAdaptationPanel.tsx:665
 msgid "Read the active heat model"
 msgstr "查看当前热适应模型"
 
@@ -4934,7 +4938,7 @@ msgstr "根据身体信号判断准备度。"
 msgid "Realistic alternative targets"
 msgstr "可行的替代目标"
 
-#: src/components/HeatAdaptationPanel.tsx:113
+#: src/components/HeatAdaptationPanel.tsx:121
 msgid "Rebuilding"
 msgstr "重建中"
 
@@ -5037,7 +5041,7 @@ msgstr "近期模型负荷明显低于长期模型负荷。"
 #~ msgid "Recent qualifying training range"
 #~ msgstr "近期符合条件的训练环境"
 
-#: src/components/HeatAdaptationPanel.tsx:154
+#: src/components/HeatAdaptationPanel.tsx:162
 msgid "Recent training clears the Building threshold but remains below the conservative Likely adapted stage."
 msgstr "近期训练已达到“建立中”阈值，但仍低于保守的“可能已适应”阶段。"
 
@@ -5045,15 +5049,15 @@ msgstr "近期训练已达到“建立中”阈值，但仍低于保守的“可
 #~ msgid "Recent training makes acclimatization to similar conditions plausible."
 #~ msgstr "近期训练表明，你可能已经适应相似环境。"
 
-#: src/components/HeatAdaptationPanel.tsx:146
+#: src/components/HeatAdaptationPanel.tsx:154
 msgid "Recent training meets the model's conservative evidence threshold for acclimatization to similar conditions."
 msgstr "近期训练已达到模型针对相似环境下热适应设定的保守证据阈值。"
 
-#: src/components/HeatAdaptationPanel.tsx:123
+#: src/components/HeatAdaptationPanel.tsx:131
 msgid "Recent training meets the model's exposure threshold, but response-specific adaptation evidence may already be declining since the latest qualifying session."
 msgstr "近期训练达到模型的暴露阈值，但自最近一次符合条件的训练后，不同适应反应的证据可能已经开始减弱。"
 
-#: src/components/HeatAdaptationPanel.tsx:161
+#: src/components/HeatAdaptationPanel.tsx:169
 msgid "Recent training remains below the model's Building threshold."
 msgstr "近期训练仍低于模型的“建立中”阈值。"
 
@@ -5697,7 +5701,7 @@ msgstr "名额上限"
 msgid "Securely signing in to Garmin. This can take 15-30 seconds because Garmin rate-limits automated logins. Please keep this window open."
 msgstr "正在安全登录 Garmin。由于 Garmin 会限制自动登录频率，这可能需要 15-30 秒。请不要关闭此窗口。"
 
-#: src/components/HeatAdaptationPanel.tsx:261
+#: src/components/HeatAdaptationPanel.tsx:299
 msgid "Select a day to inspect what entered the estimate."
 msgstr "选择一天，查看当天哪些训练被纳入估算。"
 
@@ -5956,7 +5960,7 @@ msgstr "快照 {0}"
 msgid "Some adaptation may persist"
 msgstr "部分适应可能仍然存在"
 
-#: src/components/HeatAdaptationPanel.tsx:128
+#: src/components/HeatAdaptationPanel.tsx:136
 msgid "Some prior heat adaptation may persist, while response-specific evidence may already be declining."
 msgstr "部分既往热适应可能仍然存在，但不同适应反应的证据可能已经开始减弱。"
 
@@ -5973,7 +5977,7 @@ msgstr "来源"
 #~ msgid "Split power"
 #~ msgstr "分段功率"
 
-#: src/components/HeatAdaptationPanel.tsx:88
+#: src/components/HeatAdaptationPanel.tsx:96
 msgid "Split-weighted weather"
 msgstr "按分段加权的天气"
 
@@ -6023,6 +6027,10 @@ msgstr "状态"
 #: src/lib/phase-label.ts:12
 msgid "Steady"
 msgstr "匀速"
+
+#: src/components/HeatAdaptationPanel.tsx:53
+msgid "Stop activity if heat-illness symptoms develop, and seek medical care."
+msgstr "如出现热相关疾病症状，请立即停止活动并就医。"
 
 #: src/pages/Settings.tsx:1126
 msgid "Strava Client ID"
@@ -6414,11 +6422,11 @@ msgstr "公共状态源中没有未解决事件。"
 msgid "The rolling 14-day window is delivered to {0}."
 msgstr "滚动的 14 天窗口会下发到 {0}。"
 
-#: src/components/HeatAdaptationPanel.tsx:144
+#: src/components/HeatAdaptationPanel.tsx:152
 msgid "The rolling exposure threshold is still met, but it does not establish a retention plateau; response-specific adaptations may already be declining."
 msgstr "滚动暴露阈值仍然满足，但这并不代表存在保留平台期；不同适应反应可能已经开始减弱。"
 
-#: src/components/HeatAdaptationPanel.tsx:383
+#: src/components/HeatAdaptationPanel.tsx:421
 msgid "The selected day's activities show why each session entered or stayed outside the estimate."
 msgstr "所选日期的活动会说明每次训练为何被纳入估算，或为何仍未纳入。"
 
@@ -6430,7 +6438,7 @@ msgstr "状态 API 未响应，这本身可能表示服务中断。"
 msgid "The target version is unavailable."
 msgstr "目标平台版本不可用。"
 
-#: src/components/HeatAdaptationPanel.tsx:617
+#: src/components/HeatAdaptationPanel.tsx:657
 msgid "The thresholds are Praxys operational estimates grounded in heat-acclimatization research, not a direct physiological measurement."
 msgstr "这些阈值是 Praxys 基于热适应研究设定的操作性估计，并非直接的生理测量。"
 
@@ -6458,6 +6466,10 @@ msgstr "无法自动重试此次下发。请查看已刷新的队列，确认所
 msgid "This delivery changed before recovery started. Review the refreshed queue."
 msgstr "恢复开始前，此次下发状态已变更。请查看已刷新的队列。"
 
+#: src/components/HeatAdaptationPanel.tsx:52
+msgid "This evaluates past training only; it does not assess today's weather or conditions."
+msgstr "这仅评估过往训练，不评估今天的天气或环境条件。"
+
 #: src/components/ManagedPlanSettingsCard.tsx:737
 msgid "This guardrail uses individualized HRV guidance and never loads activity intensity. The exact caution band and rest-day action are conservative product estimates, not diagnoses or clinically validated prescriptions. Prior-day, missing, or inconsistent recovery; a completed activity; multiple Praxys workouts; or an uncertain target calendar keeps the plan unchanged. Load, sleep, and other caution signals remain suggestions."
 msgstr "此护栏采用个体化 HRV 指导，且不会加载活动强度。具体警戒区间与改为休息日的规则属于保守的产品估算，并非诊断或经临床验证的处方。恢复数据来自前一天、缺失或内部不一致，今天已有活动记录，存在多项 Praxys 训练，或目标日历状态不确定时，计划保持不变。负荷、睡眠及其他警戒信号仍只用于提供建议。"
@@ -6470,9 +6482,13 @@ msgstr "此护栏采用个体化 HRV 指导，且不会加载活动强度。具�
 msgid "This insight changed. Refresh the page before sending feedback."
 msgstr "这条解读已更新。请先刷新页面，再提交反馈。"
 
-#: src/components/HeatAdaptationPanel.tsx:559
+#: src/components/HeatAdaptationPanel.tsx:597
 msgid "This is an inference from training evidence in similar conditions, not a direct physiological measurement."
 msgstr "这是基于相似环境下训练证据的推断，并非直接的生理测量。"
+
+#: src/components/HeatAdaptationPanel.tsx:51
+msgid "This is not medical clearance or a personal heat-tolerance assessment."
+msgstr "这不构成医疗许可，也不是个人耐热能力评估。"
 
 #: src/pages/Verify.tsx:67
 msgid "This link is invalid or has expired. Try signing in to request a new link."
@@ -6560,7 +6576,7 @@ msgstr "距目标"
 
 #: src/components/AppSidebar.tsx:124
 #: src/components/charts/FitnessFatigueChart.tsx:283
-#: src/components/HeatAdaptationPanel.tsx:166
+#: src/components/HeatAdaptationPanel.tsx:174
 #: src/components/RecoveryPanel.tsx:136
 #: src/pages/Today.tsx:24
 #: src/pages/Today.tsx:489
@@ -6778,7 +6794,7 @@ msgstr "日期未知"
 msgid "Unknown failure"
 msgstr "未知错误"
 
-#: src/components/HeatAdaptationPanel.tsx:101
+#: src/components/HeatAdaptationPanel.tsx:109
 msgid "Unverified"
 msgstr "未验证"
 
@@ -7023,7 +7039,7 @@ msgstr "我们正在分批邀请跑者，并持续打磨科学方法。留下邮
 msgid "We've logged it and will take a look."
 msgstr "我们已记录，会尽快查看。"
 
-#: src/components/HeatAdaptationPanel.tsx:430
+#: src/components/HeatAdaptationPanel.tsx:468
 msgid "Weather evidence"
 msgstr "天气证据"
 
@@ -7128,7 +7144,7 @@ msgstr "处于参考区间内"
 msgid "Working…"
 msgstr "处理中…"
 
-#: src/components/HeatAdaptationPanel.tsx:426
+#: src/components/HeatAdaptationPanel.tsx:464
 msgid "Workload evidence"
 msgstr "负荷证据"
 
