@@ -197,3 +197,19 @@ def test_evidence_details_are_localizable_and_explain_mixed_providers() -> None:
     assert "{session.power_source_alignment}" not in web_heat
     assert "effectiveMinutesLabel(" in web_heat
     assert "conditions.relative_humidity_pct.min" in web_heat
+
+
+def test_cadence_day_cards_clip_long_localized_labels() -> None:
+    """Localized weekday/status text must not overflow the day card (issue #542)."""
+    web_heat = _source(WEB_HEAT)
+
+    assert "h-12 min-w-0 overflow-hidden rounded-md border" in web_heat
+    assert 'className="flex min-w-0 items-baseline justify-between gap-1"' in web_heat
+    assert (
+        "hidden min-w-0 truncate text-[11px] uppercase tracking-wide text-muted-foreground sm:inline"
+        in web_heat
+    )
+    assert (
+        "mt-0.5 hidden truncate text-[11px] font-medium text-muted-foreground sm:block"
+        in web_heat
+    )
