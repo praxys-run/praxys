@@ -37,6 +37,7 @@ from analysis.metrics import (
     ACTIVITY_ANALYSIS_SCHEMA_VERSION,
     ACTIVITY_RESEARCH_SCHEMA_VERSION,
     ENVIRONMENT_CONTEXT_MODEL_VERSION,
+    HEAT_ADAPTATION_MODEL_VERSION,
     HEAT_ELIGIBLE_ACTIVITY_TYPES,
     HEAT_LOOKBACK_DAYS,
     HEAT_SAMPLE_MAX_INTERVAL_SEC,
@@ -73,6 +74,7 @@ from api.deps import (
     _get_todays_plan,
     _plan_row_duration_sec,
     _plan_workout_load,
+    _sort_activity_splits,
     _resolve_thresholds,
     _recovery_for_guidance,
     _select_prediction_method,
@@ -923,8 +925,35 @@ def _history_page(
     else:
         merged = ctx.merged_activities
 
-    if not merged.empty and "date" in merged.columns:
-        merged = merged.sort_values("date", ascending=False)
+    if not merged.empty:
+        sort_frame = merged.copy()
+        sort_columns: list[str] = []
+        ascending: list[bool] = []
+        helper_columns: list[str] = []
+        if "date" in sort_frame.columns:
+            sort_frame["_history_date"] = pd.to_datetime(
+                sort_frame["date"],
+                errors="coerce",
+            )
+            sort_columns.append("_history_date")
+            ascending.append(False)
+            helper_columns.append("_history_date")
+        for column in ("activity_id", "source"):
+            if column in sort_frame.columns:
+                helper = f"_history_{column}"
+                sort_frame[helper] = (
+                    sort_frame[column].fillna("").astype(str)
+                )
+                sort_columns.append(helper)
+                ascending.append(True)
+                helper_columns.append(helper)
+        if sort_columns:
+            merged = sort_frame.sort_values(
+                sort_columns,
+                ascending=ascending,
+                kind="stable",
+                na_position="last",
+            ).drop(columns=helper_columns)
     total = len(merged)
     if limit is None:
         return merged, total, primary
@@ -946,7 +975,10 @@ def _page_splits(
     ):
         return splits.iloc[0:0] if not splits.empty else splits
     activity_ids = set(activities["activity_id"].astype(str))
-    return splits[splits["activity_id"].astype(str).isin(activity_ids)]
+    page_splits = splits[
+        splits["activity_id"].astype(str).isin(activity_ids)
+    ]
+    return _sort_activity_splits(page_splits)
 
 
 def get_history_pack(
@@ -1512,6 +1544,19 @@ def _analysis_versions(records: list[dict]) -> dict:
         "pre_activity_load": PRE_ACTIVITY_LOAD_MODEL_VERSION,
         "heat_adaptation": heat_versions,
     }
+
+
+def get_analysis_response_version(schema_version: str) -> str:
+    """Return the ETag salt for an analysis schema and its model manifest."""
+    return _analysis_hash({
+        "schema_version": schema_version,
+        "model_versions": {
+            "stable_segments": STABLE_SEGMENT_MODEL_VERSION,
+            "environment": ENVIRONMENT_CONTEXT_MODEL_VERSION,
+            "pre_activity_load": PRE_ACTIVITY_LOAD_MODEL_VERSION,
+            "heat_adaptation": [HEAT_ADAPTATION_MODEL_VERSION],
+        },
+    })
 
 
 def _analysis_hash(payload: dict) -> str:

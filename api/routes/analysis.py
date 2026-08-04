@@ -2,11 +2,16 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy.orm import Session
 
+from analysis.metrics import (
+    ACTIVITY_ANALYSIS_SCHEMA_VERSION,
+    ACTIVITY_RESEARCH_SCHEMA_VERSION,
+)
 from api.auth import get_current_user_id
 from api.etag import ENDPOINT_SCOPES, ETagGuard, compute_etag
 from api.packs import (
     RequestContext,
     get_activity_analysis_pack,
+    get_analysis_response_version,
     get_activity_research_pack,
 )
 from db.session import get_db
@@ -27,7 +32,11 @@ def get_activity_analysis(
         db,
         user_id,
         ENDPOINT_SCOPES["analysis"],
-        salt=f"v=activity-analysis-v1&activity_id={activity_id}",
+        salt=(
+            "v="
+            f"{get_analysis_response_version(ACTIVITY_ANALYSIS_SCHEMA_VERSION)}"
+            f"&activity_id={activity_id}"
+        ),
     )
     guard = ETagGuard(etag, request.headers.get("if-none-match"))
     if guard.is_match:
@@ -62,7 +71,8 @@ def get_activity_research_dataset(
         user_id,
         ENDPOINT_SCOPES["analysis"],
         salt=(
-            "v=activity-research-dataset-v1"
+            "v="
+            f"{get_analysis_response_version(ACTIVITY_RESEARCH_SCHEMA_VERSION)}"
             f"&limit={limit}&offset={offset}&source={source or ''}"
         ),
     )

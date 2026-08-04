@@ -792,7 +792,7 @@ Every query filters by `user_id`; activity IDs are not globally trusted.
 Returns one owned activity, continuous stable-power segments, and predictor
 context that was available before the activity.
 
-Stable segments prefer timestamped `ActivitySample` rows. The v2 detector:
+Stable segments prefer timestamped `ActivitySample` rows. The v3 detector:
 
 - excludes missing, zero, out-of-range power and sample gaps over 5 seconds;
 - identifies regions with a trailing 60-second power CV at or below 5%;
@@ -801,7 +801,8 @@ Stable segments prefer timestamped `ActivitySample` rows. The v2 detector:
   stable windows cannot overlap or double-count observations;
 - reports mean power, provider-aligned `%CP`, power CV, mean HR, HR slope in
   bpm/min, and first-half-normalized power/HR decoupling
-  (`(EF_first - EF_second) / EF_first * 100`);
+  (`(EF_first - EF_second) / EF_first * 100`), with power and HR averaged over
+  the identical HR-valid interval mask in each half;
 - emits sample coverage, provider provenance, exclusions, parameters, and
   reason codes.
 
@@ -854,7 +855,10 @@ Builds the same record shape across a bounded history page.
 The response includes `activity-research-dataset-v1`, model versions,
 pagination metadata, explicit cutoff semantics, privacy declarations, and a
 SHA-256 `dataset_hash`. `generated_at` is excluded from the hash, so unchanged
-inputs and model versions produce the same dataset hash.
+inputs and model versions produce the same dataset hash. Records are ordered by
+date descending with `activity_id` and source tie-breakers; split arrays are
+ordered by split number and their serialized metric values. Analysis ETags are
+salted by the response schema and emitted model-version manifest.
 
 ### GET /api/ai/context
 

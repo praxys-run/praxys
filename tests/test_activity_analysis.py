@@ -112,6 +112,37 @@ def test_stable_segments_use_samples_for_power_and_hr_drift() -> None:
     assert segment["power_provider"] == "stryd"
 
 
+def test_decoupling_uses_identical_power_and_hr_observations() -> None:
+    base_epoch = 1_750_000_000
+    samples = pd.DataFrame({
+        "activity_id": ["activity-1"] * 601,
+        "t_sec": [base_epoch + second for second in range(601)],
+        "power_watts": [
+            220.0 if second < 60 else 200.0
+            for second in range(601)
+        ],
+        "hr_bpm": [
+            None if second < 60 else 100.0
+            for second in range(601)
+        ],
+        "source": ["stryd"] * 601,
+    })
+
+    result = derive_stable_power_segments(
+        samples,
+        pd.DataFrame(),
+        activity_duration_sec=600,
+        cp_watts=300,
+        cp_source="stryd",
+        cp_power_provider="stryd",
+        activity_provider="stryd",
+    )
+
+    assert result["model_version"] == "stable-power-segments-v3"
+    segment = result["segments"][0]
+    assert segment["hr_at_power_decoupling_pct"] == 0.0
+
+
 def test_split_fallback_is_explicitly_limited() -> None:
     splits = pd.DataFrame([{
         "split_num": 1,

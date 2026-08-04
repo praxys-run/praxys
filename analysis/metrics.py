@@ -1174,7 +1174,7 @@ def compute_load_compliance_pct(
 
 ACTIVITY_ANALYSIS_SCHEMA_VERSION = "activity-analysis-v1"
 ACTIVITY_RESEARCH_SCHEMA_VERSION = "activity-research-dataset-v1"
-STABLE_SEGMENT_MODEL_VERSION = "stable-power-segments-v2"
+STABLE_SEGMENT_MODEL_VERSION = "stable-power-segments-v3"
 PRE_ACTIVITY_LOAD_MODEL_VERSION = "banister-pmc-causal-v2"
 ENVIRONMENT_CONTEXT_MODEL_VERSION = "environmental-performance-context-v1"
 ENVIRONMENT_CONTEXT_SCIENCE_DECISION_ID = (
@@ -1891,11 +1891,9 @@ def derive_stable_power_segments(
                     < _SEGMENT_MIN_HR_COVERAGE
                 ):
                     return None
-                half_power = _weighted_mean(half, "power_watts")
-                half_hr = _weighted_mean(
-                    half.loc[half_hr_valid],
-                    "hr_bpm",
-                )
+                paired = half.loc[half_hr_valid]
+                half_power = _weighted_mean(paired, "power_watts")
+                half_hr = _weighted_mean(paired, "hr_bpm")
                 if (
                     half_power is None
                     or half_power <= 0
@@ -2097,7 +2095,8 @@ def derive_stable_power_segments(
 # --- Heat adaptation -------------------------------------------------------
 
 _HEAT_SCIENCE_DECISION_ID = "sdr-heat-adaptation-v1"
-_HEAT_MODEL_VERSION = "heat-adaptation-v8"
+HEAT_ADAPTATION_MODEL_VERSION = "heat-adaptation-v8"
+_HEAT_MODEL_VERSION = HEAT_ADAPTATION_MODEL_VERSION
 
 # Stull (2011) DOI: 10.1175/JAMC-D-11-0143.1 provides the humidity-aware
 # wet-bulb approximation. It does not model wind or solar radiation and must
@@ -2730,7 +2729,12 @@ def compute_heat_adaptation(
             "environment_source": environment_source,
         })
 
-    sessions.sort(key=lambda session: session["_date"])
+    sessions.sort(
+        key=lambda session: (
+            session["_date"],
+            session["activity_id"],
+        )
+    )
     exposure_days, effective_heat_minutes = _heat_window_stats(
         sessions, current_date,
     )

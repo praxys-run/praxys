@@ -294,6 +294,9 @@ def test_analysis_exposes_provenance_segments_and_causal_context(
     payload = response.json()
 
     assert payload["schema_version"] == "activity-analysis-v1"
+    assert payload["model_versions"]["stable_segments"] == (
+        "stable-power-segments-v3"
+    )
     activity = payload["activity"]
     assert activity["start_time"]["state"] == "available"
     assert activity["start_time"]["provenance"] == "sample_epoch_fallback"
@@ -322,6 +325,9 @@ def test_analysis_exposes_provenance_segments_and_causal_context(
     assert activity["provenance"]["heart_rate"]["providers"] == ["stryd"]
 
     segment = payload["stable_segments"]["segments"][0]
+    assert payload["stable_segments"]["model_version"] == (
+        "stable-power-segments-v3"
+    )
     assert segment["source"] == "samples"
     assert segment["mean_pct_cp"] == 83.3
     assert segment["power_cv_pct"] == 0.0
@@ -660,3 +666,206 @@ def test_research_dataset_is_versioned_reproducible_and_gps_free(
     serialized = first.text
     assert '"lat"' not in serialized
     assert '"lng"' not in serialized
+
+
+def test_research_dataset_hash_is_independent_of_split_insertion_order(
+    analysis_client,
+) -> None:
+    from db import session as db_session
+    from db.models import ActivitySplit
+
+    def _replace_splits(split_numbers: list[int]) -> None:
+        db = db_session.SessionLocal()
+        db.query(ActivitySplit).filter(
+            ActivitySplit.user_id == analysis_client["other_id"],
+            ActivitySplit.activity_id == "private-other",
+        ).delete()
+        for split_num in split_numbers:
+            db.add(ActivitySplit(
+                user_id=analysis_client["other_id"],
+                activity_id="private-other",
+                split_num=split_num,
+                duration_sec=150,
+                distance_km=float(split_num),
+                avg_power=200 + split_num,
+                power_source="garmin",
+                avg_hr=140 + split_num,
+            ))
+        db.commit()
+        db.close()
+
+    client = analysis_client["client"]
+    headers = analysis_client["other_headers"]
+    path = "/api/analysis/research-dataset?limit=20"
+
+    _replace_splits([2, 1])
+    first = client.get(path, headers=headers)
+    assert first.status_code == 200, first.text
+
+    _replace_splits([1, 2])
+    second = client.get(path, headers=headers)
+    assert second.status_code == 200, second.text
+
+    first_payload = first.json()
+    second_payload = second.json()
+    assert first_payload["dataset_hash"] == second_payload["dataset_hash"]
+    first_record = next(
+        record
+        for record in first_payload["records"]
+        if record["activity"]["activity_id"] == "private-other"
+    )
+    second_record = next(
+        record
+        for record in second_payload["records"]
+        if record["activity"]["activity_id"] == "private-other"
+    )
+    assert first_record["activity"]["splits"] == (
+        second_record["activity"]["splits"]
+    )
+    assert [
+        split["split_num"]
+        for split in first_record["activity"]["splits"]
+    ] == [1, 2]
+
+
+def test_record_hash_is_independent_of_same_date_heat_insertion_order(
+    analysis_client,
+) -> None:
+    from db import session as db_session
+    from db.models import Activity, ActivitySplit
+
+    heat_activity_ids = ("heat-a", "heat-b")
+
+    def _replace_heat_activities(activity_ids: tuple[str, str]) -> None:
+        db = db_session.SessionLocal()
+        db.query(ActivitySplit).filter(
+            ActivitySplit.user_id == analysis_client["owner_id"],
+            ActivitySplit.activity_id.in_(heat_activity_ids),
+        ).delete(synchronize_session=False)
+        db.query(Activity).filter(
+            Activity.user_id == analysis_client["owner_id"],
+            Activity.activity_id.in_(heat_activity_ids),
+        ).delete(synchronize_session=False)
+        for activity_id in activity_ids:
+            db.add(Activity(
+                user_id=analysis_client["owner_id"],
+                activity_id=activity_id,
+                date=analysis_client["target_date"] - timedelta(days=1),
+                activity_type="running",
+                duration_sec=3600,
+                temperature_c=34,
+                relative_humidity_pct=70,
+                environment_source="stryd_activity_weather",
+                source="stryd",
+            ))
+            db.add(ActivitySplit(
+                user_id=analysis_client["owner_id"],
+                activity_id=activity_id,
+                split_num=1,
+                duration_sec=3600,
+                avg_power=220,
+                power_source="stryd",
+            ))
+        db.commit()
+        db.close()
+
+    client = analysis_client["client"]
+    headers = analysis_client["owner_headers"]
+    path = "/api/analysis/activities/shared-activity"
+
+    _replace_heat_activities(("heat-b", "heat-a"))
+    first = client.get(path, headers=headers)
+    assert first.status_code == 200, first.text
+
+    _replace_heat_activities(("heat-a", "heat-b"))
+    second = client.get(path, headers=headers)
+    assert second.status_code == 200, second.text
+
+    first_payload = first.json()
+    second_payload = second.json()
+    assert first_payload["record_hash"] == second_payload["record_hash"]
+    first_sessions = first_payload["pre_activity_context"][
+        "heat_adaptation"
+    ]["sessions"]
+    second_sessions = second_payload["pre_activity_context"][
+        "heat_adaptation"
+    ]["sessions"]
+    assert first_sessions == second_sessions
+
+
+def test_research_pagination_canonicalizes_same_date_ties() -> None:
+    from types import SimpleNamespace
+
+    import pandas as pd
+
+    from api.packs import _history_page
+
+    activities = pd.DataFrame([
+        {
+            "activity_id": "same-date-b",
+            "date": date(2026, 7, 15),
+            "source": "stryd",
+        },
+        {
+            "activity_id": "newer",
+            "date": date(2026, 7, 16),
+            "source": "stryd",
+        },
+        {
+            "activity_id": "same-date-a",
+            "date": date(2026, 7, 15),
+            "source": "stryd",
+        },
+    ])
+
+    page_orders = []
+    for frame in (activities, activities.iloc[::-1].reset_index(drop=True)):
+        ctx = SimpleNamespace(
+            config=SimpleNamespace(
+                preferences={"activities": "stryd"},
+            ),
+            merged_activities=frame,
+            _data={"activities": frame},
+        )
+        page, total, _ = _history_page(ctx, limit=3)
+        assert total == 3
+        page_orders.append(page["activity_id"].tolist())
+
+    assert page_orders == [
+        ["newer", "same-date-a", "same-date-b"],
+        ["newer", "same-date-a", "same-date-b"],
+    ]
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/analysis/activities/shared-activity",
+        "/api/analysis/research-dataset?limit=20",
+    ],
+)
+def test_analysis_etags_change_with_emitted_model_versions(
+    analysis_client,
+    monkeypatch,
+    path: str,
+) -> None:
+    from api import packs
+
+    client = analysis_client["client"]
+    headers = analysis_client["owner_headers"]
+    first = client.get(path, headers=headers)
+    assert first.status_code == 200, first.text
+    first_etag = first.headers["etag"]
+
+    monkeypatch.setattr(
+        packs,
+        "STABLE_SEGMENT_MODEL_VERSION",
+        "stable-power-segments-next",
+    )
+    second = client.get(
+        path,
+        headers={**headers, "If-None-Match": first_etag},
+    )
+
+    assert second.status_code == 200
+    assert second.headers["etag"] != first_etag

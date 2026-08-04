@@ -1105,6 +1105,41 @@ def _get_todays_plan(
     return planned_today, planned_detail
 
 
+_SPLIT_CANONICAL_SORT_COLUMNS = (
+    "activity_id",
+    "split_num",
+    "duration_sec",
+    "distance_km",
+    "avg_power",
+    "power_source",
+    "power_provider",
+    "avg_hr",
+    "max_hr",
+    "avg_pace_sec_km",
+    "avg_pace_min_km",
+    "avg_cadence",
+    "elevation_change_m",
+)
+
+
+def _sort_activity_splits(splits: pd.DataFrame) -> pd.DataFrame:
+    """Return split rows in a canonical, insertion-order-independent order."""
+    if splits.empty:
+        return splits
+    sort_columns = [
+        column
+        for column in _SPLIT_CANONICAL_SORT_COLUMNS
+        if column in splits.columns
+    ]
+    if not sort_columns:
+        return splits
+    return splits.sort_values(
+        sort_columns,
+        kind="stable",
+        na_position="last",
+    )
+
+
 def _build_activities_list(
     merged: pd.DataFrame,
     splits: pd.DataFrame,
@@ -1121,6 +1156,7 @@ def _build_activities_list(
     if merged.empty:
         return []
 
+    splits = _sort_activity_splits(splits)
     splits_by_aid: dict[str, list[dict]] = {}
     split_power_providers_by_aid: dict[str, list[str]] = {}
     if not splits.empty and "activity_id" in splits.columns:
