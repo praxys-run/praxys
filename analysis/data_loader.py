@@ -873,6 +873,154 @@ def load_activity_samples(
     return pd.concat(frames, ignore_index=True)
 
 
+def load_activity_records(
+    user_id: str,
+    db: Session,
+    activity_ids: list[str],
+) -> pd.DataFrame:
+    """Load exact owner-scoped activity rows without display deduplication."""
+    if not activity_ids:
+        return pd.DataFrame()
+    unique_ids = list({str(activity_id) for activity_id in activity_ids})
+    frames: list[pd.DataFrame] = []
+    chunk_size = 400
+    for start in range(0, len(unique_ids), chunk_size):
+        chunk = unique_ids[start:start + chunk_size]
+        placeholders = ",".join(f":a{i}" for i in range(len(chunk)))
+        params = {
+            "uid": user_id,
+            **{f"a{i}": value for i, value in enumerate(chunk)},
+        }
+        frames.append(
+            pd.read_sql(
+                text(
+                    "SELECT * FROM activities "
+                    "WHERE user_id = :uid "
+                    f"AND activity_id IN ({placeholders}) "
+                    "ORDER BY date, id"
+                ),
+                db.bind,
+                params=params,
+                parse_dates=["date"],
+            )
+        )
+    result = pd.concat(frames, ignore_index=True)
+    if "date" in result.columns and not result.empty:
+        result["date"] = pd.to_datetime(result["date"]).dt.date
+    return _ensure_numeric_pace(result)
+
+
+def load_activity_sample_coverage(
+    user_id: str,
+    db: Session,
+    activity_ids: list[str],
+    *,
+    max_interval_sec: float = 5.0,
+) -> pd.DataFrame:
+    """Load bounded per-activity sample coverage and provider provenance.
+
+    Each sample owns the interval until the next timestamp only when the gap
+    is positive and no larger than ``max_interval_sec``. The terminal sample
+    contributes no observed duration, matching the heat-evidence loader.
+    Results remain grouped by connector source so API callers can distinguish
+    one verified provider from mixed provenance without loading raw streams.
+    """
+    columns = [
+        "activity_id",
+        "source",
+        "sample_count",
+        "sample_start_epoch",
+        "sample_end_epoch",
+        "observed_duration_sec",
+        "power_duration_sec",
+        "heart_rate_duration_sec",
+        "gap_count",
+    ]
+    if not activity_ids:
+        return pd.DataFrame(columns=columns)
+
+    unique_ids = list({str(activity_id) for activity_id in activity_ids})
+    frames: list[pd.DataFrame] = []
+    chunk_size = 400
+    for start in range(0, len(unique_ids), chunk_size):
+        chunk = unique_ids[start:start + chunk_size]
+        placeholders = ",".join(f":a{i}" for i in range(len(chunk)))
+        params: dict[str, object] = {
+            "uid": user_id,
+            "max_interval_sec": max_interval_sec,
+            **{f"a{i}": value for i, value in enumerate(chunk)},
+        }
+        frames.append(
+            pd.read_sql(
+                text(
+                    "WITH ordered AS ("
+                    "  SELECT activity_id, source, t_sec, power_watts, hr_bpm, "
+                    "         LEAD(t_sec) OVER ("
+                    "           PARTITION BY user_id, activity_id "
+                    "           ORDER BY t_sec"
+                    "         ) AS next_t_sec "
+                    "  FROM activity_samples "
+                    f"  WHERE user_id = :uid AND activity_id IN ({placeholders})"
+                    ") "
+                    "SELECT activity_id, source, COUNT(*) AS sample_count, "
+                    "       MIN(t_sec) AS sample_start_epoch, "
+                    "       MAX(t_sec) AS sample_end_epoch, "
+                    "       SUM(CASE "
+                    "         WHEN next_t_sec - t_sec > 0 "
+                    "          AND next_t_sec - t_sec <= :max_interval_sec "
+                    "           THEN next_t_sec - t_sec ELSE 0 END"
+                    "       ) AS observed_duration_sec, "
+                    "       SUM(CASE "
+                    "         WHEN power_watts IS NOT NULL "
+                    "          AND next_t_sec - t_sec > 0 "
+                    "          AND next_t_sec - t_sec <= :max_interval_sec "
+                    "           THEN next_t_sec - t_sec ELSE 0 END"
+                    "       ) AS power_duration_sec, "
+                    "       SUM(CASE "
+                    "         WHEN hr_bpm IS NOT NULL "
+                    "          AND next_t_sec - t_sec > 0 "
+                    "          AND next_t_sec - t_sec <= :max_interval_sec "
+                    "           THEN next_t_sec - t_sec ELSE 0 END"
+                    "       ) AS heart_rate_duration_sec, "
+                    "       SUM(CASE "
+                    "         WHEN next_t_sec IS NOT NULL "
+                    "          AND (next_t_sec - t_sec <= 0 "
+                    "            OR next_t_sec - t_sec > :max_interval_sec) "
+                    "           THEN 1 ELSE 0 END"
+                    "       ) AS gap_count "
+                    "FROM ordered "
+                    "GROUP BY activity_id, source"
+                ),
+                db.bind,
+                params=params,
+            )
+        )
+    if not frames:
+        return pd.DataFrame(columns=columns)
+    result = pd.concat(frames, ignore_index=True)
+    for column in columns:
+        if column not in result.columns:
+            result[column] = pd.NA
+    return result[columns]
+
+
+def load_fitness_history(user_id: str, db: Session) -> pd.DataFrame:
+    """Load dated fitness values with source and power-provider provenance."""
+    fitness = pd.read_sql(
+        text(
+            "SELECT id, date, metric_type, value, value_str, source, "
+            "power_source FROM fitness_data "
+            "WHERE user_id = :uid ORDER BY date, id"
+        ),
+        db.bind,
+        params={"uid": user_id},
+        parse_dates=["date"],
+    )
+    if "date" in fitness.columns and not fitness.empty:
+        fitness["date"] = pd.to_datetime(fitness["date"]).dt.date
+    return fitness
+
+
 def _pivot_fitness(raw: pd.DataFrame) -> pd.DataFrame:
     """Pivot fitness_data rows into a wide DataFrame with one column per metric."""
     if raw.empty:

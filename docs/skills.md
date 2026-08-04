@@ -123,7 +123,7 @@ The plugin provides an MCP server (`plugins/praxys/mcp-server/server.py`) that e
 | `get_daily_brief` | Today's training signal, recovery, upcoming workouts |
 | `get_training_review` | Zone distribution, fitness/fatigue, diagnosis, suggestions |
 | `get_race_forecast` | Race prediction, goal feasibility, threshold trend |
-| `get_training_context` | Full training context for AI plan generation |
+| `get_training_context` | Coaching snapshot for AI plan generation; wraps `GET /api/ai/context` |
 | `get_settings` | Current user settings and display config |
 | `update_settings` | Update training base, thresholds, zones, goal, science |
 | `get_connections` | Connected platforms and their status |
@@ -134,6 +134,14 @@ The plugin provides an MCP server (`plugins/praxys/mcp-server/server.py`) that e
 | `get_sync_status` | Check sync status per platform |
 
 Each tool works in both remote mode (HTTP to the deployed API) and local mode (direct Python imports). The mode is determined by the `PRAXYS_URL` environment variable.
+
+`get_training_context` is intentionally a bounded coaching snapshot, not a
+raw research export. Analysis-ready per-activity environment, stream coverage,
+stable-power segments, dated recovery, and leakage-safe pre-run context are
+served by the owner-authenticated `/api/analysis/activities/{activity_id}` and
+`/api/analysis/research-dataset` endpoints. The v1 MCP surface does not expose
+raw samples or precise GPS; see `docs/dev/api-reference.md` for detector
+semantics and limitations.
 
 ## Available Athlete-Facing Skills
 

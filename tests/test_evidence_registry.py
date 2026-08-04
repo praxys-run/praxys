@@ -648,3 +648,13 @@ def test_metric_science_links_match_the_registry() -> None:
     )
 
     assert status["science_sources"] == expected
+    environment = metrics.build_activity_environment_context(
+        None,
+        None,
+        None,
+    )
+    assert environment["science_sources"] == (
+        registry.source_links_for_decision(
+            metrics.ENVIRONMENT_CONTEXT_SCIENCE_DECISION_ID
+        )
+    )
