@@ -533,14 +533,15 @@ msgstr "Activate managed plan"
 
 #: src/components/ManagedPlanSettingsCard.tsx:390
 #: src/pages/admin/AdminFeedback.tsx:228
-#: src/pages/Science.tsx:421
-#: src/pages/Science.tsx:569
+#: src/pages/Science.tsx:405
+#: src/pages/Science.tsx:433
+#: src/pages/Science.tsx:581
 msgid "Active"
 msgstr "Active"
 
 #: src/pages/Science.tsx:380
-msgid "Active fixed model"
-msgstr "Active fixed model"
+#~ msgid "Active fixed model"
+#~ msgstr "Active fixed model"
 
 #: src/pages/Status.tsx:191
 msgid "Active Incidents"
@@ -916,7 +917,7 @@ msgstr "Bars marked with ~ use estimated load because selected-base activity or 
 
 #. placeholder {0}: recommendedTheory.name
 #. placeholder {1}: recommendation!.reason
-#: src/pages/Science.tsx:406
+#: src/pages/Science.tsx:418
 msgid "Based on your training, <0>{0}</0> may fit better — {1}"
 msgstr "Based on your training, <0>{0}</0> may fit better — {1}"
 
@@ -1010,7 +1011,7 @@ msgstr "Building toward {distLabel}. Current {abbrev} <0>{currentStr}{unit}</0>,
 msgid "Building toward <0>{0}</0> {distLabel}. Current {abbrev} <1>{currentStr}{unit}</1>, need <2>{targetStr}{unit}</2>."
 msgstr "Building toward <0>{0}</0> {distLabel}. Current {abbrev} <1>{currentStr}{unit}</1>, need <2>{targetStr}{unit}</2>."
 
-#: src/pages/Science.tsx:416
+#: src/pages/Science.tsx:428
 msgid "by"
 msgstr "by"
 
@@ -1034,7 +1035,7 @@ msgstr "by"
 msgid "Cancel"
 msgstr "Cancel"
 
-#: src/pages/Science.tsx:451
+#: src/pages/Science.tsx:463
 msgid "Cancel preview"
 msgstr "Cancel preview"
 
@@ -1792,7 +1793,7 @@ msgstr "Demo accounts"
 #~ msgid "Demo Accounts"
 #~ msgstr "Demo Accounts"
 
-#: src/pages/Science.tsx:455
+#: src/pages/Science.tsx:467
 msgid "Demo mode — read only"
 msgstr "Demo mode — read only"
 
@@ -2656,7 +2657,7 @@ msgstr "Hide backfill"
 msgid "Hide details"
 msgstr "Hide details"
 
-#: src/pages/Science.tsx:478
+#: src/pages/Science.tsx:490
 msgid "Hide methodology details"
 msgstr "Hide methodology details"
 
@@ -4586,8 +4587,8 @@ msgstr "Predicted using Stryd race power model (5K at 103.8% CP, marathon at 89.
 msgid "Prefer to wait?"
 msgstr "Prefer to wait?"
 
-#: src/pages/Science.tsx:426
-#: src/pages/Science.tsx:574
+#: src/pages/Science.tsx:438
+#: src/pages/Science.tsx:586
 msgid "Previewing"
 msgstr "Previewing"
 
@@ -4990,8 +4991,8 @@ msgstr "Recommendations"
 msgid "recommended"
 msgstr "recommended"
 
-#: src/pages/Science.tsx:404
-#: src/pages/Science.tsx:579
+#: src/pages/Science.tsx:416
+#: src/pages/Science.tsx:591
 #: src/pages/Setup.tsx:665
 #: src/pages/Setup.tsx:801
 msgid "Recommended"
@@ -5118,7 +5119,7 @@ msgstr "Redirecting..."
 msgid "Reduce Intensity"
 msgstr "Reduce Intensity"
 
-#: src/pages/Science.tsx:498
+#: src/pages/Science.tsx:510
 msgid "References"
 msgstr "References"
 
@@ -5727,7 +5728,7 @@ msgstr "Show anyway"
 #~ msgid "Show less"
 #~ msgstr "Show less"
 
-#: src/pages/Science.tsx:480
+#: src/pages/Science.tsx:492
 msgid "Show methodology details"
 msgstr "Show methodology details"
 
@@ -5956,7 +5957,7 @@ msgid "Switch language"
 msgstr "Switch language"
 
 #. placeholder {0}: previewedTheory.name
-#: src/pages/Science.tsx:443
+#: src/pages/Science.tsx:455
 msgid "Switch to {0}"
 msgstr "Switch to {0}"
 
@@ -6792,7 +6793,7 @@ msgstr "Verifying your email…"
 msgid "Verifying..."
 msgstr "Verifying..."
 
-#: src/pages/Science.tsx:520
+#: src/pages/Science.tsx:532
 msgid "view"
 msgstr "view"
 

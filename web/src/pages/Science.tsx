@@ -354,11 +354,23 @@ function PillarDetail({
 }) {
   if (!active || !shown) return null;
 
+  // Single-theory entries — whether hard-coded (isFixed) or simply the only
+  // registered theory for this pillar right now — have nothing to switch
+  // between, so they render the same "no choice" pill instead of a chiclet
+  // row, with one consistent status label (no "fixed model" vs "currently
+  // in use" split, and no duplicated status line below the description).
+  const hasAlternatives = !isFixed && alternatives.length > 1;
   const previewedTheory = previewId ? alternatives.find((t) => t.id === previewId) : undefined;
   const recommendedDifferent = recommendation && recommendation.recommended_id !== active.id;
   const recommendedTheory = recommendedDifferent
     ? alternatives.find((t) => t.id === recommendation!.recommended_id)
     : undefined;
+  // "system"/"Praxys" denote the built-in model author, not an external
+  // researcher — hide the byline consistently across all theories rather
+  // than surfacing it only for some.
+  const showAuthor = Boolean(
+    shown.author && !['system', 'praxys'].includes(shown.author.toLowerCase()),
+  );
 
   return (
     <article className="min-w-0">
@@ -373,14 +385,7 @@ function PillarDetail({
         </h2>
       </div>
 
-      {isFixed ? (
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-secondary px-3.5 py-1.5 text-xs font-medium text-foreground">
-          <span>{active.name}</span>
-          <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--accent-cobalt-val)]">
-            ·&nbsp;<Trans>Active fixed model</Trans>
-          </span>
-        </div>
-      ) : (
+      {hasAlternatives ? (
         <div className="mb-6 flex flex-wrap gap-2">
           {alternatives.map((t) => (
             <Chiclet
@@ -392,6 +397,13 @@ function PillarDetail({
               onClick={() => onChiclet(t.id)}
             />
           ))}
+        </div>
+      ) : (
+        <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-secondary px-3.5 py-1.5 text-xs font-medium text-foreground">
+          <span>{active.name}</span>
+          <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--accent-cobalt-val)]">
+            ·&nbsp;<Trans>Active</Trans>
+          </span>
         </div>
       )}
 
@@ -411,12 +423,12 @@ function PillarDetail({
 
       <div className="space-y-2">
         <div className="flex items-baseline gap-3 text-xs text-muted-foreground">
-          {shown.author && shown.author !== 'system' && (
+          {showAuthor && (
             <span>
               <Trans>by</Trans> <span className="text-foreground/80">{shown.author}</span>
             </span>
           )}
-          {!isPreviewMode && !isFixed && (
+          {!isPreviewMode && hasAlternatives && (
             <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--accent-cobalt-val)]">
               <Trans>Active</Trans>
             </span>

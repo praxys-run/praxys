@@ -532,14 +532,15 @@ msgstr "启用托管计划"
 
 #: src/components/ManagedPlanSettingsCard.tsx:390
 #: src/pages/admin/AdminFeedback.tsx:228
-#: src/pages/Science.tsx:421
-#: src/pages/Science.tsx:569
+#: src/pages/Science.tsx:405
+#: src/pages/Science.tsx:433
+#: src/pages/Science.tsx:581
 msgid "Active"
 msgstr "当前使用"
 
 #: src/pages/Science.tsx:380
-msgid "Active fixed model"
-msgstr "当前固定模型"
+#~ msgid "Active fixed model"
+#~ msgstr "当前固定模型"
 
 #: src/pages/Status.tsx:191
 msgid "Active Incidents"
@@ -915,7 +916,7 @@ msgstr "标有 ~ 的柱状条使用估算负荷，因为所选基准下的活动
 
 #. placeholder {0}: recommendedTheory.name
 #. placeholder {1}: recommendation!.reason
-#: src/pages/Science.tsx:406
+#: src/pages/Science.tsx:418
 msgid "Based on your training, <0>{0}</0> may fit better — {1}"
 msgstr "根据你的训练，<0>{0}</0>可能更合适——{1}"
 
@@ -1009,7 +1010,7 @@ msgstr "正在追求 {distLabel}。当前 {abbrev} <0>{currentStr}{unit}</0>，�
 msgid "Building toward <0>{0}</0> {distLabel}. Current {abbrev} <1>{currentStr}{unit}</1>, need <2>{targetStr}{unit}</2>."
 msgstr "目标是 <0>{0}</0> {distLabel}。当前 {abbrev} <1>{currentStr}{unit}</1>，还需达到 <2>{targetStr}{unit}</2>。"
 
-#: src/pages/Science.tsx:416
+#: src/pages/Science.tsx:428
 msgid "by"
 msgstr "作者"
 
@@ -1033,7 +1034,7 @@ msgstr "作者"
 msgid "Cancel"
 msgstr "取消"
 
-#: src/pages/Science.tsx:451
+#: src/pages/Science.tsx:463
 msgid "Cancel preview"
 msgstr "取消预览"
 
@@ -1791,7 +1792,7 @@ msgstr "演示账号"
 #~ msgid "Demo Accounts"
 #~ msgstr "演示账号"
 
-#: src/pages/Science.tsx:455
+#: src/pages/Science.tsx:467
 msgid "Demo mode — read only"
 msgstr "演示模式——只读"
 
@@ -2663,7 +2664,7 @@ msgstr "收起历史同步"
 msgid "Hide details"
 msgstr "收起详情"
 
-#: src/pages/Science.tsx:478
+#: src/pages/Science.tsx:490
 msgid "Hide methodology details"
 msgstr "收起方法论详情"
 
@@ -4661,8 +4662,8 @@ msgstr "按 Stryd 比赛功率模型预测（5K 取 103.8% CP，马拉松取 89.
 msgid "Prefer to wait?"
 msgstr "想先等等？"
 
-#: src/pages/Science.tsx:426
-#: src/pages/Science.tsx:574
+#: src/pages/Science.tsx:438
+#: src/pages/Science.tsx:586
 msgid "Previewing"
 msgstr "预览中"
 
@@ -5077,8 +5078,8 @@ msgstr "建议"
 msgid "recommended"
 msgstr "推荐"
 
-#: src/pages/Science.tsx:404
-#: src/pages/Science.tsx:579
+#: src/pages/Science.tsx:416
+#: src/pages/Science.tsx:591
 #: src/pages/Setup.tsx:665
 #: src/pages/Setup.tsx:801
 msgid "Recommended"
@@ -5217,7 +5218,7 @@ msgstr "跳转中…"
 msgid "Reduce Intensity"
 msgstr "降低强度"
 
-#: src/pages/Science.tsx:498
+#: src/pages/Science.tsx:510
 msgid "References"
 msgstr "参考文献"
 
@@ -5858,7 +5859,7 @@ msgstr "仍要查看"
 #~ msgid "Show less"
 #~ msgstr "显示更少"
 
-#: src/pages/Science.tsx:480
+#: src/pages/Science.tsx:492
 msgid "Show methodology details"
 msgstr "展开方法论详情"
 
@@ -6107,7 +6108,7 @@ msgid "Switch language"
 msgstr "切换语言"
 
 #. placeholder {0}: previewedTheory.name
-#: src/pages/Science.tsx:443
+#: src/pages/Science.tsx:455
 msgid "Switch to {0}"
 msgstr "切换到 {0}"
 
@@ -6954,7 +6955,7 @@ msgstr "正在验证邮箱…"
 msgid "Verifying..."
 msgstr "验证中…"
 
-#: src/pages/Science.tsx:520
+#: src/pages/Science.tsx:532
 msgid "view"
 msgstr "查看"
 
