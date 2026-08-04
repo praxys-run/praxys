@@ -7,6 +7,7 @@ import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import SplitBreakdown from '@/components/SplitBreakdown';
 import { Trans } from '@lingui/react/macro';
 import { useLocale } from '@/contexts/LocaleContext';
+import { formatStoredPace } from '@/lib/format';
 
 interface Props {
   activity: Activity;
@@ -119,8 +120,9 @@ export default function ActivityCard({ activity }: Props) {
             {activity.avg_pace_min_km != null && (
               <span>
                 <Trans>Pace</Trans>{' '}
-                <span className="font-data">{activity.avg_pace_min_km}</span>{' '}
-                /km
+                <span className="font-data">
+                  {formatStoredPace(activity.avg_pace_min_km)}
+                </span>
               </span>
             )}
             {activity.elevation_gain_m != null && (

@@ -40,7 +40,6 @@ function buildScienceTr() {
     activeTag: t('Active'),
     previewingTag: t('Previewing'),
     recommendedTag: t('Recommended'),
-    fixedModelTag: t('Active fixed model'),
     by: t('by'),
   };
 }
@@ -96,6 +95,7 @@ interface DetailView {
   question: string;
   hasActive: boolean;
   isFixed: boolean;
+  hasAlternatives: boolean;
   chiclets: ChicletRow[];
   /** Theory currently shown in the body (active or previewed). */
   shownAuthor: string;
@@ -226,6 +226,7 @@ function buildDetail(
     ? alternatives.find((t) => t.id === effectivePreviewId)
     : undefined;
   const shownTheory: TheorySummary | undefined = isPreviewMode ? previewedTheory : active;
+  const hasAlternatives = !isFixed && alternatives.length > 1;
 
   const chiclets: ChicletRow[] = alternatives.map((t) => {
     const isActive = t.id === active?.id;
@@ -281,10 +282,11 @@ function buildDetail(
     question: questions[pillar],
     hasActive: !!active,
     isFixed,
+    hasAlternatives,
     chiclets,
     shownAuthor: shownTheory?.author ?? '',
     shownName: shownTheory?.name ?? '',
-    shownAuthorVisible: !!shownTheory && !!shownTheory.author && shownTheory.author !== 'system',
+    shownAuthorVisible: !!shownTheory?.author && !['system', 'praxys'].includes(shownTheory.author.toLowerCase()),
     shownDescription: shownTheory?.simple_description || shownTheory?.description || '',
     shownAdvancedHtml: advancedHtml,
     hasAdvanced,
