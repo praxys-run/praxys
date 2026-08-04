@@ -92,7 +92,7 @@ jobs:
           vars.PRAXYS_REVIEW_POLICY_APP_ID != '' &&
           vars.PRAXYS_REVIEW_POLICY_APP_SLUG != ''
         id: policy-token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ vars.PRAXYS_REVIEW_POLICY_APP_ID }}
           private-key: ${{ secrets.PRAXYS_REVIEW_POLICY_APP_PRIVATE_KEY }}
