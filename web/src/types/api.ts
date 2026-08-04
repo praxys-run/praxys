@@ -1082,6 +1082,7 @@ export interface PreActivityLoadContext extends AnalysisAvailability {
   };
   data_days: number;
   observation_days: number;
+  missing_load_activity_count: number;
 }
 
 export interface PreActivityCriticalPowerContext

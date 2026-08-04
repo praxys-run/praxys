@@ -1174,8 +1174,8 @@ def compute_load_compliance_pct(
 
 ACTIVITY_ANALYSIS_SCHEMA_VERSION = "activity-analysis-v1"
 ACTIVITY_RESEARCH_SCHEMA_VERSION = "activity-research-dataset-v1"
-STABLE_SEGMENT_MODEL_VERSION = "stable-power-segments-v1"
-PRE_ACTIVITY_LOAD_MODEL_VERSION = "banister-pmc-causal-v1"
+STABLE_SEGMENT_MODEL_VERSION = "stable-power-segments-v2"
+PRE_ACTIVITY_LOAD_MODEL_VERSION = "banister-pmc-causal-v2"
 ENVIRONMENT_CONTEXT_MODEL_VERSION = "environmental-performance-context-v1"
 ENVIRONMENT_CONTEXT_SCIENCE_DECISION_ID = (
     "sdr-environmental-performance-v1"
@@ -1468,6 +1468,7 @@ def derive_stable_power_segments(
         "maximum_power_watts": _SEGMENT_MAX_POWER_WATTS,
         "valid_hr_bpm": [_SEGMENT_MIN_HR_BPM, _SEGMENT_MAX_HR_BPM],
         "minimum_hr_coverage_ratio": _SEGMENT_MIN_HR_COVERAGE,
+        "segments_non_overlapping": True,
         "estimated": True,
     }
     cp = _activity_analysis_number(cp_watts)
@@ -1494,7 +1495,6 @@ def derive_stable_power_segments(
     for column in required_columns:
         if column not in frame.columns:
             frame[column] = pd.NA
-    frame["_original_position"] = np.arange(len(frame))
     frame["t_sec"] = pd.to_numeric(frame["t_sec"], errors="coerce")
     frame["power_watts"] = pd.to_numeric(
         frame["power_watts"], errors="coerce"
@@ -1506,6 +1506,10 @@ def derive_stable_power_segments(
         .drop_duplicates(subset=["t_sec"], keep="first")
         .reset_index(drop=True)
     )
+    # SQL row order is not a continuity signal. Assign the ordinal only after
+    # canonical timestamp ordering/deduplication so invalid intervening samples
+    # still split blocks without shuffled input fragmenting valid streams.
+    frame["_original_position"] = np.arange(len(frame))
 
     top_reason_codes: list[str] = []
     exclusions: list[dict] = []
@@ -1708,6 +1712,7 @@ def derive_stable_power_segments(
             block = raw_block.reset_index(drop=True)
             if float(block["_interval_sec"].sum()) < _SEGMENT_MIN_DURATION_SEC:
                 continue
+            last_accepted_end = float(block["t_sec"].iloc[0])
             expanded_index = pd.RangeIndex(
                 int(block["t_sec"].iloc[0]),
                 int(block["t_sec"].iloc[-1]) + 1,
@@ -1743,8 +1748,11 @@ def derive_stable_power_segments(
                 candidate_start = max(
                     float(block["t_sec"].iloc[0]),
                     first_stable - (_SEGMENT_ROLLING_WINDOW_SEC - 1),
+                    last_accepted_end,
                 )
                 candidate_end = last_stable + 1.0
+                if candidate_end <= candidate_start:
+                    continue
                 candidate = block[
                     block["t_sec"].ge(candidate_start)
                     & block["t_sec"].lt(candidate_end)
@@ -1762,6 +1770,10 @@ def derive_stable_power_segments(
                     variability_rejections += 1
                     continue
                 segment_candidates.append(candidate)
+                last_accepted_end = float(
+                    candidate["t_sec"].iloc[-1]
+                    + candidate["_interval_sec"].iloc[-1]
+                )
         if variability_rejections:
             exclusions.append({
                 "code": "power_variability_above_limit",

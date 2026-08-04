@@ -195,6 +195,87 @@ def test_five_second_samples_still_use_a_sixty_second_window() -> None:
     assert result["segments"][0]["power_cv_pct"] == 0.0
 
 
+def test_shuffled_samples_do_not_fragment_a_continuous_segment() -> None:
+    base_epoch = 1_750_000_000
+    samples = pd.DataFrame({
+        "t_sec": [base_epoch + second for second in range(601)],
+        "power_watts": [230.0] * 601,
+        "hr_bpm": [145.0] * 601,
+        "source": ["stryd"] * 601,
+    }).sample(frac=1.0, random_state=42)
+
+    result = derive_stable_power_segments(
+        samples,
+        pd.DataFrame(),
+        activity_duration_sec=600,
+        cp_watts=300,
+        cp_source="stryd",
+        cp_power_provider="stryd",
+        activity_provider="stryd",
+    )
+
+    assert result["status"] == "available"
+    assert len(result["segments"]) == 1
+    assert result["segments"][0]["duration_sec"] == 600.0
+
+
+def test_adjacent_stable_plateaus_do_not_overlap() -> None:
+    base_epoch = 1_750_000_000
+    samples = pd.DataFrame({
+        "t_sec": [base_epoch + second for second in range(601)],
+        "power_watts": [200.0] * 300 + [260.0] + [220.0] * 300,
+        "hr_bpm": [145.0] * 601,
+        "source": ["stryd"] * 601,
+    })
+
+    result = derive_stable_power_segments(
+        samples,
+        pd.DataFrame(),
+        activity_duration_sec=600,
+        cp_watts=300,
+        cp_source="stryd",
+        cp_power_provider="stryd",
+        activity_provider="stryd",
+    )
+
+    assert result["status"] == "available"
+    assert len(result["segments"]) == 2
+    first, second = result["segments"]
+    assert first["end_offset_sec"] <= second["start_offset_sec"]
+    assert first["duration_sec"] + second["duration_sec"] <= 600.0
+    assert second["mean_power_watts"] == 220.0
+
+
+def test_sparse_adjacent_stable_plateaus_do_not_overlap() -> None:
+    base_epoch = 1_750_000_000
+    samples = pd.DataFrame({
+        "t_sec": [
+            base_epoch + second
+            for second in range(0, 601, 5)
+        ],
+        "power_watts": [200.0] * 60 + [260.0] + [220.0] * 60,
+        "hr_bpm": [145.0] * 121,
+        "source": ["stryd"] * 121,
+    })
+
+    result = derive_stable_power_segments(
+        samples,
+        pd.DataFrame(),
+        activity_duration_sec=600,
+        cp_watts=300,
+        cp_source="stryd",
+        cp_power_provider="stryd",
+        activity_provider="stryd",
+    )
+
+    assert result["status"] == "available"
+    assert len(result["segments"]) == 2
+    first, second = result["segments"]
+    assert first["end_offset_sec"] <= second["start_offset_sec"]
+    assert first["duration_sec"] + second["duration_sec"] <= 600.0
+    assert second["mean_power_watts"] == 220.0
+
+
 def test_empty_samples_and_splits_are_unavailable() -> None:
     result = derive_stable_power_segments(
         pd.DataFrame(),

@@ -792,11 +792,13 @@ Every query filters by `user_id`; activity IDs are not globally trusted.
 Returns one owned activity, continuous stable-power segments, and predictor
 context that was available before the activity.
 
-Stable segments prefer timestamped `ActivitySample` rows. The v1 detector:
+Stable segments prefer timestamped `ActivitySample` rows. The v2 detector:
 
 - excludes missing, zero, out-of-range power and sample gaps over 5 seconds;
 - identifies regions with a trailing 60-second power CV at or below 5%;
 - requires at least 180 seconds and whole-segment power CV at or below 7.5%;
+- assigns each sample interval to at most one output segment, so adjacent
+  stable windows cannot overlap or double-count observations;
 - reports mean power, provider-aligned `%CP`, power CV, mean HR, HR slope in
   bpm/min, and first-half-normalized power/HR decoupling
   (`(EF_first - EF_second) / EF_first * 100`);
@@ -818,11 +820,18 @@ CP provider.
 Pre-activity context is causal by construction:
 
 - CTL/ATL/TSB uses stored prior-activity load scores through the previous
-  calendar day;
+  calendar day. Activities without the base-specific stored load or
+  `load_score` fallback are excluded and counted in
+  `missing_load_activity_count`. CTL and ATL then represent known-load lower
+  bounds, while TSB is `null` because its bias direction is indeterminate;
+  the context forces `state: "partial"` with
+  `activity_load_observations_missing`. Missing-load tracking covers the whole
+  prior history because EWMA influence decays asymptotically rather than at a
+  hard cutoff;
 - CP is the latest dated value strictly before the activity date, with source
   and power-provider provenance;
-- recovery is the selected provider's latest dated row on or before the
-  activity date;
+- recovery applies the activity-date cutoff before provider preference or
+  fallback ranking, then selects that provider's latest eligible row;
 - heat-adaptation evidence ends on the previous calendar day.
 
 Historical user-config revisions are not stored. Retrospective exports apply

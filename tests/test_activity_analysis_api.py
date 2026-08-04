@@ -406,12 +406,13 @@ def test_missing_inputs_return_explicit_unavailable_states(
         "ctl": None,
         "atl": None,
         "tsb": None,
-        "model_version": "banister-pmc-causal-v1",
+        "model_version": "banister-pmc-causal-v2",
         "training_base": "power",
         "load_sources": [],
         "time_constants_days": {"ctl": 42, "atl": 7},
         "data_days": 0,
         "observation_days": 0,
+        "missing_load_activity_count": 0,
         "reason_codes": ["prior_activity_load_unavailable"],
     }
 
@@ -541,6 +542,93 @@ def test_partial_context_and_provider_fallbacks_are_explicit(
     assert "readiness_score_unavailable" in (
         context["recovery"]["reason_codes"]
     )
+
+
+def test_future_recovery_rows_do_not_change_historical_provider_selection(
+    analysis_client,
+) -> None:
+    from db import session as db_session
+    from db.models import RecoveryData
+
+    target_date = analysis_client["target_date"]
+    other_id = analysis_client["other_id"]
+    db = db_session.SessionLocal()
+    db.add_all([
+        RecoveryData(
+            user_id=other_id,
+            date=target_date - timedelta(days=1),
+            readiness_score=75,
+            source="oura",
+        ),
+        RecoveryData(
+            user_id=other_id,
+            date=target_date + timedelta(days=1),
+            readiness_score=99,
+            source="garmin",
+        ),
+    ])
+    db.commit()
+    db.close()
+
+    response = analysis_client["client"].get(
+        "/api/analysis/activities/private-other",
+        headers=analysis_client["other_headers"],
+    )
+    assert response.status_code == 200, response.text
+    recovery = response.json()["pre_activity_context"]["recovery"]
+
+    assert recovery["state"] == "partial"
+    assert recovery["date"] == (target_date - timedelta(days=1)).isoformat()
+    assert recovery["source"] == "oura"
+    assert recovery["values"]["readiness_score"] == 75.0
+
+
+def test_missing_prior_activity_load_marks_context_partial(
+    analysis_client,
+) -> None:
+    from db import session as db_session
+    from db.models import Activity
+
+    target_date = analysis_client["target_date"]
+    other_id = analysis_client["other_id"]
+    db = db_session.SessionLocal()
+    db.add_all([
+        Activity(
+            user_id=other_id,
+            activity_id="other-old-load",
+            date=target_date - timedelta(days=50),
+            activity_type="running",
+            duration_sec=1800,
+            rss=40,
+            source="garmin",
+        ),
+        Activity(
+            user_id=other_id,
+            activity_id="other-missing-load",
+            date=target_date - timedelta(days=2),
+            activity_type="running",
+            duration_sec=1800,
+            source="garmin",
+        ),
+    ])
+    db.commit()
+    db.close()
+
+    response = analysis_client["client"].get(
+        "/api/analysis/activities/private-other",
+        headers=analysis_client["other_headers"],
+    )
+    assert response.status_code == 200, response.text
+    load = response.json()["pre_activity_context"]["load"]
+
+    assert load["state"] == "partial"
+    assert load["missing_load_activity_count"] == 1
+    assert load["ctl"] is not None
+    assert load["atl"] is not None
+    assert load["tsb"] is None
+    assert load["reason_codes"] == [
+        "activity_load_observations_missing"
+    ]
 
 
 def test_research_dataset_is_versioned_reproducible_and_gps_free(

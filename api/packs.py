@@ -205,9 +205,14 @@ class RequestContext:
         return load_fitness_history(self.user_id, self.db)
 
     @cached_property
+    def recovery_history(self) -> pd.DataFrame:
+        """Return all dated recovery providers before canonical selection."""
+        return self._data["recovery"]
+
+    @cached_property
     def recovery(self) -> pd.DataFrame:
         return select_preferred_source(
-            self._data["recovery"],
+            self.recovery_history,
             self.config.preferences.get("recovery"),
         )
 
@@ -328,6 +333,7 @@ class RequestContext:
             "activity_dates": pd.Series(dtype=object),
             "primary_load_dates": pd.Series(dtype=object),
             "fallback_load_dates": pd.Series(dtype=object),
+            "missing_load_dates": pd.Series(dtype=object),
             "primary_column": {
                 "power": "rss",
                 "hr": "trimp",
@@ -365,16 +371,18 @@ class RequestContext:
         )
         primary_valid = primary.gt(0)
         fallback_valid = ~primary_valid & fallback.gt(0)
-        frame["_analysis_load"] = (
-            primary.where(primary_valid, 0.0)
-            + fallback.where(fallback_valid, 0.0)
-        ).fillna(0.0)
+        frame["_analysis_load"] = primary.where(primary_valid)
+        frame.loc[fallback_valid, "_analysis_load"] = fallback.loc[
+            fallback_valid
+        ]
+        missing_load = ~primary_valid & ~fallback_valid
 
         first_date = frame["_analysis_date"].min()
         last_date = frame["_analysis_date"].max()
         date_range = pd.date_range(first_date, last_date, freq="D")
         daily_load = (
-            frame.groupby("_analysis_date")["_analysis_load"]
+            frame.loc[frame["_analysis_load"].notna()]
+            .groupby("_analysis_date")["_analysis_load"]
             .sum()
             .reindex(date_range, fill_value=0.0)
             .astype(float)
@@ -393,6 +401,10 @@ class RequestContext:
             ],
             "fallback_load_dates": frame.loc[
                 fallback_valid,
+                "_analysis_date",
+            ],
+            "missing_load_dates": frame.loc[
+                missing_load,
                 "_analysis_date",
             ],
             "primary_column": primary_column,
@@ -1104,7 +1116,7 @@ def _pre_activity_recovery(
     activity_date: date,
 ) -> dict:
     """Return selected-source recovery available on or before activity day."""
-    frame = ctx.recovery
+    frame = ctx.recovery_history
     if frame.empty or "date" not in frame.columns:
         return {
             "state": "unavailable",
@@ -1114,11 +1126,16 @@ def _pre_activity_recovery(
             "values": {},
             "reason_codes": ["recovery_unavailable"],
         }
-    eligible = frame[
-        frame["date"].map(
+    normalized_dates = pd.to_datetime(
+        frame["date"],
+        errors="coerce",
+    ).dt.date
+    eligible = frame.loc[
+        normalized_dates.map(
             lambda value: pd.notna(value) and value <= activity_date
         )
-    ].sort_values("date", kind="stable")
+    ].copy()
+    eligible["date"] = normalized_dates.loc[eligible.index]
     if eligible.empty:
         return {
             "state": "unavailable",
@@ -1128,6 +1145,10 @@ def _pre_activity_recovery(
             "values": {},
             "reason_codes": ["recovery_unavailable_before_activity"],
         }
+    eligible = select_preferred_source(
+        eligible,
+        ctx.config.preferences.get("recovery"),
+    ).sort_values("date", kind="stable")
     row = eligible.iloc[-1]
     fields = (
         "readiness_score",
@@ -1178,11 +1199,24 @@ def _pre_activity_load(
     ctx: RequestContext,
     activity_date: date,
 ) -> dict:
-    """Compute previous-day PMC values from stored, prior activity loads."""
+    """Compute previous-day PMC values from stored, prior activity loads.
+
+    Missing activity loads make CTL/ATL known-load lower bounds. TSB is omitted
+    in that state because unequal acute/chronic weighting makes its bias
+    direction indeterminate.
+    """
     as_of_date = activity_date - timedelta(days=1)
     history = ctx.causal_load_history
     ctl_days = int(history["ctl_days"])
     atl_days = int(history["atl_days"])
+    activity_timestamp = pd.Timestamp(activity_date)
+    missing_load_dates = history["missing_load_dates"]
+    # Keep the whole prior history intentionally: EWMA influence approaches
+    # zero but never reaches it, and an arbitrary hard cutoff would overstate
+    # completeness. The public count makes this conservative choice explicit.
+    missing_load_activity_count = int(
+        missing_load_dates.lt(activity_timestamp).sum()
+    )
     base = {
         "state": "unavailable",
         "as_of_date": as_of_date.isoformat(),
@@ -1198,6 +1232,7 @@ def _pre_activity_load(
         },
         "data_days": 0,
         "observation_days": 0,
+        "missing_load_activity_count": missing_load_activity_count,
         "reason_codes": [],
     }
     activity_dates = history["activity_dates"]
@@ -1206,7 +1241,6 @@ def _pre_activity_load(
             **base,
             "reason_codes": ["prior_activity_load_unavailable"],
         }
-    activity_timestamp = pd.Timestamp(activity_date)
     as_of_timestamp = pd.Timestamp(as_of_date)
     prior_dates = activity_dates[activity_dates.lt(activity_timestamp)]
     if prior_dates.empty:
@@ -1219,10 +1253,13 @@ def _pre_activity_load(
     data_days = (as_of_timestamp - first_date).days + 1
     daily_load = history["daily_load"].loc[:as_of_timestamp]
     if daily_load.empty or not daily_load.gt(0).any():
+        reason_codes = ["historical_load_scores_unavailable"]
+        if missing_load_activity_count:
+            reason_codes.append("activity_load_observations_missing")
         return {
             **base,
             "data_days": data_days,
-            "reason_codes": ["historical_load_scores_unavailable"],
+            "reason_codes": reason_codes,
         }
 
     load_sources: list[str] = []
@@ -1231,18 +1268,25 @@ def _pre_activity_load(
     if history["fallback_load_dates"].le(as_of_timestamp).any():
         load_sources.append("load_score")
     sufficient = has_sufficient_load_history(data_days, ctl_days)
+    reason_codes = (
+        [] if sufficient else ["load_history_insufficient"]
+    )
+    if missing_load_activity_count:
+        reason_codes.append("activity_load_observations_missing")
     return {
         **base,
-        "state": "available" if sufficient else "partial",
+        "state": "available" if not reason_codes else "partial",
         "ctl": round(float(history["ctl"].loc[as_of_timestamp]), 2),
         "atl": round(float(history["atl"].loc[as_of_timestamp]), 2),
-        "tsb": round(float(history["tsb"].loc[as_of_timestamp]), 2),
+        "tsb": (
+            None
+            if missing_load_activity_count
+            else round(float(history["tsb"].loc[as_of_timestamp]), 2)
+        ),
         "load_sources": load_sources,
         "data_days": data_days,
         "observation_days": int(daily_load.gt(0).sum()),
-        "reason_codes": (
-            [] if sufficient else ["load_history_insufficient"]
-        ),
+        "reason_codes": reason_codes,
     }
 
 

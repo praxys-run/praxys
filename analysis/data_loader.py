@@ -836,7 +836,11 @@ def load_activity_samples(
     params: dict[str, object] = {"uid": user_id}
 
     if activity_ids is None:
-        return pd.read_sql(text(base_sql), db.bind, params=params)
+        return pd.read_sql(
+            text(f"{base_sql} ORDER BY activity_id, t_sec"),
+            db.bind,
+            params=params,
+        )
 
     if not activity_ids:
         return pd.DataFrame(
@@ -847,7 +851,7 @@ def load_activity_samples(
         )
 
     # Deduplicate as strings — DB stores activity_id as VARCHAR.
-    unique_ids = list({str(a) for a in activity_ids})
+    unique_ids = sorted({str(a) for a in activity_ids})
 
     # Chunk under SQLite's default ~999 host-parameter limit. Realistic
     # callers stay well below this (e.g. 8 weeks of activities ≈ 30-50
@@ -861,7 +865,10 @@ def load_activity_samples(
         chunk_params = {**params, **{f"a{i}": v for i, v in enumerate(chunk)}}
         frames.append(
             pd.read_sql(
-                text(f"{base_sql} AND activity_id IN ({placeholders})"),
+                text(
+                    f"{base_sql} AND activity_id IN ({placeholders}) "
+                    "ORDER BY activity_id, t_sec"
+                ),
                 db.bind,
                 params=chunk_params,
             )
