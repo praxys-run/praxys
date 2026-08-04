@@ -119,6 +119,83 @@ Provision and verify:
 3. Dispatch `i18n.yml`. Confirm the generated PR receives manual-dispatch runs
    for Backend CI and Miniapp build on `i18n/refresh-zh`.
 
+#### Dependabot patch auto-merge
+
+`.github/workflows/dependabot-auto-merge.yml` uses the built-in
+`GITHUB_TOKEN` to queue normal squash auto-merge for a deliberately narrow
+dependency-update class. **No repository secret or variable is required.**
+The job runs from trusted default-branch code through `pull_request_target`,
+never checks out pull-request code, and grants `actions: read` plus only the
+`contents: write` and `pull-requests: write` permissions GitHub requires to
+inspect workflow state and enable auto-merge.
+
+Eligibility is fail-closed:
+
+- the pull request must still be open, non-draft, same-repository, target
+  `main`, and be authored by `dependabot[bot]`;
+- `dependabot/fetch-metadata` is commit-pinned and must verify the pull request
+  plus its metadata commit; the workflow separately paginates and verifies
+  every commit author and signature;
+- the highest update must be `semver-patch` and must not belong to a dependency
+  group;
+- only root `pip` updates and `/web` `npm` updates qualify; miniapp, GitHub
+  Actions, grouped, minor, and major updates remain manual;
+- changed files must be modifications limited to `requirements.txt` or the
+  `/web` package manifest and lockfile appropriate to the verified ecosystem;
+- the workflow re-reads the pull request immediately before acting and binds
+  `gh pr merge` to the exact verified head SHA.
+
+Auto-merge still obeys the strict `main` ruleset. The current head must be up to
+date and pass both `backend-tests` and `selective-review-policy`; a failed,
+conflicted, or stale update remains open. Existing Dependabot pull requests are
+not retroactively queued until Dependabot updates/reopens them or the workflow
+is otherwise retriggered.
+
+Verify a qualifying PR:
+
+```bash
+gh pr view <number> --json author,autoMergeRequest,baseRefName,headRefOid,statusCheckRollup
+```
+
+Emergency rollback first prevents new queueing, then disables any pending
+Dependabot auto-merges:
+
+```bash
+repo=praxys-run/praxys
+workflow=dependabot-auto-merge.yml
+workflow_id=$(gh api "repos/$repo/actions/workflows/$workflow" --jq '.id')
+test -n "$workflow_id"
+gh workflow disable "$workflow_id" --repo "$repo"
+
+disable_pending_dependabot_auto_merges() {
+  for pr in $(gh pr list --repo "$repo" --author app/dependabot --state open \
+    --limit 1000 --json number,autoMergeRequest \
+    --jq '.[] | select(.autoMergeRequest != null) | .number'); do
+    gh pr merge --disable-auto "$pr" --repo "$repo"
+  done
+}
+
+disable_pending_dependabot_auto_merges
+
+for run in $(gh run list --repo "$repo" --workflow "$workflow_id" \
+  --all --limit 1000 --json databaseId,status \
+  --jq '.[] | select(.status != "completed") | .databaseId'); do
+  gh run cancel "$run" --repo "$repo"
+done
+
+while [ -n "$(gh run list --repo "$repo" --workflow "$workflow_id" \
+  --all --limit 1000 --json status \
+  --jq '.[] | select(.status != "completed") | .status')" ]; do
+  sleep 2
+done
+
+disable_pending_dependabot_auto_merges
+
+test "$(gh pr list --repo "$repo" --author app/dependabot --state open \
+  --limit 1000 --json autoMergeRequest \
+  --jq '[.[] | select(.autoMergeRequest != null)] | length')" = "0"
+```
+
 Application Insights resource names are tracked in
 `.github/azure-observability.env`, not repository variables. The deploy
 workflows use Azure OIDC to read each component's connection string at runtime;
@@ -439,12 +516,12 @@ to the Copilot coding agent. These are **repo settings, not deploy-managed**:
   values may remain absent while the committed policy is unpromoted/default-off;
   review-required runs do not inspect them. Provisioning:
   [setup-review-policy-app.md](./setup-review-policy-app.md).
-- The repository setting **Allow auto-merge** is enabled once for
-  `selective-review.yml`. Auto-merge remains squash-only and obeys the active
-  ruleset; the policy App is never a bypass actor. The rules require zero
-  approvals but require the branch to be up to date before merging. Both
-  `backend-tests` and the explicit `selective-review-policy` status are required
-  on the current head.
+- The repository setting **Allow auto-merge** is shared by
+  `selective-review.yml` and `dependabot-auto-merge.yml`. Auto-merge remains
+  squash-only and obeys the active ruleset; neither the policy App nor the
+  workflow token is a bypass actor. The rules require zero approvals but require
+  the branch to be up to date before merging. Both `backend-tests` and the
+  explicit `selective-review-policy` status are required on the current head.
 
 ### Azure Database for PostgreSQL (#360)
 
