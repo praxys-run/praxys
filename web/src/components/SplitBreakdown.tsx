@@ -8,6 +8,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Trans } from '@lingui/react/macro';
+import { formatStoredPace } from '@/lib/format';
 
 interface Props {
   splits: SplitData[];
@@ -71,7 +72,9 @@ export default function SplitBreakdown({ splits, cpEstimate }: Props) {
                 {s.avg_hr != null ? `${Math.round(s.avg_hr)}` : '\u2014'}
               </TableCell>
               <TableCell className="text-right font-data text-muted-foreground">
-                {s.avg_pace_min_km ?? '\u2014'}
+                {s.avg_pace_min_km
+                  ? formatStoredPace(s.avg_pace_min_km)
+                  : '\u2014'}
               </TableCell>
             </TableRow>
           ))}
