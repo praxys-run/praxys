@@ -16,12 +16,22 @@ const KM_TO_MILE = 1.60934;
  * @returns Formatted pace string like "5:30 /km" or "8:51 /mi"
  */
 export function formatPace(secPerKm: number, unit: 'metric' | 'imperial' = 'metric'): string {
-  if (!secPerKm || secPerKm <= 0) return '—';
+  if (!Number.isFinite(secPerKm) || secPerKm <= 0) return '—';
   const totalSec = unit === 'imperial' ? secPerKm * KM_TO_MILE : secPerKm;
-  const m = Math.floor(totalSec / 60);
-  const s = Math.round(totalSec % 60);
+  const roundedSec = Math.round(totalSec);
+  const m = Math.floor(roundedSec / 60);
+  const s = roundedSec % 60;
   const suffix = unit === 'imperial' ? '/mi' : '/km';
   return `${m}:${String(s).padStart(2, '0')} ${suffix}`;
+}
+
+/** Format an API pace value stored as either M:SS or seconds per kilometer. */
+export function formatStoredPace(
+  pace: string | number,
+  unit: 'metric' | 'imperial' = 'metric',
+): string {
+  const secPerKm = typeof pace === 'number' ? pace : parseTimeToSeconds(pace);
+  return secPerKm == null ? '—' : formatPace(secPerKm, unit);
 }
 
 /**

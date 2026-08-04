@@ -830,11 +830,11 @@ msgstr "Availability rate"
 msgid "Available"
 msgstr "Available"
 
-#: src/components/ActivityCard.tsx:107
+#: src/components/ActivityCard.tsx:108
 msgid "Avg HR"
 msgstr "Avg HR"
 
-#: src/components/ActivityCard.tsx:96
+#: src/components/ActivityCard.tsx:97
 msgid "Avg Power"
 msgstr "Avg Power"
 
@@ -1907,11 +1907,11 @@ msgstr "Dismiss"
 msgid "Display preferences"
 msgstr "Display preferences"
 
-#: src/components/SplitBreakdown.tsx:46
+#: src/components/SplitBreakdown.tsx:47
 msgid "Dist"
 msgstr "Dist"
 
-#: src/components/ActivityCard.tsx:75
+#: src/components/ActivityCard.tsx:76
 #: src/components/charts/WeeklyVolumeChart.tsx:89
 #: src/components/charts/WeeklyVolumeChart.tsx:98
 #: src/components/GoalEditor.tsx:122
@@ -1963,8 +1963,8 @@ msgstr "Drop intensity by one zone"
 msgid "Drop to easy run (keep power in recovery zone)"
 msgstr "Drop to easy run (keep power in recovery zone)"
 
-#: src/components/ActivityCard.tsx:86
-#: src/components/SplitBreakdown.tsx:47
+#: src/components/ActivityCard.tsx:87
+#: src/components/SplitBreakdown.tsx:48
 msgid "Duration"
 msgstr "Duration"
 
@@ -2051,7 +2051,7 @@ msgstr "Effective heat: {0} of {thresholdMinutes} minutes"
 #~ msgid "Effective heat: {effectiveHeatDisplay} of {thresholdMinutes} minutes"
 #~ msgstr "Effective heat: {effectiveHeatDisplay} of {thresholdMinutes} minutes"
 
-#: src/components/ActivityCard.tsx:128
+#: src/components/ActivityCard.tsx:130
 msgid "Elev"
 msgstr "Elev"
 
@@ -2726,7 +2726,7 @@ msgstr "How this is calculated"
 msgid "How your zones and training load are calculated"
 msgstr "How your zones and training load are calculated"
 
-#: src/components/SplitBreakdown.tsx:49
+#: src/components/SplitBreakdown.tsx:50
 msgid "HR"
 msgstr "HR"
 
@@ -3021,7 +3021,7 @@ msgstr "Language"
 msgid "Last 14 days"
 msgstr "Last 14 days"
 
-#: src/components/LastActivityCard.tsx:43
+#: src/components/LastActivityCard.tsx:44
 msgid "Last Activity"
 msgstr "Last Activity"
 
@@ -3858,7 +3858,7 @@ msgstr "No Praxys workouts are scheduled in this window. Future Praxys-created w
 #~ msgid "No session"
 #~ msgstr "No session"
 
-#: src/components/SplitBreakdown.tsx:36
+#: src/components/SplitBreakdown.tsx:37
 msgid "No split data available."
 msgstr "No split data available."
 
@@ -4240,8 +4240,8 @@ msgstr "overnight score"
 msgid "Ownership conflict"
 msgstr "Ownership conflict"
 
-#: src/components/ActivityCard.tsx:121
-#: src/components/SplitBreakdown.tsx:50
+#: src/components/ActivityCard.tsx:122
+#: src/components/SplitBreakdown.tsx:51
 #: src/lib/display-labels.ts:56
 #: src/pages/Settings.tsx:91
 #: src/pages/Setup.tsx:180
@@ -4400,7 +4400,7 @@ msgstr "positive balance"
 msgid "PostgreSQL connections"
 msgstr "PostgreSQL connections"
 
-#: src/components/SplitBreakdown.tsx:48
+#: src/components/SplitBreakdown.tsx:49
 #: src/lib/display-labels.ts:54
 #: src/pages/Settings.tsx:73
 #: src/pages/Setup.tsx:176
