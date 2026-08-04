@@ -17,6 +17,8 @@ passwords. Backend + frontend run their test/build gates **before** deploying.
 
 **Pre-merge gate.** Before any deploy, `ci-backend.yml` runs the backend `pytest` suite on every PR to `main` and reports a **required** status check (`backend-tests`). A red suite blocks merge, so regressions never reach the deploy step (see [environment.md](./environment.md) → Repo governance). `deploy-backend.yml` re-runs the same suite post-merge as a deploy-time backstop.
 
+GitHub-hosted Python jobs use `actions/setup-python@v7` to provision the workflow-pinned Python 3.11/3.12 runtimes and require no separate runner configuration.
+
 ## Backend deploy
 
 Automatic on merge to `main` (for the paths above). The workflow:
