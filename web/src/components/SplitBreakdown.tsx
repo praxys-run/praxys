@@ -8,6 +8,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Trans } from '@lingui/react/macro';
+import { useSettings } from '@/contexts/SettingsContext';
 import { formatStoredPace } from '@/lib/format';
 
 interface Props {
@@ -32,6 +33,9 @@ function formatSplitDuration(sec: number | null): string {
 }
 
 export default function SplitBreakdown({ splits, cpEstimate }: Props) {
+  const { config } = useSettings();
+  const unitSystem = config?.unit_system ?? 'metric';
+
   if (splits.length === 0) {
     return (
       <p className="text-sm text-muted-foreground py-2"><Trans>No split data available.</Trans></p>
@@ -73,7 +77,7 @@ export default function SplitBreakdown({ splits, cpEstimate }: Props) {
               </TableCell>
               <TableCell className="text-right font-data text-muted-foreground">
                 {s.avg_pace_min_km
-                  ? formatStoredPace(s.avg_pace_min_km)
+                  ? formatStoredPace(s.avg_pace_min_km, unitSystem)
                   : '\u2014'}
               </TableCell>
             </TableRow>

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Trans } from '@lingui/react/macro';
 import { useLocale } from '@/contexts/LocaleContext';
+import { useSettings } from '@/contexts/SettingsContext';
 import { formatStoredPace } from '@/lib/format';
 
 interface Props {
@@ -17,6 +18,8 @@ function formatDuration(sec: number): string {
 
 export default function LastActivityCard({ activity }: Props) {
   const { locale } = useLocale();
+  const { config } = useSettings();
+  const unitSystem = config?.unit_system ?? 'metric';
   const details: string[] = [];
   if (activity.distance_km != null)
     details.push(`${activity.distance_km.toFixed(1)} km`);
@@ -25,7 +28,7 @@ export default function LastActivityCard({ activity }: Props) {
   if (activity.avg_power != null)
     details.push(`${activity.avg_power} W`);
   else if (activity.avg_pace_min_km)
-    details.push(formatStoredPace(activity.avg_pace_min_km));
+    details.push(formatStoredPace(activity.avg_pace_min_km, unitSystem));
 
   const typeLabel = activity.activity_type
     .replace(/_/g, ' ')

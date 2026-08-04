@@ -9,14 +9,22 @@ test('formats stored pace values from sec/km and M:SS', () => {
   assert.equal(formatStoredPace('5:00'), '5:00 /km');
   assert.equal(formatStoredPace('not-a-pace'), '—');
   assert.equal(formatPace(359.6), '6:00 /km');
+  assert.equal(formatStoredPace(300, 'imperial'), '8:03 /mi');
 });
 
-test('History activity cards use the stored pace formatter', async () => {
-  const source = await readFile(
-    new URL('../src/components/ActivityCard.tsx', import.meta.url),
-    'utf8',
-  );
+test('activity pace cards respect the configured unit system', async () => {
+  const components = [
+    ['ActivityCard.tsx', 'activity.avg_pace_min_km'],
+    ['LastActivityCard.tsx', 'activity.avg_pace_min_km'],
+    ['SplitBreakdown.tsx', 's.avg_pace_min_km'],
+  ];
 
-  assert.match(source, /formatStoredPace\(activity\.avg_pace_min_km\)/);
-  assert.doesNotMatch(source, />\{activity\.avg_pace_min_km\}</);
+  for (const [component, pace] of components) {
+    const source = await readFile(
+      new URL(`../src/components/${component}`, import.meta.url),
+      'utf8',
+    );
+    assert.match(source, new RegExp(`formatStoredPace\\(${pace}, unitSystem\\)`));
+    assert.match(source, /useSettings/);
+  }
 });
