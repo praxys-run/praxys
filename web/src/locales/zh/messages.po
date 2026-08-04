@@ -828,11 +828,11 @@ msgstr "可用率"
 msgid "Available"
 msgstr "可用"
 
-#: src/components/ActivityCard.tsx:107
+#: src/components/ActivityCard.tsx:108
 msgid "Avg HR"
 msgstr "平均心率"
 
-#: src/components/ActivityCard.tsx:96
+#: src/components/ActivityCard.tsx:97
 msgid "Avg Power"
 msgstr "平均功率"
 
@@ -1905,11 +1905,11 @@ msgstr "关闭"
 msgid "Display preferences"
 msgstr "显示偏好"
 
-#: src/components/SplitBreakdown.tsx:46
+#: src/components/SplitBreakdown.tsx:47
 msgid "Dist"
 msgstr "距离"
 
-#: src/components/ActivityCard.tsx:75
+#: src/components/ActivityCard.tsx:76
 #: src/components/charts/WeeklyVolumeChart.tsx:89
 #: src/components/charts/WeeklyVolumeChart.tsx:98
 #: src/components/GoalEditor.tsx:122
@@ -1969,8 +1969,8 @@ msgstr "改为轻松跑（功率保持在恢复区间）"
 #~ msgid "Drop to easy run (keep power in recovery zone)\" \"改为轻松跑（功率保持在恢复区间）"
 #~ msgstr ""
 
-#: src/components/ActivityCard.tsx:86
-#: src/components/SplitBreakdown.tsx:47
+#: src/components/ActivityCard.tsx:87
+#: src/components/SplitBreakdown.tsx:48
 msgid "Duration"
 msgstr "时长"
 
@@ -2057,7 +2057,7 @@ msgstr "等效热暴露：{0} / {thresholdMinutes} 分钟"
 #~ msgid "Effective heat: {effectiveHeatDisplay} of {thresholdMinutes} minutes"
 #~ msgstr ""
 
-#: src/components/ActivityCard.tsx:128
+#: src/components/ActivityCard.tsx:130
 msgid "Elev"
 msgstr "爬升"
 
@@ -2732,7 +2732,7 @@ msgstr "计算方式"
 msgid "How your zones and training load are calculated"
 msgstr "区间和训练负荷的计算方式"
 
-#: src/components/SplitBreakdown.tsx:49
+#: src/components/SplitBreakdown.tsx:50
 msgid "HR"
 msgstr "心率"
 
@@ -3067,7 +3067,7 @@ msgstr "语言"
 msgid "Last 14 days"
 msgstr "近14天"
 
-#: src/components/LastActivityCard.tsx:43
+#: src/components/LastActivityCard.tsx:44
 msgid "Last Activity"
 msgstr "上次活动"
 
@@ -3912,7 +3912,7 @@ msgstr "此窗口内暂无 Praxys 训练。之后由 Praxys 创建的训练会�
 #~ msgid "No session"
 #~ msgstr "无训练"
 
-#: src/components/SplitBreakdown.tsx:36
+#: src/components/SplitBreakdown.tsx:37
 msgid "No split data available."
 msgstr "没有可用的分段数据。"
 
@@ -4306,8 +4306,8 @@ msgstr "夜间评分"
 msgid "Ownership conflict"
 msgstr "归属冲突"
 
-#: src/components/ActivityCard.tsx:121
-#: src/components/SplitBreakdown.tsx:50
+#: src/components/ActivityCard.tsx:122
+#: src/components/SplitBreakdown.tsx:51
 #: src/lib/display-labels.ts:56
 #: src/pages/Settings.tsx:91
 #: src/pages/Setup.tsx:180
@@ -4470,7 +4470,7 @@ msgstr "正平衡"
 msgid "PostgreSQL connections"
 msgstr "PostgreSQL 连接数"
 
-#: src/components/SplitBreakdown.tsx:48
+#: src/components/SplitBreakdown.tsx:49
 #: src/lib/display-labels.ts:54
 #: src/pages/Settings.tsx:73
 #: src/pages/Setup.tsx:176
