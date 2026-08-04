@@ -165,18 +165,22 @@ def test_heat_safety_notices_render_from_server_codes_on_both_clients() -> None:
     assert "{{heat.safetyLabel}}" in mini_training
 
 
-def test_science_shows_heat_as_active_fixed_model() -> None:
-    """Heat methodology is visible without presenting a fake switch."""
+def test_science_shows_single_theories_without_a_fake_switch() -> None:
+    """Single-theory pillars use one Active pill without a fake switch."""
     web_science = _source(WEB_SCIENCE)
     mini_science = _source(MINI_SCIENCE)
     mini_science_ts = _source(MINI_SCIENCE_TS)
 
     assert "key: 'heat'" in web_science
     assert "fixed_pillars.includes(focused)" in web_science
-    assert "Active fixed model" in web_science
+    assert "const hasAlternatives = !isFixed && alternatives.length > 1;" in web_science
     assert "key: 'heat'" in mini_science_ts or "'heat'" in mini_science_ts
     assert "isFixed" in mini_science_ts
-    assert "{{tr.fixedModelTag}}" in mini_science
+    assert "const hasAlternatives = !isFixed && alternatives.length > 1;" in mini_science_ts
+    assert 'wx:if="{{!detail.hasAlternatives}}"' in mini_science
+    assert "{{tr.activeTag}}" in mini_science
+    assert "!['system', 'praxys'].includes(shown.author.toLowerCase())" in web_science
+    assert "!['system', 'praxys'].includes(shownTheory.author.toLowerCase())" in mini_science_ts
 
 
 def test_evidence_details_are_localizable_and_explain_mixed_providers() -> None:
