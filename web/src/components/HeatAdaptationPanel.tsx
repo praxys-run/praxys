@@ -355,22 +355,22 @@ function HeatCadence({
               aria-label={label}
               aria-pressed={isSelected}
               onClick={() => onSelect(day.date)}
-              className={`h-12 min-w-0 rounded-md border p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-[4.6rem] sm:p-2 ${stateClass} ${
+              className={`min-h-12 min-w-0 rounded-md border p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-[4.6rem] sm:p-2 ${stateClass} ${
                 isSelected ? 'ring-2 ring-foreground/80 ring-offset-2 ring-offset-background' : ''
               }`}
             >
-              <span className="flex items-baseline justify-between gap-1">
-                <span className="hidden text-[11px] uppercase tracking-wide text-muted-foreground sm:inline">
+              <span className="flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-0.5">
+                <span className="hidden whitespace-nowrap text-[11px] uppercase tracking-wide text-muted-foreground sm:inline">
                   {formatWeekday(day.date, locale)}
                 </span>
-                <span className="font-data text-[11px] font-semibold text-foreground sm:text-xs">
+                <span className="shrink-0 whitespace-nowrap font-data text-[11px] font-semibold text-foreground sm:ml-auto sm:text-xs">
                   {formatDayNumber(day.date, locale)}
                 </span>
               </span>
-              <span className="mt-0.5 block truncate font-data text-[11px] font-semibold text-foreground sm:mt-2">
+              <span className="mt-0.5 block whitespace-nowrap font-data text-[11px] font-semibold text-foreground sm:mt-2">
                 {hasObserved ? `${Math.round(day.effective_heat_minutes)}m` : '—'}
               </span>
-              <span className="mt-0.5 hidden text-[11px] font-medium text-muted-foreground sm:block">
+              <span className="mt-0.5 hidden break-words text-[11px] font-medium leading-tight text-muted-foreground sm:block">
                 {hasIncluded
                   ? i18n._(msg`Included`)
                   : hasObserved
