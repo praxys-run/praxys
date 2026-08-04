@@ -19,7 +19,8 @@ def test_selective_review_workflow_is_default_off_and_never_bypasses():
     ).read_text(encoding="utf-8")
     assert "PRAXYS_SELECTIVE_REVIEW_ENABLED" in workflow
     assert "PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH" in workflow
-    assert "actions/create-github-app-token@v2" in workflow
+    assert "actions/create-github-app-token@v3" in workflow
+    assert "actions/create-github-app-token@v2" not in workflow
     assert "scripts/selective_review_gate.py" in workflow
     assert "gh pr merge" in workflow
     assert "--auto" in workflow
@@ -96,6 +97,8 @@ def test_selective_review_workflow_is_default_off_and_never_bypasses():
         / "workflows"
         / "selective-review-emergency-stop.yml"
     ).read_text(encoding="utf-8")
+    assert "actions/create-github-app-token@v3" in emergency
+    assert "actions/create-github-app-token@v2" not in emergency
     assert "steps.policy-token.outputs.app-slug" in emergency
     assert "vars.PRAXYS_REVIEW_POLICY_APP_SLUG" in emergency
     assert "id: policy-app" in emergency
