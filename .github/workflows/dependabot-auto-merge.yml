@@ -1,0 +1,172 @@
+name: Dependabot patch auto-merge
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, edited]
+
+# pull_request_target is required because Dependabot pull_request runs receive a
+# read-only token. Never checkout or execute pull-request code in this workflow.
+permissions:
+  actions: read
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: dependabot-auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  queue:
+    if: >-
+      github.repository == 'praxys-run/praxys' &&
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disable stale workflow-owned auto-merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          owner="$(
+            gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" \
+              --jq '.auto_merge.enabled_by.login // ""'
+          )"
+          if [[ "$owner" == "github-actions[bot]" ]]; then
+            gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --disable-auto
+          elif [[ -n "$owner" ]]; then
+            echo "Auto-merge is owned by $owner; leaving it unchanged."
+          fi
+
+      - name: Verify Dependabot metadata
+        id: dependabot
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ github.token }}
+
+      - name: Queue eligible patch update
+        if: >-
+          github.event.pull_request.base.ref == 'main' &&
+          github.event.pull_request.draft == false &&
+          steps.dependabot.outputs.update-type == 'version-update:semver-patch' &&
+          steps.dependabot.outputs.dependency-group == '' &&
+          steps.dependabot.outputs.maintainer-changes == 'false' &&
+          (
+            (
+              steps.dependabot.outputs.package-ecosystem == 'pip' &&
+              steps.dependabot.outputs.directory == '/'
+            ) ||
+            (
+              steps.dependabot.outputs.package-ecosystem == 'npm_and_yarn' &&
+              steps.dependabot.outputs.directory == '/web'
+            )
+          )
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          ECOSYSTEM: ${{ steps.dependabot.outputs.package-ecosystem }}
+          DIRECTORY: ${{ steps.dependabot.outputs.directory }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          verify_pull_snapshot() {
+            current_pull="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+            current_author="$(jq -r '.user.login' <<< "$current_pull")"
+            current_state="$(jq -r '.state' <<< "$current_pull")"
+            current_draft="$(jq -r '.draft' <<< "$current_pull")"
+            current_head="$(jq -r '.head.sha' <<< "$current_pull")"
+            current_head_repo="$(jq -r '.head.repo.full_name' <<< "$current_pull")"
+            current_base="$(jq -r '.base.ref' <<< "$current_pull")"
+            current_commit_count="$(jq -r '.commits' <<< "$current_pull")"
+            current_file_count="$(jq -r '.changed_files' <<< "$current_pull")"
+
+            if [[ "$current_author" != "dependabot[bot]" ||
+              "$current_state" != "open" ||
+              "$current_draft" != "false" ||
+              "$current_head" != "$HEAD_SHA" ||
+              "$current_head_repo" != "$GITHUB_REPOSITORY" ||
+              "$current_base" != "main" ]]; then
+              echo "::error::Pull request identity or refs changed after metadata verification."
+              exit 1
+            fi
+          }
+
+          verify_pull_snapshot
+          expected_commit_count="$current_commit_count"
+          expected_file_count="$current_file_count"
+
+          commits="$(
+            gh api --paginate --slurp \
+              "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/commits?per_page=100"
+          )"
+          listed_commit_count="$(jq '[.[][]] | length' <<< "$commits")"
+          if [[ "$listed_commit_count" != "$expected_commit_count" ]] ||
+            ! jq -e '
+              [.[][]] as $commits
+              | ($commits | length) > 0
+                and all(
+                  $commits[];
+                  (.author.login // "") == "dependabot[bot]"
+                  and (.commit.verification.verified // false) == true
+                )
+            ' <<< "$commits" > /dev/null; then
+            echo "::error::Every pull request commit must be verified and Dependabot-authored."
+            exit 1
+          fi
+
+          files="$(
+            gh api --paginate --slurp \
+              "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100"
+          )"
+          listed_file_count="$(jq '[.[][]] | length' <<< "$files")"
+          if [[ "$listed_file_count" != "$expected_file_count" ]] ||
+            ! jq -e --arg ecosystem "$ECOSYSTEM" --arg directory "$DIRECTORY" '
+              [.[][]] as $files
+              | ($files | length) > 0
+                and all(
+                  $files[];
+                  .status == "modified"
+                  and (
+                    (
+                      $ecosystem == "pip"
+                      and $directory == "/"
+                      and .filename == "requirements.txt"
+                    )
+                    or (
+                      $ecosystem == "npm_and_yarn"
+                      and $directory == "/web"
+                      and (
+                        .filename == "web/package.json"
+                        or .filename == "web/package-lock.json"
+                      )
+                    )
+                  )
+                )
+            ' <<< "$files" > /dev/null; then
+            echo "::error::Pull request changes files outside the dependency allowlist."
+            exit 1
+          fi
+
+          verify_pull_snapshot
+          if [[ "$current_commit_count" != "$expected_commit_count" ||
+            "$current_file_count" != "$expected_file_count" ]]; then
+            echo "::error::Pull request contents changed during verification."
+            exit 1
+          fi
+
+          workflow_state="$(
+            gh api \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/dependabot-auto-merge.yml" \
+              --jq '.state'
+          )"
+          if [[ "$workflow_state" != "active" ]]; then
+            echo "::error::Dependabot auto-merge was disabled during evaluation."
+            exit 1
+          fi
+
+          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --auto --squash --delete-branch --match-head-commit "$HEAD_SHA"
