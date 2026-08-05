@@ -132,7 +132,9 @@ def test_manual_sync_runs_adjustment_before_insights(sync_setup, monkeypatch):
     monkeypatch.setattr(
         sync_module,
         "_sync_garmin",
-        lambda user_id, creds, from_date, db: {"activities": 1},
+        lambda user_id, creds, from_date, db, **kwargs: {
+            "activities": 1
+        },
     )
     monkeypatch.setattr(
         "api.plan_adjustments.run_plan_adjustment_for_user",
@@ -184,7 +186,9 @@ def test_scheduled_sync_runs_adjustment_before_insights(
         monkeypatch.setattr(
             sync_module,
             "_sync_garmin",
-            lambda user_id, creds, from_date, db: {"activities": 1},
+            lambda user_id, creds, from_date, db, **kwargs: {
+                "activities": 1
+            },
         )
         monkeypatch.setattr(
             "api.plan_adjustments.run_plan_adjustment_for_user",

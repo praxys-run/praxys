@@ -536,6 +536,7 @@ def load_plan_adjustment_inputs(
         plan_snapshot,
         workout_version,
     )
+    from db.plan_reconciliation import target_observation_matches_calendar
 
     plan_query = (
         select(TrainingPlan)
@@ -657,8 +658,6 @@ def load_plan_adjustment_inputs(
                 target_query = select(PlanTargetWorkout).where(
                     PlanTargetWorkout.user_id == user_id,
                     PlanTargetWorkout.target == target,
-                    PlanTargetWorkout.provider_account_id
-                    == calendar_sync.provider_account_id,
                 )
                 if for_update:
                     target_query = (
@@ -669,6 +668,14 @@ def load_plan_adjustment_inputs(
                 target_workouts = list(
                     db.execute(target_query).scalars().all()
                 )
+                target_workouts = [
+                    observation
+                    for observation in target_workouts
+                    if target_observation_matches_calendar(
+                        calendar_sync,
+                        observation,
+                    )
+                ]
     return (
         workouts,
         activity_id is not None,

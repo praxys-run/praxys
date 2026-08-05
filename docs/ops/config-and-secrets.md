@@ -49,6 +49,7 @@ transient — the next deploy overwrites them.**
 | `PRAXYS_SMTP_HOST` / `PRAXYS_SMTP_PORT` / `PRAXYS_SMTP_USER` / `PRAXYS_SMTP_FROM` / `PRAXYS_SMTP_STARTTLS` | SMTP transport for verification + invitation emails (non-secret; the password is the secret above). **Optional.** | App Service setting (backend) |
 | `PRAXYS_APP_BASE_URL` (`https://praxys.run`) | Public origin for verify/invite links in those emails | App Service setting (backend) |
 | `PRAXYS_DB_AUTH` (`entra` or unset) | Postgres auth mode: `entra` = AAD token via managed identity, no password. **Optional.** | App Service setting (backend) |
+| `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED` (`false`) | Default-off operator gate for unsupported Garmin consumer-API workout writes. Set `true` only on an approved validation deployment, or in production after both international and China controlled lifecycle matrices pass. User connection-bound consent remains independently required. | App Service setting (backend) |
 | `PRAXYS_PG_SERVER` | Postgres Flexible Server name. **Reserved / currently unused** - the on-demand backup jobs it gated were removed (Burstable tier can't do on-demand backups; PITR covers backup). Kept for a future off-site backup job. | (reserved) |
 | `PRAXYS_GITHUB_APP_ID` / `PRAXYS_GITHUB_APP_INSTALLATION_ID` | Feedback GitHub App identifiers. | App Service setting (backend) |
 | `PRAXYS_FEEDBACK_GITHUB_REPO` / `PRAXYS_FEEDBACK_GITHUB_LABELS` / `PRAXYS_FEEDBACK_GITHUB_ASSIGNEES` | Feedback issue target and optional issue metadata. | App Service setting (backend) |
@@ -264,6 +265,38 @@ available when all three conditions hold:
 The explicit user-ID pin prevents one local account from borrowing another
 account's environment credentials. Do not add these values to
 `deploy-backend.yml`, GitHub Actions, or App Service settings.
+
+Garmin consumer-API workout delivery is an unsupported, duration-only
+experiment protected by two independent gates. The deploy workflow writes the
+non-secret GitHub Actions variable
+`PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED` to App Service on every deployment,
+defaulting to `false` when the variable is absent. Keep production false until
+both controlled regional lifecycle matrices pass. An approved isolated
+validation deployment may set it to `true`; changing the portal directly is
+transient and will be overwritten by the next deploy. Even when the operator
+gate is enabled, each user must opt in through Settings. The resulting
+`user_connections.plan_delivery_consent` value is a non-secret SHA-256 binding
+to that encrypted credential generation and Garmin region; it is never accepted
+as a portable entitlement. Reconnecting, rotating credentials, or disconnecting
+clears the effective capability and pauses active Garmin delivery. Changing
+region also disconnects the old region, clears its cached tokens, and requires a
+fresh login. Cached sessions live under the persistent data volume in a
+per-user, per-credential-generation tokenstore; interactive login uses a
+one-time staging directory bound to an opaque server-generated login-attempt ID
+until the encrypted connection commit succeeds. Concurrent attempts cannot
+consume one another's staged tokens.
+For rolling-deployment compatibility, an existing direct per-user tokenstore
+is copied into its first generation and current generation files are mirrored
+to the legacy root for older workers. New workers load only their exact
+generation. Rotation, disconnect, and user deletion clear both layouts plus
+all staged attempts. A running Garmin sync is generation
+fenced and rolls back if the connection changes, so old token files cannot
+authorize or degrade the replacement connection. Do not provision, copy, or
+restore consent or tokenstore files through App Service settings, Actions
+variables, SQL scripts, storage tooling, or an admin override. To roll back
+Garmin writes globally, set the repository variable to `false` and redeploy;
+the capability and every fresh mutation guard fail closed without deleting
+user consent or unrelated Garmin data.
 
 ### Application Insights trust boundary (#417)
 

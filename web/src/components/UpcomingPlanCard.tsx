@@ -74,6 +74,12 @@ const DEFAULT_COLOR = { bg: 'bg-muted', text: 'text-muted-foreground' };
 const STATUS_BASE =
   'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-medium';
 
+function planTargetLabel(target: string | null): string | null {
+  if (target === 'stryd') return 'Stryd';
+  if (target === 'garmin') return 'Garmin';
+  return target;
+}
+
 function getTypeColor(type: string) {
   const key = type.toLowerCase().replace(/\s+/g, ' ');
   if (TYPE_COLORS[key]) return TYPE_COLORS[key];
@@ -572,7 +578,7 @@ function ConflictDialog({
 }) {
   const reconciliation = workout?.reconciliation;
   if (!workout || !reconciliation) return null;
-  const target = reconciliation.target === 'stryd' ? 'Stryd' : reconciliation.target;
+  const target = planTargetLabel(reconciliation.target);
   const canRestore = reconciliation.resolutions.includes('restore_praxys');
   const canAccept = reconciliation.resolutions.includes('accept_target');
   const targetWorkout = reconciliation.target_workout;
@@ -831,9 +837,7 @@ export default function UpcomingPlanCard() {
   const executionTarget = planManagement.execution_target ?? data?.sync_target ?? null;
   const targetConnected = executionTarget != null
     && connectionStatuses[executionTarget] === 'connected';
-  const targetLabel = executionTarget === 'stryd'
-    ? 'Stryd'
-    : executionTarget;
+  const targetLabel = planTargetLabel(executionTarget);
 
   const handleWindowChange = useCallback((next: WindowId) => {
     setWindowId(next);

@@ -107,6 +107,7 @@ class UserConfig(Base):
     training_base = Column(String(10), default="power")
     preferences = Column(JSON, default=dict)
     plan_management = Column(JSON, default=dict)
+    plan_execution_target = Column(String(20), nullable=True)
     thresholds = Column(JSON, default=dict)
     zones = Column(JSON, default=dict)
     goal = Column(JSON, default=dict)
@@ -149,6 +150,10 @@ class UserConnection(Base):
     consecutive_failures = Column(Integer, nullable=False, default=0)
     next_retry_at = Column(DateTime, nullable=True)
     last_error = Column(String(500), nullable=True)
+    # Opaque consent fence for experimental plan delivery. The value is
+    # derived from the current credential generation and provider region, so
+    # reconnecting or switching regions invalidates consent automatically.
+    plan_delivery_consent = Column(String(64), nullable=True)
 
     user = relationship("User", back_populates="connections")
     __table_args__ = (
@@ -559,6 +564,14 @@ class PlanDelivery(Base):
     target = Column(String(20), nullable=False)
     state = Column(String(20), nullable=False, default="pending")
     external_id = Column(String(200), nullable=True)
+    # Provider-opaque durable identities needed in addition to external_id.
+    # Garmin, for example, owns both a template_id and a scheduled instance.
+    provider_references = Column(
+        JSON,
+        nullable=False,
+        default=dict,
+        server_default="{}",
+    )
     provider_account_id = Column(String(200), nullable=True)
     last_error = Column(Text, nullable=True)
     delivered_at = Column(DateTime, nullable=True)
@@ -657,6 +670,12 @@ class PlanTargetCalendarSync(Base):
     )
     target = Column(String(20), nullable=False)
     provider_account_id = Column(String(200), nullable=False)
+    provider_references = Column(
+        JSON,
+        nullable=False,
+        default=dict,
+        server_default="{}",
+    )
     window_start = Column(Date, nullable=False)
     window_end = Column(Date, nullable=False)
     synced_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -685,6 +704,12 @@ class PlanTargetWorkout(Base):
     target = Column(String(20), nullable=False)
     provider_account_id = Column(String(200), nullable=False)
     external_id = Column(String(200), nullable=False)
+    provider_references = Column(
+        JSON,
+        nullable=False,
+        default=dict,
+        server_default="{}",
+    )
     workout_date = Column(Date, nullable=False)
     start_time = Column(DateTime, nullable=True)
     normalized_workout = Column(JSON, nullable=False, default=dict)

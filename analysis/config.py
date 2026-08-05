@@ -89,6 +89,7 @@ PLATFORM_CAPABILITIES: dict[str, PlatformCaps] = {
     "oura":   {"activities": False, "recovery": True, "fitness": False, "plan": False},
     "coros":  {"activities": True, "recovery": True, "fitness": True, "plan": False},
 }
+PLAN_EXECUTION_TARGETS = frozenset({"stryd", "garmin"})
 
 
 class PlanManagement(TypedDict):
@@ -136,14 +137,12 @@ def normalize_plan_management(
     ):
         raw_target = legacy_plan_source
     target = str(raw_target).strip().casefold() if raw_target else None
-    if target:
-        caps = PLATFORM_CAPABILITIES.get(target)
-        if not caps or not caps.get("plan"):
-            logger.warning(
-                "Invalid plan execution target %r; clearing it",
-                raw_target,
-            )
-            target = None
+    if target and target not in PLAN_EXECUTION_TARGETS:
+        logger.warning(
+            "Invalid plan execution target %r; clearing it",
+            raw_target,
+        )
+        target = None
 
     delivery_enabled = raw.get("delivery_enabled", False)
     if not isinstance(delivery_enabled, bool):
@@ -172,6 +171,30 @@ def normalize_plan_management(
         "delivery_enabled": delivery_enabled,
         "adjustment_policy": adjustment_policy,
     }
+
+
+def normalize_persisted_plan_management(
+    value: object,
+    *,
+    execution_target_fence: object = None,
+    legacy_plan_source: str | None = None,
+) -> PlanManagement:
+    """Normalize DB state while preserving targets unknown to old workers."""
+    normalized = normalize_plan_management(
+        value,
+        legacy_plan_source=legacy_plan_source,
+    )
+    fenced_target = (
+        str(execution_target_fence).strip().casefold()
+        if execution_target_fence
+        else None
+    )
+    if (
+        normalized["execution_target"] is None
+        and fenced_target in PLAN_EXECUTION_TARGETS
+    ):
+        normalized["execution_target"] = fenced_target
+    return normalized
 
 
 @dataclass
@@ -417,13 +440,22 @@ def load_config_from_db(user_id: str, db) -> UserConfig:
     # Merge: stored prefs take priority, fill gaps from derived
     merged_prefs = {**derived_prefs, **stored_prefs}
     stored_plan_management = getattr(row, "plan_management", None)
-    plan_management = normalize_plan_management(
+    execution_target_fence = getattr(
+        row,
+        "plan_execution_target",
+        None,
+    )
+    plan_management = normalize_persisted_plan_management(
         stored_plan_management,
+        execution_target_fence=execution_target_fence,
         legacy_plan_source=merged_prefs.get("plan"),
     )
     has_persisted_execution_target = (
-        isinstance(stored_plan_management, dict)
-        and bool(stored_plan_management.get("execution_target"))
+        bool(execution_target_fence)
+        or (
+            isinstance(stored_plan_management, dict)
+            and bool(stored_plan_management.get("execution_target"))
+        )
     )
     # Keep explicit managed-plan intent through a disconnect. Only a target
     # inferred from the legacy preference disappears with its connection.
@@ -522,6 +554,11 @@ def save_config_to_db(user_id: str, config: UserConfig, db) -> None:
     row.training_base = config.training_base
     row.preferences = config.preferences
     row.plan_management = dict(config.plan_management)
+    row.plan_execution_target = (
+        config.plan_management["execution_target"]
+        if config.plan_management["execution_target"] == "garmin"
+        else None
+    )
     row.thresholds = config.thresholds
     row.zones = config.zones
     row.goal = config.goal

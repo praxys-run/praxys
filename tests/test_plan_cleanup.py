@@ -13,7 +13,11 @@ from api.plan_cleanup import (
     PlanCleanupRequiresExternalMode,
     cleanup_future_plan_deliveries,
 )
-from api.plan_delivery.base import ProviderRemoveResult
+from api.plan_delivery.base import (
+    ProviderAuthenticationRequiredError,
+    ProviderRateLimitError,
+    ProviderRemoveResult,
+)
 from db.models import (
     Base,
     PlanDelivery,
@@ -37,6 +41,7 @@ class FakeCleanupAdapter:
 
     def __init__(self) -> None:
         self.deleted: list[str] = []
+        self.delete_failures: list[Exception] = []
         self.authenticate_calls = 0
 
     @property
@@ -46,7 +51,15 @@ class FakeCleanupAdapter:
     def authenticate(self) -> None:
         self.authenticate_calls += 1
 
-    def delete_workout(self, external_id: str) -> ProviderRemoveResult:
+    def delete_workout(
+        self,
+        external_id: str,
+        *,
+        hooks,
+    ) -> ProviderRemoveResult:
+        hooks.before_mutation()
+        if self.delete_failures:
+            raise self.delete_failures.pop(0)
         self.deleted.append(external_id)
         return ProviderRemoveResult()
 
@@ -153,6 +166,106 @@ def test_cleanup_removes_only_future_synced_deliveries(cleanup_db):
         ("owned-future", "removed", None),
         ("conflicted-future", "blocked", "delivery_conflict"),
     ]
+
+
+def test_cleanup_rate_limit_stops_remaining_provider_removals(cleanup_db):
+    db = cleanup_db
+    today = date(2026, 8, 1)
+    first = _add_delivery(
+        db,
+        today + timedelta(days=2),
+        external_id="owned-first",
+    )
+    second = _add_delivery(
+        db,
+        today + timedelta(days=3),
+        external_id="owned-second",
+    )
+    adapter = FakeCleanupAdapter()
+    adapter.delete_failures.append(
+        ProviderRateLimitError("provider rate limit")
+    )
+
+    result = cleanup_future_plan_deliveries(
+        db,
+        user_id=USER_ID,
+        today=today,
+        adapter_loader=lambda: adapter,
+    )
+
+    assert result.status == "partial"
+    assert adapter.deleted == []
+    assert [item.status for item in result.items] == ["failed", "blocked"]
+    assert [item.reason for item in result.items] == [
+        "provider_rate_limited",
+        "provider_rate_limited",
+    ]
+    latest_attempt = db.execute(
+        select(PlanDeliveryAttempt)
+        .where(PlanDeliveryAttempt.delivery_id == first.id)
+        .order_by(PlanDeliveryAttempt.attempt_number.desc())
+    ).scalars().first()
+    assert latest_attempt is not None
+    assert latest_attempt.state == "failed"
+    assert (
+        latest_attempt.response["error_category"]
+        == "provider_rate_limited"
+    )
+    db.refresh(second)
+    assert second.state == "synced"
+
+
+def test_cleanup_auth_failure_stops_batch_and_disconnects_connection(
+    cleanup_db,
+):
+    db = cleanup_db
+    today = date(2026, 8, 1)
+    first = _add_delivery(
+        db,
+        today + timedelta(days=2),
+        external_id="owned-first",
+    )
+    second = _add_delivery(
+        db,
+        today + timedelta(days=3),
+        external_id="owned-second",
+    )
+    adapter = FakeCleanupAdapter()
+    adapter.delete_failures.append(
+        ProviderAuthenticationRequiredError("reconnect Garmin")
+    )
+
+    result = cleanup_future_plan_deliveries(
+        db,
+        user_id=USER_ID,
+        today=today,
+        adapter_loader=lambda: adapter,
+    )
+
+    assert result.status == "partial"
+    assert adapter.deleted == []
+    assert [item.status for item in result.items] == ["failed", "blocked"]
+    assert [item.reason for item in result.items] == [
+        "provider_authentication_failed",
+        "provider_authentication_failed",
+    ]
+    latest_attempt = db.execute(
+        select(PlanDeliveryAttempt)
+        .where(PlanDeliveryAttempt.delivery_id == first.id)
+        .order_by(PlanDeliveryAttempt.attempt_number.desc())
+    ).scalars().first()
+    assert latest_attempt is not None
+    assert latest_attempt.state == "failed"
+    db.refresh(second)
+    assert second.state == "synced"
+    connection = db.execute(
+        select(UserConnection).where(
+            UserConnection.user_id == USER_ID,
+            UserConnection.platform == TARGET,
+        )
+    ).scalar_one()
+    assert connection.status == "auth_required"
+    assert connection.next_retry_at is None
 
 
 def test_cleanup_requires_external_mode(cleanup_db):
@@ -346,8 +459,13 @@ def test_cleanup_stops_when_managed_state_changes(cleanup_db):
         def delete_workout(
             self,
             external_id: str,
+            *,
+            hooks,
         ) -> ProviderRemoveResult:
-            result = super().delete_workout(external_id)
+            result = super().delete_workout(
+                external_id,
+                hooks=hooks,
+            )
             if len(self.deleted) == 1:
                 config = db.execute(
                     select(UserConfig).where(UserConfig.user_id == USER_ID)
@@ -408,3 +526,71 @@ def test_cleanup_blocks_degraded_connection(cleanup_db):
     assert result.items[0].reason == "connection_auth_required"
     assert adapter.authenticate_calls == 0
     assert adapter.deleted == []
+
+
+def test_garmin_cleanup_rechecks_consent_before_unschedule(
+    cleanup_db,
+    monkeypatch,
+):
+    from api.plan_delivery.capabilities import plan_delivery_consent_token
+
+    monkeypatch.setenv(
+        "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED",
+        "true",
+    )
+    db = cleanup_db
+    today = date(2026, 8, 1)
+    delivery = _add_delivery(
+        db,
+        today + timedelta(days=1),
+        external_id="garmin-owned",
+        target="garmin",
+    )
+    config = db.execute(
+        select(UserConfig).where(UserConfig.user_id == USER_ID)
+    ).scalar_one()
+    config.plan_management = {
+        "mode": "external",
+        "execution_target": "garmin",
+        "delivery_enabled": False,
+        "adjustment_policy": "suggest_only",
+    }
+    config.source_options = {"garmin_region": "international"}
+    connection = db.execute(
+        select(UserConnection).where(UserConnection.user_id == USER_ID)
+    ).scalar_one()
+    connection.platform = "garmin"
+    db.flush()
+    connection.plan_delivery_consent = plan_delivery_consent_token(
+        connection,
+        region="international",
+    )
+    db.commit()
+
+    class ConsentRevokingAdapter(FakeCleanupAdapter):
+        target = "garmin"
+
+        def authenticate(self) -> None:
+            super().authenticate()
+            fresh = db.execute(
+                select(UserConnection).where(
+                    UserConnection.user_id == USER_ID,
+                    UserConnection.platform == "garmin",
+                )
+            ).scalar_one()
+            fresh.plan_delivery_consent = None
+            db.commit()
+
+    adapter = ConsentRevokingAdapter()
+    result = cleanup_future_plan_deliveries(
+        db,
+        user_id=USER_ID,
+        today=today,
+        adapter_loader=lambda: adapter,
+    )
+
+    assert result.status == "partial"
+    assert result.items[0].status == "blocked"
+    assert result.items[0].reason == "experimental_consent_required"
+    assert adapter.deleted == []
+    assert db.get(PlanDelivery, delivery.id).state == "synced"

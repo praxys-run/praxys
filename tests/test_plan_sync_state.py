@@ -31,6 +31,10 @@ def api_client(monkeypatch):
     monkeypatch.setenv("DATA_DIR", tmpdir.name)
     monkeypatch.setenv("PRAXYS_SYNC_SCHEDULER", "false")
     monkeypatch.setenv(
+        "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED",
+        "true",
+    )
+    monkeypatch.setenv(
         "PRAXYS_LOCAL_ENCRYPTION_KEY",
         "JKkx_5SVHKQDr0HSMrwl0KQHcA0pl5pxsYSLEAQDB4o=",
     )
@@ -135,8 +139,9 @@ def _seed_synced_delivery(
     provider_content_version: str | None = None,
     provider_account_id: str | None = None,
     canonical_id: str | None = None,
+    target: str = "stryd",
 ) -> str:
-    """Persist one successful Stryd delivery for the current AI version."""
+    """Persist one successful delivery for the current Praxys version."""
     from db import session as db_session
     from db.plan_ledger import (
         begin_delivery_attempt,
@@ -149,7 +154,7 @@ def _seed_synced_delivery(
         delivery, _ = get_or_create_delivery(
             db,
             user_id=user_id,
-            target="stryd",
+            target=target,
             snapshot={
                 "canonical_id": canonical_id,
                 "date": workout_date,
@@ -266,8 +271,9 @@ def _seed_target_snapshot(
     rows: list[dict],
     *,
     provider_account_id: str = "stryd-account",
+    target: str = "stryd",
 ) -> None:
-    """Persist one authoritative Stryd calendar snapshot."""
+    """Persist one authoritative execution-target calendar snapshot."""
     from db import session as db_session
     from db.plan_reconciliation import record_target_calendar_sync
 
@@ -276,7 +282,7 @@ def _seed_target_snapshot(
         record_target_calendar_sync(
             db,
             user_id=user_id,
-            target="stryd",
+            target=target,
             provider_account_id=provider_account_id,
             rows=rows,
             window_start=date.today() - timedelta(days=1),
@@ -651,6 +657,192 @@ def test_reconciliation_matches_external_id_and_content(api_client):
     assert workout["reconciliation"]["match_basis"] == "external_id"
 
 
+def test_reconciliation_uses_configured_garmin_execution_target(api_client):
+    client, user_id = api_client
+    target_date = date.today() + timedelta(days=2)
+    fingerprint = "a" * 64
+    _seed_rows(user_id, [{
+        "date": target_date,
+        "source": "praxys",
+        "workout_type": "easy",
+    }])
+
+    from analysis.config import load_config_from_db, save_config_to_db
+    from db import session as db_session
+
+    db = db_session.SessionLocal()
+    try:
+        config = load_config_from_db(user_id, db)
+        config.plan_management = {
+            "mode": "praxys",
+            "execution_target": "garmin",
+            "delivery_enabled": False,
+            "adjustment_policy": "suggest_only",
+        }
+        save_config_to_db(user_id, config, db)
+    finally:
+        db.close()
+
+    _seed_synced_delivery(
+        user_id,
+        target_date,
+        "easy",
+        "garmin-schedule-7001",
+        provider_content_version=fingerprint,
+        provider_account_id="garmin-account",
+        target="garmin",
+    )
+    _seed_synced_delivery(
+        user_id,
+        target_date,
+        "easy",
+        "stryd-workout-41",
+        target="stryd",
+    )
+    _seed_target_snapshot(
+        user_id,
+        [{
+            "date": target_date.isoformat(),
+            "workout_type": "easy",
+            "external_id": "garmin-schedule-7001",
+            "provider_references": {"template_id": "9001"},
+            "provider_content_fingerprint": fingerprint,
+            "provider_payload_fingerprint": "b" * 64,
+        }],
+        provider_account_id="garmin-account",
+        target="garmin",
+    )
+
+    body = client.get("/api/plan").json()
+
+    assert body["sync_target"] == "garmin"
+    assert body["workouts"][0]["reconciliation"]["state"] == "matching"
+    assert body["workouts"][0]["reconciliation"]["target"] == "garmin"
+    assert (
+        body["stryd_status"][target_date.isoformat()]["workout_id"]
+        == "stryd-workout-41"
+    )
+
+    from db.models import PlanTargetWorkout
+
+    db = db_session.SessionLocal()
+    try:
+        observation = db.query(PlanTargetWorkout).filter_by(
+            user_id=user_id,
+            target="garmin",
+            external_id="garmin-schedule-7001",
+        ).one()
+        observation.content_fingerprint = None
+        observation.payload_fingerprint = "c" * 64
+        db.commit()
+    finally:
+        db.close()
+
+    compatibility_body = client.get("/api/plan").json()
+    reconciliation = compatibility_body["workouts"][0]["reconciliation"]
+    assert reconciliation["state"] == "pending_observation"
+    assert reconciliation["reason"] == "content_unverified"
+
+
+def test_reconciliation_flags_owned_workout_scheduled_on_wrong_date(
+    api_client,
+):
+    client, user_id = api_client
+    target_date = date.today() + timedelta(days=2)
+    observed_date = target_date + timedelta(days=1)
+    fingerprint = "a" * 64
+    _seed_rows(user_id, [{
+        "date": target_date,
+        "source": "praxys",
+        "workout_type": "easy",
+    }])
+    _seed_synced_delivery(
+        user_id,
+        target_date,
+        "easy",
+        "garmin-schedule-7001",
+        provider_content_version=fingerprint,
+        provider_account_id="garmin-account",
+        target="garmin",
+    )
+    _seed_target_snapshot(
+        user_id,
+        [{
+            "date": observed_date.isoformat(),
+            "workout_type": "easy",
+            "external_id": "garmin-schedule-7001",
+            "provider_references": {"template_id": "9001"},
+            "provider_content_fingerprint": fingerprint,
+        }],
+        provider_account_id="garmin-account",
+        target="garmin",
+    )
+
+    from analysis.config import load_config_from_db, save_config_to_db
+    from db import session as db_session
+
+    db = db_session.SessionLocal()
+    try:
+        config = load_config_from_db(user_id, db)
+        config.plan_management = {
+            "mode": "praxys",
+            "execution_target": "garmin",
+            "delivery_enabled": False,
+            "adjustment_policy": "suggest_only",
+        }
+        save_config_to_db(user_id, config, db)
+    finally:
+        db.close()
+
+    body = client.get("/api/plan").json()
+    owned = next(
+        workout
+        for workout in body["workouts"]
+        if workout["date"] == target_date.isoformat()
+    )
+
+    assert owned["reconciliation"]["state"] == "target_edited"
+    assert (
+        owned["reconciliation"]["reason"]
+        == "scheduled_date_changed"
+    )
+
+
+def test_garmin_compatibility_rows_keep_their_source_without_snapshot(
+    api_client,
+):
+    client, user_id = api_client
+    target_date = date.today() + timedelta(days=2)
+    _seed_rows(user_id, [{
+        "date": target_date,
+        "source": "garmin",
+        "workout_type": "easy",
+        "external_id": "garmin-schedule-7002",
+    }])
+
+    from analysis.config import load_config_from_db, save_config_to_db
+    from db import session as db_session
+
+    db = db_session.SessionLocal()
+    try:
+        config = load_config_from_db(user_id, db)
+        config.plan_management = {
+            "mode": "praxys",
+            "execution_target": "garmin",
+            "delivery_enabled": False,
+            "adjustment_policy": "suggest_only",
+        }
+        save_config_to_db(user_id, config, db)
+    finally:
+        db.close()
+
+    body = client.get("/api/plan").json()
+
+    assert body["sync_target"] == "garmin"
+    assert len(body["workouts"]) == 1
+    assert body["workouts"][0]["source"] == "garmin"
+
+
 def test_modern_delivery_never_transfers_to_replacement_canonical(api_client):
     client, user_id = api_client
     target = date.today() + timedelta(days=2)
@@ -727,6 +919,7 @@ def test_modern_delivery_never_transfers_to_replacement_canonical(api_client):
         stale_reconciliation_id = PlanReconciliationItem(
             id=f"target:{observation.id}",
             state="target_only",
+            target=observation.target,
             canonical=None,
             observation=observation,
             delivery=None,
@@ -1048,6 +1241,7 @@ def test_windowed_view_cannot_reclassify_moved_owned_workout_as_target_only(
         stale_reconciliation_id = PlanReconciliationItem(
             id=f"target:{observation.id}",
             state="target_only",
+            target=observation.target,
             canonical=None,
             observation=observation,
             delivery=None,
@@ -1212,6 +1406,278 @@ def test_account_switch_does_not_infer_target_deletion(api_client):
     assert reconciliation["reason"] == "provider_account_changed"
 
 
+def test_reconciliation_uses_immutable_profile_across_display_change():
+    from api.plan_reconciliation import classify_plan_delivery_snapshot
+    from db.models import (
+        PlanDelivery,
+        PlanTargetCalendarSync,
+        PlanTargetWorkout,
+        TrainingPlan,
+    )
+    from db.plan_ledger import plan_snapshot, workout_version
+
+    workout_date = date.today() + timedelta(days=8)
+    canonical = TrainingPlan(
+        user_id="profile-alias-user",
+        canonical_id="93ce56c3-7135-4874-9c73-85038ef92857",
+        date=workout_date,
+        source="praxys",
+        workout_type="easy",
+        planned_duration_min=45,
+    )
+    version = workout_version(plan_snapshot(canonical))
+    delivery = PlanDelivery(
+        user_id="profile-alias-user",
+        canonical_key=f"ai:{canonical.canonical_id}",
+        workout_date=workout_date,
+        workout_version=version,
+        plan_version=version,
+        provider_content_version="a" * 64,
+        target="garmin",
+        state="synced",
+        external_id="schedule-1",
+        provider_account_id="international:old-display",
+        provider_references={
+            "profile_account_id": "international:stable-profile",
+        },
+    )
+    observation = PlanTargetWorkout(
+        user_id="profile-alias-user",
+        target="garmin",
+        provider_account_id="international:new-display",
+        external_id="schedule-1",
+        provider_references={
+            "profile_account_id": "international:stable-profile",
+        },
+        workout_date=workout_date,
+        normalized_workout={},
+        content_fingerprint="a" * 64,
+        present=True,
+        observed_at=datetime.utcnow(),
+    )
+    calendar_sync = PlanTargetCalendarSync(
+        user_id="profile-alias-user",
+        target="garmin",
+        provider_account_id="international:new-display",
+        window_start=date.today(),
+        window_end=date.today() + timedelta(days=30),
+        synced_at=datetime.utcnow(),
+    )
+
+    state, reason, matched = classify_plan_delivery_snapshot(
+        canonical=canonical,
+        delivery=delivery,
+        calendar_sync=calendar_sync,
+        observations=[observation],
+    )
+
+    assert state == "matching"
+    assert reason is None
+    assert matched is observation
+    observation.provider_references = {
+        "profile_account_id": "international:different-profile",
+    }
+    state, reason, _ = classify_plan_delivery_snapshot(
+        canonical=canonical,
+        delivery=delivery,
+        calendar_sync=calendar_sync,
+        observations=[observation],
+    )
+    assert state == "delivery_failed"
+    assert reason == "provider_account_changed"
+
+
+def test_empty_snapshot_does_not_erase_another_immutable_profile(api_client):
+    _, user_id = api_client
+    from sqlalchemy import select
+
+    from db import session as db_session
+    from db.models import PlanTargetWorkout
+    from db.plan_reconciliation import record_target_calendar_sync
+
+    workout_date = date.today() + timedelta(days=5)
+    db = db_session.SessionLocal()
+    try:
+        record_target_calendar_sync(
+            db,
+            user_id=user_id,
+            target="garmin",
+            provider_account_id="international:same-display",
+            provider_references={
+                "profile_account_id": "international:profile-a",
+            },
+            rows=[{
+                "external_id": "schedule-a",
+                "date": workout_date.isoformat(),
+                "workout_type": "easy",
+                "provider_references": {
+                    "profile_account_id": "international:profile-a",
+                },
+            }],
+            window_start=date.today(),
+            window_end=date.today() + timedelta(days=30),
+            observed_at=datetime.utcnow() - timedelta(minutes=1),
+        )
+        db.commit()
+
+        record_target_calendar_sync(
+            db,
+            user_id=user_id,
+            target="garmin",
+            provider_account_id="international:same-display",
+            provider_references={
+                "profile_account_id": "international:profile-b",
+            },
+            rows=[],
+            window_start=date.today(),
+            window_end=date.today() + timedelta(days=30),
+            observed_at=datetime.utcnow(),
+        )
+        db.commit()
+
+        observation = db.execute(
+            select(PlanTargetWorkout).where(
+                PlanTargetWorkout.user_id == user_id,
+                PlanTargetWorkout.external_id == "schedule-a",
+            )
+        ).scalar_one()
+        assert observation.present is True
+    finally:
+        db.close()
+
+
+def test_empty_snapshot_bridges_display_change_for_same_profile(api_client):
+    _, user_id = api_client
+    from sqlalchemy import select
+
+    from db import session as db_session
+    from db.models import PlanTargetWorkout
+    from db.plan_reconciliation import record_target_calendar_sync
+
+    workout_date = date.today() + timedelta(days=5)
+    profile_references = {
+        "profile_account_id": "international:stable-profile",
+    }
+    db = db_session.SessionLocal()
+    try:
+        record_target_calendar_sync(
+            db,
+            user_id=user_id,
+            target="garmin",
+            provider_account_id="international:old-display",
+            provider_references=profile_references,
+            rows=[{
+                "external_id": "schedule-a",
+                "date": workout_date.isoformat(),
+                "workout_type": "easy",
+                "provider_references": profile_references,
+            }],
+            window_start=date.today(),
+            window_end=date.today() + timedelta(days=30),
+            observed_at=datetime.utcnow() - timedelta(minutes=1),
+        )
+        db.commit()
+
+        record_target_calendar_sync(
+            db,
+            user_id=user_id,
+            target="garmin",
+            provider_account_id="international:new-display",
+            provider_references=profile_references,
+            rows=[],
+            window_start=date.today(),
+            window_end=date.today() + timedelta(days=30),
+            observed_at=datetime.utcnow(),
+        )
+        db.commit()
+
+        observation = db.execute(
+            select(PlanTargetWorkout).where(
+                PlanTargetWorkout.user_id == user_id,
+                PlanTargetWorkout.external_id == "schedule-a",
+            )
+        ).scalar_one()
+        assert observation.present is False
+    finally:
+        db.close()
+
+
+def test_locked_generation_includes_same_profile_display_alias(api_client):
+    _, user_id = api_client
+    from sqlalchemy import select
+
+    from api.plan_reconciliation import plan_target_calendar_generation
+    from api.plan_resolution import _locked_target_calendar_generation
+    from db import session as db_session
+    from db.models import PlanTargetCalendarSync, PlanTargetWorkout
+    from db.plan_reconciliation import record_target_calendar_sync
+
+    workout_date = date.today() + timedelta(days=5)
+    profile_references = {
+        "profile_account_id": "international:stable-profile",
+    }
+    row = {
+        "external_id": "schedule-a",
+        "date": workout_date.isoformat(),
+        "workout_type": "easy",
+        "provider_references": profile_references,
+    }
+    db = db_session.SessionLocal()
+    try:
+        record_target_calendar_sync(
+            db,
+            user_id=user_id,
+            target="garmin",
+            provider_account_id="international:old-display",
+            provider_references=profile_references,
+            rows=[row],
+            window_start=date.today(),
+            window_end=date.today() + timedelta(days=30),
+            observed_at=datetime.utcnow() - timedelta(minutes=1),
+        )
+        db.commit()
+        record_target_calendar_sync(
+            db,
+            user_id=user_id,
+            target="garmin",
+            provider_account_id="international:new-display",
+            provider_references=profile_references,
+            rows=[row],
+            window_start=date.today(),
+            window_end=date.today() + timedelta(days=30),
+            observed_at=datetime.utcnow(),
+        )
+        db.commit()
+
+        calendar_sync = db.execute(
+            select(PlanTargetCalendarSync).where(
+                PlanTargetCalendarSync.user_id == user_id,
+                PlanTargetCalendarSync.target == "garmin",
+            )
+        ).scalar_one()
+        observation = db.execute(
+            select(PlanTargetWorkout).where(
+                PlanTargetWorkout.user_id == user_id,
+                PlanTargetWorkout.external_id == "schedule-a",
+            )
+        ).scalar_one()
+        assert observation.provider_account_id == "international:old-display"
+        expected = plan_target_calendar_generation(
+            calendar_sync,
+            [observation],
+        )
+
+        actual = _locked_target_calendar_generation(
+            db,
+            user_id=user_id,
+            target="garmin",
+        )
+
+        assert actual == expected
+    finally:
+        db.close()
+
+
 def test_reconciliation_surfaces_delivery_failure(api_client):
     client, user_id = api_client
     target = date.today() + timedelta(days=8)
@@ -1294,6 +1760,7 @@ def test_accept_target_is_transactional_and_records_provenance(api_client):
         "planned_duration_min": "52",
         "workout_description": "Imported coach session",
         "external_id": "coach-target",
+        "provider_references": {"template_id": "coach-template"},
         "provider_content_fingerprint": "a" * 64,
         "provider_payload_fingerprint": "b" * 64,
     }])
@@ -1358,6 +1825,9 @@ def test_accept_target_is_transactional_and_records_provenance(api_client):
             PlanDelivery.external_id == "coach-target",
             PlanDelivery.state == "synced",
         ).one()
+        assert delivery.provider_references == {
+            "template_id": "coach-template",
+        }
         attempt = db.query(PlanDeliveryAttempt).filter(
             PlanDeliveryAttempt.delivery_id == delivery.id,
         ).one()
@@ -1730,6 +2200,7 @@ def test_restore_rebinds_exact_stale_id_without_provider_write(
         "date": target.isoformat(),
         "workout_type": "easy",
         "external_id": "same-content-new-id",
+        "provider_references": {"template_id": "same-content-template"},
         "provider_content_fingerprint": content_version,
         "provider_payload_fingerprint": "b" * 64,
     }])
@@ -1753,7 +2224,8 @@ def test_restore_rebinds_exact_stale_id_without_provider_write(
                 content_version=content_version,
             )
 
-        def create_workout(self, prepared):
+        def create_workout(self, prepared, *, hooks):
+            hooks.before_mutation()
             calls["create"] += 1
             return ProviderCreateResult(
                 external_id="unexpected",
@@ -1761,7 +2233,8 @@ def test_restore_rebinds_exact_stale_id_without_provider_write(
                 response={},
             )
 
-        def delete_workout(self, external_id):
+        def delete_workout(self, external_id, *, hooks):
+            hooks.before_mutation()
             calls["delete"] += 1
             return ProviderRemoveResult()
 
@@ -1800,6 +2273,21 @@ def test_restore_rebinds_exact_stale_id_without_provider_write(
     assert retry.status_code == 200, retry.text
     assert retry.json()["revision_id"] == response.json()["revision_id"]
     assert retry.json()["external_id"] == "same-content-new-id"
+    from db import session as db_session
+    from db.models import PlanDelivery
+
+    db = db_session.SessionLocal()
+    try:
+        rebound = db.query(PlanDelivery).filter(
+            PlanDelivery.user_id == user_id,
+            PlanDelivery.external_id == "same-content-new-id",
+            PlanDelivery.state == "synced",
+        ).one()
+        assert rebound.provider_references == {
+            "template_id": "same-content-template",
+        }
+    finally:
+        db.close()
 
 
 def test_restore_distinct_stale_ids_record_distinct_audit_events(
@@ -1844,14 +2332,16 @@ def test_restore_distinct_stale_ids_record_distinct_audit_events(
                 content_version=content_version,
             )
 
-        def create_workout(self, prepared):
+        def create_workout(self, prepared, *, hooks):
+            hooks.before_mutation()
             return ProviderCreateResult(
                 external_id="unexpected",
                 provider_account_id=self.account_id,
                 response={},
             )
 
-        def delete_workout(self, external_id):
+        def delete_workout(self, external_id, *, hooks):
+            hooks.before_mutation()
             return ProviderRemoveResult()
 
         def fetch_calendar(self, **kwargs):
@@ -1986,7 +2476,8 @@ def test_restore_rebind_rejects_concurrent_canonical_edit(
                 content_version=content_version,
             )
 
-        def create_workout(self, prepared):
+        def create_workout(self, prepared, *, hooks):
+            hooks.before_mutation()
             calls["create"] += 1
             return ProviderCreateResult(
                 external_id="unexpected",
@@ -1994,7 +2485,8 @@ def test_restore_rebind_rejects_concurrent_canonical_edit(
                 response={},
             )
 
-        def delete_workout(self, external_id):
+        def delete_workout(self, external_id, *, hooks):
+            hooks.before_mutation()
             calls["delete"] += 1
             return ProviderRemoveResult()
 
@@ -2090,7 +2582,8 @@ def test_restore_revalidates_before_delete_create_provider_mutation(
                 content_version="e" * 64,
             )
 
-        def create_workout(self, prepared):
+        def create_workout(self, prepared, *, hooks):
+            hooks.before_mutation()
             calls["create"] += 1
             return ProviderCreateResult(
                 external_id="unexpected",
@@ -2098,7 +2591,8 @@ def test_restore_revalidates_before_delete_create_provider_mutation(
                 response={},
             )
 
-        def delete_workout(self, external_id):
+        def delete_workout(self, external_id, *, hooks):
+            hooks.before_mutation()
             calls["delete"] += 1
             return ProviderRemoveResult()
 
@@ -2296,7 +2790,8 @@ def test_restore_retries_conflict_after_newer_sync_confirms_absence(
                 content_version=content_version,
             )
 
-        def create_workout(self, prepared):
+        def create_workout(self, prepared, *, hooks):
+            hooks.before_mutation()
             calls["create"] += 1
             return ProviderCreateResult(
                 external_id="confirmed-retry-id",
@@ -2304,7 +2799,8 @@ def test_restore_retries_conflict_after_newer_sync_confirms_absence(
                 response={},
             )
 
-        def delete_workout(self, external_id):
+        def delete_workout(self, external_id, *, hooks):
+            hooks.before_mutation()
             calls["delete"] += 1
             return ProviderRemoveResult()
 
@@ -2427,7 +2923,8 @@ def test_restore_conflict_checks_original_uncertain_fingerprint(
                 content_version="d" * 64,
             )
 
-        def create_workout(self, prepared):
+        def create_workout(self, prepared, *, hooks):
+            hooks.before_mutation()
             calls["create"] += 1
             return ProviderCreateResult(
                 external_id="duplicate-version-b",
@@ -2435,7 +2932,8 @@ def test_restore_conflict_checks_original_uncertain_fingerprint(
                 response={},
             )
 
-        def delete_workout(self, external_id):
+        def delete_workout(self, external_id, *, hooks):
+            hooks.before_mutation()
             return ProviderRemoveResult()
 
         def fetch_calendar(self, **kwargs):
@@ -2553,7 +3051,8 @@ def test_restore_conflict_falls_back_to_original_payload_fingerprint(
                 content_version="h" * 64,
             )
 
-        def create_workout(self, prepared):
+        def create_workout(self, prepared, *, hooks):
+            hooks.before_mutation()
             calls["create"] += 1
             return ProviderCreateResult(
                 external_id="duplicate-version-b",
@@ -2561,7 +3060,8 @@ def test_restore_conflict_falls_back_to_original_payload_fingerprint(
                 response={},
             )
 
-        def delete_workout(self, external_id):
+        def delete_workout(self, external_id, *, hooks):
+            hooks.before_mutation()
             return ProviderRemoveResult()
 
         def fetch_calendar(self, **kwargs):
@@ -2674,6 +3174,529 @@ def test_accept_import_does_not_complete_restore_receipt(api_client):
         db.close()
 
 
+def test_restore_wrong_date_removes_owned_instance_before_recreate(
+    api_client,
+    monkeypatch,
+):
+    from api.plan_delivery.base import (
+        PreparedWorkoutDelivery,
+        ProviderCreateResult,
+        ProviderRemoveResult,
+    )
+    from db import session as db_session
+    from db.models import PlanDelivery
+
+    client, user_id = api_client
+    target_date = date.today() + timedelta(days=11)
+    observed_date = target_date + timedelta(days=1)
+    fingerprint = "a" * 64
+    _seed_rows(user_id, [{
+        "date": target_date,
+        "source": "praxys",
+        "workout_type": "tempo",
+    }])
+    delivery_id = _seed_synced_delivery(
+        user_id,
+        target_date,
+        "tempo",
+        "wrong-date-owned-id",
+        provider_content_version=fingerprint,
+        provider_account_id="stryd-account",
+    )
+    db = db_session.SessionLocal()
+    try:
+        delivery_version = db.get(
+            PlanDelivery,
+            delivery_id,
+        ).workout_version
+    finally:
+        db.close()
+    _seed_target_snapshot(user_id, [{
+        "date": observed_date.isoformat(),
+        "workout_type": "tempo",
+        "external_id": "wrong-date-owned-id",
+        "provider_content_fingerprint": fingerprint,
+    }])
+    plan_body = client.get("/api/plan").json()
+    owned = next(
+        workout
+        for workout in plan_body["workouts"]
+        if workout["date"] == target_date.isoformat()
+    )
+    reconciliation_id = owned["reconciliation"]["id"]
+    calls = {"create": 0, "delete": 0}
+
+    class WrongDateAdapter:
+        target = "stryd"
+        display_name = "Stryd"
+        account_id = "stryd-account"
+
+        def authenticate(self):
+            return None
+
+        def prepare_workout(self, workout, *, threshold_value):
+            return PreparedWorkoutDelivery(
+                version=delivery_version,
+                request={},
+                content_version=fingerprint,
+            )
+
+        def create_workout(self, prepared, *, hooks):
+            hooks.before_mutation()
+            calls["create"] += 1
+            return ProviderCreateResult(
+                external_id="restored-correct-date",
+                provider_account_id=self.account_id,
+                response={"id": "restored-correct-date"},
+            )
+
+        def delete_workout(self, external_id, *, hooks):
+            assert external_id == "wrong-date-owned-id"
+            hooks.before_mutation()
+            calls["delete"] += 1
+            return ProviderRemoveResult()
+
+        def fetch_calendar(self, **kwargs):
+            return []
+
+    adapter = WrongDateAdapter()
+    from api.routes import plan as plan_mod
+
+    monkeypatch.setattr(
+        plan_mod,
+        "_resolve_stryd_delivery_cp",
+        lambda data: 280.0,
+    )
+    monkeypatch.setattr(
+        plan_mod,
+        "load_plan_delivery_adapter",
+        lambda *args, **kwargs: adapter,
+    )
+
+    response = client.post(
+        "/api/plan/reconciliation/resolve",
+        json={
+            "reconciliation_id": reconciliation_id,
+            "action": "restore_praxys",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["external_id"] == "restored-correct-date"
+    assert calls == {"create": 1, "delete": 1}
+
+
+def test_restore_matching_garmin_schedule_is_noop_without_checkpoint_id(
+    api_client,
+    monkeypatch,
+):
+    from api.plan_delivery.base import PreparedWorkoutDelivery
+    from api.plan_delivery.capabilities import plan_delivery_consent_token
+    from db import session as db_session
+    from db.models import (
+        PlanDelivery,
+        UserConfig,
+        UserConnection,
+    )
+
+    client, user_id = api_client
+    target_date = date.today() + timedelta(days=10)
+    fingerprint = "c" * 64
+    profile_references = {
+        "template_id": "template-7",
+        "profile_account_id": "international:profile",
+    }
+    _seed_rows(user_id, [{
+        "date": target_date,
+        "source": "praxys",
+        "workout_type": "easy",
+    }])
+    delivery_id = _seed_synced_delivery(
+        user_id,
+        target_date,
+        "easy",
+        "schedule-42",
+        provider_content_version=fingerprint,
+        provider_account_id="garmin-account",
+        target="garmin",
+    )
+    with db_session.SessionLocal() as db:
+        delivery = db.get(PlanDelivery, delivery_id)
+        delivery.state = "conflict"
+        delivery.provider_references = dict(profile_references)
+        delivery_version = delivery.workout_version
+        db.add(UserConfig(
+            user_id=user_id,
+            source_options={"garmin_region": "international"},
+            plan_management={
+                "mode": "praxys",
+                "execution_target": "garmin",
+                "delivery_enabled": True,
+                "adjustment_policy": "suggest_only",
+            },
+        ))
+        connection = UserConnection(
+            user_id=user_id,
+            platform="garmin",
+            status="connected",
+            encrypted_credentials=b"garmin-credentials",
+            wrapped_dek=b"garmin-dek",
+        )
+        db.add(connection)
+        db.flush()
+        connection.plan_delivery_consent = plan_delivery_consent_token(
+            connection,
+            region="international",
+        )
+        db.commit()
+    _seed_target_snapshot(
+        user_id,
+        [{
+            "date": target_date.isoformat(),
+            "workout_type": "easy",
+            "external_id": "schedule-42",
+            "provider_content_fingerprint": fingerprint,
+            "provider_references": profile_references,
+        }],
+        provider_account_id="garmin-account",
+        target="garmin",
+    )
+    plan_body = client.get("/api/plan").json()
+    owned = next(
+        workout
+        for workout in plan_body["workouts"]
+        if workout["date"] == target_date.isoformat()
+        and workout["source"] in PRAXYS_PLAN_SOURCES
+    )
+    reconciliation_id = owned["reconciliation"]["id"]
+    calls = {"create": 0, "delete": 0}
+
+    class Adapter:
+        target = "garmin"
+        display_name = "Garmin"
+        account_id = "garmin-account"
+
+        def authenticate(self):
+            return None
+
+        def prepare_workout(self, workout, *, threshold_value):
+            return PreparedWorkoutDelivery(
+                version=delivery_version,
+                request={},
+                content_version=fingerprint,
+            )
+
+        def create_workout(self, prepared, *, hooks):
+            calls["create"] += 1
+            raise AssertionError("matching schedule must not be recreated")
+
+        def delete_workout(self, external_id, *, hooks):
+            calls["delete"] += 1
+            raise AssertionError("matching schedule must not be removed")
+
+        def fetch_calendar(self, **kwargs):
+            return []
+
+    from api.routes import plan as plan_mod
+
+    monkeypatch.setattr(
+        plan_mod,
+        "load_plan_delivery_adapter",
+        lambda *args, **kwargs: Adapter(),
+    )
+
+    response = client.post(
+        "/api/plan/reconciliation/resolve",
+        json={
+            "reconciliation_id": reconciliation_id,
+            "action": "restore_praxys",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["external_id"] == "schedule-42"
+    assert calls == {"create": 0, "delete": 0}
+    with db_session.SessionLocal() as db:
+        delivery = db.get(PlanDelivery, delivery_id)
+        assert delivery.state == "synced"
+        assert delivery.provider_references["schedule_id"] == "schedule-42"
+        assert delivery.provider_references["template_id"] == "template-7"
+
+
+def test_restore_does_not_claim_unowned_garmin_fingerprint_candidate(
+    api_client,
+    monkeypatch,
+):
+    from api.plan_delivery.base import PreparedWorkoutDelivery
+    from api.plan_delivery.capabilities import plan_delivery_consent_token
+    from db import session as db_session
+    from db.models import (
+        PlanDelivery,
+        TrainingPlan,
+        UserConfig,
+        UserConnection,
+    )
+    from db.plan_ledger import get_or_create_delivery, plan_snapshot
+
+    client, user_id = api_client
+    target_date = date.today() + timedelta(days=10)
+    fingerprint = "a" * 64
+    _seed_rows(user_id, [{
+        "date": target_date,
+        "source": "praxys",
+        "workout_type": "easy",
+    }])
+    db = db_session.SessionLocal()
+    try:
+        canonical = db.query(TrainingPlan).filter_by(
+            user_id=user_id,
+            date=target_date,
+            source="praxys",
+        ).one()
+        delivery, _ = get_or_create_delivery(
+            db,
+            user_id=user_id,
+            target="garmin",
+            snapshot=plan_snapshot(canonical),
+        )
+        delivery.state = "conflict"
+        delivery.provider_account_id = "garmin-account"
+        delivery.provider_content_version = fingerprint
+        delivery.provider_references = {
+            "candidate_schedule_ids": ["manual-schedule-42"],
+            "profile_account_id": "international:profile",
+        }
+        db.add(UserConfig(
+            user_id=user_id,
+            source_options={"garmin_region": "international"},
+            plan_management={
+                "mode": "praxys",
+                "execution_target": "garmin",
+                "delivery_enabled": True,
+                "adjustment_policy": "suggest_only",
+            },
+        ))
+        connection = UserConnection(
+            user_id=user_id,
+            platform="garmin",
+            status="connected",
+            encrypted_credentials=b"garmin-credentials",
+            wrapped_dek=b"garmin-dek",
+        )
+        db.add(connection)
+        db.flush()
+        connection.plan_delivery_consent = plan_delivery_consent_token(
+            connection,
+            region="international",
+        )
+        db.commit()
+        delivery_version = delivery.workout_version
+    finally:
+        db.close()
+    _seed_target_snapshot(
+        user_id,
+        [{
+            "date": target_date.isoformat(),
+            "workout_type": "easy",
+            "external_id": "manual-schedule-42",
+            "provider_content_fingerprint": fingerprint,
+        }],
+        provider_account_id="garmin-account",
+        target="garmin",
+    )
+    plan_body = client.get("/api/plan").json()
+    owned = next(
+        workout
+        for workout in plan_body["workouts"]
+        if workout["date"] == target_date.isoformat()
+        and workout["source"] in PRAXYS_PLAN_SOURCES
+    )
+    reconciliation_id = owned["reconciliation"]["id"]
+    calls = {"create": 0, "delete": 0}
+
+    class CandidateAdapter:
+        target = "garmin"
+        display_name = "Garmin"
+        account_id = "garmin-account"
+
+        def authenticate(self):
+            return None
+
+        def prepare_workout(self, workout, *, threshold_value):
+            return PreparedWorkoutDelivery(
+                version=delivery_version,
+                request={},
+                content_version=fingerprint,
+            )
+
+        def create_workout(self, prepared, *, hooks):
+            calls["create"] += 1
+            raise AssertionError("unowned candidate must not be created")
+
+        def delete_workout(self, external_id, *, hooks):
+            calls["delete"] += 1
+            raise AssertionError("unowned candidate must not be deleted")
+
+        def fetch_calendar(self, **kwargs):
+            return []
+
+    from api.routes import plan as plan_mod
+
+    monkeypatch.setattr(
+        plan_mod,
+        "load_plan_delivery_adapter",
+        lambda *args, **kwargs: CandidateAdapter(),
+    )
+
+    response = client.post(
+        "/api/plan/reconciliation/resolve",
+        json={
+            "reconciliation_id": reconciliation_id,
+            "action": "restore_praxys",
+        },
+    )
+
+    assert response.status_code == 409, response.text
+    assert calls == {"create": 0, "delete": 0}
+    db = db_session.SessionLocal()
+    try:
+        delivery = db.query(PlanDelivery).filter_by(
+            user_id=user_id,
+            target="garmin",
+        ).one()
+        assert delivery.external_id is None
+        assert delivery.state == "conflict"
+    finally:
+        db.close()
+
+
+def test_confirmed_absence_ignores_same_template_on_another_date(
+    api_client,
+):
+    from api.plan_resolution import _release_conflict_after_confirmed_absence
+    from db import session as db_session
+    from db.models import PlanDelivery
+    from db.plan_reconciliation import record_target_calendar_sync
+
+    _, user_id = api_client
+    target_date = date.today() + timedelta(days=9)
+    fingerprint = "b" * 64
+    _seed_rows(user_id, [{
+        "date": target_date,
+        "source": "praxys",
+        "workout_type": "easy",
+    }])
+    delivery_id = _seed_synced_delivery(
+        user_id,
+        target_date,
+        "easy",
+        "owned-schedule",
+        provider_content_version=fingerprint,
+        provider_account_id="garmin-account",
+        target="garmin",
+    )
+
+    class Adapter:
+        account_id = "garmin-account"
+
+    with db_session.SessionLocal() as db:
+        delivery = db.get(PlanDelivery, delivery_id)
+        delivery.state = "conflict"
+        delivery.updated_at = datetime.utcnow() - timedelta(minutes=1)
+        record_target_calendar_sync(
+            db,
+            user_id=user_id,
+            target="garmin",
+            provider_account_id="garmin-account",
+            rows=[{
+                "date": (target_date + timedelta(days=1)).isoformat(),
+                "workout_type": "easy",
+                "external_id": "other-schedule",
+                "provider_content_fingerprint": fingerprint,
+            }],
+            window_start=date.today(),
+            window_end=date.today() + timedelta(days=30),
+            observed_at=datetime.utcnow(),
+        )
+        db.commit()
+
+        _release_conflict_after_confirmed_absence(
+            db,
+            user_id=user_id,
+            target="garmin",
+            delivery_id=delivery_id,
+            adapter=Adapter(),
+            revision_id="test-revision",
+        )
+
+        assert db.get(PlanDelivery, delivery_id).state == "failed"
+
+
+def test_confirmed_absence_blocks_when_exact_schedule_moved_dates(
+    api_client,
+):
+    from api.plan_resolution import (
+        PlanResolutionConflict,
+        _release_conflict_after_confirmed_absence,
+    )
+    from db import session as db_session
+    from db.models import PlanDelivery
+    from db.plan_reconciliation import record_target_calendar_sync
+
+    _, user_id = api_client
+    target_date = date.today() + timedelta(days=9)
+    _seed_rows(user_id, [{
+        "date": target_date,
+        "source": "praxys",
+        "workout_type": "easy",
+    }])
+    delivery_id = _seed_synced_delivery(
+        user_id,
+        target_date,
+        "easy",
+        "owned-schedule",
+        provider_content_version="b" * 64,
+        provider_account_id="garmin-account",
+        target="garmin",
+    )
+
+    class Adapter:
+        account_id = "garmin-account"
+
+    with db_session.SessionLocal() as db:
+        delivery = db.get(PlanDelivery, delivery_id)
+        delivery.state = "conflict"
+        delivery.updated_at = datetime.utcnow() - timedelta(minutes=1)
+        record_target_calendar_sync(
+            db,
+            user_id=user_id,
+            target="garmin",
+            provider_account_id="garmin-account",
+            rows=[{
+                "date": (target_date + timedelta(days=1)).isoformat(),
+                "workout_type": "easy",
+                "external_id": "owned-schedule",
+                "provider_content_fingerprint": "c" * 64,
+            }],
+            window_start=date.today(),
+            window_end=date.today() + timedelta(days=30),
+            observed_at=datetime.utcnow(),
+        )
+        db.commit()
+
+        with pytest.raises(PlanResolutionConflict, match="still present"):
+            _release_conflict_after_confirmed_absence(
+                db,
+                user_id=user_id,
+                target="garmin",
+                delivery_id=delivery_id,
+                adapter=Adapter(),
+                revision_id="test-revision",
+            )
+
+        assert db.get(PlanDelivery, delivery_id).state == "conflict"
+
+
 @pytest.mark.parametrize("reuse_delivery", [False, True])
 def test_restore_retry_after_create_failure_is_idempotent(
     api_client,
@@ -2744,7 +3767,8 @@ def test_restore_retry_after_create_failure_is_idempotent(
                 content_version="e" * 64,
             )
 
-        def create_workout(self, prepared):
+        def create_workout(self, prepared, *, hooks):
+            hooks.before_mutation()
             calls["create"] += 1
             if calls["create"] == 1:
                 raise ProviderRejectedError("temporary provider rejection")
@@ -2754,7 +3778,8 @@ def test_restore_retry_after_create_failure_is_idempotent(
                 response={"id": "restored-id"},
             )
 
-        def delete_workout(self, external_id):
+        def delete_workout(self, external_id, *, hooks):
+            hooks.before_mutation()
             calls["delete"] += 1
             return ProviderRemoveResult()
 

@@ -5,7 +5,7 @@ import hashlib
 import logging
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Mapping, Sequence
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -18,6 +18,7 @@ from api.plan_delivery.base import (
     PlanDeliveryAdapter,
     ProviderAuthenticationError,
     ProviderRequestError,
+    adapter_provider_account_matches,
 )
 from api.plan_delivery.credentials import (
     DeliveryCredentialsInvalid,
@@ -29,6 +30,7 @@ from api.plan_delivery.service import (
 )
 from api.plan_reconciliation import (
     PlanReconciliationItem,
+    observation_matches_calendar,
     plan_target_calendar_generation,
 )
 from db.cache_revision import bump_revisions
@@ -46,6 +48,7 @@ from db.plan_ledger import (
     delivery_canonical_id,
     get_or_create_delivery,
     lock_plan_writes,
+    normalize_provider_references,
     plan_snapshot,
     record_plan_revision_idempotent,
     workout_version,
@@ -64,6 +67,10 @@ class PlanResolutionConflict(PlanResolutionError):
 
 class PlanResolutionProviderError(PlanResolutionError):
     """The provider did not complete the requested restore."""
+
+
+class PlanResolutionRateLimitError(PlanResolutionProviderError):
+    """The provider rate-limited a requested restore."""
 
 
 @dataclass(frozen=True)
@@ -411,8 +418,7 @@ def accept_target_version(
     ).scalar_one()
     if (
         not observation.present
-        or observation.provider_account_id
-        != calendar_sync.provider_account_id
+        or not observation_matches_calendar(calendar_sync, observation)
     ):
         raise PlanResolutionConflict(
             "Target workout changed after reconciliation"
@@ -560,6 +566,19 @@ def accept_target_version(
 
     accepted_delivery.state = "synced"
     accepted_delivery.external_id = observation.external_id
+    accepted_delivery.provider_references = (
+        _merged_delivery_provider_references(
+            target=target,
+            external_id=observation.external_id,
+            references=(
+                current_delivery.provider_references
+                if current_delivery is not None
+                else None,
+                accepted_delivery.provider_references,
+                observation.provider_references,
+            ),
+        )
+    )
     accepted_delivery.provider_account_id = observation.provider_account_id
     accepted_delivery.provider_content_version = (
         observation.content_fingerprint
@@ -635,6 +654,21 @@ def _record_restore_revision(
     )
     db.commit()
     return revision, snapshot, current_version
+
+
+def _merged_delivery_provider_references(
+    *,
+    target: str,
+    external_id: str | None,
+    references: Sequence[Mapping[str, Any] | None],
+) -> dict[str, Any]:
+    """Merge durable delivery evidence with one observed provider identity."""
+    merged: dict[str, Any] = {}
+    for source in references:
+        merged.update(dict(source or {}))
+    if target == "garmin" and external_id:
+        merged["schedule_id"] = external_id
+    return normalize_provider_references(merged)
 
 
 def _bind_confirmed_restore(
@@ -714,6 +748,15 @@ def _bind_confirmed_restore(
         )
     delivery.state = "synced"
     delivery.external_id = observation.external_id
+    delivery.provider_references = _merged_delivery_provider_references(
+        target=target,
+        external_id=observation.external_id,
+        references=(
+            prior_delivery.provider_references,
+            delivery.provider_references,
+            observation.provider_references,
+        ),
+    )
     delivery.provider_account_id = observation.provider_account_id
     delivery.provider_content_version = content_version
     delivery.last_error = None
@@ -808,12 +851,15 @@ def _locked_target_calendar_generation(
         .where(
             PlanTargetWorkout.user_id == user_id,
             PlanTargetWorkout.target == target,
-            PlanTargetWorkout.provider_account_id
-            == calendar_sync.provider_account_id,
         )
         .with_for_update()
         .execution_options(populate_existing=True)
     ).scalars().all()
+    observations = [
+        observation
+        for observation in observations
+        if observation_matches_calendar(calendar_sync, observation)
+    ]
     return plan_target_calendar_generation(
         calendar_sync,
         observations,
@@ -1003,7 +1049,7 @@ def _release_conflict_after_confirmed_absence(
     user_id: str,
     target: str,
     delivery_id: str,
-    provider_account_id: str,
+    adapter: PlanDeliveryAdapter,
     revision_id: str,
 ) -> None:
     db.rollback()
@@ -1031,7 +1077,12 @@ def _release_conflict_after_confirmed_absence(
     reference_time = delivery.updated_at
     if (
         calendar_sync is None
-        or calendar_sync.provider_account_id != provider_account_id
+        or not adapter_provider_account_matches(
+            adapter,
+            stored_account_id=calendar_sync.provider_account_id,
+            current_account_id=adapter.account_id,
+            provider_references=calendar_sync.provider_references or {},
+        )
         or not (
             calendar_sync.window_start
             <= delivery.workout_date
@@ -1043,30 +1094,44 @@ def _release_conflict_after_confirmed_absence(
         raise PlanResolutionConflict(
             "Sync the target calendar before retrying this uncertain delivery"
         )
-    observation_query = select(PlanTargetWorkout.id).where(
+    observation_query = select(PlanTargetWorkout).where(
         PlanTargetWorkout.user_id == user_id,
         PlanTargetWorkout.target == target,
-        PlanTargetWorkout.provider_account_id == provider_account_id,
         PlanTargetWorkout.present.is_(True),
     )
-    if delivery.provider_content_version:
+    if delivery.external_id:
         observation_query = observation_query.where(
-            PlanTargetWorkout.content_fingerprint
-            == delivery.provider_content_version,
-        )
-    elif not delivery.workout_version.startswith("legacy-unknown:"):
-        observation_query = observation_query.where(
-            PlanTargetWorkout.payload_fingerprint
-            == delivery.workout_version,
+            PlanTargetWorkout.external_id == delivery.external_id,
         )
     else:
-        db.rollback()
-        raise PlanResolutionConflict(
-            "The uncertain delivery has no verifiable original fingerprint"
+        observation_query = observation_query.where(
+            PlanTargetWorkout.workout_date == delivery.workout_date,
         )
-    matching_observation = db.execute(
-        observation_query
-    ).scalars().first()
+        if delivery.provider_content_version:
+            observation_query = observation_query.where(
+                PlanTargetWorkout.content_fingerprint
+                == delivery.provider_content_version,
+            )
+        elif not delivery.workout_version.startswith("legacy-unknown:"):
+            observation_query = observation_query.where(
+                PlanTargetWorkout.payload_fingerprint
+                == delivery.workout_version,
+            )
+        else:
+            db.rollback()
+            raise PlanResolutionConflict(
+                "The uncertain delivery has no verifiable original fingerprint"
+            )
+    matching_observation = next(
+        (
+            observation
+            for observation in db.execute(
+                observation_query
+            ).scalars().all()
+            if observation_matches_calendar(calendar_sync, observation)
+        ),
+        None,
+    )
     if matching_observation is not None:
         db.rollback()
         raise PlanResolutionConflict(
@@ -1281,11 +1346,19 @@ def restore_praxys_version(
             snapshot,
             threshold_value=threshold_value,
         )
+        db.rollback()
         adapter.authenticate()
         provider_account_id = adapter.account_id
         if (
             item.delivery.provider_account_id
-            and item.delivery.provider_account_id != provider_account_id
+            and not adapter_provider_account_matches(
+                adapter,
+                stored_account_id=item.delivery.provider_account_id,
+                current_account_id=provider_account_id,
+                provider_references=(
+                    item.delivery.provider_references or {}
+                ),
+            )
         ):
             raise PlanResolutionConflict(
                 "Delivery belongs to a different provider account"
@@ -1317,11 +1390,32 @@ def restore_praxys_version(
         item=item,
     )
     if observation is not None and observation.present:
-        if observation.provider_account_id != provider_account_id:
+        if not adapter_provider_account_matches(
+            adapter,
+            stored_account_id=observation.provider_account_id,
+            current_account_id=provider_account_id,
+            provider_references=observation.provider_references or {},
+        ):
             raise PlanResolutionConflict(
                 "Target workout belongs to a different provider account"
             )
-        if observation.content_fingerprint == content_version:
+        checkpointed_schedule_id = str(
+            (item.delivery.provider_references or {}).get("schedule_id")
+            or ""
+        ).strip()
+        exact_garmin_identity = (
+            target != "garmin"
+            or observation.external_id
+            in {
+                checkpointed_schedule_id,
+                str(item.delivery.external_id or "").strip(),
+            }
+        )
+        if (
+            observation.workout_date == item.delivery.workout_date
+            and observation.content_fingerprint == content_version
+            and exact_garmin_identity
+        ):
             return _bind_confirmed_restore(
                 db,
                 user_id=user_id,
@@ -1343,14 +1437,21 @@ def restore_praxys_version(
                 "The changed target workout is not owned by this delivery"
             )
 
-    _release_conflict_after_confirmed_absence(
-        db,
-        user_id=user_id,
-        target=target,
-        delivery_id=prior_delivery_id,
-        provider_account_id=provider_account_id,
-        revision_id=revision.id,
+    owned_observation_present = (
+        observation is not None
+        and observation.present
+        and item.delivery.external_id is not None
+        and observation.external_id == item.delivery.external_id
     )
+    if not owned_observation_present:
+        _release_conflict_after_confirmed_absence(
+            db,
+            user_id=user_id,
+            target=target,
+            delivery_id=prior_delivery_id,
+            adapter=adapter,
+            revision_id=revision.id,
+        )
     service = PlanDeliveryService(
         db=db,
         user_id=user_id,
@@ -1407,6 +1508,10 @@ def restore_praxys_version(
     if outcome.error_category == "delivery_gate_changed":
         raise DeliveryMutationBlockedError(
             outcome.error or "Managed delivery gate changed"
+        )
+    if outcome.error_category == "provider_rate_limited":
+        raise PlanResolutionRateLimitError(
+            outcome.error or "Provider rate limited the restored workout"
         )
     if outcome.status != "success" or not outcome.external_id:
         raise PlanResolutionProviderError(

@@ -8,7 +8,7 @@ from typing import Callable, Literal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from analysis.config import normalize_plan_management
+from analysis.config import normalize_persisted_plan_management
 from api import telemetry
 from api.plan_delivery import (
     DeliveryMutationBlockedError,
@@ -24,11 +24,12 @@ from api.plan_delivery import (
     PlanDeliveryAdapter,
     PlanDeliveryService,
     ProviderAuthenticationError,
+    ProviderRateLimitError,
     UnsupportedDeliveryTargetError,
     capture_delivery_connection_generation,
+    guard_delivery_connection,
     load_plan_delivery_adapter,
 )
-from db.connection_credentials import connection_credentials_generation
 from db.cache_revision import bump_revisions
 from db.models import PlanDelivery, UserConfig, UserConnection
 from db.plan_ledger import (
@@ -143,6 +144,8 @@ def _item(
 
 
 def _authentication_reason(exc: BaseException) -> str:
+    if isinstance(exc, ProviderRateLimitError):
+        return "provider_rate_limited"
     if isinstance(exc, UnsupportedDeliveryTargetError):
         return "delivery_adapter_unavailable"
     if isinstance(exc, DeliveryCredentialsUnavailable):
@@ -150,6 +153,35 @@ def _authentication_reason(exc: BaseException) -> str:
     if isinstance(exc, DeliveryCredentialsInvalid):
         return "credentials_invalid"
     return "provider_authentication_failed"
+
+
+def _record_cleanup_connection_failure(
+    db: Session,
+    *,
+    user_id: str,
+    target: str,
+    connection_generation: str,
+    exc: BaseException,
+) -> bool:
+    """Persist connection-wide cleanup failures behind the credential fence."""
+    from db.sync_scheduler import _record_sync_failure
+
+    connection = db.execute(
+        select(UserConnection).where(
+            UserConnection.user_id == user_id,
+            UserConnection.platform == target,
+        )
+    ).scalar_one_or_none()
+    if connection is None:
+        db.rollback()
+        return False
+    return _record_sync_failure(
+        connection,
+        exc,
+        db,
+        trigger="managed_cleanup:leave_managed_mode",
+        expected_credential_generation=connection_generation,
+    )
 
 
 def cleanup_future_plan_deliveries(
@@ -169,8 +201,13 @@ def cleanup_future_plan_deliveries(
     config_row = db.execute(
         select(UserConfig).where(UserConfig.user_id == user_id)
     ).scalar_one_or_none()
-    plan_management = normalize_plan_management(
-        config_row.plan_management if config_row is not None else None
+    plan_management = normalize_persisted_plan_management(
+        config_row.plan_management if config_row is not None else None,
+        execution_target_fence=(
+            config_row.plan_execution_target
+            if config_row is not None
+            else None
+        ),
     )
     if (
         plan_management["mode"] != "external"
@@ -298,13 +335,26 @@ def cleanup_future_plan_deliveries(
         )
         try:
             service.authenticate()
+        except UnsupportedDeliveryTargetError as exc:
+            reason = _authentication_reason(exc)
+            results.extend(
+                _item(delivery, status="failed", reason=reason)
+                for delivery in removable
+            )
         except (
             DeliveryCredentialsUnavailable,
             DeliveryCredentialsInvalid,
             ProviderAuthenticationError,
-            UnsupportedDeliveryTargetError,
+            ProviderRateLimitError,
         ) as exc:
             reason = _authentication_reason(exc)
+            _record_cleanup_connection_failure(
+                db,
+                user_id=user_id,
+                target=target,
+                connection_generation=connection_generation,
+                exc=exc,
+            )
             results.extend(
                 _item(delivery, status="failed", reason=reason)
                 for delivery in removable
@@ -320,10 +370,15 @@ def cleanup_future_plan_deliveries(
                     .with_for_update()
                     .execution_options(populate_existing=True)
                 ).scalar_one_or_none()
-                fresh_management = normalize_plan_management(
+                fresh_management = normalize_persisted_plan_management(
                     fresh_config.plan_management
                     if fresh_config is not None
-                    else None
+                    else None,
+                    execution_target_fence=(
+                        fresh_config.plan_execution_target
+                        if fresh_config is not None
+                        else None
+                    ),
                 )
                 if (
                     fresh_management["mode"] != "external"
@@ -336,30 +391,12 @@ def cleanup_future_plan_deliveries(
                     raise DeliveryMutationBlockedError(
                         "managed_plan_state_changed"
                     )
-                connection = db.execute(
-                    select(UserConnection)
-                    .where(
-                        UserConnection.user_id == user_id,
-                        UserConnection.platform == target,
-                    )
-                    .with_for_update()
-                    .execution_options(populate_existing=True)
-                ).scalar_one_or_none()
-                if connection is None:
-                    raise DeliveryMutationBlockedError(
-                        "connection_missing"
-                    )
-                if connection.status != "connected":
-                    raise DeliveryMutationBlockedError(
-                        f"connection_{connection.status}"
-                    )
-                if (
-                    connection_credentials_generation(connection)
-                    != connection_generation
-                ):
-                    raise DeliveryMutationBlockedError(
-                        "connection_changed"
-                    )
+                guard_delivery_connection(
+                    db,
+                    user_id=user_id,
+                    target=target,
+                    expected_generation=connection_generation,
+                )
 
             for delivery in removable:
                 if blocked_reason is not None:
@@ -425,12 +462,36 @@ def cleanup_future_plan_deliveries(
                     DeliveryCredentialsUnavailable,
                     DeliveryCredentialsInvalid,
                     ProviderAuthenticationError,
-                ):
+                ) as exc:
+                    blocked_reason = _authentication_reason(exc)
+                    _record_cleanup_connection_failure(
+                        db,
+                        user_id=user_id,
+                        target=target,
+                        connection_generation=connection_generation,
+                        exc=exc,
+                    )
                     results.append(
                         _item(
                             delivery,
                             status="failed",
-                            reason="provider_authentication_failed",
+                            reason=blocked_reason,
+                        )
+                    )
+                except ProviderRateLimitError as exc:
+                    blocked_reason = "provider_rate_limited"
+                    _record_cleanup_connection_failure(
+                        db,
+                        user_id=user_id,
+                        target=target,
+                        connection_generation=connection_generation,
+                        exc=exc,
+                    )
+                    results.append(
+                        _item(
+                            delivery,
+                            status="failed",
+                            reason=blocked_reason,
                         )
                     )
                 except DeliveryRemovalFailedError:

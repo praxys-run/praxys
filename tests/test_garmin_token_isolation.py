@@ -7,13 +7,18 @@ belong to). The fix scopes tokens per user_id and invalidates them when
 credentials change.
 """
 import contextlib
+import math
 import os
+import threading
 
 import pytest
 
 from api.routes.sync import (
     _garmin_token_dir,
     _garmin_token_root,
+    _garmin_tokenstore_lease,
+    _mirror_generation_tokens_for_legacy_workers,
+    _seed_generation_tokens_from_legacy,
     clear_garmin_tokens,
 )
 
@@ -35,6 +40,123 @@ def test_token_dir_is_nested_directly_under_root_as_user_id() -> None:
     uid = "abc-123"
     path = _garmin_token_dir(uid)
     assert os.path.relpath(path, _garmin_token_root()) == uid
+
+
+def test_tokenstore_lease_is_reentrant(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+
+    with _garmin_tokenstore_lease("nested-user"):
+        with _garmin_tokenstore_lease("nested-user"):
+            pass
+
+
+def test_tokenstore_lease_waits_without_default_timeout(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    from api.routes import sync as sync_mod
+
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    observed_timeout: list[float] = []
+
+    class RecordingLock:
+        def __init__(
+            self,
+            path: str,
+            *,
+            mode: str,
+            timeout: float,
+        ) -> None:
+            del path, mode
+            observed_timeout.append(timeout)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback) -> None:
+            del exc_type, exc, traceback
+
+    monkeypatch.setattr(sync_mod.portalocker, "Lock", RecordingLock)
+
+    with _garmin_tokenstore_lease("blocking-user"):
+        pass
+
+    assert len(observed_timeout) == 1
+    assert math.isinf(observed_timeout[0])
+
+
+def test_tokenstore_lease_serializes_threads(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    first_entered = threading.Event()
+    release_first = threading.Event()
+    second_entered = threading.Event()
+
+    def hold_first() -> None:
+        with _garmin_tokenstore_lease("shared-user"):
+            first_entered.set()
+            assert release_first.wait(timeout=5)
+
+    def enter_second() -> None:
+        assert first_entered.wait(timeout=5)
+        with _garmin_tokenstore_lease("shared-user"):
+            second_entered.set()
+
+    first = threading.Thread(target=hold_first)
+    second = threading.Thread(target=enter_second)
+    first.start()
+    second.start()
+    try:
+        assert first_entered.wait(timeout=5)
+        assert not second_entered.wait(timeout=0.1)
+    finally:
+        release_first.set()
+        first.join(timeout=5)
+        second.join(timeout=5)
+
+    assert not first.is_alive()
+    assert not second.is_alive()
+    assert second_entered.is_set()
+
+
+def test_sync_garmin_holds_tokenstore_lease(monkeypatch) -> None:
+    from api.routes import sync as sync_mod
+
+    events: list[tuple[str, str]] = []
+
+    @contextlib.contextmanager
+    def recording_lease(user_id: str):
+        events.append(("enter", user_id))
+        try:
+            yield
+        finally:
+            events.append(("exit", user_id))
+
+    monkeypatch.setattr(
+        sync_mod,
+        "_garmin_tokenstore_lease",
+        recording_lease,
+    )
+    monkeypatch.setattr(
+        sync_mod,
+        "_sync_garmin_locked",
+        lambda user_id, creds, from_date, db, credential_generation=None: {
+            "activities": 1,
+        },
+    )
+
+    result = sync_mod._sync_garmin(
+        "sync-user",
+        {"email": "runner@example.test", "password": "secret"},
+        None,
+        object(),
+        credential_generation="generation",
+    )
+
+    assert result == {"activities": 1}
+    assert events == [
+        ("enter", "sync-user"),
+        ("exit", "sync-user"),
+    ]
 
 
 def test_clear_garmin_tokens_removes_directory(tmp_path, monkeypatch) -> None:
@@ -73,6 +195,73 @@ def test_clear_garmin_tokens_propagates_filesystem_errors(tmp_path, monkeypatch)
 
     with pytest.raises(OSError):
         clear_garmin_tokens(user_id)
+
+
+def test_existing_tokens_seed_first_credential_generation(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    user_id = "legacy-token-user"
+    legacy = _garmin_token_dir(user_id)
+    os.makedirs(legacy, exist_ok=True)
+    with open(
+        os.path.join(legacy, "oauth2_token.json"),
+        "w",
+        encoding="utf-8",
+    ) as handle:
+        handle.write("legacy")
+
+    assert _seed_generation_tokens_from_legacy(
+        user_id,
+        "credential-generation",
+    )
+
+    generation = _garmin_token_dir(
+        user_id,
+        "credential-generation",
+    )
+    with open(
+        os.path.join(generation, "oauth2_token.json"),
+        encoding="utf-8",
+    ) as handle:
+        assert handle.read() == "legacy"
+    assert os.path.isfile(
+        os.path.join(legacy, "oauth2_token.json")
+    )
+
+
+def test_generation_tokens_are_mirrored_for_legacy_workers(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    user_id = "mixed-worker-user"
+    generation = _garmin_token_dir(
+        user_id,
+        "credential-generation",
+    )
+    os.makedirs(generation, exist_ok=True)
+    with open(
+        os.path.join(generation, "oauth2_token.json"),
+        "w",
+        encoding="utf-8",
+    ) as handle:
+        handle.write("current")
+
+    _mirror_generation_tokens_for_legacy_workers(
+        user_id,
+        "credential-generation",
+    )
+
+    with open(
+        os.path.join(
+            _garmin_token_dir(user_id),
+            "oauth2_token.json",
+        ),
+        encoding="utf-8",
+    ) as handle:
+        assert handle.read() == "current"
 
 
 def test_sync_garmin_passes_per_user_path_to_login(tmp_path, monkeypatch) -> None:
