@@ -324,3 +324,85 @@ def test_delivery_reports_preflight_mutation_guard_change(tmp_path):
     finally:
         db.close()
         engine.dispose()
+
+
+def test_delivery_flushes_auth_only_after_ledger_transactions_close(tmp_path):
+    from api.plan_delivery.base import (
+        PreparedWorkoutDelivery,
+        ProviderCreateResult,
+        ProviderRemoveResult,
+    )
+    from db.models import Base, User
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'auth-flush.db'}")
+    db = sessionmaker(bind=engine)()
+    Base.metadata.create_all(engine)
+    db.add(User(
+        id="auth-flush-user",
+        email="auth-flush@example.test",
+        hashed_password="test",
+    ))
+    db.commit()
+    flush_transactions: list[bool] = []
+
+    class FlushAdapter:
+        target = "garmin"
+        display_name = "Garmin"
+        account_id = "provider-account"
+
+        def authenticate(self) -> None:
+            return None
+
+        def flush_auth_state(self) -> None:
+            flush_transactions.append(db.in_transaction())
+
+        def prepare_workout(self, workout, *, threshold_value):
+            del workout, threshold_value
+            return PreparedWorkoutDelivery(
+                version="a" * 64,
+                content_version="b" * 64,
+                request={},
+            )
+
+        def create_workout(self, prepared, *, hooks):
+            del prepared, hooks
+            return ProviderCreateResult(
+                external_id="garmin-schedule-1",
+                provider_account_id=self.account_id,
+                response={},
+            )
+
+        def delete_workout(self, external_id, *, hooks):
+            del hooks
+            assert external_id == "garmin-schedule-1"
+            return ProviderRemoveResult()
+
+        def fetch_calendar(self, **kwargs):
+            del kwargs
+            return []
+
+    adapter = FlushAdapter()
+    service = PlanDeliveryService(
+        db=db,
+        user_id="auth-flush-user",
+        target="garmin",
+        adapter_loader=lambda: adapter,
+    )
+    snapshot = {
+        "canonical_id": "8fcba122-c7d7-41b3-8138-c3ef4b291ed9",
+        "date": "2026-08-06",
+        "source": "ai",
+        "workout_type": "easy",
+        "planned_duration_min": 30,
+    }
+
+    try:
+        delivered = service.deliver(snapshot, threshold_value=280.0)
+        removed = service.remove("garmin-schedule-1")
+
+        assert delivered.status == "success"
+        assert removed.external_id == "garmin-schedule-1"
+        assert flush_transactions == [False, False]
+    finally:
+        db.close()
+        engine.dispose()

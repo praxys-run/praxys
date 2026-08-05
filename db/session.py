@@ -409,6 +409,10 @@ _SQLITE_COMPAT_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
     ),
     "user_connections": (
         ("plan_delivery_consent", "VARCHAR(64)"),
+        ("encrypted_garmin_tokens", "BLOB"),
+        ("wrapped_token_dek", "BLOB"),
+        ("garmin_token_generation", "VARCHAR(160)"),
+        ("tokens_updated_at", "DATETIME"),
     ),
 }
 

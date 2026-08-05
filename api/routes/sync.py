@@ -134,7 +134,7 @@ def _get_data_dir() -> str:
 
 
 def _garmin_token_root() -> str:
-    """Root directory that holds per-user Garmin token sub-directories."""
+    """Return the legacy plaintext token root used before issue #61."""
     return os.path.abspath(
         os.path.join(os.path.dirname(_get_data_dir()), "sync", ".garmin_tokens")
     )
@@ -144,11 +144,11 @@ def _garmin_token_dir(
     user_id: str,
     credential_generation: str | None = None,
 ) -> str:
-    """Per-user, optionally generation-scoped Garmin tokenstore path.
+    """Return a legacy per-user Garmin tokenstore path.
 
-    garminconnect.Garmin.login() loads any tokens it finds at this path from
-    disk without validating whose Garmin account they belong to, so a shared
-    directory would leak one user's authenticated session to the next caller.
+    New code stores encrypted token bundles in ``user_connections``. These
+    paths remain only so the startup migration and invalidation paths can
+    remove token files created by older releases.
 
     ``user_id`` is an authenticated account ID (a UUID), never free-form input,
     but the path is validated defensively: the tokenstore isolation is a
@@ -171,18 +171,10 @@ def _garmin_token_dir(
     return os.path.join(path, "generations", digest)
 
 
-def _garmin_login_staging_dir(user_id: str) -> str:
-    """Return an isolated token directory for one interactive login."""
-    return os.path.join(
-        _garmin_token_dir(user_id),
-        "staging",
-        secrets.token_hex(16),
-    )
-
-
 _GARMIN_TOKEN_PROCESS_LOCKS = tuple(
     threading.RLock() for _ in range(64)
 )
+_GARMIN_MIGRATION_PROCESS_LOCK = threading.Lock()
 _garmin_token_lease_depth = threading.local()
 
 
@@ -241,164 +233,466 @@ def _garmin_tokenstore_lease(user_id: str) -> Iterator[None]:
         process_lock.release()
 
 
-def _copy_direct_token_files(source: str, destination: str) -> int:
-    """Copy direct token files atomically, leaving nested stores untouched."""
+def _read_legacy_garmin_tokens(path: str) -> str | None:
+    """Read one current-format legacy token file without network I/O."""
+    from db.garmin_tokens import validate_garmin_tokens
+
+    token_path = os.path.join(path, "garmin_tokens.json")
+    if not os.path.isfile(token_path) or os.path.islink(token_path):
+        return None
+    with open(token_path, encoding="utf-8") as handle:
+        return validate_garmin_tokens(handle.read())
+
+
+def _merge_recreated_legacy_root(root: str, quarantine: str) -> None:
+    """Move post-crash old-worker writes into the resumable quarantine."""
     import shutil
 
-    if not os.path.isdir(source):
-        return 0
-    entries = [
-        entry
-        for entry in os.scandir(source)
-        if entry.is_file(follow_symlinks=False)
-    ]
-    if not entries:
-        return 0
-    os.makedirs(destination, exist_ok=True)
-    copied = 0
-    for entry in entries:
-        temporary = os.path.join(
-            destination,
-            f".{entry.name}.{secrets.token_hex(8)}.tmp",
+    if os.path.islink(quarantine) or not os.path.isdir(quarantine):
+        raise RuntimeError(
+            f"Refusing unsafe Garmin token migration quarantine: {quarantine}"
         )
-        try:
-            shutil.copy2(entry.path, temporary)
-            os.replace(
-                temporary,
-                os.path.join(destination, entry.name),
+    for entry in os.scandir(root):
+        if entry.is_symlink():
+            raise RuntimeError(
+                f"Refusing unsafe recreated Garmin token entry: {entry.path}"
             )
-            copied += 1
-        finally:
-            with contextlib.suppress(FileNotFoundError):
-                os.unlink(temporary)
-    return copied
+        destination = os.path.join(quarantine, entry.name)
+        if os.path.lexists(destination):
+            if os.path.islink(destination):
+                raise RuntimeError(
+                    f"Refusing unsafe quarantined Garmin token entry: {destination}"
+                )
+            if os.path.isdir(destination):
+                shutil.rmtree(destination)
+            else:
+                os.unlink(destination)
+        os.replace(entry.path, destination)
+    os.rmdir(root)
 
 
-def _seed_generation_tokens_from_legacy(
-    user_id: str,
-    credential_generation: str,
-) -> bool:
-    """Copy an existing per-user tokenstore into its first generation."""
-    with _garmin_tokenstore_lease(user_id):
-        legacy = _garmin_token_dir(user_id)
-        destination = _garmin_token_dir(user_id, credential_generation)
-        if os.path.isdir(destination) and any(
-            entry.is_file(follow_symlinks=False)
-            for entry in os.scandir(destination)
+def _garmin_token_migration_lock_path() -> str:
+    """Return the cross-worker migration lock outside the blocked token root."""
+    return os.path.abspath(
+        os.path.join(
+            os.path.dirname(_get_data_dir()),
+            "sync",
+            ".garmin_token_migration.lock",
+        )
+    )
+
+
+def migrate_legacy_garmin_tokenstores() -> dict[str, int]:
+    """Serialize startup migration and quiesce every known legacy user."""
+    from contextlib import ExitStack
+
+    from db.models import User
+    from db.session import SessionLocal
+
+    lock_path = _garmin_token_migration_lock_path()
+    with _GARMIN_MIGRATION_PROCESS_LOCK:
+        os.makedirs(os.path.dirname(lock_path), exist_ok=True)
+        with portalocker.Lock(
+            lock_path,
+            mode="a",
+            timeout=float("inf"),
         ):
-            return False
-        return bool(_copy_direct_token_files(legacy, destination))
+            root = _garmin_token_root()
+            quarantine = root + ".migration"
+            with ExitStack() as leases:
+                locked_user_ids: set[str] = set()
+                while True:
+                    discovered_user_ids: set[str] = set()
+                    with SessionLocal() as db:
+                        discovered_user_ids.update(
+                            str(user_id)
+                            for (user_id,) in db.query(User.id).all()
+                        )
+                    for candidate_root in (root, quarantine):
+                        if not os.path.isdir(candidate_root):
+                            continue
+                        discovered_user_ids.update(
+                            entry.name
+                            for entry in os.scandir(candidate_root)
+                            if entry.is_dir(follow_symlinks=False)
+                        )
+                    new_user_ids = discovered_user_ids - locked_user_ids
+                    if not new_user_ids:
+                        break
+                    for user_id in sorted(new_user_ids):
+                        leases.enter_context(_garmin_tokenstore_lease(user_id))
+                        locked_user_ids.add(user_id)
+                return _migrate_legacy_garmin_tokenstores_locked()
 
 
-def _mirror_generation_tokens_for_legacy_workers(
-    user_id: str,
-    credential_generation: str,
-) -> None:
-    """Keep the per-user root readable during a mixed-worker deployment."""
-    with _garmin_tokenstore_lease(user_id):
-        try:
-            _copy_direct_token_files(
-                _garmin_token_dir(user_id, credential_generation),
-                _garmin_token_dir(user_id),
-            )
-        except OSError:
-            logger.warning(
-                "Could not mirror generation-scoped Garmin tokens for user %s",
-                user_id,
-                exc_info=True,
-            )
+def _migrate_legacy_garmin_tokenstores_locked() -> dict[str, int]:
+    """Encrypt legacy Garmin token files and remove every plaintext store.
+
+    This runs during API startup before the scheduler. Valid tokens are
+    committed to their current ``UserConnection`` before their directory is
+    deleted. Orphaned, partial, and stale-generation stores are deleted so a
+    failed or abandoned login cannot leave bearer tokens on persistent disk.
+    """
+    import shutil
+    from db.connection_credentials import connection_credentials_generation
+    from db.crypto import get_vault
+    from db.garmin_tokens import (
+        GarminTokenAccessError,
+        load_garmin_tokens,
+        stage_garmin_tokens,
+    )
+    from db.models import UserConnection
+    from db.session import SessionLocal
+
+    root = _garmin_token_root()
+    quarantine = root + ".migration"
+    result = {"migrated": 0, "removed": 0}
+    if os.path.lexists(root):
+        if os.path.islink(root):
+            raise RuntimeError(f"Refusing symlinked Garmin token root: {root}")
+        if os.path.isfile(root):
+            with open(root, "rb") as handle:
+                is_blocker = handle.read() == _GARMIN_LEGACY_BLOCKER
+            if not is_blocker:
+                raise RuntimeError(
+                    f"Refusing unexpected Garmin token root file: {root}"
+                )
+            if not os.path.lexists(quarantine):
+                return result
+        elif os.path.isdir(root):
+            if os.path.lexists(quarantine):
+                _merge_recreated_legacy_root(root, quarantine)
+            else:
+                os.replace(root, quarantine)
+            _write_legacy_garmin_root_blocker()
+        else:
+            raise RuntimeError(f"Refusing unsafe Garmin token root: {root}")
+    else:
+        _write_legacy_garmin_root_blocker()
+        if not os.path.lexists(quarantine):
+            return result
+
+    if os.path.islink(quarantine) or not os.path.isdir(quarantine):
+        raise RuntimeError(
+            f"Refusing unsafe Garmin token migration quarantine: {quarantine}"
+        )
+    legacy_root = quarantine
+
+    for filename in (
+        "oauth1_token.json",
+        "oauth2_token.json",
+        "garmin_tokens.json",
+    ):
+        shared_path = os.path.join(legacy_root, filename)
+        if os.path.lexists(shared_path):
+            os.unlink(shared_path)
+            result["removed"] += 1
+
+    user_entries = list(os.scandir(legacy_root))
+    for entry in user_entries:
+        if not entry.is_dir(follow_symlinks=False):
+            if entry.is_symlink():
+                raise RuntimeError(
+                    f"Refusing unsafe Garmin tokenstore entry: {entry.path}"
+                )
+            continue
+        user_id = entry.name
+        with _garmin_tokenstore_lease(user_id):
+            if not os.path.isdir(entry.path):
+                continue
+            with SessionLocal() as db:
+                connection = db.query(UserConnection).filter(
+                    UserConnection.user_id == user_id,
+                    UserConnection.platform == "garmin",
+                ).one_or_none()
+                if connection is not None:
+                    encrypted = connection.encrypted_garmin_tokens
+                    wrapped = connection.wrapped_token_dek
+                    stored_generation = connection.garmin_token_generation
+                    token_metadata = (
+                        encrypted,
+                        wrapped,
+                        stored_generation,
+                        connection.tokens_updated_at,
+                    )
+                    if any(value is not None for value in token_metadata) and not all(
+                        value is not None for value in token_metadata
+                    ):
+                        raise RuntimeError(
+                            "Garmin token encryption metadata is incomplete "
+                            f"for user {user_id}"
+                        )
+                    generation = connection_credentials_generation(connection)
+                    generation_digest = hashlib.sha256(
+                        generation.encode("utf-8")
+                    ).hexdigest()
+                    candidates = (
+                        os.path.join(
+                            entry.path,
+                            "generations",
+                            generation_digest,
+                        ),
+                        entry.path,
+                    )
+                    serialized = None
+                    for candidate in candidates:
+                        try:
+                            serialized = _read_legacy_garmin_tokens(candidate)
+                        except (
+                            GarminTokenAccessError,
+                            json.JSONDecodeError,
+                            TypeError,
+                            ValueError,
+                        ):
+                            logger.warning(
+                                "Discarding malformed legacy Garmin tokens "
+                                "for user %s",
+                                user_id,
+                            )
+                        if serialized is not None:
+                            break
+                    if serialized is not None:
+                        if not get_vault().is_persistent:
+                            raise RuntimeError(
+                                "Refusing to delete plaintext Garmin tokens "
+                                "without a persistent encryption key"
+                            )
+                        stage_garmin_tokens(
+                            db,
+                            user_id=user_id,
+                            serialized_tokens=serialized,
+                            expected_generation=generation,
+                        )
+                        db.commit()
+                        result["migrated"] += 1
+                    elif encrypted is not None:
+                        load_garmin_tokens(db, user_id=user_id)
+            shutil.rmtree(entry.path)
+            result["removed"] += 1
+    shutil.rmtree(legacy_root)
+    if result["migrated"] or result["removed"]:
+        logger.info(
+            "Garmin token migration complete: %d encrypted, %d plaintext "
+            "stores removed",
+            result["migrated"],
+            result["removed"],
+        )
+    return result
 
 
-def publish_garmin_generation_tokens(
+def publish_garmin_tokens(
     db: Session,
     *,
     user_id: str,
     credential_generation: str,
+    serialized_tokens: str,
+    expected_serialized_tokens: str | None,
     allowed_statuses: tuple[str, ...],
 ) -> bool:
-    """Publish refreshed tokens after committing a fresh generation fence."""
+    """Encrypt refreshed tokens after rechecking the credential generation."""
     from db.connection_credentials import (
         ConnectionGenerationChanged,
-        require_connection_generation,
     )
+    from db.garmin_tokens import load_garmin_tokens, stage_garmin_tokens
 
     with _garmin_tokenstore_lease(user_id):
         try:
-            require_connection_generation(
+            current_tokens = load_garmin_tokens(
                 db,
                 user_id=user_id,
-                platform="garmin",
                 expected_generation=credential_generation,
                 allowed_statuses=allowed_statuses,
-                lock=True,
+            )
+            if current_tokens == serialized_tokens:
+                db.commit()
+                return True
+            if current_tokens != expected_serialized_tokens:
+                db.rollback()
+                return False
+            stage_garmin_tokens(
+                db,
+                user_id=user_id,
+                serialized_tokens=serialized_tokens,
+                expected_generation=credential_generation,
+                allowed_statuses=allowed_statuses,
             )
         except ConnectionGenerationChanged:
             db.rollback()
             return False
         db.commit()
-        _mirror_generation_tokens_for_legacy_workers(
-            user_id,
-            credential_generation,
-        )
     return True
 
 
-def _clear_garmin_bound_tokens(user_id: str) -> None:
-    """Clear legacy/generation tokens while preserving in-flight logins."""
+def _persist_garmin_token_state_after_rollback(
+    db: Session,
+    *,
+    user_id: str,
+    credential_generation: str,
+    token_state: dict[str, object],
+    allowed_statuses: tuple[str, ...],
+) -> bool:
+    """Persist the latest client tokens after sync data has been rolled back."""
+    client = token_state.get("client")
+    if client is None:
+        return True
+    committed_tokens = token_state.get("committed_tokens")
+    pending_tokens = token_state.get("pending_tokens")
+    final_tokens = (
+        pending_tokens
+        if isinstance(pending_tokens, str)
+        else _serialize_garmin_tokens(client)
+    )
+    if final_tokens == committed_tokens:
+        return True
+    return publish_garmin_tokens(
+        db,
+        user_id=user_id,
+        credential_generation=credential_generation,
+        serialized_tokens=final_tokens,
+        expected_serialized_tokens=(
+            committed_tokens if isinstance(committed_tokens, str) else None
+        ),
+        allowed_statuses=allowed_statuses,
+    )
+
+
+_GARMIN_LEGACY_BLOCKER = b"praxys-encrypted-garmin-tokenstore-v1\n"
+
+
+def _write_legacy_garmin_root_blocker() -> None:
+    """Atomically create the blocker that prevents every plaintext tokenstore."""
+    root = _garmin_token_root()
+    parent = os.path.dirname(root)
+    os.makedirs(parent, exist_ok=True)
+    temporary = os.path.join(
+        parent,
+        f".garmin_tokens.blocker-{os.getpid()}-{secrets.token_hex(8)}",
+    )
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        fd = os.open(temporary, flags, 0o600)
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(_GARMIN_LEGACY_BLOCKER)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, root)
+        with contextlib.suppress(OSError):
+            parent_fd = os.open(parent, os.O_RDONLY)
+            try:
+                os.fsync(parent_fd)
+            finally:
+                os.close(parent_fd)
+    finally:
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(temporary)
+
+
+def _block_legacy_garmin_tokenstore(user_id: str) -> None:
+    """Replace the legacy root with a file that blocks every old worker."""
     import shutil
 
-    with _garmin_tokenstore_lease(user_id):
-        root = _garmin_token_dir(user_id)
+    _garmin_token_dir(user_id)
+    root = _garmin_token_root()
+    if os.path.lexists(root):
+        if os.path.islink(root):
+            raise OSError(f"Refusing symlinked Garmin token root: {root}")
+        if os.path.isfile(root):
+            with open(root, "rb") as handle:
+                if handle.read() == _GARMIN_LEGACY_BLOCKER:
+                    return
+            raise OSError(f"Refusing unexpected Garmin token root file: {root}")
         if not os.path.isdir(root):
-            return
-        for entry in os.scandir(root):
-            if entry.name == "staging":
-                continue
-            if entry.is_dir(follow_symlinks=False):
-                shutil.rmtree(entry.path)
+            raise OSError(f"Refusing unsafe Garmin token root: {root}")
+        user_path = _garmin_token_dir(user_id)
+        if os.path.lexists(user_path):
+            if os.path.islink(user_path):
+                raise OSError(
+                    f"Refusing symlinked Garmin tokenstore path: {user_path}"
+                )
+            if os.path.isdir(user_path):
+                shutil.rmtree(user_path)
             else:
-                os.unlink(entry.path)
+                os.unlink(user_path)
+        if any(os.scandir(root)):
+            raise OSError(
+                "Legacy Garmin token migration is incomplete; refusing a "
+                "writable token root"
+            )
+        os.rmdir(root)
+    _write_legacy_garmin_root_blocker()
 
 
-def clear_garmin_tokens(user_id: str) -> None:
-    """Remove cached Garmin OAuth tokens for a user.
+def _clear_garmin_bound_tokens(user_id: str) -> None:
+    """Block legacy disk tokens while preserving in-flight memory state."""
+    with _garmin_tokenstore_lease(user_id):
+        _block_legacy_garmin_tokenstore(user_id)
+
+
+def clear_garmin_tokens(
+    user_id: str,
+    db: Session | None = None,
+    *,
+    block_legacy: bool = True,
+) -> None:
+    """Remove encrypted and legacy Garmin OAuth tokens for a user.
 
     Call whenever cached tokens should no longer be trusted: credential
-    rotation on connect, explicit disconnect, or user deletion. Leaves the
-    token root intact. Raises OSError on filesystem failure — callers decide
-    whether that's fatal (connect flow) or best-effort (post-delete cleanup).
-    Silencing failures here would re-open the cross-user leak the helper exists
-    to prevent.
+    rotation on connect, explicit disconnect, or user deletion. Database
+    changes are staged on ``db`` for the caller's transaction. Residual
+    filesystem cleanup raises on failure so bearer tokens cannot be silently
+    left behind.
     """
     import shutil
+    from db import session as db_session
+    from db.garmin_tokens import clear_stored_garmin_tokens
 
-    with _garmin_tokenstore_lease(user_id):
-        with _pending_mfa_lock:
-            for key in [
-                key
-                for key in _pending_garmin_mfa
-                if key[0] == user_id
-            ]:
-                _pending_garmin_mfa.pop(key, None)
-            for key in [
-                key
-                for key in _completed_garmin_token_dirs
-                if key[0] == user_id
-            ]:
-                _completed_garmin_token_dirs.pop(key, None)
-                _completed_garmin_token_created.pop(key, None)
-        path = _garmin_token_dir(user_id)
-        if not os.path.isdir(path):
-            return
-        try:
-            shutil.rmtree(path)
-        except OSError:
-            logger.exception(
-                "Failed to clear Garmin tokenstore for user %s at %s — "
-                "stale tokens may still be reused on next sync.",
-                user_id, path,
-            )
-            raise
+    owned_db = None
+    if db is None and db_session.SessionLocal is not None:
+        owned_db = db_session.SessionLocal()
+        db = owned_db
+    try:
+        with _garmin_tokenstore_lease(user_id):
+            with _pending_mfa_lock:
+                for key in [
+                    key
+                    for key in _pending_garmin_mfa
+                    if key[0] == user_id
+                ]:
+                    _pending_garmin_mfa.pop(key, None)
+                for key in [
+                    key
+                    for key in _completed_garmin_tokens
+                    if key[0] == user_id
+                ]:
+                    _completed_garmin_tokens.pop(key, None)
+                    _completed_garmin_token_created.pop(key, None)
+            path = _garmin_token_dir(user_id)
+            if os.path.lexists(path):
+                try:
+                    if os.path.islink(path):
+                        raise OSError(f"Refusing symlinked tokenstore path: {path}")
+                    if os.path.isdir(path):
+                        shutil.rmtree(path)
+                    else:
+                        os.unlink(path)
+                except OSError:
+                    logger.exception(
+                        "Failed to clear legacy Garmin tokenstore for user %s at %s",
+                        user_id,
+                        path,
+                    )
+                    raise
+            if block_legacy:
+                _block_legacy_garmin_tokenstore(user_id)
+            if db is not None:
+                clear_stored_garmin_tokens(db, user_id=user_id)
+                if owned_db is not None:
+                    owned_db.commit()
+    finally:
+        if owned_db is not None:
+            owned_db.close()
 
 
 # Pending interactive Garmin MFA logins, keyed by user and attempt ID.
@@ -411,25 +705,16 @@ def clear_garmin_tokens(user_id: str) -> None:
 # login. That's fine for the single-worker deployment, and the pending entry
 # self-expires within minutes regardless (Garmin MFA codes are short-lived).
 _pending_garmin_mfa: dict[tuple[str, str], dict] = {}
-_completed_garmin_token_dirs: dict[tuple[str, str], str] = {}
+_completed_garmin_tokens: dict[tuple[str, str], str] = {}
 _completed_garmin_token_created: dict[tuple[str, str], float] = {}
 _pending_mfa_lock = threading.Lock()
 _GARMIN_MFA_TTL_SEC = 300
 _garmin_prune_timer: threading.Timer | None = None
 
 
-def _remove_garmin_staging_dir(path: str) -> None:
-    """Delete one resolved interactive-login staging directory."""
-    import shutil
-
-    if os.path.isdir(path):
-        shutil.rmtree(path)
-
-
 def _prune_expired_mfa() -> None:
-    """Delete pending and completed interactive logins older than the TTL."""
+    """Forget pending and completed interactive logins older than the TTL."""
     cutoff = time.time() - _GARMIN_MFA_TTL_SEC
-    stale_dirs: list[str] = []
     with _pending_mfa_lock:
         stale_pending = [
             key
@@ -437,27 +722,15 @@ def _prune_expired_mfa() -> None:
             if pending["created"] < cutoff
         ]
         for key in stale_pending:
-            pending = _pending_garmin_mfa.pop(key, None)
-            if pending is not None:
-                stale_dirs.append(str(pending["token_dir"]))
+            _pending_garmin_mfa.pop(key, None)
         stale_completed = [
             key
-            for key in _completed_garmin_token_dirs
+            for key in _completed_garmin_tokens
             if _completed_garmin_token_created.get(key, 0) < cutoff
         ]
         for key in stale_completed:
-            staging_dir = _completed_garmin_token_dirs.pop(key, None)
+            _completed_garmin_tokens.pop(key, None)
             _completed_garmin_token_created.pop(key, None)
-            if staging_dir is not None:
-                stale_dirs.append(staging_dir)
-    for staging_dir in stale_dirs:
-        try:
-            _remove_garmin_staging_dir(staging_dir)
-        except OSError:
-            logger.warning(
-                "Could not remove expired Garmin login staging directory",
-                exc_info=True,
-            )
 
 
 def _schedule_garmin_login_prune() -> None:
@@ -471,7 +744,7 @@ def _schedule_garmin_login_prune() -> None:
             _garmin_prune_timer = None
             needs_rearm = bool(
                 _pending_garmin_mfa
-                or _completed_garmin_token_dirs
+                or _completed_garmin_tokens
             )
         if needs_rearm:
             _schedule_garmin_login_prune()
@@ -495,32 +768,12 @@ def discard_garmin_login_tokens(
     user_id: str,
     login_attempt_id: str,
 ) -> None:
-    """Delete one pending or completed interactive-login tokenstore."""
+    """Forget one pending or completed interactive login."""
     key = (user_id, login_attempt_id)
-    staging_dirs: list[str] = []
     with _pending_mfa_lock:
-        pending = _pending_garmin_mfa.pop(key, None)
-        if pending is not None:
-            staging_dirs.append(str(pending["token_dir"]))
-        completed = _completed_garmin_token_dirs.pop(key, None)
+        _pending_garmin_mfa.pop(key, None)
+        _completed_garmin_tokens.pop(key, None)
         _completed_garmin_token_created.pop(key, None)
-        if completed is not None:
-            staging_dirs.append(completed)
-    for staging_dir in set(staging_dirs):
-        _remove_garmin_staging_dir(staging_dir)
-
-
-def discard_garmin_generation_tokens(
-    user_id: str,
-    credential_generation: str,
-) -> None:
-    """Delete tokens bound to credentials that failed to commit."""
-    import shutil
-
-    with _garmin_tokenstore_lease(user_id):
-        token_dir = _garmin_token_dir(user_id, credential_generation)
-        if os.path.isdir(token_dir):
-            shutil.rmtree(token_dir)
 
 
 # garminconnect tries login strategies in order (mobile, widget, portal).
@@ -552,22 +805,28 @@ def _force_portal_login_strategy(client) -> None:
         )
 
 
-def _persist_garmin_tokens(client, token_dir: str) -> None:
-    """Best-effort dump of the authenticated Garmin session to the tokenstore.
+def _serialize_garmin_tokens(client) -> str:
+    """Return a validated in-memory garminconnect token bundle."""
+    from db.garmin_tokens import validate_garmin_tokens
 
-    ``Garmin.login(return_on_mfa=True)`` and ``Garmin.resume_login`` both
-    return before the wrapper persists tokens, so we dump explicitly. Once
-    written, background syncs reuse the cached OAuth tokens and never re-hit
-    SSO/MFA until they expire.
+    return validate_garmin_tokens(client.client.dumps())
+
+
+_GARMIN_DIRECT_TOKEN_MIN_LENGTH = 513
+
+
+def _garmin_login_argument(serialized_tokens: str | None) -> str:
+    """Force garminconnect's in-memory branch and bypass ``GARMINTOKENS``.
+
+    garminconnect 0.3.x treats strings longer than 512 characters as serialized
+    tokens and shorter strings as filesystem paths. A padded empty JSON object
+    safely fails token loading and falls through to credentials without setting
+    a tokenstore path, so the library cannot read or write plaintext files.
     """
-    try:
-        client.client.dump(token_dir)
-    except Exception:
-        logger.warning(
-            "Failed to persist Garmin tokens to %s; the next sync will have to "
-            "re-authenticate (and cannot complete MFA headless)", token_dir,
-            exc_info=True,
-        )
+    value = serialized_tokens or "{}"
+    if len(value) < _GARMIN_DIRECT_TOKEN_MIN_LENGTH:
+        value += " " * (_GARMIN_DIRECT_TOKEN_MIN_LENGTH - len(value))
+    return value
 
 
 def begin_garmin_login(
@@ -583,9 +842,8 @@ def begin_garmin_login(
     Raises ``GarminConnect*`` errors on authentication/connection failure.
 
     Unlike the lazy background-sync login, this runs synchronously while the
-    user is present so an MFA code can be prompted for. Bound legacy and
-    generation tokens are cleared first, while other attempt-scoped staging
-    directories remain isolated for concurrent browser tabs.
+    user is present so an MFA code can be prompted for. Completed token bundles
+    remain only in process memory until the matching credentials are committed.
     """
     from garminconnect import Garmin
 
@@ -593,23 +851,16 @@ def begin_garmin_login(
     _prune_expired_mfa()
     _clear_garmin_bound_tokens(user_id)
     attempt_id = secrets.token_urlsafe(24)
-    token_dir = _garmin_login_staging_dir(user_id)
-    os.makedirs(token_dir, exist_ok=True)
 
-    try:
-        client = Garmin(
-            creds["email"], creds["password"], is_cn=is_cn, return_on_mfa=True,
-        )
-        _force_portal_login_strategy(client)
-        mfa_status, _ = client.login(token_dir)
-    except Exception:
-        _remove_garmin_staging_dir(token_dir)
-        raise
+    client = Garmin(
+        creds["email"], creds["password"], is_cn=is_cn, return_on_mfa=True,
+    )
+    _force_portal_login_strategy(client)
+    mfa_status, _ = client.login(_garmin_login_argument(None))
     if mfa_status == "needs_mfa":
         with _pending_mfa_lock:
             _pending_garmin_mfa[(user_id, attempt_id)] = {
                 "client": client,
-                "token_dir": token_dir,
                 "creds": creds,
                 "created": time.time(),
                 "attempt_id": attempt_id,
@@ -617,10 +868,10 @@ def begin_garmin_login(
         _schedule_garmin_login_prune()
         return "mfa_required", attempt_id
 
-    _persist_garmin_tokens(client, token_dir)
+    serialized_tokens = _serialize_garmin_tokens(client)
     completed_key = (user_id, attempt_id)
     with _pending_mfa_lock:
-        _completed_garmin_token_dirs[completed_key] = token_dir
+        _completed_garmin_tokens[completed_key] = serialized_tokens
         _completed_garmin_token_created[completed_key] = time.time()
     _schedule_garmin_login_prune()
     return "connected", attempt_id
@@ -666,7 +917,7 @@ def complete_garmin_mfa(
     # resume_login ignores its client_state arg (the MFA state lives on the
     # client) and raises on a bad/expired code.
     client.resume_login({}, code)
-    _persist_garmin_tokens(client, pending["token_dir"])
+    serialized_tokens = _serialize_garmin_tokens(client)
     expired_after_completion = False
     with _pending_mfa_lock:
         assert pending_key is not None
@@ -680,42 +931,37 @@ def complete_garmin_mfa(
             _pending_garmin_mfa.pop(pending_key, None)
             attempt_id = str(pending["attempt_id"])
             completed_key = (user_id, attempt_id)
-            _completed_garmin_token_dirs[
-                completed_key
-            ] = pending["token_dir"]
+            _completed_garmin_tokens[completed_key] = serialized_tokens
             _completed_garmin_token_created[completed_key] = time.time()
     if expired_after_completion:
-        _remove_garmin_staging_dir(str(pending["token_dir"]))
         raise RuntimeError("GARMIN_MFA_EXPIRED")
     _schedule_garmin_login_prune()
     return pending["creds"], attempt_id
 
 
 def bind_garmin_login_tokens(
+    db: Session,
     user_id: str,
     credential_generation: str,
     login_attempt_id: str,
 ) -> None:
-    """Bind freshly authenticated tokens to persisted credentials."""
+    """Encrypt freshly authenticated tokens in the credential transaction."""
+    from db.garmin_tokens import stage_garmin_tokens
+
     with _pending_mfa_lock:
         completed_key = (user_id, login_attempt_id)
-        staging_dir = _completed_garmin_token_dirs.pop(completed_key, None)
+        serialized_tokens = _completed_garmin_tokens.pop(completed_key, None)
         _completed_garmin_token_created.pop(completed_key, None)
-    if staging_dir is None:
+    if serialized_tokens is None:
         raise RuntimeError("GARMIN_LOGIN_TOKENS_UNAVAILABLE")
     with _garmin_tokenstore_lease(user_id):
-        destination = _garmin_token_dir(
-            user_id,
-            credential_generation,
+        stage_garmin_tokens(
+            db,
+            user_id=user_id,
+            serialized_tokens=serialized_tokens,
+            expected_generation=credential_generation,
+            allowed_statuses=("connected",),
         )
-        try:
-            os.makedirs(os.path.dirname(destination), exist_ok=True)
-            if os.path.exists(destination):
-                raise RuntimeError("GARMIN_TOKEN_GENERATION_ALREADY_EXISTS")
-            os.replace(staging_dir, destination)
-        except Exception:
-            _remove_garmin_staging_dir(staging_dir)
-            raise
 
 
 def _get_credentials(user_id: str, platform: str, db: Session) -> dict | None:
@@ -885,6 +1131,7 @@ def _run_sync(
 
     init_db()
     db = SessionLocal()
+    garmin_token_state: dict[str, object] = {}
 
     try:
         token_lease = (
@@ -920,6 +1167,7 @@ def _run_sync(
                         credential_generation=(
                             expected_connection_generation
                         ),
+                        _token_state=garmin_token_state,
                     )
 
             elif source == "strava":
@@ -948,15 +1196,6 @@ def _run_sync(
                 )
             _ensure_user_active_for_sync(user_id, db)
             db.commit()
-            if (
-                source == "garmin"
-                and expected_connection_generation is not None
-            ):
-                _mirror_generation_tokens_for_legacy_workers(
-                    user_id,
-                    expected_connection_generation,
-                )
-
         # Refresh activity-derived CP on any sync that can change activity
         # power observations (Garmin, Strava, Stryd — not Oura). The fit
         # itself is cheap and idempotent; skipping Oura just avoids the
@@ -1066,6 +1305,31 @@ def _run_sync(
             }
     except Exception as e:
         db.rollback()
+        if (
+            source == "garmin"
+            and expected_connection_generation is not None
+        ):
+            try:
+                persisted = _persist_garmin_token_state_after_rollback(
+                    db,
+                    user_id=user_id,
+                    credential_generation=expected_connection_generation,
+                    token_state=garmin_token_state,
+                    allowed_statuses=SCHEDULABLE_STATUSES,
+                )
+                if not persisted:
+                    logger.warning(
+                        "Skipped stale Garmin token publication after sync "
+                        "failure for user %s",
+                        user_id,
+                    )
+            except Exception:
+                db.rollback()
+                logger.exception(
+                    "Failed to persist Garmin OAuth tokens after outer sync "
+                    "failure for user %s",
+                    user_id,
+                )
         logger.exception("Sync failed for %s (user %s)", source, user_id)
         with _sync_lock:
             status[source] = {
@@ -1118,7 +1382,11 @@ def _run_sync(
         db.close()
 
 
-def _login_garmin_with_cn_fallback(client, creds: dict, token_dir: str) -> None:
+def _login_garmin_with_cn_fallback(
+    client,
+    creds: dict,
+    serialized_tokens: str | None,
+) -> None:
     """Log in the Garmin client, working around the 0.3.x JWT_WEB CN bug.
 
     **Mobile/widget strategies' JWT_WEB fallback is ``.com``-only.** The
@@ -1137,7 +1405,6 @@ def _login_garmin_with_cn_fallback(client, creds: dict, token_dir: str) -> None:
     ``_di_token_url`` is now a domain-aware instance attribute), so no
     DI patching is needed here.
     """
-    import contextlib
     from garminconnect import GarminConnectAuthenticationError
 
     # Force the portal strategy: the widget strategy mints tokens the API
@@ -1146,7 +1413,7 @@ def _login_garmin_with_cn_fallback(client, creds: dict, token_dir: str) -> None:
     _force_portal_login_strategy(client)
 
     try:
-        client.login(token_dir)
+        client.login(_garmin_login_argument(serialized_tokens))
         return
     except GarminConnectAuthenticationError as e:
         msg = str(e)
@@ -1170,10 +1437,6 @@ def _login_garmin_with_cn_fallback(client, creds: dict, token_dir: str) -> None:
 
     inner = client.client
     inner._portal_web_login_cffi(creds["email"], creds["password"])
-    # ``Client.dump`` serializes DI state; persisting after the portal
-    # fallback lets subsequent syncs skip SSO entirely.
-    with contextlib.suppress(Exception):
-        inner.dump(token_dir)
 
 
 def _persist_garmin_calendar_snapshot(
@@ -1238,16 +1501,57 @@ def _sync_garmin(
     db,
     *,
     credential_generation: str | None = None,
+    _token_state: dict[str, object] | None = None,
 ) -> dict:
-    """Fetch Garmin data while serializing mutable tokenstore access."""
+    """Fetch Garmin data while serializing mutable OAuth token access."""
     with _garmin_tokenstore_lease(user_id):
-        return _sync_garmin_locked(
-            user_id,
-            creds,
-            from_date,
-            db,
-            credential_generation=credential_generation,
-        )
+        _block_legacy_garmin_tokenstore(user_id)
+        token_state = _token_state if _token_state is not None else {}
+        try:
+            return _sync_garmin_locked(
+                user_id,
+                creds,
+                from_date,
+                db,
+                credential_generation=credential_generation,
+                _token_state=token_state,
+            )
+        except Exception:
+            rollback_ok = True
+            if credential_generation is not None:
+                try:
+                    db.rollback()
+                except Exception:
+                    rollback_ok = False
+                    logger.exception(
+                        "Failed to roll back Garmin sync data before token "
+                        "persistence for user %s",
+                        user_id,
+                    )
+            client = token_state.get("client")
+            if (
+                credential_generation is not None
+                and client is not None
+                and rollback_ok
+            ):
+                try:
+                    from db.sync_scheduler import SCHEDULABLE_STATUSES
+
+                    _persist_garmin_token_state_after_rollback(
+                        db,
+                        user_id=user_id,
+                        credential_generation=credential_generation,
+                        token_state=token_state,
+                        allowed_statuses=SCHEDULABLE_STATUSES,
+                    )
+                except Exception:
+                    db.rollback()
+                    logger.exception(
+                        "Failed to persist refreshed Garmin OAuth tokens after "
+                        "sync failure for user %s",
+                        user_id,
+                    )
+            raise
 
 
 def _sync_garmin_locked(
@@ -1257,9 +1561,12 @@ def _sync_garmin_locked(
     db,
     *,
     credential_generation: str | None = None,
+    _token_state: dict[str, object] | None = None,
 ) -> dict:
     """Fetch Garmin data and write directly to DB."""
     from db import sync_writer
+    from db.garmin_tokens import load_garmin_tokens, stage_garmin_tokens
+    from db.sync_scheduler import SCHEDULABLE_STATUSES
     from garminconnect import Garmin
     from garminconnect.exceptions import (
         GarminConnectAuthenticationError,
@@ -1299,25 +1606,32 @@ def _sync_garmin_locked(
         is_cn = bool(creds.get("is_cn", False))
 
     client = Garmin(creds["email"], creds["password"], is_cn=is_cn)
-    # The tokenstore must be per-user: garminconnect.Garmin.login() loads any
-    # tokens at that path without validating the account they belong to and
-    # only falls back to username/password if the files themselves are missing
-    # or malformed. A shared path would have every user's sync fetching the
-    # first-authenticated user's Garmin data.
-    token_dir = _garmin_token_dir(
-        user_id,
-        credential_generation,
-    )
+    serialized_tokens = None
     if credential_generation is not None:
-        _seed_generation_tokens_from_legacy(
-            user_id,
-            credential_generation,
+        serialized_tokens = load_garmin_tokens(
+            db,
+            user_id=user_id,
+            expected_generation=credential_generation,
+            allowed_statuses=SCHEDULABLE_STATUSES,
         )
-    os.makedirs(token_dir, exist_ok=True)
-    # Garmin.login(path) transparently handles a missing tokenstore: load()
-    # raises, the exception is caught internally, and the credentials flow
-    # runs. On success it writes garmin_tokens.json back to the same path.
-    _login_garmin_with_cn_fallback(client, creds, token_dir)
+    if _token_state is not None:
+        _token_state["client"] = client
+        _token_state["committed_tokens"] = serialized_tokens
+    _login_garmin_with_cn_fallback(client, creds, serialized_tokens)
+    authenticated_tokens: str | None = None
+    if credential_generation is not None:
+        authenticated_tokens = _serialize_garmin_tokens(client)
+        if authenticated_tokens != serialized_tokens:
+            stage_garmin_tokens(
+                db,
+                user_id=user_id,
+                serialized_tokens=authenticated_tokens,
+                expected_generation=credential_generation,
+                allowed_statuses=SCHEDULABLE_STATUSES,
+            )
+            db.commit()
+        if _token_state is not None:
+            _token_state["committed_tokens"] = authenticated_tokens
 
     # Fetch read-only workout-calendar evidence before any DB writes. Auth and
     # rate-limit failures must reach the normal source backoff path, but doing
@@ -1790,6 +2104,19 @@ def _sync_garmin_locked(
                 user_id,
                 e,
             )
+
+    if credential_generation is not None:
+        final_tokens = _serialize_garmin_tokens(client)
+        if final_tokens != authenticated_tokens:
+            stage_garmin_tokens(
+                db,
+                user_id=user_id,
+                serialized_tokens=final_tokens,
+                expected_generation=credential_generation,
+                allowed_statuses=SCHEDULABLE_STATUSES,
+            )
+            if _token_state is not None:
+                _token_state["pending_tokens"] = final_tokens
 
     return {"activities": act_count, "splits": split_count,
             "lactate_threshold": lt_count, "profile": profile_count,

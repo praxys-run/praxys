@@ -70,14 +70,14 @@ def test_jwt_web_error_falls_back_to_portal_login(tmp_path) -> None:
     client, portal_calls, dump_calls = _make_client(_raise_jwt_web)
     creds = {"email": "cn-user@example.com", "password": "secret"}
 
-    _login_garmin_with_cn_fallback(client, creds, str(tmp_path / "toks"))
+    _login_garmin_with_cn_fallback(client, creds, None)
 
     assert portal_calls == [("cn-user@example.com", "secret")], (
         "JWT_WEB error must trigger _portal_web_login_cffi with the "
         f"same credentials; got {portal_calls!r}"
     )
-    assert len(dump_calls) == 1, (
-        "After the portal fallback we should attempt one dump() so DI "
+    assert dump_calls == [], (
+        "Portal fallback must not dump DI state to the filesystem; "
         "Bearer tokens persist."
     )
 
@@ -90,7 +90,7 @@ def test_successful_login_does_not_fall_back(tmp_path) -> None:
     client, portal_calls, dump_calls = _make_client(lambda: None)
     creds = {"email": "intl-user@example.com", "password": "secret"}
 
-    _login_garmin_with_cn_fallback(client, creds, str(tmp_path / "toks"))
+    _login_garmin_with_cn_fallback(client, creds, None)
 
     assert portal_calls == [], (
         "Portal fallback must only run when the normal login raises the "
@@ -118,7 +118,7 @@ def test_other_auth_errors_bubble_up(tmp_path) -> None:
 
     with pytest.raises(GarminConnectAuthenticationError) as excinfo:
         _login_garmin_with_cn_fallback(
-            client, creds, str(tmp_path / "toks"),
+            client, creds, None,
         )
 
     assert "Invalid Username or Password" in str(excinfo.value)
@@ -126,3 +126,30 @@ def test_other_auth_errors_bubble_up(tmp_path) -> None:
         "Non-JWT_WEB auth errors must not trigger the portal fallback; "
         f"was called with {portal_calls!r}"
     )
+
+
+def test_missing_tokens_bypass_garmintokens_environment(monkeypatch) -> None:
+    from api.routes.sync import _login_garmin_with_cn_fallback
+
+    login_args: list[str] = []
+
+    class _Inner:
+        skip_strategies: set[str] = set()
+
+    class _Client:
+        client = _Inner()
+
+        def login(self, value: str) -> None:
+            login_args.append(value)
+
+    monkeypatch.setenv("GARMINTOKENS", "shared-plaintext-tokenstore")
+
+    _login_garmin_with_cn_fallback(
+        _Client(),
+        {"email": "runner@example.test", "password": "secret"},
+        None,
+    )
+
+    assert len(login_args) == 1
+    assert len(login_args[0]) > 512
+    assert login_args[0].strip() == "{}"

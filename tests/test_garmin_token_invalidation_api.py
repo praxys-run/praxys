@@ -5,6 +5,7 @@ per-user Garmin tokenstore. Regressions here would reproduce the cross-user
 leak through a different code path than the original fix.
 """
 import contextlib
+import json
 import os
 import tempfile
 
@@ -17,7 +18,7 @@ def api_client(monkeypatch):
     from fastapi.testclient import TestClient
 
     tmpdir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
-    monkeypatch.setenv("DATA_DIR", tmpdir.name)
+    monkeypatch.setenv("DATA_DIR", os.path.join(tmpdir.name, "data"))
     monkeypatch.setenv("PRAXYS_SYNC_SCHEDULER", "false")
     monkeypatch.setenv(
         "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED",
@@ -99,14 +100,33 @@ def api_client(monkeypatch):
 
 def _seed_token_dir(user_id: str) -> str:
     """Drop a dummy tokenstore on disk and return its path."""
+    import shutil
+
     from api.routes.sync import _garmin_token_dir
+    from api.routes.sync import _garmin_token_root
 
     path = _garmin_token_dir(user_id)
+    root = _garmin_token_root()
+    if os.path.isfile(root):
+        os.unlink(root)
+    if os.path.lexists(path):
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        else:
+            os.unlink(path)
     os.makedirs(path, exist_ok=True)
-    with open(os.path.join(path, "oauth2_token.json"), "w") as f:
+    with open(os.path.join(path, "garmin_tokens.json"), "w") as f:
         f.write("{}")
     assert os.path.isdir(path)
     return path
+
+
+def _serialized_tokens(marker: str) -> str:
+    return json.dumps({
+        "di_token": marker + ("a" * 600),
+        "di_refresh_token": marker + ("b" * 600),
+        "di_client_id": f"client-{marker}",
+    })
 
 
 def test_connect_garmin_clears_existing_tokens(api_client):
@@ -171,8 +191,9 @@ def test_reconnect_token_clear_failure_leaves_connection_disconnected(
     )
     assert connected.status_code == 200, connected.text
 
-    def fail_clear(called_user_id: str) -> None:
+    def fail_clear(called_user_id: str, _db, *, block_legacy: bool) -> None:
         assert called_user_id == user_id
+        assert block_legacy is True
         with db_session.SessionLocal() as db:
             connection = db.query(UserConnection).filter_by(
                 user_id=user_id,
@@ -232,8 +253,9 @@ def test_reconnect_holds_token_lease_through_credential_commit(
         events.append("revoke")
         return real_revoke(called_user_id, db)
 
-    def guarded_clear(called_user_id: str):
+    def guarded_clear(called_user_id: str, _db, *, block_legacy: bool):
         assert called_user_id == user_id
+        assert block_legacy is True
         assert lease_depth == 1
         events.append("clear")
 
@@ -431,7 +453,6 @@ def test_stale_sync_cannot_publish_legacy_token_mirror(
             other.commit()
         return {"activities": 1}
 
-    mirror_calls: list[tuple[str, str]] = []
     lease_events: list[str] = []
     lease_depth = 0
     real_require_generation = (
@@ -465,14 +486,6 @@ def test_stale_sync_cannot_publish_legacy_token_mirror(
         "require_connection_generation",
         guarded_require_generation,
     )
-    monkeypatch.setattr(
-        sync_routes,
-        "_mirror_generation_tokens_for_legacy_workers",
-        lambda called_user_id, generation: mirror_calls.append(
-            (called_user_id, generation)
-        ),
-    )
-
     sync_routes._run_sync(
         user_id,
         "garmin",
@@ -480,11 +493,10 @@ def test_stale_sync_cannot_publish_legacy_token_mirror(
         expected_connection_generation=expected_generation,
     )
 
-    assert mirror_calls == []
     assert lease_events == ["enter", "exit"]
 
 
-def test_manual_sync_commits_before_publishing_legacy_tokens(
+def test_manual_sync_commits_while_holding_token_lease(
     api_client,
     monkeypatch,
 ):
@@ -507,8 +519,6 @@ def test_manual_sync_commits_before_publishing_legacy_tokens(
         generation = connection_credentials_generation(connection)
 
     lease_depth = 0
-    published: list[str] = []
-
     @contextlib.contextmanager
     def token_lease(called_user_id: str):
         nonlocal lease_depth
@@ -530,27 +540,11 @@ def test_manual_sync_commits_before_publishing_legacy_tokens(
         config.display_name = "committed before mirror"
         return {"activities": 0}
 
-    def publish(called_user_id: str, called_generation: str):
-        assert lease_depth == 1
-        assert called_user_id == user_id
-        assert called_generation == generation
-        with db_session.SessionLocal() as verification_db:
-            assert (
-                verification_db.get(UserConfig, user_id).display_name
-                == "committed before mirror"
-            )
-        published.append(called_generation)
-
     monkeypatch.setattr(sync_routes, "_sync_garmin", stage_sync)
     monkeypatch.setattr(
         sync_routes,
         "_garmin_tokenstore_lease",
         token_lease,
-    )
-    monkeypatch.setattr(
-        sync_routes,
-        "_mirror_generation_tokens_for_legacy_workers",
-        publish,
     )
     monkeypatch.setattr(
         sync_routes,
@@ -569,10 +563,15 @@ def test_manual_sync_commits_before_publishing_legacy_tokens(
         expected_connection_generation=generation,
     )
 
-    assert published == [generation]
+    with db_session.SessionLocal() as verification_db:
+        assert (
+            verification_db.get(UserConfig, user_id).display_name
+            == "committed before mirror"
+        )
+    assert lease_depth == 0
 
 
-def test_scheduled_sync_commits_before_publishing_legacy_tokens(
+def test_scheduled_sync_commits_while_holding_token_lease(
     api_client,
     monkeypatch,
 ):
@@ -589,8 +588,6 @@ def test_scheduled_sync_commits_before_publishing_legacy_tokens(
         json={"email": "runner@example.test", "password": "secret"},
     )
     lease_depth = 0
-    published: list[str] = []
-
     @contextlib.contextmanager
     def token_lease(called_user_id: str):
         nonlocal lease_depth
@@ -611,33 +608,11 @@ def test_scheduled_sync_commits_before_publishing_legacy_tokens(
         config.display_name = "scheduled commit before mirror"
         return {"activities": 0}
 
-    def publish(called_user_id: str, called_generation: str):
-        assert lease_depth == 1
-        with db_session.SessionLocal() as verification_db:
-            connection = verification_db.query(UserConnection).filter_by(
-                user_id=user_id,
-                platform="garmin",
-            ).one()
-            assert (
-                connection_credentials_generation(connection)
-                == called_generation
-            )
-            assert (
-                verification_db.get(UserConfig, user_id).display_name
-                == "scheduled commit before mirror"
-            )
-        published.append(called_generation)
-
     monkeypatch.setattr(sync_routes, "_sync_garmin", stage_sync)
     monkeypatch.setattr(
         sync_routes,
         "_garmin_tokenstore_lease",
         token_lease,
-    )
-    monkeypatch.setattr(
-        sync_routes,
-        "_mirror_generation_tokens_for_legacy_workers",
-        publish,
     )
     monkeypatch.setattr(
         "api.plan_adjustments.run_plan_adjustment_for_user",
@@ -651,7 +626,12 @@ def test_scheduled_sync_commits_before_publishing_legacy_tokens(
     with db_session.SessionLocal() as db:
         sync_scheduler._sync_connection(user_id, "garmin", db)
 
-    assert len(published) == 1
+    with db_session.SessionLocal() as verification_db:
+        assert (
+            verification_db.get(UserConfig, user_id).display_name
+            == "scheduled commit before mirror"
+        )
+    assert lease_depth == 0
 
 
 def test_delivery_token_publication_rechecks_credential_generation(
@@ -660,6 +640,7 @@ def test_delivery_token_publication_rechecks_credential_generation(
     from api.routes import sync as sync_routes
     from db import session as db_session
     from db.connection_credentials import connection_credentials_generation
+    from db.garmin_tokens import load_garmin_tokens
     from db.models import UserConnection
     from db.sync_scheduler import SCHEDULABLE_STATUSES
 
@@ -676,28 +657,36 @@ def test_delivery_token_publication_rechecks_credential_generation(
             platform="garmin",
         ).one()
         generation = connection_credentials_generation(connection)
-        generation_dir = sync_routes._garmin_token_dir(user_id, generation)
-        os.makedirs(generation_dir, exist_ok=True)
-        with open(
-            os.path.join(generation_dir, "oauth2_token.json"),
-            "w",
-            encoding="utf-8",
-        ) as handle:
-            handle.write("current")
+        current_tokens = _serialized_tokens("current")
 
-        assert sync_routes.publish_garmin_generation_tokens(
+        assert sync_routes.publish_garmin_tokens(
             db,
             user_id=user_id,
             credential_generation=generation,
+            serialized_tokens=current_tokens,
+            expected_serialized_tokens=None,
             allowed_statuses=SCHEDULABLE_STATUSES,
         )
+        assert load_garmin_tokens(db, user_id=user_id) == current_tokens
 
-        legacy_token = os.path.join(
-            sync_routes._garmin_token_dir(user_id),
-            "oauth2_token.json",
+        newer_tokens = _serialized_tokens("newer")
+        assert sync_routes.publish_garmin_tokens(
+            db,
+            user_id=user_id,
+            credential_generation=generation,
+            serialized_tokens=newer_tokens,
+            expected_serialized_tokens=current_tokens,
+            allowed_statuses=SCHEDULABLE_STATUSES,
         )
-        with open(legacy_token, encoding="utf-8") as handle:
-            assert handle.read() == "current"
+        assert not sync_routes.publish_garmin_tokens(
+            db,
+            user_id=user_id,
+            credential_generation=generation,
+            serialized_tokens=_serialized_tokens("stale-same-generation"),
+            expected_serialized_tokens=current_tokens,
+            allowed_statuses=SCHEDULABLE_STATUSES,
+        )
+        assert load_garmin_tokens(db, user_id=user_id) == newer_tokens
 
         connection = db.query(UserConnection).filter_by(
             user_id=user_id,
@@ -706,21 +695,18 @@ def test_delivery_token_publication_rechecks_credential_generation(
         connection.encrypted_credentials = b"rotated"
         connection.wrapped_dek = b"rotated"
         db.commit()
-        with open(
-            os.path.join(generation_dir, "oauth2_token.json"),
-            "w",
-            encoding="utf-8",
-        ) as handle:
-            handle.write("stale")
+        encrypted_before = connection.encrypted_garmin_tokens
 
-        assert not sync_routes.publish_garmin_generation_tokens(
+        assert not sync_routes.publish_garmin_tokens(
             db,
             user_id=user_id,
             credential_generation=generation,
+            serialized_tokens=_serialized_tokens("stale"),
+            expected_serialized_tokens=newer_tokens,
             allowed_statuses=SCHEDULABLE_STATUSES,
         )
-        with open(legacy_token, encoding="utf-8") as handle:
-            assert handle.read() == "current"
+        db.refresh(connection)
+        assert connection.encrypted_garmin_tokens == encrypted_before
 
 
 def test_stale_manual_failure_cannot_degrade_rotated_connection(
@@ -1060,8 +1046,9 @@ def test_region_change_holds_token_lease_through_commit_and_clear(
         real_save(called_user_id, config, db)
         events.append("commit")
 
-    def guarded_clear(called_user_id: str):
+    def guarded_clear(called_user_id: str, _db, *, block_legacy: bool):
         assert called_user_id == user_id
+        assert block_legacy is True
         assert lease_depth == 1
         events.append("clear")
 

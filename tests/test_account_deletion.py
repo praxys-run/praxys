@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib
+import os
 import tempfile
 from datetime import date, datetime, timedelta, timezone
 
@@ -13,7 +14,7 @@ from fastapi.testclient import TestClient
 def account_client(monkeypatch):
     """Yield a TestClient backed by a fresh SQLite DB and overridable user id."""
     tmpdir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
-    monkeypatch.setenv("DATA_DIR", tmpdir.name)
+    monkeypatch.setenv("DATA_DIR", os.path.join(tmpdir.name, "data"))
     monkeypatch.setenv("PRAXYS_SYNC_SCHEDULER", "false")
     monkeypatch.setenv(
         "PRAXYS_LOCAL_ENCRYPTION_KEY",

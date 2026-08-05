@@ -80,6 +80,9 @@ from db.session import init_db
 async def lifespan(app: FastAPI):
     """Initialize database on startup."""
     init_db()
+    from api.routes.sync import migrate_legacy_garmin_tokenstores
+
+    migrate_legacy_garmin_tokenstores()
 
     # Resolve the JWT secret eagerly so a misconfigured deployment (no
     # PRAXYS_JWT_SECRET and no dev opt-in) dies at boot rather than on the

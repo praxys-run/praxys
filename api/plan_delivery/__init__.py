@@ -45,7 +45,10 @@ from api.plan_delivery.service import (
     RemovalResult,
 )
 from api.plan_delivery.stryd import StrydPlanDeliveryAdapter
-from db.connection_credentials import connection_credentials_generation
+from db.connection_credentials import (
+    ConnectionGenerationChanged,
+    connection_credentials_generation,
+)
 from db.models import UserConnection
 
 
@@ -61,7 +64,8 @@ class DeliveryAdapterContext:
     credentials: Mapping[str, Any]
     source_options: Mapping[str, Any]
     credential_generation: str | None = None
-    token_publisher: Callable[[], bool] | None = None
+    token_loader: Callable[[], str | None] | None = None
+    token_publisher: Callable[[str], bool] | None = None
 
 
 AdapterFactory = Callable[[DeliveryAdapterContext], PlanDeliveryAdapter]
@@ -76,6 +80,7 @@ _ADAPTER_TYPES: dict[str, AdapterFactory] = {
             user_id=context.user_id,
             source_options=context.source_options,
             credential_generation=context.credential_generation,
+            token_loader=context.token_loader,
             token_publisher=context.token_publisher,
         )
     ),
@@ -108,6 +113,7 @@ def load_plan_delivery_adapter(
             f"Unsupported plan delivery target: {target}"
         )
     credential_generation = None
+    token_loader = None
     token_publisher = None
     if target == GarminPlanDeliveryAdapter.target:
         connection = db.query(UserConnection).filter(
@@ -121,19 +127,52 @@ def load_plan_delivery_adapter(
         credential_generation = connection_credentials_generation(
             connection
         )
+        from db.garmin_tokens import (
+            GarminTokenAccessError,
+            load_garmin_tokens,
+        )
+        from db.session import SessionLocal
+        from db.sync_scheduler import SCHEDULABLE_STATUSES
+        loaded_tokens: str | None = None
 
-        def publish_tokens() -> bool:
-            from api.routes.sync import publish_garmin_generation_tokens
-            from db.sync_scheduler import SCHEDULABLE_STATUSES
+        def load_tokens() -> str | None:
+            nonlocal loaded_tokens
+            try:
+                with SessionLocal() as token_db:
+                    loaded_tokens = load_garmin_tokens(
+                        token_db,
+                        user_id=user_id,
+                        expected_generation=credential_generation,
+                        allowed_statuses=SCHEDULABLE_STATUSES,
+                    )
+                    return loaded_tokens
+            except (
+                GarminTokenAccessError,
+                ConnectionGenerationChanged,
+            ) as exc:
+                raise ProviderAuthenticationRequiredError(
+                    "Stored Garmin OAuth tokens require reconnecting Garmin"
+                ) from exc
+
+        def publish_tokens(tokens: str) -> bool:
+            nonlocal loaded_tokens
+            from api.routes.sync import publish_garmin_tokens
 
             assert credential_generation is not None
-            return publish_garmin_generation_tokens(
-                db,
-                user_id=user_id,
-                credential_generation=credential_generation,
-                allowed_statuses=SCHEDULABLE_STATUSES,
-            )
+            with SessionLocal() as token_db:
+                published = publish_garmin_tokens(
+                    token_db,
+                    user_id=user_id,
+                    credential_generation=credential_generation,
+                    serialized_tokens=tokens,
+                    expected_serialized_tokens=loaded_tokens,
+                    allowed_statuses=SCHEDULABLE_STATUSES,
+                )
+            if published:
+                loaded_tokens = tokens
+            return published
 
+        token_loader = load_tokens
         token_publisher = publish_tokens
     credentials = resolve_delivery_credentials(
         db,
@@ -148,6 +187,7 @@ def load_plan_delivery_adapter(
         credentials=credentials,
         source_options=config.source_options,
         credential_generation=credential_generation,
+        token_loader=token_loader,
         token_publisher=token_publisher,
     ))
 
