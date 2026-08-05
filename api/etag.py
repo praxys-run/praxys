@@ -60,8 +60,10 @@ logger = logging.getLogger(__name__)
 #                      + fitness_pack (activities, plans, fitness).
 #   /api/goal        — race pack reads thresholds (fitness), latest CP
 #                      (activities + fitness), and goal config.
-#   /api/history     — activities + splits only; goal/recovery edits do
-#                      NOT bust the History page.
+#   /api/history     — activities + splits + sample coverage; goal/recovery
+#                      edits do NOT bust the History page.
+#   /api/analysis/*  — owner-only activity, samples, recovery, dated fitness,
+#                      heat evidence, and config-selected model parameters.
 #   /api/science     — config only; sync writes do NOT bust Science.
 #   /api/plan        — plan rows, delivery-ledger state, and config-derived
 #                      connection state. Delivery transitions bump ``plans``.
@@ -69,7 +71,8 @@ ENDPOINT_SCOPES: dict[str, tuple[str, ...]] = {
     "today":    ("activities", "splits", "samples", "recovery", "plans", "fitness", "config"),
     "training": ("activities", "splits", "samples", "recovery", "plans", "fitness", "config"),
     "goal":     ("activities", "fitness", "config"),
-    "history":  ("activities", "splits", "config"),
+    "history":  ("activities", "splits", "samples", "config"),
+    "analysis": ("activities", "splits", "samples", "recovery", "fitness", "config"),
     "science":  ("config",),
     "plan":     ("plans", "config"),
 }

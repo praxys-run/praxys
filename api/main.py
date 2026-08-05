@@ -206,10 +206,11 @@ from api.routes.feedback import router as feedback_router
 app.include_router(feedback_router, prefix="/api", tags=["feedback"])
 
 # Data routes
+from api.routes import analysis as activity_analysis_routes
 from api.routes import today, training, goal, history, plan, settings, sync, science, insights, product_events, status
 from api.routes import ai as ai_routes
 
-for router_module in [today, training, goal, history, plan, settings, sync, science, ai_routes, insights, product_events, status]:
+for router_module in [today, training, goal, history, activity_analysis_routes, plan, settings, sync, science, ai_routes, insights, product_events, status]:
     app.include_router(router_module.router, prefix="/api")
 
 

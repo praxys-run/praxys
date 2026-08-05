@@ -918,9 +918,9 @@ def test_history_pack_paginates_without_building_dropped_activities(
     builder_call_sizes: list[int] = []
     real_builder = packs_mod._build_activities_list
 
-    def counting_builder(merged, splits):
+    def counting_builder(merged, splits, sample_coverage=None):
         builder_call_sizes.append(len(merged))
-        return real_builder(merged, splits)
+        return real_builder(merged, splits, sample_coverage)
 
     monkeypatch.setattr(packs_mod, "_build_activities_list", counting_builder)
 

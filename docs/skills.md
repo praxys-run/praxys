@@ -167,7 +167,7 @@ The plugin server exposes 28 tools in both remote and local modes:
 | `get_daily_brief` | Today's training signal, recovery, upcoming workouts |
 | `get_training_review` | Zone distribution, fitness/fatigue, diagnosis, suggestions |
 | `get_race_forecast` | Race prediction, goal feasibility, threshold trend |
-| `get_training_context` | Full training context for AI plan generation |
+| `get_training_context` | Coaching snapshot for AI plan generation; wraps `GET /api/ai/context` |
 | `get_settings` | Current user settings and display config |
 | `update_settings` | Update training base, thresholds, zones, goal, science |
 | `get_sync_settings` / `set_sync_frequency` | Read or update scheduler cadence |
@@ -189,6 +189,14 @@ The plugin server exposes 28 tools in both remote and local modes:
 
 `PRAXYS_LOCAL=1` selects direct local mode. Otherwise the server uses the
 production API unless `PRAXYS_URL` explicitly overrides it.
+
+`get_training_context` is intentionally a bounded coaching snapshot, not a
+raw research export. Analysis-ready per-activity environment, stream coverage,
+stable-power segments, dated recovery, and leakage-safe pre-run context are
+served by the owner-authenticated `/api/analysis/activities/{activity_id}` and
+`/api/analysis/research-dataset` endpoints. The v1 MCP surface does not expose
+raw samples or precise GPS; see `docs/dev/api-reference.md` for detector
+semantics and limitations.
 
 ## Available Athlete-Facing Skills
 
