@@ -49,6 +49,7 @@ transient — the next deploy overwrites them.**
 | `PRAXYS_SMTP_HOST` / `PRAXYS_SMTP_PORT` / `PRAXYS_SMTP_USER` / `PRAXYS_SMTP_FROM` / `PRAXYS_SMTP_STARTTLS` | SMTP transport for verification + invitation emails (non-secret; the password is the secret above). **Optional.** | App Service setting (backend) |
 | `PRAXYS_APP_BASE_URL` (`https://praxys.run`) | Public origin for verify/invite links in those emails | App Service setting (backend) |
 | `PRAXYS_DB_AUTH` (`entra` or unset) | Postgres auth mode: `entra` = AAD token via managed identity, no password. **Optional.** | App Service setting (backend) |
+| `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED` (`false`) | Default-off operator gate for unsupported Garmin consumer-API workout writes. Set `true` only on an approved validation deployment, or in production after both international and China controlled lifecycle matrices pass. User connection-bound consent remains independently required. | App Service setting (backend) |
 | `PRAXYS_PG_SERVER` | Postgres Flexible Server name. **Reserved / currently unused** - the on-demand backup jobs it gated were removed (Burstable tier can't do on-demand backups; PITR covers backup). Kept for a future off-site backup job. | (reserved) |
 | `PRAXYS_GITHUB_APP_ID` / `PRAXYS_GITHUB_APP_INSTALLATION_ID` | Feedback GitHub App identifiers. | App Service setting (backend) |
 | `PRAXYS_FEEDBACK_GITHUB_REPO` / `PRAXYS_FEEDBACK_GITHUB_LABELS` / `PRAXYS_FEEDBACK_GITHUB_ASSIGNEES` | Feedback issue target and optional issue metadata. | App Service setting (backend) |
@@ -119,6 +120,83 @@ Provision and verify:
 3. Dispatch `i18n.yml`. Confirm the generated PR receives manual-dispatch runs
    for Backend CI and Miniapp build on `i18n/refresh-zh`.
 
+#### Dependabot patch auto-merge
+
+`.github/workflows/dependabot-auto-merge.yml` uses the built-in
+`GITHUB_TOKEN` to queue normal squash auto-merge for a deliberately narrow
+dependency-update class. **No repository secret or variable is required.**
+The job runs from trusted default-branch code through `pull_request_target`,
+never checks out pull-request code, and grants `actions: read` plus only the
+`contents: write` and `pull-requests: write` permissions GitHub requires to
+inspect workflow state and enable auto-merge.
+
+Eligibility is fail-closed:
+
+- the pull request must still be open, non-draft, same-repository, target
+  `main`, and be authored by `dependabot[bot]`;
+- `dependabot/fetch-metadata` is commit-pinned and must verify the pull request
+  plus its metadata commit; the workflow separately paginates and verifies
+  every commit author and signature;
+- the highest update must be `semver-patch` and must not belong to a dependency
+  group;
+- only root `pip` updates and `/web` `npm` updates qualify; miniapp, GitHub
+  Actions, grouped, minor, and major updates remain manual;
+- changed files must be modifications limited to `requirements.txt` or the
+  `/web` package manifest and lockfile appropriate to the verified ecosystem;
+- the workflow re-reads the pull request immediately before acting and binds
+  `gh pr merge` to the exact verified head SHA.
+
+Auto-merge still obeys the strict `main` ruleset. The current head must be up to
+date and pass both `backend-tests` and `selective-review-policy`; a failed,
+conflicted, or stale update remains open. Existing Dependabot pull requests are
+not retroactively queued until Dependabot updates/reopens them or the workflow
+is otherwise retriggered.
+
+Verify a qualifying PR:
+
+```bash
+gh pr view <number> --json author,autoMergeRequest,baseRefName,headRefOid,statusCheckRollup
+```
+
+Emergency rollback first prevents new queueing, then disables any pending
+Dependabot auto-merges:
+
+```bash
+repo=praxys-run/praxys
+workflow=dependabot-auto-merge.yml
+workflow_id=$(gh api "repos/$repo/actions/workflows/$workflow" --jq '.id')
+test -n "$workflow_id"
+gh workflow disable "$workflow_id" --repo "$repo"
+
+disable_pending_dependabot_auto_merges() {
+  for pr in $(gh pr list --repo "$repo" --author app/dependabot --state open \
+    --limit 1000 --json number,autoMergeRequest \
+    --jq '.[] | select(.autoMergeRequest != null) | .number'); do
+    gh pr merge --disable-auto "$pr" --repo "$repo"
+  done
+}
+
+disable_pending_dependabot_auto_merges
+
+for run in $(gh run list --repo "$repo" --workflow "$workflow_id" \
+  --all --limit 1000 --json databaseId,status \
+  --jq '.[] | select(.status != "completed") | .databaseId'); do
+  gh run cancel "$run" --repo "$repo"
+done
+
+while [ -n "$(gh run list --repo "$repo" --workflow "$workflow_id" \
+  --all --limit 1000 --json status \
+  --jq '.[] | select(.status != "completed") | .status')" ]; do
+  sleep 2
+done
+
+disable_pending_dependabot_auto_merges
+
+test "$(gh pr list --repo "$repo" --author app/dependabot --state open \
+  --limit 1000 --json autoMergeRequest \
+  --jq '[.[] | select(.autoMergeRequest != null)] | length')" = "0"
+```
+
 Application Insights resource names are tracked in
 `.github/azure-observability.env`, not repository variables. The deploy
 workflows use Azure OIDC to read each component's connection string at runtime;
@@ -187,6 +265,38 @@ available when all three conditions hold:
 The explicit user-ID pin prevents one local account from borrowing another
 account's environment credentials. Do not add these values to
 `deploy-backend.yml`, GitHub Actions, or App Service settings.
+
+Garmin consumer-API workout delivery is an unsupported, duration-only
+experiment protected by two independent gates. The deploy workflow writes the
+non-secret GitHub Actions variable
+`PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED` to App Service on every deployment,
+defaulting to `false` when the variable is absent. Keep production false until
+both controlled regional lifecycle matrices pass. An approved isolated
+validation deployment may set it to `true`; changing the portal directly is
+transient and will be overwritten by the next deploy. Even when the operator
+gate is enabled, each user must opt in through Settings. The resulting
+`user_connections.plan_delivery_consent` value is a non-secret SHA-256 binding
+to that encrypted credential generation and Garmin region; it is never accepted
+as a portable entitlement. Reconnecting, rotating credentials, or disconnecting
+clears the effective capability and pauses active Garmin delivery. Changing
+region also disconnects the old region, clears its cached tokens, and requires a
+fresh login. Cached sessions live under the persistent data volume in a
+per-user, per-credential-generation tokenstore; interactive login uses a
+one-time staging directory bound to an opaque server-generated login-attempt ID
+until the encrypted connection commit succeeds. Concurrent attempts cannot
+consume one another's staged tokens.
+For rolling-deployment compatibility, an existing direct per-user tokenstore
+is copied into its first generation and current generation files are mirrored
+to the legacy root for older workers. New workers load only their exact
+generation. Rotation, disconnect, and user deletion clear both layouts plus
+all staged attempts. A running Garmin sync is generation
+fenced and rolls back if the connection changes, so old token files cannot
+authorize or degrade the replacement connection. Do not provision, copy, or
+restore consent or tokenstore files through App Service settings, Actions
+variables, SQL scripts, storage tooling, or an admin override. To roll back
+Garmin writes globally, set the repository variable to `false` and redeploy;
+the capability and every fresh mutation guard fail closed without deleting
+user consent or unrelated Garmin data.
 
 ### Application Insights trust boundary (#417)
 
@@ -439,12 +549,12 @@ to the Copilot coding agent. These are **repo settings, not deploy-managed**:
   values may remain absent while the committed policy is unpromoted/default-off;
   review-required runs do not inspect them. Provisioning:
   [setup-review-policy-app.md](./setup-review-policy-app.md).
-- The repository setting **Allow auto-merge** is enabled once for
-  `selective-review.yml`. Auto-merge remains squash-only and obeys the active
-  ruleset; the policy App is never a bypass actor. The rules require zero
-  approvals but require the branch to be up to date before merging. Both
-  `backend-tests` and the explicit `selective-review-policy` status are required
-  on the current head.
+- The repository setting **Allow auto-merge** is shared by
+  `selective-review.yml` and `dependabot-auto-merge.yml`. Auto-merge remains
+  squash-only and obeys the active ruleset; neither the policy App nor the
+  workflow token is a bypass actor. The rules require zero approvals but require
+  the branch to be up to date before merging. Both `backend-tests` and the
+  explicit `selective-review-policy` status are required on the current head.
 
 ### Azure Database for PostgreSQL (#360)
 

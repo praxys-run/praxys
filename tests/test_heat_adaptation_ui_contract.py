@@ -197,3 +197,24 @@ def test_evidence_details_are_localizable_and_explain_mixed_providers() -> None:
     assert "{session.power_source_alignment}" not in web_heat
     assert "effectiveMinutesLabel(" in web_heat
     assert "conditions.relative_humidity_pct.min" in web_heat
+
+
+def test_cadence_day_cards_grow_for_long_localized_labels() -> None:
+    """Localized weekday/status text must remain fully visible (issue #542)."""
+    web_heat = _source(WEB_HEAT)
+
+    assert "min-h-12 min-w-0 rounded-md border" in web_heat
+    assert "sm:min-h-[4.6rem]" in web_heat
+    assert (
+        'className="flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-0.5"'
+        in web_heat
+    )
+    assert (
+        "hidden whitespace-nowrap text-[11px] uppercase tracking-wide text-muted-foreground sm:inline"
+        in web_heat
+    )
+    assert (
+        "mt-0.5 hidden break-words text-[11px] font-medium leading-tight text-muted-foreground sm:block"
+        in web_heat
+    )
+    assert "h-12 min-w-0 overflow-hidden rounded-md border" not in web_heat

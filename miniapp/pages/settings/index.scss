@@ -461,6 +461,66 @@
   margin-top: 8rpx;
 }
 
+.settings-plan-experiment {
+  margin-top: 24rpx;
+  padding: 22rpx;
+  border-radius: 12rpx;
+  background-color: rgba(217, 119, 6, 0.09);
+}
+
+.settings-plan-experiment-head {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.settings-plan-experiment-copy {
+  min-width: 0;
+}
+
+.settings-plan-experiment-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.settings-plan-experiment-title {
+  color: var(--text);
+  font-size: 25rpx;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.settings-plan-experiment-state {
+  padding: 5rpx 13rpx;
+  border-radius: 999rpx;
+  background-color: var(--surface-subtle);
+  color: var(--text-muted);
+  font-size: 18rpx;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.settings-plan-experiment-state--on {
+  background-color: rgba(217, 119, 6, 0.16);
+  color: var(--warning);
+}
+
+.settings-plan-experiment-detail {
+  display: block;
+  margin-top: 8rpx;
+  color: var(--text);
+  font-size: 22rpx;
+  line-height: 1.55;
+  opacity: 0.82;
+  overflow-wrap: break-word;
+}
+
+.settings-plan-experiment-action {
+  width: 100%;
+}
+
 .settings-plan-target--static {
   pointer-events: none;
 }

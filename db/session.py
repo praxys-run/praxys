@@ -385,6 +385,7 @@ _SQLITE_COMPAT_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
     ),
     "user_config": (
         ("plan_management", "JSON"),
+        ("plan_execution_target", "VARCHAR(20)"),
         ("today_decision_check_claimed_at", "DATETIME"),
         ("today_decision_check_shown_at", "DATETIME"),
         ("today_decision_check_submitted_at", "DATETIME"),
@@ -398,6 +399,16 @@ _SQLITE_COMPAT_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
         ("plan_version", "VARCHAR(64)"),
         ("provider_content_version", "VARCHAR(64)"),
         ("provider_account_id", "VARCHAR(200)"),
+        ("provider_references", "JSON NOT NULL DEFAULT '{}'"),
+    ),
+    "plan_target_workouts": (
+        ("provider_references", "JSON NOT NULL DEFAULT '{}'"),
+    ),
+    "plan_target_calendar_syncs": (
+        ("provider_references", "JSON NOT NULL DEFAULT '{}'"),
+    ),
+    "user_connections": (
+        ("plan_delivery_consent", "VARCHAR(64)"),
     ),
 }
 

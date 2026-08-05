@@ -4,7 +4,7 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { skipSetupForSession, useSetupStatus } from '@/hooks/useSetupStatus';
 import { API_BASE, getAuthHeaders, extractErrorMessage } from '@/hooks/useApi';
 import { useAuth } from '@/hooks/useAuth';
-import type { TrainingBase, SyncStatusResponse } from '@/types/api';
+import type { ConnectionResponse, GarminConnectionResponse, TrainingBase, SyncStatusResponse } from '@/types/api';
 import {
   buildStravaReturnTo,
   getStravaOAuthMessage,
@@ -236,6 +236,7 @@ export default function Setup({ onSkip }: SetupProps) {
   // credential submit; we then prompt for the verification code.
   const [garminMfaRequired, setGarminMfaRequired] = useState(false);
   const [mfaCode, setMfaCode] = useState('');
+  const [garminLoginAttemptId, setGarminLoginAttemptId] = useState('');
   const [pendingPrimaryPlatform, setPendingPrimaryPlatform] = useState<string | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     GARMIN_ACTIVITY_CATEGORIES.filter((c) => c.default).map((c) => c.key)
@@ -399,12 +400,17 @@ export default function Setup({ onSkip }: SetupProps) {
           ...(connectPlatform === 'coros' ? { region: corosRegion } : {}),
         }),
       });
-      const data = await res.json();
+      const data = await res.json() as ConnectionResponse;
       if (data.status === 'mfa_required') {
+        setGarminLoginAttemptId(String(data.login_attempt_id || ''));
         setGarminMfaRequired(true);
         setMfaCode('');
       } else if (!res.ok || data.status === 'error') {
-        setConnectError(data.message || `Failed to connect (HTTP ${res.status})`);
+        setConnectError(
+          data.status === 'error'
+            ? data.message
+            : `Failed to connect (HTTP ${res.status})`,
+        );
       } else {
         await finalizeConnect(connectPlatform);
       }
@@ -435,6 +441,7 @@ export default function Setup({ onSkip }: SetupProps) {
     setConnectCreds({});
     setGarminMfaRequired(false);
     setMfaCode('');
+    setGarminLoginAttemptId('');
     setup.refetch();
     refetchSettings();
 
@@ -466,15 +473,26 @@ export default function Setup({ onSkip }: SetupProps) {
       const res = await fetch(`${API_BASE}/api/settings/connections/garmin/mfa`, {
         method: 'POST',
         headers: { ...getAuthHeaders() as Record<string, string>, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({
+          code,
+          login_attempt_id: garminLoginAttemptId,
+        }),
       });
-      const data = await res.json();
+      const data = await res.json() as GarminConnectionResponse;
       if (!res.ok || data.status === 'error') {
-        if (data.message === 'mfa_session_expired') {
+        const message = (
+          data.status === 'error' ? data.message : ''
+        );
+        if (message === 'mfa_session_expired') {
           setGarminMfaRequired(false);
+          setGarminLoginAttemptId('');
           setConnectError('Verification timed out. Please reconnect and try again.');
         } else {
-          setConnectError(data.message || `Verification failed (HTTP ${res.status})`);
+          setConnectError(
+            data.status === 'error'
+              ? message
+              : `Verification failed (HTTP ${res.status})`,
+          );
         }
       } else {
         await finalizeConnect('garmin');
@@ -489,6 +507,7 @@ export default function Setup({ onSkip }: SetupProps) {
     setConnectPlatform(null);
     setGarminMfaRequired(false);
     setMfaCode('');
+    setGarminLoginAttemptId('');
     setConnectError('');
   };
 

@@ -10,6 +10,7 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -46,6 +47,7 @@ from api.plan_delivery import (
     DeliveryStartError,
     PlanDeliveryService,
     ProviderAuthenticationError,
+    ProviderRateLimitError,
     ProviderRequestError,
     capture_delivery_connection_generation,
     guard_delivery_connection,
@@ -66,12 +68,14 @@ from api.plan_adjustments import (
 from api.plan_resolution import (
     PlanResolutionConflict,
     PlanResolutionProviderError,
+    PlanResolutionRateLimitError,
     accept_target_version,
     completed_plan_resolution,
     resumable_plan_resolution,
     restore_praxys_version,
 )
 from db.cache_revision import bump_revisions
+from db.models import PlanDelivery, PlanTargetCalendarSync
 from db.plan_ledger import (
     delivery_status_for_snapshots,
     has_unresolved_legacy_stryd_corruption,
@@ -103,7 +107,7 @@ def _provider_mutation_guard(
             db,
             user_id=user_id,
             target=target,
-            allow_missing=True,
+            allow_missing=(target == "stryd"),
         )
     except DeliveryMutationBlockedError as exc:
         label = target.capitalize()
@@ -121,10 +125,62 @@ def _provider_mutation_guard(
     )
 
 
+def _guard_manual_delivery_target(
+    db: Session,
+    *,
+    user_id: str,
+    target: str,
+) -> None:
+    """Fence legacy/manual delivery paths to one configured target."""
+    from analysis.config import load_config_from_db
+
+    lock_plan_writes(db, user_id)
+    configured_target = load_config_from_db(
+        user_id,
+        db,
+    ).plan_management.get("execution_target")
+    if configured_target and configured_target != target:
+        raise DeliveryMutationBlockedError("execution_target_changed")
+    other_target = db.execute(
+        select(PlanDelivery.target).where(
+            PlanDelivery.user_id == user_id,
+            PlanDelivery.workout_date >= date.today(),
+            PlanDelivery.state != "removed",
+            PlanDelivery.target != target,
+        ).limit(1)
+    ).scalar_one_or_none()
+    if other_target is not None:
+        raise DeliveryMutationBlockedError(
+            "outstanding_other_execution_target"
+        )
+
+
+def _import_legacy_stryd_status_if_compatible(
+    db: Session,
+    *,
+    user_id: str,
+) -> str:
+    """Import legacy Stryd state unless another target is selected."""
+    from analysis.config import load_config_from_db
+
+    configured_target = load_config_from_db(
+        user_id,
+        db,
+    ).plan_management.get("execution_target")
+    if configured_target not in {None, "stryd"}:
+        return "target_mismatch"
+    return import_legacy_stryd_status(
+        db,
+        user_id=user_id,
+        status_dir=_STRYD_PUSH_STATUS_DIR,
+    )
+
+
 def _canonical_provider_mutation_guard(
     db: Session,
     *,
     user_id: str,
+    target: str = "stryd",
     snapshot: Mapping[str, object],
     connection_guard: Callable[[], None] | None,
 ) -> Callable[[], None]:
@@ -146,6 +202,11 @@ def _canonical_provider_mutation_guard(
             connection_guard()
         else:
             lock_plan_writes(db, user_id)
+        _guard_manual_delivery_target(
+            db,
+            user_id=user_id,
+            target=target,
+        )
         current_data = get_dashboard_data(user_id=user_id, db=db)
         all_plans = current_data.get("all_plans", pd.DataFrame())
         if (
@@ -294,11 +355,37 @@ def _compute_ai_sync_state(
 def _resolve_sync_target(ctx: RequestContext) -> str | None:
     """Name of the platform Praxys plan rows get pushed to.
 
-    Today only Stryd is wired up as a write target; surfacing it as a
-    derived field (rather than free-form preference) lets the UI decide
-    whether to even render sync chrome without sniffing connections.
+    Explicit managed-plan intent survives a temporary disconnect. Legacy
+    users without that intent retain the existing connected-Stryd fallback.
     """
-    return "stryd" if "stryd" in (ctx.config.connections or []) else None
+    configured = ctx.config.plan_management.get("execution_target")
+    if configured in {"stryd", "garmin"}:
+        return str(configured)
+    if "stryd" in (ctx.config.connections or []):
+        return "stryd"
+
+    ledger_targets = {
+        str(target)
+        for target in ctx.db.execute(
+            select(PlanDelivery.target).where(
+                PlanDelivery.user_id == ctx.user_id,
+                PlanDelivery.state != "removed",
+            )
+        ).scalars()
+        if target in {"stryd", "garmin"}
+    }
+    ledger_targets.update({
+        str(target)
+        for target in ctx.db.execute(
+            select(PlanTargetCalendarSync.target).where(
+                PlanTargetCalendarSync.user_id == ctx.user_id,
+            )
+        ).scalars()
+        if target in {"stryd", "garmin"}
+    })
+    if len(ledger_targets) == 1:
+        return ledger_targets.pop()
+    return None
 
 
 @router.get("/plan")
@@ -330,10 +417,9 @@ def get_plan(
     """
     start_d, end_d = _resolve_window(start, end)
     db.rollback()
-    import_legacy_stryd_status(
+    _import_legacy_stryd_status_if_compatible(
         db,
         user_id=user_id,
-        status_dir=_STRYD_PUSH_STATUS_DIR,
     )
 
     etag = compute_etag(
@@ -348,10 +434,11 @@ def get_plan(
     ctx = RequestContext(user_id=user_id, db=db)
     plan_df = ctx.all_plans
     sync_target = _resolve_sync_target(ctx)
+    ledger_target = sync_target or "stryd"
     reconciliation = build_plan_reconciliation(
         db,
         user_id=user_id,
-        target="stryd",
+        target=ledger_target,
         start=start_d,
         end=end_d,
     )
@@ -374,7 +461,7 @@ def get_plan(
     current_delivery_status = delivery_status_for_snapshots(
         db,
         user_id=user_id,
-        target="stryd",
+        target=ledger_target,
         current_snapshots=current_snapshots,
         include_prior_versions=False,
     )
@@ -391,8 +478,8 @@ def get_plan(
             if has_source
             else windowed
         )
-        stryd_rows = (
-            windowed[windowed["source"] == "stryd"]
+        target_rows = (
+            windowed[windowed["source"] == ledger_target]
             if has_source else windowed.iloc[0:0]
         )
 
@@ -410,14 +497,16 @@ def get_plan(
                     )
                     workout["reconciliation"] = item.to_dict()
                 workouts.append(workout)
-            for _, row in stryd_rows.iterrows():
+            for _, row in target_rows.iterrows():
                 if normalize_stryd_workout_id(row.get("external_id")) is None:
-                    workouts.append(_row_to_workout(row, source="stryd"))
+                    workouts.append(
+                        _row_to_workout(row, source=ledger_target)
+                    )
         else:
             # Compatibility fallback until the first successful calendar
             # snapshot has populated the reconciliation observation ledger.
             stryd_by_date: dict[str, list[pd.Series]] = {}
-            for _, srow in stryd_rows.iterrows():
+            for _, srow in target_rows.iterrows():
                 sd = srow["date"]
                 key = sd.isoformat() if hasattr(sd, "isoformat") else str(sd)
                 stryd_by_date.setdefault(key, []).append(srow)
@@ -459,7 +548,7 @@ def get_plan(
                     continue
                 for srow in srows:
                     workouts.append(
-                        _row_to_workout(srow, source="stryd")
+                        _row_to_workout(srow, source=ledger_target)
                     )
 
     if reconciliation is not None:
@@ -468,7 +557,7 @@ def get_plan(
             assert observation is not None
             workout = _row_to_workout(
                 observation.normalized_workout,
-                source="stryd",
+                source=ledger_target,
             )
             workout["reconciliation"] = item.to_dict()
             workouts.append(workout)
@@ -639,10 +728,24 @@ def push_plan_to_stryd(
     Converts Praxys workouts to Stryd structured format and uploads them.
     """
     db.rollback()
-    import_legacy_stryd_status(
+    try:
+        _guard_manual_delivery_target(
+            db,
+            user_id=current_user_id,
+            target="stryd",
+        )
+    except DeliveryMutationBlockedError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Stryd is not the active execution target. "
+                "Clean up the prior target before pushing."
+            ),
+        ) from exc
+    _import_legacy_stryd_status_if_compatible(
         db,
         user_id=current_user_id,
-        status_dir=_STRYD_PUSH_STATUS_DIR,
     )
     mutation_guard = _provider_mutation_guard(
         db,
@@ -832,6 +935,7 @@ def push_plan_to_stryd(
                 workout_guard = _canonical_provider_mutation_guard(
                     db,
                     user_id=current_user_id,
+                    target="stryd",
                     snapshot=workout,
                     connection_guard=mutation_guard,
                 )
@@ -879,8 +983,16 @@ def resolve_plan_reconciliation(
     current_user_id: str = Depends(require_write_access),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Apply one explicit Stryd/Praxys conflict resolution."""
+    """Apply one explicit execution-target/Praxys conflict resolution."""
     db.rollback()
+    context = RequestContext(user_id=current_user_id, db=db)
+    target = _resolve_sync_target(context)
+    if target is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Select a plan execution target before resolving conflicts",
+        )
+    provider_name = target.capitalize()
     if "@" not in request.reconciliation_id:
         raise HTTPException(
             status_code=400,
@@ -889,7 +1001,7 @@ def resolve_plan_reconciliation(
     completed = completed_plan_resolution(
         db,
         user_id=current_user_id,
-        target="stryd",
+        target=target,
         reconciliation_id=request.reconciliation_id,
         action=request.action,
     )
@@ -905,14 +1017,14 @@ def resolve_plan_reconciliation(
     item = load_plan_reconciliation_item(
         db,
         user_id=current_user_id,
-        target="stryd",
+        target=target,
         reconciliation_id=request.reconciliation_id,
         allow_owned_removal_retry=(
             request.action == "restore_praxys"
             and resumable_plan_resolution(
                 db,
                 user_id=current_user_id,
-                target="stryd",
+                target=target,
                 reconciliation_id=request.reconciliation_id,
                 action=request.action,
             )
@@ -934,18 +1046,18 @@ def resolve_plan_reconciliation(
             result = accept_target_version(
                 db,
                 user_id=current_user_id,
-                target="stryd",
+                target=target,
                 item=item,
             )
         else:
             mutation_guard = _provider_mutation_guard(
                 db,
                 user_id=current_user_id,
-                target="stryd",
+                target=target,
             )
             data = get_dashboard_data(user_id=current_user_id, db=db)
             cp_watts = _resolve_stryd_delivery_cp(data)
-            if not cp_watts:
+            if not cp_watts and target == "stryd":
                 raise HTTPException(
                     status_code=422,
                     detail=(
@@ -956,13 +1068,13 @@ def resolve_plan_reconciliation(
             result = restore_praxys_version(
                 db,
                 user_id=current_user_id,
-                target="stryd",
+                target=target,
                 item=item,
-                threshold_value=cp_watts,
+                threshold_value=cp_watts or 1.0,
                 adapter_loader=lambda: load_plan_delivery_adapter(
                     db,
                     user_id=current_user_id,
-                    target="stryd",
+                    target=target,
                 ),
                 mutation_guard=mutation_guard,
             )
@@ -987,8 +1099,14 @@ def resolve_plan_reconciliation(
             ) from exc
         raise HTTPException(
             status_code=409,
-            detail="Stryd connection changed. Reconnect Stryd and try again.",
+            detail=(
+                f"{provider_name} connection changed. "
+                f"Reconnect {provider_name} and try again."
+            ),
         ) from exc
+    except (PlanResolutionRateLimitError, ProviderRateLimitError) as exc:
+        db.rollback()
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
     except PlanResolutionProviderError as exc:
         db.rollback()
         raise HTTPException(status_code=502, detail=str(exc)) from exc
@@ -1008,19 +1126,25 @@ def resolve_plan_reconciliation(
         db.rollback()
         raise HTTPException(
             status_code=400,
-            detail="No Stryd credentials. Connect Stryd in Settings first.",
+            detail=(
+                f"No {provider_name} credentials. "
+                f"Connect {provider_name} in Settings first."
+            ),
         ) from exc
     except DeliveryCredentialsInvalid as exc:
         db.rollback()
         raise HTTPException(
             status_code=400,
-            detail="Stored Stryd credentials are unavailable. Reconnect Stryd.",
+            detail=(
+                f"Stored {provider_name} credentials are unavailable. "
+                f"Reconnect {provider_name}."
+            ),
         ) from exc
     except (ProviderAuthenticationError, ProviderRequestError) as exc:
         db.rollback()
         raise HTTPException(
             status_code=502,
-            detail=f"Stryd restore failed: {exc}",
+            detail=f"{provider_name} restore failed: {exc}",
         ) from exc
     except (
         DeliveryStartError,
@@ -1032,7 +1156,7 @@ def resolve_plan_reconciliation(
         db.rollback()
         raise HTTPException(
             status_code=502,
-            detail=f"Stryd delete failed: {exc}",
+            detail=f"{provider_name} delete failed: {exc}",
         ) from exc
     except SQLAlchemyError as exc:
         db.rollback()
@@ -1051,7 +1175,7 @@ def resolve_plan_reconciliation(
         action=request.action,
         outcome="success",
         user_id=current_user_id,
-        target="stryd",
+        target=target,
         trigger="user_resolution",
     )
     return {
@@ -1073,10 +1197,9 @@ def cleanup_plan_deliveries(
     """Remove future target workouts that belong to the caller's ledger."""
     del request
     db.rollback()
-    legacy_import = import_legacy_stryd_status(
+    legacy_import = _import_legacy_stryd_status_if_compatible(
         db,
         user_id=current_user_id,
-        status_dir=_STRYD_PUSH_STATUS_DIR,
     )
     if (
         legacy_import == "corrupt"
@@ -1146,10 +1269,9 @@ def delete_stryd_workout(
     workout_id = normalized_workout_id
 
     db.rollback()
-    import_legacy_stryd_status(
+    _import_legacy_stryd_status_if_compatible(
         db,
         user_id=current_user_id,
-        status_dir=_STRYD_PUSH_STATUS_DIR,
     )
     mutation_guard = _provider_mutation_guard(
         db,

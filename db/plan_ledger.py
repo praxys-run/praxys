@@ -63,6 +63,7 @@ _SNAPSHOT_FIELDS = (
     "meta",
 )
 _LEGACY_LOCK_STATE = threading.local()
+_MAX_PROVIDER_REFERENCES_BYTES = 32_768
 
 
 def lock_plan_writes(db: Session, user_id: str) -> None:
@@ -85,6 +86,30 @@ def normalize_stryd_workout_id(raw_id: object) -> str | None:
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,200}", candidate):
         return None
     return candidate
+
+
+def normalize_provider_references(value: object) -> dict[str, Any]:
+    """Return bounded JSON-safe provider identities and recovery evidence."""
+    if value in (None, {}):
+        return {}
+    if not isinstance(value, Mapping):
+        raise ValueError("provider references must be an object")
+    normalized: dict[str, Any] = {}
+    for raw_key, raw_value in value.items():
+        key = str(raw_key).strip()
+        if not key or len(key) > 100:
+            raise ValueError("provider reference key is invalid")
+        normalized[key] = _json_value(raw_value)
+    encoded = json.dumps(
+        normalized,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    ).encode("utf-8")
+    if len(encoded) > _MAX_PROVIDER_REFERENCES_BYTES:
+        raise ValueError("provider references exceed the storage limit")
+    return normalized
 
 
 def _user_exists(db: Session, user_id: str) -> bool:
@@ -726,6 +751,26 @@ def begin_delivery_attempt(
         latest_attempt.completed_at = now
     if operation == "deliver" and locked.state == "conflict":
         return locked, None, "reconciliation_required"
+    if (
+        operation == "deliver"
+        and locked.state == "removed"
+        and locked.target == "garmin"
+    ):
+        locked.external_id = None
+        locked.delivered_at = None
+        retained_keys = {
+            "payload_fingerprint",
+            "profile_account_id",
+            "template_id",
+            "template_marker",
+        }
+        locked.provider_references = normalize_provider_references({
+            key: value
+            for key, value in dict(
+                locked.provider_references or {}
+            ).items()
+            if key in retained_keys
+        })
 
     latest_number = db.execute(
         select(func.coalesce(func.max(PlanDeliveryAttempt.attempt_number), 0))
@@ -746,6 +791,68 @@ def begin_delivery_attempt(
     return locked, attempt, "started"
 
 
+def checkpoint_delivery_attempt(
+    db: Session,
+    *,
+    user_id: str,
+    delivery_id: str,
+    attempt_id: int,
+    provider_references: Mapping[str, Any],
+    external_id: str | None = None,
+) -> dict[str, Any]:
+    """Durably stage confirmed provider identities on the active attempt."""
+    lock_plan_writes(db, user_id)
+    delivery = db.execute(
+        select(PlanDelivery)
+        .where(
+            PlanDelivery.id == delivery_id,
+            PlanDelivery.user_id == user_id,
+        )
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).scalar_one()
+    attempt = db.execute(
+        select(PlanDeliveryAttempt)
+        .where(
+            PlanDeliveryAttempt.id == attempt_id,
+            PlanDeliveryAttempt.delivery_id == delivery_id,
+        )
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).scalar_one()
+    latest_attempt_id = db.execute(
+        select(PlanDeliveryAttempt.id)
+        .where(PlanDeliveryAttempt.delivery_id == delivery_id)
+        .order_by(
+            PlanDeliveryAttempt.attempt_number.desc(),
+            PlanDeliveryAttempt.id.desc(),
+        )
+    ).scalars().first()
+    if attempt.id != latest_attempt_id or attempt.state != "delivering":
+        raise ValueError("delivery attempt no longer owns provider mutation")
+
+    merged = normalize_provider_references({
+        **dict(delivery.provider_references or {}),
+        **dict(provider_references),
+    })
+    delivery.provider_references = merged
+    if external_id is not None:
+        normalized_external_id = str(external_id).strip()
+        if not normalized_external_id or len(normalized_external_id) > 200:
+            raise ValueError("provider external id is invalid")
+        delivery.external_id = normalized_external_id
+        attempt.external_id = normalized_external_id
+    response = (
+        dict(attempt.response)
+        if isinstance(attempt.response, Mapping)
+        else {}
+    )
+    response["provider_references"] = merged
+    attempt.response = _json_value(response)
+    delivery.updated_at = datetime.utcnow()
+    return merged
+
+
 def complete_delivery_attempt(
     db: Session,
     *,
@@ -758,6 +865,7 @@ def complete_delivery_attempt(
     error: str | None = None,
     response: Mapping[str, Any] | None = None,
     provider_account_id: str | None = None,
+    provider_references: Mapping[str, Any] | None = None,
 ) -> bool:
     """Stage a terminal result if this attempt still owns the delivery."""
     if attempt_state not in PLAN_DELIVERY_STATES:
@@ -811,6 +919,11 @@ def complete_delivery_attempt(
                 _json_value(dict(response or {})) if response is not None else None
             )
             locked_attempt.completed_at = now
+            if provider_references is not None:
+                locked_delivery.provider_references = normalize_provider_references({
+                    **dict(locked_delivery.provider_references or {}),
+                    **dict(provider_references),
+                })
             if late_removal_success:
                 locked_delivery.state = "removed"
                 locked_delivery.last_error = None
@@ -825,6 +938,11 @@ def complete_delivery_attempt(
         _json_value(dict(response or {})) if response is not None else None
     )
     locked_attempt.completed_at = now
+    if provider_references is not None:
+        locked_delivery.provider_references = normalize_provider_references({
+            **dict(locked_delivery.provider_references or {}),
+            **dict(provider_references),
+        })
 
     if (
         locked_attempt.operation == "remove"

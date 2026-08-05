@@ -14,7 +14,9 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from api.plan_delivery.base import (
     PreparedWorkoutDelivery,
+    ProviderAuthenticationError,
     ProviderCreateResult,
+    ProviderRateLimitError,
     ProviderRejectedError,
     ProviderRemoveResult,
     ProviderRemovalError,
@@ -22,7 +24,12 @@ from api.plan_delivery.base import (
     ProviderTransientError,
 )
 from api.plan_delivery.credentials import DeliveryCredentialsInvalid
-from api.plan_delivery.rolling import run_rolling_delivery_for_user
+from api.plan_delivery.rolling import (
+    _managed_delivery_lock_engine,
+    _managed_delivery_run_lease,
+    _recover_managed_inflight_attempts,
+    run_rolling_delivery_for_user,
+)
 from api.plan_reconciliation import build_plan_reconciliation
 from api.plan_resolution import restore_praxys_version
 from api.managed_plan_ops import (
@@ -38,6 +45,7 @@ from db.models import (
     PlanDeliveryAttempt,
     PlanRevision,
     PlanTargetCalendarSync,
+    PlanTargetWorkout,
     TrainingPlan,
     User,
     UserConfig,
@@ -46,7 +54,9 @@ from db.models import (
 from db.plan_ledger import (
     DELIVERY_ATTEMPT_LEASE,
     append_delivery_event,
+    begin_delivery_attempt,
     get_or_create_delivery,
+    lock_plan_writes,
     plan_snapshot,
 )
 
@@ -72,6 +82,7 @@ class FakeDeliveryAdapter:
         self.delete_attempts = 0
         self.fetch_attempts = 0
         self.authenticate_attempts = 0
+        self.last_fetch_threshold: float | None = None
         self.create_failures: list[Exception] = []
         self.prepare_failures: list[Exception] = []
         self.delete_failures: list[Exception] = []
@@ -79,6 +90,9 @@ class FakeDeliveryAdapter:
         self.on_delete: Callable[[], None] | None = None
         self.on_authenticate: Callable[[int], None] | None = None
         self.hidden_external_ids: set[str] = set()
+        self.account_alias_matcher: (
+            Callable[[str, Mapping[str, Any]], bool] | None
+        ) = None
 
     @property
     def account_id(self) -> str:
@@ -89,6 +103,18 @@ class FakeDeliveryAdapter:
         self.authenticate_attempts += 1
         if self.on_authenticate is not None:
             self.on_authenticate(self.authenticate_attempts)
+
+    def matches_provider_account(
+        self,
+        stored_account_id: str,
+        provider_references: Mapping[str, Any],
+    ) -> bool:
+        if self.account_alias_matcher is None:
+            return False
+        return self.account_alias_matcher(
+            stored_account_id,
+            provider_references,
+        )
 
     def prepare_workout(
         self,
@@ -125,6 +151,8 @@ class FakeDeliveryAdapter:
     def create_workout(
         self,
         prepared: PreparedWorkoutDelivery,
+        *,
+        hooks,
     ) -> ProviderCreateResult:
         """Create one fake calendar workout."""
         self.create_attempts += 1
@@ -132,6 +160,7 @@ class FakeDeliveryAdapter:
             raise self.create_failures.pop(0)
         external_id = f"managed-{self.create_attempts}"
         snapshot = dict(prepared.request["snapshot"])
+        hooks.before_mutation()
         self.calendar.append({
             **snapshot,
             "external_id": external_id,
@@ -146,11 +175,17 @@ class FakeDeliveryAdapter:
             response={"id": external_id},
         )
 
-    def delete_workout(self, external_id: str) -> ProviderRemoveResult:
+    def delete_workout(
+        self,
+        external_id: str,
+        *,
+        hooks,
+    ) -> ProviderRemoveResult:
         """Delete one fake calendar workout."""
         self.delete_attempts += 1
         if self.delete_failures:
             raise self.delete_failures.pop(0)
+        hooks.before_mutation()
         for index, row in enumerate(self.calendar):
             if row["external_id"] == external_id:
                 self.calendar.pop(index)
@@ -171,6 +206,7 @@ class FakeDeliveryAdapter:
     ) -> list[dict[str, Any]]:
         """Return a copy of the fake calendar."""
         self.fetch_attempts += 1
+        self.last_fetch_threshold = threshold_value
         return [
             dict(row)
             for row in self.calendar
@@ -312,6 +348,212 @@ def test_missing_delivery_adapter_is_blocked_as_praxys_defect(
     assert result.reason == "delivery_adapter_unavailable"
     assert adapter.fetch_attempts == 0
     assert adapter.create_attempts == 0
+
+
+def test_garmin_delivery_does_not_require_critical_power(
+    managed_db,
+    monkeypatch,
+):
+    from api.plan_delivery.capabilities import plan_delivery_consent_token
+
+    monkeypatch.setenv(
+        "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED",
+        "true",
+    )
+    db, adapter = managed_db
+    config = db.get(UserConfig, USER_ID)
+    connection = db.execute(
+        select(UserConnection).where(
+            UserConnection.user_id == USER_ID,
+            UserConnection.platform == TARGET,
+        )
+    ).scalar_one()
+    config.plan_management = {
+        **config.plan_management,
+        "execution_target": "garmin",
+    }
+    config.source_options = {"garmin_region": "international"}
+    connection.platform = "garmin"
+    connection.preferences = {"plan": True}
+    db.flush()
+    connection.plan_delivery_consent = plan_delivery_consent_token(
+        connection,
+        region="international",
+    )
+    db.commit()
+    _add_plan(db, date(2026, 8, 2))
+
+    result = run_rolling_delivery_for_user(
+        db,
+        user_id=USER_ID,
+        trigger="test",
+        now=datetime(2026, 8, 1, 9),
+        adapter_loader=lambda session, user_id, target: adapter,
+        threshold_loader=lambda session, user_id: None,
+    )
+
+    assert result.status == "complete"
+    assert adapter.create_attempts == 1
+    assert adapter.last_fetch_threshold is None
+    assert len(adapter.calendar) == 1
+
+
+def test_remove_accepts_provider_immutable_account_alias(managed_db):
+    from api.plan_delivery.service import PlanDeliveryService
+    from api.plan_delivery.rolling import _owned_removal_safe
+    from db.plan_reconciliation import record_target_calendar_sync
+
+    db, adapter = managed_db
+    _add_plan(db, date(2026, 8, 2))
+    delivered = _run(db, adapter, now=datetime(2026, 8, 1, 9))
+    assert delivered.status == "complete"
+    delivery = db.execute(select(PlanDelivery)).scalar_one()
+    delivery.provider_references = {
+        "profile_account_id": "stable-profile",
+    }
+    external_id = str(delivery.external_id)
+    record_target_calendar_sync(
+        db,
+        user_id=USER_ID,
+        target=TARGET,
+        provider_account_id=ACCOUNT_ID,
+        provider_references={
+            "profile_account_id": "stable-profile",
+        },
+        rows=[{
+            **adapter.calendar[0],
+            "provider_references": {
+                "profile_account_id": "stable-profile",
+            },
+        }],
+        window_start=date(2026, 8, 1),
+        window_end=date(2026, 8, 15),
+        observed_at=datetime(2026, 8, 1, 9, 30),
+    )
+    db.commit()
+    original_observation = db.execute(
+        select(PlanTargetWorkout).where(
+            PlanTargetWorkout.external_id == delivery.external_id,
+        )
+    ).scalar_one()
+    adapter.provider_account_id = "renamed-calendar-account"
+    adapter.account_alias_matcher = (
+        lambda stored, references: (
+            stored == ACCOUNT_ID
+            and references.get("profile_account_id") == "stable-profile"
+        )
+    )
+    record_target_calendar_sync(
+        db,
+        user_id=USER_ID,
+        target=TARGET,
+        provider_account_id=adapter.provider_account_id,
+        provider_references={
+            "profile_account_id": "stable-profile",
+        },
+        rows=[{
+            **adapter.calendar[0],
+            "provider_references": {
+                "profile_account_id": "stable-profile",
+            },
+        }],
+        window_start=date(2026, 8, 1),
+        window_end=date(2026, 8, 15),
+        observed_at=datetime(2026, 8, 1, 10),
+    )
+    db.commit()
+    assert original_observation.provider_account_id == ACCOUNT_ID
+    safe, reason = _owned_removal_safe(
+        db,
+        delivery=delivery,
+        provider_account_id=adapter.provider_account_id,
+    )
+    assert safe is True
+    assert reason is None
+    service = PlanDeliveryService(
+        db=db,
+        user_id=USER_ID,
+        target=TARGET,
+        adapter_loader=lambda: adapter,
+    )
+
+    result = service.remove(external_id)
+
+    assert result.external_id == external_id
+    db.refresh(delivery)
+    db.refresh(original_observation)
+    assert delivery.state == "removed"
+    assert original_observation.present is False
+    assert adapter.delete_attempts == 1
+
+
+def test_immutable_matcher_overrides_equal_display_account(managed_db):
+    from api.plan_delivery.base import adapter_provider_account_matches
+
+    _, adapter = managed_db
+    adapter.account_alias_matcher = (
+        lambda _stored, references: (
+            references.get("profile_account_id") == "current-profile"
+        )
+    )
+
+    assert not adapter_provider_account_matches(
+        adapter,
+        stored_account_id=ACCOUNT_ID,
+        current_account_id=ACCOUNT_ID,
+        provider_references={
+            "profile_account_id": "different-profile",
+        },
+    )
+
+
+def test_removed_garmin_delivery_resets_only_schedule_identity(
+    managed_db,
+) -> None:
+    db, _ = managed_db
+    snapshot = {
+        "canonical_id": "c77ad913-6123-4be8-aad0-e1d426c5c804",
+        "date": "2026-08-02",
+        "source": "praxys",
+        "workout_type": "easy",
+        "planned_duration_min": 45,
+    }
+    delivery, _ = get_or_create_delivery(
+        db,
+        user_id=USER_ID,
+        target="garmin",
+        snapshot=snapshot,
+    )
+    delivery.state = "removed"
+    delivery.external_id = "schedule-201"
+    delivery.delivered_at = datetime(2026, 8, 1, 9)
+    delivery.provider_references = {
+        "profile_account_id": "international:profile",
+        "template_id": "template-101",
+        "template_marker": "praxys:marker",
+        "payload_fingerprint": "fingerprint",
+        "schedule_id": "schedule-201",
+        "schedule_started": True,
+        "preexisting_schedule_ids": ["manual-1"],
+    }
+    db.commit()
+
+    locked, attempt, disposition = begin_delivery_attempt(
+        db,
+        delivery,
+        operation="deliver",
+    )
+
+    assert disposition == "started"
+    assert attempt is not None
+    assert locked.external_id is None
+    assert locked.delivered_at is None
+    assert locked.provider_references == {
+        "profile_account_id": "international:profile",
+        "template_id": "template-101",
+        "template_marker": "praxys:marker",
+        "payload_fingerprint": "fingerprint",
+    }
 
 
 def test_delivery_uses_exact_fourteen_day_horizon(managed_db):
@@ -907,6 +1149,310 @@ def test_inflight_create_is_recovered_from_calendar(
     assert delivery.external_id == adapter.calendar[0]["external_id"]
 
 
+@pytest.mark.parametrize(
+    "phase,expected_state,expected_category",
+    [
+        ("before_schedule", "failed", "provider_partial_create"),
+        ("schedule_started", "conflict", "provider_outcome_unknown"),
+        ("schedule_checkpointed", "synced", None),
+    ],
+)
+def test_inflight_garmin_checkpoint_recovery_is_phase_safe(
+    managed_db,
+    phase,
+    expected_state,
+    expected_category,
+):
+    db, _ = managed_db
+    workout_date = date(2026, 8, 3)
+    started_at = (
+        datetime.utcnow() - DELIVERY_ATTEMPT_LEASE - timedelta(seconds=1)
+    )
+    provider_references = {
+        "template_marker": "praxys:garmin-partial",
+        "payload_fingerprint": "b" * 64,
+        "preexisting_template_ids": [],
+        "template_id": "101",
+    }
+    if phase in {"schedule_started", "schedule_checkpointed"}:
+        provider_references["schedule_started"] = True
+    if phase == "schedule_checkpointed":
+        provider_references["schedule_id"] = "201"
+    delivery = PlanDelivery(
+        user_id=USER_ID,
+        canonical_key="ai:garmin-partial",
+        canonical_id="garmin-partial",
+        workout_date=workout_date,
+        workout_version="a" * 64,
+        provider_content_version="b" * 64,
+        target="garmin",
+        state="delivering",
+        external_id=("201" if phase == "schedule_checkpointed" else None),
+        provider_references=provider_references,
+    )
+    db.add(delivery)
+    db.flush()
+    attempt = PlanDeliveryAttempt(
+        delivery_id=delivery.id,
+        attempt_number=1,
+        operation="deliver",
+        state="delivering",
+        response={
+            "managed_delivery": True,
+            "provider_account_id": ACCOUNT_ID,
+            "connection_generation": "generation",
+            "preexisting_external_ids": [],
+        },
+        started_at=started_at,
+    )
+    recovery_rows = [
+        attempt,
+        PlanTargetCalendarSync(
+            user_id=USER_ID,
+            target="garmin",
+            provider_account_id=ACCOUNT_ID,
+            window_start=workout_date - timedelta(days=2),
+            window_end=workout_date + timedelta(days=2),
+            synced_at=datetime.utcnow(),
+        ),
+    ]
+    if phase == "schedule_checkpointed":
+        recovery_rows.append(PlanTargetWorkout(
+            user_id=USER_ID,
+            target="garmin",
+            provider_account_id=ACCOUNT_ID,
+            external_id="201",
+            provider_references={"template_id": "101"},
+            workout_date=workout_date,
+            normalized_workout={},
+            observed_at=datetime.utcnow(),
+        ))
+    db.add_all(recovery_rows)
+    db.commit()
+
+    _recover_managed_inflight_attempts(
+        db,
+        user_id=USER_ID,
+        target="garmin",
+        provider_account_id=ACCOUNT_ID,
+        connection_generation="generation",
+        deliveries=[delivery],
+    )
+
+    db.refresh(delivery)
+    db.refresh(attempt)
+    assert delivery.state == expected_state
+    assert delivery.provider_references["template_id"] == "101"
+    assert attempt.state == expected_state
+    if expected_category is None:
+        assert attempt.response["recovered_from_calendar"] is True
+        assert delivery.external_id == "201"
+    else:
+        assert attempt.response["error_category"] == expected_category
+        assert attempt.response["retryable"] is (
+            expected_state == "failed"
+        )
+
+
+def test_inflight_recovery_accepts_immutable_profile_account_alias(managed_db):
+    db, adapter = managed_db
+    workout_date = date(2026, 8, 3)
+    started_at = (
+        datetime.utcnow() - DELIVERY_ATTEMPT_LEASE - timedelta(seconds=1)
+    )
+    profile_references = {
+        "profile_account_id": "stable-profile",
+        "template_id": "101",
+        "schedule_id": "201",
+    }
+    delivery = PlanDelivery(
+        user_id=USER_ID,
+        canonical_key="ai:garmin-alias-recovery",
+        canonical_id="garmin-alias-recovery",
+        workout_date=workout_date,
+        workout_version="a" * 64,
+        provider_content_version="b" * 64,
+        target="garmin",
+        state="delivering",
+        external_id="201",
+        provider_account_id=ACCOUNT_ID,
+        provider_references=profile_references,
+    )
+    db.add(delivery)
+    db.flush()
+    attempt = PlanDeliveryAttempt(
+        delivery_id=delivery.id,
+        attempt_number=1,
+        operation="deliver",
+        state="delivering",
+        response={
+            "managed_delivery": True,
+            "provider_account_id": ACCOUNT_ID,
+            "provider_references": profile_references,
+            "connection_generation": "generation",
+            "preexisting_external_ids": [],
+        },
+        started_at=started_at,
+    )
+    current_account_id = "renamed-calendar-account"
+    db.add_all([
+        attempt,
+        PlanTargetCalendarSync(
+            user_id=USER_ID,
+            target="garmin",
+            provider_account_id=current_account_id,
+            provider_references={
+                "profile_account_id": "stable-profile",
+            },
+            window_start=workout_date - timedelta(days=2),
+            window_end=workout_date + timedelta(days=2),
+            synced_at=datetime.utcnow(),
+        ),
+        PlanTargetWorkout(
+            user_id=USER_ID,
+            target="garmin",
+            provider_account_id=ACCOUNT_ID,
+            external_id="201",
+            provider_references=profile_references,
+            workout_date=workout_date,
+            normalized_workout={},
+            observed_at=datetime.utcnow(),
+        ),
+    ])
+    db.commit()
+    adapter.provider_account_id = current_account_id
+    adapter.account_alias_matcher = lambda stored, references: (
+        stored == ACCOUNT_ID
+        and references.get("profile_account_id") == "stable-profile"
+    )
+
+    _recover_managed_inflight_attempts(
+        db,
+        user_id=USER_ID,
+        target="garmin",
+        provider_account_id=current_account_id,
+        connection_generation="generation",
+        deliveries=[delivery],
+        adapter=adapter,
+    )
+
+    db.refresh(delivery)
+    db.refresh(attempt)
+    assert delivery.state == "synced"
+    assert attempt.state == "synced"
+    assert delivery.external_id == "201"
+
+
+@pytest.mark.parametrize("candidate_state", ["claimed", "ambiguous"])
+def test_inflight_garmin_recovery_never_replays_unsafe_schedule_candidates(
+    managed_db,
+    candidate_state,
+):
+    db, _ = managed_db
+    workout_date = date(2026, 8, 3)
+    started_at = (
+        datetime.utcnow() - DELIVERY_ATTEMPT_LEASE - timedelta(seconds=1)
+    )
+    delivery = PlanDelivery(
+        user_id=USER_ID,
+        canonical_key=f"ai:garmin-{candidate_state}",
+        canonical_id=f"garmin-{candidate_state}",
+        workout_date=workout_date,
+        workout_version="c" * 64,
+        provider_content_version="d" * 64,
+        target="garmin",
+        state="delivering",
+        provider_references={
+            "template_marker": f"praxys:garmin-{candidate_state}",
+            "payload_fingerprint": "d" * 64,
+            "preexisting_template_ids": [],
+            "template_id": "101",
+        },
+    )
+    db.add(delivery)
+    db.flush()
+    attempt = PlanDeliveryAttempt(
+        delivery_id=delivery.id,
+        attempt_number=1,
+        operation="deliver",
+        state="delivering",
+        response={
+            "managed_delivery": True,
+            "provider_account_id": ACCOUNT_ID,
+            "connection_generation": "generation",
+            "preexisting_external_ids": [],
+        },
+        started_at=started_at,
+    )
+    observations = [
+        PlanTargetWorkout(
+            user_id=USER_ID,
+            target="garmin",
+            provider_account_id=ACCOUNT_ID,
+            external_id="201",
+            provider_references={"template_id": "101"},
+            workout_date=workout_date,
+            normalized_workout={},
+            observed_at=datetime.utcnow(),
+        ),
+    ]
+    if candidate_state == "claimed":
+        db.add(PlanDelivery(
+            user_id=USER_ID,
+            canonical_key="ai:other-garmin-workout",
+            canonical_id="other-garmin-workout",
+            workout_date=workout_date,
+            workout_version="e" * 64,
+            target="garmin",
+            state="synced",
+            external_id="201",
+        ))
+    else:
+        observations.append(PlanTargetWorkout(
+            user_id=USER_ID,
+            target="garmin",
+            provider_account_id=ACCOUNT_ID,
+            external_id="202",
+            provider_references={"template_id": "101"},
+            workout_date=workout_date,
+            normalized_workout={},
+            observed_at=datetime.utcnow(),
+        ))
+    db.add_all([
+        attempt,
+        *observations,
+        PlanTargetCalendarSync(
+            user_id=USER_ID,
+            target="garmin",
+            provider_account_id=ACCOUNT_ID,
+            window_start=workout_date - timedelta(days=2),
+            window_end=workout_date + timedelta(days=2),
+            synced_at=datetime.utcnow(),
+        ),
+    ])
+    db.commit()
+
+    _recover_managed_inflight_attempts(
+        db,
+        user_id=USER_ID,
+        target="garmin",
+        provider_account_id=ACCOUNT_ID,
+        connection_generation="generation",
+        deliveries=[delivery],
+    )
+
+    db.refresh(delivery)
+    db.refresh(attempt)
+    assert delivery.state == "conflict"
+    assert attempt.state == "conflict"
+    assert attempt.response["retryable"] is False
+    assert attempt.response["error_category"] == (
+        "provider_identity_claimed"
+        if candidate_state == "claimed"
+        else "provider_outcome_unknown"
+    )
+
+
 def test_inflight_removal_becomes_visible_conflict(
     managed_db,
     monkeypatch,
@@ -1194,6 +1740,232 @@ def test_transient_create_failure_retries_after_backoff(managed_db):
     assert attempts[0].response["managed_delivery"] is True
     assert attempts[0].response["retryable"] is True
     assert attempts[1].response["managed_delivery"] is True
+
+
+def test_rate_limit_stops_batch_and_backs_off_connection(managed_db):
+    db, adapter = managed_db
+    started_at = datetime.utcnow()
+    _add_plan(db, started_at.date() + timedelta(days=2))
+    _add_plan(db, started_at.date() + timedelta(days=3))
+    adapter.create_failures.append(
+        ProviderRateLimitError("provider rate limit")
+    )
+
+    result = _run(db, adapter, now=started_at)
+
+    assert len(result.items) == 1
+    assert result.items[0].status == "failed"
+    assert result.items[0].reason == "provider_rate_limited"
+    assert adapter.create_attempts == 1
+    attempt = db.execute(select(PlanDeliveryAttempt)).scalar_one()
+    assert attempt.response["counts_toward_retry_limit"] is False
+    connection = db.execute(
+        select(UserConnection).where(
+            UserConnection.user_id == USER_ID,
+            UserConnection.platform == TARGET,
+        )
+    ).scalar_one()
+    assert connection.status == "error"
+    assert connection.next_retry_at is not None
+
+
+def test_create_auth_failure_terminalizes_delivery_attempt(managed_db):
+    db, adapter = managed_db
+    started_at = datetime.utcnow()
+    _add_plan(db, started_at.date() + timedelta(days=2))
+    adapter.create_failures.append(
+        ProviderAuthenticationError("provider session expired")
+    )
+
+    result = _run(db, adapter, now=started_at)
+
+    assert len(result.items) == 1
+    assert result.items[0].status == "failed"
+    delivery = db.execute(select(PlanDelivery)).scalar_one()
+    attempt = db.execute(select(PlanDeliveryAttempt)).scalar_one()
+    assert delivery.state == "failed"
+    assert attempt.state == "failed"
+    assert (
+        attempt.response["error_category"]
+        == "provider_authentication_failed"
+    )
+    assert attempt.response["counts_toward_retry_limit"] is False
+
+
+def test_removal_auth_failure_does_not_consume_retry_budget(managed_db):
+    db, adapter = managed_db
+    started_at = datetime.utcnow()
+    plan = _add_plan(db, started_at.date() + timedelta(days=2))
+    _run(db, adapter, now=started_at)
+    db.delete(plan)
+    db.commit()
+    adapter.delete_failures.append(
+        ProviderAuthenticationError("provider session expired")
+    )
+
+    result = _run(db, adapter, now=started_at + timedelta(minutes=1))
+
+    assert result.items[0].status == "failed"
+    attempt = db.execute(
+        select(PlanDeliveryAttempt)
+        .where(PlanDeliveryAttempt.operation == "remove")
+    ).scalar_one()
+    assert attempt.response["error_category"] == "provider_authentication"
+    assert attempt.response["counts_toward_retry_limit"] is False
+
+
+def test_removal_rate_limit_terminalizes_attempt_and_stops_batch(managed_db):
+    db, adapter = managed_db
+    started_at = datetime.utcnow()
+    first = _add_plan(db, started_at.date() + timedelta(days=2))
+    _add_plan(db, started_at.date() + timedelta(days=3))
+    _run(db, adapter, now=started_at)
+    db.delete(first)
+    db.commit()
+    adapter.delete_failures.append(
+        ProviderRateLimitError("provider rate limit")
+    )
+
+    result = _run(db, adapter, now=started_at + timedelta(minutes=1))
+
+    assert len(result.items) == 1
+    assert result.items[0].status == "failed"
+    removed_delivery = db.execute(
+        select(PlanDelivery).where(
+            PlanDelivery.workout_date == started_at.date() + timedelta(days=2)
+        )
+    ).scalar_one()
+    latest_attempt = db.execute(
+        select(PlanDeliveryAttempt)
+        .where(PlanDeliveryAttempt.delivery_id == removed_delivery.id)
+        .order_by(PlanDeliveryAttempt.attempt_number.desc())
+    ).scalars().first()
+    assert removed_delivery.state == "synced"
+    assert latest_attempt is not None
+    assert latest_attempt.operation == "remove"
+    assert latest_attempt.state == "failed"
+    assert (
+        latest_attempt.response["error_category"]
+        == "provider_rate_limited"
+    )
+
+
+def test_replacement_rate_limit_stops_batch_and_backs_off_connection(
+    managed_db,
+):
+    db, adapter = managed_db
+    started_at = datetime.utcnow()
+    first = _add_plan(
+        db,
+        started_at.date() + timedelta(days=2),
+        description="Before",
+    )
+    _add_plan(db, started_at.date() + timedelta(days=3))
+    _run(db, adapter, now=started_at)
+    first.workout_description = "After"
+    db.commit()
+    adapter.create_failures.append(
+        ProviderRateLimitError("provider rate limit")
+    )
+
+    result = _run(db, adapter, now=started_at + timedelta(minutes=1))
+
+    assert len(result.items) == 1
+    assert result.items[0].action == "replace"
+    assert result.items[0].status == "failed"
+    assert result.items[0].reason == "provider_rate_limited"
+    connection = db.execute(
+        select(UserConnection).where(
+            UserConnection.user_id == USER_ID,
+            UserConnection.platform == TARGET,
+        )
+    ).scalar_one()
+    assert connection.consecutive_failures == 1
+    assert connection.next_retry_at is not None
+
+
+def test_delivery_success_cannot_reopen_disconnected_connection(managed_db):
+    from api.plan_delivery.rolling import _record_connection_success
+    from db.connection_credentials import connection_credentials_generation
+
+    db, _ = managed_db
+    connection = db.execute(
+        select(UserConnection).where(
+            UserConnection.user_id == USER_ID,
+            UserConnection.platform == TARGET,
+        )
+    ).scalar_one()
+    generation = connection_credentials_generation(connection)
+    connection.status = "disconnected"
+    db.commit()
+
+    assert not _record_connection_success(
+        db,
+        user_id=USER_ID,
+        target=TARGET,
+        connection_generation=generation,
+    )
+    db.expire_all()
+    connection = db.execute(
+        select(UserConnection).where(
+            UserConnection.user_id == USER_ID,
+            UserConnection.platform == TARGET,
+        )
+    ).scalar_one()
+    assert connection.status == "disconnected"
+
+
+def test_nested_managed_delivery_run_is_serialized(managed_db):
+    db, adapter = managed_db
+    started_at = datetime.utcnow()
+    _add_plan(db, started_at.date() + timedelta(days=2))
+    nested_results = []
+    adapter.on_create = lambda: nested_results.append(
+        _run(db, adapter, now=started_at)
+    )
+
+    result = _run(db, adapter, now=started_at)
+
+    assert result.status == "complete"
+    assert adapter.create_attempts == 1
+    assert len(nested_results) == 1
+    assert nested_results[0].status == "skipped"
+    assert nested_results[0].reason == "delivery_run_busy"
+
+
+def test_stale_success_cannot_clear_newer_connection_backoff(managed_db):
+    from api.plan_delivery.rolling import (
+        _connection_health_fence,
+        _record_connection_success,
+    )
+    from db.connection_credentials import connection_credentials_generation
+
+    db, _ = managed_db
+    connection = db.execute(
+        select(UserConnection).where(
+            UserConnection.user_id == USER_ID,
+            UserConnection.platform == TARGET,
+        )
+    ).scalar_one()
+    generation = connection_credentials_generation(connection)
+    health_fence = _connection_health_fence(connection)
+    connection.status = "error"
+    connection.consecutive_failures = 1
+    connection.next_retry_at = datetime.utcnow() + timedelta(hours=1)
+    connection.last_error = "ProviderRateLimitError: rate limited"
+    db.commit()
+
+    assert not _record_connection_success(
+        db,
+        user_id=USER_ID,
+        target=TARGET,
+        connection_generation=generation,
+        expected_health_fence=health_fence,
+    )
+    db.refresh(connection)
+    assert connection.status == "error"
+    assert connection.consecutive_failures == 1
+    assert connection.next_retry_at is not None
 
 
 def test_transient_create_retry_stops_at_durable_cap(managed_db):
@@ -1565,6 +2337,178 @@ def test_operator_recovery_reconciles_and_replays_one_exhausted_failure(
     assert revisions[1].details["response"]["final_state"] == "synced"
 
 
+def test_operator_recovery_completes_replacement_after_failed_removal(
+    managed_db,
+):
+    db, adapter = managed_db
+    started_at = datetime.utcnow()
+    plan = _add_plan(
+        db,
+        started_at.date() + timedelta(days=2),
+        description="Before replacement",
+    )
+    _run(db, adapter, now=started_at)
+    plan.workout_description = "After replacement"
+    db.commit()
+    adapter.delete_failures.extend(
+        ProviderRemovalError("provider removal failed")
+        for _ in range(5)
+    )
+    for attempt_number in range(5):
+        failed = _run(
+            db,
+            adapter,
+            now=started_at + timedelta(
+                hours=1 + 7 * attempt_number,
+            ),
+        )
+        assert failed.items[0].status == "failed"
+
+    recovery_at = started_at + timedelta(hours=36)
+    attention = list_managed_plan_attention(
+        db,
+        now=recovery_at,
+    ).items[0]
+    recovered = recover_managed_plan_delivery(
+        db,
+        admin_user_id="admin-user",
+        delivery_id=attention.recovery_id,
+        expected_version=attention.expected_version,
+        now=recovery_at,
+        adapter_loader=lambda session, user_id, target: adapter,
+        threshold_loader=lambda session, user_id: CP_WATTS,
+    )
+
+    assert attention.operation == "remove"
+    assert recovered.status == "complete"
+    assert recovered.final_state == "synced"
+    assert recovered.successful_items == 1
+    assert adapter.create_attempts == 2
+    assert adapter.delete_attempts == 6
+    assert len(adapter.calendar) == 1
+    assert (
+        adapter.calendar[0]["workout_description"]
+        == "After replacement"
+    )
+
+
+def test_replacement_recovery_requires_authoritative_synced_version(
+    managed_db,
+):
+    db, adapter = managed_db
+    started_at = datetime.utcnow()
+    plan = _add_plan(
+        db,
+        started_at.date() + timedelta(days=2),
+        description="Before replacement",
+    )
+    _run(db, adapter, now=started_at)
+    plan.workout_description = "After replacement"
+    db.commit()
+    adapter.delete_failures.append(
+        ProviderRemovalError("provider removal failed")
+    )
+    _run(db, adapter, now=started_at + timedelta(hours=1))
+    attention = list_managed_plan_attention(
+        db,
+        now=started_at + timedelta(hours=2),
+    ).items[0]
+    callback_attempt = adapter.authenticate_attempts + 2
+
+    def supersede(attempt_number: int) -> None:
+        if attempt_number != callback_attempt:
+            return
+        adapter.on_authenticate = None
+        delivery = db.get(PlanDelivery, attention.recovery_id)
+        assert delivery is not None
+        append_delivery_event(
+            db,
+            delivery,
+            operation="remove",
+            state="failed",
+            external_id=delivery.external_id,
+            error="newer worker failure",
+            response={
+                "managed_delivery": True,
+                "retryable": True,
+                "trigger": "concurrent_worker",
+                "resolution": "restore_praxys",
+            },
+        )
+        delivery.state = "synced"
+        delivery.updated_at = datetime.utcnow()
+        db.commit()
+
+    adapter.on_authenticate = supersede
+    recovered = recover_managed_plan_delivery(
+        db,
+        admin_user_id="admin-user",
+        delivery_id=attention.recovery_id,
+        expected_version=attention.expected_version,
+        now=started_at + timedelta(hours=2),
+        adapter_loader=lambda session, user_id, target: adapter,
+        threshold_loader=lambda session, user_id: CP_WATTS,
+    )
+
+    assert recovered.status == "blocked"
+    assert recovered.reason == "recovery_incomplete"
+    assert recovered.final_state == "missing"
+    assert recovered.successful_items == 0
+    assert adapter.create_attempts == 1
+    assert len(adapter.calendar) == 1
+
+
+def test_recovery_completion_rechecks_concurrent_canonical_removal(
+    managed_db,
+    monkeypatch,
+):
+    from api import managed_plan_ops
+
+    db, adapter = managed_db
+    started_at = datetime.utcnow()
+    plan = _add_plan(db, started_at.date() + timedelta(days=2))
+    adapter.create_failures.append(
+        ProviderTransientError("provider unavailable")
+    )
+    _run(db, adapter, now=started_at)
+    attention = list_managed_plan_attention(
+        db,
+        now=started_at + timedelta(hours=1),
+    ).items[0]
+    real_run = managed_plan_ops.run_rolling_delivery_for_user
+
+    def run_then_remove_canonical(session, **kwargs):
+        result = real_run(session, **kwargs)
+        lock_plan_writes(session, USER_ID)
+        current = session.get(TrainingPlan, plan.id)
+        assert current is not None
+        session.delete(current)
+        session.commit()
+        return result
+
+    monkeypatch.setattr(
+        managed_plan_ops,
+        "run_rolling_delivery_for_user",
+        run_then_remove_canonical,
+    )
+
+    recovered = recover_managed_plan_delivery(
+        db,
+        admin_user_id="admin-user",
+        delivery_id=attention.recovery_id,
+        expected_version=attention.expected_version,
+        now=started_at + timedelta(hours=1),
+        adapter_loader=lambda session, user_id, target: adapter,
+        threshold_loader=lambda session, user_id: CP_WATTS,
+    )
+
+    assert recovered.status == "skipped"
+    assert recovered.reason == "recovery_superseded"
+    assert recovered.final_state == "synced"
+    assert adapter.create_attempts == 2
+    assert len(adapter.calendar) == 1
+
+
 def test_operator_stale_inflight_recovery_does_not_duplicate_provider_workout(
     managed_db,
 ):
@@ -1616,6 +2560,149 @@ def test_operator_stale_inflight_recovery_does_not_duplicate_provider_workout(
     assert recovered.final_state == "synced"
     assert adapter.create_attempts == 1
     assert len(adapter.calendar) == 1
+
+
+def test_managed_delivery_lock_engine_unwraps_connection(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'lease-bind.db'}")
+    connection = engine.connect()
+    try:
+        assert _managed_delivery_lock_engine(engine) is engine
+        assert _managed_delivery_lock_engine(connection) is engine
+    finally:
+        connection.close()
+        engine.dispose()
+
+
+def test_confirmed_removal_marks_same_profile_alias_absent(managed_db):
+    from db.plan_reconciliation import mark_target_workout_absent
+
+    db, _ = managed_db
+    observation = PlanTargetWorkout(
+        user_id=USER_ID,
+        target="garmin",
+        provider_account_id="international:old-display",
+        external_id="schedule-alias",
+        provider_references={
+            "profile_account_id": "international:stable-profile",
+        },
+        workout_date=date.today() + timedelta(days=2),
+        normalized_workout={},
+        present=True,
+        observed_at=datetime.utcnow(),
+    )
+    db.add(observation)
+    db.commit()
+
+    assert mark_target_workout_absent(
+        db,
+        user_id=USER_ID,
+        target="garmin",
+        provider_account_id="international:new-display",
+        external_id="schedule-alias",
+        provider_references={
+            "profile_account_id": "international:stable-profile",
+        },
+    )
+    db.commit()
+    db.refresh(observation)
+
+    assert observation.present is False
+
+
+def test_postgres_delivery_lease_reuses_one_connection(monkeypatch):
+    events: list[str] = []
+
+    class FakeResult:
+        def scalar_one(self):
+            return True
+
+    class FakeConnection:
+        def execute(self, statement, parameters):
+            events.append(str(statement))
+            assert parameters["lock_key"]
+            return FakeResult()
+
+        def commit(self):
+            events.append("commit")
+
+        def __enter__(self):
+            events.append("connect")
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            del exc_type, exc, traceback
+            events.append("disconnect")
+
+    class FakeDialect:
+        name = "postgresql"
+
+    class FakeEngine:
+        dialect = FakeDialect()
+
+        def __init__(self):
+            self.connection = FakeConnection()
+            self.connect_calls = 0
+
+        def connect(self):
+            self.connect_calls += 1
+            return self.connection
+
+    class FakeParentSession:
+        def __init__(self, engine):
+            self.engine = engine
+            self.rollback_calls = 0
+            self.expire_calls = 0
+
+        def get_bind(self):
+            return self.engine
+
+        def rollback(self):
+            self.rollback_calls += 1
+
+        def expire_all(self):
+            self.expire_calls += 1
+
+    class FakeLeasedSession:
+        def __init__(self):
+            self.rollback_calls = 0
+            self.close_calls = 0
+
+        def rollback(self):
+            self.rollback_calls += 1
+
+        def close(self):
+            self.close_calls += 1
+
+    engine = FakeEngine()
+    parent = FakeParentSession(engine)
+    leased = FakeLeasedSession()
+    monkeypatch.setattr(
+        "api.plan_delivery.rolling.Session",
+        lambda **kwargs: (
+            leased
+            if kwargs == {"bind": engine.connection, "autoflush": False}
+            else pytest.fail(f"unexpected Session args: {kwargs}")
+        ),
+    )
+
+    with _managed_delivery_run_lease(parent, "postgres-user") as run_db:
+        assert run_db is leased
+        events.append("work")
+
+    assert engine.connect_calls == 1
+    assert parent.rollback_calls == 1
+    assert parent.expire_calls == 1
+    assert leased.rollback_calls == 1
+    assert leased.close_calls == 1
+    assert events == [
+        "connect",
+        "SELECT pg_try_advisory_lock(:lock_key)",
+        "commit",
+        "work",
+        "SELECT pg_advisory_unlock(:lock_key)",
+        "commit",
+        "disconnect",
+    ]
 
 
 def test_attention_excludes_failed_version_superseded_by_synced_delivery(

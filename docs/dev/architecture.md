@@ -152,6 +152,14 @@ delete on the unchanged target, live connection status, and credential
 generation. Uncertain ledger rows remain visible as partial cleanup rather than
 being mistaken for an empty provider calendar.
 
+Only one rolling pass may run per user. PostgreSQL holds a session-level
+advisory lock and runs the complete ORM pass on that same physical connection,
+so a small shared pool never needs a second slot just for serialization.
+SQLite uses the equivalent process-local lock. Connection-success bookkeeping
+also carries the starting health fence, so a stale successful calendar read
+cannot clear a newer authentication or rate-limit backoff recorded by another
+sync path.
+
 Explicit row delivery uses the same just-in-time connection-generation fence
 and re-reads the exact canonical UUID/version while holding the plan-write lock
 immediately before provider I/O. A concurrent plan edit or deletion therefore
@@ -176,13 +184,33 @@ retries safe failures. Automatic retries are durable, exponential, capped, and
 limited to definite retry-safe outcomes; ambiguous create outcomes remain
 conflicts to prevent duplicate workouts.
 
-Garmin remains a read-only reconciliation target. The
+Garmin is also available as an explicitly opt-in experimental execution
+target. Its undocumented two-ID, two-POST lifecycle is represented with
+durable provider references and intermediate attempt checkpoints: the reusable
+template ID is persisted before schedule, and the scheduled-instance ID
+remains the delivery `external_id`. Recovery may adopt only one newly observed, account-fenced
+marker-and-payload template match. Scheduled instances require the exact ID
+returned and durably checkpointed from Praxys's own request; a schedule seen
+only by calendar set difference remains unowned and fails closed. A returned
+ID that existed before the request is rejected. A returned instance on an
+unexpected date is directly verified and retained only as an unowned conflict
+candidate; explicit reconciliation is required before it may be adopted or
+removed.
+Calendar reconciliation retains the rollout-compatible account hash; every
+new observation and mutation also carries a private immutable
+`userProfileId` fence. Matching immutable references bridge display-name key
+changes; different profiles fail closed, including for empty calendar
+snapshots. Template recovery scans are bounded to 500 entries: saturation
+before upload is non-retryable, while saturation after a possible upload
+remains an unknown outcome. Confirmed authentication failures stop delivery;
+rate limiting stops the current batch and backs off the connection.
+Unsupported power, pace, and heart-rate targets are rejected, so the current
+adapter advertises duration-only fidelity. Static Garmin plan capability stays
+false; the default-off deployment gate and connection- and region-bound
+consent must both be active before that user gains an effective capability. The
 [Garmin workout-delivery feasibility study](../studies/garmin-workout-delivery-feasibility.md)
-found that the undocumented consumer endpoints expose the necessary
-operations, but their two-ID, two-POST lifecycle does not satisfy the current
-ledger's ownership and idempotency guarantees, and live CN write parity is
-unverified. Production Garmin delivery stays disabled while Praxys pursues
-Garmin's official OAuth2 Training API.
+documents the remaining unsupported-API and unvalidated international/CN
+risks. Garmin's official Training API remains the preferred replacement.
 
 ### Admin System
 
@@ -267,6 +295,14 @@ Enabling delivery requires an actively connected target with a registered plan
 adapter. Once selected, that target remains part of the managed-plan intent
 through a disconnect so the UI can request reconnection and later clean up the
 correct delivery ledger; provider writes remain gated on the live connection.
+The normalized target is also stored in the additive
+`user_config.plan_execution_target` column. New workers restore it only when a
+legacy worker has dropped the target from `plan_management` JSON, while a
+valid explicit JSON target remains authoritative. A target change first imports
+legacy Stryd delivery evidence and is rejected while any future, non-removed
+delivery remains on another connector. Users therefore leave managed mode,
+clean up old owned deliveries, and only then select a different connector;
+manual Stryd writes enforce the same fence immediately before provider I/O.
 
 Automatic plan adjustment is a second, independent consent boundary.
 `suggest_only` remains the default in every ownership mode.
@@ -328,13 +364,22 @@ Adapters receive credentials resolved from the caller's encrypted
 `UserConnection`; the Stryd adapter never reads another user's connection.
 
 Successful Stryd and Garmin syncs also write account-fenced calendar
-snapshots. Garmin's path is deliberately read-only: it records scheduled
-workouts for reconciliation evidence but does not advertise Garmin as a plan
-delivery target. #484 rejected production use of the undocumented consumer
-write endpoints, so #485 remains blocked while Praxys pursues Garmin's official
-Training API. Every external ID is retained as a normalized observation;
-previously observed or Praxys-delivered IDs are marked absent only inside the
-conservatively covered sync window for the same provider account.
+snapshots. Garmin calendar reads always remain available for reconciliation;
+consumer-API writes are exposed only when the operator gate is enabled and
+explicit experimental consent is bound to the current credential generation
+and region. Reconnect, credential rotation, or disconnect invalidates that
+consent; a region change also disconnects the old region and requires a fresh
+login. Garmin OAuth tokenstores
+are user- and credential-generation-scoped, and a per-user filesystem lease
+serializes token refreshes across sync, delivery, reconnect, and cleanup
+workers. Interactive login uses an isolated staging directory until encrypted
+credentials are staged; the generation is published to legacy workers only
+after that credential transaction commits. A sync rechecks its captured
+generation before provider work and each commit. A stale
+sync rolls back without degrading the replacement connection. Every external ID is
+retained as a normalized
+observation; previously observed or Praxys-delivered IDs are marked absent only
+inside the conservatively covered sync window for the same provider account.
 Fetch-start generations prevent an older concurrent provider read from
 overwriting a newer snapshot.
 `GET /api/plan` joins these

@@ -42,14 +42,23 @@ fingerprint/account history, not JS signals (closed PR #257).
   status). Each endpoint has its own try/except + a 5-strike circuit breaker, so
   one failure doesn't sink the sync. LTHR may need manual entry.
 - Scheduled-workout calendar reads use the same region-routed client but remain
-  read-only. `Garmin workout calendar fetch failed` means a month could not be
+  available independently of experimental writes. `Garmin workout calendar
+  fetch failed` means a month could not be
   read; `Garmin workout calendar payload was unavailable` means the
   undocumented response no longer matched the verified `calendarItems` shape.
   Both preserve the last complete snapshot instead of inferring deletions.
-  Garmin delivery remains unavailable: the
-  [#484 feasibility study](../studies/garmin-workout-delivery-feasibility.md)
-  rejected production consumer-API writes, and #485 is blocked pending the
-  official Training API contract.
+- Garmin consumer-API delivery is an unsupported, duration-only experiment and
+  is off by default. It requires explicit connection- and region-bound consent
+  in Settings. Reconnect, credential rotation, or disconnect invalidates
+  consent. A legacy connection with no mirrored region must reconnect before
+  consent can be granted. Region change disconnects the old region, clears its
+  token cache, and requires a fresh login. Interactive reconnect first commits
+  consent revocation, a delivery pause, and `disconnected` status, then mutates
+  the tokenstore; an interrupted login therefore stays fail-closed. No
+  international or CN live write
+  matrix has been completed; do not enable or repair consent administratively.
+  See the
+  [feasibility decision](../studies/garmin-workout-delivery-feasibility.md).
 
 ## Per-user token store (security-critical)
 
@@ -98,6 +107,11 @@ returns to `synced` until deletion succeeds.
      safe `praxys.managed_plan` category/action/reason dimensions.
    - **Ownership conflict / uncertain provider outcome**: the athlete must use
      plan reconciliation. Never force replay.
+   - **Experimental Garmin policy**: confirm the connection is healthy and ask
+     the athlete to review and re-enable consent in Settings. Never copy the
+     consent hash or enable it directly in the database. Unsupported target
+     shapes require choosing Stryd or revising the canonical workout; do not
+     strip target data to force a Garmin write.
 3. If needed, search logs for `Managed delivery blocked`, `Managed removal
    failed`, or `Managed replacement blocked`. Logged categories are bounded;
    provider credentials and payloads are never logged.
@@ -147,9 +161,13 @@ blind create/remove could duplicate or delete someone else's workout.
 After recovery: trigger a sync (Settings → Sync, or `POST /api/sync`), confirm the
 connection card leaves `auth_required` and new activities/recovery rows appear.
 A healthy Garmin read also has no calendar warning and refreshes only
-Garmin-sourced external plan observations inside its bounded window. It never
-writes to Garmin. For managed plans, confirm the next scheduler tick creates
-only missing Praxys-owned workouts inside the 14-day horizon.
+Garmin-sourced external plan observations inside its bounded window. Calendar
+sync alone never grants write consent. For managed plans, confirm the next
+scheduler tick creates only missing Praxys-owned workouts inside the 14-day
+horizon. For an athlete who explicitly enabled experimental Garmin delivery,
+also confirm each delivered row has one visible scheduled instance and that
+unrelated/manual workouts are unchanged; retained Praxys templates are
+intentional.
 
 For users who separately enabled conservative automatic adjustment, search for
 `Plan adjustment for user=` after the sync completion log. `adjusted` means the

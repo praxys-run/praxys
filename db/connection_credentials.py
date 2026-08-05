@@ -17,6 +17,10 @@ class CredentialAccessError(RuntimeError):
     """Stored platform credentials exist but cannot be decoded safely."""
 
 
+class ConnectionGenerationChanged(RuntimeError):
+    """A sync's captured connection is no longer current or runnable."""
+
+
 def connection_credentials_generation(connection: UserConnection) -> str:
     """Fingerprint one connection's encrypted credential generation."""
     digest = hashlib.sha256()
@@ -24,6 +28,37 @@ def connection_credentials_generation(connection: UserConnection) -> str:
     digest.update(b"\0")
     digest.update(bytes(connection.wrapped_dek or b""))
     return f"{connection.id}:{digest.hexdigest()}"
+
+
+def require_connection_generation(
+    db: Session,
+    *,
+    user_id: str,
+    platform: str,
+    expected_generation: str,
+    allowed_statuses: tuple[str, ...],
+    lock: bool = False,
+) -> UserConnection:
+    """Return the current connection or reject a stale sync generation."""
+    query = db.query(UserConnection).filter(
+        UserConnection.user_id == user_id,
+        UserConnection.platform == platform,
+    )
+    if lock:
+        query = query.with_for_update()
+    connection = query.execution_options(
+        populate_existing=True
+    ).one_or_none()
+    if (
+        connection is None
+        or connection.status not in allowed_statuses
+        or connection_credentials_generation(connection)
+        != expected_generation
+    ):
+        raise ConnectionGenerationChanged(
+            f"{platform} connection changed during sync"
+        )
+    return connection
 
 
 def load_connection_credentials(

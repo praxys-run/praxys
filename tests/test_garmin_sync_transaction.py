@@ -13,6 +13,7 @@ earlier writes (activities, splits), remain intact.
 import tempfile
 
 import pytest
+import requests
 from sqlalchemy.exc import IntegrityError
 
 
@@ -205,7 +206,9 @@ def test_garmin_calendar_snapshot_persists_and_prunes_atomically(
         "planned_duration_min": "45.0",
         "workout_description": "Threshold",
         "external_id": "garmin-schedule-1",
+        "provider_references": {"template_id": "garmin-template-1"},
         "provider_payload_fingerprint": "a" * 64,
+        "provider_content_fingerprint": "b" * 64,
     }]
 
     created = _persist_garmin_calendar_snapshot(
@@ -236,7 +239,11 @@ def test_garmin_calendar_snapshot_persists_and_prunes_atomically(
         target="garmin",
     ).one()
     assert observation.present is True
+    assert observation.provider_references == {
+        "template_id": "garmin-template-1",
+    }
     assert observation.payload_fingerprint == "a" * 64
+    assert observation.content_fingerprint == "b" * 64
     reconciliation = build_plan_reconciliation(
         db,
         user_id=user_id,
@@ -251,6 +258,39 @@ def test_garmin_calendar_snapshot_persists_and_prunes_atomically(
         reconciliation.target_only_items[0].observation.external_id
         == "garmin-schedule-1"
     )
+
+    ordinary_sync_rows = [dict(rows[0])]
+    ordinary_sync_rows[0].pop("provider_content_fingerprint")
+    refreshed = _persist_garmin_calendar_snapshot(
+        db,
+        user_id=user_id,
+        provider_account_id="international:account",
+        rows=ordinary_sync_rows,
+        window_start=window_start,
+        window_end=window_end,
+        observed_at=observed_at + timedelta(seconds=30),
+    )
+    db.commit()
+
+    assert refreshed >= 0
+    db.refresh(observation)
+    assert observation.content_fingerprint == "b" * 64
+
+    edited_rows = [dict(ordinary_sync_rows[0])]
+    edited_rows[0]["provider_payload_fingerprint"] = "c" * 64
+    _persist_garmin_calendar_snapshot(
+        db,
+        user_id=user_id,
+        provider_account_id="international:account",
+        rows=edited_rows,
+        window_start=window_start,
+        window_end=window_end,
+        observed_at=observed_at + timedelta(seconds=45),
+    )
+    db.commit()
+
+    db.refresh(observation)
+    assert observation.content_fingerprint is None
 
     removed = _persist_garmin_calendar_snapshot(
         db,
@@ -270,6 +310,89 @@ def test_garmin_calendar_snapshot_persists_and_prunes_atomically(
     ).count() == 0
     db.refresh(observation)
     assert observation.present is False
+
+
+def test_garmin_account_change_retires_prior_account_observations(
+    db_with_user,
+):
+    """Calendar ownership never transfers between authenticated accounts."""
+    from datetime import date, datetime, timedelta
+
+    from api.routes.sync import _persist_garmin_calendar_snapshot
+    from db.models import PlanTargetCalendarSync, PlanTargetWorkout
+
+    db, user_id = db_with_user
+    today = date.today()
+    window_end = today + timedelta(days=14)
+    first_observed = datetime(2026, 8, 2, 8, 0, 0)
+    _persist_garmin_calendar_snapshot(
+        db,
+        user_id=user_id,
+        provider_account_id="international:first-account",
+        rows=[{
+            "date": (today + timedelta(days=1)).isoformat(),
+            "workout_type": "easy",
+            "workout_description": "First account",
+            "external_id": "7001",
+            "provider_references": {"template_id": "9001"},
+        }],
+        window_start=today,
+        window_end=window_end,
+        observed_at=first_observed,
+    )
+    db.commit()
+
+    _persist_garmin_calendar_snapshot(
+        db,
+        user_id=user_id,
+        provider_account_id="international:second-account",
+        rows=[{
+            "date": (today + timedelta(days=2)).isoformat(),
+            "workout_type": "easy",
+            "workout_description": "Second account",
+            "external_id": "7002",
+            "provider_references": {"template_id": "9002"},
+        }],
+        window_start=today,
+        window_end=window_end,
+        observed_at=first_observed + timedelta(minutes=1),
+    )
+    db.commit()
+
+    observations = db.query(PlanTargetWorkout).filter_by(
+        user_id=user_id,
+        target="garmin",
+    ).order_by(PlanTargetWorkout.external_id).all()
+    assert [
+        (
+            row.external_id,
+            row.provider_account_id,
+            row.present,
+            row.provider_references,
+        )
+        for row in observations
+    ] == [
+        (
+            "7001",
+            "international:first-account",
+            False,
+            {"template_id": "9001"},
+        ),
+        (
+            "7002",
+            "international:second-account",
+            True,
+            {"template_id": "9002"},
+        ),
+    ]
+    calendar_sync = db.query(PlanTargetCalendarSync).filter_by(
+        user_id=user_id,
+        target="garmin",
+    ).one()
+    assert (
+        calendar_sync.provider_account_id
+        == "international:second-account"
+    )
 
 
 def test_sync_garmin_persists_calendar_through_authenticated_client(
@@ -313,6 +436,29 @@ def test_sync_garmin_persists_calendar_through_authenticated_client(
                 }]
             }
 
+        def get_workout_by_id(self, workout_id):
+            assert str(workout_id) == "9001"
+            return {
+                "workoutName": "Tomorrow's threshold",
+                "description": "",
+                "sportType": {"sportTypeKey": "running"},
+                "estimatedDurationInSecs": 2700,
+                "workoutSegments": [{
+                    "segmentOrder": 1,
+                    "sportType": {"sportTypeKey": "running"},
+                    "workoutSteps": [{
+                        "type": "ExecutableStepDTO",
+                        "stepOrder": 1,
+                        "stepType": {"stepTypeKey": "interval"},
+                        "endCondition": {"conditionTypeKey": "time"},
+                        "endConditionValue": 2700,
+                        "targetType": {
+                            "workoutTargetTypeKey": "no.target",
+                        },
+                    }],
+                }],
+            }
+
         def get_activities_by_date(self, *args, **kwargs):
             return []
 
@@ -326,6 +472,8 @@ def test_sync_garmin_persists_calendar_through_authenticated_client(
             return {}
 
         def connectapi(self, path):
+            if path == "/userprofile-service/socialProfile":
+                return {"userProfileId": 12345}
             return {}
 
         def get_training_status(self, activity_date):
@@ -367,6 +515,15 @@ def test_sync_garmin_persists_calendar_through_authenticated_client(
     ).one()
     assert observation.external_id == "7001"
     assert observation.present is True
+    from sync.garmin_sync import garmin_profile_account_id
+
+    assert observation.provider_references["profile_account_id"] == (
+        garmin_profile_account_id(
+            user_id=user_id,
+            is_cn=False,
+            garmin_user_profile_id=12345,
+        )
+    )
 
 
 def test_sync_garmin_calendar_rate_limit_happens_before_data_writes(
@@ -395,6 +552,10 @@ def test_sync_garmin_calendar_rate_limit_happens_before_data_writes(
         def get_scheduled_workouts(self, year, month):
             raise GarminConnectTooManyRequestsError("rate limited")
 
+        def connectapi(self, path):
+            assert path == "/userprofile-service/socialProfile"
+            return {"userProfileId": 12345}
+
         def get_activities_by_date(self, *args, **kwargs):
             raise AssertionError(
                 "activity fetch must not start after calendar backoff"
@@ -411,3 +572,132 @@ def test_sync_garmin_calendar_rate_limit_happens_before_data_writes(
         )
 
     assert db.query(Activity).filter_by(user_id=user_id).count() == 0
+
+
+def test_sync_garmin_template_timeout_preserves_prior_snapshot(
+    db_with_user,
+    monkeypatch,
+):
+    """Partial template enrichment cannot replace complete calendar evidence."""
+    from datetime import date, datetime, timedelta
+    from types import SimpleNamespace
+
+    from api.routes.sync import (
+        _persist_garmin_calendar_snapshot,
+        _sync_garmin,
+    )
+    from db.models import PlanTargetCalendarSync, PlanTargetWorkout
+
+    db, user_id = db_with_user
+    today = date.today()
+    prior_observed_at = datetime(2026, 8, 1, 8, 0, 0)
+    _persist_garmin_calendar_snapshot(
+        db,
+        user_id=user_id,
+        provider_account_id="international:garmin-profile",
+        rows=[{
+            "date": (today + timedelta(days=1)).isoformat(),
+            "workout_type": "easy",
+            "workout_description": "Prior complete workout",
+            "external_id": "existing-schedule",
+            "provider_references": {
+                "template_id": "existing-template",
+                "profile_account_id": "profile-fence",
+            },
+            "provider_payload_fingerprint": "a" * 64,
+            "provider_content_fingerprint": "b" * 64,
+        }],
+        window_start=today - timedelta(days=2),
+        window_end=today + timedelta(days=31),
+        observed_at=prior_observed_at,
+    )
+    db.commit()
+
+    class TimeoutGarmin:
+        display_name = "garmin-profile"
+
+        def __init__(self, email, password, is_cn=False):
+            self.client = SimpleNamespace()
+
+        def login(self, token_dir):
+            return None
+
+        def get_scheduled_workouts(self, year, month):
+            return {"calendarItems": []}
+
+        def connectapi(self, path):
+            if path == "/userprofile-service/socialProfile":
+                return {"userProfileId": 12345}
+            return {}
+
+        def get_activities_by_date(self, *args, **kwargs):
+            return []
+
+        def get_lactate_threshold(self, **kwargs):
+            return []
+
+        def get_user_profile(self):
+            return {}
+
+        def get_heart_rates(self, activity_date):
+            return {}
+
+        def get_training_status(self, activity_date):
+            return {}
+
+        def get_training_readiness(self, activity_date):
+            return None
+
+        def get_race_predictions(self):
+            return None
+
+        def get_hrv_data(self, activity_date):
+            return None
+
+        def get_sleep_data(self, activity_date):
+            return None
+
+    monkeypatch.setattr("garminconnect.Garmin", TimeoutGarmin)
+    monkeypatch.setattr(
+        "sync.garmin_sync.fetch_training_plan_api",
+        lambda *args, **kwargs: [{
+            "date": (today + timedelta(days=2)).isoformat(),
+            "external_id": "partial-schedule",
+            "provider_references": {"template_id": "partial-template"},
+        }],
+    )
+
+    def timeout_during_enrichment(*args, **kwargs):
+        raise requests.Timeout("template response timed out")
+
+    monkeypatch.setattr(
+        "sync.garmin_sync.enrich_training_plan_content",
+        timeout_during_enrichment,
+    )
+    monkeypatch.setattr("sync.garmin_sync.RATE_LIMIT_DELAY", 0)
+
+    result = _sync_garmin(
+        user_id,
+        {"email": "runner@example.test", "password": "secret"},
+        today.isoformat(),
+        db,
+    )
+    db.commit()
+
+    assert result["plan"] == 0
+    assert db.query(PlanTargetWorkout).filter_by(
+        user_id=user_id,
+        target="garmin",
+        external_id="existing-schedule",
+        present=True,
+    ).count() == 1
+    assert db.query(PlanTargetWorkout).filter_by(
+        user_id=user_id,
+        target="garmin",
+        external_id="partial-schedule",
+    ).count() == 0
+    calendar_sync = db.query(PlanTargetCalendarSync).filter_by(
+        user_id=user_id,
+        target="garmin",
+    ).one()
+    assert calendar_sync.synced_at == prior_observed_at

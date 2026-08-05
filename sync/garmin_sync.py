@@ -18,7 +18,7 @@ def garmin_provider_account_id(
     display_name: str,
     is_cn: bool,
 ) -> str:
-    """Return a private account fence for one authenticated Garmin profile."""
+    """Return the rollout-compatible private Garmin calendar account ID."""
     normalized_user_id = str(user_id or "").strip()
     normalized_display_name = str(display_name or "").strip()
     if not normalized_user_id or not normalized_display_name:
@@ -30,6 +30,42 @@ def garmin_provider_account_id(
         ).encode("utf-8")
     ).hexdigest()
     return f"{region}:{digest}"
+
+
+def garmin_profile_account_id(
+    *,
+    user_id: str,
+    is_cn: bool,
+    garmin_user_profile_id: object,
+) -> str:
+    """Return an immutable private fence for a Garmin userProfileId."""
+    normalized_user_id = str(user_id or "").strip()
+    profile_id = _garmin_calendar_id(garmin_user_profile_id)
+    if not normalized_user_id or profile_id is None:
+        raise ValueError("Garmin profile identity is unavailable")
+    region = "cn" if is_cn else "international"
+    digest = hashlib.sha256(
+        (
+            f"{normalized_user_id}\0{region}\0profile:{profile_id}"
+        ).encode("utf-8")
+    ).hexdigest()
+    return f"{region}:{digest}"
+
+
+def garmin_user_profile_id(client: Any) -> str:
+    """Return Garmin's immutable account ID, caching the authenticated read."""
+    cached = getattr(client, "_praxys_user_profile_id", None)
+    normalized = _garmin_calendar_id(cached)
+    if normalized is not None:
+        return normalized
+    profile = client.connectapi("/userprofile-service/socialProfile")
+    if not isinstance(profile, Mapping):
+        raise ValueError("Garmin profile payload must be an object")
+    normalized = _garmin_calendar_id(profile.get("userProfileId"))
+    if normalized is None:
+        raise ValueError("Garmin profile is missing userProfileId")
+    setattr(client, "_praxys_user_profile_id", normalized)
+    return normalized
 
 
 def _garmin_calendar_items(payload: object) -> list[Mapping[str, Any]]:
@@ -106,6 +142,142 @@ def _garmin_calendar_text(value: object) -> str:
                 return nested.strip()
         return ""
     return str(value or "").strip()
+
+
+def _garmin_workout_semantic_step(step: object) -> dict[str, Any]:
+    if not isinstance(step, Mapping):
+        raise ValueError("Garmin workout step must be an object")
+
+    def key(value: object, *candidates: str) -> str:
+        if not isinstance(value, Mapping):
+            return ""
+        for candidate in candidates:
+            nested = value.get(candidate)
+            if isinstance(nested, str):
+                return nested.strip()
+        return ""
+
+    normalized: dict[str, Any] = {
+        "type": str(step.get("type") or ""),
+        "step_order": int(step.get("stepOrder") or 0),
+        "step_type": key(
+            step.get("stepType") or step.get("workoutStepType"),
+            "stepTypeKey",
+            "workoutStepTypeKey",
+        ),
+        "end_condition": key(
+            step.get("endCondition"),
+            "conditionTypeKey",
+        ),
+    }
+    end_value = _garmin_calendar_number(step.get("endConditionValue"))
+    if end_value is not None:
+        normalized["end_value"] = end_value
+    target = key(
+        step.get("targetType"),
+        "workoutTargetTypeKey",
+        "targetTypeKey",
+    )
+    if target:
+        normalized["target"] = target
+    for source_key, normalized_key in (
+        ("targetValueOne", "target_value_one"),
+        ("targetValueTwo", "target_value_two"),
+        ("zoneNumber", "zone_number"),
+    ):
+        target_value = _garmin_calendar_number(step.get(source_key))
+        if target_value is not None:
+            normalized[normalized_key] = target_value
+    iterations = step.get("numberOfIterations")
+    if iterations not in (None, ""):
+        normalized["iterations"] = int(iterations)
+    children = step.get("workoutSteps")
+    if isinstance(children, list):
+        normalized["steps"] = [
+            _garmin_workout_semantic_step(child)
+            for child in children
+        ]
+    return normalized
+
+
+def garmin_workout_content_fingerprint(payload: object) -> str:
+    """Hash the stable Garmin workout-template fields used by Praxys."""
+    if not isinstance(payload, Mapping):
+        raise ValueError("Garmin workout payload must be an object")
+    segments = payload.get("workoutSegments")
+    if not isinstance(segments, list):
+        raise ValueError("Garmin workout payload is missing segments")
+    normalized_segments: list[dict[str, Any]] = []
+    for segment in segments:
+        if not isinstance(segment, Mapping):
+            raise ValueError("Garmin workout segment must be an object")
+        steps = segment.get("workoutSteps")
+        if not isinstance(steps, list):
+            raise ValueError("Garmin workout segment is missing steps")
+        sport_type = segment.get("sportType")
+        sport_key = (
+            str(sport_type.get("sportTypeKey") or "")
+            if isinstance(sport_type, Mapping)
+            else ""
+        )
+        normalized_segments.append({
+            "segment_order": int(segment.get("segmentOrder") or 0),
+            "sport_type": sport_key,
+            "steps": [
+                _garmin_workout_semantic_step(step)
+                for step in steps
+            ],
+        })
+    sport_type = payload.get("sportType")
+    normalized = {
+        "workout_name": str(payload.get("workoutName") or ""),
+        "description": str(payload.get("description") or ""),
+        "sport_type": (
+            str(sport_type.get("sportTypeKey") or "")
+            if isinstance(sport_type, Mapping)
+            else ""
+        ),
+        "estimated_duration_seconds": int(
+            payload.get("estimatedDurationInSecs") or 0
+        ),
+        "segments": normalized_segments,
+    }
+    encoded = json.dumps(
+        normalized,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def enrich_training_plan_content(
+    client: Any,
+    rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Attach authoritative template fingerprints to Garmin calendar rows."""
+    templates: dict[str, Mapping[str, Any]] = {}
+    for row in rows:
+        references = row.get("provider_references")
+        template_id = (
+            _garmin_calendar_id(references.get("template_id"))
+            if isinstance(references, Mapping)
+            else None
+        )
+        if template_id is None:
+            raise ValueError(
+                "Garmin calendar row is missing template identity"
+            )
+        if template_id not in templates:
+            template = client.get_workout_by_id(template_id)
+            if not isinstance(template, Mapping):
+                raise ValueError("Garmin workout template is not an object")
+            templates[template_id] = template
+        row["provider_content_fingerprint"] = (
+            garmin_workout_content_fingerprint(templates[template_id])
+        )
+    return rows
 
 
 def _garmin_calendar_fingerprint(item: Mapping[str, Any]) -> str:
@@ -210,6 +382,9 @@ def parse_scheduled_workouts(
             ),
             "workout_description": description,
             "external_id": external_id,
+            "provider_references": {
+                "template_id": workout_id,
+            },
             "provider_payload_fingerprint": (
                 _garmin_calendar_fingerprint(item)
             ),

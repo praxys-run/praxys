@@ -4,9 +4,13 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from api.plan_delivery.capabilities import (
+    garmin_plan_delivery_operator_enabled,
+    plan_delivery_capability_enabled,
+)
 from api.plan_delivery.service import DeliveryMutationBlockedError
 from db.connection_credentials import connection_credentials_generation
-from db.models import UserConnection
+from db.models import UserConfig, UserConnection
 from db.plan_ledger import lock_plan_writes
 
 
@@ -35,6 +39,33 @@ def capture_delivery_connection_generation(
     if connection.status != "connected":
         raise DeliveryMutationBlockedError(
             f"connection_{connection.status}"
+        )
+    config_query = select(UserConfig).where(
+        UserConfig.user_id == user_id,
+    )
+    if refresh:
+        config_query = config_query.with_for_update().execution_options(
+            populate_existing=True
+        )
+    config = db.execute(config_query).scalar_one_or_none()
+    if not plan_delivery_capability_enabled(
+        target,
+        source_options=(
+            config.source_options
+            if config is not None
+            and isinstance(config.source_options, dict)
+            else {}
+        ),
+        connection=connection,
+    ):
+        raise DeliveryMutationBlockedError(
+            (
+                "experimental_delivery_disabled"
+                if not garmin_plan_delivery_operator_enabled()
+                else "experimental_consent_required"
+            )
+            if target == "garmin"
+            else "execution_target_unsupported",
         )
     return connection_credentials_generation(connection)
 

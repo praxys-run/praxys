@@ -1,29 +1,52 @@
 # Garmin Workout Delivery Feasibility
 
-Study date: 2026-08-02  
-Issue: [#484](https://github.com/praxys-run/praxys/issues/484)
+- Study date: 2026-08-02
+- Implementation decision updated: 2026-08-03
+- Issues: [#484](https://github.com/praxys-run/praxys/issues/484),
+  [#485](https://github.com/praxys-run/praxys/issues/485)
 
 ## Decision
 
-**Do not enable production Garmin workout writes through the undocumented
-Garmin Connect consumer endpoints.** Keep
-`PLATFORM_CAPABILITIES["garmin"]["plan"]` false and keep #485 blocked.
+**Keep Garmin consumer-API writes disabled by default. Permit them only when an
+operator-controlled deployment gate and explicit per-user experimental consent
+are both active. Do not advertise them as a supported platform capability.**
+`PLATFORM_CAPABILITIES["garmin"]["plan"]` remains false. Production keeps
+`PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED=false` until both controlled international
+and China lifecycle matrices pass; an approved isolated validation deployment
+may enable the gate to run those matrices. The settings API enables the
+effective per-user capability only after the gate is active and consent is
+bound to the current encrypted credential generation and Garmin region.
 
-The consumer API is technically capable of uploading a workout template,
-scheduling it, updating it, unscheduling it, and deleting it. It does not yet
-meet Praxys's managed-plan guarantees:
+The fallback is deliberately narrower than the operations exposed by
+`garminconnect`:
 
-- one logical delivery requires two non-idempotent POSTs;
-- Garmin assigns separate template and scheduled-instance IDs, while the
-  current delivery contract durably owns only one provider ID;
-- a timeout between either side effect and its ledger commit can create an
-  unowned template or duplicate schedule;
-- international and China hosts share source-level paths, but no public or
-  Praxys live evidence verifies workout writes on `garmin.cn`;
-- power/pace/heart-rate target values and device rendering have not been
-  round-tripped on either region;
-- the endpoints, response contracts, compatibility policy, and rate limits
-  are undocumented.
+- only duration-conditioned running workouts with `no.target` are accepted;
+- power, pace, and heart-rate targets are rejected rather than silently
+  degraded;
+- the template and scheduled-instance IDs are checkpointed independently;
+- an uncertain upload may resume only after exact template reconciliation;
+  an uncertain schedule is never adopted or replayed automatically;
+- removal unschedules only the exact ledger-owned scheduled instance and
+  retains the reusable template, because a user may have scheduled it manually
+  elsewhere;
+- writes are paced, and ambiguous identity or observation remains a visible
+  conflict;
+- safe upload recovery scans at most 500 existing templates. Delivery is
+  rejected before mutation when the library is already at that ceiling, with
+  an instruction to remove unused templates in Garmin Connect. If the ceiling
+  is reached only after a possible upload, the outcome remains fenced as
+  unknown and is never retried automatically;
+- reconnecting, rotating credentials, or disconnecting revokes consent;
+- interactive reconnect commits that revocation and pauses delivery before
+  any tokenstore mutation;
+  changing Garmin region additionally disconnects the old region and requires
+  a fresh login before consent can be granted again.
+
+This resolves the ledger and replay hazards identified in the original study,
+but it does not make Garmin's consumer API stable or supported. International
+and China hosts still have only source-level write parity; no Praxys live write
+matrix has been completed. The endpoints, response contracts, compatibility
+policy, and rate limits remain undocumented.
 
 The supported production path is Garmin's official
 [Training API](https://developer.garmin.com/gc-developer-program/training-api/).
@@ -35,15 +58,18 @@ program uses OAuth 2.0, is for business use, and has no licensing or
 maintenance fee, although some commercial metrics may carry separate terms
 ([program FAQ](https://developer.garmin.com/gc-developer-program/program-faq/)).
 
-A controlled consumer-API test may still be useful as an explicitly
-unsupported fallback study. Passing it would reduce technical uncertainty; it
-would not make the private API a supported production integration.
+Garmin's official Training API remains the preferred long-term integration.
+Praxys should apply when program access is available and replace the
+experimental adapter without changing the provider-neutral ownership ledger.
+A controlled consumer-API lifecycle test would reduce technical uncertainty;
+passing it would not make the private API supported.
 
 ## Study boundary
 
-This was a credential-free, non-mutating source and contract review. No Garmin
-account was accessed, no workout was written, and no personal response payload
-was captured.
+The research and implementation were credential-free and non-mutating. No
+Garmin account was accessed, no workout was written, and no personal response
+payload was captured. Adapter behavior is covered with deterministic fake
+provider fixtures; those tests do not claim live endpoint or device fidelity.
 
 Evidence reviewed:
 
@@ -114,12 +140,11 @@ The month-calendar pairing is independently present in the immutable
 [`scheduled_workouts.json`](https://github.com/kgabryje/garmin-mcp/blob/1d4c72732d5f37cb9df4fa7545c32a6450bf3cc9/tests/fixtures/scheduled_workouts.json)
 fixture used by #262.
 
-Praxys correctly uses the scheduled instance `id` as
-`PlanTargetWorkout.external_id`. A future delivery ledger must use that same
-schedule ID as `PlanDelivery.external_id` so reconciliation remains an exact
-join. It must durably store the template ID as a second, provider-opaque
-reference. A composite string in `external_id` is not acceptable because it
-would no longer match the calendar observation.
+Praxys uses the scheduled instance `id` as both
+`PlanTargetWorkout.external_id` and `PlanDelivery.external_id`, preserving an
+exact reconciliation join. The template ID is stored separately in bounded
+provider references. A composite string in `external_id` is not acceptable
+because it would no longer match the calendar observation.
 
 ### Structured-workout fidelity
 
@@ -138,10 +163,9 @@ the exact fields, units, round-trip response, and device display. This matters
 especially for running power because Garmin-native and Stryd power scales are
 not interchangeable.
 
-Until those tests pass, a Garmin adapter must reject an unsupported shape with
-an explicit `unsupported_workout_shape` result. It must not silently turn a
-power-targeted interval workout into a generic timed workout and call that a
-successful sync.
+Until those tests pass, the Garmin adapter rejects unsupported shapes with
+`unsupported_workout_shape`. It does not silently turn a power-targeted
+interval workout into a generic timed workout and call that a successful sync.
 
 ## Region, authentication, and failure behavior
 
@@ -160,9 +184,13 @@ Praxys has previously observed endpoint-specific 400/404 and response-shape
 differences on Garmin China. Existing live CN validation covers portal
 authentication and profile/settings reads, not workout calendar CRUD.
 
-Any future adapter must reuse the existing per-user tokenstore, region
-selection, portal-login workaround, and account fence. It must not introduce a
-second Garmin login path.
+The adapter reuses the existing region selection, portal-login workaround, and
+account fence. Tokenstores are additionally scoped to the encrypted credential
+generation. Interactive login stages tokens until that credential generation
+is durably stored; background sync rechecks the same generation before
+provider work and every commit. Rotation cannot therefore rebind an in-flight
+old Garmin session to the replacement connection. The adapter does not
+introduce a second Garmin login path.
 
 ### Retries and ambiguous outcomes
 
@@ -180,8 +208,8 @@ Consequences for an adapter:
   or 5xx response;
 - reconcile first, using the intended date, exact payload fingerprint, durable
   provider references, and account fence;
-- classify the mutation path's generic `API Error 429` as a provider rate
-  limit and stop the batch;
+- classify both Garmin's dedicated too-many-requests exception and a generic
+  `API Error 429` as a provider rate limit and stop the batch;
 - use conservative pacing and normal scheduler backoff; do not discover a
   rate limit by stress-testing a real account;
 - treat an ambiguous or duplicate match as a visible conflict.
@@ -191,56 +219,94 @@ Consequences for an adapter:
 | Guarantee | Consumer API status | Required before reconsideration |
 |---|---|---|
 | Create on an intended date | Operations exist | Live upload + schedule + calendar round-trip |
-| Preserve unrelated workouts | Achievable | Delete only a ledger-owned schedule ID and template ID |
-| Idempotent retries | Not achieved | Durable intermediate checkpoints and read-before-retry recovery |
-| Replace transparently | API exists in 0.3.7 | Live update fidelity, or audited unschedule/delete/create staging |
-| Remove only Praxys work | Not achieved with one ID | Persist both IDs and verify both against the same account |
-| Recover partial create | Not achieved | Persist template ID before scheduling and expose partial state |
-| Reconcile unknown schedule outcome | Partially achievable | Retain template ID in normalized calendar evidence |
-| Preserve structured intensity | Unverified | Round-trip target values and confirm device rendering |
+| Preserve unrelated workouts | Implemented, not live-validated | Unschedule only the ledger-owned schedule; retain templates |
+| Idempotent retries | Implemented, not live-validated | Durable intent/template/schedule checkpoints plus exact recovery |
+| Replace transparently | Conservative delete/create staging | Live lifecycle validation |
+| Remove only Praxys work | Implemented with both IDs | Live same-template/multiple-schedule validation |
+| Recover partial create | Implemented | Live timeout and propagation-delay validation |
+| Reconcile unknown schedule outcome | Implemented | Live response-shape validation |
+| Preserve structured intensity | Duration-only | Round-trip target values before expanding fidelity |
 | International support | Source-level only | Controlled live lifecycle |
 | China support | Source-level only | Separate controlled CN lifecycle |
 | Stable supported integration | No | Use official Training API |
 
-The current provider-neutral protocol returns one `external_id` only after
-`create_workout()` finishes, and later calls `delete_workout(external_id)`.
-That is sufficient for Stryd's one-object create/delete lifecycle but cannot
-durably represent Garmin's template-then-schedule state machine. The
-`PlanDeliveryAttempt.response` JSON is not enough: removal passes only the
-ledger's single external ID to the adapter.
+The provider-neutral protocol now carries bounded `provider_references` on the
+delivery and target observation. Garmin keeps the scheduled instance as
+`external_id` and stores template/schedule IDs separately. Adapter mutation
+hooks recheck the connection and plan boundary immediately before each provider
+effect, then durably checkpoint confirmed identities while the attempt remains
+in progress.
 
-## Contract required for any consumer-API fallback
+## Implemented fallback contract
 
-If a human explicitly accepts the unsupported integration risk and all live
-gates below pass, #485 must first make these provider-neutral changes:
+1. Before upload, persist the deterministic marker, payload fingerprint, and
+   complete preexisting template-ID set, including an explicitly empty set.
+   The semantic fingerprint includes target type, zone, and exact target
+   values so materially different power or pace prescriptions cannot collide.
+2. After upload, checkpoint `template_id` before scheduling.
+3. Before schedule, checkpoint preexisting schedule IDs for that template/date.
+4. After schedule, checkpoint `schedule_id` as both provider reference and
+   delivery `external_id` before post-write verification.
+5. Checkpoint `upload_started` and `schedule_started`, then re-run the
+   connection/consent guard immediately before their respective provider
+   calls. A crashed template checkpoint may resume only before schedule
+   starts; a started schedule without a confirmed ID becomes a conflict.
+6. Resume from confirmed checkpoints. A checkpointed schedule that is not yet
+   visible fails closed instead of being replayed.
+7. Recover an uncertain upload only when exactly one newly created
+   marker-and-full-fingerprint template match exists. A schedule seen only by
+   set difference is never claimed because the user may have manually reused
+   the retained template. Reject any returned schedule ID that was present
+   before the request. If Garmin returns an unexpected date, directly verify
+   the returned ID and template, then checkpoint it only as an unowned
+   conflict candidate. Explicit reconciliation must establish ownership before
+   adoption or removal. `restore_praxys` never adopts a Garmin fingerprint
+   candidate unless its external ID equals the delivery's exact durable
+   schedule identity (`schedule_id` or delivery `external_id`); other
+   candidates require the explicit target-adoption action.
+8. Preserve `workoutId` in normalized Garmin calendar evidence and fence every
+   observation with the immutable Garmin `userProfileId`, Praxys user, and
+   region. Keep the pre-existing display-name-derived account hash as the
+   reconciliation key during rolling deployment; the private profile fence is
+   the mutation-safety identity. A matching immutable profile reference may
+   bridge a display-name-derived key change, while a different immutable
+   profile always fails closed. Persist that identity on the complete calendar
+   snapshot as well as each row, so an empty snapshot cannot infer absence for
+   a different same-display-name profile.
+9. Before removal, verify that the exact schedule still references the stored
+   template; unschedule only that instance. Templates are intentionally
+   retained to avoid affecting manually reused schedules. Scheduled-date
+   changes classify as target edits and must be removed by exact owned ID
+   before the canonical date is recreated. Confirmed absence likewise checks
+   the exact schedule ID when known, otherwise the intended date plus full
+   content fingerprint; a matching retained template on another date is not
+   evidence that the owned schedule still exists.
+10. Keep static Garmin plan capability false. Effective capability requires
+   the default-off operator gate plus current connection-bound consent and
+   reports `fidelity: duration_only`.
+11. Persist the selected execution target outside the legacy settings JSON for
+   mixed-worker safety. Import legacy Stryd status before any target switch and
+   reject the switch while future, non-removed deliveries remain on another
+   connector; manual Stryd writes apply the same just-in-time target fence.
+12. Bind each completed interactive login tokenstore to an opaque,
+    server-generated login-attempt ID before moving it into the encrypted
+    credential generation directory. Return that ID to the client and require
+    it when completing MFA. Concurrent login attempts cannot consume or
+    replace one another's staged session.
+13. Bound full-library template recovery to 500 entries. At-limit detection
+    before upload is an actionable, non-retryable rejection. Exhaustion after
+    a possible upload remains an unknown outcome so automatic retries cannot
+    create duplicates.
+14. Treat a confirmed 401 as connection authentication failure. Treat a
+    confirmed 429 as account-level backoff: stop the remaining rolling batch
+    instead of retrying every workout against the active rate limit.
+15. Serialize each user's complete rolling pass across workers and fence
+    connection-success bookkeeping against newer auth/rate-limit state.
 
-1. Add durable provider references to a delivery, preferably a generic JSON
-   mapping such as `{"template_id": "...", "schedule_id": "..."}`. Keep
-   `external_id` equal to `schedule_id`.
-2. Let an adapter checkpoint confirmed intermediate references while an
-   attempt remains in progress. The service must commit `template_id`
-   immediately after upload and before schedule.
-3. Carry confirmed references on outcome-unknown and removal errors so a
-   later reconciliation can resume cleanup without guessing.
-4. Preserve Garmin `workoutId` in normalized target evidence alongside the
-   scheduled `external_id`.
-5. Before removal, verify the observed schedule ID, stored template ID,
-   provider account, date, and content fingerprint. Unschedule first; delete
-   the template only when the ledger proves Praxys created it and no other
-   schedule still references it.
-6. On an uncertain upload, search for one exact account-fenced template using
-   a deterministic Praxys marker plus the full payload fingerprint. Zero
-   matches permits a retry; one exact match may be adopted; multiple matches
-   become a conflict. A name or marker alone never grants delete ownership.
-7. Keep region-specific capability gates. International and CN enablement are
-   independent.
-8. Add explicit reduced-fidelity status if the product ever permits a safe
-   fallback. The default is to block, not degrade silently.
-
-The existing confirmed-delete-then-create replacement behavior may remain, but
-both halves must use these checkpoints. Adopting Garmin's in-place PUT instead
-would require a separate provider-neutral replacement contract and its own
-unknown-outcome reconciliation; it should not be hidden inside `create_workout`.
+Confirmed-delete-then-create replacement uses these checkpoints for both
+halves. Adopting Garmin's in-place PUT instead would require a separate
+provider-neutral replacement contract and its own unknown-outcome
+reconciliation; it must not be hidden inside `create_workout`.
 
 ## Controlled live test gate
 
@@ -251,17 +317,17 @@ repository. Pace requests; do not perform a rate-limit stress test.
 
 | Step | Required assertion |
 |---|---|
-| Authenticate | Existing portal flow returns the expected account fence |
+| Authenticate | Existing portal flow returns immutable `userProfileId` |
 | Upload | Response contains one positive `workoutId` |
-| Get template | Full step tree round-trips with exact duration and target units |
+| Get template | One timed `no.target` step round-trips with exact duration |
 | Schedule | Response contains one positive `workoutScheduleId` and intended date |
 | Read month | Item `id` equals schedule ID; `workoutId` equals template ID |
 | Get schedule | Response repeats both identities and the intended date |
 | Duplicate probe | A second same-template/same-date schedule is either rejected or returned as a separately identifiable instance; clean it explicitly |
-| Update | On 0.3.7+, PUT preserves template and schedule IDs and updates the calendar/device representation |
 | Unschedule | Exact scheduled instance disappears while an unrelated same-date workout remains |
-| Delete template | Exact template becomes 404 and unrelated templates remain |
-| Cleanup | No synthetic template or scheduled instance remains, even after a failed assertion |
+| Retain template | Exact template remains available and no unrelated template changes |
+| Device | Scheduled workout renders as duration-only without inferred intensity |
+| Cleanup | No synthetic scheduled instance remains, even after a failed assertion |
 
 Repeat the same lifecycle independently on `.com` and `.cn`; success in one
 region does not enable the other. Any ambiguous identity, cleanup failure,
@@ -270,12 +336,14 @@ shape difference keeps that region no-go.
 
 ## Next actions
 
-1. Apply for Garmin Connect Developer Program access and request the Training
-   API contract.
-2. Keep #485 in backlog until the official API can be mapped, or until a human
-   explicitly chooses the unsupported fallback and both live matrices pass.
-3. Continue #486's provider-neutral observability and recovery hardening; it
-   remains useful for Stryd and for a future official Garmin adapter.
+1. Keep the production operator gate off until both controlled regional
+   matrices pass; retain independent per-user opt-in afterward.
+2. Run the controlled international and CN matrices only with explicit human
+   approval and dedicated test accounts.
+3. Apply for Garmin Connect Developer Program access when available and request
+   the Training API contract.
+4. Retarget the adapter to the official API when approved; preserve the current
+   provider-neutral IDs, account fencing, and reconciliation semantics.
 
 ## References
 

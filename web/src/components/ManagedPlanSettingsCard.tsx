@@ -4,6 +4,7 @@ import {
   CalendarSync,
   Check,
   CirclePause,
+  FlaskConical,
   HeartPulse,
   RotateCcw,
   ShieldCheck,
@@ -48,6 +49,7 @@ import {
   managedPlanState,
 } from '@/lib/plan';
 import type {
+  ExperimentalPlanDeliveryResponse,
   PlanAdjustmentHistoryResponse,
   PlanCleanupResponse,
   PlanResponse,
@@ -72,6 +74,7 @@ interface ManagedPlanSettingsCardProps {
   config: SettingsConfig;
   connectionStatuses: SettingsResponse['connection_statuses'];
   platformCapabilities: SettingsResponse['platform_capabilities'];
+  experimentalPlanDelivery: ExperimentalPlanDeliveryResponse;
   updateSettings: (update: SettingsUpdate) => Promise<void>;
 }
 
@@ -102,6 +105,7 @@ export default function ManagedPlanSettingsCard({
   config,
   connectionStatuses,
   platformCapabilities,
+  experimentalPlanDelivery,
   updateSettings,
 }: ManagedPlanSettingsCardProps) {
   const { t } = useLingui();
@@ -130,6 +134,10 @@ export default function ManagedPlanSettingsCard({
     ),
   );
   const configuredTarget = management.execution_target;
+  const garminExperiment = experimentalPlanDelivery.garmin;
+  const garminExperimentAvailable = garminExperiment?.available === true;
+  const garminExperimentEnabled = garminExperiment?.enabled === true;
+  const garminExperimentConnected = garminExperiment?.connected === true;
   const [targetChoice, setTargetChoice] = useState<PlatformName | null>(null);
   const selectedTarget = (
     targetChoice && connectedTargets.includes(targetChoice)
@@ -154,6 +162,11 @@ export default function ManagedPlanSettingsCard({
     useState<'enable' | 'disable' | null>(null);
   const [undoingAdjustment, setUndoingAdjustment] = useState<string | null>(null);
   const [adjustmentError, setAdjustmentError] = useState<string | null>(null);
+  const [garminConsentMode, setGarminConsentMode] =
+    useState<'enable' | 'disable' | null>(null);
+  const [garminAction, setGarminAction] =
+    useState<'enable' | 'disable' | null>(null);
+  const [garminError, setGarminError] = useState<string | null>(null);
 
   const praxysWorkouts = plan?.workouts.filter(isPraxysOwned) ?? [];
   const externalWorkouts = plan?.workouts.filter(
@@ -178,6 +191,9 @@ export default function ManagedPlanSettingsCard({
   const cleanupTargetLabel = cleanupResult?.target
     ? PLATFORM_LABELS[cleanupResult.target] ?? cleanupResult.target
     : targetLabel;
+  const confirmationTarget = confirmMode === 'resume'
+    ? configuredTarget
+    : selectedTarget;
 
   const resetLeaveDialog = (open: boolean) => {
     setLeaveOpen(open);
@@ -248,6 +264,27 @@ export default function ManagedPlanSettingsCard({
       setActionError(error instanceof Error ? error.message : t`Could not pause delivery`);
     } finally {
       setAction(null);
+    }
+  };
+
+  const updateGarminExperiment = async () => {
+    if (garminConsentMode == null) return;
+    const enabled = garminConsentMode === 'enable';
+    setGarminAction(garminConsentMode);
+    setGarminError(null);
+    try {
+      await updateSettings({
+        experimental_plan_delivery: { garmin: enabled },
+      });
+      setGarminConsentMode(null);
+    } catch (error) {
+      setGarminError(
+        error instanceof Error
+          ? error.message
+          : t`Could not update experimental Garmin delivery`,
+      );
+    } finally {
+      setGarminAction(null);
     }
   };
 
@@ -455,6 +492,82 @@ export default function ManagedPlanSettingsCard({
               </Trans>
             </AlertDescription>
           </Alert>
+
+          {(garminExperimentConnected || configuredTarget === 'garmin') && (
+            <div className="rounded-xl bg-accent-amber/8 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
+                  <FlaskConical
+                    className="mt-0.5 h-4 w-4 shrink-0 text-accent-amber"
+                    aria-hidden="true"
+                  />
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground">
+                        <Trans>Experimental Garmin delivery</Trans>
+                      </p>
+                      <Badge
+                        variant="secondary"
+                        className={
+                          garminExperimentEnabled
+                            ? 'bg-accent-amber/15 text-accent-amber hover:bg-accent-amber/15'
+                            : undefined
+                        }
+                      >
+                        {!garminExperimentAvailable
+                          ? <Trans>Unavailable</Trans>
+                          : garminExperimentEnabled
+                            ? <Trans>Enabled</Trans>
+                            : <Trans>Off</Trans>}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 max-w-2xl text-xs leading-relaxed text-foreground/80">
+                      {!garminExperimentAvailable ? (
+                        <Trans>
+                          Garmin workout delivery is disabled on this deployment until controlled live validation is complete.
+                        </Trans>
+                      ) : garminExperimentConnected ? (
+                        garminExperimentEnabled ? (
+                          <Trans>
+                            This Garmin connection can receive duration-only running workouts. Power, pace, and heart-rate targets are not sent.
+                          </Trans>
+                        ) : (
+                          <Trans>
+                            Garmin delivery uses an undocumented interface and is off until you review its limits and opt in.
+                          </Trans>
+                        )
+                      ) : (
+                        <Trans>
+                          Reconnect Garmin to renew experimental access. Managed delivery remains paused.
+                        </Trans>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                {garminExperimentConnected && garminExperimentAvailable && (
+                  <Button
+                    variant={garminExperimentEnabled ? 'ghost' : 'outline'}
+                    disabled={garminAction != null || action != null}
+                    onClick={() => {
+                      setGarminError(null);
+                      setGarminConsentMode(
+                        garminExperimentEnabled ? 'disable' : 'enable',
+                      );
+                    }}
+                  >
+                    {garminExperimentEnabled
+                      ? <Trans>Turn off Garmin delivery</Trans>
+                      : <Trans>Review experimental access</Trans>}
+                  </Button>
+                )}
+              </div>
+              {garminError && garminConsentMode == null && (
+                <p className="mt-3 text-xs text-destructive" role="alert">
+                  {garminError}
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="border-y border-border py-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -879,6 +992,16 @@ export default function ManagedPlanSettingsCard({
                 </Trans>
               </AlertDescription>
             </Alert>
+            {confirmationTarget === 'garmin' && (
+              <Alert className="border-accent-amber/30 bg-accent-amber/8">
+                <FlaskConical className="text-accent-amber" aria-hidden="true" />
+                <AlertDescription className="text-xs text-foreground">
+                  <Trans>
+                    Garmin delivery is experimental and duration-only. Workouts with power, pace, or heart-rate targets will stay blocked rather than lose their intended intensity.
+                  </Trans>
+                </AlertDescription>
+              </Alert>
+            )}
             {actionError && (
               <Alert variant="destructive">
                 <AlertDescription>{actionError}</AlertDescription>
@@ -903,6 +1026,105 @@ export default function ManagedPlanSettingsCard({
                 : confirmMode === 'resume'
                   ? <Trans>Resume delivery</Trans>
                   : <Trans>Activate managed plan</Trans>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={garminConsentMode != null}
+        onOpenChange={(open) => {
+          if (!open && garminAction == null) {
+            setGarminConsentMode(null);
+            setGarminError(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {garminConsentMode === 'enable'
+                ? <Trans>Enable experimental Garmin delivery?</Trans>
+                : <Trans>Turn off Garmin delivery?</Trans>}
+            </DialogTitle>
+            <DialogDescription>
+              {garminConsentMode === 'enable' ? (
+                <Trans>
+                  Review what Praxys can safely send before granting access for this Garmin connection.
+                </Trans>
+              ) : (
+                <Trans>
+                  This revokes access immediately and pauses managed delivery when Garmin is your target.
+                </Trans>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {garminConsentMode === 'enable' && (
+            <div className="space-y-3 text-sm">
+              <div className="flex gap-3">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                <p>
+                  <Trans>
+                    Praxys sends duration-only running workouts and verifies both the Garmin template and scheduled calendar instance.
+                  </Trans>
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent-cobalt" aria-hidden="true" />
+                <p>
+                  <Trans>
+                    Only ledger-owned Praxys workouts can be unscheduled. Manual and other-coach workouts remain untouched.
+                  </Trans>
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-accent-amber" aria-hidden="true" />
+                <p>
+                  <Trans>
+                    Garmin can change or rate-limit this undocumented interface. Praxys fails closed, but delivery may pause or require you to reconnect.
+                  </Trans>
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <CirclePause className="mt-0.5 h-4 w-4 shrink-0 text-accent-amber" aria-hidden="true" />
+                <p>
+                  <Trans>
+                    Reconnecting Garmin or changing its account region revokes this permission and pauses delivery until you opt in again.
+                  </Trans>
+                </p>
+              </div>
+            </div>
+          )}
+
+          {garminError && (
+            <Alert variant="destructive">
+              <AlertDescription>{garminError}</AlertDescription>
+            </Alert>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={garminAction != null}
+              onClick={() => setGarminConsentMode(null)}
+            >
+              <Trans>Cancel</Trans>
+            </Button>
+            <Button
+              variant={
+                garminConsentMode === 'disable'
+                  ? 'destructive'
+                  : 'default'
+              }
+              disabled={garminAction != null}
+              onClick={() => void updateGarminExperiment()}
+            >
+              {garminAction != null
+                ? <Trans>Saving…</Trans>
+                : garminConsentMode === 'enable'
+                  ? <Trans>Enable experimental delivery</Trans>
+                  : <Trans>Turn off Garmin delivery</Trans>}
             </Button>
           </DialogFooter>
         </DialogContent>

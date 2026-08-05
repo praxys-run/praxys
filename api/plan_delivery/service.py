@@ -12,12 +12,16 @@ from sqlalchemy.orm import Session
 from api.plan_delivery.base import (
     PlanDeliveryAdapter,
     ProviderAuthenticationError,
+    ProviderMutationHooks,
     ProviderOutcomeUnknownError,
+    ProviderRateLimitError,
     ProviderReadError,
     ProviderRejectedError,
     ProviderRemovalError,
+    ProviderRemovalOutcomeUnknownError,
     ProviderRequestError,
     ProviderTransientError,
+    adapter_provider_account_matches,
 )
 from api.plan_delivery.credentials import (
     DeliveryCredentialsInvalid,
@@ -28,6 +32,7 @@ from db.models import TrainingPlan
 from db.plan_reconciliation import mark_target_workout_absent
 from db.plan_ledger import (
     begin_delivery_attempt,
+    checkpoint_delivery_attempt,
     complete_delivery_attempt,
     find_delivery_by_external_id,
     find_unverified_delivery_for_date,
@@ -114,7 +119,9 @@ class PlanDeliveryService:
 
     def authenticate(self) -> None:
         """Authenticate the configured provider before a batch operation."""
-        self._adapter().authenticate()
+        adapter = self._adapter()
+        self.db.rollback()
+        adapter.authenticate()
 
     def _cleanup_new_delivery(self, delivery, created: bool) -> None:
         if created:
@@ -133,6 +140,7 @@ class PlanDeliveryService:
         external_id: str | None = None,
         response: Mapping[str, Any] | None = None,
         provider_account_id: str | None = None,
+        provider_references: Mapping[str, Any] | None = None,
         delivery_state: str | None = None,
         commit: bool = True,
     ) -> bool:
@@ -147,11 +155,62 @@ class PlanDeliveryService:
             error=error,
             response=response,
             provider_account_id=provider_account_id,
+            provider_references=provider_references,
         )
         bump_revisions(self.db, self.user_id, ["plans"])
         if commit:
             self.db.commit()
         return updated
+
+    def _mutation_hooks(
+        self,
+        *,
+        delivery_id: str,
+        attempt_id: int,
+        provider_references: Mapping[str, Any],
+        mutation_guard: Callable[[], None] | None,
+    ) -> ProviderMutationHooks:
+        """Build per-side-effect guards and durable provider checkpoints."""
+        current_references = dict(provider_references)
+
+        def before_mutation() -> None:
+            if mutation_guard is not None:
+                mutation_guard()
+
+        def checkpoint(
+            references: Mapping[str, Any],
+            external_id: str | None,
+        ) -> None:
+            merged = {
+                **current_references,
+                **dict(references),
+            }
+            try:
+                checkpoint_delivery_attempt(
+                    self.db,
+                    user_id=self.user_id,
+                    delivery_id=delivery_id,
+                    attempt_id=attempt_id,
+                    provider_references=merged,
+                    external_id=external_id,
+                )
+                bump_revisions(self.db, self.user_id, ["plans"])
+                self.db.commit()
+                current_references.clear()
+                current_references.update(merged)
+            except (SQLAlchemyError, ValueError) as exc:
+                self.db.rollback()
+                raise ProviderOutcomeUnknownError(
+                    "Provider identity could not be checkpointed",
+                    provider_references=merged,
+                    external_id=external_id,
+                ) from exc
+
+        return ProviderMutationHooks(
+            provider_references=current_references,
+            before_mutation=before_mutation,
+            checkpoint=checkpoint,
+        )
 
     def _record_preflight_delivery_failure(
         self,
@@ -241,6 +300,7 @@ class PlanDeliveryService:
         provider_name = self.target.capitalize()
         try:
             adapter = self._adapter()
+            self.db.rollback()
             prepared = adapter.prepare_workout(
                 snapshot,
                 threshold_value=threshold_value,
@@ -299,7 +359,14 @@ class PlanDeliveryService:
                 )
             if (
                 delivery.provider_account_id
-                and delivery.provider_account_id != provider_account_id
+                and not adapter_provider_account_matches(
+                    adapter,
+                    stored_account_id=delivery.provider_account_id,
+                    current_account_id=provider_account_id,
+                    provider_references=(
+                        delivery.provider_references or {}
+                    ),
+                )
             ):
                 self._cleanup_new_delivery(delivery, delivery_created)
                 return DeliveryResult(
@@ -364,6 +431,9 @@ class PlanDeliveryService:
                 attempt.response = dict(attempt_context)
             delivery_id = delivery.id
             attempt_id = attempt.id
+            provider_references = dict(
+                delivery.provider_references or {}
+            )
             bump_revisions(self.db, self.user_id, ["plans"])
             self.db.commit()
         except (SQLAlchemyError, ValueError) as exc:
@@ -382,12 +452,23 @@ class PlanDeliveryService:
             )
 
         try:
-            if mutation_guard is not None:
-                mutation_guard()
-            provider_result = adapter.create_workout(prepared)
+            hooks = self._mutation_hooks(
+                delivery_id=delivery_id,
+                attempt_id=attempt_id,
+                provider_references=provider_references,
+                mutation_guard=mutation_guard,
+            )
+            provider_result = adapter.create_workout(
+                prepared,
+                hooks=hooks,
+            )
             if provider_result.provider_account_id != provider_account_id:
                 raise ProviderOutcomeUnknownError(
-                    f"{provider_name} account changed during delivery"
+                    f"{provider_name} account changed during delivery",
+                    provider_references=(
+                        provider_result.provider_references
+                    ),
+                    external_id=provider_result.external_id,
                 )
         except DeliveryMutationBlockedError as exc:
             response = {
@@ -417,6 +498,56 @@ class PlanDeliveryService:
                 status="error",
                 error=str(exc),
                 error_category="delivery_gate_changed",
+                retryable=True,
+            )
+        except ProviderAuthenticationError as exc:
+            response = {
+                **dict(attempt_context or {}),
+                "error_category": "provider_authentication_failed",
+                "retryable": True,
+                "counts_toward_retry_limit": False,
+            }
+            try:
+                self._record_terminal_attempt(
+                    delivery_id=delivery_id,
+                    attempt_id=attempt_id,
+                    state="failed",
+                    error=str(exc),
+                    response=response,
+                )
+            except (SQLAlchemyError, ValueError) as record_exc:
+                self.db.rollback()
+                raise DeliveryFinalizationError(
+                    "Could not persist provider authentication failure"
+                ) from record_exc
+            raise
+        except ProviderRateLimitError as exc:
+            response = {
+                **dict(attempt_context or {}),
+                "error_category": "provider_rate_limited",
+                "retryable": True,
+                "counts_toward_retry_limit": False,
+            }
+            try:
+                self._record_terminal_attempt(
+                    delivery_id=delivery_id,
+                    attempt_id=attempt_id,
+                    state="failed",
+                    error=str(exc),
+                    response=response,
+                )
+            except SQLAlchemyError:
+                self.db.rollback()
+                logger.exception(
+                    "Failed to persist %s rate limit for user=%s date=%s",
+                    self.target,
+                    self.user_id,
+                    workout_date,
+                )
+            return DeliveryResult(
+                status="error",
+                error=str(exc),
+                error_category="provider_rate_limited",
                 retryable=True,
             )
         except ProviderTransientError as exc:
@@ -483,6 +614,9 @@ class PlanDeliveryService:
                 **dict(attempt_context or {}),
                 "error_category": "provider_outcome_unknown",
                 "retryable": False,
+                "provider_references": dict(
+                    exc.provider_references
+                ),
             }
             try:
                 self._record_terminal_attempt(
@@ -491,6 +625,8 @@ class PlanDeliveryService:
                     state="conflict",
                     error=f"{message}: {exc}",
                     response=response,
+                    external_id=exc.external_id,
+                    provider_references=exc.provider_references,
                 )
             except SQLAlchemyError:
                 self.db.rollback()
@@ -518,6 +654,9 @@ class PlanDeliveryService:
                 external_id=provider_result.external_id,
                 response=response,
                 provider_account_id=provider_result.provider_account_id,
+                provider_references=(
+                    provider_result.provider_references
+                ),
             )
         except SQLAlchemyError:
             self.db.rollback()
@@ -567,6 +706,7 @@ class PlanDeliveryService:
             return RemovalResult(external_id=external_id)
 
         adapter = self._adapter()
+        self.db.rollback()
         adapter.authenticate()
         provider_account_id = adapter.account_id
         if delivery.provider_account_id is None:
@@ -599,7 +739,12 @@ class PlanDeliveryService:
                     "verified on the connected account"
                 )
             delivery.provider_account_id = provider_account_id
-        elif delivery.provider_account_id != provider_account_id:
+        elif not adapter_provider_account_matches(
+            adapter,
+            stored_account_id=delivery.provider_account_id,
+            current_account_id=provider_account_id,
+            provider_references=delivery.provider_references or {},
+        ):
             self.db.rollback()
             raise DeliveryAccountMismatchError(
                 f"This {provider_name} delivery belongs to a different "
@@ -630,11 +775,14 @@ class PlanDeliveryService:
                 attempt.response = dict(attempt_context)
             delivery_id = delivery.id
             attempt_id = attempt.id
+            provider_references = dict(
+                delivery.provider_references or {}
+            )
             bump_revisions(self.db, self.user_id, ["plans"])
             self.db.commit()
         except DeliveryBusyError:
             raise
-        except SQLAlchemyError as exc:
+        except (SQLAlchemyError, ValueError) as exc:
             self.db.rollback()
             logger.exception(
                 "Failed to start %s removal for user=%s workout=%s",
@@ -680,7 +828,7 @@ class PlanDeliveryService:
                     and current is not None
                     and current.state == "removed"
                 )
-            except SQLAlchemyError:
+            except (SQLAlchemyError, ValueError) as exc:
                 self.db.rollback()
                 logger.exception(
                     "Failed to persist %s removal failure for user=%s workout=%s",
@@ -688,12 +836,21 @@ class PlanDeliveryService:
                     self.user_id,
                     external_id,
                 )
-                return False
+                raise DeliveryFinalizationError(
+                    f"Could not persist {provider_name} removal failure"
+                ) from exc
 
         try:
-            if mutation_guard is not None:
-                mutation_guard()
-            provider_result = adapter.delete_workout(external_id)
+            hooks = self._mutation_hooks(
+                delivery_id=delivery_id,
+                attempt_id=attempt_id,
+                provider_references=provider_references,
+                mutation_guard=mutation_guard,
+            )
+            provider_result = adapter.delete_workout(
+                external_id,
+                hooks=hooks,
+            )
         except DeliveryMutationBlockedError as exc:
             record_failure(
                 str(exc),
@@ -711,9 +868,46 @@ class PlanDeliveryService:
                 str(exc),
                 error_category="provider_authentication",
                 retryable=True,
+                counts_toward_retry_limit=False,
             ):
                 return RemovalResult(external_id=external_id)
             raise
+        except ProviderRateLimitError as exc:
+            if record_failure(
+                str(exc),
+                error_category="provider_rate_limited",
+                retryable=True,
+                counts_toward_retry_limit=False,
+            ):
+                return RemovalResult(external_id=external_id)
+            raise
+        except ProviderRemovalOutcomeUnknownError as exc:
+            try:
+                self._record_terminal_attempt(
+                    delivery_id=delivery_id,
+                    attempt_id=attempt_id,
+                    state="conflict",
+                    error=str(exc),
+                    response={
+                        **dict(attempt_context or {}),
+                        "error_category": "provider_outcome_unknown",
+                        "retryable": False,
+                        "provider_references": dict(
+                            exc.provider_references
+                        ),
+                    },
+                    provider_references=exc.provider_references,
+                )
+            except SQLAlchemyError:
+                self.db.rollback()
+                logger.exception(
+                    "Failed to persist ambiguous %s removal for "
+                    "user=%s workout=%s",
+                    self.target,
+                    self.user_id,
+                    external_id,
+                )
+            raise DeliveryRemovalFailedError(str(exc)) from exc
         except ProviderRemovalError as exc:
             if record_failure(
                 str(exc),
@@ -726,6 +920,7 @@ class PlanDeliveryService:
         try:
             response = {
                 "already_absent": provider_result.already_absent,
+                **dict(provider_result.response),
                 **dict(attempt_context or {}),
             }
             self._record_terminal_attempt(
@@ -741,12 +936,23 @@ class PlanDeliveryService:
                 TrainingPlan.source == self.target,
                 TrainingPlan.external_id == external_id,
             ).delete(synchronize_session=False)
+            account_references = getattr(
+                adapter,
+                "account_references",
+                {},
+            )
+            if not isinstance(account_references, Mapping):
+                account_references = {}
             mark_target_workout_absent(
                 self.db,
                 user_id=self.user_id,
                 target=self.target,
                 provider_account_id=provider_account_id,
                 external_id=external_id,
+                provider_references={
+                    **dict(delivery.provider_references or {}),
+                    **dict(account_references),
+                },
             )
             self.db.commit()
         except SQLAlchemyError as exc:

@@ -433,6 +433,72 @@ def _add_matching_delivery(
     db.commit()
 
 
+def test_adjustment_loader_accepts_immutable_profile_account_alias(
+    adjustment_db: Session,
+) -> None:
+    from analysis.data_loader import load_plan_adjustment_inputs
+
+    db = adjustment_db
+    plan = _add_plan(db)
+    snapshot = plan_snapshot(plan)
+    profile_references = {"profile_account_id": "stable-profile"}
+    db.add_all([
+        PlanDelivery(
+            user_id=USER_ID,
+            canonical_key=canonical_workout_key(snapshot),
+            canonical_id=plan.canonical_id,
+            workout_date=plan.date,
+            workout_version="provider-payload-v1",
+            plan_version=workout_version(snapshot),
+            provider_content_version="provider-content-v1",
+            target="garmin",
+            state="synced",
+            external_id="schedule-1",
+            provider_account_id="international:old-display",
+            provider_references=profile_references,
+        ),
+        PlanTargetCalendarSync(
+            user_id=USER_ID,
+            target="garmin",
+            provider_account_id="international:new-display",
+            provider_references=profile_references,
+            window_start=TODAY,
+            window_end=TODAY + timedelta(days=13),
+            synced_at=datetime.utcnow(),
+        ),
+        PlanTargetWorkout(
+            user_id=USER_ID,
+            target="garmin",
+            provider_account_id="international:old-display",
+            external_id="schedule-1",
+            provider_references=profile_references,
+            workout_date=plan.date,
+            normalized_workout={"date": plan.date.isoformat()},
+            content_fingerprint="provider-content-v1",
+            payload_fingerprint="provider-payload-v1",
+            present=True,
+            observed_at=datetime.utcnow(),
+        ),
+    ])
+    config = db.get(UserConfig, USER_ID)
+    config.plan_management = {
+        **config.plan_management,
+        "execution_target": "garmin",
+        "delivery_enabled": True,
+    }
+    db.commit()
+
+    *_, target_workouts = load_plan_adjustment_inputs(
+        USER_ID,
+        db,
+        current_date=TODAY,
+        recovery_source="oura",
+        target="garmin",
+    )
+
+    assert [row.external_id for row in target_workouts] == ["schedule-1"]
+
+
 def test_lifecycle_changes_only_the_praxys_row(adjustment_db: Session) -> None:
     db = adjustment_db
     praxys = _add_plan(db)

@@ -120,7 +120,7 @@ def test_alembic_head_includes_plan_ledger():
 
     config = Config("alembic.ini")
     script = ScriptDirectory.from_config(config)
-    assert script.get_current_head() == "5e6f708192a3"
+    assert script.get_current_head() == "6f708192a3b4"
 
 
 def test_alembic_canonical_default_supports_old_worker_inserts(
@@ -182,10 +182,62 @@ def test_alembic_canonical_default_supports_old_worker_inserts(
                 ORDER BY id
                 """
             ).scalars().all()
+            conn.exec_driver_sql(
+                """
+                INSERT INTO plan_deliveries (
+                    id, user_id, canonical_key, workout_date,
+                    workout_version, target, state, created_at, updated_at
+                ) VALUES (
+                    'old-worker-delivery', 'rolling-user', ?,
+                    '2026-08-04', ?, 'stryd', 'pending',
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                )
+                """,
+                (f"ai:{canonical_ids[0]}", "a" * 64),
+            )
+            conn.exec_driver_sql(
+                """
+                INSERT INTO plan_target_calendar_syncs (
+                    user_id, target, provider_account_id, window_start,
+                    window_end, synced_at
+                ) VALUES (
+                    'rolling-user', 'stryd', 'account', '2026-08-01',
+                    '2026-08-31', CURRENT_TIMESTAMP
+                )
+                """
+            )
+            conn.exec_driver_sql(
+                """
+                INSERT INTO plan_target_workouts (
+                    id, user_id, target, provider_account_id, external_id,
+                    workout_date, normalized_workout, present, observed_at
+                ) VALUES (
+                    'old-worker-observation', 'rolling-user', 'stryd',
+                    'account', 'external', '2026-08-04', '{}', 1,
+                    CURRENT_TIMESTAMP
+                )
+                """
+            )
+            provider_references = conn.exec_driver_sql(
+                """
+                SELECT provider_references
+                FROM plan_deliveries
+                WHERE id = 'old-worker-delivery'
+                UNION ALL
+                SELECT provider_references
+                FROM plan_target_workouts
+                WHERE id = 'old-worker-observation'
+                UNION ALL
+                SELECT provider_references
+                FROM plan_target_calendar_syncs
+                WHERE user_id = 'rolling-user' AND target = 'stryd'
+                """
+            ).scalars().all()
         assert len(canonical_ids) == 2
         assert len(set(canonical_ids)) == 2
         assert all(len(canonical_id) == 36 for canonical_id in canonical_ids)
         assert origins == ["legacy", "legacy"]
+        assert provider_references == ["{}", "{}", "{}"]
         migrated.dispose()
         with pytest.raises(
             RuntimeError,
@@ -200,7 +252,7 @@ def test_alembic_canonical_default_supports_old_worker_inserts(
                 ).scalar_one() == "4d5e6f708192"
                 assert conn.exec_driver_sql(
                     "SELECT COUNT(*) FROM plan_target_workouts"
-                ).scalar_one() == 0
+                ).scalar_one() == 1
         finally:
             verification.dispose()
     finally:
@@ -294,7 +346,7 @@ def test_alembic_migrates_plan_ownership_origin_and_delivery_uuid(
             ).all()
             delivery = conn.exec_driver_sql(
                 """
-                SELECT canonical_id, canonical_key
+                SELECT canonical_id, canonical_key, provider_references
                 FROM plan_deliveries
                 WHERE id = 'migration-delivery'
                 """
@@ -309,7 +361,7 @@ def test_alembic_migrates_plan_ownership_origin_and_delivery_uuid(
                 "imported",
             ),
         ]
-        assert delivery == (canonical_id, f"ai:{canonical_id}")
+        assert delivery == (canonical_id, f"ai:{canonical_id}", "{}")
 
         command.downgrade(config, "4d5e6f708192")
         with migrated.connect() as conn:

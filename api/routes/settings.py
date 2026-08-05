@@ -3,6 +3,7 @@
 Supports both file-based (backward compat) and DB-based config persistence.
 When user_id and db are available (from auth), uses DB; otherwise falls back to files.
 """
+from contextlib import nullcontext
 from datetime import date, datetime, timedelta, timezone
 import logging
 import os
@@ -27,6 +28,7 @@ from analysis.config import (
     load_config_from_db,
     save_config_to_db,
     normalize_plan_management,
+    normalize_persisted_plan_management,
     normalize_athlete_timezone,
     PlatformName,
     TrainingBase,
@@ -40,6 +42,14 @@ from api import telemetry
 from api.auth import get_data_user_id, require_write_access
 from api.env_compat import getenv_compat
 from api.plan_delivery import is_plan_delivery_target_registered
+from api.plan_delivery.capabilities import (
+    effective_platform_capabilities,
+    experimental_plan_delivery_status,
+    garmin_plan_delivery_operator_enabled,
+    garmin_region,
+    plan_delivery_capability_enabled,
+    plan_delivery_consent_token,
+)
 from api.views import utc_isoformat
 from db.models import UserConnection
 from db.session import get_db
@@ -100,6 +110,7 @@ class SettingsUpdate(BaseModel):
     # (e.g. {"threshold_sources": {"cp_estimate": "stryd"}}) flows through.
     preferences: dict[str, Any] | None = None
     plan_management: PlanManagementUpdate | None = None
+    experimental_plan_delivery: dict[str, bool] | None = None
     managed_plan_preview_start: date | None = None
     training_base: TrainingBase | None = None
     thresholds: dict[str, Any] | None = None
@@ -205,17 +216,6 @@ def _apply_plan_management_update(
                 status_code=400,
                 detail="Plan execution target must be a connected platform",
             )
-        caps = PLATFORM_CAPABILITIES.get(target)
-        if not caps or not caps.get("plan"):
-            raise HTTPException(
-                status_code=400,
-                detail=f"{target} does not support plan delivery",
-            )
-        if not is_plan_delivery_target_registered(target):
-            raise HTTPException(
-                status_code=409,
-                detail=f"{target} plan delivery is not available",
-            )
         connection = db.query(UserConnection).filter(
             UserConnection.user_id == user_id,
             UserConnection.platform == target,
@@ -225,8 +225,141 @@ def _apply_plan_management_update(
                 status_code=409,
                 detail="Plan execution target must be actively connected",
             )
+        if not plan_delivery_capability_enabled(
+            target,
+            source_options=config.source_options,
+            connection=connection,
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Enable experimental Garmin delivery before selecting "
+                    "Garmin as the execution target"
+                    if target == "garmin"
+                    else f"{target} does not support plan delivery"
+                ),
+            )
+        if not is_plan_delivery_target_registered(target):
+            raise HTTPException(
+                status_code=409,
+                detail=f"{target} plan delivery is not available",
+            )
+        _assert_execution_target_switch_safe(
+            db,
+            user_id=user_id,
+            target=target,
+        )
 
     config.plan_management = normalize_plan_management(candidate)
+
+
+def _assert_execution_target_switch_safe(
+    db: Session,
+    *,
+    user_id: str,
+    target: str,
+) -> None:
+    """Reject a target switch while another connector owns future delivery."""
+    from db.models import PlanDelivery
+    from db.plan_ledger import lock_plan_writes
+
+    lock_plan_writes(db, user_id)
+    outstanding_targets = {
+        str(existing_target)
+        for existing_target in db.execute(
+            select(PlanDelivery.target).where(
+                PlanDelivery.user_id == user_id,
+                PlanDelivery.workout_date >= date.today(),
+                PlanDelivery.state != "removed",
+                PlanDelivery.target != target,
+            )
+        ).scalars()
+    }
+    if outstanding_targets:
+        names = ", ".join(sorted(outstanding_targets))
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Remove future Praxys deliveries from "
+                f"{names} before selecting {target}"
+            ),
+        )
+
+
+def _apply_experimental_plan_delivery_update(
+    config: UserConfig,
+    update: dict[str, bool],
+    *,
+    user_id: str,
+    db: Session,
+) -> None:
+    """Bind or clear explicit Garmin delivery consent."""
+    from db.plan_ledger import lock_plan_writes
+
+    lock_plan_writes(db, user_id)
+    unsupported = set(update) - {"garmin"}
+    if unsupported:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Unsupported experimental plan target: "
+                f"{sorted(unsupported)[0]}"
+            ),
+        )
+    if "garmin" not in update:
+        return
+    connection = db.execute(
+        select(UserConnection)
+        .where(
+            UserConnection.user_id == user_id,
+            UserConnection.platform == "garmin",
+        )
+        .with_for_update()
+    ).scalar_one_or_none()
+    if update["garmin"]:
+        if not garmin_plan_delivery_operator_enabled():
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Experimental Garmin delivery is disabled on this "
+                    "deployment pending controlled live validation"
+                ),
+            )
+        if connection is None or connection.status != "connected":
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Connect Garmin before enabling experimental delivery"
+                ),
+            )
+        if not is_plan_delivery_target_registered("garmin"):
+            raise HTTPException(
+                status_code=409,
+                detail="Garmin plan delivery is not available",
+            )
+        region = garmin_region(config.source_options)
+        if region is None:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Reconnect Garmin to confirm its region before enabling "
+                    "experimental delivery"
+                ),
+            )
+        connection.plan_delivery_consent = plan_delivery_consent_token(
+            connection,
+            region=region,
+        )
+    elif connection is not None:
+        connection.plan_delivery_consent = None
+        if (
+            config.plan_management["execution_target"] == "garmin"
+            and config.plan_management["delivery_enabled"]
+        ):
+            config.plan_management = normalize_plan_management({
+                **config.plan_management,
+                "delivery_enabled": False,
+            })
 
 
 def _detect_thresholds_from_db(user_id: str, db) -> dict:
@@ -419,6 +552,12 @@ def get_settings(
 ) -> dict:
     """Return current user config, platform capabilities, detected thresholds, and display config."""
     config = load_config_from_db(user_id, db)
+    connections = {
+        connection.platform: connection
+        for connection in db.query(UserConnection).filter(
+            UserConnection.user_id == user_id,
+        ).all()
+    }
     avail = available_providers()
     detected = _detect_thresholds_from_db(user_id, db)
     effective = resolve_thresholds(
@@ -433,7 +572,16 @@ def get_settings(
             db,
             user_id=user_id,
         ),
-        "platform_capabilities": PLATFORM_CAPABILITIES,
+        "platform_capabilities": effective_platform_capabilities(
+            config,
+            connections=connections,
+        ),
+        "experimental_plan_delivery": (
+            experimental_plan_delivery_status(
+                config,
+                connections=connections,
+            )
+        ),
         "available_providers": {
             "activities": avail.get("activities", []),
             "recovery": avail.get("recovery", []),
@@ -456,8 +604,87 @@ def update_settings(
     db: Session = Depends(get_db),
 ) -> dict:
     """Update user settings and persist to database."""
+    token_lease = nullcontext()
+    if (
+        body.source_options is not None
+        and "garmin_region" in body.source_options
+    ):
+        from api.routes.sync import _garmin_tokenstore_lease
+
+        token_lease = _garmin_tokenstore_lease(user_id)
+    with token_lease:
+        return _update_settings(body, user_id, db)
+
+
+def _update_settings(
+    body: SettingsUpdate,
+    user_id: str,
+    db: Session,
+) -> dict:
+    """Apply a settings update after any required provider lease is held."""
     config = load_config_from_db(user_id, db)
     prior_plan_management = dict(config.plan_management)
+    requested_execution_target = prior_plan_management.get(
+        "execution_target"
+    )
+    if (
+        body.plan_management is not None
+        and "execution_target" in body.plan_management.model_fields_set
+    ):
+        requested_execution_target = (
+            body.plan_management.execution_target
+        )
+    elif (
+        body.plan_management is None
+        and prior_plan_management.get("mode") == "external"
+        and body.preferences is not None
+        and "plan" in body.preferences
+    ):
+        requested_execution_target = _legacy_execution_target(
+            body.preferences["plan"]
+        )
+        candidate_connections = (
+            body.connections
+            if body.connections is not None
+            else config.connections
+        )
+        if requested_execution_target not in candidate_connections:
+            requested_execution_target = None
+    if (
+        requested_execution_target == "garmin"
+        and prior_plan_management.get("execution_target") != "garmin"
+    ):
+        from api.routes.plan import _STRYD_PUSH_STATUS_DIR
+        from db.plan_ledger import (
+            has_unresolved_legacy_stryd_corruption,
+            import_legacy_stryd_status,
+        )
+
+        db.rollback()
+        legacy_import = import_legacy_stryd_status(
+            db,
+            user_id=user_id,
+            status_dir=_STRYD_PUSH_STATUS_DIR,
+        )
+        if (
+            legacy_import == "corrupt"
+            or has_unresolved_legacy_stryd_corruption(
+                db,
+                user_id=user_id,
+            )
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Legacy Stryd delivery state requires review before "
+                    "changing execution targets"
+                ),
+            )
+        config = load_config_from_db(user_id, db)
+        prior_plan_management = dict(config.plan_management)
+    prior_garmin_region = garmin_region(config.source_options)
+    legacy_target_update_requested = False
+    legacy_target: PlatformName | None = None
 
     if body.display_name is not None:
         config.display_name = body.display_name
@@ -474,20 +701,10 @@ def update_settings(
             and config.plan_management["mode"] == "external"
             and "plan" in body.preferences
         ):
+            legacy_target_update_requested = True
             legacy_target = _legacy_execution_target(body.preferences["plan"])
             if legacy_target not in config.connections:
                 legacy_target = None
-            config.plan_management = normalize_plan_management({
-                **config.plan_management,
-                "execution_target": legacy_target,
-            })
-    if body.plan_management is not None:
-        _apply_plan_management_update(
-            config,
-            body.plan_management,
-            user_id=user_id,
-            db=db,
-        )
     # `thresholds` updates are accepted-and-dropped: manual numeric overrides
     # are no longer supported; source selection lives in
     # ``preferences.threshold_sources``. Kept in the schema for API compat
@@ -526,6 +743,68 @@ def update_settings(
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
         config.source_options.update(source_options_update)
+    garmin_region_changed = (
+        garmin_region(config.source_options) != prior_garmin_region
+    )
+    if (
+        garmin_region_changed
+        and body.experimental_plan_delivery
+        and body.experimental_plan_delivery.get("garmin") is True
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Reconnect Garmin in the selected region before enabling "
+                "experimental delivery"
+            ),
+        )
+    if garmin_region_changed:
+        _apply_experimental_plan_delivery_update(
+            config,
+            {"garmin": False},
+            user_id=user_id,
+            db=db,
+        )
+        connection = db.execute(
+            select(UserConnection)
+            .where(
+                UserConnection.user_id == user_id,
+                UserConnection.platform == "garmin",
+            )
+            .with_for_update()
+        ).scalar_one_or_none()
+        if connection is not None:
+            from db.sync_scheduler import reset_connection_backoff
+
+            connection.status = "disconnected"
+            reset_connection_backoff(connection)
+    if body.experimental_plan_delivery is not None:
+        _apply_experimental_plan_delivery_update(
+            config,
+            body.experimental_plan_delivery,
+            user_id=user_id,
+            db=db,
+        )
+    if body.plan_management is not None:
+        _apply_plan_management_update(
+            config,
+            body.plan_management,
+            user_id=user_id,
+            db=db,
+        )
+    elif legacy_target_update_requested:
+        current_target = config.plan_management.get("execution_target")
+        if legacy_target != current_target:
+            if legacy_target is not None:
+                _assert_execution_target_switch_safe(
+                    db,
+                    user_id=user_id,
+                    target=legacy_target,
+                )
+            config.plan_management = normalize_plan_management({
+                **config.plan_management,
+                "execution_target": legacy_target,
+            })
     if body.language is not None:
         if body.language not in SUPPORTED_LANGUAGES:
             raise HTTPException(
@@ -587,6 +866,10 @@ def update_settings(
     from db.cache_revision import bump_revisions
     bump_revisions(db, user_id, ["config"])
     save_config_to_db(user_id, config, db)
+    if garmin_region_changed:
+        from api.routes.sync import clear_garmin_tokens
+
+        clear_garmin_tokens(user_id)
     if plan_management_transition is not None:
         telemetry.record_managed_plan_event(
             category="lifecycle",
@@ -642,6 +925,12 @@ def update_settings(
                 user_id,
             )
 
+    connections = {
+        connection.platform: connection
+        for connection in db.query(UserConnection).filter(
+            UserConnection.user_id == user_id,
+        ).all()
+    }
     return {
         "status": "ok",
         "config": asdict(config),
@@ -649,6 +938,16 @@ def update_settings(
         "connection_statuses": _connection_statuses(
             db,
             user_id=user_id,
+        ),
+        "platform_capabilities": effective_platform_capabilities(
+            config,
+            connections=connections,
+        ),
+        "experimental_plan_delivery": (
+            experimental_plan_delivery_status(
+                config,
+                connections=connections,
+            )
         ),
     }
 
@@ -826,12 +1125,82 @@ def _decode_strava_state(state: str) -> dict[str, Any]:
     return payload
 
 
+def _pause_garmin_delivery_for_connection_change(
+    user_id: str,
+    db: Session,
+    *,
+    region: str | None,
+) -> None:
+    """Align Garmin region and pause writes when its connection changes."""
+    from db.models import UserConfig as UserConfigModel
+
+    config_row = db.query(UserConfigModel).filter(
+        UserConfigModel.user_id == user_id,
+    ).first()
+    if config_row is None:
+        config_row = UserConfigModel(user_id=user_id)
+        db.add(config_row)
+    source_options = {
+        **(
+            config_row.source_options
+            if isinstance(config_row.source_options, dict)
+            else {}
+        ),
+    }
+    if region is not None:
+        source_options["garmin_region"] = region
+    config_row.source_options = source_options
+    plan_management = normalize_persisted_plan_management(
+        config_row.plan_management,
+        execution_target_fence=config_row.plan_execution_target,
+    )
+    if (
+        plan_management["execution_target"] == "garmin"
+        and plan_management["delivery_enabled"]
+    ):
+        config_row.plan_management = {
+            **plan_management,
+            "delivery_enabled": False,
+        }
+
+
+def _revoke_garmin_delivery_before_login(
+    user_id: str,
+    db: Session,
+) -> None:
+    """Commit the old Garmin write fence while the token lease is held."""
+    from db.cache_revision import bump_revisions
+    from db.plan_ledger import lock_plan_writes
+    from db.sync_scheduler import reset_connection_backoff
+
+    lock_plan_writes(db, user_id)
+    connection = db.execute(
+        select(UserConnection)
+        .where(
+            UserConnection.user_id == user_id,
+            UserConnection.platform == "garmin",
+        )
+        .with_for_update()
+    ).scalar_one_or_none()
+    if connection is not None:
+        connection.plan_delivery_consent = None
+        connection.status = "disconnected"
+        reset_connection_backoff(connection)
+    _pause_garmin_delivery_for_connection_change(
+        user_id,
+        db,
+        region=None,
+    )
+    bump_revisions(db, user_id, ["config"])
+    db.commit()
+
+
 def _upsert_connection_credentials(
     user_id: str,
     platform: str,
     creds: dict[str, Any],
     db: Session,
-) -> None:
+) -> UserConnection:
     """Encrypt and upsert platform credentials in the existing connection row."""
 
     import json as json_mod
@@ -861,6 +1230,8 @@ def _upsert_connection_credentials(
         conn.wrapped_dek = wrapped_dek
         conn.status = "connected"
         conn.preferences = prefs
+        if platform == "garmin":
+            conn.plan_delivery_consent = None
         reset_connection_backoff(conn)
     else:
         conn = UserConnection(
@@ -873,10 +1244,19 @@ def _upsert_connection_credentials(
         )
         db.add(conn)
 
+    if platform == "garmin":
+        _pause_garmin_delivery_for_connection_change(
+            user_id,
+            db,
+            region=("cn" if creds.get("is_cn") else "international"),
+        )
+
     # Connection state feeds UserConfig.connections and /api/plan.sync_target.
     # Stage the revision in the same transaction as the connection mutation.
     from db.cache_revision import bump_revisions
     bump_revisions(db, user_id, ["config"])
+    db.flush()
+    return conn
 
 
 def _strava_redirect_target(
@@ -1026,6 +1406,64 @@ def strava_oauth_callback(
 class GarminMfaRequest(BaseModel):
     """MFA verification code for completing an interactive Garmin login."""
     code: str | None = None
+    login_attempt_id: str | None = None
+
+
+def _persist_connected_garmin_login(
+    db: Session,
+    *,
+    user_id: str,
+    creds: dict,
+    login_attempt_id: str,
+) -> None:
+    """Atomically fence credentials and clean tokens if binding fails."""
+    from api.routes.sync import (
+        _garmin_tokenstore_lease,
+        _mirror_generation_tokens_for_legacy_workers,
+        bind_garmin_login_tokens,
+        discard_garmin_generation_tokens,
+        discard_garmin_login_tokens,
+    )
+    from db.connection_credentials import connection_credentials_generation
+
+    credential_generation: str | None = None
+    try:
+        with _garmin_tokenstore_lease(user_id):
+            connection = _upsert_connection_credentials(
+                user_id,
+                "garmin",
+                creds,
+                db,
+            )
+            credential_generation = connection_credentials_generation(
+                connection
+            )
+            bind_garmin_login_tokens(
+                user_id,
+                credential_generation,
+                login_attempt_id,
+            )
+            db.commit()
+            _mirror_generation_tokens_for_legacy_workers(
+                user_id,
+                credential_generation,
+            )
+    except Exception:
+        db.rollback()
+        try:
+            discard_garmin_login_tokens(user_id, login_attempt_id)
+            if credential_generation is not None:
+                discard_garmin_generation_tokens(
+                    user_id,
+                    credential_generation,
+                )
+        except OSError:
+            logger.exception(
+                "Failed to clean Garmin login tokens after binding failure "
+                "for user %s",
+                user_id,
+            )
+        raise
 
 
 @router.post("/settings/connections/garmin/login")
@@ -1048,7 +1486,10 @@ def connect_garmin(
         GarminConnectTooManyRequestsError,
     )
 
-    from api.routes.sync import begin_garmin_login
+    from api.routes.sync import (
+        _garmin_tokenstore_lease,
+        begin_garmin_login,
+    )
 
     if not body.email or not body.password:
         return {"status": "error", "message": "email and password required"}
@@ -1067,7 +1508,9 @@ def connect_garmin(
             pass
 
     try:
-        result = begin_garmin_login(user_id, creds)
+        with _garmin_tokenstore_lease(user_id):
+            _revoke_garmin_delivery_before_login(user_id, db)
+            result, login_attempt_id = begin_garmin_login(user_id, creds)
     except GarminConnectTooManyRequestsError:
         logger.warning("Garmin login rate limited for user %s", user_id)
         _emit(flow="unknown", outcome="error", failure_class="rate_limited")
@@ -1090,11 +1533,31 @@ def connect_garmin(
 
     if result == "mfa_required":
         _emit(flow="mfa", outcome="mfa_required", failure_class="none")
-        return {"status": "mfa_required", "platform": "garmin"}
+        return {
+            "status": "mfa_required",
+            "platform": "garmin",
+            "login_attempt_id": login_attempt_id,
+        }
 
+    try:
+        _persist_connected_garmin_login(
+            db,
+            user_id=user_id,
+            creds=creds,
+            login_attempt_id=login_attempt_id,
+        )
+    except Exception:
+        logger.exception(
+            "Garmin login token binding failed for user %s",
+            user_id,
+        )
+        _emit(
+            flow="non_mfa",
+            outcome="error",
+            failure_class="token_binding",
+        )
+        return {"status": "error", "message": "Login failed. Please try again."}
     _emit(flow="non_mfa", outcome="connected", failure_class="none")
-    _upsert_connection_credentials(user_id, "garmin", creds, db)
-    db.commit()
     return {"status": "connected", "platform": "garmin"}
 
 
@@ -1110,7 +1573,9 @@ def verify_garmin_mfa(
         GarminConnectTooManyRequestsError,
     )
 
-    from api.routes.sync import complete_garmin_mfa
+    from api.routes.sync import (
+        complete_garmin_mfa,
+    )
 
     code = (body.code or "").strip()
     if not code:
@@ -1127,7 +1592,11 @@ def verify_garmin_mfa(
             pass
 
     try:
-        creds = complete_garmin_mfa(user_id, code)
+        creds, login_attempt_id = complete_garmin_mfa(
+            user_id,
+            code,
+            (body.login_attempt_id or "").strip() or None,
+        )
     except RuntimeError as e:
         if str(e) == "GARMIN_MFA_EXPIRED":
             _emit(outcome="error", failure_class="mfa_session_expired")
@@ -1153,9 +1622,24 @@ def verify_garmin_mfa(
         _emit(outcome="error", failure_class="unknown")
         return {"status": "error", "message": "MFA verification failed. Please try again."}
 
+    try:
+        _persist_connected_garmin_login(
+            db,
+            user_id=user_id,
+            creds=creds,
+            login_attempt_id=login_attempt_id,
+        )
+    except Exception:
+        logger.exception(
+            "Garmin MFA token binding failed for user %s",
+            user_id,
+        )
+        _emit(outcome="error", failure_class="token_binding")
+        return {
+            "status": "error",
+            "message": "MFA verification failed. Please try again.",
+        }
     _emit(outcome="connected", failure_class="none")
-    _upsert_connection_credentials(user_id, "garmin", creds, db)
-    db.commit()
     return {"status": "connected", "platform": "garmin"}
 
 
@@ -1209,16 +1693,23 @@ def connect_platform(
     else:
         return {"status": "error", "message": f"Unsupported platform: {platform}"}
 
-    _upsert_connection_credentials(user_id, platform, creds, db)
-    db.commit()
-
-    # Invalidate cached OAuth tokens AFTER the new credentials are persisted:
-    # if we cleared first and the commit then failed, the next sync would
-    # re-auth with the old DB credentials and repopulate the tokenstore with
-    # the old account's session — exactly the leak this guards against.
     if platform == "garmin":
-        from api.routes.sync import clear_garmin_tokens
-        clear_garmin_tokens(user_id)
+        from api.routes.sync import (
+            _garmin_tokenstore_lease,
+            clear_garmin_tokens,
+        )
+
+        # Commit a disconnected write fence before touching cached tokens.
+        # A failed token removal or credential commit then cannot let sync
+        # reuse the previous account's authenticated session.
+        with _garmin_tokenstore_lease(user_id):
+            _revoke_garmin_delivery_before_login(user_id, db)
+            clear_garmin_tokens(user_id)
+            _upsert_connection_credentials(user_id, platform, creds, db)
+            db.commit()
+    else:
+        _upsert_connection_credentials(user_id, platform, creds, db)
+        db.commit()
 
     try:
         from api import telemetry
@@ -1239,20 +1730,45 @@ def disconnect_platform(
 ) -> dict:
     """Disconnect a platform — deletes stored credentials."""
     from db.models import UserConnection
+    from db.plan_ledger import lock_plan_writes
 
-    conn = db.query(UserConnection).filter(
-        UserConnection.user_id == user_id,
-        UserConnection.platform == platform,
-    ).first()
-    if conn:
-        from db.cache_revision import bump_revisions
-
-        db.delete(conn)
-        bump_revisions(db, user_id, ["config"])
-        db.commit()
-
+    token_lease = nullcontext()
+    clear_tokens = None
     if platform == "garmin":
-        from api.routes.sync import clear_garmin_tokens
-        clear_garmin_tokens(user_id)
+        from api.routes.sync import (
+            _garmin_tokenstore_lease,
+            clear_garmin_tokens,
+        )
+
+        token_lease = _garmin_tokenstore_lease(user_id)
+        clear_tokens = clear_garmin_tokens
+
+    with token_lease:
+        lock_plan_writes(db, user_id)
+        conn = db.execute(
+            select(UserConnection)
+            .where(
+                UserConnection.user_id == user_id,
+                UserConnection.platform == platform,
+            )
+            .with_for_update()
+        ).scalar_one_or_none()
+        if conn:
+            from db.cache_revision import bump_revisions
+
+            if platform == "garmin":
+                _pause_garmin_delivery_for_connection_change(
+                    user_id,
+                    db,
+                    region=garmin_region(
+                        load_config_from_db(user_id, db).source_options
+                    ),
+                )
+            db.delete(conn)
+            bump_revisions(db, user_id, ["config"])
+            db.commit()
+
+        if clear_tokens is not None:
+            clear_tokens(user_id)
 
     return {"status": "disconnected", "platform": platform}
