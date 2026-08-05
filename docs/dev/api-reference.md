@@ -145,7 +145,7 @@ cache and may explicitly report `freshness: "stale"`.
   },
   "service_health": {"source": "live_probe", "window": "live", "freshness": "fresh", "as_of": "...", "reason": null, "data": {"overall": "operational", "components": [], "postgres_active_connections": 5, "postgres_max_connections": 100, "postgres_connection_utilization": 0.05}},
   "product_value": {"source": "praxys_database", "window": "rolling_1d_7d_30d", "freshness": "fresh", "as_of": "...", "reason": null, "data": {"registered_users": 12, "dau": 4, "wau": 9, "mau": 11, "directional": true}},
-  "agent_learning": {"source": "praxys_database", "window": "24h", "freshness": "fresh", "as_of": "...", "reason": null, "data": {"decisions_total": 5, "outcomes_total": 7, "shadow_decisions": 1, "agent_ready_candidates": 3, "agent_ready_applied": 2, "human_overrides": 1, "merged_pull_requests": 2, "decision_policy_version": "agent-ready-v2", "review_policy_version": "selective-review-v2", "promoted_classes": [], "autonomy_level": "draft_with_review"}},
+  "agent_learning": {"source": "praxys_database", "window": "24h", "freshness": "fresh", "as_of": "...", "reason": null, "data": {"decisions_total": 5, "outcomes_total": 9, "shadow_decisions": 1, "agent_ready_candidates": 3, "agent_ready_applied": 2, "human_overrides": 1, "merged_pull_requests": 2, "active_eval": {"evaluated": 2, "true_positives": 1, "true_negatives": 0, "false_positives": 0, "false_negatives": 1, "accuracy": 0.5}, "challenger_eval": {"evaluated": 2, "true_positives": 2, "true_negatives": 0, "false_positives": 0, "false_negatives": 0, "accuracy": 1.0}, "active_semantic_eval": {"evaluated": 2, "true_positives": 1, "true_negatives": 0, "false_positives": 0, "false_negatives": 1, "accuracy": 0.5}, "challenger_semantic_eval": {"evaluated": 2, "true_positives": 2, "true_negatives": 0, "false_positives": 0, "false_negatives": 0, "accuracy": 1.0}, "decision_policy_version": "agent-ready-v2", "review_policy_version": "selective-review-v2", "promoted_classes": [], "autonomy_level": "draft_with_review"}},
   "service_telemetry": {"source": "azure_monitor", "window": "24h", "freshness": "fresh", "as_of": "...", "reason": null, "data": {"requests": 100, "failed_requests": 4, "server_errors": 2, "failed_request_rate": 0.04, "server_error_rate": 0.02, "p95_request_ms": 480.0, "availability_checks": 24, "failed_availability_checks": 1, "availability_rate": 0.9583, "p95_availability_ms": 210.0, "database_health_failures": 0}},
   "product_telemetry": {"source": "azure_monitor", "window": "28d", "freshness": "fresh", "as_of": "...", "reason": null, "data": {"surfaces": [{"surface": "web", "app_users": 10, "today_users": 8, "today_reach_rate": 0.8, "decision_prompts": 6, "decision_responses": 4, "decision_response_rate": 0.6667, "reported_value_rate": 0.75, "repeated_users": 5, "repeated_rate": 0.625}], "coach": [{"insight_type": "daily_brief", "useful_votes": 7, "total_votes": 9, "useful_rate": 0.7778}]}},
   "azure_alerts": {"source": "azure_monitor", "window": "24h", "freshness": "fresh", "as_of": "...", "reason": null, "data": {"total": 1, "firing": 0, "resolved": 1, "severity": {"sev0": 0, "sev1": 1, "sev2": 0, "sev3": 0, "sev4": 0}, "states": {"new": 1, "acknowledged": 0, "closed": 0}, "rules": [{"rule": "wt-praxys-api-health", "severity": "Sev1", "firing": 0, "resolved": 1, "last_changed_at": "..."}]}},
@@ -156,6 +156,75 @@ cache and may explicitly report `freshness: "stale"`.
 
 `telemetry_trust_issue` is a temporary compatibility field for older frontend
 bundles during backend-first rolling deployments.
+
+### GET /api/admin/feedback
+
+List feedback rows, optionally filtered by `status`. Each row includes the
+admin-only raw message, scrubbed publication fields, linked GitHub issue, and a
+privacy-safe `agent_readiness` object:
+
+```json
+{
+  "decision_id": "uuid",
+  "policy_name": "change.agent_ready",
+  "policy_version": "agent-ready-v2",
+  "prompt_version": "v1",
+  "prompt_hash": "02885290c95ddf28",
+  "model": "gpt-5.4",
+  "mode": "active",
+  "kind": "bug",
+  "agent_eligible": false,
+  "candidate": false,
+  "applied": false,
+  "reason": "not_actionable",
+  "challenger": {
+    "prompt_version": "v2",
+    "available": true,
+    "candidate": true,
+    "reason": "eligible"
+  },
+  "adjudication": {
+    "expected": true,
+    "reason": "bounded_actionable_defect",
+    "label_sync": "synced",
+    "observed_at": "..."
+  }
+}
+```
+
+Priority is returned separately on the feedback row and is never an
+agent-readiness input.
+
+### PUT /api/admin/feedback/{id}/agent-ready-adjudication
+
+Append maintainer ground truth for the latest decision and synchronize the
+linked issue's `agent-ready` label when possible.
+
+```json
+{
+  "decision_id": "the decision_id returned by GET /api/admin/feedback",
+  "expected": true,
+  "reason": "bounded_actionable_defect"
+}
+```
+
+The decision ID is an optimistic-concurrency token: if retriage produced a
+newer decision after the admin loaded the row, the endpoint returns `409` and
+the admin must refresh before judging it.
+
+Positive judgments require `bounded_actionable_defect`. Negative reasons are
+`not_a_defect`, `insufficient_detail`, `needs_product_judgment`,
+`sensitivity_or_privacy`, or `other`. The response includes `label_sync`:
+`synced`, `failed`, `github_unavailable`, `not_linked`, `issue_not_open`, or
+`repository_mismatch`.
+The adjudication is persisted even when label synchronization fails.
+
+### POST /api/admin/feedback/sync
+
+Reconcile linked issue state, externally added `agent-ready`, and closing-PR
+outcomes. Reads structured GitHub state only; it does not fetch issue or PR
+text, and skips any stored issue URL that does not match the configured repo.
+The response's `repository_mismatches` count makes those skipped rows visible.
 
 ### GET /api/admin/users
 

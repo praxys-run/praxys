@@ -4,9 +4,78 @@ from __future__ import annotations
 import importlib
 import tempfile
 from datetime import date, datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
+
+
+@pytest.mark.parametrize(
+    "reason",
+    ["insufficient_detail", "sensitivity_or_privacy", "other"],
+)
+def test_semantic_eval_excludes_non_semantic_adjudication_reasons(
+    reason: str,
+) -> None:
+    """Prompt comparison should not score privacy or evidence gate verdicts."""
+    from api.admin_ops import _agent_eval_confusion
+
+    row = SimpleNamespace(
+        payload_json={
+            "expected": False,
+            "reason": reason,
+        },
+        output_json={
+            "kind": "bug",
+            "agent_ready_candidate": True,
+            "gate_blocked": False,
+        },
+        input_json={
+            "detail_word_count": 20,
+            "detail_alnum_count": 100,
+        },
+    )
+
+    assert _agent_eval_confusion(
+        [row],
+        challenger=False,
+        semantic_only=False,
+    ).evaluated == 1
+    assert _agent_eval_confusion(
+        [row],
+        challenger=False,
+        semantic_only=True,
+    ).evaluated == 0
+
+
+def test_semantic_eval_counts_prompt_kind_misclassification() -> None:
+    """A positive defect reclassified as a feature remains a false negative."""
+    from api.admin_ops import _agent_eval_confusion
+
+    row = SimpleNamespace(
+        payload_json={
+            "expected": True,
+            "reason": "bounded_actionable_defect",
+        },
+        output_json={
+            "kind": "feature",
+            "agent_ready_candidate": False,
+            "gate_blocked": False,
+        },
+        input_json={
+            "reported_kind": "bug",
+            "detail_word_count": 20,
+            "detail_alnum_count": 100,
+        },
+    )
+
+    result = _agent_eval_confusion(
+        [row],
+        challenger=False,
+        semantic_only=True,
+    )
+    assert result.evaluated == 1
+    assert result.false_negatives == 1
 
 
 def _build(monkeypatch, data_dir: str):
@@ -318,10 +387,21 @@ def test_ops_summary_aggregates_attention_without_pii(env, monkeypatch):
         prompt_version="prompt-v1",
         model="test-model",
         mode="active",
-        input_data={"message_sha256": "a" * 64},
+        input_data={
+            "message_sha256": "a" * 64,
+            "detail_word_count": 8,
+            "detail_alnum_count": 42,
+        },
         output_data={
+            "kind": "bug",
+            "gate_blocked": False,
             "agent_ready_candidate": True,
             "agent_ready_applied": True,
+            "challenger": {
+                "available": True,
+                "kind": "bug",
+                "agent_ready_candidate": False,
+            },
         },
     )
     record_outcome(
@@ -337,6 +417,19 @@ def test_ops_summary_aggregates_attention_without_pii(env, monkeypatch):
         outcome_type="github_pull_merged",
         source="github",
         payload={"pull_number": 42},
+    )
+    record_outcome(
+        db,
+        decision_id=decision.id,
+        outcome_type="agent_ready_adjudicated",
+        source="admin",
+        payload={
+            "expected": False,
+            "reason": "not_a_defect",
+            "active_candidate": True,
+            "challenger_candidate": False,
+            "label_sync": "synced",
+        },
     )
     db.commit()
     admin_id = admin.id
@@ -393,12 +486,44 @@ def test_ops_summary_aggregates_attention_without_pii(env, monkeypatch):
     assert body["product_value"]["data"]["directional"] is True
     assert body["agent_learning"]["data"] == {
         "decisions_total": 1,
-        "outcomes_total": 2,
+        "outcomes_total": 3,
         "shadow_decisions": 0,
         "agent_ready_candidates": 1,
         "agent_ready_applied": 1,
         "human_overrides": 1,
         "merged_pull_requests": 1,
+        "active_eval": {
+            "evaluated": 1,
+            "true_positives": 0,
+            "true_negatives": 0,
+            "false_positives": 1,
+            "false_negatives": 0,
+            "accuracy": 0.0,
+        },
+        "challenger_eval": {
+            "evaluated": 1,
+            "true_positives": 0,
+            "true_negatives": 1,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "accuracy": 1.0,
+        },
+        "active_semantic_eval": {
+            "evaluated": 1,
+            "true_positives": 0,
+            "true_negatives": 0,
+            "false_positives": 1,
+            "false_negatives": 0,
+            "accuracy": 0.0,
+        },
+        "challenger_semantic_eval": {
+            "evaluated": 1,
+            "true_positives": 0,
+            "true_negatives": 1,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "accuracy": 1.0,
+        },
         "decision_policy_version": "agent-ready-v2",
         "review_policy_version": "selective-review-v2",
         "promoted_classes": [],

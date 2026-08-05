@@ -12,6 +12,7 @@ from sqlalchemy import func, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from analysis.agent_policy import has_enough_detail
 from api import app_config
 from api.admin_azure_monitor import (
     AzureSectionSnapshot,
@@ -125,6 +126,15 @@ class OpsProductValueSection(OpsSectionMeta):
     data: OpsProductValueData | None = None
 
 
+class OpsAgentEvalConfusion(BaseModel):
+    evaluated: int
+    true_positives: int
+    true_negatives: int
+    false_positives: int
+    false_negatives: int
+    accuracy: float | None
+
+
 class OpsAgentLearningData(BaseModel):
     decisions_total: int
     outcomes_total: int
@@ -133,6 +143,10 @@ class OpsAgentLearningData(BaseModel):
     agent_ready_applied: int
     human_overrides: int
     merged_pull_requests: int
+    active_eval: OpsAgentEvalConfusion
+    challenger_eval: OpsAgentEvalConfusion
+    active_semantic_eval: OpsAgentEvalConfusion
+    challenger_semantic_eval: OpsAgentEvalConfusion
     decision_policy_version: str
     review_policy_version: str
     promoted_classes: list[str]
@@ -477,6 +491,63 @@ def _product_value_data(db: Session) -> OpsProductValueData:
     )
 
 
+def _agent_eval_confusion(
+    rows: list[Any],
+    *,
+    challenger: bool,
+    semantic_only: bool,
+) -> OpsAgentEvalConfusion:
+    """Compare one decision surface with its attached maintainer verdict."""
+    true_positives = true_negatives = false_positives = false_negatives = 0
+    for row in rows:
+        payload = row.payload_json or {}
+        expected = payload.get("expected")
+        if not isinstance(expected, bool):
+            continue
+        output = row.output_json or {}
+        input_data = row.input_json or {}
+        challenger_output = output.get("challenger")
+        surface = challenger_output if challenger else output
+        if not isinstance(surface, dict):
+            continue
+        candidate = surface.get("agent_ready_candidate")
+        if not isinstance(candidate, bool):
+            continue
+        if semantic_only:
+            if payload.get("reason") not in {
+                "bounded_actionable_defect",
+                "not_a_defect",
+                "needs_product_judgment",
+            }:
+                continue
+            if bool(output.get("gate_blocked")):
+                continue
+            if not has_enough_detail(
+                int(input_data.get("detail_word_count", 0) or 0),
+                int(input_data.get("detail_alnum_count", 0) or 0),
+            ):
+                continue
+        true_positives += int(candidate and expected)
+        true_negatives += int(not candidate and not expected)
+        false_positives += int(candidate and not expected)
+        false_negatives += int(not candidate and expected)
+    evaluated = (
+        true_positives + true_negatives + false_positives + false_negatives
+    )
+    return OpsAgentEvalConfusion(
+        evaluated=evaluated,
+        true_positives=true_positives,
+        true_negatives=true_negatives,
+        false_positives=false_positives,
+        false_negatives=false_negatives,
+        accuracy=(
+            (true_positives + true_negatives) / evaluated
+            if evaluated
+            else None
+        ),
+    )
+
+
 def _agent_learning_data(db: Session, window: OpsWindow) -> OpsAgentLearningData:
     cutoff = datetime.utcnow() - {
         "24h": timedelta(hours=24),
@@ -508,6 +579,31 @@ def _agent_learning_data(db: Session, window: OpsWindow) -> OpsAgentLearningData
         .all()
     )
     outcome_counts = {kind: int(count) for kind, count in outcome_rows}
+    adjudication_rows = (
+        db.query(
+            AgentOutcome.decision_id,
+            AgentOutcome.payload_json,
+            AgentOutcome.observed_at,
+            AgentOutcome.id,
+            AgentDecision.input_json,
+            AgentDecision.output_json,
+        )
+        .join(AgentDecision, AgentDecision.id == AgentOutcome.decision_id)
+        .filter(
+            AgentDecision.loop == "change",
+            AgentOutcome.outcome_type == "agent_ready_adjudicated",
+            AgentOutcome.observed_at >= cutoff,
+        )
+        .order_by(
+            AgentOutcome.observed_at.desc(),
+            AgentOutcome.id.desc(),
+        )
+        .all()
+    )
+    latest_adjudications: dict[str, Any] = {}
+    for row in adjudication_rows:
+        latest_adjudications.setdefault(row.decision_id, row)
+    adjudications = list(latest_adjudications.values())
     policy = json.loads(_POLICY_PATH.read_text(encoding="utf-8"))
     review_policy = policy["change"]["selective_review"]
     promoted_classes = [
@@ -539,6 +635,26 @@ def _agent_learning_data(db: Session, window: OpsWindow) -> OpsAgentLearningData
             for kind in ("human_approved", "human_rejected")
         ),
         merged_pull_requests=outcome_counts.get("github_pull_merged", 0),
+        active_eval=_agent_eval_confusion(
+            adjudications,
+            challenger=False,
+            semantic_only=False,
+        ),
+        challenger_eval=_agent_eval_confusion(
+            adjudications,
+            challenger=True,
+            semantic_only=False,
+        ),
+        active_semantic_eval=_agent_eval_confusion(
+            adjudications,
+            challenger=False,
+            semantic_only=True,
+        ),
+        challenger_semantic_eval=_agent_eval_confusion(
+            adjudications,
+            challenger=True,
+            semantic_only=True,
+        ),
         decision_policy_version=decision_policy_version,
         review_policy_version=str(review_policy["version"]),
         promoted_classes=promoted_classes,

@@ -98,7 +98,7 @@ msgstr "纳入 {0} 次 · 已观察但未纳入 {1} 次 · 等效热暴露 {2} �
 #~ msgstr "纳入 {0} 次，观察到但未纳入 {1} 次，等效热暴露 {2} 分钟"
 
 #. placeholder {0}: agentLearning.promoted_classes.length
-#: src/pages/admin/AdminOps.tsx:1511
+#: src/pages/admin/AdminOps.tsx:1525
 msgid "{0} narrow change class(es) may merge through the independent policy gate."
 msgstr "{0} 个窄范围变更类别可通过独立策略门禁自动合并。"
 
@@ -144,7 +144,7 @@ msgstr "已完成 {0}/{1} 步"
 #. placeholder {0}: agentLearning.shadow_decisions
 #. placeholder {1}: agentLearning.agent_ready_applied
 #. placeholder {2}: agentLearning.outcomes_total
-#: src/pages/admin/AdminOps.tsx:1545
+#: src/pages/admin/AdminOps.tsx:1565
 msgid "{0} shadow decisions · {1} labels applied · {2} durable outcomes"
 msgstr "{0} 个影子决策 · 已应用 {1} 个标签 · {2} 个持久化结果"
 
@@ -395,11 +395,11 @@ msgstr "1年"
 msgid "2 wk"
 msgstr "2 周"
 
-#: src/pages/admin/AdminOps.tsx:204
+#: src/pages/admin/AdminOps.tsx:213
 msgid "24 hours"
 msgstr "24 小时"
 
-#: src/pages/admin/AdminOps.tsx:208
+#: src/pages/admin/AdminOps.tsx:217
 msgid "28 days"
 msgstr "28 天"
 
@@ -444,7 +444,7 @@ msgstr "6 个月"
 msgid "6M"
 msgstr "6月"
 
-#: src/pages/admin/AdminOps.tsx:206
+#: src/pages/admin/AdminOps.tsx:215
 msgid "7 days"
 msgstr "7 天"
 
@@ -456,6 +456,18 @@ msgstr "7 天"
 #: src/components/HeatAdaptationPanel.tsx:57
 #~ msgid "A normal warm-weather session can maintain adaptation when recovery allows."
 #~ msgstr "恢复状态允许时，一次正常的温热环境训练即可帮助维持热适应。"
+
+#: src/pages/admin/AdminFeedback.tsx:522
+#~ msgid "A positive judgment adds agent-ready; for an open, non-backlogged linked issue, this hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain."
+#~ msgstr "正向判断会添加 agent-ready；若关联议题处于开启状态且未列入 backlog，系统会将其交给 Copilot。负向判断会移除标签，但已有指派或 PR 可能保留。"
+
+#: src/pages/admin/AdminFeedback.tsx:514
+#~ msgid "A positive judgment adds agent-ready; if the issue is open, not backlogged, and not already assigned, this hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain."
+#~ msgstr "正向判断会添加 agent-ready；若议题处于开启状态、未进入待办且尚未分配，将交给 Copilot。负向判断会移除该标签，但已有分配或 PR 可能仍会保留。"
+
+#: src/pages/admin/AdminFeedback.tsx:548
+msgid "A positive judgment synchronizes agent-ready; when it newly labels an open, non-backlogged linked issue, the assignment workflow hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain."
+msgstr "正向判断会同步 agent-ready；若这次操作为处于开启状态且未列入 backlog 的关联议题新添标签，指派工作流会将其交给 Copilot。负向判断会移除标签，但已有指派或 PR 可能保留。"
 
 #: src/components/HeatAdaptationPanel.tsx:178
 msgid "A prior qualifying block can still inform this qualitative stage, but response-specific adaptations may already be declining."
@@ -504,7 +516,7 @@ msgstr "高于参考区间"
 #~ msgid "Absorbing training while maintaining fitness."
 #~ msgstr "在保持体能的同时吸收训练负荷。"
 
-#: src/pages/admin/AdminOps.tsx:390
+#: src/pages/admin/AdminOps.tsx:399
 msgid "Access blocked"
 msgstr "访问被阻止"
 
@@ -516,7 +528,7 @@ msgstr "访问被阻止"
 msgid "Action"
 msgstr "操作"
 
-#: src/pages/admin/AdminFeedback.tsx:266
+#: src/pages/admin/AdminFeedback.tsx:394
 #: src/pages/admin/AdminUsers.tsx:580
 #: src/pages/admin/AdminUsers.tsx:737
 msgid "Actions"
@@ -531,12 +543,21 @@ msgid "Activate managed plan"
 msgstr "启用托管计划"
 
 #: src/components/ManagedPlanSettingsCard.tsx:427
-#: src/pages/admin/AdminFeedback.tsx:228
+#: src/pages/admin/AdminFeedback.tsx:351
+#: src/pages/admin/AdminOps.tsx:1584
 #: src/pages/Science.tsx:405
 #: src/pages/Science.tsx:433
 #: src/pages/Science.tsx:581
 msgid "Active"
 msgstr "当前使用"
+
+#: src/pages/admin/AdminOps.tsx:1550
+msgid "Active accuracy"
+msgstr "当前策略准确率"
+
+#: src/pages/admin/AdminOps.tsx:1570
+msgid "Active errors:"
+msgstr "当前策略错误："
 
 #: src/pages/Science.tsx:380
 #~ msgid "Active fixed model"
@@ -547,7 +568,7 @@ msgid "Active Incidents"
 msgstr "当前故障"
 
 #. placeholder {0}: incidents.total
-#: src/pages/admin/AdminOps.tsx:793
+#: src/pages/admin/AdminOps.tsx:807
 msgid "Active incidents: {0}"
 msgstr "活跃事件：{0}"
 
@@ -617,6 +638,10 @@ msgstr "实际/计划比均值"
 msgid "Add screenshot"
 msgstr "添加截图"
 
+#: src/pages/admin/AdminOps.tsx:1548
+msgid "Adjudicated"
+msgstr "已人工判定"
+
 #: src/components/SignalHero.tsx:23
 #: src/pages/Today.tsx:75
 msgid "Adjust Workout"
@@ -660,17 +685,25 @@ msgstr "有氧"
 msgid "After a sync, Praxys may replace today's single Praxys-generated hard workout with rest only when same-day HRV crosses your personal caution band."
 msgstr "同步后，仅当日 HRV 越过个人警戒区间时，Praxys 才可能将今天唯一一项由 Praxys 生成的高强度训练改为休息。"
 
-#: src/pages/admin/AdminOps.tsx:1491
+#: src/pages/admin/AdminOps.tsx:1505
 msgid "Agent learning"
 msgstr "智能体学习"
 
+#: src/pages/admin/AdminFeedback.tsx:393
+msgid "Agent readiness"
+msgstr "Agent-ready 判断"
+
+#: src/pages/admin/AdminOps.tsx:1603
+msgid "agent-ready candidates"
+msgstr "agent-ready 候选"
+
 #: src/pages/admin/AdminOps.tsx:1534
-msgid "Agent-ready candidates"
-msgstr "可由智能体处理的候选项"
+#~ msgid "Agent-ready candidates"
+#~ msgstr "可由智能体处理的候选项"
 
 #. placeholder {0}: alerts.total
 #. placeholder {1}: alerts.resolved
-#: src/pages/admin/AdminOps.tsx:840
+#: src/pages/admin/AdminOps.tsx:854
 msgid "Alert instances in view: {0}. Resolved in the selected window: {1}."
 msgstr "当前视图中的告警实例：{0}。所选时间范围内已恢复：{1}。"
 
@@ -679,17 +712,17 @@ msgid "Align the activity and threshold power sources before Praxys uses these s
 msgstr "先统一活动功率和阈值功率的数据来源，Praxys 才会把这些训练纳入估算。"
 
 #: src/components/charts/CpTrendChart.tsx:56
-#: src/pages/admin/AdminFeedback.tsx:229
+#: src/pages/admin/AdminFeedback.tsx:352
 #: src/pages/Setup.tsx:1013
 msgid "All"
 msgstr "全部"
 
 #. placeholder {0}: result.checked
-#: src/pages/admin/AdminFeedback.tsx:167
+#: src/pages/admin/AdminFeedback.tsx:288
 msgid "All {0} linked ticket(s) already up to date."
 msgstr "{0} 个关联工单均已是最新状态。"
 
-#: src/pages/admin/AdminOps.tsx:688
+#: src/pages/admin/AdminOps.tsx:702
 msgid "All components operational"
 msgstr "所有组件运行正常"
 
@@ -723,11 +756,11 @@ msgstr "发生了意外错误。"
 msgid "And <0>{0}</0> more in this window"
 msgstr "此窗口内另有 <0>{0}</0> 个训练"
 
-#: src/pages/admin/AdminOps.tsx:635
+#: src/pages/admin/AdminOps.tsx:649
 msgid "Another recovery is already running for this delivery. The queue has been refreshed."
 msgstr "该下发任务已有恢复操作正在进行，队列已刷新。"
 
-#: src/pages/admin/AdminOps.tsx:714
+#: src/pages/admin/AdminOps.tsx:728
 msgid "API"
 msgstr "API"
 
@@ -739,7 +772,7 @@ msgstr "已应用"
 msgid "Applying…"
 msgstr "正在应用…"
 
-#: src/pages/admin/AdminFeedback.tsx:335
+#: src/pages/admin/AdminFeedback.tsx:570
 msgid "Approve & file"
 msgstr "批准并提交"
 
@@ -748,11 +781,11 @@ msgid "Asia/CN"
 msgstr "亚洲/中国"
 
 #. placeholder {0}: item.user_id_hash
-#: src/pages/admin/AdminOps.tsx:1117
+#: src/pages/admin/AdminOps.tsx:1131
 msgid "Athlete {0}"
 msgstr "运动员 {0}"
 
-#: src/pages/admin/AdminOps.tsx:468
+#: src/pages/admin/AdminOps.tsx:477
 msgid "Athlete action required"
 msgstr "需要运动员处理"
 
@@ -764,12 +797,12 @@ msgstr "需要运动员处理"
 msgid "ATL (recent load)"
 msgstr "ATL（近期负荷）"
 
-#: src/pages/admin/AdminOps.tsx:1690
+#: src/pages/admin/AdminOps.tsx:1752
 msgid "attempts"
 msgstr "尝试次数"
 
 #. placeholder {0}: item.attempt_count
-#: src/pages/admin/AdminOps.tsx:1142
+#: src/pages/admin/AdminOps.tsx:1156
 msgid "Attempts {0}"
 msgstr "尝试 {0} 次"
 
@@ -793,19 +826,19 @@ msgstr "自动同步频率"
 msgid "Auto-merged"
 msgstr "自动合并"
 
-#: src/pages/admin/AdminOps.tsx:454
+#: src/pages/admin/AdminOps.tsx:463
 msgid "Automated recovery is unavailable because this attempt was not recorded by the managed-delivery worker."
 msgstr "此次尝试并非由托管下发任务记录，无法自动恢复。"
 
-#: src/pages/admin/AdminOps.tsx:456
+#: src/pages/admin/AdminOps.tsx:465
 msgid "Automated recovery is unavailable for this item."
 msgstr "此项无法自动恢复。"
 
-#: src/pages/admin/AdminOps.tsx:472
+#: src/pages/admin/AdminOps.tsx:481
 msgid "Automated recovery unavailable"
 msgstr "自动恢复不可用"
 
-#: src/pages/admin/AdminOps.tsx:1230
+#: src/pages/admin/AdminOps.tsx:1244
 msgid "Automatic delivery is within policy, or athlete-owned conflicts remain in the athlete workflow."
 msgstr "自动下发符合策略；其余冲突仍需运动员在自己的流程中处理。"
 
@@ -813,7 +846,7 @@ msgstr "自动下发符合策略；其余冲突仍需运动员在自己的流程
 msgid "Automatic recovery guardrail"
 msgstr "恢复状态自动调整"
 
-#: src/pages/admin/AdminOps.tsx:437
+#: src/pages/admin/AdminOps.tsx:446
 msgid "Automatic retries exhausted"
 msgstr "自动重试已耗尽"
 
@@ -821,7 +854,7 @@ msgstr "自动重试已耗尽"
 #~ msgid "Availability"
 #~ msgstr "可用性"
 
-#: src/pages/admin/AdminOps.tsx:1311
+#: src/pages/admin/AdminOps.tsx:1325
 msgid "Availability rate"
 msgstr "可用率"
 
@@ -841,32 +874,36 @@ msgstr "平均功率"
 msgid "Avg Work {intensityLabel}"
 msgstr "平均工作 {intensityLabel}"
 
-#: src/pages/admin/AdminOps.tsx:836
+#: src/pages/admin/AdminFeedback.tsx:555
+msgid "Awaiting triage decision"
+msgstr "等待分诊判断"
+
+#: src/pages/admin/AdminOps.tsx:850
 msgid "Azure alert state unavailable"
 msgstr "Azure 警报状态暂不可用"
 
 #. placeholder {0}: alerts.firing
-#: src/pages/admin/AdminOps.tsx:588
+#: src/pages/admin/AdminOps.tsx:602
 msgid "Azure alerts firing: {0}"
 msgstr "Azure 告警触发：{0}"
 
-#: src/pages/admin/AdminOps.tsx:1588
+#: src/pages/admin/AdminOps.tsx:1650
 msgid "Azure logs"
 msgstr "Azure 日志"
 
-#: src/pages/admin/AdminOps.tsx:193
+#: src/pages/admin/AdminOps.tsx:202
 msgid "Azure Monitor"
 msgstr "Azure Monitor"
 
-#: src/pages/admin/AdminOps.tsx:353
+#: src/pages/admin/AdminOps.tsx:362
 msgid "Azure Monitor could not refresh this section."
 msgstr "Azure Monitor 无法刷新此部分。"
 
-#: src/pages/admin/AdminOps.tsx:349
+#: src/pages/admin/AdminOps.tsx:358
 msgid "Azure Monitor did not respond before the operations deadline."
 msgstr "Azure Monitor 在运维截止时间前没有响应。"
 
-#: src/pages/admin/AdminOps.tsx:351
+#: src/pages/admin/AdminOps.tsx:360
 msgid "Azure Monitor returned an incomplete result, so this section was not refreshed."
 msgstr "Azure Monitor 返回了不完整的结果，因此此部分未刷新。"
 
@@ -891,7 +928,7 @@ msgstr "同步全部历史数据"
 msgid "Backfill..."
 msgstr "同步历史数据中…"
 
-#: src/pages/admin/AdminOps.tsx:718
+#: src/pages/admin/AdminOps.tsx:732
 msgid "Background sync"
 msgstr "后台同步"
 
@@ -965,7 +1002,7 @@ msgstr "正文（可选）"
 msgid "Both thresholds must be met. The bars describe model evidence, not a biological adaptation percentage."
 msgstr "必须同时达到两个阈值。这些进度条表示模型证据，而不是生理适应百分比。"
 
-#: src/pages/admin/AdminFeedback.tsx:107
+#: src/pages/admin/AdminFeedback.tsx:120
 msgid "Bug"
 msgstr "缺陷"
 
@@ -974,12 +1011,16 @@ msgid "Bug report"
 msgstr "问题反馈"
 
 #: src/pages/admin/AdminFeedback.tsx:218
-msgid "Bug reports and feature requests submitted from the app."
-msgstr "应用内提交的缺陷报告和功能请求。"
+#~ msgid "Bug reports and feature requests submitted from the app."
+#~ msgstr "应用内提交的缺陷报告和功能请求。"
 
 #: src/pages/Admin.tsx:1268
 #~ msgid "Bug reports and feature requests submitted from the app. Auto-triaged to GitHub when configured."
 #~ msgstr "从应用内提交的问题反馈和功能建议。配置后会自动分流到 GitHub。"
+
+#: src/pages/admin/AdminFeedback.tsx:339
+msgid "Bug reports and feature requests submitted from the app. Priority orders work; it never determines agent readiness."
+msgstr "应用内提交的错误报告和功能请求。优先级只用于排序，绝不决定是否为 agent-ready。"
 
 #: src/components/GoalEditor.tsx:116
 msgid "Build fitness over time"
@@ -1022,7 +1063,7 @@ msgstr "作者"
 #: src/components/ManagedPlanSettingsCard.tsx:1341
 #: src/components/ManagedPlanSettingsCard.tsx:1360
 #: src/components/UpcomingPlanCard.tsx:691
-#: src/pages/admin/AdminOps.tsx:1201
+#: src/pages/admin/AdminOps.tsx:1215
 #: src/pages/admin/AdminUsers.tsx:1043
 #: src/pages/admin/AdminUsers.tsx:1073
 #: src/pages/Settings.tsx:1042
@@ -1039,7 +1080,12 @@ msgstr "取消"
 msgid "Cancel preview"
 msgstr "取消预览"
 
-#: src/pages/admin/AdminOps.tsx:388
+#: src/pages/admin/AdminFeedback.tsx:468
+#: src/pages/admin/AdminFeedback.tsx:491
+msgid "Candidate"
+msgstr "候选"
+
+#: src/pages/admin/AdminOps.tsx:397
 msgid "CAPTCHA required"
 msgstr "需要 CAPTCHA"
 
@@ -1051,10 +1097,29 @@ msgstr "把训练信号带到户外。扫码即可在微信中打开 Praxys。"
 #~ msgid "Casa exertional heat-illness guidance"
 #~ msgstr "Casa 劳力性热病防护指南"
 
+#: src/pages/admin/AdminOps.tsx:1579
+#: src/pages/admin/AdminOps.tsx:1587
+#: src/pages/admin/AdminOps.tsx:1594
+msgid "cases"
+msgstr "样本"
+
 #: src/components/SignalHero.tsx:24
 #: src/pages/Today.tsx:64
 msgid "CAUTION"
 msgstr "注意"
+
+#: src/pages/admin/AdminFeedback.tsx:486
+#: src/pages/admin/AdminOps.tsx:1591
+msgid "Challenger"
+msgstr "挑战策略"
+
+#: src/pages/admin/AdminOps.tsx:1554
+msgid "Challenger accuracy"
+msgstr "挑战策略准确率"
+
+#: src/pages/admin/AdminOps.tsx:1575
+msgid "Challenger errors:"
+msgstr "挑战策略错误："
 
 #: src/components/SetupChecklist.tsx:67
 msgid "Change"
@@ -1140,7 +1205,7 @@ msgstr "已关闭"
 msgid "Closed · cap reached"
 msgstr "已关闭 · 已达上限"
 
-#: src/pages/admin/AdminOps.tsx:1434
+#: src/pages/admin/AdminOps.tsx:1448
 msgid "Coach useful-vote rate"
 msgstr "Coach 有用投票率"
 
@@ -1190,7 +1255,7 @@ msgstr "公告"
 msgid "Complete these steps to unlock your training insights"
 msgstr "完成以下步骤，解锁训练解读"
 
-#: src/pages/admin/AdminOps.tsx:1011
+#: src/pages/admin/AdminOps.tsx:1025
 msgid "Completed"
 msgstr "已完成"
 
@@ -1222,11 +1287,11 @@ msgstr "组件"
 msgid "Configure your training system"
 msgstr "设置训练系统"
 
-#: src/pages/admin/AdminOps.tsx:1188
+#: src/pages/admin/AdminOps.tsx:1202
 msgid "Confirm one fenced replay. Praxys will refresh the provider calendar and stop if ownership or delivery state changed."
 msgstr "确认执行一次受保护的重试。Praxys 会先刷新数据来源日历；若所有权或下发状态已变更，则立即停止。"
 
-#: src/pages/admin/AdminOps.tsx:1214
+#: src/pages/admin/AdminOps.tsx:1228
 msgid "Confirm replay"
 msgstr "确认重试"
 
@@ -1239,7 +1304,7 @@ msgid "Confirmed what I planned"
 msgstr "确认按原计划训练"
 
 #. placeholder {0}: managedHealth.states.conflict
-#: src/pages/admin/AdminOps.tsx:990
+#: src/pages/admin/AdminOps.tsx:1004
 msgid "Conflict <0>{0}</0>"
 msgstr "冲突 <0>{0}</0>"
 
@@ -1284,7 +1349,7 @@ msgstr "请先连接支持的平台"
 #~ msgid "Connect Stryd above before adopting managed delivery."
 #~ msgstr "请先在上方连接 Stryd，再启用托管下发。"
 
-#: src/pages/admin/AdminOps.tsx:418
+#: src/pages/admin/AdminOps.tsx:427
 #: src/pages/Settings.tsx:889
 msgid "Connected"
 msgstr "已连接"
@@ -1298,7 +1363,7 @@ msgstr "已连接平台"
 msgid "Connecting..."
 msgstr "连接中…"
 
-#: src/pages/admin/AdminOps.tsx:1673
+#: src/pages/admin/AdminOps.tsx:1735
 msgid "Connection funnel"
 msgstr "连接转化漏斗"
 
@@ -1415,7 +1480,7 @@ msgstr "无法更新 Garmin 实验性下发"
 msgid "Couldn't load announcements"
 msgstr "无法加载公告"
 
-#: src/pages/admin/AdminFeedback.tsx:184
+#: src/pages/admin/AdminFeedback.tsx:305
 msgid "Couldn't load feedback queue"
 msgstr "无法加载反馈队列"
 
@@ -1423,9 +1488,13 @@ msgstr "无法加载反馈队列"
 msgid "Couldn't load incidents"
 msgstr "无法加载事件"
 
-#: src/pages/admin/AdminOps.tsx:333
+#: src/pages/admin/AdminOps.tsx:342
 msgid "Couldn't load operations summary"
 msgstr "无法加载运营摘要"
+
+#: src/pages/admin/AdminFeedback.tsx:227
+msgid "Couldn't record the readiness judgment."
+msgstr "无法记录 agent-ready 判断。"
 
 #: src/pages/admin/AdminUsers.tsx:163
 #: src/pages/admin/AdminUsers.tsx:171
@@ -1445,7 +1514,7 @@ msgstr "反馈发送失败，请重试。"
 msgid "Couldn't send your feedback. Please try again."
 msgstr "反馈发送失败，请重试。"
 
-#: src/pages/admin/AdminFeedback.tsx:140
+#: src/pages/admin/AdminFeedback.tsx:188
 msgid "Couldn't update feedback."
 msgstr "无法更新反馈。"
 
@@ -1521,7 +1590,7 @@ msgstr "正在创建账号…"
 msgid "Creating…"
 msgstr "正在创建…"
 
-#: src/pages/admin/AdminFeedback.tsx:94
+#: src/pages/admin/AdminFeedback.tsx:107
 #: src/pages/admin/AdminIncidents.tsx:31
 #: src/pages/admin/AdminIncidents.tsx:186
 #: src/pages/Status.tsx:102
@@ -1536,7 +1605,7 @@ msgstr "阈值功率"
 #. placeholder {0}: incidents.critical
 #. placeholder {1}: incidents.major
 #. placeholder {2}: incidents.minor
-#: src/pages/admin/AdminOps.tsx:800
+#: src/pages/admin/AdminOps.tsx:814
 msgid "Critical: {0}. Major: {1}. Minor: {2}."
 msgstr "严重：{0}。重大：{1}。轻微：{2}。"
 
@@ -1607,7 +1676,7 @@ msgstr "骑行"
 #~ msgid "Daanen decay and reacclimation review"
 #~ msgstr "Daanen 热适应衰减与再适应综述"
 
-#: src/pages/admin/AdminOps.tsx:373
+#: src/pages/admin/AdminOps.tsx:382
 msgid "Daily brief"
 msgstr "每日简报"
 
@@ -1635,20 +1704,20 @@ msgstr "数据偏好"
 msgid "Data synced successfully"
 msgstr "数据同步成功"
 
-#: src/pages/admin/AdminOps.tsx:716
+#: src/pages/admin/AdminOps.tsx:730
 msgid "Database"
 msgstr "数据库"
 
-#: src/pages/admin/AdminOps.tsx:1323
+#: src/pages/admin/AdminOps.tsx:1337
 msgid "Database health failures"
 msgstr "数据库健康检查失败"
 
-#: src/pages/admin/AdminOps.tsx:1370
+#: src/pages/admin/AdminOps.tsx:1384
 #: src/pages/admin/AdminUsers.tsx:135
 msgid "DAU"
 msgstr "日活用户数"
 
-#: src/pages/admin/AdminOps.tsx:1463
+#: src/pages/admin/AdminOps.tsx:1477
 msgid "DAU, WAU, and MAU use authenticated request activity for context. Today and Coach metrics use trusted backend telemetry."
 msgstr "DAU、WAU 和 MAU 以已认证请求活动为统计依据；Today 与 Coach 指标来自可信后端遥测。"
 
@@ -1680,11 +1749,11 @@ msgstr "停用"
 #~ msgid "Decision response"
 #~ msgstr "决策响应"
 
-#: src/pages/admin/AdminOps.tsx:1406
+#: src/pages/admin/AdminOps.tsx:1420
 msgid "Decision response rate"
 msgstr "决策反馈率"
 
-#: src/pages/admin/AdminOps.tsx:1533
+#: src/pages/admin/AdminOps.tsx:1547
 msgid "Decisions"
 msgstr "决策"
 
@@ -1712,7 +1781,7 @@ msgstr "默认（英文）"
 msgid "Defines what counts as easy, threshold, hard."
 msgstr "划分轻松、阈值和高强度的范围。"
 
-#: src/pages/admin/AdminOps.tsx:703
+#: src/pages/admin/AdminOps.tsx:717
 #: src/pages/Status.tsx:83
 msgid "Degraded"
 msgstr "性能下降"
@@ -1763,25 +1832,25 @@ msgstr "正在删除…"
 msgid "Deliver now"
 msgstr "立即下发"
 
-#: src/pages/admin/AdminOps.tsx:953
+#: src/pages/admin/AdminOps.tsx:967
 msgid "Delivery enabled"
 msgstr "下发已启用"
 
 #: src/components/UpcomingPlanCard.tsx:860
 #: src/components/UpcomingPlanCard.tsx:867
-#: src/pages/admin/AdminOps.tsx:435
+#: src/pages/admin/AdminOps.tsx:444
 msgid "Delivery failed"
 msgstr "下发失败"
 
-#: src/pages/admin/AdminOps.tsx:433
+#: src/pages/admin/AdminOps.tsx:442
 msgid "Delivery is stuck in progress"
 msgstr "下发任务卡在进行中"
 
-#: src/pages/admin/AdminOps.tsx:431
+#: src/pages/admin/AdminOps.tsx:440
 msgid "Delivery never started"
 msgstr "下发尚未开始"
 
-#: src/pages/admin/AdminOps.tsx:1005
+#: src/pages/admin/AdminOps.tsx:1019
 msgid "Delivery outcomes"
 msgstr "下发结果"
 
@@ -1836,7 +1905,7 @@ msgstr "详情"
 msgid "Developing"
 msgstr "形成中"
 
-#: src/pages/admin/AdminOps.tsx:926
+#: src/pages/admin/AdminOps.tsx:940
 msgid "Diagnose Praxys-owned workout delivery without exposing athlete identity or provider workout data."
 msgstr "诊断 Praxys 管理的训练下发问题，同时不暴露运动员身份或数据来源中的训练信息。"
 
@@ -1873,7 +1942,7 @@ msgstr "今天没帮上忙"
 msgid "Direction"
 msgstr "趋势方向"
 
-#: src/pages/admin/AdminOps.tsx:1362
+#: src/pages/admin/AdminOps.tsx:1376
 msgid "Directional"
 msgstr "方向性指标"
 
@@ -1943,11 +2012,11 @@ msgstr "分布匹配度使用 Bray-Curtis 相似度比较实际与目标的各�
 #~ msgid "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. It appears only when every recent activity has complete split or sample intensity evidence."
 #~ msgstr "分布匹配度使用 Bray-Curtis 相似度比较实际与目标的各训练区间时长占比。仅当近期每次活动都有完整的分段或采样强度证据时才会显示。"
 
-#: src/pages/admin/AdminOps.tsx:451
+#: src/pages/admin/AdminOps.tsx:460
 msgid "Do not replay this item. Its failure is marked non-retryable by the delivery safety policy."
 msgstr "不要重试此项。下发安全策略已将此次失败标记为不可重试。"
 
-#: src/pages/admin/AdminOps.tsx:449
+#: src/pages/admin/AdminOps.tsx:458
 msgid "Do not replay this item. The athlete must resolve it from the plan reconciliation flow."
 msgstr "不要重试此项。运动员必须通过计划对账流程处理。"
 
@@ -2075,6 +2144,10 @@ msgstr "爬升"
 #~ msgid "Elevated"
 #~ msgstr "升高"
 
+#: src/pages/admin/AdminFeedback.tsx:131
+msgid "Eligible"
+msgstr "符合条件"
+
 #: src/pages/admin/AdminUsers.tsx:577
 #: src/pages/admin/AdminUsers.tsx:870
 #: src/pages/admin/AdminUsers.tsx:979
@@ -2137,7 +2210,7 @@ msgstr "正在启用…"
 msgid "Endurance"
 msgstr "耐力"
 
-#: src/pages/admin/AdminOps.tsx:422
+#: src/pages/admin/AdminOps.tsx:431
 #: src/pages/Settings.tsx:912
 msgid "Error"
 msgstr "错误"
@@ -2242,8 +2315,8 @@ msgstr "不会修改外部、手动添加或其他教练安排的训练。证据
 msgid "Fading"
 msgstr "减退中"
 
-#: src/pages/admin/AdminFeedback.tsx:85
-#: src/pages/admin/AdminFeedback.tsx:232
+#: src/pages/admin/AdminFeedback.tsx:98
+#: src/pages/admin/AdminFeedback.tsx:355
 msgid "Failed"
 msgstr "失败"
 
@@ -2253,7 +2326,7 @@ msgstr "失败"
 #~ msgstr "失败（HTTP {0}）"
 
 #. placeholder {0}: managedHealth.states.failed
-#: src/pages/admin/AdminOps.tsx:985
+#: src/pages/admin/AdminOps.tsx:999
 msgid "Failed <0>{0}</0>"
 msgstr "<0>{0}</0>未完成"
 
@@ -2342,11 +2415,11 @@ msgid "Failed to update user role."
 msgstr "更新用户角色失败。"
 
 #. placeholder {0}: platform.systemic_failures.length
-#: src/pages/admin/AdminOps.tsx:859
+#: src/pages/admin/AdminOps.tsx:873
 msgid "Failure classes observed: {0}."
 msgstr "观察到的失败类别：{0}。"
 
-#: src/pages/admin/AdminOps.tsx:1658
+#: src/pages/admin/AdminOps.tsx:1720
 msgid "failures"
 msgstr "次失败"
 
@@ -2380,7 +2453,7 @@ msgstr "下降"
 #~ msgid "Fatigued"
 #~ msgstr "疲劳"
 
-#: src/pages/admin/AdminFeedback.tsx:109
+#: src/pages/admin/AdminFeedback.tsx:122
 msgid "Feature"
 msgstr "功能请求"
 
@@ -2392,20 +2465,20 @@ msgstr "功能建议"
 msgid "Feedback"
 msgstr "反馈"
 
-#: src/pages/admin/AdminOps.tsx:815
+#: src/pages/admin/AdminOps.tsx:829
 msgid "Feedback queue is clear"
 msgstr "反馈队列暂无待处理项"
 
 #. placeholder {0}: feedback.actionable
-#: src/pages/admin/AdminOps.tsx:814
+#: src/pages/admin/AdminOps.tsx:828
 msgid "Feedback requiring action: {0}"
 msgstr "需要处理的反馈：{0}"
 
-#: src/pages/admin/AdminOps.tsx:816
+#: src/pages/admin/AdminOps.tsx:830
 msgid "Feedback state unavailable"
 msgstr "反馈状态不可用"
 
-#: src/pages/admin/AdminFeedback.tsx:196
+#: src/pages/admin/AdminFeedback.tsx:317
 msgid "Feedback triage"
 msgstr "反馈处理"
 
@@ -2542,6 +2615,10 @@ msgstr "对同一位运动员，Garmin 原生跑步功率通常比 Stryd 高约 
 msgid "Garmin workout delivery is disabled on this deployment until controlled live validation is complete."
 msgstr "当前部署尚未完成受控实测，Garmin 训练下发保持停用。"
 
+#: src/pages/admin/AdminOps.tsx:1581
+#~ msgid "Gate-passing semantic slice:"
+#~ msgstr "通过规则门槛的语义样本："
+
 #: src/components/FeedbackDialog.tsx:42
 msgid "General feedback"
 msgstr "其他反馈"
@@ -2570,7 +2647,7 @@ msgstr "开始使用 Praxys"
 #~ msgid "GitHub isn't configured — nothing to sync."
 #~ msgstr "未配置 GitHub —— 无需同步。"
 
-#: src/pages/admin/AdminFeedback.tsx:164
+#: src/pages/admin/AdminFeedback.tsx:283
 msgid "GitHub isn't configured. Nothing to sync."
 msgstr "未配置 GitHub，无需同步。"
 
@@ -2705,7 +2782,7 @@ msgstr "收起详情"
 msgid "Hide methodology details"
 msgstr "收起方法论详情"
 
-#: src/pages/admin/AdminFeedback.tsx:96
+#: src/pages/admin/AdminFeedback.tsx:109
 msgid "High"
 msgstr "高"
 
@@ -2891,8 +2968,8 @@ msgstr "HRV 变异性偏高（CV {cv}%），高于所设训练警戒阈值。"
 #~ msgstr "HRV 处于正常范围内"
 
 #: src/pages/admin/AdminOps.tsx:1535
-msgid "Human overrides"
-msgstr "人工改判"
+#~ msgid "Human overrides"
+#~ msgstr "人工改判"
 
 #: src/pages/Login.tsx:638
 msgid "I agree to the <0>Terms of Service</0> and <1>Privacy Policy</1>."
@@ -2917,7 +2994,7 @@ msgstr "已定位"
 #~ msgstr "改善中"
 
 #. placeholder {0}: managedHealth.states.delivering
-#: src/pages/admin/AdminOps.tsx:980
+#: src/pages/admin/AdminOps.tsx:994
 msgid "In progress <0>{0}</0>"
 msgstr "进行中 <0>{0}</0>"
 
@@ -2929,7 +3006,7 @@ msgstr "一致"
 msgid "Incident management"
 msgstr "事件管理"
 
-#: src/pages/admin/AdminOps.tsx:795
+#: src/pages/admin/AdminOps.tsx:809
 msgid "Incident state unavailable"
 msgstr "事件状态不可用"
 
@@ -2975,6 +3052,10 @@ msgstr "当前 HRV 数据不足，无法比较"
 #: src/components/charts/WeeklyVolumeChart.tsx:22
 msgid "Insufficient data"
 msgstr "数据不足"
+
+#: src/pages/admin/AdminFeedback.tsx:139
+msgid "Insufficient detail"
+msgstr "信息不足"
 
 #: src/components/HeatAdaptationPanel.tsx:18
 msgid "Insufficient evidence"
@@ -3040,12 +3121,12 @@ msgstr "邀请"
 msgid "Invited"
 msgstr "已邀请"
 
-#: src/pages/admin/AdminFeedback.tsx:265
+#: src/pages/admin/AdminFeedback.tsx:392
 msgid "Issue"
 msgstr "工单"
 
-#: src/pages/admin/AdminFeedback.tsx:81
-#: src/pages/admin/AdminFeedback.tsx:233
+#: src/pages/admin/AdminFeedback.tsx:94
+#: src/pages/admin/AdminFeedback.tsx:356
 msgid "Issue created"
 msgstr "已创建 Issue"
 
@@ -3059,6 +3140,30 @@ msgstr "加入候补名单"
 #: src/pages/admin/AdminUsers.tsx:911
 msgid "Joined"
 msgstr "已加入"
+
+#: src/pages/admin/AdminFeedback.tsx:254
+msgid "Judgment recorded and agent-ready removed."
+msgstr "判断已记录，agent-ready 已移除。"
+
+#: src/pages/admin/AdminFeedback.tsx:253
+msgid "Judgment recorded and agent-ready synchronized."
+msgstr "判断已记录，agent-ready 已同步。"
+
+#: src/pages/admin/AdminFeedback.tsx:234
+msgid "Judgment recorded, but the GitHub agent-ready label could not be synchronized."
+msgstr "判断已记录，但无法同步 GitHub 的 agent-ready 标签。"
+
+#: src/pages/admin/AdminFeedback.tsx:247
+msgid "Judgment recorded, but the linked issue belongs to a different repository configuration."
+msgstr "判断已记录，但关联议题属于另一项仓库配置。"
+
+#: src/pages/admin/AdminFeedback.tsx:239
+msgid "Judgment recorded. The linked issue is not open, so no label was added."
+msgstr "判断已记录。关联议题未开启，因此未添加标签。"
+
+#: src/pages/admin/AdminFeedback.tsx:243
+msgid "Judgment recorded. This feedback has no linked GitHub issue."
+msgstr "判断已记录。此反馈尚未关联 GitHub 议题。"
 
 #: src/pages/Today.tsx:272
 msgid "Keep any optional movement easy and short"
@@ -3132,16 +3237,16 @@ msgstr "最近一次纳入训练"
 
 #. placeholder {0}: componentStatusLabel(component.status)
 #. placeholder {0}: overallLabel(service.overall)
-#: src/pages/admin/AdminOps.tsx:1250
-#: src/pages/admin/AdminOps.tsx:1279
+#: src/pages/admin/AdminOps.tsx:1264
+#: src/pages/admin/AdminOps.tsx:1293
 msgid "Last known: {0}"
 msgstr "最近状态：{0}"
 
-#: src/pages/admin/AdminOps.tsx:834
+#: src/pages/admin/AdminOps.tsx:848
 msgid "Last known: {alertTitle}"
 msgstr "最近状态：{alertTitle}"
 
-#: src/pages/admin/AdminOps.tsx:853
+#: src/pages/admin/AdminOps.tsx:867
 msgid "Last known: {systemicTitle}"
 msgstr "最近状态：{systemicTitle}"
 
@@ -3250,11 +3355,11 @@ msgstr "链接地址（可选）"
 msgid "Link your training devices and services"
 msgstr "连接训练设备和服务"
 
-#: src/pages/admin/AdminOps.tsx:200
+#: src/pages/admin/AdminOps.tsx:209
 msgid "Live"
 msgstr "实时"
 
-#: src/pages/admin/AdminOps.tsx:1304
+#: src/pages/admin/AdminOps.tsx:1318
 msgid "Live component health is unavailable."
 msgstr "实时组件健康状态不可用。"
 
@@ -3262,7 +3367,7 @@ msgstr "实时组件健康状态不可用。"
 msgid "Live demo — real training data, read-only"
 msgstr "实时演示：真实训练数据，仅供查看"
 
-#: src/pages/admin/AdminOps.tsx:191
+#: src/pages/admin/AdminOps.tsx:200
 msgid "Live probe"
 msgstr "实时探测"
 
@@ -3355,7 +3460,7 @@ msgstr "长期模型负荷高于近期模型负荷。"
 #~ msgid "low"
 #~ msgstr "偏低"
 
-#: src/pages/admin/AdminFeedback.tsx:100
+#: src/pages/admin/AdminFeedback.tsx:113
 msgid "Low"
 msgstr "偏低"
 
@@ -3379,6 +3484,10 @@ msgstr "LTHR 趋势"
 msgid "Main"
 msgstr "主训练"
 
+#: src/pages/admin/AdminFeedback.tsx:504
+msgid "Maintainer verdict:"
+msgstr "维护者判断："
+
 #: src/components/HeatAdaptationPanel.tsx:21
 msgid "Maintaining"
 msgstr "维持中"
@@ -3398,7 +3507,7 @@ msgid "Major Outage"
 msgstr "大范围服务中断"
 
 #: src/components/StatusIndicator.tsx:30
-#: src/pages/admin/AdminOps.tsx:694
+#: src/pages/admin/AdminOps.tsx:708
 msgid "Major service outage"
 msgstr "大范围服务中断"
 
@@ -3414,7 +3523,7 @@ msgstr "今天作为恢复日，明天再评估高强度训练"
 msgid "Manage in Settings"
 msgstr "前往设置管理"
 
-#: src/pages/admin/AdminOps.tsx:806
+#: src/pages/admin/AdminOps.tsx:820
 msgid "Manage incidents"
 msgstr "管理事件"
 
@@ -3426,7 +3535,7 @@ msgstr "管理席位、角色、邀请和候补名单接入。"
 #~ msgid "Manage users and invitation codes"
 #~ msgstr "管理用户和邀请码"
 
-#: src/pages/admin/AdminOps.tsx:952
+#: src/pages/admin/AdminOps.tsx:966
 msgid "Managed athletes"
 msgstr "托管运动员"
 
@@ -3458,27 +3567,27 @@ msgstr "托管模式已关闭。已有 <0>{0}</0> 个交付项处理完成；仍
 #~ msgid "Managed mode is off. <0>{0}</0> deliveries are clear; <1>{1}</1> still need review for {targetLabel}."
 #~ msgstr "托管模式已关闭。已有 <0>{0}</0> 个交付项处理完成；仍有 <1>{1}</1> 个需要检查 {targetLabel} 状态。"
 
-#: src/pages/admin/AdminOps.tsx:923
+#: src/pages/admin/AdminOps.tsx:937
 msgid "Managed plan delivery"
 msgstr "托管计划下发"
 
-#: src/pages/admin/AdminOps.tsx:998
+#: src/pages/admin/AdminOps.tsx:1012
 msgid "Managed-plan database health is unavailable."
 msgstr "托管计划数据库健康状态暂不可用。"
 
-#: src/pages/admin/AdminOps.tsx:599
+#: src/pages/admin/AdminOps.tsx:613
 msgid "Managed-plan deliveries needing attention: {managedAttentionCount}"
 msgstr "需要关注的托管计划下发：{managedAttentionCount}"
 
-#: src/pages/admin/AdminOps.tsx:600
+#: src/pages/admin/AdminOps.tsx:614
 msgid "Managed-plan delivery queue is clear"
 msgstr "托管计划下发队列无待处理项"
 
-#: src/pages/admin/AdminOps.tsx:878
+#: src/pages/admin/AdminOps.tsx:892
 msgid "Managed-plan delivery state unavailable"
 msgstr "托管计划下发状态暂不可用"
 
-#: src/pages/admin/AdminOps.tsx:885
+#: src/pages/admin/AdminOps.tsx:899
 msgid "Managed-plan diagnostics could not be refreshed."
 msgstr "无法刷新托管计划诊断信息。"
 
@@ -3486,7 +3595,7 @@ msgstr "无法刷新托管计划诊断信息。"
 msgid "Management routes for access, communications, and service status."
 msgstr "用于访问权限、通知和服务状态的管理入口。"
 
-#: src/pages/admin/AdminOps.tsx:334
+#: src/pages/admin/AdminOps.tsx:343
 msgid "Management routes remain available. Retry the aggregate health snapshot."
 msgstr "管理入口仍可用。请重试获取聚合健康快照。"
 
@@ -3505,7 +3614,7 @@ msgstr "马拉松"
 msgid "Matched"
 msgstr "匹配"
 
-#: src/pages/admin/AdminOps.tsx:1372
+#: src/pages/admin/AdminOps.tsx:1386
 #: src/pages/admin/AdminUsers.tsx:137
 msgid "MAU"
 msgstr "MAU"
@@ -3514,20 +3623,24 @@ msgstr "MAU"
 msgid "Max HR"
 msgstr "最大心率"
 
-#: src/pages/admin/AdminFeedback.tsx:98
+#: src/pages/admin/AdminFeedback.tsx:111
 msgid "Medium"
 msgstr "中"
 
-#: src/pages/admin/AdminOps.tsx:1536
-msgid "Merged PR outcomes"
+#: src/pages/admin/AdminOps.tsx:1606
+msgid "merged PR outcomes"
 msgstr "已合并 PR 结果"
 
-#: src/pages/admin/AdminOps.tsx:407
+#: src/pages/admin/AdminOps.tsx:1536
+#~ msgid "Merged PR outcomes"
+#~ msgstr "已合并 PR 结果"
+
+#: src/pages/admin/AdminOps.tsx:416
 msgid "MFA"
 msgstr "MFA"
 
-#: src/pages/admin/AdminOps.tsx:394
-#: src/pages/admin/AdminOps.tsx:420
+#: src/pages/admin/AdminOps.tsx:403
+#: src/pages/admin/AdminOps.tsx:429
 msgid "MFA required"
 msgstr "需 MFA"
 
@@ -3541,7 +3654,7 @@ msgstr "需 MFA"
 msgid "min"
 msgstr "分钟"
 
-#: src/pages/admin/AdminOps.tsx:364
+#: src/pages/admin/AdminOps.tsx:373
 msgid "Mini program"
 msgstr "小程序"
 
@@ -3611,7 +3724,7 @@ msgstr "调整"
 msgid "Monitoring"
 msgstr "观察中"
 
-#: src/pages/admin/AdminOps.tsx:1597
+#: src/pages/admin/AdminOps.tsx:1659
 msgid "Monitoring runbook"
 msgstr "监控手册"
 
@@ -3674,13 +3787,13 @@ msgstr "需要帮助？{SUPPORT_EMAIL}"
 msgid "Needed {abbrev}"
 msgstr "所需{abbrev}"
 
-#: src/pages/admin/AdminOps.tsx:779
-#: src/pages/admin/AdminOps.tsx:955
+#: src/pages/admin/AdminOps.tsx:793
+#: src/pages/admin/AdminOps.tsx:969
 msgid "Needs attention"
 msgstr "需要关注"
 
-#: src/pages/admin/AdminFeedback.tsx:79
-#: src/pages/admin/AdminFeedback.tsx:231
+#: src/pages/admin/AdminFeedback.tsx:92
+#: src/pages/admin/AdminFeedback.tsx:354
 msgid "Needs review"
 msgstr "需审核"
 
@@ -3688,7 +3801,7 @@ msgstr "需审核"
 #. placeholder {1}: feedback.failed
 #. placeholder {2}: feedback.critical
 #. placeholder {3}: feedback.high
-#: src/pages/admin/AdminOps.tsx:821
+#: src/pages/admin/AdminOps.tsx:835
 msgid "Needs review: {0}. Failed: {1}. Critical: {2}. High: {3}."
 msgstr "待审核：{0}。失败：{1}。严重：{2}。高优先级：{3}。"
 
@@ -3700,7 +3813,7 @@ msgstr "负平衡"
 #~ msgid "negative balance\" \"负平衡"
 #~ msgstr ""
 
-#: src/pages/admin/AdminOps.tsx:398
+#: src/pages/admin/AdminOps.tsx:407
 #: src/pages/Settings.tsx:608
 msgid "Network error"
 msgstr "网络错误"
@@ -3712,8 +3825,9 @@ msgstr "网络错误——请重试。"
 #: src/pages/admin/AdminCommunications.tsx:77
 #: src/pages/admin/AdminCommunications.tsx:98
 #: src/pages/admin/AdminCommunications.tsx:117
-#: src/pages/admin/AdminFeedback.tsx:144
-#: src/pages/admin/AdminFeedback.tsx:171
+#: src/pages/admin/AdminFeedback.tsx:193
+#: src/pages/admin/AdminFeedback.tsx:260
+#: src/pages/admin/AdminFeedback.tsx:292
 #: src/pages/admin/AdminIncidents.tsx:67
 #: src/pages/admin/AdminIncidents.tsx:91
 #: src/pages/admin/AdminIncidents.tsx:110
@@ -3730,13 +3844,13 @@ msgstr "网络错误。服务器是否已启动？"
 msgid "Network error. Please email {SUPPORT_EMAIL} directly."
 msgstr "网络错误。请直接发邮件到 {SUPPORT_EMAIL}。"
 
-#: src/pages/admin/AdminOps.tsx:627
-#: src/pages/admin/AdminOps.tsx:674
+#: src/pages/admin/AdminOps.tsx:641
+#: src/pages/admin/AdminOps.tsx:688
 msgid "Network error. Refresh the queue and try again."
 msgstr "网络错误。请刷新队列后重试。"
 
-#: src/pages/admin/AdminFeedback.tsx:75
-#: src/pages/admin/AdminFeedback.tsx:230
+#: src/pages/admin/AdminFeedback.tsx:88
+#: src/pages/admin/AdminFeedback.tsx:353
 msgid "New"
 msgstr "新建"
 
@@ -3756,7 +3870,7 @@ msgstr "新邀请码："
 msgid "New to Praxys?"
 msgstr "第一次使用 Praxys？"
 
-#: src/pages/admin/AdminFeedback.tsx:254
+#: src/pages/admin/AdminFeedback.tsx:381
 msgid "Newly triaged work will appear here when admin action is needed."
 msgstr "新分诊且需要管理员处理的工作会显示在这里。"
 
@@ -3772,11 +3886,11 @@ msgstr "下次同步"
 #~ msgid "Nielsen dry-heat acclimation study"
 #~ msgstr "Nielsen 干热适应研究"
 
-#: src/pages/admin/AdminOps.tsx:794
+#: src/pages/admin/AdminOps.tsx:808
 msgid "No active service incidents"
 msgstr "当前无服务异常"
 
-#: src/pages/admin/AdminFeedback.tsx:251
+#: src/pages/admin/AdminFeedback.tsx:378
 msgid "No active tickets"
 msgstr "暂无活跃工单"
 
@@ -3800,15 +3914,15 @@ msgstr "未找到管理配置"
 msgid "No announcements yet"
 msgstr "还没有公告"
 
-#: src/pages/admin/AdminOps.tsx:589
+#: src/pages/admin/AdminOps.tsx:603
 msgid "No Azure alerts firing"
 msgstr "未触发 Azure 警报"
 
-#: src/pages/admin/AdminOps.tsx:1512
+#: src/pages/admin/AdminOps.tsx:1526
 msgid "No change class is promoted. Decisions and outcomes are being recorded while merge remains review-gated."
 msgstr "尚未将任何变更类别提升为免审类别。系统正在记录决策和结果，合并仍需审核。"
 
-#: src/pages/admin/AdminOps.tsx:1452
+#: src/pages/admin/AdminOps.tsx:1466
 msgid "No Coach votes were recorded in this window."
 msgstr "在此时间窗口内未记录 Coach 投票。"
 
@@ -3816,7 +3930,7 @@ msgstr "在此时间窗口内未记录 Coach 投票。"
 msgid "No code yet?"
 msgstr "还没有邀请码？"
 
-#: src/pages/admin/AdminOps.tsx:1697
+#: src/pages/admin/AdminOps.tsx:1759
 msgid "No connection attempts were recorded in this window."
 msgstr "在此时间窗口内未记录连接尝试。"
 
@@ -3845,6 +3959,10 @@ msgstr "暂无数据"
 #~ msgid "No Data"
 #~ msgstr "无数据"
 
+#: src/pages/admin/AdminFeedback.tsx:141
+msgid "No decision"
+msgstr "暂无判断"
+
 #: src/components/UpcomingPlanCard.tsx:861
 msgid "No delivery result was returned for this workout"
 msgstr "未返回此训练的下发结果"
@@ -3853,11 +3971,11 @@ msgstr "未返回此训练的下发结果"
 msgid "No evidence"
 msgstr "暂无记录"
 
-#: src/pages/admin/AdminOps.tsx:489
+#: src/pages/admin/AdminOps.tsx:498
 msgid "No failure"
 msgstr "无失败"
 
-#: src/pages/admin/AdminOps.tsx:822
+#: src/pages/admin/AdminOps.tsx:836
 msgid "No feedback rows are waiting for review or retry."
 msgstr "没有等待审核或重试的反馈记录。"
 
@@ -3886,11 +4004,11 @@ msgstr "暂无事件"
 msgid "No invitation codes yet. Generate one to invite a user."
 msgstr "还没有邀请码。生成一个即可邀请用户。"
 
-#: src/pages/admin/AdminOps.tsx:1227
+#: src/pages/admin/AdminOps.tsx:1241
 msgid "No managed deliveries need operator action."
 msgstr "当前没有需要运维处理的托管下发任务。"
 
-#: src/pages/admin/AdminOps.tsx:409
+#: src/pages/admin/AdminOps.tsx:418
 msgid "No MFA"
 msgstr "无需 MFA"
 
@@ -3910,6 +4028,10 @@ msgstr "本周暂无计划负荷"
 #: src/components/ManagedPlanSettingsCard.tsx:661
 msgid "No Praxys workouts are scheduled in this window. Future Praxys-created workouts will enter the rolling window automatically."
 msgstr "此窗口内暂无 Praxys 训练。之后由 Praxys 创建的训练会自动进入滚动窗口。"
+
+#: src/pages/admin/AdminFeedback.tsx:482
+msgid "No prompt"
+msgstr "未使用提示词"
 
 #: src/components/HeatAdaptationPanel.tsx:541
 #~ msgid "No qualifying condition range yet"
@@ -3966,15 +4088,15 @@ msgstr "无受支持的天气证据"
 msgid "No supported workload evidence"
 msgstr "无受支持的负荷证据"
 
-#: src/pages/admin/AdminOps.tsx:1631
+#: src/pages/admin/AdminOps.tsx:1693
 msgid "No sync attempts were recorded in this window."
 msgstr "在此时间窗口内未记录同步尝试。"
 
-#: src/pages/admin/AdminOps.tsx:1666
+#: src/pages/admin/AdminOps.tsx:1728
 msgid "No systemic failure classes were recorded in this window."
 msgstr "在此时间窗口内未记录系统性故障类别。"
 
-#: src/pages/admin/AdminOps.tsx:594
+#: src/pages/admin/AdminOps.tsx:608
 msgid "No systemic sync failures"
 msgstr "无系统性同步失败"
 
@@ -3982,7 +4104,7 @@ msgstr "无系统性同步失败"
 msgid "No target selected"
 msgstr "未选择执行平台"
 
-#: src/pages/admin/AdminFeedback.tsx:251
+#: src/pages/admin/AdminFeedback.tsx:378
 msgid "No tickets to show"
 msgstr "暂无可显示的工单"
 
@@ -3990,7 +4112,7 @@ msgstr "暂无可显示的工单"
 #~ msgid "No tickets to show."
 #~ msgstr "没有可显示的工单。"
 
-#: src/pages/admin/AdminOps.tsx:1428
+#: src/pages/admin/AdminOps.tsx:1442
 msgid "No Today events were recorded in this window."
 msgstr "在此时间窗口内未记录 Today 事件。"
 
@@ -4064,9 +4186,17 @@ msgstr "当前时间窗口内无记录"
 #~ msgid "Normal"
 #~ msgstr "正常"
 
+#: src/pages/admin/AdminFeedback.tsx:133
+msgid "Not a bug"
+msgstr "不是缺陷"
+
 #: src/components/HeatAdaptationPanel.tsx:558
 #~ msgid "Not a current heat-risk assessment or medical clearance."
 #~ msgstr "这不是当前热风险评估，也不构成医疗许可。"
+
+#: src/pages/admin/AdminFeedback.tsx:137
+msgid "Not actionable"
+msgstr "不可直接处理"
 
 #: src/pages/Settings.tsx:892
 msgid "Not connected"
@@ -4241,11 +4371,11 @@ msgstr "开放"
 msgid "Open an incident here when you need to communicate a live service issue."
 msgstr "需要通报正在发生的服务问题时，可在这里创建事件。"
 
-#: src/pages/admin/AdminOps.tsx:845
+#: src/pages/admin/AdminOps.tsx:859
 msgid "Open Azure alerts"
 msgstr "查看 Azure 警报"
 
-#: src/pages/admin/AdminOps.tsx:864
+#: src/pages/admin/AdminOps.tsx:878
 msgid "Open Azure logs"
 msgstr "查看 Azure 日志"
 
@@ -4253,7 +4383,7 @@ msgstr "查看 Azure 日志"
 msgid "Open evidence"
 msgstr "查看证据"
 
-#: src/pages/admin/AdminOps.tsx:826
+#: src/pages/admin/AdminOps.tsx:840
 msgid "Open feedback"
 msgstr "查看反馈"
 
@@ -4278,21 +4408,21 @@ msgid "Opening update message (optional)"
 msgstr "初始更新信息（可选）"
 
 #. placeholder {0}: item.operation
-#: src/pages/admin/AdminOps.tsx:1151
+#: src/pages/admin/AdminOps.tsx:1165
 msgid "Operation {0}"
 msgstr "操作 {0}"
 
-#: src/pages/admin/AdminOps.tsx:701
+#: src/pages/admin/AdminOps.tsx:715
 #: src/pages/Status.tsx:82
 msgid "Operational"
 msgstr "运行正常"
 
 #: src/pages/admin/AdminLayout.tsx:22
-#: src/pages/admin/AdminOps.tsx:729
+#: src/pages/admin/AdminOps.tsx:743
 msgid "Operations"
 msgstr "运营"
 
-#: src/pages/admin/AdminOps.tsx:1044
+#: src/pages/admin/AdminOps.tsx:1058
 msgid "Operator queue"
 msgstr "运维队列"
 
@@ -4316,7 +4446,7 @@ msgstr "可选备注"
 msgid "Options"
 msgstr "选项"
 
-#: src/pages/admin/AdminFeedback.tsx:111
+#: src/pages/admin/AdminFeedback.tsx:124
 msgid "Other"
 msgstr "其他"
 
@@ -4324,7 +4454,7 @@ msgstr "其他"
 msgid "Other Signals"
 msgstr "其他信号"
 
-#: src/pages/admin/AdminOps.tsx:707
+#: src/pages/admin/AdminOps.tsx:721
 #: src/pages/Status.tsx:85
 msgid "Outage"
 msgstr "服务中断"
@@ -4345,7 +4475,7 @@ msgstr "夜间评分"
 #~ msgid "Overwrite Stryd with Praxys version"
 #~ msgstr "用 Praxys 版本覆盖 Stryd"
 
-#: src/pages/admin/AdminOps.tsx:485
+#: src/pages/admin/AdminOps.tsx:494
 msgid "Ownership conflict"
 msgstr "归属冲突"
 
@@ -4357,7 +4487,7 @@ msgstr "归属冲突"
 msgid "Pace"
 msgstr "配速"
 
-#: src/pages/admin/AdminOps.tsx:705
+#: src/pages/admin/AdminOps.tsx:719
 #: src/pages/Status.tsx:84
 msgid "Partial outage"
 msgstr "部分中断"
@@ -4367,7 +4497,7 @@ msgid "Partial Outage"
 msgstr "部分服务中断"
 
 #: src/components/StatusIndicator.tsx:29
-#: src/pages/admin/AdminOps.tsx:692
+#: src/pages/admin/AdminOps.tsx:706
 msgid "Partial service outage"
 msgstr "部分服务中断"
 
@@ -4396,7 +4526,7 @@ msgstr "暂停下发"
 
 #: src/components/ManagedPlanSettingsCard.tsx:433
 #: src/components/UpcomingPlanCard.tsx:359
-#: src/pages/admin/AdminOps.tsx:954
+#: src/pages/admin/AdminOps.tsx:968
 msgid "Paused"
 msgstr "已暂停"
 
@@ -4413,7 +4543,7 @@ msgid "Peer metrics"
 msgstr "训练指标"
 
 #. placeholder {0}: managedHealth.states.pending
-#: src/pages/admin/AdminOps.tsx:975
+#: src/pages/admin/AdminOps.tsx:989
 msgid "Pending <0>{0}</0>"
 msgstr "待处理 <0>{0}</0>"
 
@@ -4463,19 +4593,19 @@ msgstr "计划训练"
 #~ msgid "Platform aggregates are not connected yet."
 #~ msgstr "尚未接入平台聚合数据。"
 
-#: src/pages/admin/AdminOps.tsx:860
+#: src/pages/admin/AdminOps.tsx:874
 msgid "Platform aggregates could not be refreshed."
 msgstr "无法刷新平台聚合数据。"
 
-#: src/pages/admin/AdminOps.tsx:396
+#: src/pages/admin/AdminOps.tsx:405
 msgid "Platform error"
 msgstr "平台错误"
 
-#: src/pages/admin/AdminOps.tsx:1571
+#: src/pages/admin/AdminOps.tsx:1633
 msgid "Platform health"
 msgstr "平台健康"
 
-#: src/pages/admin/AdminOps.tsx:1576
+#: src/pages/admin/AdminOps.tsx:1638
 msgid "Platform telemetry is unavailable."
 msgstr "平台遥测不可用。"
 
@@ -4489,11 +4619,11 @@ msgstr "登录前请先验证邮箱。请查看收件箱中的验证链接。"
 
 #. placeholder {0}: agentLearning.review_policy_version
 #. placeholder {1}: agentLearning.decision_policy_version
-#: src/pages/admin/AdminOps.tsx:1522
+#: src/pages/admin/AdminOps.tsx:1536
 msgid "Policy {0} · decision {1}"
 msgstr "策略 {0} · 决策 {1}"
 
-#: src/pages/admin/AdminOps.tsx:1503
+#: src/pages/admin/AdminOps.tsx:1517
 msgid "Policy-gated auto-merge"
 msgstr "策略门禁自动合并"
 
@@ -4509,7 +4639,7 @@ msgstr "正平衡"
 #~ msgid "positive balance\" \"正平衡"
 #~ msgstr ""
 
-#: src/pages/admin/AdminOps.tsx:1289
+#: src/pages/admin/AdminOps.tsx:1303
 msgid "PostgreSQL connections"
 msgstr "PostgreSQL 连接数"
 
@@ -4612,15 +4742,15 @@ msgstr "Praxys 无法确定所在时区。请检查设备设置后重试。"
 msgid "Praxys could not finish delivery. Retrying keeps the Praxys version canonical."
 msgstr "Praxys 未能完成下发。重试后仍以 Praxys 版本为准。"
 
-#: src/pages/admin/AdminOps.tsx:189
+#: src/pages/admin/AdminOps.tsx:198
 msgid "Praxys database"
 msgstr "Praxys 数据库"
 
-#: src/pages/admin/AdminOps.tsx:483
+#: src/pages/admin/AdminOps.tsx:492
 msgid "Praxys defect"
 msgstr "Praxys 缺陷"
 
-#: src/pages/admin/AdminOps.tsx:1024
+#: src/pages/admin/AdminOps.tsx:1038
 msgid "Praxys defects"
 msgstr "Praxys 缺陷"
 
@@ -4738,6 +4868,10 @@ msgstr "先前热适应的证据可能正在减弱。"
 #~ msgid "Prior heat adaptation is likely still retained."
 #~ msgstr "先前的热适应可能仍然保留。"
 
+#: src/pages/admin/AdminOps.tsx:1599
+msgid "Priority is excluded from readiness evaluation."
+msgstr "就绪评估不使用优先级。"
+
 #: src/pages/Login.tsx:210
 msgid "Private alpha · Invitation only"
 msgstr "内测中 · 仅限邀请"
@@ -4750,7 +4884,7 @@ msgstr "继续训练，但注意观察训练中的心率漂移"
 #~ msgid "Proceed but monitor heart-rate drift during the session\" \"继续训练，但监测训练中的心率漂移"
 #~ msgstr ""
 
-#: src/pages/admin/AdminOps.tsx:1358
+#: src/pages/admin/AdminOps.tsx:1372
 msgid "Product value"
 msgstr "产品价值"
 
@@ -4781,6 +4915,10 @@ msgstr "提升"
 msgid "Promote to Admin"
 msgstr "设为管理员"
 
+#: src/pages/admin/AdminOps.tsx:1583
+msgid "Prompt-semantic slice:"
+msgstr "提示词语义样本："
+
 #: src/pages/Admin.tsx:820
 #~ msgid "Prospective users — generate an invitation code and email it"
 #~ msgstr "潜在用户 — 生成邀请码并通过邮件发送"
@@ -4789,25 +4927,29 @@ msgstr "设为管理员"
 msgid "Prospective users: generate invitation codes and follow up by email."
 msgstr "潜在用户：生成邀请码，并通过邮件跟进。"
 
-#: src/pages/admin/AdminOps.tsx:1019
+#: src/pages/admin/AdminOps.tsx:1033
 msgid "Provider / auth failures"
 msgstr "数据来源或认证失败"
 
-#: src/pages/admin/AdminOps.tsx:479
+#: src/pages/admin/AdminOps.tsx:488
 msgid "Provider authentication"
 msgstr "数据来源认证"
 
-#: src/pages/admin/AdminOps.tsx:481
+#: src/pages/admin/AdminOps.tsx:490
 msgid "Provider failure"
 msgstr "数据来源故障"
 
-#: src/pages/admin/AdminOps.tsx:441
+#: src/pages/admin/AdminOps.tsx:450
 msgid "Provider outcome is uncertain"
 msgstr "数据来源端结果不确定"
 
-#: src/pages/admin/AdminOps.tsx:1349
+#: src/pages/admin/AdminOps.tsx:1363
 msgid "Public status"
 msgstr "公开状态页"
+
+#: src/pages/admin/AdminOps.tsx:1609
+msgid "publication overrides"
+msgstr "发布人工覆盖"
 
 #: src/pages/admin/AdminCommunications.tsx:228
 msgid "Publish a banner above to communicate maintenance windows, launches, or onboarding news."
@@ -4903,7 +5045,7 @@ msgstr "比赛日期"
 msgid "Race date is required"
 msgstr "请填写比赛日期"
 
-#: src/pages/admin/AdminOps.tsx:377
+#: src/pages/admin/AdminOps.tsx:386
 msgid "Race forecast"
 msgstr "比赛预测"
 
@@ -4928,7 +5070,7 @@ msgstr "比赛预测"
 #~ msgid "Range"
 #~ msgstr "范围"
 
-#: src/pages/admin/AdminOps.tsx:386
+#: src/pages/admin/AdminOps.tsx:395
 msgid "Rate limited"
 msgstr "已限流"
 
@@ -5135,11 +5277,11 @@ msgstr "推荐"
 msgid "Recommended. Delivered workouts stay on the calendar; Praxys simply stops managing them."
 msgstr "推荐。已下发的训练会保留在日历中，Praxys 只停止继续管理。"
 
-#: src/pages/admin/AdminOps.tsx:1173
+#: src/pages/admin/AdminOps.tsx:1187
 msgid "Reconcile and replay"
 msgstr "对账并重试"
 
-#: src/pages/admin/AdminOps.tsx:666
+#: src/pages/admin/AdminOps.tsx:680
 msgid "Reconciliation completed without replaying a workout."
 msgstr "对账完成，未重试训练下发。"
 
@@ -5159,6 +5301,14 @@ msgstr "重新连接 Garmin 后才能再次授权实验功能。托管下发仍�
 msgid "Reconnecting Garmin or changing its account region revokes this permission and pauses delivery until you opt in again."
 msgstr "重新连接 Garmin 或更改账号区域会撤销此权限并暂停下发，重新选择加入后才能恢复。"
 
+#: src/pages/admin/AdminFeedback.tsx:544
+msgid "Record judgment"
+msgstr "记录判断"
+
+#: src/pages/admin/AdminFeedback.tsx:519
+msgid "Record maintainer judgment"
+msgstr "记录维护者判断"
+
 #: src/pages/Training.tsx:320
 msgid "Recorded distance in non-overlapping seven-day buckets, including weeks with no recorded distance."
 msgstr "按不重叠的 7 天区间统计已记录距离，包括没有距离记录的周。"
@@ -5166,7 +5316,7 @@ msgstr "按不重叠的 7 天区间统计已记录距离，包括没有距离记
 #. placeholder {0}: managedHealth.recoverable
 #. placeholder {1}: managedHealth.retry_exhausted
 #. placeholder {2}: managedHealth.stuck_inflight
-#: src/pages/admin/AdminOps.tsx:882
+#: src/pages/admin/AdminOps.tsx:896
 msgid "Recoverable: {0}. Retry exhausted: {1}. Stuck in progress: {2}."
 msgstr "可恢复：{0}。重试耗尽：{1}。卡在进行中：{2}。"
 
@@ -5181,23 +5331,23 @@ msgstr "可恢复：{0}。重试耗尽：{1}。卡在进行中：{2}。"
 msgid "Recovery"
 msgstr "恢复"
 
-#: src/pages/admin/AdminOps.tsx:1047
+#: src/pages/admin/AdminOps.tsx:1061
 msgid "Recovery always reconciles the provider calendar first. Conflicts and uncertain provider outcomes stay athlete-resolved."
 msgstr "恢复始终先核对数据来源日历。冲突和结果不确定的情况仍需运动员处理。"
 
-#: src/pages/admin/AdminOps.tsx:665
+#: src/pages/admin/AdminOps.tsx:679
 msgid "Recovery completed after a fresh provider reconciliation."
 msgstr "已完成恢复，并重新核对了数据来源日历。"
 
-#: src/pages/admin/AdminOps.tsx:654
+#: src/pages/admin/AdminOps.tsx:668
 msgid "Recovery completed only partially. Review the refreshed queue before taking another action."
 msgstr "恢复仅部分完成。请先查看已刷新的队列，再执行下一步操作。"
 
-#: src/pages/admin/AdminOps.tsx:647
+#: src/pages/admin/AdminOps.tsx:661
 msgid "Recovery could not be completed. Refresh the queue and try again."
 msgstr "恢复未能完成。请刷新队列后重试。"
 
-#: src/pages/admin/AdminOps.tsx:645
+#: src/pages/admin/AdminOps.tsx:659
 msgid "Recovery could not start because the delivery state changed. Review the refreshed queue."
 msgstr "恢复未能开始，因为下发状态已变更。请查看已刷新的队列。"
 
@@ -5254,11 +5404,11 @@ msgstr "恢复状态"
 #~ msgid "Recovery status uses ln(RMSSD) compared to your personal baseline. 'Fatigued' = below baseline mean minus 1 SD (Kiviniemi et al, 2007 threshold). 'Fresh' = above baseline mean plus 0.5 SD (Plews et al, 2012 smallest worthwhile change). The 7-day trend and CV are monitored per Plews. CV above {cvThreshold}% is a Praxys caution flag for unusual variability, not a diagnosis. Sleep, readiness, RHR, and TSB remain informational context."
 #~ msgstr "恢复状态通过将 ln(RMSSD) 与您的个人基准比较来判断。‘疲劳’= 低于基准均值 1 个标准差（Kiviniemi 等，2007）。‘充分恢复’= 高于基准均值 0.5 个标准差（Plews 等，2012，最小有意义变化）。按 Plews 方法监测 7 天趋势和 CV。CV 高于 {cvThreshold}% 是 Praxys 对异常波动的警戒提示，不是诊断。睡眠、准备度、静息心率和 TSB 仅作为信息性上下文。"
 
-#: src/pages/admin/AdminOps.tsx:656
+#: src/pages/admin/AdminOps.tsx:670
 msgid "Recovery was blocked after provider reconciliation. Review the refreshed queue."
 msgstr "数据来源日历对账后，恢复被安全策略阻止。请查看刷新后的队列。"
 
-#: src/pages/admin/AdminOps.tsx:658
+#: src/pages/admin/AdminOps.tsx:672
 msgid "Recovery was skipped because delivery eligibility changed. Review the refreshed queue."
 msgstr "恢复已跳过，因为下发条件已变更。请查看已刷新的队列。"
 
@@ -5276,13 +5426,13 @@ msgstr "降低强度"
 msgid "References"
 msgstr "参考文献"
 
-#: src/pages/admin/AdminOps.tsx:761
+#: src/pages/admin/AdminOps.tsx:775
 #: src/pages/Status.tsx:152
 #: src/pages/Status.tsx:155
 msgid "Refresh"
 msgstr "刷新"
 
-#: src/pages/admin/AdminOps.tsx:944
+#: src/pages/admin/AdminOps.tsx:958
 msgid "Refresh delivery state"
 msgstr "刷新下发状态"
 
@@ -5290,7 +5440,7 @@ msgstr "刷新下发状态"
 msgid "Refresh failed"
 msgstr "刷新失败"
 
-#: src/pages/admin/AdminOps.tsx:772
+#: src/pages/admin/AdminOps.tsx:786
 msgid "Refresh failed. Showing the last successful snapshot."
 msgstr "刷新失败，正在显示上次成功的快照。"
 
@@ -5298,11 +5448,11 @@ msgstr "刷新失败，正在显示上次成功的快照。"
 #~ msgid "Refresh failed\" \"刷新失败"
 #~ msgstr ""
 
-#: src/pages/admin/AdminOps.tsx:460
+#: src/pages/admin/AdminOps.tsx:469
 msgid "Refresh the provider calendar first, then replay only if the prior write is confirmed absent."
 msgstr "先刷新数据来源日历；仅在确认上次写入不存在后重试。"
 
-#: src/pages/admin/AdminOps.tsx:462
+#: src/pages/admin/AdminOps.tsx:471
 msgid "Refresh the provider calendar, re-check ownership, and allow one fenced retry for this item."
 msgstr "刷新数据来源日历，重新核对所有权，然后仅允许此项进行一次受保护的重试。"
 
@@ -5318,7 +5468,7 @@ msgstr "地区"
 #~ msgid "Register"
 #~ msgstr "注册"
 
-#: src/pages/admin/AdminOps.tsx:1373
+#: src/pages/admin/AdminOps.tsx:1387
 #: src/pages/admin/AdminUsers.tsx:456
 msgid "Registered"
 msgstr "已注册"
@@ -5343,12 +5493,12 @@ msgstr "注册时间"
 msgid "Registration settings unavailable"
 msgstr "注册设置暂不可用"
 
-#: src/pages/admin/AdminFeedback.tsx:358
+#: src/pages/admin/AdminFeedback.tsx:593
 msgid "Reject"
 msgstr "驳回"
 
-#: src/pages/admin/AdminFeedback.tsx:87
-#: src/pages/admin/AdminFeedback.tsx:235
+#: src/pages/admin/AdminFeedback.tsx:100
+#: src/pages/admin/AdminFeedback.tsx:358
 msgid "Rejected"
 msgstr "已拒绝"
 
@@ -5383,15 +5533,15 @@ msgstr "组"
 #~ msgid "Repeated use"
 #~ msgstr "重复使用"
 
-#: src/pages/admin/AdminOps.tsx:1418
+#: src/pages/admin/AdminOps.tsx:1432
 msgid "Repeated weekly use"
 msgstr "每周重复使用率"
 
-#: src/pages/admin/AdminOps.tsx:470
+#: src/pages/admin/AdminOps.tsx:479
 msgid "Replay blocked by safety policy"
 msgstr "安全策略已阻止重试"
 
-#: src/pages/admin/AdminFeedback.tsx:264
+#: src/pages/admin/AdminFeedback.tsx:391
 msgid "Report"
 msgstr "反馈内容"
 
@@ -5399,7 +5549,7 @@ msgstr "反馈内容"
 #~ msgid "Reported value"
 #~ msgstr "报告值"
 
-#: src/pages/admin/AdminOps.tsx:1412
+#: src/pages/admin/AdminOps.tsx:1426
 msgid "Reported value rate"
 msgstr "用户自报价值率"
 
@@ -5407,7 +5557,7 @@ msgstr "用户自报价值率"
 msgid "Request an invite"
 msgstr "申请邀请"
 
-#: src/pages/admin/AdminOps.tsx:1335
+#: src/pages/admin/AdminOps.tsx:1349
 msgid "Request and availability telemetry is unavailable."
 msgstr "请求和可用性遥测数据暂不可用。"
 
@@ -5415,7 +5565,7 @@ msgstr "请求和可用性遥测数据暂不可用。"
 msgid "Request invite"
 msgstr "申请邀请"
 
-#: src/pages/admin/AdminOps.tsx:1319
+#: src/pages/admin/AdminOps.tsx:1333
 msgid "Request p95"
 msgstr "请求 p95"
 
@@ -5431,8 +5581,8 @@ msgstr "标记为已解决"
 msgid "Resolve workout conflict"
 msgstr "处理训练冲突"
 
-#: src/pages/admin/AdminFeedback.tsx:83
-#: src/pages/admin/AdminFeedback.tsx:234
+#: src/pages/admin/AdminFeedback.tsx:96
+#: src/pages/admin/AdminFeedback.tsx:357
 #: src/pages/admin/AdminIncidents.tsx:44
 #: src/pages/Status.tsx:94
 #: src/pages/Status.tsx:265
@@ -5517,7 +5667,7 @@ msgstr "恢复托管下发？"
 #: src/components/ManagedPlanSettingsCard.tsx:923
 #: src/components/UpcomingPlanCard.tsx:309
 #: src/components/UpcomingPlanCard.tsx:957
-#: src/pages/admin/AdminFeedback.tsx:347
+#: src/pages/admin/AdminFeedback.tsx:582
 #: src/pages/admin/AdminRouteState.tsx:36
 #: src/pages/admin/AdminUsers.tsx:544
 #: src/pages/Goal.tsx:444
@@ -5543,7 +5693,7 @@ msgstr "重试下发"
 #~ msgid "Retry push to Stryd"
 #~ msgstr "重试推送到 Stryd"
 
-#: src/pages/admin/AdminOps.tsx:1103
+#: src/pages/admin/AdminOps.tsx:1117
 msgid "Retry queue"
 msgstr "重试队列"
 
@@ -5559,7 +5709,7 @@ msgstr "请重试加载公共通知横幅。"
 #~ msgid "Retry to load seats, users, invitations, and waitlist activity."
 #~ msgstr "请重试加载席位、用户、邀请和候补名单活动。"
 
-#: src/pages/admin/AdminFeedback.tsx:185
+#: src/pages/admin/AdminFeedback.tsx:306
 msgid "Retry to load submitted reports and GitHub sync state."
 msgstr "请重试加载已提交报告和 GitHub 同步状态。"
 
@@ -5588,7 +5738,7 @@ msgstr "查看并启用"
 msgid "Review conflict"
 msgstr "处理冲突"
 
-#: src/pages/admin/AdminOps.tsx:888
+#: src/pages/admin/AdminOps.tsx:902
 msgid "Review delivery queue"
 msgstr "查看下发队列"
 
@@ -5600,11 +5750,13 @@ msgstr "查看实验功能说明"
 #~ msgid "Review heat history"
 #~ msgstr "查看热适应历史"
 
-#: src/pages/admin/AdminFeedback.tsx:199
+#: src/pages/admin/AdminFeedback.tsx:320
 msgid "Review reports, manage screenshots, and sync linked GitHub issues."
 msgstr "审核报告、管理截图，并同步关联的 GitHub issue。"
 
-#: src/pages/admin/AdminOps.tsx:1504
+#: src/pages/admin/AdminFeedback.tsx:469
+#: src/pages/admin/AdminFeedback.tsx:492
+#: src/pages/admin/AdminOps.tsx:1518
 msgid "Review required"
 msgstr "需要审核"
 
@@ -5637,9 +5789,13 @@ msgstr "上升"
 msgid "Role"
 msgstr "角色"
 
-#: src/pages/admin/AdminOps.tsx:202
+#: src/pages/admin/AdminOps.tsx:211
 msgid "Rolling 1 / 7 / 30 days"
 msgstr "滚动 1 / 7 / 30 天"
+
+#: src/pages/admin/AdminFeedback.tsx:479
+msgid "Rule based"
+msgstr "规则判断"
 
 #: src/lib/phase-label.ts:10
 msgid "Run"
@@ -5673,7 +5829,7 @@ msgstr "改为轻松跑"
 #~ msgid "Run easy instead\" \"改为轻松跑"
 #~ msgstr ""
 
-#: src/pages/admin/AdminOps.tsx:1025
+#: src/pages/admin/AdminOps.tsx:1039
 msgid "Run p95"
 msgstr "运行 P95"
 
@@ -5681,11 +5837,11 @@ msgstr "运行 P95"
 msgid "Running"
 msgstr "跑步"
 
-#: src/pages/admin/AdminOps.tsx:1009
+#: src/pages/admin/AdminOps.tsx:1023
 msgid "Runs"
 msgstr "运行次数"
 
-#: src/pages/admin/AdminOps.tsx:487
+#: src/pages/admin/AdminOps.tsx:496
 msgid "Safety policy"
 msgstr "安全策略"
 
@@ -5748,7 +5904,7 @@ msgstr "科学模型"
 msgid "Scientific models"
 msgstr "科学模型"
 
-#: src/pages/admin/AdminFeedback.tsx:297
+#: src/pages/admin/AdminFeedback.tsx:425
 msgid "Screenshot flagged sensitive"
 msgstr "截图已标记为敏感"
 
@@ -5818,15 +5974,19 @@ msgstr "发送中…"
 msgid "Sending…"
 msgstr "发送中…"
 
+#: src/pages/admin/AdminFeedback.tsx:135
+msgid "Sensitivity gate"
+msgstr "敏感信息门槛"
+
 #: src/components/AiInsightsCard.tsx:311
 msgid "Sent"
 msgstr "已发送"
 
-#: src/pages/admin/AdminOps.tsx:1315
+#: src/pages/admin/AdminOps.tsx:1329
 msgid "Server error rate"
 msgstr "服务器错误率"
 
-#: src/pages/admin/AdminOps.tsx:1240
+#: src/pages/admin/AdminOps.tsx:1254
 msgid "Service health"
 msgstr "服务健康"
 
@@ -5838,7 +5998,7 @@ msgstr "服务事件"
 #~ msgid "Service Incidents"
 #~ msgstr "服务事件"
 
-#: src/pages/admin/AdminOps.tsx:690
+#: src/pages/admin/AdminOps.tsx:704
 msgid "Service performance degraded"
 msgstr "服务性能下降"
 
@@ -5909,6 +6069,42 @@ msgstr "如果感到疲劳，就缩短训练"
 #: src/pages/Today.tsx:285
 #~ msgid "Shorten the session if fatigue develops\" \"如果出现疲劳，请缩短训练"
 #~ msgstr ""
+
+#: src/pages/admin/AdminFeedback.tsx:470
+#~ msgid "Should be agent-ready"
+#~ msgstr "应标记为 agent-ready"
+
+#: src/pages/admin/AdminFeedback.tsx:148
+msgid "Should be agent-ready — bounded actionable defect"
+msgstr "应标记为 agent-ready：范围明确且可处理的缺陷"
+
+#: src/pages/admin/AdminFeedback.tsx:471
+#~ msgid "Should not be agent-ready"
+#~ msgstr "不应标记为 agent-ready"
+
+#: src/pages/admin/AdminFeedback.tsx:152
+msgid "Should not be agent-ready — insufficient detail"
+msgstr "不应标记为 agent-ready：信息不足"
+
+#: src/pages/admin/AdminFeedback.tsx:154
+msgid "Should not be agent-ready — needs product judgment"
+msgstr "不应标记为 agent-ready：需要产品判断"
+
+#: src/pages/admin/AdminFeedback.tsx:150
+msgid "Should not be agent-ready — not a defect"
+msgstr "不应标记为 agent-ready：不是缺陷"
+
+#: src/pages/admin/AdminFeedback.tsx:158
+msgid "Should not be agent-ready — other"
+msgstr "不应标记为 agent-ready：其他原因"
+
+#: src/pages/admin/AdminFeedback.tsx:155
+#~ msgid "Should not be agent-ready — sensitive or high risk"
+#~ msgstr "不应标记为 agent-ready — 敏感或高风险"
+
+#: src/pages/admin/AdminFeedback.tsx:156
+msgid "Should not be agent-ready — sensitivity or privacy gate"
+msgstr "不应标记为 agent-ready：触发敏感或隐私限制"
 
 #: src/components/UpcomingPlanCard.tsx:319
 #~ msgid "Show {0} more workouts"
@@ -6016,7 +6212,7 @@ msgstr "轻微正平衡"
 #~ msgstr ""
 
 #. placeholder {0}: formatTimestamp(data.generated_at, i18n.locale)
-#: src/pages/admin/AdminOps.tsx:782
+#: src/pages/admin/AdminOps.tsx:796
 msgid "Snapshot {0}"
 msgstr "快照 {0}"
 
@@ -6058,11 +6254,11 @@ msgstr "平稳"
 msgid "Stable"
 msgstr "稳定"
 
-#: src/pages/admin/AdminOps.tsx:180
+#: src/pages/admin/AdminOps.tsx:189
 msgid "Stale"
 msgstr "数据已过期"
 
-#: src/pages/admin/AdminOps.tsx:411
+#: src/pages/admin/AdminOps.tsx:420
 msgid "Standard"
 msgstr "标准"
 
@@ -6070,7 +6266,7 @@ msgstr "标准"
 msgid "Start sync"
 msgstr "开始同步"
 
-#: src/pages/admin/AdminOps.tsx:732
+#: src/pages/admin/AdminOps.tsx:746
 msgid "Start with operator action, then use health and usage context to choose the next workflow."
 msgstr "先处理运维事项，再结合系统健康和使用情况选择下一步流程。"
 
@@ -6078,7 +6274,7 @@ msgstr "先处理运维事项，再结合系统健康和使用情况选择下一
 msgid "Started"
 msgstr "开始时间"
 
-#: src/pages/admin/AdminFeedback.tsx:263
+#: src/pages/admin/AdminFeedback.tsx:390
 #: src/pages/admin/AdminUsers.tsx:734
 #: src/pages/admin/AdminUsers.tsx:873
 msgid "Status"
@@ -6141,7 +6337,7 @@ msgstr "全马破三 · 100K · 保持健康…"
 msgid "Success"
 msgstr "成功"
 
-#: src/pages/admin/AdminOps.tsx:1621
+#: src/pages/admin/AdminOps.tsx:1683
 msgid "successful"
 msgstr "成功率"
 
@@ -6149,7 +6345,7 @@ msgstr "成功率"
 msgid "Suggestions"
 msgstr "建议"
 
-#: src/pages/admin/AdminOps.tsx:736
+#: src/pages/admin/AdminOps.tsx:750
 msgid "Summary window"
 msgstr "汇总时间范围"
 
@@ -6212,11 +6408,11 @@ msgstr "全部同步"
 msgid "Sync complete! Your data is ready."
 msgstr "同步完成！数据已就绪。"
 
-#: src/pages/admin/AdminFeedback.tsx:158
+#: src/pages/admin/AdminFeedback.tsx:276
 msgid "Sync failed."
 msgstr "同步失败。"
 
-#: src/pages/admin/AdminFeedback.tsx:241
+#: src/pages/admin/AdminFeedback.tsx:364
 msgid "Sync from GitHub"
 msgstr "从 GitHub 同步"
 
@@ -6245,7 +6441,7 @@ msgstr "同步近期活动以生成每周距离序列。"
 msgid "Sync recent training to start estimating the conditions represented in your heat evidence."
 msgstr "先同步近期训练，Praxys 才能开始估算热适应证据对应的环境条件。"
 
-#: src/pages/admin/AdminOps.tsx:1607
+#: src/pages/admin/AdminOps.tsx:1669
 msgid "Sync reliability"
 msgstr "同步可靠性"
 
@@ -6287,7 +6483,7 @@ msgid "Synced"
 msgstr "已同步"
 
 #. placeholder {0}: managedHealth.states.synced
-#: src/pages/admin/AdminOps.tsx:970
+#: src/pages/admin/AdminOps.tsx:984
 msgid "Synced <0>{0}</0>"
 msgstr "已同步 <0>{0}</0>"
 
@@ -6324,7 +6520,7 @@ msgstr "系统公告"
 msgid "System theme (click for light)"
 msgstr "系统主题（点击切换为浅色）"
 
-#: src/pages/admin/AdminOps.tsx:1637
+#: src/pages/admin/AdminOps.tsx:1699
 msgid "Systemic failure classes"
 msgstr "系统性故障类别"
 
@@ -6332,11 +6528,11 @@ msgstr "系统性故障类别"
 #~ msgid "Systemic sync failures affect {systemicAffectedUsers} users"
 #~ msgstr "系统性同步失败影响 {systemicAffectedUsers} 名用户"
 
-#: src/pages/admin/AdminOps.tsx:593
+#: src/pages/admin/AdminOps.tsx:607
 msgid "Systemic sync failures affected {systemicAffectedUsers} users in this window"
 msgstr "此时间范围内，系统性同步故障影响了 {systemicAffectedUsers} 位用户"
 
-#: src/pages/admin/AdminOps.tsx:855
+#: src/pages/admin/AdminOps.tsx:869
 msgid "Systemic sync failures unavailable"
 msgstr "系统性同步故障数据不可用"
 
@@ -6389,19 +6585,19 @@ msgstr "感谢你的反馈！"
 msgid "The active load model uses a {loadTimeConstantDays}-day long-term time constant. Need {daysToPmc} more days of history."
 msgstr "当前负荷模型的长期时间常数为 {loadTimeConstantDays} 天，还需要 {daysToPmc} 天历史数据。"
 
-#: src/pages/admin/AdminOps.tsx:1513
+#: src/pages/admin/AdminOps.tsx:1527
 msgid "The agent decision and outcome aggregate could not be refreshed."
 msgstr "无法刷新智能体决策与结果汇总。"
 
-#: src/pages/admin/AdminOps.tsx:841
+#: src/pages/admin/AdminOps.tsx:855
 msgid "The alert summary could not be refreshed."
 msgstr "无法刷新警报摘要。"
 
-#: src/pages/admin/AdminOps.tsx:347
+#: src/pages/admin/AdminOps.tsx:356
 msgid "The Azure Monitor query client is unavailable in this deployment."
 msgstr "此部署中无法使用 Azure Monitor 查询客户端。"
 
-#: src/pages/admin/AdminOps.tsx:884
+#: src/pages/admin/AdminOps.tsx:898
 msgid "The bounded operator queue is available, but aggregate delivery health could not be refreshed."
 msgstr "运维队列可用，但无法刷新整体下发健康状态。"
 
@@ -6417,11 +6613,11 @@ msgstr "Praxys 计划会完整保留。恢复下发或退出托管前，目标�
 #~ msgid "The environmental ramps, effective minutes, stage thresholds, and 7–28 day decay window are Praxys operational estimates. Evidence coverage is not biological certainty. Stop and begin cooling for heat-illness symptoms; seek urgent medical help for confusion, collapse, or altered mental status."
 #~ msgstr "环境权重坡度、加权分钟、阶段阈值和 7–28 天衰减窗口均为 Praxys 的操作性估算。证据覆盖度不代表生理适应的确定性。如出现热病症状，请停止训练并开始降温；如出现意识混乱、虚脱或精神状态改变，应立即寻求紧急医疗救助。"
 
-#: src/pages/admin/AdminOps.tsx:823
+#: src/pages/admin/AdminOps.tsx:837
 msgid "The feedback aggregate could not be refreshed."
 msgstr "无法刷新反馈汇总。"
 
-#: src/pages/admin/AdminOps.tsx:802
+#: src/pages/admin/AdminOps.tsx:816
 msgid "The incident aggregate could not be refreshed."
 msgstr "无法刷新事件聚合数据。"
 
@@ -6456,7 +6652,7 @@ msgstr "最新 HRV 读数过旧，不能用于当日恢复分类。请同步设�
 msgid "The managed window changed. Review the refreshed preview before enabling delivery."
 msgstr "托管窗口已更新。请先查看刷新后的预览，再启用托管下发。"
 
-#: src/pages/admin/AdminOps.tsx:1094
+#: src/pages/admin/AdminOps.tsx:1108
 msgid "The managed-plan operator queue could not be loaded."
 msgstr "无法加载托管计划运维队列。"
 
@@ -6477,9 +6673,13 @@ msgstr "{target} 上缺少此 Praxys 训练。恢复后仍以 Praxys 版本为�
 msgid "The previous workout was restored"
 msgstr "已恢复上一项训练"
 
-#: src/pages/admin/AdminOps.tsx:801
+#: src/pages/admin/AdminOps.tsx:815
 msgid "The public status feed has no unresolved incidents."
 msgstr "公共状态源中没有未解决事件。"
+
+#: src/pages/admin/AdminFeedback.tsx:221
+msgid "The readiness decision changed. Review the refreshed decision before recording a judgment."
+msgstr "就绪判断已更新。请查看刷新后的判断，再记录结论。"
 
 #. placeholder {0}: target ?? 'your target'
 #: src/components/UpcomingPlanCard.tsx:209
@@ -6522,11 +6722,11 @@ msgstr "主题"
 msgid "This cannot be undone. If this is the last admin account, deletion will be blocked."
 msgstr "此操作无法撤销。如果这是最后一个管理员账号，将无法删除。"
 
-#: src/pages/admin/AdminOps.tsx:639
+#: src/pages/admin/AdminOps.tsx:653
 msgid "This delivery cannot be replayed automatically. Review the refreshed queue for the required action."
 msgstr "无法自动重试此次下发。请查看已刷新的队列，确认所需操作。"
 
-#: src/pages/admin/AdminOps.tsx:637
+#: src/pages/admin/AdminOps.tsx:651
 msgid "This delivery changed before recovery started. Review the refreshed queue."
 msgstr "恢复开始前，此次下发状态已变更。请查看已刷新的队列。"
 
@@ -6578,8 +6778,8 @@ msgstr "这项权限与托管下发相互独立。启用前请确认具体边界
 #~ msgid "This qualitative tracker uses connector-provided air temperature and relative humidity, Stull's natural-shade wet-bulb approximation, and split-level power relative to current CP. Effective minutes are weighted evidence, not literal exposure time. Wind and solar radiation are excluded, and the stage thresholds plus 7–28 day decay window are Praxys operational estimates rather than a medical or physiological diagnosis."
 #~ msgstr "此定性追踪器使用连接器提供的气温和相对湿度、Stull 自然阴影湿球温度近似，以及相对于当前 CP 的分段功率。加权分钟是证据权重，并非实际暴露时长。模型不包含风速和太阳辐射；阶段阈值与 7–28 天衰减窗口均为 Praxys 的操作性估算，不构成医学或生理诊断。"
 
-#: src/pages/admin/AdminOps.tsx:633
-#: src/pages/admin/AdminOps.tsx:642
+#: src/pages/admin/AdminOps.tsx:647
+#: src/pages/admin/AdminOps.tsx:656
 msgid "This queue item no longer exists. Refresh the queue."
 msgstr "这个队列项已不存在。请刷新队列。"
 
@@ -6659,11 +6859,11 @@ msgstr "今日"
 msgid "TODAY"
 msgstr "今日"
 
-#: src/pages/admin/AdminOps.tsx:1459
+#: src/pages/admin/AdminOps.tsx:1473
 msgid "Today and Coach telemetry is unavailable."
 msgstr "今日和 Coach 遥测数据暂不可用。"
 
-#: src/pages/admin/AdminOps.tsx:1390
+#: src/pages/admin/AdminOps.tsx:1404
 msgid "Today engagement"
 msgstr "Today 互动"
 
@@ -6671,7 +6871,7 @@ msgstr "Today 互动"
 #~ msgid "Today reach"
 #~ msgstr "今日到达"
 
-#: src/pages/admin/AdminOps.tsx:1400
+#: src/pages/admin/AdminOps.tsx:1414
 msgid "Today reach rate"
 msgstr "Today 触达率"
 
@@ -6703,7 +6903,7 @@ msgstr "今日建议将计划训练与 Praxys 对当前恢复模型和负荷模�
 msgid "Today's recovery hasn't synced yet. Showing the latest reading from {latestDateLabel}."
 msgstr "今日恢复数据还未同步，当前显示的是 {latestDateLabel} 的最新读数。"
 
-#: src/pages/admin/AdminOps.tsx:392
+#: src/pages/admin/AdminOps.tsx:401
 msgid "Token rejected"
 msgstr "令牌被拒绝"
 
@@ -6744,7 +6944,7 @@ msgstr "训练诊断"
 #~ msgid "Training plan & targets"
 #~ msgstr "训练计划与目标"
 
-#: src/pages/admin/AdminOps.tsx:375
+#: src/pages/admin/AdminOps.tsx:384
 msgid "Training review"
 msgstr "训练复盘"
 
@@ -6764,16 +6964,16 @@ msgstr "把训练负荷转化为体能。"
 msgid "Trend"
 msgstr "趋势"
 
-#: src/pages/admin/AdminFeedback.tsx:77
-#: src/pages/admin/AdminFeedback.tsx:236
+#: src/pages/admin/AdminFeedback.tsx:90
+#: src/pages/admin/AdminFeedback.tsx:359
 msgid "Triaged"
 msgstr "已分类"
 
-#: src/pages/admin/AdminOps.tsx:345
+#: src/pages/admin/AdminOps.tsx:354
 msgid "Trusted Azure telemetry is not configured for this deployment."
 msgstr "此部署未配置可信的 Azure 遥测。"
 
-#: src/pages/admin/AdminOps.tsx:1575
+#: src/pages/admin/AdminOps.tsx:1637
 msgid "Trusted sync and connection outcomes from the backend telemetry boundary."
 msgstr "来自后端可信遥测边界的同步与连接结果。"
 
@@ -6785,7 +6985,7 @@ msgstr "来自后端可信遥测边界的同步与连接结果。"
 msgid "Try a longer window above."
 msgstr "试试上方更长的时间窗口。"
 
-#: src/pages/admin/AdminFeedback.tsx:255
+#: src/pages/admin/AdminFeedback.tsx:382
 msgid "Try another filter or sync again after new reports arrive."
 msgstr "试试其他筛选条件，或等有新报告后再同步。"
 
@@ -6835,7 +7035,7 @@ msgstr "正在启用…"
 #~ msgstr "Tyler 热适应荟萃分析"
 
 #: src/components/FeedbackDialog.tsx:210
-#: src/pages/admin/AdminFeedback.tsx:262
+#: src/pages/admin/AdminFeedback.tsx:389
 msgid "Type"
 msgstr "类型"
 
@@ -6852,11 +7052,13 @@ msgid "Unable to reach the status service"
 msgstr "无法连接状态服务"
 
 #: src/components/ManagedPlanSettingsCard.tsx:518
-#: src/pages/admin/AdminOps.tsx:182
+#: src/pages/admin/AdminFeedback.tsx:466
+#: src/pages/admin/AdminFeedback.tsx:493
+#: src/pages/admin/AdminOps.tsx:191
 msgid "Unavailable"
 msgstr "不可用"
 
-#: src/pages/admin/AdminOps.tsx:491
+#: src/pages/admin/AdminOps.tsx:500
 msgid "Unclassified"
 msgstr "未分类"
 
@@ -6872,7 +7074,7 @@ msgstr "单位"
 msgid "Unknown date"
 msgstr "日期未知"
 
-#: src/pages/admin/AdminOps.tsx:400
+#: src/pages/admin/AdminOps.tsx:409
 msgid "Unknown failure"
 msgstr "未知错误"
 
@@ -6880,7 +7082,7 @@ msgstr "未知错误"
 msgid "Unverified"
 msgstr "未验证"
 
-#: src/pages/admin/AdminOps.tsx:178
+#: src/pages/admin/AdminOps.tsx:187
 msgid "Up to date"
 msgstr "最新"
 
@@ -6895,15 +7097,20 @@ msgstr "更新信息（可选）"
 #. placeholder {0}: formatTimestamp(item.updated_at, i18n.locale)
 #. placeholder {0}: formatTimestamp(managedAttention.generated_at, i18n.locale)
 #. placeholder {0}: formatTimestamp(meta.as_of, i18n.locale)
-#: src/pages/admin/AdminOps.tsx:221
-#: src/pages/admin/AdminOps.tsx:1054
-#: src/pages/admin/AdminOps.tsx:1145
+#: src/pages/admin/AdminOps.tsx:230
+#: src/pages/admin/AdminOps.tsx:1068
+#: src/pages/admin/AdminOps.tsx:1159
 msgid "Updated {0}"
 msgstr "更新于{0}"
 
 #. placeholder {0}: result.updated
+#: src/pages/admin/AdminFeedback.tsx:285
+msgid "Updated {0} linked ticket(s). Skipped {repositoryMismatches} because their stored repository no longer matches the configured feedback repository."
+msgstr "已更新 {0} 个关联议题。另有 {repositoryMismatches} 个因其记录的仓库与当前反馈仓库配置不一致而跳过。"
+
+#. placeholder {0}: result.updated
 #. placeholder {1}: result.checked
-#: src/pages/admin/AdminFeedback.tsx:166
+#: src/pages/admin/AdminFeedback.tsx:287
 msgid "Updated {0} of {1} linked ticket(s)."
 msgstr "已更新 {1} 个关联工单中的 {0} 个。"
 
@@ -6919,7 +7126,7 @@ msgstr "更新中…"
 msgid "US"
 msgstr "US"
 
-#: src/pages/admin/AdminOps.tsx:1383
+#: src/pages/admin/AdminOps.tsx:1397
 msgid "Usage aggregates are unavailable."
 msgstr "暂无使用汇总数据。"
 
@@ -6980,7 +7187,7 @@ msgstr "使用者"
 msgid "User"
 msgstr "用户"
 
-#: src/pages/admin/AdminFeedback.tsx:210
+#: src/pages/admin/AdminFeedback.tsx:331
 msgid "User feedback"
 msgstr "用户反馈"
 
@@ -6988,7 +7195,7 @@ msgstr "用户反馈"
 #~ msgid "User Feedback"
 #~ msgstr "用户反馈"
 
-#: src/pages/admin/AdminOps.tsx:1656
+#: src/pages/admin/AdminOps.tsx:1718
 msgid "users"
 msgstr "用户"
 
@@ -7104,7 +7311,7 @@ msgstr "警告"
 msgid "Was this insight useful?"
 msgstr "这条解读有帮助吗？"
 
-#: src/pages/admin/AdminOps.tsx:1371
+#: src/pages/admin/AdminOps.tsx:1385
 #: src/pages/admin/AdminUsers.tsx:136
 msgid "WAU"
 msgstr "WAU"
@@ -7125,7 +7332,7 @@ msgstr "我们已记录，会尽快查看。"
 msgid "Weather evidence"
 msgstr "天气证据"
 
-#: src/pages/admin/AdminOps.tsx:362
+#: src/pages/admin/AdminOps.tsx:371
 msgid "Web"
 msgstr "网页端"
 
@@ -7235,7 +7442,7 @@ msgstr "负荷证据"
 msgid "Workout"
 msgstr "训练"
 
-#: src/pages/admin/AdminOps.tsx:439
+#: src/pages/admin/AdminOps.tsx:448
 msgid "Workout conflict requires athlete input"
 msgstr "训练冲突需要运动员介入"
 

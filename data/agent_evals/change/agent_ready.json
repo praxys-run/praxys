@@ -28,6 +28,18 @@
       "expected": true
     },
     {
+      "id": "manual-recovery-ui-overflow",
+      "source": "github-issue-542",
+      "facts": {
+        "kind": "bug",
+        "gate_blocked": false,
+        "agent_eligible": true,
+        "detail_word_count": 9,
+        "detail_alnum_count": 55
+      },
+      "expected": true
+    },
+    {
       "id": "sensitive-bug",
       "source": "synthetic",
       "facts": {
