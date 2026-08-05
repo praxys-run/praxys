@@ -3423,6 +3423,185 @@ def test_restore_matching_garmin_schedule_is_noop_without_checkpoint_id(
         assert delivery.provider_references["template_id"] == "template-7"
 
 
+@pytest.mark.parametrize(
+    ("scenario", "expected_status"),
+    [
+        ("safe", 200),
+        ("preexisting", 409),
+        ("unexpected_date", 409),
+        ("mismatched_observation", 409),
+    ],
+)
+def test_restore_returned_garmin_schedule_requires_new_checkpoint(
+    api_client,
+    monkeypatch,
+    scenario: str,
+    expected_status: int,
+):
+    from api.plan_delivery.base import PreparedWorkoutDelivery
+    from api.plan_delivery.capabilities import plan_delivery_consent_token
+    from db import session as db_session
+    from db.models import (
+        PlanDelivery,
+        UserConfig,
+        UserConnection,
+    )
+
+    client, user_id = api_client
+    target_date = date.today() + timedelta(days=10)
+    fingerprint = "d" * 64
+    external_id = "returned-schedule-42"
+    profile_references = {
+        "template_id": "template-7",
+        "profile_account_id": "international:profile",
+    }
+    _seed_rows(user_id, [{
+        "date": target_date,
+        "source": "praxys",
+        "workout_type": "easy",
+    }])
+    delivery_id = _seed_synced_delivery(
+        user_id,
+        target_date,
+        "easy",
+        external_id,
+        provider_content_version=fingerprint,
+        provider_account_id="garmin-account",
+        target="garmin",
+    )
+    with db_session.SessionLocal() as db:
+        delivery = db.get(PlanDelivery, delivery_id)
+        delivery.state = "conflict"
+        delivery.external_id = None
+        delivery.provider_references = {
+            **profile_references,
+            "preexisting_schedule_ids": (
+                [external_id] if scenario == "preexisting" else []
+            ),
+            "schedule_started": True,
+            "returned_schedule_id": external_id,
+            **(
+                {
+                    "unexpected_schedule_date": (
+                        target_date + timedelta(days=1)
+                    ).isoformat()
+                }
+                if scenario == "unexpected_date"
+                else {}
+            ),
+        }
+        delivery_version = delivery.workout_version
+        db.add(UserConfig(
+            user_id=user_id,
+            source_options={"garmin_region": "international"},
+            plan_management={
+                "mode": "praxys",
+                "execution_target": "garmin",
+                "delivery_enabled": True,
+                "adjustment_policy": "suggest_only",
+            },
+        ))
+        connection = UserConnection(
+            user_id=user_id,
+            platform="garmin",
+            status="connected",
+            encrypted_credentials=b"garmin-credentials",
+            wrapped_dek=b"garmin-dek",
+        )
+        db.add(connection)
+        db.flush()
+        connection.plan_delivery_consent = plan_delivery_consent_token(
+            connection,
+            region="international",
+        )
+        db.commit()
+    _seed_target_snapshot(
+        user_id,
+        [{
+            "date": target_date.isoformat(),
+            "workout_type": "easy",
+            "external_id": (
+                "different-schedule"
+                if scenario == "mismatched_observation"
+                else external_id
+            ),
+            "provider_content_fingerprint": fingerprint,
+            "provider_references": profile_references,
+        }],
+        provider_account_id="garmin-account",
+        target="garmin",
+    )
+    plan_body = client.get("/api/plan").json()
+    owned = next(
+        workout
+        for workout in plan_body["workouts"]
+        if workout["date"] == target_date.isoformat()
+        and workout["source"] in PRAXYS_PLAN_SOURCES
+    )
+    reconciliation_id = owned["reconciliation"]["id"]
+    calls = {"create": 0, "delete": 0}
+
+    class Adapter:
+        target = "garmin"
+        display_name = "Garmin"
+        account_id = "garmin-account"
+
+        def authenticate(self):
+            return None
+
+        def prepare_workout(self, workout, *, threshold_value):
+            return PreparedWorkoutDelivery(
+                version=delivery_version,
+                request={},
+                content_version=fingerprint,
+            )
+
+        def create_workout(self, prepared, *, hooks):
+            calls["create"] += 1
+            raise AssertionError("matching schedule must not be recreated")
+
+        def delete_workout(self, external_id, *, hooks):
+            calls["delete"] += 1
+            raise AssertionError("matching schedule must not be removed")
+
+        def fetch_calendar(self, **kwargs):
+            return []
+
+    from api.routes import plan as plan_mod
+
+    monkeypatch.setattr(
+        plan_mod,
+        "load_plan_delivery_adapter",
+        lambda *args, **kwargs: Adapter(),
+    )
+
+    response = client.post(
+        "/api/plan/reconciliation/resolve",
+        json={
+            "reconciliation_id": reconciliation_id,
+            "action": "restore_praxys",
+        },
+    )
+
+    assert response.status_code == expected_status, response.text
+    assert calls == {"create": 0, "delete": 0}
+    with db_session.SessionLocal() as db:
+        delivery = db.get(PlanDelivery, delivery_id)
+        if scenario != "safe":
+            assert "still present" in response.json()["detail"]
+            assert delivery.state == "conflict"
+            assert delivery.external_id is None
+            assert "schedule_id" not in delivery.provider_references
+        else:
+            assert response.json()["external_id"] == external_id
+            assert delivery.state == "synced"
+            assert delivery.external_id == external_id
+            assert (
+                delivery.provider_references["schedule_id"]
+                == external_id
+            )
+
+
 def test_restore_does_not_claim_unowned_garmin_fingerprint_candidate(
     api_client,
     monkeypatch,
