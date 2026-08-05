@@ -663,13 +663,39 @@ class GarminPlanDeliveryAdapter:
             raise ProviderOutcomeUnknownError(
                 "Garmin schedule response did not include workoutScheduleId"
             )
-        response_date = str(response.get("date") or schedule_date)
+        response_date = str(
+            response.get("date")
+            or response.get("calendarDate")
+            or schedule_date
+        )
         if response_date[:10] != schedule_date:
             raise ProviderOutcomeUnknownError(
                 "Garmin scheduled the workout on an unexpected date",
                 external_id=external_id,
             )
         return external_id
+
+    @staticmethod
+    def _scheduled_workout_template_id(response: object) -> str | None:
+        """Read a template ID from flat or Garmin CN schedule details."""
+        if not isinstance(response, Mapping):
+            return None
+        template_id = _positive_id(response.get("workoutId"))
+        if template_id is not None:
+            return template_id
+        workout = response.get("workout")
+        if not isinstance(workout, Mapping):
+            return None
+        return _positive_id(workout.get("workoutId"))
+
+    @staticmethod
+    def _scheduled_workout_date(response: object) -> str:
+        """Read a schedule date from flat or Garmin CN schedule details."""
+        if not isinstance(response, Mapping):
+            return ""
+        return str(
+            response.get("date") or response.get("calendarDate") or ""
+        )[:10]
 
     def create_workout(
         self,
@@ -912,6 +938,40 @@ class GarminPlanDeliveryAdapter:
         checkpointed_schedule_id = _positive_id(
             references.get("schedule_id")
         )
+        returned_schedule_id = _positive_id(
+            references.get("returned_schedule_id")
+        )
+        if (
+            checkpointed_schedule_id is None
+            and returned_schedule_id is not None
+            and references.get("schedule_started") is True
+            and not references.get("unexpected_schedule_date")
+        ):
+            returned_preexisting_id = _positive_id(
+                references.get("returned_preexisting_schedule_id")
+            )
+            if (
+                returned_schedule_id in preexisting_schedule_ids
+                or returned_preexisting_id == returned_schedule_id
+            ):
+                raise ProviderOutcomeUnknownError(
+                    "Returned Garmin schedule identity was pre-existing",
+                    provider_references=references,
+                )
+            exact_returned = [
+                row for row in scheduled
+                if str(row["external_id"]) == returned_schedule_id
+            ]
+            if len(exact_returned) != 1:
+                raise ProviderOutcomeUnknownError(
+                    "Returned Garmin schedule is not uniquely visible for "
+                    "its template and date",
+                    provider_references=references,
+                )
+            references.pop("candidate_schedule_ids", None)
+            references["schedule_id"] = returned_schedule_id
+            hooks.checkpoint(references, returned_schedule_id)
+            checkpointed_schedule_id = returned_schedule_id
         if checkpointed_schedule_id is not None:
             exact_checkpoint = [
                 row for row in scheduled
@@ -1012,9 +1072,8 @@ class GarminPlanDeliveryAdapter:
                                 provider_references=references,
                             ) from read_exc
                         if (
-                            not isinstance(returned_schedule, Mapping)
-                            or _positive_id(
-                                returned_schedule.get("workoutId")
+                            self._scheduled_workout_template_id(
+                                returned_schedule
                             )
                             != template_id
                         ):
@@ -1024,8 +1083,8 @@ class GarminPlanDeliveryAdapter:
                                 "created template",
                                 provider_references=references,
                             ) from exc
-                        references["unexpected_schedule_date"] = str(
-                            returned_schedule.get("date") or ""
+                        references["unexpected_schedule_date"] = (
+                            self._scheduled_workout_date(returned_schedule)
                         )
                         hooks.checkpoint(references, None)
                         raise ProviderOutcomeUnknownError(
@@ -1065,14 +1124,12 @@ class GarminPlanDeliveryAdapter:
                             provider_references=references,
                         ) from read_exc
                     returned_template_id = (
-                        _positive_id(returned_schedule.get("workoutId"))
-                        if isinstance(returned_schedule, Mapping)
-                        else None
+                        self._scheduled_workout_template_id(
+                            returned_schedule
+                        )
                     )
-                    returned_date = (
-                        str(returned_schedule.get("date") or "")[:10]
-                        if isinstance(returned_schedule, Mapping)
-                        else ""
+                    returned_date = self._scheduled_workout_date(
+                        returned_schedule
                     )
                     if returned_template_id != template_id:
                         hooks.checkpoint(references, None)
@@ -1262,7 +1319,9 @@ class GarminPlanDeliveryAdapter:
                 provider_references=hooks.provider_references,
             )
         if scheduled is not None:
-            observed_template_id = _positive_id(scheduled.get("workoutId"))
+            observed_template_id = self._scheduled_workout_template_id(
+                scheduled
+            )
             if observed_template_id != template_id:
                 raise ProviderRemovalOutcomeUnknownError(
                     "Garmin schedule no longer references the owned template",

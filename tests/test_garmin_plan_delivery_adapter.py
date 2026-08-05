@@ -610,6 +610,31 @@ def test_create_checkpoints_both_garmin_identities() -> None:
     assert client.schedule_calls == 1
 
 
+def test_create_accepts_nested_cn_schedule_details() -> None:
+    client = FakeGarmin()
+    adapter = _adapter(client)
+    prepared = adapter.prepare_workout(_workout(), threshold_value=250)
+    original_read = client.get_scheduled_workout_by_id
+
+    def read_nested(external_id: object) -> dict[str, Any]:
+        flat = original_read(external_id)
+        return {
+            "workoutScheduleId": flat["workoutScheduleId"],
+            "workout": {"workoutId": flat["workoutId"]},
+            "calendarDate": flat["date"],
+        }
+
+    client.get_scheduled_workout_by_id = read_nested
+
+    result = adapter.create_workout(prepared)
+
+    assert result.external_id == "201"
+    assert result.provider_references["template_id"] == "101"
+    assert result.provider_references["schedule_id"] == "201"
+    assert client.upload_calls == 1
+    assert client.schedule_calls == 1
+
+
 def test_mutation_checkpoint_precedes_final_guard_and_provider_io() -> None:
     client = FakeGarmin()
     adapter = _adapter(client)
@@ -1134,6 +1159,65 @@ def test_manual_reuse_of_retained_template_is_never_adopted() -> None:
     assert client.schedule_calls == 0
 
 
+def test_returned_schedule_checkpoint_recovers_without_duplicate() -> None:
+    client = FakeGarmin()
+    adapter = _adapter(client)
+    prepared = adapter.prepare_workout(_workout(), threshold_value=250)
+    client.templates["101"] = deepcopy(dict(prepared.request["workout"]))
+    client.schedules["201"] = {
+        "template_id": "101",
+        "date": "2026-08-05",
+    }
+    references, checkpoints, mutations, hooks = _recording_hooks({
+        "template_marker": prepared.request["marker"],
+        "payload_fingerprint": prepared.content_version,
+        "preexisting_template_ids": [],
+        "template_id": "101",
+        "preexisting_schedule_ids": [],
+        "schedule_started": True,
+        "returned_schedule_id": "201",
+    })
+
+    result = adapter.create_workout(prepared, hooks=hooks)
+
+    assert result.external_id == "201"
+    assert references["schedule_id"] == "201"
+    assert checkpoints[-1][1] == "201"
+    assert mutations == []
+    assert client.schedule_calls == 0
+    assert list(client.schedules) == ["201"]
+
+
+def test_returned_preexisting_checkpoint_is_never_recovered() -> None:
+    client = FakeGarmin()
+    adapter = _adapter(client)
+    prepared = adapter.prepare_workout(_workout(), threshold_value=250)
+    client.templates["101"] = deepcopy(dict(prepared.request["workout"]))
+    client.schedules["201"] = {
+        "template_id": "101",
+        "date": "2026-08-05",
+    }
+    references, _, mutations, hooks = _recording_hooks({
+        "template_marker": prepared.request["marker"],
+        "payload_fingerprint": prepared.content_version,
+        "preexisting_template_ids": [],
+        "template_id": "101",
+        "preexisting_schedule_ids": ["201"],
+        "schedule_started": True,
+        "returned_schedule_id": "201",
+    })
+
+    with pytest.raises(
+        ProviderOutcomeUnknownError,
+        match="pre-existing",
+    ):
+        adapter.create_workout(prepared, hooks=hooks)
+
+    assert "schedule_id" not in references
+    assert mutations == []
+    assert client.schedule_calls == 0
+
+
 def test_checkpointed_schedule_absence_fails_closed() -> None:
     client = FakeGarmin()
     adapter = _adapter(client)
@@ -1185,6 +1269,37 @@ def test_delete_unschedules_only_owned_instance_and_retains_template() -> None:
     assert set(client.templates) == {"101"}
     assert mutations == ["before"]
     assert result.response["template_retained"] is True
+
+
+def test_delete_accepts_nested_cn_schedule_details() -> None:
+    client = FakeGarmin()
+    adapter = _adapter(client)
+    client.schedules["201"] = {
+        "template_id": "101",
+        "date": "2026-08-05",
+    }
+    original_read = client.get_scheduled_workout_by_id
+
+    def read_nested(external_id: object) -> dict[str, Any]:
+        flat = original_read(external_id)
+        return {
+            "workoutScheduleId": flat["workoutScheduleId"],
+            "workout": {"workoutId": flat["workoutId"]},
+            "calendarDate": flat["date"],
+        }
+
+    client.get_scheduled_workout_by_id = read_nested
+    _, _, mutations, hooks = _recording_hooks({
+        "template_id": "101",
+        "profile_account_id": PROFILE_ACCOUNT_ID,
+    })
+
+    result = adapter.delete_workout("201", hooks=hooks)
+
+    assert result.already_absent is False
+    assert client.unschedule_calls == ["201"]
+    assert client.schedules == {}
+    assert mutations == ["before"]
 
 
 def test_delete_holds_shared_tokenstore_lease(monkeypatch) -> None:
