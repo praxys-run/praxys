@@ -255,6 +255,32 @@ def test_garmin_delivery_requires_operator_gate(
     assert status.json()["platform_capabilities"]["garmin"]["plan"] is False
 
 
+def test_garmin_delivery_pilot_user_can_opt_in_with_global_gate_off(
+    api_client,
+    monkeypatch,
+):
+    client, user_id = api_client
+    _seed_connection(user_id, "garmin")
+    monkeypatch.setenv(
+        "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED",
+        "false",
+    )
+    monkeypatch.setenv(
+        "PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS",
+        user_id,
+    )
+
+    enabled = client.put("/api/settings", json={
+        "experimental_plan_delivery": {"garmin": True},
+    })
+
+    assert enabled.status_code == 200, enabled.text
+    body = enabled.json()
+    assert body["experimental_plan_delivery"]["garmin"]["available"] is True
+    assert body["experimental_plan_delivery"]["garmin"]["enabled"] is True
+    assert body["platform_capabilities"]["garmin"]["plan"] is True
+
+
 def test_forward_target_fence_survives_legacy_worker_settings_save(api_client):
     client, user_id = api_client
     _seed_connection(user_id, "garmin")

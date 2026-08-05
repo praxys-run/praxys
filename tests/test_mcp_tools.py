@@ -7,8 +7,12 @@ verifying they return valid JSON with expected structure.
 Requires the `mcp` package — skipped in CI if not installed.
 """
 import json
+from collections.abc import Iterator
 import os
+from pathlib import Path
 import sys
+from unittest import mock
+
 import pytest
 
 # Skip entire module if mcp is not installed (e.g., CI without mcp in requirements)
@@ -19,9 +23,28 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "plugins", "praxys", "mcp-server"))
 
-# Ensure local mode (clear both new and legacy env var prefixes)
-os.environ.pop("PRAXYS_URL", None)
-os.environ.pop("TRAINSIGHT_URL", None)
+
+@pytest.fixture(scope="module", autouse=True)
+def local_mcp_environment(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Iterator[None]:
+    """Run legacy direct-tool coverage against the synthetic MCP sandbox."""
+    from scripts import run_praxys_mcp
+
+    data_dir = tmp_path_factory.mktemp("mcp-tools")
+    with mock.patch.dict(os.environ, {}, clear=False):
+        run_praxys_mcp.ensure_local_sandbox(
+            Path(ROOT),
+            data_dir,
+        )
+        sys.modules.pop("server", None)
+        try:
+            yield
+        finally:
+            from db import session as db_session
+
+            db_session.dispose_engines()
+            sys.modules.pop("server", None)
 
 
 @pytest.fixture(autouse=True)
@@ -70,7 +93,13 @@ class TestDataTools:
         assert "signal" in data, "Should contain signal"
         signal = data["signal"]
         assert "recommendation" in signal
-        assert signal["recommendation"] in ("go", "modify", "rest", "follow_plan")
+        assert signal["recommendation"] in (
+            "go",
+            "modify",
+            "rest",
+            "follow_plan",
+            "unscheduled",
+        )
 
     def test_get_training_review(self):
         from server import get_training_review

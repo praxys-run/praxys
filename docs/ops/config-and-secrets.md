@@ -50,6 +50,7 @@ transient — the next deploy overwrites them.**
 | `PRAXYS_APP_BASE_URL` (`https://praxys.run`) | Public origin for verify/invite links in those emails | App Service setting (backend) |
 | `PRAXYS_DB_AUTH` (`entra` or unset) | Postgres auth mode: `entra` = AAD token via managed identity, no password. **Optional.** | App Service setting (backend) |
 | `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED` (`false`) | Default-off operator gate for unsupported Garmin consumer-API workout writes. Set `true` only on an approved validation deployment, or in production after both international and China controlled lifecycle matrices pass. User connection-bound consent remains independently required. | App Service setting (backend) |
+| `PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS` (empty) | Optional comma-separated internal Praxys user UUIDs allowed to validate Garmin delivery while the global gate remains false. Use only dedicated test users with dedicated Garmin accounts; never store emails or credentials. | App Service setting (backend) |
 | `PRAXYS_PG_SERVER` | Postgres Flexible Server name. **Reserved / currently unused** - the on-demand backup jobs it gated were removed (Burstable tier can't do on-demand backups; PITR covers backup). Kept for a future off-site backup job. | (reserved) |
 | `PRAXYS_GITHUB_APP_ID` / `PRAXYS_GITHUB_APP_INSTALLATION_ID` | Feedback GitHub App identifiers. | App Service setting (backend) |
 | `PRAXYS_FEEDBACK_GITHUB_REPO` / `PRAXYS_FEEDBACK_GITHUB_LABELS` / `PRAXYS_FEEDBACK_GITHUB_ASSIGNEES` | Feedback issue target and optional issue metadata. | App Service setting (backend) |
@@ -267,14 +268,22 @@ account's environment credentials. Do not add these values to
 `deploy-backend.yml`, GitHub Actions, or App Service settings.
 
 Garmin consumer-API workout delivery is an unsupported, duration-only
-experiment protected by two independent gates. The deploy workflow writes the
-non-secret GitHub Actions variable
+experiment protected by independent operator and user-consent fences. The
+deploy workflow writes the non-secret GitHub Actions variable
 `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED` to App Service on every deployment,
 defaulting to `false` when the variable is absent. Keep production false until
-both controlled regional lifecycle matrices pass. An approved isolated
-validation deployment may set it to `true`; changing the portal directly is
-transient and will be overwritten by the next deploy. Even when the operator
-gate is enabled, each user must opt in through Settings. The resulting
+both controlled regional lifecycle matrices pass.
+
+Controlled production validation uses the separate, default-empty
+`PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS` repository variable. Its value is
+a comma-separated list of internal user UUIDs from authenticated
+`GET /api/auth/me` responses. Use dedicated Praxys test users connected only to
+dedicated Garmin test accounts; do not add personal accounts, emails, tokens,
+or credentials. A pilot user is authorized without changing the global gate,
+but still must connect Garmin and opt in through Settings. Non-listed users
+remain blocked. An approved isolated validation deployment may instead set the
+global gate to `true`; changing either setting in the portal directly is
+transient and will be overwritten by the next deploy. The resulting
 `user_connections.plan_delivery_consent` value is a non-secret SHA-256 binding
 to that encrypted credential generation and Garmin region; it is never accepted
 as a portable entitlement. Reconnecting, rotating credentials, or disconnecting
@@ -294,9 +303,50 @@ fenced and rolls back if the connection changes, so old token files cannot
 authorize or degrade the replacement connection. Do not provision, copy, or
 restore consent or tokenstore files through App Service settings, Actions
 variables, SQL scripts, storage tooling, or an admin override. To roll back
-Garmin writes globally, set the repository variable to `false` and redeploy;
-the capability and every fresh mutation guard fail closed without deleting
-user consent or unrelated Garmin data.
+pilot access, remove the user UUID from
+`PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS` and redeploy. To roll back Garmin
+writes globally, also set `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED=false` and
+redeploy. The capability and every fresh mutation guard fail closed without
+deleting user consent or unrelated Garmin data.
+
+#### Garmin pilot provisioning
+
+Prerequisites: the dedicated test user has logged into
+`praxys-dev-test`, `whoami` shows the expected internal UUID, and its Garmin
+connection belongs to a dedicated validation account.
+
+```bash
+repo=praxys-run/praxys
+pilot_user_id=<uuid-from-praxys-dev-test-whoami>
+gh variable set PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS \
+  --repo "$repo" --body "$pilot_user_id"
+```
+
+Redeploy the current `main` head so the workflow writes the variable to App
+Service. Verify the setting without printing unrelated application settings:
+
+```bash
+az webapp config appsettings list \
+  --name trainsight-app \
+  --resource-group rg-trainsight \
+  --query "[?name=='PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS'].value" \
+  --output tsv
+```
+
+Then verify `praxys-dev-test.get_settings` reports Garmin experimental delivery
+as available only for the pilot user. Consent and the connected account/region
+fences must still be false until explicitly enabled and must remain false for a
+non-pilot control user.
+
+Rollback removes pilot access at the source of truth and redeploys:
+
+```bash
+gh variable delete PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS --repo "$repo"
+```
+
+An absent variable is deployed as an empty value. Confirm both the pilot and
+control users report Garmin delivery unavailable before considering rollback
+complete.
 
 ### Application Insights trust boundary (#417)
 
