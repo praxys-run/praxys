@@ -105,8 +105,35 @@ export interface SettingsConfig {
 
 export interface SettingsUpdate extends Omit<Partial<SettingsConfig>, 'plan_management'> {
   plan_management?: Partial<PlanManagementConfig>;
+  experimental_plan_delivery?: Partial<Record<'garmin', boolean>>;
   managed_plan_preview_start?: string;
 }
+
+export interface ExperimentalPlanDeliveryStatus {
+  experimental: true;
+  available: boolean;
+  enabled: boolean;
+  region: 'international' | 'cn' | null;
+  connected: boolean;
+  fidelity: 'duration_only';
+}
+
+export interface ExperimentalPlanDeliveryResponse {
+  garmin?: ExperimentalPlanDeliveryStatus;
+}
+
+export type GarminConnectionResponse =
+  | { status: 'connected'; platform: 'garmin' }
+  | {
+      status: 'mfa_required';
+      platform: 'garmin';
+      login_attempt_id: string;
+    }
+  | { status: 'error'; message: string };
+
+export type ConnectionResponse =
+  | { status: 'connected'; platform: PlatformName }
+  | GarminConnectionResponse;
 
 export interface ThresholdValue {
   value: number | null;
@@ -134,6 +161,7 @@ export interface SettingsResponse {
   config: SettingsConfig;
   connection_statuses: Partial<Record<PlatformName, PlatformConnectionStatus>>;
   platform_capabilities: Partial<Record<PlatformName, Partial<Record<DataCategory, boolean>>>>;
+  experimental_plan_delivery?: ExperimentalPlanDeliveryResponse;
   available_providers: {
     activities?: PlatformName[];
     recovery?: PlatformName[];
@@ -144,6 +172,15 @@ export interface SettingsResponse {
   display: DisplayConfig;
   detected_thresholds: Record<string, DetectedThreshold>;
   effective_thresholds: Record<string, ThresholdValue>;
+}
+
+export interface SettingsUpdateResponse {
+  status: 'ok';
+  config: SettingsConfig;
+  display: DisplayConfig;
+  connection_statuses: SettingsResponse['connection_statuses'];
+  platform_capabilities: SettingsResponse['platform_capabilities'];
+  experimental_plan_delivery?: ExperimentalPlanDeliveryResponse;
 }
 
 export type PlatformConnectionStatus =
@@ -226,7 +263,9 @@ export interface PlanData {
 export type PlanSyncState = 'synced' | 'mismatch' | 'not_synced';
 
 /** Deprecated compatibility label retained for older cached clients. */
-export type PlanWorkoutSource = 'ai' | 'stryd';
+export type PlanWorkoutSource = 'ai' | 'stryd' | 'garmin';
+
+export type PlanExecutionTarget = 'stryd' | 'garmin';
 
 /** Who controls future mutations for this planned workout. */
 export type PlanWorkoutOwner = 'praxys' | 'external';
@@ -271,7 +310,7 @@ export interface PlanReconciliation {
   id: string;
   state: PlanReconciliationState;
   conflict: boolean;
-  target: 'stryd';
+  target: PlanExecutionTarget;
   resolutions: PlanResolutionAction[];
   canonical_id?: string;
   delivery_id?: string;
@@ -365,7 +404,7 @@ export interface PlanResponse {
   stryd_status: StrydPushStatus;
   /** Platform AI plan rows get pushed to. `null` when the user has no
    *  push target connected — UI hides sync chrome in that case. */
-  sync_target: 'stryd' | null;
+  sync_target: PlanExecutionTarget | null;
   /** Server-resolved query window — clients echo this back when paging. */
   window: { start: string; end: string };
   /** Durable, newest-first conservative changes in the requested window. */

@@ -1,20 +1,23 @@
 """Default-off rolling delivery for Praxys-managed plans."""
 from __future__ import annotations
 
+import hashlib
 import logging
+import threading
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Iterator, Mapping
 
-from sqlalchemy import select
+from sqlalchemy import select, text
+from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.orm import Session
 
 from api import telemetry
 from analysis.config import (
-    PLATFORM_CAPABILITIES,
     PRAXYS_PLAN_SOURCES,
-    normalize_plan_management,
+    normalize_persisted_plan_management,
 )
 from analysis.metrics import is_rest_workout
 from api.packs import RequestContext
@@ -32,18 +35,28 @@ from api.plan_delivery import (
     PlanDeliveryAdapter,
     PlanDeliveryService,
     ProviderAuthenticationError,
+    ProviderRateLimitError,
     ProviderReadError,
     ProviderRequestError,
     is_plan_delivery_target_registered,
     load_plan_delivery_adapter,
 )
+from api.plan_delivery.capabilities import (
+    plan_delivery_capability_enabled,
+)
+from api.plan_delivery.base import (
+    adapter_provider_account_matches,
+    provider_account_references_match,
+)
 from api.plan_reconciliation import (
     PlanReconciliationItem,
     build_plan_reconciliation,
+    observation_matches_calendar,
 )
 from api.plan_resolution import (
     PlanResolutionConflict,
     PlanResolutionProviderError,
+    PlanResolutionRateLimitError,
     restore_praxys_version,
 )
 from db.models import (
@@ -68,6 +81,9 @@ from db.plan_ledger import (
 from db.plan_reconciliation import record_target_calendar_sync
 
 logger = logging.getLogger(__name__)
+
+_RUN_LOCKS_GUARD = threading.Lock()
+_RUN_LOCKS: dict[str, threading.Lock] = {}
 
 ROLLING_DELIVERY_DAYS = 14
 AUTOMATIC_DELIVERY_MAX_ATTEMPTS = 5
@@ -133,6 +149,7 @@ _CONNECTION_FAILURES = (
     DeliveryCredentialsInvalid,
     DeliveryCredentialsUnavailable,
     ProviderAuthenticationError,
+    ProviderRateLimitError,
 )
 _REMOVAL_FAILURES = (
     DeliveryAccountMismatchError,
@@ -181,8 +198,13 @@ def _delivery_gate(
             .execution_options(populate_existing=True)
         )
     config_row = db.execute(config_query).scalar_one_or_none()
-    plan_management = normalize_plan_management(
-        config_row.plan_management if config_row is not None else None
+    plan_management = normalize_persisted_plan_management(
+        config_row.plan_management if config_row is not None else None,
+        execution_target_fence=(
+            config_row.plan_execution_target
+            if config_row is not None
+            else None
+        ),
     )
     target = plan_management["execution_target"]
     if plan_management["mode"] != "praxys":
@@ -191,12 +213,6 @@ def _delivery_gate(
         return _DeliveryGate(target, None, "delivery_paused")
     if not target:
         return _DeliveryGate(None, None, "execution_target_missing")
-    capabilities = PLATFORM_CAPABILITIES.get(target)
-    if not capabilities or not capabilities.get("plan"):
-        return _DeliveryGate(target, None, "execution_target_unsupported")
-    if not is_plan_delivery_target_registered(target):
-        return _DeliveryGate(target, None, "delivery_adapter_unavailable")
-
     connection = db.execute(
         connection_query.where(UserConnection.platform == target)
     ).scalar_one_or_none()
@@ -207,6 +223,31 @@ def _delivery_gate(
             target,
             connection,
             f"connection_{connection.status}",
+        )
+    if not plan_delivery_capability_enabled(
+        target,
+        source_options=(
+            config_row.source_options
+            if config_row is not None
+            and isinstance(config_row.source_options, dict)
+            else {}
+        ),
+        connection=connection,
+    ):
+        return _DeliveryGate(
+            target,
+            connection,
+            (
+                "experimental_consent_required"
+                if target == "garmin"
+                else "execution_target_unsupported"
+            ),
+        )
+    if not is_plan_delivery_target_registered(target):
+        return _DeliveryGate(
+            target,
+            connection,
+            "delivery_adapter_unavailable",
         )
     return _DeliveryGate(target, connection, None)
 
@@ -255,6 +296,7 @@ def _record_connection_success(
     user_id: str,
     target: str,
     connection_generation: str,
+    expected_health_fence: tuple[object, ...] | None = None,
 ) -> bool:
     from db.sync_scheduler import reset_connection_backoff
 
@@ -276,10 +318,108 @@ def _record_connection_success(
     ):
         db.rollback()
         return False
+    if (
+        expected_health_fence is not None
+        and _connection_health_fence(connection) != expected_health_fence
+    ):
+        db.rollback()
+        return False
+    if connection.status not in {"connected", "error"}:
+        db.rollback()
+        return False
     connection.status = "connected"
     reset_connection_backoff(connection)
     db.commit()
     return True
+
+
+def _connection_health_fence(
+    connection: UserConnection,
+) -> tuple[object, ...]:
+    return (
+        connection.status,
+        int(connection.consecutive_failures or 0),
+        connection.next_retry_at,
+        connection.last_error,
+    )
+
+
+@contextmanager
+def _managed_delivery_run_lease(
+    db: Session,
+    user_id: str,
+) -> Iterator[Session | None]:
+    """Hold one cross-worker managed-delivery lease for a user."""
+    bind = db.get_bind()
+    if bind.dialect.name == "postgresql":
+        engine = _managed_delivery_lock_engine(bind)
+        lock_key = int.from_bytes(
+            hashlib.sha256(
+                f"managed-plan:{user_id}".encode("utf-8")
+            ).digest()[:8],
+            "big",
+            signed=True,
+        )
+        db.rollback()
+
+        def hold_on_connection(
+            connection: Connection,
+            leased_db: Session,
+        ) -> Iterator[Session | None]:
+            acquired = bool(connection.execute(
+                text("SELECT pg_try_advisory_lock(:lock_key)"),
+                {"lock_key": lock_key},
+            ).scalar_one())
+            connection.commit()
+            if not acquired:
+                yield None
+                return
+            try:
+                yield leased_db
+            finally:
+                leased_db.rollback()
+                unlocked = bool(connection.execute(
+                    text("SELECT pg_advisory_unlock(:lock_key)"),
+                    {"lock_key": lock_key},
+                ).scalar_one())
+                connection.commit()
+                if not unlocked:
+                    logger.error(
+                        "Managed-delivery advisory lock was not held: user=%s",
+                        user_id,
+                    )
+
+        if isinstance(bind, Connection):
+            yield from hold_on_connection(bind, db)
+            return
+
+        with engine.connect() as connection:
+            leased_db = Session(bind=connection, autoflush=False)
+            try:
+                yield from hold_on_connection(connection, leased_db)
+            finally:
+                leased_db.close()
+                db.expire_all()
+        return
+
+    with _RUN_LOCKS_GUARD:
+        run_lock = _RUN_LOCKS.setdefault(user_id, threading.Lock())
+        acquired = run_lock.acquire(blocking=False)
+    try:
+        yield db if acquired else None
+    finally:
+        if acquired:
+            with _RUN_LOCKS_GUARD:
+                run_lock.release()
+                if _RUN_LOCKS.get(user_id) is run_lock:
+                    _RUN_LOCKS.pop(user_id, None)
+
+
+def _managed_delivery_lock_engine(
+    bind: Engine | Connection,
+) -> Engine:
+    """Return an engine even when the ORM session owns a connection."""
+    return bind.engine if isinstance(bind, Connection) else bind
 
 
 def _mutation_guard(
@@ -393,11 +533,15 @@ def _refresh_target_calendar(
         if str(row.get("external_id") or "").strip()
     }
     mutation_guard()
+    account_references = getattr(adapter, "account_references", {})
+    if not isinstance(account_references, Mapping):
+        account_references = {}
     record_target_calendar_sync(
         db,
         user_id=user_id,
         target=target,
         provider_account_id=adapter.account_id,
+        provider_references=account_references,
         rows=rows,
         window_start=window_start,
         window_end=window_end,
@@ -415,38 +559,59 @@ def _recover_managed_inflight_attempts(
     provider_account_id: str,
     connection_generation: str,
     deliveries: list[PlanDelivery],
+    adapter: PlanDeliveryAdapter | None = None,
 ) -> None:
     lock_plan_writes(db, user_id)
     calendar_sync = db.execute(
         select(PlanTargetCalendarSync).where(
             PlanTargetCalendarSync.user_id == user_id,
             PlanTargetCalendarSync.target == target,
-            PlanTargetCalendarSync.provider_account_id
-            == provider_account_id,
         )
     ).scalar_one_or_none()
-    if calendar_sync is None:
+    if (
+        calendar_sync is None
+        or (
+            calendar_sync.provider_account_id != provider_account_id
+            and (
+                adapter is None
+                or not adapter_provider_account_matches(
+                    adapter,
+                    stored_account_id=calendar_sync.provider_account_id,
+                    current_account_id=provider_account_id,
+                    provider_references=(
+                        calendar_sync.provider_references or {}
+                    ),
+                )
+            )
+        )
+    ):
         db.rollback()
         return
     observations = db.execute(
         select(PlanTargetWorkout).where(
             PlanTargetWorkout.user_id == user_id,
             PlanTargetWorkout.target == target,
-            PlanTargetWorkout.provider_account_id == provider_account_id,
         )
     ).scalars().all()
-    claimed_external_ids = {
-        external_id
-        for external_id in db.execute(
-            select(PlanDelivery.external_id).where(
-                PlanDelivery.user_id == user_id,
-                PlanDelivery.target == target,
-                PlanDelivery.external_id.is_not(None),
-                PlanDelivery.state != "removed",
-            )
-        ).scalars()
-        if external_id
-    }
+    observations = [
+        observation
+        for observation in observations
+        if observation_matches_calendar(calendar_sync, observation)
+    ]
+    claimed_external_ids: dict[str, set[str]] = {}
+    for claiming_delivery_id, external_id in db.execute(
+        select(PlanDelivery.id, PlanDelivery.external_id).where(
+            PlanDelivery.user_id == user_id,
+            PlanDelivery.target == target,
+            PlanDelivery.external_id.is_not(None),
+            PlanDelivery.state != "removed",
+        )
+    ):
+        if external_id:
+            claimed_external_ids.setdefault(
+                str(external_id),
+                set(),
+            ).add(str(claiming_delivery_id))
     changed = False
 
     for delivery in deliveries:
@@ -480,9 +645,26 @@ def _recover_managed_inflight_attempts(
             **attempt.response,
             "recovered_from_calendar": True,
         }
+        attempt_references = attempt.response.get("provider_references")
+        if not isinstance(attempt_references, Mapping):
+            attempt_references = delivery.provider_references or {}
+        attempt_account_id = str(
+            attempt.response.get("provider_account_id") or ""
+        )
+        account_matches = (
+            attempt_account_id == provider_account_id
+            or (
+                adapter is not None
+                and adapter_provider_account_matches(
+                    adapter,
+                    stored_account_id=attempt_account_id,
+                    current_account_id=provider_account_id,
+                    provider_references=attempt_references,
+                )
+            )
+        )
         if (
-            attempt.response.get("provider_account_id")
-            != provider_account_id
+            not account_matches
             or attempt.response.get("connection_generation")
             != connection_generation
         ):
@@ -510,23 +692,91 @@ def _recover_managed_inflight_attempts(
                 )
                 if external_id
             }
-            matches = [
-                observation
-                for observation in observations
-                if (
-                    observation.present
-                    and observation.workout_date == delivery.workout_date
-                    and delivery.provider_content_version
-                    and observation.content_fingerprint
-                    == delivery.provider_content_version
-                    and observation.external_id
-                    not in preexisting_external_ids
+            provider_references = (
+                dict(delivery.provider_references)
+                if isinstance(delivery.provider_references, dict)
+                else {}
+            )
+            template_id = str(
+                provider_references.get("template_id") or ""
+            ).strip()
+            if template_id:
+                matches = [
+                    observation
+                    for observation in observations
+                    if (
+                        observation.present
+                        and observation.workout_date
+                        == delivery.workout_date
+                        and isinstance(
+                            observation.provider_references,
+                            dict,
+                        )
+                        and str(
+                            observation.provider_references.get(
+                                "template_id"
+                            )
+                            or ""
+                        )
+                        == template_id
+                        and observation.external_id
+                        not in preexisting_external_ids
+                    )
+                ]
+            else:
+                matches = [
+                    observation
+                    for observation in observations
+                    if (
+                        observation.present
+                        and observation.workout_date
+                        == delivery.workout_date
+                        and delivery.provider_content_version
+                        and observation.content_fingerprint
+                        == delivery.provider_content_version
+                        and observation.external_id
+                        not in preexisting_external_ids
+                    )
+                ]
+            checkpointed_schedule_id = str(
+                provider_references.get("schedule_id") or ""
+            ).strip()
+            if delivery.target == "garmin" and checkpointed_schedule_id:
+                matches = [
+                    observation
+                    for observation in matches
+                    if observation.external_id == checkpointed_schedule_id
+                ]
+            confirmed_identity = (
+                delivery.target != "garmin"
+                or bool(checkpointed_schedule_id)
+            )
+            claimed_match = (
+                len(matches) == 1
+                and any(
+                    claiming_delivery_id != delivery.id
+                    for claiming_delivery_id in claimed_external_ids.get(
+                        matches[0].external_id,
+                        set(),
+                    )
                 )
-            ]
-            if len(matches) == 1:
-                if matches[0].external_id in claimed_external_ids:
-                    matches = []
-            if len(matches) == 1:
+            )
+            if claimed_match:
+                complete_delivery_attempt(
+                    db,
+                    user_id=user_id,
+                    delivery_id=delivery.id,
+                    attempt_id=attempt.id,
+                    attempt_state="conflict",
+                    error="Recovered provider identity is already claimed",
+                    response={
+                        **response,
+                        "error_category": "provider_identity_claimed",
+                        "retryable": False,
+                    },
+                    provider_references=provider_references,
+                )
+            elif len(matches) == 1 and confirmed_identity:
                 observation = matches[0]
                 complete_delivery_attempt(
                     db,
@@ -538,7 +788,43 @@ def _recover_managed_inflight_attempts(
                     response=response,
                     provider_account_id=provider_account_id,
                 )
-                claimed_external_ids.add(observation.external_id)
+                claimed_external_ids.setdefault(
+                    observation.external_id,
+                    set(),
+                ).add(delivery.id)
+            elif (
+                not matches
+                and delivery.target == "garmin"
+                and provider_references.get("template_marker")
+                and "preexisting_template_ids" in provider_references
+                and (
+                    (
+                        provider_references.get("template_id")
+                        and not provider_references.get("schedule_started")
+                    )
+                    or (
+                        not provider_references.get("template_id")
+                        and not provider_references.get("upload_started")
+                    )
+                )
+            ):
+                complete_delivery_attempt(
+                    db,
+                    user_id=user_id,
+                    delivery_id=delivery.id,
+                    attempt_id=attempt.id,
+                    attempt_state="failed",
+                    delivery_state="failed",
+                    error=(
+                        "Garmin template creation requires a safe resume"
+                    ),
+                    response={
+                        **response,
+                        "error_category": "provider_partial_create",
+                        "retryable": True,
+                    },
+                    provider_references=provider_references,
+                )
             else:
                 complete_delivery_attempt(
                     db,
@@ -791,7 +1077,7 @@ def _replay_fence_matches(
     ):
         return True
     return bool(
-        replay.expected_operation == "deliver"
+        replay.expected_operation in {"deliver", "remove"}
         and latest.operation == "remove"
         and latest.state in {"delivering", "removed"}
         and latest_response.get("resolution") == "restore_praxys"
@@ -841,21 +1127,56 @@ def _owned_removal_safe(
     delivery: PlanDelivery,
     provider_account_id: str,
 ) -> tuple[bool, str | None]:
-    if delivery.provider_account_id != provider_account_id:
-        return False, "provider_account_mismatch"
     if delivery.state != "synced" or not delivery.external_id:
         return False, f"delivery_{delivery.state}"
 
-    exact = db.execute(
+    calendar_sync = db.execute(
+        select(PlanTargetCalendarSync).where(
+            PlanTargetCalendarSync.user_id == delivery.user_id,
+            PlanTargetCalendarSync.target == delivery.target,
+        )
+    ).scalar_one_or_none()
+    if calendar_sync is None:
+        return False, "target_workout_absent"
+    if not provider_account_references_match(
+        stored_account_id=calendar_sync.provider_account_id,
+        current_account_id=provider_account_id,
+        stored_references=calendar_sync.provider_references or {},
+        current_references=delivery.provider_references or {},
+    ):
+        return False, "provider_account_mismatch"
+
+    exact_candidates = db.execute(
         select(PlanTargetWorkout).where(
             PlanTargetWorkout.user_id == delivery.user_id,
             PlanTargetWorkout.target == delivery.target,
-            PlanTargetWorkout.provider_account_id == provider_account_id,
             PlanTargetWorkout.external_id == delivery.external_id,
         )
-    ).scalar_one_or_none()
+    ).scalars().all()
+    exact = next(
+        (
+            observation
+            for observation in exact_candidates
+            if observation_matches_calendar(calendar_sync, observation)
+        ),
+        None,
+    )
     if exact is None or not exact.present:
+        if not provider_account_references_match(
+            stored_account_id=str(delivery.provider_account_id or ""),
+            current_account_id=provider_account_id,
+            stored_references=delivery.provider_references or {},
+            current_references=calendar_sync.provider_references or {},
+        ):
+            return False, "provider_account_mismatch"
         return False, "target_workout_absent"
+    if not provider_account_references_match(
+        stored_account_id=str(delivery.provider_account_id or ""),
+        current_account_id=provider_account_id,
+        stored_references=delivery.provider_references or {},
+        current_references=exact.provider_references or {},
+    ):
+        return False, "provider_account_mismatch"
     if exact.workout_date != delivery.workout_date:
         return False, "target_workout_moved"
     if (
@@ -1033,6 +1354,43 @@ def run_rolling_delivery_for_user(
     threshold_loader: ThresholdLoader = _default_threshold_loader,
     replay: ManagedDeliveryReplayFence | None = None,
 ) -> ManagedDeliveryRunResult:
+    """Run one serialized rolling managed-delivery pass."""
+    timestamp = now or datetime.utcnow()
+    start, end = _window(window_start or timestamp.date())
+    with _managed_delivery_run_lease(db, user_id) as leased_db:
+        if leased_db is None:
+            return ManagedDeliveryRunResult(
+                user_id=user_id,
+                trigger=trigger,
+                status="skipped",
+                target=None,
+                window_start=start.isoformat(),
+                window_end=end.isoformat(),
+                reason="delivery_run_busy",
+            )
+        return _run_rolling_delivery_for_user(
+            leased_db,
+            user_id=user_id,
+            trigger=trigger,
+            now=timestamp,
+            window_start=start,
+            adapter_loader=adapter_loader,
+            threshold_loader=threshold_loader,
+            replay=replay,
+        )
+
+
+def _run_rolling_delivery_for_user(
+    db: Session,
+    *,
+    user_id: str,
+    trigger: str,
+    now: datetime | None = None,
+    window_start: date | None = None,
+    adapter_loader: AdapterLoader = _default_adapter_loader,
+    threshold_loader: ThresholdLoader = _default_threshold_loader,
+    replay: ManagedDeliveryReplayFence | None = None,
+) -> ManagedDeliveryRunResult:
     """Reconcile and deliver one user's managed plan for 14 calendar days."""
     started_at = time.monotonic()
 
@@ -1083,6 +1441,7 @@ def run_rolling_delivery_for_user(
     connection_generation = connection_credentials_generation(
         gate.connection
     )
+    connection_health_fence = _connection_health_fence(gate.connection)
     mutation_guard = lambda: _mutation_guard(
         db,
         user_id=user_id,
@@ -1126,6 +1485,7 @@ def run_rolling_delivery_for_user(
     threshold_value = threshold_loader(db, user_id)
     try:
         adapter = adapter_loader(db, user_id, target)
+        db.rollback()
         adapter.authenticate()
         observed_external_ids = _refresh_target_calendar(
             db,
@@ -1153,6 +1513,7 @@ def run_rolling_delivery_for_user(
         DeliveryCredentialsInvalid,
         DeliveryCredentialsUnavailable,
         ProviderAuthenticationError,
+        ProviderRateLimitError,
         ProviderReadError,
     ) as exc:
         recorded = _record_connection_failure(
@@ -1187,6 +1548,7 @@ def run_rolling_delivery_for_user(
         user_id=user_id,
         target=target,
         connection_generation=connection_generation,
+        expected_health_fence=connection_health_fence,
     ):
         return finish(ManagedDeliveryRunResult(
             user_id=user_id,
@@ -1204,6 +1566,7 @@ def run_rolling_delivery_for_user(
         provider_account_id=adapter.account_id,
         connection_generation=connection_generation,
         deliveries=owned_deliveries,
+        adapter=adapter,
     )
     reconciliation = build_plan_reconciliation(
         db,
@@ -1251,6 +1614,7 @@ def run_rolling_delivery_for_user(
         mutation_guard,
     )
     items: list[ManagedDeliveryItemResult] = []
+    stop_after_owned_removal = False
 
     for delivery in owned_deliveries:
         if replay is not None and (
@@ -1287,7 +1651,21 @@ def run_rolling_delivery_for_user(
         )
         items.append(removal_result)
         if stop_batch:
+            stop_after_owned_removal = True
             break
+
+    if stop_after_owned_removal:
+        failed = sum(item.status == "failed" for item in items)
+        blocked = sum(item.status == "blocked" for item in items)
+        return finish(ManagedDeliveryRunResult(
+            user_id=user_id,
+            trigger=trigger,
+            status="partial" if failed or blocked else "complete",
+            target=target,
+            window_start=window_start.isoformat(),
+            window_end=window_end.isoformat(),
+            items=tuple(items),
+        ))
 
     for canonical in canonicals:
         canonical_id = str(canonical.canonical_id)
@@ -1545,7 +1923,7 @@ def run_rolling_delivery_for_user(
                 reason="canonical_changed_during_run",
             ))
             continue
-        if not threshold_value:
+        if not threshold_value and target == "stryd":
             items.append(_result(
                 canonical_id,
                 current.date,
@@ -1679,6 +2057,26 @@ def run_rolling_delivery_for_user(
                     reason="plan_resolution_conflict",
                 ))
                 continue
+            except PlanResolutionRateLimitError as exc:
+                recorded = _record_connection_failure(
+                    db,
+                    gate.connection,
+                    ProviderRateLimitError(str(exc)),
+                    trigger=trigger,
+                    connection_generation=connection_generation,
+                )
+                items.append(_result(
+                    canonical_id,
+                    current.date,
+                    action,
+                    "failed",
+                    reason=(
+                        "provider_rate_limited"
+                        if recorded
+                        else "connection_changed"
+                    ),
+                ))
+                break
             except _REPLACEMENT_FAILURES as exc:
                 items.append(_result(
                     canonical_id,
@@ -1772,6 +2170,17 @@ def run_rolling_delivery_for_user(
             reason=outcome.error_category or "delivery_failed",
             external_id=outcome.external_id,
         ))
+        if outcome.error_category == "provider_rate_limited":
+            _record_connection_failure(
+                db,
+                gate.connection,
+                ProviderRateLimitError(
+                    outcome.error or "provider rate limited"
+                ),
+                trigger=trigger,
+                connection_generation=connection_generation,
+            )
+            break
         if outcome.external_id:
             observed_external_ids.add(outcome.external_id)
 
@@ -1836,12 +2245,17 @@ def run_scheduled_managed_deliveries() -> None:
     db = SessionLocal()
     try:
         rows = db.execute(
-            select(UserConfig.user_id, UserConfig.plan_management)
+            select(
+                UserConfig.user_id,
+                UserConfig.plan_management,
+                UserConfig.plan_execution_target,
+            )
         ).all()
         user_ids = []
-        for user_id, raw_plan_management in rows:
-            plan_management = normalize_plan_management(
-                raw_plan_management
+        for user_id, raw_plan_management, execution_target_fence in rows:
+            plan_management = normalize_persisted_plan_management(
+                raw_plan_management,
+                execution_target_fence=execution_target_fence,
             )
             if (
                 plan_management["mode"] == "praxys"

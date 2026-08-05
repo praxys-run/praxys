@@ -4,13 +4,17 @@ Runs as a daemon thread started on app boot. Every CHECK_INTERVAL seconds,
 scans user_connections for stale entries and triggers sync for each.
 Syncs are staggered (one at a time, small delay between) to avoid rate limits.
 """
+from contextlib import nullcontext
 import logging
 import os
 import threading
 import time
 from datetime import datetime, timedelta
 
+from sqlalchemy.orm import Session
+
 from db.connection_credentials import CredentialAccessError
+from sync.garmin_errors import garmin_http_status
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +92,12 @@ def classify_sync_failure(exc: BaseException) -> tuple[str, bool]:
     cls_name = type(exc).__name__
     msg = str(exc) or ""
 
-    if cls_name == "GarminConnectAuthenticationError":
+    if cls_name in {
+        "GarminConnectAuthenticationError",
+        "ProviderAuthenticationRequiredError",
+    }:
+        return ("auth_required", True)
+    if garmin_http_status(exc) == 401:
         return ("auth_required", True)
     if isinstance(exc, CredentialAccessError):
         return ("auth_required", True)
@@ -188,6 +197,16 @@ def _record_sync_failure(
                 UserConnection.id == conn.id,
             ).with_for_update().first()
         if fresh is None:
+            return False
+        if fresh.status not in SCHEDULABLE_STATUSES:
+            db.rollback()
+            logger.info(
+                "Ignoring stale sync failure for non-schedulable "
+                "connection: user=%s platform=%s status=%s",
+                fresh.user_id,
+                fresh.platform,
+                fresh.status,
+            )
             return False
 
         new_failures = (fresh.consecutive_failures or 0) + 1
@@ -388,71 +407,169 @@ def _check_and_sync():
                 conn.user_id, conn.platform, last, interval_hours,
                 conn.consecutive_failures or 0,
             )
+            expected_connection_generation = None
+            if conn.platform == "garmin":
+                from db.connection_credentials import (
+                    connection_credentials_generation,
+                )
+
+                expected_connection_generation = (
+                    connection_credentials_generation(conn)
+                )
             try:
-                _sync_connection(conn.user_id, conn.platform, db)
+                _sync_connection(
+                    conn.user_id,
+                    conn.platform,
+                    db,
+                    expected_connection_generation=(
+                        expected_connection_generation
+                    ),
+                )
                 time.sleep(DELAY_BETWEEN_SYNCS_SEC)
             except Exception as exc:
+                from db.connection_credentials import (
+                    ConnectionGenerationChanged,
+                )
+
+                if isinstance(exc, ConnectionGenerationChanged):
+                    db.rollback()
+                    logger.info(
+                        "Cancelled stale scheduled sync: user=%s platform=%s",
+                        conn.user_id,
+                        conn.platform,
+                    )
+                    continue
                 logger.exception(
                     "Scheduled sync failed: user=%s platform=%s",
                     conn.user_id, conn.platform,
                 )
-                _record_sync_failure(conn, exc, db, trigger="scheduled")
+                _record_sync_failure(
+                    conn,
+                    exc,
+                    db,
+                    trigger="scheduled",
+                    expected_credential_generation=(
+                        expected_connection_generation
+                    ),
+                )
     finally:
         db.close()
 
 
-def _sync_connection(user_id: str, platform: str, db):
+def _sync_connection(
+    user_id: str,
+    platform: str,
+    db: Session,
+    *,
+    expected_connection_generation: str | None = None,
+) -> None:
     """Sync a single user-platform connection using encrypted credentials.
 
     Uses the sync route's fetch + DB write functions (no CSV intermediate).
     """
-    from db.connection_credentials import load_connection_credentials
+    from db.connection_credentials import (
+        ConnectionGenerationChanged,
+        connection_credentials_generation,
+        load_connection_credentials,
+        require_connection_generation,
+    )
     from db.models import UserConnection
 
-    conn = db.query(UserConnection).filter(
-        UserConnection.user_id == user_id,
-        UserConnection.platform == platform,
-    ).first()
-    if not conn:
-        logger.warning("No credentials for user=%s platform=%s", user_id, platform)
-        return
-
-    credentials = load_connection_credentials(
-        db,
-        user_id=user_id,
-        platform=platform,
-    )
-    if credentials is None:
-        logger.warning("No credentials for user=%s platform=%s", user_id, platform)
-        return
-    creds = credentials
-
-    # Use the sync route's direct DB write functions
-    from api.routes.sync import (
-        _ensure_user_active_for_sync,
-        _sync_coros,
-        _sync_garmin,
-        _sync_oura,
-        _sync_strava,
-        _sync_stryd,
-    )
-
+    token_lease = nullcontext()
     if platform == "garmin":
-        counts = _sync_garmin(user_id, creds, None, db)
-    elif platform == "strava":
-        counts = _sync_strava(user_id, creds, None, db)
-    elif platform == "coros":
-        counts = _sync_coros(user_id, creds, None, db)
-    elif platform == "stryd":
-        counts = _sync_stryd(user_id, creds, None, db)
-    elif platform == "oura":
-        counts = _sync_oura(user_id, creds, None, db)
-    else:
-        logger.warning("Unknown platform: %s", platform)
-        return
+        from api.routes.sync import _garmin_tokenstore_lease
 
-    _ensure_user_active_for_sync(user_id, db)
-    db.commit()
+        token_lease = _garmin_tokenstore_lease(user_id)
+
+    with token_lease:
+        conn = db.query(UserConnection).filter(
+            UserConnection.user_id == user_id,
+            UserConnection.platform == platform,
+        ).first()
+        if not conn:
+            logger.warning(
+                "No credentials for user=%s platform=%s",
+                user_id,
+                platform,
+            )
+            return
+
+        credentials = load_connection_credentials(
+            db,
+            user_id=user_id,
+            platform=platform,
+        )
+        if credentials is None:
+            logger.warning(
+                "No credentials for user=%s platform=%s",
+                user_id,
+                platform,
+            )
+            return
+        creds = credentials
+        if platform == "garmin" and expected_connection_generation is None:
+            expected_connection_generation = (
+                connection_credentials_generation(conn)
+            )
+        if expected_connection_generation is not None:
+            require_connection_generation(
+                db,
+                user_id=user_id,
+                platform=platform,
+                expected_generation=expected_connection_generation,
+                allowed_statuses=SCHEDULABLE_STATUSES,
+            )
+
+        # Use the sync route's direct DB write functions.
+        from api.routes.sync import (
+            _ensure_user_active_for_sync,
+            _mirror_generation_tokens_for_legacy_workers,
+            _sync_coros,
+            _sync_garmin,
+            _sync_oura,
+            _sync_strava,
+            _sync_stryd,
+        )
+
+        if platform == "garmin":
+            counts = _sync_garmin(
+                user_id,
+                creds,
+                None,
+                db,
+                credential_generation=expected_connection_generation,
+            )
+        elif platform == "strava":
+            counts = _sync_strava(user_id, creds, None, db)
+        elif platform == "coros":
+            counts = _sync_coros(user_id, creds, None, db)
+        elif platform == "stryd":
+            counts = _sync_stryd(user_id, creds, None, db)
+        elif platform == "oura":
+            counts = _sync_oura(user_id, creds, None, db)
+        else:
+            logger.warning("Unknown platform: %s", platform)
+            return
+
+        if expected_connection_generation is not None:
+            require_connection_generation(
+                db,
+                user_id=user_id,
+                platform=platform,
+                expected_generation=expected_connection_generation,
+                allowed_statuses=SCHEDULABLE_STATUSES,
+                lock=True,
+            )
+        _ensure_user_active_for_sync(user_id, db)
+        db.commit()
+        if (
+            platform == "garmin"
+            and expected_connection_generation is not None
+        ):
+            _mirror_generation_tokens_for_legacy_workers(
+                user_id,
+                expected_connection_generation,
+            )
 
     # Refresh activity-derived CP after the sync — best-effort, never break
     # the scheduled sync if the fit fails. Skipped for Oura since it writes
@@ -462,21 +579,46 @@ def _sync_connection(user_id: str, platform: str, db):
             from db.sync_writer import update_cp_from_activities
             fit = update_cp_from_activities(user_id, db)
             if fit is not None:
+                if expected_connection_generation is not None:
+                    require_connection_generation(
+                        db,
+                        user_id=user_id,
+                        platform=platform,
+                        expected_generation=(
+                            expected_connection_generation
+                        ),
+                        allowed_statuses=SCHEDULABLE_STATUSES,
+                        lock=True,
+                    )
                 _ensure_user_active_for_sync(user_id, db)
                 db.commit()
                 logger.info(
                     "Activity-derived CP for user=%s: %.1fW (r²=%.2f, %d points)",
                     user_id, fit["cp_watts"], fit["r_squared"], fit["point_count"],
                 )
+        except ConnectionGenerationChanged:
+            raise
         except Exception:
             logger.exception("Activity-derived CP refresh failed: user=%s", user_id)
             db.rollback()
 
     # Update last_sync and clear any prior backoff state — a successful
     # sync is the strongest possible signal that the connection is healthy.
-    conn.last_sync = datetime.utcnow()
-    conn.status = "connected"
-    reset_connection_backoff(conn)
+    current_connection = (
+        require_connection_generation(
+            db,
+            user_id=user_id,
+            platform=platform,
+            expected_generation=expected_connection_generation,
+            allowed_statuses=SCHEDULABLE_STATUSES,
+            lock=True,
+        )
+        if expected_connection_generation is not None
+        else conn
+    )
+    current_connection.last_sync = datetime.utcnow()
+    current_connection.status = "connected"
+    reset_connection_backoff(current_connection)
     _ensure_user_active_for_sync(user_id, db)
     db.commit()
     logger.info("Sync complete: user=%s platform=%s counts=%s", user_id, platform, counts)

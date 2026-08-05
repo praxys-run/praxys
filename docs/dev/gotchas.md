@@ -149,9 +149,50 @@ render read-only with a source badge.
 
 ### Tokenstore lifecycle
 
-- First sync: no tokens present → `has_tokens = False` → `client.login(None)` uses credentials flow → `garth.dump(token_dir)` writes `oauth1_token.json` + `oauth2_token.json`.
-- Subsequent syncs: files exist → `has_tokens = True` → `client.login(token_dir)` loads cached tokens, skips SSO.
-- `clear_garmin_tokens(user_id)` is called on credential rotation / disconnect / user deletion. It must propagate OSError — silencing it would re-open the cross-user leak the per-user path exists to prevent.
+- Tokenstores are scoped to both the authenticated Praxys user and the exact
+  encrypted-credential generation. A background sync may read or recreate only
+  `sync/.garmin_tokens/<user>/generations/<generation-hash>/`; it cannot place
+  an old Garmin session in the replacement connection's directory.
+- On first upgraded use, direct token files from the legacy per-user root are
+  copied into the current generation so existing MFA sessions keep working.
+  Current generation files are mirrored back to that root during the rolling
+  deployment only after the matching credential transaction commits, so an
+  older worker can read the same account session without observing rolled-back
+  credentials. New workers never authenticate from the mirror once their
+  generation exists. Credential rotation clears both layouts before binding
+  the replacement session.
+- Interactive login writes tokens to a unique staging directory. Only after
+  credentials and their generation fence are staged are those files moved into
+  the matching generation directory; a failed credential commit deletes that
+  generation before it can be published to legacy workers.
+  Each completed staging directory is bound to an opaque server-generated
+  login-attempt ID, so concurrent login attempts cannot consume or replace each
+  other's tokens. Failed login, binding, or credential commits delete their
+  staging/generation files; abandoned pending and completed attempts are
+  deleted after five minutes.
+- A per-user filesystem lease serializes every bound-token login, refresh,
+  mirror, clear, sync, and delivery operation across workers. Code that also
+  needs database locks acquires the token lease first or releases read
+  transactions before provider authentication; reversing that order can
+  deadlock sync against managed delivery. Reconnect, MFA binding, disconnect,
+  and region changes hold that lease through their credential/config commit
+  and token bind or clear, so two transitions cannot leave connected
+  credentials paired with another transition's tokenstore.
+- First sync for a generation: no tokens present → `has_tokens = False` →
+  `client.login(None)` uses the credentials flow → `garth.dump(token_dir)`
+  writes the OAuth token files. Later syncs for that generation load the same
+  directory and skip SSO.
+- Every Garmin sync captures its starting credential generation and rechecks
+  the connected/schedulable connection before provider work and before each
+  commit. Rotation or disconnect rolls a stale transaction back without
+  marking the replacement connection failed. Failure and success bookkeeping
+  also refuses to reopen a currently disconnected row even when its encrypted
+  credential bytes have not changed yet. This fence is Garmin-specific; other
+  connectors may legitimately rotate credentials during sync.
+- `clear_garmin_tokens(user_id)` is called on credential rotation, disconnect,
+  or user deletion and clears staging plus every generation. It must propagate
+  `OSError` — silencing it would re-open the account-confusion boundary the
+  scoped path exists to prevent.
 
 ## Backfill semantics
 
@@ -199,16 +240,54 @@ render read-only with a source badge.
   cannot falsely mark prior Garmin workouts absent.
 - Garmin calendar observations use the scheduled-instance `id`, never the
   reusable template `workoutId`, as their external identity. Account fences
-  hash the authenticated Garmin display name with the Praxys user and region;
-  the profile name is not persisted in reconciliation tables.
-- Garmin remains `plan: false` in `PLATFORM_CAPABILITIES`. The
-  [#484 feasibility study](../studies/garmin-workout-delivery-feasibility.md)
-  found the undocumented consumer write operations but rejected production
-  enablement: template and scheduled-instance IDs need durable staged
-  ownership, structured target fidelity and CN parity are unverified, and an
-  official Garmin Training API exists for this purpose. Keep #485 blocked
-  until that supported contract is available or an explicitly accepted
-  fallback passes both region test matrices.
+  retain the rollout-compatible hash of authenticated display name, Praxys
+  user, and region as the reconciliation key. New observations additionally
+  carry a private hash of immutable `userProfileId`, Praxys user, and region;
+  mutation and removal require that profile fence. Neither raw identity is
+  persisted in reconciliation tables. The immutable reference may authorize a
+  harmless display-name-derived key change for the same profile; a different
+  immutable profile still fails closed even if the display-derived key happens
+  to match. The complete calendar snapshot stores the same private reference,
+  so even an empty calendar cannot mark another same-display-name profile's
+  workouts absent.
+- Garmin remains statically `plan: false` in `PLATFORM_CAPABILITIES`, but a
+  connected user may explicitly consent to the
+  [experimental fallback](../studies/garmin-workout-delivery-feasibility.md).
+  `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED` is a separate default-off operator
+  gate; user consent alone must never authorize writes. Consent is bound to
+  credential generation and an explicit region; a legacy connection with no
+  mirrored region must reconnect before opting in.
+  Reconnect, rotation, or disconnect revokes consent. Changing region
+  disconnects the old region, clears
+  its cached tokens, and requires a fresh login before re-consent. The adapter is
+  duration-only: never silently degrade power, pace, or heart-rate targets.
+  Interactive reconnect commits consent revocation, delivery pause, and a
+  disconnected state before clearing or replacing any cached token, so a
+  process crash cannot authorize a new Garmin account with the old grant.
+  Garmin has separate template and scheduled-instance IDs, so both must remain
+  durably checkpointed; `external_id` is always the scheduled instance. Exact
+  removal unschedules only that ledger-owned instance and deliberately retains
+  its reusable template. Never claim a calendar instance merely because it
+  newly uses that template; only Garmin's returned, checkpointed schedule ID
+  on the intended date grants ownership. A returned wrong-date ID remains an
+  unowned conflict candidate until explicit reconciliation. Full-library
+  recovery is bounded to 500 templates: an already-at-limit library is rejected
+  before upload and asks the user to remove unused Garmin templates; exhaustion
+  after a possible upload remains an unknown-outcome conflict and is not
+  retried automatically. A confirmed 401 moves the connection to
+  `auth_required`; a 429 stops the remaining delivery batch and applies
+  connection-level backoff rather than issuing more Garmin calls. The
+  international/CN write paths are not live
+  validated, and Garmin's official Training API remains the preferred
+  integration.
+- `user_config.plan_execution_target` is the forward-compatible target fence.
+  It survives older workers rewriting the legacy `plan_management` JSON; a
+  valid explicit JSON target still wins when present. Before changing targets,
+  import any legacy Stryd push-status evidence and reject the switch while a
+  future, non-removed delivery remains on another connector. The normal
+  transition is: leave managed mode, explicitly clean up old owned deliveries,
+  then select the new connector. Manual/legacy Stryd push paths recheck this
+  fence immediately before provider I/O.
 
 ## Activity weather support
 

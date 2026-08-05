@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable, Literal
 
 from pydantic import BaseModel, Field
@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from analysis.config import PRAXYS_PLAN_SOURCES, normalize_plan_management
+from analysis.metrics import is_rest_workout
 from api import telemetry
 from api.plan_delivery.rolling import (
     AUTOMATIC_DELIVERY_MAX_ATTEMPTS,
@@ -180,10 +181,10 @@ def _latest_attempts(
     return grouped
 
 
-def _current_canonical_version(
+def _current_canonical(
     db: Session,
     delivery: PlanDelivery,
-) -> str | None:
+) -> TrainingPlan | None:
     canonical_id = delivery_canonical_id(delivery)
     query = select(TrainingPlan).where(
         TrainingPlan.user_id == delivery.user_id,
@@ -203,7 +204,19 @@ def _current_canonical_version(
         ]
     if len(rows) != 1:
         return None
-    return workout_version(plan_snapshot(rows[0]))
+    return rows[0]
+
+
+def _current_canonical_version(
+    db: Session,
+    delivery: PlanDelivery,
+) -> str | None:
+    canonical = _current_canonical(db, delivery)
+    return (
+        workout_version(plan_snapshot(canonical))
+        if canonical is not None
+        else None
+    )
 
 
 def _recovery_expected_version(
@@ -598,6 +611,7 @@ def _run_result_response(
     result: ManagedDeliveryRunResult,
     *,
     final_state: str,
+    expected_final_state: str,
     audit_revision_id: str,
 ) -> ManagedPlanRecoveryResponse:
     successful_statuses = {"delivered", "replaced", "removed"}
@@ -607,7 +621,7 @@ def _run_result_response(
     reason = result.reason
     if (
         status == "complete"
-        and final_state not in {"synced", "removed"}
+        and final_state != expected_final_state
     ):
         status = "blocked"
         reason = "recovery_incomplete"
@@ -628,6 +642,101 @@ def _run_result_response(
         ),
         audit_revision_id=audit_revision_id,
     )
+
+
+def _locked_recovery_completion_state(
+    db: Session,
+    *,
+    user_id: str,
+    target: str,
+    workout_date: date,
+    delivery_id: str,
+    replay: ManagedDeliveryReplayFence,
+) -> tuple[str, str, bool]:
+    """Return final state, current intent, and whether intent stayed fenced."""
+    lock_plan_writes(db, user_id)
+    original = db.execute(
+        select(PlanDelivery)
+        .where(
+            PlanDelivery.id == delivery_id,
+            PlanDelivery.user_id == user_id,
+        )
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).scalar_one_or_none()
+    if original is None:
+        expected_state = (
+            "synced"
+            if replay.expected_canonical_version is not None
+            else "removed"
+        )
+        return "missing", expected_state, False
+
+    canonical = _current_canonical(db, original)
+    current_version = (
+        workout_version(plan_snapshot(canonical))
+        if canonical is not None
+        else None
+    )
+    expected_state = (
+        "synced"
+        if canonical is not None
+        and not is_rest_workout(canonical.workout_type)
+        else "removed"
+    )
+    intent_matches = current_version == replay.expected_canonical_version
+    rows = db.execute(
+        select(PlanDelivery)
+        .where(
+            PlanDelivery.user_id == user_id,
+            PlanDelivery.target == target,
+            PlanDelivery.workout_date == workout_date,
+        )
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).scalars().all()
+    slot_rows = [
+        row
+        for row in rows
+        if (
+            delivery_canonical_id(row) == replay.expected_canonical_id
+            if replay.expected_canonical_id is not None
+            else row.canonical_key == original.canonical_key
+        )
+    ]
+
+    if expected_state == "synced":
+        version_rows = [
+            row
+            for row in slot_rows
+            if (row.plan_version or row.workout_version) == current_version
+        ]
+        authoritative = max(
+            version_rows,
+            key=lambda row: (row.updated_at, row.created_at, row.id),
+            default=None,
+        )
+        if authoritative is None:
+            return "missing", expected_state, intent_matches
+        if (
+            authoritative.state == "synced"
+            and authoritative.external_id is None
+        ):
+            return "missing", expected_state, intent_matches
+        return authoritative.state, expected_state, intent_matches
+
+    active_owned = [
+        row
+        for row in slot_rows
+        if row.state != "removed" and row.external_id is not None
+    ]
+    if active_owned:
+        authoritative = max(
+            active_owned,
+            key=lambda row: (row.updated_at, row.created_at, row.id),
+        )
+        return authoritative.state, expected_state, intent_matches
+    return original.state, expected_state, intent_matches
 
 
 def recover_managed_plan_delivery(
@@ -792,17 +901,30 @@ def recover_managed_plan_delivery(
     if threshold_loader is not None:
         run_kwargs["threshold_loader"] = threshold_loader
     result = run_rolling_delivery_for_user(db, **run_kwargs)
-    final = db.execute(
-        select(PlanDelivery)
-        .where(PlanDelivery.id == delivery_id)
-        .execution_options(populate_existing=True)
-    ).scalar_one_or_none()
-    final_state = final.state if final is not None else "removed"
+    db.rollback()
+    (
+        final_state,
+        expected_final_state,
+        intent_matches,
+    ) = _locked_recovery_completion_state(
+        db,
+        user_id=target_user_id,
+        target=target,
+        workout_date=workout_date,
+        delivery_id=delivery_id,
+        replay=replay,
+    )
     response = _run_result_response(
         result,
         final_state=final_state,
+        expected_final_state=expected_final_state,
         audit_revision_id=request_revision.id,
     )
+    if not intent_matches:
+        response = response.model_copy(update={
+            "status": "skipped",
+            "reason": "recovery_superseded",
+        })
     completion_revision, completion_created = record_plan_revision_idempotent(
         db,
         user_id=target_user_id,

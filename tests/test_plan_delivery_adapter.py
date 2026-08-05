@@ -210,10 +210,10 @@ def test_delivery_authenticates_before_starting_ledger_attempt(tmp_path):
                 request={},
             )
 
-        def create_workout(self, prepared):
+        def create_workout(self, prepared, *, hooks):
             raise AssertionError("create must not run")
 
-        def delete_workout(self, external_id):
+        def delete_workout(self, external_id, *, hooks):
             raise AssertionError("delete must not run")
 
         def fetch_calendar(
@@ -284,10 +284,11 @@ def test_delivery_reports_preflight_mutation_guard_change(tmp_path):
                 request={},
             )
 
-        def create_workout(self, prepared):
+        def create_workout(self, prepared, *, hooks):
+            hooks.before_mutation()
             raise AssertionError("create must not run")
 
-        def delete_workout(self, external_id):
+        def delete_workout(self, external_id, *, hooks):
             raise AssertionError("delete must not run")
 
         def fetch_calendar(self, **kwargs):

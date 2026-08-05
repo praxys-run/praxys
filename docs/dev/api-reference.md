@@ -694,7 +694,8 @@ Paginated activity history.
 
 ### GET /api/plan
 
-The user's plan within a window, plus stable per-workout Stryd reconciliation.
+The user's plan within a window, plus stable per-workout execution-target
+reconciliation.
 `reconciliation` is authoritative and joins by durable canonical identity,
 provider external ID, and normalized provider-content fingerprint. It never
 collapses workouts by date, so manual or coach-authored workouts can coexist
@@ -786,8 +787,10 @@ the currently safe explicit actions in `resolutions`.
 The legacy `sync_state` maps matching/pending to `synced`, undelivered to
 `not_synced`, and conflicts to `mismatch`.
 
-`sync_target` is `"stryd"` when the user has a Stryd connection, else
-`null` — clients can hide the entire sync column when it's `null`.
+`sync_target` is the configured and eligible execution target: `"stryd"`,
+experimental `"garmin"`, or `null`. Garmin is returned only after the user's
+connection-bound experimental consent is effective. Clients can hide the
+entire sync column when it is `null`.
 
 `adjustments` is newest-first durable audit history filtered to the requested
 workout-date window. `active` means the exact after-snapshot is still current,
@@ -908,7 +911,7 @@ Actions:
   visible and retryable. If a stale external ID points to exactly matching
   normalized content, the ledger is rebound without an unnecessary provider
   write.
-- `accept_target` — transactionally copy the stored normalized Stryd workout
+- `accept_target` — transactionally copy the stored normalized target workout
   into the canonical Praxys row, preserve target provenance in plan metadata,
   and append both a plan revision and import delivery event.
 
@@ -1096,6 +1099,16 @@ Current configuration, platform capabilities, and detected thresholds.
   "platform_capabilities": {
     "garmin": { "activities": true, "recovery": true, "fitness": true, "plan": false }
   },
+  "experimental_plan_delivery": {
+    "garmin": {
+      "experimental": true,
+      "available": false,
+      "enabled": false,
+      "region": "international",
+      "connected": true,
+      "fidelity": "duration_only"
+    }
+  },
   "detected_thresholds": {
     "cp_watts": { "value": 247.8, "source": "stryd" }
   },
@@ -1110,6 +1123,15 @@ Current configuration, platform capabilities, and detected thresholds.
 `auth_required` so analytical preferences and execution-target intent remain
 stable. `connection_statuses` is the live mutation gate; provider workout
 actions require the selected target to be exactly `connected`.
+`platform_capabilities` is the effective per-user capability map. Garmin's
+`plan` value becomes true only while the default-off deployment gate is active
+and the matching `experimental_plan_delivery.garmin.enabled` value is true.
+`available` reports that operator gate; `enabled` additionally requires valid
+connection-bound user consent. The experimental status always reports the
+account region and reduced fidelity; it is not inferred from the static
+platform capability table. `region` is `null` for a legacy connection that
+predates the mirrored region setting; that connection must reconnect before
+experimental consent can be granted.
 
 ### PUT /api/settings
 
@@ -1124,9 +1146,12 @@ Update settings (partial update).
   "source_options": {
     "athlete_timezone": "America/Los_Angeles"
   },
+  "experimental_plan_delivery": {
+    "garmin": true
+  },
   "plan_management": {
     "mode": "praxys",
-    "execution_target": "stryd",
+    "execution_target": "garmin",
     "delivery_enabled": true,
     "adjustment_policy": "suggest_only"
   }
@@ -1154,6 +1179,42 @@ Setting `delivery_enabled=false` pauses new writes and retries
 immediately. Switching to `external` also pauses delivery but keeps workouts
 already delivered to the target unless the user separately confirms
 `POST /api/plan/deliveries/cleanup`.
+Changing `execution_target` is rejected with `409` while any future,
+non-removed delivery remains on another connector. The server imports legacy
+Stryd push-status evidence before making that decision, so an older delivery
+cannot be hidden by switching targets. The supported transition is to switch
+to `external`, clean up the old connector's owned deliveries, and then select
+the new target. Manual Stryd push requests are subject to the same target fence.
+The selected target is retained across mixed-version workers even if an older
+worker rewrites `plan_management` without the new field.
+
+`experimental_plan_delivery.garmin=true` grants consent only for the current
+encrypted Garmin credential generation and configured Garmin region. It
+requires a connected Garmin account and
+`PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED=true`; otherwise the API returns 409.
+It may be submitted with the managed-plan activation shown above. `false`
+revokes consent and immediately pauses active Garmin delivery. Reconnect,
+credential rotation, and disconnect also invalidate
+consent and pause delivery. Changing region disconnects the old region, clears
+its cached tokens, and requires a successful reconnect before a later consent
+request; region change and re-consent cannot be combined.
+Garmin cached sessions are isolated by both Praxys user and credential
+generation. Interactive login stages tokens until encrypted credential
+persistence succeeds. Manual and scheduled syncs recheck their captured
+generation before provider work and before commit; credential rotation or
+disconnect cancels a stale sync without changing the replacement connection's
+status.
+
+Garmin delivery uses undocumented consumer endpoints and advertises
+`duration_only` fidelity. It accepts only running workouts that can be encoded
+as a timed `no.target` step; power, pace, and heart-rate targets fail explicitly
+instead of being degraded. Creation durably checkpoints Garmin's separate
+template and scheduled-instance IDs. Removal unschedules only the exact
+ledger-owned instance and retains the reusable template. A schedule discovered
+only by calendar set difference is never adopted as owned; an uncertain
+schedule request becomes an explicit reconciliation conflict. International and CN
+mutation paths have not been live validated. Clients must present this risk and
+reduced-fidelity disclosure before sending consent.
 
 `adjustment_policy` is separately consented and defaults to `suggest_only`.
 `auto_conservative` is accepted only in Praxys mode; leaving Praxys mode resets
@@ -1191,7 +1252,18 @@ managed mode or delivery.
   "status": "ok",
   "config": { "..." : "..." },
   "display": { "..." : "..." },
-  "connection_statuses": { "stryd": "connected" }
+  "connection_statuses": { "garmin": "connected" },
+  "platform_capabilities": { "garmin": { "plan": true } },
+  "experimental_plan_delivery": {
+    "garmin": {
+      "experimental": true,
+      "available": true,
+      "enabled": true,
+      "region": "international",
+      "connected": true,
+      "fidelity": "duration_only"
+    }
+  }
 }
 ```
 
@@ -1271,7 +1343,11 @@ and the OAuth tokens cached for future syncs.
 **Response (MFA required):** the client must follow up with the verification
 code Garmin sends:
 ```json
-{ "status": "mfa_required", "platform": "garmin" }
+{
+  "status": "mfa_required",
+  "platform": "garmin",
+  "login_attempt_id": "opaque-server-attempt"
+}
 ```
 
 **Response (bad credentials / rate limited):**
@@ -1282,12 +1358,16 @@ code Garmin sends:
 ### POST /api/settings/connections/garmin/mfa
 
 Complete a pending interactive Garmin login (see above) with the MFA
-verification code. The pending login is process-local and expires after a few
-minutes; a wrong code can be retried within that window.
+verification code and the opaque attempt ID returned by the login endpoint.
+The pending login is process-local and expires after a few minutes; a wrong
+code can be retried within that window.
 
 **Request body:**
 ```json
-{ "code": "123456" }
+{
+  "code": "123456",
+  "login_attempt_id": "opaque-server-attempt"
+}
 ```
 
 **Response:**

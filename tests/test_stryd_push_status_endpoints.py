@@ -1854,7 +1854,10 @@ def test_cleanup_imports_legacy_status_before_deciding_complete(
         def delete_workout(
             self,
             external_id: str,
+            *,
+            hooks,
         ) -> ProviderRemoveResult:
+            hooks.before_mutation()
             self.deleted.append(external_id)
             return ProviderRemoveResult()
 
@@ -2021,6 +2024,41 @@ def test_delete_endpoint_touches_only_calling_users_status(api_client, monkeypat
     ) as handle:
         assert json.load(handle) == {}
     assert os.path.exists(plan_mod._stryd_push_status_path("alice"))
+
+
+def test_stale_stryd_push_is_blocked_when_garmin_is_selected(api_client):
+    from db import session as db_session
+    from db.models import PlanDelivery, UserConfig
+
+    user_id = "garmin-target-stale-stryd-push"
+    api_client["current"]["value"] = user_id
+    assert api_client["client"].get("/api/plan").status_code == 200
+
+    with db_session.SessionLocal() as db:
+        config = db.get(UserConfig, user_id)
+        if config is None:
+            config = UserConfig(user_id=user_id)
+            db.add(config)
+        config.plan_management = {
+            "mode": "praxys",
+            "execution_target": "garmin",
+            "delivery_enabled": True,
+            "adjustment_policy": "suggest_only",
+        }
+        config.plan_execution_target = "garmin"
+        db.commit()
+
+    response = api_client["client"].post(
+        "/api/plan/push-stryd",
+        json={"workout_dates": ["2026-05-07"]},
+    )
+
+    assert response.status_code == 409, response.text
+    with db_session.SessionLocal() as db:
+        assert db.query(PlanDelivery).filter_by(
+            user_id=user_id,
+            target="stryd",
+        ).count() == 0
 
 
 def test_delete_rejects_reconnected_different_provider_account(

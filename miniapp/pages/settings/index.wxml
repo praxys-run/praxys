@@ -118,6 +118,54 @@
         </view>
 
         <view
+          wx:if="{{garminExperimentVisible}}"
+          class="settings-plan-experiment"
+        >
+          <view class="settings-plan-experiment-head">
+            <view class="settings-plan-experiment-copy">
+              <view class="settings-plan-experiment-title-row">
+                <text class="settings-plan-experiment-title">
+                  {{tr.garminExperimentalTitle}}
+                </text>
+                <text class="settings-plan-experiment-state settings-plan-experiment-state--{{garminExperimentEnabled ? 'on' : 'off'}}">
+                  {{!garminExperimentAvailable
+                    ? tr.garminExperimentalUnavailable
+                    : garminExperimentEnabled
+                      ? tr.garminExperimentalEnabled
+                      : tr.garminExperimentalOff}}
+                </text>
+              </view>
+              <text class="settings-plan-experiment-detail">
+                {{!garminExperimentAvailable
+                  ? tr.garminExperimentalUnavailableDetail
+                  : garminExperimentConnected
+                  ? garminExperimentEnabled
+                    ? tr.garminExperimentalOnDetail
+                    : tr.garminExperimentalOffDetail
+                  : tr.garminExperimentalReconnect}}
+              </text>
+            </view>
+            <button
+              wx:if="{{garminExperimentConnected && garminExperimentAvailable}}"
+              class="ts-button ts-button--secondary settings-plan-experiment-action"
+              disabled="{{garminExperimentAction || planAction}}"
+              bindtap="onReviewGarminExperiment"
+            >
+              {{garminExperimentAction
+                ? tr.garminExperimentalSaving
+                : garminExperimentEnabled
+                  ? tr.garminExperimentalDisable
+                  : tr.garminExperimentalReview}}
+            </button>
+          </view>
+          <text
+            wx:if="{{garminExperimentError}}"
+            class="settings-plan-error"
+            role="alert"
+          >{{garminExperimentError}}</text>
+        </view>
+
+        <view
           class="settings-pick-row settings-plan-target {{planManagementState !== 'external' || !planTargetOptions.length ? 'settings-plan-target--static' : ''}}"
           bindtap="onPickPlanTarget"
         >

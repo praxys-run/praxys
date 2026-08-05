@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSettings } from '@/contexts/SettingsContext';
 import { API_BASE, getAuthHeaders, extractErrorMessage } from '@/hooks/useApi';
-import type { TrainingBase, SyncStatusResponse, VersionResponse } from '@/types/api';
+import type { ConnectionResponse, GarminConnectionResponse, TrainingBase, SyncStatusResponse, VersionResponse } from '@/types/api';
 import {
   buildStravaReturnTo,
   getStravaOAuthMessage,
@@ -195,7 +195,7 @@ export default function Settings() {
   const location = useLocation();
   const navigate = useNavigate();
   const {
-    config, connectionStatuses, platformCapabilities, availableProviders, availableBases,
+    config, connectionStatuses, platformCapabilities, experimentalPlanDelivery, availableProviders, availableBases,
     effectiveThresholds, detectedThresholds, loading, error, updateSettings, refetch,
   } = useSettings();
   const { email: authEmail, isDemo, logout } = useAuth();
@@ -218,6 +218,7 @@ export default function Settings() {
   // completes the login (see api/routes/settings.py connect_garmin).
   const [garminMfaRequired, setGarminMfaRequired] = useState(false);
   const [mfaCode, setMfaCode] = useState('');
+  const [garminLoginAttemptId, setGarminLoginAttemptId] = useState('');
   // Garmin region is captured with the credentials because International and
   // CN are two independent account systems. Defaults to the current value so
   // the dialog comes up pre-filled when the user is re-entering credentials
@@ -483,13 +484,18 @@ export default function Settings() {
         headers: { ...getAuthHeaders() as Record<string, string>, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
+      const data = await res.json() as ConnectionResponse;
       if (data.status === 'mfa_required') {
         // Keep the dialog open and swap in the MFA code step.
+        setGarminLoginAttemptId(String(data.login_attempt_id || ''));
         setGarminMfaRequired(true);
         setMfaCode('');
       } else if (!res.ok || data.status === 'error') {
-        setConnectError(data.message || `Failed to connect (HTTP ${res.status})`);
+        setConnectError(
+          data.status === 'error'
+            ? data.message
+            : `Failed to connect (HTTP ${res.status})`,
+        );
       } else {
         await finalizeConnect();
       }
@@ -516,6 +522,7 @@ export default function Settings() {
     setConnectRegion('international');
     setGarminMfaRequired(false);
     setMfaCode('');
+    setGarminLoginAttemptId('');
     refetch();
     fetch(`${API_BASE}/api/sync/status`, { headers: getAuthHeaders() })
       .then((r) => r.json())
@@ -532,16 +539,27 @@ export default function Settings() {
       const res = await fetch(`${API_BASE}/api/settings/connections/garmin/mfa`, {
         method: 'POST',
         headers: { ...getAuthHeaders() as Record<string, string>, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({
+          code,
+          login_attempt_id: garminLoginAttemptId,
+        }),
       });
-      const data = await res.json();
+      const data = await res.json() as GarminConnectionResponse;
       if (!res.ok || data.status === 'error') {
-        if (data.message === 'mfa_session_expired') {
+        const message = (
+          data.status === 'error' ? data.message : ''
+        );
+        if (message === 'mfa_session_expired') {
           // Session timed out — send the user back to the credential step.
           setGarminMfaRequired(false);
+          setGarminLoginAttemptId('');
           setConnectError('Verification timed out. Please reconnect and try again.');
         } else {
-          setConnectError(data.message || `Verification failed (HTTP ${res.status})`);
+          setConnectError(
+            data.status === 'error'
+              ? message
+              : `Verification failed (HTTP ${res.status})`,
+          );
         }
       } else {
         await finalizeConnect();
@@ -556,6 +574,7 @@ export default function Settings() {
     setConnectPlatform(null);
     setGarminMfaRequired(false);
     setMfaCode('');
+    setGarminLoginAttemptId('');
     setConnectError('');
   };
 
@@ -1163,6 +1182,7 @@ export default function Settings() {
         config={config}
         connectionStatuses={connectionStatuses}
         platformCapabilities={platformCapabilities}
+        experimentalPlanDelivery={experimentalPlanDelivery}
         updateSettings={updateSettings}
       />
 

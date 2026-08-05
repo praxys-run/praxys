@@ -31,6 +31,7 @@ import type {
   PlatformName,
   SettingsResponse,
   SettingsUpdate,
+  SettingsUpdateResponse,
 } from '../../types/api';
 import type { ManagedPlanState } from '../../utils/managed-plan';
 import { MINIAPP_BUILD_VERSION } from '../../utils/version';
@@ -176,6 +177,49 @@ function buildSettingsTr() {
     ),
     plannerWarning: t(
       'Disable delivery from any other planner first. Two planners can create overlapping sessions.',
+    ),
+    garminExperimentalTitle: t('Experimental Garmin delivery'),
+    garminExperimentalEnabled: t('Enabled'),
+    garminExperimentalOff: t('Off'),
+    garminExperimentalUnavailable: t('Unavailable'),
+    garminExperimentalUnavailableDetail: t(
+      'Garmin workout delivery is disabled on this deployment until controlled live validation is complete.',
+    ),
+    garminExperimentalOnDetail: t(
+      'This Garmin connection can receive duration-only running workouts. Power, pace, and heart-rate targets are not sent.',
+    ),
+    garminExperimentalOffDetail: t(
+      'Garmin delivery uses an undocumented interface and is off until you review its limits and opt in.',
+    ),
+    garminExperimentalReconnect: t(
+      'Reconnect Garmin to renew experimental access. Managed delivery remains paused.',
+    ),
+    garminExperimentalReview: t('Review experimental access'),
+    garminExperimentalDisable: t('Turn off Garmin delivery'),
+    garminExperimentalEnableTitle: t('Enable experimental Garmin delivery?'),
+    garminExperimentalDisableTitle: t('Turn off Garmin delivery?'),
+    garminExperimentalEnableIntro: t(
+      'Praxys sends duration-only running workouts and verifies both the Garmin template and scheduled calendar instance.',
+    ),
+    garminExperimentalOwnership: t(
+      'Only ledger-owned Praxys workouts can be unscheduled. Manual and other-coach workouts remain untouched.',
+    ),
+    garminExperimentalRisk: t(
+      'Garmin can change or rate-limit this undocumented interface. Praxys fails closed, but delivery may pause or require you to reconnect.',
+    ),
+    garminExperimentalReset: t(
+      'Reconnecting Garmin or changing its account region revokes this permission and pauses delivery until you opt in again.',
+    ),
+    garminExperimentalDisableDetail: t(
+      'This revokes access immediately and pauses managed delivery when Garmin is your target.',
+    ),
+    garminExperimentalTargetWarning: t(
+      'Garmin delivery is experimental and duration-only. Workouts with power, pace, or heart-rate targets will stay blocked rather than lose their intended intensity.',
+    ),
+    garminExperimentalEnable: t('Enable experimental delivery'),
+    garminExperimentalSaving: t('Saving…'),
+    garminExperimentalFailed: t(
+      'Could not update experimental Garmin delivery',
     ),
     stalePreview: t(
       'The managed window changed. Review the refreshed preview before enabling delivery.',
@@ -422,6 +466,12 @@ interface SettingsState {
   selectedPlanTarget: PlatformName | '';
   selectedPlanTargetLabel: string;
   configuredPlanTargetConnected: boolean;
+  garminExperimentConnected: boolean;
+  garminExperimentAvailable: boolean;
+  garminExperimentEnabled: boolean;
+  garminExperimentVisible: boolean;
+  garminExperimentAction: string;
+  garminExperimentError: string;
   planLoading: boolean;
   planPreviewError: string;
   hasPlanPreview: boolean;
@@ -566,6 +616,12 @@ const initialData: SettingsState = {
   selectedPlanTarget: '',
   selectedPlanTargetLabel: t('Connect a supported platform first'),
   configuredPlanTargetConnected: false,
+  garminExperimentConnected: false,
+  garminExperimentAvailable: false,
+  garminExperimentEnabled: false,
+  garminExperimentVisible: false,
+  garminExperimentAction: '',
+  garminExperimentError: '',
   planLoading: true,
   planPreviewError: '',
   hasPlanPreview: false,
@@ -701,6 +757,7 @@ function buildSettingsState(response: SettingsResponse): Partial<SettingsState> 
     ? formatPlatform(selectedTarget)
     : t('Connect a supported platform first');
   const managementState = managedPlanState(config.plan_management);
+  const garminExperiment = response.experimental_plan_delivery?.garmin;
   const stateCopy = planStateCopy(
     managementState,
     configuredTarget ? formatPlatform(configuredTarget) : selectedTargetLabel,
@@ -728,6 +785,13 @@ function buildSettingsState(response: SettingsResponse): Partial<SettingsState> 
     selectedPlanTarget: selectedTarget,
     selectedPlanTargetLabel: selectedTargetLabel,
     configuredPlanTargetConnected: configuredTargetConnected,
+    garminExperimentConnected: garminExperiment?.connected === true,
+    garminExperimentAvailable: garminExperiment?.available === true,
+    garminExperimentEnabled: garminExperiment?.enabled === true,
+    garminExperimentVisible:
+      garminExperiment?.connected === true || configuredTarget === 'garmin',
+    garminExperimentAction: '',
+    garminExperimentError: '',
     adjustmentEnabled:
       config.plan_management.adjustment_policy === 'auto_conservative',
   };
@@ -930,6 +994,73 @@ Page({
     });
   },
 
+  onReviewGarminExperiment() {
+    if (
+      this.data.garminExperimentAction
+      || !this.data.garminExperimentConnected
+      || !this.data.garminExperimentAvailable
+    ) {
+      return;
+    }
+    const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+    const enable = !this.data.garminExperimentEnabled;
+    const content = enable
+      ? [
+          tr.garminExperimentalEnableIntro,
+          tr.garminExperimentalOwnership,
+          tr.garminExperimentalRisk,
+          tr.garminExperimentalReset,
+        ].join('\n\n')
+      : tr.garminExperimentalDisableDetail;
+    wx.showModal({
+      title: enable
+        ? tr.garminExperimentalEnableTitle
+        : tr.garminExperimentalDisableTitle,
+      content,
+      confirmText: enable
+        ? tr.garminExperimentalEnable
+        : tr.garminExperimentalDisable,
+      cancelText: tr.cancel,
+      success: (result) => {
+        if (result.confirm) {
+          void this.updateGarminExperiment(enable);
+        }
+      },
+    });
+  },
+
+  async updateGarminExperiment(enable: boolean) {
+    if (this.data.garminExperimentAction) return;
+    const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+    this.setData({
+      garminExperimentAction: enable ? 'enable' : 'disable',
+      garminExperimentError: '',
+    });
+    try {
+      const response = await apiPut<SettingsUpdateResponse>(
+        '/api/settings',
+        {
+        experimental_plan_delivery: { garmin: enable },
+        },
+      );
+      if (
+        response.experimental_plan_delivery?.garmin?.enabled !== enable
+      ) {
+        throw new Error(tr.garminExperimentalFailed);
+      }
+      await this.refetch();
+    } catch (e) {
+      const err = e as Partial<ApiError> & { message?: string };
+      if (err?.code === 'UNAUTHENTICATED') return;
+      this.setData({
+        garminExperimentError:
+          err?.detail ?? err?.message ?? tr.garminExperimentalFailed,
+      });
+    } finally {
+      this.setData({ garminExperimentAction: '' });
+    }
+  },
+
   onReviewManagedPlan() {
     if (this.data.planAction || this.data.planLoading) return;
     const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
@@ -974,6 +1105,9 @@ Page({
       ),
       tr.manualBoundary,
       tr.plannerWarning,
+      ...(target === 'garmin'
+        ? [tr.garminExperimentalTargetWarning]
+        : []),
     ].join('\n\n');
     wx.showModal({
       title: mode === 'resume' ? tr.resumeTitle : tr.adoptTitle,

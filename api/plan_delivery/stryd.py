@@ -8,8 +8,10 @@ from typing import Any, Mapping
 import requests
 
 from api.plan_delivery.base import (
+    NOOP_PROVIDER_MUTATION_HOOKS,
     ProviderAuthenticationError,
     ProviderCreateResult,
+    ProviderMutationHooks,
     ProviderOutcomeUnknownError,
     PreparedWorkoutDelivery,
     ProviderReadError,
@@ -210,11 +212,14 @@ class StrydPlanDeliveryAdapter:
     def create_workout(
         self,
         prepared: PreparedWorkoutDelivery,
+        *,
+        hooks: ProviderMutationHooks = NOOP_PROVIDER_MUTATION_HOOKS,
     ) -> ProviderCreateResult:
         """Create a structured Stryd workout."""
         provider_user_id, token = self._session()
 
         try:
+            hooks.before_mutation()
             response = stryd_sync.create_workout_api(
                 user_id=provider_user_id,
                 token=token,
@@ -254,10 +259,16 @@ class StrydPlanDeliveryAdapter:
             response=dict(response),
         )
 
-    def delete_workout(self, external_id: str) -> ProviderRemoveResult:
+    def delete_workout(
+        self,
+        external_id: str,
+        *,
+        hooks: ProviderMutationHooks = NOOP_PROVIDER_MUTATION_HOOKS,
+    ) -> ProviderRemoveResult:
         """Delete a Stryd workout, treating an existing 404 as success."""
         provider_user_id, token = self._session()
         try:
+            hooks.before_mutation()
             stryd_sync.delete_workout_api(
                 provider_user_id,
                 token,

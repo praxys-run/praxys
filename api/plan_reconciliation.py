@@ -12,12 +12,17 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from analysis.config import PRAXYS_PLAN_SOURCES
+from api.plan_delivery.base import (
+    provider_account_references_match,
+    provider_snapshot_references_match,
+)
 from db.models import (
     PlanDelivery,
     PlanTargetCalendarSync,
     PlanTargetWorkout,
     TrainingPlan,
 )
+from db.plan_reconciliation import target_observation_matches_calendar
 from db.plan_ledger import (
     canonical_workout_key,
     delivery_canonical_id,
@@ -45,6 +50,7 @@ def plan_target_calendar_generation(
         "sync": {
             "id": calendar_sync.id,
             "provider_account_id": calendar_sync.provider_account_id,
+            "provider_references": calendar_sync.provider_references,
             "window_start": calendar_sync.window_start.isoformat(),
             "window_end": calendar_sync.window_end.isoformat(),
         },
@@ -52,6 +58,7 @@ def plan_target_calendar_generation(
             {
                 "id": observation.id,
                 "provider_account_id": observation.provider_account_id,
+                "provider_references": observation.provider_references,
                 "external_id": observation.external_id,
                 "workout_date": observation.workout_date.isoformat(),
                 "start_time": (
@@ -81,6 +88,17 @@ def plan_target_calendar_generation(
         default=str,
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def observation_matches_calendar(
+    calendar_sync: PlanTargetCalendarSync,
+    observation: PlanTargetWorkout,
+) -> bool:
+    """Return whether an observation belongs to this account snapshot."""
+    return target_observation_matches_calendar(
+        calendar_sync,
+        observation,
+    )
 
 
 def _resolution_identity(
@@ -139,6 +157,7 @@ class PlanReconciliationItem:
 
     id: str
     state: str
+    target: str
     canonical: TrainingPlan | None
     observation: PlanTargetWorkout | None
     delivery: PlanDelivery | None
@@ -218,13 +237,7 @@ class PlanReconciliationItem:
             "id": self.opaque_id,
             "state": self.state,
             "conflict": self.state in _CONFLICT_STATES,
-            "target": (
-                self.delivery.target
-                if self.delivery is not None
-                else self.observation.target
-                if self.observation is not None
-                else "stryd"
-            ),
+            "target": self.target,
             "resolutions": self.resolutions,
         }
         if self.canonical is not None:
@@ -301,14 +314,13 @@ def _delivery_content_matches(
     delivery: PlanDelivery,
     observation: PlanTargetWorkout,
 ) -> bool | None:
-    if (
-        delivery.provider_content_version
-        and observation.content_fingerprint
-    ):
-        return (
-            delivery.provider_content_version
-            == observation.content_fingerprint
-        )
+    if delivery.provider_content_version:
+        if observation.content_fingerprint:
+            return (
+                delivery.provider_content_version
+                == observation.content_fingerprint
+            )
+        return None
     if (
         not delivery.workout_version.startswith("legacy-unknown:")
         and observation.payload_fingerprint
@@ -327,8 +339,16 @@ def _classify_delivery(
 ) -> tuple[str, str | None]:
     if (
         delivery.provider_account_id
-        and delivery.provider_account_id
-        != calendar_sync.provider_account_id
+        and not provider_account_references_match(
+            stored_account_id=delivery.provider_account_id,
+            current_account_id=calendar_sync.provider_account_id,
+            stored_references=delivery.provider_references or {},
+            current_references=(
+                observation.provider_references
+                if observation is not None
+                else calendar_sync.provider_references or {}
+            ),
+        )
     ):
         return "delivery_failed", "provider_account_changed"
     if delivery.state in {"failed", "conflict"}:
@@ -356,23 +376,27 @@ def _classify_delivery(
                     else "external_id_changed"
                 ),
             )
-        if content_matches is not True:
+        if content_matches is None:
+            return "pending_observation", "content_unverified"
+        if content_matches is False:
             return (
                 "target_edited",
-                (
-                    "content_changed"
-                    if content_matches is False
-                    else "content_unverified"
-                ),
+                "content_changed",
             )
+        if observation.workout_date != delivery.workout_date:
+            return "target_edited", "scheduled_date_changed"
         if not canonical_matches:
             return "canonical_changed", "praxys_content_changed"
         return "matching", None
 
     reference_time = delivery.delivered_at or delivery.updated_at
     if (
-        delivery.provider_account_id
-        == calendar_sync.provider_account_id
+        provider_snapshot_references_match(
+            stored_account_id=str(delivery.provider_account_id or ""),
+            current_account_id=calendar_sync.provider_account_id,
+            stored_references=delivery.provider_references or {},
+            current_references=calendar_sync.provider_references or {},
+        )
         and calendar_sync.window_start
         <= delivery.workout_date
         <= calendar_sync.window_end
@@ -508,14 +532,16 @@ def build_plan_reconciliation(
         .where(
             PlanTargetWorkout.user_id == user_id,
             PlanTargetWorkout.target == target,
-            PlanTargetWorkout.provider_account_id
-            == calendar_sync.provider_account_id,
         )
         .order_by(
             PlanTargetWorkout.workout_date,
             PlanTargetWorkout.external_id,
         )
     ).scalars().all()
+    observations = [
+        row for row in observations
+        if observation_matches_calendar(calendar_sync, row)
+    ]
     calendar_generation = plan_target_calendar_generation(
         calendar_sync,
         observations,
@@ -547,14 +573,30 @@ def build_plan_reconciliation(
         match_basis = None
         if (
             delivery.external_id
-            and (
-                delivery.provider_account_id is None
-                or delivery.provider_account_id
-                == calendar_sync.provider_account_id
-            )
         ):
-            observation = observations_by_external.get(delivery.external_id)
-            if observation is not None:
+            candidate_observation = observations_by_external.get(
+                delivery.external_id
+            )
+            if (
+                candidate_observation is not None
+                and (
+                    delivery.provider_account_id is None
+                    or provider_account_references_match(
+                        stored_account_id=delivery.provider_account_id,
+                        current_account_id=(
+                            calendar_sync.provider_account_id
+                        ),
+                        stored_references=(
+                            delivery.provider_references or {}
+                        ),
+                        current_references=(
+                            candidate_observation.provider_references
+                            or {}
+                        ),
+                    )
+                )
+            ):
+                observation = candidate_observation
                 match_basis = "external_id"
 
         if (
@@ -598,6 +640,7 @@ def build_plan_reconciliation(
         item = PlanReconciliationItem(
             id=f"delivery:{delivery.id}",
             state=state,
+            target=target,
             canonical=canonical,
             observation=observation,
             delivery=delivery,
@@ -616,6 +659,7 @@ def build_plan_reconciliation(
         canonical_items[canonical.canonical_id] = PlanReconciliationItem(
             id=f"canonical:{canonical.canonical_id}",
             state="not_delivered",
+            target=target,
             canonical=canonical,
             observation=None,
             delivery=None,
@@ -634,6 +678,7 @@ def build_plan_reconciliation(
             PlanReconciliationItem(
                 id=f"target:{observation.id}",
                 state="target_only",
+                target=target,
                 canonical=None,
                 observation=observation,
                 delivery=None,
@@ -686,17 +731,22 @@ def load_plan_reconciliation_item(
                 PlanTargetWorkout.id == observation_id,
                 PlanTargetWorkout.user_id == user_id,
                 PlanTargetWorkout.target == target,
-                PlanTargetWorkout.provider_account_id
-                == view.calendar_sync.provider_account_id,
             )
         ).scalar_one_or_none()
-        if observation is None:
+        if (
+            observation is None
+            or not observation_matches_calendar(
+                view.calendar_sync,
+                observation,
+            )
+        ):
             return None
         if observation.id in view.consumed_observation_ids:
             return None
         item = PlanReconciliationItem(
             id=base_id,
             state="target_only",
+            target=target,
             canonical=None,
             observation=observation,
             delivery=None,
@@ -718,19 +768,28 @@ def load_plan_reconciliation_item(
     ).scalar_one_or_none()
     if delivery is None:
         return None
-    observation = (
-        db.execute(
+    if delivery.external_id:
+        observation_candidates = db.execute(
             select(PlanTargetWorkout).where(
                 PlanTargetWorkout.user_id == user_id,
                 PlanTargetWorkout.target == target,
-                PlanTargetWorkout.provider_account_id
-                == view.calendar_sync.provider_account_id,
                 PlanTargetWorkout.external_id == delivery.external_id,
             )
-        ).scalar_one_or_none()
-        if delivery.external_id
-        else None
-    )
+        ).scalars().all()
+        matching_observations = [
+            row for row in observation_candidates
+            if observation_matches_calendar(view.calendar_sync, row)
+        ]
+        observation = next(
+            (
+                row for row in matching_observations
+                if row.provider_account_id
+                == view.calendar_sync.provider_account_id
+            ),
+            matching_observations[0] if matching_observations else None,
+        )
+    else:
+        observation = None
     canonicals = db.execute(
         select(TrainingPlan).where(
             TrainingPlan.user_id == user_id,
@@ -750,6 +809,7 @@ def load_plan_reconciliation_item(
     item = PlanReconciliationItem(
         id=base_id,
         state=state,
+        target=target,
         canonical=canonical,
         observation=observation,
         delivery=delivery,
@@ -769,13 +829,16 @@ def load_plan_reconciliation_item(
             select(PlanTargetWorkout).where(
                 PlanTargetWorkout.user_id == user_id,
                 PlanTargetWorkout.target == target,
-                PlanTargetWorkout.provider_account_id
-                == view.calendar_sync.provider_account_id,
             )
         ).scalars().all()
+        observations = [
+            row for row in observations
+            if observation_matches_calendar(view.calendar_sync, row)
+        ]
         retry_item = PlanReconciliationItem(
             id=base_id,
             state=state,
+            target=target,
             canonical=canonical,
             observation=observation,
             delivery=delivery,

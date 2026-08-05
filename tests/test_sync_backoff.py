@@ -24,6 +24,7 @@ import tempfile
 from datetime import datetime, timedelta
 
 import pytest
+import requests
 
 
 @pytest.fixture
@@ -128,6 +129,30 @@ def test_classify_generic_connection_error_is_transient() -> None:
     status, terminal = classify_sync_failure(err)
     assert status == "error"
     assert terminal is False
+
+
+def test_classify_confirmed_provider_401_requires_reconnect() -> None:
+    from api.plan_delivery.base import ProviderAuthenticationRequiredError
+    from db.sync_scheduler import classify_sync_failure
+
+    status, terminal = classify_sync_failure(
+        ProviderAuthenticationRequiredError("reconnect Garmin")
+    )
+
+    assert status == "auth_required"
+    assert terminal is True
+
+
+def test_classify_nested_requests_401_requires_reconnect() -> None:
+    from db.sync_scheduler import classify_sync_failure
+
+    response = requests.Response()
+    response.status_code = 401
+    nested = requests.HTTPError("unauthorized", response=response)
+    wrapped = RuntimeError("Garth request failed")
+    wrapped.error = nested
+
+    assert classify_sync_failure(wrapped) == ("auth_required", True)
 
 
 def test_classify_unreadable_credentials_is_terminal() -> None:
@@ -307,7 +332,8 @@ def test_check_and_sync_skips_connection_in_backoff_window(db_setup, monkeypatch
 
     sync_calls: list[str] = []
 
-    def _fake_sync_connection(uid, platform, db):
+    def _fake_sync_connection(uid, platform, db, **kwargs):
+        del kwargs
         sync_calls.append(f"{uid}:{platform}")
 
     monkeypatch.setattr(sync_scheduler, "_sync_connection", _fake_sync_connection)
@@ -341,7 +367,9 @@ def test_check_and_sync_skips_auth_required_connections(db_setup, monkeypatch) -
     sync_calls: list[str] = []
     monkeypatch.setattr(
         sync_scheduler, "_sync_connection",
-        lambda uid, platform, db: sync_calls.append(f"{uid}:{platform}"),
+        lambda uid, platform, db, **kwargs: sync_calls.append(
+            f"{uid}:{platform}"
+        ),
     )
 
     sync_scheduler._check_and_sync()
@@ -380,7 +408,8 @@ def test_check_and_sync_routes_failure_through_record_sync_failure(
     finally:
         db.close()
 
-    def _raise_captcha(uid, platform, db):
+    def _raise_captcha(uid, platform, db, **kwargs):
+        del uid, platform, db, kwargs
         raise RuntimeError(
             "All login strategies exhausted: Portal web login failed: "
             "{'responseStatus': {'type': 'CAPTCHA_REQUIRED'}}"
@@ -430,7 +459,9 @@ def test_check_and_sync_runs_once_window_has_passed(db_setup, monkeypatch) -> No
     sync_calls: list[str] = []
     monkeypatch.setattr(
         sync_scheduler, "_sync_connection",
-        lambda uid, platform, db: sync_calls.append(f"{uid}:{platform}"),
+        lambda uid, platform, db, **kwargs: sync_calls.append(
+            f"{uid}:{platform}"
+        ),
     )
 
     sync_scheduler._check_and_sync()

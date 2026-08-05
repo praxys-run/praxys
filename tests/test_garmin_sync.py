@@ -1,4 +1,5 @@
 import contextlib
+import hashlib
 from datetime import date
 from types import SimpleNamespace
 
@@ -9,6 +10,7 @@ from garminconnect.exceptions import (
 )
 
 from sync.garmin_sync import (
+    enrich_training_plan_content,
     parse_activities,
     parse_activity_weather,
     parse_daily_metrics,
@@ -16,7 +18,10 @@ from sync.garmin_sync import (
     parse_heart_rates,
     parse_running_ftp,
     fetch_training_plan_api,
+    garmin_workout_content_fingerprint,
+    garmin_profile_account_id,
     garmin_provider_account_id,
+    garmin_user_profile_id,
     parse_scheduled_workouts,
     parse_splits,
     parse_user_profile,
@@ -27,6 +32,96 @@ def _garmin_connection_error(status_code):
     return GarminConnectConnectionError(
         f"API call client error ({status_code}): API Error {status_code}",
     )
+
+
+def _garmin_template(
+    *,
+    target: str = "no.target",
+    target_value_one: float | None = None,
+    target_value_two: float | None = None,
+    zone_number: int | None = None,
+):
+    payload = {
+        "workoutName": "Threshold",
+        "description": "Five minutes",
+        "sportType": {"sportTypeKey": "running"},
+        "estimatedDurationInSecs": 300,
+        "workoutSegments": [{
+            "segmentOrder": 1,
+            "sportType": {"sportTypeKey": "running"},
+            "workoutSteps": [{
+                "type": "ExecutableStepDTO",
+                "stepOrder": 1,
+                "stepType": {"stepTypeKey": "interval"},
+                "endCondition": {"conditionTypeKey": "time"},
+                "endConditionValue": 300,
+                "targetType": {"workoutTargetTypeKey": target},
+            }],
+        }],
+    }
+    step = payload["workoutSegments"][0]["workoutSteps"][0]
+    if target_value_one is not None:
+        step["targetValueOne"] = target_value_one
+    if target_value_two is not None:
+        step["targetValueTwo"] = target_value_two
+    if zone_number is not None:
+        step["zoneNumber"] = zone_number
+    return payload
+
+
+def test_enrich_training_plan_content_reads_each_template_once_and_detects_edits():
+    class Client:
+        def __init__(self):
+            self.template = _garmin_template()
+            self.calls = 0
+
+        def get_workout_by_id(self, template_id):
+            assert str(template_id) == "9001"
+            self.calls += 1
+            return self.template
+
+    client = Client()
+    rows = [
+        {"provider_references": {"template_id": "9001"}},
+        {"provider_references": {"template_id": "9001"}},
+    ]
+
+    enrich_training_plan_content(client, rows)
+
+    original = rows[0]["provider_content_fingerprint"]
+    assert client.calls == 1
+    assert rows[1]["provider_content_fingerprint"] == original
+    assert original == garmin_workout_content_fingerprint(client.template)
+
+    client.template = _garmin_template(target="heart.rate.zone")
+    edited_rows = [{"provider_references": {"template_id": "9001"}}]
+    enrich_training_plan_content(client, edited_rows)
+
+    assert edited_rows[0]["provider_content_fingerprint"] != original
+
+
+def test_garmin_fingerprint_detects_target_value_edits():
+    original = garmin_workout_content_fingerprint(_garmin_template(
+        target="power.value",
+        target_value_one=250,
+        target_value_two=270,
+    ))
+    edited_range = garmin_workout_content_fingerprint(_garmin_template(
+        target="power.value",
+        target_value_one=320,
+        target_value_two=340,
+    ))
+    original_zone = garmin_workout_content_fingerprint(_garmin_template(
+        target="power.zone",
+        zone_number=3,
+    ))
+    edited_zone = garmin_workout_content_fingerprint(_garmin_template(
+        target="power.zone",
+        zone_number=4,
+    ))
+
+    assert edited_range != original
+    assert edited_zone != original_zone
 
 
 def test_parse_scheduled_workouts_normalizes_only_workout_items():
@@ -63,6 +158,9 @@ def test_parse_scheduled_workouts_normalizes_only_workout_items():
             "planned_distance_km": "10.0",
             "workout_description": "Threshold 5 x 5",
             "external_id": "7001",
+            "provider_references": {
+                "template_id": "9001",
+            },
             "provider_payload_fingerprint": rows[0][
                 "provider_payload_fingerprint"
             ],
@@ -254,9 +352,50 @@ def test_garmin_provider_account_id_is_private_stable_and_region_scoped():
     )
 
     assert international == repeated
+    assert international == "international:" + hashlib.sha256(
+        b"user-1\0international\0runner@example"
+    ).hexdigest()
     assert international != china
     assert "runner@example" not in international
     assert international.startswith("international:")
+
+
+def test_garmin_profile_fence_uses_immutable_profile_id():
+    first = garmin_profile_account_id(
+        user_id="user-1",
+        is_cn=False,
+        garmin_user_profile_id=101,
+    )
+    second = garmin_profile_account_id(
+        user_id="user-1",
+        is_cn=False,
+        garmin_user_profile_id=202,
+    )
+    repeated = garmin_profile_account_id(
+        user_id="user-1",
+        is_cn=False,
+        garmin_user_profile_id=101,
+    )
+
+    assert first != second
+    assert first == repeated
+
+
+def test_garmin_user_profile_id_reads_and_caches_social_profile():
+    class FakeGarmin:
+        def __init__(self):
+            self.calls = 0
+
+        def connectapi(self, path):
+            assert path == "/userprofile-service/socialProfile"
+            self.calls += 1
+            return {"userProfileId": 12345}
+
+    client = FakeGarmin()
+
+    assert garmin_user_profile_id(client) == "12345"
+    assert garmin_user_profile_id(client) == "12345"
+    assert client.calls == 1
 
 
 def test_parse_activity_weather_converts_fahrenheit_to_celsius():
