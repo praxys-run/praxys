@@ -9,6 +9,7 @@ import subprocess
 import sys
 import threading
 import time
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -187,6 +188,59 @@ def test_runtime_python_override_does_not_require_project_venv(
         sys.executable
     ).resolve()
     run_praxys_mcp._reexec_in_runtime_python(root)
+
+
+def test_prepare_only_does_not_require_plugin_submodule(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = run_praxys_mcp.project_root()
+    data_dir = tmp_path / "prepared-sandbox"
+    monkeypatch.chdir(root)
+    monkeypatch.setattr(
+        run_praxys_mcp,
+        "_reexec_in_runtime_python",
+        lambda _root: None,
+    )
+    monkeypatch.setattr(
+        run_praxys_mcp,
+        "_parse_args",
+        lambda: SimpleNamespace(
+            mode="local",
+            profile=None,
+            reset=False,
+            prepare_only=True,
+        ),
+    )
+    monkeypatch.setattr(
+        run_praxys_mcp,
+        "_resolve_local_data_dir",
+        lambda _root: data_dir,
+    )
+    monkeypatch.setattr(
+        run_praxys_mcp,
+        "ensure_local_sandbox",
+        lambda _root, _data_dir, *, reset: run_praxys_mcp.BootstrapResult(
+            data_dir=data_dir,
+            reset=reset,
+            fingerprint="test",
+        ),
+    )
+    monkeypatch.setattr(
+        run_praxys_mcp,
+        "_plugin_server",
+        lambda _root: tmp_path / "missing-server.py",
+    )
+    monkeypatch.setattr(
+        run_praxys_mcp,
+        "_require_mcp_runtime",
+        lambda _root: pytest.fail("prepare-only loaded the MCP runtime"),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        run_praxys_mcp.main()
+
+    assert exc_info.value.code == 0
 
 
 def test_repository_mcp_config_registers_local_and_dev_test_profiles() -> None:

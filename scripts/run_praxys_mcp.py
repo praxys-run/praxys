@@ -523,12 +523,6 @@ def _parse_args() -> argparse.Namespace:
 def main() -> NoReturn:
     """Replace this bootstrap process with the selected MCP server."""
     root = project_root()
-    server_path = _plugin_server(root)
-    if not server_path.is_file():
-        raise SystemExit(
-            "Praxys plugin submodule is missing. Run "
-            "'git submodule update --init plugins/praxys'."
-        )
     _reexec_in_runtime_python(root)
     args = _parse_args()
     os.chdir(root)
@@ -558,6 +552,12 @@ def main() -> NoReturn:
             raise SystemExit("remote-profile mode requires a profile name")
         configure_remote_profile(args.profile)
 
+    server_path = _plugin_server(root)
+    if not server_path.is_file():
+        raise SystemExit(
+            "Praxys plugin submodule is missing. Run "
+            "'git submodule update --init plugins/praxys'."
+        )
     _require_mcp_runtime(root)
     python_path = _runtime_python(root)
     os.execv(str(python_path), [str(python_path), str(server_path)])
