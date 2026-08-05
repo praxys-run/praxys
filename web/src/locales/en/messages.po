@@ -98,7 +98,7 @@ msgstr "{0} included · {1} observed, not included · {2} effective min"
 #~ msgstr "{0} included, {1} observed but not included, {2} effective min"
 
 #. placeholder {0}: agentLearning.promoted_classes.length
-#: src/pages/admin/AdminOps.tsx:1511
+#: src/pages/admin/AdminOps.tsx:1525
 msgid "{0} narrow change class(es) may merge through the independent policy gate."
 msgstr "{0} narrow change class(es) may merge through the independent policy gate."
 
@@ -144,7 +144,7 @@ msgstr "{0} of {1} steps complete"
 #. placeholder {0}: agentLearning.shadow_decisions
 #. placeholder {1}: agentLearning.agent_ready_applied
 #. placeholder {2}: agentLearning.outcomes_total
-#: src/pages/admin/AdminOps.tsx:1545
+#: src/pages/admin/AdminOps.tsx:1565
 msgid "{0} shadow decisions · {1} labels applied · {2} durable outcomes"
 msgstr "{0} shadow decisions · {1} labels applied · {2} durable outcomes"
 
@@ -395,11 +395,11 @@ msgstr "1Y"
 msgid "2 wk"
 msgstr "2 wk"
 
-#: src/pages/admin/AdminOps.tsx:204
+#: src/pages/admin/AdminOps.tsx:213
 msgid "24 hours"
 msgstr "24 hours"
 
-#: src/pages/admin/AdminOps.tsx:208
+#: src/pages/admin/AdminOps.tsx:217
 msgid "28 days"
 msgstr "28 days"
 
@@ -444,7 +444,7 @@ msgstr "6 months"
 msgid "6M"
 msgstr "6M"
 
-#: src/pages/admin/AdminOps.tsx:206
+#: src/pages/admin/AdminOps.tsx:215
 msgid "7 days"
 msgstr "7 days"
 
@@ -456,6 +456,18 @@ msgstr "7 days"
 #: src/components/HeatAdaptationPanel.tsx:57
 #~ msgid "A normal warm-weather session can maintain adaptation when recovery allows."
 #~ msgstr "A normal warm-weather session can maintain adaptation when recovery allows."
+
+#: src/pages/admin/AdminFeedback.tsx:522
+#~ msgid "A positive judgment adds agent-ready; for an open, non-backlogged linked issue, this hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain."
+#~ msgstr "A positive judgment adds agent-ready; for an open, non-backlogged linked issue, this hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain."
+
+#: src/pages/admin/AdminFeedback.tsx:514
+#~ msgid "A positive judgment adds agent-ready; if the issue is open, not backlogged, and not already assigned, this hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain."
+#~ msgstr "A positive judgment adds agent-ready; if the issue is open, not backlogged, and not already assigned, this hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain."
+
+#: src/pages/admin/AdminFeedback.tsx:548
+msgid "A positive judgment synchronizes agent-ready; when it newly labels an open, non-backlogged linked issue, the assignment workflow hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain."
+msgstr "A positive judgment synchronizes agent-ready; when it newly labels an open, non-backlogged linked issue, the assignment workflow hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain."
 
 #: src/components/HeatAdaptationPanel.tsx:178
 msgid "A prior qualifying block can still inform this qualitative stage, but response-specific adaptations may already be declining."
@@ -505,7 +517,7 @@ msgstr "Above reference band"
 #~ msgid "Absorbing training while maintaining fitness."
 #~ msgstr "Absorbing training while maintaining fitness."
 
-#: src/pages/admin/AdminOps.tsx:390
+#: src/pages/admin/AdminOps.tsx:399
 msgid "Access blocked"
 msgstr "Access blocked"
 
@@ -517,7 +529,7 @@ msgstr "Access blocked"
 msgid "Action"
 msgstr "Action"
 
-#: src/pages/admin/AdminFeedback.tsx:266
+#: src/pages/admin/AdminFeedback.tsx:394
 #: src/pages/admin/AdminUsers.tsx:580
 #: src/pages/admin/AdminUsers.tsx:737
 msgid "Actions"
@@ -532,12 +544,21 @@ msgid "Activate managed plan"
 msgstr "Activate managed plan"
 
 #: src/components/ManagedPlanSettingsCard.tsx:427
-#: src/pages/admin/AdminFeedback.tsx:228
+#: src/pages/admin/AdminFeedback.tsx:351
+#: src/pages/admin/AdminOps.tsx:1584
 #: src/pages/Science.tsx:405
 #: src/pages/Science.tsx:433
 #: src/pages/Science.tsx:581
 msgid "Active"
 msgstr "Active"
+
+#: src/pages/admin/AdminOps.tsx:1550
+msgid "Active accuracy"
+msgstr "Active accuracy"
+
+#: src/pages/admin/AdminOps.tsx:1570
+msgid "Active errors:"
+msgstr "Active errors:"
 
 #: src/pages/Science.tsx:380
 #~ msgid "Active fixed model"
@@ -548,7 +569,7 @@ msgid "Active Incidents"
 msgstr "Active Incidents"
 
 #. placeholder {0}: incidents.total
-#: src/pages/admin/AdminOps.tsx:793
+#: src/pages/admin/AdminOps.tsx:807
 msgid "Active incidents: {0}"
 msgstr "Active incidents: {0}"
 
@@ -618,6 +639,10 @@ msgstr "actual vs planned, avg"
 msgid "Add screenshot"
 msgstr "Add screenshot"
 
+#: src/pages/admin/AdminOps.tsx:1548
+msgid "Adjudicated"
+msgstr "Adjudicated"
+
 #: src/components/SignalHero.tsx:23
 #: src/pages/Today.tsx:75
 msgid "Adjust Workout"
@@ -661,17 +686,25 @@ msgstr "Aerobic"
 msgid "After a sync, Praxys may replace today's single Praxys-generated hard workout with rest only when same-day HRV crosses your personal caution band."
 msgstr "After a sync, Praxys may replace today's single Praxys-generated hard workout with rest only when same-day HRV crosses your personal caution band."
 
-#: src/pages/admin/AdminOps.tsx:1491
+#: src/pages/admin/AdminOps.tsx:1505
 msgid "Agent learning"
 msgstr "Agent learning"
 
+#: src/pages/admin/AdminFeedback.tsx:393
+msgid "Agent readiness"
+msgstr "Agent readiness"
+
+#: src/pages/admin/AdminOps.tsx:1603
+msgid "agent-ready candidates"
+msgstr "agent-ready candidates"
+
 #: src/pages/admin/AdminOps.tsx:1534
-msgid "Agent-ready candidates"
-msgstr "Agent-ready candidates"
+#~ msgid "Agent-ready candidates"
+#~ msgstr "Agent-ready candidates"
 
 #. placeholder {0}: alerts.total
 #. placeholder {1}: alerts.resolved
-#: src/pages/admin/AdminOps.tsx:840
+#: src/pages/admin/AdminOps.tsx:854
 msgid "Alert instances in view: {0}. Resolved in the selected window: {1}."
 msgstr "Alert instances in view: {0}. Resolved in the selected window: {1}."
 
@@ -680,17 +713,17 @@ msgid "Align the activity and threshold power sources before Praxys uses these s
 msgstr "Align the activity and threshold power sources before Praxys uses these sessions in the estimate."
 
 #: src/components/charts/CpTrendChart.tsx:56
-#: src/pages/admin/AdminFeedback.tsx:229
+#: src/pages/admin/AdminFeedback.tsx:352
 #: src/pages/Setup.tsx:1013
 msgid "All"
 msgstr "All"
 
 #. placeholder {0}: result.checked
-#: src/pages/admin/AdminFeedback.tsx:167
+#: src/pages/admin/AdminFeedback.tsx:288
 msgid "All {0} linked ticket(s) already up to date."
 msgstr "All {0} linked ticket(s) already up to date."
 
-#: src/pages/admin/AdminOps.tsx:688
+#: src/pages/admin/AdminOps.tsx:702
 msgid "All components operational"
 msgstr "All components operational"
 
@@ -724,11 +757,11 @@ msgstr "An unexpected error occurred."
 msgid "And <0>{0}</0> more in this window"
 msgstr "And <0>{0}</0> more in this window"
 
-#: src/pages/admin/AdminOps.tsx:635
+#: src/pages/admin/AdminOps.tsx:649
 msgid "Another recovery is already running for this delivery. The queue has been refreshed."
 msgstr "Another recovery is already running for this delivery. The queue has been refreshed."
 
-#: src/pages/admin/AdminOps.tsx:714
+#: src/pages/admin/AdminOps.tsx:728
 msgid "API"
 msgstr "API"
 
@@ -740,7 +773,7 @@ msgstr "Applied"
 msgid "Applying…"
 msgstr "Applying…"
 
-#: src/pages/admin/AdminFeedback.tsx:335
+#: src/pages/admin/AdminFeedback.tsx:570
 msgid "Approve & file"
 msgstr "Approve & file"
 
@@ -749,11 +782,11 @@ msgid "Asia/CN"
 msgstr "Asia/CN"
 
 #. placeholder {0}: item.user_id_hash
-#: src/pages/admin/AdminOps.tsx:1117
+#: src/pages/admin/AdminOps.tsx:1131
 msgid "Athlete {0}"
 msgstr "Athlete {0}"
 
-#: src/pages/admin/AdminOps.tsx:468
+#: src/pages/admin/AdminOps.tsx:477
 msgid "Athlete action required"
 msgstr "Athlete action required"
 
@@ -765,12 +798,12 @@ msgstr "Athlete action required"
 msgid "ATL (recent load)"
 msgstr "ATL (recent load)"
 
-#: src/pages/admin/AdminOps.tsx:1690
+#: src/pages/admin/AdminOps.tsx:1752
 msgid "attempts"
 msgstr "attempts"
 
 #. placeholder {0}: item.attempt_count
-#: src/pages/admin/AdminOps.tsx:1142
+#: src/pages/admin/AdminOps.tsx:1156
 msgid "Attempts {0}"
 msgstr "Attempts {0}"
 
@@ -794,19 +827,19 @@ msgstr "Auto sync frequency"
 msgid "Auto-merged"
 msgstr "Auto-merged"
 
-#: src/pages/admin/AdminOps.tsx:454
+#: src/pages/admin/AdminOps.tsx:463
 msgid "Automated recovery is unavailable because this attempt was not recorded by the managed-delivery worker."
 msgstr "Automated recovery is unavailable because this attempt was not recorded by the managed-delivery worker."
 
-#: src/pages/admin/AdminOps.tsx:456
+#: src/pages/admin/AdminOps.tsx:465
 msgid "Automated recovery is unavailable for this item."
 msgstr "Automated recovery is unavailable for this item."
 
-#: src/pages/admin/AdminOps.tsx:472
+#: src/pages/admin/AdminOps.tsx:481
 msgid "Automated recovery unavailable"
 msgstr "Automated recovery unavailable"
 
-#: src/pages/admin/AdminOps.tsx:1230
+#: src/pages/admin/AdminOps.tsx:1244
 msgid "Automatic delivery is within policy, or athlete-owned conflicts remain in the athlete workflow."
 msgstr "Automatic delivery is within policy, or athlete-owned conflicts remain in the athlete workflow."
 
@@ -814,7 +847,7 @@ msgstr "Automatic delivery is within policy, or athlete-owned conflicts remain i
 msgid "Automatic recovery guardrail"
 msgstr "Automatic recovery guardrail"
 
-#: src/pages/admin/AdminOps.tsx:437
+#: src/pages/admin/AdminOps.tsx:446
 msgid "Automatic retries exhausted"
 msgstr "Automatic retries exhausted"
 
@@ -822,7 +855,7 @@ msgstr "Automatic retries exhausted"
 #~ msgid "Availability"
 #~ msgstr "Availability"
 
-#: src/pages/admin/AdminOps.tsx:1311
+#: src/pages/admin/AdminOps.tsx:1325
 msgid "Availability rate"
 msgstr "Availability rate"
 
@@ -842,32 +875,36 @@ msgstr "Avg Power"
 msgid "Avg Work {intensityLabel}"
 msgstr "Avg Work {intensityLabel}"
 
-#: src/pages/admin/AdminOps.tsx:836
+#: src/pages/admin/AdminFeedback.tsx:555
+msgid "Awaiting triage decision"
+msgstr "Awaiting triage decision"
+
+#: src/pages/admin/AdminOps.tsx:850
 msgid "Azure alert state unavailable"
 msgstr "Azure alert state unavailable"
 
 #. placeholder {0}: alerts.firing
-#: src/pages/admin/AdminOps.tsx:588
+#: src/pages/admin/AdminOps.tsx:602
 msgid "Azure alerts firing: {0}"
 msgstr "Azure alerts firing: {0}"
 
-#: src/pages/admin/AdminOps.tsx:1588
+#: src/pages/admin/AdminOps.tsx:1650
 msgid "Azure logs"
 msgstr "Azure logs"
 
-#: src/pages/admin/AdminOps.tsx:193
+#: src/pages/admin/AdminOps.tsx:202
 msgid "Azure Monitor"
 msgstr "Azure Monitor"
 
-#: src/pages/admin/AdminOps.tsx:353
+#: src/pages/admin/AdminOps.tsx:362
 msgid "Azure Monitor could not refresh this section."
 msgstr "Azure Monitor could not refresh this section."
 
-#: src/pages/admin/AdminOps.tsx:349
+#: src/pages/admin/AdminOps.tsx:358
 msgid "Azure Monitor did not respond before the operations deadline."
 msgstr "Azure Monitor did not respond before the operations deadline."
 
-#: src/pages/admin/AdminOps.tsx:351
+#: src/pages/admin/AdminOps.tsx:360
 msgid "Azure Monitor returned an incomplete result, so this section was not refreshed."
 msgstr "Azure Monitor returned an incomplete result, so this section was not refreshed."
 
@@ -892,7 +929,7 @@ msgstr "Backfill All"
 msgid "Backfill..."
 msgstr "Backfill..."
 
-#: src/pages/admin/AdminOps.tsx:718
+#: src/pages/admin/AdminOps.tsx:732
 msgid "Background sync"
 msgstr "Background sync"
 
@@ -966,7 +1003,7 @@ msgstr "Body (optional)"
 msgid "Both thresholds must be met. The bars describe model evidence, not a biological adaptation percentage."
 msgstr "Both thresholds must be met. The bars describe model evidence, not a biological adaptation percentage."
 
-#: src/pages/admin/AdminFeedback.tsx:107
+#: src/pages/admin/AdminFeedback.tsx:120
 msgid "Bug"
 msgstr "Bug"
 
@@ -975,12 +1012,16 @@ msgid "Bug report"
 msgstr "Bug report"
 
 #: src/pages/admin/AdminFeedback.tsx:218
-msgid "Bug reports and feature requests submitted from the app."
-msgstr "Bug reports and feature requests submitted from the app."
+#~ msgid "Bug reports and feature requests submitted from the app."
+#~ msgstr "Bug reports and feature requests submitted from the app."
 
 #: src/pages/Admin.tsx:1268
 #~ msgid "Bug reports and feature requests submitted from the app. Auto-triaged to GitHub when configured."
 #~ msgstr "Bug reports and feature requests submitted from the app. Auto-triaged to GitHub when configured."
+
+#: src/pages/admin/AdminFeedback.tsx:339
+msgid "Bug reports and feature requests submitted from the app. Priority orders work; it never determines agent readiness."
+msgstr "Bug reports and feature requests submitted from the app. Priority orders work; it never determines agent readiness."
 
 #: src/components/GoalEditor.tsx:116
 msgid "Build fitness over time"
@@ -1023,7 +1064,7 @@ msgstr "by"
 #: src/components/ManagedPlanSettingsCard.tsx:1341
 #: src/components/ManagedPlanSettingsCard.tsx:1360
 #: src/components/UpcomingPlanCard.tsx:691
-#: src/pages/admin/AdminOps.tsx:1201
+#: src/pages/admin/AdminOps.tsx:1215
 #: src/pages/admin/AdminUsers.tsx:1043
 #: src/pages/admin/AdminUsers.tsx:1073
 #: src/pages/Settings.tsx:1042
@@ -1040,7 +1081,12 @@ msgstr "Cancel"
 msgid "Cancel preview"
 msgstr "Cancel preview"
 
-#: src/pages/admin/AdminOps.tsx:388
+#: src/pages/admin/AdminFeedback.tsx:468
+#: src/pages/admin/AdminFeedback.tsx:491
+msgid "Candidate"
+msgstr "Candidate"
+
+#: src/pages/admin/AdminOps.tsx:397
 msgid "CAPTCHA required"
 msgstr "CAPTCHA required"
 
@@ -1052,10 +1098,29 @@ msgstr "Carry your training signal outdoors. Scan to open Praxys in WeChat."
 #~ msgid "Casa exertional heat-illness guidance"
 #~ msgstr "Casa exertional heat-illness guidance"
 
+#: src/pages/admin/AdminOps.tsx:1579
+#: src/pages/admin/AdminOps.tsx:1587
+#: src/pages/admin/AdminOps.tsx:1594
+msgid "cases"
+msgstr "cases"
+
 #: src/components/SignalHero.tsx:24
 #: src/pages/Today.tsx:64
 msgid "CAUTION"
 msgstr "CAUTION"
+
+#: src/pages/admin/AdminFeedback.tsx:486
+#: src/pages/admin/AdminOps.tsx:1591
+msgid "Challenger"
+msgstr "Challenger"
+
+#: src/pages/admin/AdminOps.tsx:1554
+msgid "Challenger accuracy"
+msgstr "Challenger accuracy"
+
+#: src/pages/admin/AdminOps.tsx:1575
+msgid "Challenger errors:"
+msgstr "Challenger errors:"
 
 #: src/components/SetupChecklist.tsx:67
 msgid "Change"
@@ -1141,7 +1206,7 @@ msgstr "Closed"
 msgid "Closed · cap reached"
 msgstr "Closed · cap reached"
 
-#: src/pages/admin/AdminOps.tsx:1434
+#: src/pages/admin/AdminOps.tsx:1448
 msgid "Coach useful-vote rate"
 msgstr "Coach useful-vote rate"
 
@@ -1191,7 +1256,7 @@ msgstr "Communications"
 msgid "Complete these steps to unlock your training insights"
 msgstr "Complete these steps to unlock your training insights"
 
-#: src/pages/admin/AdminOps.tsx:1011
+#: src/pages/admin/AdminOps.tsx:1025
 msgid "Completed"
 msgstr "Completed"
 
@@ -1223,11 +1288,11 @@ msgstr "Components"
 msgid "Configure your training system"
 msgstr "Configure your training system"
 
-#: src/pages/admin/AdminOps.tsx:1188
+#: src/pages/admin/AdminOps.tsx:1202
 msgid "Confirm one fenced replay. Praxys will refresh the provider calendar and stop if ownership or delivery state changed."
 msgstr "Confirm one fenced replay. Praxys will refresh the provider calendar and stop if ownership or delivery state changed."
 
-#: src/pages/admin/AdminOps.tsx:1214
+#: src/pages/admin/AdminOps.tsx:1228
 msgid "Confirm replay"
 msgstr "Confirm replay"
 
@@ -1240,7 +1305,7 @@ msgid "Confirmed what I planned"
 msgstr "Confirmed what I planned"
 
 #. placeholder {0}: managedHealth.states.conflict
-#: src/pages/admin/AdminOps.tsx:990
+#: src/pages/admin/AdminOps.tsx:1004
 msgid "Conflict <0>{0}</0>"
 msgstr "Conflict <0>{0}</0>"
 
@@ -1285,7 +1350,7 @@ msgstr "Connect a supported platform first"
 #~ msgid "Connect Stryd above before adopting managed delivery."
 #~ msgstr "Connect Stryd above before adopting managed delivery."
 
-#: src/pages/admin/AdminOps.tsx:418
+#: src/pages/admin/AdminOps.tsx:427
 #: src/pages/Settings.tsx:889
 msgid "Connected"
 msgstr "Connected"
@@ -1299,7 +1364,7 @@ msgstr "Connected Platforms"
 msgid "Connecting..."
 msgstr "Connecting..."
 
-#: src/pages/admin/AdminOps.tsx:1673
+#: src/pages/admin/AdminOps.tsx:1735
 msgid "Connection funnel"
 msgstr "Connection funnel"
 
@@ -1416,7 +1481,7 @@ msgstr "Could not update experimental Garmin delivery"
 msgid "Couldn't load announcements"
 msgstr "Couldn't load announcements"
 
-#: src/pages/admin/AdminFeedback.tsx:184
+#: src/pages/admin/AdminFeedback.tsx:305
 msgid "Couldn't load feedback queue"
 msgstr "Couldn't load feedback queue"
 
@@ -1424,9 +1489,13 @@ msgstr "Couldn't load feedback queue"
 msgid "Couldn't load incidents"
 msgstr "Couldn't load incidents"
 
-#: src/pages/admin/AdminOps.tsx:333
+#: src/pages/admin/AdminOps.tsx:342
 msgid "Couldn't load operations summary"
 msgstr "Couldn't load operations summary"
+
+#: src/pages/admin/AdminFeedback.tsx:227
+msgid "Couldn't record the readiness judgment."
+msgstr "Couldn't record the readiness judgment."
 
 #: src/pages/admin/AdminUsers.tsx:163
 #: src/pages/admin/AdminUsers.tsx:171
@@ -1446,7 +1515,7 @@ msgstr "Couldn't send feedback. Try again."
 msgid "Couldn't send your feedback. Please try again."
 msgstr "Couldn't send your feedback. Please try again."
 
-#: src/pages/admin/AdminFeedback.tsx:140
+#: src/pages/admin/AdminFeedback.tsx:188
 msgid "Couldn't update feedback."
 msgstr "Couldn't update feedback."
 
@@ -1522,7 +1591,7 @@ msgstr "Creating account…"
 msgid "Creating…"
 msgstr "Creating…"
 
-#: src/pages/admin/AdminFeedback.tsx:94
+#: src/pages/admin/AdminFeedback.tsx:107
 #: src/pages/admin/AdminIncidents.tsx:31
 #: src/pages/admin/AdminIncidents.tsx:186
 #: src/pages/Status.tsx:102
@@ -1537,7 +1606,7 @@ msgstr "Critical Power"
 #. placeholder {0}: incidents.critical
 #. placeholder {1}: incidents.major
 #. placeholder {2}: incidents.minor
-#: src/pages/admin/AdminOps.tsx:800
+#: src/pages/admin/AdminOps.tsx:814
 msgid "Critical: {0}. Major: {1}. Minor: {2}."
 msgstr "Critical: {0}. Major: {1}. Minor: {2}."
 
@@ -1608,7 +1677,7 @@ msgstr "Cycling"
 #~ msgid "Daanen decay and reacclimation review"
 #~ msgstr "Daanen decay and reacclimation review"
 
-#: src/pages/admin/AdminOps.tsx:373
+#: src/pages/admin/AdminOps.tsx:382
 msgid "Daily brief"
 msgstr "Daily brief"
 
@@ -1636,20 +1705,20 @@ msgstr "Data Preferences"
 msgid "Data synced successfully"
 msgstr "Data synced successfully"
 
-#: src/pages/admin/AdminOps.tsx:716
+#: src/pages/admin/AdminOps.tsx:730
 msgid "Database"
 msgstr "Database"
 
-#: src/pages/admin/AdminOps.tsx:1323
+#: src/pages/admin/AdminOps.tsx:1337
 msgid "Database health failures"
 msgstr "Database health failures"
 
-#: src/pages/admin/AdminOps.tsx:1370
+#: src/pages/admin/AdminOps.tsx:1384
 #: src/pages/admin/AdminUsers.tsx:135
 msgid "DAU"
 msgstr "DAU"
 
-#: src/pages/admin/AdminOps.tsx:1463
+#: src/pages/admin/AdminOps.tsx:1477
 msgid "DAU, WAU, and MAU use authenticated request activity for context. Today and Coach metrics use trusted backend telemetry."
 msgstr "DAU, WAU, and MAU use authenticated request activity for context. Today and Coach metrics use trusted backend telemetry."
 
@@ -1681,11 +1750,11 @@ msgstr "Deactivate"
 #~ msgid "Decision response"
 #~ msgstr "Decision response"
 
-#: src/pages/admin/AdminOps.tsx:1406
+#: src/pages/admin/AdminOps.tsx:1420
 msgid "Decision response rate"
 msgstr "Decision response rate"
 
-#: src/pages/admin/AdminOps.tsx:1533
+#: src/pages/admin/AdminOps.tsx:1547
 msgid "Decisions"
 msgstr "Decisions"
 
@@ -1713,7 +1782,7 @@ msgstr "Default (English)"
 msgid "Defines what counts as easy, threshold, hard."
 msgstr "Defines what counts as easy, threshold, hard."
 
-#: src/pages/admin/AdminOps.tsx:703
+#: src/pages/admin/AdminOps.tsx:717
 #: src/pages/Status.tsx:83
 msgid "Degraded"
 msgstr "Degraded"
@@ -1764,25 +1833,25 @@ msgstr "Deleting…"
 msgid "Deliver now"
 msgstr "Deliver now"
 
-#: src/pages/admin/AdminOps.tsx:953
+#: src/pages/admin/AdminOps.tsx:967
 msgid "Delivery enabled"
 msgstr "Delivery enabled"
 
 #: src/components/UpcomingPlanCard.tsx:860
 #: src/components/UpcomingPlanCard.tsx:867
-#: src/pages/admin/AdminOps.tsx:435
+#: src/pages/admin/AdminOps.tsx:444
 msgid "Delivery failed"
 msgstr "Delivery failed"
 
-#: src/pages/admin/AdminOps.tsx:433
+#: src/pages/admin/AdminOps.tsx:442
 msgid "Delivery is stuck in progress"
 msgstr "Delivery is stuck in progress"
 
-#: src/pages/admin/AdminOps.tsx:431
+#: src/pages/admin/AdminOps.tsx:440
 msgid "Delivery never started"
 msgstr "Delivery never started"
 
-#: src/pages/admin/AdminOps.tsx:1005
+#: src/pages/admin/AdminOps.tsx:1019
 msgid "Delivery outcomes"
 msgstr "Delivery outcomes"
 
@@ -1837,7 +1906,7 @@ msgstr "Details"
 msgid "Developing"
 msgstr "Developing"
 
-#: src/pages/admin/AdminOps.tsx:926
+#: src/pages/admin/AdminOps.tsx:940
 msgid "Diagnose Praxys-owned workout delivery without exposing athlete identity or provider workout data."
 msgstr "Diagnose Praxys-owned workout delivery without exposing athlete identity or provider workout data."
 
@@ -1874,7 +1943,7 @@ msgstr "Didn't help today"
 msgid "Direction"
 msgstr "Direction"
 
-#: src/pages/admin/AdminOps.tsx:1362
+#: src/pages/admin/AdminOps.tsx:1376
 msgid "Directional"
 msgstr "Directional"
 
@@ -1944,11 +2013,11 @@ msgstr "Distribution match uses Bray-Curtis similarity to compare observed and t
 #~ msgid "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. It appears only when every recent activity has complete split or sample intensity evidence."
 #~ msgstr "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. It appears only when every recent activity has complete split or sample intensity evidence."
 
-#: src/pages/admin/AdminOps.tsx:451
+#: src/pages/admin/AdminOps.tsx:460
 msgid "Do not replay this item. Its failure is marked non-retryable by the delivery safety policy."
 msgstr "Do not replay this item. Its failure is marked non-retryable by the delivery safety policy."
 
-#: src/pages/admin/AdminOps.tsx:449
+#: src/pages/admin/AdminOps.tsx:458
 msgid "Do not replay this item. The athlete must resolve it from the plan reconciliation flow."
 msgstr "Do not replay this item. The athlete must resolve it from the plan reconciliation flow."
 
@@ -2068,6 +2137,10 @@ msgstr "Elev"
 #~ msgid "Elevated"
 #~ msgstr "Elevated"
 
+#: src/pages/admin/AdminFeedback.tsx:131
+msgid "Eligible"
+msgstr "Eligible"
+
 #: src/pages/admin/AdminUsers.tsx:577
 #: src/pages/admin/AdminUsers.tsx:870
 #: src/pages/admin/AdminUsers.tsx:979
@@ -2130,7 +2203,7 @@ msgstr "Enabling…"
 msgid "Endurance"
 msgstr "Endurance"
 
-#: src/pages/admin/AdminOps.tsx:422
+#: src/pages/admin/AdminOps.tsx:431
 #: src/pages/Settings.tsx:912
 msgid "Error"
 msgstr "Error"
@@ -2235,8 +2308,8 @@ msgstr "External, manual, and other-coach workouts are never changed. Uncertain 
 msgid "Fading"
 msgstr "Fading"
 
-#: src/pages/admin/AdminFeedback.tsx:85
-#: src/pages/admin/AdminFeedback.tsx:232
+#: src/pages/admin/AdminFeedback.tsx:98
+#: src/pages/admin/AdminFeedback.tsx:355
 msgid "Failed"
 msgstr "Failed"
 
@@ -2246,7 +2319,7 @@ msgstr "Failed"
 #~ msgstr "Failed (HTTP {0})"
 
 #. placeholder {0}: managedHealth.states.failed
-#: src/pages/admin/AdminOps.tsx:985
+#: src/pages/admin/AdminOps.tsx:999
 msgid "Failed <0>{0}</0>"
 msgstr "Failed <0>{0}</0>"
 
@@ -2335,11 +2408,11 @@ msgid "Failed to update user role."
 msgstr "Failed to update user role."
 
 #. placeholder {0}: platform.systemic_failures.length
-#: src/pages/admin/AdminOps.tsx:859
+#: src/pages/admin/AdminOps.tsx:873
 msgid "Failure classes observed: {0}."
 msgstr "Failure classes observed: {0}."
 
-#: src/pages/admin/AdminOps.tsx:1658
+#: src/pages/admin/AdminOps.tsx:1720
 msgid "failures"
 msgstr "failures"
 
@@ -2373,7 +2446,7 @@ msgstr "Falling"
 #~ msgid "Fatigued"
 #~ msgstr "Fatigued"
 
-#: src/pages/admin/AdminFeedback.tsx:109
+#: src/pages/admin/AdminFeedback.tsx:122
 msgid "Feature"
 msgstr "Feature"
 
@@ -2385,20 +2458,20 @@ msgstr "Feature request"
 msgid "Feedback"
 msgstr "Feedback"
 
-#: src/pages/admin/AdminOps.tsx:815
+#: src/pages/admin/AdminOps.tsx:829
 msgid "Feedback queue is clear"
 msgstr "Feedback queue is clear"
 
 #. placeholder {0}: feedback.actionable
-#: src/pages/admin/AdminOps.tsx:814
+#: src/pages/admin/AdminOps.tsx:828
 msgid "Feedback requiring action: {0}"
 msgstr "Feedback requiring action: {0}"
 
-#: src/pages/admin/AdminOps.tsx:816
+#: src/pages/admin/AdminOps.tsx:830
 msgid "Feedback state unavailable"
 msgstr "Feedback state unavailable"
 
-#: src/pages/admin/AdminFeedback.tsx:196
+#: src/pages/admin/AdminFeedback.tsx:317
 msgid "Feedback triage"
 msgstr "Feedback triage"
 
@@ -2535,6 +2608,10 @@ msgstr "Garmin native running power reads ~30% higher than Stryd for the same at
 msgid "Garmin workout delivery is disabled on this deployment until controlled live validation is complete."
 msgstr "Garmin workout delivery is disabled on this deployment until controlled live validation is complete."
 
+#: src/pages/admin/AdminOps.tsx:1581
+#~ msgid "Gate-passing semantic slice:"
+#~ msgstr "Gate-passing semantic slice:"
+
 #: src/components/FeedbackDialog.tsx:42
 msgid "General feedback"
 msgstr "General feedback"
@@ -2563,7 +2640,7 @@ msgstr "Get started with Praxys"
 #~ msgid "GitHub isn't configured — nothing to sync."
 #~ msgstr "GitHub isn't configured — nothing to sync."
 
-#: src/pages/admin/AdminFeedback.tsx:164
+#: src/pages/admin/AdminFeedback.tsx:283
 msgid "GitHub isn't configured. Nothing to sync."
 msgstr "GitHub isn't configured. Nothing to sync."
 
@@ -2698,7 +2775,7 @@ msgstr "Hide details"
 msgid "Hide methodology details"
 msgstr "Hide methodology details"
 
-#: src/pages/admin/AdminFeedback.tsx:96
+#: src/pages/admin/AdminFeedback.tsx:109
 msgid "High"
 msgstr "High"
 
@@ -2848,8 +2925,8 @@ msgstr "HRV variability is high (CV {cv}%), above the selected coaching caution 
 #~ msgstr "HRV within normal range"
 
 #: src/pages/admin/AdminOps.tsx:1535
-msgid "Human overrides"
-msgstr "Human overrides"
+#~ msgid "Human overrides"
+#~ msgstr "Human overrides"
 
 #: src/pages/Login.tsx:638
 msgid "I agree to the <0>Terms of Service</0> and <1>Privacy Policy</1>."
@@ -2874,7 +2951,7 @@ msgstr "Identified"
 #~ msgstr "Improving"
 
 #. placeholder {0}: managedHealth.states.delivering
-#: src/pages/admin/AdminOps.tsx:980
+#: src/pages/admin/AdminOps.tsx:994
 msgid "In progress <0>{0}</0>"
 msgstr "In progress <0>{0}</0>"
 
@@ -2886,7 +2963,7 @@ msgstr "In sync"
 msgid "Incident management"
 msgstr "Incident management"
 
-#: src/pages/admin/AdminOps.tsx:795
+#: src/pages/admin/AdminOps.tsx:809
 msgid "Incident state unavailable"
 msgstr "Incident state unavailable"
 
@@ -2932,6 +3009,10 @@ msgstr "Insufficient current HRV data for comparison"
 #: src/components/charts/WeeklyVolumeChart.tsx:22
 msgid "Insufficient data"
 msgstr "Insufficient data"
+
+#: src/pages/admin/AdminFeedback.tsx:139
+msgid "Insufficient detail"
+msgstr "Insufficient detail"
 
 #: src/components/HeatAdaptationPanel.tsx:18
 msgid "Insufficient evidence"
@@ -2997,12 +3078,12 @@ msgstr "Invite"
 msgid "Invited"
 msgstr "Invited"
 
-#: src/pages/admin/AdminFeedback.tsx:265
+#: src/pages/admin/AdminFeedback.tsx:392
 msgid "Issue"
 msgstr "Issue"
 
-#: src/pages/admin/AdminFeedback.tsx:81
-#: src/pages/admin/AdminFeedback.tsx:233
+#: src/pages/admin/AdminFeedback.tsx:94
+#: src/pages/admin/AdminFeedback.tsx:356
 msgid "Issue created"
 msgstr "Issue created"
 
@@ -3016,6 +3097,30 @@ msgstr "Join the waitlist"
 #: src/pages/admin/AdminUsers.tsx:911
 msgid "Joined"
 msgstr "Joined"
+
+#: src/pages/admin/AdminFeedback.tsx:254
+msgid "Judgment recorded and agent-ready removed."
+msgstr "Judgment recorded and agent-ready removed."
+
+#: src/pages/admin/AdminFeedback.tsx:253
+msgid "Judgment recorded and agent-ready synchronized."
+msgstr "Judgment recorded and agent-ready synchronized."
+
+#: src/pages/admin/AdminFeedback.tsx:234
+msgid "Judgment recorded, but the GitHub agent-ready label could not be synchronized."
+msgstr "Judgment recorded, but the GitHub agent-ready label could not be synchronized."
+
+#: src/pages/admin/AdminFeedback.tsx:247
+msgid "Judgment recorded, but the linked issue belongs to a different repository configuration."
+msgstr "Judgment recorded, but the linked issue belongs to a different repository configuration."
+
+#: src/pages/admin/AdminFeedback.tsx:239
+msgid "Judgment recorded. The linked issue is not open, so no label was added."
+msgstr "Judgment recorded. The linked issue is not open, so no label was added."
+
+#: src/pages/admin/AdminFeedback.tsx:243
+msgid "Judgment recorded. This feedback has no linked GitHub issue."
+msgstr "Judgment recorded. This feedback has no linked GitHub issue."
 
 #: src/pages/Today.tsx:272
 msgid "Keep any optional movement easy and short"
@@ -3085,16 +3190,16 @@ msgstr "Last included session"
 
 #. placeholder {0}: componentStatusLabel(component.status)
 #. placeholder {0}: overallLabel(service.overall)
-#: src/pages/admin/AdminOps.tsx:1250
-#: src/pages/admin/AdminOps.tsx:1279
+#: src/pages/admin/AdminOps.tsx:1264
+#: src/pages/admin/AdminOps.tsx:1293
 msgid "Last known: {0}"
 msgstr "Last known: {0}"
 
-#: src/pages/admin/AdminOps.tsx:834
+#: src/pages/admin/AdminOps.tsx:848
 msgid "Last known: {alertTitle}"
 msgstr "Last known: {alertTitle}"
 
-#: src/pages/admin/AdminOps.tsx:853
+#: src/pages/admin/AdminOps.tsx:867
 msgid "Last known: {systemicTitle}"
 msgstr "Last known: {systemicTitle}"
 
@@ -3203,11 +3308,11 @@ msgstr "Link URL (optional)"
 msgid "Link your training devices and services"
 msgstr "Link your training devices and services"
 
-#: src/pages/admin/AdminOps.tsx:200
+#: src/pages/admin/AdminOps.tsx:209
 msgid "Live"
 msgstr "Live"
 
-#: src/pages/admin/AdminOps.tsx:1304
+#: src/pages/admin/AdminOps.tsx:1318
 msgid "Live component health is unavailable."
 msgstr "Live component health is unavailable."
 
@@ -3215,7 +3320,7 @@ msgstr "Live component health is unavailable."
 msgid "Live demo — real training data, read-only"
 msgstr "Live demo — real training data, read-only"
 
-#: src/pages/admin/AdminOps.tsx:191
+#: src/pages/admin/AdminOps.tsx:200
 msgid "Live probe"
 msgstr "Live probe"
 
@@ -3308,7 +3413,7 @@ msgstr "Long-term modeled load is above recent modeled load."
 #~ msgid "low"
 #~ msgstr "low"
 
-#: src/pages/admin/AdminFeedback.tsx:100
+#: src/pages/admin/AdminFeedback.tsx:113
 msgid "Low"
 msgstr "Low"
 
@@ -3332,6 +3437,10 @@ msgstr "LTHR Trend"
 msgid "Main"
 msgstr "Main"
 
+#: src/pages/admin/AdminFeedback.tsx:504
+msgid "Maintainer verdict:"
+msgstr "Maintainer verdict:"
+
 #: src/components/HeatAdaptationPanel.tsx:21
 msgid "Maintaining"
 msgstr "Maintaining"
@@ -3351,7 +3460,7 @@ msgid "Major Outage"
 msgstr "Major Outage"
 
 #: src/components/StatusIndicator.tsx:30
-#: src/pages/admin/AdminOps.tsx:694
+#: src/pages/admin/AdminOps.tsx:708
 msgid "Major service outage"
 msgstr "Major service outage"
 
@@ -3363,7 +3472,7 @@ msgstr "Make today a full recovery day and reassess the hard session tomorrow"
 msgid "Manage in Settings"
 msgstr "Manage in Settings"
 
-#: src/pages/admin/AdminOps.tsx:806
+#: src/pages/admin/AdminOps.tsx:820
 msgid "Manage incidents"
 msgstr "Manage incidents"
 
@@ -3375,7 +3484,7 @@ msgstr "Manage seats, roles, invitations, and waitlist onboarding."
 #~ msgid "Manage users and invitation codes"
 #~ msgstr "Manage users and invitation codes"
 
-#: src/pages/admin/AdminOps.tsx:952
+#: src/pages/admin/AdminOps.tsx:966
 msgid "Managed athletes"
 msgstr "Managed athletes"
 
@@ -3407,27 +3516,27 @@ msgstr "Managed mode is off. <0>{0}</0> deliveries are clear; <1>{1}</1> still n
 #~ msgid "Managed mode is off. <0>{0}</0> deliveries are clear; <1>{1}</1> still need review for {targetLabel}."
 #~ msgstr "Managed mode is off. <0>{0}</0> deliveries are clear; <1>{1}</1> still need review for {targetLabel}."
 
-#: src/pages/admin/AdminOps.tsx:923
+#: src/pages/admin/AdminOps.tsx:937
 msgid "Managed plan delivery"
 msgstr "Managed plan delivery"
 
-#: src/pages/admin/AdminOps.tsx:998
+#: src/pages/admin/AdminOps.tsx:1012
 msgid "Managed-plan database health is unavailable."
 msgstr "Managed-plan database health is unavailable."
 
-#: src/pages/admin/AdminOps.tsx:599
+#: src/pages/admin/AdminOps.tsx:613
 msgid "Managed-plan deliveries needing attention: {managedAttentionCount}"
 msgstr "Managed-plan deliveries needing attention: {managedAttentionCount}"
 
-#: src/pages/admin/AdminOps.tsx:600
+#: src/pages/admin/AdminOps.tsx:614
 msgid "Managed-plan delivery queue is clear"
 msgstr "Managed-plan delivery queue is clear"
 
-#: src/pages/admin/AdminOps.tsx:878
+#: src/pages/admin/AdminOps.tsx:892
 msgid "Managed-plan delivery state unavailable"
 msgstr "Managed-plan delivery state unavailable"
 
-#: src/pages/admin/AdminOps.tsx:885
+#: src/pages/admin/AdminOps.tsx:899
 msgid "Managed-plan diagnostics could not be refreshed."
 msgstr "Managed-plan diagnostics could not be refreshed."
 
@@ -3435,7 +3544,7 @@ msgstr "Managed-plan diagnostics could not be refreshed."
 msgid "Management routes for access, communications, and service status."
 msgstr "Management routes for access, communications, and service status."
 
-#: src/pages/admin/AdminOps.tsx:334
+#: src/pages/admin/AdminOps.tsx:343
 msgid "Management routes remain available. Retry the aggregate health snapshot."
 msgstr "Management routes remain available. Retry the aggregate health snapshot."
 
@@ -3454,7 +3563,7 @@ msgstr "Marathon"
 msgid "Matched"
 msgstr "Matched"
 
-#: src/pages/admin/AdminOps.tsx:1372
+#: src/pages/admin/AdminOps.tsx:1386
 #: src/pages/admin/AdminUsers.tsx:137
 msgid "MAU"
 msgstr "MAU"
@@ -3463,20 +3572,24 @@ msgstr "MAU"
 msgid "Max HR"
 msgstr "Max HR"
 
-#: src/pages/admin/AdminFeedback.tsx:98
+#: src/pages/admin/AdminFeedback.tsx:111
 msgid "Medium"
 msgstr "Medium"
 
-#: src/pages/admin/AdminOps.tsx:1536
-msgid "Merged PR outcomes"
-msgstr "Merged PR outcomes"
+#: src/pages/admin/AdminOps.tsx:1606
+msgid "merged PR outcomes"
+msgstr "merged PR outcomes"
 
-#: src/pages/admin/AdminOps.tsx:407
+#: src/pages/admin/AdminOps.tsx:1536
+#~ msgid "Merged PR outcomes"
+#~ msgstr "Merged PR outcomes"
+
+#: src/pages/admin/AdminOps.tsx:416
 msgid "MFA"
 msgstr "MFA"
 
-#: src/pages/admin/AdminOps.tsx:394
-#: src/pages/admin/AdminOps.tsx:420
+#: src/pages/admin/AdminOps.tsx:403
+#: src/pages/admin/AdminOps.tsx:429
 msgid "MFA required"
 msgstr "MFA required"
 
@@ -3490,7 +3603,7 @@ msgstr "MFA required"
 msgid "min"
 msgstr "min"
 
-#: src/pages/admin/AdminOps.tsx:364
+#: src/pages/admin/AdminOps.tsx:373
 msgid "Mini program"
 msgstr "Mini program"
 
@@ -3560,7 +3673,7 @@ msgstr "MODIFY"
 msgid "Monitoring"
 msgstr "Monitoring"
 
-#: src/pages/admin/AdminOps.tsx:1597
+#: src/pages/admin/AdminOps.tsx:1659
 msgid "Monitoring runbook"
 msgstr "Monitoring runbook"
 
@@ -3623,13 +3736,13 @@ msgstr "Need help? {SUPPORT_EMAIL}"
 msgid "Needed {abbrev}"
 msgstr "Needed {abbrev}"
 
-#: src/pages/admin/AdminOps.tsx:779
-#: src/pages/admin/AdminOps.tsx:955
+#: src/pages/admin/AdminOps.tsx:793
+#: src/pages/admin/AdminOps.tsx:969
 msgid "Needs attention"
 msgstr "Needs attention"
 
-#: src/pages/admin/AdminFeedback.tsx:79
-#: src/pages/admin/AdminFeedback.tsx:231
+#: src/pages/admin/AdminFeedback.tsx:92
+#: src/pages/admin/AdminFeedback.tsx:354
 msgid "Needs review"
 msgstr "Needs review"
 
@@ -3637,7 +3750,7 @@ msgstr "Needs review"
 #. placeholder {1}: feedback.failed
 #. placeholder {2}: feedback.critical
 #. placeholder {3}: feedback.high
-#: src/pages/admin/AdminOps.tsx:821
+#: src/pages/admin/AdminOps.tsx:835
 msgid "Needs review: {0}. Failed: {1}. Critical: {2}. High: {3}."
 msgstr "Needs review: {0}. Failed: {1}. Critical: {2}. High: {3}."
 
@@ -3645,7 +3758,7 @@ msgstr "Needs review: {0}. Failed: {1}. Critical: {2}. High: {3}."
 msgid "negative balance"
 msgstr "negative balance"
 
-#: src/pages/admin/AdminOps.tsx:398
+#: src/pages/admin/AdminOps.tsx:407
 #: src/pages/Settings.tsx:608
 msgid "Network error"
 msgstr "Network error"
@@ -3657,8 +3770,9 @@ msgstr "Network error — please try again."
 #: src/pages/admin/AdminCommunications.tsx:77
 #: src/pages/admin/AdminCommunications.tsx:98
 #: src/pages/admin/AdminCommunications.tsx:117
-#: src/pages/admin/AdminFeedback.tsx:144
-#: src/pages/admin/AdminFeedback.tsx:171
+#: src/pages/admin/AdminFeedback.tsx:193
+#: src/pages/admin/AdminFeedback.tsx:260
+#: src/pages/admin/AdminFeedback.tsx:292
 #: src/pages/admin/AdminIncidents.tsx:67
 #: src/pages/admin/AdminIncidents.tsx:91
 #: src/pages/admin/AdminIncidents.tsx:110
@@ -3675,13 +3789,13 @@ msgstr "Network error. Is the server running?"
 msgid "Network error. Please email {SUPPORT_EMAIL} directly."
 msgstr "Network error. Please email {SUPPORT_EMAIL} directly."
 
-#: src/pages/admin/AdminOps.tsx:627
-#: src/pages/admin/AdminOps.tsx:674
+#: src/pages/admin/AdminOps.tsx:641
+#: src/pages/admin/AdminOps.tsx:688
 msgid "Network error. Refresh the queue and try again."
 msgstr "Network error. Refresh the queue and try again."
 
-#: src/pages/admin/AdminFeedback.tsx:75
-#: src/pages/admin/AdminFeedback.tsx:230
+#: src/pages/admin/AdminFeedback.tsx:88
+#: src/pages/admin/AdminFeedback.tsx:353
 msgid "New"
 msgstr "New"
 
@@ -3701,7 +3815,7 @@ msgstr "New invitation code:"
 msgid "New to Praxys?"
 msgstr "New to Praxys?"
 
-#: src/pages/admin/AdminFeedback.tsx:254
+#: src/pages/admin/AdminFeedback.tsx:381
 msgid "Newly triaged work will appear here when admin action is needed."
 msgstr "Newly triaged work will appear here when admin action is needed."
 
@@ -3717,11 +3831,11 @@ msgstr "Next sync"
 #~ msgid "Nielsen dry-heat acclimation study"
 #~ msgstr "Nielsen dry-heat acclimation study"
 
-#: src/pages/admin/AdminOps.tsx:794
+#: src/pages/admin/AdminOps.tsx:808
 msgid "No active service incidents"
 msgstr "No active service incidents"
 
-#: src/pages/admin/AdminFeedback.tsx:251
+#: src/pages/admin/AdminFeedback.tsx:378
 msgid "No active tickets"
 msgstr "No active tickets"
 
@@ -3745,15 +3859,15 @@ msgstr "No admin configuration found"
 msgid "No announcements yet"
 msgstr "No announcements yet"
 
-#: src/pages/admin/AdminOps.tsx:589
+#: src/pages/admin/AdminOps.tsx:603
 msgid "No Azure alerts firing"
 msgstr "No Azure alerts firing"
 
-#: src/pages/admin/AdminOps.tsx:1512
+#: src/pages/admin/AdminOps.tsx:1526
 msgid "No change class is promoted. Decisions and outcomes are being recorded while merge remains review-gated."
 msgstr "No change class is promoted. Decisions and outcomes are being recorded while merge remains review-gated."
 
-#: src/pages/admin/AdminOps.tsx:1452
+#: src/pages/admin/AdminOps.tsx:1466
 msgid "No Coach votes were recorded in this window."
 msgstr "No Coach votes were recorded in this window."
 
@@ -3761,7 +3875,7 @@ msgstr "No Coach votes were recorded in this window."
 msgid "No code yet?"
 msgstr "No code yet?"
 
-#: src/pages/admin/AdminOps.tsx:1697
+#: src/pages/admin/AdminOps.tsx:1759
 msgid "No connection attempts were recorded in this window."
 msgstr "No connection attempts were recorded in this window."
 
@@ -3790,6 +3904,10 @@ msgstr "no data"
 #~ msgid "No Data"
 #~ msgstr "No Data"
 
+#: src/pages/admin/AdminFeedback.tsx:141
+msgid "No decision"
+msgstr "No decision"
+
 #: src/components/UpcomingPlanCard.tsx:861
 msgid "No delivery result was returned for this workout"
 msgstr "No delivery result was returned for this workout"
@@ -3798,11 +3916,11 @@ msgstr "No delivery result was returned for this workout"
 msgid "No evidence"
 msgstr "No evidence"
 
-#: src/pages/admin/AdminOps.tsx:489
+#: src/pages/admin/AdminOps.tsx:498
 msgid "No failure"
 msgstr "No failure"
 
-#: src/pages/admin/AdminOps.tsx:822
+#: src/pages/admin/AdminOps.tsx:836
 msgid "No feedback rows are waiting for review or retry."
 msgstr "No feedback rows are waiting for review or retry."
 
@@ -3831,11 +3949,11 @@ msgstr "No incidents yet"
 msgid "No invitation codes yet. Generate one to invite a user."
 msgstr "No invitation codes yet. Generate one to invite a user."
 
-#: src/pages/admin/AdminOps.tsx:1227
+#: src/pages/admin/AdminOps.tsx:1241
 msgid "No managed deliveries need operator action."
 msgstr "No managed deliveries need operator action."
 
-#: src/pages/admin/AdminOps.tsx:409
+#: src/pages/admin/AdminOps.tsx:418
 msgid "No MFA"
 msgstr "No MFA"
 
@@ -3855,6 +3973,10 @@ msgstr "No planned load this week"
 #: src/components/ManagedPlanSettingsCard.tsx:661
 msgid "No Praxys workouts are scheduled in this window. Future Praxys-created workouts will enter the rolling window automatically."
 msgstr "No Praxys workouts are scheduled in this window. Future Praxys-created workouts will enter the rolling window automatically."
+
+#: src/pages/admin/AdminFeedback.tsx:482
+msgid "No prompt"
+msgstr "No prompt"
 
 #: src/components/HeatAdaptationPanel.tsx:541
 #~ msgid "No qualifying condition range yet"
@@ -3911,15 +4033,15 @@ msgstr "No supported weather evidence"
 msgid "No supported workload evidence"
 msgstr "No supported workload evidence"
 
-#: src/pages/admin/AdminOps.tsx:1631
+#: src/pages/admin/AdminOps.tsx:1693
 msgid "No sync attempts were recorded in this window."
 msgstr "No sync attempts were recorded in this window."
 
-#: src/pages/admin/AdminOps.tsx:1666
+#: src/pages/admin/AdminOps.tsx:1728
 msgid "No systemic failure classes were recorded in this window."
 msgstr "No systemic failure classes were recorded in this window."
 
-#: src/pages/admin/AdminOps.tsx:594
+#: src/pages/admin/AdminOps.tsx:608
 msgid "No systemic sync failures"
 msgstr "No systemic sync failures"
 
@@ -3927,7 +4049,7 @@ msgstr "No systemic sync failures"
 msgid "No target selected"
 msgstr "No target selected"
 
-#: src/pages/admin/AdminFeedback.tsx:251
+#: src/pages/admin/AdminFeedback.tsx:378
 msgid "No tickets to show"
 msgstr "No tickets to show"
 
@@ -3935,7 +4057,7 @@ msgstr "No tickets to show"
 #~ msgid "No tickets to show."
 #~ msgstr "No tickets to show."
 
-#: src/pages/admin/AdminOps.tsx:1428
+#: src/pages/admin/AdminOps.tsx:1442
 msgid "No Today events were recorded in this window."
 msgstr "No Today events were recorded in this window."
 
@@ -3997,9 +4119,17 @@ msgstr "None in the active window"
 #~ msgid "Normal"
 #~ msgstr "Normal"
 
+#: src/pages/admin/AdminFeedback.tsx:133
+msgid "Not a bug"
+msgstr "Not a bug"
+
 #: src/components/HeatAdaptationPanel.tsx:558
 #~ msgid "Not a current heat-risk assessment or medical clearance."
 #~ msgstr "Not a current heat-risk assessment or medical clearance."
+
+#: src/pages/admin/AdminFeedback.tsx:137
+msgid "Not actionable"
+msgstr "Not actionable"
 
 #: src/pages/Settings.tsx:892
 msgid "Not connected"
@@ -4174,11 +4304,11 @@ msgstr "Open"
 msgid "Open an incident here when you need to communicate a live service issue."
 msgstr "Open an incident here when you need to communicate a live service issue."
 
-#: src/pages/admin/AdminOps.tsx:845
+#: src/pages/admin/AdminOps.tsx:859
 msgid "Open Azure alerts"
 msgstr "Open Azure alerts"
 
-#: src/pages/admin/AdminOps.tsx:864
+#: src/pages/admin/AdminOps.tsx:878
 msgid "Open Azure logs"
 msgstr "Open Azure logs"
 
@@ -4186,7 +4316,7 @@ msgstr "Open Azure logs"
 msgid "Open evidence"
 msgstr "Open evidence"
 
-#: src/pages/admin/AdminOps.tsx:826
+#: src/pages/admin/AdminOps.tsx:840
 msgid "Open feedback"
 msgstr "Open feedback"
 
@@ -4211,21 +4341,21 @@ msgid "Opening update message (optional)"
 msgstr "Opening update message (optional)"
 
 #. placeholder {0}: item.operation
-#: src/pages/admin/AdminOps.tsx:1151
+#: src/pages/admin/AdminOps.tsx:1165
 msgid "Operation {0}"
 msgstr "Operation {0}"
 
-#: src/pages/admin/AdminOps.tsx:701
+#: src/pages/admin/AdminOps.tsx:715
 #: src/pages/Status.tsx:82
 msgid "Operational"
 msgstr "Operational"
 
 #: src/pages/admin/AdminLayout.tsx:22
-#: src/pages/admin/AdminOps.tsx:729
+#: src/pages/admin/AdminOps.tsx:743
 msgid "Operations"
 msgstr "Operations"
 
-#: src/pages/admin/AdminOps.tsx:1044
+#: src/pages/admin/AdminOps.tsx:1058
 msgid "Operator queue"
 msgstr "Operator queue"
 
@@ -4249,7 +4379,7 @@ msgstr "Optional comment"
 msgid "Options"
 msgstr "Options"
 
-#: src/pages/admin/AdminFeedback.tsx:111
+#: src/pages/admin/AdminFeedback.tsx:124
 msgid "Other"
 msgstr "Other"
 
@@ -4257,7 +4387,7 @@ msgstr "Other"
 msgid "Other Signals"
 msgstr "Other Signals"
 
-#: src/pages/admin/AdminOps.tsx:707
+#: src/pages/admin/AdminOps.tsx:721
 #: src/pages/Status.tsx:85
 msgid "Outage"
 msgstr "Outage"
@@ -4278,7 +4408,7 @@ msgstr "overnight score"
 #~ msgid "Overwrite Stryd with Praxys version"
 #~ msgstr "Overwrite Stryd with Praxys version"
 
-#: src/pages/admin/AdminOps.tsx:485
+#: src/pages/admin/AdminOps.tsx:494
 msgid "Ownership conflict"
 msgstr "Ownership conflict"
 
@@ -4290,7 +4420,7 @@ msgstr "Ownership conflict"
 msgid "Pace"
 msgstr "Pace"
 
-#: src/pages/admin/AdminOps.tsx:705
+#: src/pages/admin/AdminOps.tsx:719
 #: src/pages/Status.tsx:84
 msgid "Partial outage"
 msgstr "Partial outage"
@@ -4300,7 +4430,7 @@ msgid "Partial Outage"
 msgstr "Partial Outage"
 
 #: src/components/StatusIndicator.tsx:29
-#: src/pages/admin/AdminOps.tsx:692
+#: src/pages/admin/AdminOps.tsx:706
 msgid "Partial service outage"
 msgstr "Partial service outage"
 
@@ -4329,7 +4459,7 @@ msgstr "Pause delivery"
 
 #: src/components/ManagedPlanSettingsCard.tsx:433
 #: src/components/UpcomingPlanCard.tsx:359
-#: src/pages/admin/AdminOps.tsx:954
+#: src/pages/admin/AdminOps.tsx:968
 msgid "Paused"
 msgstr "Paused"
 
@@ -4346,7 +4476,7 @@ msgid "Peer metrics"
 msgstr "Peer metrics"
 
 #. placeholder {0}: managedHealth.states.pending
-#: src/pages/admin/AdminOps.tsx:975
+#: src/pages/admin/AdminOps.tsx:989
 msgid "Pending <0>{0}</0>"
 msgstr "Pending <0>{0}</0>"
 
@@ -4396,19 +4526,19 @@ msgstr "Planned Workout"
 #~ msgid "Platform aggregates are not connected yet."
 #~ msgstr "Platform aggregates are not connected yet."
 
-#: src/pages/admin/AdminOps.tsx:860
+#: src/pages/admin/AdminOps.tsx:874
 msgid "Platform aggregates could not be refreshed."
 msgstr "Platform aggregates could not be refreshed."
 
-#: src/pages/admin/AdminOps.tsx:396
+#: src/pages/admin/AdminOps.tsx:405
 msgid "Platform error"
 msgstr "Platform error"
 
-#: src/pages/admin/AdminOps.tsx:1571
+#: src/pages/admin/AdminOps.tsx:1633
 msgid "Platform health"
 msgstr "Platform health"
 
-#: src/pages/admin/AdminOps.tsx:1576
+#: src/pages/admin/AdminOps.tsx:1638
 msgid "Platform telemetry is unavailable."
 msgstr "Platform telemetry is unavailable."
 
@@ -4422,11 +4552,11 @@ msgstr "Please verify your email before signing in. Check your inbox for the lin
 
 #. placeholder {0}: agentLearning.review_policy_version
 #. placeholder {1}: agentLearning.decision_policy_version
-#: src/pages/admin/AdminOps.tsx:1522
+#: src/pages/admin/AdminOps.tsx:1536
 msgid "Policy {0} · decision {1}"
 msgstr "Policy {0} · decision {1}"
 
-#: src/pages/admin/AdminOps.tsx:1503
+#: src/pages/admin/AdminOps.tsx:1517
 msgid "Policy-gated auto-merge"
 msgstr "Policy-gated auto-merge"
 
@@ -4438,7 +4568,7 @@ msgstr "Policy-gated auto-merge"
 msgid "positive balance"
 msgstr "positive balance"
 
-#: src/pages/admin/AdminOps.tsx:1289
+#: src/pages/admin/AdminOps.tsx:1303
 msgid "PostgreSQL connections"
 msgstr "PostgreSQL connections"
 
@@ -4537,15 +4667,15 @@ msgstr "Praxys could not determine your time zone. Check your device settings an
 msgid "Praxys could not finish delivery. Retrying keeps the Praxys version canonical."
 msgstr "Praxys could not finish delivery. Retrying keeps the Praxys version canonical."
 
-#: src/pages/admin/AdminOps.tsx:189
+#: src/pages/admin/AdminOps.tsx:198
 msgid "Praxys database"
 msgstr "Praxys database"
 
-#: src/pages/admin/AdminOps.tsx:483
+#: src/pages/admin/AdminOps.tsx:492
 msgid "Praxys defect"
 msgstr "Praxys defect"
 
-#: src/pages/admin/AdminOps.tsx:1024
+#: src/pages/admin/AdminOps.tsx:1038
 msgid "Praxys defects"
 msgstr "Praxys defects"
 
@@ -4663,6 +4793,10 @@ msgstr "Prior heat adaptation evidence may be declining."
 #~ msgid "Prior heat adaptation is likely still retained."
 #~ msgstr "Prior heat adaptation is likely still retained."
 
+#: src/pages/admin/AdminOps.tsx:1599
+msgid "Priority is excluded from readiness evaluation."
+msgstr "Priority is excluded from readiness evaluation."
+
 #: src/pages/Login.tsx:210
 msgid "Private alpha · Invitation only"
 msgstr "Private alpha · Invitation only"
@@ -4671,7 +4805,7 @@ msgstr "Private alpha · Invitation only"
 msgid "Proceed but monitor heart-rate drift during the session"
 msgstr "Proceed but monitor heart-rate drift during the session"
 
-#: src/pages/admin/AdminOps.tsx:1358
+#: src/pages/admin/AdminOps.tsx:1372
 msgid "Product value"
 msgstr "Product value"
 
@@ -4702,6 +4836,10 @@ msgstr "Promote"
 msgid "Promote to Admin"
 msgstr "Promote to Admin"
 
+#: src/pages/admin/AdminOps.tsx:1583
+msgid "Prompt-semantic slice:"
+msgstr "Prompt-semantic slice:"
+
 #: src/pages/Admin.tsx:820
 #~ msgid "Prospective users — generate an invitation code and email it"
 #~ msgstr "Prospective users — generate an invitation code and email it"
@@ -4710,25 +4848,29 @@ msgstr "Promote to Admin"
 msgid "Prospective users: generate invitation codes and follow up by email."
 msgstr "Prospective users: generate invitation codes and follow up by email."
 
-#: src/pages/admin/AdminOps.tsx:1019
+#: src/pages/admin/AdminOps.tsx:1033
 msgid "Provider / auth failures"
 msgstr "Provider / auth failures"
 
-#: src/pages/admin/AdminOps.tsx:479
+#: src/pages/admin/AdminOps.tsx:488
 msgid "Provider authentication"
 msgstr "Provider authentication"
 
-#: src/pages/admin/AdminOps.tsx:481
+#: src/pages/admin/AdminOps.tsx:490
 msgid "Provider failure"
 msgstr "Provider failure"
 
-#: src/pages/admin/AdminOps.tsx:441
+#: src/pages/admin/AdminOps.tsx:450
 msgid "Provider outcome is uncertain"
 msgstr "Provider outcome is uncertain"
 
-#: src/pages/admin/AdminOps.tsx:1349
+#: src/pages/admin/AdminOps.tsx:1363
 msgid "Public status"
 msgstr "Public status"
+
+#: src/pages/admin/AdminOps.tsx:1609
+msgid "publication overrides"
+msgstr "publication overrides"
 
 #: src/pages/admin/AdminCommunications.tsx:228
 msgid "Publish a banner above to communicate maintenance windows, launches, or onboarding news."
@@ -4816,7 +4958,7 @@ msgstr "Race Date"
 msgid "Race date is required"
 msgstr "Race date is required"
 
-#: src/pages/admin/AdminOps.tsx:377
+#: src/pages/admin/AdminOps.tsx:386
 msgid "Race forecast"
 msgstr "Race forecast"
 
@@ -4841,7 +4983,7 @@ msgstr "Race Prediction"
 #~ msgid "Range"
 #~ msgstr "Range"
 
-#: src/pages/admin/AdminOps.tsx:386
+#: src/pages/admin/AdminOps.tsx:395
 msgid "Rate limited"
 msgstr "Rate limited"
 
@@ -5048,11 +5190,11 @@ msgstr "Recommended"
 msgid "Recommended. Delivered workouts stay on the calendar; Praxys simply stops managing them."
 msgstr "Recommended. Delivered workouts stay on the calendar; Praxys simply stops managing them."
 
-#: src/pages/admin/AdminOps.tsx:1173
+#: src/pages/admin/AdminOps.tsx:1187
 msgid "Reconcile and replay"
 msgstr "Reconcile and replay"
 
-#: src/pages/admin/AdminOps.tsx:666
+#: src/pages/admin/AdminOps.tsx:680
 msgid "Reconciliation completed without replaying a workout."
 msgstr "Reconciliation completed without replaying a workout."
 
@@ -5072,6 +5214,14 @@ msgstr "Reconnect Garmin to renew experimental access. Managed delivery remains 
 msgid "Reconnecting Garmin or changing its account region revokes this permission and pauses delivery until you opt in again."
 msgstr "Reconnecting Garmin or changing its account region revokes this permission and pauses delivery until you opt in again."
 
+#: src/pages/admin/AdminFeedback.tsx:544
+msgid "Record judgment"
+msgstr "Record judgment"
+
+#: src/pages/admin/AdminFeedback.tsx:519
+msgid "Record maintainer judgment"
+msgstr "Record maintainer judgment"
+
 #: src/pages/Training.tsx:320
 msgid "Recorded distance in non-overlapping seven-day buckets, including weeks with no recorded distance."
 msgstr "Recorded distance in non-overlapping seven-day buckets, including weeks with no recorded distance."
@@ -5079,7 +5229,7 @@ msgstr "Recorded distance in non-overlapping seven-day buckets, including weeks 
 #. placeholder {0}: managedHealth.recoverable
 #. placeholder {1}: managedHealth.retry_exhausted
 #. placeholder {2}: managedHealth.stuck_inflight
-#: src/pages/admin/AdminOps.tsx:882
+#: src/pages/admin/AdminOps.tsx:896
 msgid "Recoverable: {0}. Retry exhausted: {1}. Stuck in progress: {2}."
 msgstr "Recoverable: {0}. Retry exhausted: {1}. Stuck in progress: {2}."
 
@@ -5094,23 +5244,23 @@ msgstr "Recoverable: {0}. Retry exhausted: {1}. Stuck in progress: {2}."
 msgid "Recovery"
 msgstr "Recovery"
 
-#: src/pages/admin/AdminOps.tsx:1047
+#: src/pages/admin/AdminOps.tsx:1061
 msgid "Recovery always reconciles the provider calendar first. Conflicts and uncertain provider outcomes stay athlete-resolved."
 msgstr "Recovery always reconciles the provider calendar first. Conflicts and uncertain provider outcomes stay athlete-resolved."
 
-#: src/pages/admin/AdminOps.tsx:665
+#: src/pages/admin/AdminOps.tsx:679
 msgid "Recovery completed after a fresh provider reconciliation."
 msgstr "Recovery completed after a fresh provider reconciliation."
 
-#: src/pages/admin/AdminOps.tsx:654
+#: src/pages/admin/AdminOps.tsx:668
 msgid "Recovery completed only partially. Review the refreshed queue before taking another action."
 msgstr "Recovery completed only partially. Review the refreshed queue before taking another action."
 
-#: src/pages/admin/AdminOps.tsx:647
+#: src/pages/admin/AdminOps.tsx:661
 msgid "Recovery could not be completed. Refresh the queue and try again."
 msgstr "Recovery could not be completed. Refresh the queue and try again."
 
-#: src/pages/admin/AdminOps.tsx:645
+#: src/pages/admin/AdminOps.tsx:659
 msgid "Recovery could not start because the delivery state changed. Review the refreshed queue."
 msgstr "Recovery could not start because the delivery state changed. Review the refreshed queue."
 
@@ -5155,11 +5305,11 @@ msgstr "Recovery Status"
 #~ msgid "Recovery status uses ln(RMSSD) compared to your personal baseline. 'Fatigued' = below baseline mean minus 1 SD (Kiviniemi et al, 2007 threshold). 'Fresh' = above baseline mean plus 0.5 SD (Plews et al, 2012 smallest worthwhile change). The 7-day trend and CV are monitored per Plews. CV above {cvThreshold}% is a Praxys caution flag for unusual variability, not a diagnosis. Sleep, readiness, RHR, and TSB remain informational context."
 #~ msgstr "Recovery status uses ln(RMSSD) compared to your personal baseline. 'Fatigued' = below baseline mean minus 1 SD (Kiviniemi et al, 2007 threshold). 'Fresh' = above baseline mean plus 0.5 SD (Plews et al, 2012 smallest worthwhile change). The 7-day trend and CV are monitored per Plews. CV above {cvThreshold}% is a Praxys caution flag for unusual variability, not a diagnosis. Sleep, readiness, RHR, and TSB remain informational context."
 
-#: src/pages/admin/AdminOps.tsx:656
+#: src/pages/admin/AdminOps.tsx:670
 msgid "Recovery was blocked after provider reconciliation. Review the refreshed queue."
 msgstr "Recovery was blocked after provider reconciliation. Review the refreshed queue."
 
-#: src/pages/admin/AdminOps.tsx:658
+#: src/pages/admin/AdminOps.tsx:672
 msgid "Recovery was skipped because delivery eligibility changed. Review the refreshed queue."
 msgstr "Recovery was skipped because delivery eligibility changed. Review the refreshed queue."
 
@@ -5177,13 +5327,13 @@ msgstr "Reduce Intensity"
 msgid "References"
 msgstr "References"
 
-#: src/pages/admin/AdminOps.tsx:761
+#: src/pages/admin/AdminOps.tsx:775
 #: src/pages/Status.tsx:152
 #: src/pages/Status.tsx:155
 msgid "Refresh"
 msgstr "Refresh"
 
-#: src/pages/admin/AdminOps.tsx:944
+#: src/pages/admin/AdminOps.tsx:958
 msgid "Refresh delivery state"
 msgstr "Refresh delivery state"
 
@@ -5191,15 +5341,15 @@ msgstr "Refresh delivery state"
 msgid "Refresh failed"
 msgstr "Refresh failed"
 
-#: src/pages/admin/AdminOps.tsx:772
+#: src/pages/admin/AdminOps.tsx:786
 msgid "Refresh failed. Showing the last successful snapshot."
 msgstr "Refresh failed. Showing the last successful snapshot."
 
-#: src/pages/admin/AdminOps.tsx:460
+#: src/pages/admin/AdminOps.tsx:469
 msgid "Refresh the provider calendar first, then replay only if the prior write is confirmed absent."
 msgstr "Refresh the provider calendar first, then replay only if the prior write is confirmed absent."
 
-#: src/pages/admin/AdminOps.tsx:462
+#: src/pages/admin/AdminOps.tsx:471
 msgid "Refresh the provider calendar, re-check ownership, and allow one fenced retry for this item."
 msgstr "Refresh the provider calendar, re-check ownership, and allow one fenced retry for this item."
 
@@ -5215,7 +5365,7 @@ msgstr "Region"
 #~ msgid "Register"
 #~ msgstr "Register"
 
-#: src/pages/admin/AdminOps.tsx:1373
+#: src/pages/admin/AdminOps.tsx:1387
 #: src/pages/admin/AdminUsers.tsx:456
 msgid "Registered"
 msgstr "Registered"
@@ -5240,12 +5390,12 @@ msgstr "Registration date"
 msgid "Registration settings unavailable"
 msgstr "Registration settings unavailable"
 
-#: src/pages/admin/AdminFeedback.tsx:358
+#: src/pages/admin/AdminFeedback.tsx:593
 msgid "Reject"
 msgstr "Reject"
 
-#: src/pages/admin/AdminFeedback.tsx:87
-#: src/pages/admin/AdminFeedback.tsx:235
+#: src/pages/admin/AdminFeedback.tsx:100
+#: src/pages/admin/AdminFeedback.tsx:358
 msgid "Rejected"
 msgstr "Rejected"
 
@@ -5280,15 +5430,15 @@ msgstr "Rep"
 #~ msgid "Repeated use"
 #~ msgstr "Repeated use"
 
-#: src/pages/admin/AdminOps.tsx:1418
+#: src/pages/admin/AdminOps.tsx:1432
 msgid "Repeated weekly use"
 msgstr "Repeated weekly use"
 
-#: src/pages/admin/AdminOps.tsx:470
+#: src/pages/admin/AdminOps.tsx:479
 msgid "Replay blocked by safety policy"
 msgstr "Replay blocked by safety policy"
 
-#: src/pages/admin/AdminFeedback.tsx:264
+#: src/pages/admin/AdminFeedback.tsx:391
 msgid "Report"
 msgstr "Report"
 
@@ -5296,7 +5446,7 @@ msgstr "Report"
 #~ msgid "Reported value"
 #~ msgstr "Reported value"
 
-#: src/pages/admin/AdminOps.tsx:1412
+#: src/pages/admin/AdminOps.tsx:1426
 msgid "Reported value rate"
 msgstr "Reported value rate"
 
@@ -5304,7 +5454,7 @@ msgstr "Reported value rate"
 msgid "Request an invite"
 msgstr "Request an invite"
 
-#: src/pages/admin/AdminOps.tsx:1335
+#: src/pages/admin/AdminOps.tsx:1349
 msgid "Request and availability telemetry is unavailable."
 msgstr "Request and availability telemetry is unavailable."
 
@@ -5312,7 +5462,7 @@ msgstr "Request and availability telemetry is unavailable."
 msgid "Request invite"
 msgstr "Request invite"
 
-#: src/pages/admin/AdminOps.tsx:1319
+#: src/pages/admin/AdminOps.tsx:1333
 msgid "Request p95"
 msgstr "Request p95"
 
@@ -5328,8 +5478,8 @@ msgstr "Resolve"
 msgid "Resolve workout conflict"
 msgstr "Resolve workout conflict"
 
-#: src/pages/admin/AdminFeedback.tsx:83
-#: src/pages/admin/AdminFeedback.tsx:234
+#: src/pages/admin/AdminFeedback.tsx:96
+#: src/pages/admin/AdminFeedback.tsx:357
 #: src/pages/admin/AdminIncidents.tsx:44
 #: src/pages/Status.tsx:94
 #: src/pages/Status.tsx:265
@@ -5402,7 +5552,7 @@ msgstr "Resume managed delivery?"
 #: src/components/ManagedPlanSettingsCard.tsx:923
 #: src/components/UpcomingPlanCard.tsx:309
 #: src/components/UpcomingPlanCard.tsx:957
-#: src/pages/admin/AdminFeedback.tsx:347
+#: src/pages/admin/AdminFeedback.tsx:582
 #: src/pages/admin/AdminRouteState.tsx:36
 #: src/pages/admin/AdminUsers.tsx:544
 #: src/pages/Goal.tsx:444
@@ -5428,7 +5578,7 @@ msgstr "Retry delivery"
 #~ msgid "Retry push to Stryd"
 #~ msgstr "Retry push to Stryd"
 
-#: src/pages/admin/AdminOps.tsx:1103
+#: src/pages/admin/AdminOps.tsx:1117
 msgid "Retry queue"
 msgstr "Retry queue"
 
@@ -5444,7 +5594,7 @@ msgstr "Retry to load public communication banners."
 #~ msgid "Retry to load seats, users, invitations, and waitlist activity."
 #~ msgstr "Retry to load seats, users, invitations, and waitlist activity."
 
-#: src/pages/admin/AdminFeedback.tsx:185
+#: src/pages/admin/AdminFeedback.tsx:306
 msgid "Retry to load submitted reports and GitHub sync state."
 msgstr "Retry to load submitted reports and GitHub sync state."
 
@@ -5473,7 +5623,7 @@ msgstr "Review and turn on"
 msgid "Review conflict"
 msgstr "Review conflict"
 
-#: src/pages/admin/AdminOps.tsx:888
+#: src/pages/admin/AdminOps.tsx:902
 msgid "Review delivery queue"
 msgstr "Review delivery queue"
 
@@ -5485,11 +5635,13 @@ msgstr "Review experimental access"
 #~ msgid "Review heat history"
 #~ msgstr "Review heat history"
 
-#: src/pages/admin/AdminFeedback.tsx:199
+#: src/pages/admin/AdminFeedback.tsx:320
 msgid "Review reports, manage screenshots, and sync linked GitHub issues."
 msgstr "Review reports, manage screenshots, and sync linked GitHub issues."
 
-#: src/pages/admin/AdminOps.tsx:1504
+#: src/pages/admin/AdminFeedback.tsx:469
+#: src/pages/admin/AdminFeedback.tsx:492
+#: src/pages/admin/AdminOps.tsx:1518
 msgid "Review required"
 msgstr "Review required"
 
@@ -5522,9 +5674,13 @@ msgstr "Rising"
 msgid "Role"
 msgstr "Role"
 
-#: src/pages/admin/AdminOps.tsx:202
+#: src/pages/admin/AdminOps.tsx:211
 msgid "Rolling 1 / 7 / 30 days"
 msgstr "Rolling 1 / 7 / 30 days"
+
+#: src/pages/admin/AdminFeedback.tsx:479
+msgid "Rule based"
+msgstr "Rule based"
 
 #: src/lib/phase-label.ts:10
 msgid "Run"
@@ -5546,7 +5702,7 @@ msgstr "Run as planned but monitor how you feel"
 msgid "Run easy instead"
 msgstr "Run easy instead"
 
-#: src/pages/admin/AdminOps.tsx:1025
+#: src/pages/admin/AdminOps.tsx:1039
 msgid "Run p95"
 msgstr "Run p95"
 
@@ -5554,11 +5710,11 @@ msgstr "Run p95"
 msgid "Running"
 msgstr "Running"
 
-#: src/pages/admin/AdminOps.tsx:1009
+#: src/pages/admin/AdminOps.tsx:1023
 msgid "Runs"
 msgstr "Runs"
 
-#: src/pages/admin/AdminOps.tsx:487
+#: src/pages/admin/AdminOps.tsx:496
 msgid "Safety policy"
 msgstr "Safety policy"
 
@@ -5621,7 +5777,7 @@ msgstr "Science models"
 msgid "Scientific models"
 msgstr "Scientific models"
 
-#: src/pages/admin/AdminFeedback.tsx:297
+#: src/pages/admin/AdminFeedback.tsx:425
 msgid "Screenshot flagged sensitive"
 msgstr "Screenshot flagged sensitive"
 
@@ -5691,15 +5847,19 @@ msgstr "Sending..."
 msgid "Sending…"
 msgstr "Sending…"
 
+#: src/pages/admin/AdminFeedback.tsx:135
+msgid "Sensitivity gate"
+msgstr "Sensitivity gate"
+
 #: src/components/AiInsightsCard.tsx:311
 msgid "Sent"
 msgstr "Sent"
 
-#: src/pages/admin/AdminOps.tsx:1315
+#: src/pages/admin/AdminOps.tsx:1329
 msgid "Server error rate"
 msgstr "Server error rate"
 
-#: src/pages/admin/AdminOps.tsx:1240
+#: src/pages/admin/AdminOps.tsx:1254
 msgid "Service health"
 msgstr "Service health"
 
@@ -5711,7 +5871,7 @@ msgstr "Service incidents"
 #~ msgid "Service Incidents"
 #~ msgstr "Service Incidents"
 
-#: src/pages/admin/AdminOps.tsx:690
+#: src/pages/admin/AdminOps.tsx:704
 msgid "Service performance degraded"
 msgstr "Service performance degraded"
 
@@ -5778,6 +5938,42 @@ msgstr "Setup"
 #: src/pages/Today.tsx:290
 msgid "Shorten the session if fatigue develops"
 msgstr "Shorten the session if fatigue develops"
+
+#: src/pages/admin/AdminFeedback.tsx:470
+#~ msgid "Should be agent-ready"
+#~ msgstr "Should be agent-ready"
+
+#: src/pages/admin/AdminFeedback.tsx:148
+msgid "Should be agent-ready — bounded actionable defect"
+msgstr "Should be agent-ready — bounded actionable defect"
+
+#: src/pages/admin/AdminFeedback.tsx:471
+#~ msgid "Should not be agent-ready"
+#~ msgstr "Should not be agent-ready"
+
+#: src/pages/admin/AdminFeedback.tsx:152
+msgid "Should not be agent-ready — insufficient detail"
+msgstr "Should not be agent-ready — insufficient detail"
+
+#: src/pages/admin/AdminFeedback.tsx:154
+msgid "Should not be agent-ready — needs product judgment"
+msgstr "Should not be agent-ready — needs product judgment"
+
+#: src/pages/admin/AdminFeedback.tsx:150
+msgid "Should not be agent-ready — not a defect"
+msgstr "Should not be agent-ready — not a defect"
+
+#: src/pages/admin/AdminFeedback.tsx:158
+msgid "Should not be agent-ready — other"
+msgstr "Should not be agent-ready — other"
+
+#: src/pages/admin/AdminFeedback.tsx:155
+#~ msgid "Should not be agent-ready — sensitive or high risk"
+#~ msgstr "Should not be agent-ready — sensitive or high risk"
+
+#: src/pages/admin/AdminFeedback.tsx:156
+msgid "Should not be agent-ready — sensitivity or privacy gate"
+msgstr "Should not be agent-ready — sensitivity or privacy gate"
 
 #: src/components/UpcomingPlanCard.tsx:319
 #~ msgid "Show {0} more workouts"
@@ -5869,7 +6065,7 @@ msgid "slightly positive"
 msgstr "slightly positive"
 
 #. placeholder {0}: formatTimestamp(data.generated_at, i18n.locale)
-#: src/pages/admin/AdminOps.tsx:782
+#: src/pages/admin/AdminOps.tsx:796
 msgid "Snapshot {0}"
 msgstr "Snapshot {0}"
 
@@ -5911,11 +6107,11 @@ msgstr "stable"
 msgid "Stable"
 msgstr "Stable"
 
-#: src/pages/admin/AdminOps.tsx:180
+#: src/pages/admin/AdminOps.tsx:189
 msgid "Stale"
 msgstr "Stale"
 
-#: src/pages/admin/AdminOps.tsx:411
+#: src/pages/admin/AdminOps.tsx:420
 msgid "Standard"
 msgstr "Standard"
 
@@ -5923,7 +6119,7 @@ msgstr "Standard"
 msgid "Start sync"
 msgstr "Start sync"
 
-#: src/pages/admin/AdminOps.tsx:732
+#: src/pages/admin/AdminOps.tsx:746
 msgid "Start with operator action, then use health and usage context to choose the next workflow."
 msgstr "Start with operator action, then use health and usage context to choose the next workflow."
 
@@ -5931,7 +6127,7 @@ msgstr "Start with operator action, then use health and usage context to choose 
 msgid "Started"
 msgstr "Started"
 
-#: src/pages/admin/AdminFeedback.tsx:263
+#: src/pages/admin/AdminFeedback.tsx:390
 #: src/pages/admin/AdminUsers.tsx:734
 #: src/pages/admin/AdminUsers.tsx:873
 msgid "Status"
@@ -5994,7 +6190,7 @@ msgstr "Sub-3 marathon · 100K · stay healthy…"
 msgid "Success"
 msgstr "Success"
 
-#: src/pages/admin/AdminOps.tsx:1621
+#: src/pages/admin/AdminOps.tsx:1683
 msgid "successful"
 msgstr "successful"
 
@@ -6002,7 +6198,7 @@ msgstr "successful"
 msgid "Suggestions"
 msgstr "Suggestions"
 
-#: src/pages/admin/AdminOps.tsx:736
+#: src/pages/admin/AdminOps.tsx:750
 msgid "Summary window"
 msgstr "Summary window"
 
@@ -6061,11 +6257,11 @@ msgstr "Sync All"
 msgid "Sync complete! Your data is ready."
 msgstr "Sync complete! Your data is ready."
 
-#: src/pages/admin/AdminFeedback.tsx:158
+#: src/pages/admin/AdminFeedback.tsx:276
 msgid "Sync failed."
 msgstr "Sync failed."
 
-#: src/pages/admin/AdminFeedback.tsx:241
+#: src/pages/admin/AdminFeedback.tsx:364
 msgid "Sync from GitHub"
 msgstr "Sync from GitHub"
 
@@ -6094,7 +6290,7 @@ msgstr "Sync recent activities to populate the weekly distance series."
 msgid "Sync recent training to start estimating the conditions represented in your heat evidence."
 msgstr "Sync recent training to start estimating the conditions represented in your heat evidence."
 
-#: src/pages/admin/AdminOps.tsx:1607
+#: src/pages/admin/AdminOps.tsx:1669
 msgid "Sync reliability"
 msgstr "Sync reliability"
 
@@ -6136,7 +6332,7 @@ msgid "Synced"
 msgstr "Synced"
 
 #. placeholder {0}: managedHealth.states.synced
-#: src/pages/admin/AdminOps.tsx:970
+#: src/pages/admin/AdminOps.tsx:984
 msgid "Synced <0>{0}</0>"
 msgstr "Synced <0>{0}</0>"
 
@@ -6173,7 +6369,7 @@ msgstr "System announcements"
 msgid "System theme (click for light)"
 msgstr "System theme (click for light)"
 
-#: src/pages/admin/AdminOps.tsx:1637
+#: src/pages/admin/AdminOps.tsx:1699
 msgid "Systemic failure classes"
 msgstr "Systemic failure classes"
 
@@ -6181,11 +6377,11 @@ msgstr "Systemic failure classes"
 #~ msgid "Systemic sync failures affect {systemicAffectedUsers} users"
 #~ msgstr "Systemic sync failures affect {systemicAffectedUsers} users"
 
-#: src/pages/admin/AdminOps.tsx:593
+#: src/pages/admin/AdminOps.tsx:607
 msgid "Systemic sync failures affected {systemicAffectedUsers} users in this window"
 msgstr "Systemic sync failures affected {systemicAffectedUsers} users in this window"
 
-#: src/pages/admin/AdminOps.tsx:855
+#: src/pages/admin/AdminOps.tsx:869
 msgid "Systemic sync failures unavailable"
 msgstr "Systemic sync failures unavailable"
 
@@ -6238,19 +6434,19 @@ msgstr "Thanks for the feedback!"
 msgid "The active load model uses a {loadTimeConstantDays}-day long-term time constant. Need {daysToPmc} more days of history."
 msgstr "The active load model uses a {loadTimeConstantDays}-day long-term time constant. Need {daysToPmc} more days of history."
 
-#: src/pages/admin/AdminOps.tsx:1513
+#: src/pages/admin/AdminOps.tsx:1527
 msgid "The agent decision and outcome aggregate could not be refreshed."
 msgstr "The agent decision and outcome aggregate could not be refreshed."
 
-#: src/pages/admin/AdminOps.tsx:841
+#: src/pages/admin/AdminOps.tsx:855
 msgid "The alert summary could not be refreshed."
 msgstr "The alert summary could not be refreshed."
 
-#: src/pages/admin/AdminOps.tsx:347
+#: src/pages/admin/AdminOps.tsx:356
 msgid "The Azure Monitor query client is unavailable in this deployment."
 msgstr "The Azure Monitor query client is unavailable in this deployment."
 
-#: src/pages/admin/AdminOps.tsx:884
+#: src/pages/admin/AdminOps.tsx:898
 msgid "The bounded operator queue is available, but aggregate delivery health could not be refreshed."
 msgstr "The bounded operator queue is available, but aggregate delivery health could not be refreshed."
 
@@ -6266,11 +6462,11 @@ msgstr "The canonical Praxys plan is preserved. Existing target workouts stay in
 #~ msgid "The environmental ramps, effective minutes, stage thresholds, and 7–28 day decay window are Praxys operational estimates. Evidence coverage is not biological certainty. Stop and begin cooling for heat-illness symptoms; seek urgent medical help for confusion, collapse, or altered mental status."
 #~ msgstr "The environmental ramps, effective minutes, stage thresholds, and 7–28 day decay window are Praxys operational estimates. Evidence coverage is not biological certainty. Stop and begin cooling for heat-illness symptoms; seek urgent medical help for confusion, collapse, or altered mental status."
 
-#: src/pages/admin/AdminOps.tsx:823
+#: src/pages/admin/AdminOps.tsx:837
 msgid "The feedback aggregate could not be refreshed."
 msgstr "The feedback aggregate could not be refreshed."
 
-#: src/pages/admin/AdminOps.tsx:802
+#: src/pages/admin/AdminOps.tsx:816
 msgid "The incident aggregate could not be refreshed."
 msgstr "The incident aggregate could not be refreshed."
 
@@ -6298,7 +6494,7 @@ msgstr "The latest HRV reading is too old for a same-day recovery classification
 msgid "The managed window changed. Review the refreshed preview before enabling delivery."
 msgstr "The managed window changed. Review the refreshed preview before enabling delivery."
 
-#: src/pages/admin/AdminOps.tsx:1094
+#: src/pages/admin/AdminOps.tsx:1108
 msgid "The managed-plan operator queue could not be loaded."
 msgstr "The managed-plan operator queue could not be loaded."
 
@@ -6319,9 +6515,13 @@ msgstr "The Praxys workout is missing from {target}. Restoring it keeps the Prax
 msgid "The previous workout was restored"
 msgstr "The previous workout was restored"
 
-#: src/pages/admin/AdminOps.tsx:801
+#: src/pages/admin/AdminOps.tsx:815
 msgid "The public status feed has no unresolved incidents."
 msgstr "The public status feed has no unresolved incidents."
+
+#: src/pages/admin/AdminFeedback.tsx:221
+msgid "The readiness decision changed. Review the refreshed decision before recording a judgment."
+msgstr "The readiness decision changed. Review the refreshed decision before recording a judgment."
 
 #. placeholder {0}: target ?? 'your target'
 #: src/components/UpcomingPlanCard.tsx:209
@@ -6364,11 +6564,11 @@ msgstr "Theme"
 msgid "This cannot be undone. If this is the last admin account, deletion will be blocked."
 msgstr "This cannot be undone. If this is the last admin account, deletion will be blocked."
 
-#: src/pages/admin/AdminOps.tsx:639
+#: src/pages/admin/AdminOps.tsx:653
 msgid "This delivery cannot be replayed automatically. Review the refreshed queue for the required action."
 msgstr "This delivery cannot be replayed automatically. Review the refreshed queue for the required action."
 
-#: src/pages/admin/AdminOps.tsx:637
+#: src/pages/admin/AdminOps.tsx:651
 msgid "This delivery changed before recovery started. Review the refreshed queue."
 msgstr "This delivery changed before recovery started. Review the refreshed queue."
 
@@ -6420,8 +6620,8 @@ msgstr "This permission is separate from managed delivery. Review the exact boun
 #~ msgid "This qualitative tracker uses connector-provided air temperature and relative humidity, Stull's natural-shade wet-bulb approximation, and split-level power relative to current CP. Effective minutes are weighted evidence, not literal exposure time. Wind and solar radiation are excluded, and the stage thresholds plus 7–28 day decay window are Praxys operational estimates rather than a medical or physiological diagnosis."
 #~ msgstr "This qualitative tracker uses connector-provided air temperature and relative humidity, Stull's natural-shade wet-bulb approximation, and split-level power relative to current CP. Effective minutes are weighted evidence, not literal exposure time. Wind and solar radiation are excluded, and the stage thresholds plus 7–28 day decay window are Praxys operational estimates rather than a medical or physiological diagnosis."
 
-#: src/pages/admin/AdminOps.tsx:633
-#: src/pages/admin/AdminOps.tsx:642
+#: src/pages/admin/AdminOps.tsx:647
+#: src/pages/admin/AdminOps.tsx:656
 msgid "This queue item no longer exists. Refresh the queue."
 msgstr "This queue item no longer exists. Refresh the queue."
 
@@ -6501,11 +6701,11 @@ msgstr "Today"
 msgid "TODAY"
 msgstr "TODAY"
 
-#: src/pages/admin/AdminOps.tsx:1459
+#: src/pages/admin/AdminOps.tsx:1473
 msgid "Today and Coach telemetry is unavailable."
 msgstr "Today and Coach telemetry is unavailable."
 
-#: src/pages/admin/AdminOps.tsx:1390
+#: src/pages/admin/AdminOps.tsx:1404
 msgid "Today engagement"
 msgstr "Today engagement"
 
@@ -6513,7 +6713,7 @@ msgstr "Today engagement"
 #~ msgid "Today reach"
 #~ msgstr "Today reach"
 
-#: src/pages/admin/AdminOps.tsx:1400
+#: src/pages/admin/AdminOps.tsx:1414
 msgid "Today reach rate"
 msgstr "Today reach rate"
 
@@ -6541,7 +6741,7 @@ msgstr "Today's recommendation combines the scheduled workout with Praxys operat
 msgid "Today's recovery hasn't synced yet. Showing the latest reading from {latestDateLabel}."
 msgstr "Today's recovery hasn't synced yet. Showing the latest reading from {latestDateLabel}."
 
-#: src/pages/admin/AdminOps.tsx:392
+#: src/pages/admin/AdminOps.tsx:401
 msgid "Token rejected"
 msgstr "Token rejected"
 
@@ -6582,7 +6782,7 @@ msgstr "Training Diagnosis"
 #~ msgid "Training plan & targets"
 #~ msgstr "Training plan & targets"
 
-#: src/pages/admin/AdminOps.tsx:375
+#: src/pages/admin/AdminOps.tsx:384
 msgid "Training review"
 msgstr "Training review"
 
@@ -6602,16 +6802,16 @@ msgstr "Translates training stress into fitness."
 msgid "Trend"
 msgstr "Trend"
 
-#: src/pages/admin/AdminFeedback.tsx:77
-#: src/pages/admin/AdminFeedback.tsx:236
+#: src/pages/admin/AdminFeedback.tsx:90
+#: src/pages/admin/AdminFeedback.tsx:359
 msgid "Triaged"
 msgstr "Triaged"
 
-#: src/pages/admin/AdminOps.tsx:345
+#: src/pages/admin/AdminOps.tsx:354
 msgid "Trusted Azure telemetry is not configured for this deployment."
 msgstr "Trusted Azure telemetry is not configured for this deployment."
 
-#: src/pages/admin/AdminOps.tsx:1575
+#: src/pages/admin/AdminOps.tsx:1637
 msgid "Trusted sync and connection outcomes from the backend telemetry boundary."
 msgstr "Trusted sync and connection outcomes from the backend telemetry boundary."
 
@@ -6623,7 +6823,7 @@ msgstr "Trusted sync and connection outcomes from the backend telemetry boundary
 msgid "Try a longer window above."
 msgstr "Try a longer window above."
 
-#: src/pages/admin/AdminFeedback.tsx:255
+#: src/pages/admin/AdminFeedback.tsx:382
 msgid "Try another filter or sync again after new reports arrive."
 msgstr "Try another filter or sync again after new reports arrive."
 
@@ -6673,7 +6873,7 @@ msgstr "Turning on…"
 #~ msgstr "Tyler heat-acclimation meta-analysis"
 
 #: src/components/FeedbackDialog.tsx:210
-#: src/pages/admin/AdminFeedback.tsx:262
+#: src/pages/admin/AdminFeedback.tsx:389
 msgid "Type"
 msgstr "Type"
 
@@ -6690,11 +6890,13 @@ msgid "Unable to reach the status service"
 msgstr "Unable to reach the status service"
 
 #: src/components/ManagedPlanSettingsCard.tsx:518
-#: src/pages/admin/AdminOps.tsx:182
+#: src/pages/admin/AdminFeedback.tsx:466
+#: src/pages/admin/AdminFeedback.tsx:493
+#: src/pages/admin/AdminOps.tsx:191
 msgid "Unavailable"
 msgstr "Unavailable"
 
-#: src/pages/admin/AdminOps.tsx:491
+#: src/pages/admin/AdminOps.tsx:500
 msgid "Unclassified"
 msgstr "Unclassified"
 
@@ -6710,7 +6912,7 @@ msgstr "Units"
 msgid "Unknown date"
 msgstr "Unknown date"
 
-#: src/pages/admin/AdminOps.tsx:400
+#: src/pages/admin/AdminOps.tsx:409
 msgid "Unknown failure"
 msgstr "Unknown failure"
 
@@ -6718,7 +6920,7 @@ msgstr "Unknown failure"
 msgid "Unverified"
 msgstr "Unverified"
 
-#: src/pages/admin/AdminOps.tsx:178
+#: src/pages/admin/AdminOps.tsx:187
 msgid "Up to date"
 msgstr "Up to date"
 
@@ -6733,15 +6935,20 @@ msgstr "Update message (optional)"
 #. placeholder {0}: formatTimestamp(item.updated_at, i18n.locale)
 #. placeholder {0}: formatTimestamp(managedAttention.generated_at, i18n.locale)
 #. placeholder {0}: formatTimestamp(meta.as_of, i18n.locale)
-#: src/pages/admin/AdminOps.tsx:221
-#: src/pages/admin/AdminOps.tsx:1054
-#: src/pages/admin/AdminOps.tsx:1145
+#: src/pages/admin/AdminOps.tsx:230
+#: src/pages/admin/AdminOps.tsx:1068
+#: src/pages/admin/AdminOps.tsx:1159
 msgid "Updated {0}"
 msgstr "Updated {0}"
 
 #. placeholder {0}: result.updated
+#: src/pages/admin/AdminFeedback.tsx:285
+msgid "Updated {0} linked ticket(s). Skipped {repositoryMismatches} because their stored repository no longer matches the configured feedback repository."
+msgstr "Updated {0} linked ticket(s). Skipped {repositoryMismatches} because their stored repository no longer matches the configured feedback repository."
+
+#. placeholder {0}: result.updated
 #. placeholder {1}: result.checked
-#: src/pages/admin/AdminFeedback.tsx:166
+#: src/pages/admin/AdminFeedback.tsx:287
 msgid "Updated {0} of {1} linked ticket(s)."
 msgstr "Updated {0} of {1} linked ticket(s)."
 
@@ -6757,7 +6964,7 @@ msgstr "Updating…"
 msgid "US"
 msgstr "US"
 
-#: src/pages/admin/AdminOps.tsx:1383
+#: src/pages/admin/AdminOps.tsx:1397
 msgid "Usage aggregates are unavailable."
 msgstr "Usage aggregates are unavailable."
 
@@ -6818,7 +7025,7 @@ msgstr "Used by"
 msgid "User"
 msgstr "User"
 
-#: src/pages/admin/AdminFeedback.tsx:210
+#: src/pages/admin/AdminFeedback.tsx:331
 msgid "User feedback"
 msgstr "User feedback"
 
@@ -6826,7 +7033,7 @@ msgstr "User feedback"
 #~ msgid "User Feedback"
 #~ msgstr "User Feedback"
 
-#: src/pages/admin/AdminOps.tsx:1656
+#: src/pages/admin/AdminOps.tsx:1718
 msgid "users"
 msgstr "users"
 
@@ -6942,7 +7149,7 @@ msgstr "Warning"
 msgid "Was this insight useful?"
 msgstr "Was this insight useful?"
 
-#: src/pages/admin/AdminOps.tsx:1371
+#: src/pages/admin/AdminOps.tsx:1385
 #: src/pages/admin/AdminUsers.tsx:136
 msgid "WAU"
 msgstr "WAU"
@@ -6963,7 +7170,7 @@ msgstr "We've logged it and will take a look."
 msgid "Weather evidence"
 msgstr "Weather evidence"
 
-#: src/pages/admin/AdminOps.tsx:362
+#: src/pages/admin/AdminOps.tsx:371
 msgid "Web"
 msgstr "Web"
 
@@ -7073,7 +7280,7 @@ msgstr "Workload evidence"
 msgid "Workout"
 msgstr "Workout"
 
-#: src/pages/admin/AdminOps.tsx:439
+#: src/pages/admin/AdminOps.tsx:448
 msgid "Workout conflict requires athlete input"
 msgstr "Workout conflict requires athlete input"
 

@@ -10,7 +10,11 @@ from analysis.agent_policy import (
     AgentReadyFacts,
     evaluate_agent_ready,
 )
-from analysis.agent_replay import replay_agent_ready_cases
+from analysis.agent_replay import (
+    replay_agent_eligibility_cases,
+    replay_agent_ready_cases,
+)
+from api import feedback_scrub
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -48,6 +52,41 @@ def test_checked_in_agent_ready_replay_has_no_regressions() -> None:
     assert result.accuracy == 1.0
 
 
+def test_semantic_agent_eligibility_corpus_is_privacy_safe_and_scoreable() -> None:
+    """Model cases are public-safe and the pure scorer reports both error types."""
+    payload = json.loads(
+        (
+            ROOT / "data" / "agent_evals" / "change" / "agent_eligibility.json"
+        ).read_text(encoding="utf-8")
+    )
+    cases = payload["cases"]
+    assert payload["prompt_family"] == "feedback-triage"
+    assert len(cases) >= 8
+    assert all("priority" not in case for case in cases)
+    for case in cases:
+        assert feedback_scrub.scrub_text(case["message"]) == case["message"]
+        image_description = case.get("image_description")
+        if image_description:
+            assert (
+                feedback_scrub.scrub_text(image_description)
+                == image_description
+            )
+
+    predictions = {
+        case["id"]: bool(case["expected_agent_eligible"])
+        for case in cases
+    }
+    predictions[cases[0]["id"]] = False
+    result = replay_agent_eligibility_cases(
+        cases,
+        lambda case: predictions[case["id"]],
+    )
+    assert result.total == len(cases)
+    assert result.false_negatives == 1
+    assert result.false_positives == 0
+    assert result.unavailable == 0
+
+
 def test_policy_config_matches_production_and_starts_default_deny() -> None:
     """Repository policy metadata must not drift from executable policy."""
     payload = json.loads(
@@ -56,7 +95,24 @@ def test_policy_config_matches_production_and_starts_default_deny() -> None:
     assert payload["change"]["agent_ready"] == {
         "policy_name": AGENT_READY_POLICY_NAME,
         "version": AGENT_READY_POLICY_VERSION,
+        "active_prompt_version": "v1",
+        "challenger_prompt_versions": ["v2"],
     }
     review = payload["change"]["selective_review"]
     assert review["default_decision"] == "review-required"
     assert review["promoted_classes"] == []
+
+
+def test_deploy_owns_agent_ready_runtime_controls() -> None:
+    """Optional App Service controls must come from repository variables."""
+    workflow = (
+        ROOT / ".github" / "workflows" / "deploy-backend.yml"
+    ).read_text(encoding="utf-8")
+    env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
+    for name in (
+        "PRAXYS_AGENT_READY_SHADOW",
+        "PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION",
+    ):
+        assert f"{name}: ${{{{ vars.{name} }}}}" in workflow
+        assert f'{name}="${{{name}}}"' in workflow
+        assert name in env_example

@@ -1191,6 +1191,71 @@ export interface FeedbackResponse {
   status: string;
 }
 
+export type AgentReadyDecisionReason =
+  | 'eligible'
+  | 'not_bug'
+  | 'sensitivity_gate'
+  | 'not_actionable'
+  | 'insufficient_detail';
+
+export type AgentReadyAdjudicationReason =
+  | 'bounded_actionable_defect'
+  | 'not_a_defect'
+  | 'insufficient_detail'
+  | 'needs_product_judgment'
+  | 'sensitivity_or_privacy'
+  | 'other';
+
+export type AgentReadyLabelSync =
+  | 'synced'
+  | 'failed'
+  | 'github_unavailable'
+  | 'not_linked'
+  | 'issue_not_open'
+  | 'repository_mismatch';
+
+export interface AdminAgentReadyChallenger {
+  prompt_version: string | null;
+  prompt_hash: string | null;
+  model: string | null;
+  available: boolean;
+  kind: FeedbackKind | null;
+  agent_eligible: boolean | null;
+  candidate: boolean | null;
+  reason: AgentReadyDecisionReason | null;
+}
+
+export interface AdminAgentReadyAdjudication {
+  expected: boolean;
+  reason: AgentReadyAdjudicationReason;
+  label_sync: AgentReadyLabelSync;
+  observed_at: string | null;
+}
+
+export interface AdminAgentReadiness {
+  decision_id: string;
+  policy_name: string;
+  policy_version: string;
+  prompt_version: string | null;
+  prompt_hash: string | null;
+  model: string | null;
+  mode: 'active' | 'shadow';
+  kind: FeedbackKind | null;
+  agent_eligible: boolean | null;
+  candidate: boolean | null;
+  applied: boolean | null;
+  reason: AgentReadyDecisionReason | null;
+  challenger: AdminAgentReadyChallenger | null;
+  adjudication: AdminAgentReadyAdjudication | null;
+  created_at: string | null;
+}
+
+export interface AdminAgentReadyAdjudicationRequest {
+  decision_id: string;
+  expected: boolean;
+  reason: AgentReadyAdjudicationReason;
+}
+
 /** Admin view row — GET /api/admin/feedback. Includes the raw `message`
  * (admin-only) alongside the scrubbed `ai_*` output that was published. */
 export interface AdminFeedbackItem {
@@ -1216,8 +1281,18 @@ export interface AdminFeedbackItem {
   image_description: string | null;
   /** Vision sensitivity verdict; null when not analysed (no vision model). */
   image_sensitive: boolean | null;
+  /** Privacy-safe active/challenger decision and latest maintainer verdict. */
+  agent_readiness?: AdminAgentReadiness | null;
   created_at: string | null;
   updated_at: string | null;
+}
+
+export interface AdminAgentReadyAdjudicationResponse {
+  recorded: boolean;
+  expected: boolean;
+  reason: AgentReadyAdjudicationReason;
+  label_sync: AgentReadyLabelSync;
+  agent_readiness: AdminAgentReadiness;
 }
 /** GET /api/admin/feedback/summary — counts for the admin notification badge. */
 export interface AdminFeedbackSummary {
@@ -1238,6 +1313,9 @@ export interface AdminFeedbackSyncResult {
   checked: number;
   /** How many ticket statuses changed as a result. */
   updated: number;
+  /** Stored issue URLs that no longer match the configured feedback repo.
+   * Optional during frontend-first rolling deployments. */
+  repository_mismatches?: number;
 }
 
 // --- Admin operations console ---
@@ -1330,6 +1408,15 @@ export type AdminOpsAgentAutonomyLevel =
   | 'draft_with_review'
   | 'policy_gated_auto_merge';
 
+export interface AdminOpsAgentEvalConfusion {
+  evaluated: number;
+  true_positives: number;
+  true_negatives: number;
+  false_positives: number;
+  false_negatives: number;
+  accuracy: number | null;
+}
+
 export interface AdminOpsAgentLearningData {
   decisions_total: number;
   outcomes_total: number;
@@ -1338,6 +1425,10 @@ export interface AdminOpsAgentLearningData {
   agent_ready_applied: number;
   human_overrides: number;
   merged_pull_requests: number;
+  active_eval?: AdminOpsAgentEvalConfusion;
+  challenger_eval?: AdminOpsAgentEvalConfusion;
+  active_semantic_eval?: AdminOpsAgentEvalConfusion;
+  challenger_semantic_eval?: AdminOpsAgentEvalConfusion;
   decision_policy_version: string;
   review_policy_version: string;
   promoted_classes: string[];

@@ -643,6 +643,331 @@ def test_admin_feedback_summary(db_with_users):
         feedback_summary(user_id=user_id, db=db)
     assert exc.value.status_code == 403
 
+
+def test_admin_adjudication_records_ground_truth_and_syncs_label(
+    db_with_users,
+    monkeypatch,
+):
+    from api import github_issues
+    from api.routes.feedback import (
+        AgentReadyAdjudication,
+        adjudicate_agent_readiness,
+        list_feedback,
+    )
+    from db.agent_loop import record_decision
+    from db.models import AgentOutcome, Feedback
+
+    db, _, admin_id, user_id = db_with_users
+    row = Feedback(
+        user_id=user_id,
+        kind="bug",
+        message="Calendar text overflows its day card.",
+        status="issue_created",
+        priority="low",
+        github_issue_number=542,
+        github_issue_url="https://github.com/praxys-run/praxys/issues/542",
+    )
+    db.add(row)
+    db.flush()
+    decision = record_decision(
+        db,
+        loop="change",
+        subject_type="feedback",
+        subject_ref=str(row.id),
+        policy_name="change.agent_ready",
+        policy_version="agent-ready-v2",
+        prompt_version="02885290c95ddf28",
+        model="gpt-5.4",
+        mode="active",
+        input_data={"detail_word_count": 7, "detail_alnum_count": 35},
+        output_data={
+            "kind": "bug",
+            "agent_eligible": False,
+            "gate_blocked": False,
+            "agent_ready_candidate": False,
+            "agent_ready_applied": False,
+            "agent_ready_reason": "not_actionable",
+            "active_prompt_version": "v1",
+            "challenger": {
+                "prompt_version": "v2",
+                "prompt_hash": "candidate",
+                "model": "gpt-5.4",
+                "available": True,
+                "kind": "bug",
+                "agent_eligible": True,
+                "agent_ready_candidate": True,
+                "agent_ready_reason": "eligible",
+            },
+        },
+    )
+    db.commit()
+
+    calls: list[tuple[int, str, bool]] = []
+    monkeypatch.setattr(github_issues, "is_configured", lambda: True)
+    monkeypatch.setattr(
+        github_issues,
+        "issue_matches_configured_repo",
+        lambda number, url: True,
+    )
+    monkeypatch.setattr(
+        github_issues,
+        "get_issue_state",
+        lambda number: {"state": "open"},
+    )
+    monkeypatch.setattr(
+        github_issues,
+        "set_issue_label",
+        lambda number, label, *, present: (
+            calls.append((number, label, present)) or True
+        ),
+    )
+
+    result = adjudicate_agent_readiness(
+        row.id,
+        AgentReadyAdjudication(
+            decision_id=decision.id,
+            expected=True,
+            reason="bounded_actionable_defect",
+        ),
+        user_id=admin_id,
+        db=db,
+    )
+    assert result["recorded"] is True
+    assert result["label_sync"] == "synced"
+    assert calls == [(542, "agent-ready", True)]
+
+    outcome = (
+        db.query(AgentOutcome)
+        .filter(AgentOutcome.decision_id == decision.id)
+        .one()
+    )
+    assert outcome.outcome_type == "agent_ready_adjudicated"
+    assert outcome.payload_json["expected"] is True
+    assert outcome.payload_json["active_candidate"] is False
+    assert outcome.payload_json["challenger_candidate"] is True
+
+    monkeypatch.setattr(
+        github_issues,
+        "get_issue_state",
+        lambda number: {"state": "closed"},
+    )
+    closed_result = adjudicate_agent_readiness(
+        row.id,
+        AgentReadyAdjudication(
+            decision_id=decision.id,
+            expected=True,
+            reason="bounded_actionable_defect",
+        ),
+        user_id=admin_id,
+        db=db,
+    )
+    assert closed_result["label_sync"] == "issue_not_open"
+    assert calls == [(542, "agent-ready", True)]
+
+    row.status = "resolved"
+    db.commit()
+    monkeypatch.setattr(
+        github_issues,
+        "get_issue_state",
+        lambda number: {"state": "open"},
+    )
+    reopened_result = adjudicate_agent_readiness(
+        row.id,
+        AgentReadyAdjudication(
+            decision_id=decision.id,
+            expected=True,
+            reason="bounded_actionable_defect",
+        ),
+        user_id=admin_id,
+        db=db,
+    )
+    assert reopened_result["label_sync"] == "synced"
+    assert calls == [
+        (542, "agent-ready", True),
+        (542, "agent-ready", True),
+    ]
+
+    monkeypatch.setattr(
+        github_issues,
+        "issue_matches_configured_repo",
+        lambda number, url: False,
+    )
+    mismatch_result = adjudicate_agent_readiness(
+        row.id,
+        AgentReadyAdjudication(
+            decision_id=decision.id,
+            expected=True,
+            reason="bounded_actionable_defect",
+        ),
+        user_id=admin_id,
+        db=db,
+    )
+    assert mismatch_result["label_sync"] == "repository_mismatch"
+    assert len(calls) == 2
+
+    serialized = list_feedback(
+        status="resolved",
+        user_id=admin_id,
+        db=db,
+    )[0]
+    readiness = serialized["agent_readiness"]
+    assert readiness["reason"] == "not_actionable"
+    assert readiness["challenger"]["candidate"] is True
+    assert readiness["adjudication"]["expected"] is True
+    assert readiness["adjudication"]["label_sync"] == "repository_mismatch"
+
+
+def test_admin_adjudication_persists_when_label_sync_fails(
+    db_with_users,
+    monkeypatch,
+):
+    from api import github_issues
+    from api.routes.feedback import (
+        AgentReadyAdjudication,
+        adjudicate_agent_readiness,
+    )
+    from db.agent_loop import record_decision
+    from db.models import AgentOutcome, Feedback
+
+    db, _, admin_id, user_id = db_with_users
+    row = Feedback(
+        user_id=user_id,
+        kind="bug",
+        message="The report is not reproducible.",
+        status="issue_created",
+        github_issue_number=100,
+        github_issue_url="https://github.com/praxys-run/praxys/issues/100",
+    )
+    db.add(row)
+    db.flush()
+    decision = record_decision(
+        db,
+        loop="change",
+        subject_type="feedback",
+        subject_ref=str(row.id),
+        policy_name="change.agent_ready",
+        policy_version="agent-ready-v2",
+        prompt_version="prompt",
+        model="test",
+        mode="active",
+        input_data={"detail_word_count": 5, "detail_alnum_count": 30},
+        output_data={
+            "kind": "bug",
+            "gate_blocked": False,
+            "agent_ready_candidate": True,
+            "agent_ready_applied": True,
+        },
+    )
+    db.commit()
+    monkeypatch.setattr(github_issues, "is_configured", lambda: True)
+    monkeypatch.setattr(
+        github_issues,
+        "issue_matches_configured_repo",
+        lambda number, url: True,
+    )
+    monkeypatch.setattr(github_issues, "set_issue_label", lambda *a, **k: False)
+
+    result = adjudicate_agent_readiness(
+        row.id,
+        AgentReadyAdjudication(
+            decision_id=decision.id,
+            expected=False,
+            reason="not_a_defect",
+        ),
+        user_id=admin_id,
+        db=db,
+    )
+    assert result["label_sync"] == "failed"
+    outcome = (
+        db.query(AgentOutcome)
+        .filter(AgentOutcome.decision_id == decision.id)
+        .one()
+    )
+    assert outcome.payload_json["expected"] is False
+    assert outcome.payload_json["label_sync"] == "failed"
+
+
+def test_admin_adjudication_validates_reason_and_auth(db_with_users):
+    from api.routes.feedback import (
+        AgentReadyAdjudication,
+        adjudicate_agent_readiness,
+    )
+    from db.agent_loop import record_decision
+    from db.models import Feedback
+
+    db, _, admin_id, user_id = db_with_users
+    row = Feedback(user_id=user_id, kind="bug", message="x", status="triaged")
+    db.add(row)
+    db.flush()
+    decision = record_decision(
+        db,
+        loop="change",
+        subject_type="feedback",
+        subject_ref=str(row.id),
+        policy_name="change.agent_ready",
+        policy_version="agent-ready-v2",
+        prompt_version=None,
+        model="test",
+        mode="active",
+        input_data={},
+        output_data={"agent_ready_candidate": False},
+    )
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc:
+        adjudicate_agent_readiness(
+            row.id,
+            AgentReadyAdjudication(
+                decision_id=decision.id,
+                expected=True,
+                reason="not_a_defect",
+            ),
+            user_id=admin_id,
+            db=db,
+        )
+    assert exc.value.status_code == 422
+
+    newer_decision = record_decision(
+        db,
+        loop="change",
+        subject_type="feedback",
+        subject_ref=str(row.id),
+        policy_name="change.agent_ready",
+        policy_version="agent-ready-v2",
+        prompt_version=None,
+        model="test",
+        mode="active",
+        input_data={},
+        output_data={"agent_ready_candidate": False},
+    )
+    db.commit()
+    with pytest.raises(HTTPException) as exc:
+        adjudicate_agent_readiness(
+            row.id,
+            AgentReadyAdjudication(
+                decision_id=decision.id,
+                expected=False,
+                reason="not_a_defect",
+            ),
+            user_id=admin_id,
+            db=db,
+        )
+    assert exc.value.status_code == 409
+
+    with pytest.raises(HTTPException) as exc:
+        adjudicate_agent_readiness(
+            row.id,
+            AgentReadyAdjudication(
+                decision_id=newer_decision.id,
+                expected=False,
+                reason="insufficient_detail",
+            ),
+            user_id=user_id,
+            db=db,
+        )
+    assert exc.value.status_code == 403
+
+
 def test_empty_llm_output_does_not_drop_user_report(db_with_users, monkeypatch):
     """An empty LLM title/body must fall back to the rule-based body (which
     carries the real message) instead of publishing a contentless issue."""
@@ -781,6 +1106,60 @@ def test_github_app_mints_and_caches_installation_token(monkeypatch):
     gi._bearer_token()  # cached — must not re-mint
     assert calls["mint"] == 1
     assert gi.create_issue(title="t", body="b", labels=["bug"]) == {"number": 9, "url": "https://x/9"}
+
+
+def test_github_issue_label_sync_adds_and_removes(monkeypatch):
+    from api import github_issues as gi
+
+    monkeypatch.setattr(gi, "_bearer_token", lambda: "ghs_token")
+    monkeypatch.setattr(gi, "_repo", lambda: "owner/repo")
+    calls: list[tuple[str, str]] = []
+
+    def fake_post(url, **kwargs):
+        calls.append(("post", url))
+        assert kwargs["json"] == {"labels": ["agent-ready"]}
+        assert kwargs["headers"]["Authorization"] == "Bearer ghs_token"
+        return _FakeResp(200, {})
+
+    def fake_delete(url, **kwargs):
+        calls.append(("delete", url))
+        assert kwargs["headers"]["Authorization"] == "Bearer ghs_token"
+        return _FakeResp(404, {})
+
+    monkeypatch.setattr(gi.httpx, "post", fake_post)
+    monkeypatch.setattr(gi.httpx, "delete", fake_delete)
+
+    assert gi.set_issue_label(42, "agent-ready", present=True) is True
+    assert gi.set_issue_label(42, "agent-ready", present=False) is True
+    assert calls == [
+        ("post", "https://api.github.com/repos/owner/repo/issues/42/labels"),
+        (
+            "delete",
+            "https://api.github.com/repos/owner/repo/issues/42/labels/agent-ready",
+        ),
+    ]
+
+
+def test_github_issue_repo_identity_is_bound_to_stored_url(monkeypatch):
+    from api import github_issues as gi
+
+    monkeypatch.setattr(gi, "_repo", lambda: "owner/repo")
+    assert gi.issue_matches_configured_repo(
+        42,
+        "https://github.com/owner/repo/issues/42",
+    )
+    assert not gi.issue_matches_configured_repo(
+        42,
+        "https://github.com/other/repo/issues/42",
+    )
+    assert not gi.issue_matches_configured_repo(
+        42,
+        "https://github.com/owner/repo/issues/41",
+    )
+    assert not gi.issue_matches_configured_repo(
+        42,
+        "http://github.com/owner/repo/issues/42",
+    )
 
 
 def test_not_configured_without_creds(monkeypatch):
@@ -1159,12 +1538,15 @@ def test_triage_gate_holds_on_unverified_image_even_with_autofile(db_with_users,
     _stub_github(monkeypatch, calls)
     # db_with_users clears AZURE_AI_ENDPOINT, so analyze_images returns None.
     row = _row_with_image(db, user_id)
+    row.image_description = "stale description from a prior attempt"
+    db.commit()
 
     result = triage_and_publish(row.id, _session=db)
     assert result["status"] == "needs_review"
     assert calls == []
     db.refresh(row)
     assert row.image_sensitive is None
+    assert row.image_description is None
 
 
 # --- Admin image serve ------------------------------------------------------
@@ -1537,6 +1919,53 @@ def test_triage_shadow_mode_withholds_agent_ready(db_with_users, monkeypatch):
     assert decision.output_json["agent_ready_applied"] is False
 
 
+def test_challenger_prompt_is_recorded_but_never_acts(
+    db_with_users,
+    monkeypatch,
+):
+    from api import feedback_triage as ft
+    from api.feedback_triage import triage_and_publish
+    from db.models import AgentDecision
+
+    db, _, _, user_id = db_with_users
+    monkeypatch.setenv("PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION", "v2")
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    monkeypatch.setattr(ft.llm, "get_client", lambda: object())
+
+    def fake_chat_json(client, **kwargs):
+        eligible = kwargs["insight_type"] == "feedback_triage_challenger"
+        return {
+            "kind": "bug",
+            "title": "Calendar text overflows",
+            "body": "The calendar status leaves its day card.",
+            "contains_sensitive": False,
+            "priority": "low",
+            "agent_eligible": eligible,
+        }
+
+    monkeypatch.setattr(ft.llm, "chat_json", fake_chat_json)
+    row = _new_row(db, user_id, _DETAILED_BUG)
+    result = triage_and_publish(row.id, _session=db)
+
+    assert result["agent_ready"] is False
+    assert "agent-ready" not in calls[0]["labels"]
+    decision = db.query(AgentDecision).filter(
+        AgentDecision.subject_ref == str(row.id)
+    ).one()
+    assert decision.output_json["agent_ready_candidate"] is False
+    assert decision.output_json["challenger"] == {
+        "prompt_version": "v2",
+        "prompt_hash": decision.output_json["challenger"]["prompt_hash"],
+        "model": "gpt-5.4",
+        "available": True,
+        "kind": "bug",
+        "agent_eligible": True,
+        "agent_ready_candidate": True,
+        "agent_ready_reason": "eligible",
+    }
+
+
 # ---------------------------------------------------------------------------
 # GitHub issue status sync (issue #359)
 # ---------------------------------------------------------------------------
@@ -1547,6 +1976,11 @@ def _stub_issue_state(monkeypatch, mapping):
     from api import github_issues
 
     monkeypatch.setattr(github_issues, "is_configured", lambda: True)
+    monkeypatch.setattr(
+        github_issues,
+        "issue_matches_configured_repo",
+        lambda number, url: True,
+    )
 
     def _state(number):
         st = mapping.get(number)
@@ -1578,9 +2012,53 @@ def test_sync_marks_resolved_when_issue_closed(db_with_users, monkeypatch):
 
     _stub_issue_state(monkeypatch, {101: "closed"})
     out = sync_feedback_status(user_id=admin_id, db=db)
-    assert out == {"configured": True, "checked": 1, "updated": 1}
+    assert out == {
+        "configured": True,
+        "checked": 1,
+        "updated": 1,
+        "repository_mismatches": 0,
+    }
     db.refresh(row)
     assert row.status == "resolved"
+
+
+def test_sync_skips_issue_from_different_configured_repo(
+    db_with_users,
+    monkeypatch,
+):
+    from api import github_issues
+    from api.routes.feedback import sync_feedback_status
+    from db.models import Feedback
+
+    db, _, admin_id, user_id = db_with_users
+    row = Feedback(
+        user_id=user_id,
+        kind="bug",
+        message="x",
+        status="issue_created",
+        github_issue_number=101,
+        github_issue_url="https://github.com/old/repo/issues/101",
+    )
+    db.add(row)
+    db.commit()
+    monkeypatch.setattr(github_issues, "is_configured", lambda: True)
+    monkeypatch.setattr(
+        github_issues,
+        "issue_matches_configured_repo",
+        lambda number, url: False,
+    )
+    monkeypatch.setattr(
+        github_issues,
+        "get_issue_outcome",
+        lambda number: pytest.fail("mismatched issue must not be read"),
+    )
+
+    assert sync_feedback_status(user_id=admin_id, db=db) == {
+        "configured": True,
+        "checked": 0,
+        "updated": 0,
+        "repository_mismatches": 1,
+    }
 
 
 def test_sync_records_external_label_and_merged_pull_outcomes(
@@ -1644,7 +2122,12 @@ def test_sync_records_external_label_and_merged_pull_outcomes(
         },
     )
     out = sync_feedback_status(user_id=admin_id, db=db)
-    assert out == {"configured": True, "checked": 1, "updated": 1}
+    assert out == {
+        "configured": True,
+        "checked": 1,
+        "updated": 1,
+        "repository_mismatches": 0,
+    }
     outcome_types = {
         row.outcome_type
         for row in db.query(AgentOutcome)
@@ -1780,6 +2263,11 @@ def test_sync_records_pull_draft_to_ready_transition(db_with_users, monkeypatch)
     monkeypatch.setattr(github_issues, "is_configured", lambda: True)
     monkeypatch.setattr(
         github_issues,
+        "issue_matches_configured_repo",
+        lambda number, url: True,
+    )
+    monkeypatch.setattr(
+        github_issues,
         "get_issue_outcome",
         lambda number: outcomes.pop(0),
     )
@@ -1834,7 +2322,12 @@ def test_sync_only_touches_linked_in_flight_rows(db_with_users, monkeypatch):
 
     _stub_issue_state(monkeypatch, {101: "closed"})
     out = sync_feedback_status(user_id=admin_id, db=db)
-    assert out == {"configured": True, "checked": 1, "updated": 1}
+    assert out == {
+        "configured": True,
+        "checked": 1,
+        "updated": 1,
+        "repository_mismatches": 0,
+    }
     for r in (linked, pending, fresh, declined):
         db.refresh(r)
     assert linked.status == "resolved"
@@ -1854,7 +2347,12 @@ def test_sync_noop_when_github_not_configured(db_with_users, monkeypatch):
 
     monkeypatch.setattr(github_issues, "is_configured", lambda: False)
     out = sync_feedback_status(user_id=admin_id, db=db)
-    assert out == {"configured": False, "checked": 0, "updated": 0}
+    assert out == {
+        "configured": False,
+        "checked": 0,
+        "updated": 0,
+        "repository_mismatches": 0,
+    }
 
 
 def test_sync_requires_admin(db_with_users):

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, ExternalLink, MessageSquarePlus, RefreshCw, RotateCcw } from 'lucide-react';
+import { Bot, Check, ExternalLink, MessageSquarePlus, RefreshCw, RotateCcw } from 'lucide-react';
 import AdminFeedbackImages from '@/components/AdminFeedbackImages';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,16 @@ import {
 } from '@/components/ui/table';
 import { apiFetch, extractErrorMessage, useApi } from '@/hooks/useApi';
 import { Trans, useLingui } from '@lingui/react/macro';
-import type { AdminFeedbackItem, AdminFeedbackSyncResult, FeedbackPriority, FeedbackStatus } from '@/types/api';
+import type {
+  AdminAgentReadyAdjudicationRequest,
+  AdminAgentReadyAdjudicationResponse,
+  AdminFeedbackItem,
+  AdminFeedbackSyncResult,
+  AgentReadyAdjudicationReason,
+  AgentReadyDecisionReason,
+  FeedbackPriority,
+  FeedbackStatus,
+} from '@/types/api';
 import { AdminEmptyState, AdminRouteError, AdminRouteSkeleton } from './AdminRouteState';
 
 type AdminFeedbackFilter = 'active' | 'all' | FeedbackStatus;
@@ -64,6 +73,10 @@ export default function AdminFeedback() {
   const [feedbackSyncing, setFeedbackSyncing] = useState(false);
   const [feedbackSyncMsg, setFeedbackSyncMsg] = useState<string | null>(null);
   const [feedbackActionMsg, setFeedbackActionMsg] = useState<string | null>(null);
+  const [feedbackActionError, setFeedbackActionError] = useState(false);
+  const [agentReadyChoices, setAgentReadyChoices] = useState<
+    Record<number, AgentReadyAdjudicationReason | undefined>
+  >({});
 
   const feedbackUrl = feedbackFilter === 'all' ? '/api/admin/feedback' : `/api/admin/feedback?status=${feedbackFilter}`;
   const { data, loading, error, refetch } = useApi<AdminFeedbackItem[]>(feedbackUrl, { refetchOnMount: 'always' });
@@ -112,6 +125,40 @@ export default function AdminFeedback() {
     }
   };
 
+  const agentReadyReasonLabel = (reason: AgentReadyDecisionReason | null): string => {
+    switch (reason) {
+      case 'eligible':
+        return t`Eligible`;
+      case 'not_bug':
+        return t`Not a bug`;
+      case 'sensitivity_gate':
+        return t`Sensitivity gate`;
+      case 'not_actionable':
+        return t`Not actionable`;
+      case 'insufficient_detail':
+        return t`Insufficient detail`;
+      default:
+        return t`No decision`;
+    }
+  };
+
+  const adjudicationReasonLabel = (reason: AgentReadyAdjudicationReason): string => {
+    switch (reason) {
+      case 'bounded_actionable_defect':
+        return t`Should be agent-ready — bounded actionable defect`;
+      case 'not_a_defect':
+        return t`Should not be agent-ready — not a defect`;
+      case 'insufficient_detail':
+        return t`Should not be agent-ready — insufficient detail`;
+      case 'needs_product_judgment':
+        return t`Should not be agent-ready — needs product judgment`;
+      case 'sensitivity_or_privacy':
+        return t`Should not be agent-ready — sensitivity or privacy gate`;
+      case 'other':
+        return t`Should not be agent-ready — other`;
+    }
+  };
+
   const sortedFeedback = useMemo(
     () =>
       [...feedback].sort((left, right) => {
@@ -130,6 +177,7 @@ export default function AdminFeedback() {
   const handleFeedbackAction = async (id: number, action: 'retry' | 'reject' | 'approve') => {
     setFeedbackBusy(id);
     setFeedbackActionMsg(null);
+    setFeedbackActionError(false);
     try {
       const res = await apiFetch(`/api/admin/feedback/${id}`, {
         method: 'PATCH',
@@ -138,6 +186,7 @@ export default function AdminFeedback() {
       });
       if (!res.ok) {
         setFeedbackActionMsg(await extractErrorMessage(res, t`Couldn't update feedback.`));
+        setFeedbackActionError(true);
       }
       await refetch();
     } catch {
@@ -147,9 +196,78 @@ export default function AdminFeedback() {
     }
   };
 
+  const handleAgentReadyAdjudication = async (item: AdminFeedbackItem) => {
+    const reason = agentReadyChoices[item.id];
+    const readiness = item.agent_readiness;
+    if (!reason || !readiness) return;
+    const expected = reason === 'bounded_actionable_defect';
+    const payload: AdminAgentReadyAdjudicationRequest = {
+      decision_id: readiness.decision_id,
+      expected,
+      reason,
+    };
+    setFeedbackBusy(item.id);
+    setFeedbackActionMsg(null);
+    setFeedbackActionError(false);
+    try {
+      const res = await apiFetch(`/api/admin/feedback/${item.id}/agent-ready-adjudication`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        if (res.status === 409) {
+          setFeedbackActionMsg(
+            t`The readiness decision changed. Review the refreshed decision before recording a judgment.`,
+          );
+          setFeedbackActionError(true);
+          await refetch();
+          return;
+        }
+        setFeedbackActionMsg(await extractErrorMessage(res, t`Couldn't record the readiness judgment.`));
+        setFeedbackActionError(true);
+        return;
+      }
+      const result: AdminAgentReadyAdjudicationResponse = await res.json();
+      if (result.label_sync === 'failed' || result.label_sync === 'github_unavailable') {
+        setFeedbackActionMsg(
+          t`Judgment recorded, but the GitHub agent-ready label could not be synchronized.`,
+        );
+        setFeedbackActionError(true);
+      } else if (result.label_sync === 'issue_not_open') {
+        setFeedbackActionMsg(
+          t`Judgment recorded. The linked issue is not open, so no label was added.`,
+        );
+      } else if (result.label_sync === 'not_linked') {
+        setFeedbackActionMsg(
+          t`Judgment recorded. This feedback has no linked GitHub issue.`,
+        );
+      } else if (result.label_sync === 'repository_mismatch') {
+        setFeedbackActionMsg(
+          t`Judgment recorded, but the linked issue belongs to a different repository configuration.`,
+        );
+        setFeedbackActionError(true);
+      } else {
+        setFeedbackActionMsg(
+          expected
+            ? t`Judgment recorded and agent-ready synchronized.`
+            : t`Judgment recorded and agent-ready removed.`,
+        );
+      }
+      setAgentReadyChoices((current) => ({ ...current, [item.id]: undefined }));
+      await refetch();
+    } catch {
+      setFeedbackActionMsg(t`Network error. Is the server running?`);
+      setFeedbackActionError(true);
+    } finally {
+      setFeedbackBusy(null);
+    }
+  };
+
   const handleFeedbackSync = async () => {
     setFeedbackSyncing(true);
     setFeedbackSyncMsg(null);
+    setFeedbackActionError(false);
     try {
       const res = await apiFetch(`/api/admin/feedback/sync`, {
         method: 'POST',
@@ -159,9 +277,12 @@ export default function AdminFeedback() {
         return;
       }
       const result: AdminFeedbackSyncResult = await res.json();
+      const repositoryMismatches = result.repository_mismatches ?? 0;
       setFeedbackSyncMsg(
         !result.configured
           ? t`GitHub isn't configured. Nothing to sync.`
+          : repositoryMismatches > 0
+            ? t`Updated ${result.updated} linked ticket(s). Skipped ${repositoryMismatches} because their stored repository no longer matches the configured feedback repository.`
           : result.updated > 0
             ? t`Updated ${result.updated} of ${result.checked} linked ticket(s).`
             : t`All ${result.checked} linked ticket(s) already up to date.`,
@@ -215,7 +336,9 @@ export default function AdminFeedback() {
                   ) : null}
                 </CardTitle>
                 <CardDescription>
-                  <Trans>Bug reports and feature requests submitted from the app.</Trans>
+                  <Trans>
+                    Bug reports and feature requests submitted from the app. Priority orders work; it never determines agent readiness.
+                  </Trans>
                 </CardDescription>
               </div>
             </div>
@@ -243,7 +366,11 @@ export default function AdminFeedback() {
             </div>
           </div>
           {feedbackSyncMsg ? <p className="mt-2 text-xs text-muted-foreground">{feedbackSyncMsg}</p> : null}
-          {feedbackActionMsg ? <p className="mt-2 text-xs text-destructive">{feedbackActionMsg}</p> : null}
+          {feedbackActionMsg ? (
+            <p className={`mt-2 text-xs ${feedbackActionError ? 'text-destructive' : 'text-muted-foreground'}`}>
+              {feedbackActionMsg}
+            </p>
+          ) : null}
         </CardHeader>
         <CardContent>
           {sortedFeedback.length === 0 ? (
@@ -263,6 +390,7 @@ export default function AdminFeedback() {
                   <TableHead><Trans>Status</Trans></TableHead>
                   <TableHead><Trans>Report</Trans></TableHead>
                   <TableHead><Trans>Issue</Trans></TableHead>
+                  <TableHead><Trans>Agent readiness</Trans></TableHead>
                   <TableHead className="text-right"><Trans>Actions</Trans></TableHead>
                 </TableRow>
               </TableHeader>
@@ -319,6 +447,113 @@ export default function AdminFeedback() {
                         </a>
                       ) : (
                         <span className="text-sm text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="min-w-[290px]">
+                      {item.agent_readiness ? (
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Bot className="h-3.5 w-3.5 text-muted-foreground" />
+                            <Badge
+                              variant="outline"
+                              className={
+                                item.agent_readiness.candidate
+                                  ? 'border-primary/40 text-primary'
+                                  : 'text-muted-foreground'
+                              }
+                            >
+                              {item.agent_readiness.candidate === null
+                                ? t`Unavailable`
+                                : item.agent_readiness.candidate
+                                  ? t`Candidate`
+                                  : t`Review required`}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {agentReadyReasonLabel(item.agent_readiness.reason)}
+                            </span>
+                          </div>
+                          <p
+                            className="font-data text-xs text-muted-foreground"
+                            title={`${item.agent_readiness.policy_name} ${item.agent_readiness.policy_version} ${item.agent_readiness.prompt_hash ?? ''}`}
+                          >
+                            {item.agent_readiness.model ?? t`Rule based`} · {item.agent_readiness.policy_version} ·{' '}
+                            {item.agent_readiness.prompt_hash && item.agent_readiness.prompt_version
+                              ? item.agent_readiness.prompt_version
+                              : t`No prompt`}
+                          </p>
+                          {item.agent_readiness.challenger ? (
+                            <p className="text-xs text-muted-foreground">
+                              <Trans>Challenger</Trans>{' '}
+                              <span className="font-data">{item.agent_readiness.challenger.prompt_version}</span>
+                              {' · '}
+                              {item.agent_readiness.challenger.available
+                                ? item.agent_readiness.challenger.candidate
+                                  ? t`Candidate`
+                                  : t`Review required`
+                                : t`Unavailable`}
+                              {item.agent_readiness.challenger.available ? (
+                                <>
+                                  {' · '}
+                                  {agentReadyReasonLabel(item.agent_readiness.challenger.reason)}
+                                </>
+                              ) : null}
+                            </p>
+                          ) : null}
+                          {item.agent_readiness.adjudication ? (
+                            <p className="text-xs font-medium text-foreground">
+                              <Trans>Maintainer verdict:</Trans>{' '}
+                              {adjudicationReasonLabel(item.agent_readiness.adjudication.reason)}
+                            </p>
+                          ) : null}
+                          <div className="flex flex-col gap-2">
+                            <Select
+                              value={agentReadyChoices[item.id]}
+                              onValueChange={(value) =>
+                                setAgentReadyChoices((current) => ({
+                                  ...current,
+                                  [item.id]: value as AgentReadyAdjudicationReason,
+                                }))
+                              }
+                            >
+                              <SelectTrigger size="sm" className="w-full">
+                                <SelectValue placeholder={t`Record maintainer judgment`} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {([
+                                  'bounded_actionable_defect',
+                                  'not_a_defect',
+                                  'insufficient_detail',
+                                  'needs_product_judgment',
+                                  'sensitivity_or_privacy',
+                                  'other',
+                                ] as const).map((reason) => (
+                                  <SelectItem key={reason} value={reason}>
+                                    {adjudicationReasonLabel(reason)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              type="button"
+                              size="xs"
+                              variant="outline"
+                              disabled={feedbackBusy === item.id || !agentReadyChoices[item.id]}
+                              onClick={() => void handleAgentReadyAdjudication(item)}
+                            >
+                              <Check className="h-3 w-3" />
+                              <Trans>Record judgment</Trans>
+                            </Button>
+                          </div>
+                          <p className="text-[11px] leading-relaxed text-muted-foreground">
+                            <Trans>
+                              A positive judgment synchronizes agent-ready; when it newly labels an open, non-backlogged linked issue, the assignment workflow hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain.
+                            </Trans>
+                          </p>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">
+                          <Trans>Awaiting triage decision</Trans>
+                        </span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
