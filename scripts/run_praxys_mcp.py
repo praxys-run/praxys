@@ -530,7 +530,6 @@ def main() -> NoReturn:
             "'git submodule update --init plugins/praxys'."
         )
     _reexec_in_runtime_python(root)
-    _require_mcp_runtime(root)
     args = _parse_args()
     os.chdir(root)
 
@@ -559,6 +558,7 @@ def main() -> NoReturn:
             raise SystemExit("remote-profile mode requires a profile name")
         configure_remote_profile(args.profile)
 
+    _require_mcp_runtime(root)
     python_path = _runtime_python(root)
     os.execv(str(python_path), [str(python_path), str(server_path)])
 
