@@ -50,6 +50,7 @@ def capture_delivery_connection_generation(
     config = db.execute(config_query).scalar_one_or_none()
     if not plan_delivery_capability_enabled(
         target,
+        user_id=user_id,
         source_options=(
             config.source_options
             if config is not None
@@ -61,7 +62,7 @@ def capture_delivery_connection_generation(
         raise DeliveryMutationBlockedError(
             (
                 "experimental_delivery_disabled"
-                if not garmin_plan_delivery_operator_enabled()
+                if not garmin_plan_delivery_operator_enabled(user_id)
                 else "experimental_consent_required"
             )
             if target == "garmin"

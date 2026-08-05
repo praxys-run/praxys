@@ -42,6 +42,7 @@ from api.plan_delivery import (
     load_plan_delivery_adapter,
 )
 from api.plan_delivery.capabilities import (
+    garmin_plan_delivery_operator_enabled,
     plan_delivery_capability_enabled,
 )
 from api.plan_delivery.base import (
@@ -226,6 +227,7 @@ def _delivery_gate(
         )
     if not plan_delivery_capability_enabled(
         target,
+        user_id=user_id,
         source_options=(
             config_row.source_options
             if config_row is not None
@@ -238,7 +240,11 @@ def _delivery_gate(
             target,
             connection,
             (
-                "experimental_consent_required"
+                (
+                    "experimental_consent_required"
+                    if garmin_plan_delivery_operator_enabled(user_id)
+                    else "experimental_delivery_disabled"
+                )
                 if target == "garmin"
                 else "execution_target_unsupported"
             ),
