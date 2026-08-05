@@ -3,7 +3,11 @@
   "change": {
     "agent_ready": {
       "policy_name": "change.agent_ready",
-      "version": "agent-ready-v2"
+      "version": "agent-ready-v2",
+      "active_prompt_version": "v1",
+      "challenger_prompt_versions": [
+        "v2"
+      ]
     },
     "selective_review": {
       "version": "selective-review-v2",

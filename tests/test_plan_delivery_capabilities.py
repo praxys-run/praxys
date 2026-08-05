@@ -1,4 +1,6 @@
 """Experimental delivery capability and consent-fence tests."""
+from pathlib import Path
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -7,6 +9,7 @@ from analysis.config import UserConfig
 from api.plan_delivery.capabilities import (
     effective_platform_capabilities,
     garmin_plan_delivery_operator_enabled,
+    garmin_plan_delivery_pilot_user_ids,
     has_plan_delivery_consent,
     plan_delivery_consent_token,
 )
@@ -79,6 +82,7 @@ def test_operator_gate_defaults_off(
 
     capabilities = effective_platform_capabilities(
         config,
+        user_id="capability-user",
         connections={"garmin": connection},
     )
 
@@ -106,11 +110,110 @@ def test_effective_capability_does_not_change_static_provider_contract(
 
     capabilities = effective_platform_capabilities(
         config,
+        user_id="capability-user",
         connections={"garmin": connection},
     )
 
     assert capabilities["garmin"]["plan"] is True
     assert capabilities["stryd"]["plan"] is True
+
+
+def test_pilot_allowlist_grants_only_the_named_user(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(
+        "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED",
+        "false",
+    )
+    monkeypatch.setenv(
+        "PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS",
+        " pilot-user,other-user, ",
+    )
+
+    assert garmin_plan_delivery_pilot_user_ids() == frozenset({
+        "pilot-user",
+        "other-user",
+    })
+    assert garmin_plan_delivery_operator_enabled("pilot-user")
+    assert not garmin_plan_delivery_operator_enabled("regular-user")
+    assert not garmin_plan_delivery_operator_enabled()
+
+
+def test_pilot_removal_blocks_a_fresh_mutation_guard(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(
+        "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED",
+        "false",
+    )
+    monkeypatch.setenv(
+        "PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS",
+        "capability-user",
+    )
+    engine = create_engine(f"sqlite:///{tmp_path / 'pilot-capability.db'}")
+    Base.metadata.create_all(engine)
+    db = sessionmaker(bind=engine)()
+    try:
+        db.add(User(
+            id="capability-user",
+            email="capability@example.test",
+            hashed_password="test",
+        ))
+        db.add(UserConfigModel(
+            user_id="capability-user",
+            source_options={"garmin_region": "international"},
+        ))
+        connection = _connection()
+        db.add(connection)
+        db.flush()
+        connection.plan_delivery_consent = plan_delivery_consent_token(
+            connection,
+            region="international",
+        )
+        db.commit()
+
+        generation = capture_delivery_connection_generation(
+            db,
+            user_id="capability-user",
+            target="garmin",
+        )
+        assert generation is not None
+
+        monkeypatch.setenv(
+            "PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS",
+            "",
+        )
+        with pytest.raises(
+            DeliveryMutationBlockedError,
+            match="experimental_delivery_disabled",
+        ):
+            guard_delivery_connection(
+                db,
+                user_id="capability-user",
+                target="garmin",
+                expected_generation=generation,
+            )
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_deploy_workflow_propagates_documented_pilot_allowlist() -> None:
+    root = Path(__file__).resolve().parents[1]
+    workflow = (
+        root / ".github" / "workflows" / "deploy-backend.yml"
+    ).read_text(encoding="utf-8")
+    docs = (
+        root / "docs" / "ops" / "config-and-secrets.md"
+    ).read_text(encoding="utf-8")
+    example = (root / ".env.example").read_text(encoding="utf-8")
+    variable = "PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS"
+
+    assert workflow.count(variable) >= 2
+    assert f"${{{{ vars.{variable} }}}}" in workflow
+    assert variable in docs
+    assert f"{variable}=" in example
 
 
 @pytest.mark.parametrize(

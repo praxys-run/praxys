@@ -37,86 +37,130 @@ behavior.
 ## Athlete-facing plugin requirements
 
 - [Claude Code](https://claude.com/claude-code) or [GitHub Copilot CLI](https://githubnext.com/projects/copilot-cli/)
-- Python 3.11+ with project dependencies installed (`pip install -r requirements.txt`)
-- A running Praxys backend (cloud or local) with at least one connected platform
+- Python 3.11+ in the repository `.venv`, with both dependency sets installed:
+  `python -m pip install -r requirements.txt -r plugins/praxys/mcp-server/requirements.txt`
+- A Praxys account for cloud profiles; local mode bootstraps synthetic data
 
 ## Plugin Installation
 
-Skills are packaged as a Claude Code plugin. The plugin lives in its own public repo, [`praxys-run/praxys-coach-plugin`](https://github.com/praxys-run/praxys-coach-plugin) (MIT), and is vendored into this repo as a git submodule at `plugins/praxys/` for local-mode development.
+Skills live in the public
+[`praxys-run/praxys-coach-plugin`](https://github.com/praxys-run/praxys-coach-plugin)
+repository (MIT) and are vendored here as `plugins/praxys/`.
 
-**End users** (running against praxys.run) install it as any Claude Code plugin:
+**GitHub Copilot CLI:**
+
+```bash
+copilot plugin marketplace add praxys-run/praxys-coach-plugin
+copilot plugin install praxys@praxys-coach
+```
+
+**Claude Code:**
 
 ```
 /plugin marketplace add github:praxys-run/praxys-coach-plugin
 /plugin install praxys
 ```
 
-Then run the `login` MCP tool with your praxys.run credentials.
+Run the installed `praxys` server's `login` tool once, then verify the normal
+production account with `whoami`.
 
-**Local-mode developers** (running against a local backend with `PRAXYS_LOCAL=1`) get the plugin via the submodule when they clone Praxys with `git clone --recurse-submodules`. The local marketplace at `plugins/marketplace.json` still works for ad-hoc Claude Code registration:
+Local developers should clone with `--recurse-submodules` or run:
 
 ```bash
-# Register the local marketplace (one-time)
-claude plugin marketplace add ./plugins/marketplace.json
-
-# Install the plugin
-claude plugin install praxys
-
-# Reload plugins (in Claude Code)
-/reload-plugins
+git submodule update --init plugins/praxys
 ```
 
-## Plugin Mode Configuration
+## MCP development profiles
 
-The plugin connects to either a **cloud deployment** or **local server**, controlled by the `env` section in `plugins/praxys/.mcp.json`:
+Praxys development deliberately separates three identities:
 
-### Cloud Mode (Recommended)
+| Server | Data and identity | Purpose |
+|---|---|---|
+| `praxys` | Production API, default `~/.praxys/token` | Normal personal account |
+| `praxys-dev-test` | Production API, `~/.praxys/profiles/dev-test/token` | Dedicated test user and real-provider validation |
+| `praxys-local` | `.praxys-local/trainsight.db`, deterministic synthetic user | Offline-safe feature and managed-plan development |
 
-The default `.mcp.json` ships with cloud URLs pre-configured:
+The installed plugin provides `praxys`. The repository `.mcp.json` adds the
+other two through `scripts/run_praxys_mcp.py`; the launcher switches to the
+project `.venv` before loading the submodule server.
+
+Restart the CLI after changing `.mcp.json` or updating the plugin submodule.
+Use `/mcp` or `/env` to confirm the servers loaded, then call each server's
+`whoami`.
+
+### Production test profiles
+
+`praxys-dev-test` sets `PRAXYS_PROFILE=dev-test`. Named profiles never read the
+default or legacy token, so logging into the test user cannot replace the
+normal production account. `logout` removes only the selected profile.
+
+On first use:
+
+1. Call `praxys-dev-test.login`.
+2. Sign in with the dedicated Praxys test user, not a personal account.
+3. Call `praxys-dev-test.whoami` and record its internal user ID for operator
+   allowlists.
+4. Connect dedicated provider accounts through the web Settings flow; Garmin
+   MFA is interactive and should not be bootstrapped through MCP credentials.
+5. Run `get_connections`, `get_settings`, and `get_managed_plan_status` before
+   mutation tests.
+
+Maintain test accounts as a capability matrix. Features requiring a real
+provider must use dedicated provider accounts and extend the matrix rather than
+borrowing a personal account. At minimum, keep separate identities for Garmin
+international and Garmin China validation when both regions are exercised.
+Never commit emails, passwords, JWTs, provider credentials, or user IDs.
+
+Garmin writes remain globally disabled. A dedicated test user can be admitted
+through the default-empty
+`PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS` operator allowlist;
+connection-bound user consent is still required.
+
+Additional production test profiles can reuse the launcher:
 
 ```json
-{
-  "mcpServers": {
-    "praxys": {
-      "command": "python",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server/server.py"],
-      "env": {
-        "PRAXYS_URL": "https://api.praxys.run",
-        "PRAXYS_FRONTEND_URL": "https://www.praxys.run"
-      }
-    }
-  }
+"praxys-garmin-cn-test": {
+  "command": "python",
+  "args": [
+    "-m",
+    "scripts.run_praxys_mcp",
+    "remote-profile",
+    "garmin-cn-test"
+  ]
 }
 ```
 
-- `PRAXYS_URL` — Backend API (required for remote mode)
-- `PRAXYS_FRONTEND_URL` — Frontend SWA (used for browser-based login)
+### Deterministic local profile
 
-**Authentication:** Use the `login` tool in Claude Code — it opens your browser, you log in normally, and the token is automatically cached at `~/.praxys/token` (with a fallback read of the legacy `~/.trainsight/token` during the migration window). Use `whoami` to check which account is active.
+`praxys-local` explicitly sets `PRAXYS_LOCAL=1`, clears ambient database and
+provider-credential settings, and pins `PRAXYS_USER_ID` to
+`migrated-user-00000001`. On first start it:
 
-### Local Mode
+- creates the ignored `.praxys-local/` sandbox;
+- generates a local encryption key inside that sandbox;
+- copies all tracked Garmin, Stryd, Oura, and Praxys-plan sample data;
+- creates the synthetic `local@praxys.dev` user and SQLite schema.
 
-To use the plugin with a local server, clear the env vars in `.mcp.json`:
-
-```json
-{
-  "env": {}
-}
-```
-
-Then start your local server:
+Subsequent starts preserve local MCP writes. Fixture changes reset the
+repository-owned sandbox automatically. Reset it manually without starting an
+MCP process:
 
 ```bash
-python -m uvicorn api.main:app --reload
+python -m scripts.run_praxys_mcp local --reset --prepare-only
 ```
 
-In local mode, the MCP server imports project modules directly and uses the first registered user's data. No login needed.
+Set `PRAXYS_LOCAL_MCP_DATA_DIR` to use another sandbox. The launcher refuses a
+non-empty directory unless it contains the Praxys MCP ownership marker, and it
+always verifies that the resolved database is SQLite inside that directory.
 
-In local mode, the MCP server imports project modules directly and uses the first registered user's data.
+Most local tools call the application's Python data and route helpers directly,
+so no backend or login is required. `trigger_sync` is the exception: provider
+sync still needs the authenticated local API and real credentials. Use a
+production test profile for real-provider validation.
 
 ## MCP Tools
 
-The plugin provides an MCP server (`plugins/praxys/mcp-server/server.py`) that exposes these tools to the AI agent:
+The plugin server exposes 28 tools in both remote and local modes:
 
 | Tool | Description |
 |------|-------------|
@@ -126,14 +170,25 @@ The plugin provides an MCP server (`plugins/praxys/mcp-server/server.py`) that e
 | `get_training_context` | Coaching snapshot for AI plan generation; wraps `GET /api/ai/context` |
 | `get_settings` | Current user settings and display config |
 | `update_settings` | Update training base, thresholds, zones, goal, science |
+| `get_sync_settings` / `set_sync_frequency` | Read or update scheduler cadence |
 | `get_connections` | Connected platforms and their status |
 | `connect_platform` | Store encrypted credentials for a platform |
 | `disconnect_platform` | Remove a platform connection |
-| `push_training_plan` | Save an AI-generated training plan |
+| `save_training_plan` | Author canonical Praxys workouts |
+| `push_training_plan` | Backward-compatible authoring alias |
+| `get_managed_plan_status` | Inspect ownership, delivery, and conflicts |
+| `adopt_managed_plan` / `leave_managed_plan` | Enter or leave Praxys-managed mode |
+| `pause_managed_plan` / `resume_managed_plan` | Pause or resume delivery |
+| `cleanup_managed_plan_deliveries` | Remove future Praxys-owned deliveries |
+| `resolve_managed_plan_conflict` | Apply a server-approved conflict action |
+| `update_training_day` / `delete_training_day` | Edit canonical plan days |
+| `push_training_insights` | Persist generated coaching insights |
 | `trigger_sync` | Sync data from connected platforms |
 | `get_sync_status` | Check sync status per platform |
+| `login` / `whoami` / `logout` | Manage the active auth profile |
 
-Each tool works in both remote mode (HTTP to the deployed API) and local mode (direct Python imports). The mode is determined by the `PRAXYS_URL` environment variable.
+`PRAXYS_LOCAL=1` selects direct local mode. Otherwise the server uses the
+production API unless `PRAXYS_URL` explicitly overrides it.
 
 `get_training_context` is intentionally a bounded coaching snapshot, not a
 raw research export. Analysis-ready per-activity environment, stream coverage,

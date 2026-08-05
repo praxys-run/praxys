@@ -85,19 +85,24 @@ should run on the same six rails:
    human/world actually did — PR merged/edited/rejected, issue close-reason, alert
    resolved/recurred. **This is the missing edge that makes shadow mode able to
    learn.** *Built:* generic append-only `AgentOutcome` rows record triage,
-   admin override, issue close/reopen, externally observed `agent-ready`, and
-   closing-PR state. `change-loop-outcomes.md` remains the richer GitHub-native
-   observer.
+   admin override, explicit maintainer agent-ready adjudication, issue
+   close/reopen, externally observed `agent-ready`, and closing-PR state.
+   `change-loop-outcomes.md` remains the richer GitHub-native observer.
 3. **Eval corpus + replay.** Labeled examples harvested from human corrections, +
    an offline/CI runner that *scores* a policy and blocks regressions when a
-   prompt/threshold changes. *Built:* the structured, text-free seed corpus at
-   `data/agent_evals/change/agent_ready.json` and
-   `scripts/replay_agent_policy.py`; pytest makes it a CI gate.
+   prompt/threshold changes. *Built:* the structured, text-free deterministic
+   corpus at `data/agent_evals/change/agent_ready.json`, the privacy-reviewed
+   semantic corpus at `data/agent_evals/change/agent_eligibility.json`, and the
+   replay/evaluation scripts. Pytest protects deterministic policy and corpus
+   contracts; the semantic script calls the exact live prompt manually.
 4. **Shadow → promote.** Run a candidate policy in *compute-but-don't-act* mode
    against live traffic, compare to the current policy **and** to eventual
-   outcomes, and promote only if it wins. *Built for Loop A:* the deterministic
-   PR classifier runs default-off, and `scripts/validate_review_policy.py` blocks
-   promotion without the checked-in completed-PR evidence bar.
+   outcomes, and promote only if it wins. *Built for Loop A:* a versioned
+   feedback-prompt challenger records its prediction without changing labels;
+   Admin Feedback captures ground truth and Admin Operations compares active and
+   challenger confusion matrices. The deterministic PR classifier remains
+   default-off, and `scripts/validate_review_policy.py` blocks promotion without
+   the checked-in completed-PR evidence bar.
 5. **Policy-as-code + policy PRs.** The things agents tune — prompts, thresholds,
    `copilot-instructions.md`, runbooks — are versioned files. Improvement =
    the meta-agent opens a **PR** to change them, **gated by the eval harness +

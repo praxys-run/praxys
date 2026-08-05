@@ -36,6 +36,7 @@ from analysis.agent_policy import (
     message_detail_counts,
 )
 from api import (
+    feedback_prompt,
     feedback_scrub,
     feedback_storage,
     feedback_vision,
@@ -54,10 +55,6 @@ logger = logging.getLogger(__name__)
 # Stable English labels the frontend / agents key off. Kind → GitHub label.
 _KIND_LABEL = {"bug": "bug", "feature": "enhancement", "other": "feedback"}
 _VALID_KINDS = set(_KIND_LABEL)
-
-# Triage priority buckets the LLM assigns (low → critical). Kept as a stable
-# English set the admin UI / GitHub labels key off.
-_VALID_PRIORITIES = {"low", "medium", "high", "critical"}
 
 _TRIAGE_MODEL = llm.INSIGHT_MODEL
 
@@ -121,6 +118,19 @@ def _agent_ready_shadow() -> bool:
     return (os.environ.get("PRAXYS_AGENT_READY_SHADOW", "") or "").lower() in ("1", "true", "yes")
 
 
+def _challenger_prompt_version() -> str | None:
+    """Return the configured shadow-only triage prompt version."""
+    raw = os.environ.get("PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION", "")
+    version = feedback_prompt.resolve_challenger_prompt_version(raw)
+    if raw.strip() and version is None:
+        logger.error(
+            "Unsupported PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION=%r; "
+            "challenger evaluation disabled",
+            raw,
+        )
+    return version
+
+
 def _decision_locale(locale: str | None) -> str:
     """Reduce client locale input to a privacy-safe language bucket."""
     normalized = (locale or "").strip().lower().replace("_", "-")
@@ -163,56 +173,51 @@ def _qualifies_for_agent(
 
 
 def _system_prompt() -> str:
-    return (
-        "You are a triage assistant for Praxys, an endurance-training analytics app. "
-        "You convert a user's in-app feedback into a clean, actionable GitHub issue "
-        "for an engineering team and AI coding agents.\n\n"
-        "Rules:\n"
-        "- The input has already been PII-scrubbed; if you still see anything that "
-        "looks like personal data (emails, names, tokens, IPs), do NOT reproduce it.\n"
-        "- Write a concise, specific issue title (<=80 chars, no trailing period).\n"
-        "- Write a structured Markdown body with sections: a one-line summary, "
-        "'Steps to reproduce' or 'Expected behavior' for bugs, 'Proposed change' "
-        "for features, and an 'Environment' bullet list from the provided context.\n"
-        "- Be factual; do not invent details the user didn't provide.\n"
-        "- Classify the report as exactly one kind: bug, feature, or other.\n"
-        "- The input is ALREADY PII-scrubbed (emails, tokens, keys, IPs, file "
-        "paths, and long numbers are removed and shown as [redacted-*]). Set "
-        "contains_sensitive=true ONLY if the report STILL clearly contains "
-        "personal data, health details about an identifiable person, account or "
-        "credential information, or private third-party info unsuitable for a "
-        "public tracker. A normal product bug report or feature request is NOT "
-        "sensitive — return false. Default to false, and ALWAYS include the "
-        "contains_sensitive field in your response.\n"
-        "- Assign a triage priority as exactly one of: low, medium, high, "
-        "critical. Judge by user impact and urgency: critical = data loss, a "
-        "security problem, or the app is unusable for many users; high = a core "
-        "feature is broken or a workflow is blocked; medium = a limited or "
-        "non-blocking bug, or a valuable feature request; low = minor polish, "
-        "cosmetic issues, or nice-to-have ideas. Default to medium when unsure. "
-        "ALWAYS include the priority field.\n"
-        "- Set agent_eligible=true ONLY for a bug that is a genuine, "
-        "reproducible product DEFECT, specific and self-contained enough that a "
-        "coding agent could reasonably attempt a fix from this report alone. Set "
-        "it false for anything not clearly a defect we would act on: a feature "
-        "request or idea, a how-to / support question, expected behavior or user "
-        "error, a vague or unreproducible complaint, or anything needing human "
-        "product judgment or more information. When kind is not bug, "
-        "agent_eligible MUST be false. Default to false when unsure, and ALWAYS "
-        "include the agent_eligible field.\n"
-        "Respond with a JSON object: "
-        "{\"kind\": str, \"title\": str, \"body\": str, "
-        "\"contains_sensitive\": bool, \"priority\": str, "
-        "\"agent_eligible\": bool}."
+    """Return the active production prompt without changing its fingerprint."""
+    return feedback_prompt.system_prompt(
+        feedback_prompt.ACTIVE_TRIAGE_PROMPT_VERSION
     )
 
 
 def _user_payload(kind: str, message: str, context: dict) -> str:
-    import json
+    """Return the active production payload shape."""
+    return feedback_prompt.user_payload(
+        version=feedback_prompt.ACTIVE_TRIAGE_PROMPT_VERSION,
+        kind=kind,
+        message=message,
+        context=context,
+    )
 
-    return json.dumps(
-        {"reported_kind": kind, "message": message, "context": context},
-        ensure_ascii=False,
+
+def _call_triage_model(
+    client: object,
+    *,
+    prompt_version: str,
+    kind: str,
+    message: str,
+    context: dict,
+    image_description: str | None,
+    insight_type: str,
+) -> feedback_prompt.TriageModelOutput | None:
+    """Call and validate one version of the feedback triage prompt."""
+    result = llm.chat_json(
+        client,
+        system=feedback_prompt.system_prompt(prompt_version),
+        user=feedback_prompt.user_payload(
+            version=prompt_version,
+            kind=kind,
+            message=message,
+            context=context,
+            image_description=image_description,
+        ),
+        model=_TRIAGE_MODEL,
+        max_completion_tokens=1200,
+        temperature=0.0,
+        insight_type=insight_type,
+    )
+    return feedback_prompt.parse_model_output(
+        result,
+        fallback_kind=kind,
     )
 
 
@@ -314,6 +319,7 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
                 # No vision verdict (model unavailable or call failed). Reference
                 # the attachment but publish no image-derived text; the gate holds
                 # the row for admin review.
+                row.image_description = None
                 row.image_sensitive = None
                 image_section = (
                     f"\n\n## Screenshot\n_{len(image_keys)} screenshot(s) attached — "
@@ -325,45 +331,38 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
         llm_flag = False
         priority: Optional[str] = None
         agent_eligible: Optional[bool] = None
+        challenger_version = _challenger_prompt_version()
+        challenger_output: feedback_prompt.TriageModelOutput | None = None
         client = llm.get_client()
         title = body = None
         if client is not None:
-            result = llm.chat_json(
+            active_output = _call_triage_model(
                 client,
-                system=_system_prompt(),
-                user=_user_payload(kind, clean_message, clean_context),
-                model=_TRIAGE_MODEL,
-                max_completion_tokens=1200,
-                # Deterministic: triage/classification shouldn't vary run-to-run.
-                # Low temperature minimises the rare false-positive sensitivity
-                # flip that parks benign reports.
-                temperature=0.0,
+                prompt_version=feedback_prompt.ACTIVE_TRIAGE_PROMPT_VERSION,
+                kind=kind,
+                message=clean_message,
+                context=clean_context,
+                image_description=None,
                 insight_type="feedback_triage",
             )
-            if result and isinstance(result.get("title"), str) and isinstance(result.get("body"), str):
-                maybe_title = result["title"].strip()
-                maybe_body = result["body"].strip()
-                # Only trust the model when it actually produced content. Empty
-                # title/body would otherwise drop the user's report and publish a
-                # contentless issue; treat it as "no usable LLM output" so the
-                # rule-based fallback (which carries the real message) runs and
-                # the gate falls back to its fail-safe no-LLM path.
-                if maybe_title and maybe_body:
-                    title = maybe_title
-                    body = maybe_body
-                    llm_kind = str(result.get("kind", "")).lower()
-                    if llm_kind in _VALID_KINDS:
-                        kind = llm_kind
-                    # Missing field → treat as sensitive (fail safe).
-                    llm_flag = bool(result.get("contains_sensitive", True))
-                    llm_priority = str(result.get("priority", "")).strip().lower()
-                    if llm_priority in _VALID_PRIORITIES:
-                        priority = llm_priority
-                    # Genuine, actionable defect? Only a real bool verdict counts;
-                    # a missing/invalid field stays None (fail safe -> no assign).
-                    if isinstance(result.get("agent_eligible"), bool):
-                        agent_eligible = result["agent_eligible"]
-                    used_llm = True
+            if active_output is not None:
+                title = active_output.title
+                body = active_output.body
+                kind = active_output.kind
+                llm_flag = active_output.contains_sensitive
+                priority = active_output.priority
+                agent_eligible = active_output.agent_eligible
+                used_llm = True
+            if challenger_version is not None:
+                challenger_output = _call_triage_model(
+                    client,
+                    prompt_version=challenger_version,
+                    kind=reported_kind,
+                    message=clean_message,
+                    context=clean_context,
+                    image_description=row.image_description,
+                    insight_type="feedback_triage_challenger",
+                )
 
         if not title or not body:
             title, body = _rule_based(kind, clean_message, clean_context)
@@ -412,6 +411,51 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
                 detail_alnum_count=detail_alnum_count,
             )
         )
+        challenger_data: dict | None = None
+        if challenger_version is not None:
+            challenger_available = (
+                challenger_output is not None
+                and challenger_output.agent_eligible is not None
+            )
+            challenger_decision = (
+                evaluate_agent_ready(
+                    AgentReadyFacts(
+                        kind=challenger_output.kind,
+                        gate_blocked=gate_blocked,
+                        agent_eligible=bool(challenger_output.agent_eligible),
+                        detail_word_count=detail_word_count,
+                        detail_alnum_count=detail_alnum_count,
+                    )
+                )
+                if challenger_available and challenger_output is not None
+                else None
+            )
+            challenger_data = {
+                "prompt_version": challenger_version,
+                "prompt_hash": canonical_json_hash(
+                    feedback_prompt.system_prompt(challenger_version)
+                )[:16],
+                "model": _TRIAGE_MODEL,
+                "available": challenger_available,
+                "kind": (
+                    challenger_output.kind if challenger_output is not None else None
+                ),
+                "agent_eligible": (
+                    challenger_output.agent_eligible
+                    if challenger_output is not None
+                    else None
+                ),
+                "agent_ready_candidate": (
+                    challenger_decision.eligible
+                    if challenger_decision is not None
+                    else None
+                ),
+                "agent_ready_reason": (
+                    challenger_decision.reason
+                    if challenger_decision is not None
+                    else None
+                ),
+            }
         shadow = _agent_ready_shadow()
         if agent_ready_decision.eligible and not shadow:
             labels.append(AGENT_READY_LABEL)
@@ -470,6 +514,10 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
                 "labels": labels,
                 "used_llm": used_llm,
                 "used_vision": used_vision,
+                "active_prompt_version": (
+                    feedback_prompt.ACTIVE_TRIAGE_PROMPT_VERSION
+                ),
+                "challenger": challenger_data,
             },
         }
         decision = record_decision(db, **decision_kwargs)

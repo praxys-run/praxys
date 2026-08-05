@@ -41,6 +41,11 @@ it only when **all** of these hold (`_qualifies_for_agent` in
    verdict: whitespace-delimited words or Unicode alphanumeric characters for
    scripts such as Chinese.
 
+**Priority is not an eligibility input.** Priority orders accepted work by
+impact and urgency; `agent-ready` answers only whether Copilot can make a
+bounded attempt. A reproducible low-priority cosmetic defect such as overflow,
+clipping, spacing, or incorrect formatting can therefore be agent-ready.
+
 The feedback bot can add several labels in one batch, and GitHub emits one
 `issues.labeled` event for each label. Duplicate suppression is scoped to the
 eligible assignment job, so a later unrelated label cannot cancel an
@@ -61,6 +66,24 @@ auto-assigned. Use it to measure precision on real feedback before trusting the
 loop, then unset to go live. Decisions are logged and persisted as structured
 `AgentDecision` rows with policy/model/mode metadata and privacy-minimized input
 facts.
+
+### Challenger prompt
+
+Set `PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION=v2` to run a second,
+temperature-zero semantic judgment on the same scrubbed report. The challenger
+is shadow-only: it never changes labels, assignments, publication, or the active
+decision. Its prediction and prompt fingerprint are stored inside the active
+`AgentDecision`, so outcomes stay attached to the exact production decision they
+judged.
+
+The v2 challenger explicitly separates priority from readiness and treats
+bounded, reproducible cosmetic UI defects as eligible. It also receives the
+verified, scrubbed screenshot description when present; the active v1 prompt
+retains its historical message/context payload and pinned fingerprint.
+
+`PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION` is optional and deploy-managed.
+Blank disables the extra model call; unknown versions fail closed. See
+[config-and-secrets.md](./config-and-secrets.md).
 
 ### Screenshots (how the agent "sees" them)
 
@@ -86,6 +109,33 @@ image in the admin console).
 **Do not** build a second path (an MCP tool or credential) that hands the agent the
 raw image — that would breach the #337 invariant for a public repo. Enrich the
 scrubbed description instead.
+
+### Maintainer adjudication
+
+Admin → Feedback exposes the active decision, optional challenger, and latest
+maintainer verdict separately from priority. Record one of:
+
+- **Should be agent-ready — bounded actionable defect**; or
+- **Should not be agent-ready** with a stable reason (`not a defect`,
+  `insufficient detail`, `needs product judgment`, `sensitivity/privacy`, or
+  `other`). Sensitivity/privacy can block readiness; ordinary implementation
+  risk does not, because agent-ready authorizes only a reviewed draft.
+
+The verdict is appended as an `agent_ready_adjudicated` `AgentOutcome`. It is
+the evaluation ground truth and is persisted even when GitHub label
+synchronization fails. A positive verdict adds `agent-ready` when the linked
+issue is open; a negative verdict removes it. Existing Copilot assignments or
+PRs are not closed automatically. The UI submits the exact displayed decision
+ID and receives `409` if retriage made it stale. Label mutation also requires
+the stored GitHub issue URL to match the currently configured repository, so a
+repository switch cannot target an unrelated issue with the same number.
+
+A sensitivity-gated report has no public issue. Review and publish it first,
+then adjudicate readiness if appropriate. Admin → Operations shows active and
+challenger confusion matrices plus a prompt-semantic slice. That slice includes
+only detailed, ungated reports adjudicated as a bounded defect, not a defect, or
+needing product judgment; it excludes evidence/privacy-gate and `other`
+verdicts so prompt changes are not scored against decisions they do not own.
 
 ## Prerequisites
 
@@ -274,6 +324,32 @@ protected by a checked-in, text-free replay corpus:
 python scripts/replay_agent_policy.py
 ```
 
+The LLM semantic judgment has a separate, privacy-reviewed corpus at
+`data/agent_evals/change/agent_eligibility.json`. Compare an active or
+challenger prompt against the live deployment with:
+
+```bash
+python scripts/evaluate_agent_eligibility_prompt.py --prompt-version v2
+```
+
+The script uses the exact production prompt and payload builder, reports
+false-positive/false-negative counts, and fails on a mismatch or unavailable
+model response. Corpus examples are synthetic or maintainer-reviewed
+paraphrases; never paste raw private feedback into the public repository.
+
+Prompt promotion is deliberately reviewed rather than environment-driven:
+
+1. Run the semantic corpus against both active and challenger versions.
+2. Enable the challenger and deploy; it remains non-acting.
+3. Adjudicate a representative live batch in Admin → Feedback, including
+   bounded defects, non-defects, and cases needing product judgment. Do not
+   promote from a single correction or synthetic cases alone.
+4. Compare prompt-semantic accuracy and FP/FN counts in Admin → Operations.
+   Investigate every offline mismatch reported by case ID.
+5. Promote only through a reviewed code PR that changes the active prompt
+   version and pins its new fingerprint in tests. The challenger setting alone
+   can never promote or act.
+
 Those outcomes train both triage precision and draft quality. They also feed the
 default-off `review-required | auto-merge-candidate` policy:
 
@@ -411,7 +487,15 @@ and the cost is low).
   `needs_review`/sensitive report is never auto-assigned.
 - Shadow mode on → no label is applied, but the decision is durably recorded
   with its policy/model/mode and privacy-minimized inputs.
+- Challenger v2 on → active behavior is unchanged; each new decision records
+  the challenger prediction and Admin Operations can compare both against
+  maintainer adjudications.
+- Admin Feedback records a positive or negative readiness verdict even if
+  GitHub label synchronization is unavailable; priority is never offered as a
+  verdict reason.
 - `python scripts/replay_agent_policy.py` reports 100% on the checked-in corpus.
+- `python scripts/evaluate_agent_eligibility_prompt.py --prompt-version v2`
+  reports the semantic corpus score when Azure OpenAI credentials are available.
 - Admin **Feedback → Sync from GitHub** records issue transitions, manual
   `agent-ready` recovery, and closing-PR state without fetching tracker text.
 - Admin **Operations → Agent learning** shows aggregate decision/outcome counts
@@ -481,9 +565,11 @@ gh run list --workflow=assign-copilot.yml -R praxys-run/praxys --limit 5
   `.github/workflows/ci-failure-doctor.md`,
   `.github/workflows/praxys-invariant-review.md`.
 - Agent guidance: `.github/copilot-instructions.md`.
-- Secrets / flags: [config-and-secrets.md](./config-and-secrets.md) (`COPILOT_ASSIGN_TOKEN`, `PRAXYS_AGENT_READY_SHADOW`).
+- Secrets / flags: [config-and-secrets.md](./config-and-secrets.md)
+  (`COPILOT_ASSIGN_TOKEN`, `PRAXYS_AGENT_READY_SHADOW`,
+  `PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION`).
 - Issue-filing setup: [setup-github-app.md](./setup-github-app.md).
 - Design: praxys-run/praxys#362 (the change loop); #361 (backend pytest gate); #377 (self-improvement).
 
 ---
-_Last reviewed: 2026-07-26 · Owner: @dddtc2005_
+_Last reviewed: 2026-08-04 · Owner: @dddtc2005_

@@ -4,6 +4,8 @@ POST   /api/feedback               — any authenticated user; stores + triages
 GET    /api/admin/feedback         — admin only; list submissions (status filter)
 POST   /api/admin/feedback/sync    — admin only; sync status from linked issues
 PATCH  /api/admin/feedback/{id}    — admin only; retry triage / reject / approve
+PUT    /api/admin/feedback/{id}/agent-ready-adjudication
+                                   — admin only; record readiness ground truth
 
 The submit handler does the minimum synchronously (validate, persist, emit a
 telemetry signal) and hands the slow work — AI rewrite + PII scrub + GitHub
@@ -14,7 +16,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Literal, Optional
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
@@ -24,8 +26,16 @@ from api import feedback_storage, telemetry
 from api.auth import get_current_user_id
 from api.feedback_triage import triage_and_publish
 from api.views import require_admin, utc_isoformat
-from db.agent_loop import latest_decision, record_outcome
+from db.agent_loop import (
+    latest_decision,
+    latest_decisions_for_subjects,
+    latest_outcomes_for_decisions,
+    record_outcome,
+)
 from db.session import get_db
+
+if TYPE_CHECKING:
+    from db.models import AgentDecision, AgentOutcome, Feedback
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +47,15 @@ router = APIRouter()
 # spend) by holding the submit button.
 _MAX_PER_WINDOW = 5
 _WINDOW = timedelta(minutes=5)
+_AGENT_READY_ADJUDICATION_OUTCOME = "agent_ready_adjudicated"
+_AGENT_READY_POSITIVE_REASON = "bounded_actionable_defect"
+_AGENT_READY_NEGATIVE_REASONS = {
+    "not_a_defect",
+    "insufficient_detail",
+    "needs_product_judgment",
+    "sensitivity_or_privacy",
+    "other",
+}
 
 
 def _record_feedback_outcome(
@@ -196,7 +215,63 @@ def submit_feedback(
 # ---------------------------------------------------------------------------
 
 
-def _serialize_admin(row) -> dict:
+def _serialize_agent_readiness(
+    decision: AgentDecision | None,
+    adjudication: AgentOutcome | None,
+) -> dict | None:
+    """Return privacy-safe decision and human-ground-truth metadata."""
+    if decision is None:
+        return None
+    output = decision.output_json or {}
+    challenger = output.get("challenger")
+    challenger_view = None
+    if isinstance(challenger, dict):
+        challenger_view = {
+            "prompt_version": challenger.get("prompt_version"),
+            "prompt_hash": challenger.get("prompt_hash"),
+            "model": challenger.get("model"),
+            "available": bool(challenger.get("available")),
+            "kind": challenger.get("kind"),
+            "agent_eligible": challenger.get("agent_eligible"),
+            "candidate": challenger.get("agent_ready_candidate"),
+            "reason": challenger.get("agent_ready_reason"),
+        }
+
+    adjudication_view = None
+    if adjudication is not None:
+        payload = adjudication.payload_json or {}
+        adjudication_view = {
+            "expected": payload.get("expected"),
+            "reason": payload.get("reason"),
+            "label_sync": payload.get("label_sync"),
+            "observed_at": utc_isoformat(adjudication.observed_at),
+        }
+
+    return {
+        "decision_id": decision.id,
+        "policy_name": decision.policy_name,
+        "policy_version": decision.policy_version,
+        "prompt_version": output.get("active_prompt_version"),
+        "prompt_hash": decision.prompt_version,
+        "model": decision.model,
+        "mode": decision.mode,
+        "kind": output.get("kind"),
+        "agent_eligible": output.get("agent_eligible"),
+        "candidate": output.get("agent_ready_candidate"),
+        "applied": output.get("agent_ready_applied"),
+        "reason": output.get("agent_ready_reason"),
+        "challenger": challenger_view,
+        "adjudication": adjudication_view,
+        "created_at": utc_isoformat(decision.created_at),
+    }
+
+
+def _serialize_admin(
+    row: Feedback,
+    *,
+    decision: AgentDecision | None = None,
+    adjudication: AgentOutcome | None = None,
+) -> dict:
     """Full serialization for the Admin view — includes the raw message so an
     admin can see exactly what was reported, alongside the scrubbed output."""
     return {
@@ -219,6 +294,10 @@ def _serialize_admin(row) -> dict:
         "image_count": len(row.image_keys or []),
         "image_description": row.image_description,
         "image_sensitive": row.image_sensitive,
+        "agent_readiness": _serialize_agent_readiness(
+            decision,
+            adjudication,
+        ),
         "created_at": utc_isoformat(row.created_at),
         "updated_at": utc_isoformat(row.updated_at),
     }
@@ -243,7 +322,29 @@ def list_feedback(
     elif status:
         q = q.filter(Feedback.status == status)
     rows = q.order_by(Feedback.created_at.desc()).limit(min(max(limit, 1), 500)).all()
-    return [_serialize_admin(r) for r in rows]
+    decisions = latest_decisions_for_subjects(
+        db,
+        loop="change",
+        subject_type="feedback",
+        subject_refs=(str(row.id) for row in rows),
+    )
+    adjudications = latest_outcomes_for_decisions(
+        db,
+        decision_ids=(decision.id for decision in decisions.values()),
+        outcome_types=(_AGENT_READY_ADJUDICATION_OUTCOME,),
+    )
+    return [
+        _serialize_admin(
+            row,
+            decision=decisions.get(str(row.id)),
+            adjudication=(
+                adjudications.get(decisions[str(row.id)].id)
+                if str(row.id) in decisions
+                else None
+            ),
+        )
+        for row in rows
+    ]
 
 
 @router.get("/admin/feedback/summary")
@@ -297,7 +398,12 @@ def sync_feedback_status(
     from db.models import Feedback
 
     if not github_issues.is_configured():
-        return {"configured": False, "checked": 0, "updated": 0}
+        return {
+            "configured": False,
+            "checked": 0,
+            "updated": 0,
+            "repository_mismatches": 0,
+        }
 
     rows = (
         db.query(Feedback)
@@ -309,9 +415,20 @@ def sync_feedback_status(
         .limit(min(max(limit, 1), 500))
         .all()
     )
-    checked = updated = 0
+    checked = updated = repository_mismatches = 0
     changed = False
     for row in rows:
+        if not github_issues.issue_matches_configured_repo(
+            row.github_issue_number,
+            row.github_issue_url,
+        ):
+            repository_mismatches += 1
+            logger.warning(
+                "feedback sync skipped issue %s: stored URL does not match "
+                "the configured repository",
+                row.github_issue_number,
+            )
+            continue
         outcome = github_issues.get_issue_outcome(row.github_issue_number)
         if outcome is None:
             # Unreadable (deleted / transferred / transient error) — leave as-is.
@@ -419,7 +536,12 @@ def sync_feedback_status(
             ) or changed
     if changed:
         db.commit()
-    return {"configured": True, "checked": checked, "updated": updated}
+    return {
+        "configured": True,
+        "checked": checked,
+        "updated": updated,
+        "repository_mismatches": repository_mismatches,
+    }
 
 
 @router.get("/admin/feedback/{feedback_id}/image/{index}")
@@ -460,6 +582,129 @@ class FeedbackAction(BaseModel):
     """Admin action on a feedback row."""
 
     action: Literal["retry", "reject", "approve"]
+
+
+class AgentReadyAdjudication(BaseModel):
+    """Maintainer ground truth for one agent-ready decision."""
+
+    decision_id: str = Field(min_length=1, max_length=64)
+    expected: bool
+    reason: Literal[
+        "bounded_actionable_defect",
+        "not_a_defect",
+        "insufficient_detail",
+        "needs_product_judgment",
+        "sensitivity_or_privacy",
+        "other",
+    ]
+
+
+@router.put("/admin/feedback/{feedback_id}/agent-ready-adjudication")
+def adjudicate_agent_readiness(
+    feedback_id: int,
+    payload: AgentReadyAdjudication,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Record readiness ground truth and synchronize the GitHub trigger label."""
+    require_admin(user_id, db)
+    from api import github_issues
+    from db.models import Feedback
+
+    row = db.query(Feedback).filter(Feedback.id == feedback_id).first()
+    if row is None:
+        raise HTTPException(404, "Feedback not found")
+    decision = latest_decision(
+        db,
+        loop="change",
+        subject_type="feedback",
+        subject_ref=str(row.id),
+    )
+    if decision is None:
+        raise HTTPException(409, "Feedback has no agent-ready decision")
+    if decision.id != payload.decision_id:
+        raise HTTPException(
+            409,
+            "Agent-ready decision changed; refresh before adjudicating",
+        )
+    if payload.expected and payload.reason != _AGENT_READY_POSITIVE_REASON:
+        raise HTTPException(
+            422,
+            "A positive adjudication requires bounded_actionable_defect",
+        )
+    if not payload.expected and payload.reason not in _AGENT_READY_NEGATIVE_REASONS:
+        raise HTTPException(
+            422,
+            "A negative adjudication requires a rejection reason",
+        )
+
+    label_sync = "not_linked"
+    if row.github_issue_number is not None:
+        if not github_issues.is_configured():
+            label_sync = "github_unavailable"
+        elif not github_issues.issue_matches_configured_repo(
+            row.github_issue_number,
+            row.github_issue_url,
+        ):
+            label_sync = "repository_mismatch"
+        elif payload.expected:
+            issue_state = github_issues.get_issue_state(
+                row.github_issue_number
+            )
+            if issue_state is None:
+                label_sync = "failed"
+            elif issue_state["state"] != "open":
+                label_sync = "issue_not_open"
+            else:
+                label_sync = (
+                    "synced"
+                    if github_issues.set_issue_label(
+                        row.github_issue_number,
+                        "agent-ready",
+                        present=True,
+                    )
+                    else "failed"
+                )
+        else:
+            label_sync = (
+                "synced"
+                if github_issues.set_issue_label(
+                    row.github_issue_number,
+                    "agent-ready",
+                    present=False,
+                )
+                else "failed"
+            )
+
+    output = decision.output_json or {}
+    challenger = output.get("challenger")
+    challenger_candidate = (
+        challenger.get("agent_ready_candidate")
+        if isinstance(challenger, dict)
+        else None
+    )
+    outcome = record_outcome(
+        db,
+        decision_id=decision.id,
+        outcome_type=_AGENT_READY_ADJUDICATION_OUTCOME,
+        source="admin",
+        payload={
+            "expected": payload.expected,
+            "reason": payload.reason,
+            "issue_number": row.github_issue_number,
+            "active_candidate": output.get("agent_ready_candidate"),
+            "challenger_candidate": challenger_candidate,
+            "label_sync": label_sync,
+        },
+    )
+    db.commit()
+    return {
+        "recorded": True,
+        "expected": payload.expected,
+        "reason": payload.reason,
+        "label_sync": label_sync,
+        "agent_readiness": _serialize_agent_readiness(decision, outcome),
+    }
 
 
 @router.patch("/admin/feedback/{feedback_id}")
