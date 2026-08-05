@@ -66,6 +66,21 @@ existing delivery-ledger identity, then falls back to `profileId` for CN.
 Profile visibility is unrelated: this is an authenticated self-profile read,
 not a public-profile lookup.
 
+### Garmin CN schedule details are nested
+
+`get_scheduled_workout_by_id()` returns a flat International-style shape in
+some accounts (`workoutId`, `date`), but Garmin CN returns the template under
+`workout.workoutId` and the date as `calendarDate`. The monthly calendar still
+uses `calendarItems[].workoutId`, `calendarItems[].id`, and
+`calendarItems[].date`.
+
+Creation and deletion verification must accept both detail shapes. A
+checkpointed `returned_schedule_id` is promoted to the owned `schedule_id`
+only when the monthly calendar independently shows that exact schedule ID on
+the expected date with the created template, and only when it was absent from
+the pre-mutation schedule set. This recovery fence prevents both duplicate
+retries and adoption of a pre-existing/manual schedule.
+
 ### Garmin's CAPTCHA gate is time-bound, not sticky
 
 When the headless `garminconnect` flow trips Garmin/Cloudflare's bot detection, the rejection looks **permanent** but isn't. The trap is assuming you need to engineer your way around the gate when you actually just need to stop feeding it.
