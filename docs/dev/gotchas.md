@@ -79,7 +79,9 @@ checkpointed `returned_schedule_id` is promoted to the owned `schedule_id`
 only when the monthly calendar independently shows that exact schedule ID on
 the expected date with the created template, and only when it was absent from
 the pre-mutation schedule set. This recovery fence prevents both duplicate
-retries and adoption of a pre-existing/manual schedule.
+retries and adoption of a pre-existing/manual schedule. Conflict resolution
+uses the same fence to bind a matching observed schedule without another
+provider mutation.
 
 ### Garmin's CAPTCHA gate is time-bound, not sticky
 

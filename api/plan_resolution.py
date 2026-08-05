@@ -671,6 +671,47 @@ def _merged_delivery_provider_references(
     return normalize_provider_references(merged)
 
 
+def _garmin_restorable_schedule_ids(delivery: PlanDelivery) -> set[str]:
+    """Return Garmin schedule IDs safe to bind from matching observations."""
+    references = delivery.provider_references or {}
+    schedule_ids = {
+        value
+        for raw in (
+            references.get("schedule_id"),
+            delivery.external_id,
+        )
+        if (value := str(raw or "").strip())
+    }
+    returned_schedule_id = str(
+        references.get("returned_schedule_id") or ""
+    ).strip()
+    if (
+        not returned_schedule_id
+        or references.get("schedule_started") is not True
+        or references.get("unexpected_schedule_date")
+    ):
+        return schedule_ids
+    raw_preexisting_schedule_ids = references.get(
+        "preexisting_schedule_ids"
+    )
+    if not isinstance(raw_preexisting_schedule_ids, list):
+        return schedule_ids
+    preexisting_schedule_ids = {
+        value
+        for raw in raw_preexisting_schedule_ids
+        if (value := str(raw or "").strip())
+    }
+    returned_preexisting_id = str(
+        references.get("returned_preexisting_schedule_id") or ""
+    ).strip()
+    if (
+        returned_schedule_id not in preexisting_schedule_ids
+        and returned_schedule_id != returned_preexisting_id
+    ):
+        schedule_ids.add(returned_schedule_id)
+    return schedule_ids
+
+
 def _bind_confirmed_restore(
     db: Session,
     *,
@@ -1399,17 +1440,10 @@ def restore_praxys_version(
             raise PlanResolutionConflict(
                 "Target workout belongs to a different provider account"
             )
-        checkpointed_schedule_id = str(
-            (item.delivery.provider_references or {}).get("schedule_id")
-            or ""
-        ).strip()
         exact_garmin_identity = (
             target != "garmin"
             or observation.external_id
-            in {
-                checkpointed_schedule_id,
-                str(item.delivery.external_id or "").strip(),
-            }
+            in _garmin_restorable_schedule_ids(item.delivery)
         )
         if (
             observation.workout_date == item.delivery.workout_date
