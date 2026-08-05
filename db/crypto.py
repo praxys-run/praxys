@@ -26,6 +26,7 @@ class CredentialVault:
         self.key_name = os.environ.get("KEY_VAULT_KEY_NAME", "trainsight-master-key")
         self._crypto_client = None
         self._local_key = None
+        self._persistent = False
         # Cache of wrapped_dek bytes -> unwrapped DEK bytes. The wrapped form
         # is stable in the DB until the master key is rotated, so caching the
         # unwrap output saves a Key Vault round-trip per credential decrypt.
@@ -55,6 +56,7 @@ class CredentialVault:
             from azure.keyvault.keys.crypto import CryptographyClient
 
             self._crypto_client = CryptographyClient(key, credential=credential)
+            self._persistent = True
             logger.info("Using Azure Key Vault for credential encryption")
         except Exception as e:
             logger.warning("Key Vault init failed, falling back to local: %s", e)
@@ -71,10 +73,17 @@ class CredentialVault:
                 "platform credentials will NOT survive restart. "
                 "Run: set PRAXYS_LOCAL_ENCRYPTION_KEY=<key> to persist credentials.",
             )
+        else:
+            self._persistent = True
         self._local_key = (
             local_key.encode() if isinstance(local_key, str) else local_key
         )
         logger.info("Using local Fernet key for credential encryption")
+
+    @property
+    def is_persistent(self) -> bool:
+        """Return whether ciphertext will remain decryptable after restart."""
+        return self._persistent
 
     def encrypt(self, plaintext: str) -> tuple[bytes, bytes]:
         """Encrypt plaintext. Returns (encrypted_data, wrapped_dek)."""

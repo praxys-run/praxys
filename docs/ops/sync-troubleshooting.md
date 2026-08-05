@@ -53,20 +53,22 @@ fingerprint/account history, not JS signals (closed PR #257).
   consent. A legacy connection with no mirrored region must reconnect before
   consent can be granted. Region change disconnects the old region, clears its
   token cache, and requires a fresh login. Interactive reconnect first commits
-  consent revocation, a delivery pause, and `disconnected` status, then mutates
-  the tokenstore; an interrupted login therefore stays fail-closed. No
+  consent revocation, a delivery pause, and `disconnected` status, then replaces
+  the encrypted OAuth bundle; an interrupted login therefore stays fail-closed. No
   international or CN live write
   matrix has been completed; do not enable or repair consent administratively.
   See the
   [feasibility decision](../studies/garmin-workout-delivery-feasibility.md).
 
-## Per-user token store (security-critical)
+## Encrypted Garmin OAuth store (security-critical)
 
-Tokens live at `sync/.garmin_tokens/<user_id>/`. This per-user isolation is
-load-bearing — `garminconnect` loads whatever tokens it finds without validating
-the account, so a shared dir would cross-leak sessions. `clear_garmin_tokens()`
-runs on rotate/disconnect/delete and must propagate `OSError`. **Never** share or
-relocate this store.
+Garmin OAuth sessions live only as envelope-encrypted blobs on the matching
+`user_connections` row. The credential-generation fence is load-bearing:
+`garminconnect` does not independently verify that a serialized session belongs
+to the supplied credentials. Never write `Client.dump()` output to persistent
+disk or bypass `stage_garmin_tokens()`. Startup removes legacy
+`sync/.garmin_tokens/` files after importing a valid `garmin_tokens.json` bundle; a migration
+or cleanup failure must remain fatal.
 
 ## Reading sync health
 

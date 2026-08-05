@@ -51,6 +51,7 @@ def main() -> int:
     email, password, is_cn = _creds()
 
     from garminconnect import Garmin
+    from api.routes.sync import _garmin_login_argument
 
     g = Garmin(email, password, is_cn=is_cn, return_on_mfa=True)
     g.client.skip_strategies = set(SKIP[args.strategy])
@@ -58,7 +59,7 @@ def main() -> int:
     print("# note: portal login has a built-in ~10-20s anti-WAF delay before the code is sent.")
 
     try:
-        status, _ = g.login()
+        status, _ = g.login(_garmin_login_argument(None))
     except Exception as e:
         print(f"# login() raised: {type(e).__name__}: {str(e)[:400]}")
         return 2

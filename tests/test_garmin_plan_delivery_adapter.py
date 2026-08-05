@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import contextlib
+import json
 from copy import deepcopy
 from typing import Any, Mapping
 
@@ -307,12 +308,33 @@ def test_adapter_requires_credential_generation() -> None:
         )
 
 
-def test_authenticate_uses_generation_scoped_tokenstore(
+def test_authenticate_publishes_in_memory_tokens(
     monkeypatch,
-    tmp_path,
 ) -> None:
-    captured: list[tuple[str, str]] = []
     published: list[str] = []
+    loaded: list[str] = []
+    login_tokens: list[str | None] = []
+    lease_depth = 0
+
+    @contextlib.contextmanager
+    def token_lease(user_id: str):
+        nonlocal lease_depth
+        assert user_id == "garmin-adapter-user"
+        lease_depth += 1
+        try:
+            yield
+        finally:
+            lease_depth -= 1
+
+    def load_tokens() -> str:
+        assert lease_depth == 1
+        loaded.append("stored-token-bundle")
+        return "stored-token-bundle"
+
+    def publish_tokens(tokens: str) -> bool:
+        assert lease_depth == 1
+        published.append(tokens)
+        return True
 
     class AuthenticatedGarmin:
         display_name = "stable-account"
@@ -326,19 +348,20 @@ def test_authenticate_uses_generation_scoped_tokenstore(
             assert path == "/userprofile-service/socialProfile"
             return {"userProfileId": 12345}
 
-    def token_dir(user_id: str, credential_generation: str) -> str:
-        captured.append((user_id, credential_generation))
-        return str(tmp_path / "generation-tokens")
-
     monkeypatch.setattr("garminconnect.Garmin", AuthenticatedGarmin)
-    monkeypatch.setattr("api.routes.sync._garmin_token_dir", token_dir)
     monkeypatch.setattr(
-        "api.routes.sync._login_garmin_with_cn_fallback",
-        lambda client, creds, path: None,
+        "api.routes.sync._garmin_tokenstore_lease",
+        token_lease,
     )
     monkeypatch.setattr(
-        "api.routes.sync._seed_generation_tokens_from_legacy",
-        lambda user_id, credential_generation: False,
+        "api.routes.sync._login_garmin_with_cn_fallback",
+        lambda client, creds, serialized_tokens: login_tokens.append(
+            serialized_tokens
+        ),
+    )
+    monkeypatch.setattr(
+        "api.routes.sync._serialize_garmin_tokens",
+        lambda client: "serialized-token-bundle",
     )
     adapter = GarminPlanDeliveryAdapter(
         {
@@ -349,17 +372,101 @@ def test_authenticate_uses_generation_scoped_tokenstore(
         user_id="garmin-adapter-user",
         source_options={"garmin_region": "international"},
         credential_generation=CREDENTIAL_GENERATION,
-        token_publisher=lambda: (
-            published.append(CREDENTIAL_GENERATION) or True
-        ),
+        token_loader=load_tokens,
+        token_publisher=publish_tokens,
     )
 
     adapter.authenticate()
 
-    assert captured == [
-        ("garmin-adapter-user", CREDENTIAL_GENERATION),
-    ]
-    assert published == [CREDENTIAL_GENERATION]
+    assert loaded == ["stored-token-bundle"]
+    assert login_tokens == ["stored-token-bundle"]
+    assert published == ["serialized-token-bundle"]
+    assert lease_depth == 0
+
+
+def test_token_loader_reconnect_error_is_not_downgraded(monkeypatch) -> None:
+    class _Garmin:
+        def __init__(self, email, password, is_cn=False):
+            del email, password, is_cn
+
+    def reconnect_required() -> str:
+        raise ProviderAuthenticationRequiredError("reconnect Garmin")
+
+    monkeypatch.setattr("garminconnect.Garmin", _Garmin)
+    adapter = GarminPlanDeliveryAdapter(
+        {
+            "email": "runner@example.test",
+            "password": "secret",
+            "is_cn": False,
+        },
+        user_id="garmin-adapter-user",
+        source_options={"garmin_region": "international"},
+        credential_generation=CREDENTIAL_GENERATION,
+        token_loader=reconnect_required,
+    )
+
+    with pytest.raises(
+        ProviderAuthenticationRequiredError,
+        match="reconnect Garmin",
+    ):
+        adapter.authenticate()
+
+
+def test_failed_authentication_persists_login_time_rotation(monkeypatch) -> None:
+    from garminconnect import GarminConnectAuthenticationError
+
+    initial = json.dumps({
+        "di_token": "initial-" + ("a" * 600),
+        "di_refresh_token": "initial-" + ("b" * 600),
+        "di_client_id": "initial-client",
+    })
+    rotated = json.dumps({
+        "di_token": "rotated-" + ("c" * 600),
+        "di_refresh_token": "rotated-" + ("d" * 600),
+        "di_client_id": "rotated-client",
+    })
+    published: list[str] = []
+
+    class _Inner:
+        skip_strategies: set[str] = set()
+
+        def __init__(self) -> None:
+            self.serialized = initial
+
+        def dumps(self) -> str:
+            return self.serialized
+
+    class _Garmin:
+        def __init__(self, email, password, is_cn=False):
+            del email, password, is_cn
+            self.client = _Inner()
+
+        def login(self, token_data: str) -> None:
+            assert token_data.strip() == initial
+            self.client.serialized = rotated
+            raise GarminConnectAuthenticationError("profile load failed")
+
+    monkeypatch.setattr("garminconnect.Garmin", _Garmin)
+    adapter = GarminPlanDeliveryAdapter(
+        {
+            "email": "runner@example.test",
+            "password": "secret",
+            "is_cn": False,
+        },
+        user_id="garmin-adapter-user",
+        source_options={"garmin_region": "international"},
+        credential_generation=CREDENTIAL_GENERATION,
+        token_loader=lambda: initial,
+        token_publisher=lambda tokens: published.append(tokens) or True,
+    )
+
+    with pytest.raises(
+        ProviderAuthenticationRequiredError,
+        match="reconnect Garmin",
+    ):
+        adapter.authenticate()
+
+    assert published == [rotated]
 
 
 def test_profile_identity_survives_display_name_change() -> None:

@@ -287,19 +287,31 @@ to that encrypted credential generation and Garmin region; it is never accepted
 as a portable entitlement. Reconnecting, rotating credentials, or disconnecting
 clears the effective capability and pauses active Garmin delivery. Changing
 region also disconnects the old region, clears its cached tokens, and requires a
-fresh login. Cached sessions live under the persistent data volume in a
-per-user, per-credential-generation tokenstore; interactive login uses a
-one-time staging directory bound to an opaque server-generated login-attempt ID
-until the encrypted connection commit succeeds. Concurrent attempts cannot
-consume one another's staged tokens.
-For rolling-deployment compatibility, an existing direct per-user tokenstore
-is copied into its first generation and current generation files are mirrored
-to the legacy root for older workers. New workers load only their exact
-generation. Rotation, disconnect, and user deletion clear both layouts plus
-all staged attempts. A running Garmin sync is generation
-fenced and rolls back if the connection changes, so old token files cannot
+fresh login. Cached sessions are garminconnect `Client.dumps()` JSON values envelope-encrypted
+on `user_connections` with a token-specific wrapped DEK and the exact
+credential-generation fingerprint. Interactive login
+holds completed tokens only in process memory, bound to an opaque
+server-generated login-attempt ID, until the encrypted connection transaction
+commits. Concurrent attempts cannot consume one another's tokens.
+On first startup after the migration, valid legacy per-user token files are
+encrypted before deletion; orphaned, partial, malformed, and abandoned stores
+are deleted. Failure to remove a plaintext store aborts startup rather than
+leaving the scheduler active. Migration also refuses to delete a valid token
+file when Key Vault is unavailable and no persistent local encryption key is
+configured. Startup first moves the source to `.garmin_tokens.migration`, then
+installs a non-secret blocker at the entire old `.garmin_tokens` root before
+decrypting or encrypting anything. A failed migration preserves the quarantine
+for the next startup; a root recreated during an interrupted cutover is merged
+back into quarantine before retry. Pre-upgrade workers and a rolled-back release therefore
+cannot recreate plaintext tokens for existing or newly registered users; they
+fail Garmin authentication until the encrypted-token release is restored.
+A cross-worker migration lock elects one startup worker, which acquires all
+known per-user token leases before the cutover. The blocker is written and
+fsynced under a temporary name, then atomically installed.
+A running Garmin sync is generation fenced and
+rolls back if the connection changes, so old OAuth sessions cannot
 authorize or degrade the replacement connection. Do not provision, copy, or
-restore consent or tokenstore files through App Service settings, Actions
+restore consent or token files through App Service settings, Actions
 variables, SQL scripts, storage tooling, or an admin override. To roll back
 Garmin writes globally, set the repository variable to `false` and redeploy;
 the capability and every fresh mutation guard fail closed without deleting

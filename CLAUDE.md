@@ -22,7 +22,7 @@ Garmin/Stryd/Oura APIs → sync/*.py → db/sync_writer.py → SQLite (trainsigh
 
 | Directory | Owns | Key Files |
 |-----------|------|-----------|
-| `sync/` | Platform fetch + parse | `garmin_sync.py`, `stryd_sync.py`, `oura_sync.py`, `csv_utils.py`, `bootstrap_garmin_tokens.py` |
+| `sync/` | Platform fetch + parse | `garmin_sync.py`, `stryd_sync.py`, `oura_sync.py`, `csv_utils.py` |
 | `analysis/` | Metric computation | `metrics.py` (pure functions), `data_loader.py` (loads from DB), `science.py` (theory YAML loader), `evidence_registry.py` (versioned evidence/SDR validation), `config.py` (`UserConfig`), `zones.py`, `thresholds.py`, `training_base.py` |
 | `analysis/providers/` | Pluggable data sources | `base.py` (ABCs), `garmin.py`, `stryd.py`, `oura.py`, `ai.py`, `models.py` |
 | `db/` | SQLite layer | `models.py` (SQLAlchemy), `session.py`, `crypto.py` (Fernet credential encryption), `sync_writer.py` (upserts), `sync_scheduler.py` |
@@ -52,7 +52,7 @@ All training metrics, predictions, and insights must be grounded in exercise sci
 ## Gotchas
 
 - **Activity `avg_power` is diluted** by warmup / cooldown / recovery jogs. Always use `activity_splits` for intensity analysis — `diagnose_training()` in `metrics.py` does this correctly.
-- **Per-user Garmin tokenstore is load-bearing for security.** `sync/.garmin_tokens/<user_id>/` — `garminconnect.Garmin.login()` loads whatever OAuth tokens it finds without validating the account, so a shared directory would cross-leak authenticated sessions. Anything touching sync/auth must preserve this invariant.
+- **Garmin OAuth tokens must stay encrypted and generation-fenced.** Garminconnect's `Client.dumps()` bundle is envelope-encrypted on `user_connections`; never pass a persistent filesystem path to `Garmin.login()` or call `Client.dump()`. The credential-generation check prevents an old authenticated session from being attached to replacement credentials.
 - **Feedback screenshots are private by construction (issue #337).** A user-attached screenshot is stored via `api/feedback_storage.py` (Azure Blob in prod, local filesystem in dev) and only its *key* lands on the `Feedback` row — never the bytes. Triage (`api/feedback_triage.py`) runs a vision model (`api/feedback_vision.py`) that emits a PII-scrubbed *description* + a sensitivity verdict; only that scrubbed text (plus an "in the admin console" reference) is ever published to a GitHub issue — the raw image never reaches a public tracker. A screenshot flagged sensitive, or one that could not be vision-verified, parks the row as `needs_review`. Admins view images only via the authenticated `GET /api/admin/feedback/{id}/image/{index}` endpoint.
 
 Domain-specific gotchas (Garmin sync quirks, CIQ field conventions, CN endpoint parity, region model): `docs/dev/gotchas.md`.

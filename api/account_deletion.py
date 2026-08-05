@@ -170,14 +170,14 @@ def _delete_user_owned_rows(db: Session, user_id: str) -> None:
 
 
 def _clear_tokenstore(user_id: str) -> None:
-    """Best-effort removal of on-disk Garmin OAuth tokens for a deleted user."""
+    """Best-effort legacy cleanup and plaintext-token blocking after deletion."""
     from api.routes.sync import clear_garmin_tokens
 
     try:
         clear_garmin_tokens(user_id)
     except OSError:
         logger.exception(
-            "User %s deleted but Garmin tokenstore cleanup failed; orphan directory left on disk.",
+            "User %s deleted but Garmin legacy-token cleanup failed.",
             user_id,
         )
 
@@ -216,7 +216,7 @@ def delete_user_account(
 ) -> AccountDeletionResult:
     """Hard-delete a user account plus all directly owned rows.
 
-    The operation commits before touching disk tokenstores so a filesystem
+    The operation commits before touching legacy token paths so a filesystem
     cleanup issue cannot roll back the database deletion. A last-admin guard is
     enforced for self-service deletion and kept enabled for admin deletion as a
     defense-in-depth check.

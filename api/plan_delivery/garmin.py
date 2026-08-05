@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import math
-import os
 import threading
 import time
 from datetime import date, timedelta
@@ -45,6 +45,8 @@ from sync.garmin_sync import (
     parse_scheduled_workouts,
 )
 from sync.garmin_errors import garmin_http_status
+
+logger = logging.getLogger(__name__)
 
 try:
     from garth.exc import GarthHTTPError
@@ -164,7 +166,8 @@ class GarminPlanDeliveryAdapter:
         user_id: str,
         source_options: Mapping[str, Any],
         credential_generation: str | None,
-        token_publisher: Callable[[], bool] | None = None,
+        token_loader: Callable[[], str | None] | None = None,
+        token_publisher: Callable[[str], bool] | None = None,
     ) -> None:
         email = credentials.get("email")
         password = credentials.get("password")
@@ -202,6 +205,7 @@ class GarminPlanDeliveryAdapter:
         self._client: Any | None = None
         self._provider_account_id: str | None = None
         self._profile_account_id: str | None = None
+        self._token_loader = token_loader
         self._token_publisher = token_publisher
 
     @property
@@ -235,7 +239,7 @@ class GarminPlanDeliveryAdapter:
         )
 
     def authenticate(self) -> None:
-        """Reuse Praxys's isolated tokenstore and Garmin login workarounds."""
+        """Reuse Praxys's encrypted OAuth bundle and Garmin login workarounds."""
         if (
             self._client is not None
             and self._provider_account_id is not None
@@ -248,7 +252,7 @@ class GarminPlanDeliveryAdapter:
             self._authenticate_locked()
 
     def _authenticate_locked(self) -> None:
-        """Authenticate while the caller holds the tokenstore lease."""
+        """Authenticate while the caller holds the OAuth-token lease."""
         if (
             self._client is not None
             and self._provider_account_id is not None
@@ -258,9 +262,7 @@ class GarminPlanDeliveryAdapter:
         try:
             from garminconnect import Garmin
             from api.routes.sync import (
-                _garmin_token_dir,
                 _login_garmin_with_cn_fallback,
-                _seed_generation_tokens_from_legacy,
             )
 
             client = Garmin(
@@ -268,15 +270,12 @@ class GarminPlanDeliveryAdapter:
                 self._password,
                 is_cn=self._is_cn,
             )
-            token_dir = _garmin_token_dir(
-                self._user_id,
-                self._credential_generation,
+            self._client = client
+            serialized_tokens = (
+                self._token_loader()
+                if self._token_loader is not None
+                else None
             )
-            _seed_generation_tokens_from_legacy(
-                self._user_id,
-                self._credential_generation,
-            )
-            os.makedirs(token_dir, exist_ok=True)
             _login_garmin_with_cn_fallback(
                 client,
                 {
@@ -284,7 +283,7 @@ class GarminPlanDeliveryAdapter:
                     "password": self._password,
                     "is_cn": self._is_cn,
                 },
-                token_dir,
+                serialized_tokens,
             )
             profile_id = garmin_user_profile_id(client)
             profile_account_id = garmin_profile_account_id(
@@ -297,7 +296,18 @@ class GarminPlanDeliveryAdapter:
                 display_name=getattr(client, "display_name", ""),
                 is_cn=self._is_cn,
             )
+        except ProviderAuthenticationRequiredError:
+            raise
         except _GARMIN_AUTH_ERRORS as exc:
+            try:
+                self._publish_current_tokens_locked()
+            except Exception:
+                logger.warning(
+                    "Could not persist Garmin OAuth rotation after failed "
+                    "authentication for user %s",
+                    self._user_id,
+                    exc_info=True,
+                )
             if _is_rate_limited(exc):
                 raise ProviderRateLimitError(
                     "Garmin login was rate limited"
@@ -307,19 +317,30 @@ class GarminPlanDeliveryAdapter:
                     "Garmin login failed; reconnect Garmin"
                 ) from exc
             raise ProviderAuthenticationError("Garmin login failed") from exc
-        self._client = client
         self._provider_account_id = account_id
         self._profile_account_id = profile_account_id
-        if (
-            self._token_publisher is not None
-            and not self._token_publisher()
-        ):
+        self._publish_current_tokens_locked()
+
+    def _publish_current_tokens_locked(self) -> None:
+        """Persist any token rotation while the per-user lease is held."""
+        if self._client is None or self._token_publisher is None:
+            return
+        from api.routes.sync import _serialize_garmin_tokens
+
+        if not self._token_publisher(_serialize_garmin_tokens(self._client)):
             self._client = None
             self._provider_account_id = None
             self._profile_account_id = None
             raise ProviderAuthenticationError(
                 "Garmin connection changed during login"
             )
+
+    def flush_auth_state(self) -> None:
+        """Persist refreshed OAuth state after the delivery transaction closes."""
+        from api.routes.sync import _garmin_tokenstore_lease
+
+        with _garmin_tokenstore_lease(self._user_id):
+            self._publish_current_tokens_locked()
 
     def _session(self) -> Any:
         self._authenticate_locked()
@@ -639,7 +660,11 @@ class GarminPlanDeliveryAdapter:
         from api.routes.sync import _garmin_tokenstore_lease
 
         with _garmin_tokenstore_lease(self._user_id):
-            return self._create_workout_locked(prepared, hooks=hooks)
+            try:
+                return self._create_workout_locked(prepared, hooks=hooks)
+            finally:
+                if hooks is NOOP_PROVIDER_MUTATION_HOOKS:
+                    self._publish_current_tokens_locked()
 
     def _create_workout_locked(
         self,
@@ -1145,7 +1170,16 @@ class GarminPlanDeliveryAdapter:
         from api.routes.sync import _garmin_tokenstore_lease
 
         with _garmin_tokenstore_lease(self._user_id):
-            return self._delete_workout_locked(external_id, hooks=hooks)
+            try:
+                return self._delete_workout_locked(external_id, hooks=hooks)
+            finally:
+                # A successful side effect leaves the mutation guard's row lock
+                # open until the service records the outcome. Publishing from a
+                # second session here would deadlock against that lock. Removal
+                # has no provider checkpoint after its mutation, so defer token
+                # persistence to the next authentication instead.
+                if hooks is NOOP_PROVIDER_MUTATION_HOOKS:
+                    self._publish_current_tokens_locked()
 
     def _delete_workout_locked(
         self,
@@ -1319,12 +1353,15 @@ class GarminPlanDeliveryAdapter:
         from api.routes.sync import _garmin_tokenstore_lease
 
         with _garmin_tokenstore_lease(self._user_id):
-            return self._fetch_calendar_locked(
-                threshold_value=threshold_value,
-                days_ahead=days_ahead,
-                days_back=days_back,
-                timezone_name=timezone_name,
-            )
+            try:
+                return self._fetch_calendar_locked(
+                    threshold_value=threshold_value,
+                    days_ahead=days_ahead,
+                    days_back=days_back,
+                    timezone_name=timezone_name,
+                )
+            finally:
+                self._publish_current_tokens_locked()
 
     def _fetch_calendar_locked(
         self,

@@ -869,7 +869,8 @@ def _update_settings(
     if garmin_region_changed:
         from api.routes.sync import clear_garmin_tokens
 
-        clear_garmin_tokens(user_id)
+        clear_garmin_tokens(user_id, db, block_legacy=True)
+        db.commit()
     if plan_management_transition is not None:
         telemetry.record_managed_plan_event(
             category="lifecycle",
@@ -1183,6 +1184,10 @@ def _revoke_garmin_delivery_before_login(
         .with_for_update()
     ).scalar_one_or_none()
     if connection is not None:
+        connection.encrypted_garmin_tokens = None
+        connection.wrapped_token_dek = None
+        connection.garmin_token_generation = None
+        connection.tokens_updated_at = None
         connection.plan_delivery_consent = None
         connection.status = "disconnected"
         reset_connection_backoff(connection)
@@ -1231,6 +1236,10 @@ def _upsert_connection_credentials(
         conn.status = "connected"
         conn.preferences = prefs
         if platform == "garmin":
+            conn.encrypted_garmin_tokens = None
+            conn.wrapped_token_dek = None
+            conn.garmin_token_generation = None
+            conn.tokens_updated_at = None
             conn.plan_delivery_consent = None
         reset_connection_backoff(conn)
     else:
@@ -1419,9 +1428,7 @@ def _persist_connected_garmin_login(
     """Atomically fence credentials and clean tokens if binding fails."""
     from api.routes.sync import (
         _garmin_tokenstore_lease,
-        _mirror_generation_tokens_for_legacy_workers,
         bind_garmin_login_tokens,
-        discard_garmin_generation_tokens,
         discard_garmin_login_tokens,
     )
     from db.connection_credentials import connection_credentials_generation
@@ -1439,30 +1446,15 @@ def _persist_connected_garmin_login(
                 connection
             )
             bind_garmin_login_tokens(
+                db,
                 user_id,
                 credential_generation,
                 login_attempt_id,
             )
             db.commit()
-            _mirror_generation_tokens_for_legacy_workers(
-                user_id,
-                credential_generation,
-            )
     except Exception:
         db.rollback()
-        try:
-            discard_garmin_login_tokens(user_id, login_attempt_id)
-            if credential_generation is not None:
-                discard_garmin_generation_tokens(
-                    user_id,
-                    credential_generation,
-                )
-        except OSError:
-            logger.exception(
-                "Failed to clean Garmin login tokens after binding failure "
-                "for user %s",
-                user_id,
-            )
+        discard_garmin_login_tokens(user_id, login_attempt_id)
         raise
 
 
@@ -1704,7 +1696,7 @@ def connect_platform(
         # reuse the previous account's authenticated session.
         with _garmin_tokenstore_lease(user_id):
             _revoke_garmin_delivery_before_login(user_id, db)
-            clear_garmin_tokens(user_id)
+            clear_garmin_tokens(user_id, db, block_legacy=True)
             _upsert_connection_credentials(user_id, platform, creds, db)
             db.commit()
     else:

@@ -124,7 +124,7 @@ class UserConfig(Base):
 
 
 class UserConnection(Base):
-    """Per-user platform connections with encrypted credentials."""
+    """Per-user platform connections with encrypted credentials and sessions."""
 
     __tablename__ = "user_connections"
 
@@ -133,6 +133,10 @@ class UserConnection(Base):
     platform = Column(String(20), nullable=False)  # garmin, stryd, oura
     encrypted_credentials = Column(LargeBinary, nullable=True)
     wrapped_dek = Column(LargeBinary, nullable=True)
+    encrypted_garmin_tokens = Column(LargeBinary, nullable=True)
+    wrapped_token_dek = Column(LargeBinary, nullable=True)
+    garmin_token_generation = Column(String(160), nullable=True)
+    tokens_updated_at = Column(DateTime, nullable=True)
     preferences = Column(JSON, default=dict)  # {"activities": True, "recovery": True, ...}
     last_sync = Column(DateTime, nullable=True)
     status = Column(
