@@ -13,7 +13,7 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/components/AiInsightsCard.tsx:256
+#: src/components/AiInsightsCard.tsx:254
 msgid " · "
 msgstr " · "
 
@@ -31,12 +31,12 @@ msgid "(optional)"
 msgstr "（可选）"
 
 #. placeholder {0}: content.findings.length
-#: src/components/AiInsightsCard.tsx:254
+#: src/components/AiInsightsCard.tsx:252
 msgid "{0, plural, one {# finding} other {# findings}}"
 msgstr "{0, plural, other {# 条发现}}"
 
 #. placeholder {0}: content.recommendations.length
-#: src/components/AiInsightsCard.tsx:258
+#: src/components/AiInsightsCard.tsx:256
 msgid "{0, plural, one {# recommendation} other {# recommendations}}"
 msgstr "{0, plural, other {# 条建议}}"
 
@@ -1055,7 +1055,7 @@ msgstr "目标是 <0>{0}</0> {distLabel}。当前 {abbrev} <1>{currentStr}{unit}
 msgid "by"
 msgstr "作者"
 
-#: src/components/AiInsightsCard.tsx:367
+#: src/components/AiInsightsCard.tsx:365
 #: src/components/FeedbackDialog.tsx:314
 #: src/components/GoalEditor.tsx:174
 #: src/components/ManagedPlanSettingsCard.tsx:1018
@@ -1505,7 +1505,7 @@ msgstr "无法保存更改。"
 #~ msgid "Couldn't save. Check your connection and try again."
 #~ msgstr "保存失败。请检查网络连接后重试。"
 
-#: src/components/AiInsightsCard.tsx:212
+#: src/components/AiInsightsCard.tsx:210
 #: src/components/TodayDecisionCheck.tsx:129
 msgid "Couldn't send feedback. Try again."
 msgstr "反馈发送失败，请重试。"
@@ -2482,7 +2482,7 @@ msgstr "反馈状态不可用"
 msgid "Feedback triage"
 msgstr "反馈处理"
 
-#: src/components/AiInsightsCard.tsx:266
+#: src/components/AiInsightsCard.tsx:264
 msgid "Findings"
 msgstr "解读要点"
 
@@ -2766,7 +2766,7 @@ msgstr "高温安全"
 #~ msgid "Heat-adaptation evidence is decaying"
 #~ msgstr "热适应证据正在衰减"
 
-#: src/components/AiInsightsCard.tsx:324
+#: src/components/AiInsightsCard.tsx:322
 msgid "Helpful"
 msgstr "有帮助"
 
@@ -2774,7 +2774,7 @@ msgstr "有帮助"
 msgid "Hide backfill"
 msgstr "收起历史同步"
 
-#: src/components/AiInsightsCard.tsx:250
+#: src/components/AiInsightsCard.tsx:248
 msgid "Hide details"
 msgstr "收起详情"
 
@@ -4247,7 +4247,7 @@ msgstr "尚未建立"
 #~ msgid "Not evaluated"
 #~ msgstr "未评估"
 
-#: src/components/AiInsightsCard.tsx:334
+#: src/components/AiInsightsCard.tsx:332
 msgid "Not helpful"
 msgstr "帮助不大"
 
@@ -4438,7 +4438,7 @@ msgstr "可选：PNG、JPG 或 WebP，最多 3 张图片。截图会保密；我
 msgid "Optional — you can always set this later from the Goal page"
 msgstr "可选，之后也可以在目标页面设置"
 
-#: src/components/AiInsightsCard.tsx:348
+#: src/components/AiInsightsCard.tsx:346
 msgid "Optional comment"
 msgstr "可选备注"
 
@@ -4726,11 +4726,11 @@ msgstr "Praxys 创建或明确采纳的训练将以 Praxys 版本为准。"
 msgid "Praxys can analyze this schedule, but it will not create, replace, or remove target workouts."
 msgstr "Praxys 可以分析此日程，但不会在目标平台创建、替换或移除训练。"
 
-#: src/components/AiInsightsCard.tsx:231
+#: src/components/AiInsightsCard.tsx:229
 msgid "Praxys Coach"
 msgstr "Praxys 教练"
 
-#: src/components/AiInsightsCard.tsx:229
+#: src/components/AiInsightsCard.tsx:227
 msgid "Praxys Coach insight"
 msgstr "Praxys 教练解读"
 
@@ -5258,7 +5258,7 @@ msgstr "已注册用户的近期使用情况。"
 msgid "Recommendation available"
 msgstr "有建议可供查看"
 
-#: src/components/AiInsightsCard.tsx:280
+#: src/components/AiInsightsCard.tsx:278
 msgid "Recommendations"
 msgstr "建议"
 
@@ -5801,7 +5801,7 @@ msgstr "规则判断"
 msgid "Run"
 msgstr "跑步"
 
-#: src/components/AiInsightsCard.tsx:292
+#: src/components/AiInsightsCard.tsx:290
 msgid "Run <0>/praxys:{skillName}</0> in Claude Code for deeper analysis"
 msgstr "在 Claude Code 中运行 <0>/praxys:{skillName}</0> 获取深入分析"
 
@@ -5945,7 +5945,7 @@ msgstr "选择执行平台不会立即启用下发。下一步会先确认托管
 msgid "Self-registration"
 msgstr "自助注册"
 
-#: src/components/AiInsightsCard.tsx:375
+#: src/components/AiInsightsCard.tsx:373
 msgid "Send"
 msgstr "发送"
 
@@ -5964,7 +5964,7 @@ msgstr "发送反馈"
 msgid "Sending an invitation reserves a seat. Self-registration closes automatically at the cap, so review readiness before raising it."
 msgstr "发送邀请会占用一个席位。达到上限时自助注册会自动关闭，因此提高上限前请先检查就绪情况。"
 
-#: src/components/AiInsightsCard.tsx:375
+#: src/components/AiInsightsCard.tsx:373
 msgid "Sending..."
 msgstr "发送中…"
 
@@ -5978,7 +5978,7 @@ msgstr "发送中…"
 msgid "Sensitivity gate"
 msgstr "敏感信息门槛"
 
-#: src/components/AiInsightsCard.tsx:311
+#: src/components/AiInsightsCard.tsx:309
 msgid "Sent"
 msgstr "已发送"
 
@@ -6746,7 +6746,7 @@ msgstr "此护栏采用个体化 HRV 指导，且不会加载活动强度。具�
 #~ msgid "This guardrail uses individualized HRV guidance, never activity average power. Missing or stale recovery, a completed activity, multiple Praxys workouts, or an uncertain target calendar keeps the plan unchanged. Load, sleep, and other caution signals remain suggestions."
 #~ msgstr "此护栏采用个体化 HRV 指导，绝不使用活动平均功率。恢复数据缺失或过期、今天已有活动记录、存在多项 Praxys 训练，或目标日历状态不确定时，计划保持不变。负荷、睡眠及其他警戒信号仍只用于提供建议。"
 
-#: src/components/AiInsightsCard.tsx:193
+#: src/components/AiInsightsCard.tsx:191
 msgid "This insight changed. Refresh the page before sending feedback."
 msgstr "这条解读已更新。请先刷新页面，再提交反馈。"
 
@@ -7306,8 +7306,8 @@ msgstr "热身"
 msgid "Warning"
 msgstr "警告"
 
-#: src/components/AiInsightsCard.tsx:315
-#: src/components/AiInsightsCard.tsx:319
+#: src/components/AiInsightsCard.tsx:313
+#: src/components/AiInsightsCard.tsx:317
 msgid "Was this insight useful?"
 msgstr "这条解读有帮助吗？"
 
@@ -7405,7 +7405,7 @@ msgstr "遇到了什么问题，或希望我们做些什么？"
 msgid "What time are you working toward? Leave blank to track trend only"
 msgstr "目标完赛时间是多少？留空则只追踪趋势"
 
-#: src/components/AiInsightsCard.tsx:355
+#: src/components/AiInsightsCard.tsx:353
 msgid "What was useful or missing?"
 msgstr "哪些内容有帮助，或还缺少什么？"
 
@@ -7500,10 +7500,12 @@ msgstr "Praxys 邀请"
 #. placeholder {0}: result.code
 #. placeholder {1}: result.invite_url
 #: src/pages/admin/AdminUsers.tsx:830
-msgid "Your Praxys invitation code: {0}\n"
+msgid ""
+"Your Praxys invitation code: {0}\n"
 "\n"
 "Finish registering here: {1}"
-msgstr "Praxys 邀请码：{0}\n"
+msgstr ""
+"Praxys 邀请码：{0}\n"
 "\n"
 "注册链接：{1}"
 

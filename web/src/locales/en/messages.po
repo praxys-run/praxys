@@ -13,7 +13,7 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/components/AiInsightsCard.tsx:256
+#: src/components/AiInsightsCard.tsx:254
 msgid " · "
 msgstr " · "
 
@@ -31,12 +31,12 @@ msgid "(optional)"
 msgstr "(optional)"
 
 #. placeholder {0}: content.findings.length
-#: src/components/AiInsightsCard.tsx:254
+#: src/components/AiInsightsCard.tsx:252
 msgid "{0, plural, one {# finding} other {# findings}}"
 msgstr "{0, plural, one {# finding} other {# findings}}"
 
 #. placeholder {0}: content.recommendations.length
-#: src/components/AiInsightsCard.tsx:258
+#: src/components/AiInsightsCard.tsx:256
 msgid "{0, plural, one {# recommendation} other {# recommendations}}"
 msgstr "{0, plural, one {# recommendation} other {# recommendations}}"
 
@@ -1056,7 +1056,7 @@ msgstr "Building toward <0>{0}</0> {distLabel}. Current {abbrev} <1>{currentStr}
 msgid "by"
 msgstr "by"
 
-#: src/components/AiInsightsCard.tsx:367
+#: src/components/AiInsightsCard.tsx:365
 #: src/components/FeedbackDialog.tsx:314
 #: src/components/GoalEditor.tsx:174
 #: src/components/ManagedPlanSettingsCard.tsx:1018
@@ -1506,7 +1506,7 @@ msgstr "Couldn't save changes."
 #~ msgid "Couldn't save. Check your connection and try again."
 #~ msgstr "Couldn't save. Check your connection and try again."
 
-#: src/components/AiInsightsCard.tsx:212
+#: src/components/AiInsightsCard.tsx:210
 #: src/components/TodayDecisionCheck.tsx:129
 msgid "Couldn't send feedback. Try again."
 msgstr "Couldn't send feedback. Try again."
@@ -2475,7 +2475,7 @@ msgstr "Feedback state unavailable"
 msgid "Feedback triage"
 msgstr "Feedback triage"
 
-#: src/components/AiInsightsCard.tsx:266
+#: src/components/AiInsightsCard.tsx:264
 msgid "Findings"
 msgstr "Findings"
 
@@ -2759,7 +2759,7 @@ msgstr "Heat safety"
 #~ msgid "Heat-adaptation evidence is decaying"
 #~ msgstr "Heat-adaptation evidence is decaying"
 
-#: src/components/AiInsightsCard.tsx:324
+#: src/components/AiInsightsCard.tsx:322
 msgid "Helpful"
 msgstr "Helpful"
 
@@ -2767,7 +2767,7 @@ msgstr "Helpful"
 msgid "Hide backfill"
 msgstr "Hide backfill"
 
-#: src/components/AiInsightsCard.tsx:250
+#: src/components/AiInsightsCard.tsx:248
 msgid "Hide details"
 msgstr "Hide details"
 
@@ -4180,7 +4180,7 @@ msgstr "Not established"
 #~ msgid "Not evaluated"
 #~ msgstr "Not evaluated"
 
-#: src/components/AiInsightsCard.tsx:334
+#: src/components/AiInsightsCard.tsx:332
 msgid "Not helpful"
 msgstr "Not helpful"
 
@@ -4371,7 +4371,7 @@ msgstr "Optional — PNG, JPG, or WebP, up to 3 images. Screenshots are kept pri
 msgid "Optional — you can always set this later from the Goal page"
 msgstr "Optional — you can always set this later from the Goal page"
 
-#: src/components/AiInsightsCard.tsx:348
+#: src/components/AiInsightsCard.tsx:346
 msgid "Optional comment"
 msgstr "Optional comment"
 
@@ -4651,11 +4651,11 @@ msgstr "Praxys becomes canonical for its own and explicitly adopted workouts."
 msgid "Praxys can analyze this schedule, but it will not create, replace, or remove target workouts."
 msgstr "Praxys can analyze this schedule, but it will not create, replace, or remove target workouts."
 
-#: src/components/AiInsightsCard.tsx:231
+#: src/components/AiInsightsCard.tsx:229
 msgid "Praxys Coach"
 msgstr "Praxys Coach"
 
-#: src/components/AiInsightsCard.tsx:229
+#: src/components/AiInsightsCard.tsx:227
 msgid "Praxys Coach insight"
 msgstr "Praxys Coach insight"
 
@@ -5171,7 +5171,7 @@ msgstr "Recent usage across the registered base."
 msgid "Recommendation available"
 msgstr "Recommendation available"
 
-#: src/components/AiInsightsCard.tsx:280
+#: src/components/AiInsightsCard.tsx:278
 msgid "Recommendations"
 msgstr "Recommendations"
 
@@ -5686,7 +5686,7 @@ msgstr "Rule based"
 msgid "Run"
 msgstr "Run"
 
-#: src/components/AiInsightsCard.tsx:292
+#: src/components/AiInsightsCard.tsx:290
 msgid "Run <0>/praxys:{skillName}</0> in Claude Code for deeper analysis"
 msgstr "Run <0>/praxys:{skillName}</0> in Claude Code for deeper analysis"
 
@@ -5818,7 +5818,7 @@ msgstr "Selecting a target does not enable delivery. You will confirm the manage
 msgid "Self-registration"
 msgstr "Self-registration"
 
-#: src/components/AiInsightsCard.tsx:375
+#: src/components/AiInsightsCard.tsx:373
 msgid "Send"
 msgstr "Send"
 
@@ -5837,7 +5837,7 @@ msgstr "Send feedback"
 msgid "Sending an invitation reserves a seat. Self-registration closes automatically at the cap, so review readiness before raising it."
 msgstr "Sending an invitation reserves a seat. Self-registration closes automatically at the cap, so review readiness before raising it."
 
-#: src/components/AiInsightsCard.tsx:375
+#: src/components/AiInsightsCard.tsx:373
 msgid "Sending..."
 msgstr "Sending..."
 
@@ -5851,7 +5851,7 @@ msgstr "Sending…"
 msgid "Sensitivity gate"
 msgstr "Sensitivity gate"
 
-#: src/components/AiInsightsCard.tsx:311
+#: src/components/AiInsightsCard.tsx:309
 msgid "Sent"
 msgstr "Sent"
 
@@ -6588,7 +6588,7 @@ msgstr "This guardrail uses individualized HRV guidance and never loads activity
 #~ msgid "This guardrail uses individualized HRV guidance, never activity average power. Missing or stale recovery, a completed activity, multiple Praxys workouts, or an uncertain target calendar keeps the plan unchanged. Load, sleep, and other caution signals remain suggestions."
 #~ msgstr "This guardrail uses individualized HRV guidance, never activity average power. Missing or stale recovery, a completed activity, multiple Praxys workouts, or an uncertain target calendar keeps the plan unchanged. Load, sleep, and other caution signals remain suggestions."
 
-#: src/components/AiInsightsCard.tsx:193
+#: src/components/AiInsightsCard.tsx:191
 msgid "This insight changed. Refresh the page before sending feedback."
 msgstr "This insight changed. Refresh the page before sending feedback."
 
@@ -7144,8 +7144,8 @@ msgstr "Warmup"
 msgid "Warning"
 msgstr "Warning"
 
-#: src/components/AiInsightsCard.tsx:315
-#: src/components/AiInsightsCard.tsx:319
+#: src/components/AiInsightsCard.tsx:313
+#: src/components/AiInsightsCard.tsx:317
 msgid "Was this insight useful?"
 msgstr "Was this insight useful?"
 
@@ -7243,7 +7243,7 @@ msgstr "What happened, or what would you like to see?"
 msgid "What time are you working toward? Leave blank to track trend only"
 msgstr "What time are you working toward? Leave blank to track trend only"
 
-#: src/components/AiInsightsCard.tsx:355
+#: src/components/AiInsightsCard.tsx:353
 msgid "What was useful or missing?"
 msgstr "What was useful or missing?"
 
