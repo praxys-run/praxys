@@ -308,8 +308,22 @@ def test_adapter_requires_credential_generation() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("china_account", "region", "profile"),
+    [
+        (
+            False,
+            "international",
+            {"userProfileId": 12345, "profileId": 67890},
+        ),
+        (True, "cn", {"id": 67890, "profileId": 12345}),
+    ],
+)
 def test_authenticate_publishes_in_memory_tokens(
     monkeypatch,
+    china_account: bool,
+    region: str,
+    profile: dict[str, int],
 ) -> None:
     published: list[str] = []
     loaded: list[str] = []
@@ -342,11 +356,11 @@ def test_authenticate_publishes_in_memory_tokens(
         def __init__(self, email, password, is_cn=False):
             assert email == "runner@example.test"
             assert password == "secret"
-            assert is_cn is False
+            assert is_cn is china_account
 
         def connectapi(self, path):
             assert path == "/userprofile-service/socialProfile"
-            return {"userProfileId": 12345}
+            return profile
 
     monkeypatch.setattr("garminconnect.Garmin", AuthenticatedGarmin)
     monkeypatch.setattr(
@@ -367,10 +381,10 @@ def test_authenticate_publishes_in_memory_tokens(
         {
             "email": "runner@example.test",
             "password": "secret",
-            "is_cn": False,
+            "is_cn": china_account,
         },
         user_id="garmin-adapter-user",
-        source_options={"garmin_region": "international"},
+        source_options={"garmin_region": region},
         credential_generation=CREDENTIAL_GENERATION,
         token_loader=load_tokens,
         token_publisher=publish_tokens,
@@ -382,6 +396,53 @@ def test_authenticate_publishes_in_memory_tokens(
     assert login_tokens == ["stored-token-bundle"]
     assert published == ["serialized-token-bundle"]
     assert lease_depth == 0
+
+
+def test_missing_profile_identity_reports_safe_failure_stage(
+    monkeypatch,
+    caplog,
+) -> None:
+    class AuthenticatedGarmin:
+        display_name = "stable-account"
+
+        def __init__(self, email, password, is_cn=False):
+            del email, password, is_cn
+
+        def connectapi(self, path):
+            assert path == "/userprofile-service/socialProfile"
+            return {"id": 12345}
+
+    monkeypatch.setattr("garminconnect.Garmin", AuthenticatedGarmin)
+    monkeypatch.setattr(
+        "api.routes.sync._garmin_tokenstore_lease",
+        lambda user_id: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(
+        "api.routes.sync._login_garmin_with_cn_fallback",
+        lambda client, creds, serialized_tokens: None,
+    )
+    adapter = GarminPlanDeliveryAdapter(
+        {
+            "email": "runner@example.test",
+            "password": "secret",
+            "is_cn": False,
+        },
+        user_id="garmin-adapter-user",
+        source_options={"garmin_region": "international"},
+        credential_generation=CREDENTIAL_GENERATION,
+    )
+
+    with caplog.at_level("WARNING", logger="api.plan_delivery.garmin"):
+        with pytest.raises(
+            ProviderAuthenticationError,
+            match="account identity verification failed",
+        ):
+            adapter.authenticate()
+
+    assert "stage=profile_identity" in caplog.text
+    assert "error_type=ValueError" in caplog.text
+    assert "runner@example.test" not in caplog.text
+    assert "garmin-adapter-user" not in caplog.text
 
 
 def test_token_loader_reconnect_error_is_not_downgraded(monkeypatch) -> None:

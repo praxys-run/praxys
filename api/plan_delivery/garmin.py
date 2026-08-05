@@ -259,6 +259,7 @@ class GarminPlanDeliveryAdapter:
             and self._profile_account_id is not None
         ):
             return
+        stage = "client_initialization"
         try:
             from garminconnect import Garmin
             from api.routes.sync import (
@@ -271,11 +272,13 @@ class GarminPlanDeliveryAdapter:
                 is_cn=self._is_cn,
             )
             self._client = client
+            stage = "token_load"
             serialized_tokens = (
                 self._token_loader()
                 if self._token_loader is not None
                 else None
             )
+            stage = "login"
             _login_garmin_with_cn_fallback(
                 client,
                 {
@@ -285,12 +288,15 @@ class GarminPlanDeliveryAdapter:
                 },
                 serialized_tokens,
             )
+            stage = "profile_identity"
             profile_id = garmin_user_profile_id(client)
+            stage = "profile_fence"
             profile_account_id = garmin_profile_account_id(
                 user_id=self._user_id,
                 is_cn=self._is_cn,
                 garmin_user_profile_id=profile_id,
             )
+            stage = "provider_identity"
             account_id = garmin_provider_account_id(
                 user_id=self._user_id,
                 display_name=getattr(client, "display_name", ""),
@@ -299,14 +305,21 @@ class GarminPlanDeliveryAdapter:
         except ProviderAuthenticationRequiredError:
             raise
         except _GARMIN_AUTH_ERRORS as exc:
+            logger.warning(
+                "Garmin delivery authentication failed "
+                "(stage=%s, error_type=%s, http_status=%s)",
+                stage,
+                type(exc).__name__,
+                _http_status(exc),
+            )
             try:
                 self._publish_current_tokens_locked()
-            except Exception:
+            except Exception as publish_exc:
                 logger.warning(
                     "Could not persist Garmin OAuth rotation after failed "
-                    "authentication for user %s",
-                    self._user_id,
-                    exc_info=True,
+                    "authentication (stage=%s, error_type=%s)",
+                    stage,
+                    type(publish_exc).__name__,
                 )
             if _is_rate_limited(exc):
                 raise ProviderRateLimitError(
@@ -315,6 +328,14 @@ class GarminPlanDeliveryAdapter:
             if _is_authentication_rejected(exc):
                 raise ProviderAuthenticationRequiredError(
                     "Garmin login failed; reconnect Garmin"
+                ) from exc
+            if stage in {
+                "profile_identity",
+                "profile_fence",
+                "provider_identity",
+            }:
+                raise ProviderAuthenticationError(
+                    "Garmin account identity verification failed"
                 ) from exc
             raise ProviderAuthenticationError("Garmin login failed") from exc
         self._provider_account_id = account_id

@@ -53,6 +53,19 @@ Expect individual endpoints to 400/404 on `connectapi.garmin.cn` even when the a
 - The recovery loop has per-endpoint consecutive-failure circuit breakers (5 strikes → stop calling that endpoint for the remaining days).
 - `parse_garmin_recovery` uses `isinstance` guards + `or`-coalesce on every nested `.get()` — `dict.get(k, default)` returns `None`, not the default, for a present-but-null key, and the legacy code's crash here used to abort the whole recovery loop.
 
+### Garmin profile identity keys differ by region
+
+The authenticated `/userprofile-service/socialProfile` payload is not identical
+across regions. Legacy/International responses can expose `userProfileId`,
+while Garmin CN exposes `profileId`; the CN value matches the top-level `id`
+from `get_user_profile()`. The social payload's own `id` is a different record
+identifier and must not be used as the account fence.
+
+`garmin_user_profile_id()` therefore prefers `userProfileId` to preserve
+existing delivery-ledger identity, then falls back to `profileId` for CN.
+Profile visibility is unrelated: this is an authenticated self-profile read,
+not a public-profile lookup.
+
 ### Garmin's CAPTCHA gate is time-bound, not sticky
 
 When the headless `garminconnect` flow trips Garmin/Cloudflare's bot detection, the rejection looks **permanent** but isn't. The trap is assuming you need to engineer your way around the gate when you actually just need to stop feeding it.

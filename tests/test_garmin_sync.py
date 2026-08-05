@@ -389,13 +389,32 @@ def test_garmin_user_profile_id_reads_and_caches_social_profile():
         def connectapi(self, path):
             assert path == "/userprofile-service/socialProfile"
             self.calls += 1
-            return {"userProfileId": 12345}
+            return {"userProfileId": 12345, "profileId": 67890}
 
     client = FakeGarmin()
 
     assert garmin_user_profile_id(client) == "12345"
     assert garmin_user_profile_id(client) == "12345"
     assert client.calls == 1
+
+
+def test_garmin_user_profile_id_accepts_cn_profile_id():
+    class FakeGarmin:
+        def connectapi(self, path):
+            assert path == "/userprofile-service/socialProfile"
+            return {"id": 12345, "profileId": 67890}
+
+    assert garmin_user_profile_id(FakeGarmin()) == "67890"
+
+
+def test_garmin_user_profile_id_rejects_social_record_id():
+    class FakeGarmin:
+        def connectapi(self, path):
+            assert path == "/userprofile-service/socialProfile"
+            return {"id": 12345}
+
+    with pytest.raises(ValueError, match="userProfileId/profileId"):
+        garmin_user_profile_id(FakeGarmin())
 
 
 def test_parse_activity_weather_converts_fahrenheit_to_celsius():
