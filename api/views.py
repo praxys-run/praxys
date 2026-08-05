@@ -45,6 +45,87 @@ def utc_isoformat(dt: datetime | None) -> str | None:
     return dt.astimezone(timezone.utc).isoformat()
 
 
+def normalize_activity_start_time(
+    raw_start_time: object,
+    *,
+    sample_start_epoch: object = None,
+) -> dict:
+    """Return an explicit UTC activity-start contract without guessing offsets.
+
+    Connector timestamps that carry ``Z`` or an offset are normalized directly.
+    Naive/local activity strings are never relabeled as UTC; when timestamped
+    samples exist, their first epoch supplies a safe UTC fallback. Otherwise
+    the result is explicitly unavailable with a stable reason code.
+    """
+    raw_text = ""
+    if raw_start_time is not None and not pd.isna(raw_start_time):
+        raw_text = str(raw_start_time).strip()
+
+    reason_codes: list[str] = []
+    parsed: datetime | None = None
+    provenance: str | None = None
+    if raw_text:
+        try:
+            raw_epoch = float(raw_text)
+        except (TypeError, ValueError):
+            raw_epoch = None
+        if (
+            raw_epoch is not None
+            and 315532800 <= raw_epoch <= 4102444800
+        ):
+            parsed = datetime.fromtimestamp(raw_epoch, tz=timezone.utc)
+            provenance = "activity_start_epoch"
+        else:
+            normalized = (
+                raw_text[:-1] + "+00:00"
+                if raw_text.endswith("Z")
+                else raw_text
+            )
+            try:
+                candidate = datetime.fromisoformat(normalized)
+            except ValueError:
+                candidate = None
+                reason_codes.append("activity_start_unparseable")
+            if candidate is not None:
+                if candidate.tzinfo is None:
+                    reason_codes.append("activity_start_timezone_unknown")
+                else:
+                    parsed = candidate.astimezone(timezone.utc)
+                    provenance = "activity_start_with_offset"
+    else:
+        reason_codes.append("activity_start_missing")
+
+    if parsed is None:
+        try:
+            sample_epoch = float(sample_start_epoch)
+        except (TypeError, ValueError):
+            sample_epoch = None
+        if (
+            sample_epoch is not None
+            and 315532800 <= sample_epoch <= 4102444800
+        ):
+            parsed = datetime.fromtimestamp(sample_epoch, tz=timezone.utc)
+            provenance = "sample_epoch_fallback"
+        else:
+            reason_codes.append("sample_start_unavailable")
+
+    if parsed is None:
+        return {
+            "state": "unavailable",
+            "utc": None,
+            "timezone": None,
+            "provenance": provenance or "none",
+            "reason_codes": list(dict.fromkeys(reason_codes)),
+        }
+    return {
+        "state": "available",
+        "utc": parsed.isoformat().replace("+00:00", "Z"),
+        "timezone": "UTC",
+        "provenance": provenance,
+        "reason_codes": list(dict.fromkeys(reason_codes)),
+    }
+
+
 def last_activity(activities: list[dict]) -> dict | None:
     """Extract the most recent activity summary."""
     if not activities:

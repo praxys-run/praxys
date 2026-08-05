@@ -46,6 +46,7 @@ web/dist/
 !.claude/hooks/
 !.claude/hooks/**
 .playwright-mcp/
+/.praxys-local/
 
 # Git worktrees
 .worktrees/

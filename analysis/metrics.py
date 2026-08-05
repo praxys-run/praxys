@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import math
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Literal, TypedDict
 
 import numpy as np
@@ -1170,10 +1170,933 @@ def compute_load_compliance_pct(
     return round(sum(ratios) / len(ratios))
 
 
+# --- Per-activity analysis -------------------------------------------------
+
+ACTIVITY_ANALYSIS_SCHEMA_VERSION = "activity-analysis-v1"
+ACTIVITY_RESEARCH_SCHEMA_VERSION = "activity-research-dataset-v1"
+STABLE_SEGMENT_MODEL_VERSION = "stable-power-segments-v3"
+PRE_ACTIVITY_LOAD_MODEL_VERSION = "banister-pmc-causal-v2"
+ENVIRONMENT_CONTEXT_MODEL_VERSION = "environmental-performance-context-v1"
+ENVIRONMENT_CONTEXT_SCIENCE_DECISION_ID = (
+    "sdr-environmental-performance-v1"
+)
+# Keep the metric pure and I/O-free. A registry consistency test pins this
+# link-only projection to ENVIRONMENT_CONTEXT_SCIENCE_DECISION_ID.
+_ENVIRONMENT_CONTEXT_SCIENCE_SOURCES = (
+    {
+        "id": "cramer-jay-2016",
+        "url": "https://doi.org/10.1016/j.autneu.2016.03.001",
+    },
+    {
+        "id": "periard-2021",
+        "url": "https://doi.org/10.1152/physrev.00038.2020",
+    },
+    {
+        "id": "mantzios-2022",
+        "url": "https://doi.org/10.1249/MSS.0000000000002769",
+    },
+    {
+        "id": "el-helou-2012",
+        "url": "https://doi.org/10.1371/journal.pone.0037407",
+    },
+    {
+        "id": "ely-2007",
+        "url": "https://doi.org/10.1249/mss.0b013e31802d3aba",
+    },
+    {
+        "id": "maughan-otani-watson-2012",
+        "url": "https://doi.org/10.1007/s00421-011-2206-7",
+    },
+    {
+        "id": "otani-2016",
+        "url": "https://doi.org/10.1007/s00421-016-3335-9",
+    },
+    {
+        "id": "stull-2011",
+        "url": "https://doi.org/10.1175/JAMC-D-11-0143.1",
+    },
+    {
+        "id": "liljegren-2008",
+        "url": "https://doi.org/10.1080/15459620802310770",
+    },
+    {
+        "id": "vecellio-2022",
+        "url": "https://doi.org/10.1152/japplphysiol.00738.2021",
+    },
+    {
+        "id": "notley-2017",
+        "url": "https://doi.org/10.1113/EP086112",
+    },
+    {
+        "id": "baillot-2021",
+        "url": "https://doi.org/10.3390/life11111149",
+    },
+)
+
+# ESTIMATE -- these product guardrails define a deterministic detector for
+# research feature extraction; they are not validated physiological cutoffs.
+# A 60-second rolling window and 5% CV distinguish sustained steady work from
+# short transitions/noise, while a three-minute minimum avoids presenting a
+# brief patch as a meaningful segment. Every value is emitted in the response
+# parameters so retrospective exports remain reproducible.
+_SEGMENT_ROLLING_WINDOW_SEC = 60
+_SEGMENT_MIN_WINDOW_COVERAGE = 0.90
+_SEGMENT_MAX_ROLLING_POWER_CV_PCT = 5.0
+_SEGMENT_MAX_TOTAL_POWER_CV_PCT = 7.5
+_SEGMENT_MIN_DURATION_SEC = 180.0
+_SEGMENT_MAX_SAMPLE_GAP_SEC = 5.0
+_SEGMENT_MAX_POWER_WATTS = 2500.0
+_SEGMENT_MIN_HR_BPM = 30.0
+_SEGMENT_MAX_HR_BPM = 240.0
+_SEGMENT_MIN_HR_COVERAGE = 0.80
+
+
+def _activity_analysis_number(value: object) -> float | None:
+    """Return a finite float for activity-analysis inputs."""
+    if value is None:
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def _activity_analysis_iso(epoch_sec: float) -> str:
+    """Serialize an epoch timestamp as canonical UTC."""
+    return (
+        datetime.fromtimestamp(epoch_sec, tz=timezone.utc)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+
+
+def _analysis_provider(values: pd.Series) -> tuple[list[str], str]:
+    """Return normalized provider values and their availability state."""
+    providers = sorted({
+        str(value).strip().casefold()
+        for value in values.dropna().tolist()
+        if str(value).strip()
+    })
+    if not providers:
+        return [], "unavailable"
+    if len(providers) == 1:
+        return providers, "available"
+    return providers, "partial"
+
+
+def _weighted_mean(
+    frame: pd.DataFrame,
+    value_column: str,
+    *,
+    weight_column: str = "_interval_sec",
+) -> float | None:
+    """Return a duration-weighted mean for finite positive observations."""
+    if frame.empty or value_column not in frame.columns:
+        return None
+    values = pd.to_numeric(frame[value_column], errors="coerce")
+    weights = pd.to_numeric(frame[weight_column], errors="coerce").fillna(0.0)
+    mask = np.isfinite(values) & values.notna() & weights.gt(0)
+    if not mask.any():
+        return None
+    weight_sum = float(weights.loc[mask].sum())
+    if weight_sum <= 0:
+        return None
+    return float(np.average(values.loc[mask], weights=weights.loc[mask]))
+
+
+def _weighted_cv_pct(
+    frame: pd.DataFrame,
+    value_column: str,
+    *,
+    weight_column: str = "_interval_sec",
+) -> float | None:
+    """Return duration-weighted coefficient of variation in percent."""
+    mean = _weighted_mean(
+        frame,
+        value_column,
+        weight_column=weight_column,
+    )
+    if mean is None or mean <= 0:
+        return None
+    values = pd.to_numeric(frame[value_column], errors="coerce")
+    weights = pd.to_numeric(frame[weight_column], errors="coerce").fillna(0.0)
+    mask = np.isfinite(values) & values.notna() & weights.gt(0)
+    if not mask.any():
+        return None
+    variance = float(
+        np.average(
+            (values.loc[mask] - mean) ** 2,
+            weights=weights.loc[mask],
+        )
+    )
+    return math.sqrt(max(variance, 0.0)) / mean * 100.0
+
+
+def _split_segment_fallback(
+    splits: pd.DataFrame,
+    *,
+    cp_watts: float | None,
+    cp_power_provider: str | None,
+    activity_provider: str | None,
+    inherited_reason_codes: list[str],
+) -> list[dict]:
+    """Build explicitly limited split summaries when samples are unavailable."""
+    if splits is None or splits.empty:
+        return []
+
+    frame = splits.copy()
+    for column in (
+        "split_num",
+        "duration_sec",
+        "avg_power",
+        "avg_hr",
+        "power_source",
+        "power_provider",
+    ):
+        if column not in frame.columns:
+            frame[column] = pd.NA
+    frame = frame.sort_values("split_num", kind="stable")
+
+    offset_sec = 0.0
+    segments: list[dict] = []
+    for _, row in frame.iterrows():
+        duration = _activity_analysis_number(row.get("duration_sec"))
+        power = _activity_analysis_number(row.get("avg_power"))
+        start_offset = offset_sec
+        if duration is not None and duration > 0:
+            offset_sec += duration
+        if (
+            duration is None
+            or duration < _SEGMENT_MIN_DURATION_SEC
+            or power is None
+            or power <= 0
+        ):
+            continue
+
+        raw_provider = row.get("power_provider")
+        if raw_provider is None or pd.isna(raw_provider):
+            raw_provider = row.get("power_source")
+        power_provider = (
+            str(raw_provider).strip().casefold()
+            if raw_provider is not None
+            and not pd.isna(raw_provider)
+            and str(raw_provider).strip()
+            else None
+        )
+        reason_codes = [
+            *inherited_reason_codes,
+            "stability_not_evaluable_from_splits",
+        ]
+        mean_pct_cp = None
+        if cp_watts is None:
+            reason_codes.append("critical_power_unavailable")
+        elif power_provider is None or cp_power_provider is None:
+            reason_codes.append("power_provider_alignment_unavailable")
+        elif power_provider != cp_power_provider:
+            reason_codes.append("critical_power_provider_mismatch")
+        else:
+            mean_pct_cp = round(power / cp_watts * 100.0, 1)
+
+        mean_hr = _activity_analysis_number(row.get("avg_hr"))
+        if mean_hr is None:
+            reason_codes.append("heart_rate_unavailable")
+        segments.append({
+            "source": "splits",
+            "stability_state": "not_evaluable",
+            "split_num": int(row.get("split_num") or 0),
+            "start_time_utc": None,
+            "end_time_utc": None,
+            "start_offset_sec": round(start_offset, 1),
+            "end_offset_sec": round(start_offset + duration, 1),
+            "duration_sec": round(duration, 1),
+            "mean_power_watts": round(power, 1),
+            "mean_pct_cp": mean_pct_cp,
+            "power_cv_pct": None,
+            "mean_hr_bpm": round(mean_hr, 1) if mean_hr is not None else None,
+            "hr_slope_bpm_per_min": None,
+            "hr_at_power_decoupling_pct": None,
+            "sample_coverage_ratio": None,
+            "power_provider": power_provider,
+            "heart_rate_provider": (
+                str(activity_provider).strip().casefold()
+                if mean_hr is not None and activity_provider
+                else None
+            ),
+            "reason_codes": list(dict.fromkeys(reason_codes)),
+        })
+    return segments
+
+
+def derive_stable_power_segments(
+    samples: pd.DataFrame,
+    splits: pd.DataFrame | None = None,
+    *,
+    activity_duration_sec: float | None,
+    cp_watts: float | None,
+    cp_source: str | None = None,
+    cp_power_provider: str | None = None,
+    activity_provider: str | None = None,
+) -> dict:
+    """Derive reproducible stable-power segments and HR-drift features.
+
+    The detector uses timestamped samples, excludes missing/zero/out-of-range
+    power and gaps longer than five seconds, then finds continuous regions
+    whose trailing 60-second power CV is at most 5%. A candidate must last at
+    least three minutes and keep whole-segment CV at or below 7.5%. These
+    thresholds are Praxys operational estimates, not physiological boundaries.
+
+    HR slope is ordinary least squares against elapsed minutes. The
+    ``hr_at_power_decoupling_pct`` feature compares first-half and second-half
+    power/HR efficiency as ``(EF_first - EF_second) / EF_first * 100``. It is an
+    operational expression of aerobic decoupling, motivated by documented
+    cardiovascular drift during steady exercise:
+    https://doi.org/10.1097/00003677-200104000-00008 and
+    https://help.trainingpeaks.com/hc/en-us/articles/204071014-What-is-Aerobic-Decoupling-
+
+    When timestamped power is unavailable, qualifying splits are returned as
+    explicitly limited summaries. Split fallback never fabricates power CV,
+    HR slope, decoupling, or sample coverage.
+    """
+    parameters = {
+        "rolling_window_sec": _SEGMENT_ROLLING_WINDOW_SEC,
+        "minimum_window_coverage_ratio": _SEGMENT_MIN_WINDOW_COVERAGE,
+        "maximum_rolling_power_cv_pct": _SEGMENT_MAX_ROLLING_POWER_CV_PCT,
+        "maximum_segment_power_cv_pct": _SEGMENT_MAX_TOTAL_POWER_CV_PCT,
+        "minimum_segment_duration_sec": _SEGMENT_MIN_DURATION_SEC,
+        "maximum_sample_gap_sec": _SEGMENT_MAX_SAMPLE_GAP_SEC,
+        "maximum_power_watts": _SEGMENT_MAX_POWER_WATTS,
+        "valid_hr_bpm": [_SEGMENT_MIN_HR_BPM, _SEGMENT_MAX_HR_BPM],
+        "minimum_hr_coverage_ratio": _SEGMENT_MIN_HR_COVERAGE,
+        "segments_non_overlapping": True,
+        "estimated": True,
+    }
+    cp = _activity_analysis_number(cp_watts)
+    if cp is not None and cp <= 0:
+        cp = None
+    cp_provider = (
+        str(cp_power_provider).strip().casefold()
+        if cp_power_provider and str(cp_power_provider).strip()
+        else None
+    )
+    cp_origin = (
+        str(cp_source).strip().casefold()
+        if cp_source and str(cp_source).strip()
+        else None
+    )
+
+    frame = samples.copy() if samples is not None else pd.DataFrame()
+    required_columns = (
+        "t_sec",
+        "power_watts",
+        "hr_bpm",
+        "source",
+    )
+    for column in required_columns:
+        if column not in frame.columns:
+            frame[column] = pd.NA
+    frame["t_sec"] = pd.to_numeric(frame["t_sec"], errors="coerce")
+    frame["power_watts"] = pd.to_numeric(
+        frame["power_watts"], errors="coerce"
+    )
+    frame["hr_bpm"] = pd.to_numeric(frame["hr_bpm"], errors="coerce")
+    frame = (
+        frame[np.isfinite(frame["t_sec"]) & frame["t_sec"].notna()]
+        .sort_values("t_sec", kind="stable")
+        .drop_duplicates(subset=["t_sec"], keep="first")
+        .reset_index(drop=True)
+    )
+    # SQL row order is not a continuity signal. Assign the ordinal only after
+    # canonical timestamp ordering/deduplication so invalid intervening samples
+    # still split blocks without shuffled input fragmenting valid streams.
+    frame["_original_position"] = np.arange(len(frame))
+
+    top_reason_codes: list[str] = []
+    exclusions: list[dict] = []
+    if frame.empty:
+        top_reason_codes.append("samples_unavailable")
+        fallback = _split_segment_fallback(
+            splits if splits is not None else pd.DataFrame(),
+            cp_watts=cp,
+            cp_power_provider=cp_provider,
+            activity_provider=activity_provider,
+            inherited_reason_codes=["samples_unavailable"],
+        )
+        return {
+            "model_version": STABLE_SEGMENT_MODEL_VERSION,
+            "status": "limited" if fallback else "unavailable",
+            "source": "splits" if fallback else "none",
+            "parameters": parameters,
+            "availability": {
+                "samples": {
+                    "state": "unavailable",
+                    "reason_codes": ["samples_unavailable"],
+                },
+                "stable_segments": {
+                    "state": "limited" if fallback else "unavailable",
+                    "reason_codes": (
+                        ["split_fallback_only"]
+                        if fallback
+                        else ["samples_and_splits_unavailable"]
+                    ),
+                },
+                "critical_power": {
+                    "state": "available" if cp is not None else "unavailable",
+                    "reason_codes": (
+                        [] if cp is not None else ["critical_power_unavailable"]
+                    ),
+                },
+                "heart_rate": {
+                    "state": (
+                        "partial"
+                        if any(segment["mean_hr_bpm"] is not None for segment in fallback)
+                        else "unavailable"
+                    ),
+                    "reason_codes": (
+                        ["split_summary_only"]
+                        if any(segment["mean_hr_bpm"] is not None for segment in fallback)
+                        else ["heart_rate_unavailable"]
+                    ),
+                },
+            },
+            "coverage": {
+                "sample_count": 0,
+                "sample_start_time_utc": None,
+                "sample_end_time_utc": None,
+                "observed_duration_sec": 0.0,
+                "sample_coverage_ratio": None,
+                "power_duration_sec": 0.0,
+                "power_coverage_ratio": None,
+                "heart_rate_duration_sec": 0.0,
+                "heart_rate_coverage_ratio": None,
+                "gap_count": 0,
+            },
+            "provenance": {
+                "sample_providers": [],
+                "power_providers": sorted({
+                    segment["power_provider"]
+                    for segment in fallback
+                    if segment["power_provider"]
+                }),
+                "heart_rate_providers": sorted({
+                    segment["heart_rate_provider"]
+                    for segment in fallback
+                    if segment["heart_rate_provider"]
+                }),
+                "critical_power_source": cp_origin,
+                "critical_power_provider": cp_provider,
+            },
+            "exclusions": [],
+            "reason_codes": list(dict.fromkeys(top_reason_codes)),
+            "segments": fallback,
+        }
+
+    next_delta = frame["t_sec"].shift(-1) - frame["t_sec"]
+    valid_interval = next_delta.gt(0) & next_delta.le(
+        _SEGMENT_MAX_SAMPLE_GAP_SEC
+    )
+    frame["_interval_sec"] = next_delta.where(valid_interval, 0.0).fillna(0.0)
+    gap_mask = next_delta.notna() & ~valid_interval
+
+    power = frame["power_watts"]
+    stopped_mask = power.eq(0)
+    missing_power_mask = power.isna() | ~np.isfinite(power)
+    invalid_power_mask = (
+        power.notna()
+        & np.isfinite(power)
+        & ((power < 0) | (power > _SEGMENT_MAX_POWER_WATTS))
+    )
+    valid_power_mask = (
+        power.notna()
+        & np.isfinite(power)
+        & power.gt(0)
+        & power.le(_SEGMENT_MAX_POWER_WATTS)
+    )
+    valid_hr_mask = (
+        frame["hr_bpm"].notna()
+        & np.isfinite(frame["hr_bpm"])
+        & frame["hr_bpm"].between(
+            _SEGMENT_MIN_HR_BPM,
+            _SEGMENT_MAX_HR_BPM,
+            inclusive="both",
+        )
+    )
+
+    def _add_exclusion(code: str, mask: pd.Series) -> None:
+        count = int(mask.sum())
+        if count <= 0:
+            return
+        exclusions.append({
+            "code": code,
+            "sample_count": count,
+            "duration_sec": round(
+                float(frame.loc[mask, "_interval_sec"].sum()),
+                1,
+            ),
+        })
+
+    _add_exclusion("stopped_or_zero_power", stopped_mask)
+    _add_exclusion("power_sample_missing", missing_power_mask)
+    _add_exclusion("power_sample_out_of_range", invalid_power_mask)
+    if gap_mask.any():
+        exclusions.append({
+            "code": "sample_gap",
+            "sample_count": int(gap_mask.sum()),
+            "duration_sec": round(
+                float(
+                    next_delta.loc[gap_mask & next_delta.gt(0)]
+                    .sub(_SEGMENT_MAX_SAMPLE_GAP_SEC)
+                    .clip(lower=0)
+                    .sum()
+                ),
+                1,
+            ),
+        })
+
+    activity_duration = _activity_analysis_number(activity_duration_sec)
+    if activity_duration is not None and activity_duration <= 0:
+        activity_duration = None
+    observed_duration = float(frame["_interval_sec"].sum())
+    power_duration = float(
+        frame.loc[valid_power_mask, "_interval_sec"].sum()
+    )
+    hr_duration = float(frame.loc[valid_hr_mask, "_interval_sec"].sum())
+    coverage_denominator = activity_duration
+    sample_coverage_ratio = (
+        min(observed_duration / coverage_denominator, 1.0)
+        if coverage_denominator and coverage_denominator > 0
+        else None
+    )
+    power_coverage_ratio = (
+        min(power_duration / coverage_denominator, 1.0)
+        if coverage_denominator and coverage_denominator > 0
+        else None
+    )
+    hr_coverage_ratio = (
+        min(hr_duration / coverage_denominator, 1.0)
+        if coverage_denominator and coverage_denominator > 0
+        else None
+    )
+
+    sample_providers, _ = _analysis_provider(frame["source"])
+    power_providers, _ = _analysis_provider(
+        frame.loc[valid_power_mask, "source"]
+    )
+    hr_providers, _ = _analysis_provider(
+        frame.loc[valid_hr_mask, "source"]
+    )
+
+    segment_candidates: list[pd.DataFrame] = []
+    valid = frame.loc[
+        valid_power_mask & frame["_interval_sec"].gt(0)
+    ].copy()
+    if valid.empty:
+        top_reason_codes.append("sample_power_unavailable")
+    else:
+        valid["_block_break"] = (
+            valid["_original_position"].diff().fillna(1).ne(1)
+            | valid["t_sec"].diff().fillna(1).gt(
+                _SEGMENT_MAX_SAMPLE_GAP_SEC
+            )
+        )
+        valid["_block_id"] = valid["_block_break"].cumsum()
+        minimum_window_samples = max(
+            2,
+            math.ceil(
+                _SEGMENT_ROLLING_WINDOW_SEC
+                * _SEGMENT_MIN_WINDOW_COVERAGE
+            ),
+        )
+        variability_rejections = 0
+        for _, raw_block in valid.groupby("_block_id", sort=False):
+            block = raw_block.reset_index(drop=True)
+            if float(block["_interval_sec"].sum()) < _SEGMENT_MIN_DURATION_SEC:
+                continue
+            last_accepted_end = float(block["t_sec"].iloc[0])
+            expanded_index = pd.RangeIndex(
+                int(block["t_sec"].iloc[0]),
+                int(block["t_sec"].iloc[-1]) + 1,
+            )
+            expanded_power = (
+                pd.Series(
+                    block["power_watts"].to_numpy(),
+                    index=block["t_sec"].astype(int),
+                    dtype=float,
+                )
+                .reindex(expanded_index)
+                .ffill(limit=int(_SEGMENT_MAX_SAMPLE_GAP_SEC) - 1)
+            )
+            rolling = expanded_power.rolling(
+                window=_SEGMENT_ROLLING_WINDOW_SEC,
+                min_periods=minimum_window_samples,
+            )
+            rolling_mean = rolling.mean()
+            rolling_cv = rolling.std(ddof=0).div(rolling_mean).mul(100.0)
+            stable = rolling_cv.le(_SEGMENT_MAX_ROLLING_POWER_CV_PCT)
+            stable_groups = stable.ne(stable.shift(fill_value=False)).cumsum()
+            stable_times = pd.Series(
+                expanded_index[stable.to_numpy()],
+                index=expanded_index[stable.to_numpy()],
+                dtype=float,
+            )
+            for _, stable_run in stable_times.groupby(
+                stable_groups.loc[stable],
+                sort=False,
+            ):
+                first_stable = float(stable_run.iloc[0])
+                last_stable = float(stable_run.iloc[-1])
+                candidate_start = max(
+                    float(block["t_sec"].iloc[0]),
+                    first_stable - (_SEGMENT_ROLLING_WINDOW_SEC - 1),
+                    last_accepted_end,
+                )
+                candidate_end = last_stable + 1.0
+                if candidate_end <= candidate_start:
+                    continue
+                candidate = block[
+                    block["t_sec"].ge(candidate_start)
+                    & block["t_sec"].lt(candidate_end)
+                ].copy()
+                duration = float(candidate["_interval_sec"].sum())
+                if duration < _SEGMENT_MIN_DURATION_SEC:
+                    continue
+                mean_power = _weighted_mean(candidate, "power_watts")
+                if mean_power is None or mean_power <= 0:
+                    continue
+                total_cv = _weighted_cv_pct(candidate, "power_watts")
+                if total_cv is None:
+                    continue
+                if total_cv > _SEGMENT_MAX_TOTAL_POWER_CV_PCT:
+                    variability_rejections += 1
+                    continue
+                segment_candidates.append(candidate)
+                last_accepted_end = float(
+                    candidate["t_sec"].iloc[-1]
+                    + candidate["_interval_sec"].iloc[-1]
+                )
+        if variability_rejections:
+            exclusions.append({
+                "code": "power_variability_above_limit",
+                "sample_count": variability_rejections,
+                "duration_sec": 0.0,
+            })
+
+    segments: list[dict] = []
+    for candidate in segment_candidates:
+        duration = float(candidate["_interval_sec"].sum())
+        mean_power = _weighted_mean(candidate, "power_watts")
+        if mean_power is None or duration <= 0:
+            continue
+        power_cv = _weighted_cv_pct(candidate, "power_watts")
+        if power_cv is None:
+            continue
+        segment_power_providers, power_provider_state = _analysis_provider(
+            candidate["source"]
+        )
+        power_provider = (
+            segment_power_providers[0]
+            if power_provider_state == "available"
+            else (
+                "mixed"
+                if segment_power_providers
+                else None
+            )
+        )
+
+        segment_reason_codes: list[str] = []
+        mean_pct_cp = None
+        if cp is None:
+            segment_reason_codes.append("critical_power_unavailable")
+        elif cp_provider is None or power_provider is None:
+            segment_reason_codes.append(
+                "power_provider_alignment_unavailable"
+            )
+        elif power_provider != cp_provider:
+            segment_reason_codes.append(
+                "critical_power_provider_mismatch"
+            )
+        else:
+            mean_pct_cp = round(mean_power / cp * 100.0, 1)
+
+        candidate_hr_valid = (
+            candidate["hr_bpm"].notna()
+            & np.isfinite(candidate["hr_bpm"])
+            & candidate["hr_bpm"].between(
+                _SEGMENT_MIN_HR_BPM,
+                _SEGMENT_MAX_HR_BPM,
+                inclusive="both",
+            )
+        )
+        hr_frame = candidate.loc[candidate_hr_valid].copy()
+        segment_hr_duration = float(hr_frame["_interval_sec"].sum())
+        segment_hr_coverage = min(segment_hr_duration / duration, 1.0)
+        mean_hr = _weighted_mean(hr_frame, "hr_bpm")
+        segment_hr_providers, hr_provider_state = _analysis_provider(
+            hr_frame["source"]
+        )
+        heart_rate_provider = (
+            segment_hr_providers[0]
+            if hr_provider_state == "available"
+            else ("mixed" if segment_hr_providers else None)
+        )
+
+        hr_slope = None
+        decoupling = None
+        if (
+            mean_hr is None
+            or segment_hr_coverage < _SEGMENT_MIN_HR_COVERAGE
+            or len(hr_frame) < 2
+        ):
+            segment_reason_codes.append(
+                "heart_rate_unavailable"
+                if mean_hr is None
+                else "heart_rate_coverage_insufficient"
+            )
+        else:
+            elapsed_min = (
+                hr_frame["t_sec"] - float(hr_frame["t_sec"].iloc[0])
+            ) / 60.0
+            hr_slope = float(
+                np.polyfit(elapsed_min, hr_frame["hr_bpm"], 1)[0]
+            )
+
+            start_epoch = float(candidate["t_sec"].iloc[0])
+            end_epoch = float(
+                candidate["t_sec"].iloc[-1]
+                + candidate["_interval_sec"].iloc[-1]
+            )
+            midpoint = start_epoch + (end_epoch - start_epoch) / 2.0
+            first_half = candidate[candidate["t_sec"].lt(midpoint)].copy()
+            second_half = candidate[candidate["t_sec"].ge(midpoint)].copy()
+
+            def _half_efficiency(half: pd.DataFrame) -> float | None:
+                if half.empty:
+                    return None
+                half_hr_valid = (
+                    half["hr_bpm"].notna()
+                    & np.isfinite(half["hr_bpm"])
+                    & half["hr_bpm"].between(
+                        _SEGMENT_MIN_HR_BPM,
+                        _SEGMENT_MAX_HR_BPM,
+                        inclusive="both",
+                    )
+                )
+                half_duration = float(half["_interval_sec"].sum())
+                valid_hr_duration = float(
+                    half.loc[half_hr_valid, "_interval_sec"].sum()
+                )
+                if (
+                    half_duration <= 0
+                    or valid_hr_duration / half_duration
+                    < _SEGMENT_MIN_HR_COVERAGE
+                ):
+                    return None
+                paired = half.loc[half_hr_valid]
+                half_power = _weighted_mean(paired, "power_watts")
+                half_hr = _weighted_mean(paired, "hr_bpm")
+                if (
+                    half_power is None
+                    or half_power <= 0
+                    or half_hr is None
+                    or half_hr <= 0
+                ):
+                    return None
+                return half_power / half_hr
+
+            first_efficiency = _half_efficiency(first_half)
+            second_efficiency = _half_efficiency(second_half)
+            if (
+                first_efficiency is not None
+                and second_efficiency is not None
+                and second_efficiency > 0
+            ):
+                decoupling = (
+                    (first_efficiency - second_efficiency)
+                    / first_efficiency
+                    * 100.0
+                )
+            else:
+                segment_reason_codes.append(
+                    "decoupling_halves_unavailable"
+                )
+
+        start_epoch = float(candidate["t_sec"].iloc[0])
+        end_epoch = float(
+            candidate["t_sec"].iloc[-1]
+            + candidate["_interval_sec"].iloc[-1]
+        )
+        sample_start = float(frame["t_sec"].iloc[0])
+        segments.append({
+            "source": "samples",
+            "stability_state": "evaluated",
+            "split_num": None,
+            "start_time_utc": _activity_analysis_iso(start_epoch),
+            "end_time_utc": _activity_analysis_iso(end_epoch),
+            "start_offset_sec": round(start_epoch - sample_start, 1),
+            "end_offset_sec": round(end_epoch - sample_start, 1),
+            "duration_sec": round(duration, 1),
+            "mean_power_watts": round(mean_power, 1),
+            "mean_pct_cp": mean_pct_cp,
+            "power_cv_pct": round(power_cv, 2),
+            "mean_hr_bpm": round(mean_hr, 1) if mean_hr is not None else None,
+            "hr_slope_bpm_per_min": (
+                round(hr_slope, 3) if hr_slope is not None else None
+            ),
+            "hr_at_power_decoupling_pct": (
+                round(decoupling, 2) if decoupling is not None else None
+            ),
+            "sample_coverage_ratio": round(
+                min(
+                    float(candidate["_interval_sec"].sum()) / duration,
+                    1.0,
+                ),
+                4,
+            ),
+            "power_provider": power_provider,
+            "heart_rate_provider": heart_rate_provider,
+            "reason_codes": list(dict.fromkeys(segment_reason_codes)),
+        })
+
+    source = "samples"
+    status = "available" if segments else "unavailable"
+    if not segments:
+        fallback = _split_segment_fallback(
+            splits if splits is not None else pd.DataFrame(),
+            cp_watts=cp,
+            cp_power_provider=cp_provider,
+            activity_provider=activity_provider,
+            inherited_reason_codes=[
+                "sample_segments_unavailable",
+            ],
+        )
+        if fallback:
+            segments = fallback
+            source = "splits"
+            status = "limited"
+            top_reason_codes.append("split_fallback_only")
+        else:
+            top_reason_codes.append("no_stable_power_segments")
+    if cp is None:
+        top_reason_codes.append("critical_power_unavailable")
+    if hr_duration <= 0:
+        top_reason_codes.append("heart_rate_unavailable")
+    if gap_mask.any():
+        top_reason_codes.append("sample_gaps")
+    if activity_duration is None:
+        top_reason_codes.append("activity_duration_unavailable")
+
+    samples_state = "available"
+    sample_reasons: list[str] = []
+    if sample_coverage_ratio is None:
+        samples_state = "partial"
+        sample_reasons.append("activity_duration_unavailable")
+    elif sample_coverage_ratio < _SEGMENT_MIN_WINDOW_COVERAGE:
+        samples_state = "partial"
+        sample_reasons.append("sample_coverage_incomplete")
+    if gap_mask.any():
+        samples_state = "partial"
+        sample_reasons.append("sample_gaps")
+
+    stable_reasons = (
+        []
+        if status == "available"
+        else (
+            ["split_fallback_only"]
+            if status == "limited"
+            else ["no_stable_power_segments"]
+        )
+    )
+    heart_rate_state = (
+        "unavailable"
+        if hr_duration <= 0
+        else (
+            "partial"
+            if hr_coverage_ratio is None
+            or hr_coverage_ratio < _SEGMENT_MIN_HR_COVERAGE
+            else "available"
+        )
+    )
+    heart_rate_reasons = (
+        ["heart_rate_unavailable"]
+        if heart_rate_state == "unavailable"
+        else (
+            ["heart_rate_coverage_incomplete"]
+            if heart_rate_state == "partial"
+            else []
+        )
+    )
+
+    return {
+        "model_version": STABLE_SEGMENT_MODEL_VERSION,
+        "status": status,
+        "source": source,
+        "parameters": parameters,
+        "availability": {
+            "samples": {
+                "state": samples_state,
+                "reason_codes": sample_reasons,
+            },
+            "stable_segments": {
+                "state": status,
+                "reason_codes": stable_reasons,
+            },
+            "critical_power": {
+                "state": "available" if cp is not None else "unavailable",
+                "reason_codes": (
+                    [] if cp is not None else ["critical_power_unavailable"]
+                ),
+            },
+            "heart_rate": {
+                "state": heart_rate_state,
+                "reason_codes": heart_rate_reasons,
+            },
+        },
+        "coverage": {
+            "sample_count": len(frame),
+            "sample_start_time_utc": _activity_analysis_iso(
+                float(frame["t_sec"].iloc[0])
+            ),
+            "sample_end_time_utc": _activity_analysis_iso(
+                float(frame["t_sec"].iloc[-1])
+            ),
+            "observed_duration_sec": round(observed_duration, 1),
+            "sample_coverage_ratio": (
+                round(sample_coverage_ratio, 4)
+                if sample_coverage_ratio is not None
+                else None
+            ),
+            "power_duration_sec": round(power_duration, 1),
+            "power_coverage_ratio": (
+                round(power_coverage_ratio, 4)
+                if power_coverage_ratio is not None
+                else None
+            ),
+            "heart_rate_duration_sec": round(hr_duration, 1),
+            "heart_rate_coverage_ratio": (
+                round(hr_coverage_ratio, 4)
+                if hr_coverage_ratio is not None
+                else None
+            ),
+            "gap_count": int(gap_mask.sum()),
+        },
+        "provenance": {
+            "sample_providers": sample_providers,
+            "power_providers": power_providers,
+            "heart_rate_providers": hr_providers,
+            "critical_power_source": cp_origin,
+            "critical_power_provider": cp_provider,
+        },
+        "exclusions": exclusions,
+        "reason_codes": list(dict.fromkeys(top_reason_codes)),
+        "segments": segments,
+    }
+
+
 # --- Heat adaptation -------------------------------------------------------
 
 _HEAT_SCIENCE_DECISION_ID = "sdr-heat-adaptation-v1"
-_HEAT_MODEL_VERSION = "heat-adaptation-v8"
+HEAT_ADAPTATION_MODEL_VERSION = "heat-adaptation-v8"
+_HEAT_MODEL_VERSION = HEAT_ADAPTATION_MODEL_VERSION
 
 # Stull (2011) DOI: 10.1175/JAMC-D-11-0143.1 provides the humidity-aware
 # wet-bulb approximation. It does not model wind or solar radiation and must
@@ -1347,6 +2270,97 @@ def estimate_wet_bulb_c(
         - 4.686035
     )
     return round(wet_bulb, _HEAT_VALUE_PRECISION_DECIMALS)
+
+
+def build_activity_environment_context(
+    temperature_c: object,
+    relative_humidity_pct: object,
+    source: object,
+) -> dict:
+    """Build bounded retrospective environmental context for one activity.
+
+    Reuses the activity-weather plausibility bounds and Stull psychrometric
+    wet-bulb proxy governed by ``sdr-environmental-performance-v1``. This is
+    completed-activity context only: it is not outdoor WBGT, a safety boundary,
+    a forecast, or a personal performance correction.
+    """
+    reasons: list[str] = []
+    temperature = _heat_number(temperature_c)
+    humidity = _heat_number(relative_humidity_pct)
+    normalized_source = _heat_text(source)
+    if normalized_source is not None:
+        normalized_source = normalized_source.casefold()
+
+    min_temperature, max_temperature = (
+        _HEAT_ACTIVITY_ENVIRONMENT_TEMPERATURE_C
+    )
+    if temperature is None:
+        reasons.append("temperature_unavailable")
+    elif not min_temperature <= temperature <= max_temperature:
+        temperature = None
+        reasons.append("temperature_out_of_range")
+
+    min_humidity, max_humidity = (
+        _HEAT_ACTIVITY_ENVIRONMENT_RELATIVE_HUMIDITY_PCT
+    )
+    if humidity is None:
+        reasons.append("relative_humidity_unavailable")
+    elif not min_humidity <= humidity <= max_humidity:
+        humidity = None
+        reasons.append("relative_humidity_out_of_range")
+
+    source_supported = (
+        normalized_source in _HEAT_SUPPORTED_ENVIRONMENT_SOURCES
+    )
+    if normalized_source is None:
+        reasons.append("environment_source_unavailable")
+    elif not source_supported:
+        reasons.append("environment_source_unsupported")
+    if not source_supported:
+        # Preserve the source label for diagnostics, but never publish
+        # unverified values as analysis-ready environmental evidence.
+        temperature = None
+        humidity = None
+
+    available_fields = sum(
+        value is not None for value in (temperature, humidity)
+    )
+    if source_supported and available_fields == 2:
+        state = "available"
+    elif source_supported and available_fields == 1:
+        state = "partial"
+    else:
+        state = "unavailable"
+
+    wet_bulb = None
+    wet_bulb_method = None
+    if source_supported and temperature is not None and humidity is not None:
+        wet_bulb = estimate_wet_bulb_c(temperature, humidity)
+        if wet_bulb is None:
+            reasons.append("wet_bulb_proxy_outside_method_domain")
+        else:
+            wet_bulb_method = _HEAT_WET_BULB_METHOD
+
+    return {
+        "model_version": ENVIRONMENT_CONTEXT_MODEL_VERSION,
+        "science_decision_id": ENVIRONMENT_CONTEXT_SCIENCE_DECISION_ID,
+        "state": state,
+        "temperature_c": temperature,
+        "relative_humidity_pct": humidity,
+        "source": normalized_source,
+        "wet_bulb_c": wet_bulb,
+        "wet_bulb_method": wet_bulb_method,
+        "reason_codes": reasons,
+        "science_sources": [
+            dict(source) for source in _ENVIRONMENT_CONTEXT_SCIENCE_SOURCES
+        ],
+        "limitations": [
+            "wind_unobserved",
+            "solar_radiation_unobserved",
+            "outdoor_wbgt_unavailable",
+            "not_a_personal_performance_correction",
+        ],
+    }
 
 
 def _heat_environment_weight(
@@ -1715,7 +2729,12 @@ def compute_heat_adaptation(
             "environment_source": environment_source,
         })
 
-    sessions.sort(key=lambda session: session["_date"])
+    sessions.sort(
+        key=lambda session: (
+            session["_date"],
+            session["activity_id"],
+        )
+    )
     exposure_days, effective_heat_minutes = _heat_window_stats(
         sessions, current_date,
     )

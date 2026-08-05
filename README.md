@@ -26,8 +26,10 @@ Sports science that meets you where you are. Praxys syncs data from Garmin, Stry
 git clone --recurse-submodules https://github.com/praxys-run/praxys.git
 cd praxys
 
-# 1. Install Python dependencies
-pip install -r requirements.txt
+# 1. Create the project virtualenv and install Python dependencies
+python -m venv .venv
+# Activate: .venv\Scripts\activate (Windows) or source .venv/bin/activate
+python -m pip install -r requirements.txt
 
 # 2. Configure environment
 cp .env.example .env
@@ -44,6 +46,16 @@ cd web && npm install && npm run dev
 ```
 
 For sample data without API credentials: `python scripts/seed_sample_data.py`
+
+For MCP development, install the public plugin for the normal production
+`praxys` profile. This checkout's `.mcp.json` adds `praxys-dev-test` with an
+isolated production test-user token and a self-bootstrapping `praxys-local`
+synthetic SQLite profile. Install the MCP server dependency into the same
+virtualenv with
+`python -m pip install -r plugins/praxys/mcp-server/requirements.txt`. See
+[CLI Skills](docs/skills.md#mcp-development-profiles). The repository profiles
+use a dependency-free Node launcher to invoke that virtualenv directly, so MCP
+startup does not depend on a machine-specific `python` command name.
 
 ## What's Inside
 

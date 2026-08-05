@@ -346,8 +346,8 @@ def test_today_etag_changes_after_relevant_write(etag_client):
     assert science_warm.status_code == 304
 
 
-def test_sample_write_busts_training_only(etag_client):
-    """New samples invalidate Training without churning unrelated endpoints."""
+def test_sample_write_busts_training_and_history(etag_client):
+    """New samples invalidate consumers of stream analysis and coverage."""
     from api.etag import ENDPOINT_SCOPES, compute_etag
     from db import session as db_session
     from db.sync_writer import write_samples
@@ -371,7 +371,7 @@ def test_sample_write_busts_training_only(etag_client):
         ) != training_before
         assert compute_etag(
             db, user_id, ENDPOINT_SCOPES["history"],
-        ) == history_before
+        ) != history_before
     finally:
         db.close()
 

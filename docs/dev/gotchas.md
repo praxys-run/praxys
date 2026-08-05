@@ -264,9 +264,12 @@ render read-only with a source badge.
   connected user may explicitly consent to the
   [experimental fallback](../studies/garmin-workout-delivery-feasibility.md).
   `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED` is a separate default-off operator
-  gate; user consent alone must never authorize writes. Consent is bound to
-  credential generation and an explicit region; a legacy connection with no
-  mirrored region must reconnect before opting in.
+  gate. Controlled production testing may instead authorize only dedicated
+  internal user IDs through the default-empty
+  `PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS` allowlist. User consent alone
+  must never authorize writes. Consent is bound to credential generation and
+  an explicit region; a legacy connection with no mirrored region must
+  reconnect before opting in.
   Reconnect, rotation, or disconnect revokes consent. Changing region
   disconnects the old region, clears
   its cached tokens, and requires a fresh login before re-consent. The adapter is

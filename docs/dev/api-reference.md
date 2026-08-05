@@ -735,29 +735,209 @@ Paginated activity history.
 **Query params:**
 - `limit` (int, 1-100, default 20)
 - `offset` (int, default 0)
+- `source` (optional provider name used as the duplicate-selection pivot)
 
 **Response:**
 ```json
 {
   "activities": [
     {
+      "activity_id": "stryd-123",
       "date": "2026-04-07",
+      "source": "stryd",
+      "start_time": {
+        "state": "available",
+        "utc": "2026-04-07T22:14:00Z",
+        "timezone": "UTC",
+        "provenance": "activity_start_with_offset",
+        "reason_codes": []
+      },
       "distance_km": 9.43,
       "duration_sec": 3233,
+      "temperature_c": 31.4,
+      "relative_humidity_pct": 68.0,
+      "environment_source": "stryd_activity_weather",
       "avg_power": 210.0,
+      "max_power": 318.0,
       "avg_hr": 155,
+      "max_hr": 172,
       "avg_pace_min_km": "5:42",
       "rss": 64.8,
-      "splits": [{ "split_num": 1, "avg_power": 220, "duration_sec": 300 }]
+      "environment": {
+        "model_version": "environmental-performance-context-v1",
+        "science_decision_id": "sdr-environmental-performance-v1",
+        "state": "available",
+        "temperature_c": 31.4,
+        "relative_humidity_pct": 68.0,
+        "source": "stryd_activity_weather",
+        "wet_bulb_c": 26.6,
+        "wet_bulb_method": "stull_psychrometric",
+        "reason_codes": [],
+        "science_sources": [
+          {
+            "id": "stull-2011",
+            "url": "https://doi.org/10.1175/JAMC-D-11-0143.1"
+          }
+        ],
+        "limitations": [
+          "wind_unobserved",
+          "solar_radiation_unobserved",
+          "outdoor_wbgt_unavailable",
+          "not_a_personal_performance_correction"
+        ]
+      },
+      "sample_coverage": {
+        "state": "available",
+        "sample_count": 3234,
+        "observed_duration_sec": 3233.0,
+        "sample_coverage_ratio": 1.0,
+        "power_coverage_ratio": 0.998,
+        "heart_rate_coverage_ratio": 0.995,
+        "gap_count": 0,
+        "reason_codes": []
+      },
+      "provenance": {
+        "activity_provider": "stryd",
+        "sample_providers": ["stryd"],
+        "power": {
+          "state": "available",
+          "providers": ["stryd"],
+          "basis": "samples",
+          "reason_codes": []
+        },
+        "heart_rate": {
+          "state": "available",
+          "providers": ["stryd"],
+          "basis": "samples",
+          "reason_codes": []
+        }
+      },
+      "splits": [{
+        "split_num": 1,
+        "avg_power": 220,
+        "duration_sec": 300,
+        "power_source": "stryd"
+      }]
     }
   ],
   "total": 150,
   "limit": 20,
   "offset": 0,
+  "source_filter": "stryd",
   "training_base": "power",
   "display": { "..." : "..." }
 }
 ```
+
+`start_time.utc` is emitted only when the stored value carries an offset/epoch
+or timestamped activity samples provide an epoch fallback. A naive connector
+timestamp is never silently relabeled as UTC. Missing time, weather, provider,
+or stream inputs use `state` plus stable `reason_codes` rather than
+success-shaped defaults.
+
+Environmental context follows `sdr-environmental-performance-v1`. It accepts
+only plausible values from dedicated connector weather provenance (air
+temperature -20 to 50 C and relative humidity 0-100%). Synthesized activity
+summary or arbitrary imported source labels remain unavailable and their
+numeric values are withheld. The optional Stull result is a psychrometric
+wet-bulb proxy under a standard sea-level-pressure assumption, never outdoor
+WBGT. Wind and solar radiation are unobserved, and the context is not a safety
+boundary, forecast, personal pace correction, or counterfactual performance
+estimate. Dew point, vapor pressure, UI comparisons, and a separately
+validated matched-sample personalization model are deferred from this first
+API iteration; the user-facing comparison work remains tracked by issue #444.
+`science_sources` contains the complete link projection from
+`sdr-environmental-performance-v1`; the abbreviated example above shows only
+the formula source.
+
+## Activity analysis
+
+These endpoints are owner-authenticated with the token subject itself. Unlike
+dashboard read endpoints, demo accounts do not inherit another user's data.
+Every query filters by `user_id`; activity IDs are not globally trusted.
+
+### GET /api/analysis/activities/{activity_id}
+
+Returns one owned activity, continuous stable-power segments, and predictor
+context that was available before the activity.
+
+Stable segments prefer timestamped `ActivitySample` rows. The v3 detector:
+
+- excludes missing, zero, out-of-range power and sample gaps over 5 seconds;
+- identifies regions with a trailing 60-second power CV at or below 5%;
+- requires at least 180 seconds and whole-segment power CV at or below 7.5%;
+- assigns each sample interval to at most one output segment, so adjacent
+  stable windows cannot overlap or double-count observations;
+- reports mean power, provider-aligned `%CP`, power CV, mean HR, HR slope in
+  bpm/min, and first-half-normalized power/HR decoupling
+  (`(EF_first - EF_second) / EF_first * 100`), with power and HR averaged over
+  the identical HR-valid interval mask in each half;
+- emits sample coverage, provider provenance, exclusions, parameters, and
+  reason codes.
+
+These detector thresholds are reproducible Praxys product estimates, not
+physiological boundaries. HR decoupling is descriptive and does not establish
+causality among heat, fatigue, hydration, or recovery. When samples are absent,
+qualifying splits are returned with `status: "limited"` and
+`stability_state: "not_evaluable"`; CV, HR slope, decoupling, and sample
+coverage remain `null`.
+
+Sample `source` is connector provenance. A platform may relay an external
+sensor's power without identifying that sensor separately; Praxys therefore
+fails closed on `%CP` when sample/split power cannot be aligned with the dated
+CP provider.
+
+Pre-activity context is causal by construction:
+
+- CTL/ATL/TSB uses stored prior-activity load scores through the previous
+  calendar day. Activities without the base-specific stored load or
+  `load_score` fallback are excluded and counted in
+  `missing_load_activity_count`. CTL and ATL then represent known-load lower
+  bounds, while TSB is `null` because its bias direction is indeterminate;
+  the context forces `state: "partial"` with
+  `activity_load_observations_missing`. Missing-load tracking covers the whole
+  prior history because EWMA influence decays asymptotically rather than at a
+  hard cutoff;
+- CP is the latest dated value strictly before the activity date, with source
+  and power-provider provenance;
+- recovery applies the activity-date cutoff before provider preference or
+  fallback ranking, then selects that provider's latest eligible row;
+- heat-adaptation evidence ends on the previous calendar day.
+
+Historical user-config revisions are not stored. Retrospective exports apply
+the currently selected training base and provider preferences to dated,
+previously stored observations, and record those choices in the payload/hash.
+
+The response records `schema_version`, model versions (including
+`environmental-performance-context-v1`), detector parameters, and a canonical
+`record_hash`. It never includes credentials, precise GPS, or raw sample rows.
+
+### GET /api/analysis/research-dataset
+
+Builds the same record shape across a bounded history page.
+
+**Query params:**
+- `limit` (int, 1-50, default 20)
+- `offset` (int, default 0)
+- `source` (optional activity duplicate-selection pivot)
+
+The response includes `activity-research-dataset-v1`, model versions,
+pagination metadata, explicit cutoff semantics, privacy declarations, and a
+SHA-256 `dataset_hash`. `generated_at` is excluded from the hash, so unchanged
+inputs and model versions produce the same dataset hash. Records are ordered by
+date descending with `activity_id` and source tie-breakers; split arrays are
+ordered by split number and their serialized metric values. Analysis ETags are
+salted by the response schema and emitted model-version manifest.
+
+### GET /api/ai/context
+
+Returns the structured dashboard summary used for AI plan generation. The
+plugin MCP tool `get_training_context` is the remote/local wrapper over this
+endpoint. It remains a coaching snapshot (recent sessions, current fitness,
+recovery, and plan), not the analysis-ready research export above. The first
+iteration deliberately keeps per-activity segment research behind the
+owner-authenticated analysis API rather than adding an unbounded MCP sample
+tool.
 
 ## Plan
 
@@ -1260,7 +1440,10 @@ worker rewrites `plan_management` without the new field.
 `experimental_plan_delivery.garmin=true` grants consent only for the current
 encrypted Garmin credential generation and configured Garmin region. It
 requires a connected Garmin account and
-`PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED=true`; otherwise the API returns 409.
+operator authorization: either `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED=true` or
+the authenticated internal user ID listed in the default-empty
+`PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS` validation allowlist. Otherwise
+the API returns 409.
 It may be submitted with the managed-plan activation shown above. `false`
 revokes consent and immediately pauses active Garmin delivery. Reconnect,
 credential rotation, and disconnect also invalidate

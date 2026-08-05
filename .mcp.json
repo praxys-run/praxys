@@ -4,6 +4,20 @@
       "command": "npx",
       "args": ["-y", "@azure/mcp@latest", "server", "start"],
       "env": {}
+    },
+    "praxys-local": {
+      "command": "node",
+      "args": ["scripts/run_praxys_mcp.cjs", "local"],
+      "env": {}
+    },
+    "praxys-dev-test": {
+      "command": "node",
+      "args": [
+        "scripts/run_praxys_mcp.cjs",
+        "remote-profile",
+        "dev-test"
+      ],
+      "env": {}
     }
   }
 }

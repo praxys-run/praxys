@@ -50,8 +50,6 @@ interface Props {
 
 const PLUGIN_URL = 'https://github.com/praxys-run/praxys-coach-plugin#install';
 
-// Mirrors Today.tsx's helper. Should be extracted to web/src/lib/format.ts
-// when a third caller appears — see issue #236.
 function timeAgo(isoDate: string, locale: string): string {
   const diff = Date.now() - new Date(isoDate).getTime();
   const rtf = new Intl.RelativeTimeFormat(locale === 'zh' ? 'zh-CN' : 'en-US', { style: 'short' });

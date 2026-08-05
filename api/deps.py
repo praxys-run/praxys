@@ -1,5 +1,6 @@
 """Shared data loading and metric computation for the API."""
 import logging
+import math
 import os
 from datetime import date, timedelta
 
@@ -28,6 +29,7 @@ from analysis.metrics import (
     HEAT_ELIGIBLE_ACTIVITY_TYPES,
     HEAT_LOOKBACK_DAYS,
     HEAT_SAMPLE_MAX_INTERVAL_SEC,
+    build_activity_environment_context,
     compute_ewma_load,
     compute_tsb,
     compute_activity_load,
@@ -54,6 +56,7 @@ from analysis.metrics import (
     is_hard_workout,
     is_rest_workout,
 )
+from api.views import normalize_activity_start_time
 
 # ---------------------------------------------------------------------------
 # Environment
@@ -1102,8 +1105,45 @@ def _get_todays_plan(
     return planned_today, planned_detail
 
 
+_SPLIT_CANONICAL_SORT_COLUMNS = (
+    "activity_id",
+    "split_num",
+    "duration_sec",
+    "distance_km",
+    "avg_power",
+    "power_source",
+    "power_provider",
+    "avg_hr",
+    "max_hr",
+    "avg_pace_sec_km",
+    "avg_pace_min_km",
+    "avg_cadence",
+    "elevation_change_m",
+)
+
+
+def _sort_activity_splits(splits: pd.DataFrame) -> pd.DataFrame:
+    """Return split rows in a canonical, insertion-order-independent order."""
+    if splits.empty:
+        return splits
+    sort_columns = [
+        column
+        for column in _SPLIT_CANONICAL_SORT_COLUMNS
+        if column in splits.columns
+    ]
+    if not sort_columns:
+        return splits
+    return splits.sort_values(
+        sort_columns,
+        kind="stable",
+        na_position="last",
+    )
+
+
 def _build_activities_list(
-    merged: pd.DataFrame, splits: pd.DataFrame,
+    merged: pd.DataFrame,
+    splits: pd.DataFrame,
+    sample_coverage: pd.DataFrame | None = None,
 ) -> list[dict]:
     """Build a list of activity dicts from merged activities + their splits.
 
@@ -1116,11 +1156,31 @@ def _build_activities_list(
     if merged.empty:
         return []
 
+    splits = _sort_activity_splits(splits)
     splits_by_aid: dict[str, list[dict]] = {}
+    split_power_providers_by_aid: dict[str, list[str]] = {}
     if not splits.empty and "activity_id" in splits.columns:
         for aid_str, group in splits.groupby(
             splits["activity_id"].astype(str), sort=False,
         ):
+            power_provider_column = (
+                "power_source"
+                if "power_source" in group.columns
+                else (
+                    "power_provider"
+                    if "power_provider" in group.columns
+                    else None
+                )
+            )
+            split_power_providers_by_aid[aid_str] = (
+                sorted({
+                    str(value).strip().casefold()
+                    for value in group[power_provider_column].dropna().tolist()
+                    if str(value).strip()
+                })
+                if power_provider_column
+                else []
+            )
             splits_by_aid[aid_str] = [
                 {
                     "split_num": int(s.get("split_num", 0)),
@@ -1140,38 +1200,272 @@ def _build_activities_list(
                         int(s.get("avg_hr", 0))
                         if pd.notna(s.get("avg_hr")) else None
                     ),
+                    "max_hr": (
+                        int(s.get("max_hr", 0))
+                        if pd.notna(s.get("max_hr")) else None
+                    ),
                     "avg_pace_min_km": (
                         str(s.get("avg_pace_min_km", ""))
                         if pd.notna(s.get("avg_pace_min_km")) else None
+                    ),
+                    "power_source": (
+                        str(s.get(power_provider_column)).strip().casefold()
+                        if power_provider_column
+                        and pd.notna(s.get(power_provider_column))
+                        and str(s.get(power_provider_column)).strip()
+                        else None
                     ),
                 }
                 for _, s in group.iterrows()
             ]
 
+    coverage_loaded = sample_coverage is not None
+    coverage_by_aid: dict[str, pd.DataFrame] = {}
+    if (
+        sample_coverage is not None
+        and not sample_coverage.empty
+        and "activity_id" in sample_coverage.columns
+    ):
+        coverage_by_aid = {
+            str(activity_id): group.copy()
+            for activity_id, group in sample_coverage.groupby(
+                sample_coverage["activity_id"].astype(str),
+                sort=False,
+            )
+        }
+
+    def _number(value: object, digits: int | None = None) -> float | int | None:
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return None
+        if pd.isna(number) or not math.isfinite(number):
+            return None
+        if digits is None:
+            return int(number)
+        return round(number, digits)
+
+    def _provider_contract(
+        providers: list[str],
+        *,
+        basis: str,
+        missing_reason: str,
+    ) -> dict:
+        if not providers:
+            return {
+                "state": "unavailable",
+                "providers": [],
+                "basis": basis,
+                "reason_codes": [missing_reason],
+            }
+        return {
+            "state": "available" if len(providers) == 1 else "partial",
+            "providers": providers,
+            "basis": basis,
+            "reason_codes": (
+                [] if len(providers) == 1 else ["mixed_providers"]
+            ),
+        }
+
     activities: list[dict] = []
     merged_sorted = merged.sort_values("date", ascending=False)
     for _, row in merged_sorted.iterrows():
         aid = str(row.get("activity_id", ""))
+        duration_sec = _number(row.get("duration_sec"))
+        coverage_group = coverage_by_aid.get(aid, pd.DataFrame())
+        sample_count = 0
+        observed_duration = 0.0
+        power_duration = 0.0
+        heart_rate_duration = 0.0
+        gap_count = 0
+        sample_start_epoch = None
+        sample_providers: list[str] = []
+        power_providers: list[str] = []
+        heart_rate_providers: list[str] = []
+        if not coverage_group.empty:
+            for column in (
+                "sample_count",
+                "observed_duration_sec",
+                "power_duration_sec",
+                "heart_rate_duration_sec",
+                "gap_count",
+                "sample_start_epoch",
+            ):
+                if column not in coverage_group.columns:
+                    coverage_group[column] = 0
+            sample_count = int(
+                pd.to_numeric(
+                    coverage_group["sample_count"], errors="coerce"
+                ).fillna(0).sum()
+            )
+            observed_duration = float(
+                pd.to_numeric(
+                    coverage_group["observed_duration_sec"],
+                    errors="coerce",
+                ).fillna(0).sum()
+            )
+            power_duration = float(
+                pd.to_numeric(
+                    coverage_group["power_duration_sec"],
+                    errors="coerce",
+                ).fillna(0).sum()
+            )
+            heart_rate_duration = float(
+                pd.to_numeric(
+                    coverage_group["heart_rate_duration_sec"],
+                    errors="coerce",
+                ).fillna(0).sum()
+            )
+            gap_count = int(
+                pd.to_numeric(
+                    coverage_group["gap_count"], errors="coerce"
+                ).fillna(0).sum()
+            )
+            starts = pd.to_numeric(
+                coverage_group["sample_start_epoch"], errors="coerce"
+            ).dropna()
+            sample_start_epoch = float(starts.min()) if not starts.empty else None
+            sample_providers = sorted({
+                str(value).strip().casefold()
+                for value in coverage_group.get(
+                    "source", pd.Series(dtype=object),
+                ).dropna().tolist()
+                if str(value).strip()
+            })
+            power_providers = sorted({
+                str(item["source"]).strip().casefold()
+                for _, item in coverage_group.iterrows()
+                if pd.notna(item.get("source"))
+                and str(item.get("source")).strip()
+                and (_number(item.get("power_duration_sec"), 1) or 0) > 0
+            })
+            heart_rate_providers = sorted({
+                str(item["source"]).strip().casefold()
+                for _, item in coverage_group.iterrows()
+                if pd.notna(item.get("source"))
+                and str(item.get("source")).strip()
+                and (
+                    _number(item.get("heart_rate_duration_sec"), 1) or 0
+                ) > 0
+            })
+
+        sample_reason_codes: list[str] = []
+        sample_state = "available"
+        if sample_count == 0:
+            sample_state = "unavailable"
+            sample_reason_codes.append(
+                "samples_unavailable"
+                if coverage_loaded
+                else "sample_coverage_not_loaded"
+            )
+        elif duration_sec is None or duration_sec <= 0:
+            sample_state = "partial"
+            sample_reason_codes.append("activity_duration_unavailable")
+        elif observed_duration / duration_sec < 0.90:
+            sample_state = "partial"
+            sample_reason_codes.append("sample_coverage_incomplete")
+        if gap_count > 0:
+            sample_state = (
+                "partial" if sample_state != "unavailable" else sample_state
+            )
+            sample_reason_codes.append("sample_gaps")
+
+        def _ratio(numerator: float) -> float | None:
+            if duration_sec is None or duration_sec <= 0:
+                return None
+            return round(min(numerator / duration_sec, 1.0), 4)
+
+        activity_source = (
+            str(row.get("source")).strip().casefold()
+            if pd.notna(row.get("source"))
+            and str(row.get("source")).strip()
+            else None
+        )
+        split_power_providers = split_power_providers_by_aid.get(aid, [])
+        if power_providers:
+            power_contract = _provider_contract(
+                power_providers,
+                basis="samples",
+                missing_reason="power_provider_unavailable",
+            )
+        elif split_power_providers:
+            power_contract = _provider_contract(
+                split_power_providers,
+                basis="splits",
+                missing_reason="power_provider_unavailable",
+            )
+        else:
+            power_contract = _provider_contract(
+                [],
+                basis=(
+                    "activity_summary"
+                    if pd.notna(row.get("avg_power"))
+                    else "none"
+                ),
+                missing_reason=(
+                    "summary_power_provider_unknown"
+                    if pd.notna(row.get("avg_power"))
+                    else "power_unavailable"
+                ),
+            )
+
+        if heart_rate_providers:
+            heart_rate_contract = _provider_contract(
+                heart_rate_providers,
+                basis="samples",
+                missing_reason="heart_rate_provider_unavailable",
+            )
+        elif activity_source and pd.notna(row.get("avg_hr")):
+            heart_rate_contract = _provider_contract(
+                [activity_source],
+                basis="activity_summary",
+                missing_reason="heart_rate_provider_unavailable",
+            )
+        else:
+            heart_rate_contract = _provider_contract(
+                [],
+                basis="none",
+                missing_reason="heart_rate_unavailable",
+            )
+
+        environment = build_activity_environment_context(
+            row.get("temperature_c"),
+            row.get("relative_humidity_pct"),
+            row.get("environment_source"),
+        )
+
         act: dict = {
             "activity_id": aid,
             "date": str(row["date"]),
-            "source": str(row.get("source", "")),
+            "source": activity_source,
+            "start_time": normalize_activity_start_time(
+                row.get("start_time"),
+                sample_start_epoch=sample_start_epoch,
+            ),
             "activity_type": row.get("activity_type", "running"),
             "distance_km": (
                 round(float(row.get("distance_km", 0)), 2)
                 if pd.notna(row.get("distance_km")) else None
             ),
-            "duration_sec": (
-                int(row.get("duration_sec", 0))
-                if pd.notna(row.get("duration_sec")) else None
-            ),
+            "duration_sec": duration_sec,
+            "temperature_c": environment["temperature_c"],
+            "relative_humidity_pct": environment["relative_humidity_pct"],
+            "environment_source": environment["source"],
             "avg_power": (
                 round(float(row.get("avg_power", 0)), 1)
                 if pd.notna(row.get("avg_power")) else None
             ),
+            "max_power": (
+                round(float(row.get("max_power", 0)), 1)
+                if pd.notna(row.get("max_power")) else None
+            ),
             "avg_hr": (
                 int(row.get("avg_hr", 0))
                 if pd.notna(row.get("avg_hr")) else None
+            ),
+            "max_hr": (
+                int(row.get("max_hr", 0))
+                if pd.notna(row.get("max_hr")) else None
             ),
             "avg_pace_min_km": (
                 str(row.get("avg_pace_min_km", ""))
@@ -1189,6 +1483,31 @@ def _build_activities_list(
                 round(float(row.get("cp_estimate", 0)), 1)
                 if pd.notna(row.get("cp_estimate")) else None
             ),
+            "environment": environment,
+            "sample_coverage": {
+                "state": sample_state,
+                "sample_count": sample_count,
+                "observed_duration_sec": round(observed_duration, 1),
+                "activity_duration_sec": duration_sec,
+                "sample_coverage_ratio": _ratio(observed_duration),
+                "power_duration_sec": round(power_duration, 1),
+                "power_coverage_ratio": _ratio(power_duration),
+                "heart_rate_duration_sec": round(
+                    heart_rate_duration,
+                    1,
+                ),
+                "heart_rate_coverage_ratio": _ratio(
+                    heart_rate_duration
+                ),
+                "gap_count": gap_count,
+                "reason_codes": list(dict.fromkeys(sample_reason_codes)),
+            },
+            "provenance": {
+                "activity_provider": activity_source,
+                "sample_providers": sample_providers,
+                "power": power_contract,
+                "heart_rate": heart_rate_contract,
+            },
             "splits": splits_by_aid.get(aid, []),
         }
         activities.append(act)

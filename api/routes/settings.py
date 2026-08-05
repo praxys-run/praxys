@@ -227,6 +227,7 @@ def _apply_plan_management_update(
             )
         if not plan_delivery_capability_enabled(
             target,
+            user_id=user_id,
             source_options=config.source_options,
             connection=connection,
         ):
@@ -317,7 +318,7 @@ def _apply_experimental_plan_delivery_update(
         .with_for_update()
     ).scalar_one_or_none()
     if update["garmin"]:
-        if not garmin_plan_delivery_operator_enabled():
+        if not garmin_plan_delivery_operator_enabled(user_id):
             raise HTTPException(
                 status_code=409,
                 detail=(
@@ -574,11 +575,13 @@ def get_settings(
         ),
         "platform_capabilities": effective_platform_capabilities(
             config,
+            user_id=user_id,
             connections=connections,
         ),
         "experimental_plan_delivery": (
             experimental_plan_delivery_status(
                 config,
+                user_id=user_id,
                 connections=connections,
             )
         ),
@@ -942,11 +945,13 @@ def _update_settings(
         ),
         "platform_capabilities": effective_platform_capabilities(
             config,
+            user_id=user_id,
             connections=connections,
         ),
         "experimental_plan_delivery": (
             experimental_plan_delivery_status(
                 config,
+                user_id=user_id,
                 connections=connections,
             )
         ),
