@@ -6,15 +6,14 @@
       "env": {}
     },
     "praxys-local": {
-      "command": "python",
-      "args": ["-m", "scripts.run_praxys_mcp", "local"],
+      "command": "node",
+      "args": ["scripts/run_praxys_mcp.cjs", "local"],
       "env": {}
     },
     "praxys-dev-test": {
-      "command": "python",
+      "command": "node",
       "args": [
-        "-m",
-        "scripts.run_praxys_mcp",
+        "scripts/run_praxys_mcp.cjs",
         "remote-profile",
         "dev-test"
       ],

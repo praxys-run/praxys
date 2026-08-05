@@ -81,8 +81,12 @@ Praxys development deliberately separates three identities:
 | `praxys-local` | `.praxys-local/trainsight.db`, deterministic synthetic user | Offline-safe feature and managed-plan development |
 
 The installed plugin provides `praxys`. The repository `.mcp.json` adds the
-other two through `scripts/run_praxys_mcp.py`; the launcher switches to the
-project `.venv` before loading the submodule server.
+other two through `scripts/run_praxys_mcp.cjs`, a dependency-free Node shim
+that invokes the project `.venv` directly before
+`scripts/run_praxys_mcp.py` loads the submodule server. This avoids relying on
+whether the MCP host exposes Python as `python`, `python3`, or `py`.
+Test harnesses without a project virtualenv can set `PRAXYS_MCP_PYTHON` to an
+absolute interpreter path with the project dependencies installed.
 
 Restart the CLI after changing `.mcp.json` or updating the plugin submodule.
 Use `/mcp` or `/env` to confirm the servers loaded, then call each server's
@@ -120,10 +124,9 @@ Additional production test profiles can reuse the launcher:
 
 ```json
 "praxys-garmin-cn-test": {
-  "command": "python",
+  "command": "node",
   "args": [
-    "-m",
-    "scripts.run_praxys_mcp",
+    "scripts/run_praxys_mcp.cjs",
     "remote-profile",
     "garmin-cn-test"
   ]
