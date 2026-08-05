@@ -449,7 +449,7 @@ export default function AdminFeedback() {
                         <span className="text-sm text-muted-foreground">—</span>
                       )}
                     </TableCell>
-                    <TableCell className="min-w-[290px]">
+                    <TableCell className="min-w-[290px] whitespace-normal">
                       {item.agent_readiness ? (
                         <div className="space-y-2">
                           <div className="flex flex-wrap items-center gap-2">

@@ -20,3 +20,12 @@ test('History activity cards use the stored pace formatter', async () => {
   assert.match(source, /formatStoredPace\(activity\.avg_pace_min_km\)/);
   assert.doesNotMatch(source, />\{activity\.avg_pace_min_km\}</);
 });
+
+test('feedback decision records wrap within their table cell', async () => {
+  const source = await readFile(
+    new URL('../src/pages/admin/AdminFeedback.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /<TableCell className="min-w-\[290px\] whitespace-normal">/);
+});
