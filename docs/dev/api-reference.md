@@ -1260,7 +1260,10 @@ worker rewrites `plan_management` without the new field.
 `experimental_plan_delivery.garmin=true` grants consent only for the current
 encrypted Garmin credential generation and configured Garmin region. It
 requires a connected Garmin account and
-`PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED=true`; otherwise the API returns 409.
+operator authorization: either `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED=true` or
+the authenticated internal user ID listed in the default-empty
+`PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS` validation allowlist. Otherwise
+the API returns 409.
 It may be submitted with the managed-plan activation shown above. `false`
 revokes consent and immediately pauses active Garmin delivery. Reconnect,
 credential rotation, and disconnect also invalidate

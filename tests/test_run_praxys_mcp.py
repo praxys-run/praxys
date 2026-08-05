@@ -1,0 +1,194 @@
+"""Deterministic local and production-test MCP launcher coverage."""
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+import threading
+import time
+from unittest import mock
+
+import pytest
+
+from scripts import run_praxys_mcp
+
+
+def _database_snapshot() -> dict[str, object]:
+    from db import session as db_session
+    from db.models import Activity, RecoveryData, TrainingPlan, User, UserConfig
+
+    db_session.dispose_engines()
+    db_session.init_db(force=True)
+    db = db_session.SessionLocal()
+    try:
+        users = db.query(User).all()
+        config = db.get(UserConfig, run_praxys_mcp.LOCAL_USER_ID)
+        return {
+            "user_ids": [user.id for user in users],
+            "activities": db.query(Activity).filter(
+                Activity.user_id == run_praxys_mcp.LOCAL_USER_ID,
+            ).count(),
+            "recovery": db.query(RecoveryData).filter(
+                RecoveryData.user_id == run_praxys_mcp.LOCAL_USER_ID,
+            ).count(),
+            "plans": db.query(TrainingPlan).filter(
+                TrainingPlan.user_id == run_praxys_mcp.LOCAL_USER_ID,
+            ).count(),
+            "display_name": config.display_name if config else None,
+        }
+    finally:
+        db.close()
+        db_session.dispose_engines()
+
+
+def test_local_sandbox_bootstraps_once_and_resets_explicitly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = run_praxys_mcp.project_root()
+    data_dir = tmp_path / "local-mcp"
+    monkeypatch.setenv(
+        "PRAXYS_DATABASE_URL",
+        "postgresql://must-not-be-used.invalid/praxys",
+    )
+    with mock.patch.dict(os.environ, {}, clear=False):
+        first = run_praxys_mcp.ensure_local_sandbox(root, data_dir)
+        initial = _database_snapshot()
+        key = (data_dir / ".encryption-key").read_text(
+            encoding="utf-8",
+        ).strip()
+
+        assert first.reset is True
+        assert initial["user_ids"] == [run_praxys_mcp.LOCAL_USER_ID]
+        assert initial["activities"] > 0
+        assert initial["recovery"] > 0
+        assert initial["plans"] > 0
+        assert initial["display_name"] == "Local MCP Athlete"
+        assert key
+
+        from db import session as db_session
+        from db.models import UserConfig
+
+        db_session.init_db(force=True)
+        db = db_session.SessionLocal()
+        try:
+            config = db.get(UserConfig, run_praxys_mcp.LOCAL_USER_ID)
+            assert config is not None
+            config.display_name = "Persistent local edit"
+            db.commit()
+        finally:
+            db.close()
+            db_session.dispose_engines()
+
+        reused = run_praxys_mcp.ensure_local_sandbox(root, data_dir)
+        assert reused.reset is False
+        assert (data_dir / ".encryption-key").read_text(
+            encoding="utf-8",
+        ).strip() == key
+        assert _database_snapshot()["display_name"] == "Persistent local edit"
+
+        reset = run_praxys_mcp.ensure_local_sandbox(
+            root,
+            data_dir,
+            reset=True,
+        )
+        restored = _database_snapshot()
+        assert reset.reset is True
+        assert restored == initial
+
+
+def test_local_sandbox_refuses_an_unowned_nonempty_directory(
+    tmp_path: Path,
+) -> None:
+    data_dir = tmp_path / "existing-data"
+    data_dir.mkdir()
+    (data_dir / "personal.txt").write_text(
+        "do not overwrite",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="not owned by Praxys MCP"):
+        run_praxys_mcp._claim_sandbox(data_dir)
+
+    assert (data_dir / "personal.txt").read_text(
+        encoding="utf-8",
+    ) == "do not overwrite"
+
+
+def test_sandbox_lock_serializes_concurrent_bootstrap(
+    tmp_path: Path,
+) -> None:
+    data_dir = tmp_path / "locked-sandbox"
+    data_dir.mkdir()
+    first_acquired = threading.Event()
+    release_first = threading.Event()
+    second_acquired = threading.Event()
+
+    def hold_first_lock() -> None:
+        with run_praxys_mcp._sandbox_lock(data_dir):
+            first_acquired.set()
+            assert release_first.wait(timeout=5)
+
+    def acquire_second_lock() -> None:
+        assert first_acquired.wait(timeout=5)
+        with run_praxys_mcp._sandbox_lock(data_dir):
+            second_acquired.set()
+
+    first = threading.Thread(target=hold_first_lock)
+    second = threading.Thread(target=acquire_second_lock)
+    first.start()
+    assert first_acquired.wait(timeout=5)
+    second.start()
+    time.sleep(0.2)
+    assert not second_acquired.is_set()
+
+    release_first.set()
+    first.join(timeout=5)
+    second.join(timeout=5)
+    assert not first.is_alive()
+    assert not second.is_alive()
+    assert second_acquired.is_set()
+
+
+def test_remote_profile_forces_isolated_production_auth(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PRAXYS_LOCAL", "1")
+    monkeypatch.setenv("PRAXYS_TOKEN_PATH", "shared-token")
+    monkeypatch.setenv("PRAXYS_URL", "https://staging.invalid")
+
+    run_praxys_mcp.configure_remote_profile("dev-test")
+
+    assert os.environ["PRAXYS_LOCAL"] == "0"
+    assert os.environ["PRAXYS_PROFILE"] == "dev-test"
+    assert os.environ["PRAXYS_TOKEN_PATH"] == ""
+    assert (
+        os.environ["PRAXYS_URL"]
+        == "https://api.praxys.run"
+    )
+
+
+def test_repository_mcp_config_registers_local_and_dev_test_profiles() -> None:
+    root = run_praxys_mcp.project_root()
+    config = json.loads((root / ".mcp.json").read_text(encoding="utf-8"))
+    servers = config["mcpServers"]
+
+    assert servers["praxys-local"]["args"] == [
+        "-m",
+        "scripts.run_praxys_mcp",
+        "local",
+    ]
+    assert servers["praxys-dev-test"]["args"] == [
+        "-m",
+        "scripts.run_praxys_mcp",
+        "remote-profile",
+        "dev-test",
+    ]
+    assert servers["praxys-local"]["env"] == {}
+    assert servers["praxys-dev-test"]["env"] == {}
+
+
+@pytest.mark.parametrize("profile", ["..", "dev/test", r"dev\test"])
+def test_remote_profile_rejects_unsafe_names(profile: str) -> None:
+    with pytest.raises(SystemExit, match="Profile names"):
+        run_praxys_mcp.configure_remote_profile(profile)
