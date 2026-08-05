@@ -49,6 +49,16 @@ def _venv_python(root: Path) -> Path:
     )
 
 
+def _runtime_python(root: Path) -> Path:
+    configured = os.environ.get("PRAXYS_MCP_PYTHON", "").strip()
+    if not configured:
+        return _venv_python(root)
+    path = Path(os.path.expandvars(configured)).expanduser()
+    if not path.is_absolute():
+        path = root / path
+    return path.resolve()
+
+
 def _plugin_server(root: Path) -> Path:
     return root / "plugins" / "praxys" / "mcp-server" / "server.py"
 
@@ -60,17 +70,19 @@ def _require_mcp_runtime(root: Path) -> None:
         "requirements.txt"
     )
     raise SystemExit(
-        "The project virtualenv is missing the MCP SDK. Install it with: "
-        f'"{_venv_python(root)}" -m pip install -r "{requirements}"'
+        "The selected Python environment is missing the MCP SDK. "
+        f'Install it with: "{_runtime_python(root)}" -m pip install '
+        f'-r "{requirements}"'
     )
 
 
-def _reexec_in_project_venv(root: Path) -> None:
-    python_path = _venv_python(root)
+def _reexec_in_runtime_python(root: Path) -> None:
+    python_path = _runtime_python(root)
     if not python_path.is_file():
         raise SystemExit(
-            f"Project virtualenv not found at {python_path}. "
-            "Create .venv and install requirements.txt first."
+            f"Praxys MCP Python not found at {python_path}. "
+            "Create .venv and install requirements.txt first, or set "
+            "PRAXYS_MCP_PYTHON to an absolute interpreter path."
         )
     if Path(sys.executable).resolve() == python_path.resolve():
         return
@@ -517,7 +529,7 @@ def main() -> NoReturn:
             "Praxys plugin submodule is missing. Run "
             "'git submodule update --init plugins/praxys'."
         )
-    _reexec_in_project_venv(root)
+    _reexec_in_runtime_python(root)
     _require_mcp_runtime(root)
     args = _parse_args()
     os.chdir(root)
@@ -547,10 +559,8 @@ def main() -> NoReturn:
             raise SystemExit("remote-profile mode requires a profile name")
         configure_remote_profile(args.profile)
 
-    os.execv(
-        str(_venv_python(root)),
-        [str(_venv_python(root)), str(server_path)],
-    )
+    python_path = _runtime_python(root)
+    os.execv(str(python_path), [str(python_path), str(server_path)])
 
 
 if __name__ == "__main__":

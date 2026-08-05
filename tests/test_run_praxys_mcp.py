@@ -171,6 +171,24 @@ def test_remote_profile_forces_isolated_production_auth(
     )
 
 
+def test_runtime_python_override_does_not_require_project_venv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = run_praxys_mcp.project_root()
+    monkeypatch.setenv("PRAXYS_MCP_PYTHON", sys.executable)
+    monkeypatch.setattr(
+        run_praxys_mcp,
+        "_venv_python",
+        lambda _root: tmp_path / "missing-python",
+    )
+
+    assert run_praxys_mcp._runtime_python(root) == Path(
+        sys.executable
+    ).resolve()
+    run_praxys_mcp._reexec_in_runtime_python(root)
+
+
 def test_repository_mcp_config_registers_local_and_dev_test_profiles() -> None:
     root = run_praxys_mcp.project_root()
     config = json.loads((root / ".mcp.json").read_text(encoding="utf-8"))
