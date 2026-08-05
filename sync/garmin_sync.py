@@ -63,7 +63,11 @@ def garmin_user_profile_id(client: Any) -> str:
         raise ValueError("Garmin profile payload must be an object")
     normalized = _garmin_calendar_id(profile.get("userProfileId"))
     if normalized is None:
-        raise ValueError("Garmin profile is missing userProfileId")
+        # Garmin CN exposes profileId here; it matches get_user_profile()["id"].
+        # Keep userProfileId first so existing delivery fences remain stable.
+        normalized = _garmin_calendar_id(profile.get("profileId"))
+    if normalized is None:
+        raise ValueError("Garmin profile is missing userProfileId/profileId")
     setattr(client, "_praxys_user_profile_id", normalized)
     return normalized
 
