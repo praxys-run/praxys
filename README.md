@@ -53,7 +53,9 @@ isolated production test-user token and a self-bootstrapping `praxys-local`
 synthetic SQLite profile. Install the MCP server dependency into the same
 virtualenv with
 `python -m pip install -r plugins/praxys/mcp-server/requirements.txt`. See
-[CLI Skills](docs/skills.md#mcp-development-profiles).
+[CLI Skills](docs/skills.md#mcp-development-profiles). The repository profiles
+use a dependency-free Node launcher to invoke that virtualenv directly, so MCP
+startup does not depend on a machine-specific `python` command name.
 
 ## What's Inside
 

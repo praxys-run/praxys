@@ -4,6 +4,9 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import shutil
+import subprocess
+import sys
 import threading
 import time
 from unittest import mock
@@ -173,19 +176,55 @@ def test_repository_mcp_config_registers_local_and_dev_test_profiles() -> None:
     config = json.loads((root / ".mcp.json").read_text(encoding="utf-8"))
     servers = config["mcpServers"]
 
+    assert servers["praxys-local"]["command"] == "node"
     assert servers["praxys-local"]["args"] == [
-        "-m",
-        "scripts.run_praxys_mcp",
+        "scripts/run_praxys_mcp.cjs",
         "local",
     ]
+    assert servers["praxys-dev-test"]["command"] == "node"
     assert servers["praxys-dev-test"]["args"] == [
-        "-m",
-        "scripts.run_praxys_mcp",
+        "scripts/run_praxys_mcp.cjs",
         "remote-profile",
         "dev-test",
     ]
     assert servers["praxys-local"]["env"] == {}
     assert servers["praxys-dev-test"]["env"] == {}
+
+
+def test_repository_mcp_launcher_honors_python_override(
+    tmp_path: Path,
+) -> None:
+    root = run_praxys_mcp.project_root()
+    node = shutil.which("node")
+    assert node is not None
+    data_dir = tmp_path / "node-launcher-sandbox"
+    env = os.environ.copy()
+    env["PRAXYS_LOCAL_MCP_DATA_DIR"] = str(data_dir)
+    env["PRAXYS_MCP_PYTHON"] = sys.executable
+
+    result = subprocess.run(
+        [
+            node,
+            str(root / "scripts" / "run_praxys_mcp.cjs"),
+            "local",
+            "--prepare-only",
+        ],
+        cwd=root,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    marker = json.loads(
+        (data_dir / ".praxys-mcp-sandbox.json").read_text(
+            encoding="utf-8",
+        )
+    )
+    assert marker["owner"] == "praxys-local-mcp"
+    assert marker["state"] == "ready"
 
 
 @pytest.mark.parametrize("profile", ["..", "dev/test", r"dev\test"])
