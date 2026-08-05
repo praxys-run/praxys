@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "prompt_family": "feedback-triage",
+  "cases": [
+    {
+      "id": "low-priority-ui-overflow",
+      "source": "synthetic-paraphrase-of-github-issue-542",
+      "reported_kind": "bug",
+      "message": "Calendar status text overflows its day card on the heat adaptation detail view.",
+      "context": {
+        "page": "/training",
+        "locale": "zh",
+        "viewport": "2002x1028"
+      },
+      "image_description": "The calendar contains several narrow day cards with Chinese status labels.",
+      "expected_agent_eligible": true
+    },
+    {
+      "id": "incorrect-pace-format",
+      "source": "synthetic-paraphrase-of-github-issue-533",
+      "reported_kind": "bug",
+      "message": "History activity cards show pace as a raw 400-plus value instead of minutes per kilometre.",
+      "context": {
+        "page": "/history",
+        "locale": "en"
+      },
+      "expected_agent_eligible": true
+    },
+    {
+      "id": "bounded-cjk-layout-defect",
+      "source": "synthetic",
+      "reported_kind": "bug",
+      "message": "训练详情页的按钮文字被容器裁切，无法完整显示。",
+      "context": {
+        "page": "/training",
+        "locale": "zh"
+      },
+      "expected_agent_eligible": true
+    },
+    {
+      "id": "feature-request",
+      "source": "synthetic",
+      "reported_kind": "feature",
+      "message": "Add a monthly training calendar with drag-and-drop workout planning.",
+      "context": {
+        "page": "/training",
+        "locale": "en"
+      },
+      "expected_agent_eligible": false
+    },
+    {
+      "id": "support-question",
+      "source": "synthetic",
+      "reported_kind": "other",
+      "message": "How do I change my critical power threshold after a field test?",
+      "context": {
+        "page": "/settings",
+        "locale": "en"
+      },
+      "expected_agent_eligible": false
+    },
+    {
+      "id": "vague-layout-complaint",
+      "source": "synthetic",
+      "reported_kind": "bug",
+      "message": "The layout looks wrong.",
+      "context": {
+        "page": "/training",
+        "locale": "en"
+      },
+      "expected_agent_eligible": false
+    },
+    {
+      "id": "expected-behaviour",
+      "source": "synthetic",
+      "reported_kind": "bug",
+      "message": "The race forecast changes after I update my goal time.",
+      "context": {
+        "page": "/goal",
+        "locale": "en"
+      },
+      "expected_agent_eligible": false
+    },
+    {
+      "id": "needs-product-judgment",
+      "source": "synthetic",
+      "reported_kind": "bug",
+      "message": "The recovery score feels too conservative and should recommend more training.",
+      "context": {
+        "page": "/today",
+        "locale": "en"
+      },
+      "expected_agent_eligible": false
+    }
+  ]
+}

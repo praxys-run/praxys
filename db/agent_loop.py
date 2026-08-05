@@ -4,7 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime
-from typing import Any
+from typing import Any, Iterable
 from uuid import uuid4
 
 from sqlalchemy.exc import IntegrityError
@@ -76,6 +76,65 @@ def latest_decision(
         .order_by(AgentDecision.created_at.desc(), AgentDecision.id.desc())
         .first()
     )
+
+
+def latest_decisions_for_subjects(
+    db: Session,
+    *,
+    loop: str,
+    subject_type: str,
+    subject_refs: Iterable[str],
+) -> dict[str, AgentDecision]:
+    """Return the newest decision for each requested subject reference."""
+    refs = list(dict.fromkeys(subject_refs))
+    if not refs:
+        return {}
+    rows = (
+        db.query(AgentDecision)
+        .filter(
+            AgentDecision.loop == loop,
+            AgentDecision.subject_type == subject_type,
+            AgentDecision.subject_ref.in_(refs),
+        )
+        .order_by(
+            AgentDecision.created_at.desc(),
+            AgentDecision.id.desc(),
+        )
+        .all()
+    )
+    latest: dict[str, AgentDecision] = {}
+    for row in rows:
+        latest.setdefault(row.subject_ref, row)
+    return latest
+
+
+def latest_outcomes_for_decisions(
+    db: Session,
+    *,
+    decision_ids: Iterable[str],
+    outcome_types: Iterable[str],
+) -> dict[str, AgentOutcome]:
+    """Return the newest matching outcome for each requested decision."""
+    ids = list(dict.fromkeys(decision_ids))
+    kinds = list(dict.fromkeys(outcome_types))
+    if not ids or not kinds:
+        return {}
+    rows = (
+        db.query(AgentOutcome)
+        .filter(
+            AgentOutcome.decision_id.in_(ids),
+            AgentOutcome.outcome_type.in_(kinds),
+        )
+        .order_by(
+            AgentOutcome.observed_at.desc(),
+            AgentOutcome.id.desc(),
+        )
+        .all()
+    )
+    latest: dict[str, AgentOutcome] = {}
+    for row in rows:
+        latest.setdefault(row.decision_id, row)
+    return latest
 
 
 def record_outcome(

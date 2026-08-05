@@ -27,6 +27,7 @@ import { apiFetch, useApi } from '@/hooks/useApi';
 import { cn } from '@/lib/utils';
 import { Trans, useLingui } from '@lingui/react/macro';
 import type {
+  AdminOpsAgentEvalConfusion,
   AdminOpsFreshness,
   AdminOpsReason,
   AdminOpsSectionMeta,
@@ -43,6 +44,14 @@ import type {
 import { AdminRouteError } from './AdminRouteState';
 
 const WINDOWS: AdminOpsWindow[] = ['24h', '7d', '28d'];
+const EMPTY_AGENT_EVAL: AdminOpsAgentEvalConfusion = {
+  evaluated: 0,
+  true_positives: 0,
+  true_negatives: 0,
+  false_positives: 0,
+  false_negatives: 0,
+  accuracy: null,
+};
 
 const COMPONENT_DOT: Record<ComponentStatus, string> = {
   operational: 'bg-primary',
@@ -514,6 +523,11 @@ export default function AdminOps() {
   const product = data.product_value.data;
   const agentLearningSection = data.agent_learning;
   const agentLearning = agentLearningSection?.data ?? null;
+  const activeAgentEval = agentLearning?.active_eval ?? EMPTY_AGENT_EVAL;
+  const challengerAgentEval = agentLearning?.challenger_eval ?? EMPTY_AGENT_EVAL;
+  const activeSemanticEval = agentLearning?.active_semantic_eval ?? EMPTY_AGENT_EVAL;
+  const challengerSemanticEval =
+    agentLearning?.challenger_semantic_eval ?? EMPTY_AGENT_EVAL;
   const postgresActiveConnections = service?.postgres_active_connections ?? null;
   const postgresMaxConnections = service?.postgres_max_connections ?? null;
   const postgresConnectionUtilization =
@@ -1531,9 +1545,15 @@ export default function AdminOps() {
               <dl className="mt-5 grid grid-cols-2 border-y border-border sm:grid-cols-4">
                 {[
                   { label: t`Decisions`, value: agentLearning.decisions_total },
-                  { label: t`Agent-ready candidates`, value: agentLearning.agent_ready_candidates },
-                  { label: t`Human overrides`, value: agentLearning.human_overrides },
-                  { label: t`Merged PR outcomes`, value: agentLearning.merged_pull_requests },
+                  { label: t`Adjudicated`, value: activeAgentEval.evaluated },
+                  {
+                    label: t`Active accuracy`,
+                    value: formatPercent(activeAgentEval.accuracy),
+                  },
+                  {
+                    label: t`Challenger accuracy`,
+                    value: formatPercent(challengerAgentEval.accuracy),
+                  },
                 ].map((metric) => (
                   <div key={metric.label} className="border-b border-border px-3 py-4 sm:border-b-0 sm:border-r sm:last:border-r-0">
                     <dt className="text-[11px] text-muted-foreground">{metric.label}</dt>
@@ -1545,6 +1565,48 @@ export default function AdminOps() {
                 <Trans>
                   {agentLearning.shadow_decisions} shadow decisions · {agentLearning.agent_ready_applied} labels applied · {agentLearning.outcomes_total} durable outcomes
                 </Trans>
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                <Trans>Active errors:</Trans>{' '}
+                <span className="font-data">
+                  {activeAgentEval.false_positives} FP · {activeAgentEval.false_negatives} FN
+                </span>
+                {' · '}
+                <Trans>Challenger errors:</Trans>{' '}
+                <span className="font-data">
+                  {challengerAgentEval.false_positives} FP · {challengerAgentEval.false_negatives} FN
+                  {' · '}
+                  {challengerAgentEval.evaluated} <Trans>cases</Trans>
+                </span>
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                <Trans>Prompt-semantic slice:</Trans>{' '}
+                <Trans>Active</Trans>{' '}
+                <span className="font-data">
+                  {formatPercent(activeSemanticEval.accuracy)} · {activeSemanticEval.evaluated}{' '}
+                  <Trans>cases</Trans> · {activeSemanticEval.false_positives} FP ·{' '}
+                  {activeSemanticEval.false_negatives} FN
+                </span>
+                {' · '}
+                <Trans>Challenger</Trans>{' '}
+                <span className="font-data">
+                  {formatPercent(challengerSemanticEval.accuracy)} ·{' '}
+                  {challengerSemanticEval.evaluated} <Trans>cases</Trans> ·{' '}
+                  {challengerSemanticEval.false_positives} FP ·{' '}
+                  {challengerSemanticEval.false_negatives} FN
+                </span>
+                {' · '}
+                <Trans>Priority is excluded from readiness evaluation.</Trans>
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                <span className="font-data">{agentLearning.agent_ready_candidates}</span>{' '}
+                <Trans>agent-ready candidates</Trans>
+                {' · '}
+                <span className="font-data">{agentLearning.merged_pull_requests}</span>{' '}
+                <Trans>merged PR outcomes</Trans>
+                {' · '}
+                <span className="font-data">{agentLearning.human_overrides}</span>{' '}
+                <Trans>publication overrides</Trans>
               </p>
             </>
           ) : null}

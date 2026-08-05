@@ -53,10 +53,17 @@ transient — the next deploy overwrites them.**
 | `PRAXYS_PG_SERVER` | Postgres Flexible Server name. **Reserved / currently unused** - the on-demand backup jobs it gated were removed (Burstable tier can't do on-demand backups; PITR covers backup). Kept for a future off-site backup job. | (reserved) |
 | `PRAXYS_GITHUB_APP_ID` / `PRAXYS_GITHUB_APP_INSTALLATION_ID` | Feedback GitHub App identifiers. | App Service setting (backend) |
 | `PRAXYS_FEEDBACK_GITHUB_REPO` / `PRAXYS_FEEDBACK_GITHUB_LABELS` / `PRAXYS_FEEDBACK_GITHUB_ASSIGNEES` | Feedback issue target and optional issue metadata. | App Service setting (backend) |
+| `PRAXYS_AGENT_READY_SHADOW` / `PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION` | Withhold active labels, or run a versioned semantic challenger without acting. Both are optional and default off. | App Service setting (backend) |
 | `PRAXYS_REVIEW_POLICY_APP_ID` | App ID for the independent selective-review GitHub App. Optional on ordinary review-required runs. | `selective-review.yml` |
 | `PRAXYS_REVIEW_POLICY_APP_SLUG` | Expected URL slug for the independent App, without `[bot]`; lets pre-credential evaluation recognize only that App's prior blocking reviews and verifies the minted identity. | `selective-review.yml`, `selective-review-emergency-stop.yml` |
 | `PRAXYS_SELECTIVE_REVIEW_ENABLED` | Master enable; absent/anything except `true` keeps every PR review-required. | `selective-review.yml` |
 | `PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH` | Emergency stop; `true` disables approval even when the master enable and class promotion are active. | `selective-review.yml` |
+
+Changing `PRAXYS_FEEDBACK_GITHUB_REPO` does not reinterpret historical issue
+numbers. Feedback sync and adjudication compare each stored GitHub URL with the
+current repo and fail closed on a mismatch, exposing the skipped count in Admin
+Feedback. Plan a deliberate link migration before switching repositories; do
+not assume issue `#N` refers to the same work in the new target.
 
 ### GitHub Actions → Workflow permissions
 
@@ -525,6 +532,21 @@ to the Copilot coding agent. These are **repo settings, not deploy-managed**:
 - **Optional flag** `PRAXYS_AGENT_READY_SHADOW=true` (App Service setting)
   computes the agent-ready decision but withholds the label — measure precision
   before going live (issue #377).
+- **Optional challenger**
+  `PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION=v2` runs the checked-in v2
+  prompt on the same scrubbed report and records its candidate decision without
+  changing labels. Priority is deliberately absent from the readiness gate.
+  Configure both controls through repository variables so
+  `deploy-backend.yml` remains the App Service source of truth:
+
+  ```bash
+  gh variable set PRAXYS_AGENT_READY_SHADOW --body "false"
+  gh variable set PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION --body "v2"
+  ```
+
+  Set the challenger variable to an empty value and redeploy to stop the extra
+  model call. Unknown prompt versions fail closed and do not affect active
+  triage.
 - **Agent environment:** `.github/workflows/copilot-setup-steps.yml` preinstalls
   the toolchain so the agent can run `pytest` / `npm` deterministically.
 - **Versioned policy metadata:** `config/agent-loop-policies.json` is committed
@@ -674,4 +696,4 @@ outgrown.
   (source of truth for App Service settings and telemetry routing)
 
 ---
-_Last reviewed: 2026-07-25 · Owner: @dddtc2005_
+_Last reviewed: 2026-08-04 · Owner: @dddtc2005_

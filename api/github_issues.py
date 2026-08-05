@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import logging
 import os
+from urllib.parse import quote, urlsplit
 
 import httpx
 
@@ -235,6 +236,62 @@ def create_issue(
 
     data = resp.json()
     return {"number": data.get("number"), "url": data.get("html_url")}
+
+
+def set_issue_label(number: int, label: str, *, present: bool) -> bool:
+    """Add or remove one issue label, returning whether GitHub is in sync."""
+    token, repo = _bearer_token(), _repo()
+    if not token or not repo:
+        logger.warning("GitHub issue label update skipped — App not configured")
+        return False
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": _API_VERSION,
+        "User-Agent": "praxys-feedback",
+    }
+    try:
+        if present:
+            resp = httpx.post(
+                f"{_API_ROOT}/repos/{repo}/issues/{number}/labels",
+                json={"labels": [label]},
+                headers=headers,
+                timeout=_TIMEOUT_S,
+            )
+            ok = resp.status_code == 200
+        else:
+            encoded = quote(label, safe="")
+            resp = httpx.delete(
+                f"{_API_ROOT}/repos/{repo}/issues/{number}/labels/{encoded}",
+                headers=headers,
+                timeout=_TIMEOUT_S,
+            )
+            ok = resp.status_code in (200, 204, 404)
+    except httpx.HTTPError as exc:
+        logger.warning("GitHub issue label update failed (network): %s", exc)
+        return False
+    if not ok:
+        logger.warning(
+            "GitHub issue label update failed: HTTP %s (%s)",
+            resp.status_code,
+            resp.reason_phrase,
+        )
+    return ok
+
+
+def issue_matches_configured_repo(
+    number: int,
+    issue_url: str | None,
+) -> bool:
+    """Return whether a stored GitHub issue URL matches the configured repo."""
+    repo = _repo()
+    if not repo or not issue_url:
+        return False
+    parsed = urlsplit(issue_url)
+    if parsed.scheme != "https" or parsed.netloc.casefold() != "github.com":
+        return False
+    expected_path = f"/{repo}/issues/{number}"
+    return parsed.path.rstrip("/").casefold() == expected_path.casefold()
 
 
 def get_issue_state(number: int) -> dict | None:
