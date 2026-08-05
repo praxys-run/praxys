@@ -4,20 +4,20 @@ How Praxys protects your data and credentials.
 
 ## Credential Encryption
 
-Platform credentials (Garmin password, Stryd password, Oura token) are encrypted at rest using envelope encryption. They are **never stored in plaintext**, **never returned to the frontend**, and **never logged**.
+Platform credentials (Garmin password, Stryd password, Oura token) and Garmin OAuth sessions are encrypted at rest using envelope encryption. They are **never stored in plaintext**, **never returned to the frontend**, and **never logged**.
 
 ### How It Works
 
 Each user's credentials are encrypted with a unique Data Encryption Key (DEK). The DEK itself is wrapped (encrypted) by a Key Encryption Key (KEK):
 
 ```
-Plaintext credentials
+Plaintext credential or OAuth token bundle
     → encrypt with per-user DEK (AES/Fernet)
     → DEK wrapped by KEK
     → only the encrypted blob + wrapped DEK are stored in the database
 ```
 
-To decrypt, the system unwraps the DEK using the KEK, then decrypts the credentials. The plaintext DEK exists only in memory during the sync operation.
+To decrypt, the system unwraps the DEK using the KEK, then decrypts the credential or token bundle. The plaintext DEK and Garmin OAuth tokens exist only in memory during authentication and sync.
 
 ### Azure (Cloud Mode)
 
@@ -88,8 +88,8 @@ When running locally:
 | Event | What Happens |
 |-------|--------------|
 | Connect a platform | Credentials encrypted with per-user DEK, wrapped DEK + encrypted blob stored in DB |
-| Sync runs | Credentials decrypted in memory, used for API call, discarded after sync |
-| Disconnect a platform | Encrypted credentials deleted from DB |
+| Sync runs | Credentials and any Garmin OAuth bundle are decrypted in memory, used for API calls, then discarded |
+| Disconnect a platform | Encrypted credentials and OAuth tokens deleted from DB |
 | View connections (API/UI) | Only connection status returned — credentials are never sent to the frontend |
 | Server logs | Credential values are never logged, even at debug level |
 

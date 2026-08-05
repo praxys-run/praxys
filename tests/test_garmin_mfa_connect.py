@@ -8,6 +8,7 @@ thread). These tests lock down the synchronous connect endpoints that drive
 garminconnect's ``return_on_mfa`` / ``resume_login`` handshake so an MFA code
 can be entered while the user is present.
 """
+import json
 import os
 import tempfile
 
@@ -15,18 +16,19 @@ import pytest
 
 
 class _FakeInnerClient:
-    """Stand-in for garminconnect's underlying Client — records dump() calls."""
+    """Stand-in for garminconnect's underlying Client serialization."""
 
     def __init__(self) -> None:
-        self.dumped: list[str] = []
+        self.dumps_calls = 0
         self.skip_strategies: set[str] = set()
 
-    def dump(self, path: str) -> None:
-        self.dumped.append(path)
-        # Mirror the real dump: write a token file so the tokenstore exists.
-        os.makedirs(path, exist_ok=True)
-        with open(os.path.join(path, "garmin_tokens.json"), "w") as f:
-            f.write("{}")
+    def dumps(self) -> str:
+        self.dumps_calls += 1
+        return json.dumps({
+            "di_token": "access-" + ("a" * 600),
+            "di_refresh_token": "refresh-" + ("b" * 600),
+            "di_client_id": "client-id",
+        })
 
 
 def _make_fake_garmin(*, needs_mfa: bool, auth_error: str | None = None):
@@ -68,7 +70,7 @@ def api_client(monkeypatch):
     from fastapi.testclient import TestClient
 
     tmpdir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
-    monkeypatch.setenv("DATA_DIR", tmpdir.name)
+    monkeypatch.setenv("DATA_DIR", os.path.join(tmpdir.name, "data"))
     monkeypatch.setenv("PRAXYS_SYNC_SCHEDULER", "false")
     monkeypatch.setenv(
         "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED",
@@ -117,7 +119,7 @@ def api_client(monkeypatch):
     # Reset the process-local pending-MFA store between tests.
     from api.routes import sync as sync_mod
     sync_mod._pending_garmin_mfa.clear()
-    sync_mod._completed_garmin_token_dirs.clear()
+    sync_mod._completed_garmin_tokens.clear()
     sync_mod._completed_garmin_token_created.clear()
 
     client = TestClient(app)
@@ -126,7 +128,7 @@ def api_client(monkeypatch):
     finally:
         app.dependency_overrides.clear()
         sync_mod._pending_garmin_mfa.clear()
-        sync_mod._completed_garmin_token_dirs.clear()
+        sync_mod._completed_garmin_tokens.clear()
         sync_mod._completed_garmin_token_created.clear()
         if db_session.engine is not None:
             db_session.engine.dispose()
@@ -158,17 +160,16 @@ def test_connect_without_mfa_persists_credentials(api_client, monkeypatch):
     )
     assert res.status_code == 200
     assert res.json()["status"] == "connected"
-    # Credentials stored and tokens dumped for future background syncs.
+    # Credentials and an encrypted token bundle are stored together.
     assert _connection_status(api_client["user_id"]) == "connected"
-    assert instances[0].client.dumped, "tokens should be persisted on success"
+    assert instances[0].client.dumps_calls == 1
     # The portal login strategy is forced so the minted token is one the
     # Garmin API tier accepts (avoids the widget-token rejection, #369).
     assert instances[0].client.skip_strategies == {
         "mobile+cffi", "mobile+requests", "widget+cffi",
     }
-    from api.routes.sync import _garmin_token_dir
     from db import session as db_session
-    from db.connection_credentials import connection_credentials_generation
+    from db.garmin_tokens import load_garmin_tokens
     from db.models import UserConnection
 
     with db_session.SessionLocal() as db:
@@ -176,19 +177,12 @@ def test_connect_without_mfa_persists_credentials(api_client, monkeypatch):
             user_id=api_client["user_id"],
             platform="garmin",
         ).one()
-        token_dir = _garmin_token_dir(
-            api_client["user_id"],
-            connection_credentials_generation(connection),
-        )
-    assert os.path.isfile(
-        os.path.join(token_dir, "garmin_tokens.json")
-    )
-    assert os.path.isfile(
-        os.path.join(
-            _garmin_token_dir(api_client["user_id"]),
-            "garmin_tokens.json",
-        )
-    )
+        assert connection.encrypted_garmin_tokens is not None
+        assert connection.wrapped_token_dek is not None
+        assert load_garmin_tokens(
+            db,
+            user_id=api_client["user_id"],
+        ) == instances[0].client.dumps()
 
 
 def test_connect_requiring_mfa_then_verify(api_client, monkeypatch):
@@ -216,7 +210,7 @@ def test_connect_requiring_mfa_then_verify(api_client, monkeypatch):
     assert res.json()["status"] == "connected"
     assert _connection_status(api_client["user_id"]) == "connected"
     assert instances[0].resume_calls == ["123456"]
-    assert instances[0].client.dumped, "tokens should be persisted after MFA"
+    assert instances[0].client.dumps_calls == 1
     assert instances[0].client.skip_strategies == {
         "mobile+cffi", "mobile+requests", "widget+cffi",
     }
@@ -224,119 +218,86 @@ def test_connect_requiring_mfa_then_verify(api_client, monkeypatch):
 
 def test_completed_logins_bind_only_the_matching_attempt(api_client):
     from api.routes import sync as sync_mod
+    from db import session as db_session
+    from db.connection_credentials import connection_credentials_generation
+    from db.crypto import get_vault
+    from db.garmin_tokens import load_garmin_tokens
+    from db.models import UserConnection
 
     user_id = api_client["user_id"]
-    first_staging = sync_mod._garmin_login_staging_dir(user_id)
-    second_staging = sync_mod._garmin_login_staging_dir(user_id)
-    for path, marker in (
-        (first_staging, "first"),
-        (second_staging, "second"),
-    ):
-        os.makedirs(path, exist_ok=True)
-        with open(
-            os.path.join(path, "garmin_tokens.json"),
-            "w",
-            encoding="utf-8",
-        ) as handle:
-            handle.write(marker)
-    sync_mod._completed_garmin_token_dirs.update({
-        (user_id, "attempt-first"): first_staging,
-        (user_id, "attempt-second"): second_staging,
+    first_tokens = _FakeInnerClient().dumps()
+    second_tokens = first_tokens[:-4] + "AAAA"
+    sync_mod._completed_garmin_tokens.update({
+        (user_id, "attempt-first"): first_tokens,
+        (user_id, "attempt-second"): second_tokens,
     })
-
-    sync_mod.bind_garmin_login_tokens(
-        user_id,
-        "generation-first",
-        "attempt-first",
-    )
-
-    first_destination = sync_mod._garmin_token_dir(
-        user_id,
-        "generation-first",
-    )
-    with open(
-        os.path.join(first_destination, "garmin_tokens.json"),
-        encoding="utf-8",
-    ) as handle:
-        assert handle.read() == "first"
+    encrypted, wrapped = get_vault().encrypt(json.dumps({
+        "email": "a@example.com",
+        "password": "pw",
+        "is_cn": False,
+    }))
+    with db_session.SessionLocal() as db:
+        connection = UserConnection(
+            user_id=user_id,
+            platform="garmin",
+            encrypted_credentials=encrypted,
+            wrapped_dek=wrapped,
+            status="connected",
+        )
+        db.add(connection)
+        db.flush()
+        generation = connection_credentials_generation(connection)
+        sync_mod.bind_garmin_login_tokens(
+            db,
+            user_id,
+            generation,
+            "attempt-first",
+        )
+        db.commit()
+        assert load_garmin_tokens(db, user_id=user_id) == first_tokens
     assert (
         user_id,
         "attempt-second",
-    ) in sync_mod._completed_garmin_token_dirs
-    assert os.path.isdir(second_staging)
+    ) in sync_mod._completed_garmin_tokens
 
 
-def test_failed_token_binding_deletes_reserved_staging(api_client):
+def test_failed_token_binding_drops_sensitive_memory(api_client):
     from api.routes import sync as sync_mod
+    from db import session as db_session
+    from db.connection_credentials import connection_credentials_generation
+    from db.crypto import get_vault
+    from db.garmin_tokens import GarminTokenAccessError
+    from db.models import UserConnection
 
     user_id = api_client["user_id"]
-    staging = sync_mod._garmin_login_staging_dir(user_id)
-    os.makedirs(staging, exist_ok=True)
     key = (user_id, "attempt-failed")
-    sync_mod._completed_garmin_token_dirs[key] = staging
+    sync_mod._completed_garmin_tokens[key] = "sensitive-token"
     sync_mod._completed_garmin_token_created[key] = 1.0
-    destination = sync_mod._garmin_token_dir(
-        user_id,
-        "generation-existing",
-    )
-    os.makedirs(destination, exist_ok=True)
-
-    with pytest.raises(
-        RuntimeError,
-        match="GARMIN_TOKEN_GENERATION_ALREADY_EXISTS",
-    ):
-        sync_mod.bind_garmin_login_tokens(
-            user_id,
-            "generation-existing",
-            "attempt-failed",
+    encrypted, wrapped = get_vault().encrypt("{}")
+    with db_session.SessionLocal() as db:
+        connection = UserConnection(
+            user_id=user_id,
+            platform="garmin",
+            encrypted_credentials=encrypted,
+            wrapped_dek=wrapped,
+            status="connected",
         )
+        db.add(connection)
+        db.flush()
+        generation = connection_credentials_generation(connection)
+        with pytest.raises(GarminTokenAccessError):
+            sync_mod.bind_garmin_login_tokens(
+                db,
+                user_id,
+                generation,
+                "attempt-failed",
+            )
 
-    assert key not in sync_mod._completed_garmin_token_dirs
+    assert key not in sync_mod._completed_garmin_tokens
     assert key not in sync_mod._completed_garmin_token_created
-    assert not os.path.exists(staging)
 
 
-def test_binding_setup_failure_deletes_untracked_staging_tokens(
-    api_client,
-    monkeypatch,
-):
-    from api.routes import sync as sync_mod
-
-    user_id = api_client["user_id"]
-    attempt_id = "parent-creation-failure"
-    staging = sync_mod._garmin_login_staging_dir(user_id)
-    os.makedirs(staging, exist_ok=True)
-    with open(
-        os.path.join(staging, "garmin_tokens.json"),
-        "w",
-        encoding="utf-8",
-    ) as handle:
-        handle.write("sensitive-token")
-    key = (user_id, attempt_id)
-    sync_mod._completed_garmin_token_dirs[key] = staging
-    sync_mod._completed_garmin_token_created[key] = 1.0
-    real_makedirs = os.makedirs
-
-    def fail_generation_parent(path, exist_ok=False):
-        if os.path.basename(os.path.normpath(path)) == "generations":
-            raise OSError("generation directory unavailable")
-        return real_makedirs(path, exist_ok=exist_ok)
-
-    monkeypatch.setattr(sync_mod.os, "makedirs", fail_generation_parent)
-
-    with pytest.raises(OSError, match="generation directory unavailable"):
-        sync_mod.bind_garmin_login_tokens(
-            user_id,
-            "new-generation",
-            attempt_id,
-        )
-
-    assert key not in sync_mod._completed_garmin_token_dirs
-    assert key not in sync_mod._completed_garmin_token_created
-    assert not os.path.exists(staging)
-
-
-def test_failed_credential_commit_does_not_publish_legacy_tokens(
+def test_failed_credential_commit_does_not_publish_encrypted_tokens(
     api_client,
     monkeypatch,
 ):
@@ -345,38 +306,10 @@ def test_failed_credential_commit_does_not_publish_legacy_tokens(
     from db import session as db_session
 
     user_id = api_client["user_id"]
-    legacy = sync_mod._garmin_token_dir(user_id)
-    os.makedirs(legacy, exist_ok=True)
-    legacy_token = os.path.join(legacy, "garmin_tokens.json")
-    with open(legacy_token, "w", encoding="utf-8") as handle:
-        handle.write("old-account")
-
-    staging = sync_mod._garmin_login_staging_dir(user_id)
-    os.makedirs(staging, exist_ok=True)
-    with open(
-        os.path.join(staging, "garmin_tokens.json"),
-        "w",
-        encoding="utf-8",
-    ) as handle:
-        handle.write("new-account")
     attempt_id = "commit-failure"
     key = (user_id, attempt_id)
-    sync_mod._completed_garmin_token_dirs[key] = staging
+    sync_mod._completed_garmin_tokens[key] = _FakeInnerClient().dumps()
     sync_mod._completed_garmin_token_created[key] = 1.0
-    generations = os.path.join(legacy, "generations")
-    generations_before = (
-        set(os.listdir(generations))
-        if os.path.isdir(generations)
-        else set()
-    )
-    mirror_calls: list[tuple[str, str]] = []
-    monkeypatch.setattr(
-        sync_mod,
-        "_mirror_generation_tokens_for_legacy_workers",
-        lambda called_user_id, generation: mirror_calls.append(
-            (called_user_id, generation)
-        ),
-    )
 
     with db_session.SessionLocal() as db:
         monkeypatch.setattr(
@@ -398,15 +331,14 @@ def test_failed_credential_commit_does_not_publish_legacy_tokens(
                 login_attempt_id=attempt_id,
             )
 
-    with open(legacy_token, encoding="utf-8") as handle:
-        assert handle.read() == "old-account"
-    assert mirror_calls == []
-    generations_after = (
-        set(os.listdir(generations))
-        if os.path.isdir(generations)
-        else set()
-    )
-    assert generations_after == generations_before
+    with db_session.SessionLocal() as db:
+        from db.models import UserConnection
+
+        assert db.query(UserConnection).filter_by(
+            user_id=user_id,
+            platform="garmin",
+        ).one_or_none() is None
+    assert key not in sync_mod._completed_garmin_tokens
 
 
 def test_concurrent_mfa_logins_require_the_matching_attempt(
@@ -544,17 +476,10 @@ def test_verify_without_pending_session_reports_expired(api_client):
 def test_connect_with_bad_credentials_returns_error(api_client, monkeypatch):
     fake, _ = _make_fake_garmin(needs_mfa=False, auth_error="Invalid Username or Password")
     monkeypatch.setattr("garminconnect.Garmin", fake)
-    from api.routes.sync import _garmin_token_dir
+    from api.routes import sync as sync_mod
 
-    staging_root = os.path.join(
-        _garmin_token_dir(api_client["user_id"]),
-        "staging",
-    )
-    existing_staging = (
-        set(os.listdir(staging_root))
-        if os.path.isdir(staging_root)
-        else set()
-    )
+    existing_pending = set(sync_mod._pending_garmin_mfa)
+    existing_completed = set(sync_mod._completed_garmin_tokens)
 
     res = api_client["client"].post(
         "/api/settings/connections/garmin/login",
@@ -563,12 +488,8 @@ def test_connect_with_bad_credentials_returns_error(api_client, monkeypatch):
     assert res.status_code == 200
     assert res.json()["status"] == "error"
     assert _connection_status(api_client["user_id"]) is None
-    current_staging = (
-        set(os.listdir(staging_root))
-        if os.path.isdir(staging_root)
-        else set()
-    )
-    assert current_staging == existing_staging
+    assert set(sync_mod._pending_garmin_mfa) == existing_pending
+    assert set(sync_mod._completed_garmin_tokens) == existing_completed
 
 
 def test_login_missing_credentials_returns_error(api_client):
@@ -596,7 +517,6 @@ def test_expired_pending_mfa_is_pruned(api_client, monkeypatch):
         for key in sync_mod._pending_garmin_mfa
         if key[0] == api_client["user_id"]
     )
-    staging_dir = sync_mod._pending_garmin_mfa[pending_key]["token_dir"]
     sync_mod._pending_garmin_mfa[pending_key]["created"] -= (
         sync_mod._GARMIN_MFA_TTL_SEC + 1
     )
@@ -606,7 +526,7 @@ def test_expired_pending_mfa_is_pruned(api_client, monkeypatch):
         json={"code": "123456"},
     )
     assert res.json()["message"] == "mfa_session_expired"
-    assert not os.path.exists(staging_dir)
+    assert pending_key not in sync_mod._pending_garmin_mfa
 
 
 def test_sync_login_forces_portal_and_rewraps_headless_mfa(tmp_path):

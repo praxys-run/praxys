@@ -120,7 +120,7 @@ def test_alembic_head_includes_plan_ledger():
 
     config = Config("alembic.ini")
     script = ScriptDirectory.from_config(config)
-    assert script.get_current_head() == "6f708192a3b4"
+    assert script.get_current_head() == "7a8192b3c4d5"
 
 
 def test_alembic_canonical_default_supports_old_worker_inserts(

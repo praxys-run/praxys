@@ -123,6 +123,26 @@ class PlanDeliveryService:
         self.db.rollback()
         adapter.authenticate()
 
+    def _flush_auth_state(
+        self,
+        adapter: PlanDeliveryAdapter,
+        *,
+        operation: str,
+    ) -> None:
+        """Persist provider auth rotation without changing a completed outcome."""
+        flush = getattr(adapter, "flush_auth_state", None)
+        if not callable(flush):
+            return
+        try:
+            flush()
+        except Exception:
+            logger.exception(
+                "Failed to persist refreshed %s auth state after %s for user=%s",
+                self.target,
+                operation,
+                self.user_id,
+            )
+
     def _cleanup_new_delivery(self, delivery, created: bool) -> None:
         if created:
             self.db.delete(delivery)
@@ -494,6 +514,7 @@ class PlanDeliveryService:
                     self.target,
                     workout_date,
                 )
+            self._flush_auth_state(adapter, operation="delivery")
             return DeliveryResult(
                 status="error",
                 error=str(exc),
@@ -520,6 +541,7 @@ class PlanDeliveryService:
                 raise DeliveryFinalizationError(
                     "Could not persist provider authentication failure"
                 ) from record_exc
+            self._flush_auth_state(adapter, operation="delivery")
             raise
         except ProviderRateLimitError as exc:
             response = {
@@ -544,6 +566,7 @@ class PlanDeliveryService:
                     self.user_id,
                     workout_date,
                 )
+            self._flush_auth_state(adapter, operation="delivery")
             return DeliveryResult(
                 status="error",
                 error=str(exc),
@@ -572,6 +595,7 @@ class PlanDeliveryService:
                     self.user_id,
                     workout_date,
                 )
+            self._flush_auth_state(adapter, operation="delivery")
             return DeliveryResult(
                 status="error",
                 error=str(exc),
@@ -600,6 +624,7 @@ class PlanDeliveryService:
                     self.user_id,
                     workout_date,
                 )
+            self._flush_auth_state(adapter, operation="delivery")
             return DeliveryResult(
                 status="error",
                 error=str(exc),
@@ -636,6 +661,7 @@ class PlanDeliveryService:
                     self.user_id,
                     workout_date,
                 )
+            self._flush_auth_state(adapter, operation="delivery")
             return DeliveryResult(
                 status="error",
                 error=message,
@@ -667,6 +693,7 @@ class PlanDeliveryService:
                 workout_date,
                 provider_result.external_id,
             )
+            self._flush_auth_state(adapter, operation="delivery")
             return DeliveryResult(
                 status="error",
                 error=(
@@ -675,6 +702,7 @@ class PlanDeliveryService:
                 ),
                 error_category="ledger_finalization_failed",
             )
+        self._flush_auth_state(adapter, operation="delivery")
         return DeliveryResult(
             status="success",
             external_id=provider_result.external_id,
@@ -839,6 +867,9 @@ class PlanDeliveryService:
                 raise DeliveryFinalizationError(
                     f"Could not persist {provider_name} removal failure"
                 ) from exc
+            finally:
+                self.db.rollback()
+                self._flush_auth_state(adapter, operation="removal")
 
         try:
             hooks = self._mutation_hooks(
@@ -907,6 +938,7 @@ class PlanDeliveryService:
                     self.user_id,
                     external_id,
                 )
+            self._flush_auth_state(adapter, operation="removal")
             raise DeliveryRemovalFailedError(str(exc)) from exc
         except ProviderRemovalError as exc:
             if record_failure(
@@ -963,10 +995,12 @@ class PlanDeliveryService:
                 self.user_id,
                 external_id,
             )
+            self._flush_auth_state(adapter, operation="removal")
             raise DeliveryFinalizationError(
                 f"{provider_name} workout was deleted, but delivery state "
                 "could not be finalized"
             ) from exc
+        self._flush_auth_state(adapter, operation="removal")
         return RemovalResult(
             external_id=external_id,
             already_absent=provider_result.already_absent,

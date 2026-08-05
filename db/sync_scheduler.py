@@ -523,13 +523,14 @@ def _sync_connection(
         # Use the sync route's direct DB write functions.
         from api.routes.sync import (
             _ensure_user_active_for_sync,
-            _mirror_generation_tokens_for_legacy_workers,
+            _persist_garmin_token_state_after_rollback,
             _sync_coros,
             _sync_garmin,
             _sync_oura,
             _sync_strava,
             _sync_stryd,
         )
+        garmin_token_state: dict[str, object] = {}
 
         if platform == "garmin":
             counts = _sync_garmin(
@@ -538,6 +539,7 @@ def _sync_connection(
                 None,
                 db,
                 credential_generation=expected_connection_generation,
+                _token_state=garmin_token_state,
             )
         elif platform == "strava":
             counts = _sync_strava(user_id, creds, None, db)
@@ -551,25 +553,49 @@ def _sync_connection(
             logger.warning("Unknown platform: %s", platform)
             return
 
-        if expected_connection_generation is not None:
-            require_connection_generation(
-                db,
-                user_id=user_id,
-                platform=platform,
-                expected_generation=expected_connection_generation,
-                allowed_statuses=SCHEDULABLE_STATUSES,
-                lock=True,
-            )
-        _ensure_user_active_for_sync(user_id, db)
-        db.commit()
-        if (
-            platform == "garmin"
-            and expected_connection_generation is not None
-        ):
-            _mirror_generation_tokens_for_legacy_workers(
-                user_id,
-                expected_connection_generation,
-            )
+        try:
+            if expected_connection_generation is not None:
+                require_connection_generation(
+                    db,
+                    user_id=user_id,
+                    platform=platform,
+                    expected_generation=expected_connection_generation,
+                    allowed_statuses=SCHEDULABLE_STATUSES,
+                    lock=True,
+                )
+            _ensure_user_active_for_sync(user_id, db)
+            db.commit()
+        except ConnectionGenerationChanged:
+            db.rollback()
+            raise
+        except Exception:
+            db.rollback()
+            if (
+                platform == "garmin"
+                and expected_connection_generation is not None
+            ):
+                try:
+                    persisted = _persist_garmin_token_state_after_rollback(
+                        db,
+                        user_id=user_id,
+                        credential_generation=expected_connection_generation,
+                        token_state=garmin_token_state,
+                        allowed_statuses=SCHEDULABLE_STATUSES,
+                    )
+                    if not persisted:
+                        logger.warning(
+                            "Skipped stale Garmin token publication after "
+                            "scheduled commit failure for user=%s",
+                            user_id,
+                        )
+                except Exception:
+                    db.rollback()
+                    logger.exception(
+                        "Failed to persist Garmin OAuth tokens after scheduled "
+                        "commit failure for user=%s",
+                        user_id,
+                    )
+            raise
 
     # Refresh activity-derived CP after the sync — best-effort, never break
     # the scheduled sync if the fit fails. Skipped for Oura since it writes

@@ -81,8 +81,12 @@ Praxys development deliberately separates three identities:
 | `praxys-local` | `.praxys-local/trainsight.db`, deterministic synthetic user | Offline-safe feature and managed-plan development |
 
 The installed plugin provides `praxys`. The repository `.mcp.json` adds the
-other two through `scripts/run_praxys_mcp.py`; the launcher switches to the
-project `.venv` before loading the submodule server.
+other two through `scripts/run_praxys_mcp.cjs`, a dependency-free Node shim
+that invokes the project `.venv` directly before
+`scripts/run_praxys_mcp.py` loads the submodule server. This avoids relying on
+whether the MCP host exposes Python as `python`, `python3`, or `py`.
+Test harnesses without a project virtualenv can set `PRAXYS_MCP_PYTHON` to an
+absolute interpreter path with the project dependencies installed.
 
 Restart the CLI after changing `.mcp.json` or updating the plugin submodule.
 Use `/mcp` or `/env` to confirm the servers loaded, then call each server's
@@ -120,10 +124,9 @@ Additional production test profiles can reuse the launcher:
 
 ```json
 "praxys-garmin-cn-test": {
-  "command": "python",
+  "command": "node",
   "args": [
-    "-m",
-    "scripts.run_praxys_mcp",
+    "scripts/run_praxys_mcp.cjs",
     "remote-profile",
     "garmin-cn-test"
   ]
@@ -167,7 +170,7 @@ The plugin server exposes 28 tools in both remote and local modes:
 | `get_daily_brief` | Today's training signal, recovery, upcoming workouts |
 | `get_training_review` | Zone distribution, fitness/fatigue, diagnosis, suggestions |
 | `get_race_forecast` | Race prediction, goal feasibility, threshold trend |
-| `get_training_context` | Full training context for AI plan generation |
+| `get_training_context` | Coaching snapshot for AI plan generation; wraps `GET /api/ai/context` |
 | `get_settings` | Current user settings and display config |
 | `update_settings` | Update training base, thresholds, zones, goal, science |
 | `get_sync_settings` / `set_sync_frequency` | Read or update scheduler cadence |
@@ -189,6 +192,14 @@ The plugin server exposes 28 tools in both remote and local modes:
 
 `PRAXYS_LOCAL=1` selects direct local mode. Otherwise the server uses the
 production API unless `PRAXYS_URL` explicitly overrides it.
+
+`get_training_context` is intentionally a bounded coaching snapshot, not a
+raw research export. Analysis-ready per-activity environment, stream coverage,
+stable-power segments, dated recovery, and leakage-safe pre-run context are
+served by the owner-authenticated `/api/analysis/activities/{activity_id}` and
+`/api/analysis/research-dataset` endpoints. The v1 MCP surface does not expose
+raw samples or precise GPS; see `docs/dev/api-reference.md` for detector
+semantics and limitations.
 
 ## Available Athlete-Facing Skills
 

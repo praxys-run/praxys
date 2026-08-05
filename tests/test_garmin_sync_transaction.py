@@ -10,6 +10,7 @@ Fix: each independent write section in _sync_garmin uses db.begin_nested()
 a write failure only rolls back that section — the outer transaction, and all
 earlier writes (activities, splits), remain intact.
 """
+import os
 import tempfile
 
 import pytest
@@ -20,7 +21,7 @@ from sqlalchemy.exc import IntegrityError
 @pytest.fixture
 def db_with_user(monkeypatch):
     tmpdir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
-    monkeypatch.setenv("DATA_DIR", tmpdir.name)
+    monkeypatch.setenv("DATA_DIR", os.path.join(tmpdir.name, "data"))
     monkeypatch.setenv(
         "PRAXYS_LOCAL_ENCRYPTION_KEY",
         "JKkx_5SVHKQDr0HSMrwl0KQHcA0pl5pxsYSLEAQDB4o=",

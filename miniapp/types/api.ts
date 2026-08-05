@@ -962,22 +962,240 @@ export interface SplitData {
   duration_sec: number | null;
   avg_power: number | null;
   avg_hr: number | null;
+  max_hr: number | null;
   avg_pace_min_km: string | null;
+  power_source: string | null;
+}
+
+export type AnalysisAvailabilityState =
+  | 'available'
+  | 'partial'
+  | 'limited'
+  | 'unavailable';
+
+export interface AnalysisAvailability {
+  state: AnalysisAvailabilityState;
+  reason_codes: string[];
+}
+
+export interface ActivityStartTime extends AnalysisAvailability {
+  utc: string | null;
+  timezone: 'UTC' | null;
+  provenance:
+    | 'activity_start_epoch'
+    | 'activity_start_with_offset'
+    | 'sample_epoch_fallback'
+    | 'none'
+    | null;
+}
+
+export interface ActivityEnvironment extends AnalysisAvailability {
+  model_version: string;
+  science_decision_id: string;
+  temperature_c: number | null;
+  relative_humidity_pct: number | null;
+  source: string | null;
+  wet_bulb_c: number | null;
+  wet_bulb_method: 'stull_psychrometric' | null;
+  science_sources: { id: string; url: string }[];
+  limitations: string[];
+}
+
+export interface ActivitySampleCoverage extends AnalysisAvailability {
+  sample_count: number;
+  observed_duration_sec: number;
+  activity_duration_sec: number | null;
+  sample_coverage_ratio: number | null;
+  power_duration_sec: number;
+  power_coverage_ratio: number | null;
+  heart_rate_duration_sec: number;
+  heart_rate_coverage_ratio: number | null;
+  gap_count: number;
+}
+
+export interface ActivityMetricProvenance extends AnalysisAvailability {
+  providers: string[];
+  basis: 'samples' | 'splits' | 'activity_summary' | 'none';
+}
+
+export interface ActivityProvenance {
+  activity_provider: string | null;
+  sample_providers: string[];
+  power: ActivityMetricProvenance;
+  heart_rate: ActivityMetricProvenance;
 }
 
 export interface Activity {
   activity_id: string;
   date: string;
+  source: string | null;
+  start_time: ActivityStartTime;
   activity_type: string;
   distance_km: number | null;
   duration_sec: number | null;
+  temperature_c: number | null;
+  relative_humidity_pct: number | null;
+  environment_source: string | null;
   avg_power: number | null;
+  max_power: number | null;
   avg_hr: number | null;
+  max_hr: number | null;
   avg_pace_min_km: string | null;
   elevation_gain_m: number | null;
   rss: number | null;
   cp_estimate: number | null;
+  environment: ActivityEnvironment;
+  sample_coverage: ActivitySampleCoverage;
+  provenance: ActivityProvenance;
   splits: SplitData[];
+}
+
+export interface StableActivitySegment {
+  source: 'samples' | 'splits';
+  stability_state: 'evaluated' | 'not_evaluable';
+  split_num: number | null;
+  start_time_utc: string | null;
+  end_time_utc: string | null;
+  start_offset_sec: number;
+  end_offset_sec: number;
+  duration_sec: number;
+  mean_power_watts: number;
+  mean_pct_cp: number | null;
+  power_cv_pct: number | null;
+  mean_hr_bpm: number | null;
+  hr_slope_bpm_per_min: number | null;
+  hr_at_power_decoupling_pct: number | null;
+  sample_coverage_ratio: number | null;
+  power_provider: string | null;
+  heart_rate_provider: string | null;
+  reason_codes: string[];
+}
+
+export interface StableSegmentAnalysis {
+  model_version: string;
+  status: AnalysisAvailabilityState;
+  source: 'samples' | 'splits' | 'none';
+  parameters: Record<string, unknown>;
+  availability: {
+    samples: AnalysisAvailability;
+    stable_segments: AnalysisAvailability;
+    critical_power: AnalysisAvailability;
+    heart_rate: AnalysisAvailability;
+  };
+  coverage: {
+    sample_count: number;
+    sample_start_time_utc: string | null;
+    sample_end_time_utc: string | null;
+    observed_duration_sec: number;
+    sample_coverage_ratio: number | null;
+    power_duration_sec: number;
+    power_coverage_ratio: number | null;
+    heart_rate_duration_sec: number;
+    heart_rate_coverage_ratio: number | null;
+    gap_count: number;
+  };
+  provenance: {
+    sample_providers: string[];
+    power_providers: string[];
+    heart_rate_providers: string[];
+    critical_power_source: string | null;
+    critical_power_provider: string | null;
+  };
+  exclusions: Array<{
+    code: string;
+    sample_count: number;
+    duration_sec: number;
+  }>;
+  reason_codes: string[];
+  segments: StableActivitySegment[];
+}
+
+export interface PreActivityLoadContext extends AnalysisAvailability {
+  as_of_date: string;
+  ctl: number | null;
+  atl: number | null;
+  tsb: number | null;
+  model_version: string;
+  training_base: TrainingBase;
+  load_sources: string[];
+  time_constants_days: {
+    ctl: number;
+    atl: number;
+  };
+  data_days: number;
+  observation_days: number;
+  missing_load_activity_count: number;
+}
+
+export interface PreActivityCriticalPowerContext
+  extends AnalysisAvailability {
+  value_watts: number | null;
+  effective_date: string | null;
+  source: string | null;
+  power_provider: string | null;
+  selection: 'latest_strictly_before_activity_date';
+}
+
+export interface PreActivityRecoveryContext extends AnalysisAvailability {
+  date: string | null;
+  source: string | null;
+  selection: 'latest_on_or_before_activity_date';
+  values: {
+    readiness_score?: number | null;
+    hrv_avg?: number | null;
+    resting_hr?: number | null;
+    sleep_score?: number | null;
+    total_sleep_sec?: number | null;
+  };
+}
+
+export type PreActivityHeatContext = Partial<
+  Omit<HeatAdaptationStatus, 'model_version' | 'reason_codes'>
+> & {
+  state: AnalysisAvailabilityState;
+  as_of_date: string;
+  cutoff_policy?: 'strictly_before_activity_calendar_date';
+  model_version?: string | null;
+  reason_codes: string[];
+};
+
+export interface PreActivityContext {
+  cutoff_policy: string;
+  load: PreActivityLoadContext;
+  critical_power: PreActivityCriticalPowerContext;
+  recovery: PreActivityRecoveryContext;
+  heat_adaptation: PreActivityHeatContext;
+}
+
+export interface ActivityAnalysisRecord {
+  activity: Activity;
+  stable_segments: StableSegmentAnalysis;
+  pre_activity_context: PreActivityContext;
+}
+
+export interface ActivityAnalysisResponse extends ActivityAnalysisRecord {
+  schema_version: string;
+  model_versions: Record<string, string | string[]>;
+  privacy: {
+    precise_gps_included: false;
+    credentials_included: false;
+    raw_samples_included: false;
+  };
+  record_hash: string;
+}
+
+export interface ActivityResearchDatasetResponse {
+  schema_version: string;
+  model_versions: Record<string, string | string[]>;
+  records: ActivityAnalysisRecord[];
+  total: number;
+  limit: number;
+  offset: number;
+  source_filter: string | null;
+  semantics: Record<string, string | boolean>;
+  privacy: ActivityAnalysisResponse['privacy'];
+  dataset_hash: string;
+  generated_at: string;
 }
 
 export interface AiInsightFinding {
@@ -1082,6 +1300,9 @@ export interface HistoryResponse {
   total: number;
   limit: number;
   offset: number;
+  source_filter?: string | null;
+  training_base?: TrainingBase;
+  display?: DisplayConfig;
 }
 
 /** Per-locale override for an announcement's translatable text (Issue #355). */

@@ -291,11 +291,11 @@ in progress.
    mixed-worker safety. Import legacy Stryd status before any target switch and
    reject the switch while future, non-removed deliveries remain on another
    connector; manual Stryd writes apply the same just-in-time target fence.
-12. Bind each completed interactive login tokenstore to an opaque,
-    server-generated login-attempt ID before moving it into the encrypted
-    credential generation directory. Return that ID to the client and require
-    it when completing MFA. Concurrent login attempts cannot consume or
-    replace one another's staged session.
+12. Bind each completed interactive login's in-memory serialized OAuth bundle
+    to an opaque, server-generated login-attempt ID. Return that ID to the
+    client and require it when completing MFA. Encrypt the matching bundle in
+    the same generation-fenced transaction as its credentials; concurrent
+    login attempts cannot consume or replace one another's session.
 13. Bound full-library template recovery to 500 entries. At-limit detection
     before upload is an actionable, non-retryable rejection. Exhaustion after
     a possible upload remains an unknown outcome so automatic retries cannot

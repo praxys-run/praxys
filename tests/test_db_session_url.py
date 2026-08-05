@@ -74,6 +74,9 @@ def test_existing_sqlite_gets_additive_compatibility_columns(dbs, tmp_path):
             conn.exec_driver_sql(
                 "CREATE TABLE fitness_data (id INTEGER PRIMARY KEY)"
             )
+            conn.exec_driver_sql(
+                "CREATE TABLE user_connections (id INTEGER PRIMARY KEY)"
+            )
 
         dbs._ensure_schema(engine, "sqlite")
 
@@ -90,6 +93,7 @@ def test_existing_sqlite_gets_additive_compatibility_columns(dbs, tmp_path):
                     "activities",
                     "activity_splits",
                     "fitness_data",
+                    "user_connections",
                 )
             }
             tables = {
@@ -109,6 +113,12 @@ def test_existing_sqlite_gets_additive_compatibility_columns(dbs, tmp_path):
         } <= columns_by_table["activities"]
         assert "power_source" in columns_by_table["activity_splits"]
         assert "power_source" in columns_by_table["fitness_data"]
+        assert {
+            "encrypted_garmin_tokens",
+            "wrapped_token_dek",
+            "garmin_token_generation",
+            "tokens_updated_at",
+        } <= columns_by_table["user_connections"]
         assert "ai_insight_feedback" in tables
     finally:
         engine.dispose()

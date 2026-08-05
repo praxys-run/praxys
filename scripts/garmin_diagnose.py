@@ -52,7 +52,6 @@ import argparse
 import base64
 import os
 import sys
-import tempfile
 from collections import Counter
 from typing import Any, Callable
 from urllib.parse import urlparse
@@ -210,10 +209,9 @@ def _mode_api(args: argparse.Namespace) -> int:
     from api.routes.sync import _login_garmin_with_cn_fallback
 
     client = Garmin(email, password, is_cn=is_cn)
-    with tempfile.TemporaryDirectory() as d:
-        _login_garmin_with_cn_fallback(
-            client, {"email": email, "password": password}, d,
-        )
+    _login_garmin_with_cn_fallback(
+        client, {"email": email, "password": password}, None,
+    )
 
     inner = client.client
     print(f"\nPost-login: di_token={bool(inner.di_token)} "

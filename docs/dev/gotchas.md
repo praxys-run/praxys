@@ -1,6 +1,6 @@
 # Domain Gotchas
 
-Non-obvious traps this codebase has hit in production. The severe, always-relevant ones (split-level power dilution, per-user tokenstore isolation) live inline in `CLAUDE.md`; the rest are here so Claude and future contributors can pull them in when working on the relevant subsystem.
+Non-obvious traps this codebase has hit in production. The severe, always-relevant ones (split-level power dilution, encrypted generation-fenced Garmin sessions) live inline in `CLAUDE.md`; the rest are here so Claude and future contributors can pull them in when working on the relevant subsystem.
 
 ## Garmin sync
 
@@ -29,7 +29,7 @@ Same priority applies to activity-level `averagePower` / `maxPower` in `parse_ac
 
 **Mobile and widget strategies consume the CAS ticket on `.com` hosts.** Strategies 1-3 hardcode `mobile.integration.garmin.com/gcm/ios` / `sso.garmin.com/sso/embed` in `_establish_session`'s JWT_WEB fallback. For CN those hosts either don't resolve or never set a JWT_WEB cookie, so the library raises `GarminConnectAuthenticationError("JWT_WEB cookie not set after ticket consumption")`. Because that's an auth error the chain re-raises immediately, never reaching the portal strategies (which use the domain-aware `_portal_service_url = "connect.garmin.cn/app"`). We catch that specific message and retry `Client._portal_web_login_cffi` directly; the message match keeps real credential failures (`"Invalid Username or Password"`) bubbling up.
 
-With this fallback in place, CN portal login produces real DI Bearer tokens that `connectapi.garmin.cn` accepts, and `Client.dump(token_dir)` persists them so subsequent syncs skip SSO. Reproduction + verification tooling lives in `scripts/garmin_diagnose.py` — subcommands `login` (five-strategy chain, instrumented), `api` (post-login endpoint / header variants), `grants` (credential-free grant_type sweep against `diauth.garmin.cn`), `all`. GitHub issue #75.
+With this fallback in place, CN portal login produces real DI Bearer tokens that `connectapi.garmin.cn` accepts, and the encrypted `Client.dumps()` bundle lets subsequent syncs skip SSO. Reproduction + verification tooling lives in `scripts/garmin_diagnose.py` — subcommands `login` (five-strategy chain, instrumented), `api` (post-login endpoint / header variants), `grants` (credential-free grant_type sweep against `diauth.garmin.cn`), `all`. GitHub issue #75.
 
 ### MFA logins must use the `portal` strategy — widget tokens are API-rejected (#369)
 
@@ -147,41 +147,50 @@ The UI in Settings renders a read-only value plus a source selector
 metric has more than one source. Single-source or zero-source metrics
 render read-only with a source badge.
 
-### Tokenstore lifecycle
+### Garmin OAuth lifecycle
 
-- Tokenstores are scoped to both the authenticated Praxys user and the exact
-  encrypted-credential generation. A background sync may read or recreate only
-  `sync/.garmin_tokens/<user>/generations/<generation-hash>/`; it cannot place
-  an old Garmin session in the replacement connection's directory.
-- On first upgraded use, direct token files from the legacy per-user root are
-  copied into the current generation so existing MFA sessions keep working.
-  Current generation files are mirrored back to that root during the rolling
-  deployment only after the matching credential transaction commits, so an
-  older worker can read the same account session without observing rolled-back
-  credentials. New workers never authenticate from the mirror once their
-  generation exists. Credential rotation clears both layouts before binding
-  the replacement session.
-- Interactive login writes tokens to a unique staging directory. Only after
-  credentials and their generation fence are staged are those files moved into
-  the matching generation directory; a failed credential commit deletes that
-  generation before it can be published to legacy workers.
-  Each completed staging directory is bound to an opaque server-generated
-  login-attempt ID, so concurrent login attempts cannot consume or replace each
-  other's tokens. Failed login, binding, or credential commits delete their
-  staging/generation files; abandoned pending and completed attempts are
-  deleted after five minutes.
-- A per-user filesystem lease serializes every bound-token login, refresh,
-  mirror, clear, sync, and delivery operation across workers. Code that also
+- Garminconnect's JSON `Client.dumps()` representation is encrypted with a token-specific
+  DEK. Only `encrypted_garmin_tokens`, `wrapped_token_dek`,
+  `garmin_token_generation`, and `tokens_updated_at` persist on
+  `user_connections`. `Garmin.login()` receives
+  a padded in-memory JSON value, never a filesystem path.
+- API startup imports a valid current-generation `garmin_tokens.json` into the
+  current connection, commits the encrypted bundle, and then removes the entire
+  plaintext user directory. Older OAuth1/OAuth2 files are incompatible with the
+  current client and are removed with orphaned, partial, malformed,
+  stale-generation, and abandoned staging stores. A cleanup failure aborts
+  startup.
+- Before reading any tokens, startup renames the legacy root to
+  `.garmin_tokens.migration` and installs the global blocker at the original
+  path. A failed encryption or I/O attempt leaves the quarantined source intact
+  and retries it on the next startup. If an old worker recreated the root during
+  an interrupted cutover, its newer files are merged into quarantine before the
+  blocker is reinstalled.
+- A cross-worker migration lock elects one migrator. It acquires every known
+  user's existing token lease before the root cutover, so an in-flight old
+  worker finishes its latest refresh first and the migration imports that final
+  bundle. The blocker is fsynced to a temporary file and atomically installed.
+- The complete legacy `.garmin_tokens` root becomes one non-secret blocker
+  file. Pre-upgrade workers therefore fail closed for every existing or new
+  user instead of recreating `garmin_tokens.json`; rollback requires returning
+  to the encrypted-token release, not deleting the blocker and resuming
+  plaintext.
+- Interactive login holds MFA clients and completed serialized bundles only in
+  process memory. Each attempt is bound to an opaque server-generated ID, so
+  concurrent browser tabs cannot consume one another's session. Completion
+  encrypts the matching bundle in the same transaction as its credentials;
+  abandoned state expires after five minutes.
+- A per-user filesystem-backed lease serializes every token login, refresh,
+  clear, sync, and delivery operation across workers. Code that also
   needs database locks acquires the token lease first or releases read
   transactions before provider authentication; reversing that order can
   deadlock sync against managed delivery. Reconnect, MFA binding, disconnect,
   and region changes hold that lease through their credential/config commit
   and token bind or clear, so two transitions cannot leave connected
-  credentials paired with another transition's tokenstore.
-- First sync for a generation: no tokens present → `has_tokens = False` →
-  `client.login(None)` uses the credentials flow → `garth.dump(token_dir)`
-  writes the OAuth token files. Later syncs for that generation load the same
-  directory and skip SSO.
+  credentials paired with another transition's OAuth session.
+- First sync for a generation decrypts no bundle, so `client.login(None)` uses
+  credentials. The returned `Client.dumps()` value is encrypted and committed
+  immediately. Later syncs decrypt that bundle in memory and skip SSO.
 - Every Garmin sync captures its starting credential generation and rechecks
   the connected/schedulable connection before provider work and before each
   commit. Rotation or disconnect rolls a stale transaction back without
@@ -189,10 +198,11 @@ render read-only with a source badge.
   also refuses to reopen a currently disconnected row even when its encrypted
   credential bytes have not changed yet. This fence is Garmin-specific; other
   connectors may legitimately rotate credentials during sync.
-- `clear_garmin_tokens(user_id)` is called on credential rotation, disconnect,
-  or user deletion and clears staging plus every generation. It must propagate
-  `OSError` — silencing it would re-open the account-confusion boundary the
-  scoped path exists to prevent.
+- `clear_garmin_tokens(user_id, db)` is called on credential rotation or region
+  change and clears both encrypted columns and residual legacy files.
+  Disconnect/user deletion removes the connection row and also runs residual
+  cleanup. Filesystem `OSError` must propagate so bearer tokens are not silently
+  left on disk.
 
 ## Backfill semantics
 

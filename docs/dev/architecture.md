@@ -369,13 +369,19 @@ consumer-API writes are exposed only when the operator gate is enabled and
 explicit experimental consent is bound to the current credential generation
 and region. Reconnect, credential rotation, or disconnect invalidates that
 consent; a region change also disconnects the old region and requires a fresh
-login. Garmin OAuth tokenstores
-are user- and credential-generation-scoped, and a per-user filesystem lease
-serializes token refreshes across sync, delivery, reconnect, and cleanup
-workers. Interactive login uses an isolated staging directory until encrypted
-credentials are staged; the generation is published to legacy workers only
-after that credential transaction commits. A sync rechecks its captured
-generation before provider work and each commit. A stale
+login. Garmin OAuth sessions use garminconnect's in-memory serialization and are
+envelope-encrypted on the user's connection row with a separate wrapped DEK.
+A stored credential-generation fingerprint makes the ciphertext unusable after
+any credential replacement, including one performed by an older worker.
+A per-user cross-process lease serializes token refreshes across sync, delivery,
+reconnect, and cleanup workers. Interactive login keeps MFA state and completed
+tokens in memory until credentials and the same generation-fenced token bundle
+commit atomically. Startup migrates valid legacy token files into the database
+and removes every plaintext store before the scheduler starts. A sync rechecks
+its captured generation before provider work and each commit. The entire legacy
+token root is replaced by a non-secret blocker file, so an older worker cannot
+recreate plaintext for any existing or newly registered user during rollout or
+rollback. A stale
 sync rolls back without degrading the replacement connection. Every external ID is
 retained as a normalized
 observation; previously observed or Praxys-delivered IDs are marked absent only
