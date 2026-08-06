@@ -171,6 +171,28 @@ def test_skips_when_no_new_rows(db_session, stub_context, stub_pillars):
     assert db_session.query(AiInsight).count() == 0
 
 
+def test_requests_twelve_week_context_for_insight_reviews(
+    db_session, stub_context, stub_pillars, monkeypatch,
+):
+    captured: dict = {}
+
+    def _build_context(**kwargs):
+        captured.update(kwargs)
+        return stub_context
+
+    monkeypatch.setattr("api.ai.build_training_context", _build_context)
+    monkeypatch.setattr(llm, "get_client", lambda: None)
+
+    insights_runner.run_insights_for_user(
+        USER_ID,
+        db_session,
+        {"activities": 1},
+        _session=db_session,
+    )
+
+    assert captured["recent_training_weeks"] == 12
+
+
 def test_generates_both_durable_insights_when_hash_differs(
     db_session, stub_context, stub_pillars, monkeypatch,
 ):

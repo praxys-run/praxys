@@ -233,6 +233,8 @@ def test_race_forecast_returns_payload(monkeypatch):
     assert payload is not None
     user_msg = json.loads(fake.chat.completions.last_call["messages"][1]["content"])
     assert user_msg["goal"]["target_time_sec"] == 10800
+    assert "recent_training" not in user_msg
+    assert "sessions" not in user_msg
 
 
 def test_system_prompt_cites_pillar_names_by_name(monkeypatch):

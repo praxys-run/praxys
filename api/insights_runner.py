@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 
 GENERATORS_ORDER = ("training_review", "race_forecast")
+INSIGHT_CONTEXT_LOOKBACK_WEEKS = 12
 _RUN_LOCKS = tuple(threading.Lock() for _ in range(64))
 
 
@@ -145,7 +146,11 @@ def _run(db: Session, user_id: str) -> dict:
             revisions_before = get_revisions(db, user_id, SCOPES)
             cfg = load_config_from_db(user_id, db)
             pillars = dict(getattr(cfg, "science", {}) or {})
-            context = build_training_context(user_id=user_id, db=db)
+            context = build_training_context(
+                user_id=user_id,
+                db=db,
+                recent_training_weeks=INSIGHT_CONTEXT_LOOKBACK_WEEKS,
+            )
             source_revisions = get_revisions(db, user_id, SCOPES)
             if run_date == date.today() and revisions_before == source_revisions:
                 break

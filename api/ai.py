@@ -28,7 +28,13 @@ from analysis.metrics import is_hard_workout, is_rest_workout
 # ---------------------------------------------------------------------------
 
 
-def _build_context_from_data(data: dict, *, user_id: str | None = None, db=None) -> dict:
+def _build_context_from_data(
+    data: dict,
+    *,
+    user_id: str | None = None,
+    db=None,
+    recent_training_weeks: int = 8,
+) -> dict:
     """Reshape pre-computed dashboard data into AI training context.
 
     Accepts the dict returned by ``get_dashboard_data()`` and produces the
@@ -36,11 +42,15 @@ def _build_context_from_data(data: dict, *, user_id: str | None = None, db=None)
     ``get_dashboard_data()`` a second time when the caller already has the data
     (e.g. the ``/api/ai/context`` route).
 
-    Pass ``user_id`` + ``db`` for multi-user mode (the post-sync insight
-    runner) so that ``athlete_profile`` reflects the per-user config (zones,
-    training base, goal). Without them the legacy single-user
-    ``load_config()`` is used.
+    Pass ``user_id`` + ``db`` for multi-user mode so that
+    ``athlete_profile`` reflects the per-user config (zones, training base,
+    goal). ``recent_training_weeks`` defaults to the shared 8-week context;
+    insight generation may request a wider review window. Without database
+    arguments the legacy single-user ``load_config()`` is used.
     """
+    if recent_training_weeks < 1:
+        raise ValueError("recent_training_weeks must be at least 1")
+
     if user_id is not None and db is not None:
         config = load_config_from_db(user_id, db)
     else:
@@ -101,8 +111,8 @@ def _build_context_from_data(data: dict, *, user_id: str | None = None, db=None)
         "race_countdown": data.get("race_countdown", {}),
     }
 
-    # -- Recent training (last 8 weeks of individual sessions + splits) --
-    cutoff = (today - timedelta(weeks=8)).isoformat()
+    # -- Recent training --
+    cutoff = (today - timedelta(weeks=recent_training_weeks)).isoformat()
     all_activities = data.get("activities", [])
     recent_sessions = [
         a for a in all_activities
@@ -208,19 +218,31 @@ def _build_context_from_data(data: dict, *, user_id: str | None = None, db=None)
     }
 
 
-def build_training_context(user_id: str | None = None, db=None) -> dict:
+def build_training_context(
+    user_id: str | None = None,
+    db=None,
+    *,
+    recent_training_weeks: int = 8,
+) -> dict:
     """Build a structured training context dict for LLM plan generation.
 
     Calls ``get_dashboard_data()`` and reshapes the result into sections:
     athlete_profile, current_fitness, recent_training (with individual
     sessions + splits), recovery_state, and current_plan.
 
-    Pass ``user_id`` + ``db`` for multi-user mode (post-sync insight runner).
+    Pass ``user_id`` + ``db`` for multi-user mode. The default 8-week history
+    remains appropriate for plan generation and general consumers; callers
+    producing longer-range reviews can explicitly request a wider window.
     """
     from api.deps import get_dashboard_data
 
     data = get_dashboard_data(user_id=user_id, db=db)
-    return _build_context_from_data(data, user_id=user_id, db=db)
+    return _build_context_from_data(
+        data,
+        user_id=user_id,
+        db=db,
+        recent_training_weeks=recent_training_weeks,
+    )
 
 
 # ---------------------------------------------------------------------------
