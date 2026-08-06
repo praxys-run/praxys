@@ -12,6 +12,7 @@ import AiInsightsCard, { type CoachFallback } from '@/components/AiInsightsCard'
 import TodayDecisionCheck from '@/components/TodayDecisionCheck';
 import ScienceNote from '@/components/ScienceNote';
 import { recordProductEventOnce } from '@/lib/product-events';
+import { shouldShowMetricProvenance } from '@/lib/format';
 
 
 // Skeleton mirrors the today-spread layout shape so the page doesn't flash
@@ -161,13 +162,14 @@ function formatIsoDateShort(isoDate: string, locale: string): string {
   );
 }
 
-// Attach each recovery metric to its own source observation date.
+// Attach a metric source date only when it differs from the page date.
 function formatMetricProvenance(
   isoDate: string | null | undefined,
+  pageIsoDate: string | null | undefined,
   locale: string,
   i18n: I18n,
 ): string | null {
-  if (!isoDate) return null;
+  if (!shouldShowMetricProvenance(isoDate, pageIsoDate)) return null;
   const label = formatIsoDateShort(isoDate, locale);
   return i18n._(msg`from ${label}`);
 }
@@ -378,14 +380,14 @@ export default function Today() {
   // Only show an RHR baseline comparison when the API actually emits one.
   const rhrTrendLabel = ra?.rhr_trend ? i18n._(RHR_TREND_LABEL[ra.rhr_trend]) : null;
   const baselineLabel = hrv ? i18n._(msg`vs ${hrv.baseline_mean_ln.toFixed(2)} baseline`) : i18n._(msg`no data`);
-  const hrvDateLabel = formatMetricProvenance(ra?.hrv_latest_date, locale, i18n);
+  const hrvDateLabel = formatMetricProvenance(ra?.hrv_latest_date, data.as_of_date, locale, i18n);
   const sleepScore = ra?.sleep_score;
-  const sleepDateLabel = formatMetricProvenance(ra?.sleep_latest_date, locale, i18n);
+  const sleepDateLabel = formatMetricProvenance(ra?.sleep_latest_date, data.as_of_date, locale, i18n);
   const readinessScore = ra?.readiness_score;
-  const readinessDateLabel = formatMetricProvenance(ra?.readiness_latest_date, locale, i18n);
+  const readinessDateLabel = formatMetricProvenance(ra?.readiness_latest_date, data.as_of_date, locale, i18n);
   const observationCount = data.recovery_theory?.params.rolling_days ?? 7;
   const restingHr = ra?.resting_hr;
-  const rhrDateLabel = formatMetricProvenance(ra?.rhr_latest_date, locale, i18n);
+  const rhrDateLabel = formatMetricProvenance(ra?.rhr_latest_date, data.as_of_date, locale, i18n);
   const rhrDisplay = restingHr != null ? Math.round(restingHr) : '—';
   const hrvSub = hrv
     ? [hrv.today_ms != null ? `${hrv.today_ms} ms` : null, baselineLabel, hrvDateLabel]
