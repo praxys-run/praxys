@@ -901,7 +901,11 @@ Pre-activity context is causal by construction:
 - CP is the latest dated value strictly before the activity date, with source
   and power-provider provenance;
 - recovery applies the activity-date cutoff before provider preference or
-  fallback ranking, then selects that provider's latest eligible row;
+  fallback ranking, then selects that provider's latest eligible row. Because
+  recovery has a date but no observation timestamp, downstream causal research
+  must treat same-day recovery as temporally ambiguous; the heat-response
+  validation accepts readiness only from a strictly earlier date within its
+  configurable maximum lag (previous calendar day by default);
 - heat-adaptation evidence ends on the previous calendar day.
 
 Historical user-config revisions are not stored. Retrospective exports apply
@@ -928,6 +932,11 @@ inputs and model versions produce the same dataset hash. Records are ordered by
 date descending with `activity_id` and source tie-breakers; split arrays are
 ordered by split number and their serialized metric values. Analysis ETags are
 salted by the response schema and emitted model-version manifest.
+
+The private export can be evaluated locally with the research-only
+[heat-response validation pipeline](heat-response-validation.md). That
+pipeline does not add a personal estimate to this endpoint and does not alter
+the accepted environmental-performance SDR.
 
 ### GET /api/ai/context
 
