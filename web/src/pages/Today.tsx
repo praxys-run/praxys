@@ -169,7 +169,7 @@ function formatMetricProvenance(
   locale: string,
   i18n: I18n,
 ): string | null {
-  if (!shouldShowMetricProvenance(isoDate, pageIsoDate)) return null;
+  if (!isoDate || !shouldShowMetricProvenance(isoDate, pageIsoDate)) return null;
   const label = formatIsoDateShort(isoDate, locale);
   return i18n._(msg`from ${label}`);
 }
