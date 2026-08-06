@@ -2,11 +2,14 @@
 import json
 import os
 import tempfile
+from datetime import date, datetime, timezone
 
 from analysis.config import (
     PRAXYS_PLAN_SOURCE,
     PRAXYS_PLAN_WRITE_SOURCE,
     UserConfig,
+    athlete_local_date,
+    effective_athlete_date,
     load_config,
     save_config,
     _migrate_config,
@@ -58,6 +61,20 @@ class TestUserConfigDefaults:
         assert normalize_athlete_timezone("  UTC  ") == "UTC"
         assert normalize_athlete_timezone("not/a-timezone") is None
         assert normalize_athlete_timezone(None) is None
+
+    def test_effective_date_uses_athlete_timezone_with_utc_fallback(self):
+        timestamp = datetime(2026, 8, 6, 16, 30, tzinfo=timezone.utc)
+        shanghai = UserConfig(
+            source_options={"athlete_timezone": "Asia/Shanghai"},
+        )
+        unknown = UserConfig(
+            source_options={"athlete_timezone": "not/a-timezone"},
+        )
+
+        assert athlete_local_date(shanghai, timestamp) == date(2026, 8, 7)
+        assert effective_athlete_date(shanghai, timestamp) == date(2026, 8, 7)
+        assert athlete_local_date(unknown, timestamp) is None
+        assert effective_athlete_date(unknown, timestamp) == date(2026, 8, 6)
 
     def test_external_mode_normalizes_to_suggestion_only(self):
         normalized = normalize_plan_management({

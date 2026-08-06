@@ -1,14 +1,21 @@
-import { apiGet, apiPost } from '../../utils/api-client';
+import {
+  apiDelete,
+  apiGet,
+  apiPost,
+  apiPut,
+} from '../../utils/api-client';
 import type { ApiError } from '../../utils/api-client';
 import { detectLocale, t, tFmt, tNamed } from '../../utils/i18n';
 import {
   beginManagedPlanRequest,
+  athletePlanDateDistance,
   formatWorkoutType,
   invalidateManagedPlanRequests,
   isPraxysOwned,
   isLatestManagedPlanRequest,
   managedPlanState,
   planWindowUrl,
+  shiftAthletePlanDate,
   workoutKey,
 } from '../../utils/managed-plan';
 import type {
@@ -17,6 +24,10 @@ import type {
   PlanResolutionAction,
   PlanResolutionResponse,
   PlanResponse,
+  PlanWorkoutDeleteResponse,
+  PlanWorkoutMutationResponse,
+  PlanWorkoutUpdateRequest,
+  PlanWorkoutWriteFields,
   PlannedWorkout,
   PlanTargetWorkoutSnapshot,
   SettingsResponse,
@@ -54,7 +65,19 @@ interface WorkoutView {
   statusTone: StatusTone;
   action: WorkoutAction;
   actionDisabled: boolean;
+  editDisabled: boolean;
+  canEdit: boolean;
 }
+
+const WORKOUT_TYPE_VALUES = [
+  'easy',
+  'recovery',
+  'long_run',
+  'tempo',
+  'threshold',
+  'interval',
+  'rest',
+] as const;
 
 function translations() {
   return {
@@ -103,6 +126,54 @@ function translations() {
     restoreWorkoutFailed: t('Could not restore the previous workout'),
     workout: t('Workout'),
     rest: t('Rest'),
+    addWorkout: t('Add workout'),
+    editWorkout: t('Edit workout'),
+    workoutType: t('Workout type'),
+    date: t('Date'),
+    durationMinutes: t('Duration (minutes)'),
+    distanceKm: t('Distance (km)'),
+    powerFloor: t('Power floor (W)'),
+    powerCeiling: t('Power ceiling (W)'),
+    hrMinimum: t('Heart-rate minimum (bpm)'),
+    hrMaximum: t('Heart-rate maximum (bpm)'),
+    paceMinimum: t('Pace minimum (min/km)'),
+    paceMaximum: t('Pace maximum (min/km)'),
+    paceMinExample: t('e.g. 5:20'),
+    paceMaxExample: t('e.g. 5:45'),
+    workoutNotes: t('Workout notes'),
+    optional: t('Optional'),
+    saveWorkout: t('Save workout'),
+    saving: t('Saving…'),
+    delete: t('Delete'),
+    deleteWorkout: t('Delete workout'),
+    deleteThisWorkout: t('Delete this workout?'),
+    deleteWorkoutDetail: t(
+      'This removes the Praxys workout from the canonical plan. Any external workout stays untouched.',
+    ),
+    deleting: t('Deleting…'),
+    convertToRest: t('Convert to rest'),
+    couldNotAddWorkout: t('Could not add this workout'),
+    couldNotUpdateWorkout: t('Could not update this workout'),
+    couldNotDeleteWorkout: t('Could not delete this workout'),
+    couldNotConvertToRest: t('Could not convert this workout to rest'),
+    refreshBeforeEditing: t('Refresh the plan before editing this workout.'),
+    staleWorkout: t(
+      'This workout changed elsewhere. The plan was refreshed; reopen the workout to continue.',
+    ),
+    completedHistory: t(
+      'That date is now completed history and can no longer be changed.',
+    ),
+    previousPlanWindow: t('Previous plan window'),
+    nextPlanWindow: t('Next plan window'),
+    plannerOverlapWarning: t(
+      'An external planner overlaps the Praxys plan. Use one planner at a time to avoid duplicate or conflicting sessions.',
+    ),
+    easy: t('Easy'),
+    recovery: t('Recovery'),
+    longRun: t('Long run'),
+    tempo: t('Tempo'),
+    threshold: t('Threshold'),
+    intervals: t('Intervals'),
   };
 }
 
@@ -182,6 +253,24 @@ function workoutDetails(workout: PlannedWorkout): string {
   }
   if (workout.power_min != null && workout.power_max != null) {
     details.push(`${workout.power_min}–${workout.power_max} W`);
+  } else if (workout.power_min != null) {
+    details.push(`≥${workout.power_min} W`);
+  } else if (workout.power_max != null) {
+    details.push(`≤${workout.power_max} W`);
+  }
+  if (workout.hr_min != null && workout.hr_max != null) {
+    details.push(`${workout.hr_min}–${workout.hr_max} bpm`);
+  } else if (workout.hr_min != null) {
+    details.push(`≥${workout.hr_min} bpm`);
+  } else if (workout.hr_max != null) {
+    details.push(`≤${workout.hr_max} bpm`);
+  }
+  if (workout.pace_min && workout.pace_max) {
+    details.push(`${workout.pace_min}–${workout.pace_max}/km`);
+  } else if (workout.pace_min) {
+    details.push(`≥${workout.pace_min}/km`);
+  } else if (workout.pace_max) {
+    details.push(`≤${workout.pace_max}/km`);
   }
   return details.join(' · ');
 }
@@ -204,6 +293,7 @@ function statusForWorkout(
   targetConnected: boolean,
   working: boolean,
   anyActionWorking: boolean,
+  canWrite: boolean,
 ): WorkoutStatus {
   if (working) {
     return {
@@ -222,12 +312,12 @@ function statusForWorkout(
   const localResolutionAvailable = canAccept;
 
   if (!owned) {
-    return canAccept
+    return canAccept && canWrite
       ? {
         label: t('Use in Praxys'),
         tone: 'positive',
         action: 'review',
-        disabled: anyActionWorking,
+        disabled: anyActionWorking || !canWrite,
       }
       : {
         label: t('External'),
@@ -237,7 +327,7 @@ function statusForWorkout(
       };
   }
 
-  if (workout.workout_type.toLowerCase() === 'rest') {
+  if (isRestWorkoutType(workout.workout_type)) {
     return {
       label: state === 'external' ? t('Praxys only') : t('Rest'),
       tone: 'neutral',
@@ -270,7 +360,8 @@ function statusForWorkout(
     };
   }
 
-  const disabled = anyActionWorking
+  const disabled = !canWrite
+    || anyActionWorking
     || (!targetConnected && !localResolutionAvailable);
   const reconciliationState = reconciliation?.state;
   if (reconciliationState === 'matching' || workout.sync_state === 'synced') {
@@ -297,7 +388,7 @@ function statusForWorkout(
     return {
       label: t('Review conflict'),
       tone: 'warning',
-      action: 'review',
+      action: canWrite ? 'review' : '',
       disabled,
     };
   }
@@ -305,7 +396,7 @@ function statusForWorkout(
     return {
       label: t('Retry delivery'),
       tone: 'danger',
-      action: 'review',
+      action: canWrite ? 'review' : '',
       disabled,
     };
   }
@@ -313,7 +404,7 @@ function statusForWorkout(
     return {
       label: t('Review conflict'),
       tone: 'warning',
-      action: 'review',
+      action: canWrite ? 'review' : '',
       disabled,
     };
   }
@@ -335,9 +426,9 @@ function statusForWorkout(
       };
     }
     return {
-      label: t('Deliver now'),
-      tone: 'positive',
-      action: 'deliver',
+      label: canWrite ? t('Deliver now') : t('Queued'),
+      tone: canWrite ? 'positive' : 'reasoning',
+      action: canWrite ? 'deliver' : '',
       disabled,
     };
   }
@@ -355,6 +446,8 @@ function buildWorkoutViews(
   target: string | null,
   targetConnected: boolean,
   workingKey: string,
+  mutationAvailable: boolean,
+  canWrite: boolean,
 ): WorkoutView[] {
   return workouts.map((workout) => {
     const key = workoutKey(workout);
@@ -365,6 +458,7 @@ function buildWorkoutViews(
       targetConnected,
       key === workingKey,
       Boolean(workingKey),
+      canWrite,
     );
     const date = workoutDateParts(workout);
     return {
@@ -378,8 +472,66 @@ function buildWorkoutViews(
       statusTone: status.tone,
       action: status.action,
       actionDisabled: status.disabled,
+      editDisabled: !canWrite || Boolean(workingKey),
+      canEdit: mutationAvailable
+        && isPraxysOwned(workout)
+        && workout.editable === true
+        && Boolean(workout.workout_version),
     };
   });
+}
+
+function localIsoDate(value = new Date()): string {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatWindowRange(start: string, end: string): string {
+  const locale = detectLocale() === 'zh' ? 'zh-CN' : 'en-US';
+  const options: Intl.DateTimeFormatOptions = {
+    month: 'short',
+    day: 'numeric',
+  };
+  const startLabel = new Date(`${start}T12:00:00`)
+    .toLocaleDateString(locale, options);
+  const endLabel = new Date(`${end}T12:00:00`)
+    .toLocaleDateString(locale, options);
+  return `${startLabel} – ${endLabel}`;
+}
+
+function isRestWorkoutType(value: string): boolean {
+  return ['rest', 'off'].includes(value.trim().toLowerCase());
+}
+
+function workoutTypeOptions(
+  value: string,
+  tr: ReturnType<typeof translations>,
+): { values: string[]; labels: string[]; index: number } {
+  const values = [...WORKOUT_TYPE_VALUES] as string[];
+  const labels = [
+    tr.easy,
+    tr.recovery,
+    tr.longRun,
+    tr.tempo,
+    tr.threshold,
+    tr.intervals,
+    tr.rest,
+  ];
+  const knownIndex = values.indexOf(value);
+  if (knownIndex >= 0) return { values, labels, index: knownIndex };
+  return {
+    values: [value, ...values],
+    labels: [formatWorkoutType(value), ...labels],
+    index: 0,
+  };
+}
+
+function optionalNumber(value: string): number | null {
+  if (!value.trim()) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function adjustmentNotice(
@@ -488,16 +640,59 @@ Component({
     managementAction: '',
     target: '' as string,
     targetConnected: false,
+    canWrite: true,
     workingKey: '',
+    mutationAvailable: false,
+    windowOffsetDays: 0,
+    windowStart: localIsoDate(),
+    windowEnd: localIsoDate(),
+    windowLabel: '',
+    hasExternalOverlap: false,
+    overlapReviewAvailable: false,
+    minimumDate: localIsoDate(),
     hasAdjustment: false,
     adjustment: null as AdjustmentNoticeView | null,
     adjustmentWorking: false,
+    editorOpen: false,
+    editorMode: 'create' as 'create' | 'edit',
+    editorCanonicalId: '',
+    editorExpectedVersion: '',
+    editorDate: localIsoDate(),
+    editorWorkoutType: 'easy',
+    editorIsRest: false,
+    editorTypeIndex: 0,
+    editorTypeValues: [...WORKOUT_TYPE_VALUES] as string[],
+    editorTypeLabels: [] as string[],
+    editorDuration: '',
+    editorDistance: '',
+    editorPowerMin: '',
+    editorPowerMax: '',
+    editorHrMin: '',
+    editorHrMax: '',
+    editorPaceMin: '',
+    editorPaceMax: '',
+    editorDescription: '',
+    editorSaving: false,
+    editorError: '',
     tr: translations(),
   },
 
   lifetimes: {
     attached() {
-      this.setData({ tr: translations() });
+      const tr = translations();
+      this.setData({
+        tr,
+        editorTypeValues: [...WORKOUT_TYPE_VALUES],
+        editorTypeLabels: [
+          tr.easy,
+          tr.recovery,
+          tr.longRun,
+          tr.tempo,
+          tr.threshold,
+          tr.intervals,
+          tr.rest,
+        ],
+      });
       this.scheduleMidnightRefresh();
       void this.refresh();
     },
@@ -552,6 +747,8 @@ Component({
             this.data.target || null,
             this.data.targetConnected,
             this.data.workingKey || REFRESH_WORKING_KEY,
+            this.data.mutationAvailable,
+            this.data.canWrite,
           ),
         });
       } else {
@@ -562,10 +759,16 @@ Component({
         });
       }
       const days = this.data.scope === 'today' ? 1 : 14;
+      const localToday = localIsoDate();
+      const requestStart = this.data.scope === 'today'
+        ? localToday
+        : shiftAthletePlanDate(localToday, this.data.windowOffsetDays);
       try {
         const [settings, plan] = await Promise.all([
           apiGet<SettingsResponse>('/api/settings'),
-          apiGet<PlanResponse>(planWindowUrl(days)),
+          apiGet<PlanResponse>(
+            planWindowUrl(days, new Date(`${requestStart}T12:00:00`)),
+          ),
         ]);
         if (!isLatestManagedPlanRequest(this, requestGeneration)) return;
         const state = managedPlanState(settings.config.plan_management);
@@ -576,6 +779,14 @@ Component({
           && settings.connection_statuses[target] === 'connected';
         const management = managementCopy(state, target, targetConnected);
         const rawWorkouts = plan.workouts;
+        const canWrite = plan.management?.can_write !== false;
+        const mutationAvailable = (
+          plan.management?.mutation_api_version === 1
+          && canWrite
+        );
+        const overlapWorkouts = rawWorkouts.filter(
+          (workout) => workout.external_overlap,
+        );
         const latestAdjustment = adjustmentNotice(plan.adjustments?.[0]);
         const workingKey = this.data.workingKey;
         this.setData({
@@ -592,6 +803,8 @@ Component({
             target,
             targetConnected,
             workingKey,
+            mutationAvailable,
+            canWrite,
           ),
           workoutCount: rawWorkouts.length,
           conflictCount: rawWorkouts.filter(
@@ -604,9 +817,26 @@ Component({
           managementAction: management.action,
           target: target ?? '',
           targetConnected,
+          canWrite,
           workingKey,
+          mutationAvailable,
+          windowStart: plan.window.start,
+          windowEnd: plan.window.end,
+          windowLabel: formatWindowRange(
+            plan.window.start,
+            plan.window.end,
+          ),
+          hasExternalOverlap: overlapWorkouts.length > 0,
+          overlapReviewAvailable: overlapWorkouts.some(
+            (workout) => (
+              (workout.reconciliation?.resolutions.length ?? 0) > 0
+            ),
+          ),
+          minimumDate: plan.management?.minimum_date ?? localIsoDate(),
           hasAdjustment: latestAdjustment != null,
-          adjustment: latestAdjustment,
+          adjustment: latestAdjustment
+            ? { ...latestAdjustment, canUndo: latestAdjustment.canUndo && canWrite }
+            : null,
           adjustmentWorking: false,
         });
       } catch (error) {
@@ -628,6 +858,7 @@ Component({
       const adjustment = this.data.adjustment as AdjustmentNoticeView | null;
       if (
         !adjustment?.canUndo
+        || !this.data.canWrite
         || this.data.adjustmentWorking
         || this.data.workingKey
         || this.data.refreshing
@@ -664,9 +895,378 @@ Component({
       wx.switchTab({ url: '/pages/settings/index' });
     },
 
+    onReviewFirstConflict() {
+      if (
+        !this.data.canWrite
+        || this.data.workingKey
+        || this.data.refreshing
+      ) return;
+      const workout = this.data.rawWorkouts.find(
+        (candidate) => (
+          candidate.external_overlap
+          && (candidate.reconciliation?.resolutions.length ?? 0) > 0
+        ),
+      );
+      if (workout) this.reviewWorkout(workout);
+    },
+
+    onPreviousWindow() {
+      if (
+        this.data.scope !== 'window'
+        || this.data.refreshing
+        || this.data.windowOffsetDays === 0
+      ) return;
+      this.setData({
+        windowOffsetDays: Math.max(
+          0,
+          this.data.windowOffsetDays - 14,
+        ),
+      }, () => void this.refresh());
+    },
+
+    onNextWindow() {
+      if (this.data.scope !== 'window' || this.data.refreshing) return;
+      this.setData({
+        windowOffsetDays: this.data.windowOffsetDays + 14,
+      }, () => void this.refresh());
+    },
+
+    onAddWorkout() {
+      if (
+        this.data.scope !== 'window'
+        || !this.data.mutationAvailable
+        || this.data.workingKey
+        || this.data.refreshing
+        || this.data.editorSaving
+      ) return;
+      this.openWorkoutEditor(null);
+    },
+
+    onEditWorkout(event: WechatMiniprogram.TouchEvent) {
+      if (
+        !this.data.mutationAvailable
+        || this.data.workingKey
+        || this.data.refreshing
+        || this.data.editorSaving
+      ) return;
+      const key = String(event.currentTarget.dataset.key ?? '');
+      const workout = this.data.rawWorkouts.find(
+        (candidate) => workoutKey(candidate) === key,
+      );
+      if (
+        !workout
+        || !isPraxysOwned(workout)
+        || workout.editable !== true
+        || !workout.canonical_id
+        || !workout.workout_version
+      ) return;
+      this.openWorkoutEditor(workout);
+    },
+
+    openWorkoutEditor(workout: PlannedWorkout | null) {
+      const workoutType = workout?.workout_type ?? 'easy';
+      const typeOptions = workoutTypeOptions(
+        workoutType,
+        this.data.tr as ReturnType<typeof translations>,
+      );
+      const defaultDate = this.data.windowStart > this.data.minimumDate
+        ? this.data.windowStart
+        : this.data.minimumDate;
+      this.setData({
+        editorOpen: true,
+        editorMode: workout ? 'edit' : 'create',
+        editorCanonicalId: workout?.canonical_id ?? '',
+        editorExpectedVersion: workout?.workout_version ?? '',
+        editorDate: workout?.date ?? defaultDate ?? localIsoDate(),
+        editorWorkoutType: workoutType,
+        editorIsRest: isRestWorkoutType(workoutType),
+        editorTypeIndex: typeOptions.index,
+        editorTypeValues: typeOptions.values,
+        editorTypeLabels: typeOptions.labels,
+        editorDuration: workout?.duration_min?.toString() ?? '',
+        editorDistance: workout?.distance_km?.toString() ?? '',
+        editorPowerMin: workout?.power_min?.toString() ?? '',
+        editorPowerMax: workout?.power_max?.toString() ?? '',
+        editorHrMin: workout?.hr_min?.toString() ?? '',
+        editorHrMax: workout?.hr_max?.toString() ?? '',
+        editorPaceMin: workout?.pace_min ?? '',
+        editorPaceMax: workout?.pace_max ?? '',
+        editorDescription: workout?.description ?? '',
+        editorError: '',
+      });
+    },
+
+    onCloseEditor() {
+      if (this.data.editorSaving) return;
+      this.setData({ editorOpen: false, editorError: '' });
+    },
+
+    stopPropagation() {},
+
+    onEditorDateChange(
+      event: WechatMiniprogram.CustomEvent<{ value: string }>,
+    ) {
+      this.setData({ editorDate: String(event.detail.value ?? '') });
+    },
+
+    onEditorTypeChange(
+      event: WechatMiniprogram.CustomEvent<{ value: string }>,
+    ) {
+      const nextIndex = Number(event.detail.value);
+      const nextType = this.data.editorTypeValues[nextIndex];
+      if (!nextType) return;
+      this.setData({
+        editorTypeIndex: nextIndex,
+        editorWorkoutType: nextType,
+        editorIsRest: isRestWorkoutType(nextType),
+      });
+    },
+
+    onEditorInput(event: WechatMiniprogram.Input) {
+      const field = String(event.currentTarget.dataset.field ?? '');
+      const value = String(event.detail.value ?? '');
+      if (field === 'editorDuration') {
+        this.setData({ editorDuration: value });
+      } else if (field === 'editorDistance') {
+        this.setData({ editorDistance: value });
+      } else if (field === 'editorPowerMin') {
+        this.setData({ editorPowerMin: value });
+      } else if (field === 'editorPowerMax') {
+        this.setData({ editorPowerMax: value });
+      } else if (field === 'editorHrMin') {
+        this.setData({ editorHrMin: value });
+      } else if (field === 'editorHrMax') {
+        this.setData({ editorHrMax: value });
+      } else if (field === 'editorPaceMin') {
+        this.setData({ editorPaceMin: value });
+      } else if (field === 'editorPaceMax') {
+        this.setData({ editorPaceMax: value });
+      } else if (field === 'editorDescription') {
+        this.setData({ editorDescription: value });
+      }
+    },
+
+    editorPayload(): PlanWorkoutWriteFields {
+      const isRest = isRestWorkoutType(this.data.editorWorkoutType);
+      return {
+        date: this.data.editorDate,
+        workout_type: this.data.editorWorkoutType,
+        planned_duration_min: isRest
+          ? null
+          : optionalNumber(this.data.editorDuration),
+        planned_distance_km: isRest
+          ? null
+          : optionalNumber(this.data.editorDistance),
+        target_power_min: isRest
+          ? null
+          : optionalNumber(this.data.editorPowerMin),
+        target_power_max: isRest
+          ? null
+          : optionalNumber(this.data.editorPowerMax),
+        target_hr_min: isRest
+          ? null
+          : optionalNumber(this.data.editorHrMin),
+        target_hr_max: isRest
+          ? null
+          : optionalNumber(this.data.editorHrMax),
+        target_pace_min: isRest
+          ? null
+          : this.data.editorPaceMin.trim() || null,
+        target_pace_max: isRest
+          ? null
+          : this.data.editorPaceMax.trim() || null,
+        workout_description: this.data.editorDescription.trim(),
+      };
+    },
+
+    async onSaveWorkout() {
+      if (
+        this.data.editorSaving
+        || !this.data.editorDate
+        || !this.data.editorWorkoutType
+      ) return;
+      this.setData({ editorSaving: true, editorError: '', actionError: '' });
+      try {
+        const payload = this.editorPayload();
+        let result: PlanWorkoutMutationResponse;
+        if (this.data.editorMode === 'edit') {
+          if (
+            !this.data.editorCanonicalId
+            || !this.data.editorExpectedVersion
+          ) {
+            throw new Error(this.data.tr.refreshBeforeEditing);
+          }
+          result = await apiPut<PlanWorkoutMutationResponse>(
+            `/api/plan/workouts/${encodeURIComponent(this.data.editorCanonicalId)}`,
+            {
+              ...payload,
+              expected_version: this.data.editorExpectedVersion,
+            } satisfies PlanWorkoutUpdateRequest,
+          );
+        } else {
+          result = await apiPost<PlanWorkoutMutationResponse>(
+            '/api/plan/workouts',
+            payload,
+          );
+        }
+        await this.moveWindowToDate(result.date);
+        this.setData({ editorOpen: false, editorError: '' });
+        wx.showToast({
+          title: this.data.tr.done,
+          icon: 'success',
+          duration: 1200,
+        });
+        await this.refresh();
+      } catch (error) {
+        await this.handleWorkoutMutationError(
+          error,
+          this.data.editorMode === 'create'
+            ? this.data.tr.couldNotAddWorkout
+            : this.data.tr.couldNotUpdateWorkout,
+        );
+      } finally {
+        this.setData({ editorSaving: false });
+      }
+    },
+
+    onDeleteWorkout() {
+      if (this.data.editorMode !== 'edit' || this.data.editorSaving) return;
+      wx.showModal({
+        title: this.data.tr.deleteThisWorkout,
+        content: this.data.tr.deleteWorkoutDetail,
+        confirmText: this.data.tr.delete,
+        cancelText: this.data.tr.cancel,
+        success: (result) => {
+          if (result.confirm) void this.deleteWorkout();
+        },
+      });
+    },
+
+    async deleteWorkout() {
+      if (
+        !this.data.editorCanonicalId
+        || !this.data.editorExpectedVersion
+        || this.data.editorSaving
+      ) return;
+      this.setData({ editorSaving: true, editorError: '', actionError: '' });
+      try {
+        const params = `expected_version=${encodeURIComponent(
+          this.data.editorExpectedVersion,
+        )}`;
+        await apiDelete<PlanWorkoutDeleteResponse>(
+          `/api/plan/workouts/${encodeURIComponent(
+            this.data.editorCanonicalId,
+          )}?${params}`,
+        );
+        this.setData({ editorOpen: false, editorError: '' });
+        wx.showToast({
+          title: this.data.tr.done,
+          icon: 'success',
+          duration: 1200,
+        });
+        await this.refresh();
+      } catch (error) {
+        await this.handleWorkoutMutationError(
+          error,
+          this.data.tr.couldNotDeleteWorkout,
+        );
+      } finally {
+        this.setData({ editorSaving: false });
+      }
+    },
+
+    async onConvertToRest() {
+      if (
+        this.data.editorMode !== 'edit'
+        || !this.data.editorCanonicalId
+        || !this.data.editorExpectedVersion
+        || this.data.editorSaving
+      ) return;
+      this.setData({ editorSaving: true, editorError: '', actionError: '' });
+      try {
+        const result = await apiPut<PlanWorkoutMutationResponse>(
+          `/api/plan/workouts/${encodeURIComponent(
+            this.data.editorCanonicalId,
+          )}`,
+          {
+            expected_version: this.data.editorExpectedVersion,
+            date: this.data.editorDate,
+            workout_type: 'rest',
+            planned_duration_min: null,
+            planned_distance_km: null,
+            target_power_min: null,
+            target_power_max: null,
+            target_hr_min: null,
+            target_hr_max: null,
+            target_pace_min: null,
+            target_pace_max: null,
+            workout_description: '',
+          } satisfies PlanWorkoutUpdateRequest,
+        );
+        await this.moveWindowToDate(result.date);
+        this.setData({ editorOpen: false, editorError: '' });
+        wx.showToast({
+          title: this.data.tr.done,
+          icon: 'success',
+          duration: 1200,
+        });
+        await this.refresh();
+      } catch (error) {
+        await this.handleWorkoutMutationError(
+          error,
+          this.data.tr.couldNotConvertToRest,
+        );
+      } finally {
+        this.setData({ editorSaving: false });
+      }
+    },
+
+    async handleWorkoutMutationError(
+      error: unknown,
+      fallback: string,
+    ) {
+      const apiError = error as Partial<ApiError>;
+      if (apiError.code === 'UNAUTHENTICATED') return;
+      if (apiError.code === 'PLAN_VERSION_CONFLICT') {
+        this.setData({
+          editorOpen: false,
+          editorError: '',
+        });
+        await this.refresh();
+        this.setData({ actionError: this.data.tr.staleWorkout });
+        wx.showModal({
+          title: this.data.tr.editWorkout,
+          content: this.data.tr.staleWorkout,
+          showCancel: false,
+          confirmText: this.data.tr.done,
+        });
+        return;
+      }
+      if (apiError.code === 'PLAN_HISTORY_IMMUTABLE') {
+        this.setData({
+          editorOpen: false,
+          editorError: '',
+        });
+        await this.refresh();
+        this.setData({ actionError: this.data.tr.completedHistory });
+        wx.showModal({
+          title: this.data.tr.editWorkout,
+          content: this.data.tr.completedHistory,
+          showCancel: false,
+          confirmText: this.data.tr.done,
+        });
+        return;
+      }
+      this.setData({
+        editorError: apiError.detail
+          ?? (error instanceof Error ? error.message : fallback),
+      });
+    },
+
     onWorkoutAction(event: WechatMiniprogram.TouchEvent) {
       if (
-        this.data.workingKey
+        !this.data.canWrite
+        || this.data.workingKey
         || this.data.refreshing
         || this.data.adjustmentWorking
       ) return;
@@ -684,6 +1284,7 @@ Component({
     },
 
     reviewWorkout(workout: PlannedWorkout) {
+      if (!this.data.canWrite) return;
       const reconciliation = workout.reconciliation;
       if (!reconciliation || reconciliation.resolutions.length === 0) return;
       const actions = reconciliation.resolutions.filter(
@@ -808,7 +1409,24 @@ Component({
           this.data.target || null,
           this.data.targetConnected,
           key || (this.data.refreshing ? REFRESH_WORKING_KEY : ''),
+          this.data.mutationAvailable,
+          this.data.canWrite,
         ),
+      });
+    },
+
+    moveWindowToDate(workoutDate: string): Promise<void> {
+      if (this.data.scope !== 'window') return Promise.resolve();
+      const dateOffset = Math.max(
+        0,
+        athletePlanDateDistance(localIsoDate(), workoutDate),
+      );
+      const nextOffset = Math.floor(dateOffset / 14) * 14;
+      if (nextOffset === this.data.windowOffsetDays) {
+        return Promise.resolve();
+      }
+      return new Promise((resolve) => {
+        this.setData({ windowOffsetDays: nextOffset }, resolve);
       });
     },
   },

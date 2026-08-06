@@ -6,10 +6,50 @@
         {{conflictCount}} · {{tr.reviewConflict}}
       </text>
     </view>
-    <view wx:if="{{hasResponse}}" class="managed-plan__count">
-      <text class="managed-plan__count-value ts-value">{{workoutCount}}</text>
-      <text class="managed-plan__count-label">{{tr.upcomingWorkouts}}</text>
+    <view class="managed-plan__header-actions">
+      <view wx:if="{{hasResponse}}" class="managed-plan__count">
+        <text class="managed-plan__count-value ts-value">{{workoutCount}}</text>
+        <text class="managed-plan__count-label">{{tr.upcomingWorkouts}}</text>
+      </view>
+      <button
+        wx:if="{{mutationAvailable}}"
+        class="managed-plan__add"
+        disabled="{{workingKey || refreshing || editorSaving}}"
+        bindtap="onAddWorkout"
+      >{{tr.addWorkout}}</button>
     </view>
+  </view>
+
+  <view
+    wx:if="{{scope === 'window' && hasResponse}}"
+    class="managed-plan__window-nav"
+  >
+    <button
+      class="managed-plan__window-button"
+      aria-label="{{tr.previousPlanWindow}}"
+      disabled="{{refreshing || windowOffsetDays === 0}}"
+      bindtap="onPreviousWindow"
+    >‹</button>
+    <text class="managed-plan__window-label ts-value">{{windowLabel}}</text>
+    <button
+      class="managed-plan__window-button"
+      aria-label="{{tr.nextPlanWindow}}"
+      disabled="{{refreshing}}"
+      bindtap="onNextWindow"
+    >›</button>
+  </view>
+
+  <view
+    wx:if="{{hasResponse && hasExternalOverlap}}"
+    class="managed-plan__overlap"
+  >
+    <text class="managed-plan__overlap-copy">{{tr.plannerOverlapWarning}}</text>
+    <button
+      wx:if="{{overlapReviewAvailable && canWrite}}"
+      class="managed-plan__overlap-action"
+      disabled="{{!canWrite || workingKey || refreshing}}"
+      bindtap="onReviewFirstConflict"
+    >{{tr.reviewConflict}}</button>
   </view>
 
   <view
@@ -79,18 +119,27 @@
           <text wx:if="{{item.details}}" class="managed-plan__details ts-value">{{item.details}}</text>
           <text wx:if="{{item.description && scope === 'window'}}" class="managed-plan__description">{{item.description}}</text>
         </view>
-        <button
-          wx:if="{{item.action}}"
-          class="managed-plan__status managed-plan__status--{{item.statusTone}}"
-          data-key="{{item.key}}"
-          data-action="{{item.action}}"
-          disabled="{{item.actionDisabled}}"
-          bindtap="onWorkoutAction"
-        >{{item.statusLabel}}</button>
-        <view
-          wx:else
-          class="managed-plan__status managed-plan__status--static managed-plan__status--{{item.statusTone}}"
-        >{{item.statusLabel}}</view>
+        <view class="managed-plan__workout-actions">
+          <button
+            wx:if="{{item.action}}"
+            class="managed-plan__status managed-plan__status--{{item.statusTone}}"
+            data-key="{{item.key}}"
+            data-action="{{item.action}}"
+            disabled="{{item.actionDisabled}}"
+            bindtap="onWorkoutAction"
+          >{{item.statusLabel}}</button>
+          <view
+            wx:else
+            class="managed-plan__status managed-plan__status--static managed-plan__status--{{item.statusTone}}"
+          >{{item.statusLabel}}</view>
+          <button
+            wx:if="{{scope === 'window' && item.canEdit}}"
+            class="managed-plan__edit"
+            data-key="{{item.key}}"
+            disabled="{{item.editDisabled || refreshing || editorSaving}}"
+            bindtap="onEditWorkout"
+          >{{tr.editWorkout}}</button>
+        </view>
       </view>
     </view>
 
@@ -103,4 +152,209 @@
   <text wx:if="{{actionError}}" class="managed-plan__action-error" role="alert">
     {{actionError}}
   </text>
+
+  <view
+    wx:if="{{editorOpen}}"
+    class="managed-plan__editor-backdrop"
+    catchtap="onCloseEditor"
+  >
+    <view class="managed-plan__editor" catchtap="stopPropagation">
+      <view class="managed-plan__editor-handle"></view>
+      <view class="managed-plan__editor-header">
+        <view>
+          <text class="managed-plan__editor-title">
+            {{editorMode === 'edit' ? tr.editWorkout : tr.addWorkout}}
+          </text>
+          <text class="managed-plan__editor-detail">
+            {{tr.externalWorkoutsUntouched}}
+          </text>
+        </view>
+        <button
+          class="managed-plan__editor-close"
+          disabled="{{editorSaving}}"
+          bindtap="onCloseEditor"
+        >{{tr.cancel}}</button>
+      </view>
+
+      <view class="managed-plan__editor-fields">
+        <view class="managed-plan__field">
+          <text class="managed-plan__field-label">{{tr.date}}</text>
+          <picker
+            mode="date"
+            value="{{editorDate}}"
+            start="{{minimumDate}}"
+            disabled="{{editorSaving}}"
+            bindchange="onEditorDateChange"
+          >
+            <view class="managed-plan__field-value ts-value">{{editorDate}}</view>
+          </picker>
+        </view>
+
+        <view class="managed-plan__field">
+          <text class="managed-plan__field-label">{{tr.workoutType}}</text>
+          <picker
+            range="{{editorTypeLabels}}"
+            value="{{editorTypeIndex}}"
+            disabled="{{editorSaving}}"
+            bindchange="onEditorTypeChange"
+          >
+            <view class="managed-plan__field-value">
+              {{editorTypeLabels[editorTypeIndex]}}
+            </view>
+          </picker>
+        </view>
+
+        <block wx:if="{{!editorIsRest}}">
+          <view class="managed-plan__field">
+            <text class="managed-plan__field-label">{{tr.durationMinutes}}</text>
+            <input
+              class="managed-plan__field-input ts-value"
+              type="digit"
+              value="{{editorDuration}}"
+              placeholder="{{tr.optional}}"
+              data-field="editorDuration"
+              disabled="{{editorSaving}}"
+              bindinput="onEditorInput"
+            />
+          </view>
+
+          <view class="managed-plan__field">
+            <text class="managed-plan__field-label">{{tr.distanceKm}}</text>
+            <input
+              class="managed-plan__field-input ts-value"
+              type="digit"
+              value="{{editorDistance}}"
+              placeholder="{{tr.optional}}"
+              data-field="editorDistance"
+              disabled="{{editorSaving}}"
+              bindinput="onEditorInput"
+            />
+          </view>
+
+          <view class="managed-plan__field">
+            <text class="managed-plan__field-label">{{tr.powerFloor}}</text>
+            <input
+              class="managed-plan__field-input ts-value"
+              type="digit"
+              value="{{editorPowerMin}}"
+              placeholder="{{tr.optional}}"
+              data-field="editorPowerMin"
+              disabled="{{editorSaving}}"
+              bindinput="onEditorInput"
+            />
+          </view>
+
+          <view class="managed-plan__field">
+            <text class="managed-plan__field-label">{{tr.powerCeiling}}</text>
+            <input
+              class="managed-plan__field-input ts-value"
+              type="digit"
+              value="{{editorPowerMax}}"
+              placeholder="{{tr.optional}}"
+              data-field="editorPowerMax"
+              disabled="{{editorSaving}}"
+              bindinput="onEditorInput"
+            />
+          </view>
+
+          <view class="managed-plan__field">
+            <text class="managed-plan__field-label">{{tr.hrMinimum}}</text>
+            <input
+              class="managed-plan__field-input ts-value"
+              type="number"
+              value="{{editorHrMin}}"
+              placeholder="{{tr.optional}}"
+              data-field="editorHrMin"
+              disabled="{{editorSaving}}"
+              bindinput="onEditorInput"
+            />
+          </view>
+
+          <view class="managed-plan__field">
+            <text class="managed-plan__field-label">{{tr.hrMaximum}}</text>
+            <input
+              class="managed-plan__field-input ts-value"
+              type="number"
+              value="{{editorHrMax}}"
+              placeholder="{{tr.optional}}"
+              data-field="editorHrMax"
+              disabled="{{editorSaving}}"
+              bindinput="onEditorInput"
+            />
+          </view>
+
+          <view class="managed-plan__field">
+            <text class="managed-plan__field-label">{{tr.paceMinimum}}</text>
+            <input
+              class="managed-plan__field-input ts-value"
+              value="{{editorPaceMin}}"
+              maxlength="20"
+              placeholder="{{tr.paceMinExample}}"
+              data-field="editorPaceMin"
+              disabled="{{editorSaving}}"
+              bindinput="onEditorInput"
+            />
+          </view>
+
+          <view class="managed-plan__field">
+            <text class="managed-plan__field-label">{{tr.paceMaximum}}</text>
+            <input
+              class="managed-plan__field-input ts-value"
+              value="{{editorPaceMax}}"
+              maxlength="20"
+              placeholder="{{tr.paceMaxExample}}"
+              data-field="editorPaceMax"
+              disabled="{{editorSaving}}"
+              bindinput="onEditorInput"
+            />
+          </view>
+        </block>
+
+        <view class="managed-plan__field managed-plan__field--wide">
+          <text class="managed-plan__field-label">{{tr.workoutNotes}}</text>
+          <textarea
+            class="managed-plan__field-textarea"
+            value="{{editorDescription}}"
+            maxlength="4000"
+            auto-height
+            placeholder="{{tr.optional}}"
+            data-field="editorDescription"
+            disabled="{{editorSaving}}"
+            bindinput="onEditorInput"
+          ></textarea>
+        </view>
+      </view>
+
+      <text
+        wx:if="{{editorError}}"
+        class="managed-plan__editor-error"
+        role="alert"
+      >{{editorError}}</text>
+
+      <view
+        wx:if="{{editorMode === 'edit'}}"
+        class="managed-plan__editor-secondary"
+      >
+        <button
+          class="managed-plan__editor-delete"
+          disabled="{{editorSaving}}"
+          bindtap="onDeleteWorkout"
+        >{{tr.deleteWorkout}}</button>
+        <button
+          wx:if="{{!editorIsRest}}"
+          class="managed-plan__editor-rest"
+          disabled="{{editorSaving}}"
+          bindtap="onConvertToRest"
+        >{{tr.convertToRest}}</button>
+      </view>
+
+      <button
+        class="managed-plan__editor-save"
+        disabled="{{editorSaving}}"
+        bindtap="onSaveWorkout"
+      >
+        {{editorSaving ? tr.saving : tr.saveWorkout}}
+      </button>
+    </view>
+  </view>
 </view>

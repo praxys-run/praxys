@@ -965,6 +965,9 @@ not target workouts accepted into the canonical plan.
   "workouts": [
     {
       "canonical_id": "f0219570-4bda-49df-86a7-1b73ad80af6c",
+      "workout_version": "d8d5c9...64-hex-characters",
+      "editable": true,
+      "external_overlap": false,
       "date": "2026-04-11",
       "source": "ai",
       "owner": "praxys",
@@ -974,10 +977,14 @@ not target workouts accepted into the canonical plan.
       "distance_km": 11.0,
       "power_min": 235,
       "power_max": 255,
+      "hr_min": 158,
+      "hr_max": 172,
+      "pace_min": "04:00",
+      "pace_max": "04:20",
       "description": "WU 10min, 2x20min @235-255W...",
       "sync_state": "mismatch",
       "reconciliation": {
-        "id": "delivery:311ef6f2-c119-4bfd-a0e7-b697403bcb21",
+        "id": "delivery:311ef6f2-c119-4bfd-a0e7-b697403bcb21@0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
         "state": "target_edited",
         "conflict": true,
         "target": "stryd",
@@ -999,6 +1006,12 @@ not target workouts accepted into the canonical plan.
   },
   "sync_target": "stryd",
   "window": { "start": "2026-04-11", "end": "2026-04-25" },
+  "management": {
+    "mutation_api_version": 1,
+    "can_write": true,
+    "minimum_date": "2026-04-11",
+    "external_overlap_dates": []
+  },
   "adjustments": [
     {
       "id": "7aa4d296-7022-41f9-8c53-3fd97d9e9895",
@@ -1025,8 +1038,27 @@ not target workouts accepted into the canonical plan.
 Praxys, while `"external"` identifies a provider- or coach-owned workout.
 `origin` is one of `generated`, `accepted_target`, `manual`, `imported`, or
 `legacy` and describes how the current content entered that owner lane.
-`source` is a deprecated `"ai" | "stryd"` compatibility field retained for
+`source` is a deprecated `"ai" | "stryd" | "garmin"` compatibility field retained for
 cached clients; new clients must not infer ownership or authorship from it.
+Future Praxys rows also expose `workout_version`, the immutable content hash
+required by canonical-ID update and delete requests, and `editable=true`.
+External rows and past Praxys rows always return `editable=false`.
+`management.mutation_api_version=1` advertises the canonical workout CRUD
+contract; older APIs omit the object so clients can hide write controls during
+rolling deployment. `management.can_write=false` makes the whole surface
+read-only (including demo viewers whose reads resolve to a source account).
+`external_overlap=true` and `management.external_overlap_dates` identify only
+dates containing both Praxys-owned and external workouts; generic delivery or
+reconciliation failures do not imply a planner overlap. Before the first
+authoritative calendar snapshot, the compatibility fallback suppresses target
+rows already bound to a Praxys delivery and surfaces any remaining same-date
+target rows as external.
+
+The response ETag is salted by the athlete's current date, viewer write
+capability, and requested window. The current date uses the persisted athlete
+IANA timezone and falls back to UTC when none is valid. Revalidation therefore
+cannot reuse yesterday's editability state or a writable source-account
+representation for a read-only demo viewer.
 
 Detailed reconciliation states are `matching`, `pending_observation`,
 `not_delivered`, `target_only`, `target_edited`, `target_deleted`,
@@ -1045,6 +1077,86 @@ entire sync column when it is `null`.
 workout-date window. `active` means the exact after-snapshot is still current,
 `undone` means the user restored it, and `superseded` means a later edit makes
 exact undo unsafe. `can_undo` is the authoritative action gate.
+
+### POST /api/plan/workouts
+
+Create one future Praxys-owned canonical workout. Multiple canonical workouts
+may share a date. External provider rows are never replaced.
+
+**Request body:**
+```json
+{
+  "date": "2026-04-12",
+  "workout_type": "easy",
+  "planned_duration_min": 45,
+  "planned_distance_km": 8.0,
+  "target_power_min": 150,
+  "target_power_max": 200,
+  "target_hr_min": null,
+  "target_hr_max": null,
+  "target_pace_min": null,
+  "target_pace_max": null,
+  "workout_description": "Easy aerobic run"
+}
+```
+
+**Response:** `201` with the created row plus `status="created"`,
+`workout_version`, `revision_id`, `editable`, and the post-commit `delivery`
+run summary. The summary publishes only `status`, `target`, `reason`, and
+`items`. Past dates return `409 PLAN_HISTORY_IMMUTABLE`; invalid power or
+heart-rate ordering returns `400 PLAN_TARGET_RANGE_INVALID`. Ordinary Pydantic
+shape/range failures return 422.
+
+### PUT /api/plan/workouts/{canonical_id}
+
+Edit, reschedule, or convert one future caller-owned Praxys workout. The body
+must include the exact `workout_version` returned by the latest list or
+mutation response. A stale version returns `409 PLAN_VERSION_CONFLICT` with
+the current version and does not write a revision. Unknown, external, and
+other-user identities return the same user-scoped `404`.
+
+**Request body:**
+```json
+{
+  "expected_version": "d8d5c9...64-hex-characters",
+  "date": "2026-04-13",
+  "workout_type": "threshold",
+  "planned_duration_min": 55,
+  "planned_distance_km": null,
+  "target_power_min": 235,
+  "target_power_max": 255,
+  "workout_description": "2 x 20 min"
+}
+```
+
+All fields except `expected_version` are optional; omitted values retain their
+current content while explicit `null` clears a nullable field. Changing `date`
+reschedules the same `canonical_id` and clears its prior scheduled start time;
+same-date note or target edits preserve that start time. Setting a recognized
+rest/off type server-side clears duration, distance, power, heart-rate, pace,
+and start-time targets regardless of which optional fields the client sends.
+The response includes `status="updated"`, the resulting `workout_version`,
+append-only `revision_id`, and delivery summary.
+
+Structured update errors use `detail.code`: `PLAN_HISTORY_IMMUTABLE`,
+`PLAN_TARGET_RANGE_INVALID`, `PLAN_WORKOUT_NOT_FOUND`,
+`PLAN_VERSION_CONFLICT`, or the defensive `PLAN_NO_CHANGES`.
+`PLAN_VERSION_CONFLICT` also includes `current_version`, while
+`PLAN_HISTORY_IMMUTABLE` includes `minimum_date`, computed in the athlete's
+configured timezone with a UTC fallback.
+
+### DELETE /api/plan/workouts/{canonical_id}
+
+Delete one future caller-owned canonical workout.
+
+**Query params:** `expected_version=<64-hex-workout-version>`.
+
+The endpoint applies the same ownership, history, and stale-version fences as
+update. A successful response contains `status="deleted"`, `canonical_id`,
+`date`, the deleted `workout_version`, `revision_id`, and delivery summary.
+Provider-native and third-party workouts cannot be addressed by this route.
+Structured delete errors are `PLAN_HISTORY_IMMUTABLE`,
+`PLAN_WORKOUT_NOT_FOUND`, and `PLAN_VERSION_CONFLICT`.
 
 ### GET /api/plan/adjustments
 
@@ -1149,7 +1261,7 @@ requests must send the complete opaque ID, including its generation token.
 **Request body:**
 ```json
 {
-  "reconciliation_id": "delivery:311ef6f2-c119-4bfd-a0e7-b697403bcb21",
+  "reconciliation_id": "delivery:311ef6f2-c119-4bfd-a0e7-b697403bcb21@0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   "action": "restore_praxys"
 }
 ```
@@ -1268,18 +1380,21 @@ planned_distance_km,target_power_min,target_power_max,workout_description`.
   Ambiguous same-date groups receive fresh identities rather than transferring
   delivery ownership by row order.
 
-**Response:** `{ "status": "saved", "rows": <int>, "mode": "replace"|"merge" }`
+**Response:** `{ "status": "saved", "rows": <int>, "mode": "replace"|"merge",
+"revision_id": "<uuid>", "delivery": { ... } }`
 
 The plan-row mutation, cache-revision bump, and append-only `upload` revision
 event (actor, origin, before snapshot, after snapshot) commit atomically.
+Payload rows must be today or later. A CSV with no data rows returns `400`.
 
 ### PUT /api/plan/{date}
 
 Upsert a single Praxys-owned plan workout for the given date (`YYYY-MM-DD`).
 Replaces any existing Praxys-owned row(s) for that user and date with one new
 row from the body; external rows and other dates are untouched. Prefer this
-over `/plan/upload` when editing one day so you don't have to round-trip the
-whole future window.
+compatibility route for MCP/date-based clients; interactive clients should use
+the canonical-ID endpoints above so stale edits fail closed. Past dates return
+`409 PLAN_HISTORY_IMMUTABLE`.
 
 **Request body:**
 ```json
@@ -1295,8 +1410,10 @@ whole future window.
 
 **Response:** the upserted row (`id`, `canonical_id`, `date`,
 `workout_type`, `planned_duration_min`, `planned_distance_km`,
-`target_power_min`, `target_power_max`, `workout_description`, deprecated
-`source`, `owner`, `origin`).
+`target_power_min`, `target_power_max`, `target_hr_min`, `target_hr_max`,
+`target_pace_min`, `target_pace_max`, `workout_description`, deprecated
+`source`, `owner`, `origin`, `workout_version`, `editable`, `status`,
+`revision_id`, and `delivery`).
 
 The row and its append-only `upsert` revision event commit atomically.
 
@@ -1304,9 +1421,15 @@ The row and its append-only `upsert` revision event commit atomically.
 
 Delete the Praxys-owned plan workout(s) for the given date (`YYYY-MM-DD`).
 External workouts remain untouched. The operation is idempotent — deleting a
-missing date returns `{ "status": "deleted", "rows": 0 }`.
+missing date returns `rows=0` and `delivery=null`.
 Every request appends a `delete` revision event with its before snapshot and an
 empty after snapshot; a real deletion and its event commit atomically.
+Past dates return `409 PLAN_HISTORY_IMMUTABLE`; interactive clients should use
+canonical-ID delete to avoid date-wide removal and enforce optimistic
+concurrency.
+
+**Response:** `{ "status": "deleted", "rows": <int>, "date": "YYYY-MM-DD",
+"revision_id": "<uuid>", "delivery": { ... } | null }`.
 
 After a successful upload, upsert, or real deletion commits, Praxys starts a
 best-effort rolling-delivery pass. The plan mutation remains successful if the

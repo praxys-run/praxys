@@ -33,6 +33,60 @@
   color: var(--text-muted);
 }
 
+.managed-plan__header-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.managed-plan__window-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18rpx;
+  margin: -2rpx 0 20rpx;
+}
+
+.managed-plan__window-button {
+  width: 64rpx;
+  min-height: 64rpx;
+  margin: 0;
+  padding: 0;
+  border: 1rpx solid var(--border-subtle);
+  border-radius: 999rpx;
+  background-color: transparent;
+  color: var(--text);
+  font-size: 38rpx;
+  line-height: 60rpx;
+}
+
+.managed-plan__window-button:disabled {
+  color: var(--text-muted);
+  opacity: 0.45;
+}
+
+.managed-plan__window-label {
+  min-width: 260rpx;
+  color: var(--text-muted);
+  font-size: 21rpx;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.managed-plan__add {
+  min-height: 72rpx;
+  margin: 0;
+  padding: 0 24rpx;
+  border: 0;
+  border-radius: 999rpx;
+  background-color: var(--primary);
+  color: var(--primary-on);
+  font-size: 21rpx;
+  font-weight: 650;
+  line-height: 72rpx;
+}
+
 .managed-plan__count-value {
   color: var(--text);
   font-size: 28rpx;
@@ -110,6 +164,7 @@
 
 .managed-plan__manage::after,
 .managed-plan__retry::after,
+.managed-plan__window-button::after,
 .managed-plan__adjustment-action::after,
 .managed-plan__status::after {
   border: 0;
@@ -123,6 +178,37 @@
   padding: 18rpx 20rpx;
   border-radius: 12rpx;
   background-color: var(--surface-subtle);
+}
+
+.managed-plan__overlap {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  margin-top: 18rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 12rpx;
+  background-color: rgba(217, 119, 6, 0.09);
+}
+
+.managed-plan__overlap-copy {
+  min-width: 0;
+  flex: 1;
+  color: var(--text);
+  font-size: 20rpx;
+  line-height: 1.45;
+}
+
+.managed-plan__overlap-action {
+  min-height: 72rpx;
+  flex: none;
+  margin: 0;
+  padding: 0 8rpx 0 18rpx;
+  border: 0;
+  background: transparent;
+  color: var(--warning);
+  font-size: 20rpx;
+  font-weight: 650;
+  line-height: 72rpx;
 }
 
 .managed-plan__adjustment--warning {
@@ -313,6 +399,26 @@
   text-align: center;
 }
 
+.managed-plan__workout-actions {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4rpx;
+}
+
+.managed-plan__edit {
+  min-height: 56rpx;
+  margin: 0;
+  padding: 0 12rpx;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 19rpx;
+  font-weight: 600;
+  line-height: 56rpx;
+}
+
 button.managed-plan__status {
   min-height: 88rpx;
 }
@@ -364,6 +470,200 @@ button.managed-plan__status {
   color: var(--destructive);
   font-size: 22rpx;
   line-height: 1.45;
+}
+
+.managed-plan__editor-backdrop {
+  position: fixed;
+  z-index: 120;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: flex-end;
+  background-color: rgba(12, 17, 14, 0.48);
+}
+
+.managed-plan__editor {
+  width: 100%;
+  max-height: 90vh;
+  box-sizing: border-box;
+  overflow-y: auto;
+  padding: 14rpx 28rpx calc(28rpx + env(safe-area-inset-bottom));
+  border-radius: 28rpx 28rpx 0 0;
+  background-color: var(--surface);
+  box-shadow: 0 -18rpx 48rpx rgba(0, 0, 0, 0.18);
+}
+
+.managed-plan__editor-handle {
+  width: 68rpx;
+  height: 8rpx;
+  margin: 0 auto 22rpx;
+  border-radius: 999rpx;
+  background-color: var(--border);
+}
+
+.managed-plan__editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24rpx;
+  padding-bottom: 24rpx;
+  border-bottom: 1rpx solid var(--border-subtle);
+}
+
+.managed-plan__editor-title,
+.managed-plan__editor-detail,
+.managed-plan__field-label,
+.managed-plan__editor-error {
+  display: block;
+}
+
+.managed-plan__editor-title {
+  color: var(--text);
+  font-size: 32rpx;
+  font-weight: 680;
+  line-height: 1.25;
+}
+
+.managed-plan__editor-detail {
+  max-width: 560rpx;
+  margin-top: 8rpx;
+  color: var(--text-muted);
+  font-size: 20rpx;
+  line-height: 1.45;
+}
+
+.managed-plan__editor-close {
+  min-height: 72rpx;
+  flex: none;
+  margin: -12rpx -10rpx 0 0;
+  padding: 0 12rpx;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 21rpx;
+  font-weight: 600;
+  line-height: 72rpx;
+}
+
+.managed-plan__editor-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24rpx 18rpx;
+  padding: 28rpx 0;
+}
+
+.managed-plan__field {
+  min-width: 0;
+}
+
+.managed-plan__field--wide {
+  grid-column: 1 / -1;
+}
+
+.managed-plan__field-label {
+  margin-bottom: 10rpx;
+  color: var(--text-muted);
+  font-size: 20rpx;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.managed-plan__field-value,
+.managed-plan__field-input,
+.managed-plan__field-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1rpx solid var(--border);
+  border-radius: 12rpx;
+  background-color: var(--surface-subtle);
+  color: var(--text);
+  font-size: 24rpx;
+}
+
+.managed-plan__field-value,
+.managed-plan__field-input {
+  min-height: 84rpx;
+  padding: 0 20rpx;
+  line-height: 84rpx;
+}
+
+.managed-plan__field-textarea {
+  min-height: 132rpx;
+  padding: 18rpx 20rpx;
+  line-height: 1.45;
+}
+
+.managed-plan__editor-error {
+  margin-bottom: 18rpx;
+  color: var(--destructive);
+  font-size: 21rpx;
+  line-height: 1.45;
+}
+
+.managed-plan__editor-secondary {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding-top: 18rpx;
+  border-top: 1rpx solid var(--border-subtle);
+}
+
+.managed-plan__editor-delete,
+.managed-plan__editor-rest,
+.managed-plan__editor-save {
+  min-height: 88rpx;
+  margin: 0;
+  border-radius: 12rpx;
+  font-size: 23rpx;
+  font-weight: 650;
+  line-height: 88rpx;
+}
+
+.managed-plan__editor-delete,
+.managed-plan__editor-rest {
+  flex: 1;
+  padding: 0 16rpx;
+  border: 1rpx solid var(--border);
+  background-color: transparent;
+}
+
+.managed-plan__editor-delete {
+  color: var(--destructive);
+}
+
+.managed-plan__editor-rest {
+  color: var(--text);
+}
+
+.managed-plan__editor-save {
+  width: 100%;
+  margin-top: 18rpx;
+  padding: 0 24rpx;
+  border: 0;
+  background-color: var(--primary);
+  color: var(--primary-on);
+}
+
+.managed-plan__add::after,
+.managed-plan__overlap-action::after,
+.managed-plan__edit::after,
+.managed-plan__editor-close::after,
+.managed-plan__editor-delete::after,
+.managed-plan__editor-rest::after,
+.managed-plan__editor-save::after {
+  border: 0;
+}
+
+.managed-plan__add:disabled,
+.managed-plan__overlap-action:disabled,
+.managed-plan__edit:disabled,
+.managed-plan__editor-close:disabled,
+.managed-plan__editor-delete:disabled,
+.managed-plan__editor-rest:disabled,
+.managed-plan__editor-save:disabled {
+  opacity: 0.5;
 }
 
 .managed-plan--today {

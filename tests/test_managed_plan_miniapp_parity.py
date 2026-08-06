@@ -12,6 +12,10 @@ WEB_PLAN_UTIL = ROOT / "web" / "src" / "lib" / "plan.ts"
 WEB_UPCOMING_TS = (
     ROOT / "web" / "src" / "components" / "UpcomingPlanCard.tsx"
 )
+WEB_EDITOR_TS = (
+    ROOT / "web" / "src" / "components" / "WorkoutPlanEditor.tsx"
+)
+WEB_TYPES = ROOT / "web" / "src" / "types" / "api.ts"
 SETTINGS_TS = ROOT / "miniapp" / "pages" / "settings" / "index.ts"
 SETTINGS_WXML = ROOT / "miniapp" / "pages" / "settings" / "index.wxml"
 TRAINING_WXML = ROOT / "miniapp" / "pages" / "training" / "index.wxml"
@@ -21,6 +25,7 @@ TODAY_JSON = ROOT / "miniapp" / "pages" / "today" / "index.json"
 MANAGED_PLAN_TS = ROOT / "miniapp" / "components" / "managed-plan" / "index.ts"
 MANAGED_PLAN_WXML = ROOT / "miniapp" / "components" / "managed-plan" / "index.wxml"
 MANAGED_PLAN_UTIL = ROOT / "miniapp" / "utils" / "managed-plan.ts"
+MINI_TYPES = ROOT / "miniapp" / "types" / "api.ts"
 
 
 def _source(path: Path) -> str:
@@ -128,7 +133,8 @@ def test_managed_plan_actions_use_opaque_identity_and_ownership() -> None:
     assert "scheduleMidnightRefresh" in source
     assert "nextMidnight.setHours(24, 0, 0, 0)" in source
     assert "clearMidnightRefresh" in source
-    assert "if (apiError.status === 409) await this.refresh()" in source
+    assert "if (apiError.status === 409)" in source
+    assert "await this.refresh()" in source
     assert "if (response.status === 409) await refetch()" in _source(
         WEB_UPCOMING_TS
     )
@@ -141,3 +147,62 @@ def test_managed_plan_actions_use_opaque_identity_and_ownership() -> None:
     assert "{{managementAction}}" in markup
     assert "{{tr.externalWorkoutsUntouched}}" in markup
     assert 'bindtap="onUndoAdjustment"' in markup
+
+
+def test_workout_authoring_is_versioned_and_cross_client() -> None:
+    """Web and miniapp must expose the same ownership-safe CRUD contract."""
+    web = _source(WEB_UPCOMING_TS)
+    editor = _source(WEB_EDITOR_TS)
+    mini = _source(MANAGED_PLAN_TS)
+    markup = _source(MANAGED_PLAN_WXML)
+    web_types = _source(WEB_TYPES)
+    mini_types = _source(MINI_TYPES)
+
+    for source in (web, mini):
+        assert "/api/plan/workouts" in source
+        assert "expected_version" in source
+        assert "workout_version" in source
+        assert "PLAN_VERSION_CONFLICT" in source
+        assert "PLAN_HISTORY_IMMUTABLE" in source
+        assert "external_overlap" in source
+
+    assert "isPraxysOwned(workout)" in web
+    assert "workout.editable === true" in web
+    assert "isPraxysOwned(workout)" in mini
+    assert "workout.editable !== true" in mini
+    assert "Use one planner at a time" in web
+    assert "plannerOverlapWarning" in mini
+    assert "data?.management?.can_write !== false" in web
+    assert "plan.management?.can_write !== false" in mini
+    assert "navigateWindow" in web
+    assert "onPreviousWindow" in mini
+    assert "onNextWindow" in mini
+
+    assert "Saving will reschedule this workout." in editor
+    assert "Heart-rate minimum" in editor
+    assert "Pace maximum" in editor
+    assert "hrMinimum" in mini
+    assert "paceMaximum" in mini
+    assert "Convert to rest" in editor
+    assert "Delete this workout?" in editor
+    assert 'bindtap="onAddWorkout"' in markup
+    assert 'bindtap="onEditWorkout"' in markup
+    assert "item.editDisabled || refreshing || editorSaving" in markup
+    assert 'bindtap="onConvertToRest"' in markup
+    assert 'bindtap="onDeleteWorkout"' in markup
+
+    for marker in (
+        "workout_version?: string",
+        "editable?: boolean",
+        "external_overlap?: boolean",
+        "mutation_api_version: 1",
+        "can_write: boolean",
+        "type PlanMutationErrorCode",
+        "minimum_date?: string",
+        "interface PlanUploadResponse",
+        "interface PlanDayDeleteResponse",
+        "interface PlanWorkoutWriteFields",
+        "interface PlanWorkoutDeleteResponse",
+    ):
+        assert marker in web_types
+        assert marker in mini_types
