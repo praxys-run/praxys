@@ -21,6 +21,7 @@ VALID_WEB_EVIDENCE = """\
 - Visual review: desktop 1440x900; mobile 390x844
 - States checked: loading, empty, error, success, long EN/zh
 - Accessibility: keyboard, focus, contrast, reduced motion, touch targets
+- Design system impact: none - existing tokens and components cover this change
 - Miniapp parity: not applicable - copy-only web route has no miniapp equivalent
 - Exceptions: none
 """
@@ -83,6 +84,49 @@ def test_template_placeholders_do_not_count_as_evidence():
     assert any("missing or unverified" in error for error in errors)
 
 
+def test_design_system_update_requires_changed_governance_path():
+    evidence = VALID_WEB_EVIDENCE.replace(
+        "none - existing tokens and components cover this change",
+        "updated in this PR - docs/dev/design-system.md",
+    )
+    assert validate_ui_evidence(
+        evidence,
+        has_web=True,
+        has_miniapp=False,
+        changed_paths=[
+            "web/src/pages/Today.tsx",
+            "docs/dev/design-system.md",
+        ],
+    ) == []
+
+    errors = validate_ui_evidence(
+        evidence,
+        has_web=True,
+        has_miniapp=False,
+        changed_paths=["web/src/pages/Today.tsx"],
+    )
+    assert any("no design-governance file changed" in error for error in errors)
+
+
+def test_design_system_follow_up_requires_filed_issue():
+    evidence = VALID_WEB_EVIDENCE.replace(
+        "none - existing tokens and components cover this change",
+        "follow-up #812 - define compact recovery-card spacing",
+    )
+    assert validate_ui_evidence(
+        evidence,
+        has_web=True,
+        has_miniapp=False,
+    ) == []
+
+    errors = validate_ui_evidence(
+        evidence.replace("#812", "later"),
+        has_web=True,
+        has_miniapp=False,
+    )
+    assert any("must reference a filed GitHub issue" in error for error in errors)
+
+
 def test_miniapp_evidence_names_runtime_and_parity_reason():
     evidence = VALID_WEB_EVIDENCE.replace(
         "desktop 1440x900; mobile 390x844",
@@ -131,12 +175,55 @@ def test_harness_is_wired_into_agents_and_required_ci():
         ".wxss",
     }
     assert "ui-quality:" in workflow
-    assert "UI_RESULT" in workflow
+    assert "frontend-quality:" in workflow
+    assert "FRONTEND_RESULT" in workflow
     assert "scripts/check_ui_quality.py" in workflow
-    assert "needs: [python-tests, web-build, ui-quality]" in workflow
+    assert "needs: [web-build, ui-quality]" in workflow
+    assert "needs: [python-tests, frontend-quality]" in workflow
     assert "--pr-body-env UI_PR_BODY" in workflow
     assert "UI Quality Harness (mandatory)" in instructions
     assert (ROOT / ".github" / "skills" / "ui-quality" / "SKILL.md").is_file()
     assert (
         ROOT / ".github" / "instructions" / "ui-quality.instructions.md"
     ).is_file()
+
+
+def test_ui_mcp_configs_are_pinned_and_cloud_safe():
+    local_config = json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))
+    local_chrome = local_config["mcpServers"]["chrome-devtools"]
+    assert "chrome-devtools-mcp@1.6.0" in local_chrome["args"]
+    assert "--headless" in local_chrome["args"]
+    assert "--isolated" in local_chrome["args"]
+
+    cloud_config = json.loads(
+        (ROOT / "config" / "copilot-cloud-mcp.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    servers = cloud_config["mcpServers"]
+    assert set(servers) == {"chrome-devtools", "praxys-local"}
+    assert "praxys-dev-test" not in servers
+    assert {
+        "take_screenshot",
+        "take_snapshot",
+        "list_console_messages",
+        "lighthouse_audit",
+        "resize_page",
+    }.issubset(servers["chrome-devtools"]["tools"])
+    assert servers["praxys-local"]["env"] == {
+        "PRAXYS_MCP_USE_CURRENT_PYTHON": "1"
+    }
+    assert all(
+        not tool.startswith(
+            ("update_", "set_", "connect_", "disconnect_", "trigger_")
+        )
+        for tool in servers["praxys-local"]["tools"]
+    )
+
+    setup = (
+        ROOT / ".github" / "workflows" / "copilot-setup-steps.yml"
+    ).read_text(encoding="utf-8")
+    assert "submodules: true" in setup
+    assert "plugins/praxys/mcp-server/requirements.txt" in setup
+    assert "chrome-devtools-mcp@1.6.0 --version" in setup
+    assert "PRAXYS_MCP_USE_CURRENT_PYTHON: '1'" in setup

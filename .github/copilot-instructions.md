@@ -49,12 +49,15 @@ state coverage, and the PR evidence required by CI.
   the hook to make a PR pass.
 - Preserve the incumbent visual world for bug fixes and narrow features. A
   redesign requires an explicit product decision.
-- Use browser automation such as Chrome DevTools MCP when available. If no
+- Use Chrome DevTools MCP when available; the cloud coding agent has Playwright
+  by default. Use the read-only synthetic `praxys-local` MCP for product-data
+  semantics when useful, never as a substitute for rendered review. If no
   browser tool is available, keep the PR draft and say that rendered
   verification is incomplete.
 - Follow `.github/instructions/ui-quality.instructions.md` for the complete
-  path-specific flow and include the exact `## UI quality` evidence block in the
-  PR body.
+  path-specific flow. Classify design-system discoveries as fixed locally,
+  updated in the design source of truth, or linked to a filed follow-up, and
+  include the exact `## UI quality` evidence block in the PR body.
 
 ## Config
 
@@ -88,8 +91,9 @@ When you (the GitHub Copilot coding agent) are assigned an issue labeled
 - **For any UI change, run the UI quality harness before marking the PR ready.**
   Invoke `ui-quality`, follow Impeccable, perform the rendered review, run
   `python scripts/check_ui_quality.py --base origin/main --head HEAD --skip-evidence`,
-  and complete the PR's `## UI quality` block. The required `backend-tests`
-  check includes this gate.
+  and complete the PR's `## UI quality` block. CI reports the web build and UI
+  gate as `frontend-quality`; the existing required `backend-tests` context
+  remains a compatibility umbrella during branch-protection migration.
 - **Adding or changing a training metric?** Follow the 7-step checklist in
   [CLAUDE.md](../CLAUDE.md) ("How to Add a New Metric"): pure function in
   `analysis/metrics.py` → wire into `api/deps.py` → route → `web/src/types/api.ts`

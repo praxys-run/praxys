@@ -51,12 +51,14 @@ def _venv_python(root: Path) -> Path:
 
 def _runtime_python(root: Path) -> Path:
     configured = os.environ.get("PRAXYS_MCP_PYTHON", "").strip()
-    if not configured:
-        return _venv_python(root)
-    path = Path(os.path.expandvars(configured)).expanduser()
-    if not path.is_absolute():
-        path = root / path
-    return path.resolve()
+    if configured:
+        path = Path(os.path.expandvars(configured)).expanduser()
+        if not path.is_absolute():
+            path = root / path
+        return path.resolve()
+    if os.environ.get("PRAXYS_MCP_USE_CURRENT_PYTHON") == "1":
+        return Path(sys.executable).resolve()
+    return _venv_python(root)
 
 
 def _plugin_server(root: Path) -> Path:

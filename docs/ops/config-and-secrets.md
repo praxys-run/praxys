@@ -66,6 +66,47 @@ current repo and fail closed on a mismatch, exposing the skipped count in Admin
 Feedback. Plan a deliberate link migration before switching repositories; do
 not assume issue `#N` refers to the same work in the new target.
 
+### Copilot repository MCP servers
+
+Cloud-agent MCP configuration is a repository setting, not an Actions variable
+and not the committed `.mcp.json` used by local Copilot CLI clients. Its source
+of truth is **Repository → Settings → Copilot → MCP servers**; the reviewed
+copy/paste payload is `config/copilot-cloud-mcp.json`.
+
+The cloud agent already includes Playwright. The additional configuration adds:
+
+- pinned, headless, isolated Chrome DevTools with an explicit UI-review
+  tool allowlist, usage statistics and CrUX disabled, and network headers
+  redacted;
+- the synthetic `praxys-local` server with read-only product-context tools.
+
+It requires no secret or `COPILOT_MCP_*` variable. Never add `praxys-dev-test`,
+production tokens, provider credentials, sync tools, or plan-mutation tools to
+the cloud allowlist. `.github/workflows/copilot-setup-steps.yml` must remain the
+owner of the submodule checkout, MCP Python dependency, Chrome verification,
+and synthetic sandbox preparation. The cloud config's literal
+`PRAXYS_MCP_USE_CURRENT_PYTHON=1` tells the launcher to use the interpreter
+prepared by `actions/setup-python`; local profiles continue to require the
+project virtualenv unless `PRAXYS_MCP_PYTHON` is explicitly set.
+
+Provision after the setup workflow is present on `main`:
+
+1. Copy `config/copilot-cloud-mcp.json` into the repository MCP configuration
+   field and save it.
+2. Confirm the public-preview read endpoint returns the same two servers:
+
+   ```bash
+   gh api -H "X-GitHub-Api-Version: 2026-03-10" \
+     repos/praxys-run/praxys/copilot/cloud-agent/configuration \
+     --jq '.mcp_configuration.mcpServers | keys'
+   ```
+
+3. Assign a disposable test issue to Copilot, open **View session**, expand
+   **Start MCP Servers**, and confirm the allowlisted tools are present.
+
+Rollback by removing the affected server from repository MCP settings and
+saving. Built-in Playwright remains available when Chrome DevTools is removed.
+
 ### GitHub Actions → Workflow permissions
 
 The i18n workflow uses its built-in `GITHUB_TOKEN` to update

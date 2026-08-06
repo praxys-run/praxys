@@ -148,9 +148,10 @@ post-merge observation, and a fast kill switch.
   eval; every loop has an off switch (shadow mode / disable workflow).
 - **UI work enters the design harness** — any rendered web/miniapp change uses
   the repository `ui-quality` skill, Impeccable edit hooks, rendered evidence,
-  and the deterministic UI gate inside the required `backend-tests` check.
-  Implementation agents cannot self-attest with placeholders or mark an
-  unverified UI PR ready.
+  durable design-system impact capture, and the deterministic
+  `frontend-quality` gate. `backend-tests` remains a compatibility umbrella
+  during branch-protection migration. Implementation agents cannot self-attest
+  with placeholders or mark an unverified UI PR ready.
 
 ## 6. How it maps to the repos
 

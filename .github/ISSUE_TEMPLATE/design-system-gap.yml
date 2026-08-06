@@ -1,0 +1,65 @@
+name: Design system gap
+description: Capture a reusable design rule, token, component, or product decision discovered during UI work.
+title: "[Design system] "
+labels:
+  - design system
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form when a UI PR uncovers a gap that cannot be resolved safely in that PR. Do not attach screenshots containing personal training data or credentials; use synthetic sample data.
+  - type: dropdown
+    id: gap_type
+    attributes:
+      label: Gap type
+      options:
+        - Missing or inconsistent design token
+        - Missing reusable component or interaction pattern
+        - Missing accessibility or responsive rule
+        - Conflicting design guidance
+        - Product or brand decision needed
+    validations:
+      required: true
+  - type: input
+    id: discovered_in
+    attributes:
+      label: Discovered in
+      description: Link the pull request and name the affected route, page, or component.
+      placeholder: "PR #123; web/src/pages/Today.tsx"
+    validations:
+      required: true
+  - type: textarea
+    id: gap
+    attributes:
+      label: Gap
+      description: Explain what the current design system does not define or cannot express consistently.
+    validations:
+      required: true
+  - type: textarea
+    id: current_handling
+    attributes:
+      label: Current PR handling
+      description: State the narrow local choice made in the current PR and why a broader change is deferred.
+    validations:
+      required: true
+  - type: textarea
+    id: proposed_owner
+    attributes:
+      label: Proposed design-system owner
+      description: Name the likely source of truth, such as DESIGN.md, docs/dev/design-system.md, docs/brand/, or a shared web/miniapp component.
+    validations:
+      required: true
+  - type: textarea
+    id: cross_client_impact
+    attributes:
+      label: Web and miniapp impact
+      description: Describe which clients need the rule or reusable implementation and any platform-native differences.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Define the reusable rule or component, documentation update, migration scope, and validation needed to close the gap.
+    validations:
+      required: true

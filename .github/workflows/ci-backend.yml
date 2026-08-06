@@ -1,11 +1,13 @@
 name: Backend CI
 
-# Pre-merge validation gate (issues #361 and #377). Runs backend pytest and the
-# web production build, and UI quality harness on every PR targeting main so
-# regressions are caught *before* merge — not only by the post-merge deploy
-# workflows. The final `backend-tests` aggregator preserves the existing
-# required-check context while making all three gates load-bearing for
-# autonomously drafted PRs.
+# Pre-merge validation gate (issues #361 and #377). Runs backend pytest plus a
+# distinct frontend-quality path (web production build + UI quality harness) on
+# every PR targeting main so regressions are caught *before* merge.
+#
+# `frontend-quality` is the authoritative frontend/design check. The final
+# `backend-tests` job remains a compatibility umbrella until branch protection
+# can require the new check after this workflow lands on main; this avoids an
+# enforcement gap during that migration.
 #
 # Intentionally has NO `paths:` filter. This job is a *required* status check on
 # main, and a required check that a path filter skips is reported as permanently
@@ -99,20 +101,34 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: python scripts/check_ui_quality.py --base HEAD^ --head HEAD --skip-evidence
 
-  # Keep this job name stable: branch protection requires `backend-tests`.
-  backend-tests:
-    name: backend-tests
+  frontend-quality:
+    name: frontend-quality
     if: always()
-    needs: [python-tests, web-build, ui-quality]
+    needs: [web-build, ui-quality]
     runs-on: ubuntu-latest
     steps:
-      - name: Require backend tests, web build, and UI quality
+      - name: Require web build and UI quality
         env:
-          PYTHON_RESULT: ${{ needs.python-tests.result }}
           WEB_RESULT: ${{ needs.web-build.result }}
           UI_RESULT: ${{ needs.ui-quality.result }}
         run: |
           set -euo pipefail
-          test "$PYTHON_RESULT" = "success"
           test "$WEB_RESULT" = "success"
           test "$UI_RESULT" = "success"
+
+  # Keep this job name stable while branch protection migrates to also require
+  # `frontend-quality`.
+  backend-tests:
+    name: backend-tests
+    if: always()
+    needs: [python-tests, frontend-quality]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require backend tests and compatibility frontend gate
+        env:
+          PYTHON_RESULT: ${{ needs.python-tests.result }}
+          FRONTEND_RESULT: ${{ needs.frontend-quality.result }}
+        run: |
+          set -euo pipefail
+          test "$PYTHON_RESULT" = "success"
+          test "$FRONTEND_RESULT" = "success"

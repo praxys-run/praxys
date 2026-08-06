@@ -24,15 +24,23 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
 
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            plugins/praxys/mcp-server/requirements.txt
 
-      - name: Install backend dependencies
-        run: pip install -r requirements.txt
+      - name: Install backend and Praxys MCP dependencies
+        run: >-
+          pip install
+          -r requirements.txt
+          -r plugins/praxys/mcp-server/requirements.txt
 
       - name: Bootstrap .env for tests (encryption key + JWT secret)
         # Mirrors the project's documented first-run setup (see CLAUDE.md) so the
@@ -55,3 +63,12 @@ jobs:
         # npm install (not ci): @lingui/swc-plugin's bundleDependencies trip
         # npm v11 strict ci — same reason as .github/workflows/i18n.yml.
         run: npm install --no-audit --no-fund
+
+      - name: Prepare browser and synthetic Praxys MCP tools
+        env:
+          PRAXYS_MCP_USE_CURRENT_PYTHON: '1'
+        run: |
+          google-chrome --version
+          npx -y chrome-devtools-mcp@1.6.0 --version
+          python -c "import mcp"
+          python -m scripts.run_praxys_mcp local --prepare-only

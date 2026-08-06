@@ -194,10 +194,12 @@ your user session) — the token is only needed for the *workflow* to assign.
 Protect `main` so the coding agent cannot ship or bypass checks:
 
 - **Require a pull request before merging.**
-- **Require status checks to pass** — the `backend-tests` check from
-  `.github/workflows/ci-backend.yml`. It is a stable aggregator that requires both
-  backend pytest and the web production build. Add it once that workflow has run
-  on a PR so the check name is selectable.
+- **Require status checks to pass** — `backend-tests` and, after it has first
+  reported from `main`, `frontend-quality` from
+  `.github/workflows/ci-backend.yml`. The former covers backend pytest; the
+  latter combines the web production build and UI harness. During migration,
+  `backend-tests` remains a compatibility umbrella over both so there is no
+  enforcement gap.
 
 Repository ruleset `default` (id `15208143`) requires a pull request and
 squash-only merge, and blocks branch deletion and non-fast-forward updates. Its
@@ -206,6 +208,8 @@ security-sensitive, or science-affecting changes, but it is not a mandatory
 merge gate for the solo-maintainer workflow. The ruleset requires
 `backend-tests` and `selective-review-policy` against the latest `main`; classic
 branch protection also keeps `backend-tests` required with admin enforcement.
+After the workflow containing `frontend-quality` lands on `main`, add that
+context to both protections before removing any compatibility dependency.
 
 The ruleset retains an `Always` bypass for the repository-role admin. Normal
 green PRs do not need that bypass now that no approval is required; keep it as a
@@ -218,6 +222,14 @@ must not label its own PR as eligible.
 gh api repos/praxys-run/praxys/branches/main/protection --jq '{checks:.required_status_checks}'
 gh api repos/praxys-run/praxys/rulesets --jq '.[] | {id,name,enforcement}'
 ```
+
+For the `frontend-quality` migration:
+
+1. Merge the workflow that first emits the check.
+2. Add `frontend-quality` to ruleset `default` and classic `main` branch
+   protection while retaining `backend-tests`.
+3. Verify both contexts are strict against the latest `main`.
+4. Only then may a later cleanup make `backend-tests` backend-only.
 
 ### 5. Operate the GitHub Agentic Workflows layer
 
@@ -271,19 +283,24 @@ initialization must not overwrite its Python/Node test environment.
   keep the PR draft until the implementation/tests/final diff are stable. A code
   push after the first ready handoff returns the PR to draft before more work.
   Edit there rather than stuffing per-issue boilerplate into the public tracker.
-- **Environment:** `.github/workflows/copilot-setup-steps.yml` preinstalls Python
-  + deps (and Node/web) and bootstraps a throwaway `.env`, so the agent can run
-  `pytest` / `npm` deterministically instead of rediscovering the toolchain. It
-  only takes effect once on the default branch.
+- **Environment:** `.github/workflows/copilot-setup-steps.yml` initializes the
+  plugin submodule, preinstalls Python + backend/Praxys MCP deps and Node/web,
+  verifies Chrome DevTools MCP, prepares the synthetic local Praxys sandbox,
+  and bootstraps a throwaway `.env`. The agent can run `pytest`, `npm`, browser
+  review, and read-only product-context tools deterministically instead of
+  rediscovering the toolchain. It only takes effect once on the default branch.
 - **UI quality harness:** a user-visible web/miniapp change must invoke
   `.github/skills/ui-quality/SKILL.md`, which routes through the vendored
   Impeccable skill and the Praxys brand context. The committed Copilot hook
   surfaces mechanical findings after edits. Before the ready handoff the agent
   must inspect the rendered desktop/mobile path, complete the PR's
-  `## UI quality` evidence, and pass `scripts/check_ui_quality.py`. That gate is
-  part of the existing required `backend-tests` aggregator; a browser-less
-  agent leaves the PR draft rather than claiming verification. Full operation:
-  `docs/dev/ui-quality-harness.md`.
+  `## UI quality` evidence (including design-system impact), and pass
+  `scripts/check_ui_quality.py`. CI reports this as `frontend-quality`; the
+  existing required `backend-tests` context remains a compatibility umbrella
+  during migration. Cloud agents have Playwright by default; repository MCP
+  settings may add pinned Chrome DevTools and read-only synthetic
+  `praxys-local` tools. A browser-less agent leaves the PR draft rather than
+  claiming verification. Full operation: `docs/dev/ui-quality-harness.md`.
 - **Model selection:** which LLM the coding agent uses is an **org/repo Copilot
   setting** (Settings → Copilot → Coding agent), not a per-assignment parameter —
   do not try to pin a model in `assign-copilot.yml`. Pick it in settings.
@@ -514,11 +531,12 @@ and the cost is low).
 - `gh aw validate --no-check-update` succeeds and the policy tuner lock contains
   an exclusive `allowed-files` restriction for
   `config/agent-loop-policy-proposals.json`.
-- A web build failure makes the required `backend-tests` aggregator fail even
-  when pytest passes.
+- A web build failure makes `frontend-quality` fail and, during the
+  compatibility period, also fails `backend-tests` even when pytest passes.
 - A rendered web/miniapp change with an Impeccable finding, placeholder UI
-  evidence, missing desktop/mobile review, or unexplained miniapp parity fails
-  the same required `backend-tests` aggregator.
+  evidence, missing desktop/mobile review, invalid design-system impact, or
+  unexplained miniapp parity fails `frontend-quality` and the compatibility
+  required context.
 - A manual `Change loop outcomes` run reports explicit operational tests
   separately, starts the feedback cohort from `agent-ready` issue timelines, and
   does not count `action_required` or a corroborated baseline failure as an agent

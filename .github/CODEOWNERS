@@ -60,9 +60,14 @@
 # The UI harness is agent policy and a required-check input. Changes need the
 # same maintainer review as other autonomy controls.
 /.github/hooks/impeccable.json                   @dddtc2005
+/.github/ISSUE_TEMPLATE/design-system-gap.yml    @dddtc2005
 /.github/instructions/ui-quality.instructions.md @dddtc2005
+/.github/PULL_REQUEST_TEMPLATE.md                @dddtc2005
 /.github/skills/impeccable/                      @dddtc2005
 /.github/skills/ui-quality/                      @dddtc2005
+/.github/workflows/copilot-setup-steps.yml       @dddtc2005
+/.mcp.json                                       @dddtc2005
 /.impeccable/config.json                         @dddtc2005
+/config/copilot-cloud-mcp.json                   @dddtc2005
 /scripts/check_ui_quality.py                     @dddtc2005
 /docs/dev/ui-quality-harness.md                  @dddtc2005

@@ -13,12 +13,13 @@ human contributors one brand-aware path from task intake to PR review.
 | Product context | `PRODUCT.md`, `DESIGN.md`, `docs/dev/design-system.md` | Agents design for the Field Lab, two-track semantics, outdoor use, and bilingual clients. |
 | Edit-time feedback | `.github/hooks/impeccable.json`, `.claude/settings.json` | Mechanical design drift is surfaced immediately after UI edits. |
 | Shared detector policy | `.impeccable/config.json` | Web plus miniapp WXML/WXSS use the same detector and reviewed exceptions. |
-| PR gate | `scripts/check_ui_quality.py` in `Backend CI` | Changed UI files must pass Impeccable and the PR must contain completed review evidence. |
+| PR gate | `scripts/check_ui_quality.py` in `frontend-quality` | Changed UI files must pass Impeccable and the PR must contain completed review evidence. |
 | Independent review | `praxys-invariant-review.md` | Ready PRs receive a separate Praxys-specific brand and UI invariant review. |
 
-The required branch-protection context remains `backend-tests`. Its aggregator
-now requires backend tests, the web build, and `ui-quality`, so no ruleset
-change is needed.
+`frontend-quality` is the domain check for the web build and UI harness.
+`backend-tests` remains a compatibility umbrella that consumes it until the new
+check can be added to branch protection after this workflow exists on `main`.
+This preserves enforcement without pretending UI validation is a backend test.
 
 ## What triggers the harness
 
@@ -46,11 +47,15 @@ the rendered files trigger it.
    touch targets, light/dark, mobile/desktop, and slow/offline behavior.
 6. Preserve web/miniapp feature and data semantics. Platform-native layout may
    differ; capability may not drift silently.
-7. Run the real feature with sample data. Inspect desktop and mobile together
-   with Chrome DevTools MCP or another available browser tool, exercise the
-   interaction by keyboard, and review console output. Fix findings in one
-   batch, then do at most one confirmation pass.
-8. Run targeted tests, builds/typechecks, and the local gate. Complete the PR
+7. Classify design-system impact: fix a local defect now; update a clear missing
+   reusable rule/token/component in the source of truth; or file a linked
+   `Design system gap` issue for a broad decision or out-of-scope migration.
+8. Run the real feature with sample data. Inspect desktop and mobile together
+   with Chrome DevTools MCP or built-in cloud-agent Playwright, exercise the
+   interaction by keyboard, and review console output. Praxys MCP may provide
+   synthetic data semantics but does not replace rendered review. Fix findings
+   in one batch, then do at most one confirmation pass.
+9. Run targeted tests, builds/typechecks, and the local gate. Complete the PR
    evidence before marking the PR ready.
 
 If browser automation is unavailable, the contributor must not claim rendered
@@ -96,6 +101,7 @@ and requires:
 - Visual review: desktop 1440x900; mobile 390x844
 - States checked: loading, empty, error, success, long EN/zh
 - Accessibility: keyboard, focus, contrast, reduced motion, touch targets
+- Design system impact: none - existing tokens and components cover this change
 - Miniapp parity: updated / follow-up #123 / not applicable - reason
 - Exceptions: none
 ```
@@ -103,6 +109,46 @@ and requires:
 Placeholders, planned checks, `not run`, and unexplained `N/A` values fail the
 gate. Image-only UI changes still require evidence even though the mechanical
 detector has no source file to scan.
+
+## Design-system discoveries
+
+The PR field is a decision record, not a free-form note:
+
+- `none - <reason>` means the existing system already defines the correct
+  reusable behavior and the PR simply follows it.
+- `updated in this PR - <changed path>` requires a change to `DESIGN.md`,
+  `docs/dev/design-system.md`, `PRODUCT.md`, or `docs/brand/`.
+- `follow-up #123 - <gap>` requires an already-filed issue created from
+  `.github/ISSUE_TEMPLATE/design-system-gap.yml`.
+
+Use the current PR for a clear missing token, shared component, interaction
+rule, accessibility rule, or documentation correction. Use a follow-up only
+when the decision is product-level, the migration is materially broader than
+the feature, or the correct reusable abstraction is not yet clear. `Exceptions`
+does not waive this classification, and broad Impeccable suppressions are not a
+substitute for design-system ownership.
+
+## Browser and product MCP tools
+
+The GitHub Copilot cloud agent includes Playwright by default, so assigned
+issues do not need a separate browser installation to perform rendered review.
+The repository `.mcp.json` additionally pins Chrome DevTools MCP for local
+Copilot CLI/compatible clients. Chrome runs headless and isolated, opts out of
+usage statistics and CrUX lookups, redacts network headers, and exposes only
+the interaction, screenshot, console, network, emulation, and Lighthouse tools
+used by this flow.
+
+Committed `.mcp.json` files are not the cloud agent's repository MCP settings.
+After the setup workflow is merged, an administrator must copy
+`config/copilot-cloud-mcp.json` into **Settings → Copilot → MCP servers**. That
+cloud configuration adds Chrome DevTools plus only read-only tools from the
+synthetic `praxys-local` profile. It deliberately excludes `praxys-dev-test`,
+production authentication, provider connections, sync, and plan mutations.
+`copilot-setup-steps.yml` initializes the plugin submodule, installs its MCP
+runtime, verifies Chrome, and prepares the synthetic sample-data sandbox.
+
+Use Chrome/Playwright to judge the rendered experience. Use `praxys-local` only
+to inspect the product's sample-data semantics or expected view payloads.
 
 ## Change-loop coding agents
 
@@ -117,7 +163,8 @@ For an `agent-ready` issue that touches UI, the agent must:
 - keep the PR draft while the rendered review or evidence is incomplete;
 - use only the scrubbed screenshot description in the public issue, never the
   private raw screenshot;
-- complete the UI evidence and pass `backend-tests` before the ready handoff;
+- complete the UI evidence and pass `frontend-quality` (plus the compatibility
+  `backend-tests` context) before the ready handoff;
 - accept the independent invariant review as review evidence, not as permission
   to self-approve or merge.
 

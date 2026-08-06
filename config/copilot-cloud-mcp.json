@@ -15,7 +15,6 @@
         "--screenshot-max-width=1600",
         "--screenshot-max-height=1200"
       ],
-      "env": {},
       "tools": [
         "click",
         "drag",
@@ -43,24 +42,29 @@
         "take_snapshot"
       ]
     },
-    "azure-mcp": {
-      "command": "npx",
-      "args": ["-y", "@azure/mcp@latest", "server", "start"],
-      "env": {}
-    },
     "praxys-local": {
-      "command": "node",
-      "args": ["scripts/run_praxys_mcp.cjs", "local"],
-      "env": {}
-    },
-    "praxys-dev-test": {
-      "command": "node",
+      "type": "stdio",
+      "command": "python",
       "args": [
-        "scripts/run_praxys_mcp.cjs",
-        "remote-profile",
-        "dev-test"
+        "-m",
+        "scripts.run_praxys_mcp",
+        "local"
       ],
-      "env": {}
+      "env": {
+        "PRAXYS_MCP_USE_CURRENT_PYTHON": "1"
+      },
+      "tools": [
+        "get_daily_brief",
+        "get_training_review",
+        "get_race_forecast",
+        "get_training_context",
+        "get_settings",
+        "get_sync_settings",
+        "get_connections",
+        "get_managed_plan_status",
+        "get_sync_status",
+        "whoami"
+      ]
     }
   }
 }

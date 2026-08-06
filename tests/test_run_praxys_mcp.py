@@ -190,6 +190,25 @@ def test_runtime_python_override_does_not_require_project_venv(
     run_praxys_mcp._reexec_in_runtime_python(root)
 
 
+def test_runtime_python_can_opt_into_current_interpreter(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = run_praxys_mcp.project_root()
+    monkeypatch.delenv("PRAXYS_MCP_PYTHON", raising=False)
+    monkeypatch.setenv("PRAXYS_MCP_USE_CURRENT_PYTHON", "1")
+    monkeypatch.setattr(
+        run_praxys_mcp,
+        "_venv_python",
+        lambda _root: tmp_path / "missing-python",
+    )
+
+    assert run_praxys_mcp._runtime_python(root) == Path(
+        sys.executable
+    ).resolve()
+    run_praxys_mcp._reexec_in_runtime_python(root)
+
+
 def test_prepare_only_does_not_require_plugin_submodule(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -261,6 +280,8 @@ def test_repository_mcp_config_registers_local_and_dev_test_profiles() -> None:
     ]
     assert servers["praxys-local"]["env"] == {}
     assert servers["praxys-dev-test"]["env"] == {}
+    assert servers["chrome-devtools"]["type"] == "stdio"
+    assert "chrome-devtools-mcp@1.6.0" in servers["chrome-devtools"]["args"]
 
 
 def test_repository_mcp_launcher_honors_python_override(

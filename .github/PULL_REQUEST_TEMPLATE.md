@@ -13,5 +13,6 @@
 - Visual review: <!-- web: desktop + mobile dimensions; miniapp: WeChat/Skyline device -->
 - States checked: <!-- loading, empty, error, success, disabled, long EN/zh, as applicable -->
 - Accessibility: <!-- keyboard, focus, contrast, reduced motion, touch targets -->
+- Design system impact: <!-- none - reason / updated in this PR - changed path / follow-up #123 - gap -->
 - Miniapp parity: <!-- updated / follow-up #123 / not applicable - reason -->
 - Exceptions: <!-- none, or a narrow intentional exception and rationale -->

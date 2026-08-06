@@ -70,6 +70,7 @@ _EVIDENCE_FIELDS = (
     "visual review",
     "states checked",
     "accessibility",
+    "design system impact",
     "miniapp parity",
     "exceptions",
 )
@@ -236,11 +237,61 @@ def _is_placeholder(value: str) -> bool:
     )
 
 
+def _validate_design_system_impact(
+    value: str,
+    governance_paths: Sequence[str],
+) -> list[str]:
+    normalized = re.sub(r"\s+", " ", value.strip())
+    lowered = normalized.lower()
+
+    if lowered.startswith("none"):
+        if re.fullmatch(r"none\s*-\s*\S.*", normalized, re.IGNORECASE):
+            return []
+        return [
+            "UI quality field 'design system impact' must explain why the "
+            "existing system already covers the change."
+        ]
+
+    updated = re.fullmatch(
+        r"updated in this pr\s*-\s*(\S.*)",
+        normalized,
+        re.IGNORECASE,
+    )
+    if updated:
+        if not governance_paths:
+            return [
+                "Design system impact says 'updated in this PR', but no "
+                "design-governance file changed."
+            ]
+        detail = updated.group(1).lower()
+        if not any(path.lower() in detail for path in governance_paths):
+            return [
+                "Design system impact must name a changed design-governance "
+                "path."
+            ]
+        return []
+
+    if lowered.startswith("follow-up"):
+        if re.search(r"(?<!\w)#\d+\b", normalized):
+            return []
+        return [
+            "Design system follow-ups must reference a filed GitHub issue "
+            "such as 'follow-up #123 - missing chart token'."
+        ]
+
+    return [
+        "UI quality field 'design system impact' must be one of: "
+        "'none - <reason>', 'updated in this PR - <changed path>', or "
+        "'follow-up #123 - <gap>'."
+    ]
+
+
 def validate_ui_evidence(
     body: str,
     *,
     has_web: bool,
     has_miniapp: bool,
+    changed_paths: Iterable[str] = (),
 ) -> list[str]:
     """Return PR evidence errors for a rendered UI change."""
     section = _ui_quality_section(body)
@@ -255,6 +306,22 @@ def validate_ui_evidence(
             errors.append(f"UI quality field '{field}' is missing or unverified.")
         elif field != "exceptions" and value.strip().lower() == "none":
             errors.append(f"UI quality field '{field}' cannot be 'none'.")
+
+    impact_value = values.get("design system impact", "")
+    if not _is_placeholder(impact_value):
+        governance_paths = sorted(
+            {
+                normalize_repo_path(path)
+                for path in changed_paths
+                if is_design_governance_path(path)
+            }
+        )
+        errors.extend(
+            _validate_design_system_impact(
+                impact_value,
+                governance_paths,
+            )
+        )
 
     impeccable_value = values.get("impeccable", "").lower()
     if impeccable_value and not any(
@@ -462,6 +529,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 body,
                 has_web="web" in surfaces,
                 has_miniapp="miniapp" in surfaces,
+                changed_paths=paths,
             )
         )
 

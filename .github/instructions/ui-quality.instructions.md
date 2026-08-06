@@ -22,18 +22,25 @@ as styling after implementation.
    touch-target, light-theme, dark-theme, and responsive states as applicable.
 5. Keep web and miniapp feature semantics aligned. Update both surfaces or link
    an explicit `miniapp parity gap` follow-up in the PR.
-6. Run the feature with sample data and inspect the real interaction in one
-   bounded desktop/mobile pass. Prefer Chrome DevTools MCP or another available
-   browser tool; use keyboard navigation and inspect console errors. Fix the
-   batch of findings, then perform at most one confirmation pass.
-7. Run the smallest relevant tests plus `cd web && npm run build`, miniapp
+6. Classify every discovery: fix local defects now; update a clear missing
+   reusable rule/token/component in the design source of truth; or file and
+   link a `Design system gap` issue for a product decision, broad migration, or
+   out-of-scope debt. Never hide the gap in a one-off or broad suppression.
+7. Run the feature with sample data and inspect the real interaction in one
+   bounded desktop/mobile pass. Prefer Chrome DevTools MCP; the cloud coding
+   agent can use built-in Playwright. Praxys MCP may supply synthetic data
+   semantics but never replaces rendered review. Use keyboard navigation and
+   inspect console errors. Fix the batch of findings, then perform at most one
+   confirmation pass.
+8. Run the smallest relevant tests plus `cd web && npm run build`, miniapp
    `npm run typecheck` when applicable, and:
 
    ```bash
    python scripts/check_ui_quality.py --base origin/main --head HEAD --skip-evidence
    ```
 
-8. Include the exact `## UI quality` block from the PR template. Never claim a
+9. Include the exact `## UI quality` block from the PR template, including the
+   mandatory `Design system impact` disposition. Never claim a
    viewport, state, or accessibility check that was not actually performed. If
    rendered verification is unavailable, keep the PR draft and record the
    limitation.

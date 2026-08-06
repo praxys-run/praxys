@@ -56,17 +56,35 @@ reduced-motion, touch-target, light, dark, mobile, and desktop states. Reuse the
 design system; do not introduce one-off components or tokens when an owner
 already exists.
 
-## 4. Inspect the rendered path
+## 4. Classify design-system impact
 
-Run the real feature with sample data. Prefer Chrome DevTools MCP or another
-available browser automation tool. Inspect desktop and mobile together, exercise
-the interaction with keyboard input, and check console output. Fix findings in
-one batch and perform at most one confirmation pass.
+Before the final review, choose one disposition:
+
+- Local implementation defect: fix it in this PR and record
+  `none - existing design system already covers the change`.
+- Clear missing reusable token, component, or rule: update `DESIGN.md`,
+  `PRODUCT.md`, `docs/dev/design-system.md`, or `docs/brand/` in this PR and
+  name the changed path.
+- Product decision, broad migration, or genuinely out-of-scope design debt:
+  file a `Design system gap` issue before ready-for-review and link it as
+  `follow-up #123 - <gap>`.
+
+Do not hide a system gap in `Exceptions`, a one-off token, or a broad
+Impeccable suppression.
+
+## 5. Inspect the rendered path
+
+Run the real feature with sample data. Prefer Chrome DevTools MCP; the GitHub
+Copilot cloud agent also has Playwright available by default. Use the synthetic
+read-only `praxys-local` MCP tools when product data semantics help the review,
+but never treat API output as rendered verification. Inspect desktop and mobile
+together, exercise the interaction with keyboard input, and check console
+output. Fix findings in one batch and perform at most one confirmation pass.
 
 If no browser tool is available, do not claim visual verification. Keep the PR
 draft and record the limitation in the UI evidence.
 
-## 5. Validate and hand off
+## 6. Validate and hand off
 
 Run the smallest relevant tests, web build, miniapp typecheck when applicable,
 and:
@@ -83,6 +101,7 @@ Complete this exact PR section:
 - Visual review: desktop 1440x900; mobile 390x844
 - States checked: loading, empty, error, success, long EN/zh
 - Accessibility: keyboard, focus, contrast, reduced motion, touch targets
+- Design system impact: none - existing tokens and components cover this change
 - Miniapp parity: updated / follow-up #123 / not applicable - reason
 - Exceptions: none
 ```
