@@ -4,34 +4,17 @@ description: Drafts bounded policy proposals from recurring Loop A outcome misse
 on:
   schedule: weekly
   workflow_dispatch:
-engine:
-  id: copilot
-  model: gpt-5.4
-  env:
-    COPILOT_PROVIDER_BASE_URL: ${{ vars.AZURE_AI_ENDPOINT }}openai/v1
-    COPILOT_PROVIDER_MODEL_ID: gpt-5.4
-    COPILOT_PROVIDER_WIRE_API: responses
-  auth:
-    type: github-oidc
-    provider: azure
-    azure-tenant-id: bd18218b-ffc1-4eef-b717-fb07368336c0
-    azure-client-id: d3deb736-e95d-400e-b5a5-c2f76b23ae25
-sandbox:
-  agent:
-    model-fallback: false
+engine: copilot
+model: gpt-5.4
 max-ai-credits: 900
 max-daily-ai-credits: 1200
 permissions:
   actions: read
+  copilot-requests: write
   contents: read
-  id-token: write
   issues: read
   pull-requests: read
-network:
-  allowed:
-    - defaults
-    - dddtc-m7vjb0s8-eastus2.cognitiveservices.azure.com
-    - login.microsoftonline.com
+network: defaults
 tools:
   github:
     mode: gh-proxy

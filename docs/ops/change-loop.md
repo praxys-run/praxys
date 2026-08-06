@@ -244,25 +244,16 @@ around it:
 | `praxys-invariant-review.md` | Successful `Backend CI` run for a same-repo, open, non-draft PR; or manual dispatch | One Praxys-specific science, contract, parity, privacy, native-Chinese, or operations invariant comment; or no-op |
 
 The editable `.md` files and generated `.lock.yml` files both live in
-`.github/workflows/`. The agents run read-only and exchange GitHub's short-lived
-OIDC token for an Azure access token; inference goes to the existing `gpt-5.4`
-deployment through `AZURE_AI_ENDPOINT`. The `trainsight-cicd` identity already
-has `Cognitive Services OpenAI User` on that resource, and these workflows run
-from the default-branch trust subject. This avoids both organization Copilot
-billing and a long-lived model API key.
-
-Every Azure BYOK workflow sets `sandbox.agent.model-fallback: false` so gh-aw
-preserves the Azure deployment name instead of resolving it to a GitHub Copilot
-catalog alias. Keep this setting when adding or changing an Azure-backed agent
-workflow.
+`.github/workflows/`. The agents run read-only through GitHub Copilot's hosted
+`gpt-5.4` model. Usage is charged against the repository owner's Copilot AI
+credits rather than the Praxys Azure OpenAI resource.
 
 Repository writes happen only through the declared, capped `safe-outputs`, and
 each workflow also carries per-run and daily AI-credit caps. No-op,
 missing-tool, incomplete-run, and workflow-failure reports remain in Actions
-summaries rather than opening auxiliary repository issues. The workflows reuse
-the same public Azure tenant/application IDs as deployment automation plus the
-`AZURE_AI_ENDPOINT` repository variable; no new secret or PAT is required. Keep
-`AZURE_AI_ENDPOINT` terminated by `/` because the workflow appends `openai/v1`.
+summaries rather than opening auxiliary repository issues. The workflows use
+the normal Copilot workflow authorization and require no Azure identity,
+endpoint variable, model API key, or additional PAT.
 
 Install the authoring CLI, then compile and validate after editing a source file:
 
@@ -549,7 +540,7 @@ and the cost is low).
   code failure. Allow up to 20 minutes; a successful run creates the replacement
   report before closing the older report.
 - `gh aw validate` succeeds.
-- From `main`, a manual invariant review reaches Azure OpenAI through OIDC:
+- From `main`, a manual invariant review reaches GitHub Copilot:
 
   ```bash
   gh workflow run praxys-invariant-review.lock.yml \
@@ -558,15 +549,9 @@ and the cost is low).
   ```
 
 - `gh aw trial` installs the workflow and captures safe outputs in an isolated
-  private repository, but the Azure federated credential intentionally trusts
-  only this repository's default-branch subject. Model inference from a temporary
-  trial host therefore fails unless that host is separately allowlisted. Do not
-  broaden production OIDC trust only for a trial; compile and validate locally,
-  then use a manual dispatch on `main` after merge for the end-to-end check.
-
-If a dedicated trial identity is configured later, resolve the source to an
-absolute path before `gh aw trial`; trial mode changes its working directory
-after cloning the isolated host repository.
+  private repository. Resolve the source to an absolute path before running it;
+  trial mode changes its working directory after cloning the isolated host
+  repository.
 
 ```powershell
 $workflow = (Resolve-Path .github\workflows\praxys-invariant-review.md).Path
