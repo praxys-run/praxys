@@ -1,15 +1,16 @@
 name: Backend CI
 
 # Pre-merge validation gate (issues #361 and #377). Runs backend pytest and the
-# web production build on every PR targeting main so regressions are caught
-# *before* merge — not only by the post-merge deploy workflows. The final
-# `backend-tests` aggregator preserves the existing required-check context while
-# making both suites load-bearing for autonomously drafted PRs.
+# web production build, and UI quality harness on every PR targeting main so
+# regressions are caught *before* merge — not only by the post-merge deploy
+# workflows. The final `backend-tests` aggregator preserves the existing
+# required-check context while making all three gates load-bearing for
+# autonomously drafted PRs.
 #
 # Intentionally has NO `paths:` filter. This job is a *required* status check on
 # main, and a required check that a path filter skips is reported as permanently
-# "pending", which blocks the PR forever. Running both suites on every PR keeps
-# the gate always-reporting and protects cross-surface changes.
+# "pending", which blocks the PR forever. Running every gate on every PR keeps
+# the required context always-reporting and protects cross-surface changes.
 
 on:
   pull_request:
@@ -68,18 +69,50 @@ jobs:
         working-directory: web
         run: npm run build
 
+  ui-quality:
+    name: ui-quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Check changed UI files and PR evidence
+        if: github.event_name == 'pull_request'
+        env:
+          UI_PR_BODY: ${{ github.event.pull_request.body }}
+        run: >-
+          python scripts/check_ui_quality.py
+          --base "${{ github.event.pull_request.base.sha }}"
+          --head "${{ github.event.pull_request.head.sha }}"
+          --pr-body-env UI_PR_BODY
+
+      - name: Smoke-test the gate on manual runs
+        if: github.event_name == 'workflow_dispatch'
+        run: python scripts/check_ui_quality.py --base HEAD^ --head HEAD --skip-evidence
+
   # Keep this job name stable: branch protection requires `backend-tests`.
   backend-tests:
     name: backend-tests
     if: always()
-    needs: [python-tests, web-build]
+    needs: [python-tests, web-build, ui-quality]
     runs-on: ubuntu-latest
     steps:
-      - name: Require backend tests and web build
+      - name: Require backend tests, web build, and UI quality
         env:
           PYTHON_RESULT: ${{ needs.python-tests.result }}
           WEB_RESULT: ${{ needs.web-build.result }}
+          UI_RESULT: ${{ needs.ui-quality.result }}
         run: |
           set -euo pipefail
           test "$PYTHON_RESULT" = "success"
           test "$WEB_RESULT" = "success"
+          test "$UI_RESULT" = "success"

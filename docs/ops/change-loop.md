@@ -275,6 +275,15 @@ initialization must not overwrite its Python/Node test environment.
   + deps (and Node/web) and bootstraps a throwaway `.env`, so the agent can run
   `pytest` / `npm` deterministically instead of rediscovering the toolchain. It
   only takes effect once on the default branch.
+- **UI quality harness:** a user-visible web/miniapp change must invoke
+  `.github/skills/ui-quality/SKILL.md`, which routes through the vendored
+  Impeccable skill and the Praxys brand context. The committed Copilot hook
+  surfaces mechanical findings after edits. Before the ready handoff the agent
+  must inspect the rendered desktop/mobile path, complete the PR's
+  `## UI quality` evidence, and pass `scripts/check_ui_quality.py`. That gate is
+  part of the existing required `backend-tests` aggregator; a browser-less
+  agent leaves the PR draft rather than claiming verification. Full operation:
+  `docs/dev/ui-quality-harness.md`.
 - **Model selection:** which LLM the coding agent uses is an **org/repo Copilot
   setting** (Settings → Copilot → Coding agent), not a per-assignment parameter —
   do not try to pin a model in `assign-copilot.yml`. Pick it in settings.
@@ -507,6 +516,9 @@ and the cost is low).
   `config/agent-loop-policy-proposals.json`.
 - A web build failure makes the required `backend-tests` aggregator fail even
   when pytest passes.
+- A rendered web/miniapp change with an Impeccable finding, placeholder UI
+  evidence, missing desktop/mobile review, or unexplained miniapp parity fails
+  the same required `backend-tests` aggregator.
 - A manual `Change loop outcomes` run reports explicit operational tests
   separately, starts the feedback cohort from `agent-ready` issue timelines, and
   does not count `action_required` or a corroborated baseline failure as an agent

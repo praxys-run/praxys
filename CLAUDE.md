@@ -69,6 +69,10 @@ Domain-specific gotchas (Garmin sync quirks, CIQ field conventions, CN endpoint 
 ### Frontend
 - **TypeScript strict** — all API responses typed in `web/src/types/api.ts`.
 - `useApi<T>` hook for data fetching (loading / error / data states).
+- **Every user-visible change must invoke the repository `ui-quality` skill.**
+  It routes through the vendored Impeccable skill, product/design context,
+  rendered desktop/mobile review, accessibility/state coverage, parity, and the
+  CI evidence block. See `docs/dev/ui-quality-harness.md`.
 - shadcn/ui + Tailwind v4. Never use raw hex — use CSS variables or `chartColors` from `@/lib/chart-theme.ts`.
 - Every numeric value uses the `.font-data` class (JetBrains Mono, tabular-nums).
 - **Semantic palette, not just accents**: `primary` (green) = action / positive signal; `accent-cobalt` is reserved for **reasoning** surfaces (`ScienceNote`, "why this", citations). Don't use cobalt for informational chrome and don't use green for reasoning.
@@ -238,6 +242,7 @@ See `docs/dev/contributing.md` for which files to update with code changes. Key 
 - `docs/dev/architecture.md` — detailed architecture
 - `docs/dev/api-reference.md` — API endpoint contracts
 - `docs/dev/design-system.md` — design system implementation rules (translates brand guide → `web/src/`)
+- `docs/dev/ui-quality-harness.md` — mandatory Impeccable-led workflow, hooks, PR evidence, and CI gate for UI changes
 - `docs/dev/gotchas.md` — domain-specific traps
 - `docs/dev/agentic-loops.md` — how AI agents run in self-improving loops (change / incident / meta) and the shared substrate
 - `plugins/praxys/skills/*/SKILL.md` — skill instructions
@@ -248,7 +253,7 @@ For **production operations** (deploy, config & secrets, monitoring & alerts, ad
 
 ## Claude Code Automations
 
-Automations live in `.claude/` and are committed so every contributor using Claude Code sees the same behavior. See `.claude/settings.json` for post-edit hooks (run pytest on Python changes; run ESLint on web TS changes), `.claude/agents/` for subagents (`science-reviewer`, `metric-addition-reviewer`, `api-contract-reviewer` — all read-only), and `.claude/skills/` for dev-workflow skills.
+Automations live in `.claude/` and are committed so every contributor using Claude Code sees the same behavior. See `.claude/settings.json` for post-edit hooks (run pytest on Python changes; run ESLint on web TS changes; run the shared Impeccable detector on UI edits plus a stop-time deep pass), `.claude/agents/` for subagents (`science-reviewer`, `metric-addition-reviewer`, `api-contract-reviewer` — all read-only), and `.claude/skills/` for dev-workflow skills. The `ui-quality` skill points to the canonical vendored Impeccable copy in `.github/skills/impeccable/` so Claude and Copilot follow the same design policy.
 
 ## AI Skills
 

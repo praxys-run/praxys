@@ -4,6 +4,10 @@ Aligned with the **Praxys Brand Guideline v1.0** (`docs/brand/index.html`) — t
 
 If the code in `web/src/index.css` diverges from this, the brand guide wins and the code is pending an update; items still in transition are marked **→ brand target**.
 
+All user-visible changes follow the mandatory Impeccable-led workflow in
+`docs/dev/ui-quality-harness.md`; these rules are both agent context and CI
+policy, not optional review suggestions.
+
 ## Theme
 
 - Light + dark themes via `.dark` class on `<html>`. **Default is light**, matching the brand guide's print default; users can switch to dark or system via the sidebar footer toggle.

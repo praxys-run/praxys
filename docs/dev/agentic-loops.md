@@ -146,6 +146,11 @@ post-merge observation, and a fast kill switch.
   creds (the ops-agent pattern).
 - **Eval-gated policy changes + kill switch** — a policy PR must pass the replay
   eval; every loop has an off switch (shadow mode / disable workflow).
+- **UI work enters the design harness** — any rendered web/miniapp change uses
+  the repository `ui-quality` skill, Impeccable edit hooks, rendered evidence,
+  and the deterministic UI gate inside the required `backend-tests` check.
+  Implementation agents cannot self-attest with placeholders or mark an
+  unverified UI PR ready.
 
 ## 6. How it maps to the repos
 
@@ -167,7 +172,9 @@ post-merge observation, and a fast kill switch.
 `copilot-setup-steps.yml`); the shadow *primitive*; the issue-first 30-day outcome
 observer; generic `AgentDecision` / `AgentOutcome` records; GitHub issue/closing
 PR reconciliation; the checked-in replay corpus; Admin Ops learning aggregates;
-`feedback_scrub` + private-by-construction guardrails; the ops-agent skeleton.
+`feedback_scrub` + private-by-construction guardrails; the ops-agent skeleton;
+and the cross-agent UI quality harness (vendored Impeccable, Copilot/Claude
+hooks, PR evidence, CI gate, and invariant review).
 
 **Remaining generalization:** reuse these rails for incident and product loops,
 grow privacy-safe eval corpora, and promote a narrow Loop A class only after it

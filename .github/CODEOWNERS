@@ -56,3 +56,13 @@
 /.claude/agents/science-reviewer.md             @dddtc2005
 /config/agent-loop-policies.json                @dddtc2005
 /data/agent_evals/change/review_promotion.json  @dddtc2005
+
+# The UI harness is agent policy and a required-check input. Changes need the
+# same maintainer review as other autonomy controls.
+/.github/hooks/impeccable.json                   @dddtc2005
+/.github/instructions/ui-quality.instructions.md @dddtc2005
+/.github/skills/impeccable/                      @dddtc2005
+/.github/skills/ui-quality/                      @dddtc2005
+/.impeccable/config.json                         @dddtc2005
+/scripts/check_ui_quality.py                     @dddtc2005
+/docs/dev/ui-quality-harness.md                  @dddtc2005
