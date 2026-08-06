@@ -275,6 +275,31 @@ class TestPlannedTodayContext:
             "alternatives": ["Walk only"],
         }
 
+    def test_recent_training_keeps_at_most_twelve_weeks(self, monkeypatch):
+        from api.ai import _build_context_from_data
+        from analysis.config import UserConfig
+
+        monkeypatch.setattr("api.ai.load_config", lambda: UserConfig())
+        today = date.today()
+        data = self._empty_data([])
+        data["activities"] = [
+            {
+                "date": (today - timedelta(weeks=11)).isoformat(),
+                "distance_km": 10.0,
+                "rss": 50.0,
+            },
+            {
+                "date": (today - timedelta(weeks=13)).isoformat(),
+                "distance_km": 20.0,
+                "rss": 100.0,
+            },
+        ]
+
+        recent = _build_context_from_data(data)["recent_training"]
+
+        assert [session["distance_km"] for session in recent["sessions"]] == [10.0]
+        assert sum(week["sessions"] for week in recent["weekly_summary"]) == 1
+
     def test_readiness_comes_from_recovery_analysis(self, monkeypatch):
         """Readiness is not part of the signal's display projection."""
         from api.ai import _build_context_from_data

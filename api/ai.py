@@ -101,8 +101,8 @@ def _build_context_from_data(data: dict, *, user_id: str | None = None, db=None)
         "race_countdown": data.get("race_countdown", {}),
     }
 
-    # -- Recent training (last 8 weeks of individual sessions + splits) --
-    cutoff = (today - timedelta(weeks=8)).isoformat()
+    # -- Recent training (up to 12 weeks for full build-cycle reviews) --
+    cutoff = (today - timedelta(weeks=12)).isoformat()
     all_activities = data.get("activities", [])
     recent_sessions = [
         a for a in all_activities
