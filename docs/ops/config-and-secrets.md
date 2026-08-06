@@ -90,12 +90,16 @@ and synthetic sandbox preparation. The cloud config's literal
 virtualenv unless `PRAXYS_MCP_PYTHON` is explicitly set.
 
 The cloud agent's **Start MCP Servers** step does not guarantee the repository
-root as its working directory. The setup workflow therefore installs
-`scripts/run_praxys_mcp_cloud.sh` as `/usr/local/bin/praxys-local-mcp`. That
-launcher changes to `GITHUB_WORKSPACE` and exports
-`PRAXYS_MCP_USE_CURRENT_PYTHON=1` before starting the repository module. Keep
-the cloud payload pointed at the installed command; relying on an MCP `env`
-entry for the interpreter flag, or using
+root as its working directory or propagate `GITHUB_WORKSPACE` to the MCP
+process. The setup workflow therefore symlinks
+`/usr/local/bin/praxys-local-mcp` to
+`scripts/run_praxys_mcp_cloud.sh` in the checked-out workspace. The launcher
+resolves that symlink to derive the repository root, changes there, and exports
+`PRAXYS_MCP_USE_CURRENT_PYTHON=1` before starting the repository module. The
+plugin pins `mcp==1.28.1`, and setup verifies the exact
+`mcp.server.fastmcp.FastMCP` import used by its server. Keep the cloud payload
+pointed at the installed command; relying on inherited MCP environment
+variables, or using
 `python -m scripts.run_praxys_mcp` directly can silently leave every
 `praxys-local` tool unregistered.
 

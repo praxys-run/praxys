@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-workspace="${GITHUB_WORKSPACE:-}"
-if [[ -z "$workspace" ]]; then
-  echo "GITHUB_WORKSPACE is required to start praxys-local." >&2
-  exit 1
-fi
-
+script_path="$(readlink -f "${BASH_SOURCE[0]}")"
+workspace="$(cd "$(dirname "$script_path")/.." && pwd)"
 launcher="$workspace/scripts/run_praxys_mcp.py"
 if [[ ! -f "$launcher" ]]; then
   echo "Praxys MCP launcher not found at $launcher." >&2

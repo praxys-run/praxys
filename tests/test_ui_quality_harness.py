@@ -224,7 +224,8 @@ def test_ui_mcp_configs_are_pinned_and_cloud_safe():
     wrapper = (
         ROOT / "scripts" / "run_praxys_mcp_cloud.sh"
     ).read_text(encoding="utf-8")
-    assert 'workspace="${GITHUB_WORKSPACE:-}"' in wrapper
+    assert 'readlink -f "${BASH_SOURCE[0]}"' in wrapper
+    assert "GITHUB_WORKSPACE" not in wrapper
     assert 'cd "$workspace"' in wrapper
     assert "export PRAXYS_MCP_USE_CURRENT_PYTHON=1" in wrapper
     assert 'exec python -m scripts.run_praxys_mcp local "$@"' in wrapper
@@ -235,5 +236,15 @@ def test_ui_mcp_configs_are_pinned_and_cloud_safe():
     assert "submodules: true" in setup
     assert "plugins/praxys/mcp-server/requirements.txt" in setup
     assert "chrome-devtools-mcp@1.6.0 --version" in setup
+    assert "from mcp.server.fastmcp import FastMCP" in setup
+    assert (
+        '"$GITHUB_WORKSPACE/scripts/run_praxys_mcp_cloud.sh"'
+        in setup
+    )
     assert "/usr/local/bin/praxys-local-mcp" in setup
     assert "praxys-local-mcp --prepare-only" in setup
+
+    plugin_requirements = (
+        ROOT / "plugins" / "praxys" / "mcp-server" / "requirements.txt"
+    ).read_text(encoding="utf-8")
+    assert "mcp==1.28.1" in plugin_requirements.splitlines()
