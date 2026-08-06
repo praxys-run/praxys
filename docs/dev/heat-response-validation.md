@@ -28,8 +28,19 @@ python scripts\validate_heat_response.py --input private-dataset.json --format m
 ```
 
 The script never fetches data. By default it writes only an aggregate report
-to stdout. `--output` is the only report-file write. Reports exclude activity
-IDs and dates, and the CLI does not log raw records.
+to stdout. `--output` is the only report-file write. The **input contains
+private activity IDs and dates** needed for duplicate detection and
+chronological partitioning. The **report excludes activity IDs, dates, and
+activity records**, and the CLI does not log raw records.
+
+`dataset_hash` is required even for an empty export. Before analysis, the
+validator recomputes the API's canonical dataset-core hash over every
+top-level key except `dataset_hash` and `generated_at`, using JSON
+`sort_keys=True`, separators `(",", ":")`, `ensure_ascii=True`, and the
+`sha256:`-prefixed SHA-256 digest. Missing or stale hashes are rejected. A
+legitimate API response with `records=[]`, `total=0`, and
+`model_versions.heat_adaptation=[]` produces a normal privacy-safe withheld
+report with insufficiency gates rather than an input error.
 
 Pagination metadata is required. `total`, `limit`, and `offset` must be JSON
 integers; `total` and `offset` must be non-negative, and `limit` must match the
@@ -39,7 +50,9 @@ rather than analyzed as complete. Only exactly `offset=0` passes the first-page
 gate. A valid nonzero page is reported unavailable because it would omit the
 latest activities needed for the chronological holdout. The report states the
 analyzed page's counts and does not imply that it covers the athlete's complete
-history.
+history. Any pagination-valid page with zero records, including
+`offset >= total`, may carry an empty heat-adaptation version manifest and
+produces normal withheld gates rather than an input error.
 
 ## Eligible observations
 
@@ -56,7 +69,8 @@ segments. It excludes:
   method (a proxy, **not WBGT**);
 - missing or invalid segment source/stability, mean power, mean %CP, mean HR,
   HR slope, HR-at-power decoupling, duration, start offset, sample coverage,
-  power CV, power provider, or HR provider;
+  power CV, power provider, or HR provider; `mixed`, `unknown`, and
+  `unverified` provider sentinels can never satisfy provider consistency;
 - unavailable, non-positive, undated, same-day/future, or
   provenance-incompatible pre-activity critical power, including any
   selection other than `latest_strictly_before_activity_date`;
@@ -66,6 +80,19 @@ segments. It excludes:
 - unstable, low-coverage, short, warmup, or out-of-band segments.
 
 Activity `avg_power` is never used.
+
+Power-provider and HR-provider provenance is retained on each internal
+eligible row. The report exposes only aggregate provider-combination labels
+with activity and segment counts. A decision-required consistency gate fails
+when more than one power/HR provider regime is present, so mixed sensor
+regimes cannot reach `eligible_for_science_review`; a uniformly mixed or
+otherwise unverified sentinel regime also fails rather than appearing
+consistent. Environmental connector source is likewise retained internally
+and reported only as aggregate source/activity/segment counts. A separate
+decision-required gate requires one supported environmental connector source
+for this bounded unstratified validation, so mixed Garmin/Coros/Stryd
+environment sources withhold. No provider or source diagnostic includes
+activity IDs or dates.
 
 ## Research model
 
@@ -85,13 +112,18 @@ codes; holdout sufficiency is checked again after exclusion. Missing values
 are never silently imputed.
 
 Recovery has only a calendar date, not a true observation timestamp. The
-pipeline therefore accepts readiness only when the recovery date is strictly
-before the activity date and no older than the configurable maximum lag
-(default: the previous calendar day only). Same-day and stale recovery are not
-silently carried forward or imputed. Aggregate dated, usable, stale, missing,
-lag-range, and coverage values are reported. Recovery completeness remains an
-informational, non-decision gate: readiness may be omitted from the model
-rather than blocking the whole research analysis.
+pipeline therefore accepts readiness only when the recovery source is a
+supported non-empty connector, selection is exactly
+`latest_on_or_before_activity_date`, the reason-code list is empty, and the
+recovery date is strictly before the activity date and no older than the
+configurable maximum lag (default: the previous calendar day only). Same-day,
+stale, unsupported, or provenance-qualified recovery is not silently carried
+forward or imputed. Aggregate dated, usable, stale, missing, source, lag-range,
+coverage, and provenance-reason values are reported. If otherwise usable
+training rows contain multiple recovery sources, readiness is omitted and an
+informational provenance-consistency gate reports the aggregate mix. Recovery
+completeness and source consistency remain non-decision gates: readiness may
+be omitted from the model rather than blocking the whole research analysis.
 
 The primary model never includes qualitative heat-adaptation stage and never
 uses it to modify the acute heat slope. When every eligible activity has
@@ -128,30 +160,47 @@ Sensitivity analyses vary:
 - wet bulb versus temperature-only heat representation;
 - lower and higher critical-power assumptions (default: ±5%).
 
-The negative control permutes environmental exposure at the activity level,
-separately within train and test, using a fixed seed.
+The negative control builds a deterministic fixed-seed distribution from
+configurable repeated activity-level permutations, separately within train
+and test. It requires a configurable minimum valid count and fraction. The
+decision gate compares the observed holdout MAE margin and absolute heat
+coefficient against the aggregate permutation distribution using predeclared,
+estimate-labeled support fractions. It is descriptive falsification only, not
+a causal test or personal correction. Permutation-method reference: Ernst,
+<https://doi.org/10.1214/088342304000000396>.
+
+Directional sign agreement includes temperature-only and every other
+available heat representation. Only coefficient-magnitude ranges exclude
+representations whose units or scales are not comparable to wet-bulb °C.
 
 Sensitivity coverage is itself decision-required. The report counts all
 planned variants, unavailable variant names, the available fraction, and the
 effective configurable minimum count/fraction. Coefficient stability is
 reported inconclusive and science-review eligibility is withheld when too few
 planned variants are available; unavailable permissive variants are never
-silently dropped from the denominator.
+silently dropped from the denominator. The coefficient-stability gate is
+`fail` only for evaluated instability after sufficient bootstrap and
+sensitivity statistics exist; missing bootstrap or required sensitivity
+coverage remains `unavailable`.
 
 Eligibility for science review also requires configurable research
 falsification choices: gross chronological-holdout error must stay below its
 configured ceiling, and the primary model must be at least non-worse than (or
 beat by the configured margin) both an otherwise-identical no-heat model and
-the activity-level permuted control. These are model-performance falsification
-choices, not physiological claims.
+the configured fraction of the activity-level permutation distribution, while
+its absolute heat coefficient must be at least as extreme as the configured
+fraction of permuted coefficients. Evaluated contradictions are reported as
+`fail`; `unavailable` is reserved for controls that could not be evaluated.
+Either status withholds the recommendation. These are model-performance
+falsification choices, not physiological claims.
 
 Minimum observations, segments, holdout size, training and evaluated-holdout
 environmental spread, HR/HR slope/decoupling bounds, %CP consistency tolerance,
-falsification margins, bootstrap and sensitivity coverage, coefficient-
-stability criteria, and regularization settings are configurable **research
-estimates or method choices**, not accepted product gates. Heat-adaptation
-availability and dated recovery are informational. The only recommendations
-are:
+falsification margins and support fractions, bootstrap, permutation and
+sensitivity coverage, coefficient-stability criteria, provider consistency,
+and regularization settings are configurable **research estimates or method
+choices**, not accepted product gates. Heat-adaptation availability and dated
+recovery are informational. The only recommendations are:
 
 - `withhold_personal_estimate`
 - `eligible_for_science_review`

@@ -7,9 +7,12 @@ activity identifiers or dates in its report.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from collections import Counter
 from dataclasses import dataclass, replace
 from datetime import date, timedelta
+import hashlib
+import json
 import math
 from typing import Any
 
@@ -29,6 +32,16 @@ SUPPORTED_ENVIRONMENT_SOURCES = frozenset({
     "coros_activity_weather",
     "garmin_activity_weather",
     "stryd_activity_weather",
+})
+SUPPORTED_RECOVERY_SOURCES = frozenset({
+    "coros",
+    "garmin",
+    "oura",
+})
+_UNVERIFIED_PROVIDER_SENTINELS = frozenset({
+    "mixed",
+    "unknown",
+    "unverified",
 })
 
 _MISMATCH_REASON_CODES = frozenset({
@@ -100,10 +113,15 @@ class HeatValidationConfig:
     maximum_holdout_mae_bpm: float = 10.0
     minimum_holdout_mae_improvement_vs_no_heat_bpm: float = 0.0
     minimum_holdout_mae_improvement_vs_permuted_bpm: float = 0.0
+    minimum_permutation_mae_support_fraction: float = 0.80
+    minimum_permutation_coefficient_support_fraction: float = 0.80
     ridge_alpha: float = 4.0
     bootstrap_iterations: int = 300
     minimum_bootstrap_valid_resamples: int = 50
     minimum_bootstrap_valid_fraction: float = 0.80
+    permutation_iterations: int = 300
+    minimum_permutation_valid_count: int = 50
+    minimum_permutation_valid_fraction: float = 0.80
     random_seed: int = 523
     eligible_activity_types: tuple[str, ...] = (
         "run",
@@ -131,6 +149,10 @@ class _SegmentRow:
     pre_activity_tsb: float | None
     recovery_readiness_score: float | None
     adaptation_evidence: float | None
+    power_provider: str
+    heart_rate_provider: str
+    environment_source: str
+    recovery_source: str | None
 
 
 @dataclass(frozen=True)
@@ -143,6 +165,7 @@ class _Flattened:
     recovery_usable_activity_count: int
     recovery_dated_activity_count: int
     recovery_observed_lag_days: tuple[int, ...]
+    recovery_provenance_reason_counts: dict[str, int]
     adaptation_known_activity_count: int
     input_total: int
     input_limit: int
@@ -193,9 +216,14 @@ def validate_heat_response(
         if model["status"] == "available"
         else None
     )
+    stability_evaluated = _coefficient_stability_evaluated(
+        primary,
+        stability,
+    )
     primary["gates"]["coefficient_stability"] = _gate(
         (
-            stability is not None
+            stability_evaluated
+            and stability is not None
             and stability["classification"]
             == "directionally_stable_research_estimate"
         ),
@@ -208,8 +236,13 @@ def validate_heat_response(
             "minimum_sensitivity_available_fraction":
                 selected.minimum_sensitivity_available_fraction,
         },
-        reason_code="heat_coefficient_stability_insufficient",
+        reason_code=(
+            "heat_coefficient_stability_insufficient"
+            if stability_evaluated
+            else "heat_coefficient_stability_unavailable"
+        ),
         decision_required=True,
+        evaluated=stability_evaluated,
     )
     exploratory_adaptation = _exploratory_adaptation_analysis(
         primary,
@@ -245,7 +278,10 @@ def validate_heat_response(
         "private_athlete_run_human_science_review_and_superseding_sdr_required",
         "no_user_facing_api_or_ui_authorized",
     ]
-    if primary["gates"]["dated_recovery"]["status"] != "pass":
+    if (
+        primary["gates"]["dated_recovery"]["status"] != "pass"
+        or primary["gates"]["recovery_source_consistency"]["status"] != "pass"
+    ):
         limitations.append("dated_recovery_context_incomplete")
     if exploratory_adaptation["status"] != "available":
         limitations.append(
@@ -267,9 +303,11 @@ def validate_heat_response(
                 "pre_activity_load": PRE_ACTIVITY_LOAD_MODEL_VERSION,
                 "heat_adaptation": HEAT_ADAPTATION_MODEL_VERSION,
             },
-            "raw_records_included": False,
-            "activity_ids_included": False,
-            "activity_dates_included": False,
+            "input_contains_private_activity_ids": True,
+            "input_contains_private_activity_dates": True,
+            "report_includes_activity_records": False,
+            "report_includes_activity_ids": False,
+            "report_includes_activity_dates": False,
         },
         "research_configuration": _configuration_report(selected),
         "methodology": {
@@ -304,6 +342,20 @@ def validate_heat_response(
                     "otherwise_identical_no_heat_baseline",
                     "activity_level_permuted_environment_negative_control",
                 ],
+                "permutation_negative_control": {
+                    "method": (
+                        "deterministic_activity_level_permutation_"
+                        "distribution_within_train_and_test"
+                    ),
+                    "classification": "research_method_choice",
+                    "source": (
+                        "https://doi.org/10.1214/088342304000000396"
+                    ),
+                    "claim_limit": (
+                        "Descriptive falsification diagnostic only; it does "
+                        "not identify a causal heat effect."
+                    ),
+                },
             },
         },
         "data_coverage": primary["data_coverage"],
@@ -347,6 +399,9 @@ def render_heat_response_markdown(report: dict[str, Any]) -> str:
         "**Mode:** Research-only/offline. This report does not authorize a "
         "personal estimate or product change.",
         "",
+        "**Privacy:** The private input contains activity IDs and dates; this "
+        "aggregate report excludes both.",
+        "",
         "## Purpose",
         "",
         report["purpose"],
@@ -370,6 +425,14 @@ def render_heat_response_markdown(report: dict[str, Any]) -> str:
             f"/{recovery_coverage['eligible_activity_count']} activities; "
             "observed lag days "
             f"{_display(recovery_coverage['observed_lag_days'])}"
+        ),
+        (
+            "- Provider regimes: "
+            f"{_display(coverage['provider_regimes']['combinations'])}"
+        ),
+        (
+            "- Environmental sources: "
+            f"{_display(coverage['environment_sources']['sources'])}"
         ),
         "",
         "## Research gates",
@@ -461,11 +524,16 @@ def render_heat_response_markdown(report: dict[str, Any]) -> str:
     lines.extend(["", "## Negative control", ""])
     if negative["status"] == "available":
         lines.append(
-            "Environmental exposure was permuted at the activity level with "
-            f"fixed seed {negative['random_seed']}. The permuted heat "
-            f"coefficient was "
-            f"{_display(negative['heat_coefficient_bpm_per_c'])} bpm/°C "
-            f"with test MAE {_display(negative['test_mae_bpm'])} bpm."
+            "Environmental exposure was permuted at the activity level "
+            "within train and test to form a deterministic distribution with "
+            f"seed {negative['random_seed']}: "
+            f"{negative['valid_iterations']}/"
+            f"{negative['requested_iterations']} valid iterations. "
+            "The primary model met the configured MAE margin in "
+            f"{_display(negative['observed_comparison']['mae_support_fraction'])} "
+            "of permutations and had at least as large an absolute heat "
+            "coefficient in "
+            f"{_display(negative['observed_comparison']['coefficient_support_fraction'])}."
         )
     else:
         lines.append(
@@ -537,6 +605,8 @@ def _validate_config(config: HeatValidationConfig) -> None:
         config.ridge_alpha,
         config.bootstrap_iterations,
         config.minimum_bootstrap_valid_resamples,
+        config.permutation_iterations,
+        config.minimum_permutation_valid_count,
     )
     if any(value <= 0 for value in numeric_positive):
         raise ValueError("Heat validation research configuration must be positive")
@@ -558,6 +628,20 @@ def _validate_config(config: HeatValidationConfig) -> None:
     if not 0 < config.minimum_bootstrap_valid_fraction <= 1:
         raise ValueError(
             "minimum_bootstrap_valid_fraction must be between zero and one"
+        )
+    if not 0 < config.minimum_permutation_valid_fraction <= 1:
+        raise ValueError(
+            "minimum_permutation_valid_fraction must be between zero and one"
+        )
+    if not 0 < config.minimum_permutation_mae_support_fraction <= 1:
+        raise ValueError(
+            "minimum_permutation_mae_support_fraction must be between "
+            "zero and one"
+        )
+    if not 0 < config.minimum_permutation_coefficient_support_fraction <= 1:
+        raise ValueError(
+            "minimum_permutation_coefficient_support_fraction must be "
+            "between zero and one"
         )
     if not 0 < config.critical_power_sensitivity_fraction < 1:
         raise ValueError(
@@ -585,6 +669,12 @@ def _validate_config(config: HeatValidationConfig) -> None:
         "maximum_recovery_lag_days": config.maximum_recovery_lag_days,
         "minimum_sensitivity_available_count":
             config.minimum_sensitivity_available_count,
+        "bootstrap_iterations": config.bootstrap_iterations,
+        "minimum_bootstrap_valid_resamples":
+            config.minimum_bootstrap_valid_resamples,
+        "permutation_iterations": config.permutation_iterations,
+        "minimum_permutation_valid_count":
+            config.minimum_permutation_valid_count,
     }
     for name, value in integer_config.items():
         if isinstance(value, bool) or not isinstance(value, int):
@@ -649,11 +739,53 @@ def _validate_dataset(dataset: dict[str, Any]) -> None:
     heat_versions = versions.get("heat_adaptation")
     if (
         not isinstance(heat_versions, list)
-        or HEAT_ADAPTATION_MODEL_VERSION not in heat_versions
+        or (
+            HEAT_ADAPTATION_MODEL_VERSION not in heat_versions
+            and not (
+                expected_records == 0
+                and records == []
+                and heat_versions == []
+            )
+        )
     ):
         raise HeatValidationInputError(
             "Input heat-adaptation model version is unsupported"
         )
+    _validate_dataset_hash(dataset)
+
+
+def _validate_dataset_hash(dataset: dict[str, Any]) -> None:
+    supplied = dataset.get("dataset_hash")
+    if not isinstance(supplied, str) or not supplied:
+        raise HeatValidationInputError("Input dataset_hash is required")
+    expected = _dataset_hash(dataset)
+    if supplied != expected:
+        raise HeatValidationInputError(
+            "Input dataset_hash does not match the dataset contents"
+        )
+
+
+def _dataset_hash(dataset: dict[str, Any]) -> str:
+    # Reproduce api.packs._analysis_hash without importing API modules:
+    # hash every top-level core key except dataset_hash/generated_at using
+    # canonical JSON, then prefix the SHA-256 hex digest with ``sha256:``.
+    core = {
+        key: value
+        for key, value in dataset.items()
+        if key not in {"dataset_hash", "generated_at"}
+    }
+    try:
+        encoded = json.dumps(
+            core,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise HeatValidationInputError(
+            "Input dataset core is not canonical JSON"
+        ) from exc
+    return "sha256:" + hashlib.sha256(encoded).hexdigest()
 
 
 def _flatten_dataset(
@@ -668,6 +800,7 @@ def _flatten_dataset(
     input_segments = 0
     recovery_usable_keys: set[str] = set()
     recovery_lag_by_key: dict[str, int] = {}
+    recovery_provenance_reasons_by_key: dict[str, tuple[str, ...]] = {}
     adaptation_known_keys: set[str] = set()
     eligible_activity_keys: set[str] = set()
     seen_activity_keys: set[str] = set()
@@ -701,6 +834,7 @@ def _flatten_dataset(
         input_segments += len(segments)
 
         reasons: list[str] = []
+        environment_source: str | None = None
         if activity_id is None or source is None:
             reasons.append("activity_identity_missing")
             activity_key = ""
@@ -793,6 +927,7 @@ def _flatten_dataset(
             or not isinstance(environment, dict)
             or critical_power is None
             or critical_power_provider is None
+            or environment_source is None
         ):
             continue
 
@@ -805,7 +940,13 @@ def _flatten_dataset(
         load = context.get("load")
         tsb = _load_context(load, activity_date)
         recovery = context.get("recovery")
-        recovery_usable, readiness, recovery_lag_days = _recovery_context(
+        (
+            recovery_usable,
+            readiness,
+            recovery_lag_days,
+            recovery_source,
+            recovery_provenance_reasons,
+        ) = _recovery_context(
             recovery,
             activity_date,
             maximum_lag_days=config.maximum_recovery_lag_days,
@@ -814,6 +955,10 @@ def _flatten_dataset(
             recovery_lag_by_key[activity_key] = recovery_lag_days
         if recovery_usable:
             recovery_usable_keys.add(activity_key)
+        if recovery_provenance_reasons:
+            recovery_provenance_reasons_by_key[activity_key] = (
+                recovery_provenance_reasons
+            )
         adaptation = context.get("heat_adaptation")
         adaptation_value = _adaptation_context(
             adaptation,
@@ -843,12 +988,18 @@ def _flatten_dataset(
             mean_pct_cp = _number(segment.get("mean_pct_cp"))
             start_offset = _number(segment.get("start_offset_sec"))
             duration = _number(segment.get("duration_sec"))
+            power_provider = _text(segment.get("power_provider"))
+            heart_rate_provider = _text(
+                segment.get("heart_rate_provider")
+            )
             if (
                 mean_hr is None
                 or mean_power is None
                 or mean_pct_cp is None
                 or start_offset is None
                 or duration is None
+                or power_provider is None
+                or heart_rate_provider is None
             ):
                 continue
             adjusted_critical_power = (
@@ -873,6 +1024,10 @@ def _flatten_dataset(
                 pre_activity_tsb=tsb,
                 recovery_readiness_score=readiness,
                 adaptation_evidence=adaptation_value,
+                power_provider=power_provider.casefold(),
+                heart_rate_provider=heart_rate_provider.casefold(),
+                environment_source=environment_source.casefold(),
+                recovery_source=recovery_source,
             ))
             eligible_activity_keys.add(activity_key)
 
@@ -882,6 +1037,11 @@ def _flatten_dataset(
         for key in eligible_activity_keys
         if key in recovery_lag_by_key
     ))
+    recovery_provenance_reason_counts: Counter[str] = Counter()
+    for key in eligible_activity_keys:
+        recovery_provenance_reason_counts.update(
+            recovery_provenance_reasons_by_key.get(key, ())
+        )
     return _Flattened(
         rows=tuple(rows),
         input_record_count=len(dataset["records"]),
@@ -893,6 +1053,9 @@ def _flatten_dataset(
         ),
         recovery_dated_activity_count=len(eligible_recovery_lags),
         recovery_observed_lag_days=eligible_recovery_lags,
+        recovery_provenance_reason_counts=dict(sorted(
+            recovery_provenance_reason_counts.items()
+        )),
         adaptation_known_activity_count=len(
             adaptation_known_keys & eligible_activity_keys
         ),
@@ -1071,6 +1234,19 @@ def _analyze_rows(
     adaptation_counts["unavailable_all_eligible"] = (
         len(activity_keys) - flattened.adaptation_known_activity_count
     )
+    provider_regimes = _provider_regime_summary(rows)
+    environment_sources = _source_summary(
+        rows,
+        lambda row: row.environment_source,
+    )
+    recovery_sources = _source_summary(
+        rows,
+        lambda row: row.recovery_source,
+    )
+    training_recovery_sources = _source_summary(
+        train_rows,
+        lambda row: row.recovery_source,
+    )
     initial_train_keys = {row.activity_key for row in train_rows}
     initial_test_keys = {
         row.activity_key for row in candidate_test_rows
@@ -1148,6 +1324,42 @@ def _analyze_rows(
             reason_code="holdout_environmental_spread_not_evaluated",
             decision_required=True,
         ),
+        "provider_regime_consistency": _gate(
+            (
+                provider_regimes["combination_count"] == 1
+                and not provider_regimes.get("unverified_providers")
+            ),
+            observed=provider_regimes,
+            estimate={
+                "required_provider_combination_count": 1,
+                "scope": "all_eligible_segments",
+            },
+            reason_code=(
+                "unverified_provider_sentinel"
+                if provider_regimes.get("unverified_providers")
+                else "mixed_provider_sensor_regimes"
+                if activity_keys
+                else "provider_regime_unavailable"
+            ),
+            decision_required=True,
+            evaluated=bool(activity_keys),
+        ),
+        "environment_source_consistency": _gate(
+            environment_sources["source_count"] == 1,
+            observed=environment_sources,
+            estimate={
+                "required_environment_source_count": 1,
+                "scope": "all_eligible_segments",
+                "stratification": "not_configured",
+            },
+            reason_code=(
+                "mixed_environment_connector_sources"
+                if environment_sources["source_count"] > 1
+                else "environment_source_unavailable"
+            ),
+            decision_required=True,
+            evaluated=bool(activity_keys),
+        ),
         "heat_adaptation_exploratory_availability": _gate(
             (
                 adaptation_counts["evidence"] >=
@@ -1186,6 +1398,21 @@ def _analyze_rows(
             reason_code="usable_dated_recovery_missing",
             decision_required=False,
         ),
+        "recovery_source_consistency": _gate(
+            training_recovery_sources["source_count"] == 1,
+            observed=training_recovery_sources,
+            estimate={
+                "required_training_recovery_source_count": 1,
+                "scope": "eligible_training_rows",
+            },
+            reason_code=(
+                "mixed_recovery_source_provenance"
+                if training_recovery_sources["source_count"] > 1
+                else "recovery_source_provenance_unavailable"
+            ),
+            decision_required=False,
+            evaluated=training_recovery_sources["source_count"] > 0,
+        ),
     }
 
     coverage = {
@@ -1220,9 +1447,16 @@ def _analyze_rows(
             "observed_lag_days": recovery_lag_summary,
             "maximum_recovery_lag_days":
                 config.maximum_recovery_lag_days,
+            "provenance_reason_counts":
+                flattened.recovery_provenance_reason_counts,
+            "usable_source_counts": recovery_sources,
+            "training_usable_source_counts":
+                training_recovery_sources,
         },
         "known_heat_adaptation_activity_count":
             flattened.adaptation_known_activity_count,
+        "provider_regimes": provider_regimes,
+        "environment_sources": environment_sources,
     }
     exclusions = {
         "excluded_activity_reason_counts":
@@ -1619,6 +1853,20 @@ def _select_features(
         train_values = [
             getter(row) for row in train_rows if getter(row) is not None
         ]
+        if name == "recovery_readiness_score":
+            recovery_sources = _source_summary(
+                train_rows,
+                lambda row: row.recovery_source,
+            )
+            if recovery_sources["source_count"] > 1:
+                omissions.append({
+                    "predictor": name,
+                    "reason_code":
+                        "mixed_recovery_source_provenance",
+                    "missing_activity_count": len(missing_activities),
+                    "source_counts": recovery_sources["sources"],
+                })
+                continue
         if missing_activities:
             omissions.append({
                 "predictor": name,
@@ -1842,59 +2090,125 @@ def _negative_control(
     config: HeatValidationConfig,
     primary: dict[str, Any],
 ) -> dict[str, Any]:
+    method = (
+        "deterministic_activity_level_permutation_distribution_"
+        "separately_within_train_and_test"
+    )
+    source = "https://doi.org/10.1214/088342304000000396"
     if primary["model"]["status"] != "available":
         return {
             "status": "unavailable",
             "reason_codes": ["primary_model_unavailable"],
+            "method": method,
+            "method_source": source,
             "random_seed": config.random_seed + 1,
+            "requested_iterations": config.permutation_iterations,
+            "valid_iterations": 0,
         }
     internal = primary["_internal"]
     train_rows = internal["train_rows"]
     test_rows = internal["test_rows"]
     rng = np.random.default_rng(config.random_seed + 1)
-    permuted_train = _permute_activity_exposure(train_rows, rng)
-    permuted_test = _permute_activity_exposure(test_rows, rng)
-    fit = _fit_model(
-        permuted_train,
-        permuted_test,
-        internal["feature_names"],
-        heat_representation="wet_bulb_c",
-        heat_center=internal["heat_center"],
-        ridge_alpha=config.ridge_alpha,
+    permuted_mae: list[float] = []
+    permuted_coefficients: list[float] = []
+    coefficient_index = internal["feature_names"].index("wet_bulb_c")
+    # Whole-activity randomization retains within-activity segment clustering.
+    # Method reference: Ernst (2004),
+    # https://doi.org/10.1214/088342304000000396
+    for _ in range(config.permutation_iterations):
+        permuted_train = _permute_activity_exposure(train_rows, rng)
+        permuted_test = _permute_activity_exposure(test_rows, rng)
+        fit = _fit_model(
+            permuted_train,
+            permuted_test,
+            internal["feature_names"],
+            heat_representation="wet_bulb_c",
+            heat_center=internal["heat_center"],
+            ridge_alpha=config.ridge_alpha,
+        )
+        coefficient = float(fit.coefficients[coefficient_index])
+        test_mae = _metrics(
+            permuted_test,
+            fit.test_predictions,
+        )["mae_bpm"]
+        if (
+            test_mae is None
+            or not math.isfinite(float(test_mae))
+            or not math.isfinite(coefficient)
+        ):
+            continue
+        permuted_mae.append(float(test_mae))
+        permuted_coefficients.append(coefficient)
+    valid_count = len(permuted_mae)
+    valid_fraction = valid_count / config.permutation_iterations
+    required_valid_count = max(
+        config.minimum_permutation_valid_count,
+        int(math.ceil(
+            config.permutation_iterations
+            * config.minimum_permutation_valid_fraction
+        )),
     )
-    coefficient = float(fit.coefficients[
-        internal["feature_names"].index("wet_bulb_c")
-    ])
+    primary_mae = primary["model"]["performance"]["test"]["mae_bpm"]
     primary_coefficient = primary["model"][
         "heat_stress_coefficient"
     ]["estimate_bpm_per_c"]
-    ratio = (
-        abs(coefficient) / abs(float(primary_coefficient))
-        if primary_coefficient not in (None, 0)
-        else None
-    )
-    return {
-        "status": "available",
-        "method": (
-            "permute_environmental_exposure_between_activities_separately_"
-            "within_train_and_test"
-        ),
+    base = {
+        "method": method,
+        "method_source": source,
+        "method_classification": "research_method_choice",
         "random_seed": config.random_seed + 1,
-        "heat_coefficient_bpm_per_c": _rounded(coefficient),
-        "test_mae_bpm": _metrics(
-            permuted_test,
-            fit.test_predictions,
-        )["mae_bpm"],
-        "test_rmse_bpm": _metrics(
-            permuted_test,
-            fit.test_predictions,
-        )["rmse_bpm"],
-        "absolute_coefficient_ratio_vs_primary": _rounded(ratio),
+        "requested_iterations": config.permutation_iterations,
+        "valid_iterations": valid_count,
+        "valid_fraction": _rounded(valid_fraction, 4),
+        "validity_estimate": {
+            "minimum_valid_count":
+                config.minimum_permutation_valid_count,
+            "minimum_valid_fraction":
+                config.minimum_permutation_valid_fraction,
+            "effective_required_valid_count": required_valid_count,
+        },
         "interpretation": (
-            "A negative-control diagnostic only. A smaller permuted "
-            "coefficient is supportive but does not establish causality or "
-            "validate a personal product estimate."
+            "A descriptive negative-control distribution only. Better "
+            "observed holdout behavior and a more extreme absolute heat "
+            "coefficient are supportive falsification diagnostics, not "
+            "causal evidence or validation of a personal product estimate."
         ),
+    }
+    if valid_count < required_valid_count:
+        return {
+            **base,
+            "status": "unavailable",
+            "reason_codes": ["permutation_valid_iterations_insufficient"],
+        }
+    mae_support = sum(
+        value - float(primary_mae)
+        >= config.minimum_holdout_mae_improvement_vs_permuted_bpm
+        for value in permuted_mae
+    ) / valid_count
+    coefficient_support = sum(
+        abs(value) <= abs(float(primary_coefficient))
+        for value in permuted_coefficients
+    ) / valid_count
+    return {
+        **base,
+        "status": "available",
+        "distribution": {
+            "test_mae_bpm": _distribution_summary(permuted_mae),
+            "absolute_heat_coefficient_bpm_per_c":
+                _distribution_summary([
+                    abs(value) for value in permuted_coefficients
+                ]),
+        },
+        "observed_comparison": {
+            "primary_test_mae_bpm": primary_mae,
+            "primary_absolute_heat_coefficient_bpm_per_c":
+                _rounded(abs(float(primary_coefficient))),
+            "minimum_mae_improvement_bpm":
+                config.minimum_holdout_mae_improvement_vs_permuted_bpm,
+            "mae_support_fraction": _rounded(mae_support, 4),
+            "coefficient_support_fraction":
+                _rounded(coefficient_support, 4),
+        },
     }
 
 
@@ -1923,6 +2237,7 @@ def _add_falsification_gates(
                 classification=(
                     "research_falsification_choice_not_physiology_claim"
                 ),
+                evaluated=False,
             )
         return
 
@@ -1935,15 +2250,15 @@ def _add_falsification_gates(
         if no_heat_mae is not None and primary_mae is not None
         else None
     )
-    permuted_mae = (
-        negative_control.get("test_mae_bpm")
-        if negative_control.get("status") == "available"
-        else None
+    negative_available = negative_control.get("status") == "available"
+    negative_comparison = (
+        negative_control.get("observed_comparison", {})
+        if negative_available
+        else {}
     )
-    permuted_improvement = (
-        float(permuted_mae) - float(primary_mae)
-        if permuted_mae is not None and primary_mae is not None
-        else None
+    mae_support = negative_comparison.get("mae_support_fraction")
+    coefficient_support = negative_comparison.get(
+        "coefficient_support_fraction"
     )
     classification = (
         "research_falsification_choice_not_physiology_claim"
@@ -1961,6 +2276,7 @@ def _add_falsification_gates(
         reason_code="gross_holdout_performance_failure",
         decision_required=True,
         classification=classification,
+        evaluated=primary_mae is not None,
     )
     primary["gates"]["no_heat_baseline_falsification"] = _gate(
         (
@@ -1980,27 +2296,51 @@ def _add_falsification_gates(
         reason_code="no_heat_baseline_not_beaten",
         decision_required=True,
         classification=classification,
+        evaluated=no_heat_improvement is not None,
     )
     primary["gates"][
         "permuted_negative_control_falsification"
     ] = _gate(
         (
-            permuted_improvement is not None
-            and permuted_improvement
-            >= config.minimum_holdout_mae_improvement_vs_permuted_bpm
+            mae_support is not None
+            and float(mae_support)
+            >= config.minimum_permutation_mae_support_fraction
+            and coefficient_support is not None
+            and float(coefficient_support)
+            >= config.minimum_permutation_coefficient_support_fraction
         ),
         observed={
-            "primary_test_mae_bpm": primary_mae,
-            "permuted_test_mae_bpm": permuted_mae,
-            "improvement_bpm": _rounded(permuted_improvement),
+            "valid_iterations":
+                negative_control.get("valid_iterations"),
+            "requested_iterations":
+                negative_control.get("requested_iterations"),
+            "valid_fraction":
+                negative_control.get("valid_fraction"),
+            "distribution":
+                negative_control.get("distribution"),
+            "observed_comparison":
+                negative_control.get("observed_comparison"),
         },
         estimate={
-            "minimum_improvement_bpm":
+            "minimum_permutation_valid_count":
+                config.minimum_permutation_valid_count,
+            "minimum_permutation_valid_fraction":
+                config.minimum_permutation_valid_fraction,
+            "minimum_mae_improvement_bpm":
                 config.minimum_holdout_mae_improvement_vs_permuted_bpm,
+            "minimum_mae_support_fraction":
+                config.minimum_permutation_mae_support_fraction,
+            "minimum_coefficient_support_fraction":
+                config.minimum_permutation_coefficient_support_fraction,
         },
-        reason_code="permuted_negative_control_not_beaten",
+        reason_code=(
+            "permuted_negative_control_distribution_not_beaten"
+            if negative_available
+            else "permuted_negative_control_unavailable"
+        ),
         decision_required=True,
         classification=classification,
+        evaluated=negative_available,
     )
 
 
@@ -2317,30 +2657,44 @@ def _add_sensitivity_stability(
         return
     heat = model["heat_stress_coefficient"]
     estimate = heat["estimate_bpm_per_c"]
-    comparable = [
+    directional = [
+        item["heat_coefficient_bpm_per_c"]
+        for item in sensitivities
+        if item["status"] == "available"
+    ]
+    magnitude_comparable = [
         item["heat_coefficient_bpm_per_c"]
         for item in sensitivities
         if item["status"] == "available"
         and item["heat_representation"] == "wet_bulb_c"
     ]
-    if not comparable or estimate == 0:
+    if not directional or estimate == 0:
         agreement = None
     else:
         agreement = sum(
             math.copysign(1.0, value)
             == math.copysign(1.0, estimate)
-            for value in comparable
+            for value in directional
             if value != 0
-        ) / len(comparable)
+        ) / len(directional)
     heat["stability"]["sensitivity_direction_agreement"] = _rounded(
         agreement,
         4,
     )
+    heat["stability"]["sensitivity_direction_variant_count"] = len(
+        directional
+    )
     heat["stability"]["sensitivity_estimate_range_bpm_per_c"] = (
-        [_rounded(min(comparable)), _rounded(max(comparable))]
-        if comparable
+        [
+            _rounded(min(magnitude_comparable)),
+            _rounded(max(magnitude_comparable)),
+        ]
+        if magnitude_comparable
         else None
     )
+    heat["stability"][
+        "sensitivity_magnitude_comparable_variant_count"
+    ] = len(magnitude_comparable)
     heat["stability"]["sensitivity_coverage"] = coverage_observed
     bootstrap_agreement = heat["stability"][
         "bootstrap_sign_agreement"
@@ -2362,6 +2716,26 @@ def _add_sensitivity_stability(
     heat["stability"]["classification"] = classification
 
 
+def _coefficient_stability_evaluated(
+    primary: dict[str, Any],
+    stability: dict[str, Any] | None,
+) -> bool:
+    if stability is None:
+        return False
+    model = primary["model"]
+    heat = model["heat_stress_coefficient"]
+    sensitivity_gate = primary["gates"].get(
+        "sensitivity_analysis_coverage"
+    )
+    return (
+        heat.get("bootstrap_interval_status") == "available"
+        and stability.get("bootstrap_sign_agreement") is not None
+        and stability.get("sensitivity_direction_agreement") is not None
+        and isinstance(sensitivity_gate, dict)
+        and sensitivity_gate.get("status") == "pass"
+    )
+
+
 def _metrics(
     rows: list[_SegmentRow],
     predictions: np.ndarray,
@@ -2381,6 +2755,17 @@ def _metrics(
     }
 
 
+def _distribution_summary(values: list[float]) -> dict[str, float]:
+    array = np.array(values, dtype=float)
+    return {
+        "minimum": _rounded(float(np.min(array))),
+        "p05": _rounded(float(np.percentile(array, 5))),
+        "median": _rounded(float(np.median(array))),
+        "p95": _rounded(float(np.percentile(array, 95))),
+        "maximum": _rounded(float(np.max(array))),
+    }
+
+
 def _activity_weights(rows: list[_SegmentRow]) -> np.ndarray:
     counts = Counter(row.activity_key for row in rows)
     weights = np.array([
@@ -2396,6 +2781,96 @@ def _group_rows(
     for row in rows:
         grouped.setdefault(row.activity_key, []).append(row)
     return grouped
+
+
+def _provider_regime_summary(rows: list[_SegmentRow]) -> dict[str, Any]:
+    grouped: dict[tuple[str, str], dict[str, Any]] = {}
+    unverified: dict[tuple[str, str], dict[str, Any]] = {}
+    for row in rows:
+        key = (row.power_provider, row.heart_rate_provider)
+        item = grouped.setdefault(
+            key,
+            {
+                "activity_keys": set(),
+                "segment_count": 0,
+            },
+        )
+        item["activity_keys"].add(row.activity_key)
+        item["segment_count"] += 1
+        for field, provider in (
+            ("power_provider", row.power_provider),
+            ("heart_rate_provider", row.heart_rate_provider),
+        ):
+            if provider not in _UNVERIFIED_PROVIDER_SENTINELS:
+                continue
+            unverified_item = unverified.setdefault(
+                (field, provider),
+                {
+                    "activity_keys": set(),
+                    "segment_count": 0,
+                },
+            )
+            unverified_item["activity_keys"].add(row.activity_key)
+            unverified_item["segment_count"] += 1
+    combinations = [
+        {
+            "label": (
+                f"power={power_provider}|"
+                f"heart_rate={heart_rate_provider}"
+            ),
+            "activity_count": len(item["activity_keys"]),
+            "segment_count": item["segment_count"],
+        }
+        for (power_provider, heart_rate_provider), item
+        in sorted(grouped.items())
+    ]
+    summary = {
+        "combination_count": len(combinations),
+        "combinations": combinations,
+    }
+    if unverified:
+        summary["unverified_providers"] = [
+            {
+                "field": field,
+                "value": provider,
+                "activity_count": len(item["activity_keys"]),
+                "segment_count": item["segment_count"],
+            }
+            for (field, provider), item in sorted(unverified.items())
+        ]
+    return summary
+
+
+def _source_summary(
+    rows: list[_SegmentRow],
+    getter: Callable[[_SegmentRow], str | None],
+) -> dict[str, Any]:
+    grouped: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        source = getter(row)
+        if source is None:
+            continue
+        item = grouped.setdefault(
+            source,
+            {
+                "activity_keys": set(),
+                "segment_count": 0,
+            },
+        )
+        item["activity_keys"].add(row.activity_key)
+        item["segment_count"] += 1
+    sources = [
+        {
+            "source": source,
+            "activity_count": len(item["activity_keys"]),
+            "segment_count": item["segment_count"],
+        }
+        for source, item in sorted(grouped.items())
+    ]
+    return {
+        "source_count": len(sources),
+        "sources": sources,
+    }
 
 
 def _ordered_activity_groups(
@@ -2428,6 +2903,10 @@ def _activity_cluster_order_key(
                 row.recovery_readiness_score
             ),
             _optional_number_order_key(row.adaptation_evidence),
+            row.power_provider,
+            row.heart_rate_provider,
+            row.environment_source,
+            row.recovery_source or "",
         )
         for row in rows
     ))
@@ -2531,27 +3010,74 @@ def _recovery_context(
     activity_date: date,
     *,
     maximum_lag_days: int,
-) -> tuple[bool, float | None, int | None]:
+) -> tuple[
+    bool,
+    float | None,
+    int | None,
+    str | None,
+    tuple[str, ...],
+]:
     if not isinstance(recovery, dict):
-        return False, None, None
+        return (
+            False,
+            None,
+            None,
+            None,
+            ("recovery_contract_missing",),
+        )
+    failures: list[str] = []
+    if recovery.get("state") not in {"available", "partial"}:
+        failures.append("recovery_state_unavailable")
     recovery_date = _date_value(recovery.get("date"))
-    dated = (
-        recovery_date is not None
-        and recovery_date < activity_date
-        and recovery.get("state") in {"available", "partial"}
-    )
+    if recovery_date is None or recovery_date >= activity_date:
+        failures.append("recovery_not_strictly_pre_activity")
     values = recovery.get("values")
     readiness = (
         _number(values.get("readiness_score"))
-        if dated and isinstance(values, dict)
+        if isinstance(values, dict)
         else None
     )
-    if not dated or readiness is None or recovery_date is None:
-        return False, None, None
-    lag_days = (activity_date - recovery_date).days
+    if readiness is None:
+        failures.append("recovery_readiness_unavailable")
+    source = _text(recovery.get("source"))
+    normalized_source = source.casefold() if source is not None else None
+    if normalized_source is None:
+        failures.append("recovery_source_unavailable")
+    elif normalized_source not in SUPPORTED_RECOVERY_SOURCES:
+        failures.append("recovery_source_unsupported")
+    selection = recovery.get("selection")
+    if selection != "latest_on_or_before_activity_date":
+        failures.append("recovery_selection_unsupported")
+    reason_codes = recovery.get("reason_codes")
+    if not isinstance(reason_codes, list):
+        failures.append("recovery_reason_codes_invalid")
+    elif reason_codes:
+        failures.append("recovery_reason_codes_present")
+    lag_days = (
+        (activity_date - recovery_date).days
+        if recovery_date is not None
+        and recovery_date < activity_date
+        and readiness is not None
+        else None
+    )
+    if lag_days is None:
+        return (
+            False,
+            None,
+            None,
+            None,
+            tuple(sorted(set(failures))),
+        )
     if lag_days > maximum_lag_days:
-        return False, None, lag_days
-    return True, readiness, lag_days
+        failures.append("recovery_lag_exceeds_maximum")
+    usable = not failures
+    return (
+        usable,
+        readiness if usable else None,
+        lag_days,
+        normalized_source if usable else None,
+        tuple(sorted(set(failures))),
+    )
 
 
 def _load_context(
@@ -2601,9 +3127,16 @@ def _gate(
     classification: str = (
         "research_estimate_not_accepted_product_gate"
     ),
+    evaluated: bool = False,
 ) -> dict[str, Any]:
     return {
-        "status": "pass" if passed else "unavailable",
+        "status": (
+            "pass"
+            if passed
+            else "fail"
+            if evaluated
+            else "unavailable"
+        ),
         "observed": observed,
         "research_estimate": estimate,
         "classification": classification,
@@ -2670,12 +3203,21 @@ def _configuration_report(
             config.minimum_holdout_mae_improvement_vs_no_heat_bpm,
         "minimum_holdout_mae_improvement_vs_permuted_bpm":
             config.minimum_holdout_mae_improvement_vs_permuted_bpm,
+        "minimum_permutation_mae_support_fraction":
+            config.minimum_permutation_mae_support_fraction,
+        "minimum_permutation_coefficient_support_fraction":
+            config.minimum_permutation_coefficient_support_fraction,
         "ridge_alpha": config.ridge_alpha,
         "bootstrap_iterations": config.bootstrap_iterations,
         "minimum_bootstrap_valid_resamples":
             config.minimum_bootstrap_valid_resamples,
         "minimum_bootstrap_valid_fraction":
             config.minimum_bootstrap_valid_fraction,
+        "permutation_iterations": config.permutation_iterations,
+        "minimum_permutation_valid_count":
+            config.minimum_permutation_valid_count,
+        "minimum_permutation_valid_fraction":
+            config.minimum_permutation_valid_fraction,
         "random_seed": config.random_seed,
     }
 

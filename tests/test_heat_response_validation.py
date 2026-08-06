@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import date, timedelta
+import hashlib
+import json
 
 import pytest
 
@@ -15,7 +17,37 @@ from analysis.heat_response_validation import (
 )
 
 
-TEST_CONFIG = HeatValidationConfig(bootstrap_iterations=80)
+TEST_CONFIG = HeatValidationConfig(
+    bootstrap_iterations=80,
+    permutation_iterations=80,
+)
+
+
+def _api_dataset_hash(dataset: dict) -> str:
+    core = {
+        key: value
+        for key, value in dataset.items()
+        if key not in {"dataset_hash", "generated_at"}
+    }
+    encoded = json.dumps(
+        core,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+
+def _refresh_dataset_hash(dataset: dict) -> dict:
+    dataset["dataset_hash"] = _api_dataset_hash(dataset)
+    return dataset
+
+
+def _validate_modified_synthetic(
+    dataset: dict,
+    config: HeatValidationConfig = TEST_CONFIG,
+) -> dict:
+    return validate_heat_response(_refresh_dataset_hash(dataset), config)
 
 
 def synthetic_research_dataset(
@@ -154,6 +186,8 @@ def synthetic_research_dataset(
                         activity_date - timedelta(days=1)
                     ).isoformat(),
                     "source": "oura",
+                    "selection":
+                        "latest_on_or_before_activity_date",
                     "values": {
                         "readiness_score": readiness,
                     },
@@ -174,24 +208,28 @@ def synthetic_research_dataset(
                 },
             },
         })
-    return {
+    dataset = {
         "schema_version": "activity-research-dataset-v1",
         "model_versions": {
             "stable_segments": "stable-power-segments-v3",
             "environment": "environmental-performance-context-v1",
             "pre_activity_load": "banister-pmc-causal-v2",
-            "heat_adaptation": ["heat-adaptation-v8"],
+            "heat_adaptation": (
+                ["heat-adaptation-v8"] if records else []
+            ),
         },
         "records": records,
         "total": len(records),
-        "limit": len(records),
+        "limit": max(1, len(records)),
         "offset": 0,
         "privacy": {
             "precise_gps_included": False,
             "credentials_included": False,
             "raw_samples_included": False,
         },
+        "generated_at": "2026-02-01T00:00:00Z",
     }
+    return _refresh_dataset_hash(dataset)
 
 
 def test_recovers_reviewable_heat_signal_with_activity_holdout() -> None:
@@ -224,6 +262,14 @@ def test_recovers_reviewable_heat_signal_with_activity_holdout() -> None:
         "eligible_for_science_review"
     )
     assert report["recommendation"]["value"] != "ship"
+    assert report["input_contract"][
+        "input_contains_private_activity_ids"
+    ] is True
+    assert report["input_contract"][
+        "input_contains_private_activity_dates"
+    ] is True
+    assert report["input_contract"]["report_includes_activity_ids"] is False
+    assert report["input_contract"]["report_includes_activity_dates"] is False
 
 
 def test_insufficient_observations_and_spread_are_unavailable() -> None:
@@ -242,9 +288,34 @@ def test_insufficient_observations_and_spread_are_unavailable() -> None:
         "unavailable"
     )
     assert report["model"]["status"] == "unavailable"
+    assert report["gates"][
+        "no_heat_baseline_falsification"
+    ]["status"] == "unavailable"
+    assert report["gates"][
+        "permuted_negative_control_falsification"
+    ]["status"] == "unavailable"
     assert report["recommendation"]["value"] == (
         "withhold_personal_estimate"
     )
+
+
+def test_legitimate_empty_api_export_returns_withheld_report() -> None:
+    dataset = synthetic_research_dataset(activity_count=0)
+
+    report = validate_heat_response(dataset, TEST_CONFIG)
+
+    assert dataset["records"] == []
+    assert dataset["total"] == 0
+    assert dataset["model_versions"]["heat_adaptation"] == []
+    assert report["model"]["status"] == "unavailable"
+    assert report["gates"]["minimum_activities"]["status"] == "unavailable"
+    assert report["gates"]["minimum_segments"]["status"] == "unavailable"
+    assert report["negative_control"]["status"] == "unavailable"
+    assert report["recommendation"]["value"] == (
+        "withhold_personal_estimate"
+    )
+    assert "synthetic-private-" not in repr(report)
+    assert "2026-01-" not in repr(report)
 
 
 def test_latest_activity_outcomes_do_not_change_training_coefficients() -> None:
@@ -255,7 +326,7 @@ def test_latest_activity_outcomes_do_not_change_training_coefficients() -> None:
             segment["mean_hr_bpm"] += 50.0
 
     first = validate_heat_response(original, TEST_CONFIG)
-    second = validate_heat_response(changed_holdout, TEST_CONFIG)
+    second = _validate_modified_synthetic(changed_holdout)
 
     assert first["model"]["coefficients"] == second["model"]["coefficients"]
     assert first["model"]["heat_stress_coefficient"][
@@ -268,7 +339,7 @@ def test_latest_activity_outcomes_do_not_change_training_coefficients() -> None:
     )
     assert second["gates"][
         "chronological_holdout_performance"
-    ]["status"] == "unavailable"
+    ]["status"] == "fail"
     assert second["recommendation"]["value"] == (
         "withhold_personal_estimate"
     )
@@ -287,7 +358,7 @@ def test_split_fallback_is_excluded_with_explicit_reason() -> None:
     dataset["total"] += 1
     dataset["limit"] += 1
 
-    report = validate_heat_response(dataset, TEST_CONFIG)
+    report = _validate_modified_synthetic(dataset)
 
     assert report["data_coverage"]["eligible_activity_count"] == 20
     assert report["exclusions"]["excluded_activity_reason_counts"][
@@ -316,7 +387,7 @@ def test_fixed_seed_report_is_independent_of_activity_id_names() -> None:
         )
 
     original_report = validate_heat_response(dataset, TEST_CONFIG)
-    renamed_report = validate_heat_response(renamed, TEST_CONFIG)
+    renamed_report = _validate_modified_synthetic(renamed)
 
     assert renamed_report == original_report
     assert "opaque-renamed-" not in repr(renamed_report)
@@ -329,7 +400,7 @@ def test_adaptation_secondary_model_requires_activity_level_variation() -> None:
             "insufficient_evidence"
         )
 
-    report = validate_heat_response(dataset, TEST_CONFIG)
+    report = _validate_modified_synthetic(dataset)
 
     gate = report["gates"][
         "heat_adaptation_exploratory_availability"
@@ -355,7 +426,7 @@ def test_missing_recovery_is_never_silently_imputed() -> None:
             "reason_codes": ["recovery_unavailable_before_activity"],
         }
 
-    report = validate_heat_response(dataset, TEST_CONFIG)
+    report = _validate_modified_synthetic(dataset)
 
     assert report["gates"]["dated_recovery"]["status"] == "unavailable"
     assert {
@@ -378,7 +449,7 @@ def test_dated_recovery_without_readiness_fails_recovery_gate() -> None:
             "hrv_avg": 55.0,
         }
 
-    report = validate_heat_response(dataset, TEST_CONFIG)
+    report = _validate_modified_synthetic(dataset)
 
     assert report["gates"]["dated_recovery"]["status"] == "unavailable"
     assert report["gates"]["dated_recovery"]["observed"][
@@ -398,7 +469,7 @@ def test_stale_recovery_readiness_is_reported_and_omitted() -> None:
             activity_date - timedelta(days=2)
         ).isoformat()
 
-    report = validate_heat_response(dataset, TEST_CONFIG)
+    report = _validate_modified_synthetic(dataset)
 
     recovery = report["data_coverage"]["recovery_readiness"]
     assert recovery["dated_readiness_activity_count"] == 20
@@ -427,7 +498,7 @@ def test_stale_adaptation_context_is_not_no_evidence() -> None:
             "as_of_date"
         ] = "2020-01-01"
 
-    report = validate_heat_response(dataset, TEST_CONFIG)
+    report = _validate_modified_synthetic(dataset)
 
     gate = report["gates"][
         "heat_adaptation_exploratory_availability"
@@ -446,7 +517,7 @@ def test_per_record_stable_segment_version_is_pinned() -> None:
         "stable-power-segments-future"
     )
 
-    report = validate_heat_response(dataset, TEST_CONFIG)
+    report = _validate_modified_synthetic(dataset)
 
     assert report["data_coverage"]["eligible_activity_count"] == 19
     assert report["exclusions"]["excluded_activity_reason_counts"][
@@ -497,7 +568,7 @@ def test_duplicate_source_and_activity_id_is_deduplicated() -> None:
     dataset["total"] += 1
     dataset["limit"] += 1
 
-    report = validate_heat_response(dataset, TEST_CONFIG)
+    report = _validate_modified_synthetic(dataset)
 
     assert report["data_coverage"]["input_activity_count"] == 21
     assert report["data_coverage"]["eligible_activity_count"] == 20
@@ -526,7 +597,7 @@ def test_environment_science_decision_id_is_required(
     else:
         environment["science_decision_id"] = science_decision_id
 
-    report = validate_heat_response(dataset, TEST_CONFIG)
+    report = _validate_modified_synthetic(dataset)
 
     assert report["data_coverage"]["eligible_activity_count"] == 19
     assert report["exclusions"]["excluded_activity_reason_counts"][
@@ -541,7 +612,7 @@ def test_critical_power_must_be_strictly_pre_activity() -> None:
         "effective_date"
     ] = record["activity"]["date"]
 
-    report = validate_heat_response(dataset, TEST_CONFIG)
+    report = _validate_modified_synthetic(dataset)
 
     assert report["data_coverage"]["eligible_activity_count"] == 19
     assert report["exclusions"]["excluded_activity_reason_counts"][
@@ -570,7 +641,7 @@ def test_critical_power_selection_provenance_is_required(
     else:
         critical_power["selection"] = selection
 
-    report = validate_heat_response(dataset, TEST_CONFIG)
+    report = _validate_modified_synthetic(dataset)
 
     assert report["data_coverage"]["eligible_activity_count"] == 19
     assert report["exclusions"]["excluded_activity_reason_counts"][
@@ -584,7 +655,7 @@ def test_segment_pct_cp_must_match_dated_critical_power() -> None:
         "mean_pct_cp"
     ] += 2.0
 
-    report = validate_heat_response(dataset, TEST_CONFIG)
+    report = _validate_modified_synthetic(dataset)
 
     assert report["data_coverage"]["eligible_segment_count"] == 39
     assert report["exclusions"]["excluded_segment_reason_counts"][
@@ -598,12 +669,130 @@ def test_critical_power_provider_must_match_segment_provider() -> None:
         "power_provider"
     ] = "garmin"
 
-    report = validate_heat_response(dataset, TEST_CONFIG)
+    report = _validate_modified_synthetic(dataset)
 
     assert report["data_coverage"]["eligible_activity_count"] == 19
     assert report["exclusions"]["excluded_segment_reason_counts"][
         "critical_power_provider_mismatch"
     ] == 2
+
+
+def test_mixed_provider_regimes_fail_decision_gate_without_identity() -> None:
+    dataset = synthetic_research_dataset()
+    for record in dataset["records"][::2]:
+        for segment in record["stable_segments"]["segments"]:
+            segment["heart_rate_provider"] = "garmin"
+
+    report = _validate_modified_synthetic(dataset)
+
+    gate = report["gates"]["provider_regime_consistency"]
+    assert gate["status"] == "fail"
+    assert gate["decision_required"] is True
+    assert gate["observed"] == {
+        "combination_count": 2,
+        "combinations": [
+            {
+                "label": "power=stryd|heart_rate=garmin",
+                "activity_count": 10,
+                "segment_count": 20,
+            },
+            {
+                "label": "power=stryd|heart_rate=stryd",
+                "activity_count": 10,
+                "segment_count": 20,
+            },
+        ],
+    }
+    assert report["recommendation"]["value"] == (
+        "withhold_personal_estimate"
+    )
+    assert "synthetic-private-" not in repr(gate)
+    assert "2026-01-" not in repr(gate)
+
+
+@pytest.mark.parametrize(
+    ("field", "sentinel"),
+    [
+        ("heart_rate_provider", "mixed"),
+        ("heart_rate_provider", "unverified"),
+        ("power_provider", "mixed"),
+    ],
+)
+def test_uniform_unverified_provider_sentinel_fails_consistency_gate(
+    field: str,
+    sentinel: str,
+) -> None:
+    dataset = synthetic_research_dataset()
+    for record in dataset["records"]:
+        if field == "power_provider":
+            record["pre_activity_context"]["critical_power"][
+                "power_provider"
+            ] = sentinel
+        for segment in record["stable_segments"]["segments"]:
+            segment[field] = sentinel
+
+    report = _validate_modified_synthetic(dataset)
+
+    gate = report["gates"]["provider_regime_consistency"]
+    assert gate["status"] == "fail"
+    assert gate["reason_codes"] == ["unverified_provider_sentinel"]
+    assert gate["observed"]["combination_count"] == 1
+    assert gate["observed"]["unverified_providers"] == [{
+        "field": field,
+        "value": sentinel,
+        "activity_count": 20,
+        "segment_count": 40,
+    }]
+    assert report["recommendation"]["value"] == (
+        "withhold_personal_estimate"
+    )
+    assert "synthetic-private-" not in repr(gate)
+    assert "2026-01-" not in repr(gate)
+
+
+def test_mixed_environment_sources_fail_decision_gate_with_aggregate_counts(
+) -> None:
+    dataset = synthetic_research_dataset()
+    sources = (
+        "garmin_activity_weather",
+        "coros_activity_weather",
+        "stryd_activity_weather",
+    )
+    for index, record in enumerate(dataset["records"]):
+        record["activity"]["environment"]["source"] = sources[index % 3]
+
+    report = _validate_modified_synthetic(dataset)
+
+    expected = {
+        "source_count": 3,
+        "sources": [
+            {
+                "source": "coros_activity_weather",
+                "activity_count": 7,
+                "segment_count": 14,
+            },
+            {
+                "source": "garmin_activity_weather",
+                "activity_count": 7,
+                "segment_count": 14,
+            },
+            {
+                "source": "stryd_activity_weather",
+                "activity_count": 6,
+                "segment_count": 12,
+            },
+        ],
+    }
+    gate = report["gates"]["environment_source_consistency"]
+    assert gate["status"] == "fail"
+    assert gate["decision_required"] is True
+    assert gate["observed"] == expected
+    assert report["data_coverage"]["environment_sources"] == expected
+    assert report["recommendation"]["value"] == (
+        "withhold_personal_estimate"
+    )
+    assert "synthetic-private-" not in repr(gate)
+    assert "2026-01-" not in repr(gate)
 
 
 def test_same_day_date_only_recovery_is_not_pre_activity() -> None:
@@ -613,7 +802,7 @@ def test_same_day_date_only_recovery_is_not_pre_activity() -> None:
             record["activity"]["date"]
         )
 
-    report = validate_heat_response(dataset, TEST_CONFIG)
+    report = _validate_modified_synthetic(dataset)
 
     assert report["gates"]["dated_recovery"]["status"] == "unavailable"
     assert report["gates"]["dated_recovery"]["observed"][
@@ -623,6 +812,85 @@ def test_same_day_date_only_recovery_is_not_pre_activity() -> None:
         omission["predictor"]: omission["reason_code"]
         for omission in report["omissions"]
     }["recovery_readiness_score"] == "missing_context_not_imputed"
+
+
+@pytest.mark.parametrize(
+    ("mutation", "reason_code"),
+    [
+        ("missing_source", "recovery_source_unavailable"),
+        ("unsupported_source", "recovery_source_unsupported"),
+        ("wrong_selection", "recovery_selection_unsupported"),
+        ("reason_codes", "recovery_reason_codes_present"),
+    ],
+)
+def test_recovery_predictor_requires_supported_clean_provenance(
+    mutation: str,
+    reason_code: str,
+) -> None:
+    dataset = synthetic_research_dataset()
+    for record in dataset["records"]:
+        recovery = record["pre_activity_context"]["recovery"]
+        if mutation == "missing_source":
+            recovery["source"] = ""
+        elif mutation == "unsupported_source":
+            recovery["source"] = "unsupported"
+        elif mutation == "wrong_selection":
+            recovery["selection"] = "latest_available"
+        else:
+            recovery["reason_codes"] = ["partial_recovery_context"]
+
+    report = _validate_modified_synthetic(dataset)
+
+    coverage = report["data_coverage"]["recovery_readiness"]
+    assert coverage["usable_within_maximum_lag_activity_count"] == 0
+    assert coverage["provenance_reason_counts"][reason_code] == 20
+    assert {
+        omission["predictor"]: omission["reason_code"]
+        for omission in report["omissions"]
+    }["recovery_readiness_score"] == "missing_context_not_imputed"
+    assert report["gates"]["dated_recovery"]["decision_required"] is False
+    assert report["model"]["status"] == "available"
+
+
+def test_mixed_training_recovery_sources_omit_readiness_predictor() -> None:
+    dataset = synthetic_research_dataset()
+    for record in dataset["records"][::2]:
+        record["pre_activity_context"]["recovery"]["source"] = "garmin"
+
+    report = _validate_modified_synthetic(dataset)
+
+    assert "recovery_readiness_score" not in report["model"]["predictors"]
+    omission = next(
+        item
+        for item in report["omissions"]
+        if item["predictor"] == "recovery_readiness_score"
+    )
+    assert omission["reason_code"] == (
+        "mixed_recovery_source_provenance"
+    )
+    assert omission["source_counts"] == [
+        {
+            "source": "garmin",
+            "activity_count": 8,
+            "segment_count": 16,
+        },
+        {
+            "source": "oura",
+            "activity_count": 7,
+            "segment_count": 14,
+        },
+    ]
+    gate = report["gates"]["recovery_source_consistency"]
+    assert gate["status"] == "fail"
+    assert gate["decision_required"] is False
+    assert gate["reason_codes"] == [
+        "mixed_recovery_source_provenance"
+    ]
+    assert report["recommendation"]["value"] == (
+        "eligible_for_science_review"
+    )
+    assert "synthetic-private-" not in repr(gate)
+    assert "2026-01-" not in repr(gate)
 
 
 def test_holdout_missing_selected_predictor_rows_are_excluded() -> None:
@@ -635,7 +903,7 @@ def test_holdout_missing_selected_predictor_rows_are_excluded() -> None:
             "reason_codes": ["recovery_unavailable_before_activity"],
         }
 
-    report = validate_heat_response(dataset, TEST_CONFIG)
+    report = _validate_modified_synthetic(dataset)
 
     assert report["model"]["status"] == "unavailable"
     assert "recovery_readiness_score" in report["model"][
@@ -660,7 +928,7 @@ def test_evaluated_holdout_requires_environmental_spread() -> None:
         environment["wet_bulb_c"] = 22.0
         environment["temperature_c"] = 29.0
 
-    report = validate_heat_response(dataset, TEST_CONFIG)
+    report = _validate_modified_synthetic(dataset)
 
     gate = report["gates"]["holdout_environmental_spread"]
     assert gate["status"] == "unavailable"
@@ -694,12 +962,46 @@ def test_same_date_activities_stay_in_one_holdout_partition() -> None:
     context["recovery"]["date"] = previous_date
     context["heat_adaptation"]["as_of_date"] = previous_date
 
-    report = validate_heat_response(dataset, TEST_CONFIG)
+    report = _validate_modified_synthetic(dataset)
 
     holdout = report["model"]["holdout"]
     assert holdout["train_activity_count"] == 14
     assert holdout["test_activity_count"] == 6
     assert holdout["activity_overlap_count"] == 0
+
+
+def test_dataset_hash_matches_api_canonical_core_algorithm() -> None:
+    dataset = synthetic_research_dataset()
+
+    assert dataset["dataset_hash"] == _api_dataset_hash(dataset)
+    changed_timestamp = deepcopy(dataset)
+    changed_timestamp["generated_at"] = "2030-12-31T23:59:59Z"
+    assert _api_dataset_hash(changed_timestamp) == dataset["dataset_hash"]
+    validate_heat_response(changed_timestamp, TEST_CONFIG)
+
+
+def test_missing_dataset_hash_is_rejected() -> None:
+    dataset = synthetic_research_dataset()
+    dataset.pop("dataset_hash")
+
+    with pytest.raises(
+        HeatValidationInputError,
+        match="dataset_hash is required",
+    ):
+        validate_heat_response(dataset, TEST_CONFIG)
+
+
+def test_stale_dataset_hash_is_rejected() -> None:
+    dataset = synthetic_research_dataset()
+    dataset["records"][0]["stable_segments"]["segments"][0][
+        "mean_hr_bpm"
+    ] += 1.0
+
+    with pytest.raises(
+        HeatValidationInputError,
+        match="dataset_hash does not match",
+    ):
+        validate_heat_response(dataset, TEST_CONFIG)
 
 
 @pytest.mark.parametrize("offset", [None, 0.0, True, "0"])
@@ -714,7 +1016,7 @@ def test_pagination_offset_must_be_an_integer(offset: object) -> None:
         HeatValidationInputError,
         match="pagination offset must be an integer",
     ):
-        validate_heat_response(dataset, TEST_CONFIG)
+        _validate_modified_synthetic(dataset)
 
 
 def test_nonzero_offset_withholds_as_not_first_page() -> None:
@@ -722,9 +1024,28 @@ def test_nonzero_offset_withholds_as_not_first_page() -> None:
     dataset["offset"] = 1
     dataset["records"] = dataset["records"][1:]
 
-    report = validate_heat_response(dataset, TEST_CONFIG)
+    report = _validate_modified_synthetic(dataset)
 
     assert report["gates"]["first_input_page"]["status"] == "unavailable"
+    assert report["recommendation"]["value"] == (
+        "withhold_personal_estimate"
+    )
+
+
+@pytest.mark.parametrize("offset", [20, 25])
+def test_empty_page_accepts_empty_heat_adaptation_manifest(
+    offset: int,
+) -> None:
+    dataset = synthetic_research_dataset()
+    dataset["records"] = []
+    dataset["offset"] = offset
+    dataset["model_versions"]["heat_adaptation"] = []
+
+    report = _validate_modified_synthetic(dataset)
+
+    assert report["gates"]["first_input_page"]["status"] == "unavailable"
+    assert report["gates"]["minimum_activities"]["status"] == "unavailable"
+    assert report["model"]["status"] == "unavailable"
     assert report["recommendation"]["value"] == (
         "withhold_personal_estimate"
     )
@@ -755,7 +1076,7 @@ def test_pagination_total_and_limit_must_be_integers(
         HeatValidationInputError,
         match=f"pagination {field} must be an integer",
     ):
-        validate_heat_response(dataset, TEST_CONFIG)
+        _validate_modified_synthetic(dataset)
 
 
 @pytest.mark.parametrize(
@@ -776,7 +1097,7 @@ def test_pagination_ranges_are_validated(
     dataset[field] = value
 
     with pytest.raises(HeatValidationInputError, match=message):
-        validate_heat_response(dataset, TEST_CONFIG)
+        _validate_modified_synthetic(dataset)
 
 
 def test_truncated_first_page_is_rejected() -> None:
@@ -787,7 +1108,7 @@ def test_truncated_first_page_is_rejected() -> None:
         HeatValidationInputError,
         match="pagination records are incomplete: expected 20, got 19",
     ):
-        validate_heat_response(dataset, TEST_CONFIG)
+        _validate_modified_synthetic(dataset)
 
 
 def test_insufficient_valid_bootstrap_resamples_withholds(
@@ -821,33 +1142,82 @@ def test_insufficient_valid_bootstrap_resamples_withholds(
     assert report["gates"][
         "bootstrap_resample_sufficiency"
     ]["status"] == "unavailable"
+    assert report["gates"]["coefficient_stability"]["status"] == (
+        "unavailable"
+    )
+    assert report["gates"]["coefficient_stability"]["reason_codes"] == [
+        "heat_coefficient_stability_unavailable"
+    ]
     assert report["recommendation"]["value"] == (
         "withhold_personal_estimate"
     )
 
 
-def test_failed_permuted_negative_control_withholds(
-    monkeypatch,
-) -> None:
-    original = heat_validation._negative_control
-
-    def failed_control(config, primary):
-        result = original(config, primary)
-        primary_mae = primary["model"]["performance"]["test"]["mae_bpm"]
-        result["test_mae_bpm"] = max(0.0, float(primary_mae) - 1.0)
-        return result
-
-    monkeypatch.setattr(
-        heat_validation,
-        "_negative_control",
-        failed_control,
+def test_permutation_distribution_is_deterministic() -> None:
+    first = validate_heat_response(
+        synthetic_research_dataset(),
+        TEST_CONFIG,
     )
-
-    report = validate_heat_response(
+    second = validate_heat_response(
         synthetic_research_dataset(),
         TEST_CONFIG,
     )
 
+    assert first["negative_control"] == second["negative_control"]
+    negative = first["negative_control"]
+    assert negative["status"] == "available"
+    assert negative["requested_iterations"] == 80
+    assert negative["valid_iterations"] == 80
+    assert negative["valid_fraction"] == 1.0
+    assert negative["validity_estimate"] == {
+        "minimum_valid_count": 50,
+        "minimum_valid_fraction": 0.8,
+        "effective_required_valid_count": 64,
+    }
+    assert negative["distribution"]["test_mae_bpm"]["minimum"] is not None
+    assert negative["method_source"] == (
+        "https://doi.org/10.1214/088342304000000396"
+    )
+
+
+def test_failed_permutation_distribution_is_evaluated_fail() -> None:
+    config = HeatValidationConfig(
+        bootstrap_iterations=80,
+        permutation_iterations=80,
+        minimum_holdout_mae_improvement_vs_permuted_bpm=100.0,
+    )
+
+    report = validate_heat_response(
+        synthetic_research_dataset(),
+        config,
+    )
+
+    assert report["negative_control"]["status"] == "available"
+    assert report["gates"][
+        "permuted_negative_control_falsification"
+    ]["status"] == "fail"
+    assert report["recommendation"]["value"] == (
+        "withhold_personal_estimate"
+    )
+
+
+def test_insufficient_permutation_valid_count_is_unavailable() -> None:
+    config = HeatValidationConfig(
+        bootstrap_iterations=80,
+        permutation_iterations=80,
+        minimum_permutation_valid_count=81,
+    )
+
+    report = validate_heat_response(
+        synthetic_research_dataset(),
+        config,
+    )
+
+    assert report["negative_control"]["status"] == "unavailable"
+    assert report["negative_control"]["valid_iterations"] == 80
+    assert report["negative_control"]["reason_codes"] == [
+        "permutation_valid_iterations_insufficient"
+    ]
     assert report["gates"][
         "permuted_negative_control_falsification"
     ]["status"] == "unavailable"
@@ -859,6 +1229,7 @@ def test_failed_permuted_negative_control_withholds(
 def test_configurable_no_heat_falsification_gate_withholds() -> None:
     config = HeatValidationConfig(
         bootstrap_iterations=80,
+        permutation_iterations=80,
         minimum_holdout_mae_improvement_vs_no_heat_bpm=100.0,
     )
 
@@ -869,7 +1240,7 @@ def test_configurable_no_heat_falsification_gate_withholds() -> None:
 
     assert report["gates"][
         "no_heat_baseline_falsification"
-    ]["status"] == "unavailable"
+    ]["status"] == "fail"
     assert report["recommendation"]["value"] == (
         "withhold_personal_estimate"
     )
@@ -878,6 +1249,7 @@ def test_configurable_no_heat_falsification_gate_withholds() -> None:
 def test_insufficient_sensitivity_variant_coverage_withholds() -> None:
     config = HeatValidationConfig(
         bootstrap_iterations=80,
+        permutation_iterations=80,
         minimum_sensitivity_available_count=9,
         minimum_sensitivity_available_fraction=1.0,
     )
@@ -898,6 +1270,9 @@ def test_insufficient_sensitivity_variant_coverage_withholds() -> None:
     assert report["model"]["heat_stress_coefficient"]["stability"][
         "classification"
     ] == "inconclusive_insufficient_sensitivity_coverage"
+    assert report["gates"]["coefficient_stability"]["status"] == (
+        "unavailable"
+    )
     assert report["recommendation"]["value"] == (
         "withhold_personal_estimate"
     )
@@ -947,13 +1322,51 @@ def test_unavailable_permissive_sensitivity_is_counted(
     )
 
 
+def test_temperature_direction_reversal_counts_in_sign_agreement() -> None:
+    dataset = synthetic_research_dataset()
+    for record in dataset["records"]:
+        environment = record["activity"]["environment"]
+        environment["temperature_c"] = 50.0 - environment["wet_bulb_c"]
+    config = HeatValidationConfig(
+        bootstrap_iterations=80,
+        permutation_iterations=80,
+        minimum_coefficient_sign_agreement=0.90,
+    )
+
+    report = _validate_modified_synthetic(dataset, config)
+
+    temperature = next(
+        item
+        for item in report["sensitivity_analyses"]
+        if item["name"] == "temperature_only"
+    )
+    assert temperature["status"] == "available"
+    assert temperature["heat_coefficient_bpm_per_c"] < 0
+    stability = report["model"]["heat_stress_coefficient"]["stability"]
+    assert stability["sensitivity_direction_variant_count"] == 8
+    assert stability[
+        "sensitivity_magnitude_comparable_variant_count"
+    ] == 7
+    assert stability["sensitivity_direction_agreement"] == 0.875
+    assert stability["classification"] == (
+        "unstable_or_inconclusive_research_estimate"
+    )
+    assert report["gates"]["coefficient_stability"]["status"] == "fail"
+    assert report["gates"]["coefficient_stability"]["reason_codes"] == [
+        "heat_coefficient_stability_insufficient"
+    ]
+    assert report["recommendation"]["value"] == (
+        "withhold_personal_estimate"
+    )
+
+
 def test_cp_sensitivity_can_admit_segment_crossing_power_band() -> None:
     dataset = synthetic_research_dataset()
     segment = dataset["records"][0]["stable_segments"]["segments"][0]
     segment["mean_pct_cp"] = 96.0
     segment["mean_power_watts"] = 288.0
 
-    report = validate_heat_response(dataset, TEST_CONFIG)
+    report = _validate_modified_synthetic(dataset)
 
     assert report["data_coverage"]["eligible_segment_count"] == 39
     sensitivities = {

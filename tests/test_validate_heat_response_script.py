@@ -58,6 +58,10 @@ def test_cli_json_and_markdown_do_not_echo_activity_identity(
     assert private_date not in markdown_output
     assert "# #444 recommendation" in markdown_output
     assert "not WBGT" in markdown_output
+    assert (
+        "private input contains activity IDs and dates"
+        in markdown_output
+    )
 
 
 def test_cli_schema_error_is_clear_without_echoing_records(
