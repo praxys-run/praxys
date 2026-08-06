@@ -210,15 +210,25 @@ def test_ui_mcp_configs_are_pinned_and_cloud_safe():
         "lighthouse_audit",
         "resize_page",
     }.issubset(servers["chrome-devtools"]["tools"])
-    assert servers["praxys-local"]["env"] == {
+    cloud_praxys = servers["praxys-local"]
+    assert cloud_praxys["command"] == "praxys-local-mcp"
+    assert cloud_praxys["args"] == []
+    assert cloud_praxys["env"] == {
         "PRAXYS_MCP_USE_CURRENT_PYTHON": "1"
     }
     assert all(
         not tool.startswith(
             ("update_", "set_", "connect_", "disconnect_", "trigger_")
         )
-        for tool in servers["praxys-local"]["tools"]
+        for tool in cloud_praxys["tools"]
     )
+
+    wrapper = (
+        ROOT / "scripts" / "run_praxys_mcp_cloud.sh"
+    ).read_text(encoding="utf-8")
+    assert 'workspace="${GITHUB_WORKSPACE:-}"' in wrapper
+    assert 'cd "$workspace"' in wrapper
+    assert 'exec python -m scripts.run_praxys_mcp local "$@"' in wrapper
 
     setup = (
         ROOT / ".github" / "workflows" / "copilot-setup-steps.yml"
@@ -227,3 +237,5 @@ def test_ui_mcp_configs_are_pinned_and_cloud_safe():
     assert "plugins/praxys/mcp-server/requirements.txt" in setup
     assert "chrome-devtools-mcp@1.6.0 --version" in setup
     assert "PRAXYS_MCP_USE_CURRENT_PYTHON: '1'" in setup
+    assert "/usr/local/bin/praxys-local-mcp" in setup
+    assert "praxys-local-mcp --prepare-only" in setup

@@ -286,7 +286,8 @@ initialization must not overwrite its Python/Node test environment.
 - **Environment:** `.github/workflows/copilot-setup-steps.yml` initializes the
   plugin submodule, preinstalls Python + backend/Praxys MCP deps and Node/web,
   verifies Chrome DevTools MCP, prepares the synthetic local Praxys sandbox,
-  and bootstraps a throwaway `.env`. The agent can run `pytest`, `npm`, browser
+  installs the workspace-aware `praxys-local-mcp` cloud launcher, and
+  bootstraps a throwaway `.env`. The agent can run `pytest`, `npm`, browser
   review, and read-only product-context tools deterministically instead of
   rediscovering the toolchain. It only takes effect once on the default branch.
 - **UI quality harness:** a user-visible web/miniapp change must invoke

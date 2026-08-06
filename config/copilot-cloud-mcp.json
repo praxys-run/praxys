@@ -44,12 +44,8 @@
     },
     "praxys-local": {
       "type": "stdio",
-      "command": "python",
-      "args": [
-        "-m",
-        "scripts.run_praxys_mcp",
-        "local"
-      ],
+      "command": "praxys-local-mcp",
+      "args": [],
       "env": {
         "PRAXYS_MCP_USE_CURRENT_PYTHON": "1"
       },

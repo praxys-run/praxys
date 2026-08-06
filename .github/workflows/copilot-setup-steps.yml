@@ -64,6 +64,12 @@ jobs:
         # npm v11 strict ci — same reason as .github/workflows/i18n.yml.
         run: npm install --no-audit --no-fund
 
+      - name: Install Praxys cloud MCP launcher
+        run: >-
+          sudo install -m 0755
+          scripts/run_praxys_mcp_cloud.sh
+          /usr/local/bin/praxys-local-mcp
+
       - name: Prepare browser and synthetic Praxys MCP tools
         env:
           PRAXYS_MCP_USE_CURRENT_PYTHON: '1'
@@ -71,4 +77,4 @@ jobs:
           google-chrome --version
           npx -y chrome-devtools-mcp@1.6.0 --version
           python -c "import mcp"
-          python -m scripts.run_praxys_mcp local --prepare-only
+          praxys-local-mcp --prepare-only
