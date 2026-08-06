@@ -1047,6 +1047,8 @@ External rows and past Praxys rows always return `editable=false`.
 contract; older APIs omit the object so clients can hide write controls during
 rolling deployment. `management.can_write=false` makes the whole surface
 read-only (including demo viewers whose reads resolve to a source account).
+Authoring controls depend on that write capability and per-row editability;
+execution-target connectivity gates delivery actions, not local plan editing.
 `external_overlap=true` and `management.external_overlap_dates` identify only
 dates containing both Praxys-owned and external workouts; generic delivery or
 reconciliation failures do not imply a planner overlap. Before the first
