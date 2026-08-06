@@ -66,13 +66,13 @@ jobs:
 
       - name: Install Praxys cloud MCP launcher
         run: >-
-          sudo install -m 0755
-          scripts/run_praxys_mcp_cloud.sh
+          sudo ln -sfn
+          "$GITHUB_WORKSPACE/scripts/run_praxys_mcp_cloud.sh"
           /usr/local/bin/praxys-local-mcp
 
       - name: Prepare browser and synthetic Praxys MCP tools
         run: |
           google-chrome --version
           npx -y chrome-devtools-mcp@1.6.0 --version
-          python -c "import mcp"
+          python -c "from mcp.server.fastmcp import FastMCP"
           praxys-local-mcp --prepare-only

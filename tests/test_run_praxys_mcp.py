@@ -324,26 +324,27 @@ def test_repository_mcp_launcher_honors_python_override(
     os.name == "nt",
     reason="The cloud MCP launcher targets GitHub's Linux runner.",
 )
-def test_cloud_mcp_launcher_uses_github_workspace(
+def test_cloud_mcp_launcher_resolves_workspace_from_symlink(
     tmp_path: Path,
 ) -> None:
     root = run_praxys_mcp.project_root()
-    bash = shutil.which("bash")
-    assert bash is not None
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     (bin_dir / "python").symlink_to(sys.executable)
+    installed_launcher = bin_dir / "praxys-local-mcp"
+    installed_launcher.symlink_to(
+        root / "scripts" / "run_praxys_mcp_cloud.sh",
+    )
     data_dir = tmp_path / "cloud-launcher-sandbox"
     env = os.environ.copy()
-    env["GITHUB_WORKSPACE"] = str(root)
+    env.pop("GITHUB_WORKSPACE", None)
     env["PRAXYS_LOCAL_MCP_DATA_DIR"] = str(data_dir)
     env.pop("PRAXYS_MCP_USE_CURRENT_PYTHON", None)
     env["PATH"] = os.pathsep.join((str(bin_dir), env.get("PATH", "")))
 
     result = subprocess.run(
         [
-            bash,
-            str(root / "scripts" / "run_praxys_mcp_cloud.sh"),
+            str(installed_launcher),
             "--prepare-only",
         ],
         cwd=tmp_path,
