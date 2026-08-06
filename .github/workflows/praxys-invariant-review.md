@@ -61,6 +61,9 @@ engine:
     provider: azure
     azure-tenant-id: bd18218b-ffc1-4eef-b717-fb07368336c0
     azure-client-id: d3deb736-e95d-400e-b5a5-c2f76b23ae25
+sandbox:
+  agent:
+    model-fallback: false
 max-ai-credits: 1000
 max-daily-ai-credits: 3000
 concurrency:
