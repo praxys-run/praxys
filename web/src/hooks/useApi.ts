@@ -73,6 +73,9 @@ async function extractErrorMessage(res: Response, fallback: string): Promise<str
   try {
     const data = await res.json();
     if (typeof data?.detail === 'string') return data.detail;
+    if (typeof data?.detail?.message === 'string') {
+      return data.detail.message;
+    }
     if (typeof data?.message === 'string') return data.message;
     if (Array.isArray(data?.detail) && data.detail.length > 0) {
       const first = data.detail[0];

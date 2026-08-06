@@ -5,17 +5,15 @@ import logging
 from dataclasses import asdict
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Mapping
-from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from analysis.config import (
-    ATHLETE_TIMEZONE_OPTION,
     PRAXYS_PLAN_SOURCES,
     PRAXYS_PLAN_WRITE_SOURCE,
+    athlete_local_date,
     load_config_from_db,
-    normalize_athlete_timezone,
 )
 from analysis.data_loader import load_plan_adjustment_inputs
 from analysis.metrics import daily_training_signal
@@ -76,21 +74,6 @@ class PlanAdjustmentNotFoundError(LookupError):
 
 class PlanAdjustmentConflictError(RuntimeError):
     """The canonical workout no longer matches the reversible snapshot."""
-
-
-def _athlete_local_date(config: Any, now: datetime) -> date | None:
-    """Return the athlete's current date from persisted IANA timezone data."""
-    timezone_name = normalize_athlete_timezone(
-        config.source_options.get(ATHLETE_TIMEZONE_OPTION)
-    )
-    if timezone_name is None:
-        return None
-    utc_now = (
-        now.replace(tzinfo=timezone.utc)
-        if now.tzinfo is None
-        else now.astimezone(timezone.utc)
-    )
-    return utc_now.astimezone(ZoneInfo(timezone_name)).date()
 
 
 def _target_evidence_state(
@@ -275,7 +258,7 @@ def apply_conservative_plan_adjustment(
         )
         db.rollback()
         return {"status": decision["status"], "decision": decision}
-    as_of = current_date or _athlete_local_date(config, timestamp)
+    as_of = current_date or athlete_local_date(config, timestamp)
     if as_of is None:
         decision = evaluate_conservative_plan_adjustment(
             policy=config.plan_management["adjustment_policy"],

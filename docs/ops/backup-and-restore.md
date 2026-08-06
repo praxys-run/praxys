@@ -171,9 +171,19 @@ in code / docs as of the WAL-corruption incident):
 **Take a snapshot before every risky deploy** (this incident had no backup):
 `sqlite3 trainsight.db ".backup '/home/data/backups/pre-deploy-<ts>.db'"`.
 
+## Deferred operator decision
+
+The managed Postgres retention remains 14 days and PITR is the current recovery
+mechanism. A timed production restore drill is intentionally not performed by a
+documentation or CI change: it provisions a billable clone and requires an
+operator-selected maintenance window plus production access. Record the start
+time, restored timestamp, readiness time, data checks, and cleanup time here
+when that window is approved; until then the RTO is **unvalidated**, not
+estimated.
+
 ## Related
 
 - [disaster-recovery.md](./disaster-recovery.md) · [deploy.md](./deploy.md) · `db/session.py` (`init_db`, `_SQLITE_PRAGMAS`)
 
 ---
-_Last reviewed: 2026-06-30 · Owner: @dddtc2005 · TODO(@dddtc2005): pick a backup cadence + retention and (optionally) automate it._
+_Last reviewed: 2026-08-06 · Owner: @dddtc2005_

@@ -337,20 +337,23 @@ def test_get_plan_returns_window_with_source_tag(api_client):
 
 
 def test_ai_row_takes_precedence_when_date_collides(api_client):
-    """When both AI and Stryd schedule the same date, the AI row wins
-    as the visible workout and the Stryd row contributes only to
-    ``sync_state`` derivation."""
+    """An unowned same-date target row remains visible as an overlap."""
     client, user_id = api_client
     target = date.today() + timedelta(days=2)
     _seed_rows(user_id, [
         {"date": target, "source": "ai", "workout_type": "threshold"},
         {"date": target, "source": "stryd", "workout_type": "tempo_stryd"},
     ])
-    workouts = client.get("/api/plan").json()["workouts"]
-    assert len(workouts) == 1
-    assert workouts[0]["source"] == "ai"
-    assert workouts[0]["owner"] == "praxys"
-    assert workouts[0]["workout_type"] == "threshold"
+    body = client.get("/api/plan").json()
+    workouts = body["workouts"]
+    assert [(row["owner"], row["workout_type"]) for row in workouts] == [
+        ("praxys", "threshold"),
+        ("external", "tempo_stryd"),
+    ]
+    assert all(row["external_overlap"] is True for row in workouts)
+    assert body["management"]["external_overlap_dates"] == [
+        target.isoformat(),
+    ]
 
 
 def test_sync_state_synced_when_external_id_matches_push_log(api_client):
@@ -368,6 +371,84 @@ def test_sync_state_synced_when_external_id_matches_push_log(api_client):
 
     body = client.get("/api/plan").json()
     assert body["workouts"][0]["sync_state"] == "synced"
+
+
+def test_fallback_keeps_conflict_delivery_target_owned(api_client):
+    """A non-removed delivery external ID never becomes an external overlap."""
+    client, user_id = api_client
+    target = date.today() + timedelta(days=3)
+    _seed_synced_delivery(user_id, target, "threshold", "stryd-ambiguous")
+
+    from db import session as db_session
+    from db.models import PlanDelivery
+
+    db = db_session.SessionLocal()
+    try:
+        delivery = db.query(PlanDelivery).filter(
+            PlanDelivery.user_id == user_id,
+            PlanDelivery.external_id == "stryd-ambiguous",
+        ).one()
+        delivery.state = "conflict"
+        db.commit()
+    finally:
+        db.close()
+
+    _seed_rows(user_id, [
+        {"date": target, "source": "ai", "workout_type": "threshold"},
+        {
+            "date": target,
+            "source": "stryd",
+            "workout_type": "threshold",
+            "external_id": "stryd-ambiguous",
+        },
+    ])
+
+    body = client.get("/api/plan").json()
+    assert len(body["workouts"]) == 1
+    assert body["workouts"][0]["owner"] == "praxys"
+    assert body["workouts"][0]["external_overlap"] is False
+    assert body["management"]["external_overlap_dates"] == []
+
+
+def test_fallback_keeps_moved_delivery_target_owned_across_window(
+    api_client,
+):
+    """Delivery identity stays owned when the provider moves its date."""
+    client, user_id = api_client
+    visible_date = date.today() + timedelta(days=3)
+    original_date = date.today() + timedelta(days=30)
+    _seed_synced_delivery(
+        user_id,
+        original_date,
+        "threshold",
+        "stryd-moved-across-window",
+    )
+    _seed_rows(user_id, [
+        {
+            "date": visible_date,
+            "source": "ai",
+            "workout_type": "easy",
+        },
+        {
+            "date": visible_date,
+            "source": "stryd",
+            "workout_type": "threshold",
+            "external_id": "stryd-moved-across-window",
+        },
+    ])
+
+    body = client.get(
+        "/api/plan",
+        params={
+            "start": visible_date.isoformat(),
+            "end": visible_date.isoformat(),
+        },
+    ).json()
+
+    assert len(body["workouts"]) == 1
+    assert body["workouts"][0]["owner"] == "praxys"
+    assert body["workouts"][0]["external_overlap"] is False
+    assert body["management"]["external_overlap_dates"] == []
 
 
 def test_sync_state_mismatch_when_external_id_diverges(api_client):
@@ -436,6 +517,17 @@ def test_sync_state_uses_workout_type_match_when_multiple_stryd_rows(api_client)
     body = client.get("/api/plan").json()
     ai_row = next(w for w in body["workouts"] if w["source"] == "ai")
     assert ai_row["sync_state"] == "synced"
+    external_rows = [
+        workout
+        for workout in body["workouts"]
+        if workout["owner"] == "external"
+    ]
+    assert [row["workout_type"] for row in external_rows] == ["easy"]
+    assert ai_row["external_overlap"] is True
+    assert external_rows[0]["external_overlap"] is True
+    assert body["management"]["external_overlap_dates"] == [
+        target.isoformat(),
+    ]
 
 
 def test_sync_state_not_synced_when_no_stryd_row(api_client):
@@ -1287,13 +1379,18 @@ def test_target_only_workout_coexists_with_ai_workout_on_same_date(api_client):
         "provider_payload_fingerprint": "b" * 64,
     }])
 
-    workouts = client.get("/api/plan").json()["workouts"]
+    body = client.get("/api/plan").json()
+    workouts = body["workouts"]
     assert [(row["source"], row["workout_type"]) for row in workouts] == [
         ("ai", "easy"),
         ("stryd", "strides"),
     ]
     assert workouts[0]["reconciliation"]["state"] == "not_delivered"
     assert workouts[1]["reconciliation"]["state"] == "target_only"
+    assert all(workout["external_overlap"] is True for workout in workouts)
+    assert body["management"]["external_overlap_dates"] == [
+        target.isoformat(),
+    ]
 
 
 def test_multiple_same_type_target_workouts_keep_distinct_identity(api_client):

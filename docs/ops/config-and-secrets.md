@@ -23,7 +23,7 @@ transient — the next deploy overwrites them.**
 
 | Secret | Purpose | Consumed by |
 |---|---|---|
-| `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` | OIDC login to Azure for deploys (no client secret). Agentic Workflow sources pin the same non-secret identity IDs directly because gh-aw's OIDC engine requires compile-time values. | deploy workflows |
+| `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` | OIDC login to Azure for deploys (no client secret). | deploy workflows |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription targeted by deployment workflows | deploy workflows |
 | `PRAXYS_JWT_SECRET` | JWT signing key | pushed to App Service setting by `deploy-backend.yml` |
 | `PRAXYS_DATABASE_URL` | Postgres DSN (#360). May carry the DB password unless Entra auth is used. **Optional** until cutover; empty = SQLite. | App Service setting (backend) |
@@ -40,7 +40,7 @@ transient — the next deploy overwrites them.**
 | Variable | Purpose | Consumed by |
 |---|---|---|
 | `VITE_API_URL` (`https://api.praxys.run`) | API base baked into the SPA | `deploy-frontend-appservice.yml` build |
-| `AZURE_AI_ENDPOINT` | Azure OpenAI endpoint for insights, triage, i18n, and Agentic Workflows. Keep the trailing `/`; the agent workflows append `openai/v1`. Azure BYOK workflow sources must also set `sandbox.agent.model-fallback: false` to preserve the configured deployment name. | App Service setting + `i18n.yml` + Agentic Workflow `.md` sources |
+| `AZURE_AI_ENDPOINT` | Azure OpenAI endpoint for production insights, feedback triage, and i18n. Keep the trailing `/`. Agentic Workflows use GitHub Copilot-hosted inference instead. | App Service setting + `i18n.yml` |
 | `TRANSLATE_MODEL` (`gpt-5.4-mini`) | Optional deployment override for translating newly extracted UI strings and science copy. | `i18n.yml`; script default applies when unset |
 | `TRANSLATE_REVIEW_MODEL` (`gpt-5.4`) | Optional stronger deployment override for the weekly native-Chinese catalog review. | `i18n.yml`; script default applies when unset |
 | `KEY_VAULT_URL` / `KEY_VAULT_KEY_NAME` | Key Vault + RSA key name | App Service setting |
@@ -806,7 +806,7 @@ outgrown.
 | Frontend/backend Application Insights routing | Provision the replacement component, update `.github/azure-observability.env`, grant backend MI RBAC if needed, and re-deploy | The workflows fetch fresh routing strings directly from Azure; no GitHub value rotates. |
 | Feedback GitHub App key (`PRAXYS_GITHUB_APP_PRIVATE_KEY`) | Generate a new private key on the app, update the secret, re-deploy (rarely needed). Setup: [setup-github-app.md](./setup-github-app.md). | Issue auto-filing dormant until updated; rest of app unaffected. |
 | SMTP auth code (`PRAXYS_SMTP_PASSWORD`) | Regenerate the 客户端授权码 in the Exmail/WeCom mailbox settings, update the GitHub secret, re-deploy. | Verification + invitation emails fail to send until updated (codes can still be copied by hand). |
-| Key Vault RSA key `trainsight-master-key` | ⚠️ **High-impact** — the per-user DEKs were wrapped with the current key; rotating without a re-wrap/re-encrypt migration makes stored platform credentials undecryptable. **TODO(@dddtc2005):** document the re-wrap drill before rotating. | Users would have to reconnect platforms. |
+| Key Vault RSA key `trainsight-master-key` | ⚠️ **High-impact** — the per-user DEKs were wrapped with the current key; rotating without a re-wrap/re-encrypt migration makes stored platform credentials undecryptable. Treat as non-rotatable until the migration tool and operator-approved drill in [secret-rotation.md](./secret-rotation.md) exist. | Users would have to reconnect platforms. |
 
 ## Related
 

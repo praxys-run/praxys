@@ -329,6 +329,10 @@ export interface PlannedWorkout {
   date: string;
   /** Durable Praxys workout identity; present on canonical Praxys rows. */
   canonical_id?: string;
+  /** Immutable hash of the canonical content used for optimistic writes. */
+  workout_version?: string;
+  /** True only for future Praxys-owned rows accepted by mutation APIs. */
+  editable?: boolean;
   /** Absolute UTC instant of workout start; bucket the day in viewer tz. */
   start_time?: string | null;
   workout_type: string;
@@ -336,6 +340,10 @@ export interface PlannedWorkout {
   distance_km?: number;
   power_min?: number;
   power_max?: number;
+  hr_min?: number;
+  hr_max?: number;
+  pace_min?: string;
+  pace_max?: string;
   description?: string;
   /** @deprecated Use `owner` and `origin`; retained during client rollout. */
   source: PlanWorkoutSource;
@@ -347,6 +355,8 @@ export interface PlannedWorkout {
   sync_state?: PlanSyncState;
   /** Provider reconciliation for canonical and target-only workouts. */
   reconciliation?: PlanReconciliation;
+  /** True when Praxys and an external planner both own this calendar date. */
+  external_overlap?: boolean;
 }
 
 export type PlanAdjustmentStatus = 'active' | 'undone' | 'superseded';
@@ -410,11 +420,101 @@ export interface PlanResponse {
   sync_target: PlanExecutionTarget | null;
   /** Server-resolved query window — clients echo this back when paging. */
   window: { start: string; end: string };
+  /** Present when canonical-ID workout mutations are available. */
+  management?: {
+    mutation_api_version: 1;
+    can_write: boolean;
+    minimum_date: string;
+    external_overlap_dates: string[];
+  };
   /** Durable, newest-first conservative changes in the requested window. */
   adjustments?: PlanAdjustment[];
 }
 
+export interface PlanWorkoutWriteFields {
+  date: string;
+  workout_type: string;
+  planned_duration_min: number | null;
+  planned_distance_km: number | null;
+  target_power_min: number | null;
+  target_power_max: number | null;
+  target_hr_min?: number | null;
+  target_hr_max?: number | null;
+  target_pace_min?: string | null;
+  target_pace_max?: string | null;
+  workout_description: string;
+}
+
+export interface PlanWorkoutCreateRequest {
+  date: string;
+  workout_type: string;
+  planned_duration_min?: number | null;
+  planned_distance_km?: number | null;
+  target_power_min?: number | null;
+  target_power_max?: number | null;
+  target_hr_min?: number | null;
+  target_hr_max?: number | null;
+  target_pace_min?: string | null;
+  target_pace_max?: string | null;
+  workout_description?: string | null;
+}
+
+export interface PlanWorkoutUpdateRequest {
+  expected_version: string;
+  date?: string;
+  workout_type?: string;
+  planned_duration_min?: number | null;
+  planned_distance_km?: number | null;
+  target_power_min?: number | null;
+  target_power_max?: number | null;
+  target_hr_min?: number | null;
+  target_hr_max?: number | null;
+  target_pace_min?: string | null;
+  target_pace_max?: string | null;
+  workout_description?: string | null;
+}
+
+export type PlanMutationErrorCode =
+  | 'PLAN_HISTORY_IMMUTABLE'
+  | 'PLAN_TARGET_RANGE_INVALID'
+  | 'PLAN_WORKOUT_NOT_FOUND'
+  | 'PLAN_VERSION_CONFLICT'
+  | 'PLAN_NO_CHANGES';
+
+export interface PlanMutationErrorDetail {
+  code: PlanMutationErrorCode;
+  message: string;
+  current_version?: string;
+  minimum_date?: string;
+}
+
+export interface PlanMutationErrorResponse {
+  detail: PlanMutationErrorDetail;
+}
+
+export interface PlanMutationDeliveryItem {
+  canonical_id: string | null;
+  workout_date: string;
+  action: string;
+  status: string;
+  reason?: string | null;
+  external_id?: string | null;
+}
+
+export interface PlanMutationDelivery {
+  status:
+    | 'complete'
+    | 'partial'
+    | 'skipped'
+    | 'blocked'
+    | 'unavailable';
+  target: PlanExecutionTarget | null;
+  reason?: string | null;
+  items: PlanMutationDeliveryItem[];
+}
+
 export interface PlanWorkoutMutationResponse {
+  status: 'created' | 'updated';
   id: number;
   canonical_id: string;
   date: string;
@@ -423,11 +523,44 @@ export interface PlanWorkoutMutationResponse {
   planned_distance_km: number | null;
   target_power_min: number | null;
   target_power_max: number | null;
+  target_hr_min: number | null;
+  target_hr_max: number | null;
+  target_pace_min: string | null;
+  target_pace_max: string | null;
   workout_description: string;
   /** @deprecated Use `owner` and `origin`; retained during client rollout. */
   source: 'ai';
   owner: 'praxys';
   origin: PlanWorkoutOrigin;
+  workout_version: string;
+  editable: boolean;
+  revision_id: string;
+  delivery: PlanMutationDelivery;
+}
+
+export interface PlanWorkoutDeleteResponse {
+  status: 'deleted';
+  canonical_id: string;
+  date: string;
+  workout_version: string;
+  revision_id: string;
+  delivery: PlanMutationDelivery;
+}
+
+export interface PlanUploadResponse {
+  status: 'saved';
+  rows: number;
+  mode: 'replace' | 'merge';
+  revision_id: string;
+  delivery: PlanMutationDelivery;
+}
+
+export interface PlanDayDeleteResponse {
+  status: 'deleted';
+  rows: number;
+  date: string;
+  revision_id: string;
+  delivery: PlanMutationDelivery | null;
 }
 
 export type StrydPushResult =

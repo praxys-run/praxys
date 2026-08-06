@@ -38,6 +38,27 @@ function localIsoDate(value: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+export function shiftAthletePlanDate(
+  isoDate: string,
+  days: number,
+): string {
+  const shifted = new Date(`${isoDate}T12:00:00`);
+  shifted.setDate(shifted.getDate() + days);
+  return localIsoDate(shifted);
+}
+
+export function athletePlanDateDistance(
+  start: string,
+  end: string,
+): number {
+  const [startYear, startMonth, startDay] = start.split('-').map(Number);
+  const [endYear, endMonth, endDay] = end.split('-').map(Number);
+  return Math.round((
+    Date.UTC(endYear, endMonth - 1, endDay)
+    - Date.UTC(startYear, startMonth - 1, startDay)
+  ) / 86_400_000);
+}
+
 export function managedPlanWindow(
   days = MANAGED_PLAN_WINDOW_DAYS,
   now = new Date(),

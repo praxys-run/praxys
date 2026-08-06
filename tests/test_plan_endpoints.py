@@ -10,7 +10,7 @@ explicit modes + per-day operations) so a future refactor can't quietly
 revert to "wipe everything on every push" semantics.
 """
 import tempfile
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -41,7 +41,11 @@ def api_client(monkeypatch):
     db_session.init_db()
 
     from api.main import app
-    from api.auth import require_write_access, get_data_user_id
+    from api.auth import (
+        get_current_user_id,
+        get_data_user_id,
+        require_write_access,
+    )
     from db.session import get_db
 
     test_user_id = "test-user-plan-endpoints"
@@ -57,6 +61,7 @@ def api_client(monkeypatch):
             db.close()
 
     app.dependency_overrides[require_write_access] = _override_user
+    app.dependency_overrides[get_current_user_id] = _override_user
     app.dependency_overrides[get_data_user_id] = _override_user
     app.dependency_overrides[get_db] = _override_db
 
@@ -97,6 +102,36 @@ def _seed_plan(user_id: str, days: list[tuple[str, str, str]]):
                 source="ai",
             ))
         db.commit()
+    finally:
+        db.close()
+
+
+def _seed_external_plan(
+    user_id: str,
+    *,
+    date_iso: str,
+    workout_type: str = "easy",
+) -> str:
+    """Insert one provider-owned row and return its non-editable UUID."""
+    from datetime import datetime
+    from db import session as db_session
+    from db.models import TrainingPlan
+
+    db = db_session.SessionLocal()
+    try:
+        row = TrainingPlan(
+            user_id=user_id,
+            date=datetime.strptime(date_iso, "%Y-%m-%d").date(),
+            workout_type=workout_type,
+            workout_description="External coach workout",
+            source="stryd",
+            workout_origin="imported",
+            external_id="external-workout-1",
+        )
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        return row.canonical_id
     finally:
         db.close()
 
@@ -157,6 +192,16 @@ def _list_revisions(user_id: str) -> list[dict]:
 
 
 class TestUploadReplaceMode:
+    def test_empty_csv_returns_http_error(self, api_client):
+        client, _ = api_client
+
+        response = client.post("/api/plan/upload", json={
+            "csv": "date,workout_type\n",
+        })
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "No rows in CSV"
+
     def test_replace_is_default(self, api_client):
         client, user_id = api_client
         future = (date.today() + timedelta(days=2)).isoformat()
@@ -396,6 +441,21 @@ class TestUpsertPlanDay:
         res = client.put("/api/plan/not-a-date", json={"workout_type": "easy"})
         assert res.status_code == 400
 
+    def test_put_rejects_completed_history(self, api_client):
+        client, user_id = api_client
+        target = (date.today() - timedelta(days=1)).isoformat()
+        _seed_plan(user_id, [(target, "easy", "completed")])
+
+        response = client.put(f"/api/plan/{target}", json={
+            "workout_type": "threshold",
+        })
+
+        assert response.status_code == 409
+        detail = response.json()["detail"]
+        assert detail["code"] == "PLAN_HISTORY_IMMUTABLE"
+        assert detail["minimum_date"] == date.today().isoformat()
+        assert _list_plan_rows(user_id)[0]["workout_description"] == "completed"
+
 
 # ---------------------------------------------------------------------------
 # DELETE /api/plan/{date}
@@ -432,6 +492,599 @@ class TestDeletePlanDay:
         client, _ = api_client
         res = client.delete("/api/plan/2026-99-99")
         assert res.status_code == 400
+
+    def test_delete_rejects_completed_history(self, api_client):
+        client, user_id = api_client
+        target = (date.today() - timedelta(days=1)).isoformat()
+        _seed_plan(user_id, [(target, "easy", "completed")])
+
+        response = client.delete(f"/api/plan/{target}")
+
+        assert response.status_code == 409
+        detail = response.json()["detail"]
+        assert detail["code"] == "PLAN_HISTORY_IMMUTABLE"
+        assert detail["minimum_date"] == date.today().isoformat()
+        assert len(_list_plan_rows(user_id)) == 1
+
+
+# ---------------------------------------------------------------------------
+# Canonical-ID workout management API
+# ---------------------------------------------------------------------------
+
+
+class TestCanonicalWorkoutManagement:
+    def test_mutation_history_boundary_uses_athlete_date(
+        self,
+        api_client,
+        monkeypatch,
+    ):
+        client, _ = api_client
+        athlete_today = date.today() + timedelta(days=1)
+        monkeypatch.setattr(
+            "api.routes.ai._current_athlete_date",
+            lambda db, user_id: athlete_today,
+        )
+
+        response = client.post("/api/plan/workouts", json={
+            "date": date.today().isoformat(),
+            "workout_type": "easy",
+        })
+
+        assert response.status_code == 409
+        detail = response.json()["detail"]
+        assert detail["code"] == "PLAN_HISTORY_IMMUTABLE"
+        assert detail["minimum_date"] == athlete_today.isoformat()
+
+    def test_create_returns_version_revision_and_delivery_state(
+        self,
+        api_client,
+    ):
+        client, user_id = api_client
+        target = (date.today() + timedelta(days=3)).isoformat()
+
+        response = client.post("/api/plan/workouts", json={
+            "date": target,
+            "workout_type": "easy",
+            "planned_duration_min": 45,
+            "workout_description": "Aerobic run",
+        })
+
+        assert response.status_code == 201, response.text
+        body = response.json()
+        assert body["status"] == "created"
+        assert body["date"] == target
+        assert body["owner"] == "praxys"
+        assert body["origin"] == "manual"
+        assert body["editable"] is True
+        assert len(body["workout_version"]) == 64
+        assert body["revision_id"]
+        assert body["delivery"]["status"] in {
+            "blocked",
+            "complete",
+            "partial",
+            "skipped",
+            "unavailable",
+        }
+        revisions = _list_revisions(user_id)
+        assert revisions[-1]["operation"] == "create"
+        assert revisions[-1]["after"][0]["canonical_id"] == body["canonical_id"]
+
+    def test_list_exposes_version_and_only_praxys_rows_are_editable(
+        self,
+        api_client,
+    ):
+        client, user_id = api_client
+        target = (date.today() + timedelta(days=3)).isoformat()
+        external_target = (date.today() + timedelta(days=4)).isoformat()
+        _seed_plan(user_id, [(target, "easy", "Praxys")])
+        _seed_external_plan(
+            user_id,
+            date_iso=external_target,
+            workout_type="tempo",
+        )
+
+        response = client.get(
+            f"/api/plan?start={target}&end={external_target}",
+        )
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["management"]["mutation_api_version"] == 1
+        assert body["management"]["can_write"] is True
+        assert body["management"]["minimum_date"] == date.today().isoformat()
+        assert body["management"]["external_overlap_dates"] == []
+        praxys = next(
+            workout
+            for workout in body["workouts"]
+            if workout["owner"] == "praxys"
+        )
+        external = next(
+            workout
+            for workout in body["workouts"]
+            if workout["owner"] == "external"
+        )
+        assert praxys["editable"] is True
+        assert len(praxys["workout_version"]) == 64
+        assert external["editable"] is False
+        assert "workout_version" not in external
+
+    def test_list_window_and_editability_use_athlete_date(
+        self,
+        api_client,
+        monkeypatch,
+    ):
+        client, user_id = api_client
+        server_today = date.today()
+        athlete_today = server_today + timedelta(days=1)
+        _seed_plan(user_id, [
+            (server_today.isoformat(), "easy", "athlete history"),
+            (athlete_today.isoformat(), "tempo", "athlete today"),
+        ])
+        monkeypatch.setattr(
+            "api.routes.plan.effective_athlete_date",
+            lambda config: athlete_today,
+        )
+
+        response = client.get(
+            "/api/plan",
+            params={
+                "start": server_today.isoformat(),
+                "end": athlete_today.isoformat(),
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["management"]["minimum_date"] == athlete_today.isoformat()
+        editable_by_date = {
+            workout["date"]: workout["editable"]
+            for workout in body["workouts"]
+        }
+        assert editable_by_date == {
+            server_today.isoformat(): False,
+            athlete_today.isoformat(): True,
+        }
+
+        default_window = client.get("/api/plan")
+        assert default_window.status_code == 200, default_window.text
+        assert default_window.json()["window"]["start"] == athlete_today.isoformat()
+
+    def test_demo_view_is_explicitly_read_only(self, api_client):
+        client, user_id = api_client
+        target = (date.today() + timedelta(days=3)).isoformat()
+        _seed_plan(user_id, [(target, "easy", "Praxys")])
+
+        from api.auth import get_current_user_id
+        from api.main import app
+
+        app.dependency_overrides[get_current_user_id] = lambda: "demo-viewer"
+        response = client.get(f"/api/plan?start={target}&end={target}")
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["management"]["can_write"] is False
+        assert body["workouts"][0]["editable"] is False
+
+        app.dependency_overrides[get_current_user_id] = lambda: user_id
+
+    def test_plan_etag_salts_date_and_write_capability(
+        self,
+        api_client,
+        monkeypatch,
+    ):
+        client, user_id = api_client
+        salts: list[str] = []
+
+        def capture_etag(
+            db: object,
+            called_user_id: str,
+            scopes: object,
+            *,
+            salt: str | None = None,
+        ) -> str:
+            assert called_user_id == user_id
+            salts.append(salt)
+            return f'W/"etag-{len(salts)}"'
+
+        monkeypatch.setattr("api.routes.plan.compute_etag", capture_etag)
+        first = client.get("/api/plan")
+
+        from api.auth import get_current_user_id
+        from api.main import app
+
+        app.dependency_overrides[get_current_user_id] = lambda: "demo-viewer"
+        second = client.get("/api/plan")
+
+        assert first.status_code == 200
+        assert second.status_code == 200
+        assert f"today={date.today().isoformat()}" in salts[0]
+        assert "writable=1" in salts[0]
+        assert "writable=0" in salts[1]
+        assert first.headers["etag"] != second.headers["etag"]
+
+        app.dependency_overrides[get_current_user_id] = lambda: user_id
+
+    def test_edit_reschedules_in_place_and_stale_retry_fails_closed(
+        self,
+        api_client,
+    ):
+        client, user_id = api_client
+        original_date = (date.today() + timedelta(days=3)).isoformat()
+        next_date = (date.today() + timedelta(days=5)).isoformat()
+        created = client.post("/api/plan/workouts", json={
+            "date": original_date,
+            "workout_type": "easy",
+            "planned_duration_min": 40,
+        }).json()
+
+        response = client.put(
+            f"/api/plan/workouts/{created['canonical_id']}",
+            json={
+                "expected_version": created["workout_version"],
+                "date": next_date,
+                "workout_type": "threshold",
+                "planned_duration_min": 50,
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        updated = response.json()
+        assert updated["canonical_id"] == created["canonical_id"]
+        assert updated["date"] == next_date
+        assert updated["workout_type"] == "threshold"
+        assert updated["workout_version"] != created["workout_version"]
+
+        stale = client.put(
+            f"/api/plan/workouts/{created['canonical_id']}",
+            json={
+                "expected_version": created["workout_version"],
+                "workout_description": "Overwrite newer edit",
+            },
+        )
+        assert stale.status_code == 409
+        assert stale.json()["detail"]["code"] == "PLAN_VERSION_CONFLICT"
+        rows = _list_plan_rows(user_id)
+        assert rows == [{
+            "canonical_id": created["canonical_id"],
+            "date": next_date,
+            "workout_type": "threshold",
+            "workout_description": "",
+            "source": PRAXYS_PLAN_WRITE_SOURCE,
+            "workout_origin": "manual",
+        }]
+        assert [row["operation"] for row in _list_revisions(user_id)] == [
+            "create",
+            "update",
+        ]
+
+    def test_convert_to_rest_and_delete_require_current_version(
+        self,
+        api_client,
+    ):
+        client, user_id = api_client
+        target = (date.today() + timedelta(days=4)).isoformat()
+        created = client.post("/api/plan/workouts", json={
+            "date": target,
+            "workout_type": "tempo",
+            "planned_duration_min": 55,
+            "planned_distance_km": 10,
+        }).json()
+
+        converted_response = client.put(
+            f"/api/plan/workouts/{created['canonical_id']}",
+            json={
+                "expected_version": created["workout_version"],
+                "workout_type": "rest",
+                "planned_duration_min": None,
+                "planned_distance_km": None,
+                "target_power_min": None,
+                "target_power_max": None,
+                "workout_description": "",
+            },
+        )
+        assert converted_response.status_code == 200, converted_response.text
+        converted = converted_response.json()
+        assert converted["workout_type"] == "rest"
+        assert converted["planned_duration_min"] is None
+
+        stale_delete = client.delete(
+            f"/api/plan/workouts/{created['canonical_id']}",
+            params={"expected_version": created["workout_version"]},
+        )
+        assert stale_delete.status_code == 409
+        assert stale_delete.json()["detail"]["code"] == "PLAN_VERSION_CONFLICT"
+
+        deleted = client.delete(
+            f"/api/plan/workouts/{created['canonical_id']}",
+            params={"expected_version": converted["workout_version"]},
+        )
+        assert deleted.status_code == 200, deleted.text
+        assert deleted.json()["status"] == "deleted"
+        assert _list_plan_rows(user_id) == []
+        assert [row["operation"] for row in _list_revisions(user_id)] == [
+            "create",
+            "update",
+            "delete",
+        ]
+
+    def test_rest_conversion_clears_every_hidden_training_target(
+        self,
+        api_client,
+    ):
+        client, user_id = api_client
+        target = (date.today() + timedelta(days=4)).isoformat()
+        created = client.post("/api/plan/workouts", json={
+            "date": target,
+            "workout_type": "tempo",
+            "planned_duration_min": 55,
+            "planned_distance_km": 10,
+            "target_power_min": 250,
+            "target_power_max": 280,
+            "target_hr_min": 155,
+            "target_hr_max": 170,
+            "target_pace_min": "04:00",
+            "target_pace_max": "04:20",
+        }).json()
+
+        from db import session as db_session
+        from db.models import TrainingPlan
+
+        db = db_session.SessionLocal()
+        try:
+            row = db.query(TrainingPlan).filter(
+                TrainingPlan.user_id == user_id,
+                TrainingPlan.canonical_id == created["canonical_id"],
+            ).one()
+            row.start_time = datetime(2030, 1, 1, 8)
+            db.commit()
+        finally:
+            db.close()
+
+        current = client.get(
+            f"/api/plan?start={target}&end={target}",
+        ).json()["workouts"][0]
+        assert current["hr_min"] == 155
+        assert current["hr_max"] == 170
+        assert current["pace_min"] == "04:00"
+        assert current["pace_max"] == "04:20"
+
+        response = client.put(
+            f"/api/plan/workouts/{created['canonical_id']}",
+            json={
+                "expected_version": current["workout_version"],
+                "workout_type": "rest",
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        converted = response.json()
+        for field in (
+            "planned_duration_min",
+            "planned_distance_km",
+            "target_power_min",
+            "target_power_max",
+            "target_hr_min",
+            "target_hr_max",
+            "target_pace_min",
+            "target_pace_max",
+        ):
+            assert converted[field] is None
+
+        db = db_session.SessionLocal()
+        try:
+            row = db.query(TrainingPlan).filter(
+                TrainingPlan.user_id == user_id,
+                TrainingPlan.canonical_id == created["canonical_id"],
+            ).one()
+            assert row.start_time is None
+        finally:
+            db.close()
+
+    def test_same_date_edit_preserves_start_time_but_reschedule_clears_it(
+        self,
+        api_client,
+    ):
+        client, user_id = api_client
+        target = date.today() + timedelta(days=4)
+        created = client.post("/api/plan/workouts", json={
+            "date": target.isoformat(),
+            "workout_type": "easy",
+            "workout_description": "Morning run",
+        }).json()
+
+        from db import session as db_session
+        from db.models import TrainingPlan
+
+        scheduled_time = datetime.combine(target, datetime.min.time()).replace(
+            hour=7,
+            minute=30,
+        )
+        db = db_session.SessionLocal()
+        try:
+            row = db.query(TrainingPlan).filter(
+                TrainingPlan.user_id == user_id,
+                TrainingPlan.canonical_id == created["canonical_id"],
+            ).one()
+            row.start_time = scheduled_time
+            db.commit()
+        finally:
+            db.close()
+
+        current = client.get(
+            f"/api/plan?start={target}&end={target}",
+        ).json()["workouts"][0]
+        edited = client.put(
+            f"/api/plan/workouts/{created['canonical_id']}",
+            json={
+                "expected_version": current["workout_version"],
+                "workout_description": "Updated notes",
+            },
+        )
+        assert edited.status_code == 200, edited.text
+
+        db = db_session.SessionLocal()
+        try:
+            row = db.query(TrainingPlan).filter(
+                TrainingPlan.user_id == user_id,
+                TrainingPlan.canonical_id == created["canonical_id"],
+            ).one()
+            assert row.start_time == scheduled_time
+        finally:
+            db.close()
+
+        moved_date = target + timedelta(days=1)
+        moved = client.put(
+            f"/api/plan/workouts/{created['canonical_id']}",
+            json={
+                "expected_version": edited.json()["workout_version"],
+                "date": moved_date.isoformat(),
+            },
+        )
+        assert moved.status_code == 200, moved.text
+
+        db = db_session.SessionLocal()
+        try:
+            row = db.query(TrainingPlan).filter(
+                TrainingPlan.user_id == user_id,
+                TrainingPlan.canonical_id == created["canonical_id"],
+            ).one()
+            assert row.start_time is None
+        finally:
+            db.close()
+
+    def test_mutation_response_normalizes_strings_and_delivery_shape(
+        self,
+        api_client,
+    ):
+        client, _ = api_client
+        target = (date.today() + timedelta(days=3)).isoformat()
+
+        response = client.post("/api/plan/workouts", json={
+            "date": target,
+            "workout_type": "  custom session  ",
+            "workout_description": "  Keep exact intent  ",
+        })
+
+        assert response.status_code == 201, response.text
+        body = response.json()
+        assert body["workout_type"] == "custom session"
+        assert body["workout_description"] == "Keep exact intent"
+        assert set(body["delivery"]) == {
+            "status",
+            "target",
+            "reason",
+            "items",
+        }
+
+    def test_target_range_errors_are_structured_after_partial_merge(
+        self,
+        api_client,
+    ):
+        client, _ = api_client
+        target = (date.today() + timedelta(days=3)).isoformat()
+
+        invalid_create = client.post("/api/plan/workouts", json={
+            "date": target,
+            "workout_type": "tempo",
+            "target_power_min": 280,
+            "target_power_max": 250,
+        })
+        assert invalid_create.status_code == 400
+        assert invalid_create.json()["detail"]["code"] == (
+            "PLAN_TARGET_RANGE_INVALID"
+        )
+
+        created = client.post("/api/plan/workouts", json={
+            "date": target,
+            "workout_type": "tempo",
+            "target_hr_max": 165,
+        }).json()
+        invalid_update = client.put(
+            f"/api/plan/workouts/{created['canonical_id']}",
+            json={
+                "expected_version": created["workout_version"],
+                "target_hr_min": 170,
+            },
+        )
+        assert invalid_update.status_code == 400
+        assert invalid_update.json()["detail"]["code"] == (
+            "PLAN_TARGET_RANGE_INVALID"
+        )
+
+    def test_empty_update_returns_structured_no_changes(
+        self,
+        api_client,
+    ):
+        client, _ = api_client
+        target = (date.today() + timedelta(days=3)).isoformat()
+        created = client.post("/api/plan/workouts", json={
+            "date": target,
+            "workout_type": "easy",
+        }).json()
+
+        response = client.put(
+            f"/api/plan/workouts/{created['canonical_id']}",
+            json={"expected_version": created["workout_version"]},
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"]["code"] == "PLAN_NO_CHANGES"
+
+    def test_external_and_other_user_workouts_are_not_mutable(
+        self,
+        api_client,
+    ):
+        client, user_id = api_client
+        target = (date.today() + timedelta(days=4)).isoformat()
+        external_id = _seed_external_plan(user_id, date_iso=target)
+        _seed_plan("another-user", [(target, "easy", "Private")])
+        other_id = _list_plan_rows("another-user")[0]["canonical_id"]
+        expected = "0" * 64
+
+        for canonical_id in (external_id, other_id):
+            response = client.put(
+                f"/api/plan/workouts/{canonical_id}",
+                json={
+                    "expected_version": expected,
+                    "workout_type": "rest",
+                },
+            )
+            assert response.status_code == 404
+            assert response.json()["detail"]["code"] == "PLAN_WORKOUT_NOT_FOUND"
+
+        assert _list_plan_rows("another-user")[0]["workout_description"] == "Private"
+
+    def test_completed_workout_is_listed_but_immutable(self, api_client):
+        client, user_id = api_client
+        target = (date.today() - timedelta(days=1)).isoformat()
+        _seed_plan(user_id, [(target, "easy", "Completed")])
+        row = _list_plan_rows(user_id)[0]
+
+        listed = client.get(f"/api/plan?start={target}&end={target}")
+        assert listed.status_code == 200
+        workout = listed.json()["workouts"][0]
+        assert workout["editable"] is False
+
+        updated = client.put(
+            f"/api/plan/workouts/{row['canonical_id']}",
+            json={
+                "expected_version": workout["workout_version"],
+                "workout_type": "rest",
+            },
+        )
+        deleted = client.delete(
+            f"/api/plan/workouts/{row['canonical_id']}",
+            params={"expected_version": workout["workout_version"]},
+        )
+        created = client.post("/api/plan/workouts", json={
+            "date": target,
+            "workout_type": "easy",
+        })
+
+        assert updated.status_code == 409
+        assert deleted.status_code == 409
+        assert created.status_code == 409
+        assert _list_plan_rows(user_id)[0]["workout_description"] == "Completed"
 
 
 # ---------------------------------------------------------------------------

@@ -9,10 +9,14 @@ import { Link } from 'react-router-dom';
 import { Plural, Trans, useLingui } from '@lingui/react/macro';
 import {
   Check,
+  ChevronLeft,
+  ChevronRight,
   CircleAlert,
   CloudUpload,
   LoaderCircle,
   Pause,
+  Pencil,
+  Plus,
   RefreshCw,
   RotateCcw,
   ShieldCheck,
@@ -30,6 +34,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import WorkoutPlanEditor from '@/components/WorkoutPlanEditor';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import {
@@ -39,16 +44,24 @@ import {
 } from '@/hooks/useApi';
 import {
   athletePlanWindow,
+  athletePlanDateDistance,
   isPraxysOwned,
+  isRestWorkoutType,
   managedPlanState,
   planWindowUrl,
+  shiftAthletePlanDate,
   type ManagedPlanState,
 } from '@/lib/plan';
 import type {
   PlanReconciliation,
+  PlanMutationErrorCode,
   PlanResolutionAction,
   PlanResolutionResponse,
   PlanResponse,
+  PlanWorkoutDeleteResponse,
+  PlanWorkoutMutationResponse,
+  PlanWorkoutUpdateRequest,
+  PlanWorkoutWriteFields,
   PlannedWorkout,
   StrydPushResult,
 } from '@/types/api';
@@ -123,6 +136,20 @@ function formatNoticeDate(dateStr: string, locale: string): string {
     locale === 'zh' ? 'zh-CN' : 'en-US',
     { month: 'short', day: 'numeric' },
   );
+}
+
+function formatWindowRange(
+  start: string,
+  end: string,
+  locale: string,
+): string {
+  const formatter = new Intl.DateTimeFormat(
+    locale === 'zh' ? 'zh-CN' : 'en-US',
+    { month: 'short', day: 'numeric' },
+  );
+  return `${formatter.format(new Date(`${start}T12:00:00`))} – ${
+    formatter.format(new Date(`${end}T12:00:00`))
+  }`;
 }
 
 function workoutKey(workout: PlannedWorkout): string {
@@ -254,6 +281,7 @@ function DeliveryStatus({
   workout,
   managementState,
   target,
+  writeAccess,
   working,
   actionsDisabled,
   error,
@@ -263,6 +291,7 @@ function DeliveryStatus({
   workout: PlannedWorkout;
   managementState: ManagedPlanState;
   target: string | null;
+  writeAccess: boolean;
   working: boolean;
   actionsDisabled: boolean;
   error?: string;
@@ -272,7 +301,7 @@ function DeliveryStatus({
   const { t } = useLingui();
   const reconciliation = workout.reconciliation;
   const isOwned = isPraxysOwned(workout);
-  const isRest = workout.workout_type.toLowerCase() === 'rest';
+  const isRest = isRestWorkoutType(workout.workout_type);
   const canAccept = reconciliation?.resolutions.includes('accept_target');
   const hasConflict = reconciliation?.conflict === true
     || workout.sync_state === 'mismatch';
@@ -312,7 +341,7 @@ function DeliveryStatus({
   }
 
   if (!isOwned) {
-    if (canAccept) {
+    if (canAccept && writeAccess) {
       return (
         <Button
           type="button"
@@ -387,6 +416,13 @@ function DeliveryStatus({
     || state === 'canonical_changed'
     || state === 'target_deleted'
   ) {
+    if (!writeAccess) {
+      return (
+        <StaticStatus tone="bg-accent-amber/10 text-accent-amber">
+          <Trans>Review conflict</Trans>
+        </StaticStatus>
+      );
+    }
     return (
       <Button
         type="button"
@@ -402,6 +438,13 @@ function DeliveryStatus({
     );
   }
   if (state === 'delivery_failed') {
+    if (!writeAccess) {
+      return (
+        <StaticStatus tone="bg-destructive/10 text-destructive">
+          <Trans>Delivery failed</Trans>
+        </StaticStatus>
+      );
+    }
     return (
       <Button
         type="button"
@@ -417,6 +460,13 @@ function DeliveryStatus({
     );
   }
   if (workout.sync_state === 'mismatch' && reconciliation) {
+    if (!writeAccess) {
+      return (
+        <StaticStatus tone="bg-accent-amber/10 text-accent-amber">
+          <Trans>Review conflict</Trans>
+        </StaticStatus>
+      );
+    }
     return (
       <Button
         type="button"
@@ -442,6 +492,13 @@ function DeliveryStatus({
     );
   }
   if (target === 'stryd') {
+    if (!writeAccess) {
+      return (
+        <StaticStatus tone="bg-accent-cobalt/10 text-accent-cobalt">
+          <Trans>Queued</Trans>
+        </StaticStatus>
+      );
+    }
     return (
       <Button
         type="button"
@@ -467,19 +524,25 @@ function WorkoutRow({
   workout,
   managementState,
   target,
+  writeAccess,
   working,
   actionsDisabled,
+  editDisabled,
   error,
   onDeliver,
+  onEdit,
   onReview,
 }: {
   workout: PlannedWorkout;
   managementState: ManagedPlanState;
   target: string | null;
+  writeAccess: boolean;
   working: boolean;
   actionsDisabled: boolean;
+  editDisabled: boolean;
   error?: string;
   onDeliver: () => void;
+  onEdit?: () => void;
   onReview: () => void;
 }) {
   const { t } = useLingui();
@@ -495,6 +558,24 @@ function WorkoutRow({
   if (workout.distance_km != null) details.push(`${workout.distance_km}km`);
   if (workout.power_min != null && workout.power_max != null) {
     details.push(`${workout.power_min}\u2013${workout.power_max}W`);
+  } else if (workout.power_min != null) {
+    details.push(`\u2265${workout.power_min}W`);
+  } else if (workout.power_max != null) {
+    details.push(`\u2264${workout.power_max}W`);
+  }
+  if (workout.hr_min != null && workout.hr_max != null) {
+    details.push(`${workout.hr_min}\u2013${workout.hr_max} bpm`);
+  } else if (workout.hr_min != null) {
+    details.push(`\u2265${workout.hr_min} bpm`);
+  } else if (workout.hr_max != null) {
+    details.push(`\u2264${workout.hr_max} bpm`);
+  }
+  if (workout.pace_min && workout.pace_max) {
+    details.push(`${workout.pace_min}\u2013${workout.pace_max}/km`);
+  } else if (workout.pace_min) {
+    details.push(`\u2265${workout.pace_min}/km`);
+  } else if (workout.pace_max) {
+    details.push(`\u2264${workout.pace_max}/km`);
   }
 
   return (
@@ -543,17 +624,31 @@ function WorkoutRow({
         )}
       </div>
 
-      <div className="col-start-3 justify-self-start sm:col-start-4 sm:row-start-1 sm:justify-self-end">
+      <div className="col-start-3 flex flex-wrap items-center gap-2 justify-self-start sm:col-start-4 sm:row-start-1 sm:justify-self-end">
         <DeliveryStatus
           workout={workout}
           managementState={managementState}
           target={target}
+          writeAccess={writeAccess}
           working={working}
           actionsDisabled={actionsDisabled}
           error={error}
           onDeliver={onDeliver}
           onReview={onReview}
         />
+        {onEdit && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            disabled={editDisabled}
+            onClick={onEdit}
+            className="rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Pencil className="h-3 w-3" aria-hidden="true" />
+            <Trans>Edit</Trans>
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -563,6 +658,7 @@ function ConflictDialog({
   workout,
   open,
   targetConnected,
+  actionsDisabled,
   working,
   error,
   onOpenChange,
@@ -571,6 +667,7 @@ function ConflictDialog({
   workout: PlannedWorkout | null;
   open: boolean;
   targetConnected: boolean;
+  actionsDisabled: boolean;
   working: boolean;
   error: string | null;
   onOpenChange: (open: boolean) => void;
@@ -693,7 +790,7 @@ function ConflictDialog({
           {canAccept && (
             <Button
               variant={canRestore ? 'outline' : 'default'}
-              disabled={working}
+              disabled={working || actionsDisabled}
               onClick={() => onResolve('accept_target')}
             >
               {working ? <Trans>Applying…</Trans> : <Trans>Use {target} version</Trans>}
@@ -701,7 +798,7 @@ function ConflictDialog({
           )}
           {canRestore && (
             <Button
-              disabled={working || !targetConnected}
+              disabled={working || actionsDisabled || !targetConnected}
               onClick={() => onResolve('restore_praxys')}
             >
               {working
@@ -775,6 +872,41 @@ async function resolveWorkout(
   return response.json() as Promise<PlanResolutionResponse>;
 }
 
+interface PlanMutationHttpError extends Error {
+  status: number;
+  code?: PlanMutationErrorCode;
+}
+
+async function requestPlanMutation<T>(
+  url: string,
+  init: RequestInit,
+  fallbackError: string,
+): Promise<T> {
+  const response = await apiFetch(url, init);
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as {
+      detail?:
+        | string
+        | { code?: string; message?: string }
+        | { msg?: string }[];
+      message?: string;
+    } | null;
+    const detail = payload?.detail;
+    const message = typeof detail === 'string'
+      ? detail
+      : Array.isArray(detail)
+        ? detail[0]?.msg ?? fallbackError
+        : detail?.message ?? payload?.message ?? fallbackError;
+    const error = new Error(message) as PlanMutationHttpError;
+    error.status = response.status;
+    if (detail && !Array.isArray(detail) && typeof detail === 'object') {
+      error.code = detail.code as PlanMutationErrorCode | undefined;
+    }
+    throw error;
+  }
+  return response.json() as Promise<T>;
+}
+
 export default function UpcomingPlanCard() {
   const { t } = useLingui();
   const { locale } = useLocale();
@@ -791,6 +923,7 @@ export default function UpcomingPlanCard() {
   const [localDay, setLocalDay] = useState(
     () => athletePlanWindow(1).start,
   );
+  const [windowOffsetDays, setWindowOffsetDays] = useState(0);
   useEffect(() => {
     let timer: number | undefined;
     const refreshLocalDay = () => {
@@ -812,12 +945,13 @@ export default function UpcomingPlanCard() {
       if (timer !== undefined) window.clearTimeout(timer);
     };
   }, []);
+  const windowStart = shiftAthletePlanDate(localDay, windowOffsetDays);
   const planUrl = useMemo(
     () => planWindowUrl(
       windowDays,
-      new Date(`${localDay}T12:00:00`),
+      new Date(`${windowStart}T12:00:00`),
     ),
-    [windowDays, localDay],
+    [windowDays, windowStart],
   );
   const { data, loading, error, refetch } = useApi<PlanResponse>(planUrl);
   const [workingKey, setWorkingKey] = useState<string | null>(null);
@@ -826,6 +960,20 @@ export default function UpcomingPlanCard() {
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [undoingAdjustment, setUndoingAdjustment] = useState<string | null>(null);
   const [adjustmentError, setAdjustmentError] = useState<string | null>(null);
+  const [editor, setEditor] = useState<
+    { mode: 'create' } | { mode: 'edit'; workout: PlannedWorkout } | null
+  >(null);
+  const [editorWorking, setEditorWorking] = useState(false);
+  const [editorError, setEditorError] = useState<string | null>(null);
+  const [mutationNotice, setMutationNotice] = useState<string | null>(null);
+
+  const clearRowError = useCallback((key: string) => {
+    setRowErrors((current) => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  }, []);
 
   const planManagement = settings?.plan_management ?? {
     mode: 'external' as const,
@@ -838,6 +986,11 @@ export default function UpcomingPlanCard() {
   const targetConnected = executionTarget != null
     && connectionStatuses[executionTarget] === 'connected';
   const targetLabel = planTargetLabel(executionTarget);
+  const canWrite = data?.management?.can_write !== false;
+  const mutationAvailable = (
+    data?.management?.mutation_api_version === 1
+    && canWrite
+  );
 
   const handleWindowChange = useCallback((next: WindowId) => {
     setWindowId(next);
@@ -845,6 +998,26 @@ export default function UpcomingPlanCard() {
       window.localStorage.setItem(WINDOW_STORAGE_KEY, next);
     }
   }, []);
+
+  const navigateWindow = useCallback((direction: -1 | 1) => {
+    setWindowOffsetDays((current) => Math.max(
+      0,
+      current + (direction * windowDays),
+    ));
+  }, [windowDays]);
+
+  const refreshDateWindow = async (workoutDate: string) => {
+    const dateOffset = Math.max(
+      0,
+      athletePlanDateDistance(localDay, workoutDate),
+    );
+    const nextOffset = Math.floor(dateOffset / windowDays) * windowDays;
+    if (nextOffset === windowOffsetDays) {
+      await refetch();
+    } else {
+      setWindowOffsetDays(nextOffset);
+    }
+  };
 
   const deliverWorkout = async (workout: PlannedWorkout) => {
     const key = workoutKey(workout);
@@ -932,6 +1105,149 @@ export default function UpcomingPlanCard() {
     }
   };
 
+  const handleMutationError = async (actionError: unknown) => {
+    const mutationError = actionError as Partial<PlanMutationHttpError>;
+    if (mutationError.code === 'PLAN_VERSION_CONFLICT') {
+      await refetch();
+      setEditor(null);
+      setMutationNotice(
+        t`This workout changed elsewhere. The plan was refreshed; reopen the workout to continue.`,
+      );
+      return;
+    }
+    if (mutationError.code === 'PLAN_HISTORY_IMMUTABLE') {
+      await refetch();
+      setEditor(null);
+      setMutationNotice(
+        t`That date is now completed history and can no longer be changed.`,
+      );
+      return;
+    }
+    setEditorError(
+      actionError instanceof Error
+        ? actionError.message
+        : t`Could not update this workout`,
+    );
+  };
+
+  const saveWorkout = async (fields: PlanWorkoutWriteFields) => {
+    setEditorWorking(true);
+    setEditorError(null);
+    setMutationNotice(null);
+    try {
+      if (editor?.mode === 'edit') {
+        const { workout } = editor;
+        if (!workout.canonical_id || !workout.workout_version) {
+          throw new Error(t`Refresh the plan before editing this workout.`);
+        }
+        const payload: PlanWorkoutUpdateRequest = {
+          ...fields,
+          expected_version: workout.workout_version,
+        };
+        const result = await requestPlanMutation<PlanWorkoutMutationResponse>(
+          `/api/plan/workouts/${encodeURIComponent(workout.canonical_id)}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          },
+          t`Could not update this workout`,
+        );
+        clearRowError(workoutKey(workout));
+        setEditor(null);
+        await refreshDateWindow(result.date);
+      } else {
+        const result = await requestPlanMutation<PlanWorkoutMutationResponse>(
+          '/api/plan/workouts',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(fields),
+          },
+          t`Could not add this workout`,
+        );
+        setEditor(null);
+        await refreshDateWindow(result.date);
+      }
+    } catch (actionError) {
+      await handleMutationError(actionError);
+    } finally {
+      setEditorWorking(false);
+    }
+  };
+
+  const convertWorkoutToRest = async (workoutDate: string) => {
+    if (editor?.mode !== 'edit') return;
+    const { workout } = editor;
+    if (!workout.canonical_id || !workout.workout_version) {
+      setEditorError(t`Refresh the plan before editing this workout.`);
+      return;
+    }
+    setEditorWorking(true);
+    setEditorError(null);
+    setMutationNotice(null);
+    try {
+      const result = await requestPlanMutation<PlanWorkoutMutationResponse>(
+        `/api/plan/workouts/${encodeURIComponent(workout.canonical_id)}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            expected_version: workout.workout_version,
+            date: workoutDate,
+            workout_type: 'rest',
+            planned_duration_min: null,
+            planned_distance_km: null,
+            target_power_min: null,
+            target_power_max: null,
+            target_hr_min: null,
+            target_hr_max: null,
+            target_pace_min: null,
+            target_pace_max: null,
+            workout_description: '',
+          } satisfies PlanWorkoutUpdateRequest),
+        },
+        t`Could not convert this workout to rest`,
+      );
+      clearRowError(workoutKey(workout));
+      setEditor(null);
+      await refreshDateWindow(result.date);
+    } catch (actionError) {
+      await handleMutationError(actionError);
+    } finally {
+      setEditorWorking(false);
+    }
+  };
+
+  const deleteWorkout = async () => {
+    if (editor?.mode !== 'edit') return;
+    const { workout } = editor;
+    if (!workout.canonical_id || !workout.workout_version) {
+      setEditorError(t`Refresh the plan before deleting this workout.`);
+      return;
+    }
+    setEditorWorking(true);
+    setEditorError(null);
+    setMutationNotice(null);
+    try {
+      const params = new URLSearchParams({
+        expected_version: workout.workout_version,
+      });
+      await requestPlanMutation<PlanWorkoutDeleteResponse>(
+        `/api/plan/workouts/${encodeURIComponent(workout.canonical_id)}?${params}`,
+        { method: 'DELETE' },
+        t`Could not delete this workout`,
+      );
+      clearRowError(workoutKey(workout));
+      setEditor(null);
+      await refetch();
+    } catch (actionError) {
+      await handleMutationError(actionError);
+    } finally {
+      setEditorWorking(false);
+    }
+  };
+
   if (loading) {
     return (
       <section>
@@ -966,27 +1282,103 @@ export default function UpcomingPlanCard() {
   const conflictCount = data.workouts.filter(
     (workout) => workout.reconciliation?.conflict,
   ).length;
+  const firstExternalOverlap = data.workouts.find(
+    (workout) => (
+      workout.external_overlap
+      && (workout.reconciliation?.resolutions.length ?? 0) > 0
+    ),
+  ) ?? data.workouts.find((workout) => workout.external_overlap);
   const latestAdjustment = data.adjustments?.[0];
+  const editorWorkout = editor?.mode === 'edit' ? editor.workout : null;
+  const minimumDate = data.management?.minimum_date ?? localDay;
+  const defaultEditorDate = data.window.start < minimumDate
+    ? minimumDate
+    : data.window.start;
+  const editorDialog = (
+    <WorkoutPlanEditor
+      open={editor != null}
+      workout={editorWorkout}
+      minimumDate={minimumDate}
+      defaultDate={defaultEditorDate}
+      working={editorWorking}
+      error={editorError}
+      onOpenChange={(open) => {
+        if (!open) {
+          setEditor(null);
+          setEditorError(null);
+        }
+      }}
+      onSave={(fields) => void saveWorkout(fields)}
+      onConvertToRest={(date) => void convertWorkoutToRest(date)}
+      onDelete={() => void deleteWorkout()}
+    />
+  );
   const header = (
     <>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <p className="text-[10px] font-data uppercase tracking-[0.14em] text-muted-foreground">
             <Trans>Upcoming Plan</Trans>
           </p>
           <WindowPills active={windowId} onChange={handleWindowChange} />
-        </div>
-        <div className="flex items-center gap-3 font-data text-[11px] text-muted-foreground">
-          {conflictCount > 0 && (
-            <span className="text-accent-amber">
-              <Plural
-                value={conflictCount}
-                one="# needs review"
-                other="# need review"
-              />
+          <div
+            className="inline-flex items-center rounded-full border border-border"
+            role="group"
+            aria-label={t`Browse plan dates`}
+          >
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              className="rounded-full"
+              disabled={windowOffsetDays === 0}
+              aria-label={t`Previous plan window`}
+              onClick={() => navigateWindow(-1)}
+            >
+              <ChevronLeft aria-hidden="true" />
+            </Button>
+            <span className="min-w-32 px-1 text-center font-data text-[11px] text-muted-foreground">
+              {formatWindowRange(data.window.start, data.window.end, locale)}
             </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              className="rounded-full"
+              aria-label={t`Next plan window`}
+              onClick={() => navigateWindow(1)}
+            >
+              <ChevronRight aria-hidden="true" />
+            </Button>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 font-data text-[11px] text-muted-foreground">
+            {conflictCount > 0 && (
+              <span className="text-accent-amber">
+                <Plural
+                  value={conflictCount}
+                  one="# needs review"
+                  other="# need review"
+                />
+              </span>
+            )}
+            <Plural value={data.workouts.length} one="# workout" other="# workouts" />
+          </div>
+          {mutationAvailable && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                setEditorError(null);
+                setMutationNotice(null);
+                setEditor({ mode: 'create' });
+              }}
+            >
+              <Plus aria-hidden="true" />
+              <Trans>Add workout</Trans>
+            </Button>
           )}
-          <Plural value={data.workouts.length} one="# workout" other="# workouts" />
         </div>
       </div>
       <ManagementStrip
@@ -994,6 +1386,42 @@ export default function UpcomingPlanCard() {
         target={targetLabel}
         targetConnected={targetConnected}
       />
+      {mutationNotice && (
+        <Alert className="mb-4 border-accent-cobalt/25 bg-accent-cobalt/5">
+          <RefreshCw className="text-accent-cobalt" aria-hidden="true" />
+          <AlertDescription className="text-xs text-foreground">
+            {mutationNotice}
+          </AlertDescription>
+        </Alert>
+      )}
+      {firstExternalOverlap && (
+        <Alert className="mb-4 border-accent-amber/30 bg-accent-amber/8">
+          <TriangleAlert className="text-accent-amber" aria-hidden="true" />
+          <AlertDescription>
+            <div className="flex flex-col gap-2 text-xs sm:flex-row sm:items-center sm:justify-between">
+              <span>
+                <Trans>
+                  An external planner overlaps the Praxys plan. Use one planner at a time to avoid duplicate or conflicting sessions.
+                </Trans>
+              </span>
+              {canWrite
+                && firstExternalOverlap.reconciliation
+                && firstExternalOverlap.reconciliation.resolutions.length > 0
+                && (
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    onClick={() => review(firstExternalOverlap)}
+                    className="h-auto self-start px-0 text-accent-amber sm:self-auto"
+                  >
+                    <Trans>Review conflict</Trans>
+                  </Button>
+                )}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
       {latestAdjustment && (
         <Alert
           className={`mb-5 ${
@@ -1040,7 +1468,7 @@ export default function UpcomingPlanCard() {
                   <Trans>Current HRV crossed your personal caution band.</Trans>
                 </p>
               </div>
-              {latestAdjustment.can_undo && (
+              {latestAdjustment.can_undo && canWrite && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -1069,12 +1497,34 @@ export default function UpcomingPlanCard() {
     return (
       <section>
         {header}
-        <p className="text-sm text-muted-foreground">
-          <Trans>No workouts scheduled in this window.</Trans>
-          {windowId !== '4wk' && (
-            <span className="ml-1"><Trans>Try a longer window above.</Trans></span>
+        <div className="flex flex-col items-start gap-3 py-3">
+          <p className="text-sm text-muted-foreground">
+            <Trans>No workouts scheduled in this window.</Trans>
+            {windowId !== '4wk' && (
+              <span className="ml-1"><Trans>Try a longer window above.</Trans></span>
+            )}
+          </p>
+          {mutationAvailable && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setEditorError(null);
+                setMutationNotice(null);
+                setEditor({ mode: 'create' });
+              }}
+            >
+              <Plus aria-hidden="true" />
+              <Trans>Add the first workout</Trans>
+            </Button>
           )}
+        </div>
+        <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+          <Trans>
+            Praxys only changes workouts it created or you explicitly adopt. Manual workouts and workouts from another coach stay untouched.
+          </Trans>
         </p>
+        {editorDialog}
       </section>
     );
   }
@@ -1104,27 +1554,53 @@ export default function UpcomingPlanCard() {
               workout={workout}
               managementState={managementState}
               target={executionTarget}
+              writeAccess={canWrite}
               working={workingKey === key}
               actionsDisabled={
                 workingKey != null
+                || editorWorking
+                || !canWrite
                 || (
                   managementState === 'active'
                   && !targetConnected
                   && !canResolveLocally
                 )
               }
+              editDisabled={
+                workingKey != null
+                || editorWorking
+                || !canWrite
+              }
               error={rowErrors[key]}
               onDeliver={() => deliverWorkout(workout)}
+              onEdit={
+                mutationAvailable
+                && isPraxysOwned(workout)
+                && workout.editable === true
+                && Boolean(workout.workout_version)
+                ? () => {
+                    setEditorError(null);
+                    setMutationNotice(null);
+                    setEditor({ mode: 'edit', workout });
+                  }
+                : undefined
+              }
               onReview={() => review(workout)}
             />
           );
         })}
       </div>
+      <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+        <Trans>
+          Praxys only changes workouts it created or you explicitly adopt. Manual workouts and workouts from another coach stay untouched.
+        </Trans>
+      </p>
 
       <ConflictDialog
         workout={reviewWorkout}
         open={reviewWorkout != null}
         targetConnected={targetConnected}
+        actionsDisabled={!canWrite}
         working={reviewWorkout != null && workingKey === workoutKey(reviewWorkout)}
         error={dialogError}
         onOpenChange={(open) => {
@@ -1135,6 +1611,7 @@ export default function UpcomingPlanCard() {
         }}
         onResolve={resolve}
       />
+      {editorDialog}
     </section>
   );
 }

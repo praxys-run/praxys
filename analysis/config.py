@@ -3,6 +3,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field, asdict
+from datetime import date, datetime, timezone
 from typing import Literal
 from typing_extensions import TypedDict
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -296,6 +297,41 @@ class UserConfig:
             self.activity_routing["default"] = self.preferences.get(
                 "activities", "garmin"
             )
+
+
+def athlete_local_date(
+    config: UserConfig,
+    now: datetime,
+) -> date | None:
+    """Return the athlete's current date when their IANA timezone is valid."""
+    timezone_name = normalize_athlete_timezone(
+        config.source_options.get(ATHLETE_TIMEZONE_OPTION)
+    )
+    if timezone_name is None:
+        return None
+    utc_now = (
+        now.replace(tzinfo=timezone.utc)
+        if now.tzinfo is None
+        else now.astimezone(timezone.utc)
+    )
+    return utc_now.astimezone(ZoneInfo(timezone_name)).date()
+
+
+def effective_athlete_date(
+    config: UserConfig,
+    now: datetime | None = None,
+) -> date:
+    """Return the athlete-local date, falling back to UTC when unavailable."""
+    timestamp = now or datetime.now(timezone.utc)
+    local_date = athlete_local_date(config, timestamp)
+    if local_date is not None:
+        return local_date
+    utc_now = (
+        timestamp.replace(tzinfo=timezone.utc)
+        if timestamp.tzinfo is None
+        else timestamp.astimezone(timezone.utc)
+    )
+    return utc_now.date()
 
 
 def is_praxys_managed_plan(config: object) -> bool:

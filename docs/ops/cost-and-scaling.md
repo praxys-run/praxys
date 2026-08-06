@@ -10,7 +10,7 @@
   ```bash
   az consumption budget create --budget-name praxys-monthly \
     --amount 50 --time-grain Monthly --category Cost \
-    --resource-group rg-trainsight   # adjust amount; add notifications in the portal
+    --resource-group rg-trainsight   # provisional guardrail; add notifications in the portal
   ```
 - **LLM spend** is the main variable cost. Track it via the `praxys.coach_tokens`
   signal ([monitoring-and-alerts.md](./monitoring-and-alerts.md)) and the per-user
@@ -71,9 +71,18 @@ the cap.
 `az appservice plan show -n plan-trainsight -g rg-trainsight --query sku`.
 Watch CPU/memory in the App Service "Metrics" blade after the change.
 
+## Deferred operator decision
+
+The `$50/month` example is a provisional guardrail, not an approved business
+budget. A permanent amount and numeric scale-up thresholds require an owner to
+review at least 30 days of Azure cost, CPU, memory, p95 latency, database
+connections, and active-user telemetry. Until then, scaling remains a human
+decision using the checks above; an agent may observe and recommend but must not
+change the SKU or worker count.
+
 ## Related
 
 - [monitoring-and-alerts.md](./monitoring-and-alerts.md) · [environment.md](./environment.md)
 
 ---
-_Last reviewed: 2026-07-04 · Owner: @dddtc2005 · TODO(@dddtc2005): set the real budget amount (when-to-scale thresholds now documented above)._
+_Last reviewed: 2026-08-06 · Owner: @dddtc2005_

@@ -3,6 +3,12 @@
 > **Summary:** <one sentence: what this runbook accomplishes.>
 > **Use when:** <the trigger — the task you're doing or the symptom you see.>
 
+<!--
+For a runbook with bounded autonomous actions, add one fenced `ops-runbook`
+YAML block here. Follow docs/ops/ai/README.md and regenerate its eval fixture.
+Escalation-only runbooks should not add a machine block.
+-->
+
 ## Prerequisites
 
 - <Access / role needed, e.g. Contributor on `rg-trainsight`, repo admin, `az login`.>

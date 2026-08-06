@@ -3,6 +3,100 @@
 > **Summary:** First-response triage for "the app is down / erroring".
 > **Use when:** Health checks fail, users report outages, or alerts fire.
 
+```ops-runbook
+version: 1
+id: incident-response
+autonomy: bounded
+summary: Restore backend or frontend availability with reversible restarts.
+signals:
+  - id: api-health
+    tool: http.get
+    policy: observe
+    command: curl -fsS https://api.praxys.run/api/health
+    success:
+      stdout_contains: '"status":"ok"'
+  - id: api-ready
+    tool: http.get
+    policy: observe
+    command: curl -fsS https://api.praxys.run/api/health/ready
+    success:
+      exit_code: 0
+  - id: frontend-health
+    tool: http.get
+    policy: observe
+    command: curl -fsS https://www.praxys.run/healthz
+    success:
+      exit_code: 0
+  - id: backend-state
+    tool: azure.appservice.show
+    policy: observe
+    command: az webapp show -n trainsight-app -g rg-trainsight --query state -o tsv
+    success:
+      stdout_equals: Running
+actions:
+  - id: restart-backend
+    tool: azure.appservice.restart
+    policy: autonomous-reversible
+    command: az webapp restart -n trainsight-app -g rg-trainsight
+    rationale: Clears a failed or wedged API process without changing data or configuration.
+  - id: restart-frontend
+    tool: azure.appservice.restart
+    policy: autonomous-reversible
+    command: az webapp restart -n praxys-frontend -g rg-trainsight
+    rationale: Recycles the static frontend host without changing data or configuration.
+routes:
+  - id: backend-unhealthy
+    when:
+      - signal: api-health
+        outcome: failure
+    hypothesis: The backend process is stopped, crashed, or wedged.
+    action: restart-backend
+    verify:
+      - api-health
+      - api-ready
+    on_failure: escalate
+  - id: frontend-unhealthy
+    when:
+      - signal: api-health
+        outcome: success
+      - signal: frontend-health
+        outcome: failure
+    hypothesis: The frontend App Service is stopped or unhealthy while the API is available.
+    action: restart-frontend
+    verify:
+      - frontend-health
+    on_failure: escalate
+  - id: database-unready
+    when:
+      - signal: api-health
+        outcome: success
+      - signal: api-ready
+        outcome: failure
+    hypothesis: The API process is live but cannot reach the database.
+    action: restart-backend
+    verify:
+      - api-ready
+      - api-health
+    on_failure: escalate
+```
+
+The structured block permits only reversible App Service restarts. PostgreSQL
+restart, restore, rollback, configuration changes, and data operations require
+human approval even when the prose below recommends them.
+
+## Severity and ownership
+
+| Severity | Definition | Handling |
+|---|---|---|
+| SEV-1 | Broad service outage, active data-loss risk, or authentication unavailable for most users. | The operator receiving the `praxys-feedback-ag` action-group alert owns first response; publish a status incident and escalate to `@dddtc2005` before any destructive or data-changing action. |
+| SEV-2 | Material degradation or one platform failing for multiple users while core service remains usable. | Operator investigates during the current operating window and escalates if the blast radius grows or no safe mitigation exists. |
+| SEV-3 | Isolated user issue, non-urgent defect, or alert requiring follow-up but no active service impact. | Track in GitHub and handle through the normal change loop. |
+
+There is no staffed 24x7 rotation yet. The Azure action group is the routing
+source of truth; private contact details stay in Azure rather than this public
+repository. If the owner cannot be reached, preserve data, avoid non-reversible
+actions, update the status page, and leave the incident escalated.
+
 ## Quick triage
 
 ```bash
@@ -113,4 +207,4 @@ user dashboard.
 - [deploy.md](./deploy.md) · [sync-troubleshooting.md](./sync-troubleshooting.md) · [monitoring-and-alerts.md](./monitoring-and-alerts.md)
 
 ---
-_Last reviewed: 2026-07-05 · Owner: @dddtc2005 · TODO(@dddtc2005): define severity levels + escalation contacts._
+_Last reviewed: 2026-08-06 · Owner: @dddtc2005_
