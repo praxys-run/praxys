@@ -320,6 +320,50 @@ def test_repository_mcp_launcher_honors_python_override(
     assert marker["state"] == "ready"
 
 
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="The cloud MCP launcher targets GitHub's Linux runner.",
+)
+def test_cloud_mcp_launcher_uses_github_workspace(
+    tmp_path: Path,
+) -> None:
+    root = run_praxys_mcp.project_root()
+    bash = shutil.which("bash")
+    assert bash is not None
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "python").symlink_to(sys.executable)
+    data_dir = tmp_path / "cloud-launcher-sandbox"
+    env = os.environ.copy()
+    env["GITHUB_WORKSPACE"] = str(root)
+    env["PRAXYS_LOCAL_MCP_DATA_DIR"] = str(data_dir)
+    env["PRAXYS_MCP_USE_CURRENT_PYTHON"] = "1"
+    env["PATH"] = os.pathsep.join((str(bin_dir), env.get("PATH", "")))
+
+    result = subprocess.run(
+        [
+            bash,
+            str(root / "scripts" / "run_praxys_mcp_cloud.sh"),
+            "--prepare-only",
+        ],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    marker = json.loads(
+        (data_dir / ".praxys-mcp-sandbox.json").read_text(
+            encoding="utf-8",
+        )
+    )
+    assert marker["owner"] == "praxys-local-mcp"
+    assert marker["state"] == "ready"
+
+
 @pytest.mark.parametrize("profile", ["..", "dev/test", r"dev\test"])
 def test_remote_profile_rejects_unsafe_names(profile: str) -> None:
     with pytest.raises(SystemExit, match="Profile names"):

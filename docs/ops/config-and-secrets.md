@@ -89,6 +89,14 @@ and synthetic sandbox preparation. The cloud config's literal
 prepared by `actions/setup-python`; local profiles continue to require the
 project virtualenv unless `PRAXYS_MCP_PYTHON` is explicitly set.
 
+The cloud agent's **Start MCP Servers** step does not guarantee the repository
+root as its working directory. The setup workflow therefore installs
+`scripts/run_praxys_mcp_cloud.sh` as `/usr/local/bin/praxys-local-mcp`. That
+launcher changes to `GITHUB_WORKSPACE` before starting the repository module.
+Keep the cloud payload pointed at the installed command; using
+`python -m scripts.run_praxys_mcp` directly can silently leave every
+`praxys-local` tool unregistered.
+
 Provision after the setup workflow is present on `main`:
 
 1. Copy `config/copilot-cloud-mcp.json` into the repository MCP configuration
@@ -101,8 +109,10 @@ Provision after the setup workflow is present on `main`:
      --jq '.mcp_configuration.mcpServers | keys'
    ```
 
-3. Assign a disposable test issue to Copilot, open **View session**, expand
-   **Start MCP Servers**, and confirm the allowlisted tools are present.
+3. Assign a disposable test issue to Copilot and ask it to call
+   `chrome-devtools/list_pages` and `praxys-local/whoami`. Open **View
+   session**, expand **Start MCP Servers**, and confirm both servers list their
+   allowlisted tools and both calls succeed.
 
 Rollback by removing the affected server from repository MCP settings and
 saving. Built-in Playwright remains available when Chrome DevTools is removed.
