@@ -20,12 +20,18 @@ from analysis.config import (
     LEGACY_PRAXYS_PLAN_SOURCE,
     PRAXYS_PLAN_SOURCE,
     PRAXYS_PLAN_SOURCES,
+    effective_athlete_date,
     is_praxys_plan_source,
+    load_config_from_db,
     normalize_workout_origin,
 )
 from analysis.metrics import is_rest_workout
 from api import telemetry
-from api.auth import get_data_user_id, require_write_access
+from api.auth import (
+    get_current_user_id,
+    get_data_user_id,
+    require_write_access,
+)
 from api.daily_brief_freshness import PLAN_RESPONSE_VERSION
 from api.deps import get_dashboard_data
 from api.etag import CACHE_CONTROL, ENDPOINT_SCOPES, ETagGuard, compute_etag
@@ -132,19 +138,19 @@ def _guard_manual_delivery_target(
     target: str,
 ) -> None:
     """Fence legacy/manual delivery paths to one configured target."""
-    from analysis.config import load_config_from_db
-
     lock_plan_writes(db, user_id)
-    configured_target = load_config_from_db(
+    config = load_config_from_db(
         user_id,
         db,
-    ).plan_management.get("execution_target")
+    )
+    configured_target = config.plan_management.get("execution_target")
+    current_date = effective_athlete_date(config)
     if configured_target and configured_target != target:
         raise DeliveryMutationBlockedError("execution_target_changed")
     other_target = db.execute(
         select(PlanDelivery.target).where(
             PlanDelivery.user_id == user_id,
-            PlanDelivery.workout_date >= date.today(),
+            PlanDelivery.workout_date >= current_date,
             PlanDelivery.state != "removed",
             PlanDelivery.target != target,
         ).limit(1)
@@ -275,17 +281,22 @@ _MAX_WINDOW_DAYS = 365
 _DEFAULT_FORWARD_DAYS = 14
 
 
-def _resolve_window(start: str | None, end: str | None) -> tuple[date, date]:
+def _resolve_window(
+    start: str | None,
+    end: str | None,
+    *,
+    default_start: date,
+) -> tuple[date, date]:
     """Parse / default the ?start=&end= query window.
 
     Accepts ISO ``YYYY-MM-DD`` for both bounds. Either or both may be
-    omitted: missing ``start`` defaults to today; missing ``end`` defaults
-    to ``start + _DEFAULT_FORWARD_DAYS``. Inverted or oversized windows
-    raise 400 — silently clamping would mask bad client input.
+    omitted: missing ``start`` defaults to the athlete's current date;
+    missing ``end`` defaults to ``start + _DEFAULT_FORWARD_DAYS``. Inverted
+    or oversized windows raise 400 — silently clamping would mask bad client
+    input.
     """
-    today = date.today()
     try:
-        start_d = date.fromisoformat(start) if start else today
+        start_d = date.fromisoformat(start) if start else default_start
     except ValueError as exc:
         raise HTTPException(
             status_code=400, detail=f"Invalid start date: {start!r}"
@@ -400,6 +411,7 @@ def get_plan(
         None,
         description="Window end (YYYY-MM-DD). Defaults to start + 14 days.",
     ),
+    viewer_user_id: str = Depends(get_current_user_id),
     user_id: str = Depends(get_data_user_id),
     db: Session = Depends(get_db),
 ):
@@ -415,16 +427,28 @@ def get_plan(
     is authoritative. A legacy per-user Stryd JSON file,
     when present, is imported idempotently before the ETag is computed.
     """
-    start_d, end_d = _resolve_window(start, end)
     db.rollback()
     _import_legacy_stryd_status_if_compatible(
         db,
         user_id=user_id,
     )
+    response_today = effective_athlete_date(load_config_from_db(user_id, db))
+    start_d, end_d = _resolve_window(
+        start,
+        end,
+        default_start=response_today,
+    )
+    can_write = viewer_user_id == user_id
 
     etag = compute_etag(
         db, user_id, ENDPOINT_SCOPES["plan"],
-        salt=f"v={PLAN_RESPONSE_VERSION}&start={start_d.isoformat()}&end={end_d.isoformat()}",
+        salt=(
+            f"v={PLAN_RESPONSE_VERSION}"
+            f"&today={response_today.isoformat()}"
+            f"&writable={int(can_write)}"
+            f"&start={start_d.isoformat()}"
+            f"&end={end_d.isoformat()}"
+        ),
     )
     guard = ETagGuard(etag, request.headers.get("if-none-match"))
     if guard.is_match:
@@ -482,12 +506,26 @@ def get_plan(
             windowed[windowed["source"] == ledger_target]
             if has_source else windowed.iloc[0:0]
         )
+        owned_target_external_ids: set[str] = set()
+        for raw_id in db.execute(
+            select(PlanDelivery.external_id).where(
+                PlanDelivery.user_id == user_id,
+                PlanDelivery.target == ledger_target,
+                PlanDelivery.state != "removed",
+                PlanDelivery.external_id.is_not(None),
+            )
+        ).scalars():
+            normalized_id = normalize_stryd_workout_id(raw_id)
+            if normalized_id is not None:
+                owned_target_external_ids.add(normalized_id)
 
         if reconciliation is not None:
             for _, row in praxys_rows.sort_values(["date", "id"]).iterrows():
                 workout = _row_to_workout(
                     row,
                     source=LEGACY_PRAXYS_PLAN_SOURCE,
+                    can_write=can_write,
+                    response_today=response_today,
                 )
                 canonical_id = str(row.get("canonical_id") or "")
                 item = reconciliation.canonical_items.get(canonical_id)
@@ -500,7 +538,12 @@ def get_plan(
             for _, row in target_rows.iterrows():
                 if normalize_stryd_workout_id(row.get("external_id")) is None:
                     workouts.append(
-                        _row_to_workout(row, source=ledger_target)
+                        _row_to_workout(
+                            row,
+                            source=ledger_target,
+                            can_write=can_write,
+                            response_today=response_today,
+                        )
                     )
         else:
             # Compatibility fallback until the first successful calendar
@@ -524,11 +567,12 @@ def get_plan(
                         return candidate
                 return rows[0]
 
-            praxys_dates: set[str] = set()
             for _, row in praxys_rows.sort_values("date").iterrows():
                 workout = _row_to_workout(
                     row,
                     source=LEGACY_PRAXYS_PLAN_SOURCE,
+                    can_write=can_write,
+                    response_today=response_today,
                 )
                 praxys_workout_type = workout.get("workout_type", "")
                 stryd_match_by_date = {
@@ -540,15 +584,22 @@ def get_plan(
                     current_delivery_status,
                     stryd_match_by_date,
                 )
-                praxys_dates.add(workout["date"])
                 workouts.append(workout)
 
-            for date_str, srows in stryd_by_date.items():
-                if date_str in praxys_dates:
-                    continue
+            for srows in stryd_by_date.values():
                 for srow in srows:
+                    external_id = normalize_stryd_workout_id(
+                        srow.get("external_id")
+                    )
+                    if external_id in owned_target_external_ids:
+                        continue
                     workouts.append(
-                        _row_to_workout(srow, source=ledger_target)
+                        _row_to_workout(
+                            srow,
+                            source=ledger_target,
+                            can_write=can_write,
+                            response_today=response_today,
+                        )
                     )
 
     if reconciliation is not None:
@@ -558,6 +609,8 @@ def get_plan(
             workout = _row_to_workout(
                 observation.normalized_workout,
                 source=ledger_target,
+                can_write=can_write,
+                response_today=response_today,
             )
             workout["reconciliation"] = item.to_dict()
             workouts.append(workout)
@@ -573,12 +626,31 @@ def get_plan(
             ),
         )
     )
+    owners_by_date: dict[str, set[str]] = {}
+    for workout in workouts:
+        owners_by_date.setdefault(workout["date"], set()).add(
+            workout["owner"]
+        )
+    overlap_dates = sorted(
+        workout_date
+        for workout_date, owners in owners_by_date.items()
+        if owners == {PRAXYS_PLAN_SOURCE, "external"}
+    )
+    overlap_date_set = set(overlap_dates)
+    for workout in workouts:
+        workout["external_overlap"] = workout["date"] in overlap_date_set
 
     body = {
         "workouts": workouts,
         "stryd_status": push_status,
         "sync_target": sync_target,
         "window": {"start": start_d.isoformat(), "end": end_d.isoformat()},
+        "management": {
+            "mutation_api_version": 1,
+            "can_write": can_write,
+            "minimum_date": response_today.isoformat(),
+            "external_overlap_dates": overlap_dates,
+        },
         "adjustments": list_plan_adjustments(
             db,
             user_id=user_id,
@@ -633,20 +705,29 @@ def restore_plan_adjustment(
         ) from exc
 
 
-def _row_to_workout(row, *, source: str) -> dict:
+def _row_to_workout(
+    row,
+    *,
+    source: str,
+    can_write: bool,
+    response_today: date,
+) -> dict:
     """Project a single plan_df row into the JSON shape the UI consumes."""
     row_date = row["date"]
     date_str = (
         row_date.isoformat() if hasattr(row_date, "isoformat") else str(row_date)
     )
     raw_workout_type = row.get("workout_type")
+    owned_by_praxys = (
+        is_praxys_plan_source(row.get("source"))
+        or is_praxys_plan_source(source)
+    )
     workout: dict = {
         "date": date_str,
         "source": source,
         "owner": (
             PRAXYS_PLAN_SOURCE
-            if is_praxys_plan_source(row.get("source"))
-            or is_praxys_plan_source(source)
+            if owned_by_praxys
             else "external"
         ),
         "origin": normalize_workout_origin(
@@ -656,10 +737,17 @@ def _row_to_workout(row, *, source: str) -> dict:
         "workout_type": (
             "" if pd.isna(raw_workout_type) else str(raw_workout_type)
         ),
+        "editable": (
+            can_write
+            and owned_by_praxys
+            and row_date >= response_today
+        ),
     }
     canonical_id = row.get("canonical_id")
     if pd.notna(canonical_id) and canonical_id:
         workout["canonical_id"] = str(canonical_id)
+    if owned_by_praxys:
+        workout["workout_version"] = workout_version(plan_snapshot(row))
     st = row.get("start_time")
     if pd.notna(st) and st != "":
         # Absolute instant; client buckets the day in viewer tz.
@@ -670,11 +758,19 @@ def _row_to_workout(row, *, source: str) -> dict:
         ("distance_km", "planned_distance_km"),
         ("power_min", "target_power_min"),
         ("power_max", "target_power_max"),
+        ("hr_min", "target_hr_min"),
+        ("hr_max", "target_hr_max"),
+        ("pace_min", "target_pace_min"),
+        ("pace_max", "target_pace_max"),
         ("description", "workout_description"),
     ):
         val = row.get(csv_col)
         if pd.notna(val) and val != "":
-            workout[field] = str(val) if field == "description" else float(val)
+            workout[field] = (
+                str(val)
+                if field in {"description", "pace_min", "pace_max"}
+                else float(val)
+            )
     return workout
 
 

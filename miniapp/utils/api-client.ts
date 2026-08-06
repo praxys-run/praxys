@@ -27,7 +27,7 @@ export interface ApiError {
    * token case sets this to `'UNAUTHENTICATED'` so pages can render a
    * "session expired" toast before the reLaunch unmounts them.
    */
-  code?: 'UNAUTHENTICATED' | 'NETWORK' | 'TIMEOUT' | 'OFFLINE';
+  code?: string;
   /** wx.request errno when status is 0 (network-layer failure). */
   errno?: number;
 }
@@ -146,13 +146,26 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   }
 
   const rawDetail = (response.data as { detail?: unknown } | null | undefined)?.detail;
+  const code = (
+    rawDetail != null
+    && typeof rawDetail === 'object'
+    && typeof (rawDetail as { code?: unknown }).code === 'string'
+  )
+    ? (rawDetail as { code: ApiError['code'] }).code
+    : undefined;
   const detail =
     typeof rawDetail === 'string'
       ? rawDetail
+      : (
+          rawDetail != null
+          && typeof rawDetail === 'object'
+          && typeof (rawDetail as { message?: unknown }).message === 'string'
+        )
+        ? (rawDetail as { message: string }).message
       : rawDetail != null
         ? JSON.stringify(rawDetail)
         : `HTTP ${status}`;
-  throw { status, detail } as ApiError;
+  throw { status, detail, code } as ApiError;
 }
 
 export const apiGet = <T>(path: string) => request<T>(path, { method: 'GET' });
