@@ -337,7 +337,7 @@ def test_cloud_mcp_launcher_uses_github_workspace(
     env = os.environ.copy()
     env["GITHUB_WORKSPACE"] = str(root)
     env["PRAXYS_LOCAL_MCP_DATA_DIR"] = str(data_dir)
-    env["PRAXYS_MCP_USE_CURRENT_PYTHON"] = "1"
+    env.pop("PRAXYS_MCP_USE_CURRENT_PYTHON", None)
     env["PATH"] = os.pathsep.join((str(bin_dir), env.get("PATH", "")))
 
     result = subprocess.run(

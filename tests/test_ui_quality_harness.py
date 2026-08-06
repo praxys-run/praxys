@@ -213,9 +213,7 @@ def test_ui_mcp_configs_are_pinned_and_cloud_safe():
     cloud_praxys = servers["praxys-local"]
     assert cloud_praxys["command"] == "praxys-local-mcp"
     assert cloud_praxys["args"] == []
-    assert cloud_praxys["env"] == {
-        "PRAXYS_MCP_USE_CURRENT_PYTHON": "1"
-    }
+    assert "env" not in cloud_praxys
     assert all(
         not tool.startswith(
             ("update_", "set_", "connect_", "disconnect_", "trigger_")
@@ -228,6 +226,7 @@ def test_ui_mcp_configs_are_pinned_and_cloud_safe():
     ).read_text(encoding="utf-8")
     assert 'workspace="${GITHUB_WORKSPACE:-}"' in wrapper
     assert 'cd "$workspace"' in wrapper
+    assert "export PRAXYS_MCP_USE_CURRENT_PYTHON=1" in wrapper
     assert 'exec python -m scripts.run_praxys_mcp local "$@"' in wrapper
 
     setup = (
@@ -236,6 +235,5 @@ def test_ui_mcp_configs_are_pinned_and_cloud_safe():
     assert "submodules: true" in setup
     assert "plugins/praxys/mcp-server/requirements.txt" in setup
     assert "chrome-devtools-mcp@1.6.0 --version" in setup
-    assert "PRAXYS_MCP_USE_CURRENT_PYTHON: '1'" in setup
     assert "/usr/local/bin/praxys-local-mcp" in setup
     assert "praxys-local-mcp --prepare-only" in setup

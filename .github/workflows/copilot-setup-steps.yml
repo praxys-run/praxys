@@ -71,8 +71,6 @@ jobs:
           /usr/local/bin/praxys-local-mcp
 
       - name: Prepare browser and synthetic Praxys MCP tools
-        env:
-          PRAXYS_MCP_USE_CURRENT_PYTHON: '1'
         run: |
           google-chrome --version
           npx -y chrome-devtools-mcp@1.6.0 --version
