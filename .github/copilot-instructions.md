@@ -77,6 +77,9 @@ When you (the GitHub Copilot coding agent) are assigned an issue labeled
 `agent-ready` (see `.github/workflows/assign-copilot.yml`), draft a fix as a
 **draft PR** for human review — never merge, and never bypass branch protection:
 
+- Use the repository custom agent in
+  `.github/agents/praxys-change-loop.agent.md`; its description is intentionally
+  scoped to every `agent-ready` implementation.
 - **Always add or update a test** that fails before your change and passes
   after. Backend tests live in `tests/`.
 - **Keep the PR in draft while the patch is still moving.** Mark it ready only
@@ -84,10 +87,17 @@ When you (the GitHub Copilot coding agent) are assigned an issue labeled
   the required validation has run on that head. If code changes after the first
   ready-for-review handoff, convert it back to draft before continuing and mark
   it ready again only after the new head stabilizes.
-- **Run the backend suite before opening the PR**: `python -m pytest tests/`
-  (your environment is preinstalled via `.github/workflows/copilot-setup-steps.yml`
-  — Python deps + a bootstrap `.env` — so it runs out of the box). For web
-  changes also run `cd web && npm run build`.
+- Do not request review while required GitHub checks are failing or pending.
+  Repair PR-caused failures and rerun preflight; if the session cannot finish,
+  leave the PR draft with the concrete blocker.
+- **Run the deterministic final preflight after the implementation is
+  committed:** `python scripts/agent_preflight.py --base origin/main`. It runs
+  the backend suite and the relevant web build, Lingui extraction, miniapp
+  typecheck, UI detector, diff check, and clean-worktree check. If it generates
+  tracked files, commit them and rerun until clean.
+- Use the standard PR template. Use the science template only when scientific
+  files, formulas, constants, or claims changed. Never check a box or claim
+  validation that was not actually performed.
 - **For any UI change, run the UI quality harness before marking the PR ready.**
   Invoke `ui-quality`, follow Impeccable, perform the rendered review, run
   `python scripts/check_ui_quality.py --base origin/main --head HEAD --skip-evidence`,

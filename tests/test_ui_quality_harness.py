@@ -79,6 +79,7 @@ def test_template_placeholders_do_not_count_as_evidence():
     template = (ROOT / ".github" / "PULL_REQUEST_TEMPLATE.md").read_text(
         encoding="utf-8"
     )
+    assert "never claim validation or review that was not performed" in template
     errors = validate_ui_evidence(template, has_web=True, has_miniapp=False)
     assert errors
     assert any("missing or unverified" in error for error in errors)
@@ -182,10 +183,27 @@ def test_harness_is_wired_into_agents_and_required_ci():
     assert "needs: [python-tests, frontend-quality]" in workflow
     assert "--pr-body-env UI_PR_BODY" in workflow
     assert "UI Quality Harness (mandatory)" in instructions
+    assert "scripts/agent_preflight.py --base origin/main" in instructions
     assert (ROOT / ".github" / "skills" / "ui-quality" / "SKILL.md").is_file()
     assert (
         ROOT / ".github" / "instructions" / "ui-quality.instructions.md"
     ).is_file()
+
+    agent = (
+        ROOT / ".github" / "agents" / "praxys-change-loop.agent.md"
+    ).read_text(encoding="utf-8")
+    assert "description:" in agent
+    assert "agent-ready" in agent
+    assert "playwright/*" in agent
+    assert "python scripts/agent_preflight.py --base origin/main" in agent
+
+    science_template = (
+        ROOT / ".github" / "PULL_REQUEST_TEMPLATE" / "science-change.md"
+    ).read_text(encoding="utf-8")
+    assert "Do not check any item that was not actually performed." in science_template
+    assert "## UI quality" in science_template
+
+    assert "types: [opened, synchronize, reopened, ready_for_review, edited]" in workflow
 
 
 def test_ui_mcp_configs_are_pinned_and_cloud_safe():
@@ -243,6 +261,8 @@ def test_ui_mcp_configs_are_pinned_and_cloud_safe():
     )
     assert "/usr/local/bin/praxys-local-mcp" in setup
     assert "praxys-local-mcp --prepare-only" in setup
+    assert "git restore --source=HEAD -- package-lock.json" in setup
+    assert "git diff --exit-code -- package-lock.json" in setup
 
     plugin_requirements = (
         ROOT / "plugins" / "praxys" / "mcp-server" / "requirements.txt"

@@ -89,6 +89,12 @@ and synthetic sandbox preparation. The cloud config's literal
 `actions/setup-python`; local profiles continue to require the project
 virtualenv unless `PRAXYS_MCP_PYTHON` is explicitly set.
 
+The setup workflow also owns the cloud agent's Node 22 dependency bootstrap.
+It uses `npm install` because the current Lingui package metadata is not strict
+`npm ci` compatible, then restores and verifies `web/package-lock.json` before
+the agent starts. This requires no secret or repository variable; change the
+workflow and this runbook together if the install strategy changes.
+
 The cloud agent's **Start MCP Servers** step does not guarantee the repository
 root as its working directory or propagate `GITHUB_WORKSPACE` to the MCP
 process. The setup workflow therefore symlinks

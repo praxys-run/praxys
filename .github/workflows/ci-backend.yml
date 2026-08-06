@@ -17,6 +17,9 @@ name: Backend CI
 on:
   pull_request:
     branches: [main]
+    # `edited` reruns the UI evidence gate when an agent corrects the PR body
+    # after rendered review, without requiring an empty source commit.
+    types: [opened, synchronize, reopened, ready_for_review, edited]
   workflow_dispatch:
 
 # One in-flight run per PR; cancel the previous when new commits land.
