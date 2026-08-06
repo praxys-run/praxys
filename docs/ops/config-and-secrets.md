@@ -806,7 +806,7 @@ outgrown.
 | Frontend/backend Application Insights routing | Provision the replacement component, update `.github/azure-observability.env`, grant backend MI RBAC if needed, and re-deploy | The workflows fetch fresh routing strings directly from Azure; no GitHub value rotates. |
 | Feedback GitHub App key (`PRAXYS_GITHUB_APP_PRIVATE_KEY`) | Generate a new private key on the app, update the secret, re-deploy (rarely needed). Setup: [setup-github-app.md](./setup-github-app.md). | Issue auto-filing dormant until updated; rest of app unaffected. |
 | SMTP auth code (`PRAXYS_SMTP_PASSWORD`) | Regenerate the 客户端授权码 in the Exmail/WeCom mailbox settings, update the GitHub secret, re-deploy. | Verification + invitation emails fail to send until updated (codes can still be copied by hand). |
-| Key Vault RSA key `trainsight-master-key` | ⚠️ **High-impact** — the per-user DEKs were wrapped with the current key; rotating without a re-wrap/re-encrypt migration makes stored platform credentials undecryptable. **TODO(@dddtc2005):** document the re-wrap drill before rotating. | Users would have to reconnect platforms. |
+| Key Vault RSA key `trainsight-master-key` | ⚠️ **High-impact** — the per-user DEKs were wrapped with the current key; rotating without a re-wrap/re-encrypt migration makes stored platform credentials undecryptable. Treat as non-rotatable until the migration tool and operator-approved drill in [secret-rotation.md](./secret-rotation.md) exist. | Users would have to reconnect platforms. |
 
 ## Related
 

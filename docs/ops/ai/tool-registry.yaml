@@ -1,0 +1,20 @@
+version: 1
+
+# Stable capabilities that structured runbook blocks may reference. This is a
+# validation registry, not an authorization grant: the incident agent's policy
+# still decides whether a referenced action may execute.
+tools:
+  http.get:
+    kind: signal
+    executor: shell
+  azure.appservice.show:
+    kind: signal
+    executor: azure
+  azure.appservice.restart:
+    kind: action
+    executor: azure
+
+policies:
+  - observe
+  - autonomous-reversible
+  - human-approval

@@ -9,6 +9,8 @@ diagnose X". It complements — and links out to — the setup-oriented
 > one-line *Summary*, a **Use when** line, then `Prerequisites · Steps · Verify ·
 > Rollback / Recovery · Related`. Parse the **Use when** line of each runbook in
 > the index below to route a task; the `## Steps` blocks are copy-pasteable.
+> Runbooks with bounded autonomous actions also carry a validated hybrid machine
+> block described in [`ai/README.md`](./ai/README.md).
 
 ## Runbook index
 
@@ -51,12 +53,18 @@ Full detail: [environment.md](./environment.md).
 - Ground every claim in the repo or Azure reality — link the source file/workflow.
 - Commands are copy-pasteable (`az` / `gh` / KQL). Note the auth each step needs.
 - Mark anything not yet verified with `TODO(owner)` rather than guessing.
+- Keep destructive or judgment-heavy procedures prose-only. Structured actions
+  must resolve through [`ai/tool-registry.yaml`](./ai/tool-registry.yaml), state
+  their policy tier, and provide deterministic verification signals.
 
 ## Coverage & roadmap
 
-Incident response, backup/restore, DR, secret rotation, scaling/cost, and sync
-troubleshooting now have runbooks. Remaining open items (on-call/escalation
-definitions, RPO/RTO targets, the Key Vault re-wrap drill, optionally exposing
-runbooks as a `plugins/praxys` skill) are tracked in **praxys-run/praxys#338** and
-flagged inline as `TODO(@dddtc2005)`. Add new runbooks against
-[`_TEMPLATE.md`](./_TEMPLATE.md) and link them from the index above.
+Incident response now validates the first hybrid AI-native runbook schema and
+generates route evaluation fixtures in CI. Severity and escalation ownership
+are defined without publishing private contacts. Production restore timing,
+Key Vault re-wrap, and permanent cost/scale commitments remain explicitly
+deferred at their runbooks because each needs operator approval or production
+tooling; no value is guessed. Runbooks stay repository-owned rather than being
+duplicated into `plugins/praxys` until the contract has at least two autonomous
+consumers. Add new runbooks against [`_TEMPLATE.md`](./_TEMPLATE.md) and link
+them from the index above.

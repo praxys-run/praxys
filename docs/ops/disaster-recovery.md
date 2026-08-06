@@ -15,7 +15,9 @@ This runbook is a checklist that chains the others - it doesn't duplicate them.
   - **SQLite (legacy):** the backup cadence (pre-deploy + daily on-demand
     snapshots), so up to ~24h between scheduled snapshots.
 - **RTO** (max acceptable downtime) = provisioning + restore time.
-  **TODO(@dddtc2005): decide** a target and time a drill.
+  No target is claimed until a timed restore drill is run; the current RTO is
+  explicitly **unvalidated**. The drill requires an operator-approved Azure
+  maintenance window because it creates and verifies replacement resources.
 
 ## Steps
 
@@ -55,4 +57,4 @@ see their historical data; a sync succeeds.
   · [secret-rotation.md](./secret-rotation.md)
 
 ---
-_Last reviewed: 2026-07-04 · Owner: @dddtc2005 · TODO(@dddtc2005): run a restore drill and record real RPO/RTO._
+_Last reviewed: 2026-08-06 · Owner: @dddtc2005_
