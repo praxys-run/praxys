@@ -14,4 +14,5 @@ if [[ ! -f "$launcher" ]]; then
 fi
 
 cd "$workspace"
+export PRAXYS_MCP_USE_CURRENT_PYTHON=1
 exec python -m scripts.run_praxys_mcp local "$@"

@@ -46,9 +46,6 @@
       "type": "stdio",
       "command": "praxys-local-mcp",
       "args": [],
-      "env": {
-        "PRAXYS_MCP_USE_CURRENT_PYTHON": "1"
-      },
       "tools": [
         "get_daily_brief",
         "get_training_review",

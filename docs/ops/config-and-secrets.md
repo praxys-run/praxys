@@ -85,15 +85,17 @@ production tokens, provider credentials, sync tools, or plan-mutation tools to
 the cloud allowlist. `.github/workflows/copilot-setup-steps.yml` must remain the
 owner of the submodule checkout, MCP Python dependency, Chrome verification,
 and synthetic sandbox preparation. The cloud config's literal
-`PRAXYS_MCP_USE_CURRENT_PYTHON=1` tells the launcher to use the interpreter
-prepared by `actions/setup-python`; local profiles continue to require the
-project virtualenv unless `PRAXYS_MCP_PYTHON` is explicitly set.
+`praxys-local-mcp` command uses the interpreter prepared by
+`actions/setup-python`; local profiles continue to require the project
+virtualenv unless `PRAXYS_MCP_PYTHON` is explicitly set.
 
 The cloud agent's **Start MCP Servers** step does not guarantee the repository
 root as its working directory. The setup workflow therefore installs
 `scripts/run_praxys_mcp_cloud.sh` as `/usr/local/bin/praxys-local-mcp`. That
-launcher changes to `GITHUB_WORKSPACE` before starting the repository module.
-Keep the cloud payload pointed at the installed command; using
+launcher changes to `GITHUB_WORKSPACE` and exports
+`PRAXYS_MCP_USE_CURRENT_PYTHON=1` before starting the repository module. Keep
+the cloud payload pointed at the installed command; relying on an MCP `env`
+entry for the interpreter flag, or using
 `python -m scripts.run_praxys_mcp` directly can silently leave every
 `praxys-local` tool unregistered.
 

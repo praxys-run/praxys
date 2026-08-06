@@ -148,8 +148,10 @@ production authentication, provider connections, sync, and plan mutations.
 runtime, verifies Chrome, prepares the synthetic sample-data sandbox, and
 installs a `praxys-local-mcp` launcher that changes to `GITHUB_WORKSPACE`.
 Cloud MCP processes do not reliably inherit the repository root as their
-working directory, so the cloud payload must use that installed launcher
-rather than invoke the repository Python module directly.
+working directory or pass the configured Python-selection environment, so the
+launcher also selects the interpreter prepared by `actions/setup-python`. The
+cloud payload must use that installed launcher rather than invoke the
+repository Python module directly.
 
 Use Chrome/Playwright to judge the rendered experience. Use `praxys-local` only
 to inspect the product's sample-data semantics or expected view payloads.
