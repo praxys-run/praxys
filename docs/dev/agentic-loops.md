@@ -216,4 +216,6 @@ and product loops.
   actionability gate). `docs/ops/change-loop.md` — the operator runbook.
 - **#377** — the self-improvement platform tracker (the substrate above).
 - `praxys-run/praxys-ops-agent` — the incident loop (Loop B).
+- `docs/dev/microsoft-foundry-adoption-study.md` — Foundry runtime, evaluation,
+  Coach-insight, and cost decisions for the change and incident loops.
 - `docs/dev/architecture.md` — the (non-agentic) system architecture.
