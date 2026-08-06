@@ -40,7 +40,7 @@ transient — the next deploy overwrites them.**
 | Variable | Purpose | Consumed by |
 |---|---|---|
 | `VITE_API_URL` (`https://api.praxys.run`) | API base baked into the SPA | `deploy-frontend-appservice.yml` build |
-| `AZURE_AI_ENDPOINT` | Azure OpenAI endpoint for insights, triage, i18n, and Agentic Workflows. Keep the trailing `/`; the agent workflows append `openai/v1`. | App Service setting + `i18n.yml` + Agentic Workflow `.md` sources |
+| `AZURE_AI_ENDPOINT` | Azure OpenAI endpoint for insights, triage, i18n, and Agentic Workflows. Keep the trailing `/`; the agent workflows append `openai/v1`. Azure BYOK workflow sources must also set `sandbox.agent.model-fallback: false` to preserve the configured deployment name. | App Service setting + `i18n.yml` + Agentic Workflow `.md` sources |
 | `TRANSLATE_MODEL` (`gpt-5.4-mini`) | Optional deployment override for translating newly extracted UI strings and science copy. | `i18n.yml`; script default applies when unset |
 | `TRANSLATE_REVIEW_MODEL` (`gpt-5.4`) | Optional stronger deployment override for the weekly native-Chinese catalog review. | `i18n.yml`; script default applies when unset |
 | `KEY_VAULT_URL` / `KEY_VAULT_KEY_NAME` | Key Vault + RSA key name | App Service setting |

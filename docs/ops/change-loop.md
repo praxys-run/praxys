@@ -251,6 +251,11 @@ has `Cognitive Services OpenAI User` on that resource, and these workflows run
 from the default-branch trust subject. This avoids both organization Copilot
 billing and a long-lived model API key.
 
+Every Azure BYOK workflow sets `sandbox.agent.model-fallback: false` so gh-aw
+preserves the Azure deployment name instead of resolving it to a GitHub Copilot
+catalog alias. Keep this setting when adding or changing an Azure-backed agent
+workflow.
+
 Repository writes happen only through the declared, capped `safe-outputs`, and
 each workflow also carries per-run and daily AI-credit caps. No-op,
 missing-tool, incomplete-run, and workflow-failure reports remain in Actions
