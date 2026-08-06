@@ -203,7 +203,8 @@ def _frame_intro(context: dict) -> str:
 def _training_review_system(context: dict) -> str:
     return (
         _frame_intro(context)
-        + "\n\nYou will receive up to 12 weeks of training sessions (date, distance, "
+        + "\n\nYou will receive a rolling review window capped at 12 weeks of "
+        "training sessions (date, distance, "
         "RSS, duration), weekly aggregates, and a deterministic diagnosis whose "
         "intensity fields come only from timestamped samples or activity splits. "
         "Produce a diagnosis: headline names the dominant pattern, summary explains "
