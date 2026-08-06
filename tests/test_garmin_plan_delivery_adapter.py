@@ -308,8 +308,22 @@ def test_adapter_requires_credential_generation() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("china_account", "region", "profile"),
+    [
+        (
+            False,
+            "international",
+            {"userProfileId": 12345, "profileId": 67890},
+        ),
+        (True, "cn", {"id": 67890, "profileId": 12345}),
+    ],
+)
 def test_authenticate_publishes_in_memory_tokens(
     monkeypatch,
+    china_account: bool,
+    region: str,
+    profile: dict[str, int],
 ) -> None:
     published: list[str] = []
     loaded: list[str] = []
@@ -342,11 +356,11 @@ def test_authenticate_publishes_in_memory_tokens(
         def __init__(self, email, password, is_cn=False):
             assert email == "runner@example.test"
             assert password == "secret"
-            assert is_cn is False
+            assert is_cn is china_account
 
         def connectapi(self, path):
             assert path == "/userprofile-service/socialProfile"
-            return {"userProfileId": 12345}
+            return profile
 
     monkeypatch.setattr("garminconnect.Garmin", AuthenticatedGarmin)
     monkeypatch.setattr(
@@ -367,10 +381,10 @@ def test_authenticate_publishes_in_memory_tokens(
         {
             "email": "runner@example.test",
             "password": "secret",
-            "is_cn": False,
+            "is_cn": china_account,
         },
         user_id="garmin-adapter-user",
-        source_options={"garmin_region": "international"},
+        source_options={"garmin_region": region},
         credential_generation=CREDENTIAL_GENERATION,
         token_loader=load_tokens,
         token_publisher=publish_tokens,
@@ -382,6 +396,53 @@ def test_authenticate_publishes_in_memory_tokens(
     assert login_tokens == ["stored-token-bundle"]
     assert published == ["serialized-token-bundle"]
     assert lease_depth == 0
+
+
+def test_missing_profile_identity_reports_safe_failure_stage(
+    monkeypatch,
+    caplog,
+) -> None:
+    class AuthenticatedGarmin:
+        display_name = "stable-account"
+
+        def __init__(self, email, password, is_cn=False):
+            del email, password, is_cn
+
+        def connectapi(self, path):
+            assert path == "/userprofile-service/socialProfile"
+            return {"id": 12345}
+
+    monkeypatch.setattr("garminconnect.Garmin", AuthenticatedGarmin)
+    monkeypatch.setattr(
+        "api.routes.sync._garmin_tokenstore_lease",
+        lambda user_id: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(
+        "api.routes.sync._login_garmin_with_cn_fallback",
+        lambda client, creds, serialized_tokens: None,
+    )
+    adapter = GarminPlanDeliveryAdapter(
+        {
+            "email": "runner@example.test",
+            "password": "secret",
+            "is_cn": False,
+        },
+        user_id="garmin-adapter-user",
+        source_options={"garmin_region": "international"},
+        credential_generation=CREDENTIAL_GENERATION,
+    )
+
+    with caplog.at_level("WARNING", logger="api.plan_delivery.garmin"):
+        with pytest.raises(
+            ProviderAuthenticationError,
+            match="account identity verification failed",
+        ):
+            adapter.authenticate()
+
+    assert "stage=profile_identity" in caplog.text
+    assert "error_type=ValueError" in caplog.text
+    assert "runner@example.test" not in caplog.text
+    assert "garmin-adapter-user" not in caplog.text
 
 
 def test_token_loader_reconnect_error_is_not_downgraded(monkeypatch) -> None:
@@ -545,6 +606,31 @@ def test_create_checkpoints_both_garmin_identities() -> None:
     assert checkpoints[0][0]["preexisting_template_ids"] == []
     assert checkpoints[-1][1] == "201"
     assert mutations == ["before", "before"]
+    assert client.upload_calls == 1
+    assert client.schedule_calls == 1
+
+
+def test_create_accepts_nested_cn_schedule_details() -> None:
+    client = FakeGarmin()
+    adapter = _adapter(client)
+    prepared = adapter.prepare_workout(_workout(), threshold_value=250)
+    original_read = client.get_scheduled_workout_by_id
+
+    def read_nested(external_id: object) -> dict[str, Any]:
+        flat = original_read(external_id)
+        return {
+            "workoutScheduleId": flat["workoutScheduleId"],
+            "workout": {"workoutId": flat["workoutId"]},
+            "calendarDate": flat["date"],
+        }
+
+    client.get_scheduled_workout_by_id = read_nested
+
+    result = adapter.create_workout(prepared)
+
+    assert result.external_id == "201"
+    assert result.provider_references["template_id"] == "101"
+    assert result.provider_references["schedule_id"] == "201"
     assert client.upload_calls == 1
     assert client.schedule_calls == 1
 
@@ -1073,6 +1159,65 @@ def test_manual_reuse_of_retained_template_is_never_adopted() -> None:
     assert client.schedule_calls == 0
 
 
+def test_returned_schedule_checkpoint_recovers_without_duplicate() -> None:
+    client = FakeGarmin()
+    adapter = _adapter(client)
+    prepared = adapter.prepare_workout(_workout(), threshold_value=250)
+    client.templates["101"] = deepcopy(dict(prepared.request["workout"]))
+    client.schedules["201"] = {
+        "template_id": "101",
+        "date": "2026-08-05",
+    }
+    references, checkpoints, mutations, hooks = _recording_hooks({
+        "template_marker": prepared.request["marker"],
+        "payload_fingerprint": prepared.content_version,
+        "preexisting_template_ids": [],
+        "template_id": "101",
+        "preexisting_schedule_ids": [],
+        "schedule_started": True,
+        "returned_schedule_id": "201",
+    })
+
+    result = adapter.create_workout(prepared, hooks=hooks)
+
+    assert result.external_id == "201"
+    assert references["schedule_id"] == "201"
+    assert checkpoints[-1][1] == "201"
+    assert mutations == []
+    assert client.schedule_calls == 0
+    assert list(client.schedules) == ["201"]
+
+
+def test_returned_preexisting_checkpoint_is_never_recovered() -> None:
+    client = FakeGarmin()
+    adapter = _adapter(client)
+    prepared = adapter.prepare_workout(_workout(), threshold_value=250)
+    client.templates["101"] = deepcopy(dict(prepared.request["workout"]))
+    client.schedules["201"] = {
+        "template_id": "101",
+        "date": "2026-08-05",
+    }
+    references, _, mutations, hooks = _recording_hooks({
+        "template_marker": prepared.request["marker"],
+        "payload_fingerprint": prepared.content_version,
+        "preexisting_template_ids": [],
+        "template_id": "101",
+        "preexisting_schedule_ids": ["201"],
+        "schedule_started": True,
+        "returned_schedule_id": "201",
+    })
+
+    with pytest.raises(
+        ProviderOutcomeUnknownError,
+        match="pre-existing",
+    ):
+        adapter.create_workout(prepared, hooks=hooks)
+
+    assert "schedule_id" not in references
+    assert mutations == []
+    assert client.schedule_calls == 0
+
+
 def test_checkpointed_schedule_absence_fails_closed() -> None:
     client = FakeGarmin()
     adapter = _adapter(client)
@@ -1124,6 +1269,37 @@ def test_delete_unschedules_only_owned_instance_and_retains_template() -> None:
     assert set(client.templates) == {"101"}
     assert mutations == ["before"]
     assert result.response["template_retained"] is True
+
+
+def test_delete_accepts_nested_cn_schedule_details() -> None:
+    client = FakeGarmin()
+    adapter = _adapter(client)
+    client.schedules["201"] = {
+        "template_id": "101",
+        "date": "2026-08-05",
+    }
+    original_read = client.get_scheduled_workout_by_id
+
+    def read_nested(external_id: object) -> dict[str, Any]:
+        flat = original_read(external_id)
+        return {
+            "workoutScheduleId": flat["workoutScheduleId"],
+            "workout": {"workoutId": flat["workoutId"]},
+            "calendarDate": flat["date"],
+        }
+
+    client.get_scheduled_workout_by_id = read_nested
+    _, _, mutations, hooks = _recording_hooks({
+        "template_id": "101",
+        "profile_account_id": PROFILE_ACCOUNT_ID,
+    })
+
+    result = adapter.delete_workout("201", hooks=hooks)
+
+    assert result.already_absent is False
+    assert client.unschedule_calls == ["201"]
+    assert client.schedules == {}
+    assert mutations == ["before"]
 
 
 def test_delete_holds_shared_tokenstore_lease(monkeypatch) -> None:

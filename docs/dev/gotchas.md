@@ -53,6 +53,36 @@ Expect individual endpoints to 400/404 on `connectapi.garmin.cn` even when the a
 - The recovery loop has per-endpoint consecutive-failure circuit breakers (5 strikes → stop calling that endpoint for the remaining days).
 - `parse_garmin_recovery` uses `isinstance` guards + `or`-coalesce on every nested `.get()` — `dict.get(k, default)` returns `None`, not the default, for a present-but-null key, and the legacy code's crash here used to abort the whole recovery loop.
 
+### Garmin profile identity keys differ by region
+
+The authenticated `/userprofile-service/socialProfile` payload is not identical
+across regions. Legacy/International responses can expose `userProfileId`,
+while Garmin CN exposes `profileId`; the CN value matches the top-level `id`
+from `get_user_profile()`. The social payload's own `id` is a different record
+identifier and must not be used as the account fence.
+
+`garmin_user_profile_id()` therefore prefers `userProfileId` to preserve
+existing delivery-ledger identity, then falls back to `profileId` for CN.
+Profile visibility is unrelated: this is an authenticated self-profile read,
+not a public-profile lookup.
+
+### Garmin CN schedule details are nested
+
+`get_scheduled_workout_by_id()` returns a flat International-style shape in
+some accounts (`workoutId`, `date`), but Garmin CN returns the template under
+`workout.workoutId` and the date as `calendarDate`. The monthly calendar still
+uses `calendarItems[].workoutId`, `calendarItems[].id`, and
+`calendarItems[].date`.
+
+Creation and deletion verification must accept both detail shapes. A
+checkpointed `returned_schedule_id` is promoted to the owned `schedule_id`
+only when the monthly calendar independently shows that exact schedule ID on
+the expected date with the created template, and only when it was absent from
+the pre-mutation schedule set. This recovery fence prevents both duplicate
+retries and adoption of a pre-existing/manual schedule. Conflict resolution
+uses the same fence to bind a matching observed schedule without another
+provider mutation.
+
 ### Garmin's CAPTCHA gate is time-bound, not sticky
 
 When the headless `garminconnect` flow trips Garmin/Cloudflare's bot detection, the rejection looks **permanent** but isn't. The trap is assuming you need to engineer your way around the gate when you actually just need to stop feeding it.
