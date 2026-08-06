@@ -15,10 +15,10 @@
 - **Key rule:** All metric functions must be **pure** — no file I/O, no side effects, no global state. Data flows in via parameters, results flow out via return values.
 
 ### Frontend Agent
-- **Focus:** `web/src/`
-- **Tasks:** Add UI components, new pages, improve visualizations
-- **Context needed:** `web/src/types/api.ts` for API contracts, `useApi` hook pattern
-- **Key rule:** All data comes from API via `useApi<T>` hook. No direct file reads. Data numbers use `font-data` class.
+- **Focus:** `web/src/`, `miniapp/`, and shared product/design context
+- **Tasks:** Add UI components, new pages, improve visualizations, and preserve web/miniapp feature parity
+- **Context needed:** `.github/skills/ui-quality/SKILL.md`, `PRODUCT.md`, `DESIGN.md`, `docs/dev/design-system.md`, `web/src/types/api.ts`, and the `useApi` hook pattern
+- **Key rule:** Invoke the `ui-quality` skill for every user-visible change. It must route through Impeccable, rendered desktop/mobile inspection, state and accessibility coverage, and the CI evidence block. All data comes from API via `useApi<T>`; data numbers use `font-data`.
 
 ### API Agent
 - **Focus:** `api/main.py`, `api/deps.py`, `api/auth.py`, `api/routes/`
@@ -44,8 +44,8 @@
 ### Adding a Feature End-to-End
 1. **Analysis Agent** adds metric to `metrics.py` + test
 2. **API Agent** exposes via `deps.py` + route
-3. **Frontend Agent** adds types, component, page integration
-4. Run `python -m pytest tests/` and `cd web && npm run build` to verify
+3. **Frontend Agent** invokes `ui-quality`, then adds types, web/miniapp UI, and page integration
+4. Run `python -m pytest tests/`, `cd web && npm run build`, the relevant miniapp checks, and `python scripts/check_ui_quality.py --base origin/main --head HEAD --skip-evidence`
 
 ### Debugging a Data Issue
 1. **Data Pipeline Agent** checks sync output and database integrity

@@ -1,5 +1,48 @@
 {
   "mcpServers": {
+    "chrome-devtools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@1.6.0",
+        "--headless",
+        "--isolated",
+        "--no-usage-statistics",
+        "--no-performance-crux",
+        "--redact-network-headers",
+        "--screenshot-format=webp",
+        "--screenshot-max-width=1600",
+        "--screenshot-max-height=1200"
+      ],
+      "env": {},
+      "tools": [
+        "click",
+        "drag",
+        "fill",
+        "fill_form",
+        "handle_dialog",
+        "hover",
+        "press_key",
+        "type_text",
+        "close_page",
+        "list_pages",
+        "navigate_page",
+        "new_page",
+        "select_page",
+        "wait_for",
+        "emulate",
+        "resize_page",
+        "get_network_request",
+        "list_network_requests",
+        "evaluate_script",
+        "get_console_message",
+        "lighthouse_audit",
+        "list_console_messages",
+        "take_screenshot",
+        "take_snapshot"
+      ]
+    },
     "azure-mcp": {
       "command": "npx",
       "args": ["-y", "@azure/mcp@latest", "server", "start"],

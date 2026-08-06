@@ -193,6 +193,29 @@ When adding a new field or changing how data is extracted for display:
 2. Both API routes and CLI scripts get the change automatically
 3. Never duplicate extraction logic between routes and scripts
 
+## Making a UI Change
+
+Invoke the repository `ui-quality` skill for every user-visible change in
+`web/` or `miniapp/`. It loads the vendored Impeccable playbooks, `PRODUCT.md`,
+`DESIGN.md`, the design-system rules, rendered desktop/mobile verification,
+state and accessibility coverage, web/miniapp parity, and the required PR
+evidence.
+
+The full flow and maintenance instructions live in
+`docs/dev/ui-quality-harness.md`. At minimum:
+
+1. Invoke `ui-quality` before editing and run Impeccable context once for the
+   primary target.
+2. Preserve the incumbent visual world for bounded changes; use `shape` for a
+   new or materially reworked flow and `polish` before handoff.
+3. Inspect the real feature with sample data at desktop and mobile sizes, with
+   keyboard navigation and relevant states.
+4. Run the web build, miniapp typecheck when applicable, and
+   `python scripts/check_ui_quality.py --base origin/main --head HEAD --skip-evidence`.
+5. Complete the PR template's `## UI quality` block. If a browser is
+   unavailable, keep the PR draft and state that rendered verification remains
+   incomplete.
+
 ## Code Conventions
 
 ### Python
@@ -205,6 +228,7 @@ When adding a new field or changing how data is extracted for display:
 ### Frontend
 - TypeScript strict mode
 - All API responses typed in `web/src/types/api.ts`
+- Mandatory `ui-quality` skill and Impeccable-led rendered review for user-visible changes
 - `useApi<T>` hook for data fetching
 - shadcn/ui components (never raw HTML elements)
 - Tailwind CSS v4 with OKLCH color variables
@@ -243,6 +267,7 @@ When making changes, update the relevant docs:
 | DB model changes | `CLAUDE.md` data sources |
 | New Claude automation (hook, agent, dev skill) | `CLAUDE.md` "Claude Code Automations" section |
 | Agentic loop / self-improvement / autonomy change | `docs/dev/agentic-loops.md`, tracker `#377` |
+| UI quality harness / design-agent policy | `docs/dev/ui-quality-harness.md`, `CLAUDE.md`, and `docs/ops/change-loop.md` when coding-agent behavior changes |
 | Config / secret / infra / deploy change (env var, GitHub Actions secret/variable, App Service setting, Azure resource, RBAC, deploy workflow) | **`docs/ops/` handbook** — esp. `config-and-secrets.md` (where it's set + how to provision it) |
 
 ## Claude Code Dev Tooling
@@ -252,10 +277,13 @@ The repo ships committed Claude Code automations in `.claude/`. Full inventory i
 - **Post-edit hooks** run automatically after every `Edit`/`Write`:
   - `.claude/hooks/pytest_on_py.py` (PostToolUse, `.py` files) — runs pytest via the project venv with fail-fast and surfaces failures to Claude via stderr + exit 2.
   - `.claude/hooks/web_lint.py` (PostToolUse, `.ts(x)` under project `web/`) — per-file ESLint; lint errors go to stderr + exit 2 so Claude sees them and can self-correct.
+  - `.github/skills/impeccable/scripts/hook.mjs` — shared web/miniapp design detector on edits plus a stop-time deep pass.
 - **Reviewer agents** (read-only; auto-triggered by Claude when their description matches the current change, or invoked explicitly via the `Agent` tool / `subagent_type`):
   - `science-reviewer` — citation and published-value checks for `analysis/` and `data/science/`.
   - `metric-addition-reviewer` — verifies the 7-step add-metric checklist is complete.
   - `api-contract-reviewer` — cross-reads Python response shapes against TS interfaces.
-- **Dev skill** `seed-and-preview` — resets the local DB to sample data and boots API + Vite. User-invocable only (has side effects). See `.claude/skills/seed-and-preview/SKILL.md`.
+- **Dev skills**:
+  - `ui-quality` — mandatory cross-agent UI workflow; delegates to the canonical Impeccable copy under `.github/skills/`.
+  - `seed-and-preview` — resets the local DB to sample data and boots API + Vite. User-invocable only (has side effects). See `.claude/skills/seed-and-preview/SKILL.md`.
 
 If a hook is getting in your way, edit `.claude/settings.json`. If a reviewer agent misses a pattern, extend its prompt in `.claude/agents/<name>.md` — they are just markdown with YAML frontmatter.

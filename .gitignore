@@ -47,6 +47,9 @@ web/dist/
 !.claude/hooks/**
 .playwright-mcp/
 /.praxys-local/
+.impeccable/config.local.json
+.impeccable/hook.cache.json
+.impeccable/hook.pending.json
 
 # Git worktrees
 .worktrees/

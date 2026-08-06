@@ -36,6 +36,29 @@ sync/*.py → db/sync_writer.py → SQLite → analysis/metrics.py → api/deps.
 - Data numbers use `font-data` CSS class (JetBrains Mono, tabular-nums)
 - Every prediction/insight needs a `ScienceNote` component with source links
 
+## UI Quality Harness (mandatory)
+
+Any task that changes user-visible web or miniapp behavior must use the
+repository-owned `ui-quality` skill in `.github/skills/ui-quality/SKILL.md`.
+That skill routes the work through the vendored Impeccable skill, Praxys product
+and design context, rendered desktop/mobile verification, accessibility and
+state coverage, and the PR evidence required by CI.
+
+- The committed Copilot hook at `.github/hooks/impeccable.json` runs the
+  Impeccable detector after UI edits. Correct findings; do not disable or bypass
+  the hook to make a PR pass.
+- Preserve the incumbent visual world for bug fixes and narrow features. A
+  redesign requires an explicit product decision.
+- Use Chrome DevTools MCP when available; the cloud coding agent has Playwright
+  by default. Use the read-only synthetic `praxys-local` MCP for product-data
+  semantics when useful, never as a substitute for rendered review. If no
+  browser tool is available, keep the PR draft and say that rendered
+  verification is incomplete.
+- Follow `.github/instructions/ui-quality.instructions.md` for the complete
+  path-specific flow. Classify design-system discoveries as fixed locally,
+  updated in the design source of truth, or linked to a filed follow-up, and
+  include the exact `## UI quality` evidence block in the PR body.
+
 ## Config
 
 - User config (goals, thresholds) stored in the database, managed via Settings/Goal page UI
@@ -65,6 +88,12 @@ When you (the GitHub Copilot coding agent) are assigned an issue labeled
   (your environment is preinstalled via `.github/workflows/copilot-setup-steps.yml`
   — Python deps + a bootstrap `.env` — so it runs out of the box). For web
   changes also run `cd web && npm run build`.
+- **For any UI change, run the UI quality harness before marking the PR ready.**
+  Invoke `ui-quality`, follow Impeccable, perform the rendered review, run
+  `python scripts/check_ui_quality.py --base origin/main --head HEAD --skip-evidence`,
+  and complete the PR's `## UI quality` block. CI reports the web build and UI
+  gate as `frontend-quality`; the existing required `backend-tests` context
+  remains a compatibility umbrella during branch-protection migration.
 - **Adding or changing a training metric?** Follow the 7-step checklist in
   [CLAUDE.md](../CLAUDE.md) ("How to Add a New Metric"): pure function in
   `analysis/metrics.py` → wire into `api/deps.py` → route → `web/src/types/api.ts`
