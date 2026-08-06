@@ -56,9 +56,12 @@ Rotate ~every 90 days (calendar it). See [change-loop.md](./change-loop.md) §3.
 user's data-encryption key; rotating without a re-wrap migration makes stored
 platform credentials undecryptable (users would have to reconnect platforms).
 
-**TODO(@dddtc2005):** document + script the re-wrap drill (enumerate users,
-unwrap DEK with the old key version, re-wrap with the new) before any rotation.
-Until then, treat this key as non-rotatable.
+The re-wrap drill is intentionally deferred until a reviewed migration tool can
+enumerate each encrypted credential, unwrap its DEK with the old key version,
+re-wrap with the new version, verify decryption, and roll back atomically.
+Documentation alone cannot validate that invariant against production
+ciphertext. Until that tooling and an operator-approved maintenance window
+exist, treat this key as **non-rotatable** and escalate every rotation request.
 
 ## OIDC (`AZURE_CLIENT_ID` / federated credential)
 
@@ -70,4 +73,4 @@ rotate trust, update the federated credential subject; see `docs/deployment.md`.
 - [config-and-secrets.md](./config-and-secrets.md) (where each lives) · [deploy.md](./deploy.md)
 
 ---
-_Last reviewed: 2026-06-30 · Owner: @dddtc2005_
+_Last reviewed: 2026-08-06 · Owner: @dddtc2005_

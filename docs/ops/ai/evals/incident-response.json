@@ -1,0 +1,64 @@
+{
+  "cases": [
+    {
+      "expected": {
+        "action": "restart-backend",
+        "on_failure": "escalate",
+        "verify": [
+          "api-health",
+          "api-ready"
+        ]
+      },
+      "id": "backend-unhealthy",
+      "observations": [
+        {
+          "outcome": "failure",
+          "signal": "api-health"
+        }
+      ]
+    },
+    {
+      "expected": {
+        "action": "restart-frontend",
+        "on_failure": "escalate",
+        "verify": [
+          "frontend-health"
+        ]
+      },
+      "id": "frontend-unhealthy",
+      "observations": [
+        {
+          "outcome": "success",
+          "signal": "api-health"
+        },
+        {
+          "outcome": "failure",
+          "signal": "frontend-health"
+        }
+      ]
+    },
+    {
+      "expected": {
+        "action": "restart-backend",
+        "on_failure": "escalate",
+        "verify": [
+          "api-ready",
+          "api-health"
+        ]
+      },
+      "id": "database-unready",
+      "observations": [
+        {
+          "outcome": "success",
+          "signal": "api-health"
+        },
+        {
+          "outcome": "failure",
+          "signal": "api-ready"
+        }
+      ]
+    }
+  ],
+  "runbook": "incident-response",
+  "schema_version": 1
+}
