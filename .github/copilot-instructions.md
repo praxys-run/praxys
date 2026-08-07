@@ -91,9 +91,9 @@ When you (the GitHub Copilot coding agent) are assigned an issue labeled
 - **For any UI change, run the UI quality harness before marking the PR ready.**
   Invoke `ui-quality`, follow Impeccable, perform the rendered review, run
   `python scripts/check_ui_quality.py --base origin/main --head HEAD --skip-evidence`,
-  and complete the PR's `## UI quality` block. CI reports the web build and UI
-  gate as `frontend-quality`; the existing required `backend-tests` context
-  remains a compatibility umbrella during branch-protection migration.
+  and complete the PR's `## UI quality` block. The unified pre-merge workflow
+  reports the web build and UI gate as the independent required
+  `frontend-quality` context.
 - **Adding or changing a training metric?** Follow the 7-step checklist in
   [CLAUDE.md](../CLAUDE.md) ("How to Add a New Metric"): pure function in
   `analysis/metrics.py` → wire into `api/deps.py` → route → `web/src/types/api.ts`

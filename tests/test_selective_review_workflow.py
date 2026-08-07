@@ -87,7 +87,7 @@ def test_selective_review_workflow_is_default_off_and_never_bypasses():
         ROOT / "scripts" / "selective_review_gate.py"
     ).read_text(encoding="utf-8")
     assert "python scripts/validate_review_policy.py" in (
-        ROOT / ".github" / "workflows" / "ci-backend.yml"
+        ROOT / ".github" / "workflows" / "ci-premerge.yml"
     ).read_text(encoding="utf-8")
     assert "--admin" not in workflow
 

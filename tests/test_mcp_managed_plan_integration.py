@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PLUGIN_ROOT = ROOT / "plugins" / "praxys"
 SERVER_PATH = PLUGIN_ROOT / "mcp-server" / "server.py"
 PLUGIN_TESTS = PLUGIN_ROOT / "mcp-server" / "tests"
-BACKEND_CI = ROOT / ".github" / "workflows" / "ci-backend.yml"
+BACKEND_CI = ROOT / ".github" / "workflows" / "ci-premerge.yml"
 
 
 class _FakeFastMCP:

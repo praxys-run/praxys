@@ -130,7 +130,7 @@ The i18n workflow uses its built-in `GITHUB_TOKEN` to update
 `i18n/refresh-zh` and open the review PR. GitHub suppresses normal
 `pull_request` workflow events for PRs opened by that token, so `i18n.yml`
 explicitly uses the permitted `workflow_dispatch` exception: it dispatches
-Backend CI and Miniapp build on the bot branch, then waits for Backend CI. Do
+Pre-merge CI and Miniapp build on the bot branch, then waits for Pre-merge CI. Do
 not remove that chain; otherwise automated translation PRs lose their required
 validation. Their semantic review already happened inside `i18n.yml` through
 the independent editor/critic pair; the invariant workflow remains the
@@ -165,7 +165,7 @@ placeholders, English-style Chinese typography, banned translationese, and
 canonical-term drift. Shared web/mini keys must match unless
 `MINI_TRANSLATION_OVERRIDES` records a reviewed mobile-specific rationale. The
 Praxys invariant Agentic Workflow then reviews
-user-facing copy changes for semantic/native-language quality after `Backend CI`.
+user-facing copy changes for semantic/native-language quality after `Pre-merge CI`.
 
 Provision and verify:
 
@@ -184,7 +184,7 @@ Provision and verify:
    repository opt-in, an organization owner must enable the corresponding gate
    first.
 3. Dispatch `i18n.yml`. Confirm the generated PR receives manual-dispatch runs
-   for Backend CI and Miniapp build on `i18n/refresh-zh`.
+   for Pre-merge CI and Miniapp build on `i18n/refresh-zh`.
 
 #### Dependabot patch auto-merge
 
