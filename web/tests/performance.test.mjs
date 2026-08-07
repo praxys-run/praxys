@@ -43,3 +43,16 @@ test('daily pages use the app freshness policy instead of forced focus fetches',
     assert.doesNotMatch(source, /refetchOnWindowFocus:\s*'always'/);
   }
 });
+
+test('keeps chart code off the initial Today preload path', async () => {
+  const [appSource, viteSource] = await Promise.all([
+    readFile(new URL('../src/App.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../vite.config.ts', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(appSource, /const loadTraining = \(\) => import\('\.\/pages\/Training'\)/);
+  assert.match(appSource, /requestIdleCallback\(/);
+  assert.match(appSource, /cancelIdleCallback\(idleCallbackId\)/);
+  assert.match(viteSource, /context\.hostType !== 'html'/);
+  assert.match(viteSource, /!dependency\.includes\('recharts-'\)/);
+});
