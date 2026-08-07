@@ -207,6 +207,28 @@ def test_harness_is_wired_into_agents_and_required_ci():
     assert "types: [opened, synchronize, reopened, ready_for_review, edited]" in workflow
 
 
+def test_i18n_pr_body_contains_valid_catalog_only_ui_evidence():
+    workflow = (ROOT / ".github" / "workflows" / "i18n.yml").read_text(
+        encoding="utf-8"
+    )
+    section_start = workflow.index("            ## UI quality")
+    section_end = workflow.index(
+        "\n\n      - name: Dispatch required validation",
+        section_start,
+    )
+    body = "\n".join(
+        line.removeprefix("            ")
+        for line in workflow[section_start:section_end].splitlines()
+    )
+
+    assert validate_ui_evidence(
+        body,
+        has_web=True,
+        has_miniapp=False,
+        changed_paths=["web/src/locales/zh/messages.po"],
+    ) == []
+
+
 def test_ui_mcp_configs_are_pinned_and_cloud_safe():
     local_config = json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))
     local_chrome = local_config["mcpServers"]["chrome-devtools"]
