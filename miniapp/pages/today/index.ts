@@ -14,6 +14,7 @@ import { t, tFmt, tNamed, detectLocale } from '../../utils/i18n';
 import { coachToggleLabel } from '../../utils/insights';
 import { recordProductEventOnce } from '../../utils/product-events';
 import { copyUrlToClipboard } from '../../utils/markdown';
+import { shouldShowMetricProvenance } from '../../utils/format';
 import {
   buildShareMessage,
   buildTimelineMessage,
@@ -263,12 +264,14 @@ function buildSupportingCells(
   tsb: number | null,
   observationCount: number,
   locale: 'en' | 'zh',
+  pageIsoDate: string | null | undefined,
 ): SupportingCell[] {
   const noData = t('no data');
   const hrv = ra?.hrv ?? null;
-  const provenance = (metricDate: string | null | undefined): string | null => (
-    metricDate ? tFmt('from {0}', formatIsoDateShort(metricDate, locale)) : null
-  );
+  const provenance = (metricDate: string | null | undefined): string | null => {
+    if (!metricDate || !shouldShowMetricProvenance(metricDate, pageIsoDate)) return null;
+    return tFmt('from {0}', formatIsoDateShort(metricDate, locale));
+  };
 
   // Cell 1 — HRV (latest ln RMSSD observation).
   const hrvValue = hrv ? hrv.today_ln.toFixed(2) : '—';
@@ -611,6 +614,7 @@ function buildRenderState(
     response.signal.recovery.tsb,
     response.recovery_theory?.params.rolling_days ?? 7,
     localeForDate,
+    response.as_of_date,
   );
 
   const warnings = response.warnings ?? [];

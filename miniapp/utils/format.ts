@@ -46,6 +46,16 @@ export function formatDistance(km: number, unit: 'metric' | 'imperial' = 'metric
   return `${km.toFixed(1)} km`;
 }
 
+/** Return true when a metric should show its own source date. */
+export function shouldShowMetricProvenance(
+  metricIsoDate: string | null | undefined,
+  pageIsoDate: string | null | undefined,
+): boolean {
+  if (!metricIsoDate) return false;
+  if (!pageIsoDate) return true;
+  return metricIsoDate.slice(0, 10) !== pageIsoDate.slice(0, 10);
+}
+
 /** Parse H:MM:SS or MM:SS or raw seconds to total seconds.
  * 3-part = H:MM:SS, 2-part = MM:SS, 1-part = raw seconds. */
 export function parseTimeToSeconds(input: string): number | null {
