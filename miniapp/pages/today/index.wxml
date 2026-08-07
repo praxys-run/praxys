@@ -117,6 +117,7 @@
         </view>
         <view class="coach-body">
           <text class="coach-headline">{{coach.headline}}</text>
+          <text class="coach-summary">{{coach.summary}}</text>
 
           <!-- Progressive-disclosure toggle. Default-collapsed; the
                user opts in to the structured detail. Hidden when
