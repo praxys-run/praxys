@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { TooltipProvider } from './components/ui/tooltip';
 import { AuthProvider, useAuth } from './hooks/useAuth';
@@ -23,7 +23,8 @@ import { hasSkippedSetupForSession, useSetupStatus } from './hooks/useSetupStatu
 // Lazy-loaded: secondary routes the user navigates to after landing on
 // Today. Chunks load on first visit to each route; cached immutably
 // thereafter (cache headers set by frontend_server/main.py).
-const Training = lazy(() => import('./pages/Training'));
+const loadTraining = () => import('./pages/Training');
+const Training = lazy(loadTraining);
 const Goal = lazy(() => import('./pages/Goal'));
 const History = lazy(() => import('./pages/History'));
 const Science = lazy(() => import('./pages/Science'));
@@ -119,6 +120,28 @@ function TodayOrSetup() {
   const accountScope = email?.trim().toLowerCase() ?? '';
   const setupSkipped = skippedForAccount === accountScope || hasSkippedSetupForSession(email);
 
+  useEffect(() => {
+    if (setup.loading || (!setup.allDone && !setupSkipped)) return undefined;
+
+    // Keep chart code off Today's critical path, then warm the most common
+    // next route after the first screen has had time to settle.
+    let idleCallbackId: number | undefined;
+    const timer = window.setTimeout(() => {
+      if ('requestIdleCallback' in window) {
+        idleCallbackId = window.requestIdleCallback(
+          () => { void loadTraining(); },
+          { timeout: 5000 },
+        );
+      } else {
+        void loadTraining();
+      }
+    }, 2500);
+    return () => {
+      window.clearTimeout(timer);
+      if (idleCallbackId !== undefined) window.cancelIdleCallback(idleCallbackId);
+    };
+  }, [setup.allDone, setup.loading, setupSkipped]);
+
   if (setup.loading) return null;
   if (!setup.allDone && !setupSkipped) {
     return <Setup onSkip={() => setSkippedForAccount(accountScope)} />;
@@ -159,7 +182,7 @@ function LoginGuard() {
       } else {
         const token = localStorage.getItem('praxys-auth-token') ?? localStorage.getItem('trainsight-auth-token');
         if (token) {
-          window.location.href = `${rawCallback}?token=${encodeURIComponent(token)}`;
+          window.location.assign(`${rawCallback}?token=${encodeURIComponent(token)}`);
           return null;
         }
         console.warn('[login] CLI callback valid but no token in localStorage; falling through to /today');

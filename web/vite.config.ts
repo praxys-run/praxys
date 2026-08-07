@@ -53,6 +53,18 @@ export default defineConfig({
     },
   },
   build: {
+    modulePreload: {
+      resolveDependencies(_filename, dependencies, context) {
+        if (context.hostType !== 'html') return dependencies
+
+        // Recharts is only used by lazy dashboard routes. Vite otherwise adds
+        // the shared vendor chunk to index.html, making every cold visit pay
+        // ~113 kB gzip before Today can render. Dynamic route imports retain
+        // their own dependency preload list, so charts still load normally
+        // when Training or Goal is requested.
+        return dependencies.filter((dependency) => !dependency.includes('recharts-'))
+      },
+    },
     // Vendor chunks that get their own cacheable file. Splitting helps
     // returning visitors: the app-code chunk changes every deploy (its
     // hash rotates) but recharts / react-markdown / @tanstack/react-query
