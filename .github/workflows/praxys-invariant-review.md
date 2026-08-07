@@ -57,7 +57,6 @@ concurrency:
   group: praxys-invariant-review-${{ github.event.workflow_run.pull_requests[0].number || github.event.inputs.pr_number || github.run_id }}
   cancel-in-progress: true
 permissions:
-  copilot-requests: write
   contents: read
   issues: read
   pull-requests: read

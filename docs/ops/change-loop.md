@@ -245,15 +245,19 @@ around it:
 
 The editable `.md` files and generated `.lock.yml` files both live in
 `.github/workflows/`. The agents run read-only through GitHub Copilot's hosted
-`gpt-5.4` model. Usage is charged against the repository owner's Copilot AI
-credits rather than the Praxys Azure OpenAI resource.
+`gpt-5.4` model. Inference authenticates with the personal fine-grained PAT in
+the `COPILOT_GITHUB_TOKEN` Actions secret, so usage is charged against that
+token owner's Copilot AI credits rather than the Praxys Azure OpenAI resource.
 
 Repository writes happen only through the declared, capped `safe-outputs`, and
 each workflow also carries per-run and daily AI-credit caps. No-op,
 missing-tool, incomplete-run, and workflow-failure reports remain in Actions
 summaries rather than opening auxiliary repository issues. The workflows use
-the normal Copilot workflow authorization and require no Azure identity,
-endpoint variable, model API key, or additional PAT.
+the short-lived `GITHUB_TOKEN` for repository operations and
+`COPILOT_GITHUB_TOKEN` only for model inference. Do not add
+`copilot-requests: write`: that switches inference to organization billing and
+causes gh-aw to ignore the personal token. No Azure identity, endpoint variable,
+or model API key is required.
 
 Install the authoring CLI, then compile and validate after editing a source file:
 
