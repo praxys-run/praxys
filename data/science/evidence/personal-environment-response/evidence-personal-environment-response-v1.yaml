@@ -139,6 +139,14 @@ method:
         repeated measures activity cluster bootstrap temporal validation
         permutation negative controls descriptive association curve uncertainty
         bands
+    - name: Provider-specific running-power search
+      search_string: >
+        Garmin native wrist running power Stryd validity reliability
+        repeatability same device algorithm DOI PMID
+    - name: Pace and grade workload search
+      search_string: >
+        grade adjusted pace running metabolic cost slope wind surface heat
+        validation threshold DOI PMID
   inclusion_criteria:
     - Adult human exercise evidence at fixed or comparable external workload
     - Endurance-relevant cycling or running protocols
@@ -156,11 +164,12 @@ method:
     candidate set, then reconciled source roles, metadata, access level, and
     claim limits. Pass one screened fourteen candidate citations from sixteen
     recorded discovery queries. Pass two re-ran broad and exact-identifier
-    searches, verified those fourteen records, and identified four additional
-    candidates. Ten sources were retained for new claims; eight were excluded
-    or left in the accepted predecessor because they were redundant,
-    population-specific, methodologically overbroad, already governed, or not
-    verified deeply enough for a new claim.
+    searches and expanded the unique candidate set to eighteen. A third
+    targeted workload-proxy pass added five unique pace, grade, wind, surface,
+    and Garmin-comparison candidates. Seventeen sources were retained for new
+    claims; six were excluded or left in the accepted predecessor because they
+    were redundant, population-specific, methodologically overbroad, or already
+    governed.
     Controlled physiology studies are mostly small, male, and cycling-based;
     they establish plausibility rather than a personal running coefficient.
     Method papers support analysis structure and communication guardrails but
@@ -215,13 +224,16 @@ claims:
       - This claim does not authorize imputation of missing physiology
   - id: personal-environment-response.running-power-limited-proxy
     statement: >
-      Stryd running power can carry useful within-device workload information,
-      but available validation does not establish complete mechanical or
-      metabolic equivalence across devices, algorithms, terrain, wind, fatigue,
-      or environmental conditions.
+      Commercial running-power estimates can carry useful within-device
+      workload information, but available validation does not establish
+      complete mechanical or metabolic equivalence across providers, devices,
+      algorithms, terrain, wind, fatigue, or environmental conditions.
     source_ids:
       - imbach-2020
-    evidence_strength: very_low
+      - cerezuela-espejo-2020
+      - berzosa-2024
+      - van-rassel-2023
+    evidence_strength: low
     effect_estimates:
       - metric: Association with oxygen consumption
         estimate: 0.82
@@ -232,15 +244,39 @@ claims:
         unit: R-squared
         context: Six recreational runners in an indoor incremental protocol
     applicable_population:
-      - Recreational runners using the studied Stryd device and protocol
+      - Runners using the studied commercial running-power devices and protocols
     domain:
       - Running power
       - Workload matching
     limitations:
       - Six-runner indoor study without heat manipulation
-      - Absolute power was underestimated
-      - Proprietary algorithm and device-version continuity remain relevant
+      - Garmin comparative studies used earlier or accessory-based GarminRP implementations rather than validating modern native wrist-only power
+      - Absolute power and inter-device agreement differed
+      - Proprietary algorithm, firmware, device, and source continuity remain relevant
       - The evidence does not support cross-provider power matching
+  - id: personal-environment-response.pace-grade-insufficient
+    statement: >
+      Equal pace does not establish equal physiological workload across grade,
+      wind, surface, fatigue, or heat, and the reviewed evidence does not define
+      a universal grade tolerance that makes pace an interchangeable substitute
+      for provider-verified sample power.
+    source_ids:
+      - minetti-2002
+      - pugh-1971
+      - gantz-derrick-2017
+      - leslie-2024
+    evidence_strength: moderate
+    applicable_population:
+      - Adult runners across controlled slope, wind, irregular-surface, and heat protocols
+    domain:
+      - Pace-based workload matching
+      - Grade and environmental confounding
+    limitations:
+      - Population metabolic-cost relationships do not validate individual outdoor equivalence
+      - Net elevation gain can hide repeated uphill and downhill costs
+      - Consumer segment pace and grade include GPS and elevation error
+      - Heat can change sustainable pace, making pace partly an outcome of the exposure under study
+      - No reviewed source establishes an acceptable within-X-percent grade threshold
   - id: personal-environment-response.association-not-prediction
     statement: >
       A stable fitted association and useful out-of-sample prediction are
@@ -375,6 +411,84 @@ citations:
     year: 2010
     journal: Statistical Science
     doi: 10.1214/10-STS330
+  - id: cerezuela-espejo-2020
+    title: "Are we ready to measure running power? Repeatability and concurrent validity of five commercial technologies"
+    authors:
+      - Victor Cerezuela-Espejo
+      - Alejandro Hernandez-Belmonte
+      - Javier Courel-Ibanez
+      - Elena Conesa-Ros
+      - Ricardo Mora-Rodriguez
+      - Jesus G. Pallares
+    year: 2020
+    journal: European Journal of Sport Science
+    doi: 10.1080/17461391.2020.1748117
+    pmid: "32212955"
+  - id: berzosa-2024
+    title: "Assessing Trail Running Biomechanics: A Comparative Analysis of the Reliability of StrydTM and GARMINRP Wearable Devices"
+    authors:
+      - Cesar Berzosa
+      - Cristina Comeras-Chueca
+      - Pablo Jesus Bascuas
+      - Hector Gutierrez
+      - Ana Vanessa Bataller-Cervero
+    year: 2024
+    journal: Sensors
+    doi: 10.3390/s24113570
+    pmid: "38894361"
+  - id: van-rassel-2023
+    title: "Is Running Power a Useful Metric? Quantifying Training Intensity and Aerobic Fitness Using Stryd Running Power Near the Maximal Lactate Steady State"
+    authors:
+      - Cody R. van Rassel
+      - Oluwatimilehin O. Ajayi
+      - Kate M. Sales
+      - James K. Griffiths
+      - Jared R. Fletcher
+      - W. Brent Edwards
+      - Martin J. MacInnis
+    year: 2023
+    journal: Sensors
+    doi: 10.3390/s23218729
+    pmid: "37960430"
+  - id: minetti-2002
+    title: "Energy cost of walking and running at extreme uphill and downhill slopes"
+    authors:
+      - Alberto E. Minetti
+      - Christian Moia
+      - Giulio S. Roi
+      - Davide Susta
+      - Guido Ferretti
+    year: 2002
+    journal: Journal of Applied Physiology
+    doi: 10.1152/japplphysiol.01177.2001
+    pmid: "12183501"
+  - id: pugh-1971
+    title: "The influence of wind resistance in running and walking and the mechanical efficiency of work against horizontal or vertical forces"
+    authors:
+      - L. G. C. E. Pugh
+    year: 1971
+    journal: The Journal of Physiology
+    doi: 10.1113/jphysiol.1971.sp009381
+    pmid: "5574828"
+  - id: gantz-derrick-2017
+    title: "Kinematics and metabolic cost of running on an irregular treadmill surface"
+    authors:
+      - Alyssa M. Gantz
+      - Timothy R. Derrick
+    year: 2017
+    journal: Journal of Sports Sciences
+    doi: 10.1080/02640414.2017.1357829
+    pmid: "28758835"
+  - id: leslie-2024
+    title: "Heat stress and the velocity-duration relationship in amateur runners"
+    authors:
+      - Eric Leslie
+      - Jyotika Erram
+      - Daniel T. Cannon
+    year: 2024
+    journal: Physiological Reports
+    doi: 10.14814/phy2.70013
+    pmid: "39152681"
   - id: roberts-2017
     title: "Cross-validation strategies for data with temporal, spatial, hierarchical, or phylogenetic structure"
     authors:
@@ -437,16 +551,20 @@ known_gaps:
   - Device and firmware continuity effects on running-power comparability
   - Seasonality, fitness change, illness, medication, and acclimation confounding
   - User comprehension of a historical association that explicitly failed predictive validation
+  - Peer-reviewed validation of modern Garmin native wrist-only running power
+  - A validated pace or grade-adjusted-pace matching rule for this environmental association
 conflicting_findings:
   - Controlled physiology supports heat-related heart-rate drift, but no identified field study validates a personal Stull-wet-bulb response curve
   - A coefficient can be directionally stable while adding no chronological predictive value
   - Running power carries workload information but does not establish complete workload equivalence
+  - Pace is observable across more activities, but heat can change pace and no reviewed grade tolerance establishes equivalent effort
 follow_up_questions:
   - Which prespecified descriptive-stability gates best control false or misleading curve display?
   - Should substantial chronological instability withhold the fitted line entirely?
   - How should sparse environmental tails and incomplete power overlap be suppressed?
   - Can repeated preregistered temporal validations establish stability before broader enrollment?
   - Which comprehension test demonstrates that users distinguish association from prediction?
+  - What separate validation could support a pace or grade-adjusted-pace workload path?
 supersedes: []
 review_notes:
   - >
@@ -455,18 +573,17 @@ review_notes:
     environment-response-evidence-check performed the second screen and
     metadata challenge.
   - >
-    Screening reconciliation: eighteen unique candidate sources were reviewed;
-    ten were included in this additive review. Minson 1997 and Wingo 2019 were
+    Screening reconciliation: twenty-three unique candidate sources were
+    reviewed; seventeen were included in this additive review. Minson 1997 and
+    Wingo 2019 were
     excluded as small protocol-specific additions already bounded by the
     retained physiology claims. Collins 2024 was excluded as clinical
     prediction guidance broader than the retrospective product question.
     Ciszewski 2024/2025 was excluded because generic permutation testing did
     not establish exchangeability for activity clusters. Stull 2011 remains in
-    evidence-environmental-performance-v1. Periard 2016, Cerezuela-Espejo 2020,
-    and van Rassel 2023 were identified during the second pass but were not
-    added because the retained accepted adaptation evidence or Imbach claim
-    already set the required boundary and the additional metadata did not
-    change the proposed decision.
+    evidence-environmental-performance-v1. Periard 2016 was not added because
+    the accepted adaptation evidence already sets the required modifier
+    boundary.
   - >
     Existing evidence-environmental-performance-v1 remains unchanged and
     continues to govern Stull-proxy, WBGT, multifactor heat-balance, safety, and
@@ -478,6 +595,13 @@ review_notes:
   - "Verification: montain-coyle-1992 - abstract; PubMed PMID 1447078 and Crossref/APS metadata; 2026-08-08."
   - "Verification: periard-2021 - abstract; PubMed PMID 33829868 and Crossref/APS metadata; 2026-08-08."
   - "Verification: imbach-2020 - full-text; PubMed PMID 32698464 and PubMed Central PMCID PMC7404478; 2026-08-08."
+  - "Verification: cerezuela-espejo-2020 - abstract; PubMed PMID 32212955 and Crossref metadata; 2026-08-08."
+  - "Verification: berzosa-2024 - full-text; PubMed PMID 38894361 and PubMed Central PMCID PMC11175203; 2026-08-08."
+  - "Verification: van-rassel-2023 - full-text; PubMed PMID 37960430 and PubMed Central PMCID PMC10649254; 2026-08-08."
+  - "Verification: minetti-2002 - abstract; PubMed PMID 12183501 and Crossref metadata; 2026-08-08."
+  - "Verification: pugh-1971 - full-text; PubMed PMID 5574828 and PubMed Central PMCID PMC1331759; 2026-08-08."
+  - "Verification: gantz-derrick-2017 - abstract; PubMed PMID 28758835 and Crossref metadata; 2026-08-08."
+  - "Verification: leslie-2024 - full-text; PubMed PMID 39152681 and PubMed Central PMCID PMC11329748; 2026-08-08."
   - "Verification: shmueli-2010 - full-text; author manuscript and Project Euclid metadata; 2026-08-08."
   - "Verification: roberts-2017 - abstract; Wiley abstract and Crossref metadata; 2026-08-08."
   - "Verification: deen-2020 - full-text; PubMed PMID 31089956 and PubMed Central PMCID PMC7148287; 2026-08-08."

@@ -105,7 +105,7 @@ def test_draft_environment_response_decision_preserves_lifecycle_and_limits() ->
         interpretation
     )
     assert "not a causal effect" in interpretation
-    assert "one explicitly allowlisted owner" in interpretation
+    assert "every user an explicit opt-in" in interpretation
     assert "Never call psychrometric wet bulb WBGT" in limits
     assert "Do not call the cross-activity curve heart-rate drift" in limits
     assert "unavailable or unevaluable" in limits
@@ -143,7 +143,58 @@ def test_draft_environment_response_decision_preserves_lifecycle_and_limits() ->
     assert parameters["predictive_unavailable_behavior"].value == (
         "withhold_curve"
     )
-    assert parameters["owner_pilot_maximum_accounts"].value == 1
+    assert parameters["enrollment_scope"].value == (
+        "all_users_explicit_opt_in"
+    )
+    assert parameters["power_source"].value == [
+        "stryd_continuous_samples",
+    ]
+    assert parameters["candidate_power_regimes"].value == [
+        "garmin_native_wrist_only_continuous_samples",
+    ]
+    assert parameters["garmin_power_provenance"].value == (
+        "required_before_provider_qualification"
+    )
+    assert parameters["power_regime_isolation"].value == (
+        "provider_device_and_algorithm_era"
+    )
+    assert parameters["pace_workload_fallback"].value == "prohibited_in_v1"
+    assert parameters["multiple_power_regime_behavior"].value == (
+        "separate_results_no_outcome_based_selection"
+    )
+    assert parameters["adult_eligibility"].value == (
+        "explicit_18_plus_attestation_required"
+    )
+    assert parameters["availability_reason_shape"].value == [
+        "code",
+        "category",
+        "public_message_key",
+        "observed_aggregate",
+        "required_guardrail",
+        "user_actionable",
+        "suggested_action_key",
+        "analysis_stage",
+        "power_regime",
+        "model_version",
+        "correlation_id",
+    ]
+    assert "unverified_garmin_wrist_power" in parameters[
+        "availability_reason_codes"
+    ].value
+    assert "prediction_unavailable" in parameters[
+        "availability_reason_codes"
+    ].value
+    assert {
+        "missing_continuous_sample_power",
+        "missing_continuous_heart_rate",
+        "missing_temperature",
+        "missing_relative_humidity",
+        "missing_provider_aligned_critical_power",
+        "adult_eligibility_not_confirmed",
+    } <= set(parameters["availability_reason_codes"].value)
+    assert parameters["processing_failure_behavior"].value == (
+        "explicit_error_with_correlation_id"
+    )
     assert parameters["labs_backup_maximum_retention_days"].value == 14
     assert parameters["curve_environment_domain_percentiles"].value == [
         10,

@@ -27,14 +27,15 @@ evidence_claim_ids:
   - personal-environment-response.cardiovascular-drift-plausible
   - personal-environment-response.duration-hydration-confounding
   - personal-environment-response.running-power-limited-proxy
+  - personal-environment-response.pace-grade-insufficient
   - personal-environment-response.association-not-prediction
   - personal-environment-response.structured-validation
   - personal-environment-response.activity-cluster-uncertainty
   - personal-environment-response.negative-controls-limited
   - personal-environment-response.uncertainty-can-be-misread
 accepted_interpretation: >
-  If accepted, Praxys may offer one explicitly allowlisted owner an opt-in,
-  private Labs pilot
+  If accepted, Praxys may offer every user an explicit opt-in to a private
+  Labs experiment after confirming the reviewed adult-population boundary
   that displays a retrospective modeled association between the Stull
   psychrometric wet-bulb proxy and heart rate in same-provider SAMPLE-derived
   stable running-power segments. The display describes observations in the
@@ -52,8 +53,7 @@ accepted_interpretation: >
   evaluated before the line is displayed; an unavailable or unevaluable
   prediction withholds the line. The line is also withheld when association
   stability, overlap, provenance, influential-activity, or uncertainty support
-  is insufficient. Any additional-account enrollment requires another
-  accepted science and privacy decision.
+  is   insufficient. Enrollment never implies that a result will be available.
 rejected_alternatives:
   - alternative: Present the fitted coefficient as the athlete's personal heat-response constant.
     rationale: >
@@ -85,6 +85,11 @@ rejected_alternatives:
     rationale: >
       Activity averages are diluted by warm-up, cooldown, and recovery, while
       provider and algorithm differences undermine workload comparability.
+  - alternative: Treat pace or grade-adjusted pace as an equivalent V1 workload control.
+    rationale: >
+      Wind, surface, fatigue, heat-related pace selection, GPS or elevation
+      error, and uphill/downhill asymmetry remain unresolved. No reviewed source
+      validates a universal grade tolerance for equivalent effort.
   - alternative: Enroll users or retain derived results without explicit experiment consent.
     rationale: >
       A personalized scientific interpretation is optional processing and must
@@ -110,19 +115,92 @@ model_parameters:
       workload and product interpretation; this is not a physiological rule.
     applies_to: future analysis.environment_response
   - name: power_source
-    value: sample_derived_same_provider
+    value:
+      - stryd_continuous_samples
     classification: guardrail
     evidence_claim_ids:
       - personal-environment-response.running-power-limited-proxy
     rationale: >
       Preserves within-provider workload comparability and prohibits
-      activity-average or unverified mixed-provider power.
+      activity-average, pace fallback, or unverified mixed-provider power.
+    applies_to: future analysis.environment_response
+  - name: candidate_power_regimes
+    value:
+      - garmin_native_wrist_only_continuous_samples
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.running-power-limited-proxy
+    rationale: >
+      Preserves Garmin as an implementation target without treating indirect
+      accessory-based studies as validation of modern native wrist power. It
+      remains disabled until a separately reviewed qualification passes.
+    applies_to: future analysis.environment_response
+  - name: power_regime_isolation
+    value: provider_device_and_algorithm_era
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.running-power-limited-proxy
+    rationale: >
+      Commercial running-power scales are not interchangeable. Each result is
+      fit within one verified provider, device, and algorithm or firmware era.
+    applies_to: future analysis.environment_response
+  - name: multiple_power_regime_behavior
+    value: separate_results_no_outcome_based_selection
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.running-power-limited-proxy
+    rationale: >
+      Produces a separately labeled result for every independently qualified
+      regime. Praxys never selects whichever provider yields the strongest or
+      most favorable association.
+    applies_to: future analysis.environment_response
+  - name: garmin_power_provenance
+    value: required_before_provider_qualification
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.running-power-limited-proxy
+    rationale: >
+      Standard Garmin power fields do not prove wrist origin and Smart mode may
+      select accessories. Garmin activities remain ineligible until source,
+      device, and algorithm continuity are explicit and the regime receives
+      separate scientific qualification.
+    applies_to: future sync and analysis Garmin sample provenance
+  - name: provider_qualification_requirements
+    value:
+      - explicit_per_activity_source
+      - continuous_sample_coverage
+      - device_and_algorithm_era
+      - provider_aligned_critical_power
+      - repeatability_validation
+      - chronological_validation
+      - accepted_science_review
+    classification: guardrail
+    rationale: >
+      Prevents a newly ingested power field from becoming eligible based on its
+      label alone.
+    applies_to: future provider qualification
+  - name: critical_power_provider_alignment
+    value: required
+    classification: guardrail
+    rationale: >
+      Percent-of-CP workload matching uses a threshold produced by the same
+      power regime; Stryd and Garmin watts are never converted or pooled.
+    applies_to: future analysis.environment_response
+  - name: pace_workload_fallback
+    value: prohibited_in_v1
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.pace-grade-insufficient
+    rationale: >
+      No reviewed evidence validates an elevation tolerance or GAP equation as
+      equivalent workload for this observational environmental analysis.
     applies_to: future analysis.environment_response
   - name: minimum_activities
     value: 12
     classification: guardrail
     rationale: >
-      Retains the preregistered #523 research floor for an owner-only pilot. It
+      Retains the preregistered #523 research floor for the experimental
+      opt-in analysis. It
       is a minimum data-quality rule, not a validated universal threshold, and
       must be reassessed before broader enrollment.
     applies_to: future analysis.environment_response
@@ -153,7 +231,7 @@ model_parameters:
     classification: guardrail
     rationale: >
       Requires a non-empty later-activity diagnostic while acknowledging that
-      the owner-only pilot cannot establish broad transportability.
+      this minimum cannot establish broad transportability.
     applies_to: future analysis.environment_response
   - name: chronological_holdout_fraction
     value: 0.25
@@ -255,7 +333,7 @@ model_parameters:
     classification: guardrail
     rationale: >
       Prevents one or two activities from defining a displayed region. This is
-      an owner-pilot support floor, not a validated universal threshold.
+      an experimental support floor, not a validated universal threshold.
     applies_to: future analysis.environment_response
   - name: minimum_segments_per_curve_bin
     value: 10
@@ -380,12 +458,20 @@ model_parameters:
       Prevents an unevaluated prediction state from being presented as a
       permissible descriptive fallback.
     applies_to: future api.labs.environment_response
-  - name: owner_pilot_maximum_accounts
-    value: 1
+  - name: enrollment_scope
+    value: all_users_explicit_opt_in
     classification: guardrail
     rationale: >
-      Restricts this decision to the maintainer-consented first-user pilot.
-      Thresholds must be reassessed before another account is enrolled.
+      Makes participation available without default enrollment. Every account
+      remains independently gated and may receive an unavailable result.
+    applies_to: future api.labs.environment_response enrollment
+  - name: adult_eligibility
+    value: explicit_18_plus_attestation_required
+    classification: guardrail
+    rationale: >
+      The reviewed evidence concerns adults. Enrollment remains visible to all
+      users, but analysis is unavailable until the user confirms the evidence
+      applicability boundary without providing a birth date.
     applies_to: future api.labs.environment_response enrollment
   - name: labs_backup_maximum_retention_days
     value: 14
@@ -417,8 +503,67 @@ model_parameters:
       Stores only the minimum aggregate result required to render and audit the
       experiment; activity IDs, dates, routes, and research rows are excluded.
     applies_to: future db.labs_experiment_results
+  - name: availability_reason_shape
+    value:
+      - code
+      - category
+      - public_message_key
+      - observed_aggregate
+      - required_guardrail
+      - user_actionable
+      - suggested_action_key
+      - analysis_stage
+      - power_regime
+      - model_version
+      - correlation_id
+    classification: guardrail
+    rationale: >
+      Makes unavailable states understandable and supportable without exposing
+      activity identity, dates, routes, or per-activity observations.
+    applies_to: future api.labs.environment_response result
+  - name: availability_reason_codes
+    value:
+      - incomplete_export
+      - stale_source_revision
+      - insufficient_activities
+      - insufficient_segments
+      - insufficient_environmental_spread
+      - insufficient_holdout
+      - insufficient_curve_bin_support
+      - insufficient_reference_power_overlap
+      - missing_continuous_sample_power
+      - missing_continuous_heart_rate
+      - missing_temperature
+      - missing_relative_humidity
+      - missing_provider_aligned_critical_power
+      - unsupported_power_provider
+      - mixed_power_regime
+      - unverified_garmin_wrist_power
+      - power_device_or_algorithm_changed
+      - critical_power_provider_mismatch
+      - insufficient_sample_coverage
+      - bootstrap_unstable
+      - sensitivity_unstable
+      - influential_activity
+      - prediction_unavailable
+      - adult_eligibility_not_confirmed
+      - analysis_failed
+    classification: guardrail
+    rationale: >
+      Freezes the initial diagnostic taxonomy so implementation cannot collapse
+      scientific, provenance, stale-data, and processing failures into one
+      opaque state.
+    applies_to: future api.labs.environment_response result
+  - name: processing_failure_behavior
+    value: explicit_error_with_correlation_id
+    classification: guardrail
+    rationale: >
+      Prevents a failed job from appearing as insufficient athlete data or a
+      successful empty result.
+    applies_to: future api.labs.environment_response result
 applicability:
-  - One explicitly allowlisted maintainer account in the owner-only pilot
+  - Any user who explicitly opts in to the private experiment
+  - Adults who explicitly attest that they are at least 18 years old
   - Completed running or trail-running history with complete owner-scoped export coverage
   - Same-provider SAMPLE-derived power and heart rate with verified provenance
   - Sufficient observed environmental spread and comparable workload support
@@ -435,6 +580,9 @@ user_facing_claim_limits:
   - If prediction is unavailable or unevaluable, withhold the fitted line
   - Do not show forecasts, corrections, counterfactuals, target changes, prescriptions, safety colors, or alerts
   - Do not extrapolate beyond observed environmental support or comparable power overlap
+  - Identify every independently qualified power regime; never combine provider watts or coefficients
+  - Garmin native wrist-only power remains unavailable until separate provider qualification is accepted
+  - Do not offer pace or grade-adjusted pace as a V1 workload fallback
   - Keep heat adaptation separate and qualitative
   - Explain that wind, solar load, clothing, hydration, within-run weather, fatigue, and other factors remain unobserved or incomplete
 safety_implications:
@@ -444,6 +592,7 @@ safety_implications:
   - Missing wind or solar radiation must be disclosed and cannot be filled by a reassuring default
 privacy_implications:
   - Participation requires a separate explicit opt-in recorded with experiment and consent-text versions
+  - Record only an adult-eligibility attestation and its version/time; do not collect date of birth for this experiment
   - Personal analysis remains owner-scoped and is not pooled, benchmarked, sold, disclosed, or used for unrelated model training
   - Cross-user contribution is excluded and requires the separate #591 decision
   - V1 uses connector-provided historical environment fields only; external weather or route enrichment is prohibited
@@ -469,8 +618,8 @@ validation_plan:
   - Add leave-one-activity-out influence checks and exact tests for every prespecified descriptive gate
   - Validate opt-in, withdrawal, deletion, stale-result, and recomputation behavior
   - Perform user-comprehension testing for association versus prediction and uncertainty
-  - Run an owner-only production pilot before broader enrollment
-  - Require another accepted science and privacy decision before enrolling any additional account
+  - Run the first production result on the maintainer account before announcing the experiment
+  - Track aggregate operational eligibility and failure-code counts without pooling personal coefficients or curve values
   - Require a new decision before any forecast, correction, cohort benchmark, safety interpretation, or training integration
 falsification_conditions:
   - The fitted association is directionally unstable across activity-cluster bootstrap or planned sensitivities
@@ -511,7 +660,8 @@ decision_notes:
   - >
     The #523 private production result supports feasibility for one account but
     does not validate universal product thresholds. Numeric floors remain
-    owner-pilot guardrails requiring reassessment before broader enrollment.
+    experimental guardrails requiring reassessment as opt-in eligibility data
+    accumulates.
   - >
     This draft does not authorize implementation, deployment, enrollment, or
     presentation until human science and privacy review approves the decision.
