@@ -27,6 +27,12 @@
 | Perf-baseline storage | `stperftrainsight` (RG `rg-trainsight`, East Asia) | `docs/perf-baselines/ci-setup.md` |
 | CI/deploy app registration | `trainsight-cicd` — appId `d3deb736-e95d-400e-b5a5-c2f76b23ae25` (OIDC federated creds `github-deploy`, `i18n`) | live `az ad app` |
 
+## Tencent
+
+| Thing | Value | Source |
+|---|---|---|
+| Mainland frontend origin | Lighthouse static Nginx host; exact address sourced from `TENCENT_LIGHTHOUSE_HOST`, disabled until provisioned/ICP-ready | [tencent-frontend.md](./tencent-frontend.md) |
+
 ## Hostnames
 
 | Surface | URL |
