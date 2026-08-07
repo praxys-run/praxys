@@ -2,6 +2,7 @@
 import logging
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Configure stdout logging before anything else — once configure_azure_monitor
@@ -316,6 +317,24 @@ def delete_me(
 
     result = delete_user_account(db, user_id)
     return {"status": "deleted", "email": result.email}
+
+
+@app.get("/api/me/export")
+def export_my_data(
+    response: Response,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Download a JSON export containing only the authenticated user's data."""
+    from api.data_export import build_user_data_export
+
+    filename_date = datetime.now(timezone.utc).date().isoformat()
+    response.headers["Content-Disposition"] = (
+        f'attachment; filename="praxys-data-export-{filename_date}.json"'
+    )
+    response.headers["Cache-Control"] = "private, no-store"
+    return build_user_data_export(user_id, db)
+
 
 @app.post("/api/me/accept-terms")
 def accept_terms(

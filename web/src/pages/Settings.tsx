@@ -22,7 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Link2, Gauge, SlidersHorizontal, Target, Activity, User, Check, Clock, Trash2, Loader2 } from 'lucide-react';
+import { Link2, Gauge, SlidersHorizontal, Target, Activity, User, Check, Clock, Download, Trash2, Loader2 } from 'lucide-react';
 import GoalEditor from '@/components/GoalEditor';
 import ManagedPlanSettingsCard from '@/components/ManagedPlanSettingsCard';
 import { MobileAppCard } from '@/components/MobileApp';
@@ -232,6 +232,9 @@ export default function Settings() {
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [exportingData, setExportingData] = useState(false);
+  const [dataExportError, setDataExportError] = useState('');
+  const [dataExportSuccess, setDataExportSuccess] = useState('');
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
   // Live API build, mirrored next to the bundled web version at the
@@ -609,6 +612,39 @@ export default function Settings() {
       setDeletingAccount(false);
     }
   };
+
+  const handleDataExport = async () => {
+    const trigger = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    setExportingData(true);
+    setDataExportError('');
+    setDataExportSuccess('');
+    try {
+      const res = await fetch(`${API_BASE}/api/me/export`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        setDataExportError(await extractErrorMessage(res, t`Failed to export data (HTTP ${res.status})`));
+        return;
+      }
+      const url = URL.createObjectURL(await res.blob());
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'praxys-data-export.json';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setDataExportSuccess(t`Your data export is downloading.`);
+    } catch (err) {
+      setDataExportError(err instanceof Error && err.message ? err.message : t`Network error`);
+    } finally {
+      setExportingData(false);
+      requestAnimationFrame(() => trigger?.focus());
+    }
+  };
+
   const handleNameSave = async () => {
     const trimmed = nameInput.trim();
     setSaving(true);
@@ -1501,7 +1537,50 @@ export default function Settings() {
 
       <MobileAppCard />
 
-      {/* ===== SECTION 7: Account ===== */}
+      {/* ===== SECTION 7: Data export ===== */}
+      <Card className="mb-8">
+        <CardHeader>
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+              <Download className="h-4 w-4" />
+            </div>
+            <div>
+              <CardTitle className="text-sm font-semibold text-foreground"><Trans>Export my data</Trans></CardTitle>
+              <CardDescription className="text-xs">
+                <Trans>Download a JSON copy of your activities, recovery, fitness, plans, and settings. Platform credentials are never included.</Trans>
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">
+              <Trans>Your export is a portable snapshot of the data stored in Praxys.</Trans>
+            </p>
+            {dataExportSuccess && (
+              <p className="mt-2 text-xs font-medium text-primary" role="status">
+                {dataExportSuccess}
+              </p>
+            )}
+            {dataExportError && (
+              <p className="mt-2 text-xs font-medium text-destructive" role="alert">
+                {dataExportError}
+              </p>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            className="min-h-11 self-start sm:self-center"
+            onClick={handleDataExport}
+            disabled={exportingData}
+          >
+            {exportingData ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {exportingData ? <Trans>Preparing export...</Trans> : <Trans>Export my data</Trans>}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* ===== SECTION 8: Account ===== */}
       <Card className="border-destructive/30 bg-destructive/5">
         <CardHeader>
           <div className="flex items-center gap-2.5">

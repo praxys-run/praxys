@@ -584,7 +584,7 @@ msgstr "活动"
 msgid "Activities only: runs, rides, pace, heart rate, route data"
 msgstr "仅活动数据：跑步、骑行、配速、心率、路线数据"
 
-#: src/pages/Settings.tsx:1139
+#: src/pages/Settings.tsx:1175
 #: src/pages/Setup.tsx:1067
 msgid "Activities-only connection"
 msgstr "仅同步活动"
@@ -794,7 +794,7 @@ msgstr "正在应用…"
 msgid "Approve & file"
 msgstr "批准并提交"
 
-#: src/pages/Settings.tsx:1097
+#: src/pages/Settings.tsx:1133
 msgid "Asia/CN"
 msgstr "亚洲/中国"
 
@@ -832,15 +832,15 @@ msgstr "登录方式"
 msgid "Authorize Praxys with Strava in your browser. Praxys only syncs activities from Strava."
 msgstr "请在浏览器中为 Praxys 授权 Strava。Praxys 仅从 Strava 同步活动数据。"
 
-#: src/pages/Settings.tsx:769
+#: src/pages/Settings.tsx:805
 msgid "Auto"
 msgstr "自动"
 
-#: src/pages/Settings.tsx:827
+#: src/pages/Settings.tsx:863
 msgid "Auto sync frequency"
 msgstr "自动同步频率"
 
-#: src/pages/Settings.tsx:1338
+#: src/pages/Settings.tsx:1374
 msgid "Auto-merged"
 msgstr "自动合并"
 
@@ -938,11 +938,11 @@ msgstr "返回 Praxys"
 msgid "Back to sign in"
 msgstr "返回登录"
 
-#: src/pages/Settings.tsx:810
+#: src/pages/Settings.tsx:846
 msgid "Backfill All"
 msgstr "同步全部历史数据"
 
-#: src/pages/Settings.tsx:789
+#: src/pages/Settings.tsx:825
 msgid "Backfill..."
 msgstr "同步历史数据中…"
 
@@ -1089,10 +1089,10 @@ msgstr "作者"
 #: src/pages/admin/AdminOps.tsx:1215
 #: src/pages/admin/AdminUsers.tsx:1043
 #: src/pages/admin/AdminUsers.tsx:1073
-#: src/pages/Settings.tsx:1042
-#: src/pages/Settings.tsx:1128
-#: src/pages/Settings.tsx:1165
-#: src/pages/Settings.tsx:1563
+#: src/pages/Settings.tsx:1078
+#: src/pages/Settings.tsx:1164
+#: src/pages/Settings.tsx:1201
+#: src/pages/Settings.tsx:1642
 #: src/pages/Setup.tsx:927
 #: src/pages/Setup.tsx:1055
 #: src/pages/Setup.tsx:1075
@@ -1164,8 +1164,8 @@ msgstr "调整了今天的训练安排"
 msgid "Check your credentials in the connection step, then try again."
 msgstr "请在连接步骤检查账号信息，然后重试。"
 
-#: src/pages/Settings.tsx:974
-#: src/pages/Settings.tsx:1072
+#: src/pages/Settings.tsx:1010
+#: src/pages/Settings.tsx:1108
 msgid "China"
 msgstr "中国"
 
@@ -1195,7 +1195,7 @@ msgstr "选择首选数据来源"
 msgid "Choose training base"
 msgstr "选择训练基准"
 
-#: src/pages/Settings.tsx:1259
+#: src/pages/Settings.tsx:1295
 msgid "Choose which platform to use for each data type"
 msgstr "为每类数据选择使用哪个平台"
 
@@ -1203,7 +1203,7 @@ msgstr "为每类数据选择使用哪个平台"
 msgid "Choose who controls the plan and where Praxys delivers it"
 msgstr "选择由谁管理计划，以及 Praxys 将训练下发到哪个平台"
 
-#: src/pages/Settings.tsx:813
+#: src/pages/Settings.tsx:849
 msgid "Clear"
 msgstr "清空"
 
@@ -1306,7 +1306,7 @@ msgstr "当前无法获取组件健康状态。"
 msgid "Components"
 msgstr "组件"
 
-#: src/pages/Settings.tsx:660
+#: src/pages/Settings.tsx:696
 msgid "Configure your training system"
 msgstr "设置训练系统"
 
@@ -1336,8 +1336,8 @@ msgid "Conflict retained"
 msgstr "冲突已保留"
 
 #: src/components/SetupChecklist.tsx:51
-#: src/pages/Settings.tsx:930
-#: src/pages/Settings.tsx:1131
+#: src/pages/Settings.tsx:966
+#: src/pages/Settings.tsx:1167
 #: src/pages/Setup.tsx:644
 #: src/pages/Setup.tsx:1058
 msgid "Connect"
@@ -1345,13 +1345,13 @@ msgstr "连接"
 
 #. placeholder {0}: connectPlatform ? (PLATFORM_META[connectPlatform]?.label || connectPlatform) : ''
 #. placeholder {0}: connectPlatform ? PLATFORM_META[connectPlatform]?.label : ''
-#: src/pages/Settings.tsx:1008
+#: src/pages/Settings.tsx:1044
 #: src/pages/Setup.tsx:879
 msgid "Connect {0}"
 msgstr "连接 {0}"
 
 #: src/components/SetupChecklist.tsx:47
-#: src/pages/Settings.tsx:1284
+#: src/pages/Settings.tsx:1320
 #: src/pages/Setup.tsx:602
 msgid "Connect a platform"
 msgstr "连接平台"
@@ -1373,15 +1373,15 @@ msgstr "请先连接支持的平台"
 #~ msgstr "请先在上方连接 Stryd，再启用托管下发。"
 
 #: src/pages/admin/AdminOps.tsx:427
-#: src/pages/Settings.tsx:889
+#: src/pages/Settings.tsx:925
 msgid "Connected"
 msgstr "已连接"
 
-#: src/pages/Settings.tsx:784
+#: src/pages/Settings.tsx:820
 msgid "Connected Platforms"
 msgstr "已连接平台"
 
-#: src/pages/Settings.tsx:1131
+#: src/pages/Settings.tsx:1167
 #: src/pages/Setup.tsx:1058
 msgid "Connecting..."
 msgstr "连接中…"
@@ -1394,12 +1394,12 @@ msgstr "连接转化漏斗"
 #~ msgid "Connector-provided activity summary"
 #~ msgstr "连接器提供的活动摘要"
 
-#: src/pages/Settings.tsx:1141
+#: src/pages/Settings.tsx:1177
 #: src/pages/Setup.tsx:1069
 msgid "Continue in your browser to authorize Strava. Praxys imports activities from Strava, while recovery, fitness, and plans come from your other connected platforms."
 msgstr "请在浏览器中继续完成 Strava 授权。Praxys 会从 Strava 导入活动；恢复、体能和训练计划则来自你连接的其他平台。"
 
-#: src/pages/Settings.tsx:1172
+#: src/pages/Settings.tsx:1208
 #: src/pages/Setup.tsx:1078
 msgid "Continue to Strava"
 msgstr "前往 Strava"
@@ -1408,7 +1408,7 @@ msgstr "前往 Strava"
 msgid "Continuous"
 msgstr "持续提升"
 
-#: src/pages/Settings.tsx:1367
+#: src/pages/Settings.tsx:1403
 msgid "Continuous Improvement"
 msgstr "持续提升"
 
@@ -1740,7 +1740,7 @@ msgstr "深色主题（点击切换为系统）"
 msgid "Data coverage"
 msgstr "数据覆盖情况"
 
-#: src/pages/Settings.tsx:1258
+#: src/pages/Settings.tsx:1294
 msgid "Data Preferences"
 msgstr "数据偏好"
 
@@ -1846,19 +1846,19 @@ msgstr "性能降级"
 msgid "Delete"
 msgstr "删除"
 
-#: src/pages/Settings.tsx:1512
+#: src/pages/Settings.tsx:1591
 msgid "Delete account"
 msgstr "删除账号"
 
-#: src/pages/Settings.tsx:1532
+#: src/pages/Settings.tsx:1611
 msgid "Delete my account"
 msgstr "删除账号"
 
-#: src/pages/Settings.tsx:1541
+#: src/pages/Settings.tsx:1620
 msgid "Delete my account?"
 msgstr "删除账号？"
 
-#: src/pages/Settings.tsx:1570
+#: src/pages/Settings.tsx:1649
 msgid "Delete permanently"
 msgstr "永久删除"
 
@@ -1880,7 +1880,7 @@ msgstr "删除用户"
 msgid "Delete workout"
 msgstr "删除训练"
 
-#: src/pages/Settings.tsx:1570
+#: src/pages/Settings.tsx:1649
 msgid "Deleting..."
 msgstr "删除中…"
 
@@ -2020,7 +2020,7 @@ msgstr "请先关闭其他计划工具的下发功能。多个计划工具可能
 msgid "Disabled. Click to open"
 msgstr "已关闭，点击开启"
 
-#: src/pages/Settings.tsx:993
+#: src/pages/Settings.tsx:1029
 msgid "Disconnect"
 msgstr "断开连接"
 
@@ -2050,7 +2050,7 @@ msgstr "距离"
 #: src/components/charts/WeeklyVolumeChart.tsx:89
 #: src/components/charts/WeeklyVolumeChart.tsx:98
 #: src/components/GoalEditor.tsx:122
-#: src/pages/Settings.tsx:1371
+#: src/pages/Settings.tsx:1407
 msgid "Distance"
 msgstr "距离"
 
@@ -2090,7 +2090,11 @@ msgstr "不要重试此项。运动员必须通过计划对账流程处理。"
 msgid "Done"
 msgstr "完成"
 
-#: src/pages/Settings.tsx:1423
+#: src/pages/Settings.tsx:1550
+msgid "Download a JSON copy of your activities, recovery, fitness, plans, and settings. Platform credentials are never included."
+msgstr "下载包含活动、恢复、体能、训练计划和设置的 JSON 副本。绝不包含平台凭据。"
+
+#: src/pages/Settings.tsx:1459
 msgid "Drive your zone calculations and training load. Values come from connected sources; pick which source to use when you have more than one."
 msgstr "用于区间计算和训练负荷。数值来自已连接的数据来源；有多个时，选择要使用的来源。"
 
@@ -2189,7 +2193,7 @@ msgid "Easy Run"
 msgstr "轻松跑"
 
 #: src/components/UpcomingPlanCard.tsx:649
-#: src/pages/Settings.tsx:1357
+#: src/pages/Settings.tsx:1393
 #: src/pages/Setup.tsx:844
 msgid "Edit"
 msgstr "编辑"
@@ -2298,7 +2302,7 @@ msgid "Endurance"
 msgstr "耐力"
 
 #: src/pages/admin/AdminOps.tsx:431
-#: src/pages/Settings.tsx:912
+#: src/pages/Settings.tsx:948
 msgid "Error"
 msgstr "错误"
 
@@ -2310,12 +2314,12 @@ msgstr "根据近期符合条件的环境估算热适应。"
 msgid "Estimates race performance from current fitness."
 msgstr "基于当前体能估算比赛表现。"
 
-#: src/pages/Settings.tsx:1097
+#: src/pages/Settings.tsx:1133
 msgid "EU"
 msgstr "欧盟"
 
 #. placeholder {0}: option.hours
-#: src/pages/Settings.tsx:851
+#: src/pages/Settings.tsx:887
 msgid "Every <0>{0}</0> hours"
 msgstr "每<0>{0}</0>小时"
 
@@ -2375,6 +2379,11 @@ msgstr "执行平台"
 #: src/components/ManagedPlanSettingsCard.tsx:507
 msgid "Experimental Garmin delivery"
 msgstr "Garmin 实验性下发"
+
+#: src/pages/Settings.tsx:1548
+#: src/pages/Settings.tsx:1578
+msgid "Export my data"
+msgstr "导出我的数据"
 
 #: src/components/HeatAdaptationPanel.tsx:265
 #~ msgid "Exposure days"
@@ -2441,6 +2450,11 @@ msgstr "删除事件失败。"
 msgid "Failed to delete user."
 msgstr "删除用户失败。"
 
+#. placeholder {0}: res.status
+#: src/pages/Settings.tsx:628
+msgid "Failed to export data (HTTP {0})"
+msgstr "导出数据失败（HTTP {0}）"
+
 #: src/pages/admin/AdminUsers.tsx:202
 msgid "Failed to generate invitation code."
 msgstr "生成邀请码失败。"
@@ -2465,7 +2479,7 @@ msgstr "目标数据加载失败"
 msgid "Failed to load science data."
 msgstr "加载科学数据失败。"
 
-#: src/pages/Settings.tsx:330
+#: src/pages/Settings.tsx:333
 msgid "Failed to load settings"
 msgstr "加载设置失败"
 
@@ -2574,7 +2588,7 @@ msgid "Findings"
 msgstr "解读要点"
 
 #: src/pages/Settings.tsx:58
-#: src/pages/Settings.tsx:1335
+#: src/pages/Settings.tsx:1371
 #: src/pages/Setup.tsx:223
 msgid "Fitness"
 msgstr "体能"
@@ -2686,15 +2700,15 @@ msgstr "Garmin 下发仍属实验功能，且仅支持时长。含功率、配�
 msgid "Garmin delivery uses an undocumented interface and is off until you review its limits and opt in."
 msgstr "Garmin 下发使用未公开接口。在查看限制并明确选择加入前，此功能保持关闭。"
 
-#: src/pages/Settings.tsx:1089
+#: src/pages/Settings.tsx:1125
 msgid "Garmin International and Garmin China are separate account systems. Pick the one your credentials belong to."
 msgstr "Garmin International 和 Garmin China 是两套独立的账号系统。请选择账号所属的系统。"
 
-#: src/pages/Settings.tsx:979
+#: src/pages/Settings.tsx:1015
 msgid "Garmin International and Garmin China are separate accounts. To switch, disconnect and reconnect with the other account."
 msgstr "Garmin International 和 Garmin China 是两套独立的账号。要切换，请先断开连接，再用另一个账号重新连接。"
 
-#: src/pages/Settings.tsx:1236
+#: src/pages/Settings.tsx:1272
 msgid "Garmin native running power reads ~30% higher than Stryd for the same athlete — they measure different things. Zones and benchmarks calibrated on Stryd (most coach references, most training literature) will not directly transfer. Your power data will still be internally consistent for tracking progress, but don't compare CP values across the two systems."
 msgstr "对同一位运动员，Garmin 原生跑步功率通常比 Stryd 高约 30%——两者测量的内容不同。基于 Stryd 校准的功率区间和基准（大多数教练资料和训练文献）不能直接套用。功率数据用于追踪自身变化时仍保持一致，但不要跨两个系统比较 CP。"
 
@@ -2759,7 +2773,7 @@ msgstr "前往登录"
 #: src/components/AppSidebar.tsx:126
 #: src/pages/admin/AdminUsers.tsx:871
 #: src/pages/Goal.tsx:135
-#: src/pages/Settings.tsx:1352
+#: src/pages/Settings.tsx:1388
 msgid "Goal"
 msgstr "目标"
 
@@ -2865,7 +2879,7 @@ msgstr "高温安全"
 msgid "Helpful"
 msgstr "有帮助"
 
-#: src/pages/Settings.tsx:789
+#: src/pages/Settings.tsx:825
 msgid "Hide backfill"
 msgstr "收起历史同步"
 
@@ -2901,7 +2915,7 @@ msgstr "变异性偏高"
 msgid "Hiking"
 msgstr "徒步"
 
-#: src/pages/Settings.tsx:815
+#: src/pages/Settings.tsx:851
 msgid "Historical sync may take several minutes"
 msgstr "历史同步可能需要几分钟"
 
@@ -2925,7 +2939,7 @@ msgstr "历史同步可能需要几分钟"
 #~ msgid "How is intensity classified?"
 #~ msgstr "如何分类训练强度？"
 
-#: src/pages/Settings.tsx:829
+#: src/pages/Settings.tsx:865
 msgid "How often Praxys pulls new data in the background. Lower frequency uses less network and respects platform rate limits."
 msgstr "Praxys 在后台同步新数据的频率。降低频率可减少网络使用，也能避免触发平台访问频率限制。"
 
@@ -2937,7 +2951,7 @@ msgstr "Praxys 在后台同步新数据的频率。降低频率可减少网络�
 msgid "How this is calculated"
 msgstr "计算方式"
 
-#: src/pages/Settings.tsx:1198
+#: src/pages/Settings.tsx:1234
 #: src/pages/Setup.tsx:794
 msgid "How your zones and training load are calculated"
 msgstr "区间和训练负荷的计算方式"
@@ -3168,8 +3182,8 @@ msgstr "证据不足"
 msgid "Intensity distribution is unavailable until valid workout intensity data is synced."
 msgstr "尚未同步有效的训练强度数据，暂无法显示强度分布。"
 
-#: src/pages/Settings.tsx:975
-#: src/pages/Settings.tsx:1072
+#: src/pages/Settings.tsx:1011
+#: src/pages/Settings.tsx:1108
 msgid "International"
 msgstr "国际"
 
@@ -3309,7 +3323,7 @@ msgstr "公里/周"
 msgid "Lactate Threshold HR"
 msgstr "乳酸阈值心率"
 
-#: src/pages/Settings.tsx:752
+#: src/pages/Settings.tsx:788
 msgid "Language"
 msgstr "语言"
 
@@ -3358,12 +3372,12 @@ msgid "Last known: {systemicTitle}"
 msgstr "最近状态：{systemicTitle}"
 
 #. placeholder {0}: status.error
-#: src/pages/Settings.tsx:963
+#: src/pages/Settings.tsx:999
 msgid "Last sync failed: {0}"
 msgstr "上次同步失败：{0}"
 
 #. placeholder {0}: new Date(status.last_sync).toLocaleString()
-#: src/pages/Settings.tsx:957
+#: src/pages/Settings.tsx:993
 msgid "Last synced {0}"
 msgstr "上次同步 {0}"
 
@@ -3458,7 +3472,7 @@ msgstr "链接文本（可选）"
 msgid "Link URL (optional)"
 msgstr "链接地址（可选）"
 
-#: src/pages/Settings.tsx:785
+#: src/pages/Settings.tsx:821
 msgid "Link your training devices and services"
 msgstr "连接训练设备和服务"
 
@@ -3717,7 +3731,7 @@ msgstr "手动添加及其他教练安排的训练仍属于外部训练，不会
 #: src/components/GoalEditor.tsx:54
 #: src/lib/display-labels.ts:66
 #: src/pages/Settings.tsx:185
-#: src/pages/Settings.tsx:1373
+#: src/pages/Settings.tsx:1409
 msgid "Marathon"
 msgstr "马拉松"
 
@@ -3796,7 +3810,7 @@ msgstr "不匹配"
 msgid "Mixed providers"
 msgstr "数据来源混合"
 
-#: src/pages/Settings.tsx:1365
+#: src/pages/Settings.tsx:1401
 msgid "Mode"
 msgstr "模式"
 
@@ -3925,7 +3939,8 @@ msgstr "负平衡"
 #~ msgstr ""
 
 #: src/pages/admin/AdminOps.tsx:407
-#: src/pages/Settings.tsx:608
+#: src/pages/Settings.tsx:611
+#: src/pages/Settings.tsx:641
 msgid "Network error"
 msgstr "网络错误"
 
@@ -3993,7 +4008,7 @@ msgstr "下一页"
 msgid "Next plan window"
 msgstr "下一时间段"
 
-#: src/pages/Settings.tsx:833
+#: src/pages/Settings.tsx:869
 msgid "Next sync"
 msgstr "下次同步"
 
@@ -4098,7 +4113,7 @@ msgstr "没有等待审核或重试的反馈记录。"
 #~ msgid "No feedback yet."
 #~ msgstr "暂无反馈。"
 
-#: src/pages/Settings.tsx:1393
+#: src/pages/Settings.tsx:1429
 msgid "No goal set. Set a race target or distance goal to unlock predictions and countdown."
 msgstr "尚未设置目标。设置比赛目标或距离目标后可查看预测和倒计时。"
 
@@ -4313,7 +4328,7 @@ msgstr "不是缺陷"
 msgid "Not actionable"
 msgstr "不可直接处理"
 
-#: src/pages/Settings.tsx:892
+#: src/pages/Settings.tsx:928
 msgid "Not connected"
 msgstr "未连接"
 
@@ -4366,7 +4381,7 @@ msgstr "尚未建立"
 msgid "Not helpful"
 msgstr "帮助不大"
 
-#: src/pages/Settings.tsx:1456
+#: src/pages/Settings.tsx:1492
 msgid "Not set"
 msgstr "未设置"
 
@@ -4378,7 +4393,7 @@ msgstr "备注"
 msgid "Note (optional)"
 msgstr "备注（可选）"
 
-#: src/pages/Settings.tsx:1233
+#: src/pages/Settings.tsx:1269
 msgid "Note on Garmin native power"
 msgstr "关于 Garmin 原生功率的说明"
 
@@ -4683,7 +4698,7 @@ msgstr "训练指标"
 msgid "Pending <0>{0}</0>"
 msgstr "待处理 <0>{0}</0>"
 
-#: src/pages/Settings.tsx:1514
+#: src/pages/Settings.tsx:1593
 msgid "Permanently remove your Praxys account, synced data, plans, settings, and encrypted credentials."
 msgstr "永久删除 Praxys 账号、已同步数据、计划、设置和加密凭据。"
 
@@ -4987,6 +5002,10 @@ msgstr "按 Stryd 比赛功率模型预测（5K 取 103.8% CP，马拉松取 89.
 msgid "Prefer to wait?"
 msgstr "想先等等？"
 
+#: src/pages/Settings.tsx:1578
+msgid "Preparing export..."
+msgstr "正在准备导出…"
+
 #: src/pages/Science.tsx:438
 #: src/pages/Science.tsx:586
 msgid "Previewing"
@@ -5001,7 +5020,7 @@ msgid "Previous plan window"
 msgstr "上一时间段"
 
 #. placeholder {0}: CAPABILITY_LABELS[cat] ? i18n._(CAPABILITY_LABELS[cat]) : cat
-#: src/pages/Settings.tsx:949
+#: src/pages/Settings.tsx:985
 msgid "Primary for {0}"
 msgstr "作为 {0} 的主要来源"
 
@@ -5045,7 +5064,7 @@ msgstr "产品价值"
 #~ msgid "productive load"
 #~ msgstr "负荷富有成效"
 
-#: src/pages/Settings.tsx:685
+#: src/pages/Settings.tsx:721
 msgid "Profile"
 msgstr "个人资料"
 
@@ -5191,7 +5210,7 @@ msgid "Race"
 msgstr "比赛"
 
 #: src/components/GoalEditor.tsx:139
-#: src/pages/Settings.tsx:1378
+#: src/pages/Settings.tsx:1414
 msgid "Race Date"
 msgstr "比赛日期"
 
@@ -5204,7 +5223,7 @@ msgid "Race forecast"
 msgstr "比赛预测"
 
 #: src/components/GoalEditor.tsx:111
-#: src/pages/Settings.tsx:1367
+#: src/pages/Settings.tsx:1403
 msgid "Race Goal"
 msgstr "比赛目标"
 
@@ -5416,7 +5435,7 @@ msgstr "有建议可供查看"
 msgid "Recommendations"
 msgstr "建议"
 
-#: src/pages/Settings.tsx:855
+#: src/pages/Settings.tsx:891
 msgid "recommended"
 msgstr "推荐"
 
@@ -5567,7 +5586,7 @@ msgstr "数据来源日历对账后，恢复被安全策略阻止。请查看刷
 msgid "Recovery was skipped because delivery eligibility changed. Review the refreshed queue."
 msgstr "恢复已跳过，因为下发条件已变更。请查看已刷新的队列。"
 
-#: src/pages/Settings.tsx:1172
+#: src/pages/Settings.tsx:1208
 #: src/pages/Setup.tsx:1078
 msgid "Redirecting..."
 msgstr "跳转中…"
@@ -5620,9 +5639,9 @@ msgstr "先刷新数据来源日历；仅在确认上次写入不存在后重试
 msgid "Refresh the provider calendar, re-check ownership, and allow one fenced retry for this item."
 msgstr "刷新数据来源日历，重新核对所有权，然后仅允许此项进行一次受保护的重试。"
 
-#: src/pages/Settings.tsx:971
-#: src/pages/Settings.tsx:1070
-#: src/pages/Settings.tsx:1095
+#: src/pages/Settings.tsx:1007
+#: src/pages/Settings.tsx:1106
+#: src/pages/Settings.tsx:1131
 #: src/pages/Setup.tsx:955
 #: src/pages/Setup.tsx:976
 msgid "Region"
@@ -5837,7 +5856,7 @@ msgstr "恢复托管下发？"
 #: src/pages/admin/AdminUsers.tsx:544
 #: src/pages/Goal.tsx:444
 #: src/pages/History.tsx:53
-#: src/pages/Settings.tsx:332
+#: src/pages/Settings.tsx:335
 #: src/pages/Today.tsx:352
 #: src/pages/Today.tsx:511
 #: src/pages/Training.tsx:176
@@ -6093,7 +6112,7 @@ msgstr "无法显示截图"
 msgid "Seat cap"
 msgstr "名额上限"
 
-#: src/pages/Settings.tsx:1122
+#: src/pages/Settings.tsx:1158
 #: src/pages/Setup.tsx:1049
 msgid "Securely signing in to Garmin. This can take 15-30 seconds because Garmin rate-limits automated logins. Please keep this window open."
 msgstr "正在安全登录 Garmin。由于 Garmin 会限制自动登录频率，这可能需要 15-30 秒。请不要关闭此窗口。"
@@ -6110,7 +6129,7 @@ msgstr "选择一个指标，查看图表或依据。"
 msgid "Select an execution target in Settings to continue delivery."
 msgstr "请先在设置中选择执行平台，再继续下发。"
 
-#: src/pages/Settings.tsx:1114
+#: src/pages/Settings.tsx:1150
 msgid "Select the region matching your COROS account."
 msgstr "选择与你的 COROS 账号对应的地区。"
 
@@ -6212,7 +6231,7 @@ msgid "Set a power threshold so Praxys can identify sustained work without using
 msgstr "请设置功率阈值，让 Praxys 无需使用被热身和放松稀释的活动平均功率，也能识别持续做功。"
 
 #: src/components/SetupChecklist.tsx:75
-#: src/pages/Settings.tsx:1357
+#: src/pages/Settings.tsx:1393
 #: src/pages/Setup.tsx:853
 msgid "Set goal"
 msgstr "设置目标"
@@ -6225,12 +6244,12 @@ msgstr "设置 Praxys"
 msgid "Set Your Goal"
 msgstr "设置目标"
 
-#: src/pages/Settings.tsx:726
+#: src/pages/Settings.tsx:762
 msgid "Set your name"
 msgstr "设置名字"
 
 #: src/components/AppSidebar.tsx:135
-#: src/pages/Settings.tsx:658
+#: src/pages/Settings.tsx:694
 msgid "Settings"
 msgstr "设置"
 
@@ -6469,11 +6488,11 @@ msgstr "匀速"
 msgid "Stop activity if heat-illness symptoms develop, and seek medical care."
 msgstr "如出现热相关疾病症状，请立即停止活动并就医。"
 
-#: src/pages/Settings.tsx:1145
+#: src/pages/Settings.tsx:1181
 msgid "Strava Client ID"
 msgstr "Strava 客户端 ID"
 
-#: src/pages/Settings.tsx:1154
+#: src/pages/Settings.tsx:1190
 msgid "Strava Client Secret"
 msgstr "Strava 客户端密钥"
 
@@ -6561,7 +6580,7 @@ msgid "Switch to system theme"
 msgstr "切换到系统主题"
 
 #: src/components/SetupChecklist.tsx:59
-#: src/pages/Settings.tsx:914
+#: src/pages/Settings.tsx:950
 msgid "Sync"
 msgstr "同步"
 
@@ -6569,7 +6588,7 @@ msgstr "同步"
 #~ msgid "Sync activities together with sleep data (Garmin, Oura, or similar) so we can pair them by date."
 #~ msgstr "将活动与睡眠数据（Garmin、Oura 或类似设备）同步，以便我们按日期配对。"
 
-#: src/pages/Settings.tsx:792
+#: src/pages/Settings.tsx:828
 msgid "Sync All"
 msgstr "全部同步"
 
@@ -6593,7 +6612,7 @@ msgstr "同步失败。"
 msgid "Sync from GitHub"
 msgstr "从 GitHub 同步"
 
-#: src/pages/Settings.tsx:800
+#: src/pages/Settings.tsx:836
 msgid "Sync from:"
 msgstr "同步起始日期："
 
@@ -6655,7 +6674,7 @@ msgstr "同步目标平台后处理"
 msgid "Sync your data"
 msgstr "同步数据"
 
-#: src/pages/Settings.tsx:910
+#: src/pages/Settings.tsx:946
 msgid "Synced"
 msgstr "已同步"
 
@@ -6668,7 +6687,7 @@ msgstr "已同步 <0>{0}</0>"
 #~ msgid "Synced to Stryd. Click to re-push."
 #~ msgstr "已同步至 Stryd。点击重新推送。"
 
-#: src/pages/Settings.tsx:907
+#: src/pages/Settings.tsx:943
 msgid "Syncing"
 msgstr "同步中"
 
@@ -6727,13 +6746,13 @@ msgid "Target {metricName}"
 msgstr "目标 {metricName}"
 
 #: src/components/SetupChecklist.tsx:72
-#: src/pages/Settings.tsx:1353
+#: src/pages/Settings.tsx:1389
 #: src/pages/Setup.tsx:833
 msgid "Target a race or track continuous improvement"
 msgstr "瞄准一场比赛或追踪持续提升"
 
 #: src/components/GoalEditor.tsx:152
-#: src/pages/Settings.tsx:1384
+#: src/pages/Settings.tsx:1420
 msgid "Target Time"
 msgstr "目标完赛时间"
 
@@ -6900,7 +6919,7 @@ msgstr "主题"
 #~ msgid "There is not enough repeated qualifying exposure to estimate acclimatization to similar conditions."
 #~ msgstr "重复且符合条件的暴露还不够，暂时无法估算你是否适应相似环境。"
 
-#: src/pages/Settings.tsx:1521
+#: src/pages/Settings.tsx:1600
 msgid "This cannot be undone. If this is the last admin account, deletion will be blocked."
 msgstr "此操作无法撤销。如果这是最后一个管理员账号，将无法删除。"
 
@@ -6948,7 +6967,7 @@ msgstr "此链接无效或已过期。请尝试登录以申请新链接。"
 msgid "This page refreshes automatically every 30 seconds."
 msgstr "本页面每 30 秒自动刷新。"
 
-#: src/pages/Settings.tsx:1543
+#: src/pages/Settings.tsx:1622
 msgid "This permanently deletes your account, synced training data, plans, settings, platform connections, encrypted credentials, and any Garmin tokenstore on this device. You will be signed out immediately."
 msgstr "这会永久删除账号、已同步的训练数据、计划、设置、平台连接、加密凭据，以及此设备上的 Garmin 登录令牌。删除后会立即退出登录。"
 
@@ -7016,7 +7035,7 @@ msgstr "阈值配速"
 msgid "Threshold Pace Trend"
 msgstr "阈值配速趋势"
 
-#: src/pages/Settings.tsx:1421
+#: src/pages/Settings.tsx:1457
 msgid "Thresholds"
 msgstr "阈值"
 
@@ -7119,7 +7138,7 @@ msgstr "围绕某场比赛备赛"
 msgid "Training"
 msgstr "训练"
 
-#: src/pages/Settings.tsx:1197
+#: src/pages/Settings.tsx:1233
 msgid "Training Base"
 msgstr "训练基准"
 
@@ -7230,7 +7249,7 @@ msgstr "正在启用…"
 msgid "Type"
 msgstr "类型"
 
-#: src/pages/Settings.tsx:1550
+#: src/pages/Settings.tsx:1629
 msgid "Type DELETE to confirm."
 msgstr "请输入 DELETE 确认。"
 
@@ -7253,7 +7272,7 @@ msgstr "不可用"
 msgid "Unclassified"
 msgstr "未分类"
 
-#: src/pages/Settings.tsx:738
+#: src/pages/Settings.tsx:774
 msgid "Units"
 msgstr "单位"
 
@@ -7317,7 +7336,7 @@ msgstr "已更新 {1} 个关联工单中的 {0} 个。"
 msgid "Updating…"
 msgstr "更新中…"
 
-#: src/pages/Settings.tsx:1097
+#: src/pages/Settings.tsx:1133
 msgid "US"
 msgstr "US"
 
@@ -7407,7 +7426,7 @@ msgstr "用户与权限"
 msgid "Users unavailable"
 msgstr "用户数据暂不可用"
 
-#: src/pages/Settings.tsx:1027
+#: src/pages/Settings.tsx:1063
 #: src/pages/Setup.tsx:912
 msgid "Verification code"
 msgstr "验证码"
@@ -7420,7 +7439,7 @@ msgstr "验证邮件已发送。请查看收件箱。"
 msgid "Verification failed"
 msgstr "验证失败"
 
-#: src/pages/Settings.tsx:1045
+#: src/pages/Settings.tsx:1081
 #: src/pages/Setup.tsx:930
 msgid "Verify"
 msgstr "验证"
@@ -7433,7 +7452,7 @@ msgstr "正在核对"
 msgid "Verifying your email…"
 msgstr "正在验证邮箱…"
 
-#: src/pages/Settings.tsx:1045
+#: src/pages/Settings.tsx:1081
 #: src/pages/Setup.tsx:930
 msgid "Verifying..."
 msgstr "验证中…"
@@ -7446,7 +7465,7 @@ msgstr "查看"
 msgid "View status"
 msgstr "查看状态"
 
-#: src/pages/Settings.tsx:660
+#: src/pages/Settings.tsx:696
 msgid "Viewing configuration (read-only demo)"
 msgstr "查看配置（只读演示）"
 
@@ -7454,7 +7473,7 @@ msgstr "查看配置（只读演示）"
 msgid "VO2max"
 msgstr "VO2max"
 
-#: src/pages/Settings.tsx:1336
+#: src/pages/Settings.tsx:1372
 msgid "VO2max, CP, LTHR, training status"
 msgstr "VO2max、CP、LTHR、训练状态"
 
@@ -7679,20 +7698,28 @@ msgstr "you@example.com"
 msgid "Your account is active. You can now sign in."
 msgstr "账号已激活，现在可以登录了。"
 
+#: src/pages/Settings.tsx:639
+msgid "Your data export is downloading."
+msgstr "正在下载数据导出文件。"
+
+#: src/pages/Settings.tsx:1558
+msgid "Your export is a portable snapshot of the data stored in Praxys."
+msgstr "数据导出文件是 Praxys 中所存数据的便携式快照。"
+
 #: src/components/ManagedPlanSettingsCard.tsx:466
 msgid "Your external planner remains in control."
 msgstr "计划仍由外部工具管理。"
 
-#: src/pages/Settings.tsx:1024
+#: src/pages/Settings.tsx:1060
 #: src/pages/Setup.tsx:909
 msgid "Your Garmin account has multi-factor authentication enabled. Enter the verification code Garmin sent you to finish connecting."
 msgstr "你的 Garmin 账号已启用多重验证。输入 Garmin 发送的验证码，完成连接。"
 
-#: src/pages/Settings.tsx:686
+#: src/pages/Settings.tsx:722
 msgid "Your identity in Praxys"
 msgstr "Praxys 账号信息"
 
-#: src/pages/Settings.tsx:712
+#: src/pages/Settings.tsx:748
 msgid "Your name"
 msgstr "姓名"
 
@@ -7710,11 +7737,11 @@ msgstr "Praxys 邀请码：{0}\n"
 "\n"
 "注册链接：{1}"
 
-#: src/pages/Settings.tsx:1147
+#: src/pages/Settings.tsx:1183
 msgid "Your Strava API Client ID"
 msgstr "你的 Strava API 客户端 ID"
 
-#: src/pages/Settings.tsx:1157
+#: src/pages/Settings.tsx:1193
 msgid "Your Strava API Client Secret"
 msgstr "你的 Strava API 客户端密钥"
 
