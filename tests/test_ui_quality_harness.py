@@ -268,3 +268,11 @@ def test_ui_mcp_configs_are_pinned_and_cloud_safe():
         ROOT / "plugins" / "praxys" / "mcp-server" / "requirements.txt"
     ).read_text(encoding="utf-8")
     assert "mcp==1.28.1" in plugin_requirements.splitlines()
+
+
+def test_backend_deploy_initializes_plugin_submodule():
+    workflow = (
+        ROOT / ".github" / "workflows" / "deploy-backend.yml"
+    ).read_text(encoding="utf-8")
+    test_job = workflow.split("  deploy:", maxsplit=1)[0]
+    assert "submodules: true" in test_job

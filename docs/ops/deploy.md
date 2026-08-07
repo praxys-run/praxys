@@ -22,7 +22,7 @@ GitHub-hosted Python jobs use `actions/setup-python@v7` to provision the workflo
 ## Backend deploy
 
 Automatic on merge to `main` (for the paths above). The workflow:
-1. Runs `pytest tests/`.
+1. Checks out the Praxys plugin submodule and runs `pytest tests/`.
 2. Stamps `api/_build_version.txt`.
 3. Waits for a compatible live frontend `deployed_sha`.
 4. Uses OIDC to enforce the telemetry boundary, sync App Service settings (see
