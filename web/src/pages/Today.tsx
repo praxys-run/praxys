@@ -317,10 +317,7 @@ function localizedSignalAlternatives(signal: TrainingSignal, i18n: I18n): string
   }).filter(Boolean);
 }
 export default function Today() {
-  const { data, loading, error, refetch } = useApi<TodayResponse>('/api/today', {
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: 'always',
-  });
+  const { data, loading, error, refetch } = useApi<TodayResponse>('/api/today');
   const { locale } = useLocale();
   const { i18n } = useLingui();
 
