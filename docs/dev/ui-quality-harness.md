@@ -17,9 +17,8 @@ human contributors one brand-aware path from task intake to PR review.
 | Independent review | `praxys-invariant-review.md` | Ready PRs receive a separate Praxys-specific brand and UI invariant review. |
 
 `frontend-quality` is the domain check for the web build and UI harness.
-`backend-tests` remains a compatibility umbrella that consumes it until the new
-check can be added to branch protection after this workflow exists on `main`.
-This preserves enforcement without pretending UI validation is a backend test.
+It is required independently from `backend-tests`; both report from the unified
+`Pre-merge CI` workflow so UI validation is not presented as a backend test.
 
 ## What triggers the harness
 

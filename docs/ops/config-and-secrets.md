@@ -30,6 +30,7 @@ transient — the next deploy overwrites them.**
 | `WECHAT_MINIAPP_APPID` / `WECHAT_MINIAPP_SECRET` | WeChat Mini Program auth | App Service setting (backend) |
 | `PRAXYS_SMTP_PASSWORD` | SMTP client authorization code (WeCom/Exmail) for verification + invitation emails. **Optional.** | App Service setting (backend) |
 | `WECHAT_MINIAPP_UPLOAD_KEY` | Mini program CI upload key | `miniapp-publish.yml` |
+| `COPILOT_GITHUB_TOKEN` | Fine-grained PAT owned by the Copilot subscriber, with only *Account permissions → Copilot Requests: Read*. Used solely for Agentic Workflow inference; repository operations continue to use `GITHUB_TOKEN`. Do not grant `copilot-requests: write` in those workflows or gh-aw ignores this secret in favor of organization billing. | Agentic Workflow `.md` sources |
 | `COPILOT_ASSIGN_TOKEN` | **Required for workflow auto-assign** — fine-grained PAT (*Issues: write*, this repo only, with expiry). Agent assignment needs a user token; the built-in `GITHUB_TOKEN` is forbidden (issue #400). Manual UI assignment doesn't need it. | `assign-copilot.yml` |
 | `PRAXYS_GITHUB_APP_PRIVATE_KEY` | Feedback GitHub App private key. The app has Issues read/write and Pull requests read; tokens are minted on demand. | App Service setting (backend) |
 | `PRAXYS_REVIEW_POLICY_APP_PRIVATE_KEY` | Independent selective-review App key. The App has Contents write + Pull requests write solely to approve qualifying PRs and enable normal auto-merge. Optional while every PR is review-required; mandatory only for an autonomous candidate or stale policy-state cleanup. | `selective-review.yml` |
@@ -129,7 +130,7 @@ The i18n workflow uses its built-in `GITHUB_TOKEN` to update
 `i18n/refresh-zh` and open the review PR. GitHub suppresses normal
 `pull_request` workflow events for PRs opened by that token, so `i18n.yml`
 explicitly uses the permitted `workflow_dispatch` exception: it dispatches
-Backend CI and Miniapp build on the bot branch, then waits for Backend CI. Do
+Pre-merge CI and Miniapp build on the bot branch, then waits for Pre-merge CI. Do
 not remove that chain; otherwise automated translation PRs lose their required
 validation. Their semantic review already happened inside `i18n.yml` through
 the independent editor/critic pair; the invariant workflow remains the
@@ -164,7 +165,7 @@ placeholders, English-style Chinese typography, banned translationese, and
 canonical-term drift. Shared web/mini keys must match unless
 `MINI_TRANSLATION_OVERRIDES` records a reviewed mobile-specific rationale. The
 Praxys invariant Agentic Workflow then reviews
-user-facing copy changes for semantic/native-language quality after `Backend CI`.
+user-facing copy changes for semantic/native-language quality after `Pre-merge CI`.
 
 Provision and verify:
 
@@ -183,7 +184,7 @@ Provision and verify:
    repository opt-in, an organization owner must enable the corresponding gate
    first.
 3. Dispatch `i18n.yml`. Confirm the generated PR receives manual-dispatch runs
-   for Backend CI and Miniapp build on `i18n/refresh-zh`.
+   for Pre-merge CI and Miniapp build on `i18n/refresh-zh`.
 
 #### Dependabot patch auto-merge
 

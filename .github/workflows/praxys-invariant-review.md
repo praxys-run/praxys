@@ -3,7 +3,7 @@ name: Praxys invariant review
 description: Reviews risky PRs for Praxys-specific science, contract, parity, privacy, localization, and operations invariants
 on:
   workflow_run:
-    workflows: ["Backend CI"]
+    workflows: ["Pre-merge CI"]
     types: [completed]
     branches:
       - "**"
@@ -57,7 +57,6 @@ concurrency:
   group: praxys-invariant-review-${{ github.event.workflow_run.pull_requests[0].number || github.event.inputs.pr_number || github.run_id }}
   cancel-in-progress: true
 permissions:
-  copilot-requests: write
   contents: read
   issues: read
   pull-requests: read
@@ -91,7 +90,7 @@ jobs:
 Review pull request `${{ needs.pre_activation.outputs.pr_number }}` only for
 repository-specific invariants that a generic code reviewer is unlikely to know.
 The deterministic pre-activation gate has already confirmed that it is
-same-repository and non-draft. Automatic runs occur only after its `Backend CI`
+same-repository and non-draft. Automatic runs occur only after its `Pre-merge CI`
 workflow succeeds; manual runs may inspect a closed PR for smoke testing. This
 complements GitHub Copilot code review; it is not a second general style review.
 
