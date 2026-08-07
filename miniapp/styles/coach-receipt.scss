@@ -63,6 +63,15 @@
   margin-bottom: 16rpx;
 }
 
+.coach-summary {
+  display: block;
+  max-width: 65ch;
+  margin-bottom: 16rpx;
+  font-size: 25rpx;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
 .coach-label {
   display: block;
   font-size: 20rpx;
