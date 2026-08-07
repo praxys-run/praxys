@@ -259,6 +259,14 @@ the short-lived `GITHUB_TOKEN` for repository operations and
 causes gh-aw to ignore the personal token. No Azure identity, endpoint variable,
 or model API key is required.
 
+The generated lock workflows currently stage a compatible runner-cached
+Copilot CLI at `/usr/local/bin/copilot` before entering the AWF sandbox. This is
+a temporary workaround for upstream gh-aw issue
+[`#50906`](https://github.com/github/gh-aw/issues/50906); remove it when a gh-aw
+release containing
+[`#50908`](https://github.com/github/gh-aw/pull/50908) is used to regenerate the
+locks.
+
 Install the authoring CLI, then compile and validate after editing a source file:
 
 ```bash
