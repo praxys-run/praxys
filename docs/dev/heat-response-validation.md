@@ -279,6 +279,10 @@ recovery are informational. The only recommendations are:
 
 `eligible_for_science_review` means the aggregate analysis is ready for human
 review. It does not mean validation succeeded and never means `ship`.
+The report's next steps are outcome-specific: a withheld estimate recommends
+against productization and points to prospective validation or richer
+covariates, while an eligible result requests human science review and an
+accepted superseding SDR before product work.
 
 Ridge implementation: Hoerl and Kennard,
 <https://doi.org/10.1080/00401706.1970.10488634>. Activity-cluster bootstrap

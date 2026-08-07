@@ -309,6 +309,26 @@ def validate_heat_response(
     ]
     if not model_available:
         recommendation_reasons.append("primary_model_unavailable")
+    if recommendation_value == "eligible_for_science_review":
+        recommendation_next_steps = [
+            "Review diagnostics and assumptions with a human science reviewer.",
+            (
+                "Draft and accept a superseding SDR before any API or UI "
+                "work."
+            ),
+        ]
+    else:
+        recommendation_next_steps = [
+            "Do not productize a personal heat-response estimate.",
+            (
+                "Retain only qualitative, provenance-aware environmental "
+                "context already allowed by accepted science decisions."
+            ),
+            (
+                "Use prospective validation or richer exposure and recovery "
+                "covariates before reconsidering the estimate."
+            ),
+        ]
 
     limitations = [
         "research_only_not_product_validation",
@@ -429,11 +449,7 @@ def validate_heat_response(
                 "A research handoff only; it is not validation success, an "
                 "accepted science lifecycle change, or permission to ship."
             ),
-            "next_steps": [
-                "Run this pipeline on the consented private athlete export.",
-                "Review diagnostics and assumptions with a human science reviewer.",
-                "Draft and accept a superseding SDR before any API or UI work.",
-            ],
+            "next_steps": recommendation_next_steps,
         },
     }
 

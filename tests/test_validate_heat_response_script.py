@@ -81,6 +81,10 @@ def test_cli_json_and_markdown_do_not_echo_activity_identity(
     assert private_date not in markdown_output
     assert "# #444 recommendation" in markdown_output
     assert "not WBGT" in markdown_output
+    assert "Review diagnostics and assumptions with a human science reviewer." in (
+        markdown_output
+    )
+    assert "Run this pipeline" not in markdown_output
     assert (
         "private input contains activity IDs and dates"
         in markdown_output

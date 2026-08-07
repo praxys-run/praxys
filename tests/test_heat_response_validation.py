@@ -346,6 +346,17 @@ def test_insufficient_observations_and_spread_are_unavailable() -> None:
     assert report["recommendation"]["value"] == (
         "withhold_personal_estimate"
     )
+    assert report["recommendation"]["next_steps"] == [
+        "Do not productize a personal heat-response estimate.",
+        (
+            "Retain only qualitative, provenance-aware environmental context "
+            "already allowed by accepted science decisions."
+        ),
+        (
+            "Use prospective validation or richer exposure and recovery "
+            "covariates before reconsidering the estimate."
+        ),
+    ]
 
 
 def test_legitimate_empty_api_export_returns_withheld_report() -> None:
