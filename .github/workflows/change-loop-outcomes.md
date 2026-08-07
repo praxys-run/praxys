@@ -197,9 +197,9 @@ Do not treat CI runs triggered while the agent was still drafting as first-pass
 readiness. Record separately:
 
 1. pre-readiness runs, for operational context;
-2. the first `Backend CI` result at or after the first readiness boundary;
+2. the first `Pre-merge CI` result at or after the first readiness boundary;
 3. the first executed readiness run with jobs; and
-4. the final merge-head `Backend CI` result.
+4. the final merge-head `Pre-merge CI` result.
 
 `action_required` with no jobs is `approval-gated`, not a code failure.
 Pre-readiness non-passes do not trigger failure-attribution queries. For the

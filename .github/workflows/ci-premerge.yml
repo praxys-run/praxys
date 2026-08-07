@@ -1,13 +1,11 @@
-name: Backend CI
+name: Pre-merge CI
 
-# Pre-merge validation gate (issues #361 and #377). Runs backend pytest plus a
-# distinct frontend-quality path (web production build + UI quality harness) on
-# every PR targeting main so regressions are caught *before* merge.
+# Unified pre-merge validation gate (issues #361 and #377). Runs independent
+# backend and frontend checks on every PR targeting main so regressions are
+# caught before merge and downstream review automation gets one completion
+# event.
 #
-# `frontend-quality` is the authoritative frontend/design check. The final
-# `backend-tests` job remains a compatibility umbrella until branch protection
-# can require the new check after this workflow lands on main; this avoids an
-# enforcement gap during that migration.
+# `backend-tests` and `frontend-quality` are independent required contexts.
 #
 # Intentionally has NO `paths:` filter. This job is a *required* status check on
 # main, and a required check that a path filter skips is reported as permanently
@@ -21,7 +19,7 @@ on:
 
 # One in-flight run per PR; cancel the previous when new commits land.
 concurrency:
-  group: backend-ci-${{ github.head_ref || github.ref }}
+  group: pre-merge-ci-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -119,19 +117,15 @@ jobs:
           test "$WEB_RESULT" = "success"
           test "$UI_RESULT" = "success"
 
-  # Keep this job name stable while branch protection migrates to also require
-  # `frontend-quality`.
   backend-tests:
     name: backend-tests
     if: always()
-    needs: [python-tests, frontend-quality]
+    needs: [python-tests]
     runs-on: ubuntu-latest
     steps:
-      - name: Require backend tests and compatibility frontend gate
+      - name: Require backend tests
         env:
           PYTHON_RESULT: ${{ needs.python-tests.result }}
-          FRONTEND_RESULT: ${{ needs.frontend-quality.result }}
         run: |
           set -euo pipefail
           test "$PYTHON_RESULT" = "success"
-          test "$FRONTEND_RESULT" = "success"

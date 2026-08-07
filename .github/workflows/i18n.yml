@@ -105,7 +105,7 @@ jobs:
   # not at subscription level.
   # PRs created with GITHUB_TOKEN do not emit pull_request workflow events.
   # After opening the PR, this workflow explicitly dispatches required
-  # validation on the bot branch and waits for Backend CI. Semantic review has
+  # validation on the bot branch and waits for Pre-merge CI. Semantic review has
   # already run as the independent editor/critic pair above.
   translate:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
@@ -299,13 +299,13 @@ jobs:
           HEAD_SHA: ${{ steps.create-pr.outputs.pull-request-head-sha }}
           PR_BRANCH: i18n/refresh-zh
         run: |
-          gh workflow run ci-backend.yml --ref "$PR_BRANCH"
+          gh workflow run ci-premerge.yml --ref "$PR_BRANCH"
           gh workflow run miniapp-build.yml --ref "$PR_BRANCH"
 
           run_id=""
           for _attempt in $(seq 1 30); do
             run_id=$(gh run list \
-              --workflow ci-backend.yml \
+              --workflow ci-premerge.yml \
               --branch "$PR_BRANCH" \
               --event workflow_dispatch \
               --limit 20 \
@@ -318,7 +318,7 @@ jobs:
             sleep 2
           done
           if [ -z "$run_id" ]; then
-            echo "::error::Backend CI dispatch did not appear for $HEAD_SHA."
+            echo "::error::Pre-merge CI dispatch did not appear for $HEAD_SHA."
             exit 1
           fi
           gh run watch "$run_id" --exit-status
