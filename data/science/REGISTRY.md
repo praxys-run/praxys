@@ -25,11 +25,15 @@ Evidence reviews record what the literature supports. Science Decision Records (
 
 ### Evidence reviews
 
-_None._
+| Record | Version | Topic/model | Reviewed/decided |
+|---|---:|---|---|
+| [evidence-personal-environment-response-v1](evidence/personal-environment-response/evidence-personal-environment-response-v1.yaml) — Personal retrospective environmental and heart-rate associations | 1 | personal-environment-response | 2026-08-08 |
 
 ### Science decisions
 
-_None._
+| Record | Version | Topic/model | Reviewed/decided |
+|---|---:|---|---|
+| [sdr-environmental-performance-v2](decisions/sdr-environmental-performance-v2.yaml) — Present a private historical environmental-response experiment | 2 | environmental-performance-context-v2 | 2026-08-08 |
 
 ## Superseded
 
