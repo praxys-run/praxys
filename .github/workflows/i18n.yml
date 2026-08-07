@@ -256,6 +256,8 @@ jobs:
           branch: i18n/refresh-zh
           delete-branch: true
           body: |
+            ## Summary
+
             Automated Simplified Chinese translation and native-copy review.
 
             Review the diff in `web/src/locales/zh/messages.po` and
@@ -289,6 +291,23 @@ jobs:
               (`git log -p -- web/src/locales/zh/messages.po`) since Lingui
               extraction drops the old msgid when the English source is
               edited.
+
+            ## Validation
+
+            - Lingui extraction and catalog compilation
+            - Deterministic terminology, placeholder, coverage, and typography checks
+            - Miniapp catalog regeneration
+            - Pre-merge CI and miniapp build dispatched for the generated branch
+
+            ## UI quality
+
+            - Impeccable: `audit web/src/locales/zh/messages.po` via the automated context-aware native-copy critic
+            - Visual review: desktop and mobile rendered review not applicable - generated locale catalog only; no component or layout files changed
+            - States checked: active catalog coverage, placeholders, protected tokens, terminology, typography, and long Chinese copy
+            - Accessibility: no interaction, focus, contrast, motion, or touch-target behavior changed
+            - Design system impact: none - the existing localization and typography systems cover catalog-only changes
+            - Miniapp parity: updated by `miniapp/scripts/sync-i18n.cjs`
+            - Exceptions: rendered desktop/mobile review omitted for the generated catalog-only diff; maintainers review the Chinese copy before merge
 
       - name: Dispatch required validation on translation branch
         id: validation

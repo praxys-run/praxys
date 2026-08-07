@@ -70,6 +70,7 @@ interface CoachReceipt {
   /** Deterministic Today guidance has no generation-time stamp. */
   stamp: string;
   headline: string;
+  summary: string;
   hasFindings: boolean;
   findings: CoachFindingRow[];
   hasRecommendations: boolean;
@@ -111,6 +112,20 @@ interface SupportingCell {
    *  would otherwise strand an empty slot). Set during cell assembly,
    *  not at the use site, so WXML doesn't have to know the count. */
   span: boolean;
+}
+
+function localizedRecoverySummary(analysis: RecoveryAnalysis | null): string {
+  switch (analysis?.status) {
+    case 'fresh':
+      return t('HRV is above your Praxys reference band');
+    case 'normal':
+      return t('HRV is within your Praxys reference band');
+    case 'fatigued':
+      return t('HRV is below your Praxys caution band');
+    case 'insufficient_data':
+    default:
+      return t('Insufficient current HRV data for comparison');
+  }
 }
 
 function localizedSignalReason(signal: TrainingSignal): string {
@@ -212,6 +227,7 @@ function buildCoachReceipt(
   return {
     stamp: '',
     headline: localizedSignalReason(response.signal),
+    summary: localizedRecoverySummary(response.recovery_analysis),
     hasFindings: false,
     findings: [],
     hasRecommendations: recommendations.length > 0,

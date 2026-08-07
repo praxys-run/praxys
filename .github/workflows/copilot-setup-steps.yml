@@ -62,7 +62,13 @@ jobs:
         working-directory: web
         # npm install (not ci): @lingui/swc-plugin's bundleDependencies trip
         # npm v11 strict ci — same reason as .github/workflows/i18n.yml.
-        run: npm install --no-audit --no-fund
+        run: |
+          npm --version
+          npm install --no-audit --no-fund
+          # npm can rewrite platform-specific lock metadata on Linux. Setup
+          # must hand the agent a clean tree so it never commits that churn.
+          git restore --source=HEAD -- package-lock.json
+          git diff --exit-code -- package-lock.json
 
       - name: Install Praxys cloud MCP launcher
         run: >-

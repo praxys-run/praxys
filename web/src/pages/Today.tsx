@@ -214,6 +214,23 @@ function formatPlan(plan: TrainingSignal['plan']): string | null {
   return parts.join(' · ');
 }
 
+function localizedRecoverySummary(
+  analysis: RecoveryAnalysis | null,
+  i18n: I18n,
+): string {
+  switch (analysis?.status) {
+    case 'fresh':
+      return i18n._(msg`HRV is above your Praxys reference band`);
+    case 'normal':
+      return i18n._(msg`HRV is within your Praxys reference band`);
+    case 'fatigued':
+      return i18n._(msg`HRV is below your Praxys caution band`);
+    case 'insufficient_data':
+    default:
+      return i18n._(msg`Insufficient current HRV data for comparison`);
+  }
+}
+
 function localizedSignalReason(signal: TrainingSignal, i18n: I18n): string {
   const rawTsb = signal.reason_args?.tsb ?? signal.recovery.tsb;
   const tsb = rawTsb == null ? '' : Number(rawTsb).toFixed(0);
@@ -300,10 +317,7 @@ function localizedSignalAlternatives(signal: TrainingSignal, i18n: I18n): string
   }).filter(Boolean);
 }
 export default function Today() {
-  const { data, loading, error, refetch } = useApi<TodayResponse>('/api/today', {
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: 'always',
-  });
+  const { data, loading, error, refetch } = useApi<TodayResponse>('/api/today');
   const { locale } = useLocale();
   const { i18n } = useLingui();
 
@@ -561,7 +575,7 @@ export default function Today() {
             {verdictText}
           </span>
         </div>
-        <p className={`text-xl font-semibold ${tone.text}`}>{verdictSubtitle}</p>
+        <p className={`text-xl font-bold ${tone.text}`}>{verdictSubtitle}</p>
       </div>
       {/* Praxys Coach receipt is deterministic on Today. The daily insight
           slot is intentionally disabled so generated prose can never
@@ -572,6 +586,7 @@ export default function Today() {
         attribution={attribution}
         fallback={{
           headline: localizedReason,
+          summary: localizedRecoverySummary(ra, i18n),
           recommendations: localizedAlternatives,
         } as CoachFallback}
         onDetailsOpen={() => recordProductEventOnce(

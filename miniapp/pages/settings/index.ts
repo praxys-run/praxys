@@ -78,6 +78,8 @@ function buildSettingsTr() {
     language: t('Language'),
     languageAuto: t('Auto'),
     openOnWeb: t('Open Praxys on web'),
+    exportDataOnWeb: t('Export my data on web'),
+    exportDataOnWebHint: t('Data exports are downloaded from the Praxys web app.'),
     sendFeedback: t('Send feedback'),
     feedbackBug: t('Bug report'),
     feedbackFeature: t('Feature request'),
@@ -1507,6 +1509,11 @@ Page({
   onCopyUrl() {
     wx.setClipboardData({ data: WEB_URL });
     wx.showToast({ title: t('URL copied'), icon: 'success', duration: 1500 });
+  },
+
+  onExportDataOnWeb() {
+    wx.setClipboardData({ data: WEB_URL });
+    wx.showToast({ title: t('Open the web app to export your data.'), icon: 'none', duration: 1800 });
   },
 
   /**

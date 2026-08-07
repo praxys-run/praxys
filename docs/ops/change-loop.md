@@ -287,13 +287,26 @@ initialization must not overwrite its Python/Node test environment.
   keep the PR draft until the implementation/tests/final diff are stable. A code
   push after the first ready handoff returns the PR to draft before more work.
   Edit there rather than stuffing per-issue boilerplate into the public tracker.
+- **Specialized implementation agent:** `.github/agents/praxys-change-loop.agent.md`
+  is the cloud-agent profile for every `agent-ready` implementation. It exposes
+  the repository/browser tools needed by the change loop and converts the
+  general repository rules into an ordered implementation, review, and handoff
+  contract.
+- **Deterministic final preflight:** after committing the implementation, the
+  agent runs `python scripts/agent_preflight.py --base origin/main`. The command
+  selects backend, web, Lingui, miniapp, and UI checks from the actual PR diff
+  and refuses a dirty worktree. Generated catalogs must be committed and the
+  command rerun before review.
 - **Environment:** `.github/workflows/copilot-setup-steps.yml` initializes the
   plugin submodule, preinstalls Python + backend/Praxys MCP deps and Node/web,
   verifies Chrome DevTools MCP, prepares the synthetic local Praxys sandbox,
   installs the workspace-resolving `praxys-local-mcp` cloud launcher, and
   bootstraps a throwaway `.env`. The agent can run `pytest`, `npm`, browser
   review, and read-only product-context tools deterministically instead of
-  rediscovering the toolchain. It only takes effect once on the default branch.
+  rediscovering the toolchain. Because Linux `npm install` can rewrite
+  platform-specific lock metadata, setup restores and verifies
+  `web/package-lock.json` before handing control to the agent. It only takes
+  effect once on the default branch.
 - **UI quality harness:** a user-visible web/miniapp change must invoke
   `.github/skills/ui-quality/SKILL.md`, which routes through the vendored
   Impeccable skill and the Praxys brand context. The committed Copilot hook
@@ -308,10 +321,9 @@ initialization must not overwrite its Python/Node test environment.
 - **Model selection:** which LLM the coding agent uses is an **org/repo Copilot
   setting** (Settings → Copilot → Coding agent), not a per-assignment parameter —
   do not try to pin a model in `assign-copilot.yml`. Pick it in settings.
-- **Custom agents** (`.github/agents/*.md`): not needed for the change loop today —
-  it is a single "fix this bug" job, and repo-wide `copilot-instructions.md`
-  covers it. Revisit only if we want multiple distinct agent personas with
-  different toolsets.
+- **PR evidence refresh:** `Backend CI` listens for pull-request `edited`
+  events, so correcting the PR body after rendered review reruns the UI evidence
+  gate without requiring an empty source commit.
 
 ## Self-improvement
 

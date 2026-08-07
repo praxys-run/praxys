@@ -19,6 +19,7 @@ diagnose X". It complements — and links out to — the setup-oriented
 | [environment.md](./environment.md) | You need the canonical Azure resource names / IDs / hostnames. |
 | [config-and-secrets.md](./config-and-secrets.md) | You're adding, changing, or rotating an env var / secret / variable, and need to know **where** it's set. |
 | [deploy.md](./deploy.md) | You're deploying the backend, frontend, or mini program — or need to roll back. |
+| [tencent-frontend.md](./tencent-frontend.md) | Provisioning or operating the mainland-China Lighthouse static frontend. |
 | [org-migration.md](./org-migration.md) | Migrating the repos from `dddtc2005` into the `praxys-run` org (OIDC pre-stage, App reinstall, tokens). |
 | [monitoring-and-alerts.md](./monitoring-and-alerts.md) | You want to query a telemetry signal or wire an email/Teams alert. |
 | [admin-tasks.md](./admin-tasks.md) | You're using `/admin/ops` or a focused admin route for health, incidents, users, feedback, or communications. |
@@ -42,6 +43,7 @@ diagnose X". It complements — and links out to — the setup-oriented
 | Resource group | `rg-trainsight` |
 | Backend (API) | App Service `trainsight-app` → `api.praxys.run` |
 | Frontend (SPA) | App Service `praxys-frontend` → `www.praxys.run` |
+| Mainland frontend origin | Tencent Lighthouse (static-only; gated until ICP-ready) |
 | Secrets at rest | Key Vault `kv-trainsight` (RSA key `credential-encryption-key`) |
 | Observability | Application Insights (signals prefixed `praxys.`) |
 

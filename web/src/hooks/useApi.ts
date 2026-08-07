@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { KEYS, getCompatItem, removeCompatItem } from '../lib/storage-compat';
+import { initialDashboardUrl } from '../lib/dashboard-prefetch';
+import { tokenCacheScope } from '../lib/auth-cache-scope';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -30,6 +32,12 @@ function getAuthHeaders(): HeadersInit {
   return {};
 }
 
+function getAuthCacheScope(): string {
+  return tokenCacheScope(
+    getCompatItem(KEYS.authToken.new, KEYS.authToken.legacy),
+  );
+}
+
 async function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
   const headers = new Headers(init.headers);
@@ -54,11 +62,29 @@ async function apiFetch(url: string, init: RequestInit = {}): Promise<Response> 
   return res;
 }
 
+const prefetchedResponses = new Map<string, Promise<Response | null>>();
+
+function startInitialDashboardPrefetch(): void {
+  if (typeof window === 'undefined') return;
+  const token = getCompatItem(KEYS.authToken.new, KEYS.authToken.legacy);
+  const url = initialDashboardUrl(window.location.pathname, Boolean(token));
+  if (!url) return;
+
+  // Auth verification and dashboard data are independent authenticated reads.
+  // Start both during module evaluation so the page does not pay one
+  // cross-border round trip before beginning the next.
+  prefetchedResponses.set(url, apiFetch(url).catch(() => null));
+}
+
 async function apiFetcher<T>(url: string): Promise<T> {
-  const res = await apiFetch(url);
+  const prefetched = prefetchedResponses.get(url);
+  if (prefetched) prefetchedResponses.delete(url);
+  const res = (prefetched ? await prefetched : null) ?? await apiFetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
+
+startInitialDashboardPrefetch();
 
 /**
  * Pull a human-readable error message out of a non-2xx fetch Response.
@@ -85,11 +111,18 @@ async function extractErrorMessage(res: Response, fallback: string): Promise<str
   return fallback;
 }
 
-export { API_BASE, getAuthHeaders, apiFetch, apiFetcher, extractErrorMessage };
+export {
+  API_BASE,
+  getAuthHeaders,
+  getAuthCacheScope,
+  apiFetch,
+  apiFetcher,
+  extractErrorMessage,
+};
 
 export function useApi<T>(url: string, options?: UseApiOptions): UseApiResult<T> {
   const { data, isLoading, isStale, error, refetch } = useQuery<T, Error>({
-    queryKey: [url],
+    queryKey: [url, getAuthCacheScope()],
     queryFn: () => apiFetcher<T>(url),
     ...(options?.refetchInterval !== undefined
       ? { refetchInterval: options.refetchInterval }

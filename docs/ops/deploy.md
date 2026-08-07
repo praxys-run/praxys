@@ -9,11 +9,12 @@
 | Surface | Workflow | Triggers | Target |
 |---|---|---|---|
 | Backend (API) | `deploy-backend.yml` | push to `main` touching backend code/tests, observability config/scripts, or the workflow; or `api-*` tag | App Service `trainsight-app` |
-| Frontend (SPA) | `deploy-frontend-appservice.yml` | push to `main` touching the SPA/static server, observability config/scripts, or the workflow; or `web-*` tag | App Service `praxys-frontend` |
+| Frontend (SPA) | `deploy-frontend-appservice.yml` | push to `main` touching the SPA/static server, observability config/scripts, or the workflow; or `web-*` tag | App Service `praxys-frontend`; optionally Tencent Lighthouse |
 | Mini program | `miniapp-publish.yml` | `miniapp-YYYY.MM.MICRO` release tag (robot 1); `main` pushes auto-publish a dev build (robot 5) | WeChat (`miniprogram-ci`) |
 
-All three authenticate to Azure / WeChat via OIDC or the upload key — no
-passwords. Backend + frontend run their test/build gates **before** deploying.
+Targets authenticate through Azure OIDC, the WeChat upload key, or a dedicated
+pinned SSH key for Lighthouse — no account passwords. Backend + frontend run
+their test/build gates **before** deploying.
 
 **Pre-merge gate.** Before any deploy, `ci-premerge.yml` runs independent backend and frontend validation on every PR to `main`. A red required context blocks merge, so regressions never reach deployment (see [environment.md](./environment.md) → Repo governance). `deploy-backend.yml` re-runs the backend suite post-merge as a deploy-time backstop.
 
@@ -40,11 +41,17 @@ Force a deploy without a code change: re-run the latest `deploy-backend.yml` run
 
 ## Frontend deploy
 
-Automatic on merge touching `web/`. Builds `web/dist/` with `VITE_API_URL` baked
-in, packages it with `frontend_server/`, deploys to `praxys-frontend`, then
-bakes `GITHUB_SHA` into the static-server package. `/healthz` returns that
-`deployed_sha`, so re-runs and `web-*` rollbacks report the commit actually
-serving production.
+Automatic on merge touching `web/`. The workflow builds `web/dist/` once with
+`VITE_API_URL` baked in, then fans the same artifact out to:
+
+- Azure `praxys-frontend`, packaged with `frontend_server/`.
+- Tencent Lighthouse when `TENCENT_LIGHTHOUSE_DEPLOY_ENABLED=true`, packaged as
+  static files and atomically activated under `/var/www/praxys/current`.
+
+Both deployments expose the same `deployed_sha`. The Tencent lane is disabled
+until the server bootstrap and pinned SSH configuration in
+[tencent-frontend.md](./tencent-frontend.md) are complete. A skipped Tencent
+lane never blocks the existing Azure deployment.
 
 ## Mini program
 
@@ -67,8 +74,8 @@ gh run watch "$(gh run list --workflow=deploy-backend.yml --limit 1 --json datab
 
 ## Rollback / Recovery
 
-There are **no deployment slots** on the B1 plan, so rollback = re-deploy a known
--good revision:
+There are **no deployment slots** on the B1 plan, so Azure rollback = re-deploy
+a known-good revision:
 
 1. **Revert the commit** on `main` (`git revert <sha> && git push`) — the deploy
    workflow re-runs and ships the reverted state. Safest for app bugs.
@@ -92,10 +99,14 @@ There are **no deployment slots** on the B1 plan, so rollback = re-deploy a know
 > Config-only revert (a bad App Service setting): fix the GitHub secret/variable
 > and re-deploy — don't hand-edit the portal (it's overwritten next deploy).
 
+Tencent rollback is independent: atomically repoint
+`/var/www/praxys/current` to one of the retained run-addressed releases. See
+[tencent-frontend.md](./tencent-frontend.md).
+
 ## Related
 
 - [config-and-secrets.md](./config-and-secrets.md) · [monitoring-and-alerts.md](./monitoring-and-alerts.md)
 - `docs/deployment.md` (one-time Azure setup) · `.github/workflows/`
 
 ---
-_Last reviewed: 2026-07-05 · Owner: @dddtc2005_
+_Last reviewed: 2026-08-07 · Owner: @dddtc2005_

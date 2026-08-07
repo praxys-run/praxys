@@ -136,13 +136,8 @@ function TrainingSkeleton() {
 }
 
 export default function Training() {
-  const { data, loading, error, refetch } = useApi<TrainingResponse>(
-    '/api/training',
-    {
-      refetchOnMount: 'always',
-      refetchOnWindowFocus: 'always',
-    },
-  );
+  const { data, loading, error, refetch } =
+    useApi<TrainingResponse>('/api/training');
   const { display } = useSettings();
   const { t } = useLingui();
   const location = useLocation();

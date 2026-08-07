@@ -86,6 +86,7 @@ The database (`data/trainsight.db`) is created automatically on first startup. N
 | App Service Plan | `plan-trainsight` | Linux B1, hosts both sites |
 | App Service (backend) | `trainsight-app` | FastAPI / API at `api.praxys.run` |
 | App Service (frontend) | `praxys-frontend` | Static SPA at `www.praxys.run` + apex |
+| Tencent Lighthouse (frontend) | Console-assigned | Optional mainland-China static SPA origin |
 | Key Vault | `kv-trainsight` | Per-user DEK wrapping master key |
 
 > **History:** prior versions of this doc referenced an `swa-trainsight` Static Web App. SWA was retired during F4 because Azure SWA Free routes to whichever region the global ASE picks (often Amsterdam), which added 200-300 ms of cold-load latency for CN users. Frontend now lives on a dedicated App Service site in East Asia next to the backend.
@@ -178,6 +179,18 @@ az webapp config appsettings set \
 ```
 
 The `frontend_server/` package (`main.py` + `requirements-frontend.txt`) is shipped by `.github/workflows/deploy-frontend-appservice.yml`.
+
+### 8b. Optional Tencent Lighthouse frontend
+
+The frontend workflow can deploy the same `web/dist` artifact to a
+mainland-China Lighthouse Nginx origin while Azure remains the international
+frontend. Lighthouse provisioning, SSH hardening, Nginx configuration, GitHub
+secrets, verification, and rollback are documented in
+[`docs/ops/tencent-frontend.md`](./ops/tencent-frontend.md).
+
+Leave `TENCENT_LIGHTHOUSE_DEPLOY_ENABLED` unset until that runbook's bootstrap
+and ICP prerequisites are complete. The API remains singular at
+`https://api.praxys.run`.
 
 ### 9. Custom domains + managed certs
 
