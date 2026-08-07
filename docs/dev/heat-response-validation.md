@@ -3,7 +3,8 @@
 Issue #523 adds a research-only, offline analysis of the private
 `activity-research-dataset-v1` export. It advances only the personal-response
 validation portion of #444. It does not change accepted science records,
-product behavior, API responses, or UI.
+product behavior, or UI. The export API adds only the owner-bound snapshot
+integrity field required to prevent mixed-revision page bundles.
 
 ## Boundary
 
@@ -18,41 +19,112 @@ required before API or UI productization.
 
 ## Input and privacy
 
-Export `GET /api/analysis/research-dataset` to a private local JSON file, then
-run:
+Export every `GET /api/analysis/research-dataset` page to private local JSON
+files. Production's maximum page size is 50, so fetch offsets `0, 50, 100, ...`
+until the next offset is greater than or equal to the first page's `total`.
+Keep the same `limit=50` and optional `source` filter for every request.
+If any page returns `409` with detail
+`ANALYSIS_EXPORT_SNAPSHOT_CHANGED_RESTART_EXPORT`, discard every saved page
+and restart **all pages** from offset zero; do not retry only the failed page.
+For example:
 
 ```powershell
-python scripts\validate_heat_response.py --input private-dataset.json
-python scripts\validate_heat_response.py --input private-dataset.json --format markdown
-python scripts\validate_heat_response.py --input private-dataset.json --format markdown --output heat-report.md
+$baseUrl = "https://<backend-host>"
+$headers = @{ Authorization = "Bearer <owner-token>" }
+$exportDir = Join-Path $env:USERPROFILE "praxys-private-heat-export"
+New-Item -ItemType Directory -Force $exportDir | Out-Null
+$limit = 50
+$offset = 0
+$snapshotId = $null
+$pageFiles = @()
+
+do {
+    $uri = "$baseUrl/api/analysis/research-dataset?limit=$limit&offset=$offset"
+    try {
+        $page = Invoke-RestMethod -Uri $uri -Headers $headers
+    } catch {
+        $statusCode = [int]$_.Exception.Response.StatusCode
+        if ($statusCode -eq 409) {
+            throw "Analysis data changed during page construction; discard all pages and restart from offset zero."
+        }
+        throw
+    }
+    if ($null -eq $snapshotId) {
+        $snapshotId = $page.export_snapshot_id
+    } elseif ($page.export_snapshot_id -cne $snapshotId) {
+        throw "Analysis data changed during export; discard all pages and restart from offset zero."
+    }
+    $pageFile = Join-Path $exportDir ("page-{0:D4}.json" -f $offset)
+    $page | ConvertTo-Json -Depth 100 | Set-Content -Encoding utf8 $pageFile
+    $pageFiles += $pageFile
+    $offset += $limit
+} while ($offset -lt $page.total)
+
+$cliArgs = @()
+foreach ($pageFile in $pageFiles) {
+    $cliArgs += @("--input", $pageFile)
+}
+python scripts\validate_heat_response.py @cliArgs
+python scripts\validate_heat_response.py @cliArgs --format markdown --output heat-report.md
 ```
 
-The script never fetches data. By default it writes only an aggregate report
-to stdout. `--output` is the only report-file write. The **input contains
-private activity IDs and dates** needed for duplicate detection and
-chronological partitioning. The **report excludes activity IDs, dates, and
-activity records**, and the CLI does not log raw records.
+For `total=182`, the required requests are exactly offsets `0`, `50`, `100`,
+and `150`; the final page contains 32 records. The script never fetches data.
+Repeated `--input` arguments create the bundle only in memory. It also accepts
+one prebuilt local bundle with this shape:
+
+```json
+{
+  "schema_version": "activity-research-dataset-bundle-v1",
+  "page_count": 4,
+  "total": 182,
+  "limit": 50,
+  "record_count": 182,
+  "offsets": [0, 50, 100, 150],
+  "pages": ["activity-research-dataset-v1 page objects"]
+}
+```
+
+Prefer repeated `--input` so no additional private combined file is created.
+Keep all raw page files and any prebuilt bundle private and outside the
+repository; **never commit raw production exports**. By default the CLI writes
+only an aggregate report to stdout. `--output` is the only report-file write.
+The input contains private activity IDs and dates needed for duplicate
+detection and chronological partitioning. The report excludes activity IDs,
+dates, and activity records, and the CLI does not log raw records.
 
 `dataset_hash` is required even for an empty export. Before analysis, the
-validator recomputes the API's canonical dataset-core hash over every
-top-level key except `dataset_hash` and `generated_at`, using JSON
-`sort_keys=True`, separators `(",", ":")`, `ensure_ascii=True`, and the
-`sha256:`-prefixed SHA-256 digest. Missing or stale hashes are rejected. A
-legitimate API response with `records=[]`, `total=0`, and
-`model_versions.heat_adaptation=[]` produces a normal privacy-safe withheld
-report with insufficiency gates rather than an input error.
+validator independently recomputes every page's API canonical dataset-core
+hash over every top-level key except `dataset_hash` and `generated_at`, using
+JSON `sort_keys=True`, separators `(",", ":")`, `ensure_ascii=True`, and the
+`sha256:`-prefixed SHA-256 digest. The required non-empty
+`export_snapshot_id` is inside that hashed core. Missing or stale page hashes
+and missing snapshot IDs are rejected. The aggregate report states that all
+page hashes were verified; it does not create or expose a new hash over the
+combined private raw records. A legitimate API response with `records=[]`,
+`total=0`, `model_versions.heat_adaptation=[]`, and a non-empty snapshot ID
+produces a normal privacy-safe withheld report with insufficiency gates rather
+than an input error.
 
 Pagination metadata is required. `total`, `limit`, and `offset` must be JSON
 integers; `total` and `offset` must be non-negative, and `limit` must match the
-API range of 1–50. The record count must equal
-`min(limit, max(total - offset, 0))`, so a truncated first page is rejected
-rather than analyzed as complete. Only exactly `offset=0` passes the first-page
-gate. A valid nonzero page is reported unavailable because it would omit the
-latest activities needed for the chronological holdout. The report states the
-analyzed page's counts and does not imply that it covers the athlete's complete
-history. Any pagination-valid page with zero records, including
-`offset >= total`, may carry an empty heat-adaptation version manifest and
-produces normal withheld gates rather than an input error.
+API range of 1–50. Each page's record count must equal
+`min(limit, max(total - offset, 0))`. A single page is a complete export only
+when `offset=0` and `total <= limit`; a valid first page with `total > limit`
+is accepted for diagnostics but the decision-required `complete_export` gate
+is unavailable, so it cannot become science-review eligible.
+
+A bundle is stricter: every page hash must verify; `export_snapshot_id`,
+`total`, `limit`, `source_filter`, `model_versions`, `semantics`, and `privacy`
+must agree exactly; offsets must be contiguous from zero; the manifest must
+match the pages; record counts must cover `total` exactly; and canonical
+`source + activity_id` identities may not repeat across pages. A snapshot
+mismatch means relevant analysis data or config changed during pagination, so
+the whole export must be restarted. Missing, overlapping, extra, stale,
+mixed-snapshot, or otherwise malformed bundles are rejected. Pages are
+combined by ascending API offset and records retain their order within each
+page. The complete-export gate reports only page count, total, record count,
+limit, offsets, and completeness.
 
 ## Eligible observations
 

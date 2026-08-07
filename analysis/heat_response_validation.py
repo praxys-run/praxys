@@ -1,13 +1,14 @@
 """Offline, research-only validation of personal heat-response observations.
 
-The module consumes ``activity-research-dataset-v1`` JSON decoded to a Python
-dictionary. It never loads athlete data, performs network I/O, or emits
-activity identifiers or dates in its report.
+The module consumes one ``activity-research-dataset-v1`` page or a complete
+``activity-research-dataset-bundle-v1`` decoded to a Python dictionary. It
+never loads athlete data, performs network I/O, or emits activity identifiers
+or dates in its report.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from collections import Counter
 from dataclasses import dataclass, replace
 from datetime import date, timedelta
@@ -20,6 +21,7 @@ import numpy as np
 
 
 INPUT_SCHEMA_VERSION = "activity-research-dataset-v1"
+BUNDLE_SCHEMA_VERSION = "activity-research-dataset-bundle-v1"
 REPORT_SCHEMA_VERSION = "heat-response-validation-report-v1"
 MODEL_VERSION = "within-athlete-ridge-mean-hr-v1"
 WET_BULB_METHOD = "stull_psychrometric"
@@ -61,13 +63,30 @@ _NO_ADAPTATION_EVIDENCE_STAGES = frozenset({
     "insufficient_evidence",
 })
 _BLOCKING_MODEL_GATES = frozenset({
-    "first_input_page",
+    "complete_export",
     "minimum_activities",
     "minimum_segments",
     "chronological_holdout",
     "environmental_spread",
 })
 _MAX_INPUT_PAGE_LIMIT = 50
+_EXPECTED_PRIVACY_CONTRACT = {
+    "precise_gps_included": False,
+    "credentials_included": False,
+    "raw_samples_included": False,
+}
+_EXPECTED_SEMANTICS_CONTRACT = {
+    "pre_activity_cutoff": (
+        "previous calendar day for load and heat; same-day "
+        "recovery may be selected because source rows are dated, "
+        "not timestamped"
+    ),
+    "critical_power_cutoff": (
+        "latest dated value strictly before activity date"
+    ),
+    "same_activity_leakage": False,
+    "stable_segment_priority": "samples_then_explicit_split_fallback",
+}
 
 
 class HeatValidationInputError(ValueError):
@@ -167,10 +186,24 @@ class _Flattened:
     recovery_observed_lag_days: tuple[int, ...]
     recovery_provenance_reason_counts: dict[str, int]
     adaptation_known_activity_count: int
-    input_total: int
-    input_limit: int
-    input_offset: int
-    first_input_page: bool
+    export_page_count: int
+    export_total: int
+    export_limit: int
+    export_record_count: int
+    export_offsets: tuple[int, ...]
+    export_complete: bool
+
+
+@dataclass(frozen=True)
+class _ExportCoverage:
+    input_schema_version: str
+    page_count: int
+    total: int
+    limit: int
+    record_count: int
+    offsets: tuple[int, ...]
+    complete: bool
+    verified_page_count: int
 
 
 @dataclass(frozen=True)
@@ -195,15 +228,23 @@ def validate_heat_response(
     """
     selected = config or HeatValidationConfig()
     _validate_config(selected)
-    _validate_dataset(dataset)
-    flattened = _flatten_dataset(dataset, selected)
+    combined_dataset, export = _prepare_dataset(dataset)
+    flattened = _flatten_dataset(
+        combined_dataset,
+        selected,
+        export=export,
+    )
     primary = _analyze_rows(
         flattened,
         selected,
         heat_representation="wet_bulb_c",
         include_bootstrap=True,
     )
-    sensitivities = _sensitivity_analyses(dataset, selected)
+    sensitivities = _sensitivity_analyses(
+        combined_dataset,
+        selected,
+        export=export,
+    )
     negative_control = _negative_control(
         selected,
         primary,
@@ -297,6 +338,8 @@ def validate_heat_response(
         ),
         "input_contract": {
             "schema_version": INPUT_SCHEMA_VERSION,
+            "bundle_schema_version": BUNDLE_SCHEMA_VERSION,
+            "received_schema_version": export.input_schema_version,
             "model_versions": {
                 "stable_segments": STABLE_SEGMENT_MODEL_VERSION,
                 "environment": ENVIRONMENT_MODEL_VERSION,
@@ -308,6 +351,14 @@ def validate_heat_response(
             "report_includes_activity_records": False,
             "report_includes_activity_ids": False,
             "report_includes_activity_dates": False,
+        },
+        "dataset_integrity": {
+            "all_page_hashes_verified": True,
+            "verified_page_count": export.verified_page_count,
+            "page_hash_contract": (
+                "API dataset_hash verified independently for every page"
+            ),
+            "combined_private_raw_data_hash_created": False,
         },
         "research_configuration": _configuration_report(selected),
         "methodology": {
@@ -390,6 +441,8 @@ def validate_heat_response(
 def render_heat_response_markdown(report: dict[str, Any]) -> str:
     """Render a validation report as privacy-safe research Markdown."""
     coverage = report["data_coverage"]
+    complete_export = report["gates"]["complete_export"]["observed"]
+    integrity = report["dataset_integrity"]
     recovery_coverage = coverage["recovery_readiness"]
     model = report["model"]
     recommendation = report["recommendation"]
@@ -411,6 +464,18 @@ def render_heat_response_markdown(report: dict[str, Any]) -> str:
         "",
         "## Data coverage",
         "",
+        (
+            "- Complete export: "
+            f"{_display(complete_export['complete'])}; "
+            f"{complete_export['page_count']} page(s), "
+            f"{complete_export['record_count']}/"
+            f"{complete_export['total']} records, offsets "
+            f"{_display(complete_export['offsets'])}"
+        ),
+        (
+            "- Dataset integrity: all "
+            f"{integrity['verified_page_count']} API page hash(es) verified"
+        ),
         f"- Input activities: {coverage['input_activity_count']}",
         f"- Input stable segments: {coverage['input_segment_count']}",
         f"- Eligible activities: {coverage['eligible_activity_count']}",
@@ -681,12 +746,220 @@ def _validate_config(config: HeatValidationConfig) -> None:
             raise ValueError(f"{name} must be a positive integer")
 
 
-def _validate_dataset(dataset: dict[str, Any]) -> None:
+def build_research_dataset_bundle(
+    pages: Sequence[dict[str, Any]],
+) -> dict[str, Any]:
+    """Build a local bundle manifest from private API dataset pages."""
+    if not pages:
+        raise HeatValidationInputError(
+            "A research dataset bundle requires at least one page"
+        )
+    validated_pages = list(pages)
+    for page in validated_pages:
+        _validate_dataset_page(page)
+    ordered_pages = sorted(
+        validated_pages,
+        key=lambda page: page["offset"],
+    )
+    first = ordered_pages[0]
+    return {
+        "schema_version": BUNDLE_SCHEMA_VERSION,
+        "page_count": len(ordered_pages),
+        "total": first["total"],
+        "limit": first["limit"],
+        "record_count": sum(
+            len(page["records"]) for page in ordered_pages
+        ),
+        "offsets": [page["offset"] for page in ordered_pages],
+        "pages": ordered_pages,
+    }
+
+
+def _prepare_dataset(
+    dataset: dict[str, Any],
+) -> tuple[dict[str, Any], _ExportCoverage]:
     if not isinstance(dataset, dict):
         raise HeatValidationInputError("Input must be one decoded JSON object")
+    schema_version = dataset.get("schema_version")
+    if schema_version == INPUT_SCHEMA_VERSION:
+        _validate_dataset_page(dataset)
+        complete = (
+            dataset["offset"] == 0
+            and dataset["total"] <= dataset["limit"]
+            and len(dataset["records"]) == dataset["total"]
+        )
+        return dataset, _ExportCoverage(
+            input_schema_version=INPUT_SCHEMA_VERSION,
+            page_count=1,
+            total=dataset["total"],
+            limit=dataset["limit"],
+            record_count=len(dataset["records"]),
+            offsets=(dataset["offset"],),
+            complete=complete,
+            verified_page_count=1,
+        )
+    if schema_version == BUNDLE_SCHEMA_VERSION:
+        return _prepare_bundle(dataset)
+    raise HeatValidationInputError(
+        f"Input schema must be {INPUT_SCHEMA_VERSION} or "
+        f"{BUNDLE_SCHEMA_VERSION}"
+    )
+
+
+def _prepare_bundle(
+    bundle: dict[str, Any],
+) -> tuple[dict[str, Any], _ExportCoverage]:
+    pages = bundle.get("pages")
+    if not isinstance(pages, list) or not pages:
+        raise HeatValidationInputError(
+            "Input bundle pages must be a non-empty JSON array"
+        )
+    for page in pages:
+        _validate_dataset_page(page)
+    ordered_pages = sorted(pages, key=lambda page: page["offset"])
+    first = ordered_pages[0]
+
+    for field in (
+        "total",
+        "limit",
+        "export_snapshot_id",
+        "source_filter",
+        "model_versions",
+        "semantics",
+        "privacy",
+    ):
+        if any(page.get(field) != first.get(field) for page in ordered_pages):
+            raise HeatValidationInputError(
+                f"Input bundle pages must have identical {field}"
+            )
+
+    manifest_integers: dict[str, int] = {}
+    for name in ("page_count", "total", "limit", "record_count"):
+        value = bundle.get(name)
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise HeatValidationInputError(
+                f"Input bundle manifest {name} must be an integer"
+            )
+        manifest_integers[name] = value
+    total = first["total"]
+    limit = first["limit"]
+    if manifest_integers["total"] != total:
+        raise HeatValidationInputError(
+            "Input bundle manifest total does not match page total"
+        )
+    if manifest_integers["limit"] != limit:
+        raise HeatValidationInputError(
+            "Input bundle manifest limit does not match page limit"
+        )
+    if manifest_integers["page_count"] != len(ordered_pages):
+        raise HeatValidationInputError(
+            "Input bundle manifest page_count does not match pages"
+        )
+
+    expected_offsets = (
+        tuple(range(0, total, limit))
+        if total > 0
+        else (0,)
+    )
+    actual_offsets = tuple(page["offset"] for page in ordered_pages)
+    expected_page_count = len(expected_offsets)
+    if len(ordered_pages) != expected_page_count:
+        raise HeatValidationInputError(
+            "Input bundle is incomplete: "
+            f"expected {expected_page_count} pages, "
+            f"got {len(ordered_pages)}"
+        )
+    if actual_offsets != expected_offsets:
+        raise HeatValidationInputError(
+            "Input bundle page offsets must be contiguous from zero "
+            f"with limit {limit}"
+        )
+    manifest_offsets = bundle.get("offsets")
+    if (
+        not isinstance(manifest_offsets, list)
+        or any(
+            isinstance(value, bool) or not isinstance(value, int)
+            for value in manifest_offsets
+        )
+    ):
+        raise HeatValidationInputError(
+            "Input bundle manifest offsets must be an integer array"
+        )
+    if tuple(manifest_offsets) != actual_offsets:
+        raise HeatValidationInputError(
+            "Input bundle manifest offsets do not match page offsets"
+        )
+
+    record_count = sum(len(page["records"]) for page in ordered_pages)
+    if manifest_integers["record_count"] != record_count:
+        raise HeatValidationInputError(
+            "Input bundle manifest record_count does not match pages"
+        )
+    if record_count != total:
+        raise HeatValidationInputError(
+            "Input bundle is incomplete: record count does not cover total"
+        )
+
+    seen_across_pages: dict[str, int] = {}
+    combined_records: list[Any] = []
+    for page in ordered_pages:
+        for record in page["records"]:
+            identity = _canonical_record_identity(record)
+            if (
+                identity is not None
+                and identity in seen_across_pages
+                and seen_across_pages[identity] != page["offset"]
+            ):
+                raise HeatValidationInputError(
+                    "Input bundle contains a duplicate canonical activity "
+                    "across pages"
+                )
+            if identity is not None:
+                seen_across_pages[identity] = page["offset"]
+            combined_records.append(record)
+
+    combined = {
+        key: value
+        for key, value in first.items()
+        if key not in {"dataset_hash", "generated_at"}
+    }
+    combined["records"] = combined_records
+    combined["total"] = total
+    combined["limit"] = limit
+    combined["offset"] = 0
+    return combined, _ExportCoverage(
+        input_schema_version=BUNDLE_SCHEMA_VERSION,
+        page_count=len(ordered_pages),
+        total=total,
+        limit=limit,
+        record_count=record_count,
+        offsets=actual_offsets,
+        complete=True,
+        verified_page_count=len(ordered_pages),
+    )
+
+
+def _canonical_record_identity(record: Any) -> str | None:
+    if not isinstance(record, dict):
+        return None
+    activity = record.get("activity")
+    if not isinstance(activity, dict):
+        return None
+    source = _text(activity.get("source"))
+    activity_id = _text(activity.get("activity_id"))
+    if source is None or activity_id is None:
+        return None
+    return f"{source.casefold()}|{activity_id}"
+
+
+def _validate_dataset_page(dataset: dict[str, Any]) -> None:
+    if not isinstance(dataset, dict):
+        raise HeatValidationInputError(
+            "Each input dataset page must be a JSON object"
+        )
     if dataset.get("schema_version") != INPUT_SCHEMA_VERSION:
         raise HeatValidationInputError(
-            f"Input schema must be {INPUT_SCHEMA_VERSION}"
+            f"Each bundle page schema must be {INPUT_SCHEMA_VERSION}"
         )
     records = dataset.get("records")
     if not isinstance(records, list):
@@ -751,6 +1024,29 @@ def _validate_dataset(dataset: dict[str, Any]) -> None:
         raise HeatValidationInputError(
             "Input heat-adaptation model version is unsupported"
         )
+    source_filter = dataset.get("source_filter")
+    if source_filter is not None and (
+        not isinstance(source_filter, str) or not source_filter.strip()
+    ):
+        raise HeatValidationInputError(
+            "Input source_filter must be a non-empty string or null"
+        )
+    if dataset.get("semantics") != _EXPECTED_SEMANTICS_CONTRACT:
+        raise HeatValidationInputError(
+            "Input semantics contract is unsupported"
+        )
+    if dataset.get("privacy") != _EXPECTED_PRIVACY_CONTRACT:
+        raise HeatValidationInputError(
+            "Input privacy contract is unsupported"
+        )
+    export_snapshot_id = dataset.get("export_snapshot_id")
+    if (
+        not isinstance(export_snapshot_id, str)
+        or not export_snapshot_id.strip()
+    ):
+        raise HeatValidationInputError(
+            "Input export_snapshot_id is required"
+        )
     _validate_dataset_hash(dataset)
 
 
@@ -792,6 +1088,7 @@ def _flatten_dataset(
     dataset: dict[str, Any],
     config: HeatValidationConfig,
     *,
+    export: _ExportCoverage,
     critical_power_multiplier: float = 1.0,
 ) -> _Flattened:
     rows: list[_SegmentRow] = []
@@ -1031,7 +1328,6 @@ def _flatten_dataset(
             ))
             eligible_activity_keys.add(activity_key)
 
-    first_input_page = dataset["offset"] == 0
     eligible_recovery_lags = tuple(sorted(
         recovery_lag_by_key[key]
         for key in eligible_activity_keys
@@ -1059,10 +1355,12 @@ def _flatten_dataset(
         adaptation_known_activity_count=len(
             adaptation_known_keys & eligible_activity_keys
         ),
-        input_total=dataset["total"],
-        input_limit=dataset["limit"],
-        input_offset=dataset["offset"],
-        first_input_page=first_input_page,
+        export_page_count=export.page_count,
+        export_total=export.total,
+        export_limit=export.limit,
+        export_record_count=export.record_count,
+        export_offsets=export.offsets,
+        export_complete=export.complete,
     )
 
 
@@ -1254,17 +1552,22 @@ def _analyze_rows(
     initial_overlap = initial_train_keys & initial_test_keys
 
     gates = {
-        "first_input_page": _gate(
-            flattened.first_input_page,
+        "complete_export": _gate(
+            flattened.export_complete,
             observed={
-                "total": flattened.input_total,
-                "limit": flattened.input_limit,
-                "offset": flattened.input_offset,
-                "record_count": flattened.input_record_count,
-                "page_complete": True,
+                "page_count": flattened.export_page_count,
+                "total": flattened.export_total,
+                "limit": flattened.export_limit,
+                "record_count": flattened.export_record_count,
+                "offsets": list(flattened.export_offsets),
+                "complete": flattened.export_complete,
             },
-            estimate={"required_offset": 0},
-            reason_code="nonzero_offset_dataset_page",
+            estimate={
+                "required_first_offset": 0,
+                "required_record_count": flattened.export_total,
+                "required_full_history_coverage": True,
+            },
+            reason_code="activity_research_export_incomplete",
             decision_required=True,
         ),
         "minimum_activities": _gate(
@@ -2426,6 +2729,8 @@ def _exploratory_adaptation_analysis(
 def _sensitivity_analyses(
     dataset: dict[str, Any],
     config: HeatValidationConfig,
+    *,
+    export: _ExportCoverage,
 ) -> list[dict[str, Any]]:
     variants: tuple[
         tuple[str, HeatValidationConfig, str, dict[str, Any]],
@@ -2486,7 +2791,11 @@ def _sensitivity_analyses(
     )
     output: list[dict[str, Any]] = []
     for name, variant_config, representation, changes in variants:
-        flattened = _flatten_dataset(dataset, variant_config)
+        flattened = _flatten_dataset(
+            dataset,
+            variant_config,
+            export=export,
+        )
         result = _analyze_rows(
             flattened,
             variant_config,
@@ -2542,6 +2851,7 @@ def _sensitivity_analyses(
         flattened = _flatten_dataset(
             dataset,
             config,
+            export=export,
             critical_power_multiplier=multiplier,
         )
         result = _analyze_rows(

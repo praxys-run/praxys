@@ -1,9 +1,9 @@
 """Run the private heat-response validation pipeline without fetching data.
 
-The input must be a local JSON export using
-``activity-research-dataset-v1``. By default the aggregate report is written
-to stdout; no athlete data or report file is written unless ``--output`` is
-explicitly supplied.
+Inputs may be repeated local ``activity-research-dataset-v1`` page exports or
+one prebuilt ``activity-research-dataset-bundle-v1`` file. By default the
+aggregate report is written to stdout; no athlete data or report file is
+written unless ``--output`` is explicitly supplied.
 """
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ if str(ROOT) not in sys.path:
 
 from analysis.heat_response_validation import (  # noqa: E402
     HeatValidationInputError,
+    build_research_dataset_bundle,
     render_heat_response_markdown,
     validate_heat_response,
 )
@@ -32,8 +33,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--input",
         required=True,
+        action="append",
         type=Path,
-        help="Private activity-research-dataset-v1 JSON file.",
+        help=(
+            "Private dataset page JSON file; repeat for every API page, "
+            "or supply one prebuilt bundle JSON file."
+        ),
     )
     parser.add_argument(
         "--format",
@@ -50,11 +55,18 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Validate one local dataset and emit only the aggregate report."""
+    """Validate local dataset pages or one bundle and emit an aggregate."""
     args = build_parser().parse_args(argv)
     try:
-        with args.input.open("r", encoding="utf-8") as handle:
-            dataset = json.load(handle)
+        payloads = []
+        for input_path in args.input:
+            with input_path.open("r", encoding="utf-8-sig") as handle:
+                payloads.append(json.load(handle))
+        dataset = (
+            payloads[0]
+            if len(payloads) == 1
+            else build_research_dataset_bundle(payloads)
+        )
         report = validate_heat_response(dataset)
     except OSError:
         print("error: unable to read the input file", file=sys.stderr)

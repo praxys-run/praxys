@@ -7,7 +7,13 @@ from analysis.metrics import (
     ACTIVITY_RESEARCH_SCHEMA_VERSION,
 )
 from api.auth import get_current_user_id
-from api.etag import ENDPOINT_SCOPES, ETagGuard, compute_etag
+from api.etag import (
+    ENDPOINT_SCOPES,
+    ETagGuard,
+    compute_etag,
+    compute_revision_token,
+    compute_variant_etag,
+)
 from api.packs import (
     RequestContext,
     get_activity_analysis_pack,
@@ -17,6 +23,10 @@ from api.packs import (
 from db.session import get_db
 
 router = APIRouter()
+
+ANALYSIS_EXPORT_SNAPSHOT_CHANGED = (
+    "ANALYSIS_EXPORT_SNAPSHOT_CHANGED_RESTART_EXPORT"
+)
 
 
 @router.get("/analysis/activities/{activity_id}")
@@ -66,24 +76,41 @@ def get_activity_research_dataset(
     db: Session = Depends(get_db),
 ):
     """Return a bounded, versioned owner-only retrospective research dataset."""
-    etag = compute_etag(
+    response_version = get_analysis_response_version(
+        ACTIVITY_RESEARCH_SCHEMA_VERSION
+    )
+    snapshot_salt = f"analysis-export&v={response_version}"
+    export_snapshot_id = compute_revision_token(
         db,
         user_id,
         ENDPOINT_SCOPES["analysis"],
-        salt=(
-            "v="
-            f"{get_analysis_response_version(ACTIVITY_RESEARCH_SCHEMA_VERSION)}"
-            f"&limit={limit}&offset={offset}&source={source or ''}"
-        ),
+        salt=snapshot_salt,
+    )
+    etag = compute_variant_etag(
+        export_snapshot_id,
+        salt=f"limit={limit}&offset={offset}&source={source or ''}",
     )
     guard = ETagGuard(etag, request.headers.get("if-none-match"))
     if guard.is_match:
         return guard.not_modified()
-    guard.apply(response)
     ctx = RequestContext(user_id=user_id, db=db)
-    return get_activity_research_pack(
+    payload = get_activity_research_pack(
         ctx,
+        export_snapshot_id=export_snapshot_id,
         limit=limit,
         offset=offset,
         source=source,
     )
+    final_snapshot_id = compute_revision_token(
+        db,
+        user_id,
+        ENDPOINT_SCOPES["analysis"],
+        salt=snapshot_salt,
+    )
+    if final_snapshot_id != export_snapshot_id:
+        raise HTTPException(
+            status_code=409,
+            detail=ANALYSIS_EXPORT_SNAPSHOT_CHANGED,
+        )
+    guard.apply(response)
+    return payload

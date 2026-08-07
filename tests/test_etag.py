@@ -177,6 +177,68 @@ def test_bump_revisions_changes_etag(etag_client):
         db.close()
 
 
+def test_revision_token_is_owner_bound_and_supports_page_etags(etag_client):
+    """Snapshot tokens bind owner/revisions while page ETags bind variants."""
+    from api.etag import (
+        ENDPOINT_SCOPES,
+        compute_revision_token,
+        compute_variant_etag,
+    )
+    from db import session as db_session
+    from db.cache_revision import bump_revisions
+
+    _, user_id = etag_client
+    db = db_session.SessionLocal()
+    try:
+        snapshot = compute_revision_token(
+            db,
+            user_id,
+            ENDPOINT_SCOPES["analysis"],
+            salt="analysis-export",
+        )
+        assert snapshot == compute_revision_token(
+            db,
+            user_id,
+            ENDPOINT_SCOPES["analysis"],
+            salt="analysis-export",
+        )
+        assert snapshot != compute_revision_token(
+            db,
+            "different-owner",
+            ENDPOINT_SCOPES["analysis"],
+            salt="analysis-export",
+        )
+        assert compute_variant_etag(
+            snapshot,
+            salt="limit=20&offset=0",
+        ) != compute_variant_etag(
+            snapshot,
+            salt="limit=20&offset=20",
+        )
+
+        assert ENDPOINT_SCOPES["analysis"] == (
+            "activities",
+            "splits",
+            "samples",
+            "recovery",
+            "fitness",
+            "config",
+        )
+        for scope in ENDPOINT_SCOPES["analysis"]:
+            before = snapshot
+            bump_revisions(db, user_id, [scope])
+            db.commit()
+            snapshot = compute_revision_token(
+                db,
+                user_id,
+                ENDPOINT_SCOPES["analysis"],
+                salt="analysis-export",
+            )
+            assert snapshot != before
+    finally:
+        db.close()
+
+
 def test_scope_isolation_history_vs_goal(etag_client):
     """History reads activities/splits/config — a goal-only edit (config) DOES
     bust both, but a plans-only bump must not bust History.

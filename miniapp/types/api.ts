@@ -1319,6 +1319,7 @@ export interface ActivityAnalysisResponse extends ActivityAnalysisRecord {
 
 export interface ActivityResearchDatasetResponse {
   schema_version: string;
+  export_snapshot_id: string;
   model_versions: Record<string, string | string[]>;
   records: ActivityAnalysisRecord[];
   total: number;

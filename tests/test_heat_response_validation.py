@@ -13,6 +13,7 @@ from analysis import heat_response_validation as heat_validation
 from analysis.heat_response_validation import (
     HeatValidationConfig,
     HeatValidationInputError,
+    build_research_dataset_bundle,
     validate_heat_response,
 )
 
@@ -210,6 +211,7 @@ def synthetic_research_dataset(
         })
     dataset = {
         "schema_version": "activity-research-dataset-v1",
+        "export_snapshot_id": "rev1:" + ("a" * 32),
         "model_versions": {
             "stable_segments": "stable-power-segments-v3",
             "environment": "environmental-performance-context-v1",
@@ -222,6 +224,20 @@ def synthetic_research_dataset(
         "total": len(records),
         "limit": max(1, len(records)),
         "offset": 0,
+        "source_filter": "stryd",
+        "semantics": {
+            "pre_activity_cutoff": (
+                "previous calendar day for load and heat; same-day "
+                "recovery may be selected because source rows are dated, "
+                "not timestamped"
+            ),
+            "critical_power_cutoff": (
+                "latest dated value strictly before activity date"
+            ),
+            "same_activity_leakage": False,
+            "stable_segment_priority":
+                "samples_then_explicit_split_fallback",
+        },
         "privacy": {
             "precise_gps_included": False,
             "credentials_included": False,
@@ -230,6 +246,39 @@ def synthetic_research_dataset(
         "generated_at": "2026-02-01T00:00:00Z",
     }
     return _refresh_dataset_hash(dataset)
+
+
+def synthetic_research_bundle(
+    *,
+    activity_count: int = 182,
+    limit: int = 50,
+) -> dict:
+    """Build a complete multi-page bundle in API ordering."""
+    complete = synthetic_research_dataset(
+        activity_count=activity_count,
+    )
+    api_ordered_records = list(reversed(complete["records"]))
+    offsets = list(range(0, activity_count, limit)) or [0]
+    pages = []
+    for offset in offsets:
+        page = deepcopy(complete)
+        page["records"] = api_ordered_records[offset : offset + limit]
+        page["total"] = activity_count
+        page["limit"] = limit
+        page["offset"] = offset
+        pages.append(_refresh_dataset_hash(page))
+    return build_research_dataset_bundle(pages)
+
+
+def _refresh_bundle_manifest(bundle: dict) -> dict:
+    pages = sorted(bundle["pages"], key=lambda page: page["offset"])
+    bundle["pages"] = pages
+    bundle["page_count"] = len(pages)
+    bundle["record_count"] = sum(
+        len(page["records"]) for page in pages
+    )
+    bundle["offsets"] = [page["offset"] for page in pages]
+    return bundle
 
 
 def test_recovers_reviewable_heat_signal_with_activity_holdout() -> None:
@@ -1004,6 +1053,178 @@ def test_stale_dataset_hash_is_rejected() -> None:
         validate_heat_response(dataset, TEST_CONFIG)
 
 
+def test_complete_four_page_history_is_science_review_eligible_input() -> None:
+    bundle = synthetic_research_bundle()
+
+    report = validate_heat_response(bundle, TEST_CONFIG)
+
+    gate = report["gates"]["complete_export"]
+    assert gate["status"] == "pass"
+    assert gate["decision_required"] is True
+    assert gate["observed"] == {
+        "page_count": 4,
+        "total": 182,
+        "limit": 50,
+        "record_count": 182,
+        "offsets": [0, 50, 100, 150],
+        "complete": True,
+    }
+    assert report["data_coverage"]["input_activity_count"] == 182
+    assert report["dataset_integrity"] == {
+        "all_page_hashes_verified": True,
+        "verified_page_count": 4,
+        "page_hash_contract": (
+            "API dataset_hash verified independently for every page"
+        ),
+        "combined_private_raw_data_hash_created": False,
+    }
+
+
+def test_bundle_missing_middle_page_is_rejected() -> None:
+    bundle = synthetic_research_bundle()
+    bundle["pages"].pop(1)
+    _refresh_bundle_manifest(bundle)
+
+    with pytest.raises(
+        HeatValidationInputError,
+        match="bundle is incomplete: expected 4 pages, got 3",
+    ):
+        validate_heat_response(bundle, TEST_CONFIG)
+
+
+def test_bundle_overlapping_offset_is_rejected() -> None:
+    bundle = synthetic_research_bundle()
+    bundle["pages"][2]["offset"] = 50
+    _refresh_dataset_hash(bundle["pages"][2])
+    _refresh_bundle_manifest(bundle)
+
+    with pytest.raises(
+        HeatValidationInputError,
+        match="page offsets must be contiguous from zero",
+    ):
+        validate_heat_response(bundle, TEST_CONFIG)
+
+
+def test_bundle_total_manifest_mismatch_is_rejected() -> None:
+    bundle = synthetic_research_bundle()
+    bundle["total"] += 1
+
+    with pytest.raises(
+        HeatValidationInputError,
+        match="manifest total does not match page total",
+    ):
+        validate_heat_response(bundle, TEST_CONFIG)
+
+
+def test_bundle_duplicate_activity_across_pages_is_rejected() -> None:
+    bundle = synthetic_research_bundle()
+    bundle["pages"][1]["records"][0] = deepcopy(
+        bundle["pages"][0]["records"][0]
+    )
+    _refresh_dataset_hash(bundle["pages"][1])
+
+    with pytest.raises(
+        HeatValidationInputError,
+        match="duplicate canonical activity across pages",
+    ):
+        validate_heat_response(bundle, TEST_CONFIG)
+
+
+def test_bundle_rejects_per_page_hash_mismatch() -> None:
+    bundle = synthetic_research_bundle()
+    bundle["pages"][2]["records"][0]["activity"]["distance_km"] += 1.0
+
+    with pytest.raises(
+        HeatValidationInputError,
+        match="dataset_hash does not match",
+    ):
+        validate_heat_response(bundle, TEST_CONFIG)
+
+
+def test_bundle_rejects_mixed_export_snapshots() -> None:
+    bundle = synthetic_research_bundle()
+    bundle["pages"][2]["export_snapshot_id"] = "rev1:" + ("b" * 32)
+    _refresh_dataset_hash(bundle["pages"][2])
+
+    with pytest.raises(
+        HeatValidationInputError,
+        match="pages must have identical export_snapshot_id",
+    ):
+        validate_heat_response(bundle, TEST_CONFIG)
+
+
+@pytest.mark.parametrize("activity_count", [0, 20])
+def test_snapshot_id_is_required_for_every_page(
+    activity_count: int,
+) -> None:
+    dataset = synthetic_research_dataset(activity_count=activity_count)
+    dataset.pop("export_snapshot_id")
+
+    with pytest.raises(
+        HeatValidationInputError,
+        match="export_snapshot_id is required",
+    ):
+        _validate_modified_synthetic(dataset)
+
+
+def test_page_hash_covers_export_snapshot_id() -> None:
+    dataset = synthetic_research_dataset()
+    dataset["export_snapshot_id"] = "rev1:" + ("b" * 32)
+
+    with pytest.raises(
+        HeatValidationInputError,
+        match="dataset_hash does not match",
+    ):
+        validate_heat_response(dataset, TEST_CONFIG)
+
+
+def test_single_first_page_of_larger_history_is_withheld() -> None:
+    dataset = synthetic_research_dataset(activity_count=60)
+    dataset["records"] = list(reversed(dataset["records"]))[:50]
+    dataset["total"] = 60
+    dataset["limit"] = 50
+    dataset["offset"] = 0
+
+    report = _validate_modified_synthetic(dataset)
+
+    gate = report["gates"]["complete_export"]
+    assert gate["status"] == "unavailable"
+    assert gate["decision_required"] is True
+    assert gate["observed"] == {
+        "page_count": 1,
+        "total": 60,
+        "limit": 50,
+        "record_count": 50,
+        "offsets": [0],
+        "complete": False,
+    }
+    assert report["model"]["status"] == "unavailable"
+    assert report["recommendation"]["value"] == (
+        "withhold_personal_estimate"
+    )
+
+
+def test_bundle_report_is_deterministic_private_and_id_independent() -> None:
+    bundle = synthetic_research_bundle(activity_count=32, limit=10)
+    renamed = deepcopy(bundle)
+    for page in renamed["pages"]:
+        for index, record in enumerate(page["records"]):
+            record["activity"]["activity_id"] = (
+                f"renamed-private-{page['offset']}-{index}"
+            )
+        _refresh_dataset_hash(page)
+    renamed["pages"].reverse()
+
+    original_report = validate_heat_response(bundle, TEST_CONFIG)
+    renamed_report = validate_heat_response(renamed, TEST_CONFIG)
+
+    assert renamed_report == original_report
+    serialized = repr(original_report)
+    assert "synthetic-private-" not in serialized
+    assert "renamed-private-" not in serialized
+    assert "2026-01-" not in serialized
+
+
 @pytest.mark.parametrize("offset", [None, 0.0, True, "0"])
 def test_pagination_offset_must_be_an_integer(offset: object) -> None:
     dataset = synthetic_research_dataset()
@@ -1019,14 +1240,14 @@ def test_pagination_offset_must_be_an_integer(offset: object) -> None:
         _validate_modified_synthetic(dataset)
 
 
-def test_nonzero_offset_withholds_as_not_first_page() -> None:
+def test_nonzero_offset_withholds_as_incomplete_export() -> None:
     dataset = synthetic_research_dataset()
     dataset["offset"] = 1
     dataset["records"] = dataset["records"][1:]
 
     report = _validate_modified_synthetic(dataset)
 
-    assert report["gates"]["first_input_page"]["status"] == "unavailable"
+    assert report["gates"]["complete_export"]["status"] == "unavailable"
     assert report["recommendation"]["value"] == (
         "withhold_personal_estimate"
     )
@@ -1043,7 +1264,7 @@ def test_empty_page_accepts_empty_heat_adaptation_manifest(
 
     report = _validate_modified_synthetic(dataset)
 
-    assert report["gates"]["first_input_page"]["status"] == "unavailable"
+    assert report["gates"]["complete_export"]["status"] == "unavailable"
     assert report["gates"]["minimum_activities"]["status"] == "unavailable"
     assert report["model"]["status"] == "unavailable"
     assert report["recommendation"]["value"] == (
@@ -1283,8 +1504,8 @@ def test_unavailable_permissive_sensitivity_is_counted(
 ) -> None:
     original = heat_validation._sensitivity_analyses
 
-    def unavailable_wider_band(dataset, config):
-        items = original(dataset, config)
+    def unavailable_wider_band(dataset, config, *, export):
+        items = original(dataset, config, export=export)
         wider = next(
             item for item in items
             if item["name"] == "wider_power_band"

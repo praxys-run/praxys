@@ -7,7 +7,10 @@ import json
 from pathlib import Path
 
 from scripts import validate_heat_response as script
-from tests.test_heat_response_validation import synthetic_research_dataset
+from tests.test_heat_response_validation import (
+    synthetic_research_bundle,
+    synthetic_research_dataset,
+)
 
 
 def _mock_input(
@@ -23,6 +26,26 @@ def _mock_input(
     ) -> io.StringIO:
         del self, mode, encoding
         return io.StringIO(encoded)
+
+    monkeypatch.setattr(Path, "open", fake_open)
+
+
+def _mock_inputs(
+    monkeypatch,
+    payloads: dict[str, dict],
+) -> None:
+    encoded = {
+        path: json.dumps(payload)
+        for path, payload in payloads.items()
+    }
+
+    def fake_open(
+        self: Path,
+        mode: str = "r",
+        encoding: str | None = None,
+    ) -> io.StringIO:
+        del mode, encoding
+        return io.StringIO(encoded[str(self)])
 
     monkeypatch.setattr(Path, "open", fake_open)
 
@@ -118,3 +141,54 @@ def test_cli_writes_only_when_output_is_explicit(
     assert "# Heat-response validation report" in (
         writes["aggregate-report.md"]
     )
+
+
+def test_cli_repeated_inputs_create_complete_bundle_in_memory(
+    monkeypatch,
+    capsys,
+) -> None:
+    bundle = synthetic_research_bundle(activity_count=6, limit=2)
+    inputs = {
+        f"private-page-{index}.json": page
+        for index, page in enumerate(bundle["pages"])
+    }
+    _mock_inputs(monkeypatch, inputs)
+    arguments = ["--format", "json"]
+    for path in inputs:
+        arguments.extend(["--input", path])
+
+    assert script.main(arguments) == 0
+
+    report = json.loads(capsys.readouterr().out)
+    complete = report["gates"]["complete_export"]
+    assert complete["status"] == "pass"
+    assert complete["observed"] == {
+        "page_count": 3,
+        "total": 6,
+        "limit": 2,
+        "record_count": 6,
+        "offsets": [0, 2, 4],
+        "complete": True,
+    }
+    assert report["dataset_integrity"]["verified_page_count"] == 3
+
+
+def test_cli_accepts_one_prebuilt_bundle_file(
+    monkeypatch,
+    capsys,
+) -> None:
+    bundle = synthetic_research_bundle(activity_count=0, limit=50)
+    _mock_input(monkeypatch, bundle)
+
+    assert script.main([
+        "--input",
+        "private-bundle.json",
+        "--format",
+        "json",
+    ]) == 0
+
+    report = json.loads(capsys.readouterr().out)
+    assert report["input_contract"]["received_schema_version"] == (
+        "activity-research-dataset-bundle-v1"
+    )
+    assert report["gates"]["complete_export"]["status"] == "pass"
