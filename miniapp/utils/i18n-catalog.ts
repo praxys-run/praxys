@@ -2768,7 +2768,7 @@ export const I18N_CATALOG: Record<Locale, Record<string, string>> = {
     "You've sent several reports recently — please wait a few minutes before sending more.": "你最近已提交多条反馈——请过几分钟再提交。",
     "you@example.com": "you@example.com",
     "Your account is active. You can now sign in.": "账号已激活，现在可以登录了。",
-    "Your data export is downloading.": "正在下载数据导出文件。",
+    "Your data export is downloading.": "数据导出文件正在下载。",
     "Your export is a portable snapshot of the data stored in Praxys.": "数据导出文件是 Praxys 中所存数据的便携式快照。",
     "Your external planner remains in control.": "计划仍由外部工具管理。",
     "Your Garmin account has multi-factor authentication enabled. Enter the verification code Garmin sent you to finish connecting.": "你的 Garmin 账号已启用多重验证。输入 Garmin 发送的验证码，完成连接。",

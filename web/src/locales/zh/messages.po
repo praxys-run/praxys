@@ -7700,7 +7700,7 @@ msgstr "账号已激活，现在可以登录了。"
 
 #: src/pages/Settings.tsx:639
 msgid "Your data export is downloading."
-msgstr "正在下载数据导出文件。"
+msgstr "数据导出文件正在下载。"
 
 #: src/pages/Settings.tsx:1558
 msgid "Your export is a portable snapshot of the data stored in Praxys."
@@ -7730,10 +7730,12 @@ msgstr "Praxys 邀请"
 #. placeholder {0}: result.code
 #. placeholder {1}: result.invite_url
 #: src/pages/admin/AdminUsers.tsx:830
-msgid "Your Praxys invitation code: {0}\n"
+msgid ""
+"Your Praxys invitation code: {0}\n"
 "\n"
 "Finish registering here: {1}"
-msgstr "Praxys 邀请码：{0}\n"
+msgstr ""
+"Praxys 邀请码：{0}\n"
 "\n"
 "注册链接：{1}"
 
