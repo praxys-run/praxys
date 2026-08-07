@@ -3,7 +3,7 @@ name: CI failure doctor
 description: Diagnoses failed PR validation runs and posts one evidence-backed comment without changing code
 on:
   workflow_run:
-    workflows: ["Backend CI", "Miniapp build", "i18n — extract + translate zh"]
+    workflows: ["Pre-merge CI", "Miniapp build", "i18n — extract + translate zh"]
     types: [completed]
     branches:
       - "**"
@@ -21,7 +21,6 @@ concurrency:
 permissions:
   actions: read
   checks: read
-  copilot-requests: write
   contents: read
   issues: read
   pull-requests: read

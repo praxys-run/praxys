@@ -155,7 +155,7 @@ def test_harness_is_wired_into_agents_and_required_ci():
     claude_settings = json.loads(
         (ROOT / ".claude" / "settings.json").read_text(encoding="utf-8")
     )
-    workflow = (ROOT / ".github" / "workflows" / "ci-backend.yml").read_text(
+    workflow = (ROOT / ".github" / "workflows" / "ci-premerge.yml").read_text(
         encoding="utf-8"
     )
     instructions = (
@@ -177,10 +177,11 @@ def test_harness_is_wired_into_agents_and_required_ci():
     }
     assert "ui-quality:" in workflow
     assert "frontend-quality:" in workflow
-    assert "FRONTEND_RESULT" in workflow
+    assert "name: Pre-merge CI" in workflow
     assert "scripts/check_ui_quality.py" in workflow
     assert "needs: [web-build, ui-quality]" in workflow
-    assert "needs: [python-tests, frontend-quality]" in workflow
+    assert "needs: [python-tests]" in workflow
+    assert "FRONTEND_RESULT" not in workflow
     assert "--pr-body-env UI_PR_BODY" in workflow
     assert "UI Quality Harness (mandatory)" in instructions
     assert "scripts/agent_preflight.py --base origin/main" in instructions
