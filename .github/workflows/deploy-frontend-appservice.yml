@@ -1,12 +1,14 @@
-name: Deploy Frontend to App Service (praxys-frontend)
+name: Deploy Frontend (Azure + Tencent)
 
 # Region-pinned static SPA host in East Asia (the "F4" perf fix —
 # replaced the SWA-Amsterdam path that added 200-300ms RTT for CN
 # users). Both this site and trainsight-app share plan-trainsight at
 # $0 incremental.
 #
-# Auth: same OIDC Service Principal as deploy-backend.yml
-# (AZURE_CLIENT_ID/TENANT/SUBSCRIPTION secrets, RG-scoped role).
+# The same web/dist build can also deploy to the Tencent Lighthouse
+# mainland-China static origin. That lane is gated by the
+# TENCENT_LIGHTHOUSE_DEPLOY_ENABLED repository variable so Azure remains
+# deployable while the server and ICP filing are being provisioned.
 
 on:
   push:
@@ -46,7 +48,7 @@ jobs:
       - name: Run frontend_server tests
         run: python -m pytest tests/test_frontend_server_spa.py -v
 
-  build_and_deploy:
+  build:
     needs: test
     runs-on: ubuntu-latest
     steps:
@@ -56,7 +58,7 @@ jobs:
         shell: bash
         run: cat .github/azure-observability.env >> "$GITHUB_ENV"
 
-      - name: Azure Login (OIDC)
+      - name: Azure Login for frontend telemetry (OIDC)
         uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -101,7 +103,14 @@ jobs:
           VITE_API_URL: ${{ vars.VITE_API_URL }}
           VITE_APP_VERSION: ${{ steps.version.outputs.version }}
 
-      - name: Stage deploy package
+      - name: Stamp static health metadata
+        shell: bash
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > web/dist/deployed_sha.txt
+          printf '{"ok":true,"service":"praxys-frontend","deployed_sha":"%s"}\n' \
+            "${GITHUB_SHA}" > web/dist/healthz
+
+      - name: Stage Azure deploy package
         # The deploy zip mirrors the repo layout that frontend_server.main
         # expects: ``frontend_server/`` and ``web/dist/`` as siblings of
         # ``requirements.txt`` so Oryx installs only the static-server's
@@ -114,9 +123,145 @@ jobs:
           printf '%s\n' "${GITHUB_SHA}" > deploy-pkg/frontend_server/_deployed_sha.txt
           ls -R deploy-pkg | head -50
 
+      - name: Stage Tencent static package
+        shell: bash
+        run: tar -C web/dist -czf praxys-web.tgz .
+
+      - name: Upload Azure package
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-azure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: deploy-pkg
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Tencent package
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-tencent-${{ github.run_id }}-${{ github.run_attempt }}
+          path: praxys-web.tgz
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy_azure:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure Login (OIDC)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Download Azure package
+        uses: actions/download-artifact@v8
+        with:
+          name: frontend-azure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: deploy-pkg
+
       - name: Deploy to praxys-frontend
         uses: azure/webapps-deploy@v3
         with:
           app-name: praxys-frontend
           resource-group-name: rg-trainsight
           package: deploy-pkg
+
+  deploy_tencent:
+    if: vars.TENCENT_LIGHTHOUSE_DEPLOY_ENABLED == 'true'
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      LIGHTHOUSE_HOST: ${{ vars.TENCENT_LIGHTHOUSE_HOST }}
+      LIGHTHOUSE_USER: ${{ vars.TENCENT_LIGHTHOUSE_USER }}
+      LIGHTHOUSE_PORT: ${{ vars.TENCENT_LIGHTHOUSE_SSH_PORT || '22' }}
+    steps:
+      - name: Download Tencent package
+        uses: actions/download-artifact@v8
+        with:
+          name: frontend-tencent-${{ github.run_id }}-${{ github.run_attempt }}
+          path: china-package
+
+      - name: Configure pinned SSH identity
+        env:
+          LIGHTHOUSE_SSH_PRIVATE_KEY: ${{ secrets.TENCENT_LIGHTHOUSE_SSH_PRIVATE_KEY }}
+          LIGHTHOUSE_SSH_KNOWN_HOSTS: ${{ secrets.TENCENT_LIGHTHOUSE_SSH_KNOWN_HOSTS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${LIGHTHOUSE_HOST}"
+          test -n "${LIGHTHOUSE_USER}"
+          [[ "${LIGHTHOUSE_PORT}" =~ ^[0-9]+$ ]]
+          test -n "${LIGHTHOUSE_SSH_PRIVATE_KEY}"
+          test -n "${LIGHTHOUSE_SSH_KNOWN_HOSTS}"
+
+          install -m 700 -d "${HOME}/.ssh"
+          printf '%s\n' "${LIGHTHOUSE_SSH_PRIVATE_KEY}" > "${HOME}/.ssh/id_ed25519"
+          printf '%s\n' "${LIGHTHOUSE_SSH_KNOWN_HOSTS}" > "${HOME}/.ssh/known_hosts"
+          chmod 600 "${HOME}/.ssh/id_ed25519" "${HOME}/.ssh/known_hosts"
+
+      - name: Upload static release
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_id="${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          scp -P "${LIGHTHOUSE_PORT}" \
+            china-package/praxys-web.tgz \
+            "${LIGHTHOUSE_USER}@${LIGHTHOUSE_HOST}:/tmp/praxys-web-${release_id}.tgz"
+
+      - name: Activate static release
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_id="${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          ssh -p "${LIGHTHOUSE_PORT}" \
+            "${LIGHTHOUSE_USER}@${LIGHTHOUSE_HOST}" \
+            "bash -s -- '${release_id}' '${GITHUB_SHA}'" <<'REMOTE'
+          set -euo pipefail
+          release_id="$1"
+          deployed_sha="$2"
+          root="/var/www/praxys"
+          archive="/tmp/praxys-web-${release_id}.tgz"
+          release="${root}/releases/${release_id}"
+          activated=0
+
+          cleanup() {
+            rm -f -- "${archive}"
+            if [[ "${activated}" -eq 0 ]]; then
+              rm -rf -- "${release}"
+            fi
+          }
+          trap cleanup EXIT
+
+          test -f "${archive}"
+          mkdir -p "${release}"
+          tar -xzf "${archive}" -C "${release}"
+          test -s "${release}/index.html"
+          test "$(cat "${release}/deployed_sha.txt")" = "${deployed_sha}"
+
+          ln -sfn "${release}" "${root}/current.next"
+          mv -Tf "${root}/current.next" "${root}/current"
+          activated=1
+
+          find "${root}/releases" -mindepth 1 -maxdepth 1 -type d \
+            -printf '%T@ %p\n' \
+            | sort -nr \
+            | awk 'NR > 5 {sub(/^[^ ]+ /, ""); print}' \
+            | xargs -r rm -rf --
+          REMOTE
+
+      - name: Verify Lighthouse deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          deployed_sha="$(
+            ssh -p "${LIGHTHOUSE_PORT}" \
+              "${LIGHTHOUSE_USER}@${LIGHTHOUSE_HOST}" \
+              "cat /var/www/praxys/current/deployed_sha.txt"
+          )"
+          test "${deployed_sha}" = "${GITHUB_SHA}"
+          ssh -p "${LIGHTHOUSE_PORT}" \
+            "${LIGHTHOUSE_USER}@${LIGHTHOUSE_HOST}" \
+            "curl --fail --silent --show-error --max-time 10 \
+              --header 'Host: www.praxys.run' \
+              http://127.0.0.1/healthz >/dev/null"
