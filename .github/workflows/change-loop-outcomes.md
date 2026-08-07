@@ -11,7 +11,6 @@ max-daily-ai-credits: 2000
 permissions:
   actions: read
   checks: read
-  copilot-requests: write
   contents: read
   issues: read
   pull-requests: read
