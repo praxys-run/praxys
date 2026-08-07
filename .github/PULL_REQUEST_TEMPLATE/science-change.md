@@ -2,6 +2,7 @@
 
 Use this template for changes to `analysis/`, `data/science/`, `docs/science/`,
 scientific UI copy, or other product claims grounded in exercise science.
+Do not check any item that was not actually performed.
 
 ## Evidence and decision
 
@@ -31,3 +32,14 @@ scientific UI copy, or other product claims grounded in exercise science.
 ## Open questions or evidence gaps
 
 <!-- Required when evidence is incomplete, conflicting, safety-sensitive, or awaiting independent human review. -->
+
+## UI quality
+
+<!-- Required when web/ or miniapp/ user-visible behavior changes. Delete only when no rendered UI changed. -->
+- Impeccable: <!-- command and target, for example `polish web/src/pages/Today.tsx` -->
+- Visual review: <!-- web: desktop + mobile dimensions; miniapp: WeChat/Skyline device -->
+- States checked: <!-- loading, empty, error, success, disabled, long EN/zh, as applicable -->
+- Accessibility: <!-- keyboard, focus, contrast, reduced motion, touch targets -->
+- Design system impact: <!-- none - reason / updated in this PR - changed path / follow-up #123 - gap -->
+- Miniapp parity: <!-- updated / follow-up #123 / not applicable - reason -->
+- Exceptions: <!-- none, or a narrow intentional exception and rationale -->

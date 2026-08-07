@@ -1,6 +1,7 @@
 ## Summary
 
 <!-- What changed and why? -->
+<!-- State only completed work; never claim validation or review that was not performed. -->
 
 ## Validation
 
