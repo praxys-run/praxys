@@ -361,6 +361,10 @@ const EN_SETTINGS = {
   'Browse the load / recovery / prediction / zone theories':
     'Browse the load / recovery / prediction / zone theories',
   'Open Praxys on web': 'Open Praxys on web',
+  'Export my data on web': 'Export my data on web',
+  'Data exports are downloaded from the Praxys web app.':
+    'Data exports are downloaded from the Praxys web app.',
+  'Open the web app to export your data.': 'Open the web app to export your data.',
   "This unlinks your WeChat profile from the current Praxys account. You'll be signed out and can sign in to a different account on next launch.":
     "This unlinks your WeChat profile from the current Praxys account. You'll be signed out and can sign in to a different account on next launch.",
   // Threshold labels
@@ -749,6 +753,10 @@ const ZH_SETTINGS = {
     '暂无阈值数据。同步 Garmin / Stryd 后可自动识别 CP、LTHR 和阈值配速，也可在网页端手动填写。',
   'Browse the load / recovery / prediction / zone theories': '浏览负荷、恢复、预测和区间理论',
   'Open Praxys on web': '在网页端打开 Praxys',
+  'Export my data on web': '在网页端导出我的数据',
+  'Data exports are downloaded from the Praxys web app.':
+    '请在 Praxys 网页端下载数据导出文件。',
+  'Open the web app to export your data.': '请在网页端导出数据。',
   "This unlinks your WeChat profile from the current Praxys account. You'll be signed out and can sign in to a different account on next launch.":
     '这会解除微信与当前 Praxys 账号的绑定并退出登录。下次打开时可登录其他账号。',
   // Threshold labels — preferred zh terminology per project conventions.
