@@ -1620,11 +1620,17 @@ def get_activity_analysis_pack(
 def get_activity_research_pack(
     ctx: RequestContext,
     *,
+    export_snapshot_id: str,
     limit: int = 20,
     offset: int = 0,
     source: str | None = None,
 ) -> dict:
     """Build a bounded, versioned retrospective activity research dataset."""
+    if (
+        not isinstance(export_snapshot_id, str)
+        or not export_snapshot_id.strip()
+    ):
+        raise ValueError("export_snapshot_id must be non-empty")
     activities, total, primary = _history_page(
         ctx,
         limit=limit,
@@ -1660,6 +1666,7 @@ def get_activity_research_pack(
     ]
     core = {
         "schema_version": ACTIVITY_RESEARCH_SCHEMA_VERSION,
+        "export_snapshot_id": export_snapshot_id,
         "model_versions": _analysis_versions(records),
         "records": records,
         "total": total,

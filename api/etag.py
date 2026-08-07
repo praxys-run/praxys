@@ -102,6 +102,59 @@ ENDPOINT_RESPONSE_VERSIONS: dict[str, str] = {
 CACHE_CONTROL = "private, must-revalidate, max-age=0"
 
 
+def _compute_revision_digest(
+    db: Session,
+    user_id: str,
+    scopes: Iterable[str],
+    *,
+    salt: str | None,
+    digest_size: int,
+) -> str:
+    """Hash one owner's revision counters with an optional stable salt."""
+    revs = get_revisions(db, user_id, scopes)
+    parts = [user_id]
+    for scope in sorted(revs):
+        parts.append(f"{scope}={revs[scope]}")
+    if salt:
+        parts.append(f"salt={salt}")
+    raw = "|".join(parts).encode("utf-8")
+    return hashlib.blake2b(raw, digest_size=digest_size).hexdigest()
+
+
+def compute_revision_token(
+    db: Session,
+    user_id: str,
+    scopes: Iterable[str],
+    *,
+    salt: str | None = None,
+) -> str:
+    """Build an opaque owner-bound identifier for a revision snapshot."""
+    digest = _compute_revision_digest(
+        db,
+        user_id,
+        scopes,
+        salt=salt,
+        digest_size=16,
+    )
+    return f"rev1:{digest}"
+
+
+def compute_variant_etag(
+    revision_token: str,
+    *,
+    salt: str | None = None,
+) -> str:
+    """Build a page/request-specific ETag from one revision token."""
+    parts = [revision_token]
+    if salt:
+        parts.append(f"salt={salt}")
+    digest = hashlib.blake2b(
+        "|".join(parts).encode("utf-8"),
+        digest_size=8,
+    ).hexdigest()
+    return f'W/"{digest}"'
+
+
 def compute_etag(
     db: Session, user_id: str, scopes: Iterable[str],
     *, salt: str | None = None,
@@ -121,14 +174,13 @@ def compute_etag(
     would share an ETag with a different page and the browser would replay
     a wrong cached body on the matching 304.
     """
-    revs = get_revisions(db, user_id, scopes)
-    parts = [user_id]
-    for scope in sorted(revs):
-        parts.append(f"{scope}={revs[scope]}")
-    if salt:
-        parts.append(f"salt={salt}")
-    raw = "|".join(parts).encode("utf-8")
-    digest = hashlib.blake2b(raw, digest_size=8).hexdigest()
+    digest = _compute_revision_digest(
+        db,
+        user_id,
+        scopes,
+        salt=salt,
+        digest_size=8,
+    )
     return f'W/"{digest}"'
 
 

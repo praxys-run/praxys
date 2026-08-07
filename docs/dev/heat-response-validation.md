@@ -1,0 +1,298 @@
+# Heat-response validation pipeline
+
+Issue #523 adds a research-only, offline analysis of the private
+`activity-research-dataset-v1` export. It advances only the personal-response
+validation portion of #444. It does not change accepted science records,
+product behavior, or UI. The export API adds only the owner-bound snapshot
+integrity field required to prevent mixed-revision page bundles.
+
+## Boundary
+
+The accepted `sdr-environmental-performance-v1` still permits qualitative,
+retrospective connector environmental context with explicit provenance. That
+separate context is not a personal correction.
+
+This pipeline cannot authorize a user-facing personal estimate. A real,
+consented private-athlete run, human science review, and an accepted
+superseding SDR with matched-sample and environmental-spread rules are still
+required before API or UI productization.
+
+## Input and privacy
+
+Export every `GET /api/analysis/research-dataset` page to private local JSON
+files. Production's maximum page size is 50, so fetch offsets `0, 50, 100, ...`
+until the next offset is greater than or equal to the first page's `total`.
+Keep the same `limit=50` and optional `source` filter for every request.
+If any page returns `409` with detail
+`ANALYSIS_EXPORT_SNAPSHOT_CHANGED_RESTART_EXPORT`, discard every saved page
+and restart **all pages** from offset zero; do not retry only the failed page.
+For example:
+
+```powershell
+$baseUrl = "https://<backend-host>"
+$headers = @{ Authorization = "Bearer <owner-token>" }
+$exportDir = Join-Path $env:USERPROFILE "praxys-private-heat-export"
+New-Item -ItemType Directory -Force $exportDir | Out-Null
+$limit = 50
+$offset = 0
+$snapshotId = $null
+$pageFiles = @()
+
+do {
+    $uri = "$baseUrl/api/analysis/research-dataset?limit=$limit&offset=$offset"
+    try {
+        $page = Invoke-RestMethod -Uri $uri -Headers $headers
+    } catch {
+        $statusCode = [int]$_.Exception.Response.StatusCode
+        if ($statusCode -eq 409) {
+            throw "Analysis data changed during page construction; discard all pages and restart from offset zero."
+        }
+        throw
+    }
+    if ($null -eq $snapshotId) {
+        $snapshotId = $page.export_snapshot_id
+    } elseif ($page.export_snapshot_id -cne $snapshotId) {
+        throw "Analysis data changed during export; discard all pages and restart from offset zero."
+    }
+    $pageFile = Join-Path $exportDir ("page-{0:D4}.json" -f $offset)
+    $page | ConvertTo-Json -Depth 100 | Set-Content -Encoding utf8 $pageFile
+    $pageFiles += $pageFile
+    $offset += $limit
+} while ($offset -lt $page.total)
+
+$cliArgs = @()
+foreach ($pageFile in $pageFiles) {
+    $cliArgs += @("--input", $pageFile)
+}
+python scripts\validate_heat_response.py @cliArgs
+python scripts\validate_heat_response.py @cliArgs --format markdown --output heat-report.md
+```
+
+For `total=182`, the required requests are exactly offsets `0`, `50`, `100`,
+and `150`; the final page contains 32 records. The script never fetches data.
+Repeated `--input` arguments create the bundle only in memory. It also accepts
+one prebuilt local bundle with this shape:
+
+```json
+{
+  "schema_version": "activity-research-dataset-bundle-v1",
+  "page_count": 4,
+  "total": 182,
+  "limit": 50,
+  "record_count": 182,
+  "offsets": [0, 50, 100, 150],
+  "pages": ["activity-research-dataset-v1 page objects"]
+}
+```
+
+Prefer repeated `--input` so no additional private combined file is created.
+Keep all raw page files and any prebuilt bundle private and outside the
+repository; **never commit raw production exports**. By default the CLI writes
+only an aggregate report to stdout. `--output` is the only report-file write.
+The input contains private activity IDs and dates needed for duplicate
+detection and chronological partitioning. The report excludes activity IDs,
+dates, and activity records, and the CLI does not log raw records.
+
+`dataset_hash` is required even for an empty export. Before analysis, the
+validator independently recomputes every page's API canonical dataset-core
+hash over every top-level key except `dataset_hash` and `generated_at`, using
+JSON `sort_keys=True`, separators `(",", ":")`, `ensure_ascii=True`, and the
+`sha256:`-prefixed SHA-256 digest. The required non-empty
+`export_snapshot_id` is inside that hashed core. Missing or stale page hashes
+and missing snapshot IDs are rejected. The aggregate report states that all
+page hashes were verified; it does not create or expose a new hash over the
+combined private raw records. A legitimate API response with `records=[]`,
+`total=0`, `model_versions.heat_adaptation=[]`, and a non-empty snapshot ID
+produces a normal privacy-safe withheld report with insufficiency gates rather
+than an input error.
+
+Pagination metadata is required. `total`, `limit`, and `offset` must be JSON
+integers; `total` and `offset` must be non-negative, and `limit` must match the
+API range of 1–50. Each page's record count must equal
+`min(limit, max(total - offset, 0))`. A single page is a complete export only
+when `offset=0` and `total <= limit`; a valid first page with `total > limit`
+is accepted for diagnostics but the decision-required `complete_export` gate
+is unavailable, so it cannot become science-review eligible.
+
+A bundle is stricter: every page hash must verify; `export_snapshot_id`,
+`total`, `limit`, `source_filter`, `model_versions`, `semantics`, and `privacy`
+must agree exactly; offsets must be contiguous from zero; the manifest must
+match the pages; record counts must cover `total` exactly; and canonical
+`source + activity_id` identities may not repeat across pages. A snapshot
+mismatch means relevant analysis data or config changed during pagination, so
+the whole export must be restarted. Missing, overlapping, extra, stale,
+mixed-snapshot, or otherwise malformed bundles are rejected. Pages are
+combined by ascending API offset and records retain their order within each
+page. The complete-export gate reports only page count, total, record count,
+limit, offsets, and completeness.
+
+## Eligible observations
+
+`analysis/heat_response_validation.py` accepts only SAMPLE-derived stable
+segments. It excludes:
+
+- duplicate records after canonicalizing activity identity as
+  `source + activity_id`;
+- split fallback;
+- invalid or unsupported connector environment provenance, including any
+  environment context not governed by
+  `sdr-environmental-performance-v1`;
+- any wet-bulb value not labeled with the versioned Stull psychrometric
+  method (a proxy, **not WBGT**);
+- missing or invalid segment source/stability, mean power, mean %CP, mean HR,
+  HR slope, HR-at-power decoupling, duration, start offset, sample coverage,
+  power CV, power provider, or HR provider; `mixed`, `unknown`, and
+  `unverified` provider sentinels can never satisfy provider consistency;
+- unavailable, non-positive, undated, same-day/future, or
+  provenance-incompatible pre-activity critical power, including any
+  selection other than `latest_strictly_before_activity_date`;
+- segment mean %CP that does not agree with mean watts divided by the dated
+  critical power within the configured tolerance;
+- provider-mismatch reason codes;
+- unstable, low-coverage, short, warmup, or out-of-band segments.
+
+Activity `avg_power` is never used.
+
+Power-provider and HR-provider provenance is retained on each internal
+eligible row. The report exposes only aggregate provider-combination labels
+with activity and segment counts. A decision-required consistency gate fails
+when more than one power/HR provider regime is present, so mixed sensor
+regimes cannot reach `eligible_for_science_review`; a uniformly mixed or
+otherwise unverified sentinel regime also fails rather than appearing
+consistent. Environmental connector source is likewise retained internally
+and reported only as aggregate source/activity/segment counts. A separate
+decision-required gate requires one supported environmental connector source
+for this bounded unstratified validation, so mixed Garmin/Coros/Stryd
+environment sources withhold. No provider or source diagnostic includes
+activity IDs or dates.
+
+## Research model
+
+The primary model is a deterministic within-athlete ridge regression for
+steady-segment mean HR. Required predictors are:
+
+- Stull psychrometric wet-bulb proxy;
+- continuous mean %CP;
+- elapsed/start offset;
+- segment duration.
+
+Coarse terrain, pre-activity TSB, and dated recovery readiness are selected
+using **training rows only**, and only when training values are complete and
+variable. A selected optional predictor that is missing in held-out rows
+causes those evaluation rows to be excluded with aggregate counts and reason
+codes; holdout sufficiency is checked again after exclusion. Missing values
+are never silently imputed.
+
+Recovery has only a calendar date, not a true observation timestamp. The
+pipeline therefore accepts readiness only when the recovery source is a
+supported non-empty connector, selection is exactly
+`latest_on_or_before_activity_date`, the reason-code list is empty, and the
+recovery date is strictly before the activity date and no older than the
+configurable maximum lag (default: the previous calendar day only). Same-day,
+stale, unsupported, or provenance-qualified recovery is not silently carried
+forward or imputed. Aggregate dated, usable, stale, missing, source, lag-range,
+coverage, and provenance-reason values are reported. If otherwise usable
+training rows contain multiple recovery sources, readiness is omitted and an
+informational provenance-consistency gate reports the aggregate mix. Recovery
+completeness and source consistency remain non-decision gates: readiness may
+be omitted from the model rather than blocking the whole research analysis.
+
+The primary model never includes qualitative heat-adaptation stage and never
+uses it to modify the acute heat slope. When every eligible activity has
+correctly versioned previous-day context and both evidence groups have enough
+training activities, a separate secondary interaction model is reported only
+as an exploratory heterogeneity sensitivity. It cannot improve the #444
+recommendation and must not be interpreted as an adaptation benefit or acute
+heat discount. Its unavailability remains explicit.
+
+The latest activities form a chronological activity-level holdout, so segments
+from one activity cannot cross train/test. Reports include activity/segment
+counts, actual train/test identity overlap, MAE/RMSE, the heat coefficient,
+fixed-seed activity-cluster bootstrap percentile intervals, and coefficient
+stability. The bootstrap interval is descriptive sensitivity only, not a
+coverage guarantee. It is reported only after the configurable minimum number
+and fraction of valid activity-cluster resamples is reached. Bootstrap and
+permutation cluster order uses chronological date, deterministic observation
+content, and source-record order rather than opaque activity ID text; changing
+IDs alone does not change the aggregate report. Canonical `source +
+activity_id` identity is still used to detect duplicate leakage.
+
+After optional-predictor filtering, the evaluated holdout must also meet a
+separate configurable environmental-spread estimate. This decision-required
+gate reports candidate and evaluated holdout spread explicitly and withholds
+science-review eligibility when the filtered holdout lacks contrast.
+
+## Diagnostics and gates
+
+Sensitivity analyses vary:
+
+- %CP eligibility band;
+- warmup/start-offset exclusion;
+- minimum segment duration;
+- wet bulb versus temperature-only heat representation;
+- lower and higher critical-power assumptions (default: ±5%).
+
+The negative control builds a deterministic fixed-seed distribution from
+configurable repeated activity-level permutations, separately within train
+and test. It requires a configurable minimum valid count and fraction. The
+decision gate compares the observed holdout MAE margin and absolute heat
+coefficient against the aggregate permutation distribution using predeclared,
+estimate-labeled support fractions. It is descriptive falsification only, not
+a causal test or personal correction. Permutation-method reference: Ernst,
+<https://doi.org/10.1214/088342304000000396>.
+
+Directional sign agreement includes temperature-only and every other
+available heat representation. Only coefficient-magnitude ranges exclude
+representations whose units or scales are not comparable to wet-bulb °C.
+
+Sensitivity coverage is itself decision-required. The report counts all
+planned variants, unavailable variant names, the available fraction, and the
+effective configurable minimum count/fraction. Coefficient stability is
+reported inconclusive and science-review eligibility is withheld when too few
+planned variants are available; unavailable permissive variants are never
+silently dropped from the denominator. The coefficient-stability gate is
+`fail` only for evaluated instability after sufficient bootstrap and
+sensitivity statistics exist; missing bootstrap or required sensitivity
+coverage remains `unavailable`.
+
+Eligibility for science review also requires configurable research
+falsification choices: gross chronological-holdout error must stay below its
+configured ceiling, and the primary model must be at least non-worse than (or
+beat by the configured margin) both an otherwise-identical no-heat model and
+the configured fraction of the activity-level permutation distribution, while
+its absolute heat coefficient must be at least as extreme as the configured
+fraction of permuted coefficients. Evaluated contradictions are reported as
+`fail`; `unavailable` is reserved for controls that could not be evaluated.
+Either status withholds the recommendation. These are model-performance
+falsification choices, not physiological claims.
+
+Minimum observations, segments, holdout size, training and evaluated-holdout
+environmental spread, HR/HR slope/decoupling bounds, %CP consistency tolerance,
+falsification margins and support fractions, bootstrap, permutation and
+sensitivity coverage, coefficient-stability criteria, provider consistency,
+and regularization settings are configurable **research estimates or method
+choices**, not accepted product gates. Heat-adaptation availability and dated
+recovery are informational. The only recommendations are:
+
+- `withhold_personal_estimate`
+- `eligible_for_science_review`
+
+`eligible_for_science_review` means the aggregate analysis is ready for human
+review. It does not mean validation succeeded and never means `ship`.
+The report's next steps are outcome-specific: a withheld estimate recommends
+against productization and points to prospective validation or richer
+covariates, while an eligible result requests human science review and an
+accepted superseding SDR before product work.
+
+Ridge implementation: Hoerl and Kennard,
+<https://doi.org/10.1080/00401706.1970.10488634>. Activity-cluster bootstrap
+method reference: Davison and Hinkley,
+<https://doi.org/10.1017/CBO9780511802843>.
+
+## Validation
+
+```powershell
+python -m pytest tests\test_heat_response_validation.py tests\test_validate_heat_response_script.py
+```
+
+Tests use synthetic, non-personal records only.

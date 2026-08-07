@@ -901,7 +901,11 @@ Pre-activity context is causal by construction:
 - CP is the latest dated value strictly before the activity date, with source
   and power-provider provenance;
 - recovery applies the activity-date cutoff before provider preference or
-  fallback ranking, then selects that provider's latest eligible row;
+  fallback ranking, then selects that provider's latest eligible row. Because
+  recovery has a date but no observation timestamp, downstream causal research
+  must treat same-day recovery as temporally ambiguous; the heat-response
+  validation accepts readiness only from a strictly earlier date within its
+  configurable maximum lag (previous calendar day by default);
 - heat-adaptation evidence ends on the previous calendar day.
 
 Historical user-config revisions are not stored. Retrospective exports apply
@@ -922,12 +926,73 @@ Builds the same record shape across a bounded history page.
 - `source` (optional activity duplicate-selection pivot)
 
 The response includes `activity-research-dataset-v1`, model versions,
-pagination metadata, explicit cutoff semantics, privacy declarations, and a
-SHA-256 `dataset_hash`. `generated_at` is excluded from the hash, so unchanged
-inputs and model versions produce the same dataset hash. Records are ordered by
-date descending with `activity_id` and source tie-breakers; split arrays are
-ordered by split number and their serialized metric values. Analysis ETags are
-salted by the response schema and emitted model-version manifest.
+pagination metadata, explicit cutoff semantics, privacy declarations, an opaque
+owner-bound `export_snapshot_id`, and a SHA-256 `dataset_hash`. The snapshot ID
+is derived from the analysis endpoint's existing per-user revision scopes plus
+the response/model version. It is identical across `limit`/`offset` pages for
+one revision and changes when relevant activity, split, sample, recovery,
+fitness, or config state changes. It does not expose the user ID or revision
+counters.
+
+`export_snapshot_id` is part of the canonical dataset core covered by each
+page's `dataset_hash`. `generated_at` remains excluded from the hash, so
+unchanged inputs and model versions produce the same dataset hash. Records are
+ordered by date descending with `activity_id` and source tie-breakers; split
+arrays are ordered by split number and their serialized metric values. The
+route ETag remains page-specific because its variant salt includes the request
+pagination/filter parameters.
+
+The route fences each page construction with the same page-independent
+snapshot token before and immediately after all payload reads. If a relevant
+write commits during construction, the page is discarded and the API returns
+`409` with:
+
+```json
+{"detail":"ANALYSIS_EXPORT_SNAPSHOT_CHANGED_RESTART_EXPORT"}
+```
+
+That conflict response contains no research page or dataset hash. Exporters
+must discard every page already collected and restart **all pages** from
+offset zero; retrying only the failed page could still combine revisions.
+
+Production research exports must fetch the complete bounded history, not only
+the first page. Use `limit=50`, request offsets `0, 50, 100, ...`, keep the
+same optional `source` value on every request, and stop when the next offset is
+greater than or equal to the first page's `total`. Thus `total=182` requires
+offsets `0`, `50`, `100`, and `150`, with 32 records on the last page. Save
+each response as a separate private JSON file, outside the repository, and
+never commit raw exports. Every page must have the exact same non-empty
+`export_snapshot_id`; if it changes during collection, discard the pages and
+restart the export from offset zero.
+
+Pass every page to the offline CLI in offset order:
+
+```powershell
+python scripts\validate_heat_response.py `
+  --input page-0000.json `
+  --input page-0050.json `
+  --input page-0100.json `
+  --input page-0150.json `
+  --format markdown
+```
+
+Repeated `--input` values create an
+`activity-research-dataset-bundle-v1` only in memory. One prebuilt local bundle
+is also accepted, but repeated inputs are preferred so no combined private raw
+file is created. The validator verifies each page's API `dataset_hash`, checks
+the shared snapshot/total/limit/filter/model/semantics/privacy contracts,
+requires contiguous non-overlapping offsets and exact full coverage, and
+rejects cross-page canonical activity duplicates. Missing or mismatched
+snapshot IDs are rejected even when each page hash is otherwise valid. A single
+page, including a legitimate empty export, must also carry a non-empty snapshot
+ID. A single page remains complete only when `offset=0` and `total <= limit`; a
+first page with `total > limit` cannot pass the decision-required
+complete-export gate.
+
+The private export can be evaluated locally with the research-only
+[heat-response validation pipeline](heat-response-validation.md). That
+pipeline does not add a personal estimate to this endpoint and does not alter
+the accepted environmental-performance SDR.
 
 ### GET /api/ai/context
 

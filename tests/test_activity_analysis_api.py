@@ -1,6 +1,8 @@
 """Integration coverage for owner-only activity analysis APIs."""
 from __future__ import annotations
 
+import hashlib
+import json
 import tempfile
 from datetime import date, datetime, timedelta, timezone
 
@@ -657,6 +659,10 @@ def test_research_dataset_is_versioned_reproducible_and_gps_free(
     assert first_payload["schema_version"] == (
         "activity-research-dataset-v1"
     )
+    assert first_payload["export_snapshot_id"]
+    assert first_payload["export_snapshot_id"] == (
+        second_payload["export_snapshot_id"]
+    )
     assert first_payload["dataset_hash"] == second_payload["dataset_hash"]
     assert first_payload["privacy"] == {
         "precise_gps_included": False,
@@ -666,6 +672,160 @@ def test_research_dataset_is_versioned_reproducible_and_gps_free(
     serialized = first.text
     assert '"lat"' not in serialized
     assert '"lng"' not in serialized
+
+
+def test_research_dataset_snapshot_is_page_independent_and_hash_covered(
+    analysis_client,
+) -> None:
+    client = analysis_client["client"]
+    headers = analysis_client["owner_headers"]
+    page_zero = client.get(
+        "/api/analysis/research-dataset?limit=1&offset=0",
+        headers=headers,
+    )
+    page_one = client.get(
+        "/api/analysis/research-dataset?limit=1&offset=1",
+        headers=headers,
+    )
+
+    assert page_zero.status_code == page_one.status_code == 200
+    first = page_zero.json()
+    second = page_one.json()
+    assert first["export_snapshot_id"] == second["export_snapshot_id"]
+    assert page_zero.headers["etag"] != page_one.headers["etag"]
+
+    core = {
+        key: value
+        for key, value in first.items()
+        if key not in {"dataset_hash", "generated_at"}
+    }
+    encoded = json.dumps(
+        core,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    assert first["dataset_hash"] == (
+        "sha256:" + hashlib.sha256(encoded).hexdigest()
+    )
+
+    core["export_snapshot_id"] += "-different"
+    changed = json.dumps(
+        core,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    assert first["dataset_hash"] != (
+        "sha256:" + hashlib.sha256(changed).hexdigest()
+    )
+
+
+def test_research_dataset_snapshot_fence_accepts_stable_page(
+    analysis_client,
+    monkeypatch,
+) -> None:
+    from api.routes import analysis as analysis_route
+
+    computed_tokens: list[str] = []
+    original_compute = analysis_route.compute_revision_token
+
+    def _tracked_compute(*args, **kwargs) -> str:
+        token = original_compute(*args, **kwargs)
+        computed_tokens.append(token)
+        return token
+
+    monkeypatch.setattr(
+        analysis_route,
+        "compute_revision_token",
+        _tracked_compute,
+    )
+    response = analysis_client["client"].get(
+        "/api/analysis/research-dataset?limit=1&offset=0",
+        headers=analysis_client["owner_headers"],
+    )
+
+    assert response.status_code == 200, response.text
+    assert computed_tokens == [
+        response.json()["export_snapshot_id"],
+        response.json()["export_snapshot_id"],
+    ]
+    assert response.headers["etag"]
+    assert response.json()["dataset_hash"]
+
+
+def test_research_dataset_rejects_revision_change_during_pack_construction(
+    analysis_client,
+    monkeypatch,
+) -> None:
+    from api.routes import analysis as analysis_route
+    from db import session as db_session
+    from db.cache_revision import bump_revisions
+
+    original_pack = analysis_route.get_activity_research_pack
+
+    def _pack_with_concurrent_revision(*args, **kwargs) -> dict:
+        payload = original_pack(*args, **kwargs)
+        side = db_session.SessionLocal()
+        try:
+            bump_revisions(
+                side,
+                analysis_client["owner_id"],
+                ["activities"],
+            )
+            side.commit()
+        finally:
+            side.close()
+        return payload
+
+    monkeypatch.setattr(
+        analysis_route,
+        "get_activity_research_pack",
+        _pack_with_concurrent_revision,
+    )
+    response = analysis_client["client"].get(
+        "/api/analysis/research-dataset?limit=1&offset=0",
+        headers=analysis_client["owner_headers"],
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {
+        "detail": "ANALYSIS_EXPORT_SNAPSHOT_CHANGED_RESTART_EXPORT"
+    }
+    assert "etag" not in response.headers
+    assert "dataset_hash" not in response.text
+    assert "export_snapshot_id" not in response.text
+    assert '"records"' not in response.text
+
+
+def test_research_dataset_snapshot_changes_after_relevant_data_mutation(
+    analysis_client,
+) -> None:
+    from db import session as db_session
+    from db.cache_revision import bump_revisions
+    from db.models import Activity
+
+    client = analysis_client["client"]
+    headers = analysis_client["owner_headers"]
+    path = "/api/analysis/research-dataset?limit=1&offset=0"
+    first = client.get(path, headers=headers)
+    assert first.status_code == 200, first.text
+
+    db = db_session.SessionLocal()
+    activity = db.query(Activity).filter(
+        Activity.user_id == analysis_client["owner_id"],
+        Activity.activity_id == "shared-activity",
+    ).one()
+    activity.distance_km = 10.1
+    bump_revisions(db, analysis_client["owner_id"], ["activities"])
+    db.commit()
+    db.close()
+
+    second = client.get(path, headers=headers)
+    assert second.status_code == 200, second.text
+    assert second.json()["export_snapshot_id"] != (
+        first.json()["export_snapshot_id"]
+    )
 
 
 def test_research_dataset_hash_is_independent_of_split_insertion_order(
@@ -856,6 +1016,7 @@ def test_analysis_etags_change_with_emitted_model_versions(
     first = client.get(path, headers=headers)
     assert first.status_code == 200, first.text
     first_etag = first.headers["etag"]
+    first_snapshot_id = first.json().get("export_snapshot_id")
 
     monkeypatch.setattr(
         packs,
@@ -869,3 +1030,5 @@ def test_analysis_etags_change_with_emitted_model_versions(
 
     assert second.status_code == 200
     assert second.headers["etag"] != first_etag
+    if first_snapshot_id is not None:
+        assert second.json()["export_snapshot_id"] != first_snapshot_id
