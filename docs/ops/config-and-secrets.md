@@ -336,6 +336,19 @@ The final Statsig Console state owned by this integration is exactly:
 | Feature gate | `garmin_plan_delivery_eligible` | `false` in every environment | Optional reviewed allow rule matching only dedicated users by internal Praxys UUID. Never add a global pass rule. |
 | Dynamic config | `insight_daily_cap` | `{"value": 30}` where `value` is an integer | No experiment assignment. Runtime rules may return another validated positive integer. |
 
+Repository-level Console automation uses the official `statsig` HTTP server in
+`.mcp.json`. The entry intentionally contains an empty `headers` object and no
+credential. Each operator or agent authenticates through the MCP OAuth flow;
+the Statsig organization owner must first enable personal Console API keys.
+Never commit an OAuth token or Console API key to `.mcp.json`, environment
+examples, workflow variables, or documentation.
+
+Automation must treat the table above as declarative state and reconcile it
+idempotently: reads and repeated runs produce the same gate/config definition,
+and every mutation remains reviewable. Before destructively deleting a
+superseded Statsig resource, verify repository code and tests no longer
+reference its name and update this inventory in the same change.
+
 The Garmin gate is evaluated only after
 `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED=true` and never replaces provider
 capability checks, durable execution-target selection, or the
