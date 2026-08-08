@@ -1,0 +1,682 @@
+schema_version: 1
+id: sdr-environmental-performance-v2
+version: 2
+title: "Present a private historical environmental-response experiment"
+status: accepted
+decision_date: 2026-08-08
+owners:
+  - team:praxys
+human_reviewers:
+  - github:dddtc2005
+model_version: environmental-performance-context-v2
+evidence_review_ids:
+  - evidence-environmental-performance-v1
+  - evidence-personal-environment-response-v1
+evidence_claim_ids:
+  - environment.heat-balance-multifactor
+  - environment.relative-humidity-insufficient
+  - environment.wbgt-population-performance
+  - environment.temperature-nonlinear
+  - environment.marathon-wbgt-performance-level
+  - environment.humidity-fixed-temperature-capacity
+  - environment.solar-radiation-first-order
+  - environment.stull-wet-bulb-proxy
+  - environment.full-wbgt-inputs
+  - environment.wet-bulb-not-safety-boundary
+  - environment.morphology-not-sex-coefficient
+  - environment.no-universal-personal-correction
+  - personal-environment-response.cardiovascular-drift-plausible
+  - personal-environment-response.duration-hydration-confounding
+  - personal-environment-response.running-power-limited-proxy
+  - personal-environment-response.pace-grade-insufficient
+  - personal-environment-response.association-not-prediction
+  - personal-environment-response.structured-validation
+  - personal-environment-response.activity-cluster-uncertainty
+  - personal-environment-response.negative-controls-limited
+  - personal-environment-response.uncertainty-can-be-misread
+accepted_interpretation: >
+  Praxys continues to provide the inherited retrospective completed-activity
+  environmental context governed by v1 without requiring Labs enrollment or
+  adult attestation. Separately, Praxys may offer every user an explicit opt-in
+  to a private Labs experiment after confirming the reviewed adult-population
+  boundary. The Labs experiment displays a retrospective modeled association
+  between the Stull
+  psychrometric wet-bulb proxy and heart rate in same-provider SAMPLE-derived
+  stable running-power segments. The display describes observations in the
+  athlete's eligible historical data only. It is not a causal effect,
+  physiological constant, expected future heart rate, performance correction,
+  training prescription, heat-adaptation measure, medical interpretation, or
+  safety decision. A curve may be shown when prespecified data-integrity,
+  environmental-support, provider-consistency, activity-cluster uncertainty,
+  and association-stability gates pass. The primary model, curve domain,
+  support bins, uncertainty gates, sensitivity variants, and influential-
+  activity checks are fixed by this decision. Failure to improve chronological
+  prediction does not erase a stable historical association, but it requires
+  the prominent status "historical association; not predictively validated"
+  and permanently prohibits forecast or correction use. Prediction must be
+  evaluated before the line is displayed; an unavailable or unevaluable
+  prediction withholds the line. The line is also withheld when association
+  stability, overlap, provenance, influential-activity, or uncertainty support
+  is   insufficient. Enrollment never implies that a result will be available.
+rejected_alternatives:
+  - alternative: Present the fitted coefficient as the athlete's personal heat-response constant.
+    rationale: >
+      The observational association remains confounded and did not establish a
+      causal or transportable physiological response.
+  - alternative: Use the curve to predict future heart rate, pace, power, or finish time.
+    rationale: >
+      A stable historical coefficient can coexist with no incremental
+      chronological predictive value; prediction requires separately passed
+      validation.
+  - alternative: Withhold all historical description whenever the heat predictor fails to improve prediction.
+    rationale: >
+      Association and prediction answer different questions. A descriptive
+      Labs display can remain scientifically bounded when its separate
+      stability gates pass and predictive failure is explicit.
+  - alternative: Show a smooth line through sparse environmental tails or outside observed power overlap.
+    rationale: >
+      Extrapolation would manufacture apparent precision where the athlete has
+      no comparable observations.
+  - alternative: Call the display heart-rate drift without measuring within-run drift directly.
+    rationale: >
+      Cardiovascular drift is a within-bout time-dependent phenomenon; the
+      proposed first curve compares modeled observations across activities.
+  - alternative: Combine the curve numerically with the heat-adaptation stage.
+    rationale: >
+      Adaptation remains qualitative exposure evidence and cannot explain,
+      discount, or double-count the acute observational association.
+  - alternative: Analyze activity-average power or mix power providers.
+    rationale: >
+      Activity averages are diluted by warm-up, cooldown, and recovery, while
+      provider and algorithm differences undermine workload comparability.
+  - alternative: Treat pace or grade-adjusted pace as an equivalent V1 workload control.
+    rationale: >
+      Wind, surface, fatigue, heat-related pace selection, GPS or elevation
+      error, and uphill/downhill asymmetry remain unresolved. No reviewed source
+      validates a universal grade tolerance for equivalent effort.
+  - alternative: Enroll users or retain derived results without explicit experiment consent.
+    rationale: >
+      A personalized scientific interpretation is optional processing and must
+      have auditable opt-in, withdrawal, and deletion behavior.
+  - alternative: Pool or benchmark user results in the first experiment.
+    rationale: >
+      Cross-user contribution requires the separate consent, privacy,
+      statistical, and governance decision tracked in #591.
+model_parameters:
+  - name: wet_bulb_method
+    value: stull_psychrometric
+    classification: published
+    evidence_claim_ids:
+      - environment.stull-wet-bulb-proxy
+    applies_to: analysis.metrics.estimate_wet_bulb_c
+  - name: completed_activity_context_source_projection
+    value: inherited_environmental_performance_v1_claims
+    classification: guardrail
+    rationale: >
+      Keeps the existing completed-activity ScienceNote focused on the
+      environmental proxy, performance-context, provenance, and safety claims.
+      Labs-only personal-model and statistical-method citations remain on the
+      separate Labs methodology surface.
+    applies_to: analysis.metrics._ENVIRONMENT_CONTEXT_SCIENCE_SOURCES
+  - name: eligible_activity_types
+    value:
+      - running
+      - trail_running
+    classification: guardrail
+    rationale: >
+      Restricts the first experiment to activity types covered by the sample
+      workload and product interpretation; this is not a physiological rule.
+    applies_to: future analysis.environment_response
+  - name: power_source
+    value:
+      - stryd_continuous_samples
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.running-power-limited-proxy
+    rationale: >
+      Preserves within-provider workload comparability and prohibits
+      activity-average, pace fallback, or unverified mixed-provider power.
+    applies_to: future analysis.environment_response
+  - name: candidate_power_regimes
+    value:
+      - garmin_native_wrist_only_continuous_samples
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.running-power-limited-proxy
+    rationale: >
+      Preserves Garmin as an implementation target without treating indirect
+      accessory-based studies as validation of modern native wrist power. It
+      remains disabled until a separately reviewed qualification passes.
+    applies_to: future analysis.environment_response
+  - name: power_regime_isolation
+    value: provider_device_and_algorithm_era
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.running-power-limited-proxy
+    rationale: >
+      Commercial running-power scales are not interchangeable. Each result is
+      fit within one verified provider, device, and algorithm or firmware era.
+    applies_to: future analysis.environment_response
+  - name: multiple_power_regime_behavior
+    value: separate_results_no_outcome_based_selection
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.running-power-limited-proxy
+    rationale: >
+      Produces a separately labeled result for every independently qualified
+      regime. Praxys never selects whichever provider yields the strongest or
+      most favorable association.
+    applies_to: future analysis.environment_response
+  - name: garmin_power_provenance
+    value: required_before_provider_qualification
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.running-power-limited-proxy
+    rationale: >
+      Standard Garmin power fields do not prove wrist origin and Smart mode may
+      select accessories. Garmin activities remain ineligible until source,
+      device, and algorithm continuity are explicit and the regime receives
+      separate scientific qualification.
+    applies_to: future sync and analysis Garmin sample provenance
+  - name: provider_qualification_requirements
+    value:
+      - explicit_per_activity_source
+      - continuous_sample_coverage
+      - device_and_algorithm_era
+      - provider_aligned_critical_power
+      - repeatability_validation
+      - chronological_validation
+      - accepted_science_review
+    classification: guardrail
+    rationale: >
+      Prevents a newly ingested power field from becoming eligible based on its
+      label alone.
+    applies_to: future provider qualification
+  - name: critical_power_provider_alignment
+    value: required
+    classification: guardrail
+    rationale: >
+      Percent-of-CP workload matching uses a threshold produced by the same
+      power regime; Stryd and Garmin watts are never converted or pooled.
+    applies_to: future analysis.environment_response
+  - name: pace_workload_fallback
+    value: prohibited_in_v1
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.pace-grade-insufficient
+    rationale: >
+      No reviewed evidence validates an elevation tolerance or GAP equation as
+      equivalent workload for this observational environmental analysis.
+    applies_to: future analysis.environment_response
+  - name: minimum_activities
+    value: 12
+    classification: guardrail
+    rationale: >
+      Retains the preregistered #523 research floor for the experimental
+      opt-in analysis. It
+      is a minimum data-quality rule, not a validated universal threshold, and
+      must be reassessed before broader enrollment.
+    applies_to: future analysis.environment_response
+  - name: minimum_segments
+    value: 24
+    classification: guardrail
+    rationale: >
+      Retains the preregistered #523 research floor while requiring multiple
+      stable observations. Segment count never replaces the activity as the
+      independent cluster.
+    applies_to: future analysis.environment_response
+  - name: minimum_environmental_spread_c
+    value: 5.0
+    classification: guardrail
+    rationale: >
+      Prevents fitting a temperature-response shape over a nearly constant
+      environment. It is an analysis-support floor, not a heat threshold.
+    applies_to: future analysis.environment_response
+  - name: minimum_train_activities
+    value: 8
+    classification: guardrail
+    rationale: >
+      Preserves a minimum earlier-activity estimation set for the pilot; the
+      value is not a universal statistical guarantee.
+    applies_to: future analysis.environment_response
+  - name: minimum_test_activities
+    value: 3
+    classification: guardrail
+    rationale: >
+      Requires a non-empty later-activity diagnostic while acknowledging that
+      this minimum cannot establish broad transportability.
+    applies_to: future analysis.environment_response
+  - name: chronological_holdout_fraction
+    value: 0.25
+    classification: guardrail
+    rationale: >
+      Keeps later complete activities unseen during fitting and preserves all
+      segments from an activity in one partition.
+    applies_to: future analysis.environment_response
+  - name: minimum_power_pct_cp
+    value: 65.0
+    classification: guardrail
+    rationale: >
+      Excludes low-work warm-up and recovery observations from the first
+      matched-workload experiment; it is not a physiological threshold.
+    applies_to: future analysis.environment_response
+  - name: maximum_power_pct_cp
+    value: 95.0
+    classification: guardrail
+    rationale: >
+      Avoids near-maximal observations whose heart-rate kinetics and fatigue
+      are unlikely to match steady submaximal interpretation.
+    applies_to: future analysis.environment_response
+  - name: minimum_start_offset_sec
+    value: 600
+    classification: guardrail
+    rationale: >
+      Excludes the first ten minutes to reduce warm-up kinetics. Duration
+      remains a covariate because this does not eliminate cardiovascular drift.
+    applies_to: future analysis.environment_response
+  - name: minimum_segment_duration_sec
+    value: 180
+    classification: guardrail
+    rationale: >
+      Requires enough continuous evidence for a stable segment without claiming
+      that three minutes reaches physiological steady state.
+    applies_to: future analysis.environment_response
+  - name: minimum_sample_coverage_ratio
+    value: 0.9
+    classification: guardrail
+    rationale: >
+      Prevents short sample fragments from representing a complete segment.
+    applies_to: future analysis.environment_response
+  - name: maximum_power_cv_pct
+    value: 5.0
+    classification: guardrail
+    rationale: >
+      Bounds within-segment power variation for the first stable-workload
+      definition; it is a product method choice.
+    applies_to: future analysis.environment_response
+  - name: primary_model
+    value:
+      method: ridge
+      alpha: 4.0
+      outcome: steady_segment_mean_hr_bpm
+      required_predictors:
+        - wet_bulb_c
+        - mean_pct_cp
+        - start_offset_min
+        - duration_min
+      optional_complete_case_predictors:
+        - terrain_gain_m_per_km
+        - pre_activity_tsb
+        - recovery_readiness_score
+      weighting: equal_activity_weight_within_partition
+      predictor_standardization: training_rows_only
+      intercept_penalized: false
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.duration-hydration-confounding
+      - personal-environment-response.structured-validation
+    rationale: >
+      Freezes the #523 pilot specification so the descriptive fallback cannot
+      be selected post hoc. Optional context is included only when complete and
+      provenance-consistent; missing context is omitted rather than imputed.
+    applies_to: future analysis.environment_response
+  - name: curve_reference_predictors
+    value: training_median_non_environment_predictors
+    classification: guardrail
+    rationale: >
+      Evaluates the fitted curve at observed training medians instead of an
+      invented athlete or workload profile.
+    applies_to: future analysis.environment_response
+  - name: curve_environment_domain_percentiles
+    value: [10, 90]
+    classification: guardrail
+    rationale: >
+      Trims sparse observed tails before charting and prohibits extrapolation
+      beyond the central activity-level environmental support.
+    applies_to: future web and miniapp Labs environment-response chart
+  - name: curve_support_bin_count
+    value: 5
+    classification: guardrail
+    rationale: >
+      Divides the fixed display domain into prespecified support checks rather
+      than choosing bins after seeing a favorable shape.
+    applies_to: future analysis.environment_response
+  - name: minimum_activities_per_curve_bin
+    value: 5
+    classification: guardrail
+    rationale: >
+      Prevents one or two activities from defining a displayed region. This is
+      an experimental support floor, not a validated universal threshold.
+    applies_to: future analysis.environment_response
+  - name: minimum_segments_per_curve_bin
+    value: 10
+    classification: guardrail
+    rationale: >
+      Requires repeated observations in every displayed environmental region
+      while retaining the activity as the independent unit.
+    applies_to: future analysis.environment_response
+  - name: curve_reference_power_pct_cp
+    value: [75.0, 85.0]
+    classification: guardrail
+    rationale: >
+      Requires direct workload support around the plotted eighty-percent-CP
+      reference instead of relying only on model adjustment.
+    applies_to: future analysis.environment_response
+  - name: minimum_reference_power_activities_per_curve_bin
+    value: 5
+    classification: guardrail
+    rationale: >
+      Withholds bins without repeated activities containing comparable
+      reference-power evidence.
+    applies_to: future analysis.environment_response
+  - name: minimum_coefficient_sign_agreement
+    value: 0.8
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.activity-cluster-uncertainty
+    rationale: >
+      Withholds a fitted line when activity-cluster bootstrap and planned
+      sensitivity variants do not preserve direction often enough.
+    applies_to: future analysis.environment_response
+  - name: bootstrap_interval_must_exclude_zero
+    value: true
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.activity-cluster-uncertainty
+    rationale: >
+      Requires the descriptive activity-cluster percentile interval to retain
+      one direction before a fitted line is shown. It is not a causal test or a
+      guaranteed confidence interval.
+    applies_to: future analysis.environment_response
+  - name: maximum_bootstrap_interval_width_to_absolute_estimate_ratio
+    value: 1.0
+    classification: guardrail
+    rationale: >
+      Withholds curves whose descriptive interval is wider than the absolute
+      fitted effect, avoiding a visually precise line with weak magnitude
+      resolution.
+    applies_to: future analysis.environment_response
+  - name: leave_one_activity_out_minimum_sign_agreement
+    value: 0.8
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.activity-cluster-uncertainty
+    rationale: >
+      Requires direction to persist when activities are removed one at a time
+      so a few influential sessions cannot define the chart.
+    applies_to: future analysis.environment_response
+  - name: leave_one_activity_out_maximum_relative_coefficient_change
+    value: 0.5
+    classification: guardrail
+    rationale: >
+      Withholds the line when removing one activity changes the coefficient by
+      more than half its primary absolute magnitude.
+    applies_to: future analysis.environment_response
+  - name: planned_sensitivity_variants
+    value:
+      - wider_power_band_60_to_100_pct_cp
+      - narrower_power_band_70_to_90_pct_cp
+      - warmup_exclusion_300_sec
+      - warmup_exclusion_900_sec
+      - minimum_segment_duration_120_sec
+      - minimum_segment_duration_300_sec
+      - temperature_only
+      - critical_power_minus_5_pct
+      - critical_power_plus_5_pct
+    classification: guardrail
+    rationale: >
+      Freezes the nine #523 perturbations used to test whether the descriptive
+      direction depends on one convenient analysis choice.
+    applies_to: future analysis.environment_response
+  - name: minimum_available_sensitivity_variants
+    value: 8
+    classification: guardrail
+    rationale: >
+      Requires nearly complete planned sensitivity coverage before a line can
+      be displayed.
+    applies_to: future analysis.environment_response
+  - name: bootstrap_iterations
+    value: 300
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.activity-cluster-uncertainty
+    rationale: >
+      Retains the deterministic pilot resampling budget. The interval is
+      descriptive and not a validated confidence guarantee.
+    applies_to: future analysis.environment_response
+  - name: permutation_iterations
+    value: 300
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.negative-controls-limited
+    rationale: >
+      Retains the deterministic activity-level negative-control budget without
+      treating a passed control as causal proof.
+    applies_to: future analysis.environment_response
+  - name: predictive_failure_behavior
+    value: historical_association_not_predictively_validated
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.association-not-prediction
+    rationale: >
+      Allows only a retrospective descriptive display when association
+      stability passes while permanently disabling forecast and correction use.
+    applies_to: future api.labs.environment_response
+  - name: predictive_unavailable_behavior
+    value: withhold_curve
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.association-not-prediction
+    rationale: >
+      Prevents an unevaluated prediction state from being presented as a
+      permissible descriptive fallback.
+    applies_to: future api.labs.environment_response
+  - name: enrollment_scope
+    value: all_users_explicit_opt_in
+    classification: guardrail
+    rationale: >
+      Makes participation available without default enrollment. Every account
+      remains independently gated and may receive an unavailable result.
+    applies_to: future api.labs.environment_response enrollment
+  - name: adult_eligibility
+    value: explicit_18_plus_attestation_required
+    classification: guardrail
+    rationale: >
+      The reviewed evidence concerns adults. Enrollment remains visible to all
+      users, but analysis is unavailable until the user confirms the evidence
+      applicability boundary without providing a birth date.
+    applies_to: future api.labs.environment_response enrollment
+  - name: labs_backup_maximum_retention_days
+    value: 14
+    classification: guardrail
+    rationale: >
+      Aligns Labs deletion disclosure and tombstone replay with the existing
+      production PostgreSQL point-in-time backup-retention window. This is an
+      operations/privacy bound, not a scientific threshold.
+    applies_to: docs/ops/backup-and-restore.md
+  - name: curve_extrapolation
+    value: prohibited
+    classification: guardrail
+    rationale: >
+      Suppresses values outside observed environmental support and comparable
+      workload overlap.
+    applies_to: future web and miniapp Labs environment-response chart
+  - name: retained_result_shape
+    value:
+      - experiment_id
+      - model_version
+      - eligibility_counts
+      - aggregate_curve_points
+      - aggregate_uncertainty
+      - gate_statuses
+      - computed_at
+      - source_revision
+    classification: guardrail
+    rationale: >
+      Stores only the minimum aggregate result required to render and audit the
+      experiment; activity IDs, dates, routes, and research rows are excluded.
+    applies_to: future db.labs_experiment_results
+  - name: availability_reason_shape
+    value:
+      - code
+      - category
+      - public_message_key
+      - observed_aggregate
+      - required_guardrail
+      - user_actionable
+      - suggested_action_key
+      - analysis_stage
+      - power_regime
+      - model_version
+      - correlation_id
+    classification: guardrail
+    rationale: >
+      Makes unavailable states understandable and supportable without exposing
+      activity identity, dates, routes, or per-activity observations.
+    applies_to: future api.labs.environment_response result
+  - name: availability_reason_codes
+    value:
+      - incomplete_export
+      - stale_source_revision
+      - insufficient_activities
+      - insufficient_segments
+      - insufficient_environmental_spread
+      - insufficient_holdout
+      - insufficient_curve_bin_support
+      - insufficient_reference_power_overlap
+      - missing_continuous_sample_power
+      - missing_continuous_heart_rate
+      - missing_temperature
+      - missing_relative_humidity
+      - missing_provider_aligned_critical_power
+      - unsupported_power_provider
+      - mixed_power_regime
+      - unverified_garmin_wrist_power
+      - power_device_or_algorithm_changed
+      - critical_power_provider_mismatch
+      - insufficient_sample_coverage
+      - bootstrap_unstable
+      - sensitivity_unstable
+      - influential_activity
+      - prediction_unavailable
+      - adult_eligibility_not_confirmed
+      - analysis_failed
+    classification: guardrail
+    rationale: >
+      Freezes the initial diagnostic taxonomy so implementation cannot collapse
+      scientific, provenance, stale-data, and processing failures into one
+      opaque state.
+    applies_to: future api.labs.environment_response result
+  - name: processing_failure_behavior
+    value: explicit_error_with_correlation_id
+    classification: guardrail
+    rationale: >
+      Prevents a failed job from appearing as insufficient athlete data or a
+      successful empty result.
+    applies_to: future api.labs.environment_response result
+applicability:
+  - Inherited completed-activity environmental context for users with supported connector weather; no Labs consent or adult attestation required
+  - Any user who explicitly opts in to the private experiment
+  - Adults who explicitly attest that they are at least 18 years old
+  - Completed running or trail-running history with complete owner-scoped export coverage
+  - Same-provider SAMPLE-derived power and heart rate with verified provenance
+  - Sufficient observed environmental spread and comparable workload support
+  - Retrospective historical description only
+user_facing_claim_limits:
+  - Use "historical association" or "observed in your past runs," never "your heat response"
+  - Never call psychrometric wet bulb WBGT, natural wet bulb, apparent temperature, or measured body heat strain
+  - Do not call the cross-activity curve heart-rate drift
+  - Do not present the slope as a physiological constant or causal effect
+  - Do not use "expected," "usual," or future tense unless predictive validation later passes under a new decision
+  - Show activity and segment support, observed environmental range, uncertainty, and model version
+  - State whether chronological prediction improved, failed, or was unavailable
+  - When prediction fails, show "historical association; not predictively validated"
+  - If prediction is unavailable or unevaluable, withhold the fitted line
+  - Do not show forecasts, corrections, counterfactuals, target changes, prescriptions, safety colors, or alerts
+  - Do not extrapolate beyond observed environmental support or comparable power overlap
+  - Identify every independently qualified power regime; never combine provider watts or coefficients
+  - Garmin native wrist-only power remains unavailable until separate provider qualification is accepted
+  - Do not offer pace or grade-adjusted pace as a V1 workload fallback
+  - Keep heat adaptation separate and qualitative
+  - Explain that wind, solar load, clothing, hydration, within-run weather, fatigue, and other factors remain unobserved or incomplete
+safety_implications:
+  - The experiment is not medical clearance, heat-illness prediction, hydration assessment, or a safe-to-train decision
+  - No value or chart region may be colored or labeled as safe, unsafe, optimal, dangerous, or tolerable
+  - The curve cannot override recovery, training, or emergency guidance
+  - Missing wind or solar radiation must be disclosed and cannot be filled by a reassuring default
+privacy_implications:
+  - Participation requires a separate explicit opt-in recorded with experiment and consent-text versions
+  - Record only an adult-eligibility attestation and its version/time; do not collect date of birth for this experiment
+  - Personal analysis remains owner-scoped and is not pooled, benchmarked, sold, disclosed, or used for unrelated model training
+  - Cross-user contribution is excluded and requires the separate #591 decision
+  - V1 uses connector-provided historical environment fields only; external weather or route enrichment is prohibited
+  - Derived persistence is limited to aggregate curve points, uncertainty, counts, gates, model version, source revision, and timestamps
+  - Do not persist activity IDs, activity dates, routes, precise GPS, sample rows, or per-activity research rows in the Labs result
+  - Logs, analytics, traces, and error reports must not contain private research exports or per-activity results
+  - Queue payloads contain only owner ID, experiment ID, model version, and source revision
+  - Raw exports and per-activity research rows may exist only in worker memory or encrypted temporary storage with a maximum 24-hour lifetime
+  - Caches must not retain raw exports or per-activity research rows
+  - Withdrawal cancels queued work; running work must re-check active consent before persisting a result
+  - Withdrawal deletes the consent record and derived Labs result; it does not silently delete the user's underlying account activity history
+  - Active-database deletion is immediate; encrypted production backups expire within the existing 14-day PostgreSQL retention window and restored systems must reapply deletion tombstones before serving Labs results
+  - Rejoining requires new consent and recomputation from then-current source data and model version
+  - A result must become stale when its source revision or model version changes and must not be silently presented as current
+validation_plan:
+  - Preserve complete snapshot-safe owner export validation and page-hash verification
+  - Keep all segments from one activity in the same chronological split, bootstrap draw, and permutation unit
+  - Refit filtering and modeling inside every activity-cluster bootstrap draw
+  - Compare chronological MAE with an otherwise-identical no-environment model
+  - Retain structure-preserving activity-level permutation controls and document their limits
+  - Run all preregistered sensitivity variants and withhold the line when sign or support is unstable
+  - Add curve-support tests that suppress sparse tails and forbid extrapolation
+  - Add leave-one-activity-out influence checks and exact tests for every prespecified descriptive gate
+  - Validate opt-in, withdrawal, deletion, stale-result, and recomputation behavior
+  - Perform user-comprehension testing for association versus prediction and uncertainty
+  - Run the first production result on the maintainer account before announcing the experiment
+  - Track aggregate operational eligibility and failure-code counts without pooling personal coefficients or curve values
+  - Require a new decision before any forecast, correction, cohort benchmark, safety interpretation, or training integration
+falsification_conditions:
+  - The fitted association is directionally unstable across activity-cluster bootstrap or planned sensitivities
+  - Results are driven by a few influential activities or sparse environmental tails
+  - Comparable power support does not overlap across the displayed environmental range
+  - Provider or device continuity cannot be established
+  - Chronological behavior is materially unstable and cannot be explained without post hoc gate changes
+  - Users interpret the curve as forecast, causal physiology, adaptation, or safety despite the proposed presentation
+  - Activity identifiers, dates, routes, or research rows enter persisted results, logs, analytics, or client payloads
+  - Withdrawal or deletion leaves a renderable derived result
+  - Cross-user pooling occurs without the separate #591 consent and governance decision
+affected_surfaces:
+  models:
+    - environmental-performance/context
+    - future Labs environmental-response-v1
+  apis:
+    - future /api/labs/environment-response enrollment
+    - future /api/labs/environment-response result
+    - future /api/labs/environment-response deletion
+  clients:
+    - future web Labs environmental-response experiment
+    - future miniapp parity surface or explicitly tracked parity gap
+  science_notes:
+    - Environmental-response methodology and limitations
+    - Stull psychrometric wet-bulb calculator
+supersedes:
+  - sdr-environmental-performance-v1
+decision_notes:
+  - >
+    Human approval was provided by github:dddtc2005 after review of PR #594 on
+    2026-08-08.
+  - >
+    Acceptance atomically supersedes sdr-environmental-performance-v1, adds
+    reciprocal lifecycle links, and updates governed model references.
+  - >
+    The new Evidence Review is additive and does not supersede
+    evidence-environmental-performance-v1.
+  - >
+    The #523 private production result supports feasibility for one account but
+    does not validate universal product thresholds. Numeric floors remain
+    experimental guardrails requiring reassessment as opt-in eligibility data
+    accumulates.
+  - >
+    Acceptance authorizes the bounded implementation described here; it does
+    not mean the Labs API, UI, enrollment flow, or Garmin candidate regime has
+    shipped.

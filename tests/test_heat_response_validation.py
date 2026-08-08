@@ -132,9 +132,9 @@ def synthetic_research_dataset(
                 "elevation_gain_m": terrain * 10.0,
                 "environment": {
                     "model_version":
-                        "environmental-performance-context-v1",
+                        "environmental-performance-context-v2",
                     "science_decision_id":
-                        "sdr-environmental-performance-v1",
+                        "sdr-environmental-performance-v2",
                     "state": "available",
                     "temperature_c": temperature,
                     "relative_humidity_pct": 65.0,
@@ -214,7 +214,7 @@ def synthetic_research_dataset(
         "export_snapshot_id": "rev1:" + ("a" * 32),
         "model_versions": {
             "stable_segments": "stable-power-segments-v3",
-            "environment": "environmental-performance-context-v1",
+            "environment": "environmental-performance-context-v2",
             "pre_activity_load": "banister-pmc-causal-v2",
             "heat_adaptation": (
                 ["heat-adaptation-v8"] if records else []
@@ -310,6 +310,18 @@ def test_recovers_reviewable_heat_signal_with_activity_holdout() -> None:
     assert report["recommendation"]["value"] == (
         "eligible_for_science_review"
     )
+    assert report["research_configuration"]["classification"] == (
+        "mixed_accepted_v2_guardrails_and_research_settings"
+    )
+    assert "minimum_activities" in report["research_configuration"][
+        "accepted_v2_guardrail_fields"
+    ]
+    assert "eligible_activity_types" in report["research_configuration"][
+        "accepted_v2_guardrail_fields"
+    ]
+    assert "maximum_holdout_mae_bpm" in report["research_configuration"][
+        "research_only_fields"
+    ]
     assert report["recommendation"]["value"] != "ship"
     assert report["input_contract"][
         "input_contains_private_activity_ids"
@@ -642,7 +654,7 @@ def test_duplicate_source_and_activity_id_is_deduplicated() -> None:
     ("science_decision_id", "reason_code"),
     [
         (None, "environment_science_decision_id_missing"),
-        ("sdr-environmental-performance-v2",
+        ("sdr-environmental-performance-v1",
          "environment_science_decision_id_mismatch"),
     ],
 )

@@ -25,8 +25,8 @@ BUNDLE_SCHEMA_VERSION = "activity-research-dataset-bundle-v1"
 REPORT_SCHEMA_VERSION = "heat-response-validation-report-v1"
 MODEL_VERSION = "within-athlete-ridge-mean-hr-v1"
 WET_BULB_METHOD = "stull_psychrometric"
-ENVIRONMENT_MODEL_VERSION = "environmental-performance-context-v1"
-ENVIRONMENT_SCIENCE_DECISION_ID = "sdr-environmental-performance-v1"
+ENVIRONMENT_MODEL_VERSION = "environmental-performance-context-v2"
+ENVIRONMENT_SCIENCE_DECISION_ID = "sdr-environmental-performance-v2"
 STABLE_SEGMENT_MODEL_VERSION = "stable-power-segments-v3"
 HEAT_ADAPTATION_MODEL_VERSION = "heat-adaptation-v8"
 PRE_ACTIVITY_LOAD_MODEL_VERSION = "banister-pmc-causal-v2"
@@ -69,6 +69,27 @@ _BLOCKING_MODEL_GATES = frozenset({
     "chronological_holdout",
     "environmental_spread",
 })
+_ACCEPTED_V2_GUARDRAIL_CONFIG_FIELDS = (
+    "eligible_activity_types",
+    "minimum_activities",
+    "minimum_segments",
+    "minimum_train_activities",
+    "minimum_test_activities",
+    "holdout_fraction",
+    "minimum_environmental_spread_c",
+    "minimum_power_pct_cp",
+    "maximum_power_pct_cp",
+    "minimum_start_offset_sec",
+    "minimum_segment_duration_sec",
+    "minimum_sample_coverage_ratio",
+    "maximum_power_cv_pct",
+    "critical_power_sensitivity_fraction",
+    "minimum_sensitivity_available_count",
+    "minimum_coefficient_sign_agreement",
+    "ridge_alpha",
+    "bootstrap_iterations",
+    "permutation_iterations",
+)
 _MAX_INPUT_PAGE_LIMIT = 50
 _EXPECTED_PRIVACY_CONTRACT = {
     "precise_gps_included": False,
@@ -95,13 +116,15 @@ class HeatValidationInputError(ValueError):
 
 @dataclass(frozen=True)
 class HeatValidationConfig:
-    """Configurable research estimates used by the offline validation.
+    """Configuration used by the offline validation and Labs contract.
 
-    These defaults are analysis configuration, not accepted product gates.
+    Fields named in ``_ACCEPTED_V2_GUARDRAIL_CONFIG_FIELDS`` are accepted
+    product guardrails under ``sdr-environmental-performance-v2``. The
+    remaining defaults are research diagnostics or method choices.
     """
 
-    # RESEARCH ESTIMATES -- eligibility and stability values are configurable
-    # analysis choices, not accepted product gates or physiological constants.
+    # None of these values are physiological constants. Accepted v2 guardrails
+    # and remaining research settings are reported separately.
     minimum_activities: int = 12
     minimum_segments: int = 24
     minimum_train_activities: int = 8
@@ -311,10 +334,13 @@ def validate_heat_response(
         recommendation_reasons.append("primary_model_unavailable")
     if recommendation_value == "eligible_for_science_review":
         recommendation_next_steps = [
-            "Review diagnostics and assumptions with a human science reviewer.",
             (
-                "Draft and accept a superseding SDR before any API or UI "
-                "work."
+                "Apply this result only through the accepted "
+                "sdr-environmental-performance-v2 Labs contract."
+            ),
+            (
+                "Complete consent, privacy, comprehension, and rendered UI "
+                "validation before release."
             ),
         ]
     else:
@@ -336,7 +362,7 @@ def validate_heat_response(
         "wind_solar_radiation_clothing_and_hydration_are_unobserved",
         "regularized_association_is_not_a_causal_personal_correction",
         "activity_level_weather_does_not_capture_within_activity_exposure",
-        "private_athlete_run_human_science_review_and_superseding_sdr_required",
+        "labs_implementation_and_comprehension_validation_required",
         "no_user_facing_api_or_ui_authorized",
     ]
     if (
@@ -3475,7 +3501,15 @@ def _configuration_report(
     config: HeatValidationConfig,
 ) -> dict[str, Any]:
     return {
-        "classification": "research_estimates_not_accepted_product_gates",
+        "classification":
+            "mixed_accepted_v2_guardrails_and_research_settings",
+        "accepted_v2_guardrail_fields":
+            list(_ACCEPTED_V2_GUARDRAIL_CONFIG_FIELDS),
+        "research_only_fields": [
+            field
+            for field in HeatValidationConfig.__dataclass_fields__
+            if field not in _ACCEPTED_V2_GUARDRAIL_CONFIG_FIELDS
+        ],
         "minimum_activities": config.minimum_activities,
         "minimum_segments": config.minimum_segments,
         "minimum_train_activities": config.minimum_train_activities,

@@ -30,21 +30,29 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "evidence-environmental-performance-v1",
         "evidence-heat-adaptation-v1",
         "evidence-heat-decay-v1",
+        "evidence-personal-environment-response-v1",
     }
     assert set(registry.decisions) == {
         "sdr-environmental-performance-v1",
+        "sdr-environmental-performance-v2",
         "sdr-heat-adaptation-v1",
     }
-    assert all(
-        review.status == "accepted"
-        for review in registry.evidence_reviews.values()
+    assert registry.evidence_reviews[
+        "evidence-personal-environment-response-v1"
+    ].status == "accepted"
+    assert registry.decisions["sdr-environmental-performance-v2"].status == (
+        "accepted"
     )
 
     decision = registry.decisions["sdr-heat-adaptation-v1"]
     assert decision.status == "accepted"
     assert decision.model_version == "heat-adaptation-v8"
     assert decision.model_version == metrics._HEAT_MODEL_VERSION
-    assert set(decision.evidence_review_ids) == set(registry.evidence_reviews)
+    assert set(decision.evidence_review_ids) == {
+        "evidence-environmental-performance-v1",
+        "evidence-heat-adaptation-v1",
+        "evidence-heat-decay-v1",
+    }
     assert decision.human_reviewers == ["github:dddtc2005"]
 
 
@@ -53,8 +61,9 @@ def test_environmental_performance_decision_preserves_product_boundaries() -> No
     decision = registry.decisions["sdr-environmental-performance-v1"]
     review = registry.evidence_reviews["evidence-environmental-performance-v1"]
 
-    assert decision.status == "accepted"
+    assert decision.status == "superseded"
     assert decision.model_version == "environmental-performance-context-v1"
+    assert decision.superseded_by == "sdr-environmental-performance-v2"
     assert decision.evidence_review_ids == [review.id]
     assert decision.model_parameters == []
     assert {
@@ -72,6 +81,162 @@ def test_environmental_performance_decision_preserves_product_boundaries() -> No
     assert "Do not infer core temperature" in limits
     assert "never send or store a route trace" in privacy
     assert "Do not infer home or training locations" in privacy
+
+
+def test_environment_response_decision_preserves_lifecycle_and_limits() -> None:
+    registry = load_science_registry()
+    predecessor = registry.decisions["sdr-environmental-performance-v1"]
+    accepted = registry.decisions["sdr-environmental-performance-v2"]
+    review = registry.evidence_reviews[
+        "evidence-personal-environment-response-v1"
+    ]
+
+    assert predecessor.status == "superseded"
+    assert predecessor.superseded_by == accepted.id
+    assert accepted.status == "accepted"
+    assert accepted.supersedes == [predecessor.id]
+    assert accepted.human_reviewers == ["github:dddtc2005"]
+    assert review.status == "accepted"
+    assert review.human_reviewers == ["github:dddtc2005"]
+    assert review.supersedes == []
+
+    interpretation = accepted.accepted_interpretation
+    limits = " ".join(accepted.user_facing_claim_limits)
+    privacy = " ".join(accepted.privacy_implications)
+    assert "historical association; not predictively validated" in (
+        interpretation
+    )
+    assert "not a causal effect" in interpretation
+    assert "every user an explicit opt-in" in interpretation
+    assert "Never call psychrometric wet bulb WBGT" in limits
+    assert "Do not call the cross-activity curve heart-rate drift" in limits
+    assert "unavailable or unevaluable" in limits
+    assert "Cross-user contribution is excluded" in privacy
+    assert "Do not persist activity IDs" in privacy
+    assert "external weather or route enrichment is prohibited" in privacy
+    assert "encrypted temporary storage" in privacy
+    assert "14-day PostgreSQL retention window" in privacy
+    assert "Queue payloads contain only owner ID" in privacy
+    assert "Caches must not retain raw exports" in privacy
+    assert "running work must re-check active consent" in privacy
+
+    parameters = {
+        parameter.name: parameter for parameter in accepted.model_parameters
+    }
+    assert parameters["primary_model"].value == {
+        "method": "ridge",
+        "alpha": 4.0,
+        "outcome": "steady_segment_mean_hr_bpm",
+        "required_predictors": [
+            "wet_bulb_c",
+            "mean_pct_cp",
+            "start_offset_min",
+            "duration_min",
+        ],
+        "optional_complete_case_predictors": [
+            "terrain_gain_m_per_km",
+            "pre_activity_tsb",
+            "recovery_readiness_score",
+        ],
+        "weighting": "equal_activity_weight_within_partition",
+        "predictor_standardization": "training_rows_only",
+        "intercept_penalized": False,
+    }
+    assert parameters["predictive_unavailable_behavior"].value == (
+        "withhold_curve"
+    )
+    assert parameters["enrollment_scope"].value == (
+        "all_users_explicit_opt_in"
+    )
+    assert parameters["power_source"].value == [
+        "stryd_continuous_samples",
+    ]
+    assert parameters["candidate_power_regimes"].value == [
+        "garmin_native_wrist_only_continuous_samples",
+    ]
+    assert parameters["garmin_power_provenance"].value == (
+        "required_before_provider_qualification"
+    )
+    assert parameters["power_regime_isolation"].value == (
+        "provider_device_and_algorithm_era"
+    )
+    assert parameters["pace_workload_fallback"].value == "prohibited_in_v1"
+    assert parameters["multiple_power_regime_behavior"].value == (
+        "separate_results_no_outcome_based_selection"
+    )
+    assert parameters["adult_eligibility"].value == (
+        "explicit_18_plus_attestation_required"
+    )
+    assert parameters["availability_reason_shape"].value == [
+        "code",
+        "category",
+        "public_message_key",
+        "observed_aggregate",
+        "required_guardrail",
+        "user_actionable",
+        "suggested_action_key",
+        "analysis_stage",
+        "power_regime",
+        "model_version",
+        "correlation_id",
+    ]
+    assert "unverified_garmin_wrist_power" in parameters[
+        "availability_reason_codes"
+    ].value
+    assert "prediction_unavailable" in parameters[
+        "availability_reason_codes"
+    ].value
+    assert {
+        "missing_continuous_sample_power",
+        "missing_continuous_heart_rate",
+        "missing_temperature",
+        "missing_relative_humidity",
+        "missing_provider_aligned_critical_power",
+        "adult_eligibility_not_confirmed",
+    } <= set(parameters["availability_reason_codes"].value)
+    assert parameters["processing_failure_behavior"].value == (
+        "explicit_error_with_correlation_id"
+    )
+    assert parameters["labs_backup_maximum_retention_days"].value == 14
+    assert parameters["curve_environment_domain_percentiles"].value == [
+        10,
+        90,
+    ]
+    assert parameters["curve_support_bin_count"].value == 5
+    assert parameters["minimum_activities_per_curve_bin"].value == 5
+    assert parameters["minimum_segments_per_curve_bin"].value == 10
+    assert parameters["curve_reference_power_pct_cp"].value == [75.0, 85.0]
+    assert parameters[
+        "minimum_reference_power_activities_per_curve_bin"
+    ].value == 5
+    assert parameters["bootstrap_interval_must_exclude_zero"].value is True
+    assert parameters[
+        "maximum_bootstrap_interval_width_to_absolute_estimate_ratio"
+    ].value == 1.0
+    assert parameters[
+        "leave_one_activity_out_minimum_sign_agreement"
+    ].value == 0.8
+    assert parameters[
+        "leave_one_activity_out_maximum_relative_coefficient_change"
+    ].value == 0.5
+    assert parameters["planned_sensitivity_variants"].value == [
+        "wider_power_band_60_to_100_pct_cp",
+        "narrower_power_band_70_to_90_pct_cp",
+        "warmup_exclusion_300_sec",
+        "warmup_exclusion_900_sec",
+        "minimum_segment_duration_120_sec",
+        "minimum_segment_duration_300_sec",
+        "temperature_only",
+        "critical_power_minus_5_pct",
+        "critical_power_plus_5_pct",
+    ]
+    assert parameters["minimum_available_sensitivity_variants"].value == 8
+    assert all(
+        parameter.classification.value == "guardrail"
+        for parameter in accepted.model_parameters
+        if isinstance(parameter.value, (int, float))
+        and not isinstance(parameter.value, bool)
+    )
 
 
 def test_environmental_sources_record_verified_identifiers_and_review_depth() -> None:
@@ -655,6 +820,15 @@ def test_metric_science_links_match_the_registry() -> None:
     )
     assert environment["science_sources"] == (
         registry.source_links_for_decision(
-            metrics.ENVIRONMENT_CONTEXT_SCIENCE_DECISION_ID
+            "sdr-environmental-performance-v1"
         )
     )
+    accepted_environment_sources = {
+        source["id"]
+        for source in registry.source_links_for_decision(
+            metrics.ENVIRONMENT_CONTEXT_SCIENCE_DECISION_ID
+        )
+    }
+    assert {
+        source["id"] for source in environment["science_sources"]
+    } < accepted_environment_sources

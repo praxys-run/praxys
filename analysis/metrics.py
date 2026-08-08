@@ -1176,12 +1176,13 @@ ACTIVITY_ANALYSIS_SCHEMA_VERSION = "activity-analysis-v1"
 ACTIVITY_RESEARCH_SCHEMA_VERSION = "activity-research-dataset-v1"
 STABLE_SEGMENT_MODEL_VERSION = "stable-power-segments-v3"
 PRE_ACTIVITY_LOAD_MODEL_VERSION = "banister-pmc-causal-v2"
-ENVIRONMENT_CONTEXT_MODEL_VERSION = "environmental-performance-context-v1"
+ENVIRONMENT_CONTEXT_MODEL_VERSION = "environmental-performance-context-v2"
 ENVIRONMENT_CONTEXT_SCIENCE_DECISION_ID = (
-    "sdr-environmental-performance-v1"
+    "sdr-environmental-performance-v2"
 )
-# Keep the metric pure and I/O-free. A registry consistency test pins this
-# link-only projection to ENVIRONMENT_CONTEXT_SCIENCE_DECISION_ID.
+# Keep the metric pure and I/O-free. This surface retains the environmental
+# context citation subset governed by v2; Labs-only method sources belong on
+# the future Labs methodology surface.
 _ENVIRONMENT_CONTEXT_SCIENCE_SOURCES = (
     {
         "id": "cramer-jay-2016",
@@ -2280,7 +2281,7 @@ def build_activity_environment_context(
     """Build bounded retrospective environmental context for one activity.
 
     Reuses the activity-weather plausibility bounds and Stull psychrometric
-    wet-bulb proxy governed by ``sdr-environmental-performance-v1``. This is
+    wet-bulb proxy governed by ``sdr-environmental-performance-v2``. This is
     completed-activity context only: it is not outdoor WBGT, a safety boundary,
     a forecast, or a personal performance correction.
     """

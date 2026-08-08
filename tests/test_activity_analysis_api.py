@@ -306,10 +306,10 @@ def test_analysis_exposes_provenance_segments_and_causal_context(
     environment = activity["environment"]
     assert environment["state"] == "available"
     assert environment["model_version"] == (
-        "environmental-performance-context-v1"
+        "environmental-performance-context-v2"
     )
     assert environment["science_decision_id"] == (
-        "sdr-environmental-performance-v1"
+        "sdr-environmental-performance-v2"
     )
     assert environment["temperature_c"] == 34.0
     assert environment["relative_humidity_pct"] == 70.0

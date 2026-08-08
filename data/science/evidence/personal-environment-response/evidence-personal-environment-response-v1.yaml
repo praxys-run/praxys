@@ -1,0 +1,612 @@
+schema_version: 1
+id: evidence-personal-environment-response-v1
+version: 1
+title: "Personal retrospective environmental and heart-rate associations"
+research_question: >
+  For adult endurance athletes, what evidence and methodological guidance
+  support or limit displaying a retrospective within-person association
+  between environmental heat or moisture and heart rate at comparable external
+  workload?
+topic: personal-environment-response
+status: accepted
+authors:
+  - agent:github-copilot
+human_reviewers:
+  - github:dddtc2005
+created_on: 2026-08-08
+reviewed_on: 2026-08-08
+intended_product_purpose: >
+  Bound an opt-in Praxys Labs display of historical heart-rate observations
+  across a Stull psychrometric wet-bulb proxy without presenting the result as
+  causal, predictive, physiological, safety-related, or prescriptive.
+scope:
+  population:
+    - Adult endurance athletes with repeated heart-rate and external-workload observations
+    - Runners where same-provider sample-derived power is available
+    - Controlled cycling populations used only for physiological plausibility
+  intervention_or_exposure:
+    - Exercise in warmer or more humid environments
+    - Stull psychrometric wet-bulb proxy derived from air temperature and relative humidity
+  comparator:
+    - Lower environmental heat or moisture at comparable recorded workload
+    - An otherwise-identical analysis without the environmental predictor
+    - Structure-preserving environmental permutation controls
+  outcomes:
+    - Heart rate during stable sample-derived workload segments
+    - Stability of the retrospective environmental association
+    - Chronological out-of-sample prediction error
+    - User interpretation of uncertainty
+method:
+  review_type: rigorous
+  search_date: 2026-08-08
+  sources:
+    - name: PubMed and PubMed Central
+      search_string: >
+        ("cardiovascular drift" OR "heart rate drift") AND
+        (heat OR dehydration) AND exercise
+    - name: PubMed
+      search_string: >
+        ("exercise heat") AND (acclimation OR hydration OR morphology OR
+        fitness) AND ("heart rate" OR "cardiovascular drift")
+    - name: PubMed and PubMed Central
+      search_string: >
+        ("running power meter" OR Stryd OR "wearable running power") AND
+        (validity OR reliability OR agreement)
+    - name: First-pass physiology discovery
+      search_string: >
+        site:pubmed.ncbi.nlm.nih.gov cardiovascular drift heat fixed workload
+        endurance exercise heart rate review DOI
+    - name: First-pass physiology discovery
+      search_string: >
+        PubMed cardiovascular drift prolonged exercise heat constant workload
+        heart rate review Wingo 2012 DOI PMID
+    - name: First-pass controlled-study discovery
+      search_string: >
+        PubMed controlled crossover heat thermoneutral fixed power cycling heart
+        rate cardiovascular drift trained endurance athletes DOI
+    - name: First-pass controlled-study discovery
+      search_string: >
+        site:pubmed.ncbi.nlm.nih.gov heat versus thermoneutral constant load
+        cycling heart rate stroke volume DOI cardiovascular drift
+    - name: First-pass field-study discovery
+      search_string: >
+        "ambient temperature" "heart rate" runners repeated measures wearable
+        study environmental endurance DOI
+    - name: First-pass running-study discovery
+      search_string: >
+        "heart rate" "running power" heat environment study runners DOI fixed
+        workload
+    - name: First-pass longitudinal-study discovery
+      search_string: >
+        adult endurance runners field ambient temperature heart rate matched
+        workload longitudinal within athlete study
+    - name: First-pass power-validity discovery
+      search_string: >
+        running power validity environmental heat Stryd SAMPLE derived running
+        power study DOI
+    - name: First-pass validation-method discovery
+      search_string: >
+        methodological guidance prediction model validation temporal
+        chronological validation bootstrap clustered repeated measures
+        permutation test association predictive performance DOI
+    - name: First-pass association-method discovery
+      search_string: >
+        Shmueli 2010 To Explain or to Predict DOI full text association
+        predictive accuracy
+    - name: First-pass structured-validation discovery
+      search_string: >
+        Roberts cross-validation strategies data temporal spatial hierarchical
+        phylogenetic structure Ecography 2017 DOI full text
+    - name: First-pass bootstrap-method discovery
+      search_string: >
+        cluster bootstrap repeated measures resample subjects methodological
+        guidance DOI hierarchical data bootstrap
+    - name: First-pass permutation-method discovery
+      search_string: >
+        permutation tests regression predictive accuracy performance null
+        distribution methodological paper DOI
+    - name: First-pass negative-control discovery
+      search_string: >
+        negative controls epidemiologic studies Lipsitch Tchetgen Cohen 2010
+        DOI full text
+    - name: First-pass uncertainty discovery
+      search_string: >
+        uncertainty visualization confidence intervals risk communication avoid
+        deterministic interpretation study DOI frequency framing
+    - name: First-pass N-of-1 discovery
+      search_string: >
+        N-of-1 methods practical guide exploring trajectories health psychology
+        review 2020 DOI full text uncertainty visualization individual time
+        series
+    - name: PubMed, Crossref, and publisher metadata
+      search_string: >
+        exact DOI and title verification for 10.1097/JES.0b013e31824c43af,
+        10.1152/jappl.1992.73.4.1340,
+        10.1152/physrev.00038.2020, 10.3390/sports8070103,
+        10.1214/10-STS330, 10.1111/ecog.02881,
+        10.3758/s13428-019-01252-y,
+        10.1097/EDE.0b013e3181d61eeb,
+        10.3389/fcomp.2020.590232, and
+        10.3389/fbinf.2022.793819
+    - name: Independent second-pass discovery
+      search_string: >
+        exercise heat cardiovascular drift modifiers fitness morphology body
+        size acclimation fixed workload heart rate systematic review DOI
+    - name: Independent second-pass discovery
+      search_string: >
+        running power meters validity systematic review Stryd environmental
+        conditions slope wind fatigue DOI
+    - name: Independent second-pass methods search
+      search_string: >
+        repeated measures activity cluster bootstrap temporal validation
+        permutation negative controls descriptive association curve uncertainty
+        bands
+    - name: Provider-specific running-power search
+      search_string: >
+        Garmin native wrist running power Stryd validity reliability
+        repeatability same device algorithm DOI PMID
+    - name: Pace and grade workload search
+      search_string: >
+        grade adjusted pace running metabolic cost slope wind surface heat
+        validation threshold DOI PMID
+  inclusion_criteria:
+    - Adult human exercise evidence at fixed or comparable external workload
+    - Endurance-relevant cycling or running protocols
+    - Reviews or primary studies reporting cardiovascular drift, heart rate, hydration, or heat response
+    - Methods directly relevant to temporal validation, hierarchical resampling, negative controls, or uncertainty communication
+    - Stable DOI or PMID metadata and at least an abstract or indexed record
+  exclusion_criteria:
+    - Animal or pediatric-only studies
+    - Studies without heart rate or meaningful external-workload information
+    - Universal personal correction equations without individual validation
+    - Heat-safety diagnosis, training prescription, or forecast models
+    - Preprints or case reports as primary physiological evidence when stronger sources were available
+  quality_appraisal: >
+    Two independently assigned research passes searched and checked the
+    candidate set, then reconciled source roles, metadata, access level, and
+    claim limits. Pass one screened fourteen candidate citations from sixteen
+    recorded discovery queries. Pass two re-ran broad and exact-identifier
+    searches and expanded the unique candidate set to eighteen. A third
+    targeted workload-proxy pass added five unique pace, grade, wind, surface,
+    and Garmin-comparison candidates. Seventeen sources were retained for new
+    claims; six were excluded or left in the accepted predecessor because they
+    were redundant, population-specific, methodologically overbroad, or already
+    governed.
+    Controlled physiology studies are mostly small, male, and cycling-based;
+    they establish plausibility rather than a personal running coefficient.
+    Method papers support analysis structure and communication guardrails but
+    do not validate Praxys thresholds. Running-power evidence supports cautious
+    within-device workload matching, not complete metabolic equivalence.
+  method_limitations:
+    - This is a bounded product review rather than a systematic review or meta-analysis
+    - Search-result counts were not exported from every database query
+    - Direct longitudinal field studies matching one runner's power across environmental conditions were not identified
+    - Most physiological sources were verified from abstracts rather than full text
+    - No paper validates Stull wet bulb as the causal exposure for a personal heart-rate curve
+    - No source validates the Praxys segment filters, ridge specification, display thresholds, or product labels
+claims:
+  - id: personal-environment-response.cardiovascular-drift-plausible
+    statement: >
+      During prolonged exercise at unchanged or comparable prescribed workload,
+      heart rate can rise while stroke volume falls, and heat can increase this
+      cardiovascular drift.
+    source_ids:
+      - wingo-2012
+      - montain-coyle-1992
+      - periard-2021
+    evidence_strength: moderate
+    applicable_population:
+      - Adults performing prolonged moderate-intensity endurance exercise
+    domain:
+      - Cardiovascular drift
+      - Exercise heat physiology
+    limitations:
+      - Evidence is predominantly controlled cycling research
+      - The claim does not establish one individual's response per degree
+      - The claim does not validate Stull wet bulb as the operative exposure
+      - Heart-rate drift is not interchangeable with a cross-activity environmental association
+  - id: personal-environment-response.duration-hydration-confounding
+    statement: >
+      Exercise duration and hydration status materially affect heart-rate and
+      stroke-volume drift, so an observational environmental association cannot
+      be interpreted as heat alone when those factors are unmeasured or
+      incompletely controlled.
+    source_ids:
+      - montain-coyle-1992
+      - periard-2021
+    evidence_strength: moderate
+    applicable_population:
+      - Adults exercising for prolonged periods in warm conditions
+    domain:
+      - Hydration
+      - Time-varying confounding
+    limitations:
+      - Hydration cannot be inferred reliably from ordinary activity records
+      - Clothing, solar load, wind, acclimation, fatigue, illness, and morphology remain additional modifiers
+      - This claim does not authorize imputation of missing physiology
+  - id: personal-environment-response.running-power-limited-proxy
+    statement: >
+      Commercial running-power estimates can carry useful within-device
+      workload information, but available validation does not establish
+      complete mechanical or metabolic equivalence across providers, devices,
+      algorithms, terrain, wind, fatigue, or environmental conditions.
+    source_ids:
+      - imbach-2020
+      - cerezuela-espejo-2020
+      - berzosa-2024
+      - van-rassel-2023
+    evidence_strength: low
+    effect_estimates:
+      - metric: Association with oxygen consumption
+        estimate: 0.82
+        unit: R-squared
+        context: Six recreational runners in an indoor incremental protocol
+      - metric: Association with estimated external mechanical power
+        estimate: 0.88
+        unit: R-squared
+        context: Six recreational runners in an indoor incremental protocol
+    applicable_population:
+      - Runners using the studied commercial running-power devices and protocols
+    domain:
+      - Running power
+      - Workload matching
+    limitations:
+      - Six-runner indoor study without heat manipulation
+      - Garmin comparative studies used earlier or accessory-based GarminRP implementations rather than validating modern native wrist-only power
+      - Absolute power and inter-device agreement differed
+      - Proprietary algorithm, firmware, device, and source continuity remain relevant
+      - The evidence does not support cross-provider power matching
+  - id: personal-environment-response.pace-grade-insufficient
+    statement: >
+      Equal pace does not establish equal physiological workload across grade,
+      wind, surface, fatigue, or heat, and the reviewed evidence does not define
+      a universal grade tolerance that makes pace an interchangeable substitute
+      for provider-verified sample power.
+    source_ids:
+      - minetti-2002
+      - pugh-1971
+      - gantz-derrick-2017
+      - leslie-2024
+    evidence_strength: moderate
+    applicable_population:
+      - Adult runners across controlled slope, wind, irregular-surface, and heat protocols
+    domain:
+      - Pace-based workload matching
+      - Grade and environmental confounding
+    limitations:
+      - Population metabolic-cost relationships do not validate individual outdoor equivalence
+      - Net elevation gain can hide repeated uphill and downhill costs
+      - Consumer segment pace and grade include GPS and elevation error
+      - Heat can change sustainable pace, making pace partly an outcome of the exposure under study
+      - No reviewed source establishes an acceptable within-X-percent grade threshold
+  - id: personal-environment-response.association-not-prediction
+    statement: >
+      A stable fitted association and useful out-of-sample prediction are
+      different objectives; an observed coefficient can coexist with no
+      incremental predictive value.
+    source_ids:
+      - shmueli-2010
+    evidence_strength: moderate
+    applicable_population:
+      - Observational model interpretation
+    domain:
+      - Association
+      - Prediction
+    limitations:
+      - This methodological distinction does not prove that a fitted association is causal or unbiased
+      - Predictive failure forbids forecast or correction language
+      - Descriptive display still requires prespecified stability and communication gates
+  - id: personal-environment-response.structured-validation
+    statement: >
+      Validation splits should respect temporal and hierarchical dependence
+      when the intended claim concerns later activities; random row-level
+      splitting can underestimate error.
+    source_ids:
+      - roberts-2017
+    evidence_strength: moderate
+    applicable_population:
+      - Longitudinal or hierarchically structured observational data
+    domain:
+      - Chronological validation
+      - Hierarchical dependence
+    limitations:
+      - The source is methodological and not specific to exercise physiology
+      - One chronological split does not establish transportability
+      - Seasonality and longer-term fitness trends can remain confounded
+  - id: personal-environment-response.activity-cluster-uncertainty
+    statement: >
+      For segments nested within activities, resampling whole activities rather
+      than individual segments preserves the primary dependence structure and
+      avoids treating correlated segments as independent observations.
+    source_ids:
+      - deen-2020
+    evidence_strength: moderate
+    applicable_population:
+      - Hierarchical data with repeated observations within clusters
+    domain:
+      - Cluster bootstrap
+      - Uncertainty estimation
+    limitations:
+      - The source focuses on generalized linear models rather than the complete Praxys pipeline
+      - The full filtering and fitting pipeline must be repeated inside each resample
+      - Serial dependence between nearby activities may require coarser blocks
+  - id: personal-environment-response.negative-controls-limited
+    statement: >
+      Negative controls and structure-preserving permutation distributions can
+      reveal confounding, measurement, selection, or pipeline artifacts, but
+      passing them does not prove causality.
+    source_ids:
+      - lipsitch-2010
+    evidence_strength: moderate
+    applicable_population:
+      - Observational analyses with plausible negative-control designs
+    domain:
+      - Negative controls
+      - Bias detection
+    limitations:
+      - Exchangeability must be justified at the activity level
+      - Naive segment shuffling can destroy the dependence structure
+      - A null negative control cannot validate a physiological mechanism
+  - id: personal-environment-response.uncertainty-can-be-misread
+    statement: >
+      Non-expert users can construe uncertain visual estimates as deterministic,
+      so uncertainty displays require explicit explanation and comprehension
+      testing rather than a confidence band alone.
+    source_ids:
+      - joslyn-savelli-2021
+      - weiskopf-2022
+    evidence_strength: moderate
+    applicable_population:
+      - Non-expert users viewing modeled quantitative information
+    domain:
+      - Uncertainty visualization
+      - Product comprehension
+    limitations:
+      - The sources do not test the proposed Praxys chart
+      - Visual uncertainty does not correct scientific model bias
+      - Product copy and interaction design require direct user testing
+citations:
+  - id: wingo-2012
+    title: "Cardiovascular Drift During Heat Stress: Implications for Exercise Prescription"
+    authors:
+      - James E. Wingo
+      - Matthew S. Ganio
+      - Kirk J. Cureton
+    year: 2012
+    journal: Exercise and Sport Sciences Reviews
+    doi: 10.1097/JES.0b013e31824c43af
+    pmid: "22410803"
+  - id: montain-coyle-1992
+    title: "Influence of graded dehydration on hyperthermia and cardiovascular drift during exercise"
+    authors:
+      - Scott J. Montain
+      - Edward F. Coyle
+    year: 1992
+    journal: Journal of Applied Physiology
+    doi: 10.1152/jappl.1992.73.4.1340
+    pmid: "1447078"
+  - id: periard-2021
+    title: "Exercise under heat stress: thermoregulation, hydration, performance implications, and mitigation strategies"
+    authors:
+      - Julien D. Periard
+      - Thijs M. H. Eijsvogels
+      - Hein A. M. Daanen
+    year: 2021
+    journal: Physiological Reviews
+    doi: 10.1152/physrev.00038.2020
+    pmid: "33829868"
+  - id: imbach-2020
+    title: "Validity of the Stryd Power Meter in Measuring Running Parameters at Submaximal Speeds"
+    authors:
+      - Florian Imbach
+      - Robin Candau
+      - Romain Chailan
+      - Stephane Perrey
+    year: 2020
+    journal: Sports
+    doi: 10.3390/sports8070103
+    pmid: "32698464"
+  - id: shmueli-2010
+    title: "To Explain or to Predict?"
+    authors:
+      - Galit Shmueli
+    year: 2010
+    journal: Statistical Science
+    doi: 10.1214/10-STS330
+  - id: cerezuela-espejo-2020
+    title: "Are we ready to measure running power? Repeatability and concurrent validity of five commercial technologies"
+    authors:
+      - Victor Cerezuela-Espejo
+      - Alejandro Hernandez-Belmonte
+      - Javier Courel-Ibanez
+      - Elena Conesa-Ros
+      - Ricardo Mora-Rodriguez
+      - Jesus G. Pallares
+    year: 2020
+    journal: European Journal of Sport Science
+    doi: 10.1080/17461391.2020.1748117
+    pmid: "32212955"
+  - id: berzosa-2024
+    title: "Assessing Trail Running Biomechanics: A Comparative Analysis of the Reliability of StrydTM and GARMINRP Wearable Devices"
+    authors:
+      - Cesar Berzosa
+      - Cristina Comeras-Chueca
+      - Pablo Jesus Bascuas
+      - Hector Gutierrez
+      - Ana Vanessa Bataller-Cervero
+    year: 2024
+    journal: Sensors
+    doi: 10.3390/s24113570
+    pmid: "38894361"
+  - id: van-rassel-2023
+    title: "Is Running Power a Useful Metric? Quantifying Training Intensity and Aerobic Fitness Using Stryd Running Power Near the Maximal Lactate Steady State"
+    authors:
+      - Cody R. van Rassel
+      - Oluwatimilehin O. Ajayi
+      - Kate M. Sales
+      - James K. Griffiths
+      - Jared R. Fletcher
+      - W. Brent Edwards
+      - Martin J. MacInnis
+    year: 2023
+    journal: Sensors
+    doi: 10.3390/s23218729
+    pmid: "37960430"
+  - id: minetti-2002
+    title: "Energy cost of walking and running at extreme uphill and downhill slopes"
+    authors:
+      - Alberto E. Minetti
+      - Christian Moia
+      - Giulio S. Roi
+      - Davide Susta
+      - Guido Ferretti
+    year: 2002
+    journal: Journal of Applied Physiology
+    doi: 10.1152/japplphysiol.01177.2001
+    pmid: "12183501"
+  - id: pugh-1971
+    title: "The influence of wind resistance in running and walking and the mechanical efficiency of work against horizontal or vertical forces"
+    authors:
+      - L. G. C. E. Pugh
+    year: 1971
+    journal: The Journal of Physiology
+    doi: 10.1113/jphysiol.1971.sp009381
+    pmid: "5574828"
+  - id: gantz-derrick-2017
+    title: "Kinematics and metabolic cost of running on an irregular treadmill surface"
+    authors:
+      - Alyssa M. Gantz
+      - Timothy R. Derrick
+    year: 2017
+    journal: Journal of Sports Sciences
+    doi: 10.1080/02640414.2017.1357829
+    pmid: "28758835"
+  - id: leslie-2024
+    title: "Heat stress and the velocity-duration relationship in amateur runners"
+    authors:
+      - Eric Leslie
+      - Jyotika Erram
+      - Daniel T. Cannon
+    year: 2024
+    journal: Physiological Reports
+    doi: 10.14814/phy2.70013
+    pmid: "39152681"
+  - id: roberts-2017
+    title: "Cross-validation strategies for data with temporal, spatial, hierarchical, or phylogenetic structure"
+    authors:
+      - David R. Roberts
+      - Volker Bahn
+      - Simone Ciuti
+      - Mark S. Boyce
+      - Jane Elith
+      - Gurutzeta Guillera-Arroita
+      - Severin Hauenstein
+      - Jose J. Lahoz-Monfort
+      - Boris Schroder
+      - Wilfried Thuiller
+      - David I. Warton
+      - Brendan A. Wintle
+      - Florian Hartig
+      - Carsten F. Dormann
+    year: 2017
+    journal: Ecography
+    doi: 10.1111/ecog.02881
+  - id: deen-2020
+    title: "ClusterBootstrap: An R package for the analysis of hierarchical data using generalized linear models with the cluster bootstrap"
+    authors:
+      - Mathijs Deen
+      - Mark de Rooij
+    year: 2020
+    journal: Behavior Research Methods
+    doi: 10.3758/s13428-019-01252-y
+    pmid: "31089956"
+  - id: lipsitch-2010
+    title: "Negative controls: a tool for detecting confounding and bias in observational studies"
+    authors:
+      - Marc Lipsitch
+      - Eric J. Tchetgen Tchetgen
+      - Ted Cohen
+    year: 2010
+    journal: Epidemiology
+    doi: 10.1097/EDE.0b013e3181d61eeb
+    pmid: "20335814"
+  - id: joslyn-savelli-2021
+    title: "Visualizing Uncertainty for Non-Expert End Users: The Challenge of the Deterministic Construal Error"
+    authors:
+      - Susan Joslyn
+      - Sonia Savelli
+    year: 2021
+    journal: Frontiers in Computer Science
+    doi: 10.3389/fcomp.2020.590232
+  - id: weiskopf-2022
+    title: "Uncertainty Visualization: Concepts, Methods, and Applications in Biological Data Visualization"
+    authors:
+      - Daniel Weiskopf
+    year: 2022
+    journal: Frontiers in Bioinformatics
+    doi: 10.3389/fbinf.2022.793819
+    pmid: "36304261"
+known_gaps:
+  - Direct longitudinal runner studies matching same-provider sample power across environmental conditions
+  - Validated minimum activities, segments, power overlap, and environmental spread for personal descriptive curves
+  - Field measurements of solar load, wind, clothing, hydration, and within-activity environmental exposure
+  - Device and firmware continuity effects on running-power comparability
+  - Seasonality, fitness change, illness, medication, and acclimation confounding
+  - User comprehension of a historical association that explicitly failed predictive validation
+  - Peer-reviewed validation of modern Garmin native wrist-only running power
+  - A validated pace or grade-adjusted-pace matching rule for this environmental association
+conflicting_findings:
+  - Controlled physiology supports heat-related heart-rate drift, but no identified field study validates a personal Stull-wet-bulb response curve
+  - A coefficient can be directionally stable while adding no chronological predictive value
+  - Running power carries workload information but does not establish complete workload equivalence
+  - Pace is observable across more activities, but heat can change pace and no reviewed grade tolerance establishes equivalent effort
+follow_up_questions:
+  - Which prespecified descriptive-stability gates best control false or misleading curve display?
+  - Should substantial chronological instability withhold the fitted line entirely?
+  - How should sparse environmental tails and incomplete power overlap be suppressed?
+  - Can repeated preregistered temporal validations establish stability before broader enrollment?
+  - Which comprehension test demonstrates that users distinguish association from prediction?
+  - What separate validation could support a pace or grade-adjusted-pace workload path?
+supersedes: []
+review_notes:
+  - >
+    Independent pass ownership: research agent
+    environment-response-evidence performed the first screen; research agent
+    environment-response-evidence-check performed the second screen and
+    metadata challenge.
+  - >
+    Screening reconciliation: twenty-three unique candidate sources were
+    reviewed; seventeen were included in this additive review. Minson 1997 and
+    Wingo 2019 were
+    excluded as small protocol-specific additions already bounded by the
+    retained physiology claims. Collins 2024 was excluded as clinical
+    prediction guidance broader than the retrospective product question.
+    Ciszewski 2024/2025 was excluded because generic permutation testing did
+    not establish exchangeability for activity clusters. Stull 2011 remains in
+    evidence-environmental-performance-v1. Periard 2016 was not added because
+    the accepted adaptation evidence already sets the required modifier
+    boundary.
+  - >
+    Existing evidence-environmental-performance-v1 remains unchanged and
+    continues to govern Stull-proxy, WBGT, multifactor heat-balance, safety, and
+    universal-correction boundaries.
+  - >
+    The private production result from #523 is an internal validation artifact,
+    not a literature citation or a population effect estimate.
+  - "Verification: wingo-2012 - abstract; PubMed PMID 22410803 and Crossref/Ovid metadata; 2026-08-08."
+  - "Verification: montain-coyle-1992 - abstract; PubMed PMID 1447078 and Crossref/APS metadata; 2026-08-08."
+  - "Verification: periard-2021 - abstract; PubMed PMID 33829868 and Crossref/APS metadata; 2026-08-08."
+  - "Verification: imbach-2020 - full-text; PubMed PMID 32698464 and PubMed Central PMCID PMC7404478; 2026-08-08."
+  - "Verification: cerezuela-espejo-2020 - abstract; PubMed PMID 32212955 and Crossref metadata; 2026-08-08."
+  - "Verification: berzosa-2024 - full-text; PubMed PMID 38894361 and PubMed Central PMCID PMC11175203; 2026-08-08."
+  - "Verification: van-rassel-2023 - full-text; PubMed PMID 37960430 and PubMed Central PMCID PMC10649254; 2026-08-08."
+  - "Verification: minetti-2002 - abstract; PubMed PMID 12183501 and Crossref metadata; 2026-08-08."
+  - "Verification: pugh-1971 - full-text; PubMed PMID 5574828 and PubMed Central PMCID PMC1331759; 2026-08-08."
+  - "Verification: gantz-derrick-2017 - abstract; PubMed PMID 28758835 and Crossref metadata; 2026-08-08."
+  - "Verification: leslie-2024 - full-text; PubMed PMID 39152681 and PubMed Central PMCID PMC11329748; 2026-08-08."
+  - "Verification: shmueli-2010 - full-text; author manuscript and Project Euclid metadata; 2026-08-08."
+  - "Verification: roberts-2017 - abstract; Wiley abstract and Crossref metadata; 2026-08-08."
+  - "Verification: deen-2020 - full-text; PubMed PMID 31089956 and PubMed Central PMCID PMC7148287; 2026-08-08."
+  - "Verification: lipsitch-2010 - full-text; PubMed PMID 20335814 and PubMed Central PMCID PMC3053408; 2026-08-08."
+  - "Verification: joslyn-savelli-2021 - full-text; Frontiers HTML and Crossref metadata; 2026-08-08."
+  - "Verification: weiskopf-2022 - full-text; PubMed PMID 36304261 and Frontiers HTML; 2026-08-08."

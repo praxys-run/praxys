@@ -8,14 +8,16 @@ integrity field required to prevent mixed-revision page bundles.
 
 ## Boundary
 
-The accepted `sdr-environmental-performance-v1` still permits qualitative,
+The accepted `sdr-environmental-performance-v2` still permits qualitative,
 retrospective connector environmental context with explicit provenance. That
 separate context is not a personal correction.
 
-This pipeline cannot authorize a user-facing personal estimate. A real,
-consented private-athlete run, human science review, and an accepted
-superseding SDR with matched-sample and environmental-spread rules are still
-required before API or UI productization.
+This offline pipeline does not itself expose user-facing behavior. Accepted
+`sdr-environmental-performance-v2` now authorizes only the bounded opt-in Labs
+implementation: consent, deletion, privacy-safe diagnostics, support and
+stability gates, comprehension testing, and rendered UI validation remain
+required before release. Forecasts, corrections, safety claims, pace fallback,
+and unqualified provider regimes still require a future science decision.
 
 ## Input and privacy
 
@@ -136,7 +138,7 @@ segments. It excludes:
 - split fallback;
 - invalid or unsupported connector environment provenance, including any
   environment context not governed by
-  `sdr-environmental-performance-v1`;
+  `sdr-environmental-performance-v2`;
 - any wet-bulb value not labeled with the versioned Stull psychrometric
   method (a proxy, **not WBGT**);
 - missing or invalid segment source/stability, mean power, mean %CP, mean HR,
@@ -266,13 +268,18 @@ fraction of permuted coefficients. Evaluated contradictions are reported as
 Either status withholds the recommendation. These are model-performance
 falsification choices, not physiological claims.
 
-Minimum observations, segments, holdout size, training and evaluated-holdout
-environmental spread, HR/HR slope/decoupling bounds, %CP consistency tolerance,
-falsification margins and support fractions, bootstrap, permutation and
-sensitivity coverage, coefficient-stability criteria, provider consistency,
-and regularization settings are configurable **research estimates or method
-choices**, not accepted product gates. Heat-adaptation availability and dated
-recovery are informational. The only recommendations are:
+Accepted v2 guardrails include the activity and segment floors, chronological
+split, overall environmental spread, power band, warm-up and duration filters,
+sample coverage, power variability, ridge alpha, fixed sensitivity variants,
+minimum sensitivity count and direction agreement, and bootstrap/permutation
+iteration counts. They remain product guardrails rather than physiological
+constants.
+
+Evaluated-holdout spread, HR/HR-slope/decoupling plausibility bounds, %CP
+consistency tolerance, recovery availability, performance margins and support
+fractions, minimum valid-resample fractions, and the deterministic seed remain
+research diagnostics or method choices. Heat-adaptation availability and dated
+recovery are informational. The only report recommendations are:
 
 - `withhold_personal_estimate`
 - `eligible_for_science_review`
@@ -281,8 +288,8 @@ recovery are informational. The only recommendations are:
 review. It does not mean validation succeeded and never means `ship`.
 The report's next steps are outcome-specific: a withheld estimate recommends
 against productization and points to prospective validation or richer
-covariates, while an eligible result requests human science review and an
-accepted superseding SDR before product work.
+covariates, while an eligible result may be used only through the accepted v2
+Labs contract after consent, privacy, comprehension, and rendered UI validation.
 
 Ridge implementation: Hoerl and Kennard,
 <https://doi.org/10.1080/00401706.1970.10488634>. Activity-cluster bootstrap

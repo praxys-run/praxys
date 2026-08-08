@@ -13,12 +13,13 @@ Evidence reviews record what the literature supports. Science Decision Records (
 | [evidence-environmental-performance-v1](evidence/environmental-performance/evidence-environmental-performance-v1.yaml) — Environmental heat and endurance performance | 1 | environmental-performance | 2026-07-26 |
 | [evidence-heat-adaptation-v1](evidence/heat-adaptation/evidence-heat-adaptation-v1.yaml) — Repeated-exposure heat adaptation | 1 | heat-adaptation | 2026-07-25 |
 | [evidence-heat-decay-v1](evidence/heat-decay/evidence-heat-decay-v1.yaml) — Heat adaptation decay and re-induction | 1 | heat-decay | 2026-07-25 |
+| [evidence-personal-environment-response-v1](evidence/personal-environment-response/evidence-personal-environment-response-v1.yaml) — Personal retrospective environmental and heart-rate associations | 1 | personal-environment-response | 2026-08-08 |
 
 ### Science decisions
 
 | Record | Version | Topic/model | Reviewed/decided |
 |---|---:|---|---|
-| [sdr-environmental-performance-v1](decisions/sdr-environmental-performance-v1.yaml) — Present environmental conditions as bounded performance context | 1 | environmental-performance-context-v1 | 2026-07-26 |
+| [sdr-environmental-performance-v2](decisions/sdr-environmental-performance-v2.yaml) — Present a private historical environmental-response experiment | 2 | environmental-performance-context-v2 | 2026-08-08 |
 | [sdr-heat-adaptation-v1](decisions/sdr-heat-adaptation-v1.yaml) — Interpret recent heat exposure as qualitative adaptation evidence | 1 | heat-adaptation-v8 | 2026-07-26 |
 
 ## Pending
@@ -39,7 +40,9 @@ _None._
 
 ### Science decisions
 
-_None._
+| Record | Version | Topic/model | Reviewed/decided |
+|---|---:|---|---|
+| [sdr-environmental-performance-v1](decisions/sdr-environmental-performance-v1.yaml) — Present environmental conditions as bounded performance context | 1 | environmental-performance-context-v1 | 2026-07-26 |
 
 ## Retired
 
