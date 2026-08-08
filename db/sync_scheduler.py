@@ -337,8 +337,19 @@ def _scheduler_loop():
             _check_and_sync()
         except Exception:
             logger.exception("Scheduler tick failed")
+        _run_personal_context_retention_tick()
         _run_managed_delivery_tick()
         _stop_event.wait(CHECK_INTERVAL_SEC)
+
+
+def _run_personal_context_retention_tick() -> None:
+    """Run private-context expiry and purge without disrupting sync."""
+    try:
+        from api.personal_context import run_scheduled_retention
+
+        run_scheduled_retention()
+    except Exception:
+        logger.exception("Personal-context retention scheduler tick failed")
 
 
 def _run_managed_delivery_tick() -> None:

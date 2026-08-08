@@ -81,12 +81,19 @@ from db.session import init_db
 async def lifespan(app: FastAPI):
     """Initialize database on startup."""
     init_db()
+    from api.personal_context import (
+        replay_deletion_manifests,
+        run_retention,
+    )
     from api.labs_environment import (
         recover_interrupted_jobs,
         replay_deletion_tombstones,
     )
     from db.session import SessionLocal
 
+    with SessionLocal() as context_db:
+        replay_deletion_manifests(context_db)
+        run_retention(context_db, raise_on_failure=True)
     with SessionLocal() as labs_db:
         replay_deletion_tombstones(labs_db)
         recover_interrupted_jobs(labs_db)
