@@ -39,9 +39,9 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     }
     assert registry.evidence_reviews[
         "evidence-personal-environment-response-v1"
-    ].status == "draft"
+    ].status == "accepted"
     assert registry.decisions["sdr-environmental-performance-v2"].status == (
-        "draft"
+        "accepted"
     )
 
     decision = registry.decisions["sdr-heat-adaptation-v1"]
@@ -61,8 +61,9 @@ def test_environmental_performance_decision_preserves_product_boundaries() -> No
     decision = registry.decisions["sdr-environmental-performance-v1"]
     review = registry.evidence_reviews["evidence-environmental-performance-v1"]
 
-    assert decision.status == "accepted"
+    assert decision.status == "superseded"
     assert decision.model_version == "environmental-performance-context-v1"
+    assert decision.superseded_by == "sdr-environmental-performance-v2"
     assert decision.evidence_review_ids == [review.id]
     assert decision.model_parameters == []
     assert {
@@ -82,25 +83,26 @@ def test_environmental_performance_decision_preserves_product_boundaries() -> No
     assert "Do not infer home or training locations" in privacy
 
 
-def test_draft_environment_response_decision_preserves_lifecycle_and_limits() -> None:
+def test_environment_response_decision_preserves_lifecycle_and_limits() -> None:
     registry = load_science_registry()
-    accepted = registry.decisions["sdr-environmental-performance-v1"]
-    proposed = registry.decisions["sdr-environmental-performance-v2"]
+    predecessor = registry.decisions["sdr-environmental-performance-v1"]
+    accepted = registry.decisions["sdr-environmental-performance-v2"]
     review = registry.evidence_reviews[
         "evidence-personal-environment-response-v1"
     ]
 
+    assert predecessor.status == "superseded"
+    assert predecessor.superseded_by == accepted.id
     assert accepted.status == "accepted"
-    assert accepted.superseded_by is None
-    assert proposed.status == "draft"
-    assert proposed.supersedes == []
-    assert proposed.human_reviewers == []
-    assert review.status == "draft"
+    assert accepted.supersedes == [predecessor.id]
+    assert accepted.human_reviewers == ["github:dddtc2005"]
+    assert review.status == "accepted"
+    assert review.human_reviewers == ["github:dddtc2005"]
     assert review.supersedes == []
 
-    interpretation = proposed.accepted_interpretation
-    limits = " ".join(proposed.user_facing_claim_limits)
-    privacy = " ".join(proposed.privacy_implications)
+    interpretation = accepted.accepted_interpretation
+    limits = " ".join(accepted.user_facing_claim_limits)
+    privacy = " ".join(accepted.privacy_implications)
     assert "historical association; not predictively validated" in (
         interpretation
     )
@@ -119,7 +121,7 @@ def test_draft_environment_response_decision_preserves_lifecycle_and_limits() ->
     assert "running work must re-check active consent" in privacy
 
     parameters = {
-        parameter.name: parameter for parameter in proposed.model_parameters
+        parameter.name: parameter for parameter in accepted.model_parameters
     }
     assert parameters["primary_model"].value == {
         "method": "ridge",
@@ -231,7 +233,7 @@ def test_draft_environment_response_decision_preserves_lifecycle_and_limits() ->
     assert parameters["minimum_available_sensitivity_variants"].value == 8
     assert all(
         parameter.classification.value == "guardrail"
-        for parameter in proposed.model_parameters
+        for parameter in accepted.model_parameters
         if isinstance(parameter.value, (int, float))
         and not isinstance(parameter.value, bool)
     )
@@ -818,6 +820,15 @@ def test_metric_science_links_match_the_registry() -> None:
     )
     assert environment["science_sources"] == (
         registry.source_links_for_decision(
-            metrics.ENVIRONMENT_CONTEXT_SCIENCE_DECISION_ID
+            "sdr-environmental-performance-v1"
         )
     )
+    accepted_environment_sources = {
+        source["id"]
+        for source in registry.source_links_for_decision(
+            metrics.ENVIRONMENT_CONTEXT_SCIENCE_DECISION_ID
+        )
+    }
+    assert {
+        source["id"] for source in environment["science_sources"]
+    } < accepted_environment_sources

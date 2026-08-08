@@ -2,11 +2,12 @@ schema_version: 1
 id: sdr-environmental-performance-v2
 version: 2
 title: "Present a private historical environmental-response experiment"
-status: draft
+status: accepted
 decision_date: 2026-08-08
 owners:
   - team:praxys
-human_reviewers: []
+human_reviewers:
+  - github:dddtc2005
 model_version: environmental-performance-context-v2
 evidence_review_ids:
   - evidence-environmental-performance-v1
@@ -34,9 +35,12 @@ evidence_claim_ids:
   - personal-environment-response.negative-controls-limited
   - personal-environment-response.uncertainty-can-be-misread
 accepted_interpretation: >
-  If accepted, Praxys may offer every user an explicit opt-in to a private
-  Labs experiment after confirming the reviewed adult-population boundary
-  that displays a retrospective modeled association between the Stull
+  Praxys continues to provide the inherited retrospective completed-activity
+  environmental context governed by v1 without requiring Labs enrollment or
+  adult attestation. Separately, Praxys may offer every user an explicit opt-in
+  to a private Labs experiment after confirming the reviewed adult-population
+  boundary. The Labs experiment displays a retrospective modeled association
+  between the Stull
   psychrometric wet-bulb proxy and heart rate in same-provider SAMPLE-derived
   stable running-power segments. The display describes observations in the
   athlete's eligible historical data only. It is not a causal effect,
@@ -105,6 +109,15 @@ model_parameters:
     evidence_claim_ids:
       - environment.stull-wet-bulb-proxy
     applies_to: analysis.metrics.estimate_wet_bulb_c
+  - name: completed_activity_context_source_projection
+    value: inherited_environmental_performance_v1_claims
+    classification: guardrail
+    rationale: >
+      Keeps the existing completed-activity ScienceNote focused on the
+      environmental proxy, performance-context, provenance, and safety claims.
+      Labs-only personal-model and statistical-method citations remain on the
+      separate Labs methodology surface.
+    applies_to: analysis.metrics._ENVIRONMENT_CONTEXT_SCIENCE_SOURCES
   - name: eligible_activity_types
     value:
       - running
@@ -562,6 +575,7 @@ model_parameters:
       successful empty result.
     applies_to: future api.labs.environment_response result
 applicability:
+  - Inherited completed-activity environmental context for users with supported connector weather; no Labs consent or adult attestation required
   - Any user who explicitly opts in to the private experiment
   - Adults who explicitly attest that they are at least 18 years old
   - Completed running or trail-running history with complete owner-scoped export coverage
@@ -645,15 +659,15 @@ affected_surfaces:
   science_notes:
     - Environmental-response methodology and limitations
     - Stull psychrometric wet-bulb calculator
-supersedes: []
+supersedes:
+  - sdr-environmental-performance-v1
 decision_notes:
   - >
-    This is a draft successor proposal. The accepted
-    sdr-environmental-performance-v1 remains active and unchanged.
+    Human approval was provided by github:dddtc2005 after review of PR #594 on
+    2026-08-08.
   - >
-    If a human reviewer approves this proposal, acceptance must be applied
-    atomically: mark v1 superseded, add reciprocal supersession links, accept
-    this SDR, and update governed model references in the same change.
+    Acceptance atomically supersedes sdr-environmental-performance-v1, adds
+    reciprocal lifecycle links, and updates governed model references.
   - >
     The new Evidence Review is additive and does not supersede
     evidence-environmental-performance-v1.
@@ -663,5 +677,6 @@ decision_notes:
     experimental guardrails requiring reassessment as opt-in eligibility data
     accumulates.
   - >
-    This draft does not authorize implementation, deployment, enrollment, or
-    presentation until human science and privacy review approves the decision.
+    Acceptance authorizes the bounded implementation described here; it does
+    not mean the Labs API, UI, enrollment flow, or Garmin candidate regime has
+    shipped.

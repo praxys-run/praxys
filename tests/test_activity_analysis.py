@@ -19,9 +19,9 @@ def test_environment_context_is_versioned_and_method_labeled() -> None:
     )
 
     assert context["state"] == "available"
-    assert context["model_version"] == "environmental-performance-context-v1"
+    assert context["model_version"] == "environmental-performance-context-v2"
     assert context["science_decision_id"] == (
-        "sdr-environmental-performance-v1"
+        "sdr-environmental-performance-v2"
     )
     assert context["wet_bulb_c"] is not None
     assert context["wet_bulb_method"] == "stull_psychrometric"

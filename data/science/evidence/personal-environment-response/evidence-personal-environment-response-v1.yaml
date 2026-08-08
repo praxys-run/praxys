@@ -8,11 +8,13 @@ research_question: >
   between environmental heat or moisture and heart rate at comparable external
   workload?
 topic: personal-environment-response
-status: draft
+status: accepted
 authors:
   - agent:github-copilot
-human_reviewers: []
+human_reviewers:
+  - github:dddtc2005
 created_on: 2026-08-08
+reviewed_on: 2026-08-08
 intended_product_purpose: >
   Bound an opt-in Praxys Labs display of historical heart-rate observations
   across a Stull psychrometric wet-bulb proxy without presenting the result as

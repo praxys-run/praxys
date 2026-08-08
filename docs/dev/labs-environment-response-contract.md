@@ -1,7 +1,8 @@
 # Labs environmental-response V1 contract
 
-Status: **draft decision proposal** for issue #590. This document does not
-authorize implementation or user-facing behavior.
+Status: **accepted implementation contract** for issue #590. This document
+authorizes only the bounded implementation described below; the feature has
+not shipped.
 
 ## Product purpose
 
@@ -162,8 +163,8 @@ Optional cohort contribution remains a separate decision in #591.
 
 The governing records are:
 
-- `evidence-personal-environment-response-v1` — draft;
-- `sdr-environmental-performance-v2` — draft successor proposal.
+- `evidence-personal-environment-response-v1` — accepted;
+- `sdr-environmental-performance-v2` — accepted.
 
-The accepted v1 SDR remains active. Human science and privacy approval is
-required before the lifecycle transition or implementation begins.
+`sdr-environmental-performance-v1` is superseded. Human approval was recorded
+from `github:dddtc2005` after review of PR #594 on 2026-08-08.

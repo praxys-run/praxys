@@ -764,8 +764,8 @@ Paginated activity history.
       "avg_pace_min_km": "5:42",
       "rss": 64.8,
       "environment": {
-        "model_version": "environmental-performance-context-v1",
-        "science_decision_id": "sdr-environmental-performance-v1",
+        "model_version": "environmental-performance-context-v2",
+        "science_decision_id": "sdr-environmental-performance-v2",
         "state": "available",
         "temperature_c": 31.4,
         "relative_humidity_pct": 68.0,
@@ -835,7 +835,7 @@ timestamp is never silently relabeled as UTC. Missing time, weather, provider,
 or stream inputs use `state` plus stable `reason_codes` rather than
 success-shaped defaults.
 
-Environmental context follows `sdr-environmental-performance-v1`. It accepts
+Environmental context follows `sdr-environmental-performance-v2`. It accepts
 only plausible values from dedicated connector weather provenance (air
 temperature -20 to 50 C and relative humidity 0-100%). Synthesized activity
 summary or arbitrary imported source labels remain unavailable and their
@@ -846,9 +846,10 @@ boundary, forecast, personal pace correction, or counterfactual performance
 estimate. Dew point, vapor pressure, UI comparisons, and a separately
 validated matched-sample personalization model are deferred from this first
 API iteration; the user-facing comparison work remains tracked by issue #444.
-`science_sources` contains the complete link projection from
-`sdr-environmental-performance-v1`; the abbreviated example above shows only
-the formula source.
+`science_sources` retains the completed-activity environmental-context citation
+subset governed by `sdr-environmental-performance-v2`; Labs-only personal-model
+and statistical-method sources belong to the separate Labs methodology
+surface. The abbreviated example above shows only the formula source.
 
 ## Activity analysis
 
@@ -913,7 +914,7 @@ the currently selected training base and provider preferences to dated,
 previously stored observations, and record those choices in the payload/hash.
 
 The response records `schema_version`, model versions (including
-`environmental-performance-context-v1`), detector parameters, and a canonical
+`environmental-performance-context-v2`), detector parameters, and a canonical
 `record_hash`. It never includes credentials, precise GPS, or raw sample rows.
 
 ### GET /api/analysis/research-dataset
