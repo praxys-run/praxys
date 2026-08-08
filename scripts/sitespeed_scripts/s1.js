@@ -27,16 +27,16 @@ module.exports = async function (context, commands) {
 
   // Step 1 — get to the login form (not measured).
   await commands.navigate(`${baseUrl}/login`);
-  await commands.wait.byId('login-email', 10000);
+  await commands.wait.bySelector('input[type="email"]', 10000);
 
   // Step 2 — fill credentials. Form is empty on a fresh navigation; no
   // need to clear. Browser autofill is disabled in headless Chrome that
   // sitespeed.io ships, so this stays clean.
-  await commands.click.byId('login-email');
-  await commands.addText.byId(user, 'login-email');
+  await commands.click.bySelector('input[type="email"]');
+  await commands.addText.bySelector(user, 'input[type="email"]');
 
-  await commands.click.byId('login-password');
-  await commands.addText.byId(password, 'login-password');
+  await commands.click.bySelector('input[type="password"]');
+  await commands.addText.bySelector(password, 'input[type="password"]');
 
   // Step 3 — measure the click → /today navigation.
   await commands.measure.start('s1-today-via-login');

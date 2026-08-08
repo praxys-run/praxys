@@ -1,4 +1,25 @@
-# Perf arc summary — pre-arc → post-L3
+# Performance baseline summary
+
+## China delivery topology experiment — 2026-08-08
+
+The latest same-build comparison from a direct Shanghai China Unicom path is
+documented in
+[`2026-08-08-4fa2942-china-delivery/`](./2026-08-08-4fa2942-china-delivery/).
+Three iterations were run for each scenario and device.
+
+| Scenario | Direct Azure LCP D/M | EdgeOne global-ex-mainland LCP D/M | Tencent Lighthouse + gzip LCP D/M |
+|---|---:|---:|---:|
+| Cold login → Today | 2.01 / 1.97 s | 2.56 / 2.62 s | **0.66 / 1.55 s** |
+| Today → Training | 1.30 / 0.80 s | 3.01 / 0.84 s | **1.20 / 0.72 s** |
+| Anonymous landing | 1.92 / 1.77 s | 3.02 / 6.88 s | **1.34 / 0.70 s** |
+
+EdgeOne matched direct Azure within 16 ms on the warm Today path because hashed
+assets were already cached, but its Singapore point of presence made cold HTML
+revalidation slower and more variable. The mainland static origin reduced HTML
+TTFB to roughly 20–35 ms. Nginx compression was essential: without it, the
+Lighthouse bandwidth cap made cold LCP 3.7–4.6 seconds.
+
+## Historical optimization arc — pre-arc → post-L3
 
 **TL;DR.** Two weeks of perf work cut user-visible page time by 38–94 % across every login-gated scenario, and turned the cold anonymous-landing experience for CN-without-VPN visitors from "site looks broken" (22 s blank screen) into "site is fast" (1.6 s render). Warm repeat /today is now essentially instant — second-visit API responses return in 0.25 s end-to-end. This doc is the one-page shareable summary; per-anchor detail is in `<YYYY-MM-DD>-<sha>/README.md` directories and the running narrative is in [`2026-04-26-checkpoint.md`](./2026-04-26-checkpoint.md).
 

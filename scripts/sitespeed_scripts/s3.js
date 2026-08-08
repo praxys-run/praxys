@@ -25,13 +25,13 @@ module.exports = async function (context, commands) {
 
   // Step 1 — log in.
   await commands.navigate(`${baseUrl}/login`);
-  await commands.wait.byId('login-email', 10000);
+  await commands.wait.bySelector('input[type="email"]', 10000);
 
-  await commands.click.byId('login-email');
-  await commands.addText.byId(user, 'login-email');
+  await commands.click.bySelector('input[type="email"]');
+  await commands.addText.bySelector(user, 'input[type="email"]');
 
-  await commands.click.byId('login-password');
-  await commands.addText.byId(password, 'login-password');
+  await commands.click.bySelector('input[type="password"]');
+  await commands.addText.bySelector(password, 'input[type="password"]');
 
   await commands.click.bySelector('button[type="submit"]');
   await commands.wait.byCondition(
