@@ -97,15 +97,6 @@ def db_session():
     session.close()
 
 
-@pytest.fixture(autouse=True)
-def enabled_ai_gate(monkeypatch):
-    """Runner tests opt into the LLM path unless a test overrides the gate."""
-    monkeypatch.setattr(
-        "api.statsig_client.check_gate",
-        lambda gate_name, user: gate_name == "ai_insights_enabled",
-    )
-
-
 @pytest.fixture
 def stub_context(monkeypatch):
     """Stub build_training_context to avoid hitting get_dashboard_data."""
@@ -551,6 +542,20 @@ def test_daily_cap_falls_back_to_environment(monkeypatch):
     )
 
     assert insights_runner._daily_cap(user) == 9
+
+
+@pytest.mark.parametrize("configured", [True, "7", 7.5, -1, None])
+def test_daily_cap_rejects_invalid_dynamic_config(
+    monkeypatch,
+    configured,
+):
+    monkeypatch.setenv("PRAXYS_INSIGHT_DAILY_CAP", "11")
+    monkeypatch.setattr(
+        "api.statsig_client.get_config",
+        lambda _config_name, _user, _default: configured,
+    )
+
+    assert insights_runner._daily_cap(object()) == 11
 
 
 def test_older_run_cannot_overwrite_newer_insight(db_session):

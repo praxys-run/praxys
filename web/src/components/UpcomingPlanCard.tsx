@@ -37,7 +37,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import WorkoutPlanEditor from '@/components/WorkoutPlanEditor';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useLocale } from '@/contexts/LocaleContext';
-import { useFeatureFlag } from '@/contexts/StatsigContext';
 import {
   apiFetch,
   extractErrorMessage,
@@ -288,7 +287,6 @@ function DeliveryStatus({
   error,
   onDeliver,
   onReview,
-  strydPlanPushVisible,
 }: {
   workout: PlannedWorkout;
   managementState: ManagedPlanState;
@@ -299,7 +297,6 @@ function DeliveryStatus({
   error?: string;
   onDeliver: () => void;
   onReview: () => void;
-  strydPlanPushVisible: boolean;
 }) {
   const { t } = useLingui();
   const reconciliation = workout.reconciliation;
@@ -495,13 +492,6 @@ function DeliveryStatus({
     );
   }
   if (target === 'stryd') {
-    if (!strydPlanPushVisible) {
-      return (
-        <StaticStatus tone="bg-accent-cobalt/10 text-accent-cobalt">
-          <Trans>Queued</Trans>
-        </StaticStatus>
-      );
-    }
     if (!writeAccess) {
       return (
         <StaticStatus tone="bg-accent-cobalt/10 text-accent-cobalt">
@@ -542,7 +532,6 @@ function WorkoutRow({
   onDeliver,
   onEdit,
   onReview,
-  strydPlanPushVisible,
 }: {
   workout: PlannedWorkout;
   managementState: ManagedPlanState;
@@ -555,7 +544,6 @@ function WorkoutRow({
   onDeliver: () => void;
   onEdit?: () => void;
   onReview: () => void;
-  strydPlanPushVisible: boolean;
 }) {
   const { t } = useLingui();
   const { locale } = useLocale();
@@ -647,7 +635,6 @@ function WorkoutRow({
           error={error}
           onDeliver={onDeliver}
           onReview={onReview}
-          strydPlanPushVisible={strydPlanPushVisible}
         />
         {onEdit && (
           <Button
@@ -921,16 +908,9 @@ async function requestPlanMutation<T>(
 }
 
 export default function UpcomingPlanCard() {
-  const strydPlanPushEnabled = useFeatureFlag('stryd_plan_push_visible');
   const { t } = useLingui();
   const { locale } = useLocale();
-  const {
-    config: settings,
-    connectionStatuses,
-    featureVisibility,
-  } = useSettings();
-  const strydPlanPushVisible = strydPlanPushEnabled
-    && featureVisibility.stryd_plan_push_visible;
+  const { config: settings, connectionStatuses } = useSettings();
   const [windowId, setWindowId] = useState<WindowId>(() => {
     if (typeof window === 'undefined') return '2wk';
     const stored = window.localStorage.getItem(WINDOW_STORAGE_KEY) as WindowId | null;
@@ -1606,7 +1586,6 @@ export default function UpcomingPlanCard() {
                 : undefined
               }
               onReview={() => review(workout)}
-              strydPlanPushVisible={strydPlanPushVisible}
             />
           );
         })}

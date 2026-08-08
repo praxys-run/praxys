@@ -162,20 +162,11 @@ def _run(db: Session, user_id: str) -> dict:
         logger.exception("Insight context build failed for user=%s", user_id)
         return {"skipped": "context_build_failed"}
 
-    from db.models import User
-
-    user = db.query(User).filter(User.id == user_id).first()
-    statsig_user = (
-        statsig_client.get_statsig_user(
-            user_id=user_id,
-            email=user.email,
-            is_admin=user.is_superuser,
-            is_demo=user.is_demo,
-            training_base=getattr(cfg, "training_base", None),
-            language=getattr(cfg, "language", None),
-        )
-        if user is not None
-        else None
+    statsig_user = statsig_client.get_statsig_user_for_account(
+        db,
+        user_id=user_id,
+        training_base=getattr(cfg, "training_base", None),
+        language=getattr(cfg, "language", None),
     )
     cap = _daily_cap(statsig_user)
     run_started_at = datetime.utcnow()
@@ -202,11 +193,7 @@ def _run(db: Session, user_id: str) -> dict:
             results[itype] = "cap_reached"
 
             continue
-        payload = generators[itype](
-            context,
-            pillars,
-            statsig_user=statsig_user,
-        )
+        payload = generators[itype](context, pillars)
         if payload is None:
             results[itype] = "generator_returned_none"
 
@@ -275,10 +262,13 @@ def _daily_cap(statsig_user: object | None) -> int:
     from api.statsig_client import get_config
 
     configured = get_config("insight_daily_cap", statsig_user, fallback)
-    try:
-        return int(configured)
-    except (TypeError, ValueError):
-        return fallback
+    if (
+        isinstance(configured, int)
+        and not isinstance(configured, bool)
+        and configured >= 0
+    ):
+        return configured
+    return fallback
 
 
 def _count_today(user_id: str, db: Session) -> int:

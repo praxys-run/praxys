@@ -29,7 +29,13 @@ def test_missing_sdk_key_keeps_gates_off_and_config_on_fallback(
         language="en",
     )
 
-    assert statsig_client.check_gate("ai_insights_enabled", user) is False
+    assert (
+        statsig_client.check_gate(
+            "garmin_plan_delivery_eligible",
+            user,
+        )
+        is False
+    )
     assert statsig_client.get_config("insight_daily_cap", user, 30) == 30
 
 
@@ -78,7 +84,13 @@ def test_gate_and_config_errors_fail_closed(monkeypatch) -> None:
         lambda *_args: (_ for _ in ()).throw(RuntimeError("offline")),
     )
 
-    assert statsig_client.check_gate("ai_insights_enabled", user) is False
+    assert (
+        statsig_client.check_gate(
+            "garmin_plan_delivery_eligible",
+            user,
+        )
+        is False
+    )
     assert statsig_client.get_config("insight_daily_cap", user, 17) == 17
 
 

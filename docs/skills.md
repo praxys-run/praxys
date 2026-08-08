@@ -102,8 +102,8 @@ On first use:
 
 1. Call `praxys-dev-test.login`.
 2. Sign in with the dedicated Praxys test user, not a personal account.
-3. Call `praxys-dev-test.whoami` and record its internal user ID for operator
-   allowlists.
+3. Call `praxys-dev-test.whoami` and confirm the expected internal user ID for
+   server-authoritative eligibility checks.
 4. Connect dedicated provider accounts through the web Settings flow; Garmin
    MFA is interactive and should not be bootstrapped through MCP credentials.
 5. Run `get_connections`, `get_settings`, and `get_managed_plan_status` before
@@ -115,9 +115,9 @@ borrowing a personal account. At minimum, keep separate identities for Garmin
 international and Garmin China validation when both regions are exercised.
 Never commit emails, passwords, JWTs, provider credentials, or user IDs.
 
-Garmin writes remain globally disabled. A dedicated test user can be admitted
-through the default-empty
-`PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS` operator allowlist;
+Garmin writes remain globally disabled. An approved validation deployment must
+enable the hard deployment prerequisite, and the default-off Statsig
+`garmin_plan_delivery_eligible` gate may then admit a dedicated test user;
 connection-bound user consent is still required.
 
 Additional production test profiles can reuse the launcher:

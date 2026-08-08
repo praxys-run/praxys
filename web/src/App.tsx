@@ -71,45 +71,45 @@ export default function App() {
       <AuthProvider>
         <StatsigProvider>
           <TooltipProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<LandingOrApp />} />
-              <Route path="/login" element={<LoginGuard />} />
-              <Route path="/terms" element={<Terms />} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route path="/status" element={<Status />} />
-              <Route path="/verify" element={<Verify />} />
-              <Route
-                element={
-                  <RequireAuth>
-                    <SettingsProvider>
-                      <LocaleSync />
-                      <ScienceProvider>
-                        <Layout />
-                      </ScienceProvider>
-                    </SettingsProvider>
-                  </RequireAuth>
-                }
-              >
-                <Route path="today" element={<TodayOrSetup />} />
-                <Route path="setup" element={<Setup />} />
-                <Route path="training" element={<Suspense fallback={null}><Training /></Suspense>} />
-                <Route path="goal" element={<Suspense fallback={null}><Goal /></Suspense>} />
-                <Route path="history" element={<Suspense fallback={null}><History /></Suspense>} />
-                <Route path="science" element={<Suspense fallback={null}><Science /></Suspense>} />
-                <Route path="labs" element={<Suspense fallback={null}><Labs /></Suspense>} />
-                <Route path="settings" element={<Suspense fallback={null}><SettingsPage /></Suspense>} />
-                <Route path="admin" element={<Suspense fallback={<AdminChunkSkeleton />}><AdminLayout /></Suspense>}>
-                  <Route index element={<Navigate to="ops" replace />} />
-                  <Route path="ops" element={<Suspense fallback={<AdminChunkSkeleton />}><AdminOps /></Suspense>} />
-                  <Route path="users" element={<Suspense fallback={<AdminChunkSkeleton />}><AdminUsers /></Suspense>} />
-                  <Route path="feedback" element={<Suspense fallback={<AdminChunkSkeleton />}><AdminFeedback /></Suspense>} />
-                  <Route path="incidents" element={<Suspense fallback={<AdminChunkSkeleton />}><AdminIncidents /></Suspense>} />
-                  <Route path="communications" element={<Suspense fallback={<AdminChunkSkeleton />}><AdminCommunications /></Suspense>} />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<LandingOrApp />} />
+                <Route path="/login" element={<LoginGuard />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/status" element={<Status />} />
+                <Route path="/verify" element={<Verify />} />
+                <Route
+                  element={
+                    <RequireAuth>
+                      <SettingsProvider>
+                        <LocaleSync />
+                        <ScienceProvider>
+                          <Layout />
+                        </ScienceProvider>
+                      </SettingsProvider>
+                    </RequireAuth>
+                  }
+                >
+                  <Route path="today" element={<TodayOrSetup />} />
+                  <Route path="setup" element={<Setup />} />
+                  <Route path="training" element={<Suspense fallback={null}><Training /></Suspense>} />
+                  <Route path="goal" element={<Suspense fallback={null}><Goal /></Suspense>} />
+                  <Route path="history" element={<Suspense fallback={null}><History /></Suspense>} />
+                  <Route path="science" element={<Suspense fallback={null}><Science /></Suspense>} />
+                  <Route path="labs" element={<Suspense fallback={null}><Labs /></Suspense>} />
+                  <Route path="settings" element={<Suspense fallback={null}><SettingsPage /></Suspense>} />
+                  <Route path="admin" element={<Suspense fallback={<AdminChunkSkeleton />}><AdminLayout /></Suspense>}>
+                    <Route index element={<Navigate to="ops" replace />} />
+                    <Route path="ops" element={<Suspense fallback={<AdminChunkSkeleton />}><AdminOps /></Suspense>} />
+                    <Route path="users" element={<Suspense fallback={<AdminChunkSkeleton />}><AdminUsers /></Suspense>} />
+                    <Route path="feedback" element={<Suspense fallback={<AdminChunkSkeleton />}><AdminFeedback /></Suspense>} />
+                    <Route path="incidents" element={<Suspense fallback={<AdminChunkSkeleton />}><AdminIncidents /></Suspense>} />
+                    <Route path="communications" element={<Suspense fallback={<AdminChunkSkeleton />}><AdminCommunications /></Suspense>} />
+                  </Route>
                 </Route>
-              </Route>
-            </Routes>
-          </BrowserRouter>
+              </Routes>
+            </BrowserRouter>
           </TooltipProvider>
         </StatsigProvider>
       </AuthProvider>

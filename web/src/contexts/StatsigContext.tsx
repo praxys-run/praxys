@@ -1,6 +1,4 @@
 import {
-  createContext,
-  useContext,
   useEffect,
   useMemo,
   type ReactNode,
@@ -8,28 +6,11 @@ import {
 import type { StatsigUser } from '@statsig/js-client';
 import {
   StatsigProvider as StatsigBindingsProvider,
-  useFeatureGate,
   useStatsigUser,
 } from '@statsig/react-bindings';
 
 import { useAuth } from '@/hooks/useAuth';
 
-export type FeatureFlagName =
-  | 'ai_insights_enabled'
-  | 'strava_connection_visible'
-  | 'coros_connection_visible'
-  | 'stryd_plan_push_visible';
-
-type FeatureFlags = Record<FeatureFlagName, boolean>;
-
-const DISABLED_FLAGS: FeatureFlags = {
-  ai_insights_enabled: false,
-  strava_connection_visible: false,
-  coros_connection_visible: false,
-  stryd_plan_push_visible: false,
-};
-
-const FeatureFlagsContext = createContext<FeatureFlags>(DISABLED_FLAGS);
 const CLIENT_KEY = import.meta.env.VITE_STATSIG_CLIENT_KEY?.trim() ?? '';
 const ENVIRONMENT = import.meta.env.VITE_STATSIG_ENV?.trim() || 'development';
 
@@ -42,7 +23,7 @@ function sameUser(left: StatsigUser, right: StatsigUser): boolean {
   );
 }
 
-function StatsigBridge({
+function StatsigIdentitySync({
   user,
   children,
 }: {
@@ -50,46 +31,26 @@ function StatsigBridge({
   children: ReactNode;
 }) {
   const { user: currentUser, updateUserAsync } = useStatsigUser();
-  const aiInsights = useFeatureGate('ai_insights_enabled').value;
-  const stravaConnection = useFeatureGate('strava_connection_visible').value;
-  const corosConnection = useFeatureGate('coros_connection_visible').value;
-  const strydPlanPush = useFeatureGate('stryd_plan_push_visible').value;
   const identityIsCurrent = sameUser(currentUser, user);
 
   useEffect(() => {
     if (identityIsCurrent) return;
     void updateUserAsync(user).catch(() => {
-      // Keep the application-owned values below false while the SDK still
-      // holds a previous identity.
+      // Server-side rollout enforcement remains authoritative. A failed
+      // browser identity refresh must not affect existing product behavior.
     });
   }, [identityIsCurrent, updateUserAsync, user]);
 
-  const flags = useMemo<FeatureFlags>(() => ({
-    ai_insights_enabled: identityIsCurrent && aiInsights,
-    strava_connection_visible: identityIsCurrent && stravaConnection,
-    coros_connection_visible: identityIsCurrent && corosConnection,
-    stryd_plan_push_visible: identityIsCurrent && strydPlanPush,
-  }), [
-    aiInsights,
-    corosConnection,
-    identityIsCurrent,
-    stravaConnection,
-    strydPlanPush,
-  ]);
-
-  return (
-    <FeatureFlagsContext.Provider value={flags}>
-      {children}
-    </FeatureFlagsContext.Provider>
-  );
+  return children;
 }
 
 /**
  * Initialize Statsig only when a public client key is configured.
  *
  * This component must stay inside AuthProvider: the SDK identity is refreshed
- * whenever the authenticated account changes. Missing config is a true no-op
- * with every application-owned flag defaulted to false.
+ * whenever the authenticated account changes. Missing config is a true no-op.
+ * The first rollout gate is enforced by the backend and mirrored through its
+ * existing settings response, so this provider does not evaluate a gate yet.
  */
 export function StatsigProvider({ children }: { children: ReactNode }) {
   const {
@@ -110,11 +71,7 @@ export function StatsigProvider({ children }: { children: ReactNode }) {
   }), [email, isAdmin, isAuthenticated, isDemo, userId]);
 
   if (!CLIENT_KEY || isLoading || !isAuthenticated || !userId) {
-    return (
-      <FeatureFlagsContext.Provider value={DISABLED_FLAGS}>
-        {children}
-      </FeatureFlagsContext.Provider>
-    );
+    return children;
   }
 
   return (
@@ -123,11 +80,7 @@ export function StatsigProvider({ children }: { children: ReactNode }) {
       user={user}
       options={{ environment: { tier: ENVIRONMENT } }}
     >
-      <StatsigBridge user={user}>{children}</StatsigBridge>
+      <StatsigIdentitySync user={user}>{children}</StatsigIdentitySync>
     </StatsigBindingsProvider>
   );
-}
-
-export function useFeatureFlag(name: FeatureFlagName): boolean {
-  return useContext(FeatureFlagsContext)[name];
 }

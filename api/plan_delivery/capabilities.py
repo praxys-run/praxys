@@ -4,44 +4,43 @@ from __future__ import annotations
 import hashlib
 import hmac
 import os
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
 from analysis.config import PLATFORM_CAPABILITIES, UserConfig
+from api import statsig_client
 from db.connection_credentials import connection_credentials_generation
 from db.models import UserConnection
+
+if TYPE_CHECKING:
+    from statsig import StatsigUser
 
 EXPERIMENTAL_PLAN_DELIVERY_TARGETS = frozenset({"garmin"})
 GARMIN_PLAN_DELIVERY_ENABLED_ENV = (
     "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED"
 )
-GARMIN_PLAN_DELIVERY_PILOT_USER_IDS_ENV = (
-    "PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS"
+GARMIN_PLAN_DELIVERY_ELIGIBILITY_GATE = (
+    "garmin_plan_delivery_eligible"
 )
 
 
-def garmin_plan_delivery_pilot_user_ids() -> frozenset[str]:
-    """Return user IDs admitted to the production Garmin validation pilot."""
-    return frozenset(
-        user_id.strip()
-        for user_id in os.environ.get(
-            GARMIN_PLAN_DELIVERY_PILOT_USER_IDS_ENV,
-            "",
-        ).split(",")
-        if user_id.strip()
-    )
-
-
-def garmin_plan_delivery_operator_enabled(
-    user_id: str | None = None,
-) -> bool:
-    """Return whether this deployment permits Garmin writes for one user."""
-    globally_enabled = os.environ.get(
+def garmin_plan_delivery_deployment_enabled() -> bool:
+    """Return whether this deployment permits any Garmin workout writes."""
+    return os.environ.get(
         GARMIN_PLAN_DELIVERY_ENABLED_ENV,
         "",
     ).strip().casefold() in {"1", "true", "yes", "on"}
-    return globally_enabled or (
-        user_id is not None
-        and user_id in garmin_plan_delivery_pilot_user_ids()
+
+
+def garmin_plan_delivery_eligible(
+    statsig_user: StatsigUser | None,
+) -> bool:
+    """Return rollout eligibility layered under the hard deployment gate."""
+    return (
+        garmin_plan_delivery_deployment_enabled()
+        and statsig_client.check_gate(
+            GARMIN_PLAN_DELIVERY_ELIGIBILITY_GATE,
+            statsig_user,
+        )
     )
 
 
@@ -92,9 +91,9 @@ def has_plan_delivery_consent(
 def plan_delivery_capability_enabled(
     target: str,
     *,
-    user_id: str,
     source_options: Mapping[str, Any],
     connection: UserConnection | None,
+    garmin_eligible: bool,
 ) -> bool:
     """Return whether this user may select and mutate one execution target."""
     capabilities = PLATFORM_CAPABILITIES.get(target)
@@ -102,7 +101,7 @@ def plan_delivery_capability_enabled(
         return True
     if target == "garmin":
         return (
-            garmin_plan_delivery_operator_enabled(user_id)
+            garmin_eligible
             and has_plan_delivery_consent(
                 connection,
                 source_options=source_options,
@@ -114,8 +113,8 @@ def plan_delivery_capability_enabled(
 def effective_platform_capabilities(
     config: UserConfig,
     *,
-    user_id: str,
     connections: Mapping[str, UserConnection],
+    garmin_eligible: bool,
 ) -> dict[str, dict[str, bool]]:
     """Return public capability flags after applying per-user consent."""
     result = {
@@ -124,7 +123,7 @@ def effective_platform_capabilities(
     }
     garmin = connections.get("garmin")
     result["garmin"]["plan"] = (
-        garmin_plan_delivery_operator_enabled(user_id)
+        garmin_eligible
         and has_plan_delivery_consent(
             garmin,
             source_options=config.source_options,
@@ -136,18 +135,17 @@ def effective_platform_capabilities(
 def experimental_plan_delivery_status(
     config: UserConfig,
     *,
-    user_id: str,
     connections: Mapping[str, UserConnection],
+    garmin_eligible: bool,
 ) -> dict[str, dict[str, Any]]:
     """Describe experimental target availability without granting consent."""
     connection = connections.get("garmin")
-    available = garmin_plan_delivery_operator_enabled(user_id)
     return {
         "garmin": {
             "experimental": True,
-            "available": available,
+            "available": garmin_eligible,
             "enabled": (
-                available
+                garmin_eligible
                 and has_plan_delivery_consent(
                     connection,
                     source_options=config.source_options,

@@ -76,6 +76,11 @@ def api_client(monkeypatch):
         "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED",
         "true",
     )
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, _user: gate_name
+        == "garmin_plan_delivery_eligible",
+    )
     monkeypatch.setenv(
         "PRAXYS_LOCAL_ENCRYPTION_KEY", "JKkx_5SVHKQDr0HSMrwl0KQHcA0pl5pxsYSLEAQDB4o="
     )

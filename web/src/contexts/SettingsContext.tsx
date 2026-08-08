@@ -11,7 +11,6 @@ interface SettingsContextValue {
   experimentalPlanDelivery: ExperimentalPlanDeliveryResponse;
   availableProviders: SettingsResponse['available_providers'];
   availableBases: TrainingBase[];
-  featureVisibility: SettingsResponse['feature_visibility'];
   effectiveThresholds: Record<string, ThresholdValue>;
   detectedThresholds: Record<string, DetectedThreshold>;
   loading: boolean;
@@ -39,11 +38,6 @@ const SettingsContext = createContext<SettingsContextValue>({
   experimentalPlanDelivery: {},
   availableProviders: {},
   availableBases: ['power', 'hr', 'pace'],
-  featureVisibility: {
-    strava_connection_visible: false,
-    coros_connection_visible: false,
-    stryd_plan_push_visible: false,
-  },
   effectiveThresholds: {},
   detectedThresholds: {},
   loading: true,
@@ -68,13 +62,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     SettingsResponse['available_providers']
   >({});
   const [availableBases, setAvailableBases] = useState<TrainingBase[]>(['power', 'hr', 'pace']);
-  const [featureVisibility, setFeatureVisibility] = useState<
-    SettingsResponse['feature_visibility']
-  >({
-    strava_connection_visible: false,
-    coros_connection_visible: false,
-    stryd_plan_push_visible: false,
-  });
   const [effectiveThresholds, setEffectiveThresholds] = useState<Record<string, ThresholdValue>>({});
   const [detectedThresholds, setDetectedThresholds] = useState<Record<string, DetectedThreshold>>({});
   const [loading, setLoading] = useState(true);
@@ -104,11 +91,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setExperimentalPlanDelivery(data.experimental_plan_delivery ?? {});
         setAvailableProviders(data.available_providers ?? {});
         setAvailableBases(data.available_bases);
-        setFeatureVisibility(data.feature_visibility ?? {
-          strava_connection_visible: false,
-          coros_connection_visible: false,
-          stryd_plan_push_visible: false,
-        });
         setEffectiveThresholds(data.effective_thresholds ?? {});
         setDetectedThresholds(data.detected_thresholds ?? {});
         setError(null);
@@ -184,7 +166,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   return (
     <SettingsContext.Provider
-      value={{ config, display, connectionStatuses, platformCapabilities, experimentalPlanDelivery, availableProviders, availableBases, featureVisibility, effectiveThresholds, detectedThresholds, loading, error, updateSettings, refetch }}
+      value={{ config, display, connectionStatuses, platformCapabilities, experimentalPlanDelivery, availableProviders, availableBases, effectiveThresholds, detectedThresholds, loading, error, updateSettings, refetch }}
     >
       {children}
     </SettingsContext.Provider>

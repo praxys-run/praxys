@@ -538,6 +538,11 @@ def test_garmin_cleanup_rechecks_consent_before_unschedule(
         "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED",
         "true",
     )
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, _user: gate_name
+        == "garmin_plan_delivery_eligible",
+    )
     db = cleanup_db
     today = date(2026, 8, 1)
     delivery = _add_delivery(

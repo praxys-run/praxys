@@ -12,13 +12,12 @@ operator-controlled deployment gate and explicit per-user experimental consent
 are both active. Do not advertise them as a supported platform capability.**
 `PLATFORM_CAPABILITIES["garmin"]["plan"]` remains false. Production keeps
 `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED=false` until both controlled international
-and China lifecycle matrices pass. Dedicated validation users may be admitted
-individually through the default-empty
-`PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS` allowlist without exposing other
-production users; an approved isolated validation deployment may instead
-enable the global gate. The settings API enables the effective per-user
-capability only after one operator authorization path is active and consent is
-bound to the current encrypted credential generation and Garmin region.
+and China lifecycle matrices pass. On an approved validation deployment where
+that hard prerequisite is true, the default-off Statsig gate
+`garmin_plan_delivery_eligible` admits dedicated validation users individually.
+The settings API enables the effective per-user capability only after both
+operator controls are active and consent is bound to the current encrypted
+credential generation and Garmin region.
 
 The fallback is deliberately narrower than the operations exposed by
 `garminconnect`:

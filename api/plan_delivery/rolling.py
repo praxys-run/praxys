@@ -42,7 +42,7 @@ from api.plan_delivery import (
     load_plan_delivery_adapter,
 )
 from api.plan_delivery.capabilities import (
-    garmin_plan_delivery_operator_enabled,
+    garmin_plan_delivery_eligible,
     plan_delivery_capability_enabled,
 )
 from api.plan_delivery.base import (
@@ -225,9 +225,27 @@ def _delivery_gate(
             connection,
             f"connection_{connection.status}",
         )
+    garmin_eligible = False
+    if target == "garmin":
+        from api.statsig_client import get_statsig_user_for_account
+
+        statsig_user = get_statsig_user_for_account(
+            db,
+            user_id=user_id,
+            training_base=(
+                config_row.training_base
+                if config_row is not None
+                else None
+            ),
+            language=(
+                config_row.language
+                if config_row is not None
+                else None
+            ),
+        )
+        garmin_eligible = garmin_plan_delivery_eligible(statsig_user)
     if not plan_delivery_capability_enabled(
         target,
-        user_id=user_id,
         source_options=(
             config_row.source_options
             if config_row is not None
@@ -235,6 +253,7 @@ def _delivery_gate(
             else {}
         ),
         connection=connection,
+        garmin_eligible=garmin_eligible,
     ):
         return _DeliveryGate(
             target,
@@ -242,7 +261,7 @@ def _delivery_gate(
             (
                 (
                     "experimental_consent_required"
-                    if garmin_plan_delivery_operator_enabled(user_id)
+                    if garmin_eligible
                     else "experimental_delivery_disabled"
                 )
                 if target == "garmin"

@@ -360,6 +360,11 @@ def test_garmin_delivery_does_not_require_critical_power(
         "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED",
         "true",
     )
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, _user: gate_name
+        == "garmin_plan_delivery_eligible",
+    )
     db, adapter = managed_db
     config = db.get(UserConfig, USER_ID)
     connection = db.execute(

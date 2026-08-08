@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from api.plan_delivery.capabilities import (
-    garmin_plan_delivery_operator_enabled,
+    garmin_plan_delivery_eligible,
     plan_delivery_capability_enabled,
 )
 from api.plan_delivery.service import DeliveryMutationBlockedError
@@ -48,9 +48,21 @@ def capture_delivery_connection_generation(
             populate_existing=True
         )
     config = db.execute(config_query).scalar_one_or_none()
+    garmin_eligible = False
+    if target == "garmin":
+        from api.statsig_client import get_statsig_user_for_account
+
+        statsig_user = get_statsig_user_for_account(
+            db,
+            user_id=user_id,
+            training_base=(
+                config.training_base if config is not None else None
+            ),
+            language=config.language if config is not None else None,
+        )
+        garmin_eligible = garmin_plan_delivery_eligible(statsig_user)
     if not plan_delivery_capability_enabled(
         target,
-        user_id=user_id,
         source_options=(
             config.source_options
             if config is not None
@@ -58,11 +70,12 @@ def capture_delivery_connection_generation(
             else {}
         ),
         connection=connection,
+        garmin_eligible=garmin_eligible,
     ):
         raise DeliveryMutationBlockedError(
             (
                 "experimental_delivery_disabled"
-                if not garmin_plan_delivery_operator_enabled(user_id)
+                if not garmin_eligible
                 else "experimental_consent_required"
             )
             if target == "garmin"

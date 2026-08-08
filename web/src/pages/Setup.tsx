@@ -24,7 +24,6 @@ import { Check, Link2, RefreshCw, Gauge, Target, ChevronRight, Sparkles, Loader2
 import GoalEditor from '@/components/GoalEditor';
 import { Trans, Plural, useLingui } from '@lingui/react/macro';
 import { GarminWordmark, StrydWordmark, StravaWordmark, OuraWordmark, CorosWordmark } from '@/components/PlatformWordmark';
-import { useFeatureFlag } from '@/contexts/StatsigContext';
 
 // --- Platform metadata ---
 
@@ -156,27 +155,9 @@ export default function Setup({ onSkip }: SetupProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { email } = useAuth();
-  const {
-    config,
-    featureVisibility,
-    updateSettings,
-    refetch: refetchSettings,
-  } = useSettings();
+  const { config, updateSettings, refetch: refetchSettings } = useSettings();
   const setup = useSetupStatus();
   const { t } = useLingui();
-  const stravaConnectionEnabled = useFeatureFlag('strava_connection_visible');
-  const corosConnectionEnabled = useFeatureFlag('coros_connection_visible');
-  const visiblePlatforms = CONNECTABLE_PLATFORMS.filter((platform) => {
-    if (platform === 'strava') {
-      return stravaConnectionEnabled
-        && featureVisibility.strava_connection_visible;
-    }
-    if (platform === 'coros') {
-      return corosConnectionEnabled
-        && featureVisibility.coros_connection_visible;
-    }
-    return true;
-  });
 
   const activityCategoryLabel = (key: string): string => {
     switch (key) {
@@ -304,9 +285,6 @@ export default function Setup({ onSkip }: SetupProps) {
 
     const cleanedLocation = `${location.pathname}${stripStravaOAuthParams(location.search)}${location.hash}`;
     navigate(cleanedLocation, { replace: true });
-    if (!stravaConnectionEnabled || !featureVisibility.strava_connection_visible) {
-      return;
-    }
 
     if (oauthResult.status === 'connected') {
       setConnectPlatform(null);
@@ -322,16 +300,7 @@ export default function Setup({ onSkip }: SetupProps) {
     setConnectNotice('');
     setConnectPlatform('strava');
     setConnectError(getStravaOAuthMessage(oauthResult));
-  }, [
-    featureVisibility.strava_connection_visible,
-    location.hash,
-    location.pathname,
-    location.search,
-    navigate,
-    refetchSettings,
-    setup.refetch,
-    stravaConnectionEnabled,
-  ]);
+  }, [location.hash, location.pathname, location.search, navigate, refetchSettings]);
 
   useEffect(() => {
     if (pendingPrimaryPlatform !== 'strava') return;
@@ -636,7 +605,7 @@ export default function Setup({ onSkip }: SetupProps) {
           icon={<Link2 className="h-4 w-4" />}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mt-4">
-            {visiblePlatforms.map((platform) => {
+            {CONNECTABLE_PLATFORMS.map((platform) => {
               const meta = PLATFORM_META[platform];
               const isConnected = setup.connectedPlatforms.includes(platform);
               return (

@@ -45,13 +45,14 @@ from api.plan_delivery import is_plan_delivery_target_registered
 from api.plan_delivery.capabilities import (
     effective_platform_capabilities,
     experimental_plan_delivery_status,
-    garmin_plan_delivery_operator_enabled,
+    garmin_plan_delivery_deployment_enabled,
+    garmin_plan_delivery_eligible,
     garmin_region,
     plan_delivery_capability_enabled,
     plan_delivery_consent_token,
 )
 from api.views import utc_isoformat
-from db.models import User, UserConnection
+from db.models import UserConnection
 from db.session import get_db
 from db.sync_scheduler import (
     ALLOWED_SYNC_INTERVAL_HOURS,
@@ -64,38 +65,23 @@ router = APIRouter()
 
 SUPPORTED_LANGUAGES = {"en", "zh"}
 _STRAVA_STATE_TTL_MINUTES = 10
-_FEATURE_VISIBILITY_GATES = (
-    "strava_connection_visible",
-    "coros_connection_visible",
-    "stryd_plan_push_visible",
-)
 
 
-def _feature_visibility(
+def _garmin_delivery_eligibility(
     user_id: str,
     db: Session,
     config: UserConfig,
-) -> dict[str, bool]:
-    """Evaluate user-scoped UI visibility gates with safe false defaults."""
-    from api import statsig_client
+) -> bool:
+    """Evaluate authoritative per-user Garmin rollout eligibility."""
+    from api.statsig_client import get_statsig_user_for_account
 
-    user = db.query(User).filter(User.id == user_id).first()
-    statsig_user = (
-        statsig_client.get_statsig_user(
-            user_id=user_id,
-            email=user.email,
-            is_admin=user.is_superuser,
-            is_demo=user.is_demo,
-            training_base=config.training_base,
-            language=config.language,
-        )
-        if user is not None
-        else None
+    statsig_user = get_statsig_user_for_account(
+        db,
+        user_id=user_id,
+        training_base=config.training_base,
+        language=config.language,
     )
-    return {
-        gate_name: statsig_client.check_gate(gate_name, statsig_user)
-        for gate_name in _FEATURE_VISIBILITY_GATES
-    }
+    return garmin_plan_delivery_eligible(statsig_user)
 
 
 def _plan_management_transition(
@@ -183,6 +169,7 @@ def _apply_plan_management_update(
     *,
     user_id: str,
     db: Session,
+    garmin_eligible: bool,
 ) -> None:
     """Validate and merge an explicit managed-plan settings update."""
     changes = update.model_dump(exclude_unset=True)
@@ -259,9 +246,9 @@ def _apply_plan_management_update(
             )
         if not plan_delivery_capability_enabled(
             target,
-            user_id=user_id,
             source_options=config.source_options,
             connection=connection,
+            garmin_eligible=garmin_eligible,
         ):
             raise HTTPException(
                 status_code=409,
@@ -325,6 +312,7 @@ def _apply_experimental_plan_delivery_update(
     *,
     user_id: str,
     db: Session,
+    garmin_eligible: bool,
 ) -> None:
     """Bind or clear explicit Garmin delivery consent."""
     from db.plan_ledger import lock_plan_writes
@@ -350,12 +338,19 @@ def _apply_experimental_plan_delivery_update(
         .with_for_update()
     ).scalar_one_or_none()
     if update["garmin"]:
-        if not garmin_plan_delivery_operator_enabled(user_id):
+        if not garmin_eligible:
             raise HTTPException(
                 status_code=409,
                 detail=(
-                    "Experimental Garmin delivery is disabled on this "
-                    "deployment pending controlled live validation"
+                    (
+                        "Experimental Garmin delivery is disabled on this "
+                        "deployment pending controlled live validation"
+                    )
+                    if not garmin_plan_delivery_deployment_enabled()
+                    else (
+                        "This account is not eligible for experimental "
+                        "Garmin delivery"
+                    )
                 ),
             )
         if connection is None or connection.status != "connected":
@@ -585,7 +580,7 @@ def get_settings(
 ) -> dict:
     """Return current user config, platform capabilities, detected thresholds, and display config."""
     config = load_config_from_db(user_id, db)
-    feature_visibility = _feature_visibility(user_id, db, config)
+    garmin_eligible = _garmin_delivery_eligibility(user_id, db, config)
     connections = {
         connection.platform: connection
         for connection in db.query(UserConnection).filter(
@@ -608,14 +603,14 @@ def get_settings(
         ),
         "platform_capabilities": effective_platform_capabilities(
             config,
-            user_id=user_id,
             connections=connections,
+            garmin_eligible=garmin_eligible,
         ),
         "experimental_plan_delivery": (
             experimental_plan_delivery_status(
                 config,
-                user_id=user_id,
                 connections=connections,
+                garmin_eligible=garmin_eligible,
             )
         ),
         "available_providers": {
@@ -630,7 +625,6 @@ def get_settings(
         "effective_thresholds": effective,
         "sync_interval_options_hours": list(ALLOWED_SYNC_INTERVAL_HOURS),
         "default_sync_interval_hours": DEFAULT_SYNC_INTERVAL_HOURS,
-        "feature_visibility": feature_visibility,
     }
 
 
@@ -780,6 +774,7 @@ def _update_settings(
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
         config.source_options.update(source_options_update)
+    garmin_eligible = _garmin_delivery_eligibility(user_id, db, config)
     garmin_region_changed = (
         garmin_region(config.source_options) != prior_garmin_region
     )
@@ -801,6 +796,7 @@ def _update_settings(
             {"garmin": False},
             user_id=user_id,
             db=db,
+            garmin_eligible=garmin_eligible,
         )
         connection = db.execute(
             select(UserConnection)
@@ -821,6 +817,7 @@ def _update_settings(
             body.experimental_plan_delivery,
             user_id=user_id,
             db=db,
+            garmin_eligible=garmin_eligible,
         )
     if body.plan_management is not None:
         _apply_plan_management_update(
@@ -828,6 +825,7 @@ def _update_settings(
             body.plan_management,
             user_id=user_id,
             db=db,
+            garmin_eligible=garmin_eligible,
         )
     elif legacy_target_update_requested:
         current_target = config.plan_management.get("execution_target")
@@ -979,14 +977,14 @@ def _update_settings(
         ),
         "platform_capabilities": effective_platform_capabilities(
             config,
-            user_id=user_id,
             connections=connections,
+            garmin_eligible=garmin_eligible,
         ),
         "experimental_plan_delivery": (
             experimental_plan_delivery_status(
                 config,
-                user_id=user_id,
                 connections=connections,
+                garmin_eligible=garmin_eligible,
             )
         ),
     }
@@ -1333,19 +1331,12 @@ def get_connections(
     """Return connected platforms and their status (credentials are never returned)."""
     from db.models import UserConnection
 
-    config = load_config_from_db(user_id, db)
-    visibility = _feature_visibility(user_id, db, config)
     connections = db.query(UserConnection).filter(
         UserConnection.user_id == user_id,
     ).all()
 
     result = {}
     for conn in connections:
-        if (
-            conn.platform in {"strava", "coros"}
-            and not visibility[f"{conn.platform}_connection_visible"]
-        ):
-            continue
         result[conn.platform] = {
             "status": conn.status,
             "last_sync": utc_isoformat(conn.last_sync),
@@ -1358,7 +1349,7 @@ def get_connections(
             "consecutive_failures": conn.consecutive_failures or 0,
             "last_error": conn.last_error,
         }
-    return {"connections": result, "visibility": visibility}
+    return {"connections": result}
 
 
 @router.post("/settings/connections/strava/start")

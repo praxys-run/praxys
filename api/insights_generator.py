@@ -31,14 +31,11 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from analysis.insight_hash import build_training_review_inputs
-from api import llm, statsig_client
+from api import llm
 from api.coach import COACH_PERSONA
-
-if TYPE_CHECKING:
-    from statsig import StatsigUser
 
 logger = logging.getLogger(__name__)
 
@@ -65,10 +62,7 @@ def generate_daily_brief(
 
 
 def generate_training_review(
-    context: dict,
-    science_pillars: dict[str, str],
-    *,
-    statsig_user: StatsigUser | None = None,
+    context: dict, science_pillars: dict[str, str]
 ) -> dict | None:
     """Generate multi-week training diagnosis + suggestions narrative."""
     return _generate(
@@ -77,15 +71,11 @@ def generate_training_review(
         insight_type="training_review",
         system_prompt=_training_review_system(context),
         user_payload=build_training_review_inputs(context),
-        statsig_user=statsig_user,
     )
 
 
 def generate_race_forecast(
-    context: dict,
-    science_pillars: dict[str, str],
-    *,
-    statsig_user: StatsigUser | None = None,
+    context: dict, science_pillars: dict[str, str]
 ) -> dict | None:
     """Generate race feasibility narrative + CP milestone interpretation."""
     return _generate(
@@ -94,7 +84,6 @@ def generate_race_forecast(
         insight_type="race_forecast",
         system_prompt=_race_forecast_system(context),
         user_payload=_race_forecast_inputs(context),
-        statsig_user=statsig_user,
     )
 
 
@@ -110,14 +99,10 @@ def _generate(
     insight_type: str,
     system_prompt: str,
     user_payload: dict,
-    statsig_user: StatsigUser | None,
 ) -> dict | None:
     client = llm.get_client()
     if client is None:
         logger.debug("Insight %s skipped: LLM client unavailable", insight_type)
-        return None
-    if not statsig_client.check_gate("ai_insights_enabled", statsig_user):
-        logger.debug("Insight %s skipped: ai_insights_enabled off", insight_type)
         return None
 
     user_msg = json.dumps(user_payload, default=str)

@@ -9,9 +9,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from typing import TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 from statsig import StatsigOptions, StatsigUser, statsig
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 logger = logging.getLogger(__name__)
@@ -78,6 +81,29 @@ def get_statsig_user(
             "training_base": training_base,
             "language": language,
         },
+    )
+
+
+def get_statsig_user_for_account(
+    db: Session,
+    *,
+    user_id: str,
+    training_base: str | None,
+    language: str | None,
+) -> StatsigUser | None:
+    """Build a targeting identity from the authenticated account."""
+    from db.models import User
+
+    user = db.get(User, user_id)
+    if user is None:
+        return None
+    return get_statsig_user(
+        user_id=user_id,
+        email=user.email,
+        is_admin=user.is_superuser,
+        is_demo=user.is_demo,
+        training_base=training_base,
+        language=language,
     )
 
 
