@@ -374,6 +374,80 @@ class AiInsightFeedback(Base):
     )
 
 
+class LabsExperimentEnrollment(Base):
+    """Active opt-in and processing state for one Labs experiment."""
+
+    __tablename__ = "labs_experiment_enrollments"
+
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    experiment_id = Column(String(80), primary_key=True)
+    consent_version = Column(String(40), nullable=False)
+    consented_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    adult_attested_at = Column(DateTime, nullable=False)
+    status = Column(String(20), nullable=False, default="queued")
+    model_version = Column(String(80), nullable=False)
+    source_revision = Column(String(100), nullable=False)
+    correlation_id = Column(String(36), nullable=False)
+    availability_reason = Column(JSON, nullable=True)
+    queued_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('queued','processing','available','unavailable','failed','stale')",
+            name="ck_labs_enrollment_status",
+        ),
+    )
+
+
+class LabsExperimentResult(Base):
+    """Aggregate-only output for one consented Labs experiment."""
+
+    __tablename__ = "labs_experiment_results"
+
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    experiment_id = Column(String(80), primary_key=True)
+    model_version = Column(String(80), nullable=False)
+    source_revision = Column(String(100), nullable=False)
+    result_state = Column(String(40), nullable=False)
+    eligibility_counts = Column(JSON, nullable=False, default=dict)
+    aggregate_curve_points = Column(JSON, nullable=False, default=list)
+    aggregate_uncertainty = Column(JSON, nullable=False, default=dict)
+    gate_statuses = Column(JSON, nullable=False, default=dict)
+    prediction_status = Column(String(40), nullable=False)
+    power_regime = Column(String(60), nullable=False)
+    computed_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class LabsDeletionTombstone(Base):
+    """Withdrawal marker replayed after backup restores."""
+
+    __tablename__ = "labs_deletion_tombstones"
+
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    experiment_id = Column(String(80), primary_key=True)
+    deleted_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
 class CacheRevision(Base):
     """Per-(user, scope) monotonic counter for HTTP cache revalidation (issue #147).
 

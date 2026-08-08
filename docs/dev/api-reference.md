@@ -995,6 +995,52 @@ The private export can be evaluated locally with the research-only
 pipeline does not add a personal estimate to this endpoint and does not alter
 the accepted environmental-performance SDR.
 
+## Labs environmental response
+
+All endpoints are owner-authenticated. Demo accounts may read their state but
+cannot enroll, recompute, or withdraw.
+
+### GET /api/labs/environment-response
+
+Returns the current consent version, enrollment and processing state,
+privacy-safe availability reason, and any aggregate result. A result contains
+only eligibility counts, five aggregate curve points, aggregate coefficient
+uncertainty, gate statuses, model/source versions, power regime, prediction
+diagnostic status, and timestamps. It never contains activity IDs, dates,
+routes, GPS, sample rows, or per-activity values.
+
+### POST /api/labs/environment-response
+
+Records explicit V1 consent and queues private processing.
+
+```json
+{
+  "adult_attested": true,
+  "consent_version": "environment-response-consent-v1"
+}
+```
+
+The adult attestation is required because the reviewed evidence is adult-only;
+no date of birth is collected. A stale consent version returns `409`. The
+`202` response is the current queued state. The background payload contains
+only owner ID, experiment ID, model version, and source revision. Raw research
+pages are assembled in worker memory and are never persisted or returned.
+Startup and authenticated state reads return processing rows older than 30
+minutes to `queued`; the queued job is then rescheduled on the state read.
+
+### POST /api/labs/environment-response/recompute
+
+Deletes the prior aggregate result and queues a fresh computation under the
+existing active consent. Returns `409` when the user is not enrolled.
+
+### DELETE /api/labs/environment-response
+
+First records a restore-safe private withdrawal marker, then immediately
+deletes active consent and aggregate results. A running computation rechecks
+consent before writing, so withdrawal cannot be followed by a late result
+publication. Returns `204`; if the private marker cannot be stored, returns
+`503` without deleting consent so the user can retry safely.
+
 ### GET /api/ai/context
 
 Returns the structured dashboard summary used for AI plan generation. The

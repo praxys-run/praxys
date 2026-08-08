@@ -1,0 +1,444 @@
+"""Pure aggregate analysis for the Labs environmental-response experiment."""
+from __future__ import annotations
+
+from collections import Counter
+from dataclasses import dataclass
+from typing import Any
+
+import numpy as np
+
+from analysis.heat_response_validation import (
+    HeatValidationConfig,
+    MODEL_VERSION,
+    _analyze_rows,
+    _fit_model,
+    _flatten_dataset,
+    _prepare_dataset,
+    validate_heat_response,
+)
+
+
+LABS_ENVIRONMENT_MODEL_VERSION = f"{MODEL_VERSION}-labs-v1"
+POWER_REGIME = "stryd_continuous_samples"
+# Product guardrails below are accepted governance estimates from
+# data/science/decisions/sdr-environmental-performance-v2.yaml. They are not
+# published physiological constants.
+
+
+@dataclass(frozen=True)
+class LabsEnvironmentConfig:
+    """Accepted V1 display-support and influence guardrails."""
+
+    curve_domain_percentiles: tuple[float, float] = (10.0, 90.0)
+    curve_support_bin_count: int = 5
+    minimum_activities_per_curve_bin: int = 5
+    minimum_segments_per_curve_bin: int = 10
+    reference_power_pct_cp: tuple[float, float] = (75.0, 85.0)
+    minimum_reference_power_activities_per_curve_bin: int = 5
+    maximum_bootstrap_width_ratio: float = 1.0
+    minimum_leave_one_out_sign_agreement: float = 0.8
+    maximum_leave_one_out_relative_change: float = 0.5
+
+
+_PREDICTION_GATES = frozenset({
+    "chronological_holdout_performance",
+    "no_heat_baseline_falsification",
+    "permuted_negative_control_falsification",
+})
+_DATA_SUPPORT_GATES = frozenset({
+    "complete_export",
+    "minimum_activities",
+    "minimum_segments",
+    "chronological_holdout",
+    "environmental_spread",
+    "holdout_environmental_spread",
+    "provider_regime_consistency",
+    "environment_source_consistency",
+})
+
+
+def build_environment_response_result(
+    dataset: dict[str, Any],
+    *,
+    config: LabsEnvironmentConfig | None = None,
+    validation_config: HeatValidationConfig | None = None,
+) -> dict[str, Any]:
+    """Return the aggregate-only result authorized by the accepted V1 SDR."""
+    selected = config or LabsEnvironmentConfig()
+    heat_config = validation_config or HeatValidationConfig()
+    report = validate_heat_response(dataset, heat_config)
+    gate_statuses = {
+        name: gate["status"]
+        for name, gate in report["gates"].items()
+    }
+    coverage = report["data_coverage"]
+    exclusions = report["exclusions"]
+    exclusion_reason_counts = dict(
+        Counter(exclusions["excluded_activity_reason_counts"])
+        + Counter(exclusions["excluded_segment_reason_counts"])
+    )
+    eligibility_counts = {
+        "input_activity_count": coverage["input_activity_count"],
+        "input_segment_count": coverage["input_segment_count"],
+        "eligible_activity_count": coverage["eligible_activity_count"],
+        "eligible_segment_count": coverage["eligible_segment_count"],
+        "exclusion_reason_counts": exclusion_reason_counts,
+        "provider_regimes": coverage["provider_regimes"]["combinations"],
+    }
+    provider_combinations = coverage["provider_regimes"]["combinations"]
+    stryd_regime_pass = bool(
+        len(provider_combinations) == 1
+        and str(provider_combinations[0]["label"]).startswith("power=stryd|")
+    )
+    gate_statuses["stryd_power_regime"] = (
+        "pass" if stryd_regime_pass else "fail"
+    )
+    model = report["model"]
+    association_gates_pass = stryd_regime_pass and all(
+        gate["status"] == "pass"
+        for name, gate in report["gates"].items()
+        if gate["decision_required"] and name not in _PREDICTION_GATES
+    )
+    prediction_gates = [
+        report["gates"][name]
+        for name in sorted(_PREDICTION_GATES)
+    ]
+    if any(gate["status"] == "unavailable" for gate in prediction_gates):
+        prediction_status = "unavailable"
+    elif all(gate["status"] == "pass" for gate in prediction_gates):
+        prediction_status = "passed_research_diagnostics"
+    else:
+        prediction_status = "failed_research_diagnostics"
+
+    if model["status"] != "available":
+        return _withheld_result(
+            result_state="insufficient_data",
+            prediction_status=prediction_status,
+            eligibility_counts=eligibility_counts,
+            gate_statuses=gate_statuses,
+            report=report,
+        )
+
+    combined, export = _prepare_dataset(dataset)
+    flattened = _flatten_dataset(combined, heat_config, export=export)
+    primary = _analyze_rows(
+        flattened,
+        heat_config,
+        heat_representation="wet_bulb_c",
+        include_bootstrap=False,
+    )
+    internal = primary["_internal"]
+    train_rows = internal["train_rows"]
+    test_rows = internal["test_rows"]
+    feature_names = internal["feature_names"]
+    heat_center = internal["heat_center"]
+
+    activity_environment: dict[str, list[float]] = {}
+    for row in train_rows:
+        activity_environment.setdefault(row.activity_key, []).append(row.wet_bulb_c)
+    activity_wet_bulb = {
+        key: float(np.mean(values))
+        for key, values in activity_environment.items()
+    }
+    activity_values = np.array(list(activity_wet_bulb.values()), dtype=float)
+    lower_pct, upper_pct = selected.curve_domain_percentiles
+    domain_low, domain_high = np.percentile(
+        activity_values,
+        [lower_pct, upper_pct],
+    )
+    edges = np.linspace(
+        float(domain_low),
+        float(domain_high),
+        selected.curve_support_bin_count + 1,
+    )
+    support_bins: list[dict[str, Any]] = []
+    for index in range(selected.curve_support_bin_count):
+        low = float(edges[index])
+        high = float(edges[index + 1])
+        in_bin = [
+            row
+            for row in train_rows
+            if row.wet_bulb_c >= low
+            and (
+                row.wet_bulb_c < high
+                or (
+                    index == selected.curve_support_bin_count - 1
+                    and row.wet_bulb_c <= high
+                )
+            )
+        ]
+        activity_count = len({row.activity_key for row in in_bin})
+        reference_activity_count = len({
+            row.activity_key
+            for row in in_bin
+            if selected.reference_power_pct_cp[0]
+            <= row.mean_pct_cp
+            <= selected.reference_power_pct_cp[1]
+        })
+        support_bins.append({
+            "lower_wet_bulb_c": round(low, 4),
+            "upper_wet_bulb_c": round(high, 4),
+            "activity_count": activity_count,
+            "segment_count": len(in_bin),
+            "reference_power_activity_count": reference_activity_count,
+        })
+
+    curve_support_pass = all(
+        item["activity_count"] >= selected.minimum_activities_per_curve_bin
+        and item["segment_count"] >= selected.minimum_segments_per_curve_bin
+        for item in support_bins
+    )
+    reference_overlap_pass = all(
+        item["reference_power_activity_count"]
+        >= selected.minimum_reference_power_activities_per_curve_bin
+        for item in support_bins
+    )
+    coefficient = model["heat_stress_coefficient"]
+    estimate = float(coefficient["estimate_bpm_per_c"])
+    interval = coefficient["uncertainty_interval_bpm_per_c"]
+    interval_available = all(value is not None for value in interval)
+    # SDR environmental-performance-v2: the descriptive activity-cluster
+    # interval must exclude zero and its width may not exceed |estimate|.
+    interval_excludes_zero = bool(
+        interval_available
+        and (float(interval[0]) > 0.0 or float(interval[1]) < 0.0)
+    )
+    width_ratio = (
+        (float(interval[1]) - float(interval[0])) / abs(estimate)
+        if interval_available and abs(estimate) > 1e-12
+        else None
+    )
+    interval_width_pass = bool(
+        width_ratio is not None
+        and width_ratio <= selected.maximum_bootstrap_width_ratio
+    )
+    leave_one_out = _leave_one_activity_out(
+        train_rows,
+        test_rows,
+        feature_names,
+        heat_center,
+        heat_config,
+        estimate,
+    )
+    influence_pass = bool(
+        leave_one_out["sign_agreement"]
+        >= selected.minimum_leave_one_out_sign_agreement
+        and leave_one_out["maximum_relative_change"] is not None
+        and leave_one_out["maximum_relative_change"]
+        <= selected.maximum_leave_one_out_relative_change
+    )
+
+    product_gates = {
+        "curve_bin_support": "pass" if curve_support_pass else "fail",
+        "reference_power_overlap": (
+            "pass" if reference_overlap_pass else "fail"
+        ),
+        "bootstrap_interval_excludes_zero": (
+            "pass" if interval_excludes_zero else "fail"
+        ),
+        "bootstrap_interval_width": (
+            "pass" if interval_width_pass else "fail"
+        ),
+        "leave_one_activity_out_influence": (
+            "pass" if influence_pass else "fail"
+        ),
+        "stryd_power_regime": "pass" if stryd_regime_pass else "fail",
+    }
+    gate_statuses.update(product_gates)
+    product_gates_pass = all(status == "pass" for status in product_gates.values())
+
+    if not association_gates_pass or not product_gates_pass:
+        failed_data_gate = any(
+            gate_statuses.get(name) != "pass"
+            for name in _DATA_SUPPORT_GATES
+        ) or not curve_support_pass or not reference_overlap_pass or not stryd_regime_pass
+        return _withheld_result(
+            result_state=(
+                "insufficient_data"
+                if failed_data_gate
+                else "unstable_association"
+            ),
+            prediction_status=prediction_status,
+            eligibility_counts={
+                **eligibility_counts,
+                "curve_support_bins": support_bins,
+            },
+            gate_statuses=gate_statuses,
+            report=report,
+            uncertainty={
+                "estimate_bpm_per_c": estimate,
+                "interval_bpm_per_c": interval,
+                "interval_width_to_absolute_estimate_ratio": (
+                    round(width_ratio, 4)
+                    if width_ratio is not None
+                    else None
+                ),
+                "leave_one_activity_out": leave_one_out,
+            },
+        )
+    if prediction_status == "unavailable":
+        return _withheld_result(
+            result_state="prediction_unavailable",
+            prediction_status=prediction_status,
+            eligibility_counts={
+                **eligibility_counts,
+                "curve_support_bins": support_bins,
+            },
+            gate_statuses=gate_statuses,
+            report=report,
+        )
+
+    curve_points = _curve_points(
+        train_rows,
+        model,
+        feature_names,
+        float(domain_low),
+        float(domain_high),
+        interval,
+        selected.curve_support_bin_count,
+    )
+    return {
+        "model_version": LABS_ENVIRONMENT_MODEL_VERSION,
+        "power_regime": POWER_REGIME,
+        "result_state": "historical_association_only",
+        "prediction_status": prediction_status,
+        "eligibility_counts": {
+            **eligibility_counts,
+            "observed_wet_bulb_domain_c": [
+                round(float(domain_low), 4),
+                round(float(domain_high), 4),
+            ],
+            "curve_support_bins": support_bins,
+        },
+        "aggregate_curve_points": curve_points,
+        "aggregate_uncertainty": {
+            "estimate_bpm_per_c": estimate,
+            "interval_bpm_per_c": interval,
+            "interval_method": coefficient["uncertainty_method"],
+            "interval_width_to_absolute_estimate_ratio": round(width_ratio, 4),
+            "leave_one_activity_out": leave_one_out,
+        },
+        "gate_statuses": gate_statuses,
+        "limitations": [
+            "historical_association_not_causal",
+            "not_predictively_validated_for_product_use",
+            "psychrometric_wet_bulb_proxy_not_wbgt",
+            "no_extrapolation_beyond_observed_domain",
+        ],
+    }
+
+
+def _leave_one_activity_out(
+    train_rows: list[Any],
+    test_rows: list[Any],
+    feature_names: tuple[str, ...],
+    heat_center: float,
+    config: HeatValidationConfig,
+    primary_estimate: float,
+) -> dict[str, Any]:
+    # Influence formulas and the 0.8 / 0.5 release bounds are accepted product
+    # guardrails in sdr-environmental-performance-v2, not inferential tests.
+    estimates: list[float] = []
+    heat_index = feature_names.index("wet_bulb_c")
+    for activity_key in sorted({row.activity_key for row in train_rows}):
+        reduced = [row for row in train_rows if row.activity_key != activity_key]
+        if not reduced:
+            continue
+        fit = _fit_model(
+            reduced,
+            test_rows,
+            feature_names,
+            heat_representation="wet_bulb_c",
+            heat_center=heat_center,
+            ridge_alpha=config.ridge_alpha,
+        )
+        estimates.append(float(fit.coefficients[heat_index]))
+    primary_sign = np.sign(primary_estimate)
+    sign_agreement = (
+        sum(np.sign(value) == primary_sign for value in estimates) / len(estimates)
+        if estimates and primary_sign != 0
+        else 0.0
+    )
+    maximum_relative_change = (
+        max(abs(value - primary_estimate) / abs(primary_estimate) for value in estimates)
+        if estimates and abs(primary_estimate) > 1e-12
+        else float("inf")
+    )
+    return {
+        "evaluated_activity_count": len(estimates),
+        "sign_agreement": round(float(sign_agreement), 4),
+        "maximum_relative_change": (
+            round(float(maximum_relative_change), 4)
+            if np.isfinite(maximum_relative_change)
+            else None
+        ),
+    }
+
+
+def _curve_points(
+    train_rows: list[Any],
+    model: dict[str, Any],
+    feature_names: tuple[str, ...],
+    domain_low: float,
+    domain_high: float,
+    interval: list[float | None],
+    point_count: int,
+) -> list[dict[str, float]]:
+    # SDR environmental-performance-v2 fixes training medians as the reference
+    # profile and prohibits extrapolation beyond the 10th-90th percentile
+    # activity-level wet-bulb domain.
+    coefficients = model["coefficients"]
+    reference_values: dict[str, float] = {}
+    for feature in feature_names:
+        if feature == "wet_bulb_c":
+            continue
+        reference_values[feature] = float(np.median([
+            getattr(row, feature)
+            for row in train_rows
+        ]))
+    reference_wet_bulb = float(np.median([
+        row.wet_bulb_c
+        for row in train_rows
+    ]))
+    baseline = float(model["intercept_bpm"])
+    for feature, value in reference_values.items():
+        baseline += float(coefficients[feature]) * value
+    baseline += float(coefficients["wet_bulb_c"]) * reference_wet_bulb
+    lower_slope = float(interval[0])
+    upper_slope = float(interval[1])
+    points: list[dict[str, float]] = []
+    for wet_bulb in np.linspace(domain_low, domain_high, point_count):
+        delta = float(wet_bulb - reference_wet_bulb)
+        relative = float(coefficients["wet_bulb_c"]) * delta
+        relative_bounds = sorted((lower_slope * delta, upper_slope * delta))
+        points.append({
+            "wet_bulb_c": round(float(wet_bulb), 4),
+            "modeled_hr_bpm": round(baseline + relative, 4),
+            "relative_hr_bpm": round(relative, 4),
+            "relative_lower_bpm": round(relative_bounds[0], 4),
+            "relative_upper_bpm": round(relative_bounds[1], 4),
+            "reference_wet_bulb_c": round(reference_wet_bulb, 4),
+        })
+    return points
+
+
+def _withheld_result(
+    *,
+    result_state: str,
+    prediction_status: str,
+    eligibility_counts: dict[str, Any],
+    gate_statuses: dict[str, str],
+    report: dict[str, Any],
+    uncertainty: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    return {
+        "model_version": LABS_ENVIRONMENT_MODEL_VERSION,
+        "power_regime": POWER_REGIME,
+        "result_state": result_state,
+        "prediction_status": prediction_status,
+        "eligibility_counts": eligibility_counts,
+        "aggregate_curve_points": [],
+        "aggregate_uncertainty": uncertainty or {},
+        "gate_statuses": gate_statuses,
+        "limitations": report["limitations"],
+    }
