@@ -28,6 +28,7 @@ const Training = lazy(loadTraining);
 const Goal = lazy(() => import('./pages/Goal'));
 const History = lazy(() => import('./pages/History'));
 const Science = lazy(() => import('./pages/Science'));
+const Labs = lazy(() => import('./pages/Labs'));
 const SettingsPage = lazy(() => import('./pages/Settings'));
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
 const AdminOps = lazy(() => import('./pages/admin/AdminOps'));
@@ -94,6 +95,7 @@ export default function App() {
                 <Route path="goal" element={<Suspense fallback={null}><Goal /></Suspense>} />
                 <Route path="history" element={<Suspense fallback={null}><History /></Suspense>} />
                 <Route path="science" element={<Suspense fallback={null}><Science /></Suspense>} />
+                <Route path="labs" element={<Suspense fallback={null}><Labs /></Suspense>} />
                 <Route path="settings" element={<Suspense fallback={null}><SettingsPage /></Suspense>} />
                 <Route path="admin" element={<Suspense fallback={<AdminChunkSkeleton />}><AdminLayout /></Suspense>}>
                   <Route index element={<Navigate to="ops" replace />} />
