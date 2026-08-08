@@ -568,6 +568,15 @@ function metricSheetCopy(
   return { title: '', description: '' };
 }
 
+function readActiveMetric(
+  pageState: Record<string, unknown>,
+  fallback: TrainingMetricId | '',
+): TrainingMetricId | '' {
+  const pending = pageState._activeMetric;
+  if (typeof pending === 'string' && isTrainingMetricId(pending)) return pending;
+  return fallback;
+}
+
 function hasVolumeSummary(
   volume: TrainingResponse['diagnosis']['volume'] | undefined,
 ): boolean {
@@ -891,6 +900,8 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
   onOpenMetricDetail(e: WechatMiniprogram.TouchEvent) {
     const metric = String(e.currentTarget.dataset.metric ?? '');
     if (!isTrainingMetricId(metric)) return;
+    const pageState = this as unknown as Record<string, unknown>;
+    pageState._activeMetric = metric;
     const copy = metricSheetCopy(metric, this.data.tr, this.data.heat);
     this.setData({
       activeMetric: metric,
@@ -900,6 +911,8 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
   },
 
   onCloseMetricDetail() {
+    const pageState = this as unknown as Record<string, unknown>;
+    pageState._activeMetric = '';
     this.setData({
       activeMetric: '',
       metricSheetTitle: '',
@@ -942,6 +955,7 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
     pageState._scrollToHeatPending = false;
     const copy = metricSheetCopy('heat', this.data.tr, this.data.heat);
     this.setData({ scrollIntoView: '' }, () => {
+      pageState._activeMetric = 'heat';
       this.setData({
         scrollIntoView: HEAT_HISTORY_SCROLL_TARGET,
         activeMetric: 'heat',
@@ -992,13 +1006,14 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
         }),
       ]);
       if (pageState._refetchRequestId !== requestId) return;
+      const activeMetric = readActiveMetric(pageState, this.data.activeMetric);
       this.setData(
         buildState(
           response,
           this.data.themeClass,
           insight,
           this.data.tr,
-          this.data.activeMetric,
+          activeMetric,
         ) as Record<string, unknown>,
         () => this.scrollToHeatIfPending(),
       );
