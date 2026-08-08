@@ -387,7 +387,8 @@ account's environment credentials. Do not add these values to
 `deploy-backend.yml`, GitHub Actions, or App Service settings.
 
 Garmin consumer-API workout delivery is an unsupported, duration-only
-experiment protected by independent operator and user-consent fences. The
+rollout protected by independent deployment, eligibility, account-generation,
+and durable execution-target fences. The
 deploy workflow writes the non-secret GitHub Actions variable
 `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED` to App Service on every deployment,
 defaulting to `false` when the variable is absent. Keep production false until
@@ -398,15 +399,18 @@ prerequisite set to `true`, plus a Statsig
 `garmin_plan_delivery_eligible` rule targeting only dedicated Praxys test
 users connected to dedicated Garmin test accounts. Do not target personal
 accounts or copy emails, tokens, or credentials into the rule. Eligible users
-must still connect Garmin and opt in through Settings; all other users remain
-blocked. Changing the App Service setting directly is transient and will be
-overwritten by the next deploy. The resulting
-`user_connections.plan_delivery_consent` value is a non-secret SHA-256 binding
-to that encrypted credential generation and Garmin region; it is never accepted
-as a portable entitlement. Reconnecting, rotating credentials, or disconnecting
-clears the effective capability and pauses active Garmin delivery. Changing
-region also disconnects the old region, clears its cached tokens, and requires a
-fresh login. Cached sessions are garminconnect `Client.dumps()` JSON values envelope-encrypted
+must still connect Garmin and explicitly choose it as their execution platform;
+all other users remain blocked. Statsig eligibility is not consent or durable
+product state. Changing the App Service setting directly is transient and will
+be overwritten by the next deploy. The legacy
+`user_connections.plan_delivery_consent` column holds a non-secret SHA-256
+account-generation fence, not a separate user preference. Selecting or resuming
+Garmin refreshes the binding to that encrypted credential generation and Garmin
+region. It is never accepted as a portable entitlement. Reconnecting, rotating
+credentials, or disconnecting clears the fence and pauses active Garmin
+delivery. Changing region also disconnects the old region, clears its cached
+tokens, and requires a fresh login. Cached sessions are garminconnect
+`Client.dumps()` JSON values envelope-encrypted
 on `user_connections` with a token-specific wrapped DEK and the exact
 credential-generation fingerprint. Interactive login
 holds completed tokens only in process memory, bound to an opaque

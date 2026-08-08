@@ -532,7 +532,9 @@ def test_garmin_cleanup_rechecks_consent_before_unschedule(
     cleanup_db,
     monkeypatch,
 ):
-    from api.plan_delivery.capabilities import plan_delivery_consent_token
+    from api.plan_delivery.capabilities import (
+        plan_delivery_account_fence_token,
+    )
 
     monkeypatch.setenv(
         "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED",
@@ -566,7 +568,7 @@ def test_garmin_cleanup_rechecks_consent_before_unschedule(
     ).scalar_one()
     connection.platform = "garmin"
     db.flush()
-    connection.plan_delivery_consent = plan_delivery_consent_token(
+    connection.plan_delivery_consent = plan_delivery_account_fence_token(
         connection,
         region="international",
     )
@@ -596,6 +598,6 @@ def test_garmin_cleanup_rechecks_consent_before_unschedule(
 
     assert result.status == "partial"
     assert result.items[0].status == "blocked"
-    assert result.items[0].reason == "experimental_consent_required"
+    assert result.items[0].reason == "delivery_account_fence_required"
     assert adapter.deleted == []
     assert db.get(PlanDelivery, delivery.id).state == "synced"

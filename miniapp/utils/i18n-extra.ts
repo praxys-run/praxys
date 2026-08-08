@@ -383,6 +383,11 @@ const EN_SETTINGS = {
   'Image must be under 5 MB.': 'Image must be under 5 MB.',
   'Managed mode is off, but cleanup did not finish.':
     'Managed mode is off, but cleanup did not finish.',
+  'Choose an available delivery platform':
+    'Choose an available delivery platform',
+  'Choose a delivery platform': 'Choose a delivery platform',
+  'Connect an activity platform from the web app to choose where workouts are delivered.':
+    'Connect an activity platform from the web app to choose where workouts are delivered.',
   Removed: 'Removed',
   Confirm: 'Confirm',
   'Keep future workouts': 'Keep future workouts',
@@ -775,6 +780,10 @@ const ZH_SETTINGS = {
   'Image must be under 5 MB.': '图片不得超过 5 MB。',
   'Managed mode is off, but cleanup did not finish.':
     '托管模式已关闭，但清理未完成。',
+  'Choose an available delivery platform': '请选择可用的训练下发平台',
+  'Choose a delivery platform': '选择训练下发平台',
+  'Connect an activity platform from the web app to choose where workouts are delivered.':
+    '请先在网页端连接活动平台，再选择训练下发位置。',
   Removed: '已移除',
   Confirm: '确认',
   'Keep future workouts': '保留未来训练',

@@ -291,18 +291,22 @@ render read-only with a source badge.
   so even an empty calendar cannot mark another same-display-name profile's
   workouts absent.
 - Garmin remains statically `plan: false` in `PLATFORM_CAPABILITIES`, but a
-  connected user may explicitly consent to the
-  [experimental fallback](../studies/garmin-workout-delivery-feasibility.md).
+  connected user may select the rollout-gated
+  [consumer-API fallback](../studies/garmin-workout-delivery-feasibility.md).
   `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED` is the default-off hard deployment
   prerequisite. The default-off Statsig `garmin_plan_delivery_eligible` gate
-  then admits dedicated users. User consent alone must never authorize writes.
-  Consent is bound to credential generation and an explicit region; a legacy
-  connection with no mirrored region must reconnect before opting in.
-  Reconnect, rotation, or disconnect revokes consent. Changing region
+  then admits dedicated users. Neither eligibility nor the durable execution
+  target alone authorizes writes. The legacy
+  `user_connections.plan_delivery_consent` column is an internal account fence,
+  not a separate product-consent switch: selecting or resuming Garmin binds it
+  to the live credential generation and explicit region. A connection with no
+  mirrored region must reconnect before Garmin is selectable. Reconnect,
+  rotation, or disconnect invalidates the fence. Changing region
   disconnects the old region, clears
-  its cached tokens, and requires a fresh login before re-consent. The adapter is
+  its cached tokens, and requires a fresh login before reselection or resume.
+  The adapter is
   duration-only: never silently degrade power, pace, or heart-rate targets.
-  Interactive reconnect commits consent revocation, delivery pause, and a
+  Interactive reconnect commits fence invalidation, delivery pause, and a
   disconnected state before clearing or replacing any cached token, so a
   process crash cannot authorize a new Garmin account with the old grant.
   Garmin has separate template and scheduled-instance IDs, so both must remain

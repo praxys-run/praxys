@@ -44,12 +44,11 @@ from api.env_compat import getenv_compat
 from api.plan_delivery import is_plan_delivery_target_registered
 from api.plan_delivery.capabilities import (
     effective_platform_capabilities,
-    experimental_plan_delivery_status,
-    garmin_plan_delivery_deployment_enabled,
     garmin_plan_delivery_eligible,
     garmin_region,
-    plan_delivery_capability_enabled,
-    plan_delivery_consent_token,
+    plan_delivery_account_fence_token,
+    plan_delivery_options,
+    plan_delivery_target_selectable,
 )
 from api.views import utc_isoformat
 from db.models import UserConnection
@@ -128,7 +127,6 @@ class SettingsUpdate(BaseModel):
     # (e.g. {"threshold_sources": {"cp_estimate": "stryd"}}) flows through.
     preferences: dict[str, Any] | None = None
     plan_management: PlanManagementUpdate | None = None
-    experimental_plan_delivery: dict[str, bool] | None = None
     managed_plan_preview_start: date | None = None
     training_base: TrainingBase | None = None
     thresholds: dict[str, Any] | None = None
@@ -235,40 +233,61 @@ def _apply_plan_management_update(
                 status_code=400,
                 detail="Plan execution target must be a connected platform",
             )
-        connection = db.query(UserConnection).filter(
-            UserConnection.user_id == user_id,
-            UserConnection.platform == target,
-        ).first()
-        if connection is None or connection.status != "connected":
-            raise HTTPException(
-                status_code=409,
-                detail="Plan execution target must be actively connected",
-            )
-        if not plan_delivery_capability_enabled(
-            target,
-            source_options=config.source_options,
-            connection=connection,
-            garmin_eligible=garmin_eligible,
-        ):
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    "Enable experimental Garmin delivery before selecting "
-                    "Garmin as the execution target"
-                    if target == "garmin"
-                    else f"{target} does not support plan delivery"
-                ),
-            )
-        if not is_plan_delivery_target_registered(target):
-            raise HTTPException(
-                status_code=409,
-                detail=f"{target} plan delivery is not available",
-            )
+        # Lock in the same user-then-connection order as reconnect, region,
+        # and token-rotation paths. Re-read the row after the user lock so a
+        # Garmin fence can never be computed from a stale credential
+        # generation while credentials are changing concurrently.
         _assert_execution_target_switch_safe(
             db,
             user_id=user_id,
             target=target,
         )
+        # Preserve any connection invalidation performed earlier in this
+        # request (for example, a Garmin region change) before refreshing the
+        # locked row from the database.
+        db.flush()
+        connection = db.execute(
+            select(UserConnection)
+            .where(
+                UserConnection.user_id == user_id,
+                UserConnection.platform == target,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).scalar_one_or_none()
+        if connection is None or connection.status != "connected":
+            raise HTTPException(
+                status_code=409,
+                detail="Plan execution target must be actively connected",
+            )
+        if not plan_delivery_target_selectable(
+            target,
+            source_options=config.source_options,
+            connection=connection,
+            garmin_eligible=garmin_eligible,
+            target_registered=is_plan_delivery_target_registered(target),
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Garmin workout delivery is not available for this "
+                    "account"
+                    if target == "garmin"
+                    else f"{target} does not support plan delivery"
+                ),
+            )
+        if target == "garmin":
+            region = garmin_region(config.source_options)
+            assert region is not None
+            # The durable target/resume choice is the user's product intent.
+            # This internal fence only binds writes to that live account
+            # generation and region; it is not a separate consent setting.
+            connection.plan_delivery_consent = (
+                plan_delivery_account_fence_token(
+                    connection,
+                    region=region,
+                )
+            )
 
     config.plan_management = normalize_plan_management(candidate)
 
@@ -304,90 +323,6 @@ def _assert_execution_target_switch_safe(
                 f"{names} before selecting {target}"
             ),
         )
-
-
-def _apply_experimental_plan_delivery_update(
-    config: UserConfig,
-    update: dict[str, bool],
-    *,
-    user_id: str,
-    db: Session,
-    garmin_eligible: bool,
-) -> None:
-    """Bind or clear explicit Garmin delivery consent."""
-    from db.plan_ledger import lock_plan_writes
-
-    lock_plan_writes(db, user_id)
-    unsupported = set(update) - {"garmin"}
-    if unsupported:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Unsupported experimental plan target: "
-                f"{sorted(unsupported)[0]}"
-            ),
-        )
-    if "garmin" not in update:
-        return
-    connection = db.execute(
-        select(UserConnection)
-        .where(
-            UserConnection.user_id == user_id,
-            UserConnection.platform == "garmin",
-        )
-        .with_for_update()
-    ).scalar_one_or_none()
-    if update["garmin"]:
-        if not garmin_eligible:
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    (
-                        "Experimental Garmin delivery is disabled on this "
-                        "deployment pending controlled live validation"
-                    )
-                    if not garmin_plan_delivery_deployment_enabled()
-                    else (
-                        "This account is not eligible for experimental "
-                        "Garmin delivery"
-                    )
-                ),
-            )
-        if connection is None or connection.status != "connected":
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    "Connect Garmin before enabling experimental delivery"
-                ),
-            )
-        if not is_plan_delivery_target_registered("garmin"):
-            raise HTTPException(
-                status_code=409,
-                detail="Garmin plan delivery is not available",
-            )
-        region = garmin_region(config.source_options)
-        if region is None:
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    "Reconnect Garmin to confirm its region before enabling "
-                    "experimental delivery"
-                ),
-            )
-        connection.plan_delivery_consent = plan_delivery_consent_token(
-            connection,
-            region=region,
-        )
-    elif connection is not None:
-        connection.plan_delivery_consent = None
-        if (
-            config.plan_management["execution_target"] == "garmin"
-            and config.plan_management["delivery_enabled"]
-        ):
-            config.plan_management = normalize_plan_management({
-                **config.plan_management,
-                "delivery_enabled": False,
-            })
 
 
 def _detect_thresholds_from_db(user_id: str, db) -> dict:
@@ -511,6 +446,15 @@ def _connection_statuses(
     }
 
 
+def _registered_plan_delivery_targets() -> set[str]:
+    """Return targets whose delivery adapters are available to this worker."""
+    return {
+        platform
+        for platform in PLATFORM_CAPABILITIES
+        if is_plan_delivery_target_registered(platform)
+    }
+
+
 def resolve_thresholds(
     config_thresholds: dict,
     detected: dict,
@@ -587,6 +531,7 @@ def get_settings(
             UserConnection.user_id == user_id,
         ).all()
     }
+    registered_targets = _registered_plan_delivery_targets()
     avail = available_providers()
     detected = _detect_thresholds_from_db(user_id, db)
     effective = resolve_thresholds(
@@ -605,13 +550,13 @@ def get_settings(
             config,
             connections=connections,
             garmin_eligible=garmin_eligible,
+            registered_targets=registered_targets,
         ),
-        "experimental_plan_delivery": (
-            experimental_plan_delivery_status(
-                config,
-                connections=connections,
-                garmin_eligible=garmin_eligible,
-            )
+        "plan_delivery_options": plan_delivery_options(
+            config,
+            connections=connections,
+            garmin_eligible=garmin_eligible,
+            registered_targets=registered_targets,
         ),
         "available_providers": {
             "activities": avail.get("activities", []),
@@ -778,26 +723,10 @@ def _update_settings(
     garmin_region_changed = (
         garmin_region(config.source_options) != prior_garmin_region
     )
-    if (
-        garmin_region_changed
-        and body.experimental_plan_delivery
-        and body.experimental_plan_delivery.get("garmin") is True
-    ):
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "Reconnect Garmin in the selected region before enabling "
-                "experimental delivery"
-            ),
-        )
     if garmin_region_changed:
-        _apply_experimental_plan_delivery_update(
-            config,
-            {"garmin": False},
-            user_id=user_id,
-            db=db,
-            garmin_eligible=garmin_eligible,
-        )
+        from db.plan_ledger import lock_plan_writes
+
+        lock_plan_writes(db, user_id)
         connection = db.execute(
             select(UserConnection)
             .where(
@@ -809,16 +738,17 @@ def _update_settings(
         if connection is not None:
             from db.sync_scheduler import reset_connection_backoff
 
+            connection.plan_delivery_consent = None
             connection.status = "disconnected"
             reset_connection_backoff(connection)
-    if body.experimental_plan_delivery is not None:
-        _apply_experimental_plan_delivery_update(
-            config,
-            body.experimental_plan_delivery,
-            user_id=user_id,
-            db=db,
-            garmin_eligible=garmin_eligible,
-        )
+        if (
+            config.plan_management["execution_target"] == "garmin"
+            and config.plan_management["delivery_enabled"]
+        ):
+            config.plan_management = normalize_plan_management({
+                **config.plan_management,
+                "delivery_enabled": False,
+            })
     if body.plan_management is not None:
         _apply_plan_management_update(
             config,
@@ -967,6 +897,7 @@ def _update_settings(
             UserConnection.user_id == user_id,
         ).all()
     }
+    registered_targets = _registered_plan_delivery_targets()
     return {
         "status": "ok",
         "config": asdict(config),
@@ -979,13 +910,13 @@ def _update_settings(
             config,
             connections=connections,
             garmin_eligible=garmin_eligible,
+            registered_targets=registered_targets,
         ),
-        "experimental_plan_delivery": (
-            experimental_plan_delivery_status(
-                config,
-                connections=connections,
-                garmin_eligible=garmin_eligible,
-            )
+        "plan_delivery_options": plan_delivery_options(
+            config,
+            connections=connections,
+            garmin_eligible=garmin_eligible,
+            registered_targets=registered_targets,
         ),
     }
 

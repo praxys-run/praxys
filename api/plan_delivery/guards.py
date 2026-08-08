@@ -74,9 +74,9 @@ def capture_delivery_connection_generation(
     ):
         raise DeliveryMutationBlockedError(
             (
-                "experimental_delivery_disabled"
+                "delivery_not_eligible"
                 if not garmin_eligible
-                else "experimental_consent_required"
+                else "delivery_account_fence_required"
             )
             if target == "garmin"
             else "execution_target_unsupported",

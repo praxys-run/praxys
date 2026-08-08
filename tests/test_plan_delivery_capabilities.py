@@ -1,4 +1,4 @@
-"""Experimental delivery capability and consent-fence tests."""
+"""Delivery rollout, selection, and account-fence tests."""
 
 import pytest
 from sqlalchemy import create_engine
@@ -9,8 +9,9 @@ from api.plan_delivery.capabilities import (
     effective_platform_capabilities,
     garmin_plan_delivery_deployment_enabled,
     garmin_plan_delivery_eligible,
-    has_plan_delivery_consent,
-    plan_delivery_consent_token,
+    has_plan_delivery_account_fence,
+    plan_delivery_account_fence_token,
+    plan_delivery_capability_enabled,
 )
 from api.statsig_client import get_statsig_user
 from api.plan_delivery.guards import (
@@ -48,30 +49,30 @@ def _statsig_user():
     )
 
 
-def test_consent_is_bound_to_credentials_and_region() -> None:
+def test_account_fence_is_bound_to_credentials_and_region() -> None:
     connection = _connection()
-    connection.plan_delivery_consent = plan_delivery_consent_token(
+    connection.plan_delivery_consent = plan_delivery_account_fence_token(
         connection,
         region="international",
     )
 
-    assert has_plan_delivery_consent(
+    assert has_plan_delivery_account_fence(
         connection,
         source_options={"garmin_region": "international"},
     )
 
     connection.encrypted_credentials = b"credentials-b"
-    assert not has_plan_delivery_consent(
+    assert not has_plan_delivery_account_fence(
         connection,
         source_options={"garmin_region": "international"},
     )
 
     connection.encrypted_credentials = b"credentials-a"
-    assert not has_plan_delivery_consent(
+    assert not has_plan_delivery_account_fence(
         connection,
         source_options={"garmin_region": "cn"},
     )
-    assert not has_plan_delivery_consent(
+    assert not has_plan_delivery_account_fence(
         connection,
         source_options={},
     )
@@ -90,7 +91,7 @@ def test_deployment_gate_defaults_off_even_when_statsig_allows(
     )
     config = UserConfig()
     connection = _connection()
-    connection.plan_delivery_consent = plan_delivery_consent_token(
+    connection.plan_delivery_consent = plan_delivery_account_fence_token(
         connection,
         region="international",
     )
@@ -99,11 +100,12 @@ def test_deployment_gate_defaults_off_even_when_statsig_allows(
         config,
         connections={"garmin": connection},
         garmin_eligible=garmin_plan_delivery_eligible(_statsig_user()),
+        registered_targets={"garmin", "stryd"},
     )
 
     assert garmin_plan_delivery_deployment_enabled() is False
     assert garmin_plan_delivery_eligible(_statsig_user()) is False
-    assert has_plan_delivery_consent(
+    assert has_plan_delivery_account_fence(
         connection,
         source_options=config.source_options,
     )
@@ -123,19 +125,21 @@ def test_effective_capability_does_not_change_static_provider_contract(
     )
     config = UserConfig()
     connection = _connection()
-    connection.plan_delivery_consent = plan_delivery_consent_token(
-        connection,
-        region="international",
-    )
-
     capabilities = effective_platform_capabilities(
         config,
         connections={"garmin": connection},
         garmin_eligible=garmin_plan_delivery_eligible(_statsig_user()),
+        registered_targets={"garmin", "stryd"},
     )
 
     assert capabilities["garmin"]["plan"] is True
     assert capabilities["stryd"]["plan"] is True
+    assert not plan_delivery_capability_enabled(
+        "garmin",
+        source_options=config.source_options,
+        connection=connection,
+        garmin_eligible=True,
+    )
 
 
 def test_missing_statsig_key_is_ineligible_with_deployment_enabled(
@@ -172,9 +176,9 @@ def test_statsig_eligibility_uses_the_named_gate_and_user(
 @pytest.mark.parametrize(
     ("revocation", "reason"),
     [
-        ("consent", "experimental_consent_required"),
-        ("deployment", "experimental_delivery_disabled"),
-        ("eligibility", "experimental_delivery_disabled"),
+        ("account_fence", "delivery_account_fence_required"),
+        ("deployment", "delivery_not_eligible"),
+        ("eligibility", "delivery_not_eligible"),
     ],
 )
 def test_live_gate_blocks_a_previously_captured_mutation_guard(
@@ -211,7 +215,7 @@ def test_live_gate_blocks_a_previously_captured_mutation_guard(
         connection = _connection()
         db.add(connection)
         db.flush()
-        connection.plan_delivery_consent = plan_delivery_consent_token(
+        connection.plan_delivery_consent = plan_delivery_account_fence_token(
             connection,
             region="international",
         )
@@ -223,7 +227,7 @@ def test_live_gate_blocks_a_previously_captured_mutation_guard(
         )
         assert generation is not None
 
-        if revocation == "consent":
+        if revocation == "account_fence":
             connection.plan_delivery_consent = None
             db.commit()
         elif revocation == "deployment":

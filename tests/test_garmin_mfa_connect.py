@@ -387,7 +387,9 @@ def test_reconnect_revokes_old_consent_before_token_login(
     api_client,
     monkeypatch,
 ):
-    from api.plan_delivery.capabilities import plan_delivery_consent_token
+    from api.plan_delivery.capabilities import (
+        plan_delivery_account_fence_token,
+    )
     from db import session as db_session
     from db.models import UserConfig, UserConnection
 
@@ -412,7 +414,7 @@ def test_reconnect_revokes_old_consent_before_token_login(
         )
         db.add(connection)
         db.flush()
-        connection.plan_delivery_consent = plan_delivery_consent_token(
+        connection.plan_delivery_consent = plan_delivery_account_fence_token(
             connection,
             region="international",
         )

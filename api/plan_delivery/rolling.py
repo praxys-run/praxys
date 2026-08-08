@@ -260,9 +260,9 @@ def _delivery_gate(
             connection,
             (
                 (
-                    "experimental_consent_required"
+                    "delivery_account_fence_required"
                     if garmin_eligible
-                    else "experimental_delivery_disabled"
+                    else "delivery_not_eligible"
                 )
                 if target == "garmin"
                 else "execution_target_unsupported"
