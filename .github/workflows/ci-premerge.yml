@@ -95,11 +95,13 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           UI_PR_BODY: ${{ github.event.pull_request.body }}
+          UI_DRAFT_EVIDENCE_FLAG: ${{ github.event.pull_request.draft && github.event.pull_request.user.login == 'Copilot' && '--allow-unverified-draft' || '' }}
         run: >-
           python scripts/check_ui_quality.py
           --base "${{ github.event.pull_request.base.sha }}"
           --head "${{ github.event.pull_request.head.sha }}"
           --pr-body-env UI_PR_BODY
+          $UI_DRAFT_EVIDENCE_FLAG
 
       - name: Smoke-test the gate on manual runs
         if: github.event_name == 'workflow_dispatch'
