@@ -47,8 +47,8 @@ transient — the next deploy overwrites them.**
 | `TRANSLATE_MODEL` (`gpt-5.4-mini`) | Optional deployment override for translating newly extracted UI strings and science copy. | `i18n.yml`; script default applies when unset |
 | `TRANSLATE_REVIEW_MODEL` (`gpt-5.4`) | Optional stronger deployment override for the weekly native-Chinese catalog review. | `i18n.yml`; script default applies when unset |
 | `KEY_VAULT_URL` / `KEY_VAULT_KEY_NAME` | Key Vault + RSA key name | App Service setting |
-| `PRAXYS_FEEDBACK_BLOB_ACCOUNT_URL` (`https://stperftrainsight.blob.core.windows.net`) | Private Blob store for feedback screenshots (keyless via MI) | App Service setting (backend) |
-| `PRAXYS_FEEDBACK_BLOB_CONTAINER` (`feedback-screenshots`) | Blob container for screenshots | App Service setting (backend) |
+| `PRAXYS_FEEDBACK_BLOB_ACCOUNT_URL` (`https://stperftrainsight.blob.core.windows.net`) | Private Blob store for feedback screenshots and 14-day Labs withdrawal tombstones (keyless via MI) | App Service setting (backend) |
+| `PRAXYS_FEEDBACK_BLOB_CONTAINER` (`feedback-screenshots`) | Private container for screenshots and restore-safe Labs withdrawal markers | App Service setting (backend) |
 | `PRAXYS_SMTP_HOST` / `PRAXYS_SMTP_PORT` / `PRAXYS_SMTP_USER` / `PRAXYS_SMTP_FROM` / `PRAXYS_SMTP_STARTTLS` | SMTP transport for verification + invitation emails (non-secret; the password is the secret above). **Optional.** | App Service setting (backend) |
 | `PRAXYS_APP_BASE_URL` (`https://praxys.run`) | Public origin for verify/invite links in those emails | App Service setting (backend) |
 | `PRAXYS_DB_AUTH` (`entra` or unset) | Postgres auth mode: `entra` = AAD token via managed identity, no password. **Optional.** | App Service setting (backend) |
@@ -643,10 +643,13 @@ gh variable set PRAXYS_FEEDBACK_BLOB_ACCOUNT_URL --body "https://stperftrainsigh
 gh variable set PRAXYS_FEEDBACK_BLOB_CONTAINER   --body "feedback-screenshots"
 ```
 
-The two `PRAXYS_FEEDBACK_BLOB_*` variables above point the app at it. Unset them
-and the app falls back to local filesystem storage under `DATA_DIR` (persistent
-on `/home`, but not the recommended long-term home). `api/feedback_storage.py`
-selects the backend and authenticates with `DefaultAzureCredential`.
+The two `PRAXYS_FEEDBACK_BLOB_*` variables above point the app at it. The same
+private container stores `labs-deletions/` withdrawal markers for 14 days so a
+PITR restore cannot resurrect consent or an aggregate Labs result. Unset the
+variables and the app falls back to local filesystem storage under `DATA_DIR`
+(persistent on `/home`, but not the recommended long-term home).
+`api/feedback_storage.py` selects the shared private backend and authenticates
+with `DefaultAzureCredential`.
 
 ### The change loop — coding-agent labels & assignment (issue #362)
 

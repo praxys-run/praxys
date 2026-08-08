@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import replace
 from datetime import date, timedelta
 import hashlib
 import json
@@ -331,6 +332,219 @@ def test_recovers_reviewable_heat_signal_with_activity_holdout() -> None:
     ] is True
     assert report["input_contract"]["report_includes_activity_ids"] is False
     assert report["input_contract"]["report_includes_activity_dates"] is False
+
+
+def test_builds_aggregate_labs_curve_without_private_activity_fields() -> None:
+    from analysis.environment_response import (
+        LabsEnvironmentConfig,
+        build_environment_response_result,
+    )
+
+    result = build_environment_response_result(
+        synthetic_research_dataset(),
+        config=LabsEnvironmentConfig(
+            minimum_activities_per_curve_bin=1,
+            minimum_segments_per_curve_bin=1,
+            minimum_reference_power_activities_per_curve_bin=1,
+            maximum_bootstrap_width_ratio=10.0,
+            maximum_leave_one_out_relative_change=10.0,
+        ),
+        validation_config=TEST_CONFIG,
+    )
+
+    assert result["result_state"] == "historical_association_only"
+    assert len(result["aggregate_curve_points"]) == 5
+    assert result["aggregate_uncertainty"]["leave_one_activity_out"][
+        "sign_agreement"
+    ] == 1.0
+    serialized = json.dumps(result, sort_keys=True)
+    for forbidden in (
+        '"activity_id"',
+        '"activity_date"',
+        '"route"',
+        '"lat"',
+        '"lng"',
+    ):
+        assert forbidden not in serialized
+
+
+def test_labs_default_curve_support_guardrails_withhold_sparse_bins() -> None:
+    from analysis.environment_response import build_environment_response_result
+
+    result = build_environment_response_result(
+        synthetic_research_dataset(),
+        validation_config=TEST_CONFIG,
+    )
+
+    assert result["result_state"] == "insufficient_data"
+    assert result["aggregate_curve_points"] == []
+    assert result["gate_statuses"]["curve_bin_support"] == "fail"
+
+
+def test_labs_bootstrap_width_and_influence_guardrails_withhold_curve() -> None:
+    from analysis.environment_response import (
+        LabsEnvironmentConfig,
+        build_environment_response_result,
+    )
+
+    common = dict(
+        minimum_activities_per_curve_bin=1,
+        minimum_segments_per_curve_bin=1,
+        minimum_reference_power_activities_per_curve_bin=1,
+    )
+    width = build_environment_response_result(
+        synthetic_research_dataset(),
+        config=LabsEnvironmentConfig(
+            **common,
+            maximum_bootstrap_width_ratio=0.01,
+            maximum_leave_one_out_relative_change=10.0,
+        ),
+        validation_config=TEST_CONFIG,
+    )
+    influence = build_environment_response_result(
+        synthetic_research_dataset(),
+        config=LabsEnvironmentConfig(
+            **common,
+            maximum_bootstrap_width_ratio=10.0,
+            maximum_leave_one_out_relative_change=0.0,
+        ),
+        validation_config=TEST_CONFIG,
+    )
+
+    assert width["result_state"] == "unstable_association"
+    assert width["gate_statuses"]["bootstrap_interval_width"] == "fail"
+    assert influence["result_state"] == "unstable_association"
+    assert influence["gate_statuses"]["leave_one_activity_out_influence"] == "fail"
+
+
+def test_labs_prediction_unavailable_withholds_curve(monkeypatch) -> None:
+    from analysis import environment_response
+
+    real_validate = environment_response.validate_heat_response
+
+    def unavailable_prediction(dataset, config):
+        report = real_validate(dataset, config)
+        report["gates"]["chronological_holdout_performance"]["status"] = (
+            "unavailable"
+        )
+        report["gates"]["chronological_holdout_performance"]["evaluated"] = False
+        return report
+
+    monkeypatch.setattr(
+        environment_response,
+        "validate_heat_response",
+        unavailable_prediction,
+    )
+    result = environment_response.build_environment_response_result(
+        synthetic_research_dataset(),
+        config=environment_response.LabsEnvironmentConfig(
+            minimum_activities_per_curve_bin=1,
+            minimum_segments_per_curve_bin=1,
+            minimum_reference_power_activities_per_curve_bin=1,
+            maximum_bootstrap_width_ratio=10.0,
+            maximum_leave_one_out_relative_change=10.0,
+        ),
+        validation_config=TEST_CONFIG,
+    )
+
+    assert result["result_state"] == "prediction_unavailable"
+    assert result["aggregate_curve_points"] == []
+
+
+def test_labs_rejects_non_stryd_power_regime() -> None:
+    from analysis.environment_response import (
+        LabsEnvironmentConfig,
+        build_environment_response_result,
+    )
+
+    dataset = synthetic_research_dataset()
+    for record in dataset["records"]:
+        record["pre_activity_context"]["critical_power"][
+            "power_provider"
+        ] = "garmin"
+        for segment in record["stable_segments"]["segments"]:
+            segment["power_provider"] = "garmin"
+            segment["heart_rate_provider"] = "garmin"
+    _refresh_dataset_hash(dataset)
+
+    result = build_environment_response_result(
+        dataset,
+        config=LabsEnvironmentConfig(
+            minimum_activities_per_curve_bin=1,
+            minimum_segments_per_curve_bin=1,
+            minimum_reference_power_activities_per_curve_bin=1,
+            maximum_bootstrap_width_ratio=10.0,
+            maximum_leave_one_out_relative_change=10.0,
+        ),
+        validation_config=TEST_CONFIG,
+    )
+
+    assert result["result_state"] == "insufficient_data"
+    assert result["gate_statuses"]["stryd_power_regime"] == "fail"
+    assert result["aggregate_curve_points"] == []
+
+
+def test_cluster_bootstrap_refits_filtering_inside_each_draw(
+    monkeypatch,
+) -> None:
+    dataset = synthetic_research_dataset()
+    combined, export = heat_validation._prepare_dataset(dataset)
+    config = replace(TEST_CONFIG, bootstrap_iterations=3)
+    flattened = heat_validation._flatten_dataset(
+        combined,
+        config,
+        export=export,
+    )
+    primary = heat_validation._analyze_rows(
+        flattened,
+        config,
+        heat_representation="wet_bulb_c",
+        include_bootstrap=False,
+    )
+    internal = primary["_internal"]
+    real_select = heat_validation._select_features
+    calls = {"count": 0}
+
+    def counted_select(*args, **kwargs):
+        calls["count"] += 1
+        return real_select(*args, **kwargs)
+
+    monkeypatch.setattr(
+        heat_validation,
+        "_select_features",
+        counted_select,
+    )
+    heat_validation._cluster_bootstrap(
+        internal["train_rows"],
+        internal["feature_names"],
+        heat_representation="wet_bulb_c",
+        heat_center=internal["heat_center"],
+        config=config,
+    )
+
+    assert calls["count"] == config.bootstrap_iterations
+
+
+def test_missing_environment_reason_wins_over_empty_provider_regime() -> None:
+    from analysis.environment_response import build_environment_response_result
+    from api.labs_environment import availability_reason
+
+    dataset = synthetic_research_dataset()
+    for record in dataset["records"]:
+        record["activity"]["environment"]["temperature_c"] = None
+    _refresh_dataset_hash(dataset)
+
+    result = build_environment_response_result(
+        dataset,
+        validation_config=TEST_CONFIG,
+    )
+    reason = availability_reason(
+        result,
+        correlation_id="correlation",
+    )
+
+    assert result["gate_statuses"]["stryd_power_regime"] == "fail"
+    assert reason["code"] == "missing_temperature"
 
 
 def test_insufficient_observations_and_spread_are_unavailable() -> None:

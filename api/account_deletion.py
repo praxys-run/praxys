@@ -24,6 +24,9 @@ from db.models import (
     Feedback,
     FitnessData,
     Invitation,
+    LabsDeletionTombstone,
+    LabsExperimentEnrollment,
+    LabsExperimentResult,
     PlanDelivery,
     PlanDeliveryAttempt,
     PlanRevision,
@@ -117,6 +120,9 @@ def _delete_user_owned_rows(db: Session, user_id: str) -> None:
         AiInsight,
         CacheRevision,
         DashboardCache,
+        LabsExperimentResult,
+        LabsExperimentEnrollment,
+        LabsDeletionTombstone,
         Feedback,
     ):
         db.query(model).filter(model.user_id == user_id).delete(synchronize_session=False)

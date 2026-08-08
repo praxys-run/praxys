@@ -2413,20 +2413,37 @@ def _cluster_bootstrap(
             )
         if not sampled_rows:
             continue
-        fit = _fit_model(
+        # SDR environmental-performance-v2 requires filtering and model
+        # specification to be refit inside every activity-cluster draw rather
+        # than freezing optional complete-case predictors from the primary fit.
+        draw_features, _ = _select_features(
             sampled_rows,
-            sampled_rows,
-            feature_names,
             heat_representation=heat_representation,
-            heat_center=heat_center,
+        )
+        filtered_rows, _, _ = _filter_evaluation_rows(
+            sampled_rows,
+            draw_features,
+        )
+        if not filtered_rows:
+            continue
+        draw_heat_center = float(np.mean([
+            _heat_value(row, heat_representation)
+            for row in filtered_rows
+        ]))
+        fit = _fit_model(
+            filtered_rows,
+            filtered_rows,
+            draw_features,
+            heat_representation=heat_representation,
+            heat_center=draw_heat_center,
             ridge_alpha=config.ridge_alpha,
         )
         for name, value in zip(
-            feature_names,
+            draw_features,
             fit.coefficients,
             strict=True,
         ):
-            if math.isfinite(float(value)):
+            if name in samples and math.isfinite(float(value)):
                 samples[name].append(float(value))
     return samples
 

@@ -205,6 +205,16 @@ def is_blob_configured() -> bool:
     return _use_blob() and _blob_container_client() is not None
 
 
+def private_blob_enabled() -> bool:
+    """Return whether the shared private Blob backend is configured."""
+    return _use_blob()
+
+
+def private_container_client():
+    """Return the shared private container client, or ``None`` if unavailable."""
+    return _blob_container_client()
+
+
 # ---------------------------------------------------------------------------
 # Store / load
 # ---------------------------------------------------------------------------

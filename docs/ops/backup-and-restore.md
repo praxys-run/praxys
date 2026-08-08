@@ -45,6 +45,16 @@ az postgres flexible-server restore \
 # Verify the clone, then repoint PRAXYS_DATABASE_URL at it and re-deploy.
 ```
 
+After any restore, start the backend before reopening traffic. Labs withdrawals
+are written first to the private Blob container configured by
+`PRAXYS_FEEDBACK_BLOB_*` (local `DATA_DIR/labs_deletion_tombstones` in
+self-hosted development), then to `labs_deletion_tombstones` in the database.
+Startup replays private markers retained for the same 14-day PITR window:
+consent/results whose timestamps predate a withdrawal are deleted again, while
+a genuinely newer re-consent is preserved. Startup fails closed if configured
+private Blob storage cannot be read. Verify that withdrawn experiments remain
+absent before cutover.
+
 **Portable / off-Azure copy** (optional long-retention archive, or a future
 Tencent COS move) uses a logical dump - run it from inside the trust boundary
 (App Service SSH or an Azure job in the VNet), not GitHub runners:

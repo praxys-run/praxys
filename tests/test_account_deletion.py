@@ -102,6 +102,9 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
         Feedback,
         FitnessData,
         Invitation,
+        LabsDeletionTombstone,
+        LabsExperimentEnrollment,
+        LabsExperimentResult,
         PlanDelivery,
         PlanDeliveryAttempt,
         PlanRevision,
@@ -186,6 +189,33 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
         ))
         db.add(CacheRevision(user_id=user_id, scope="activities", revision=1))
         db.add(DashboardCache(user_id=user_id, section="today", source_version="v1", payload_json=b"{}"))
+        db.add(LabsExperimentEnrollment(
+            user_id=user_id,
+            experiment_id="environment-response-v1",
+            consent_version="environment-response-consent-v1",
+            adult_attested_at=datetime.utcnow(),
+            status="available",
+            model_version="labs-v1",
+            source_revision="rev1:test",
+            correlation_id="labs-correlation",
+        ))
+        db.add(LabsExperimentResult(
+            user_id=user_id,
+            experiment_id="environment-response-v1",
+            model_version="labs-v1",
+            source_revision="rev1:test",
+            result_state="historical_association_only",
+            eligibility_counts={},
+            aggregate_curve_points=[],
+            aggregate_uncertainty={},
+            gate_statuses={},
+            prediction_status="failed_research_diagnostics",
+            power_regime="stryd_continuous_samples",
+        ))
+        db.add(LabsDeletionTombstone(
+            user_id=user_id,
+            experiment_id="older-experiment",
+        ))
         feedback = Feedback(
             user_id=user_id,
             kind="bug",
@@ -252,6 +282,9 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
         Feedback,
         FitnessData,
         Invitation,
+        LabsDeletionTombstone,
+        LabsExperimentEnrollment,
+        LabsExperimentResult,
         PlanDelivery,
         PlanDeliveryAttempt,
         PlanRevision,
@@ -278,6 +311,9 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
             DashboardCache,
             Feedback,
             FitnessData,
+            LabsDeletionTombstone,
+            LabsExperimentEnrollment,
+            LabsExperimentResult,
             PlanTargetCalendarSync,
             PlanTargetWorkout,
             PlanDelivery,
