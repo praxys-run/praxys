@@ -1,0 +1,134 @@
+name: Copilot PR readiness guard
+
+on:
+  pull_request_target:
+    types: [ready_for_review, synchronize]
+
+# This workflow never checks out or executes pull-request code.
+permissions:
+  checks: read
+  contents: read
+  pull-requests: write
+  statuses: read
+
+concurrency:
+  group: copilot-pr-readiness-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  enforce:
+    if: >-
+      github.repository == 'praxys-run/praxys' &&
+      github.event.pull_request.user.login == 'Copilot' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Return changed ready PRs to draft
+        if: github.event.action == 'synchronize'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh pr ready "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --undo
+          echo "A new commit invalidated the prior handoff; returned the PR to draft." \
+            >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Require final preflight evidence
+        if: github.event.action == 'ready_for_review'
+        id: preflight
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.body // ""')"
+          if ! grep -Fq 'python scripts/agent_preflight.py --base origin/main' <<< "$body" ||
+            ! grep -Fq "Preflight head: \`$HEAD_SHA\`" <<< "$body"; then
+            echo "verified=false" >> "$GITHUB_OUTPUT"
+            echo "::error::PR validation must record the final preflight command and current head SHA."
+            exit 0
+          fi
+          echo "verified=true" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for required checks
+        if: >-
+          github.event.action == 'ready_for_review' &&
+          steps.preflight.outputs.verified == 'true'
+        id: checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          READY_AT: ${{ github.event.pull_request.updated_at }}
+          REQUIRED_CHECKS_JSON: '["backend-tests","frontend-quality"]'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # ready_for_review starts a fresh pre-merge run. Wait briefly for the
+          # required contexts for this event to replace the draft-mode results.
+          expected="$(jq 'length' <<< "$REQUIRED_CHECKS_JSON")"
+          for attempt in {1..72}; do
+            set +e
+            checks="$(
+              gh pr checks "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
+                --json name,startedAt,bucket
+            )"
+            checks_status=$?
+            set -e
+            if [[ "$checks_status" -ne 0 && "$checks_status" -ne 8 ]]; then
+              echo "::error::Could not read pull-request checks."
+              exit "$checks_status"
+            fi
+            fresh="$(
+              jq --arg ready "$READY_AT" --argjson required "$REQUIRED_CHECKS_JSON" \
+                '[.[] | . as $check | select(
+                  $check.startedAt != null and
+                  $check.startedAt >= $ready and
+                  (($required | index($check.name)) != null)
+                )]' \
+                <<< "$checks"
+            )"
+            count="$(jq '[.[].name] | unique | length' <<< "$fresh")"
+            if [[ "$count" -ge "$expected" ]]; then
+              failures="$(
+                jq '[.[] | select(.bucket == "fail" or .bucket == "cancel")] | length' \
+                  <<< "$fresh"
+              )"
+              passes="$(jq '[.[] | select(.bucket == "pass")] | length' <<< "$fresh")"
+              if [[ "$failures" -gt 0 ]]; then
+                echo "passed=false" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              if [[ "$passes" -ge "$expected" ]]; then
+                echo "passed=true" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            fi
+            sleep 5
+          done
+          echo "passed=false" >> "$GITHUB_OUTPUT"
+          echo "::error::Fresh required checks did not complete for the ready PR."
+
+      - name: Return incomplete handoff to draft
+        if: >-
+          always() &&
+          github.event.action == 'ready_for_review' &&
+          (
+            steps.preflight.outputs.verified != 'true' ||
+            steps.checks.outputs.passed != 'true'
+          )
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh pr ready "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --undo
+          echo "Required preflight evidence or checks are incomplete; returned the PR to draft." \
+            >> "$GITHUB_STEP_SUMMARY"

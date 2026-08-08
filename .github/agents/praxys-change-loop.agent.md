@@ -56,12 +56,20 @@ files, rendered review, PR body, and final diff are stable.
    If preflight regenerates catalogs or other tracked files, review and commit
    them, then rerun preflight until it passes with a clean worktree.
 8. Complete the PR body with factual validation and UI evidence before the
-   ready-for-review handoff. Keep the PR draft when any required evidence is
-   unavailable.
+   ready-for-review handoff. Record
+   `python scripts/agent_preflight.py --base origin/main` in `## Validation`
+   after it passes, followed by `Preflight head: <full git rev-parse HEAD SHA>`
+   so the handoff is tied to the validated commit. Keep the PR draft when any
+   required evidence is unavailable.
 9. Inspect the required GitHub checks on the final head. Repair PR-caused
    failures and rerun preflight. Do not request review while required checks are
    failing or pending; leave the PR draft with the concrete blocker if the
    session cannot finish the repair.
+
+For miniapp UI changes, WeChat DevTools/Skyline rendered evidence remains a
+human-capable boundary when that runtime is unavailable in the cloud session.
+Fill every UI evidence field truthfully and leave the PR draft. Draft CI accepts
+explicitly pending evidence, but the ready-for-review gate remains strict.
 
 Do not merge or approve your own PR. Independent repository policy owns review
 and merge.

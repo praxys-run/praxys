@@ -58,6 +58,21 @@ own PR can merge. The target state is selective review: a separate risk policy
 can eventually route repeatedly proven narrow changes to policy-owned auto-merge,
 while sensitive, broad, uncertain, or failing changes still require a human.
 
+The assignment uses GitHub's agent-assignment API with
+`customAgent=praxys-change-loop`, so every eligible issue starts with the
+checked-in `.github/agents/praxys-change-loop.agent.md` profile rather than the
+generic Copilot profile.
+
+Copilot PRs stay draft until the final preflight command and validated head SHA
+are recorded and the required branch checks pass.
+`.github/workflows/copilot-pr-readiness.yml` automatically
+returns a ready PR to draft when either condition is missing, and any new commit
+also invalidates the prior ready handoff. Draft Copilot PRs may truthfully mark
+rendered UI evidence pending; strict evidence validation resumes when the PR is
+marked ready. This is especially important for miniapp work when the cloud
+session lacks a WeChat DevTools/Skyline runtime: a human completes that rendered
+review, updates the PR body, waits for draft CI, and then marks the PR ready.
+
 ### Shadow mode
 
 Set `PRAXYS_AGENT_READY_SHADOW=true` (App Service setting) to compute the
@@ -524,7 +539,12 @@ and the cost is low).
 
 - Label a **qualifying bug** `agent-ready` → the `Change loop — assign
   agent-ready issues to Copilot` workflow runs and the issue gets
-  `copilot-swe-agent` as an assignee; a draft PR follows.
+  `copilot-swe-agent` as an assignee using the `praxys-change-loop` custom
+  agent; a draft PR follows.
+- Mark a Copilot PR ready without the recorded final preflight or with a failing
+  required check → `Copilot PR readiness guard` returns it to draft.
+- Push a new commit to a ready Copilot PR → the readiness guard returns it to
+  draft until validation is rerun on the new head.
 - A **feature**, a **not-actionable** bug, a `backlog`/`later` bug, or a
   `needs_review`/sensitive report is never auto-assigned.
 - Shadow mode on → no label is applied, but the decision is durably recorded
