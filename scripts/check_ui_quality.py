@@ -292,6 +292,7 @@ def validate_ui_evidence(
     has_web: bool,
     has_miniapp: bool,
     changed_paths: Iterable[str] = (),
+    allow_unverified: bool = False,
 ) -> list[str]:
     """Return PR evidence errors for a rendered UI change."""
     section = _ui_quality_section(body)
@@ -299,6 +300,13 @@ def validate_ui_evidence(
         return ["PR body is missing the required '## UI quality' section."]
 
     values = _evidence_values(section)
+    if allow_unverified:
+        return [
+            f"UI quality field '{field}' is missing from the draft evidence block."
+            for field in _EVIDENCE_FIELDS
+            if field not in values
+        ]
+
     errors: list[str] = []
     for field in _EVIDENCE_FIELDS:
         value = values.get(field, "")
@@ -483,6 +491,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Skip PR body evidence validation for local smoke checks.",
     )
     parser.add_argument(
+        "--allow-unverified-draft",
+        action="store_true",
+        help=(
+            "Allow explicitly incomplete evidence values while a Copilot PR "
+            "remains draft; all evidence fields must still be present."
+        ),
+    )
+    parser.add_argument(
         "--skip-detector",
         action="store_true",
         help="Skip the Impeccable detector.",
@@ -530,6 +546,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 has_web="web" in surfaces,
                 has_miniapp="miniapp" in surfaces,
                 changed_paths=paths,
+                allow_unverified=args.allow_unverified_draft,
             )
         )
 

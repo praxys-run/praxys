@@ -1,10 +1,11 @@
 """Authenticated lifecycle endpoints for Praxys Labs experiments."""
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
+from analysis.metrics import estimate_wet_bulb_c
 from api.auth import get_current_user_id, require_write_access
 from api.labs_environment import (
     CONSENT_VERSION,
@@ -31,6 +32,38 @@ class EnvironmentEnrollmentRequest(BaseModel):
 
     adult_attested: bool
     consent_version: str
+
+
+class EnvironmentWetBulbRequest(BaseModel):
+    """Temperature and humidity inputs for the non-persisted calculator."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    temperature_c: Annotated[
+        float,
+        Field(strict=True, allow_inf_nan=False),
+    ]
+    relative_humidity_pct: Annotated[
+        float,
+        Field(strict=True, allow_inf_nan=False),
+    ]
+
+
+class EnvironmentWetBulbResponse(BaseModel):
+    """Versioned Stull estimate with an explicit method boundary."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    temperature_c: float
+    relative_humidity_pct: float
+    wet_bulb_c: float | None
+    within_method_domain: bool
+    method: Literal["stull_psychrometric"]
+    source_url: str
+    limitation_code: Literal[
+        "psychrometric_proxy_not_wbgt",
+        "outside_method_domain",
+    ]
 
 
 class EnvironmentObservedAggregate(BaseModel):
@@ -188,6 +221,34 @@ class EnvironmentResponseState(BaseModel):
     queued_at: str | None = None
     started_at: str | None = None
     completed_at: str | None = None
+
+
+@router.post(
+    "/labs/environment-response/wet-bulb",
+    response_model=EnvironmentWetBulbResponse,
+)
+def calculate_environment_wet_bulb(
+    body: EnvironmentWetBulbRequest,
+    _user_id: str = Depends(get_current_user_id),
+) -> dict:
+    """Calculate the non-persisted Stull psychrometric wet-bulb proxy."""
+    estimate = estimate_wet_bulb_c(
+        body.temperature_c,
+        body.relative_humidity_pct,
+    )
+    return {
+        "temperature_c": body.temperature_c,
+        "relative_humidity_pct": body.relative_humidity_pct,
+        "wet_bulb_c": estimate,
+        "within_method_domain": estimate is not None,
+        "method": "stull_psychrometric",
+        "source_url": "https://doi.org/10.1175/JAMC-D-11-0143.1",
+        "limitation_code": (
+            "psychrometric_proxy_not_wbgt"
+            if estimate is not None
+            else "outside_method_domain"
+        ),
+    }
 
 
 def _schedule(

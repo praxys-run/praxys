@@ -1,0 +1,176 @@
+schema_version: 1
+id: evidence-individual-goal-feasibility-v1
+version: 1
+title: "Individual goal feasibility and prediction limits"
+research_question: >
+  What does exercise and prediction-method research support about translating
+  population evidence and observed training response into an individual
+  endurance athlete's goal-feasibility assessment?
+topic: individual-goal-feasibility
+status: draft
+authors:
+  - agent:github-copilot
+human_reviewers: []
+created_on: 2026-08-08
+reviewed_on:
+intended_product_purpose: >
+  Bound the claims Praxys may make before and during an adaptive plan without
+  presenting population associations or noisy individual changes as a
+  calibrated personal probability of goal achievement.
+scope:
+  population:
+    - Adults participating in exercise training
+    - Endurance athletes where represented by the reviewed literature
+    - Recreational runners as the intended product population
+  intervention_or_exposure:
+    - Standardized exercise-training interventions
+    - Individual response classification
+    - Multivariable individual prediction
+  comparator:
+    - Group-average versus individual-response inference
+    - Response classifications with and without measurement error
+    - Developed versus externally validated prediction models
+  outcomes:
+    - Individual response classification
+    - Calibration and discrimination of prediction
+    - Goal-feasibility claim boundaries
+method:
+  review_type: rigorous
+  search_date: 2026-08-08
+  sources:
+    - name: PubMed
+      search_string: >
+        ("exercise training"[Title/Abstract] OR "endurance training"[Title/Abstract])
+        AND (interindividual[Title/Abstract] OR "individual response"[Title/Abstract]
+        OR trainability[Title/Abstract]) AND adult[MeSH Terms]
+    - name: PubMed exact identifier verification
+      search_string: >
+        34819869[PMID] OR 25823596[PMID] OR 25560714[PMID]
+    - name: PubMed Central
+      search_string: "PMC8606564"
+    - name: Crossref DOI API
+      search_string: >
+        GET /works/{doi} for 10.3389/fphys.2021.665044,
+        10.1113/EP085070, and 10.7326/M14-0697
+  inclusion_criteria:
+    - Adult human exercise-training response research
+    - Systematic reviews of individual response classification
+    - Prediction-model reporting and validation guidance
+    - Stable DOI or PMID metadata and an abstract or full text
+  exclusion_criteria:
+    - Claims based only on group means without individual-response methods
+    - Children-only populations
+    - Disease-specific prognosis presented as athletic-goal validation
+    - Vendor predictions, coaching rules, and unverified web summaries
+  quality_appraisal: >
+    Claims were appraised for study design, directness to individual athletic
+    prediction, treatment of measurement error and within-person variation,
+    external validation, calibration, and applicability to recreational runners.
+  method_limitations:
+    - Titles and abstracts were manually screened against the criteria; screening and appraisal were not duplicated by independent reviewers.
+    - This targeted review did not directly search SPORTDiscus, Embase, or Scopus.
+    - Full text was not accessed for atkinson-2015 or collins-2015, so claims from those sources are limited to abstract-supported methodology.
+    - Prediction guidance is general methodology rather than a validated running-goal model.
+    - Exercise-response evidence spans aerobic, resistance, and clinical research.
+claims:
+  - id: feasibility.group-evidence-not-personal-probability
+    statement: >
+      Group-average exercise response and population associations do not by
+      themselves estimate one athlete's probability of attaining a goal.
+    source_ids:
+      - bonafiglia-2021
+      - atkinson-2015
+    evidence_strength: high
+    applicable_population:
+      - Adults completing standardized exercise interventions
+      - Endurance athletes only to the extent represented by the included studies
+    domain:
+      - Individual response
+      - Goal feasibility
+    limitations:
+      - The review was not specific to race-goal prediction.
+      - This boundary does not identify which qualitative category is appropriate.
+      - It does not show that individual response differences never exist.
+  - id: feasibility.error-aware-response-classification
+    statement: >
+      Individual response classification should account for random measurement
+      error, within-person variability, and a meaningful-change threshold;
+      zero-based thresholds inflate apparent response rates.
+    source_ids:
+      - bonafiglia-2021
+      - atkinson-2015
+    evidence_strength: high
+    effect_estimates:
+      - metric: Studies statistically estimating interindividual trainability
+        estimate: 9
+        unit: studies
+        context: 9 of 149 studies in the Bonafiglia systematic review
+    applicable_population:
+      - Adults in supervised standardized exercise training
+    domain:
+      - Response classification
+      - Measurement uncertainty
+    limitations:
+      - Meaningful-change thresholds are outcome and protocol specific.
+      - Classification after one plan does not identify an intrinsic responder trait.
+  - id: feasibility.calibration-required
+    statement: >
+      A numerical individual prediction requires a defined outcome,
+      representative development data, validation, and reported calibration as
+      well as discrimination before it can support a personal probability.
+    source_ids:
+      - collins-2015
+    evidence_strength: high
+    applicable_population:
+      - Developers and evaluators of multivariable individual prediction models
+    domain:
+      - Prediction-model validation
+      - Personal probability claims
+    limitations:
+      - TRIPOD is reporting guidance and does not validate a Praxys model.
+      - No reviewed source provides running-goal probability thresholds.
+citations:
+  - id: bonafiglia-2021
+    title: "A Systematic Review Examining the Approaches Used to Estimate Interindividual Differences in Trainability and Classify Individual Responses to Exercise Training"
+    authors:
+      - J. T. Bonafiglia
+      - N. Preobrazenski
+      - B. J. Gurd
+    year: 2021
+    journal: Frontiers in Physiology
+    doi: 10.3389/fphys.2021.665044
+    pmid: "34819869"
+  - id: atkinson-2015
+    title: "True and false interindividual differences in the physiological response to an intervention"
+    authors:
+      - G. Atkinson
+      - A. M. Batterham
+    year: 2015
+    journal: Experimental Physiology
+    doi: 10.1113/EP085070
+    pmid: "25823596"
+  - id: collins-2015
+    title: "Transparent Reporting of a multivariable prediction model for Individual Prognosis or Diagnosis (TRIPOD): the TRIPOD statement"
+    authors:
+      - G. S. Collins
+      - J. B. Reitsma
+      - D. G. Altman
+      - K. G. M. Moons
+    year: 2015
+    journal: Annals of Internal Medicine
+    doi: 10.7326/M14-0697
+    pmid: "25560714"
+known_gaps:
+  - Prospectively calibrated goal-achievement models for recreational runners
+  - External and temporal validation across training history, sex, age, and race type
+  - Evidence-based cut points for named qualitative feasibility categories
+conflicting_findings:
+  - The limited studies that estimated true interindividual trainability reported mixed evidence.
+follow_up_questions:
+  - Which outcome and population should the first prospective feasibility evaluation target?
+  - What test-retest evidence is required before a baseline is considered comparable?
+review_notes:
+  - "Verification: bonafiglia-2021 - full-text; PubMed Central PMC8606564 and PubMed metadata; 2026-08-08."
+  - "Verification: atkinson-2015 - abstract; PubMed PMID 25823596 and Crossref metadata; 2026-08-08."
+  - "Verification: collins-2015 - abstract; PubMed PMID 25560714 and Crossref metadata; 2026-08-08."
+  - Product scope is defined in #607; no personal probability or category threshold is accepted by this draft.

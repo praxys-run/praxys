@@ -129,6 +129,7 @@ export default function AppSidebar() {
   // Reference: theory + methodology surfaces.
   const referenceItems: NavItem[] = [
     { to: '/science', icon: FlaskConical, label: t`Science` },
+    { to: '/labs', icon: FlaskConical, label: t`Labs` },
   ];
   // Configuration: the user adjusts the system here (rare, deliberate).
   const configItems: NavItem[] = [

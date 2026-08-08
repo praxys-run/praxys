@@ -1131,6 +1131,132 @@ export interface ActivityEnvironment extends AnalysisAvailability {
   limitations: string[];
 }
 
+export interface LabsEnvironmentObservedAggregate {
+  eligible_activity_count: number | null;
+  eligible_segment_count: number | null;
+  observed_wet_bulb_domain_c: number[] | null;
+}
+
+export interface LabsEnvironmentAvailabilityReason {
+  code: string;
+  category: string;
+  public_message_key: string;
+  observed_aggregate: LabsEnvironmentObservedAggregate | null;
+  required_guardrail: string;
+  user_actionable: boolean;
+  suggested_action_key: string;
+  analysis_stage: string;
+  power_regime: string;
+  model_version: string;
+  correlation_id: string;
+}
+
+export interface LabsEnvironmentCurvePoint {
+  wet_bulb_c: number;
+  modeled_hr_bpm: number;
+  relative_hr_bpm: number;
+  relative_lower_bpm: number;
+  relative_upper_bpm: number;
+  reference_wet_bulb_c: number;
+}
+
+export interface LabsEnvironmentProviderRegime {
+  label: string;
+  activity_count: number;
+  segment_count: number;
+}
+
+export interface LabsEnvironmentCurveSupportBin {
+  lower_wet_bulb_c: number;
+  upper_wet_bulb_c: number;
+  activity_count: number;
+  segment_count: number;
+  reference_power_activity_count: number;
+}
+
+export interface LabsEnvironmentEligibilityCounts {
+  input_activity_count: number;
+  input_segment_count: number;
+  eligible_activity_count: number;
+  eligible_segment_count: number;
+  exclusion_reason_counts: Record<string, number>;
+  provider_regimes: LabsEnvironmentProviderRegime[];
+  observed_wet_bulb_domain_c: number[] | null;
+  curve_support_bins: LabsEnvironmentCurveSupportBin[] | null;
+}
+
+export interface LabsEnvironmentLeaveOneOut {
+  evaluated_activity_count: number;
+  sign_agreement: number;
+  maximum_relative_change: number | null;
+}
+
+export interface LabsEnvironmentUncertainty {
+  estimate_bpm_per_c: number | null;
+  interval_bpm_per_c: Array<number | null> | null;
+  interval_method: string | null;
+  interval_width_to_absolute_estimate_ratio: number | null;
+  leave_one_activity_out: LabsEnvironmentLeaveOneOut | null;
+}
+
+export interface LabsEnvironmentResult {
+  result_state:
+    | 'historical_association_only'
+    | 'insufficient_data'
+    | 'unstable_association'
+    | 'prediction_unavailable';
+  prediction_status:
+    | 'unavailable'
+    | 'passed_research_diagnostics'
+    | 'failed_research_diagnostics';
+  eligibility_counts: LabsEnvironmentEligibilityCounts;
+  aggregate_curve_points: LabsEnvironmentCurvePoint[];
+  aggregate_uncertainty: LabsEnvironmentUncertainty;
+  gate_statuses: Record<string, 'pass' | 'fail' | 'unavailable'>;
+  computed_at: string;
+  source_revision: string;
+  model_version: string;
+  power_regime: string;
+}
+
+export interface LabsEnvironmentResponseState {
+  experiment_id: string;
+  consent_version: string;
+  model_version: string;
+  enrolled: boolean;
+  status:
+    | 'not_enrolled'
+    | 'queued'
+    | 'processing'
+    | 'available'
+    | 'unavailable'
+    | 'failed'
+    | 'stale';
+  adult_attestation_required: boolean;
+  power_regime: string;
+  availability_reason: LabsEnvironmentAvailabilityReason | null;
+  result: LabsEnvironmentResult | null;
+  consented_at: string | null;
+  adult_attested_at: string | null;
+  source_revision: string | null;
+  correlation_id: string | null;
+  queued_at: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface LabsEnvironmentWetBulbResponse {
+  temperature_c: number;
+  relative_humidity_pct: number;
+  wet_bulb_c: number | null;
+  within_method_domain: boolean;
+  method: 'stull_psychrometric';
+  source_url: string;
+  limitation_code:
+    | 'psychrometric_proxy_not_wbgt'
+    | 'outside_method_domain';
+}
+
 export interface ActivitySampleCoverage extends AnalysisAvailability {
   sample_count: number;
   observed_duration_sec: number;

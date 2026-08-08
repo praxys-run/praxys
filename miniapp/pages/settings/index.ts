@@ -71,6 +71,8 @@ function buildSettingsTr() {
     ),
     trainingScience: t('Training Science'),
     scienceSubtitle: t('Browse the load / recovery / prediction / zone theories'),
+    labs: t('Labs'),
+    labsSubtitle: t('Explore voluntary experiments on your own training history'),
     theme: t('Theme'),
     themeAuto: t('Auto'),
     themeDark: t('Dark'),
@@ -1504,6 +1506,10 @@ Page({
 
   onNavigateToScience() {
     wx.navigateTo({ url: '/pages/science/index' });
+  },
+
+  onNavigateToLabs() {
+    wx.navigateTo({ url: '/pages/labs/index' });
   },
 
   onCopyUrl() {

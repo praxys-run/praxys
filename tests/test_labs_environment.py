@@ -139,6 +139,50 @@ def test_enrollment_requires_current_consent_and_adult_attestation(
     assert stale.json()["detail"]["code"] == "consent_version_stale"
 
 
+def test_wet_bulb_calculator_uses_versioned_stull_method(labs_client) -> None:
+    client, _, _ = labs_client
+
+    response = client.post(
+        "/api/labs/environment-response/wet-bulb",
+        json={"temperature_c": 25.0, "relative_humidity_pct": 60.0},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload == {
+        "temperature_c": 25.0,
+        "relative_humidity_pct": 60.0,
+        "wet_bulb_c": 19.5,
+        "within_method_domain": True,
+        "method": "stull_psychrometric",
+        "source_url": "https://doi.org/10.1175/JAMC-D-11-0143.1",
+        "limitation_code": "psychrometric_proxy_not_wbgt",
+    }
+
+    outside = client.post(
+        "/api/labs/environment-response/wet-bulb",
+        json={"temperature_c": -5.0, "relative_humidity_pct": 20.0},
+    )
+    assert outside.status_code == 200
+    assert outside.json()["wet_bulb_c"] is None
+    assert outside.json()["limitation_code"] == "outside_method_domain"
+
+    string_input = client.post(
+        "/api/labs/environment-response/wet-bulb",
+        json={"temperature_c": "25", "relative_humidity_pct": 60.0},
+    )
+    assert string_input.status_code == 422
+
+    from pydantic import ValidationError
+    from api.routes.labs import EnvironmentWetBulbRequest
+
+    with pytest.raises(ValidationError):
+        EnvironmentWetBulbRequest.model_validate({
+            "temperature_c": float("nan"),
+            "relative_humidity_pct": 60.0,
+        })
+
+
 def test_enroll_get_withdraw_and_rejoin_lifecycle(labs_client) -> None:
     client, db_session, user_id = labs_client
     from db.models import (
@@ -569,6 +613,37 @@ def test_availability_reason_preserves_data_quality_category(
     )
 
     assert reason["code"] == expected
+
+
+def test_availability_reason_does_not_mask_failed_release_gate() -> None:
+    """Excluded rows must not override the gate that withheld an ample dataset."""
+    from api.labs_environment import availability_reason
+
+    aggregate = {
+        "result_state": "insufficient_data",
+        "gate_statuses": {
+            "complete_export": "pass",
+            "minimum_activities": "pass",
+            "minimum_segments": "pass",
+            "environmental_spread": "pass",
+            "chronological_holdout": "pass",
+            "holdout_environmental_spread": "pass",
+            "curve_bin_support": "fail",
+            "stryd_power_regime": "pass",
+        },
+        "eligibility_counts": {
+            "eligible_activity_count": 177,
+            "eligible_segment_count": 738,
+            "exclusion_reason_counts": {"power_missing_or_invalid": 3},
+        },
+    }
+
+    reason = availability_reason(
+        aggregate,
+        correlation_id="correlation",
+    )
+
+    assert reason["code"] == "insufficient_curve_bin_support"
 
 
 def test_openapi_exposes_strict_labs_response_schema(labs_client) -> None:

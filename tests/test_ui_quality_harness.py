@@ -85,6 +85,25 @@ def test_template_placeholders_do_not_count_as_evidence():
     assert any("missing or unverified" in error for error in errors)
 
 
+def test_copilot_draft_can_record_truthful_pending_ui_evidence():
+    """Draft CI may be green without pretending rendered review happened."""
+    draft = (ROOT / ".github" / "PULL_REQUEST_TEMPLATE.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert validate_ui_evidence(
+        draft,
+        has_web=False,
+        has_miniapp=True,
+        allow_unverified=True,
+    ) == []
+    assert validate_ui_evidence(
+        draft,
+        has_web=False,
+        has_miniapp=True,
+    )
+
+
 def test_design_system_update_requires_changed_governance_path():
     evidence = VALID_WEB_EVIDENCE.replace(
         "none - existing tokens and components cover this change",
@@ -183,6 +202,7 @@ def test_harness_is_wired_into_agents_and_required_ci():
     assert "needs: [python-tests]" in workflow
     assert "FRONTEND_RESULT" not in workflow
     assert "--pr-body-env UI_PR_BODY" in workflow
+    assert "--allow-unverified-draft" in workflow
     assert "UI Quality Harness (mandatory)" in instructions
     assert "scripts/agent_preflight.py --base origin/main" in instructions
     assert (ROOT / ".github" / "skills" / "ui-quality" / "SKILL.md").is_file()
