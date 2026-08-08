@@ -34,7 +34,12 @@ const CLIENT_KEY = import.meta.env.VITE_STATSIG_CLIENT_KEY?.trim() ?? '';
 const ENVIRONMENT = import.meta.env.VITE_STATSIG_ENV?.trim() || 'development';
 
 function sameUser(left: StatsigUser, right: StatsigUser): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
+  return (
+    left.userID === right.userID
+    && left.email === right.email
+    && left.custom?.is_admin === right.custom?.is_admin
+    && left.custom?.is_demo === right.custom?.is_demo
+  );
 }
 
 function StatsigBridge({

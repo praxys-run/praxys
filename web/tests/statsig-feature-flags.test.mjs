@@ -18,6 +18,9 @@ test('Statsig is fail-closed and follows authenticated identity changes', async 
   assert.match(context, /FeatureFlagsContext\.Provider value=\{DISABLED_FLAGS\}/);
   assert.match(context, /updateUserAsync\(user\)/);
   assert.match(context, /ai_insights_enabled: identityIsCurrent && aiInsights/);
+  assert.doesNotMatch(context, /JSON\.stringify\(left\)/);
+  assert.match(context, /left\.userID === right\.userID/);
+  assert.match(context, /left\.custom\?\.is_admin === right\.custom\?\.is_admin/);
   assert.match(context, /userID: userId/);
   assert.match(context, /is_admin: isAdmin/);
   assert.match(context, /is_demo: isDemo/);
