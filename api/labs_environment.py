@@ -11,10 +11,18 @@ from sqlalchemy.orm import Session
 from analysis.environment_response import (
     LABS_ENVIRONMENT_MODEL_VERSION,
     POWER_REGIME,
+    assess_environment_response_preflight,
     build_environment_response_result,
 )
+from analysis.data_loader import load_environment_response_preflight_counts
 from analysis.heat_response_validation import build_research_dataset_bundle
-from analysis.metrics import ACTIVITY_RESEARCH_SCHEMA_VERSION
+from analysis.heat_response_validation import HeatValidationConfig
+from analysis.metrics import (
+    ACTIVITY_RESEARCH_SCHEMA_VERSION,
+    ENVIRONMENT_RESPONSE_MAX_POWER_WATTS,
+    ENVIRONMENT_RESPONSE_MINIMUM_HR_COVERAGE,
+    ENVIRONMENT_RESPONSE_SAMPLE_MAX_INTERVAL_SEC,
+)
 from api.etag import ENDPOINT_SCOPES, compute_revision_token
 from api.packs import (
     RequestContext,
@@ -68,6 +76,31 @@ def source_revision(db: Session, user_id: str) -> str:
         user_id,
         ENDPOINT_SCOPES["analysis"],
         salt=_SNAPSHOT_SALT,
+    )
+
+
+def environment_response_preflight(
+    db: Session,
+    user_id: str,
+) -> dict[str, Any]:
+    """Return a fast aggregate-only eligibility estimate without persistence."""
+    config = HeatValidationConfig()
+    counts = load_environment_response_preflight_counts(
+        user_id,
+        db,
+        eligible_activity_types=config.eligible_activity_types,
+        minimum_segment_duration_sec=config.minimum_segment_duration_sec,
+        maximum_sample_interval_sec=(
+            ENVIRONMENT_RESPONSE_SAMPLE_MAX_INTERVAL_SEC
+        ),
+        minimum_heart_rate_coverage_ratio=(
+            ENVIRONMENT_RESPONSE_MINIMUM_HR_COVERAGE
+        ),
+        maximum_power_watts=ENVIRONMENT_RESPONSE_MAX_POWER_WATTS,
+    )
+    return assess_environment_response_preflight(
+        counts,
+        validation_config=config,
     )
 
 

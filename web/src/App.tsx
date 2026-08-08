@@ -29,6 +29,7 @@ const Goal = lazy(() => import('./pages/Goal'));
 const History = lazy(() => import('./pages/History'));
 const Science = lazy(() => import('./pages/Science'));
 const Labs = lazy(() => import('./pages/Labs'));
+const LabsEnvironment = lazy(() => import('./pages/LabsEnvironment'));
 const SettingsPage = lazy(() => import('./pages/Settings'));
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
 const AdminOps = lazy(() => import('./pages/admin/AdminOps'));
@@ -44,6 +45,16 @@ function AdminChunkSkeleton() {
       <Skeleton className="h-20 rounded-xl" />
       <Skeleton className="h-56 rounded-xl" />
       <Skeleton className="h-56 rounded-xl" />
+    </div>
+  );
+}
+
+function RouteChunkSkeleton() {
+  return (
+    <div className="space-y-5">
+      <Skeleton className="h-9 w-56" />
+      <Skeleton className="h-4 w-full max-w-2xl" />
+      <Skeleton className="h-52 rounded-xl" />
     </div>
   );
 }
@@ -95,7 +106,8 @@ export default function App() {
                 <Route path="goal" element={<Suspense fallback={null}><Goal /></Suspense>} />
                 <Route path="history" element={<Suspense fallback={null}><History /></Suspense>} />
                 <Route path="science" element={<Suspense fallback={null}><Science /></Suspense>} />
-                <Route path="labs" element={<Suspense fallback={null}><Labs /></Suspense>} />
+                <Route path="labs" element={<Suspense fallback={<RouteChunkSkeleton />}><Labs /></Suspense>} />
+                <Route path="labs/environment-response" element={<Suspense fallback={<RouteChunkSkeleton />}><LabsEnvironment /></Suspense>} />
                 <Route path="settings" element={<Suspense fallback={null}><SettingsPage /></Suspense>} />
                 <Route path="admin" element={<Suspense fallback={<AdminChunkSkeleton />}><AdminLayout /></Suspense>}>
                   <Route index element={<Navigate to="ops" replace />} />
