@@ -375,7 +375,9 @@ Proposed scopes:
 
 Authentication does not imply every scope. Context access is narrower than plan
 read access, and free-text context requires an explicit purpose and retention
-contract.
+contract. The complete context classes, lifecycle, AI-processing boundary,
+retention rules, and delegated-actor matrix are defined in
+[`adaptive-plan-personal-context-privacy.md`](./adaptive-plan-personal-context-privacy.md).
 
 ## Decision, revision, and outcome traces
 
@@ -531,7 +533,7 @@ continue to consume canonical workouts, not model prose or private context.
 architecture (#584)
   -> goal contracts
   -> rigorous Evidence Review + draft SDR
-  -> privacy/context + delegated authorization decision
+  -> privacy/context + delegated authorization contract
   -> aggregate and proposal data model
   -> bounded data loaders and pure evaluation policies
   -> orchestration and athlete-scoped decision/outcome ledger
@@ -561,8 +563,9 @@ Expected implementation surfaces:
 - Goal types, success criteria, and when a standardized test is appropriate.
 - Accepted science boundaries for feasibility, progression, interruption,
   adaptation, and outcome interpretation.
-- Personal-context categories, purpose, retention, AI-provider processing, and
-  user-delegated-agent access.
+- Whether the narrow personal-context pilot defined in
+  [`adaptive-plan-personal-context-privacy.md`](./adaptive-plan-personal-context-privacy.md)
+  is expanded to durable profiles or delegated narrative access.
 - Whether the generic agent ledger is extended with athlete ownership or a
   dedicated plan-decision ledger is introduced.
 - Exact automation classes eligible for consent and prospective evaluation.
