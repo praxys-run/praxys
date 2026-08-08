@@ -1,0 +1,269 @@
+schema_version: 1
+id: sdr-adaptive-plan-feasibility-and-adjustment-v1
+version: 1
+title: "Bound adaptive-plan feasibility, adjustment, and outcome interpretation"
+status: draft
+decision_date: 2026-08-08
+owners:
+  - team:praxys
+human_reviewers: []
+model_version: adaptive-plan-policy-v1
+evidence_review_ids:
+  - evidence-individual-goal-feasibility-v1
+  - evidence-adaptive-training-load-v1
+  - evidence-short-interruption-detraining-v1
+  - evidence-running-field-tests-v1
+  - evidence-plan-outcome-interpretation-v1
+evidence_claim_ids:
+  - feasibility.group-evidence-not-personal-probability
+  - feasibility.error-aware-response-classification
+  - feasibility.calibration-required
+  - load.structured-training-bounded-benefit
+  - load.hrv-guidance-limited
+  - load.ten-percent-rule-not-safety-law
+  - load.acwr-not-causal-threshold
+  - detraining.short-term-system-specific
+  - detraining.reduced-dose-maintenance
+  - detraining.partial-not-complete-cessation
+  - field-test.protocol-validity-reliability-sensitivity
+  - field-test.vo2-estimate-not-direct-performance
+  - field-test.critical-speed-protocol-dependent
+  - outcome.subjective-monitoring-adds-signal
+  - outcome.single-indicator-insufficient
+  - outcome.observations-not-causal-explanation
+accepted_interpretation: >
+  If this draft is accepted, Praxys may provide a qualitative, uncertainty-aware
+  goal-feasibility assessment and may propose reversible plan changes when
+  multiple observations indicate that the current plan assumptions no longer
+  fit. Named categories, scopes, escalation rules, and safety stops are Praxys
+  guardrails rather than published biological thresholds. A proposal must show
+  its evidence, unknowns, expected trade-offs, and no-change alternative; it
+  remains suggestion-only until the athlete approves it. Individual numerical
+  success probabilities, universal workload zones, automatic missed-session
+  catch-up, fixed detraining loss, and causal post-plan explanations are outside
+  the evidence. Plan completion, execution, goal outcome, and causal
+  interpretation remain separate. Outcome evidence should use a comparable
+  protocol and exceed protocol-specific measurement noise, while post-plan
+  explanations remain ranked hypotheses with contrary evidence and unknowns.
+rejected_alternatives:
+  - alternative: Present a numerical probability that an individual athlete will achieve the goal.
+    rationale: >
+      No prospectively calibrated and externally validated Praxys prediction
+      model exists for the target population and supported goal types.
+  - alternative: Present qualitative feasibility categories as published scientific thresholds.
+    rationale: >
+      The reviewed research supports uncertainty boundaries, not the proposed
+      product vocabulary or category cut points.
+  - alternative: Automatically make up, double, compress, or proportionally replace missed sessions.
+    rationale: >
+      No reviewed evidence validates a universal catch-up rule, and schedule
+      interruption does not reveal the athlete's reason or current capacity.
+  - alternative: Use acute-to-chronic workload ratio zones or the 10 percent rule as causal safety limits.
+    rationale: >
+      The workload ratio has fundamental causal and statistical limitations,
+      while the reviewed novice-runner trial did not show lower injury incidence
+      from a 10 percent progression program.
+  - alternative: Infer a fixed percentage of fitness loss or return capacity from days missed.
+    rationale: >
+      Detraining differs by physiological system, training history, and whether
+      training was reduced or stopped.
+  - alternative: Compare unlike tests, environments, or model estimates as direct evidence of improvement.
+    rationale: >
+      Test validity, reliability, and prediction error are protocol specific.
+      Cross-protocol changes can reflect measurement and model differences.
+  - alternative: Explain a goal miss from adherence, physiology, or athlete context alone.
+    rationale: >
+      These observations can inform hypotheses but do not establish individual
+      causation without an appropriate prospective design.
+  - alternative: Continue performance-plan adaptation through illness, injury, or red-flag symptoms.
+    rationale: >
+      Medical assessment and return-to-sport decisions are outside this
+      performance-planning evidence and require an explicit safety boundary.
+model_parameters:
+  - name: feasibility_categories
+    value:
+      - well_supported
+      - plausible_with_risks
+      - aggressive
+      - insufficient_evidence
+    classification: guardrail
+    evidence_claim_ids:
+      - feasibility.group-evidence-not-personal-probability
+      - feasibility.calibration-required
+    rationale: >
+      These names communicate qualitative product states without inventing a
+      personal probability. No reviewed paper defines their boundaries.
+    applies_to: adaptive-plan goal feasibility contract
+  - name: feasibility_probability
+    value: disabled
+    classification: guardrail
+    evidence_claim_ids:
+      - feasibility.calibration-required
+    rationale: >
+      Personal probabilities stay disabled until a defined model is developed,
+      calibrated, and externally validated in a representative population.
+    applies_to: adaptive-plan goal feasibility contract
+  - name: adjustment_mode
+    value: athlete_approved_suggestions
+    classification: guardrail
+    evidence_claim_ids:
+      - load.hrv-guidance-limited
+      - outcome.observations-not-causal-explanation
+    rationale: >
+      Evidence supports monitoring but does not validate Praxys-specific
+      autonomous action rules; explicit approval keeps early policy observable
+      and reversible.
+    applies_to: adaptive-plan policy engine
+  - name: adjustment_scopes
+    value:
+      - workout
+      - week
+      - block
+      - goal
+      - pause
+    classification: guardrail
+    rationale: >
+      These are product decision boundaries for isolating the smallest proposed
+      change. They are not physiological categories.
+    applies_to: adaptive-plan proposal contract
+  - name: proposal_boundaries
+    value:
+      clarify: material_context_or_data_ambiguity
+      no_change: current_assumptions_remain_supported
+      insufficient_evidence: observations_do_not_support_a_bounded_proposal
+      escalate: goal_pause_or_medical_stop_boundary
+    classification: guardrail
+    rationale: >
+      These routes prevent uncertain observations from being converted into an
+      action. Their exact triggers require separate prospective evaluation.
+    applies_to: adaptive-plan policy engine
+  - name: missed_session_catch_up
+    value: disabled
+    classification: guardrail
+    rationale: >
+      A missed session exposes neither the cause nor current capacity, and no
+      reviewed evidence supports universal catch-up.
+    applies_to: adaptive-plan policy engine
+  - name: acwr_prescription_thresholds
+    value: disabled
+    classification: guardrail
+    evidence_claim_ids:
+      - load.acwr-not-causal-threshold
+    rationale: >
+      Workload history may remain descriptive, but ratio zones must not trigger
+      prescriptions as if they were established causal safety thresholds.
+    applies_to: adaptive-plan policy engine
+  - name: fixed_detraining_loss_per_day
+    value: disabled
+    classification: guardrail
+    evidence_claim_ids:
+      - detraining.short-term-system-specific
+    rationale: >
+      Outcomes decay at different rates and depend on prior training and the
+      remaining stimulus.
+    applies_to: adaptive-plan interruption handling
+  - name: comparable_outcome_protocol_required
+    value: true
+    classification: guardrail
+    evidence_claim_ids:
+      - field-test.protocol-validity-reliability-sensitivity
+      - field-test.critical-speed-protocol-dependent
+    rationale: >
+      The same documented protocol and comparable conditions are required
+      before baseline and outcome are treated as direct change evidence.
+    applies_to: adaptive-plan outcome evaluation
+  - name: meaningful_change_threshold
+    value: protocol_specific
+    classification: guardrail
+    evidence_claim_ids:
+      - feasibility.error-aware-response-classification
+      - field-test.protocol-validity-reliability-sensitivity
+    rationale: >
+      Praxys must not use one universal percentage because repeatability and
+      sensitivity vary by outcome, population, and protocol.
+    applies_to: adaptive-plan outcome evaluation
+  - name: medical_stop_boundary
+    value:
+      - injury
+      - acute_illness
+      - red_flag_symptoms
+    classification: guardrail
+    rationale: >
+      These reports stop performance-plan optimization and route to appropriate
+      medical guidance; this SDR does not diagnose or prescribe return to sport.
+    applies_to: adaptive-plan context and proposal handling
+  - name: causal_gap_explanation
+    value: ranked_hypotheses_only
+    classification: guardrail
+    evidence_claim_ids:
+      - outcome.observations-not-causal-explanation
+    rationale: >
+      Observations may support hypotheses, contrary evidence, and future tests
+      but not a definitive individual causal attribution.
+    applies_to: adaptive-plan gap review
+applicability:
+  - Adult recreational runners using a multi-week goal-directed training plan
+  - Suggestion-first feasibility, workout, week, block, goal, pause, and outcome decisions
+  - Non-medical training interruptions and athlete-provided contextual constraints
+  - Direct performance interpretation only when baseline and outcome protocols are comparable
+user_facing_claim_limits:
+  - Do not promise or guarantee goal achievement.
+  - Do not show an individual success probability until a prospectively calibrated and externally validated model is accepted.
+  - Label feasibility categories, adjustment scopes, and triggers as Praxys guidance rather than published thresholds.
+  - Distinguish what was observed, what is inferred, what is unknown, and what the athlete reported.
+  - Do not imply that adherence proves adaptation or plan effectiveness.
+  - Do not imply that HRV, workload ratio, or one response metric dictates a workout.
+  - Do not call different protocols or environments equivalent direct evidence.
+  - Present post-plan reasons as ranked hypotheses, never diagnosis or established individual causation.
+safety_implications:
+  - Illness, injury, and red-flag symptoms stop performance optimization rather than triggering an automated return prescription.
+  - No automatic doubling, catch-up, or compressed replacement of missed work.
+  - Every proposal includes a no-change alternative and identifies uncertainty.
+  - Goal or pause proposals require explicit athlete approval.
+privacy_implications:
+  - Personal context is optional, purpose-limited, and private to the athlete's plan.
+  - Store structured minimum-necessary context separately from free text where possible.
+  - Show what context informed each proposal and allow correction, exclusion, and deletion.
+  - Do not infer sensitive medical, family, employment, or identity details from behavior.
+  - Athlete context and adaptive traces must follow account deletion and retention controls.
+validation_plan:
+  - Human science review must accept, revise, or reject every Evidence Review and this SDR before product behavior cites them.
+  - Define one narrow suggestion-only policy with a versioned policy identifier and deterministic replay.
+  - Predefine outcome, comparable protocol, meaningful-change rule, safety events, and no-change comparator.
+  - Add registry, policy, API-contract, and client-state tests for every implemented decision boundary.
+  - Prospectively evaluate proposal precision, athlete acceptance, reversals, adverse events, and goal outcomes.
+  - Audit performance by sex, age, training history, goal type, missingness, and data-provider provenance.
+  - Calibrate any future numerical feasibility model and validate it externally before exposing probabilities.
+  - Require an approved successor SDR for each policy threshold or additional autonomous permission.
+falsification_conditions:
+  - A category is interpreted by athletes as a calibrated probability or guarantee despite the claim limits.
+  - Repeated comparable tests show changes within measurement noise while Praxys labels them meaningful.
+  - Prospective evaluation finds that the adaptive policy worsens goal outcomes or safety events versus no-change handling.
+  - Proposed adjustments cannot be reproduced from their versioned inputs, policy, and evidence.
+  - Context deletion fails to remove the athlete's private plan context or derived adaptive traces.
+  - A policy applies catch-up, workload-ratio, or fixed detraining rules that this decision disables.
+affected_surfaces:
+  models:
+    - adaptive-plan goal feasibility contract
+    - adaptive-plan policy engine
+    - adaptive-plan proposal and decision trace
+    - adaptive-plan outcome and gap review
+  apis:
+    - Future adaptive-plan feasibility endpoint
+    - Future adaptive-plan proposal and approval endpoints
+    - Future adaptive-plan outcome endpoint
+  clients:
+    - Web Goal, Plan, and Insights experiences
+    - WeChat miniapp Goal, Plan, and Insights experiences
+    - Praxys plugin and MCP adaptive-plan tools
+  science_notes:
+    - Goal feasibility methodology and uncertainty
+    - Why a plan change is proposed
+    - Outcome evidence and gap-review limits
+supersedes: []
+superseded_by:
+decision_notes:
+  - This is a decision proposal for #607, not an accepted policy or implementation authorization.
+  - No exact action trigger is included because the reviewed evidence does not validate one.
+  - Existing accepted environmental-performance and heat-adaptation SDRs are not superseded; their evidence remains independently applicable when environmental context is used.
+  - Human review should focus on claim directness, category language, medical boundaries, and the first prospective policy evaluation.

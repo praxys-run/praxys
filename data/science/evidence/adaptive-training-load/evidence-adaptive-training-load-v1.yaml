@@ -1,0 +1,231 @@
+schema_version: 1
+id: evidence-adaptive-training-load-v1
+version: 1
+title: "Adaptive endurance-training load decisions"
+research_question: >
+  What evidence supports structured or monitoring-guided endurance-training
+  adjustment, and what limits apply to fixed progression, workload-ratio, and
+  missed-session rules?
+topic: adaptive-training-load
+status: draft
+authors:
+  - agent:github-copilot
+human_reviewers: []
+created_on: 2026-08-08
+reviewed_on:
+intended_product_purpose: >
+  Bound when Praxys may use training structure, HRV, subjective monitoring, and
+  repeated execution evidence to propose a change without turning common
+  coaching rules into universal safety laws.
+scope:
+  population:
+    - Adult recreational runners
+    - Healthy adults in endurance-training studies
+    - Novice runners in injury-progression research
+  intervention_or_exposure:
+    - Structured endurance training
+    - HRV-guided endurance training
+    - Graded running progression
+    - Acute-to-chronic workload ratio interpretation
+  comparator:
+    - Predefined endurance training
+    - Alternative intensity distributions
+    - Standard versus graded novice-running progression
+    - Causal versus associational workload interpretation
+  outcomes:
+    - Endurance performance
+    - Submaximal physiological response
+    - Running-related injury
+    - Validity of automatic adjustment rules
+method:
+  review_type: rigorous
+  search_date: 2026-08-08
+  sources:
+    - name: PubMed
+      search_string: >
+        (running[Title/Abstract] OR endurance[Title/Abstract]) AND
+        (periodization[Title/Abstract] OR progression[Title/Abstract] OR
+        "heart rate variability guided"[Title/Abstract] OR
+        "acute chronic workload"[Title/Abstract] OR "10% rule"[Title/Abstract])
+        AND adult[MeSH Terms]
+    - name: PubMed exact identifier verification
+      search_string: >
+        34489178[PMID] OR 23752040[PMID] OR 17940147[PMID] OR 32502973[PMID]
+    - name: Crossref DOI API
+      search_string: >
+        GET /works/{doi} for 10.1016/j.jsams.2021.04.012,
+        10.1123/ijspp.2012-0350, 10.1177/0363546507307505,
+        and 10.1123/ijspp.2019-0864
+  inclusion_criteria:
+    - Adult endurance-training systematic reviews, meta-analyses, or controlled studies
+    - Novice-running randomized progression studies
+    - Methodological analysis of workload-derived decisions
+    - Stable DOI or PMID metadata and an abstract
+  exclusion_criteria:
+    - Team-sport associations presented as direct running prescriptions
+    - Unvalidated coaching progression rules
+    - Studies that do not distinguish monitoring from a prescribed action
+    - Medical injury treatment or rehabilitation protocols
+  quality_appraisal: >
+    Claims were appraised for randomization, directness to recreational
+    runners, sample size, monitoring protocol, action-rule transparency,
+    causal identification, and whether performance and safety outcomes were
+    distinguished.
+  method_limitations:
+    - Titles and abstracts were manually screened against the criteria; screening and appraisal were not duplicated by independent reviewers.
+    - Full text was not accessed for the four included sources, so claims are restricted to abstract-supported results and limitations.
+    - Periodization evidence is heterogeneous and not exhaustively reviewed here.
+    - HRV studies use different devices, protocols, and decision algorithms.
+    - No reviewed study validates Praxys-specific workout, week, or block triggers.
+claims:
+  - id: load.structured-training-bounded-benefit
+    statement: >
+      Structured endurance training can improve recreational-running
+      performance, but the reviewed evidence does not establish one universally
+      superior intensity distribution or periodization model.
+    source_ids:
+      - munoz-2014
+    evidence_strength: low
+    applicable_population:
+      - Recreational adult runners similar to the small controlled study
+    domain:
+      - Endurance-training structure
+      - Performance
+    limitations:
+      - The primary between-group performance difference was not significant.
+      - A favorable polarized result came from a smaller adherence-defined subset.
+      - One study cannot define an adaptive plan policy.
+  - id: load.hrv-guidance-limited
+    statement: >
+      HRV-guided endurance training may improve some submaximal physiological
+      outcomes, but reviewed pooled evidence did not establish a significant
+      performance or VO2peak advantage over predefined training.
+    source_ids:
+      - ducking-2021
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Submaximal physiological outcome effect
+        estimate: 0.296
+        unit: Hedges g
+        context: 8 studies, 198 participants; 95% CI 0.031 to 0.562
+      - metric: Performance outcome effect
+        estimate: 0.079
+        unit: Hedges g
+        context: Pooled effect was not statistically significant
+    applicable_population:
+      - Adults in HRV-guided endurance-training studies
+    domain:
+      - HRV-guided training
+      - Adaptive monitoring
+    limitations:
+      - Only eight studies and 198 participants were included.
+      - Devices, measurement routines, and training algorithms varied.
+      - Results do not validate a universal daily HRV cutoff or exact action.
+  - id: load.ten-percent-rule-not-safety-law
+    statement: >
+      A progression program based on the 10 percent rule did not reduce
+      running-related injury compared with a standard program in the reviewed
+      novice-runner randomized trial.
+    source_ids:
+      - buist-2008
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Running-related injury incidence
+        range_low: 20.3
+        range_high: 20.8
+        unit: percent
+        context: Standard versus graded 13-week novice-running programs; p=0.90
+    applicable_population:
+      - Novice adult runners similar to the randomized cohort
+    domain:
+      - Training progression
+      - Injury prevention
+    limitations:
+      - This does not show that every faster progression is safe.
+      - Injury outcome evidence does not determine optimal performance progression.
+  - id: load.acwr-not-causal-threshold
+    statement: >
+      Acute-to-chronic workload ratios have conceptual and statistical
+      limitations and should not be treated as established causal injury-risk
+      zones or automatic prescription thresholds.
+    source_ids:
+      - impellizzeri-2020
+    evidence_strength: moderate
+    applicable_population:
+      - Athletic workload-monitoring populations
+    domain:
+      - Workload monitoring
+      - Causal inference
+    limitations:
+      - This methodological critique does not show that training history is irrelevant.
+      - It does not validate an alternative universal load threshold.
+citations:
+  - id: munoz-2014
+    title: "Does polarized training improve performance in recreational runners?"
+    authors:
+      - I. Munoz
+      - S. Seiler
+      - J. Bautista
+      - J. Espana
+      - E. Larumbe
+      - J. Esteve-Lanao
+    year: 2014
+    journal: International Journal of Sports Physiology and Performance
+    doi: 10.1123/ijspp.2012-0350
+    pmid: "23752040"
+  - id: ducking-2021
+    title: "Monitoring and adapting endurance training on the basis of heart rate variability monitored by wearable technologies: A systematic review with meta-analysis"
+    authors:
+      - P. Ducking
+      - C. Zinner
+      - K. Trabelsi
+      - J. L. Reed
+      - H. C. Holmberg
+      - P. Kunz
+      - B. Sperlich
+    year: 2021
+    journal: Journal of Science and Medicine in Sport
+    doi: 10.1016/j.jsams.2021.04.012
+    pmid: "34489178"
+  - id: buist-2008
+    title: "No effect of a graded training program on the number of running-related injuries in novice runners: a randomized controlled trial"
+    authors:
+      - I. Buist
+      - S. W. Bredeweg
+      - W. van Mechelen
+      - K. A. P. M. Lemmink
+      - G. J. Pepping
+      - R. L. Diercks
+    year: 2008
+    journal: The American Journal of Sports Medicine
+    doi: 10.1177/0363546507307505
+    pmid: "17940147"
+  - id: impellizzeri-2020
+    title: "Acute:Chronic Workload Ratio: Conceptual Issues and Fundamental Pitfalls"
+    authors:
+      - F. M. Impellizzeri
+      - M. S. Tenan
+      - T. Kempton
+      - A. Novak
+      - A. J. Coutts
+    year: 2020
+    journal: International Journal of Sports Physiology and Performance
+    doi: 10.1123/ijspp.2019-0864
+    pmid: "32502973"
+known_gaps:
+  - Evidence-based rules for rescheduling or making up missed workouts
+  - Exact workout, week, block, goal, or pause triggers
+  - Representative trials in recreational runners using one stable adaptive policy
+  - Joint interpretation of HRV, subjective context, performance, and plan execution
+conflicting_findings:
+  - HRV-guided training showed a pooled submaximal effect but no significant pooled performance or VO2peak advantage.
+  - Small endurance studies differ on which training-intensity distribution performs best.
+follow_up_questions:
+  - Which narrow suggestion-only policy should be tested prospectively first?
+  - How should no-change behavior be compared with adaptive proposals?
+review_notes:
+  - "Verification: munoz-2014 - abstract; PubMed PMID 23752040 and Crossref metadata; 2026-08-08."
+  - "Verification: ducking-2021 - abstract; PubMed PMID 34489178 and Crossref metadata; 2026-08-08."
+  - "Verification: buist-2008 - abstract; PubMed PMID 17940147 and Crossref metadata; 2026-08-08."
+  - "Verification: impellizzeri-2020 - abstract; PubMed PMID 32502973 and Crossref metadata; 2026-08-08."
+  - No source was found that validates automatic catch-up, doubling, or proportional replacement after a missed session.
