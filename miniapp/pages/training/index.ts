@@ -573,6 +573,7 @@ function readActiveMetric(
   fallback: TrainingMetricId | '',
 ): TrainingMetricId | '' {
   const pending = pageState._activeMetric;
+  if (pending === '') return '';
   if (typeof pending === 'string' && isTrainingMetricId(pending)) return pending;
   return fallback;
 }
