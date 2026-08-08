@@ -23,6 +23,21 @@ initAppInsights()
 // (matches registerType: 'autoUpdate' in vite.config.ts).
 registerSW({ immediate: true })
 
+// A deploy can replace a lazily loaded route chunk while an older app shell is
+// still open. Reload once so Vite resolves the new manifest instead of leaving
+// the authenticated content area blank.
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault()
+  const reloadKey = 'praxys-preload-reload'
+  if (sessionStorage.getItem(reloadKey) !== window.location.pathname) {
+    sessionStorage.setItem(reloadKey, window.location.pathname)
+    window.location.reload()
+  }
+})
+window.addEventListener('load', () => {
+  sessionStorage.removeItem('praxys-preload-reload')
+}, { once: true })
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

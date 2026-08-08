@@ -59,6 +59,29 @@ def labs_client(monkeypatch):
         "process_environment_response_job",
         lambda *_args: None,
     )
+    monkeypatch.setattr(
+        labs_routes,
+        "environment_response_preflight",
+        lambda *_args: {
+            "status": "likely_eligible",
+            "can_start_analysis": True,
+            "reason_code": None,
+            "minimum_activity_count": 12,
+            "observed": {
+                "candidate_activity_count": 12,
+                "temperature_activity_count": 12,
+                "humidity_activity_count": 12,
+                "environment_activity_count": 12,
+                "power_activity_count": 12,
+                "heart_rate_activity_count": 12,
+                "complete_any_provider_activity_count": 12,
+                "stryd_power_activity_count": 12,
+                "complete_stryd_activity_count": 12,
+                "provider_aligned_cp_activity_count": 12,
+            },
+            "full_analysis_still_required": True,
+        },
+    )
     app.dependency_overrides[get_current_user_id] = override_user
     app.dependency_overrides[require_write_access] = override_user
     app.dependency_overrides[get_db] = override_db
@@ -131,12 +154,510 @@ def test_enrollment_requires_current_consent_and_adult_attestation(
             "consent_version": "old",
         },
     )
+    coercive = client.post(
+        "/api/labs/environment-response",
+        json={
+            "adult_attested": "true",
+            "consent_version": "environment-response-consent-v1",
+        },
+    )
 
     assert adult.status_code == 422
     assert adult.json()["detail"]["code"] == "adult_eligibility_not_confirmed"
     assert adult.json()["detail"]["correlation_id"]
     assert stale.status_code == 409
     assert stale.json()["detail"]["code"] == "consent_version_stale"
+    assert coercive.status_code == 422
+
+
+def test_preflight_returns_aggregate_only_eligibility(labs_client) -> None:
+    client, _, _ = labs_client
+
+    response = client.get("/api/labs/environment-response/preflight")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "likely_eligible"
+    assert response.json()["can_start_analysis"] is True
+    assert response.json()["full_analysis_still_required"] is True
+    assert "activity_id" not in json.dumps(response.json())
+
+
+def test_ineligible_preflight_blocks_enrollment(
+    labs_client,
+    monkeypatch,
+) -> None:
+    client, _, _ = labs_client
+    from api.routes import labs as labs_routes
+
+    blocked = {
+        "status": "ineligible",
+        "can_start_analysis": False,
+        "reason_code": "missing_temperature",
+        "minimum_activity_count": 12,
+        "observed": {
+            "candidate_activity_count": 20,
+            "temperature_activity_count": 4,
+            "humidity_activity_count": 20,
+            "environment_activity_count": 4,
+            "power_activity_count": 20,
+            "heart_rate_activity_count": 20,
+            "complete_any_provider_activity_count": 4,
+            "stryd_power_activity_count": 20,
+            "complete_stryd_activity_count": 4,
+            "provider_aligned_cp_activity_count": 20,
+        },
+        "full_analysis_still_required": True,
+    }
+    monkeypatch.setattr(
+        labs_routes,
+        "environment_response_preflight",
+        lambda *_args: blocked,
+    )
+
+    response = client.post(
+        "/api/labs/environment-response",
+        json={
+            "adult_attested": True,
+            "consent_version": "environment-response-consent-v1",
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == (
+        "LABS_ENVIRONMENT_PREFLIGHT_INELIGIBLE"
+    )
+    assert response.json()["detail"]["preflight"] == blocked
+
+
+def test_ineligible_preflight_blocks_recompute(
+    labs_client,
+    monkeypatch,
+) -> None:
+    client, _, _ = labs_client
+    from api.routes import labs as labs_routes
+
+    enrolled = client.post(
+        "/api/labs/environment-response",
+        json={
+            "adult_attested": True,
+            "consent_version": "environment-response-consent-v1",
+        },
+    )
+    preflight = client.get("/api/labs/environment-response/preflight")
+    assert enrolled.status_code == 202
+    blocked = {
+        "status": "ineligible",
+        "can_start_analysis": False,
+        "reason_code": "unsupported_power_provider",
+        "minimum_activity_count": 12,
+        "observed": preflight.json()["observed"],
+        "full_analysis_still_required": True,
+    }
+    monkeypatch.setattr(
+        labs_routes,
+        "environment_response_preflight",
+        lambda *_args: blocked,
+    )
+
+    response = client.post("/api/labs/environment-response/recompute")
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == (
+        "LABS_ENVIRONMENT_PREFLIGHT_INELIGIBLE"
+    )
+
+
+@pytest.mark.parametrize(
+    ("counts", "expected_status", "expected_reason"),
+    [
+        (
+            {"candidate_activity_count": 5},
+            "ineligible",
+            "insufficient_activities",
+        ),
+        (
+            {
+                "candidate_activity_count": 20,
+                "temperature_activity_count": 20,
+                "humidity_activity_count": 20,
+                "environment_activity_count": 20,
+                "power_activity_count": 20,
+                "heart_rate_activity_count": 20,
+                "stryd_power_activity_count": 20,
+                "complete_any_provider_activity_count": 18,
+                "complete_stryd_activity_count": 14,
+                "provider_aligned_cp_activity_count": 14,
+            },
+            "needs_full_analysis",
+            "provider_alignment_requires_full_analysis",
+        ),
+        (
+            {
+                "candidate_activity_count": 20,
+                "temperature_activity_count": 20,
+                "humidity_activity_count": 20,
+                "environment_activity_count": 20,
+                "power_activity_count": 20,
+                "heart_rate_activity_count": 20,
+                "stryd_power_activity_count": 20,
+                "complete_any_provider_activity_count": 14,
+                "complete_stryd_activity_count": 14,
+                "provider_aligned_cp_activity_count": 14,
+            },
+            "likely_eligible",
+            None,
+        ),
+    ],
+)
+def test_preflight_classifies_only_definite_blockers(
+    counts,
+    expected_status,
+    expected_reason,
+) -> None:
+    from analysis.environment_response import (
+        assess_environment_response_preflight,
+    )
+
+    result = assess_environment_response_preflight(counts)
+
+    assert result["status"] == expected_status
+    assert result["reason_code"] == expected_reason
+    assert result["can_start_analysis"] is (
+        expected_status != "ineligible"
+    )
+    assert result["full_analysis_still_required"] is True
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "expected_reason"),
+    [
+        ("environment_activity_count", 11, "missing_environment_pairing"),
+        ("power_activity_count", 11, "missing_continuous_sample_power"),
+        ("heart_rate_activity_count", 11, "missing_continuous_heart_rate"),
+        ("complete_any_provider_activity_count", 11, "insufficient_prerequisite_overlap"),
+        ("stryd_power_activity_count", 11, "unsupported_power_provider"),
+        ("complete_stryd_activity_count", 11, "insufficient_prerequisite_overlap"),
+        ("provider_aligned_cp_activity_count", 11, "missing_provider_aligned_critical_power"),
+    ],
+)
+def test_preflight_rejects_each_definite_prerequisite_failure(
+    field,
+    value,
+    expected_reason,
+) -> None:
+    from analysis.environment_response import (
+        assess_environment_response_preflight,
+    )
+
+    counts = {
+        "candidate_activity_count": 20,
+        "temperature_activity_count": 20,
+        "humidity_activity_count": 20,
+        "environment_activity_count": 20,
+        "power_activity_count": 20,
+        "heart_rate_activity_count": 20,
+        "complete_any_provider_activity_count": 20,
+        "stryd_power_activity_count": 20,
+        "complete_stryd_activity_count": 20,
+        "provider_aligned_cp_activity_count": 20,
+    }
+    counts[field] = value
+
+    result = assess_environment_response_preflight(counts)
+
+    assert result["status"] == "ineligible"
+    assert result["reason_code"] == expected_reason
+
+
+def test_preflight_loader_returns_only_aggregate_prerequisites(
+    labs_client,
+) -> None:
+    _, db_session, user_id = labs_client
+    from analysis.data_loader import load_environment_response_preflight_counts
+    from analysis.heat_response_validation import HeatValidationConfig
+    from db.models import Activity, ActivitySample, FitnessData
+
+    with db_session.SessionLocal() as db:
+        for index in range(12):
+            activity_id = f"preflight-{index}"
+            db.add(Activity(
+                user_id=user_id,
+                activity_id=activity_id,
+                date=datetime(2026, 1, index + 1).date(),
+                activity_type="running",
+                temperature_c=20.0 + index,
+                relative_humidity_pct=60.0,
+                source="garmin",
+            ))
+            for sample_index in range(37):
+                db.add(ActivitySample(
+                    user_id=user_id,
+                    activity_id=activity_id,
+                    source="stryd",
+                    t_sec=sample_index * 5,
+                    power_watts=250.0,
+                    hr_bpm=None,
+                ))
+                db.add(ActivitySample(
+                    user_id=user_id,
+                    activity_id=activity_id,
+                    source="garmin",
+                    t_sec=sample_index * 5 + 1,
+                    power_watts=None,
+                    hr_bpm=150.0,
+                ))
+        db.add(FitnessData(
+            user_id=user_id,
+            date=datetime(2025, 12, 31).date(),
+            metric_type="cp_estimate",
+            value=300.0,
+            source="stryd",
+            power_source="   ",
+        ))
+        db.commit()
+
+        counts = load_environment_response_preflight_counts(
+            user_id,
+            db,
+            eligible_activity_types=HeatValidationConfig().eligible_activity_types,
+            minimum_segment_duration_sec=180.0,
+            maximum_sample_interval_sec=5.0,
+            minimum_heart_rate_coverage_ratio=0.8,
+            maximum_power_watts=2500.0,
+        )
+
+        assert counts["candidate_activity_count"] == 12
+        assert counts["complete_stryd_activity_count"] == 12
+        assert counts["provider_aligned_cp_activity_count"] == 12
+        assert "activity_id" not in counts
+
+        db.query(FitnessData).delete()
+        db.add(FitnessData(
+            user_id=user_id,
+            date=datetime(2026, 1, 6).date(),
+            metric_type="cp_estimate",
+            value=300.0,
+            source="garmin",
+            power_source="stryd",
+        ))
+        db.commit()
+        chronological_counts = load_environment_response_preflight_counts(
+            user_id,
+            db,
+            eligible_activity_types=HeatValidationConfig().eligible_activity_types,
+            minimum_segment_duration_sec=180.0,
+            maximum_sample_interval_sec=5.0,
+            minimum_heart_rate_coverage_ratio=0.8,
+            maximum_power_watts=2500.0,
+        )
+
+    assert chronological_counts["provider_aligned_cp_activity_count"] == 6
+
+
+def test_preflight_loader_does_not_join_fragmented_power_bursts(
+    labs_client,
+) -> None:
+    _, db_session, user_id = labs_client
+    from analysis.data_loader import load_environment_response_preflight_counts
+    from analysis.heat_response_validation import HeatValidationConfig
+    from db.models import Activity, ActivitySample
+
+    with db_session.SessionLocal() as db:
+        for index in range(12):
+            activity_id = f"sparse-preflight-{index}"
+            db.add(Activity(
+                user_id=user_id,
+                activity_id=activity_id,
+                date=datetime(2026, 2, index + 1).date(),
+                activity_type="running",
+                temperature_c=20.0,
+                relative_humidity_pct=60.0,
+                source="garmin",
+            ))
+            for sample_index in range(21):
+                for offset in (0, 300):
+                    db.add(ActivitySample(
+                        user_id=user_id,
+                        activity_id=activity_id,
+                        source="stryd",
+                        t_sec=offset + sample_index * 5,
+                        power_watts=250.0,
+                        hr_bpm=150.0,
+                    ))
+        db.commit()
+
+        counts = load_environment_response_preflight_counts(
+            user_id,
+            db,
+            eligible_activity_types=HeatValidationConfig().eligible_activity_types,
+            minimum_segment_duration_sec=180.0,
+            maximum_sample_interval_sec=5.0,
+            minimum_heart_rate_coverage_ratio=0.8,
+            maximum_power_watts=2500.0,
+        )
+
+    assert counts["candidate_activity_count"] == 12
+    assert counts["power_activity_count"] == 0
+    assert counts["complete_stryd_activity_count"] == 0
+
+
+def test_preflight_loader_requires_hr_overlap_with_power_block(
+    labs_client,
+) -> None:
+    _, db_session, user_id = labs_client
+    from analysis.data_loader import load_environment_response_preflight_counts
+    from analysis.heat_response_validation import HeatValidationConfig
+    from db.models import Activity, ActivitySample
+
+    with db_session.SessionLocal() as db:
+        for index in range(12):
+            activity_id = f"nonoverlap-preflight-{index}"
+            db.add(Activity(
+                user_id=user_id,
+                activity_id=activity_id,
+                date=datetime(2026, 3, index + 1).date(),
+                activity_type="running",
+                temperature_c=20.0,
+                relative_humidity_pct=60.0,
+                source="garmin",
+            ))
+            for sample_index in range(37):
+                db.add(ActivitySample(
+                    user_id=user_id,
+                    activity_id=activity_id,
+                    source="stryd",
+                    t_sec=sample_index * 5,
+                    power_watts=250.0,
+                ))
+            for sample_index in range(30):
+                db.add(ActivitySample(
+                    user_id=user_id,
+                    activity_id=activity_id,
+                    source="garmin",
+                    t_sec=300 + sample_index * 5,
+                    hr_bpm=150.0,
+                ))
+        db.commit()
+
+        counts = load_environment_response_preflight_counts(
+            user_id,
+            db,
+            eligible_activity_types=HeatValidationConfig().eligible_activity_types,
+            minimum_segment_duration_sec=180.0,
+            maximum_sample_interval_sec=5.0,
+            minimum_heart_rate_coverage_ratio=0.8,
+            maximum_power_watts=2500.0,
+        )
+
+    assert counts["stryd_power_activity_count"] == 12
+    assert counts["heart_rate_activity_count"] == 12
+    assert counts["complete_stryd_activity_count"] == 0
+
+
+def test_preflight_loader_requires_eighty_percent_hr_in_one_window(
+    labs_client,
+) -> None:
+    _, db_session, user_id = labs_client
+    from analysis.data_loader import load_environment_response_preflight_counts
+    from analysis.heat_response_validation import HeatValidationConfig
+    from db.models import Activity, ActivitySample
+
+    with db_session.SessionLocal() as db:
+        for index in range(12):
+            activity_id = f"distributed-hr-{index}"
+            db.add(Activity(
+                user_id=user_id,
+                activity_id=activity_id,
+                date=datetime(2026, 4, index + 1).date(),
+                activity_type="running",
+                temperature_c=20.0,
+                relative_humidity_pct=60.0,
+                source="garmin",
+            ))
+            for sample_index in range(121):
+                db.add(ActivitySample(
+                    user_id=user_id,
+                    activity_id=activity_id,
+                    source="stryd",
+                    t_sec=sample_index * 5,
+                    power_watts=250.0,
+                ))
+            for burst_index in range(15):
+                for offset in (1, 6, 11):
+                    db.add(ActivitySample(
+                        user_id=user_id,
+                        activity_id=activity_id,
+                        source="garmin",
+                        t_sec=burst_index * 40 + offset,
+                        hr_bpm=150.0,
+                    ))
+        db.commit()
+
+        counts = load_environment_response_preflight_counts(
+            user_id,
+            db,
+            eligible_activity_types=HeatValidationConfig().eligible_activity_types,
+            minimum_segment_duration_sec=180.0,
+            maximum_sample_interval_sec=5.0,
+            minimum_heart_rate_coverage_ratio=0.8,
+            maximum_power_watts=2500.0,
+        )
+
+    assert counts["stryd_power_activity_count"] == 12
+    assert counts["heart_rate_activity_count"] == 12
+    assert counts["complete_stryd_activity_count"] == 0
+
+
+@pytest.mark.parametrize("invalid_power_watts", [0.0, 3000.0])
+def test_preflight_loader_breaks_on_explicit_invalid_samples(
+    labs_client,
+    invalid_power_watts,
+) -> None:
+    _, db_session, user_id = labs_client
+    from analysis.data_loader import load_environment_response_preflight_counts
+    from analysis.heat_response_validation import HeatValidationConfig
+    from db.models import Activity, ActivitySample
+
+    with db_session.SessionLocal() as db:
+        for index in range(12):
+            activity_id = f"invalid-samples-{index}"
+            db.add(Activity(
+                user_id=user_id,
+                activity_id=activity_id,
+                date=datetime(2026, 5, index + 1).date(),
+                activity_type="running",
+                temperature_c=20.0,
+                relative_humidity_pct=60.0,
+                source="garmin",
+            ))
+            for sample_index in range(37):
+                db.add(ActivitySample(
+                    user_id=user_id,
+                    activity_id=activity_id,
+                    source="stryd",
+                    t_sec=sample_index * 5,
+                    power_watts=(
+                        invalid_power_watts if sample_index == 18 else 250.0
+                    ),
+                    hr_bpm=(
+                        300.0 if sample_index % 3 == 2 else 150.0
+                    ),
+                ))
+        db.commit()
+
+        counts = load_environment_response_preflight_counts(
+            user_id,
+            db,
+            eligible_activity_types=HeatValidationConfig().eligible_activity_types,
+            minimum_segment_duration_sec=180.0,
+            maximum_sample_interval_sec=5.0,
+            minimum_heart_rate_coverage_ratio=0.8,
+            maximum_power_watts=2500.0,
+        )
+
+    assert counts["power_activity_count"] == 0
+    assert counts["heart_rate_activity_count"] == 0
+    assert counts["complete_stryd_activity_count"] == 0
 
 
 def test_wet_bulb_calculator_uses_versioned_stull_method(labs_client) -> None:
