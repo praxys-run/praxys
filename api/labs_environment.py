@@ -549,7 +549,9 @@ def availability_reason(
         gates.get(gate_name) != "pass"
         for gate_name in ("minimum_activities", "minimum_segments")
     )
-    if gates.get("stryd_power_regime") == "fail":
+    if exclusion_code is not None and minimum_support_failed:
+        code = exclusion_code
+    elif gates.get("stryd_power_regime") == "fail":
         combinations = aggregate.get("eligibility_counts", {}).get(
             "provider_regimes",
             [],
@@ -559,8 +561,6 @@ def availability_reason(
             if any("power=garmin|" in str(item) for item in combinations)
             else "unsupported_power_provider"
         )
-    elif exclusion_code is not None and minimum_support_failed:
-        code = exclusion_code
     elif aggregate["result_state"] == "prediction_unavailable":
         code = "prediction_unavailable"
     else:
