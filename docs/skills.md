@@ -118,7 +118,8 @@ Never commit emails, passwords, JWTs, provider credentials, or user IDs.
 Garmin writes remain globally disabled. An approved validation deployment must
 enable the hard deployment prerequisite, and the default-off Statsig
 `garmin_plan_delivery_eligible` gate may then admit a dedicated test user;
-connection-bound user consent is still required.
+durable Garmin execution-target selection and a matching
+account-generation/region fence are still required.
 
 Additional production test profiles can reuse the launcher:
 

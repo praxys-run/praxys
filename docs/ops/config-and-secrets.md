@@ -55,7 +55,7 @@ transient — the next deploy overwrites them.**
 | `PRAXYS_SMTP_HOST` / `PRAXYS_SMTP_PORT` / `PRAXYS_SMTP_USER` / `PRAXYS_SMTP_FROM` / `PRAXYS_SMTP_STARTTLS` | SMTP transport for verification + invitation emails (non-secret; the password is the secret above). **Optional.** | App Service setting (backend) |
 | `PRAXYS_APP_BASE_URL` (`https://praxys.run`) | Public origin for verify/invite links in those emails | App Service setting (backend) |
 | `PRAXYS_DB_AUTH` (`entra` or unset) | Postgres auth mode: `entra` = AAD token via managed identity, no password. **Optional.** | App Service setting (backend) |
-| `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED` (`false`) | Default-off hard deployment prerequisite for unsupported Garmin consumer-API workout writes. Set `true` only on an approved validation deployment, or in production after both regional lifecycle matrices pass. Statsig eligibility and connection-bound consent remain independently required. | App Service setting (backend) |
+| `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED` (`false`) | Default-off hard deployment prerequisite for unsupported Garmin consumer-API workout writes. Set `true` only on an approved validation deployment, or in production after both regional lifecycle matrices pass. Statsig eligibility, durable execution-target selection, and the account-generation/region fence remain independently required. | App Service setting (backend) |
 | `PRAXYS_PG_SERVER` | Postgres Flexible Server name. **Reserved / currently unused** - the on-demand backup jobs it gated were removed (Burstable tier can't do on-demand backups; PITR covers backup). Kept for a future off-site backup job. | (reserved) |
 | `PRAXYS_GITHUB_APP_ID` / `PRAXYS_GITHUB_APP_INSTALLATION_ID` | Feedback GitHub App identifiers. | App Service setting (backend) |
 | `PRAXYS_FEEDBACK_GITHUB_REPO` / `PRAXYS_FEEDBACK_GITHUB_LABELS` / `PRAXYS_FEEDBACK_GITHUB_ASSIGNEES` | Feedback issue target and optional issue metadata. | App Service setting (backend) |
@@ -329,19 +329,23 @@ backend App Service. `VITE_STATSIG_CLIENT_KEY` is a repository Actions
 browser bundle. Never reuse or copy the `secret-*` server key into a Vite
 variable. `STATSIG_ENV` is the shared non-secret environment tier.
 
-Provision exactly this default-off feature gate for the first rollout batch:
+The final Statsig Console state owned by this integration is exactly:
 
-- `garmin_plan_delivery_eligible` — per-user eligibility for the experimental
-  Garmin consumer-API delivery fallback. It is evaluated only after
-  `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED=true` and never replaces provider
-  capability checks or connection-bound database consent.
+| Resource type | Name | Default / schema | Rules |
+|---|---|---|---|
+| Feature gate | `garmin_plan_delivery_eligible` | `false` in every environment | Optional reviewed allow rule matching only dedicated users by internal Praxys UUID. Never add a global pass rule. |
+| Dynamic config | `insight_daily_cap` | `{"value": 30}` where `value` is an integer | No experiment assignment. Runtime rules may return another validated positive integer. |
 
-Create dynamic config `insight_daily_cap` with an integer property named
-`value`, for example `{"value": 30}`. When Statsig is unavailable or the
-property is absent, the backend keeps `PRAXYS_INSIGHT_DAILY_CAP` and then `30`
-as the fallback. `AZURE_AI_ENDPOINT` remains the hard infrastructure
-prerequisite for model calls. There is no AI feature gate. Experiment
-assignment is intentionally not part of this integration.
+The Garmin gate is evaluated only after
+`PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED=true` and never replaces provider
+capability checks, durable execution-target selection, or the
+account-generation/region fence. Remove superseded issue-251 resources from
+the Statsig project; do not create an experiment for this integration.
+
+When Statsig is unavailable or the dynamic-config property is absent, the
+backend keeps `PRAXYS_INSIGHT_DAILY_CAP` and then `30` as the fallback.
+`AZURE_AI_ENDPOINT` remains the hard infrastructure prerequisite for model
+calls. There is no AI feature gate.
 
 Provision repository values, then redeploy both surfaces:
 
@@ -471,10 +475,11 @@ az webapp config appsettings list \
   --output tsv
 ```
 
-Then verify `praxys-dev-test.get_settings` reports Garmin experimental delivery
-as available only for the eligible user. Consent and the connected account/region
-fences must still be false until explicitly enabled and must remain false for a
-control user.
+Then verify `praxys-dev-test.get_settings` reports Garmin as a selectable
+execution target only for the eligible user. The configured execution target
+must remain unchanged until that user explicitly selects Garmin, and the
+account-generation/region fence must remain absent until selection or resume.
+Garmin must remain unselectable for a control user.
 
 Rollback disables the Statsig gate first. To close the hard deployment
 prerequisite too, update the repository variable and redeploy:
