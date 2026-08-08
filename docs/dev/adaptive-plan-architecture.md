@@ -27,6 +27,14 @@ This document defines the architecture boundary. It does not choose scientific
 adjustment rules, collect personal context, or authorize broader automatic
 mutation.
 
+This is a direction-setting contract, not an attempt to predict every useful
+detail before athletes use the lifecycle. Implementation should ship in
+observable, reversible increments, begin with suggestion-only behavior, and
+use real athlete experience to identify where the aggregate, permissions, and
+interactions need revision. Iteration must still preserve privacy, science,
+consent, audit, and compatibility invariants; learning from use is not
+permission to silently broaden data collection or autonomy.
+
 ## Invariants
 
 1. **One canonical domain.** Interfaces do not implement independent planners.
