@@ -615,6 +615,37 @@ def test_availability_reason_preserves_data_quality_category(
     assert reason["code"] == expected
 
 
+def test_availability_reason_does_not_mask_failed_release_gate() -> None:
+    """Excluded rows must not override the gate that withheld an ample dataset."""
+    from api.labs_environment import availability_reason
+
+    aggregate = {
+        "result_state": "insufficient_data",
+        "gate_statuses": {
+            "complete_export": "pass",
+            "minimum_activities": "pass",
+            "minimum_segments": "pass",
+            "environmental_spread": "pass",
+            "chronological_holdout": "pass",
+            "holdout_environmental_spread": "pass",
+            "curve_bin_support": "fail",
+            "stryd_power_regime": "pass",
+        },
+        "eligibility_counts": {
+            "eligible_activity_count": 177,
+            "eligible_segment_count": 738,
+            "exclusion_reason_counts": {"power_missing_or_invalid": 3},
+        },
+    }
+
+    reason = availability_reason(
+        aggregate,
+        correlation_id="correlation",
+    )
+
+    assert reason["code"] == "insufficient_curve_bin_support"
+
+
 def test_openapi_exposes_strict_labs_response_schema(labs_client) -> None:
     client, _, _ = labs_client
 
