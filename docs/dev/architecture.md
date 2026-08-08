@@ -344,6 +344,10 @@ documented in
 [`adaptive-plan-architecture.md`](./adaptive-plan-architecture.md). It defines
 the future plan aggregate, proposal and approval boundary, athlete-scoped
 decision/outcome traces, Plan/Insights client split, and compatibility sequence.
+The companion
+[`adaptive-plan-personal-context-privacy.md`](./adaptive-plan-personal-context-privacy.md)
+defines purpose-limited athlete context, consent, retention, deletion,
+AI-provider processing, and delegated-actor boundaries.
 It is an architecture proposal under #584, not shipped behavior; current
 automatic adjustment remains limited to the separately consented conservative
 policy described above.
