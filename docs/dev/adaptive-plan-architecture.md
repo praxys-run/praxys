@@ -7,7 +7,7 @@
 ## Purpose
 
 Praxys plans must be agent-native rather than bound to one interface. Web,
-miniapp, the Praxys plugin, MCP clients, and future user-authorized agents are
+miniapp, the Praxys plugin, MCP clients, and future user-delegated agents are
 clients of one canonical planning domain. They may present different
 experiences, but they must share plan identity, evidence, permissions,
 proposals, revisions, delivery state, and outcomes.
@@ -117,6 +117,12 @@ A versioned goal contract defines what success can mean before plan generation:
 
 Changing a material goal creates a new goal-contract version and forces
 reassessment. It does not rewrite the original plan intent.
+
+The proposed goal types, lifecycle, feasibility assessment, outcome evidence,
+gap review, and legacy migration are specified in
+[`adaptive-plan-goal-contracts.md`](./adaptive-plan-goal-contracts.md). That
+contract is a product proposal under #603; its scientific thresholds and test
+protocols remain blocked on the subsequent Evidence Review and draft SDR.
 
 ### Evidence snapshot
 
@@ -363,7 +369,7 @@ Proposed scopes:
 | First-party planning agent | Purpose-bounded | Yes | No | No | No |
 | Current conservative adjustment policy | Bounded evidence | One allowlisted action | Only under separate exact consent | Exact allowlisted mutation | Existing managed-delivery policy |
 | Praxys plugin/MCP agent | Token-scoped | If granted | No by default; athlete confirmation required | Only explicit athlete command with scope | If separately granted |
-| Future user-owned agent | Token-scoped and purpose-bounded | If granted | No by default | Only explicit delegated command with expiry and scope | If separately granted |
+| Future user-delegated agent | Token-scoped and purpose-bounded | If granted | No by default | Only explicit delegated command with expiry and scope | If separately granted |
 | Provider adapter | Required delivery projection | No | No | No canonical mutation | One configured target |
 | Operator/admin | Operational metadata only by default | No | No | Recovery tools only | Recovery tools only |
 
@@ -556,7 +562,7 @@ Expected implementation surfaces:
 - Accepted science boundaries for feasibility, progression, interruption,
   adaptation, and outcome interpretation.
 - Personal-context categories, purpose, retention, AI-provider processing, and
-  user-owned-agent delegation.
+  user-delegated-agent access.
 - Whether the generic agent ledger is extended with athlete ownership or a
   dedicated plan-decision ledger is introduced.
 - Exact automation classes eligible for consent and prospective evaluation.
