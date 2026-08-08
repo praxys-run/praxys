@@ -1009,6 +1009,16 @@ uncertainty, gate statuses, model/source versions, power regime, prediction
 diagnostic status, and timestamps. It never contains activity IDs, dates,
 routes, GPS, sample rows, or per-activity values.
 
+### POST /api/labs/environment-response/wet-bulb
+
+Calculates the non-persisted Stull psychrometric wet-bulb proxy used by the
+Labs calculator. The authenticated request accepts `temperature_c` and
+`relative_humidity_pct`. The response returns the estimate, method identifier,
+source URL, and whether the inputs are inside Praxys's conservative method
+domain. A `null` estimate means the input combination is outside that domain.
+This endpoint does not store its inputs or result, and the value is not WBGT,
+apparent temperature, body temperature, or a heat-safety assessment.
+
 ### POST /api/labs/environment-response
 
 Records explicit V1 consent and queues private processing.

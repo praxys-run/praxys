@@ -545,7 +545,11 @@ def availability_reason(
         ),
         None,
     )
-    if exclusion_code is not None:
+    minimum_support_failed = any(
+        gates.get(gate_name) != "pass"
+        for gate_name in ("minimum_activities", "minimum_segments")
+    )
+    if exclusion_code is not None and minimum_support_failed:
         code = exclusion_code
     elif gates.get("stryd_power_regime") == "fail":
         combinations = aggregate.get("eligibility_counts", {}).get(

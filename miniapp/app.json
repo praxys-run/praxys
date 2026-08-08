@@ -6,6 +6,7 @@
     "pages/goal/index",
     "pages/history/index",
     "pages/settings/index",
+    "pages/labs/index",
     "pages/science/index",
     "pages/legal/index"
   ],

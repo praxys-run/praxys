@@ -374,6 +374,16 @@
         </view>
       </view>
 
+      <view class="ts-card settings-nav-card" bindtap="onNavigateToLabs">
+        <view class="settings-nav-row">
+          <view>
+            <text class="settings-nav-title">{{tr.labs}}</text>
+            <text class="settings-nav-sub ts-muted">{{tr.labsSubtitle}}</text>
+          </view>
+          <text class="settings-nav-chevron ts-muted">›</text>
+        </view>
+      </view>
+
       <view class="ts-section">
         <view class="settings-pick-row" bindtap="onPickTheme">
           <text class="settings-pick-label ts-muted">{{tr.theme}}</text>

@@ -841,6 +841,48 @@ const ZH_HEAT = {
   '{0} days · {1} effective min': '{0} 天 · 等效热暴露 {1} 分钟',
 };
 
+const EN_LABS = {
+  'Praxys is checking Stryd provenance, fitting the aggregate model, and applying every release guardrail.':
+    'Praxys is checking Stryd provenance, fitting the aggregate model, and applying every release guardrail.',
+  'Relative modeled HR': 'Relative modeled HR',
+  'Lower interval': 'Lower interval',
+  'Upper interval': 'Upper interval',
+  'This sits inside your displayed historical range.':
+    'This sits inside your displayed historical range.',
+  'This is a psychrometric estimate—not apparent temperature, outdoor WBGT, body temperature, or a heat-safety assessment.':
+    'This is a psychrometric estimate—not apparent temperature, outdoor WBGT, body temperature, or a heat-safety assessment.',
+  'Network error. Try again.': 'Network error. Try again.',
+  'Enter numeric temperature and humidity values.':
+    'Enter numeric temperature and humidity values.',
+  'Copy failed': 'Copy failed',
+  'Explore voluntary experiments on your own training history':
+    'Explore voluntary experiments on your own training history',
+  'This curve is historical and non-causal. Wind, solar load, clothing, hydration, fatigue, and other unmeasured conditions can still differ between runs.':
+    'This curve is historical and non-causal. Wind, solar load, clothing, hydration, fatigue, and other unmeasured conditions can still differ between runs.',
+  'Stull (2011) source': 'Stull (2011) source',
+};
+
+const ZH_LABS = {
+  'Praxys is checking Stryd provenance, fitting the aggregate model, and applying every release guardrail.':
+    'Praxys 正在检查 Stryd 数据来源、拟合汇总模型，并应用全部发布门槛。',
+  'Relative modeled HR': '相对模型心率',
+  'Lower interval': '区间下界',
+  'Upper interval': '区间上界',
+  'This sits inside your displayed historical range.':
+    '该值位于已显示的历史范围内。',
+  'This is a psychrometric estimate—not apparent temperature, outdoor WBGT, body temperature, or a heat-safety assessment.':
+    '这是干湿球湿球温度估算值，不是体感温度、室外 WBGT、体温或高温安全评估。',
+  'Network error. Try again.': '网络错误，请重试。',
+  'Enter numeric temperature and humidity values.':
+    '请输入有效的温度和湿度数值。',
+  'Copy failed': '复制失败',
+  'Explore voluntary experiments on your own training history':
+    '探索基于个人训练历史的自愿实验',
+  'This curve is historical and non-causal. Wind, solar load, clothing, hydration, fatigue, and other unmeasured conditions can still differ between runs.':
+    '此曲线仅表示历史关联，并不代表因果关系。不同跑步之间的风、太阳辐射、衣着、补水、疲劳和其他未测量条件仍可能不同。',
+  'Stull (2011) source': 'Stull（2011）来源',
+};
+
 const EN_LEGAL = {
   // Legal / consent surfaces: the Terms & Privacy viewer (pages/legal) and the
   // login-page consent notices. Full page titles stay bracket-free; the short
@@ -880,6 +922,7 @@ export const I18N_EXTRA: Record<Locale, Record<string, string>> = {
     ...EN_SETTINGS,
     ...EN_NAV_CHARTS,
     ...EN_HEAT,
+    ...EN_LABS,
     ...EN_LEGAL,
   },
   zh: {
@@ -892,6 +935,7 @@ export const I18N_EXTRA: Record<Locale, Record<string, string>> = {
     ...ZH_SETTINGS,
     ...ZH_NAV_CHARTS,
     ...ZH_HEAT,
+    ...ZH_LABS,
     ...ZH_LEGAL,
   },
 };
