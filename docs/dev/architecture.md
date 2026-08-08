@@ -339,6 +339,15 @@ mutation revision is also a durable pending-delivery record. A later identical
 evaluation retries a missing consequence record only while that exact adjusted
 snapshot remains current.
 
+The proposed agent-native lifecycle above the current workout-level contract is
+documented in
+[`adaptive-plan-architecture.md`](./adaptive-plan-architecture.md). It defines
+the future plan aggregate, proposal and approval boundary, athlete-scoped
+decision/outcome traces, Plan/Insights client split, and compatibility sequence.
+It is an architecture proposal under #584, not shipped behavior; current
+automatic adjustment remains limited to the separately consented conservative
+policy described above.
+
 Ownership and authorship are separate. `TrainingPlan.source` identifies the
 owner lane, while `TrainingPlan.workout_origin` records whether content was
 `generated`, `accepted_target`, `manual`, `imported`, or retained as `legacy`
