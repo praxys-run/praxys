@@ -1,0 +1,227 @@
+<view class="labs-root {{themeClass}}">
+  <nav-bar title="{{tr.navTitle}}" theme-class="{{themeClass}}" show-back="{{true}}" />
+
+  <scroll-view scroll-y="{{true}}" class="labs-scroll">
+    <view class="labs-content">
+      <text class="labs-intro">{{tr.intro}}</text>
+
+      <block wx:if="{{loading && !hasResponse}}">
+        <state-card type="loading" />
+        <state-card type="loading" />
+      </block>
+
+      <block wx:elif="{{errorMessage}}">
+        <state-card type="error" headline="{{tr.failedToLoad}}" detail="{{errorMessage}}" show-retry bindretry="onRetry" />
+      </block>
+
+      <block wx:elif="{{hasResponse}}">
+        <view wx:if="{{isNotEnrolled}}" class="ts-card labs-enrollment">
+          <text class="labs-title">{{tr.joinTitle}}</text>
+          <text class="labs-detail">{{tr.joinDetail}}</text>
+
+          <view class="labs-preflight labs-preflight--{{preflightBlocked ? 'blocked' : preflightUncertain ? 'uncertain' : 'ready'}}">
+            <text class="labs-preflight-title">{{preflightTitle}}</text>
+            <text wx:if="{{preflightReason}}" class="labs-preflight-detail">{{preflightReason}}</text>
+            <text class="labs-preflight-detail">{{preflightDetail}}</text>
+            <text wx:if="{{preflight}}" class="labs-preflight-count ts-value">
+              {{tr.suitableActivities}}: {{preflightReadyActivityCount}}
+              / {{tr.minimum}}: {{preflight.minimum_activity_count}}
+            </text>
+          </view>
+
+          <view class="labs-facts">
+            <view class="labs-fact">
+              <text class="labs-fact-title">{{tr.personalOnly}}</text>
+              <text class="labs-fact-detail">{{tr.personalOnlyDetail}}</text>
+            </view>
+            <view class="labs-fact">
+              <text class="labs-fact-title">{{tr.aggregateStorage}}</text>
+              <text class="labs-fact-detail">{{tr.aggregateStorageDetail}}</text>
+            </view>
+            <view class="labs-fact">
+              <text class="labs-fact-title">{{tr.withdrawAnytime}}</text>
+              <text class="labs-fact-detail">{{tr.withdrawAnytimeDetail}}</text>
+            </view>
+          </view>
+
+          <view class="labs-reasoning">
+            <text class="labs-reasoning-title">{{tr.limitsTitle}}</text>
+            <text class="labs-reasoning-detail">{{tr.limitsDetail}}</text>
+          </view>
+
+          <view class="labs-check" bindtap="onToggleAdult">
+            <view class="labs-check-box {{adultAttested ? 'labs-check-box--checked' : ''}}">
+              <text wx:if="{{adultAttested}}" class="labs-check-mark">✓</text>
+            </view>
+            <text class="labs-check-copy">{{tr.adultConsent}}</text>
+          </view>
+          <view class="labs-check" bindtap="onToggleConsent">
+            <view class="labs-check-box {{consentConfirmed ? 'labs-check-box--checked' : ''}}">
+              <text wx:if="{{consentConfirmed}}" class="labs-check-mark">✓</text>
+            </view>
+            <text class="labs-check-copy">{{tr.experimentConsent}}</text>
+          </view>
+
+          <button
+            class="ts-button labs-primary"
+            disabled="{{!adultAttested || !consentConfirmed || actionPending || preflightBlocked}}"
+            bindtap="onJoin"
+          >{{tr.joinAction}}</button>
+        </view>
+
+        <view wx:if="{{isNotEnrolled}}" class="ts-card labs-calculator">
+          <text class="labs-title">{{tr.calculatorTitle}}</text>
+          <text class="labs-detail">{{tr.calculatorDetail}}</text>
+          <view class="labs-input-grid">
+            <view class="labs-field">
+              <text class="labs-field-label">{{tr.temperature}}</text>
+              <input class="ts-input ts-value" type="digit" value="{{temperatureInput}}" bindinput="onTemperatureInput" />
+            </view>
+            <view class="labs-field">
+              <text class="labs-field-label">{{tr.humidity}}</text>
+              <input class="ts-input ts-value" type="digit" value="{{humidityInput}}" bindinput="onHumidityInput" />
+            </view>
+          </view>
+          <button class="ts-button ts-button--secondary labs-calculate" disabled="{{calculatorPending}}" bindtap="onCalculate">
+            {{tr.calculate}}
+          </button>
+          <view wx:if="{{calculatorResult}}" class="labs-calculator-result">
+            <text wx:if="{{calculatorResult.wet_bulb_c !== null}}" class="labs-measure-label">{{tr.calculatorResult}}</text>
+            <text wx:if="{{calculatorResult.wet_bulb_c !== null}}" class="labs-calculator-value ts-value">
+              {{calculatorResult.wet_bulb_c}} °C
+            </text>
+            <text wx:else class="labs-detail labs-calculator-warning">{{tr.calculatorOutside}}</text>
+          </view>
+          <text class="labs-method-note">{{tr.calculatorBoundary}}</text>
+          <button class="labs-source-link" bindtap="onCopyStullSource">{{tr.stullSource}}</button>
+        </view>
+
+        <view wx:elif="{{isProcessing}}" class="ts-card labs-state">
+          <view class="labs-spinner"></view>
+          <text class="labs-title">{{tr.processingTitle}}</text>
+          <text class="labs-detail">{{tr.processingDetail}}</text>
+          <button class="ts-button ts-button--ghost labs-state-action" bindtap="onWithdraw">
+            {{tr.cancelWithdraw}}
+          </button>
+        </view>
+
+        <block wx:else>
+          <view wx:if="{{isAvailable}}" class="labs-verdict">
+            <text class="labs-verdict-title">
+              {{predictionDiagnosticsPassed ? tr.availablePassedTitle : tr.availableTitle}}
+            </text>
+            <text class="labs-verdict-detail">
+              {{predictionDiagnosticsPassed ? tr.availablePassedDetail : tr.availableDetail}}
+            </text>
+          </view>
+
+          <view wx:if="{{isUnavailable}}" class="ts-card labs-state">
+            <text class="labs-title">
+              {{isStale ? tr.staleTitle : isFailed ? tr.failedTitle : tr.unavailableTitle}}
+            </text>
+            <text class="labs-detail">{{reasonMessage}}</text>
+            <view class="labs-coverage">
+              <view class="labs-measure">
+                <text class="labs-measure-label">{{tr.activities}}</text>
+                <text class="labs-measure-value ts-value">{{activityCountDisplay}}</text>
+              </view>
+              <view class="labs-measure">
+                <text class="labs-measure-label">{{tr.segments}}</text>
+                <text class="labs-measure-value ts-value">{{segmentCountDisplay}}</text>
+              </view>
+              <view class="labs-measure">
+                <text class="labs-measure-label">{{tr.observedRange}}</text>
+                <text class="labs-measure-value ts-value">{{observedRangeDisplay}}</text>
+              </view>
+            </view>
+            <text wx:if="{{supportId}}" class="labs-support ts-value">{{tr.supportId}}: {{supportId}}</text>
+            <button class="ts-button labs-primary" disabled="{{actionPending || preflightBlocked}}" bindtap="onRecompute">
+              {{tr.recompute}}
+            </button>
+          </view>
+
+          <view wx:if="{{isAvailable}}" class="ts-card labs-curve">
+            <text class="labs-title">{{tr.curveTitle}}</text>
+            <text class="labs-detail">{{tr.curveDetail}}</text>
+            <line-chart
+              canvas-id="labs-environment-chart"
+              series="{{chartSeries}}"
+              dates="{{chartDates}}"
+              height="{{360}}"
+              show-zero-line="{{true}}"
+              show-legend="{{true}}"
+              theme="{{chartTheme}}"
+              y-unit="bpm"
+            />
+            <view class="labs-coverage">
+              <view class="labs-measure">
+                <text class="labs-measure-label">{{tr.activities}}</text>
+                <text class="labs-measure-value ts-value">{{activityCountDisplay}}</text>
+              </view>
+              <view class="labs-measure">
+                <text class="labs-measure-label">{{tr.segments}}</text>
+                <text class="labs-measure-value ts-value">{{segmentCountDisplay}}</text>
+              </view>
+              <view class="labs-measure">
+                <text class="labs-measure-label">{{tr.observedRange}}</text>
+                <text class="labs-measure-value ts-value">{{observedRangeDisplay}}</text>
+              </view>
+              <view class="labs-measure">
+                <text class="labs-measure-label">{{tr.slope}}</text>
+                <text class="labs-measure-value ts-value">{{slopeDisplay}}</text>
+              </view>
+              <view class="labs-measure labs-measure--wide">
+                <text class="labs-measure-label">{{tr.interval}}</text>
+                <text class="labs-measure-value ts-value">{{intervalDisplay}}</text>
+              </view>
+              <view class="labs-measure">
+                <text class="labs-measure-label">{{tr.powerRegime}}</text>
+                <text class="labs-measure-value">{{tr.strydPowerRegime}}</text>
+              </view>
+              <view class="labs-measure labs-measure--wide">
+                <text class="labs-measure-label">{{tr.modelVersion}}</text>
+                <text class="labs-model-version ts-value">{{modelVersionDisplay}}</text>
+              </view>
+            </view>
+            <text class="labs-method-note">{{tr.chartBoundary}}</text>
+            <button class="labs-source-link" bindtap="onCopyStullSource">{{tr.stullSource}}</button>
+          </view>
+
+          <view class="ts-card labs-calculator">
+            <text class="labs-title">{{tr.calculatorTitle}}</text>
+            <text class="labs-detail">{{tr.calculatorDetail}}</text>
+            <view class="labs-input-grid">
+              <view class="labs-field">
+                <text class="labs-field-label">{{tr.temperature}}</text>
+                <input class="ts-input ts-value" type="digit" value="{{temperatureInput}}" bindinput="onTemperatureInput" />
+              </view>
+              <view class="labs-field">
+                <text class="labs-field-label">{{tr.humidity}}</text>
+                <input class="ts-input ts-value" type="digit" value="{{humidityInput}}" bindinput="onHumidityInput" />
+              </view>
+            </view>
+            <button class="ts-button ts-button--secondary labs-calculate" disabled="{{calculatorPending}}" bindtap="onCalculate">
+              {{tr.calculate}}
+            </button>
+            <view wx:if="{{calculatorResult}}" class="labs-calculator-result">
+              <text wx:if="{{calculatorResult.wet_bulb_c !== null}}" class="labs-measure-label">{{tr.calculatorResult}}</text>
+              <text wx:if="{{calculatorResult.wet_bulb_c !== null}}" class="labs-calculator-value ts-value">
+                {{calculatorResult.wet_bulb_c}} °C
+              </text>
+              <text wx:else class="labs-detail labs-calculator-warning">{{tr.calculatorOutside}}</text>
+              <text wx:if="{{calculatorPositionText}}" class="labs-detail">{{calculatorPositionText}}</text>
+            </view>
+            <text class="labs-method-note">{{tr.calculatorBoundary}}</text>
+            <button class="labs-source-link" bindtap="onCopyStullSource">{{tr.stullSource}}</button>
+          </view>
+
+          <button class="labs-withdraw" disabled="{{actionPending}}" bindtap="onWithdraw">
+            {{tr.withdraw}}
+          </button>
+        </block>
+
+        <text wx:if="{{actionError}}" class="labs-error" role="alert">{{tr.actionFailed}}: {{actionError}}</text>
+      </block>
+    </view>
+  </scroll-view>
+</view>

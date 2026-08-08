@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import type { ComponentType, SVGProps } from 'react';
-import { Sun, Moon, Monitor, TrendingUp, Target, Clock, FlaskConical, Settings, LogOut, ListChecks, ShieldCheck, MessageSquarePlus, Smartphone } from 'lucide-react';
+import { Sun, Moon, Monitor, TrendingUp, Target, Clock, BookOpen, FlaskConical, Settings, LogOut, ListChecks, ShieldCheck, MessageSquarePlus, Smartphone } from 'lucide-react';
 import { PraxysFlag } from '@/components/PraxysFlag';
 import FeedbackDialog from '@/components/FeedbackDialog';
 import { MobileAppDialog } from '@/components/MobileApp';
@@ -128,7 +128,7 @@ export default function AppSidebar() {
   ];
   // Reference: theory + methodology surfaces.
   const referenceItems: NavItem[] = [
-    { to: '/science', icon: FlaskConical, label: t`Science` },
+    { to: '/science', icon: BookOpen, label: t`Science` },
     { to: '/labs', icon: FlaskConical, label: t`Labs` },
   ];
   // Configuration: the user adjusts the system here (rare, deliberate).

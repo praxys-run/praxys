@@ -57,6 +57,71 @@ _DATA_SUPPORT_GATES = frozenset({
 })
 
 
+def assess_environment_response_preflight(
+    counts: dict[str, int | bool],
+    *,
+    validation_config: HeatValidationConfig | None = None,
+) -> dict[str, Any]:
+    """Classify only definite blockers before the full Labs analysis runs.
+
+    This aggregate preflight deliberately avoids fitting, segmentation, and
+    release-gate evaluation. Passing means the analysis is worth attempting,
+    not that a curve or conclusion will be released.
+    """
+    config = validation_config or HeatValidationConfig()
+    required = config.minimum_activities
+
+    def count(name: str) -> int:
+        return int(counts.get(name, 0))
+
+    reason_code: str | None = None
+    status = "likely_eligible"
+    can_start = True
+    if count("candidate_activity_count") < required:
+        reason_code = "insufficient_activities"
+    elif count("temperature_activity_count") < required:
+        reason_code = "missing_temperature"
+    elif count("humidity_activity_count") < required:
+        reason_code = "missing_relative_humidity"
+    elif count("environment_activity_count") < required:
+        reason_code = "missing_environment_pairing"
+    elif count("power_activity_count") < required:
+        reason_code = "missing_continuous_sample_power"
+    elif count("heart_rate_activity_count") < required:
+        reason_code = "missing_continuous_heart_rate"
+    elif count("complete_any_provider_activity_count") < required:
+        reason_code = "insufficient_prerequisite_overlap"
+    elif count("stryd_power_activity_count") < required:
+        reason_code = "unsupported_power_provider"
+    elif count("complete_stryd_activity_count") < required:
+        reason_code = "insufficient_prerequisite_overlap"
+    elif count("provider_aligned_cp_activity_count") < required:
+        reason_code = "missing_provider_aligned_critical_power"
+    elif (
+        count("complete_any_provider_activity_count")
+        > count("complete_stryd_activity_count")
+    ):
+        status = "needs_full_analysis"
+        reason_code = "provider_alignment_requires_full_analysis"
+    else:
+        status = "likely_eligible"
+
+    if reason_code and status != "needs_full_analysis":
+        status = "ineligible"
+        can_start = False
+
+    return {
+        "status": status,
+        "can_start_analysis": can_start,
+        "reason_code": reason_code,
+        "minimum_activity_count": required,
+        "observed": {
+            **counts,
+        },
+        "full_analysis_still_required": True,
+    }
+
+
 def build_environment_response_result(
     dataset: dict[str, Any],
     *,

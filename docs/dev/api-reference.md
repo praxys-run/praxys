@@ -1009,6 +1009,31 @@ uncertainty, gate statuses, model/source versions, power regime, prediction
 diagnostic status, and timestamps. It never contains activity IDs, dates,
 routes, GPS, sample rows, or per-activity values.
 
+### GET /api/labs/environment-response/preflight
+
+Returns a non-persisted, aggregate-only prerequisite estimate before consent or
+recomputation. `status` is `likely_eligible`, `ineligible`, or
+`needs_full_analysis`; `can_start_analysis` is false only for a definite
+blocker such as too few candidate activities, missing temperature/humidity,
+missing continuous power/heart-rate samples, an unsupported power provider, or
+missing provider-aligned Critical Power. Passing preflight never promises a
+curve: stable-segment extraction, environmental support, chronological
+holdout, bootstrap stability, and all other scientific release gates remain
+part of the full analysis.
+
+The sample prerequisite is intentionally only a necessary lower bound: an
+activity must contain one continuous minimum-segment-duration power block using
+the same bounded sample-gap rule as the full analysis, plus at least 80%
+heart-rate observation coverage. It does not claim that the power block is
+stable or that the heart-rate samples overlap the eventual selected segment.
+Provider-aligned Critical Power counts only for activities occurring after a
+positive dated Stryd CP estimate.
+
+Enrollment and recomputation repeat this check server-side. A newly ineligible
+request returns `409` with code `LABS_ENVIRONMENT_PREFLIGHT_INELIGIBLE` and the
+same aggregate preflight payload, without changing consent or deleting an
+existing result.
+
 ### POST /api/labs/environment-response/wet-bulb
 
 Calculates the non-persisted Stull psychrometric wet-bulb proxy used by the
