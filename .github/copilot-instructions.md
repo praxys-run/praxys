@@ -63,6 +63,7 @@ state coverage, and the PR evidence required by CI.
 
 - User config (goals, thresholds) stored in the database, managed via Settings/Goal page UI
 - Server config in `.env` (see `.env.example` for encryption key, JWT secret, admin email)
+- **Feature flags:** follow the authoritative [feature-flag and runtime-config conventions](../CLAUDE.md#feature-flags-and-runtime-configuration). Use Statsig for per-user rollout/runtime tuning, env vars for deployment/infra and fallbacks, and DB state for durable product truth; all new gates default off and fail closed.
 - Data recomputed fresh per request in `api/deps.py`
 - **Ops-handbook currency:** any change to a deploy workflow, App Service setting, GitHub Actions secret/variable, Azure resource (storage, Key Vault, RBAC), **alert rule / action group,** or runtime config must be documented in `docs/ops/` (esp. `config-and-secrets.md`; alerts in `monitoring-and-alerts.md`) **in the same PR** — where it's set and how to provision it.
 

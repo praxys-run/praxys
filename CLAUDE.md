@@ -78,6 +78,16 @@ Domain-specific gotchas (Garmin sync quirks, CIQ field conventions, CN endpoint 
 - **Semantic palette, not just accents**: `primary` (green) = action / positive signal; `accent-cobalt` is reserved for **reasoning** surfaces (`ScienceNote`, "why this", citations). Don't use cobalt for informational chrome and don't use green for reasoning.
 - Authoritative brand guide: `docs/brand/index.html`. Implementation rules: `docs/dev/design-system.md`.
 
+### Feature flags and runtime configuration
+- Use **Statsig** for staged, per-user feature availability/visibility and runtime-tunable dynamic config. A/B experiments require explicit product scope; do not turn a feature-flag task into an experiment.
+- Use **environment variables** for deployment-wide infrastructure, credentials/secrets, hard prerequisites, and safe fallbacks. Use **database state** for durable user choices, consent, authorization, and product records; a gate never replaces either authorization or persisted domain state.
+- Name gates in descriptive `lower_snake_case` with an intent suffix such as `_enabled` or `_visible`. New gates default off. Evaluate server behavior through `api/statsig_client.py` and browser visibility through `StatsigContext`; do not scatter raw SDK calls.
+- Keep backend and frontend behavior consistent: enforce gated server work at the authenticated per-user call path, expose API visibility where clients need it, and hide the matching UI. Client gates are not a security boundary.
+- Missing keys, initialization/evaluation errors, and stale browser identity must fail closed. Gates return `false`; dynamic config keeps its documented env/default fallback; the browser makes no Statsig request without its public client key; deterministic rule-based behavior remains available.
+- Backend identities include `user_id`, `email`, `is_admin`, `is_demo`, `training_base`, and `language`. Browser identity must update on authentication changes and must not reuse visible values from a previous user while an update is pending or failed.
+- Tests must cover missing-key defaults, true/false paths, targeting attributes, dynamic-config override/fallback, and affected API/UI behavior while the full suite still passes without Statsig keys. Any new key/config also updates env examples, owned deploy workflows, and `docs/ops/config-and-secrets.md`; never expose a server SDK key to a client.
+- Preserve web/miniapp capability parity. If miniapp Statsig support cannot ship in the same PR, file and link a clearly labelled `miniapp parity gap` follow-up rather than treating generated type parity as feature parity.
+
 ### Web ↔ miniapp parity
 - **Frontend changes should reach both surfaces.** When you add or change a feature in `web/src/`, update the matching `miniapp/pages/` (or component / util) in the same PR — or open a follow-up issue with explicit "miniapp parity gap" labelling. Don't quietly let one client drift.
 - The mini program is **not a desktop port** — it can adapt the layout / chrome / interactions to native mobile conventions, but the *feature set, data model, and write operations should match*. (Sync triggers, settings updates, goal config, language/theme switches, account management — all available on both.)
