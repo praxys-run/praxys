@@ -655,7 +655,8 @@ with `DefaultAzureCredential`.
 
 `agent-ready` (auto-added to qualifying, actionable bugs by `api/feedback_triage.py`, or added
 by hand) triggers `.github/workflows/assign-copilot.yml`, which assigns the issue
-to the Copilot coding agent. These are **repo settings, not deploy-managed**:
+to the Copilot coding agent with the checked-in `praxys-change-loop` custom
+agent profile. These are **repo settings, not deploy-managed**:
 
 - **Labels** `agent-ready` and `backlog` (optionally `later`) are created once
   with `gh label create` — see [change-loop.md](./change-loop.md).
@@ -684,6 +685,10 @@ to the Copilot coding agent. These are **repo settings, not deploy-managed**:
   triage.
 - **Agent environment:** `.github/workflows/copilot-setup-steps.yml` preinstalls
   the toolchain so the agent can run `pytest` / `npm` deterministically.
+- **PR readiness enforcement:** `.github/workflows/copilot-pr-readiness.yml`
+  uses the repository `GITHUB_TOKEN` only; it requires no additional secret.
+  It returns Copilot PRs to draft after new commits, missing final-preflight
+  evidence for the current head SHA, or failed required checks.
 - **Versioned policy metadata:** `config/agent-loop-policies.json` is committed
   code config. It names the active assignment policy, narrow candidate classes,
   protected paths, evidence thresholds, and promoted classes. Promotion is
