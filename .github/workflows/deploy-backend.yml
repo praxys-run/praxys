@@ -167,6 +167,10 @@ jobs:
           KEY_VAULT_URL: ${{ vars.KEY_VAULT_URL }}
           KEY_VAULT_KEY_NAME: ${{ vars.KEY_VAULT_KEY_NAME }}
           PRAXYS_JWT_SECRET: ${{ secrets.PRAXYS_JWT_SECRET }}
+          # Optional Statsig server key. Unset keeps all feature gates off and
+          # dynamic config on its application-owned fallback.
+          STATSIG_SDK_KEY: ${{ secrets.STATSIG_SDK_KEY }}
+          STATSIG_ENV: ${{ vars.STATSIG_ENV || 'production' }}
           # Database (#360). When PRAXYS_DATABASE_URL is set the backend uses
           # PostgreSQL; empty/unset keeps the legacy SQLite file on /home/data,
           # so this can be deployed before the cutover. PRAXYS_DB_AUTH=entra makes
@@ -231,6 +235,8 @@ jobs:
               KEY_VAULT_URL="${KEY_VAULT_URL}" \
               KEY_VAULT_KEY_NAME="${KEY_VAULT_KEY_NAME}" \
               PRAXYS_JWT_SECRET="${PRAXYS_JWT_SECRET}" \
+              STATSIG_SDK_KEY="${STATSIG_SDK_KEY}" \
+              STATSIG_ENV="${STATSIG_ENV}" \
               PRAXYS_DATABASE_URL="${PRAXYS_DATABASE_URL}" \
               PRAXYS_DB_AUTH="${PRAXYS_DB_AUTH}" \
               PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED="${PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED}" \

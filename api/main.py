@@ -114,9 +114,16 @@ async def lifespan(app: FastAPI):
     if scheduler_enabled:
         from db.sync_scheduler import start_scheduler
         start_scheduler()
+    from api.statsig_client import init_statsig
+    await init_statsig()
     try:
         yield
     finally:
+        try:
+            from api.statsig_client import shutdown_statsig
+            await shutdown_statsig()
+        except Exception:
+            logger.exception("Failed to shut down Statsig cleanly")
         if scheduler_enabled:
             try:
                 from db.sync_scheduler import stop_scheduler

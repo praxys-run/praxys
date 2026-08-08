@@ -139,6 +139,46 @@ def test_get_settings_exposes_sync_interval_options(api_client):
     assert body["default_sync_interval_hours"] == 6
 
 
+def test_connection_visibility_filters_api_response(api_client, monkeypatch):
+    client, user_id = api_client
+    _seed_connection(user_id, "garmin")
+    _seed_connection(user_id, "strava")
+    _seed_connection(user_id, "coros")
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, _user: gate_name == "strava_connection_visible",
+    )
+
+    response = client.get("/api/settings/connections")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body["connections"]) == {"garmin", "strava"}
+    assert body["visibility"] == {
+        "strava_connection_visible": True,
+        "coros_connection_visible": False,
+        "stryd_plan_push_visible": False,
+    }
+
+
+def test_settings_exposes_per_user_feature_visibility(api_client, monkeypatch):
+    client, _user_id = api_client
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, _user: gate_name
+        in {"coros_connection_visible", "stryd_plan_push_visible"},
+    )
+
+    response = client.get("/api/settings")
+
+    assert response.status_code == 200
+    assert response.json()["feature_visibility"] == {
+        "strava_connection_visible": False,
+        "coros_connection_visible": True,
+        "stryd_plan_push_visible": True,
+    }
+
+
 def _seed_connection(
     user_id: str,
     platform: str,

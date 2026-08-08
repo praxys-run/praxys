@@ -23,6 +23,15 @@ PILLARS = {
 }
 
 
+@pytest.fixture(autouse=True)
+def enabled_ai_gate(monkeypatch):
+    """Generator shape tests exercise the model path explicitly."""
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, user: gate_name == "ai_insights_enabled",
+    )
+
+
 def _fake_context() -> dict:
     return {
         "athlete_profile": {
@@ -169,6 +178,21 @@ def test_returns_none_when_client_unavailable(monkeypatch):
     assert insights_generator.generate_daily_brief(_fake_context(), PILLARS) is None
     assert insights_generator.generate_training_review(_fake_context(), PILLARS) is None
     assert insights_generator.generate_race_forecast(_fake_context(), PILLARS) is None
+
+
+def test_ai_gate_false_skips_model_and_preserves_fallback(monkeypatch):
+    fake = _FakeClient(json.dumps(_valid_bilingual_response()))
+    monkeypatch.setattr(llm, "get_client", lambda: fake)
+    monkeypatch.setattr("api.statsig_client.check_gate", lambda *_args: False)
+
+    payload = insights_generator.generate_training_review(
+        _fake_context(),
+        PILLARS,
+        statsig_user=object(),
+    )
+
+    assert payload is None
+    assert fake.chat.completions.last_call is None
 
 
 # ---------------------------------------------------------------------------

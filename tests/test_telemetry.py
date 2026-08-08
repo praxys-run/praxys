@@ -602,6 +602,10 @@ def test_run_insights_emits_cap_reached_status(fake_meter, monkeypatch):
     payload = json.dumps(bilingual)
     client = _FakeClient(_FakeResponse(payload, _FakeUsage(prompt=10, completion=5)))
     monkeypatch.setattr(llm, "get_client", lambda: client)
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, _user: gate_name == "ai_insights_enabled",
+    )
 
     insights_runner.run_insights_for_user(
         "user-3", session, {"activities": 1}, _session=session,

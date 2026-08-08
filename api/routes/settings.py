@@ -51,7 +51,7 @@ from api.plan_delivery.capabilities import (
     plan_delivery_consent_token,
 )
 from api.views import utc_isoformat
-from db.models import UserConnection
+from db.models import User, UserConnection
 from db.session import get_db
 from db.sync_scheduler import (
     ALLOWED_SYNC_INTERVAL_HOURS,
@@ -64,6 +64,38 @@ router = APIRouter()
 
 SUPPORTED_LANGUAGES = {"en", "zh"}
 _STRAVA_STATE_TTL_MINUTES = 10
+_FEATURE_VISIBILITY_GATES = (
+    "strava_connection_visible",
+    "coros_connection_visible",
+    "stryd_plan_push_visible",
+)
+
+
+def _feature_visibility(
+    user_id: str,
+    db: Session,
+    config: UserConfig,
+) -> dict[str, bool]:
+    """Evaluate user-scoped UI visibility gates with safe false defaults."""
+    from api import statsig_client
+
+    user = db.query(User).filter(User.id == user_id).first()
+    statsig_user = (
+        statsig_client.get_statsig_user(
+            user_id=user_id,
+            email=user.email,
+            is_admin=user.is_superuser,
+            is_demo=user.is_demo,
+            training_base=config.training_base,
+            language=config.language,
+        )
+        if user is not None
+        else None
+    )
+    return {
+        gate_name: statsig_client.check_gate(gate_name, statsig_user)
+        for gate_name in _FEATURE_VISIBILITY_GATES
+    }
 
 
 def _plan_management_transition(
@@ -553,6 +585,7 @@ def get_settings(
 ) -> dict:
     """Return current user config, platform capabilities, detected thresholds, and display config."""
     config = load_config_from_db(user_id, db)
+    feature_visibility = _feature_visibility(user_id, db, config)
     connections = {
         connection.platform: connection
         for connection in db.query(UserConnection).filter(
@@ -597,6 +630,7 @@ def get_settings(
         "effective_thresholds": effective,
         "sync_interval_options_hours": list(ALLOWED_SYNC_INTERVAL_HOURS),
         "default_sync_interval_hours": DEFAULT_SYNC_INTERVAL_HOURS,
+        "feature_visibility": feature_visibility,
     }
 
 
@@ -1299,12 +1333,19 @@ def get_connections(
     """Return connected platforms and their status (credentials are never returned)."""
     from db.models import UserConnection
 
+    config = load_config_from_db(user_id, db)
+    visibility = _feature_visibility(user_id, db, config)
     connections = db.query(UserConnection).filter(
         UserConnection.user_id == user_id,
     ).all()
 
     result = {}
     for conn in connections:
+        if (
+            conn.platform in {"strava", "coros"}
+            and not visibility[f"{conn.platform}_connection_visible"]
+        ):
+            continue
         result[conn.platform] = {
             "status": conn.status,
             "last_sync": utc_isoformat(conn.last_sync),
@@ -1317,7 +1358,7 @@ def get_connections(
             "consecutive_failures": conn.consecutive_failures or 0,
             "last_error": conn.last_error,
         }
-    return {"connections": result}
+    return {"connections": result, "visibility": visibility}
 
 
 @router.post("/settings/connections/strava/start")

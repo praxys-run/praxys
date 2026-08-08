@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { ScienceProvider } from './contexts/ScienceContext';
 import { LocaleProvider } from './contexts/LocaleContext';
+import { StatsigProvider } from './contexts/StatsigContext';
 import LocaleSync from './contexts/LocaleSync';
 import Layout from './components/Layout';
 import { Skeleton } from './components/ui/skeleton';
@@ -68,7 +69,8 @@ export default function App() {
   return (
     <LocaleProvider>
       <AuthProvider>
-        <TooltipProvider>
+        <StatsigProvider>
+          <TooltipProvider>
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<LandingOrApp />} />
@@ -108,7 +110,8 @@ export default function App() {
               </Route>
             </Routes>
           </BrowserRouter>
-        </TooltipProvider>
+          </TooltipProvider>
+        </StatsigProvider>
       </AuthProvider>
     </LocaleProvider>
   );

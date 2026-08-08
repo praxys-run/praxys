@@ -11,6 +11,7 @@ import { msg } from '@lingui/core/macro';
 import { Trans, Plural, useLingui } from '@lingui/react/macro';
 import { useLocale } from '@/contexts/LocaleContext';
 import { linkifyScienceTerms } from '@/lib/science-links';
+import { useFeatureFlag } from '@/contexts/StatsigContext';
 
 /**
  * Deterministic "Praxys Coach" content rendered when no LLM insight
@@ -70,9 +71,11 @@ export default function AiInsightsCard({
   onFeedbackStale,
   fetchInsight = true,
 }: Props) {
+  const aiInsightsEnabled = useFeatureFlag('ai_insights_enabled');
+  const shouldFetchInsight = fetchInsight && aiInsightsEnabled;
   const { data, refetch } = useApi<AiInsightResponse>(
     `/api/insights/${insightType}`,
-    { enabled: fetchInsight },
+    { enabled: shouldFetchInsight },
   );
   const { locale } = useLocale();
   const { i18n } = useLingui();
@@ -86,7 +89,7 @@ export default function AiInsightsCard({
   const [feedbackStale, setFeedbackStale] = useState(false);
   const [feedbackError, setFeedbackError] = useState('');
 
-  const insight = fetchInsight ? data?.insight : null;
+  const insight = shouldFetchInsight ? data?.insight : null;
   const rawDatasetHash = insight?.meta.dataset_hash;
   const datasetHash = insight?.feedback_allowed !== false
     && typeof rawDatasetHash === 'string'

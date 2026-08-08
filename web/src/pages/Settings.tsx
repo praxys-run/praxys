@@ -36,6 +36,7 @@ import { GarminWordmark, StrydWordmark, StravaWordmark, OuraWordmark, CorosWordm
 import { Trans, useLingui } from '@lingui/react/macro';
 import { msg } from '@lingui/core/macro';
 import type { MessageDescriptor } from '@lingui/core';
+import { useFeatureFlag } from '@/contexts/StatsigContext';
 
 // --- Constants ---
 
@@ -195,13 +196,26 @@ export default function Settings() {
   const location = useLocation();
   const navigate = useNavigate();
   const {
-    config, connectionStatuses, platformCapabilities, experimentalPlanDelivery, availableProviders, availableBases,
+    config, connectionStatuses, platformCapabilities, experimentalPlanDelivery, availableProviders, availableBases, featureVisibility,
     effectiveThresholds, detectedThresholds, loading, error, updateSettings, refetch,
   } = useSettings();
   const { email: authEmail, isDemo, logout } = useAuth();
   const { setLocale } = useLocale();
   const { t, i18n } = useLingui();
   const thresholdSourceLabel = useThresholdSourceLabel();
+  const stravaConnectionEnabled = useFeatureFlag('strava_connection_visible');
+  const corosConnectionEnabled = useFeatureFlag('coros_connection_visible');
+  const visiblePlatforms = CONNECTABLE_PLATFORMS.filter((platform) => {
+    if (platform === 'strava') {
+      return stravaConnectionEnabled
+        && featureVisibility.strava_connection_visible;
+    }
+    if (platform === 'coros') {
+      return corosConnectionEnabled
+        && featureVisibility.coros_connection_visible;
+    }
+    return true;
+  });
 
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
@@ -292,6 +306,9 @@ export default function Settings() {
 
     const cleanedLocation = `${location.pathname}${stripStravaOAuthParams(location.search)}${location.hash}`;
     navigate(cleanedLocation, { replace: true });
+    if (!stravaConnectionEnabled || !featureVisibility.strava_connection_visible) {
+      return;
+    }
 
     if (oauthResult.status === 'connected') {
       setConnectPlatform(null);
@@ -309,7 +326,15 @@ export default function Settings() {
     setStravaNotice('');
     setConnectPlatform('strava');
     setConnectError(getStravaOAuthMessage(oauthResult));
-  }, [location.hash, location.pathname, location.search, navigate, refetch]);
+  }, [
+    featureVisibility.strava_connection_visible,
+    location.hash,
+    location.pathname,
+    location.search,
+    navigate,
+    refetch,
+    stravaConnectionEnabled,
+  ]);
 
   if (loading) {
     return (
@@ -771,8 +796,9 @@ export default function Settings() {
 
               {/* Unit system */}
               <div className="flex items-center gap-3 sm:ml-auto">
-                <Label className="text-xs text-muted-foreground"><Trans>Units</Trans></Label>
+                <span id="settings-units-label" className="text-xs text-muted-foreground"><Trans>Units</Trans></span>
                 <ToggleGroup
+                  aria-labelledby="settings-units-label"
                   value={[config.unit_system || 'metric']}
                   onValueChange={(v) => {
                     if (v.length) updateSettings({ unit_system: v[v.length - 1] as 'metric' | 'imperial' });
@@ -785,7 +811,7 @@ export default function Settings() {
 
               {/* Language */}
               <div className="flex items-center gap-3">
-                <Label className="text-xs text-muted-foreground"><Trans>Language</Trans></Label>
+                <Label htmlFor="settings-language"><Trans>Language</Trans></Label>
                 <Select
                   value={config.language ?? 'auto'}
                   onValueChange={async (v) => {
@@ -798,7 +824,7 @@ export default function Settings() {
                     }
                   }}
                 >
-                  <SelectTrigger className="w-32 h-8 text-xs" disabled={saving}>
+                  <SelectTrigger id="settings-language" className="w-32 h-8 text-xs" disabled={saving}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -833,8 +859,9 @@ export default function Settings() {
         {showBackfill && (
           <Card className="mb-4">
             <CardContent className="pt-4 flex items-center gap-3 flex-wrap">
-              <label className="text-xs text-muted-foreground"><Trans>Sync from:</Trans></label>
+              <label htmlFor="settings-backfill-date" className="text-xs text-muted-foreground"><Trans>Sync from:</Trans></label>
               <Input
+                id="settings-backfill-date"
                 type="date"
                 value={backfillDate}
                 onChange={(e) => setBackfillDate(e.target.value)}
@@ -876,7 +903,10 @@ export default function Settings() {
               onValueChange={handleSyncIntervalChange}
               disabled={saving}
             >
-              <SelectTrigger className="w-full sm:w-auto sm:min-w-52 h-9 text-sm">
+              <SelectTrigger
+                aria-label={t`Auto sync frequency`}
+                className="w-full sm:w-auto sm:min-w-52 h-9 text-sm"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -900,7 +930,7 @@ export default function Settings() {
         </Card>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-          {CONNECTABLE_PLATFORMS.map((platform) => {
+          {visiblePlatforms.map((platform) => {
             const meta = PLATFORM_META[platform] || { label: platform };
             const caps = platformCapabilities[platform] || {};
             const status = syncStatus[platform];
@@ -1004,7 +1034,7 @@ export default function Settings() {
                     <>
                       <Separator />
                       <div className="flex items-center justify-between">
-                        <Label className="text-xs text-muted-foreground"><Trans>Region</Trans></Label>
+                        <span className="text-xs text-muted-foreground"><Trans>Region</Trans></span>
                         <span className="text-xs font-medium">
                           {String(config.source_options?.garmin_region) === 'cn'
                             ? <Trans>China</Trans>
@@ -1103,8 +1133,8 @@ export default function Settings() {
               ))}
               {connectPlatform === 'garmin' && (
                 <div className="space-y-2">
-                  <Label><Trans>Region</Trans></Label>
-                  <div className="flex gap-2">
+                  <span id="garmin-region-label" className="text-sm font-medium"><Trans>Region</Trans></span>
+                  <div className="flex gap-2" role="group" aria-labelledby="garmin-region-label">
                     {([['international', t`International`], ['cn', t`China`]] as const).map(([value, label]) => (
                       <button
                         key={value}
@@ -1128,8 +1158,8 @@ export default function Settings() {
               )}
               {connectPlatform === 'coros' && (
                 <div className="space-y-2">
-                  <Label><Trans>Region</Trans></Label>
-                  <div className="flex gap-2">
+                  <span id="coros-region-label" className="text-sm font-medium"><Trans>Region</Trans></span>
+                  <div className="flex gap-2" role="group" aria-labelledby="coros-region-label">
                     {([['us', t`US`], ['eu', t`EU`], ['cn', t`Asia/CN`]] as const).map(([value, label]) => (
                       <button
                         key={value}
@@ -1178,8 +1208,9 @@ export default function Settings() {
                 </p>
               </div>
               <div className="space-y-2">
-                <label className="text-xs text-muted-foreground"><Trans>Strava Client ID</Trans></label>
+                <label htmlFor="strava-client-id" className="text-xs text-muted-foreground"><Trans>Strava Client ID</Trans></label>
                 <Input
+                  id="strava-client-id"
                   placeholder={t`Your Strava API Client ID`}
                   value={(connectCreds as Record<string, string>).client_id || ''}
                   onChange={(e) => setConnectCreds((prev) => ({ ...prev, client_id: e.target.value }))}
@@ -1187,8 +1218,9 @@ export default function Settings() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs text-muted-foreground"><Trans>Strava Client Secret</Trans></label>
+                <label htmlFor="strava-client-secret" className="text-xs text-muted-foreground"><Trans>Strava Client Secret</Trans></label>
                 <Input
+                  id="strava-client-secret"
                   type="password"
                   placeholder={t`Your Strava API Client Secret`}
                   value={(connectCreds as Record<string, string>).client_secret || ''}

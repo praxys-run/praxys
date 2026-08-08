@@ -172,6 +172,13 @@ export interface SettingsResponse {
   display: DisplayConfig;
   detected_thresholds: Record<string, DetectedThreshold>;
   effective_thresholds: Record<string, ThresholdValue>;
+  feature_visibility: FeatureVisibility;
+}
+
+export interface FeatureVisibility {
+  strava_connection_visible: boolean;
+  coros_connection_visible: boolean;
+  stryd_plan_push_visible: boolean;
 }
 
 export interface SettingsUpdateResponse {
@@ -207,6 +214,7 @@ export interface PlatformConnection {
 
 export interface ConnectionsResponse {
   connections: Partial<Record<PlatformName, PlatformConnection>>;
+  visibility: FeatureVisibility;
 }
 
 export interface StravaOAuthStartRequest {

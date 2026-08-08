@@ -26,6 +26,7 @@ transient — the next deploy overwrites them.**
 | `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` | OIDC login to Azure for deploys (no client secret). | deploy workflows |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription targeted by deployment workflows | deploy workflows |
 | `PRAXYS_JWT_SECRET` | JWT signing key | pushed to App Service setting by `deploy-backend.yml` |
+| `STATSIG_SDK_KEY` | Optional Statsig server SDK key (`secret-*`). Backend-only; absence fails closed with all gates off. | App Service setting (backend) |
 | `PRAXYS_DATABASE_URL` | Postgres DSN (#360). May carry the DB password unless Entra auth is used. **Optional** until cutover; empty = SQLite. | App Service setting (backend) |
 | `WECHAT_MINIAPP_APPID` / `WECHAT_MINIAPP_SECRET` | WeChat Mini Program auth | App Service setting (backend) |
 | `PRAXYS_SMTP_PASSWORD` | SMTP client authorization code (WeCom/Exmail) for verification + invitation emails. **Optional.** | App Service setting (backend) |
@@ -43,6 +44,8 @@ transient — the next deploy overwrites them.**
 | Variable | Purpose | Consumed by |
 |---|---|---|
 | `VITE_API_URL` (`https://api.praxys.run`) | API base baked into the SPA | `deploy-frontend-appservice.yml` build |
+| `VITE_STATSIG_CLIENT_KEY` | Optional public Statsig client key (`client-*`) baked into the SPA. It is not a server credential; never put `STATSIG_SDK_KEY` here. | `deploy-frontend-appservice.yml` build |
+| `STATSIG_ENV` (`production`) | Shared Statsig environment tier. The deploy workflows default production when the variable is absent. | App Service setting + frontend build |
 | `AZURE_AI_ENDPOINT` | Azure OpenAI endpoint for production insights, feedback triage, and i18n. Keep the trailing `/`. Agentic Workflows use GitHub Copilot-hosted inference instead. | App Service setting + `i18n.yml` |
 | `TRANSLATE_MODEL` (`gpt-5.4-mini`) | Optional deployment override for translating newly extracted UI strings and science copy. | `i18n.yml`; script default applies when unset |
 | `TRANSLATE_REVIEW_MODEL` (`gpt-5.4`) | Optional stronger deployment override for the weekly native-Chinese catalog review. | `i18n.yml`; script default applies when unset |
@@ -317,6 +320,45 @@ Source of truth = `deploy-backend.yml`. Literals set inline: `DATA_DIR=/home/dat
 and `PRAXYS_BACKEND_APPINSIGHTS_RESOURCE_ID` come from
 `appi-praxys-backend` through `scripts/appinsights_boundary.sh`; everything else
 comes from the secrets/variables above.
+
+### Statsig feature gates
+
+Statsig is optional runtime configuration, not an availability dependency.
+`STATSIG_SDK_KEY` is a repository Actions **secret** and is copied only to the
+backend App Service. `VITE_STATSIG_CLIENT_KEY` is a repository Actions
+**variable** because a Statsig `client-*` key is intentionally shipped in the
+browser bundle. Never reuse or copy the `secret-*` server key into a Vite
+variable. `STATSIG_ENV` is the shared non-secret environment tier.
+
+Provision the Statsig project with these default-off gates:
+
+- `ai_insights_enabled`
+- `strava_connection_visible`
+- `coros_connection_visible`
+- `stryd_plan_push_visible`
+
+Create dynamic config `insight_daily_cap` with an integer property named
+`value`, for example `{"value": 30}`. When Statsig is unavailable or the
+property is absent, the backend keeps `PRAXYS_INSIGHT_DAILY_CAP` and then `30`
+as the fallback. `AZURE_AI_ENDPOINT` remains the hard infrastructure
+prerequisite for model calls; the Statsig gate is an additional per-user soft
+gate. Experiment assignment is intentionally not part of this integration.
+
+Provision repository values, then redeploy both surfaces:
+
+```bash
+# Prompts securely; do not place the server key in shell history.
+gh secret set STATSIG_SDK_KEY --repo praxys-run/praxys
+
+gh variable set STATSIG_ENV --body production --repo praxys-run/praxys
+# A public client-* key from the same Statsig project:
+gh variable set VITE_STATSIG_CLIENT_KEY --repo praxys-run/praxys
+```
+
+Verify the backend App Service contains `STATSIG_SDK_KEY` and `STATSIG_ENV`
+without printing their values, and inspect the built SPA only for the expected
+public `client-*` key. Deleting either key is the rollback: the next deploy
+removes effective access and all related gates safely evaluate false.
 
 ### Azure Key Vault (`kv-trainsight`)
 - RSA key `trainsight-master-key` — the master key that wraps the per-user

@@ -116,7 +116,6 @@ def _run_serialized(db: Session, user_id: str) -> dict:
 
 
 def _run(db: Session, user_id: str) -> dict:
-    cap = _daily_cap()
     used_today = _count_today(user_id, db)
 
     # Imports deferred so this module is cheap to import (the post-sync hook
@@ -124,6 +123,7 @@ def _run(db: Session, user_id: str) -> dict:
     from analysis.config import load_config_from_db
     from analysis.insight_hash import compute_dataset_hash
     from api.ai import build_training_context
+    from api import statsig_client
     from api.insights_generator import (
         generate_race_forecast,
         generate_training_review,
@@ -162,6 +162,22 @@ def _run(db: Session, user_id: str) -> dict:
         logger.exception("Insight context build failed for user=%s", user_id)
         return {"skipped": "context_build_failed"}
 
+    from db.models import User
+
+    user = db.query(User).filter(User.id == user_id).first()
+    statsig_user = (
+        statsig_client.get_statsig_user(
+            user_id=user_id,
+            email=user.email,
+            is_admin=user.is_superuser,
+            is_demo=user.is_demo,
+            training_base=getattr(cfg, "training_base", None),
+            language=getattr(cfg, "language", None),
+        )
+        if user is not None
+        else None
+    )
+    cap = _daily_cap(statsig_user)
     run_started_at = datetime.utcnow()
 
     from api import telemetry
@@ -186,7 +202,11 @@ def _run(db: Session, user_id: str) -> dict:
             results[itype] = "cap_reached"
 
             continue
-        payload = generators[itype](context, pillars)
+        payload = generators[itype](
+            context,
+            pillars,
+            statsig_user=statsig_user,
+        )
         if payload is None:
             results[itype] = "generator_returned_none"
 
@@ -246,11 +266,19 @@ def _has_new_rows(counts: dict) -> bool:
 
 
 
-def _daily_cap() -> int:
+def _daily_cap(statsig_user: object | None) -> int:
+    """Resolve the per-user cap, preserving the environment fallback."""
     try:
-        return int(os.environ.get("PRAXYS_INSIGHT_DAILY_CAP", "30"))
+        fallback = int(os.environ.get("PRAXYS_INSIGHT_DAILY_CAP", "30"))
     except ValueError:
-        return 30
+        fallback = 30
+    from api.statsig_client import get_config
+
+    configured = get_config("insight_daily_cap", statsig_user, fallback)
+    try:
+        return int(configured)
+    except (TypeError, ValueError):
+        return fallback
 
 
 def _count_today(user_id: str, db: Session) -> int:

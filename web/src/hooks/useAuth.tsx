@@ -7,6 +7,7 @@ import { recordProductEventOnce } from '@/lib/product-events';
 
 interface AuthState {
   token: string | null;
+  userId: string | null;
   email: string | null;
   isAdmin: boolean;
   isDemo: boolean;
@@ -28,6 +29,7 @@ const API_BASE = import.meta.env.VITE_API_URL || '';
 
 const AuthContext = createContext<AuthContextType>({
   token: null,
+  userId: null,
   email: null,
   isAdmin: false,
   isDemo: false,
@@ -42,6 +44,7 @@ const AuthContext = createContext<AuthContextType>({
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
@@ -79,10 +82,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           removeCompatItem(KEYS.authEmail.new, KEYS.authEmail.legacy);
           removeCompatItem(KEYS.authAdmin.new, KEYS.authAdmin.legacy);
           setToken(null);
+          setUserId(null);
           setEmail(null);
           setIsAdmin(false);
           setIsDemo(false);
         } else if (data) {
+          setUserId(data.id);
           setIsAdmin(data.is_superuser);
           setIsDemo(data.is_demo ?? false);
           setTermsCurrent(data.terms_current ?? true);
@@ -130,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .then((r) => r.ok ? r.json() : null)
           .then((me) => {
             if (me) {
+              setUserId(me.id);
               setIsAdmin(me.is_superuser);
               setIsDemo(me.is_demo ?? false);
               setTermsCurrent(me.terms_current ?? true);
@@ -197,6 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     removeCompatItem(KEYS.authEmail.new, KEYS.authEmail.legacy);
     removeCompatItem(KEYS.authAdmin.new, KEYS.authAdmin.legacy);
     setToken(null);
+    setUserId(null);
     setEmail(null);
     setIsAdmin(false);
     setIsDemo(false);
@@ -224,7 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ token, email, isAdmin, isDemo, isAuthenticated, isLoading, termsCurrent, login, register, logout, acceptTerms }}
+      value={{ token, userId, email, isAdmin, isDemo, isAuthenticated, isLoading, termsCurrent, login, register, logout, acceptTerms }}
     >
       {children}
     </AuthContext.Provider>

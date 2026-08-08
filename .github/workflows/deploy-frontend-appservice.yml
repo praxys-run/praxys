@@ -102,6 +102,8 @@ jobs:
         env:
           VITE_API_URL: ${{ vars.VITE_API_URL }}
           VITE_APP_VERSION: ${{ steps.version.outputs.version }}
+          VITE_STATSIG_CLIENT_KEY: ${{ vars.VITE_STATSIG_CLIENT_KEY }}
+          VITE_STATSIG_ENV: ${{ vars.STATSIG_ENV || 'production' }}
 
       - name: Stamp static health metadata
         shell: bash
