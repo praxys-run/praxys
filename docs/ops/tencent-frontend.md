@@ -63,7 +63,10 @@ sudo systemctl reload nginx
 
 The config mirrors `frontend_server/main.py`: hashed Vite assets are immutable
 for one year, ordinary assets cache for one day, SPA routes fall back to
-`index.html`, and the shell revalidates on every visit.
+`index.html`, and the shell revalidates on every visit. Nginx also compresses
+compressible JavaScript, CSS, JSON, XML, SVG, and text responses; keep this
+enabled because Lighthouse egress bandwidth otherwise dominates mainland cold
+loads.
 
 This bootstrap exposes HTTP only for local verification and the first CI
 deployment. Do not route public production traffic to it yet. Before the
@@ -125,10 +128,15 @@ On the server:
 readlink -f /var/www/praxys/current
 cat /var/www/praxys/current/deployed_sha.txt
 curl -sS -H 'Host: www.praxys.run' http://127.0.0.1/healthz
+curl -sSI -H 'Accept-Encoding: gzip' \
+  -H 'Host: www.praxys.run' \
+  http://127.0.0.1/assets/<current-hashed-javascript> \
+  | grep -i '^Content-Encoding: gzip'
 ```
 
-The SHA must match the workflow commit. After EdgeOne and DNS are configured,
-verify the public response and cache headers:
+The SHA must match the workflow commit, and the JavaScript response must include
+`Content-Encoding: gzip`. After EdgeOne and DNS are configured, verify the
+public response and cache headers:
 
 ```bash
 curl -I https://www.praxys.run/

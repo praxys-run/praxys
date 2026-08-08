@@ -1,0 +1,180 @@
+schema_version: 1
+id: evidence-plan-outcome-interpretation-v1
+version: 1
+title: "Training-plan outcome interpretation"
+research_question: >
+  What evidence supports combining performance, physiological, subjective, and
+  execution observations when interpreting an individual training-plan outcome?
+topic: plan-outcome-interpretation
+status: draft
+authors:
+  - agent:github-copilot
+human_reviewers: []
+created_on: 2026-08-08
+reviewed_on:
+intended_product_purpose: >
+  Bound post-plan review so Praxys separates observed outcome, plan execution,
+  athlete context, and causal hypotheses rather than claiming to know why an
+  individual did or did not achieve a goal.
+scope:
+  population:
+    - Adult athletes in training-monitoring studies
+    - Adults in endurance, interval, and resistance exercise-response research
+    - Recreational runners as the intended product population
+  intervention_or_exposure:
+    - Training load
+    - Subjective well-being monitoring
+    - Endurance and high-intensity interval training
+  comparator:
+    - Subjective versus common objective monitoring measures
+    - VO2max versus other response indicators
+    - Different training modalities and intervention durations
+  outcomes:
+    - Athlete well-being response
+    - Cardiorespiratory fitness response
+    - Heterogeneity of response indicators
+    - Causal-interpretation limits
+method:
+  review_type: rigorous
+  search_date: 2026-08-08
+  sources:
+    - name: PubMed
+      search_string: >
+        (athlete*[Title/Abstract] OR endurance[Title/Abstract]) AND
+        ("training response"[Title/Abstract] OR adherence[Title/Abstract] OR
+        "subjective measures"[Title/Abstract] OR
+        "individual response"[Title/Abstract]) AND
+        (monitoring[Title/Abstract] OR outcome*[Title/Abstract])
+    - name: PubMed exact identifier verification
+      search_string: "26423706[PMID] OR 34301648[PMID]"
+    - name: PubMed Central
+      search_string: "PMC4789708 OR PMC8728353"
+    - name: Crossref DOI API
+      search_string: >
+        GET /works/{doi} for 10.1136/bjsports-2015-094758
+        and 10.1136/bmjopen-2020-044676
+  inclusion_criteria:
+    - Systematic reviews comparing athlete monitoring measures
+    - Systematic reviews or meta-analyses of exercise-response indicators
+    - Stable DOI or PMID metadata and an abstract or full text
+  exclusion_criteria:
+    - Single-factor causal explanations without a causal study design
+    - Diagnostic mental-health or medical screening instruments
+    - Vendor-generated readiness or adherence scores
+    - Coach opinion without empirical review
+  quality_appraisal: >
+    Claims were appraised for review design, concurrent comparison of measures,
+    heterogeneity, outcome specificity, causal identification, and directness
+    to individual recreational-runner plan review.
+  method_limitations:
+    - Titles and abstracts were manually screened against the criteria; screening and appraisal were not duplicated by independent reviewers.
+    - Full text was available for both included sources; no inaccessible included source was used beyond its verified access level.
+    - The monitoring review spans sports and does not validate a Praxys questionnaire.
+    - Exercise-response evidence focuses strongly on VO2max and laboratory outcomes.
+    - No reviewed study validates a complete post-plan causal attribution framework.
+claims:
+  - id: outcome.subjective-monitoring-adds-signal
+    statement: >
+      Subjective self-reported well-being measures can detect training-related
+      changes and may add information not captured by common objective measures.
+    source_ids:
+      - saw-2016
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Included concurrent monitoring studies
+        estimate: 56
+        unit: studies
+        context: Systematic review of athlete well-being measures
+    applicable_population:
+      - Athletes represented across the included monitoring studies
+    domain:
+      - Subjective monitoring
+      - Training response
+    limitations:
+      - Measures and sports were heterogeneous.
+      - Subjective response does not establish the cause of a plan outcome.
+      - The review does not validate sensitive free-text collection.
+  - id: outcome.single-indicator-insufficient
+    statement: >
+      Exercise response is heterogeneous across indicators, modalities, and
+      intervention durations, so one physiological indicator should not be
+      treated as a complete account of an individual's plan outcome.
+    source_ids:
+      - ardavani-2021
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Studies in qualitative synthesis
+        estimate: 29
+        unit: studies
+        context: Systematic review of exercise-response indicators
+      - metric: Studies in quantitative synthesis
+        estimate: 22
+        unit: studies
+        context: Meta-analysis of exercise-response indicators
+    applicable_population:
+      - Adults in endurance, interval, and resistance exercise studies
+    domain:
+      - Exercise response
+      - Outcome triangulation
+    limitations:
+      - Heterogeneity was ubiquitous across analyses.
+      - Other indicators did not reach statistical significance in pooled analysis.
+      - The review does not prescribe a product outcome framework.
+  - id: outcome.observations-not-causal-explanation
+    statement: >
+      Observed monitoring and response indicators describe what changed but do
+      not, without an appropriate causal design, establish why one athlete
+      achieved or missed a goal.
+    source_ids:
+      - saw-2016
+      - ardavani-2021
+    evidence_strength: low
+    applicable_population:
+      - Individual athletes whose plan review combines monitoring and response indicators
+    domain:
+      - Causal attribution
+      - Plan review
+    limitations:
+      - This is an epistemic boundary inferred from non-causal evidence.
+      - A ranked hypothesis can guide future observation but is not a diagnosis.
+      - Athlete-reported context may be relevant without proving causation.
+citations:
+  - id: saw-2016
+    title: "Monitoring the athlete training response: subjective self-reported measures trump commonly used objective measures: a systematic review"
+    authors:
+      - A. E. Saw
+      - L. C. Main
+      - P. B. Gastin
+    year: 2016
+    journal: British Journal of Sports Medicine
+    doi: 10.1136/bjsports-2015-094758
+    pmid: "26423706"
+  - id: ardavani-2021
+    title: "Indicators of response to exercise training: a systematic review and meta-analysis"
+    authors:
+      - A. Ardavani
+      - H. Aziz
+      - B. E. Phillips
+      - B. Doleman
+      - I. Ramzan
+      - B. Mozaffar
+      - P. J. Atherton
+      - I. Idris
+    year: 2021
+    journal: BMJ Open
+    doi: 10.1136/bmjopen-2020-044676
+    pmid: "34301648"
+known_gaps:
+  - Prospectively validated multidimensional outcome review for recreational runners
+  - Validated minimal subjective context with clear retention and deletion rules
+  - Causal evidence linking a specific adaptive decision to individual goal outcome
+  - Standard handling of censored outcomes caused by illness, injury, or life constraints
+conflicting_findings:
+  - Subjective measures were more sensitive to training changes in one review, while objective response indicators remained heterogeneous and incompletely differentiated in another.
+follow_up_questions:
+  - What smallest structured context vocabulary helps interpretation without inviting diagnosis?
+  - Which outcome hypotheses can be prospectively tested in later plans?
+review_notes:
+  - "Verification: saw-2016 - full-text; PubMed Central PMC4789708 and PubMed metadata; 2026-08-08."
+  - "Verification: ardavani-2021 - full-text; PubMed Central PMC8728353 and PubMed metadata; 2026-08-08."
+  - Execution adherence is an exposure record, not evidence that adaptation occurred or that the plan caused the result.

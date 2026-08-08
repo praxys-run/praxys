@@ -27,12 +27,18 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     registry = load_science_registry()
 
     assert set(registry.evidence_reviews) == {
+        "evidence-adaptive-training-load-v1",
         "evidence-environmental-performance-v1",
         "evidence-heat-adaptation-v1",
         "evidence-heat-decay-v1",
+        "evidence-individual-goal-feasibility-v1",
+        "evidence-plan-outcome-interpretation-v1",
         "evidence-personal-environment-response-v1",
+        "evidence-running-field-tests-v1",
+        "evidence-short-interruption-detraining-v1",
     }
     assert set(registry.decisions) == {
+        "sdr-adaptive-plan-feasibility-and-adjustment-v1",
         "sdr-environmental-performance-v1",
         "sdr-environmental-performance-v2",
         "sdr-heat-adaptation-v1",
@@ -43,6 +49,9 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     assert registry.decisions["sdr-environmental-performance-v2"].status == (
         "accepted"
     )
+    assert registry.decisions[
+        "sdr-adaptive-plan-feasibility-and-adjustment-v1"
+    ].status == "draft"
 
     decision = registry.decisions["sdr-heat-adaptation-v1"]
     assert decision.status == "accepted"

@@ -1,0 +1,207 @@
+schema_version: 1
+id: evidence-running-field-tests-v1
+version: 1
+title: "Running field tests for plan baselines and outcomes"
+research_question: >
+  Which field-test properties support using a running test as direct or
+  supporting evidence of change across an adaptive training plan?
+topic: running-field-tests
+status: draft
+authors:
+  - agent:github-copilot
+human_reviewers: []
+created_on: 2026-08-08
+reviewed_on:
+intended_product_purpose: >
+  Define when Praxys may compare field-test results across a plan and prevent
+  unlike protocols, model estimates, or environmental conditions from being
+  presented as equivalent direct performance evidence.
+scope:
+  population:
+    - Healthy adults and children in walk/run field-test validation research
+    - Trained adult runners in critical-speed research
+    - Recreational runners as the intended product population
+  intervention_or_exposure:
+    - Distance- and time-based walk/run tests
+    - Time trials and time-to-exhaustion tests
+    - Field-based critical-speed protocols
+    - Treadmill-derived critical-speed models
+  comparator:
+    - Laboratory cardiorespiratory fitness
+    - Race-like performance
+    - Alternative critical-speed models
+    - Repeated measurements under defined protocols
+  outcomes:
+    - Validity
+    - Reliability
+    - Sensitivity to change
+    - Running-performance prediction
+method:
+  review_type: rigorous
+  search_date: 2026-08-08
+  sources:
+    - name: PubMed
+      search_string: >
+        (running[Title/Abstract] OR runner*[Title/Abstract]) AND
+        ("field test"[Title/Abstract] OR "time trial"[Title/Abstract] OR
+        "critical speed"[Title/Abstract]) AND
+        (validity[Title/Abstract] OR reliability[Title/Abstract] OR
+        repeatability[Title/Abstract])
+    - name: PubMed exact identifier verification
+      search_string: >
+        18348590[PMID] OR 26987118[PMID] OR 40134905[PMID] OR 27379951[PMID]
+    - name: PubMed Central
+      search_string: "PMC4795745 OR PMC11933073"
+    - name: Crossref DOI API
+      search_string: >
+        GET /works/{doi} for 10.2165/00007256-200838040-00003,
+        10.1371/journal.pone.0151671, 10.3389/fspor.2025.1520914,
+        and 10.1519/JSC.0000000000001529
+  inclusion_criteria:
+    - Human running or walk/run field-test validity or reliability research
+    - Reviews of sport-performance test validity, reliability, and sensitivity
+    - Stable DOI or PMID metadata and an abstract or full text
+  exclusion_criteria:
+    - Tests requiring a laboratory as the proposed product endpoint
+    - Cycling-only or team-sport protocols
+    - Vendor estimates without a reproducible protocol
+    - Studies without criterion, repeatability, or performance interpretation
+  quality_appraisal: >
+    Claims were appraised for construct match, protocol standardization,
+    directness to running performance, test-retest reliability, sensitivity,
+    sample size, setting, model dependence, and applicability to recreational
+    runners.
+  method_limitations:
+    - Titles and abstracts were manually screened against the criteria; screening and appraisal were not duplicated by independent reviewers.
+    - Full text was not accessed for currell-2008 or nimmerichter-2017, so claims from those sources are limited to their abstracts.
+    - The search did not exhaust every race-distance time-trial protocol.
+    - Some reviews mix children and adults or trained and recreational runners.
+    - Environmental standardization and minimal detectable change remain protocol specific.
+claims:
+  - id: field-test.protocol-validity-reliability-sensitivity
+    statement: >
+      A performance test used to detect change should match the target
+      performance and establish protocol-specific validity, reliability, and
+      sensitivity; time trials are generally more reliable than
+      time-to-exhaustion protocols.
+    source_ids:
+      - currell-2008
+    evidence_strength: moderate
+    applicable_population:
+      - Sports-performance testing populations represented by the review
+    domain:
+      - Performance testing
+      - Measurement error
+    limitations:
+      - Exact error depends on sport, distance, protocol, and population.
+      - The review does not define one preferred running test for Praxys.
+  - id: field-test.vo2-estimate-not-direct-performance
+    statement: >
+      Distance- and time-based walk/run tests can estimate cardiorespiratory
+      fitness, but the resulting score is an estimate rather than a direct
+      laboratory measure or a complete measure of goal performance.
+    source_ids:
+      - mayorga-vega-2016
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Criterion-related validity correlation range
+        range_low: 0.42
+        range_high: 0.79
+        unit: correlation
+        context: Walk/run field tests estimating maximal oxygen uptake
+    applicable_population:
+      - Apparently healthy children and adults represented by the review
+    domain:
+      - Cardiorespiratory fitness estimation
+      - Field testing
+    limitations:
+      - Results combine diverse ages and protocols.
+      - Estimated VO2max is not equivalent to race-goal completion.
+  - id: field-test.critical-speed-protocol-dependent
+    statement: >
+      Field critical-speed assessment can be reliable under specified
+      conditions, but protocol, trial selection, mathematical model, and
+      environment constrain interpretation and comparability.
+    source_ids:
+      - lipkova-2025
+      - nimmerichter-2017
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Included field critical-speed studies
+        estimate: 19
+        unit: studies
+        context: Lipkova systematic review
+      - metric: Simple critical-speed model 5000 m time prediction error
+        range_low: 5.7
+        range_high: 9.4
+        unit: percent
+        context: 16 trained athletes; treadmill-derived models versus track performance
+    applicable_population:
+      - Trained runners using matched field critical-speed protocols
+    domain:
+      - Critical speed
+      - Performance prediction
+    limitations:
+      - The Nimmerichter sample included 16 trained athletes.
+      - A treadmill-derived estimate is not interchangeable with a track time trial.
+      - The 2025 systematic review is recent and includes heterogeneous protocols.
+citations:
+  - id: currell-2008
+    title: "Validity, reliability and sensitivity of measures of sporting performance"
+    authors:
+      - K. Currell
+      - A. E. Jeukendrup
+    year: 2008
+    journal: Sports Medicine
+    doi: 10.2165/00007256-200838040-00003
+    pmid: "18348590"
+  - id: mayorga-vega-2016
+    title: "Criterion-Related Validity of the Distance- and Time-Based Walk/Run Field Tests for Estimating Cardiorespiratory Fitness: A Systematic Review and Meta-Analysis"
+    authors:
+      - D. Mayorga-Vega
+      - R. Bocanegra-Parrilla
+      - M. Ornelas
+      - J. Viciana
+    year: 2016
+    journal: PLOS ONE
+    doi: 10.1371/journal.pone.0151671
+    pmid: "26987118"
+  - id: lipkova-2025
+    title: "Field-based tests for determining critical speed among runners and its practical application: a systematic review"
+    authors:
+      - L. Lipkova
+      - I. Struhar
+      - J. Krajnak
+      - D. Puda
+      - M. Kumstat
+    year: 2025
+    journal: Frontiers in Sports and Active Living
+    doi: 10.3389/fspor.2025.1520914
+    pmid: "40134905"
+  - id: nimmerichter-2017
+    title: "Validity of Treadmill-Derived Critical Speed on Predicting 5000-Meter Track-Running Performance"
+    authors:
+      - A. Nimmerichter
+      - N. Novak
+      - C. Triska
+      - B. Prinz
+      - B. C. Breese
+    year: 2017
+    journal: Journal of Strength and Conditioning Research
+    doi: 10.1519/JSC.0000000000001529
+    pmid: "27379951"
+known_gaps:
+  - Protocol-specific repeatability in Praxys recreational-runner populations
+  - Comparable baseline and outcome protocols for trail and ultra-distance goals
+  - Environmental and fatigue-state standardization rules
+  - Validity of provider-estimated critical power as an outcome endpoint
+conflicting_findings:
+  - Critical-speed methods can show high reliability under specified conditions while still producing material prediction error when transferred across protocols or environments.
+follow_up_questions:
+  - Which single same-protocol field test should be piloted for each supported goal type?
+  - What repeatability study is required before classifying a change as meaningful?
+review_notes:
+  - "Verification: currell-2008 - abstract; PubMed PMID 18348590 and Crossref metadata; 2026-08-08."
+  - "Verification: mayorga-vega-2016 - full-text; PubMed Central PMC4795745 and PubMed metadata; 2026-08-08."
+  - "Verification: lipkova-2025 - full-text; PubMed Central PMC11933073 and PubMed metadata; 2026-08-08."
+  - "Verification: nimmerichter-2017 - abstract; PubMed PMID 27379951 and Crossref metadata; 2026-08-08."

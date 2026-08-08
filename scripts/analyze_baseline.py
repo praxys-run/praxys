@@ -6,10 +6,11 @@ Walks docs/perf-baselines/<date>-<sha>/ for cells named
 prints a markdown table section per scenario that can be pasted into
 TEMPLATE.md.
 
-Everything we need is inside the HAR: sitespeed.io embeds `pageTimings`
-(FCP/LCP/TTI) and `_googleWebVitals` (CLS/TTFB/FID/TBT) on the first page
-entry, so we don't need a separate `browsertime.json` — it's not written
-to disk by default in v39+ anyway.
+Everything we need is inside the HAR: sitespeed.io embeds one page record per
+iteration with `pageTimings` (FCP/LCP/TTI) and `_googleWebVitals`
+(CLS/TTFB/FID/TBT). The analyzer reports the median across those page records,
+so we don't need a separate `browsertime.json` — it isn't written to disk by
+default in v39+ anyway.
 
 Usage:
     python scripts/analyze_baseline.py --baseline-dir docs/perf-baselines/2026-04-24-abc1234
@@ -81,48 +82,84 @@ def extract_metrics(cell_dir: Path) -> dict[str, Any] | None:
     pages = log.get("pages", [])
     entries = log.get("entries", [])
 
-    page = pages[0] if pages else {}
-    page_timings = page.get("pageTimings", {}) or {}
-    gwv = page.get("_googleWebVitals", {}) or {}
+    entries_by_page: dict[str, list[dict[str, Any]]] = {}
+    for entry in entries:
+        entries_by_page.setdefault(entry.get("pageref", ""), []).append(entry)
 
-    # Sitespeed.io underscores internal fields in the HAR; stable public
-    # names live on _googleWebVitals. Fall back between them for safety.
-    fcp = gwv.get("firstContentfulPaint") or page_timings.get("_firstContentfulPaint")
-    lcp = gwv.get("largestContentfulPaint") or page_timings.get("_largestContentfulPaint")
-    # TTI isn't a HAR field — use domInteractiveTime as the closest proxy.
-    tti = page_timings.get("_domInteractiveTime")
-    ttfb = gwv.get("ttfb")
-    num_requests = len(entries)
-    api_entries = [e for e in entries if "/api/" in (e.get("request") or {}).get("url", "")]
-    num_api = len(api_entries)
+    runs: list[dict[str, Any]] = []
+    for page in pages:
+        page_timings = page.get("pageTimings", {}) or {}
+        gwv = page.get("_googleWebVitals", {}) or {}
+        page_entries = entries_by_page.get(page.get("id", ""), [])
 
-    static_bytes = 0
-    api_bytes = 0
-    for e in entries:
-        url = (e.get("request") or {}).get("url", "")
-        size = ((e.get("response") or {}).get("content") or {}).get("size") or 0
-        transferred = (e.get("response") or {}).get("bodySize")
-        if transferred is None or transferred < 0:
-            transferred = size
-        if "/api/" in url:
-            api_bytes += max(0, transferred)
-        else:
-            static_bytes += max(0, transferred)
+        # Sitespeed.io underscores internal fields in the HAR; stable public
+        # names live on _googleWebVitals. Fall back between them for safety.
+        fcp = gwv.get("firstContentfulPaint") or page_timings.get("_firstContentfulPaint")
+        lcp = gwv.get("largestContentfulPaint") or page_timings.get("_largestContentfulPaint")
+        # TTI isn't a HAR field — use domInteractiveTime as the closest proxy.
+        tti = page_timings.get("_domInteractiveTime")
+        api_entries = [
+            e for e in page_entries if "/api/" in (e.get("request") or {}).get("url", "")
+        ]
 
-    api_durations = []
-    for e in api_entries:
-        t = e.get("timings") or {}
-        wait = t.get("wait") or 0
-        receive = t.get("receive") or 0
-        if wait >= 0 and receive >= 0:
-            api_durations.append(wait + receive)
-    api_p50 = statistics.median(api_durations) if api_durations else None
-    api_p95: float | None = None
-    if len(api_durations) >= 2:
-        qs = statistics.quantiles(api_durations, n=20, method="inclusive")
-        api_p95 = qs[-1]
-    elif api_durations:
-        api_p95 = api_durations[0]
+        static_bytes = 0
+        api_bytes = 0
+        for entry in page_entries:
+            url = (entry.get("request") or {}).get("url", "")
+            size = ((entry.get("response") or {}).get("content") or {}).get("size") or 0
+            transferred = (entry.get("response") or {}).get("bodySize")
+            if transferred is None or transferred < 0:
+                transferred = size
+            if "/api/" in url:
+                api_bytes += max(0, transferred)
+            else:
+                static_bytes += max(0, transferred)
+
+        api_durations = []
+        for entry in api_entries:
+            timings = entry.get("timings") or {}
+            wait = timings.get("wait") or 0
+            receive = timings.get("receive") or 0
+            if wait >= 0 and receive >= 0:
+                api_durations.append(wait + receive)
+
+        api_p50 = statistics.median(api_durations) if api_durations else None
+        api_p95: float | None = None
+        if len(api_durations) >= 2:
+            api_p95 = statistics.quantiles(api_durations, n=20, method="inclusive")[-1]
+        elif api_durations:
+            api_p95 = api_durations[0]
+
+        font_css_ttfb: Any = None
+        for entry in page_entries:
+            url = (entry.get("request") or {}).get("url", "")
+            if "fonts.googleapis.com" in url:
+                wait = (entry.get("timings") or {}).get("wait")
+                font_css_ttfb = "timeout" if wait is None or wait < 0 else round(wait)
+                break
+
+        runs.append(
+            {
+                "fcp_ms": fcp,
+                "lcp_ms": lcp,
+                "tti_ms": tti,
+                "ttfb_ms": gwv.get("ttfb"),
+                "static_kb": static_bytes / 1024,
+                "api_kb": api_bytes / 1024,
+                "num_requests": len(page_entries),
+                "num_api": len(api_entries),
+                "api_p50_ms": api_p50,
+                "api_p95_ms": api_p95,
+                "font_css_ttfb": font_css_ttfb,
+            }
+        )
+
+    if not runs:
+        return None
+
+    def median_for(key: str) -> float | None:
+        values = [run[key] for run in runs if isinstance(run.get(key), (int, float))]
+        return statistics.median(values) if values else None
 
     protocols = {((e.get("response") or {}).get("httpVersion") or "").lower() for e in entries}
     protocols.discard("")
@@ -135,33 +172,34 @@ def extract_metrics(cell_dir: Path) -> dict[str, Any] | None:
     else:
         protocol = "?"
 
-    font_css_ttfb: Any = None
-    for e in entries:
-        url = (e.get("request") or {}).get("url", "")
-        if "fonts.googleapis.com" in url:
-            t = e.get("timings") or {}
-            wait = t.get("wait")
-            if wait is None or wait < 0:
-                font_css_ttfb = "timeout"
-            else:
-                font_css_ttfb = round(wait)
-            break
+    font_values = [run["font_css_ttfb"] for run in runs if run["font_css_ttfb"] is not None]
+    if "timeout" in font_values:
+        font_css_ttfb: Any = "timeout"
+    else:
+        numeric_font_values = [value for value in font_values if isinstance(value, (int, float))]
+        font_css_ttfb = (
+            round(statistics.median(numeric_font_values)) if numeric_font_values else None
+        )
 
     # Zero is meaningful signal here, not missing data: S4 (anonymous
     # Landing) legitimately has 0 API requests / 0 API KB, and that's
     # what tells us the anonymous route isn't calling /api/*. So render
     # zeros as 0, not em-dash.
     return {
-        "fcp_ms": round(fcp) if fcp is not None else None,
-        "lcp_ms": round(lcp) if lcp is not None else None,
-        "tti_ms": round(tti) if tti is not None else None,
-        "ttfb_ms": round(ttfb) if ttfb is not None else None,
-        "static_kb": round(static_bytes / 1024, 1),
-        "api_kb": round(api_bytes / 1024, 1),
-        "num_requests": num_requests,
-        "num_api": num_api,
-        "api_p50_ms": round(api_p50) if api_p50 is not None else None,
-        "api_p95_ms": round(api_p95) if api_p95 is not None else None,
+        "fcp_ms": round(value) if (value := median_for("fcp_ms")) is not None else None,
+        "lcp_ms": round(value) if (value := median_for("lcp_ms")) is not None else None,
+        "tti_ms": round(value) if (value := median_for("tti_ms")) is not None else None,
+        "ttfb_ms": round(value) if (value := median_for("ttfb_ms")) is not None else None,
+        "static_kb": round(median_for("static_kb") or 0, 1),
+        "api_kb": round(median_for("api_kb") or 0, 1),
+        "num_requests": round(median_for("num_requests") or 0),
+        "num_api": round(median_for("num_api") or 0),
+        "api_p50_ms": (
+            round(value) if (value := median_for("api_p50_ms")) is not None else None
+        ),
+        "api_p95_ms": (
+            round(value) if (value := median_for("api_p95_ms")) is not None else None
+        ),
         "protocol": protocol,
         "font_css_ttfb": font_css_ttfb,
     }

@@ -26,11 +26,19 @@ Evidence reviews record what the literature supports. Science Decision Records (
 
 ### Evidence reviews
 
-_None._
+| Record | Version | Topic/model | Reviewed/decided |
+|---|---:|---|---|
+| [evidence-adaptive-training-load-v1](evidence/adaptive-training-load/evidence-adaptive-training-load-v1.yaml) — Adaptive endurance-training load decisions | 1 | adaptive-training-load | 2026-08-08 |
+| [evidence-individual-goal-feasibility-v1](evidence/individual-goal-feasibility/evidence-individual-goal-feasibility-v1.yaml) — Individual goal feasibility and prediction limits | 1 | individual-goal-feasibility | 2026-08-08 |
+| [evidence-plan-outcome-interpretation-v1](evidence/plan-outcome-interpretation/evidence-plan-outcome-interpretation-v1.yaml) — Training-plan outcome interpretation | 1 | plan-outcome-interpretation | 2026-08-08 |
+| [evidence-running-field-tests-v1](evidence/running-field-tests/evidence-running-field-tests-v1.yaml) — Running field tests for plan baselines and outcomes | 1 | running-field-tests | 2026-08-08 |
+| [evidence-short-interruption-detraining-v1](evidence/short-interruption-detraining/evidence-short-interruption-detraining-v1.yaml) — Short training interruption and detraining | 1 | short-interruption-detraining | 2026-08-08 |
 
 ### Science decisions
 
-_None._
+| Record | Version | Topic/model | Reviewed/decided |
+|---|---:|---|---|
+| [sdr-adaptive-plan-feasibility-and-adjustment-v1](decisions/sdr-adaptive-plan-feasibility-and-adjustment-v1.yaml) — Bound adaptive-plan feasibility, adjustment, and outcome interpretation | 1 | adaptive-plan-policy-v1 | 2026-08-08 |
 
 ## Superseded
 
