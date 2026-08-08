@@ -87,7 +87,14 @@ function StatsigBridge({
  * with every application-owned flag defaulted to false.
  */
 export function StatsigProvider({ children }: { children: ReactNode }) {
-  const { userId, email, isAdmin, isDemo, isAuthenticated } = useAuth();
+  const {
+    userId,
+    email,
+    isAdmin,
+    isDemo,
+    isAuthenticated,
+    isLoading,
+  } = useAuth();
   const user = useMemo<StatsigUser>(() => ({
     ...(isAuthenticated && userId ? { userID: userId } : {}),
     ...(isAuthenticated && email ? { email } : {}),
@@ -97,7 +104,7 @@ export function StatsigProvider({ children }: { children: ReactNode }) {
     },
   }), [email, isAdmin, isAuthenticated, isDemo, userId]);
 
-  if (!CLIENT_KEY) {
+  if (!CLIENT_KEY || isLoading || !isAuthenticated || !userId) {
     return (
       <FeatureFlagsContext.Provider value={DISABLED_FLAGS}>
         {children}
