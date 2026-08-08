@@ -12,6 +12,7 @@ from api.labs_environment import (
     EXPERIMENT_ID,
     adult_eligibility_reason,
     enroll,
+    environment_response_preflight,
     process_environment_response_job,
     public_state,
     queue_recompute,
@@ -30,7 +31,7 @@ class EnvironmentEnrollmentRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    adult_attested: bool
+    adult_attested: Annotated[bool, Field(strict=True)]
     consent_version: str
 
 
@@ -223,6 +224,40 @@ class EnvironmentResponseState(BaseModel):
     completed_at: str | None = None
 
 
+class EnvironmentPreflightObserved(BaseModel):
+    """Aggregate prerequisite counts; no activity identities or samples."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    candidate_activity_count: int
+    temperature_activity_count: int
+    humidity_activity_count: int
+    environment_activity_count: int
+    power_activity_count: int
+    heart_rate_activity_count: int
+    complete_any_provider_activity_count: int
+    stryd_power_activity_count: int
+    complete_stryd_activity_count: int
+    provider_aligned_cp_activity_count: int
+
+
+class EnvironmentPreflightResponse(BaseModel):
+    """Fast prerequisite estimate before the full scientific analysis."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal[
+        "likely_eligible",
+        "ineligible",
+        "needs_full_analysis",
+    ]
+    can_start_analysis: bool
+    reason_code: str | None
+    minimum_activity_count: int
+    observed: EnvironmentPreflightObserved
+    full_analysis_still_required: Literal[True]
+
+
 @router.post(
     "/labs/environment-response/wet-bulb",
     response_model=EnvironmentWetBulbResponse,
@@ -249,6 +284,30 @@ def calculate_environment_wet_bulb(
             else "outside_method_domain"
         ),
     }
+
+
+@router.get(
+    "/labs/environment-response/preflight",
+    response_model=EnvironmentPreflightResponse,
+)
+def get_environment_response_preflight(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Return fast definite blockers without running or storing analysis."""
+    return environment_response_preflight(db, user_id)
+
+
+def _require_preflight_eligibility(db: Session, user_id: str) -> None:
+    preflight = environment_response_preflight(db, user_id)
+    if not preflight["can_start_analysis"]:
+        raise HTTPException(
+            409,
+            detail={
+                "code": "LABS_ENVIRONMENT_PREFLIGHT_INELIGIBLE",
+                "preflight": preflight,
+            },
+        )
 
 
 def _schedule(
@@ -300,6 +359,7 @@ def enroll_environment_response(
     db: Session = Depends(get_db),
 ) -> dict:
     """Record explicit consent and queue private aggregate computation."""
+    _require_preflight_eligibility(db, user_id)
     try:
         row = enroll(
             db,
@@ -338,6 +398,7 @@ def recompute_environment_response(
     db: Session = Depends(get_db),
 ) -> dict:
     """Queue a fresh result under the existing explicit consent."""
+    _require_preflight_eligibility(db, user_id)
     row = queue_recompute(db, user_id)
     if row is None:
         raise HTTPException(409, detail="LABS_ENVIRONMENT_NOT_ENROLLED")

@@ -61,7 +61,7 @@ WBGT, or a direct body measurement.
 | Processing | Aggregate result is being computed | Progress and cancellation |
 | Insufficient data | Required activities, segments, spread, overlap, or provenance are absent | Coverage explanation; no line |
 | Unstable association | Direction or uncertainty is not robust | Coverage and limitation explanation; no fitted line |
-| Historical association only | All descriptive gates pass; evaluated prediction does not pass | Curve plus prominent non-predictive label |
+| Historical association only | All release gates pass; prediction diagnostics may pass or fail, but V1 does not treat either outcome as predictive validation | Curve plus a status-specific, prominent non-forecast label |
 | Prediction unavailable | Predictive controls could not be evaluated | Coverage explanation; no fitted line |
 | Predictively validated | Reserved for a future decision | Not available in V1 |
 | Stale | Source revision or model version changed | Recompute prompt; hide current claim |

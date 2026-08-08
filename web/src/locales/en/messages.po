@@ -8034,3 +8034,93 @@ msgstr "Zones & load from Lactate Threshold HR"
 #: src/pages/Setup.tsx:180
 msgid "Zones & load from Threshold Pace"
 msgstr "Zones & load from Threshold Pace"
+
+msgid "Result ready"
+msgstr "Result ready"
+
+msgid "Analyzing"
+msgstr "Analyzing"
+
+msgid "Participating"
+msgstr "Participating"
+
+msgid "Choose voluntary experiments that help you inspect your own training history without turning early research into advice."
+msgstr "Choose voluntary experiments that help you inspect your own training history without turning early research into advice."
+
+msgid "Available experiments"
+msgstr "Available experiments"
+
+msgid "Each experiment has its own consent, data requirements, limitations, and withdrawal controls."
+msgstr "Each experiment has its own consent, data requirements, limitations, and withdrawal controls."
+
+msgid "Environmental response"
+msgstr "Environmental response"
+
+msgid "Explore whether modeled heart rate varied with temperature and humidity at comparable recorded Stryd power in your eligible past runs."
+msgstr "Explore whether modeled heart rate varied with temperature and humidity at comparable recorded Stryd power in your eligible past runs."
+
+msgid "Historical association only · personal aggregate result · continuous Stryd samples required"
+msgstr "Historical association only · personal aggregate result · continuous Stryd samples required"
+
+msgid "Open experiment"
+msgstr "Open experiment"
+
+msgid "Enough source data to attempt the experiment"
+msgstr "Enough source data to attempt the experiment"
+
+msgid "Full analysis must confirm eligibility"
+msgstr "Full analysis must confirm eligibility"
+
+msgid "Not enough suitable data to start yet"
+msgstr "Not enough suitable data to start yet"
+
+msgid "This quick check only covers definite prerequisites. The full analysis can still return insufficient support, an unstable association, or no conclusion."
+msgstr "This quick check only covers definite prerequisites. The full analysis can still return insufficient support, an unstable association, or no conclusion."
+
+msgid "Praxys stopped before consent or long-running analysis. Sync or collect the missing data, then retry this check."
+msgstr "Praxys stopped before consent or long-running analysis. Sync or collect the missing data, then retry this check."
+
+msgid "Suitable activities detected"
+msgstr "Suitable activities detected"
+
+msgid "minimum"
+msgstr "minimum"
+
+msgid "The quick check found a data requirement that needs attention."
+msgstr "The quick check found a data requirement that needs attention."
+
+msgid "All experiments"
+msgstr "All experiments"
+
+msgid "Eligibility check could not load"
+msgstr "Eligibility check could not load"
+
+msgid "Retry before joining. The full analysis has not started."
+msgstr "Retry before joining. The full analysis has not started."
+
+msgid "Needs data"
+msgstr "Needs data"
+
+msgid "Check required"
+msgstr "Check required"
+
+msgid "Activities passing quick prerequisites"
+msgstr "Activities passing quick prerequisites"
+
+msgid "Temperature and humidity are not both present on enough of the same activities."
+msgstr "Temperature and humidity are not both present on enough of the same activities."
+
+msgid "Enough activities exist overall, but the required environment, power, and heart-rate data do not overlap on enough of the same runs."
+msgstr "Enough activities exist overall, but the required environment, power, and heart-rate data do not overlap on enough of the same runs."
+
+msgid "Your history includes enough broad sample coverage, but the full analysis must confirm that power, heart rate, and Critical Power use one compatible Stryd regime."
+msgstr "Your history includes enough broad sample coverage, but the full analysis must confirm that power, heart rate, and Critical Power use one compatible Stryd regime."
+
+msgid "Passed research diagnostics; not a forecast"
+msgstr "Passed research diagnostics; not a forecast"
+
+msgid "The chronological holdout and sensitivity checks passed, but this personal historical association is still not a clinical claim or future-condition forecast."
+msgstr "The chronological holdout and sensitivity checks passed, but this personal historical association is still not a clinical claim or future-condition forecast."
+
+msgid "One or more research diagnostics did not support predictive interpretation. Read the curve only as a pattern in eligible past runs."
+msgstr "One or more research diagnostics did not support predictive interpretation. Read the curve only as a pattern in eligible past runs."

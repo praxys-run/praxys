@@ -1245,6 +1245,28 @@ export interface LabsEnvironmentResponseState {
   completed_at: string | null;
 }
 
+export interface LabsEnvironmentPreflightObserved {
+  candidate_activity_count: number;
+  temperature_activity_count: number;
+  humidity_activity_count: number;
+  environment_activity_count: number;
+  power_activity_count: number;
+  heart_rate_activity_count: number;
+  complete_any_provider_activity_count: number;
+  stryd_power_activity_count: number;
+  complete_stryd_activity_count: number;
+  provider_aligned_cp_activity_count: number;
+}
+
+export interface LabsEnvironmentPreflightResponse {
+  status: 'likely_eligible' | 'ineligible' | 'needs_full_analysis';
+  can_start_analysis: boolean;
+  reason_code: string | null;
+  minimum_activity_count: number;
+  observed: LabsEnvironmentPreflightObserved;
+  full_analysis_still_required: true;
+}
+
 export interface LabsEnvironmentWetBulbResponse {
   temperature_c: number;
   relative_humidity_pct: number;
