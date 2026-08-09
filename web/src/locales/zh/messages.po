@@ -1027,7 +1027,7 @@ msgstr "Azure Monitor 返回了不完整的结果，因此此部分未刷新。"
 
 #: src/components/PersonalContextPanel.tsx:1365
 msgid "Azure OpenAI"
-msgstr "Azure OpenAI"
+msgstr "Azure OpenAI 服务"
 
 #: src/pages/admin/AdminOps.tsx:572
 #~ msgid "Azure-backed summary"
@@ -5626,7 +5626,7 @@ msgstr "计划仍由 Praxys 管理，下发已暂停。"
 
 #: src/components/PersonalContextPanel.tsx:1531
 msgid "Praxys sends a minimized copy for this purpose only. Raw provider requests and responses are not written to Praxys logs. Provider-side retention follows the Praxys Microsoft Azure agreement."
-msgstr "Praxys 只会为此用途发送最小化副本。原始请求和响应不会写入 Praxys 日志。提供方侧保留遵循 Praxys 与 Microsoft Azure 的协议。"
+msgstr "Praxys 只会为此用途发送最小化副本。原始请求和响应不会写入 Praxys 日志。Azure 侧的数据保留遵循 Praxys 与 Microsoft Azure 的协议。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:1068
 #~ msgid "Praxys sends duration-only running workouts and verifies both the Garmin template and scheduled calendar instance."
@@ -8856,7 +8856,7 @@ msgstr "最多可添加 3 张图片。"
 
 #: src/components/PersonalContextPanel.tsx:1592
 msgid "You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed. Deleting the item removes local provider-use receipts and dependent private explanations."
-msgstr "你可以在后续请求前撤回。撤回无法收回提供方已处理的请求。删除该项会移除本地提供方使用记录和关联的私密说明。"
+msgstr "你可以在后续请求前撤回。撤回无法收回 AI 服务已处理的请求。删除该项会移除本地 AI 使用记录和关联的私密说明。"
 
 #: src/pages/LabsEnvironment.tsx:856
 msgid "You control this experiment"
