@@ -856,6 +856,8 @@ const EN_LABS = {
   'Relative modeled HR': 'Relative modeled HR',
   'Lower interval': 'Lower interval',
   'Upper interval': 'Upper interval',
+  'minimum 5 per range': 'minimum 5 per range',
+  activities: 'activities',
   'This sits inside your displayed historical range.':
     'This sits inside your displayed historical range.',
   'This is a psychrometric estimate—not apparent temperature, outdoor WBGT, body temperature, or a heat-safety assessment.':
@@ -877,6 +879,8 @@ const ZH_LABS = {
   'Relative modeled HR': '相对模型心率',
   'Lower interval': '区间下界',
   'Upper interval': '区间上界',
+  'minimum 5 per range': '每个区间至少 5 次',
+  activities: '次活动',
   'This sits inside your displayed historical range.':
     '该值位于已显示的历史范围内。',
   'This is a psychrometric estimate—not apparent temperature, outdoor WBGT, body temperature, or a heat-safety assessment.':

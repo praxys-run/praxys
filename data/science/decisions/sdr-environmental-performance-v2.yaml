@@ -2,7 +2,7 @@ schema_version: 1
 id: sdr-environmental-performance-v2
 version: 2
 title: "Present a private historical environmental-response experiment"
-status: accepted
+status: superseded
 decision_date: 2026-08-08
 owners:
   - team:praxys
@@ -661,6 +661,7 @@ affected_surfaces:
     - Stull psychrometric wet-bulb calculator
 supersedes:
   - sdr-environmental-performance-v1
+superseded_by: sdr-environmental-performance-v3
 decision_notes:
   - >
     Human approval was provided by github:dddtc2005 after review of PR #594 on

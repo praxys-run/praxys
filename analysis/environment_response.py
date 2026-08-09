@@ -18,16 +18,16 @@ from analysis.heat_response_validation import (
 )
 
 
-LABS_ENVIRONMENT_MODEL_VERSION = f"{MODEL_VERSION}-labs-v1"
+LABS_ENVIRONMENT_MODEL_VERSION = f"{MODEL_VERSION}-labs-v2"
 POWER_REGIME = "stryd_continuous_samples"
 # Product guardrails below are accepted governance estimates from
-# data/science/decisions/sdr-environmental-performance-v2.yaml. They are not
+# data/science/decisions/sdr-environmental-performance-v3.yaml. They are not
 # published physiological constants.
 
 
 @dataclass(frozen=True)
 class LabsEnvironmentConfig:
-    """Accepted V1 display-support and influence guardrails."""
+    """Accepted Labs v2 display-support and influence guardrails."""
 
     curve_domain_percentiles: tuple[float, float] = (10.0, 90.0)
     curve_support_bin_count: int = 5
@@ -35,6 +35,7 @@ class LabsEnvironmentConfig:
     minimum_segments_per_curve_bin: int = 10
     reference_power_pct_cp: tuple[float, float] = (75.0, 85.0)
     minimum_reference_power_activities_per_curve_bin: int = 5
+    minimum_contiguous_supported_bins: int = 2
     maximum_bootstrap_width_ratio: float = 1.0
     minimum_leave_one_out_sign_agreement: float = 0.8
     maximum_leave_one_out_relative_change: float = 0.5
@@ -216,48 +217,25 @@ def build_environment_response_result(
         float(domain_high),
         selected.curve_support_bin_count + 1,
     )
-    support_bins: list[dict[str, Any]] = []
-    for index in range(selected.curve_support_bin_count):
-        low = float(edges[index])
-        high = float(edges[index + 1])
-        in_bin = [
-            row
-            for row in train_rows
-            if row.wet_bulb_c >= low
-            and (
-                row.wet_bulb_c < high
-                or (
-                    index == selected.curve_support_bin_count - 1
-                    and row.wet_bulb_c <= high
-                )
-            )
+    support_bins = _curve_support_bins(
+        combined.get("records", []),
+        train_rows,
+        edges,
+        selected,
+    )
+    supported_sections = _supported_bin_sections(support_bins)
+    curve_support_pass = _has_displayable_section(
+        supported_sections,
+        selected.minimum_contiguous_supported_bins,
+    )
+    reference_overlap_pass = curve_support_pass
+    displayed_domains = [
+        [
+            support_bins[section[0]]["lower_wet_bulb_c"],
+            support_bins[section[-1]]["upper_wet_bulb_c"],
         ]
-        activity_count = len({row.activity_key for row in in_bin})
-        reference_activity_count = len({
-            row.activity_key
-            for row in in_bin
-            if selected.reference_power_pct_cp[0]
-            <= row.mean_pct_cp
-            <= selected.reference_power_pct_cp[1]
-        })
-        support_bins.append({
-            "lower_wet_bulb_c": round(low, 4),
-            "upper_wet_bulb_c": round(high, 4),
-            "activity_count": activity_count,
-            "segment_count": len(in_bin),
-            "reference_power_activity_count": reference_activity_count,
-        })
-
-    curve_support_pass = all(
-        item["activity_count"] >= selected.minimum_activities_per_curve_bin
-        and item["segment_count"] >= selected.minimum_segments_per_curve_bin
-        for item in support_bins
-    )
-    reference_overlap_pass = all(
-        item["reference_power_activity_count"]
-        >= selected.minimum_reference_power_activities_per_curve_bin
-        for item in support_bins
-    )
+        for section in supported_sections
+    ] if curve_support_pass else []
     coefficient = model["heat_stress_coefficient"]
     estimate = float(coefficient["estimate_bpm_per_c"])
     interval = coefficient["uncertainty_interval_bpm_per_c"]
@@ -308,6 +286,7 @@ def build_environment_response_result(
             "pass" if influence_pass else "fail"
         ),
         "stryd_power_regime": "pass" if stryd_regime_pass else "fail",
+        "partial_domain_support": "pass" if curve_support_pass else "fail",
     }
     gate_statuses.update(product_gates)
     product_gates_pass = all(status == "pass" for status in product_gates.values())
@@ -353,15 +332,26 @@ def build_environment_response_result(
             report=report,
         )
 
+    supported_point_specs = [
+        (
+            bin_index,
+            section_index,
+            (
+                support_bins[bin_index]["lower_wet_bulb_c"]
+                + support_bins[bin_index]["upper_wet_bulb_c"]
+            ) / 2.0,
+        )
+        for section_index, section in enumerate(supported_sections)
+        for bin_index in section
+    ]
     curve_points = _curve_points(
         train_rows,
         model,
         feature_names,
-        float(domain_low),
-        float(domain_high),
         interval,
-        selected.curve_support_bin_count,
+        supported_point_specs,
     )
+    partial_domain = len(supported_point_specs) < selected.curve_support_bin_count
     return {
         "model_version": LABS_ENVIRONMENT_MODEL_VERSION,
         "power_regime": POWER_REGIME,
@@ -374,6 +364,7 @@ def build_environment_response_result(
                 round(float(domain_high), 4),
             ],
             "curve_support_bins": support_bins,
+            "displayed_wet_bulb_domains_c": displayed_domains,
         },
         "aggregate_curve_points": curve_points,
         "aggregate_uncertainty": {
@@ -389,8 +380,178 @@ def build_environment_response_result(
             "not_predictively_validated_for_product_use",
             "psychrometric_wet_bulb_proxy_not_wbgt",
             "no_extrapolation_beyond_observed_domain",
+            *(
+                ["partial_domain_contains_unsupported_gaps"]
+                if partial_domain
+                else []
+            ),
         ],
     }
+
+
+def _curve_support_bins(
+    records: list[dict[str, Any]],
+    train_rows: list[Any],
+    edges: np.ndarray,
+    config: LabsEnvironmentConfig,
+) -> list[dict[str, Any]]:
+    """Build aggregate support and diagnostic funnels for fixed bins."""
+    activity_support: dict[str, dict[str, Any]] = {}
+    for record in records:
+        activity = record.get("activity")
+        if not isinstance(activity, dict):
+            continue
+        activity_id = str(activity.get("activity_id") or "")
+        source = str(activity.get("source") or "").strip().casefold()
+        activity_key = (
+            f"{source}|{activity_id}"
+            if source and activity_id
+            else ""
+        )
+        environment = activity.get("environment")
+        if not activity_key or not isinstance(environment, dict):
+            continue
+        wet_bulb = environment.get("wet_bulb_c")
+        try:
+            wet_bulb_value = float(wet_bulb)
+        except (TypeError, ValueError):
+            continue
+        support = record.get("reference_power_support")
+        if not isinstance(support, dict):
+            segments = record.get("stable_segments", {}).get("segments", [])
+            accepted = any(
+                config.reference_power_pct_cp[0]
+                <= float(segment.get("mean_pct_cp"))
+                <= config.reference_power_pct_cp[1]
+                for segment in segments
+                if segment.get("mean_pct_cp") is not None
+                and not segment.get("reason_codes")
+            )
+            support = {
+                "any_valid_sample_point": accepted,
+                "minimum_continuous_coverage": accepted,
+                "accepted_stable_segment_mean": accepted,
+            }
+        activity_support[activity_key] = {
+            "wet_bulb_c": wet_bulb_value,
+            "any_valid_sample_point": bool(
+                support.get("any_valid_sample_point")
+            ),
+            "minimum_continuous_coverage": bool(
+                support.get("minimum_continuous_coverage")
+            ),
+            "accepted_stable_segment_mean": bool(
+                support.get("accepted_stable_segment_mean")
+            ),
+        }
+
+    bins: list[dict[str, Any]] = []
+    for index in range(config.curve_support_bin_count):
+        low = float(edges[index])
+        high = float(edges[index + 1])
+
+        def in_bin(value: float) -> bool:
+            return value >= low and (
+                value < high
+                or (
+                    index == config.curve_support_bin_count - 1
+                    and value <= high
+                )
+            )
+
+        all_activity_keys = {
+            key
+            for key, support in activity_support.items()
+            if in_bin(float(support["wet_bulb_c"]))
+        }
+        any_point_keys = {
+            key for key in all_activity_keys
+            if activity_support[key]["any_valid_sample_point"]
+        }
+        continuous_keys = {
+            key for key in any_point_keys
+            if activity_support[key]["minimum_continuous_coverage"]
+        }
+        stable_keys = {
+            key for key in continuous_keys
+            if activity_support[key]["accepted_stable_segment_mean"]
+        }
+        rows = [row for row in train_rows if in_bin(row.wet_bulb_c)]
+        train_activity_keys = {row.activity_key for row in rows}
+        retained_reference_keys = stable_keys & train_activity_keys
+        final_reference_keys = {
+            row.activity_key
+            for row in rows
+            if config.reference_power_pct_cp[0]
+            <= row.mean_pct_cp
+            <= config.reference_power_pct_cp[1]
+        } & retained_reference_keys
+        failure_reasons: list[str] = []
+        if len(train_activity_keys) < config.minimum_activities_per_curve_bin:
+            failure_reasons.append("insufficient_activities")
+        if len(rows) < config.minimum_segments_per_curve_bin:
+            failure_reasons.append("insufficient_segments")
+        if (
+            len(final_reference_keys)
+            < config.minimum_reference_power_activities_per_curve_bin
+        ):
+            failure_reasons.append("insufficient_reference_power_activities")
+        bins.append({
+            "bin_index": index,
+            "lower_wet_bulb_c": round(low, 4),
+            "upper_wet_bulb_c": round(high, 4),
+            "activity_count": len(train_activity_keys),
+            "segment_count": len(rows),
+            "reference_power_activity_count": len(final_reference_keys),
+            "required_activity_count": config.minimum_activities_per_curve_bin,
+            "required_segment_count": config.minimum_segments_per_curve_bin,
+            "required_reference_power_activity_count": (
+                config.minimum_reference_power_activities_per_curve_bin
+            ),
+            "supported": not failure_reasons,
+            "support_failure_reasons": failure_reasons,
+            "reference_power_funnel": {
+                "environment_activity_count": len(all_activity_keys),
+                "any_valid_sample_activity_count": len(any_point_keys),
+                "continuous_coverage_activity_count": len(continuous_keys),
+                "stable_segment_mean_activity_count": len(stable_keys),
+                "training_partition_activity_count": len(
+                    retained_reference_keys
+                ),
+                "final_reference_power_activity_count": len(
+                    final_reference_keys
+                ),
+            },
+        })
+    return bins
+
+
+def _supported_bin_sections(
+    support_bins: list[dict[str, Any]],
+) -> list[list[int]]:
+    """Return consecutive supported-bin indices without bridging gaps."""
+    sections: list[list[int]] = []
+    current: list[int] = []
+    for item in support_bins:
+        if item["supported"]:
+            current.append(int(item["bin_index"]))
+        elif current:
+            sections.append(current)
+            current = []
+    if current:
+        sections.append(current)
+    return sections
+
+
+def _has_displayable_section(
+    sections: list[list[int]],
+    minimum_contiguous_bins: int,
+) -> bool:
+    """Return whether at least one supported section can form a curve."""
+    return any(
+        len(section) >= minimum_contiguous_bins
+        for section in sections
+    )
 
 
 def _leave_one_activity_out(
@@ -444,11 +605,9 @@ def _curve_points(
     train_rows: list[Any],
     model: dict[str, Any],
     feature_names: tuple[str, ...],
-    domain_low: float,
-    domain_high: float,
     interval: list[float | None],
-    point_count: int,
-) -> list[dict[str, float]]:
+    point_specs: list[tuple[int, int, float]],
+) -> list[dict[str, float | int]]:
     # SDR environmental-performance-v2 fixes training medians as the reference
     # profile and prohibits extrapolation beyond the 10th-90th percentile
     # activity-level wet-bulb domain.
@@ -472,7 +631,7 @@ def _curve_points(
     lower_slope = float(interval[0])
     upper_slope = float(interval[1])
     points: list[dict[str, float]] = []
-    for wet_bulb in np.linspace(domain_low, domain_high, point_count):
+    for bin_index, section_index, wet_bulb in point_specs:
         delta = float(wet_bulb - reference_wet_bulb)
         relative = float(coefficients["wet_bulb_c"]) * delta
         relative_bounds = sorted((lower_slope * delta, upper_slope * delta))
@@ -483,6 +642,8 @@ def _curve_points(
             "relative_lower_bpm": round(relative_bounds[0], 4),
             "relative_upper_bpm": round(relative_bounds[1], 4),
             "reference_wet_bulb_c": round(reference_wet_bulb, 4),
+            "support_bin_index": bin_index,
+            "section_index": section_index,
         })
     return points
 

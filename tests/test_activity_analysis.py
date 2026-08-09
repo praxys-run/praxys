@@ -7,6 +7,7 @@ import pytest
 from analysis.metrics import (
     build_activity_environment_context,
     derive_stable_power_segments,
+    summarize_reference_power_support,
 )
 from api.views import normalize_activity_start_time
 
@@ -73,6 +74,42 @@ def test_environment_context_rejects_corrupt_or_unknown_inputs() -> None:
     assert unsupported["reason_codes"] == [
         "environment_source_unsupported"
     ]
+
+
+def test_reference_power_support_distinguishes_points_from_continuity() -> None:
+    continuous = pd.DataFrame({
+        "t_sec": list(range(181)),
+        "power_watts": [240.0] * 181,
+        "hr_bpm": [145.0] * 181,
+        "source": ["stryd"] * 181,
+    })
+    stable_segments = {
+        "segments": [{
+            "source": "samples",
+            "mean_pct_cp": 80.0,
+            "power_provider": "stryd",
+            "reason_codes": [],
+        }],
+    }
+    supported = summarize_reference_power_support(
+        continuous,
+        stable_segments,
+        cp_watts=300.0,
+        cp_power_provider="stryd",
+    )
+    scattered = summarize_reference_power_support(
+        continuous.iloc[::30].copy(),
+        {"segments": []},
+        cp_watts=300.0,
+        cp_power_provider="stryd",
+    )
+
+    assert supported["any_valid_sample_point"] is True
+    assert supported["minimum_continuous_coverage"] is True
+    assert supported["accepted_stable_segment_mean"] is True
+    assert scattered["any_valid_sample_point"] is True
+    assert scattered["minimum_continuous_coverage"] is False
+    assert scattered["accepted_stable_segment_mean"] is False
 
 
 def test_stable_segments_use_samples_for_power_and_hr_drift() -> None:
