@@ -143,13 +143,21 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
         'attachment; filename="praxys-data-export-'
     )
     payload = response.json()
-    assert payload["schema_version"] == 1
+    assert payload["schema_version"] == 2
     assert payload["user_config"]["goal"]["target_label"] == "owner-goal"
     assert [row["activity_id"] for row in payload["activities"]] == ["owner-activity"]
     assert [row["activity_id"] for row in payload["activity_splits"]] == ["owner-activity"]
     assert [row["readiness_score"] for row in payload["recovery"]] == [88.0]
     assert [row["value"] for row in payload["fitness"]] == [290.0]
     assert [row["canonical_id"] for row in payload["training_plans"]] == ["owner-plan"]
+    assert payload["personal_context"] == {
+        "schema_version": 1,
+        "exported_at": payload["personal_context"]["exported_at"],
+        "items": [],
+        "consent_receipts": [],
+        "use_receipts": [],
+        "linked_revisions": [],
+    }
     assert "user_id" not in json.dumps(payload)
 
     serialized = response.text

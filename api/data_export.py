@@ -145,9 +145,11 @@ def _serialize_rows(
 
 def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
     """Return the requested user's portable training data without credentials."""
+    from api.personal_context import build_personal_context_export
+
     config = _without_credentials(asdict(load_config_from_db(user_id, db)))
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "exported_at": utc_isoformat(datetime.now(timezone.utc)),
         "user_config": config,
         "activities": _serialize_rows(
@@ -184,5 +186,9 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
             .order_by(TrainingPlan.date, TrainingPlan.id)
             .all(),
             _TRAINING_PLAN_FIELDS,
+        ),
+        "personal_context": build_personal_context_export(
+            db,
+            user_id=user_id,
         ),
     }

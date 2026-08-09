@@ -1943,6 +1943,97 @@ them in the request.
 }
 ```
 
+## Adaptive-plan personal context
+
+Personal context is optional athlete-owned input used for one explicit
+planning purpose. Draft previews are request-only; confirmation creates an
+encrypted immutable version and a purpose-confirmation receipt. Every response
+uses `Cache-Control: private, no-store`.
+
+First-party web and miniapp JWTs act as the athlete. A trusted token issuer may
+mint delegated JWTs with signed `praxys_actor_type`, `praxys_actor_id`,
+`scope`, `context_purposes`, and `context_kinds` claims. Delegated access is
+bounded by the intersection of those claims. Supported delegated actor types
+are `plugin`, `mcp`, and `delegated_agent`.
+
+| Scope | Permission |
+| --- | --- |
+| `plan:context:read` | Read structured context for allowed purposes and kinds |
+| `plan:context:narrative:read` | Also disclose the optional narrative |
+| `plan:context:write` | Preview a bounded draft |
+| `plan:context:delete` | Reserved context deletion permission |
+| `plan:context:ai-consent` | Reserved AI-consent permission |
+
+`plan:read` does not grant context access. Only the athlete may confirm,
+correct, expire, delete, export, or change AI consent. Item-specific denied
+access and cross-owner misses both return `404
+PERSONAL_CONTEXT_NOT_FOUND`; demo users cannot mutate context.
+
+### Context endpoints
+
+| Method | Path | Behavior |
+| --- | --- | --- |
+| `POST` | `/api/personal-context/preview` | Validate and normalize a draft without persistence |
+| `POST` | `/api/personal-context/confirm` | Confirm a draft and create version 1 |
+| `GET` | `/api/personal-context` | Inspect retained versions; filter by `purpose`, `kind`, and `include_history` |
+| `GET` | `/api/personal-context/{item_id}` | Inspect one retained version and, for the athlete, its private receipts |
+| `POST` | `/api/personal-context/selection` | Select active context while non-destructively excluding item IDs |
+| `POST` | `/api/personal-context/{item_id}/correct` | Append an immutable corrected successor |
+| `POST` | `/api/personal-context/{item_id}/ai-consent` | Grant, deny, or withdraw field-level AI processing consent |
+| `POST` | `/api/personal-context/{item_id}/expire` | Stop one current version from influencing decisions |
+| `DELETE` | `/api/personal-context/{item_id}?expected_version=N` | Delete the complete lineage and dependent private traces |
+| `GET` | `/api/personal-context/export` | Export all retained versions, receipts, and linked revision IDs |
+
+Confirmation, correction, and AI-consent requests require an opaque
+`Idempotency-Key` header (8-128 letters, digits, `.`, `_`, `:`, or `-`).
+An exact retry returns the original result with `replayed: true`; reusing a key
+for different input returns `409
+PERSONAL_CONTEXT_VERSION_OR_IDEMPOTENCY_CONFLICT`. Correction, consent, expiry,
+and deletion use `expected_version` so a stale client cannot overwrite a newer
+version. A payload-free command tombstone retains only the owner and opaque key
+after deletion; its context references are cleared, and a delayed confirmation
+retry returns `409` instead of recreating deleted private context.
+
+**Preview and confirmation body:**
+
+```json
+{
+  "kind": "temporary_constraint",
+  "purpose": "plan_adjustment",
+  "payload": {
+    "category": "less_time",
+    "fields": {
+      "maximum_available_minutes": 30,
+      "affected_days": ["monday", "wednesday"]
+    },
+    "narrative": "Optional, at most 280 characters"
+  },
+  "linked_subject_type": "plan",
+  "linked_subject_id": "plan-canonical-id",
+  "starts_at": "2026-08-09T09:00:00Z",
+  "expires_at": "2026-08-23T09:00:00Z",
+  "purge_after": "2026-09-22T09:00:00Z",
+  "consent_text_version": "purpose-v1",
+  "client": "web"
+}
+```
+
+Omit `consent_text_version` and `client` for `/preview`. Supported kinds are
+`durable_preference`, `temporary_constraint`, and `execution_explanation`.
+Supported purposes are `plan_generation`, `execution_interpretation`,
+`plan_adjustment`, `goal_review`, and `outcome_review`. Structured values are
+bounded scalars or scalar arrays; unknown payload keys are rejected.
+
+AI processing remains off until the athlete grants consent for an exact
+version. `provider` is currently `azure_openai`; `disclosed_fields` uses
+`category`, `fields`, `fields.<name>`, or `narrative`. Granting narrative
+disclosure requires the item to contain a retained narrative.
+
+`GET /api/me/export` now uses schema version 2 and embeds the same complete
+context export under `personal_context`. Neither export includes idempotency
+keys, internal prompts, credentials, deletion-job operator metadata, or
+payload-free command tombstones, or another athlete's data.
+
 ## Sync
 
 ### GET /api/sync/status

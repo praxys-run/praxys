@@ -601,6 +601,384 @@ export interface PlanCleanupResponse {
   items: PlanCleanupItem[];
 }
 
+// --- Adaptive-plan personal context ---
+
+export type PersonalContextKind =
+  | 'durable_preference'
+  | 'temporary_constraint'
+  | 'execution_explanation';
+
+export type PersonalContextPurpose =
+  | 'plan_generation'
+  | 'execution_interpretation'
+  | 'plan_adjustment'
+  | 'goal_review'
+  | 'outcome_review';
+
+export type PersonalContextCategory =
+  | 'less_time'
+  | 'unavailable_day'
+  | 'schedule_conflict'
+  | 'caregiving'
+  | 'travel'
+  | 'fatigue'
+  | 'motivation'
+  | 'illness'
+  | 'pain_or_injury'
+  | 'red_flag_symptoms'
+  | 'weather'
+  | 'equipment_access'
+  | 'other'
+  | 'prefer_not_to_say';
+
+export type PersonalContextState =
+  | 'active'
+  | 'expired'
+  | 'withdrawn'
+  | 'deleting';
+export type PersonalContextProcessingMode =
+  | 'deterministic_only'
+  | 'ai_allowed';
+export type PersonalContextLinkedSubject =
+  | 'goal'
+  | 'plan'
+  | 'workout'
+  | 'execution_event';
+export type PersonalContextClient = 'web' | 'miniapp';
+export type PersonalContextFieldValue =
+  | string
+  | number
+  | boolean
+  | null
+  | (string | number | boolean | null)[];
+
+export interface PersonalContextPayload {
+  category: PersonalContextCategory;
+  fields: Record<string, PersonalContextFieldValue>;
+  narrative?: string | null;
+}
+
+export interface PersonalContextPayloadRequest {
+  category: PersonalContextCategory;
+  fields?: Record<string, PersonalContextFieldValue>;
+  narrative?: string | null;
+}
+
+export interface PersonalContextDraftRequest {
+  kind: PersonalContextKind;
+  purpose: PersonalContextPurpose;
+  payload: PersonalContextPayloadRequest;
+  linked_subject_type?: PersonalContextLinkedSubject | null;
+  linked_subject_id?: string | null;
+  starts_at?: string | null;
+  expires_at?: string | null;
+  purge_after?: string | null;
+  narrative_purge_at?: string | null;
+}
+
+export interface PersonalContextConfirmRequest
+  extends PersonalContextDraftRequest {
+  consent_text_version: string;
+  client: PersonalContextClient;
+}
+
+export interface PersonalContextCorrectionRequest {
+  expected_version: number;
+  payload: PersonalContextPayloadRequest;
+  starts_at?: string | null;
+  expires_at?: string | null;
+  purge_after?: string | null;
+  narrative_purge_at?: string | null;
+  consent_text_version: string;
+  client: PersonalContextClient;
+}
+
+export interface PersonalContextAiConsentRequest {
+  expected_version: number;
+  decision: 'granted' | 'denied' | 'withdrawn';
+  provider?: 'azure_openai' | null;
+  disclosed_fields?: string[];
+  narrative_disclosed?: boolean;
+  consent_text_version: string;
+  client: PersonalContextClient;
+}
+
+export interface PersonalContextExpireRequest {
+  expected_version: number;
+}
+
+export interface PersonalContextSelectionRequest {
+  purpose: PersonalContextPurpose;
+  kind?: PersonalContextKind | null;
+  excluded_item_ids?: string[];
+  include_narrative?: boolean;
+}
+
+export interface PersonalContextPreviewResponse {
+  kind: PersonalContextKind;
+  purpose: PersonalContextPurpose;
+  payload: PersonalContextPayload;
+  linked_subject_type: PersonalContextLinkedSubject | null;
+  linked_subject_id: string | null;
+  starts_at: string;
+  expires_at: string | null;
+  purge_after: string | null;
+  narrative_purge_at: string | null;
+  payload_schema_version: 1;
+  processing_mode: 'deterministic_only';
+  confirmation_required: true;
+  preview_actor_type: string;
+}
+
+export interface PersonalContextItem {
+  id: string;
+  lineage_id: string;
+  version: number;
+  supersedes_id: string | null;
+  kind: PersonalContextKind;
+  purpose: PersonalContextPurpose;
+  state: PersonalContextState;
+  payload: PersonalContextPayload;
+  has_narrative: boolean;
+  source_actor_type: string;
+  source_actor_id: string | null;
+  linked_subject_type: PersonalContextLinkedSubject | null;
+  linked_subject_id: string | null;
+  processing_mode: PersonalContextProcessingMode;
+  consent_receipt_id: string | null;
+  starts_at: string;
+  expires_at: string | null;
+  narrative_purge_at: string | null;
+  narrative_purged_at: string | null;
+  purge_after: string | null;
+  created_at: string;
+  updated_at: string;
+  purpose_confirmed: boolean;
+  latest_version: boolean;
+}
+
+export interface PersonalContextConsentReceipt {
+  id: string;
+  context_item_id: string;
+  context_version: number;
+  purpose: PersonalContextPurpose;
+  consent_scope: 'purpose_confirmation' | 'ai_processing';
+  provider: string | null;
+  disclosed_fields: string[];
+  narrative_disclosed: boolean;
+  consent_text_version: string;
+  decision: 'granted' | 'denied' | 'withdrawn';
+  client: PersonalContextClient;
+  decided_at: string;
+}
+
+export interface PersonalContextUseReceipt {
+  id: string;
+  context_item_id: string;
+  context_version: number;
+  purpose: PersonalContextPurpose;
+  consumer_type:
+    | 'deterministic_policy'
+    | 'planning_ai'
+    | 'provider_adapter';
+  consumer_name: string;
+  disclosed_fields: string[];
+  narrative_disclosed: boolean;
+  policy_version: string | null;
+  prompt_version: string | null;
+  consent_receipt_id: string | null;
+  used_at: string;
+}
+
+export interface PersonalContextListResponse {
+  items: PersonalContextItem[];
+}
+
+export interface PersonalContextDetailResponse {
+  item: PersonalContextItem;
+  consent_receipts: PersonalContextConsentReceipt[];
+  use_receipts: PersonalContextUseReceipt[];
+  linked_revision_ids: string[];
+}
+
+export interface PersonalContextMutationResponse {
+  item: PersonalContextItem;
+  purpose_receipt_id: string;
+  replayed: boolean;
+}
+
+export interface PersonalContextAiConsentResponse {
+  item: PersonalContextItem;
+  receipt: PersonalContextConsentReceipt;
+  replayed: boolean;
+}
+
+export interface PersonalContextSelectionItem {
+  id: string;
+  lineage_id: string;
+  version: number;
+  kind: PersonalContextKind;
+  purpose: PersonalContextPurpose;
+  category: PersonalContextCategory;
+  fields: Record<string, PersonalContextFieldValue>;
+  narrative: string | null;
+  processing_mode: PersonalContextProcessingMode;
+}
+
+export interface PersonalContextSelectionResponse {
+  items: PersonalContextSelectionItem[];
+}
+
+export interface PersonalContextExportItem {
+  id: string;
+  lineage_id: string;
+  version: number;
+  supersedes_id: string | null;
+  kind: PersonalContextKind;
+  purpose: PersonalContextPurpose;
+  state: PersonalContextState;
+  payload_schema_version: 1;
+  payload: PersonalContextPayload;
+  source_actor_type: string;
+  source_actor_id: string | null;
+  linked_subject_type: PersonalContextLinkedSubject | null;
+  linked_subject_id: string | null;
+  processing_mode: PersonalContextProcessingMode;
+  consent_receipt_id: string | null;
+  starts_at: string;
+  expires_at: string | null;
+  narrative_purge_at: string | null;
+  narrative_purged_at: string | null;
+  purge_after: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PersonalContextExportResponse {
+  schema_version: 1;
+  exported_at: string;
+  items: PersonalContextExportItem[];
+  consent_receipts: PersonalContextConsentReceipt[];
+  use_receipts: PersonalContextUseReceipt[];
+  linked_revisions: {
+    revision_id: string;
+    context_item_ids: string[];
+  }[];
+}
+
+export interface UserDataExportConfig {
+  display_name: string;
+  unit_system: UnitSystem;
+  connections: string[];
+  preferences: SettingsPreferences;
+  plan_management: PlanManagementConfig;
+  training_base: TrainingBase;
+  thresholds: Record<string, string | number | null>;
+  zones: Record<string, number[]>;
+  goal: Record<string, unknown>;
+  science: Record<string, string>;
+  activity_routing: Record<string, string>;
+  zone_labels: string;
+  source_options: Record<string, unknown>;
+  language: UiLanguage | null;
+}
+
+export interface UserDataExportActivity {
+  activity_id: string;
+  date: string;
+  activity_type: string | null;
+  distance_km: number | null;
+  duration_sec: number | null;
+  temperature_c: number | null;
+  relative_humidity_pct: number | null;
+  environment_source: string | null;
+  avg_power: number | null;
+  max_power: number | null;
+  avg_hr: number | null;
+  max_hr: number | null;
+  avg_pace_min_km: string | null;
+  avg_pace_sec_km: number | null;
+  elevation_gain_m: number | null;
+  avg_cadence: number | null;
+  training_effect: number | null;
+  rss: number | null;
+  trimp: number | null;
+  rtss: number | null;
+  cp_estimate: number | null;
+  load_score: number | null;
+  start_time: string | null;
+  source: string | null;
+}
+
+export interface UserDataExportActivitySplit {
+  activity_id: string;
+  split_num: number;
+  distance_km: number | null;
+  duration_sec: number | null;
+  avg_power: number | null;
+  power_source: string | null;
+  avg_hr: number | null;
+  max_hr: number | null;
+  avg_pace_min_km: string | null;
+  avg_pace_sec_km: number | null;
+  avg_cadence: number | null;
+  elevation_change_m: number | null;
+}
+
+export interface UserDataExportRecovery {
+  date: string;
+  readiness_score: number | null;
+  hrv_avg: number | null;
+  resting_hr: number | null;
+  sleep_score: number | null;
+  total_sleep_sec: number | null;
+  deep_sleep_sec: number | null;
+  rem_sleep_sec: number | null;
+  body_temp_delta: number | null;
+  source: string | null;
+}
+
+export interface UserDataExportFitness {
+  date: string;
+  metric_type: string;
+  value: number | null;
+  value_str: string | null;
+  source: string | null;
+  power_source: string | null;
+}
+
+export interface UserDataExportTrainingPlan {
+  canonical_id: string;
+  date: string;
+  workout_type: string | null;
+  planned_duration_min: number | null;
+  planned_distance_km: number | null;
+  target_power_min: number | null;
+  target_power_max: number | null;
+  target_hr_min: number | null;
+  target_hr_max: number | null;
+  target_pace_min: string | null;
+  target_pace_max: string | null;
+  workout_description: string | null;
+  source: string | null;
+  workout_origin: string;
+  external_id: string | null;
+  start_time: string | null;
+  meta: Record<string, unknown> | null;
+}
+
+export interface UserDataExportResponse {
+  schema_version: 2;
+  exported_at: string;
+  user_config: UserDataExportConfig;
+  activities: UserDataExportActivity[];
+  activity_splits: UserDataExportActivitySplit[];
+  recovery: UserDataExportRecovery[];
+  fitness: UserDataExportFitness[];
+  training_plans: UserDataExportTrainingPlan[];
+  personal_context: PersonalContextExportResponse;
+}
+
 export interface StrydPushStatusEntry {
   workout_id: string;
   pushed_at?: string;
