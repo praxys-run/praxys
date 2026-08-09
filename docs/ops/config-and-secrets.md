@@ -35,8 +35,6 @@ transient — the next deploy overwrites them.**
 | `COPILOT_ASSIGN_TOKEN` | **Required for workflow auto-assign** — fine-grained PAT (*Issues: write*, this repo only, with expiry). Agent assignment needs a user token; the built-in `GITHUB_TOKEN` is forbidden (issue #400). Manual UI assignment doesn't need it. | `assign-copilot.yml` |
 | `PRAXYS_GITHUB_APP_PRIVATE_KEY` | Feedback GitHub App private key. The app has Issues read/write and Pull requests read; tokens are minted on demand. | App Service setting (backend) |
 | `PRAXYS_REVIEW_POLICY_APP_PRIVATE_KEY` | Independent selective-review App key. The App has Contents write + Pull requests write solely to approve qualifying PRs and enable normal auto-merge. Optional while every PR is review-required; mandatory only for an autonomous candidate or stale policy-state cleanup. | `selective-review.yml` |
-| `TENCENT_LIGHTHOUSE_SSH_PRIVATE_KEY` | Dedicated private key for the restricted Lighthouse static-deploy user. | Tencent lane in `deploy-frontend-appservice.yml` |
-| `TENCENT_LIGHTHOUSE_SSH_KNOWN_HOSTS` | Pinned Lighthouse SSH host-key line; rotate only after out-of-band fingerprint verification. | Tencent lane in `deploy-frontend-appservice.yml` |
 
 ### GitHub Actions → Variables
 `… → Variables` (non-secret; build variables are inlined into the SPA and ship to browsers)
@@ -64,10 +62,7 @@ transient — the next deploy overwrites them.**
 | `PRAXYS_REVIEW_POLICY_APP_SLUG` | Expected URL slug for the independent App, without `[bot]`; lets pre-credential evaluation recognize only that App's prior blocking reviews and verifies the minted identity. | `selective-review.yml`, `selective-review-emergency-stop.yml` |
 | `PRAXYS_SELECTIVE_REVIEW_ENABLED` | Master enable; absent/anything except `true` keeps every PR review-required. | `selective-review.yml` |
 | `PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH` | Emergency stop; `true` disables approval even when the master enable and class promotion are active. | `selective-review.yml` |
-| `TENCENT_LIGHTHOUSE_DEPLOY_ENABLED` | Set `true` only after the Lighthouse Nginx/deploy-user bootstrap is complete. Unset/false skips the China deploy without affecting Azure. | `deploy-frontend-appservice.yml` |
-| `TENCENT_LIGHTHOUSE_HOST` | Lighthouse public IP or stable SSH hostname. | `deploy-frontend-appservice.yml` |
-| `TENCENT_LIGHTHOUSE_USER` (`praxys-deploy`) | Restricted SSH deployment account. | `deploy-frontend-appservice.yml` |
-| `TENCENT_LIGHTHOUSE_SSH_PORT` (`22`) | Lighthouse SSH port. | `deploy-frontend-appservice.yml` |
+| `TENCENT_LIGHTHOUSE_DEPLOY_ENABLED` | Set `true` only after Nginx and the workflow-restricted `praxys-production` Runner Group are healthy. Unset/false skips the China deploy without affecting Azure. | `deploy-frontend-appservice.yml` |
 
 Changing `PRAXYS_FEEDBACK_GITHUB_REPO` does not reinterpret historical issue
 numbers. Feedback sync and adjudication compare each stored GitHub URL with the

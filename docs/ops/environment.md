@@ -31,7 +31,7 @@
 
 | Thing | Value | Source |
 |---|---|---|
-| Mainland frontend origin | Lighthouse static Nginx host; exact address sourced from `TENCENT_LIGHTHOUSE_HOST`, disabled until provisioned/ICP-ready | [tencent-frontend.md](./tencent-frontend.md) |
+| Mainland frontend origin | Lighthouse static Nginx host with the workflow-restricted `praxys-cn-frontend` Runner; disabled until provisioned/ICP-ready | [tencent-frontend.md](./tencent-frontend.md) |
 
 ## Hostnames
 

@@ -10,7 +10,7 @@
 - Tencent Lighthouse in a mainland-China region, Ubuntu 24.04 LTS, public IP,
   and non-zero bandwidth. Keep the subscription eligible for the ICP filing.
 - SSH access from an operator workstation with `sudo`.
-- Repository admin access to Actions secrets and variables.
+- Organization admin access to Actions runner groups and repository variables.
 - The ICP filing must be approved before serving the public mainland hostname.
 
 The Lighthouse host serves only the immutable output of `web/dist`. The API,
@@ -28,24 +28,11 @@ sudo apt-get install -y nginx curl
 sudo adduser --disabled-password --gecos "" praxys-deploy
 sudo install -d -o praxys-deploy -g www-data -m 0755 \
   /var/www/praxys /var/www/praxys/releases
-sudo install -d -o praxys-deploy -g praxys-deploy -m 0700 \
-  /home/praxys-deploy/.ssh
-sudo touch /home/praxys-deploy/.ssh/authorized_keys
-sudo chown praxys-deploy:praxys-deploy \
-  /home/praxys-deploy/.ssh/authorized_keys
-sudo chmod 0600 /home/praxys-deploy/.ssh/authorized_keys
 ```
 
-Generate a dedicated key on the operator workstation:
-
-```bash
-ssh-keygen -t ed25519 -f praxys-tencent-deploy \
-  -C "praxys GitHub Actions Tencent deploy"
-```
-
-Append `praxys-tencent-deploy.pub` to
-`/home/praxys-deploy/.ssh/authorized_keys`. Disable SSH password login and root
-login after verifying key authentication in a second terminal.
+The account runs the deployment Runner and owns release files. Do not grant it
+`sudo`, a password, or an SSH authorized key. Keep operator SSH access on a
+separate administrative account, restricted to known operator IPs.
 
 ### 2. Install the repository Nginx configuration
 
@@ -76,38 +63,65 @@ certificate flow depends on the approved ICP/DNS arrangement and must be
 verified on the provisioned site rather than guessed in this pre-provisioning
 runbook.
 
-### 3. Create the GitHub Actions configuration
+### 3. Create the restricted Runner group
+
+This repository is public. Never register a repository-level self-hosted Runner
+on the production host: a pull-request workflow could otherwise target it.
+
+Under the `praxys-run` organization, create the `praxys-production` Runner
+group with:
+
+- Repository access: selected repository `praxys-run/praxys`.
+- Public repositories: allowed.
+- Workflow access: selected workflow
+  `praxys-run/praxys/.github/workflows/deploy-frontend-appservice.yml@refs/heads/main`.
+
+The workflow restriction is load-bearing. Do not broaden it to all workflows or
+an unpinned ref.
+
+### 4. Install the self-hosted Runner
+
+From **Organization settings → Actions → Runners**, add a Linux x64 Runner to
+the `praxys-production` group. Download the current GitHub Actions Runner,
+verify the SHA-256 digest shown by GitHub, and configure it as
+`praxys-deploy`:
+
+```bash
+sudo install -d -o praxys-deploy -g praxys-deploy -m 0750 \
+  /home/praxys-deploy/actions-runner
+cd /home/praxys-deploy/actions-runner
+
+sudo -u praxys-deploy ./config.sh --unattended \
+  --url https://github.com/praxys-run \
+  --token <SHORT_LIVED_ORG_REGISTRATION_TOKEN> \
+  --runnergroup praxys-production \
+  --name praxys-cn-frontend \
+  --labels praxys-cn-frontend \
+  --work _work
+
+sudo ./svc.sh install praxys-deploy
+sudo ./svc.sh start
+sudo ./svc.sh status
+```
+
+The service connects outbound to GitHub over HTTPS. It does not require GitHub
+Actions to SSH into the host.
+
+### 5. Create the GitHub Actions configuration
 
 Repository variables:
 
 | Variable | Value |
 |---|---|
-| `TENCENT_LIGHTHOUSE_DEPLOY_ENABLED` | Leave unset until bootstrap is complete; then set `true`. |
-| `TENCENT_LIGHTHOUSE_HOST` | Lighthouse public IP or stable SSH hostname. |
-| `TENCENT_LIGHTHOUSE_USER` | `praxys-deploy` |
-| `TENCENT_LIGHTHOUSE_SSH_PORT` | SSH port, normally `22`. |
+| `TENCENT_LIGHTHOUSE_DEPLOY_ENABLED` | Leave unset until Nginx and the restricted Runner are healthy; then set `true`. |
 
-Repository secrets:
+The Tencent deployment lane requires no repository secret. After migration,
+delete the obsolete `TENCENT_LIGHTHOUSE_SSH_PRIVATE_KEY` and
+`TENCENT_LIGHTHOUSE_SSH_KNOWN_HOSTS` secrets and the
+`TENCENT_LIGHTHOUSE_HOST`, `TENCENT_LIGHTHOUSE_USER`, and
+`TENCENT_LIGHTHOUSE_SSH_PORT` variables.
 
-| Secret | Value |
-|---|---|
-| `TENCENT_LIGHTHOUSE_SSH_PRIVATE_KEY` | Entire contents of the dedicated private key. |
-| `TENCENT_LIGHTHOUSE_SSH_KNOWN_HOSTS` | Pinned `known_hosts` line for the Lighthouse host. |
-
-Create the host-key value from a trusted workstation:
-
-```bash
-export LIGHTHOUSE_SSH_PORT=22
-ssh-keyscan -H -p "${LIGHTHOUSE_SSH_PORT}" <LIGHTHOUSE_IP> \
-  > lighthouse_known_hosts
-ssh-keygen -lf lighthouse_known_hosts
-```
-
-Compare the fingerprint with the server's host key through the Tencent console
-or an already trusted SSH session before storing the file contents. Never
-replace the pinned key with `StrictHostKeyChecking=no`.
-
-### 4. Enable deployments
+### 6. Enable deployments
 
 Set `TENCENT_LIGHTHOUSE_DEPLOY_ENABLED=true`, then manually run
 `deploy-frontend-appservice.yml`. This can be done before public DNS cutover;
@@ -115,10 +129,14 @@ the workflow verifies Nginx over loopback on the server. The workflow:
 
 1. Builds the SPA once.
 2. Deploys the same package to Azure App Service.
-3. Uploads the static package to a run-addressed Lighthouse release stamped
-   with the source commit SHA.
-4. Atomically changes `/var/www/praxys/current`.
-5. Keeps the five newest releases and verifies `/healthz`.
+3. Lets the restricted Lighthouse Runner download the static package.
+4. Extracts it to a run-addressed release stamped with the source commit SHA.
+5. Atomically changes `/var/www/praxys/current`.
+6. Keeps the five newest releases and verifies `/healthz`.
+
+The Tencent lane runs only for `main`. A `web-*` tag can still deploy Azure,
+but cannot use the production Runner because its Runner Group is pinned to the
+workflow on `refs/heads/main`.
 
 ## Verify
 
@@ -158,9 +176,15 @@ curl -sS -H 'Host: www.praxys.run' http://127.0.0.1/healthz
 ```
 
 Set `TENCENT_LIGHTHOUSE_DEPLOY_ENABLED=false` to stop future Tencent deploys
-without affecting Azure. If the host key changes after a legitimate rebuild,
-verify the new fingerprint out of band before rotating
-`TENCENT_LIGHTHOUSE_SSH_KNOWN_HOSTS`.
+without affecting Azure. To stop the Runner itself:
+
+```bash
+cd /home/praxys-deploy/actions-runner
+sudo ./svc.sh stop
+```
+
+Do not move the Runner into the organization default group as a recovery
+shortcut. Repair the workflow-restricted `praxys-production` group instead.
 
 ## Related
 
@@ -169,4 +193,4 @@ verify the new fingerprint out of band before rotating
 - `deploy/tencent/nginx-praxys.conf`
 
 ---
-_Last reviewed: 2026-08-07 · Owner: @dddtc2005_
+_Last reviewed: 2026-08-09 · Owner: @dddtc2005_
