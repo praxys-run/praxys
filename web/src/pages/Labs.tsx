@@ -9,21 +9,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useApi } from '@/hooks/useApi';
-import type {
-  LabsEnvironmentPreflightResponse,
-  LabsEnvironmentResponseState,
-} from '@/types/api';
+import type { LabsEnvironmentResponseState } from '@/types/api';
 
 function catalogStatus(
   state: LabsEnvironmentResponseState,
-  preflight: LabsEnvironmentPreflightResponse | null,
 ) {
   if (state.status === 'available') return msg`Result ready`;
   if (state.status === 'queued' || state.status === 'processing') return msg`Analyzing`;
   if (state.enrolled) return msg`Participating`;
-  if (preflight?.status === 'ineligible') return msg`Needs data`;
-  if (preflight?.status === 'needs_full_analysis') return msg`Check required`;
-  return msg`Available`;
+  return msg`Open to check`;
 }
 
 export default function Labs() {
@@ -32,11 +26,6 @@ export default function Labs() {
     '/api/labs/environment-response',
     { refetchInterval: 5000, refetchOnMount: 'always' },
   );
-  const { data: preflight } = useApi<LabsEnvironmentPreflightResponse>(
-    '/api/labs/environment-response/preflight',
-    { refetchOnMount: 'always' },
-  );
-
   return (
     <div className="space-y-8">
       <header className="border-b border-border pb-7">
@@ -78,7 +67,9 @@ export default function Labs() {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-lg font-semibold"><Trans>Environmental response</Trans></h3>
-                    <Badge variant="outline">{i18n._(catalogStatus(data, preflight))}</Badge>
+                    <Badge variant="outline">
+                      {i18n._(catalogStatus(data))}
+                    </Badge>
                   </div>
                   <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
                     <Trans>Explore whether modeled heart rate varied with temperature and humidity at comparable recorded Stryd power in your eligible past runs.</Trans>

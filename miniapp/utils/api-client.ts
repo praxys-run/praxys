@@ -43,6 +43,8 @@ interface RequestOptions {
    * itself (expected to be unauthenticated) so we don't loop.
    */
   skipAuthRedirect?: boolean;
+  /** Bound one request when an unfinished result would block the user. */
+  timeoutMs?: number;
 }
 
 const LOGIN_PAGE = 'pages/login/index';
@@ -107,6 +109,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   try {
     response = await wxRequest({
       url,
+      timeout: options.timeoutMs ?? REQUEST_TIMEOUT_MS,
       method: (options.method ?? 'GET') as WechatMiniprogram.RequestOption['method'],
       data: options.body as WechatMiniprogram.RequestOption['data'],
       header: {
@@ -170,7 +173,10 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   throw { status, detail, code, data: rawDetail } as ApiError;
 }
 
-export const apiGet = <T>(path: string) => request<T>(path, { method: 'GET' });
+export const apiGet = <T>(
+  path: string,
+  opts?: Pick<RequestOptions, 'timeoutMs'>,
+) => request<T>(path, { ...opts, method: 'GET' });
 export const apiPost = <T>(path: string, body?: unknown, opts?: RequestOptions) =>
   request<T>(path, { ...opts, method: 'POST', body });
 export const apiPut = <T>(path: string, body?: unknown) =>

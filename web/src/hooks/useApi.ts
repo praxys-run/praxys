@@ -2,6 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { KEYS, getCompatItem, removeCompatItem } from '../lib/storage-compat';
 import { initialDashboardUrl } from '../lib/dashboard-prefetch';
 import { tokenCacheScope } from '../lib/auth-cache-scope';
+import {
+  fetchWithTimeout,
+  shouldRetryApiRequest,
+} from '../lib/request-timeout';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -22,6 +26,8 @@ interface UseApiOptions {
   refetchOnMount?: boolean | 'always';
   /** Override the app-wide focus policy for freshness-critical queries. */
   refetchOnWindowFocus?: boolean | 'always';
+  /** Bound one request when an unfinished result would block the user. */
+  timeoutMs?: number;
 }
 
 function getAuthHeaders(): HeadersInit {
@@ -76,12 +82,30 @@ function startInitialDashboardPrefetch(): void {
   prefetchedResponses.set(url, apiFetch(url).catch(() => null));
 }
 
-async function apiFetcher<T>(url: string): Promise<T> {
+async function apiFetcher<T>(
+  url: string,
+  signal?: AbortSignal,
+  timeoutMs?: number,
+): Promise<T> {
   const prefetched = prefetchedResponses.get(url);
   if (prefetched) prefetchedResponses.delete(url);
-  const res = (prefetched ? await prefetched : null) ?? await apiFetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  const prefetchedResponse = prefetched ? await prefetched : null;
+  if (prefetchedResponse) {
+    if (!prefetchedResponse.ok) throw new Error(`HTTP ${prefetchedResponse.status}`);
+    return prefetchedResponse.json();
+  }
+
+  return fetchWithTimeout(
+    async (requestSignal) => {
+      const res = await apiFetch(url, {
+        signal: requestSignal,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    },
+    signal,
+    timeoutMs,
+  );
 }
 
 startInitialDashboardPrefetch();
@@ -123,7 +147,7 @@ export {
 export function useApi<T>(url: string, options?: UseApiOptions): UseApiResult<T> {
   const { data, isLoading, isStale, error, refetch } = useQuery<T, Error>({
     queryKey: [url, getAuthCacheScope()],
-    queryFn: () => apiFetcher<T>(url),
+    queryFn: ({ signal }) => apiFetcher<T>(url, signal, options?.timeoutMs),
     ...(options?.refetchInterval !== undefined
       ? { refetchInterval: options.refetchInterval }
       : {}),
@@ -134,6 +158,7 @@ export function useApi<T>(url: string, options?: UseApiOptions): UseApiResult<T>
     ...(options?.refetchOnWindowFocus !== undefined
       ? { refetchOnWindowFocus: options.refetchOnWindowFocus }
       : {}),
+    ...(options?.timeoutMs ? { retry: shouldRetryApiRequest } : {}),
   });
 
   return {

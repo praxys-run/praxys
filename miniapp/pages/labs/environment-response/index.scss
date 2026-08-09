@@ -68,6 +68,22 @@
   border-color: var(--destructive);
 }
 
+.labs-preflight--checking {
+  border-color: var(--primary);
+}
+
+.labs-preflight .labs-spinner {
+  width: 28rpx;
+  height: 28rpx;
+  margin-bottom: 12rpx;
+}
+
+.labs-preflight-retry {
+  width: auto;
+  min-height: 72rpx;
+  margin-top: 16rpx;
+}
+
 .labs-preflight-title {
   display: block;
   color: var(--text);

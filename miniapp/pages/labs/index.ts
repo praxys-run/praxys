@@ -4,11 +4,9 @@ import type { ApiError } from '../../utils/api-client';
 import { t } from '../../utils/i18n';
 import { applyThemeChrome, themeClassName } from '../../utils/theme';
 import type { LabsEnvironmentResponseState } from '../../types/api';
-import type { LabsEnvironmentPreflightResponse } from '../../types/api';
 
 function statusLabel(
   state: LabsEnvironmentResponseState,
-  preflight: LabsEnvironmentPreflightResponse,
 ): string {
   if (state.status === 'available') return t('Result ready');
   if (state.execution.job_status === 'retrying') return t('Retrying');
@@ -20,9 +18,7 @@ function statusLabel(
   }
   if (state.status === 'queued' || state.status === 'processing') return t('Analyzing');
   if (state.enrolled) return t('Participating');
-  if (preflight.status === 'ineligible') return t('Needs data');
-  if (preflight.status === 'needs_full_analysis') return t('Check required');
-  return t('Available');
+  return t('Open to check');
 }
 
 Page({
@@ -59,13 +55,12 @@ Page({
   async refetch() {
     this.setData({ loading: true, errorMessage: '' });
     try {
-      const [state, preflight] = await Promise.all([
-        apiGet<LabsEnvironmentResponseState>('/api/labs/environment-response'),
-        apiGet<LabsEnvironmentPreflightResponse>('/api/labs/environment-response/preflight'),
-      ]);
+      const state = await apiGet<LabsEnvironmentResponseState>(
+        '/api/labs/environment-response',
+      );
       this.setData({
         loading: false,
-        statusLabel: statusLabel(state, preflight),
+        statusLabel: statusLabel(state),
       });
     } catch (error) {
       const detail = (error as ApiError)?.detail || t('Network error. Try again.');
