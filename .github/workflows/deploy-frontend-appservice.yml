@@ -102,6 +102,8 @@ jobs:
         env:
           VITE_API_URL: ${{ vars.VITE_API_URL }}
           VITE_APP_VERSION: ${{ steps.version.outputs.version }}
+          VITE_STATSIG_CLIENT_KEY: ${{ vars.VITE_STATSIG_CLIENT_KEY }}
+          VITE_STATSIG_ENV: ${{ vars.STATSIG_ENV || 'production' }}
 
       - name: Stamp static health metadata
         shell: bash
@@ -168,13 +170,13 @@ jobs:
           package: deploy-pkg
 
   deploy_tencent:
-    if: vars.TENCENT_LIGHTHOUSE_DEPLOY_ENABLED == 'true'
+    if: >-
+      vars.TENCENT_LIGHTHOUSE_DEPLOY_ENABLED == 'true' &&
+      github.ref == 'refs/heads/main'
     needs: build
-    runs-on: ubuntu-latest
-    env:
-      LIGHTHOUSE_HOST: ${{ vars.TENCENT_LIGHTHOUSE_HOST }}
-      LIGHTHOUSE_USER: ${{ vars.TENCENT_LIGHTHOUSE_USER }}
-      LIGHTHOUSE_PORT: ${{ vars.TENCENT_LIGHTHOUSE_SSH_PORT || '22' }}
+    runs-on:
+      group: praxys-production
+      labels: praxys-cn-frontend
     steps:
       - name: Download Tencent package
         uses: actions/download-artifact@v8
@@ -182,46 +184,13 @@ jobs:
           name: frontend-tencent-${{ github.run_id }}-${{ github.run_attempt }}
           path: china-package
 
-      - name: Configure pinned SSH identity
-        env:
-          LIGHTHOUSE_SSH_PRIVATE_KEY: ${{ secrets.TENCENT_LIGHTHOUSE_SSH_PRIVATE_KEY }}
-          LIGHTHOUSE_SSH_KNOWN_HOSTS: ${{ secrets.TENCENT_LIGHTHOUSE_SSH_KNOWN_HOSTS }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -n "${LIGHTHOUSE_HOST}"
-          test -n "${LIGHTHOUSE_USER}"
-          [[ "${LIGHTHOUSE_PORT}" =~ ^[0-9]+$ ]]
-          test -n "${LIGHTHOUSE_SSH_PRIVATE_KEY}"
-          test -n "${LIGHTHOUSE_SSH_KNOWN_HOSTS}"
-
-          install -m 700 -d "${HOME}/.ssh"
-          printf '%s\n' "${LIGHTHOUSE_SSH_PRIVATE_KEY}" > "${HOME}/.ssh/id_ed25519"
-          printf '%s\n' "${LIGHTHOUSE_SSH_KNOWN_HOSTS}" > "${HOME}/.ssh/known_hosts"
-          chmod 600 "${HOME}/.ssh/id_ed25519" "${HOME}/.ssh/known_hosts"
-
-      - name: Upload static release
-        shell: bash
-        run: |
-          set -euo pipefail
-          release_id="${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          scp -P "${LIGHTHOUSE_PORT}" \
-            china-package/praxys-web.tgz \
-            "${LIGHTHOUSE_USER}@${LIGHTHOUSE_HOST}:/tmp/praxys-web-${release_id}.tgz"
-
       - name: Activate static release
         shell: bash
         run: |
           set -euo pipefail
           release_id="${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          ssh -p "${LIGHTHOUSE_PORT}" \
-            "${LIGHTHOUSE_USER}@${LIGHTHOUSE_HOST}" \
-            "bash -s -- '${release_id}' '${GITHUB_SHA}'" <<'REMOTE'
-          set -euo pipefail
-          release_id="$1"
-          deployed_sha="$2"
           root="/var/www/praxys"
-          archive="/tmp/praxys-web-${release_id}.tgz"
+          archive="${GITHUB_WORKSPACE}/china-package/praxys-web.tgz"
           release="${root}/releases/${release_id}"
           activated=0
 
@@ -237,7 +206,7 @@ jobs:
           mkdir -p "${release}"
           tar -xzf "${archive}" -C "${release}"
           test -s "${release}/index.html"
-          test "$(cat "${release}/deployed_sha.txt")" = "${deployed_sha}"
+          test "$(cat "${release}/deployed_sha.txt")" = "${GITHUB_SHA}"
 
           ln -sfn "${release}" "${root}/current.next"
           mv -Tf "${root}/current.next" "${root}/current"
@@ -248,20 +217,13 @@ jobs:
             | sort -nr \
             | awk 'NR > 5 {sub(/^[^ ]+ /, ""); print}' \
             | xargs -r rm -rf --
-          REMOTE
 
       - name: Verify Lighthouse deployment
         shell: bash
         run: |
           set -euo pipefail
-          deployed_sha="$(
-            ssh -p "${LIGHTHOUSE_PORT}" \
-              "${LIGHTHOUSE_USER}@${LIGHTHOUSE_HOST}" \
-              "cat /var/www/praxys/current/deployed_sha.txt"
-          )"
+          deployed_sha="$(cat /var/www/praxys/current/deployed_sha.txt)"
           test "${deployed_sha}" = "${GITHUB_SHA}"
-          ssh -p "${LIGHTHOUSE_PORT}" \
-            "${LIGHTHOUSE_USER}@${LIGHTHOUSE_HOST}" \
-            "curl --fail --silent --show-error --max-time 10 \
-              --header 'Host: www.praxys.run' \
-              http://127.0.0.1/healthz >/dev/null"
+          curl --fail --silent --show-error --max-time 10 \
+            --header 'Host: www.praxys.run' \
+            http://127.0.0.1/healthz >/dev/null

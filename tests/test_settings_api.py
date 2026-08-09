@@ -6,6 +6,7 @@ proves the API translates a ValueError into a structured 400 response and
 that the settings GET surfaces the allowed-options contract the UI depends on.
 """
 from datetime import datetime, timezone
+import json
 import os
 import tempfile
 
@@ -25,6 +26,11 @@ def api_client(monkeypatch):
     monkeypatch.setenv(
         "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED",
         "true",
+    )
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, _user: gate_name
+        == "garmin_plan_delivery_eligible",
     )
     monkeypatch.setenv(
         "PRAXYS_LOCAL_ENCRYPTION_KEY", "JKkx_5SVHKQDr0HSMrwl0KQHcA0pl5pxsYSLEAQDB4o="
@@ -188,34 +194,55 @@ def test_get_settings_exposes_safe_plan_management_defaults(api_client):
         "delivery_enabled": False,
         "adjustment_policy": "suggest_only",
     }
-    assert res.json()["experimental_plan_delivery"]["garmin"] == {
-        "experimental": True,
-        "available": True,
-        "enabled": False,
-        "region": "international",
-        "connected": False,
-        "fidelity": "duration_only",
-    }
+    assert res.json()["plan_delivery_options"] == []
+    assert "experimental_plan_delivery" not in res.json()
     assert res.json()["platform_capabilities"]["garmin"]["plan"] is False
 
 
-def test_garmin_delivery_requires_connection_bound_opt_in(api_client):
+def test_plan_delivery_options_include_connected_activity_platforms(
+    api_client,
+):
+    client, user_id = api_client
+    for platform in ("garmin", "stryd", "strava", "coros", "oura"):
+        _seed_connection(user_id, platform)
+
+    response = client.get("/api/settings")
+
+    assert response.status_code == 200, response.text
+    options = {
+        option["platform"]: option
+        for option in response.json()["plan_delivery_options"]
+    }
+    assert options == {
+        "garmin": {
+            "platform": "garmin",
+            "selectable": True,
+            "reason": None,
+        },
+        "stryd": {
+            "platform": "stryd",
+            "selectable": True,
+            "reason": None,
+        },
+        "strava": {
+            "platform": "strava",
+            "selectable": False,
+            "reason": "delivery_not_supported",
+        },
+        "coros": {
+            "platform": "coros",
+            "selectable": False,
+            "reason": "delivery_not_supported",
+        },
+    }
+    assert "oura" not in options
+
+
+def test_selecting_eligible_garmin_binds_account_fence(api_client):
     client, user_id = api_client
     _seed_connection(user_id, "garmin")
 
-    blocked = client.put("/api/settings", json={
-        "plan_management": {
-            "mode": "praxys",
-            "execution_target": "garmin",
-            "delivery_enabled": False,
-        },
-    })
-
-    assert blocked.status_code == 409, blocked.text
-    assert "experimental Garmin delivery" in blocked.json()["detail"]
-
     enabled = client.put("/api/settings", json={
-        "experimental_plan_delivery": {"garmin": True},
         "plan_management": {
             "mode": "praxys",
             "execution_target": "garmin",
@@ -227,7 +254,83 @@ def test_garmin_delivery_requires_connection_bound_opt_in(api_client):
     body = enabled.json()
     assert body["config"]["plan_management"]["execution_target"] == "garmin"
     assert body["platform_capabilities"]["garmin"]["plan"] is True
-    assert body["experimental_plan_delivery"]["garmin"]["enabled"] is True
+    assert "experimental_plan_delivery" not in body
+
+    from db import session as db_session
+    from db.models import UserConnection
+
+    db = db_session.SessionLocal()
+    try:
+        connection = db.query(UserConnection).filter(
+            UserConnection.user_id == user_id,
+            UserConnection.platform == "garmin",
+        ).one()
+        assert connection.plan_delivery_consent
+    finally:
+        db.close()
+
+
+def test_selecting_eligible_legacy_garmin_backfills_region_and_fence(
+    api_client,
+):
+    client, user_id = api_client
+    from db import session as db_session
+    from db.crypto import get_vault
+    from db.models import UserConfig, UserConnection
+
+    encrypted, wrapped = get_vault().encrypt(json.dumps({
+        "email": "runner@example.test",
+        "password": "secret",
+        "is_cn": False,
+    }))
+    db = db_session.SessionLocal()
+    try:
+        db.add(UserConnection(
+            user_id=user_id,
+            platform="garmin",
+            status="connected",
+            encrypted_credentials=encrypted,
+            wrapped_dek=wrapped,
+        ))
+        config = db.query(UserConfig).filter(
+            UserConfig.user_id == user_id,
+        ).one_or_none()
+        if config is None:
+            config = UserConfig(user_id=user_id)
+            db.add(config)
+        config.source_options = {}
+        db.commit()
+    finally:
+        db.close()
+
+    status = client.get("/api/settings")
+    assert status.status_code == 200, status.text
+    assert status.json()["plan_delivery_options"] == [{
+        "platform": "garmin",
+        "selectable": True,
+        "reason": None,
+    }]
+
+    selected = client.put("/api/settings", json={
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "garmin",
+            "delivery_enabled": False,
+        },
+    })
+
+    assert selected.status_code == 200, selected.text
+    body = selected.json()
+    assert body["config"]["source_options"]["garmin_region"] == "international"
+    db = db_session.SessionLocal()
+    try:
+        connection = db.query(UserConnection).filter(
+            UserConnection.user_id == user_id,
+            UserConnection.platform == "garmin",
+        ).one()
+        assert connection.plan_delivery_consent
+    finally:
+        db.close()
 
 
 def test_garmin_delivery_requires_operator_gate(
@@ -242,20 +345,26 @@ def test_garmin_delivery_requires_operator_gate(
     )
 
     blocked = client.put("/api/settings", json={
-        "experimental_plan_delivery": {"garmin": True},
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "garmin",
+            "delivery_enabled": False,
+        },
     })
 
     assert blocked.status_code == 409, blocked.text
-    assert "disabled on this deployment" in blocked.json()["detail"]
+    assert "not available for this account" in blocked.json()["detail"]
     status = client.get("/api/settings")
     assert status.status_code == 200, status.text
-    garmin = status.json()["experimental_plan_delivery"]["garmin"]
-    assert garmin["available"] is False
-    assert garmin["enabled"] is False
+    assert status.json()["plan_delivery_options"] == [{
+        "platform": "garmin",
+        "selectable": False,
+        "reason": "account_not_eligible",
+    }]
     assert status.json()["platform_capabilities"]["garmin"]["plan"] is False
 
 
-def test_garmin_delivery_pilot_user_can_opt_in_with_global_gate_off(
+def test_garmin_delivery_requires_statsig_eligibility(
     api_client,
     monkeypatch,
 ):
@@ -263,29 +372,36 @@ def test_garmin_delivery_pilot_user_can_opt_in_with_global_gate_off(
     _seed_connection(user_id, "garmin")
     monkeypatch.setenv(
         "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED",
-        "false",
+        "true",
     )
-    monkeypatch.setenv(
-        "PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS",
-        user_id,
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda _gate_name, _user: False,
     )
 
-    enabled = client.put("/api/settings", json={
-        "experimental_plan_delivery": {"garmin": True},
+    blocked = client.put("/api/settings", json={
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "garmin",
+            "delivery_enabled": False,
+        },
     })
 
-    assert enabled.status_code == 200, enabled.text
-    body = enabled.json()
-    assert body["experimental_plan_delivery"]["garmin"]["available"] is True
-    assert body["experimental_plan_delivery"]["garmin"]["enabled"] is True
-    assert body["platform_capabilities"]["garmin"]["plan"] is True
+    assert blocked.status_code == 409, blocked.text
+    assert "not available for this account" in blocked.json()["detail"]
+    status = client.get("/api/settings")
+    assert status.json()["plan_delivery_options"] == [{
+        "platform": "garmin",
+        "selectable": False,
+        "reason": "account_not_eligible",
+    }]
+    assert status.json()["platform_capabilities"]["garmin"]["plan"] is False
 
 
 def test_forward_target_fence_survives_legacy_worker_settings_save(api_client):
     client, user_id = api_client
     _seed_connection(user_id, "garmin")
     enabled = client.put("/api/settings", json={
-        "experimental_plan_delivery": {"garmin": True},
         "plan_management": {
             "mode": "praxys",
             "execution_target": "garmin",
@@ -347,7 +463,6 @@ def test_target_switch_requires_old_target_cleanup(api_client):
         db.close()
 
     blocked = client.put("/api/settings", json={
-        "experimental_plan_delivery": {"garmin": True},
         "plan_management": {
             "mode": "praxys",
             "execution_target": "garmin",
@@ -366,7 +481,6 @@ def test_legacy_plan_preference_cannot_bypass_target_cleanup(api_client):
     _seed_connection(user_id, "garmin")
     _seed_connection(user_id, "stryd")
     selected = client.put("/api/settings", json={
-        "experimental_plan_delivery": {"garmin": True},
         "plan_management": {
             "execution_target": "garmin",
             "delivery_enabled": False,
@@ -438,7 +552,6 @@ def test_target_switch_imports_legacy_stryd_state_before_validation(
         }, handle)
 
     blocked = client.put("/api/settings", json={
-        "experimental_plan_delivery": {"garmin": True},
         "plan_management": {
             "mode": "praxys",
             "execution_target": "garmin",
@@ -452,7 +565,7 @@ def test_target_switch_imports_legacy_stryd_state_before_validation(
     )
 
 
-def test_garmin_delivery_requires_explicit_region_before_opt_in(api_client):
+def test_garmin_delivery_requires_explicit_region_before_selection(api_client):
     client, user_id = api_client
     _seed_connection(user_id, "garmin")
 
@@ -472,24 +585,28 @@ def test_garmin_delivery_requires_explicit_region_before_opt_in(api_client):
 
     status = client.get("/api/settings")
     assert status.status_code == 200, status.text
-    assert (
-        status.json()["experimental_plan_delivery"]["garmin"]["region"]
-        is None
-    )
+    assert status.json()["plan_delivery_options"] == [{
+        "platform": "garmin",
+        "selectable": False,
+        "reason": "account_not_eligible",
+    }]
 
-    enabled = client.put("/api/settings", json={
-        "experimental_plan_delivery": {"garmin": True},
+    selected = client.put("/api/settings", json={
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "garmin",
+            "delivery_enabled": False,
+        },
     })
 
-    assert enabled.status_code == 409, enabled.text
-    assert "confirm its region" in enabled.json()["detail"]
+    assert selected.status_code == 409, selected.text
+    assert "not available for this account" in selected.json()["detail"]
 
 
-def test_disabling_garmin_experiment_pauses_delivery(api_client):
+def test_resuming_garmin_rebinds_the_live_account_fence(api_client):
     client, user_id = api_client
     _seed_connection(user_id, "garmin")
     enabled = client.put("/api/settings", json={
-        "experimental_plan_delivery": {"garmin": True},
         "plan_management": {
             "mode": "praxys",
             "execution_target": "garmin",
@@ -498,29 +615,47 @@ def test_disabling_garmin_experiment_pauses_delivery(api_client):
     })
     assert enabled.status_code == 200, enabled.text
 
-    disabled = client.put("/api/settings", json={
-        "experimental_plan_delivery": {"garmin": False},
+    from db import session as db_session
+    from db.models import UserConfig, UserConnection
+
+    db = db_session.SessionLocal()
+    try:
+        connection = db.query(UserConnection).filter(
+            UserConnection.user_id == user_id,
+            UserConnection.platform == "garmin",
+        ).one()
+        connection.plan_delivery_consent = None
+        row = db.get(UserConfig, user_id)
+        row.plan_management = {
+            **row.plan_management,
+            "delivery_enabled": False,
+        }
+        db.commit()
+    finally:
+        db.close()
+
+    resumed = client.put("/api/settings", json={
+        "plan_management": {"delivery_enabled": True},
     })
 
-    assert disabled.status_code == 200, disabled.text
-    body = disabled.json()
-    assert body["experimental_plan_delivery"]["garmin"]["enabled"] is False
-    assert body["platform_capabilities"]["garmin"]["plan"] is False
-    assert body["config"]["plan_management"] == {
-        "mode": "praxys",
-        "execution_target": "garmin",
-        "delivery_enabled": False,
-        "adjustment_policy": "suggest_only",
-    }
+    assert resumed.status_code == 200, resumed.text
+    db = db_session.SessionLocal()
+    try:
+        connection = db.query(UserConnection).filter(
+            UserConnection.user_id == user_id,
+            UserConnection.platform == "garmin",
+        ).one()
+        assert connection.plan_delivery_consent
+    finally:
+        db.close()
 
 
-def test_garmin_region_change_revokes_consent_and_pauses_delivery(
+def test_garmin_region_change_revokes_account_fence_and_pauses_delivery(
     api_client,
 ):
     client, user_id = api_client
     _seed_connection(user_id, "garmin")
     enabled = client.put("/api/settings", json={
-        "experimental_plan_delivery": {"garmin": True},
         "plan_management": {
             "mode": "praxys",
             "execution_target": "garmin",
@@ -535,20 +670,30 @@ def test_garmin_region_change_revokes_consent_and_pauses_delivery(
 
     assert changed.status_code == 200, changed.text
     body = changed.json()
-    assert body["experimental_plan_delivery"]["garmin"]["region"] == "cn"
-    assert body["experimental_plan_delivery"]["garmin"]["enabled"] is False
-    assert body["experimental_plan_delivery"]["garmin"]["connected"] is False
+    assert body["plan_delivery_options"] == []
     assert body["connection_statuses"]["garmin"] == "disconnected"
     assert body["config"]["plan_management"]["delivery_enabled"] is False
 
+    from db import session as db_session
+    from db.models import UserConnection
 
-def test_garmin_region_change_requires_reconnect_before_reconsent(
+    db = db_session.SessionLocal()
+    try:
+        connection = db.query(UserConnection).filter(
+            UserConnection.user_id == user_id,
+            UserConnection.platform == "garmin",
+        ).one()
+        assert connection.plan_delivery_consent is None
+    finally:
+        db.close()
+
+
+def test_garmin_region_change_requires_reconnect_before_reselection(
     api_client,
 ):
     client, user_id = api_client
     _seed_connection(user_id, "garmin")
     enabled = client.put("/api/settings", json={
-        "experimental_plan_delivery": {"garmin": True},
         "plan_management": {
             "mode": "praxys",
             "execution_target": "garmin",
@@ -559,23 +704,22 @@ def test_garmin_region_change_requires_reconnect_before_reconsent(
 
     changed = client.put("/api/settings", json={
         "source_options": {"garmin_region": "cn"},
-        "experimental_plan_delivery": {"garmin": True},
+        "plan_management": {
+            "execution_target": "garmin",
+            "delivery_enabled": True,
+        },
     })
 
     assert changed.status_code == 409, changed.text
     body = client.get("/api/settings").json()
-    assert body["experimental_plan_delivery"]["garmin"]["region"] == (
-        "international"
-    )
-    assert body["experimental_plan_delivery"]["garmin"]["enabled"] is True
+    assert body["config"]["source_options"]["garmin_region"] == "international"
     assert body["config"]["plan_management"]["delivery_enabled"] is True
 
 
-def test_disconnecting_garmin_clears_experimental_consent(api_client):
+def test_disconnecting_garmin_clears_account_fence(api_client):
     client, user_id = api_client
     _seed_connection(user_id, "garmin")
     enabled = client.put("/api/settings", json={
-        "experimental_plan_delivery": {"garmin": True},
         "plan_management": {
             "mode": "praxys",
             "execution_target": "garmin",
@@ -589,8 +733,7 @@ def test_disconnecting_garmin_clears_experimental_consent(api_client):
     assert disconnected.status_code == 200, disconnected.text
     got = client.get("/api/settings")
     body = got.json()
-    assert body["experimental_plan_delivery"]["garmin"]["connected"] is False
-    assert body["experimental_plan_delivery"]["garmin"]["enabled"] is False
+    assert body["plan_delivery_options"] == []
     assert body["config"]["plan_management"]["delivery_enabled"] is False
 
 

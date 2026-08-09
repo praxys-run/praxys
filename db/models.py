@@ -155,9 +155,10 @@ class UserConnection(Base):
     consecutive_failures = Column(Integer, nullable=False, default=0)
     next_retry_at = Column(DateTime, nullable=True)
     last_error = Column(String(500), nullable=True)
-    # Opaque consent fence for experimental plan delivery. The value is
-    # derived from the current credential generation and provider region, so
-    # reconnecting or switching regions invalidates consent automatically.
+    # Legacy column name; this is now an internal account-generation fence,
+    # not a user-facing consent bit. The durable execution target records the
+    # user's choice. Reconnect or region changes invalidate this hash so an old
+    # Garmin account can never inherit delivery authorization.
     plan_delivery_consent = Column(String(64), nullable=True)
 
     user = relationship("User", back_populates="connections")

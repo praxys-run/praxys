@@ -36,6 +36,10 @@ gunicorn>=26.0.0
 PyJWT>=2.13.0
 httpx>=0.28.1
 
+# Server-side feature gates and dynamic config. The wrapper in
+# api/statsig_client.py fails closed when STATSIG_SDK_KEY is absent.
+statsig>=0.72.0,<1.0.0
+
 # Observability — ships traces, metrics, and logs to Azure Application
 # Insights. No-op when APPLICATIONINSIGHTS_CONNECTION_STRING is unset, so
 # local dev is unaffected. The distro bundles the OTel instrumentations

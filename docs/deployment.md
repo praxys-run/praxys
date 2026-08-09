@@ -184,8 +184,8 @@ The `frontend_server/` package (`main.py` + `requirements-frontend.txt`) is ship
 
 The frontend workflow can deploy the same `web/dist` artifact to a
 mainland-China Lighthouse Nginx origin while Azure remains the international
-frontend. Lighthouse provisioning, SSH hardening, Nginx configuration, GitHub
-secrets, verification, and rollback are documented in
+frontend. Lighthouse provisioning, operator SSH hardening, Nginx configuration,
+the workflow-restricted self-hosted Runner, verification, and rollback are documented in
 [`docs/ops/tencent-frontend.md`](./ops/tencent-frontend.md).
 
 Leave `TENCENT_LIGHTHOUSE_DEPLOY_ENABLED` unset until that runbook's bootstrap

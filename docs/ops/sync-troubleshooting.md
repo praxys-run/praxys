@@ -164,12 +164,12 @@ After recovery: trigger a sync (Settings → Sync, or `POST /api/sync`), confirm
 connection card leaves `auth_required` and new activities/recovery rows appear.
 A healthy Garmin read also has no calendar warning and refreshes only
 Garmin-sourced external plan observations inside its bounded window. Calendar
-sync alone never grants write consent. For managed plans, confirm the next
+sync alone never grants write authorization. For managed plans, confirm the next
 scheduler tick creates only missing Praxys-owned workouts inside the 14-day
-horizon. For an athlete who explicitly enabled experimental Garmin delivery,
-also confirm each delivered row has one visible scheduled instance and that
-unrelated/manual workouts are unchanged; retained Praxys templates are
-intentional.
+horizon. For an eligible athlete who explicitly selected Garmin as the
+execution platform, also confirm each delivered row has one visible scheduled
+instance and that unrelated/manual workouts are unchanged; retained Praxys
+templates are intentional.
 
 For users who separately enabled conservative automatic adjustment, search for
 `Plan adjustment for user=` after the sync completion log. `adjusted` means the
