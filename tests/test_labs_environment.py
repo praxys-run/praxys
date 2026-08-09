@@ -662,6 +662,56 @@ def test_preflight_loader_breaks_on_explicit_invalid_samples(
     assert counts["complete_stryd_activity_count"] == 0
 
 
+def test_preflight_loader_avoids_postgresql_reserved_window_alias() -> None:
+    """The eligibility query must compile on PostgreSQL, not only SQLite."""
+    import re
+
+    from analysis.data_loader import load_environment_response_preflight_counts
+    from analysis.heat_response_validation import HeatValidationConfig
+
+    class _CapturedResult:
+        def mappings(self):
+            return self
+
+        def one(self):
+            return {
+                "candidate_activity_count": 0,
+                "temperature_activity_count": 0,
+                "humidity_activity_count": 0,
+                "environment_activity_count": 0,
+                "power_activity_count": 0,
+                "heart_rate_activity_count": 0,
+                "complete_any_provider_activity_count": 0,
+                "stryd_power_activity_count": 0,
+                "complete_stryd_activity_count": 0,
+                "provider_aligned_cp_activity_count": 0,
+            }
+
+    class _CapturingSession:
+        statement = ""
+
+        def execute(self, statement, _parameters):
+            self.statement = str(statement)
+            return _CapturedResult()
+
+    db = _CapturingSession()
+    load_environment_response_preflight_counts(
+        "owner",
+        db,  # type: ignore[arg-type]
+        eligible_activity_types=HeatValidationConfig().eligible_activity_types,
+        minimum_segment_duration_sec=180.0,
+        maximum_sample_interval_sec=5.0,
+        minimum_heart_rate_coverage_ratio=0.8,
+        maximum_power_watts=2500.0,
+    )
+
+    assert " AS window " not in db.statement
+    assert re.search(r"\bwindow\.", db.statement) is None
+    assert "candidate_window." in db.statement
+    assert "MAX(block.block_start_sec, MIN(" not in db.statement
+    assert "MIN(        candidate_window.window_start_sec" not in db.statement
+
+
 def test_wet_bulb_calculator_uses_versioned_stull_method(labs_client) -> None:
     client, _, _ = labs_client
 

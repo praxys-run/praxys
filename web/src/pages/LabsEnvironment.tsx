@@ -152,10 +152,12 @@ function PreflightSummary({
   preflight,
   loading,
   error,
+  onRetry,
 }: {
   preflight: LabsEnvironmentPreflightResponse | null;
   loading: boolean;
   error: string | null;
+  onRetry: () => void;
 }) {
   const { i18n } = useLingui();
   if (loading && !preflight) {
@@ -167,6 +169,15 @@ function PreflightSummary({
         <AlertTitle><Trans>Eligibility check could not load</Trans></AlertTitle>
         <AlertDescription>
           <Trans>Retry before joining. The full analysis has not started.</Trans>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={onRetry}
+          >
+            <RefreshCw className="h-4 w-4" />
+            <Trans>Retry</Trans>
+          </Button>
         </AlertDescription>
       </Alert>
     );
@@ -611,6 +622,7 @@ function Enrollment({
   preflight,
   preflightLoading,
   preflightError,
+  onRetryPreflight,
   isDemo,
   busy,
   onEnroll,
@@ -619,6 +631,7 @@ function Enrollment({
   preflight: LabsEnvironmentPreflightResponse | null;
   preflightLoading: boolean;
   preflightError: string | null;
+  onRetryPreflight: () => void;
   isDemo: boolean;
   busy: boolean;
   onEnroll: (adultAttested: boolean) => void;
@@ -638,6 +651,7 @@ function Enrollment({
           preflight={preflight}
           loading={preflightLoading}
           error={preflightError}
+          onRetry={onRetryPreflight}
         />
         <div className="grid gap-5 md:grid-cols-3">
           <div>
@@ -723,6 +737,7 @@ export default function LabsEnvironment() {
     data: preflight,
     loading: preflightLoading,
     error: preflightError,
+    refetch: refetchPreflight,
   } = useApi<LabsEnvironmentPreflightResponse>(
     '/api/labs/environment-response/preflight',
     { refetchOnMount: 'always' },
@@ -818,6 +833,7 @@ export default function LabsEnvironment() {
             preflight={preflight}
             preflightLoading={preflightLoading}
             preflightError={preflightError}
+            onRetryPreflight={() => void refetchPreflight()}
             isDemo={isDemo}
             busy={busy}
             onEnroll={(adultAttested) => void mutate(
