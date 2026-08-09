@@ -1758,6 +1758,34 @@ export interface LabsEnvironmentResult {
   power_regime: string;
 }
 
+export interface LabsEnvironmentRecomputePolicy {
+  allowed: boolean;
+  reason: 'not_enrolled' | 'active_job' | 'cooldown' | 'daily_limit' | null;
+  available_at: string | null;
+  retry_after_seconds: number | null;
+  remaining_requests: number;
+  window_hours: number;
+  cooldown_hours: number;
+}
+
+export interface LabsEnvironmentExecution {
+  job_status:
+    | 'queued'
+    | 'dispatched'
+    | 'processing'
+    | 'retrying'
+    | 'succeeded'
+    | 'failed'
+    | 'cancelled'
+    | 'dead_lettered'
+    | null;
+  attempt_count: number;
+  retryable_failure: boolean;
+  requested_at: string | null;
+  dispatched_at: string | null;
+  recompute: LabsEnvironmentRecomputePolicy;
+}
+
 export interface LabsEnvironmentResponseState {
   experiment_id: string;
   consent_version: string;
@@ -1782,6 +1810,7 @@ export interface LabsEnvironmentResponseState {
   queued_at: string | null;
   started_at: string | null;
   completed_at: string | null;
+  execution: LabsEnvironmentExecution;
 }
 
 export interface LabsEnvironmentPreflightObserved {
@@ -1805,6 +1834,31 @@ export interface LabsEnvironmentPreflightResponse {
   observed: LabsEnvironmentPreflightObserved;
   full_analysis_still_required: true;
 }
+
+export type LabsEnvironmentMutationError =
+  | (LabsEnvironmentAvailabilityReason & {
+      code: 'adult_eligibility_not_confirmed';
+    })
+  | {
+      code: 'LABS_ENVIRONMENT_PREFLIGHT_INELIGIBLE';
+      preflight: LabsEnvironmentPreflightResponse;
+    }
+  | {
+      code: 'consent_version_stale';
+      current_consent_version: string;
+    }
+  | {
+      code: 'LABS_ENVIRONMENT_NOT_ENROLLED';
+      message: string;
+    }
+  | {
+      code:
+        | 'LABS_ENVIRONMENT_RECOMPUTE_COOLDOWN'
+        | 'LABS_ENVIRONMENT_RECOMPUTE_DAILY_LIMIT';
+      message: string;
+      available_at: string;
+      retry_after_seconds: number;
+    };
 
 export interface LabsEnvironmentWetBulbResponse {
   temperature_c: number;

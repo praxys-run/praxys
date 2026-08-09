@@ -1,6 +1,7 @@
 name: Deploy Backend to Azure App Service
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
@@ -13,6 +14,7 @@ on:
       - 'tests/**'
       - 'requirements.txt'
       - 'scripts/appinsights_boundary.sh'
+      - 'scripts/provision_labs_worker_db.py'
       - '.github/azure-observability.env'
       - '.github/workflows/deploy-backend.yml'
     tags:
@@ -178,6 +180,14 @@ jobs:
           # DB password in app settings). See docs/ops/config-and-secrets.md.
           PRAXYS_DATABASE_URL: ${{ secrets.PRAXYS_DATABASE_URL }}
           PRAXYS_DB_AUTH: ${{ vars.PRAXYS_DB_AUTH }}
+          # Explicit rollout switch for isolated Labs compute. Keep `inline`
+          # until the Service Bus queue, worker identity/DB principal, and
+          # Container Apps Job have been verified; `service_bus` never falls
+          # back to in-process compute.
+          PRAXYS_LABS_EXECUTION_MODE: ${{ vars.PRAXYS_LABS_EXECUTION_MODE || 'inline' }}
+          # Optional dedicated user-assigned identity for Service Bus sends.
+          # Empty means the App Service system-assigned identity.
+          PRAXYS_LABS_SERVICE_BUS_CLIENT_ID: ${{ vars.PRAXYS_LABS_SERVICE_BUS_CLIENT_ID }}
           # Default-off hard prerequisite for unsupported Garmin consumer-API
           # writes. Enable only for an approved validation deployment or after
           # both regional live matrices pass.
@@ -224,6 +234,46 @@ jobs:
               exit 1
             fi
           done
+          LABS_SERVICE_BUS_FQDN=""
+          LABS_SERVICE_BUS_QUEUE="labs-environment-response"
+          if [[ "${PRAXYS_LABS_EXECUTION_MODE}" == "service_bus" ]]; then
+            expected_worker_image="ghcr.io/praxys-run/praxys-labs-worker:${GITHUB_SHA}"
+            worker_ready="false"
+            for attempt in {1..90}; do
+              deployed_worker_image="$(
+                az containerapp job show \
+                  --name praxys-labs-environment-worker \
+                  --resource-group rg-trainsight \
+                  --query "properties.template.containers[0].image" \
+                  -o tsv 2>/dev/null || true
+              )"
+              if [[ "${deployed_worker_image}" == "${expected_worker_image}" ]]; then
+                worker_ready="true"
+                break
+              fi
+              echo "Waiting for compatible Labs worker ${expected_worker_image} (${attempt}/90)."
+              sleep 10
+            done
+            if [[ "${worker_ready}" != "true" ]]; then
+              echo "ERROR: service_bus mode requires the Labs worker from the same commit before backend deployment." >&2
+              exit 1
+            fi
+            LABS_SERVICE_BUS_NAMESPACE="$(
+              az servicebus namespace list \
+                --resource-group rg-trainsight \
+                --query "[?tags.praxysComponent=='labs-analysis'].name | [0]" \
+                -o tsv
+            )"
+            if [[ -z "${LABS_SERVICE_BUS_NAMESPACE}" ]]; then
+              echo "ERROR: service_bus mode selected but the Labs namespace is missing" >&2
+              exit 1
+            fi
+            LABS_SERVICE_BUS_FQDN="${LABS_SERVICE_BUS_NAMESPACE}.servicebus.windows.net"
+          elif [[ "${PRAXYS_LABS_EXECUTION_MODE}" != "inline" &&
+                  "${PRAXYS_LABS_EXECUTION_MODE}" != "disabled" ]]; then
+            echo "ERROR: invalid PRAXYS_LABS_EXECUTION_MODE" >&2
+            exit 1
+          fi
           az webapp config appsettings set \
             --name trainsight-app \
             --resource-group rg-trainsight \
@@ -236,6 +286,10 @@ jobs:
               STATSIG_ENV="${STATSIG_ENV}" \
               PRAXYS_DATABASE_URL="${PRAXYS_DATABASE_URL}" \
               PRAXYS_DB_AUTH="${PRAXYS_DB_AUTH}" \
+              PRAXYS_LABS_EXECUTION_MODE="${PRAXYS_LABS_EXECUTION_MODE}" \
+              PRAXYS_LABS_SERVICE_BUS_FQDN="${LABS_SERVICE_BUS_FQDN}" \
+              PRAXYS_LABS_SERVICE_BUS_QUEUE="${LABS_SERVICE_BUS_QUEUE}" \
+              PRAXYS_LABS_SERVICE_BUS_CLIENT_ID="${PRAXYS_LABS_SERVICE_BUS_CLIENT_ID}" \
               PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED="${PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED}" \
               WECHAT_MINIAPP_APPID="${WECHAT_MINIAPP_APPID}" \
               WECHAT_MINIAPP_SECRET="${WECHAT_MINIAPP_SECRET}" \

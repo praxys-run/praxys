@@ -125,12 +125,21 @@ async def lifespan(app: FastAPI):
     logger.info("Sync scheduler %s", "enabled" if scheduler_enabled else "disabled by env")
     from api.statsig_client import init_statsig
     await init_statsig()
-    if scheduler_enabled:
-        from db.sync_scheduler import start_scheduler
-        start_scheduler()
     try:
+        from api.labs_dispatch import start_dispatcher
+
+        start_dispatcher()
+        if scheduler_enabled:
+            from db.sync_scheduler import start_scheduler
+
+            start_scheduler()
         yield
     finally:
+        try:
+            from api.labs_dispatch import stop_dispatcher
+            stop_dispatcher()
+        except Exception:
+            logger.exception("Failed to stop Labs dispatcher cleanly")
         if scheduler_enabled:
             try:
                 from db.sync_scheduler import stop_scheduler

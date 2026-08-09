@@ -17,6 +17,12 @@
   daily cap `PRAXYS_INSIGHT_DAILY_CAP` (default 30). Lower the cap to throttle.
 - Standing infra is small: App Service plan `plan-trainsight` (B1) hosts both
   backend + frontend at $0 incremental; perf-baseline storage is ~$0.05/mo idle.
+- **Labs isolated compute:** a measured 421-second run at 1 vCPU / 2 GiB is
+  about **$0.0126 before the Container Apps monthly free grant**. The grant
+  covers roughly 375-428 runs of that size per month; Service Bus Basic
+  operations are negligible at current volume. Two Service Bus metric alerts
+  add at most about $0.20/mo before the metric-alert free allotment. The public
+  GHCR image avoids a standing registry charge.
 
 ## Scaling the backend
 
@@ -48,6 +54,19 @@ the pool via `PRAXYS_DB_POOL_SIZE` / `PRAXYS_DB_MAX_OVERFLOW` for the tier's
 
 Note: scale-up resets App Service local state on the new instance — `/home`
 persists (the DB is safe), but in-memory sync status resets.
+
+## Labs worker scaling
+
+The isolated Labs worker is deliberately capped in Bicep at one execution,
+parallelism one, and one message per execution. Do not raise `maxExecutions`
+until PostgreSQL connection headroom, per-job CPU/memory, queue delay, and the
+privacy/scientific fences have been reviewed. User-side six-hour cooldown,
+three requests per rolling day, and one active job per experiment are the
+first-line demand controls; Service Bus backlog is the capacity signal.
+
+Scale-to-zero means an idle worker has no Container Apps compute charge. If
+`praxys-labs-queue-backlog` fires repeatedly while API latency and PostgreSQL
+remain healthy, review measured queue delay before changing concurrency.
 
 ## Registration cap & scale readiness
 

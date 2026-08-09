@@ -1,13 +1,16 @@
 import type { IAppOption } from '../../../app';
 import { apiDelete, apiGet, apiPost } from '../../../utils/api-client';
 import type { ApiError } from '../../../utils/api-client';
-import { t } from '../../../utils/i18n';
+import { detectLocale, t } from '../../../utils/i18n';
 import {
   applyThemeChrome,
+  chartColors,
   resolveTheme,
   themeClassName,
 } from '../../../utils/theme';
 import type {
+  LabsEnvironmentExecution,
+  LabsEnvironmentMutationError,
   LabsEnvironmentPreflightResponse,
   LabsEnvironmentResponseState,
   LabsEnvironmentWetBulbResponse,
@@ -15,6 +18,59 @@ import type {
 
 const CONSENT_VERSION = 'environment-response-consent-v1';
 const STULL_SOURCE_URL = 'https://doi.org/10.1175/JAMC-D-11-0143.1';
+type LabsMutationAction = 'enroll' | 'recompute';
+
+interface LabsPrivateState {
+  _labsPoll?: number;
+  _labsIdempotencyKeys?: Partial<Record<LabsMutationAction, string>>;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isLabsMutationError(
+  value: unknown,
+): value is LabsEnvironmentMutationError {
+  if (!isRecord(value) || typeof value.code !== 'string') return false;
+  if (value.code === 'adult_eligibility_not_confirmed') {
+    return (
+      typeof value.category === 'string'
+      && typeof value.public_message_key === 'string'
+      && typeof value.required_guardrail === 'string'
+      && typeof value.user_actionable === 'boolean'
+      && typeof value.suggested_action_key === 'string'
+      && typeof value.analysis_stage === 'string'
+      && typeof value.power_regime === 'string'
+      && typeof value.model_version === 'string'
+      && typeof value.correlation_id === 'string'
+    );
+  }
+  if (value.code === 'LABS_ENVIRONMENT_PREFLIGHT_INELIGIBLE') {
+    return (
+      isRecord(value.preflight)
+      && typeof value.preflight.can_start_analysis === 'boolean'
+      && typeof value.preflight.status === 'string'
+    );
+  }
+  if (value.code === 'consent_version_stale') {
+    return typeof value.current_consent_version === 'string';
+  }
+  if (value.code === 'LABS_ENVIRONMENT_NOT_ENROLLED') {
+    return typeof value.message === 'string';
+  }
+  if (
+    value.code === 'LABS_ENVIRONMENT_RECOMPUTE_COOLDOWN'
+    || value.code === 'LABS_ENVIRONMENT_RECOMPUTE_DAILY_LIMIT'
+  ) {
+    return (
+      typeof value.message === 'string'
+      && typeof value.available_at === 'string'
+      && typeof value.retry_after_seconds === 'number'
+    );
+  }
+  return false;
+}
 
 function buildLabsTr() {
   return {
@@ -35,8 +91,6 @@ function buildLabsTr() {
     adultConsent: t('I confirm that I am 18 or older. Praxys records this attestation, not my birth date.'),
     experimentConsent: t('I understand the purpose, limits, storage, and withdrawal terms above and choose to participate in this experiment.'),
     joinAction: t('Join and analyze my history'),
-    processingTitle: t('Analyzing your eligible history'),
-    processingDetail: t('Praxys is checking Stryd provenance, fitting the aggregate model, and applying every release guardrail.'),
     cancelWithdraw: t('Cancel and withdraw'),
     availableTitle: t('Historical association; not predictively validated'),
     availableDetail: t('One or more research diagnostics did not support predictive interpretation. Read the curve only as a pattern in eligible past runs.'),
@@ -68,7 +122,27 @@ function buildLabsTr() {
     unavailableTitle: t('No curve is available yet'),
     staleTitle: t('Your result needs recomputing'),
     failedTitle: t('The analysis did not finish'),
+    retryExhaustedTitle: t('Analysis needs a manual retry'),
     recompute: t('Recompute'),
+    recomputeResult: t('Recompute result'),
+    retryQueuedTitle: t('Temporary service issue; retry queued'),
+    workerRunningTitle: t('Analysis worker is running'),
+    queuedTitle: t('Queued for the analysis worker'),
+    requestSavedTitle: t('Analysis request saved'),
+    retryDetail: t('A temporary infrastructure problem interrupted the previous attempt. Praxys kept the request and will retry automatically.'),
+    runningDetail: t('The isolated worker is building the aggregate response from your eligible activity data.'),
+    queuedDetail: t('Your request is stored durably and will run separately from the app.'),
+    leavePageDetail: t('You can leave this page and return later. No action is needed while the analysis runs.'),
+    attempt: t('Attempt'),
+    recomputeCoolingDown: t('Recompute cooling down'),
+    recomputeAvailableAgain: t('Recompute available again'),
+    cooldownDetail: t('The cooldown prevents accidental repeat analysis.'),
+    rollingLimitReached: t('Rolling recompute limit reached'),
+    rollingLimitDetail: t('The rolling limit protects the shared analysis capacity from repeated requests.'),
+    manualRecomputesRemaining: t('manual recomputes remaining'),
+    hourRollingWindow: t('hour rolling window'),
+    requestFailed: t('Request failed. Try again.'),
+    networkError: t('Network error. Try again.'),
     supportId: t('Support ID'),
     calculatorTitle: t('Wet-bulb proxy calculator'),
     calculatorDetail: t('Combine air temperature and relative humidity using the same Stull estimate as the experiment.'),
@@ -124,6 +198,7 @@ const REASON_KEYS: Record<string, () => string> = {
   sensitivity_unstable: () => t('Reasonable model variations do not preserve the same historical relationship.'),
   influential_activity: () => t('A single activity has too much influence on the result.'),
   prediction_unavailable: () => t('The chronological prediction check could not be evaluated, so Praxys withholds the fitted curve.'),
+  analysis_retry_exhausted: () => t('The analysis worker could not complete the model after repeated infrastructure attempts.'),
   analysis_failed: () => t('The analysis did not finish successfully.'),
   provider_alignment_requires_full_analysis: () => t('Your history includes enough broad sample coverage, but the full analysis must confirm that power, heart rate, and Critical Power use one compatible Stryd regime.'),
 };
@@ -133,8 +208,97 @@ function errorDetail(error: unknown): string {
   return apiError?.detail || t('Network error. Try again.');
 }
 
+function createIdempotencyKey(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function formatLocalDateTime(value: string | null | undefined): string {
+  if (!value) return '';
+  try {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return parsed.toLocaleString(detectLocale() === 'zh' ? 'zh-CN' : 'en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return '';
+  }
+}
+
+function actionErrorDetail(
+  error: unknown,
+  tr: ReturnType<typeof buildLabsTr>,
+): string {
+  const apiError = error as ApiError;
+  const detail = isLabsMutationError(apiError?.data)
+    ? apiError.data
+    : null;
+  const availableAt = detail && 'available_at' in detail
+    ? formatLocalDateTime(detail.available_at)
+    : '';
+  if (detail?.code === 'LABS_ENVIRONMENT_RECOMPUTE_COOLDOWN') {
+    return availableAt
+      ? `${tr.recomputeCoolingDown} · ${tr.recomputeAvailableAgain}: ${availableAt}`
+      : tr.recomputeCoolingDown;
+  }
+  if (detail?.code === 'LABS_ENVIRONMENT_RECOMPUTE_DAILY_LIMIT') {
+    return availableAt
+      ? `${tr.rollingLimitReached} · ${tr.recomputeAvailableAgain}: ${availableAt}`
+      : tr.rollingLimitReached;
+  }
+  if (detail?.code === 'adult_eligibility_not_confirmed') {
+    return t('Confirm that you are 18 or older to join this experiment.');
+  }
+  if (detail?.code === 'LABS_ENVIRONMENT_PREFLIGHT_INELIGIBLE') {
+    return t('The quick check found a data requirement that needs attention.');
+  }
+  if (detail?.code === 'consent_version_stale') {
+    return t('The consent text changed. Review and confirm the current version.');
+  }
+  if (detail?.code === 'LABS_ENVIRONMENT_NOT_ENROLLED') {
+    return t('Not enrolled');
+  }
+  return apiError?.detail || tr.requestFailed;
+}
+
+function executionPresentation(
+  execution: LabsEnvironmentExecution,
+  tr: ReturnType<typeof buildLabsTr>,
+) {
+  if (execution.job_status === 'retrying') {
+    return {
+      title: tr.retryQueuedTitle,
+      detail: tr.retryDetail,
+      retrying: true,
+    };
+  }
+  if (execution.job_status === 'processing') {
+    return {
+      title: tr.workerRunningTitle,
+      detail: tr.runningDetail,
+      retrying: false,
+    };
+  }
+  if (execution.job_status === 'dispatched') {
+    return {
+      title: tr.queuedTitle,
+      detail: tr.queuedDetail,
+      retrying: false,
+    };
+  }
+  return {
+    title: tr.requestSavedTitle,
+    detail: tr.queuedDetail,
+    retrying: false,
+  };
+}
+
 function chartSeries(state: LabsEnvironmentResponseState) {
   const points = state.result?.aggregate_curve_points ?? [];
+  const colors = chartColors();
   const bins = state.result?.eligibility_counts.curve_support_bins ?? [];
   const pointsByBin = new Map(
     points.map((point) => [point.support_bin_index, point]),
@@ -149,18 +313,18 @@ function chartSeries(state: LabsEnvironmentResponseState) {
   return [
     {
       label: t('Lower interval'),
-      color: '#8b93a7',
+      color: colors.tick,
       values: values('relative_lower_bpm'),
       dashed: true,
     },
     {
       label: t('Relative modeled HR'),
-      color: '#2e71c6',
+      color: colors.reasoning,
       values: values('relative_hr_bpm'),
     },
     {
       label: t('Upper interval'),
-      color: '#8b93a7',
+      color: colors.tick,
       values: values('relative_upper_bpm'),
       dashed: true,
     },
@@ -169,6 +333,9 @@ function chartSeries(state: LabsEnvironmentResponseState) {
 
 function deriveState(state: LabsEnvironmentResponseState) {
   const result = state.result;
+  const tr = buildLabsTr();
+  const execution = executionPresentation(state.execution, tr);
+  const recompute = state.execution.recompute;
   const counts = result?.eligibility_counts;
   const observed = counts?.observed_wet_bulb_domain_c
     ?? state.availability_reason?.observed_aggregate?.observed_wet_bulb_domain_c
@@ -197,6 +364,16 @@ function deriveState(state: LabsEnvironmentResponseState) {
     isUnavailable: ['unavailable', 'failed', 'stale'].includes(state.status),
     isStale: state.status === 'stale',
     isFailed: state.status === 'failed',
+    retryExhausted: state.availability_reason?.code === 'analysis_retry_exhausted',
+    processingTitle: execution.title,
+    processingDetail: execution.detail,
+    processingRetrying: execution.retrying,
+    attemptCount: state.execution.attempt_count,
+    recomputeAllowed: recompute.allowed,
+    recomputeReason: recompute.reason ?? '',
+    recomputeAvailableDisplay: formatLocalDateTime(recompute.available_at),
+    recomputeRemaining: recompute.remaining_requests,
+    recomputeWindowHours: recompute.window_hours,
     reasonMessage: state.availability_reason
       ? (REASON_KEYS[state.availability_reason.code]?.()
         ?? t('This result did not pass the experiment’s release guardrails.'))
@@ -221,6 +398,9 @@ function deriveState(state: LabsEnvironmentResponseState) {
       binIndex: bin.bin_index,
       range: `${bin.lower_wet_bulb_c.toFixed(1)}–${bin.upper_wet_bulb_c.toFixed(1)} °C`,
       activityCount: bin.reference_power_activity_count,
+      activityUnit: bin.reference_power_activity_count === 1
+        ? t('activity')
+        : tr.activitiesUnit,
       supported: bin.supported,
     })),
     chartDates: supportBins.length
@@ -256,6 +436,16 @@ Page({
     isUnavailable: false,
     isStale: false,
     isFailed: false,
+    retryExhausted: false,
+    processingTitle: '',
+    processingDetail: '',
+    processingRetrying: false,
+    attemptCount: 0,
+    recomputeAllowed: false,
+    recomputeReason: '',
+    recomputeAvailableDisplay: '',
+    recomputeRemaining: 0,
+    recomputeWindowHours: 24,
     reasonMessage: '',
     supportId: '',
     activityCountDisplay: '—',
@@ -271,6 +461,7 @@ Page({
       binIndex: number;
       range: string;
       activityCount: number;
+      activityUnit: string;
       supported: boolean;
     }>,
     chartDates: [] as string[],
@@ -297,20 +488,23 @@ Page({
 
   onShow() {
     applyThemeChrome();
+    if (this.data.hasResponse && !this.data.loading) {
+      void this.refetch();
+    }
   },
 
   onHide() {
-    const self = this as unknown as { _labsPoll?: number };
+    const self = this as unknown as LabsPrivateState;
     if (self._labsPoll) clearTimeout(self._labsPoll);
   },
 
   onUnload() {
-    const self = this as unknown as { _labsPoll?: number };
+    const self = this as unknown as LabsPrivateState;
     if (self._labsPoll) clearTimeout(self._labsPoll);
   },
 
   async refetch() {
-    const self = this as unknown as { _labsPoll?: number };
+    const self = this as unknown as LabsPrivateState;
     if (self._labsPoll) clearTimeout(self._labsPoll);
     this.setData({ loading: true, errorMessage: '' });
     try {
@@ -318,6 +512,18 @@ Page({
         apiGet<LabsEnvironmentResponseState>('/api/labs/environment-response'),
         apiGet<LabsEnvironmentPreflightResponse>('/api/labs/environment-response/preflight'),
       ]);
+      const previousState = this.data.state;
+      const resetConsentControls = (
+        (
+          previousState != null
+          && previousState.status !== 'not_enrolled'
+          && state.status === 'not_enrolled'
+        )
+        || (
+          previousState != null
+          && previousState.consent_version !== state.consent_version
+        )
+      );
       const preflightBlocked = !preflight.can_start_analysis;
       const preflightUncertain = preflight.status === 'needs_full_analysis';
       this.setData({
@@ -342,10 +548,35 @@ Page({
           preflight.observed.complete_stryd_activity_count,
           preflight.observed.provider_aligned_cp_activity_count,
         ),
+        ...(resetConsentControls
+          ? {
+              adultAttested: false,
+              consentConfirmed: false,
+            }
+          : {}),
         ...deriveState(state),
       });
-      if (state.status === 'queued' || state.status === 'processing') {
+      if (
+        ['queued', 'dispatched', 'processing', 'retrying'].includes(
+          state.execution.job_status ?? '',
+        )
+      ) {
         self._labsPoll = setTimeout(() => this.refetch(), 4000) as unknown as number;
+      } else if (
+        !state.execution.recompute.allowed
+        && ['cooldown', 'daily_limit'].includes(
+          state.execution.recompute.reason ?? '',
+        )
+        && state.execution.recompute.retry_after_seconds != null
+      ) {
+        const retryDelayMs = Math.max(
+          1000,
+          state.execution.recompute.retry_after_seconds * 1000 + 250,
+        );
+        self._labsPoll = setTimeout(
+          () => this.refetch(),
+          retryDelayMs,
+        ) as unknown as number;
       }
     } catch (error) {
       this.setData({ loading: false, errorMessage: errorDetail(error) });
@@ -371,27 +602,88 @@ Page({
       || this.data.preflightBlocked
     ) return;
     this.setData({ actionPending: true, actionError: '' });
+    const privateState = this as unknown as LabsPrivateState;
+    const keys = privateState._labsIdempotencyKeys ??= {};
+    const idempotencyKey = keys.enroll ??= createIdempotencyKey();
     try {
-      await apiPost<LabsEnvironmentResponseState>('/api/labs/environment-response', {
-        adult_attested: true,
-        consent_version: this.data.state?.consent_version ?? CONSENT_VERSION,
-      });
+      await apiPost<LabsEnvironmentResponseState>(
+        '/api/labs/environment-response',
+        {
+          adult_attested: true,
+          consent_version: this.data.state?.consent_version ?? CONSENT_VERSION,
+        },
+        { headers: { 'Idempotency-Key': idempotencyKey } },
+      );
+      delete keys.enroll;
       await this.refetch();
     } catch (error) {
-      this.setData({ actionError: errorDetail(error) });
+      const status = (error as ApiError)?.status;
+      if (status > 0 && status < 500) {
+        delete keys.enroll;
+      }
+      this.setData({ actionError: actionErrorDetail(error, this.data.tr) });
+      if (
+        status === 409
+        && (
+          (error as ApiError)?.code === 'LABS_ENVIRONMENT_PREFLIGHT_INELIGIBLE'
+          || (error as ApiError)?.code === 'consent_version_stale'
+          || (error as ApiError)?.code === 'LABS_ENVIRONMENT_NOT_ENROLLED'
+        )
+      ) {
+        if (
+          (error as ApiError)?.code === 'consent_version_stale'
+          || (error as ApiError)?.code === 'LABS_ENVIRONMENT_NOT_ENROLLED'
+        ) {
+          this.setData({
+            adultAttested: false,
+            consentConfirmed: false,
+          });
+        }
+        await this.refetch();
+      }
     } finally {
       this.setData({ actionPending: false });
     }
   },
 
   async onRecompute() {
-    if (this.data.preflightBlocked) return;
+    if (this.data.preflightBlocked || !this.data.recomputeAllowed) return;
     this.setData({ actionPending: true, actionError: '' });
+    const privateState = this as unknown as LabsPrivateState;
+    const keys = privateState._labsIdempotencyKeys ??= {};
+    const idempotencyKey = keys.recompute ??= createIdempotencyKey();
     try {
-      await apiPost<LabsEnvironmentResponseState>('/api/labs/environment-response/recompute');
+      await apiPost<LabsEnvironmentResponseState>(
+        '/api/labs/environment-response/recompute',
+        undefined,
+        { headers: { 'Idempotency-Key': idempotencyKey } },
+      );
+      delete keys.recompute;
       await this.refetch();
     } catch (error) {
-      this.setData({ actionError: errorDetail(error) });
+      const status = (error as ApiError)?.status;
+      if (status > 0 && status < 500) {
+        delete keys.recompute;
+      }
+      this.setData({ actionError: actionErrorDetail(error, this.data.tr) });
+      if (status === 429) {
+        await this.refetch();
+      } else if (
+        status === 409
+        && (
+          (error as ApiError)?.code === 'LABS_ENVIRONMENT_PREFLIGHT_INELIGIBLE'
+          || (error as ApiError)?.code === 'consent_version_stale'
+          || (error as ApiError)?.code === 'LABS_ENVIRONMENT_NOT_ENROLLED'
+        )
+      ) {
+        if ((error as ApiError)?.code === 'LABS_ENVIRONMENT_NOT_ENROLLED') {
+          this.setData({
+            adultAttested: false,
+            consentConfirmed: false,
+          });
+        }
+        await this.refetch();
+      }
     } finally {
       this.setData({ actionPending: false });
     }

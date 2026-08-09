@@ -31,6 +31,11 @@ msgstr "(Garmin rate limits apply)"
 msgid "(optional)"
 msgstr "(optional)"
 
+#. placeholder {0}: bin.reference_power_activity_count
+#: src/pages/LabsEnvironment.tsx:593
+msgid "{0, plural, one {# activity} other {# activities}}"
+msgstr "{0, plural, one {# activity} other {# activities}}"
+
 #. placeholder {0}: content.findings.length
 #: src/components/AiInsightsCard.tsx:252
 msgid "{0, plural, one {# finding} other {# findings}}"
@@ -62,9 +67,9 @@ msgid "{0} / {thresholdMinutes} min"
 msgstr "{0} / {thresholdMinutes} min"
 
 #. placeholder {0}: bin.reference_power_activity_count
-#: src/pages/LabsEnvironment.tsx:411
-msgid "{0} activities"
-msgstr "{0} activities"
+#: src/pages/LabsEnvironment.tsx:593
+#~ msgid "{0} activities"
+#~ msgstr "{0} activities"
 
 #. placeholder {0}: status.contributing_sessions
 #. placeholder {1}: status.exposure_days
@@ -509,13 +514,17 @@ msgstr "A prior qualifying block still informs this qualitative stage, but respo
 msgid "A prior qualifying block still informs this qualitative stage, but response-specific adaptation evidence is declining. The range shown here describes current qualifying evidence, not that prior block."
 msgstr "A prior qualifying block still informs this qualitative stage, but response-specific adaptation evidence is declining. The range shown here describes current qualifying evidence, not that prior block."
 
-#: src/pages/LabsEnvironment.tsx:86
+#: src/pages/LabsEnvironment.tsx:88
 msgid "A single activity has too much influence on the result."
 msgstr "A single activity has too much influence on the result."
 
-#: src/pages/LabsEnvironment.tsx:77
+#: src/pages/LabsEnvironment.tsx:79
 msgid "A Stryd-aligned Critical Power value is required for this experiment."
 msgstr "A Stryd-aligned Critical Power value is required for this experiment."
+
+#: src/pages/LabsEnvironment.tsx:264
+msgid "A temporary infrastructure problem interrupted the previous attempt. Praxys kept the request and will retry automatically."
+msgstr "A temporary infrastructure problem interrupted the previous attempt. Praxys kept the request and will retry automatically."
 
 #: src/pages/Training.tsx:189
 #~ msgid "above"
@@ -612,7 +621,7 @@ msgstr "Activities"
 msgid "Activities only: runs, rides, pace, heart rate, route data"
 msgstr "Activities only: runs, rides, pace, heart rate, route data"
 
-#: src/pages/LabsEnvironment.tsx:211
+#: src/pages/LabsEnvironment.tsx:393
 msgid "Activities passing quick prerequisites"
 msgstr "Activities passing quick prerequisites"
 
@@ -763,7 +772,7 @@ msgstr "agent-ready candidates"
 #~ msgid "Agent-ready candidates"
 #~ msgstr "Agent-ready candidates"
 
-#: src/pages/LabsEnvironment.tsx:664
+#: src/pages/LabsEnvironment.tsx:850
 msgid "Aggregate storage"
 msgstr "Aggregate storage"
 
@@ -824,7 +833,7 @@ msgstr "All {0} linked ticket(s) already up to date."
 msgid "All components operational"
 msgstr "All components operational"
 
-#: src/pages/LabsEnvironment.tsx:817
+#: src/pages/LabsEnvironment.tsx:1086
 msgid "All experiments"
 msgstr "All experiments"
 
@@ -869,13 +878,25 @@ msgstr "An external planner overlaps the Praxys plan. Use one planner at a time 
 msgid "An unexpected error occurred."
 msgstr "An unexpected error occurred."
 
+#: src/pages/LabsEnvironment.tsx:1152
+msgid "Analysis needs a manual retry"
+msgstr "Analysis needs a manual retry"
+
+#: src/pages/LabsEnvironment.tsx:260
+msgid "Analysis request saved"
+msgstr "Analysis request saved"
+
+#: src/pages/LabsEnvironment.tsx:257
+msgid "Analysis worker is running"
+msgstr "Analysis worker is running"
+
 #: src/pages/Labs.tsx:22
 msgid "Analyzing"
 msgstr "Analyzing"
 
-#: src/pages/LabsEnvironment.tsx:858
-msgid "Analyzing your eligible history"
-msgstr "Analyzing your eligible history"
+#: src/pages/LabsEnvironment.tsx:728
+#~ msgid "Analyzing your eligible history"
+#~ msgstr "Analyzing your eligible history"
 
 #. placeholder {0}: praxysWorkouts.length - previewWorkouts.length
 #: src/components/ManagedPlanSettingsCard.tsx:635
@@ -922,6 +943,10 @@ msgstr "Athlete action required"
 #: src/components/charts/FitnessFatigueChart.tsx:315
 msgid "ATL (recent load)"
 msgstr "ATL (recent load)"
+
+#: src/pages/LabsEnvironment.tsx:276
+msgid "Attempt"
+msgstr "Attempt"
 
 #: src/pages/admin/AdminOps.tsx:1752
 msgid "attempts"
@@ -988,7 +1013,7 @@ msgstr "Availability rate"
 
 #: src/pages/admin/AdminUsers.tsx:768
 #: src/pages/Labs.tsx:26
-#: src/pages/LabsEnvironment.tsx:143
+#: src/pages/LabsEnvironment.tsx:156
 msgid "Available"
 msgstr "Available"
 
@@ -1056,10 +1081,6 @@ msgstr "Azure Monitor did not respond before the operations deadline."
 #: src/pages/admin/AdminOps.tsx:360
 msgid "Azure Monitor returned an incomplete result, so this section was not refreshed."
 msgstr "Azure Monitor returned an incomplete result, so this section was not refreshed."
-
-#: src/components/PersonalContextPanel.tsx:1377
-#~ msgid "Azure OpenAI"
-#~ msgstr "Azure OpenAI"
 
 #: src/pages/admin/AdminOps.tsx:572
 #~ msgid "Azure-backed summary"
@@ -1160,7 +1181,7 @@ msgstr "Bilingual announcement banners for product-wide communication."
 msgid "Body (optional)"
 msgstr "Body (optional)"
 
-#: src/pages/LabsEnvironment.tsx:955
+#: src/pages/LabsEnvironment.tsx:1228
 msgid "Bootstrap interval"
 msgstr "Bootstrap interval"
 
@@ -1225,11 +1246,11 @@ msgstr "Building toward <0>{0}</0> {distLabel}. Current {abbrev} <1>{currentStr}
 msgid "by"
 msgstr "by"
 
-#: src/pages/LabsEnvironment.tsx:569
+#: src/pages/LabsEnvironment.tsx:755
 msgid "Calculate proxy"
 msgstr "Calculate proxy"
 
-#: src/pages/LabsEnvironment.tsx:344
+#: src/pages/LabsEnvironment.tsx:526
 msgid "Calculator"
 msgstr "Calculator"
 
@@ -1256,7 +1277,7 @@ msgstr "Calculator"
 msgid "Cancel"
 msgstr "Cancel"
 
-#: src/pages/LabsEnvironment.tsx:865
+#: src/pages/LabsEnvironment.tsx:282
 msgid "Cancel and withdraw"
 msgstr "Cancel and withdraw"
 
@@ -1463,7 +1484,7 @@ msgstr "Code"
 msgid "Code {0} created for {1}. Email not sent. Copy it or use the link."
 msgstr "Code {0} created for {1}. Email not sent. Copy it or use the link."
 
-#: src/pages/LabsEnvironment.tsx:543
+#: src/pages/LabsEnvironment.tsx:729
 msgid "Combine air temperature and relative humidity using the same Stull estimate as the experiment."
 msgstr "Combine air temperature and relative humidity using the same Stull estimate as the experiment."
 
@@ -1484,7 +1505,7 @@ msgstr "Committed / cap"
 msgid "Communications"
 msgstr "Communications"
 
-#: src/pages/LabsEnvironment.tsx:380
+#: src/pages/LabsEnvironment.tsx:562
 msgid "Comparable-power activity support"
 msgstr "Comparable-power activity support"
 
@@ -1525,10 +1546,6 @@ msgstr "Components"
 msgid "Configure your training system"
 msgstr "Configure your training system"
 
-#: src/components/PersonalContextPanel.tsx:1541
-#~ msgid "Configured provider: Azure OpenAI"
-#~ msgstr "Configured provider: Azure OpenAI"
-
 #: src/pages/admin/AdminOps.tsx:1202
 msgid "Confirm one fenced replay. Praxys will refresh the provider calendar and stop if ownership or delivery state changed."
 msgstr "Confirm one fenced replay. Praxys will refresh the provider calendar and stop if ownership or delivery state changed."
@@ -1536,6 +1553,10 @@ msgstr "Confirm one fenced replay. Praxys will refresh the provider calendar and
 #: src/pages/admin/AdminOps.tsx:1228
 msgid "Confirm replay"
 msgstr "Confirm replay"
+
+#: src/pages/LabsEnvironment.tsx:962
+msgid "Confirm that you are 18 or older to join this experiment."
+msgstr "Confirm that you are 18 or older to join this experiment."
 
 #: src/components/ManagedPlanSettingsCard.tsx:1059
 msgid "Confirm the boundary before Praxys writes to {targetLabel}."
@@ -1617,7 +1638,7 @@ msgstr "Connection funnel"
 #~ msgid "Connector-provided activity summary"
 #~ msgstr "Connector-provided activity summary"
 
-#: src/pages/LabsEnvironment.tsx:722
+#: src/pages/LabsEnvironment.tsx:908
 msgid "Consent text version"
 msgstr "Consent text version"
 
@@ -1647,7 +1668,7 @@ msgstr "Continue to Strava"
 msgid "Continuous"
 msgstr "Continuous"
 
-#: src/pages/LabsEnvironment.tsx:73
+#: src/pages/LabsEnvironment.tsx:75
 msgid "Continuous heart-rate samples are missing from too much of the eligible history."
 msgstr "Continuous heart-rate samples are missing from too much of the eligible history."
 
@@ -1659,11 +1680,11 @@ msgstr "Continuous Improvement"
 msgid "Continuous improvement configured"
 msgstr "Continuous improvement configured"
 
-#: src/pages/LabsEnvironment.tsx:966
+#: src/pages/LabsEnvironment.tsx:1239
 msgid "Continuous Stryd sample power"
 msgstr "Continuous Stryd sample power"
 
-#: src/pages/LabsEnvironment.tsx:72
+#: src/pages/LabsEnvironment.tsx:74
 msgid "Continuous Stryd sample power is missing from too much of the eligible history."
 msgstr "Continuous Stryd sample power is missing from too much of the eligible history."
 
@@ -1713,8 +1734,8 @@ msgstr "Correct private context"
 msgid "Could not add this workout"
 msgstr "Could not add this workout"
 
-#: src/pages/LabsEnvironment.tsx:507
-#: src/pages/LabsEnvironment.tsx:515
+#: src/pages/LabsEnvironment.tsx:693
+#: src/pages/LabsEnvironment.tsx:701
 msgid "Could not calculate the wet-bulb proxy."
 msgstr "Could not calculate the wet-bulb proxy."
 
@@ -2264,7 +2285,7 @@ msgstr "Demo accounts"
 #~ msgid "Demo Accounts"
 #~ msgstr "Demo Accounts"
 
-#: src/pages/LabsEnvironment.tsx:708
+#: src/pages/LabsEnvironment.tsx:894
 msgid "Demo accounts are read-only and cannot join Labs."
 msgstr "Demo accounts are read-only and cannot join Labs."
 
@@ -2501,7 +2522,7 @@ msgstr "e.g. 5:45"
 msgid "e.g. 8:00:00"
 msgstr "e.g. 8:00:00"
 
-#: src/pages/LabsEnvironment.tsx:430
+#: src/pages/LabsEnvironment.tsx:616
 msgid "Each activity counts once per range. A qualifying activity needs an accepted stable segment averaging 75–85% of its pre-activity Stryd Critical Power; raw sample points alone do not count."
 msgstr "Each activity counts once per range. A qualifying activity needs an accepted stable segment averaging 75–85% of its pre-activity Stryd Critical Power; raw sample points alone do not count."
 
@@ -2581,7 +2602,7 @@ msgstr "Elev"
 #~ msgid "Elevated"
 #~ msgstr "Elevated"
 
-#: src/pages/LabsEnvironment.tsx:169
+#: src/pages/LabsEnvironment.tsx:351
 msgid "Eligibility check could not load"
 msgstr "Eligibility check could not load"
 
@@ -2589,7 +2610,7 @@ msgstr "Eligibility check could not load"
 msgid "Eligible"
 msgstr "Eligible"
 
-#: src/pages/LabsEnvironment.tsx:449
+#: src/pages/LabsEnvironment.tsx:635
 msgid "Eligible activities"
 msgstr "Eligible activities"
 
@@ -2667,15 +2688,15 @@ msgstr "Ends"
 msgid "Endurance"
 msgstr "Endurance"
 
-#: src/pages/LabsEnvironment.tsx:80
+#: src/pages/LabsEnvironment.tsx:82
 msgid "Enough activities exist overall, but the required environment, power, and heart-rate data do not overlap on enough of the same runs."
 msgstr "Enough activities exist overall, but the required environment, power, and heart-rate data do not overlap on enough of the same runs."
 
-#: src/pages/LabsEnvironment.tsx:201
+#: src/pages/LabsEnvironment.tsx:383
 msgid "Enough source data to attempt the experiment"
 msgstr "Enough source data to attempt the experiment"
 
-#: src/pages/LabsEnvironment.tsx:490
+#: src/pages/LabsEnvironment.tsx:676
 msgid "Enter numeric temperature and humidity values."
 msgstr "Enter numeric temperature and humidity values."
 
@@ -2685,7 +2706,7 @@ msgid "Environment"
 msgstr "Environment"
 
 #: src/pages/Labs.tsx:80
-#: src/pages/LabsEnvironment.tsx:819
+#: src/pages/LabsEnvironment.tsx:1088
 msgid "Environmental response"
 msgstr "Environmental response"
 
@@ -2702,7 +2723,7 @@ msgstr "Equipment still available (optional)"
 msgid "Error"
 msgstr "Error"
 
-#: src/pages/LabsEnvironment.tsx:584
+#: src/pages/LabsEnvironment.tsx:770
 msgid "Estimated psychrometric wet-bulb proxy"
 msgstr "Estimated psychrometric wet-bulb proxy"
 
@@ -2834,7 +2855,7 @@ msgstr "Fading"
 
 #: src/pages/admin/AdminFeedback.tsx:98
 #: src/pages/admin/AdminFeedback.tsx:355
-#: src/pages/LabsEnvironment.tsx:145
+#: src/pages/LabsEnvironment.tsx:158
 msgid "Failed"
 msgstr "Failed"
 
@@ -3105,7 +3126,7 @@ msgstr "From activities"
 #~ msgid "From Stryd"
 #~ msgstr "From Stryd"
 
-#: src/pages/LabsEnvironment.tsx:200
+#: src/pages/LabsEnvironment.tsx:382
 msgid "Full analysis must confirm eligibility"
 msgstr "Full analysis must confirm eligibility"
 
@@ -3150,7 +3171,7 @@ msgstr "Garmin native running power reads ~30% higher than Stryd for the same at
 msgid "Garmin workout delivery is duration-only. Workouts with power, pace, or heart-rate targets will stay blocked rather than lose their intended intensity."
 msgstr "Garmin workout delivery is duration-only. Workouts with power, pace, or heart-rate targets will stay blocked rather than lose their intended intensity."
 
-#: src/pages/LabsEnvironment.tsx:83
+#: src/pages/LabsEnvironment.tsx:85
 msgid "Garmin wrist-power origin cannot yet be verified well enough for this experiment."
 msgstr "Garmin wrist-power origin cannot yet be verified well enough for this experiment."
 
@@ -3365,21 +3386,25 @@ msgstr "Hilly"
 msgid "Historical association only · personal aggregate result · continuous Stryd samples required"
 msgstr "Historical association only · personal aggregate result · continuous Stryd samples required"
 
-#: src/pages/LabsEnvironment.tsx:877
+#: src/pages/LabsEnvironment.tsx:1137
 msgid "Historical association; not predictively validated"
 msgstr "Historical association; not predictively validated"
 
-#: src/pages/LabsEnvironment.tsx:274
+#: src/pages/LabsEnvironment.tsx:456
 msgid "Historical environmental-response curve"
 msgstr "Historical environmental-response curve"
 
-#: src/pages/LabsEnvironment.tsx:947
+#: src/pages/LabsEnvironment.tsx:1220
 msgid "Historical slope"
 msgstr "Historical slope"
 
 #: src/pages/Settings.tsx:851
 msgid "Historical sync may take several minutes"
 msgstr "Historical sync may take several minutes"
+
+#: src/pages/LabsEnvironment.tsx:326
+msgid "hour rolling window"
+msgstr "hour rolling window"
 
 #: src/pages/Science.tsx:26
 #~ msgid "How do we assess readiness to train?"
@@ -3413,7 +3438,7 @@ msgstr "How often Praxys pulls new data in the background. Lower frequency uses 
 msgid "How this is calculated"
 msgstr "How this is calculated"
 
-#: src/pages/LabsEnvironment.tsx:974
+#: src/pages/LabsEnvironment.tsx:1247
 msgid "How to read this experiment"
 msgstr "How to read this experiment"
 
@@ -3513,7 +3538,7 @@ msgstr "HRV variability is high (CV {cv}%), above the selected coaching caution 
 #~ msgid "Human overrides"
 #~ msgstr "Human overrides"
 
-#: src/pages/LabsEnvironment.tsx:558
+#: src/pages/LabsEnvironment.tsx:744
 msgid "Humidity (%)"
 msgstr "Humidity (%)"
 
@@ -3521,11 +3546,11 @@ msgstr "Humidity (%)"
 msgid "I agree to the <0>Terms of Service</0> and <1>Privacy Policy</1>."
 msgstr "I agree to the <0>Terms of Service</0> and <1>Privacy Policy</1>."
 
-#: src/pages/LabsEnvironment.tsx:685
+#: src/pages/LabsEnvironment.tsx:871
 msgid "I confirm that I am 18 or older. Praxys records this attestation, not my birth date."
 msgstr "I confirm that I am 18 or older. Praxys records this attestation, not my birth date."
 
-#: src/pages/LabsEnvironment.tsx:688
+#: src/pages/LabsEnvironment.tsx:874
 msgid "I understand the purpose, limits, storage, and withdrawal terms above and choose to participate in this experiment."
 msgstr "I understand the purpose, limits, storage, and withdrawal terms above and choose to participate in this experiment."
 
@@ -3632,7 +3657,7 @@ msgstr "Insufficient evidence"
 #~ msgid "Insufficient HRV data for analysis"
 #~ msgstr "Insufficient HRV data for analysis"
 
-#: src/pages/LabsEnvironment.tsx:423
+#: src/pages/LabsEnvironment.tsx:609
 msgid "Insufficient support"
 msgstr "Insufficient support"
 
@@ -3717,7 +3742,7 @@ msgstr "Issue created"
 msgid "It stays in your private history until its purge date, but cannot influence a new assessment."
 msgstr "It stays in your private history until its purge date, but cannot influence a new assessment."
 
-#: src/pages/LabsEnvironment.tsx:704
+#: src/pages/LabsEnvironment.tsx:890
 msgid "Join and analyze my history"
 msgstr "Join and analyze my history"
 
@@ -3727,7 +3752,7 @@ msgstr "Join and analyze my history"
 msgid "Join the waitlist"
 msgstr "Join the waitlist"
 
-#: src/pages/LabsEnvironment.tsx:644
+#: src/pages/LabsEnvironment.tsx:830
 msgid "Join this personal experiment"
 msgstr "Join this personal experiment"
 
@@ -3768,7 +3793,7 @@ msgstr "Keep any optional movement easy and short"
 msgid "Keep future workouts on {targetLabel}"
 msgstr "Keep future workouts on {targetLabel}"
 
-#: src/pages/LabsEnvironment.tsx:1028
+#: src/pages/LabsEnvironment.tsx:1323
 msgid "Keep participating"
 msgstr "Keep participating"
 
@@ -3805,12 +3830,12 @@ msgstr "km/wk"
 msgid "Labs"
 msgstr "Labs"
 
-#: src/pages/LabsEnvironment.tsx:1013
+#: src/pages/LabsEnvironment.tsx:1308
 msgid "Labs action failed"
 msgstr "Labs action failed"
 
 #: src/pages/Labs.tsx:63
-#: src/pages/LabsEnvironment.tsx:784
+#: src/pages/LabsEnvironment.tsx:1051
 msgid "Labs could not load"
 msgstr "Labs could not load"
 
@@ -4248,6 +4273,10 @@ msgstr "Manual and other-coach workouts remain external and will not be edited o
 msgid "Manual and other-coach workouts stay untouched. Delivery remains paused throughout."
 msgstr "Manual and other-coach workouts stay untouched. Delivery remains paused throughout."
 
+#: src/pages/LabsEnvironment.tsx:323
+msgid "manual recomputes remaining"
+msgstr "manual recomputes remaining"
+
 #: src/components/GoalEditor.tsx:54
 #: src/lib/display-labels.ts:66
 #: src/pages/Settings.tsx:185
@@ -4315,11 +4344,11 @@ msgstr "min"
 msgid "Mini program"
 msgstr "Mini program"
 
-#: src/pages/LabsEnvironment.tsx:217
+#: src/pages/LabsEnvironment.tsx:399
 msgid "minimum"
 msgstr "minimum"
 
-#: src/pages/LabsEnvironment.tsx:383
+#: src/pages/LabsEnvironment.tsx:565
 msgid "minimum {referenceMinimum} per range"
 msgstr "minimum {referenceMinimum} per range"
 
@@ -4359,7 +4388,7 @@ msgstr "Mixed providers"
 msgid "Mode"
 msgstr "Mode"
 
-#: src/pages/LabsEnvironment.tsx:969
+#: src/pages/LabsEnvironment.tsx:1242
 msgid "Model version"
 msgstr "Model version"
 
@@ -4474,7 +4503,7 @@ msgstr "Need help? {SUPPORT_EMAIL}"
 msgid "Needed {abbrev}"
 msgstr "Needed {abbrev}"
 
-#: src/pages/LabsEnvironment.tsx:422
+#: src/pages/LabsEnvironment.tsx:608
 msgid "Needs {missingReference} more"
 msgstr "Needs {missingReference} more"
 
@@ -4487,9 +4516,13 @@ msgstr "Needs attention"
 msgid "Needs data"
 msgstr "Needs data"
 
-#: src/pages/LabsEnvironment.tsx:146
+#: src/pages/LabsEnvironment.tsx:159
 msgid "Needs recompute"
 msgstr "Needs recompute"
+
+#: src/pages/LabsEnvironment.tsx:149
+msgid "Needs retry"
+msgstr "Needs retry"
 
 #: src/pages/admin/AdminFeedback.tsx:92
 #: src/pages/admin/AdminFeedback.tsx:354
@@ -4544,6 +4577,10 @@ msgstr "Network error. Please email {SUPPORT_EMAIL} directly."
 #: src/pages/admin/AdminOps.tsx:688
 msgid "Network error. Refresh the queue and try again."
 msgstr "Network error. Refresh the queue and try again."
+
+#: src/pages/LabsEnvironment.tsx:1040
+msgid "Network error. Try again."
+msgstr "Network error. Try again."
 
 #: src/pages/admin/AdminFeedback.tsx:88
 #: src/pages/admin/AdminFeedback.tsx:353
@@ -4650,7 +4687,7 @@ msgstr "No current classification"
 msgid "No current qualifying condition range yet"
 msgstr "No current qualifying condition range yet"
 
-#: src/pages/LabsEnvironment.tsx:895
+#: src/pages/LabsEnvironment.tsx:1157
 msgid "No curve is available yet"
 msgstr "No curve is available yet"
 
@@ -4955,11 +4992,12 @@ msgstr "Not enough data yet for weekly load comparison"
 msgid "not enough load history"
 msgstr "not enough load history"
 
-#: src/pages/LabsEnvironment.tsx:198
+#: src/pages/LabsEnvironment.tsx:380
 msgid "Not enough suitable data to start yet"
 msgstr "Not enough suitable data to start yet"
 
-#: src/pages/LabsEnvironment.tsx:140
+#: src/pages/LabsEnvironment.tsx:153
+#: src/pages/LabsEnvironment.tsx:971
 msgid "Not enrolled"
 msgstr "Not enrolled"
 
@@ -5009,7 +5047,7 @@ msgstr "Now open · Create your account"
 msgid "Observed"
 msgstr "Observed"
 
-#: src/pages/LabsEnvironment.tsx:457
+#: src/pages/LabsEnvironment.tsx:643
 msgid "Observed proxy range"
 msgstr "Observed proxy range"
 
@@ -5063,7 +5101,7 @@ msgstr "Off by default. The note may contain more private detail than the struct
 msgid "On"
 msgstr "On"
 
-#: src/pages/LabsEnvironment.tsx:882
+#: src/pages/LabsEnvironment.tsx:1142
 msgid "One or more research diagnostics did not support predictive interpretation. Read the curve only as a pattern in eligible past runs."
 msgstr "One or more research diagnostics did not support predictive interpretation. Read the curve only as a pattern in eligible past runs."
 
@@ -5292,7 +5330,7 @@ msgstr "Partial service outage"
 msgid "Participating"
 msgstr "Participating"
 
-#: src/pages/LabsEnvironment.tsx:876
+#: src/pages/LabsEnvironment.tsx:1136
 msgid "Passed research diagnostics; not a forecast"
 msgstr "Passed research diagnostics; not a forecast"
 
@@ -5354,7 +5392,7 @@ msgstr "Permanently remove your Praxys account, synced data, plans, settings, an
 msgid "Personal Access Token"
 msgstr "Personal Access Token"
 
-#: src/pages/LabsEnvironment.tsx:658
+#: src/pages/LabsEnvironment.tsx:844
 msgid "Personal only"
 msgstr "Personal only"
 
@@ -5493,7 +5531,7 @@ msgstr "Power floor (W)"
 msgid "Power metrics, Critical Power, training plans"
 msgstr "Power metrics, Critical Power, training plans"
 
-#: src/pages/LabsEnvironment.tsx:965
+#: src/pages/LabsEnvironment.tsx:1238
 msgid "Power regime"
 msgstr "Power regime"
 
@@ -5589,9 +5627,9 @@ msgstr "Praxys defects"
 msgid "Praxys found future deliveries on the current target. Remove only Praxys-delivered workouts before switching."
 msgstr "Praxys found future deliveries on the current target. Remove only Praxys-delivered workouts before switching."
 
-#: src/pages/LabsEnvironment.tsx:860
-msgid "Praxys is building a complete owner-scoped snapshot, checking Stryd provenance, fitting the aggregate model, and applying every release guardrail."
-msgstr "Praxys is building a complete owner-scoped snapshot, checking Stryd provenance, fitting the aggregate model, and applying every release guardrail."
+#: src/pages/LabsEnvironment.tsx:730
+#~ msgid "Praxys is building a complete owner-scoped snapshot, checking Stryd provenance, fitting the aggregate model, and applying every release guardrail."
+#~ msgstr "Praxys is building a complete owner-scoped snapshot, checking Stryd provenance, fitting the aggregate model, and applying every release guardrail."
 
 #: src/components/StatusBanner.tsx:47
 msgid "Praxys is experiencing a major service outage."
@@ -5652,19 +5690,15 @@ msgstr "Praxys only changes workouts it created or you explicitly adopt. Manual 
 msgid "Praxys owns the plan; delivery is paused."
 msgstr "Praxys owns the plan; delivery is paused."
 
-#: src/components/PersonalContextPanel.tsx:1543
-#~ msgid "Praxys sends a minimized copy for this purpose only. Raw provider requests and responses are not written to Praxys logs. Provider-side retention follows the Praxys Microsoft Azure agreement."
-#~ msgstr "Praxys sends a minimized copy for this purpose only. Raw provider requests and responses are not written to Praxys logs. Provider-side retention follows the Praxys Microsoft Azure agreement."
-
 #: src/components/ManagedPlanSettingsCard.tsx:1068
 #~ msgid "Praxys sends duration-only running workouts and verifies both the Garmin template and scheduled calendar instance."
 #~ msgstr "Praxys sends duration-only running workouts and verifies both the Garmin template and scheduled calendar instance."
 
-#: src/pages/LabsEnvironment.tsx:207
+#: src/pages/LabsEnvironment.tsx:389
 msgid "Praxys stopped before consent or long-running analysis. Sync or collect the missing data, then retry this check."
 msgstr "Praxys stopped before consent or long-running analysis. Sync or collect the missing data, then retry this check."
 
-#: src/pages/LabsEnvironment.tsx:666
+#: src/pages/LabsEnvironment.tsx:852
 msgid "Praxys stores curve points, uncertainty, counts, gates, versions, and timestamps—not routes, activity dates, raw samples, or per-activity research rows."
 msgstr "Praxys stores curve points, uncertainty, counts, gates, versions, and timestamps—not routes, activity dates, raw samples, or per-activity research rows."
 
@@ -5672,11 +5706,11 @@ msgstr "Praxys stores curve points, uncertainty, counts, gates, versions, and ti
 msgid "Praxys version"
 msgstr "Praxys version"
 
-#: src/pages/LabsEnvironment.tsx:646
+#: src/pages/LabsEnvironment.tsx:832
 msgid "Praxys will analyze eligible past runs to see whether modeled heart rate varied with temperature-and-humidity conditions at comparable recorded Stryd power."
 msgstr "Praxys will analyze eligible past runs to see whether modeled heart rate varied with temperature-and-humidity conditions at comparable recorded Stryd power."
 
-#: src/pages/LabsEnvironment.tsx:1023
+#: src/pages/LabsEnvironment.tsx:1318
 msgid "Praxys will immediately delete your Labs consent and derived aggregate result. Your underlying account activities are not deleted."
 msgstr "Praxys will immediately delete your Labs consent and derived aggregate result. Your underlying account activities are not deleted."
 
@@ -5789,7 +5823,8 @@ msgstr "Private note (optional)"
 msgid "Proceed but monitor heart-rate drift during the session"
 msgstr "Proceed but monitor heart-rate drift during the session"
 
-#: src/pages/LabsEnvironment.tsx:142
+#: src/pages/LabsEnvironment.tsx:144
+#: src/pages/LabsEnvironment.tsx:155
 msgid "Processing"
 msgstr "Processing"
 
@@ -5934,9 +5969,14 @@ msgstr "Qualifying exposure has resumed after a longer gap, but current evidence
 
 #: src/components/UpcomingPlanCard.tsx:499
 #: src/components/UpcomingPlanCard.tsx:519
-#: src/pages/LabsEnvironment.tsx:141
+#: src/pages/LabsEnvironment.tsx:143
+#: src/pages/LabsEnvironment.tsx:154
 msgid "Queued"
 msgstr "Queued"
+
+#: src/pages/LabsEnvironment.tsx:259
+msgid "Queued for the analysis worker"
+msgstr "Queued for the analysis worker"
 
 #: src/components/TodayDecisionCheck.tsx:137
 #: src/components/TodayDecisionCheck.tsx:158
@@ -6040,7 +6080,7 @@ msgstr "Reads readiness from the body's signals."
 msgid "Realistic alternative targets"
 msgstr "Realistic alternative targets"
 
-#: src/pages/LabsEnvironment.tsx:85
+#: src/pages/LabsEnvironment.tsx:87
 msgid "Reasonable model variations do not preserve the same historical relationship."
 msgstr "Reasonable model variations do not preserve the same historical relationship."
 
@@ -6194,9 +6234,30 @@ msgstr "Recommended"
 msgid "Recommended. Delivered workouts stay on the calendar; Praxys simply stops managing them."
 msgstr "Recommended. Delivered workouts stay on the calendar; Praxys simply stops managing them."
 
-#: src/pages/LabsEnvironment.tsx:912
+#: src/pages/LabsEnvironment.tsx:1184
 msgid "Recompute"
 msgstr "Recompute"
+
+#: src/pages/LabsEnvironment.tsx:301
+#: src/pages/LabsEnvironment.tsx:313
+msgid "Recompute available again"
+msgstr "Recompute available again"
+
+#: src/pages/LabsEnvironment.tsx:298
+msgid "Recompute cooling down"
+msgstr "Recompute cooling down"
+
+#: src/pages/LabsEnvironment.tsx:953
+msgid "Recompute is cooling down. Try again after {availableAt}."
+msgstr "Recompute is cooling down. Try again after {availableAt}."
+
+#: src/pages/LabsEnvironment.tsx:954
+msgid "Recompute is cooling down. Try again later."
+msgstr "Recompute is cooling down. Try again later."
+
+#: src/pages/LabsEnvironment.tsx:1293
+msgid "Recompute result"
+msgstr "Recompute result"
 
 #: src/pages/admin/AdminOps.tsx:1187
 msgid "Reconcile and replay"
@@ -6426,23 +6487,23 @@ msgstr "Reject"
 msgid "Rejected"
 msgstr "Rejected"
 
-#: src/pages/LabsEnvironment.tsx:75
+#: src/pages/LabsEnvironment.tsx:77
 msgid "Relative humidity is missing from too many otherwise eligible activities."
 msgstr "Relative humidity is missing from too many otherwise eligible activities."
 
-#: src/pages/LabsEnvironment.tsx:934
+#: src/pages/LabsEnvironment.tsx:1207
 msgid "Relative modeled heart rate across your observed wet-bulb-proxy range, holding the fitted comparison at a common recorded-power reference."
 msgstr "Relative modeled heart rate across your observed wet-bulb-proxy range, holding the fitted comparison at a common recorded-power reference."
 
-#: src/pages/LabsEnvironment.tsx:933
+#: src/pages/LabsEnvironment.tsx:1206
 msgid "Relative modeled heart rate is shown only in ranges with enough comparable-power evidence. Unsupported ranges remain blank and are never connected."
 msgstr "Relative modeled heart rate is shown only in ranges with enough comparable-power evidence. Unsupported ranges remain blank and are never connected."
 
-#: src/pages/LabsEnvironment.tsx:316
+#: src/pages/LabsEnvironment.tsx:498
 msgid "Relative modeled HR"
 msgstr "Relative modeled HR"
 
-#: src/pages/LabsEnvironment.tsx:297
+#: src/pages/LabsEnvironment.tsx:479
 msgid "Relative modeled HR (bpm)"
 msgstr "Relative modeled HR (bpm)"
 
@@ -6517,6 +6578,10 @@ msgstr "Request an invite"
 #: src/pages/admin/AdminOps.tsx:1349
 msgid "Request and availability telemetry is unavailable."
 msgstr "Request and availability telemetry is unavailable."
+
+#: src/pages/LabsEnvironment.tsx:1014
+msgid "Request failed. Try again."
+msgstr "Request failed. Try again."
 
 #: src/pages/Login.tsx:348
 msgid "Request invite"
@@ -6624,8 +6689,8 @@ msgstr "Resume managed delivery?"
 #: src/pages/Goal.tsx:444
 #: src/pages/History.tsx:53
 #: src/pages/Labs.tsx:67
-#: src/pages/LabsEnvironment.tsx:179
-#: src/pages/LabsEnvironment.tsx:788
+#: src/pages/LabsEnvironment.tsx:361
+#: src/pages/LabsEnvironment.tsx:1055
 #: src/pages/Settings.tsx:335
 #: src/pages/Today.tsx:352
 #: src/pages/Today.tsx:511
@@ -6633,7 +6698,7 @@ msgstr "Resume managed delivery?"
 msgid "Retry"
 msgstr "Retry"
 
-#: src/pages/LabsEnvironment.tsx:171
+#: src/pages/LabsEnvironment.tsx:353
 msgid "Retry before joining. The full analysis has not started."
 msgstr "Retry before joining. The full analysis has not started."
 
@@ -6679,6 +6744,10 @@ msgstr "Retry to load the public status incidents feed."
 #: src/components/UpcomingPlanCard.tsx:334
 msgid "Retry workout action"
 msgstr "Retry workout action"
+
+#: src/pages/LabsEnvironment.tsx:142
+msgid "Retrying"
+msgstr "Retrying"
 
 #: src/components/PersonalContextPanel.tsx:1519
 msgid "Review AI access"
@@ -6770,6 +6839,10 @@ msgstr "Role"
 #: src/pages/admin/AdminOps.tsx:211
 msgid "Rolling 1 / 7 / 30 days"
 msgstr "Rolling 1 / 7 / 30 days"
+
+#: src/pages/LabsEnvironment.tsx:310
+msgid "Rolling recompute limit reached"
+msgstr "Rolling recompute limit reached"
 
 #: src/pages/admin/AdminFeedback.tsx:479
 msgid "Rule based"
@@ -7232,7 +7305,7 @@ msgstr "Snapshot {0}"
 msgid "Some adaptation may persist"
 msgstr "Some adaptation may persist"
 
-#: src/pages/LabsEnvironment.tsx:70
+#: src/pages/LabsEnvironment.tsx:72
 msgid "Some parts of the environmental range do not have enough independent activity support."
 msgstr "Some parts of the environmental range do not have enough independent activity support."
 
@@ -7270,7 +7343,7 @@ msgstr "stable"
 msgid "Stable"
 msgstr "Stable"
 
-#: src/pages/LabsEnvironment.tsx:453
+#: src/pages/LabsEnvironment.tsx:639
 msgid "Stable segments"
 msgstr "Stable segments"
 
@@ -7371,7 +7444,7 @@ msgstr "Structured fields sent"
 #~ msgid "Stryd-provided activity weather"
 #~ msgstr "Stryd-provided activity weather"
 
-#: src/pages/LabsEnvironment.tsx:286
+#: src/pages/LabsEnvironment.tsx:468
 msgid "Stull psychrometric wet-bulb proxy (°C)"
 msgstr "Stull psychrometric wet-bulb proxy (°C)"
 
@@ -7415,11 +7488,11 @@ msgstr "Summary window"
 msgid "Sun"
 msgstr "Sun"
 
-#: src/pages/LabsEnvironment.tsx:903
+#: src/pages/LabsEnvironment.tsx:1165
 msgid "Support ID"
 msgstr "Support ID"
 
-#: src/pages/LabsEnvironment.tsx:420
+#: src/pages/LabsEnvironment.tsx:606
 msgid "Supported"
 msgstr "Supported"
 
@@ -7634,11 +7707,11 @@ msgstr "Target Time"
 #~ msgid "Telemetry trust boundary"
 #~ msgstr "Telemetry trust boundary"
 
-#: src/pages/LabsEnvironment.tsx:549
+#: src/pages/LabsEnvironment.tsx:735
 msgid "Temperature (°C)"
 msgstr "Temperature (°C)"
 
-#: src/pages/LabsEnvironment.tsx:76
+#: src/pages/LabsEnvironment.tsx:78
 msgid "Temperature and humidity are not both present on enough of the same activities."
 msgstr "Temperature and humidity are not both present on enough of the same activities."
 
@@ -7646,7 +7719,7 @@ msgstr "Temperature and humidity are not both present on enough of the same acti
 #~ msgid "Temperature and humidity were not provided by your synced activities."
 #~ msgstr "Temperature and humidity were not provided by your synced activities."
 
-#: src/pages/LabsEnvironment.tsx:74
+#: src/pages/LabsEnvironment.tsx:76
 msgid "Temperature is missing from too many otherwise eligible activities."
 msgstr "Temperature is missing from too many otherwise eligible activities."
 
@@ -7663,6 +7736,10 @@ msgstr "Temporary availability"
 #: src/components/PersonalContextPanel.tsx:376
 msgid "Temporary context can stay active for at most 90 days."
 msgstr "Temporary context can stay active for at most 90 days."
+
+#: src/pages/LabsEnvironment.tsx:255
+msgid "Temporary service issue; retry queued"
+msgstr "Temporary service issue; retry queued"
 
 #: src/components/PersonalContextPanel.tsx:1102
 msgid "Terrain still available (optional)"
@@ -7684,7 +7761,7 @@ msgstr "That date is now completed history and can no longer be changed."
 msgid "That is a complete state, not missing data. Praxys keeps the reason unknown and does not reduce your standing or invent an explanation."
 msgstr "That is a complete state, not missing data. Praxys keeps the reason unknown and does not reduce your standing or invent an explanation."
 
-#: src/pages/LabsEnvironment.tsx:718
+#: src/pages/LabsEnvironment.tsx:904
 msgid "The accepted Praxys evidence review found controlled support for heat-related cardiovascular drift, but no field study validating a causal or predictive personal Stull wet-bulb response curve. V1 is therefore descriptive and Stryd-only."
 msgstr "The accepted Praxys evidence review found controlled support for heat-related cardiovascular drift, but no field study validating a causal or predictive personal Stull wet-bulb response curve. V1 is therefore descriptive and Stryd-only."
 
@@ -7700,19 +7777,23 @@ msgstr "The agent decision and outcome aggregate could not be refreshed."
 msgid "The alert summary could not be refreshed."
 msgstr "The alert summary could not be refreshed."
 
-#: src/pages/LabsEnvironment.tsx:894
+#: src/pages/LabsEnvironment.tsx:1156
 msgid "The analysis did not finish"
 msgstr "The analysis did not finish"
 
-#: src/pages/LabsEnvironment.tsx:88
+#: src/pages/LabsEnvironment.tsx:91
 msgid "The analysis did not finish successfully."
 msgstr "The analysis did not finish successfully."
 
-#: src/pages/LabsEnvironment.tsx:78
+#: src/pages/LabsEnvironment.tsx:90
+msgid "The analysis worker could not complete the model after repeated infrastructure attempts."
+msgstr "The analysis worker could not complete the model after repeated infrastructure attempts."
+
+#: src/pages/LabsEnvironment.tsx:80
 msgid "The available Critical Power does not match the eligible Stryd power regime."
 msgstr "The available Critical Power does not match the eligible Stryd power regime."
 
-#: src/pages/LabsEnvironment.tsx:63
+#: src/pages/LabsEnvironment.tsx:65
 msgid "The available history could not be analyzed as one complete snapshot."
 msgstr "The available history could not be analyzed as one complete snapshot."
 
@@ -7728,19 +7809,27 @@ msgstr "The bounded operator queue is available, but aggregate delivery health c
 msgid "The canonical Praxys plan is preserved. Existing target workouts stay in place until you resume or leave."
 msgstr "The canonical Praxys plan is preserved. Existing target workouts stay in place until you resume or leave."
 
-#: src/pages/LabsEnvironment.tsx:881
+#: src/pages/LabsEnvironment.tsx:1141
 msgid "The chronological holdout and sensitivity checks passed, but this personal historical association is still not a clinical claim or future-condition forecast."
 msgstr "The chronological holdout and sensitivity checks passed, but this personal historical association is still not a clinical claim or future-condition forecast."
 
-#: src/pages/LabsEnvironment.tsx:87
+#: src/pages/LabsEnvironment.tsx:89
 msgid "The chronological prediction check could not be evaluated, so Praxys withholds the fitted curve."
 msgstr "The chronological prediction check could not be evaluated, so Praxys withholds the fitted curve."
 
-#: src/pages/LabsEnvironment.tsx:79
+#: src/pages/LabsEnvironment.tsx:968
+msgid "The consent text changed. Review and confirm the current version."
+msgstr "The consent text changed. Review and confirm the current version."
+
+#: src/pages/LabsEnvironment.tsx:81
 msgid "The continuous sample coverage is too sparse for a stable comparison."
 msgstr "The continuous sample coverage is too sparse for a stable comparison."
 
-#: src/pages/LabsEnvironment.tsx:81
+#: src/pages/LabsEnvironment.tsx:305
+msgid "The cooldown prevents accidental repeat analysis."
+msgstr "The cooldown prevents accidental repeat analysis."
+
+#: src/pages/LabsEnvironment.tsx:83
 msgid "The eligible history crosses incompatible power-device or algorithm regimes."
 msgstr "The eligible history crosses incompatible power-device or algorithm regimes."
 
@@ -7756,7 +7845,7 @@ msgstr "The end date must be after the start date."
 #~ msgid "The environmental ramps, effective minutes, stage thresholds, and 7–28 day decay window are Praxys operational estimates. Evidence coverage is not biological certainty. Stop and begin cooling for heat-illness symptoms; seek urgent medical help for confusion, collapse, or altered mental status."
 #~ msgstr "The environmental ramps, effective minutes, stage thresholds, and 7–28 day decay window are Praxys operational estimates. Evidence coverage is not biological certainty. Stop and begin cooling for heat-illness symptoms; seek urgent medical help for confusion, collapse, or altered mental status."
 
-#: src/pages/LabsEnvironment.tsx:84
+#: src/pages/LabsEnvironment.tsx:86
 msgid "The estimated direction changes too much when activities are resampled."
 msgstr "The estimated direction changes too much when activities are resampled."
 
@@ -7767,6 +7856,10 @@ msgstr "The feedback aggregate could not be refreshed."
 #: src/pages/admin/AdminOps.tsx:816
 msgid "The incident aggregate could not be refreshed."
 msgstr "The incident aggregate could not be refreshed."
+
+#: src/pages/LabsEnvironment.tsx:266
+msgid "The isolated worker is building the aggregate response from your eligible activity data."
+msgstr "The isolated worker is building the aggregate response from your eligible activity data."
 
 #: src/components/HeatAdaptationPanel.tsx:470
 #~ msgid "The last counted exposure is moving through the estimated decay window."
@@ -7788,7 +7881,7 @@ msgstr "The latest HRV reading is out of date. Follow the plan without an HRV-ba
 msgid "The latest HRV reading is too old for a same-day recovery classification. Sync your device to refresh it."
 msgstr "The latest HRV reading is too old for a same-day recovery classification. Sync your device to refresh it."
 
-#: src/pages/LabsEnvironment.tsx:981
+#: src/pages/LabsEnvironment.tsx:1254
 msgid "The line is a historical model inside supported ranges only. A blank range means comparable stable workload did not pass the display floor; Praxys does not estimate or connect through it. The shaded band shows aggregate uncertainty where the curve is supported. It does not identify a causal personal coefficient and never extrapolates beyond your observed domain. Wind, solar load, clothing, hydration, fatigue, and other unmeasured conditions can still differ between runs."
 msgstr "The line is a historical model inside supported ranges only. A blank range means comparable stable workload did not pass the display floor; Praxys does not estimate or connect through it. The shaded band shows aggregate uncertainty where the curve is supported. It does not identify a causal personal coefficient and never extrapolates beyond your observed domain. Wind, solar load, clothing, hydration, fatigue, and other unmeasured conditions can still differ between runs."
 
@@ -7796,7 +7889,7 @@ msgstr "The line is a historical model inside supported ranges only. A blank ran
 #~ msgid "The line is a historical model inside the central supported range only. The shaded band shows aggregate uncertainty. It does not identify a causal personal coefficient and never extrapolates beyond your observed domain."
 #~ msgstr "The line is a historical model inside the central supported range only. The shaded band shows aggregate uncertainty. It does not identify a causal personal coefficient and never extrapolates beyond your observed domain."
 
-#: src/pages/LabsEnvironment.tsx:840
+#: src/pages/LabsEnvironment.tsx:1094
 #~ msgid "The line is a historical model inside the central supported range only. The shaded band shows aggregate uncertainty. It does not identify a causal personal coefficient and never extrapolates beyond your observed domain. Wind, solar load, clothing, hydration, fatigue, and other unmeasured conditions can still differ between runs."
 #~ msgstr "The line is a historical model inside the central supported range only. The shaded band shows aggregate uncertainty. It does not identify a causal personal coefficient and never extrapolates beyond your observed domain. Wind, solar load, clothing, hydration, fatigue, and other unmeasured conditions can still differ between runs."
 
@@ -7829,7 +7922,8 @@ msgstr "The previous workout was restored"
 msgid "The public status feed has no unresolved incidents."
 msgstr "The public status feed has no unresolved incidents."
 
-#: src/pages/LabsEnvironment.tsx:189
+#: src/pages/LabsEnvironment.tsx:371
+#: src/pages/LabsEnvironment.tsx:965
 msgid "The quick check found a data requirement that needs attention."
 msgstr "The quick check found a data requirement that needs attention."
 
@@ -7846,7 +7940,19 @@ msgstr "The rolling 14-day window is delivered to {0}."
 msgid "The rolling exposure threshold is still met, but it does not establish a retention plateau; response-specific adaptations may already be declining."
 msgstr "The rolling exposure threshold is still met, but it does not establish a retention plateau; response-specific adaptations may already be declining."
 
-#: src/pages/LabsEnvironment.tsx:71
+#: src/pages/LabsEnvironment.tsx:317
+msgid "The rolling limit protects the shared analysis capacity from repeated requests."
+msgstr "The rolling limit protects the shared analysis capacity from repeated requests."
+
+#: src/pages/LabsEnvironment.tsx:958
+msgid "The rolling recompute limit has been reached. Try again after {availableAt}."
+msgstr "The rolling recompute limit has been reached. Try again after {availableAt}."
+
+#: src/pages/LabsEnvironment.tsx:959
+msgid "The rolling recompute limit has been reached. Try again later."
+msgstr "The rolling recompute limit has been reached. Try again later."
+
+#: src/pages/LabsEnvironment.tsx:73
 msgid "The same comparable-power range is not represented across enough environmental conditions."
 msgstr "The same comparable-power range is not represented across enough environmental conditions."
 
@@ -7874,15 +7980,15 @@ msgstr "The weekly history will appear after the data service update completes."
 msgid "Theme"
 msgstr "Theme"
 
-#: src/pages/LabsEnvironment.tsx:66
+#: src/pages/LabsEnvironment.tsx:68
 msgid "There are not enough eligible Stryd activities yet."
 msgstr "There are not enough eligible Stryd activities yet."
 
-#: src/pages/LabsEnvironment.tsx:67
+#: src/pages/LabsEnvironment.tsx:69
 msgid "There are not enough stable, comparable segments yet."
 msgstr "There are not enough stable, comparable segments yet."
 
-#: src/pages/LabsEnvironment.tsx:69
+#: src/pages/LabsEnvironment.tsx:71
 msgid "There is not enough chronological history to evaluate whether the relationship holds later."
 msgstr "There is not enough chronological history to evaluate whether the relationship holds later."
 
@@ -7898,7 +8004,7 @@ msgstr "This cannot be undone. If this is the last admin account, deletion will 
 msgid "This change used confirmed private context. The private detail is not copied into the plan record."
 msgstr "This change used confirmed private context. The private detail is not copied into the plan record."
 
-#: src/pages/LabsEnvironment.tsx:580
+#: src/pages/LabsEnvironment.tsx:766
 msgid "This combination is outside Praxys’s conservative Stull method domain."
 msgstr "This combination is outside Praxys’s conservative Stull method domain."
 
@@ -7923,11 +8029,11 @@ msgstr "This enters the safety path and stops ordinary performance optimization.
 msgid "This evaluates past training only; it does not assess today's weather or conditions."
 msgstr "This evaluates past training only; it does not assess today's weather or conditions."
 
-#: src/pages/LabsEnvironment.tsx:603
+#: src/pages/LabsEnvironment.tsx:789
 msgid "This falls in an unsupported historical range, so it is not marked on the curve."
 msgstr "This falls in an unsupported historical range, so it is not marked on the curve."
 
-#: src/pages/LabsEnvironment.tsx:82
+#: src/pages/LabsEnvironment.tsx:84
 msgid "This first experiment currently supports continuous Stryd power only."
 msgstr "This first experiment currently supports continuous Stryd power only."
 
@@ -7947,11 +8053,11 @@ msgstr "This guardrail uses individualized HRV guidance and never loads activity
 msgid "This insight changed. Refresh the page before sending feedback."
 msgstr "This insight changed. Refresh the page before sending feedback."
 
-#: src/pages/LabsEnvironment.tsx:680
+#: src/pages/LabsEnvironment.tsx:866
 msgid "This is a retrospective historical association. It does not forecast a future run, prove that heat caused a heart-rate change, prescribe pace, measure adaptation or hydration, or assess heat safety."
 msgstr "This is a retrospective historical association. It does not forecast a future run, prove that heat caused a heart-rate change, prescribe pace, measure adaptation or hydration, or assess heat safety."
 
-#: src/pages/LabsEnvironment.tsx:598
+#: src/pages/LabsEnvironment.tsx:784
 msgid "This is above your displayed historical range, so the curve does not extrapolate to it."
 msgstr "This is above your displayed historical range, so the curve does not extrapolate to it."
 
@@ -7959,7 +8065,7 @@ msgstr "This is above your displayed historical range, so the curve does not ext
 msgid "This is an inference from training evidence in similar conditions, not a direct physiological measurement."
 msgstr "This is an inference from training evidence in similar conditions, not a direct physiological measurement."
 
-#: src/pages/LabsEnvironment.tsx:593
+#: src/pages/LabsEnvironment.tsx:779
 msgid "This is below your displayed historical range, so the curve does not extrapolate to it."
 msgstr "This is below your displayed historical range, so the curve does not extrapolate to it."
 
@@ -7967,7 +8073,7 @@ msgstr "This is below your displayed historical range, so the curve does not ext
 msgid "This is not medical clearance or a personal heat-tolerance assessment."
 msgstr "This is not medical clearance or a personal heat-tolerance assessment."
 
-#: src/pages/LabsEnvironment.tsx:612
+#: src/pages/LabsEnvironment.tsx:798
 msgid "This is Stull’s psychrometric estimate from air temperature and relative humidity. It is not apparent temperature, natural wet bulb, outdoor WBGT, body temperature, or a heat-safety assessment."
 msgstr "This is Stull’s psychrometric estimate from air temperature and relative humidity. It is not apparent temperature, natural wet bulb, outdoor WBGT, body temperature, or a heat-safety assessment."
 
@@ -7996,7 +8102,7 @@ msgstr "This permission is separate from managed delivery. Review the exact boun
 msgid "This queue item no longer exists. Refresh the queue."
 msgstr "This queue item no longer exists. Refresh the queue."
 
-#: src/pages/LabsEnvironment.tsx:208
+#: src/pages/LabsEnvironment.tsx:390
 msgid "This quick check only covers definite prerequisites. The full analysis can still return insufficient support, an unstable association, or no conclusion."
 msgstr "This quick check only covers definite prerequisites. The full analysis can still return insufficient support, an unstable association, or no conclusion."
 
@@ -8004,11 +8110,11 @@ msgstr "This quick check only covers definite prerequisites. The full analysis c
 msgid "This removes the Praxys workout from the canonical plan. Any external workout stays untouched."
 msgstr "This removes the Praxys workout from the canonical plan. Any external workout stays untouched."
 
-#: src/pages/LabsEnvironment.tsx:754
+#: src/pages/LabsEnvironment.tsx:941
 msgid "This result did not pass the experiment’s release guardrails."
 msgstr "This result did not pass the experiment’s release guardrails."
 
-#: src/pages/LabsEnvironment.tsx:65
+#: src/pages/LabsEnvironment.tsx:67
 msgid "This result uses an earlier experiment model and needs to be run again."
 msgstr "This result uses an earlier experiment model and needs to be run again."
 
@@ -8023,7 +8129,7 @@ msgstr "This result uses an earlier experiment model and needs to be run again."
 msgid "This section is unavailable. Other management workflows remain available."
 msgstr "This section is unavailable. Other management workflows remain available."
 
-#: src/pages/LabsEnvironment.tsx:588
+#: src/pages/LabsEnvironment.tsx:774
 msgid "This sits inside your displayed historical range and is marked on the curve."
 msgstr "This sits inside your displayed historical range and is marked on the curve."
 
@@ -8319,7 +8425,7 @@ msgstr "Unable to reach the status service"
 #: src/pages/admin/AdminFeedback.tsx:466
 #: src/pages/admin/AdminFeedback.tsx:493
 #: src/pages/admin/AdminOps.tsx:191
-#: src/pages/LabsEnvironment.tsx:144
+#: src/pages/LabsEnvironment.tsx:157
 msgid "Unavailable"
 msgstr "Unavailable"
 
@@ -8549,7 +8655,7 @@ msgstr "VO2max, CP, LTHR, training status"
 msgid "Volume"
 msgstr "Volume"
 
-#: src/pages/LabsEnvironment.tsx:821
+#: src/pages/LabsEnvironment.tsx:1090
 msgid "Voluntary experiments that help you inspect your own training history without turning early research into advice."
 msgstr "Voluntary experiments that help you inspect your own training history without turning early research into advice."
 
@@ -8683,11 +8789,11 @@ msgstr "Welcome back."
 #~ msgid "Wet-bulb estimate unavailable"
 #~ msgstr "Wet-bulb estimate unavailable"
 
-#: src/pages/LabsEnvironment.tsx:310
+#: src/pages/LabsEnvironment.tsx:492
 msgid "wet-bulb proxy"
 msgstr "wet-bulb proxy"
 
-#: src/pages/LabsEnvironment.tsx:541
+#: src/pages/LabsEnvironment.tsx:727
 msgid "Wet-bulb proxy calculator"
 msgstr "Wet-bulb proxy calculator"
 
@@ -8715,7 +8821,7 @@ msgstr "What happened, or what would you like to see?"
 msgid "What happened?"
 msgstr "What happened?"
 
-#: src/pages/LabsEnvironment.tsx:678
+#: src/pages/LabsEnvironment.tsx:864
 msgid "What this can—and cannot—tell you"
 msgstr "What this can—and cannot—tell you"
 
@@ -8739,7 +8845,7 @@ msgstr "What's your training goal? (optional)"
 msgid "Why this is conservative"
 msgstr "Why this is conservative"
 
-#: src/pages/LabsEnvironment.tsx:713
+#: src/pages/LabsEnvironment.tsx:899
 msgid "Why this remains experimental"
 msgstr "Why this remains experimental"
 
@@ -8747,7 +8853,7 @@ msgstr "Why this remains experimental"
 msgid "Will sync:"
 msgstr "Will sync:"
 
-#: src/pages/LabsEnvironment.tsx:915
+#: src/pages/LabsEnvironment.tsx:1187
 msgid "Withdraw"
 msgstr "Withdraw"
 
@@ -8755,27 +8861,27 @@ msgstr "Withdraw"
 msgid "Withdraw AI permission"
 msgstr "Withdraw AI permission"
 
-#: src/pages/LabsEnvironment.tsx:1038
+#: src/pages/LabsEnvironment.tsx:1333
 msgid "Withdraw and delete"
 msgstr "Withdraw and delete"
 
-#: src/pages/LabsEnvironment.tsx:1004
+#: src/pages/LabsEnvironment.tsx:1298
 msgid "Withdraw and delete result"
 msgstr "Withdraw and delete result"
 
-#: src/pages/LabsEnvironment.tsx:670
+#: src/pages/LabsEnvironment.tsx:856
 msgid "Withdraw anytime"
 msgstr "Withdraw anytime"
 
-#: src/pages/LabsEnvironment.tsx:1021
+#: src/pages/LabsEnvironment.tsx:1316
 msgid "Withdraw from this experiment?"
 msgstr "Withdraw from this experiment?"
 
-#: src/pages/LabsEnvironment.tsx:999
+#: src/pages/LabsEnvironment.tsx:1272
 msgid "Withdrawal deletes the experiment consent and aggregate result. Rejoining later requires new consent and a new computation."
 msgstr "Withdrawal deletes the experiment consent and aggregate result. Rejoining later requires new consent and a new computation."
 
-#: src/pages/LabsEnvironment.tsx:672
+#: src/pages/LabsEnvironment.tsx:858
 msgid "Withdrawal immediately deletes experiment consent and the derived result. Your ordinary account activities remain unchanged."
 msgstr "Withdrawal immediately deletes experiment consent and the derived result. Your ordinary account activities remain unchanged."
 
@@ -8846,11 +8952,15 @@ msgstr "you"
 msgid "You can attach up to 3 images."
 msgstr "You can attach up to 3 images."
 
+#: src/pages/LabsEnvironment.tsx:272
+msgid "You can leave this page and return later. No action is needed while the analysis runs."
+msgstr "You can leave this page and return later. No action is needed while the analysis runs."
+
 #: src/components/PersonalContextPanel.tsx:1649
 msgid "You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed. Deleting the item removes local provider-use receipts and dependent private explanations."
 msgstr "You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed. Deleting the item removes local provider-use receipts and dependent private explanations."
 
-#: src/pages/LabsEnvironment.tsx:997
+#: src/pages/LabsEnvironment.tsx:1270
 msgid "You control this experiment"
 msgstr "You control this experiment"
 
@@ -8880,7 +8990,7 @@ msgstr "Your data export is downloading."
 #~ msgid "Your descriptive stability checks passed, but the chronological test did not show better future-run prediction. Read the curve only as a pattern in eligible past runs."
 #~ msgstr "Your descriptive stability checks passed, but the chronological test did not show better future-run prediction. Read the curve only as a pattern in eligible past runs."
 
-#: src/pages/LabsEnvironment.tsx:68
+#: src/pages/LabsEnvironment.tsx:70
 msgid "Your eligible runs do not cover enough different temperature-and-humidity conditions."
 msgstr "Your eligible runs do not cover enough different temperature-and-humidity conditions."
 
@@ -8897,11 +9007,11 @@ msgstr "Your external planner remains in control."
 msgid "Your Garmin account has multi-factor authentication enabled. Enter the verification code Garmin sent you to finish connecting."
 msgstr "Your Garmin account has multi-factor authentication enabled. Enter the verification code Garmin sent you to finish connecting."
 
-#: src/pages/LabsEnvironment.tsx:929
+#: src/pages/LabsEnvironment.tsx:1202
 msgid "Your historical environmental-response curve"
 msgstr "Your historical environmental-response curve"
 
-#: src/pages/LabsEnvironment.tsx:89
+#: src/pages/LabsEnvironment.tsx:92
 msgid "Your history includes enough broad sample coverage, but the full analysis must confirm that power, heart rate, and Critical Power use one compatible Stryd regime."
 msgstr "Your history includes enough broad sample coverage, but the full analysis must confirm that power, heart rate, and Critical Power use one compatible Stryd regime."
 
@@ -8913,7 +9023,7 @@ msgstr "Your identity in Praxys"
 msgid "Your name"
 msgstr "Your name"
 
-#: src/pages/LabsEnvironment.tsx:928
+#: src/pages/LabsEnvironment.tsx:1201
 msgid "Your partial historical environmental-response curve"
 msgstr "Your partial historical environmental-response curve"
 
@@ -8931,15 +9041,19 @@ msgstr "Your Praxys invitation code: {0}\n"
 "\n"
 "Finish registering here: {1}"
 
-#: src/pages/LabsEnvironment.tsx:660
+#: src/pages/LabsEnvironment.tsx:268
+msgid "Your request is stored durably and will run separately from the app."
+msgstr "Your request is stored durably and will run separately from the app."
+
+#: src/pages/LabsEnvironment.tsx:846
 msgid "Your result is not pooled with other users and is not donated to cohort research."
 msgstr "Your result is not pooled with other users and is not donated to cohort research."
 
-#: src/pages/LabsEnvironment.tsx:892
+#: src/pages/LabsEnvironment.tsx:1154
 msgid "Your result needs recomputing"
 msgstr "Your result needs recomputing"
 
-#: src/pages/LabsEnvironment.tsx:64
+#: src/pages/LabsEnvironment.tsx:66
 msgid "Your source data changed while this result was being computed."
 msgstr "Your source data changed while this result was being computed."
 

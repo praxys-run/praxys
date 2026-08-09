@@ -67,6 +67,9 @@ openai>=2.52.0
 # back to local filesystem storage under DATA_DIR — fine for dev, but ephemeral
 # on Azure App Service, so production configures PRAXYS_FEEDBACK_BLOB_*.
 azure-storage-blob>=12.30.0
+# Durable queue transport for isolated Labs analysis jobs. Production uses
+# managed identity; local development remains on the explicit inline mode.
+azure-servicebus>=7.14.3,<8.0.0
 
 # ── Visual asset generation ──────────────────────────────────────────
 # Headless Chromium via Playwright is used by scripts/generate_og_card.py
