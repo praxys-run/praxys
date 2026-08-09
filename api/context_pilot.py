@@ -10,9 +10,10 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import date, datetime, timezone
+from time import monotonic, sleep
 from typing import Any, Literal, Mapping, Sequence
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from analysis.config import (
@@ -76,11 +77,14 @@ _RUN_OPERATIONS = frozenset({
     "context_pilot_failure",
     "context_pilot_proposal",
 })
+_RUN_RESERVATION_OPERATION = "context_pilot_reservation"
+_RUN_RESERVATION_WAIT_SECONDS = 35.0
 _RESPONSE_OPERATIONS = {
     "accept": "context_pilot_accept",
     "reject": "context_pilot_reject",
     "defer": "context_pilot_defer",
 }
+_ACCEPTANCE_DELIVERY_OPERATION = "context_pilot_accept_delivery"
 _REVERSAL_OPERATION = "auto_adjustment_undo"
 _PRIVATE_PROCESSING_EXCEPTIONS = (
     PersonalContextAccessError,
@@ -190,20 +194,6 @@ def run_context_pilot(
         "confirmed_opt_in": confirmed_opt_in,
         "allow_ai": allow_ai,
     })
-    existing = db.execute(
-        select(PlanRevision).where(
-            PlanRevision.user_id == user_id,
-            PlanRevision.idempotency_key == key,
-        )
-    ).scalar_one_or_none()
-    if existing is not None:
-        if (
-            existing.operation not in _RUN_OPERATIONS
-            or _details(existing).get("request_fingerprint")
-            != request_fingerprint
-        ):
-            raise ContextPilotConflict("Pilot idempotency key is already used")
-        return _run_result_from_revision(db, existing, now=timestamp)
 
     if source == "synthetic":
         if purpose is not None or confirmed_opt_in or allow_ai:
@@ -211,154 +201,171 @@ def run_context_pilot(
                 "Synthetic scenarios do not accept athlete context options"
             )
         scenario = _synthetic_scenario(scenario_id)
-        result = _synthetic_result(scenario)
-        revision, created = _record_run(
-            db,
-            user_id=user_id,
-            result=result,
-            source=source,
-            scenario_id=str(scenario["id"]),
-            context_item_ids=(),
-            before=(),
-            after=(),
-            idempotency_key=key,
-            request_fingerprint=request_fingerprint,
-            timestamp=timestamp,
+        expected_kind = None
+    elif source == "opt_in":
+        scenario = None
+        if not confirmed_opt_in:
+            raise ContextPilotValidationError(
+                "The athlete must explicitly opt in to this pilot run"
+            )
+        if scenario_id is not None:
+            raise ContextPilotValidationError(
+                "Opt-in runs cannot select a synthetic scenario"
+            )
+        if purpose not in PILOT_ALLOWED_PURPOSES:
+            raise ContextPilotValidationError("Pilot purpose is outside scope")
+        expected_kind = (
+            "execution_explanation"
+            if purpose == "execution_interpretation"
+            else "temporary_constraint"
         )
-        if not created:
-            return _run_result_from_revision(db, revision, now=timestamp)
-        result["run_id"] = revision.id
-        if result["proposal"] is not None:
-            result["proposal"]["id"] = None
-        return result
-
-    if source != "opt_in":
+    else:
         raise ContextPilotValidationError("Pilot source is invalid")
-    if not confirmed_opt_in:
-        raise ContextPilotValidationError(
-            "The athlete must explicitly opt in to this pilot run"
-        )
-    if scenario_id is not None:
-        raise ContextPilotValidationError(
-            "Opt-in runs cannot select a synthetic scenario"
-        )
-    if purpose not in PILOT_ALLOWED_PURPOSES:
-        raise ContextPilotValidationError("Pilot purpose is outside scope")
 
-    try:
-        decision = process_personal_context(
-            db,
-            user_id=user_id,
-            purpose=purpose,
-            allow_ai=allow_ai,
-            now=timestamp,
-        )
-        db.rollback()
-        lock_plan_writes(db, user_id)
-        projection = project_personal_context(
-            db,
-            user_id=user_id,
-            purpose=purpose,
-            now=timestamp,
-        )
-    except _PRIVATE_PROCESSING_EXCEPTIONS:
-        db.rollback()
-        result = _base_result(
-            source="opt_in",
-            outcome="insufficient_evidence",
-            reason_code="context_processing_unavailable",
-            processing_status="failed",
-            processing_mode="deterministic_policy",
-            uncertainty="high",
-        )
-        revision, created = _record_run(
-            db,
-            user_id=user_id,
-            result=result,
-            source=source,
-            scenario_id=None,
-            context_item_ids=(),
-            before=(),
-            after=(),
-            idempotency_key=key,
-            request_fingerprint=request_fingerprint,
-            timestamp=timestamp,
-        )
-        if not created:
-            return _run_result_from_revision(db, revision, now=timestamp)
-        result["run_id"] = revision.id
-        return result
-
-    if set(decision.context_item_ids) != {
-        item.item_id for item in projection.items
-    }:
-        result = _base_result(
-            source="opt_in",
-            outcome="insufficient_evidence",
-            reason_code="context_changed_during_processing",
-            processing_status="failed",
-            processing_mode=decision.processing_mode,
-            uncertainty="high",
-        )
-        revision, created = _record_run(
-            db,
-            user_id=user_id,
-            result=result,
-            source=source,
-            scenario_id=None,
-            context_item_ids=(),
-            before=(),
-            after=(),
-            idempotency_key=key,
-            request_fingerprint=request_fingerprint,
-            timestamp=timestamp,
-        )
-        if not created:
-            return _run_result_from_revision(db, revision, now=timestamp)
-        result["run_id"] = revision.id
-        return result
-
-    item_rows = _pilot_item_rows(
+    reservation, reserved = _reserve_run(
         db,
         user_id=user_id,
-        item_ids=decision.context_item_ids,
-    )
-    expected_kind = (
-        "execution_explanation"
-        if purpose == "execution_interpretation"
-        else "temporary_constraint"
-    )
-    if any(row.kind != expected_kind for row in item_rows):
-        raise ContextPilotValidationError("Context kind is outside pilot scope")
-    evaluated, before, after, expiry = _evaluate_opt_in_result(
-        db,
-        user_id=user_id,
-        purpose=purpose,
-        decision=decision,
-        projection=projection,
-        item_rows=item_rows,
-        now=timestamp,
-    )
-    revision, created = _record_run(
-        db,
-        user_id=user_id,
-        result=evaluated,
         source=source,
-        scenario_id=None,
-        context_item_ids=decision.context_item_ids,
-        before=before,
-        after=after,
         idempotency_key=key,
         request_fingerprint=request_fingerprint,
         timestamp=timestamp,
-        expires_at=expiry,
     )
-    if not created:
-        return _run_result_from_revision(db, revision, now=timestamp)
-    evaluated["run_id"] = revision.id
-    if evaluated["proposal"] is not None:
-        evaluated["proposal"]["id"] = revision.id
-    return evaluated
+    if not reserved:
+        return _run_result_from_revision(db, reservation, now=timestamp)
+
+    try:
+        if source == "synthetic":
+            assert scenario is not None
+            result = _synthetic_result(scenario)
+            revision = _finalize_run(
+                db,
+                reservation=reservation,
+                result=result,
+                source=source,
+                scenario_id=str(scenario["id"]),
+                context_item_ids=(),
+                before=(),
+                after=(),
+                request_fingerprint=request_fingerprint,
+                timestamp=timestamp,
+            )
+            result["run_id"] = revision.id
+            if result["proposal"] is not None:
+                result["proposal"]["id"] = None
+            return result
+
+        assert purpose is not None
+        assert expected_kind is not None
+        _validate_pilot_context_kinds(
+            db,
+            user_id=user_id,
+            purpose=purpose,
+            expected_kind=expected_kind,
+            now=timestamp,
+        )
+        try:
+            decision = process_personal_context(
+                db,
+                user_id=user_id,
+                purpose=purpose,
+                kinds=(expected_kind,),
+                allow_ai=allow_ai,
+                now=timestamp,
+            )
+            db.rollback()
+            lock_plan_writes(db, user_id)
+            projection = project_personal_context(
+                db,
+                user_id=user_id,
+                purpose=purpose,
+                kinds=(expected_kind,),
+                now=timestamp,
+            )
+        except _PRIVATE_PROCESSING_EXCEPTIONS:
+            db.rollback()
+            result = _base_result(
+                source="opt_in",
+                outcome="insufficient_evidence",
+                reason_code="context_processing_unavailable",
+                processing_status="failed",
+                processing_mode="deterministic_policy",
+                uncertainty="high",
+            )
+            revision = _finalize_run(
+                db,
+                reservation=reservation,
+                result=result,
+                source=source,
+                scenario_id=None,
+                context_item_ids=(),
+                before=(),
+                after=(),
+                request_fingerprint=request_fingerprint,
+                timestamp=timestamp,
+            )
+            result["run_id"] = revision.id
+            return result
+
+        if set(decision.context_item_ids) != {
+            item.item_id for item in projection.items
+        }:
+            result = _base_result(
+                source="opt_in",
+                outcome="insufficient_evidence",
+                reason_code="context_changed_during_processing",
+                processing_status="failed",
+                processing_mode=decision.processing_mode,
+                uncertainty="high",
+            )
+            revision = _finalize_run(
+                db,
+                reservation=reservation,
+                result=result,
+                source=source,
+                scenario_id=None,
+                context_item_ids=(),
+                before=(),
+                after=(),
+                request_fingerprint=request_fingerprint,
+                timestamp=timestamp,
+            )
+            result["run_id"] = revision.id
+            return result
+
+        item_rows = _pilot_item_rows(
+            db,
+            user_id=user_id,
+            item_ids=decision.context_item_ids,
+        )
+        evaluated, before, after, expiry = _evaluate_opt_in_result(
+            db,
+            user_id=user_id,
+            purpose=purpose,
+            decision=decision,
+            projection=projection,
+            item_rows=item_rows,
+            now=timestamp,
+        )
+        revision = _finalize_run(
+            db,
+            reservation=reservation,
+            result=evaluated,
+            source=source,
+            scenario_id=None,
+            context_item_ids=decision.context_item_ids,
+            before=before,
+            after=after,
+            request_fingerprint=request_fingerprint,
+            timestamp=timestamp,
+            expires_at=expiry,
+        )
+        evaluated["run_id"] = revision.id
+        if evaluated["proposal"] is not None:
+            evaluated["proposal"]["id"] = revision.id
+        return evaluated
+    except Exception:
+        _release_run_reservation(db, reservation)
+        raise
 
 
 def get_context_pilot_proposal(
@@ -422,7 +429,9 @@ def respond_to_context_pilot_proposal(
             or details.get("request_fingerprint") != request_fingerprint
         ):
             raise ContextPilotConflict("Pilot idempotency key is already used")
-        return _response_result(
+        return _response_result_for_event(
+            db,
+            user_id=user_id,
             response=response,
             event=existing,
             proposal_id=proposal_id,
@@ -448,7 +457,9 @@ def respond_to_context_pilot_proposal(
                 "Pilot idempotency key is already used"
             )
         db.rollback()
-        return _response_result(
+        return _response_result_for_event(
+            db,
+            user_id=user_id,
             response=response,
             event=existing,
             proposal_id=proposal_id,
@@ -503,7 +514,9 @@ def respond_to_context_pilot_proposal(
             idempotency_key=key,
         )
         db.commit()
-        return _response_result(
+        return _response_result_for_event(
+            db,
+            user_id=user_id,
             response=response,
             event=event,
             proposal_id=proposal.id,
@@ -573,24 +586,22 @@ def respond_to_context_pilot_proposal(
     )
     if not created:
         db.rollback()
-        return _response_result(
+        return _response_result_for_event(
+            db,
+            user_id=user_id,
             response=response,
             event=event,
             proposal_id=proposal.id,
         )
     bump_revisions(db, user_id, ["plans"])
     db.commit()
-    delivery = _trigger_managed_delivery(
-        user_id,
-        trigger="context_pilot_athlete_acceptance",
-    )
-    result = _response_result(
+    return _response_result_for_event(
+        db,
+        user_id=user_id,
         response=response,
         event=event,
         proposal_id=proposal.id,
     )
-    result["delivery"] = delivery
-    return result
 
 
 def build_context_pilot_evaluation(
@@ -881,6 +892,7 @@ def _evaluate_opt_in_result(
         "expires_at": (
             utc_isoformat(expiry) if expiry is not None else None
         ),
+        "accepted_revision_id": None,
     }
     return result, (before,), (after,), expiry
 
@@ -892,33 +904,49 @@ def _availability_action(
     items: Sequence[ProjectedContextItem],
     now: datetime,
 ) -> dict[str, Any]:
-    dates: set[date] = set()
-    limits: set[int] = set()
+    associated: list[tuple[set[date], int]] = []
+    saw_dates = False
+    saw_limits = False
     current_date = effective_athlete_date(
         load_config_from_db(user_id, db),
         now,
     )
     for item in items:
+        item_dates: set[date] = set()
         for value in item.fields.get("affected_dates", []):
             try:
                 parsed = date.fromisoformat(str(value))
             except ValueError:
                 continue
             if parsed >= current_date:
-                dates.add(parsed)
+                item_dates.add(parsed)
+        saw_dates = saw_dates or bool(item_dates)
         limit = item.fields.get("maximum_available_minutes")
-        if isinstance(limit, int) and not isinstance(limit, bool):
-            limits.add(limit)
-    if not dates:
+        item_limit = (
+            limit
+            if isinstance(limit, int) and not isinstance(limit, bool)
+            else None
+        )
+        saw_limits = saw_limits or item_limit is not None
+        if item_dates and item_limit is not None:
+            associated.append((item_dates, item_limit))
+    if not saw_dates:
         return {
             "outcome": "insufficient_evidence",
             "reason_code": "availability_window_missing",
         }
-    if not limits:
+    if not saw_limits:
         return {
             "outcome": "insufficient_evidence",
             "reason_code": "availability_limit_missing",
         }
+    if not associated:
+        return {
+            "outcome": "insufficient_evidence",
+            "reason_code": "availability_window_and_limit_not_associated",
+        }
+    dates = set().union(*(item_dates for item_dates, _ in associated))
+    limits = {item_limit for _, item_limit in associated}
     if len(limits) != 1:
         return {
             "outcome": "clarification",
@@ -990,21 +1018,146 @@ def _availability_action(
     }
 
 
-def _record_run(
+def _reserve_run(
     db: Session,
     *,
     user_id: str,
+    source: PilotSource,
+    idempotency_key: str,
+    request_fingerprint: str,
+    timestamp: datetime,
+) -> tuple[PlanRevision, bool]:
+    """Atomically claim a run key before any context use or AI disclosure."""
+    while True:
+        revision, created = record_plan_revision_idempotent(
+            db,
+            user_id=user_id,
+            operation=_RUN_RESERVATION_OPERATION,
+            actor_type="user" if source == "opt_in" else "system",
+            actor_id=user_id if source == "opt_in" else "synthetic-scenario",
+            origin="api.context_pilot.run",
+            before=(),
+            after=(),
+            details={
+                "pilot_schema_version": PILOT_SCHEMA_VERSION,
+                "scenario_source": source,
+                "request_fingerprint": request_fingerprint,
+                "processing_status": "reserved",
+            },
+            idempotency_key=idempotency_key,
+        )
+        if created:
+            revision.created_at = timestamp
+            db.commit()
+            return revision, True
+
+        details = _details(revision)
+        if details.get("request_fingerprint") != request_fingerprint:
+            db.rollback()
+            raise ContextPilotConflict(
+                "Pilot idempotency key is already used"
+            )
+        if revision.operation in _RUN_OPERATIONS:
+            db.rollback()
+            current = db.get(PlanRevision, revision.id)
+            if current is None:
+                continue
+            return current, False
+        if revision.operation != _RUN_RESERVATION_OPERATION:
+            db.rollback()
+            raise ContextPilotConflict(
+                "Pilot idempotency key is already used"
+            )
+
+        revision_id = revision.id
+        db.rollback()
+        completed = _wait_for_reserved_run(
+            db,
+            user_id=user_id,
+            revision_id=revision_id,
+            request_fingerprint=request_fingerprint,
+        )
+        if completed is not None:
+            return completed, False
+
+
+def _wait_for_reserved_run(
+    db: Session,
+    *,
+    user_id: str,
+    revision_id: str,
+    request_fingerprint: str,
+) -> PlanRevision | None:
+    """Wait briefly for the reservation owner, or retry after clean release."""
+    deadline = monotonic() + _RUN_RESERVATION_WAIT_SECONDS
+    while monotonic() < deadline:
+        db.rollback()
+        revision = db.execute(
+            select(PlanRevision).where(
+                PlanRevision.id == revision_id,
+                PlanRevision.user_id == user_id,
+            )
+        ).scalar_one_or_none()
+        if revision is None:
+            return None
+        details = _details(revision)
+        if details.get("request_fingerprint") != request_fingerprint:
+            raise ContextPilotConflict(
+                "Pilot idempotency key is already used"
+            )
+        if revision.operation in _RUN_OPERATIONS:
+            return revision
+        if revision.operation != _RUN_RESERVATION_OPERATION:
+            raise ContextPilotConflict(
+                "Pilot idempotency key is already used"
+            )
+        sleep(0.025)
+    raise ContextPilotConflict("Pilot run is still processing")
+
+
+def _release_run_reservation(
+    db: Session,
+    reservation: PlanRevision,
+) -> None:
+    """Release only an unfinished reservation so a clean retry can proceed."""
+    try:
+        db.rollback()
+        lock_plan_writes(db, reservation.user_id)
+        current = db.execute(
+            select(PlanRevision)
+            .where(
+                PlanRevision.id == reservation.id,
+                PlanRevision.user_id == reservation.user_id,
+            )
+            .with_for_update()
+        ).scalar_one_or_none()
+        if (
+            current is not None
+            and current.operation == _RUN_RESERVATION_OPERATION
+        ):
+            db.delete(current)
+            db.commit()
+        else:
+            db.rollback()
+    except Exception:
+        db.rollback()
+
+
+def _finalize_run(
+    db: Session,
+    *,
+    reservation: PlanRevision,
     result: Mapping[str, Any],
     source: PilotSource,
     scenario_id: str | None,
     context_item_ids: Sequence[str],
     before: Sequence[Mapping[str, Any]],
     after: Sequence[Mapping[str, Any]],
-    idempotency_key: str,
     request_fingerprint: str,
     timestamp: datetime,
     expires_at: datetime | None = None,
-) -> tuple[PlanRevision, bool]:
+) -> PlanRevision:
+    """Finalize the already-reserved run row into its durable replay result."""
     operation = (
         "context_pilot_failure"
         if result["processing_status"] == "failed"
@@ -1041,24 +1194,35 @@ def _record_run(
         details["question_code"] = result["clarification"]["question_code"]
     if expires_at is not None:
         details["expires_at"] = utc_isoformat(expires_at)
-    revision, created = record_plan_revision_idempotent(
-        db,
-        user_id=user_id,
-        operation=operation,
-        actor_type="user" if source == "opt_in" else "system",
-        actor_id=user_id if source == "opt_in" else "synthetic-scenario",
-        origin="api.context_pilot.run",
-        before=before,
-        after=after,
-        details=details,
-        idempotency_key=idempotency_key,
-    )
-    if created:
-        revision.created_at = timestamp
-        db.commit()
-    else:
+    db.rollback()
+    lock_plan_writes(db, reservation.user_id)
+    revision = db.execute(
+        select(PlanRevision)
+        .where(
+            PlanRevision.id == reservation.id,
+            PlanRevision.user_id == reservation.user_id,
+        )
+        .with_for_update()
+    ).scalar_one_or_none()
+    if (
+        revision is None
+        or revision.operation != _RUN_RESERVATION_OPERATION
+        or _details(revision).get("request_fingerprint")
+        != request_fingerprint
+    ):
         db.rollback()
-    return revision, created
+        raise ContextPilotConflict("Pilot run reservation was lost")
+    revision.operation = operation
+    revision.actor_type = "user" if source == "opt_in" else "system"
+    revision.actor_id = (
+        reservation.user_id if source == "opt_in" else "synthetic-scenario"
+    )
+    revision.before_snapshot = [plan_snapshot(row) for row in before]
+    revision.after_snapshot = [plan_snapshot(row) for row in after]
+    revision.details = details
+    revision.created_at = timestamp
+    db.commit()
+    return revision
 
 
 def _run_result_from_revision(
@@ -1162,7 +1326,10 @@ def _proposal_from_revision(
             status = "deferred"
     if status == "pending":
         item_ids = _string_list(details.get("context_item_ids"))
-        if (
+        expiry = _parse_utc(details.get("expires_at"))
+        if expiry is not None and expiry <= now:
+            status = "expired"
+        elif (
             details.get("personal_context_status")
             == "removed_by_athlete"
             or not item_ids
@@ -1174,31 +1341,27 @@ def _proposal_from_revision(
             )
         ):
             status = "invalidated"
+        elif not isinstance(before, Mapping):
+            status = "invalidated"
         else:
-            expiry = _parse_utc(details.get("expires_at"))
-            if expiry is not None and expiry <= now:
-                status = "expired"
-            elif not isinstance(before, Mapping):
+            canonical_id = str(before.get("canonical_id") or "")
+            workout = db.execute(
+                select(TrainingPlan).where(
+                    TrainingPlan.user_id == proposal.user_id,
+                    TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
+                    TrainingPlan.canonical_id == canonical_id,
+                )
+            ).scalar_one_or_none()
+            if (
+                workout is None
+                or not _snapshots_match_exactly(workout, before)
+            ):
                 status = "invalidated"
-            else:
-                canonical_id = str(before.get("canonical_id") or "")
-                workout = db.execute(
-                    select(TrainingPlan).where(
-                        TrainingPlan.user_id == proposal.user_id,
-                        TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
-                        TrainingPlan.canonical_id == canonical_id,
-                    )
-                ).scalar_one_or_none()
-                if (
-                    workout is None
-                    or not _snapshots_match_exactly(workout, before)
-                ):
-                    status = "invalidated"
-                elif workout.date < effective_athlete_date(
-                    load_config_from_db(proposal.user_id, db),
-                    now,
-                ):
-                    status = "expired"
+            elif workout.date < effective_athlete_date(
+                load_config_from_db(proposal.user_id, db),
+                now,
+            ):
+                status = "expired"
     if acceptance is not None:
         reversal = db.execute(
             select(PlanRevision).where(
@@ -1269,6 +1432,118 @@ def _response_result(
         "canonical_plan_changed": accepted,
         "athlete_approved": accepted,
     }
+
+
+def _response_result_for_event(
+    db: Session,
+    *,
+    user_id: str,
+    response: PilotResponse,
+    event: PlanRevision,
+    proposal_id: str,
+) -> dict[str, Any]:
+    """Return the stable response, recovering accepted delivery if needed."""
+    result = _response_result(
+        response=response,
+        event=event,
+        proposal_id=proposal_id,
+    )
+    if response == "accept":
+        result["delivery"] = _acceptance_delivery_result(
+            db,
+            user_id=user_id,
+            acceptance_id=event.id,
+        )
+    return result
+
+
+def _acceptance_delivery_result(
+    db: Session,
+    *,
+    user_id: str,
+    acceptance_id: str,
+) -> dict[str, Any]:
+    """Return or durably reconstruct one acceptance delivery consequence."""
+    stored = _stored_acceptance_delivery(
+        db,
+        user_id=user_id,
+        acceptance_id=acceptance_id,
+    )
+    if stored is not None:
+        return stored
+
+    db.rollback()
+    acceptance = db.execute(
+        select(PlanRevision).where(
+            PlanRevision.id == acceptance_id,
+            PlanRevision.user_id == user_id,
+            PlanRevision.operation == "context_pilot_accept",
+        )
+    ).scalar_one_or_none()
+    if acceptance is None:
+        raise ContextPilotConflict("Pilot acceptance is unavailable")
+    snapshot = _single_snapshot(
+        acceptance.after_snapshot,
+        error="Pilot acceptance snapshot is invalid",
+    )
+    db.rollback()
+    delivery = _trigger_managed_delivery(
+        user_id,
+        trigger="context_pilot_athlete_acceptance",
+    )
+    consequence, created = record_plan_revision_idempotent(
+        db,
+        user_id=user_id,
+        operation=_ACCEPTANCE_DELIVERY_OPERATION,
+        actor_type="system",
+        actor_id="managed-delivery",
+        origin="api.context_pilot.delivery",
+        before=[snapshot],
+        after=[snapshot],
+        details={
+            "pilot_schema_version": PILOT_SCHEMA_VERSION,
+            "acceptance_revision_id": acceptance_id,
+            "delivery": delivery,
+        },
+        idempotency_key=(
+            f"{_ACCEPTANCE_DELIVERY_OPERATION}:{acceptance_id}"
+        ),
+    )
+    if created:
+        db.commit()
+        return delivery
+    db.rollback()
+    stored = _stored_acceptance_delivery(
+        db,
+        user_id=user_id,
+        acceptance_id=acceptance_id,
+    )
+    if stored is None:
+        raise ContextPilotConflict("Pilot delivery replay is unavailable")
+    return stored
+
+
+def _stored_acceptance_delivery(
+    db: Session,
+    *,
+    user_id: str,
+    acceptance_id: str,
+) -> dict[str, Any] | None:
+    """Load a previously audited acceptance delivery payload."""
+    consequence = db.execute(
+        select(PlanRevision).where(
+            PlanRevision.user_id == user_id,
+            PlanRevision.idempotency_key
+            == f"{_ACCEPTANCE_DELIVERY_OPERATION}:{acceptance_id}",
+        )
+    ).scalar_one_or_none()
+    if consequence is None:
+        return None
+    details = _details(consequence)
+    delivery = details.get("delivery")
+    if not isinstance(delivery, Mapping):
+        raise ContextPilotConflict("Stored pilot delivery is invalid")
+    return dict(delivery)
 
 
 def _base_result(
@@ -1356,6 +1631,65 @@ def _synthetic_scenario(scenario_id: str | None) -> Mapping[str, Any]:
         if scenario["id"] == scenario_id:
             return scenario
     raise ContextPilotValidationError("Synthetic pilot scenario is invalid")
+
+
+def _validate_pilot_context_kinds(
+    db: Session,
+    *,
+    user_id: str,
+    purpose: str,
+    expected_kind: str,
+    now: datetime,
+) -> None:
+    """Reject out-of-scope active context before payload processing begins."""
+    purpose_confirmed = (
+        db.query(PersonalContextConsentReceipt.id)
+        .filter(
+            PersonalContextConsentReceipt.user_id
+            == PersonalContextItem.user_id,
+            PersonalContextConsentReceipt.context_item_id
+            == PersonalContextItem.id,
+            PersonalContextConsentReceipt.context_version
+            == PersonalContextItem.version,
+            PersonalContextConsentReceipt.purpose
+            == PersonalContextItem.purpose,
+            PersonalContextConsentReceipt.consent_scope
+            == "purpose_confirmation",
+            PersonalContextConsentReceipt.decision == "granted",
+        )
+        .exists()
+    )
+    rows = (
+        db.query(PersonalContextItem)
+        .filter(
+            PersonalContextItem.user_id == user_id,
+            PersonalContextItem.purpose == purpose,
+            PersonalContextItem.state == "active",
+            PersonalContextItem.starts_at <= now,
+            or_(
+                PersonalContextItem.expires_at.is_(None),
+                PersonalContextItem.expires_at > now,
+            ),
+            purpose_confirmed,
+        )
+        .order_by(
+            PersonalContextItem.lineage_id,
+            PersonalContextItem.version.desc(),
+        )
+        .all()
+    )
+    seen_lineages: set[str] = set()
+    for row in rows:
+        if row.lineage_id in seen_lineages:
+            continue
+        seen_lineages.add(row.lineage_id)
+        if (
+            row.kind not in PILOT_ALLOWED_KINDS
+            or row.kind != expected_kind
+        ):
+            raise ContextPilotValidationError(
+                "Context kind is outside pilot scope"
+            )
 
 
 def _pilot_item_rows(

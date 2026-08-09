@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
+from threading import Event, Lock
 from typing import Any
 from uuid import uuid4
 
@@ -13,6 +15,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from api.context_pilot import (
     PILOT_POLICY_VERSION,
     ContextPilotConflict,
+    ContextPilotValidationError,
     build_context_pilot_evaluation,
     get_context_pilot_proposal,
     list_context_pilot_scenarios,
@@ -25,7 +28,13 @@ from api.personal_context import (
     withdraw_context,
 )
 from api.plan_adjustments import undo_plan_adjustment
-from db.models import Base, PlanRevision, TrainingPlan, User
+from db.models import (
+    Base,
+    PersonalContextUseReceipt,
+    PlanRevision,
+    TrainingPlan,
+    User,
+)
 
 
 USER_ID = "context-pilot-owner"
@@ -101,7 +110,9 @@ def _add_constraint(
     user_id: str = USER_ID,
     category: str = "less_time",
     fields: dict[str, Any] | None = None,
+    expires_at: datetime | None = None,
 ) -> str:
+    active_until = expires_at or NOW + timedelta(days=14)
     result = confirm_context_item(
         db,
         user_id=user_id,
@@ -121,9 +132,34 @@ def _add_constraint(
         client="web",
         idempotency_key=f"context:{uuid4()}",
         starts_at=NOW,
-        expires_at=NOW + timedelta(days=14),
+        expires_at=active_until,
         narrative_purge_at=NOW + timedelta(days=30),
-        purge_after=NOW + timedelta(days=44),
+        purge_after=active_until + timedelta(days=30),
+        now=NOW,
+    )
+    db.commit()
+    return result.item.id
+
+
+def _add_durable_preference(db: Session) -> str:
+    result = confirm_context_item(
+        db,
+        user_id=USER_ID,
+        kind="durable_preference",
+        purpose="plan_adjustment",
+        payload={
+            "category": "less_time",
+            "fields": {
+                "affected_dates": [WORKOUT_DATE.isoformat()],
+                "maximum_available_minutes": 30,
+            },
+        },
+        source_actor_type="first_party_web",
+        source_actor_id=None,
+        consent_text_version="personal-context-purpose-v1",
+        client="web",
+        idempotency_key=f"context:{uuid4()}",
+        starts_at=NOW,
         now=NOW,
     )
     db.commit()
@@ -269,6 +305,57 @@ def test_opt_in_proposal_requires_athlete_response_and_uses_canonical_undo(
     assert after_deletion["accepted_revision_id"] == accepted["revision_id"]
 
 
+def test_acceptance_replay_returns_the_original_delivery_result(
+    pilot_db: Session,
+    monkeypatch,
+) -> None:
+    _add_workout(pilot_db)
+    _add_constraint(pilot_db)
+    proposal = _run_opt_in(pilot_db)["proposal"]
+    delivery_calls = 0
+    delivery = {
+        "status": "disabled",
+        "target": None,
+        "reason": "delivery_disabled",
+        "items": [],
+    }
+
+    def trigger_delivery(*args, **kwargs):
+        nonlocal delivery_calls
+        delivery_calls += 1
+        return delivery
+
+    monkeypatch.setattr(
+        "api.context_pilot._trigger_managed_delivery",
+        trigger_delivery,
+    )
+
+    accepted = respond_to_context_pilot_proposal(
+        pilot_db,
+        user_id=USER_ID,
+        proposal_id=proposal["id"],
+        response="accept",
+        idempotency_key="pilot-accept-delivery-replay",
+        now=NOW + timedelta(minutes=1),
+    )
+    replay = respond_to_context_pilot_proposal(
+        pilot_db,
+        user_id=USER_ID,
+        proposal_id=proposal["id"],
+        response="accept",
+        idempotency_key="pilot-accept-delivery-replay",
+        now=NOW + timedelta(minutes=2),
+    )
+
+    assert replay == accepted
+    assert replay["delivery"] == delivery
+    assert delivery_calls == 1
+    consequence = pilot_db.query(PlanRevision).filter(
+        PlanRevision.operation == "context_pilot_accept_delivery"
+    ).one()
+    assert consequence.details["delivery"] == delivery
+
+
 @pytest.mark.parametrize("response", ["reject", "defer"])
 def test_rejection_and_deferral_leave_the_plan_unchanged(
     pilot_db: Session,
@@ -366,6 +453,85 @@ def test_expired_workout_proposal_cannot_mutate_history(
     assert workout.planned_duration_min == 60
 
 
+def test_explicit_proposal_expiry_precedes_context_invalidation(
+    pilot_db: Session,
+) -> None:
+    _add_workout(pilot_db)
+    _add_constraint(
+        pilot_db,
+        expires_at=NOW + timedelta(days=1),
+    )
+    result = _run_opt_in(pilot_db)
+
+    proposal = get_context_pilot_proposal(
+        pilot_db,
+        user_id=USER_ID,
+        proposal_id=result["proposal"]["id"],
+        now=NOW + timedelta(days=1, minutes=1),
+    )
+
+    assert proposal["status"] == "expired"
+
+
+def test_unassociated_availability_fields_do_not_create_a_suggestion(
+    pilot_db: Session,
+) -> None:
+    _add_workout(pilot_db)
+    _add_constraint(
+        pilot_db,
+        fields={"affected_dates": [WORKOUT_DATE.isoformat()]},
+    )
+    _add_constraint(
+        pilot_db,
+        fields={"maximum_available_minutes": 30},
+    )
+
+    result = _run_opt_in(pilot_db)
+
+    assert result["outcome"] == "insufficient_evidence"
+    assert (
+        result["reason_code"]
+        == "availability_window_and_limit_not_associated"
+    )
+    assert result["proposal"] is None
+
+
+def test_out_of_scope_context_is_rejected_before_use_receipt_creation(
+    pilot_db: Session,
+    monkeypatch,
+) -> None:
+    _add_durable_preference(pilot_db)
+    processing_called = False
+
+    def unexpected_processing(*args, **kwargs):
+        nonlocal processing_called
+        processing_called = True
+        raise AssertionError("out-of-scope context reached processing")
+
+    monkeypatch.setattr(
+        "api.context_pilot.process_personal_context",
+        unexpected_processing,
+    )
+
+    with pytest.raises(ContextPilotValidationError):
+        run_context_pilot(
+            pilot_db,
+            user_id=USER_ID,
+            source="opt_in",
+            purpose="plan_adjustment",
+            confirmed_opt_in=True,
+            allow_ai=True,
+            idempotency_key="pilot-disallowed-kind",
+            now=NOW,
+        )
+
+    assert processing_called is False
+    assert pilot_db.query(PersonalContextUseReceipt).count() == 0
+    assert pilot_db.query(PlanRevision).filter(
+        PlanRevision.idempotency_key == "pilot-disallowed-kind"
+    ).one_or_none() is None
+
+
 def test_idempotency_key_rejects_a_changed_pilot_command(
     pilot_db: Session,
 ) -> None:
@@ -398,24 +564,157 @@ def test_idempotency_key_rejects_a_changed_pilot_command(
         )
 
 
+def test_concurrent_identical_runs_process_context_once(
+    pilot_db: Session,
+    monkeypatch,
+) -> None:
+    _add_workout(pilot_db)
+    _add_constraint(pilot_db)
+    session_factory = sessionmaker(bind=pilot_db.get_bind())
+    first_processing = Event()
+    release_first = Event()
+    duplicate_processing = Event()
+    call_lock = Lock()
+    call_count = 0
+    from api import context_pilot
+
+    original_process = context_pilot.process_personal_context
+
+    def blocking_process(*args, **kwargs):
+        nonlocal call_count
+        with call_lock:
+            call_count += 1
+            current_call = call_count
+        if current_call == 1:
+            first_processing.set()
+            assert release_first.wait(5)
+        else:
+            duplicate_processing.set()
+        return original_process(*args, **kwargs)
+
+    monkeypatch.setattr(
+        "api.context_pilot.process_personal_context",
+        blocking_process,
+    )
+
+    def submit() -> dict[str, Any]:
+        with session_factory() as db:
+            return run_context_pilot(
+                db,
+                user_id=USER_ID,
+                source="opt_in",
+                purpose="plan_adjustment",
+                confirmed_opt_in=True,
+                idempotency_key="pilot-concurrent-run",
+                now=NOW,
+            )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first = executor.submit(submit)
+        assert first_processing.wait(5)
+        second = executor.submit(submit)
+        assert duplicate_processing.wait(0.5) is False
+        release_first.set()
+        results = [first.result(timeout=10), second.result(timeout=10)]
+
+    assert results[0] == results[1]
+    assert call_count == 1
+    assert pilot_db.query(PersonalContextUseReceipt).count() == 1
+    assert pilot_db.query(PlanRevision).filter(
+        PlanRevision.idempotency_key == "pilot-concurrent-run"
+    ).count() == 1
+
+
+def test_unexpected_processing_failure_releases_run_reservation(
+    pilot_db: Session,
+    monkeypatch,
+) -> None:
+    _add_workout(pilot_db)
+    _add_constraint(pilot_db)
+    from api import context_pilot
+
+    original_process = context_pilot.process_personal_context
+    monkeypatch.setattr(
+        "api.context_pilot.process_personal_context",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            RuntimeError("synthetic processing failure")
+        ),
+    )
+
+    with pytest.raises(RuntimeError):
+        run_context_pilot(
+            pilot_db,
+            user_id=USER_ID,
+            source="opt_in",
+            purpose="plan_adjustment",
+            confirmed_opt_in=True,
+            idempotency_key="pilot-recoverable-failure",
+            now=NOW,
+        )
+
+    assert pilot_db.query(PlanRevision).filter(
+        PlanRevision.idempotency_key == "pilot-recoverable-failure"
+    ).one_or_none() is None
+
+    monkeypatch.setattr(
+        "api.context_pilot.process_personal_context",
+        original_process,
+    )
+    retry = run_context_pilot(
+        pilot_db,
+        user_id=USER_ID,
+        source="opt_in",
+        purpose="plan_adjustment",
+        confirmed_opt_in=True,
+        idempotency_key="pilot-recoverable-failure",
+        now=NOW,
+    )
+
+    assert retry["outcome"] == "suggestion"
+
+
 def test_processing_failure_is_insufficient_evidence_without_private_output(
     pilot_db: Session,
     monkeypatch,
 ) -> None:
     _add_workout(pilot_db)
     _add_constraint(pilot_db)
+    call_count = 0
+
+    def fail_processing(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        raise PersonalContextAccessError("PRIVATE-PILOT-MARKER")
+
     monkeypatch.setattr(
         "api.context_pilot.process_personal_context",
-        lambda *args, **kwargs: (_ for _ in ()).throw(
-            PersonalContextAccessError("PRIVATE-PILOT-MARKER")
-        ),
+        fail_processing,
     )
 
-    result = _run_opt_in(pilot_db)
+    result = run_context_pilot(
+        pilot_db,
+        user_id=USER_ID,
+        source="opt_in",
+        purpose="plan_adjustment",
+        confirmed_opt_in=True,
+        idempotency_key="pilot-processing-failure",
+        now=NOW,
+    )
+    replay = run_context_pilot(
+        pilot_db,
+        user_id=USER_ID,
+        source="opt_in",
+        purpose="plan_adjustment",
+        confirmed_opt_in=True,
+        idempotency_key="pilot-processing-failure",
+        now=NOW,
+    )
 
     assert result["outcome"] == "insufficient_evidence"
     assert result["processing_status"] == "failed"
     assert result["reason_code"] == "context_processing_unavailable"
+    assert replay == result
+    assert call_count == 1
     assert "PRIVATE-PILOT-MARKER" not in json.dumps(result)
     failure = pilot_db.query(PlanRevision).filter(
         PlanRevision.operation == "context_pilot_failure"

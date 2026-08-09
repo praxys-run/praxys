@@ -1998,15 +1998,19 @@ correct, expire, delete, export, or change AI consent. Item-specific denied
 access and cross-owner misses both return `404
 PERSONAL_CONTEXT_NOT_FOUND`; demo users cannot mutate context.
 
+Narrative is excluded by default on list, detail, and selection responses.
+Setting `include_narrative=true` requires `plan:context:narrative:read` in
+addition to ordinary context-read authorization.
+
 ### Context endpoints
 
 | Method | Path | Behavior |
 | --- | --- | --- |
 | `POST` | `/api/personal-context/preview` | Validate and normalize a draft without persistence |
 | `POST` | `/api/personal-context/confirm` | Confirm a draft and create version 1 |
-| `GET` | `/api/personal-context` | Inspect retained versions; filter by `purpose`, `kind`, and `include_history` |
-| `GET` | `/api/personal-context/{item_id}` | Inspect one retained version and, for the athlete, its private receipts |
-| `POST` | `/api/personal-context/selection` | Select active context while non-destructively excluding item IDs |
+| `GET` | `/api/personal-context` | Inspect retained versions; filter by `purpose`, `kind`, and `include_history`; set `include_narrative=true` to request retained narrative |
+| `GET` | `/api/personal-context/{item_id}` | Inspect one retained version and, for the athlete, its private receipts; set `include_narrative=true` to request retained narrative |
+| `POST` | `/api/personal-context/selection` | Select active context while non-destructively excluding item IDs; body field `include_narrative` requests retained narrative |
 | `POST` | `/api/personal-context/{item_id}/correct` | Append an immutable corrected successor |
 | `POST` | `/api/personal-context/{item_id}/ai-consent` | Grant, deny, or withdraw field-level AI processing consent |
 | `POST` | `/api/personal-context/{item_id}/expire` | Stop one current version from influencing decisions |
@@ -2068,8 +2072,10 @@ disclosure requires the item to contain a retained narrative.
 Pilot run and proposal-response commands require an `Idempotency-Key`. An
 athlete-context run accepts only `execution_interpretation` or
 `plan_adjustment` and requires `"source": "opt_in"` plus
-`"confirmed_opt_in": true`. Synthetic runs select a scenario returned by the
-catalog and cannot be accepted.
+`"confirmed_opt_in": true`. Opted-in runs may set `"allow_ai": true`; the
+normal item-level Azure OpenAI consent and field-minimization checks still
+apply. Synthetic runs select a scenario returned by the catalog, do not accept
+`allow_ai`, and cannot be accepted.
 
 Every run preserves the stable five-outcome contract: `clarification`,
 `no_change`, `insufficient_evidence`, `safety`, or `suggestion`. The only

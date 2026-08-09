@@ -214,6 +214,7 @@ def project_personal_context(
     *,
     user_id: str,
     purpose: str,
+    kinds: Sequence[str] | None = None,
     now: datetime | None = None,
 ) -> ContextProjection:
     """Load confirmed active context and project only validated fields."""
@@ -221,6 +222,7 @@ def project_personal_context(
         db,
         user_id=user_id,
         purpose=purpose,
+        kinds=kinds,
         include_narrative=False,
         require_purpose_confirmation=True,
         now=now,
@@ -484,6 +486,7 @@ def process_personal_context(
     *,
     user_id: str,
     purpose: str,
+    kinds: Sequence[str] | None = None,
     allow_ai: bool = False,
     azure_client: Any | None = None,
     now: datetime | None = None,
@@ -500,6 +503,7 @@ def process_personal_context(
         db,
         user_id=user_id,
         purpose=purpose,
+        kinds=kinds,
         now=current_time,
     )
     deterministic = evaluate_context_projection(projection)

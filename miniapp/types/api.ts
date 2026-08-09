@@ -669,23 +669,34 @@ export interface PersonalContextPayloadRequest {
   narrative?: string | null;
 }
 
-export interface PersonalContextDraftRequest {
+interface PersonalContextDraftRequestBase {
   kind: PersonalContextKind;
   purpose: PersonalContextPurpose;
   payload: PersonalContextPayloadRequest;
-  linked_subject_type?: PersonalContextLinkedSubject | null;
-  linked_subject_id?: string | null;
   starts_at?: string | null;
   expires_at?: string | null;
   purge_after?: string | null;
   narrative_purge_at?: string | null;
 }
 
-export interface PersonalContextConfirmRequest
-  extends PersonalContextDraftRequest {
+type PersonalContextLinkedSubjectRequest =
+  | {
+    linked_subject_type: PersonalContextLinkedSubject;
+    linked_subject_id: string;
+  }
+  | {
+    linked_subject_type?: never;
+    linked_subject_id?: never;
+  };
+
+export type PersonalContextDraftRequest =
+  PersonalContextDraftRequestBase
+  & PersonalContextLinkedSubjectRequest;
+
+export type PersonalContextConfirmRequest = PersonalContextDraftRequest & {
   consent_text_version: string;
   client: PersonalContextClient;
-}
+};
 
 export interface PersonalContextCorrectionRequest {
   expected_version: number;
@@ -698,15 +709,26 @@ export interface PersonalContextCorrectionRequest {
   client: PersonalContextClient;
 }
 
-export interface PersonalContextAiConsentRequest {
+interface PersonalContextAiConsentRequestBase {
   expected_version: number;
-  decision: 'granted' | 'denied' | 'withdrawn';
-  provider?: 'azure_openai' | null;
   disclosed_fields?: string[];
   narrative_disclosed?: boolean;
   consent_text_version: string;
   client: PersonalContextClient;
 }
+
+export type PersonalContextAiConsentRequest =
+  PersonalContextAiConsentRequestBase
+  & (
+    | {
+      decision: 'granted';
+      provider: 'azure_openai';
+    }
+    | {
+      decision: 'denied' | 'withdrawn';
+      provider?: 'azure_openai' | null;
+    }
+  );
 
 export interface PersonalContextExpireRequest {
   expected_version: number;
@@ -888,13 +910,21 @@ export interface ContextPilotScenarioListResponse {
   scenarios: ContextPilotScenario[];
 }
 
-export interface ContextPilotRunRequest {
-  source: 'synthetic' | 'opt_in';
-  scenario_id?: string | null;
-  purpose?: 'execution_interpretation' | 'plan_adjustment' | null;
-  confirmed_opt_in?: boolean;
-  allow_ai?: boolean;
-}
+export type ContextPilotRunRequest =
+  | {
+    source: 'synthetic';
+    scenario_id: string;
+    purpose?: never;
+    confirmed_opt_in?: never;
+    allow_ai?: never;
+  }
+  | {
+    source: 'opt_in';
+    scenario_id?: never;
+    purpose: 'execution_interpretation' | 'plan_adjustment';
+    confirmed_opt_in: true;
+    allow_ai?: boolean;
+  };
 
 export interface ContextPilotSnapshot {
   canonical_id: string | null;
