@@ -54,6 +54,10 @@ PlanCleanupItemStatus = Literal[
     "failed",
 ]
 PlanCleanupStatus = Literal["complete", "partial"]
+PlanCleanupIntent = Literal[
+    "leave_managed_mode",
+    "switch_execution_target",
+]
 
 
 @dataclass(frozen=True)
@@ -101,6 +105,7 @@ def _finish_cleanup(
     *,
     user_id: str,
     result: PlanCleanupResult,
+    intent: PlanCleanupIntent,
 ) -> PlanCleanupResult:
     telemetry.record_managed_plan_event(
         category="cleanup",
@@ -108,7 +113,7 @@ def _finish_cleanup(
         outcome=result.status,
         user_id=user_id,
         target=result.target,
-        trigger="leave_managed_mode",
+        trigger=intent,
         reason=(
             "remaining_deliveries"
             if result.remaining_count > 0
@@ -122,7 +127,7 @@ def _finish_cleanup(
             outcome=item.status,
             user_id=user_id,
             target=result.target,
-            trigger="leave_managed_mode",
+            trigger=intent,
             reason=item.reason,
         )
     return result
@@ -162,6 +167,7 @@ def _record_cleanup_connection_failure(
     target: str,
     connection_generation: str,
     exc: BaseException,
+    intent: PlanCleanupIntent,
 ) -> bool:
     """Persist connection-wide cleanup failures behind the credential fence."""
     from db.sync_scheduler import _record_sync_failure
@@ -179,7 +185,7 @@ def _record_cleanup_connection_failure(
         connection,
         exc,
         db,
-        trigger="managed_cleanup:leave_managed_mode",
+        trigger=f"managed_cleanup:{intent}",
         expected_credential_generation=connection_generation,
     )
 
@@ -189,13 +195,15 @@ def cleanup_future_plan_deliveries(
     *,
     user_id: str,
     today: date | None = None,
+    intent: PlanCleanupIntent = "leave_managed_mode",
     adapter_loader: AdapterLoader | None = None,
 ) -> PlanCleanupResult:
     """Remove future provider workouts owned by the caller's delivery ledger.
 
-    Managed delivery must already be disabled in external mode. This ordering
-    makes "leave and remove" fail safe: if provider cleanup is interrupted,
-    Praxys remains unable to create or replace target workouts.
+    Managed delivery must already be disabled. Ordinary leave cleanup requires
+    external mode; an explicit target-switch cleanup requires paused Praxys
+    mode. Both orderings fail safe because Praxys cannot create or replace
+    target workouts while cleanup is running.
     """
     start = today or date.today()
     config_row = db.execute(
@@ -209,12 +217,23 @@ def cleanup_future_plan_deliveries(
             else None
         ),
     )
+    required_mode = (
+        "praxys"
+        if intent == "switch_execution_target"
+        else "external"
+    )
     if (
-        plan_management["mode"] != "external"
+        plan_management["mode"] != required_mode
         or plan_management["delivery_enabled"]
     ):
+        message = (
+            "Pause managed delivery before removing workouts for a "
+            "target switch"
+            if intent == "switch_execution_target"
+            else "Leave managed mode before removing delivered workouts"
+        )
         raise PlanCleanupRequiresExternalMode(
-            "Leave managed mode before removing delivered workouts"
+            message
         )
 
     configured_target = plan_management["execution_target"]
@@ -232,12 +251,13 @@ def cleanup_future_plan_deliveries(
         return _finish_cleanup(
             user_id=user_id,
             result=PlanCleanupResult(
-            status="complete",
-            target=configured_target,
-            window_start=start.isoformat(),
-            removed_count=0,
-            remaining_count=0,
+                status="complete",
+                target=configured_target,
+                window_start=start.isoformat(),
+                removed_count=0,
+                remaining_count=0,
             ),
+            intent=intent,
         )
     delivery_targets = sorted({
         str(delivery.target).strip()
@@ -275,7 +295,7 @@ def cleanup_future_plan_deliveries(
                     state="removed",
                     external_id=None,
                     response={
-                        "cleanup": "leave_managed_mode",
+                        "cleanup": intent,
                         "already_absent": True,
                         "ledger_only": True,
                     },
@@ -354,6 +374,7 @@ def cleanup_future_plan_deliveries(
                 target=target,
                 connection_generation=connection_generation,
                 exc=exc,
+                intent=intent,
             )
             results.extend(
                 _item(delivery, status="failed", reason=reason)
@@ -380,8 +401,9 @@ def cleanup_future_plan_deliveries(
                         else None
                     ),
                 )
+                mode_changed = fresh_management["mode"] != required_mode
                 if (
-                    fresh_management["mode"] != "external"
+                    mode_changed
                     or fresh_management["delivery_enabled"]
                     or (
                         fresh_management["execution_target"]
@@ -413,7 +435,7 @@ def cleanup_future_plan_deliveries(
                         str(delivery.external_id),
                         attempt_context={
                             "managed_cleanup": True,
-                            "trigger": "leave_managed_mode",
+                            "trigger": intent,
                         },
                         mutation_guard=mutation_guard,
                     )
@@ -470,6 +492,7 @@ def cleanup_future_plan_deliveries(
                         target=target,
                         connection_generation=connection_generation,
                         exc=exc,
+                        intent=intent,
                     )
                     results.append(
                         _item(
@@ -486,6 +509,7 @@ def cleanup_future_plan_deliveries(
                         target=target,
                         connection_generation=connection_generation,
                         exc=exc,
+                        intent=intent,
                     )
                     results.append(
                         _item(
@@ -550,4 +574,5 @@ def cleanup_future_plan_deliveries(
             remaining_count=remaining_count,
             items=tuple(results),
         ),
+        intent=intent,
     )

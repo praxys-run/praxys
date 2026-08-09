@@ -571,7 +571,31 @@
   line-height: 1.45;
 }
 
+.settings-plan-target-footer {
+  display: flex;
+  margin-top: 8rpx;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.settings-plan-target-footer .settings-plan-target-hint {
+  min-width: 0;
+  flex: 1;
+  margin-top: 0;
+}
+
+.settings-plan-target-save {
+  width: auto;
+  min-height: 88rpx;
+  flex: none;
+  margin: 0;
+  padding: 0 24rpx;
+  font-size: 22rpx;
+}
+
 .settings-plan-target-hint--warning {
+  margin-top: 8rpx;
   color: var(--warning);
 }
 

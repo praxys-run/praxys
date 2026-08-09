@@ -119,7 +119,7 @@
 
         <view class="settings-plan-target">
           <text class="settings-plan-target-label">{{tr.executionTarget}}</text>
-          <block wx:if="{{planManagementState === 'external'}}">
+          <block wx:if="{{planManagementState !== 'active'}}">
             <view
               wx:if="{{planTargetOptions.length}}"
               class="settings-plan-target-options"
@@ -153,10 +153,22 @@
             <text wx:else class="settings-plan-target-empty">
               {{tr.connectTargetHint}}
             </text>
-            <text
+            <view
               wx:if="{{planTargetOptions.length}}"
-              class="settings-plan-target-hint"
-            >{{tr.targetSelectionHint}}</text>
+              class="settings-plan-target-footer"
+            >
+              <text class="settings-plan-target-hint">
+                {{planManagementState === 'paused'
+                  ? tr.pausedTargetSelectionHint
+                  : tr.targetSelectionHint}}
+              </text>
+              <button
+                wx:if="{{planManagementState === 'paused'}}"
+                class="ts-button ts-button--secondary settings-plan-target-save"
+                disabled="{{!planTargetChanged || planAction || planLoading}}"
+                bindtap="onSavePlanTarget"
+              >{{planAction === 'target' ? tr.savingTarget : tr.saveTarget}}</button>
+            </view>
           </block>
           <block wx:else>
             <view class="settings-plan-target-static">
@@ -164,6 +176,9 @@
                 {{configuredPlanTargetLabel}}
               </text>
             </view>
+            <text class="settings-plan-target-hint">
+              {{tr.pauseToChangeTarget}}
+            </text>
             <text
               wx:if="{{!configuredPlanTargetAvailable}}"
               class="settings-plan-target-hint settings-plan-target-hint--warning"
@@ -202,7 +217,7 @@
           <block wx:else>
             <button
               class="ts-button settings-plan-action"
-              disabled="{{planAction || planLoading || planCleanupPartial || !hasPlanPreview || !configuredPlanTargetAvailable}}"
+              disabled="{{planAction || planLoading || planCleanupPartial || planTargetChanged || !hasPlanPreview || !configuredPlanTargetAvailable}}"
               bindtap="onReviewManagedPlan"
             >{{planAction === 'resume' ? tr.enabling : tr.reviewAndResume}}</button>
             <button

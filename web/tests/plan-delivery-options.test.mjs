@@ -3,7 +3,11 @@ import test from 'node:test';
 
 import {
   choosePlanDeliveryTarget,
+  planTargetSelection,
 } from '../src/lib/plan-delivery.ts';
+import {
+  planTargetSelection as miniappPlanTargetSelection,
+} from '../../miniapp/utils/managed-plan.ts';
 
 const options = [
   { platform: 'garmin', selectable: false, reason: 'account_not_eligible' },
@@ -51,5 +55,55 @@ test('multiple selectable targets require a choice without a usable default', ()
       null,
     ),
     null,
+  );
+});
+
+test('paused management can select another eligible target without resuming', () => {
+  const connected = [
+    { platform: 'stryd', selectable: true, reason: null },
+    { platform: 'garmin', selectable: true, reason: null },
+  ];
+
+  assert.equal(
+    planTargetSelection('paused', connected, 'garmin', 'stryd', 'stryd'),
+    'garmin',
+  );
+  assert.equal(
+    miniappPlanTargetSelection(
+      'paused',
+      connected.map(({ platform, selectable }) => ({
+        key: platform,
+        selectable,
+      })),
+      'garmin',
+      'stryd',
+      'stryd',
+    ),
+    'garmin',
+  );
+});
+
+test('active management keeps the durable target read-only', () => {
+  const connected = [
+    { platform: 'stryd', selectable: true, reason: null },
+    { platform: 'garmin', selectable: true, reason: null },
+  ];
+
+  assert.equal(
+    planTargetSelection('active', connected, 'garmin', 'garmin', 'stryd'),
+    'stryd',
+  );
+  assert.equal(
+    miniappPlanTargetSelection(
+      'active',
+      connected.map(({ platform, selectable }) => ({
+        key: platform,
+        selectable,
+      })),
+      'garmin',
+      'garmin',
+      'stryd',
+    ),
+    'stryd',
   );
 });

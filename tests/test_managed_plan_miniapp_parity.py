@@ -50,6 +50,7 @@ def test_settings_owns_explicit_managed_plan_lifecycle() -> None:
     assert "scope: 'future'" in source
     assert "onReviewManagedPlan" in source
     assert "onPauseManagedPlan" in source
+    assert "onSavePlanTarget" in source
     assert "onLeaveManagedPlan" in source
     assert "onRetryPlanCleanup" in source
     assert "beginManagedPlanRequest(this)" in source
@@ -92,7 +93,7 @@ def test_settings_owns_explicit_managed_plan_lifecycle() -> None:
     assert "response.plan_delivery_options" in source
     assert "response.config.connections.map" in source
     assert "config.preferences.activities" in source
-    assert "choosePlanDeliveryTarget(" in web_source
+    assert "planTargetSelection(" in web_source
     assert "planDeliveryOptions.map" in web_source
     assert 'bindtap="onPickPlanTarget"' in markup
     assert 'disabled="{{!item.selectable' in markup
@@ -101,6 +102,7 @@ def test_settings_owns_explicit_managed_plan_lifecycle() -> None:
     assert "garminExperiment" not in markup
     assert 'bindtap="onReviewManagedPlan"' in markup
     assert 'bindtap="onPauseManagedPlan"' in markup
+    assert 'bindtap="onSavePlanTarget"' in markup
     assert 'bindtap="onLeaveManagedPlan"' in markup
     assert 'bindtap="onRetryPlanCleanup"' in markup
     assert "planCleanupPartial && planManagementState === 'external'" in markup
