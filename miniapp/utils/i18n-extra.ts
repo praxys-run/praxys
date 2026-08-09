@@ -920,6 +920,24 @@ const ZH_LEGAL = {
     '请先阅读并同意《服务条款》与《隐私政策》。',
 };
 
+const EN_PRIVATE_CONTEXT = {
+  Manage: 'Manage',
+  'I confirm this purpose and expiry': 'I confirm this purpose and expiry',
+  'Manage private context': 'Manage private context',
+  'Private context JSON copied': 'Private context JSON copied',
+  'You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed.':
+    'You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed.',
+};
+
+const ZH_PRIVATE_CONTEXT = {
+  Manage: '管理',
+  'I confirm this purpose and expiry': '我确认此用途和有效期',
+  'Manage private context': '管理私密计划背景信息',
+  'Private context JSON copied': '私密计划背景信息 JSON 已复制',
+  'You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed.':
+    '可在之后的任何请求前撤回权限；已由数据来源处理的请求无法撤回。',
+};
+
 export const I18N_EXTRA: Record<Locale, Record<string, string>> = {
   en: {
     ...EN_AUTH,
@@ -933,6 +951,7 @@ export const I18N_EXTRA: Record<Locale, Record<string, string>> = {
     ...EN_HEAT,
     ...EN_LABS,
     ...EN_LEGAL,
+    ...EN_PRIVATE_CONTEXT,
   },
   zh: {
     ...ZH_AUTH,
@@ -946,5 +965,6 @@ export const I18N_EXTRA: Record<Locale, Record<string, string>> = {
     ...ZH_HEAT,
     ...ZH_LABS,
     ...ZH_LEGAL,
+    ...ZH_PRIVATE_CONTEXT,
   },
 };

@@ -10,6 +10,6 @@ from __future__ import annotations
 
 # Bump on any material change to the Terms/EULA or Privacy summary. Keep in
 # sync with web/src/lib/legal.ts::TERMS_VERSION.
-TERMS_VERSION = "2026.06.2"
+TERMS_VERSION = "2026.08.1"
 
 SUPPORT_EMAIL = "support@praxys.run"

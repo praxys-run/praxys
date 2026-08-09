@@ -76,6 +76,10 @@
     <view class="managed-plan__adjustment-copy">
       <text class="managed-plan__adjustment-title">{{adjustment.title}}</text>
       <text class="managed-plan__adjustment-detail">{{adjustment.detail}}</text>
+      <text
+        wx:if="{{adjustment.contextDetail}}"
+        class="managed-plan__adjustment-context"
+      >{{adjustment.contextDetail}}</text>
     </view>
     <button
       wx:if="{{adjustment.canUndo}}"

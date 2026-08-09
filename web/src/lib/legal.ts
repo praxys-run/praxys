@@ -6,8 +6,8 @@
 // Keep TERMS_VERSION in sync with api/legal.py::TERMS_VERSION. Bump both and
 // EFFECTIVE_DATE whenever the agreement materially changes.
 
-export const TERMS_VERSION = "2026.06.2";
-export const EFFECTIVE_DATE = "2026-06-29";
+export const TERMS_VERSION = "2026.08.1";
+export const EFFECTIVE_DATE = "2026-08-09";
 export const SUPPORT_EMAIL = "support@praxys.run";
 export const OPERATOR_NAME = "Fei Tao";
 export const JURISDICTION = "the People’s Republic of China";
@@ -32,7 +32,9 @@ export const TERMS_SECTIONS: LegalSection[] = [
     { en: "Connecting Garmin, Stryd, Oura, Strava or similar means you authorize us to fetch your data via your credentials. You confirm you may share it; their terms still apply. We are not affiliated with or endorsed by these providers.",
       zh: "连接 Garmin、Stryd、Oura、Strava 等即表示您授权我们使用您的凭据获取数据。您确认有权共享该数据；其各自条款仍适用。我们与上述提供方无隶属或背书关系。" },
     { en: "Some connections require your account credentials, which are stored encrypted and used only to retrieve your data; unofficial access may be limited or disrupted at any time. Health and fitness data is sensitive personal information — by connecting, you explicitly consent to its collection and processing for training analytics, and may withdraw consent by disconnecting or deleting your account.",
-      zh: "部分连接需要您的账户凭据，凭据加密存储且仅用于获取您的数据；非官方接入可能随时受限或中断。健康与健身数据属于敏感个人信息——连接即表示您明确同意我们为训练分析收集和处理该数据，您可随时断开连接或删除账户以撤回同意。" } ] },
+      zh: "部分连接需要您的账户凭据，凭据加密存储且仅用于获取您的数据；非官方接入可能随时受限或中断。健康与健身数据属于敏感个人信息——连接即表示您明确同意我们为训练分析收集和处理该数据，您可随时断开连接或删除账户以撤回同意。" },
+    { en: "Optional private plan context is processed by Praxys rules by default. It is sent to the configured Azure OpenAI service only when you separately opt in for that exact context version and disclosed fields. AI output may be wrong and is not medical advice; you remain in control of plan changes.",
+      zh: "可选的私密计划背景信息默认仅由 Praxys 规则处理。只有在您针对该版本及明确披露的字段另行同意后，相关最小化副本才会发送至已配置的 Azure OpenAI 服务。AI 输出可能有误且不构成医疗建议；计划变更仍由您决定。" } ] },
   { id: "conduct", title: { en: "6. Acceptable Use", zh: "6. 可接受使用" }, body: [
     { en: "Do not misuse the Service: no unlawful use, unauthorized access, scraping, abuse, or uploading others' data without consent.",
       zh: "请勿滥用本服务：不得用于违法目的、未授权访问、抓取、滥用，或未经同意上传他人数据。" } ] },
@@ -53,14 +55,21 @@ export const TERMS_SECTIONS: LegalSection[] = [
 export const PRIVACY_SECTIONS: LegalSection[] = [
   { id: "collect", title: { en: "1. What We Collect", zh: "1. 收集的信息" }, body: [
     { en: "Account email and a hashed password; training data you sync (activities, power, HR, sleep, HRV, recovery); and the platform credentials needed to fetch it.",
-      zh: "账户邮箱与哈希后的密码；您同步的训练数据（活动、功率、心率、睡眠、HRV、恢复）；以及获取数据所需的平台凭据。" } ] },
+      zh: "账户邮箱与哈希后的密码；您同步的训练数据（活动、功率、心率、睡眠、HRV、恢复）；以及获取数据所需的平台凭据。" },
+    { en: "If you choose to add private plan context, we collect the selected category, bounded planning fields, dates, and an optional note of up to 280 characters. Praxys does not infer a reason from workout behavior and does not require a note.",
+      zh: "若选择添加私密计划背景信息，我们会收集所选类别、限定的计划字段、日期，以及最多 280 字符的可选备注。Praxys 不会根据训练行为推断原因，也不要求填写备注。" } ] },
   { id: "use", title: { en: "2. How We Use It", zh: "2. 使用方式" }, body: [
-    { en: "Solely to compute and show your training analytics. We do not sell your data or use it for advertising.",
-      zh: "仅用于计算并展示您的训练分析。我们不出售您的数据，也不用于广告。" } ] },
-  { id: "security", title: { en: "3. Security", zh: "3. 安全" }, body: [
-    { en: "Platform credentials are encrypted at rest (Fernet); passwords are hashed. No system is perfectly secure; you share data at your own risk.",
-      zh: "平台凭据静态加密（Fernet），密码经哈希存储。没有系统绝对安全，您共享数据需自担风险。" } ] },
-  { id: "rights", title: { en: "4. Your Rights", zh: "4. 您的权利" }, body: [
-    { en: "Request export or deletion of your account and data anytime at " + SUPPORT_EMAIL + ". Deleting your account removes your synced data.",
-      zh: "您可随时通过 " + SUPPORT_EMAIL + " 申请导出或删除账户与数据。删除账户将移除您已同步的数据。" } ] },
+    { en: "To compute and show your training analytics and, when you provide private plan context, to avoid guessing and produce purpose-bounded plan interpretations or suggestions. We do not sell your data, use it for advertising, or place private context in analytics, public trackers, evaluation corpora, or cross-user model training.",
+      zh: "用于计算并展示训练分析；在您提供私密计划背景信息时，用于避免猜测，并生成限定用途的计划解读或建议。我们不出售您的数据，不将其用于广告，也不会把私密计划背景信息放入分析统计、公开问题追踪、评估语料或跨用户模型训练。" } ] },
+  { id: "private-context", title: { en: "3. Private Plan Context & AI", zh: "3. 私密计划背景信息与 AI" }, body: [
+    { en: "Private plan context is encrypted, belongs to your account, and is used only for the purpose and active period you confirm. Optional notes are deleted after 30 days; temporary structured context expires on the date shown and is purged under the disclosed retention schedule.",
+      zh: "私密计划背景信息经加密保存，仅归属于您的账号，并只在您确认的用途和有效期内使用。可选备注会在 30 天后删除；临时结构化信息会在界面显示的日期失效，并按披露的保留期限清除。" },
+    { en: "AI processing is off for each item by default. If you separately enable it, Praxys sends only the disclosed category and fields — and the optional note only if separately selected — to the configured Azure OpenAI service. Praxys does not log raw provider requests or responses. Provider-side retention follows our Microsoft Azure agreement. Withdrawing consent blocks new requests but cannot recall a request already processed.",
+      zh: "每条信息默认关闭 AI 处理。若另行启用，Praxys 只会把已披露的类别和字段发送至已配置的 Azure OpenAI 服务；可选备注仅在单独勾选后发送。Praxys 不记录原始提供方请求或响应。提供方侧的保留规则遵循我们与 Microsoft Azure 的协议。撤回同意会阻止后续请求，但无法撤回提供方已处理的请求。" } ] },
+  { id: "security", title: { en: "4. Security", zh: "4. 安全" }, body: [
+    { en: "Platform credentials and private plan context are encrypted at rest; passwords are hashed. Access is owner- and purpose-scoped. No system is perfectly secure; you share data at your own risk.",
+      zh: "平台凭据和私密计划背景信息均静态加密，密码经哈希存储。访问受到账号归属和用途限制。没有系统绝对安全，您共享数据需自担风险。" } ] },
+  { id: "rights", title: { en: "5. Your Rights", zh: "5. 您的权利" }, body: [
+    { en: "You can inspect, correct, stop using, withdraw AI permission, delete, and export private plan context in the Plan interface. Request export or deletion of your full account and data anytime at " + SUPPORT_EMAIL + ". Deleting your account removes your synced data and private context.",
+      zh: "您可在计划界面查看、更正、停止使用、撤回 AI 权限、删除和导出私密计划背景信息。您也可随时通过 " + SUPPORT_EMAIL + " 申请导出或删除完整账号与数据。删除账号将移除已同步数据和私密计划背景信息。" } ] },
 ];
