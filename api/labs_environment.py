@@ -311,6 +311,16 @@ def process_environment_response_job(
         ):
             return
         correlation_id = row.correlation_id
+        if model_version != LABS_ENVIRONMENT_MODEL_VERSION:
+            row.status = "stale"
+            row.availability_reason = _reason(
+                "stale_model_version",
+                correlation_id=correlation_id,
+            )
+            row.completed_at = datetime.utcnow()
+            row.updated_at = datetime.utcnow()
+            db.commit()
+            return
         row.status = "processing"
         row.started_at = datetime.utcnow()
         row.updated_at = datetime.utcnow()
@@ -347,6 +357,8 @@ def process_environment_response_job(
             )
             return
         aggregate = build_environment_response_result(bundle)
+        if aggregate.get("model_version") != LABS_ENVIRONMENT_MODEL_VERSION:
+            raise ValueError("environment-response model version mismatch")
         if source_revision(db, user_id) != expected_source_revision:
             _persist_unavailable(
                 db,
@@ -382,7 +394,7 @@ def process_environment_response_job(
                 experiment_id=experiment_id,
             )
             db.add(result)
-        result.model_version = model_version
+        result.model_version = aggregate["model_version"]
         result.source_revision = expected_source_revision
         result.result_state = aggregate["result_state"]
         result.eligibility_counts = aggregate["eligibility_counts"]
@@ -455,6 +467,7 @@ def _build_private_dataset_bundle(
             export_snapshot_id=expected_source_revision,
             limit=limit,
             offset=offset,
+            include_private_labs_support=True,
         )
         pages.append(page)
         offset += limit
@@ -689,6 +702,19 @@ def public_state(db: Session, user_id: str) -> dict[str, Any]:
         "completed_at": utc_isoformat(row.completed_at),
     })
     result = db.get(LabsExperimentResult, (user_id, EXPERIMENT_ID))
+    if (
+        row.model_version != LABS_ENVIRONMENT_MODEL_VERSION
+        or (
+            result is not None
+            and result.model_version != LABS_ENVIRONMENT_MODEL_VERSION
+        )
+    ):
+        base["status"] = "stale"
+        base["availability_reason"] = _reason(
+            "stale_model_version",
+            correlation_id=row.correlation_id,
+        )
+        return base
     if result is not None:
         base["result"] = {
             "result_state": result.result_state,

@@ -106,6 +106,8 @@ class EnvironmentCurvePoint(BaseModel):
     relative_lower_bpm: float
     relative_upper_bpm: float
     reference_wet_bulb_c: float
+    support_bin_index: int
+    section_index: int
 
 
 class EnvironmentProviderRegime(BaseModel):
@@ -118,16 +120,36 @@ class EnvironmentProviderRegime(BaseModel):
     segment_count: int
 
 
+class EnvironmentReferencePowerFunnel(BaseModel):
+    """Aggregate activity counts through comparable-power support stages."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    environment_activity_count: int
+    any_valid_sample_activity_count: int
+    continuous_coverage_activity_count: int
+    stable_segment_mean_activity_count: int
+    training_partition_activity_count: int
+    final_reference_power_activity_count: int
+
+
 class EnvironmentCurveSupportBin(BaseModel):
     """Aggregate display-domain support for one prespecified bin."""
 
     model_config = ConfigDict(extra="forbid")
 
+    bin_index: int
     lower_wet_bulb_c: float
     upper_wet_bulb_c: float
     activity_count: int
     segment_count: int
     reference_power_activity_count: int
+    required_activity_count: int
+    required_segment_count: int
+    required_reference_power_activity_count: int
+    supported: bool
+    support_failure_reasons: list[str]
+    reference_power_funnel: EnvironmentReferencePowerFunnel
 
 
 class EnvironmentEligibilityCounts(BaseModel):
@@ -143,6 +165,7 @@ class EnvironmentEligibilityCounts(BaseModel):
     provider_regimes: list[EnvironmentProviderRegime]
     observed_wet_bulb_domain_c: list[float] | None = None
     curve_support_bins: list[EnvironmentCurveSupportBin] | None = None
+    displayed_wet_bulb_domains_c: list[list[float]] | None = None
 
 
 class EnvironmentLeaveOneOut(BaseModel):

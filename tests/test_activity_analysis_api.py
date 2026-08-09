@@ -296,6 +296,7 @@ def test_analysis_exposes_provenance_segments_and_causal_context(
     payload = response.json()
 
     assert payload["schema_version"] == "activity-analysis-v1"
+    assert "reference_power_support" not in payload
     assert payload["model_versions"]["stable_segments"] == (
         "stable-power-segments-v3"
     )
@@ -669,6 +670,10 @@ def test_research_dataset_is_versioned_reproducible_and_gps_free(
         "credentials_included": False,
         "raw_samples_included": False,
     }
+    assert all(
+        "reference_power_support" not in record
+        for record in first_payload["records"]
+    )
     serialized = first.text
     assert '"lat"' not in serialized
     assert '"lng"' not in serialized

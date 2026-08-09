@@ -41,12 +41,16 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "sdr-adaptive-plan-feasibility-and-adjustment-v1",
         "sdr-environmental-performance-v1",
         "sdr-environmental-performance-v2",
+        "sdr-environmental-performance-v3",
         "sdr-heat-adaptation-v1",
     }
     assert registry.evidence_reviews[
         "evidence-personal-environment-response-v1"
     ].status == "accepted"
     assert registry.decisions["sdr-environmental-performance-v2"].status == (
+        "superseded"
+    )
+    assert registry.decisions["sdr-environmental-performance-v3"].status == (
         "accepted"
     )
     assert registry.decisions[
@@ -94,12 +98,15 @@ def test_environmental_performance_decision_preserves_product_boundaries() -> No
 
 def test_environment_response_decision_preserves_lifecycle_and_limits() -> None:
     registry = load_science_registry()
-    predecessor = registry.decisions["sdr-environmental-performance-v1"]
-    accepted = registry.decisions["sdr-environmental-performance-v2"]
+    original = registry.decisions["sdr-environmental-performance-v1"]
+    predecessor = registry.decisions["sdr-environmental-performance-v2"]
+    accepted = registry.decisions["sdr-environmental-performance-v3"]
     review = registry.evidence_reviews[
         "evidence-personal-environment-response-v1"
     ]
 
+    assert original.status == "superseded"
+    assert original.superseded_by == predecessor.id
     assert predecessor.status == "superseded"
     assert predecessor.superseded_by == accepted.id
     assert accepted.status == "accepted"
@@ -109,9 +116,9 @@ def test_environment_response_decision_preserves_lifecycle_and_limits() -> None:
     assert review.human_reviewers == ["github:dddtc2005"]
     assert review.supersedes == []
 
-    interpretation = accepted.accepted_interpretation
-    limits = " ".join(accepted.user_facing_claim_limits)
-    privacy = " ".join(accepted.privacy_implications)
+    interpretation = predecessor.accepted_interpretation
+    limits = " ".join(predecessor.user_facing_claim_limits)
+    privacy = " ".join(predecessor.privacy_implications)
     assert "historical association; not predictively validated" in (
         interpretation
     )
@@ -130,7 +137,7 @@ def test_environment_response_decision_preserves_lifecycle_and_limits() -> None:
     assert "running work must re-check active consent" in privacy
 
     parameters = {
-        parameter.name: parameter for parameter in accepted.model_parameters
+        parameter.name: parameter for parameter in predecessor.model_parameters
     }
     assert parameters["primary_model"].value == {
         "method": "ridge",
