@@ -6,6 +6,7 @@ proves the API translates a ValueError into a structured 400 response and
 that the settings GET surfaces the allowed-options contract the UI depends on.
 """
 from datetime import datetime, timezone
+import json
 import os
 import tempfile
 
@@ -258,6 +259,69 @@ def test_selecting_eligible_garmin_binds_account_fence(api_client):
     from db import session as db_session
     from db.models import UserConnection
 
+    db = db_session.SessionLocal()
+    try:
+        connection = db.query(UserConnection).filter(
+            UserConnection.user_id == user_id,
+            UserConnection.platform == "garmin",
+        ).one()
+        assert connection.plan_delivery_consent
+    finally:
+        db.close()
+
+
+def test_selecting_eligible_legacy_garmin_backfills_region_and_fence(
+    api_client,
+):
+    client, user_id = api_client
+    from db import session as db_session
+    from db.crypto import get_vault
+    from db.models import UserConfig, UserConnection
+
+    encrypted, wrapped = get_vault().encrypt(json.dumps({
+        "email": "runner@example.test",
+        "password": "secret",
+        "is_cn": False,
+    }))
+    db = db_session.SessionLocal()
+    try:
+        db.add(UserConnection(
+            user_id=user_id,
+            platform="garmin",
+            status="connected",
+            encrypted_credentials=encrypted,
+            wrapped_dek=wrapped,
+        ))
+        config = db.query(UserConfig).filter(
+            UserConfig.user_id == user_id,
+        ).one_or_none()
+        if config is None:
+            config = UserConfig(user_id=user_id)
+            db.add(config)
+        config.source_options = {}
+        db.commit()
+    finally:
+        db.close()
+
+    status = client.get("/api/settings")
+    assert status.status_code == 200, status.text
+    assert status.json()["plan_delivery_options"] == [{
+        "platform": "garmin",
+        "selectable": True,
+        "reason": None,
+    }]
+
+    selected = client.put("/api/settings", json={
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "garmin",
+            "delivery_enabled": False,
+        },
+    })
+
+    assert selected.status_code == 200, selected.text
+    body = selected.json()
+    assert body["config"]["source_options"]["garmin_region"] == "international"
     db = db_session.SessionLocal()
     try:
         connection = db.query(UserConnection).filter(

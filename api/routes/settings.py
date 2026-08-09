@@ -83,6 +83,38 @@ def _garmin_delivery_eligibility(
     return garmin_plan_delivery_eligible(statsig_user)
 
 
+def _backfill_garmin_region_for_selection(
+    user_id: str,
+    db: Session,
+    config: UserConfig,
+) -> bool:
+    """Migrate a connected legacy Garmin account's credential region."""
+    if garmin_region(config.source_options) is not None:
+        return False
+    from db.connection_credentials import (
+        CredentialAccessError,
+        load_connection_credentials,
+    )
+
+    try:
+        credentials = load_connection_credentials(
+            db,
+            user_id=user_id,
+            platform="garmin",
+        )
+    except CredentialAccessError:
+        return False
+    if credentials is None or not isinstance(credentials.get("is_cn"), bool):
+        return False
+    config.source_options = {
+        **config.source_options,
+        "garmin_region": (
+            "cn" if credentials["is_cn"] else "international"
+        ),
+    }
+    return True
+
+
 def _plan_management_transition(
     before: dict[str, Any],
     after: dict[str, Any],
@@ -719,8 +751,25 @@ def _update_settings(
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
         config.source_options.update(source_options_update)
+    garmin_selection_requested = (
+        body.plan_management is not None
+        and requested_execution_target == "garmin"
+        and (
+            "execution_target" in body.plan_management.model_fields_set
+            or body.plan_management.delivery_enabled is True
+        )
+    )
+    garmin_region_backfilled = False
+    if garmin_selection_requested:
+        garmin_region_backfilled = _backfill_garmin_region_for_selection(
+            user_id,
+            db,
+            config,
+        )
     garmin_eligible = _garmin_delivery_eligibility(user_id, db, config)
     garmin_region_changed = (
+        not garmin_region_backfilled
+        and
         garmin_region(config.source_options) != prior_garmin_region
     )
     if garmin_region_changed:

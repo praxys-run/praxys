@@ -109,7 +109,13 @@ def plan_delivery_target_selectable(
     if target == "garmin":
         return (
             garmin_eligible
-            and garmin_region(source_options) is not None
+            and (
+                garmin_region(source_options) is not None
+                or (
+                    bool(connection.encrypted_credentials)
+                    and bool(connection.wrapped_dek)
+                )
+            )
         )
     return False
 
