@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 import os
 import tempfile
 from datetime import date, datetime, timedelta, timezone
@@ -110,6 +111,10 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
         PlanRevision,
         PlanTargetCalendarSync,
         PlanTargetWorkout,
+        PersonalContextConsentReceipt,
+        PersonalContextDeletionJob,
+        PersonalContextItem,
+        PersonalContextUseReceipt,
         RecoveryData,
         TrainingPlan,
         User,
@@ -216,6 +221,71 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
             user_id=user_id,
             experiment_id="older-experiment",
         ))
+        from db.crypto import get_vault
+
+        context_now = datetime(2026, 6, 1)
+        for context_owner, index in ((user_id, 1), ("demo-user", 2)):
+            encrypted, wrapped = get_vault().encrypt(json.dumps({
+                "category": "other",
+                "fields": {"synthetic": True},
+                "narrative": "Synthetic deletion fixture",
+            }))
+            item_id = f"{index}1111111-1111-1111-1111-111111111111"
+            lineage_id = f"{index}2222222-2222-2222-2222-222222222222"
+            consent_id = f"{index}3333333-3333-3333-3333-333333333333"
+            db.add(PersonalContextItem(
+                id=item_id,
+                lineage_id=lineage_id,
+                user_id=context_owner,
+                version=1,
+                kind="temporary_constraint",
+                purpose="plan_adjustment",
+                state="active",
+                encrypted_payload=encrypted,
+                wrapped_dek=wrapped,
+                payload_schema_version=1,
+                has_narrative=True,
+                source_actor_type="first_party_web",
+                processing_mode="ai_allowed",
+                consent_receipt_id=consent_id,
+                starts_at=context_now,
+                expires_at=context_now + timedelta(days=14),
+                narrative_purge_at=context_now + timedelta(days=30),
+                purge_after=context_now + timedelta(days=44),
+            ))
+            db.add(PersonalContextConsentReceipt(
+                id=consent_id,
+                user_id=context_owner,
+                context_item_id=item_id,
+                context_version=1,
+                purpose="plan_adjustment",
+                provider="azure_openai",
+                disclosed_fields=["category"],
+                consent_text_version="context-ai-v1",
+                decision="granted",
+                client="web",
+            ))
+            db.add(PersonalContextUseReceipt(
+                id=f"{index}4444444-4444-4444-4444-444444444444",
+                user_id=context_owner,
+                context_item_id=item_id,
+                context_version=1,
+                purpose="plan_adjustment",
+                consumer_type="planning_ai",
+                consumer_name="adaptive-plan-v1",
+                disclosed_fields=["category"],
+                consent_receipt_id=consent_id,
+            ))
+            db.add(PersonalContextDeletionJob(
+                id=f"{index}5555555-5555-5555-5555-555555555555",
+                user_id=context_owner,
+                operation="purge_narrative",
+                lineage_id=lineage_id,
+                target_item_id=item_id,
+                reason="retention",
+                status="failed",
+                attempts=1,
+            ))
         feedback = Feedback(
             user_id=user_id,
             kind="bug",
@@ -290,6 +360,10 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
         PlanRevision,
         PlanTargetCalendarSync,
         PlanTargetWorkout,
+        PersonalContextConsentReceipt,
+        PersonalContextDeletionJob,
+        PersonalContextItem,
+        PersonalContextUseReceipt,
         RecoveryData,
         TrainingPlan,
         User,
@@ -318,6 +392,10 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
             PlanTargetWorkout,
             PlanDelivery,
             PlanRevision,
+            PersonalContextConsentReceipt,
+            PersonalContextDeletionJob,
+            PersonalContextItem,
+            PersonalContextUseReceipt,
             RecoveryData,
             TrainingPlan,
             UserConfig,
@@ -367,6 +445,17 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
     finally:
         db.close()
 
+    from api import personal_context_deletion_storage
+
+    manifests = list(personal_context_deletion_storage.iter_active())
+    assert {
+        (manifest["user_id"], manifest["operation"], manifest["status"])
+        for manifest in manifests
+    } == {
+        ("delete-me", "delete_owner_context", "completed"),
+        ("demo-user", "delete_owner_context", "completed"),
+    }
+
 
 def test_inactive_account_can_retry_cleanup(account_client, monkeypatch):
     client, db_session = account_client
@@ -393,6 +482,39 @@ def test_inactive_account_can_retry_cleanup(account_client, monkeypatch):
         assert db.query(User).filter(User.id.in_(["delete-me", "demo-user"])).count() == 0
     finally:
         db.close()
+
+
+def test_account_deletion_fails_closed_when_context_manifest_is_unavailable(
+    account_client,
+    monkeypatch,
+):
+    client, db_session = account_client
+    _seed_account_rows(db_session)
+
+    from api import personal_context_deletion_storage
+    from db.models import PersonalContextItem, User
+
+    monkeypatch.setattr(
+        personal_context_deletion_storage,
+        "store_requested",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            personal_context_deletion_storage.DeletionManifestStorageError(
+                "unavailable"
+            )
+        ),
+    )
+
+    response = client.delete("/api/me")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "ACCOUNT_DELETE_STORAGE_UNAVAILABLE"
+    with db_session.SessionLocal() as db:
+        assert db.query(User).filter(
+            User.id.in_(["delete-me", "demo-user"])
+        ).count() == 2
+        assert db.query(PersonalContextItem).filter(
+            PersonalContextItem.user_id.in_(["delete-me", "demo-user"])
+        ).count() == 2
 
 
 def test_delete_me_removes_legacy_plan_status_files(

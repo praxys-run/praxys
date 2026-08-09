@@ -1,6 +1,6 @@
 # Adaptive plan personal-context privacy contract
 
-**Status:** Proposed architecture contract for #609  
+**Status:** Accepted architecture contract; backend rollout in progress
 **Parent:** #582  
 **Depends on:** #584, #603, and #607  
 **Version:** 1
@@ -19,9 +19,44 @@ learning. This contract defines how Praxys may collect, use, explain, expire,
 export, and delete it across web, miniapp, plugin, MCP, and future
 user-delegated agents.
 
-This document is a decision gate, not shipped storage or consent behavior.
-The Privacy Policy and bilingual product disclosure must be updated before
-any implementation processes personal context in production.
+This document remains the production decision gate. Issues #610 through #612
+implement the encrypted persistence, authenticated backend contract, and
+bounded internal processing boundary, but no first-party capture UI or
+production AI processing is enabled yet. The Privacy Policy and bilingual
+product disclosure must be updated before either is enabled.
+
+`api/personal_context_processing.py` is the only adaptive-plan path allowed to
+prepare personal context for model use. It is intentionally separate from the
+broad training-context assembler in `api/ai.py`. The module:
+
+- loads only owner-, purpose-, lifecycle-, latest-version-, and
+  purpose-confirmation-matched context;
+- projects the structured allowlist `affected_dates`, `affected_days`,
+  `available_equipment`, `available_terrain`,
+  `maximum_available_minutes`, and `workout_status`;
+- returns stable `clarification`, `no_change`, `insufficient_evidence`,
+  `safety`, or `suggestion` codes without model-authored prose;
+- bypasses AI for illness, pain/injury, and red-flag categories;
+- requires current, exact Azure OpenAI consent before decrypting an
+  AI-disclosed narrative or constructing a request;
+- sends no owner ID, database context ID, generic training context, tool
+  definition, or unconsented field;
+- records separate payload-free deterministic and provider-use receipts; and
+- logs only stable provider failure codes, never prompts, context values,
+  identifiers, or model output.
+
+The optional classifier returns only a strict code tuple and cannot mutate a
+plan. It has no route, scheduler, or plan-mutation hook and defaults AI
+processing off. Concrete suggestion generation, proposal persistence, and
+production wiring remain later work and must pass the policy/provider
+disclosure gate below.
+
+A provider-use receipt marks initiation of an attempted disclosure, not a
+successful model result. It is committed immediately before the external
+request so a timeout or process failure cannot leave a disclosure without a
+durable receipt, and the database write lock is not held across network I/O.
+The private provider boundary suppresses OpenAI SDK request-body debug logs,
+including when SDK debug logging is enabled.
 
 ## Decisions
 
@@ -227,6 +262,9 @@ An allowlisted policy may convert a structured constraint into:
 - a conservative suggestion within an approved scope; or
 - a safety escalation.
 
+The loader must also verify the exact item version's purpose-confirmation
+receipt before decrypting it for deterministic processing.
+
 The optional narrative is not available to deterministic rules unless a
 future parser and its purpose are separately reviewed.
 
@@ -345,6 +383,7 @@ draft preview -> athlete confirmed -> active -> expired -> purged
 | Context-dependent private decision trace | While its source context is retained | Delete with the source context |
 | Accepted plan revision | Account lifetime | Keep workout before/after facts; remove deleted context references and rationale |
 | Consent/provider-use receipt | While the item is retained | Delete with the item or account |
+| Payload-free idempotency tombstone | Account lifetime | Clear item/lineage references with context; delete with account |
 
 The initial pilot does not retain narrative through a long plan merely for a
 future outcome review. After narrative purge, only the confirmed structured
@@ -362,7 +401,8 @@ Within one serialized workflow:
 5. remove context references from accepted revision display metadata while
    preserving the workout mutation;
 6. delete every item version and consent receipt; and
-7. commit a payload-free deletion result.
+7. retire the opaque command keys while clearing their item and lineage
+   references, then commit a payload-free deletion result.
 
 If cleanup fails, the item remains unusable in `deleting`, the athlete sees a
 concrete failure state, and the operation is retried. The system must not
@@ -395,6 +435,7 @@ The athlete export contains:
 
 The export does not include internal prompts, hidden chain-of-thought,
 credentials, another user's data, or operator-only security metadata.
+Payload-free idempotency tombstones are also excluded.
 
 ## Decision and provenance traces
 

@@ -77,6 +77,14 @@ def test_existing_sqlite_gets_additive_compatibility_columns(dbs, tmp_path):
             conn.exec_driver_sql(
                 "CREATE TABLE user_connections (id INTEGER PRIMARY KEY)"
             )
+            conn.exec_driver_sql(
+                "CREATE TABLE personal_context_items "
+                "(id VARCHAR(36) PRIMARY KEY, user_id VARCHAR(36))"
+            )
+            conn.exec_driver_sql(
+                "CREATE TABLE personal_context_consent_receipts "
+                "(id VARCHAR(36) PRIMARY KEY, user_id VARCHAR(36))"
+            )
 
         dbs._ensure_schema(engine, "sqlite")
 
@@ -94,12 +102,24 @@ def test_existing_sqlite_gets_additive_compatibility_columns(dbs, tmp_path):
                     "activity_splits",
                     "fitness_data",
                     "user_connections",
+                    "personal_context_items",
+                    "personal_context_consent_receipts",
                 )
             }
             tables = {
                 row[0]
                 for row in conn.exec_driver_sql(
                     "SELECT name FROM sqlite_master WHERE type = 'table'"
+                )
+            }
+            context_indexes = {
+                row[1]
+                for table in (
+                    "personal_context_items",
+                    "personal_context_consent_receipts",
+                )
+                for row in conn.exec_driver_sql(
+                    f'PRAGMA index_list("{table}")'
                 )
             }
         assert "today_decision_check_claimed_at" in columns_by_table["user_config"]
@@ -119,6 +139,17 @@ def test_existing_sqlite_gets_additive_compatibility_columns(dbs, tmp_path):
             "garmin_token_generation",
             "tokens_updated_at",
         } <= columns_by_table["user_connections"]
+        assert "idempotency_key" in columns_by_table[
+            "personal_context_items"
+        ]
+        assert "idempotency_key" in columns_by_table[
+            "personal_context_consent_receipts"
+        ]
+        assert {
+            "uq_personal_context_item_idempotency",
+            "uq_personal_context_consent_idempotency",
+        } <= context_indexes
+        assert "personal_context_commands" in tables
         assert "ai_insight_feedback" in tables
     finally:
         engine.dispose()

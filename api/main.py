@@ -59,6 +59,7 @@ if os.environ.get("APPLICATIONINSIGHTS_CONNECTION_STRING"):
         logging.getLogger(_noisy).setLevel(logging.WARNING)
 
 from fastapi import Depends, FastAPI, HTTPException, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy.orm import Session
@@ -70,6 +71,10 @@ from api.auth import (
 )
 from api.env_compat import getenv_compat
 from api.legal import TERMS_VERSION
+from api.personal_context_http import (
+    PersonalContextPrivacyMiddleware,
+    private_context_validation_error,
+)
 from api.version import get_api_version
 from api.views import utc_isoformat
 from db.session import get_db
@@ -81,12 +86,19 @@ from db.session import init_db
 async def lifespan(app: FastAPI):
     """Initialize database on startup."""
     init_db()
+    from api.personal_context import (
+        replay_deletion_manifests,
+        run_retention,
+    )
     from api.labs_environment import (
         recover_interrupted_jobs,
         replay_deletion_tombstones,
     )
     from db.session import SessionLocal
 
+    with SessionLocal() as context_db:
+        replay_deletion_manifests(context_db)
+        run_retention(context_db, raise_on_failure=True)
     with SessionLocal() as labs_db:
         replay_deletion_tombstones(labs_db)
         recover_interrupted_jobs(labs_db)
@@ -142,6 +154,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Praxys API", version=get_api_version(), lifespan=lifespan)
+app.add_exception_handler(
+    RequestValidationError,
+    private_context_validation_error,
+)
 
 # GZip API responses. Linux App Service's nginx proxy doesn't compress
 # dynamic upstream responses by default, so without this, JSON payloads
@@ -150,6 +166,7 @@ app = FastAPI(title="Praxys API", version=get_api_version(), lifespan=lifespan)
 # overhead outweighs the savings. Added before other middleware so it
 # runs last on the response path (middleware order = reverse LIFO).
 app.add_middleware(GZipMiddleware, minimum_size=500)
+app.add_middleware(PersonalContextPrivacyMiddleware)
 
 # CORS — use FastAPI middleware for local dev only.
 # On Azure, platform-level CORS is configured via `az webapp cors` and takes
@@ -227,10 +244,10 @@ app.include_router(feedback_router, prefix="/api", tags=["feedback"])
 
 # Data routes
 from api.routes import analysis as activity_analysis_routes
-from api.routes import today, training, goal, history, labs, plan, settings, sync, science, insights, product_events, status
+from api.routes import today, training, goal, history, labs, personal_context, plan, settings, sync, science, insights, product_events, status
 from api.routes import ai as ai_routes
 
-for router_module in [today, training, goal, history, activity_analysis_routes, labs, plan, settings, sync, science, ai_routes, insights, product_events, status]:
+for router_module in [today, training, goal, history, activity_analysis_routes, labs, personal_context, plan, settings, sync, science, ai_routes, insights, product_events, status]:
     app.include_router(router_module.router, prefix="/api")
 
 

@@ -32,6 +32,10 @@ from db.models import (
     PlanRevision,
     PlanTargetCalendarSync,
     PlanTargetWorkout,
+    PersonalContextConsentReceipt,
+    PersonalContextDeletionJob,
+    PersonalContextItem,
+    PersonalContextUseReceipt,
     RecoveryData,
     TrainingPlan,
     User,
@@ -101,6 +105,16 @@ def _delete_user_owned_rows(db: Session, user_id: str) -> None:
     if delivery_ids:
         db.query(PlanDeliveryAttempt).filter(
             PlanDeliveryAttempt.delivery_id.in_(delivery_ids)
+        ).delete(synchronize_session=False)
+
+    for model in (
+        PersonalContextUseReceipt,
+        PersonalContextConsentReceipt,
+        PersonalContextItem,
+        PersonalContextDeletionJob,
+    ):
+        db.query(model).filter(
+            model.user_id == user_id
         ).delete(synchronize_session=False)
 
     for model in (
@@ -251,6 +265,32 @@ def delete_user_account(
                 db.rollback()
                 raise HTTPException(400, "LAST_ADMIN_CANNOT_DELETE_ACCOUNT")
 
+    demo_user_ids = [
+        str(demo_id)
+        for (demo_id,) in db.query(User.id)
+        .filter(User.demo_of == user_id)
+        .with_for_update()
+        .all()
+    ]
+    from api.personal_context import (
+        PersonalContextDeletionError,
+        stage_account_deletion_manifests,
+    )
+
+    try:
+        context_manifests = stage_account_deletion_manifests(
+            db,
+            [user_id, *demo_user_ids],
+        )
+    except PersonalContextDeletionError:
+        db.rollback()
+        logger.exception(
+            "Account context deletion manifest failed for user %s",
+            user_id,
+        )
+        raise HTTPException(503, "ACCOUNT_DELETE_STORAGE_UNAVAILABLE")
+
+    if user.is_active:
         user.is_active = False
         try:
             db.commit()
@@ -296,6 +336,9 @@ def delete_user_account(
         logger.exception("Account deletion failed for user %s", user_id)
         raise HTTPException(500, "ACCOUNT_DELETE_FAILED")
 
+    from api.personal_context import complete_account_deletion_manifests
+
+    complete_account_deletion_manifests(context_manifests)
     for deleted_user_id in deleted_user_ids:
         _clear_tokenstore(deleted_user_id)
         _clear_legacy_plan_status(db, deleted_user_id)
