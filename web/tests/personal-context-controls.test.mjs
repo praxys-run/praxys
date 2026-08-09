@@ -165,3 +165,31 @@ test('web and miniapp expose the same private lifecycle controls', async () => {
   assert.match(template, /checked="\{\{aiPermissionConfirmed\}\}"/);
   assert.match(trainingTemplate, /<personal-context \/>/);
 });
+
+test('AI consent disclosure stays explicit and bilingual', async () => {
+  const [web, mini, legal, miniLegal] = await Promise.all([
+    read('../src/components/PersonalContextPanel.tsx'),
+    read('../../miniapp/components/personal-context/index.ts'),
+    read('../src/lib/legal.ts'),
+    read('../../miniapp/utils/legal.ts'),
+  ]);
+
+  for (const source of [web, mini]) {
+    const normalized = source.replace(/\s+/g, ' ');
+    assert.match(
+      normalized,
+      /inputs and outputs are not available to OpenAI or used to train foundation models/,
+    );
+    assert.match(normalized, /Praxys does not grant that permission/);
+    assert.match(normalized, /abuse monitoring under Azure terms/);
+  }
+
+  assert.match(
+    legal,
+    /learn\.microsoft\.com\/en-us\/azure\/foundry\/responsible-ai\/openai\/data-privacy/,
+  );
+  for (const source of [legal, miniLegal]) {
+    assert.match(source, /计划个性化信息/);
+    assert.doesNotMatch(source, /私密计划背景信息/);
+  }
+});

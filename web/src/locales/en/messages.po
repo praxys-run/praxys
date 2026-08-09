@@ -761,7 +761,7 @@ msgstr "AI allowed"
 msgid "AI option"
 msgstr "AI option"
 
-#: src/components/PersonalContextPanel.tsx:1595
+#: src/components/PersonalContextPanel.tsx:1597
 msgid "AI output can be wrong. It cannot diagnose, provide treatment, clear you to train, or override Praxys safety, science, and approval boundaries."
 msgstr "AI output can be wrong. It cannot diagnose, provide treatment, clear you to train, or override Praxys safety, science, and approval boundaries."
 
@@ -780,6 +780,10 @@ msgstr "AI processing for one item"
 #: src/components/PersonalContextPanel.tsx:596
 msgid "AI processing withdrawn. No new provider requests are allowed."
 msgstr "AI processing withdrawn. No new provider requests are allowed."
+
+#: src/components/PersonalContextPanel.tsx:1541
+msgid "AI service: Microsoft Azure"
+msgstr "AI service: Microsoft Azure"
 
 #. placeholder {0}: alerts.total
 #. placeholder {1}: alerts.resolved
@@ -822,7 +826,7 @@ msgstr "All systems operational"
 msgid "All Systems Operational"
 msgstr "All Systems Operational"
 
-#: src/components/PersonalContextPanel.tsx:1650
+#: src/components/PersonalContextPanel.tsx:1652
 msgid "Allow for this item"
 msgstr "Allow for this item"
 
@@ -835,7 +839,7 @@ msgstr "Allowed for this item"
 msgid "Already have an invitation code?"
 msgstr "Already have an invitation code?"
 
-#: src/components/PersonalContextPanel.tsx:1583
+#: src/components/PersonalContextPanel.tsx:1585
 msgid "Also send my optional note"
 msgstr "Also send my optional note"
 
@@ -1032,8 +1036,8 @@ msgid "Azure Monitor returned an incomplete result, so this section was not refr
 msgstr "Azure Monitor returned an incomplete result, so this section was not refreshed."
 
 #: src/components/PersonalContextPanel.tsx:1377
-msgid "Azure OpenAI"
-msgstr "Azure OpenAI"
+#~ msgid "Azure OpenAI"
+#~ msgstr "Azure OpenAI"
 
 #: src/pages/admin/AdminOps.tsx:572
 #~ msgid "Azure-backed summary"
@@ -1494,8 +1498,8 @@ msgid "Configure your training system"
 msgstr "Configure your training system"
 
 #: src/components/PersonalContextPanel.tsx:1541
-msgid "Configured provider: Azure OpenAI"
-msgstr "Configured provider: Azure OpenAI"
+#~ msgid "Configured provider: Azure OpenAI"
+#~ msgstr "Configured provider: Azure OpenAI"
 
 #: src/pages/admin/AdminOps.tsx:1202
 msgid "Confirm one fenced replay. Praxys will refresh the provider calendar and stop if ownership or delivery state changed."
@@ -3603,7 +3607,7 @@ msgstr "Intensity distribution is unavailable until valid workout intensity data
 msgid "International"
 msgstr "International"
 
-#: src/components/PersonalContextPanel.tsx:1559
+#: src/components/PersonalContextPanel.tsx:1561
 msgid "Interpret one missed or modified workout without diagnosing a cause."
 msgstr "Interpret one missed or modified workout without diagnosing a cause."
 
@@ -4242,6 +4246,10 @@ msgstr "MFA"
 #: src/pages/admin/AdminOps.tsx:429
 msgid "MFA required"
 msgstr "MFA required"
+
+#: src/components/PersonalContextPanel.tsx:1377
+msgid "Microsoft Azure AI"
+msgstr "Microsoft Azure AI"
 
 #: src/pages/Today.tsx:304
 #~ msgid "mild fatigue"
@@ -4994,7 +5002,7 @@ msgstr "of"
 msgid "Off"
 msgstr "Off"
 
-#: src/components/PersonalContextPanel.tsx:1586
+#: src/components/PersonalContextPanel.tsx:1588
 msgid "Off by default. The note may contain more private detail than the structured fields."
 msgstr "Off by default. The note may contain more private detail than the structured fields."
 
@@ -5029,6 +5037,10 @@ msgstr "Only PNG, JPG, or WebP images are supported."
 #: src/components/ManagedPlanSettingsCard.tsx:627
 msgid "Only supported and eligible platforms can receive workouts."
 msgstr "Only supported and eligible platforms can receive workouts."
+
+#: src/components/PersonalContextPanel.tsx:1543
+msgid "Only the fields below are sent to Microsoft Azure AI. Microsoft states that inputs and outputs are not available to OpenAI or used to train foundation models without permission; Praxys does not grant that permission. Flagged content may be reviewed for abuse monitoring under Azure terms. Praxys does not log raw requests or responses."
+msgstr "Only the fields below are sent to Microsoft Azure AI. Microsoft states that inputs and outputs are not available to OpenAI or used to train foundation models without permission; Praxys does not grant that permission. Flagged content may be reviewed for abuse monitoring under Azure terms. Praxys does not log raw requests or responses."
 
 #: src/components/ManagedPlanSettingsCard.tsx:995
 msgid "Only today's single Praxys-generated hard workout can become rest, and only for same-day individualized HRV below the caution band."
@@ -5576,8 +5588,8 @@ msgid "Praxys owns the plan; delivery is paused."
 msgstr "Praxys owns the plan; delivery is paused."
 
 #: src/components/PersonalContextPanel.tsx:1543
-msgid "Praxys sends a minimized copy for this purpose only. Raw provider requests and responses are not written to Praxys logs. Provider-side retention follows the Praxys Microsoft Azure agreement."
-msgstr "Praxys sends a minimized copy for this purpose only. Raw provider requests and responses are not written to Praxys logs. Provider-side retention follows the Praxys Microsoft Azure agreement."
+#~ msgid "Praxys sends a minimized copy for this purpose only. Raw provider requests and responses are not written to Praxys logs. Provider-side retention follows the Praxys Microsoft Azure agreement."
+#~ msgstr "Praxys sends a minimized copy for this purpose only. Raw provider requests and responses are not written to Praxys logs. Provider-side retention follows the Praxys Microsoft Azure agreement."
 
 #: src/components/ManagedPlanSettingsCard.tsx:1068
 #~ msgid "Praxys sends duration-only running workouts and verifies both the Garmin template and scheduled calendar instance."
@@ -5675,7 +5687,7 @@ msgstr "Prior heat adaptation evidence may be declining."
 msgid "Priority is excluded from readiness evaluation."
 msgstr "Priority is excluded from readiness evaluation."
 
-#: src/components/PersonalContextPanel.tsx:1615
+#: src/components/PersonalContextPanel.tsx:1617
 msgid "Privacy Policy"
 msgstr "Privacy Policy"
 
@@ -5798,7 +5810,7 @@ msgstr "Pull your latest activities, power data, and recovery metrics"
 
 #: src/components/PersonalContextPanel.tsx:1107
 #: src/components/PersonalContextPanel.tsx:1294
-#: src/components/PersonalContextPanel.tsx:1554
+#: src/components/PersonalContextPanel.tsx:1556
 msgid "Purpose"
 msgstr "Purpose"
 
@@ -7260,7 +7272,7 @@ msgstr "Stretch"
 msgid "Structured details"
 msgstr "Structured details"
 
-#: src/components/PersonalContextPanel.tsx:1565
+#: src/components/PersonalContextPanel.tsx:1567
 msgid "Structured fields sent"
 msgstr "Structured fields sent"
 
@@ -7289,7 +7301,7 @@ msgstr "Success"
 msgid "successful"
 msgstr "successful"
 
-#: src/components/PersonalContextPanel.tsx:1558
+#: src/components/PersonalContextPanel.tsx:1560
 msgid "Suggest a bounded adjustment to the current plan."
 msgstr "Suggest a bounded adjustment to the current plan."
 
@@ -8648,7 +8660,7 @@ msgstr "Will sync:"
 msgid "Withdraw"
 msgstr "Withdraw"
 
-#: src/components/PersonalContextPanel.tsx:1639
+#: src/components/PersonalContextPanel.tsx:1641
 msgid "Withdraw AI permission"
 msgstr "Withdraw AI permission"
 
@@ -8739,7 +8751,7 @@ msgstr "you"
 msgid "You can attach up to 3 images."
 msgstr "You can attach up to 3 images."
 
-#: src/components/PersonalContextPanel.tsx:1604
+#: src/components/PersonalContextPanel.tsx:1606
 msgid "You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed. Deleting the item removes local provider-use receipts and dependent private explanations."
 msgstr "You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed. Deleting the item removes local provider-use receipts and dependent private explanations."
 

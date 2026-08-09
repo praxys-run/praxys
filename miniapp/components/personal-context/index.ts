@@ -214,7 +214,7 @@ function translations() {
     contextUse: t('Context use'),
     unused: t('No assessment or plan change has used this context yet.'),
     rules: t('Rules'),
-    azureOpenAi: t('Azure OpenAI'),
+    azureOpenAi: t('Microsoft Azure AI'),
     correct: t('Correct'),
     aiOption: t('AI option'),
     reviewAi: t('Review AI access'),
@@ -235,9 +235,9 @@ function translations() {
     aiDescription: t(
       'This decision is separate from saving context and applies only to this exact version.',
     ),
-    provider: t('Configured provider: Azure OpenAI'),
+    provider: t('AI service: Microsoft Azure'),
     providerDetail: t(
-      'Praxys sends a minimized copy for this purpose only. Raw provider requests and responses are not written to Praxys logs. Provider-side retention follows the Praxys Microsoft Azure agreement.',
+      'Only the fields below are sent to Microsoft Azure AI. Microsoft states that inputs and outputs are not available to OpenAI or used to train foundation models without permission; Praxys does not grant that permission. Flagged content may be reviewed for abuse monitoring under Azure terms. Praxys does not log raw requests or responses.',
     ),
     structuredFieldsSent: t('Structured fields sent'),
     sendNote: t('Also send my optional note'),

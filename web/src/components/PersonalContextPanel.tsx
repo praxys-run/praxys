@@ -1374,7 +1374,7 @@ export default function PersonalContextPanel() {
                           <span className="font-medium text-foreground">
                             {receipt.consumer_type === 'deterministic_policy'
                               ? <Trans>Rules</Trans>
-                              : <Trans>Azure OpenAI</Trans>}
+                              : <Trans>Microsoft Azure AI</Trans>}
                           </span>
                           {' · '}
                           <span className="font-data">{formatDate(receipt.used_at)}</span>
@@ -1538,13 +1538,15 @@ export default function PersonalContextPanel() {
           {aiItem && (
             <div className="space-y-4">
               <div className="rounded-lg bg-accent-cobalt/6 p-3 text-xs leading-relaxed text-foreground">
-                <p className="font-semibold"><Trans>Configured provider: Azure OpenAI</Trans></p>
+                <p className="font-semibold"><Trans>AI service: Microsoft Azure</Trans></p>
                 <p className="mt-1">
                   <Trans>
-                    Praxys sends a minimized copy for this purpose only. Raw
-                    provider requests and responses are not written to Praxys
-                    logs. Provider-side retention follows the Praxys Microsoft
-                    Azure agreement.
+                    Only the fields below are sent to Microsoft Azure AI.
+                    Microsoft states that inputs and outputs are not available
+                    to OpenAI or used to train foundation models without
+                    permission; Praxys does not grant that permission. Flagged
+                    content may be reviewed for abuse monitoring under Azure
+                    terms. Praxys does not log raw requests or responses.
                   </Trans>
                 </p>
               </div>
