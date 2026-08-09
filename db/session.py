@@ -414,6 +414,12 @@ _SQLITE_COMPAT_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
         ("garmin_token_generation", "VARCHAR(160)"),
         ("tokens_updated_at", "DATETIME"),
     ),
+    "personal_context_items": (
+        ("idempotency_key", "VARCHAR(128)"),
+    ),
+    "personal_context_consent_receipts": (
+        ("idempotency_key", "VARCHAR(128)"),
+    ),
 }
 
 
@@ -540,6 +546,22 @@ def _ensure_sqlite_compat_columns(engine_obj) -> None:
         )
 
 
+def _ensure_sqlite_context_idempotency_indexes(engine_obj) -> None:
+    """Add owner-scoped uniqueness after compatibility columns are present."""
+    with engine_obj.begin() as conn:
+        conn.exec_driver_sql(
+            "CREATE UNIQUE INDEX IF NOT EXISTS "
+            "uq_personal_context_item_idempotency "
+            "ON personal_context_items (user_id, idempotency_key)"
+        )
+        conn.exec_driver_sql(
+            "CREATE UNIQUE INDEX IF NOT EXISTS "
+            "uq_personal_context_consent_idempotency "
+            "ON personal_context_consent_receipts "
+            "(user_id, idempotency_key)"
+        )
+
+
 def _ensure_sqlite_training_plan_identity(engine_obj) -> None:
     """Replace the legacy date/type uniqueness rule with canonical identity."""
     constraints = inspect(engine_obj).get_unique_constraints("training_plans")
@@ -591,6 +613,7 @@ def _ensure_schema(engine_obj, backend: str) -> None:
     if backend == "sqlite":
         Base.metadata.create_all(bind=engine_obj)
         _ensure_sqlite_compat_columns(engine_obj)
+        _ensure_sqlite_context_idempotency_indexes(engine_obj)
         _ensure_sqlite_training_plan_identity(engine_obj)
         _normalize_praxys_plan_sources(engine_obj)
         return

@@ -4,14 +4,18 @@ Every request to a protected endpoint must include a valid Bearer token
 from the Authorization header. Tokens are issued by the /api/auth/login endpoint.
 """
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any, Mapping
 
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from api.auth_secrets import get_jwt_secret
 from db.session import get_db
+
+if TYPE_CHECKING:
+    from db.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +25,17 @@ logger = logging.getLogger(__name__)
 LAST_SEEN_THROTTLE = timedelta(minutes=15)
 
 
-def _touch_last_seen(db: Session, user) -> None:
+@dataclass(frozen=True)
+class AuthenticatedIdentity:
+    """Validated bearer identity plus its signed JWT claims."""
+
+    user_id: str
+    user: "User"
+    claims: Mapping[str, Any]
+    is_demo: bool
+
+
+def _touch_last_seen(db: Session, user: "User") -> None:
     """Best-effort, throttled update of the user's last-activity timestamp.
 
     Never raises: an activity-gauge write must not be able to fail a real
@@ -38,8 +52,11 @@ def _touch_last_seen(db: Session, user) -> None:
         db.rollback()
 
 
-def _get_token_user(request: Request, db: Session) -> tuple[str, Any]:
-    """Validate the bearer token and return its current database user."""
+def get_authenticated_identity(
+    request: Request,
+    db: Session,
+) -> AuthenticatedIdentity:
+    """Validate the bearer token and return its user plus signed claims."""
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
         raise HTTPException(401, "Not authenticated")
@@ -60,21 +77,42 @@ def _get_token_user(request: Request, db: Session) -> tuple[str, Any]:
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             raise HTTPException(401, "User not found")
-        return user_id, user
+        return AuthenticatedIdentity(
+            user_id=str(user_id),
+            user=user,
+            claims=payload,
+            is_demo=bool(user.is_demo),
+        )
     except jwt.ExpiredSignatureError:
         raise HTTPException(401, "Token expired")
     except jwt.InvalidTokenError as e:
         raise HTTPException(401, f"Invalid token: {e}")
 
 
+def _get_token_user(request: Request, db: Session) -> tuple[str, "User"]:
+    """Validate the bearer token and return its current database user."""
+    identity = get_authenticated_identity(request, db)
+    return identity.user_id, identity.user
+
+
+def get_active_identity(
+    request: Request,
+    db: Session,
+) -> AuthenticatedIdentity:
+    """Return an active bearer identity and update its activity timestamp."""
+    identity = get_authenticated_identity(request, db)
+    if not identity.user.is_active:
+        raise HTTPException(401, "User account is deactivated")
+    _touch_last_seen(db, identity.user)
+    # Context mutations acquire SQLite's BEGIN IMMEDIATE themselves. End the
+    # authentication read transaction so that lock is not silently skipped.
+    db.rollback()
+    return identity
+
+
 def get_current_user_id(request: Request, db: Session = Depends(get_db)) -> str:
     """Get the active user ID from the JWT bearer token."""
-    user_id, user = _get_token_user(request, db)
-    if not user.is_active:
-        raise HTTPException(401, "User account is deactivated")
-
-    _touch_last_seen(db, user)
-    return user_id
+    return get_active_identity(request, db).user_id
 
 
 def require_account_deletion_access(

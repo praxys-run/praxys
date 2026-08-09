@@ -484,6 +484,7 @@ class PersonalContextItem(Base):
         nullable=False,
         default="deterministic_only",
     )
+    idempotency_key = Column(String(128), nullable=True)
     # This reference is deliberately not a database FK: consent receipts point
     # back to the item with ON DELETE CASCADE, and a reverse FK would create a
     # DDL cycle. The lifecycle service validates the exact owner/item receipt.
@@ -512,6 +513,11 @@ class PersonalContextItem(Base):
             "id",
             "user_id",
             name="uq_personal_context_item_owner",
+        ),
+        UniqueConstraint(
+            "user_id",
+            "idempotency_key",
+            name="uq_personal_context_item_idempotency",
         ),
         CheckConstraint(
             "version >= 1",
@@ -626,6 +632,7 @@ class PersonalContextConsentReceipt(Base):
     consent_text_version = Column(String(64), nullable=False)
     decision = Column(String(16), nullable=False)
     client = Column(String(32), nullable=False)
+    idempotency_key = Column(String(128), nullable=True)
     decided_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     __table_args__ = (
@@ -639,6 +646,11 @@ class PersonalContextConsentReceipt(Base):
             "id",
             "user_id",
             name="uq_personal_context_consent_owner",
+        ),
+        UniqueConstraint(
+            "user_id",
+            "idempotency_key",
+            name="uq_personal_context_consent_idempotency",
         ),
         CheckConstraint(
             "decision IN ('granted','denied','withdrawn')",
@@ -669,6 +681,55 @@ class PersonalContextConsentReceipt(Base):
             "ix_personal_context_consent_item_decided",
             "context_item_id",
             "decided_at",
+        ),
+    )
+
+
+class PersonalContextCommand(Base):
+    """Payload-free idempotency state that survives context deletion."""
+
+    __tablename__ = "personal_context_commands"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    idempotency_key = Column(String(128), nullable=False)
+    operation = Column(String(24), nullable=False)
+    target_item_id = Column(String(36), nullable=True)
+    lineage_id = Column(String(36), nullable=True)
+    status = Column(String(16), nullable=False, default="active")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    retired_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "idempotency_key",
+            name="uq_personal_context_command_idempotency",
+        ),
+        CheckConstraint(
+            "operation IN ('confirm','correct','ai_consent')",
+            name="ck_personal_context_command_operation",
+        ),
+        CheckConstraint(
+            "status IN ('active','retired')",
+            name="ck_personal_context_command_status",
+        ),
+        CheckConstraint(
+            "(status = 'active' AND target_item_id IS NOT NULL "
+            "AND lineage_id IS NOT NULL AND retired_at IS NULL) OR "
+            "(status = 'retired' AND target_item_id IS NULL "
+            "AND lineage_id IS NULL AND retired_at IS NOT NULL)",
+            name="ck_personal_context_command_lifecycle",
+        ),
+        Index(
+            "ix_personal_context_command_user_status",
+            "user_id",
+            "status",
         ),
     )
 
