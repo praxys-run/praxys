@@ -592,6 +592,11 @@ export interface PlanCleanupItem {
   reason: string | null;
 }
 
+export interface PlanCleanupRequest {
+  scope: 'future';
+  intent?: 'leave_managed_mode' | 'switch_execution_target';
+}
+
 export interface PlanCleanupResponse {
   status: 'complete' | 'partial';
   target: PlatformName | null;
@@ -1535,6 +1540,8 @@ export interface LabsEnvironmentCurvePoint {
   relative_lower_bpm: number;
   relative_upper_bpm: number;
   reference_wet_bulb_c: number;
+  support_bin_index: number;
+  section_index: number;
 }
 
 export interface LabsEnvironmentProviderRegime {
@@ -1543,12 +1550,28 @@ export interface LabsEnvironmentProviderRegime {
   segment_count: number;
 }
 
+export interface LabsEnvironmentReferencePowerFunnel {
+  environment_activity_count: number;
+  any_valid_sample_activity_count: number;
+  continuous_coverage_activity_count: number;
+  stable_segment_mean_activity_count: number;
+  training_partition_activity_count: number;
+  final_reference_power_activity_count: number;
+}
+
 export interface LabsEnvironmentCurveSupportBin {
+  bin_index: number;
   lower_wet_bulb_c: number;
   upper_wet_bulb_c: number;
   activity_count: number;
   segment_count: number;
   reference_power_activity_count: number;
+  required_activity_count: number;
+  required_segment_count: number;
+  required_reference_power_activity_count: number;
+  supported: boolean;
+  support_failure_reasons: string[];
+  reference_power_funnel: LabsEnvironmentReferencePowerFunnel;
 }
 
 export interface LabsEnvironmentEligibilityCounts {
@@ -1560,6 +1583,7 @@ export interface LabsEnvironmentEligibilityCounts {
   provider_regimes: LabsEnvironmentProviderRegime[];
   observed_wet_bulb_domain_c: number[] | null;
   curve_support_bins: LabsEnvironmentCurveSupportBin[] | null;
+  displayed_wet_bulb_domains_c: number[][] | null;
 }
 
 export interface LabsEnvironmentLeaveOneOut {
@@ -1674,6 +1698,9 @@ export interface LabsEnvironmentPreflightResponse {
 }
 
 export type LabsEnvironmentMutationError =
+  | (LabsEnvironmentAvailabilityReason & {
+      code: 'adult_eligibility_not_confirmed';
+    })
   | {
       code: 'LABS_ENVIRONMENT_PREFLIGHT_INELIGIBLE';
       preflight: LabsEnvironmentPreflightResponse;

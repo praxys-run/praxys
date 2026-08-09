@@ -327,7 +327,7 @@ def _cancel_model_mismatch(
         assert row is not None
         row.status = "stale"
         row.availability_reason = _reason(
-            "model_version_mismatch",
+            "stale_model_version",
             correlation_id=job.correlation_id,
         )
         row.completed_at = completed_at
@@ -1295,7 +1295,7 @@ def process_environment_response_job(
             _persist_unavailable(
                 db,
                 job.id,
-                "model_version_mismatch",
+                "stale_model_version",
                 "stale",
             )
             return JobExecutionResult(
@@ -1393,7 +1393,7 @@ def process_environment_response_job(
                 experiment_id=job.experiment_id,
             )
             db.add(result)
-        result.model_version = job.model_version
+        result.model_version = aggregate["model_version"]
         result.source_revision = job.source_revision
         result.result_state = aggregate["result_state"]
         result.eligibility_counts = aggregate["eligibility_counts"]
@@ -1486,6 +1486,7 @@ def _build_private_dataset_bundle(
             export_snapshot_id=expected_source_revision,
             limit=limit,
             offset=offset,
+            include_private_labs_support=True,
         )
         pages.append(page)
         offset += limit
@@ -1837,7 +1838,7 @@ def public_state(
     )
     published_reason = (
         _reason(
-            "model_version_mismatch",
+            "stale_model_version",
             correlation_id=None if row is None else row.correlation_id,
         )
         if current_consent

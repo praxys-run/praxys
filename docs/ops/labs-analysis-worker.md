@@ -325,8 +325,9 @@ Do not remove a pre-existing permanent administrator.
 Start one manual execution while the API is still in `inline` mode:
 
 ```bash
-az containerapp job start \
-  -g rg-trainsight -n praxys-labs-environment-worker
+python scripts/start_labs_worker_check.py \
+  --resource-group rg-trainsight \
+  --job-name praxys-labs-environment-worker
 ```
 
 In `log-trainsight`, query the last 15 minutes of
@@ -334,8 +335,13 @@ In `log-trainsight`, query the last 15 minutes of
 `ContainerJobName_s == "praxys-labs-environment-worker"`. Confirm:
 
 - `Database startup check OK (postgresql)`;
-- `Labs worker found no queue message`; and
+- `Labs worker startup check completed`; and
 - no authentication, permission, or image-pull error.
+
+The helper copies the live execution template, preserving its image, secrets,
+environment, and resources, then overrides only the one execution's command.
+It checks the worker identity and exact table/column grants without receiving
+or settling a Service Bus delivery.
 
 ### 5. Cut over the backend
 

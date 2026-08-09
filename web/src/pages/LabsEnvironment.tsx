@@ -22,7 +22,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Trans, useLingui } from '@lingui/react/macro';
+import { Plural, Trans, useLingui } from '@lingui/react/macro';
 import { msg } from '@lingui/core/macro';
 import type { MessageDescriptor } from '@lingui/core';
 
@@ -51,6 +51,7 @@ import type {
   LabsEnvironmentCurvePoint,
   LabsEnvironmentExecution,
   LabsEnvironmentMutationError,
+  LabsEnvironmentCurveSupportBin,
   LabsEnvironmentPreflightResponse,
   LabsEnvironmentResponseState,
   LabsEnvironmentWetBulbResponse,
@@ -63,6 +64,7 @@ const STULL_URL = 'https://doi.org/10.1175/JAMC-D-11-0143.1';
 const REASON_MESSAGES: Record<string, MessageDescriptor> = {
   incomplete_export: msg`The available history could not be analyzed as one complete snapshot.`,
   stale_source_revision: msg`Your source data changed while this result was being computed.`,
+  stale_model_version: msg`This result uses an earlier experiment model and needs to be run again.`,
   insufficient_activities: msg`There are not enough eligible Stryd activities yet.`,
   insufficient_segments: msg`There are not enough stable, comparable segments yet.`,
   insufficient_environmental_spread: msg`Your eligible runs do not cover enough different temperature-and-humidity conditions.`,
@@ -186,6 +188,19 @@ function isLabsMutationError(
   value: unknown,
 ): value is LabsEnvironmentMutationError {
   if (!isRecord(value) || typeof value.code !== 'string') return false;
+  if (value.code === 'adult_eligibility_not_confirmed') {
+    return (
+      typeof value.category === 'string'
+      && typeof value.public_message_key === 'string'
+      && typeof value.required_guardrail === 'string'
+      && typeof value.user_actionable === 'boolean'
+      && typeof value.suggested_action_key === 'string'
+      && typeof value.analysis_stage === 'string'
+      && typeof value.power_regime === 'string'
+      && typeof value.model_version === 'string'
+      && typeof value.correlation_id === 'string'
+    );
+  }
   if (value.code === 'LABS_ENVIRONMENT_PREFLIGHT_INELIGIBLE') {
     return (
       isRecord(value.preflight)
@@ -319,10 +334,12 @@ function PreflightSummary({
   preflight,
   loading,
   error,
+  onRetry,
 }: {
   preflight: LabsEnvironmentPreflightResponse | null;
   loading: boolean;
   error: string | null;
+  onRetry: () => void;
 }) {
   const { i18n } = useLingui();
   if (loading && !preflight) {
@@ -334,6 +351,15 @@ function PreflightSummary({
         <AlertTitle><Trans>Eligibility check could not load</Trans></AlertTitle>
         <AlertDescription>
           <Trans>Retry before joining. The full analysis has not started.</Trans>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={onRetry}
+          >
+            <RefreshCw className="h-4 w-4" />
+            <Trans>Retry</Trans>
+          </Button>
         </AlertDescription>
       </Alert>
     );
@@ -379,27 +405,50 @@ function PreflightSummary({
 
 function ResultChart({
   points,
+  supportBins,
   calculatorWetBulb,
 }: {
   points: LabsEnvironmentCurvePoint[];
+  supportBins: LabsEnvironmentCurveSupportBin[];
   calculatorWetBulb: number | null;
 }) {
   const { i18n } = useLingui();
   const { resolved } = useTheme();
   const colors = getChartColors(resolved === 'dark');
-  const data = points.map((point) => ({
-    ...point,
-    bandBase: point.relative_lower_bpm,
-    bandSize: point.relative_upper_bpm - point.relative_lower_bpm,
-  }));
-  const domain = points.length
-    ? [points[0].wet_bulb_c, points[points.length - 1].wet_bulb_c]
-    : null;
+  const pointsByBin = new Map(
+    points.map((point) => [point.support_bin_index, point]),
+  );
+  const data = supportBins.length
+    ? supportBins.map((bin) => {
+      const point = pointsByBin.get(bin.bin_index);
+      return {
+        wet_bulb_c:
+          (bin.lower_wet_bulb_c + bin.upper_wet_bulb_c) / 2,
+        relative_hr_bpm: point?.relative_hr_bpm ?? null,
+        bandBase: point?.relative_lower_bpm ?? null,
+        bandSize: point
+          ? point.relative_upper_bpm - point.relative_lower_bpm
+          : null,
+      };
+    })
+    : points.map((point) => ({
+      ...point,
+      bandBase: point.relative_lower_bpm,
+      bandSize: point.relative_upper_bpm - point.relative_lower_bpm,
+    }));
   const markerVisible =
     calculatorWetBulb != null &&
-    domain != null &&
-    calculatorWetBulb >= domain[0] &&
-    calculatorWetBulb <= domain[1];
+    (
+      supportBins.length
+        ? supportBins.some(
+          (bin) => (
+            bin.supported &&
+            calculatorWetBulb >= bin.lower_wet_bulb_c &&
+            calculatorWetBulb <= bin.upper_wet_bulb_c
+          ),
+        )
+        : points.some((point) => point.wet_bulb_c === calculatorWetBulb)
+    );
 
   return (
     <div
@@ -488,11 +537,85 @@ function ResultChart({
             strokeWidth={2.5}
             dot={{ r: 3, fill: colors.form }}
             activeDot={{ r: 5 }}
+            connectNulls={false}
             isAnimationActive={false}
           />
         </AreaChart>
       </ResponsiveContainer>
     </div>
+  );
+}
+
+function SupportLedger({
+  bins,
+}: {
+  bins: LabsEnvironmentCurveSupportBin[];
+}) {
+  if (!bins.length) return null;
+  const referenceMinimum = Math.max(
+    ...bins.map((bin) => bin.required_reference_power_activity_count),
+  );
+  return (
+    <section className="mt-5 border-t border-border pt-5" aria-labelledby="curve-support-heading">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+        <h3 id="curve-support-heading" className="text-sm font-semibold">
+          <Trans>Comparable-power activity support</Trans>
+        </h3>
+        <p className="font-data text-xs text-muted-foreground">
+          <Trans>minimum {referenceMinimum} per range</Trans>
+        </p>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+        {bins.map((bin) => {
+          const missingReference = Math.max(
+            bin.required_reference_power_activity_count
+              - bin.reference_power_activity_count,
+            0,
+          );
+          const referenceOnlyFailure =
+            bin.support_failure_reasons.length === 1
+            && bin.support_failure_reasons[0]
+              === 'insufficient_reference_power_activities';
+          return (
+            <div
+              key={bin.bin_index}
+              className={cn(
+                'rounded-lg border px-3 py-3',
+                bin.supported
+                  ? 'border-primary/25 bg-primary/5'
+                  : 'border-accent-amber/45 bg-accent-amber/10',
+              )}
+            >
+              <p className="font-data text-[11px] text-muted-foreground">
+                {bin.lower_wet_bulb_c.toFixed(1)}–{bin.upper_wet_bulb_c.toFixed(1)} °C
+              </p>
+              <p className="font-data mt-2 text-sm font-semibold">
+                <Plural
+                  value={bin.reference_power_activity_count}
+                  one="# activity"
+                  other="# activities"
+                />
+              </p>
+              <p
+                className={cn(
+                  'mt-1 text-xs font-medium',
+                  bin.supported ? 'text-primary' : 'text-accent-amber',
+                )}
+              >
+                {bin.supported
+                  ? <Trans>Supported</Trans>
+                  : referenceOnlyFailure
+                    ? <Trans>Needs {missingReference} more</Trans>
+                    : <Trans>Insufficient support</Trans>}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+        <Trans>Each activity counts once per range. A qualifying activity needs an accepted stable segment averaging 75–85% of its pre-activity Stryd Critical Power; raw sample points alone do not count.</Trans>
+      </p>
+    </section>
   );
 }
 
@@ -541,7 +664,10 @@ function WetBulbCalculator({
   const [result, setResult] = useState<LabsEnvironmentWetBulbResponse | null>(null);
   const [calculating, setCalculating] = useState(false);
   const [error, setError] = useState('');
-  const domain = state.result?.eligibility_counts.observed_wet_bulb_domain_c;
+  const observedDomain =
+    state.result?.eligibility_counts.observed_wet_bulb_domain_c;
+  const displayedDomains =
+    state.result?.eligibility_counts.displayed_wet_bulb_domains_c ?? [];
 
   const calculate = async () => {
     const temperatureValue = Number(temperature);
@@ -579,12 +705,20 @@ function WetBulbCalculator({
   };
 
   const position =
-    result?.wet_bulb_c != null && domain?.length === 2
-      ? result.wet_bulb_c < domain[0]
+    result?.wet_bulb_c != null && observedDomain?.length === 2
+      ? displayedDomains.some(
+        (domain) => (
+          domain.length === 2 &&
+          result.wet_bulb_c! >= domain[0] &&
+          result.wet_bulb_c! <= domain[1]
+        ),
+      )
+        ? 'inside'
+        : result.wet_bulb_c < observedDomain[0]
         ? 'below'
-        : result.wet_bulb_c > domain[1]
+        : result.wet_bulb_c > observedDomain[1]
           ? 'above'
-          : 'inside'
+          : 'unsupported'
       : null;
 
   return (
@@ -650,6 +784,11 @@ function WetBulbCalculator({
                     <Trans>This is above your displayed historical range, so the curve does not extrapolate to it.</Trans>
                   </p>
                 )}
+                {position === 'unsupported' && (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    <Trans>This falls in an unsupported historical range, so it is not marked on the curve.</Trans>
+                  </p>
+                )}
               </>
             )}
           </div>
@@ -669,6 +808,7 @@ function Enrollment({
   preflight,
   preflightLoading,
   preflightError,
+  onRetryPreflight,
   isDemo,
   busy,
   onEnroll,
@@ -677,6 +817,7 @@ function Enrollment({
   preflight: LabsEnvironmentPreflightResponse | null;
   preflightLoading: boolean;
   preflightError: string | null;
+  onRetryPreflight: () => void;
   isDemo: boolean;
   busy: boolean;
   onEnroll: (adultAttested: boolean) => void;
@@ -696,6 +837,7 @@ function Enrollment({
           preflight={preflight}
           loading={preflightLoading}
           error={preflightError}
+          onRetry={onRetryPreflight}
         />
         <div className="grid gap-5 md:grid-cols-3">
           <div>
@@ -816,6 +958,9 @@ export default function LabsEnvironment() {
         ? i18n._(msg`The rolling recompute limit has been reached. Try again after ${availableAt}.`)
         : i18n._(msg`The rolling recompute limit has been reached. Try again later.`);
     }
+    if (detail.code === 'adult_eligibility_not_confirmed') {
+      return i18n._(msg`Confirm that you are 18 or older to join this experiment.`);
+    }
     if (detail.code === 'LABS_ENVIRONMENT_PREFLIGHT_INELIGIBLE') {
       return i18n._(msg`The quick check found a data requirement that needs attention.`);
     }
@@ -921,6 +1066,9 @@ export default function LabsEnvironment() {
   const retryExhausted =
     state.availability_reason?.code === 'analysis_retry_exhausted';
   const points = available ? state.result?.aggregate_curve_points ?? [] : [];
+  const supportBins =
+    state.result?.eligibility_counts.curve_support_bins ?? [];
+  const partialDomain = supportBins.some((bin) => !bin.supported);
   const uncertainty = state.result?.aggregate_uncertainty;
 
   return (
@@ -955,6 +1103,7 @@ export default function LabsEnvironment() {
             preflight={preflight}
             preflightLoading={preflightLoading}
             preflightError={preflightError}
+            onRetryPreflight={() => void refetchPreflight()}
             isDemo={isDemo}
             busy={busy}
             onEnroll={(adultAttested) => void mutate(
@@ -1047,13 +1196,24 @@ export default function LabsEnvironment() {
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(300px,0.7fr)]">
               <Card>
                 <CardHeader>
-                  <CardTitle><Trans>Your historical environmental-response curve</Trans></CardTitle>
+                  <CardTitle>
+                    {partialDomain
+                      ? <Trans>Your partial historical environmental-response curve</Trans>
+                      : <Trans>Your historical environmental-response curve</Trans>}
+                  </CardTitle>
                   <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
-                    <Trans>Relative modeled heart rate across your observed wet-bulb-proxy range, holding the fitted comparison at a common recorded-power reference.</Trans>
+                    {partialDomain
+                      ? <Trans>Relative modeled heart rate is shown only in ranges with enough comparable-power evidence. Unsupported ranges remain blank and are never connected.</Trans>
+                      : <Trans>Relative modeled heart rate across your observed wet-bulb-proxy range, holding the fitted comparison at a common recorded-power reference.</Trans>}
                   </p>
                 </CardHeader>
                 <CardContent>
-                  <ResultChart points={points} calculatorWetBulb={calculatorWetBulb} />
+                  <ResultChart
+                    points={points}
+                    supportBins={supportBins}
+                    calculatorWetBulb={calculatorWetBulb}
+                  />
+                  <SupportLedger bins={supportBins} />
                   <CoverageSummary state={state} />
                   <div className="mt-5 grid gap-4 border-t border-border pt-5 sm:grid-cols-2">
                     <div>
@@ -1091,7 +1251,7 @@ export default function LabsEnvironment() {
                     ]}
                   >
                     <p>
-                      <Trans>The line is a historical model inside the central supported range only. The shaded band shows aggregate uncertainty. It does not identify a causal personal coefficient and never extrapolates beyond your observed domain. Wind, solar load, clothing, hydration, fatigue, and other unmeasured conditions can still differ between runs.</Trans>
+                      <Trans>The line is a historical model inside supported ranges only. A blank range means comparable stable workload did not pass the display floor; Praxys does not estimate or connect through it. The shaded band shows aggregate uncertainty where the curve is supported. It does not identify a causal personal coefficient and never extrapolates beyond your observed domain. Wind, solar load, clothing, hydration, fatigue, and other unmeasured conditions can still differ between runs.</Trans>
                     </p>
                   </ScienceNote>
                 </CardContent>

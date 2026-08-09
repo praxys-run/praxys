@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Plural, Trans, useLingui } from '@lingui/react/macro';
 import {
+  ArrowRight,
   CalendarSync,
   Check,
   CirclePause,
@@ -33,7 +34,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { apiFetch, extractErrorMessage, useApi } from '@/hooks/useApi';
 import { useLocale } from '@/contexts/LocaleContext';
 import { cn } from '@/lib/utils';
-import { choosePlanDeliveryTarget } from '@/lib/plan-delivery';
+import { planTargetSelection } from '@/lib/plan-delivery';
 import {
   MANAGED_PLAN_WINDOW_DAYS,
   isPraxysOwned,
@@ -43,6 +44,7 @@ import {
 } from '@/lib/plan';
 import type {
   PlanAdjustmentHistoryResponse,
+  PlanCleanupRequest,
   PlanCleanupResponse,
   PlanDeliveryOption,
   PlanResponse,
@@ -118,7 +120,8 @@ export default function ManagedPlanSettingsCard({
   const configuredTarget = management.execution_target;
   const [targetChoice, setTargetChoice] = useState<PlatformName | null>(null);
   const primaryActivitySource = config.preferences.activities ?? null;
-  const selectedTarget = choosePlanDeliveryTarget(
+  const selectedTarget = planTargetSelection(
+    state,
     planDeliveryOptions,
     targetChoice,
     primaryActivitySource,
@@ -128,11 +131,17 @@ export default function ManagedPlanSettingsCard({
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [leaveChoice, setLeaveChoice] = useState<LeaveChoice>('keep');
   const [action, setAction] = useState<
-    'adopt' | 'pause' | 'resume' | 'leave' | 'cleanup' | null
+    'adopt' | 'pause' | 'resume' | 'target' | 'leave' | 'cleanup' | null
   >(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [cleanupResult, setCleanupResult] =
     useState<PlanCleanupResponse | null>(null);
+  const [targetSwitchOpen, setTargetSwitchOpen] = useState(false);
+  const [targetSwitchResult, setTargetSwitchResult] =
+    useState<PlanCleanupResponse | null>(null);
+  const [targetSwitchError, setTargetSwitchError] =
+    useState<string | null>(null);
+  const [savedTarget, setSavedTarget] = useState<PlatformName | null>(null);
   const [adjustmentConsentOpen, setAdjustmentConsentOpen] = useState(false);
   const [adjustmentAction, setAdjustmentAction] =
     useState<'enable' | 'disable' | null>(null);
@@ -155,14 +164,18 @@ export default function ManagedPlanSettingsCard({
     ) ?? null;
   const configuredTargetAvailable =
     configuredTargetOption?.selectable === true;
+  const selectedTargetAvailable = selectedTarget != null
+    && planDeliveryOptions.some(
+      (option) => (
+        option.platform === selectedTarget && option.selectable
+      ),
+    );
   const targetAvailable = state === 'external'
-    ? selectedTarget != null
-      && planDeliveryOptions.some(
-        (option) => (
-          option.platform === selectedTarget && option.selectable
-        ),
-      )
+    ? selectedTargetAvailable
     : configuredTargetAvailable;
+  const targetChanged = state === 'paused'
+    && selectedTarget != null
+    && selectedTarget !== configuredTarget;
   const displayTarget = state === 'external'
     ? selectedTarget
     : configuredTarget;
@@ -171,6 +184,13 @@ export default function ManagedPlanSettingsCard({
     : t`No target selected`;
   const cleanupTargetLabel = cleanupResult?.target
     ? PLATFORM_LABELS[cleanupResult.target] ?? cleanupResult.target
+    : targetLabel;
+  const selectedTargetLabel = selectedTarget
+    ? PLATFORM_LABELS[selectedTarget] ?? selectedTarget
+    : t`No target selected`;
+  const targetSwitchCleanupLabel = targetSwitchResult?.target
+    ? PLATFORM_LABELS[targetSwitchResult.target]
+      ?? targetSwitchResult.target
     : targetLabel;
   const confirmationTarget = confirmMode === 'resume'
     ? configuredTarget
@@ -253,11 +273,15 @@ export default function ManagedPlanSettingsCard({
     }
   };
 
-  const cleanupFutureDeliveries = async (): Promise<PlanCleanupResponse> => {
+  const cleanupFutureDeliveries = async (
+    intent: 'leave_managed_mode' | 'switch_execution_target' =
+      'leave_managed_mode',
+  ): Promise<PlanCleanupResponse> => {
+    const cleanupRequest: PlanCleanupRequest = { scope: 'future', intent };
     const response = await apiFetch('/api/plan/deliveries/cleanup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scope: 'future' }),
+      body: JSON.stringify(cleanupRequest),
     });
     if (!response.ok) {
       throw new Error(
@@ -265,6 +289,77 @@ export default function ManagedPlanSettingsCard({
       );
     }
     return response.json() as Promise<PlanCleanupResponse>;
+  };
+
+  const needsTargetCleanup = (error: unknown): boolean => (
+    error instanceof Error
+    && error.message.includes('Remove future Praxys deliveries from')
+  );
+
+  const savePausedTarget = async () => {
+    if (!targetChanged || !selectedTargetAvailable || !selectedTarget) return;
+    setAction('target');
+    setActionError(null);
+    setSavedTarget(null);
+    try {
+      await updateSettings({
+        plan_management: {
+          execution_target: selectedTarget,
+          delivery_enabled: false,
+        },
+      });
+      setTargetChoice(null);
+      setSavedTarget(selectedTarget);
+      await refetchPlan();
+    } catch (error) {
+      if (needsTargetCleanup(error)) {
+        setTargetSwitchResult(null);
+        setTargetSwitchError(null);
+        setTargetSwitchOpen(true);
+      } else {
+        setActionError(
+          error instanceof Error
+            ? error.message
+            : t`Could not change the execution target`,
+        );
+      }
+    } finally {
+      setAction(null);
+    }
+  };
+
+  const cleanupAndSwitchTarget = async () => {
+    if (!targetChanged || !selectedTargetAvailable || !selectedTarget) return;
+    const nextTarget = selectedTarget;
+    setAction('cleanup');
+    setTargetSwitchError(null);
+    try {
+      const result = await cleanupFutureDeliveries(
+        'switch_execution_target',
+      );
+      setTargetSwitchResult(result);
+      await refetchPlan();
+      if (result.status === 'partial') return;
+      await updateSettings({
+        plan_management: {
+          execution_target: nextTarget,
+          delivery_enabled: false,
+        },
+      });
+      setTargetChoice(null);
+      setSavedTarget(nextTarget);
+      setTargetSwitchOpen(false);
+      setTargetSwitchResult(null);
+      await refetchPlan();
+    } catch (error) {
+      setTargetSwitchError(
+        error instanceof Error
+          ? error.message
+          : t`Could not change the execution target`,
+      );
+    } finally {
+      setAction(null);
+    }
   };
 
   const leaveManagedMode = async () => {
@@ -554,10 +649,10 @@ export default function ManagedPlanSettingsCard({
             )}
           </div>
 
-          {state === 'external' ? (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-4">
+            {state !== 'active' ? (
               <fieldset
-                className="w-full sm:max-w-sm"
+                className="w-full max-w-2xl"
                 disabled={action != null}
               >
                 <legend className="mb-1.5 text-xs font-medium text-foreground">
@@ -584,7 +679,11 @@ export default function ManagedPlanSettingsCard({
                             value={option.platform}
                             checked={selected}
                             disabled={!option.selectable}
-                            onChange={() => setTargetChoice(option.platform)}
+                            onChange={() => {
+                              setTargetChoice(option.platform);
+                              setActionError(null);
+                              setSavedTarget(null);
+                            }}
                           />
                           <span
                             className={cn(
@@ -621,41 +720,98 @@ export default function ManagedPlanSettingsCard({
                     <Trans>Connect an activity platform above to choose where workouts are delivered.</Trans>
                   </p>
                 )}
-                <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-                  {planDeliveryOptions.length > 0
-                    ? <Trans>Selecting a target does not enable delivery. You will confirm the managed window next.</Trans>
-                    : <Trans>Only supported and eligible platforms can receive workouts.</Trans>}
-                </p>
+                <div className="mt-2 flex flex-wrap items-start justify-between gap-2">
+                  <p className="max-w-xl text-[11px] leading-relaxed text-muted-foreground">
+                    {planDeliveryOptions.length > 0
+                      ? state === 'paused'
+                        ? (
+                          <Trans>
+                            Change the target while delivery is paused. The new target takes effect only after you resume.
+                          </Trans>
+                        )
+                        : (
+                          <Trans>
+                            Selecting a target does not enable delivery. You will confirm the managed window next.
+                          </Trans>
+                        )
+                      : <Trans>Only supported and eligible platforms can receive workouts.</Trans>}
+                  </p>
+                  {state === 'paused' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="min-h-11 sm:min-h-0"
+                      disabled={
+                        !targetChanged
+                        || !selectedTargetAvailable
+                        || action != null
+                      }
+                      onClick={() => void savePausedTarget()}
+                    >
+                      {action === 'target'
+                        ? <Trans>Saving target…</Trans>
+                        : <Trans>Save target</Trans>}
+                    </Button>
+                  )}
+                </div>
               </fieldset>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="outline"
-                  disabled={action != null}
-                  onClick={openCleanupRecovery}
-                >
-                  <Trans>Remove future Praxys deliveries</Trans>
-                </Button>
-                <Button
-                  disabled={!targetAvailable || action != null || plan == null}
-                  onClick={() => {
-                    setActionError(null);
-                    setConfirmMode('adopt');
-                  }}
-                >
-                  <Trans>Review and activate</Trans>
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            ) : (
               <div>
-                <p className="text-xs text-muted-foreground"><Trans>Execution target</Trans></p>
-                <p className="mt-0.5 text-sm font-medium text-foreground">{targetLabel}</p>
+                <p className="text-xs font-medium text-foreground">
+                  <Trans>Execution target</Trans>
+                </p>
+                <div className="mt-1 flex min-h-11 max-w-2xl items-center justify-between gap-3 border-b border-border py-2">
+                  <p className="text-sm font-medium text-foreground">{targetLabel}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    <Trans>Pause delivery to change the target.</Trans>
+                  </p>
+                </div>
               </div>
+            )}
+
+            {savedTarget && state === 'paused' && (
+              <p
+                className="flex items-center gap-2 text-xs text-primary"
+                role="status"
+              >
+                <Check className="h-4 w-4" aria-hidden="true" />
+                <Trans>
+                  Execution target changed. Delivery remains paused.
+                </Trans>
+              </p>
+            )}
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
               <div className="flex flex-wrap items-center gap-2">
-                {state === 'active' ? (
+                {state === 'external' ? (
+                  <>
+                    <Button
+                      className="min-h-11 sm:min-h-0"
+                      disabled={
+                        !targetAvailable
+                        || action != null
+                        || plan == null
+                      }
+                      onClick={() => {
+                        setActionError(null);
+                        setConfirmMode('adopt');
+                      }}
+                    >
+                      <Trans>Review and activate</Trans>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="min-h-11 sm:min-h-0"
+                      disabled={action != null}
+                      onClick={openCleanupRecovery}
+                    >
+                      <Trans>Remove future Praxys deliveries</Trans>
+                    </Button>
+                  </>
+                ) : state === 'active' ? (
                   <Button
                     variant="outline"
+                    className="min-h-11 sm:min-h-0"
                     disabled={action != null}
                     onClick={pauseDelivery}
                   >
@@ -664,7 +820,13 @@ export default function ManagedPlanSettingsCard({
                   </Button>
                 ) : (
                   <Button
-                    disabled={!targetAvailable || action != null || plan == null}
+                    className="min-h-11 sm:min-h-0"
+                    disabled={
+                      !targetAvailable
+                      || targetChanged
+                      || action != null
+                      || plan == null
+                    }
                     onClick={() => {
                       setActionError(null);
                       setConfirmMode('resume');
@@ -673,18 +835,21 @@ export default function ManagedPlanSettingsCard({
                     <Trans>Review and resume</Trans>
                   </Button>
                 )}
+              </div>
+              {state !== 'external' && (
                 <Button
                   variant="ghost"
+                  className="min-h-11 text-destructive hover:bg-destructive/8 hover:text-destructive sm:min-h-0"
                   disabled={action != null}
                   onClick={() => resetLeaveDialog(true)}
                 >
                   <Trans>Leave managed mode</Trans>
                 </Button>
-              </div>
+              )}
             </div>
-          )}
+          </div>
 
-          {actionError && !confirmMode && !leaveOpen && (
+          {actionError && !confirmMode && !leaveOpen && !targetSwitchOpen && (
             <Alert variant="destructive">
               <AlertDescription>{actionError}</AlertDescription>
             </Alert>
@@ -964,6 +1129,96 @@ export default function ManagedPlanSettingsCard({
                 : confirmMode === 'resume'
                   ? <Trans>Resume delivery</Trans>
                   : <Trans>Activate managed plan</Trans>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={targetSwitchOpen}
+        onOpenChange={(open) => {
+          if (action != null) return;
+          setTargetSwitchOpen(open);
+          if (!open) {
+            setTargetSwitchResult(null);
+            setTargetSwitchError(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              <Trans>Remove old deliveries before switching?</Trans>
+            </DialogTitle>
+            <DialogDescription>
+              <Trans>
+                Praxys found future deliveries on the current target. Remove only Praxys-delivered workouts before switching.
+              </Trans>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center justify-between gap-4 border-b border-border pb-3 font-medium">
+              <span>{targetSwitchCleanupLabel}</span>
+              <ArrowRight
+                className="h-4 w-4 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <span>{selectedTargetLabel}</span>
+            </div>
+            <div className="flex gap-3">
+              <ShieldCheck
+                className="mt-0.5 h-4 w-4 shrink-0 text-accent-cobalt"
+                aria-hidden="true"
+              />
+              <p>
+                <Trans>
+                  Manual and other-coach workouts stay untouched. Delivery remains paused throughout.
+                </Trans>
+              </p>
+            </div>
+
+            {targetSwitchResult?.status === 'partial' && (
+              <Alert className="border-accent-amber/30 bg-accent-amber/8">
+                <TriangleAlert
+                  className="text-accent-amber"
+                  aria-hidden="true"
+                />
+                <AlertDescription className="text-xs text-foreground">
+                  <Trans>
+                    <span className="font-data">{targetSwitchResult.removed_count}</span> deliveries are clear; <span className="font-data">{targetSwitchResult.remaining_count}</span> still need review before the target can change.
+                  </Trans>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {targetSwitchError && (
+              <Alert variant="destructive">
+                <AlertDescription>{targetSwitchError}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={action != null}
+              onClick={() => setTargetSwitchOpen(false)}
+            >
+              {targetSwitchResult?.status === 'partial'
+                ? <Trans>Done</Trans>
+                : <Trans>Cancel</Trans>}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={action != null}
+              onClick={() => void cleanupAndSwitchTarget()}
+            >
+              {action === 'cleanup'
+                ? <Trans>Removing…</Trans>
+                : targetSwitchResult?.status === 'partial'
+                  ? <Trans>Retry cleanup</Trans>
+                  : <Trans>Remove and switch</Trans>}
             </Button>
           </DialogFooter>
         </DialogContent>

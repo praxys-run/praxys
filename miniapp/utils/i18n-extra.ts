@@ -392,6 +392,8 @@ const EN_SETTINGS = {
   Confirm: 'Confirm',
   'Keep future workouts': 'Keep future workouts',
   '{0} Praxys · {1} external': '{0} Praxys · {1} external',
+  '{removed} deliveries are clear; {remaining} still need review before the target can change.':
+    '{removed} deliveries are clear; {remaining} still need review before the target can change.',
   'Turn on': 'Turn on',
   'Individualized HRV evidence': 'Individualized HRV evidence',
   'Praxys uses individualized HRV guidance from Plews et al. (2012) and Kiviniemi et al. (2007). The exact caution band and rest-day action are conservative product estimates, not diagnoses or clinically validated prescriptions.':
@@ -788,6 +790,8 @@ const ZH_SETTINGS = {
   Confirm: '确认',
   'Keep future workouts': '保留未来训练',
   '{0} Praxys · {1} external': 'Praxys 训练 {0} 个 · 外部训练 {1} 个',
+  '{removed} deliveries are clear; {remaining} still need review before the target can change.':
+    '已清除 {removed} 项下发；仍有 {remaining} 项需要处理，完成后才能更换执行平台。',
   'Turn on': '启用',
   'Individualized HRV evidence': '个体化 HRV 依据',
   'Praxys uses individualized HRV guidance from Plews et al. (2012) and Kiviniemi et al. (2007). The exact caution band and rest-day action are conservative product estimates, not diagnoses or clinically validated prescriptions.':
@@ -856,6 +860,9 @@ const EN_LABS = {
   'Relative modeled HR': 'Relative modeled HR',
   'Lower interval': 'Lower interval',
   'Upper interval': 'Upper interval',
+  'minimum 5 per range': 'minimum 5 per range',
+  activity: 'activity',
+  activities: 'activities',
   'This sits inside your displayed historical range.':
     'This sits inside your displayed historical range.',
   'This is a psychrometric estimate—not apparent temperature, outdoor WBGT, body temperature, or a heat-safety assessment.':
@@ -877,6 +884,9 @@ const ZH_LABS = {
   'Relative modeled HR': '相对模型心率',
   'Lower interval': '区间下界',
   'Upper interval': '区间上界',
+  'minimum 5 per range': '每个区间至少 5 次',
+  activity: '次活动',
+  activities: '次活动',
   'This sits inside your displayed historical range.':
     '该值位于已显示的历史范围内。',
   'This is a psychrometric estimate—not apparent temperature, outdoor WBGT, body temperature, or a heat-safety assessment.':

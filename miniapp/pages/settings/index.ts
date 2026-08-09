@@ -22,10 +22,12 @@ import {
   managedPlanPreviewUrl,
   managedPlanState,
   managedPlanWindow,
+  planTargetSelection,
 } from '../../utils/managed-plan';
 import type {
   PlanAdjustment,
   PlanAdjustmentHistoryResponse,
+  PlanCleanupRequest,
   PlanCleanupResponse,
   PlanResponse,
   PlatformName,
@@ -155,9 +157,28 @@ function buildSettingsTr() {
     targetSelectionHint: t(
       'Selecting a target does not enable delivery. You will confirm the managed window next.',
     ),
+    pausedTargetSelectionHint: t(
+      'Change the target while delivery is paused. The new target takes effect only after you resume.',
+    ),
+    pauseToChangeTarget: t('Pause delivery to change the target.'),
     connectTargetHint: t(
       'Connect an activity platform from the web app to choose where workouts are delivered.',
     ),
+    saveTarget: t('Save target'),
+    savingTarget: t('Saving target…'),
+    targetChanged: t('Execution target changed. Delivery remains paused.'),
+    targetChangeFailed: t('Could not change the execution target'),
+    switchCleanupTitle: t('Remove old deliveries before switching?'),
+    switchCleanupDetail: t(
+      'Praxys found future deliveries on the current target. Remove only Praxys-delivered workouts before switching.',
+    ),
+    switchCleanupBoundary: t(
+      'Manual and other-coach workouts stay untouched. Delivery remains paused throughout.',
+    ),
+    switchCleanupRemaining: t(
+      '{removed} deliveries are clear; {remaining} still need review before the target can change.',
+    ),
+    removeAndSwitch: t('Remove and switch'),
     reviewAndActivate: t('Review and activate'),
     reviewAndResume: t('Review and resume'),
     pauseDelivery: t('Pause delivery'),
@@ -435,6 +456,7 @@ interface SettingsState {
   configuredPlanTargetLabel: string;
   selectedPlanTarget: PlatformName | '';
   selectedPlanTargetLabel: string;
+  planTargetChanged: boolean;
   configuredPlanTargetAvailable: boolean;
   configuredPlanTargetReason: string;
   planLoading: boolean;
@@ -565,19 +587,6 @@ function planTargetOptions(response: SettingsResponse): PlanTargetOption[] {
   }));
 }
 
-function choosePlanTarget(
-  options: PlanTargetOption[],
-  primary: PlatformName | undefined,
-  configured: PlatformName | null,
-): PlatformName | '' {
-  const selectable = options
-    .filter((option) => option.selectable)
-    .map((option) => option.key);
-  if (primary && selectable.includes(primary)) return primary;
-  if (configured && selectable.includes(configured)) return configured;
-  return selectable.length === 1 ? selectable[0] : '';
-}
-
 const initialData: SettingsState = {
   themeClass: getApp<IAppOption>().globalData.themeClass,
   loading: true,
@@ -603,6 +612,7 @@ const initialData: SettingsState = {
   configuredPlanTargetLabel: t('Choose a delivery platform'),
   selectedPlanTarget: '',
   selectedPlanTargetLabel: t('Choose a delivery platform'),
+  planTargetChanged: false,
   configuredPlanTargetAvailable: false,
   configuredPlanTargetReason: '',
   planLoading: true,
@@ -736,15 +746,17 @@ function buildSettingsState(response: SettingsResponse): Partial<SettingsState> 
     : targets.find((target) => target.key === configuredTarget);
   const configuredTargetAvailable =
     configuredOption?.selectable === true;
-  const selectedTarget = choosePlanTarget(
+  const managementState = managedPlanState(config.plan_management);
+  const selectedTarget = planTargetSelection<PlatformName>(
+    managementState,
     targets,
-    config.preferences.activities,
+    null,
+    config.preferences.activities ?? null,
     configuredTarget,
-  );
+  ) ?? '';
   const selectedTargetLabel = selectedTarget
     ? formatPlatform(selectedTarget)
     : t('Choose a delivery platform');
-  const managementState = managedPlanState(config.plan_management);
   const stateCopy = planStateCopy(
     managementState,
     configuredTarget ? formatPlatform(configuredTarget) : selectedTargetLabel,
@@ -771,6 +783,7 @@ function buildSettingsState(response: SettingsResponse): Partial<SettingsState> 
       : t('Choose a delivery platform'),
     selectedPlanTarget: selectedTarget,
     selectedPlanTargetLabel: selectedTargetLabel,
+    planTargetChanged: false,
     configuredPlanTargetAvailable: configuredTargetAvailable,
     configuredPlanTargetReason: configuredOption?.reason ?? '',
     adjustmentEnabled:
@@ -954,7 +967,7 @@ Page({
 
   onPickPlanTarget(event: WechatMiniprogram.TouchEvent) {
     if (
-      this.data.planManagementState !== 'external'
+      this.data.planManagementState === 'active'
       || this.data.planAction
       || this.data.planLoading
     ) {
@@ -970,8 +983,137 @@ Page({
     this.setData({
       selectedPlanTarget: target.key,
       selectedPlanTargetLabel: target.label,
+      planTargetChanged:
+        this.data.planManagementState === 'paused'
+        && target.key !== this.data.configuredPlanTarget,
       planActionError: '',
     });
+  },
+
+  async onSavePlanTarget() {
+    if (
+      this.data.planManagementState !== 'paused'
+      || !this.data.planTargetChanged
+      || this.data.planAction
+      || this.data.planLoading
+    ) {
+      return;
+    }
+    const target = this.data.selectedPlanTarget;
+    const option = this.data.planTargetOptions.find(
+      (candidate) => candidate.key === target && candidate.selectable,
+    );
+    if (!target || !option) return;
+    const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+    let cleanupRequired = false;
+    this.setData({ planAction: 'target', planActionError: '' });
+    try {
+      await apiPut('/api/settings', {
+        plan_management: {
+          execution_target: target,
+          delivery_enabled: false,
+        },
+      } satisfies SettingsUpdate);
+      await this.refetch();
+      wx.showToast({
+        title: tr.targetChanged,
+        icon: 'success',
+        duration: 1800,
+      });
+    } catch (e) {
+      const err = e as Partial<ApiError>;
+      if (err?.code === 'UNAUTHENTICATED') return;
+      cleanupRequired = Boolean(
+        err?.detail?.includes('Remove future Praxys deliveries from'),
+      );
+      if (!cleanupRequired) {
+        this.setData({
+          planActionError: err?.detail ?? tr.targetChangeFailed,
+        });
+      }
+    } finally {
+      this.setData({ planAction: '' });
+    }
+    if (cleanupRequired) this.confirmTargetSwitchCleanup(target);
+  },
+
+  confirmTargetSwitchCleanup(target: PlatformName) {
+    const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+    const currentTarget = this.data.configuredPlanTargetLabel;
+    const nextTarget = formatPlatform(target);
+    wx.showModal({
+      title: tr.switchCleanupTitle,
+      content: [
+        tr.switchCleanupDetail,
+        `${currentTarget} \u2192 ${nextTarget}`,
+        tr.switchCleanupBoundary,
+      ].join('\n\n'),
+      confirmText: tr.removeAndSwitch,
+      cancelText: tr.cancel,
+      success: (result) => {
+        if (result.confirm) void this.cleanupAndSwitchTarget(target);
+      },
+    });
+  },
+
+  async cleanupAndSwitchTarget(target: PlatformName) {
+    if (
+      this.data.planManagementState !== 'paused'
+      || this.data.planAction
+      || this.data.planLoading
+    ) {
+      return;
+    }
+    const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+    let partialCleanup: PlanCleanupResponse | null = null;
+    this.setData({ planAction: 'cleanup', planActionError: '' });
+    try {
+      const cleanup = await this.cleanupFuturePlanDeliveries(
+        'switch_execution_target',
+      );
+      if (cleanup.status === 'partial') {
+        partialCleanup = cleanup;
+        this.setData({
+          planActionError: tr.switchCleanupRemaining
+            .replace('{removed}', String(cleanup.removed_count))
+            .replace('{remaining}', String(cleanup.remaining_count)),
+        });
+      } else {
+        await apiPut('/api/settings', {
+          plan_management: {
+            execution_target: target,
+            delivery_enabled: false,
+          },
+        } satisfies SettingsUpdate);
+        await this.refetch();
+        wx.showToast({
+          title: tr.targetChanged,
+          icon: 'success',
+          duration: 1800,
+        });
+      }
+    } catch (e) {
+      const err = e as Partial<ApiError>;
+      if (err?.code === 'UNAUTHENTICATED') return;
+      this.setData({
+        planActionError: err?.detail ?? tr.targetChangeFailed,
+      });
+    } finally {
+      this.setData({ planAction: '' });
+    }
+    if (partialCleanup) {
+      wx.showModal({
+        title: tr.cleanupIncomplete,
+        content: tr.switchCleanupRemaining
+          .replace('{removed}', String(partialCleanup.removed_count))
+          .replace('{remaining}', String(partialCleanup.remaining_count)),
+        confirmText: tr.retryCleanup,
+        cancelText: tr.done,
+        success: (result) => {
+          if (result.confirm) void this.cleanupAndSwitchTarget(target);
+        },
+      });
+    }
   },
 
   onReviewManagedPlan() {
@@ -1285,10 +1427,14 @@ Page({
     }
   },
 
-  cleanupFuturePlanDeliveries(): Promise<PlanCleanupResponse> {
+  cleanupFuturePlanDeliveries(
+    intent: 'leave_managed_mode' | 'switch_execution_target' =
+      'leave_managed_mode',
+  ): Promise<PlanCleanupResponse> {
+    const cleanupRequest: PlanCleanupRequest = { scope: 'future', intent };
     return apiPost<PlanCleanupResponse>(
       '/api/plan/deliveries/cleanup',
-      { scope: 'future' },
+      cleanupRequest,
     );
   },
 

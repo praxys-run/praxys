@@ -33,6 +33,19 @@ function isLabsMutationError(
   value: unknown,
 ): value is LabsEnvironmentMutationError {
   if (!isRecord(value) || typeof value.code !== 'string') return false;
+  if (value.code === 'adult_eligibility_not_confirmed') {
+    return (
+      typeof value.category === 'string'
+      && typeof value.public_message_key === 'string'
+      && typeof value.required_guardrail === 'string'
+      && typeof value.user_actionable === 'boolean'
+      && typeof value.suggested_action_key === 'string'
+      && typeof value.analysis_stage === 'string'
+      && typeof value.power_regime === 'string'
+      && typeof value.model_version === 'string'
+      && typeof value.correlation_id === 'string'
+    );
+  }
   if (value.code === 'LABS_ENVIRONMENT_PREFLIGHT_INELIGIBLE') {
     return (
       isRecord(value.preflight)
@@ -84,10 +97,18 @@ function buildLabsTr() {
     availablePassedTitle: t('Passed research diagnostics; not a forecast'),
     availablePassedDetail: t('The chronological holdout and sensitivity checks passed, but this personal historical association is still not a clinical claim or future-condition forecast.'),
     curveTitle: t('Your historical environmental-response curve'),
+    partialCurveTitle: t('Your partial historical environmental-response curve'),
     curveDetail: t('Relative modeled heart rate across your observed wet-bulb-proxy range, holding the fitted comparison at a common recorded-power reference.'),
+    partialCurveDetail: t('Relative modeled heart rate is shown only in ranges with enough comparable-power evidence. Unsupported ranges remain blank and are never connected.'),
     curveSeries: t('Relative modeled HR'),
     lowerSeries: t('Lower interval'),
     upperSeries: t('Upper interval'),
+    supportTitle: t('Comparable-power activity support'),
+    supportMinimum: t('minimum 5 per range'),
+    supported: t('Supported'),
+    insufficientSupport: t('Insufficient support'),
+    activitiesUnit: t('activities'),
+    supportExplanation: t('Each activity counts once per range. A qualifying activity needs an accepted stable segment averaging 75–85% of its pre-activity Stryd Critical Power; raw sample points alone do not count.'),
     activities: t('Eligible activities'),
     segments: t('Stable segments'),
     observedRange: t('Observed proxy range'),
@@ -133,6 +154,7 @@ function buildLabsTr() {
     calculatorInside: t('This sits inside your displayed historical range.'),
     calculatorBelow: t('This is below your displayed historical range, so the curve does not extrapolate to it.'),
     calculatorAbove: t('This is above your displayed historical range, so the curve does not extrapolate to it.'),
+    calculatorUnsupported: t('This falls in an unsupported historical range, so it is not marked on the curve.'),
     calculatorBoundary: t('This is a psychrometric estimate—not apparent temperature, outdoor WBGT, body temperature, or a heat-safety assessment.'),
     withdraw: t('Withdraw and delete result'),
     withdrawTitle: t('Withdraw from this experiment?'),
@@ -153,6 +175,7 @@ function buildLabsTr() {
 const REASON_KEYS: Record<string, () => string> = {
   incomplete_export: () => t('The available history could not be analyzed as one complete snapshot.'),
   stale_source_revision: () => t('Your source data changed while this result was being computed.'),
+  stale_model_version: () => t('This result uses an earlier experiment model and needs to be run again.'),
   insufficient_activities: () => t('There are not enough eligible Stryd activities yet.'),
   insufficient_segments: () => t('There are not enough stable, comparable segments yet.'),
   insufficient_environmental_spread: () => t('Your eligible runs do not cover enough different temperature-and-humidity conditions.'),
@@ -226,6 +249,9 @@ function actionErrorDetail(
       ? `${tr.rollingLimitReached} · ${tr.recomputeAvailableAgain}: ${availableAt}`
       : tr.rollingLimitReached;
   }
+  if (detail?.code === 'adult_eligibility_not_confirmed') {
+    return t('Confirm that you are 18 or older to join this experiment.');
+  }
   if (detail?.code === 'LABS_ENVIRONMENT_PREFLIGHT_INELIGIBLE') {
     return t('The quick check found a data requirement that needs attention.');
   }
@@ -273,22 +299,33 @@ function executionPresentation(
 function chartSeries(state: LabsEnvironmentResponseState) {
   const points = state.result?.aggregate_curve_points ?? [];
   const colors = chartColors();
+  const bins = state.result?.eligibility_counts.curve_support_bins ?? [];
+  const pointsByBin = new Map(
+    points.map((point) => [point.support_bin_index, point]),
+  );
+  const values = <K extends 'relative_lower_bpm' | 'relative_hr_bpm' | 'relative_upper_bpm'>(
+    key: K,
+  ) => (
+    bins.length
+      ? bins.map((bin) => pointsByBin.get(bin.bin_index)?.[key] ?? null)
+      : points.map((point) => point[key])
+  );
   return [
     {
       label: t('Lower interval'),
       color: colors.tick,
-      values: points.map((point) => point.relative_lower_bpm),
+      values: values('relative_lower_bpm'),
       dashed: true,
     },
     {
       label: t('Relative modeled HR'),
       color: colors.reasoning,
-      values: points.map((point) => point.relative_hr_bpm),
+      values: values('relative_hr_bpm'),
     },
     {
       label: t('Upper interval'),
       color: colors.tick,
-      values: points.map((point) => point.relative_upper_bpm),
+      values: values('relative_upper_bpm'),
       dashed: true,
     },
   ];
@@ -314,6 +351,8 @@ function deriveState(state: LabsEnvironmentResponseState) {
   const isAvailable =
     state.status === 'available'
     && result?.result_state === 'historical_association_only';
+  const supportBins = counts?.curve_support_bins ?? [];
+  const partialDomain = supportBins.some((bin) => !bin.supported);
   return {
     state,
     hasResponse: true,
@@ -346,6 +385,7 @@ function deriveState(state: LabsEnvironmentResponseState) {
       ? `${observed[0].toFixed(1)}–${observed[1].toFixed(1)} °C`
       : '—',
     observedDomain: observed,
+    displayedDomains: counts?.displayed_wet_bulb_domains_c ?? [],
     slopeDisplay: slope == null
       ? '—'
       : `${slope > 0 ? '+' : ''}${slope.toFixed(2)} bpm/°C`,
@@ -353,7 +393,21 @@ function deriveState(state: LabsEnvironmentResponseState) {
       ? `${Number(interval[0]).toFixed(2)}–${Number(interval[1]).toFixed(2)} bpm/°C`
       : '—',
     modelVersionDisplay: result?.model_version ?? state.model_version,
-    chartDates: result?.aggregate_curve_points.map((point) => `${point.wet_bulb_c.toFixed(1)}°`) ?? [],
+    partialDomain,
+    supportBinsDisplay: supportBins.map((bin) => ({
+      binIndex: bin.bin_index,
+      range: `${bin.lower_wet_bulb_c.toFixed(1)}–${bin.upper_wet_bulb_c.toFixed(1)} °C`,
+      activityCount: bin.reference_power_activity_count,
+      activityUnit: bin.reference_power_activity_count === 1
+        ? t('activity')
+        : tr.activitiesUnit,
+      supported: bin.supported,
+    })),
+    chartDates: supportBins.length
+      ? supportBins.map((bin) => (
+        `${((bin.lower_wet_bulb_c + bin.upper_wet_bulb_c) / 2).toFixed(1)}°`
+      ))
+      : result?.aggregate_curve_points.map((point) => `${point.wet_bulb_c.toFixed(1)}°`) ?? [],
     chartSeries: chartSeries(state),
   };
 }
@@ -398,14 +452,23 @@ Page({
     segmentCountDisplay: '—',
     observedRangeDisplay: '—',
     observedDomain: null as number[] | null,
+    displayedDomains: [] as number[][],
     slopeDisplay: '—',
     intervalDisplay: '—',
     modelVersionDisplay: '',
+    partialDomain: false,
+    supportBinsDisplay: [] as Array<{
+      binIndex: number;
+      range: string;
+      activityCount: number;
+      activityUnit: string;
+      supported: boolean;
+    }>,
     chartDates: [] as string[],
     chartSeries: [] as Array<{
       label: string;
       color: string;
-      values: number[];
+      values: (number | null)[];
       dashed?: boolean;
     }>,
     adultAttested: false,
@@ -679,13 +742,23 @@ Page({
         { temperature_c: temperature, relative_humidity_pct: humidity },
       );
       const domain = this.data.observedDomain;
+      const displayedDomains = this.data.displayedDomains;
       let calculatorPositionText = '';
       if (result.wet_bulb_c != null && domain?.length === 2) {
-        calculatorPositionText = result.wet_bulb_c < domain[0]
-          ? this.data.tr.calculatorBelow
-          : result.wet_bulb_c > domain[1]
-            ? this.data.tr.calculatorAbove
-            : this.data.tr.calculatorInside;
+        const insideDisplayedDomain = displayedDomains.some(
+          (displayedDomain) => (
+            displayedDomain.length === 2
+            && result.wet_bulb_c! >= displayedDomain[0]
+            && result.wet_bulb_c! <= displayedDomain[1]
+          ),
+        );
+        calculatorPositionText = insideDisplayedDomain
+          ? this.data.tr.calculatorInside
+          : result.wet_bulb_c < domain[0]
+            ? this.data.tr.calculatorBelow
+            : result.wet_bulb_c > domain[1]
+              ? this.data.tr.calculatorAbove
+              : this.data.tr.calculatorUnsupported;
       }
       this.setData({ calculatorResult: result, calculatorPositionText });
     } catch (error) {

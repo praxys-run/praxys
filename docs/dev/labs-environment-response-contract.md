@@ -23,16 +23,26 @@ heat-adaptation score, training prescription, or heat-safety assessment.
 3. Compute from a complete owner-scoped snapshot using one verified
    same-provider, same-device/algorithm-era SAMPLE-derived power regime and
    heart-rate segments.
-4. Show the fitted curve only when the prespecified model, provenance, central
-   environmental domain, five support bins, reference-power overlap,
-   uncertainty, sensitivity, and leave-one-activity-out gates pass.
-5. Show activity and segment counts, observed environmental range, uncertainty,
-   model version, and chronological prediction status.
-6. If association stability passes and prediction is evaluated but does not
+4. Under the accepted `sdr-environmental-performance-v3` policy, show fitted
+   points only in prespecified bins that pass the existing activity, segment,
+   and 75–85% CP reference-power floors. At least two adjacent supported bins
+   are required before any section is called a curve.
+5. Leave unsupported bins blank. Never place a modeled value or uncertainty
+   band in them, and never connect supported sections across a gap.
+6. Show activity and segment counts, observed environmental range, uncertainty,
+   model version, chronological prediction status, and per-bin support.
+7. If association stability passes and prediction is evaluated but does not
    pass, label the result
    **Historical association; not predictively validated**.
-7. If prediction is unavailable or unevaluable, withhold the fitted line.
-8. Let the user withdraw and delete the derived result.
+8. If prediction is unavailable or unevaluable, withhold the fitted line.
+9. Let the user withdraw and delete the derived result.
+
+The per-bin aggregate diagnostic funnel records activities in the environmental
+bin, activities with any valid 75–85% CP sample, activities with at least 180
+seconds of continuous band coverage, activities with an accepted stable
+segment mean in the band, activities retained in the chronological training
+partition, and the final distinct reference-power activity count. Counts are
+aggregate-only; activity identities and samples never enter the result payload.
 
 ## Curve meaning
 
@@ -103,7 +113,7 @@ The initial reason taxonomy includes:
 
 - incomplete export or stale source revision;
 - insufficient eligible activities, segments, environmental spread, holdout,
-  curve-bin support, or reference-power overlap;
+  or a two-bin contiguous supported section;
 - missing continuous sample power;
 - missing continuous heart-rate samples;
 - missing activity temperature;

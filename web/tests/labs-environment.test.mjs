@@ -26,15 +26,60 @@ test('web Labs covers consent, result, calculator, and withdrawal states', async
   assert.match(page, /adult_attested: adultAttested/);
   assert.match(page, /consent_version: state\.consent_version/);
   assert.match(page, /environment-response\/preflight/);
+  assert.match(page, /adult_eligibility_not_confirmed/);
   assert.match(page, /consent_version_stale/);
+  assert.match(page, /onRetryPreflight/);
   assert.match(page, /Enough source data to attempt the experiment/);
   assert.match(page, /historical_association_only/);
   assert.match(page, /Historical association; not predictively validated/);
+  assert.match(page, /one="# activity"/);
   assert.match(page, /environment-response\/wet-bulb/);
   assert.match(page, /Withdraw and delete result/);
   assert.match(page, /ScienceNote/);
   assert.match(main, /vite:preloadError/);
+  assert.match(main, /PRELOAD_RELOAD_WINDOW_MS/);
+  assert.doesNotMatch(
+    main,
+    /addEventListener\('load', \(\) => \{\s*sessionStorage\.removeItem/,
+  );
   assert.match(app, /RouteChunkSkeleton/);
+  assert.match(app, /LabsRouteBoundary/);
+  assert.match(app, /Reload Labs/);
+});
+
+test('stale Labs chunks reload once instead of looping', async () => {
+  const {
+    PRELOAD_RELOAD_WINDOW_MS,
+    isActivePreloadReload,
+    parsePreloadReloadMarker,
+  } = await import('../src/lib/preload-recovery.ts');
+  const attemptedAt = 1_000;
+  const marker = parsePreloadReloadMarker(JSON.stringify({
+    pathname: '/labs/environment-response',
+    attemptedAt,
+  }));
+
+  assert.equal(
+    isActivePreloadReload(
+      marker,
+      '/labs/environment-response',
+      attemptedAt + 1,
+    ),
+    true,
+  );
+  assert.equal(
+    isActivePreloadReload(
+      marker,
+      '/labs/environment-response',
+      attemptedAt + PRELOAD_RELOAD_WINDOW_MS,
+    ),
+    false,
+  );
+  assert.equal(
+    isActivePreloadReload(marker, '/labs', attemptedAt + 1),
+    false,
+  );
+  assert.equal(parsePreloadReloadMarker('not-json'), null);
 });
 
 test('miniapp Labs preserves the web experiment lifecycle', async () => {
@@ -56,11 +101,13 @@ test('miniapp Labs preserves the web experiment lifecycle', async () => {
   assert.match(controller, /adult_attested: true/);
   assert.match(controller, /consent_version:/);
   assert.match(controller, /environment-response\/preflight/);
+  assert.match(controller, /adult_eligibility_not_confirmed/);
   assert.match(controller, /consent_version_stale/);
   assert.match(controller, /environment-response\/recompute/);
   assert.match(controller, /environment-response\/wet-bulb/);
   assert.match(controller, /provider_alignment_requires_full_analysis/);
   assert.match(controller, /recompute\.retry_after_seconds/);
+  assert.match(controller, /activityUnit: bin\.reference_power_activity_count === 1/);
   assert.match(controller, /retryDelayMs/);
   assert.match(controller, /\['queued', 'dispatched', 'processing', 'retrying'\]/);
   assert.match(controller, /LABS_ENVIRONMENT_NOT_ENROLLED/);
@@ -83,6 +130,7 @@ test('web and miniapp share the strict Labs API contract', async () => {
     'interface LabsEnvironmentResponseState',
     'interface LabsEnvironmentPreflightResponse',
     'type LabsEnvironmentMutationError',
+    "'adult_eligibility_not_confirmed'",
     'interface LabsEnvironmentResult',
     'interface LabsEnvironmentWetBulbResponse',
     "'historical_association_only'",

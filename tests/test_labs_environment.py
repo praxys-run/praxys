@@ -105,8 +105,10 @@ def labs_client(monkeypatch):
 
 
 def _aggregate_result() -> dict:
+    from analysis.environment_response import LABS_ENVIRONMENT_MODEL_VERSION
+
     return {
-        "model_version": "within-athlete-ridge-mean-hr-v1-labs-v1",
+        "model_version": LABS_ENVIRONMENT_MODEL_VERSION,
         "power_regime": "stryd_continuous_samples",
         "result_state": "historical_association_only",
         "prediction_status": "failed_research_diagnostics",
@@ -130,6 +132,8 @@ def _aggregate_result() -> dict:
                 "relative_lower_bpm": 0.0,
                 "relative_upper_bpm": 0.0,
                 "reference_wet_bulb_c": 20.0,
+                "support_bin_index": 0,
+                "section_index": 0,
             },
         ],
         "aggregate_uncertainty": {
@@ -849,6 +853,56 @@ def test_preflight_loader_breaks_on_explicit_invalid_samples(
     assert counts["complete_stryd_activity_count"] == 0
 
 
+def test_preflight_loader_avoids_postgresql_reserved_window_alias() -> None:
+    """The eligibility query must compile on PostgreSQL, not only SQLite."""
+    import re
+
+    from analysis.data_loader import load_environment_response_preflight_counts
+    from analysis.heat_response_validation import HeatValidationConfig
+
+    class _CapturedResult:
+        def mappings(self):
+            return self
+
+        def one(self):
+            return {
+                "candidate_activity_count": 0,
+                "temperature_activity_count": 0,
+                "humidity_activity_count": 0,
+                "environment_activity_count": 0,
+                "power_activity_count": 0,
+                "heart_rate_activity_count": 0,
+                "complete_any_provider_activity_count": 0,
+                "stryd_power_activity_count": 0,
+                "complete_stryd_activity_count": 0,
+                "provider_aligned_cp_activity_count": 0,
+            }
+
+    class _CapturingSession:
+        statement = ""
+
+        def execute(self, statement, _parameters):
+            self.statement = str(statement)
+            return _CapturedResult()
+
+    db = _CapturingSession()
+    load_environment_response_preflight_counts(
+        "owner",
+        db,  # type: ignore[arg-type]
+        eligible_activity_types=HeatValidationConfig().eligible_activity_types,
+        minimum_segment_duration_sec=180.0,
+        maximum_sample_interval_sec=5.0,
+        minimum_heart_rate_coverage_ratio=0.8,
+        maximum_power_watts=2500.0,
+    )
+
+    assert " AS window " not in db.statement
+    assert re.search(r"\bwindow\.", db.statement) is None
+    assert "candidate_window." in db.statement
+    assert "MAX(block.block_start_sec, MIN(" not in db.statement
+    assert "MIN(        candidate_window.window_start_sec" not in db.statement
+
+
 def test_wet_bulb_calculator_uses_versioned_stull_method(labs_client) -> None:
     client, _, _ = labs_client
 
@@ -1297,7 +1351,7 @@ def test_worker_cancels_queued_job_from_an_old_model(
         assert job.status == "cancelled"
         assert job.failure_code == "model_version_mismatch"
         assert row.status == "stale"
-        assert row.availability_reason["code"] == "model_version_mismatch"
+        assert row.availability_reason["code"] == "stale_model_version"
     assert outcome.outcome == "cancelled"
 
 
@@ -1339,7 +1393,7 @@ def test_worker_withholds_aggregate_from_an_unexpected_model(
             (user_id, labs_environment.EXPERIMENT_ID),
         )
         assert row.status == "stale"
-        assert row.availability_reason["code"] == "model_version_mismatch"
+        assert row.availability_reason["code"] == "stale_model_version"
         assert db.get(
             LabsExperimentResult,
             (user_id, labs_environment.EXPERIMENT_ID),
@@ -1387,7 +1441,7 @@ def test_public_state_hides_aggregate_from_an_old_model(
         state = labs_environment.public_state(db, user_id)
 
     assert state["status"] == "stale"
-    assert state["availability_reason"]["code"] == "model_version_mismatch"
+    assert state["availability_reason"]["code"] == "stale_model_version"
     assert state["result"] is None
 
 
@@ -1738,6 +1792,8 @@ def test_worker_locks_delivery_before_database_initialization(
 ) -> None:
     from api import labs_worker
 
+    events: list[str] = []
+
     class Message:
         body = [b"72bc9e44-5baa-4b45-9a7d-57a7427d9ef4"]
 
@@ -1751,6 +1807,7 @@ def test_worker_locks_delivery_before_database_initialization(
             return None
 
         def receive_messages(self, **_kwargs: object) -> list[Message]:
+            events.append("receive")
             return [Message()]
 
         def abandon_message(self, _message: Message) -> None:
@@ -1784,6 +1841,7 @@ def test_worker_locks_delivery_before_database_initialization(
             _receiver: Receiver,
             _message: Message,
         ) -> None:
+            events.append("lock")
             return None
 
         def close(self) -> None:
@@ -1794,12 +1852,15 @@ def test_worker_locks_delivery_before_database_initialization(
     service_bus_module.ServiceBusClient = Client
     monkeypatch.setitem(sys.modules, "azure.servicebus", service_bus_module)
     monkeypatch.setattr(labs_worker, "_azure_credential", object)
+
+    def fail_database_initialization() -> None:
+        events.append("database")
+        raise RuntimeError("sensitive-database-detail")
+
     monkeypatch.setattr(
         labs_worker,
         "_initialize_database",
-        lambda: (_ for _ in ()).throw(
-            RuntimeError("sensitive-database-detail")
-        ),
+        fail_database_initialization,
     )
     monkeypatch.setenv("PRAXYS_LABS_EXECUTION_MODE", "service_bus")
     monkeypatch.setenv(
@@ -1813,7 +1874,138 @@ def test_worker_locks_delivery_before_database_initialization(
 
     assert labs_worker.run_once() is True
     assert receiver.action == "abandoned"
+    assert events == ["receive", "lock", "database"]
     assert "sensitive-database-detail" not in caplog.text
+
+
+def test_worker_startup_check_initializes_database_without_receiving(
+    monkeypatch,
+) -> None:
+    from api import labs_worker
+
+    events: list[str] = []
+    monkeypatch.setenv("PRAXYS_SKIP_MIGRATIONS", "false")
+    monkeypatch.setenv("PRAXYS_HIDE_SQL_PARAMETERS", "false")
+    monkeypatch.setattr(
+        labs_worker,
+        "_configure_telemetry",
+        lambda: events.append("telemetry"),
+    )
+    monkeypatch.setattr(
+        labs_worker,
+        "_initialize_database",
+        lambda: events.append("database"),
+    )
+    monkeypatch.setattr(
+        labs_worker,
+        "_verify_database_connection",
+        lambda: events.append("verify"),
+    )
+    monkeypatch.setattr(
+        labs_worker,
+        "run_once",
+        lambda: pytest.fail("startup check must not receive a queue message"),
+    )
+
+    assert labs_worker.main(["--startup-check"]) == 0
+    assert events == ["telemetry", "database", "verify"]
+
+
+def test_worker_database_verification_checks_exact_grants(
+    monkeypatch,
+) -> None:
+    from api import labs_worker, labs_worker_permissions
+    from db import session as db_session
+
+    checked: list[object] = []
+
+    class Database:
+        def __enter__(self) -> "Database":
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+    database = Database()
+    monkeypatch.setattr(
+        db_session,
+        "SessionLocal",
+        lambda: database,
+    )
+    monkeypatch.setattr(
+        labs_worker_permissions,
+        "verify_labs_worker_grants",
+        lambda db: checked.append(db),
+    )
+
+    labs_worker._verify_database_connection()
+
+    assert checked == [database]
+
+
+def test_backend_deploy_supports_manual_cutover() -> None:
+    import yaml
+
+    workflow_path = (
+        Path(__file__).parents[1]
+        / ".github"
+        / "workflows"
+        / "deploy-backend.yml"
+    )
+    workflow = yaml.load(
+        workflow_path.read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+
+    assert "workflow_dispatch" in workflow["on"]
+    runbook = (
+        Path(__file__).parents[1]
+        / "docs"
+        / "ops"
+        / "labs-analysis-worker.md"
+    ).read_text(encoding="utf-8")
+    assert "scripts/start_labs_worker_check.py" in runbook
+
+
+def test_startup_check_override_preserves_live_job_configuration() -> None:
+    from scripts.start_labs_worker_check import (
+        build_startup_check_template,
+    )
+
+    template = {
+        "containers": [{
+            "name": "labs-worker",
+            "image": "ghcr.io/praxys-run/praxys-labs-worker:sha",
+            "env": [
+                {
+                    "name": "PRAXYS_DATABASE_URL",
+                    "secretRef": "database-url",
+                },
+            ],
+            "resources": {"cpu": 1, "memory": "2Gi"},
+        }],
+        "volumes": [{"name": "unchanged"}],
+    }
+
+    startup_template = build_startup_check_template(
+        template,
+        container_name="labs-worker",
+    )
+
+    assert startup_template["containers"][0]["command"] == ["python"]
+    assert startup_template["containers"][0]["args"] == [
+        "-m",
+        "api.labs_worker",
+        "--startup-check",
+    ]
+    assert startup_template["containers"][0]["env"] == (
+        template["containers"][0]["env"]
+    )
+    assert startup_template["containers"][0]["resources"] == (
+        template["containers"][0]["resources"]
+    )
+    assert startup_template["volumes"] == template["volumes"]
+    assert "command" not in template["containers"][0]
 
 
 def test_worker_sqlalchemy_engine_hides_parameters(monkeypatch) -> None:

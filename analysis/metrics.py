@@ -1175,6 +1175,7 @@ def compute_load_compliance_pct(
 ACTIVITY_ANALYSIS_SCHEMA_VERSION = "activity-analysis-v1"
 ACTIVITY_RESEARCH_SCHEMA_VERSION = "activity-research-dataset-v1"
 STABLE_SEGMENT_MODEL_VERSION = "stable-power-segments-v3"
+REFERENCE_POWER_SUPPORT_MODEL_VERSION = "reference-power-support-v1"
 PRE_ACTIVITY_LOAD_MODEL_VERSION = "banister-pmc-causal-v2"
 ENVIRONMENT_CONTEXT_MODEL_VERSION = "environmental-performance-context-v2"
 ENVIRONMENT_CONTEXT_SCIENCE_DECISION_ID = (
@@ -1253,6 +1254,117 @@ _SEGMENT_MIN_HR_COVERAGE = 0.80
 ENVIRONMENT_RESPONSE_SAMPLE_MAX_INTERVAL_SEC = _SEGMENT_MAX_SAMPLE_GAP_SEC
 ENVIRONMENT_RESPONSE_MINIMUM_HR_COVERAGE = _SEGMENT_MIN_HR_COVERAGE
 ENVIRONMENT_RESPONSE_MAX_POWER_WATTS = _SEGMENT_MAX_POWER_WATTS
+
+
+def summarize_reference_power_support(
+    samples: pd.DataFrame,
+    stable_segments: dict,
+    *,
+    cp_watts: float | None,
+    cp_power_provider: str | None,
+    minimum_pct_cp: float = 75.0,
+    maximum_pct_cp: float = 85.0,
+    minimum_continuous_duration_sec: float = _SEGMENT_MIN_DURATION_SEC,
+) -> dict:
+    """Summarize activity-level comparable-power support without raw output.
+
+    This diagnostic separates any valid sample in the reference-power band
+    from continuous coverage and from an accepted stable segment whose mean is
+    in the band. The thresholds are Praxys product guardrails governed by the
+    accepted ``sdr-environmental-performance-v3`` decision, not physiological
+    constants.
+    """
+    cp = _activity_analysis_number(cp_watts)
+    provider = (
+        str(cp_power_provider).strip().casefold()
+        if cp_power_provider and str(cp_power_provider).strip()
+        else None
+    )
+    frame = samples.copy() if samples is not None else pd.DataFrame()
+    for column in ("t_sec", "power_watts", "source"):
+        if column not in frame.columns:
+            frame[column] = pd.NA
+    frame["t_sec"] = pd.to_numeric(frame["t_sec"], errors="coerce")
+    frame["power_watts"] = pd.to_numeric(
+        frame["power_watts"],
+        errors="coerce",
+    )
+    frame["source"] = frame["source"].map(
+        lambda value: (
+            str(value).strip().casefold()
+            if pd.notna(value) and str(value).strip()
+            else None
+        )
+    )
+    frame = (
+        frame[np.isfinite(frame["t_sec"]) & frame["t_sec"].notna()]
+        .sort_values("t_sec", kind="stable")
+        .drop_duplicates(subset=["t_sec"], keep="first")
+        .reset_index(drop=True)
+    )
+
+    any_valid_sample = False
+    continuous_coverage = False
+    if cp is not None and cp > 0 and provider is not None and not frame.empty:
+        power = frame["power_watts"]
+        valid = (
+            power.notna()
+            & np.isfinite(power)
+            & power.gt(0)
+            & power.le(_SEGMENT_MAX_POWER_WATTS)
+            & frame["source"].eq(provider)
+        )
+        pct_cp = power.div(cp).mul(100.0)
+        in_band = valid & pct_cp.between(
+            minimum_pct_cp,
+            maximum_pct_cp,
+            inclusive="both",
+        )
+        any_valid_sample = bool(in_band.any())
+        if any_valid_sample:
+            selected = frame.loc[in_band, ["t_sec"]].copy()
+            selected["_position"] = np.flatnonzero(in_band.to_numpy())
+            selected["_break"] = (
+                selected["_position"].diff().fillna(1).ne(1)
+                | selected["t_sec"].diff().fillna(1).gt(
+                    _SEGMENT_MAX_SAMPLE_GAP_SEC
+                )
+            )
+            selected["_block"] = selected["_break"].cumsum()
+            continuous_coverage = any(
+                float(block["t_sec"].iloc[-1] - block["t_sec"].iloc[0])
+                >= minimum_continuous_duration_sec
+                for _, block in selected.groupby("_block", sort=False)
+            )
+
+    accepted_stable_segment = False
+    for segment in stable_segments.get("segments", []):
+        mean_pct_cp = _activity_analysis_number(segment.get("mean_pct_cp"))
+        segment_provider = (
+            str(segment.get("power_provider")).strip().casefold()
+            if segment.get("power_provider")
+            and str(segment.get("power_provider")).strip()
+            else None
+        )
+        if (
+            segment.get("source") == "samples"
+            and not segment.get("reason_codes")
+            and mean_pct_cp is not None
+            and minimum_pct_cp <= mean_pct_cp <= maximum_pct_cp
+            and provider is not None
+            and segment_provider == provider
+        ):
+            accepted_stable_segment = True
+            break
+
+    return {
+        "model_version": REFERENCE_POWER_SUPPORT_MODEL_VERSION,
+        "reference_power_pct_cp": [minimum_pct_cp, maximum_pct_cp],
+        "minimum_continuous_duration_sec": minimum_continuous_duration_sec,
+        "any_valid_sample_point": any_valid_sample,
+        "minimum_continuous_coverage": continuous_coverage,
+        "accepted_stable_segment_mean": accepted_stable_segment,
+    }
 
 
 def _activity_analysis_number(value: object) -> float | None:

@@ -42,6 +42,7 @@ from analysis.metrics import (
     HEAT_LOOKBACK_DAYS,
     HEAT_SAMPLE_MAX_INTERVAL_SEC,
     PRE_ACTIVITY_LOAD_MODEL_VERSION,
+    REFERENCE_POWER_SUPPORT_MODEL_VERSION,
     STABLE_SEGMENT_MODEL_VERSION,
     compute_heat_adaptation,
     compute_distribution_match_pct,
@@ -52,6 +53,7 @@ from analysis.metrics import (
     derive_stable_power_segments,
     get_distance_config,
     project_tsb,
+    summarize_reference_power_support,
 )
 from analysis.providers.models import ThresholdEstimate
 from analysis.science import load_active_science
@@ -1480,6 +1482,7 @@ def _build_activity_analysis_record(
         str,
         tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
     ],
+    include_private_labs_support: bool = False,
 ) -> dict:
     """Build one owner-scoped, analysis-ready activity record."""
     activity_id = str(activity_row["activity_id"])
@@ -1518,7 +1521,7 @@ def _build_activity_analysis_record(
         cp_power_provider=cp_power_provider,
         activity_provider=activity_view.get("source"),
     )
-    return {
+    record = {
         "activity": activity_view,
         "stable_segments": segments,
         "pre_activity_context": {
@@ -1539,6 +1542,14 @@ def _build_activity_analysis_record(
             ),
         },
     }
+    if include_private_labs_support:
+        record["reference_power_support"] = summarize_reference_power_support(
+            sample_frame,
+            segments,
+            cp_watts=cp_watts,
+            cp_power_provider=cp_power_provider,
+        )
+    return record
 
 
 def _analysis_versions(records: list[dict]) -> dict:
@@ -1553,6 +1564,7 @@ def _analysis_versions(records: list[dict]) -> dict:
     })
     return {
         "stable_segments": STABLE_SEGMENT_MODEL_VERSION,
+        "reference_power_support": REFERENCE_POWER_SUPPORT_MODEL_VERSION,
         "environment": ENVIRONMENT_CONTEXT_MODEL_VERSION,
         "pre_activity_load": PRE_ACTIVITY_LOAD_MODEL_VERSION,
         "heat_adaptation": heat_versions,
@@ -1565,6 +1577,7 @@ def get_analysis_response_version(schema_version: str) -> str:
         "schema_version": schema_version,
         "model_versions": {
             "stable_segments": STABLE_SEGMENT_MODEL_VERSION,
+            "reference_power_support": REFERENCE_POWER_SUPPORT_MODEL_VERSION,
             "environment": ENVIRONMENT_CONTEXT_MODEL_VERSION,
             "pre_activity_load": PRE_ACTIVITY_LOAD_MODEL_VERSION,
             "heat_adaptation": [HEAT_ADAPTATION_MODEL_VERSION],
@@ -1637,6 +1650,7 @@ def get_activity_research_pack(
     limit: int = 20,
     offset: int = 0,
     source: str | None = None,
+    include_private_labs_support: bool = False,
 ) -> dict:
     """Build a bounded, versioned retrospective activity research dataset."""
     if (
@@ -1674,6 +1688,7 @@ def get_activity_research_pack(
             samples=samples,
             coverage=coverage,
             heat_frames=heat_frames,
+            include_private_labs_support=include_private_labs_support,
         )
         for _, row in activities.iterrows()
     ]

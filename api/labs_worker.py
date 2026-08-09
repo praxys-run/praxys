@@ -1,6 +1,7 @@
 """One-message Azure Service Bus worker for isolated Labs analysis."""
 from __future__ import annotations
 
+import argparse
 import logging
 import os
 from typing import Any
@@ -46,6 +47,23 @@ def _initialize_database() -> None:
     from db.session import init_db
 
     init_db()
+
+
+def _verify_database_connection() -> None:
+    from db import session as db_session
+    from api.labs_worker_permissions import verify_labs_worker_grants
+
+    if db_session.SessionLocal is None:
+        raise RuntimeError("Labs worker database session was not initialized")
+    with db_session.SessionLocal() as db:
+        verify_labs_worker_grants(db)
+
+
+def startup_check() -> None:
+    """Verify worker database startup without receiving a queue delivery."""
+    _initialize_database()
+    _verify_database_connection()
+    logger.info("Labs worker startup check completed")
 
 
 def process_environment_response_job(
@@ -150,8 +168,15 @@ def run_once() -> bool:
     return True
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     """Initialize the worker runtime and process one message."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--startup-check",
+        action="store_true",
+        help="Verify database initialization without receiving a queue message",
+    )
+    args = parser.parse_args(argv)
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
@@ -159,6 +184,16 @@ def main() -> int:
     os.environ["PRAXYS_SKIP_MIGRATIONS"] = "true"
     os.environ["PRAXYS_HIDE_SQL_PARAMETERS"] = "true"
     _configure_telemetry()
+    if args.startup_check:
+        try:
+            startup_check()
+        except Exception as exc:
+            logger.error(
+                "Labs worker startup check failed failure_class=%s",
+                type(exc).__name__,
+            )
+            return 1
+        return 0
     run_once()
     return 0
 
