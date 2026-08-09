@@ -221,7 +221,8 @@
 }
 
 .managed-plan__adjustment-title,
-.managed-plan__adjustment-detail {
+.managed-plan__adjustment-detail,
+.managed-plan__adjustment-context {
   display: block;
 }
 
@@ -235,6 +236,13 @@
 .managed-plan__adjustment-detail {
   margin-top: 5rpx;
   color: var(--text-muted);
+  font-size: 19rpx;
+  line-height: 1.45;
+}
+
+.managed-plan__adjustment-context {
+  margin-top: 7rpx;
+  color: var(--accent-cobalt);
   font-size: 19rpx;
   line-height: 1.45;
 }

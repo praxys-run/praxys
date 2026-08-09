@@ -52,6 +52,7 @@ import {
   shiftAthletePlanDate,
   type ManagedPlanState,
 } from '@/lib/plan';
+import { personalContextEvidenceIds } from '@/lib/personal-context';
 import type {
   PlanReconciliation,
   PlanMutationErrorCode,
@@ -1289,6 +1290,9 @@ export default function UpcomingPlanCard() {
     ),
   ) ?? data.workouts.find((workout) => workout.external_overlap);
   const latestAdjustment = data.adjustments?.[0];
+  const latestAdjustmentContextIds = latestAdjustment
+    ? personalContextEvidenceIds(latestAdjustment.evidence)
+    : [];
   const editorWorkout = editor?.mode === 'edit' ? editor.workout : null;
   const minimumDate = data.management?.minimum_date ?? localDay;
   const defaultEditorDate = data.window.start < minimumDate
@@ -1467,6 +1471,20 @@ export default function UpcomingPlanCard() {
                   {' \u00b7 '}
                   <Trans>Current HRV crossed your personal caution band.</Trans>
                 </p>
+                {latestAdjustmentContextIds.length > 0 && (
+                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                    <Trans>
+                      This change used confirmed private context. The private
+                      detail is not copied into the plan record.
+                    </Trans>{' '}
+                    <a
+                      href="#plan-context"
+                      className="font-medium text-accent-cobalt underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <Trans>Inspect context</Trans>
+                    </a>
+                  </p>
+                )}
               </div>
               {latestAdjustment.can_undo && canWrite && (
                 <Button

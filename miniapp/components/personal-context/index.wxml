@@ -1,0 +1,550 @@
+<view class="private-context">
+  <view class="private-context__header">
+    <view class="private-context__heading">
+      <view class="private-context__lock" aria-hidden="true">◇</view>
+      <view>
+        <text class="private-context__title">{{tr.title}}</text>
+        <text class="private-context__description">{{tr.description}}</text>
+      </view>
+    </view>
+    <button
+      class="private-context__manage"
+      bindtap="onOpenManage"
+    >{{tr.manage}}</button>
+  </view>
+
+  <view class="private-context__actions">
+    <button
+      class="private-context__action private-context__action--primary"
+      bindtap="onAddAvailability"
+    >{{tr.addAvailability}}</button>
+    <button
+      class="private-context__action"
+      bindtap="onExplainWorkout"
+    >{{tr.explainWorkout}}</button>
+  </view>
+
+  <text wx:if="{{notice}}" class="private-context__notice">{{notice}}</text>
+
+  <view wx:if="{{loading}}" class="private-context__loading">
+    <view class="ts-skeleton private-context__skeleton"></view>
+    <view class="ts-skeleton private-context__skeleton private-context__skeleton--short"></view>
+  </view>
+
+  <view wx:elif="{{errorMessage}}" class="private-context__error" role="alert">
+    <text>{{tr.loadFailed}}</text>
+    <button class="private-context__retry" bindtap="onRetry">{{tr.retry}}</button>
+  </view>
+
+  <view wx:elif="{{!hasItems}}" class="private-context__empty">
+    <text class="private-context__empty-title">{{tr.emptyTitle}}</text>
+    <text class="private-context__empty-detail">{{tr.emptyDetail}}</text>
+  </view>
+
+  <view wx:else class="private-context__items">
+    <view
+      wx:for="{{items}}"
+      wx:key="id"
+      class="private-context__item"
+      hover-class="private-context__item--pressed"
+      data-id="{{item.id}}"
+      bindtap="onInspect"
+      aria-role="button"
+    >
+      <view class="private-context__item-copy">
+        <view class="private-context__item-heading">
+          <text class="private-context__item-title">{{item.category}}</text>
+          <text class="private-context__state">{{item.state}}</text>
+        </view>
+        <text class="private-context__item-meta">
+          {{item.kind}} · {{item.expiry}} · {{item.ai}}
+        </text>
+      </view>
+      <text class="private-context__chevron" aria-hidden="true">›</text>
+    </view>
+  </view>
+
+  <text class="private-context__boundary">{{tr.privacyBoundary}}</text>
+</view>
+
+<view
+  wx:if="{{sheetOpen}}"
+  class="private-context__backdrop"
+  bindtap="onCloseSheet"
+  catchtouchmove="stopPropagation"
+  aria-role="dialog"
+  aria-modal="true"
+  aria-label="{{sheetTitle}}"
+>
+  <view class="private-context__sheet" catchtap="stopPropagation">
+    <view class="private-context__handle" aria-hidden="true"></view>
+    <view class="private-context__sheet-header">
+      <button
+        wx:if="{{screen !== 'home'}}"
+        class="private-context__back"
+        disabled="{{working}}"
+        bindtap="onBack"
+      >{{tr.back}}</button>
+      <text class="private-context__sheet-title">{{sheetTitle}}</text>
+      <button
+        class="private-context__close"
+        disabled="{{working}}"
+        bindtap="onCloseSheet"
+      >{{tr.close}}</button>
+    </view>
+
+    <scroll-view scroll-y="{{true}}" class="private-context__sheet-scroll">
+      <view class="private-context__sheet-body">
+        <block wx:if="{{screen === 'home'}}">
+          <view class="private-context__sheet-actions">
+            <button
+              class="private-context__action private-context__action--primary"
+              disabled="{{working}}"
+              bindtap="onAddAvailability"
+            >{{tr.addAvailability}}</button>
+            <button
+              class="private-context__action"
+              disabled="{{working}}"
+              bindtap="onExplainWorkout"
+            >{{tr.explainWorkout}}</button>
+          </view>
+
+          <view wx:if="{{hasItems}}" class="private-context__items private-context__items--sheet">
+            <view
+              wx:for="{{items}}"
+              wx:key="id"
+              class="private-context__item"
+              hover-class="private-context__item--pressed"
+              data-id="{{item.id}}"
+              bindtap="onInspect"
+              aria-role="button"
+            >
+              <view class="private-context__item-copy">
+                <view class="private-context__item-heading">
+                  <text class="private-context__item-title">{{item.category}}</text>
+                  <text class="private-context__state">{{item.state}}</text>
+                </view>
+                <text class="private-context__item-meta">
+                  {{item.kind}} · {{item.expiry}} · {{item.ai}}
+                </text>
+              </view>
+              <text class="private-context__chevron" aria-hidden="true">›</text>
+            </view>
+          </view>
+
+          <view wx:else class="private-context__empty private-context__empty--sheet">
+            <text class="private-context__empty-title">{{tr.emptyTitle}}</text>
+            <text class="private-context__empty-detail">{{tr.emptyDetail}}</text>
+          </view>
+
+          <button
+            class="private-context__export"
+            disabled="{{working}}"
+            bindtap="onExport"
+          >{{tr.export}}</button>
+        </block>
+
+        <block wx:elif="{{screen === 'compose'}}">
+          <view wx:if="{{draft.kind === 'execution_explanation'}}" class="private-context__field">
+            <text class="private-context__label">{{tr.workout}}</text>
+            <picker
+              range="{{workoutLabels}}"
+              value="{{workoutIndex}}"
+              disabled="{{working || !workoutLabels.length}}"
+              bindchange="onWorkoutChange"
+            >
+              <view class="private-context__picker">
+                {{workoutLabels.length ? workoutLabels[workoutIndex] : tr.chooseWorkout}}
+                <text aria-hidden="true">⌄</text>
+              </view>
+            </picker>
+            <text wx:if="{{!workoutLabels.length}}" class="private-context__hint">
+              {{tr.noRecentWorkout}}
+            </text>
+          </view>
+
+          <view wx:if="{{draft.kind === 'execution_explanation'}}" class="private-context__field">
+            <text class="private-context__label">{{tr.whatHappened}}</text>
+            <view class="private-context__segmented">
+              <button
+                class="private-context__segment {{draft.workoutStatus === 'missed' ? 'private-context__segment--selected' : ''}}"
+                data-status="missed"
+                bindtap="onWorkoutStatus"
+              >{{tr.missed}}</button>
+              <button
+                class="private-context__segment {{draft.workoutStatus === 'modified' ? 'private-context__segment--selected' : ''}}"
+                data-status="modified"
+                bindtap="onWorkoutStatus"
+              >{{tr.modified}}</button>
+            </view>
+          </view>
+
+          <view class="private-context__field">
+            <text class="private-context__label">{{tr.category}}</text>
+            <picker
+              range="{{categoryLabels}}"
+              value="{{categoryIndex}}"
+              disabled="{{working}}"
+              bindchange="onCategoryChange"
+            >
+              <view class="private-context__picker">
+                {{categoryLabels[categoryIndex]}}
+                <text aria-hidden="true">⌄</text>
+              </view>
+            </picker>
+            <text
+              wx:if="{{draft.category === 'prefer_not_to_say'}}"
+              class="private-context__hint"
+            >{{tr.preferUnknown}}</text>
+          </view>
+
+          <view wx:if="{{safetySelected}}" class="private-context__safety">
+            <text>{{tr.safety}}</text>
+          </view>
+
+          <block wx:if="{{draft.kind === 'temporary_constraint'}}">
+            <view class="private-context__date-grid">
+              <view class="private-context__field">
+                <text class="private-context__label">{{tr.starts}}</text>
+                <picker
+                  mode="date"
+                  value="{{draft.startDate}}"
+                  disabled="{{working}}"
+                  bindchange="onStartDate"
+                >
+                  <view class="private-context__picker ts-value">{{draft.startDate}}</view>
+                </picker>
+              </view>
+              <view class="private-context__field">
+                <text class="private-context__label">{{tr.ends}}</text>
+                <picker
+                  mode="date"
+                  value="{{draft.endDate}}"
+                  start="{{draft.startDate}}"
+                  end="{{maximumEndDate}}"
+                  disabled="{{working}}"
+                  bindchange="onEndDate"
+                >
+                  <view class="private-context__picker ts-value">{{draft.endDate}}</view>
+                </picker>
+              </view>
+            </view>
+
+            <view class="private-context__field">
+              <text class="private-context__label">
+                {{tr.maximumMinutes}} {{tr.optional}}
+              </text>
+              <input
+                class="private-context__input ts-value"
+                type="number"
+                value="{{draft.maximumMinutes}}"
+                disabled="{{working}}"
+                bindinput="onMaximumMinutes"
+              />
+            </view>
+
+            <view class="private-context__field">
+              <text class="private-context__label">{{tr.affectedWeekdays}}</text>
+              <view class="private-context__chips">
+                <button
+                  wx:for="{{weekdays}}"
+                  wx:key="value"
+                  class="private-context__chip {{item.selected ? 'private-context__chip--selected' : ''}}"
+                  data-group="weekdays"
+                  data-value="{{item.value}}"
+                  bindtap="onToggleChoice"
+                >{{item.label}}</button>
+              </view>
+            </view>
+
+            <view wx:if="{{showEquipment}}" class="private-context__field">
+              <text class="private-context__label">{{tr.equipmentAvailable}}</text>
+              <view class="private-context__chips">
+                <button
+                  wx:for="{{equipment}}"
+                  wx:key="value"
+                  class="private-context__chip {{item.selected ? 'private-context__chip--selected' : ''}}"
+                  data-group="equipment"
+                  data-value="{{item.value}}"
+                  bindtap="onToggleChoice"
+                >{{item.label}}</button>
+              </view>
+            </view>
+
+            <view wx:if="{{showTerrain}}" class="private-context__field">
+              <text class="private-context__label">{{tr.terrainAvailable}}</text>
+              <view class="private-context__chips">
+                <button
+                  wx:for="{{terrain}}"
+                  wx:key="value"
+                  class="private-context__chip {{item.selected ? 'private-context__chip--selected' : ''}}"
+                  data-group="terrain"
+                  data-value="{{item.value}}"
+                  bindtap="onToggleChoice"
+                >{{item.label}}</button>
+              </view>
+            </view>
+          </block>
+
+          <view class="private-context__field">
+            <view class="private-context__label-row">
+              <text class="private-context__label">{{tr.note}}</text>
+              <text class="private-context__counter ts-value">{{draft.narrative.length}}/280</text>
+            </view>
+            <textarea
+              class="private-context__textarea"
+              value="{{draft.narrative}}"
+              maxlength="280"
+              placeholder="{{tr.notePlaceholder}}"
+              disabled="{{working}}"
+              bindinput="onNarrative"
+            ></textarea>
+            <text class="private-context__hint">{{tr.noteSafety}}</text>
+          </view>
+
+          <button
+            class="private-context__submit"
+            disabled="{{working}}"
+            loading="{{working}}"
+            bindtap="onReviewDraft"
+          >{{tr.reviewPurpose}}</button>
+        </block>
+
+        <block wx:elif="{{screen === 'preview' && preview}}">
+          <view class="private-context__review">
+            <view class="private-context__review-row">
+              <text class="private-context__review-label">{{tr.purpose}}</text>
+              <text class="private-context__review-value">
+                {{preview.purpose === 'plan_adjustment' ? tr.planPurpose : tr.workoutPurpose}}
+              </text>
+            </view>
+            <view class="private-context__review-row">
+              <text class="private-context__review-label">{{tr.category}}</text>
+              <text class="private-context__review-value">{{categoryLabels[categoryIndex]}}</text>
+            </view>
+            <view class="private-context__review-row">
+              <text class="private-context__review-label">{{tr.activeUntil}}</text>
+              <text class="private-context__review-value ts-value">{{previewExpiry}}</text>
+            </view>
+            <view class="private-context__review-row">
+              <text class="private-context__review-label">{{tr.storedUntil}}</text>
+              <text class="private-context__review-value ts-value">{{previewPurge}}</text>
+            </view>
+            <view wx:if="{{preview.narrative_purge_at}}" class="private-context__review-row">
+              <text class="private-context__review-label">{{tr.noteDeleted}}</text>
+              <text class="private-context__review-value ts-value">{{previewNarrativePurge}}</text>
+            </view>
+            <view class="private-context__review-row">
+              <text class="private-context__review-label">{{tr.processing}}</text>
+              <text class="private-context__review-value">{{tr.rulesNoAi}}</text>
+            </view>
+          </view>
+
+          <view wx:if="{{previewFields.length}}" class="private-context__details">
+            <text class="private-context__details-title">{{tr.structuredDetails}}</text>
+            <view
+              wx:for="{{previewFields}}"
+              wx:key="key"
+              class="private-context__detail-row"
+            >
+              <text class="private-context__detail-key">{{item.label}}</text>
+              <text class="private-context__detail-value ts-value">{{item.value}}</text>
+            </view>
+          </view>
+
+          <view wx:if="{{preview.payload.narrative}}" class="private-context__note">
+            <text class="private-context__details-title">{{tr.note}}</text>
+            <text class="private-context__note-copy">{{preview.payload.narrative}}</text>
+          </view>
+
+          <view wx:if="{{safetySelected}}" class="private-context__safety">
+            <text>{{tr.safety}}</text>
+          </view>
+
+          <view class="private-context__reasoning">
+            <text>{{tr.purposeConfirmation}}</text>
+          </view>
+
+          <view class="private-context__switch-row">
+            <text>{{tr.confirmPurpose}}</text>
+            <switch
+              checked="{{purposeConfirmed}}"
+              disabled="{{working}}"
+              color="#1f7a4d"
+              bindchange="onPurposeConfirmation"
+            />
+          </view>
+
+          <button
+            class="private-context__submit"
+            disabled="{{working || !purposeConfirmed}}"
+            loading="{{working}}"
+            bindtap="onSaveDraft"
+          >{{editingItem ? tr.saveCorrection : tr.save}}</button>
+        </block>
+
+        <block wx:elif="{{screen === 'detail' && selectedItem}}">
+          <view class="private-context__review">
+            <view class="private-context__review-row">
+              <text class="private-context__review-label">{{tr.status}}</text>
+              <text class="private-context__review-value">
+                {{selectedItem.state === 'active' ? tr.active : selectedItem.state === 'expired' ? tr.expired : selectedItem.state === 'withdrawn' ? tr.withdrawn : tr.deleting}}
+              </text>
+            </view>
+            <view class="private-context__review-row">
+              <text class="private-context__review-label">{{tr.purpose}}</text>
+              <text class="private-context__review-value">
+                {{selectedItem.purpose === 'plan_adjustment' ? tr.planPurpose : tr.workoutPurpose}}
+              </text>
+            </view>
+            <view class="private-context__review-row">
+              <text class="private-context__review-label">{{tr.activeUntil}}</text>
+              <text class="private-context__review-value ts-value">{{detailExpiry}}</text>
+            </view>
+            <view class="private-context__review-row">
+              <text class="private-context__review-label">{{tr.aiProcessing}}</text>
+              <text class="private-context__review-value">
+                {{selectedSafety && selectedItem.processing_mode !== 'ai_allowed' ? tr.unavailableForSafety : selectedItem.processing_mode === 'ai_allowed' ? tr.allowedForItem : tr.off}}
+              </text>
+            </view>
+          </view>
+
+          <view wx:if="{{detailFields.length}}" class="private-context__details">
+            <text class="private-context__details-title">{{tr.structuredDetails}}</text>
+            <view
+              wx:for="{{detailFields}}"
+              wx:key="key"
+              class="private-context__detail-row"
+            >
+              <text class="private-context__detail-key">{{item.label}}</text>
+              <text class="private-context__detail-value ts-value">{{item.value}}</text>
+            </view>
+          </view>
+
+          <view wx:if="{{selectedItem.payload.narrative}}" class="private-context__note">
+            <text class="private-context__details-title">{{tr.note}}</text>
+            <text class="private-context__note-copy">{{selectedItem.payload.narrative}}</text>
+            <text class="private-context__hint ts-value">
+              {{tr.noteDeleted}} · {{detailNarrativePurge}}
+            </text>
+          </view>
+
+          <view wx:if="{{detail}}" class="private-context__details">
+            <text class="private-context__details-title">{{tr.contextUse}}</text>
+            <block wx:if="{{hasUseReceipts}}">
+              <view
+                wx:for="{{useReceipts}}"
+                wx:key="id"
+                class="private-context__receipt"
+              >
+                <text class="private-context__receipt-name">{{item.consumer}}</text>
+                <text class="private-context__hint ts-value">{{item.usedAt}}</text>
+                <text class="private-context__hint">{{item.fields}}</text>
+              </view>
+            </block>
+            <text wx:if="{{linkedRevisionText}}" class="private-context__hint">
+              {{linkedRevisionText}}
+            </text>
+            <text wx:if="{{!hasContextUse}}" class="private-context__hint">{{tr.unused}}</text>
+          </view>
+
+          <view wx:if="{{selectedItem.state === 'active'}}" class="private-context__detail-actions">
+            <button
+              class="private-context__small-action"
+              disabled="{{working || !detail}}"
+              bindtap="onCorrect"
+            >{{tr.correct}}</button>
+            <button
+              wx:if="{{!selectedSafety || selectedItem.processing_mode === 'ai_allowed'}}"
+              class="private-context__small-action"
+              disabled="{{working || !detail}}"
+              bindtap="onOpenAi"
+            >
+              {{selectedItem.processing_mode === 'ai_allowed' ? tr.reviewAi : tr.aiOption}}
+            </button>
+            <button
+              class="private-context__small-action"
+              disabled="{{working}}"
+              bindtap="onExpire"
+            >{{tr.stopUsing}}</button>
+          </view>
+          <button
+            class="private-context__delete"
+            disabled="{{working || selectedItem.state === 'deleting'}}"
+            bindtap="onDelete"
+          >{{tr.delete}}</button>
+        </block>
+
+        <block wx:elif="{{screen === 'ai' && selectedItem}}">
+          <text class="private-context__sheet-description">{{tr.aiDescription}}</text>
+          <view class="private-context__reasoning">
+            <text class="private-context__reasoning-title">{{tr.provider}}</text>
+            <text>{{tr.providerDetail}}</text>
+          </view>
+
+          <view class="private-context__details">
+            <text class="private-context__details-title">{{tr.purpose}}</text>
+            <text class="private-context__hint">
+              {{selectedItem.purpose === 'plan_adjustment' ? tr.planPurpose : tr.workoutPurpose}}
+            </text>
+          </view>
+
+          <view class="private-context__details">
+            <text class="private-context__details-title">{{tr.structuredFieldsSent}}</text>
+            <text class="private-context__hint ts-value">{{aiFieldsText}}</text>
+          </view>
+
+          <view
+            wx:if="{{selectedItem.processing_mode !== 'ai_allowed'}}"
+            class="private-context__switch-row"
+          >
+            <view class="private-context__switch-copy">
+              <text>{{tr.allowAi}}</text>
+              <text class="private-context__hint">{{tr.aiDescription}}</text>
+            </view>
+            <switch
+              checked="{{aiPermissionConfirmed}}"
+              disabled="{{working}}"
+              color="#1f7a4d"
+              bindchange="onAiPermission"
+            />
+          </view>
+
+          <view
+            wx:if="{{selectedItem.processing_mode !== 'ai_allowed' && selectedNarrativeAvailable}}"
+            class="private-context__switch-row"
+          >
+            <view class="private-context__switch-copy">
+              <text>{{tr.sendNote}}</text>
+              <text class="private-context__hint">{{tr.sendNoteDetail}}</text>
+            </view>
+            <switch
+              checked="{{aiNarrative}}"
+              disabled="{{working}}"
+              color="#1f7a4d"
+              bindchange="onAiNarrative"
+            />
+          </view>
+
+          <view class="private-context__safety">
+            <text>{{tr.aiWarning}}</text>
+          </view>
+          <text class="private-context__hint">{{tr.aiWithdrawal}}</text>
+
+          <button
+            class="private-context__submit {{selectedItem.processing_mode === 'ai_allowed' ? 'private-context__submit--danger' : ''}}"
+            disabled="{{working || (selectedItem.processing_mode !== 'ai_allowed' && !aiPermissionConfirmed)}}"
+            loading="{{working}}"
+            bindtap="onDecideAi"
+          >
+            {{selectedItem.processing_mode === 'ai_allowed' ? tr.withdrawAi : tr.allowAi}}
+          </button>
+        </block>
+
+        <text wx:if="{{actionError}}" class="private-context__action-error" role="alert">
+          {{actionError}}
+        </text>
+      </view>
+    </scroll-view>
+  </view>
+</view>

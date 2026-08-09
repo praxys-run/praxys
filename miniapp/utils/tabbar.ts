@@ -50,6 +50,14 @@ export function setTabBarTheme(
   callTabBar(page, { themeClass });
 }
 
+/** Hide the custom tab bar while a page-level modal owns the viewport. */
+export function setTabBarHidden(
+  page: { getTabBar?: unknown },
+  hidden: boolean,
+): void {
+  callTabBar(page, { hidden });
+}
+
 /** Rebuild tab bar labels after a live language change. */
 export function refreshTabBarLocale(page: { getTabBar?: unknown }): void {
   // Mirrors custom-tab-bar/index.ts buildTabs(). Inline the i18n import

@@ -12,6 +12,7 @@
   >
     <view class="train-content">
     <managed-plan id="training-managed-plan" scope="window" />
+    <personal-context />
 
     <block wx:if="{{loading && !hasResponse}}">
       <state-card type="loading" />
