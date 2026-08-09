@@ -868,6 +868,144 @@ export interface PersonalContextExportResponse {
   }[];
 }
 
+export type ContextPilotOutcome =
+  | 'clarification'
+  | 'no_change'
+  | 'insufficient_evidence'
+  | 'safety'
+  | 'suggestion';
+
+export interface ContextPilotScenario {
+  id: string;
+  title_code: string;
+  expected_outcome: ContextPilotOutcome;
+}
+
+export interface ContextPilotScenarioListResponse {
+  scenarios: ContextPilotScenario[];
+}
+
+export interface ContextPilotRunRequest {
+  source: 'synthetic' | 'opt_in';
+  scenario_id?: string | null;
+  purpose?: 'execution_interpretation' | 'plan_adjustment' | null;
+  confirmed_opt_in?: boolean;
+  allow_ai?: boolean;
+}
+
+export interface ContextPilotSnapshot {
+  canonical_id: string | null;
+  date: string | null;
+  workout_type: string | null;
+  planned_duration_min: number | null;
+  planned_distance_km: number | null;
+  target_power_min: number | null;
+  target_power_max: number | null;
+  workout_description: string | null;
+}
+
+export interface ContextPilotAction {
+  type: 'shorten_workout_duration';
+  canonical_id: string;
+  planned_duration_min: number;
+}
+
+export type ContextPilotProposalStatus =
+  | 'synthetic_only'
+  | 'pending'
+  | 'accepted'
+  | 'rejected'
+  | 'deferred'
+  | 'reversed'
+  | 'expired'
+  | 'invalidated';
+
+export interface ContextPilotProposal {
+  id: string | null;
+  status: ContextPilotProposalStatus;
+  action: ContextPilotAction | null;
+  before: ContextPilotSnapshot | null;
+  after: ContextPilotSnapshot | null;
+  context_item_ids: string[];
+  allowed_responses: ('accept' | 'reject' | 'defer')[];
+  acceptance_available: boolean;
+  acceptance_requires_athlete: true;
+  automatic_mutation: false;
+  unknowns: ('training_response' | 'goal_effect')[];
+  tradeoffs: (
+    | 'reduced_planned_duration'
+    | 'session_not_completed_as_originally_planned'
+  )[];
+  expected_goal_effect: 'not_estimated';
+  context_controls: ('inspect' | 'correct' | 'exclude' | 'delete')[];
+  expires_at: string | null;
+  accepted_revision_id?: string | null;
+}
+
+export interface ContextPilotRunResponse {
+  run_id: string | null;
+  scenario_source: 'synthetic' | 'opt_in';
+  scenario_id: string | null;
+  outcome: ContextPilotOutcome;
+  reason_code: string;
+  processing_status: 'completed' | 'failed';
+  processing_mode: string;
+  policy_version: string;
+  uncertainty: 'moderate' | 'high';
+  proposal_scope: 'none' | 'workout';
+  clarification: {
+    question_code: string;
+    optional: boolean;
+  } | null;
+  no_change_comparator: {
+    action: 'keep_current_plan';
+    selected: boolean;
+  };
+  safety: {
+    performance_optimization_blocked: boolean;
+    medical_assessment_not_provided: true;
+  };
+  proposal: ContextPilotProposal | null;
+  claim_limits: {
+    guarantees: false;
+    causal_inference: false;
+    diagnosis_or_treatment: false;
+  };
+  review_gate: {
+    scope_expansion: 'new_review_required';
+    automation_expansion: 'new_review_required';
+    retention_expansion: 'new_review_required';
+    policy_version_change: 'new_review_required';
+  };
+}
+
+export interface ContextPilotProposalDecisionRequest {
+  response: 'accept' | 'reject' | 'defer';
+}
+
+export interface ContextPilotProposalDecisionResponse {
+  proposal_id: string;
+  status: 'accepted' | 'rejected' | 'deferred';
+  revision_id: string | null;
+  event_id: string;
+  undo_path: string | null;
+  canonical_plan_changed: boolean;
+  athlete_approved: boolean;
+  delivery?: Record<string, unknown> | null;
+}
+
+export interface ContextPilotEvaluationResponse {
+  schema_version: 1;
+  policy_version: string;
+  generated_at: string;
+  scope: Record<string, unknown>;
+  operational_counts: Record<string, unknown>;
+  proposal_responses: Record<string, number>;
+  checks: Record<string, unknown>;
+  falsification: Record<string, unknown>;
+  review_gate: Record<string, string>;
+}
+
 export interface UserDataExportConfig {
   display_name: string;
   unit_system: UnitSystem;

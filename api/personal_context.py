@@ -2054,6 +2054,15 @@ def _scrub_plan_revision_context(
         .with_for_update()
         .all()
     )
+    accepted_proposal_ids: set[str] = set()
+    for row in rows:
+        row_details = row.details if isinstance(row.details, dict) else {}
+        proposal_id = row_details.get("proposal_revision_id")
+        if (
+            row.operation == "context_pilot_accept"
+            and isinstance(proposal_id, str)
+        ):
+            accepted_proposal_ids.add(proposal_id)
     for revision in rows:
         details = revision.details
         if not isinstance(details, dict):
@@ -2081,6 +2090,15 @@ def _scrub_plan_revision_context(
         )
         if private_rationale is not None or rationale_is_private:
             updated["rationale"] = _PRIVATE_RATIONALE_REMOVED
+        if (
+            revision.operation == "context_pilot_proposal"
+            and revision.id not in accepted_proposal_ids
+        ):
+            updated.pop("action", None)
+            updated.pop("expires_at", None)
+            updated.pop("reason_code", None)
+            updated["proposal_content_status"] = "removed_by_athlete"
+            revision.after_snapshot = []
         updated["personal_context_status"] = "removed_by_athlete"
         revision.details = updated
 

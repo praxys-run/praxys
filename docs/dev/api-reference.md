@@ -1983,6 +1983,11 @@ PERSONAL_CONTEXT_NOT_FOUND`; demo users cannot mutate context.
 | `POST` | `/api/personal-context/{item_id}/expire` | Stop one current version from influencing decisions |
 | `DELETE` | `/api/personal-context/{item_id}?expected_version=N` | Delete the complete lineage and dependent private traces |
 | `GET` | `/api/personal-context/export` | Export all retained versions, receipts, and linked revision IDs |
+| `GET` | `/api/personal-context/pilot/scenarios` | List the five predefined synthetic pilot scenarios |
+| `POST` | `/api/personal-context/pilot/runs` | Run a synthetic scenario or an explicitly opted-in athlete-context scenario |
+| `GET` | `/api/personal-context/pilot/proposals/{proposal_id}` | Inspect one owner-scoped immutable pilot proposal |
+| `POST` | `/api/personal-context/pilot/proposals/{proposal_id}/responses` | Athlete accepts, rejects, or defers one exact pending proposal |
+| `GET` | `/api/personal-context/pilot/evaluation` | Admin-only aggregate operational report without private context or cohorts |
 
 Confirmation, correction, and AI-consent requests require an opaque
 `Idempotency-Key` header (8-128 letters, digits, `.`, `_`, `:`, or `-`).
@@ -2028,6 +2033,30 @@ AI processing remains off until the athlete grants consent for an exact
 version. `provider` is currently `azure_openai`; `disclosed_fields` uses
 `category`, `fields`, `fields.<name>`, or `narrative`. Granting narrative
 disclosure requires the item to contain a retained narrative.
+
+### Suggestion-first context pilot
+
+Pilot run and proposal-response commands require an `Idempotency-Key`. An
+athlete-context run accepts only `execution_interpretation` or
+`plan_adjustment` and requires `"source": "opt_in"` plus
+`"confirmed_opt_in": true`. Synthetic runs select a scenario returned by the
+catalog and cannot be accepted.
+
+Every run preserves the stable five-outcome contract: `clarification`,
+`no_change`, `insufficient_evidence`, `safety`, or `suggestion`. The only
+actionable v1 suggestion shortens one time-based, Praxys-generated workout to a
+confirmed temporary availability limit. The current plan remains unchanged
+until the athlete posts `{"response": "accept"}`. Accepted revisions expose
+the existing exact-snapshot undo path; rejection and deferral are non-mutating.
+
+The evaluation endpoint returns only aggregate operational counts and explicit
+`not_measured` or `insufficient_evidence` states where subgroup, adverse, or
+comparable outcome evidence does not exist. Completed proposal privacy scrubs
+are counted; deletion failures are `not_measured` because privacy cleanup does
+not retain pilot linkage. It excludes private prompts, values, free text,
+identifiers, and context-category cohorts. See
+[`adaptive-plan-context-pilot.md`](./adaptive-plan-context-pilot.md) for the
+fixed scope, scenarios, falsification conditions, and expansion review gate.
 
 `GET /api/me/export` now uses schema version 2 and embeds the same complete
 context export under `personal_context`. Neither export includes idempotency

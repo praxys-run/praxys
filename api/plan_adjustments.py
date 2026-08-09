@@ -48,6 +48,7 @@ logger = logging.getLogger(__name__)
 TARGET_CALENDAR_MAX_AGE = timedelta(hours=24)
 
 _AUTO_OPERATION = "auto_adjustment"
+_CONTEXT_PILOT_OPERATION = "context_pilot_accept"
 _UNDO_OPERATION = "auto_adjustment_undo"
 _DELIVERY_OPERATION = "auto_adjustment_delivery"
 _UNDO_DELIVERY_OPERATION = "auto_adjustment_undo_delivery"
@@ -860,7 +861,7 @@ def undo_plan_adjustment(
     user_id: str,
     revision_id: str,
 ) -> dict[str, Any]:
-    """Restore one automatic adjustment if its after-snapshot is still current."""
+    """Restore one supported revision if its after-snapshot is still current."""
     from api.plan_delivery.rolling import trigger_managed_plan_delivery
 
     db.rollback()
@@ -870,7 +871,9 @@ def undo_plan_adjustment(
         .where(
             PlanRevision.id == revision_id,
             PlanRevision.user_id == user_id,
-            PlanRevision.operation == _AUTO_OPERATION,
+            PlanRevision.operation.in_(
+                (_AUTO_OPERATION, _CONTEXT_PILOT_OPERATION)
+            ),
         )
         .with_for_update()
     ).scalar_one_or_none()
@@ -982,7 +985,7 @@ def undo_plan_adjustment(
     ):
         db.rollback()
         raise PlanAdjustmentConflictError(
-            "Workout changed after the automatic adjustment"
+            "Workout changed after the plan adjustment"
         )
 
     current_snapshot = plan_snapshot(current)
@@ -1005,7 +1008,12 @@ def undo_plan_adjustment(
         after=[restored_snapshot],
         details={
             "adjustment_revision_id": revision_id,
-            "rationale": "User restored the workout that preceded the automatic adjustment.",
+            "rationale": (
+                "Athlete reversed the accepted context-pilot proposal."
+                if adjustment.operation == _CONTEXT_PILOT_OPERATION
+                else "User restored the workout that preceded the automatic "
+                "adjustment."
+            ),
             "delivery": {
                 "requested": True,
                 "status": "pending",

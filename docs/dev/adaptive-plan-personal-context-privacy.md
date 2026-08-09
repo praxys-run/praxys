@@ -1,6 +1,6 @@
 # Adaptive plan personal-context privacy contract
 
-**Status:** Accepted architecture contract; backend rollout in progress
+**Status:** Accepted architecture contract; narrow suggestion-first pilot implemented
 **Parent:** #582  
 **Depends on:** #584, #603, and #607  
 **Version:** 1
@@ -48,8 +48,11 @@ broad training-context assembler in `api/ai.py`. The module:
 The optional classifier returns only a strict code tuple and cannot mutate a
 plan. It has no route, scheduler, or plan-mutation hook and defaults AI
 processing off. Concrete suggestion generation, proposal persistence, and
-production wiring remain later work and must pass the policy/provider
-disclosure gate below.
+production wiring remain outside the processor. The fixed
+`suggestion-context-pilot-v1` orchestration is documented separately in
+[`adaptive-plan-context-pilot.md`](./adaptive-plan-context-pilot.md). It can
+create one non-canonical availability proposal, but only an authenticated
+athlete acceptance enters the existing canonical revision and undo path.
 
 A provider-use receipt marks initiation of an attempted disclosure, not a
 successful model result. It is committed immediately before the external
