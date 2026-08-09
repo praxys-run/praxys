@@ -7,7 +7,9 @@ from dataclasses import replace
 from datetime import date, timedelta
 import hashlib
 import json
+from types import SimpleNamespace
 
+import numpy as np
 import pytest
 
 from analysis import heat_response_validation as heat_validation
@@ -379,6 +381,89 @@ def test_labs_default_curve_support_guardrails_withhold_sparse_bins() -> None:
     assert result["result_state"] == "insufficient_data"
     assert result["aggregate_curve_points"] == []
     assert result["gate_statuses"]["curve_bin_support"] == "fail"
+
+
+@pytest.mark.parametrize(
+    ("supported", "expected_sections", "displayable"),
+    [
+        ([True, True, True, False, True], [[0, 1, 2], [4]], True),
+        ([True, True, True, True, False], [[0, 1, 2, 3]], True),
+        ([True, False, True, False, True], [[0], [2], [4]], False),
+        ([False, True, True, False, True], [[1, 2], [4]], True),
+    ],
+)
+def test_partial_domain_sections_never_bridge_unsupported_bins(
+    supported: list[bool],
+    expected_sections: list[list[int]],
+    displayable: bool,
+) -> None:
+    from analysis.environment_response import (
+        _has_displayable_section,
+        _supported_bin_sections,
+    )
+
+    bins = [
+        {"bin_index": index, "supported": value}
+        for index, value in enumerate(supported)
+    ]
+    sections = _supported_bin_sections(bins)
+
+    assert sections == expected_sections
+    assert _has_displayable_section(sections, 2) is displayable
+
+
+def test_curve_support_bins_emit_monotonic_aggregate_funnel() -> None:
+    from analysis.environment_response import (
+        LabsEnvironmentConfig,
+        _curve_support_bins,
+    )
+
+    supported = [True, True, True, False, True]
+    records = []
+    rows = []
+    for index, is_supported in enumerate(supported):
+        activity_id = f"activity-{index}"
+        records.append({
+            "activity": {
+                "activity_id": activity_id,
+                "source": "stryd",
+                "environment": {"wet_bulb_c": index + 0.5},
+            },
+            "reference_power_support": {
+                "any_valid_sample_point": True,
+                "minimum_continuous_coverage": True,
+                "accepted_stable_segment_mean": is_supported,
+            },
+        })
+        rows.append(SimpleNamespace(
+            activity_key=f"stryd|{activity_id}",
+            wet_bulb_c=index + 0.5,
+            mean_pct_cp=80.0 if is_supported else 70.0,
+        ))
+
+    bins = _curve_support_bins(
+        records,
+        rows,
+        np.arange(0.0, 6.0),
+        LabsEnvironmentConfig(
+            minimum_activities_per_curve_bin=1,
+            minimum_segments_per_curve_bin=1,
+            minimum_reference_power_activities_per_curve_bin=1,
+        ),
+    )
+
+    assert [item["supported"] for item in bins] == supported
+    for item in bins:
+        funnel = item["reference_power_funnel"]
+        counts = [
+            funnel["environment_activity_count"],
+            funnel["any_valid_sample_activity_count"],
+            funnel["continuous_coverage_activity_count"],
+            funnel["stable_segment_mean_activity_count"],
+            funnel["training_partition_activity_count"],
+            funnel["final_reference_power_activity_count"],
+        ]
+        assert counts == sorted(counts, reverse=True)
 
 
 def test_labs_bootstrap_width_and_influence_guardrails_withhold_curve() -> None:

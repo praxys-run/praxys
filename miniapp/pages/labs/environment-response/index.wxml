@@ -141,8 +141,8 @@
           </view>
 
           <view wx:if="{{isAvailable}}" class="ts-card labs-curve">
-            <text class="labs-title">{{tr.curveTitle}}</text>
-            <text class="labs-detail">{{tr.curveDetail}}</text>
+            <text class="labs-title">{{partialDomain ? tr.partialCurveTitle : tr.curveTitle}}</text>
+            <text class="labs-detail">{{partialDomain ? tr.partialCurveDetail : tr.curveDetail}}</text>
             <line-chart
               canvas-id="labs-environment-chart"
               series="{{chartSeries}}"
@@ -153,6 +153,26 @@
               theme="{{chartTheme}}"
               y-unit="bpm"
             />
+            <view wx:if="{{supportBinsDisplay.length}}" class="labs-support-ledger">
+              <view class="labs-support-heading">
+                <text class="labs-support-title">{{tr.supportTitle}}</text>
+                <text class="labs-support-minimum ts-value">{{tr.supportMinimum}}</text>
+              </view>
+              <view class="labs-support-grid">
+                <view
+                  wx:for="{{supportBinsDisplay}}"
+                  wx:key="binIndex"
+                  class="labs-support-bin {{item.supported ? 'labs-support-bin--supported' : 'labs-support-bin--insufficient'}}"
+                >
+                  <text class="labs-support-range ts-value">{{item.range}}</text>
+                  <text class="labs-support-count ts-value">{{item.activityCount}} {{tr.activitiesUnit}}</text>
+                  <text class="labs-support-status">
+                    {{item.supported ? tr.supported : tr.insufficientSupport}}
+                  </text>
+                </view>
+              </view>
+              <text class="labs-support-explanation">{{tr.supportExplanation}}</text>
+            </view>
             <view class="labs-coverage">
               <view class="labs-measure">
                 <text class="labs-measure-label">{{tr.activities}}</text>

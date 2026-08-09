@@ -100,7 +100,7 @@ def labs_client(monkeypatch):
 
 def _aggregate_result() -> dict:
     return {
-        "model_version": "within-athlete-ridge-mean-hr-v1-labs-v1",
+        "model_version": "within-athlete-ridge-mean-hr-v1-labs-v2",
         "power_regime": "stryd_continuous_samples",
         "result_state": "historical_association_only",
         "prediction_status": "failed_research_diagnostics",
@@ -124,6 +124,8 @@ def _aggregate_result() -> dict:
                 "relative_lower_bpm": 0.0,
                 "relative_upper_bpm": 0.0,
                 "reference_wet_bulb_c": 20.0,
+                "support_bin_index": 0,
+                "section_index": 0,
             },
         ],
         "aggregate_uncertainty": {
@@ -832,6 +834,84 @@ def test_worker_persists_only_aggregate_result(labs_client, monkeypatch) -> None
     assert response.json()["result"]["result_state"] == (
         "historical_association_only"
     )
+
+
+def test_legacy_model_result_is_returned_as_stale_without_payload(
+    labs_client,
+) -> None:
+    client, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import LabsExperimentResult
+
+    with db_session.SessionLocal() as db:
+        row = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        row.status = "available"
+        row.model_version = "within-athlete-ridge-mean-hr-v1-labs-v1"
+        db.add(LabsExperimentResult(
+            user_id=user_id,
+            experiment_id=labs_environment.EXPERIMENT_ID,
+            model_version="within-athlete-ridge-mean-hr-v1-labs-v1",
+            source_revision=row.source_revision,
+            result_state="historical_association_only",
+            eligibility_counts={"legacy": True},
+            aggregate_curve_points=[{"legacy": True}],
+            aggregate_uncertainty={},
+            gate_statuses={},
+            prediction_status="failed_research_diagnostics",
+            power_regime="stryd_continuous_samples",
+        ))
+        db.commit()
+
+    response = client.get("/api/labs/environment-response")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "stale"
+    assert response.json()["availability_reason"]["code"] == (
+        "stale_model_version"
+    )
+    assert response.json()["result"] is None
+
+
+def test_predeployment_queued_job_is_marked_stale(labs_client) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import LabsExperimentEnrollment, LabsExperimentResult
+
+    legacy_version = "within-athlete-ridge-mean-hr-v1-labs-v1"
+    with db_session.SessionLocal() as db:
+        row = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        row.model_version = legacy_version
+        db.commit()
+        args = (
+            row.user_id,
+            row.experiment_id,
+            legacy_version,
+            row.source_revision,
+        )
+
+    labs_environment.process_environment_response_job(*args)
+
+    with db_session.SessionLocal() as db:
+        row = db.get(
+            LabsExperimentEnrollment,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        )
+        assert row.status == "stale"
+        assert row.availability_reason["code"] == "stale_model_version"
+        assert db.get(
+            LabsExperimentResult,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        ) is None
 
 
 def test_running_job_rechecks_withdrawal_before_persist(
