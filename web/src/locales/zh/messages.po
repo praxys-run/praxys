@@ -511,7 +511,6 @@ msgstr "此前一段达标训练仍可作为当前定性阶段的依据，但不
 msgid "A single activity has too much influence on the result."
 msgstr "单次活动对结果的影响过大。"
 
-#: src/pages/Labs.tsx:41
 #: src/pages/LabsEnvironment.tsx:77
 msgid "A Stryd-aligned Critical Power value is required for this experiment."
 msgstr "此实验需要与 Stryd 数据一致的临界功率值。"
@@ -801,7 +800,7 @@ msgstr "其他计划源与 Praxys 计划有重叠。建议一次只使用一个�
 msgid "An unexpected error occurred."
 msgstr "发生了意外错误。"
 
-#: src/pages/Labs.tsx:24
+#: src/pages/Labs.tsx:18
 msgid "Analyzing"
 msgstr "分析中"
 
@@ -921,7 +920,7 @@ msgstr "可用率"
 msgid "Available"
 msgstr "可用"
 
-#: src/pages/Labs.tsx:77
+#: src/pages/Labs.tsx:41
 msgid "Available experiments"
 msgstr "可参与的实验"
 
@@ -1226,8 +1225,8 @@ msgid "Changed what I'll do"
 msgstr "调整了今天的训练安排"
 
 #: src/pages/Labs.tsx:29
-msgid "Check required"
-msgstr "需要进一步检查"
+#~ msgid "Check required"
+#~ msgstr "需要进一步检查"
 
 #: src/pages/Setup.tsx:769
 msgid "Check your credentials in the connection step, then try again."
@@ -1238,8 +1237,8 @@ msgid "Checking data requirements"
 msgstr "正在检查数据要求"
 
 #: src/pages/Labs.tsx:26
-msgid "Checking eligibility"
-msgstr "正在检查资格"
+#~ msgid "Checking eligibility"
+#~ msgstr "正在检查资格"
 
 #: src/pages/Settings.tsx:1010
 #: src/pages/Settings.tsx:1108
@@ -1272,7 +1271,7 @@ msgstr "选择首选数据来源"
 msgid "Choose training base"
 msgstr "选择训练基准"
 
-#: src/pages/Labs.tsx:70
+#: src/pages/Labs.tsx:34
 msgid "Choose voluntary experiments that help you inspect your own training history without turning early research into advice."
 msgstr "选择自愿参与的实验，用自己的训练历史探索规律，同时避免把早期研究包装成建议。"
 
@@ -1505,7 +1504,6 @@ msgstr "前往 Strava"
 msgid "Continuous"
 msgstr "持续提升"
 
-#: src/pages/Labs.tsx:38
 #: src/pages/LabsEnvironment.tsx:73
 msgid "Continuous heart-rate samples are missing from too much of the eligible history."
 msgstr "符合条件的历史数据中，连续心率采样缺失过多。"
@@ -1522,7 +1520,6 @@ msgstr "已设置持续提升目标"
 msgid "Continuous Stryd sample power"
 msgstr "连续 Stryd 采样功率"
 
-#: src/pages/Labs.tsx:37
 #: src/pages/LabsEnvironment.tsx:72
 msgid "Continuous Stryd sample power is missing from too much of the eligible history."
 msgstr "符合条件的历史数据中，连续 Stryd 功率采样缺失过多。"
@@ -2293,7 +2290,7 @@ msgstr "例如 8:00:00"
 msgid "Each activity counts once per range. A qualifying activity needs an accepted stable segment averaging 75–85% of its pre-activity Stryd Critical Power; raw sample points alone do not count."
 msgstr "每个区间内，每次活动只计一次。符合条件的活动必须包含一个已接受的稳定区段，其平均功率为该活动前 Stryd 临界功率的 75–85%；仅有原始采样点不计入。"
 
-#: src/pages/Labs.tsx:80
+#: src/pages/Labs.tsx:44
 msgid "Each experiment has its own consent, data requirements, limitations, and withdrawal controls."
 msgstr "每项实验都有独立的同意流程、数据要求、局限说明和退出控制。"
 
@@ -2374,8 +2371,8 @@ msgid "Eligibility check could not load"
 msgstr "无法加载资格检查"
 
 #: src/pages/Labs.tsx:27
-msgid "Eligibility check unavailable"
-msgstr "资格检查不可用"
+#~ msgid "Eligibility check unavailable"
+#~ msgstr "资格检查不可用"
 
 #: src/pages/admin/AdminFeedback.tsx:131
 msgid "Eligible"
@@ -2459,7 +2456,7 @@ msgstr "源数据足以尝试这项实验"
 msgid "Enter numeric temperature and humidity values."
 msgstr "请输入有效的温度和湿度数值。"
 
-#: src/pages/Labs.tsx:105
+#: src/pages/Labs.tsx:69
 #: src/pages/LabsEnvironment.tsx:830
 msgid "Environmental response"
 msgstr "环境响应"
@@ -2551,7 +2548,7 @@ msgstr "执行平台已更换，下发仍保持暂停。"
 #~ msgid "Experimental Garmin delivery"
 #~ msgstr "Garmin 实验性下发"
 
-#: src/pages/Labs.tsx:111
+#: src/pages/Labs.tsx:75
 msgid "Explore whether modeled heart rate varied with temperature and humidity at comparable recorded Stryd power in your eligible past runs."
 msgstr "探索在记录的 Stryd 功率相近时，符合条件的历史跑步中心率模型是否随温度和湿度变化。"
 
@@ -3103,7 +3100,7 @@ msgstr "变异性偏高"
 msgid "Hiking"
 msgstr "徒步"
 
-#: src/pages/Labs.tsx:114
+#: src/pages/Labs.tsx:78
 msgid "Historical association only · personal aggregate result · continuous Stryd samples required"
 msgstr "仅描述历史关联 · 个人聚合结果 · 需要连续 Stryd 样本"
 
@@ -3563,7 +3560,7 @@ msgstr "实验室"
 msgid "Labs action failed"
 msgstr "Labs 操作失败"
 
-#: src/pages/Labs.tsx:88
+#: src/pages/Labs.tsx:52
 #: src/pages/LabsEnvironment.tsx:795
 msgid "Labs could not load"
 msgstr "无法加载 Labs"
@@ -4191,8 +4188,8 @@ msgid "Needs attention"
 msgstr "需要关注"
 
 #: src/pages/Labs.tsx:28
-msgid "Needs data"
-msgstr "需要更多数据"
+#~ msgid "Needs data"
+#~ msgstr "需要更多数据"
 
 #: src/pages/LabsEnvironment.tsx:146
 msgid "Needs recompute"
@@ -4818,7 +4815,7 @@ msgstr "查看 Azure 日志"
 msgid "Open evidence"
 msgstr "查看证据"
 
-#: src/pages/Labs.tsx:128
+#: src/pages/Labs.tsx:87
 msgid "Open experiment"
 msgstr "打开实验"
 
@@ -4833,6 +4830,10 @@ msgstr "查看反馈"
 #: src/pages/admin/AdminOps.tsx:442
 #~ msgid "Open telemetry queries"
 #~ msgstr "打开遥测查询"
+
+#: src/pages/Labs.tsx:20
+msgid "Open to check"
+msgstr "打开以检查"
 
 #: src/components/MobileApp.tsx:70
 msgid "Open WeChat, tap the Scan button, and point your camera at this code to use Praxys on your phone."
@@ -4961,7 +4962,7 @@ msgstr "部分服务中断"
 msgid "Partial service outage"
 msgstr "部分服务中断"
 
-#: src/pages/Labs.tsx:25
+#: src/pages/Labs.tsx:19
 msgid "Participating"
 msgstr "已参与"
 
@@ -5286,7 +5287,7 @@ msgstr "Praxys 仅会读取计划，不会更改目标平台上的任何训练�
 msgid "Praxys is your active planner."
 msgstr "Praxys 正在负责制定训练计划。"
 
-#: src/pages/Labs.tsx:68
+#: src/pages/Labs.tsx:32
 msgid "Praxys Labs"
 msgstr "Praxys 实验室"
 
@@ -5667,8 +5668,8 @@ msgid "Reads readiness from the body's signals."
 msgstr "根据身体信号判断准备度。"
 
 #: src/pages/Labs.tsx:30
-msgid "Ready to check"
-msgstr "可以进行检查"
+#~ msgid "Ready to check"
+#~ msgstr "可以进行检查"
 
 #: src/pages/Goal.tsx:369
 msgid "Realistic alternative targets"
@@ -6067,7 +6068,6 @@ msgstr "驳回"
 msgid "Rejected"
 msgstr "已拒绝"
 
-#: src/pages/Labs.tsx:43
 #: src/pages/LabsEnvironment.tsx:75
 msgid "Relative humidity is missing from too many otherwise eligible activities."
 msgstr "其他条件合格的活动中，相对湿度缺失过多。"
@@ -6255,7 +6255,7 @@ msgstr "已恢复"
 msgid "Restoring…"
 msgstr "正在恢复…"
 
-#: src/pages/Labs.tsx:23
+#: src/pages/Labs.tsx:17
 msgid "Result ready"
 msgstr "结果已就绪"
 
@@ -6276,7 +6276,7 @@ msgstr "恢复托管下发？"
 #: src/pages/admin/AdminUsers.tsx:544
 #: src/pages/Goal.tsx:444
 #: src/pages/History.tsx:53
-#: src/pages/Labs.tsx:92
+#: src/pages/Labs.tsx:56
 #: src/pages/LabsEnvironment.tsx:187
 #: src/pages/LabsEnvironment.tsx:799
 #: src/pages/Settings.tsx:335
@@ -7222,7 +7222,6 @@ msgstr "目标完赛时间"
 msgid "Temperature (°C)"
 msgstr "温度（°C）"
 
-#: src/pages/Labs.tsx:36
 #: src/pages/LabsEnvironment.tsx:76
 msgid "Temperature and humidity are not both present on enough of the same activities."
 msgstr "同时包含温度和湿度的活动数量不足。"
@@ -7231,7 +7230,6 @@ msgstr "同时包含温度和湿度的活动数量不足。"
 #~ msgid "Temperature and humidity were not provided by your synced activities."
 #~ msgstr "已同步的活动未提供温度和湿度数据。"
 
-#: src/pages/Labs.tsx:42
 #: src/pages/LabsEnvironment.tsx:74
 msgid "Temperature is missing from too many otherwise eligible activities."
 msgstr "其他条件合格的活动中，温度缺失过多。"
@@ -7411,8 +7409,8 @@ msgid "The readiness decision changed. Review the refreshed decision before reco
 msgstr "就绪判断已更新。请查看刷新后的判断，再记录结论。"
 
 #: src/pages/Labs.tsx:39
-msgid "The required environment, power, and heart-rate data do not overlap on enough of the same runs."
-msgstr "所需的环境、功率和心率数据未在足够多的同一次跑步中重叠。"
+#~ msgid "The required environment, power, and heart-rate data do not overlap on enough of the same runs."
+#~ msgstr "所需的环境、功率和心率数据未在足够多的同一次跑步中重叠。"
 
 #. placeholder {0}: target ?? 'your target'
 #: src/components/UpcomingPlanCard.tsx:236
@@ -7451,7 +7449,6 @@ msgstr "数据服务更新完成后，每周历史图表将自动显示。"
 msgid "Theme"
 msgstr "主题"
 
-#: src/pages/Labs.tsx:35
 #: src/pages/LabsEnvironment.tsx:66
 msgid "There are not enough eligible Stryd activities yet."
 msgstr "符合条件的 Stryd 活动数量暂时不足。"
@@ -7492,7 +7489,6 @@ msgstr "这仅评估过往训练，不评估今天的天气或环境条件。"
 msgid "This falls in an unsupported historical range, so it is not marked on the curve."
 msgstr "该值落在证据不足的历史范围内，因此不会标记在曲线上。"
 
-#: src/pages/Labs.tsx:40
 #: src/pages/LabsEnvironment.tsx:82
 msgid "This first experiment currently supports continuous Stryd power only."
 msgstr "首个实验目前仅支持连续 Stryd 功率。"
@@ -8381,7 +8377,6 @@ msgstr "你的 Garmin 账号已启用多重验证。输入 Garmin 发送的验�
 msgid "Your historical environmental-response curve"
 msgstr "你的历史环境响应曲线"
 
-#: src/pages/Labs.tsx:44
 #: src/pages/LabsEnvironment.tsx:89
 msgid "Your history includes enough broad sample coverage, but the full analysis must confirm that power, heart rate, and Critical Power use one compatible Stryd regime."
 msgstr "历史数据具备足够的总体采样覆盖，但仍需完整分析确认功率、心率和临界功率来自兼容的 Stryd 数据体系。"

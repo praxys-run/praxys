@@ -2,6 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { KEYS, getCompatItem, removeCompatItem } from '../lib/storage-compat';
 import { initialDashboardUrl } from '../lib/dashboard-prefetch';
 import { tokenCacheScope } from '../lib/auth-cache-scope';
+import {
+  fetchWithTimeout,
+  shouldRetryApiRequest,
+} from '../lib/request-timeout';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -91,31 +95,17 @@ async function apiFetcher<T>(
     return prefetchedResponse.json();
   }
 
-  const controller = timeoutMs ? new AbortController() : null;
-  let timedOut = false;
-  const timeout = timeoutMs
-    ? window.setTimeout(() => {
-      timedOut = true;
-      controller?.abort();
-    }, timeoutMs)
-    : null;
-  const abort = () => controller?.abort();
-  signal?.addEventListener('abort', abort, { once: true });
-  try {
-    const res = await apiFetch(url, {
-      signal: controller?.signal ?? signal,
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  } catch (error) {
-    if (timedOut) {
-      throw new Error('The eligibility check took too long. Please retry.');
-    }
-    throw error;
-  } finally {
-    if (timeout !== null) window.clearTimeout(timeout);
-    signal?.removeEventListener('abort', abort);
-  }
+  return fetchWithTimeout(
+    async (requestSignal) => {
+      const res = await apiFetch(url, {
+        signal: requestSignal,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    },
+    signal,
+    timeoutMs,
+  );
 }
 
 startInitialDashboardPrefetch();
@@ -168,6 +158,7 @@ export function useApi<T>(url: string, options?: UseApiOptions): UseApiResult<T>
     ...(options?.refetchOnWindowFocus !== undefined
       ? { refetchOnWindowFocus: options.refetchOnWindowFocus }
       : {}),
+    ...(options?.timeoutMs ? { retry: shouldRetryApiRequest } : {}),
   });
 
   return {

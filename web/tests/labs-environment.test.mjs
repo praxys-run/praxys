@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { QueryClient } from '@tanstack/react-query';
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
 
@@ -20,15 +21,13 @@ test('web Labs covers consent, result, calculator, and withdrawal states', async
   assert.match(sidebar, /to: '\/labs', icon: FlaskConical/);
   assert.match(catalog, /Available experiments/);
   assert.match(catalog, /to="\/labs\/environment-response"/);
-  assert.match(catalog, /environment-response\/preflight/);
-  assert.match(catalog, /Needs data/);
-  assert.match(catalog, /Check required/);
-  assert.match(catalog, /Checking eligibility/);
-  assert.match(catalog, /Eligibility check unavailable/);
-  assert.match(catalog, /timeoutMs: 15000/);
+  assert.doesNotMatch(catalog, /environment-response\/preflight/);
+  assert.match(catalog, /Open to check/);
   assert.match(page, /adult_attested: adultAttested/);
   assert.match(page, /consent_version: state\.consent_version/);
   assert.match(page, /environment-response\/preflight/);
+  assert.match(page, /timeoutMs: 15000/);
+  assert.doesNotMatch(page, /refetchOnMount: 'always', timeoutMs: 15000/);
   assert.match(page, /onRetryPreflight/);
   assert.match(page, /Checking data requirements/);
   assert.match(page, /before showing enrollment consent or starting analysis/);
@@ -48,6 +47,56 @@ test('web Labs covers consent, result, calculator, and withdrawal states', async
   assert.match(app, /RouteChunkSkeleton/);
   assert.match(app, /LabsRouteBoundary/);
   assert.match(app, /Reload Labs/);
+});
+
+test('a timed-out Labs preflight aborts once and leaves its query in error', async () => {
+  const originalWindow = globalThis.window;
+  const originalFetch = globalThis.fetch;
+  let requests = 0;
+  let aborts = 0;
+
+  globalThis.window = {
+    setTimeout,
+    clearTimeout,
+    location: { origin: 'https://praxys.test' },
+  };
+  globalThis.fetch = (_url, { signal }) => new Promise((_resolve, reject) => {
+    requests += 1;
+    signal.addEventListener('abort', () => {
+      aborts += 1;
+      reject(new DOMException('Aborted', 'AbortError'));
+    }, { once: true });
+  });
+
+  try {
+    const {
+      ApiTimeoutError,
+      fetchWithTimeout,
+      shouldRetryApiRequest,
+    } = await import('../src/lib/request-timeout.ts');
+    const queryClient = new QueryClient();
+    const queryKey = ['labs-preflight-timeout'];
+
+    await assert.rejects(
+      () => queryClient.fetchQuery({
+        queryKey,
+        queryFn: () => fetchWithTimeout(
+          (signal) => fetch('/api/labs/environment-response/preflight', { signal }),
+          undefined,
+          1,
+        ),
+        retry: shouldRetryApiRequest,
+      }),
+      ApiTimeoutError,
+    );
+
+    assert.equal(requests, 1);
+    assert.equal(aborts, 1);
+    assert.equal(queryClient.getQueryState(queryKey)?.status, 'error');
+  } finally {
+    globalThis.window = originalWindow;
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('stale Labs chunks reload once instead of looping', async () => {
@@ -98,11 +147,8 @@ test('miniapp Labs preserves the web experiment lifecycle', async () => {
   assert.match(app, /pages\/labs\/environment-response\/index/);
   assert.match(settings, /onNavigateToLabs/);
   assert.match(catalog, /pages\/labs\/environment-response\/index/);
-  assert.match(catalog, /environment-response\/preflight/);
-  assert.match(catalog, /Needs data/);
-  assert.match(catalog, /Check required/);
-  assert.match(catalog, /Checking eligibility/);
-  assert.match(catalog, /Eligibility check unavailable/);
+  assert.doesNotMatch(catalog, /environment-response\/preflight/);
+  assert.match(catalog, /Open to check/);
   assert.match(controller, /adult_attested: true/);
   assert.match(controller, /consent_version:/);
   assert.match(controller, /environment-response\/preflight/);

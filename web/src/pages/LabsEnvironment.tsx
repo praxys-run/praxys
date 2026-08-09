@@ -751,7 +751,7 @@ export default function LabsEnvironment() {
     refetch: refetchPreflight,
   } = useApi<LabsEnvironmentPreflightResponse>(
     '/api/labs/environment-response/preflight',
-    { refetchOnMount: 'always', timeoutMs: 15000 },
+    { timeoutMs: 15000 },
   );
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');

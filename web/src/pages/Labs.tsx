@@ -9,41 +9,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useApi } from '@/hooks/useApi';
-import type {
-  LabsEnvironmentPreflightResponse,
-  LabsEnvironmentResponseState,
-} from '@/types/api';
+import type { LabsEnvironmentResponseState } from '@/types/api';
 
 function catalogStatus(
   state: LabsEnvironmentResponseState,
-  preflight: LabsEnvironmentPreflightResponse | null,
-  preflightLoading: boolean,
-  preflightError: string | null,
 ) {
   if (state.status === 'available') return msg`Result ready`;
   if (state.status === 'queued' || state.status === 'processing') return msg`Analyzing`;
   if (state.enrolled) return msg`Participating`;
-  if (preflightLoading) return msg`Checking eligibility`;
-  if (preflightError) return msg`Eligibility check unavailable`;
-  if (preflight?.status === 'ineligible') return msg`Needs data`;
-  if (preflight?.status === 'needs_full_analysis') return msg`Check required`;
-  return msg`Ready to check`;
-}
-
-function catalogReason(preflight: LabsEnvironmentPreflightResponse | null) {
-  const reasons: Record<string, ReturnType<typeof msg>> = {
-    insufficient_activities: msg`There are not enough eligible Stryd activities yet.`,
-    missing_environment_pairing: msg`Temperature and humidity are not both present on enough of the same activities.`,
-    missing_continuous_sample_power: msg`Continuous Stryd sample power is missing from too much of the eligible history.`,
-    missing_continuous_heart_rate: msg`Continuous heart-rate samples are missing from too much of the eligible history.`,
-    insufficient_prerequisite_overlap: msg`The required environment, power, and heart-rate data do not overlap on enough of the same runs.`,
-    unsupported_power_provider: msg`This first experiment currently supports continuous Stryd power only.`,
-    missing_provider_aligned_critical_power: msg`A Stryd-aligned Critical Power value is required for this experiment.`,
-    missing_temperature: msg`Temperature is missing from too many otherwise eligible activities.`,
-    missing_relative_humidity: msg`Relative humidity is missing from too many otherwise eligible activities.`,
-    provider_alignment_requires_full_analysis: msg`Your history includes enough broad sample coverage, but the full analysis must confirm that power, heart rate, and Critical Power use one compatible Stryd regime.`,
-  };
-  return preflight?.reason_code ? reasons[preflight.reason_code] : null;
+  return msg`Open to check`;
 }
 
 export default function Labs() {
@@ -52,16 +26,6 @@ export default function Labs() {
     '/api/labs/environment-response',
     { refetchInterval: 5000, refetchOnMount: 'always' },
   );
-  const {
-    data: preflight,
-    loading: preflightLoading,
-    error: preflightError,
-  } = useApi<LabsEnvironmentPreflightResponse>(
-    '/api/labs/environment-response/preflight',
-    { refetchOnMount: 'always', timeoutMs: 15000 },
-  );
-  const reason = catalogReason(preflight);
-
   return (
     <div className="space-y-8">
       <header className="border-b border-border pb-7">
@@ -104,7 +68,7 @@ export default function Labs() {
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-lg font-semibold"><Trans>Environmental response</Trans></h3>
                     <Badge variant="outline">
-                      {i18n._(catalogStatus(data, preflight, preflightLoading, preflightError))}
+                      {i18n._(catalogStatus(data))}
                     </Badge>
                   </div>
                   <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
@@ -113,11 +77,6 @@ export default function Labs() {
                   <p className="mt-3 text-xs text-muted-foreground">
                     <Trans>Historical association only · personal aggregate result · continuous Stryd samples required</Trans>
                   </p>
-                  {reason && !data.enrolled && (
-                    <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                      {i18n._(reason)}
-                    </p>
-                  )}
                 </div>
               </div>
               <Button
