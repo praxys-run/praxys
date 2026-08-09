@@ -18,6 +18,7 @@ import type {
 
 const CONSENT_VERSION = 'environment-response-consent-v1';
 const STULL_SOURCE_URL = 'https://doi.org/10.1175/JAMC-D-11-0143.1';
+const PREFLIGHT_REQUEST_TIMEOUT_MS = 15000;
 type LabsMutationAction = 'enroll' | 'recompute';
 
 interface LabsPrivateState {
@@ -165,6 +166,10 @@ function buildLabsTr() {
     preflightEligible: t('Enough source data to attempt the experiment'),
     preflightUncertain: t('Full analysis must confirm eligibility'),
     preflightIneligible: t('Not enough suitable data to start yet'),
+    preflightChecking: t('Checking data requirements'),
+    preflightCheckingDetail: t('Praxys checks the required environment, Stryd power, heart-rate, and Critical Power coverage before showing enrollment consent or starting analysis.'),
+    preflightUnavailable: t('Eligibility check could not load'),
+    preflightUnavailableDetail: t('Retry before joining. The full analysis has not started.'),
     preflightEligibleDetail: t('This quick check only covers definite prerequisites. The full analysis can still return insufficient support, an unstable association, or no conclusion.'),
     preflightIneligibleDetail: t('Praxys stopped before consent or long-running analysis. Sync or collect the missing data, then retry this check.'),
     suitableActivities: t('Activities passing quick prerequisites'),
@@ -423,6 +428,7 @@ Page({
     state: null as LabsEnvironmentResponseState | null,
     preflight: null as LabsEnvironmentPreflightResponse | null,
     preflightLoading: true,
+    preflightError: '',
     preflightBlocked: false,
     preflightUncertain: false,
     preflightTitle: '',
@@ -506,29 +512,52 @@ Page({
   async refetch() {
     const self = this as unknown as LabsPrivateState;
     if (self._labsPoll) clearTimeout(self._labsPoll);
-    this.setData({ loading: true, errorMessage: '' });
+    this.setData({
+      loading: true,
+      errorMessage: '',
+      preflightLoading: true,
+      preflightError: '',
+      preflightBlocked: true,
+    });
+    const preflightResult = apiGet<LabsEnvironmentPreflightResponse>(
+      '/api/labs/environment-response/preflight',
+      { timeoutMs: PREFLIGHT_REQUEST_TIMEOUT_MS },
+    )
+      .then((value) => ({ value }))
+      .catch((error: unknown) => ({ error }));
+    let state: LabsEnvironmentResponseState;
     try {
-      const [state, preflight] = await Promise.all([
-        apiGet<LabsEnvironmentResponseState>('/api/labs/environment-response'),
-        apiGet<LabsEnvironmentPreflightResponse>('/api/labs/environment-response/preflight'),
-      ]);
-      const previousState = this.data.state;
-      const resetConsentControls = (
-        (
-          previousState != null
-          && previousState.status !== 'not_enrolled'
-          && state.status === 'not_enrolled'
-        )
-        || (
-          previousState != null
-          && previousState.consent_version !== state.consent_version
-        )
+      state = await apiGet<LabsEnvironmentResponseState>(
+        '/api/labs/environment-response',
       );
-      const preflightBlocked = !preflight.can_start_analysis;
-      const preflightUncertain = preflight.status === 'needs_full_analysis';
+    } catch (error) {
       this.setData({
         loading: false,
-        preflight,
+        preflightLoading: false,
+        errorMessage: errorDetail(error),
+      });
+      return;
+    }
+    const previousState = this.data.state;
+    const resetConsentControls = (
+      (
+        previousState != null
+        && previousState.status !== 'not_enrolled'
+        && state.status === 'not_enrolled'
+      )
+      || (
+        previousState != null
+        && previousState.consent_version !== state.consent_version
+      )
+    );
+    const preflight = await preflightResult;
+    if ('value' in preflight) {
+      const qualification = preflight.value;
+      const preflightBlocked = !qualification.can_start_analysis;
+      const preflightUncertain = qualification.status === 'needs_full_analysis';
+      this.setData({
+        loading: false,
+        preflight: qualification,
         preflightLoading: false,
         preflightBlocked,
         preflightUncertain,
@@ -540,13 +569,13 @@ Page({
         preflightDetail: preflightBlocked
           ? this.data.tr.preflightIneligibleDetail
           : this.data.tr.preflightEligibleDetail,
-        preflightReason: preflight.reason_code
-          ? (REASON_KEYS[preflight.reason_code]?.()
+        preflightReason: qualification.reason_code
+          ? (REASON_KEYS[qualification.reason_code]?.()
             ?? t('The quick check found a data requirement that needs attention.'))
           : '',
         preflightReadyActivityCount: Math.min(
-          preflight.observed.complete_stryd_activity_count,
-          preflight.observed.provider_aligned_cp_activity_count,
+          qualification.observed.complete_stryd_activity_count,
+          qualification.observed.provider_aligned_cp_activity_count,
         ),
         ...(resetConsentControls
           ? {
@@ -556,30 +585,46 @@ Page({
           : {}),
         ...deriveState(state),
       });
-      if (
-        ['queued', 'dispatched', 'processing', 'retrying'].includes(
-          state.execution.job_status ?? '',
-        )
-      ) {
-        self._labsPoll = setTimeout(() => this.refetch(), 4000) as unknown as number;
-      } else if (
-        !state.execution.recompute.allowed
-        && ['cooldown', 'daily_limit'].includes(
-          state.execution.recompute.reason ?? '',
-        )
-        && state.execution.recompute.retry_after_seconds != null
-      ) {
-        const retryDelayMs = Math.max(
-          1000,
-          state.execution.recompute.retry_after_seconds * 1000 + 250,
-        );
-        self._labsPoll = setTimeout(
-          () => this.refetch(),
-          retryDelayMs,
-        ) as unknown as number;
-      }
-    } catch (error) {
-      this.setData({ loading: false, errorMessage: errorDetail(error) });
+    } else {
+      this.setData({
+        loading: false,
+        preflightLoading: false,
+        preflightBlocked: true,
+        preflightUncertain: false,
+        preflightTitle: this.data.tr.preflightUnavailable,
+        preflightDetail: this.data.tr.preflightUnavailableDetail,
+        preflightError: errorDetail(preflight.error),
+        preflightReason: '',
+        ...(resetConsentControls
+          ? {
+              adultAttested: false,
+              consentConfirmed: false,
+            }
+          : {}),
+        ...deriveState(state),
+      });
+    }
+    if (
+      ['queued', 'dispatched', 'processing', 'retrying'].includes(
+        state.execution.job_status ?? '',
+      )
+    ) {
+      self._labsPoll = setTimeout(() => this.refetch(), 4000) as unknown as number;
+    } else if (
+      !state.execution.recompute.allowed
+      && ['cooldown', 'daily_limit'].includes(
+        state.execution.recompute.reason ?? '',
+      )
+      && state.execution.recompute.retry_after_seconds != null
+    ) {
+      const retryDelayMs = Math.max(
+        1000,
+        state.execution.recompute.retry_after_seconds * 1000 + 250,
+      );
+      self._labsPoll = setTimeout(
+        () => this.refetch(),
+        retryDelayMs,
+      ) as unknown as number;
     }
   },
 
@@ -599,6 +644,8 @@ Page({
     if (
       !this.data.adultAttested
       || !this.data.consentConfirmed
+      || this.data.preflightLoading
+      || Boolean(this.data.preflightError)
       || this.data.preflightBlocked
     ) return;
     this.setData({ actionPending: true, actionError: '' });

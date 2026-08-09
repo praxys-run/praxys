@@ -27,6 +27,7 @@
             </view>
             <text class="labs-catalog-description">{{tr.environmentDetail}}</text>
             <text class="labs-catalog-boundary">{{tr.environmentBoundary}}</text>
+            <text wx:if="{{reasonLabel}}" class="labs-catalog-reason">{{reasonLabel}}</text>
             <view class="labs-catalog-action">
               <text>{{tr.openExperiment}}</text>
               <text aria-hidden="true">›</text>

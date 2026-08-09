@@ -19,7 +19,18 @@
           <text class="labs-title">{{tr.joinTitle}}</text>
           <text class="labs-detail">{{tr.joinDetail}}</text>
 
-          <view class="labs-preflight labs-preflight--{{preflightBlocked ? 'blocked' : preflightUncertain ? 'uncertain' : 'ready'}}">
+          <view wx:if="{{preflightLoading}}" class="labs-preflight labs-preflight--checking">
+            <view class="labs-spinner"></view>
+            <text class="labs-preflight-title">{{tr.preflightChecking}}</text>
+            <text class="labs-preflight-detail">{{tr.preflightCheckingDetail}}</text>
+          </view>
+          <view wx:elif="{{preflightError}}" class="labs-preflight labs-preflight--blocked">
+            <text class="labs-preflight-title">{{preflightTitle}}</text>
+            <text class="labs-preflight-detail">{{preflightDetail}}</text>
+            <text class="labs-preflight-detail">{{preflightError}}</text>
+            <button class="ts-button ts-button--secondary labs-preflight-retry" bindtap="onRetry">{{tr.retry}}</button>
+          </view>
+          <view wx:else class="labs-preflight labs-preflight--{{preflightBlocked ? 'blocked' : preflightUncertain ? 'uncertain' : 'ready'}}">
             <text class="labs-preflight-title">{{preflightTitle}}</text>
             <text wx:if="{{preflightReason}}" class="labs-preflight-detail">{{preflightReason}}</text>
             <text class="labs-preflight-detail">{{preflightDetail}}</text>
@@ -49,24 +60,26 @@
             <text class="labs-reasoning-detail">{{tr.limitsDetail}}</text>
           </view>
 
-          <view class="labs-check" bindtap="onToggleAdult">
-            <view class="labs-check-box {{adultAttested ? 'labs-check-box--checked' : ''}}">
-              <text wx:if="{{adultAttested}}" class="labs-check-mark">✓</text>
+          <block wx:if="{{!preflightLoading && !preflightError}}">
+            <view class="labs-check" bindtap="onToggleAdult">
+              <view class="labs-check-box {{adultAttested ? 'labs-check-box--checked' : ''}}">
+                <text wx:if="{{adultAttested}}" class="labs-check-mark">✓</text>
+              </view>
+              <text class="labs-check-copy">{{tr.adultConsent}}</text>
             </view>
-            <text class="labs-check-copy">{{tr.adultConsent}}</text>
-          </view>
-          <view class="labs-check" bindtap="onToggleConsent">
-            <view class="labs-check-box {{consentConfirmed ? 'labs-check-box--checked' : ''}}">
-              <text wx:if="{{consentConfirmed}}" class="labs-check-mark">✓</text>
+            <view class="labs-check" bindtap="onToggleConsent">
+              <view class="labs-check-box {{consentConfirmed ? 'labs-check-box--checked' : ''}}">
+                <text wx:if="{{consentConfirmed}}" class="labs-check-mark">✓</text>
+              </view>
+              <text class="labs-check-copy">{{tr.experimentConsent}}</text>
             </view>
-            <text class="labs-check-copy">{{tr.experimentConsent}}</text>
-          </view>
 
-          <button
-            class="ts-button labs-primary"
-            disabled="{{!adultAttested || !consentConfirmed || actionPending || preflightBlocked}}"
-            bindtap="onJoin"
-          >{{tr.joinAction}}</button>
+            <button
+              class="ts-button labs-primary"
+              disabled="{{!adultAttested || !consentConfirmed || actionPending || preflightBlocked}}"
+              bindtap="onJoin"
+            >{{tr.joinAction}}</button>
+          </block>
         </view>
 
         <view wx:if="{{isNotEnrolled}}" class="ts-card labs-calculator">
