@@ -48,6 +48,12 @@
       "args": ["-y", "@azure/mcp@latest", "server", "start"],
       "env": {}
     },
+    "statsig": {
+      "type": "http",
+      "url": "https://api.statsig.com/v1/mcp",
+      "headers": {},
+      "tools": ["*"]
+    },
     "praxys-local": {
       "command": "node",
       "args": ["scripts/run_praxys_mcp.cjs", "local"],

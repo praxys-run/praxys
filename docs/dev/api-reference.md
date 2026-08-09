@@ -1217,10 +1217,10 @@ the currently safe explicit actions in `resolutions`.
 The legacy `sync_state` maps matching/pending to `synced`, undelivered to
 `not_synced`, and conflicts to `mismatch`.
 
-`sync_target` is the configured and eligible execution target: `"stryd"`,
-experimental `"garmin"`, or `null`. Garmin is returned only after the user's
-connection-bound experimental consent is effective. Clients can hide the
-entire sync column when it is `null`.
+`sync_target` is the configured and runtime-authorized execution target:
+`"stryd"`, `"garmin"`, or `null`. Garmin is returned only while deployment and
+rollout eligibility pass and its internal connection-generation fence matches.
+Clients can hide the entire sync column when it is `null`.
 
 `adjustments` is newest-first durable audit history filtered to the requested
 workout-date window. `active` means the exact after-snapshot is still current,
@@ -1582,8 +1582,7 @@ concurrency.
 
 After a successful upload, upsert, or real deletion commits, Praxys starts a
 best-effort rolling-delivery pass. The plan mutation remains successful if the
-provider is unavailable. External writes occur only when managed mode and
-delivery consent are already enabled.
+provider is unavailable. External writes occur only when managed mode and delivery are already enabled.
 
 ## Settings
 
@@ -1620,16 +1619,11 @@ Current configuration, platform capabilities, and detected thresholds.
   "platform_capabilities": {
     "garmin": { "activities": true, "recovery": true, "fitness": true, "plan": false }
   },
-  "experimental_plan_delivery": {
-    "garmin": {
-      "experimental": true,
-      "available": false,
-      "enabled": false,
-      "region": "international",
-      "connected": true,
-      "fidelity": "duration_only"
-    }
-  },
+  "plan_delivery_options": [
+    { "platform": "garmin", "selectable": false, "reason": "account_not_eligible" },
+    { "platform": "stryd", "selectable": true, "reason": null },
+    { "platform": "strava", "selectable": false, "reason": "delivery_not_supported" }
+  ],
   "detected_thresholds": {
     "cp_watts": { "value": 247.8, "source": "stryd" }
   },
@@ -1645,14 +1639,17 @@ Current configuration, platform capabilities, and detected thresholds.
 stable. `connection_statuses` is the live mutation gate; provider workout
 actions require the selected target to be exactly `connected`.
 `platform_capabilities` is the effective per-user capability map. Garmin's
-`plan` value becomes true only while the default-off deployment gate is active
-and the matching `experimental_plan_delivery.garmin.enabled` value is true.
-`available` reports that operator gate; `enabled` additionally requires valid
-connection-bound user consent. The experimental status always reports the
-account region and reduced fidelity; it is not inferred from the static
-platform capability table. `region` is `null` for a legacy connection that
-predates the mirrored region setting; that connection must reconnect before
-experimental consent can be granted.
+`plan` value becomes true only while its hard deployment prerequisite, Statsig
+eligibility, connected-account region, and registered adapter are all
+available.
+
+`plan_delivery_options` is the authoritative execution-target selector
+contract. It includes every actively connected activity platform, including
+platforms that cannot receive workouts. `selectable=true` means the platform
+can be chosen now. Disabled options use the stable reason
+`delivery_not_supported` or `account_not_eligible`; clients must describe the
+account limitation without exposing the rollout provider. Recovery-only
+platforms such as Oura are omitted.
 
 ### PUT /api/settings
 
@@ -1667,9 +1664,6 @@ Update settings (partial update).
   "source_options": {
     "athlete_timezone": "America/Los_Angeles"
   },
-  "experimental_plan_delivery": {
-    "garmin": true
-  },
   "plan_management": {
     "mode": "praxys",
     "execution_target": "garmin",
@@ -1681,8 +1675,9 @@ Update settings (partial update).
 
 `plan_management.mode` is `external` or `praxys`. Praxys mode makes
 Praxys-owned rows canonical. `execution_target` must be an actively connected
-plan-capable platform with a registered delivery adapter. Setting
-`delivery_enabled=true` commits explicit consent and then starts a best-effort
+plan-capable platform with a registered delivery adapter.
+`execution_target` is the durable user choice; setting
+`delivery_enabled=true` confirms managed delivery and starts a best-effort
 delivery pass for today through day 13. The same rolling pass runs after
 committed plan mutations and on scheduler ticks. Repeated runs are idempotent;
 target edits/deletions and uncertain provider outcomes block only the affected
@@ -1709,19 +1704,20 @@ the new target. Manual Stryd push requests are subject to the same target fence.
 The selected target is retained across mixed-version workers even if an older
 worker rewrites `plan_management` without the new field.
 
-`experimental_plan_delivery.garmin=true` grants consent only for the current
-encrypted Garmin credential generation and configured Garmin region. It
-requires a connected Garmin account and
-operator authorization: either `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED=true` or
-the authenticated internal user ID listed in the default-empty
-`PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS` validation allowlist. Otherwise
-the API returns 409.
-It may be submitted with the managed-plan activation shown above. `false`
-revokes consent and immediately pauses active Garmin delivery. Reconnect,
-credential rotation, and disconnect also invalidate
-consent and pause delivery. Changing region disconnects the old region, clears
-its cached tokens, and requires a successful reconnect before a later consent
-request; region change and re-consent cannot be combined.
+Selecting or resuming Garmin requires a connected account and operator
+authorization:
+`PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED=true` and the default-off Statsig
+`garmin_plan_delivery_eligible` gate for the authenticated user. Otherwise the
+API returns 409.
+Statsig controls rollout eligibility only; it is not consent or durable
+product state. Explicit execution-target selection remains in
+`config.plan_management`. The server also stores a non-secret internal hash
+binding Garmin writes to the current encrypted credential generation and
+region. Selecting Garmin or explicitly resuming delivery refreshes that fence.
+Reconnect, credential rotation, disconnect, or region change invalidates it
+and pauses delivery. Changing region disconnects the old region and clears its
+cached tokens; Garmin cannot be selected or resumed in the same request until
+the new region reconnects.
 Garmin cached sessions are isolated by both Praxys user and credential
 generation. Interactive login stages tokens until encrypted credential
 persistence succeeds. Manual and scheduled syncs recheck their captured
@@ -1738,7 +1734,7 @@ ledger-owned instance and retains the reusable template. A schedule discovered
 only by calendar set difference is never adopted as owned; an uncertain
 schedule request becomes an explicit reconciliation conflict. International and CN
 mutation paths have not been live validated. Clients must present this risk and
-reduced-fidelity disclosure before sending consent.
+reduced-fidelity disclosure before managed activation.
 
 `adjustment_policy` is separately consented and defaults to `suggest_only`.
 `auto_conservative` is accepted only in Praxys mode; leaving Praxys mode resets
@@ -1778,16 +1774,9 @@ managed mode or delivery.
   "display": { "..." : "..." },
   "connection_statuses": { "garmin": "connected" },
   "platform_capabilities": { "garmin": { "plan": true } },
-  "experimental_plan_delivery": {
-    "garmin": {
-      "experimental": true,
-      "available": true,
-      "enabled": true,
-      "region": "international",
-      "connected": true,
-      "fidelity": "duration_only"
-    }
-  }
+  "plan_delivery_options": [
+    { "platform": "garmin", "selectable": true, "reason": null }
+  ]
 }
 ```
 

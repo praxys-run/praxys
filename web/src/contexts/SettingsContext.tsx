@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import type { DisplayConfig, ExperimentalPlanDeliveryResponse, SettingsConfig, SettingsResponse, SettingsUpdate, SettingsUpdateResponse, TrainingBase, ThresholdValue, DetectedThreshold } from '../types/api';
+import type { DisplayConfig, PlanDeliveryOption, SettingsConfig, SettingsResponse, SettingsUpdate, SettingsUpdateResponse, TrainingBase, ThresholdValue, DetectedThreshold } from '../types/api';
 import { API_BASE, getAuthHeaders } from '../hooks/useApi';
 
 interface SettingsContextValue {
@@ -8,7 +8,7 @@ interface SettingsContextValue {
   display: DisplayConfig | null;
   connectionStatuses: SettingsResponse['connection_statuses'];
   platformCapabilities: SettingsResponse['platform_capabilities'];
-  experimentalPlanDelivery: ExperimentalPlanDeliveryResponse;
+  planDeliveryOptions: PlanDeliveryOption[];
   availableProviders: SettingsResponse['available_providers'];
   availableBases: TrainingBase[];
   effectiveThresholds: Record<string, ThresholdValue>;
@@ -35,7 +35,7 @@ const SettingsContext = createContext<SettingsContextValue>({
   display: DEFAULT_DISPLAY,
   connectionStatuses: {},
   platformCapabilities: {},
-  experimentalPlanDelivery: {},
+  planDeliveryOptions: [],
   availableProviders: {},
   availableBases: ['power', 'hr', 'pace'],
   effectiveThresholds: {},
@@ -46,6 +46,24 @@ const SettingsContext = createContext<SettingsContextValue>({
   refetch: () => {},
 });
 
+function planDeliveryOptionsFromResponse(
+  data: Pick<
+    SettingsResponse,
+    'config' | 'platform_capabilities' | 'plan_delivery_options'
+  >,
+): PlanDeliveryOption[] {
+  if (data.plan_delivery_options !== undefined) {
+    return data.plan_delivery_options;
+  }
+  return data.config.connections.map((platform) => ({
+    platform,
+    selectable: data.platform_capabilities[platform]?.plan === true,
+    reason: data.platform_capabilities[platform]?.plan === true
+      ? null
+      : 'delivery_not_supported',
+  }));
+}
+
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<SettingsConfig | null>(null);
   const [display, setDisplay] = useState<DisplayConfig>(DEFAULT_DISPLAY);
@@ -55,9 +73,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [platformCapabilities, setPlatformCapabilities] = useState<
     SettingsResponse['platform_capabilities']
   >({});
-  const [experimentalPlanDelivery, setExperimentalPlanDelivery] = useState<
-    ExperimentalPlanDeliveryResponse
-  >({});
+  const [planDeliveryOptions, setPlanDeliveryOptions] = useState<
+    PlanDeliveryOption[]
+  >([]);
   const [availableProviders, setAvailableProviders] = useState<
     SettingsResponse['available_providers']
   >({});
@@ -88,7 +106,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setDisplay(data.display);
         setConnectionStatuses(data.connection_statuses ?? {});
         setPlatformCapabilities(data.platform_capabilities ?? {});
-        setExperimentalPlanDelivery(data.experimental_plan_delivery ?? {});
+        setPlanDeliveryOptions(planDeliveryOptionsFromResponse(data));
         setAvailableProviders(data.available_providers ?? {});
         setAvailableBases(data.available_bases);
         setEffectiveThresholds(data.effective_thresholds ?? {});
@@ -137,18 +155,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       throw new Error(detail || `HTTP ${res.status}`);
     }
     const data = await res.json() as SettingsUpdateResponse;
-    const requestedGarminExperiment = (
-      update.experimental_plan_delivery?.garmin
-    );
-    if (
-      requestedGarminExperiment !== undefined
-      && data.experimental_plan_delivery?.garmin?.enabled
-      !== requestedGarminExperiment
-    ) {
-      throw new Error(
-        'The active server did not confirm the Garmin delivery change. Retry shortly.',
-      );
-    }
     setConfig(data.config);
     setDisplay(data.display);
     setConnectionStatuses(
@@ -157,16 +163,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setPlatformCapabilities(
       data.platform_capabilities ?? platformCapabilities,
     );
-    setExperimentalPlanDelivery(
-      data.experimental_plan_delivery ?? experimentalPlanDelivery,
-    );
+    setPlanDeliveryOptions(planDeliveryOptionsFromResponse(data));
   };
 
   const refetch = useCallback(() => setFetchKey((k) => k + 1), []);
 
   return (
     <SettingsContext.Provider
-      value={{ config, display, connectionStatuses, platformCapabilities, experimentalPlanDelivery, availableProviders, availableBases, effectiveThresholds, detectedThresholds, loading, error, updateSettings, refetch }}
+      value={{ config, display, connectionStatuses, platformCapabilities, planDeliveryOptions, availableProviders, availableBases, effectiveThresholds, detectedThresholds, loading, error, updateSettings, refetch }}
     >
       {children}
     </SettingsContext.Provider>

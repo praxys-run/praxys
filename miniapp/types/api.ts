@@ -108,21 +108,17 @@ export interface SettingsConfig {
 
 export interface SettingsUpdate extends Omit<Partial<SettingsConfig>, 'plan_management'> {
   plan_management?: Partial<PlanManagementConfig>;
-  experimental_plan_delivery?: Partial<Record<'garmin', boolean>>;
   managed_plan_preview_start?: string;
 }
 
-export interface ExperimentalPlanDeliveryStatus {
-  experimental: true;
-  available: boolean;
-  enabled: boolean;
-  region: 'international' | 'cn' | null;
-  connected: boolean;
-  fidelity: 'duration_only';
-}
+export type PlanDeliveryUnavailabilityReason =
+  | 'delivery_not_supported'
+  | 'account_not_eligible';
 
-export interface ExperimentalPlanDeliveryResponse {
-  garmin?: ExperimentalPlanDeliveryStatus;
+export interface PlanDeliveryOption {
+  platform: PlatformName;
+  selectable: boolean;
+  reason: PlanDeliveryUnavailabilityReason | null;
 }
 
 export type GarminConnectionResponse =
@@ -164,7 +160,7 @@ export interface SettingsResponse {
   config: SettingsConfig;
   connection_statuses: Partial<Record<PlatformName, PlatformConnectionStatus>>;
   platform_capabilities: Partial<Record<PlatformName, Partial<Record<DataCategory, boolean>>>>;
-  experimental_plan_delivery?: ExperimentalPlanDeliveryResponse;
+  plan_delivery_options?: PlanDeliveryOption[];
   available_providers: {
     activities?: PlatformName[];
     recovery?: PlatformName[];
@@ -183,7 +179,7 @@ export interface SettingsUpdateResponse {
   display: DisplayConfig;
   connection_statuses: SettingsResponse['connection_statuses'];
   platform_capabilities: SettingsResponse['platform_capabilities'];
-  experimental_plan_delivery?: ExperimentalPlanDeliveryResponse;
+  plan_delivery_options?: PlanDeliveryOption[];
 }
 
 export type PlatformConnectionStatus =

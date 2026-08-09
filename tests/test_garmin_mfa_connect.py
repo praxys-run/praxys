@@ -76,6 +76,11 @@ def api_client(monkeypatch):
         "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED",
         "true",
     )
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, _user: gate_name
+        == "garmin_plan_delivery_eligible",
+    )
     monkeypatch.setenv(
         "PRAXYS_LOCAL_ENCRYPTION_KEY", "JKkx_5SVHKQDr0HSMrwl0KQHcA0pl5pxsYSLEAQDB4o="
     )
@@ -382,7 +387,9 @@ def test_reconnect_revokes_old_consent_before_token_login(
     api_client,
     monkeypatch,
 ):
-    from api.plan_delivery.capabilities import plan_delivery_consent_token
+    from api.plan_delivery.capabilities import (
+        plan_delivery_account_fence_token,
+    )
     from db import session as db_session
     from db.models import UserConfig, UserConnection
 
@@ -407,7 +414,7 @@ def test_reconnect_revokes_old_consent_before_token_login(
         )
         db.add(connection)
         db.flush()
-        connection.plan_delivery_consent = plan_delivery_consent_token(
+        connection.plan_delivery_consent = plan_delivery_account_fence_token(
             connection,
             region="international",
         )

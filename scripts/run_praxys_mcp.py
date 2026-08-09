@@ -270,7 +270,6 @@ def configure_local_environment(data_dir: Path, encryption_key: str) -> None:
         "PRAXYS_SYNC_SCHEDULER": "false",
         "PRAXYS_AUTH_RATE_LIMIT_DISABLED": "true",
         "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED": "false",
-        "PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS": "",
         "PRAXYS_URL": "",
         "TRAINSIGHT_URL": "",
         "PRAXYS_FRONTEND_URL": "",

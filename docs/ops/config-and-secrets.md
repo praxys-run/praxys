@@ -26,6 +26,7 @@ transient — the next deploy overwrites them.**
 | `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` | OIDC login to Azure for deploys (no client secret). | deploy workflows |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription targeted by deployment workflows | deploy workflows |
 | `PRAXYS_JWT_SECRET` | JWT signing key | pushed to App Service setting by `deploy-backend.yml` |
+| `STATSIG_SDK_KEY` | Optional Statsig server SDK key (`secret-*`). Backend-only; absence fails closed with all gates off. | App Service setting (backend) |
 | `PRAXYS_DATABASE_URL` | Postgres DSN (#360). May carry the DB password unless Entra auth is used. **Optional** until cutover; empty = SQLite. | App Service setting (backend) |
 | `WECHAT_MINIAPP_APPID` / `WECHAT_MINIAPP_SECRET` | WeChat Mini Program auth | App Service setting (backend) |
 | `PRAXYS_SMTP_PASSWORD` | SMTP client authorization code (WeCom/Exmail) for verification + invitation emails. **Optional.** | App Service setting (backend) |
@@ -41,6 +42,8 @@ transient — the next deploy overwrites them.**
 | Variable | Purpose | Consumed by |
 |---|---|---|
 | `VITE_API_URL` (`https://api.praxys.run`) | API base baked into the SPA | `deploy-frontend-appservice.yml` build |
+| `VITE_STATSIG_CLIENT_KEY` | Optional public Statsig client key (`client-*`) baked into the SPA. It is not a server credential; never put `STATSIG_SDK_KEY` here. | `deploy-frontend-appservice.yml` build |
+| `STATSIG_ENV` (`production`) | Shared Statsig environment tier. The deploy workflows default production when the variable is absent. | App Service setting + frontend build |
 | `AZURE_AI_ENDPOINT` | Azure OpenAI endpoint for production insights, feedback triage, and i18n. Keep the trailing `/`. Agentic Workflows use GitHub Copilot-hosted inference instead. | App Service setting + `i18n.yml` |
 | `TRANSLATE_MODEL` (`gpt-5.4-mini`) | Optional deployment override for translating newly extracted UI strings and science copy. | `i18n.yml`; script default applies when unset |
 | `TRANSLATE_REVIEW_MODEL` (`gpt-5.4`) | Optional stronger deployment override for the weekly native-Chinese catalog review. | `i18n.yml`; script default applies when unset |
@@ -50,8 +53,7 @@ transient — the next deploy overwrites them.**
 | `PRAXYS_SMTP_HOST` / `PRAXYS_SMTP_PORT` / `PRAXYS_SMTP_USER` / `PRAXYS_SMTP_FROM` / `PRAXYS_SMTP_STARTTLS` | SMTP transport for verification + invitation emails (non-secret; the password is the secret above). **Optional.** | App Service setting (backend) |
 | `PRAXYS_APP_BASE_URL` (`https://praxys.run`) | Public origin for verify/invite links in those emails | App Service setting (backend) |
 | `PRAXYS_DB_AUTH` (`entra` or unset) | Postgres auth mode: `entra` = AAD token via managed identity, no password. **Optional.** | App Service setting (backend) |
-| `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED` (`false`) | Default-off operator gate for unsupported Garmin consumer-API workout writes. Set `true` only on an approved validation deployment, or in production after both international and China controlled lifecycle matrices pass. User connection-bound consent remains independently required. | App Service setting (backend) |
-| `PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS` (empty) | Optional comma-separated internal Praxys user UUIDs allowed to validate Garmin delivery while the global gate remains false. Use only dedicated test users with dedicated Garmin accounts; never store emails or credentials. | App Service setting (backend) |
+| `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED` (`false`) | Default-off hard deployment prerequisite for unsupported Garmin consumer-API workout writes. Set `true` only on an approved validation deployment, or in production after both regional lifecycle matrices pass. Statsig eligibility, durable execution-target selection, and the account-generation/region fence remain independently required. | App Service setting (backend) |
 | `PRAXYS_PG_SERVER` | Postgres Flexible Server name. **Reserved / currently unused** - the on-demand backup jobs it gated were removed (Burstable tier can't do on-demand backups; PITR covers backup). Kept for a future off-site backup job. | (reserved) |
 | `PRAXYS_GITHUB_APP_ID` / `PRAXYS_GITHUB_APP_INSTALLATION_ID` | Feedback GitHub App identifiers. | App Service setting (backend) |
 | `PRAXYS_FEEDBACK_GITHUB_REPO` / `PRAXYS_FEEDBACK_GITHUB_LABELS` / `PRAXYS_FEEDBACK_GITHUB_ASSIGNEES` | Feedback issue target and optional issue metadata. | App Service setting (backend) |
@@ -313,6 +315,63 @@ and `PRAXYS_BACKEND_APPINSIGHTS_RESOURCE_ID` come from
 `appi-praxys-backend` through `scripts/appinsights_boundary.sh`; everything else
 comes from the secrets/variables above.
 
+### Statsig feature gates
+
+Statsig is optional runtime configuration, not an availability dependency.
+`STATSIG_SDK_KEY` is a repository Actions **secret** and is copied only to the
+backend App Service. `VITE_STATSIG_CLIENT_KEY` is a repository Actions
+**variable** because a Statsig `client-*` key is intentionally shipped in the
+browser bundle. Never reuse or copy the `secret-*` server key into a Vite
+variable. `STATSIG_ENV` is the shared non-secret environment tier.
+
+The final Statsig Console state owned by this integration is exactly:
+
+| Resource type | Name | Default / schema | Rules |
+|---|---|---|---|
+| Feature gate | `garmin_plan_delivery_eligible` | `false` in every environment | Optional reviewed allow rule matching only dedicated users by internal Praxys UUID. Never add a global pass rule. |
+| Dynamic config | `insight_daily_cap` | `{"value": 30}` where `value` is an integer | No experiment assignment. Runtime rules may return another validated positive integer. |
+
+Repository-level Console automation uses the official `statsig` HTTP server in
+`.mcp.json`. The entry intentionally contains an empty `headers` object and no
+credential. Each operator or agent authenticates through the MCP OAuth flow;
+the Statsig organization owner must first enable personal Console API keys.
+Never commit an OAuth token or Console API key to `.mcp.json`, environment
+examples, workflow variables, or documentation.
+
+Automation must treat the table above as declarative state and reconcile it
+idempotently: reads and repeated runs produce the same gate/config definition,
+and every mutation remains reviewable. Before destructively deleting a
+superseded Statsig resource, verify repository code and tests no longer
+reference its name and update this inventory in the same change.
+
+The Garmin gate is evaluated only after
+`PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED=true` and never replaces provider
+capability checks, durable execution-target selection, or the
+account-generation/region fence. Remove superseded issue-251 resources from
+the Statsig project; do not create an experiment for this integration.
+
+When Statsig is unavailable or the dynamic-config property is absent, the
+backend keeps `PRAXYS_INSIGHT_DAILY_CAP` and then `30` as the fallback.
+`AZURE_AI_ENDPOINT` remains the hard infrastructure prerequisite for model
+calls. There is no AI feature gate.
+
+Provision repository values, then redeploy both surfaces:
+
+```bash
+# Prompts securely; do not place the server key in shell history.
+gh secret set STATSIG_SDK_KEY --repo praxys-run/praxys
+
+gh variable set STATSIG_ENV --body production --repo praxys-run/praxys
+# A public client-* key from the same Statsig project:
+gh variable set VITE_STATSIG_CLIENT_KEY --repo praxys-run/praxys
+```
+
+Verify the backend App Service contains `STATSIG_SDK_KEY` and `STATSIG_ENV`
+without printing their values, and inspect the built SPA only for the expected
+public `client-*` key. Removing `STATSIG_SDK_KEY` and redeploying is a
+fail-closed rollback for Garmin eligibility; the dynamic config resumes its
+documented fallback.
+
 ### Azure Key Vault (`kv-trainsight`)
 - RSA key `trainsight-master-key` — the master key that wraps the per-user
   Fernet data-encryption keys (DEKs) protecting platform credentials
@@ -340,28 +399,30 @@ account's environment credentials. Do not add these values to
 `deploy-backend.yml`, GitHub Actions, or App Service settings.
 
 Garmin consumer-API workout delivery is an unsupported, duration-only
-experiment protected by independent operator and user-consent fences. The
+rollout protected by independent deployment, eligibility, account-generation,
+and durable execution-target fences. The
 deploy workflow writes the non-secret GitHub Actions variable
 `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED` to App Service on every deployment,
 defaulting to `false` when the variable is absent. Keep production false until
 both controlled regional lifecycle matrices pass.
 
-Controlled production validation uses the separate, default-empty
-`PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS` repository variable. Its value is
-a comma-separated list of internal user UUIDs from authenticated
-`GET /api/auth/me` responses. Use dedicated Praxys test users connected only to
-dedicated Garmin test accounts; do not add personal accounts, emails, tokens,
-or credentials. A pilot user is authorized without changing the global gate,
-but still must connect Garmin and opt in through Settings. Non-listed users
-remain blocked. An approved isolated validation deployment may instead set the
-global gate to `true`; changing either setting in the portal directly is
-transient and will be overwritten by the next deploy. The resulting
-`user_connections.plan_delivery_consent` value is a non-secret SHA-256 binding
-to that encrypted credential generation and Garmin region; it is never accepted
-as a portable entitlement. Reconnecting, rotating credentials, or disconnecting
-clears the effective capability and pauses active Garmin delivery. Changing
-region also disconnects the old region, clears its cached tokens, and requires a
-fresh login. Cached sessions are garminconnect `Client.dumps()` JSON values envelope-encrypted
+Controlled validation requires an approved deployment with the hard
+prerequisite set to `true`, plus a Statsig
+`garmin_plan_delivery_eligible` rule targeting only dedicated Praxys test
+users connected to dedicated Garmin test accounts. Do not target personal
+accounts or copy emails, tokens, or credentials into the rule. Eligible users
+must still connect Garmin and explicitly choose it as their execution platform;
+all other users remain blocked. Statsig eligibility is not consent or durable
+product state. Changing the App Service setting directly is transient and will
+be overwritten by the next deploy. The legacy
+`user_connections.plan_delivery_consent` column holds a non-secret SHA-256
+account-generation fence, not a separate user preference. Selecting or resuming
+Garmin refreshes the binding to that encrypted credential generation and Garmin
+region. It is never accepted as a portable entitlement. Reconnecting, rotating
+credentials, or disconnecting clears the fence and pauses active Garmin
+delivery. Changing region also disconnects the old region, clears its cached
+tokens, and requires a fresh login. Cached sessions are garminconnect
+`Client.dumps()` JSON values envelope-encrypted
 on `user_connections` with a token-specific wrapped DEK and the exact
 credential-generation fingerprint. Interactive login
 holds completed tokens only in process memory, bound to an opaque
@@ -387,13 +448,13 @@ rolls back if the connection changes, so old OAuth sessions cannot
 authorize or degrade the replacement connection. Do not provision, copy, or
 restore consent or token files through App Service settings, Actions
 variables, SQL scripts, storage tooling, or an admin override. To roll back
-pilot access, remove the user UUID from
-`PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS` and redeploy. To roll back Garmin
-writes globally, also set `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED=false` and
-redeploy. The capability and every fresh mutation guard fail closed without
-deleting user consent or unrelated Garmin data.
+per-user access, disable the Statsig gate or remove its targeting rule. To roll
+back Garmin writes globally, set
+`PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED=false` and redeploy. The capability and
+every fresh mutation guard fail closed without deleting user consent or
+unrelated Garmin data.
 
-#### Garmin pilot provisioning
+#### Garmin eligibility provisioning
 
 Prerequisites: the dedicated test user has logged into
 `praxys-dev-test`, `whoami` shows the expected internal UUID, and its Garmin
@@ -401,36 +462,43 @@ connection belongs to a dedicated validation account.
 
 ```bash
 repo=praxys-run/praxys
-pilot_user_id=<uuid-from-praxys-dev-test-whoami>
-gh variable set PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS \
-  --repo "$repo" --body "$pilot_user_id"
+gh variable set PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED \
+  --repo "$repo" --body true
 ```
 
-Redeploy the current `main` head so the workflow writes the variable to App
-Service. Verify the setting without printing unrelated application settings:
+In the Statsig console, keep `garmin_plan_delivery_eligible` default-off and add
+a reviewed targeting rule for only the dedicated user's internal UUID. This
+repository does not automate Console API changes. If automation is added, its
+credential must be an Actions secret and the change must be idempotent and
+reviewable.
+
+Redeploy the current `main` head so the workflow writes the hard prerequisite
+to App Service. Verify only that non-secret setting:
 
 ```bash
 az webapp config appsettings list \
   --name trainsight-app \
   --resource-group rg-trainsight \
-  --query "[?name=='PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS'].value" \
+  --query "[?name=='PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED'].value" \
   --output tsv
 ```
 
-Then verify `praxys-dev-test.get_settings` reports Garmin experimental delivery
-as available only for the pilot user. Consent and the connected account/region
-fences must still be false until explicitly enabled and must remain false for a
-non-pilot control user.
+Then verify `praxys-dev-test.get_settings` reports Garmin as a selectable
+execution target only for the eligible user. The configured execution target
+must remain unchanged until that user explicitly selects Garmin, and the
+account-generation/region fence must remain absent until selection or resume.
+Garmin must remain unselectable for a control user.
 
-Rollback removes pilot access at the source of truth and redeploys:
+Rollback disables the Statsig gate first. To close the hard deployment
+prerequisite too, update the repository variable and redeploy:
 
 ```bash
-gh variable delete PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS --repo "$repo"
+gh variable set PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED \
+  --repo "$repo" --body false
 ```
 
-An absent variable is deployed as an empty value. Confirm both the pilot and
-control users report Garmin delivery unavailable before considering rollback
-complete.
+Confirm both eligible and control users report Garmin delivery unavailable
+before considering rollback complete.
 
 ### Application Insights trust boundary (#417)
 

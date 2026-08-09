@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { ScienceProvider } from './contexts/ScienceContext';
 import { LocaleProvider } from './contexts/LocaleContext';
+import { StatsigProvider } from './contexts/StatsigContext';
 import LocaleSync from './contexts/LocaleSync';
 import Layout from './components/Layout';
 import { Skeleton } from './components/ui/skeleton';
@@ -79,9 +80,10 @@ export default function App() {
   return (
     <LocaleProvider>
       <AuthProvider>
-        <TooltipProvider>
-          <BrowserRouter>
-            <Routes>
+        <StatsigProvider>
+          <TooltipProvider>
+            <BrowserRouter>
+              <Routes>
               <Route path="/" element={<LandingOrApp />} />
               <Route path="/login" element={<LoginGuard />} />
               <Route path="/terms" element={<Terms />} />
@@ -118,9 +120,10 @@ export default function App() {
                   <Route path="communications" element={<Suspense fallback={<AdminChunkSkeleton />}><AdminCommunications /></Suspense>} />
                 </Route>
               </Route>
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </StatsigProvider>
       </AuthProvider>
     </LocaleProvider>
   );

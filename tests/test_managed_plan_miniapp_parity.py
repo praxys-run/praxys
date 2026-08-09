@@ -63,8 +63,8 @@ def test_settings_owns_explicit_managed_plan_lifecycle() -> None:
     assert "if (!this.data.adjustmentSupported" in source
     assert 'wx:if="{{adjustmentSupported}}"' in markup
 
-    # Initial adoption selects the safe default, while resume omits the field
-    # so an existing opt-in survives on both clients.
+    # Initial adoption sends the selected target, while resume preserves the
+    # durable configured target on both clients.
     assert "...(mode === 'adopt'" in source
     assert "...(confirmMode === 'adopt'" in web_source
     assert "source_options: { athlete_timezone: athleteTimezone }" in source
@@ -89,7 +89,16 @@ def test_settings_owns_explicit_managed_plan_lifecycle() -> None:
     assert "if (response.status === 409)" in web_source
 
     assert "{{tr.planManagement}}" in markup
+    assert "response.plan_delivery_options" in source
+    assert "response.config.connections.map" in source
+    assert "config.preferences.activities" in source
+    assert "choosePlanDeliveryTarget(" in web_source
+    assert "planDeliveryOptions.map" in web_source
     assert 'bindtap="onPickPlanTarget"' in markup
+    assert 'disabled="{{!item.selectable' in markup
+    assert "item.reason" in markup
+    assert "garminExperiment" not in source
+    assert "garminExperiment" not in markup
     assert 'bindtap="onReviewManagedPlan"' in markup
     assert 'bindtap="onPauseManagedPlan"' in markup
     assert 'bindtap="onLeaveManagedPlan"' in markup

@@ -117,79 +117,59 @@
           </block>
         </view>
 
-        <view
-          wx:if="{{garminExperimentVisible}}"
-          class="settings-plan-experiment"
-        >
-          <view class="settings-plan-experiment-head">
-            <view class="settings-plan-experiment-copy">
-              <view class="settings-plan-experiment-title-row">
-                <text class="settings-plan-experiment-title">
-                  {{tr.garminExperimentalTitle}}
-                </text>
-                <text class="settings-plan-experiment-state settings-plan-experiment-state--{{garminExperimentEnabled ? 'on' : 'off'}}">
-                  {{!garminExperimentAvailable
-                    ? tr.garminExperimentalUnavailable
-                    : garminExperimentEnabled
-                      ? tr.garminExperimentalEnabled
-                      : tr.garminExperimentalOff}}
-                </text>
-              </view>
-              <text class="settings-plan-experiment-detail">
-                {{!garminExperimentAvailable
-                  ? tr.garminExperimentalUnavailableDetail
-                  : garminExperimentConnected
-                  ? garminExperimentEnabled
-                    ? tr.garminExperimentalOnDetail
-                    : tr.garminExperimentalOffDetail
-                  : tr.garminExperimentalReconnect}}
-              </text>
-            </view>
-            <button
-              wx:if="{{garminExperimentConnected && garminExperimentAvailable}}"
-              class="ts-button ts-button--secondary settings-plan-experiment-action"
-              disabled="{{garminExperimentAction || planAction}}"
-              bindtap="onReviewGarminExperiment"
+        <view class="settings-plan-target">
+          <text class="settings-plan-target-label">{{tr.executionTarget}}</text>
+          <block wx:if="{{planManagementState === 'external'}}">
+            <view
+              wx:if="{{planTargetOptions.length}}"
+              class="settings-plan-target-options"
+              role="radiogroup"
+              aria-label="{{tr.executionTarget}}"
             >
-              {{garminExperimentAction
-                ? tr.garminExperimentalSaving
-                : garminExperimentEnabled
-                  ? tr.garminExperimentalDisable
-                  : tr.garminExperimentalReview}}
-            </button>
-          </view>
-          <text
-            wx:if="{{garminExperimentError}}"
-            class="settings-plan-error"
-            role="alert"
-          >{{garminExperimentError}}</text>
-        </view>
-
-        <view
-          class="settings-pick-row settings-plan-target {{planManagementState !== 'external' || !planTargetOptions.length ? 'settings-plan-target--static' : ''}}"
-          bindtap="onPickPlanTarget"
-        >
-          <text class="settings-pick-label">{{tr.executionTarget}}</text>
-          <view class="settings-pick-right">
-            <text class="settings-pick-value ts-value">
-              {{planManagementState === 'external' ? selectedPlanTargetLabel : configuredPlanTargetLabel}}
+              <button
+                wx:for="{{planTargetOptions}}"
+                wx:key="key"
+                class="settings-plan-target-option {{selectedPlanTarget === item.key ? 'settings-plan-target-option--selected' : ''}}"
+                disabled="{{!item.selectable || planAction || planLoading}}"
+                data-target="{{item.key}}"
+                bindtap="onPickPlanTarget"
+                role="radio"
+                aria-checked="{{selectedPlanTarget === item.key}}"
+              >
+                <view class="settings-plan-target-option-copy">
+                  <text class="settings-plan-target-option-label">{{item.label}}</text>
+                  <text
+                    wx:if="{{item.reason}}"
+                    class="settings-plan-target-option-reason"
+                  >{{item.reason}}</text>
+                </view>
+                <text
+                  wx:if="{{selectedPlanTarget === item.key}}"
+                  class="settings-plan-target-check"
+                  aria-hidden="{{true}}"
+                >✓</text>
+              </button>
+            </view>
+            <text wx:else class="settings-plan-target-empty">
+              {{tr.connectTargetHint}}
             </text>
             <text
-              wx:if="{{planManagementState === 'external' && planTargetOptions.length}}"
-              class="settings-pick-chev ts-muted"
-            >›</text>
-          </view>
+              wx:if="{{planTargetOptions.length}}"
+              class="settings-plan-target-hint"
+            >{{tr.targetSelectionHint}}</text>
+          </block>
+          <block wx:else>
+            <view class="settings-plan-target-static">
+              <text class="settings-plan-target-static-value ts-value">
+                {{configuredPlanTargetLabel}}
+              </text>
+            </view>
+            <text
+              wx:if="{{!configuredPlanTargetAvailable}}"
+              class="settings-plan-target-hint settings-plan-target-hint--warning"
+            >{{configuredPlanTargetReason || tr.connectTargetHint}}</text>
+          </block>
         </view>
-        <text
-          wx:if="{{planManagementState === 'external'}}"
-          class="settings-plan-target-hint"
-        >
-          {{planTargetOptions.length ? tr.targetSelectionHint : tr.connectTargetHint}}
-        </text>
-        <text
-          wx:elif="{{!configuredPlanTargetConnected}}"
-          class="settings-plan-target-hint settings-plan-target-hint--warning"
-        >{{tr.connectTargetHint}}</text>
 
         <view class="settings-plan-actions">
           <block wx:if="{{planManagementState === 'external'}}">
@@ -222,7 +202,7 @@
           <block wx:else>
             <button
               class="ts-button settings-plan-action"
-              disabled="{{planAction || planLoading || planCleanupPartial || !hasPlanPreview || !configuredPlanTargetConnected}}"
+              disabled="{{planAction || planLoading || planCleanupPartial || !hasPlanPreview || !configuredPlanTargetAvailable}}"
               bindtap="onReviewManagedPlan"
             >{{planAction === 'resume' ? tr.enabling : tr.reviewAndResume}}</button>
             <button
