@@ -19,11 +19,44 @@ learning. This contract defines how Praxys may collect, use, explain, expire,
 export, and delete it across web, miniapp, plugin, MCP, and future
 user-delegated agents.
 
-This document remains the production decision gate. Issues #610 and #611
-implement the encrypted persistence and authenticated backend contract, but
-no first-party capture UI or production AI processing is enabled yet. The
-Privacy Policy and bilingual product disclosure must be updated before either
-is enabled.
+This document remains the production decision gate. Issues #610 through #612
+implement the encrypted persistence, authenticated backend contract, and
+bounded internal processing boundary, but no first-party capture UI or
+production AI processing is enabled yet. The Privacy Policy and bilingual
+product disclosure must be updated before either is enabled.
+
+`api/personal_context_processing.py` is the only adaptive-plan path allowed to
+prepare personal context for model use. It is intentionally separate from the
+broad training-context assembler in `api/ai.py`. The module:
+
+- loads only owner-, purpose-, lifecycle-, latest-version-, and
+  purpose-confirmation-matched context;
+- projects the structured allowlist `affected_dates`, `affected_days`,
+  `available_equipment`, `available_terrain`,
+  `maximum_available_minutes`, and `workout_status`;
+- returns stable `clarification`, `no_change`, `insufficient_evidence`,
+  `safety`, or `suggestion` codes without model-authored prose;
+- bypasses AI for illness, pain/injury, and red-flag categories;
+- requires current, exact Azure OpenAI consent before decrypting an
+  AI-disclosed narrative or constructing a request;
+- sends no owner ID, database context ID, generic training context, tool
+  definition, or unconsented field;
+- records separate payload-free deterministic and provider-use receipts; and
+- logs only stable provider failure codes, never prompts, context values,
+  identifiers, or model output.
+
+The optional classifier returns only a strict code tuple and cannot mutate a
+plan. It has no route, scheduler, or plan-mutation hook and defaults AI
+processing off. Concrete suggestion generation, proposal persistence, and
+production wiring remain later work and must pass the policy/provider
+disclosure gate below.
+
+A provider-use receipt marks initiation of an attempted disclosure, not a
+successful model result. It is committed immediately before the external
+request so a timeout or process failure cannot leave a disclosure without a
+durable receipt, and the database write lock is not held across network I/O.
+The private provider boundary suppresses OpenAI SDK request-body debug logs,
+including when SDK debug logging is enabled.
 
 ## Decisions
 
@@ -228,6 +261,9 @@ An allowlisted policy may convert a structured constraint into:
 - an insufficient-evidence result;
 - a conservative suggestion within an approved scope; or
 - a safety escalation.
+
+The loader must also verify the exact item version's purpose-confirmation
+receipt before decrypting it for deterministic processing.
 
 The optional narrative is not available to deterministic rules unless a
 future parser and its purpose are separately reviewed.
