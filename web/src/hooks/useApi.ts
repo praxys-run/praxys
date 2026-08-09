@@ -22,6 +22,8 @@ interface UseApiOptions {
   refetchOnMount?: boolean | 'always';
   /** Override the app-wide focus policy for freshness-critical queries. */
   refetchOnWindowFocus?: boolean | 'always';
+  /** Bound one request when an unfinished result would block the user. */
+  timeoutMs?: number;
 }
 
 function getAuthHeaders(): HeadersInit {
@@ -76,12 +78,44 @@ function startInitialDashboardPrefetch(): void {
   prefetchedResponses.set(url, apiFetch(url).catch(() => null));
 }
 
-async function apiFetcher<T>(url: string): Promise<T> {
+async function apiFetcher<T>(
+  url: string,
+  signal?: AbortSignal,
+  timeoutMs?: number,
+): Promise<T> {
   const prefetched = prefetchedResponses.get(url);
   if (prefetched) prefetchedResponses.delete(url);
-  const res = (prefetched ? await prefetched : null) ?? await apiFetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  const prefetchedResponse = prefetched ? await prefetched : null;
+  if (prefetchedResponse) {
+    if (!prefetchedResponse.ok) throw new Error(`HTTP ${prefetchedResponse.status}`);
+    return prefetchedResponse.json();
+  }
+
+  const controller = timeoutMs ? new AbortController() : null;
+  let timedOut = false;
+  const timeout = timeoutMs
+    ? window.setTimeout(() => {
+      timedOut = true;
+      controller?.abort();
+    }, timeoutMs)
+    : null;
+  const abort = () => controller?.abort();
+  signal?.addEventListener('abort', abort, { once: true });
+  try {
+    const res = await apiFetch(url, {
+      signal: controller?.signal ?? signal,
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  } catch (error) {
+    if (timedOut) {
+      throw new Error('The eligibility check took too long. Please retry.');
+    }
+    throw error;
+  } finally {
+    if (timeout !== null) window.clearTimeout(timeout);
+    signal?.removeEventListener('abort', abort);
+  }
 }
 
 startInitialDashboardPrefetch();
@@ -123,7 +157,7 @@ export {
 export function useApi<T>(url: string, options?: UseApiOptions): UseApiResult<T> {
   const { data, isLoading, isStale, error, refetch } = useQuery<T, Error>({
     queryKey: [url, getAuthCacheScope()],
-    queryFn: () => apiFetcher<T>(url),
+    queryFn: ({ signal }) => apiFetcher<T>(url, signal, options?.timeoutMs),
     ...(options?.refetchInterval !== undefined
       ? { refetchInterval: options.refetchInterval }
       : {}),

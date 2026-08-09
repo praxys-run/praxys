@@ -161,7 +161,15 @@ function PreflightSummary({
 }) {
   const { i18n } = useLingui();
   if (loading && !preflight) {
-    return <Skeleton className="h-24 rounded-lg" />;
+    return (
+      <Alert>
+        <Loader2 className="h-4 w-4 animate-spin text-primary motion-reduce:animate-none" />
+        <AlertTitle><Trans>Checking data requirements</Trans></AlertTitle>
+        <AlertDescription>
+          <Trans>Praxys checks the required environment, Stryd power, heart-rate, and Critical Power coverage before showing enrollment consent or starting analysis.</Trans>
+        </AlertDescription>
+      </Alert>
+    );
   }
   if (error || !preflight) {
     return (
@@ -680,35 +688,38 @@ function Enrollment({
             <Trans>This is a retrospective historical association. It does not forecast a future run, prove that heat caused a heart-rate change, prescribe pace, measure adaptation or hydration, or assess heat safety.</Trans>
           </AlertDescription>
         </Alert>
-        <div className="space-y-3">
-          <SelectionCheck checked={adult} onChange={setAdult}>
-            <Trans>I confirm that I am 18 or older. Praxys records this attestation, not my birth date.</Trans>
-          </SelectionCheck>
-          <SelectionCheck checked={consent} onChange={setConsent}>
-            <Trans>I understand the purpose, limits, storage, and withdrawal terms above and choose to participate in this experiment.</Trans>
-          </SelectionCheck>
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Button
-            onClick={() => onEnroll(adult)}
-            disabled={
-              !adult
-              || !consent
-              || busy
-              || isDemo
-              || preflightLoading
-              || !preflight?.can_start_analysis
-            }
-          >
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-            <Trans>Join and analyze my history</Trans>
-          </Button>
-          {isDemo && (
-            <p className="text-sm text-muted-foreground">
-              <Trans>Demo accounts are read-only and cannot join Labs.</Trans>
-            </p>
-          )}
-        </div>
+        {!preflightLoading && !preflightError && preflight && (
+          <>
+            <div className="space-y-3">
+              <SelectionCheck checked={adult} onChange={setAdult}>
+                <Trans>I confirm that I am 18 or older. Praxys records this attestation, not my birth date.</Trans>
+              </SelectionCheck>
+              <SelectionCheck checked={consent} onChange={setConsent}>
+                <Trans>I understand the purpose, limits, storage, and withdrawal terms above and choose to participate in this experiment.</Trans>
+              </SelectionCheck>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Button
+                onClick={() => onEnroll(adult)}
+                disabled={
+                  !adult
+                  || !consent
+                  || busy
+                  || isDemo
+                  || !preflight.can_start_analysis
+                }
+              >
+                {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+                <Trans>Join and analyze my history</Trans>
+              </Button>
+              {isDemo && (
+                <p className="text-sm text-muted-foreground">
+                  <Trans>Demo accounts are read-only and cannot join Labs.</Trans>
+                </p>
+              )}
+            </div>
+          </>
+        )}
         <ScienceNote
           label={<Trans>Why this remains experimental</Trans>}
           sourceUrl={EVIDENCE_URL}
@@ -740,7 +751,7 @@ export default function LabsEnvironment() {
     refetch: refetchPreflight,
   } = useApi<LabsEnvironmentPreflightResponse>(
     '/api/labs/environment-response/preflight',
-    { refetchOnMount: 'always' },
+    { refetchOnMount: 'always', timeoutMs: 15000 },
   );
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');
