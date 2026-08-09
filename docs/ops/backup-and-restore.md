@@ -45,15 +45,30 @@ az postgres flexible-server restore \
 # Verify the clone, then repoint PRAXYS_DATABASE_URL at it and re-deploy.
 ```
 
-After any restore, start the backend before reopening traffic. Labs withdrawals
-are written first to the private Blob container configured by
-`PRAXYS_FEEDBACK_BLOB_*` (local `DATA_DIR/labs_deletion_tombstones` in
-self-hosted development), then to `labs_deletion_tombstones` in the database.
-Startup replays private markers retained for the same 14-day PITR window:
-consent/results whose timestamps predate a withdrawal are deleted again, while
-a genuinely newer re-consent is preserved. Startup fails closed if configured
-private Blob storage cannot be read. Verify that withdrawn experiments remain
-absent before cutover.
+After any restore, start the backend before reopening traffic. Privacy
+deletions are written first to the private Blob container configured by
+`PRAXYS_FEEDBACK_BLOB_*`, then applied to the database:
+
+- Labs withdrawal markers use `labs-deletions/` (local
+  `DATA_DIR/labs_deletion_tombstones`).
+- Adaptive-plan personal-context manifests use
+  `personal-context-deletions/` (local
+  `DATA_DIR/personal_context_deletion_manifests`). They contain only opaque
+  owner/item/job identifiers, cleanup operation, timestamps, and completion
+  state; never context payload, category, or narrative.
+
+Startup replays both marker sets before serving traffic and retains them for
+the same 14-day PITR window. Labs consent/results whose timestamps predate a
+withdrawal are deleted again while a newer re-consent is preserved.
+Personal-context replay reapplies owner, lineage, version, and narrative
+deletions before running overdue expiry and purge work. Scoped lineage,
+version, and narrative markers affect only rows created no later than the
+recorded request. Account-deletion markers remove all restored context for the
+owner, including context created during the live deletion window. Startup fails
+closed if configured private Blob storage cannot be read or an overdue privacy
+deletion cannot complete.
+Before cutover, verify that withdrawn Labs experiments and deleted personal
+context remain absent.
 
 **Portable / off-Azure copy** (optional long-retention archive, or a future
 Tencent COS move) uses a logical dump - run it from inside the trust boundary

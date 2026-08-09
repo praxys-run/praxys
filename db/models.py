@@ -18,6 +18,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     JSON,
     LargeBinary,
     Text,
@@ -447,6 +448,379 @@ class LabsDeletionTombstone(Base):
     )
     experiment_id = Column(String(80), primary_key=True)
     deleted_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class PersonalContextItem(Base):
+    """One encrypted, versioned athlete-provided planning-context item."""
+
+    __tablename__ = "personal_context_items"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    lineage_id = Column(String(36), nullable=False)
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    version = Column(Integer, nullable=False, default=1)
+    supersedes_id = Column(
+        String(36),
+        ForeignKey("personal_context_items.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    kind = Column(String(32), nullable=False)
+    purpose = Column(String(32), nullable=False)
+    state = Column(String(20), nullable=False, default="active")
+    encrypted_payload = Column(LargeBinary, nullable=False)
+    wrapped_dek = Column(LargeBinary, nullable=False)
+    payload_schema_version = Column(Integer, nullable=False, default=1)
+    has_narrative = Column(Boolean, nullable=False, default=False)
+    source_actor_type = Column(String(32), nullable=False)
+    source_actor_id = Column(String(120), nullable=True)
+    linked_subject_type = Column(String(32), nullable=True)
+    linked_subject_id = Column(String(120), nullable=True)
+    processing_mode = Column(
+        String(24),
+        nullable=False,
+        default="deterministic_only",
+    )
+    # This reference is deliberately not a database FK: consent receipts point
+    # back to the item with ON DELETE CASCADE, and a reverse FK would create a
+    # DDL cycle. The lifecycle service validates the exact owner/item receipt.
+    consent_receipt_id = Column(String(36), nullable=True)
+    starts_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=True)
+    narrative_purge_at = Column(DateTime, nullable=True)
+    narrative_purged_at = Column(DateTime, nullable=True)
+    purge_after = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "lineage_id",
+            "version",
+            name="uq_personal_context_lineage_version",
+        ),
+        UniqueConstraint(
+            "id",
+            "user_id",
+            name="uq_personal_context_item_owner",
+        ),
+        CheckConstraint(
+            "version >= 1",
+            name="ck_personal_context_version_positive",
+        ),
+        CheckConstraint(
+            "payload_schema_version >= 1",
+            name="ck_personal_context_payload_schema_positive",
+        ),
+        CheckConstraint(
+            "kind IN ("
+            "'durable_preference','temporary_constraint',"
+            "'execution_explanation'"
+            ")",
+            name="ck_personal_context_kind",
+        ),
+        CheckConstraint(
+            "purpose IN ("
+            "'plan_generation','execution_interpretation','plan_adjustment',"
+            "'goal_review','outcome_review'"
+            ")",
+            name="ck_personal_context_purpose",
+        ),
+        CheckConstraint(
+            "state IN ('active','expired','withdrawn','deleting')",
+            name="ck_personal_context_state",
+        ),
+        CheckConstraint(
+            "processing_mode IN ('deterministic_only','ai_allowed')",
+            name="ck_personal_context_processing_mode",
+        ),
+        CheckConstraint(
+            "processing_mode != 'ai_allowed' OR consent_receipt_id IS NOT NULL",
+            name="ck_personal_context_ai_consent",
+        ),
+        CheckConstraint(
+            "has_narrative = false OR narrative_purge_at IS NOT NULL",
+            name="ck_personal_context_narrative_purge",
+        ),
+        CheckConstraint(
+            "kind = 'durable_preference' OR "
+            "(expires_at IS NOT NULL AND purge_after IS NOT NULL)",
+            name="ck_personal_context_bounded_lifetime",
+        ),
+        CheckConstraint(
+            "kind != 'durable_preference' OR "
+            "(expires_at IS NULL AND purge_after IS NULL "
+            "AND has_narrative = false)",
+            name="ck_personal_context_durable_lifetime",
+        ),
+        CheckConstraint(
+            "expires_at IS NULL OR expires_at > starts_at",
+            name="ck_personal_context_expiry_order",
+        ),
+        CheckConstraint(
+            "purge_after IS NULL OR expires_at IS NULL "
+            "OR purge_after >= expires_at",
+            name="ck_personal_context_purge_order",
+        ),
+        Index(
+            "ix_personal_context_user_lineage_state",
+            "user_id",
+            "lineage_id",
+            "state",
+            "version",
+        ),
+        Index(
+            "ix_personal_context_expiry",
+            "state",
+            "expires_at",
+        ),
+        Index(
+            "ix_personal_context_narrative_purge",
+            "has_narrative",
+            "narrative_purge_at",
+        ),
+        Index(
+            "ix_personal_context_retention_purge",
+            "state",
+            "purge_after",
+        ),
+    )
+
+
+class PersonalContextConsentReceipt(Base):
+    """Append-only receipt for one personal-context processing decision."""
+
+    __tablename__ = "personal_context_consent_receipts"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    context_item_id = Column(
+        String(36),
+        nullable=False,
+        index=True,
+    )
+    context_version = Column(Integer, nullable=False)
+    purpose = Column(String(32), nullable=False)
+    consent_scope = Column(
+        String(24),
+        nullable=False,
+        default="ai_processing",
+    )
+    provider = Column(String(80), nullable=True)
+    disclosed_fields = Column(JSON, nullable=False, default=list)
+    narrative_disclosed = Column(Boolean, nullable=False, default=False)
+    consent_text_version = Column(String(64), nullable=False)
+    decision = Column(String(16), nullable=False)
+    client = Column(String(32), nullable=False)
+    decided_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["context_item_id", "user_id"],
+            ["personal_context_items.id", "personal_context_items.user_id"],
+            ondelete="CASCADE",
+            name="fk_personal_context_consent_item_owner",
+        ),
+        UniqueConstraint(
+            "id",
+            "user_id",
+            name="uq_personal_context_consent_owner",
+        ),
+        CheckConstraint(
+            "decision IN ('granted','denied','withdrawn')",
+            name="ck_personal_context_consent_decision",
+        ),
+        CheckConstraint(
+            "consent_scope IN ('purpose_confirmation','ai_processing')",
+            name="ck_personal_context_consent_scope",
+        ),
+        CheckConstraint(
+            "purpose IN ("
+            "'plan_generation','execution_interpretation','plan_adjustment',"
+            "'goal_review','outcome_review'"
+            ")",
+            name="ck_personal_context_consent_purpose",
+        ),
+        CheckConstraint(
+            "(consent_scope != 'purpose_confirmation' OR provider IS NULL) "
+            "AND (consent_scope != 'ai_processing' "
+            "OR decision != 'granted' OR provider IS NOT NULL)",
+            name="ck_personal_context_consent_provider",
+        ),
+        CheckConstraint(
+            "context_version >= 1",
+            name="ck_personal_context_consent_version_positive",
+        ),
+        Index(
+            "ix_personal_context_consent_item_decided",
+            "context_item_id",
+            "decided_at",
+        ),
+    )
+
+
+class PersonalContextUseReceipt(Base):
+    """Payload-free record of one bounded context use."""
+
+    __tablename__ = "personal_context_use_receipts"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    context_item_id = Column(
+        String(36),
+        nullable=False,
+        index=True,
+    )
+    context_version = Column(Integer, nullable=False)
+    purpose = Column(String(32), nullable=False)
+    consumer_type = Column(String(32), nullable=False)
+    consumer_name = Column(String(100), nullable=False)
+    disclosed_fields = Column(JSON, nullable=False, default=list)
+    narrative_disclosed = Column(Boolean, nullable=False, default=False)
+    policy_version = Column(String(100), nullable=True)
+    prompt_version = Column(String(64), nullable=True)
+    consent_receipt_id = Column(
+        String(36),
+        nullable=True,
+    )
+    used_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["context_item_id", "user_id"],
+            ["personal_context_items.id", "personal_context_items.user_id"],
+            ondelete="CASCADE",
+            name="fk_personal_context_use_item_owner",
+        ),
+        ForeignKeyConstraint(
+            ["consent_receipt_id", "user_id"],
+            [
+                "personal_context_consent_receipts.id",
+                "personal_context_consent_receipts.user_id",
+            ],
+            ondelete="CASCADE",
+            name="fk_personal_context_use_consent_owner",
+        ),
+        CheckConstraint(
+            "context_version >= 1",
+            name="ck_personal_context_use_version_positive",
+        ),
+        CheckConstraint(
+            "purpose IN ("
+            "'plan_generation','execution_interpretation','plan_adjustment',"
+            "'goal_review','outcome_review'"
+            ")",
+            name="ck_personal_context_use_purpose",
+        ),
+        CheckConstraint(
+            "consumer_type IN ("
+            "'deterministic_policy','planning_ai','provider_adapter'"
+            ")",
+            name="ck_personal_context_use_consumer",
+        ),
+        Index(
+            "ix_personal_context_use_item_used",
+            "context_item_id",
+            "used_at",
+        ),
+    )
+
+
+class PersonalContextDeletionJob(Base):
+    """Payload-free, retryable cleanup state for one context lineage."""
+
+    __tablename__ = "personal_context_deletion_jobs"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    operation = Column(String(24), nullable=False)
+    lineage_id = Column(String(36), nullable=True)
+    target_item_id = Column(String(36), nullable=True)
+    reason = Column(String(24), nullable=False)
+    status = Column(String(16), nullable=False, default="pending")
+    attempts = Column(Integer, nullable=False, default=0)
+    failure_code = Column(String(64), nullable=True)
+    requested_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "reason IN ('withdrawal','expiry','retention','account_deletion')",
+            name="ck_personal_context_deletion_reason",
+        ),
+        CheckConstraint(
+            "operation IN ("
+            "'delete_owner_context','delete_lineage',"
+            "'delete_version','purge_narrative'"
+            ")",
+            name="ck_personal_context_deletion_operation",
+        ),
+        CheckConstraint(
+            "(operation = 'delete_owner_context' "
+            "AND lineage_id IS NULL AND target_item_id IS NULL) OR "
+            "(operation = 'delete_lineage' "
+            "AND lineage_id IS NOT NULL AND target_item_id IS NULL) OR "
+            "(operation IN ('delete_version','purge_narrative') "
+            "AND lineage_id IS NOT NULL AND target_item_id IS NOT NULL)",
+            name="ck_personal_context_deletion_target",
+        ),
+        CheckConstraint(
+            "status IN ('pending','running','failed','completed')",
+            name="ck_personal_context_deletion_status",
+        ),
+        CheckConstraint(
+            "attempts >= 0",
+            name="ck_personal_context_deletion_attempts",
+        ),
+        CheckConstraint(
+            "status != 'running' OR started_at IS NOT NULL",
+            name="ck_personal_context_deletion_started",
+        ),
+        CheckConstraint(
+            "status != 'completed' OR completed_at IS NOT NULL",
+            name="ck_personal_context_deletion_completed",
+        ),
+        Index(
+            "ix_personal_context_deletion_user_target",
+            "user_id",
+            "operation",
+            "lineage_id",
+            "target_item_id",
+            "status",
+        ),
+    )
 
 
 class CacheRevision(Base):

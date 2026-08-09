@@ -6,6 +6,7 @@ from db.sync_scheduler import (
     ALLOWED_SYNC_INTERVAL_HOURS,
     DEFAULT_SYNC_INTERVAL_HOURS,
     _run_managed_delivery_tick,
+    _run_personal_context_retention_tick,
     get_user_sync_interval_hours,
     normalize_sync_interval_hours,
 )
@@ -66,3 +67,28 @@ def test_scheduler_tick_isolates_managed_delivery_failure(
     )
 
     _run_managed_delivery_tick()
+
+
+def test_scheduler_tick_runs_personal_context_retention(monkeypatch) -> None:
+    """Each scheduler cycle should run private-context retention."""
+    calls: list[str] = []
+    monkeypatch.setattr(
+        "api.personal_context.run_scheduled_retention",
+        lambda: calls.append("retention"),
+    )
+
+    _run_personal_context_retention_tick()
+
+    assert calls == ["retention"]
+
+
+def test_scheduler_tick_isolates_context_retention_failure(
+    monkeypatch,
+) -> None:
+    """Retention failures must not escape into the sync scheduler."""
+    monkeypatch.setattr(
+        "api.personal_context.run_scheduled_retention",
+        lambda: (_ for _ in ()).throw(RuntimeError("retention failed")),
+    )
+
+    _run_personal_context_retention_tick()

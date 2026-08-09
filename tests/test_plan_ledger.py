@@ -114,13 +114,13 @@ def test_sqlite_init_adds_ledger_tables_to_existing_database(tmp_path, monkeypat
         db_session.AsyncSessionLocal = None
 
 
-def test_alembic_head_includes_labs_environment_lifecycle():
+def test_alembic_head_includes_personal_context_lifecycle():
     from alembic.config import Config
     from alembic.script import ScriptDirectory
 
     config = Config("alembic.ini")
     script = ScriptDirectory.from_config(config)
-    assert script.get_current_head() == "a1b2c3d4e5f6"
+    assert script.get_current_head() == "b2c3d4e5f6a7"
 
 
 def test_alembic_canonical_default_supports_old_worker_inserts(
