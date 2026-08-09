@@ -1,6 +1,19 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import {
+  Component,
+  lazy,
+  Suspense,
+  useEffect,
+  useState,
+  type ErrorInfo,
+  type ReactNode,
+} from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Trans } from '@lingui/react/macro';
+import { RefreshCw } from 'lucide-react';
 import { TooltipProvider } from './components/ui/tooltip';
+import { Alert, AlertDescription, AlertTitle } from './components/ui/alert';
+import { Button } from './components/ui/button';
+import { PRELOAD_RELOAD_KEY } from './lib/preload-recovery';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { ScienceProvider } from './contexts/ScienceContext';
@@ -60,6 +73,57 @@ function RouteChunkSkeleton() {
   );
 }
 
+class LabsRouteBoundary extends Component<
+  { children: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: unknown, info: ErrorInfo): void {
+    console.error('Labs route failed to load', error, info.componentStack);
+  }
+
+  private reload = (): void => {
+    sessionStorage.removeItem(PRELOAD_RELOAD_KEY);
+    window.location.reload();
+  };
+
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <Alert variant="destructive">
+        <AlertTitle><Trans>Labs page update required</Trans></AlertTitle>
+        <AlertDescription className="mt-2">
+          <p>
+            <Trans>Praxys could not finish loading this page after an app update. Reload once to use the current version.</Trans>
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-4"
+            onClick={this.reload}
+          >
+            <RefreshCw className="h-4 w-4" />
+            <Trans>Reload Labs</Trans>
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+}
+
+function LabsRoute({ children }: { children: ReactNode }) {
+  return (
+    <LabsRouteBoundary>
+      <Suspense fallback={<RouteChunkSkeleton />}>{children}</Suspense>
+    </LabsRouteBoundary>
+  );
+}
+
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
@@ -108,8 +172,8 @@ export default function App() {
                 <Route path="goal" element={<Suspense fallback={null}><Goal /></Suspense>} />
                 <Route path="history" element={<Suspense fallback={null}><History /></Suspense>} />
                 <Route path="science" element={<Suspense fallback={null}><Science /></Suspense>} />
-                <Route path="labs" element={<Suspense fallback={<RouteChunkSkeleton />}><Labs /></Suspense>} />
-                <Route path="labs/environment-response" element={<Suspense fallback={<RouteChunkSkeleton />}><LabsEnvironment /></Suspense>} />
+                <Route path="labs" element={<LabsRoute><Labs /></LabsRoute>} />
+                <Route path="labs/environment-response" element={<LabsRoute><LabsEnvironment /></LabsRoute>} />
                 <Route path="settings" element={<Suspense fallback={null}><SettingsPage /></Suspense>} />
                 <Route path="admin" element={<Suspense fallback={<AdminChunkSkeleton />}><AdminLayout /></Suspense>}>
                   <Route index element={<Navigate to="ops" replace />} />
