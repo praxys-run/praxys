@@ -19,6 +19,7 @@ diagnose X". It complements — and links out to — the setup-oriented
 | [environment.md](./environment.md) | You need the canonical Azure resource names / IDs / hostnames. |
 | [config-and-secrets.md](./config-and-secrets.md) | You're adding, changing, or rotating an env var / secret / variable, and need to know **where** it's set. |
 | [deploy.md](./deploy.md) | You're deploying the backend, frontend, or mini program — or need to roll back. |
+| [labs-analysis-worker.md](./labs-analysis-worker.md) | You're provisioning, enabling, or diagnosing isolated Labs analysis compute. |
 | [tencent-frontend.md](./tencent-frontend.md) | Provisioning or operating the mainland-China Lighthouse static frontend. |
 | [org-migration.md](./org-migration.md) | Migrating the repos from `dddtc2005` into the `praxys-run` org (OIDC pre-stage, App reinstall, tokens). |
 | [monitoring-and-alerts.md](./monitoring-and-alerts.md) | You want to query a telemetry signal or wire an email/Teams alert. |

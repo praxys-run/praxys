@@ -1009,6 +1009,12 @@ uncertainty, gate statuses, model/source versions, power regime, prediction
 diagnostic status, and timestamps. It never contains activity IDs, dates,
 routes, GPS, sample rows, or per-activity values.
 
+`execution.job_status` exposes the durable lifecycle (`queued`, `dispatched`,
+`processing`, `retrying`, or a terminal state), attempt count, retryability,
+and request/dispatch timestamps. `execution.recompute` is the
+server-authoritative cooldown/daily-limit policy used by both clients.
+All absolute timestamps include a UTC offset.
+
 ### GET /api/labs/environment-response/preflight
 
 Returns a non-persisted, aggregate-only prerequisite estimate before consent or
@@ -1046,7 +1052,7 @@ apparent temperature, body temperature, or a heat-safety assessment.
 
 ### POST /api/labs/environment-response
 
-Records explicit V1 consent and queues private processing.
+Records explicit V1 consent and durably queues private processing.
 
 ```json
 {
@@ -1057,24 +1063,47 @@ Records explicit V1 consent and queues private processing.
 
 The adult attestation is required because the reviewed evidence is adult-only;
 no date of birth is collected. A stale consent version returns `409`. The
-`202` response is the current queued state. The background payload contains
-only owner ID, experiment ID, model version, and source revision. Raw research
-pages are assembled in worker memory and are never persisted or returned.
-Startup and authenticated state reads return processing rows older than 30
-minutes to `queued`; the queued job is then rescheduled on the state read.
+`202` response is the current durable state. Clients should send an
+`Idempotency-Key` header (8-128 URL-safe identifier characters); replaying the
+same key returns the original enrollment generation without repeating the
+eligibility check. Repeating enrollment under unchanged active consent does
+not enqueue another analysis. A superseded stored consent remains hidden until
+the user explicitly accepts the current version.
+
+The PostgreSQL outbox and Service Bus message contain only an opaque job UUID.
+Owner ID, source revision, model version, and consent state remain in
+PostgreSQL. Raw research pages are assembled in isolated worker memory and are
+never persisted or returned. A periodic reconciler recovers expired execution
+leases and republishes only the oldest globally runnable dispatch after its
+30-minute worker-start lease, preventing a queue backlog from multiplying
+messages.
 
 ### POST /api/labs/environment-response/recompute
 
 Deletes the prior aggregate result and queues a fresh computation under the
-existing active consent. Returns `409` when the user is not enrolled.
+existing current consent. Clients should send a mutation-specific
+`Idempotency-Key`; a replay returns the original generation. PostgreSQL
+enforces one active generation per user and experiment.
+
+Manual recompute has a six-hour cooldown and accepts at most three requests in
+any rolling 24-hour window. A blocked request returns `429`,
+`Retry-After`, and structured detail containing
+`LABS_ENVIRONMENT_RECOMPUTE_COOLDOWN` or
+`LABS_ENVIRONMENT_RECOMPUTE_DAILY_LIMIT`, the true later
+`available_at` instant, and `retry_after_seconds`. When the user does not hold
+current consent, returns `409` with structured detail code
+`LABS_ENVIRONMENT_NOT_ENROLLED`; clients should invalidate both Labs state and
+preflight state before offering the next action.
 
 ### DELETE /api/labs/environment-response
 
 First records a restore-safe private withdrawal marker, then immediately
 deletes active consent and aggregate results. A running computation rechecks
-consent before writing, so withdrawal cannot be followed by a late result
-publication. Returns `204`; if the private marker cannot be stored, returns
-`503` without deleting consent so the user can retry safely.
+consent before writing, and active job/outbox records are cancelled, so
+withdrawal cannot be followed by a late result publication. Replaying an old
+enrollment idempotency key cannot recreate withdrawn consent. Returns `204`;
+if the private marker cannot be stored, returns `503` without deleting consent
+so the user can retry safely.
 
 ### GET /api/ai/context
 

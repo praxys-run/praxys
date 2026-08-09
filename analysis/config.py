@@ -555,18 +555,21 @@ def _get_preferences_from_db(user_id: str, db) -> dict:
 
     prefs = {}
     rows = (
-        db.query(UserConnection)
+        db.query(
+            UserConnection.platform,
+            UserConnection.preferences,
+        )
         .filter(
             UserConnection.user_id == user_id,
             UserConnection.status.in_(ACTIVE_CONNECTION_STATUSES),
         )
         .all()
     )
-    for row in rows:
-        conn_prefs = row.preferences or {}
+    for platform, preferences in rows:
+        conn_prefs = preferences or {}
         for category, enabled in conn_prefs.items():
             if enabled and category not in prefs:
-                prefs[category] = row.platform
+                prefs[category] = platform
     return prefs
 
 

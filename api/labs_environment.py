@@ -2,10 +2,15 @@
 from __future__ import annotations
 
 import logging
+import re
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 from uuid import uuid4
 
+from sqlalchemy import and_, or_
+from sqlalchemy.exc import InterfaceError, OperationalError
 from sqlalchemy.orm import Session
 
 from analysis.environment_response import (
@@ -31,7 +36,10 @@ from api.packs import (
 )
 from api.views import utc_isoformat
 from api import labs_tombstone_storage
+from db.cache_revision import lock_revision_writes
 from db.models import (
+    LabsAnalysisJob,
+    LabsAnalysisOutbox,
     LabsDeletionTombstone,
     LabsExperimentEnrollment,
     LabsExperimentResult,
@@ -43,6 +51,13 @@ logger = logging.getLogger(__name__)
 
 EXPERIMENT_ID = "environment-response-v1"
 CONSENT_VERSION = "environment-response-consent-v1"
+ACTIVE_JOB_STATUSES = ("queued", "dispatched", "processing", "retrying")
+MANUAL_RECOMPUTE_COOLDOWN = timedelta(hours=6)
+MANUAL_RECOMPUTE_WINDOW = timedelta(hours=24)
+MANUAL_RECOMPUTE_LIMIT = 3
+JOB_LEASE_DURATION = timedelta(minutes=30)
+MAX_JOB_ATTEMPTS = 3
+_IDEMPOTENCY_KEY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$")
 _SNAPSHOT_SALT = (
     "analysis-export&v="
     f"{get_analysis_response_version(ACTIVITY_RESEARCH_SCHEMA_VERSION)}"
@@ -51,6 +66,45 @@ _SNAPSHOT_SALT = (
 
 class StaleSourceRevision(RuntimeError):
     """Raised when source data changes during private snapshot construction."""
+
+
+class RecomputeLimitError(RuntimeError):
+    """Raised when a manual Labs recompute is not currently permitted."""
+
+    def __init__(
+        self,
+        code: Literal["cooldown", "daily_limit"],
+        available_at: datetime,
+    ) -> None:
+        super().__init__(code)
+        self.code = code
+        self.available_at = available_at
+
+
+@dataclass(frozen=True)
+class QueueDecision:
+    """Result of an idempotent enqueue attempt."""
+
+    enrollment: LabsExperimentEnrollment | None
+    job: LabsAnalysisJob | None
+    created: bool
+    idempotent: bool = False
+
+
+@dataclass(frozen=True)
+class JobExecutionResult:
+    """Settlement decision returned to the Service Bus worker."""
+
+    outcome: Literal[
+        "completed",
+        "ignored",
+        "cancelled",
+        "retry",
+        "failed",
+        "dead_lettered",
+    ]
+    attempt_count: int = 0
+    failure_code: str | None = None
 
 
 def _locked_enrollment(
@@ -67,6 +121,293 @@ def _locked_enrollment(
         .with_for_update()
         .one_or_none()
     )
+
+
+def _active_job(
+    db: Session,
+    user_id: str,
+    experiment_id: str,
+    *,
+    lock: bool = False,
+) -> LabsAnalysisJob | None:
+    query = (
+        db.query(LabsAnalysisJob)
+        .filter(
+            LabsAnalysisJob.user_id == user_id,
+            LabsAnalysisJob.experiment_id == experiment_id,
+            LabsAnalysisJob.status.in_(ACTIVE_JOB_STATUSES),
+        )
+        .order_by(LabsAnalysisJob.requested_at.desc())
+    )
+    if lock:
+        query = query.with_for_update()
+    return query.first()
+
+
+def _has_worker_predecessor(
+    db: Session,
+    job: LabsAnalysisJob,
+) -> bool:
+    """Return whether another active job should consume the global slot first."""
+    any_processing = (
+        db.query(LabsAnalysisJob.id)
+        .filter(
+            LabsAnalysisJob.id != job.id,
+            LabsAnalysisJob.status == "processing",
+        )
+        .first()
+    )
+    if any_processing is not None:
+        return True
+    return (
+        db.query(LabsAnalysisJob.id)
+        .filter(
+            LabsAnalysisJob.id != job.id,
+            LabsAnalysisJob.status.in_(ACTIVE_JOB_STATUSES),
+            or_(
+                LabsAnalysisJob.requested_at < job.requested_at,
+                and_(
+                    LabsAnalysisJob.requested_at == job.requested_at,
+                    LabsAnalysisJob.id < job.id,
+                ),
+            ),
+        )
+        .first()
+        is not None
+    )
+
+
+def _latest_job(
+        db: Session,
+        user_id: str,
+        experiment_id: str,
+) -> LabsAnalysisJob | None:
+    return (
+        db.query(LabsAnalysisJob)
+        .filter(
+            LabsAnalysisJob.user_id == user_id,
+            LabsAnalysisJob.experiment_id == experiment_id,
+        )
+        .order_by(LabsAnalysisJob.requested_at.desc())
+        .first()
+    )
+
+
+def _job_identity(db: Session, job_id: str) -> tuple[str, str] | None:
+    identity = (
+        db.query(
+            LabsAnalysisJob.user_id,
+            LabsAnalysisJob.experiment_id,
+        )
+        .filter(LabsAnalysisJob.id == job_id)
+        .first()
+    )
+    db.rollback()
+    if identity is None:
+        return None
+    return str(identity[0]), str(identity[1])
+
+
+def _execution_result_for_job(
+    job: LabsAnalysisJob | None,
+) -> JobExecutionResult:
+    if job is None:
+        return JobExecutionResult("ignored")
+    if job.status in ACTIVE_JOB_STATUSES:
+        outcome = "retry"
+    elif job.status == "succeeded":
+        outcome = "completed"
+    elif job.status == "cancelled":
+        outcome = "cancelled"
+    elif job.status == "dead_lettered":
+        outcome = "dead_lettered"
+    elif job.status == "failed":
+        outcome = "failed"
+    else:
+        outcome = "ignored"
+    return JobExecutionResult(
+        outcome,
+        attempt_count=job.attempt_count or 0,
+        failure_code=job.failure_code,
+    )
+
+
+def _existing_job_execution_result(
+    db: Session,
+    job_id: str,
+) -> JobExecutionResult:
+    job = (
+        db.query(LabsAnalysisJob)
+        .filter(LabsAnalysisJob.id == job_id)
+        .one_or_none()
+    )
+    result = _execution_result_for_job(job)
+    db.rollback()
+    return result
+
+
+def _job_for_idempotency_key(
+    db: Session,
+    user_id: str,
+    experiment_id: str,
+    trigger: Literal["enrollment", "manual_recompute"],
+    idempotency_key: str | None,
+) -> LabsAnalysisJob | None:
+    if idempotency_key is None:
+        return None
+    return (
+        db.query(LabsAnalysisJob)
+        .filter(
+            LabsAnalysisJob.user_id == user_id,
+            LabsAnalysisJob.experiment_id == experiment_id,
+            LabsAnalysisJob.trigger == trigger,
+            LabsAnalysisJob.idempotency_key == idempotency_key,
+        )
+        .first()
+    )
+
+
+def _normalize_idempotency_key(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    if not _IDEMPOTENCY_KEY_RE.fullmatch(normalized):
+        raise ValueError("invalid_idempotency_key")
+    return normalized
+
+
+def _has_current_consent(
+        row: LabsExperimentEnrollment | None,
+) -> bool:
+        return (
+            row is not None
+            and row.consent_version == CONSENT_VERSION
+            and row.adult_attested_at is not None
+        )
+
+
+def _uses_current_model(
+    row: LabsExperimentEnrollment | None,
+    job: LabsAnalysisJob,
+) -> bool:
+    return (
+        row is not None
+        and row.model_version == LABS_ENVIRONMENT_MODEL_VERSION
+        and job.model_version == LABS_ENVIRONMENT_MODEL_VERSION
+        and row.model_version == job.model_version
+    )
+
+
+def _same_job_generation(
+    row: LabsExperimentEnrollment | None,
+    job: LabsAnalysisJob,
+) -> bool:
+    return (
+        row is not None
+        and row.user_id == job.user_id
+        and row.experiment_id == job.experiment_id
+        and row.source_revision == job.source_revision
+        and row.correlation_id == job.correlation_id
+    )
+
+
+def _cancel_model_mismatch(
+    db: Session,
+    row: LabsExperimentEnrollment | None,
+    job: LabsAnalysisJob,
+) -> None:
+    completed_at = datetime.utcnow()
+    job.status = "cancelled"
+    job.failure_code = "model_version_mismatch"
+    job.retryable_failure = False
+    job.completed_at = completed_at
+    job.lease_expires_at = None
+    job.updated_at = completed_at
+    if _same_job_generation(row, job):
+        assert row is not None
+        row.status = "stale"
+        row.availability_reason = _reason(
+            "stale_model_version",
+            correlation_id=job.correlation_id,
+        )
+        row.completed_at = completed_at
+        row.updated_at = completed_at
+    db.commit()
+
+
+def _ensure_outbox(
+        db: Session,
+        job: LabsAnalysisJob,
+        *,
+        available_at: datetime,
+        force_pending: bool = False,
+) -> LabsAnalysisOutbox:
+    outbox = (
+        db.query(LabsAnalysisOutbox)
+        .filter(LabsAnalysisOutbox.job_id == job.id)
+        .with_for_update()
+        .one_or_none()
+    )
+    if outbox is None:
+        outbox = LabsAnalysisOutbox(
+            id=str(uuid4()),
+            job_id=job.id,
+            status="pending",
+            attempt_count=0,
+            available_at=available_at,
+            created_at=available_at,
+            updated_at=available_at,
+        )
+        db.add(outbox)
+        return outbox
+    lease_expired = (
+        outbox.status == "dispatching"
+        and (
+            outbox.lease_expires_at is None
+            or outbox.lease_expires_at <= available_at
+        )
+    )
+    should_reset = (
+        force_pending
+        or lease_expired
+        or outbox.status not in ("pending", "dispatching", "dispatched")
+    )
+    if should_reset:
+        outbox.status = "pending"
+        outbox.available_at = available_at
+        outbox.lease_expires_at = None
+        outbox.last_error_code = None
+        outbox.updated_at = available_at
+    return outbox
+
+
+def _create_job(
+        db: Session,
+        row: LabsExperimentEnrollment,
+        *,
+        trigger: Literal["enrollment", "manual_recompute"],
+        idempotency_key: str | None,
+        requested_at: datetime,
+) -> LabsAnalysisJob:
+    job = LabsAnalysisJob(
+        id=str(uuid4()),
+        user_id=row.user_id,
+        experiment_id=row.experiment_id,
+        trigger=trigger,
+        status="queued",
+        model_version=row.model_version,
+        source_revision=row.source_revision,
+        correlation_id=row.correlation_id,
+        idempotency_key=idempotency_key,
+        attempt_count=0,
+        retryable_failure=False,
+        requested_at=requested_at,
+        updated_at=requested_at,
+    )
+    db.add(job)
+    db.flush()
+    _ensure_outbox(db, job, available_at=requested_at)
+    return job
 
 
 def source_revision(db: Session, user_id: str) -> str:
@@ -104,86 +445,280 @@ def environment_response_preflight(
     )
 
 
+def _record_job_event(
+    job: LabsAnalysisJob,
+    *,
+    event: str,
+    outcome: str,
+    failure_class: str = "none",
+    duration_ms: int | None = None,
+) -> None:
+    try:
+        from api import telemetry
+
+        telemetry.record_labs_job(
+            event=event,
+            outcome=outcome,
+            trigger=job.trigger,
+            attempt=job.attempt_count,
+            failure_class=failure_class,
+            user_id=job.user_id,
+            queue_delay_ms=(
+                int((job.started_at - job.requested_at).total_seconds() * 1000)
+                if job.started_at is not None
+                else None
+            ),
+            duration_ms=duration_ms,
+        )
+    except Exception:
+        logger.debug("Labs job telemetry failed", exc_info=True)
+
+
 def enroll(
     db: Session,
     user_id: str,
     *,
     adult_attested: bool,
     consent_version: str,
-) -> LabsExperimentEnrollment:
-    """Create or replace explicit consent and queue aggregate computation."""
+    idempotency_key: str | None = None,
+    eligibility_check: Callable[[], None] | None = None,
+    now: datetime | None = None,
+) -> QueueDecision:
+    """Record explicit consent and atomically enqueue one analysis job."""
     if not adult_attested:
         raise ValueError("adult_eligibility_not_confirmed")
     if consent_version != CONSENT_VERSION:
         raise ValueError("consent_version_stale")
+    key = _normalize_idempotency_key(idempotency_key)
+    current_time = now or datetime.utcnow()
     begin_serialized_write(db)
-    now = datetime.utcnow()
-    revision = source_revision(db, user_id)
+    lock_revision_writes(db, user_id)
     row = _locked_enrollment(db, user_id, EXPERIMENT_ID)
-    if row is None:
-        row = LabsExperimentEnrollment(
-            user_id=user_id,
-            experiment_id=EXPERIMENT_ID,
-            consent_version=CONSENT_VERSION,
-            consented_at=now,
-            adult_attested_at=now,
-            status="queued",
-            model_version=LABS_ENVIRONMENT_MODEL_VERSION,
-            source_revision=revision,
-            correlation_id=str(uuid4()),
-            queued_at=now,
-            updated_at=now,
+    existing = _job_for_idempotency_key(
+        db,
+        user_id,
+        EXPERIMENT_ID,
+        "enrollment",
+        key,
+    )
+    if existing is not None:
+        db.commit()
+        return QueueDecision(row, existing, False, idempotent=True)
+    if row is not None:
+        if _has_current_consent(row):
+            active = _active_job(db, user_id, EXPERIMENT_ID, lock=True)
+            db.commit()
+            return QueueDecision(
+                row,
+                active,
+                False,
+                idempotent=True,
+            )
+        if eligibility_check is not None:
+            try:
+                eligibility_check()
+            except Exception:
+                db.rollback()
+                raise
+        replaced_job = _active_job(
+            db,
+            user_id,
+            EXPERIMENT_ID,
+            lock=True,
         )
-        db.add(row)
-    else:
+        if replaced_job is not None:
+            replaced_job.status = "cancelled"
+            replaced_job.completed_at = current_time
+            replaced_job.lease_expires_at = None
+            replaced_job.updated_at = current_time
+            replaced_outbox = (
+                db.query(LabsAnalysisOutbox)
+                .filter(LabsAnalysisOutbox.job_id == replaced_job.id)
+                .with_for_update()
+                .one_or_none()
+            )
+            if replaced_outbox is not None:
+                replaced_outbox.status = "cancelled"
+                replaced_outbox.lease_expires_at = None
+                replaced_outbox.updated_at = current_time
+            db.flush()
         row.consent_version = CONSENT_VERSION
-        row.consented_at = now
-        row.adult_attested_at = now
+        row.consented_at = current_time
+        row.adult_attested_at = current_time
         row.status = "queued"
         row.model_version = LABS_ENVIRONMENT_MODEL_VERSION
-        row.source_revision = revision
+        row.source_revision = source_revision(db, user_id)
         row.correlation_id = str(uuid4())
         row.availability_reason = None
-        row.queued_at = now
+        row.queued_at = current_time
         row.started_at = None
         row.completed_at = None
-        row.updated_at = now
-    db.query(LabsExperimentResult).filter(
-        LabsExperimentResult.user_id == user_id,
-        LabsExperimentResult.experiment_id == EXPERIMENT_ID,
-    ).delete(synchronize_session=False)
+        row.updated_at = current_time
+        db.query(LabsExperimentResult).filter(
+            LabsExperimentResult.user_id == user_id,
+            LabsExperimentResult.experiment_id == EXPERIMENT_ID,
+        ).delete(synchronize_session=False)
+        job = _create_job(
+            db,
+            row,
+            trigger="enrollment",
+            idempotency_key=key,
+            requested_at=current_time,
+        )
+        db.commit()
+        db.refresh(row)
+        db.refresh(job)
+        if replaced_job is not None:
+            _record_job_event(
+                replaced_job,
+                event="cancelled",
+                outcome="consent_replaced",
+            )
+        _record_job_event(job, event="enqueued", outcome="queued")
+        return QueueDecision(row, job, True)
+
+    if eligibility_check is not None:
+        try:
+            eligibility_check()
+        except Exception:
+            db.rollback()
+            raise
+    revision = source_revision(db, user_id)
+    row = LabsExperimentEnrollment(
+        user_id=user_id,
+        experiment_id=EXPERIMENT_ID,
+        consent_version=CONSENT_VERSION,
+        consented_at=current_time,
+        adult_attested_at=current_time,
+        status="queued",
+        model_version=LABS_ENVIRONMENT_MODEL_VERSION,
+        source_revision=revision,
+        correlation_id=str(uuid4()),
+        queued_at=current_time,
+        updated_at=current_time,
+    )
+    db.add(row)
+    db.flush()
+    job = _create_job(
+        db,
+        row,
+        trigger="enrollment",
+        idempotency_key=key,
+        requested_at=current_time,
+    )
     db.commit()
     db.refresh(row)
-    return row
+    db.refresh(job)
+    _record_job_event(job, event="enqueued", outcome="queued")
+    return QueueDecision(row, job, True)
+
+
+def _manual_recompute_limit(
+    db: Session,
+    user_id: str,
+    *,
+    now: datetime,
+) -> RecomputeLimitError | None:
+    jobs = (
+        db.query(LabsAnalysisJob)
+        .filter(
+            LabsAnalysisJob.user_id == user_id,
+            LabsAnalysisJob.experiment_id == EXPERIMENT_ID,
+            LabsAnalysisJob.trigger == "manual_recompute",
+            LabsAnalysisJob.requested_at > now - MANUAL_RECOMPUTE_WINDOW,
+        )
+        .order_by(LabsAnalysisJob.requested_at)
+        .all()
+    )
+    code: Literal["cooldown", "daily_limit"] | None = None
+    available_at: datetime | None = None
+    if jobs:
+        cooldown_at = jobs[-1].requested_at + MANUAL_RECOMPUTE_COOLDOWN
+        if cooldown_at > now:
+            code = "cooldown"
+            available_at = cooldown_at
+    if len(jobs) >= MANUAL_RECOMPUTE_LIMIT:
+        daily_at = jobs[0].requested_at + MANUAL_RECOMPUTE_WINDOW
+        if daily_at > now and (
+            available_at is None or daily_at > available_at
+        ):
+            code = "daily_limit"
+            available_at = daily_at
+    return (
+        None
+        if code is None or available_at is None
+        else RecomputeLimitError(code, available_at)
+    )
 
 
 def queue_recompute(
     db: Session,
     user_id: str,
-) -> LabsExperimentEnrollment | None:
-    """Queue a fresh computation without changing the active consent time."""
+    *,
+    idempotency_key: str | None = None,
+    eligibility_check: Callable[[], None] | None = None,
+    now: datetime | None = None,
+) -> QueueDecision | None:
+    """Atomically queue an idempotent, rate-limited manual recompute."""
+    key = _normalize_idempotency_key(idempotency_key)
+    current_time = now or datetime.utcnow()
     begin_serialized_write(db)
+    lock_revision_writes(db, user_id)
     row = _locked_enrollment(db, user_id, EXPERIMENT_ID)
-    if row is None:
+    if not _has_current_consent(row):
         db.rollback()
         return None
-    now = datetime.utcnow()
+    assert row is not None
+    existing = _job_for_idempotency_key(
+        db,
+        user_id,
+        EXPERIMENT_ID,
+        "manual_recompute",
+        key,
+    )
+    if existing is not None:
+        db.commit()
+        return QueueDecision(row, existing, False, idempotent=True)
+    active = _active_job(db, user_id, EXPERIMENT_ID, lock=True)
+    if active is not None:
+        db.commit()
+        return QueueDecision(row, active, False, idempotent=True)
+    limited = _manual_recompute_limit(db, user_id, now=current_time)
+    if limited is not None:
+        db.rollback()
+        raise limited
+    if eligibility_check is not None:
+        try:
+            eligibility_check()
+        except Exception:
+            db.rollback()
+            raise
+
     row.status = "queued"
     row.model_version = LABS_ENVIRONMENT_MODEL_VERSION
     row.source_revision = source_revision(db, user_id)
     row.correlation_id = str(uuid4())
     row.availability_reason = None
-    row.queued_at = now
+    row.queued_at = current_time
     row.started_at = None
     row.completed_at = None
-    row.updated_at = now
+    row.updated_at = current_time
     db.query(LabsExperimentResult).filter(
         LabsExperimentResult.user_id == user_id,
         LabsExperimentResult.experiment_id == EXPERIMENT_ID,
     ).delete(synchronize_session=False)
+    job = _create_job(
+        db,
+        row,
+        trigger="manual_recompute",
+        idempotency_key=key,
+        requested_at=current_time,
+    )
     db.commit()
     db.refresh(row)
-    return row
+    db.refresh(job)
+    _record_job_event(job, event="enqueued", outcome="queued")
+    return QueueDecision(row, job, True)
 
 
 def recover_interrupted_jobs(
@@ -192,36 +727,201 @@ def recover_interrupted_jobs(
     user_id: str | None = None,
     all_processing: bool = False,
 ) -> int:
-    """Return abandoned in-process work to the durable queued state."""
-    begin_serialized_write(db)
+    """Recover legacy queued rows and expired isolated-worker leases."""
+    now = datetime.utcnow()
     query = db.query(LabsExperimentEnrollment).filter(
-        LabsExperimentEnrollment.status == "processing",
+        LabsExperimentEnrollment.experiment_id == EXPERIMENT_ID,
+        LabsExperimentEnrollment.status.in_(("queued", "processing")),
     )
-    if not all_processing:
-        cutoff = datetime.utcnow() - timedelta(minutes=30)
-        query = query.filter(
-            (LabsExperimentEnrollment.started_at.is_(None))
-            | (LabsExperimentEnrollment.started_at <= cutoff)
-        )
     if user_id is not None:
         query = query.filter(LabsExperimentEnrollment.user_id == user_id)
-    rows = query.with_for_update().all()
-    now = datetime.utcnow()
-    for row in rows:
+    identities = query.with_entities(
+        LabsExperimentEnrollment.user_id,
+        LabsExperimentEnrollment.experiment_id,
+    ).all()
+    db.rollback()
+    recovered = 0
+    for row_user_id, experiment_id in identities:
+        begin_serialized_write(db)
+        lock_revision_writes(db, str(row_user_id))
+        row = _locked_enrollment(
+            db,
+            str(row_user_id),
+            str(experiment_id),
+        )
+        if row is None or row.status not in ("queued", "processing"):
+            db.rollback()
+            continue
+        if not _has_current_consent(row):
+            stale_job = _active_job(
+                db,
+                row.user_id,
+                row.experiment_id,
+                lock=True,
+            )
+            if stale_job is not None:
+                stale_job.status = "cancelled"
+                stale_job.completed_at = now
+                stale_job.lease_expires_at = None
+                stale_job.updated_at = now
+                stale_outbox = (
+                    db.query(LabsAnalysisOutbox)
+                    .filter(LabsAnalysisOutbox.job_id == stale_job.id)
+                    .with_for_update()
+                    .one_or_none()
+                )
+                if stale_outbox is not None:
+                    stale_outbox.status = "cancelled"
+                    stale_outbox.lease_expires_at = None
+                    stale_outbox.updated_at = now
+            row.status = "unavailable"
+            row.availability_reason = None
+            row.started_at = None
+            row.completed_at = now
+            row.updated_at = now
+            recovered += 1
+            db.commit()
+            if stale_job is not None:
+                _record_job_event(
+                    stale_job,
+                    event="cancelled",
+                    outcome="consent_version_stale",
+                )
+            continue
+        job = _active_job(
+            db,
+            row.user_id,
+            row.experiment_id,
+            lock=True,
+        )
+        if job is None:
+            if row.status == "processing" and not all_processing:
+                cutoff = now - JOB_LEASE_DURATION
+                if row.started_at is not None and row.started_at > cutoff:
+                    db.rollback()
+                    continue
+            row.status = "queued"
+            row.started_at = None
+            row.completed_at = None
+            row.updated_at = now
+            _create_job(
+                db,
+                row,
+                trigger="enrollment",
+                idempotency_key=None,
+                requested_at=row.queued_at or now,
+            )
+            recovered += 1
+            db.commit()
+            continue
+        dispatch_outbox = None
+        if job.status in ("dispatched", "retrying"):
+            dispatch_outbox = (
+                db.query(LabsAnalysisOutbox)
+                .filter(LabsAnalysisOutbox.job_id == job.id)
+                .with_for_update()
+                .one_or_none()
+            )
+        if (
+            dispatch_outbox is not None
+            and dispatch_outbox.status == "dispatched"
+            and dispatch_outbox.dispatched_at is not None
+            and dispatch_outbox.dispatched_at <= now - JOB_LEASE_DURATION
+            and not _has_worker_predecessor(db, job)
+        ):
+            job.status = "retrying"
+            job.failure_code = "worker_start_timeout"
+            job.retryable_failure = True
+            job.dispatched_at = None
+            job.updated_at = now
+            row.status = "queued"
+            row.availability_reason = None
+            row.started_at = None
+            row.completed_at = None
+            row.updated_at = now
+            _ensure_outbox(
+                db,
+                job,
+                available_at=now,
+                force_pending=True,
+            )
+            recovered += 1
+            db.commit()
+            _record_job_event(
+                job,
+                event="retry_scheduled",
+                outcome="worker_start_timeout",
+                failure_class="worker_start_timeout",
+            )
+            continue
+        if job.status != "processing":
+            _ensure_outbox(db, job, available_at=now)
+            db.commit()
+            continue
+        lease_expired = (
+            all_processing
+            or job.lease_expires_at is None
+            or job.lease_expires_at <= now
+        )
+        if not lease_expired:
+            db.rollback()
+            continue
+        if job.attempt_count >= MAX_JOB_ATTEMPTS:
+            job.status = "dead_lettered"
+            job.retryable_failure = True
+            job.failure_code = job.failure_code or "worker_lease_expired"
+            job.completed_at = now
+            job.updated_at = now
+            row.status = "failed"
+            row.availability_reason = _reason(
+                "analysis_retry_exhausted",
+                correlation_id=row.correlation_id,
+            )
+            row.completed_at = now
+            row.updated_at = now
+            recovered += 1
+            db.commit()
+            _record_job_event(
+                job,
+                event="dead_lettered",
+                outcome="worker_lease_expired",
+                failure_class=job.failure_code,
+            )
+            continue
+        job.status = "retrying"
+        job.retryable_failure = True
+        job.failure_code = "worker_lease_expired"
+        job.dispatched_at = None
+        job.started_at = None
+        job.lease_expires_at = None
+        job.updated_at = now
         row.status = "queued"
-        row.correlation_id = str(uuid4())
         row.availability_reason = None
         row.queued_at = now
         row.started_at = None
         row.completed_at = None
         row.updated_at = now
-    db.commit()
-    return len(rows)
+        _ensure_outbox(
+            db,
+            job,
+            available_at=now,
+            force_pending=True,
+        )
+        recovered += 1
+        db.commit()
+        _record_job_event(
+            job,
+            event="retry_scheduled",
+            outcome="worker_lease_expired",
+            failure_class="worker_lease_expired",
+        )
+    return recovered
 
 
 def withdraw(db: Session, user_id: str) -> bool:
-    """Delete active consent and aggregate result, retaining only a tombstone."""
+    """Delete consent/result, cancel active jobs, and retain a tombstone."""
     begin_serialized_write(db)
+    lock_revision_writes(db, user_id)
     enrollment = _locked_enrollment(db, user_id, EXPERIMENT_ID)
     deleted_at = datetime.utcnow()
     labs_tombstone_storage.store(
@@ -232,6 +932,31 @@ def withdraw(db: Session, user_id: str) -> bool:
     existed = enrollment is not None or (
         db.get(LabsExperimentResult, (user_id, EXPERIMENT_ID)) is not None
     )
+    cancelled_jobs = (
+        db.query(LabsAnalysisJob)
+        .filter(
+            LabsAnalysisJob.user_id == user_id,
+            LabsAnalysisJob.experiment_id == EXPERIMENT_ID,
+            LabsAnalysisJob.status.in_(ACTIVE_JOB_STATUSES),
+        )
+        .with_for_update()
+        .all()
+    )
+    for job in cancelled_jobs:
+        job.status = "cancelled"
+        job.completed_at = deleted_at
+        job.lease_expires_at = None
+        job.updated_at = deleted_at
+        outbox = (
+            db.query(LabsAnalysisOutbox)
+            .filter(LabsAnalysisOutbox.job_id == job.id)
+            .with_for_update()
+            .one_or_none()
+        )
+        if outbox is not None:
+            outbox.status = "cancelled"
+            outbox.lease_expires_at = None
+            outbox.updated_at = deleted_at
     db.query(LabsExperimentResult).filter(
         LabsExperimentResult.user_id == user_id,
         LabsExperimentResult.experiment_id == EXPERIMENT_ID,
@@ -250,6 +975,8 @@ def withdraw(db: Session, user_id: str) -> bool:
     else:
         tombstone.deleted_at = deleted_at
     db.commit()
+    for job in cancelled_jobs:
+        _record_job_event(job, event="cancelled", outcome="withdrawn")
     return existed
 
 
@@ -280,6 +1007,32 @@ def replay_deletion_tombstones(db: Session) -> int:
             LabsExperimentResult.experiment_id == tombstone.experiment_id,
             LabsExperimentResult.computed_at <= tombstone.deleted_at,
         ).delete(synchronize_session=False)
+        jobs = (
+            db.query(LabsAnalysisJob)
+            .filter(
+                LabsAnalysisJob.user_id == tombstone.user_id,
+                LabsAnalysisJob.experiment_id == tombstone.experiment_id,
+                LabsAnalysisJob.requested_at <= tombstone.deleted_at,
+                LabsAnalysisJob.status.in_(ACTIVE_JOB_STATUSES),
+            )
+            .with_for_update()
+            .all()
+        )
+        for job in jobs:
+            job.status = "cancelled"
+            job.completed_at = tombstone.deleted_at
+            job.lease_expires_at = None
+            job.updated_at = tombstone.deleted_at
+            outbox = (
+                db.query(LabsAnalysisOutbox)
+                .filter(LabsAnalysisOutbox.job_id == job.id)
+                .with_for_update()
+                .one_or_none()
+            )
+            if outbox is not None:
+                outbox.status = "cancelled"
+                outbox.lease_expires_at = None
+                outbox.updated_at = tombstone.deleted_at
         deleted += db.query(LabsExperimentEnrollment).filter(
             LabsExperimentEnrollment.user_id == tombstone.user_id,
             LabsExperimentEnrollment.experiment_id == tombstone.experiment_id,
@@ -289,113 +1042,359 @@ def replay_deletion_tombstones(db: Session) -> int:
     return deleted
 
 
+def _claim_job(
+    db: Session,
+    job_id: str,
+    *,
+    reclaim_processing: bool,
+) -> tuple[LabsAnalysisJob, LabsExperimentEnrollment] | None:
+    identity = _job_identity(db, job_id)
+    if identity is None:
+        return None
+    begin_serialized_write(db)
+    lock_revision_writes(db, identity[0])
+    row = _locked_enrollment(db, identity[0], identity[1])
+    job = (
+        db.query(LabsAnalysisJob)
+        .filter(LabsAnalysisJob.id == job_id)
+        .with_for_update()
+        .one_or_none()
+    )
+    if job is None:
+        db.rollback()
+        return None
+    claimable = job.status in ("queued", "dispatched", "retrying")
+    if job.status == "processing" and reclaim_processing:
+        claimable = True
+    if not claimable:
+        db.rollback()
+        return None
+    if _same_job_generation(row, job) and not _uses_current_model(row, job):
+        _cancel_model_mismatch(db, row, job)
+        return None
+    if (
+        row is None
+        or not _has_current_consent(row)
+        or row.user_id != job.user_id
+        or row.experiment_id != job.experiment_id
+        or row.model_version != job.model_version
+        or row.source_revision != job.source_revision
+        or row.correlation_id != job.correlation_id
+        or row.status not in ("queued", "processing")
+    ):
+        job.status = "cancelled"
+        job.completed_at = datetime.utcnow()
+        job.lease_expires_at = None
+        job.updated_at = job.completed_at
+        db.commit()
+        return None
+    tombstone = db.get(
+        LabsDeletionTombstone,
+        (job.user_id, job.experiment_id),
+    )
+    if tombstone is not None and tombstone.deleted_at >= row.consented_at:
+        job.status = "cancelled"
+        job.completed_at = datetime.utcnow()
+        job.lease_expires_at = None
+        job.updated_at = job.completed_at
+        db.commit()
+        return None
+    if (job.attempt_count or 0) >= MAX_JOB_ATTEMPTS:
+        completed_at = datetime.utcnow()
+        job.status = "dead_lettered"
+        job.failure_code = "worker_attempt_limit_exhausted"
+        job.retryable_failure = True
+        job.completed_at = completed_at
+        job.lease_expires_at = None
+        job.updated_at = completed_at
+        row.status = "failed"
+        row.availability_reason = _reason(
+            "analysis_retry_exhausted",
+            correlation_id=job.correlation_id,
+        )
+        row.completed_at = completed_at
+        row.updated_at = completed_at
+        db.commit()
+        return None
+    started_at = datetime.utcnow()
+    job.status = "processing"
+    job.attempt_count = (job.attempt_count or 0) + 1
+    job.failure_code = None
+    job.retryable_failure = False
+    job.started_at = started_at
+    job.lease_expires_at = started_at + JOB_LEASE_DURATION
+    job.updated_at = started_at
+    row.status = "processing"
+    row.started_at = started_at
+    row.completed_at = None
+    row.updated_at = started_at
+    db.commit()
+    return job, row
+
+
+def _is_retryable_job_error(exc: Exception) -> bool:
+    return isinstance(
+        exc,
+        (OperationalError, InterfaceError, TimeoutError, ConnectionError),
+    )
+
+
+def _persist_job_failure(
+    db: Session,
+    job_id: str,
+    exc: Exception,
+) -> JobExecutionResult:
+    db.rollback()
+    db.expire_all()
+    identity = _job_identity(db, job_id)
+    if identity is None:
+        return JobExecutionResult("ignored")
+    begin_serialized_write(db)
+    lock_revision_writes(db, identity[0])
+    row = _locked_enrollment(db, identity[0], identity[1])
+    job = (
+        db.query(LabsAnalysisJob)
+        .filter(LabsAnalysisJob.id == job_id)
+        .with_for_update()
+        .one_or_none()
+    )
+    if job is None:
+        db.rollback()
+        return JobExecutionResult("ignored")
+    if job.status != "processing":
+        result = _execution_result_for_job(job)
+        db.rollback()
+        return result
+    if not _has_current_consent(row):
+        now = datetime.utcnow()
+        job.status = "cancelled"
+        job.completed_at = now
+        job.lease_expires_at = None
+        job.updated_at = now
+        db.commit()
+        _record_job_event(
+            job,
+            event="cancelled",
+            outcome="consent_version_stale",
+        )
+        return JobExecutionResult(
+            "cancelled",
+            attempt_count=job.attempt_count,
+        )
+    if _same_job_generation(row, job) and not _uses_current_model(row, job):
+        _cancel_model_mismatch(db, row, job)
+        return JobExecutionResult(
+            "cancelled",
+            attempt_count=job.attempt_count,
+            failure_code="model_version_mismatch",
+        )
+    failure_code = type(exc).__name__[:64]
+    retryable = _is_retryable_job_error(exc)
+    exhausted = retryable and job.attempt_count >= MAX_JOB_ATTEMPTS
+    now = datetime.utcnow()
+    job.failure_code = failure_code
+    job.retryable_failure = retryable
+    job.lease_expires_at = None
+    job.updated_at = now
+    if retryable and not exhausted:
+        job.status = "retrying"
+        if row is not None and row.correlation_id == job.correlation_id:
+            row.status = "queued"
+            row.availability_reason = None
+            row.started_at = None
+            row.completed_at = None
+            row.updated_at = now
+        db.commit()
+        _record_job_event(
+            job,
+            event="retry_scheduled",
+            outcome="retry",
+            failure_class=failure_code,
+        )
+        return JobExecutionResult(
+            "retry",
+            attempt_count=job.attempt_count,
+            failure_code=failure_code,
+        )
+
+    job.status = "dead_lettered" if exhausted else "failed"
+    job.completed_at = now
+    if row is not None and row.correlation_id == job.correlation_id:
+        row.status = "failed"
+        row.availability_reason = _reason(
+            "analysis_retry_exhausted" if exhausted else "analysis_failed",
+            correlation_id=job.correlation_id,
+        )
+        row.completed_at = now
+        row.updated_at = now
+    db.commit()
+    outcome = "dead_lettered" if exhausted else "failed"
+    _record_job_event(
+        job,
+        event=outcome,
+        outcome=outcome,
+        failure_class=failure_code,
+    )
+    return JobExecutionResult(
+        outcome,
+        attempt_count=job.attempt_count,
+        failure_code=failure_code,
+    )
+
+
 def process_environment_response_job(
-    user_id: str,
-    experiment_id: str,
-    model_version: str,
-    expected_source_revision: str,
-) -> None:
-    """Compute one queued job using only privacy-minimized identifiers."""
+    job_id: str,
+    *,
+    reclaim_processing: bool = False,
+) -> JobExecutionResult:
+    """Run one durable Labs job and return its queue settlement outcome."""
     from db import session as db_session
 
     db = db_session.SessionLocal()
-    correlation_id = "unknown"
+    claimed: tuple[LabsAnalysisJob, LabsExperimentEnrollment] | None = None
     try:
-        begin_serialized_write(db)
-        row = _locked_enrollment(db, user_id, experiment_id)
-        if (
-            row is None
-            or row.status != "queued"
-            or row.model_version != model_version
-            or row.source_revision != expected_source_revision
-        ):
-            return
-        correlation_id = row.correlation_id
-        if model_version != LABS_ENVIRONMENT_MODEL_VERSION:
-            row.status = "stale"
-            row.availability_reason = _reason(
-                "stale_model_version",
-                correlation_id=correlation_id,
-            )
-            row.completed_at = datetime.utcnow()
-            row.updated_at = datetime.utcnow()
-            db.commit()
-            return
-        row.status = "processing"
-        row.started_at = datetime.utcnow()
-        row.updated_at = datetime.utcnow()
-        db.commit()
-
+        claimed = _claim_job(
+            db,
+            job_id,
+            reclaim_processing=reclaim_processing,
+        )
+        if claimed is None:
+            return _existing_job_execution_result(db, job_id)
+        job, _row = claimed
+        _record_job_event(job, event="started", outcome="processing")
         try:
             bundle = _build_private_dataset_bundle(
                 db,
-                user_id,
-                expected_source_revision,
+                job.user_id,
+                job.source_revision,
             )
         except StaleSourceRevision:
             _persist_unavailable(
                 db,
-                user_id,
-                experiment_id,
-                model_version,
-                expected_source_revision,
-                correlation_id,
+                job.id,
                 "stale_source_revision",
                 "stale",
             )
-            return
-        if source_revision(db, user_id) != expected_source_revision:
+            return JobExecutionResult(
+                "completed",
+                attempt_count=job.attempt_count,
+            )
+        if source_revision(db, job.user_id) != job.source_revision:
             _persist_unavailable(
                 db,
-                user_id,
-                experiment_id,
-                model_version,
-                expected_source_revision,
-                correlation_id,
+                job.id,
                 "stale_source_revision",
                 "stale",
             )
-            return
+            return JobExecutionResult(
+                "completed",
+                attempt_count=job.attempt_count,
+            )
         aggregate = build_environment_response_result(bundle)
         if aggregate.get("model_version") != LABS_ENVIRONMENT_MODEL_VERSION:
-            raise ValueError("environment-response model version mismatch")
-        if source_revision(db, user_id) != expected_source_revision:
             _persist_unavailable(
                 db,
-                user_id,
-                experiment_id,
-                model_version,
-                expected_source_revision,
-                correlation_id,
+                job.id,
+                "stale_model_version",
+                "stale",
+            )
+            return JobExecutionResult(
+                "completed",
+                attempt_count=job.attempt_count,
+            )
+        if source_revision(db, job.user_id) != job.source_revision:
+            _persist_unavailable(
+                db,
+                job.id,
                 "stale_source_revision",
                 "stale",
             )
-            return
+            return JobExecutionResult(
+                "completed",
+                attempt_count=job.attempt_count,
+            )
 
         db.rollback()
         db.expire_all()
+        identity = _job_identity(db, job_id)
+        if identity is None:
+            return JobExecutionResult("cancelled")
         begin_serialized_write(db)
-        row = _locked_enrollment(db, user_id, experiment_id)
+        lock_revision_writes(db, identity[0])
+        row = _locked_enrollment(db, identity[0], identity[1])
+        job = (
+            db.query(LabsAnalysisJob)
+            .filter(LabsAnalysisJob.id == job_id)
+            .with_for_update()
+            .one_or_none()
+        )
+        if job is None or job.status != "processing":
+            db.rollback()
+            return JobExecutionResult("cancelled")
         if (
             row is None
+            or not _has_current_consent(row)
+            or row.user_id != job.user_id
+            or row.experiment_id != job.experiment_id
             or row.status != "processing"
-            or row.model_version != model_version
-            or row.source_revision != expected_source_revision
-            or row.correlation_id != correlation_id
+            or not _uses_current_model(row, job)
+            or row.source_revision != job.source_revision
+            or row.correlation_id != job.correlation_id
+            or aggregate.get("model_version") != job.model_version
         ):
-            return
-        tombstone = db.get(LabsDeletionTombstone, (user_id, experiment_id))
+            if _same_job_generation(row, job) and not _uses_current_model(
+                row,
+                job,
+            ):
+                _cancel_model_mismatch(db, row, job)
+            else:
+                job.status = "cancelled"
+                job.completed_at = datetime.utcnow()
+                job.lease_expires_at = None
+                job.updated_at = job.completed_at
+                db.commit()
+            return JobExecutionResult(
+                "cancelled",
+                attempt_count=job.attempt_count,
+            )
+        tombstone = db.get(
+            LabsDeletionTombstone,
+            (job.user_id, job.experiment_id),
+        )
         if tombstone is not None and tombstone.deleted_at >= row.consented_at:
-            return
-        result = db.get(LabsExperimentResult, (user_id, experiment_id))
+            job.status = "cancelled"
+            job.completed_at = datetime.utcnow()
+            job.lease_expires_at = None
+            job.updated_at = job.completed_at
+            db.commit()
+            return JobExecutionResult(
+                "cancelled",
+                attempt_count=job.attempt_count,
+            )
+        if source_revision(db, job.user_id) != job.source_revision:
+            db.rollback()
+            _persist_unavailable(
+                db,
+                job.id,
+                "stale_source_revision",
+                "stale",
+            )
+            return JobExecutionResult(
+                "completed",
+                attempt_count=job.attempt_count,
+            )
+        result = db.get(
+            LabsExperimentResult,
+            (job.user_id, job.experiment_id),
+        )
         if result is None:
             result = LabsExperimentResult(
-                user_id=user_id,
-                experiment_id=experiment_id,
+                user_id=job.user_id,
+                experiment_id=job.experiment_id,
             )
             db.add(result)
         result.model_version = aggregate["model_version"]
-        result.source_revision = expected_source_revision
+        result.source_revision = job.source_revision
         result.result_state = aggregate["result_state"]
         result.eligibility_counts = aggregate["eligibility_counts"]
         result.aggregate_curve_points = aggregate["aggregate_curve_points"]
@@ -403,7 +1402,8 @@ def process_environment_response_job(
         result.gate_statuses = aggregate["gate_statuses"]
         result.prediction_status = aggregate["prediction_status"]
         result.power_regime = aggregate["power_regime"]
-        result.computed_at = datetime.utcnow()
+        completed_at = datetime.utcnow()
+        result.computed_at = completed_at
         row.status = (
             "available"
             if aggregate["aggregate_curve_points"]
@@ -414,38 +1414,57 @@ def process_environment_response_job(
             if row.status == "available"
             else availability_reason(
                 aggregate,
-                correlation_id=correlation_id,
+                correlation_id=job.correlation_id,
             )
         )
-        row.completed_at = datetime.utcnow()
-        row.updated_at = datetime.utcnow()
+        row.completed_at = completed_at
+        row.updated_at = completed_at
+        job.status = "succeeded"
+        job.completed_at = completed_at
+        job.lease_expires_at = None
+        job.updated_at = completed_at
         db.commit()
-    except Exception:
-        db.rollback()
-        logger.exception(
-            "Labs environment-response processing failed "
-            "correlation_id=%s stage=analysis model=%s regime=%s",
-            correlation_id,
-            model_version,
-            POWER_REGIME,
+        duration_ms = (
+            int((completed_at - job.started_at).total_seconds() * 1000)
+            if job.started_at is not None
+            else None
         )
+        _record_job_event(
+            job,
+            event="completed",
+            outcome=row.status,
+            duration_ms=duration_ms,
+        )
+        return JobExecutionResult(
+            "completed",
+            attempt_count=job.attempt_count,
+        )
+    except Exception as exc:
+        db.rollback()
+        job = claimed[0] if claimed is not None else None
+        logger.error(
+            "Labs environment-response processing failed "
+            "job_id=%s correlation_id=%s stage=analysis model=%s "
+            "regime=%s failure_class=%s",
+            job_id,
+            "unknown" if job is None else job.correlation_id,
+            "unknown" if job is None else job.model_version,
+            POWER_REGIME,
+            type(exc).__name__,
+        )
+        if claimed is None:
+            raise
         try:
-            _persist_unavailable(
-                db,
-                user_id,
-                experiment_id,
-                model_version,
-                expected_source_revision,
-                correlation_id,
-                "analysis_failed",
-                "failed",
-            )
-        except Exception:
+            return _persist_job_failure(db, job_id, exc)
+        except Exception as persistence_exc:
             db.rollback()
-            logger.exception(
-                "Labs failure state persistence failed correlation_id=%s",
-                correlation_id,
+            logger.error(
+                "Labs failure state persistence failed job_id=%s "
+                "failure_class=%s",
+                job_id,
+                type(persistence_exc).__name__,
             )
+            raise
     finally:
         db.close()
 
@@ -458,7 +1477,7 @@ def _build_private_dataset_bundle(
     pages: list[dict[str, Any]] = []
     offset = 0
     limit = 50
-    ctx = RequestContext(user_id=user_id, db=db)
+    ctx = RequestContext(user_id=user_id, db=db, include_plan=False)
     while True:
         if source_revision(db, user_id) != expected_source_revision:
             raise StaleSourceRevision
@@ -478,34 +1497,73 @@ def _build_private_dataset_bundle(
 
 def _persist_unavailable(
     db: Session,
-    user_id: str,
-    experiment_id: str,
-    model_version: str,
-    expected_source_revision: str,
-    correlation_id: str,
+    job_id: str,
     code: str,
     status: str,
 ) -> None:
     db.rollback()
     db.expire_all()
+    identity = _job_identity(db, job_id)
+    if identity is None:
+        return
     begin_serialized_write(db)
-    row = _locked_enrollment(db, user_id, experiment_id)
+    lock_revision_writes(db, identity[0])
+    row = _locked_enrollment(db, identity[0], identity[1])
+    job = (
+        db.query(LabsAnalysisJob)
+        .filter(LabsAnalysisJob.id == job_id)
+        .with_for_update()
+        .one_or_none()
+    )
+    if job is None or job.status != "processing":
+        db.rollback()
+        return
     if (
         row is None
-        or row.model_version != model_version
-        or row.source_revision != expected_source_revision
-        or row.correlation_id != correlation_id
+        or not _has_current_consent(row)
+        or row.user_id != job.user_id
+        or row.experiment_id != job.experiment_id
+        or not _uses_current_model(row, job)
+        or row.source_revision != job.source_revision
+        or row.correlation_id != job.correlation_id
         or row.status != "processing"
     ):
+        if _same_job_generation(row, job) and not _uses_current_model(
+            row,
+            job,
+        ):
+            _cancel_model_mismatch(db, row, job)
+        else:
+            job.status = "cancelled"
+            job.completed_at = datetime.utcnow()
+            job.lease_expires_at = None
+            job.updated_at = job.completed_at
+            db.commit()
         return
+    completed_at = datetime.utcnow()
     row.status = status
     row.availability_reason = _reason(
         code,
-        correlation_id=correlation_id,
+        correlation_id=job.correlation_id,
     )
-    row.completed_at = datetime.utcnow()
-    row.updated_at = datetime.utcnow()
+    row.completed_at = completed_at
+    row.updated_at = completed_at
+    job.status = "succeeded"
+    job.completed_at = completed_at
+    job.lease_expires_at = None
+    job.updated_at = completed_at
     db.commit()
+    duration_ms = (
+        int((completed_at - job.started_at).total_seconds() * 1000)
+        if job.started_at is not None
+        else None
+    )
+    _record_job_event(
+        job,
+        event="completed",
+        outcome=status,
+        duration_ms=duration_ms,
+    )
 
 
 def availability_reason(
@@ -643,7 +1701,7 @@ def _reason(
 ) -> dict[str, Any]:
     category = (
         "processing"
-        if code == "analysis_failed"
+        if code.startswith("analysis_")
         else "eligibility"
         if code == "adult_eligibility_not_confirmed"
         else "data_support"
@@ -676,22 +1734,161 @@ def adult_eligibility_reason() -> dict[str, Any]:
     )
 
 
-def public_state(db: Session, user_id: str) -> dict[str, Any]:
+def _recompute_policy_state(
+    db: Session,
+    user_id: str,
+    row: LabsExperimentEnrollment | None,
+    *,
+    now: datetime,
+) -> dict[str, Any]:
+    active = _active_job(db, user_id, EXPERIMENT_ID)
+    window_jobs = (
+        db.query(LabsAnalysisJob)
+        .filter(
+            LabsAnalysisJob.user_id == user_id,
+            LabsAnalysisJob.experiment_id == EXPERIMENT_ID,
+            LabsAnalysisJob.trigger == "manual_recompute",
+            LabsAnalysisJob.requested_at > now - MANUAL_RECOMPUTE_WINDOW,
+        )
+        .order_by(LabsAnalysisJob.requested_at)
+        .all()
+    )
+    remaining = max(0, MANUAL_RECOMPUTE_LIMIT - len(window_jobs))
+    reason: str | None = None
+    available_at: datetime | None = None
+    if row is None:
+        reason = "not_enrolled"
+    elif active is not None:
+        reason = "active_job"
+    else:
+        if window_jobs:
+            cooldown_at = (
+                window_jobs[-1].requested_at + MANUAL_RECOMPUTE_COOLDOWN
+            )
+            if cooldown_at > now:
+                reason = "cooldown"
+                available_at = cooldown_at
+        if len(window_jobs) >= MANUAL_RECOMPUTE_LIMIT:
+            daily_at = (
+                window_jobs[0].requested_at + MANUAL_RECOMPUTE_WINDOW
+            )
+            if daily_at > now and (
+                available_at is None or daily_at > available_at
+            ):
+                reason = "daily_limit"
+                available_at = daily_at
+    retry_after_seconds = (
+        max(0, int((available_at - now).total_seconds() + 0.999))
+        if available_at is not None
+        else None
+    )
+    return {
+        "allowed": reason is None,
+        "reason": reason,
+        "available_at": utc_isoformat(available_at),
+        "retry_after_seconds": retry_after_seconds,
+        "remaining_requests": remaining,
+        "window_hours": int(MANUAL_RECOMPUTE_WINDOW.total_seconds() / 3600),
+        "cooldown_hours": int(
+            MANUAL_RECOMPUTE_COOLDOWN.total_seconds() / 3600
+        ),
+    }
+
+
+def public_state(
+    db: Session,
+    user_id: str,
+    *,
+    now: datetime | None = None,
+) -> dict[str, Any]:
     """Return the authenticated, aggregate-only experiment state."""
+    current_time = now or datetime.utcnow()
     row = db.get(LabsExperimentEnrollment, (user_id, EXPERIMENT_ID))
+    current_consent = _has_current_consent(row)
+    latest_job = _latest_job(db, user_id, EXPERIMENT_ID)
+    result = (
+        db.get(LabsExperimentResult, (user_id, EXPERIMENT_ID))
+        if current_consent
+        else None
+    )
+    enrollment_model_current = (
+        current_consent
+        and row is not None
+        and row.model_version == LABS_ENVIRONMENT_MODEL_VERSION
+    )
+    aggregate_model_current = (
+        result is not None
+        and enrollment_model_current
+        and result.model_version == LABS_ENVIRONMENT_MODEL_VERSION
+        and row is not None
+        and result.source_revision == row.source_revision
+    )
+    stored_status = None if row is None else row.status
+    published_status = (
+        "not_enrolled"
+        if not current_consent
+        else (
+            "stale"
+            if (
+                not enrollment_model_current
+                or (stored_status == "available" and not aggregate_model_current)
+            )
+            else stored_status
+        )
+    )
+    published_reason = (
+        _reason(
+            "stale_model_version",
+            correlation_id=None if row is None else row.correlation_id,
+        )
+        if current_consent
+        and (
+            not enrollment_model_current
+            or (stored_status == "available" and not aggregate_model_current)
+        )
+        else (None if not current_consent else row.availability_reason)
+    )
     base = {
         "experiment_id": EXPERIMENT_ID,
         "consent_version": CONSENT_VERSION,
         "model_version": LABS_ENVIRONMENT_MODEL_VERSION,
-        "enrolled": row is not None,
-        "status": "not_enrolled" if row is None else row.status,
+        "enrolled": current_consent,
+        "status": published_status,
         "adult_attestation_required": True,
         "power_regime": POWER_REGIME,
-        "availability_reason": None if row is None else row.availability_reason,
+        "availability_reason": published_reason,
         "result": None,
+        "execution": {
+            "job_status": None if latest_job is None else latest_job.status,
+            "attempt_count": (
+                0 if latest_job is None else latest_job.attempt_count
+            ),
+            "retryable_failure": (
+                False
+                if latest_job is None
+                else latest_job.retryable_failure
+            ),
+            "requested_at": (
+                None
+                if latest_job is None
+                else utc_isoformat(latest_job.requested_at)
+            ),
+            "dispatched_at": (
+                None
+                if latest_job is None
+                else utc_isoformat(latest_job.dispatched_at)
+            ),
+            "recompute": _recompute_policy_state(
+                db,
+                user_id,
+                row if current_consent else None,
+                now=current_time,
+            ),
+        },
     }
-    if row is None:
+    if not current_consent:
         return base
+    assert row is not None
     base.update({
         "consented_at": utc_isoformat(row.consented_at),
         "adult_attested_at": utc_isoformat(row.adult_attested_at),
@@ -701,21 +1898,7 @@ def public_state(db: Session, user_id: str) -> dict[str, Any]:
         "started_at": utc_isoformat(row.started_at),
         "completed_at": utc_isoformat(row.completed_at),
     })
-    result = db.get(LabsExperimentResult, (user_id, EXPERIMENT_ID))
-    if (
-        row.model_version != LABS_ENVIRONMENT_MODEL_VERSION
-        or (
-            result is not None
-            and result.model_version != LABS_ENVIRONMENT_MODEL_VERSION
-        )
-    ):
-        base["status"] = "stale"
-        base["availability_reason"] = _reason(
-            "stale_model_version",
-            correlation_id=row.correlation_id,
-        )
-        return base
-    if result is not None:
+    if result is not None and aggregate_model_current:
         base["result"] = {
             "result_state": result.result_state,
             "prediction_status": result.prediction_status,

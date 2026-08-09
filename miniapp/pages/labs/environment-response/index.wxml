@@ -97,9 +97,13 @@
         </view>
 
         <view wx:elif="{{isProcessing}}" class="ts-card labs-state">
-          <view class="labs-spinner"></view>
-          <text class="labs-title">{{tr.processingTitle}}</text>
-          <text class="labs-detail">{{tr.processingDetail}}</text>
+          <view class="labs-spinner {{processingRetrying ? 'labs-spinner--retrying' : ''}}"></view>
+          <text class="labs-title {{processingRetrying ? 'labs-title--warning' : ''}}">{{processingTitle}}</text>
+          <text class="labs-detail">{{processingDetail}}</text>
+          <text class="labs-detail labs-detail--secondary">{{tr.leavePageDetail}}</text>
+          <text wx:if="{{attemptCount > 0}}" class="labs-attempt ts-value">
+            {{tr.attempt}} {{attemptCount}}
+          </text>
           <button class="ts-button ts-button--ghost labs-state-action" bindtap="onWithdraw">
             {{tr.cancelWithdraw}}
           </button>
@@ -117,7 +121,7 @@
 
           <view wx:if="{{isUnavailable}}" class="ts-card labs-state">
             <text class="labs-title">
-              {{isStale ? tr.staleTitle : isFailed ? tr.failedTitle : tr.unavailableTitle}}
+              {{retryExhausted ? tr.retryExhaustedTitle : isStale ? tr.staleTitle : isFailed ? tr.failedTitle : tr.unavailableTitle}}
             </text>
             <text class="labs-detail">{{reasonMessage}}</text>
             <view class="labs-coverage">
@@ -135,7 +139,35 @@
               </view>
             </view>
             <text wx:if="{{supportId}}" class="labs-support ts-value">{{tr.supportId}}: {{supportId}}</text>
-            <button class="ts-button labs-primary" disabled="{{actionPending || preflightBlocked}}" bindtap="onRecompute">
+            <view class="labs-recompute-policy">
+              <block wx:if="{{recomputeReason === 'cooldown'}}">
+                <text class="labs-policy-title">{{tr.recomputeCoolingDown}}</text>
+                <text wx:if="{{recomputeAvailableDisplay}}" class="labs-policy-copy">
+                  {{tr.recomputeAvailableAgain}}:
+                  <text class="labs-policy-value ts-value">{{recomputeAvailableDisplay}}</text>
+                </text>
+                <text class="labs-policy-copy">{{tr.cooldownDetail}}</text>
+              </block>
+              <block wx:elif="{{recomputeReason === 'daily_limit'}}">
+                <text class="labs-policy-title">{{tr.rollingLimitReached}}</text>
+                <text wx:if="{{recomputeAvailableDisplay}}" class="labs-policy-copy">
+                  {{tr.recomputeAvailableAgain}}:
+                  <text class="labs-policy-value ts-value">{{recomputeAvailableDisplay}}</text>
+                </text>
+                <text class="labs-policy-copy">{{tr.rollingLimitDetail}}</text>
+              </block>
+              <text wx:else class="labs-policy-copy">
+                <text class="labs-policy-value ts-value">{{recomputeRemaining}}</text>
+                {{tr.manualRecomputesRemaining}} ·
+                <text class="labs-policy-value ts-value">{{recomputeWindowHours}}</text>
+                {{tr.hourRollingWindow}}
+              </text>
+            </view>
+            <button
+              class="ts-button labs-primary"
+              disabled="{{actionPending || preflightBlocked || !recomputeAllowed}}"
+              bindtap="onRecompute"
+            >
               {{tr.recompute}}
             </button>
           </view>
@@ -165,7 +197,7 @@
                   class="labs-support-bin {{item.supported ? 'labs-support-bin--supported' : 'labs-support-bin--insufficient'}}"
                 >
                   <text class="labs-support-range ts-value">{{item.range}}</text>
-                  <text class="labs-support-count ts-value">{{item.activityCount}} {{tr.activitiesUnit}}</text>
+                  <text class="labs-support-count ts-value">{{item.activityCount}} {{item.activityUnit}}</text>
                   <text class="labs-support-status">
                     {{item.supported ? tr.supported : tr.insufficientSupport}}
                   </text>
@@ -233,6 +265,40 @@
             </view>
             <text class="labs-method-note">{{tr.calculatorBoundary}}</text>
             <button class="labs-source-link" bindtap="onCopyStullSource">{{tr.stullSource}}</button>
+          </view>
+
+          <view wx:if="{{isAvailable}}" class="labs-recompute-control">
+            <view class="labs-recompute-policy labs-recompute-policy--standalone">
+              <block wx:if="{{recomputeReason === 'cooldown'}}">
+                <text class="labs-policy-title">{{tr.recomputeCoolingDown}}</text>
+                <text wx:if="{{recomputeAvailableDisplay}}" class="labs-policy-copy">
+                  {{tr.recomputeAvailableAgain}}:
+                  <text class="labs-policy-value ts-value">{{recomputeAvailableDisplay}}</text>
+                </text>
+                <text class="labs-policy-copy">{{tr.cooldownDetail}}</text>
+              </block>
+              <block wx:elif="{{recomputeReason === 'daily_limit'}}">
+                <text class="labs-policy-title">{{tr.rollingLimitReached}}</text>
+                <text wx:if="{{recomputeAvailableDisplay}}" class="labs-policy-copy">
+                  {{tr.recomputeAvailableAgain}}:
+                  <text class="labs-policy-value ts-value">{{recomputeAvailableDisplay}}</text>
+                </text>
+                <text class="labs-policy-copy">{{tr.rollingLimitDetail}}</text>
+              </block>
+              <text wx:else class="labs-policy-copy">
+                <text class="labs-policy-value ts-value">{{recomputeRemaining}}</text>
+                {{tr.manualRecomputesRemaining}} ·
+                <text class="labs-policy-value ts-value">{{recomputeWindowHours}}</text>
+                {{tr.hourRollingWindow}}
+              </text>
+            </view>
+            <button
+              class="ts-button labs-primary"
+              disabled="{{actionPending || preflightBlocked || !recomputeAllowed}}"
+              bindtap="onRecompute"
+            >
+              {{tr.recomputeResult}}
+            </button>
           </view>
 
           <button class="labs-withdraw" disabled="{{actionPending}}" bindtap="onWithdraw">

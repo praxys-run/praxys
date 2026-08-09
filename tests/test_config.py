@@ -11,6 +11,7 @@ from analysis.config import (
     athlete_local_date,
     effective_athlete_date,
     load_config,
+    load_config_from_db,
     save_config,
     _migrate_config,
     default_plan_management,
@@ -230,6 +231,69 @@ class TestLoadSaveConfig:
             save_config(config, path)
             loaded = load_config(path)
             assert loaded.plan_management == config.plan_management
+
+    def test_db_config_loading_does_not_select_connection_credentials(self):
+        from sqlalchemy import create_engine, event
+        from sqlalchemy.orm import sessionmaker
+
+        from db.models import (
+            Base,
+            User,
+            UserConfig as UserConfigModel,
+            UserConnection,
+        )
+
+        engine = create_engine("sqlite:///:memory:")
+        Base.metadata.create_all(engine)
+        statements: list[str] = []
+
+        @event.listens_for(engine, "before_cursor_execute")
+        def _record_statement(
+            _connection: object,
+            _cursor: object,
+            statement: str,
+            _parameters: object,
+            _context: object,
+            _executemany: bool,
+        ) -> None:
+            statements.append(statement.lower())
+
+        session = sessionmaker(bind=engine)()
+        try:
+            session.add(User(
+                id="config-user",
+                email="config@example.test",
+                hashed_password="x",
+            ))
+            session.add(UserConfigModel(user_id="config-user"))
+            session.add(UserConnection(
+                user_id="config-user",
+                platform="garmin",
+                status="connected",
+                preferences={"activities": True},
+                encrypted_credentials=b"credential-ciphertext",
+                wrapped_dek=b"wrapped-key",
+            ))
+            session.commit()
+
+            config = load_config_from_db("config-user", session)
+        finally:
+            session.close()
+            engine.dispose()
+
+        assert config.preferences["activities"] == "garmin"
+        connection_queries = [
+            statement
+            for statement in statements
+            if "from user_connections" in statement
+        ]
+        assert connection_queries
+        assert all(
+            "encrypted_" not in statement
+            and "wrapped_dek" not in statement
+            and "wrapped_token_dek" not in statement
+            for statement in connection_queries
+        )
 
 
 class TestActivityRouting:
