@@ -160,7 +160,7 @@ export interface SettingsResponse {
   config: SettingsConfig;
   connection_statuses: Partial<Record<PlatformName, PlatformConnectionStatus>>;
   platform_capabilities: Partial<Record<PlatformName, Partial<Record<DataCategory, boolean>>>>;
-  plan_delivery_options: PlanDeliveryOption[];
+  plan_delivery_options?: PlanDeliveryOption[];
   available_providers: {
     activities?: PlatformName[];
     recovery?: PlatformName[];
@@ -179,7 +179,7 @@ export interface SettingsUpdateResponse {
   display: DisplayConfig;
   connection_statuses: SettingsResponse['connection_statuses'];
   platform_capabilities: SettingsResponse['platform_capabilities'];
-  plan_delivery_options: PlanDeliveryOption[];
+  plan_delivery_options?: PlanDeliveryOption[];
 }
 
 export type PlatformConnectionStatus =

@@ -61,6 +61,21 @@ def test_statsig_user_contains_targeting_attributes() -> None:
     }
 
 
+def test_statsig_user_omits_synthetic_wechat_email() -> None:
+    from api.statsig_client import get_statsig_user
+
+    user = get_statsig_user(
+        user_id="user-wechat",
+        email="wechat:persistent-openid",
+        is_admin=False,
+        is_demo=False,
+        training_base="pace",
+        language="zh",
+    )
+
+    assert user.email is None
+
+
 def test_gate_and_config_errors_fail_closed(monkeypatch) -> None:
     from api import statsig_client
 

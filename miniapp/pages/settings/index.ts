@@ -545,7 +545,15 @@ function formatPlanDate(value: string): string {
 
 function planTargetOptions(response: SettingsResponse): PlanTargetOption[] {
   const tr = buildSettingsTr();
-  return response.plan_delivery_options.map((option) => ({
+  const options = response.plan_delivery_options
+    ?? response.config.connections.map((platform) => ({
+      platform,
+      selectable: response.platform_capabilities[platform]?.plan === true,
+      reason: response.platform_capabilities[platform]?.plan === true
+        ? null
+        : 'delivery_not_supported' as const,
+    }));
+  return options.map((option) => ({
     key: option.platform,
     label: formatPlatform(option.platform),
     selectable: option.selectable,

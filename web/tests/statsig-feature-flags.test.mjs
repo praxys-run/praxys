@@ -23,4 +23,17 @@ test('Statsig provider waits for authenticated identity changes', async () => {
   assert.match(context, /userID: userId/);
   assert.match(context, /is_admin: isAdmin/);
   assert.match(context, /is_demo: isDemo/);
+  assert.match(context, /email\?\.toLowerCase\(\)\.startsWith\('wechat:'\)/);
+});
+
+test('settings remain compatible with an older backend response', async () => {
+  const context = await read('../src/contexts/SettingsContext.tsx');
+
+  assert.match(context, /data\.plan_delivery_options !== undefined/);
+  assert.match(context, /data\.config\.connections\.map/);
+  assert.match(context, /platform_capabilities\[platform\]\?\.plan === true/);
+  assert.match(
+    context,
+    /setPlanDeliveryOptions\(planDeliveryOptionsFromResponse\(data\)\)/,
+  );
 });

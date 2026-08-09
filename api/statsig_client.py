@@ -71,9 +71,14 @@ def get_statsig_user(
     language: str | None,
 ) -> StatsigUser:
     """Build the per-user targeting identity shared by all backend gates."""
+    targeting_email = (
+        None
+        if email and email.casefold().startswith("wechat:")
+        else email
+    )
     return StatsigUser(
         user_id=str(user_id),
-        email=email,
+        email=targeting_email,
         locale=language,
         custom={
             "is_admin": bool(is_admin),

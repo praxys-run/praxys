@@ -265,7 +265,7 @@ def _daily_cap(statsig_user: object | None) -> int:
     if (
         isinstance(configured, int)
         and not isinstance(configured, bool)
-        and configured >= 0
+        and configured > 0
     ):
         return configured
     return fallback

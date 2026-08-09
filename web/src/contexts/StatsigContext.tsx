@@ -61,14 +61,17 @@ export function StatsigProvider({ children }: { children: ReactNode }) {
     isAuthenticated,
     isLoading,
   } = useAuth();
+  const targetingEmail = email?.toLowerCase().startsWith('wechat:')
+    ? null
+    : email;
   const user = useMemo<StatsigUser>(() => ({
     ...(isAuthenticated && userId ? { userID: userId } : {}),
-    ...(isAuthenticated && email ? { email } : {}),
+    ...(isAuthenticated && targetingEmail ? { email: targetingEmail } : {}),
     custom: {
       is_admin: isAdmin,
       is_demo: isDemo,
     },
-  }), [email, isAdmin, isAuthenticated, isDemo, userId]);
+  }), [isAdmin, isAuthenticated, isDemo, targetingEmail, userId]);
 
   if (!CLIENT_KEY || isLoading || !isAuthenticated || !userId) {
     return children;

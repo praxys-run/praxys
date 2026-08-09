@@ -46,6 +46,24 @@ const SettingsContext = createContext<SettingsContextValue>({
   refetch: () => {},
 });
 
+function planDeliveryOptionsFromResponse(
+  data: Pick<
+    SettingsResponse,
+    'config' | 'platform_capabilities' | 'plan_delivery_options'
+  >,
+): PlanDeliveryOption[] {
+  if (data.plan_delivery_options !== undefined) {
+    return data.plan_delivery_options;
+  }
+  return data.config.connections.map((platform) => ({
+    platform,
+    selectable: data.platform_capabilities[platform]?.plan === true,
+    reason: data.platform_capabilities[platform]?.plan === true
+      ? null
+      : 'delivery_not_supported',
+  }));
+}
+
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<SettingsConfig | null>(null);
   const [display, setDisplay] = useState<DisplayConfig>(DEFAULT_DISPLAY);
@@ -88,7 +106,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setDisplay(data.display);
         setConnectionStatuses(data.connection_statuses ?? {});
         setPlatformCapabilities(data.platform_capabilities ?? {});
-        setPlanDeliveryOptions(data.plan_delivery_options ?? []);
+        setPlanDeliveryOptions(planDeliveryOptionsFromResponse(data));
         setAvailableProviders(data.available_providers ?? {});
         setAvailableBases(data.available_bases);
         setEffectiveThresholds(data.effective_thresholds ?? {});
@@ -145,9 +163,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setPlatformCapabilities(
       data.platform_capabilities ?? platformCapabilities,
     );
-    setPlanDeliveryOptions(
-      data.plan_delivery_options ?? planDeliveryOptions,
-    );
+    setPlanDeliveryOptions(planDeliveryOptionsFromResponse(data));
   };
 
   const refetch = useCallback(() => setFetchKey((k) => k + 1), []);

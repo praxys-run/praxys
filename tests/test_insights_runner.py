@@ -544,7 +544,7 @@ def test_daily_cap_falls_back_to_environment(monkeypatch):
     assert insights_runner._daily_cap(user) == 9
 
 
-@pytest.mark.parametrize("configured", [True, "7", 7.5, -1, None])
+@pytest.mark.parametrize("configured", [True, "7", 7.5, 0, -1, None])
 def test_daily_cap_rejects_invalid_dynamic_config(
     monkeypatch,
     configured,

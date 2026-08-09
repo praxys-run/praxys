@@ -89,7 +89,8 @@ def test_settings_owns_explicit_managed_plan_lifecycle() -> None:
     assert "if (response.status === 409)" in web_source
 
     assert "{{tr.planManagement}}" in markup
-    assert "response.plan_delivery_options.map" in source
+    assert "response.plan_delivery_options" in source
+    assert "response.config.connections.map" in source
     assert "config.preferences.activities" in source
     assert "choosePlanDeliveryTarget(" in web_source
     assert "planDeliveryOptions.map" in web_source
