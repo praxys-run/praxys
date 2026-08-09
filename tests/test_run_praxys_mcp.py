@@ -284,6 +284,18 @@ def test_repository_mcp_config_registers_local_and_dev_test_profiles() -> None:
     assert "chrome-devtools-mcp@1.6.0" in servers["chrome-devtools"]["args"]
 
 
+def test_repository_mcp_config_registers_credential_free_statsig() -> None:
+    root = run_praxys_mcp.project_root()
+    config = json.loads((root / ".mcp.json").read_text(encoding="utf-8"))
+
+    assert config["mcpServers"]["statsig"] == {
+        "type": "http",
+        "url": "https://api.statsig.com/v1/mcp",
+        "headers": {},
+        "tools": ["*"],
+    }
+
+
 def test_repository_mcp_launcher_honors_python_override(
     tmp_path: Path,
 ) -> None:

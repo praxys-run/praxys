@@ -498,6 +498,66 @@ def test_cap_reached_skips_all_generators(
     assert db_session.query(AiInsight).count() == 0
 
 
+def test_daily_cap_uses_dynamic_config_override(monkeypatch):
+    from api import statsig_client
+
+    user = statsig_client.get_statsig_user(
+        user_id=USER_ID,
+        email="runner@example.test",
+        is_admin=False,
+        is_demo=False,
+        training_base="power",
+        language="en",
+    )
+    monkeypatch.setenv("PRAXYS_INSIGHT_DAILY_CAP", "4")
+    monkeypatch.setattr(
+        statsig_client,
+        "get_config",
+        lambda config_name, received_user, default: (
+            7
+            if config_name == "insight_daily_cap" and received_user is user
+            else default
+        ),
+    )
+
+    assert insights_runner._daily_cap(user) == 7
+
+
+def test_daily_cap_falls_back_to_environment(monkeypatch):
+    from api import statsig_client
+
+    user = statsig_client.get_statsig_user(
+        user_id=USER_ID,
+        email="runner@example.test",
+        is_admin=False,
+        is_demo=False,
+        training_base="power",
+        language="en",
+    )
+    monkeypatch.setenv("PRAXYS_INSIGHT_DAILY_CAP", "9")
+    monkeypatch.setattr(
+        statsig_client,
+        "get_config",
+        lambda _config_name, _user, default: default,
+    )
+
+    assert insights_runner._daily_cap(user) == 9
+
+
+@pytest.mark.parametrize("configured", [True, "7", 7.5, 0, -1, None])
+def test_daily_cap_rejects_invalid_dynamic_config(
+    monkeypatch,
+    configured,
+):
+    monkeypatch.setenv("PRAXYS_INSIGHT_DAILY_CAP", "11")
+    monkeypatch.setattr(
+        "api.statsig_client.get_config",
+        lambda _config_name, _user, _default: configured,
+    )
+
+    assert insights_runner._daily_cap(object()) == 11
+
+
 def test_older_run_cannot_overwrite_newer_insight(db_session):
     newer_generated_at = datetime.utcnow()
     existing = AiInsight(

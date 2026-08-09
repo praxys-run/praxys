@@ -1,47 +1,46 @@
-"""Per-connection capability gates for experimental plan delivery."""
+"""Per-connection rollout, selection, and runtime delivery fences."""
 from __future__ import annotations
 
 import hashlib
 import hmac
 import os
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
 from analysis.config import PLATFORM_CAPABILITIES, UserConfig
+from api import statsig_client
 from db.connection_credentials import connection_credentials_generation
 from db.models import UserConnection
 
-EXPERIMENTAL_PLAN_DELIVERY_TARGETS = frozenset({"garmin"})
+if TYPE_CHECKING:
+    from statsig import StatsigUser
+
+ACCOUNT_FENCED_PLAN_DELIVERY_TARGETS = frozenset({"garmin"})
 GARMIN_PLAN_DELIVERY_ENABLED_ENV = (
     "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED"
 )
-GARMIN_PLAN_DELIVERY_PILOT_USER_IDS_ENV = (
-    "PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS"
+GARMIN_PLAN_DELIVERY_ELIGIBILITY_GATE = (
+    "garmin_plan_delivery_eligible"
 )
 
 
-def garmin_plan_delivery_pilot_user_ids() -> frozenset[str]:
-    """Return user IDs admitted to the production Garmin validation pilot."""
-    return frozenset(
-        user_id.strip()
-        for user_id in os.environ.get(
-            GARMIN_PLAN_DELIVERY_PILOT_USER_IDS_ENV,
-            "",
-        ).split(",")
-        if user_id.strip()
-    )
-
-
-def garmin_plan_delivery_operator_enabled(
-    user_id: str | None = None,
-) -> bool:
-    """Return whether this deployment permits Garmin writes for one user."""
-    globally_enabled = os.environ.get(
+def garmin_plan_delivery_deployment_enabled() -> bool:
+    """Return whether this deployment permits any Garmin workout writes."""
+    return os.environ.get(
         GARMIN_PLAN_DELIVERY_ENABLED_ENV,
         "",
     ).strip().casefold() in {"1", "true", "yes", "on"}
-    return globally_enabled or (
-        user_id is not None
-        and user_id in garmin_plan_delivery_pilot_user_ids()
+
+
+def garmin_plan_delivery_eligible(
+    statsig_user: StatsigUser | None,
+) -> bool:
+    """Return rollout eligibility layered under the hard deployment gate."""
+    return (
+        garmin_plan_delivery_deployment_enabled()
+        and statsig_client.check_gate(
+            GARMIN_PLAN_DELIVERY_ELIGIBILITY_GATE,
+            statsig_user,
+        )
     )
 
 
@@ -51,27 +50,27 @@ def garmin_region(source_options: Mapping[str, Any]) -> str | None:
     return region if region in {"cn", "international"} else None
 
 
-def plan_delivery_consent_token(
+def plan_delivery_account_fence_token(
     connection: UserConnection,
     *,
     region: str,
 ) -> str:
-    """Bind experimental consent to one credential generation and region."""
+    """Bind delivery authorization to one credential generation and region."""
     generation = connection_credentials_generation(connection)
     return hashlib.sha256(
         f"{connection.platform}\0{generation}\0{region}".encode("utf-8")
     ).hexdigest()
 
 
-def has_plan_delivery_consent(
+def has_plan_delivery_account_fence(
     connection: UserConnection | None,
     *,
     source_options: Mapping[str, Any],
 ) -> bool:
-    """Return whether the current Garmin connection retains explicit consent."""
+    """Return whether Garmin delivery matches the live account generation."""
     if (
         connection is None
-        or connection.platform not in EXPERIMENTAL_PLAN_DELIVERY_TARGETS
+        or connection.platform not in ACCOUNT_FENCED_PLAN_DELIVERY_TARGETS
         or connection.status != "connected"
         or not connection.plan_delivery_consent
     ):
@@ -79,7 +78,7 @@ def has_plan_delivery_consent(
     region = garmin_region(source_options)
     if region is None:
         return False
-    expected = plan_delivery_consent_token(
+    expected = plan_delivery_account_fence_token(
         connection,
         region=region,
     )
@@ -89,75 +88,122 @@ def has_plan_delivery_consent(
     )
 
 
-def plan_delivery_capability_enabled(
+def plan_delivery_target_selectable(
     target: str,
     *,
-    user_id: str,
     source_options: Mapping[str, Any],
     connection: UserConnection | None,
+    garmin_eligible: bool,
+    target_registered: bool,
 ) -> bool:
-    """Return whether this user may select and mutate one execution target."""
+    """Return whether the live connection can be chosen for delivery."""
+    if (
+        connection is None
+        or connection.status != "connected"
+        or not target_registered
+    ):
+        return False
     capabilities = PLATFORM_CAPABILITIES.get(target)
     if capabilities and capabilities.get("plan"):
         return True
     if target == "garmin":
         return (
-            garmin_plan_delivery_operator_enabled(user_id)
-            and has_plan_delivery_consent(
-                connection,
-                source_options=source_options,
+            garmin_eligible
+            and (
+                garmin_region(source_options) is not None
+                or (
+                    bool(connection.encrypted_credentials)
+                    and bool(connection.wrapped_dek)
+                )
             )
         )
     return False
 
 
+def plan_delivery_capability_enabled(
+    target: str,
+    *,
+    source_options: Mapping[str, Any],
+    connection: UserConnection | None,
+    garmin_eligible: bool,
+    target_registered: bool = True,
+) -> bool:
+    """Return whether one target is authorized for a provider mutation."""
+    if not plan_delivery_target_selectable(
+        target,
+        source_options=source_options,
+        connection=connection,
+        garmin_eligible=garmin_eligible,
+        target_registered=target_registered,
+    ):
+        return False
+    return (
+        has_plan_delivery_account_fence(
+            connection,
+            source_options=source_options,
+        )
+        if target == "garmin"
+        else True
+    )
+
+
 def effective_platform_capabilities(
     config: UserConfig,
     *,
-    user_id: str,
     connections: Mapping[str, UserConnection],
+    garmin_eligible: bool,
+    registered_targets: set[str],
 ) -> dict[str, dict[str, bool]]:
-    """Return public capability flags after applying per-user consent."""
+    """Return public capabilities after applying connection eligibility."""
     result = {
         platform: dict(capabilities)
         for platform, capabilities in PLATFORM_CAPABILITIES.items()
     }
     garmin = connections.get("garmin")
-    result["garmin"]["plan"] = (
-        garmin_plan_delivery_operator_enabled(user_id)
-        and has_plan_delivery_consent(
-            garmin,
-            source_options=config.source_options,
-        )
+    result["garmin"]["plan"] = plan_delivery_target_selectable(
+        "garmin",
+        source_options=config.source_options,
+        connection=garmin,
+        garmin_eligible=garmin_eligible,
+        target_registered="garmin" in registered_targets,
     )
     return result
 
 
-def experimental_plan_delivery_status(
+def plan_delivery_options(
     config: UserConfig,
     *,
-    user_id: str,
     connections: Mapping[str, UserConnection],
-) -> dict[str, dict[str, Any]]:
-    """Describe experimental target availability without granting consent."""
-    connection = connections.get("garmin")
-    available = garmin_plan_delivery_operator_enabled(user_id)
-    return {
-        "garmin": {
-            "experimental": True,
-            "available": available,
-            "enabled": (
-                available
-                and has_plan_delivery_consent(
-                    connection,
-                    source_options=config.source_options,
-                )
-            ),
-            "region": garmin_region(config.source_options),
-            "connected": (
-                connection is not None
-                and connection.status == "connected"
-            ),
-            "fidelity": "duration_only",
-        }
-    }
+    garmin_eligible: bool,
+    registered_targets: set[str],
+) -> list[dict[str, Any]]:
+    """Describe every connected activity platform as a delivery choice."""
+    options: list[dict[str, Any]] = []
+    for platform, capabilities in PLATFORM_CAPABILITIES.items():
+        connection = connections.get(platform)
+        if (
+            not capabilities.get("activities")
+            or connection is None
+            or connection.status != "connected"
+        ):
+            continue
+        selectable = plan_delivery_target_selectable(
+            platform,
+            source_options=config.source_options,
+            connection=connection,
+            garmin_eligible=garmin_eligible,
+            target_registered=platform in registered_targets,
+        )
+        reason = None
+        if not selectable:
+            reason = (
+                "account_not_eligible"
+                if platform == "garmin"
+                else "delivery_not_supported"
+            )
+        options.append({
+            "platform": platform,
+            "selectable": selectable,
+            "reason": reason,
+        })
+    return options

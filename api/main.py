@@ -118,6 +118,8 @@ async def lifespan(app: FastAPI):
     logger = logging.getLogger(__name__)
     scheduler_enabled = (getenv_compat("SYNC_SCHEDULER", "true") or "true").lower() != "false"
     logger.info("Sync scheduler %s", "enabled" if scheduler_enabled else "disabled by env")
+    from api.statsig_client import init_statsig
+    await init_statsig()
     if scheduler_enabled:
         from db.sync_scheduler import start_scheduler
         start_scheduler()
@@ -130,6 +132,11 @@ async def lifespan(app: FastAPI):
                 stop_scheduler()
             except Exception:
                 logger.exception("Failed to stop sync scheduler cleanly")
+        try:
+            from api.statsig_client import shutdown_statsig
+            await shutdown_statsig()
+        except Exception:
+            logger.exception("Failed to shut down Statsig cleanly")
         # Release DB connection pools on shutdown so Postgres frees the backends
         # immediately instead of leaving them idle until TCP-keepalive reap.
         # Abandoned pools from container recycles accumulated as "zombie"

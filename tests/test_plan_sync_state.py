@@ -34,6 +34,11 @@ def api_client(monkeypatch):
         "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED",
         "true",
     )
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, _user: gate_name
+        == "garmin_plan_delivery_eligible",
+    )
     monkeypatch.setenv(
         "PRAXYS_LOCAL_ENCRYPTION_KEY",
         "JKkx_5SVHKQDr0HSMrwl0KQHcA0pl5pxsYSLEAQDB4o=",
@@ -3388,7 +3393,9 @@ def test_restore_matching_garmin_schedule_is_noop_without_checkpoint_id(
     monkeypatch,
 ):
     from api.plan_delivery.base import PreparedWorkoutDelivery
-    from api.plan_delivery.capabilities import plan_delivery_consent_token
+    from api.plan_delivery.capabilities import (
+        plan_delivery_account_fence_token,
+    )
     from db import session as db_session
     from db.models import (
         PlanDelivery,
@@ -3441,7 +3448,7 @@ def test_restore_matching_garmin_schedule_is_noop_without_checkpoint_id(
         )
         db.add(connection)
         db.flush()
-        connection.plan_delivery_consent = plan_delivery_consent_token(
+        connection.plan_delivery_consent = plan_delivery_account_fence_token(
             connection,
             region="international",
         )
@@ -3536,7 +3543,9 @@ def test_restore_returned_garmin_schedule_requires_new_checkpoint(
     expected_status: int,
 ):
     from api.plan_delivery.base import PreparedWorkoutDelivery
-    from api.plan_delivery.capabilities import plan_delivery_consent_token
+    from api.plan_delivery.capabilities import (
+        plan_delivery_account_fence_token,
+    )
     from db import session as db_session
     from db.models import (
         PlanDelivery,
@@ -3607,7 +3616,7 @@ def test_restore_returned_garmin_schedule_requires_new_checkpoint(
         )
         db.add(connection)
         db.flush()
-        connection.plan_delivery_consent = plan_delivery_consent_token(
+        connection.plan_delivery_consent = plan_delivery_account_fence_token(
             connection,
             region="international",
         )
@@ -3704,7 +3713,9 @@ def test_restore_does_not_claim_unowned_garmin_fingerprint_candidate(
     monkeypatch,
 ):
     from api.plan_delivery.base import PreparedWorkoutDelivery
-    from api.plan_delivery.capabilities import plan_delivery_consent_token
+    from api.plan_delivery.capabilities import (
+        plan_delivery_account_fence_token,
+    )
     from db import session as db_session
     from db.models import (
         PlanDelivery,
@@ -3761,7 +3772,7 @@ def test_restore_does_not_claim_unowned_garmin_fingerprint_candidate(
         )
         db.add(connection)
         db.flush()
-        connection.plan_delivery_consent = plan_delivery_consent_token(
+        connection.plan_delivery_consent = plan_delivery_account_fence_token(
             connection,
             region="international",
         )

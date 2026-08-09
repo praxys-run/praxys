@@ -184,8 +184,10 @@ retries safe failures. Automatic retries are durable, exponential, capped, and
 limited to definite retry-safe outcomes; ambiguous create outcomes remain
 conflicts to prevent duplicate workouts.
 
-Garmin is also available as an explicitly opt-in experimental execution
-target. Its undocumented two-ID, two-POST lifecycle is represented with
+Garmin is also available as a rollout-gated execution target. Choosing Garmin
+as the execution platform is the durable user decision; deployment and Statsig
+eligibility remain independent prerequisites and are rechecked at execution
+time. Its undocumented two-ID, two-POST lifecycle is represented with
 durable provider references and intermediate attempt checkpoints: the reusable
 template ID is persisted before schedule, and the scheduled-instance ID
 remains the delivery `external_id`. Recovery may adopt only one newly observed, account-fenced
@@ -379,10 +381,12 @@ Adapters receive credentials resolved from the caller's encrypted
 Successful Stryd and Garmin syncs also write account-fenced calendar
 snapshots. Garmin calendar reads always remain available for reconciliation;
 consumer-API writes are exposed only when the operator gate is enabled and
-explicit experimental consent is bound to the current credential generation
-and region. Reconnect, credential rotation, or disconnect invalidates that
-consent; a region change also disconnects the old region and requires a fresh
-login. Garmin OAuth sessions use garminconnect's in-memory serialization and are
+Statsig admits the authenticated user. Selecting or resuming Garmin binds an
+internal write fence to the current credential generation and region; the
+durable execution-target selection records user intent. Reconnect, credential
+rotation, or disconnect invalidates that fence; a region change also
+disconnects the old region and requires a fresh login. Garmin OAuth sessions
+use garminconnect's in-memory serialization and are
 envelope-encrypted on the user's connection row with a separate wrapped DEK.
 A stored credential-generation fingerprint makes the ciphertext unusable after
 any credential replacement, including one performed by an older worker.

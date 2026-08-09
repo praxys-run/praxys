@@ -108,21 +108,17 @@ export interface SettingsConfig {
 
 export interface SettingsUpdate extends Omit<Partial<SettingsConfig>, 'plan_management'> {
   plan_management?: Partial<PlanManagementConfig>;
-  experimental_plan_delivery?: Partial<Record<'garmin', boolean>>;
   managed_plan_preview_start?: string;
 }
 
-export interface ExperimentalPlanDeliveryStatus {
-  experimental: true;
-  available: boolean;
-  enabled: boolean;
-  region: 'international' | 'cn' | null;
-  connected: boolean;
-  fidelity: 'duration_only';
-}
+export type PlanDeliveryUnavailabilityReason =
+  | 'delivery_not_supported'
+  | 'account_not_eligible';
 
-export interface ExperimentalPlanDeliveryResponse {
-  garmin?: ExperimentalPlanDeliveryStatus;
+export interface PlanDeliveryOption {
+  platform: PlatformName;
+  selectable: boolean;
+  reason: PlanDeliveryUnavailabilityReason | null;
 }
 
 export type GarminConnectionResponse =
@@ -164,7 +160,7 @@ export interface SettingsResponse {
   config: SettingsConfig;
   connection_statuses: Partial<Record<PlatformName, PlatformConnectionStatus>>;
   platform_capabilities: Partial<Record<PlatformName, Partial<Record<DataCategory, boolean>>>>;
-  experimental_plan_delivery?: ExperimentalPlanDeliveryResponse;
+  plan_delivery_options?: PlanDeliveryOption[];
   available_providers: {
     activities?: PlatformName[];
     recovery?: PlatformName[];
@@ -183,7 +179,7 @@ export interface SettingsUpdateResponse {
   display: DisplayConfig;
   connection_statuses: SettingsResponse['connection_statuses'];
   platform_capabilities: SettingsResponse['platform_capabilities'];
-  experimental_plan_delivery?: ExperimentalPlanDeliveryResponse;
+  plan_delivery_options?: PlanDeliveryOption[];
 }
 
 export type PlatformConnectionStatus =
@@ -1246,6 +1242,28 @@ export interface LabsEnvironmentResponseState {
   queued_at: string | null;
   started_at: string | null;
   completed_at: string | null;
+}
+
+export interface LabsEnvironmentPreflightObserved {
+  candidate_activity_count: number;
+  temperature_activity_count: number;
+  humidity_activity_count: number;
+  environment_activity_count: number;
+  power_activity_count: number;
+  heart_rate_activity_count: number;
+  complete_any_provider_activity_count: number;
+  stryd_power_activity_count: number;
+  complete_stryd_activity_count: number;
+  provider_aligned_cp_activity_count: number;
+}
+
+export interface LabsEnvironmentPreflightResponse {
+  status: 'likely_eligible' | 'ineligible' | 'needs_full_analysis';
+  can_start_analysis: boolean;
+  reason_code: string | null;
+  minimum_activity_count: number;
+  observed: LabsEnvironmentPreflightObserved;
+  full_analysis_still_required: true;
 }
 
 export interface LabsEnvironmentWetBulbResponse {

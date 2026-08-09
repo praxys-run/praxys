@@ -167,6 +167,10 @@ jobs:
           KEY_VAULT_URL: ${{ vars.KEY_VAULT_URL }}
           KEY_VAULT_KEY_NAME: ${{ vars.KEY_VAULT_KEY_NAME }}
           PRAXYS_JWT_SECRET: ${{ secrets.PRAXYS_JWT_SECRET }}
+          # Optional Statsig server key. Unset keeps all feature gates off and
+          # dynamic config on its application-owned fallback.
+          STATSIG_SDK_KEY: ${{ secrets.STATSIG_SDK_KEY }}
+          STATSIG_ENV: ${{ vars.STATSIG_ENV || 'production' }}
           # Database (#360). When PRAXYS_DATABASE_URL is set the backend uses
           # PostgreSQL; empty/unset keeps the legacy SQLite file on /home/data,
           # so this can be deployed before the cutover. PRAXYS_DB_AUTH=entra makes
@@ -174,13 +178,10 @@ jobs:
           # DB password in app settings). See docs/ops/config-and-secrets.md.
           PRAXYS_DATABASE_URL: ${{ secrets.PRAXYS_DATABASE_URL }}
           PRAXYS_DB_AUTH: ${{ vars.PRAXYS_DB_AUTH }}
-          # Default-off kill switch for unsupported Garmin consumer-API workout
+          # Default-off hard prerequisite for unsupported Garmin consumer-API
           # writes. Enable only for an approved validation deployment or after
           # both regional live matrices pass.
           PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED: ${{ vars.PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED || 'false' }}
-          # Optional comma-separated internal user IDs for controlled
-          # production validation while the global gate remains false.
-          PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS: ${{ vars.PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS }}
           WECHAT_MINIAPP_APPID: ${{ secrets.WECHAT_MINIAPP_APPID }}
           WECHAT_MINIAPP_SECRET: ${{ secrets.WECHAT_MINIAPP_SECRET }}
           # Optional: in-app feedback → GitHub issue auto-filing. Safe to leave
@@ -231,10 +232,11 @@ jobs:
               KEY_VAULT_URL="${KEY_VAULT_URL}" \
               KEY_VAULT_KEY_NAME="${KEY_VAULT_KEY_NAME}" \
               PRAXYS_JWT_SECRET="${PRAXYS_JWT_SECRET}" \
+              STATSIG_SDK_KEY="${STATSIG_SDK_KEY}" \
+              STATSIG_ENV="${STATSIG_ENV}" \
               PRAXYS_DATABASE_URL="${PRAXYS_DATABASE_URL}" \
               PRAXYS_DB_AUTH="${PRAXYS_DB_AUTH}" \
               PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED="${PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED}" \
-              PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS="${PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS}" \
               WECHAT_MINIAPP_APPID="${WECHAT_MINIAPP_APPID}" \
               WECHAT_MINIAPP_SECRET="${WECHAT_MINIAPP_SECRET}" \
               PRAXYS_GITHUB_APP_ID="${PRAXYS_GITHUB_APP_ID}" \

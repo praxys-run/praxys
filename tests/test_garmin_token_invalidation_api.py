@@ -24,6 +24,11 @@ def api_client(monkeypatch):
         "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED",
         "true",
     )
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, _user: gate_name
+        == "garmin_plan_delivery_eligible",
+    )
     monkeypatch.setenv(
         "PRAXYS_LOCAL_ENCRYPTION_KEY", "JKkx_5SVHKQDr0HSMrwl0KQHcA0pl5pxsYSLEAQDB4o="
     )
@@ -139,7 +144,7 @@ def test_connect_garmin_clears_existing_tokens(api_client):
     assert not os.path.isdir(path)
 
 
-def test_reconnecting_garmin_revokes_delivery_consent_and_pauses_plan(
+def test_reconnecting_garmin_clears_account_fence_and_pauses_plan(
     api_client,
 ):
     client = api_client["client"]
@@ -151,7 +156,6 @@ def test_reconnecting_garmin_revokes_delivery_consent_and_pauses_plan(
     enabled = client.put(
         "/api/settings",
         json={
-            "experimental_plan_delivery": {"garmin": True},
             "plan_management": {
                 "mode": "praxys",
                 "execution_target": "garmin",
@@ -168,12 +172,24 @@ def test_reconnecting_garmin_revokes_delivery_consent_and_pauses_plan(
 
     assert reconnected.status_code == 200, reconnected.text
     settings = client.get("/api/settings").json()
-    assert settings["experimental_plan_delivery"]["garmin"]["enabled"] is False
-    assert settings["platform_capabilities"]["garmin"]["plan"] is False
+    assert settings["plan_delivery_options"] == [{
+        "platform": "garmin",
+        "selectable": True,
+        "reason": None,
+    }]
     assert (
         settings["config"]["plan_management"]["delivery_enabled"]
         is False
     )
+    from db import session as db_session
+    from db.models import UserConnection
+
+    with db_session.SessionLocal() as db:
+        connection = db.query(UserConnection).filter(
+            UserConnection.user_id == api_client["user_id"],
+            UserConnection.platform == "garmin",
+        ).one()
+        assert connection.plan_delivery_consent is None
 
 
 def test_reconnect_token_clear_failure_leaves_connection_disconnected(

@@ -8,17 +8,18 @@
 ## Decision
 
 **Keep Garmin consumer-API writes disabled by default. Permit them only when an
-operator-controlled deployment gate and explicit per-user experimental consent
-are both active. Do not advertise them as a supported platform capability.**
+operator-controlled deployment gate, per-user rollout eligibility, and an
+explicit Garmin execution-target selection are all active. Do not advertise
+them as a static supported platform capability.**
 `PLATFORM_CAPABILITIES["garmin"]["plan"]` remains false. Production keeps
 `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED=false` until both controlled international
-and China lifecycle matrices pass. Dedicated validation users may be admitted
-individually through the default-empty
-`PRAXYS_GARMIN_PLAN_DELIVERY_PILOT_USER_IDS` allowlist without exposing other
-production users; an approved isolated validation deployment may instead
-enable the global gate. The settings API enables the effective per-user
-capability only after one operator authorization path is active and consent is
-bound to the current encrypted credential generation and Garmin region.
+and China lifecycle matrices pass. On an approved validation deployment where
+that hard prerequisite is true, the default-off Statsig gate
+`garmin_plan_delivery_eligible` admits dedicated validation users individually.
+The settings API enables the effective per-user capability only after both
+operator controls are active and the account-generation fence is bound to the
+current encrypted credential generation and Garmin region. Statsig eligibility
+is not user consent or durable product state.
 
 The fallback is deliberately narrower than the operations exposed by
 `garminconnect`:
@@ -340,7 +341,7 @@ shape difference keeps that region no-go.
 ## Next actions
 
 1. Keep the production operator gate off until both controlled regional
-   matrices pass; retain independent per-user opt-in afterward.
+   matrices pass; retain independent per-user rollout eligibility afterward.
 2. Run the controlled international and CN matrices only with explicit human
    approval and dedicated test accounts.
 3. Apply for Garmin Connect Developer Program access when available and request

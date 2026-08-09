@@ -31,7 +31,6 @@ import type {
   PlatformName,
   SettingsResponse,
   SettingsUpdate,
-  SettingsUpdateResponse,
 } from '../../types/api';
 import type { ManagedPlanState } from '../../utils/managed-plan';
 import { MINIAPP_BUILD_VERSION } from '../../utils/version';
@@ -147,12 +146,17 @@ function buildSettingsTr() {
     ),
     previewFailed: t('Could not load the managed-window preview.'),
     executionTarget: t('Execution target'),
-    connectTarget: t('Connect a supported platform first'),
+    connectTarget: t('Choose an available delivery platform'),
+    chooseTarget: t('Choose a delivery platform'),
+    deliveryNotSupported: t('Workout delivery is not supported.'),
+    accountNotEligible: t(
+      'Workout delivery is not available for this account.',
+    ),
     targetSelectionHint: t(
       'Selecting a target does not enable delivery. You will confirm the managed window next.',
     ),
     connectTargetHint: t(
-      'Connect a supported execution platform above before adopting managed delivery.',
+      'Connect an activity platform from the web app to choose where workouts are delivered.',
     ),
     reviewAndActivate: t('Review and activate'),
     reviewAndResume: t('Review and resume'),
@@ -182,48 +186,8 @@ function buildSettingsTr() {
     plannerWarning: t(
       'Disable delivery from any other planner first. Two planners can create overlapping sessions.',
     ),
-    garminExperimentalTitle: t('Experimental Garmin delivery'),
-    garminExperimentalEnabled: t('Enabled'),
-    garminExperimentalOff: t('Off'),
-    garminExperimentalUnavailable: t('Unavailable'),
-    garminExperimentalUnavailableDetail: t(
-      'Garmin workout delivery is disabled on this deployment until controlled live validation is complete.',
-    ),
-    garminExperimentalOnDetail: t(
-      'This Garmin connection can receive duration-only running workouts. Power, pace, and heart-rate targets are not sent.',
-    ),
-    garminExperimentalOffDetail: t(
-      'Garmin delivery uses an undocumented interface and is off until you review its limits and opt in.',
-    ),
-    garminExperimentalReconnect: t(
-      'Reconnect Garmin to renew experimental access. Managed delivery remains paused.',
-    ),
-    garminExperimentalReview: t('Review experimental access'),
-    garminExperimentalDisable: t('Turn off Garmin delivery'),
-    garminExperimentalEnableTitle: t('Enable experimental Garmin delivery?'),
-    garminExperimentalDisableTitle: t('Turn off Garmin delivery?'),
-    garminExperimentalEnableIntro: t(
-      'Praxys sends duration-only running workouts and verifies both the Garmin template and scheduled calendar instance.',
-    ),
-    garminExperimentalOwnership: t(
-      'Only ledger-owned Praxys workouts can be unscheduled. Manual and other-coach workouts remain untouched.',
-    ),
-    garminExperimentalRisk: t(
-      'Garmin can change or rate-limit this undocumented interface. Praxys fails closed, but delivery may pause or require you to reconnect.',
-    ),
-    garminExperimentalReset: t(
-      'Reconnecting Garmin or changing its account region revokes this permission and pauses delivery until you opt in again.',
-    ),
-    garminExperimentalDisableDetail: t(
-      'This revokes access immediately and pauses managed delivery when Garmin is your target.',
-    ),
-    garminExperimentalTargetWarning: t(
-      'Garmin delivery is experimental and duration-only. Workouts with power, pace, or heart-rate targets will stay blocked rather than lose their intended intensity.',
-    ),
-    garminExperimentalEnable: t('Enable experimental delivery'),
-    garminExperimentalSaving: t('Saving…'),
-    garminExperimentalFailed: t(
-      'Could not update experimental Garmin delivery',
+    garminTargetWarning: t(
+      'Garmin workout delivery is duration-only. Workouts with power, pace, or heart-rate targets will stay blocked rather than lose their intended intensity.',
     ),
     stalePreview: t(
       'The managed window changed. Review the refreshed preview before enabling delivery.',
@@ -423,6 +387,8 @@ interface PlanAdjustmentRow {
 interface PlanTargetOption {
   key: PlatformName;
   label: string;
+  selectable: boolean;
+  reason: string;
 }
 
 interface ThemeOption {
@@ -469,13 +435,8 @@ interface SettingsState {
   configuredPlanTargetLabel: string;
   selectedPlanTarget: PlatformName | '';
   selectedPlanTargetLabel: string;
-  configuredPlanTargetConnected: boolean;
-  garminExperimentConnected: boolean;
-  garminExperimentAvailable: boolean;
-  garminExperimentEnabled: boolean;
-  garminExperimentVisible: boolean;
-  garminExperimentAction: string;
-  garminExperimentError: string;
+  configuredPlanTargetAvailable: boolean;
+  configuredPlanTargetReason: string;
   planLoading: boolean;
   planPreviewError: string;
   hasPlanPreview: boolean;
@@ -583,15 +544,38 @@ function formatPlanDate(value: string): string {
 }
 
 function planTargetOptions(response: SettingsResponse): PlanTargetOption[] {
-  return response.config.connections
-    .filter((target) => (
-      response.connection_statuses[target] === 'connected'
-      && response.platform_capabilities[target]?.plan === true
-    ))
-    .map((target) => ({
-      key: target,
-      label: formatPlatform(target),
+  const tr = buildSettingsTr();
+  const options = response.plan_delivery_options
+    ?? response.config.connections.map((platform) => ({
+      platform,
+      selectable: response.platform_capabilities[platform]?.plan === true,
+      reason: response.platform_capabilities[platform]?.plan === true
+        ? null
+        : 'delivery_not_supported' as const,
     }));
+  return options.map((option) => ({
+    key: option.platform,
+    label: formatPlatform(option.platform),
+    selectable: option.selectable,
+    reason: option.reason === 'account_not_eligible'
+      ? tr.accountNotEligible
+      : option.reason === 'delivery_not_supported'
+        ? tr.deliveryNotSupported
+        : '',
+  }));
+}
+
+function choosePlanTarget(
+  options: PlanTargetOption[],
+  primary: PlatformName | undefined,
+  configured: PlatformName | null,
+): PlatformName | '' {
+  const selectable = options
+    .filter((option) => option.selectable)
+    .map((option) => option.key);
+  if (primary && selectable.includes(primary)) return primary;
+  if (configured && selectable.includes(configured)) return configured;
+  return selectable.length === 1 ? selectable[0] : '';
 }
 
 const initialData: SettingsState = {
@@ -616,16 +600,11 @@ const initialData: SettingsState = {
   planStateDetail: '',
   planTargetOptions: [],
   configuredPlanTarget: '',
-  configuredPlanTargetLabel: t('Connect a supported platform first'),
+  configuredPlanTargetLabel: t('Choose a delivery platform'),
   selectedPlanTarget: '',
-  selectedPlanTargetLabel: t('Connect a supported platform first'),
-  configuredPlanTargetConnected: false,
-  garminExperimentConnected: false,
-  garminExperimentAvailable: false,
-  garminExperimentEnabled: false,
-  garminExperimentVisible: false,
-  garminExperimentAction: '',
-  garminExperimentError: '',
+  selectedPlanTargetLabel: t('Choose a delivery platform'),
+  configuredPlanTargetAvailable: false,
+  configuredPlanTargetReason: '',
   planLoading: true,
   planPreviewError: '',
   hasPlanPreview: false,
@@ -752,16 +731,20 @@ function buildSettingsState(response: SettingsResponse): Partial<SettingsState> 
   const trainingBase = (config.training_base as 'power' | 'hr' | 'pace') ?? 'pace';
   const targets = planTargetOptions(response);
   const configuredTarget = config.plan_management.execution_target;
-  const configuredTargetConnected = configuredTarget != null
-    && targets.some((target) => target.key === configuredTarget);
-  const selectedTarget = configuredTargetConnected
-    ? configuredTarget
-    : targets[0]?.key ?? '';
+  const configuredOption = configuredTarget == null
+    ? undefined
+    : targets.find((target) => target.key === configuredTarget);
+  const configuredTargetAvailable =
+    configuredOption?.selectable === true;
+  const selectedTarget = choosePlanTarget(
+    targets,
+    config.preferences.activities,
+    configuredTarget,
+  );
   const selectedTargetLabel = selectedTarget
     ? formatPlatform(selectedTarget)
-    : t('Connect a supported platform first');
+    : t('Choose a delivery platform');
   const managementState = managedPlanState(config.plan_management);
-  const garminExperiment = response.experimental_plan_delivery?.garmin;
   const stateCopy = planStateCopy(
     managementState,
     configuredTarget ? formatPlatform(configuredTarget) : selectedTargetLabel,
@@ -785,17 +768,11 @@ function buildSettingsState(response: SettingsResponse): Partial<SettingsState> 
     configuredPlanTarget: configuredTarget ?? '',
     configuredPlanTargetLabel: configuredTarget
       ? formatPlatform(configuredTarget)
-      : t('Connect a supported platform first'),
+      : t('Choose a delivery platform'),
     selectedPlanTarget: selectedTarget,
     selectedPlanTargetLabel: selectedTargetLabel,
-    configuredPlanTargetConnected: configuredTargetConnected,
-    garminExperimentConnected: garminExperiment?.connected === true,
-    garminExperimentAvailable: garminExperiment?.available === true,
-    garminExperimentEnabled: garminExperiment?.enabled === true,
-    garminExperimentVisible:
-      garminExperiment?.connected === true || configuredTarget === 'garmin',
-    garminExperimentAction: '',
-    garminExperimentError: '',
+    configuredPlanTargetAvailable: configuredTargetAvailable,
+    configuredPlanTargetReason: configuredOption?.reason ?? '',
     adjustmentEnabled:
       config.plan_management.adjustment_policy === 'auto_conservative',
   };
@@ -975,94 +952,26 @@ Page({
     }
   },
 
-  onPickPlanTarget() {
+  onPickPlanTarget(event: WechatMiniprogram.TouchEvent) {
     if (
       this.data.planManagementState !== 'external'
       || this.data.planAction
       || this.data.planLoading
-      || this.data.planTargetOptions.length === 0
     ) {
       return;
     }
-    wx.showActionSheet({
-      itemList: this.data.planTargetOptions.map((target) => target.label),
-      success: (result) => {
-        const target = this.data.planTargetOptions[result.tapIndex];
-        if (!target) return;
-        this.setData({
-          selectedPlanTarget: target.key,
-          selectedPlanTargetLabel: target.label,
-          planActionError: '',
-        });
-      },
-    });
-  },
-
-  onReviewGarminExperiment() {
-    if (
-      this.data.garminExperimentAction
-      || !this.data.garminExperimentConnected
-      || !this.data.garminExperimentAvailable
-    ) {
-      return;
-    }
-    const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
-    const enable = !this.data.garminExperimentEnabled;
-    const content = enable
-      ? [
-          tr.garminExperimentalEnableIntro,
-          tr.garminExperimentalOwnership,
-          tr.garminExperimentalRisk,
-          tr.garminExperimentalReset,
-        ].join('\n\n')
-      : tr.garminExperimentalDisableDetail;
-    wx.showModal({
-      title: enable
-        ? tr.garminExperimentalEnableTitle
-        : tr.garminExperimentalDisableTitle,
-      content,
-      confirmText: enable
-        ? tr.garminExperimentalEnable
-        : tr.garminExperimentalDisable,
-      cancelText: tr.cancel,
-      success: (result) => {
-        if (result.confirm) {
-          void this.updateGarminExperiment(enable);
-        }
-      },
-    });
-  },
-
-  async updateGarminExperiment(enable: boolean) {
-    if (this.data.garminExperimentAction) return;
-    const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+    const key = String(
+      event.currentTarget.dataset.target ?? '',
+    ) as PlatformName;
+    const target = this.data.planTargetOptions.find(
+      (option) => option.key === key && option.selectable,
+    );
+    if (!target) return;
     this.setData({
-      garminExperimentAction: enable ? 'enable' : 'disable',
-      garminExperimentError: '',
+      selectedPlanTarget: target.key,
+      selectedPlanTargetLabel: target.label,
+      planActionError: '',
     });
-    try {
-      const response = await apiPut<SettingsUpdateResponse>(
-        '/api/settings',
-        {
-        experimental_plan_delivery: { garmin: enable },
-        },
-      );
-      if (
-        response.experimental_plan_delivery?.garmin?.enabled !== enable
-      ) {
-        throw new Error(tr.garminExperimentalFailed);
-      }
-      await this.refetch();
-    } catch (e) {
-      const err = e as Partial<ApiError> & { message?: string };
-      if (err?.code === 'UNAUTHENTICATED') return;
-      this.setData({
-        garminExperimentError:
-          err?.detail ?? err?.message ?? tr.garminExperimentalFailed,
-      });
-    } finally {
-      this.setData({ garminExperimentAction: '' });
-    }
   },
 
   onReviewManagedPlan() {
@@ -1078,7 +987,7 @@ Page({
       : this.data.selectedPlanTarget;
     if (
       !target
-      || (mode === 'resume' && !this.data.configuredPlanTargetConnected)
+      || (mode === 'resume' && !this.data.configuredPlanTargetAvailable)
     ) {
       wx.showToast({ title: tr.connectTarget, icon: 'none', duration: 1800 });
       return;
@@ -1110,7 +1019,7 @@ Page({
       tr.manualBoundary,
       tr.plannerWarning,
       ...(target === 'garmin'
-        ? [tr.garminExperimentalTargetWarning]
+        ? [tr.garminTargetWarning]
         : []),
     ].join('\n\n');
     wx.showModal({
