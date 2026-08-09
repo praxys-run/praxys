@@ -456,7 +456,54 @@ def test_preflight_loader_returns_only_aggregate_prerequisites(
     assert chronological_counts["provider_aligned_cp_activity_count"] == 6
 
 
-def test_preflight_loader_does_not_join_fragmented_power_bursts(
+def test_preflight_loader_allows_one_final_sample_interval(
+    labs_client,
+) -> None:
+    _, db_session, user_id = labs_client
+    from analysis.data_loader import load_environment_response_preflight_counts
+    from analysis.heat_response_validation import HeatValidationConfig
+    from db.models import Activity, ActivitySample
+
+    with db_session.SessionLocal() as db:
+        for index in range(12):
+            activity_id = f"boundary-preflight-{index}"
+            db.add(Activity(
+                user_id=user_id,
+                activity_id=activity_id,
+                date=datetime(2026, 1, index + 1).date(),
+                activity_type="running",
+                temperature_c=20.0,
+                relative_humidity_pct=60.0,
+                source="stryd",
+            ))
+            for sample_index in range(37):
+                t_sec = sample_index * 5
+                db.add(ActivitySample(
+                    user_id=user_id,
+                    activity_id=activity_id,
+                    source="stryd",
+                    t_sec=t_sec,
+                    power_watts=250.0 if t_sec <= 175 else None,
+                    hr_bpm=150.0 if t_sec <= 140 else None,
+                ))
+        db.commit()
+
+        counts = load_environment_response_preflight_counts(
+            user_id,
+            db,
+            eligible_activity_types=HeatValidationConfig().eligible_activity_types,
+            minimum_segment_duration_sec=180.0,
+            maximum_sample_interval_sec=5.0,
+            minimum_heart_rate_coverage_ratio=0.8,
+            maximum_power_watts=2500.0,
+        )
+
+    assert counts["power_activity_count"] == 12
+    assert counts["heart_rate_activity_count"] == 12
+    assert counts["complete_stryd_activity_count"] == 12
+
+
+def test_preflight_loader_defers_fragmented_power_to_full_analysis(
     labs_client,
 ) -> None:
     _, db_session, user_id = labs_client
@@ -499,11 +546,11 @@ def test_preflight_loader_does_not_join_fragmented_power_bursts(
         )
 
     assert counts["candidate_activity_count"] == 12
-    assert counts["power_activity_count"] == 0
-    assert counts["complete_stryd_activity_count"] == 0
+    assert counts["power_activity_count"] == 12
+    assert counts["complete_stryd_activity_count"] == 12
 
 
-def test_preflight_loader_requires_hr_overlap_with_power_block(
+def test_preflight_loader_defers_sample_overlap_to_full_analysis(
     labs_client,
 ) -> None:
     _, db_session, user_id = labs_client
@@ -553,10 +600,10 @@ def test_preflight_loader_requires_hr_overlap_with_power_block(
 
     assert counts["stryd_power_activity_count"] == 12
     assert counts["heart_rate_activity_count"] == 12
-    assert counts["complete_stryd_activity_count"] == 0
+    assert counts["complete_stryd_activity_count"] == 12
 
 
-def test_preflight_loader_requires_eighty_percent_hr_in_one_window(
+def test_preflight_loader_defers_hr_window_coverage_to_full_analysis(
     labs_client,
 ) -> None:
     _, db_session, user_id = labs_client
@@ -607,11 +654,11 @@ def test_preflight_loader_requires_eighty_percent_hr_in_one_window(
 
     assert counts["stryd_power_activity_count"] == 12
     assert counts["heart_rate_activity_count"] == 12
-    assert counts["complete_stryd_activity_count"] == 0
+    assert counts["complete_stryd_activity_count"] == 12
 
 
 @pytest.mark.parametrize("invalid_power_watts", [0.0, 3000.0])
-def test_preflight_loader_breaks_on_explicit_invalid_samples(
+def test_preflight_loader_defers_internal_sample_gaps_to_full_analysis(
     labs_client,
     invalid_power_watts,
 ) -> None:
@@ -657,15 +704,13 @@ def test_preflight_loader_breaks_on_explicit_invalid_samples(
             maximum_power_watts=2500.0,
         )
 
-    assert counts["power_activity_count"] == 0
-    assert counts["heart_rate_activity_count"] == 0
-    assert counts["complete_stryd_activity_count"] == 0
+    assert counts["power_activity_count"] == 12
+    assert counts["heart_rate_activity_count"] == 12
+    assert counts["complete_stryd_activity_count"] == 12
 
 
-def test_preflight_loader_avoids_postgresql_reserved_window_alias() -> None:
-    """The eligibility query must compile on PostgreSQL, not only SQLite."""
-    import re
-
+def test_preflight_loader_avoids_full_analysis_window_expansion() -> None:
+    """The preflight must remain a single bounded sample aggregation."""
     from analysis.data_loader import load_environment_response_preflight_counts
     from analysis.heat_response_validation import HeatValidationConfig
 
@@ -705,11 +750,10 @@ def test_preflight_loader_avoids_postgresql_reserved_window_alias() -> None:
         maximum_power_watts=2500.0,
     )
 
-    assert " AS window " not in db.statement
-    assert re.search(r"\bwindow\.", db.statement) is None
-    assert "candidate_window." in db.statement
-    assert "MAX(block.block_start_sec, MIN(" not in db.statement
-    assert "MIN(        candidate_window.window_start_sec" not in db.statement
+    assert db.statement.count("FROM activity_samples AS sample") == 1
+    assert "LEAD(" not in db.statement
+    assert "power_window" not in db.statement
+    assert "coverage_intervals" not in db.statement
 
 
 def test_wet_bulb_calculator_uses_versioned_stull_method(labs_client) -> None:
