@@ -699,6 +699,7 @@ def load_active_contexts(
     purpose: str,
     kinds: Sequence[str] | None = None,
     include_narrative: bool = False,
+    require_purpose_confirmation: bool = False,
     now: datetime | None = None,
 ) -> list[LoadedPersonalContext]:
     """Load latest active owner-matched context, enforcing expiry on the read."""
@@ -721,6 +722,25 @@ def load_active_contexts(
     )
     if kinds is not None:
         query = query.filter(PersonalContextItem.kind.in_(kinds))
+    if require_purpose_confirmation:
+        purpose_confirmed = (
+            db.query(PersonalContextConsentReceipt.id)
+            .filter(
+                PersonalContextConsentReceipt.user_id
+                == PersonalContextItem.user_id,
+                PersonalContextConsentReceipt.context_item_id
+                == PersonalContextItem.id,
+                PersonalContextConsentReceipt.context_version
+                == PersonalContextItem.version,
+                PersonalContextConsentReceipt.purpose
+                == PersonalContextItem.purpose,
+                PersonalContextConsentReceipt.consent_scope
+                == "purpose_confirmation",
+                PersonalContextConsentReceipt.decision == "granted",
+            )
+            .exists()
+        )
+        query = query.filter(purpose_confirmed)
     rows = (
         query
         .order_by(
@@ -1309,6 +1329,8 @@ def record_context_use(
                 PersonalContextConsentReceipt.context_item_id == item.id,
                 PersonalContextConsentReceipt.context_version == item.version,
                 PersonalContextConsentReceipt.purpose == purpose,
+                PersonalContextConsentReceipt.consent_scope == "ai_processing",
+                PersonalContextConsentReceipt.provider == "azure_openai",
                 PersonalContextConsentReceipt.decision == "granted",
             )
             .one_or_none()
