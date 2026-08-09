@@ -5,6 +5,7 @@ import {
 } from '../../utils/api-client';
 import type { ApiError } from '../../utils/api-client';
 import { detectLocale, t, tFmt } from '../../utils/i18n';
+import { formatWorkoutType } from '../../utils/managed-plan';
 import {
   AI_CONSENT_VERSION,
   EXECUTION_CATEGORIES,
@@ -33,6 +34,7 @@ import type {
   PlanResponse,
   PlannedWorkout,
 } from '../../types/api';
+import { setTabBarHidden } from '../../utils/tabbar';
 
 interface ContextItemView {
   id: string;
@@ -120,6 +122,33 @@ const TERRAIN_CHOICES = [
   ['hilly', 'Hilly'],
 ] as const;
 
+const FIELD_LABELS: Record<string, () => string> = {
+  affected_dates: () => t('Affected dates'),
+  affected_days: () => t('Affected weekdays'),
+  maximum_available_minutes: () => t('Maximum training minutes per day'),
+  available_equipment: () => t('Available equipment'),
+  available_terrain: () => t('Available terrain'),
+  workout_status: () => t('Workout status'),
+};
+
+const FIELD_VALUE_LABELS: Record<string, () => string> = Object.fromEntries(
+  [
+    ...WEEKDAY_CHOICES,
+    ...EQUIPMENT_CHOICES,
+    ...TERRAIN_CHOICES,
+    ['missed', 'Missed'],
+    ['modified', 'Modified'],
+  ].map(([value, label]) => [value, () => t(label)]),
+);
+
+function setCurrentTabBarHidden(hidden: boolean): void {
+  const pages = getCurrentPages();
+  const page = pages[pages.length - 1] as
+    | { getTabBar?: unknown }
+    | undefined;
+  if (page) setTabBarHidden(page, hidden);
+}
+
 function translations() {
   return {
     title: t('Plan context'),
@@ -185,7 +214,7 @@ function translations() {
     activeUntil: t('Active until'),
     storedUntil: t('Stored until'),
     noteDeleted: t('Note deleted'),
-    processing: t('Processing'),
+    processing: t('Processing method'),
     rulesNoAi: t('Rules only · nothing sent to AI'),
     purposeConfirmation: t(
       'Saving confirms this one purpose. It does not authorize a new purpose, AI processing, analytics, or model training.',
@@ -288,14 +317,29 @@ function formatDate(value: string | null): string {
   );
 }
 
+function contextFieldLabel(key: string): string {
+  return FIELD_LABELS[key]?.() ?? key.replace(/_/g, ' ');
+}
+
 function formatFieldValue(value: PersonalContextFieldValue): string {
-  return Array.isArray(value) ? value.join(', ') : String(value);
+  const values = Array.isArray(value) ? value : [value];
+  const separator = detectLocale() === 'zh' ? '、' : ', ';
+  return values.map((entry) => (
+    typeof entry === 'string'
+      ? FIELD_VALUE_LABELS[entry]?.() ?? entry
+      : String(entry)
+  )).join(separator);
+}
+
+function disclosedFieldLabel(field: string): string {
+  if (field === 'category') return t('Category');
+  return contextFieldLabel(field.replace(/^fields\./, ''));
 }
 
 function contextFields(item: PersonalContextItem): ContextFieldView[] {
   return Object.entries(item.payload.fields).map(([key, value]) => ({
     key,
-    label: key.replace(/_/g, ' '),
+    label: contextFieldLabel(key),
     value: formatFieldValue(value),
   }));
 }
@@ -351,7 +395,7 @@ function workoutViews(workouts: PlannedWorkout[]): WorkoutView[] {
       id: workout.canonical_id ?? '',
       date: workout.date,
       label: `${formatDate(`${workout.date}T12:00:00`)} · ${
-        workout.workout_type.replace(/_/g, ' ')
+        t(formatWorkoutType(workout.workout_type))
       }`,
     }));
 }
@@ -437,6 +481,15 @@ Component({
     attached() {
       this.setData({ tr: translations() });
       void this.refresh();
+    },
+    detached() {
+      setCurrentTabBarHidden(false);
+    },
+  },
+
+  observers: {
+    sheetOpen(sheetOpen: boolean) {
+      setCurrentTabBarHidden(sheetOpen);
     },
   },
 
@@ -982,7 +1035,9 @@ Component({
         screen: 'ai',
         sheetTitle: this.data.tr.aiTitle,
         aiFields: aiFieldNames(item),
-        aiFieldsText: aiFieldNames(item).join(', '),
+        aiFieldsText: aiFieldNames(item)
+          .map(disclosedFieldLabel)
+          .join(detectLocale() === 'zh' ? '、' : ', '),
         aiPermissionConfirmed: false,
         aiNarrative: false,
         actionError: '',

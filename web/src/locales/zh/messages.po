@@ -27,9 +27,9 @@ msgid "(Garmin rate limits apply)"
 msgstr "（受 Garmin 访问频率限制）"
 
 #: src/components/GoalEditor.tsx:152
-#: src/components/PersonalContextPanel.tsx:1012
+#: src/components/PersonalContextPanel.tsx:1055
 msgid "(optional)"
-msgstr "（可选）"
+msgstr "（选填）"
 
 #. placeholder {0}: content.findings.length
 #: src/components/AiInsightsCard.tsx:252
@@ -563,15 +563,15 @@ msgid "Activate managed plan"
 msgstr "启用托管计划"
 
 #: src/components/ManagedPlanSettingsCard.tsx:487
-#: src/components/PersonalContextPanel.tsx:759
-#: src/components/PersonalContextPanel.tsx:1287
+#: src/components/PersonalContextPanel.tsx:797
+#: src/components/PersonalContextPanel.tsx:1330
 #: src/pages/admin/AdminFeedback.tsx:351
 #: src/pages/admin/AdminOps.tsx:1584
 #: src/pages/Science.tsx:405
 #: src/pages/Science.tsx:433
 #: src/pages/Science.tsx:581
 msgid "Active"
-msgstr "当前使用"
+msgstr "生效中"
 
 #: src/pages/admin/AdminOps.tsx:1550
 msgid "Active accuracy"
@@ -594,10 +594,10 @@ msgstr "当前故障"
 msgid "Active incidents: {0}"
 msgstr "活跃事件：{0}"
 
-#: src/components/PersonalContextPanel.tsx:1121
-#: src/components/PersonalContextPanel.tsx:1302
+#: src/components/PersonalContextPanel.tsx:1164
+#: src/components/PersonalContextPanel.tsx:1345
 msgid "Active until"
-msgstr "有效期至"
+msgstr "生效至"
 
 #: src/components/AppSidebar.tsx:127
 #: src/pages/History.tsx:38
@@ -665,9 +665,9 @@ msgstr "实际/计划比均值"
 #~ msgid "Adaptation evidence is recent. Keep normal training; extra heat is not required."
 #~ msgstr "近期证据支持热适应状态。保持正常训练即可，无需额外增加热暴露。"
 
-#: src/components/PersonalContextPanel.tsx:691
+#: src/components/PersonalContextPanel.tsx:729
 msgid "Add availability"
-msgstr "添加可用时间"
+msgstr "调整可训练时间"
 
 #: src/components/WorkoutPlanEditor.tsx:222
 msgid "Add one future workout to the Praxys canonical plan."
@@ -726,9 +726,17 @@ msgstr "将 Praxys 设为计划方后，才能启用自动调整。目前仍仅�
 msgid "Aerobic"
 msgstr "有氧"
 
-#: src/components/PersonalContextPanel.tsx:1032
+#: src/components/PersonalContextPanel.tsx:269
+msgid "Affected dates"
+msgstr "受影响日期"
+
+#: src/components/PersonalContextPanel.tsx:270
+msgid "Affected weekdays"
+msgstr "受影响的星期几"
+
+#: src/components/PersonalContextPanel.tsx:1075
 msgid "Affected weekdays (optional)"
-msgstr "受影响的星期几（选填）"
+msgstr "哪些天受影响（可多选）"
 
 #: src/components/ManagedPlanSettingsCard.tsx:648
 #~ msgid "After a sync, Praxys may replace today's single Praxys hard workout with rest only when current HRV crosses your personal caution band."
@@ -758,35 +766,35 @@ msgstr "agent-ready 候选"
 msgid "Aggregate storage"
 msgstr "仅存储汇总结果"
 
-#: src/components/PersonalContextPanel.tsx:775
+#: src/components/PersonalContextPanel.tsx:813
 msgid "AI allowed"
-msgstr "允许 AI 处理"
+msgstr "已允许 AI 处理"
 
-#: src/components/PersonalContextPanel.tsx:1479
+#: src/components/PersonalContextPanel.tsx:1520
 msgid "AI option"
-msgstr "AI 选项"
+msgstr "AI 处理选项"
 
-#: src/components/PersonalContextPanel.tsx:1597
+#: src/components/PersonalContextPanel.tsx:1640
 msgid "AI output can be wrong. It cannot diagnose, provide treatment, clear you to train, or override Praxys safety, science, and approval boundaries."
-msgstr "AI 输出可能出错。它不能诊断、提供治疗、批准你训练，也不能覆盖 Praxys 的安全、科学和审批边界。"
+msgstr "AI 可能出错，不能用于诊断、治疗或判断是否可以训练，也不能绕过 Praxys 的安全、科学和用户确认规则。"
 
-#: src/components/PersonalContextPanel.tsx:1308
+#: src/components/PersonalContextPanel.tsx:1351
 msgid "AI processing"
 msgstr "AI 处理"
 
-#: src/components/PersonalContextPanel.tsx:595
+#: src/components/PersonalContextPanel.tsx:633
 msgid "AI processing enabled for this item only."
-msgstr "仅此项启用 AI 处理。"
+msgstr "已仅为当前版本开启 AI 处理。"
 
-#: src/components/PersonalContextPanel.tsx:1532
+#: src/components/PersonalContextPanel.tsx:1573
 msgid "AI processing for one item"
-msgstr "单条 AI 处理"
+msgstr "仅为这条信息开启 AI"
 
-#: src/components/PersonalContextPanel.tsx:596
+#: src/components/PersonalContextPanel.tsx:634
 msgid "AI processing withdrawn. No new provider requests are allowed."
-msgstr "AI 处理授权已撤回，不会再发起新的模型请求。"
+msgstr "AI 权限已撤回，不会再向 AI 服务发送新的请求。"
 
-#: src/components/PersonalContextPanel.tsx:1541
+#: src/components/PersonalContextPanel.tsx:1582
 msgid "AI service: Microsoft Azure"
 msgstr "AI 服务：Microsoft Azure"
 
@@ -831,22 +839,22 @@ msgstr "系统运行正常"
 msgid "All Systems Operational"
 msgstr "所有系统运行正常"
 
-#: src/components/PersonalContextPanel.tsx:1652
+#: src/components/PersonalContextPanel.tsx:1695
 msgid "Allow for this item"
-msgstr "允许此项"
+msgstr "允许处理当前版本"
 
-#: src/components/PersonalContextPanel.tsx:1314
+#: src/components/PersonalContextPanel.tsx:1357
 msgid "Allowed for this item"
-msgstr "已允许此项"
+msgstr "仅当前版本已允许"
 
 #: src/pages/Login.tsx:486
 #: src/pages/Login.tsx:511
 msgid "Already have an invitation code?"
 msgstr "已有邀请码？"
 
-#: src/components/PersonalContextPanel.tsx:1585
+#: src/components/PersonalContextPanel.tsx:1628
 msgid "Also send my optional note"
-msgstr "同时发送我的选填备注"
+msgstr "同时发送补充说明"
 
 #: src/components/UpcomingPlanCard.tsx:1456
 msgid "An earlier automatic change was superseded"
@@ -967,9 +975,9 @@ msgstr "恢复状态自动调整"
 msgid "Automatic retries exhausted"
 msgstr "自动重试已耗尽"
 
-#: src/components/PersonalContextPanel.tsx:221
-#: src/components/PersonalContextPanel.tsx:222
 #: src/components/PersonalContextPanel.tsx:223
+#: src/components/PersonalContextPanel.tsx:224
+#: src/components/PersonalContextPanel.tsx:225
 msgid "Availability"
 msgstr "可用性"
 
@@ -983,13 +991,21 @@ msgstr "可用率"
 msgid "Available"
 msgstr "可用"
 
+#: src/components/PersonalContextPanel.tsx:272
+msgid "Available equipment"
+msgstr "可用装备"
+
 #: src/pages/Labs.tsx:52
 msgid "Available experiments"
 msgstr "可参与的实验"
 
-#: src/components/PersonalContextPanel.tsx:343
+#: src/components/PersonalContextPanel.tsx:381
 msgid "Available minutes must be a whole number from 1 to 1440."
-msgstr "可用分钟数必须是 1 到 1440 之间的整数。"
+msgstr "可训练时长须为 1 到 1440 之间的整数。"
+
+#: src/components/PersonalContextPanel.tsx:273
+msgid "Available terrain"
+msgstr "可训练地形"
 
 #: src/components/ActivityCard.tsx:108
 msgid "Avg HR"
@@ -1003,9 +1019,9 @@ msgstr "平均功率"
 msgid "Avg Work {intensityLabel}"
 msgstr "平均工作 {intensityLabel}"
 
-#: src/components/PersonalContextPanel.tsx:1093
+#: src/components/PersonalContextPanel.tsx:1136
 msgid "Avoid names, diagnoses, precise locations, and other private details. Notes are deleted after 30 days even when the structured context remains."
-msgstr "避免写入姓名、诊断、精确位置和其他私密细节。备注会在 30 天后删除，即使结构化上下文仍然保留。"
+msgstr "请勿填写姓名、疾病诊断、精确位置等敏感信息。即使其他信息仍在保留期内，补充说明也会在 30 天后删除。"
 
 #: src/pages/admin/AdminFeedback.tsx:555
 msgid "Awaiting triage decision"
@@ -1048,7 +1064,7 @@ msgstr "Azure Monitor 返回了不完整的结果，因此此部分未刷新。"
 #~ msgid "Azure-backed summary"
 #~ msgstr "Azure 汇总"
 
-#: src/components/PersonalContextPanel.tsx:1219
+#: src/components/PersonalContextPanel.tsx:1262
 msgid "Back"
 msgstr "返回"
 
@@ -1130,7 +1146,7 @@ msgstr "低于警戒区间"
 #~ msgid "Below threshold"
 #~ msgstr "未达阈值"
 
-#: src/components/PersonalContextPanel.tsx:254
+#: src/components/PersonalContextPanel.tsx:256
 msgid "Bike"
 msgstr "自行车"
 
@@ -1223,7 +1239,7 @@ msgstr "计算器"
 #: src/components/ManagedPlanSettingsCard.tsx:1210
 #: src/components/ManagedPlanSettingsCard.tsx:1435
 #: src/components/ManagedPlanSettingsCard.tsx:1454
-#: src/components/PersonalContextPanel.tsx:1434
+#: src/components/PersonalContextPanel.tsx:1475
 #: src/components/UpcomingPlanCard.tsx:789
 #: src/components/WorkoutPlanEditor.tsx:513
 #: src/pages/admin/AdminOps.tsx:1215
@@ -1256,9 +1272,9 @@ msgstr "候选"
 msgid "CAPTCHA required"
 msgstr "需要 CAPTCHA"
 
-#: src/components/PersonalContextPanel.tsx:224
+#: src/components/PersonalContextPanel.tsx:226
 msgid "Caregiving"
-msgstr "照护"
+msgstr "照护安排"
 
 #: src/components/MobileApp.tsx:95
 msgid "Carry your training signal outdoors. Scan to open Praxys in WeChat."
@@ -1274,8 +1290,9 @@ msgstr "把训练信号带到户外。扫码即可在微信中打开 Praxys。"
 msgid "cases"
 msgstr "样本"
 
-#: src/components/PersonalContextPanel.tsx:928
-#: src/components/PersonalContextPanel.tsx:1115
+#: src/components/PersonalContextPanel.tsx:301
+#: src/components/PersonalContextPanel.tsx:971
+#: src/components/PersonalContextPanel.tsx:1158
 msgid "Category"
 msgstr "类别"
 
@@ -1335,9 +1352,9 @@ msgstr "中国"
 msgid "Chinese"
 msgstr "中文"
 
-#: src/components/PersonalContextPanel.tsx:940
+#: src/components/PersonalContextPanel.tsx:983
 msgid "Choose a category"
-msgstr "选择一个类别"
+msgstr "选择原因类型"
 
 #: src/components/HeatAdaptationPanel.tsx:58
 #~ msgid "Choose a power threshold from the same provider as your heat-session power."
@@ -1347,25 +1364,25 @@ msgstr "选择一个类别"
 msgid "Choose a race target or track continuous improvement."
 msgstr "选择比赛目标，或持续追踪进步。"
 
-#: src/components/PersonalContextPanel.tsx:875
+#: src/components/PersonalContextPanel.tsx:914
 msgid "Choose a recent workout"
-msgstr "选择一条最近的训练"
+msgstr "选择近期训练"
 
 #: src/pages/Setup.tsx:659
 msgid "Choose how much historical data to pull"
 msgstr "选择要同步多少历史数据"
 
-#: src/components/PersonalContextPanel.tsx:322
+#: src/components/PersonalContextPanel.tsx:360
 msgid "Choose one category to continue."
-msgstr "选择一个类别继续。"
+msgstr "请先选择原因类型。"
 
 #: src/pages/Setup.tsx:1101
 msgid "Choose primary source"
 msgstr "选择首选数据来源"
 
-#: src/components/PersonalContextPanel.tsx:327
+#: src/components/PersonalContextPanel.tsx:365
 msgid "Choose the workout that changed."
-msgstr "选择发生变化的训练。"
+msgstr "请选择要说明的训练。"
 
 #: src/components/SetupChecklist.tsx:63
 #: src/pages/Setup.tsx:793
@@ -1376,13 +1393,13 @@ msgstr "选择训练基准"
 msgid "Choose voluntary experiments that help you inspect your own training history without turning early research into advice."
 msgstr "选择自愿参与的实验，用自己的训练历史探索规律，同时避免把早期研究包装成建议。"
 
-#: src/components/PersonalContextPanel.tsx:332
+#: src/components/PersonalContextPanel.tsx:370
 msgid "Choose when this constraint starts and ends."
-msgstr "选择这项限制的开始和结束时间。"
+msgstr "请选择这项安排的开始和结束日期。"
 
-#: src/components/PersonalContextPanel.tsx:328
+#: src/components/PersonalContextPanel.tsx:366
 msgid "Choose whether it was missed or modified."
-msgstr "选择是错过还是已修改。"
+msgstr "请选择这次训练是未完成还是做了调整。"
 
 #: src/pages/Settings.tsx:1293
 msgid "Choose which platform to use for each data type"
@@ -1603,17 +1620,17 @@ msgstr "连接转化漏斗"
 msgid "Consent text version"
 msgstr "同意文本版本"
 
-#: src/components/PersonalContextPanel.tsx:535
+#: src/components/PersonalContextPanel.tsx:573
 msgid "Context and dependent private traces deleted."
-msgstr "上下文及其关联的私密痕迹已删除。"
+msgstr "这条信息及其关联的私密记录已删除。"
 
-#: src/components/PersonalContextPanel.tsx:507
+#: src/components/PersonalContextPanel.tsx:545
 msgid "Context excluded from future assessments."
-msgstr "已从后续评估中排除上下文。"
+msgstr "这条信息不会再用于后续评估。"
 
-#: src/components/PersonalContextPanel.tsx:1364
+#: src/components/PersonalContextPanel.tsx:1405
 msgid "Context use"
-msgstr "上下文用途"
+msgstr "使用记录"
 
 #: src/pages/Settings.tsx:1177
 #: src/pages/Setup.tsx:1069
@@ -1679,13 +1696,13 @@ msgstr "复制邀请码"
 msgid "copy the target workout into Praxys; future management follows that version."
 msgstr "将目标平台上的训练复制到 Praxys，之后以该版本为准。"
 
-#: src/components/PersonalContextPanel.tsx:1466
+#: src/components/PersonalContextPanel.tsx:1507
 msgid "Correct"
 msgstr "更正"
 
-#: src/components/PersonalContextPanel.tsx:825
+#: src/components/PersonalContextPanel.tsx:863
 msgid "Correct private context"
-msgstr "更正私密上下文"
+msgstr "更正计划个性化信息"
 
 #: src/pages/Science.tsx:255
 #~ msgid "Cosmetic — changes names and colors without affecting calculations"
@@ -1709,16 +1726,16 @@ msgstr "无法更换执行平台"
 msgid "Could not convert this workout to rest"
 msgstr "无法将这项训练改为休息"
 
-#: src/components/PersonalContextPanel.tsx:531
-#: src/components/PersonalContextPanel.tsx:540
+#: src/components/PersonalContextPanel.tsx:569
+#: src/components/PersonalContextPanel.tsx:578
 msgid "Could not delete this private context."
-msgstr "无法删除这条私密上下文。"
+msgstr "无法删除这条计划个性化信息。"
 
 #: src/components/UpcomingPlanCard.tsx:1240
 msgid "Could not delete this workout"
 msgstr "无法删除这项训练"
 
-#: src/components/PersonalContextPanel.tsx:589
+#: src/components/PersonalContextPanel.tsx:627
 msgid "Could not enable AI processing."
 msgstr "无法启用 AI 处理。"
 
@@ -1726,10 +1743,10 @@ msgstr "无法启用 AI 处理。"
 msgid "Could not enable managed delivery"
 msgstr "无法启用托管下发"
 
-#: src/components/PersonalContextPanel.tsx:616
-#: src/components/PersonalContextPanel.tsx:635
+#: src/components/PersonalContextPanel.tsx:654
+#: src/components/PersonalContextPanel.tsx:673
 msgid "Could not export private context."
-msgstr "无法导出私密上下文。"
+msgstr "无法导出计划个性化信息。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:387
 msgid "Could not leave managed mode"
@@ -1743,10 +1760,10 @@ msgstr "无法加载自动调整记录。"
 msgid "Could not load the managed-window preview."
 msgstr "无法加载托管窗口预览。"
 
-#: src/components/PersonalContextPanel.tsx:471
-#: src/components/PersonalContextPanel.tsx:478
+#: src/components/PersonalContextPanel.tsx:509
+#: src/components/PersonalContextPanel.tsx:516
 msgid "Could not load this private context."
-msgstr "无法加载这条私密上下文。"
+msgstr "无法加载这条计划个性化信息。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:270
 msgid "Could not pause delivery"
@@ -1769,33 +1786,33 @@ msgstr "无法处理此训练"
 msgid "Could not restore the previous workout"
 msgstr "无法恢复上一项训练"
 
-#: src/components/PersonalContextPanel.tsx:366
-#: src/components/PersonalContextPanel.tsx:373
+#: src/components/PersonalContextPanel.tsx:404
+#: src/components/PersonalContextPanel.tsx:411
 msgid "Could not review this private context."
-msgstr "无法审阅这条私密上下文。"
+msgstr "无法预览这条计划个性化信息。"
 
-#: src/components/PersonalContextPanel.tsx:417
-#: src/components/PersonalContextPanel.tsx:452
+#: src/components/PersonalContextPanel.tsx:455
+#: src/components/PersonalContextPanel.tsx:490
 msgid "Could not save this correction."
 msgstr "无法保存这条更正。"
 
-#: src/components/PersonalContextPanel.tsx:435
-#: src/components/PersonalContextPanel.tsx:453
+#: src/components/PersonalContextPanel.tsx:473
+#: src/components/PersonalContextPanel.tsx:491
 msgid "Could not save this private context."
-msgstr "无法保存这条私密上下文。"
+msgstr "无法保存这条计划个性化信息。"
 
 #: src/pages/Login.tsx:182
 msgid "Could not save your email. Please email us instead."
 msgstr "无法保存邮箱，请直接发邮件联系我们。"
 
-#: src/components/PersonalContextPanel.tsx:505
-#: src/components/PersonalContextPanel.tsx:512
+#: src/components/PersonalContextPanel.tsx:543
+#: src/components/PersonalContextPanel.tsx:550
 msgid "Could not stop using this context."
-msgstr "无法停止使用这条上下文。"
+msgstr "暂时无法停止使用这条信息。"
 
-#: src/components/PersonalContextPanel.tsx:602
+#: src/components/PersonalContextPanel.tsx:640
 msgid "Could not update AI processing."
-msgstr "无法更新 AI 处理。"
+msgstr "无法更新 AI 权限。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:440
 msgid "Could not update automatic plan changes"
@@ -1810,7 +1827,7 @@ msgstr "无法更新自动计划调整设置"
 msgid "Could not update this workout"
 msgstr "无法更新这项训练"
 
-#: src/components/PersonalContextPanel.tsx:590
+#: src/components/PersonalContextPanel.tsx:628
 msgid "Could not withdraw AI processing."
 msgstr "无法撤回 AI 处理。"
 
@@ -2140,7 +2157,7 @@ msgstr "性能下降"
 msgid "Degraded Performance"
 msgstr "性能降级"
 
-#: src/components/PersonalContextPanel.tsx:1497
+#: src/components/PersonalContextPanel.tsx:1538
 #: src/components/WorkoutPlanEditor.tsx:491
 msgid "Delete"
 msgstr "删除"
@@ -2157,18 +2174,18 @@ msgstr "删除账号"
 msgid "Delete my account?"
 msgstr "删除账号？"
 
-#: src/components/PersonalContextPanel.tsx:1451
+#: src/components/PersonalContextPanel.tsx:1492
 #: src/pages/Settings.tsx:1647
 msgid "Delete permanently"
 msgstr "永久删除"
 
-#: src/components/PersonalContextPanel.tsx:1512
+#: src/components/PersonalContextPanel.tsx:1553
 msgid "Delete retained history"
 msgstr "删除保留历史记录"
 
-#: src/components/PersonalContextPanel.tsx:1413
+#: src/components/PersonalContextPanel.tsx:1454
 msgid "Delete this context permanently?"
-msgstr "永久删除这条私密上下文？"
+msgstr "永久删除这条信息？"
 
 #: src/components/WorkoutPlanEditor.tsx:170
 msgid "Delete this workout?"
@@ -2189,12 +2206,12 @@ msgid "Delete workout"
 msgstr "删除训练"
 
 #. placeholder {0}: formatDate(currentDetailItem.narrative_purge_at)
-#: src/components/PersonalContextPanel.tsx:1353
+#: src/components/PersonalContextPanel.tsx:1394
 msgid "Deletes {0}"
 msgstr "将于 {0} 删除"
 
-#: src/components/PersonalContextPanel.tsx:762
-#: src/components/PersonalContextPanel.tsx:1290
+#: src/components/PersonalContextPanel.tsx:800
+#: src/components/PersonalContextPanel.tsx:1333
 msgid "Deleting"
 msgstr "删除中"
 
@@ -2342,8 +2359,8 @@ msgstr "请先关闭其他计划工具的下发功能。多个计划工具可能
 msgid "Disabled. Click to open"
 msgstr "已关闭，点击开启"
 
-#: src/components/PersonalContextPanel.tsx:233
-#: src/components/PersonalContextPanel.tsx:237
+#: src/components/PersonalContextPanel.tsx:235
+#: src/components/PersonalContextPanel.tsx:239
 msgid "Disclosure choice"
 msgstr "披露选择"
 
@@ -2583,7 +2600,7 @@ msgstr "符合条件"
 msgid "Eligible activities"
 msgstr "符合条件的活动"
 
-#: src/components/PersonalContextPanel.tsx:255
+#: src/components/PersonalContextPanel.tsx:257
 msgid "Elliptical"
 msgstr "椭圆机"
 
@@ -2645,13 +2662,13 @@ msgstr "已开启，点击关闭"
 msgid "Enabling…"
 msgstr "正在启用…"
 
-#: src/components/PersonalContextPanel.tsx:790
+#: src/components/PersonalContextPanel.tsx:828
 msgid "Encrypted at rest · excluded from analytics and model training"
-msgstr "静态加密，不纳入分析或模型训练"
+msgstr "加密保存 · 不用于数据分析或模型训练"
 
-#: src/components/PersonalContextPanel.tsx:992
+#: src/components/PersonalContextPanel.tsx:1035
 msgid "Ends"
-msgstr "结束"
+msgstr "结束日期"
 
 #: src/lib/display-labels.ts:43
 msgid "Endurance"
@@ -2669,8 +2686,8 @@ msgstr "源数据足以尝试这项实验"
 msgid "Enter numeric temperature and humidity values."
 msgstr "请输入有效的温度和湿度数值。"
 
-#: src/components/PersonalContextPanel.tsx:231
-#: src/components/PersonalContextPanel.tsx:232
+#: src/components/PersonalContextPanel.tsx:233
+#: src/components/PersonalContextPanel.tsx:234
 msgid "Environment"
 msgstr "环境"
 
@@ -2679,13 +2696,13 @@ msgstr "环境"
 msgid "Environmental response"
 msgstr "环境响应"
 
-#: src/components/PersonalContextPanel.tsx:232
+#: src/components/PersonalContextPanel.tsx:234
 msgid "Equipment access"
-msgstr "器械条件"
+msgstr "场地或装备受限"
 
-#: src/components/PersonalContextPanel.tsx:1045
+#: src/components/PersonalContextPanel.tsx:1088
 msgid "Equipment still available (optional)"
-msgstr "仍可使用的器械（选填）"
+msgstr "仍可使用的装备（可多选）"
 
 #: src/pages/admin/AdminOps.tsx:431
 #: src/pages/Settings.tsx:948
@@ -2774,22 +2791,22 @@ msgstr "执行平台已更换，下发仍保持暂停。"
 #~ msgid "Experimental Garmin delivery"
 #~ msgstr "Garmin 实验性下发"
 
-#: src/components/PersonalContextPanel.tsx:760
-#: src/components/PersonalContextPanel.tsx:1288
+#: src/components/PersonalContextPanel.tsx:798
+#: src/components/PersonalContextPanel.tsx:1331
 msgid "Expired"
 msgstr "已过期"
 
-#: src/components/PersonalContextPanel.tsx:683
+#: src/components/PersonalContextPanel.tsx:721
 msgid "Explain a workout"
-msgstr "解释一条训练"
+msgstr "说明训练情况"
 
 #: src/pages/Labs.tsx:84
 msgid "Explore whether modeled heart rate varied with temperature and humidity at comparable recorded Stryd power in your eligible past runs."
 msgstr "探索在记录的 Stryd 功率相近时，符合条件的历史跑步中心率模型是否随温度和湿度变化。"
 
-#: src/components/PersonalContextPanel.tsx:803
+#: src/components/PersonalContextPanel.tsx:841
 msgid "Export context"
-msgstr "导出上下文"
+msgstr "导出信息"
 
 #: src/pages/Settings.tsx:1546
 #: src/pages/Settings.tsx:1576
@@ -2945,7 +2962,7 @@ msgstr "下降"
 msgid "Falling"
 msgstr "下降"
 
-#: src/components/PersonalContextPanel.tsx:226
+#: src/components/PersonalContextPanel.tsx:228
 msgid "Fatigue"
 msgstr "疲劳"
 
@@ -3012,7 +3029,7 @@ msgstr "体能"
 msgid "flat"
 msgstr "持平"
 
-#: src/components/PersonalContextPanel.tsx:263
+#: src/components/PersonalContextPanel.tsx:265
 #: src/pages/Goal.tsx:52
 msgid "Flat"
 msgstr "持平"
@@ -3075,7 +3092,7 @@ msgstr "14天活动记录"
 #~ msgid "Freshened up — good window for racing or testing."
 #~ msgstr "充分恢复——适合比赛或测试的好时机。"
 
-#: src/components/PersonalContextPanel.tsx:245
+#: src/components/PersonalContextPanel.tsx:247
 msgid "Fri"
 msgstr "周五"
 
@@ -3213,7 +3230,7 @@ msgstr "目标追踪"
 #~ msgid "Good balance of fitness and recovery. Ready for quality work."
 #~ msgstr "体能与恢复平衡良好。已准备好进行高质量训练。"
 
-#: src/components/PersonalContextPanel.tsx:253
+#: src/components/PersonalContextPanel.tsx:255
 msgid "Gym"
 msgstr "健身房"
 
@@ -3347,7 +3364,7 @@ msgstr "变异性偏高"
 msgid "Hiking"
 msgstr "徒步"
 
-#: src/components/PersonalContextPanel.tsx:264
+#: src/components/PersonalContextPanel.tsx:266
 msgid "Hilly"
 msgstr "起伏路"
 
@@ -3565,9 +3582,9 @@ msgstr "今天不训练"
 msgid "Identified"
 msgstr "已定位"
 
-#: src/components/PersonalContextPanel.tsx:228
+#: src/components/PersonalContextPanel.tsx:230
 msgid "Illness"
-msgstr "生病"
+msgstr "生病或不适"
 
 #: src/pages/Today.tsx:119
 #~ msgid "improving"
@@ -3631,11 +3648,11 @@ msgstr "信息"
 
 #: src/components/UpcomingPlanCard.tsx:1484
 msgid "Inspect context"
-msgstr "查看上下文"
+msgstr "查看个性化信息"
 
-#: src/components/PersonalContextPanel.tsx:1270
+#: src/components/PersonalContextPanel.tsx:1313
 msgid "Inspect what is stored, where it was used, and who may process it."
-msgstr "查看存储了什么、用在了哪里，以及谁可能处理它。"
+msgstr "查看保存了哪些内容、曾用于何处，以及哪些服务可能处理这些信息。"
 
 #: src/components/RecoveryPanel.tsx:21
 #: src/pages/Today.tsx:230
@@ -3671,13 +3688,13 @@ msgstr "尚未同步有效的训练强度数据，暂无法显示强度分布。
 msgid "International"
 msgstr "国际"
 
-#: src/components/PersonalContextPanel.tsx:1561
+#: src/components/PersonalContextPanel.tsx:1602
 msgid "Interpret one missed or modified workout without diagnosing a cause."
 msgstr "在不诊断原因的前提下解读一条错过或修改的训练。"
 
-#: src/components/PersonalContextPanel.tsx:1111
+#: src/components/PersonalContextPanel.tsx:1154
 msgid "Interpret this workout without guessing a cause"
-msgstr "在不猜测原因的前提下解读这次训练"
+msgstr "用于理解这次训练，不推测原因"
 
 #: src/components/WorkoutPlanEditor.tsx:143
 msgid "Intervals"
@@ -3739,9 +3756,9 @@ msgstr "工单"
 msgid "Issue created"
 msgstr "已创建 Issue"
 
-#: src/components/PersonalContextPanel.tsx:1417
+#: src/components/PersonalContextPanel.tsx:1458
 msgid "It stays in your private history until its purge date, but cannot influence a new assessment."
-msgstr "它会保留在你的私密历史记录中，直到清除日期，但不会影响新的评估。"
+msgstr "信息会保留到原定删除时间，但不会再用于新的评估。"
 
 #: src/pages/LabsEnvironment.tsx:704
 msgid "Join and analyze my history"
@@ -3806,7 +3823,7 @@ msgstr "继续参加"
 msgid "Keep suggestion-only"
 msgstr "保持仅建议"
 
-#: src/components/PersonalContextPanel.tsx:324
+#: src/components/PersonalContextPanel.tsx:362
 msgid "Keep the optional note to 280 characters or fewer."
 msgstr "选填备注请控制在 280 个字符以内。"
 
@@ -3939,16 +3956,16 @@ msgstr "退出托管模式？"
 msgid "Leaving…"
 msgstr "正在退出…"
 
-#: src/components/PersonalContextPanel.tsx:221
+#: src/components/PersonalContextPanel.tsx:223
 msgid "Less time"
-msgstr "可用时间减少"
+msgstr "训练时间减少"
 
 #: src/components/ManagedPlanSettingsCard.tsx:1056
 msgid "Let Praxys manage this plan?"
 msgstr "让 Praxys 托管此计划？"
 
-#: src/components/PersonalContextPanel.tsx:224
-#: src/components/PersonalContextPanel.tsx:225
+#: src/components/PersonalContextPanel.tsx:226
+#: src/components/PersonalContextPanel.tsx:227
 msgid "Life constraint"
 msgstr "生活限制"
 
@@ -4014,7 +4031,7 @@ msgstr "链接地址（可选）"
 msgid "Link your training devices and services"
 msgstr "连接训练设备和服务"
 
-#: src/components/PersonalContextPanel.tsx:853
+#: src/components/PersonalContextPanel.tsx:892
 msgid "Linked workout"
 msgstr "关联训练"
 
@@ -4069,13 +4086,13 @@ msgstr "计划完成度"
 msgid "Loading components…"
 msgstr "正在加载组件…"
 
-#: src/components/PersonalContextPanel.tsx:706
+#: src/components/PersonalContextPanel.tsx:744
 msgid "Loading private context"
-msgstr "正在加载私密上下文"
+msgstr "正在加载计划个性化信息"
 
-#: src/components/PersonalContextPanel.tsx:874
+#: src/components/PersonalContextPanel.tsx:913
 msgid "Loading recent workouts…"
-msgstr "正在加载最近训练…"
+msgstr "正在加载近期训练…"
 
 #: src/pages/Status.tsx:145
 msgid "Loading…"
@@ -4302,9 +4319,13 @@ msgstr "MAU"
 msgid "Max HR"
 msgstr "最大心率"
 
-#: src/components/PersonalContextPanel.tsx:1010
+#: src/components/PersonalContextPanel.tsx:1053
 msgid "Maximum minutes available per affected day"
-msgstr "每个受影响日最多可用分钟数"
+msgstr "这些天每天最多可训练多久（分钟）"
+
+#: src/components/PersonalContextPanel.tsx:271
+msgid "Maximum training minutes per day"
+msgstr "每天最多可训练时长（分钟）"
 
 #: src/pages/admin/AdminFeedback.tsx:111
 msgid "Medium"
@@ -4327,9 +4348,9 @@ msgstr "MFA"
 msgid "MFA required"
 msgstr "需 MFA"
 
-#: src/components/PersonalContextPanel.tsx:1377
+#: src/components/PersonalContextPanel.tsx:1418
 msgid "Microsoft Azure AI"
-msgstr "Microsoft Azure AI 服务"
+msgstr "Microsoft Azure AI"
 
 #: src/pages/Today.tsx:304
 #~ msgid "mild fatigue"
@@ -4368,9 +4389,10 @@ msgstr "对应 {0}"
 msgid "Mismatch"
 msgstr "不匹配"
 
-#: src/components/PersonalContextPanel.tsx:902
+#: src/components/PersonalContextPanel.tsx:281
+#: src/components/PersonalContextPanel.tsx:945
 msgid "Missed"
-msgstr "错过"
+msgstr "未完成"
 
 #: src/components/HeatAdaptationPanel.tsx:322
 #~ msgid "mixed"
@@ -4416,16 +4438,17 @@ msgstr "覆盖度中等"
 #~ msgid "Moderate evidence"
 #~ msgstr "证据中等"
 
-#: src/components/PersonalContextPanel.tsx:903
+#: src/components/PersonalContextPanel.tsx:282
+#: src/components/PersonalContextPanel.tsx:946
 msgid "Modified"
-msgstr "已修改"
+msgstr "已调整"
 
 #: src/components/SignalHero.tsx:23
 #: src/pages/Today.tsx:64
 msgid "MODIFY"
 msgstr "调整"
 
-#: src/components/PersonalContextPanel.tsx:241
+#: src/components/PersonalContextPanel.tsx:243
 msgid "Mon"
 msgstr "周一"
 
@@ -4465,9 +4488,9 @@ msgstr "还需要更多历史 HRV 数据，Praxys 才能建立你的个人恢复
 #~ msgid "Most under-target: {0} at {1}% (target {2}%). Add 1-2 sessions in this zone next week."
 #~ msgstr "最欠达标区间：{0} 为 {1}%（目标 {2}%）。下周在此区间增加 1-2 次训练。"
 
-#: src/components/PersonalContextPanel.tsx:227
+#: src/components/PersonalContextPanel.tsx:229
 msgid "Motivation"
-msgstr "动力"
+msgstr "训练动力不足"
 
 #. placeholder {0}: primaryPrompt?.category
 #: src/pages/Setup.tsx:1103
@@ -4646,9 +4669,9 @@ msgstr "未找到管理配置"
 msgid "No announcements yet"
 msgstr "还没有公告"
 
-#: src/components/PersonalContextPanel.tsx:1396
+#: src/components/PersonalContextPanel.tsx:1437
 msgid "No assessment or plan change has used this context yet."
-msgstr "尚无任何评估或计划变更使用过这条上下文。"
+msgstr "尚未用于任何评估或计划调整。"
 
 #: src/pages/admin/AdminOps.tsx:603
 msgid "No Azure alerts firing"
@@ -4711,11 +4734,11 @@ msgstr "未返回此训练的下发结果"
 msgid "No evidence"
 msgstr "暂无记录"
 
-#: src/components/PersonalContextPanel.tsx:772
+#: src/components/PersonalContextPanel.tsx:810
 msgid "no expiry"
-msgstr "不过期"
+msgstr "无到期时间"
 
-#: src/components/PersonalContextPanel.tsx:272
+#: src/components/PersonalContextPanel.tsx:310
 msgid "No expiry"
 msgstr "不过期"
 
@@ -4777,9 +4800,9 @@ msgstr "本周暂无计划负荷"
 msgid "No Praxys workouts are scheduled in this window. Future Praxys-created workouts will enter the rolling window automatically."
 msgstr "此窗口内暂无 Praxys 训练。之后由 Praxys 创建的训练会自动进入滚动窗口。"
 
-#: src/components/PersonalContextPanel.tsx:726
+#: src/components/PersonalContextPanel.tsx:764
 msgid "No private context saved"
-msgstr "尚未保存私密上下文"
+msgstr "暂无计划个性化信息"
 
 #: src/pages/admin/AdminFeedback.tsx:482
 msgid "No prompt"
@@ -4806,9 +4829,9 @@ msgstr "未使用提示词"
 #~ msgid "No recent activity reached the model's {0}-minute inclusion threshold."
 #~ msgstr "近期没有活动达到模型设定的 {0} 分钟纳入阈值。"
 
-#: src/components/PersonalContextPanel.tsx:889
+#: src/components/PersonalContextPanel.tsx:932
 msgid "No recent Praxys workout is available to link."
-msgstr "没有可供关联的近期 Praxys 训练。"
+msgstr "暂无可关联的近期 Praxys 训练。"
 
 #: src/components/HeatAdaptationPanel.tsx:374
 #~ msgid "No recorded activity for this day."
@@ -4930,7 +4953,7 @@ msgstr "今日无训练安排。"
 msgid "No workouts scheduled in this window."
 msgstr "这段时间内暂无训练安排。"
 
-#: src/components/PersonalContextPanel.tsx:250
+#: src/components/PersonalContextPanel.tsx:252
 msgid "None"
 msgstr "无"
 
@@ -5032,15 +5055,15 @@ msgstr "备注"
 msgid "Note (optional)"
 msgstr "备注（可选）"
 
-#: src/components/PersonalContextPanel.tsx:1134
+#: src/components/PersonalContextPanel.tsx:1177
 msgid "Note deleted"
-msgstr "备注已删除"
+msgstr "补充说明删除于"
 
 #: src/pages/Settings.tsx:1267
 msgid "Note on Garmin native power"
 msgstr "关于 Garmin 原生功率的说明"
 
-#: src/components/PersonalContextPanel.tsx:832
+#: src/components/PersonalContextPanel.tsx:870
 msgid "Nothing is stored until you confirm this exact purpose and expiry."
 msgstr "在你确认这个具体用途和到期时间前，不会存储任何内容。"
 
@@ -5095,13 +5118,13 @@ msgid "of"
 msgstr "共"
 
 #: src/components/ManagedPlanSettingsCard.tsx:893
-#: src/components/PersonalContextPanel.tsx:1315
+#: src/components/PersonalContextPanel.tsx:1358
 msgid "Off"
-msgstr "关"
+msgstr "未开启"
 
-#: src/components/PersonalContextPanel.tsx:1588
+#: src/components/PersonalContextPanel.tsx:1631
 msgid "Off by default. The note may contain more private detail than the structured fields."
-msgstr "默认关闭。备注可能比结构化字段包含更多私密细节。"
+msgstr "默认不发送。补充说明可能包含比上方字段更多的隐私信息。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:893
 msgid "On"
@@ -5135,9 +5158,9 @@ msgstr "仅支持 PNG、JPG 或 WebP 图片。"
 msgid "Only supported and eligible platforms can receive workouts."
 msgstr "仅受支持且当前可用的平台可以接收训练。"
 
-#: src/components/PersonalContextPanel.tsx:1543
+#: src/components/PersonalContextPanel.tsx:1584
 msgid "Only the fields below are sent to Microsoft Azure AI. Microsoft states that inputs and outputs are not available to OpenAI or used to train foundation models without permission; Praxys does not grant that permission. Flagged content may be reviewed for abuse monitoring under Azure terms. Praxys does not log raw requests or responses."
-msgstr "仅下方列出的字段会发送至 Microsoft Azure AI。微软说明，输入和输出不会提供给 OpenAI，也不会在未经许可的情况下用于训练基础模型；Praxys 不会授予该许可。被标记的内容可能会根据 Azure 条款接受滥用监测审核。Praxys 不记录原始请求或响应。"
+msgstr "只有下方列出的信息会发送给 Microsoft Azure AI。Microsoft 声明，输入和输出不会提供给 OpenAI；未经许可，也不会用于训练基础模型。Praxys 不会授予此类许可。根据 Azure 条款，被标记的内容可能接受滥用监测审核。Praxys 不记录原始请求或回复。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:1250
 msgid "Only today's single Praxys-generated hard workout can become rest, and only for same-day individualized HRV below the caution band."
@@ -5252,9 +5275,9 @@ msgstr "可选，之后也可以在目标页面设置"
 msgid "Optional comment"
 msgstr "可选备注"
 
-#: src/components/PersonalContextPanel.tsx:833
+#: src/components/PersonalContextPanel.tsx:871
 msgid "Optional context helps Praxys avoid guessing. Share only what changes the plan."
-msgstr "可选上下文能帮助 Praxys 避免猜测。只分享会改变计划的内容。"
+msgstr "补充这些信息可以避免 Praxys 自行推测。只填写会影响训练计划的内容。"
 
 #: src/components/WorkoutPlanEditor.tsx:469
 msgid "Optional structure, terrain, or intent"
@@ -5264,7 +5287,7 @@ msgstr "可填写训练结构、地形或训练目的"
 msgid "Options"
 msgstr "选项"
 
-#: src/components/PersonalContextPanel.tsx:233
+#: src/components/PersonalContextPanel.tsx:235
 #: src/pages/admin/AdminFeedback.tsx:124
 msgid "Other"
 msgstr "其他"
@@ -5314,7 +5337,7 @@ msgstr "配速上限（分/公里）"
 msgid "Pace minimum (min/km)"
 msgstr "配速下限（分/公里）"
 
-#: src/components/PersonalContextPanel.tsx:229
+#: src/components/PersonalContextPanel.tsx:231
 msgid "Pain or injury"
 msgstr "疼痛或受伤"
 
@@ -5407,13 +5430,13 @@ msgstr "仅供个人使用"
 msgid "Plan"
 msgstr "计划"
 
-#: src/components/PersonalContextPanel.tsx:1297
+#: src/components/PersonalContextPanel.tsx:1340
 msgid "Plan adjustment"
 msgstr "计划调整"
 
-#: src/components/PersonalContextPanel.tsx:664
+#: src/components/PersonalContextPanel.tsx:702
 msgid "Plan context"
-msgstr "计划上下文"
+msgstr "计划个性化信息"
 
 #: src/components/ManagedPlanSettingsCard.tsx:510
 msgid "Plan management"
@@ -5482,7 +5505,7 @@ msgstr "策略 {0} · 决策 {1}"
 msgid "Policy-gated auto-merge"
 msgstr "策略门禁自动合并"
 
-#: src/components/PersonalContextPanel.tsx:256
+#: src/components/PersonalContextPanel.tsx:258
 msgid "Pool"
 msgstr "泳池"
 
@@ -5581,9 +5604,9 @@ msgstr "功率数据源匹配"
 msgid "Praxys adapts individualized HRV-guided training and ln(RMSSD) trend monitoring into operational reference bands. The exact reference-band and caution-band cutoffs are product guardrails, not thresholds validated by the cited studies. CV above {cvThreshold}% is also a coaching caution flag, not a diagnosis. Sleep, readiness, RHR, and TSB remain separate informational context."
 msgstr "Praxys 将个体化 HRV 引导训练和 ln(RMSSD) 趋势监测转化为可执行的参考区间。具体的参考区间和警戒区间界限是产品保护规则，并非引用研究验证的阈值。CV 高于 {cvThreshold}% 同样只是训练警戒提示，不构成诊断。睡眠、准备度、静息心率和 TSB 均作为独立的信息背景。"
 
-#: src/components/PersonalContextPanel.tsx:1421
+#: src/components/PersonalContextPanel.tsx:1462
 msgid "Praxys also removes dependent private reasoning and use receipts. Accepted workout changes remain without the private reason."
-msgstr "Praxys 还会删除依赖的私密推理和使用记录。已接受的训练变更会保留，但不包含私密原因。"
+msgstr "Praxys 还会删除由此产生的私密推理和使用记录。已经接受的训练调整会保留，但不再关联具体原因。"
 
 #: src/components/UpcomingPlanCard.tsx:704
 msgid "Praxys and {target} have different versions. Choose which one becomes canonical."
@@ -5732,9 +5755,9 @@ msgstr "Praxys 将分析符合条件的历史跑步，观察在可比的 Stryd �
 msgid "Praxys will immediately delete your Labs consent and derived aggregate result. Your underlying account activities are not deleted."
 msgstr "Praxys 将立即删除 Labs 同意记录和派生汇总结果，但不会删除账号中的原始活动。"
 
-#: src/components/PersonalContextPanel.tsx:953
+#: src/components/PersonalContextPanel.tsx:996
 msgid "Praxys will preserve the reason as unknown. This never counts against you."
-msgstr "Praxys 会保持原因未知。这不会影响你。"
+msgstr "Praxys 会将原因保留为“未知”，不会因此作出负面判断。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:1320
 msgid "Praxys will stop changing the target calendar. Your canonical Praxys plan remains available for analysis."
@@ -5754,9 +5777,9 @@ msgstr "按 Riegel 公式预测（T₂ = T₁ × (D₂/D₁)^1.06），将阈值
 msgid "Predicted using Stryd race power model (5K at 103.8% CP, marathon at 89.9% CP)."
 msgstr "按 Stryd 比赛功率模型预测（5K 取 103.8% CP，马拉松取 89.9% CP）。"
 
-#: src/components/PersonalContextPanel.tsx:236
+#: src/components/PersonalContextPanel.tsx:238
 msgid "Prefer not to say"
-msgstr "不愿说明"
+msgstr "不想说明"
 
 #: src/pages/Login.tsx:653
 msgid "Prefer to wait?"
@@ -5804,7 +5827,7 @@ msgstr "先前热适应的证据可能正在减弱。"
 msgid "Priority is excluded from readiness evaluation."
 msgstr "就绪评估不使用优先级。"
 
-#: src/components/PersonalContextPanel.tsx:1617
+#: src/components/PersonalContextPanel.tsx:1660
 msgid "Privacy Policy"
 msgstr "隐私政策"
 
@@ -5812,30 +5835,30 @@ msgstr "隐私政策"
 msgid "Private alpha · Invitation only"
 msgstr "内测中 · 仅限邀请"
 
-#: src/components/PersonalContextPanel.tsx:1267
+#: src/components/PersonalContextPanel.tsx:1310
 msgid "Private context"
-msgstr "私密上下文"
+msgstr "计划个性化信息"
 
-#: src/components/PersonalContextPanel.tsx:715
+#: src/components/PersonalContextPanel.tsx:753
 msgid "Private context could not be loaded."
-msgstr "无法加载私密上下文。"
+msgstr "无法加载计划个性化信息。"
 
-#: src/components/PersonalContextPanel.tsx:631
+#: src/components/PersonalContextPanel.tsx:669
 msgid "Private context export downloaded."
-msgstr "私密上下文导出文件已下载。"
+msgstr "计划个性化信息导出文件已下载。"
 
-#: src/components/PersonalContextPanel.tsx:445
+#: src/components/PersonalContextPanel.tsx:483
 msgid "Private context saved. AI processing remains off."
-msgstr "私密上下文已保存。AI 处理仍保持关闭。"
+msgstr "计划个性化信息已保存，AI 处理仍未开启。"
 
-#: src/components/PersonalContextPanel.tsx:1169
-#: src/components/PersonalContextPanel.tsx:1347
+#: src/components/PersonalContextPanel.tsx:1212
+#: src/components/PersonalContextPanel.tsx:1388
 msgid "Private note"
-msgstr "私密备注"
+msgstr "补充说明"
 
-#: src/components/PersonalContextPanel.tsx:1074
+#: src/components/PersonalContextPanel.tsx:1117
 msgid "Private note (optional)"
-msgstr "私密备注（选填）"
+msgstr "补充说明（选填）"
 
 #: src/pages/Today.tsx:313
 msgid "Proceed but monitor heart-rate drift during the session"
@@ -5845,10 +5868,13 @@ msgstr "继续训练，但注意观察训练中的心率漂移"
 #~ msgid "Proceed but monitor heart-rate drift during the session\" \"继续训练，但监测训练中的心率漂移"
 #~ msgstr ""
 
-#: src/components/PersonalContextPanel.tsx:1141
 #: src/pages/LabsEnvironment.tsx:142
 msgid "Processing"
 msgstr "处理中"
+
+#: src/components/PersonalContextPanel.tsx:1184
+msgid "Processing method"
+msgstr "处理方式"
 
 #: src/pages/admin/AdminOps.tsx:1372
 msgid "Product value"
@@ -5929,9 +5955,9 @@ msgstr "在<0>公开状态页</0>发布服务动态。"
 msgid "Pull your latest activities, power data, and recovery metrics"
 msgstr "同步最新活动、功率数据和恢复指标"
 
-#: src/components/PersonalContextPanel.tsx:1107
-#: src/components/PersonalContextPanel.tsx:1294
-#: src/components/PersonalContextPanel.tsx:1556
+#: src/components/PersonalContextPanel.tsx:1150
+#: src/components/PersonalContextPanel.tsx:1337
+#: src/components/PersonalContextPanel.tsx:1597
 msgid "Purpose"
 msgstr "用途"
 
@@ -6395,9 +6421,9 @@ msgstr "数据来源日历对账后，恢复被安全策略阻止。请查看刷
 msgid "Recovery was skipped because delivery eligibility changed. Review the refreshed queue."
 msgstr "恢复已跳过，因为下发条件已变更。请查看已刷新的队列。"
 
-#: src/components/PersonalContextPanel.tsx:230
+#: src/components/PersonalContextPanel.tsx:232
 msgid "Red-flag symptoms"
-msgstr "警示症状"
+msgstr "需要警惕的症状"
 
 #: src/pages/Settings.tsx:1208
 #: src/pages/Setup.tsx:1078
@@ -6410,9 +6436,9 @@ msgid "Reduce Intensity"
 msgstr "降低强度"
 
 #. placeholder {0}: detail.linked_revision_ids.length
-#: src/components/PersonalContextPanel.tsx:1387
+#: src/components/PersonalContextPanel.tsx:1428
 msgid "Referenced by {0} plan change record(s)."
-msgstr "被 {0} 条计划变更记录引用。"
+msgstr "被 {0} 条计划调整记录引用。"
 
 #: src/pages/Science.tsx:510
 msgid "References"
@@ -6704,7 +6730,7 @@ msgstr "恢复托管下发？"
 
 #: src/components/ManagedPlanSettingsCard.tsx:608
 #: src/components/ManagedPlanSettingsCard.tsx:1026
-#: src/components/PersonalContextPanel.tsx:717
+#: src/components/PersonalContextPanel.tsx:755
 #: src/components/UpcomingPlanCard.tsx:339
 #: src/components/UpcomingPlanCard.tsx:1274
 #: src/pages/admin/AdminFeedback.tsx:582
@@ -6769,9 +6795,9 @@ msgstr "重试加载公开状态页的事件列表。"
 msgid "Retry workout action"
 msgstr "重试此训练操作"
 
-#: src/components/PersonalContextPanel.tsx:1478
+#: src/components/PersonalContextPanel.tsx:1519
 msgid "Review AI access"
-msgstr "查看 AI 访问权限"
+msgstr "查看 AI 权限"
 
 #: src/components/ManagedPlanSettingsCard.tsx:800
 msgid "Review and activate"
@@ -6785,9 +6811,9 @@ msgstr "查看并恢复"
 msgid "Review and turn on"
 msgstr "查看并启用"
 
-#: src/components/PersonalContextPanel.tsx:823
+#: src/components/PersonalContextPanel.tsx:861
 msgid "Review before saving"
-msgstr "保存前复核"
+msgstr "保存前确认"
 
 #: src/components/UpcomingPlanCard.tsx:423
 #: src/components/UpcomingPlanCard.tsx:437
@@ -6809,9 +6835,9 @@ msgstr "查看下发队列"
 #~ msgid "Review heat history"
 #~ msgstr "查看热适应历史"
 
-#: src/components/PersonalContextPanel.tsx:1243
+#: src/components/PersonalContextPanel.tsx:1286
 msgid "Review purpose and expiry"
-msgstr "复核用途和到期时间"
+msgstr "确认用途和保留期限"
 
 #: src/pages/admin/AdminFeedback.tsx:320
 msgid "Review reports, manage screenshots, and sync linked GitHub issues."
@@ -6848,7 +6874,7 @@ msgstr "上升"
 msgid "Rising"
 msgstr "上升"
 
-#: src/components/PersonalContextPanel.tsx:259
+#: src/components/PersonalContextPanel.tsx:261
 msgid "Road"
 msgstr "公路"
 
@@ -6864,17 +6890,17 @@ msgstr "滚动 1 / 7 / 30 天"
 msgid "Rule based"
 msgstr "规则判断"
 
-#: src/components/PersonalContextPanel.tsx:1376
+#: src/components/PersonalContextPanel.tsx:1417
 msgid "Rules"
 msgstr "规则"
 
-#: src/components/PersonalContextPanel.tsx:776
+#: src/components/PersonalContextPanel.tsx:814
 msgid "rules only"
-msgstr "仅规则"
+msgstr "仅按规则处理"
 
-#: src/components/PersonalContextPanel.tsx:1143
+#: src/components/PersonalContextPanel.tsx:1186
 msgid "Rules only · nothing sent to AI"
-msgstr "仅规则，不发送给 AI"
+msgstr "仅按规则处理，不发送给 AI"
 
 #: src/lib/phase-label.ts:10
 msgid "Run"
@@ -6920,9 +6946,9 @@ msgstr "跑步"
 msgid "Runs"
 msgstr "运行次数"
 
-#: src/components/PersonalContextPanel.tsx:228
-#: src/components/PersonalContextPanel.tsx:229
 #: src/components/PersonalContextPanel.tsx:230
+#: src/components/PersonalContextPanel.tsx:231
+#: src/components/PersonalContextPanel.tsx:232
 msgid "Safety"
 msgstr "安全"
 
@@ -6952,7 +6978,7 @@ msgstr "安全策略"
 #~ msgid "Samples incomplete · {coverage}% coverage"
 #~ msgstr "样本不完整 · 覆盖率 {coverage}%"
 
-#: src/components/PersonalContextPanel.tsx:246
+#: src/components/PersonalContextPanel.tsx:248
 msgid "Sat"
 msgstr "周六"
 
@@ -6960,7 +6986,7 @@ msgstr "周六"
 msgid "Save"
 msgstr "保存"
 
-#: src/components/PersonalContextPanel.tsx:1230
+#: src/components/PersonalContextPanel.tsx:1273
 msgid "Save correction"
 msgstr "保存更正"
 
@@ -6968,9 +6994,9 @@ msgstr "保存更正"
 msgid "Save Goal"
 msgstr "保存目标"
 
-#: src/components/PersonalContextPanel.tsx:1231
+#: src/components/PersonalContextPanel.tsx:1274
 msgid "Save private context"
-msgstr "保存私密上下文"
+msgstr "保存"
 
 #: src/components/ManagedPlanSettingsCard.tsx:753
 msgid "Save target"
@@ -6984,13 +7010,13 @@ msgstr "保存训练"
 msgid "Saved"
 msgstr "已保存"
 
-#: src/components/PersonalContextPanel.tsx:444
+#: src/components/PersonalContextPanel.tsx:482
 msgid "Saved without guessing a reason. The cause remains unknown."
-msgstr "已保存，不猜测原因。原因仍然未知。"
+msgstr "已保存，Praxys 不会推测具体原因。"
 
-#: src/components/PersonalContextPanel.tsx:1191
+#: src/components/PersonalContextPanel.tsx:1234
 msgid "Saving confirms this one purpose. It does not authorize a new purpose, AI processing, analytics, or model training."
-msgstr "保存只确认这一项用途，并不会授权新的用途、AI 处理、分析或模型训练。"
+msgstr "保存仅代表同意用于上述用途，不代表同意其他用途、AI 处理、数据分析或模型训练。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:752
 msgid "Saving target…"
@@ -7009,7 +7035,7 @@ msgstr "保存中…"
 msgid "Saving…"
 msgstr "保存中…"
 
-#: src/components/PersonalContextPanel.tsx:223
+#: src/components/PersonalContextPanel.tsx:225
 msgid "Schedule conflict"
 msgstr "日程冲突"
 
@@ -7187,13 +7213,13 @@ msgstr "设置"
 msgid "Setup"
 msgstr "设置向导"
 
-#: src/components/PersonalContextPanel.tsx:1085
+#: src/components/PersonalContextPanel.tsx:1128
 msgid "Share only what changes your plan."
-msgstr "只分享会改变你计划的内容。"
+msgstr "只填写会影响训练计划的内容。"
 
-#: src/components/PersonalContextPanel.tsx:668
+#: src/components/PersonalContextPanel.tsx:706
 msgid "Share only what could change your plan. Praxys keeps it private, never guesses why training changed, and leaves AI off unless you separately allow it."
-msgstr "只分享可能改变你计划的内容。Praxys 会保持私密，不会猜测训练变化原因，除非你另外允许，否则会保持 AI 关闭。"
+msgstr "只填写会影响训练计划的信息。Praxys 会加密保存，不会自行推测训练变化的原因；只有另行授权后，才会使用 AI 处理。"
 
 #: src/pages/Today.tsx:309
 msgid "Shorten the session if fatigue develops"
@@ -7415,11 +7441,11 @@ msgstr "先处理运维事项，再结合系统健康和使用情况选择下一
 msgid "Started"
 msgstr "开始时间"
 
-#: src/components/PersonalContextPanel.tsx:978
+#: src/components/PersonalContextPanel.tsx:1021
 msgid "Starts"
-msgstr "开始"
+msgstr "开始日期"
 
-#: src/components/PersonalContextPanel.tsx:1285
+#: src/components/PersonalContextPanel.tsx:1328
 #: src/pages/admin/AdminFeedback.tsx:390
 #: src/pages/admin/AdminUsers.tsx:734
 #: src/pages/admin/AdminUsers.tsx:873
@@ -7438,18 +7464,18 @@ msgstr "匀速"
 msgid "Stop activity if heat-illness symptoms develop, and seek medical care."
 msgstr "如出现热相关疾病症状，请立即停止活动并就医。"
 
-#: src/components/PersonalContextPanel.tsx:1450
-#: src/components/PersonalContextPanel.tsx:1488
+#: src/components/PersonalContextPanel.tsx:1491
+#: src/components/PersonalContextPanel.tsx:1529
 msgid "Stop using"
-msgstr "停止使用"
+msgstr "停止用于计划"
 
-#: src/components/PersonalContextPanel.tsx:1412
+#: src/components/PersonalContextPanel.tsx:1453
 msgid "Stop using this context?"
-msgstr "停止使用这条上下文？"
+msgstr "停止使用这条信息？"
 
-#: src/components/PersonalContextPanel.tsx:1127
+#: src/components/PersonalContextPanel.tsx:1170
 msgid "Stored until"
-msgstr "保留至"
+msgstr "信息保留至"
 
 #: src/pages/Settings.tsx:1181
 msgid "Strava Client ID"
@@ -7479,14 +7505,14 @@ msgstr "挑战目标"
 #~ msgid "strongly positive"
 #~ msgstr "状态极佳"
 
-#: src/components/PersonalContextPanel.tsx:1150
-#: src/components/PersonalContextPanel.tsx:1323
+#: src/components/PersonalContextPanel.tsx:1193
+#: src/components/PersonalContextPanel.tsx:1366
 msgid "Structured details"
-msgstr "结构化详情"
+msgstr "已保存的信息"
 
-#: src/components/PersonalContextPanel.tsx:1567
+#: src/components/PersonalContextPanel.tsx:1608
 msgid "Structured fields sent"
-msgstr "已发送的结构化字段"
+msgstr "将发送的信息"
 
 #: src/components/HeatAdaptationPanel.tsx:80
 #~ msgid "Stryd-provided activity weather"
@@ -7513,13 +7539,13 @@ msgstr "成功"
 msgid "successful"
 msgstr "成功率"
 
-#: src/components/PersonalContextPanel.tsx:1560
+#: src/components/PersonalContextPanel.tsx:1601
 msgid "Suggest a bounded adjustment to the current plan."
 msgstr "对当前计划提出一个有限调整建议。"
 
-#: src/components/PersonalContextPanel.tsx:1110
+#: src/components/PersonalContextPanel.tsx:1153
 msgid "Suggest adjustments to the current plan"
-msgstr "建议调整当前计划"
+msgstr "用于建议调整当前计划"
 
 #: src/components/DiagnosisCard.tsx:94
 msgid "Suggestions"
@@ -7532,7 +7558,7 @@ msgstr "建议"
 msgid "Summary window"
 msgstr "汇总时间范围"
 
-#: src/components/PersonalContextPanel.tsx:247
+#: src/components/PersonalContextPanel.tsx:249
 msgid "Sun"
 msgstr "周日"
 
@@ -7781,17 +7807,17 @@ msgstr "其他条件合格的活动中，温度缺失过多。"
 msgid "Tempo"
 msgstr "节奏跑"
 
-#: src/components/PersonalContextPanel.tsx:768
+#: src/components/PersonalContextPanel.tsx:806
 msgid "Temporary availability"
-msgstr "临时可用时间"
+msgstr "临时训练安排"
 
-#: src/components/PersonalContextPanel.tsx:338
+#: src/components/PersonalContextPanel.tsx:376
 msgid "Temporary context can stay active for at most 90 days."
-msgstr "临时上下文最多可保持激活 90 天。"
+msgstr "这类临时信息最长可生效 90 天。"
 
-#: src/components/PersonalContextPanel.tsx:1059
+#: src/components/PersonalContextPanel.tsx:1102
 msgid "Terrain still available (optional)"
-msgstr "仍可使用的地形（选填）"
+msgstr "仍可选择的训练地形（可多选）"
 
 #: src/components/TodayDecisionCheck.tsx:138
 msgid "Thanks - that helps us improve Today."
@@ -7805,9 +7831,9 @@ msgstr "感谢你的反馈！"
 msgid "That date is now completed history and can no longer be changed."
 msgstr "这一天已归入已完成记录，无法再修改。"
 
-#: src/components/PersonalContextPanel.tsx:729
+#: src/components/PersonalContextPanel.tsx:767
 msgid "That is a complete state, not missing data. Praxys keeps the reason unknown and does not reduce your standing or invent an explanation."
-msgstr "这是完整状态，不是缺失数据。Praxys 会保持原因未知，不会因此影响你的评价，也不会编造解释。"
+msgstr "没有填写也是完整状态，并不代表数据缺失。Praxys 会保留“原因未知”，不会因此作出负面判断或自行补充解释。"
 
 #: src/pages/LabsEnvironment.tsx:718
 msgid "The accepted Praxys evidence review found controlled support for heat-related cardiovascular drift, but no field study validating a causal or predictive personal Stull wet-bulb response curve. V1 is therefore descriptive and Stryd-only."
@@ -7869,7 +7895,7 @@ msgstr "连续采样覆盖过于稀疏，无法进行稳定比较。"
 msgid "The eligible history crosses incompatible power-device or algorithm regimes."
 msgstr "符合条件的历史数据跨越了不兼容的功率设备或算法阶段。"
 
-#: src/components/PersonalContextPanel.tsx:336
+#: src/components/PersonalContextPanel.tsx:374
 msgid "The end date must be after the start date."
 msgstr "结束日期必须晚于开始日期。"
 
@@ -8028,15 +8054,15 @@ msgstr "此操作无法撤销。如果这是最后一个管理员账号，将无
 
 #: src/components/UpcomingPlanCard.tsx:1476
 msgid "This change used confirmed private context. The private detail is not copied into the plan record."
-msgstr "这次变更使用了已确认的私密上下文。私密细节不会复制到计划记录中。"
+msgstr "这次调整使用了已确认的计划个性化信息，具体内容不会写入计划记录。"
 
 #: src/pages/LabsEnvironment.tsx:580
 msgid "This combination is outside Praxys’s conservative Stull method domain."
 msgstr "此温湿度组合超出 Praxys 采用的保守 Stull 方法范围。"
 
-#: src/components/PersonalContextPanel.tsx:1534
+#: src/components/PersonalContextPanel.tsx:1575
 msgid "This decision is separate from saving context and applies only to this exact version."
-msgstr "这项决定与保存上下文是分开的，只适用于这个确切版本。"
+msgstr "AI 权限与保存信息分开确认，且只适用于当前版本。"
 
 #: src/pages/admin/AdminOps.tsx:653
 msgid "This delivery cannot be replayed automatically. Review the refreshed queue for the required action."
@@ -8046,10 +8072,10 @@ msgstr "无法自动重试此次下发。请查看已刷新的队列，确认所
 msgid "This delivery changed before recovery started. Review the refreshed queue."
 msgstr "恢复开始前，此次下发状态已变更。请查看已刷新的队列。"
 
-#: src/components/PersonalContextPanel.tsx:965
-#: src/components/PersonalContextPanel.tsx:1180
+#: src/components/PersonalContextPanel.tsx:1008
+#: src/components/PersonalContextPanel.tsx:1223
 msgid "This enters the safety path and stops ordinary performance optimization. Praxys cannot diagnose, clear you to train, or set a return-to-sport timeline."
-msgstr "这会进入安全流程，并停止常规训练优化。Praxys 不能诊断、批准你训练，也不能制定重返运动时间表。"
+msgstr "这类信息会进入安全流程，暂停常规训练优化。Praxys 不会进行诊断、判断是否可以训练，也不会设定恢复运动的时间。"
 
 #: src/components/HeatAdaptationPanel.tsx:52
 msgid "This evaluates past training only; it does not assess today's weather or conditions."
@@ -8199,7 +8225,7 @@ msgstr "阈值配速趋势"
 msgid "Thresholds"
 msgstr "阈值"
 
-#: src/components/PersonalContextPanel.tsx:244
+#: src/components/PersonalContextPanel.tsx:246
 msgid "Thu"
 msgstr "周四"
 
@@ -8289,8 +8315,8 @@ msgstr "当前网络请求次数过多，请直接发邮件联系我们。"
 msgid "Total users tracked"
 msgstr "已记录用户总数"
 
-#: src/components/PersonalContextPanel.tsx:252
-#: src/components/PersonalContextPanel.tsx:261
+#: src/components/PersonalContextPanel.tsx:254
+#: src/components/PersonalContextPanel.tsx:263
 msgid "Track"
 msgstr "跑道"
 
@@ -8298,7 +8324,7 @@ msgstr "跑道"
 msgid "Tracking"
 msgstr "跟踪"
 
-#: src/components/PersonalContextPanel.tsx:260
+#: src/components/PersonalContextPanel.tsx:262
 msgid "Trail"
 msgstr "越野"
 
@@ -8335,8 +8361,8 @@ msgstr "训练复盘"
 msgid "Training Science"
 msgstr "训练科学"
 
-#: src/components/PersonalContextPanel.tsx:226
-#: src/components/PersonalContextPanel.tsx:227
+#: src/components/PersonalContextPanel.tsx:228
+#: src/components/PersonalContextPanel.tsx:229
 msgid "Training state"
 msgstr "训练状态"
 
@@ -8348,12 +8374,12 @@ msgstr "训练区间"
 msgid "Translates training stress into fitness."
 msgstr "把训练负荷转化为体能。"
 
-#: src/components/PersonalContextPanel.tsx:225
+#: src/components/PersonalContextPanel.tsx:227
 msgid "Travel"
 msgstr "出行"
 
-#: src/components/PersonalContextPanel.tsx:251
-#: src/components/PersonalContextPanel.tsx:262
+#: src/components/PersonalContextPanel.tsx:253
+#: src/components/PersonalContextPanel.tsx:264
 msgid "Treadmill"
 msgstr "跑步机"
 
@@ -8398,7 +8424,7 @@ msgstr "TSB"
 msgid "TSB (load balance)"
 msgstr "TSB（负荷平衡）"
 
-#: src/components/PersonalContextPanel.tsx:242
+#: src/components/PersonalContextPanel.tsx:244
 msgid "Tue"
 msgstr "周二"
 
@@ -8459,13 +8485,13 @@ msgstr "无法连接状态服务"
 msgid "Unavailable"
 msgstr "不可用"
 
-#: src/components/PersonalContextPanel.tsx:222
+#: src/components/PersonalContextPanel.tsx:224
 msgid "Unavailable day"
-msgstr "不可用日"
+msgstr "某天无法训练"
 
-#: src/components/PersonalContextPanel.tsx:1312
+#: src/components/PersonalContextPanel.tsx:1355
 msgid "Unavailable for safety context"
-msgstr "安全类背景不使用 AI"
+msgstr "安全相关信息不支持 AI 处理"
 
 #: src/pages/admin/AdminOps.tsx:500
 msgid "Unclassified"
@@ -8488,7 +8514,7 @@ msgid "Unknown failure"
 msgstr "未知错误"
 
 #. placeholder {0}: formatDate(item.expires_at)
-#: src/components/PersonalContextPanel.tsx:771
+#: src/components/PersonalContextPanel.tsx:809
 msgid "until {0}"
 msgstr "至 {0}"
 
@@ -8750,9 +8776,9 @@ msgstr "我们正在分批邀请跑者，并持续打磨科学方法。留下邮
 msgid "We've logged it and will take a look."
 msgstr "我们已记录，会尽快查看。"
 
-#: src/components/PersonalContextPanel.tsx:231
+#: src/components/PersonalContextPanel.tsx:233
 msgid "Weather"
-msgstr "天气"
+msgstr "天气影响"
 
 #: src/components/HeatAdaptationPanel.tsx:486
 msgid "Weather evidence"
@@ -8770,7 +8796,7 @@ msgstr "微信小程序"
 msgid "WeChat Mini Program QR code"
 msgstr "微信小程序二维码"
 
-#: src/components/PersonalContextPanel.tsx:243
+#: src/components/PersonalContextPanel.tsx:245
 msgid "Wed"
 msgstr "周三"
 
@@ -8827,11 +8853,11 @@ msgstr "湿球温度代理值"
 msgid "Wet-bulb proxy calculator"
 msgstr "湿球温度代理值计算器"
 
-#: src/components/PersonalContextPanel.tsx:828
+#: src/components/PersonalContextPanel.tsx:866
 msgid "What availability changed?"
 msgstr "哪项可用时间有变？"
 
-#: src/components/PersonalContextPanel.tsx:827
+#: src/components/PersonalContextPanel.tsx:865
 msgid "What changed with this workout?"
 msgstr "这次训练变了什么？"
 
@@ -8847,9 +8873,9 @@ msgstr "这次训练变了什么？"
 msgid "What happened, or what would you like to see?"
 msgstr "遇到了什么问题，或希望我们做些什么？"
 
-#: src/components/PersonalContextPanel.tsx:898
+#: src/components/PersonalContextPanel.tsx:941
 msgid "What happened?"
-msgstr "发生了什么？"
+msgstr "这次训练怎么了？"
 
 #: src/pages/LabsEnvironment.tsx:678
 msgid "What this can—and cannot—tell you"
@@ -8887,7 +8913,7 @@ msgstr "将同步以下内容："
 msgid "Withdraw"
 msgstr "退出"
 
-#: src/components/PersonalContextPanel.tsx:1641
+#: src/components/PersonalContextPanel.tsx:1684
 msgid "Withdraw AI permission"
 msgstr "撤回 AI 权限"
 
@@ -8915,8 +8941,8 @@ msgstr "退出后将删除实验同意记录和汇总结果。今后重新加入
 msgid "Withdrawal immediately deletes experiment consent and the derived result. Your ordinary account activities remain unchanged."
 msgstr "退出后会立即删除实验同意记录和派生结果，账号中的普通活动保持不变。"
 
-#: src/components/PersonalContextPanel.tsx:761
-#: src/components/PersonalContextPanel.tsx:1289
+#: src/components/PersonalContextPanel.tsx:799
+#: src/components/PersonalContextPanel.tsx:1332
 msgid "Withdrawn"
 msgstr "已撤回"
 
@@ -8933,7 +8959,7 @@ msgid "Workload evidence"
 msgstr "负荷证据"
 
 #: src/components/ManagedPlanSettingsCard.tsx:979
-#: src/components/PersonalContextPanel.tsx:841
+#: src/components/PersonalContextPanel.tsx:879
 #: src/components/UpcomingPlanCard.tsx:1467
 msgid "Workout"
 msgstr "训练"
@@ -8954,17 +8980,21 @@ msgstr "不支持训练下发。"
 #~ msgid "Workout differs on Stryd — re-push to overwrite"
 #~ msgstr ""
 
-#: src/components/PersonalContextPanel.tsx:767
+#: src/components/PersonalContextPanel.tsx:805
 msgid "Workout explanation"
-msgstr "训练说明"
+msgstr "训练情况说明"
 
-#: src/components/PersonalContextPanel.tsx:1298
+#: src/components/PersonalContextPanel.tsx:1341
 msgid "Workout interpretation"
 msgstr "训练解读"
 
 #: src/components/WorkoutPlanEditor.tsx:456
 msgid "Workout notes"
 msgstr "训练备注"
+
+#: src/components/PersonalContextPanel.tsx:274
+msgid "Workout status"
+msgstr "训练完成情况"
 
 #: src/components/WorkoutPlanEditor.tsx:259
 msgid "Workout type"
@@ -8978,7 +9008,7 @@ msgstr "你"
 msgid "You can attach up to 3 images."
 msgstr "最多可添加 3 张图片。"
 
-#: src/components/PersonalContextPanel.tsx:1606
+#: src/components/PersonalContextPanel.tsx:1649
 msgid "You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed. Deleting the item removes local provider-use receipts and dependent private explanations."
 msgstr "你可以在后续请求前撤回。撤回无法收回 AI 服务已处理的请求。删除该项会移除本地 AI 使用记录和关联的私密说明。"
 

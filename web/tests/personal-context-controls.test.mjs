@@ -13,6 +13,7 @@ import {
   EXECUTION_CATEGORIES,
   TEMPORARY_CATEGORIES,
 } from '../../miniapp/utils/personal-context.ts';
+import { setTabBarHidden } from '../../miniapp/utils/tabbar.ts';
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
 
@@ -166,6 +167,35 @@ test('web and miniapp expose the same private lifecycle controls', async () => {
   assert.match(trainingTemplate, /<personal-context \/>/);
 });
 
+test('miniapp context sheets hide the custom tab bar', async () => {
+  const updates = [];
+  const tabBar = {
+    setData(data) {
+      updates.push(data);
+    },
+  };
+
+  setTabBarHidden({
+    getTabBar(callback) {
+      callback(tabBar);
+    },
+  }, true);
+  setTabBarHidden({
+    getTabBar() {
+      return tabBar;
+    },
+  }, false);
+
+  assert.deepEqual(updates, [{ hidden: true }, { hidden: false }]);
+
+  const [tabBarTemplate, contextSource] = await Promise.all([
+    read('../../miniapp/custom-tab-bar/index.wxml'),
+    read('../../miniapp/components/personal-context/index.ts'),
+  ]);
+  assert.match(tabBarTemplate, /wx:if="\{\{!hidden\}\}"/);
+  assert.match(contextSource, /sheetOpen\(sheetOpen: boolean\)/);
+});
+
 test('AI consent disclosure stays explicit and bilingual', async () => {
   const [web, mini, legal, miniLegal] = await Promise.all([
     read('../src/components/PersonalContextPanel.tsx'),
@@ -192,4 +222,36 @@ test('AI consent disclosure stays explicit and bilingual', async () => {
     assert.match(source, /计划个性化信息/);
     assert.doesNotMatch(source, /私密计划背景信息/);
   }
+});
+
+test('personal-context Chinese uses natural product language', async () => {
+  const [catalog, miniExtra, miniSource] = await Promise.all([
+    read('../src/locales/zh/messages.po'),
+    read('../../miniapp/utils/i18n-extra.ts'),
+    read('../../miniapp/components/personal-context/index.ts'),
+  ]);
+
+  assert.match(
+    catalog,
+    /msgid "Plan context"\r?\nmsgstr "计划个性化信息"/,
+  );
+  assert.match(
+    catalog,
+    /msgid "Add availability"\r?\nmsgstr "调整可训练时间"/,
+  );
+  assert.match(
+    catalog,
+    /msgid "Explain a workout"\r?\nmsgstr "说明训练情况"/,
+  );
+  assert.match(
+    catalog,
+    /msgid "Private note \(optional\)"\r?\nmsgstr "补充说明（选填）"/,
+  );
+  assert.doesNotMatch(
+    catalog,
+    /msgstr "(?:计划上下文|私密上下文|解释一条训练|添加可用时间)"/,
+  );
+  assert.match(miniExtra, /'Manage private context': '管理计划个性化信息'/);
+  assert.match(miniSource, /affected_dates: \(\) => t\('Affected dates'\)/);
+  assert.match(miniSource, /\.map\(disclosedFieldLabel\)/);
 });

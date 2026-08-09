@@ -59,6 +59,7 @@ import type {
   PersonalContextCategory,
   PersonalContextDetailResponse,
   PersonalContextDraftRequest,
+  PersonalContextFieldValue,
   PersonalContextItem,
   PersonalContextListResponse,
   PersonalContextMutationResponse,
@@ -117,6 +118,7 @@ function requestErrorMessage(error: unknown, fallback: string): string {
 function formatWorkoutLabel(
   workout: PlannedWorkout,
   locale: string,
+  translate: (message: string) => string,
 ): string {
   const date = new Date(`${workout.date}T12:00:00`);
   const dateLabel = date.toLocaleDateString(
@@ -127,7 +129,7 @@ function formatWorkoutLabel(
     .split(/[\s_]+/)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
-  return `${dateLabel} · ${type}`;
+  return `${dateLabel} · ${translate(type)}`;
 }
 
 function ChoiceChips({
@@ -178,7 +180,7 @@ function ChoiceChips({
 }
 
 export default function PersonalContextPanel() {
-  const { t } = useLingui();
+  const { i18n, t } = useLingui();
   const { locale } = useLocale();
   const listUrl =
     '/api/personal-context?include_history=false&include_narrative=false';
@@ -263,6 +265,42 @@ export default function PersonalContextPanel() {
     { value: 'flat', label: t`Flat` },
     { value: 'hilly', label: t`Hilly` },
   ];
+  const contextFieldLabels: Record<string, string> = {
+    affected_dates: t`Affected dates`,
+    affected_days: t`Affected weekdays`,
+    maximum_available_minutes: t`Maximum training minutes per day`,
+    available_equipment: t`Available equipment`,
+    available_terrain: t`Available terrain`,
+    workout_status: t`Workout status`,
+  };
+  const contextValueLabels = new Map<string, string>(
+    [
+      ...weekdays,
+      ...equipment,
+      ...terrain,
+      { value: 'missed', label: t`Missed` },
+      { value: 'modified', label: t`Modified` },
+    ].map(({ value, label }) => [value, label]),
+  );
+
+  const contextFieldLabel = (key: string) => (
+    contextFieldLabels[key] ?? key.replaceAll('_', ' ')
+  );
+
+  const formatContextFieldValue = (value: PersonalContextFieldValue) => {
+    const values = Array.isArray(value) ? value : [value];
+    return values.map((entry) => (
+      typeof entry === 'string'
+        ? contextValueLabels.get(entry) ?? entry
+        : String(entry)
+    )).join(locale === 'zh' ? '、' : ', ');
+  };
+
+  const disclosedFieldLabel = (field: string) => (
+    field === 'category'
+      ? t`Category`
+      : contextFieldLabel(field.replace(/^fields\./, ''))
+  );
 
   const categoryLabel = (value: PersonalContextCategory) => (
     categoryOptions.find((option) => option.value === value)?.label ?? value
@@ -849,6 +887,7 @@ export default function PersonalContextPanel() {
                             (workout) => workout.canonical_id === form.workoutId,
                           )!,
                           locale,
+                          (message) => i18n._(message),
                         )
                         : t`Linked workout`}
                     </p>
@@ -879,7 +918,11 @@ export default function PersonalContextPanel() {
                           key={workout.canonical_id}
                           value={workout.canonical_id ?? ''}
                         >
-                          {formatWorkoutLabel(workout, locale)}
+                          {formatWorkoutLabel(
+                            workout,
+                            locale,
+                            (message) => i18n._(message),
+                          )}
                         </option>
                       ))}
                     </select>
@@ -1138,7 +1181,7 @@ export default function PersonalContextPanel() {
                   </div>
                 )}
                 <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-4 py-3">
-                  <span className="text-muted-foreground"><Trans>Processing</Trans></span>
+                  <span className="text-muted-foreground"><Trans>Processing method</Trans></span>
                   <span className="font-medium text-foreground">
                     <Trans>Rules only · nothing sent to AI</Trans>
                   </span>
@@ -1153,10 +1196,10 @@ export default function PersonalContextPanel() {
                     {Object.entries(preview.payload.fields).map(([key, value]) => (
                       <div key={key} className="flex items-start justify-between gap-4">
                         <dt className="text-muted-foreground">
-                          {key.replaceAll('_', ' ')}
+                          {contextFieldLabel(key)}
                         </dt>
                         <dd className="max-w-[60%] text-right font-data text-foreground">
-                          {Array.isArray(value) ? value.join(', ') : String(value)}
+                          {formatContextFieldValue(value)}
                         </dd>
                       </div>
                     ))}
@@ -1327,12 +1370,10 @@ export default function PersonalContextPanel() {
                       ([key, value]) => (
                         <div key={key} className="flex items-start justify-between gap-4">
                           <dt className="text-muted-foreground">
-                            {key.replaceAll('_', ' ')}
+                            {contextFieldLabel(key)}
                           </dt>
                           <dd className="max-w-[60%] text-right font-data text-foreground">
-                            {Array.isArray(value)
-                              ? value.join(', ')
-                              : String(value)}
+                            {formatContextFieldValue(value)}
                           </dd>
                         </div>
                       ),
@@ -1567,7 +1608,9 @@ export default function PersonalContextPanel() {
                   <Trans>Structured fields sent</Trans>
                 </p>
                 <p className="mt-1 font-data text-xs leading-relaxed text-muted-foreground">
-                  {personalContextDisclosedFields(aiItem).join(', ')}
+                  {personalContextDisclosedFields(aiItem)
+                    .map(disclosedFieldLabel)
+                    .join(locale === 'zh' ? '、' : ', ')}
                 </p>
               </div>
 

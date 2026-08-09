@@ -939,11 +939,11 @@ const EN_PRIVATE_CONTEXT = {
 
 const ZH_PRIVATE_CONTEXT = {
   Manage: '管理',
-  'I confirm this purpose and expiry': '我确认此用途和有效期',
+  'I confirm this purpose and expiry': '我已确认上述用途和期限',
   'Manage private context': '管理计划个性化信息',
   'Private context JSON copied': '计划个性化信息 JSON 已复制',
   'You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed.':
-    '可在后续请求前撤回权限；AI 服务已经处理的请求无法撤回。',
+    '后续请求发送前可随时撤回；已经由 AI 服务处理的请求无法撤回。',
 };
 
 export const I18N_EXTRA: Record<Locale, Record<string, string>> = {
