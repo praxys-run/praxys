@@ -51,6 +51,7 @@ custom signals in the table below belong to `appi-praxys-backend`.
 | `praxys.sync` | `platform`, `outcome`, `failure_class`, `trigger`, `user_id_hash` | Per-platform sync attempt outcomes (success/failure + why) | `record_sync` |
 | `praxys.connection` | `platform`, `flow`, `stage`, `outcome`, `failure_class`, `region`, `user_id_hash` | Account-connect attempts; `flow` is the Garmin **mfa** vs **non_mfa** sub-category | `record_connection` |
 | `praxys.managed_plan` | `category`, `action`, `outcome`, `target`, `trigger`, `reason`, `failure_domain`, `user_id_hash`; `duration_ms`* | Managed-plan lifecycle, reconciliation, cleanup, delivery-run, item, and operator-recovery outcomes. `*` customEvent only; the metric fallback records latency separately as `praxys.managed_plan.delivery_latency`. | `record_managed_plan_event` |
+| `praxys.labs_job` | `event`, `outcome`, `trigger`, `attempt`, `failure_class`, `user_id_hash`; `queue_delay_ms`*, `duration_ms`* | Durable Labs enqueue/dispatch/start/retry/completion/cancellation lifecycle. Queue payloads and telemetry contain no athlete rows. `*` present when known. | `record_labs_job` |
 
 > `praxys.feedback`'s `status` dimension includes `needs_review` — the trigger for
 > the feedback alert below.
@@ -463,9 +464,64 @@ retail rate per the [cost model](#alert-cost-model) below.
 | `praxys-connect-systemic-failures` | log | `appi-praxys-backend` | `praxys.connection` — ≥5 distinct users fail connect with systemic classes for one platform / 15 min | 15 min | 2 | 0.50 |
 | `praxys-managed-plan-provider-failures` | log | `appi-praxys-backend` | `praxys.managed_plan` — ≥5 distinct users hit `provider` / `provider_auth` failures for one execution target / 15 min | 15 min | 2 | 0.50 |
 | `praxys-managed-plan-defects` | log | `appi-praxys-backend` | `praxys.managed_plan` — any known `praxys` ledger/reconciliation/finalization/adapter defect | 15 min | 2 | 0.50 |
+| `praxys-labs-queue-backlog` | metric | dedicated Labs Service Bus namespace / `labs-environment-response` | `ActiveMessages` average > 2 over 30 min | 5 min | 2 | ~0.10 |
+| `praxys-labs-dead-lettered` | metric | dedicated Labs Service Bus namespace / `labs-environment-response` | `DeadletteredMessages` maximum > 0 over 5 min | 5 min | 2 | ~0.10 |
 
-**Total ≈ 4.5–4.8 USD/mo** (the three metric alerts may fall inside the small free
+**Total ≈ 4.5–5.0 USD/mo** (the five metric alerts may fall inside the small free
 allotment, making the effective figure closer to the 4.50 log-alert subtotal).
+
+### Labs analysis worker alerts (deployment-owned)
+
+`infra/labs-worker.bicep` owns both Sev 2 metric alerts and attaches
+`praxys-feedback-ag`. The namespace is dedicated to this pipeline, and each
+criterion also filters `EntityName=labs-environment-response`.
+
+- `praxys-labs-queue-backlog` catches sustained capacity pressure without
+  paging on one short burst.
+- `praxys-labs-dead-lettered` catches any message that exhausted bounded
+  infrastructure retries. Scientific unavailable/stale outcomes complete
+  successfully and never enter the DLQ.
+
+Use `praxys.labs_job` to distinguish dispatch, transient worker, terminal
+worker, cancellation, and scientific outcomes:
+
+```kql
+let labs = union isfuzzy=true
+  (customEvents
+   | where name == "praxys.labs_job"
+   | project timestamp,
+       event=tostring(customDimensions.event),
+       outcome=tostring(customDimensions.outcome),
+       trigger=tostring(customDimensions.trigger),
+       attempt=toint(customDimensions.attempt),
+       failure_class=tostring(customDimensions.failure_class),
+       user=tostring(customDimensions.user_id_hash),
+       queue_delay_ms=todouble(customDimensions.queue_delay_ms),
+       duration_ms=todouble(customDimensions.duration_ms),
+       events=1.0),
+  (customMetrics
+   | where name == "praxys.labs_job"
+   | project timestamp,
+       event=tostring(customDimensions.event),
+       outcome=tostring(customDimensions.outcome),
+       trigger=tostring(customDimensions.trigger),
+       attempt=toint(customDimensions.attempt),
+       failure_class=tostring(customDimensions.failure_class),
+       user=tostring(customDimensions.user_id_hash),
+       queue_delay_ms=todouble(customDimensions.queue_delay_ms),
+       duration_ms=todouble(customDimensions.duration_ms),
+       events=coalesce(valueSum, value, todouble(valueCount), 0.0));
+labs
+| where timestamp > ago(7d)
+| summarize events=sum(events), users=dcount(user),
+    p95_queue_delay_ms=percentile(queue_delay_ms, 95),
+    p95_duration_ms=percentile(duration_ms, 95)
+    by event, outcome, trigger, attempt, failure_class
+| order by events desc
+```
+
+Deployment, diagnosis, and rollback are in
+[labs-analysis-worker.md](./labs-analysis-worker.md).
 
 ### Systemic connection/sync alerts (provisioned)
 

@@ -1,0 +1,304 @@
+name: Deploy Labs Analysis Worker
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'api-*'
+    paths:
+      - 'alembic/**'
+      - 'analysis/**'
+      - 'api/**'
+      - 'config/**'
+      - 'data/science/**'
+      - 'db/**'
+      - 'sync/**'
+      - 'tests/**'
+      - 'requirements.txt'
+      - 'Dockerfile.labs-worker'
+      - '.dockerignore'
+      - 'infra/labs-worker.bicep'
+      - 'scripts/appinsights_boundary.sh'
+      - 'scripts/provision_labs_worker_db.py'
+      - '.github/azure-observability.env'
+      - '.github/workflows/deploy-backend.yml'
+      - '.github/workflows/deploy-labs-worker.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-labs-worker-production
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/praxys-run/praxys-labs-worker
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run Labs tests
+        run: >-
+          python -m pytest
+          tests/test_labs_environment.py
+          tests/test_config.py
+          tests/test_account_deletion.py
+          -q
+      - name: Validate worker infrastructure
+        run: az bicep build --file infra/labs-worker.bicep --outfile "${RUNNER_TEMP}/labs-worker.json"
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish worker image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.labs-worker
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+      - name: Verify worker package visibility
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOY_ENABLED: ${{ vars.PRAXYS_LABS_WORKER_DEPLOY_ENABLED }}
+        run: |
+          set -euo pipefail
+          visibility=""
+          for attempt in {1..6}; do
+            if visibility="$(
+              gh api \
+                /orgs/praxys-run/packages/container/praxys-labs-worker \
+                --jq .visibility \
+                2>/dev/null
+            )"; then
+              break
+            fi
+            sleep 5
+          done
+          if [[ -z "${visibility}" ]]; then
+            echo "GHCR package metadata was not available after publication." >&2
+            exit 1
+          fi
+          if [[ "${visibility}" != "public" ]]; then
+            echo "::warning::Set the praxys-labs-worker package visibility to Public in GitHub package settings."
+            if [[ "${DEPLOY_ENABLED}" == "true" ]]; then
+              echo "Worker deployment requires an anonymously pullable image." >&2
+              exit 1
+            fi
+            exit 0
+          fi
+          docker logout ghcr.io
+          docker pull "${IMAGE}:${GITHUB_SHA}"
+
+  deploy:
+    if: vars.PRAXYS_LABS_WORKER_DEPLOY_ENABLED == 'true'
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Load Azure resource names
+        run: cat .github/azure-observability.env >> "$GITHUB_ENV"
+      - name: Azure Login (OIDC)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify Azure bootstrap prerequisites
+        run: |
+          set -euo pipefail
+          for namespace in \
+            Microsoft.ServiceBus \
+            Microsoft.App \
+            Microsoft.ManagedIdentity; do
+            state="$(
+              az provider show \
+                --namespace "${namespace}" \
+                --query registrationState \
+                -o tsv
+            )"
+            if [[ "${state}" != "Registered" ]]; then
+              echo "ERROR: ${namespace} is ${state}; run the privileged provider bootstrap in docs/ops/labs-analysis-worker.md." >&2
+              exit 1
+            fi
+          done
+      - name: Deploy queue, identity, job, and alerts
+        env:
+          PRAXYS_LABS_DATABASE_URL: ${{ secrets.PRAXYS_LABS_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${PRAXYS_LABS_DATABASE_URL}" ]]; then
+            echo "PRAXYS_LABS_DATABASE_URL is required when worker deployment is enabled." >&2
+            exit 1
+          fi
+          az deployment group create \
+            --name "labs-worker-${GITHUB_RUN_ID}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --template-file infra/labs-worker.bicep \
+            --parameters \
+              location="${AZURE_LOCATION}" \
+              image="${IMAGE}:${GITHUB_SHA}" \
+              databaseUrl="${PRAXYS_LABS_DATABASE_URL}" \
+              logAnalyticsWorkspaceName="${LOG_ANALYTICS_WORKSPACE}" \
+              backendAppInsightsName="${BACKEND_APPINSIGHTS_NAME}" \
+            --only-show-errors \
+            --output json > "${RUNNER_TEMP}/labs-worker-deployment.json"
+
+      - name: Verify runtime RBAC
+        env:
+          BACKEND_LABS_SERVICE_BUS_CLIENT_ID: ${{ vars.PRAXYS_LABS_SERVICE_BUS_CLIENT_ID }}
+        run: |
+          set -euo pipefail
+          worker_principal_id="$(
+            jq -r '.properties.outputs.workerIdentityPrincipalId.value' \
+              "${RUNNER_TEMP}/labs-worker-deployment.json"
+          )"
+          queue_resource_id="$(
+            jq -r '.properties.outputs.queueResourceId.value' \
+              "${RUNNER_TEMP}/labs-worker-deployment.json"
+          )"
+          app_insights_resource_id="$(
+            jq -r '.properties.outputs.appInsightsResourceId.value' \
+              "${RUNNER_TEMP}/labs-worker-deployment.json"
+          )"
+          backend_identity="$(
+            az webapp identity show \
+              --name trainsight-app \
+              --resource-group "${AZURE_RESOURCE_GROUP}" \
+              -o json
+          )"
+          if [[ -n "${BACKEND_LABS_SERVICE_BUS_CLIENT_ID}" ]]; then
+            backend_principal_id="$(
+              jq -r \
+                --arg client_id "${BACKEND_LABS_SERVICE_BUS_CLIENT_ID}" \
+                '(.userAssignedIdentities // {})
+                 | to_entries[]
+                 | select(.value.clientId == $client_id)
+                 | .value.principalId' \
+                <<< "${backend_identity}" \
+                | head -1
+            )"
+          else
+            backend_principal_id="$(
+              jq -r '.principalId // empty' <<< "${backend_identity}"
+            )"
+          fi
+          if [[ -z "${backend_principal_id}" ]]; then
+            echo "ERROR: the configured Labs Service Bus identity is not attached to trainsight-app." >&2
+            exit 1
+          fi
+
+          verify_role() {
+            local principal_id="$1"
+            local role_id="$2"
+            local scope="$3"
+            local label="$4"
+            local count
+            count="$(
+              az role assignment list \
+                --scope "${scope}" \
+                --query "[?principalId=='${principal_id}' && ends_with(roleDefinitionId, '/${role_id}')] | length(@)" \
+                -o tsv
+            )"
+            if [[ "${count}" -lt 1 ]]; then
+              echo "ERROR: missing exact-scope ${label} assignment; run the privileged RBAC bootstrap in docs/ops/labs-analysis-worker.md." >&2
+              return 1
+            fi
+          }
+
+          verify_role \
+            "${backend_principal_id}" \
+            "69a216fc-b8fb-44d8-bc22-1f3c2cd27a39" \
+            "${queue_resource_id}" \
+            "backend Service Bus Data Sender"
+          verify_role \
+            "${worker_principal_id}" \
+            "4f6d3b9b-027b-4f4c-9142-0e5a2a2247e0" \
+            "${queue_resource_id}" \
+            "worker Service Bus Data Receiver"
+          verify_role \
+            "${worker_principal_id}" \
+            "3913510d-42f4-4e42-8a64-420c390055eb" \
+            "${app_insights_resource_id}" \
+            "worker Monitoring Metrics Publisher"
+
+      - name: Verify bounded worker configuration
+        run: |
+          set -euo pipefail
+          job_name="$(
+            jq -r '.properties.outputs.workerJobName.value' \
+              "${RUNNER_TEMP}/labs-worker-deployment.json"
+          )"
+          namespace_name="$(
+            jq -r '.properties.outputs.serviceBusNamespaceName.value' \
+              "${RUNNER_TEMP}/labs-worker-deployment.json"
+          )"
+          queue_name="$(
+            jq -r '.properties.outputs.queueName.value' \
+              "${RUNNER_TEMP}/labs-worker-deployment.json"
+          )"
+          job_config="$(
+            az containerapp job show \
+              --name "${job_name}" \
+              --resource-group "${AZURE_RESOURCE_GROUP}" \
+              --query "{
+                triggerType:properties.configuration.triggerType,
+                timeout:properties.configuration.replicaTimeout,
+                retries:properties.configuration.replicaRetryLimit,
+                parallelism:properties.configuration.eventTriggerConfig.parallelism,
+                completions:properties.configuration.eventTriggerConfig.replicaCompletionCount,
+                minExecutions:properties.configuration.eventTriggerConfig.scale.minExecutions,
+                maxExecutions:properties.configuration.eventTriggerConfig.scale.maxExecutions,
+                image:properties.template.containers[0].image,
+                cpu:properties.template.containers[0].resources.cpu,
+                memory:properties.template.containers[0].resources.memory
+              }" -o json
+          )"
+          echo "${job_config}"
+          jq -e \
+            --arg image "${IMAGE}:${GITHUB_SHA}" \
+            '.triggerType == "Event"
+              and .timeout == 1800
+              and .retries == 0
+              and .parallelism == 1
+              and .completions == 1
+              and .minExecutions == 0
+              and .maxExecutions == 1
+              and .image == $image
+              and .cpu == 1
+              and .memory == "2Gi"' \
+            <<< "${job_config}" >/dev/null
+
+          queue_config="$(
+            az servicebus queue show \
+              --resource-group "${AZURE_RESOURCE_GROUP}" \
+              --namespace-name "${namespace_name}" \
+              --name "${queue_name}" \
+              --query "{
+                lockDuration:lockDuration,
+                ttl:defaultMessageTimeToLive,
+                maxDeliveryCount:maxDeliveryCount,
+                deadLettering:deadLetteringOnMessageExpiration
+              }" -o json
+          )"
+          echo "${queue_config}"
+          jq -e \
+            '.lockDuration == "PT5M"
+              and .ttl == "P14D"
+              and .maxDeliveryCount == 10
+              and .deadLettering == true' \
+            <<< "${queue_config}" >/dev/null

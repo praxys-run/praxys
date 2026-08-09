@@ -428,11 +428,19 @@ def select_plan_for_analysis(
 # ---------------------------------------------------------------------------
 
 
-def load_data_from_db(user_id: str, db: Session) -> dict[str, pd.DataFrame]:
+def load_data_from_db(
+    user_id: str,
+    db: Session,
+    *,
+    include_plan: bool = True,
+) -> dict[str, pd.DataFrame]:
     """Load data from database for a specific user.
 
     Returns the same dict structure as load_data():
     {activities, splits, recovery, fitness, plan}.
+
+    ``include_plan=False`` is reserved for isolated research workers whose
+    analysis path does not consume planned workouts.
     """
     activities = pd.read_sql(
         text("SELECT * FROM activities WHERE user_id = :uid ORDER BY date"),
@@ -471,15 +479,20 @@ def load_data_from_db(user_id: str, db: Session) -> dict[str, pd.DataFrame]:
     )
     fitness = _pivot_fitness(fitness_raw)
 
-    # Plan
-    plan = pd.read_sql(
-        text("SELECT * FROM training_plans WHERE user_id = :uid ORDER BY date"),
-        db.bind,
-        params={"uid": user_id},
-        parse_dates=["date", "start_time"],
-    )
-    if "date" in plan.columns and not plan.empty:
-        plan["date"] = pd.to_datetime(plan["date"]).dt.date
+    if include_plan:
+        plan = pd.read_sql(
+            text(
+                "SELECT * FROM training_plans "
+                "WHERE user_id = :uid ORDER BY date"
+            ),
+            db.bind,
+            params={"uid": user_id},
+            parse_dates=["date", "start_time"],
+        )
+        if "date" in plan.columns and not plan.empty:
+            plan["date"] = pd.to_datetime(plan["date"]).dt.date
+    else:
+        plan = pd.DataFrame()
 
     # Post-processing (same as CSV path)
     activities = _clean_activities(activities)

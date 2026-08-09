@@ -9,6 +9,7 @@
 | Surface | Workflow | Triggers | Target |
 |---|---|---|---|
 | Backend (API) | `deploy-backend.yml` | push to `main` touching backend code/tests, observability config/scripts, or the workflow; or `api-*` tag | App Service `trainsight-app` |
+| Labs analysis worker | `deploy-labs-worker.yml` | push to `main` touching worker/backend analysis code, its Dockerfile/requirements, Bicep, tests, or the workflow; manual dispatch | Service Bus + Container Apps Job; Azure deploy is gated by `PRAXYS_LABS_WORKER_DEPLOY_ENABLED=true` |
 | Frontend (SPA) | `deploy-frontend-appservice.yml` | push to `main` touching the SPA/static server, observability config/scripts, or the workflow; or `web-*` tag | App Service `praxys-frontend`; optionally Tencent Lighthouse |
 | Mini program | `miniapp-publish.yml` | `miniapp-YYYY.MM.MICRO` release tag (robot 1); `main` pushes auto-publish a dev build (robot 5) | WeChat (`miniprogram-ci`) |
 
@@ -39,6 +40,24 @@ with `Deployment has been stopped due to SCM container restart`.
 
 Force a deploy without a code change: re-run the latest `deploy-backend.yml` run
 (`gh run rerun <id>`), or push an `api-YYYY.MM.MICRO` tag for a versioned release.
+
+## Labs analysis worker deploy
+
+`deploy-labs-worker.yml` always runs the targeted backend tests, builds the
+1-vCPU/2-GiB worker image, publishes its commit-SHA tag to GHCR, verifies that
+the package is anonymously pullable, and validates the Bicep template. It
+reconciles Azure only when
+`PRAXYS_LABS_WORKER_DEPLOY_ENABLED=true`.
+
+Infrastructure deployment does not itself cut over the API. The separate
+`PRAXYS_LABS_EXECUTION_MODE=service_bus` backend variable is enabled only after
+the user-assigned identity has its least-privilege PostgreSQL principal and the
+idle worker/alerts have been verified. Follow
+[labs-analysis-worker.md](./labs-analysis-worker.md); do not reverse those two
+steps. Once isolated mode is active, backend deployment waits for the worker
+job to run the exact same commit-SHA image before updating App Service. The
+worker workflow mirrors every backend trigger, including `data/science/**`, so
+an older worker cannot consume jobs created by a newer model deployment.
 
 ## Frontend deploy
 
@@ -108,6 +127,7 @@ Tencent rollback is independent: atomically repoint
 ## Related
 
 - [config-and-secrets.md](./config-and-secrets.md) · [monitoring-and-alerts.md](./monitoring-and-alerts.md)
+- [labs-analysis-worker.md](./labs-analysis-worker.md)
 - `docs/deployment.md` (one-time Azure setup) · `.github/workflows/`
 
 ---

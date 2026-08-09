@@ -112,6 +112,37 @@ def hash_user_id(user_id: str) -> str:
     return hashlib.sha256(user_id.encode("utf-8")).hexdigest()[:16]
 
 
+def record_labs_job(
+    *,
+    event: str,
+    outcome: str,
+    trigger: str,
+    attempt: int,
+    failure_class: str,
+    user_id: str,
+    queue_delay_ms: int | None = None,
+    duration_ms: int | None = None,
+) -> None:
+    """Record one privacy-safe Labs job lifecycle event."""
+    attrs: dict[str, Any] = {
+        "event": _safe_telemetry_label(event),
+        "outcome": _safe_telemetry_label(outcome),
+        "trigger": _safe_telemetry_label(trigger),
+        "attempt": max(0, int(attempt)),
+        "failure_class": _safe_telemetry_label(failure_class),
+        "user_id_hash": hash_user_id(user_id),
+    }
+    if queue_delay_ms is not None:
+        attrs["queue_delay_ms"] = max(0, int(queue_delay_ms))
+    if duration_ms is not None:
+        attrs["duration_ms"] = max(0, int(duration_ms))
+    _emit_event_or_count(
+        "praxys.labs_job",
+        "Labs analysis job lifecycle events",
+        attrs,
+    )
+
+
 def _emit_event_or_count(
     name: str,
     description: str,
@@ -149,6 +180,7 @@ def _emit_event_or_count(
         counter.add(1, attributes)
     except Exception:
         logger.warning("Failed to record %s", name, exc_info=True)
+
 
 def record_coach_tokens(
     *,

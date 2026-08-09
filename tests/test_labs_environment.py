@@ -1,9 +1,14 @@
 """Backend contract tests for the Labs environmental-response experiment."""
 from __future__ import annotations
 
-import tempfile
 import json
+import subprocess
+import sys
+import tempfile
+import types
 from datetime import datetime, timedelta
+from pathlib import Path
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -16,6 +21,7 @@ def labs_client(monkeypatch):
     monkeypatch.setenv("DATA_DIR", tmpdir.name)
     monkeypatch.setenv("PRAXYS_SYNC_SCHEDULER", "false")
     monkeypatch.setenv("PRAXYS_AUTH_RATE_LIMIT_DISABLED", "true")
+    monkeypatch.setenv("PRAXYS_LABS_EXECUTION_MODE", "disabled")
     monkeypatch.setenv(
         "PRAXYS_LOCAL_ENCRYPTION_KEY",
         "JKkx_5SVHKQDr0HSMrwl0KQHcA0pl5pxsYSLEAQDB4o=",
@@ -56,7 +62,7 @@ def labs_client(monkeypatch):
 
     monkeypatch.setattr(
         labs_routes,
-        "process_environment_response_job",
+        "dispatch_job",
         lambda *_args: None,
     )
     monkeypatch.setattr(
@@ -167,6 +173,9 @@ def test_enrollment_requires_current_consent_and_adult_attestation(
     assert adult.json()["detail"]["correlation_id"]
     assert stale.status_code == 409
     assert stale.json()["detail"]["code"] == "consent_version_stale"
+    assert stale.json()["detail"]["current_consent_version"] == (
+        "environment-response-consent-v1"
+    )
     assert coercive.status_code == 422
 
 
@@ -233,8 +242,9 @@ def test_ineligible_preflight_blocks_recompute(
     labs_client,
     monkeypatch,
 ) -> None:
-    client, _, _ = labs_client
+    client, db_session, user_id = labs_client
     from api.routes import labs as labs_routes
+    from db.models import LabsAnalysisJob, LabsExperimentEnrollment
 
     enrolled = client.post(
         "/api/labs/environment-response",
@@ -245,6 +255,19 @@ def test_ineligible_preflight_blocks_recompute(
     )
     preflight = client.get("/api/labs/environment-response/preflight")
     assert enrolled.status_code == 202
+    assert enrolled.json()["consented_at"].endswith("+00:00")
+    assert enrolled.json()["execution"]["requested_at"].endswith("+00:00")
+    with db_session.SessionLocal() as db:
+        job = db.query(LabsAnalysisJob).filter(
+            LabsAnalysisJob.user_id == user_id,
+        ).one()
+        row = db.get(
+            LabsExperimentEnrollment,
+            (user_id, "environment-response-v1"),
+        )
+        job.status = "succeeded"
+        row.status = "unavailable"
+        db.commit()
     blocked = {
         "status": "ineligible",
         "can_start_analysis": False,
@@ -265,6 +288,172 @@ def test_ineligible_preflight_blocks_recompute(
     assert response.json()["detail"]["code"] == (
         "LABS_ENVIRONMENT_PREFLIGHT_INELIGIBLE"
     )
+
+
+def test_recompute_not_enrolled_returns_structured_error(labs_client) -> None:
+    client, _, _ = labs_client
+
+    response = client.post("/api/labs/environment-response/recompute")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == {
+        "code": "LABS_ENVIRONMENT_NOT_ENROLLED",
+        "message": "Current experiment consent is required.",
+    }
+
+
+def test_recompute_api_returns_retry_after_during_cooldown(
+    labs_client,
+) -> None:
+    client, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import LabsAnalysisJob, LabsExperimentEnrollment
+
+    enrolled = client.post(
+        "/api/labs/environment-response",
+        headers={"Idempotency-Key": "enroll-cooldown-1"},
+        json={
+            "adult_attested": True,
+            "consent_version": labs_environment.CONSENT_VERSION,
+        },
+    )
+    assert enrolled.status_code == 202
+    with db_session.SessionLocal() as db:
+        job = db.query(LabsAnalysisJob).filter(
+            LabsAnalysisJob.user_id == user_id,
+        ).one()
+        row = db.get(
+            LabsExperimentEnrollment,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        )
+        job.status = "succeeded"
+        job.completed_at = datetime.utcnow()
+        row.status = "unavailable"
+        row.completed_at = job.completed_at
+        db.commit()
+
+    first = client.post(
+        "/api/labs/environment-response/recompute",
+        headers={"Idempotency-Key": "manual-cooldown-1"},
+    )
+    assert first.status_code == 202
+    with db_session.SessionLocal() as db:
+        job = db.query(LabsAnalysisJob).filter(
+            LabsAnalysisJob.idempotency_key == "manual-cooldown-1",
+        ).one()
+        row = db.get(
+            LabsExperimentEnrollment,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        )
+        job.status = "succeeded"
+        job.completed_at = datetime.utcnow()
+        row.status = "unavailable"
+        row.completed_at = job.completed_at
+        db.commit()
+
+    limited = client.post(
+        "/api/labs/environment-response/recompute",
+        headers={"Idempotency-Key": "manual-cooldown-2"},
+    )
+
+    assert limited.status_code == 429
+    assert limited.json()["detail"]["code"] == (
+        "LABS_ENVIRONMENT_RECOMPUTE_COOLDOWN"
+    )
+    assert limited.json()["detail"]["available_at"].endswith("+00:00")
+    assert int(limited.headers["retry-after"]) > 0
+
+
+def test_labs_mutations_reject_malformed_idempotency_keys(
+    labs_client,
+) -> None:
+    client, _, _ = labs_client
+    from api import labs_environment
+
+    enroll_response = client.post(
+        "/api/labs/environment-response",
+        headers={"Idempotency-Key": "invalid key"},
+        json={
+            "adult_attested": True,
+            "consent_version": labs_environment.CONSENT_VERSION,
+        },
+    )
+    recompute_response = client.post(
+        "/api/labs/environment-response/recompute",
+        headers={"Idempotency-Key": "invalid key"},
+    )
+
+    assert enroll_response.status_code == 422
+    assert recompute_response.status_code == 422
+
+
+def test_idempotent_replays_do_not_rerun_preflight(
+    labs_client,
+    monkeypatch,
+) -> None:
+    client, db_session, user_id = labs_client
+    from api import labs_environment
+    from api.routes import labs as labs_routes
+    from db.models import LabsAnalysisJob, LabsExperimentEnrollment
+
+    enroll_response = client.post(
+        "/api/labs/environment-response",
+        headers={"Idempotency-Key": "enroll-replay-1"},
+        json={
+            "adult_attested": True,
+            "consent_version": labs_environment.CONSENT_VERSION,
+        },
+    )
+    assert enroll_response.status_code == 202
+    with db_session.SessionLocal() as db:
+        enrollment_job = db.query(LabsAnalysisJob).filter(
+            LabsAnalysisJob.trigger == "enrollment",
+        ).one()
+        row = db.get(
+            LabsExperimentEnrollment,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        )
+        enrollment_job.status = "succeeded"
+        row.status = "unavailable"
+        db.commit()
+
+    recompute_response = client.post(
+        "/api/labs/environment-response/recompute",
+        headers={"Idempotency-Key": "recompute-replay-1"},
+    )
+    assert recompute_response.status_code == 202
+
+    blocked = {
+        "status": "ineligible",
+        "can_start_analysis": False,
+        "reason_code": "unsupported_power_provider",
+        "minimum_activity_count": 12,
+        "observed": {},
+        "full_analysis_still_required": True,
+    }
+    monkeypatch.setattr(
+        labs_routes,
+        "environment_response_preflight",
+        lambda *_args: blocked,
+    )
+
+    replay_enroll = client.post(
+        "/api/labs/environment-response",
+        headers={"Idempotency-Key": "enroll-replay-1"},
+        json={
+            "adult_attested": True,
+            "consent_version": labs_environment.CONSENT_VERSION,
+        },
+    )
+    replay_recompute = client.post(
+        "/api/labs/environment-response/recompute",
+        headers={"Idempotency-Key": "recompute-replay-1"},
+    )
+
+    assert replay_enroll.status_code == 202
+    assert replay_recompute.status_code == 202
+    with db_session.SessionLocal() as db:
+        assert db.query(LabsAnalysisJob).count() == 2
 
 
 @pytest.mark.parametrize(
@@ -747,6 +936,247 @@ def test_enroll_get_withdraw_and_rejoin_lifecycle(labs_client) -> None:
     assert rejoined.json()["enrolled"] is True
 
 
+def test_withdrawal_wins_over_an_old_enrollment_replay(
+    labs_client,
+) -> None:
+    client, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import LabsAnalysisJob, LabsExperimentEnrollment
+
+    headers = {"Idempotency-Key": "withdrawal-replay-key"}
+    body = {
+        "adult_attested": True,
+        "consent_version": labs_environment.CONSENT_VERSION,
+    }
+    enrolled = client.post(
+        "/api/labs/environment-response",
+        headers=headers,
+        json=body,
+    )
+    withdrawn = client.delete("/api/labs/environment-response")
+    replay = client.post(
+        "/api/labs/environment-response",
+        headers=headers,
+        json=body,
+    )
+
+    assert enrolled.status_code == 202
+    assert withdrawn.status_code == 204
+    assert replay.status_code == 202
+    assert replay.json()["enrolled"] is False
+    with db_session.SessionLocal() as db:
+        assert db.get(
+            LabsExperimentEnrollment,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        ) is None
+        assert db.query(LabsAnalysisJob).filter(
+            LabsAnalysisJob.user_id == user_id,
+        ).count() == 1
+
+
+def test_enqueue_is_idempotent_and_outbox_is_payload_free(
+    labs_client,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import (
+        LabsAnalysisJob,
+        LabsAnalysisOutbox,
+        LabsExperimentEnrollment,
+    )
+
+    base = datetime(2026, 8, 9, 0, 0, 0)
+    with db_session.SessionLocal() as db:
+        enrolled = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+            idempotency_key="shared-idempotency-1",
+            now=base,
+        )
+        enrolled.job.status = "succeeded"
+        enrolled.job.completed_at = base + timedelta(minutes=1)
+        enrolled.enrollment.status = "unavailable"
+        enrolled.enrollment.completed_at = enrolled.job.completed_at
+        db.commit()
+        first = labs_environment.queue_recompute(
+            db,
+            user_id,
+            idempotency_key="shared-idempotency-1",
+            now=base + timedelta(hours=7),
+        )
+        replay = labs_environment.queue_recompute(
+            db,
+            user_id,
+            idempotency_key="shared-idempotency-1",
+            now=base + timedelta(hours=8),
+        )
+        first_id = first.job.id
+        replay_id = replay.job.id
+        first_correlation_id = first.job.correlation_id
+
+    with db_session.SessionLocal() as db:
+        jobs = db.query(LabsAnalysisJob).filter(
+            LabsAnalysisJob.user_id == user_id,
+        ).all()
+        outboxes = db.query(LabsAnalysisOutbox).all()
+        row = db.get(
+            LabsExperimentEnrollment,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        )
+        assert len(jobs) == 2
+        assert len(outboxes) == 2
+        assert first_id == replay_id
+        assert replay.idempotent is True
+        assert row.correlation_id == first_correlation_id
+        assert not hasattr(outboxes[-1], "payload")
+
+
+def test_repeat_enrollment_does_not_enqueue_another_job(
+    labs_client,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import LabsAnalysisJob
+
+    base = datetime(2026, 8, 9, 0, 0, 0)
+    with db_session.SessionLocal() as db:
+        enrolled = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+            idempotency_key="initial-enrollment",
+            now=base,
+        )
+        enrolled.job.status = "succeeded"
+        enrolled.job.completed_at = base + timedelta(minutes=1)
+        enrolled.enrollment.status = "unavailable"
+        enrolled.enrollment.completed_at = enrolled.job.completed_at
+        db.commit()
+
+        replay = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+            idempotency_key="different-enrollment-key",
+            now=base + timedelta(minutes=2),
+        )
+
+        assert replay.idempotent is True
+        assert replay.job is None
+        assert db.query(LabsAnalysisJob).filter(
+            LabsAnalysisJob.user_id == user_id,
+        ).count() == 1
+
+
+def test_stale_stored_consent_requires_reconsent_and_cancels_old_job(
+    labs_client,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import LabsAnalysisJob, LabsAnalysisOutbox
+
+    with db_session.SessionLocal() as db:
+        enrolled = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+            idempotency_key="old-consent-job",
+        )
+        old_job_id = enrolled.job.id
+        enrolled.enrollment.consent_version = "retired-consent-version"
+        db.commit()
+
+        stale_state = labs_environment.public_state(db, user_id)
+        assert stale_state["enrolled"] is False
+        assert stale_state["status"] == "not_enrolled"
+        db.rollback()
+        assert labs_environment.queue_recompute(db, user_id) is None
+
+        renewed = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+            idempotency_key="renewed-consent-job",
+        )
+
+        old_job = db.get(LabsAnalysisJob, old_job_id)
+        old_outbox = db.query(LabsAnalysisOutbox).filter(
+            LabsAnalysisOutbox.job_id == old_job_id,
+        ).one()
+        assert renewed.created is True
+        assert renewed.job.id != old_job_id
+        assert old_job.status == "cancelled"
+        assert old_outbox.status == "cancelled"
+        assert renewed.enrollment.consent_version == (
+            labs_environment.CONSENT_VERSION
+        )
+        assert db.query(LabsAnalysisJob).filter(
+            LabsAnalysisJob.user_id == user_id,
+        ).count() == 2
+
+
+def test_manual_recompute_enforces_rolling_daily_limit(
+    labs_client,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+
+    base = datetime(2026, 8, 9, 0, 0, 0)
+    with db_session.SessionLocal() as db:
+        enrolled = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+            now=base - timedelta(hours=1),
+        )
+        enrolled.job.status = "succeeded"
+        enrolled.enrollment.status = "unavailable"
+        db.commit()
+        for index, hour in enumerate((0, 6, 12), start=1):
+            decision = labs_environment.queue_recompute(
+                db,
+                user_id,
+                idempotency_key=f"manual-daily-{index}",
+                now=base + timedelta(hours=hour),
+            )
+            decision.job.status = "succeeded"
+            decision.job.completed_at = base + timedelta(
+                hours=hour,
+                minutes=1,
+            )
+            decision.enrollment.status = "unavailable"
+            decision.enrollment.completed_at = decision.job.completed_at
+            db.commit()
+
+        with pytest.raises(
+            labs_environment.RecomputeLimitError,
+            match="daily_limit",
+        ) as exc_info:
+            labs_environment.queue_recompute(
+                db,
+                user_id,
+                idempotency_key="manual-daily-4",
+                now=base + timedelta(hours=17),
+            )
+
+        assert exc_info.value.available_at == base + timedelta(hours=24)
+        policy = labs_environment.public_state(
+            db,
+            user_id,
+            now=base + timedelta(hours=17),
+        )["execution"]["recompute"]
+        assert policy["allowed"] is False
+        assert policy["reason"] == "daily_limit"
+        assert policy["remaining_requests"] == 0
+
+
 def test_withdrawal_fails_closed_when_tombstone_storage_is_unavailable(
     labs_client,
     monkeypatch,
@@ -787,18 +1217,13 @@ def test_worker_persists_only_aggregate_result(labs_client, monkeypatch) -> None
     from db.models import LabsExperimentResult
 
     with db_session.SessionLocal() as db:
-        row = labs_environment.enroll(
+        decision = labs_environment.enroll(
             db,
             user_id,
             adult_attested=True,
             consent_version=labs_environment.CONSENT_VERSION,
         )
-        args = (
-            row.user_id,
-            row.experiment_id,
-            row.model_version,
-            row.source_revision,
-        )
+        job_id = decision.job.id
 
     monkeypatch.setattr(
         labs_environment,
@@ -810,7 +1235,7 @@ def test_worker_persists_only_aggregate_result(labs_client, monkeypatch) -> None
         "build_environment_response_result",
         lambda *_args: _aggregate_result(),
     )
-    labs_environment.process_environment_response_job(*args)
+    outcome = labs_environment.process_environment_response_job(job_id)
 
     with db_session.SessionLocal() as db:
         result = db.get(
@@ -827,10 +1252,185 @@ def test_worker_persists_only_aggregate_result(labs_client, monkeypatch) -> None
         }, sort_keys=True)
         for forbidden in ("activity_id", "date", "route", "lat", "lng", "private"):
             assert f'"{forbidden}"' not in serialized
+    assert outcome.outcome == "completed"
     response = client.get("/api/labs/environment-response")
     assert response.status_code == 200
     assert response.json()["result"]["result_state"] == (
         "historical_association_only"
+    )
+
+
+def test_worker_cancels_queued_job_from_an_old_model(
+    labs_client,
+    monkeypatch,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import LabsAnalysisJob, LabsExperimentEnrollment
+
+    with db_session.SessionLocal() as db:
+        decision = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        job_id = decision.job.id
+        decision.job.model_version = "retired-labs-model"
+        decision.enrollment.model_version = "retired-labs-model"
+        db.commit()
+
+    monkeypatch.setattr(
+        labs_environment,
+        "_build_private_dataset_bundle",
+        lambda *_args: pytest.fail("stale model job must not execute"),
+    )
+
+    outcome = labs_environment.process_environment_response_job(job_id)
+
+    with db_session.SessionLocal() as db:
+        job = db.get(LabsAnalysisJob, job_id)
+        row = db.get(
+            LabsExperimentEnrollment,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        )
+        assert job.status == "cancelled"
+        assert job.failure_code == "model_version_mismatch"
+        assert row.status == "stale"
+        assert row.availability_reason["code"] == "model_version_mismatch"
+    assert outcome.outcome == "cancelled"
+
+
+def test_worker_withholds_aggregate_from_an_unexpected_model(
+    labs_client,
+    monkeypatch,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import LabsExperimentEnrollment, LabsExperimentResult
+
+    with db_session.SessionLocal() as db:
+        decision = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        job_id = decision.job.id
+
+    unexpected = _aggregate_result()
+    unexpected["model_version"] = "unexpected-model"
+    monkeypatch.setattr(
+        labs_environment,
+        "_build_private_dataset_bundle",
+        lambda *_args: {},
+    )
+    monkeypatch.setattr(
+        labs_environment,
+        "build_environment_response_result",
+        lambda *_args: unexpected,
+    )
+
+    outcome = labs_environment.process_environment_response_job(job_id)
+
+    with db_session.SessionLocal() as db:
+        row = db.get(
+            LabsExperimentEnrollment,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        )
+        assert row.status == "stale"
+        assert row.availability_reason["code"] == "model_version_mismatch"
+        assert db.get(
+            LabsExperimentResult,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        ) is None
+    assert outcome.outcome == "completed"
+
+
+def test_public_state_hides_aggregate_from_an_old_model(
+    labs_client,
+    monkeypatch,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import LabsExperimentResult
+
+    with db_session.SessionLocal() as db:
+        decision = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        job_id = decision.job.id
+    monkeypatch.setattr(
+        labs_environment,
+        "_build_private_dataset_bundle",
+        lambda *_args: {},
+    )
+    monkeypatch.setattr(
+        labs_environment,
+        "build_environment_response_result",
+        lambda *_args: _aggregate_result(),
+    )
+    assert labs_environment.process_environment_response_job(
+        job_id
+    ).outcome == "completed"
+
+    with db_session.SessionLocal() as db:
+        result = db.get(
+            LabsExperimentResult,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        )
+        result.model_version = "retired-labs-model"
+        db.commit()
+        state = labs_environment.public_state(db, user_id)
+
+    assert state["status"] == "stale"
+    assert state["availability_reason"]["code"] == "model_version_mismatch"
+    assert state["result"] is None
+
+
+def test_research_worker_context_does_not_query_training_plans(
+    labs_client,
+) -> None:
+    _, db_session, user_id = labs_client
+    from sqlalchemy import event
+    from api.packs import RequestContext
+
+    statements: list[str] = []
+    with db_session.SessionLocal() as db:
+        def capture_statement(
+            _conn,
+            _cursor,
+            statement,
+            _parameters,
+            _context,
+            _executemany,
+        ) -> None:
+            statements.append(statement)
+
+        event.listen(
+            db.get_bind(),
+            "before_cursor_execute",
+            capture_statement,
+        )
+        try:
+            RequestContext(
+                user_id=user_id,
+                db=db,
+                include_plan=False,
+            )._data
+        finally:
+            event.remove(
+                db.get_bind(),
+                "before_cursor_execute",
+                capture_statement,
+            )
+
+    assert not any(
+        "training_plans" in statement.lower()
+        for statement in statements
     )
 
 
@@ -843,18 +1443,13 @@ def test_running_job_rechecks_withdrawal_before_persist(
     from db.models import LabsExperimentResult
 
     with db_session.SessionLocal() as db:
-        row = labs_environment.enroll(
+        decision = labs_environment.enroll(
             db,
             user_id,
             adult_attested=True,
             consent_version=labs_environment.CONSENT_VERSION,
         )
-        args = (
-            row.user_id,
-            row.experiment_id,
-            row.model_version,
-            row.source_revision,
-        )
+        job_id = decision.job.id
 
     monkeypatch.setattr(
         labs_environment,
@@ -872,13 +1467,14 @@ def test_running_job_rechecks_withdrawal_before_persist(
         "build_environment_response_result",
         withdraw_during_analysis,
     )
-    labs_environment.process_environment_response_job(*args)
+    outcome = labs_environment.process_environment_response_job(job_id)
 
     with db_session.SessionLocal() as db:
         assert db.get(
             LabsExperimentResult,
             (user_id, labs_environment.EXPERIMENT_ID),
         ) is None
+    assert outcome.outcome == "cancelled"
 
 
 def test_stale_source_revision_is_explicit_unavailable_state(
@@ -890,18 +1486,13 @@ def test_stale_source_revision_is_explicit_unavailable_state(
     from db.models import LabsExperimentEnrollment
 
     with db_session.SessionLocal() as db:
-        row = labs_environment.enroll(
+        decision = labs_environment.enroll(
             db,
             user_id,
             adult_attested=True,
             consent_version=labs_environment.CONSENT_VERSION,
         )
-        args = (
-            row.user_id,
-            row.experiment_id,
-            row.model_version,
-            row.source_revision,
-        )
+        job_id = decision.job.id
     monkeypatch.setattr(
         labs_environment,
         "_build_private_dataset_bundle",
@@ -910,7 +1501,7 @@ def test_stale_source_revision_is_explicit_unavailable_state(
         ),
     )
 
-    labs_environment.process_environment_response_job(*args)
+    outcome = labs_environment.process_environment_response_job(job_id)
 
     with db_session.SessionLocal() as db:
         row = db.get(
@@ -920,6 +1511,7 @@ def test_stale_source_revision_is_explicit_unavailable_state(
         assert row.status == "stale"
         assert row.availability_reason["code"] == "stale_source_revision"
         assert row.availability_reason["correlation_id"] == row.correlation_id
+    assert outcome.outcome == "completed"
 
 
 def test_source_revision_change_during_analysis_withholds_result(
@@ -931,18 +1523,13 @@ def test_source_revision_change_during_analysis_withholds_result(
     from db.models import LabsExperimentEnrollment, LabsExperimentResult
 
     with db_session.SessionLocal() as db:
-        row = labs_environment.enroll(
+        decision = labs_environment.enroll(
             db,
             user_id,
             adult_attested=True,
             consent_version=labs_environment.CONSENT_VERSION,
         )
-        args = (
-            row.user_id,
-            row.experiment_id,
-            row.model_version,
-            row.source_revision,
-        )
+        job_id = decision.job.id
     monkeypatch.setattr(
         labs_environment,
         "_build_private_dataset_bundle",
@@ -959,7 +1546,7 @@ def test_source_revision_change_during_analysis_withholds_result(
         lambda *_args: "rev1:changed",
     )
 
-    labs_environment.process_environment_response_job(*args)
+    outcome = labs_environment.process_environment_response_job(job_id)
 
     with db_session.SessionLocal() as db:
         row = db.get(
@@ -972,68 +1559,854 @@ def test_source_revision_change_during_analysis_withholds_result(
             LabsExperimentResult,
             (user_id, labs_environment.EXPERIMENT_ID),
         ) is None
+    assert outcome.outcome == "completed"
 
 
-def test_obsolete_worker_cannot_overwrite_newer_queue(labs_client) -> None:
+def test_transient_worker_failure_retries_then_dead_letters(
+    labs_client,
+    monkeypatch,
+    caplog,
+) -> None:
     _, db_session, user_id = labs_client
+    from sqlalchemy.exc import OperationalError
     from api import labs_environment
-    from db.models import LabsExperimentEnrollment
+    from db.models import LabsAnalysisJob, LabsExperimentEnrollment
 
     with db_session.SessionLocal() as db:
-        old = labs_environment.enroll(
+        decision = labs_environment.enroll(
             db,
             user_id,
             adult_attested=True,
             consent_version=labs_environment.CONSENT_VERSION,
         )
-        old_correlation = old.correlation_id
-        newer = labs_environment.queue_recompute(db, user_id)
-        labs_environment._persist_unavailable(
-            db,
-            user_id,
-            labs_environment.EXPERIMENT_ID,
-            newer.model_version,
-            newer.source_revision,
-            old_correlation,
-            "analysis_failed",
-            "failed",
-        )
+        job_id = decision.job.id
 
+    monkeypatch.setattr(
+        labs_environment,
+        "_build_private_dataset_bundle",
+        lambda *_args: (_ for _ in ()).throw(
+            OperationalError(
+                "SELECT * FROM activity_samples WHERE lat = :lat",
+                {"lat": "sensitive-athlete-coordinate"},
+                Exception("database unavailable"),
+            )
+        ),
+    )
+
+    first = labs_environment.process_environment_response_job(job_id)
+    second = labs_environment.process_environment_response_job(job_id)
+    third = labs_environment.process_environment_response_job(job_id)
+
+    assert first.outcome == "retry"
+    assert second.outcome == "retry"
+    assert third.outcome == "dead_lettered"
     with db_session.SessionLocal() as db:
+        job = db.get(LabsAnalysisJob, job_id)
         row = db.get(
             LabsExperimentEnrollment,
             (user_id, labs_environment.EXPERIMENT_ID),
         )
-        assert row.status == "queued"
-        assert row.correlation_id != old_correlation
+        assert job.attempt_count == labs_environment.MAX_JOB_ATTEMPTS
+        assert job.retryable_failure is True
+        assert row.status == "failed"
+        assert row.availability_reason["code"] == "analysis_retry_exhausted"
+    assert "sensitive-athlete-coordinate" not in caplog.text
 
 
-def test_get_recovers_only_abandoned_processing_job(labs_client) -> None:
-    client, db_session, user_id = labs_client
+def test_processing_claim_at_attempt_cap_does_not_run_again(
+    labs_client,
+    monkeypatch,
+) -> None:
+    _, db_session, user_id = labs_client
     from api import labs_environment
-    from db.models import LabsExperimentEnrollment
+    from db.models import LabsAnalysisJob, LabsExperimentEnrollment
 
     with db_session.SessionLocal() as db:
-        row = labs_environment.enroll(
+        decision = labs_environment.enroll(
             db,
             user_id,
             adult_attested=True,
             consent_version=labs_environment.CONSENT_VERSION,
         )
+        job_id = decision.job.id
+        decision.job.status = "processing"
+        decision.job.attempt_count = labs_environment.MAX_JOB_ATTEMPTS
+        decision.enrollment.status = "processing"
+        db.commit()
+
+    monkeypatch.setattr(
+        labs_environment,
+        "_build_private_dataset_bundle",
+        lambda *_args: pytest.fail("attempt cap must stop execution"),
+    )
+
+    outcome = labs_environment.process_environment_response_job(
+        job_id,
+        reclaim_processing=True,
+    )
+
+    with db_session.SessionLocal() as db:
+        job = db.get(LabsAnalysisJob, job_id)
+        row = db.get(
+            LabsExperimentEnrollment,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        )
+        assert job.status == "dead_lettered"
+        assert job.attempt_count == labs_environment.MAX_JOB_ATTEMPTS
+        assert job.failure_code == "worker_attempt_limit_exhausted"
+        assert row.status == "failed"
+        assert row.availability_reason["code"] == "analysis_retry_exhausted"
+    assert outcome.outcome == "dead_lettered"
+
+
+def test_worker_message_settlement_uses_job_outcome(monkeypatch) -> None:
+    from api import labs_worker
+    from api.labs_environment import JobExecutionResult
+
+    class Message:
+        body = [b"72bc9e44-5baa-4b45-9a7d-57a7427d9ef4"]
+
+    class Receiver:
+        action = ""
+
+        def complete_message(self, _message) -> None:
+            self.action = "completed"
+
+        def abandon_message(self, _message) -> None:
+            self.action = "abandoned"
+
+        def dead_letter_message(self, _message, **_kwargs) -> None:
+            self.action = "dead_lettered"
+
+    receiver = Receiver()
+    monkeypatch.setattr(
+        labs_worker,
+        "process_environment_response_job",
+        lambda *_args, **_kwargs: JobExecutionResult(
+            "retry",
+            attempt_count=1,
+            failure_code="OperationalError",
+        ),
+    )
+
+    settlement = labs_worker.settle_message(receiver, Message())
+
+    assert settlement == "abandoned"
+    assert receiver.action == "abandoned"
+
+
+def test_worker_abandons_message_when_job_claim_raises(
+    monkeypatch,
+    caplog,
+) -> None:
+    from sqlalchemy.exc import OperationalError
+    from api import labs_worker
+
+    class Message:
+        body = [b"72bc9e44-5baa-4b45-9a7d-57a7427d9ef4"]
+
+    class Receiver:
+        action = ""
+
+        def abandon_message(self, _message) -> None:
+            self.action = "abandoned"
+
+    def fail_claim(*_args, **_kwargs):
+        raise OperationalError(
+            "SELECT * FROM activity_samples WHERE lat = :lat",
+            {"lat": "sensitive-athlete-coordinate"},
+            Exception("database unavailable"),
+        )
+
+    receiver = Receiver()
+    monkeypatch.setattr(
+        labs_worker,
+        "process_environment_response_job",
+        fail_claim,
+    )
+
+    settlement = labs_worker.settle_message(receiver, Message())
+
+    assert settlement == "abandoned"
+    assert receiver.action == "abandoned"
+    assert "sensitive-athlete-coordinate" not in caplog.text
+
+
+def test_worker_locks_delivery_before_database_initialization(
+    monkeypatch,
+    caplog,
+) -> None:
+    from api import labs_worker
+
+    class Message:
+        body = [b"72bc9e44-5baa-4b45-9a7d-57a7427d9ef4"]
+
+    class Receiver:
+        action = ""
+
+        def __enter__(self) -> "Receiver":
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+        def receive_messages(self, **_kwargs: object) -> list[Message]:
+            return [Message()]
+
+        def abandon_message(self, _message: Message) -> None:
+            self.action = "abandoned"
+
+    receiver = Receiver()
+
+    class Client:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        def __enter__(self) -> "Client":
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+        def get_queue_receiver(
+            self,
+            _queue_name: str,
+            **_kwargs: object,
+        ) -> Receiver:
+            return receiver
+
+    class AutoLockRenewer:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        def register(
+            self,
+            _receiver: Receiver,
+            _message: Message,
+        ) -> None:
+            return None
+
+        def close(self) -> None:
+            return None
+
+    service_bus_module = types.ModuleType("azure.servicebus")
+    service_bus_module.AutoLockRenewer = AutoLockRenewer
+    service_bus_module.ServiceBusClient = Client
+    monkeypatch.setitem(sys.modules, "azure.servicebus", service_bus_module)
+    monkeypatch.setattr(labs_worker, "_azure_credential", object)
+    monkeypatch.setattr(
+        labs_worker,
+        "_initialize_database",
+        lambda: (_ for _ in ()).throw(
+            RuntimeError("sensitive-database-detail")
+        ),
+    )
+    monkeypatch.setenv("PRAXYS_LABS_EXECUTION_MODE", "service_bus")
+    monkeypatch.setenv(
+        "PRAXYS_LABS_SERVICE_BUS_FQDN",
+        "sb-praxys-labs.servicebus.windows.net",
+    )
+    monkeypatch.setenv(
+        "PRAXYS_LABS_SERVICE_BUS_QUEUE",
+        "labs-environment-response",
+    )
+
+    assert labs_worker.run_once() is True
+    assert receiver.action == "abandoned"
+    assert "sensitive-database-detail" not in caplog.text
+
+
+def test_worker_sqlalchemy_engine_hides_parameters(monkeypatch) -> None:
+    from db.session import _make_sync_engine
+
+    monkeypatch.setenv("PRAXYS_HIDE_SQL_PARAMETERS", "true")
+    engine = _make_sync_engine("sqlite://")
+    try:
+        assert engine.hide_parameters is True
+    finally:
+        engine.dispose()
+
+
+def test_service_bus_credential_uses_effective_runtime_identity(
+    monkeypatch,
+) -> None:
+    from api import labs_dispatch
+
+    created: list[str | None] = []
+
+    class Credential:
+        def __init__(self, client_id: str | None = None) -> None:
+            created.append(client_id)
+
+    identity_module = types.ModuleType("azure.identity")
+    identity_module.ManagedIdentityCredential = Credential
+    identity_module.DefaultAzureCredential = Credential
+    monkeypatch.setitem(sys.modules, "azure.identity", identity_module)
+    monkeypatch.setenv("WEBSITE_SITE_NAME", "trainsight-app")
+    monkeypatch.setenv("AZURE_CLIENT_ID", "general-backend-uami")
+    monkeypatch.delenv(
+        "PRAXYS_LABS_SERVICE_BUS_CLIENT_ID",
+        raising=False,
+    )
+
+    labs_dispatch._azure_credential()
+    monkeypatch.setenv(
+        "PRAXYS_LABS_SERVICE_BUS_CLIENT_ID",
+        "labs-sender-uami",
+    )
+    labs_dispatch._azure_credential()
+
+    assert created == [None, "labs-sender-uami"]
+
+
+def test_worker_receiver_disables_prefetch(monkeypatch) -> None:
+    from api import labs_worker
+
+    receiver_options: dict[str, object] = {}
+
+    class Receiver:
+        def __enter__(self) -> "Receiver":
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+        def receive_messages(self, **_kwargs: object) -> list[object]:
+            return []
+
+    class Client:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        def __enter__(self) -> "Client":
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+        def get_queue_receiver(
+            self,
+            queue_name: str,
+            **kwargs: object,
+        ) -> Receiver:
+            receiver_options["queue_name"] = queue_name
+            receiver_options.update(kwargs)
+            return Receiver()
+
+    service_bus_module = types.ModuleType("azure.servicebus")
+    service_bus_module.AutoLockRenewer = object
+    service_bus_module.ServiceBusClient = Client
+    monkeypatch.setitem(sys.modules, "azure.servicebus", service_bus_module)
+    monkeypatch.setattr(labs_worker, "_azure_credential", object)
+    monkeypatch.setenv("PRAXYS_LABS_EXECUTION_MODE", "service_bus")
+    monkeypatch.setenv(
+        "PRAXYS_LABS_SERVICE_BUS_FQDN",
+        "sb-praxys-labs.servicebus.windows.net",
+    )
+    monkeypatch.setenv(
+        "PRAXYS_LABS_SERVICE_BUS_QUEUE",
+        "labs-environment-response",
+    )
+
+    assert labs_worker.run_once() is False
+    assert receiver_options["queue_name"] == "labs-environment-response"
+    assert receiver_options["prefetch_count"] == 0
+    assert receiver_options["max_wait_time"] == 20
+
+
+def test_claim_stage_database_error_is_not_converted_to_ignored(
+    labs_client,
+    monkeypatch,
+) -> None:
+    from sqlalchemy.exc import OperationalError
+    from api import labs_environment
+
+    def fail_claim(*_args, **_kwargs):
+        raise OperationalError(
+            "SELECT 1",
+            {},
+            Exception("database unavailable"),
+        )
+
+    monkeypatch.setattr(labs_environment, "_claim_job", fail_claim)
+
+    with pytest.raises(OperationalError):
+        labs_environment.process_environment_response_job(
+            "72bc9e44-5baa-4b45-9a7d-57a7427d9ef4",
+            reclaim_processing=True,
+        )
+
+
+@pytest.mark.parametrize("terminal_status", ["failed", "dead_lettered"])
+def test_terminal_job_redelivery_preserves_dead_letter_settlement(
+    labs_client,
+    terminal_status,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import LabsAnalysisJob
+
+    with db_session.SessionLocal() as db:
+        decision = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        job_id = decision.job.id
+        job = db.get(LabsAnalysisJob, job_id)
+        job.status = terminal_status
+        job.failure_code = "OperationalError"
+        job.attempt_count = labs_environment.MAX_JOB_ATTEMPTS
+        db.commit()
+
+    outcome = labs_environment.process_environment_response_job(
+        job_id,
+        reclaim_processing=True,
+    )
+
+    assert outcome.outcome == terminal_status
+    assert outcome.failure_code == "OperationalError"
+
+
+@pytest.mark.parametrize("outbox_status", ["pending", "dispatching"])
+def test_recovery_preserves_dispatch_backoff_and_live_leases(
+    labs_client,
+    outbox_status,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import LabsAnalysisOutbox
+
+    available_at = datetime.utcnow() + timedelta(minutes=4)
+    lease_expires_at = datetime.utcnow() + timedelta(minutes=2)
+    with db_session.SessionLocal() as db:
+        decision = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        outbox = db.query(LabsAnalysisOutbox).filter(
+            LabsAnalysisOutbox.job_id == decision.job.id,
+        ).one()
+        outbox.status = outbox_status
+        outbox.available_at = available_at
+        outbox.lease_expires_at = (
+            lease_expires_at if outbox_status == "dispatching" else None
+        )
+        outbox.last_error_code = "ServiceBusError"
+        db.commit()
+
+        assert labs_environment.recover_interrupted_jobs(db) == 0
+
+        db.refresh(outbox)
+        assert outbox.status == outbox_status
+        assert outbox.available_at == available_at
+        assert outbox.lease_expires_at == (
+            lease_expires_at if outbox_status == "dispatching" else None
+        )
+        assert outbox.last_error_code == "ServiceBusError"
+
+
+@pytest.mark.parametrize("job_status", ["dispatched", "retrying"])
+def test_recovery_requeues_a_dispatched_job_that_never_started(
+    labs_client,
+    job_status,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import (
+        LabsAnalysisJob,
+        LabsAnalysisOutbox,
+        LabsExperimentEnrollment,
+    )
+
+    with db_session.SessionLocal() as db:
+        decision = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        job_id = decision.job.id
+        stale_dispatch = (
+            datetime.utcnow()
+            - labs_environment.JOB_LEASE_DURATION
+            - timedelta(minutes=1)
+        )
+        decision.job.status = job_status
+        decision.job.dispatched_at = stale_dispatch
+        outbox = db.query(LabsAnalysisOutbox).filter(
+            LabsAnalysisOutbox.job_id == job_id,
+        ).one()
+        outbox.status = "dispatched"
+        outbox.dispatched_at = stale_dispatch
+        db.commit()
+
+        assert labs_environment.recover_interrupted_jobs(db) == 1
+
+        job = db.get(LabsAnalysisJob, job_id)
+        enrollment = db.get(
+            LabsExperimentEnrollment,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        )
+        outbox = db.query(LabsAnalysisOutbox).filter(
+            LabsAnalysisOutbox.job_id == job_id,
+        ).one()
+        assert job.status == "retrying"
+        assert job.failure_code == "worker_start_timeout"
+        assert job.retryable_failure is True
+        assert enrollment.status == "queued"
+        assert outbox.status == "pending"
+        assert outbox.available_at > stale_dispatch
+
+
+def test_dispatch_recovery_only_requeues_the_global_head_of_line(
+    labs_client,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import LabsAnalysisJob, LabsAnalysisOutbox, User
+
+    second_user_id = str(uuid4())
+    base = datetime.utcnow() - labs_environment.JOB_LEASE_DURATION - timedelta(
+        minutes=1,
+    )
+    with db_session.SessionLocal() as db:
+        db.add(User(
+            id=second_user_id,
+            email="labs-second-user@example.test",
+            hashed_password="not-used",
+        ))
+        db.commit()
+        first = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+            now=base,
+        )
+        second = labs_environment.enroll(
+            db,
+            second_user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+            now=base + timedelta(seconds=1),
+        )
+        for decision in (first, second):
+            decision.job.status = "dispatched"
+            decision.job.dispatched_at = base
+            outbox = db.query(LabsAnalysisOutbox).filter(
+                LabsAnalysisOutbox.job_id == decision.job.id,
+            ).one()
+            outbox.status = "dispatched"
+            outbox.dispatched_at = base
+        db.commit()
+
+        assert labs_environment.recover_interrupted_jobs(db) == 1
+
+        first_job = db.get(LabsAnalysisJob, first.job.id)
+        second_job = db.get(LabsAnalysisJob, second.job.id)
+        first_outbox = db.query(LabsAnalysisOutbox).filter(
+            LabsAnalysisOutbox.job_id == first.job.id,
+        ).one()
+        second_outbox = db.query(LabsAnalysisOutbox).filter(
+            LabsAnalysisOutbox.job_id == second.job.id,
+        ).one()
+        assert first_job.status == "retrying"
+        assert first_outbox.status == "pending"
+        assert second_job.status == "dispatched"
+        assert second_outbox.status == "dispatched"
+
+
+def test_service_bus_mode_requires_complete_queue_configuration(
+    monkeypatch,
+) -> None:
+    from api import labs_dispatch
+
+    monkeypatch.setenv("PRAXYS_LABS_EXECUTION_MODE", "service_bus")
+    monkeypatch.delenv("PRAXYS_LABS_SERVICE_BUS_FQDN", raising=False)
+    monkeypatch.delenv("PRAXYS_LABS_SERVICE_BUS_QUEUE", raising=False)
+
+    with pytest.raises(RuntimeError, match="configuration is incomplete"):
+        labs_dispatch.validate_configuration()
+
+    monkeypatch.setenv(
+        "PRAXYS_LABS_SERVICE_BUS_FQDN",
+        "sb-praxys-labs.servicebus.windows.net",
+    )
+    monkeypatch.setenv(
+        "PRAXYS_LABS_SERVICE_BUS_QUEUE",
+        "labs-environment-response",
+    )
+    labs_dispatch.validate_configuration()
+
+    monkeypatch.setenv(
+        "PRAXYS_LABS_SERVICE_BUS_FQDN",
+        "sb-praxys-labs.servicebus.windows.net:443",
+    )
+    with pytest.raises(RuntimeError, match="must be a hostname"):
+        labs_dispatch.validate_configuration()
+
+
+def test_worker_grant_script_is_directly_invocable() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/provision_labs_worker_db.py",
+            "--help",
+        ],
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "--identity-name" in result.stdout
+
+
+def test_service_bus_dispatch_failure_stays_durable_without_inline_fallback(
+    labs_client,
+    monkeypatch,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_dispatch, labs_environment
+    from db.models import (
+        LabsAnalysisJob,
+        LabsAnalysisOutbox,
+        LabsExperimentEnrollment,
+    )
+
+    with db_session.SessionLocal() as db:
+        decision = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        job_id = decision.job.id
+
+    monkeypatch.setenv("PRAXYS_LABS_EXECUTION_MODE", "service_bus")
+    monkeypatch.setenv(
+        "PRAXYS_LABS_SERVICE_BUS_FQDN",
+        "sb-praxys-labs.servicebus.windows.net",
+    )
+    monkeypatch.setenv(
+        "PRAXYS_LABS_SERVICE_BUS_QUEUE",
+        "labs-environment-response",
+    )
+    monkeypatch.setattr(
+        labs_dispatch,
+        "_send_service_bus",
+        lambda _job_id: (_ for _ in ()).throw(
+            ConnectionError("service bus unavailable")
+        ),
+    )
+    monkeypatch.setattr(
+        labs_dispatch,
+        "process_environment_response_job",
+        lambda *_args, **_kwargs: pytest.fail(
+            "configured Service Bus mode must never run analysis inline"
+        ),
+    )
+
+    assert labs_dispatch.dispatch_job(job_id) is False
+
+    with db_session.SessionLocal() as db:
+        job = db.get(LabsAnalysisJob, job_id)
+        outbox = db.query(LabsAnalysisOutbox).filter(
+            LabsAnalysisOutbox.job_id == job_id,
+        ).one()
+        enrollment = db.get(
+            LabsExperimentEnrollment,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        )
+        assert job.status == "queued"
+        assert outbox.status == "pending"
+        assert outbox.attempt_count == 1
+        assert outbox.last_error_code == "ConnectionError"
+        assert outbox.available_at > outbox.updated_at
+        assert enrollment.status == "queued"
+
+
+def test_inline_claim_failure_requeues_the_durable_outbox(
+    labs_client,
+    monkeypatch,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_dispatch, labs_environment
+    from db.models import LabsAnalysisJob, LabsAnalysisOutbox
+
+    with db_session.SessionLocal() as db:
+        decision = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        job_id = decision.job.id
+
+    monkeypatch.setenv("PRAXYS_LABS_EXECUTION_MODE", "inline")
+    monkeypatch.setattr(
+        labs_dispatch,
+        "process_environment_response_job",
+        lambda _job_id: (_ for _ in ()).throw(
+            RuntimeError("claim unavailable")
+        ),
+    )
+
+    assert labs_dispatch.dispatch_job(job_id) is False
+
+    with db_session.SessionLocal() as db:
+        job = db.get(LabsAnalysisJob, job_id)
+        outbox = db.query(LabsAnalysisOutbox).filter(
+            LabsAnalysisOutbox.job_id == job_id,
+        ).one()
+        assert job.status == "dispatched"
+        assert outbox.status == "pending"
+        assert outbox.last_error_code == "RuntimeError"
+        assert outbox.available_at > outbox.updated_at
+
+
+def test_service_bus_dispatch_marks_job_only_after_publish(
+    labs_client,
+    monkeypatch,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_dispatch, labs_environment
+    from db.models import LabsAnalysisJob, LabsAnalysisOutbox
+
+    with db_session.SessionLocal() as db:
+        decision = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        job_id = decision.job.id
+
+    published: list[str] = []
+    monkeypatch.setenv("PRAXYS_LABS_EXECUTION_MODE", "service_bus")
+    monkeypatch.setenv(
+        "PRAXYS_LABS_SERVICE_BUS_FQDN",
+        "sb-praxys-labs.servicebus.windows.net",
+    )
+    monkeypatch.setenv(
+        "PRAXYS_LABS_SERVICE_BUS_QUEUE",
+        "labs-environment-response",
+    )
+    monkeypatch.setattr(
+        labs_dispatch,
+        "_send_service_bus",
+        published.append,
+    )
+    events: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        labs_dispatch,
+        "_record_job_event",
+        lambda job, **details: events.append(
+            (job.trigger, details["outcome"])
+        ),
+    )
+
+    assert labs_dispatch.dispatch_job(job_id) is True
+    assert published == [job_id]
+    assert events == [("enrollment", "service_bus")]
+
+    with db_session.SessionLocal() as db:
+        job = db.get(LabsAnalysisJob, job_id)
+        outbox = db.query(LabsAnalysisOutbox).filter(
+            LabsAnalysisOutbox.job_id == job_id,
+        ).one()
+        assert job.status == "dispatched"
+        assert job.dispatched_at is not None
+        assert outbox.status == "dispatched"
+        assert outbox.dispatched_at is not None
+
+
+def test_recompute_is_single_flight_while_job_is_active(labs_client) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import LabsAnalysisJob
+
+    with db_session.SessionLocal() as db:
+        first = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        repeated = labs_environment.queue_recompute(db, user_id)
+        first_job_id = first.job.id
+        repeated_job_id = repeated.job.id
+
+    with db_session.SessionLocal() as db:
+        jobs = db.query(LabsAnalysisJob).filter(
+            LabsAnalysisJob.user_id == user_id,
+        ).all()
+        assert len(jobs) == 1
+        assert repeated.created is False
+        assert repeated.idempotent is True
+        assert repeated_job_id == first_job_id
+
+
+def test_get_does_not_dispatch_or_recover_abandoned_job(labs_client) -> None:
+    client, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import (
+        LabsAnalysisJob,
+        LabsAnalysisOutbox,
+        LabsExperimentEnrollment,
+    )
+
+    with db_session.SessionLocal() as db:
+        decision = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        row = decision.enrollment
+        job = decision.job
         row.status = "processing"
         row.started_at = datetime.utcnow() - timedelta(minutes=31)
+        job.status = "processing"
+        job.attempt_count = 1
+        job.started_at = row.started_at
+        job.lease_expires_at = datetime.utcnow() - timedelta(minutes=1)
+        outbox = db.query(LabsAnalysisOutbox).filter(
+            LabsAnalysisOutbox.job_id == job.id,
+        ).one()
+        outbox.status = "dispatched"
         db.commit()
 
     response = client.get("/api/labs/environment-response")
 
     assert response.status_code == 200
-    assert response.json()["status"] == "queued"
+    assert response.json()["status"] == "processing"
     with db_session.SessionLocal() as db:
         row = db.get(
             LabsExperimentEnrollment,
             (user_id, labs_environment.EXPERIMENT_ID),
         )
-        assert row.started_at is None
+        job = db.query(LabsAnalysisJob).filter(
+            LabsAnalysisJob.user_id == user_id,
+        ).one()
+        assert row.started_at is not None
+        assert job.status == "processing"
+        assert labs_environment.recover_interrupted_jobs(db) == 1
+        db.refresh(row)
+        db.refresh(job)
+        outbox = db.query(LabsAnalysisOutbox).filter(
+            LabsAnalysisOutbox.job_id == job.id,
+        ).one()
+        assert row.status == "queued"
+        assert job.status == "retrying"
+        assert job.failure_code == "worker_lease_expired"
+        assert job.retryable_failure is True
+        assert outbox.status == "pending"
 
 
 def test_tombstone_replay_preserves_newer_reconsent(labs_client) -> None:
@@ -1042,12 +2415,13 @@ def test_tombstone_replay_preserves_newer_reconsent(labs_client) -> None:
     from db.models import LabsDeletionTombstone, LabsExperimentEnrollment
 
     with db_session.SessionLocal() as db:
-        row = labs_environment.enroll(
+        decision = labs_environment.enroll(
             db,
             user_id,
             adult_attested=True,
             consent_version=labs_environment.CONSENT_VERSION,
         )
+        row = decision.enrollment
         tombstone = LabsDeletionTombstone(
             user_id=user_id,
             experiment_id=labs_environment.EXPERIMENT_ID,
@@ -1069,12 +2443,13 @@ def test_external_tombstone_replays_after_database_restore(labs_client) -> None:
     from db.models import LabsDeletionTombstone, LabsExperimentEnrollment
 
     with db_session.SessionLocal() as db:
-        row = labs_environment.enroll(
+        decision = labs_environment.enroll(
             db,
             user_id,
             adult_attested=True,
             consent_version=labs_environment.CONSENT_VERSION,
         )
+        row = decision.enrollment
         deleted_at = row.consented_at + timedelta(seconds=1)
         labs_tombstone_storage.store(
             user_id,

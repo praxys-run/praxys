@@ -143,8 +143,9 @@ V1 is personal-only:
   per-activity research rows in the Labs result;
 - keep exports and per-activity details out of logs, analytics, traces, and
   client payloads;
-- put only owner ID, experiment ID, model version, and source revision in queue
-  payloads;
+- put only an opaque job ID in queue payloads; the authorized worker resolves
+  owner, experiment, model version, source revision, and correlation fences
+  from PostgreSQL;
 - keep raw exports and research rows only in worker memory or encrypted
   temporary storage that expires within 24 hours;
 - do not retain raw exports or research rows in caches;

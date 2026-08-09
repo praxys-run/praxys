@@ -221,8 +221,16 @@ def begin_serialized_write(db: Session) -> None:
 def _make_sync_engine(url: str):
     """Build a sync Engine appropriate for the URL's dialect."""
     backend = make_url(url).get_backend_name()
+    hide_parameters = (
+        os.getenv("PRAXYS_HIDE_SQL_PARAMETERS", "").strip().lower()
+        in {"1", "true", "yes", "on"}
+    )
     if backend == "sqlite":
-        eng = create_engine(url, connect_args={"check_same_thread": False})
+        eng = create_engine(
+            url,
+            connect_args={"check_same_thread": False},
+            hide_parameters=hide_parameters,
+        )
         _attach_sqlite_pragmas(eng)
         return eng
     eng = create_engine(
@@ -231,6 +239,7 @@ def _make_sync_engine(url: str):
         pool_size=_PG_POOL_SIZE,
         max_overflow=_PG_MAX_OVERFLOW,
         pool_recycle=_PG_POOL_RECYCLE,
+        hide_parameters=hide_parameters,
     )
     _attach_entra_token(eng)
     return eng
@@ -239,8 +248,16 @@ def _make_sync_engine(url: str):
 def _make_async_engine(url: str):
     """Build an async Engine appropriate for the URL's dialect."""
     backend = make_url(url).get_backend_name()
+    hide_parameters = (
+        os.getenv("PRAXYS_HIDE_SQL_PARAMETERS", "").strip().lower()
+        in {"1", "true", "yes", "on"}
+    )
     if backend == "sqlite":
-        eng = create_async_engine(url, connect_args={"check_same_thread": False})
+        eng = create_async_engine(
+            url,
+            connect_args={"check_same_thread": False},
+            hide_parameters=hide_parameters,
+        )
         _attach_sqlite_pragmas(eng)
         return eng
     eng = create_async_engine(
@@ -249,6 +266,7 @@ def _make_async_engine(url: str):
         pool_size=_PG_POOL_SIZE,
         max_overflow=_PG_MAX_OVERFLOW,
         pool_recycle=_PG_POOL_RECYCLE,
+        hide_parameters=hide_parameters,
     )
     _attach_entra_token(eng)
     return eng

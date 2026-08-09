@@ -153,10 +153,17 @@ class RequestContext:
     request and pass it to each pack the endpoint needs.
     """
 
-    def __init__(self, user_id: str, db) -> None:
+    def __init__(
+        self,
+        user_id: str,
+        db,
+        *,
+        include_plan: bool = True,
+    ) -> None:
         _ensure_env()
         self.user_id = user_id
         self.db = db
+        self.include_plan = include_plan
         self.today = date.today()
 
     # --- raw inputs --------------------------------------------------------
@@ -167,6 +174,12 @@ class RequestContext:
 
     @cached_property
     def _data(self) -> dict:
+        if not self.include_plan:
+            return load_data_from_db(
+                self.user_id,
+                self.db,
+                include_plan=False,
+            )
         return load_data_from_db(self.user_id, self.db)
 
     @cached_property
