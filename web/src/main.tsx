@@ -9,6 +9,13 @@ import { detectLocaleFromTag } from './lib/locale-detect'
 import { KEYS, getCompatItem } from './lib/storage-compat'
 import { initAppInsights } from './lib/appinsights'
 import { registerSW } from 'virtual:pwa-register'
+import {
+  PRELOAD_RELOAD_KEY,
+  PRELOAD_RELOAD_WINDOW_MS,
+  isActivePreloadReload,
+  parsePreloadReloadMarker,
+  type PreloadReloadMarker,
+} from './lib/preload-recovery'
 
 // Fire before render so the SDK captures the first page view + web vitals
 // from the initial paint. No-op when VITE_APPINSIGHTS_CONNECTION_STRING
@@ -23,19 +30,48 @@ initAppInsights()
 // (matches registerType: 'autoUpdate' in vite.config.ts).
 registerSW({ immediate: true })
 
+function preloadReloadMarker(): PreloadReloadMarker | null {
+  const raw = sessionStorage.getItem(PRELOAD_RELOAD_KEY)
+  const marker = parsePreloadReloadMarker(raw)
+  if (raw && !marker) sessionStorage.removeItem(PRELOAD_RELOAD_KEY)
+  return marker
+}
+
 // A deploy can replace a lazily loaded route chunk while an older app shell is
-// still open. Reload once so Vite resolves the new manifest instead of leaving
-// the authenticated content area blank.
+// still open. Reload once so Vite resolves the new manifest. If the same chunk
+// still fails during the recovery window, let the Labs route error boundary
+// render an explicit retry state instead of reloading Safari indefinitely.
 window.addEventListener('vite:preloadError', (event) => {
-  event.preventDefault()
-  const reloadKey = 'praxys-preload-reload'
-  if (sessionStorage.getItem(reloadKey) !== window.location.pathname) {
-    sessionStorage.setItem(reloadKey, window.location.pathname)
-    window.location.reload()
+  const now = Date.now()
+  const marker = preloadReloadMarker()
+  if (isActivePreloadReload(marker, window.location.pathname, now)) {
+    return
   }
+
+  event.preventDefault()
+  sessionStorage.setItem(PRELOAD_RELOAD_KEY, JSON.stringify({
+    pathname: window.location.pathname,
+    attemptedAt: now,
+  } satisfies PreloadReloadMarker))
+  window.location.reload()
 })
+
 window.addEventListener('load', () => {
-  sessionStorage.removeItem('praxys-preload-reload')
+  const marker = preloadReloadMarker()
+  if (!marker || marker.pathname !== window.location.pathname) return
+  const remaining = Math.max(
+    0,
+    PRELOAD_RELOAD_WINDOW_MS - (Date.now() - marker.attemptedAt),
+  )
+  window.setTimeout(() => {
+    const current = preloadReloadMarker()
+    if (
+      current?.pathname === marker.pathname
+      && current.attemptedAt === marker.attemptedAt
+    ) {
+      sessionStorage.removeItem(PRELOAD_RELOAD_KEY)
+    }
+  }, remaining)
 }, { once: true })
 
 const queryClient = new QueryClient({

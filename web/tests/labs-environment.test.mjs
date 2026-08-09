@@ -26,6 +26,7 @@ test('web Labs covers consent, result, calculator, and withdrawal states', async
   assert.match(page, /adult_attested: adultAttested/);
   assert.match(page, /consent_version: state\.consent_version/);
   assert.match(page, /environment-response\/preflight/);
+  assert.match(page, /onRetryPreflight/);
   assert.match(page, /Enough source data to attempt the experiment/);
   assert.match(page, /historical_association_only/);
   assert.match(page, /Historical association; not predictively validated/);
@@ -33,7 +34,49 @@ test('web Labs covers consent, result, calculator, and withdrawal states', async
   assert.match(page, /Withdraw and delete result/);
   assert.match(page, /ScienceNote/);
   assert.match(main, /vite:preloadError/);
+  assert.match(main, /PRELOAD_RELOAD_WINDOW_MS/);
+  assert.doesNotMatch(
+    main,
+    /addEventListener\('load', \(\) => \{\s*sessionStorage\.removeItem/,
+  );
   assert.match(app, /RouteChunkSkeleton/);
+  assert.match(app, /LabsRouteBoundary/);
+  assert.match(app, /Reload Labs/);
+});
+
+test('stale Labs chunks reload once instead of looping', async () => {
+  const {
+    PRELOAD_RELOAD_WINDOW_MS,
+    isActivePreloadReload,
+    parsePreloadReloadMarker,
+  } = await import('../src/lib/preload-recovery.ts');
+  const attemptedAt = 1_000;
+  const marker = parsePreloadReloadMarker(JSON.stringify({
+    pathname: '/labs/environment-response',
+    attemptedAt,
+  }));
+
+  assert.equal(
+    isActivePreloadReload(
+      marker,
+      '/labs/environment-response',
+      attemptedAt + 1,
+    ),
+    true,
+  );
+  assert.equal(
+    isActivePreloadReload(
+      marker,
+      '/labs/environment-response',
+      attemptedAt + PRELOAD_RELOAD_WINDOW_MS,
+    ),
+    false,
+  );
+  assert.equal(
+    isActivePreloadReload(marker, '/labs', attemptedAt + 1),
+    false,
+  );
+  assert.equal(parsePreloadReloadMarker('not-json'), null);
 });
 
 test('miniapp Labs preserves the web experiment lifecycle', async () => {
