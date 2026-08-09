@@ -293,6 +293,44 @@ def test_cleanup_requires_external_mode(cleanup_db):
         )
 
 
+def test_cleanup_allows_explicit_switch_from_paused_mode(cleanup_db):
+    db = cleanup_db
+    today = date(2026, 8, 1)
+    delivery = _add_delivery(
+        db,
+        today + timedelta(days=1),
+        external_id="paused-target-workout",
+    )
+    config = db.execute(
+        select(UserConfig).where(UserConfig.user_id == USER_ID)
+    ).scalar_one()
+    config.plan_management = {
+        "mode": "praxys",
+        "execution_target": TARGET,
+        "delivery_enabled": False,
+        "adjustment_policy": "suggest_only",
+    }
+    db.commit()
+    adapter = FakeCleanupAdapter()
+
+    result = cleanup_future_plan_deliveries(
+        db,
+        user_id=USER_ID,
+        today=today,
+        intent="switch_execution_target",
+        adapter_loader=lambda: adapter,
+    )
+
+    assert result.status == "complete"
+    assert result.removed_count == 1
+    assert adapter.deleted == ["paused-target-workout"]
+    assert db.get(PlanDelivery, delivery.id).state == "removed"
+    db.refresh(config)
+    assert config.plan_management["mode"] == "praxys"
+    assert config.plan_management["delivery_enabled"] is False
+    assert config.plan_management["execution_target"] == TARGET
+
+
 def test_cleanup_without_target_is_a_noop(cleanup_db):
     db = cleanup_db
     config = db.execute(

@@ -46,7 +46,7 @@ msgid "{0, plural, one {# workout} other {# workouts}}"
 msgstr "{0, plural, one {# workout} other {# workouts}}"
 
 #. placeholder {0}: praxysWorkouts.length
-#: src/components/ManagedPlanSettingsCard.tsx:483
+#: src/components/ManagedPlanSettingsCard.tsx:576
 msgid "{0, plural, one {Praxys workout} other {Praxys workouts}}"
 msgstr "{0, plural, one {Praxys workout} other {Praxys workouts}}"
 
@@ -298,8 +298,14 @@ msgstr "{total, plural, one {Sync failed for {0} of # source.} other {Sync faile
 msgid "+ {0}d projected from plan"
 msgstr "+ {0}d projected from plan"
 
+#. placeholder {0}: targetSwitchResult.removed_count
+#. placeholder {1}: targetSwitchResult.remaining_count
+#: src/components/ManagedPlanSettingsCard.tsx:1181
+msgid "<0>{0}</0> deliveries are clear; <1>{1}</1> still need review before the target can change."
+msgstr "<0>{0}</0> deliveries are clear; <1>{1}</1> still need review before the target can change."
+
 #. placeholder {0}: externalWorkouts.length
-#: src/components/ManagedPlanSettingsCard.tsx:491
+#: src/components/ManagedPlanSettingsCard.tsx:584
 msgid "<0>{0}</0> external left untouched"
 msgstr "<0>{0}</0> external left untouched"
 
@@ -383,7 +389,7 @@ msgstr "100K"
 msgid "10K"
 msgstr "10K"
 
-#: src/components/ManagedPlanSettingsCard.tsx:465
+#: src/components/ManagedPlanSettingsCard.tsx:558
 msgid "14-day managed window"
 msgstr "14-day managed window"
 
@@ -547,11 +553,11 @@ msgstr "Actions"
 msgid "Activate"
 msgstr "Activate"
 
-#: src/components/ManagedPlanSettingsCard.tsx:966
+#: src/components/ManagedPlanSettingsCard.tsx:1124
 msgid "Activate managed plan"
 msgstr "Activate managed plan"
 
-#: src/components/ManagedPlanSettingsCard.tsx:392
+#: src/components/ManagedPlanSettingsCard.tsx:485
 #: src/pages/admin/AdminFeedback.tsx:351
 #: src/pages/admin/AdminOps.tsx:1584
 #: src/pages/Science.tsx:405
@@ -692,7 +698,7 @@ msgstr "Admin sections"
 msgid "Adopt in Settings"
 msgstr "Adopt in Settings"
 
-#: src/components/ManagedPlanSettingsCard.tsx:733
+#: src/components/ManagedPlanSettingsCard.tsx:891
 msgid "Adopt Praxys as your planner before enabling automatic changes. Coaching remains suggestion-only."
 msgstr "Adopt Praxys as your planner before enabling automatic changes. Coaching remains suggestion-only."
 
@@ -708,7 +714,7 @@ msgstr "Aerobic"
 #~ msgid "After a sync, Praxys may replace today's single Praxys hard workout with rest only when current HRV crosses your personal caution band."
 #~ msgstr "After a sync, Praxys may replace today's single Praxys hard workout with rest only when current HRV crosses your personal caution band."
 
-#: src/components/ManagedPlanSettingsCard.tsx:737
+#: src/components/ManagedPlanSettingsCard.tsx:895
 msgid "After a sync, Praxys may replace today's single Praxys-generated hard workout with rest only when same-day HRV crosses your personal caution band."
 msgstr "After a sync, Praxys may replace today's single Praxys-generated hard workout with rest only when same-day HRV crosses your personal caution band."
 
@@ -799,7 +805,7 @@ msgid "Analyzing your eligible history"
 msgstr "Analyzing your eligible history"
 
 #. placeholder {0}: praxysWorkouts.length - previewWorkouts.length
-#: src/components/ManagedPlanSettingsCard.tsx:540
+#: src/components/ManagedPlanSettingsCard.tsx:633
 msgid "And <0>{0}</0> more in this window"
 msgstr "And <0>{0}</0> more in this window"
 
@@ -811,7 +817,7 @@ msgstr "Another recovery is already running for this delivery. The queue has bee
 msgid "API"
 msgstr "API"
 
-#: src/components/ManagedPlanSettingsCard.tsx:822
+#: src/components/ManagedPlanSettingsCard.tsx:980
 msgid "Applied"
 msgstr "Applied"
 
@@ -889,7 +895,7 @@ msgstr "Automated recovery unavailable"
 msgid "Automatic delivery is within policy, or athlete-owned conflicts remain in the athlete workflow."
 msgstr "Automatic delivery is within policy, or athlete-owned conflicts remain in the athlete workflow."
 
-#: src/components/ManagedPlanSettingsCard.tsx:718
+#: src/components/ManagedPlanSettingsCard.tsx:876
 msgid "Automatic recovery guardrail"
 msgstr "Automatic recovery guardrail"
 
@@ -1127,9 +1133,10 @@ msgstr "Calculator"
 #: src/components/AiInsightsCard.tsx:365
 #: src/components/FeedbackDialog.tsx:314
 #: src/components/GoalEditor.tsx:174
-#: src/components/ManagedPlanSettingsCard.tsx:956
-#: src/components/ManagedPlanSettingsCard.tsx:1180
-#: src/components/ManagedPlanSettingsCard.tsx:1199
+#: src/components/ManagedPlanSettingsCard.tsx:1114
+#: src/components/ManagedPlanSettingsCard.tsx:1203
+#: src/components/ManagedPlanSettingsCard.tsx:1428
+#: src/components/ManagedPlanSettingsCard.tsx:1447
 #: src/components/UpcomingPlanCard.tsx:788
 #: src/components/WorkoutPlanEditor.tsx:513
 #: src/pages/admin/AdminOps.tsx:1215
@@ -1202,7 +1209,11 @@ msgstr "Change"
 msgid "Change Goal"
 msgstr "Change Goal"
 
-#: src/components/ManagedPlanSettingsCard.tsx:824
+#: src/components/ManagedPlanSettingsCard.tsx:726
+msgid "Change the target while delivery is paused. The new target takes effect only after you resume."
+msgstr "Change the target while delivery is paused. The new target takes effect only after you resume."
+
+#: src/components/ManagedPlanSettingsCard.tsx:982
 msgid "Changed later"
 msgstr "Changed later"
 
@@ -1257,7 +1268,7 @@ msgstr "Choose voluntary experiments that help you inspect your own training his
 msgid "Choose which platform to use for each data type"
 msgstr "Choose which platform to use for each data type"
 
-#: src/components/ManagedPlanSettingsCard.tsx:418
+#: src/components/ManagedPlanSettingsCard.tsx:511
 msgid "Choose who controls the plan and where Praxys delivers it"
 msgstr "Choose who controls the plan and where Praxys delivers it"
 
@@ -1294,7 +1305,7 @@ msgstr "Coach useful-vote rate"
 #~ msgid "Coach usefulness"
 #~ msgstr "Coach usefulness"
 
-#: src/components/ManagedPlanSettingsCard.tsx:741
+#: src/components/ManagedPlanSettingsCard.tsx:899
 msgid "Coaching is suggestion-only. Praxys will not change a workout from recovery signals."
 msgstr "Coaching is suggestion-only. Praxys will not change a workout from recovery signals."
 
@@ -1380,7 +1391,7 @@ msgstr "Confirm one fenced replay. Praxys will refresh the provider calendar and
 msgid "Confirm replay"
 msgstr "Confirm replay"
 
-#: src/components/ManagedPlanSettingsCard.tsx:894
+#: src/components/ManagedPlanSettingsCard.tsx:1052
 msgid "Confirm the boundary before Praxys writes to {targetLabel}."
 msgstr "Confirm the boundary before Praxys writes to {targetLabel}."
 
@@ -1430,7 +1441,7 @@ msgstr "Connect a platform first"
 #~ msgid "Connect a supported platform first"
 #~ msgstr "Connect a supported platform first"
 
-#: src/components/ManagedPlanSettingsCard.tsx:621
+#: src/components/ManagedPlanSettingsCard.tsx:718
 msgid "Connect an activity platform above to choose where workouts are delivered."
 msgstr "Connect an activity platform above to choose where workouts are delivered."
 
@@ -1541,6 +1552,11 @@ msgstr "Could not add this workout"
 msgid "Could not calculate the wet-bulb proxy."
 msgstr "Could not calculate the wet-bulb proxy."
 
+#: src/components/ManagedPlanSettingsCard.tsx:321
+#: src/components/ManagedPlanSettingsCard.tsx:356
+msgid "Could not change the execution target"
+msgstr "Could not change the execution target"
+
 #: src/components/UpcomingPlanCard.tsx:1210
 msgid "Could not convert this workout to rest"
 msgstr "Could not convert this workout to rest"
@@ -1549,28 +1565,28 @@ msgstr "Could not convert this workout to rest"
 msgid "Could not delete this workout"
 msgstr "Could not delete this workout"
 
-#: src/components/ManagedPlanSettingsCard.tsx:236
+#: src/components/ManagedPlanSettingsCard.tsx:255
 msgid "Could not enable managed delivery"
 msgstr "Could not enable managed delivery"
 
-#: src/components/ManagedPlanSettingsCard.tsx:292
+#: src/components/ManagedPlanSettingsCard.tsx:385
 msgid "Could not leave managed mode"
 msgstr "Could not leave managed mode"
 
-#: src/components/ManagedPlanSettingsCard.tsx:854
+#: src/components/ManagedPlanSettingsCard.tsx:1012
 msgid "Could not load automatic change history."
 msgstr "Could not load automatic change history."
 
-#: src/components/ManagedPlanSettingsCard.tsx:510
+#: src/components/ManagedPlanSettingsCard.tsx:603
 msgid "Could not load the managed-window preview."
 msgstr "Could not load the managed-window preview."
 
-#: src/components/ManagedPlanSettingsCard.tsx:250
+#: src/components/ManagedPlanSettingsCard.tsx:269
 msgid "Could not pause delivery"
 msgstr "Could not pause delivery"
 
-#: src/components/ManagedPlanSettingsCard.tsx:264
-#: src/components/ManagedPlanSettingsCard.tsx:309
+#: src/components/ManagedPlanSettingsCard.tsx:286
+#: src/components/ManagedPlanSettingsCard.tsx:402
 msgid "Could not remove future delivered workouts"
 msgstr "Could not remove future delivered workouts"
 
@@ -1579,8 +1595,8 @@ msgstr "Could not remove future delivered workouts"
 msgid "Could not resolve this workout"
 msgstr "Could not resolve this workout"
 
-#: src/components/ManagedPlanSettingsCard.tsx:364
-#: src/components/ManagedPlanSettingsCard.tsx:382
+#: src/components/ManagedPlanSettingsCard.tsx:457
+#: src/components/ManagedPlanSettingsCard.tsx:475
 #: src/components/UpcomingPlanCard.tsx:1091
 #: src/components/UpcomingPlanCard.tsx:1101
 msgid "Could not restore the previous workout"
@@ -1590,7 +1606,7 @@ msgstr "Could not restore the previous workout"
 msgid "Could not save your email. Please email us instead."
 msgstr "Could not save your email. Please email us instead."
 
-#: src/components/ManagedPlanSettingsCard.tsx:345
+#: src/components/ManagedPlanSettingsCard.tsx:438
 msgid "Could not update automatic plan changes"
 msgstr "Could not update automatic plan changes"
 
@@ -1785,7 +1801,7 @@ msgstr "Current conclusion"
 msgid "Current evidence"
 msgstr "Current evidence"
 
-#: src/components/ManagedPlanSettingsCard.tsx:828
+#: src/components/ManagedPlanSettingsCard.tsx:986
 #: src/components/UpcomingPlanCard.tsx:1468
 msgid "Current HRV crossed your personal caution band."
 msgstr "Current HRV crossed your personal caution band."
@@ -2099,7 +2115,7 @@ msgstr "Direction"
 msgid "Directional"
 msgstr "Directional"
 
-#: src/components/ManagedPlanSettingsCard.tsx:928
+#: src/components/ManagedPlanSettingsCard.tsx:1086
 msgid "Disable delivery from any other planner first. Two planners can create overlapping sessions."
 msgstr "Disable delivery from any other planner first. Two planners can create overlapping sessions."
 
@@ -2177,7 +2193,8 @@ msgstr "Do not replay this item. Its failure is marked non-retryable by the deli
 msgid "Do not replay this item. The athlete must resolve it from the plan reconciliation flow."
 msgstr "Do not replay this item. The athlete must resolve it from the plan reconciliation flow."
 
-#: src/components/ManagedPlanSettingsCard.tsx:1167
+#: src/components/ManagedPlanSettingsCard.tsx:1202
+#: src/components/ManagedPlanSettingsCard.tsx:1415
 msgid "Done"
 msgstr "Done"
 
@@ -2388,7 +2405,7 @@ msgstr "Email verified"
 msgid "Enabled. Click to close"
 msgstr "Enabled. Click to close"
 
-#: src/components/ManagedPlanSettingsCard.tsx:963
+#: src/components/ManagedPlanSettingsCard.tsx:1121
 msgid "Enabling…"
 msgstr "Enabling…"
 
@@ -2439,7 +2456,7 @@ msgstr "EU"
 msgid "Every <0>{0}</0> hours"
 msgstr "Every <0>{0}</0> hours"
 
-#: src/components/ManagedPlanSettingsCard.tsx:1011
+#: src/components/ManagedPlanSettingsCard.tsx:1259
 msgid "Every change is recorded here and can be restored while that exact workout version is still current."
 msgstr "Every change is recorded here and can be restored while that exact workout version is still current."
 
@@ -2487,10 +2504,14 @@ msgstr "evidence"
 msgid "Evidence toward Likely adapted"
 msgstr "Evidence toward Likely adapted"
 
-#: src/components/ManagedPlanSettingsCard.tsx:564
-#: src/components/ManagedPlanSettingsCard.tsx:652
+#: src/components/ManagedPlanSettingsCard.tsx:657
+#: src/components/ManagedPlanSettingsCard.tsx:758
 msgid "Execution target"
 msgstr "Execution target"
+
+#: src/components/ManagedPlanSettingsCard.tsx:775
+msgid "Execution target changed. Delivery remains paused."
+msgstr "Execution target changed. Delivery remains paused."
 
 #: src/components/ManagedPlanSettingsCard.tsx:507
 #~ msgid "Experimental Garmin delivery"
@@ -2513,7 +2534,7 @@ msgstr "Export my data"
 #~ msgid "Extended rest period. Fitness declining."
 #~ msgstr "Extended rest period. Fitness declining."
 
-#: src/components/ManagedPlanSettingsCard.tsx:401
+#: src/components/ManagedPlanSettingsCard.tsx:494
 #: src/components/UpcomingPlanCard.tsx:360
 msgid "External"
 msgstr "External"
@@ -2522,7 +2543,7 @@ msgstr "External"
 msgid "External plan mode"
 msgstr "External plan mode"
 
-#: src/components/ManagedPlanSettingsCard.tsx:1003
+#: src/components/ManagedPlanSettingsCard.tsx:1251
 msgid "External, manual, and other-coach workouts are never changed. Uncertain or stale evidence makes no change."
 msgstr "External, manual, and other-coach workouts are never changed. Uncertain or stale evidence makes no change."
 
@@ -2804,7 +2825,7 @@ msgstr "From activities"
 msgid "Full analysis must confirm eligibility"
 msgstr "Full analysis must confirm eligibility"
 
-#: src/components/ManagedPlanSettingsCard.tsx:1078
+#: src/components/ManagedPlanSettingsCard.tsx:1326
 msgid "Future delivered workouts"
 msgstr "Future delivered workouts"
 
@@ -2841,7 +2862,7 @@ msgstr "Garmin native running power reads ~30% higher than Stryd for the same at
 #~ msgid "Garmin workout delivery is disabled on this deployment until controlled live validation is complete."
 #~ msgstr "Garmin workout delivery is disabled on this deployment until controlled live validation is complete."
 
-#: src/components/ManagedPlanSettingsCard.tsx:937
+#: src/components/ManagedPlanSettingsCard.tsx:1095
 msgid "Garmin workout delivery is duration-only. Workouts with power, pace, or heart-rate targets will stay blocked rather than lose their intended intensity."
 msgstr "Garmin workout delivery is duration-only. Workouts with power, pace, or heart-rate targets will stay blocked rather than lose their intended intensity."
 
@@ -3423,7 +3444,7 @@ msgstr "Judgment recorded. This feedback has no linked GitHub issue."
 msgid "Keep any optional movement easy and short"
 msgstr "Keep any optional movement easy and short"
 
-#: src/components/ManagedPlanSettingsCard.tsx:1097
+#: src/components/ManagedPlanSettingsCard.tsx:1345
 msgid "Keep future workouts on {targetLabel}"
 msgstr "Keep future workouts on {targetLabel}"
 
@@ -3431,7 +3452,7 @@ msgstr "Keep future workouts on {targetLabel}"
 msgid "Keep participating"
 msgstr "Keep participating"
 
-#: src/components/ManagedPlanSettingsCard.tsx:1029
+#: src/components/ManagedPlanSettingsCard.tsx:1277
 msgid "Keep suggestion-only"
 msgstr "Keep suggestion-only"
 
@@ -3547,20 +3568,20 @@ msgstr "Last updated"
 msgid "Leave blank to track predicted time only"
 msgstr "Leave blank to track predicted time only"
 
-#: src/components/ManagedPlanSettingsCard.tsx:681
-#: src/components/ManagedPlanSettingsCard.tsx:1208
+#: src/components/ManagedPlanSettingsCard.tsx:839
+#: src/components/ManagedPlanSettingsCard.tsx:1456
 msgid "Leave managed mode"
 msgstr "Leave managed mode"
 
-#: src/components/ManagedPlanSettingsCard.tsx:1055
+#: src/components/ManagedPlanSettingsCard.tsx:1303
 msgid "Leave managed mode?"
 msgstr "Leave managed mode?"
 
-#: src/components/ManagedPlanSettingsCard.tsx:1207
+#: src/components/ManagedPlanSettingsCard.tsx:1455
 msgid "Leaving…"
 msgstr "Leaving…"
 
-#: src/components/ManagedPlanSettingsCard.tsx:891
+#: src/components/ManagedPlanSettingsCard.tsx:1049
 msgid "Let Praxys manage this plan?"
 msgstr "Let Praxys manage this plan?"
 
@@ -3822,13 +3843,13 @@ msgstr "Managed delivery is active, but this window contains no Praxys-owned wor
 msgid "Managed delivery paused"
 msgstr "Managed delivery paused"
 
-#: src/components/ManagedPlanSettingsCard.tsx:1157
+#: src/components/ManagedPlanSettingsCard.tsx:1405
 msgid "Managed mode is off, but cleanup did not finish. {actionError}"
 msgstr "Managed mode is off, but cleanup did not finish. {actionError}"
 
 #. placeholder {0}: cleanupResult.removed_count
 #. placeholder {1}: cleanupResult.remaining_count
-#: src/components/ManagedPlanSettingsCard.tsx:1146
+#: src/components/ManagedPlanSettingsCard.tsx:1394
 msgid "Managed mode is off. <0>{0}</0> deliveries are clear; <1>{1}</1> still need review for {cleanupTargetLabel}."
 msgstr "Managed mode is off. <0>{0}</0> deliveries are clear; <1>{1}</1> still need review for {cleanupTargetLabel}."
 
@@ -3870,9 +3891,13 @@ msgstr "Management routes for access, communications, and service status."
 msgid "Management routes remain available. Retry the aggregate health snapshot."
 msgstr "Management routes remain available. Retry the aggregate health snapshot."
 
-#: src/components/ManagedPlanSettingsCard.tsx:920
+#: src/components/ManagedPlanSettingsCard.tsx:1078
 msgid "Manual and other-coach workouts remain external and will not be edited or deleted."
 msgstr "Manual and other-coach workouts remain external and will not be edited or deleted."
+
+#: src/components/ManagedPlanSettingsCard.tsx:1168
+msgid "Manual and other-coach workouts stay untouched. Delivery remains paused throughout."
+msgstr "Manual and other-coach workouts stay untouched. Delivery remains paused throughout."
 
 #: src/components/GoalEditor.tsx:54
 #: src/lib/display-labels.ts:66
@@ -3919,7 +3944,7 @@ msgstr "MFA required"
 #~ msgid "mild fatigue"
 #~ msgstr "mild fatigue"
 
-#: src/components/ManagedPlanSettingsCard.tsx:533
+#: src/components/ManagedPlanSettingsCard.tsx:626
 #: src/components/UpcomingPlanCard.tsx:718
 #: src/components/UpcomingPlanCard.tsx:740
 msgid "min"
@@ -4317,7 +4342,7 @@ msgstr "NO PLAN"
 msgid "No planned load this week"
 msgstr "No planned load this week"
 
-#: src/components/ManagedPlanSettingsCard.tsx:550
+#: src/components/ManagedPlanSettingsCard.tsx:643
 msgid "No Praxys workouts are scheduled in this window. Future Praxys-created workouts will enter the rolling window automatically."
 msgstr "No Praxys workouts are scheduled in this window. Future Praxys-created workouts will enter the rolling window automatically."
 
@@ -4392,7 +4417,8 @@ msgstr "No systemic failure classes were recorded in this window."
 msgid "No systemic sync failures"
 msgstr "No systemic sync failures"
 
-#: src/components/ManagedPlanSettingsCard.tsx:171
+#: src/components/ManagedPlanSettingsCard.tsx:183
+#: src/components/ManagedPlanSettingsCard.tsx:189
 msgid "No target selected"
 msgstr "No target selected"
 
@@ -4605,11 +4631,11 @@ msgstr "Observed, not included"
 msgid "of"
 msgstr "of"
 
-#: src/components/ManagedPlanSettingsCard.tsx:728
+#: src/components/ManagedPlanSettingsCard.tsx:886
 msgid "Off"
 msgstr "Off"
 
-#: src/components/ManagedPlanSettingsCard.tsx:728
+#: src/components/ManagedPlanSettingsCard.tsx:886
 msgid "On"
 msgstr "On"
 
@@ -4637,11 +4663,11 @@ msgstr "One-time codes for new user registration."
 msgid "Only PNG, JPG, or WebP images are supported."
 msgstr "Only PNG, JPG, or WebP images are supported."
 
-#: src/components/ManagedPlanSettingsCard.tsx:627
+#: src/components/ManagedPlanSettingsCard.tsx:735
 msgid "Only supported and eligible platforms can receive workouts."
 msgstr "Only supported and eligible platforms can receive workouts."
 
-#: src/components/ManagedPlanSettingsCard.tsx:995
+#: src/components/ManagedPlanSettingsCard.tsx:1243
 msgid "Only today's single Praxys-generated hard workout can become rest, and only for same-day individualized HRV below the caution band."
 msgstr "Only today's single Praxys-generated hard workout can become rest, and only for same-day individualized HRV below the caution band."
 
@@ -4649,8 +4675,8 @@ msgstr "Only today's single Praxys-generated hard workout can become rest, and o
 #~ msgid "Only today's single Praxys-owned hard workout can become rest, and only for current individualized HRV below the caution band."
 #~ msgstr "Only today's single Praxys-owned hard workout can become rest, and only for current individualized HRV below the caution band."
 
-#: src/components/ManagedPlanSettingsCard.tsx:1060
-#: src/components/ManagedPlanSettingsCard.tsx:1134
+#: src/components/ManagedPlanSettingsCard.tsx:1308
+#: src/components/ManagedPlanSettingsCard.tsx:1382
 msgid "Only workouts recorded in Praxys's delivery ledger are removed. Manual and other-coach workouts stay untouched."
 msgstr "Only workouts recorded in Praxys's delivery ledger are removed. Manual and other-coach workouts stay untouched."
 
@@ -4852,17 +4878,21 @@ msgstr "Past Incidents"
 #~ msgid "Past-exposure estimate only."
 #~ msgstr "Past-exposure estimate only."
 
-#: src/components/ManagedPlanSettingsCard.tsx:663
+#: src/components/ManagedPlanSettingsCard.tsx:813
 msgid "Pause delivery"
 msgstr "Pause delivery"
 
-#: src/components/ManagedPlanSettingsCard.tsx:398
+#: src/components/ManagedPlanSettingsCard.tsx:763
+msgid "Pause delivery to change the target."
+msgstr "Pause delivery to change the target."
+
+#: src/components/ManagedPlanSettingsCard.tsx:491
 #: src/components/UpcomingPlanCard.tsx:388
 #: src/pages/admin/AdminOps.tsx:968
 msgid "Paused"
 msgstr "Paused"
 
-#: src/components/ManagedPlanSettingsCard.tsx:663
+#: src/components/ManagedPlanSettingsCard.tsx:813
 msgid "Pausing…"
 msgstr "Pausing…"
 
@@ -4896,7 +4926,7 @@ msgstr "Personal only"
 msgid "Plan"
 msgstr "Plan"
 
-#: src/components/ManagedPlanSettingsCard.tsx:415
+#: src/components/ManagedPlanSettingsCard.tsx:508
 msgid "Plan management"
 msgstr "Plan management"
 
@@ -5054,15 +5084,15 @@ msgstr "Praxys adapts individualized HRV-guided training and ln(RMSSD) trend mon
 msgid "Praxys and {target} have different versions. Choose which one becomes canonical."
 msgstr "Praxys and {target} have different versions. Choose which one becomes canonical."
 
-#: src/components/ManagedPlanSettingsCard.tsx:435
+#: src/components/ManagedPlanSettingsCard.tsx:528
 msgid "Praxys automatically keeps its workouts in the next 14 days aligned with {targetLabel}."
 msgstr "Praxys automatically keeps its workouts in the next 14 days aligned with {targetLabel}."
 
-#: src/components/ManagedPlanSettingsCard.tsx:904
+#: src/components/ManagedPlanSettingsCard.tsx:1062
 msgid "Praxys becomes canonical for its own and explicitly adopted workouts."
 msgstr "Praxys becomes canonical for its own and explicitly adopted workouts."
 
-#: src/components/ManagedPlanSettingsCard.tsx:445
+#: src/components/ManagedPlanSettingsCard.tsx:538
 msgid "Praxys can analyze this schedule, but it will not create, replace, or remove target workouts."
 msgstr "Praxys can analyze this schedule, but it will not create, replace, or remove target workouts."
 
@@ -5074,7 +5104,7 @@ msgstr "Praxys Coach"
 msgid "Praxys Coach insight"
 msgstr "Praxys Coach insight"
 
-#: src/components/ManagedPlanSettingsCard.tsx:323
+#: src/components/ManagedPlanSettingsCard.tsx:416
 msgid "Praxys could not determine your time zone. Check your device settings and try again."
 msgstr "Praxys could not determine your time zone. Check your device settings and try again."
 
@@ -5097,6 +5127,10 @@ msgstr "Praxys defects"
 #: src/components/HeatAdaptationPanel.tsx:463
 #~ msgid "Praxys does not yet have enough supported weather and power evidence to estimate a stage."
 #~ msgstr "Praxys does not yet have enough supported weather and power evidence to estimate a stage."
+
+#: src/components/ManagedPlanSettingsCard.tsx:1147
+msgid "Praxys found future deliveries on the current target. Remove only Praxys-delivered workouts before switching."
+msgstr "Praxys found future deliveries on the current target. Remove only Praxys-delivered workouts before switching."
 
 #: src/pages/LabsEnvironment.tsx:730
 msgid "Praxys is building a complete owner-scoped snapshot, checking Stryd provenance, fitting the aggregate model, and applying every release guardrail."
@@ -5122,7 +5156,7 @@ msgstr "Praxys is in private alpha."
 msgid "Praxys is read-only and leaves every target workout untouched."
 msgstr "Praxys is read-only and leaves every target workout untouched."
 
-#: src/components/ManagedPlanSettingsCard.tsx:429
+#: src/components/ManagedPlanSettingsCard.tsx:522
 msgid "Praxys is your active planner."
 msgstr "Praxys is your active planner."
 
@@ -5153,11 +5187,11 @@ msgstr "Praxys only"
 msgid "Praxys only changes workouts it created or you explicitly adopt. Manual workouts and workouts from another coach stay untouched."
 msgstr "Praxys only changes workouts it created or you explicitly adopt. Manual workouts and workouts from another coach stay untouched."
 
-#: src/components/ManagedPlanSettingsCard.tsx:455
+#: src/components/ManagedPlanSettingsCard.tsx:548
 msgid "Praxys only changes workouts it created or you explicitly adopt. Manual workouts and workouts from another coach stay untouched. To avoid overlapping sessions, use one planner at a time."
 msgstr "Praxys only changes workouts it created or you explicitly adopt. Manual workouts and workouts from another coach stay untouched. To avoid overlapping sessions, use one planner at a time."
 
-#: src/components/ManagedPlanSettingsCard.tsx:430
+#: src/components/ManagedPlanSettingsCard.tsx:523
 msgid "Praxys owns the plan; delivery is paused."
 msgstr "Praxys owns the plan; delivery is paused."
 
@@ -5185,7 +5219,7 @@ msgstr "Praxys will analyze eligible past runs to see whether modeled heart rate
 msgid "Praxys will immediately delete your Labs consent and derived aggregate result. Your underlying account activities are not deleted."
 msgstr "Praxys will immediately delete your Labs consent and derived aggregate result. Your underlying account activities are not deleted."
 
-#: src/components/ManagedPlanSettingsCard.tsx:1065
+#: src/components/ManagedPlanSettingsCard.tsx:1313
 msgid "Praxys will stop changing the target calendar. Your canonical Praxys plan remains available for analysis."
 msgstr "Praxys will stop changing the target calendar. Your canonical Praxys plan remains available for analysis."
 
@@ -5524,7 +5558,7 @@ msgstr "Recent activities need supported temperature and humidity data before a 
 #~ msgid "Recent alert instances: {0}. Resolved: {1}."
 #~ msgstr "Recent alert instances: {0}. Resolved: {1}."
 
-#: src/components/ManagedPlanSettingsCard.tsx:797
+#: src/components/ManagedPlanSettingsCard.tsx:955
 msgid "Recent automatic changes"
 msgstr "Recent automatic changes"
 
@@ -5648,7 +5682,7 @@ msgstr "recommended"
 msgid "Recommended"
 msgstr "Recommended"
 
-#: src/components/ManagedPlanSettingsCard.tsx:1104
+#: src/components/ManagedPlanSettingsCard.tsx:1352
 msgid "Recommended. Delivered workouts stay on the calendar; Praxys simply stops managing them."
 msgstr "Recommended. Delivered workouts stay on the calendar; Praxys simply stops managing them."
 
@@ -5668,7 +5702,7 @@ msgstr "Reconciliation completed without replaying a workout."
 msgid "Reconnect {target} to continue delivery. The Praxys plan remains canonical."
 msgstr "Reconnect {target} to continue delivery. The Praxys plan remains canonical."
 
-#: src/components/ManagedPlanSettingsCard.tsx:699
+#: src/components/ManagedPlanSettingsCard.tsx:857
 msgid "Reconnect {targetLabel} above before managed delivery can continue."
 msgstr "Reconnect {targetLabel} above before managed delivery can continue."
 
@@ -5899,9 +5933,13 @@ msgstr "Reload the page or verify the management endpoints are available."
 msgid "Remaining"
 msgstr "Remaining"
 
-#: src/components/ManagedPlanSettingsCard.tsx:636
-#: src/components/ManagedPlanSettingsCard.tsx:1054
-#: src/components/ManagedPlanSettingsCard.tsx:1127
+#: src/components/ManagedPlanSettingsCard.tsx:1214
+msgid "Remove and switch"
+msgstr "Remove and switch"
+
+#: src/components/ManagedPlanSettingsCard.tsx:803
+#: src/components/ManagedPlanSettingsCard.tsx:1302
+#: src/components/ManagedPlanSettingsCard.tsx:1375
 msgid "Remove future Praxys deliveries"
 msgstr "Remove future Praxys deliveries"
 
@@ -5909,8 +5947,13 @@ msgstr "Remove future Praxys deliveries"
 msgid "Remove image"
 msgstr "Remove image"
 
-#: src/components/ManagedPlanSettingsCard.tsx:1170
-#: src/components/ManagedPlanSettingsCard.tsx:1188
+#: src/components/ManagedPlanSettingsCard.tsx:1144
+msgid "Remove old deliveries before switching?"
+msgstr "Remove old deliveries before switching?"
+
+#: src/components/ManagedPlanSettingsCard.tsx:1211
+#: src/components/ManagedPlanSettingsCard.tsx:1418
+#: src/components/ManagedPlanSettingsCard.tsx:1436
 msgid "Removing…"
 msgstr "Removing…"
 
@@ -5978,7 +6021,7 @@ msgstr "Resolve workout conflict"
 msgid "Resolved"
 msgstr "Resolved"
 
-#: src/components/ManagedPlanSettingsCard.tsx:818
+#: src/components/ManagedPlanSettingsCard.tsx:976
 #: src/components/UpcomingPlanCard.tsx:1465
 #: src/components/WorkoutPlanEditor.tsx:144
 #: src/lib/phase-label.ts:17
@@ -6018,16 +6061,16 @@ msgstr "Restore Praxys"
 msgid "Restore Praxys:"
 msgstr "Restore Praxys:"
 
-#: src/components/ManagedPlanSettingsCard.tsx:841
+#: src/components/ManagedPlanSettingsCard.tsx:999
 #: src/components/UpcomingPlanCard.tsx:1481
 msgid "Restore workout"
 msgstr "Restore workout"
 
-#: src/components/ManagedPlanSettingsCard.tsx:823
+#: src/components/ManagedPlanSettingsCard.tsx:981
 msgid "Restored"
 msgstr "Restored"
 
-#: src/components/ManagedPlanSettingsCard.tsx:840
+#: src/components/ManagedPlanSettingsCard.tsx:998
 #: src/components/UpcomingPlanCard.tsx:805
 #: src/components/UpcomingPlanCard.tsx:1480
 msgid "Restoring…"
@@ -6037,16 +6080,16 @@ msgstr "Restoring…"
 msgid "Result ready"
 msgstr "Result ready"
 
-#: src/components/ManagedPlanSettingsCard.tsx:965
+#: src/components/ManagedPlanSettingsCard.tsx:1123
 msgid "Resume delivery"
 msgstr "Resume delivery"
 
-#: src/components/ManagedPlanSettingsCard.tsx:890
+#: src/components/ManagedPlanSettingsCard.tsx:1048
 msgid "Resume managed delivery?"
 msgstr "Resume managed delivery?"
 
-#: src/components/ManagedPlanSettingsCard.tsx:513
-#: src/components/ManagedPlanSettingsCard.tsx:861
+#: src/components/ManagedPlanSettingsCard.tsx:606
+#: src/components/ManagedPlanSettingsCard.tsx:1019
 #: src/components/UpcomingPlanCard.tsx:338
 #: src/components/UpcomingPlanCard.tsx:1273
 #: src/pages/admin/AdminFeedback.tsx:582
@@ -6067,8 +6110,9 @@ msgstr "Retry"
 msgid "Retry before joining. The full analysis has not started."
 msgstr "Retry before joining. The full analysis has not started."
 
-#: src/components/ManagedPlanSettingsCard.tsx:1170
-#: src/components/ManagedPlanSettingsCard.tsx:1189
+#: src/components/ManagedPlanSettingsCard.tsx:1213
+#: src/components/ManagedPlanSettingsCard.tsx:1418
+#: src/components/ManagedPlanSettingsCard.tsx:1437
 msgid "Retry cleanup"
 msgstr "Retry cleanup"
 
@@ -6109,15 +6153,15 @@ msgstr "Retry to load the public status incidents feed."
 msgid "Retry workout action"
 msgstr "Retry workout action"
 
-#: src/components/ManagedPlanSettingsCard.tsx:645
+#: src/components/ManagedPlanSettingsCard.tsx:796
 msgid "Review and activate"
 msgstr "Review and activate"
 
-#: src/components/ManagedPlanSettingsCard.tsx:673
+#: src/components/ManagedPlanSettingsCard.tsx:828
 msgid "Review and resume"
 msgstr "Review and resume"
 
-#: src/components/ManagedPlanSettingsCard.tsx:768
+#: src/components/ManagedPlanSettingsCard.tsx:926
 msgid "Review and turn on"
 msgstr "Review and turn on"
 
@@ -6254,6 +6298,10 @@ msgstr "Save"
 msgid "Save Goal"
 msgstr "Save Goal"
 
+#: src/components/ManagedPlanSettingsCard.tsx:750
+msgid "Save target"
+msgstr "Save target"
+
 #: src/components/WorkoutPlanEditor.tsx:519
 msgid "Save workout"
 msgstr "Save workout"
@@ -6261,6 +6309,10 @@ msgstr "Save workout"
 #: src/pages/admin/AdminUsers.tsx:166
 msgid "Saved"
 msgstr "Saved"
+
+#: src/components/ManagedPlanSettingsCard.tsx:749
+msgid "Saving target…"
+msgstr "Saving target…"
 
 #: src/components/WorkoutPlanEditor.tsx:253
 msgid "Saving will reschedule this workout."
@@ -6324,7 +6376,7 @@ msgstr "Select an execution target in Settings to continue delivery."
 msgid "Select the region matching your COROS account."
 msgstr "Select the region matching your COROS account."
 
-#: src/components/ManagedPlanSettingsCard.tsx:626
+#: src/components/ManagedPlanSettingsCard.tsx:731
 msgid "Selecting a target does not enable delivery. You will confirm the managed window next."
 msgstr "Selecting a target does not enable delivery. You will confirm the managed window next."
 
@@ -7020,7 +7072,7 @@ msgstr "The Azure Monitor query client is unavailable in this deployment."
 msgid "The bounded operator queue is available, but aggregate delivery health could not be refreshed."
 msgstr "The bounded operator queue is available, but aggregate delivery health could not be refreshed."
 
-#: src/components/ManagedPlanSettingsCard.tsx:440
+#: src/components/ManagedPlanSettingsCard.tsx:533
 msgid "The canonical Praxys plan is preserved. Existing target workouts stay in place until you resume or leave."
 msgstr "The canonical Praxys plan is preserved. Existing target workouts stay in place until you resume or leave."
 
@@ -7088,7 +7140,7 @@ msgstr "The latest HRV reading is too old for a same-day recovery classification
 msgid "The line is a historical model inside the central supported range only. The shaded band shows aggregate uncertainty. It does not identify a causal personal coefficient and never extrapolates beyond your observed domain. Wind, solar load, clothing, hydration, fatigue, and other unmeasured conditions can still differ between runs."
 msgstr "The line is a historical model inside the central supported range only. The shaded band shows aggregate uncertainty. It does not identify a causal personal coefficient and never extrapolates beyond your observed domain. Wind, solar load, clothing, hydration, fatigue, and other unmeasured conditions can still differ between runs."
 
-#: src/components/ManagedPlanSettingsCard.tsx:211
+#: src/components/ManagedPlanSettingsCard.tsx:230
 msgid "The managed window changed. Review the refreshed preview before enabling delivery."
 msgstr "The managed window changed. Review the refreshed preview before enabling delivery."
 
@@ -7097,7 +7149,7 @@ msgid "The managed-plan operator queue could not be loaded."
 msgstr "The managed-plan operator queue could not be loaded."
 
 #. placeholder {0}: praxysWorkouts.length
-#: src/components/ManagedPlanSettingsCard.tsx:912
+#: src/components/ManagedPlanSettingsCard.tsx:1070
 msgid "The next {MANAGED_PLAN_WINDOW_DAYS} days roll forward automatically; <0>{0}</0> workouts are currently in scope."
 msgstr "The next {MANAGED_PLAN_WINDOW_DAYS} days roll forward automatically; <0>{0}</0> workouts are currently in scope."
 
@@ -7206,7 +7258,7 @@ msgstr "This first experiment currently supports continuous Stryd power only."
 #~ msgid "This Garmin connection can receive duration-only running workouts. Power, pace, and heart-rate targets are not sent."
 #~ msgstr "This Garmin connection can receive duration-only running workouts. Power, pace, and heart-rate targets are not sent."
 
-#: src/components/ManagedPlanSettingsCard.tsx:788
+#: src/components/ManagedPlanSettingsCard.tsx:946
 msgid "This guardrail uses individualized HRV guidance and never loads activity intensity. The exact caution band and rest-day action are conservative product estimates, not diagnoses or clinically validated prescriptions. Prior-day, missing, or inconsistent recovery; a completed activity; multiple Praxys workouts; or an uncertain target calendar keeps the plan unchanged. Load, sleep, and other caution signals remain suggestions."
 msgstr "This guardrail uses individualized HRV guidance and never loads activity intensity. The exact caution band and rest-day action are conservative product estimates, not diagnoses or clinically validated prescriptions. Prior-day, missing, or inconsistent recovery; a completed activity; multiple Praxys workouts; or an uncertain target calendar keeps the plan unchanged. Load, sleep, and other caution signals remain suggestions."
 
@@ -7254,7 +7306,7 @@ msgstr "This page refreshes automatically every 30 seconds."
 msgid "This permanently deletes your account, synced training data, plans, settings, platform connections, encrypted credentials, and any Garmin tokenstore on this device. You will be signed out immediately."
 msgstr "This permanently deletes your account, synced training data, plans, settings, platform connections, encrypted credentials, and any Garmin tokenstore on this device. You will be signed out immediately."
 
-#: src/components/ManagedPlanSettingsCard.tsx:985
+#: src/components/ManagedPlanSettingsCard.tsx:1233
 msgid "This permission is separate from managed delivery. Review the exact boundary before opting in."
 msgstr "This permission is separate from managed delivery. Review the exact boundary before opting in."
 
@@ -7502,7 +7554,7 @@ msgstr "TSB"
 msgid "TSB (load balance)"
 msgstr "TSB (load balance)"
 
-#: src/components/ManagedPlanSettingsCard.tsx:757
+#: src/components/ManagedPlanSettingsCard.tsx:915
 msgid "Turn off"
 msgstr "Turn off"
 
@@ -7515,19 +7567,19 @@ msgstr "Turn off"
 #~ msgid "Turn off Garmin delivery?"
 #~ msgstr "Turn off Garmin delivery?"
 
-#: src/components/ManagedPlanSettingsCard.tsx:983
+#: src/components/ManagedPlanSettingsCard.tsx:1231
 msgid "Turn on conservative plan changes?"
 msgstr "Turn on conservative plan changes?"
 
-#: src/components/ManagedPlanSettingsCard.tsx:1037
+#: src/components/ManagedPlanSettingsCard.tsx:1285
 msgid "Turn on guardrail"
 msgstr "Turn on guardrail"
 
-#: src/components/ManagedPlanSettingsCard.tsx:756
+#: src/components/ManagedPlanSettingsCard.tsx:914
 msgid "Turning off…"
 msgstr "Turning off…"
 
-#: src/components/ManagedPlanSettingsCard.tsx:1036
+#: src/components/ManagedPlanSettingsCard.tsx:1284
 msgid "Turning on…"
 msgstr "Turning on…"
 
@@ -7571,7 +7623,7 @@ msgstr "Units"
 #~ msgid "unknown"
 #~ msgstr "unknown"
 
-#: src/components/ManagedPlanSettingsCard.tsx:810
+#: src/components/ManagedPlanSettingsCard.tsx:968
 msgid "Unknown date"
 msgstr "Unknown date"
 
@@ -7938,7 +7990,7 @@ msgstr "What's your training goal? (optional)"
 #~ msgid "Where Praxys pushes your plan. Per-workout sync state shows in Training."
 #~ msgstr "Where Praxys pushes your plan. Per-workout sync state shows in Training."
 
-#: src/components/ManagedPlanSettingsCard.tsx:775
+#: src/components/ManagedPlanSettingsCard.tsx:933
 msgid "Why this is conservative"
 msgstr "Why this is conservative"
 
@@ -7990,7 +8042,7 @@ msgstr "Working…"
 msgid "Workload evidence"
 msgstr "Workload evidence"
 
-#: src/components/ManagedPlanSettingsCard.tsx:814
+#: src/components/ManagedPlanSettingsCard.tsx:972
 #: src/components/UpcomingPlanCard.tsx:1463
 msgid "Workout"
 msgstr "Workout"
@@ -7999,11 +8051,11 @@ msgstr "Workout"
 msgid "Workout conflict requires athlete input"
 msgstr "Workout conflict requires athlete input"
 
-#: src/components/ManagedPlanSettingsCard.tsx:180
+#: src/components/ManagedPlanSettingsCard.tsx:199
 msgid "Workout delivery is not available for this account."
 msgstr "Workout delivery is not available for this account."
 
-#: src/components/ManagedPlanSettingsCard.tsx:181
+#: src/components/ManagedPlanSettingsCard.tsx:200
 msgid "Workout delivery is not supported."
 msgstr "Workout delivery is not supported."
 
@@ -8065,7 +8117,7 @@ msgstr "Your eligible runs do not cover enough different temperature-and-humidit
 msgid "Your export is a portable snapshot of the data stored in Praxys."
 msgstr "Your export is a portable snapshot of the data stored in Praxys."
 
-#: src/components/ManagedPlanSettingsCard.tsx:431
+#: src/components/ManagedPlanSettingsCard.tsx:524
 msgid "Your external planner remains in control."
 msgstr "Your external planner remains in control."
 

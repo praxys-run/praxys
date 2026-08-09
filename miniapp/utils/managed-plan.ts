@@ -106,6 +106,47 @@ export function isPraxysOwned(workout: PlannedWorkout): boolean {
 
 export type ManagedPlanState = 'external' | 'active' | 'paused';
 
+interface PlanTargetChoice<T extends string> {
+  key: T;
+  selectable: boolean;
+}
+
+/**
+ * Keep active delivery read-only while allowing paused mode to stage another
+ * eligible target without enabling delivery.
+ */
+export function planTargetSelection<T extends string>(
+  state: ManagedPlanState,
+  options: readonly PlanTargetChoice<T>[],
+  explicitChoice: T | null,
+  primaryActivitySource: T | null,
+  configuredTarget: T | null,
+): T | null {
+  if (state === 'active') return configuredTarget;
+  const selectable = options
+    .filter((option) => option.selectable)
+    .map((option) => option.key);
+  if (state === 'paused') {
+    if (explicitChoice && selectable.includes(explicitChoice)) {
+      return explicitChoice;
+    }
+    if (configuredTarget) return configuredTarget;
+  }
+  if (explicitChoice && selectable.includes(explicitChoice)) {
+    return explicitChoice;
+  }
+  if (
+    primaryActivitySource
+    && selectable.includes(primaryActivitySource)
+  ) {
+    return primaryActivitySource;
+  }
+  if (configuredTarget && selectable.includes(configuredTarget)) {
+    return configuredTarget;
+  }
+  return selectable.length === 1 ? selectable[0] : null;
+}
+
 export function managedPlanState(
   config: PlanManagementConfig,
 ): ManagedPlanState {

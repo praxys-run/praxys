@@ -592,6 +592,11 @@ export interface PlanCleanupItem {
   reason: string | null;
 }
 
+export interface PlanCleanupRequest {
+  scope: 'future';
+  intent?: 'leave_managed_mode' | 'switch_execution_target';
+}
+
 export interface PlanCleanupResponse {
   status: 'complete' | 'partial';
   target: PlatformName | null;

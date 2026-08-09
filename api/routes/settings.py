@@ -225,6 +225,34 @@ def _apply_plan_management_update(
         changes["adjustment_policy"] = "auto_conservative"
 
     candidate = {**config.plan_management, **changes}
+    target_changed = (
+        "execution_target" in changes
+        and changes["execution_target"]
+        != prior_management["execution_target"]
+    )
+    if (
+        target_changed
+        and prior_management["mode"] == "praxys"
+        and prior_management["delivery_enabled"]
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Pause managed delivery before changing execution targets"
+            ),
+        )
+    if (
+        target_changed
+        and prior_management["mode"] == "praxys"
+        and candidate.get("delivery_enabled")
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Change the execution target and resume managed delivery "
+                "in separate requests"
+            ),
+        )
     if (
         changes.get("mode") == "external"
         and "delivery_enabled" not in changes
