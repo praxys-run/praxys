@@ -56,6 +56,7 @@ Component({
   data: {
     tabs: buildTabs(),
     selected: 0,
+    hidden: false,
     themeClass: getApp<IAppOption>().globalData.themeClass,
     // Cached locale; used as a drift guard in pageLifetimes.show so we
     // only rebuild tabs when the language actually changed (otherwise

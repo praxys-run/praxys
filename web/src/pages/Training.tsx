@@ -12,6 +12,7 @@ import {
   HeatAdaptationSheetDescription,
 } from '@/components/HeatAdaptationPanel';
 import MetricDetailSheet, { type MetricSheetSize } from '@/components/MetricDetailSheet';
+import PersonalContextPanel from '@/components/PersonalContextPanel';
 import UpcomingPlanCard from '@/components/UpcomingPlanCard';
 import ZoneAnalysisCard from '@/components/ZoneAnalysisCard';
 import ComplianceChart from '@/components/charts/ComplianceChart';
@@ -389,6 +390,7 @@ export default function Training() {
 
       <div className="mt-14">
         <UpcomingPlanCard />
+        <PersonalContextPanel />
       </div>
 
       <MetricDetailSheet

@@ -18,6 +18,7 @@ import {
   shiftAthletePlanDate,
   workoutKey,
 } from '../../utils/managed-plan';
+import { personalContextEvidenceIds } from '../../utils/personal-context';
 import type {
   PlanAdjustment,
   PlanReconciliation,
@@ -50,6 +51,7 @@ interface AdjustmentNoticeView {
   id: string;
   title: string;
   detail: string;
+  contextDetail: string;
   tone: 'neutral' | 'warning';
   canUndo: boolean;
 }
@@ -121,6 +123,9 @@ function translations() {
     previousWorkoutRestored: t('The previous workout was restored'),
     adjustmentSuperseded: t('An earlier automatic change was superseded'),
     currentHrvCaution: t('Current HRV crossed your personal caution band.'),
+    confirmedContextUsed: t(
+      'This change used confirmed private context. The private detail is not copied into the plan record.',
+    ),
     restoreWorkout: t('Restore workout'),
     restoring: t('Restoring…'),
     restoreWorkoutFailed: t('Could not restore the previous workout'),
@@ -559,6 +564,11 @@ function adjustmentNotice(
       `${before} \u2192 ${after}`,
       t('Current HRV crossed your personal caution band.'),
     ].filter(Boolean).join(' \u00b7 '),
+    contextDetail: personalContextEvidenceIds(adjustment.evidence).length > 0
+      ? t(
+        'This change used confirmed private context. The private detail is not copied into the plan record.',
+      )
+      : '',
     tone: adjustment.status === 'active' ? 'warning' : 'neutral',
     canUndo: adjustment.can_undo,
   };
