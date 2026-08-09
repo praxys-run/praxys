@@ -786,6 +786,10 @@ class ResolvePlanReconciliationRequest(BaseModel):
 
 class CleanupPlanDeliveriesRequest(BaseModel):
     scope: Literal["future"]
+    intent: Literal[
+        "leave_managed_mode",
+        "switch_execution_target",
+    ] = "leave_managed_mode"
 
 
 def _resolve_stryd_delivery_cp(data: dict) -> float | None:
@@ -1291,7 +1295,6 @@ def cleanup_plan_deliveries(
     db: Session = Depends(get_db),
 ) -> dict:
     """Remove future target workouts that belong to the caller's ledger."""
-    del request
     db.rollback()
     legacy_import = _import_legacy_stryd_status_if_compatible(
         db,
@@ -1312,6 +1315,7 @@ def cleanup_plan_deliveries(
         result = cleanup_future_plan_deliveries(
             db,
             user_id=current_user_id,
+            intent=request.intent,
         )
     except PlanCleanupRequiresExternalMode as exc:
         db.rollback()

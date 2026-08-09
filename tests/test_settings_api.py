@@ -476,6 +476,141 @@ def test_target_switch_requires_old_target_cleanup(api_client):
     )
 
 
+def test_paused_target_switch_preserves_managed_mode_and_pause(api_client):
+    client, user_id = api_client
+    _seed_connection(user_id, "stryd")
+    _seed_connection(user_id, "garmin")
+    adopted = client.put("/api/settings", json={
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "stryd",
+            "delivery_enabled": False,
+        },
+    })
+    assert adopted.status_code == 200, adopted.text
+
+    switched = client.put("/api/settings", json={
+        "plan_management": {
+            "execution_target": "garmin",
+            "delivery_enabled": False,
+        },
+    })
+
+    assert switched.status_code == 200, switched.text
+    assert switched.json()["config"]["plan_management"] == {
+        "mode": "praxys",
+        "execution_target": "garmin",
+        "delivery_enabled": False,
+        "adjustment_policy": "suggest_only",
+    }
+    persisted = client.get("/api/settings")
+    assert persisted.status_code == 200, persisted.text
+    assert persisted.json()["config"]["plan_management"] == (
+        switched.json()["config"]["plan_management"]
+    )
+
+
+def test_paused_target_switch_cannot_resume_in_same_request(api_client):
+    client, user_id = api_client
+    _seed_connection(user_id, "stryd")
+    _seed_connection(user_id, "garmin")
+    adopted = client.put("/api/settings", json={
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "stryd",
+            "delivery_enabled": False,
+        },
+    })
+    assert adopted.status_code == 200, adopted.text
+
+    blocked = client.put("/api/settings", json={
+        "plan_management": {
+            "execution_target": "garmin",
+            "delivery_enabled": True,
+        },
+    })
+
+    assert blocked.status_code == 409, blocked.text
+    assert "separate requests" in blocked.json()["detail"]
+    current = client.get("/api/settings")
+    assert current.status_code == 200, current.text
+    assert current.json()["config"]["plan_management"] == {
+        "mode": "praxys",
+        "execution_target": "stryd",
+        "delivery_enabled": False,
+        "adjustment_policy": "suggest_only",
+    }
+
+
+def test_active_managed_target_switch_requires_pause(api_client):
+    client, user_id = api_client
+    _seed_connection(user_id, "stryd")
+    _seed_connection(user_id, "garmin")
+    active = client.put("/api/settings", json={
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "stryd",
+            "delivery_enabled": True,
+        },
+    })
+    assert active.status_code == 200, active.text
+
+    blocked = client.put("/api/settings", json={
+        "plan_management": {
+            "execution_target": "garmin",
+            "delivery_enabled": True,
+        },
+    })
+
+    assert blocked.status_code == 409, blocked.text
+    assert "Pause managed delivery" in blocked.json()["detail"]
+    current = client.get("/api/settings")
+    assert current.status_code == 200, current.text
+    assert current.json()["config"]["plan_management"] == {
+        "mode": "praxys",
+        "execution_target": "stryd",
+        "delivery_enabled": True,
+        "adjustment_policy": "suggest_only",
+    }
+
+
+def test_paused_switch_to_garmin_enforces_account_eligibility(
+    api_client,
+    monkeypatch,
+):
+    client, user_id = api_client
+    _seed_connection(user_id, "stryd")
+    _seed_connection(user_id, "garmin")
+    adopted = client.put("/api/settings", json={
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "stryd",
+            "delivery_enabled": False,
+        },
+    })
+    assert adopted.status_code == 200, adopted.text
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda _gate_name, _user: False,
+    )
+
+    blocked = client.put("/api/settings", json={
+        "plan_management": {
+            "execution_target": "garmin",
+            "delivery_enabled": False,
+        },
+    })
+
+    assert blocked.status_code == 409, blocked.text
+    assert "not available for this account" in blocked.json()["detail"]
+    current = client.get("/api/settings")
+    assert current.status_code == 200, current.text
+    management = current.json()["config"]["plan_management"]
+    assert management["execution_target"] == "stryd"
+    assert management["mode"] == "praxys"
+    assert management["delivery_enabled"] is False
+
+
 def test_legacy_plan_preference_cannot_bypass_target_cleanup(api_client):
     client, user_id = api_client
     _seed_connection(user_id, "garmin")
@@ -1088,9 +1223,24 @@ def test_cleanup_endpoint_rejects_before_leaving_managed_mode(api_client):
     assert "Leave managed mode" in cleanup.json()["detail"]
 
 
-def test_cleanup_endpoint_removes_future_delivery_after_leave(
+@pytest.mark.parametrize(
+    ("mode", "cleanup_request"),
+    [
+        ("external", {"scope": "future"}),
+        (
+            "praxys",
+            {
+                "scope": "future",
+                "intent": "switch_execution_target",
+            },
+        ),
+    ],
+)
+def test_cleanup_endpoint_removes_future_delivery_when_disabled(
     api_client,
     monkeypatch,
+    mode,
+    cleanup_request,
 ):
     from datetime import date, timedelta
     from uuid import uuid4
@@ -1103,7 +1253,7 @@ def test_cleanup_endpoint_removes_future_delivery_after_leave(
     _seed_connection(user_id, "stryd")
     configured = client.put("/api/settings", json={
         "plan_management": {
-            "mode": "external",
+            "mode": mode,
             "execution_target": "stryd",
             "delivery_enabled": False,
         },
@@ -1164,7 +1314,7 @@ def test_cleanup_endpoint_removes_future_delivery_after_leave(
 
     cleanup = client.post(
         "/api/plan/deliveries/cleanup",
-        json={"scope": "future"},
+        json=cleanup_request,
     )
 
     assert cleanup.status_code == 200, cleanup.text
@@ -1176,6 +1326,13 @@ def test_cleanup_endpoint_removes_future_delivery_after_leave(
         assert db.get(PlanDelivery, delivery_id).state == "removed"
     finally:
         db.close()
+    current = client.get("/api/settings")
+    assert current.status_code == 200, current.text
+    assert current.json()["config"]["plan_management"]["mode"] == mode
+    assert (
+        current.json()["config"]["plan_management"]["delivery_enabled"]
+        is False
+    )
 
 
 @pytest.mark.parametrize(
