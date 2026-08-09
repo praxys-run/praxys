@@ -12,8 +12,9 @@
 | Frontend (SPA) | `deploy-frontend-appservice.yml` | push to `main` touching the SPA/static server, observability config/scripts, or the workflow; or `web-*` tag | App Service `praxys-frontend`; optionally Tencent Lighthouse |
 | Mini program | `miniapp-publish.yml` | `miniapp-YYYY.MM.MICRO` release tag (robot 1); `main` pushes auto-publish a dev build (robot 5) | WeChat (`miniprogram-ci`) |
 
-Targets authenticate through Azure OIDC, the WeChat upload key, or a dedicated
-pinned SSH key for Lighthouse — no account passwords. Backend + frontend run
+Targets authenticate through Azure OIDC or the WeChat upload key. The Tencent
+lane uses an outbound-only self-hosted Runner restricted to the production
+workflow; GitHub Actions does not SSH into Lighthouse. Backend + frontend run
 their test/build gates **before** deploying.
 
 **Pre-merge gate.** Before any deploy, `ci-premerge.yml` runs independent backend and frontend validation on every PR to `main`. A red required context blocks merge, so regressions never reach deployment (see [environment.md](./environment.md) → Repo governance). `deploy-backend.yml` re-runs the backend suite post-merge as a deploy-time backstop.
@@ -46,10 +47,11 @@ Automatic on merge touching `web/`. The workflow builds `web/dist/` once with
 
 - Azure `praxys-frontend`, packaged with `frontend_server/`.
 - Tencent Lighthouse when `TENCENT_LIGHTHOUSE_DEPLOY_ENABLED=true`, packaged as
-  static files and atomically activated under `/var/www/praxys/current`.
+  static files and atomically activated under `/var/www/praxys/current` by the
+  `praxys-cn-frontend` self-hosted Runner.
 
 Both deployments expose the same `deployed_sha`. The Tencent lane is disabled
-until the server bootstrap and pinned SSH configuration in
+until the server bootstrap and workflow-restricted Runner configuration in
 [tencent-frontend.md](./tencent-frontend.md) are complete. A skipped Tencent
 lane never blocks the existing Azure deployment.
 
