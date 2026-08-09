@@ -1,0 +1,246 @@
+schema_version: 1
+id: sdr-environmental-performance-v3
+version: 3
+title: "Display supported environmental-response subdomains without bridging gaps"
+status: accepted
+decision_date: 2026-08-09
+owners:
+  - team:praxys
+human_reviewers:
+  - github:dddtc2005
+model_version: environmental-performance-context-v3
+evidence_review_ids:
+  - evidence-environmental-performance-v1
+  - evidence-personal-environment-response-v1
+evidence_claim_ids:
+  - environment.stull-wet-bulb-proxy
+  - environment.wet-bulb-not-safety-boundary
+  - environment.no-universal-personal-correction
+  - personal-environment-response.running-power-limited-proxy
+  - personal-environment-response.association-not-prediction
+  - personal-environment-response.structured-validation
+  - personal-environment-response.activity-cluster-uncertainty
+  - personal-environment-response.uncertainty-can-be-misread
+accepted_interpretation: >
+  Every scientific, privacy, safety, provider,
+  prediction, uncertainty, and consent boundary in
+  sdr-environmental-performance-v2 remains in force except its requirement
+  that every support bin pass before any portion of the curve is displayed.
+  Praxys may display deterministic supported portions of the fixed personal
+  10th-to-90th-percentile wet-bulb-proxy domain when all fit-level release
+  gates pass and at least two adjacent prespecified bins pass every local
+  support floor. Supported bins may be drawn as separate sections; an isolated
+  supported bin may appear as an unconnected modeled point only when another
+  qualifying section authorizes the partial display. Unsupported bins carry no
+  modeled value, uncertainty band, interpolation, or dotted continuation.
+  Selection depends only on prespecified support counts, never coefficient
+  direction, magnitude, visual favorability, or prediction performance. The
+  fitted association remains a retrospective model using all otherwise
+  eligible training-partition rows. Local support controls where that model may
+  be displayed; it does not turn the displayed section into a causal,
+  physiological, predictive, safety, or training claim.
+rejected_alternatives:
+  - alternative: Continue withholding every supported region when one interior or tail bin fails.
+    rationale: >
+      This discards directly supported descriptive output even when the
+      unsupported region can be represented as an explicit gap without
+      interpolation.
+  - alternative: Draw a dotted or translucent line through unsupported bins.
+    rationale: >
+      Any connecting line implies an estimated shape where comparable workload
+      support did not pass the release floor.
+  - alternative: Plot a modeled value in an unsupported bin with a warning icon.
+    rationale: >
+      A warning does not undo the apparent precision of a positioned value and
+      uncertainty band.
+  - alternative: Lower the five-activity reference-power floor for the production pilot.
+    rationale: >
+      One maintainer result does not validate a weaker universal threshold.
+      Existing experimental floors remain unchanged.
+  - alternative: Choose the longest or most favorable section after inspecting the coefficient.
+    rationale: >
+      Outcome-based selection would create a post-hoc display rule and bias the
+      result toward a visually persuasive pattern.
+  - alternative: Refit a separate coefficient for every supported section.
+    rationale: >
+      The evidence does not support multiple personal physiological constants,
+      and small section-specific fits would amplify instability and
+      multiplicity.
+model_parameters:
+  - name: inherited_v2_boundaries
+    value: all_except_full_domain_display_requirement
+    classification: guardrail
+    rationale: >
+      This proposal changes display support only. It does not reopen consent,
+      provider, model, safety, prediction, uncertainty, or privacy decisions.
+    applies_to: analysis.environment_response and Labs clients
+  - name: curve_environment_domain_percentiles
+    value: [10, 90]
+    classification: guardrail
+    rationale: >
+      Retains the accepted personal central-domain construction and prevents
+      choosing a more favorable domain after seeing the result.
+    applies_to: analysis.environment_response
+  - name: curve_support_bin_count
+    value: 5
+    classification: guardrail
+    rationale: >
+      Retains the five prespecified equal-width bins from v2.
+    applies_to: analysis.environment_response
+  - name: supported_bin_definition
+    value:
+      minimum_activities: 5
+      minimum_stable_segments: 10
+      minimum_reference_power_activities: 5
+      reference_power_pct_cp: [75.0, 85.0]
+    classification: guardrail
+    rationale: >
+      A bin is displayable only when every existing local support floor passes.
+      These are Praxys experimental product guardrails, not physiological
+      constants.
+    applies_to: analysis.environment_response
+  - name: minimum_contiguous_supported_bins
+    value: 2
+    classification: guardrail
+    rationale: >
+      At least two adjacent supported bins are required before the product can
+      describe any section as a curve. Isolated modeled points alone do not
+      establish a displayed environmental-response shape.
+    applies_to: analysis.environment_response
+  - name: isolated_supported_bin_behavior
+    value: show_unconnected_point_only_after_qualifying_section_exists
+    classification: guardrail
+    rationale: >
+      Preserves supported information without calling one point a curve or
+      drawing across an unsupported neighbor.
+    applies_to: web and miniapp Labs charts
+  - name: unsupported_bin_behavior
+    value:
+      modeled_value: omitted
+      uncertainty_band: omitted
+      connecting_line: prohibited
+      label: insufficient_comparable_power_evidence
+    classification: guardrail
+    rationale: >
+      Makes absence explicit and prevents visual interpolation from
+      manufacturing support.
+    applies_to: web and miniapp Labs charts
+  - name: partial_domain_selection
+    value: prespecified_support_only
+    classification: guardrail
+    rationale: >
+      Bin inclusion is determined before inspecting coefficient direction,
+      magnitude, uncertainty appearance, or predictive diagnostics.
+    applies_to: analysis.environment_response
+  - name: fit_scope
+    value: all_otherwise_eligible_training_partition_rows
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.structured-validation
+      - personal-environment-response.activity-cluster-uncertainty
+    rationale: >
+      Local support controls display, while the prespecified primary model and
+      activity-cluster uncertainty remain unchanged. Repeated section-specific
+      refitting is not authorized.
+    applies_to: analysis.environment_response
+  - name: displayed_point_uncertainty
+    value: evaluate_accepted_fit_interval_at_supported_bin_centers
+    classification: guardrail
+    rationale: >
+      The existing descriptive slope interval is transformed only at
+      supported points. No interval is shown for an unsupported bin.
+    applies_to: analysis.environment_response
+  - name: reference_power_support_funnel
+    value:
+      - activities_in_environmental_bin
+      - activities_with_any_valid_reference_power_sample
+      - activities_with_minimum_continuous_reference_power_coverage
+      - activities_with_accepted_stable_segment_mean_in_reference_band
+      - activities_retained_in_training_partition
+      - final_distinct_reference_power_activities
+    classification: guardrail
+    rationale: >
+      Aggregate counts explain why abundant raw samples may still produce few
+      independent comparable activities without exposing activity identities,
+      dates, routes, or samples.
+    applies_to: analysis.metrics, api.packs, analysis.environment_response
+  - name: minimum_continuous_reference_power_coverage_sec
+    value: 180
+    classification: guardrail
+    rationale: >
+      Uses the accepted stable-segment minimum duration as the diagnostic
+      continuity threshold. Passing this stage does not mean the segment is
+      stable or eligible.
+    applies_to: analysis.metrics
+  - name: retained_result_shape_additions
+    value:
+      - supported_bin_status
+      - support_failure_reasons
+      - aggregate_reference_power_funnel
+      - supported_section_index
+      - displayed_wet_bulb_domains
+    classification: guardrail
+    rationale: >
+      Stores only aggregate support and rendering metadata required to explain
+      the partial display.
+    applies_to: db.labs_experiment_results and Labs API
+applicability:
+  - The private opt-in Labs environmental-response experiment governed by v2
+  - Results whose provider, association, uncertainty, influence, sensitivity, and prediction-availability gates otherwise permit display
+  - Personal central domains with at least one section of two adjacent supported bins
+user_facing_claim_limits:
+  - Say "partial personal response curve" or "supported historical ranges"
+  - Label unsupported bins "insufficient comparable data" or equivalent
+  - Explain that support counts distinct activities with accepted stable segments near 75-85 percent of pre-activity Stryd Critical Power
+  - Never imply that raw sample volume alone satisfies comparable-workload support
+  - Never draw, shade, interpolate, forecast, or calculate a modeled value inside an unsupported bin
+  - Never connect two supported sections across an unsupported gap
+  - Do not call isolated points a continuous response curve
+  - Retain every causal, predictive, medical, safety, adaptation, hydration, and workload limitation from v2
+safety_implications:
+  - Partial display does not create a safe, unsafe, optimal, dangerous, or tolerable temperature range
+  - Unsupported gaps must not be interpreted as absence of heat effect or absence of risk
+  - The display cannot override recovery, training, weather, or emergency guidance
+privacy_implications:
+  - The diagnostic funnel is aggregate-only in persisted results and client payloads
+  - Activity identities, dates, routes, sample rows, and per-activity funnel flags remain private worker-memory inputs
+  - Logs, analytics, support payloads, and traces must not include per-activity funnel membership
+  - Existing opt-in, withdrawal, deletion, staleness, and backup-retention boundaries remain unchanged
+validation_plan:
+  - Test an unsupported interior bin and verify two disconnected displayed sections
+  - Test an unsupported tail bin and verify no extrapolation into the tail
+  - Test multiple unsupported gaps and verify every line segment is broken
+  - Test only isolated supported bins and withhold the curve
+  - Test deterministic selection is unchanged when coefficient direction is reversed
+  - Test every funnel stage is monotonic and aggregate-only
+  - Test old model-version results become stale before the new display is used
+  - Verify web and miniapp display equivalent bin statuses and counts
+  - Perform desktop, mobile, light, dark, English, and Simplified Chinese rendered review
+  - Evaluate user comprehension of gaps, activity independence, and historical-only interpretation
+falsification_conditions:
+  - Users interpret a visual gap as a modeled value or a line continuation
+  - A displayed point belongs to a bin that fails any local support floor
+  - Selection changes when coefficient direction, magnitude, or appearance changes
+  - No adjacent supported pair exists but the product still calls the output a curve
+  - Funnel stages increase downstream or expose private activity-level information
+  - Partial display weakens any fit-level stability, provider, uncertainty, influence, or prediction-availability gate
+affected_surfaces:
+  models:
+    - Labs environmental-response-v2 display policy
+    - Aggregate reference-power support diagnostics
+  apis:
+    - /api/labs/environment-response result
+    - Private activity research export used by the Labs worker
+  clients:
+    - Web Labs environmental-response chart and support ledger
+    - WeChat miniapp Labs environmental-response chart and support ledger
+  science_notes:
+    - How to read supported sections and unsupported gaps
+supersedes:
+  - sdr-environmental-performance-v2
+superseded_by:
+decision_notes:
+  - The product owner approved the partial-domain display policy and support-ledger concept during the #622 implementation review.
+  - No new literature claim is introduced; the proposal reuses the accepted v1 Evidence Reviews and changes a Praxys display guardrail in response to the private production pilot.
+  - Acceptance atomically supersedes sdr-environmental-performance-v2 and updates the implementation model version.
+  - The production pilot support pattern 6, 6, 10, 3, 18 motivates the question but does not set or lower a threshold.
