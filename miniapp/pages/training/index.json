@@ -7,7 +7,8 @@
     "bar-chart": "/components/bar-chart/index",
     "state-card": "../../components/state-card/index",
     "insight-feedback": "/components/insight-feedback/index",
-    "managed-plan": "/components/managed-plan/index"
+    "managed-plan": "/components/managed-plan/index",
+    "personal-context": "/components/personal-context/index"
   },
   "backgroundColor": "@bgColor",
   "backgroundColorBottom": "@bgColor",
