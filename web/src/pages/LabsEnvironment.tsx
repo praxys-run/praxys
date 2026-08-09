@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   Area,
   AreaChart,
@@ -22,7 +22,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Trans, useLingui } from '@lingui/react/macro';
+import { Plural, Trans, useLingui } from '@lingui/react/macro';
 import { msg } from '@lingui/core/macro';
 import type { MessageDescriptor } from '@lingui/core';
 
@@ -49,6 +49,8 @@ import { getChartColors } from '@/lib/chart-theme';
 import { cn } from '@/lib/utils';
 import type {
   LabsEnvironmentCurvePoint,
+  LabsEnvironmentExecution,
+  LabsEnvironmentMutationError,
   LabsEnvironmentCurveSupportBin,
   LabsEnvironmentPreflightResponse,
   LabsEnvironmentResponseState,
@@ -85,6 +87,7 @@ const REASON_MESSAGES: Record<string, MessageDescriptor> = {
   sensitivity_unstable: msg`Reasonable model variations do not preserve the same historical relationship.`,
   influential_activity: msg`A single activity has too much influence on the result.`,
   prediction_unavailable: msg`The chronological prediction check could not be evaluated, so Praxys withholds the fitted curve.`,
+  analysis_retry_exhausted: msg`The analysis worker could not complete the model after repeated infrastructure attempts.`,
   analysis_failed: msg`The analysis did not finish successfully.`,
   provider_alignment_requires_full_analysis: msg`Your history includes enough broad sample coverage, but the full analysis must confirm that power, heart rate, and Critical Power use one compatible Stryd regime.`,
 };
@@ -135,7 +138,17 @@ function LabsSkeleton() {
   );
 }
 
-function statusLabel(status: LabsEnvironmentResponseState['status']): MessageDescriptor {
+function statusLabel(state: LabsEnvironmentResponseState): MessageDescriptor {
+  if (state.execution.job_status === 'retrying') return msg`Retrying`;
+  if (state.execution.job_status === 'dispatched') return msg`Queued`;
+  if (state.execution.job_status === 'processing') return msg`Processing`;
+  if (
+    state.execution.job_status === 'failed'
+    || state.execution.job_status === 'dead_lettered'
+  ) {
+    return msg`Needs retry`;
+  }
+
   const labels: Record<LabsEnvironmentResponseState['status'], MessageDescriptor> = {
     not_enrolled: msg`Not enrolled`,
     queued: msg`Queued`,
@@ -145,7 +158,176 @@ function statusLabel(status: LabsEnvironmentResponseState['status']): MessageDes
     failed: msg`Failed`,
     stale: msg`Needs recompute`,
   };
-  return labels[status];
+  return labels[state.status];
+}
+
+function formatLocalDateTime(value: string | null, locale: string): string | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(parsed);
+}
+
+function createIdempotencyKey(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+type LabsMutationAction = 'enroll' | 'recompute';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isLabsMutationError(
+  value: unknown,
+): value is LabsEnvironmentMutationError {
+  if (!isRecord(value) || typeof value.code !== 'string') return false;
+  if (value.code === 'adult_eligibility_not_confirmed') {
+    return (
+      typeof value.category === 'string'
+      && typeof value.public_message_key === 'string'
+      && typeof value.required_guardrail === 'string'
+      && typeof value.user_actionable === 'boolean'
+      && typeof value.suggested_action_key === 'string'
+      && typeof value.analysis_stage === 'string'
+      && typeof value.power_regime === 'string'
+      && typeof value.model_version === 'string'
+      && typeof value.correlation_id === 'string'
+    );
+  }
+  if (value.code === 'LABS_ENVIRONMENT_PREFLIGHT_INELIGIBLE') {
+    return (
+      isRecord(value.preflight)
+      && typeof value.preflight.can_start_analysis === 'boolean'
+      && typeof value.preflight.status === 'string'
+    );
+  }
+  if (value.code === 'consent_version_stale') {
+    return typeof value.current_consent_version === 'string';
+  }
+  if (value.code === 'LABS_ENVIRONMENT_NOT_ENROLLED') {
+    return typeof value.message === 'string';
+  }
+  if (
+    value.code === 'LABS_ENVIRONMENT_RECOMPUTE_COOLDOWN'
+    || value.code === 'LABS_ENVIRONMENT_RECOMPUTE_DAILY_LIMIT'
+  ) {
+    return (
+      typeof value.message === 'string'
+      && typeof value.available_at === 'string'
+      && typeof value.retry_after_seconds === 'number'
+    );
+  }
+  return false;
+}
+
+function ExecutionProgress({
+  execution,
+  onWithdraw,
+  withdrawDisabled,
+}: {
+  execution: LabsEnvironmentExecution;
+  onWithdraw: () => void;
+  withdrawDisabled: boolean;
+}) {
+  const retrying = execution.job_status === 'retrying';
+  const dispatched = execution.job_status === 'dispatched';
+  const processing = execution.job_status === 'processing';
+
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-5 py-8 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-4">
+          {retrying ? (
+            <RefreshCw className="mt-0.5 h-5 w-5 shrink-0 text-accent-amber motion-safe:animate-spin motion-reduce:animate-none" />
+          ) : (
+            <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-primary motion-reduce:animate-none" />
+          )}
+          <div aria-live="polite">
+            <h2 className={cn('font-semibold', retrying && 'text-accent-amber')}>
+              {retrying
+                ? <Trans>Temporary service issue; retry queued</Trans>
+                : processing
+                  ? <Trans>Analysis worker is running</Trans>
+                  : dispatched
+                    ? <Trans>Queued for the analysis worker</Trans>
+                    : <Trans>Analysis request saved</Trans>}
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              {retrying ? (
+                <Trans>A temporary infrastructure problem interrupted the previous attempt. Praxys kept the request and will retry automatically.</Trans>
+              ) : processing ? (
+                <Trans>The isolated worker is building the aggregate response from your eligible activity data.</Trans>
+              ) : (
+                <Trans>Your request is stored durably and will run separately from the app.</Trans>
+              )}
+            </p>
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              <Trans>You can leave this page and return later. No action is needed while the analysis runs.</Trans>
+            </p>
+            {execution.attempt_count > 0 && (
+              <p className="font-data mt-3 text-xs text-muted-foreground">
+                <Trans>Attempt</Trans> {execution.attempt_count}
+              </p>
+            )}
+          </div>
+        </div>
+        <Button variant="ghost" onClick={onWithdraw} disabled={withdrawDisabled}>
+          <Trans>Cancel and withdraw</Trans>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function RecomputePolicy({ execution }: { execution: LabsEnvironmentExecution }) {
+  const { i18n } = useLingui();
+  const policy = execution.recompute;
+  const availableAt = formatLocalDateTime(policy.available_at, i18n.locale);
+
+  return (
+    <div className="space-y-1 text-xs leading-relaxed text-muted-foreground" aria-live="polite">
+      {policy.reason === 'cooldown' && (
+        <>
+          <p className="font-medium text-accent-amber"><Trans>Recompute cooling down</Trans></p>
+          {availableAt && (
+            <p>
+              <Trans>Recompute available again</Trans>:{' '}
+              <span className="font-data text-foreground">{availableAt}</span>
+            </p>
+          )}
+          <p><Trans>The cooldown prevents accidental repeat analysis.</Trans></p>
+        </>
+      )}
+      {policy.reason === 'daily_limit' && (
+        <>
+          <p className="font-medium text-accent-amber"><Trans>Rolling recompute limit reached</Trans></p>
+          {availableAt && (
+            <p>
+              <Trans>Recompute available again</Trans>:{' '}
+              <span className="font-data text-foreground">{availableAt}</span>
+            </p>
+          )}
+          <p><Trans>The rolling limit protects the shared analysis capacity from repeated requests.</Trans></p>
+        </>
+      )}
+      {policy.allowed && (
+        <p>
+          <span className="font-data font-medium text-foreground">{policy.remaining_requests}</span>{' '}
+          <Trans>manual recomputes remaining</Trans>
+          {' · '}
+          <span className="font-data text-foreground">{policy.window_hours}</span>{' '}
+          <Trans>hour rolling window</Trans>
+        </p>
+      )}
+    </div>
+  );
 }
 
 function PreflightSummary({
@@ -416,7 +598,11 @@ function SupportLedger({
                 {bin.lower_wet_bulb_c.toFixed(1)}–{bin.upper_wet_bulb_c.toFixed(1)} °C
               </p>
               <p className="font-data mt-2 text-sm font-semibold">
-                <Trans>{bin.reference_power_activity_count} activities</Trans>
+                <Plural
+                  value={bin.reference_power_activity_count}
+                  one="# activity"
+                  other="# activities"
+                />
               </p>
               <p
                 className={cn(
@@ -757,6 +943,7 @@ export default function LabsEnvironment() {
   const [actionError, setActionError] = useState('');
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [calculatorWetBulb, setCalculatorWetBulb] = useState<number | null>(null);
+  const idempotencyKeys = useRef<Partial<Record<LabsMutationAction, string>>>({});
 
   const reason = useMemo(() => {
     if (!state?.availability_reason) return null;
@@ -765,23 +952,103 @@ export default function LabsEnvironment() {
       : i18n._(msg`This result did not pass the experiment’s release guardrails.`);
   }, [i18n, state?.availability_reason]);
 
-  const mutate = async (path: string, method: 'POST' | 'DELETE', body?: unknown) => {
+  const actionErrorMessage = (
+    detail: LabsEnvironmentMutationError | null,
+  ): string | null => {
+    if (!detail) return null;
+    const availableAt = 'available_at' in detail
+      ? formatLocalDateTime(detail.available_at, i18n.locale)
+      : null;
+    if (detail.code === 'LABS_ENVIRONMENT_RECOMPUTE_COOLDOWN') {
+      return availableAt
+        ? i18n._(msg`Recompute is cooling down. Try again after ${availableAt}.`)
+        : i18n._(msg`Recompute is cooling down. Try again later.`);
+    }
+    if (detail.code === 'LABS_ENVIRONMENT_RECOMPUTE_DAILY_LIMIT') {
+      return availableAt
+        ? i18n._(msg`The rolling recompute limit has been reached. Try again after ${availableAt}.`)
+        : i18n._(msg`The rolling recompute limit has been reached. Try again later.`);
+    }
+    if (detail.code === 'adult_eligibility_not_confirmed') {
+      return i18n._(msg`Confirm that you are 18 or older to join this experiment.`);
+    }
+    if (detail.code === 'LABS_ENVIRONMENT_PREFLIGHT_INELIGIBLE') {
+      return i18n._(msg`The quick check found a data requirement that needs attention.`);
+    }
+    if (detail.code === 'consent_version_stale') {
+      return i18n._(msg`The consent text changed. Review and confirm the current version.`);
+    }
+    if (detail.code === 'LABS_ENVIRONMENT_NOT_ENROLLED') {
+      return i18n._(msg`Not enrolled`);
+    }
+    return null;
+  };
+
+  const mutate = async (
+    path: string,
+    method: 'POST' | 'DELETE',
+    body?: unknown,
+    action?: LabsMutationAction,
+  ) => {
     setBusy(true);
     setActionError('');
+    const idempotencyKey = action
+      ? (idempotencyKeys.current[action] ??= createIdempotencyKey())
+      : null;
     try {
       const response = await apiFetch(path, {
         method,
-        headers: body ? { 'Content-Type': 'application/json' } : undefined,
+        headers: {
+          ...(body ? { 'Content-Type': 'application/json' } : {}),
+          ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+        },
         body: body ? JSON.stringify(body) : undefined,
       });
       if (!response.ok) {
-        setActionError(await extractErrorMessage(response, `Request failed (HTTP ${response.status})`));
+        const errorResponse = response.clone();
+        let parsedDetail: LabsEnvironmentMutationError | null = null;
+        try {
+          const payload: unknown = await response.json();
+          parsedDetail = (
+            isRecord(payload)
+            && isLabsMutationError(payload.detail)
+          )
+            ? payload.detail
+            : null;
+        } catch {
+          parsedDetail = null;
+        }
+        setActionError(
+          actionErrorMessage(parsedDetail)
+          ?? await extractErrorMessage(
+            errorResponse,
+            i18n._(msg`Request failed. Try again.`),
+          ),
+        );
+        if (action && response.status < 500) {
+          delete idempotencyKeys.current[action];
+        }
+        if (response.status === 429) {
+          await refetch();
+        } else if (
+          response.status === 409
+          && (
+            parsedDetail?.code === 'LABS_ENVIRONMENT_PREFLIGHT_INELIGIBLE'
+            || parsedDetail?.code === 'consent_version_stale'
+            || parsedDetail?.code === 'LABS_ENVIRONMENT_NOT_ENROLLED'
+          )
+        ) {
+          await Promise.all([refetch(), refetchPreflight()]);
+        }
         return false;
+      }
+      if (action) {
+        delete idempotencyKeys.current[action];
       }
       await refetch();
       return true;
     } catch {
-      setActionError('Network error. Try again.');
+      setActionError(i18n._(msg`Network error. Try again.`));
       return false;
     } finally {
       setBusy(false);
@@ -807,6 +1074,8 @@ export default function LabsEnvironment() {
 
   const processing = state.status === 'queued' || state.status === 'processing';
   const available = state.status === 'available' && state.result?.result_state === 'historical_association_only';
+  const retryExhausted =
+    state.availability_reason?.code === 'analysis_retry_exhausted';
   const points = available ? state.result?.aggregate_curve_points ?? [] : [];
   const supportBins =
     state.result?.eligibility_counts.curve_support_bins ?? [];
@@ -833,13 +1102,14 @@ export default function LabsEnvironment() {
           </p>
         </div>
         <Badge variant="outline" className="w-fit font-data">
-          {i18n._(statusLabel(state.status))}
+          {i18n._(statusLabel(state))}
         </Badge>
       </header>
 
       {state.status === 'not_enrolled' ? (
         <>
           <Enrollment
+            key={state.consent_version}
             state={state}
             preflight={preflight}
             preflightLoading={preflightLoading}
@@ -854,6 +1124,7 @@ export default function LabsEnvironment() {
                 adult_attested: adultAttested,
                 consent_version: state.consent_version,
               },
+              'enroll',
             )}
           />
           <WetBulbCalculator state={state} onResult={setCalculatorWetBulb} />
@@ -861,22 +1132,11 @@ export default function LabsEnvironment() {
       ) : (
         <>
           {processing && (
-            <Card>
-              <CardContent className="flex flex-col gap-5 py-8 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-start gap-4">
-                  <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-primary motion-reduce:animate-none" />
-                  <div>
-                    <h2 className="font-semibold"><Trans>Analyzing your eligible history</Trans></h2>
-                    <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                      <Trans>Praxys is building a complete owner-scoped snapshot, checking Stryd provenance, fitting the aggregate model, and applying every release guardrail.</Trans>
-                    </p>
-                  </div>
-                </div>
-                <Button variant="ghost" onClick={() => setWithdrawOpen(true)} disabled={busy}>
-                  <Trans>Cancel and withdraw</Trans>
-                </Button>
-              </CardContent>
-            </Card>
+            <ExecutionProgress
+              execution={state.execution}
+              onWithdraw={() => setWithdrawOpen(true)}
+              withdrawDisabled={busy || isDemo}
+            />
           )}
 
           {available && (
@@ -899,7 +1159,9 @@ export default function LabsEnvironment() {
             <Card>
               <CardHeader>
                 <CardTitle>
-                  {state.status === 'stale'
+                  {retryExhausted
+                    ? <Trans>Analysis needs a manual retry</Trans>
+                    : state.status === 'stale'
                     ? <Trans>Your result needs recomputing</Trans>
                     : state.status === 'failed'
                       ? <Trans>The analysis did not finish</Trans>
@@ -916,8 +1178,18 @@ export default function LabsEnvironment() {
                 )}
                 <div className="flex flex-wrap gap-3">
                   <Button
-                    onClick={() => void mutate('/api/labs/environment-response/recompute', 'POST')}
-                    disabled={busy || isDemo || preflight?.can_start_analysis === false}
+                    onClick={() => void mutate(
+                      '/api/labs/environment-response/recompute',
+                      'POST',
+                      undefined,
+                      'recompute',
+                    )}
+                    disabled={
+                      busy
+                      || isDemo
+                      || preflight?.can_start_analysis === false
+                      || !state.execution.recompute.allowed
+                    }
                   >
                     <RefreshCw className={cn('h-4 w-4', busy && 'animate-spin motion-reduce:animate-none')} />
                     <Trans>Recompute</Trans>
@@ -926,6 +1198,7 @@ export default function LabsEnvironment() {
                     <Trans>Withdraw</Trans>
                   </Button>
                 </div>
+                <RecomputePolicy execution={state.execution} />
               </CardContent>
             </Card>
           )}
@@ -1003,17 +1276,39 @@ export default function LabsEnvironment() {
           )}
 
           {state.enrolled && !processing && (
-            <div className="flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
-              <div>
+            <div className="flex flex-col gap-5 border-t border-border pt-6 sm:flex-row sm:items-end sm:justify-between">
+              <div className="max-w-2xl space-y-3">
                 <p className="text-sm font-medium"><Trans>You control this experiment</Trans></p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   <Trans>Withdrawal deletes the experiment consent and aggregate result. Rejoining later requires new consent and a new computation.</Trans>
                 </p>
+                {available && <RecomputePolicy execution={state.execution} />}
               </div>
-              <Button variant="ghost" onClick={() => setWithdrawOpen(true)} disabled={busy || isDemo}>
-                <Trash2 className="h-4 w-4" />
-                <Trans>Withdraw and delete result</Trans>
-              </Button>
+              <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                {available && (
+                  <Button
+                    onClick={() => void mutate(
+                      '/api/labs/environment-response/recompute',
+                      'POST',
+                      undefined,
+                      'recompute',
+                    )}
+                    disabled={
+                      busy
+                      || isDemo
+                      || preflight?.can_start_analysis === false
+                      || !state.execution.recompute.allowed
+                    }
+                  >
+                    <RefreshCw className={cn('h-4 w-4', busy && 'animate-spin motion-reduce:animate-none')} />
+                    <Trans>Recompute result</Trans>
+                  </Button>
+                )}
+                <Button variant="ghost" onClick={() => setWithdrawOpen(true)} disabled={busy || isDemo}>
+                  <Trash2 className="h-4 w-4" />
+                  <Trans>Withdraw and delete result</Trans>
+                </Button>
+              </div>
             </div>
           )}
         </>

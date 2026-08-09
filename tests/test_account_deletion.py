@@ -103,6 +103,8 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
         Feedback,
         FitnessData,
         Invitation,
+        LabsAnalysisJob,
+        LabsAnalysisOutbox,
         LabsDeletionTombstone,
         LabsExperimentEnrollment,
         LabsExperimentResult,
@@ -220,6 +222,26 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
         db.add(LabsDeletionTombstone(
             user_id=user_id,
             experiment_id="older-experiment",
+        ))
+        labs_job = LabsAnalysisJob(
+            id="labs-delete-job",
+            user_id=user_id,
+            experiment_id="environment-response-v1",
+            trigger="enrollment",
+            status="succeeded",
+            model_version="labs-v1",
+            source_revision="rev1:test",
+            correlation_id="labs-correlation",
+            attempt_count=1,
+            retryable_failure=False,
+        )
+        db.add(labs_job)
+        db.flush()
+        db.add(LabsAnalysisOutbox(
+            id="labs-delete-outbox",
+            job_id=labs_job.id,
+            status="dispatched",
+            attempt_count=1,
         ))
         from db.crypto import get_vault
 
@@ -352,6 +374,8 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
         Feedback,
         FitnessData,
         Invitation,
+        LabsAnalysisJob,
+        LabsAnalysisOutbox,
         LabsDeletionTombstone,
         LabsExperimentEnrollment,
         LabsExperimentResult,
@@ -385,6 +409,7 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
             DashboardCache,
             Feedback,
             FitnessData,
+            LabsAnalysisJob,
             LabsDeletionTombstone,
             LabsExperimentEnrollment,
             LabsExperimentResult,
@@ -402,6 +427,7 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
             UserConnection,
         ):
             assert db.query(model).filter(model.user_id.in_(["delete-me", "demo-user"])).count() == 0
+        assert db.query(LabsAnalysisOutbox).count() == 0
         assert db.query(PlanDeliveryAttempt).count() == 0
         assert db.query(AgentDecision).count() == 0
         assert db.query(AgentOutcome).count() == 0
@@ -482,6 +508,94 @@ def test_inactive_account_can_retry_cleanup(account_client, monkeypatch):
         assert db.query(User).filter(User.id.in_(["delete-me", "demo-user"])).count() == 0
     finally:
         db.close()
+
+
+def test_deletion_first_phase_cancels_labs_work_before_cleanup(
+    account_client,
+    monkeypatch,
+) -> None:
+    _, db_session = account_client
+    _seed_account_rows(db_session)
+
+    from api import account_deletion
+    from db.models import (
+        LabsAnalysisJob,
+        LabsAnalysisOutbox,
+        User,
+    )
+
+    with db_session.SessionLocal() as db:
+        owner_job = db.get(LabsAnalysisJob, "labs-delete-job")
+        owner_job.status = "processing"
+        owner_outbox = db.get(LabsAnalysisOutbox, "labs-delete-outbox")
+        owner_outbox.status = "dispatched"
+        demo_job = LabsAnalysisJob(
+            id="labs-delete-demo-job",
+            user_id="demo-user",
+            experiment_id="environment-response-v1",
+            trigger="enrollment",
+            status="queued",
+            model_version="labs-v1",
+            source_revision="rev1:demo",
+            correlation_id="labs-demo-correlation",
+            attempt_count=0,
+            retryable_failure=False,
+        )
+        db.add(demo_job)
+        db.flush()
+        db.add(LabsAnalysisOutbox(
+            id="labs-delete-demo-outbox",
+            job_id=demo_job.id,
+            status="pending",
+            attempt_count=0,
+        ))
+        db.commit()
+
+    monkeypatch.setattr(
+        account_deletion,
+        "_delete_user_owned_rows",
+        lambda *_args: (_ for _ in ()).throw(
+            RuntimeError("cleanup interrupted")
+        ),
+    )
+
+    with db_session.SessionLocal() as db:
+        with pytest.raises(RuntimeError, match="cleanup interrupted"):
+            account_deletion.delete_user_account(db, "delete-me")
+
+    with db_session.SessionLocal() as db:
+        users = {
+            user.id: user.is_active
+            for user in db.query(User).filter(
+                User.id.in_(["delete-me", "demo-user"])
+            )
+        }
+        jobs = {
+            job.id: job.status
+            for job in db.query(LabsAnalysisJob).filter(
+                LabsAnalysisJob.id.in_(
+                    ["labs-delete-job", "labs-delete-demo-job"]
+                )
+            )
+        }
+        outboxes = {
+            outbox.id: outbox.status
+            for outbox in db.query(LabsAnalysisOutbox).filter(
+                LabsAnalysisOutbox.id.in_(
+                    ["labs-delete-outbox", "labs-delete-demo-outbox"]
+                )
+            )
+        }
+
+    assert users == {"delete-me": False, "demo-user": False}
+    assert jobs == {
+        "labs-delete-job": "cancelled",
+        "labs-delete-demo-job": "cancelled",
+    }
+    assert outboxes == {
+        "labs-delete-outbox": "cancelled",
+        "labs-delete-demo-outbox": "cancelled",
+    }
 
 
 def test_account_deletion_fails_closed_when_context_manifest_is_unavailable(

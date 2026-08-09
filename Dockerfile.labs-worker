@@ -1,0 +1,33 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+RUN groupadd --system praxys \
+    && useradd --system --gid praxys --home-dir /app praxys
+
+ARG PIP_INDEX_URL
+ARG PIP_TRUSTED_HOST
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+LABEL org.opencontainers.image.source="https://github.com/praxys-run/praxys" \
+    org.opencontainers.image.description="Isolated Praxys Labs analysis worker"
+
+COPY alembic alembic
+COPY analysis analysis
+COPY api api
+COPY config config
+COPY data/science data/science
+COPY db db
+COPY sync sync
+COPY alembic.ini .
+
+RUN chown -R praxys:praxys /app
+USER praxys
+
+CMD ["python", "-m", "api.labs_worker"]

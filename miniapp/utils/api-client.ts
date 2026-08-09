@@ -30,6 +30,8 @@ export interface ApiError {
   code?: string;
   /** wx.request errno when status is 0 (network-layer failure). */
   errno?: number;
+  /** Structured FastAPI detail payload for typed recovery UI. */
+  data?: unknown;
 }
 
 interface RequestOptions {
@@ -168,7 +170,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
       : rawDetail != null
         ? JSON.stringify(rawDetail)
         : `HTTP ${status}`;
-  throw { status, detail, code } as ApiError;
+  throw { status, detail, code, data: rawDetail } as ApiError;
 }
 
 export const apiGet = <T>(

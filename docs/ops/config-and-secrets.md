@@ -23,11 +23,12 @@ transient — the next deploy overwrites them.**
 
 | Secret | Purpose | Consumed by |
 |---|---|---|
-| `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` | OIDC login to Azure for deploys (no client secret). | deploy workflows |
+| `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` | OIDC login to Azure for deploys (no client secret). The principal is resource-group Contributor; the Labs runbook additionally grants only `Microsoft.Resources/subscriptions/providers/read` through a custom subscription role so provider preflight works without RBAC-write authority. | deploy workflows |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription targeted by deployment workflows | deploy workflows |
 | `PRAXYS_JWT_SECRET` | JWT signing key | pushed to App Service setting by `deploy-backend.yml` |
 | `STATSIG_SDK_KEY` | Optional Statsig server SDK key (`secret-*`). Backend-only; absence fails closed with all gates off. | App Service setting (backend) |
 | `PRAXYS_DATABASE_URL` | Postgres DSN (#360). May carry the DB password unless Entra auth is used. **Optional** until cutover; empty = SQLite. | App Service setting (backend) |
+| `PRAXYS_LABS_DATABASE_URL` | Passwordless Postgres DSN whose username is `id-praxys-labs-worker`. Stored separately so the Container Apps Job uses its own least-privilege Entra principal, never the backend admin identity. | `deploy-labs-worker.yml` -> Container Apps secret `database-url` |
 | `WECHAT_MINIAPP_APPID` / `WECHAT_MINIAPP_SECRET` | WeChat Mini Program auth | App Service setting (backend) |
 | `PRAXYS_SMTP_PASSWORD` | SMTP client authorization code (WeCom/Exmail) for verification + invitation emails. **Optional.** | App Service setting (backend) |
 | `WECHAT_MINIAPP_UPLOAD_KEY` | Mini program CI upload key | `miniapp-publish.yml` |
@@ -53,6 +54,9 @@ transient — the next deploy overwrites them.**
 | `PRAXYS_SMTP_HOST` / `PRAXYS_SMTP_PORT` / `PRAXYS_SMTP_USER` / `PRAXYS_SMTP_FROM` / `PRAXYS_SMTP_STARTTLS` | SMTP transport for verification + invitation emails (non-secret; the password is the secret above). **Optional.** | App Service setting (backend) |
 | `PRAXYS_APP_BASE_URL` (`https://praxys.run`) | Public origin for verify/invite links in those emails | App Service setting (backend) |
 | `PRAXYS_DB_AUTH` (`entra` or unset) | Postgres auth mode: `entra` = AAD token via managed identity, no password. **Optional.** | App Service setting (backend) |
+| `PRAXYS_LABS_EXECUTION_MODE` (`inline` by default) | Labs execution route: `inline`, `service_bus`, or maintenance-only `disabled`. Set `service_bus` only after the worker runbook verifies Azure and DB prerequisites; no runtime fallback occurs. | App Service setting via `deploy-backend.yml` |
+| `PRAXYS_LABS_SERVICE_BUS_CLIENT_ID` (unset by default) | Optional client ID of a user-assigned identity attached to `trainsight-app` for Labs queue sends. Empty uses the App Service system identity. The worker workflow verifies RBAC for the same effective identity. | App Service setting via `deploy-backend.yml`; RBAC verification in `deploy-labs-worker.yml` |
+| `PRAXYS_LABS_WORKER_DEPLOY_ENABLED` (`false`) | Opt-in infrastructure reconciliation gate. Only exact `true` runs the Azure deployment job; image tests/builds still run. | `deploy-labs-worker.yml` |
 | `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED` (`false`) | Default-off hard deployment prerequisite for unsupported Garmin consumer-API workout writes. Set `true` only on an approved validation deployment, or in production after both regional lifecycle matrices pass. Statsig eligibility, durable execution-target selection, and the account-generation/region fence remain independently required. | App Service setting (backend) |
 | `PRAXYS_PG_SERVER` | Postgres Flexible Server name. **Reserved / currently unused** - the on-demand backup jobs it gated were removed (Burstable tier can't do on-demand backups; PITR covers backup). Kept for a future off-site backup job. | (reserved) |
 | `PRAXYS_GITHUB_APP_ID` / `PRAXYS_GITHUB_APP_INSTALLATION_ID` | Feedback GitHub App identifiers. | App Service setting (backend) |
@@ -810,6 +814,48 @@ gh secret   set PRAXYS_DATABASE_URL --body "postgresql://trainsight-app@praxys-p
 (no password — Entra/MI). They remain out of the required-settings loop, so
 clearing `PRAXYS_DATABASE_URL` cleanly rolls back to the frozen SQLite file.
 Provisioning + PITR + MI-as-AAD-principal wiring: [postgres-migration.md](./postgres-migration.md).
+
+### Isolated Labs analysis compute (#619)
+
+The source of truth is split intentionally so infrastructure can be staged
+without routing production work to it:
+
+| Value | Source of truth | Notes |
+|---|---|---|
+| `PRAXYS_LABS_DATABASE_URL` | GitHub Actions secret | Passwordless DSN using username `id-praxys-labs-worker`; injected only into the Container Apps Job secret. |
+| `PRAXYS_LABS_WORKER_DEPLOY_ENABLED` | GitHub Actions variable | Default off. Exact `true` lets `deploy-labs-worker.yml` reconcile Bicep resources, but only after the one-time GHCR package visibility check in the worker runbook. |
+| `PRAXYS_LABS_EXECUTION_MODE` | GitHub Actions variable | Defaults to `inline`; switch to `service_bus` only after worker verification. |
+| `PRAXYS_LABS_SERVICE_BUS_FQDN` | Derived by `deploy-backend.yml` | The workflow discovers the namespace tagged `praxysComponent=labs-analysis`; do not hand-set it in the portal. |
+| `PRAXYS_LABS_SERVICE_BUS_QUEUE` | Literal owned by `deploy-backend.yml` | `labs-environment-response`. |
+| `PRAXYS_LABS_SERVICE_BUS_CLIENT_ID` | Optional GitHub Actions variable | Empty selects the backend system identity. When set, it must name a user-assigned identity attached to `trainsight-app`; both runtime and the worker deployment RBAC check resolve it. |
+| `PRAXYS_HIDE_SQL_PARAMETERS` | Literal owned by `infra/labs-worker.bicep` and enforced again by `api/labs_worker.py` | `true` in the isolated worker so SQLAlchemy exceptions cannot export bind values to Application Insights. |
+| `AZURE_CLIENT_ID` (worker) | Bicep-derived Container Apps env | Client ID of `id-praxys-labs-worker`, used for PostgreSQL, Service Bus, and App Insights Entra auth. |
+
+Provisioning order and least-privilege PostgreSQL grants are in
+[labs-analysis-worker.md](./labs-analysis-worker.md). The checked-in
+`scripts/provision_labs_worker_principal.sql` verifies the Entra object-ID
+mapping as an Entra administrator. The table-owning backend identity then runs
+`scripts/provision_labs_worker_db.py`, which excludes `training_plans`, grants
+only the non-GPS sample columns consumed by the research pack, restricts
+enrollment/job updates to worker-owned processing fields, and permits only
+`user_id`, `platform`, `status`, and `preferences` reads on
+`user_connections`. It does not grant access to encrypted credentials or token
+bundles.
+
+```bash
+gh secret set PRAXYS_LABS_DATABASE_URL \
+  --body "postgresql://id-praxys-labs-worker@praxys-pg.postgres.database.azure.com:5432/praxys?sslmode=require"
+gh variable set PRAXYS_LABS_WORKER_DEPLOY_ENABLED --body "false"
+# Publish once, make the GHCR package public per the runbook, then:
+gh variable set PRAXYS_LABS_WORKER_DEPLOY_ENABLED --body "true"
+# Only after the runbook's Azure, DB-principal, idle-job, and alert checks:
+gh variable set PRAXYS_LABS_EXECUTION_MODE --body "service_bus"
+```
+
+Rollback through `disabled`: deploy it first, drain Service Bus and any running
+Container Apps execution, then deploy `inline` before disabling worker
+reconciliation. `disabled` preserves durable jobs without dispatch and is
+reserved for maintenance or this drain step.
 
 ### Database connection budget, pool sizing & Always On
 

@@ -28,6 +28,8 @@ test('web Labs covers consent, result, calculator, and withdrawal states', async
   assert.match(page, /environment-response\/preflight/);
   assert.match(page, /timeoutMs: 15000/);
   assert.doesNotMatch(page, /refetchOnMount: 'always', timeoutMs: 15000/);
+  assert.match(page, /adult_eligibility_not_confirmed/);
+  assert.match(page, /consent_version_stale/);
   assert.match(page, /onRetryPreflight/);
   assert.match(page, /Checking data requirements/);
   assert.match(page, /before showing enrollment consent or starting analysis/);
@@ -35,6 +37,7 @@ test('web Labs covers consent, result, calculator, and withdrawal states', async
   assert.match(page, /Enough source data to attempt the experiment/);
   assert.match(page, /historical_association_only/);
   assert.match(page, /Historical association; not predictively validated/);
+  assert.match(page, /one="# activity"/);
   assert.match(page, /environment-response\/wet-bulb/);
   assert.match(page, /Withdraw and delete result/);
   assert.match(page, /ScienceNote/);
@@ -152,6 +155,8 @@ test('miniapp Labs preserves the web experiment lifecycle', async () => {
   assert.match(controller, /adult_attested: true/);
   assert.match(controller, /consent_version:/);
   assert.match(controller, /environment-response\/preflight/);
+  assert.match(controller, /adult_eligibility_not_confirmed/);
+  assert.match(controller, /consent_version_stale/);
   assert.match(controller, /environment-response\/recompute/);
   assert.match(controller, /environment-response\/wet-bulb/);
   assert.match(controller, /provider_alignment_requires_full_analysis/);
@@ -159,6 +164,15 @@ test('miniapp Labs preserves the web experiment lifecycle', async () => {
   assert.match(controller, /preflightLoading: true/);
   assert.match(template, /preflightChecking/);
   assert.match(template, /preflightError/);
+  assert.match(controller, /recompute\.retry_after_seconds/);
+  assert.match(controller, /activityUnit: bin\.reference_power_activity_count === 1/);
+  assert.match(controller, /retryDelayMs/);
+  assert.match(controller, /\['queued', 'dispatched', 'processing', 'retrying'\]/);
+  assert.match(controller, /LABS_ENVIRONMENT_NOT_ENROLLED/);
+  assert.match(controller, /resetConsentControls/);
+  assert.match(controller, /previousState\.consent_version !== state\.consent_version/);
+  assert.match(controller, /adultAttested: false/);
+  assert.match(controller, /consentConfirmed: false/);
   assert.match(controller, /apiDelete<void>\('\/api\/labs\/environment-response'\)/);
   assert.match(template, /line-chart/);
   assert.match(template, /calculatorResult/);
@@ -173,6 +187,8 @@ test('web and miniapp share the strict Labs API contract', async () => {
   const markers = [
     'interface LabsEnvironmentResponseState',
     'interface LabsEnvironmentPreflightResponse',
+    'type LabsEnvironmentMutationError',
+    "'adult_eligibility_not_confirmed'",
     'interface LabsEnvironmentResult',
     'interface LabsEnvironmentWetBulbResponse',
     "'historical_association_only'",

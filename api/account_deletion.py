@@ -5,6 +5,7 @@ import logging
 import glob
 import os
 from dataclasses import dataclass
+from datetime import datetime
 
 from fastapi import HTTPException
 from sqlalchemy import text
@@ -24,6 +25,8 @@ from db.models import (
     Feedback,
     FitnessData,
     Invitation,
+    LabsAnalysisJob,
+    LabsAnalysisOutbox,
     LabsDeletionTombstone,
     LabsExperimentEnrollment,
     LabsExperimentResult,
@@ -70,6 +73,44 @@ class AccountDeletionResult:
     deleted_user_ids: list[str]
 
 
+def _cancel_active_labs_work(
+    db: Session,
+    user_id: str,
+) -> int:
+    """Cancel queued or running Labs work before account cleanup begins."""
+    jobs = (
+        db.query(LabsAnalysisJob)
+        .filter(
+            LabsAnalysisJob.user_id == user_id,
+            LabsAnalysisJob.status.in_(
+                ("queued", "dispatched", "processing", "retrying")
+            ),
+        )
+        .with_for_update()
+        .all()
+    )
+    if not jobs:
+        return 0
+    now = datetime.utcnow()
+    job_ids = [job.id for job in jobs]
+    outboxes = (
+        db.query(LabsAnalysisOutbox)
+        .filter(LabsAnalysisOutbox.job_id.in_(job_ids))
+        .with_for_update()
+        .all()
+    )
+    for job in jobs:
+        job.status = "cancelled"
+        job.completed_at = now
+        job.lease_expires_at = None
+        job.updated_at = now
+    for outbox in outboxes:
+        outbox.status = "cancelled"
+        outbox.lease_expires_at = None
+        outbox.updated_at = now
+    return len(jobs)
+
+
 def _delete_user_owned_rows(db: Session, user_id: str) -> None:
     """Delete a user's owned rows and detach every remaining reference to them.
 
@@ -105,6 +146,26 @@ def _delete_user_owned_rows(db: Session, user_id: str) -> None:
     if delivery_ids:
         db.query(PlanDeliveryAttempt).filter(
             PlanDeliveryAttempt.delivery_id.in_(delivery_ids)
+        ).delete(synchronize_session=False)
+    labs_jobs = (
+        db.query(LabsAnalysisJob)
+        .filter(LabsAnalysisJob.user_id == user_id)
+        .with_for_update()
+        .all()
+    )
+    labs_job_ids = [job.id for job in labs_jobs]
+    if labs_job_ids:
+        (
+            db.query(LabsAnalysisOutbox)
+            .filter(LabsAnalysisOutbox.job_id.in_(labs_job_ids))
+            .with_for_update()
+            .all()
+        )
+        db.query(LabsAnalysisOutbox).filter(
+            LabsAnalysisOutbox.job_id.in_(labs_job_ids)
+        ).delete(synchronize_session=False)
+        db.query(LabsAnalysisJob).filter(
+            LabsAnalysisJob.id.in_(labs_job_ids)
         ).delete(synchronize_session=False)
 
     for model in (
@@ -265,13 +326,23 @@ def delete_user_account(
                 db.rollback()
                 raise HTTPException(400, "LAST_ADMIN_CANNOT_DELETE_ACCOUNT")
 
-    demo_user_ids = [
+    demo_user_ids = sorted(
         str(demo_id)
         for (demo_id,) in db.query(User.id)
         .filter(User.demo_of == user_id)
-        .with_for_update()
         .all()
-    ]
+    )
+    demo_users: list[User] = []
+    for demo_user_id in demo_user_ids:
+        lock_revision_writes(db, demo_user_id)
+        demo_user = (
+            db.query(User)
+            .populate_existing()
+            .with_for_update()
+            .filter(User.id == demo_user_id)
+            .one()
+        )
+        demo_users.append(demo_user)
     from api.personal_context import (
         PersonalContextDeletionError,
         stage_account_deletion_manifests,
@@ -290,27 +361,30 @@ def delete_user_account(
         )
         raise HTTPException(503, "ACCOUNT_DELETE_STORAGE_UNAVAILABLE")
 
-    if user.is_active:
-        user.is_active = False
-        try:
-            db.commit()
-        except Exception:
-            db.rollback()
-            logger.exception("Failed to mark account deleting for user %s", user_id)
-            raise HTTPException(500, "ACCOUNT_DELETE_FAILED")
+    user.is_active = False
+    _cancel_active_labs_work(db, user_id)
+    for demo_user in demo_users:
+        demo_user.is_active = False
+        _cancel_active_labs_work(db, demo_user.id)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("Failed to mark account deleting for user %s", user_id)
+        raise HTTPException(500, "ACCOUNT_DELETE_FAILED")
 
-        begin_serialized_write(db)
-        lock_revision_writes(db, user_id)
-        user = (
-            db.query(User)
-            .populate_existing()
-            .with_for_update()
-            .filter(User.id == user_id)
-            .first()
-        )
-        if user is None:
-            db.rollback()
-            raise HTTPException(404, "USER_NOT_FOUND")
+    begin_serialized_write(db)
+    lock_revision_writes(db, user_id)
+    user = (
+        db.query(User)
+        .populate_existing()
+        .with_for_update()
+        .filter(User.id == user_id)
+        .first()
+    )
+    if user is None:
+        db.rollback()
+        raise HTTPException(404, "USER_NOT_FOUND")
 
     deleted_user_ids: list[str] = []
     demo_users = (

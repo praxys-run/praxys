@@ -19,6 +19,7 @@
 | Frontend App Service | `praxys-frontend` | `deploy-frontend-appservice.yml` |
 | App Service plan | `plan-trainsight` (Linux B1, East Asia) | `docs/deployment.md`, `frontend_server` notes |
 | PostgreSQL (**primary DB**, live 2026-07-04) | `praxys-pg` Flexible Server (Burstable B1ms, PG16, DB `praxys`, Entra auth, PITR 14d) | [postgres-migration.md](./postgres-migration.md); `PRAXYS_PG_SERVER` var |
+| Labs isolated compute (opt-in) | Service Bus namespace tagged `praxysComponent=labs-analysis`, queue `labs-environment-response`; Container Apps environment `cae-praxys-jobs`, job `praxys-labs-environment-worker`, UAMI `id-praxys-labs-worker` | `infra/labs-worker.bicep`; [labs-analysis-worker.md](./labs-analysis-worker.md) |
 | Key Vault | `kv-trainsight` (`https://kv-trainsight.vault.azure.net`) | live `KEY_VAULT_URL` |
 | — RSA key | `trainsight-master-key` | live `KEY_VAULT_KEY_NAME` |
 | Frontend Application Insights | `appi-trainsight` (Application ID `d10e388f-3a26-4c3d-b57d-d83fc4637a9b`; browser/RUM, local auth enabled) | `.github/azure-observability.env` |
@@ -62,6 +63,12 @@
   the agent from the default branch. Moving repos to the `praxys-run` org
   changes these subjects — see [org-migration.md](./org-migration.md). See
   [config-and-secrets.md](./config-and-secrets.md).
+- **Labs API -> queue -> worker:** the backend system identity is Service Bus
+  Data Sender on the dedicated queue. `id-praxys-labs-worker` is Service Bus
+  Data Receiver, Monitoring Metrics Publisher on `appi-praxys-backend`, and a
+  non-admin PostgreSQL Entra principal with explicit table/column grants. Queue
+  messages contain only opaque job UUIDs. See
+  [labs-analysis-worker.md](./labs-analysis-worker.md).
 
 ## Data
 

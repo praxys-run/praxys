@@ -1,7 +1,15 @@
 """Authenticated lifecycle endpoints for Praxys Labs experiments."""
+from datetime import datetime
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Header,
+    HTTPException,
+    Response,
+)
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
@@ -10,20 +18,29 @@ from api.auth import get_current_user_id, require_write_access
 from api.labs_environment import (
     CONSENT_VERSION,
     EXPERIMENT_ID,
+    RecomputeLimitError,
     adult_eligibility_reason,
     enroll,
     environment_response_preflight,
-    process_environment_response_job,
     public_state,
     queue_recompute,
-    recover_interrupted_jobs,
     withdraw,
 )
+from api.labs_dispatch import dispatch_job, notify_dispatcher
 from api.labs_tombstone_storage import TombstoneStorageError
-from db.models import LabsExperimentEnrollment
+from api.views import utc_isoformat
 from db.session import get_db
 
 router = APIRouter()
+IdempotencyKey = Annotated[
+    str | None,
+    Header(
+        alias="Idempotency-Key",
+        min_length=8,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$",
+    ),
+]
 
 
 class EnvironmentEnrollmentRequest(BaseModel):
@@ -245,6 +262,51 @@ class EnvironmentResponseState(BaseModel):
     queued_at: str | None = None
     started_at: str | None = None
     completed_at: str | None = None
+    execution: "EnvironmentExecutionState"
+
+
+class EnvironmentRecomputePolicy(BaseModel):
+    """Server-authoritative manual recompute policy."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    allowed: bool
+    reason: Literal[
+        "not_enrolled",
+        "active_job",
+        "cooldown",
+        "daily_limit",
+    ] | None
+    available_at: str | None
+    retry_after_seconds: int | None
+    remaining_requests: int
+    window_hours: int
+    cooldown_hours: int
+
+
+class EnvironmentExecutionState(BaseModel):
+    """Durable queue/worker state for the current or latest generation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    job_status: Literal[
+        "queued",
+        "dispatched",
+        "processing",
+        "retrying",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "dead_lettered",
+    ] | None
+    attempt_count: int
+    retryable_failure: bool
+    requested_at: str | None
+    dispatched_at: str | None
+    recompute: EnvironmentRecomputePolicy
+
+
+EnvironmentResponseState.model_rebuild()
 
 
 class EnvironmentPreflightObserved(BaseModel):
@@ -335,15 +397,12 @@ def _require_preflight_eligibility(db: Session, user_id: str) -> None:
 
 def _schedule(
     background_tasks: BackgroundTasks,
-    row,
+    job_id: str | None,
 ) -> None:
-    background_tasks.add_task(
-        process_environment_response_job,
-        row.user_id,
-        EXPERIMENT_ID,
-        row.model_version,
-        row.source_revision,
-    )
+    if job_id is None:
+        return
+    background_tasks.add_task(dispatch_job, job_id)
+    notify_dispatcher()
 
 
 @router.get(
@@ -351,23 +410,11 @@ def _schedule(
     response_model=EnvironmentResponseState,
 )
 def get_environment_response(
-    background_tasks: BackgroundTasks,
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ) -> dict:
     """Return consent, processing, diagnostics, and aggregate result state."""
-    state = public_state(db, user_id)
-    if state["status"] == "processing":
-        recover_interrupted_jobs(db, user_id=user_id)
-        state = public_state(db, user_id)
-    if state["status"] == "queued":
-        row = db.get(
-            LabsExperimentEnrollment,
-            (user_id, EXPERIMENT_ID),
-        )
-        if row is not None:
-            _schedule(background_tasks, row)
-    return state
+    return public_state(db, user_id)
 
 
 @router.post(
@@ -378,17 +425,22 @@ def get_environment_response(
 def enroll_environment_response(
     body: EnvironmentEnrollmentRequest,
     background_tasks: BackgroundTasks,
+    idempotency_key: IdempotencyKey = None,
     user_id: str = Depends(require_write_access),
     db: Session = Depends(get_db),
 ) -> dict:
     """Record explicit consent and queue private aggregate computation."""
-    _require_preflight_eligibility(db, user_id)
     try:
-        row = enroll(
+        decision = enroll(
             db,
             user_id,
             adult_attested=body.adult_attested,
             consent_version=body.consent_version,
+            idempotency_key=idempotency_key,
+            eligibility_check=lambda: _require_preflight_eligibility(
+                db,
+                user_id,
+            ),
         )
     except ValueError as exc:
         code = str(exc)
@@ -406,7 +458,10 @@ def enroll_environment_response(
                 },
             ) from exc
         raise
-    _schedule(background_tasks, row)
+    _schedule(
+        background_tasks,
+        None if decision.job is None else decision.job.id,
+    )
     return public_state(db, user_id)
 
 
@@ -417,15 +472,58 @@ def enroll_environment_response(
 )
 def recompute_environment_response(
     background_tasks: BackgroundTasks,
+    idempotency_key: IdempotencyKey = None,
     user_id: str = Depends(require_write_access),
     db: Session = Depends(get_db),
 ) -> dict:
     """Queue a fresh result under the existing explicit consent."""
-    _require_preflight_eligibility(db, user_id)
-    row = queue_recompute(db, user_id)
-    if row is None:
-        raise HTTPException(409, detail="LABS_ENVIRONMENT_NOT_ENROLLED")
-    _schedule(background_tasks, row)
+    try:
+        decision = queue_recompute(
+            db,
+            user_id,
+            idempotency_key=idempotency_key,
+            eligibility_check=lambda: _require_preflight_eligibility(
+                db,
+                user_id,
+            ),
+        )
+    except RecomputeLimitError as exc:
+        retry_after = max(
+            1,
+            int((exc.available_at - datetime.utcnow()).total_seconds() + 0.999),
+        )
+        code = (
+            "LABS_ENVIRONMENT_RECOMPUTE_COOLDOWN"
+            if exc.code == "cooldown"
+            else "LABS_ENVIRONMENT_RECOMPUTE_DAILY_LIMIT"
+        )
+        raise HTTPException(
+            429,
+            detail={
+                "code": code,
+                "message": (
+                    "This experiment can be recomputed after the current "
+                    "cooldown."
+                    if exc.code == "cooldown"
+                    else "The rolling daily recompute limit has been reached."
+                ),
+                "available_at": utc_isoformat(exc.available_at),
+                "retry_after_seconds": retry_after,
+            },
+            headers={"Retry-After": str(retry_after)},
+        ) from exc
+    if decision is None:
+        raise HTTPException(
+            409,
+            detail={
+                "code": "LABS_ENVIRONMENT_NOT_ENROLLED",
+                "message": "Current experiment consent is required.",
+            },
+        )
+    _schedule(
+        background_tasks,
+        None if decision.job is None else decision.job.id,
+    )
     return public_state(db, user_id)
 
 

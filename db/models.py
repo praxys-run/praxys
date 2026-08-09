@@ -23,6 +23,7 @@ from sqlalchemy import (
     LargeBinary,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
 
@@ -448,6 +449,119 @@ class LabsDeletionTombstone(Base):
     )
     experiment_id = Column(String(80), primary_key=True)
     deleted_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class LabsAnalysisJob(Base):
+    """Durable execution record for one isolated Labs analysis generation."""
+
+    __tablename__ = "labs_analysis_jobs"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    experiment_id = Column(String(80), nullable=False)
+    trigger = Column(String(24), nullable=False)
+    status = Column(String(20), nullable=False, default="queued")
+    model_version = Column(String(80), nullable=False)
+    source_revision = Column(String(100), nullable=False)
+    correlation_id = Column(String(36), nullable=False)
+    idempotency_key = Column(String(128), nullable=True)
+    attempt_count = Column(Integer, nullable=False, default=0)
+    failure_code = Column(String(64), nullable=True)
+    retryable_failure = Column(Boolean, nullable=False, default=False)
+    requested_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    dispatched_at = Column(DateTime, nullable=True)
+    started_at = Column(DateTime, nullable=True)
+    lease_expires_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "trigger IN ('enrollment','manual_recompute')",
+            name="ck_labs_analysis_job_trigger",
+        ),
+        CheckConstraint(
+            "status IN ("
+            "'queued','dispatched','processing','retrying',"
+            "'succeeded','failed','cancelled','dead_lettered'"
+            ")",
+            name="ck_labs_analysis_job_status",
+        ),
+        UniqueConstraint(
+            "user_id",
+            "experiment_id",
+            "trigger",
+            "idempotency_key",
+            name="uq_labs_analysis_job_idempotency",
+        ),
+        Index(
+            "uq_labs_analysis_job_active",
+            "user_id",
+            "experiment_id",
+            unique=True,
+            sqlite_where=text(
+                "status IN ('queued','dispatched','processing','retrying')"
+            ),
+            postgresql_where=text(
+                "status IN ('queued','dispatched','processing','retrying')"
+            ),
+        ),
+        Index(
+            "ix_labs_analysis_job_requested",
+            "user_id",
+            "experiment_id",
+            "requested_at",
+        ),
+    )
+
+
+class LabsAnalysisOutbox(Base):
+    """Payload-free transactional outbox entry for one Labs job."""
+
+    __tablename__ = "labs_analysis_outbox"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    job_id = Column(
+        String(36),
+        ForeignKey("labs_analysis_jobs.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    status = Column(String(16), nullable=False, default="pending")
+    attempt_count = Column(Integer, nullable=False, default=0)
+    available_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    lease_expires_at = Column(DateTime, nullable=True)
+    last_error_code = Column(String(64), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    dispatched_at = Column(DateTime, nullable=True)
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending','dispatching','dispatched','cancelled')",
+            name="ck_labs_analysis_outbox_status",
+        ),
+        Index(
+            "ix_labs_analysis_outbox_dispatch",
+            "status",
+            "available_at",
+        ),
+    )
 
 
 class PersonalContextItem(Base):

@@ -9,6 +9,13 @@ function statusLabel(
   state: LabsEnvironmentResponseState,
 ): string {
   if (state.status === 'available') return t('Result ready');
+  if (state.execution.job_status === 'retrying') return t('Retrying');
+  if (
+    state.execution.job_status === 'failed'
+    || state.execution.job_status === 'dead_lettered'
+  ) {
+    return t('Needs retry');
+  }
   if (state.status === 'queued' || state.status === 'processing') return t('Analyzing');
   if (state.enrolled) return t('Participating');
   return t('Open to check');
@@ -40,6 +47,9 @@ Page({
 
   onShow() {
     applyThemeChrome();
+    if (!this.data.loading) {
+      void this.refetch();
+    }
   },
 
   async refetch() {

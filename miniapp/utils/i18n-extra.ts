@@ -861,6 +861,7 @@ const EN_LABS = {
   'Lower interval': 'Lower interval',
   'Upper interval': 'Upper interval',
   'minimum 5 per range': 'minimum 5 per range',
+  activity: 'activity',
   activities: 'activities',
   'This sits inside your displayed historical range.':
     'This sits inside your displayed historical range.',
@@ -884,6 +885,7 @@ const ZH_LABS = {
   'Lower interval': '区间下界',
   'Upper interval': '区间上界',
   'minimum 5 per range': '每个区间至少 5 次',
+  activity: '次活动',
   activities: '次活动',
   'This sits inside your displayed historical range.':
     '该值位于已显示的历史范围内。',
