@@ -2475,7 +2475,7 @@ export const I18N_CATALOG: Record<Locale, Record<string, string>> = {
     "merged PR outcomes": "已合并 PR 结果",
     "MFA": "MFA",
     "MFA required": "需 MFA",
-    "Microsoft Azure AI": "Microsoft Azure AI",
+    "Microsoft Azure AI": "Microsoft Azure AI 服务",
     "min": "分钟",
     "Mini program": "小程序",
     "minimum": "最低要求",

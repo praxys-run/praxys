@@ -4350,7 +4350,7 @@ msgstr "需 MFA"
 
 #: src/components/PersonalContextPanel.tsx:1418
 msgid "Microsoft Azure AI"
-msgstr "Microsoft Azure AI"
+msgstr "Microsoft Azure AI 服务"
 
 #: src/pages/Today.tsx:304
 #~ msgid "mild fatigue"
