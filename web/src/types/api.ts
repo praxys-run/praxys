@@ -1818,11 +1818,18 @@ export interface LabsEnvironmentProviderRegime {
 
 export interface LabsEnvironmentReferencePowerFunnel {
   environment_activity_count: number;
-  any_valid_sample_activity_count: number;
-  continuous_coverage_activity_count: number;
   stable_segment_mean_activity_count: number;
   training_partition_activity_count: number;
   final_reference_power_activity_count: number;
+}
+
+export interface LabsEnvironmentWorkloadSupport {
+  policy: 'training_median_centered_v1';
+  training_median_pct_cp: number;
+  personal_display_pct_cp: number[];
+  half_width_percentage_points: number;
+  model_eligible_pct_cp: number[];
+  display_filter_applied_to_model_rows: false;
 }
 
 export interface LabsEnvironmentCurveSupportBin {
@@ -1847,6 +1854,7 @@ export interface LabsEnvironmentEligibilityCounts {
   eligible_segment_count: number;
   exclusion_reason_counts: Record<string, number>;
   provider_regimes: LabsEnvironmentProviderRegime[];
+  workload_support: LabsEnvironmentWorkloadSupport | null;
   observed_wet_bulb_domain_c: number[] | null;
   curve_support_bins: LabsEnvironmentCurveSupportBin[] | null;
   displayed_wet_bulb_domains_c: number[][] | null;

@@ -34,6 +34,7 @@ from api.packs import (
     get_activity_research_pack,
     get_analysis_response_version,
 )
+from api.statsig_client import get_config, get_statsig_user_for_account
 from api.views import utc_isoformat
 from api import labs_tombstone_storage
 from db.cache_revision import lock_revision_writes
@@ -44,6 +45,7 @@ from db.models import (
     LabsExperimentEnrollment,
     LabsExperimentResult,
     User,
+    UserConfig,
 )
 from db.session import begin_serialized_write
 
@@ -52,9 +54,10 @@ logger = logging.getLogger(__name__)
 EXPERIMENT_ID = "environment-response-v1"
 CONSENT_VERSION = "environment-response-consent-v1"
 ACTIVE_JOB_STATUSES = ("queued", "dispatched", "processing", "retrying")
-MANUAL_RECOMPUTE_COOLDOWN = timedelta(hours=6)
-MANUAL_RECOMPUTE_WINDOW = timedelta(hours=24)
-MANUAL_RECOMPUTE_LIMIT = 3
+MANUAL_RECOMPUTE_CONFIG_NAME = "labs_environment_recompute_policy"
+MANUAL_RECOMPUTE_DEFAULT_COOLDOWN_HOURS = 6
+MANUAL_RECOMPUTE_DEFAULT_WINDOW_HOURS = 24
+MANUAL_RECOMPUTE_DEFAULT_LIMIT = 3
 JOB_LEASE_DURATION = timedelta(minutes=30)
 MAX_JOB_ATTEMPTS = 3
 _IDEMPOTENCY_KEY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$")
@@ -79,6 +82,76 @@ class RecomputeLimitError(RuntimeError):
         super().__init__(code)
         self.code = code
         self.available_at = available_at
+
+
+@dataclass(frozen=True)
+class ManualRecomputePolicy:
+    """Validated per-user Labs manual recompute limits."""
+
+    cooldown: timedelta
+    window: timedelta
+    limit: int
+
+
+DEFAULT_MANUAL_RECOMPUTE_POLICY = ManualRecomputePolicy(
+    cooldown=timedelta(hours=MANUAL_RECOMPUTE_DEFAULT_COOLDOWN_HOURS),
+    window=timedelta(hours=MANUAL_RECOMPUTE_DEFAULT_WINDOW_HOURS),
+    limit=MANUAL_RECOMPUTE_DEFAULT_LIMIT,
+)
+
+
+def _manual_recompute_policy(
+    db: Session,
+    user_id: str,
+) -> ManualRecomputePolicy:
+    config_row = db.get(UserConfig, user_id)
+    statsig_user = get_statsig_user_for_account(
+        db,
+        user_id=user_id,
+        training_base=(
+            config_row.training_base if config_row is not None else None
+        ),
+        language=config_row.language if config_row is not None else None,
+    )
+    fallback = {
+        "cooldown_hours": MANUAL_RECOMPUTE_DEFAULT_COOLDOWN_HOURS,
+        "window_hours": MANUAL_RECOMPUTE_DEFAULT_WINDOW_HOURS,
+        "max_requests": MANUAL_RECOMPUTE_DEFAULT_LIMIT,
+    }
+    configured = get_config(
+        MANUAL_RECOMPUTE_CONFIG_NAME,
+        statsig_user,
+        fallback,
+    )
+    if not isinstance(configured, dict):
+        logger.warning(
+            "Invalid Labs recompute config; using defaults: config=%s",
+            MANUAL_RECOMPUTE_CONFIG_NAME,
+        )
+        return DEFAULT_MANUAL_RECOMPUTE_POLICY
+    cooldown_hours = configured.get("cooldown_hours")
+    window_hours = configured.get("window_hours")
+    limit = configured.get("max_requests")
+    valid = (
+        type(cooldown_hours) is int
+        and type(window_hours) is int
+        and type(limit) is int
+        and 0 <= cooldown_hours <= 168
+        and 1 <= window_hours <= 168
+        and cooldown_hours <= window_hours
+        and 1 <= limit <= 100
+    )
+    if not valid:
+        logger.warning(
+            "Invalid Labs recompute config values; using defaults: config=%s",
+            MANUAL_RECOMPUTE_CONFIG_NAME,
+        )
+        return DEFAULT_MANUAL_RECOMPUTE_POLICY
+    return ManualRecomputePolicy(
+        cooldown=timedelta(hours=cooldown_hours),
+        window=timedelta(hours=window_hours),
+        limit=limit,
+    )
 
 
 @dataclass(frozen=True)
@@ -618,6 +691,7 @@ def _manual_recompute_limit(
     user_id: str,
     *,
     now: datetime,
+    policy: ManualRecomputePolicy,
 ) -> RecomputeLimitError | None:
     jobs = (
         db.query(LabsAnalysisJob)
@@ -625,7 +699,7 @@ def _manual_recompute_limit(
             LabsAnalysisJob.user_id == user_id,
             LabsAnalysisJob.experiment_id == EXPERIMENT_ID,
             LabsAnalysisJob.trigger == "manual_recompute",
-            LabsAnalysisJob.requested_at > now - MANUAL_RECOMPUTE_WINDOW,
+            LabsAnalysisJob.requested_at > now - policy.window,
         )
         .order_by(LabsAnalysisJob.requested_at)
         .all()
@@ -633,12 +707,12 @@ def _manual_recompute_limit(
     code: Literal["cooldown", "daily_limit"] | None = None
     available_at: datetime | None = None
     if jobs:
-        cooldown_at = jobs[-1].requested_at + MANUAL_RECOMPUTE_COOLDOWN
+        cooldown_at = jobs[-1].requested_at + policy.cooldown
         if cooldown_at > now:
             code = "cooldown"
             available_at = cooldown_at
-    if len(jobs) >= MANUAL_RECOMPUTE_LIMIT:
-        daily_at = jobs[0].requested_at + MANUAL_RECOMPUTE_WINDOW
+    if len(jobs) >= policy.limit:
+        daily_at = _rolling_limit_available_at(jobs, policy)
         if daily_at > now and (
             available_at is None or daily_at > available_at
         ):
@@ -649,6 +723,13 @@ def _manual_recompute_limit(
         if code is None or available_at is None
         else RecomputeLimitError(code, available_at)
     )
+
+
+def _rolling_limit_available_at(
+    jobs: list[LabsAnalysisJob],
+    policy: ManualRecomputePolicy,
+) -> datetime:
+    return jobs[len(jobs) - policy.limit].requested_at + policy.window
 
 
 def queue_recompute(
@@ -663,6 +744,7 @@ def queue_recompute(
     key = _normalize_idempotency_key(idempotency_key)
     current_time = now or datetime.utcnow()
     begin_serialized_write(db)
+    policy = _manual_recompute_policy(db, user_id)
     lock_revision_writes(db, user_id)
     row = _locked_enrollment(db, user_id, EXPERIMENT_ID)
     if not _has_current_consent(row):
@@ -683,7 +765,12 @@ def queue_recompute(
     if active is not None:
         db.commit()
         return QueueDecision(row, active, False, idempotent=True)
-    limited = _manual_recompute_limit(db, user_id, now=current_time)
+    limited = _manual_recompute_limit(
+        db,
+        user_id,
+        now=current_time,
+        policy=policy,
+    )
     if limited is not None:
         db.rollback()
         raise limited
@@ -1486,7 +1573,6 @@ def _build_private_dataset_bundle(
             export_snapshot_id=expected_source_revision,
             limit=limit,
             offset=offset,
-            include_private_labs_support=True,
         )
         pages.append(page)
         offset += limit
@@ -1741,6 +1827,7 @@ def _recompute_policy_state(
     *,
     now: datetime,
 ) -> dict[str, Any]:
+    policy = _manual_recompute_policy(db, user_id)
     active = _active_job(db, user_id, EXPERIMENT_ID)
     window_jobs = (
         db.query(LabsAnalysisJob)
@@ -1748,12 +1835,12 @@ def _recompute_policy_state(
             LabsAnalysisJob.user_id == user_id,
             LabsAnalysisJob.experiment_id == EXPERIMENT_ID,
             LabsAnalysisJob.trigger == "manual_recompute",
-            LabsAnalysisJob.requested_at > now - MANUAL_RECOMPUTE_WINDOW,
+            LabsAnalysisJob.requested_at > now - policy.window,
         )
         .order_by(LabsAnalysisJob.requested_at)
         .all()
     )
-    remaining = max(0, MANUAL_RECOMPUTE_LIMIT - len(window_jobs))
+    remaining = max(0, policy.limit - len(window_jobs))
     reason: str | None = None
     available_at: datetime | None = None
     if row is None:
@@ -1763,15 +1850,13 @@ def _recompute_policy_state(
     else:
         if window_jobs:
             cooldown_at = (
-                window_jobs[-1].requested_at + MANUAL_RECOMPUTE_COOLDOWN
+                window_jobs[-1].requested_at + policy.cooldown
             )
             if cooldown_at > now:
                 reason = "cooldown"
                 available_at = cooldown_at
-        if len(window_jobs) >= MANUAL_RECOMPUTE_LIMIT:
-            daily_at = (
-                window_jobs[0].requested_at + MANUAL_RECOMPUTE_WINDOW
-            )
+        if len(window_jobs) >= policy.limit:
+            daily_at = _rolling_limit_available_at(window_jobs, policy)
             if daily_at > now and (
                 available_at is None or daily_at > available_at
             ):
@@ -1788,10 +1873,8 @@ def _recompute_policy_state(
         "available_at": utc_isoformat(available_at),
         "retry_after_seconds": retry_after_seconds,
         "remaining_requests": remaining,
-        "window_hours": int(MANUAL_RECOMPUTE_WINDOW.total_seconds() / 3600),
-        "cooldown_hours": int(
-            MANUAL_RECOMPUTE_COOLDOWN.total_seconds() / 3600
-        ),
+        "window_hours": int(policy.window.total_seconds() / 3600),
+        "cooldown_hours": int(policy.cooldown.total_seconds() / 3600),
     }
 
 

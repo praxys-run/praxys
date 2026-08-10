@@ -18,6 +18,8 @@ import type {
 
 const CONSENT_VERSION = 'environment-response-consent-v1';
 const STULL_SOURCE_URL = 'https://doi.org/10.1175/JAMC-D-11-0143.1';
+const WORKLOAD_SUPPORT_EVIDENCE_URL =
+  'https://github.com/praxys-run/praxys/blob/main/data/science/evidence/environmental-response-workload-support/evidence-environmental-response-workload-support-v1.yaml';
 const PREFLIGHT_REQUEST_TIMEOUT_MS = 15000;
 type LabsMutationAction = 'enroll' | 'recompute';
 
@@ -105,11 +107,14 @@ function buildLabsTr() {
     lowerSeries: t('Lower interval'),
     upperSeries: t('Upper interval'),
     supportTitle: t('Comparable-power activity support'),
-    supportMinimum: t('minimum 5 per range'),
+    supportMinimum: t('minimum {referenceMinimum} per environmental range')
+      .replace('{referenceMinimum}', '5'),
+    comparableRange: t('Your comparable range'),
     supported: t('Supported'),
     insufficientSupport: t('Insufficient support'),
     activitiesUnit: t('activities'),
-    supportExplanation: t('Each activity counts once per range. A qualifying activity needs an accepted stable segment averaging 75–85% of its pre-activity Stryd Critical Power; raw sample points alone do not count.'),
+    supportExplanation: t('Each activity counts once per environmental range. The comparable-power range is centered on your typical eligible stable training workload; raw sample points alone do not count.'),
+    workloadBoundary: t('Your personal comparable-power range controls where the curve can be displayed. The fitted model still uses every otherwise eligible stable segment from 65–95% CP, so the display range does not discard broader model data.'),
     activities: t('Eligible activities'),
     segments: t('Stable segments'),
     observedRange: t('Observed proxy range'),
@@ -119,6 +124,7 @@ function buildLabsTr() {
     strydPowerRegime: t('Continuous Stryd sample power'),
     modelVersion: t('Model version'),
     chartBoundary: t('This curve is historical and non-causal. Wind, solar load, clothing, hydration, fatigue, and other unmeasured conditions can still differ between runs.'),
+    workloadSource: t('Praxys workload-support review'),
     stullSource: t('Stull (2011) source'),
     unavailableTitle: t('No curve is available yet'),
     staleTitle: t('Your result needs recomputing'),
@@ -357,6 +363,7 @@ function deriveState(state: LabsEnvironmentResponseState) {
     state.status === 'available'
     && result?.result_state === 'historical_association_only';
   const supportBins = counts?.curve_support_bins ?? [];
+  const workloadSupport = counts?.workload_support;
   const partialDomain = supportBins.some((bin) => !bin.supported);
   return {
     state,
@@ -399,6 +406,10 @@ function deriveState(state: LabsEnvironmentResponseState) {
       : '—',
     modelVersionDisplay: result?.model_version ?? state.model_version,
     partialDomain,
+    comparablePowerRangeDisplay:
+      workloadSupport?.personal_display_pct_cp.length === 2
+        ? `${workloadSupport.personal_display_pct_cp[0].toFixed(1)}–${workloadSupport.personal_display_pct_cp[1].toFixed(1)}% CP`
+        : '—',
     supportBinsDisplay: supportBins.map((bin) => ({
       binIndex: bin.bin_index,
       range: `${bin.lower_wet_bulb_c.toFixed(1)}–${bin.upper_wet_bulb_c.toFixed(1)} °C`,
@@ -463,6 +474,7 @@ Page({
     intervalDisplay: '—',
     modelVersionDisplay: '',
     partialDomain: false,
+    comparablePowerRangeDisplay: '—',
     supportBinsDisplay: [] as Array<{
       binIndex: number;
       range: string;
@@ -823,6 +835,15 @@ Page({
       },
       fail: () => {
         wx.showToast({ title: t('Copy failed'), icon: 'none', duration: 1500 });
+      },
+    });
+  },
+
+  onCopyWorkloadSource() {
+    wx.setClipboardData({
+      data: WORKLOAD_SUPPORT_EVIDENCE_URL,
+      success: () => {
+        wx.showToast({ title: t('URL copied'), icon: 'success', duration: 1500 });
       },
     });
   },

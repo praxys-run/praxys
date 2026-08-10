@@ -18,22 +18,24 @@ from analysis.heat_response_validation import (
 )
 
 
-LABS_ENVIRONMENT_MODEL_VERSION = f"{MODEL_VERSION}-labs-v2"
+LABS_ENVIRONMENT_MODEL_VERSION = f"{MODEL_VERSION}-labs-v3"
 POWER_REGIME = "stryd_continuous_samples"
-# Product guardrails below are accepted governance estimates from
-# data/science/decisions/sdr-environmental-performance-v3.yaml. They are not
-# published physiological constants.
+LABS_MODEL_MINIMUM_POWER_PCT_CP = 65.0
+LABS_MODEL_MAXIMUM_POWER_PCT_CP = 95.0
+# ESTIMATE -- Product guardrails below are governed by the proposed
+# data/science/decisions/sdr-environmental-performance-v4.yaml. They are not
+# published physiological constants and cannot ship before human acceptance.
 
 
 @dataclass(frozen=True)
 class LabsEnvironmentConfig:
-    """Accepted Labs v2 display-support and influence guardrails."""
+    """Proposed Labs v3 display-support and influence guardrails."""
 
     curve_domain_percentiles: tuple[float, float] = (10.0, 90.0)
     curve_support_bin_count: int = 5
     minimum_activities_per_curve_bin: int = 5
     minimum_segments_per_curve_bin: int = 10
-    reference_power_pct_cp: tuple[float, float] = (75.0, 85.0)
+    reference_power_half_width_percentage_points: float = 10.0
     minimum_reference_power_activities_per_curve_bin: int = 5
     minimum_contiguous_supported_bins: int = 2
     maximum_bootstrap_width_ratio: float = 1.0
@@ -129,9 +131,19 @@ def build_environment_response_result(
     config: LabsEnvironmentConfig | None = None,
     validation_config: HeatValidationConfig | None = None,
 ) -> dict[str, Any]:
-    """Return the aggregate-only result authorized by the accepted V1 SDR."""
+    """Return the aggregate-only Labs environmental-response result."""
     selected = config or LabsEnvironmentConfig()
     heat_config = validation_config or HeatValidationConfig()
+    if (
+        heat_config.minimum_power_pct_cp
+        != LABS_MODEL_MINIMUM_POWER_PCT_CP
+        or heat_config.maximum_power_pct_cp
+        != LABS_MODEL_MAXIMUM_POWER_PCT_CP
+    ):
+        raise ValueError(
+            "Labs environmental-response analysis requires the governed "
+            "65-95% CP model domain"
+        )
     report = validate_heat_response(dataset, heat_config)
     gate_statuses = {
         name: gate["status"]
@@ -150,6 +162,7 @@ def build_environment_response_result(
         "eligible_segment_count": coverage["eligible_segment_count"],
         "exclusion_reason_counts": exclusion_reason_counts,
         "provider_regimes": coverage["provider_regimes"]["combinations"],
+        "workload_support": None,
     }
     provider_combinations = coverage["provider_regimes"]["combinations"]
     stryd_regime_pass = bool(
@@ -198,6 +211,11 @@ def build_environment_response_result(
     test_rows = internal["test_rows"]
     feature_names = internal["feature_names"]
     heat_center = internal["heat_center"]
+    workload_support = _workload_support(
+        train_rows,
+        selected,
+    )
+    eligibility_counts["workload_support"] = workload_support
 
     activity_environment: dict[str, list[float]] = {}
     for row in train_rows:
@@ -222,6 +240,10 @@ def build_environment_response_result(
         train_rows,
         edges,
         selected,
+        (
+            workload_support["personal_display_pct_cp"][0],
+            workload_support["personal_display_pct_cp"][1],
+        ),
     )
     supported_sections = _supported_bin_sections(support_bins)
     curve_support_pass = _has_displayable_section(
@@ -394,8 +416,9 @@ def _curve_support_bins(
     train_rows: list[Any],
     edges: np.ndarray,
     config: LabsEnvironmentConfig,
+    reference_power_pct_cp: tuple[float, float],
 ) -> list[dict[str, Any]]:
-    """Build aggregate support and diagnostic funnels for fixed bins."""
+    """Build aggregate support for one prespecified personal power band."""
     activity_support: dict[str, dict[str, Any]] = {}
     for record in records:
         activity = record.get("activity")
@@ -416,33 +439,19 @@ def _curve_support_bins(
             wet_bulb_value = float(wet_bulb)
         except (TypeError, ValueError):
             continue
-        support = record.get("reference_power_support")
-        if not isinstance(support, dict):
-            segments = record.get("stable_segments", {}).get("segments", [])
-            accepted = any(
-                config.reference_power_pct_cp[0]
-                <= float(segment.get("mean_pct_cp"))
-                <= config.reference_power_pct_cp[1]
-                for segment in segments
-                if segment.get("mean_pct_cp") is not None
-                and not segment.get("reason_codes")
-            )
-            support = {
-                "any_valid_sample_point": accepted,
-                "minimum_continuous_coverage": accepted,
-                "accepted_stable_segment_mean": accepted,
-            }
+        segments = record.get("stable_segments", {}).get("segments", [])
+        accepted = any(
+            reference_power_pct_cp[0]
+            <= float(segment.get("mean_pct_cp"))
+            <= reference_power_pct_cp[1]
+            for segment in segments
+            if segment.get("mean_pct_cp") is not None
+            and segment.get("source") == "samples"
+            and not segment.get("reason_codes")
+        )
         activity_support[activity_key] = {
             "wet_bulb_c": wet_bulb_value,
-            "any_valid_sample_point": bool(
-                support.get("any_valid_sample_point")
-            ),
-            "minimum_continuous_coverage": bool(
-                support.get("minimum_continuous_coverage")
-            ),
-            "accepted_stable_segment_mean": bool(
-                support.get("accepted_stable_segment_mean")
-            ),
+            "accepted_stable_segment_mean": accepted,
         }
 
     bins: list[dict[str, Any]] = []
@@ -464,16 +473,8 @@ def _curve_support_bins(
             for key, support in activity_support.items()
             if in_bin(float(support["wet_bulb_c"]))
         }
-        any_point_keys = {
-            key for key in all_activity_keys
-            if activity_support[key]["any_valid_sample_point"]
-        }
-        continuous_keys = {
-            key for key in any_point_keys
-            if activity_support[key]["minimum_continuous_coverage"]
-        }
         stable_keys = {
-            key for key in continuous_keys
+            key for key in all_activity_keys
             if activity_support[key]["accepted_stable_segment_mean"]
         }
         rows = [row for row in train_rows if in_bin(row.wet_bulb_c)]
@@ -482,9 +483,9 @@ def _curve_support_bins(
         final_reference_keys = {
             row.activity_key
             for row in rows
-            if config.reference_power_pct_cp[0]
+            if reference_power_pct_cp[0]
             <= row.mean_pct_cp
-            <= config.reference_power_pct_cp[1]
+            <= reference_power_pct_cp[1]
         } & retained_reference_keys
         failure_reasons: list[str] = []
         if len(train_activity_keys) < config.minimum_activities_per_curve_bin:
@@ -512,8 +513,6 @@ def _curve_support_bins(
             "support_failure_reasons": failure_reasons,
             "reference_power_funnel": {
                 "environment_activity_count": len(all_activity_keys),
-                "any_valid_sample_activity_count": len(any_point_keys),
-                "continuous_coverage_activity_count": len(continuous_keys),
                 "stable_segment_mean_activity_count": len(stable_keys),
                 "training_partition_activity_count": len(
                     retained_reference_keys
@@ -524,6 +523,38 @@ def _curve_support_bins(
             },
         })
     return bins
+
+
+def _workload_support(
+    train_rows: list[Any],
+    config: LabsEnvironmentConfig,
+) -> dict[str, Any]:
+    """Return aggregate provenance for personal display and common model rows."""
+    if not train_rows:
+        raise ValueError("Personal workload support requires training rows")
+    median_pct_cp = float(np.median([
+        float(row.mean_pct_cp)
+        for row in train_rows
+    ]))
+    half_width = config.reference_power_half_width_percentage_points
+    minimum_pct_cp = LABS_MODEL_MINIMUM_POWER_PCT_CP
+    maximum_pct_cp = LABS_MODEL_MAXIMUM_POWER_PCT_CP
+    personal_low = max(minimum_pct_cp, median_pct_cp - half_width)
+    personal_high = min(maximum_pct_cp, median_pct_cp + half_width)
+    return {
+        "policy": "training_median_centered_v1",
+        "training_median_pct_cp": round(median_pct_cp, 4),
+        "personal_display_pct_cp": [
+            round(float(personal_low), 4),
+            round(float(personal_high), 4),
+        ],
+        "half_width_percentage_points": half_width,
+        "model_eligible_pct_cp": [
+            minimum_pct_cp,
+            maximum_pct_cp,
+        ],
+        "display_filter_applied_to_model_rows": False,
+    }
 
 
 def _supported_bin_sections(

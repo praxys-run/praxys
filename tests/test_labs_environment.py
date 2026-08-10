@@ -123,6 +123,14 @@ def _aggregate_result() -> dict:
                 "activity_count": 20,
                 "segment_count": 80,
             }],
+            "workload_support": {
+                "policy": "training_median_centered_v1",
+                "training_median_pct_cp": 74.8,
+                "personal_display_pct_cp": [65.0, 84.8],
+                "half_width_percentage_points": 10.0,
+                "model_eligible_pct_cp": [65.0, 95.0],
+                "display_filter_applied_to_model_rows": False,
+            },
         },
         "aggregate_curve_points": [
             {
@@ -304,6 +312,114 @@ def test_recompute_not_enrolled_returns_structured_error(labs_client) -> None:
         "code": "LABS_ENVIRONMENT_NOT_ENROLLED",
         "message": "Current experiment consent is required.",
     }
+
+
+@pytest.mark.parametrize(
+    "configured",
+    [
+        None,
+        {"cooldown_hours": True, "window_hours": 24, "max_requests": 3},
+        {"cooldown_hours": -1, "window_hours": 24, "max_requests": 3},
+        {"cooldown_hours": 25, "window_hours": 24, "max_requests": 3},
+        {"cooldown_hours": 6, "window_hours": 0, "max_requests": 3},
+        {"cooldown_hours": 6, "window_hours": 24, "max_requests": 0},
+    ],
+)
+def test_invalid_recompute_dynamic_config_uses_defaults(
+    labs_client,
+    monkeypatch,
+    configured,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+
+    monkeypatch.setattr(
+        labs_environment,
+        "get_config",
+        lambda *_args: configured,
+    )
+
+    with db_session.SessionLocal() as db:
+        policy = labs_environment._manual_recompute_policy(db, user_id)
+
+    assert policy == labs_environment.DEFAULT_MANUAL_RECOMPUTE_POLICY
+
+
+def test_recompute_dynamic_config_can_bypass_cooldown(
+    labs_client,
+    monkeypatch,
+) -> None:
+    client, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import LabsAnalysisJob, LabsExperimentEnrollment
+
+    monkeypatch.setattr(
+        labs_environment,
+        "get_config",
+        lambda *_args: {
+            "cooldown_hours": 0,
+            "window_hours": 12,
+            "max_requests": 10,
+        },
+    )
+    enrolled = client.post(
+        "/api/labs/environment-response",
+        headers={"Idempotency-Key": "enroll-config-bypass-1"},
+        json={
+            "adult_attested": True,
+            "consent_version": labs_environment.CONSENT_VERSION,
+        },
+    )
+    assert enrolled.status_code == 202
+    with db_session.SessionLocal() as db:
+        job = db.query(LabsAnalysisJob).filter(
+            LabsAnalysisJob.user_id == user_id,
+        ).one()
+        row = db.get(
+            LabsExperimentEnrollment,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        )
+        job.status = "succeeded"
+        job.completed_at = datetime.utcnow()
+        row.status = "unavailable"
+        row.completed_at = job.completed_at
+        db.commit()
+
+    first = client.post(
+        "/api/labs/environment-response/recompute",
+        headers={"Idempotency-Key": "config-bypass-manual-1"},
+    )
+    assert first.status_code == 202
+    with db_session.SessionLocal() as db:
+        job = db.query(LabsAnalysisJob).filter(
+            LabsAnalysisJob.idempotency_key == "config-bypass-manual-1",
+        ).one()
+        row = db.get(
+            LabsExperimentEnrollment,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        )
+        job.status = "succeeded"
+        job.completed_at = datetime.utcnow()
+        row.status = "unavailable"
+        row.completed_at = job.completed_at
+        db.commit()
+
+    state = client.get("/api/labs/environment-response")
+    policy = state.json()["execution"]["recompute"]
+    assert policy == {
+        "allowed": True,
+        "reason": None,
+        "available_at": None,
+        "retry_after_seconds": None,
+        "remaining_requests": 9,
+        "window_hours": 12,
+        "cooldown_hours": 0,
+    }
+    second = client.post(
+        "/api/labs/environment-response/recompute",
+        headers={"Idempotency-Key": "config-bypass-manual-2"},
+    )
+    assert second.status_code == 202
 
 
 def test_recompute_api_returns_retry_after_during_cooldown(
@@ -1275,6 +1391,70 @@ def test_manual_recompute_enforces_rolling_daily_limit(
         assert policy["remaining_requests"] == 0
 
 
+def test_lowered_recompute_limit_reports_when_enough_requests_expire(
+    labs_client,
+    monkeypatch,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+    from api.views import utc_isoformat
+
+    configured = {
+        "cooldown_hours": 0,
+        "window_hours": 24,
+        "max_requests": 10,
+    }
+    monkeypatch.setattr(
+        labs_environment,
+        "get_config",
+        lambda *_args: configured,
+    )
+    base = datetime(2026, 8, 9, 0, 0, 0)
+    with db_session.SessionLocal() as db:
+        enrolled = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+            now=base - timedelta(hours=1),
+        )
+        enrolled.job.status = "succeeded"
+        enrolled.enrollment.status = "unavailable"
+        db.commit()
+        for index in range(5):
+            decision = labs_environment.queue_recompute(
+                db,
+                user_id,
+                idempotency_key=f"manual-lowered-limit-{index}",
+                now=base + timedelta(hours=index),
+            )
+            decision.job.status = "succeeded"
+            decision.enrollment.status = "unavailable"
+            db.commit()
+
+        configured["max_requests"] = 3
+        expected_available_at = base + timedelta(hours=26)
+        with pytest.raises(
+            labs_environment.RecomputeLimitError,
+            match="daily_limit",
+        ) as exc_info:
+            labs_environment.queue_recompute(
+                db,
+                user_id,
+                idempotency_key="manual-lowered-limit-blocked",
+                now=base + timedelta(hours=5),
+            )
+
+        assert exc_info.value.available_at == expected_available_at
+        policy = labs_environment.public_state(
+            db,
+            user_id,
+            now=base + timedelta(hours=5),
+        )["execution"]["recompute"]
+        assert policy["reason"] == "daily_limit"
+        assert policy["available_at"] == utc_isoformat(expected_available_at)
+
+
 def test_withdrawal_fails_closed_when_tombstone_storage_is_unavailable(
     labs_client,
     monkeypatch,
@@ -1356,6 +1536,14 @@ def test_worker_persists_only_aggregate_result(labs_client, monkeypatch) -> None
     assert response.json()["result"]["result_state"] == (
         "historical_association_only"
     )
+    assert response.json()["result"]["eligibility_counts"]["workload_support"] == {
+        "policy": "training_median_centered_v1",
+        "training_median_pct_cp": 74.8,
+        "personal_display_pct_cp": [65.0, 84.8],
+        "half_width_percentage_points": 10.0,
+        "model_eligible_pct_cp": [65.0, 95.0],
+        "display_filter_applied_to_model_rows": False,
+    }
 
 
 def test_worker_cancels_queued_job_from_an_old_model(
@@ -2795,6 +2983,11 @@ def test_openapi_exposes_strict_labs_response_schema(labs_client) -> None:
     eligibility = schema["components"]["schemas"][
         "EnvironmentEligibilityCounts"
     ]
+    workload_support = schema["components"]["schemas"][
+        "EnvironmentWorkloadSupport"
+    ]
     uncertainty = schema["components"]["schemas"]["EnvironmentUncertainty"]
     assert eligibility["additionalProperties"] is False
+    assert "workload_support" in eligibility["properties"]
+    assert workload_support["additionalProperties"] is False
     assert uncertainty["additionalProperties"] is False

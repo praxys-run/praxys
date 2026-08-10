@@ -1,8 +1,7 @@
 # Labs environmental-response V1 contract
 
-Status: **accepted implementation contract** for issue #590. This document
-authorizes only the bounded implementation described below; the feature has
-not shipped.
+Status: **accepted implementation contract** for issue #590, including the
+workload-support amendment governed by `sdr-environmental-performance-v4`.
 
 ## Product purpose
 
@@ -15,7 +14,7 @@ The experiment is retrospective and descriptive. It is not a future-run
 forecast, personal physiological coefficient, performance correction,
 heat-adaptation score, training prescription, or heat-safety assessment.
 
-## Proposed first-user experience
+## First-user experience
 
 1. Explain the purpose, adult evidence boundary, required data, limitations,
    persistence, withdrawal, and deletion behavior before opt-in.
@@ -23,10 +22,13 @@ heat-adaptation score, training prescription, or heat-safety assessment.
 3. Compute from a complete owner-scoped snapshot using one verified
    same-provider, same-device/algorithm-era SAMPLE-derived power regime and
    heart-rate segments.
-4. Under the accepted `sdr-environmental-performance-v3` policy, show fitted
-   points only in prespecified bins that pass the existing activity, segment,
-   and 75–85% CP reference-power floors. At least two adjacent supported bins
-   are required before any section is called a curve.
+4. Under the accepted `sdr-environmental-performance-v4` policy, calculate one
+   personal comparable-power band from the chronological training partition:
+   median eligible stable-segment `%CP` plus or minus 10 percentage points,
+   clipped to the existing 65–95% CP model domain. Show fitted points only in
+   prespecified bins that pass the existing activity, segment, and personal
+   comparable-power floors. At least two adjacent supported bins are required
+   before any section is called a curve.
 5. Leave unsupported bins blank. Never place a modeled value or uncertainty
    band in them, and never connect supported sections across a gap.
 6. Show activity and segment counts, observed environmental range, uncertainty,
@@ -38,11 +40,20 @@ heat-adaptation score, training prescription, or heat-safety assessment.
 9. Let the user withdraw and delete the derived result.
 
 The per-bin aggregate diagnostic funnel records activities in the environmental
-bin, activities with any valid 75–85% CP sample, activities with at least 180
-seconds of continuous band coverage, activities with an accepted stable
-segment mean in the band, activities retained in the chronological training
-partition, and the final distinct reference-power activity count. Counts are
-aggregate-only; activity identities and samples never enter the result payload.
+bin, activities with an accepted stable segment mean in the personal band,
+activities retained in the chronological training partition, and the final
+distinct reference-power activity count. Counts are aggregate-only; activity
+identities and samples never enter the result payload.
+
+The personal band is a display-support rule only. The fitted personal model
+continues to use every otherwise eligible stable segment in the common
+65–95% CP model domain. The private research records therefore remain
+band-independent, and the aggregate result persists both domains plus
+`display_filter_applied_to_model_rows: false`. No cohort contribution is
+authorized by the personal experiment consent. A future pooled study must use
+separate consent and must select rows independently of each athlete's personal
+display band. It also requires a separately approved cohort estimand; this
+personal-result contract does not define or authorize one.
 
 ## Curve meaning
 
@@ -175,7 +186,11 @@ Optional cohort contribution remains a separate decision in #591.
 The governing records are:
 
 - `evidence-personal-environment-response-v1` — accepted;
-- `sdr-environmental-performance-v2` — accepted.
+- `sdr-environmental-performance-v2` — accepted;
+- `sdr-environmental-performance-v3` — accepted;
+- `evidence-environmental-response-workload-support-v1` — accepted;
+- `sdr-environmental-performance-v4` — accepted, governing the personal
+  workload-support amendment.
 
-`sdr-environmental-performance-v1` is superseded. Human approval was recorded
-from `github:dddtc2005` after review of PR #594 on 2026-08-08.
+`sdr-environmental-performance-v1` is superseded. The accepted records retain
+their recorded human approvals.

@@ -29,6 +29,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     assert set(registry.evidence_reviews) == {
         "evidence-adaptive-training-load-v1",
         "evidence-environmental-performance-v1",
+        "evidence-environmental-response-workload-support-v1",
         "evidence-heat-adaptation-v1",
         "evidence-heat-decay-v1",
         "evidence-individual-goal-feasibility-v1",
@@ -43,6 +44,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "sdr-environmental-performance-v1",
         "sdr-environmental-performance-v2",
         "sdr-environmental-performance-v3",
+        "sdr-environmental-performance-v4",
         "sdr-heat-adaptation-v1",
         "sdr-preplan-baseline-policy-v1",
     }
@@ -53,8 +55,17 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "superseded"
     )
     assert registry.decisions["sdr-environmental-performance-v3"].status == (
-        "accepted"
+        "superseded"
     )
+    workload_review = registry.evidence_reviews[
+        "evidence-environmental-response-workload-support-v1"
+    ]
+    assert workload_review.status == "accepted"
+    assert workload_review.human_reviewers == ["github:dddtc2005"]
+    assert workload_review.reviewed_on == date(2026, 8, 10)
+    workload_decision = registry.decisions["sdr-environmental-performance-v4"]
+    assert workload_decision.status == "accepted"
+    assert workload_decision.human_reviewers == ["github:dddtc2005"]
     assert registry.decisions[
         "sdr-adaptive-plan-feasibility-and-adjustment-v1"
     ].status == "draft"
@@ -215,7 +226,8 @@ def test_environment_response_decision_preserves_lifecycle_and_limits() -> None:
     registry = load_science_registry()
     original = registry.decisions["sdr-environmental-performance-v1"]
     predecessor = registry.decisions["sdr-environmental-performance-v2"]
-    accepted = registry.decisions["sdr-environmental-performance-v3"]
+    partial_display = registry.decisions["sdr-environmental-performance-v3"]
+    accepted = registry.decisions["sdr-environmental-performance-v4"]
     review = registry.evidence_reviews[
         "evidence-personal-environment-response-v1"
     ]
@@ -223,9 +235,11 @@ def test_environment_response_decision_preserves_lifecycle_and_limits() -> None:
     assert original.status == "superseded"
     assert original.superseded_by == predecessor.id
     assert predecessor.status == "superseded"
-    assert predecessor.superseded_by == accepted.id
+    assert predecessor.superseded_by == partial_display.id
+    assert partial_display.status == "superseded"
+    assert partial_display.superseded_by == accepted.id
     assert accepted.status == "accepted"
-    assert accepted.supersedes == [predecessor.id]
+    assert accepted.supersedes == [partial_display.id]
     assert accepted.human_reviewers == ["github:dddtc2005"]
     assert review.status == "accepted"
     assert review.human_reviewers == ["github:dddtc2005"]
