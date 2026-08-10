@@ -44,7 +44,7 @@ statsig>=0.72.0,<1.0.0
 # Insights. No-op when APPLICATIONINSIGHTS_CONNECTION_STRING is unset, so
 # local dev is unaffected. The distro bundles the OTel instrumentations
 # for FastAPI, requests, SQLAlchemy, and logging.
-azure-monitor-opentelemetry>=1.6.0
+azure-monitor-opentelemetry>=1.8.9
 # Required for privacy-safe, high-cardinality product/feedback customEvents.
 azure-monitor-events-extension==0.1.0
 # Resource-context, managed-identity log queries for the admin operations
