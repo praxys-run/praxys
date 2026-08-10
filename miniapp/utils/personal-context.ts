@@ -169,8 +169,6 @@ export function buildContextDraftRequest(
     kind: draft.kind,
     purpose: 'plan_adjustment',
     payload,
-    linked_subject_type: null,
-    linked_subject_id: null,
     starts_at: localStartIso(draft.startDate),
     expires_at: expires,
     purge_after: new Date(

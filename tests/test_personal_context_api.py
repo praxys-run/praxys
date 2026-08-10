@@ -794,7 +794,6 @@ def test_delete_is_non_enumerating_and_stale_lineage_delete_conflicts(
         params={"expected_version": 1},
     )
     assert stale.status_code == 409
-
     deleted = client.delete(
         f"/api/personal-context/{corrected['id']}",
         headers=_headers(),
@@ -835,3 +834,180 @@ def test_delete_is_non_enumerating_and_stale_lineage_delete_conflicts(
         assert all(command.status == "retired" for command in commands)
         assert all(command.target_item_id is None for command in commands)
         assert all(command.lineage_id is None for command in commands)
+
+
+def test_context_pilot_api_requires_opt_in_and_never_auto_mutates(
+    context_api,
+    monkeypatch,
+) -> None:
+    client, db_session = context_api
+    scenarios = client.get(
+        "/api/personal-context/pilot/scenarios",
+        headers=_headers(),
+    )
+    assert scenarios.status_code == 200, scenarios.text
+    assert {
+        scenario["expected_outcome"]
+        for scenario in scenarios.json()["scenarios"]
+    } == {
+        "clarification",
+        "no_change",
+        "insufficient_evidence",
+        "safety",
+        "suggestion",
+    }
+    assert scenarios.headers["cache-control"] == "private, no-store"
+
+    synthetic = client.post(
+        "/api/personal-context/pilot/runs",
+        headers={
+            **_headers(),
+            "Idempotency-Key": "pilot-api-synthetic",
+        },
+        json={
+            "source": "synthetic",
+            "scenario_id": "availability-suggestion",
+        },
+    )
+    assert synthetic.status_code == 200, synthetic.text
+    assert synthetic.json()["proposal"]["status"] == "synthetic_only"
+    assert synthetic.json()["proposal"]["acceptance_available"] is False
+
+    not_opted_in = client.post(
+        "/api/personal-context/pilot/runs",
+        headers={
+            **_headers(),
+            "Idempotency-Key": "pilot-api-not-opted-in",
+        },
+        json={
+            "source": "opt_in",
+            "purpose": "plan_adjustment",
+        },
+    )
+    assert not_opted_in.status_code == 422
+    assert not_opted_in.json() == {"detail": "CONTEXT_PILOT_INVALID"}
+
+    from db.models import TrainingPlan
+
+    now = datetime.now(timezone.utc)
+    workout_date = (now + timedelta(days=2)).date()
+    with db_session.SessionLocal() as db:
+        workout = TrainingPlan(
+            user_id="context-api-owner",
+            date=workout_date,
+            workout_type="easy",
+            planned_duration_min=60,
+            workout_description="Synthetic API workout",
+            source="praxys",
+            workout_origin="generated",
+        )
+        db.add(workout)
+        db.commit()
+        canonical_id = workout.canonical_id
+
+    confirmed = _confirm(
+        client,
+        key="pilot-api-context",
+        body={
+            "kind": "temporary_constraint",
+            "purpose": "plan_adjustment",
+            "payload": {
+                "category": "less_time",
+                "fields": {
+                    "affected_dates": [workout_date.isoformat()],
+                    "maximum_available_minutes": 30,
+                },
+                "narrative": "Private API marker",
+            },
+            "starts_at": now.isoformat(),
+            "expires_at": (now + timedelta(days=14)).isoformat(),
+            "purge_after": (now + timedelta(days=44)).isoformat(),
+            "narrative_purge_at": (now + timedelta(days=30)).isoformat(),
+            "consent_text_version": "purpose-v1",
+            "client": "web",
+        },
+    )
+    assert confirmed.status_code == 201, confirmed.text
+
+    run = client.post(
+        "/api/personal-context/pilot/runs",
+        headers={
+            **_headers(),
+            "Idempotency-Key": "pilot-api-opt-in",
+        },
+        json={
+            "source": "opt_in",
+            "purpose": "plan_adjustment",
+            "confirmed_opt_in": True,
+        },
+    )
+    assert run.status_code == 200, run.text
+    proposal = run.json()["proposal"]
+    assert run.json()["outcome"] == "suggestion"
+    assert proposal["action"]["canonical_id"] == canonical_id
+    assert proposal["acceptance_requires_athlete"] is True
+    with db_session.SessionLocal() as db:
+        assert (
+            db.query(TrainingPlan)
+            .filter(TrainingPlan.canonical_id == canonical_id)
+            .one()
+            .planned_duration_min
+            == 60
+        )
+
+    monkeypatch.setattr(
+        "api.routes.personal_context._trigger_managed_delivery",
+        lambda *args, **kwargs: {"status": "disabled", "items": []},
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "api.context_pilot._trigger_managed_delivery",
+        lambda *args, **kwargs: {"status": "disabled", "items": []},
+    )
+    accepted = client.post(
+        f"/api/personal-context/pilot/proposals/{proposal['id']}/responses",
+        headers={
+            **_headers(),
+            "Idempotency-Key": "pilot-api-accept",
+        },
+        json={"response": "accept"},
+    )
+    assert accepted.status_code == 200, accepted.text
+    assert accepted.json()["status"] == "accepted"
+    assert accepted.json()["athlete_approved"] is True
+    with db_session.SessionLocal() as db:
+        accepted_workout = (
+            db.query(TrainingPlan)
+            .filter(TrainingPlan.canonical_id == canonical_id)
+            .one()
+        )
+        assert accepted_workout.planned_duration_min == 30
+        assert accepted_workout.workout_origin == "accepted_target"
+
+
+def test_context_pilot_evaluation_is_admin_only_and_aggregate(
+    context_api,
+) -> None:
+    client, db_session = context_api
+    denied = client.get(
+        "/api/personal-context/pilot/evaluation",
+        headers=_headers(),
+    )
+    assert denied.status_code == 403
+
+    from db.models import User
+
+    with db_session.SessionLocal() as db:
+        owner = db.get(User, "context-api-owner")
+        owner.is_superuser = True
+        db.commit()
+
+    report = client.get(
+        "/api/personal-context/pilot/evaluation",
+        headers=_headers(),
+    )
+    assert report.status_code == 200, report.text
+    serialized = json.dumps(report.json())
+    assert report.json()["checks"]["subgroup"]["state"] == "not_measured"
+    assert "context_item_ids" not in serialized
+    assert "Private API marker" not in serialized

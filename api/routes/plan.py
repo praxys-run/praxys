@@ -686,7 +686,7 @@ def restore_plan_adjustment(
     user_id: str = Depends(require_write_access),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Undo an automatic change only while its exact result remains current."""
+    """Undo a supported revision only while its exact result remains current."""
     try:
         return undo_plan_adjustment(
             db,
@@ -696,7 +696,7 @@ def restore_plan_adjustment(
     except PlanAdjustmentNotFoundError as exc:
         raise HTTPException(
             status_code=404,
-            detail="Automatic plan adjustment not found",
+            detail="Reversible plan adjustment not found",
         ) from exc
     except PlanAdjustmentConflictError as exc:
         raise HTTPException(

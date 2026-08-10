@@ -8,6 +8,17 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
+from api.context_pilot import (
+    ContextPilotConflict,
+    ContextPilotNotFound,
+    ContextPilotValidationError,
+    build_context_pilot_evaluation,
+    get_context_pilot_proposal,
+    list_context_pilot_scenarios,
+    respond_to_context_pilot_proposal,
+    run_context_pilot,
+)
+from api.auth import require_write_access
 from api.personal_context import (
     ContextMutationResult,
     InspectedPersonalContext,
@@ -38,7 +49,7 @@ from api.personal_context_auth import (
     authorize_context,
     get_context_actor,
 )
-from api.views import utc_isoformat
+from api.views import require_admin, utc_isoformat
 from db.models import (
     PersonalContextConsentReceipt,
     PersonalContextItem,
@@ -401,6 +412,177 @@ class PersonalContextExportResponse(BaseModel):
     linked_revisions: list[ContextLinkedRevisionResponse]
 
 
+class ContextPilotScenarioResponse(BaseModel):
+    """One fixed synthetic scenario in the reviewed pilot catalog."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    title_code: str
+    expected_outcome: Literal[
+        "clarification",
+        "no_change",
+        "insufficient_evidence",
+        "safety",
+        "suggestion",
+    ]
+
+
+class ContextPilotScenarioListResponse(BaseModel):
+    """Fixed synthetic scenarios available for deterministic replay."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    scenarios: list[ContextPilotScenarioResponse]
+
+
+class ContextPilotRunRequest(BaseModel):
+    """One synthetic replay or explicit athlete opt-in pilot run."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source: Literal["synthetic", "opt_in"]
+    scenario_id: str | None = Field(default=None, max_length=64)
+    purpose: Literal[
+        "execution_interpretation",
+        "plan_adjustment",
+    ] | None = None
+    confirmed_opt_in: bool = False
+    allow_ai: bool = False
+
+
+class ContextPilotSnapshotResponse(BaseModel):
+    """Public workout fields in a reviewable pilot diff."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    canonical_id: str | None
+    date: str | None
+    workout_type: str | None
+    planned_duration_min: float | None
+    planned_distance_km: float | None
+    target_power_min: float | None
+    target_power_max: float | None
+    workout_description: str | None
+
+
+class ContextPilotActionResponse(BaseModel):
+    """The pilot's only accepted actionable mutation shape."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["shorten_workout_duration"]
+    canonical_id: str
+    planned_duration_min: int
+
+
+class ContextPilotProposalResponse(BaseModel):
+    """Non-canonical exact proposal awaiting an athlete response."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str | None
+    status: Literal[
+        "synthetic_only",
+        "pending",
+        "accepted",
+        "rejected",
+        "deferred",
+        "reversed",
+        "expired",
+        "invalidated",
+    ]
+    action: ContextPilotActionResponse | None
+    before: ContextPilotSnapshotResponse | None
+    after: ContextPilotSnapshotResponse | None
+    context_item_ids: list[str]
+    allowed_responses: list[Literal["accept", "reject", "defer"]]
+    acceptance_available: bool
+    acceptance_requires_athlete: Literal[True]
+    automatic_mutation: Literal[False]
+    unknowns: list[Literal["training_response", "goal_effect"]]
+    tradeoffs: list[
+        Literal[
+            "reduced_planned_duration",
+            "session_not_completed_as_originally_planned",
+        ]
+    ]
+    expected_goal_effect: Literal["not_estimated"]
+    context_controls: list[
+        Literal["inspect", "correct", "exclude", "delete"]
+    ]
+    expires_at: str | None
+    accepted_revision_id: str | None = None
+
+
+class ContextPilotRunResponse(BaseModel):
+    """Stable five-outcome response from one bounded pilot run."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    run_id: str | None
+    scenario_source: Literal["synthetic", "opt_in"]
+    scenario_id: str | None
+    outcome: Literal[
+        "clarification",
+        "no_change",
+        "insufficient_evidence",
+        "safety",
+        "suggestion",
+    ]
+    reason_code: str
+    processing_status: Literal["completed", "failed"]
+    processing_mode: str
+    policy_version: str
+    uncertainty: Literal["moderate", "high"]
+    proposal_scope: Literal["none", "workout"]
+    clarification: dict[str, Any] | None
+    no_change_comparator: dict[str, Any]
+    safety: dict[str, Any]
+    proposal: ContextPilotProposalResponse | None
+    claim_limits: dict[str, bool]
+    review_gate: dict[str, str]
+
+
+class ContextPilotProposalDecisionRequest(BaseModel):
+    """Athlete response to one exact pending pilot proposal."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    response: Literal["accept", "reject", "defer"]
+
+
+class ContextPilotProposalDecisionResponse(BaseModel):
+    """Lifecycle result for one proposal response."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    proposal_id: str
+    status: Literal["accepted", "rejected", "deferred"]
+    revision_id: str | None
+    event_id: str
+    undo_path: str | None
+    canonical_plan_changed: bool
+    athlete_approved: bool
+    delivery: dict[str, Any] | None = None
+
+
+class ContextPilotEvaluationResponse(BaseModel):
+    """Aggregate-only operational pilot report."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal[1]
+    policy_version: str
+    generated_at: str
+    scope: dict[str, Any]
+    operational_counts: dict[str, Any]
+    proposal_responses: dict[str, int]
+    checks: dict[str, Any]
+    falsification: dict[str, Any]
+    review_gate: dict[str, str]
+
+
 def _private(response: Response) -> None:
     response.headers["Cache-Control"] = "private, no-store"
 
@@ -557,6 +739,26 @@ def _translate_context_error(
             503,
             detail="PERSONAL_CONTEXT_UNAVAILABLE",
         ) from exc
+
+
+def _translate_pilot_error(
+    db: Session,
+    exc: ContextPilotValidationError
+    | ContextPilotNotFound
+    | ContextPilotConflict,
+) -> None:
+    db.rollback()
+    if isinstance(exc, ContextPilotNotFound):
+        raise HTTPException(
+            404,
+            detail="CONTEXT_PILOT_PROPOSAL_NOT_FOUND",
+        ) from exc
+    if isinstance(exc, ContextPilotConflict):
+        raise HTTPException(
+            409,
+            detail="CONTEXT_PILOT_CONFLICT",
+        ) from exc
+    raise HTTPException(422, detail="CONTEXT_PILOT_INVALID") from exc
 
 
 def _metadata(
@@ -864,6 +1066,156 @@ def select_personal_context(
             if entry.item_id not in excluded
         ]
     }
+
+
+@router.get(
+    "/pilot/scenarios",
+    response_model=ContextPilotScenarioListResponse,
+)
+def list_personal_context_pilot_scenarios(
+    response: Response,
+    actor: ContextActor = Depends(get_context_actor),
+) -> dict[str, Any]:
+    """Return the fixed, non-sensitive synthetic pilot scenarios."""
+    _private(response)
+    authorize_context(
+        actor,
+        CONTEXT_SCOPE_READ,
+        athlete_only=True,
+    )
+    return {"scenarios": list_context_pilot_scenarios()}
+
+
+@router.post("/pilot/runs", response_model=ContextPilotRunResponse)
+def run_personal_context_pilot(
+    body: ContextPilotRunRequest,
+    response: Response,
+    idempotency_key: IdempotencyKey,
+    actor: ContextActor = Depends(get_context_actor),
+    write_user_id: str = Depends(require_write_access),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Run one synthetic replay or explicit first-party opt-in scenario."""
+    _private(response)
+    authorize_context(
+        actor,
+        CONTEXT_SCOPE_READ,
+        purpose=body.purpose,
+        athlete_only=True,
+        mutation=True,
+    )
+    if write_user_id != actor.user_id:
+        raise HTTPException(403, detail="PERSONAL_CONTEXT_SCOPE_REQUIRED")
+    try:
+        return run_context_pilot(
+            db,
+            user_id=actor.user_id,
+            source=body.source,
+            scenario_id=body.scenario_id,
+            purpose=body.purpose,
+            confirmed_opt_in=body.confirmed_opt_in,
+            allow_ai=body.allow_ai,
+            idempotency_key=idempotency_key,
+        )
+    except (
+        ContextPilotValidationError,
+        ContextPilotNotFound,
+        ContextPilotConflict,
+    ) as exc:
+        _translate_pilot_error(db, exc)
+        raise
+
+
+@router.get(
+    "/pilot/proposals/{proposal_id}",
+    response_model=ContextPilotProposalResponse,
+)
+def inspect_personal_context_pilot_proposal(
+    proposal_id: str,
+    response: Response,
+    actor: ContextActor = Depends(get_context_actor),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Inspect one owner-scoped pilot proposal and current lifecycle state."""
+    _private(response)
+    authorize_context(
+        actor,
+        CONTEXT_SCOPE_READ,
+        athlete_only=True,
+    )
+    try:
+        return get_context_pilot_proposal(
+            db,
+            user_id=actor.user_id,
+            proposal_id=proposal_id,
+        )
+    except (
+        ContextPilotValidationError,
+        ContextPilotNotFound,
+        ContextPilotConflict,
+    ) as exc:
+        _translate_pilot_error(db, exc)
+        raise
+
+
+@router.post(
+    "/pilot/proposals/{proposal_id}/responses",
+    response_model=ContextPilotProposalDecisionResponse,
+)
+def respond_to_personal_context_pilot_proposal(
+    proposal_id: str,
+    body: ContextPilotProposalDecisionRequest,
+    response: Response,
+    idempotency_key: IdempotencyKey,
+    actor: ContextActor = Depends(get_context_actor),
+    write_user_id: str = Depends(require_write_access),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Record an athlete accept, reject, or defer response."""
+    _private(response)
+    authorize_context(
+        actor,
+        CONTEXT_SCOPE_WRITE,
+        athlete_only=True,
+        mutation=True,
+    )
+    if write_user_id != actor.user_id:
+        raise HTTPException(403, detail="PERSONAL_CONTEXT_SCOPE_REQUIRED")
+    try:
+        return respond_to_context_pilot_proposal(
+            db,
+            user_id=actor.user_id,
+            proposal_id=proposal_id,
+            response=body.response,
+            idempotency_key=idempotency_key,
+        )
+    except (
+        ContextPilotValidationError,
+        ContextPilotNotFound,
+        ContextPilotConflict,
+    ) as exc:
+        _translate_pilot_error(db, exc)
+        raise
+
+
+@router.get(
+    "/pilot/evaluation",
+    response_model=ContextPilotEvaluationResponse,
+)
+def get_personal_context_pilot_evaluation(
+    response: Response,
+    actor: ContextActor = Depends(get_context_actor),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Return the aggregate-only operational pilot evaluation."""
+    _private(response)
+    authorize_context(
+        actor,
+        CONTEXT_SCOPE_READ,
+        athlete_only=True,
+    )
+    require_admin(actor.user_id, db)
+    return build_context_pilot_evaluation(db)
 
 
 @router.get("/{item_id}", response_model=ContextDetailResponse)
