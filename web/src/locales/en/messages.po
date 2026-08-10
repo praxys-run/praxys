@@ -546,11 +546,11 @@ msgstr "Above reference band"
 #~ msgid "Absorbing training while maintaining fitness."
 #~ msgstr "Absorbing training while maintaining fitness."
 
-#: src/pages/McpAuthorization.tsx:231
+#: src/pages/McpAuthorization.tsx:232
 msgid "Access"
 msgstr "Access"
 
-#: src/pages/McpAuthorization.tsx:271
+#: src/pages/McpAuthorization.tsx:272
 msgid "Access approved"
 msgstr "Access approved"
 
@@ -558,7 +558,7 @@ msgstr "Access approved"
 msgid "Access blocked"
 msgstr "Access blocked"
 
-#: src/pages/McpAuthorization.tsx:272
+#: src/pages/McpAuthorization.tsx:273
 msgid "Access denied"
 msgstr "Access denied"
 
@@ -865,7 +865,7 @@ msgstr "All Systems Operational"
 msgid "Allow for this item"
 msgstr "Allow for this item"
 
-#: src/pages/McpAuthorization.tsx:159
+#: src/pages/McpAuthorization.tsx:160
 msgid "Allow structured plan context?"
 msgstr "Allow structured plan context?"
 
@@ -939,7 +939,7 @@ msgstr "Applying…"
 msgid "Approve & file"
 msgstr "Approve & file"
 
-#: src/pages/McpAuthorization.tsx:310
+#: src/pages/McpAuthorization.tsx:311
 msgid "Approve access"
 msgstr "Approve access"
 
@@ -981,7 +981,7 @@ msgstr "Attempts {0}"
 msgid "Authentication mode"
 msgstr "Authentication mode"
 
-#: src/pages/McpAuthorization.tsx:192
+#: src/pages/McpAuthorization.tsx:193
 msgid "Authorization link unavailable"
 msgstr "Authorization link unavailable"
 
@@ -1470,7 +1470,7 @@ msgstr "Click to copy"
 #~ msgid "click to retry"
 #~ msgstr "click to retry"
 
-#: src/pages/McpAuthorization.tsx:211
+#: src/pages/McpAuthorization.tsx:212
 msgid "Client"
 msgstr "Client"
 
@@ -1643,7 +1643,7 @@ msgstr "Connect a platform first"
 msgid "Connect an activity platform above to choose where workouts are delivered."
 msgstr "Connect an activity platform above to choose where workouts are delivered."
 
-#: src/pages/McpAuthorization.tsx:160
+#: src/pages/McpAuthorization.tsx:161
 msgid "Connect Praxys Coach?"
 msgstr "Connect Praxys Coach?"
 
@@ -1685,7 +1685,7 @@ msgstr "Context and dependent private traces deleted."
 msgid "Context excluded from future assessments."
 msgstr "Context excluded from future assessments."
 
-#: src/pages/McpAuthorization.tsx:225
+#: src/pages/McpAuthorization.tsx:226
 msgid "Context type"
 msgstr "Context type"
 
@@ -2354,7 +2354,7 @@ msgstr "Demote"
 msgid "Demote to User"
 msgstr "Demote to User"
 
-#: src/pages/McpAuthorization.tsx:302
+#: src/pages/McpAuthorization.tsx:303
 msgid "Deny"
 msgstr "Deny"
 
@@ -2504,7 +2504,7 @@ msgstr "Done"
 msgid "Download a JSON copy of your activities, recovery, fitness, plans, and settings. Platform credentials are never included."
 msgstr "Download a JSON copy of your activities, recovery, fitness, plans, and settings. Platform credentials are never included."
 
-#: src/pages/McpAuthorization.tsx:236
+#: src/pages/McpAuthorization.tsx:237
 msgid "Draft one change for your review"
 msgstr "Draft one change for your review"
 
@@ -4678,7 +4678,7 @@ msgstr "Next sync"
 #~ msgid "Nielsen dry-heat acclimation study"
 #~ msgstr "Nielsen dry-heat acclimation study"
 
-#: src/pages/McpAuthorization.tsx:283
+#: src/pages/McpAuthorization.tsx:284
 msgid "No access was granted. You can close this tab and return to the plugin."
 msgstr "No access was granted. You can close this tab and return to the plugin."
 
@@ -5667,7 +5667,7 @@ msgstr "Praxys Coach"
 msgid "Praxys Coach insight"
 msgstr "Praxys Coach insight"
 
-#: src/pages/McpAuthorization.tsx:213
+#: src/pages/McpAuthorization.tsx:214
 msgid "Praxys Coach plugin"
 msgstr "Praxys Coach plugin"
 
@@ -5990,7 +5990,7 @@ msgstr "Pull your latest activities, power data, and recovery metrics"
 #: src/components/PersonalContextPanel.tsx:1150
 #: src/components/PersonalContextPanel.tsx:1337
 #: src/components/PersonalContextPanel.tsx:1597
-#: src/pages/McpAuthorization.tsx:219
+#: src/pages/McpAuthorization.tsx:220
 msgid "Purpose"
 msgstr "Purpose"
 
@@ -6128,15 +6128,15 @@ msgstr "Reacclimating"
 #~ msgid "Reacclimatization to similar conditions may be developing."
 #~ msgstr "Reacclimatization to similar conditions may be developing."
 
-#: src/pages/McpAuthorization.tsx:255
+#: src/pages/McpAuthorization.tsx:256
 msgid "Read access returns only the minimum structured projection. Write access creates one request-scoped preview; saving still requires confirmation in Praxys. Optional notes and AI permission are never included."
 msgstr "Read access returns only the minimum structured projection. Write access creates one request-scoped preview; saving still requires confirmation in Praxys. Optional notes and AI permission are never included."
 
-#: src/pages/McpAuthorization.tsx:237
+#: src/pages/McpAuthorization.tsx:238
 msgid "Read structured fields"
 msgstr "Read structured fields"
 
-#: src/pages/McpAuthorization.tsx:234
+#: src/pages/McpAuthorization.tsx:235
 msgid "Read structured fields and draft one change"
 msgstr "Read structured fields and draft one change"
 
@@ -6668,7 +6668,7 @@ msgstr "Request an invite"
 msgid "Request and availability telemetry is unavailable."
 msgstr "Request and availability telemetry is unavailable."
 
-#: src/pages/McpAuthorization.tsx:243
+#: src/pages/McpAuthorization.tsx:244
 msgid "Request expires"
 msgstr "Request expires"
 
@@ -6784,7 +6784,7 @@ msgstr "Resume managed delivery?"
 #: src/pages/Labs.tsx:56
 #: src/pages/LabsEnvironment.tsx:369
 #: src/pages/LabsEnvironment.tsx:1066
-#: src/pages/McpAuthorization.tsx:201
+#: src/pages/McpAuthorization.tsx:202
 #: src/pages/Settings.tsx:335
 #: src/pages/Today.tsx:352
 #: src/pages/Today.tsx:511
@@ -6843,7 +6843,7 @@ msgstr "Retry workout action"
 msgid "Retrying"
 msgstr "Retrying"
 
-#: src/pages/McpAuthorization.tsx:277
+#: src/pages/McpAuthorization.tsx:278
 msgid "Return to the plugin to finish the one-time exchange. You can close this tab."
 msgstr "Return to the plugin to finish the one-time exchange. You can close this tab."
 
@@ -6909,7 +6909,7 @@ msgstr "Review required"
 msgid "Review the current goal"
 msgstr "Review the current goal"
 
-#: src/pages/McpAuthorization.tsx:165
+#: src/pages/McpAuthorization.tsx:166
 msgid "Review the exact purpose and access below. The plugin cannot approve this request, read private notes, grant AI consent, or save context on its own."
 msgstr "Review the exact purpose and access below. The plugin cannot approve this request, read private notes, grant AI consent, or save context on its own."
 
@@ -7074,7 +7074,7 @@ msgstr "Saved without guessing a reason. The cause remains unknown."
 msgid "Saving confirms this one purpose. It does not authorize a new purpose, AI processing, analytics, or model training."
 msgstr "Saving confirms this one purpose. It does not authorize a new purpose, AI processing, analytics, or model training."
 
-#: src/pages/McpAuthorization.tsx:310
+#: src/pages/McpAuthorization.tsx:311
 msgid "Saving decision…"
 msgstr "Saving decision…"
 
@@ -8124,7 +8124,7 @@ msgstr "This change used confirmed private context. The private detail is not co
 msgid "This combination is outside Praxys’s conservative Stull method domain."
 msgstr "This combination is outside Praxys’s conservative Stull method domain."
 
-#: src/pages/McpAuthorization.tsx:172
+#: src/pages/McpAuthorization.tsx:173
 msgid "This connects the official Praxys Coach plugin to your account. Personal plan context stays unavailable until you approve a separate, short-lived request."
 msgstr "This connects the official Praxys Coach plugin to your account. Personal plan context stays unavailable until you approve a separate, short-lived request."
 
@@ -8201,7 +8201,7 @@ msgstr "This is Stull’s psychrometric estimate from air temperature and relati
 msgid "This link is invalid or has expired. Try signing in to request a new link."
 msgstr "This link is invalid or has expired. Try signing in to request a new link."
 
-#: src/pages/McpAuthorization.tsx:195
+#: src/pages/McpAuthorization.tsx:196
 msgid "This link is invalid, expired, or belongs to another account. Start a new request from the plugin."
 msgstr "This link is invalid, expired, or belongs to another account. Start a new request from the plugin."
 

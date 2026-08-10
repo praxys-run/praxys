@@ -545,11 +545,11 @@ msgstr "高于参考区间"
 #~ msgid "Absorbing training while maintaining fitness."
 #~ msgstr "在保持体能的同时吸收训练负荷。"
 
-#: src/pages/McpAuthorization.tsx:231
+#: src/pages/McpAuthorization.tsx:232
 msgid "Access"
 msgstr "权限"
 
-#: src/pages/McpAuthorization.tsx:271
+#: src/pages/McpAuthorization.tsx:272
 msgid "Access approved"
 msgstr "已授权访问"
 
@@ -557,7 +557,7 @@ msgstr "已授权访问"
 msgid "Access blocked"
 msgstr "访问被阻止"
 
-#: src/pages/McpAuthorization.tsx:272
+#: src/pages/McpAuthorization.tsx:273
 msgid "Access denied"
 msgstr "已拒绝访问"
 
@@ -864,7 +864,7 @@ msgstr "所有系统运行正常"
 msgid "Allow for this item"
 msgstr "允许处理当前版本"
 
-#: src/pages/McpAuthorization.tsx:159
+#: src/pages/McpAuthorization.tsx:160
 msgid "Allow structured plan context?"
 msgstr "允许访问结构化计划个性化信息？"
 
@@ -938,7 +938,7 @@ msgstr "正在应用…"
 msgid "Approve & file"
 msgstr "批准并提交"
 
-#: src/pages/McpAuthorization.tsx:310
+#: src/pages/McpAuthorization.tsx:311
 msgid "Approve access"
 msgstr "允许访问"
 
@@ -980,7 +980,7 @@ msgstr "尝试 {0} 次"
 msgid "Authentication mode"
 msgstr "登录方式"
 
-#: src/pages/McpAuthorization.tsx:192
+#: src/pages/McpAuthorization.tsx:193
 msgid "Authorization link unavailable"
 msgstr "授权链接不可用"
 
@@ -1469,7 +1469,7 @@ msgstr "点击复制"
 #~ msgid "click to retry"
 #~ msgstr "点击重试"
 
-#: src/pages/McpAuthorization.tsx:211
+#: src/pages/McpAuthorization.tsx:212
 msgid "Client"
 msgstr "客户端"
 
@@ -1642,7 +1642,7 @@ msgstr "请先连接一个平台"
 msgid "Connect an activity platform above to choose where workouts are delivered."
 msgstr "请先在上方连接活动平台，再选择训练下发位置。"
 
-#: src/pages/McpAuthorization.tsx:160
+#: src/pages/McpAuthorization.tsx:161
 msgid "Connect Praxys Coach?"
 msgstr "连接 Praxys Coach？"
 
@@ -1684,7 +1684,7 @@ msgstr "这条信息及其关联的私密记录已删除。"
 msgid "Context excluded from future assessments."
 msgstr "这条信息不会再用于后续评估。"
 
-#: src/pages/McpAuthorization.tsx:225
+#: src/pages/McpAuthorization.tsx:226
 msgid "Context type"
 msgstr "信息类型"
 
@@ -2353,7 +2353,7 @@ msgstr "降级"
 msgid "Demote to User"
 msgstr "降级为普通用户"
 
-#: src/pages/McpAuthorization.tsx:302
+#: src/pages/McpAuthorization.tsx:303
 msgid "Deny"
 msgstr "拒绝"
 
@@ -2503,7 +2503,7 @@ msgstr "完成"
 msgid "Download a JSON copy of your activities, recovery, fitness, plans, and settings. Platform credentials are never included."
 msgstr "下载包含活动、恢复、体能、训练计划和设置的 JSON 副本。绝不包含平台凭据。"
 
-#: src/pages/McpAuthorization.tsx:236
+#: src/pages/McpAuthorization.tsx:237
 msgid "Draft one change for your review"
 msgstr "起草一项更改供你审核"
 
@@ -4733,7 +4733,7 @@ msgstr "下次同步"
 #~ msgid "Nielsen dry-heat acclimation study"
 #~ msgstr "Nielsen 干热适应研究"
 
-#: src/pages/McpAuthorization.tsx:283
+#: src/pages/McpAuthorization.tsx:284
 msgid "No access was granted. You can close this tab and return to the plugin."
 msgstr "未授予任何权限。你可以关闭此页面并返回插件。"
 
@@ -5742,7 +5742,7 @@ msgstr "Praxys 教练"
 msgid "Praxys Coach insight"
 msgstr "Praxys 教练解读"
 
-#: src/pages/McpAuthorization.tsx:213
+#: src/pages/McpAuthorization.tsx:214
 msgid "Praxys Coach plugin"
 msgstr "Praxys Coach 插件"
 
@@ -6069,7 +6069,7 @@ msgstr "同步最新活动、功率数据和恢复指标"
 #: src/components/PersonalContextPanel.tsx:1150
 #: src/components/PersonalContextPanel.tsx:1337
 #: src/components/PersonalContextPanel.tsx:1597
-#: src/pages/McpAuthorization.tsx:219
+#: src/pages/McpAuthorization.tsx:220
 msgid "Purpose"
 msgstr "用途"
 
@@ -6215,15 +6215,15 @@ msgstr "重新适应中"
 #~ msgid "Reacclimatization to similar conditions may be developing."
 #~ msgstr "你可能正在重新适应相似环境。"
 
-#: src/pages/McpAuthorization.tsx:255
+#: src/pages/McpAuthorization.tsx:256
 msgid "Read access returns only the minimum structured projection. Write access creates one request-scoped preview; saving still requires confirmation in Praxys. Optional notes and AI permission are never included."
 msgstr "读取权限仅返回最少必要的结构化信息。写入权限只能创建一个仅限本次请求的预览；保存仍需在 Praxys 中确认。补充说明和 AI 权限绝不会包含在内。"
 
-#: src/pages/McpAuthorization.tsx:237
+#: src/pages/McpAuthorization.tsx:238
 msgid "Read structured fields"
 msgstr "读取结构化字段"
 
-#: src/pages/McpAuthorization.tsx:234
+#: src/pages/McpAuthorization.tsx:235
 msgid "Read structured fields and draft one change"
 msgstr "读取结构化字段并起草一项更改"
 
@@ -6771,7 +6771,7 @@ msgstr "申请邀请"
 msgid "Request and availability telemetry is unavailable."
 msgstr "请求和可用性遥测数据暂不可用。"
 
-#: src/pages/McpAuthorization.tsx:243
+#: src/pages/McpAuthorization.tsx:244
 msgid "Request expires"
 msgstr "请求到期时间"
 
@@ -6899,7 +6899,7 @@ msgstr "恢复托管下发？"
 #: src/pages/Labs.tsx:56
 #: src/pages/LabsEnvironment.tsx:369
 #: src/pages/LabsEnvironment.tsx:1066
-#: src/pages/McpAuthorization.tsx:201
+#: src/pages/McpAuthorization.tsx:202
 #: src/pages/Settings.tsx:335
 #: src/pages/Today.tsx:352
 #: src/pages/Today.tsx:511
@@ -6958,7 +6958,7 @@ msgstr "重试此训练操作"
 msgid "Retrying"
 msgstr "正在重试"
 
-#: src/pages/McpAuthorization.tsx:277
+#: src/pages/McpAuthorization.tsx:278
 msgid "Return to the plugin to finish the one-time exchange. You can close this tab."
 msgstr "返回插件以完成一次性交换。你可以关闭此页面。"
 
@@ -7024,7 +7024,7 @@ msgstr "需要审核"
 msgid "Review the current goal"
 msgstr "回顾当前目标"
 
-#: src/pages/McpAuthorization.tsx:165
+#: src/pages/McpAuthorization.tsx:166
 msgid "Review the exact purpose and access below. The plugin cannot approve this request, read private notes, grant AI consent, or save context on its own."
 msgstr "请核对以下具体用途和权限。插件无法批准此请求、读取补充说明、授予 AI 权限或自行保存计划个性化信息。"
 
@@ -7201,7 +7201,7 @@ msgstr "已保存，Praxys 不会推测具体原因。"
 msgid "Saving confirms this one purpose. It does not authorize a new purpose, AI processing, analytics, or model training."
 msgstr "保存仅代表同意用于上述用途，不代表同意其他用途、AI 处理、数据分析或模型训练。"
 
-#: src/pages/McpAuthorization.tsx:310
+#: src/pages/McpAuthorization.tsx:311
 msgid "Saving decision…"
 msgstr "正在保存决定…"
 
@@ -8282,7 +8282,7 @@ msgstr "这次调整使用了已确认的计划个性化信息，具体内容不
 msgid "This combination is outside Praxys’s conservative Stull method domain."
 msgstr "此温湿度组合超出 Praxys 采用的保守 Stull 方法范围。"
 
-#: src/pages/McpAuthorization.tsx:172
+#: src/pages/McpAuthorization.tsx:173
 msgid "This connects the official Praxys Coach plugin to your account. Personal plan context stays unavailable until you approve a separate, short-lived request."
 msgstr "这会将官方 Praxys Coach 插件连接到你的账号。在你另行批准一项短期请求之前，插件仍无法访问计划个性化信息。"
 
@@ -8359,7 +8359,7 @@ msgstr "这是根据气温和相对湿度计算的 Stull 干湿球湿球温度�
 msgid "This link is invalid or has expired. Try signing in to request a new link."
 msgstr "此链接无效或已过期。请尝试登录以申请新链接。"
 
-#: src/pages/McpAuthorization.tsx:195
+#: src/pages/McpAuthorization.tsx:196
 msgid "This link is invalid, expired, or belongs to another account. Start a new request from the plugin."
 msgstr "此链接无效、已过期或属于其他账号。请从插件发起新请求。"
 
