@@ -8284,7 +8284,7 @@ msgstr "此温湿度组合超出 Praxys 采用的保守 Stull 方法范围。"
 
 #: src/pages/McpAuthorization.tsx:172
 msgid "This connects the official Praxys Coach plugin to your account. Personal plan context stays unavailable until you approve a separate, short-lived request."
-msgstr "这会将官方 Praxys Coach 插件连接到你的账户。在你另行批准一项短期请求之前，插件仍无法访问计划个性化信息。"
+msgstr "这会将官方 Praxys Coach 插件连接到你的账号。在你另行批准一项短期请求之前，插件仍无法访问计划个性化信息。"
 
 #: src/components/PersonalContextPanel.tsx:1575
 msgid "This decision is separate from saving context and applies only to this exact version."
@@ -8361,7 +8361,7 @@ msgstr "此链接无效或已过期。请尝试登录以申请新链接。"
 
 #: src/pages/McpAuthorization.tsx:195
 msgid "This link is invalid, expired, or belongs to another account. Start a new request from the plugin."
-msgstr "此链接无效、已过期或属于其他账户。请从插件发起新请求。"
+msgstr "此链接无效、已过期或属于其他账号。请从插件发起新请求。"
 
 #: src/pages/Status.tsx:233
 msgid "This page refreshes automatically every 30 seconds."
