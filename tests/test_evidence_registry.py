@@ -34,6 +34,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "evidence-individual-goal-feasibility-v1",
         "evidence-plan-outcome-interpretation-v1",
         "evidence-personal-environment-response-v1",
+        "evidence-preplan-baseline-policy-v1",
         "evidence-running-field-tests-v1",
         "evidence-short-interruption-detraining-v1",
     }
@@ -43,6 +44,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "sdr-environmental-performance-v2",
         "sdr-environmental-performance-v3",
         "sdr-heat-adaptation-v1",
+        "sdr-preplan-baseline-policy-v1",
     }
     assert registry.evidence_reviews[
         "evidence-personal-environment-response-v1"
@@ -56,6 +58,39 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     assert registry.decisions[
         "sdr-adaptive-plan-feasibility-and-adjustment-v1"
     ].status == "draft"
+    assert registry.evidence_reviews[
+        "evidence-preplan-baseline-policy-v1"
+    ].status == "draft"
+    assert registry.decisions["sdr-preplan-baseline-policy-v1"].status == (
+        "draft"
+    )
+    baseline_review = registry.evidence_reviews[
+        "evidence-preplan-baseline-policy-v1"
+    ]
+    baseline_decision = registry.decisions[
+        "sdr-preplan-baseline-policy-v1"
+    ]
+    assert baseline_review.human_reviewers == []
+    assert baseline_decision.human_reviewers == []
+    baseline_parameters = {
+        parameter.name: parameter
+        for parameter in baseline_decision.model_parameters
+    }
+    assert baseline_parameters["personal_success_probability"].value == (
+        "disabled"
+    )
+    assert baseline_parameters["initial_scope"].value["age"] == "18_plus"
+    assert "activity_avg_power" in baseline_parameters[
+        "intensity_evidence_source"
+    ].value["prohibited"]
+    assert all(
+        parameter.classification.value in {
+            "published",
+            "estimate",
+            "guardrail",
+        }
+        for parameter in baseline_parameters.values()
+    )
 
     decision = registry.decisions["sdr-heat-adaptation-v1"]
     assert decision.status == "accepted"

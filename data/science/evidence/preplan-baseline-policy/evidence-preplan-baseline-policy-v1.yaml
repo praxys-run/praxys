@@ -1,0 +1,411 @@
+schema_version: 1
+id: evidence-preplan-baseline-policy-v1
+version: 1
+title: "Pre-plan baseline evidence for 5 km road performance"
+research_question: >
+  For self-coached adult recreational road runners adopting a 5 km
+  performance plan, which observations can support a baseline, which one
+  same-protocol field test is the most defensible first pilot when evidence is
+  missing or stale, and what do the literature and remaining uncertainty
+  establish about comparability, invalidation, and freshness?
+topic: preplan-baseline-policy
+status: draft
+authors:
+  - agent:github-copilot
+human_reviewers: []
+created_on: 2026-08-10
+reviewed_on:
+intended_product_purpose: >
+  Bound the first Praxys pre-plan baseline proposal to one measurable road
+  running use case, distinguish direct observations from unvalidated
+  surrogates, and keep the optional test, freshness window, comparability
+  rules, and no-test path honest pending human review and prospective
+  validation.
+scope:
+  population:
+    - Adults aged 18 years or older
+    - Self-coached recreational road runners who can already complete 5 km without the test being a novel distance exposure
+    - Non-clinical runners voluntarily considering a maximal field effort
+  intervention_or_exposure:
+    - Dated measured 5 km road performance
+    - Standardized outdoor 5 km time trial
+    - Cooper 12-minute and 1.5-mile field tests
+    - Field critical-speed and running 3-minute-all-out protocols
+    - Short training interruption as context for evidence freshness
+  comparator:
+    - Exact same-protocol 5 km performance
+    - Measured 5 km road race
+    - Laboratory cardiorespiratory fitness
+    - Unlike field tests and protocol-derived estimates
+    - Repeated measurements under documented conditions
+  outcomes:
+    - Construct directness to elapsed 5 km performance
+    - Criterion validity
+    - Test-retest reliability and measurement error
+    - Sensitivity and meaningful-change limits
+    - Safety and practical burden
+    - Evidence freshness and invalidation
+method:
+  review_type: rigorous
+  search_date: 2026-08-10
+  sources:
+    - name: PubMed - 5 km performance and repeatability
+      search_string: >
+        (running[Title/Abstract] OR runner*[Title/Abstract]) AND
+        ("5 km"[Title/Abstract] OR "5-km"[Title/Abstract] OR
+        5000m[Title/Abstract] OR "5000 m"[Title/Abstract]) AND
+        ("time trial"[Title/Abstract] OR race[Title/Abstract]) AND
+        (validity[Title/Abstract] OR reliab*[Title/Abstract] OR
+        repeatab*[Title/Abstract] OR reproducib*[Title/Abstract] OR
+        "measurement error"[Title/Abstract] OR sensitivity[Title/Abstract])
+        AND ("2000/01/01"[Date - Publication] :
+        "2026/08/10"[Date - Publication])
+    - name: PubMed - Cooper and 1.5-mile tests
+      search_string: >
+        ("Cooper test"[Title/Abstract] OR "12-minute run"[Title/Abstract]
+        OR "12 min run"[Title/Abstract] OR "1.5-mile"[Title/Abstract]
+        OR "1.5 mile"[Title/Abstract] OR "2400 m"[Title/Abstract]) AND
+        (validity[Title/Abstract] OR reliab*[Title/Abstract] OR
+        repeatab*[Title/Abstract] OR "measurement error"[Title/Abstract])
+        AND (adult[MeSH Terms] OR adult*[Title/Abstract])
+    - name: PubMed - critical speed and 3-minute all-out
+      search_string: >
+        ("critical speed"[Title/Abstract] OR
+        "critical velocity"[Title/Abstract] OR
+        "3-minute all-out"[Title/Abstract] OR
+        "3 min all-out"[Title/Abstract]) AND
+        (running[Title/Abstract] OR runner*[Title/Abstract]) AND
+        (validity[Title/Abstract] OR reliab*[Title/Abstract] OR
+        repeatab*[Title/Abstract] OR prediction[Title/Abstract] OR
+        performance[Title/Abstract])
+    - name: PubMed - freshness and detraining
+      search_string: >
+        (running[Title/Abstract] OR endurance[Title/Abstract]) AND
+        (baseline[Title/Abstract] OR recency[Title/Abstract] OR
+        freshness[Title/Abstract] OR stale[Title/Abstract] OR
+        detraining[Title/Abstract] OR
+        "training cessation"[Title/Abstract] OR
+        "training interruption"[Title/Abstract]) AND
+        (performance[Title/Abstract] OR fitness[Title/Abstract]) AND
+        adult[MeSH Terms]
+    - name: PubMed - vigorous exercise safety boundary
+      search_string: >
+        (exercise[Title/Abstract] OR running[Title/Abstract]) AND
+        ("preparticipation screening"[Title/Abstract] OR
+        "signs and symptoms"[Title/Abstract] OR
+        "exercise testing"[Title/Abstract]) AND
+        (consensus[Title/Abstract] OR guideline[Publication Type] OR
+        recommendation*[Title/Abstract])
+    - name: PubMed exact identifier verification
+      search_string: >
+        18348590[PMID] OR 26987118[PMID] OR 40134905[PMID] OR
+        27379951[PMID] OR 10966148[PMID] OR 20647946[PMID] OR
+        26473759[PMID]
+    - name: PubMed Central
+      search_string: "PMC4795745 OR PMC11933073"
+    - name: Crossref DOI API
+      search_string: >
+        GET /works/{doi} for 10.2165/00007256-200838040-00003,
+        10.1249/MSS.0b013e31806010f5,
+        10.1371/journal.pone.0151671,
+        10.1519/JSC.0b013e3181cc2423,
+        10.3389/fspor.2025.1520914,
+        10.1519/JSC.0000000000001529,
+        10.1055/s-0031-1299749,
+        10.2165/00007256-200030020-00002, and
+        10.1249/MSS.0000000000000664
+  inclusion_criteria:
+    - Human adults aged 18 years or older, apparently healthy where possible
+    - Recreational or trained runners with clearly bounded applicability
+    - Primary measurement-property studies, systematic reviews, and authoritative exercise-screening guidance
+    - Outdoor running preferred, with treadmill evidence retained only when its transfer limitation was explicit
+    - Criterion validity, test-retest reliability, absolute error, sensitivity, or 5 km prediction evidence
+    - Stable DOI or PMID metadata and an abstract or accessible full text supporting the exact claim
+  exclusion_criteria:
+    - Children-only and clinical populations as direct product evidence
+    - Injury rehabilitation, medical diagnosis, treatment, and return-to-sport protocols
+    - Cycling-only and team-sport field tests
+    - Vendor validation, blogs, and device estimates without reproducible methods
+    - Studies reporting association without criterion, repeatability, or bounded performance interpretation
+    - Inaccessible findings not present in a verified abstract
+    - Population training-response evidence converted into personal success probabilities
+  quality_appraisal: >
+    Claims were appraised for match to the 5 km elapsed-time criterion,
+    criterion legitimacy, protocol and test-interval stability,
+    familiarization, relative and absolute reliability, confidence intervals,
+    model dependence, environmental control, sample size, sex, age, training
+    representation, safety burden, and external validity to self-coached adult
+    recreational road runners.
+  method_limitations:
+    - One reviewer manually screened titles and abstracts and extracted accessible sources; duplicate screening and extraction were not performed.
+    - Exact search-result counts and a formal PRISMA flow were not retained.
+    - SPORTDiscus, Embase, Scopus, and Web of Science were not searched.
+    - Currell 2008, Laursen 2007, Penry 2011, Nimmerichter 2017, Pettitt 2012, Mujika 2000, and Riebe 2015 were available only at abstract level for this review.
+    - No included source established outdoor 5 km time-trial repeatability, absolute error, sensitivity, and race agreement together in the intended recreational-runner population.
+    - The absence of an identified universal freshness cutoff in this bounded search is not proof that no such literature exists.
+    - Women, older recreational runners, novice runners, and runners with sparse histories were underrepresented.
+claims:
+  - id: baseline.goal-protocol-match
+    statement: >
+      A baseline used to interpret a 5 km elapsed-time performance criterion
+      should match the target running task and use a documented protocol;
+      transferring an unlike test or model output requires separate validation.
+    source_ids:
+      - currell-2008
+      - laursen-2007
+    evidence_strength: moderate
+    applicable_population:
+      - Sports-performance testing populations represented by the reviews and primary study
+      - Adult recreational road runners only to the extent represented
+    domain:
+      - Construct validity
+      - Protocol comparability
+    limitations:
+      - The sources do not establish that a road race and a solo time trial are interchangeable.
+      - The sources do not define Praxys direct, equivalent, or supporting product labels.
+      - Exact measurement error remains population and protocol specific.
+  - id: baseline.five-km-time-trial-pilot-gap
+    statement: >
+      Fixed-distance running time trials are generally more reproducible than
+      time-to-exhaustion tests and a 5 km trial minimizes distance translation
+      for a 5 km criterion, but the reviewed evidence does not establish an
+      unsupervised outdoor 5 km protocol as race-equivalent or quantify its
+      repeatability and sensitivity in Praxys recreational runners.
+    source_ids:
+      - currell-2008
+      - laursen-2007
+    evidence_strength: low
+    applicable_population:
+      - Trained runners in controlled time-trial research
+      - Adult recreational road runners as a prospective validation population
+    domain:
+      - Field-test selection
+      - Repeatability
+      - Practical applicability
+    limitations:
+      - General fixed-distance reliability does not validate one outdoor 5 km protocol.
+      - The target population's operational burden and acceptability have not been established.
+      - A maximal 5 km effort is not a low-physiological-burden assessment.
+      - Competition, pacing, motivation, route, weather, fatigue, and recovery can change performance.
+  - id: baseline.short-test-surrogates-not-equivalent
+    statement: >
+      Cooper 12-minute, 1.5-mile, and other distance- or time-based walk/run
+      tests can estimate cardiorespiratory fitness, but their outputs are not
+      direct measures of a 5 km elapsed-time criterion and require separate
+      validation before equivalence.
+    source_ids:
+      - mayorga-vega-2016
+      - penry-2011
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Criterion-related validity correlation range
+        range_low: 0.42
+        range_high: 0.79
+        unit: correlation
+        context: Heterogeneous walk/run tests estimating maximal oxygen uptake in the Mayorga-Vega systematic review
+    applicable_population:
+      - Apparently healthy children and adults represented by the systematic review
+      - Healthy adults represented by the Cooper-test study
+    domain:
+      - Cardiorespiratory fitness estimation
+      - Surrogate evidence
+    limitations:
+      - The correlation range is not a 5 km prediction-error or agreement range.
+      - Protocols and populations were heterogeneous.
+      - Shorter duration does not remove maximal-effort, pacing, or safety burden.
+  - id: baseline.critical-speed-transfer-limited
+    statement: >
+      Field critical-speed and running 3-minute-all-out outputs are
+      protocol- and model-dependent supporting measures, not automatically
+      equivalent to a 5 km field performance or to provider critical power.
+    source_ids:
+      - lipkova-2025
+      - nimmerichter-2017
+      - pettitt-2012
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Included field critical-speed studies
+        estimate: 19
+        unit: studies
+        context: Lipkova systematic review of heterogeneous field protocols
+      - metric: Simple critical-speed model 5000 m time prediction error
+        range_low: 5.7
+        range_high: 9.4
+        unit: percent
+        context: Sixteen trained athletes; treadmill-derived models versus track performance
+    applicable_population:
+      - Trained runners using the specified critical-speed or 3-minute-all-out protocol
+    domain:
+      - Critical speed
+      - Protocol transfer
+      - Performance prediction
+    limitations:
+      - Prediction error is not test-retest error.
+      - Treadmill, track, and road protocols are not interchangeable.
+      - The 3-minute test is brief but all-out and protocol dependent.
+      - Device critical power and running critical speed are different constructs.
+  - id: baseline.freshness-cutoff-not-validated
+    statement: >
+      Some cardiorespiratory and endurance adaptations can change during fewer
+      than four weeks of insufficient training, with outcome- and
+      training-status-dependent timing and magnitude; this evidence does not
+      validate a universal 28-, 42-, or 56-day baseline-expiry cutoff.
+    source_ids:
+      - mujika-2000
+    evidence_strength: low
+    applicable_population:
+      - Trained and recently trained adults represented by the narrative review
+      - Recreational runners only as a conservative product extrapolation
+    domain:
+      - Evidence freshness
+      - Detraining
+    limitations:
+      - The review is narrative and trained athletes are overrepresented.
+      - Training gain, detraining, illness, and contextual change need not follow the same time course.
+      - A negative bounded search cannot establish that no protocol-specific freshness evidence exists.
+  - id: baseline.vigorous-test-symptom-screen
+    statement: >
+      Current signs and symptoms are relevant to participation decisions before
+      vigorous exercise; this supports a conservative test-stop boundary but
+      does not validate Praxys diagnosis, treatment, clearance, or
+      return-to-sport advice.
+    source_ids:
+      - riebe-2015
+    evidence_strength: low
+    applicable_population:
+      - Adults considering exercise participation under the reviewed ACSM screening approach
+    domain:
+      - Preparticipation screening
+      - Safety boundary
+    limitations:
+      - The guidance is not a validation study of self-administered 5 km testing.
+      - Praxys-specific symptom wording and routing remain product guardrails.
+      - The source does not establish that passing a screen makes maximal testing risk-free.
+citations:
+  - id: currell-2008
+    title: "Validity, reliability and sensitivity of measures of sporting performance"
+    authors:
+      - K. Currell
+      - A. E. Jeukendrup
+    year: 2008
+    journal: Sports Medicine
+    doi: 10.2165/00007256-200838040-00003
+    pmid: "18348590"
+  - id: laursen-2007
+    title: "Reliability of time-to-exhaustion versus time-trial running tests in runners"
+    authors:
+      - P. B. Laursen
+      - G. T. Francis
+      - C. R. Abbiss
+      - M. J. Newton
+      - K. Nosaka
+    year: 2007
+    journal: Medicine & Science in Sports & Exercise
+    doi: 10.1249/MSS.0b013e31806010f5
+  - id: mayorga-vega-2016
+    title: "Criterion-Related Validity of the Distance- and Time-Based Walk/Run Field Tests for Estimating Cardiorespiratory Fitness: A Systematic Review and Meta-Analysis"
+    authors:
+      - D. Mayorga-Vega
+      - R. Bocanegra-Parrilla
+      - M. Ornelas
+      - J. Viciana
+    year: 2016
+    journal: PLOS ONE
+    doi: 10.1371/journal.pone.0151671
+    pmid: "26987118"
+  - id: penry-2011
+    title: "Validity and reliability analysis of Cooper's 12-minute run and the multistage shuttle run in healthy adults"
+    authors:
+      - J. T. Penry
+      - A. R. Wilcox
+      - J. Yun
+    year: 2011
+    journal: Journal of Strength and Conditioning Research
+    doi: 10.1519/JSC.0b013e3181cc2423
+    pmid: "20647946"
+  - id: lipkova-2025
+    title: "Field-based tests for determining critical speed among runners and its practical application: a systematic review"
+    authors:
+      - L. Lipkova
+      - I. Struhar
+      - J. Krajnak
+      - D. Puda
+      - M. Kumstat
+    year: 2025
+    journal: Frontiers in Sports and Active Living
+    doi: 10.3389/fspor.2025.1520914
+    pmid: "40134905"
+  - id: nimmerichter-2017
+    title: "Validity of Treadmill-Derived Critical Speed on Predicting 5000-Meter Track-Running Performance"
+    authors:
+      - A. Nimmerichter
+      - N. Novak
+      - C. Triska
+      - B. Prinz
+      - B. C. Breese
+    year: 2017
+    journal: Journal of Strength and Conditioning Research
+    doi: 10.1519/JSC.0000000000001529
+    pmid: "27379951"
+  - id: pettitt-2012
+    title: "3-min all-out exercise test for running"
+    authors:
+      - R. W. Pettitt
+      - N. A. Jamnick
+      - I. E. Clark
+    year: 2012
+    journal: International Journal of Sports Medicine
+    doi: 10.1055/s-0031-1299749
+  - id: mujika-2000
+    title: "Detraining: loss of training-induced physiological and performance adaptations. Part I: short term insufficient training stimulus"
+    authors:
+      - I. Mujika
+      - S. Padilla
+    year: 2000
+    journal: Sports Medicine
+    doi: 10.2165/00007256-200030020-00002
+    pmid: "10966148"
+  - id: riebe-2015
+    title: "Updating ACSM's Recommendations for Exercise Preparticipation Health Screening"
+    authors:
+      - D. Riebe
+      - B. A. Franklin
+      - P. D. Thompson
+      - C. E. Garber
+      - G. P. Whitfield
+      - M. Magal
+      - L. S. Pescatello
+    year: 2015
+    journal: Medicine & Science in Sports & Exercise
+    doi: 10.1249/MSS.0000000000000664
+    pmid: "26473759"
+known_gaps:
+  - Test-retest repeatability, absolute error, learning effect, and sensitivity for one unsupervised outdoor 5 km protocol in adult recreational runners
+  - Agreement between a standardized solo 5 km time trial and a measured 5 km road race
+  - Prospective evidence linking baseline age to materially changed plan decisions or outcomes
+  - Environment, surface, elevation, footwear, pacing, and recovery tolerances that preserve comparability
+  - Representation and subgroup precision by sex, age, training history, performance level, and sparse-data status
+  - Validated low-exertion alternatives for runners who decline or should not attempt a maximal 5 km test
+conflicting_findings:
+  - Fixed-distance time trials can be reproducible under controlled protocols, while outdoor and race contexts improve task directness but add environmental, pacing, and motivation variation.
+  - Critical-speed methods can be reliable within one protocol yet transfer poorly across trial selection, mathematical model, treadmill, track, and road settings.
+  - A shorter field test can reduce duration while increasing construct translation and does not necessarily reduce physiological or safety burden.
+follow_up_questions:
+  - What prospectively defined precision and agreement criteria would be sufficient to promote the 5 km pilot from supporting to equivalent evidence?
+  - Which environmental and protocol deviations should invalidate a baseline rather than merely lower confidence?
+  - Does baseline age add predictive or decision value after intervening training, interruption, and illness are modeled?
+  - Which safer goal contract should be offered when a maximal test is declined or inappropriate?
+supersedes: []
+superseded_by:
+review_notes:
+  - "Verification: currell-2008 - abstract; PubMed PMID 18348590 and Crossref metadata; 2026-08-10."
+  - "Verification: laursen-2007 - abstract; PubMed title search and Crossref DOI metadata; 2026-08-10."
+  - "Verification: mayorga-vega-2016 - full-text; PubMed Central PMC4795745, PubMed PMID 26987118, and Crossref metadata; 2026-08-10."
+  - "Verification: penry-2011 - abstract; PubMed PMID 20647946 and Crossref metadata; 2026-08-10."
+  - "Verification: lipkova-2025 - full-text; PubMed Central PMC11933073, PubMed PMID 40134905, and Crossref metadata; 2026-08-10."
+  - "Verification: nimmerichter-2017 - abstract; PubMed PMID 27379951 and Crossref metadata; 2026-08-10."
+  - "Verification: pettitt-2012 - abstract; PubMed title search and Crossref DOI metadata; 2026-08-10."
+  - "Verification: mujika-2000 - abstract; PubMed PMID 10966148 and Crossref metadata; 2026-08-10."
+  - "Verification: riebe-2015 - abstract; PubMed PMID 26473759 and Crossref metadata; 2026-08-10."
+  - This rigorous review used single-reviewer screening and extraction; independent human science appraisal remains required.
+  - No source was found that validates 28, 42, or 56 days as a universal baseline-expiry threshold.
