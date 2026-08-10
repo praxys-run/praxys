@@ -76,13 +76,77 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         parameter.name: parameter
         for parameter in baseline_decision.model_parameters
     }
+    baseline_claims = {claim.id: claim for claim in baseline_review.claims}
     assert baseline_parameters["personal_success_probability"].value == (
         "disabled"
     )
     assert baseline_parameters["initial_scope"].value["age"] == "18_plus"
-    assert "activity_avg_power" in baseline_parameters[
-        "intensity_evidence_source"
-    ].value["prohibited"]
+    assert (
+        "baseline.current-capability-not-change-comparability"
+        in baseline_claims
+    )
+    hierarchy = baseline_parameters["baseline_evidence_hierarchy"].value
+    assert hierarchy["direct_current_capability"] == [
+        "verified_measured_5_km_race",
+        "explicitly_confirmed_intentional_all_out_5_km_effort_with_sufficient_distance_timing_and_provenance",
+    ]
+    assert hierarchy["direct_longitudinal_change"] == [
+        "same_protocol_5_km_observations_with_comparable_route_environment_recovery_timing_and_assistance"
+    ]
+    assert (
+        "arbitrary_5_km_segment_or_best_split_inside_another_workout"
+        in hierarchy["insufficient"]
+    )
+    history_qualification = baseline_parameters[
+        "history_first_qualification"
+    ].value
+    assert history_qualification["order"][0] == (
+        "search_existing_athlete_history_before_any_test_offer"
+    )
+    assert history_qualification["candidate_unit"] == (
+        "complete_activity_or_verified_race_result"
+    )
+    assert history_qualification["athlete_confirmation"] == {
+        "required_for_nonrace_all_out_effort": True,
+        "must_be_explicit": True,
+        "infer_from_pace_power_or_ranking": "prohibited",
+        "absent_or_ambiguous_response": "insufficient_evidence",
+    }
+    assert history_qualification["segment_and_sample_use"][
+        "arbitrary_5_km_segment_or_best_split_as_baseline"
+    ] == "prohibited"
+    assert history_qualification["segment_and_sample_use"][
+        "create_or_infer_performance_intent"
+    ] == "prohibited"
+    assert history_qualification["power_source"]["prohibited"] == [
+        "activity_avg_power"
+    ]
+    assert history_qualification["power_source"]["allowed"] == [
+        "activity_splits",
+        "activity_samples",
+    ]
+    pilot_offer = baseline_parameters["pilot_offer_policy"].value
+    assert pilot_offer["offer_only_when_current_capability_status"] == [
+        "missing",
+        "stale",
+        "incomparable",
+    ]
+    assert pilot_offer["participation"] == "explicit_opt_in"
+    assert pilot_offer["account_access"] == "never_blocked"
+    assert baseline_parameters["longitudinal_change_comparability"].value[
+        "directly_comparable"
+    ] == (
+        "same_protocol_and_comparable_route_environment_recovery_timing_and_assistance"
+    )
+    intensity_sources = baseline_parameters["intensity_evidence_source"].value
+    assert intensity_sources["allowed"] == [
+        "activity_splits",
+        "activity_samples",
+    ]
+    assert intensity_sources["prohibited"] == ["activity_avg_power"]
+    assert set(intensity_sources["allowed"]).isdisjoint(
+        intensity_sources["prohibited"]
+    )
     assert all(
         parameter.classification.value in {
             "published",

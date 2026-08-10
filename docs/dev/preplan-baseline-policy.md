@@ -1,6 +1,6 @@
 # Pre-plan baseline policy decision brief
 
-**Status:** Draft decision proposal for #640; not implemented
+**Status:** Draft Decision proposal for #640; not implemented or science-accepted
 
 **Canonical records:**
 
@@ -21,26 +21,56 @@ distances, clinical testing, injury rehabilitation, or return to sport.
 
 For that goal, the proposal is:
 
-1. direct evidence is a valid result from the exact named 5 km time-trial
-   protocol;
-2. no different observation is approved as equivalent;
-3. a dated measured 5 km road-race result is the strongest supporting
-   observation, with its date shown but no automatic "recent" label;
-4. shorter tests, critical-speed outputs, and device estimates remain
+1. search existing athlete history before offering a new test;
+2. a verified measured 5 km race or an explicitly athlete-confirmed
+   intentional all-out 5 km effort may be **direct evidence of current 5 km
+   capability** when distance, elapsed timing, effort intent, date, and
+   provenance are sufficient;
+3. never infer race or all-out intent from pace, power, ranking, or a fast
+   split; a random 5 km segment or best split inside an easy, long, or
+   mixed-purpose workout is not a baseline;
+4. classify **directly comparable longitudinal change** separately:
+   before/after claims require the same protocol and comparable route,
+   environment, recovery, timing, and assistance conditions;
+5. a different race or course may directly inform current capability while
+   remaining supporting or incomparable for change;
+6. shorter tests, critical-speed outputs, and device estimates remain
    supporting or incomparable; and
-5. when direct evidence is missing or stale, offer one optional standardized
-   outdoor 5 km time-trial pilot.
+7. only when qualified history is missing, stale, or incomparable, offer one
+   optional standardized outdoor 5 km time-trial pilot by explicit opt-in.
 
 The selected test requires one field effort rather than a multi-trial model,
 but its practical burden and acceptability are unvalidated. It is a maximal
-effort, not a low-exertion test.
+effort, not a low-exertion test or an account prerequisite.
+
+## History qualification and athlete confirmation
+
+Implementation must make qualification auditable rather than silently
+classifying arbitrary segments:
+
+- Search complete activities and verified race results before proposing a new
+  test.
+- A verified measured race needs the observed date, measured 5 km distance,
+  elapsed timing without unresolved pause/timing failure, and race provenance.
+- A non-race effort additionally needs an explicit athlete confirmation that
+  the complete 5 km was an intentional all-out performance effort.
+- An absent or ambiguous confirmation is `insufficient_evidence`; pace, power,
+  ranking, or "best split" status never substitutes for confirmation.
+- Splits and samples may verify distance, elapsed timing, pauses,
+  interruptions, and protocol/intensity context. They may not create or infer
+  performance intent. Activity `avg_power` is prohibited.
+- Store current-capability status separately from longitudinal-change
+  comparability so a different race/course can inform current capability
+  without becoming a directly comparable before/after result.
 
 ## Candidate matrix
 
 | Candidate | Directness to the selected goal | Main limitation | Proposal |
 | --- | --- | --- | --- |
-| Exact same-protocol outdoor 5 km time trial | Measures the named criterion | Target-population repeatability and sensitivity remain unestablished | Pilot as direct evidence for this performance goal only |
-| Measured 5 km road race | Same distance and output | Competition, course, timing, pacing, and environment differ | Strongest supporting evidence; not automatically equivalent |
+| Verified measured 5 km road race in athlete history | Directly observes current 5 km capability | A different race/course may not be comparable for change | Direct for current capability; supporting or incomparable for longitudinal change unless protocol and material conditions match |
+| Explicitly confirmed intentional all-out 5 km effort in athlete history | Directly observes current 5 km capability | Requires sufficient distance/timing metadata and explicit athlete intent | Direct for current capability; change claims still require same protocol and comparable conditions |
+| Exact same-protocol outdoor 5 km time trial | Measures the named criterion | Target-population repeatability and sensitivity remain unestablished | Optional fallback pilot; direct for current capability and directly comparable for change only against the same protocol under comparable conditions |
+| Random 5 km segment or best split inside another workout | Does not establish a complete intentional 5 km performance | Pace cannot establish purpose; mixed-workout context and timing may mislead | Never a baseline merely because it is fast; splits/samples verify protocol only |
 | Cooper 12-minute or 1.5-mile test | Related running/fitness observation | Requires surrogate-to-5 km translation | Supporting only |
 | Critical speed or running 3-minute all-out | Related protocol-derived capacity | Trial and model dependent; not clearly lower burden | Supporting only |
 | Device VO2max, critical power, or critical speed | Convenient model estimate | Device and algorithm dependent | Supporting or incomparable; never automatic equivalence |
@@ -59,24 +89,28 @@ versioned Praxys pilot guardrail:
   invalidator;
 - `stale`: otherwise-valid direct evidence from day 43 onward, retained as
   history;
-- `incomparable`: an observation exists but protocol or material conditions do
-  not match;
+- `incomparable`: candidate history exists, but current-capability
+  qualification metadata are insufficient or conflicting;
 - `missing`: no usable observation exists;
 - `pending_test`: an eligible optional test was proposed but not completed; and
 - `not_required`: only a separately accepted goal policy says a measured
   baseline is unnecessary.
 
-The 42-day transition applies only to direct same-protocol evidence. Supporting
-race or surrogate observations show their date and age without an automatic
-freshness label.
+The 42-day transition applies to qualified direct current-capability evidence,
+including verified races and explicitly confirmed all-out 5 km efforts.
+Supporting or surrogate observations show their date and age without an
+automatic freshness label. Longitudinal-change comparability is assessed
+separately from freshness.
 
-A recent result is not automatically comparable. The pilot records the exact
-protocol, route version and direction, surface, elevation, elapsed timing and
-pause behavior, footwear category, environment, warm-up and assistance,
-performance intent, prior hard exercise, recovery, and deviations. It does not
-apply an environmental time correction. A protocol mismatch, interruption,
-non-maximal attempt, inadequate recovery, or unsafe condition invalidates or
-downgrades the observation as specified in the SDR.
+A recent result is not automatically comparable for change. Current-capability
+qualification records date, verified distance, elapsed timing, race provenance
+or explicit all-out intent, and unresolved pauses or timing failures.
+Longitudinal comparison additionally records the exact protocol, route version
+and direction, surface, elevation, footwear category, environment, warm-up and
+assistance, prior hard exercise, recovery, and deviations. It does not apply an
+environmental time correction. A protocol or material-condition mismatch may
+leave the result direct for current capability while downgrading it to
+supporting or incomparable for change.
 
 No universal meaningful-change percentage is proposed. The protocol remains
 without a change threshold until repeat testing estimates learning, absolute
@@ -93,36 +127,44 @@ non-diagnostic urgent safety exit rather than the ordinary declined-test path.
 This is a performance-test boundary, not diagnosis, treatment, clearance, or
 return-to-sport advice.
 
-Declining or stopping testing is valid. Preserve the observed baseline status,
-return `insufficient_evidence`, and offer a deferred time criterion or an
-approved completion/consistency alternative. Never block the account, coerce a
-retest, or show a personal success probability.
+Declining, stopping, or being excluded for safety is valid. Preserve the
+observed `missing`, `stale`, or `incomparable` status, return
+`insufficient_evidence`, and offer a deferred time criterion or an approved
+completion/consistency alternative. Never block the account, coerce a retest,
+or show a personal success probability.
 
 ## Decisions requested from maintainers
 
-1. Approve or reject the initial population and single 5 km outdoor
-   elapsed-time performance-goal scope.
-2. Approve or reject the evidence hierarchy: exact protocol is direct, no
-   equivalent is approved, and a measured 5 km race is supporting.
-3. Approve or reject the optional outdoor 5 km time trial as the one pilot
-   candidate, explicitly acknowledging its maximal-effort burden and evidence
-   gaps.
+1. **Maintainer product feedback approved** the bounded initial population and
+   5 km outdoor elapsed-time performance-goal scope. This records product
+   direction only; it is not science acceptance, and both canonical records
+   remain draft with no human science reviewer.
+2. Approve or revise the history-first evidence hierarchy: verified race or
+   explicitly confirmed intentional all-out 5 km history may be direct for
+   current capability; arbitrary workout segments are never baselines; and
+   directly comparable change requires the same protocol and comparable
+   conditions.
+3. Approve or reject the optional outdoor 5 km time trial as fallback only
+   when qualified history is missing, stale, or incomparable, with explicit
+   opt-in and acknowledgment of its maximal-effort burden and evidence gaps.
 4. Approve or replace the 42-day Praxys freshness guardrail; do not relabel it
    as a published cutoff.
 5. Approve or revise the comparability, stop, privacy, and no-test boundaries
    and the requirement for pre-registered precision criteria before any
    equivalence or meaningful-change decision.
 
-Approval of this brief would approve a science-policy direction only. A
-separate implementation decision must define the final protocol script, data
-contract, explicit pilot opt-in, retention/access/export/deletion rules,
+Maintainer approval of the bounded product scope does not accept the Evidence
+Review or SDR. A separate human science review and implementation decision must
+define the final history-search candidate unit, qualification metadata,
+athlete-confirmation wording and ambiguous-response handling, protocol script,
+data contract, explicit pilot opt-in, retention/access/export/deletion rules,
 ingestion, telemetry and aggregate analytics, English/Chinese localization,
 pilot operations, API/client parity, and tests.
 
 ## Future impact map
 
 ```text
-Evidence Review -> SDR -> goal baseline policy
+Evidence Review -> SDR -> history-first goal baseline policy
 -> persistence/retention/access/export/deletion -> ingestion -> pure analysis
 -> API contract -> web Goal/Plan/Insights + EN/zh localization
 -> miniapp parity -> plugin/MCP proposal parity -> private telemetry/analytics

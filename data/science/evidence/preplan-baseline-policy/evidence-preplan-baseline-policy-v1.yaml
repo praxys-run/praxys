@@ -1,13 +1,14 @@
 schema_version: 1
 id: evidence-preplan-baseline-policy-v1
 version: 1
-title: "Pre-plan baseline evidence for 5 km road performance"
+title: "History-first pre-plan baseline evidence for 5 km road performance"
 research_question: >
   For self-coached adult recreational road runners adopting a 5 km
-  performance plan, which observations can support a baseline, which one
-  same-protocol field test is the most defensible first pilot when evidence is
-  missing or stale, and what do the literature and remaining uncertainty
-  establish about comparability, invalidation, and freshness?
+  performance plan, which existing 5 km observations can directly describe
+  current capability, which observations are directly comparable for
+  longitudinal change, when should an opt-in same-protocol field test be
+  offered, and what do the literature and remaining uncertainty establish
+  about qualification, invalidation, comparability, and freshness?
 topic: preplan-baseline-policy
 status: draft
 authors:
@@ -17,8 +18,10 @@ created_on: 2026-08-10
 reviewed_on:
 intended_product_purpose: >
   Bound the first Praxys pre-plan baseline proposal to one measurable road
-  running use case, distinguish direct observations from unvalidated
-  surrogates, and keep the optional test, freshness window, comparability
+  running use case, search qualified athlete history before proposing a new
+  test, distinguish direct evidence of current capability from directly
+  comparable longitudinal change evidence and unvalidated surrogates, and keep
+  the optional test, freshness window, qualification rules, comparability
   rules, and no-test path honest pending human review and prospective
   validation.
 scope:
@@ -27,19 +30,24 @@ scope:
     - Self-coached recreational road runners who can already complete 5 km without the test being a novel distance exposure
     - Non-clinical runners voluntarily considering a maximal field effort
   intervention_or_exposure:
-    - Dated measured 5 km road performance
+    - Verified dated measured 5 km road race
+    - Explicitly athlete-confirmed intentional all-out 5 km effort with sufficient distance and elapsed-timing metadata
     - Standardized outdoor 5 km time trial
+    - Random 5 km segments and best splits inside easy, long, or mixed-purpose activities
     - Cooper 12-minute and 1.5-mile field tests
     - Field critical-speed and running 3-minute-all-out protocols
     - Short training interruption as context for evidence freshness
   comparator:
     - Exact same-protocol 5 km performance
     - Measured 5 km road race
+    - Different 5 km route, course, environment, recovery state, or protocol
+    - Arbitrary same-distance segment without verified race or all-out intent
     - Laboratory cardiorespiratory fitness
     - Unlike field tests and protocol-derived estimates
     - Repeated measurements under documented conditions
   outcomes:
-    - Construct directness to elapsed 5 km performance
+    - Direct evidence of current elapsed 5 km capability
+    - Directly comparable evidence of longitudinal 5 km change
     - Criterion validity
     - Test-retest reliability and measurement error
     - Sensitivity and meaningful-change limits
@@ -147,8 +155,11 @@ method:
 claims:
   - id: baseline.goal-protocol-match
     statement: >
-      A baseline used to interpret a 5 km elapsed-time performance criterion
-      should match the target running task and use a documented protocol;
+      A verified complete 5 km performance can directly describe current 5 km
+      elapsed-time capability when distance, elapsed timing, and race or
+      intentional all-out effort are established. Interpreting before/after
+      change is a separate claim that requires the same protocol and
+      sufficiently comparable route, environment, and recovery conditions;
       transferring an unlike test or model output requires separate validation.
     source_ids:
       - currell-2008
@@ -164,11 +175,37 @@ claims:
       - The sources do not establish that a road race and a solo time trial are interchangeable.
       - The sources do not define Praxys direct, equivalent, or supporting product labels.
       - Exact measurement error remains population and protocol specific.
+      - Intent cannot be inferred from pace alone; requiring explicit race metadata or athlete confirmation is a Praxys classification guardrail.
+      - A random 5 km segment or best split inside another workout is not validated as a baseline merely because it is fast.
+  - id: baseline.current-capability-not-change-comparability
+    statement: >
+      Task-direct evidence of current 5 km capability and directly comparable
+      evidence of longitudinal change are different evidentiary claims. A
+      verified measured 5 km race or explicitly intentional all-out 5 km
+      effort may directly describe current capability, while a result from a
+      different protocol, route, environment, or recovery context cannot by
+      itself establish a directly comparable before/after change.
+    source_ids:
+      - currell-2008
+      - laursen-2007
+    evidence_strength: moderate
+    applicable_population:
+      - Sports-performance testing populations represented by the review and primary study
+      - Adult recreational road runners only to the extent represented
+    domain:
+      - Current capability
+      - Longitudinal comparability
+      - Protocol qualification
+    limitations:
+      - The reviewed sources do not validate automated intent inference from workout pace, splits, or samples.
+      - A different race or course may be informative about current capability while remaining supporting or incomparable for change.
+      - Exact route, environment, and recovery tolerances remain unvalidated for this target population.
   - id: baseline.five-km-time-trial-pilot-gap
     statement: >
       Fixed-distance running time trials are generally more reproducible than
       time-to-exhaustion tests and a 5 km trial minimizes distance translation
-      for a 5 km criterion, but the reviewed evidence does not establish an
+      for a 5 km criterion when qualified historical evidence is missing,
+      stale, or incomparable, but the reviewed evidence does not establish an
       unsupervised outdoor 5 km protocol as race-equivalent or quantify its
       repeatability and sensitivity in Praxys recreational runners.
     source_ids:
@@ -382,6 +419,7 @@ citations:
 known_gaps:
   - Test-retest repeatability, absolute error, learning effect, and sensitivity for one unsupervised outdoor 5 km protocol in adult recreational runners
   - Agreement between a standardized solo 5 km time trial and a measured 5 km road race
+  - Accuracy, athlete burden, and auditability of history qualification and explicit effort-intent confirmation
   - Prospective evidence linking baseline age to materially changed plan decisions or outcomes
   - Environment, surface, elevation, footwear, pacing, and recovery tolerances that preserve comparability
   - Representation and subgroup precision by sex, age, training history, performance level, and sparse-data status
@@ -391,7 +429,8 @@ conflicting_findings:
   - Critical-speed methods can be reliable within one protocol yet transfer poorly across trial selection, mathematical model, treadmill, track, and road settings.
   - A shorter field test can reduce duration while increasing construct translation and does not necessarily reduce physiological or safety burden.
 follow_up_questions:
-  - What prospectively defined precision and agreement criteria would be sufficient to promote the 5 km pilot from supporting to equivalent evidence?
+  - What prospectively defined precision and agreement criteria would be sufficient to support directly comparable longitudinal change or a meaningful-change threshold?
+  - Which historical metadata and athlete-confirmation flow prevent false classification of arbitrary workout segments without imposing a new test?
   - Which environmental and protocol deviations should invalidate a baseline rather than merely lower confidence?
   - Does baseline age add predictive or decision value after intervening training, interruption, and illness are modeled?
   - Which safer goal contract should be offered when a maximal test is declined or inappropriate?

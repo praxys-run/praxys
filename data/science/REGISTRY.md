@@ -31,7 +31,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 | [evidence-adaptive-training-load-v1](evidence/adaptive-training-load/evidence-adaptive-training-load-v1.yaml) — Adaptive endurance-training load decisions | 1 | adaptive-training-load | 2026-08-08 |
 | [evidence-individual-goal-feasibility-v1](evidence/individual-goal-feasibility/evidence-individual-goal-feasibility-v1.yaml) — Individual goal feasibility and prediction limits | 1 | individual-goal-feasibility | 2026-08-08 |
 | [evidence-plan-outcome-interpretation-v1](evidence/plan-outcome-interpretation/evidence-plan-outcome-interpretation-v1.yaml) — Training-plan outcome interpretation | 1 | plan-outcome-interpretation | 2026-08-08 |
-| [evidence-preplan-baseline-policy-v1](evidence/preplan-baseline-policy/evidence-preplan-baseline-policy-v1.yaml) — Pre-plan baseline evidence for 5 km road performance | 1 | preplan-baseline-policy | 2026-08-10 |
+| [evidence-preplan-baseline-policy-v1](evidence/preplan-baseline-policy/evidence-preplan-baseline-policy-v1.yaml) — History-first pre-plan baseline evidence for 5 km road performance | 1 | preplan-baseline-policy | 2026-08-10 |
 | [evidence-running-field-tests-v1](evidence/running-field-tests/evidence-running-field-tests-v1.yaml) — Running field tests for plan baselines and outcomes | 1 | running-field-tests | 2026-08-08 |
 | [evidence-short-interruption-detraining-v1](evidence/short-interruption-detraining/evidence-short-interruption-detraining-v1.yaml) — Short training interruption and detraining | 1 | short-interruption-detraining | 2026-08-08 |
 
@@ -40,7 +40,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 | Record | Version | Topic/model | Reviewed/decided |
 |---|---:|---|---|
 | [sdr-adaptive-plan-feasibility-and-adjustment-v1](decisions/sdr-adaptive-plan-feasibility-and-adjustment-v1.yaml) — Bound adaptive-plan feasibility, adjustment, and outcome interpretation | 1 | adaptive-plan-policy-v1 | 2026-08-08 |
-| [sdr-preplan-baseline-policy-v1](decisions/sdr-preplan-baseline-policy-v1.yaml) — Pilot a same-protocol 5 km pre-plan baseline with an explicit freshness guardrail | 1 | preplan-baseline-policy-v1 | 2026-08-10 |
+| [sdr-preplan-baseline-policy-v1](decisions/sdr-preplan-baseline-policy-v1.yaml) — Use qualified 5 km history before offering an opt-in same-protocol baseline | 1 | preplan-baseline-policy-v1 | 2026-08-10 |
 
 ## Superseded
 
