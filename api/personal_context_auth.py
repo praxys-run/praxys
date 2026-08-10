@@ -25,6 +25,10 @@ CONTEXT_SCOPES = frozenset({
     CONTEXT_SCOPE_AI_CONSENT,
 })
 _DELEGATED_ACTORS = frozenset({"plugin", "mcp", "delegated_agent"})
+_DELEGATED_SCOPES = frozenset({
+    CONTEXT_SCOPE_READ,
+    CONTEXT_SCOPE_WRITE,
+})
 
 
 @dataclass(frozen=True)
@@ -38,6 +42,10 @@ class ContextActor:
     purposes: frozenset[str]
     kinds: frozenset[str]
     is_demo: bool
+    credential_kind: str
+    token_id: str | None
+    grant_id: str | None
+    audience: str | None
 
     @property
     def is_athlete(self) -> bool:
@@ -89,6 +97,10 @@ def get_context_actor(
             purposes=CONTEXT_PURPOSES,
             kinds=CONTEXT_KINDS,
             is_demo=identity.is_demo,
+            credential_kind="first_party_jwt",
+            token_id=None,
+            grant_id=None,
+            audience=None,
         )
 
     actor_type = (
@@ -114,6 +126,28 @@ def get_context_actor(
         scopes = frozenset()
         purposes = frozenset()
         kinds = frozenset()
+    elif actor_type in _DELEGATED_ACTORS:
+        # Narrative, deletion, and AI-consent authority never crosses the
+        # plugin/MCP boundary, even if a malformed trusted claim asks for it.
+        scopes &= _DELEGATED_SCOPES
+    raw_grant_id = claims.get("praxys_context_grant_id")
+    grant_id = (
+        str(raw_grant_id)
+        if isinstance(raw_grant_id, str) and raw_grant_id
+        else None
+    )
+    raw_audience = claims.get("context_audience")
+    audience = (
+        str(raw_audience)
+        if isinstance(raw_audience, str) and raw_audience
+        else None
+    )
+    raw_token_id = claims.get("praxys_access_token_id")
+    token_id = (
+        str(raw_token_id)
+        if isinstance(raw_token_id, str) and raw_token_id
+        else None
+    )
     return ContextActor(
         user_id=identity.user_id,
         actor_type=actor_type,
@@ -122,6 +156,12 @@ def get_context_actor(
         purposes=frozenset(purposes & CONTEXT_PURPOSES),
         kinds=frozenset(kinds & CONTEXT_KINDS),
         is_demo=identity.is_demo,
+        credential_kind=str(
+            claims.get("praxys_credential_kind") or "scoped_jwt"
+        ),
+        token_id=token_id,
+        grant_id=grant_id,
+        audience=audience,
     )
 
 
@@ -169,5 +209,20 @@ def authorize_context_ids(
         return
     if not set(purposes).issubset(actor.purposes) or not set(kinds).issubset(
         actor.kinds
+    ):
+        raise HTTPException(403, detail="PERSONAL_CONTEXT_SCOPE_REQUIRED")
+
+
+def require_server_context_grant(
+    actor: ContextActor,
+    scope: str,
+) -> None:
+    """Require a current opaque grant rather than caller-supplied JWT claims."""
+    authorize_context(actor, scope)
+    if (
+        actor.is_athlete
+        or actor.credential_kind != "context_grant"
+        or actor.grant_id is None
+        or actor.audience != "praxys-coach-plugin"
     ):
         raise HTTPException(403, detail="PERSONAL_CONTEXT_SCOPE_REQUIRED")

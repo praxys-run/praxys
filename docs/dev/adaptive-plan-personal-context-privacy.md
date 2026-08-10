@@ -1,6 +1,6 @@
 # Adaptive plan personal-context privacy contract
 
-**Status:** Accepted architecture contract; narrow suggestion-first pilot implemented
+**Status:** Accepted architecture contract; pilot and structured MCP scopes implemented
 **Parent:** #582  
 **Depends on:** #584, #603, and #607  
 **Version:** 1
@@ -322,34 +322,48 @@ different provider or send a broader payload.
 
 ## Authorization and actor matrix
 
-Proposed scopes refine the architecture contract:
+Implemented scopes refine the architecture contract:
 
 - `plan:context:read` - active structured context for an allowed purpose
-- `plan:context:narrative:read` - narrative, separately granted
-- `plan:context:write` - create or correct a previewed context item
+- `plan:context:write` - validate one request-scoped structured draft
 - `plan:context:delete` - withdraw/delete an owned item
 - `plan:context:ai-consent` - athlete-only AI-processing decision
+
+Only the first two scopes are issuable to plugin/MCP clients. Narrative,
+delete, confirmation, correction, expiry, export, and AI-consent authority
+remain first-party. A successful delegated write consumes its grant and creates
+no durable context; the athlete uses the ordinary first-party preview and
+confirmation flow.
 
 | Actor | Structured read | Narrative read | Create/correct | Delete | AI consent |
 | --- | --- | --- | --- | --- | --- |
 | Athlete in first-party UI | Own items | Own items | Yes | Yes | Yes |
 | First-party deterministic policy | Purpose-projected active fields | No | No | No | No |
 | First-party planning AI | Purpose-projected with valid consent | Only if separately disclosed and consented | No | No | No |
-| Plugin/MCP client | Token- and purpose-scoped, if granted | No by default | Explicit preview and athlete command only | Explicit athlete command only | No |
+| Plugin/MCP client | Opaque token-, audience-, purpose-, kind-, owner-, and expiry-scoped | No | One structured preview; athlete starts any durable write | No | No |
 | Future user-delegated agent | Short-lived, purpose-scoped, if granted | Separate short-lived grant only | Explicit preview and athlete command only | No by default | No |
 | Provider adapter | One minimized request | Only disclosed fields | No | No | No |
 | Operator/admin | Lifecycle metadata by default | No | No | Recovery workflow only | No |
 | Telemetry/evaluation | No | No | No | No | No |
 
-Authentication or `plan:read` does not grant context access. A token cannot
-grant itself a new scope. Delegations include owner, actor, purposes, item
-kinds, operations, expiry, and revocation. The server evaluates scopes and
-ownership on every request; clients cannot enforce this boundary themselves.
+Authentication or `plan:read` does not grant context access. MCP login uses an
+opaque, revocable session obtained through one-time browser handoff state; no
+account JWT enters a plugin URL or process. A context token cannot grant itself
+a new scope. The MCP session can only request an immutable handoff, and a
+trusted first-party JWT must approve its exact audience, purpose, item kind,
+operations, and short expiry. The resulting 15-minute bearer is stored only as
+a SHA-256 digest, is checked server-side on every request, and can be revoked.
+Write authority is replay-safe and single-use. MCP bearers are not accepted as
+general account authentication. The 24-hour session retains only the official
+plugin's established, method-specific training/settings/plan tool routes; it
+cannot invoke account profile, export, deletion, admin, or first-party
+personal-context controls.
 
-Context created through a delegated actor remains a preview until the athlete
-confirms the exact structured fields, narrative, purpose, expiry, and
-processing mode in a trusted Praxys surface. Prompt text such as "remember this
-forever" has no authorization effect.
+Context proposed through a delegated actor remains request-scoped and
+non-durable. The preview returns fixed web and miniapp plan-context deep links;
+the athlete independently confirms the exact structured fields, optional
+narrative, purpose, expiry, and processing mode in a trusted Praxys surface.
+Prompt text such as "remember this forever" has no authorization effect.
 
 ## Lifecycle
 

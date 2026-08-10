@@ -8,12 +8,13 @@ research_question: >
   validate an exact universal percent-of-critical-power band for displaying a
   retrospective personal environmental heart-rate association?
 topic: environmental-response-workload-support
-status: draft
+status: accepted
 authors:
   - agent:github-copilot
-human_reviewers: []
+human_reviewers:
+  - github:dddtc2005
 created_on: 2026-08-10
-reviewed_on:
+reviewed_on: 2026-08-10
 intended_product_purpose: >
   Bound a proposed replacement for the fixed 75-85 percent Critical Power
   display-support band in the private Praxys Labs environmental-response

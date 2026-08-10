@@ -1,6 +1,6 @@
 import type React from 'react';
 import { useState, useId, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Link } from 'react-router-dom';
 import { Trans, useLingui } from '@lingui/react/macro';
@@ -17,6 +17,7 @@ type InviteMode = 'waitlist' | 'code';
 export default function Login() {
   const { login, register } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useLingui();
   const { locale, setLocale } = useLocale();
   const { theme, setTheme } = useTheme();
@@ -46,12 +47,17 @@ export default function Login() {
 
   const formId = useId();
 
-  // CLI callback URL (browser-based CLI login flow).
-  // SECURITY: Only allow localhost callbacks to prevent open redirect token theft
-  const searchParams = new URLSearchParams(window.location.search);
-  const rawCallback = searchParams.get('cli_callback');
-  const CLI_CALLBACK_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/callback/;
-  const cliCallback = rawCallback && CLI_CALLBACK_RE.test(rawCallback) ? rawCallback : null;
+  const from = (
+    location.state as {
+      from?: { pathname?: string; search?: string; hash?: string };
+    } | null
+  )?.from;
+  const postAuthPath = (
+    from?.pathname?.startsWith('/')
+    && !from.pathname.startsWith('//')
+  )
+    ? `${from.pathname}${from.search ?? ''}${from.hash ?? ''}`
+    : '/today';
 
   // Fetch the public registration gate + honor a ?invite= deep link on mount.
   useEffect(() => {
@@ -131,16 +137,7 @@ export default function Login() {
       return;
     }
 
-    if (cliCallback) {
-      const token =
-        localStorage.getItem('praxys-auth-token') ??
-        localStorage.getItem('trainsight-auth-token');
-      if (token) {
-        window.location.href = `${cliCallback}?token=${encodeURIComponent(token)}`;
-        return;
-      }
-    }
-    navigate('/today', { replace: true });
+    navigate(postAuthPath, { replace: true });
   };
 
   const handleWaitlistSubmit = async (e: React.FormEvent) => {
@@ -301,13 +298,6 @@ export default function Login() {
               Pra<span>x</span>ys
             </span>
           </div>
-
-          {cliCallback && (
-            <div className="login-cli-banner">
-              <span className="login-cli-banner-dot" aria-hidden />
-              <span><Trans>Sign in to connect your CLI plugin.</Trans></span>
-            </div>
-          )}
 
           <div className="login-form-heading">
             <span className="login-form-eyebrow">

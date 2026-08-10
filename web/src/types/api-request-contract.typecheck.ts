@@ -2,6 +2,8 @@ import type {
   ContextPilotRunRequest,
   PersonalContextAiConsentRequest,
   PersonalContextDraftRequest,
+  ScopedPersonalContextAccessRequest,
+  ScopedPersonalContextDraftRequest,
 } from './api';
 
 const payload = {
@@ -27,6 +29,46 @@ const incompleteLinkedDraft: PersonalContextDraftRequest = {
   purpose: 'execution_interpretation',
   payload,
   linked_subject_type: 'workout',
+};
+const scopedDraft: ScopedPersonalContextDraftRequest = {
+  kind: 'temporary_constraint',
+  purpose: 'plan_adjustment',
+  payload,
+};
+const scopedAccess: ScopedPersonalContextAccessRequest = {
+  audience: 'praxys-coach-plugin',
+  purpose: 'execution_interpretation',
+  kind: 'execution_explanation',
+  access: ['read'],
+};
+const durableScopedAccess: ScopedPersonalContextAccessRequest = {
+  audience: 'praxys-coach-plugin',
+  purpose: 'goal_review',
+  // @ts-expect-error Scoped clients cannot request durable preferences.
+  kind: 'durable_preference',
+  access: ['read'],
+};
+// @ts-expect-error The scoped purpose and context kind must be compatible.
+const mismatchedScopedAccess: ScopedPersonalContextAccessRequest = {
+  audience: 'praxys-coach-plugin',
+  purpose: 'plan_generation',
+  kind: 'execution_explanation',
+  access: ['write'],
+};
+// @ts-expect-error Scoped previews use the same purpose-kind contract.
+const mismatchedScopedDraft: ScopedPersonalContextDraftRequest = {
+  kind: 'execution_explanation',
+  purpose: 'goal_review',
+  payload,
+};
+const scopedNarrativeDraft: ScopedPersonalContextDraftRequest = {
+  kind: 'temporary_constraint',
+  purpose: 'plan_adjustment',
+  payload: {
+    ...payload,
+    // @ts-expect-error MCP drafts never accept narrative.
+    narrative: 'not available to delegated clients',
+  },
 };
 
 const syntheticPilot: ContextPilotRunRequest = {
@@ -84,6 +126,12 @@ void [
   unlinkedDraft,
   linkedDraft,
   incompleteLinkedDraft,
+  scopedDraft,
+  scopedAccess,
+  durableScopedAccess,
+  mismatchedScopedAccess,
+  mismatchedScopedDraft,
+  scopedNarrativeDraft,
   syntheticPilot,
   optedInPilot,
   invalidSyntheticPilot,

@@ -1,9 +1,7 @@
 # Labs environmental-response V1 contract
 
-Status: **accepted base implementation contract** for issue #590, with a
-**proposed workload-support amendment** governed by
-`sdr-environmental-performance-v4`. The amendment may be implemented in a
-draft PR but cannot ship before human science approval.
+Status: **accepted implementation contract** for issue #590, including the
+workload-support amendment governed by `sdr-environmental-performance-v4`.
 
 ## Product purpose
 
@@ -16,7 +14,7 @@ The experiment is retrospective and descriptive. It is not a future-run
 forecast, personal physiological coefficient, performance correction,
 heat-adaptation score, training prescription, or heat-safety assessment.
 
-## Proposed first-user experience
+## First-user experience
 
 1. Explain the purpose, adult evidence boundary, required data, limitations,
    persistence, withdrawal, and deletion behavior before opt-in.
@@ -24,7 +22,7 @@ heat-adaptation score, training prescription, or heat-safety assessment.
 3. Compute from a complete owner-scoped snapshot using one verified
    same-provider, same-device/algorithm-era SAMPLE-derived power regime and
    heart-rate segments.
-4. Under the proposed `sdr-environmental-performance-v4` policy, calculate one
+4. Under the accepted `sdr-environmental-performance-v4` policy, calculate one
    personal comparable-power band from the chronological training partition:
    median eligible stable-segment `%CP` plus or minus 10 percentage points,
    clipped to the existing 65–95% CP model domain. Show fitted points only in
@@ -190,10 +188,9 @@ The governing records are:
 - `evidence-personal-environment-response-v1` — accepted;
 - `sdr-environmental-performance-v2` — accepted;
 - `sdr-environmental-performance-v3` — accepted;
-- `evidence-environmental-response-workload-support-v1` — draft;
-- `sdr-environmental-performance-v4` — draft, governing the proposed
-  personal workload-support amendment.
+- `evidence-environmental-response-workload-support-v1` — accepted;
+- `sdr-environmental-performance-v4` — accepted, governing the personal
+  workload-support amendment.
 
 `sdr-environmental-performance-v1` is superseded. The accepted records retain
-their recorded human approvals; the v4 amendment requires a new human
-acceptance before merge.
+their recorded human approvals.

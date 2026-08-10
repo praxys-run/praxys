@@ -19,6 +19,17 @@ from api.context_pilot import (
     run_context_pilot,
 )
 from api.auth import require_write_access
+from api.mcp_access import (
+    MCP_AUDIENCE,
+    McpAccessConflict,
+    McpAccessExpired,
+    McpAccessInvalid,
+    McpAccessNotFound,
+    access_names_from_scopes,
+    create_context_handoff,
+    lock_context_write,
+    revoke_access_token,
+)
 from api.personal_context import (
     ContextMutationResult,
     InspectedPersonalContext,
@@ -48,7 +59,9 @@ from api.personal_context_auth import (
     ContextActor,
     authorize_context,
     get_context_actor,
+    require_server_context_grant,
 )
+from api.personal_context_processing import project_structured_context_fields
 from api.views import require_admin, utc_isoformat
 from db.models import (
     PersonalContextConsentReceipt,
@@ -359,6 +372,95 @@ class ContextSelectionResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     items: list[ContextSelectionItem]
+
+
+class ScopedContextAccessRequest(BaseModel):
+    """One immutable MCP request for bounded structured context authority."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    audience: Literal["praxys-coach-plugin"]
+    purpose: ContextPurpose
+    kind: ContextKind
+    access: list[Literal["read", "write"]] = Field(
+        min_length=1,
+        max_length=2,
+    )
+
+
+class ScopedContextAccessHandoffResponse(BaseModel):
+    """Opaque approval state and separate MCP-held exchange proof."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    state: str
+    exchange_secret: str
+    authorize_path: str
+    expires_at: str
+
+
+class ScopedContextRevocationResponse(BaseModel):
+    """Immediate revocation result for one context capability."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["revoked"]
+
+
+class ScopedContextPayloadRequest(BaseModel):
+    """Structured-only payload; narrative is never accepted from MCP."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    category: ContextCategory
+    fields: dict[str, ContextFieldValue] = Field(
+        default_factory=dict,
+        max_length=20,
+    )
+
+
+class ScopedContextDraftRequest(BaseModel):
+    """A purpose-bound request-scoped draft that cannot persist itself."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: ContextKind
+    purpose: ContextPurpose
+    payload: ScopedContextPayloadRequest
+    linked_subject_type: ContextLinkedSubject | None = None
+    linked_subject_id: str | None = Field(default=None, min_length=1, max_length=120)
+    starts_at: datetime | None = None
+    expires_at: datetime | None = None
+    purge_after: datetime | None = None
+
+
+class ScopedContextProjectionItem(BaseModel):
+    """Minimum active structured projection returned to an MCP client."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: ContextKind
+    purpose: ContextPurpose
+    category: ContextCategory
+    fields: dict[str, ContextFieldValue]
+    starts_at: str
+    expires_at: str | None
+
+
+class ScopedContextProjectionResponse(BaseModel):
+    """Purpose-bound projection with no narrative or internal metadata."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[ScopedContextProjectionItem]
+
+
+class ScopedContextPreviewResponse(ContextPreviewResponse):
+    """Normalized structured draft plus fixed first-party handoff targets."""
+
+    payload: ScopedContextPayloadRequest
+    confirmation_path: Literal["/training#plan-context"]
+    miniapp_path: Literal["/pages/training/index"]
 
 
 class ContextExportItemResponse(BaseModel):
@@ -761,6 +863,32 @@ def _translate_pilot_error(
     raise HTTPException(422, detail="CONTEXT_PILOT_INVALID") from exc
 
 
+def _translate_mcp_access_error(
+    db: Session,
+    exc: McpAccessInvalid
+    | McpAccessNotFound
+    | McpAccessExpired
+    | McpAccessConflict,
+) -> None:
+    db.rollback()
+    if isinstance(exc, McpAccessConflict):
+        raise HTTPException(
+            409,
+            detail="PERSONAL_CONTEXT_GRANT_REPLAYED",
+        ) from exc
+    if isinstance(exc, McpAccessInvalid):
+        raise HTTPException(422, detail="PERSONAL_CONTEXT_INVALID") from exc
+    if isinstance(exc, McpAccessNotFound):
+        raise HTTPException(
+            404,
+            detail="PERSONAL_CONTEXT_GRANT_NOT_FOUND",
+        ) from exc
+    raise HTTPException(
+        401,
+        detail="PERSONAL_CONTEXT_GRANT_EXPIRED",
+    ) from exc
+
+
 def _metadata(
     db: Session,
     actor: ContextActor,
@@ -822,6 +950,205 @@ def _mutation_response(
     }
 
 
+@router.post(
+    "/scoped-access/requests",
+    status_code=201,
+    response_model=ScopedContextAccessHandoffResponse,
+)
+def request_scoped_personal_context_access(
+    body: ScopedContextAccessRequest,
+    response: Response,
+    actor: ContextActor = Depends(get_context_actor),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Create an immutable request that only first-party Praxys can approve."""
+    _private(response)
+    if (
+        actor.actor_type != "mcp"
+        or actor.credential_kind != "mcp_session"
+        or actor.audience != MCP_AUDIENCE
+    ):
+        raise HTTPException(403, detail="PERSONAL_CONTEXT_SCOPE_REQUIRED")
+    try:
+        created = create_context_handoff(
+            db,
+            user_id=actor.user_id,
+            actor_id=actor.actor_id,
+            audience=body.audience,
+            purpose=body.purpose,
+            kind=body.kind,
+            access=body.access,
+        )
+        db.commit()
+    except (
+        McpAccessInvalid,
+        McpAccessNotFound,
+        McpAccessExpired,
+        McpAccessConflict,
+    ) as exc:
+        _translate_mcp_access_error(db, exc)
+        raise
+    return {
+        "state": created.state,
+        "exchange_secret": created.exchange_secret,
+        "authorize_path": f"/mcp/authorize?state={created.state}",
+        "expires_at": _iso(created.handoff.expires_at),
+    }
+
+
+@router.post(
+    "/scoped-access/revoke",
+    response_model=ScopedContextRevocationResponse,
+)
+def revoke_scoped_personal_context_access(
+    response: Response,
+    actor: ContextActor = Depends(get_context_actor),
+    db: Session = Depends(get_db),
+) -> dict[str, Literal["revoked"]]:
+    """Immediately revoke the exact context token used for this request."""
+    _private(response)
+    available_scope = (
+        CONTEXT_SCOPE_READ
+        if CONTEXT_SCOPE_READ in actor.scopes
+        else CONTEXT_SCOPE_WRITE
+    )
+    require_server_context_grant(actor, available_scope)
+    try:
+        revoke_access_token(
+            db,
+            token_id=str(actor.grant_id),
+            user_id=actor.user_id,
+        )
+        db.commit()
+    except (
+        McpAccessNotFound,
+        McpAccessExpired,
+        McpAccessConflict,
+    ) as exc:
+        _translate_mcp_access_error(db, exc)
+        raise
+    return {"status": "revoked"}
+
+
+@router.get(
+    "/scoped/selection",
+    response_model=ScopedContextProjectionResponse,
+)
+def select_scoped_personal_context(
+    response: Response,
+    actor: ContextActor = Depends(get_context_actor),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Return only active, confirmed, structured fields for one grant."""
+    _private(response)
+    require_server_context_grant(actor, CONTEXT_SCOPE_READ)
+    if len(actor.purposes) != 1 or len(actor.kinds) != 1:
+        raise HTTPException(403, detail="PERSONAL_CONTEXT_SCOPE_REQUIRED")
+    purpose = next(iter(actor.purposes))
+    kind = next(iter(actor.kinds))
+    try:
+        entries = load_active_contexts(
+            db,
+            user_id=actor.user_id,
+            purpose=purpose,
+            kinds=[kind],
+            include_narrative=False,
+            require_purpose_confirmation=True,
+        )
+    except _CONTEXT_EXCEPTIONS as exc:
+        _translate_context_error(db, exc)
+        raise
+    return {
+        "items": [
+            {
+                "kind": entry.kind,
+                "purpose": entry.purpose,
+                "category": entry.category,
+                "fields": project_structured_context_fields(entry.fields),
+                "starts_at": _iso(entry.starts_at),
+                "expires_at": _iso(entry.expires_at),
+            }
+            for entry in entries
+        ]
+    }
+
+
+@router.post(
+    "/scoped/preview",
+    response_model=ScopedContextPreviewResponse,
+)
+def preview_scoped_personal_context(
+    body: ScopedContextDraftRequest,
+    response: Response,
+    actor: ContextActor = Depends(get_context_actor),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Validate one structured MCP draft and consume its write grant once."""
+    _private(response)
+    require_server_context_grant(actor, CONTEXT_SCOPE_WRITE)
+    authorize_context(
+        actor,
+        CONTEXT_SCOPE_WRITE,
+        purpose=body.purpose,
+        kind=body.kind,
+    )
+    projected_fields = project_structured_context_fields(body.payload.fields)
+    if len(projected_fields) != len(body.payload.fields):
+        raise HTTPException(422, detail="PERSONAL_CONTEXT_INVALID")
+    try:
+        grant = lock_context_write(
+            db,
+            token_id=str(actor.grant_id),
+            user_id=actor.user_id,
+        )
+        preview = preview_context_item(
+            db,
+            user_id=actor.user_id,
+            kind=body.kind,
+            purpose=body.purpose,
+            payload={
+                "category": body.payload.category,
+                "fields": projected_fields,
+            },
+            linked_subject_type=body.linked_subject_type,
+            linked_subject_id=body.linked_subject_id,
+            starts_at=body.starts_at,
+            expires_at=body.expires_at,
+            purge_after=body.purge_after,
+            narrative_purge_at=None,
+        )
+        grant.write_consumed_at = datetime.utcnow()
+        db.commit()
+    except (
+        McpAccessInvalid,
+        McpAccessNotFound,
+        McpAccessExpired,
+        McpAccessConflict,
+    ) as exc:
+        _translate_mcp_access_error(db, exc)
+        raise
+    except _CONTEXT_EXCEPTIONS as exc:
+        _translate_context_error(db, exc)
+        raise
+    return {
+        "kind": preview.kind,
+        "purpose": preview.purpose,
+        "payload": preview.payload,
+        "linked_subject_type": preview.linked_subject_type,
+        "linked_subject_id": preview.linked_subject_id,
+        "starts_at": _iso(preview.starts_at),
+        "expires_at": _iso(preview.expires_at),
+        "purge_after": _iso(preview.purge_after),
+        "narrative_purge_at": None,
+        "payload_schema_version": 1,
+        "processing_mode": "deterministic_only",
+        "confirmation_required": True,
+        "preview_actor_type": actor.actor_type,
+        "confirmation_path": "/training#plan-context",
+        "miniapp_path": "/pages/training/index",
+    }
+
+
 @router.post("/preview", response_model=ContextPreviewResponse)
 def preview_personal_context(
     body: ContextDraftRequest,
@@ -831,6 +1158,8 @@ def preview_personal_context(
 ) -> dict[str, Any]:
     """Validate a bounded draft without persisting private context."""
     _private(response)
+    if not actor.is_athlete:
+        raise HTTPException(403, detail="PERSONAL_CONTEXT_SCOPE_REQUIRED")
     authorize_context(
         actor,
         CONTEXT_SCOPE_WRITE,
@@ -938,6 +1267,8 @@ def list_personal_context(
 ) -> dict[str, Any]:
     """Inspect retained owner context, optionally including prior versions."""
     _private(response)
+    if not actor.is_athlete:
+        raise HTTPException(403, detail="PERSONAL_CONTEXT_SCOPE_REQUIRED")
     authorize_context(actor, CONTEXT_SCOPE_READ)
     if not actor.is_athlete and (purpose is None or kind is None):
         raise HTTPException(403, detail="PERSONAL_CONTEXT_SCOPE_REQUIRED")
@@ -1019,6 +1350,8 @@ def select_personal_context(
 ) -> dict[str, Any]:
     """Return one active selection while non-destructively excluding item IDs."""
     _private(response)
+    if not actor.is_athlete:
+        raise HTTPException(403, detail="PERSONAL_CONTEXT_SCOPE_REQUIRED")
     authorize_context(
         actor,
         CONTEXT_SCOPE_READ,
@@ -1228,6 +1561,8 @@ def get_personal_context(
 ) -> dict[str, Any]:
     """Inspect one retained owner context version without enumerating misses."""
     _private(response)
+    if not actor.is_athlete:
+        raise HTTPException(404, detail="PERSONAL_CONTEXT_NOT_FOUND")
     metadata = _metadata(db, actor, item_id, CONTEXT_SCOPE_READ)
     if include_narrative:
         authorize_context(

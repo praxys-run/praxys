@@ -2,11 +2,12 @@ schema_version: 1
 id: sdr-environmental-performance-v4
 version: 4
 title: "Center comparable-power support on each athlete's observed training workload"
-status: draft
+status: accepted
 decision_date: 2026-08-10
 owners:
   - team:praxys
-human_reviewers: []
+human_reviewers:
+  - github:dddtc2005
 model_version: environmental-performance-context-v4
 evidence_review_ids:
   - evidence-environmental-performance-v1
@@ -26,7 +27,7 @@ evidence_claim_ids:
   - personal-environment-response.threshold-relative-prescription
   - personal-environment-response.exact-cp-band-not-validated
 accepted_interpretation: >
-  If accepted, every scientific, privacy, safety, provider, prediction,
+  Every scientific, privacy, safety, provider, prediction,
   uncertainty, consent, partial-domain, and unsupported-gap boundary in
   sdr-environmental-performance-v3 remains in force. The fixed 75-85 percent
   Critical Power display-support band is replaced by one deterministic

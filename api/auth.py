@@ -4,6 +4,7 @@ Every request to a protected endpoint must include a valid Bearer token
 from the Authorization header. Tokens are issued by the /api/auth/login endpoint.
 """
 import logging
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Mapping
@@ -24,6 +25,31 @@ logger = logging.getLogger(__name__)
 # (api/app_config.activity_counts) fed without a per-request DB write.
 LAST_SEEN_THROTTLE = timedelta(minutes=15)
 
+# Existing Praxys Coach tools keep their established API authority after the
+# browser login switches from an account JWT to a revocable MCP session. The
+# allowlist is intentionally method and path specific: an MCP session is not
+# accepted by account, export, admin, or personal-context control routes.
+_MCP_SESSION_TOOL_ROUTES = frozenset({
+    ("GET", "/api/today"),
+    ("GET", "/api/training"),
+    ("GET", "/api/goal"),
+    ("GET", "/api/ai/context"),
+    ("GET", "/api/settings"),
+    ("PUT", "/api/settings"),
+    ("GET", "/api/settings/connections"),
+    ("POST", "/api/plan/upload"),
+    ("GET", "/api/plan"),
+    ("POST", "/api/plan/deliveries/cleanup"),
+    ("POST", "/api/plan/reconciliation/resolve"),
+    ("POST", "/api/insights"),
+    ("POST", "/api/sync"),
+    ("GET", "/api/sync/status"),
+})
+_MCP_CONNECTION_PATH = re.compile(
+    r"^/api/settings/connections/[^/]+$"
+)
+_MCP_PLAN_DAY_PATH = re.compile(r"^/api/plan/\d{4}-\d{2}-\d{2}$")
+
 
 @dataclass(frozen=True)
 class AuthenticatedIdentity:
@@ -33,6 +59,7 @@ class AuthenticatedIdentity:
     user: "User"
     claims: Mapping[str, Any]
     is_demo: bool
+    credential_kind: str
 
 
 def _touch_last_seen(db: Session, user: "User") -> None:
@@ -56,12 +83,46 @@ def get_authenticated_identity(
     request: Request,
     db: Session,
 ) -> AuthenticatedIdentity:
-    """Validate the bearer token and return its user plus signed claims."""
+    """Validate a first-party JWT or server-authoritative MCP bearer."""
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
         raise HTTPException(401, "Not authenticated")
 
     token = auth_header.split(" ", 1)[1]
+    from api.mcp_access import (
+        MCP_CONTEXT_PREFIX,
+        MCP_SESSION_PREFIX,
+        McpAccessError,
+        authenticate_access_token,
+        token_claims,
+    )
+
+    if token.startswith((MCP_SESSION_PREFIX, MCP_CONTEXT_PREFIX)):
+        try:
+            access = authenticate_access_token(db, raw_token=token)
+        except McpAccessError as exc:
+            raise HTTPException(401, "Invalid or expired token") from exc
+        if (
+            access.token_type == "context"
+            and not request.url.path.startswith("/api/personal-context/")
+        ):
+            raise HTTPException(403, "Context token cannot access this route")
+        from db.models import User
+
+        user = db.query(User).filter(User.id == access.user_id).first()
+        if user is None:
+            raise HTTPException(401, "User not found")
+        return AuthenticatedIdentity(
+            user_id=access.user_id,
+            user=user,
+            claims=token_claims(access),
+            is_demo=bool(user.is_demo),
+            credential_kind=(
+                "mcp_session"
+                if access.token_type == "session"
+                else "context_grant"
+            ),
+        )
 
     import jwt
     try:
@@ -82,6 +143,7 @@ def get_authenticated_identity(
             user=user,
             claims=payload,
             is_demo=bool(user.is_demo),
+            credential_kind="first_party_jwt",
         )
     except jwt.ExpiredSignatureError:
         raise HTTPException(401, "Token expired")
@@ -90,9 +152,47 @@ def get_authenticated_identity(
 
 
 def _get_token_user(request: Request, db: Session) -> tuple[str, "User"]:
-    """Validate the bearer token and return its current database user."""
+    """Validate a first-party bearer and return its current database user."""
     identity = get_authenticated_identity(request, db)
+    _require_first_party(identity)
     return identity.user_id, identity.user
+
+
+def _require_first_party(identity: AuthenticatedIdentity) -> None:
+    """Keep MCP capabilities out of ordinary account and data endpoints."""
+    if identity.credential_kind != "first_party_jwt":
+        raise HTTPException(403, "First-party authentication required")
+
+
+def _require_data_access(
+    identity: AuthenticatedIdentity,
+    request: Request,
+) -> None:
+    """Allow first-party JWTs or one explicit established plugin tool route."""
+    if identity.credential_kind == "first_party_jwt":
+        return
+    scopes = identity.claims.get("scope")
+    method = request.method.upper()
+    path = request.url.path
+    allowlisted = (
+        (method, path) in _MCP_SESSION_TOOL_ROUTES
+        or (
+            method in {"POST", "DELETE"}
+            and _MCP_CONNECTION_PATH.fullmatch(path) is not None
+        )
+        or (
+            method in {"PUT", "DELETE"}
+            and _MCP_PLAN_DAY_PATH.fullmatch(path) is not None
+        )
+    )
+    if (
+        identity.credential_kind == "mcp_session"
+        and isinstance(scopes, (list, tuple, set, frozenset))
+        and "plugin:tools" in scopes
+        and allowlisted
+    ):
+        return
+    raise HTTPException(403, "First-party authentication required")
 
 
 def get_active_identity(
@@ -111,8 +211,10 @@ def get_active_identity(
 
 
 def get_current_user_id(request: Request, db: Session = Depends(get_db)) -> str:
-    """Get the active user ID from the JWT bearer token."""
-    return get_active_identity(request, db).user_id
+    """Get the active owner for a first-party or allowlisted MCP tool call."""
+    identity = get_active_identity(request, db)
+    _require_data_access(identity, request)
+    return identity.user_id
 
 
 def require_account_deletion_access(

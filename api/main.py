@@ -235,6 +235,11 @@ app.include_router(register_router, prefix="/api/auth", tags=["auth"])
 from api.routes.waitlist import waitlist_router
 app.include_router(waitlist_router, prefix="/api/auth", tags=["auth"])
 
+# Browser-approved MCP login and scoped-token handoffs. These endpoints use
+# opaque one-time state; account JWTs never travel through plugin deep links.
+from api.routes.mcp_auth import router as mcp_auth_router
+app.include_router(mcp_auth_router, prefix="/api")
+
 # WeChat Mini Program auth (login / link / register)
 from api.routes.wechat import router as wechat_auth_router
 app.include_router(wechat_auth_router, prefix="/api")

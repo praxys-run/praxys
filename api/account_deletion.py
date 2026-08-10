@@ -30,6 +30,8 @@ from db.models import (
     LabsDeletionTombstone,
     LabsExperimentEnrollment,
     LabsExperimentResult,
+    McpAccessHandoff,
+    McpAccessToken,
     PlanDelivery,
     PlanDeliveryAttempt,
     PlanRevision,
@@ -169,6 +171,8 @@ def _delete_user_owned_rows(db: Session, user_id: str) -> None:
         ).delete(synchronize_session=False)
 
     for model in (
+        McpAccessToken,
+        McpAccessHandoff,
         PersonalContextUseReceipt,
         PersonalContextConsentReceipt,
         PersonalContextItem,

@@ -339,23 +339,23 @@ msgstr "<0>{days}</0> days to race day. Today's prediction is <1>{predicted}</1>
 msgid "<0>{days}</0> days to race day. Today's prediction is <1>{predicted}</1>."
 msgstr "<0>{days}</0> days to race day. Today's prediction is <1>{predicted}</1>."
 
-#: src/pages/Login.tsx:532
+#: src/pages/Login.tsx:522
 msgid "<0>Almost there.</0> We sent a verification link to your email. Click it to activate your account, then sign in."
 msgstr "<0>Almost there.</0> We sent a verification link to your email. Click it to activate your account, then sign in."
 
-#: src/pages/Login.tsx:274
+#: src/pages/Login.tsx:271
 msgid "<0>Cited science.</0> No hype."
 msgstr "<0>Cited science.</0> No hype."
 
-#: src/pages/Login.tsx:266
+#: src/pages/Login.tsx:263
 msgid "<0>Diagnosis & forecast</0> you can verify."
 msgstr "<0>Diagnosis & forecast</0> you can verify."
 
-#: src/pages/Login.tsx:258
+#: src/pages/Login.tsx:255
 msgid "<0>Today's signal</0> · go, modify, or rest."
 msgstr "<0>Today's signal</0> · go, modify, or rest."
 
-#: src/pages/Login.tsx:503
+#: src/pages/Login.tsx:493
 msgid "<0>You're on the list.</0> We'll reach out from <1>{SUPPORT_EMAIL}</1> when a slot opens."
 msgstr "<0>You're on the list.</0> We'll reach out from <1>{SUPPORT_EMAIL}</1> when a slot opens."
 
@@ -546,9 +546,21 @@ msgstr "Above reference band"
 #~ msgid "Absorbing training while maintaining fitness."
 #~ msgstr "Absorbing training while maintaining fitness."
 
+#: src/pages/McpAuthorization.tsx:232
+msgid "Access"
+msgstr "Access"
+
+#: src/pages/McpAuthorization.tsx:272
+msgid "Access approved"
+msgstr "Access approved"
+
 #: src/pages/admin/AdminOps.tsx:399
 msgid "Access blocked"
 msgstr "Access blocked"
+
+#: src/pages/McpAuthorization.tsx:273
+msgid "Access denied"
+msgstr "Access denied"
 
 #: src/components/HeatAdaptationPanel.tsx:115
 #~ msgid "Acclimatization to similar conditions may be developing, but the evidence is still limited."
@@ -853,12 +865,16 @@ msgstr "All Systems Operational"
 msgid "Allow for this item"
 msgstr "Allow for this item"
 
+#: src/pages/McpAuthorization.tsx:160
+msgid "Allow structured plan context?"
+msgstr "Allow structured plan context?"
+
 #: src/components/PersonalContextPanel.tsx:1357
 msgid "Allowed for this item"
 msgstr "Allowed for this item"
 
-#: src/pages/Login.tsx:486
-#: src/pages/Login.tsx:511
+#: src/pages/Login.tsx:476
+#: src/pages/Login.tsx:501
 msgid "Already have an invitation code?"
 msgstr "Already have an invitation code?"
 
@@ -874,7 +890,7 @@ msgstr "An earlier automatic change was superseded"
 msgid "An external planner overlaps the Praxys plan. Use one planner at a time to avoid duplicate or conflicting sessions."
 msgstr "An external planner overlaps the Praxys plan. Use one planner at a time to avoid duplicate or conflicting sessions."
 
-#: src/pages/Login.tsx:124
+#: src/pages/Login.tsx:130
 msgid "An unexpected error occurred."
 msgstr "An unexpected error occurred."
 
@@ -923,6 +939,10 @@ msgstr "Applying…"
 msgid "Approve & file"
 msgstr "Approve & file"
 
+#: src/pages/McpAuthorization.tsx:311
+msgid "Approve access"
+msgstr "Approve access"
+
 #: src/pages/Settings.tsx:1133
 msgid "Asia/CN"
 msgstr "Asia/CN"
@@ -957,9 +977,13 @@ msgstr "attempts"
 msgid "Attempts {0}"
 msgstr "Attempts {0}"
 
-#: src/pages/Login.tsx:330
+#: src/pages/Login.tsx:320
 msgid "Authentication mode"
 msgstr "Authentication mode"
+
+#: src/pages/McpAuthorization.tsx:193
+msgid "Authorization link unavailable"
+msgstr "Authorization link unavailable"
 
 #: src/pages/Setup.tsx:204
 msgid "Authorize Praxys with Strava in your browser. Praxys only syncs activities from Strava."
@@ -1093,7 +1117,7 @@ msgstr "Back"
 msgid "Back to Praxys"
 msgstr "Back to Praxys"
 
-#: src/pages/Login.tsx:544
+#: src/pages/Login.tsx:534
 #: src/pages/Verify.tsx:70
 msgid "Back to sign in"
 msgstr "Back to sign in"
@@ -1446,6 +1470,10 @@ msgstr "Click to copy"
 #~ msgid "click to retry"
 #~ msgstr "click to retry"
 
+#: src/pages/McpAuthorization.tsx:212
+msgid "Client"
+msgstr "Client"
+
 #: src/components/FeedbackDialog.tsx:203
 #: src/components/MetricDetailSheet.tsx:65
 msgid "Close"
@@ -1615,6 +1643,10 @@ msgstr "Connect a platform first"
 msgid "Connect an activity platform above to choose where workouts are delivered."
 msgstr "Connect an activity platform above to choose where workouts are delivered."
 
+#: src/pages/McpAuthorization.tsx:161
+msgid "Connect Praxys Coach?"
+msgstr "Connect Praxys Coach?"
+
 #: src/components/ManagedPlanSettingsCard.tsx:443
 #~ msgid "Connect Stryd above before adopting managed delivery."
 #~ msgstr "Connect Stryd above before adopting managed delivery."
@@ -1652,6 +1684,10 @@ msgstr "Context and dependent private traces deleted."
 #: src/components/PersonalContextPanel.tsx:545
 msgid "Context excluded from future assessments."
 msgstr "Context excluded from future assessments."
+
+#: src/pages/McpAuthorization.tsx:226
+msgid "Context type"
+msgstr "Context type"
 
 #: src/components/PersonalContextPanel.tsx:1405
 msgid "Context use"
@@ -1826,7 +1862,7 @@ msgstr "Could not save this correction."
 msgid "Could not save this private context."
 msgstr "Could not save this private context."
 
-#: src/pages/Login.tsx:182
+#: src/pages/Login.tsx:179
 msgid "Could not save your email. Please email us instead."
 msgstr "Could not save your email. Please email us instead."
 
@@ -1929,12 +1965,12 @@ msgstr "CP Trend"
 msgid "Create"
 msgstr "Create"
 
-#: src/pages/Login.tsx:348
-#: src/pages/Login.tsx:649
+#: src/pages/Login.tsx:338
+#: src/pages/Login.tsx:639
 msgid "Create account"
 msgstr "Create account"
 
-#: src/pages/Login.tsx:424
+#: src/pages/Login.tsx:414
 msgid "Create an account"
 msgstr "Create an account"
 
@@ -1946,7 +1982,7 @@ msgstr "Create and manage dismissible banners shown to all users."
 msgid "Create service incident"
 msgstr "Create service incident"
 
-#: src/pages/Login.tsx:322
+#: src/pages/Login.tsx:312
 msgid "Create your account."
 msgstr "Create your account."
 
@@ -1958,7 +1994,7 @@ msgstr "Created"
 #~ msgid "Creating account..."
 #~ msgstr "Creating account..."
 
-#: src/pages/Login.tsx:649
+#: src/pages/Login.tsx:639
 msgid "Creating account…"
 msgstr "Creating account…"
 
@@ -2072,7 +2108,7 @@ msgstr "daily score"
 msgid "Dark"
 msgstr "Dark"
 
-#: src/pages/Login.tsx:703
+#: src/pages/Login.tsx:693
 msgid "Dark theme (click for system)"
 msgstr "Dark theme (click for system)"
 
@@ -2318,6 +2354,10 @@ msgstr "Demote"
 msgid "Demote to User"
 msgstr "Demote to User"
 
+#: src/pages/McpAuthorization.tsx:303
+msgid "Deny"
+msgstr "Deny"
+
 #: src/components/HeatAdaptationPanel.tsx:447
 msgid "Detailed activity evidence is unavailable for this day."
 msgstr "Detailed activity evidence is unavailable for this day."
@@ -2348,7 +2388,7 @@ msgstr "Diagnosis"
 msgid "Did today's brief affect your training decision?"
 msgstr "Did today's brief affect your training decision?"
 
-#: src/pages/Login.tsx:403
+#: src/pages/Login.tsx:393
 msgid "Didn't get the email?"
 msgstr "Didn't get the email?"
 
@@ -2407,7 +2447,7 @@ msgstr "Dismiss"
 #~ msgid "Dismissible banners shown to all users"
 #~ msgstr "Dismissible banners shown to all users"
 
-#: src/pages/Login.tsx:675
+#: src/pages/Login.tsx:665
 msgid "Display preferences"
 msgstr "Display preferences"
 
@@ -2464,6 +2504,10 @@ msgstr "Done"
 msgid "Download a JSON copy of your activities, recovery, fitness, plans, and settings. Platform credentials are never included."
 msgstr "Download a JSON copy of your activities, recovery, fitness, plans, and settings. Platform credentials are never included."
 
+#: src/pages/McpAuthorization.tsx:237
+msgid "Draft one change for your review"
+msgstr "Draft one change for your review"
+
 #: src/pages/Settings.tsx:1457
 msgid "Drive your zone calculations and training load. Values come from connected sources; pick which source to use when you have more than one."
 msgstr "Drive your zone calculations and training load. Values come from connected sources; pick which source to use when you have more than one."
@@ -2475,6 +2519,10 @@ msgstr "Drop intensity by one zone"
 #: src/pages/Today.tsx:295
 msgid "Drop to easy run (keep power in recovery zone)"
 msgstr "Drop to easy run (keep power in recovery zone)"
+
+#: src/pages/McpAuthorization.tsx:54
+msgid "Durable preference"
+msgstr "Durable preference"
 
 #: src/components/ActivityCard.tsx:87
 #: src/components/SplitBreakdown.tsx:48
@@ -2628,14 +2676,14 @@ msgstr "Elliptical"
 #: src/pages/admin/AdminUsers.tsx:577
 #: src/pages/admin/AdminUsers.tsx:870
 #: src/pages/admin/AdminUsers.tsx:979
-#: src/pages/Login.tsx:361
-#: src/pages/Login.tsx:449
-#: src/pages/Login.tsx:558
+#: src/pages/Login.tsx:351
+#: src/pages/Login.tsx:439
+#: src/pages/Login.tsx:548
 #: src/pages/Setup.tsx:212
 msgid "Email"
 msgstr "Email"
 
-#: src/pages/Login.tsx:98
+#: src/pages/Login.tsx:104
 msgid "Email and password are required."
 msgstr "Email and password are required."
 
@@ -2647,7 +2695,7 @@ msgstr "Email and password are required."
 msgid "Email is not configured. Open sign-ups will not be email-verified, and invitation codes can't be emailed automatically. Copy them manually until SMTP is configured."
 msgstr "Email is not configured. Open sign-ups will not be email-verified, and invitation codes can't be emailed automatically. Copy them manually until SMTP is configured."
 
-#: src/pages/Login.tsx:151
+#: src/pages/Login.tsx:148
 msgid "Email is required."
 msgstr "Email is required."
 
@@ -3202,7 +3250,7 @@ msgstr "Generate a token at cloud.ouraring.com/personal-access-tokens."
 msgid "Generating…"
 msgstr "Generating…"
 
-#: src/pages/Login.tsx:316
+#: src/pages/Login.tsx:306
 msgid "Get access"
 msgstr "Get access"
 
@@ -3264,7 +3312,7 @@ msgstr "Half"
 msgid "Half Marathon"
 msgstr "Half Marathon"
 
-#: src/pages/Login.tsx:612
+#: src/pages/Login.tsx:602
 msgid "Have an invitation code?"
 msgstr "Have an invitation code?"
 
@@ -3549,7 +3597,7 @@ msgstr "HRV variability is high (CV {cv}%), above the selected coaching caution 
 msgid "Humidity (%)"
 msgstr "Humidity (%)"
 
-#: src/pages/Login.tsx:638
+#: src/pages/Login.tsx:628
 msgid "I agree to the <0>Terms of Service</0> and <1>Privacy Policy</1>."
 msgstr "I agree to the <0>Terms of Service</0> and <1>Privacy Policy</1>."
 
@@ -3681,6 +3729,10 @@ msgstr "International"
 msgid "Interpret one missed or modified workout without diagnosing a cause."
 msgstr "Interpret one missed or modified workout without diagnosing a cause."
 
+#: src/pages/McpAuthorization.tsx:32
+msgid "Interpret one workout without guessing a cause"
+msgstr "Interpret one workout without guessing a cause"
+
 #: src/components/PersonalContextPanel.tsx:1154
 msgid "Interpret this workout without guessing a cause"
 msgstr "Interpret this workout without guessing a cause"
@@ -3698,7 +3750,7 @@ msgstr "Invalid time format. Use H:MM:SS or H:MM"
 msgid "Investigating"
 msgstr "Investigating"
 
-#: src/pages/Login.tsx:592
+#: src/pages/Login.tsx:582
 msgid "Invitation code"
 msgstr "Invitation code"
 
@@ -3706,7 +3758,7 @@ msgstr "Invitation code"
 #~ msgid "Invitation Code"
 #~ msgstr "Invitation Code"
 
-#: src/pages/Login.tsx:592
+#: src/pages/Login.tsx:582
 msgid "Invitation code (optional)"
 msgstr "Invitation code (optional)"
 
@@ -3753,9 +3805,9 @@ msgstr "It stays in your private history until its purge date, but cannot influe
 msgid "Join and analyze my history"
 msgstr "Join and analyze my history"
 
-#: src/pages/Login.tsx:435
-#: src/pages/Login.tsx:482
-#: src/pages/Login.tsx:659
+#: src/pages/Login.tsx:425
+#: src/pages/Login.tsx:472
+#: src/pages/Login.tsx:649
 msgid "Join the waitlist"
 msgstr "Join the waitlist"
 
@@ -3846,7 +3898,7 @@ msgstr "Labs action failed"
 msgid "Labs could not load"
 msgstr "Labs could not load"
 
-#: src/App.tsx:99
+#: src/App.tsx:100
 msgid "Labs page update required"
 msgstr "Labs page update required"
 
@@ -3958,7 +4010,7 @@ msgstr "Life constraint"
 msgid "Light"
 msgstr "Light"
 
-#: src/pages/Login.tsx:701
+#: src/pages/Login.tsx:691
 msgid "Light theme (click for dark)"
 msgstr "Light theme (click for dark)"
 
@@ -4506,7 +4558,7 @@ msgstr "Need 2 weeks of synced activity to compare planned vs actual. {daysToCom
 msgid "Need at least 3 activities with power data."
 msgstr "Need at least 3 activities with power data."
 
-#: src/pages/Login.tsx:669
+#: src/pages/Login.tsx:659
 msgid "Need help? {SUPPORT_EMAIL}"
 msgstr "Need help? {SUPPORT_EMAIL}"
 
@@ -4580,7 +4632,7 @@ msgstr "Network error — please try again."
 msgid "Network error. Is the server running?"
 msgstr "Network error. Is the server running?"
 
-#: src/pages/Login.tsx:188
+#: src/pages/Login.tsx:185
 msgid "Network error. Please email {SUPPORT_EMAIL} directly."
 msgstr "Network error. Please email {SUPPORT_EMAIL} directly."
 
@@ -4610,7 +4662,7 @@ msgstr "New incident"
 msgid "New invitation code:"
 msgstr "New invitation code:"
 
-#: src/pages/Login.tsx:418
+#: src/pages/Login.tsx:408
 msgid "New to Praxys?"
 msgstr "New to Praxys?"
 
@@ -4633,6 +4685,10 @@ msgstr "Next sync"
 #: src/components/HeatAdaptationPanel.tsx:70
 #~ msgid "Nielsen dry-heat acclimation study"
 #~ msgstr "Nielsen dry-heat acclimation study"
+
+#: src/pages/McpAuthorization.tsx:284
+msgid "No access was granted. You can close this tab and return to the plugin."
+msgstr "No access was granted. You can close this tab and return to the plugin."
 
 #: src/pages/admin/AdminOps.tsx:808
 msgid "No active service incidents"
@@ -4678,7 +4734,7 @@ msgstr "No change class is promoted. Decisions and outcomes are being recorded w
 msgid "No Coach votes were recorded in this window."
 msgstr "No Coach votes were recorded in this window."
 
-#: src/pages/Login.tsx:653
+#: src/pages/Login.tsx:643
 msgid "No code yet?"
 msgstr "No code yet?"
 
@@ -5025,6 +5081,11 @@ msgstr "Not established"
 msgid "Not helpful"
 msgstr "Not helpful"
 
+#: src/pages/McpAuthorization.tsx:43
+#: src/pages/McpAuthorization.tsx:56
+msgid "Not requested"
+msgstr "Not requested"
+
 #: src/pages/Settings.tsx:1490
 msgid "Not set"
 msgstr "Not set"
@@ -5049,7 +5110,7 @@ msgstr "Note on Garmin native power"
 msgid "Nothing is stored until you confirm this exact purpose and expiry."
 msgstr "Nothing is stored until you confirm this exact purpose and expiry."
 
-#: src/pages/Login.tsx:209
+#: src/pages/Login.tsx:206
 msgid "Now open · Create your account"
 msgstr "Now open · Create your account"
 
@@ -5350,8 +5411,8 @@ msgid "Passed research diagnostics; not a forecast"
 msgstr "Passed research diagnostics; not a forecast"
 
 #: src/pages/admin/AdminUsers.tsx:991
-#: src/pages/Login.tsx:378
-#: src/pages/Login.tsx:575
+#: src/pages/Login.tsx:368
+#: src/pages/Login.tsx:565
 #: src/pages/Setup.tsx:213
 msgid "Password"
 msgstr "Password"
@@ -5473,11 +5534,11 @@ msgstr "Platform health"
 msgid "Platform telemetry is unavailable."
 msgstr "Platform telemetry is unavailable."
 
-#: src/pages/Login.tsx:174
+#: src/pages/Login.tsx:171
 msgid "Please check your email format and try again."
 msgstr "Please check your email format and try again."
 
-#: src/pages/Login.tsx:117
+#: src/pages/Login.tsx:123
 msgid "Please verify your email before signing in. Check your inbox for the link."
 msgstr "Please verify your email before signing in. Check your inbox for the link."
 
@@ -5614,6 +5675,10 @@ msgstr "Praxys Coach"
 msgid "Praxys Coach insight"
 msgstr "Praxys Coach insight"
 
+#: src/pages/McpAuthorization.tsx:214
+msgid "Praxys Coach plugin"
+msgstr "Praxys Coach plugin"
+
 #: src/components/ManagedPlanSettingsCard.tsx:418
 msgid "Praxys could not determine your time zone. Check your device settings and try again."
 msgstr "Praxys could not determine your time zone. Check your device settings and try again."
@@ -5622,7 +5687,7 @@ msgstr "Praxys could not determine your time zone. Check your device settings an
 msgid "Praxys could not finish delivery. Retrying keeps the Praxys version canonical."
 msgstr "Praxys could not finish delivery. Retrying keeps the Praxys version canonical."
 
-#: src/App.tsx:102
+#: src/App.tsx:103
 msgid "Praxys could not finish loading this page after an app update. Reload once to use the current version."
 msgstr "Praxys could not finish loading this page after an app update. Reload once to use the current version."
 
@@ -5662,7 +5727,7 @@ msgstr "Praxys is experiencing a partial service outage."
 msgid "Praxys is experiencing degraded performance."
 msgstr "Praxys is experiencing degraded performance."
 
-#: src/pages/Login.tsx:323
+#: src/pages/Login.tsx:313
 msgid "Praxys is in private alpha."
 msgstr "Praxys is in private alpha."
 
@@ -5763,7 +5828,7 @@ msgstr "Predicted using Stryd race power model (5K at 103.8% CP, marathon at 89.
 msgid "Prefer not to say"
 msgstr "Prefer not to say"
 
-#: src/pages/Login.tsx:653
+#: src/pages/Login.tsx:643
 msgid "Prefer to wait?"
 msgstr "Prefer to wait?"
 
@@ -5813,7 +5878,7 @@ msgstr "Priority is excluded from readiness evaluation."
 msgid "Privacy Policy"
 msgstr "Privacy Policy"
 
-#: src/pages/Login.tsx:210
+#: src/pages/Login.tsx:207
 msgid "Private alpha · Invitation only"
 msgstr "Private alpha · Invitation only"
 
@@ -5937,6 +6002,7 @@ msgstr "Pull your latest activities, power data, and recovery metrics"
 #: src/components/PersonalContextPanel.tsx:1150
 #: src/components/PersonalContextPanel.tsx:1337
 #: src/components/PersonalContextPanel.tsx:1597
+#: src/pages/McpAuthorization.tsx:220
 msgid "Purpose"
 msgstr "Purpose"
 
@@ -6073,6 +6139,18 @@ msgstr "Reacclimating"
 #: src/components/HeatAdaptationPanel.tsx:104
 #~ msgid "Reacclimatization to similar conditions may be developing."
 #~ msgstr "Reacclimatization to similar conditions may be developing."
+
+#: src/pages/McpAuthorization.tsx:256
+msgid "Read access returns only the minimum structured projection. Write access creates one request-scoped preview; saving still requires confirmation in Praxys. Optional notes and AI permission are never included."
+msgstr "Read access returns only the minimum structured projection. Write access creates one request-scoped preview; saving still requires confirmation in Praxys. Optional notes and AI permission are never included."
+
+#: src/pages/McpAuthorization.tsx:238
+msgid "Read structured fields"
+msgstr "Read structured fields"
+
+#: src/pages/McpAuthorization.tsx:235
+msgid "Read structured fields and draft one change"
+msgstr "Read structured fields and draft one change"
 
 #: src/components/HeatAdaptationPanel.tsx:683
 msgid "Read the active heat model"
@@ -6530,7 +6608,7 @@ msgstr "Relative modeled HR"
 msgid "Relative modeled HR (bpm)"
 msgstr "Relative modeled HR (bpm)"
 
-#: src/App.tsx:111
+#: src/App.tsx:112
 msgid "Reload Labs"
 msgstr "Reload Labs"
 
@@ -6594,7 +6672,7 @@ msgstr "Report"
 msgid "Reported value rate"
 msgstr "Reported value rate"
 
-#: src/pages/Login.tsx:424
+#: src/pages/Login.tsx:414
 msgid "Request an invite"
 msgstr "Request an invite"
 
@@ -6602,11 +6680,15 @@ msgstr "Request an invite"
 msgid "Request and availability telemetry is unavailable."
 msgstr "Request and availability telemetry is unavailable."
 
+#: src/pages/McpAuthorization.tsx:244
+msgid "Request expires"
+msgstr "Request expires"
+
 #: src/pages/LabsEnvironment.tsx:1051
 msgid "Request failed. Try again."
 msgstr "Request failed. Try again."
 
-#: src/pages/Login.tsx:348
+#: src/pages/Login.tsx:338
 msgid "Request invite"
 msgstr "Request invite"
 
@@ -6614,7 +6696,7 @@ msgstr "Request invite"
 msgid "Request p95"
 msgstr "Request p95"
 
-#: src/pages/Login.tsx:410
+#: src/pages/Login.tsx:400
 msgid "Resend verification email"
 msgstr "Resend verification email"
 
@@ -6714,6 +6796,7 @@ msgstr "Resume managed delivery?"
 #: src/pages/Labs.tsx:56
 #: src/pages/LabsEnvironment.tsx:372
 #: src/pages/LabsEnvironment.tsx:1092
+#: src/pages/McpAuthorization.tsx:202
 #: src/pages/Settings.tsx:335
 #: src/pages/Today.tsx:352
 #: src/pages/Today.tsx:511
@@ -6772,6 +6855,10 @@ msgstr "Retry workout action"
 msgid "Retrying"
 msgstr "Retrying"
 
+#: src/pages/McpAuthorization.tsx:278
+msgid "Return to the plugin to finish the one-time exchange. You can close this tab."
+msgstr "Return to the plugin to finish the one-time exchange. You can close this tab."
+
 #: src/components/PersonalContextPanel.tsx:1519
 msgid "Review AI access"
 msgstr "Review AI access"
@@ -6812,6 +6899,10 @@ msgstr "Review delivery queue"
 #~ msgid "Review heat history"
 #~ msgstr "Review heat history"
 
+#: src/pages/McpAuthorization.tsx:41
+msgid "Review plan outcomes"
+msgstr "Review plan outcomes"
+
 #: src/components/PersonalContextPanel.tsx:1286
 msgid "Review purpose and expiry"
 msgstr "Review purpose and expiry"
@@ -6825,6 +6916,14 @@ msgstr "Review reports, manage screenshots, and sync linked GitHub issues."
 #: src/pages/admin/AdminOps.tsx:1518
 msgid "Review required"
 msgstr "Review required"
+
+#: src/pages/McpAuthorization.tsx:38
+msgid "Review the current goal"
+msgstr "Review the current goal"
+
+#: src/pages/McpAuthorization.tsx:166
+msgid "Review the exact purpose and access below. The plugin cannot approve this request, read private notes, grant AI consent, or save context on its own."
+msgstr "Review the exact purpose and access below. The plugin cannot approve this request, read private notes, grant AI consent, or save context on its own."
 
 #: src/components/ManagedPlanSettingsCard.tsx:1052
 #~ msgid "Review what Praxys can safely send before granting access for this Garmin connection."
@@ -6987,6 +7086,10 @@ msgstr "Saved without guessing a reason. The cause remains unknown."
 msgid "Saving confirms this one purpose. It does not authorize a new purpose, AI processing, analytics, or model training."
 msgstr "Saving confirms this one purpose. It does not authorize a new purpose, AI processing, analytics, or model training."
 
+#: src/pages/McpAuthorization.tsx:311
+msgid "Saving decision…"
+msgstr "Saving decision…"
+
 #: src/components/ManagedPlanSettingsCard.tsx:752
 msgid "Saving target…"
 msgstr "Saving target…"
@@ -7000,7 +7103,7 @@ msgid "Saving..."
 msgstr "Saving..."
 
 #: src/components/WorkoutPlanEditor.tsx:517
-#: src/pages/Login.tsx:482
+#: src/pages/Login.tsx:472
 msgid "Saving…"
 msgstr "Saving…"
 
@@ -7090,7 +7193,7 @@ msgstr "Sending..."
 
 #: src/components/FeedbackDialog.tsx:317
 #: src/pages/admin/AdminUsers.tsx:939
-#: src/pages/Login.tsx:410
+#: src/pages/Login.tsx:400
 msgid "Sending…"
 msgstr "Sending…"
 
@@ -7124,7 +7227,7 @@ msgstr "Service performance degraded"
 
 #: src/components/StatusIndicator.tsx:31
 #: src/components/StatusIndicator.tsx:39
-#: src/pages/Login.tsx:672
+#: src/pages/Login.tsx:662
 msgid "Service status"
 msgstr "Service status"
 
@@ -7258,21 +7361,21 @@ msgstr "Showing the last available data."
 msgid "Showing yesterday's snapshot. Last reading {dataAsOfLabel}."
 msgstr "Showing yesterday's snapshot. Last reading {dataAsOfLabel}."
 
-#: src/pages/Login.tsx:315
-#: src/pages/Login.tsx:339
-#: src/pages/Login.tsx:394
+#: src/pages/Login.tsx:305
+#: src/pages/Login.tsx:329
+#: src/pages/Login.tsx:384
 msgid "Sign in"
 msgstr "Sign in"
 
 #: src/pages/Login.tsx:308
-msgid "Sign in to connect your CLI plugin."
-msgstr "Sign in to connect your CLI plugin."
+#~ msgid "Sign in to connect your CLI plugin."
+#~ msgstr "Sign in to connect your CLI plugin."
 
 #: src/pages/Login.tsx:113
 #~ msgid "Signing in..."
 #~ msgstr "Signing in..."
 
-#: src/pages/Login.tsx:394
+#: src/pages/Login.tsx:384
 msgid "Signing in…"
 msgstr "Signing in…"
 
@@ -7353,7 +7456,7 @@ msgstr "Source"
 msgid "Split-weighted weather"
 msgstr "Split-weighted weather"
 
-#: src/pages/Login.tsx:249
+#: src/pages/Login.tsx:246
 msgid "Sports science that <0>meets you</0> where you are."
 msgstr "Sports science that <0>meets you</0> where you are."
 
@@ -7475,7 +7578,7 @@ msgstr "Stull psychrometric wet-bulb proxy (°C)"
 #~ msgid "Stull wet-bulb approximation"
 #~ msgstr "Stull wet-bulb approximation"
 
-#: src/pages/Login.tsx:472
+#: src/pages/Login.tsx:462
 msgid "Sub-3 marathon · 100K · stay healthy…"
 msgstr "Sub-3 marathon · 100K · stay healthy…"
 
@@ -7493,6 +7596,7 @@ msgid "Suggest a bounded adjustment to the current plan."
 msgstr "Suggest a bounded adjustment to the current plan."
 
 #: src/components/PersonalContextPanel.tsx:1153
+#: src/pages/McpAuthorization.tsx:29
 msgid "Suggest adjustments to the current plan"
 msgstr "Suggest adjustments to the current plan"
 
@@ -7527,8 +7631,8 @@ msgstr "Swap {workout} for easy run"
 msgid "Swimming"
 msgstr "Swimming"
 
-#: src/pages/Login.tsx:680
-#: src/pages/Login.tsx:681
+#: src/pages/Login.tsx:670
+#: src/pages/Login.tsx:671
 msgid "Switch language"
 msgstr "Switch language"
 
@@ -7537,15 +7641,15 @@ msgstr "Switch language"
 msgid "Switch to {0}"
 msgstr "Switch to {0}"
 
-#: src/pages/Login.tsx:694
+#: src/pages/Login.tsx:684
 msgid "Switch to dark theme"
 msgstr "Switch to dark theme"
 
-#: src/pages/Login.tsx:697
+#: src/pages/Login.tsx:687
 msgid "Switch to light theme"
 msgstr "Switch to light theme"
 
-#: src/pages/Login.tsx:696
+#: src/pages/Login.tsx:686
 msgid "Switch to system theme"
 msgstr "Switch to system theme"
 
@@ -7682,7 +7786,7 @@ msgstr "System announcements"
 #~ msgid "System Announcements"
 #~ msgstr "System Announcements"
 
-#: src/pages/Login.tsx:704
+#: src/pages/Login.tsx:694
 msgid "System theme (click for light)"
 msgstr "System theme (click for light)"
 
@@ -7753,6 +7857,7 @@ msgid "Tempo"
 msgstr "Tempo"
 
 #: src/components/PersonalContextPanel.tsx:806
+#: src/pages/McpAuthorization.tsx:48
 msgid "Temporary availability"
 msgstr "Temporary availability"
 
@@ -8031,6 +8136,10 @@ msgstr "This change used confirmed private context. The private detail is not co
 msgid "This combination is outside Praxys’s conservative Stull method domain."
 msgstr "This combination is outside Praxys’s conservative Stull method domain."
 
+#: src/pages/McpAuthorization.tsx:173
+msgid "This connects the official Praxys Coach plugin to your account. Personal plan context stays unavailable until you approve a separate, short-lived request."
+msgstr "This connects the official Praxys Coach plugin to your account. Personal plan context stays unavailable until you approve a separate, short-lived request."
+
 #: src/components/PersonalContextPanel.tsx:1575
 msgid "This decision is separate from saving context and applies only to this exact version."
 msgstr "This decision is separate from saving context and applies only to this exact version."
@@ -8103,6 +8212,10 @@ msgstr "This is Stull’s psychrometric estimate from air temperature and relati
 #: src/pages/Verify.tsx:67
 msgid "This link is invalid or has expired. Try signing in to request a new link."
 msgstr "This link is invalid or has expired. Try signing in to request a new link."
+
+#: src/pages/McpAuthorization.tsx:196
+msgid "This link is invalid, expired, or belongs to another account. Start a new request from the plugin."
+msgstr "This link is invalid, expired, or belongs to another account. Start a new request from the plugin."
 
 #: src/pages/Status.tsx:233
 msgid "This page refreshes automatically every 30 seconds."
@@ -8274,7 +8387,7 @@ msgstr "Today's recovery hasn't synced yet. Showing the latest reading from {lat
 msgid "Token rejected"
 msgstr "Token rejected"
 
-#: src/pages/Login.tsx:168
+#: src/pages/Login.tsx:165
 msgid "Too many attempts from this network. Please email us instead."
 msgstr "Too many attempts from this network. Please email us instead."
 
@@ -8553,12 +8666,16 @@ msgstr "Use {target} version"
 msgid "Use {target}:"
 msgstr "Use {target}:"
 
+#: src/pages/McpAuthorization.tsx:35
+msgid "Use confirmed context for plan generation"
+msgstr "Use confirmed context for plan generation"
+
 #: src/components/UpcomingPlanCard.tsx:355
 msgid "Use in Praxys"
 msgstr "Use in Praxys"
 
-#: src/pages/Login.tsx:492
-#: src/pages/Login.tsx:521
+#: src/pages/Login.tsx:482
+#: src/pages/Login.tsx:511
 msgid "Use it"
 msgstr "Use it"
 
@@ -8628,7 +8745,7 @@ msgstr "Users unavailable"
 msgid "Verification code"
 msgstr "Verification code"
 
-#: src/pages/Login.tsx:400
+#: src/pages/Login.tsx:390
 msgid "Verification email sent. Check your inbox."
 msgstr "Verification email sent. Check your inbox."
 
@@ -8735,7 +8852,7 @@ msgstr "WAU"
 msgid "We attach basic diagnostics (page, app version, browser) and automatically remove personal details before sharing with our issue tracker."
 msgstr "We attach basic diagnostics (page, app version, browser) and automatically remove personal details before sharing with our issue tracker."
 
-#: src/pages/Login.tsx:437
+#: src/pages/Login.tsx:427
 msgid "We're inviting runners in waves while we tighten the science. Drop your email and we'll reach back when a slot opens."
 msgstr "We're inviting runners in waves while we tighten the science. Drop your email and we'll reach back when a slot opens."
 
@@ -8804,7 +8921,7 @@ msgstr "Weekly volume"
 msgid "Weekly Volume"
 msgstr "Weekly Volume"
 
-#: src/pages/Login.tsx:320
+#: src/pages/Login.tsx:310
 msgid "Welcome back."
 msgstr "Welcome back."
 
@@ -8856,7 +8973,7 @@ msgstr "What time are you working toward? Leave blank to track trend only"
 msgid "What was useful or missing?"
 msgstr "What was useful or missing?"
 
-#: src/pages/Login.tsx:466
+#: src/pages/Login.tsx:456
 msgid "What's your training goal? (optional)"
 msgstr "What's your training goal? (optional)"
 
@@ -8948,6 +9065,7 @@ msgstr "Workout delivery is not supported."
 #~ msgstr "Workout differs on Stryd — re-push to overwrite"
 
 #: src/components/PersonalContextPanel.tsx:805
+#: src/pages/McpAuthorization.tsx:51
 msgid "Workout explanation"
 msgstr "Workout explanation"
 
@@ -8987,7 +9105,7 @@ msgstr "You can withdraw before any later request. Withdrawal cannot recall a re
 msgid "You control this experiment"
 msgstr "You control this experiment"
 
-#: src/pages/Login.tsx:103
+#: src/pages/Login.tsx:109
 msgid "You must accept the Terms of Service to register."
 msgstr "You must accept the Terms of Service to register."
 
@@ -8995,9 +9113,9 @@ msgstr "You must accept the Terms of Service to register."
 msgid "You've sent several reports recently — please wait a few minutes before sending more."
 msgstr "You've sent several reports recently — please wait a few minutes before sending more."
 
-#: src/pages/Login.tsx:367
-#: src/pages/Login.tsx:455
-#: src/pages/Login.tsx:564
+#: src/pages/Login.tsx:357
+#: src/pages/Login.tsx:445
+#: src/pages/Login.tsx:554
 msgid "you@example.com"
 msgstr "you@example.com"
 

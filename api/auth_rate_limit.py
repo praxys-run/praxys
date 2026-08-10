@@ -15,6 +15,8 @@ Endpoints covered
 - /api/auth/wechat/login
 - /api/auth/wechat/register
 - /api/auth/wechat/link-with-password
+- /api/auth/mcp/handoffs
+- /api/auth/mcp/handoffs/exchange
 
 Implementation notes
 --------------------
@@ -66,6 +68,8 @@ _DEFAULT_LIMITS_RAW: dict[str, tuple[int, int]] = {
     "/api/auth/wechat/link-with-password":   (10, 15 * 60),
     "/api/auth/wechat/register":             (5, 60 * 60),
     "/api/auth/waitlist":                    (5, 60 * 60),
+    "/api/auth/mcp/handoffs":                (10, 5 * 60),
+    "/api/auth/mcp/handoffs/exchange":       (60, 5 * 60),
 }
 DEFAULT_LIMITS: Mapping[str, tuple[int, int]] = MappingProxyType(
     _DEFAULT_LIMITS_RAW
