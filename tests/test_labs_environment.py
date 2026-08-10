@@ -314,6 +314,114 @@ def test_recompute_not_enrolled_returns_structured_error(labs_client) -> None:
     }
 
 
+@pytest.mark.parametrize(
+    "configured",
+    [
+        None,
+        {"cooldown_hours": True, "window_hours": 24, "max_requests": 3},
+        {"cooldown_hours": -1, "window_hours": 24, "max_requests": 3},
+        {"cooldown_hours": 25, "window_hours": 24, "max_requests": 3},
+        {"cooldown_hours": 6, "window_hours": 0, "max_requests": 3},
+        {"cooldown_hours": 6, "window_hours": 24, "max_requests": 0},
+    ],
+)
+def test_invalid_recompute_dynamic_config_uses_defaults(
+    labs_client,
+    monkeypatch,
+    configured,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+
+    monkeypatch.setattr(
+        labs_environment,
+        "get_config",
+        lambda *_args: configured,
+    )
+
+    with db_session.SessionLocal() as db:
+        policy = labs_environment._manual_recompute_policy(db, user_id)
+
+    assert policy == labs_environment.DEFAULT_MANUAL_RECOMPUTE_POLICY
+
+
+def test_recompute_dynamic_config_can_bypass_cooldown(
+    labs_client,
+    monkeypatch,
+) -> None:
+    client, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import LabsAnalysisJob, LabsExperimentEnrollment
+
+    monkeypatch.setattr(
+        labs_environment,
+        "get_config",
+        lambda *_args: {
+            "cooldown_hours": 0,
+            "window_hours": 12,
+            "max_requests": 10,
+        },
+    )
+    enrolled = client.post(
+        "/api/labs/environment-response",
+        headers={"Idempotency-Key": "enroll-config-bypass-1"},
+        json={
+            "adult_attested": True,
+            "consent_version": labs_environment.CONSENT_VERSION,
+        },
+    )
+    assert enrolled.status_code == 202
+    with db_session.SessionLocal() as db:
+        job = db.query(LabsAnalysisJob).filter(
+            LabsAnalysisJob.user_id == user_id,
+        ).one()
+        row = db.get(
+            LabsExperimentEnrollment,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        )
+        job.status = "succeeded"
+        job.completed_at = datetime.utcnow()
+        row.status = "unavailable"
+        row.completed_at = job.completed_at
+        db.commit()
+
+    first = client.post(
+        "/api/labs/environment-response/recompute",
+        headers={"Idempotency-Key": "config-bypass-manual-1"},
+    )
+    assert first.status_code == 202
+    with db_session.SessionLocal() as db:
+        job = db.query(LabsAnalysisJob).filter(
+            LabsAnalysisJob.idempotency_key == "config-bypass-manual-1",
+        ).one()
+        row = db.get(
+            LabsExperimentEnrollment,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        )
+        job.status = "succeeded"
+        job.completed_at = datetime.utcnow()
+        row.status = "unavailable"
+        row.completed_at = job.completed_at
+        db.commit()
+
+    state = client.get("/api/labs/environment-response")
+    policy = state.json()["execution"]["recompute"]
+    assert policy == {
+        "allowed": True,
+        "reason": None,
+        "available_at": None,
+        "retry_after_seconds": None,
+        "remaining_requests": 9,
+        "window_hours": 12,
+        "cooldown_hours": 0,
+    }
+    second = client.post(
+        "/api/labs/environment-response/recompute",
+        headers={"Idempotency-Key": "config-bypass-manual-2"},
+    )
+    assert second.status_code == 202
+
+
 def test_recompute_api_returns_retry_after_during_cooldown(
     labs_client,
 ) -> None:
