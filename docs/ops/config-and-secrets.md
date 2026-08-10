@@ -334,6 +334,7 @@ The final Statsig Console state owned by this integration is exactly:
 |---|---|---|---|
 | Feature gate | `garmin_plan_delivery_eligible` | `false` in every environment | Optional reviewed allow rule matching only dedicated users by internal Praxys UUID. Never add a global pass rule. |
 | Dynamic config | `insight_daily_cap` | `{"value": 30}` where `value` is an integer | No experiment assignment. Runtime rules may return another validated positive integer. |
+| Dynamic config | `labs_environment_recompute_policy` | `{"value":{"cooldown_hours":6,"window_hours":24,"max_requests":3}}`; all fields are integers | No experiment assignment. A reviewed per-user UUID rule may set `cooldown_hours` to `0` for targeted testing. Keep `window_hours` between 1 and 168, `cooldown_hours` between 0 and `window_hours`, and `max_requests` between 1 and 100. |
 
 Repository-level Console automation uses the official `statsig` HTTP server in
 `.mcp.json`. The entry intentionally contains an empty `headers` object and no
@@ -355,7 +356,12 @@ account-generation/region fence. Remove superseded issue-251 resources from
 the Statsig project; do not create an experiment for this integration.
 
 When Statsig is unavailable or the dynamic-config property is absent, the
-backend keeps `PRAXYS_INSIGHT_DAILY_CAP` and then `30` as the fallback.
+backend keeps `PRAXYS_INSIGHT_DAILY_CAP` and then `30` as the insight fallback.
+The Labs recompute policy keeps its code-owned 6-hour cooldown, 24-hour rolling
+window, and three-request limit. Invalid Labs values fail back to that complete
+default policy rather than partially applying a malformed rule. A zero-hour
+targeted cooldown bypasses only the time delay: active-job single-flight and
+the configured rolling request limit remain authoritative.
 `AZURE_AI_ENDPOINT` remains the hard infrastructure prerequisite for model
 calls. There is no AI feature gate.
 
@@ -373,8 +379,10 @@ gh variable set VITE_STATSIG_CLIENT_KEY --repo praxys-run/praxys
 Verify the backend App Service contains `STATSIG_SDK_KEY` and `STATSIG_ENV`
 without printing their values, and inspect the built SPA only for the expected
 public `client-*` key. Removing `STATSIG_SDK_KEY` and redeploying is a
-fail-closed rollback for Garmin eligibility; the dynamic config resumes its
-documented fallback.
+fail-closed rollback for Garmin eligibility; both dynamic configs resume their
+documented fallbacks. To roll back only a Labs exception, remove its targeted
+rule and confirm the API again reports `cooldown_hours: 6`,
+`window_hours: 24`, and `remaining_requests` against a three-request window.
 
 ### Azure Key Vault (`kv-trainsight`)
 - RSA key `trainsight-master-key` — the master key that wraps the per-user
