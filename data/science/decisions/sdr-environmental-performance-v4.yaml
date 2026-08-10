@@ -159,7 +159,7 @@ model_parameters:
       reference_power_pct_cp: athlete_specific_median_centered_band
     classification: guardrail
     rationale: >
-      Activity, segment, and adjacency floors remain unchanged. This proposal
+      Activity, segment, and adjacency floors remain unchanged. This decision
       changes workload alignment rather than weakening independent-support
       counts.
     applies_to: analysis.environment_response
@@ -169,7 +169,7 @@ model_parameters:
     evidence_claim_ids:
       - personal-environment-response.running-power-limited-proxy
     rationale: >
-      The proposal does not broaden provider comparability while separate
+      The decision does not broaden provider comparability while separate
       Garmin power validation remains incomplete.
     applies_to: activity research packs and Labs qualification
   - name: support_band_provenance
@@ -184,33 +184,8 @@ model_parameters:
       staleness checks, and deterministic replay without exposing activities or
       samples.
     applies_to: Labs result model and API
-  - name: pilot_acceptance_criteria
-    value:
-      minimum_independent_snapshots: 30
-      minimum_snapshots_withheld_only_by_v3_power_support: 10
-      minimum_newly_supported_snapshots: 3
-      unchanged_release_gate_pass_rate: 100_percent
-      cp_perturbation:
-        perturbation: plus_or_minus_5_percent
-        minimum_same_release_state: 90_percent
-      recency_sensitivity:
-        perturbation: remove_newest_10_percent_of_eligible_activities
-        minimum_same_supported_bin_set: 80_percent
-      predictive_negative_control_failure_rate:
-        maximum_absolute_increase_vs_v3_supported_snapshots: 5_percentage_points
-    classification: guardrail
-    evidence_claim_ids:
-      - personal-environment-response.exact-cp-band-not-validated
-      - personal-environment-response.structured-validation
-    rationale: >
-      These are prespecified Praxys pilot go/no-go thresholds, not published
-      physiological constants. They require a measurable availability benefit,
-      preserve every existing release gate, and bound sensitivity to Critical
-      Power error, recent-activity churn, and predictive-control selection
-      before human acceptance.
-    applies_to: pre-acceptance private cohort replay
 applicability:
-  - The private opt-in Labs environmental-response experiment governed by v3
+  - The private opt-in Labs environmental-response experiment governed by v4
   - Same-provider Stryd sample power with accepted stable training-partition segments
   - Historical-association and predictive states that pass every unchanged release gate
   - Analysis snapshots whose eligible training workload median can be computed inside the 65-95 percent model domain
@@ -241,12 +216,6 @@ validation_plan:
   - Test changes to coefficient direction, intervals, prediction diagnostics, and rendering cannot change the selected band
   - Test absent or invalid training medians withhold the curve rather than falling back silently
   - Bump support, result, and dataset-hash model versions so old results become stale
-  - Do not accept the decision until at least 30 independent opt-in snapshots include at least 10 snapshots withheld only by the v3 comparable-power support rule
-  - Require at least 3 of those 10 v3-withheld snapshots to gain two adjacent supported bins under the candidate rule without weakening any release gate
-  - Require every candidate-released snapshot to pass 100 percent of the unchanged v3 fit, uncertainty, influence, provider, privacy, and display gates
-  - Perturb each snapshot's Critical Power history by plus and minus 5 percent and require at least 90 percent of snapshots to retain the same released-or-withheld state
-  - Remove the newest 10 percent of eligible activities and require at least 80 percent of snapshots to retain the same supported-bin set
-  - Require the predictive-negative-control failure rate among candidate-supported snapshots to increase by no more than 5 percentage points versus v3-supported snapshots
   - Before any prospective multi-user validation, approve a separate pilot protocol and consent covering cross-snapshot aggregate acceptance statistics; this decision does not authorize that collection or reuse
   - Under that separately approved protocol, compare only snapshot-level availability, bin support, coefficient stability, and negative-control failure rates; do not pool activity rows or estimate a cohort environmental-response curve
   - Verify web and miniapp show equivalent aggregate bounds, support counts, explanations, loading, empty, stale, and error states
@@ -255,11 +224,7 @@ validation_plan:
   - Run science, metric-addition, API-contract, privacy, and UI-quality review before implementation approval
 falsification_conditions:
   - Band selection changes after environmental support, coefficient, interval, prediction, or rendering results are inspected
-  - Fewer than 3 of 10 or more snapshots withheld only by v3 gain qualifying adjacent support
   - Any candidate-released snapshot fails an unchanged v3 release gate
-  - Fewer than 90 percent of snapshots retain release state under plus or minus 5 percent Critical Power perturbation
-  - Fewer than 80 percent of snapshots retain the same supported-bin set after removing the newest 10 percent of eligible activities
-  - Predictive-negative-control failure rises by more than 5 percentage points versus v3-supported snapshots
   - Users interpret the band as a prescribed training zone, physiological threshold, or heat-safety range
   - Web and miniapp calculate different bounds or show different support decisions
   - The personal display band removes rows from the fitted model or becomes an implicit future cohort-contribution filter
@@ -280,20 +245,13 @@ affected_surfaces:
     - How the personal comparable-power band is calculated
     - Why the band is a Praxys guardrail rather than a published training zone
     - Historical association, prediction, and heat-safety limits
-supersedes: []
+supersedes:
+  - sdr-environmental-performance-v3
 superseded_by:
 decision_notes:
-  - This is a decision proposal and does not authorize a production behavior change.
-  - >
-    The same draft PR may contain a reviewable implementation, but it must
-    remain draft and must not merge or deploy until a human accepts or revises
-    this science decision.
-  - >
-    If approved, acceptance must atomically supersede
-    sdr-environmental-performance-v3, update reciprocal decision lifecycle
-    links, accept the additive workload-support Evidence Review, and bump every
-    governed implementation model version. The accepted
-    evidence-personal-environment-response-v1 remains current.
+  - The product owner accepted this personal-display guardrail for the private Labs experiment on 2026-08-10.
+  - Acceptance atomically supersedes sdr-environmental-performance-v3, retains its scientific and safety boundaries, and bumps every governed implementation model version.
+  - Cross-athlete validation remains a separate future study requiring its own protocol, consent, privacy rules, Evidence Review, and SDR.
   - >
     A read-only sensitivity analysis on one private one-year snapshot found a
     training-partition stable-segment median of 74.80 percent Critical Power.

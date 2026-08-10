@@ -53,7 +53,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "superseded"
     )
     assert registry.decisions["sdr-environmental-performance-v3"].status == (
-        "accepted"
+        "superseded"
     )
     workload_review = registry.evidence_reviews[
         "evidence-environmental-response-workload-support-v1"
@@ -111,7 +111,8 @@ def test_environment_response_decision_preserves_lifecycle_and_limits() -> None:
     registry = load_science_registry()
     original = registry.decisions["sdr-environmental-performance-v1"]
     predecessor = registry.decisions["sdr-environmental-performance-v2"]
-    accepted = registry.decisions["sdr-environmental-performance-v3"]
+    partial_display = registry.decisions["sdr-environmental-performance-v3"]
+    accepted = registry.decisions["sdr-environmental-performance-v4"]
     review = registry.evidence_reviews[
         "evidence-personal-environment-response-v1"
     ]
@@ -119,9 +120,11 @@ def test_environment_response_decision_preserves_lifecycle_and_limits() -> None:
     assert original.status == "superseded"
     assert original.superseded_by == predecessor.id
     assert predecessor.status == "superseded"
-    assert predecessor.superseded_by == accepted.id
+    assert predecessor.superseded_by == partial_display.id
+    assert partial_display.status == "superseded"
+    assert partial_display.superseded_by == accepted.id
     assert accepted.status == "accepted"
-    assert accepted.supersedes == [predecessor.id]
+    assert accepted.supersedes == [partial_display.id]
     assert accepted.human_reviewers == ["github:dddtc2005"]
     assert review.status == "accepted"
     assert review.human_reviewers == ["github:dddtc2005"]

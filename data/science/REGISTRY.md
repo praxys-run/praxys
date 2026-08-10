@@ -20,7 +20,6 @@ Evidence reviews record what the literature supports. Science Decision Records (
 
 | Record | Version | Topic/model | Reviewed/decided |
 |---|---:|---|---|
-| [sdr-environmental-performance-v3](decisions/sdr-environmental-performance-v3.yaml) — Display supported environmental-response subdomains without bridging gaps | 3 | environmental-performance-context-v3 | 2026-08-09 |
 | [sdr-environmental-performance-v4](decisions/sdr-environmental-performance-v4.yaml) — Center comparable-power support on each athlete's observed training workload | 4 | environmental-performance-context-v4 | 2026-08-10 |
 | [sdr-heat-adaptation-v1](decisions/sdr-heat-adaptation-v1.yaml) — Interpret recent heat exposure as qualitative adaptation evidence | 1 | heat-adaptation-v8 | 2026-07-26 |
 
@@ -54,6 +53,7 @@ _None._
 |---|---:|---|---|
 | [sdr-environmental-performance-v1](decisions/sdr-environmental-performance-v1.yaml) — Present environmental conditions as bounded performance context | 1 | environmental-performance-context-v1 | 2026-07-26 |
 | [sdr-environmental-performance-v2](decisions/sdr-environmental-performance-v2.yaml) — Present a private historical environmental-response experiment | 2 | environmental-performance-context-v2 | 2026-08-08 |
+| [sdr-environmental-performance-v3](decisions/sdr-environmental-performance-v3.yaml) — Display supported environmental-response subdomains without bridging gaps | 3 | environmental-performance-context-v3 | 2026-08-09 |
 
 ## Retired
 
