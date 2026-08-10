@@ -29,6 +29,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 | Record | Version | Topic/model | Reviewed/decided |
 |---|---:|---|---|
 | [evidence-adaptive-training-load-v1](evidence/adaptive-training-load/evidence-adaptive-training-load-v1.yaml) — Adaptive endurance-training load decisions | 1 | adaptive-training-load | 2026-08-08 |
+| [evidence-environmental-response-workload-support-v1](evidence/environmental-response-workload-support/evidence-environmental-response-workload-support-v1.yaml) — Comparable workload support for personal environmental-response displays | 1 | environmental-response-workload-support | 2026-08-10 |
 | [evidence-individual-goal-feasibility-v1](evidence/individual-goal-feasibility/evidence-individual-goal-feasibility-v1.yaml) — Individual goal feasibility and prediction limits | 1 | individual-goal-feasibility | 2026-08-08 |
 | [evidence-plan-outcome-interpretation-v1](evidence/plan-outcome-interpretation/evidence-plan-outcome-interpretation-v1.yaml) — Training-plan outcome interpretation | 1 | plan-outcome-interpretation | 2026-08-08 |
 | [evidence-running-field-tests-v1](evidence/running-field-tests/evidence-running-field-tests-v1.yaml) — Running field tests for plan baselines and outcomes | 1 | running-field-tests | 2026-08-08 |
@@ -39,6 +40,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 | Record | Version | Topic/model | Reviewed/decided |
 |---|---:|---|---|
 | [sdr-adaptive-plan-feasibility-and-adjustment-v1](decisions/sdr-adaptive-plan-feasibility-and-adjustment-v1.yaml) — Bound adaptive-plan feasibility, adjustment, and outcome interpretation | 1 | adaptive-plan-policy-v1 | 2026-08-08 |
+| [sdr-environmental-performance-v4](decisions/sdr-environmental-performance-v4.yaml) — Center comparable-power support on each athlete's observed training workload | 4 | environmental-performance-context-v4 | 2026-08-10 |
 
 ## Superseded
 

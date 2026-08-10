@@ -29,6 +29,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     assert set(registry.evidence_reviews) == {
         "evidence-adaptive-training-load-v1",
         "evidence-environmental-performance-v1",
+        "evidence-environmental-response-workload-support-v1",
         "evidence-heat-adaptation-v1",
         "evidence-heat-decay-v1",
         "evidence-individual-goal-feasibility-v1",
@@ -42,6 +43,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "sdr-environmental-performance-v1",
         "sdr-environmental-performance-v2",
         "sdr-environmental-performance-v3",
+        "sdr-environmental-performance-v4",
         "sdr-heat-adaptation-v1",
     }
     assert registry.evidence_reviews[
@@ -53,6 +55,10 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     assert registry.decisions["sdr-environmental-performance-v3"].status == (
         "accepted"
     )
+    assert registry.evidence_reviews[
+        "evidence-environmental-response-workload-support-v1"
+    ].status == "draft"
+    assert registry.decisions["sdr-environmental-performance-v4"].status == "draft"
     assert registry.decisions[
         "sdr-adaptive-plan-feasibility-and-adjustment-v1"
     ].status == "draft"
