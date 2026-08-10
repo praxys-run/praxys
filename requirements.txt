@@ -28,7 +28,7 @@ aiosqlite>=0.22.1
 # SQLite (aiosqlite above) stays the default for local dev + tests.
 psycopg[binary]>=3.3.4
 alembic>=1.18.5
-fastapi-users[sqlalchemy]>=13.0.0
+fastapi-users[sqlalchemy]>=15.0.5
 cryptography>=48.0.0
 azure-identity>=1.25.3
 azure-keyvault-keys>=4.11.1
