@@ -10,20 +10,21 @@ research_question: >
   offered, and what do the literature and remaining uncertainty establish
   about qualification, invalidation, comparability, and freshness?
 topic: preplan-baseline-policy
-status: draft
+status: accepted
 authors:
   - agent:github-copilot
-human_reviewers: []
+human_reviewers:
+  - github:dddtc2005
 created_on: 2026-08-10
-reviewed_on:
+reviewed_on: 2026-08-10
 intended_product_purpose: >
   Bound the first Praxys pre-plan baseline proposal to one measurable road
   running use case, search qualified athlete history before proposing a new
   test, distinguish direct evidence of current capability from directly
   comparable longitudinal change evidence and unvalidated surrogates, and keep
   the optional test, freshness window, qualification rules, comparability
-  rules, and no-test path honest pending human review and prospective
-  validation.
+  rules, and no-test path honest as versioned policy boundaries subject to
+  prospective validation.
 scope:
   population:
     - Adults aged 18 years or older
@@ -198,7 +199,7 @@ claims:
       - Protocol qualification
     limitations:
       - The reviewed sources do not validate automated intent inference from workout pace, splits, or samples.
-      - A different race or course may be informative about current capability while remaining supporting or incomparable for change.
+      - A different race or course may inform current capability while remaining supporting when change comparability is incomplete without a known material mismatch, or incomparable when a mismatch is material.
       - Exact route, environment, and recovery tolerances remain unvalidated for this target population.
   - id: baseline.five-km-time-trial-pilot-gap
     statement: >
@@ -446,5 +447,9 @@ review_notes:
   - "Verification: pettitt-2012 - abstract; PubMed title search and Crossref DOI metadata; 2026-08-10."
   - "Verification: mujika-2000 - abstract; PubMed PMID 10966148 and Crossref metadata; 2026-08-10."
   - "Verification: riebe-2015 - abstract; PubMed PMID 26473759 and Crossref metadata; 2026-08-10."
-  - This rigorous review used single-reviewer screening and extraction; independent human science appraisal remains required.
+  - >
+    Lifecycle acceptance by github:dddtc2005 on 2026-08-10 approved the five
+    bounded policy decisions; the reviewer did not independently reproduce the
+    searches, perform duplicate extraction, or expand full-text access beyond
+    the verification levels recorded above.
   - No source was found that validates 28, 42, or 56 days as a universal baseline-expiry threshold.

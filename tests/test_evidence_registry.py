@@ -60,9 +60,9 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     ].status == "draft"
     assert registry.evidence_reviews[
         "evidence-preplan-baseline-policy-v1"
-    ].status == "draft"
+    ].status == "accepted"
     assert registry.decisions["sdr-preplan-baseline-policy-v1"].status == (
-        "draft"
+        "accepted"
     )
     baseline_review = registry.evidence_reviews[
         "evidence-preplan-baseline-policy-v1"
@@ -70,8 +70,10 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     baseline_decision = registry.decisions[
         "sdr-preplan-baseline-policy-v1"
     ]
-    assert baseline_review.human_reviewers == []
-    assert baseline_decision.human_reviewers == []
+    assert baseline_review.human_reviewers == ["github:dddtc2005"]
+    assert baseline_review.reviewed_on == date(2026, 8, 10)
+    assert baseline_decision.human_reviewers == ["github:dddtc2005"]
+    assert baseline_decision.decision_date == date(2026, 8, 10)
     baseline_parameters = {
         parameter.name: parameter
         for parameter in baseline_decision.model_parameters
@@ -133,11 +135,25 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     ]
     assert pilot_offer["participation"] == "explicit_opt_in"
     assert pilot_offer["account_access"] == "never_blocked"
-    assert baseline_parameters["longitudinal_change_comparability"].value[
-        "directly_comparable"
-    ] == (
+    freshness = baseline_parameters["freshness_age_calculation"].value
+    assert freshness["current_through_day"] == 42
+    assert freshness["stale_from_day"] == 43
+    assert freshness["stale_retention"] == "preserve_as_supporting_history"
+    comparability = baseline_parameters[
+        "longitudinal_change_comparability"
+    ].value
+    assert comparability["directly_comparable"] == (
         "same_protocol_and_comparable_route_environment_recovery_timing_and_assistance"
     )
+    assert comparability["supporting"] == (
+        "qualified_5_km_results_with_incomplete_change_comparability_but_no_known_material_mismatch"
+    )
+    assert comparability["incomparable"] == (
+        "protocol_or_material_conditions_prevent_before_after_interpretation"
+    )
+    assert baseline_parameters["safety_stop_path"].value[
+        "feasibility_assessment"
+    ] == "insufficient_evidence"
     intensity_sources = baseline_parameters["intensity_evidence_source"].value
     assert intensity_sources["allowed"] == [
         "activity_splits",

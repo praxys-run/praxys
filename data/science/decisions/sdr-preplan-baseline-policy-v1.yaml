@@ -2,17 +2,15 @@ schema_version: 1
 id: sdr-preplan-baseline-policy-v1
 version: 1
 title: "Use qualified 5 km history before offering an opt-in same-protocol baseline"
-status: draft
+status: accepted
 decision_date: 2026-08-10
 owners:
   - team:praxys
-human_reviewers: []
+human_reviewers:
+  - github:dddtc2005
 model_version: preplan-baseline-policy-v1
 evidence_review_ids:
   - evidence-preplan-baseline-policy-v1
-  - evidence-running-field-tests-v1
-  - evidence-individual-goal-feasibility-v1
-  - evidence-short-interruption-detraining-v1
 evidence_claim_ids:
   - baseline.goal-protocol-match
   - baseline.current-capability-not-change-comparability
@@ -21,40 +19,27 @@ evidence_claim_ids:
   - baseline.critical-speed-transfer-limited
   - baseline.freshness-cutoff-not-validated
   - baseline.vigorous-test-symptom-screen
-  - field-test.protocol-validity-reliability-sensitivity
-  - field-test.vo2-estimate-not-direct-performance
-  - field-test.critical-speed-protocol-dependent
-  - feasibility.group-evidence-not-personal-probability
-  - feasibility.error-aware-response-classification
-  - feasibility.calibration-required
-  - detraining.short-term-system-specific
 accepted_interpretation: >
-  If this draft is accepted, the first Praxys baseline pilot is limited to
-  self-coached adult recreational road runners who can already complete 5 km
-  and select a 5 km outdoor elapsed-time performance goal. Praxys first
-  searches existing athlete history. A verified measured 5 km race or an
-  explicitly athlete-confirmed intentional all-out 5 km effort may be direct
-  evidence of current 5 km capability when distance, elapsed timing, effort
-  intent, and required provenance are sufficient. Pace alone never establishes
-  intent, and a random 5 km segment or best split inside an easy, long, or
-  mixed-purpose workout is not a baseline. Split or sample data may verify
-  protocol facts but cannot silently create performance intent. Directly
-  comparable longitudinal change is a stricter claim: before/after results
-  require the same protocol and sufficiently comparable route, environment,
-  recovery, timing, and assistance conditions. A different race or course may
-  directly inform current capability while remaining supporting or
-  incomparable for change. Only when qualified history is missing, stale, or
-  incomparable may Praxys offer one standardized outdoor 5 km time trial, and
-  only by explicit opt-in. The proposed 42-day current/stale boundary is a
-  pragmatic versioned guardrail, not a published physiological cutoff. Cooper
-  or 1.5-mile tests, critical-speed or 3-minute-all-out outputs, device VO2max,
-  and provider critical power or speed remain supporting or incomparable.
-  Missing, stopped, unsafe, declined, or unconfirmed testing remains an honest
-  insufficient-evidence route with a safer completion, consistency, or
-  deferred alternative; it never blocks account use or produces a personal
-  success probability. This record authorizes neither implementation nor a
-  meaningful-change claim before prospective precision criteria and human
-  review.
+  The first Praxys baseline policy is history-first and limited to adults aged
+  18 years or older who are self-coached recreational road runners already
+  able to complete 5 km and who select a standardized outdoor road 5 km
+  elapsed-time performance goal. A qualified measured 5 km race or an
+  explicitly athlete-confirmed intentional all-out 5 km effort establishes
+  current capability; only sufficiently comparable same-protocol results
+  support longitudinal change. Random workout segments never qualify, and
+  other tests or device estimates remain supporting or incomparable rather
+  than equivalent. A standardized outdoor 5 km time trial is an optional,
+  maximal-effort, safety-screened fallback only when qualified history is
+  missing, stale, or incomparable; it is opt-in and never required. Qualified
+  evidence is current through 42 completed days and stale from day 43 as a
+  versioned Praxys guardrail, not a published biological cutoff; stale evidence
+  is retained and does not block use. Material route, protocol, environment,
+  or recovery mismatch is incomparable for change. Illness, injury, red flags,
+  inadequate recovery, or unsafe conditions stop testing. Collection is
+  minimal-data and opt-in; declining or stopping yields insufficient evidence,
+  never blocked use. Expansion requires pre-registered validation and a new
+  reviewed policy. This accepted record does not implement or ship application
+  behavior.
 rejected_alternatives:
   - alternative: Select one baseline test and freshness rule for every running distance, terrain, and goal type.
     rationale: >
@@ -152,14 +137,13 @@ model_parameters:
   - name: longitudinal_change_comparability
     value:
       directly_comparable: same_protocol_and_comparable_route_environment_recovery_timing_and_assistance
-      supporting: qualified_5_km_results_with_a_material_condition_difference_that_does_not_destroy_current_capability_relevance
+      supporting: qualified_5_km_results_with_incomplete_change_comparability_but_no_known_material_mismatch
       incomparable: protocol_or_material_conditions_prevent_before_after_interpretation
       not_assessed: fewer_than_two_qualified_observations
     classification: guardrail
     evidence_claim_ids:
       - baseline.goal-protocol-match
       - baseline.current-capability-not-change-comparability
-      - field-test.protocol-validity-reliability-sensitivity
     rationale: >
       Current capability and change are separate questions. A race or all-out
       effort can directly describe present capability without being a valid
@@ -174,7 +158,7 @@ model_parameters:
         - same_protocol_5_km_observations_with_comparable_route_environment_recovery_timing_and_assistance
       equivalent: none_approved
       supporting:
-        - qualified_5_km_result_with_material_change_comparability_gap
+        - qualified_5_km_result_with_incomplete_change_comparability_but_no_known_material_mismatch
         - different_fixed_distance_time_trial
         - cooper_12_minute_distance
         - protocol_defined_critical_speed_or_3_minute_all_out
@@ -189,7 +173,6 @@ model_parameters:
       - baseline.current-capability-not-change-comparability
       - baseline.short-test-surrogates-not-equivalent
       - baseline.critical-speed-transfer-limited
-      - field-test.vo2-estimate-not-direct-performance
     rationale: >
       The hierarchy separates task-direct current capability from the stricter
       conditions required to claim directly comparable change. It prevents a
@@ -259,7 +242,6 @@ model_parameters:
     classification: guardrail
     evidence_claim_ids:
       - baseline.freshness-cutoff-not-validated
-      - detraining.short-term-system-specific
     rationale: >
       No reviewed source validates a universal cutoff. Forty-two days is a
       pragmatic pilot compromise between possible fitness drift and the
@@ -292,7 +274,6 @@ model_parameters:
     evidence_claim_ids:
       - baseline.five-km-time-trial-pilot-gap
       - baseline.vigorous-test-symptom-screen
-      - feasibility.group-evidence-not-personal-probability
     rationale: >
       A new maximal effort is a fallback when qualified history cannot support a
       current baseline, not a universal prerequisite. Explicit opt-in and a
@@ -310,7 +291,6 @@ model_parameters:
     evidence_claim_ids:
       - baseline.goal-protocol-match
       - baseline.five-km-time-trial-pilot-gap
-      - field-test.protocol-validity-reliability-sensitivity
     rationale: >
       This is the least-translated candidate for a 5 km criterion, not a
       published preferred test or a proven low-burden protocol. Prospective
@@ -358,7 +338,6 @@ model_parameters:
     evidence_claim_ids:
       - baseline.goal-protocol-match
       - baseline.five-km-time-trial-pilot-gap
-      - field-test.protocol-validity-reliability-sensitivity
     rationale: >
       The reviewed evidence identifies protocol and environment dependence but
       does not supply universal tolerances. Minimum provenance can establish a
@@ -385,7 +364,7 @@ model_parameters:
         - self_reported_inadequate_recovery
         - unsafe_weather_air_quality_traffic_lighting_footing_or_course
       supporting_only:
-        - qualified_5_km_result_for_change_when_material_comparability_fields_differ
+        - qualified_5_km_result_for_change_when_comparability_is_incomplete_but_no_material_mismatch_is_known
         - unlike_test_or_model_estimate
     classification: guardrail
     evidence_claim_ids:
@@ -428,9 +407,6 @@ model_parameters:
   - name: meaningful_change_threshold
     value: disabled_pending_protocol_specific_repeatability_and_sensitivity
     classification: guardrail
-    evidence_claim_ids:
-      - feasibility.error-aware-response-classification
-      - field-test.protocol-validity-reliability-sensitivity
     rationale: >
       A single percentage would ignore learning, random measurement error,
       environment, and protocol-specific sensitivity.
@@ -459,7 +435,6 @@ model_parameters:
     classification: guardrail
     evidence_claim_ids:
       - baseline.five-km-time-trial-pilot-gap
-      - feasibility.error-aware-response-classification
     rationale: >
       Relative reliability alone cannot establish useful individual change
       detection. Precision and burden criteria must be pre-specified before
@@ -488,7 +463,7 @@ model_parameters:
     value:
       performance_flow: stop_immediately
       baseline_result: invalid_or_stopped
-      feasibility_assessment: withheld
+      feasibility_assessment: insufficient_evidence
       message: non_diagnostic_urgent_safety_exit
       reentry: no_automated_clearance_or_return_to_sport
     classification: guardrail
@@ -511,9 +486,6 @@ model_parameters:
         - use_a_completion_or_consistency_goal_under_its_approved_policy
       coercion: prohibited
     classification: guardrail
-    evidence_claim_ids:
-      - feasibility.group-evidence-not-personal-probability
-      - feasibility.calibration-required
     rationale: >
       Missing evidence communicates uncertainty. It does not justify coercing a
       maximal test, manufacturing a baseline, or blocking unrelated product use.
@@ -521,9 +493,6 @@ model_parameters:
   - name: personal_success_probability
     value: disabled
     classification: guardrail
-    evidence_claim_ids:
-      - feasibility.group-evidence-not-personal-probability
-      - feasibility.calibration-required
     rationale: >
       No calibrated and externally validated model links this baseline policy
       to an individual's probability of achieving a goal.
@@ -554,14 +523,14 @@ applicability:
   - Suggestion-only goal discovery and a prospective validation pilot after separate implementation approval
   - Current-capability and longitudinal-comparability classification only, not goal-achievement prediction
 user_facing_claim_limits:
-  - Do not call the draft pilot test validated, low exertion, safe for everyone, or equivalent to a race.
+  - Do not call the pilot test validated, low exertion, safe for everyone, or equivalent to a race.
   - Do not claim that a result is fresh because physiology is known to remain unchanged for 42 days.
   - Label 42 days, all status rules, and all protocol constraints as Praxys pilot guardrails.
   - Search qualified history before offering a new test; do not imply that every athlete needs a new 5 km effort.
   - Do not infer race or all-out intent from pace, power, ranking, a fast split, or a best 5 km segment.
   - A random 5 km segment inside an easy, long, or mixed workout is never a baseline merely because it is fast.
   - Distinguish direct current-capability evidence from directly comparable longitudinal change evidence.
-  - Explain that a different race or course may inform current capability while remaining supporting or incomparable for change.
+  - Explain that a different race or course may inform current capability but is incomparable for change when route, protocol, environment, or recovery mismatch is material.
   - Do not convert a Cooper, 1.5-mile, critical-speed, 3-minute-all-out, device VO2max, or provider power output into an equivalent 5 km time.
   - Do not label a change meaningful until protocol-specific repeatability, learning, and sensitivity criteria are prospectively accepted.
   - Do not display an individual success probability or guarantee.
@@ -587,7 +556,7 @@ privacy_implications:
   - Do not collect pilot data until owners approve retention duration, role-based access, export, deletion, telemetry, and aggregate-reporting contracts.
   - Do not infer health status, diagnosis, protected traits, or sensitive life context from a declined, stopped, or changed performance.
 validation_plan:
-  - Require an identified human science reviewer to accept, revise, or reject this Evidence Review and SDR before any product behavior cites them.
+  - Keep application behavior out of this lifecycle transition; a separate implementation issue and reviewed PR must apply this accepted policy.
   - Pre-register and audit the history-search candidate unit, minimum metadata, athlete-confirmation wording, ambiguous-response handling, and false-positive rate for arbitrary workout segments before implementation.
   - Pre-register the exact outdoor-5k-tt-pilot-v1 protocol and precision, learning-effect, completion, safety, burden, and subgroup acceptance criteria before enrollment or data review.
   - In a repeatability subcohort, perform two same-protocol tests at the proposed 7 plus or minus 2 day interval under stable training and analyze the listed absolute and relative reliability measures.
@@ -638,10 +607,10 @@ affected_surfaces:
 supersedes: []
 superseded_by:
 decision_notes:
-  - This is a decision proposal for #640, not an accepted policy, implemented protocol, or authorization to collect pilot data.
-  - "The proposal is history-first: a new test is optional fallback evidence, not a prerequisite for every athlete."
-  - No parameter in this proposal is presented as a published universal threshold; the candidate choice and retest interval are estimates, and product, freshness, comparability, safety, and no-test values are guardrails.
-  - The exact warm-up script, environment tolerances, precision acceptance threshold, and pilot operations require pre-registration and human review before implementation.
+  - This policy was accepted by github:dddtc2005 on 2026-08-10; it is not an implemented protocol or authorization to collect pilot data.
+  - "The accepted policy is history-first: a new test is optional fallback evidence, not a prerequisite for every athlete."
+  - No parameter in this accepted policy is presented as a published universal threshold; the candidate choice and retest interval are estimates, and product, freshness, comparability, safety, and no-test values are guardrails.
+  - The exact warm-up script, environment tolerances, precision acceptance threshold, and pilot operations require pre-registration and a new reviewed policy before they can govern behavior.
   - Race goals, trail goals, treadmill goals, other distances, children, clinical testing, and return-to-sport remain outside the initial scope.
-  - "Impact map: Evidence Review -> draft SDR -> future goal baseline policy -> future persistence/retention/access/deletion -> future ingestion and pure analysis -> future API -> future web type/UI and English/Chinese localization -> future miniapp parity -> future plugin/MCP parity -> future private telemetry/aggregate analytics -> future ScienceNote -> future tests -> prospective validation/falsification."
+  - "Impact map: accepted Evidence Review -> accepted SDR -> future goal baseline policy -> future persistence/retention/access/deletion -> future ingestion and pure analysis -> future API -> future web type/UI and English/Chinese localization -> future miniapp parity -> future plugin/MCP parity -> future private telemetry/aggregate analytics -> future ScienceNote -> future tests -> prospective validation/falsification."
   - Existing draft Evidence Reviews and sdr-adaptive-plan-feasibility-and-adjustment-v1 remain unchanged and unaccepted.

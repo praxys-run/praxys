@@ -1,6 +1,7 @@
 # Pre-plan baseline policy decision brief
 
-**Status:** Draft Decision proposal for #640; not implemented or science-accepted
+**Status:** Accepted science policy; approved by `@dddtc2005` on 2026-08-10;
+not implemented
 
 **Canonical records:**
 
@@ -19,7 +20,7 @@ complete 5 km and choose a **5 km outdoor elapsed-time performance goal**. Do
 not extend the first policy to race-goal equivalence, trails, treadmills, other
 distances, clinical testing, injury rehabilitation, or return to sport.
 
-For that goal, the proposal is:
+For that goal, the accepted policy is:
 
 1. search existing athlete history before offering a new test;
 2. a verified measured 5 km race or an explicitly athlete-confirmed
@@ -33,7 +34,8 @@ For that goal, the proposal is:
    before/after claims require the same protocol and comparable route,
    environment, recovery, timing, and assistance conditions;
 5. a different race or course may directly inform current capability while
-   remaining supporting or incomparable for change;
+   remaining supporting when change comparability is incomplete without a
+   known material mismatch, or incomparable when a mismatch is material;
 6. shorter tests, critical-speed outputs, and device estimates remain
    supporting or incomparable; and
 7. only when qualified history is missing, stale, or incomparable, offer one
@@ -65,9 +67,9 @@ classifying arbitrary segments:
 
 ## Candidate matrix
 
-| Candidate | Directness to the selected goal | Main limitation | Proposal |
+| Candidate | Directness to the selected goal | Main limitation | Accepted policy |
 | --- | --- | --- | --- |
-| Verified measured 5 km road race in athlete history | Directly observes current 5 km capability | A different race/course may not be comparable for change | Direct for current capability; supporting or incomparable for longitudinal change unless protocol and material conditions match |
+| Verified measured 5 km road race in athlete history | Directly observes current 5 km capability | A different race/course may not be comparable for change | Direct for current capability; supporting only when comparability is incomplete without a known material mismatch, and incomparable when mismatch is material |
 | Explicitly confirmed intentional all-out 5 km effort in athlete history | Directly observes current 5 km capability | Requires sufficient distance/timing metadata and explicit athlete intent | Direct for current capability; change claims still require same protocol and comparable conditions |
 | Exact same-protocol outdoor 5 km time trial | Measures the named criterion | Target-population repeatability and sensitivity remain unestablished | Optional fallback pilot; direct for current capability and directly comparable for change only against the same protocol under comparable conditions |
 | Random 5 km segment or best split inside another workout | Does not establish a complete intentional 5 km performance | Pace cannot establish purpose; mixed-workout context and timing may mislead | Never a baseline merely because it is fast; splits/samples verify protocol only |
@@ -82,7 +84,7 @@ splits or samples.
 ## Freshness and state handling
 
 The literature did not validate a universal 28-, 42-, or 56-day expiration
-rule. The proposal uses **42 completed calendar days** as a pragmatic
+rule. The accepted policy uses **42 completed calendar days** as a pragmatic
 versioned Praxys pilot guardrail:
 
 - `current`: valid direct evidence no more than 42 days old and no material
@@ -108,9 +110,10 @@ or explicit all-out intent, and unresolved pauses or timing failures.
 Longitudinal comparison additionally records the exact protocol, route version
 and direction, surface, elevation, footwear category, environment, warm-up and
 assistance, prior hard exercise, recovery, and deviations. It does not apply an
-environmental time correction. A protocol or material-condition mismatch may
-leave the result direct for current capability while downgrading it to
-supporting or incomparable for change.
+environmental time correction. A protocol or material-condition mismatch may leave the result direct for
+current capability while making it incomparable for change. Supporting
+classification is reserved for incomplete change-comparability evidence when
+no material mismatch is known.
 
 No universal meaningful-change percentage is proposed. The protocol remains
 without a change threshold until repeat testing estimates learning, absolute
@@ -133,33 +136,44 @@ observed `missing`, `stale`, or `incomparable` status, return
 completion/consistency alternative. Never block the account, coerce a retest,
 or show a personal success probability.
 
-## Decisions requested from maintainers
+## Accepted bounded decisions
 
-1. **Maintainer product feedback approved** the bounded initial population and
-   5 km outdoor elapsed-time performance-goal scope. This records product
-   direction only; it is not science acceptance, and both canonical records
-   remain draft with no human science reviewer.
-2. Approve or revise the history-first evidence hierarchy: verified race or
-   explicitly confirmed intentional all-out 5 km history may be direct for
-   current capability; arbitrary workout segments are never baselines; and
-   directly comparable change requires the same protocol and comparable
-   conditions.
-3. Approve or reject the optional outdoor 5 km time trial as fallback only
-   when qualified history is missing, stale, or incomparable, with explicit
-   opt-in and acknowledgment of its maximal-effort burden and evidence gaps.
-4. Approve or replace the 42-day Praxys freshness guardrail; do not relabel it
-   as a published cutoff.
-5. Approve or revise the comparability, stop, privacy, and no-test boundaries
-   and the requirement for pre-registered precision criteria before any
-   equivalence or meaningful-change decision.
+GitHub maintainer `@dddtc2005` accepted the Evidence Review and SDR on
+2026-08-10 through five separate bounded decisions:
 
-Maintainer approval of the bounded product scope does not accept the Evidence
-Review or SDR. A separate human science review and implementation decision must
-define the final history-search candidate unit, qualification metadata,
-athlete-confirmation wording and ambiguous-response handling, protocol script,
-data contract, explicit pilot opt-in, retention/access/export/deletion rules,
-ingestion, telemetry and aggregate analytics, English/Chinese localization,
-pilot operations, API/client parity, and tests.
+1. Adults aged 18 years or older who are recreational road runners already able
+   to complete 5 km, with standardized outdoor road 5 km elapsed-time
+   performance goals, are the initial scope. The policy is history-first;
+   testing is not mandatory.
+2. Qualified measured 5 km races or athlete-confirmed intentional all-out 5 km
+   efforts establish current capability. Only sufficiently comparable
+   same-protocol results measure longitudinal change. Random workout segments
+   never qualify. Other tests and device estimates are supporting or
+   incomparable, not equivalent.
+3. A standardized outdoor 5 km time trial is optional only when qualified
+   history is missing, stale, or incomparable. It is maximal-effort,
+   safety-screened, opt-in, and never required.
+4. Qualified evidence is current through 42 completed days and stale from day
+   43. This is a versioned Praxys pilot guardrail, not a published biological
+   cutoff. Stale evidence is retained and does not block use.
+5. Material route, protocol, environment, or recovery mismatch is
+   incomparable. Illness, injury, red flags, inadequate recovery, or unsafe
+   conditions stop testing. Collection is minimal-data and opt-in. Declining
+   or stopping yields insufficient evidence rather than blocked use.
+   Expansion requires pre-registered validation and a new reviewed policy.
+
+The lifecycle reviewer approved these policy boundaries; the reviewer did not
+independently reproduce the searches, duplicate extraction, or obtain full
+text beyond the verification levels recorded in the Evidence Review. The
+method limits and unresolved evidence gaps therefore remain in force.
+
+Acceptance does not define or ship application behavior. A separate
+implementation issue and reviewed PR must define the final history-search
+candidate unit, qualification metadata, athlete-confirmation wording and
+ambiguous-response handling, protocol script, data contract, pilot opt-in,
+retention/access/export/deletion rules, ingestion, telemetry and aggregate
+analytics, English/Chinese localization, pilot operations, API/client parity,
+and tests under this accepted policy.
 
 ## Future impact map
 
@@ -172,4 +186,4 @@ Evidence Review -> SDR -> history-first goal baseline policy
 -> prospective repeatability, subgroup, safety, and drift evaluation
 ```
 
-No analysis, API, web, miniapp, or plugin behavior changes in #640.
+No analysis, API, web, miniapp, or plugin behavior changes in PR #641.
