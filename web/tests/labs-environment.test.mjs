@@ -52,6 +52,26 @@ test('web Labs covers consent, result, calculator, and withdrawal states', async
   assert.match(app, /Reload Labs/);
 });
 
+test('Labs chart keeps calculator markers inside the displayed bin domain', async () => {
+  const {
+    getMarkerLabelPosition,
+    getWetBulbChartDomain,
+    getWetBulbPointDomain,
+  } = await import('../src/lib/labs-environment-chart.ts');
+  const domain = getWetBulbChartDomain([
+    { lower_wet_bulb_c: 5.7, upper_wet_bulb_c: 9.9 },
+    { lower_wet_bulb_c: 22.7, upper_wet_bulb_c: 26.9 },
+  ]);
+
+  assert.deepEqual(domain, [5.7, 26.9]);
+  assert.deepEqual(
+    getWetBulbPointDomain([{ wet_bulb_c: 7.8 }, { wet_bulb_c: 24.8 }]),
+    [7.8, 24.8],
+  );
+  assert.equal(getMarkerLabelPosition(25.8, domain), 'insideTopRight');
+  assert.equal(getMarkerLabelPosition(8.0, domain), 'insideTopLeft');
+});
+
 test('a timed-out Labs preflight aborts once and leaves its query in error', async () => {
   const originalWindow = globalThis.window;
   const originalFetch = globalThis.fetch;

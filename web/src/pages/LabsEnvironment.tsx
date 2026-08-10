@@ -46,6 +46,11 @@ import { useApi, apiFetch, extractErrorMessage } from '@/hooks/useApi';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { getChartColors } from '@/lib/chart-theme';
+import {
+  getMarkerLabelPosition,
+  getWetBulbChartDomain,
+  getWetBulbPointDomain,
+} from '@/lib/labs-environment-chart';
 import { cn } from '@/lib/utils';
 import type {
   LabsEnvironmentCurvePoint,
@@ -447,6 +452,8 @@ function ResultChart({
       bandBase: point.relative_lower_bpm,
       bandSize: point.relative_upper_bpm - point.relative_lower_bpm,
     }));
+  const chartDomain =
+    getWetBulbChartDomain(supportBins) ?? getWetBulbPointDomain(points);
   const markerVisible =
     calculatorWetBulb != null &&
     (
@@ -458,8 +465,14 @@ function ResultChart({
             calculatorWetBulb <= bin.upper_wet_bulb_c
           ),
         )
-        : points.some((point) => point.wet_bulb_c === calculatorWetBulb)
+        : chartDomain != null &&
+          calculatorWetBulb >= chartDomain[0] &&
+          calculatorWetBulb <= chartDomain[1]
     );
+  const markerLabelPosition =
+    calculatorWetBulb != null && chartDomain != null
+      ? getMarkerLabelPosition(calculatorWetBulb, chartDomain)
+      : 'insideTopRight';
 
   return (
     <div
@@ -473,7 +486,7 @@ function ResultChart({
           <XAxis
             dataKey="wet_bulb_c"
             type="number"
-            domain={['dataMin', 'dataMax']}
+            domain={chartDomain ?? ['dataMin', 'dataMax']}
             tick={{ fill: colors.tick, fontSize: 12 }}
             tickFormatter={(value) => `${Number(value).toFixed(1)}°`}
             label={{
@@ -538,7 +551,7 @@ function ResultChart({
                 value: i18n._(msg`Calculator`),
                 fill: colors.threshold,
                 fontSize: 11,
-                position: 'insideTopRight',
+                position: markerLabelPosition,
               }}
             />
           )}
