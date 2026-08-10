@@ -1993,7 +1993,11 @@ combination. A first-party JWT must approve it before it can exchange for a
 expiry, revocation, and current account state on every use. Context tokens work
 only on the scoped personal-context endpoints.
 MCP sessions are not general account credentials: ordinary profile, export,
-deletion, training-data, and mutation routes require a first-party JWT.
+deletion, admin, and first-party personal-context routes require a first-party
+JWT. The session retains the official plugin's pre-existing tools through a
+fixed method-and-route allowlist for training summaries, settings and
+connections, plan authoring/managed delivery, insights, and sync. Any new API
+route remains denied until that public plugin contract is reviewed explicitly.
 Unauthenticated handoff creation and exchange are independently IP-rate-limited,
 and expired handoff/token rows are removed during subsequent handoff creation.
 

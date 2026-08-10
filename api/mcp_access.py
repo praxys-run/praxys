@@ -18,6 +18,7 @@ MCP_AUDIENCE = "praxys-coach-plugin"
 MCP_ACTOR_TYPE = "mcp"
 MCP_SESSION_PREFIX = "praxys_mcp_"
 MCP_CONTEXT_PREFIX = "praxys_ctx_"
+MCP_TOOL_SCOPE = "plugin:tools"
 MCP_HANDOFF_TTL = timedelta(minutes=10)
 MCP_SESSION_TTL = timedelta(hours=24)
 MCP_CONTEXT_TTL = timedelta(minutes=15)
@@ -355,7 +356,11 @@ def exchange_handoff(
         audience=handoff.audience,
         actor_type=MCP_ACTOR_TYPE,
         actor_id=handoff.actor_id,
-        scopes=list(handoff.requested_scopes or []),
+        scopes=(
+            [MCP_TOOL_SCOPE]
+            if token_type == "session"
+            else list(handoff.requested_scopes or [])
+        ),
         purposes=list(handoff.requested_purposes or []),
         kinds=list(handoff.requested_kinds or []),
         expires_at=current + (

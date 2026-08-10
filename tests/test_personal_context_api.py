@@ -1229,6 +1229,11 @@ def test_mcp_session_cannot_use_first_party_account_authority(
     session_token, _ = _issue_mcp_session(client)
     headers = _bearer(session_token)
 
+    plugin_settings = client.get("/api/settings", headers=headers)
+    assert plugin_settings.status_code == 200, plugin_settings.text
+
+    unlisted_data = client.get("/api/history", headers=headers)
+    assert unlisted_data.status_code == 403
     profile = client.get("/api/auth/me", headers=headers)
     assert profile.status_code == 403
     exported = client.get("/api/me/export", headers=headers)
@@ -1237,9 +1242,11 @@ def test_mcp_session_cannot_use_first_party_account_authority(
     deleted = client.delete("/api/me", headers=headers)
     assert deleted.status_code == 403
 
-    from db.models import User
+    from db.models import McpAccessToken, User
 
     with db_session.SessionLocal() as db:
+        session = db.query(McpAccessToken).one()
+        assert session.scopes == ["plugin:tools"]
         assert db.get(User, "context-api-owner") is not None
 
 
