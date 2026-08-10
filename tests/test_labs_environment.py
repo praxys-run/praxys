@@ -1391,6 +1391,70 @@ def test_manual_recompute_enforces_rolling_daily_limit(
         assert policy["remaining_requests"] == 0
 
 
+def test_lowered_recompute_limit_reports_when_enough_requests_expire(
+    labs_client,
+    monkeypatch,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+    from api.views import utc_isoformat
+
+    configured = {
+        "cooldown_hours": 0,
+        "window_hours": 24,
+        "max_requests": 10,
+    }
+    monkeypatch.setattr(
+        labs_environment,
+        "get_config",
+        lambda *_args: configured,
+    )
+    base = datetime(2026, 8, 9, 0, 0, 0)
+    with db_session.SessionLocal() as db:
+        enrolled = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+            now=base - timedelta(hours=1),
+        )
+        enrolled.job.status = "succeeded"
+        enrolled.enrollment.status = "unavailable"
+        db.commit()
+        for index in range(5):
+            decision = labs_environment.queue_recompute(
+                db,
+                user_id,
+                idempotency_key=f"manual-lowered-limit-{index}",
+                now=base + timedelta(hours=index),
+            )
+            decision.job.status = "succeeded"
+            decision.enrollment.status = "unavailable"
+            db.commit()
+
+        configured["max_requests"] = 3
+        expected_available_at = base + timedelta(hours=26)
+        with pytest.raises(
+            labs_environment.RecomputeLimitError,
+            match="daily_limit",
+        ) as exc_info:
+            labs_environment.queue_recompute(
+                db,
+                user_id,
+                idempotency_key="manual-lowered-limit-blocked",
+                now=base + timedelta(hours=5),
+            )
+
+        assert exc_info.value.available_at == expected_available_at
+        policy = labs_environment.public_state(
+            db,
+            user_id,
+            now=base + timedelta(hours=5),
+        )["execution"]["recompute"]
+        assert policy["reason"] == "daily_limit"
+        assert policy["available_at"] == utc_isoformat(expected_available_at)
+
+
 def test_withdrawal_fails_closed_when_tombstone_storage_is_unavailable(
     labs_client,
     monkeypatch,

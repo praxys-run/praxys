@@ -712,7 +712,7 @@ def _manual_recompute_limit(
             code = "cooldown"
             available_at = cooldown_at
     if len(jobs) >= policy.limit:
-        daily_at = jobs[0].requested_at + policy.window
+        daily_at = _rolling_limit_available_at(jobs, policy)
         if daily_at > now and (
             available_at is None or daily_at > available_at
         ):
@@ -723,6 +723,13 @@ def _manual_recompute_limit(
         if code is None or available_at is None
         else RecomputeLimitError(code, available_at)
     )
+
+
+def _rolling_limit_available_at(
+    jobs: list[LabsAnalysisJob],
+    policy: ManualRecomputePolicy,
+) -> datetime:
+    return jobs[len(jobs) - policy.limit].requested_at + policy.window
 
 
 def queue_recompute(
@@ -1849,9 +1856,7 @@ def _recompute_policy_state(
                 reason = "cooldown"
                 available_at = cooldown_at
         if len(window_jobs) >= policy.limit:
-            daily_at = (
-                window_jobs[0].requested_at + policy.window
-            )
+            daily_at = _rolling_limit_available_at(window_jobs, policy)
             if daily_at > now and (
                 available_at is None or daily_at > available_at
             ):
