@@ -56,12 +56,41 @@ def get_authenticated_identity(
     request: Request,
     db: Session,
 ) -> AuthenticatedIdentity:
-    """Validate the bearer token and return its user plus signed claims."""
+    """Validate a first-party JWT or server-authoritative MCP bearer."""
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
         raise HTTPException(401, "Not authenticated")
 
     token = auth_header.split(" ", 1)[1]
+    from api.mcp_access import (
+        MCP_CONTEXT_PREFIX,
+        MCP_SESSION_PREFIX,
+        McpAccessError,
+        authenticate_access_token,
+        token_claims,
+    )
+
+    if token.startswith((MCP_SESSION_PREFIX, MCP_CONTEXT_PREFIX)):
+        try:
+            access = authenticate_access_token(db, raw_token=token)
+        except McpAccessError as exc:
+            raise HTTPException(401, "Invalid or expired token") from exc
+        if (
+            access.token_type == "context"
+            and not request.url.path.startswith("/api/personal-context/")
+        ):
+            raise HTTPException(403, "Context token cannot access this route")
+        from db.models import User
+
+        user = db.query(User).filter(User.id == access.user_id).first()
+        if user is None:
+            raise HTTPException(401, "User not found")
+        return AuthenticatedIdentity(
+            user_id=access.user_id,
+            user=user,
+            claims=token_claims(access),
+            is_demo=bool(user.is_demo),
+        )
 
     import jwt
     try:

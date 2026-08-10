@@ -2,6 +2,7 @@ import type {
   ContextPilotRunRequest,
   PersonalContextAiConsentRequest,
   PersonalContextDraftRequest,
+  ScopedPersonalContextDraftRequest,
 } from './api';
 
 const payload = {
@@ -27,6 +28,20 @@ const incompleteLinkedDraft: PersonalContextDraftRequest = {
   purpose: 'execution_interpretation',
   payload,
   linked_subject_type: 'workout',
+};
+const scopedDraft: ScopedPersonalContextDraftRequest = {
+  kind: 'temporary_constraint',
+  purpose: 'plan_adjustment',
+  payload,
+};
+const scopedNarrativeDraft: ScopedPersonalContextDraftRequest = {
+  kind: 'temporary_constraint',
+  purpose: 'plan_adjustment',
+  payload: {
+    ...payload,
+    // @ts-expect-error MCP drafts never accept narrative.
+    narrative: 'not available to delegated clients',
+  },
 };
 
 const syntheticPilot: ContextPilotRunRequest = {
@@ -84,6 +99,8 @@ void [
   unlinkedDraft,
   linkedDraft,
   incompleteLinkedDraft,
+  scopedDraft,
+  scopedNarrativeDraft,
   syntheticPilot,
   optedInPilot,
   invalidSyntheticPilot,

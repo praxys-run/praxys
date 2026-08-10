@@ -620,6 +620,67 @@ export type PersonalContextPurpose =
   | 'goal_review'
   | 'outcome_review';
 
+export interface McpAccessHandoff {
+  request_type: 'session' | 'context';
+  audience: 'praxys-coach-plugin';
+  status: 'pending' | 'approved' | 'denied' | 'exchanged';
+  purpose: PersonalContextPurpose | null;
+  kind: PersonalContextKind | null;
+  access: ('read' | 'write')[];
+  expires_at: string;
+}
+
+export interface McpHandoffCreatedResponse {
+  state: string;
+  exchange_secret: string;
+  authorize_path: string;
+  expires_at: string;
+}
+
+export type McpHandoffExchangeResponse =
+  | { status: 'pending' }
+  | {
+    access_token: string;
+    token_type: 'bearer';
+    expires_at: string;
+    audience: 'praxys-coach-plugin';
+    purpose: PersonalContextPurpose | null;
+    kind: PersonalContextKind | null;
+    access: ('read' | 'write')[];
+  };
+
+export interface McpSessionIdentityResponse {
+  id: string;
+  email: string;
+  is_superuser: boolean;
+  actor_type: 'mcp';
+  audience: 'praxys-coach-plugin';
+}
+
+export interface McpAccessRevocationResponse {
+  status: 'revoked';
+}
+
+export interface ScopedPersonalContextAccessRequest {
+  audience: 'praxys-coach-plugin';
+  purpose: PersonalContextPurpose;
+  kind: PersonalContextKind;
+  access: ('read' | 'write')[];
+}
+
+export interface ScopedPersonalContextProjectionItem {
+  kind: PersonalContextKind;
+  purpose: PersonalContextPurpose;
+  category: PersonalContextCategory;
+  fields: Record<string, PersonalContextFieldValue>;
+  starts_at: string;
+  expires_at: string | null;
+}
+
+export interface ScopedPersonalContextProjectionResponse {
+  items: ScopedPersonalContextProjectionItem[];
+}
+
 export type PersonalContextCategory =
   | 'less_time'
   | 'unavailable_day'
@@ -693,6 +754,18 @@ export type PersonalContextDraftRequest =
   PersonalContextDraftRequestBase
   & PersonalContextLinkedSubjectRequest;
 
+export type ScopedPersonalContextDraftRequest = {
+  kind: PersonalContextKind;
+  purpose: PersonalContextPurpose;
+  payload: {
+    category: PersonalContextCategory;
+    fields?: Record<string, PersonalContextFieldValue>;
+  };
+  starts_at?: string | null;
+  expires_at?: string | null;
+  purge_after?: string | null;
+} & PersonalContextLinkedSubjectRequest;
+
 export type PersonalContextConfirmRequest = PersonalContextDraftRequest & {
   consent_text_version: string;
   client: PersonalContextClient;
@@ -755,6 +828,16 @@ export interface PersonalContextPreviewResponse {
   processing_mode: 'deterministic_only';
   confirmation_required: true;
   preview_actor_type: string;
+}
+
+export interface ScopedPersonalContextPreviewResponse
+  extends Omit<PersonalContextPreviewResponse, 'payload'> {
+  payload: {
+    category: PersonalContextCategory;
+    fields: Record<string, PersonalContextFieldValue>;
+  };
+  confirmation_path: '/training#plan-context';
+  miniapp_path: '/pages/training/index';
 }
 
 export interface PersonalContextItem {

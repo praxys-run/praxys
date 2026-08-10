@@ -564,6 +564,105 @@ class LabsAnalysisOutbox(Base):
     )
 
 
+class McpAccessHandoff(Base):
+    """Opaque, short-lived first-party approval handoff for MCP access."""
+
+    __tablename__ = "mcp_access_handoffs"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    state_digest = Column(String(64), nullable=False, unique=True)
+    exchange_digest = Column(String(64), nullable=False, unique=True)
+    request_type = Column(String(16), nullable=False)
+    audience = Column(String(64), nullable=False)
+    actor_id = Column(String(120), nullable=False)
+    requested_scopes = Column(JSON, nullable=False, default=list)
+    requested_purposes = Column(JSON, nullable=False, default=list)
+    requested_kinds = Column(JSON, nullable=False, default=list)
+    status = Column(String(16), nullable=False, default="pending")
+    expires_at = Column(DateTime, nullable=False)
+    decided_at = Column(DateTime, nullable=True)
+    exchanged_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        CheckConstraint(
+            "request_type IN ('session','context')",
+            name="ck_mcp_access_handoff_request_type",
+        ),
+        CheckConstraint(
+            "audience = 'praxys-coach-plugin'",
+            name="ck_mcp_access_handoff_audience",
+        ),
+        CheckConstraint(
+            "status IN ('pending','approved','denied','exchanged')",
+            name="ck_mcp_access_handoff_status",
+        ),
+        CheckConstraint(
+            "request_type = 'session' OR user_id IS NOT NULL",
+            name="ck_mcp_access_handoff_context_owner",
+        ),
+        Index(
+            "ix_mcp_access_handoff_expiry",
+            "status",
+            "expires_at",
+        ),
+    )
+
+
+class McpAccessToken(Base):
+    """Hashed, revocable MCP session or structured-context capability."""
+
+    __tablename__ = "mcp_access_tokens"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    token_digest = Column(String(64), nullable=False, unique=True)
+    token_type = Column(String(16), nullable=False)
+    audience = Column(String(64), nullable=False)
+    actor_type = Column(String(16), nullable=False, default="mcp")
+    actor_id = Column(String(120), nullable=False)
+    scopes = Column(JSON, nullable=False, default=list)
+    purposes = Column(JSON, nullable=False, default=list)
+    kinds = Column(JSON, nullable=False, default=list)
+    expires_at = Column(DateTime, nullable=False)
+    revoked_at = Column(DateTime, nullable=True)
+    write_consumed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        CheckConstraint(
+            "token_type IN ('session','context')",
+            name="ck_mcp_access_token_type",
+        ),
+        CheckConstraint(
+            "audience = 'praxys-coach-plugin'",
+            name="ck_mcp_access_token_audience",
+        ),
+        CheckConstraint(
+            "actor_type = 'mcp'",
+            name="ck_mcp_access_token_actor_type",
+        ),
+        Index(
+            "ix_mcp_access_token_owner_status",
+            "user_id",
+            "token_type",
+            "expires_at",
+            "revoked_at",
+        ),
+    )
+
+
 class PersonalContextItem(Base):
     """One encrypted, versioned athlete-provided planning-context item."""
 

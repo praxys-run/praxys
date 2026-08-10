@@ -570,23 +570,13 @@ def process_personal_context(
 
 
 def _project_item(item: LoadedPersonalContext) -> ProjectedContextItem:
-    projected: dict[str, Any] = {}
-    unusable = 0
-    for name, value in item.fields.items():
-        if name not in ALLOWED_CONTEXT_FIELDS:
-            unusable += 1
-            continue
-        projected_value = _project_field(name, value)
-        if projected_value is _UNUSABLE:
-            unusable += 1
-            continue
-        projected[name] = projected_value
+    projected = project_structured_context_fields(item.fields)
     return ProjectedContextItem(
         item_id=item.item_id,
         version=item.version,
         category=item.category,
         fields=projected,
-        unusable_field_count=unusable,
+        unusable_field_count=len(item.fields) - len(projected),
     )
 
 
@@ -631,6 +621,21 @@ def _project_field(name: str, value: Any) -> Any:
             return _UNUSABLE
         return normalized
     return _UNUSABLE
+
+
+def project_structured_context_fields(
+    fields: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return only allowlisted, value-bounded structured context fields."""
+    projected: dict[str, Any] = {}
+    for name, value in fields.items():
+        if name not in ALLOWED_CONTEXT_FIELDS:
+            continue
+        projected_value = _project_field(name, value)
+        if projected_value is _UNUSABLE:
+            continue
+        projected[name] = projected_value
+    return projected
 
 
 def _bounded_enum_list(
