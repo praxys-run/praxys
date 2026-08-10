@@ -75,4 +75,4 @@ azure-servicebus>=7.14.3,<8.0.0
 # Headless Chromium via Playwright is used by scripts/generate_og_card.py
 # to rasterize web/public/og-card*.html into PNGs for OpenGraph / WeChat
 # share previews. See that script's docstring for setup/run notes.
-playwright==1.61.0
+playwright==1.62.0
