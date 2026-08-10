@@ -1486,7 +1486,6 @@ def _build_private_dataset_bundle(
             export_snapshot_id=expected_source_revision,
             limit=limit,
             offset=offset,
-            include_private_labs_support=True,
         )
         pages.append(page)
         offset += limit

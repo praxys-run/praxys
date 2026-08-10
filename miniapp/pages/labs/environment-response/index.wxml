@@ -200,7 +200,12 @@
             />
             <view wx:if="{{supportBinsDisplay.length}}" class="labs-support-ledger">
               <view class="labs-support-heading">
-                <text class="labs-support-title">{{tr.supportTitle}}</text>
+                <view>
+                  <text class="labs-support-title">{{tr.supportTitle}}</text>
+                  <text class="labs-support-minimum ts-value">
+                    {{tr.comparableRange}}: {{comparablePowerRangeDisplay}}
+                  </text>
+                </view>
                 <text class="labs-support-minimum ts-value">{{tr.supportMinimum}}</text>
               </view>
               <view class="labs-support-grid">
@@ -243,12 +248,18 @@
                 <text class="labs-measure-label">{{tr.powerRegime}}</text>
                 <text class="labs-measure-value">{{tr.strydPowerRegime}}</text>
               </view>
+              <view class="labs-measure">
+                <text class="labs-measure-label">{{tr.comparableRange}}</text>
+                <text class="labs-measure-value ts-value">{{comparablePowerRangeDisplay}}</text>
+              </view>
               <view class="labs-measure labs-measure--wide">
                 <text class="labs-measure-label">{{tr.modelVersion}}</text>
                 <text class="labs-model-version ts-value">{{modelVersionDisplay}}</text>
               </view>
             </view>
             <text class="labs-method-note">{{tr.chartBoundary}}</text>
+            <text class="labs-method-note">{{tr.workloadBoundary}}</text>
+            <button class="labs-source-link" bindtap="onCopyWorkloadSource">{{tr.workloadSource}}</button>
             <button class="labs-source-link" bindtap="onCopyStullSource">{{tr.stullSource}}</button>
           </view>
 

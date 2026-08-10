@@ -54,11 +54,14 @@ import type {
   LabsEnvironmentCurveSupportBin,
   LabsEnvironmentPreflightResponse,
   LabsEnvironmentResponseState,
+  LabsEnvironmentWorkloadSupport,
   LabsEnvironmentWetBulbResponse,
 } from '@/types/api';
 
 const EVIDENCE_URL =
   'https://github.com/praxys-run/praxys/blob/main/data/science/evidence/personal-environment-response/evidence-personal-environment-response-v1.yaml';
+const WORKLOAD_SUPPORT_EVIDENCE_URL =
+  'https://github.com/praxys-run/praxys/blob/main/data/science/evidence/environmental-response-workload-support/evidence-environmental-response-workload-support-v1.yaml';
 const STULL_URL = 'https://doi.org/10.1175/JAMC-D-11-0143.1';
 
 const REASON_MESSAGES: Record<string, MessageDescriptor> = {
@@ -461,6 +464,7 @@ function ResultChart({
   return (
     <div
       className="h-[320px] w-full"
+      role="img"
       aria-label={i18n._(msg`Historical environmental-response curve`)}
     >
       <ResponsiveContainer width="100%" height="100%">
@@ -556,8 +560,10 @@ function ResultChart({
 
 function SupportLedger({
   bins,
+  workloadSupport,
 }: {
   bins: LabsEnvironmentCurveSupportBin[];
+  workloadSupport: LabsEnvironmentWorkloadSupport | null;
 }) {
   if (!bins.length) return null;
   const referenceMinimum = Math.max(
@@ -566,11 +572,20 @@ function SupportLedger({
   return (
     <section className="mt-5 border-t border-border pt-5" aria-labelledby="curve-support-heading">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-        <h3 id="curve-support-heading" className="text-sm font-semibold">
-          <Trans>Comparable-power activity support</Trans>
-        </h3>
+        <div>
+          <h2 id="curve-support-heading" className="text-sm font-semibold">
+            <Trans>Comparable-power activity support</Trans>
+          </h2>
+          {workloadSupport?.personal_display_pct_cp.length === 2 && (
+            <p className="font-data mt-1 text-xs text-muted-foreground">
+              <Trans>Your comparable range</Trans>:{' '}
+              {workloadSupport.personal_display_pct_cp[0].toFixed(1)}–
+              {workloadSupport.personal_display_pct_cp[1].toFixed(1)}% CP
+            </p>
+          )}
+        </div>
         <p className="font-data text-xs text-muted-foreground">
-          <Trans>minimum {referenceMinimum} per range</Trans>
+          <Trans>minimum {referenceMinimum} per environmental range</Trans>
         </p>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
@@ -621,7 +636,7 @@ function SupportLedger({
         })}
       </div>
       <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-        <Trans>Each activity counts once per range. A qualifying activity needs an accepted stable segment averaging 75–85% of its pre-activity Stryd Critical Power; raw sample points alone do not count.</Trans>
+        <Trans>Each activity counts once per environmental range. The comparable-power range is centered on your typical eligible stable training workload; raw sample points alone do not count.</Trans>
       </p>
     </section>
   );
@@ -635,10 +650,11 @@ function CoverageSummary({ state }: { state: LabsEnvironmentResponseState }) {
     ?? state.availability_reason?.observed_aggregate?.eligible_activity_count;
   const segmentCount = counts?.eligible_segment_count
     ?? state.availability_reason?.observed_aggregate?.eligible_segment_count;
+  const workloadSupport = counts?.workload_support;
 
   if (activityCount == null && segmentCount == null && !observed) return null;
   return (
-    <div className="grid gap-4 border-t border-border pt-5 sm:grid-cols-3">
+    <div className="grid gap-4 border-t border-border pt-5 sm:grid-cols-2 lg:grid-cols-4">
       <div>
         <p className="text-xs text-muted-foreground"><Trans>Eligible activities</Trans></p>
         <p className="font-data mt-1 text-lg font-semibold">{activityCount ?? '—'}</p>
@@ -655,6 +671,15 @@ function CoverageSummary({ state }: { state: LabsEnvironmentResponseState }) {
             : '—'}
         </p>
       </div>
+      {workloadSupport?.personal_display_pct_cp.length === 2 && (
+        <div>
+          <p className="text-xs text-muted-foreground"><Trans>Your comparable power range</Trans></p>
+          <p className="font-data mt-1 text-lg font-semibold">
+            {workloadSupport.personal_display_pct_cp[0].toFixed(1)}–
+            {workloadSupport.personal_display_pct_cp[1].toFixed(1)}% CP
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -944,13 +969,14 @@ export default function LabsEnvironment() {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [calculatorWetBulb, setCalculatorWetBulb] = useState<number | null>(null);
   const idempotencyKeys = useRef<Partial<Record<LabsMutationAction, string>>>({});
+  const availabilityReasonCode = state?.availability_reason?.code;
 
   const reason = useMemo(() => {
-    if (!state?.availability_reason) return null;
-    return REASON_MESSAGES[state.availability_reason.code]
-      ? i18n._(REASON_MESSAGES[state.availability_reason.code])
+    if (!availabilityReasonCode) return null;
+    return REASON_MESSAGES[availabilityReasonCode]
+      ? i18n._(REASON_MESSAGES[availabilityReasonCode])
       : i18n._(msg`This result did not pass the experiment’s release guardrails.`);
-  }, [i18n, state?.availability_reason]);
+  }, [availabilityReasonCode, i18n]);
 
   const actionErrorMessage = (
     detail: LabsEnvironmentMutationError | null,
@@ -1079,6 +1105,8 @@ export default function LabsEnvironment() {
   const points = available ? state.result?.aggregate_curve_points ?? [] : [];
   const supportBins =
     state.result?.eligibility_counts.curve_support_bins ?? [];
+  const workloadSupport =
+    state.result?.eligibility_counts.workload_support ?? null;
   const partialDomain = supportBins.some((bin) => !bin.supported);
   const uncertainty = state.result?.aggregate_uncertainty;
 
@@ -1224,7 +1252,10 @@ export default function LabsEnvironment() {
                     supportBins={supportBins}
                     calculatorWetBulb={calculatorWetBulb}
                   />
-                  <SupportLedger bins={supportBins} />
+                  <SupportLedger
+                    bins={supportBins}
+                    workloadSupport={workloadSupport}
+                  />
                   <CoverageSummary state={state} />
                   <div className="mt-5 grid gap-4 border-t border-border pt-5 sm:grid-cols-2">
                     <div>
@@ -1258,11 +1289,18 @@ export default function LabsEnvironment() {
                     label={<Trans>How to read this experiment</Trans>}
                     sources={[
                       { url: EVIDENCE_URL, label: 'Praxys evidence review' },
+                      {
+                        url: WORKLOAD_SUPPORT_EVIDENCE_URL,
+                        label: i18n._(msg`Praxys workload-support review`),
+                      },
                       { url: STULL_URL, label: 'Stull (2011)' },
                     ]}
                   >
                     <p>
                       <Trans>The line is a historical model inside supported ranges only. A blank range means comparable stable workload did not pass the display floor; Praxys does not estimate or connect through it. The shaded band shows aggregate uncertainty where the curve is supported. It does not identify a causal personal coefficient and never extrapolates beyond your observed domain. Wind, solar load, clothing, hydration, fatigue, and other unmeasured conditions can still differ between runs.</Trans>
+                    </p>
+                    <p>
+                      <Trans>Your personal comparable-power range controls where the curve can be displayed. The fitted model still uses every otherwise eligible stable segment from 65–95% CP, so the display range does not discard broader model data.</Trans>
                     </p>
                   </ScienceNote>
                 </CardContent>

@@ -134,6 +134,22 @@ model_parameters:
       A common workload reference is required for environmental comparison and
       deterministic replay.
     applies_to: analysis.metrics and analysis.environment_response
+  - name: personal_display_and_common_model_separation
+    value:
+      personal_display_support: athlete_specific_median_centered_band
+      personal_model_fit: all_otherwise_eligible_rows_from_65_to_95_pct_cp
+      future_cohort_contribution: separate_consent_and_decision_required
+      personal_display_filter_applied_to_model_or_cohort_rows: false
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.structured-validation
+      - personal-environment-response.exact-cp-band-not-validated
+    rationale: >
+      The athlete-specific band controls only whether an environmental bin has
+      enough comparable workload to display. It must not select fitted rows or
+      a future pooled contribution dataset, because user-specific selection
+      would mix training distribution with the cohort estimand.
+    applies_to: Labs private bundle, result provenance, and future cohort study boundary
   - name: supported_bin_definition
     value:
       minimum_activities: 5
@@ -204,6 +220,7 @@ user_facing_claim_limits:
   - Do not equate percent VO2max, heart-rate zones, threshold pace, and percent Critical Power
   - Retain every historical-only, causal, predictive, medical, safety, adaptation, hydration, and workload limitation from v3
   - Explain that the range can change when the eligible training snapshot or Critical Power history changes
+  - Do not imply that the personal display range defines which rows would be eligible for a future Praxys cohort study
 safety_implications:
   - The calculated workload band is not a safe exercise-intensity or heat-exposure recommendation
   - A released curve cannot define a safe, unsafe, optimal, dangerous, or tolerable temperature range
@@ -213,6 +230,8 @@ privacy_implications:
   - Persist and return only aggregate band bounds, support counts, and rule version
   - Do not expose activity identities, dates, routes, segment rows, or per-activity membership
   - Existing opt-in, withdrawal, deletion, staleness, and backup-retention boundaries remain unchanged
+  - This decision does not authorize cohort contribution, pooled storage, or reuse beyond the current personal experiment consent
+  - A future cohort study requires separate consent, retention, minimum-cell, withdrawal, and publication boundaries
 validation_plan:
   - Reproduce the fixed-band and candidate-band results on the private pilot snapshot without persisting personal source rows
   - Verify the candidate band is calculated before environmental-bin counts and model outcomes
@@ -227,9 +246,11 @@ validation_plan:
   - Perturb each snapshot's Critical Power history by plus and minus 5 percent and require at least 90 percent of snapshots to retain the same released-or-withheld state
   - Remove the newest 10 percent of eligible activities and require at least 80 percent of snapshots to retain the same supported-bin set
   - Require the predictive-negative-control failure rate among candidate-supported snapshots to increase by no more than 5 percentage points versus v3-supported snapshots
-  - Prospectively compare availability, bin support, coefficient stability, and negative-control failures across the prespecified opt-in cohort
-  - Stratify prospective results by sex, training history, climate, terrain, median workload, and Critical Power source continuity where sample size permits
+  - Before any prospective multi-user validation, approve a separate pilot protocol and consent covering cross-snapshot aggregate acceptance statistics; this decision does not authorize that collection or reuse
+  - Under that separately approved protocol, compare only snapshot-level availability, bin support, coefficient stability, and negative-control failure rates; do not pool activity rows or estimate a cohort environmental-response curve
   - Verify web and miniapp show equivalent aggregate bounds, support counts, explanations, loading, empty, stale, and error states
+  - Verify the private research bundle and fitted model retain all otherwise eligible 65-95 percent Critical Power rows regardless of the personal display band
+  - Verify persisted aggregate provenance states that the display filter was not applied to fitted rows
   - Run science, metric-addition, API-contract, privacy, and UI-quality review before implementation approval
 falsification_conditions:
   - Band selection changes after environmental support, coefficient, interval, prediction, or rendering results are inspected
@@ -240,11 +261,12 @@ falsification_conditions:
   - Predictive-negative-control failure rises by more than 5 percentage points versus v3-supported snapshots
   - Users interpret the band as a prescribed training zone, physiological threshold, or heat-safety range
   - Web and miniapp calculate different bounds or show different support decisions
+  - The personal display band removes rows from the fitted model or becomes an implicit future cohort-contribution filter
   - Per-activity or per-segment support membership leaves the private worker boundary
   - Any unchanged fit-level, uncertainty, provider, prediction, privacy, consent, or safety gate is weakened
 affected_surfaces:
   models:
-    - Labs environmental-response-v3 display policy
+    - Labs environmental-response-v3 personal display policy
     - Aggregate reference-power support diagnostics
     - Labs dataset and result model-version manifests
   apis:
@@ -261,6 +283,10 @@ supersedes: []
 superseded_by:
 decision_notes:
   - This is a decision proposal and does not authorize a production behavior change.
+  - >
+    The same draft PR may contain a reviewable implementation, but it must
+    remain draft and must not merge or deploy until a human accepts or revises
+    this science decision.
   - >
     If approved, acceptance must atomically supersede
     sdr-environmental-performance-v3, update reciprocal decision lifecycle
@@ -281,8 +307,7 @@ decision_notes:
     historical-association-only.
   - >
     Implementation impact map: Evidence Review -> SDR -> support-band
-    calculation in analysis.metrics -> display support in
-    analysis.environment_response -> private pack provenance and model hashes
-    in api.packs -> Labs result/API contract -> web type and Labs explanation ->
-    miniapp parity and i18n -> ScienceNote -> tests, private replay, and
-    prospective validation.
+    calculation and broad-model separation in analysis.environment_response ->
+    band-independent private research records in api.packs -> Labs result/API
+    provenance -> web type and Labs explanation -> miniapp parity and i18n ->
+    ScienceNote -> tests, private replay, and prospective validation.

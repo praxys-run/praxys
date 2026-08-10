@@ -143,11 +143,22 @@ class EnvironmentReferencePowerFunnel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     environment_activity_count: int
-    any_valid_sample_activity_count: int
-    continuous_coverage_activity_count: int
     stable_segment_mean_activity_count: int
     training_partition_activity_count: int
     final_reference_power_activity_count: int
+
+
+class EnvironmentWorkloadSupport(BaseModel):
+    """Aggregate personal display range and common model-domain provenance."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    policy: Literal["training_median_centered_v1"]
+    training_median_pct_cp: float
+    personal_display_pct_cp: list[float]
+    half_width_percentage_points: float
+    model_eligible_pct_cp: list[float]
+    display_filter_applied_to_model_rows: Literal[False]
 
 
 class EnvironmentCurveSupportBin(BaseModel):
@@ -180,6 +191,7 @@ class EnvironmentEligibilityCounts(BaseModel):
     eligible_segment_count: int
     exclusion_reason_counts: dict[str, int]
     provider_regimes: list[EnvironmentProviderRegime]
+    workload_support: EnvironmentWorkloadSupport | None = None
     observed_wet_bulb_domain_c: list[float] | None = None
     curve_support_bins: list[EnvironmentCurveSupportBin] | None = None
     displayed_wet_bulb_domains_c: list[list[float]] | None = None

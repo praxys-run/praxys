@@ -359,6 +359,14 @@ def test_builds_aggregate_labs_curve_without_private_activity_fields() -> None:
     assert result["aggregate_uncertainty"]["leave_one_activity_out"][
         "sign_agreement"
     ] == 1.0
+    workload_support = result["eligibility_counts"]["workload_support"]
+    assert workload_support["policy"] == "training_median_centered_v1"
+    assert workload_support["model_eligible_pct_cp"] == [65.0, 95.0]
+    assert workload_support["display_filter_applied_to_model_rows"] is False
+    assert workload_support["personal_display_pct_cp"] == pytest.approx([
+        max(65.0, workload_support["training_median_pct_cp"] - 10.0),
+        min(95.0, workload_support["training_median_pct_cp"] + 10.0),
+    ])
     serialized = json.dumps(result, sort_keys=True)
     for forbidden in (
         '"activity_id"',
@@ -429,10 +437,12 @@ def test_curve_support_bins_emit_monotonic_aggregate_funnel() -> None:
                 "source": "stryd",
                 "environment": {"wet_bulb_c": index + 0.5},
             },
-            "reference_power_support": {
-                "any_valid_sample_point": True,
-                "minimum_continuous_coverage": True,
-                "accepted_stable_segment_mean": is_supported,
+            "stable_segments": {
+                "segments": [{
+                    "source": "samples",
+                    "mean_pct_cp": 80.0 if is_supported else 70.0,
+                    "reason_codes": [],
+                }],
             },
         })
         rows.append(SimpleNamespace(
@@ -450,6 +460,7 @@ def test_curve_support_bins_emit_monotonic_aggregate_funnel() -> None:
             minimum_segments_per_curve_bin=1,
             minimum_reference_power_activities_per_curve_bin=1,
         ),
+        (75.0, 85.0),
     )
 
     assert [item["supported"] for item in bins] == supported
@@ -457,13 +468,110 @@ def test_curve_support_bins_emit_monotonic_aggregate_funnel() -> None:
         funnel = item["reference_power_funnel"]
         counts = [
             funnel["environment_activity_count"],
-            funnel["any_valid_sample_activity_count"],
-            funnel["continuous_coverage_activity_count"],
             funnel["stable_segment_mean_activity_count"],
             funnel["training_partition_activity_count"],
             funnel["final_reference_power_activity_count"],
         ]
         assert counts == sorted(counts, reverse=True)
+
+
+@pytest.mark.parametrize(
+    ("median_pct_cp", "expected_range"),
+    [
+        (65.0, [65.0, 75.0]),
+        (75.0, [65.0, 85.0]),
+        (85.0, [75.0, 95.0]),
+        (95.0, [85.0, 95.0]),
+    ],
+)
+def test_personal_workload_support_clips_to_the_governed_model_domain(
+    median_pct_cp: float,
+    expected_range: list[float],
+) -> None:
+    from analysis.environment_response import (
+        LabsEnvironmentConfig,
+        _workload_support,
+    )
+
+    support = _workload_support(
+        [SimpleNamespace(mean_pct_cp=median_pct_cp)],
+        LabsEnvironmentConfig(),
+    )
+
+    assert support["training_median_pct_cp"] == median_pct_cp
+    assert support["personal_display_pct_cp"] == expected_range
+    assert support["model_eligible_pct_cp"] == [65.0, 95.0]
+    assert support["display_filter_applied_to_model_rows"] is False
+
+
+def test_personal_workload_support_rejects_an_empty_training_partition() -> None:
+    from analysis.environment_response import (
+        LabsEnvironmentConfig,
+        _workload_support,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="requires training rows",
+    ):
+        _workload_support([], LabsEnvironmentConfig())
+
+
+def test_display_power_band_does_not_remove_broader_model_rows() -> None:
+    from analysis.environment_response import (
+        LabsEnvironmentConfig,
+        _curve_support_bins,
+    )
+
+    records = [
+        {
+            "activity": {
+                "activity_id": activity_id,
+                "source": "stryd",
+                "environment": {"wet_bulb_c": 20.0},
+            },
+            "stable_segments": {
+                "segments": [{
+                    "source": "samples",
+                    "mean_pct_cp": mean_pct_cp,
+                    "reason_codes": [],
+                }],
+            },
+        }
+        for activity_id, mean_pct_cp in (
+            ("in-band", 70.0),
+            ("model-only", 90.0),
+        )
+    ]
+    rows = [
+        SimpleNamespace(
+            activity_key="stryd|in-band",
+            wet_bulb_c=20.0,
+            mean_pct_cp=70.0,
+        ),
+        SimpleNamespace(
+            activity_key="stryd|model-only",
+            wet_bulb_c=20.0,
+            mean_pct_cp=90.0,
+        ),
+    ]
+
+    support_bin = _curve_support_bins(
+        records,
+        rows,
+        np.array([19.0, 21.0]),
+        LabsEnvironmentConfig(
+            curve_support_bin_count=1,
+            minimum_activities_per_curve_bin=1,
+            minimum_segments_per_curve_bin=1,
+            minimum_reference_power_activities_per_curve_bin=1,
+        ),
+        (65.0, 80.0),
+    )[0]
+
+    assert support_bin["activity_count"] == 2
+    assert support_bin["segment_count"] == 2
+    assert support_bin["reference_power_activity_count"] == 1
 
 
 def test_labs_bootstrap_width_and_influence_guardrails_withhold_curve() -> None:
