@@ -865,6 +865,31 @@ html[lang="zh"] .login-shell {
   }
 }
 
+/* CLI callback banner — only appears when ?cli_callback=... is present */
+.login-cli-banner {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: 0.5rem;
+  align-items: center;
+  background: color-mix(in oklch, var(--lg-cobalt) 8%, var(--lg-card));
+  border: 1px solid color-mix(in oklch, var(--lg-cobalt) 30%, var(--lg-card));
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  color: var(--lg-cobalt);
+  font-family: var(--lg-font-data);
+  letter-spacing: 0.02em;
+}
+
+.login-cli-banner > .login-cli-banner-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--lg-cobalt);
+  align-self: center;
+  justify-self: center;
+}
+
 /* ─── Windows high-contrast / forced-colors mode ─────────────────────────
    The decorative grid + aurora are replaced by the system canvas, which
    strips our gradients and turns the hero pane into a flat sheet. Drop
