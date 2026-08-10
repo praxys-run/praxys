@@ -32,7 +32,7 @@ msgid "(optional)"
 msgstr "（可选）"
 
 #. placeholder {0}: bin.reference_power_activity_count
-#: src/pages/LabsEnvironment.tsx:615
+#: src/pages/LabsEnvironment.tsx:616
 msgid "{0, plural, one {# activity} other {# activities}}"
 msgstr "{0, plural, other {# 项活动}}"
 
@@ -771,7 +771,7 @@ msgstr "agent-ready 候选"
 #~ msgid "Agent-ready candidates"
 #~ msgstr "可由智能体处理的候选项"
 
-#: src/pages/LabsEnvironment.tsx:882
+#: src/pages/LabsEnvironment.tsx:883
 msgid "Aggregate storage"
 msgstr "仅存储汇总结果"
 
@@ -832,7 +832,7 @@ msgstr "{0} 个关联工单均已是最新状态。"
 msgid "All components operational"
 msgstr "所有组件运行正常"
 
-#: src/pages/LabsEnvironment.tsx:1124
+#: src/pages/LabsEnvironment.tsx:1125
 msgid "All experiments"
 msgstr "所有实验"
 
@@ -877,7 +877,7 @@ msgstr "其他计划源与 Praxys 计划有重叠。建议一次只使用一个�
 msgid "An unexpected error occurred."
 msgstr "发生了意外错误。"
 
-#: src/pages/LabsEnvironment.tsx:1190
+#: src/pages/LabsEnvironment.tsx:1191
 msgid "Analysis needs a manual retry"
 msgstr "分析需要手动重试"
 
@@ -1179,7 +1179,7 @@ msgstr "面向全产品沟通的双语公告横幅。"
 msgid "Body (optional)"
 msgstr "正文（可选）"
 
-#: src/pages/LabsEnvironment.tsx:1269
+#: src/pages/LabsEnvironment.tsx:1270
 msgid "Bootstrap interval"
 msgstr "Bootstrap 区间"
 
@@ -1244,11 +1244,11 @@ msgstr "目标是 <0>{0}</0> {distLabel}。当前 {abbrev} <1>{currentStr}{unit}
 msgid "by"
 msgstr "作者"
 
-#: src/pages/LabsEnvironment.tsx:787
+#: src/pages/LabsEnvironment.tsx:788
 msgid "Calculate proxy"
 msgstr "计算代理值"
 
-#: src/pages/LabsEnvironment.tsx:537
+#: src/pages/LabsEnvironment.tsx:538
 msgid "Calculator"
 msgstr "计算器"
 
@@ -1486,7 +1486,7 @@ msgstr "代码"
 msgid "Code {0} created for {1}. Email not sent. Copy it or use the link."
 msgstr "已为 {1} 创建代码 {0}。邮件未发送，请复制代码或使用链接。"
 
-#: src/pages/LabsEnvironment.tsx:761
+#: src/pages/LabsEnvironment.tsx:762
 msgid "Combine air temperature and relative humidity using the same Stull estimate as the experiment."
 msgstr "使用与实验相同的 Stull 估算式，将气温和相对湿度合并为代理值。"
 
@@ -1507,7 +1507,7 @@ msgstr "已承诺 / 上限"
 msgid "Communications"
 msgstr "公告"
 
-#: src/pages/LabsEnvironment.tsx:576
+#: src/pages/LabsEnvironment.tsx:577
 msgid "Comparable-power activity support"
 msgstr "可比功率活动支持"
 
@@ -1556,7 +1556,7 @@ msgstr "确认执行一次受保护的重试。Praxys 会先刷新数据来源�
 msgid "Confirm replay"
 msgstr "确认重试"
 
-#: src/pages/LabsEnvironment.tsx:998
+#: src/pages/LabsEnvironment.tsx:999
 msgid "Confirm that you are 18 or older to join this experiment."
 msgstr "确认已满 18 周岁后才能加入此实验。"
 
@@ -1640,7 +1640,7 @@ msgstr "连接转化漏斗"
 #~ msgid "Connector-provided activity summary"
 #~ msgstr "连接器提供的活动摘要"
 
-#: src/pages/LabsEnvironment.tsx:943
+#: src/pages/LabsEnvironment.tsx:944
 msgid "Consent text version"
 msgstr "同意文本版本"
 
@@ -1682,7 +1682,7 @@ msgstr "持续提升"
 msgid "Continuous improvement configured"
 msgstr "已设置持续提升目标"
 
-#: src/pages/LabsEnvironment.tsx:1280
+#: src/pages/LabsEnvironment.tsx:1281
 msgid "Continuous Stryd sample power"
 msgstr "连续 Stryd 采样功率"
 
@@ -1736,8 +1736,8 @@ msgstr "更正计划个性化信息"
 msgid "Could not add this workout"
 msgstr "无法添加这项训练"
 
-#: src/pages/LabsEnvironment.tsx:725
-#: src/pages/LabsEnvironment.tsx:733
+#: src/pages/LabsEnvironment.tsx:726
+#: src/pages/LabsEnvironment.tsx:734
 msgid "Could not calculate the wet-bulb proxy."
 msgstr "无法计算湿球温度代理值。"
 
@@ -2287,7 +2287,7 @@ msgstr "演示账号"
 #~ msgid "Demo Accounts"
 #~ msgstr "演示账号"
 
-#: src/pages/LabsEnvironment.tsx:927
+#: src/pages/LabsEnvironment.tsx:928
 msgid "Demo accounts are read-only and cannot join Labs."
 msgstr "演示账号为只读状态，无法加入 Labs。"
 
@@ -2532,7 +2532,7 @@ msgstr "例如 5:45"
 msgid "e.g. 8:00:00"
 msgstr "例如 8:00:00"
 
-#: src/pages/LabsEnvironment.tsx:638
+#: src/pages/LabsEnvironment.tsx:639
 msgid "Each activity counts once per environmental range. The comparable-power range is centered on your typical eligible stable training workload; raw sample points alone do not count."
 msgstr "每个环境区间内，每次活动只计一次。可比功率范围以符合条件的稳定训练负荷中位数为中心；仅有原始采样点不计入。"
 
@@ -2624,7 +2624,7 @@ msgstr "无法加载资格检查"
 msgid "Eligible"
 msgstr "符合条件"
 
-#: src/pages/LabsEnvironment.tsx:658
+#: src/pages/LabsEnvironment.tsx:659
 msgid "Eligible activities"
 msgstr "符合条件的活动"
 
@@ -2710,7 +2710,7 @@ msgstr "活动总数足够，但环境、功率和心率数据没有在足够多
 msgid "Enough source data to attempt the experiment"
 msgstr "源数据足以尝试这项实验"
 
-#: src/pages/LabsEnvironment.tsx:708
+#: src/pages/LabsEnvironment.tsx:709
 msgid "Enter numeric temperature and humidity values."
 msgstr "请输入有效的温度和湿度数值。"
 
@@ -2720,7 +2720,7 @@ msgid "Environment"
 msgstr "环境"
 
 #: src/pages/Labs.tsx:69
-#: src/pages/LabsEnvironment.tsx:1126
+#: src/pages/LabsEnvironment.tsx:1127
 msgid "Environmental response"
 msgstr "环境响应"
 
@@ -2737,7 +2737,7 @@ msgstr "仍可使用的装备（可多选）"
 msgid "Error"
 msgstr "错误"
 
-#: src/pages/LabsEnvironment.tsx:802
+#: src/pages/LabsEnvironment.tsx:803
 msgid "Estimated psychrometric wet-bulb proxy"
 msgstr "估算的湿球温度代理值"
 
@@ -3400,15 +3400,15 @@ msgstr "起伏路"
 msgid "Historical association only · personal aggregate result · continuous Stryd samples required"
 msgstr "仅描述历史关联 · 个人聚合结果 · 需要连续 Stryd 样本"
 
-#: src/pages/LabsEnvironment.tsx:1175
+#: src/pages/LabsEnvironment.tsx:1176
 msgid "Historical association; not predictively validated"
 msgstr "存在历史关联；尚未通过预测验证"
 
-#: src/pages/LabsEnvironment.tsx:467
+#: src/pages/LabsEnvironment.tsx:468
 msgid "Historical environmental-response curve"
 msgstr "历史环境响应曲线"
 
-#: src/pages/LabsEnvironment.tsx:1261
+#: src/pages/LabsEnvironment.tsx:1262
 msgid "Historical slope"
 msgstr "历史斜率"
 
@@ -3452,7 +3452,7 @@ msgstr "Praxys 在后台同步新数据的频率。降低频率可减少网络�
 msgid "How this is calculated"
 msgstr "计算方式"
 
-#: src/pages/LabsEnvironment.tsx:1288
+#: src/pages/LabsEnvironment.tsx:1289
 msgid "How to read this experiment"
 msgstr "如何解读此实验"
 
@@ -3588,7 +3588,7 @@ msgstr "HRV 变异性偏高（CV {cv}%），高于所设训练警戒阈值。"
 #~ msgid "Human overrides"
 #~ msgstr "人工改判"
 
-#: src/pages/LabsEnvironment.tsx:776
+#: src/pages/LabsEnvironment.tsx:777
 msgid "Humidity (%)"
 msgstr "湿度（%）"
 
@@ -3596,11 +3596,11 @@ msgstr "湿度（%）"
 msgid "I agree to the <0>Terms of Service</0> and <1>Privacy Policy</1>."
 msgstr "我同意<0>服务条款</0>和<1>隐私政策</1>。"
 
-#: src/pages/LabsEnvironment.tsx:905
+#: src/pages/LabsEnvironment.tsx:906
 msgid "I confirm that I am 18 or older. Praxys records this attestation, not my birth date."
 msgstr "确认已满 18 周岁。Praxys 仅记录此声明，不收集出生日期。"
 
-#: src/pages/LabsEnvironment.tsx:908
+#: src/pages/LabsEnvironment.tsx:909
 msgid "I understand the purpose, limits, storage, and withdrawal terms above and choose to participate in this experiment."
 msgstr "已了解上述实验目的、限制、存储和退出条款，并自愿参加此实验。"
 
@@ -3707,7 +3707,7 @@ msgstr "证据不足"
 #~ msgid "Insufficient HRV data for analysis"
 #~ msgstr "用于分析的 HRV 数据不足"
 
-#: src/pages/LabsEnvironment.tsx:631
+#: src/pages/LabsEnvironment.tsx:632
 msgid "Insufficient support"
 msgstr "支持数据不足"
 
@@ -3792,7 +3792,7 @@ msgstr "已创建 Issue"
 msgid "It stays in your private history until its purge date, but cannot influence a new assessment."
 msgstr "信息会保留到原定删除时间，但不会再用于新的评估。"
 
-#: src/pages/LabsEnvironment.tsx:923
+#: src/pages/LabsEnvironment.tsx:924
 msgid "Join and analyze my history"
 msgstr "加入并分析我的历史数据"
 
@@ -3802,7 +3802,7 @@ msgstr "加入并分析我的历史数据"
 msgid "Join the waitlist"
 msgstr "加入候补名单"
 
-#: src/pages/LabsEnvironment.tsx:862
+#: src/pages/LabsEnvironment.tsx:863
 msgid "Join this personal experiment"
 msgstr "加入此个人实验"
 
@@ -3847,7 +3847,7 @@ msgstr "如有可选活动，请保持轻松且简短"
 msgid "Keep future workouts on {targetLabel}"
 msgstr "保留 {targetLabel} 上的未来训练"
 
-#: src/pages/LabsEnvironment.tsx:1371
+#: src/pages/LabsEnvironment.tsx:1372
 msgid "Keep participating"
 msgstr "继续参加"
 
@@ -3884,12 +3884,12 @@ msgstr "公里/周"
 msgid "Labs"
 msgstr "实验室"
 
-#: src/pages/LabsEnvironment.tsx:1356
+#: src/pages/LabsEnvironment.tsx:1357
 msgid "Labs action failed"
 msgstr "Labs 操作失败"
 
 #: src/pages/Labs.tsx:52
-#: src/pages/LabsEnvironment.tsx:1087
+#: src/pages/LabsEnvironment.tsx:1088
 msgid "Labs could not load"
 msgstr "无法加载 Labs"
 
@@ -4406,7 +4406,7 @@ msgstr "小程序"
 msgid "minimum"
 msgstr "最低要求"
 
-#: src/pages/LabsEnvironment.tsx:587
+#: src/pages/LabsEnvironment.tsx:588
 msgid "minimum {referenceMinimum} per environmental range"
 msgstr "每个环境区间至少 {referenceMinimum} 次"
 
@@ -4450,7 +4450,7 @@ msgstr "数据来源混合"
 msgid "Mode"
 msgstr "模式"
 
-#: src/pages/LabsEnvironment.tsx:1283
+#: src/pages/LabsEnvironment.tsx:1284
 msgid "Model version"
 msgstr "模型版本"
 
@@ -4565,7 +4565,7 @@ msgstr "需要帮助？{SUPPORT_EMAIL}"
 msgid "Needed {abbrev}"
 msgstr "所需{abbrev}"
 
-#: src/pages/LabsEnvironment.tsx:630
+#: src/pages/LabsEnvironment.tsx:631
 msgid "Needs {missingReference} more"
 msgstr "还需 {missingReference} 次"
 
@@ -4644,7 +4644,7 @@ msgstr "网络错误。请直接发邮件到 {SUPPORT_EMAIL}。"
 msgid "Network error. Refresh the queue and try again."
 msgstr "网络错误。请刷新队列后重试。"
 
-#: src/pages/LabsEnvironment.tsx:1076
+#: src/pages/LabsEnvironment.tsx:1077
 msgid "Network error. Try again."
 msgstr "网络错误，请重试。"
 
@@ -4753,7 +4753,7 @@ msgstr "当前暂无分类"
 msgid "No current qualifying condition range yet"
 msgstr "目前尚无符合条件的环境范围"
 
-#: src/pages/LabsEnvironment.tsx:1195
+#: src/pages/LabsEnvironment.tsx:1196
 msgid "No curve is available yet"
 msgstr "暂时无法生成曲线"
 
@@ -5075,7 +5075,7 @@ msgid "Not enough suitable data to start yet"
 msgstr "合适的数据暂时不足，无法开始"
 
 #: src/pages/LabsEnvironment.tsx:156
-#: src/pages/LabsEnvironment.tsx:1007
+#: src/pages/LabsEnvironment.tsx:1008
 msgid "Not enrolled"
 msgstr "未加入"
 
@@ -5125,7 +5125,7 @@ msgstr "现已开放 · 创建账号"
 msgid "Observed"
 msgstr "已记录"
 
-#: src/pages/LabsEnvironment.tsx:666
+#: src/pages/LabsEnvironment.tsx:667
 msgid "Observed proxy range"
 msgstr "已观测代理值范围"
 
@@ -5179,7 +5179,7 @@ msgstr "默认不发送。补充说明可能包含比上方字段更多的隐私
 msgid "On"
 msgstr "开"
 
-#: src/pages/LabsEnvironment.tsx:1180
+#: src/pages/LabsEnvironment.tsx:1181
 msgid "One or more research diagnostics did not support predictive interpretation. Read the curve only as a pattern in eligible past runs."
 msgstr "一项或多项研究诊断不支持预测性解读。请仅将曲线视为合格历史跑步中的关联模式。"
 
@@ -5412,7 +5412,7 @@ msgstr "部分服务中断"
 msgid "Participating"
 msgstr "已参与"
 
-#: src/pages/LabsEnvironment.tsx:1174
+#: src/pages/LabsEnvironment.tsx:1175
 msgid "Passed research diagnostics; not a forecast"
 msgstr "已通过研究诊断；并非预测"
 
@@ -5474,7 +5474,7 @@ msgstr "永久删除 Praxys 账号、已同步数据、计划、设置和加密�
 msgid "Personal Access Token"
 msgstr "个人访问令牌"
 
-#: src/pages/LabsEnvironment.tsx:876
+#: src/pages/LabsEnvironment.tsx:877
 msgid "Personal only"
 msgstr "仅供个人使用"
 
@@ -5617,7 +5617,7 @@ msgstr "功率下限（W）"
 msgid "Power metrics, Critical Power, training plans"
 msgstr "功率指标、阈值功率、训练计划"
 
-#: src/pages/LabsEnvironment.tsx:1279
+#: src/pages/LabsEnvironment.tsx:1280
 msgid "Power regime"
 msgstr "功率数据体系"
 
@@ -5792,7 +5792,7 @@ msgstr "计划仍由 Praxys 管理，下发已暂停。"
 msgid "Praxys stopped before consent or long-running analysis. Sync or collect the missing data, then retry this check."
 msgstr "Praxys 已在记录同意或启动耗时分析前停止。同步或积累缺少的数据后，再重新检查。"
 
-#: src/pages/LabsEnvironment.tsx:884
+#: src/pages/LabsEnvironment.tsx:885
 msgid "Praxys stores curve points, uncertainty, counts, gates, versions, and timestamps—not routes, activity dates, raw samples, or per-activity research rows."
 msgstr "Praxys 仅存储曲线点、不确定性、计数、门槛状态、版本和时间戳，不存储路线、活动日期、原始采样或逐活动研究记录。"
 
@@ -5800,11 +5800,11 @@ msgstr "Praxys 仅存储曲线点、不确定性、计数、门槛状态、版�
 msgid "Praxys version"
 msgstr "Praxys 版本"
 
-#: src/pages/LabsEnvironment.tsx:864
+#: src/pages/LabsEnvironment.tsx:865
 msgid "Praxys will analyze eligible past runs to see whether modeled heart rate varied with temperature-and-humidity conditions at comparable recorded Stryd power."
 msgstr "Praxys 将分析符合条件的历史跑步，观察在可比的 Stryd 记录功率下，模型心率是否随温湿度条件变化。"
 
-#: src/pages/LabsEnvironment.tsx:1366
+#: src/pages/LabsEnvironment.tsx:1367
 msgid "Praxys will immediately delete your Labs consent and derived aggregate result. Your underlying account activities are not deleted."
 msgstr "Praxys 将立即删除 Labs 同意记录和派生汇总结果，但不会删除账号中的原始活动。"
 
@@ -5816,7 +5816,7 @@ msgstr "Praxys 会将原因保留为“未知”，不会因此作出负面判�
 msgid "Praxys will stop changing the target calendar. Your canonical Praxys plan remains available for analysis."
 msgstr "Praxys 将停止更改目标日历。Praxys 计划仍会保留，可继续用于分析。"
 
-#: src/pages/LabsEnvironment.tsx:1293
+#: src/pages/LabsEnvironment.tsx:1294
 msgid "Praxys workload-support review"
 msgstr "Praxys 训练负荷支持证据综述"
 
@@ -6344,7 +6344,7 @@ msgstr "推荐"
 msgid "Recommended. Delivered workouts stay on the calendar; Praxys simply stops managing them."
 msgstr "推荐。已下发的训练会保留在日历中，Praxys 只停止继续管理。"
 
-#: src/pages/LabsEnvironment.tsx:1222
+#: src/pages/LabsEnvironment.tsx:1223
 msgid "Recompute"
 msgstr "重新计算"
 
@@ -6357,15 +6357,15 @@ msgstr "可再次重新计算"
 msgid "Recompute cooling down"
 msgstr "重新计算冷却中"
 
-#: src/pages/LabsEnvironment.tsx:989
+#: src/pages/LabsEnvironment.tsx:990
 msgid "Recompute is cooling down. Try again after {availableAt}."
 msgstr "重新计算仍在冷却中，请在 {availableAt} 后重试。"
 
-#: src/pages/LabsEnvironment.tsx:990
+#: src/pages/LabsEnvironment.tsx:991
 msgid "Recompute is cooling down. Try again later."
 msgstr "重新计算仍在冷却中，请稍后重试。"
 
-#: src/pages/LabsEnvironment.tsx:1341
+#: src/pages/LabsEnvironment.tsx:1342
 msgid "Recompute result"
 msgstr "重新计算结果"
 
@@ -6617,19 +6617,19 @@ msgstr "已拒绝"
 msgid "Relative humidity is missing from too many otherwise eligible activities."
 msgstr "其他条件合格的活动中，相对湿度缺失过多。"
 
-#: src/pages/LabsEnvironment.tsx:1245
+#: src/pages/LabsEnvironment.tsx:1246
 msgid "Relative modeled heart rate across your observed wet-bulb-proxy range, holding the fitted comparison at a common recorded-power reference."
 msgstr "在已观测湿球温度代理值范围内，以共同记录功率为参照显示相对模型心率。"
 
-#: src/pages/LabsEnvironment.tsx:1244
+#: src/pages/LabsEnvironment.tsx:1245
 msgid "Relative modeled heart rate is shown only in ranges with enough comparable-power evidence. Unsupported ranges remain blank and are never connected."
 msgstr "仅在可比功率证据充足的区间显示相对模型心率。支持不足的区间保持空白，且不会连接。"
 
-#: src/pages/LabsEnvironment.tsx:509
+#: src/pages/LabsEnvironment.tsx:510
 msgid "Relative modeled HR"
 msgstr "相对模型心率"
 
-#: src/pages/LabsEnvironment.tsx:490
+#: src/pages/LabsEnvironment.tsx:491
 msgid "Relative modeled HR (bpm)"
 msgstr "相对模型心率（bpm）"
 
@@ -6705,7 +6705,7 @@ msgstr "申请邀请"
 msgid "Request and availability telemetry is unavailable."
 msgstr "请求和可用性遥测数据暂不可用。"
 
-#: src/pages/LabsEnvironment.tsx:1050
+#: src/pages/LabsEnvironment.tsx:1051
 msgid "Request failed. Try again."
 msgstr "请求失败，请重试。"
 
@@ -6828,7 +6828,7 @@ msgstr "恢复托管下发？"
 #: src/pages/History.tsx:53
 #: src/pages/Labs.tsx:56
 #: src/pages/LabsEnvironment.tsx:372
-#: src/pages/LabsEnvironment.tsx:1091
+#: src/pages/LabsEnvironment.tsx:1092
 #: src/pages/Settings.tsx:335
 #: src/pages/Today.tsx:352
 #: src/pages/Today.tsx:511
@@ -7513,7 +7513,7 @@ msgstr "平稳"
 msgid "Stable"
 msgstr "稳定"
 
-#: src/pages/LabsEnvironment.tsx:662
+#: src/pages/LabsEnvironment.tsx:663
 msgid "Stable segments"
 msgstr "稳定分段"
 
@@ -7614,7 +7614,7 @@ msgstr "将发送的信息"
 #~ msgid "Stryd-provided activity weather"
 #~ msgstr "Stryd 提供的活动天气"
 
-#: src/pages/LabsEnvironment.tsx:479
+#: src/pages/LabsEnvironment.tsx:480
 msgid "Stull psychrometric wet-bulb proxy (°C)"
 msgstr "Stull 湿球温度代理值（°C）"
 
@@ -7658,11 +7658,11 @@ msgstr "汇总时间范围"
 msgid "Sun"
 msgstr "周日"
 
-#: src/pages/LabsEnvironment.tsx:1203
+#: src/pages/LabsEnvironment.tsx:1204
 msgid "Support ID"
 msgstr "支持 ID"
 
-#: src/pages/LabsEnvironment.tsx:628
+#: src/pages/LabsEnvironment.tsx:629
 msgid "Supported"
 msgstr "支持充足"
 
@@ -7881,7 +7881,7 @@ msgstr "目标完赛时间"
 #~ msgid "Telemetry trust boundary"
 #~ msgstr "遥测信任边界"
 
-#: src/pages/LabsEnvironment.tsx:767
+#: src/pages/LabsEnvironment.tsx:768
 msgid "Temperature (°C)"
 msgstr "温度（°C）"
 
@@ -7935,7 +7935,7 @@ msgstr "这一天已归入已完成记录，无法再修改。"
 msgid "That is a complete state, not missing data. Praxys keeps the reason unknown and does not reduce your standing or invent an explanation."
 msgstr "没有填写也是完整状态，并不代表数据缺失。Praxys 会保留“原因未知”，不会因此作出负面判断或自行补充解释。"
 
-#: src/pages/LabsEnvironment.tsx:939
+#: src/pages/LabsEnvironment.tsx:940
 msgid "The accepted Praxys evidence review found controlled support for heat-related cardiovascular drift, but no field study validating a causal or predictive personal Stull wet-bulb response curve. V1 is therefore descriptive and Stryd-only."
 msgstr "已接受的 Praxys 证据评审支持热环境相关的心血管漂移，但尚无实地研究验证具有因果或预测能力的个人 Stull 湿球温度响应曲线。因此 V1 仅作描述，并且只支持 Stryd。"
 
@@ -7951,7 +7951,7 @@ msgstr "无法刷新智能体决策与结果汇总。"
 msgid "The alert summary could not be refreshed."
 msgstr "无法刷新警报摘要。"
 
-#: src/pages/LabsEnvironment.tsx:1194
+#: src/pages/LabsEnvironment.tsx:1195
 msgid "The analysis did not finish"
 msgstr "分析未完成"
 
@@ -7983,7 +7983,7 @@ msgstr "运维队列可用，但无法刷新整体下发健康状态。"
 msgid "The canonical Praxys plan is preserved. Existing target workouts stay in place until you resume or leave."
 msgstr "Praxys 计划会完整保留。恢复下发或退出托管前，目标平台上的现有训练保持不变。"
 
-#: src/pages/LabsEnvironment.tsx:1179
+#: src/pages/LabsEnvironment.tsx:1180
 msgid "The chronological holdout and sensitivity checks passed, but this personal historical association is still not a clinical claim or future-condition forecast."
 msgstr "时间顺序留出检验和敏感性检查已通过，但这一私人历史关联仍不构成临床结论，也不能预测未来环境下的表现。"
 
@@ -7991,7 +7991,7 @@ msgstr "时间顺序留出检验和敏感性检查已通过，但这一私人历
 msgid "The chronological prediction check could not be evaluated, so Praxys withholds the fitted curve."
 msgstr "无法评估按时间顺序进行的预测检查，因此 Praxys 不显示拟合曲线。"
 
-#: src/pages/LabsEnvironment.tsx:1004
+#: src/pages/LabsEnvironment.tsx:1005
 msgid "The consent text changed. Review and confirm the current version."
 msgstr "同意说明已更新。请阅读并确认当前版本。"
 
@@ -8062,7 +8062,7 @@ msgstr "最新 HRV 读数过旧，不能用于当日恢复分类。请同步设�
 #~ msgid "The latest HRV reading is too old for a same-day recovery classification. Sync your device to refresh it.\" \"最近一次 HRV 读数过旧，无法用于当日恢复分类。请同步设备以刷新数据。"
 #~ msgstr ""
 
-#: src/pages/LabsEnvironment.tsx:1299
+#: src/pages/LabsEnvironment.tsx:1300
 msgid "The line is a historical model inside supported ranges only. A blank range means comparable stable workload did not pass the display floor; Praxys does not estimate or connect through it. The shaded band shows aggregate uncertainty where the curve is supported. It does not identify a causal personal coefficient and never extrapolates beyond your observed domain. Wind, solar load, clothing, hydration, fatigue, and other unmeasured conditions can still differ between runs."
 msgstr "曲线仅显示在支持充足的历史区间。空白区间表示可比稳定负荷未达到显示门槛；Praxys 不会在其中估算，也不会跨越连接。阴影带表示曲线支持区间内的汇总不确定性。它不是个人因果系数，也不会外推到观测范围之外。不同活动之间的风、太阳辐射、衣着、补水、疲劳及其他未测量条件仍可能不同。"
 
@@ -8104,7 +8104,7 @@ msgid "The public status feed has no unresolved incidents."
 msgstr "公共状态源中没有未解决事件。"
 
 #: src/pages/LabsEnvironment.tsx:382
-#: src/pages/LabsEnvironment.tsx:1001
+#: src/pages/LabsEnvironment.tsx:1002
 msgid "The quick check found a data requirement that needs attention."
 msgstr "快速检查发现一项需要处理的数据要求。"
 
@@ -8125,11 +8125,11 @@ msgstr "滚动暴露阈值仍然满足，但这并不代表存在保留平台期
 msgid "The rolling limit protects the shared analysis capacity from repeated requests."
 msgstr "滚动上限可防止重复请求占用共享分析容量。"
 
-#: src/pages/LabsEnvironment.tsx:994
+#: src/pages/LabsEnvironment.tsx:995
 msgid "The rolling recompute limit has been reached. Try again after {availableAt}."
 msgstr "已达到滚动重新计算上限，请在 {availableAt} 后重试。"
 
-#: src/pages/LabsEnvironment.tsx:995
+#: src/pages/LabsEnvironment.tsx:996
 msgid "The rolling recompute limit has been reached. Try again later."
 msgstr "已达到滚动重新计算上限，请稍后重试。"
 
@@ -8185,7 +8185,7 @@ msgstr "此操作无法撤销。如果这是最后一个管理员账号，将无
 msgid "This change used confirmed private context. The private detail is not copied into the plan record."
 msgstr "这次调整使用了已确认的计划个性化信息，具体内容不会写入计划记录。"
 
-#: src/pages/LabsEnvironment.tsx:798
+#: src/pages/LabsEnvironment.tsx:799
 msgid "This combination is outside Praxys’s conservative Stull method domain."
 msgstr "此温湿度组合超出 Praxys 采用的保守 Stull 方法范围。"
 
@@ -8210,7 +8210,7 @@ msgstr "这类信息会进入安全流程，暂停常规训练优化。Praxys �
 msgid "This evaluates past training only; it does not assess today's weather or conditions."
 msgstr "这仅评估过往训练，不评估今天的天气或环境条件。"
 
-#: src/pages/LabsEnvironment.tsx:821
+#: src/pages/LabsEnvironment.tsx:822
 msgid "This falls in an unsupported historical range, so it is not marked on the curve."
 msgstr "该值落在证据不足的历史范围内，因此不会标记在曲线上。"
 
@@ -8234,11 +8234,11 @@ msgstr "此护栏采用个体化 HRV 指导，且不会加载活动强度。具�
 msgid "This insight changed. Refresh the page before sending feedback."
 msgstr "这条解读已更新。请先刷新页面，再提交反馈。"
 
-#: src/pages/LabsEnvironment.tsx:898
+#: src/pages/LabsEnvironment.tsx:899
 msgid "This is a retrospective historical association. It does not forecast a future run, prove that heat caused a heart-rate change, prescribe pace, measure adaptation or hydration, or assess heat safety."
 msgstr "这是一项回顾性的历史关联分析。它不会预测未来跑步、证明热环境导致心率变化、建议配速、衡量热适应或补水状态，也不评估高温安全。"
 
-#: src/pages/LabsEnvironment.tsx:816
+#: src/pages/LabsEnvironment.tsx:817
 msgid "This is above your displayed historical range, so the curve does not extrapolate to it."
 msgstr "该值高于已显示的历史范围，因此曲线不会外推到此处。"
 
@@ -8246,7 +8246,7 @@ msgstr "该值高于已显示的历史范围，因此曲线不会外推到此处
 msgid "This is an inference from training evidence in similar conditions, not a direct physiological measurement."
 msgstr "这是基于相似环境下训练证据的推断，并非直接的生理测量。"
 
-#: src/pages/LabsEnvironment.tsx:811
+#: src/pages/LabsEnvironment.tsx:812
 msgid "This is below your displayed historical range, so the curve does not extrapolate to it."
 msgstr "该值低于已显示的历史范围，因此曲线不会外推到此处。"
 
@@ -8254,7 +8254,7 @@ msgstr "该值低于已显示的历史范围，因此曲线不会外推到此处
 msgid "This is not medical clearance or a personal heat-tolerance assessment."
 msgstr "这不构成医疗许可，也不是个人耐热能力评估。"
 
-#: src/pages/LabsEnvironment.tsx:830
+#: src/pages/LabsEnvironment.tsx:831
 msgid "This is Stull’s psychrometric estimate from air temperature and relative humidity. It is not apparent temperature, natural wet bulb, outdoor WBGT, body temperature, or a heat-safety assessment."
 msgstr "这是根据气温和相对湿度计算的 Stull 干湿球湿球温度估算值。它不是体感温度、自然湿球温度、室外 WBGT、体温或高温安全评估。"
 
@@ -8291,7 +8291,7 @@ msgstr "快速检查只覆盖明确的前置条件。完整分析仍可能返回
 msgid "This removes the Praxys workout from the canonical plan. Any external workout stays untouched."
 msgstr "这会从 Praxys 主计划中删除该训练。外部训练不会受到影响。"
 
-#: src/pages/LabsEnvironment.tsx:977
+#: src/pages/LabsEnvironment.tsx:978
 msgid "This result did not pass the experiment’s release guardrails."
 msgstr "此结果未通过实验的发布门槛。"
 
@@ -8310,7 +8310,7 @@ msgstr "该结果使用了旧版实验模型，需要重新运行。"
 msgid "This section is unavailable. Other management workflows remain available."
 msgstr "此部分暂不可用，其他管理流程仍可使用。"
 
-#: src/pages/LabsEnvironment.tsx:806
+#: src/pages/LabsEnvironment.tsx:807
 msgid "This sits inside your displayed historical range and is marked on the curve."
 msgstr "该值位于已显示的历史范围内，并已标记在曲线上。"
 
@@ -8840,7 +8840,7 @@ msgstr "VO2max、CP、LTHR、训练状态"
 msgid "Volume"
 msgstr "里程"
 
-#: src/pages/LabsEnvironment.tsx:1128
+#: src/pages/LabsEnvironment.tsx:1129
 msgid "Voluntary experiments that help you inspect your own training history without turning early research into advice."
 msgstr "自愿参与的实验，帮助理解个人训练历史，同时不把早期研究包装成建议。"
 
@@ -8974,11 +8974,11 @@ msgstr "欢迎回来。"
 #~ msgid "Wet-bulb estimate unavailable"
 #~ msgstr "无法估算湿球温度"
 
-#: src/pages/LabsEnvironment.tsx:503
+#: src/pages/LabsEnvironment.tsx:504
 msgid "wet-bulb proxy"
 msgstr "湿球温度代理值"
 
-#: src/pages/LabsEnvironment.tsx:759
+#: src/pages/LabsEnvironment.tsx:760
 msgid "Wet-bulb proxy calculator"
 msgstr "湿球温度代理值计算器"
 
@@ -9006,7 +9006,7 @@ msgstr "遇到了什么问题，或希望我们做些什么？"
 msgid "What happened?"
 msgstr "这次训练怎么了？"
 
-#: src/pages/LabsEnvironment.tsx:896
+#: src/pages/LabsEnvironment.tsx:897
 msgid "What this can—and cannot—tell you"
 msgstr "它能说明什么，又不能说明什么"
 
@@ -9030,7 +9030,7 @@ msgstr "训练目标是什么？（可选）"
 msgid "Why this is conservative"
 msgstr "为什么这是保守调整"
 
-#: src/pages/LabsEnvironment.tsx:934
+#: src/pages/LabsEnvironment.tsx:935
 msgid "Why this remains experimental"
 msgstr "为什么它仍属于实验"
 
@@ -9038,7 +9038,7 @@ msgstr "为什么它仍属于实验"
 msgid "Will sync:"
 msgstr "将同步以下内容："
 
-#: src/pages/LabsEnvironment.tsx:1225
+#: src/pages/LabsEnvironment.tsx:1226
 msgid "Withdraw"
 msgstr "退出"
 
@@ -9046,27 +9046,27 @@ msgstr "退出"
 msgid "Withdraw AI permission"
 msgstr "撤回 AI 权限"
 
-#: src/pages/LabsEnvironment.tsx:1381
+#: src/pages/LabsEnvironment.tsx:1382
 msgid "Withdraw and delete"
 msgstr "退出并删除"
 
-#: src/pages/LabsEnvironment.tsx:1346
+#: src/pages/LabsEnvironment.tsx:1347
 msgid "Withdraw and delete result"
 msgstr "退出并删除结果"
 
-#: src/pages/LabsEnvironment.tsx:888
+#: src/pages/LabsEnvironment.tsx:889
 msgid "Withdraw anytime"
 msgstr "可随时退出"
 
-#: src/pages/LabsEnvironment.tsx:1364
+#: src/pages/LabsEnvironment.tsx:1365
 msgid "Withdraw from this experiment?"
 msgstr "退出此实验？"
 
-#: src/pages/LabsEnvironment.tsx:1320
+#: src/pages/LabsEnvironment.tsx:1321
 msgid "Withdrawal deletes the experiment consent and aggregate result. Rejoining later requires new consent and a new computation."
 msgstr "退出后将删除实验同意记录和汇总结果。今后重新加入时，需要再次同意并重新计算。"
 
-#: src/pages/LabsEnvironment.tsx:890
+#: src/pages/LabsEnvironment.tsx:891
 msgid "Withdrawal immediately deletes experiment consent and the derived result. Your ordinary account activities remain unchanged."
 msgstr "退出后会立即删除实验同意记录和派生结果，账号中的普通活动保持不变。"
 
@@ -9145,7 +9145,7 @@ msgstr "可离开此页面，稍后再回来。分析运行期间无需任何操
 msgid "You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed. Deleting the item removes local provider-use receipts and dependent private explanations."
 msgstr "你可以在后续请求前撤回。撤回无法收回 AI 服务已处理的请求。删除该项会移除本地 AI 使用记录和关联的私密说明。"
 
-#: src/pages/LabsEnvironment.tsx:1318
+#: src/pages/LabsEnvironment.tsx:1319
 msgid "You control this experiment"
 msgstr "此实验由你掌控"
 
@@ -9167,11 +9167,11 @@ msgstr "you@example.com"
 msgid "Your account is active. You can now sign in."
 msgstr "账号已激活，现在可以登录了。"
 
-#: src/pages/LabsEnvironment.tsx:675
+#: src/pages/LabsEnvironment.tsx:676
 msgid "Your comparable power range"
 msgstr "个人可比功率范围"
 
-#: src/pages/LabsEnvironment.tsx:580
+#: src/pages/LabsEnvironment.tsx:581
 msgid "Your comparable range"
 msgstr "个人可比范围"
 
@@ -9200,7 +9200,7 @@ msgstr "计划仍由外部工具管理。"
 msgid "Your Garmin account has multi-factor authentication enabled. Enter the verification code Garmin sent you to finish connecting."
 msgstr "你的 Garmin 账号已启用多重验证。输入 Garmin 发送的验证码，完成连接。"
 
-#: src/pages/LabsEnvironment.tsx:1240
+#: src/pages/LabsEnvironment.tsx:1241
 msgid "Your historical environmental-response curve"
 msgstr "你的历史环境响应曲线"
 
@@ -9216,11 +9216,11 @@ msgstr "Praxys 账号信息"
 msgid "Your name"
 msgstr "姓名"
 
-#: src/pages/LabsEnvironment.tsx:1239
+#: src/pages/LabsEnvironment.tsx:1240
 msgid "Your partial historical environmental-response curve"
 msgstr "你的部分历史环境响应曲线"
 
-#: src/pages/LabsEnvironment.tsx:1302
+#: src/pages/LabsEnvironment.tsx:1303
 msgid "Your personal comparable-power range controls where the curve can be displayed. The fitted model still uses every otherwise eligible stable segment from 65–95% CP, so the display range does not discard broader model data."
 msgstr "个人可比功率范围只决定曲线可显示的区间。拟合模型仍会使用 65–95% CP 内所有其他条件均符合要求的稳定区段，因此显示范围不会丢弃更广范围的模型数据。"
 
@@ -9242,11 +9242,11 @@ msgstr "Praxys 邀请码：{0}\n"
 msgid "Your request is stored durably and will run separately from the app."
 msgstr "请求已安全保存，并会与应用分开运行。"
 
-#: src/pages/LabsEnvironment.tsx:878
+#: src/pages/LabsEnvironment.tsx:879
 msgid "Your result is not pooled with other users and is not donated to cohort research."
 msgstr "你的结果不会与其他用户合并，也不会捐赠给群体研究。"
 
-#: src/pages/LabsEnvironment.tsx:1192
+#: src/pages/LabsEnvironment.tsx:1193
 msgid "Your result needs recomputing"
 msgstr "结果需要重新计算"
 
