@@ -114,13 +114,14 @@ def test_sqlite_init_adds_ledger_tables_to_existing_database(tmp_path, monkeypat
         db_session.AsyncSessionLocal = None
 
 
-def test_alembic_head_includes_labs_analysis_jobs():
+def test_alembic_head_includes_mcp_access_grants():
     from alembic.config import Config
     from alembic.script import ScriptDirectory
 
     config = Config("alembic.ini")
     script = ScriptDirectory.from_config(config)
-    assert script.get_current_head() == "d95e6f7a8b9c"
+    assert script.get_current_head() == "e6a7b8c9d0f1"
+    assert script.get_revision("e6a7b8c9d0f1").down_revision == "d95e6f7a8b9c"
     assert script.get_revision("d95e6f7a8b9c").down_revision == "c84f0912ab6d"
 
 

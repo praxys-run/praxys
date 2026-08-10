@@ -247,6 +247,12 @@ def test_default_limits_is_immutable():
         DEFAULT_LIMITS["/api/auth/login"] = (10000, 1)  # type: ignore[index]
 
 
+def test_default_limits_cover_public_mcp_handoff_writes():
+    """Unauthenticated handoff persistence and exchange are IP-bounded."""
+    assert "/api/auth/mcp/handoffs" in DEFAULT_LIMITS
+    assert "/api/auth/mcp/handoffs/exchange" in DEFAULT_LIMITS
+
+
 # ---------------------------------------------------------------------------
 # Middleware integration tests
 # ---------------------------------------------------------------------------

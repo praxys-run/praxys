@@ -1,11 +1,17 @@
 """API contract coverage for owner-scoped adaptive-plan context."""
 from __future__ import annotations
 
+import importlib.util
 import json
+import os
+from pathlib import Path
+import sys
 import tempfile
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
+from types import ModuleType
+from unittest import mock
 
 import jwt
 import pytest
@@ -166,7 +172,7 @@ def _confirm(
         ("delegated_agent", "agent:test"),
     ],
 )
-def test_delegated_preview_is_scoped_but_confirmation_is_athlete_only(
+def test_delegated_claims_cannot_replace_server_grant_or_confirm(
     context_api,
     actor_type: str,
     actor_id: str,
@@ -205,9 +211,7 @@ def test_delegated_preview_is_scoped_but_confirmation_is_athlete_only(
         headers=delegated,
         json=_draft(),
     )
-    assert preview.status_code == 200, preview.text
-    assert preview.json()["confirmation_required"] is True
-    assert preview.json()["preview_actor_type"] == actor_type
+    assert preview.status_code == 403
 
     rejected = client.post(
         "/api/personal-context/confirm",
@@ -368,9 +372,7 @@ def test_reads_require_exact_scopes_and_do_not_enumerate_other_owners(
             "kind": "temporary_constraint",
         },
     )
-    assert listed.status_code == 200, listed.text
-    assert [row["id"] for row in listed.json()["items"]] == [owner_id]
-    assert listed.json()["items"][0]["payload"]["narrative"] is None
+    assert listed.status_code == 403
 
     assert client.get(
         "/api/personal-context",
@@ -397,18 +399,13 @@ def test_reads_require_exact_scopes_and_do_not_enumerate_other_owners(
         headers=narrative,
         params={"include_narrative": "true"},
     )
-    assert disclosed.status_code == 200
-    assert disclosed.json()["item"]["payload"]["narrative"] == (
-        "Short private planning detail"
-    )
+    assert disclosed.status_code == 404
 
     detail = client.get(
         f"/api/personal-context/{owner_id}",
         headers=structured,
     )
-    assert detail.status_code == 200
-    assert detail.json()["consent_receipts"] == []
-    assert detail.json()["use_receipts"] == []
+    assert detail.status_code == 404
 
     other_miss = client.get(
         f"/api/personal-context/{other_id}",
@@ -1011,3 +1008,776 @@ def test_context_pilot_evaluation_is_admin_only_and_aggregate(
     assert report.json()["checks"]["subgroup"]["state"] == "not_measured"
     assert "context_item_ids" not in serialized
     assert "Private API marker" not in serialized
+
+
+def _bearer(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _issue_mcp_session(client) -> tuple[str, dict[str, str]]:
+    created = client.post(
+        "/api/auth/mcp/handoffs",
+        json={"audience": "praxys-coach-plugin"},
+    )
+    assert created.status_code == 201, created.text
+    handoff = created.json()
+    approved = client.post(
+        f"/api/auth/mcp/handoffs/{handoff['state']}/decision",
+        headers=_headers(),
+        json={"decision": "approved"},
+    )
+    assert approved.status_code == 204, approved.text
+    exchanged = client.post(
+        "/api/auth/mcp/handoffs/exchange",
+        json={
+            "state": handoff["state"],
+            "exchange_secret": handoff["exchange_secret"],
+        },
+    )
+    assert exchanged.status_code == 200, exchanged.text
+    return exchanged.json()["access_token"], handoff
+
+
+def _issue_context_grant(
+    client,
+    session_token: str,
+    *,
+    purpose: str = "plan_adjustment",
+    kind: str = "temporary_constraint",
+    access: list[str] | None = None,
+) -> tuple[str, dict[str, str]]:
+    requested = client.post(
+        "/api/personal-context/scoped-access/requests",
+        headers=_bearer(session_token),
+        json={
+            "audience": "praxys-coach-plugin",
+            "purpose": purpose,
+            "kind": kind,
+            "access": access or ["read"],
+        },
+    )
+    assert requested.status_code == 201, requested.text
+    handoff = requested.json()
+    approved = client.post(
+        f"/api/auth/mcp/handoffs/{handoff['state']}/decision",
+        headers=_headers(),
+        json={"decision": "approved"},
+    )
+    assert approved.status_code == 204, approved.text
+    exchanged = client.post(
+        "/api/auth/mcp/handoffs/exchange",
+        json={
+            "state": handoff["state"],
+            "exchange_secret": handoff["exchange_secret"],
+        },
+    )
+    assert exchanged.status_code == 200, exchanged.text
+    return exchanged.json()["access_token"], handoff
+
+
+def test_mcp_login_uses_opaque_one_time_handoff_not_account_jwt(
+    context_api,
+) -> None:
+    client, db_session = context_api
+    created = client.post(
+        "/api/auth/mcp/handoffs",
+        json={"audience": "praxys-coach-plugin"},
+    )
+    assert created.status_code == 201, created.text
+    handoff = created.json()
+    assert handoff["authorize_path"] == (
+        f"/mcp/authorize?state={handoff['state']}"
+    )
+    assert "token=" not in handoff["authorize_path"]
+    assert not handoff["state"].startswith("eyJ")
+    assert not handoff["exchange_secret"].startswith("eyJ")
+    assert datetime.fromisoformat(
+        handoff["expires_at"].replace("Z", "+00:00")
+    ) <= datetime.now(timezone.utc) + timedelta(minutes=11)
+
+    malformed_secret = "opaque-secret-must-not-echo"
+    malformed_exchange = client.post(
+        "/api/auth/mcp/handoffs/exchange",
+        json={
+            "state": handoff["state"],
+            "exchange_secret": [malformed_secret],
+        },
+    )
+    assert malformed_exchange.status_code == 422
+    assert malformed_exchange.json() == {"detail": "MCP_AUTH_INVALID"}
+    assert malformed_secret not in malformed_exchange.text
+    assert malformed_exchange.headers["cache-control"] == "private, no-store"
+
+    rejected_secret = "not-the-client-held-exchange-secret"
+    with mock.patch(
+        "api.mcp_access.begin_serialized_write",
+    ) as begin_serialized_write:
+        rejected_exchange = client.post(
+            "/api/auth/mcp/handoffs/exchange",
+            json={
+                "state": handoff["state"],
+                "exchange_secret": rejected_secret,
+            },
+        )
+    begin_serialized_write.assert_not_called()
+    assert rejected_exchange.status_code == 404
+    assert rejected_secret not in rejected_exchange.text
+    assert handoff["state"] not in rejected_exchange.text
+
+    pending = client.post(
+        "/api/auth/mcp/handoffs/exchange",
+        json={
+            "state": handoff["state"],
+            "exchange_secret": handoff["exchange_secret"],
+        },
+    )
+    assert pending.status_code == 202
+    assert pending.json() == {"status": "pending"}
+
+    approved = client.post(
+        f"/api/auth/mcp/handoffs/{handoff['state']}/decision",
+        headers=_headers(),
+        json={"decision": "approved"},
+    )
+    assert approved.status_code == 204, approved.text
+    other_owner = client.get(
+        f"/api/auth/mcp/handoffs/{handoff['state']}",
+        headers=_headers("context-api-other"),
+    )
+    assert other_owner.status_code == 404
+
+    exchanged = client.post(
+        "/api/auth/mcp/handoffs/exchange",
+        json={
+            "state": handoff["state"],
+            "exchange_secret": handoff["exchange_secret"],
+        },
+    )
+    assert exchanged.status_code == 200, exchanged.text
+    session = exchanged.json()
+    assert session["access_token"].startswith("praxys_mcp_")
+    assert session["access_token"].count(".") == 0
+    assert session["audience"] == "praxys-coach-plugin"
+    assert datetime.fromisoformat(
+        session["expires_at"].replace("Z", "+00:00")
+    ) <= datetime.now(timezone.utc) + timedelta(hours=25)
+
+    replay = client.post(
+        "/api/auth/mcp/handoffs/exchange",
+        json={
+            "state": handoff["state"],
+            "exchange_secret": handoff["exchange_secret"],
+        },
+    )
+    assert replay.status_code == 409
+    me = client.get(
+        "/api/auth/mcp/me",
+        headers=_bearer(session["access_token"]),
+    )
+    assert me.status_code == 200, me.text
+    assert me.json()["id"] == "context-api-owner"
+    assert me.json()["actor_type"] == "mcp"
+
+    bypass = client.post(
+        "/api/personal-context/confirm",
+        headers={
+            **_bearer(session["access_token"]),
+            "Idempotency-Key": "mcp-session-bypass",
+        },
+        json={
+            **_draft(narrative=None),
+            "consent_text_version": "purpose-v1",
+            "client": "web",
+        },
+    )
+    assert bypass.status_code == 403
+    revoked = client.post(
+        "/api/auth/mcp/revoke",
+        headers=_bearer(session["access_token"]),
+    )
+    assert revoked.status_code == 200, revoked.text
+    assert revoked.json() == {"status": "revoked"}
+    assert client.get(
+        "/api/auth/mcp/me",
+        headers=_bearer(session["access_token"]),
+    ).status_code == 401
+
+    from db.models import McpAccessHandoff, McpAccessToken, PersonalContextItem
+
+    with db_session.SessionLocal() as db:
+        row = db.query(McpAccessToken).one()
+        assert row.token_digest not in {
+            session["access_token"],
+            handoff["exchange_secret"],
+        }
+        assert row.revoked_at is not None
+        assert db.query(McpAccessHandoff).count() == 1
+        assert db.query(PersonalContextItem).count() == 0
+
+
+def test_mcp_session_cannot_use_first_party_account_authority(
+    context_api,
+) -> None:
+    client, db_session = context_api
+    marker = "first-party-export-only-narrative"
+    confirmed = _confirm(
+        client,
+        key="mcp-account-boundary-context",
+        narrative=marker,
+    )
+    assert confirmed.status_code == 201, confirmed.text
+    session_token, _ = _issue_mcp_session(client)
+    headers = _bearer(session_token)
+
+    plugin_settings = client.get("/api/settings", headers=headers)
+    assert plugin_settings.status_code == 200, plugin_settings.text
+
+    unlisted_data = client.get("/api/history", headers=headers)
+    assert unlisted_data.status_code == 403
+    profile = client.get("/api/auth/me", headers=headers)
+    assert profile.status_code == 403
+    exported = client.get("/api/me/export", headers=headers)
+    assert exported.status_code == 403
+    assert marker not in exported.text
+    deleted = client.delete("/api/me", headers=headers)
+    assert deleted.status_code == 403
+
+    from db.models import McpAccessToken, User
+
+    with db_session.SessionLocal() as db:
+        session = db.query(McpAccessToken).one()
+        assert session.scopes == ["plugin:tools"]
+        assert db.get(User, "context-api-owner") is not None
+
+
+def test_new_mcp_handoff_prunes_expired_access_rows(context_api) -> None:
+    client, db_session = context_api
+    _, handoff = _issue_mcp_session(client)
+
+    from db.models import McpAccessHandoff, McpAccessToken
+
+    with db_session.SessionLocal() as db:
+        db.query(McpAccessHandoff).filter(
+            McpAccessHandoff.state_digest.is_not(None),
+        ).one().expires_at = datetime.utcnow() - timedelta(seconds=1)
+        db.query(McpAccessToken).one().expires_at = (
+            datetime.utcnow() - timedelta(seconds=1)
+        )
+        db.commit()
+
+    fresh = client.post(
+        "/api/auth/mcp/handoffs",
+        json={"audience": "praxys-coach-plugin"},
+    )
+    assert fresh.status_code == 201, fresh.text
+    assert fresh.json()["state"] != handoff["state"]
+    with db_session.SessionLocal() as db:
+        assert db.query(McpAccessHandoff).count() == 1
+        assert db.query(McpAccessToken).count() == 0
+
+
+def test_context_scope_requires_first_party_approval_and_cannot_broaden(
+    context_api,
+) -> None:
+    client, _ = context_api
+    session_token, _ = _issue_mcp_session(client)
+    invalid_audience = client.post(
+        "/api/personal-context/scoped-access/requests",
+        headers=_bearer(session_token),
+        json={
+            "audience": "another-client",
+            "purpose": "plan_adjustment",
+            "kind": "temporary_constraint",
+            "access": ["read"],
+        },
+    )
+    assert invalid_audience.status_code == 422
+    assert invalid_audience.json() == {"detail": "PERSONAL_CONTEXT_INVALID"}
+    invalid_pairing = client.post(
+        "/api/personal-context/scoped-access/requests",
+        headers=_bearer(session_token),
+        json={
+            "audience": "praxys-coach-plugin",
+            "purpose": "plan_generation",
+            "kind": "execution_explanation",
+            "access": ["read"],
+        },
+    )
+    assert invalid_pairing.status_code == 422
+    assert invalid_pairing.json() == {"detail": "PERSONAL_CONTEXT_INVALID"}
+
+    requested = client.post(
+        "/api/personal-context/scoped-access/requests",
+        headers=_bearer(session_token),
+        json={
+            "audience": "praxys-coach-plugin",
+            "purpose": "plan_adjustment",
+            "kind": "temporary_constraint",
+            "access": ["read", "write"],
+        },
+    )
+    assert requested.status_code == 201, requested.text
+    handoff = requested.json()
+    assert handoff["authorize_path"].startswith("/mcp/authorize?state=")
+    assert datetime.fromisoformat(
+        handoff["expires_at"].replace("Z", "+00:00")
+    ) <= datetime.now(timezone.utc) + timedelta(minutes=11)
+
+    self_grant = client.post(
+        f"/api/auth/mcp/handoffs/{handoff['state']}/decision",
+        headers=_bearer(session_token),
+        json={"decision": "approved"},
+    )
+    assert self_grant.status_code == 403
+    pending = client.post(
+        "/api/auth/mcp/handoffs/exchange",
+        json={
+            "state": handoff["state"],
+            "exchange_secret": handoff["exchange_secret"],
+        },
+    )
+    assert pending.status_code == 202
+
+    cross_athlete = client.post(
+        f"/api/auth/mcp/handoffs/{handoff['state']}/decision",
+        headers=_headers("context-api-other"),
+        json={"decision": "approved"},
+    )
+    assert cross_athlete.status_code == 404
+    approved = client.post(
+        f"/api/auth/mcp/handoffs/{handoff['state']}/decision",
+        headers=_headers(),
+        json={"decision": "approved"},
+    )
+    assert approved.status_code == 204
+    exchanged = client.post(
+        "/api/auth/mcp/handoffs/exchange",
+        json={
+            "state": handoff["state"],
+            "exchange_secret": handoff["exchange_secret"],
+        },
+    )
+    assert exchanged.status_code == 200, exchanged.text
+    grant = exchanged.json()
+    assert grant["access_token"].startswith("praxys_ctx_")
+    assert grant["purpose"] == "plan_adjustment"
+    assert grant["kind"] == "temporary_constraint"
+    assert grant["access"] == ["read", "write"]
+    assert datetime.fromisoformat(
+        grant["expires_at"].replace("Z", "+00:00")
+    ) <= datetime.now(timezone.utc) + timedelta(minutes=16)
+
+    broaden = client.post(
+        "/api/personal-context/scoped-access/requests",
+        headers=_bearer(grant["access_token"]),
+        json={
+            "audience": "praxys-coach-plugin",
+            "purpose": "goal_review",
+            "kind": "durable_preference",
+            "access": ["read"],
+        },
+    )
+    assert broaden.status_code == 403
+
+
+def test_scoped_read_is_minimal_owner_purpose_expiry_and_revocation_bound(
+    context_api,
+) -> None:
+    client, db_session = context_api
+    owner_draft = _draft(
+        narrative="Narrative must never cross the MCP boundary",
+    )
+    owner_draft["payload"]["fields"]["custom_private_detail"] = (
+        "Must stay first party"
+    )
+    owner = _confirm(
+        client,
+        key="scoped-read-owner",
+        body={
+            **owner_draft,
+            "consent_text_version": "purpose-v1",
+            "client": "web",
+        },
+    )
+    assert owner.status_code == 201
+    other = _confirm(
+        client,
+        key="scoped-read-other",
+        user_id="context-api-other",
+        category="travel",
+        narrative="Other athlete narrative",
+    )
+    assert other.status_code == 201
+
+    session_token, _ = _issue_mcp_session(client)
+    grant_token, _ = _issue_context_grant(
+        client,
+        session_token,
+        access=["read"],
+    )
+    selected = client.get(
+        "/api/personal-context/scoped/selection",
+        headers=_bearer(grant_token),
+    )
+    assert selected.status_code == 200, selected.text
+    assert len(selected.json()["items"]) == 1
+    projection = selected.json()["items"][0]
+    assert set(projection) == {
+        "kind",
+        "purpose",
+        "category",
+        "fields",
+        "starts_at",
+        "expires_at",
+    }
+    assert projection["category"] == "caregiving"
+    serialized = json.dumps(selected.json())
+    for forbidden in (
+        "Narrative must never",
+        "Must stay first party",
+        "custom_private_detail",
+        "Other athlete",
+        "narrative",
+        "id",
+        "lineage",
+        "source_actor",
+        "processing_mode",
+        "consent",
+        "encrypted",
+    ):
+        assert forbidden not in serialized
+
+    generic_metadata = client.get(
+        "/api/personal-context",
+        headers=_bearer(grant_token),
+        params={
+            "purpose": "plan_adjustment",
+            "kind": "temporary_constraint",
+        },
+    )
+    assert generic_metadata.status_code == 403
+    direct_confirmation = client.post(
+        "/api/personal-context/confirm",
+        headers={
+            **_bearer(grant_token),
+            "Idempotency-Key": "context-grant-cannot-confirm",
+        },
+        json={
+            **_draft(narrative=None),
+            "consent_text_version": "purpose-v1",
+            "client": "web",
+        },
+    )
+    assert direct_confirmation.status_code == 403
+    direct_correction = client.post(
+        f"/api/personal-context/{owner.json()['item']['id']}/correct",
+        headers={
+            **_bearer(grant_token),
+            "Idempotency-Key": "context-grant-cannot-correct",
+        },
+        json={
+            "expected_version": 1,
+            "payload": {
+                "category": "less_time",
+                "fields": {"maximum_available_minutes": 20},
+            },
+            "consent_text_version": "purpose-v1",
+            "client": "web",
+            **_lifecycle(),
+        },
+    )
+    assert direct_correction.status_code == 404
+
+    revoked = client.post(
+        "/api/personal-context/scoped-access/revoke",
+        headers=_bearer(grant_token),
+    )
+    assert revoked.status_code == 200
+    assert revoked.json() == {"status": "revoked"}
+    assert client.get(
+        "/api/personal-context/scoped/selection",
+        headers=_bearer(grant_token),
+    ).status_code == 401
+
+    fresh_token, _ = _issue_context_grant(
+        client,
+        session_token,
+        access=["read"],
+    )
+    from db.models import McpAccessToken
+
+    with db_session.SessionLocal() as db:
+        row = (
+            db.query(McpAccessToken)
+            .filter(McpAccessToken.token_type == "context")
+            .order_by(McpAccessToken.created_at.desc())
+            .first()
+        )
+        row.expires_at = datetime.utcnow() - timedelta(seconds=1)
+        db.commit()
+    assert client.get(
+        "/api/personal-context/scoped/selection",
+        headers=_bearer(fresh_token),
+    ).status_code == 401
+
+
+def test_scoped_write_is_structured_preview_only_and_single_use(
+    context_api,
+) -> None:
+    client, db_session = context_api
+    session_token, _ = _issue_mcp_session(client)
+    grant_token, _ = _issue_context_grant(
+        client,
+        session_token,
+        access=["write"],
+    )
+    draft = _draft(narrative=None)
+    narrative_attempt = {
+        **draft,
+        "payload": {
+            **draft["payload"],
+            "narrative": "The agent must not persist chat",
+        },
+    }
+    rejected = client.post(
+        "/api/personal-context/scoped/preview",
+        headers=_bearer(grant_token),
+        json=narrative_attempt,
+    )
+    assert rejected.status_code == 422
+    assert rejected.json() == {"detail": "PERSONAL_CONTEXT_INVALID"}
+    unbounded_field = {
+        **draft,
+        "payload": {
+            **draft["payload"],
+            "fields": {"custom_private_detail": "do not delegate"},
+        },
+    }
+    rejected_field = client.post(
+        "/api/personal-context/scoped/preview",
+        headers=_bearer(grant_token),
+        json=unbounded_field,
+    )
+    assert rejected_field.status_code == 422
+    assert rejected_field.json() == {"detail": "PERSONAL_CONTEXT_INVALID"}
+    assert "do not delegate" not in rejected_field.text
+    unbounded_value = {
+        **draft,
+        "payload": {
+            **draft["payload"],
+            "fields": {"maximum_available_minutes": 1441},
+        },
+    }
+    assert client.post(
+        "/api/personal-context/scoped/preview",
+        headers=_bearer(grant_token),
+        json=unbounded_value,
+    ).status_code == 422
+
+    wrong_purpose = {
+        **draft,
+        "purpose": "goal_review",
+    }
+    assert client.post(
+        "/api/personal-context/scoped/preview",
+        headers=_bearer(grant_token),
+        json=wrong_purpose,
+    ).status_code == 403
+
+    preview = client.post(
+        "/api/personal-context/scoped/preview",
+        headers=_bearer(grant_token),
+        json=draft,
+    )
+    assert preview.status_code == 200, preview.text
+    payload = preview.json()
+    assert payload["confirmation_required"] is True
+    assert payload["confirmation_path"] == "/training#plan-context"
+    assert payload["miniapp_path"] == "/pages/training/index"
+    assert payload["payload"]["category"] == "caregiving"
+    assert "narrative" not in payload["payload"]
+
+    from db.models import McpAccessToken, PersonalContextItem
+
+    with db_session.SessionLocal() as db:
+        assert db.query(PersonalContextItem).count() == 0
+        grant = (
+            db.query(McpAccessToken)
+            .filter(McpAccessToken.token_type == "context")
+            .one()
+        )
+        assert grant.write_consumed_at is not None
+
+    replay = client.post(
+        "/api/personal-context/scoped/preview",
+        headers=_bearer(grant_token),
+        json=draft,
+    )
+    assert replay.status_code == 409
+
+    athlete_confirmed = _confirm(
+        client,
+        key="first-party-after-scoped-preview",
+        narrative=None,
+    )
+    assert athlete_confirmed.status_code == 201
+    assert athlete_confirmed.json()["item"]["source_actor_type"] == (
+        "first_party_web"
+    )
+
+
+def _load_local_plugin_server() -> ModuleType:
+    server_path = (
+        Path(__file__).resolve().parents[1]
+        / "plugins"
+        / "praxys"
+        / "mcp-server"
+        / "server.py"
+    )
+
+    class FakeFastMCP:
+        def __init__(self, *_args, **_kwargs) -> None:
+            pass
+
+        def tool(self):
+            return lambda function: function
+
+    mcp_module = ModuleType("mcp")
+    mcp_server_module = ModuleType("mcp.server")
+    fastmcp_module = ModuleType("mcp.server.fastmcp")
+    fastmcp_module.FastMCP = FakeFastMCP
+    module_name = "praxys_host_local_context_contract"
+    spec = importlib.util.spec_from_file_location(module_name, server_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    with (
+        mock.patch.dict(
+            os.environ,
+            {"PRAXYS_LOCAL": "1", "TRAINSIGHT_LOCAL": "0"},
+        ),
+        mock.patch.dict(
+            sys.modules,
+            {
+                "mcp": mcp_module,
+                "mcp.server": mcp_server_module,
+                "mcp.server.fastmcp": fastmcp_module,
+                module_name: module,
+            },
+        ),
+    ):
+        spec.loader.exec_module(module)
+    return module
+
+
+def test_scoped_write_grant_is_single_use_under_concurrency(
+    context_api,
+) -> None:
+    client, db_session = context_api
+    session_token, _ = _issue_mcp_session(client)
+    grant_token, _ = _issue_context_grant(
+        client,
+        session_token,
+        access=["write"],
+    )
+    barrier = threading.Barrier(2)
+
+    def preview_once():
+        barrier.wait()
+        return client.post(
+            "/api/personal-context/scoped/preview",
+            headers=_bearer(grant_token),
+            json=_draft(narrative=None),
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        responses = list(executor.map(lambda _: preview_once(), range(2)))
+
+    assert sorted(response.status_code for response in responses) == [200, 409]
+    from db.models import McpAccessToken, PersonalContextItem
+
+    with db_session.SessionLocal() as db:
+        assert db.query(PersonalContextItem).count() == 0
+        grant = (
+            db.query(McpAccessToken)
+            .filter(McpAccessToken.token_type == "context")
+            .one()
+        )
+        assert grant.write_consumed_at is not None
+
+
+def test_local_mcp_uses_the_same_grant_projection_and_single_use_write(
+    context_api,
+) -> None:
+    client, db_session = context_api
+    created = _confirm(
+        client,
+        key="local-scoped-context",
+        narrative="Local MCP must not receive this narrative",
+    )
+    assert created.status_code == 201
+    server = _load_local_plugin_server()
+
+    with mock.patch.object(
+        server,
+        "_local_user_id",
+        return_value="context-api-owner",
+    ):
+        read_handoff = server._local_request_personal_context_access({
+            "audience": "praxys-coach-plugin",
+            "purpose": "plan_adjustment",
+            "kind": "temporary_constraint",
+            "access": ["read"],
+        })
+        assert client.post(
+            f"/api/auth/mcp/handoffs/{read_handoff['state']}/decision",
+            headers=_headers(),
+            json={"decision": "approved"},
+        ).status_code == 204
+        read_exchange = server._local_exchange_personal_context_access({
+            "state": read_handoff["state"],
+            "exchange_secret": read_handoff["exchange_secret"],
+        })
+        with mock.patch.object(
+            server,
+            "get_context_token",
+            return_value=read_exchange["access_token"],
+        ):
+            projection = server._local_read_personal_context()
+
+        assert len(projection["items"]) == 1
+        serialized = json.dumps(projection)
+        assert "Local MCP must not receive" not in serialized
+        assert "narrative" not in serialized
+        assert "id" not in projection["items"][0]
+
+        write_handoff = server._local_request_personal_context_access({
+            "audience": "praxys-coach-plugin",
+            "purpose": "plan_adjustment",
+            "kind": "temporary_constraint",
+            "access": ["write"],
+        })
+        assert client.post(
+            f"/api/auth/mcp/handoffs/{write_handoff['state']}/decision",
+            headers=_headers(),
+            json={"decision": "approved"},
+        ).status_code == 204
+        write_exchange = server._local_exchange_personal_context_access({
+            "state": write_handoff["state"],
+            "exchange_secret": write_handoff["exchange_secret"],
+        })
+        local_draft = _draft(narrative=None)
+        with mock.patch.object(
+            server,
+            "get_context_token",
+            return_value=write_exchange["access_token"],
+        ):
+            preview = server._local_preview_personal_context(local_draft)
+            with pytest.raises(RuntimeError, match="HTTP 409"):
+                server._local_preview_personal_context(local_draft)
+
+        assert preview["confirmation_required"] is True
+        assert "narrative" not in preview["payload"]
+        from db.models import PersonalContextItem
+
+        with db_session.SessionLocal() as db:
+            assert db.query(PersonalContextItem).count() == 1

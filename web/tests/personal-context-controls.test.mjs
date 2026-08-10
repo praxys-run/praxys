@@ -255,3 +255,23 @@ test('personal-context Chinese uses natural product language', async () => {
   assert.match(miniSource, /affected_dates: \(\) => t\('Affected dates'\)/);
   assert.match(miniSource, /\.map\(disclosedFieldLabel\)/);
 });
+
+test('MCP approval uses opaque state and explicit first-party controls', async () => {
+  const [page, app, login] = await Promise.all([
+    read('../src/pages/McpAuthorization.tsx'),
+    read('../src/App.tsx'),
+    read('../src/pages/Login.tsx'),
+  ]);
+
+  assert.match(app, /path="\/mcp\/authorize"/);
+  assert.match(page, /\/api\/auth\/mcp\/handoffs\//);
+  assert.match(page, /decide\('approved'\)/);
+  assert.match(page, /decide\('denied'\)/);
+  assert.match(page, /Skeleton/);
+  assert.match(page, /Alert/);
+  assert.match(page, /aria-live="polite"/);
+  for (const source of [app, login, page]) {
+    assert.doesNotMatch(source, /cli_callback/);
+    assert.doesNotMatch(source, /\?token=\$\{/);
+  }
+});

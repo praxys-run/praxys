@@ -39,6 +39,29 @@ Set as `PRAXYS_LOCAL_ENCRYPTION_KEY` in `.env`. Without this key, encrypted cred
 
 User sessions use JSON Web Tokens (JWT) with a 7-day lifetime. Tokens are signed with a server-side secret (`PRAXYS_JWT_SECRET`). Expired tokens are rejected and the user must log in again.
 
+### MCP Sessions and Personal-Context Grants
+
+The official MCP client does not receive or cache the athlete's account JWT.
+Login uses random 10-minute browser handoff state plus a separate client-held
+exchange secret. First-party approval allows one exchange for a 24-hour opaque
+MCP session; only its SHA-256 digest is stored.
+
+Personal context remains deny-by-default after login. A separately approved
+15-minute token binds one athlete, MCP actor, `praxys-coach-plugin` audience,
+planning purpose, context kind, and structured read/write operations. The
+server checks expiry and revocation on every request. A write grant is consumed
+after one valid preview and cannot persist context; all durable confirmation,
+correction, deletion, and AI-consent actions stay in first-party Praxys
+clients. Narrative is never available to plugin or MCP tokens. Local direct-DB
+mode resolves the same grant records and checks rather than bypassing them.
+MCP bearers are rejected by every unlisted account, export, and data endpoint.
+Only the official plugin's existing method-specific training/settings/plan
+tool routes accept the revocable MCP session. Account profile, export,
+deletion, admin, and first-party personal-context controls continue to require
+a first-party account JWT. Public handoff creation and exchange are
+IP-rate-limited, invalid exchanges do not acquire SQLite's serialized write
+lock, and expired handoffs and grants are purged when a new handoff is created.
+
 ### Two Types of Passwords
 
 Praxys handles two distinct categories of passwords differently:

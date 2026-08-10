@@ -45,6 +45,7 @@ const Science = lazy(() => import('./pages/Science'));
 const Labs = lazy(() => import('./pages/Labs'));
 const LabsEnvironment = lazy(() => import('./pages/LabsEnvironment'));
 const SettingsPage = lazy(() => import('./pages/Settings'));
+const McpAuthorization = lazy(() => import('./pages/McpAuthorization'));
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
 const AdminOps = lazy(() => import('./pages/admin/AdminOps'));
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
@@ -155,6 +156,16 @@ export default function App() {
               <Route path="/status" element={<Status />} />
               <Route path="/verify" element={<Verify />} />
               <Route
+                path="/mcp/authorize"
+                element={
+                  <RequireAuth>
+                    <Suspense fallback={<RouteChunkSkeleton />}>
+                      <McpAuthorization />
+                    </Suspense>
+                  </RequireAuth>
+                }
+              />
+              <Route
                 element={
                   <RequireAuth>
                     <SettingsProvider>
@@ -248,29 +259,7 @@ function LoginGuard() {
 
   if (isLoading) return null;
 
-  if (isAuthenticated) {
-    // CLI login flow: if already logged in, redirect token to CLI callback immediately
-    // SECURITY: Only allow localhost callbacks to prevent open redirect token theft
-    const params = new URLSearchParams(window.location.search);
-    const rawCallback = params.get('cli_callback');
-    if (rawCallback) {
-      const CLI_CALLBACK_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/callback/;
-      if (!CLI_CALLBACK_RE.test(rawCallback)) {
-        // Callback provided but rejected — log so a malformed CLI link is
-        // debuggable instead of silently redirecting to the dashboard while
-        // the CLI hangs waiting for a token that never arrives.
-        console.warn('[login] CLI callback rejected (non-localhost):', rawCallback);
-      } else {
-        const token = localStorage.getItem('praxys-auth-token') ?? localStorage.getItem('trainsight-auth-token');
-        if (token) {
-          window.location.assign(`${rawCallback}?token=${encodeURIComponent(token)}`);
-          return null;
-        }
-        console.warn('[login] CLI callback valid but no token in localStorage; falling through to /today');
-      }
-    }
-    return <Navigate to="/today" replace />;
-  }
+  if (isAuthenticated) return <Navigate to="/today" replace />;
 
   return <Login />;
 }

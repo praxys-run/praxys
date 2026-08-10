@@ -1979,34 +1979,69 @@ planning purpose. Draft previews are request-only; confirmation creates an
 encrypted immutable version and a purpose-confirmation receipt. Every response
 uses `Cache-Control: private, no-store`.
 
-First-party web and miniapp JWTs act as the athlete. A trusted token issuer may
-mint delegated JWTs with signed `praxys_actor_type`, `praxys_actor_id`,
-`scope`, `context_purposes`, and `context_kinds` claims. Delegated access is
-bounded by the intersection of those claims. Supported delegated actor types
-are `plugin`, `mcp`, and `delegated_agent`.
+First-party web and miniapp JWTs act as the athlete. Plugin and MCP access uses
+server-authoritative opaque tokens instead of caller-supplied JWT claims. The
+browser receives only random handoff state; the MCP client retains a separate
+exchange secret and receives the bearer once, outside the deep link. Only
+SHA-256 digests are stored.
+
+An MCP login handoff expires after 10 minutes and exchanges for a 24-hour MCP
+session. Personal-context access remains deny-by-default: that session creates
+an immutable 10-minute request for one audience, purpose, kind, and read/write
+combination. A first-party JWT must approve it before it can exchange for a
+15-minute context token. The server checks owner, audience, purpose, kind,
+expiry, revocation, and current account state on every use. Context tokens work
+only on the scoped personal-context endpoints.
+MCP sessions are not general account credentials: ordinary profile, export,
+deletion, admin, and first-party personal-context routes require a first-party
+JWT. The session retains the official plugin's pre-existing tools through a
+fixed method-and-route allowlist for training summaries, settings and
+connections, plan authoring/managed delivery, insights, and sync. Any new API
+route remains denied until that public plugin contract is reviewed explicitly.
+Unauthenticated handoff creation and exchange are independently IP-rate-limited,
+and expired handoff/token rows are removed during subsequent handoff creation.
 
 | Scope | Permission |
 | --- | --- |
-| `plan:context:read` | Read structured context for allowed purposes and kinds |
-| `plan:context:narrative:read` | Also disclose the optional narrative |
-| `plan:context:write` | Preview a bounded draft |
-| `plan:context:delete` | Reserved context deletion permission |
-| `plan:context:ai-consent` | Reserved AI-consent permission |
+| `plan:context:read` | Read the minimum active structured projection for one purpose and kind |
+| `plan:context:write` | Validate one structured request-scoped draft; consumed after one successful preview |
 
-`plan:read` does not grant context access. Only the athlete may confirm,
-correct, expire, delete, export, or change AI consent. Item-specific denied
-access and cross-owner misses both return `404
-PERSONAL_CONTEXT_NOT_FOUND`; demo users cannot mutate context.
+`plan:read` and an ordinary MCP session do not grant context access. Narrative,
+delete, correction, confirmation, expiry, export, and AI-consent scopes are
+never issued to plugin/MCP clients. Only the athlete may perform those durable
+actions. A scoped write returns fixed deep links to `/training#plan-context`
+and `/pages/training/index`; it never persists chat or context. The athlete
+uses the existing first-party preview/confirm lifecycle, which preserves
+canonical encryption, immutable versions, purpose receipts, ownership, and
+provenance.
 
-Narrative is excluded by default on list, detail, and selection responses.
-Setting `include_narrative=true` requires `plan:context:narrative:read` in
-addition to ordinary context-read authorization.
+Scoped reads return only `kind`, `purpose`, structured `category` and `fields`,
+and active-window timestamps. They omit narrative, item/lineage IDs, source
+actor metadata, processing mode, consent/use receipts, and ciphertext.
+The only delegated fields are `affected_dates`, `affected_days`,
+`available_equipment`, `available_terrain`, `maximum_available_minutes`, and
+`workout_status`; existing first-party-only extensions are filtered, and an
+MCP preview containing an unknown or out-of-range field fails closed.
+
+### MCP handoff endpoints
+
+| Method | Path | Behavior |
+| --- | --- | --- |
+| `POST` | `/api/auth/mcp/handoffs` | Create opaque MCP login state plus a client-held exchange secret |
+| `GET` | `/api/auth/mcp/handoffs/{state}` | First-party inspection of non-sensitive requested authority |
+| `POST` | `/api/auth/mcp/handoffs/{state}/decision` | First-party approve or deny |
+| `POST` | `/api/auth/mcp/handoffs/exchange` | One-time pending/approved exchange; never accepts an account JWT |
+| `GET` | `/api/auth/mcp/me` | Resolve the current opaque MCP session |
+| `POST` | `/api/personal-context/scoped-access/requests` | MCP session requests one bounded context grant |
+| `POST` | `/api/personal-context/scoped-access/revoke` | Revoke the exact context token immediately |
+| `GET` | `/api/personal-context/scoped/selection` | Return the minimum structured projection |
+| `POST` | `/api/personal-context/scoped/preview` | Consume one write grant after a valid structured-only preview |
 
 ### Context endpoints
 
 | Method | Path | Behavior |
 | --- | --- | --- |
-| `POST` | `/api/personal-context/preview` | Validate and normalize a draft without persistence |
+| `POST` | `/api/personal-context/preview` | First-party validation and normalization without persistence |
 | `POST` | `/api/personal-context/confirm` | Confirm a draft and create version 1 |
 | `GET` | `/api/personal-context` | Inspect retained versions; filter by `purpose`, `kind`, and `include_history`; set `include_narrative=true` to request retained narrative |
 | `GET` | `/api/personal-context/{item_id}` | Inspect one retained version and, for the athlete, its private receipts; set `include_narrative=true` to request retained narrative |
