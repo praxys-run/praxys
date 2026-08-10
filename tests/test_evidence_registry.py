@@ -55,10 +55,15 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     assert registry.decisions["sdr-environmental-performance-v3"].status == (
         "accepted"
     )
-    assert registry.evidence_reviews[
+    workload_review = registry.evidence_reviews[
         "evidence-environmental-response-workload-support-v1"
-    ].status == "draft"
-    assert registry.decisions["sdr-environmental-performance-v4"].status == "draft"
+    ]
+    assert workload_review.status == "accepted"
+    assert workload_review.human_reviewers == ["github:dddtc2005"]
+    assert workload_review.reviewed_on == date(2026, 8, 10)
+    workload_decision = registry.decisions["sdr-environmental-performance-v4"]
+    assert workload_decision.status == "accepted"
+    assert workload_decision.human_reviewers == ["github:dddtc2005"]
     assert registry.decisions[
         "sdr-adaptive-plan-feasibility-and-adjustment-v1"
     ].status == "draft"
