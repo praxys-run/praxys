@@ -1009,6 +1009,13 @@ uncertainty, gate statuses, model/source versions, power regime, prediction
 diagnostic status, and timestamps. It never contains activity IDs, dates,
 routes, GPS, sample rows, or per-activity values.
 
+`result.eligibility_counts.workload_support` separates the personal display
+rule from the common fitted-data domain. It reports the training-partition
+median `%CP`, the median-centered personal display range, the common 65–95% CP
+model-eligible range, and
+`display_filter_applied_to_model_rows: false`. This is aggregate provenance,
+not cohort-study consent; pooled contribution requires a separate contract.
+
 `execution.job_status` exposes the durable lifecycle (`queued`, `dispatched`,
 `processing`, `retrying`, or a terminal state), attempt count, retryability,
 and request/dispatch timestamps. `execution.recompute` is the

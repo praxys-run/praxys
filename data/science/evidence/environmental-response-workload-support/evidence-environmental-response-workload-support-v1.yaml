@@ -1,0 +1,278 @@
+schema_version: 1
+id: evidence-environmental-response-workload-support-v1
+version: 1
+title: "Comparable workload support for personal environmental-response displays"
+research_question: >
+  For adult endurance athletes, what evidence supports centering comparable
+  workload support on moderate, steady exercise, and does the literature
+  validate an exact universal percent-of-critical-power band for displaying a
+  retrospective personal environmental heart-rate association?
+topic: environmental-response-workload-support
+status: accepted
+authors:
+  - agent:github-copilot
+human_reviewers:
+  - github:dddtc2005
+created_on: 2026-08-10
+reviewed_on: 2026-08-10
+intended_product_purpose: >
+  Bound a proposed replacement for the fixed 75-85 percent Critical Power
+  display-support band in the private Praxys Labs environmental-response
+  experiment without changing the fitted association, prediction gates, safety
+  boundaries, or historical-only interpretation.
+scope:
+  population:
+    - Adult endurance athletes with repeated heart-rate and external-workload observations
+    - Runners using one continuous Stryd power source
+    - Cycling populations used only for physiological and intensity-domain plausibility
+  intervention_or_exposure:
+    - Prolonged fixed or comparable moderate external workload in warm or hot conditions
+    - Exercise prescribed below, near, or above Critical Power
+  comparator:
+    - Lower environmental heat or less dehydration at the same prescribed workload
+    - Threshold-relative versus fixed-percent-of-VO2max intensity prescription
+    - Fixed universal versus athlete-specific comparable-power support bands
+  outcomes:
+    - Heart-rate and stroke-volume drift
+    - Exercise-tolerance and metabolic-response variability
+    - Validity limits of an exact universal percent-of-Critical-Power cutoff
+method:
+  review_type: rapid
+  search_date: 2026-08-10
+  sources:
+    - name: PubMed and PubMed Central
+      search_string: >
+        cardiovascular drift prolonged fixed moderate workload exercise heat
+        dehydration full text PMID DOI
+    - name: PubMed and PubMed Central
+      search_string: >
+        high intensity exercise work rate fatigue nonlinearity comparability
+        critical power heavy severe intensity domains PMID DOI
+    - name: PubMed and PubMed Central
+      search_string: >
+        universal cutoff percent critical power conversion percent VO2max to
+        percent critical power validation DOI PMID
+    - name: PubMed exact identifier verification
+      search_string: >
+        1447078[PMID] OR 16672844[PMID] OR 22410803[PMID] OR
+        27031742[PMID] OR 36710454[PMID] OR 36622556[PMID]
+    - name: PubMed Central full-text verification
+      search_string: >
+        PMC5070974 OR PMC10103872 OR PMC9935749
+  inclusion_criteria:
+    - Adult human endurance-relevant exercise at fixed or threshold-relative workload
+    - Primary studies or authoritative reviews reporting cardiovascular drift, heat response, Critical Power, or intensity-domain variability
+    - Stable DOI or PMID metadata and at least an abstract
+    - Direct relevance to comparable-workload support rather than training prescription
+  exclusion_criteria:
+    - Studies that infer a universal personal heat correction
+    - Activity-average power as the workload measure
+    - Cross-provider running-power equivalence
+    - Medical heat-safety diagnosis or clearance
+    - Sources without stable bibliographic metadata
+  quality_appraisal: >
+    The rapid review prioritized direct fixed-work heat studies, an
+    authoritative Critical Power review, a within-participant comparison of
+    threshold-relative and percent-of-VO2max prescription, and a review of
+    factors that alter Critical Power. Three sources were verified in full
+    text through PubMed Central and three older heat sources were restricted to
+    abstract-supported claims. The evidence establishes physiological
+    plausibility and intensity-domain limitations, not a validated product
+    cutoff.
+  method_limitations:
+    - This was a bounded rapid review rather than a systematic review or meta-analysis
+    - Search-result counts and duplicate-screening records were not exported
+    - The direct heat protocols were small cycling studies, predominantly in trained men
+    - No identified study tested the proposed Praxys support-band algorithm
+    - No direct longitudinal running study validated an exact percent-of-Critical-Power display band
+    - Failure to identify a universal cutoff is search-bounded and does not prove that no relevant source exists
+claims:
+  - id: personal-environment-response.prolonged-moderate-fixed-work-drift
+    statement: >
+      During prolonged fixed moderate-intensity exercise in warm conditions,
+      heart rate can rise while stroke volume falls, and dehydration can
+      amplify that drift.
+    source_ids:
+      - montain-coyle-1992
+      - ganio-2006
+      - wingo-2012
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Prescribed exercise intensity
+        range_low: 62
+        range_high: 67
+        unit: percent VO2max
+        context: Two hours of cycling at 33 C and 50 percent relative humidity in Montain and Coyle 1992
+      - metric: Prescribed exercise intensity
+        estimate: 60
+        unit: percent VO2max
+        context: Warm-environment cycling assessed after 15, 60, and 120 minutes in Ganio et al. 2006
+    applicable_population:
+      - Adults performing prolonged moderate-intensity endurance exercise
+    domain:
+      - Cardiovascular drift
+      - Comparable external workload
+    limitations:
+      - The protocols were cycling rather than running
+      - Percent VO2max is not interchangeable with percent Critical Power
+      - The studies do not identify an optimal workload-support band
+      - Hydration, duration, and heat exposure remain separate modifiers
+  - id: personal-environment-response.high-intensity-comparability-limited
+    statement: >
+      Near and above Critical Power, physiological responses become
+      non-steady-state and exercise tolerance becomes fatigue-limited, making
+      nominally similar high-intensity sessions less comparable than stable
+      moderate work.
+    source_ids:
+      - poole-2016
+      - meyler-2023
+    evidence_strength: moderate
+    applicable_population:
+      - Healthy or recreationally active adults performing cycle exercise
+    domain:
+      - Critical Power
+      - Intensity domains
+      - Workload comparability
+    limitations:
+      - The sources do not establish that every workload below Critical Power is steady or equivalent
+      - Running economy, terrain, wind, fatigue, and device error remain relevant below Critical Power
+      - The evidence does not define a universal upper display-support cutoff
+  - id: personal-environment-response.threshold-relative-prescription
+    statement: >
+      Prescribing exercise relative to physiological thresholds can reduce
+      between-person intensity-domain misclassification compared with one fixed
+      percent of VO2max.
+    source_ids:
+      - meyler-2023
+    evidence_strength: low
+    effect_estimates:
+      - metric: Participants whose 75 percent VO2max heavy trial exceeded Critical Power
+        estimate: 70
+        unit: percent
+        context: Ten recreationally active adults in Meyler et al. 2023
+    applicable_population:
+      - Recreationally active adults in threshold-based cycle protocols
+    domain:
+      - Exercise prescription
+      - Intensity-domain classification
+    limitations:
+      - The study was small and did not evaluate environmental-response displays
+      - Reduced group variability does not validate a personal support-band width
+      - The finding does not convert percent VO2max into percent Critical Power
+  - id: personal-environment-response.exact-cp-band-not-validated
+    statement: >
+      The reviewed evidence does not validate an exact universal
+      percent-of-Critical-Power cutoff or a universal conversion from percent
+      VO2max to percent Critical Power for personal environmental-response
+      support.
+    source_ids:
+      - poole-2016
+      - meyler-2023
+      - goulding-marwood-2023
+    evidence_strength: low
+    applicable_population:
+      - Adult endurance-exercise populations represented in the reviewed sources
+    domain:
+      - Critical Power
+      - Product guardrails
+      - External validity
+    limitations:
+      - This is a search-bounded absence of validation rather than proof of impossibility
+      - Critical Power depends on protocol, population, measurement, and physiological context
+      - Any exact Praxys band remains an experimental product guardrail requiring prospective validation
+citations:
+  - id: montain-coyle-1992
+    title: "Influence of graded dehydration on hyperthermia and cardiovascular drift during exercise"
+    authors:
+      - Scott J. Montain
+      - Edward F. Coyle
+    year: 1992
+    journal: Journal of Applied Physiology
+    doi: 10.1152/jappl.1992.73.4.1340
+    pmid: "1447078"
+  - id: ganio-2006
+    title: "Fluid ingestion attenuates the decline in VO2peak associated with cardiovascular drift"
+    authors:
+      - Matthew S. Ganio
+      - James E. Wingo
+      - Courtney E. Carrolll
+      - Mary K. Thomas
+      - Kirk J. Cureton
+    year: 2006
+    journal: Medicine and Science in Sports and Exercise
+    doi: 10.1249/01.mss.0000218127.14107.08
+    pmid: "16672844"
+  - id: wingo-2012
+    title: "Cardiovascular Drift During Heat Stress: Implications for Exercise Prescription"
+    authors:
+      - James E. Wingo
+      - Matthew S. Ganio
+      - Kirk J. Cureton
+    year: 2012
+    journal: Exercise and Sport Sciences Reviews
+    doi: 10.1097/JES.0b013e31824c43af
+    pmid: "22410803"
+  - id: poole-2016
+    title: "Critical Power: An Important Fatigue Threshold in Exercise Physiology"
+    authors:
+      - David C. Poole
+      - Mark Burnley
+      - Anni Vanhatalo
+      - Harry B. Rossiter
+      - Andrew M. Jones
+    year: 2016
+    journal: Medicine and Science in Sports and Exercise
+    doi: 10.1249/MSS.0000000000000939
+    pmid: "27031742"
+  - id: meyler-2023
+    title: "Variability in exercise tolerance and physiological responses to exercise prescribed relative to physiological thresholds and to maximum oxygen uptake"
+    authors:
+      - Stephen Meyler
+      - Lindsay Bottoms
+      - David Wellsted
+      - Daniel Muniz-Pumares
+    year: 2023
+    journal: Experimental Physiology
+    doi: 10.1113/EP090878
+    pmid: "36710454"
+  - id: goulding-marwood-2023
+    title: "Interaction of Factors Determining Critical Power"
+    authors:
+      - Richard P. Goulding
+      - Simon Marwood
+    year: 2023
+    journal: Sports Medicine
+    doi: 10.1007/s40279-022-01805-w
+    pmid: "36622556"
+known_gaps:
+  - Direct longitudinal runner studies matching same-provider sample power across environmental conditions
+  - Prospective validation of fixed and athlete-specific comparable-power support bands
+  - Representative distributions of stable-segment percent Critical Power across the target population
+  - Sensitivity of released curve shape and availability to support-band width
+  - Effects of device, firmware, Critical Power estimate error, terrain, wind, duration, hydration, and acclimation
+conflicting_findings:
+  - Moderate fixed-work heat studies establish cardiovascular-drift plausibility but do not identify an exact running-power band
+  - Critical Power distinguishes intensity domains, but its fraction of VO2max varies across people and contexts
+  - A wider band increases data support while potentially mixing less comparable exercise domains
+follow_up_questions:
+  - Does a prespecified athlete-specific band improve release stability without increasing misleading curves?
+  - What minimum band width remains robust when the training median is near the model boundary?
+  - How sensitive are supported bins to Critical Power estimate error and model-version changes?
+  - Does a cohort pilot reproduce the single-athlete sensitivity result across sex, training history, climate, and terrain?
+supersedes: []
+review_notes:
+  - >
+    This additive draft does not replace or supersede
+    evidence-personal-environment-response-v1. The accepted review continues
+    to govern the broader model, provider, validation, uncertainty, and
+    communication boundaries.
+  - >
+    The private one-athlete production sensitivity analysis is an internal
+    validation artifact, not literature evidence or a population effect
+    estimate.
+  - "Verification: montain-coyle-1992 - abstract; PubMed PMID 1447078; 2026-08-10."
+  - "Verification: ganio-2006 - abstract; PubMed PMID 16672844; 2026-08-10."
+  - "Verification: wingo-2012 - abstract; PubMed PMID 22410803; 2026-08-10."
+  - "Verification: poole-2016 - full-text; PubMed PMID 27031742 and PubMed Central PMCID PMC5070974; 2026-08-10."
+  - "Verification: meyler-2023 - full-text; PubMed PMID 36710454 and PubMed Central PMCID PMC10103872; 2026-08-10."
+  - "Verification: goulding-marwood-2023 - full-text; PubMed PMID 36622556 and PubMed Central PMCID PMC9935749; 2026-08-10."

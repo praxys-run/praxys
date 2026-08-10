@@ -123,6 +123,14 @@ def _aggregate_result() -> dict:
                 "activity_count": 20,
                 "segment_count": 80,
             }],
+            "workload_support": {
+                "policy": "training_median_centered_v1",
+                "training_median_pct_cp": 74.8,
+                "personal_display_pct_cp": [65.0, 84.8],
+                "half_width_percentage_points": 10.0,
+                "model_eligible_pct_cp": [65.0, 95.0],
+                "display_filter_applied_to_model_rows": False,
+            },
         },
         "aggregate_curve_points": [
             {
@@ -1356,6 +1364,14 @@ def test_worker_persists_only_aggregate_result(labs_client, monkeypatch) -> None
     assert response.json()["result"]["result_state"] == (
         "historical_association_only"
     )
+    assert response.json()["result"]["eligibility_counts"]["workload_support"] == {
+        "policy": "training_median_centered_v1",
+        "training_median_pct_cp": 74.8,
+        "personal_display_pct_cp": [65.0, 84.8],
+        "half_width_percentage_points": 10.0,
+        "model_eligible_pct_cp": [65.0, 95.0],
+        "display_filter_applied_to_model_rows": False,
+    }
 
 
 def test_worker_cancels_queued_job_from_an_old_model(
@@ -2795,6 +2811,11 @@ def test_openapi_exposes_strict_labs_response_schema(labs_client) -> None:
     eligibility = schema["components"]["schemas"][
         "EnvironmentEligibilityCounts"
     ]
+    workload_support = schema["components"]["schemas"][
+        "EnvironmentWorkloadSupport"
+    ]
     uncertainty = schema["components"]["schemas"]["EnvironmentUncertainty"]
     assert eligibility["additionalProperties"] is False
+    assert "workload_support" in eligibility["properties"]
+    assert workload_support["additionalProperties"] is False
     assert uncertainty["additionalProperties"] is False

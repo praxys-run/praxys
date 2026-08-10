@@ -1,0 +1,272 @@
+schema_version: 1
+id: sdr-environmental-performance-v4
+version: 4
+title: "Center comparable-power support on each athlete's observed training workload"
+status: accepted
+decision_date: 2026-08-10
+owners:
+  - team:praxys
+human_reviewers:
+  - github:dddtc2005
+model_version: environmental-performance-context-v4
+evidence_review_ids:
+  - evidence-environmental-performance-v1
+  - evidence-personal-environment-response-v1
+  - evidence-environmental-response-workload-support-v1
+evidence_claim_ids:
+  - environment.stull-wet-bulb-proxy
+  - environment.wet-bulb-not-safety-boundary
+  - environment.no-universal-personal-correction
+  - personal-environment-response.running-power-limited-proxy
+  - personal-environment-response.association-not-prediction
+  - personal-environment-response.structured-validation
+  - personal-environment-response.activity-cluster-uncertainty
+  - personal-environment-response.uncertainty-can-be-misread
+  - personal-environment-response.prolonged-moderate-fixed-work-drift
+  - personal-environment-response.high-intensity-comparability-limited
+  - personal-environment-response.threshold-relative-prescription
+  - personal-environment-response.exact-cp-band-not-validated
+accepted_interpretation: >
+  Every scientific, privacy, safety, provider, prediction,
+  uncertainty, consent, partial-domain, and unsupported-gap boundary in
+  sdr-environmental-performance-v3 remains in force. The fixed 75-85 percent
+  Critical Power display-support band is replaced by one deterministic
+  athlete-specific band calculated from the median percent Critical Power of
+  otherwise eligible stable segments in the training partition. The lower and
+  upper bounds are the median minus and plus 10 percentage points, clipped to
+  the existing 65-95 percent model-eligibility domain. The band is fixed before
+  environmental-bin support, coefficient direction, curve shape, prediction
+  performance, or visual appearance is inspected, and the same band applies
+  to every environmental bin in that analysis snapshot. This aligns the
+  comparable-workload support check with the workload reference already used
+  to evaluate the displayed curve while avoiding an unsupported universal
+  physiological cutoff. The band width and clipping rule remain experimental
+  Praxys guardrails, not published training zones or safety thresholds.
+rejected_alternatives:
+  - alternative: Retain the fixed 75-85 percent Critical Power band.
+    rationale: >
+      The fixed band can withhold a curve even when the athlete's accepted
+      stable training workload is consistently lower, and it is misaligned
+      with the median workload used to evaluate the curve.
+  - alternative: Use a universal 65-82 percent Critical Power aerobic band.
+    rationale: >
+      The literature does not validate 82 percent Critical Power as a universal
+      environmental-response cutoff, and one fixed band can repeat the current
+      mismatch for athletes whose stable workload distribution differs.
+  - alternative: Use the complete 65-95 percent model-eligibility domain.
+    rationale: >
+      Maximizing support would mix moderate, heavy, and near-threshold work
+      despite evidence that comparability becomes more difficult near and above
+      Critical Power.
+  - alternative: Select the band that releases the most bins for each result.
+    rationale: >
+      Outcome-based selection is post-hoc and would bias availability and curve
+      shape toward a favorable result.
+  - alternative: Center the band separately within each environmental bin.
+    rationale: >
+      Different workload references across bins would confound environmental
+      comparison with intensity and make the displayed curve internally
+      inconsistent.
+  - alternative: Use heart-rate zones or threshold heart rate for support.
+    rationale: >
+      Heart rate is the modeled outcome, so using it to select comparable
+      workload would be circular and environmentally sensitive.
+  - alternative: Use pace or threshold pace as interchangeable workload support.
+    rationale: >
+      Pace changes with terrain, wind, surface, fatigue, and heat and is not an
+      equivalent substitute for continuous same-provider sample power.
+model_parameters:
+  - name: inherited_v3_boundaries
+    value: all_except_fixed_reference_power_band
+    classification: guardrail
+    rationale: >
+      This proposal changes only the comparable-power display-support band. It
+      does not reopen the fit, uncertainty, prediction, partial-display,
+      consent, provider, privacy, or safety decisions.
+    applies_to: analysis.environment_response and Labs clients
+  - name: reference_power_band_center
+    value: median_pct_cp_of_eligible_training_partition_stable_segments
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.structured-validation
+      - personal-environment-response.high-intensity-comparability-limited
+    rationale: >
+      The fitted curve already evaluates non-environment predictors at their
+      training medians. Reusing the eligible training-partition workload median
+      aligns display support with that prespecified reference without inspecting
+      environmental outcomes.
+    applies_to: analysis.metrics and analysis.environment_response
+  - name: reference_power_band_half_width_percentage_points
+    value: 10
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.exact-cp-band-not-validated
+    rationale: >
+      Ten percentage points on either side is an experimental tolerance chosen
+      for a bounded pilot. No reviewed source validates this exact width.
+    applies_to: analysis.metrics and analysis.environment_response
+  - name: reference_power_band_domain
+    value:
+      minimum_pct_cp: 65.0
+      maximum_pct_cp: 95.0
+      lower_bound: max(65.0, training_median_pct_cp - 10.0)
+      upper_bound: min(95.0, training_median_pct_cp + 10.0)
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.high-intensity-comparability-limited
+      - personal-environment-response.exact-cp-band-not-validated
+    rationale: >
+      Clipping preserves the existing accepted model-eligibility domain and
+      prevents the support diagnostic from claiming evidence outside rows the
+      model can retain.
+    applies_to: analysis.heat_response_validation, analysis.metrics, and analysis.environment_response
+  - name: reference_power_band_selection_timing
+    value: before_environment_support_and_model_outcomes
+    classification: guardrail
+    rationale: >
+      The band must be computed from eligible training workload only and frozen
+      before bin counts, coefficients, intervals, negative controls, or curve
+      appearance are inspected.
+    applies_to: Labs worker analysis pipeline
+  - name: reference_power_band_scope
+    value: one_band_per_analysis_snapshot_across_all_environment_bins
+    classification: guardrail
+    rationale: >
+      A common workload reference is required for environmental comparison and
+      deterministic replay.
+    applies_to: analysis.metrics and analysis.environment_response
+  - name: personal_display_and_common_model_separation
+    value:
+      personal_display_support: athlete_specific_median_centered_band
+      personal_model_fit: all_otherwise_eligible_rows_from_65_to_95_pct_cp
+      future_cohort_contribution: separate_consent_and_decision_required
+      personal_display_filter_applied_to_model_or_cohort_rows: false
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.structured-validation
+      - personal-environment-response.exact-cp-band-not-validated
+    rationale: >
+      The athlete-specific band controls only whether an environmental bin has
+      enough comparable workload to display. It must not select fitted rows or
+      a future pooled contribution dataset, because user-specific selection
+      would mix training distribution with the cohort estimand.
+    applies_to: Labs private bundle, result provenance, and future cohort study boundary
+  - name: supported_bin_definition
+    value:
+      minimum_activities: 5
+      minimum_stable_segments: 10
+      minimum_reference_power_activities: 5
+      reference_power_pct_cp: athlete_specific_median_centered_band
+    classification: guardrail
+    rationale: >
+      Activity, segment, and adjacency floors remain unchanged. This decision
+      changes workload alignment rather than weakening independent-support
+      counts.
+    applies_to: analysis.environment_response
+  - name: power_provider_scope
+    value: continuous_stryd_sample_power_only
+    classification: guardrail
+    evidence_claim_ids:
+      - personal-environment-response.running-power-limited-proxy
+    rationale: >
+      The decision does not broaden provider comparability while separate
+      Garmin power validation remains incomplete.
+    applies_to: activity research packs and Labs qualification
+  - name: support_band_provenance
+    value:
+      - training_median_pct_cp
+      - lower_pct_cp
+      - upper_pct_cp
+      - calculation_rule_version
+    classification: guardrail
+    rationale: >
+      Persisting aggregate calculation provenance supports explanation,
+      staleness checks, and deterministic replay without exposing activities or
+      samples.
+    applies_to: Labs result model and API
+applicability:
+  - The private opt-in Labs environmental-response experiment governed by v4
+  - Same-provider Stryd sample power with accepted stable training-partition segments
+  - Historical-association and predictive states that pass every unchanged release gate
+  - Analysis snapshots whose eligible training workload median can be computed inside the 65-95 percent model domain
+user_facing_claim_limits:
+  - Describe the band as "workloads near your typical stable training effort," not as a published zone
+  - Show the aggregate calculated percent-Critical-Power range when explaining support
+  - Never call the band optimal, safe, aerobic, Zone 1, Zone 2, or universally moderate
+  - Do not equate percent VO2max, heart-rate zones, threshold pace, and percent Critical Power
+  - Retain every historical-only, causal, predictive, medical, safety, adaptation, hydration, and workload limitation from v3
+  - Explain that the range can change when the eligible training snapshot or Critical Power history changes
+  - Do not imply that the personal display range defines which rows would be eligible for a future Praxys cohort study
+safety_implications:
+  - The calculated workload band is not a safe exercise-intensity or heat-exposure recommendation
+  - A released curve cannot define a safe, unsafe, optimal, dangerous, or tolerable temperature range
+  - The change must not weaken predictive negative controls, uncertainty, provider, or heat-safety boundaries
+privacy_implications:
+  - Calculate the median and support counts inside the private worker boundary
+  - Persist and return only aggregate band bounds, support counts, and rule version
+  - Do not expose activity identities, dates, routes, segment rows, or per-activity membership
+  - Existing opt-in, withdrawal, deletion, staleness, and backup-retention boundaries remain unchanged
+  - This decision does not authorize cohort contribution, pooled storage, or reuse beyond the current personal experiment consent
+  - A future cohort study requires separate consent, retention, minimum-cell, withdrawal, and publication boundaries
+validation_plan:
+  - Reproduce the fixed-band and candidate-band results on the private pilot snapshot without persisting personal source rows
+  - Verify the candidate band is calculated before environmental-bin counts and model outcomes
+  - Test medians at 65, 75, 85, and 95 percent Critical Power and verify deterministic clipping
+  - Test the same band is applied to every environmental bin and every replay of one snapshot
+  - Test changes to coefficient direction, intervals, prediction diagnostics, and rendering cannot change the selected band
+  - Test absent or invalid training medians withhold the curve rather than falling back silently
+  - Bump support, result, and dataset-hash model versions so old results become stale
+  - Before any prospective multi-user validation, approve a separate pilot protocol and consent covering cross-snapshot aggregate acceptance statistics; this decision does not authorize that collection or reuse
+  - Under that separately approved protocol, compare only snapshot-level availability, bin support, coefficient stability, and negative-control failure rates; do not pool activity rows or estimate a cohort environmental-response curve
+  - Verify web and miniapp show equivalent aggregate bounds, support counts, explanations, loading, empty, stale, and error states
+  - Verify the private research bundle and fitted model retain all otherwise eligible 65-95 percent Critical Power rows regardless of the personal display band
+  - Verify persisted aggregate provenance states that the display filter was not applied to fitted rows
+  - Run science, metric-addition, API-contract, privacy, and UI-quality review before implementation approval
+falsification_conditions:
+  - Band selection changes after environmental support, coefficient, interval, prediction, or rendering results are inspected
+  - Any candidate-released snapshot fails an unchanged v3 release gate
+  - Users interpret the band as a prescribed training zone, physiological threshold, or heat-safety range
+  - Web and miniapp calculate different bounds or show different support decisions
+  - The personal display band removes rows from the fitted model or becomes an implicit future cohort-contribution filter
+  - Per-activity or per-segment support membership leaves the private worker boundary
+  - Any unchanged fit-level, uncertainty, provider, prediction, privacy, consent, or safety gate is weakened
+affected_surfaces:
+  models:
+    - Labs environmental-response-v3 personal display policy
+    - Aggregate reference-power support diagnostics
+    - Labs dataset and result model-version manifests
+  apis:
+    - /api/labs/environment-response result
+    - Private activity research export used by the Labs worker
+  clients:
+    - Web Labs environmental-response chart and support ledger
+    - WeChat miniapp Labs environmental-response chart and support ledger
+  science_notes:
+    - How the personal comparable-power band is calculated
+    - Why the band is a Praxys guardrail rather than a published training zone
+    - Historical association, prediction, and heat-safety limits
+supersedes:
+  - sdr-environmental-performance-v3
+superseded_by:
+decision_notes:
+  - The product owner accepted this personal-display guardrail for the private Labs experiment on 2026-08-10.
+  - Acceptance atomically supersedes sdr-environmental-performance-v3, retains its scientific and safety boundaries, and bumps every governed implementation model version.
+  - Cross-athlete validation remains a separate future study requiring its own protocol, consent, privacy rules, Evidence Review, and SDR.
+  - >
+    A read-only sensitivity analysis on one private one-year snapshot found a
+    training-partition stable-segment median of 74.80 percent Critical Power.
+    The proposed rule produced an approximate 65-85 percent band and supported
+    all five environmental bins with 12, 16, 10, 13, and 52 distinct
+    reference-power activities. This is a design input, not population
+    validation.
+  - >
+    On the same snapshot, fixed candidate bands 65-82, 65-85, 65-90, and 65-95
+    percent supported every bin, while widening above 82 percent added little
+    support. Predictive negative controls still failed, so the result remained
+    historical-association-only.
+  - >
+    Implementation impact map: Evidence Review -> SDR -> support-band
+    calculation and broad-model separation in analysis.environment_response ->
+    band-independent private research records in api.packs -> Labs result/API
+    provenance -> web type and Labs explanation -> miniapp parity and i18n ->
+    ScienceNote -> tests, private replay, and prospective validation.

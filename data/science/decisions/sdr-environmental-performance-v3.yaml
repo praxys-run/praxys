@@ -2,7 +2,7 @@ schema_version: 1
 id: sdr-environmental-performance-v3
 version: 3
 title: "Display supported environmental-response subdomains without bridging gaps"
-status: accepted
+status: superseded
 decision_date: 2026-08-09
 owners:
   - team:praxys
@@ -238,7 +238,7 @@ affected_surfaces:
     - How to read supported sections and unsupported gaps
 supersedes:
   - sdr-environmental-performance-v2
-superseded_by:
+superseded_by: sdr-environmental-performance-v4
 decision_notes:
   - The product owner approved the partial-domain display policy and support-ledger concept during the #622 implementation review.
   - No new literature claim is introduced; the proposal reuses the accepted v1 Evidence Reviews and changes a Praxys display guardrail in response to the private production pilot.
