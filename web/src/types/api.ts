@@ -658,12 +658,32 @@ export interface McpAccessRevocationResponse {
   status: 'revoked';
 }
 
-export interface ScopedPersonalContextAccessRequest {
+export type ScopedPersonalContextDimensions =
+  | {
+    purpose: 'plan_generation';
+    kind: 'temporary_constraint';
+  }
+  | {
+    purpose: 'execution_interpretation';
+    kind: 'execution_explanation';
+  }
+  | {
+    purpose: 'plan_adjustment';
+    kind: 'temporary_constraint' | 'execution_explanation';
+  }
+  | {
+    purpose: 'goal_review';
+    kind: 'temporary_constraint';
+  }
+  | {
+    purpose: 'outcome_review';
+    kind: 'temporary_constraint' | 'execution_explanation';
+  };
+
+export type ScopedPersonalContextAccessRequest = {
   audience: 'praxys-coach-plugin';
-  purpose: PersonalContextPurpose;
-  kind: PersonalContextKind;
   access: ('read' | 'write')[];
-}
+} & ScopedPersonalContextDimensions;
 
 export interface ScopedPersonalContextProjectionItem {
   kind: PersonalContextKind;
@@ -751,9 +771,7 @@ export type PersonalContextDraftRequest =
   PersonalContextDraftRequestBase
   & PersonalContextLinkedSubjectRequest;
 
-export type ScopedPersonalContextDraftRequest = {
-  kind: PersonalContextKind;
-  purpose: PersonalContextPurpose;
+export type ScopedPersonalContextDraftRequest = ScopedPersonalContextDimensions & {
   payload: {
     category: PersonalContextCategory;
     fields?: Record<string, PersonalContextFieldValue>;

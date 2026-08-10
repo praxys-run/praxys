@@ -353,7 +353,9 @@ a new scope. The MCP session can only request an immutable handoff, and a
 trusted first-party JWT must approve its exact audience, purpose, item kind,
 operations, and short expiry. The resulting 15-minute bearer is stored only as
 a SHA-256 digest, is checked server-side on every request, and can be revoked.
-Write authority is replay-safe and single-use.
+Write authority is replay-safe and single-use. MCP bearers are not accepted as
+general account authentication and cannot invoke first-party export, deletion,
+training-data, or mutation routes.
 
 Context proposed through a delegated actor remains request-scoped and
 non-durable. The preview returns fixed web and miniapp plan-context deep links;

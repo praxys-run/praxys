@@ -54,6 +54,11 @@ after one valid preview and cannot persist context; all durable confirmation,
 correction, deletion, and AI-consent actions stay in first-party Praxys
 clients. Narrative is never available to plugin or MCP tokens. Local direct-DB
 mode resolves the same grant records and checks rather than bypassing them.
+MCP bearers are rejected by ordinary account, export, and data endpoints;
+those routes continue to require a first-party account JWT. Public handoff
+creation and exchange are IP-rate-limited, invalid exchanges do not acquire
+SQLite's serialized write lock, and expired handoffs and grants are purged
+when a new handoff is created.
 
 ### Two Types of Passwords
 

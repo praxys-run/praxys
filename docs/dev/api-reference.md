@@ -1992,6 +1992,10 @@ combination. A first-party JWT must approve it before it can exchange for a
 15-minute context token. The server checks owner, audience, purpose, kind,
 expiry, revocation, and current account state on every use. Context tokens work
 only on the scoped personal-context endpoints.
+MCP sessions are not general account credentials: ordinary profile, export,
+deletion, training-data, and mutation routes require a first-party JWT.
+Unauthenticated handoff creation and exchange are independently IP-rate-limited,
+and expired handoff/token rows are removed during subsequent handoff creation.
 
 | Scope | Permission |
 | --- | --- |

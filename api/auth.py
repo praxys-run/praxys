@@ -33,6 +33,7 @@ class AuthenticatedIdentity:
     user: "User"
     claims: Mapping[str, Any]
     is_demo: bool
+    credential_kind: str
 
 
 def _touch_last_seen(db: Session, user: "User") -> None:
@@ -90,6 +91,11 @@ def get_authenticated_identity(
             user=user,
             claims=token_claims(access),
             is_demo=bool(user.is_demo),
+            credential_kind=(
+                "mcp_session"
+                if access.token_type == "session"
+                else "context_grant"
+            ),
         )
 
     import jwt
@@ -111,6 +117,7 @@ def get_authenticated_identity(
             user=user,
             claims=payload,
             is_demo=bool(user.is_demo),
+            credential_kind="first_party_jwt",
         )
     except jwt.ExpiredSignatureError:
         raise HTTPException(401, "Token expired")
@@ -119,9 +126,16 @@ def get_authenticated_identity(
 
 
 def _get_token_user(request: Request, db: Session) -> tuple[str, "User"]:
-    """Validate the bearer token and return its current database user."""
+    """Validate a first-party bearer and return its current database user."""
     identity = get_authenticated_identity(request, db)
+    _require_first_party(identity)
     return identity.user_id, identity.user
+
+
+def _require_first_party(identity: AuthenticatedIdentity) -> None:
+    """Keep MCP capabilities out of ordinary account and data endpoints."""
+    if identity.credential_kind != "first_party_jwt":
+        raise HTTPException(403, "First-party authentication required")
 
 
 def get_active_identity(
@@ -141,7 +155,9 @@ def get_active_identity(
 
 def get_current_user_id(request: Request, db: Session = Depends(get_db)) -> str:
     """Get the active user ID from the JWT bearer token."""
-    return get_active_identity(request, db).user_id
+    identity = get_active_identity(request, db)
+    _require_first_party(identity)
+    return identity.user_id
 
 
 def require_account_deletion_access(

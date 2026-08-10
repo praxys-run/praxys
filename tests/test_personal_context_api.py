@@ -1109,13 +1109,17 @@ def test_mcp_login_uses_opaque_one_time_handoff_not_account_jwt(
     assert malformed_exchange.headers["cache-control"] == "private, no-store"
 
     rejected_secret = "not-the-client-held-exchange-secret"
-    rejected_exchange = client.post(
-        "/api/auth/mcp/handoffs/exchange",
-        json={
-            "state": handoff["state"],
-            "exchange_secret": rejected_secret,
-        },
-    )
+    with mock.patch(
+        "api.mcp_access.begin_serialized_write",
+    ) as begin_serialized_write:
+        rejected_exchange = client.post(
+            "/api/auth/mcp/handoffs/exchange",
+            json={
+                "state": handoff["state"],
+                "exchange_secret": rejected_secret,
+            },
+        )
+    begin_serialized_write.assert_not_called()
     assert rejected_exchange.status_code == 404
     assert rejected_secret not in rejected_exchange.text
     assert handoff["state"] not in rejected_exchange.text
@@ -1209,6 +1213,60 @@ def test_mcp_login_uses_opaque_one_time_handoff_not_account_jwt(
         assert row.revoked_at is not None
         assert db.query(McpAccessHandoff).count() == 1
         assert db.query(PersonalContextItem).count() == 0
+
+
+def test_mcp_session_cannot_use_first_party_account_authority(
+    context_api,
+) -> None:
+    client, db_session = context_api
+    marker = "first-party-export-only-narrative"
+    confirmed = _confirm(
+        client,
+        key="mcp-account-boundary-context",
+        narrative=marker,
+    )
+    assert confirmed.status_code == 201, confirmed.text
+    session_token, _ = _issue_mcp_session(client)
+    headers = _bearer(session_token)
+
+    profile = client.get("/api/auth/me", headers=headers)
+    assert profile.status_code == 403
+    exported = client.get("/api/me/export", headers=headers)
+    assert exported.status_code == 403
+    assert marker not in exported.text
+    deleted = client.delete("/api/me", headers=headers)
+    assert deleted.status_code == 403
+
+    from db.models import User
+
+    with db_session.SessionLocal() as db:
+        assert db.get(User, "context-api-owner") is not None
+
+
+def test_new_mcp_handoff_prunes_expired_access_rows(context_api) -> None:
+    client, db_session = context_api
+    _, handoff = _issue_mcp_session(client)
+
+    from db.models import McpAccessHandoff, McpAccessToken
+
+    with db_session.SessionLocal() as db:
+        db.query(McpAccessHandoff).filter(
+            McpAccessHandoff.state_digest.is_not(None),
+        ).one().expires_at = datetime.utcnow() - timedelta(seconds=1)
+        db.query(McpAccessToken).one().expires_at = (
+            datetime.utcnow() - timedelta(seconds=1)
+        )
+        db.commit()
+
+    fresh = client.post(
+        "/api/auth/mcp/handoffs",
+        json={"audience": "praxys-coach-plugin"},
+    )
+    assert fresh.status_code == 201, fresh.text
+    assert fresh.json()["state"] != handoff["state"]
+    with db_session.SessionLocal() as db:
+        assert db.query(McpAccessHandoff).count() == 1
+        assert db.query(McpAccessToken).count() == 0
 
 
 def test_context_scope_requires_first_party_approval_and_cannot_broaden(

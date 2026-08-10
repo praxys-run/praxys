@@ -146,6 +146,16 @@ def _validate_context_dimensions(
     return ordered, [_ACCESS_TO_SCOPE[item] for item in ordered]
 
 
+def _purge_expired_access(db: Session, *, now: datetime) -> None:
+    """Bound ephemeral MCP storage when a new handoff is persisted."""
+    db.query(McpAccessToken).filter(
+        McpAccessToken.expires_at <= now,
+    ).delete(synchronize_session=False)
+    db.query(McpAccessHandoff).filter(
+        McpAccessHandoff.expires_at <= now,
+    ).delete(synchronize_session=False)
+
+
 def create_session_handoff(
     db: Session,
     *,
@@ -154,13 +164,15 @@ def create_session_handoff(
 ) -> CreatedMcpHandoff:
     """Create an ownerless login handoff awaiting a first-party sign-in."""
     current = _now(now)
+    validated_audience = _validate_audience(audience)
+    _purge_expired_access(db, now=current)
     state = _opaque_secret()
     exchange_secret = _opaque_secret()
     handoff = McpAccessHandoff(
         state_digest=_digest(state),
         exchange_digest=_digest(exchange_secret),
         request_type="session",
-        audience=_validate_audience(audience),
+        audience=validated_audience,
         actor_id=f"mcp:{uuid4()}",
         requested_scopes=[],
         requested_purposes=[],
@@ -196,8 +208,10 @@ def create_context_handoff(
         kind=kind,
         access=access,
     )
+    validated_audience = _validate_audience(audience)
     if db.get(User, user_id) is None:
         raise McpAccessNotFound("MCP owner is unavailable")
+    _purge_expired_access(db, now=current)
     state = _opaque_secret()
     exchange_secret = _opaque_secret()
     handoff = McpAccessHandoff(
@@ -205,7 +219,7 @@ def create_context_handoff(
         state_digest=_digest(state),
         exchange_digest=_digest(exchange_secret),
         request_type="context",
-        audience=_validate_audience(audience),
+        audience=validated_audience,
         actor_id=_validate_actor_id(actor_id),
         requested_scopes=scopes,
         requested_purposes=[purpose],
@@ -308,28 +322,21 @@ def exchange_handoff(
 ) -> ExchangedMcpToken:
     """Exchange an approved handoff for one hashed, revocable bearer."""
     current = _now(now)
-    begin_serialized_write(db)
-    handoff = _active_handoff(
-        _handoff_by_state(db, state, lock=True),
+    # Reject random state/secret probes and non-exchangeable states without
+    # taking SQLite's database-wide write lock. The locked re-read below
+    # remains the authority for the one-time exchange.
+    _validate_exchange_handoff(
+        _handoff_by_state(db, state, lock=False),
+        exchange_secret=exchange_secret,
         now=current,
     )
-    if (
-        not isinstance(exchange_secret, str)
-        or not 20 <= len(exchange_secret) <= 128
-        or not secrets.compare_digest(
-            handoff.exchange_digest,
-            _digest(exchange_secret),
-        )
-    ):
-        raise McpAccessNotFound("MCP handoff is unavailable")
-    if handoff.status == "pending":
-        raise McpAccessPending("MCP handoff is pending")
-    if handoff.status == "denied":
-        raise McpAccessDenied("MCP handoff was denied")
-    if handoff.status == "exchanged":
-        raise McpAccessConflict("MCP handoff was already exchanged")
-    if handoff.status != "approved" or handoff.user_id is None:
-        raise McpAccessConflict("MCP handoff cannot be exchanged")
+    db.rollback()
+    begin_serialized_write(db)
+    handoff = _validate_exchange_handoff(
+        _handoff_by_state(db, state, lock=True),
+        exchange_secret=exchange_secret,
+        now=current,
+    )
     user = db.get(User, handoff.user_id)
     if user is None or not user.is_active or user.is_demo:
         raise McpAccessDenied("MCP owner cannot authorize access")
@@ -363,6 +370,34 @@ def exchange_handoff(
     handoff.exchanged_at = current
     db.flush()
     return ExchangedMcpToken(access_token=raw_token, token=token)
+
+
+def _validate_exchange_handoff(
+    handoff: McpAccessHandoff | None,
+    *,
+    exchange_secret: str,
+    now: datetime,
+) -> McpAccessHandoff:
+    """Validate opaque exchange proof and state without mutating it."""
+    active = _active_handoff(handoff, now=now)
+    if (
+        not isinstance(exchange_secret, str)
+        or not 20 <= len(exchange_secret) <= 128
+        or not secrets.compare_digest(
+            active.exchange_digest,
+            _digest(exchange_secret),
+        )
+    ):
+        raise McpAccessNotFound("MCP handoff is unavailable")
+    if active.status == "pending":
+        raise McpAccessPending("MCP handoff is pending")
+    if active.status == "denied":
+        raise McpAccessDenied("MCP handoff was denied")
+    if active.status == "exchanged":
+        raise McpAccessConflict("MCP handoff was already exchanged")
+    if active.status != "approved" or active.user_id is None:
+        raise McpAccessConflict("MCP handoff cannot be exchanged")
+    return active
 
 
 def authenticate_access_token(
