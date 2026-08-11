@@ -441,6 +441,8 @@ def read_current_proposal(db: Session, *, user_id: str) -> dict[str, Any] | None
     ).scalar_one_or_none()
     if proposal is None:
         return None
+    if proposal.state != "draft":
+        return None
     return _proposal_to_dict(db, proposal)
 
 
@@ -712,7 +714,7 @@ def adopt_proposal(
         db.flush()
         adaptive_plan.version += 1
         adaptive_plan.lifecycle = "active"
-        adaptive_plan.active_proposal_id = proposal.id
+        adaptive_plan.active_proposal_id = None
         goal.state = "active"
         goal.acknowledged_at = now
         proposal.state = "adopted"

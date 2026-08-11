@@ -239,6 +239,7 @@ def test_adopt_exact_version_is_atomic_idempotent_and_preserves_workout_ids(prop
     assert body["status"] == "adopted"
     assert body["workouts"][0]["canonical_id"] == canonical_id
     assert body["delivery"]["status"] == "skipped"
+    assert client.get("/api/plan/proposals/current").status_code == 404
 
     retry = client.post(
         f"/api/plan/proposals/{created['id']}/adopt",
