@@ -1,0 +1,158 @@
+.baseline-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.baseline-card {
+  padding: 24rpx 28rpx;
+}
+
+.baseline-label,
+.baseline-section {
+  display: block;
+  font-size: 20rpx;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1rpx;
+  color: var(--text-muted);
+  margin-bottom: 12rpx;
+}
+
+.baseline-head-row {
+  display: flex;
+  gap: 12rpx;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.baseline-headline {
+  flex: 1;
+  font-size: 32rpx;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.baseline-badge {
+  padding: 6rpx 18rpx;
+  border-radius: 999rpx;
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+  font-size: 20rpx;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+}
+
+.baseline-copy {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.baseline-evidence,
+.baseline-row-value {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 26rpx;
+  color: var(--text);
+}
+
+.baseline-row {
+  display: flex;
+  gap: 16rpx;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 0;
+  border-top: 1rpx solid var(--border-subtle);
+}
+
+.baseline-row:first-of-type {
+  border-top: none;
+}
+
+.baseline-row-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.baseline-action,
+.baseline-primary,
+.baseline-secondary {
+  min-width: 180rpx;
+  border-radius: 14rpx;
+  padding: 16rpx 20rpx;
+  text-align: center;
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.baseline-action,
+.baseline-secondary {
+  color: var(--text);
+  background: var(--surface-subtle);
+}
+
+.baseline-primary {
+  color: var(--bg);
+  background: var(--primary);
+}
+
+.baseline-actions,
+.baseline-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 18rpx;
+}
+
+.baseline-success {
+  display: block;
+  margin-top: 10rpx;
+  color: var(--primary);
+  font-size: 24rpx;
+}
+
+.baseline-error {
+  display: block;
+  margin-top: 10rpx;
+  color: var(--destructive);
+  font-size: 24rpx;
+}
+
+.baseline-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-end;
+  z-index: 220;
+}
+
+.baseline-sheet {
+  width: 100%;
+  background: var(--surface);
+  border-top-left-radius: 28rpx;
+  border-top-right-radius: 28rpx;
+  padding: 24rpx 28rpx calc(24rpx + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.baseline-sheet-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.baseline-picker {
+  margin-top: 8rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 14rpx;
+  background: var(--surface-subtle);
+  color: var(--text);
+  font-size: 24rpx;
+}

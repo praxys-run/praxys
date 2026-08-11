@@ -1,0 +1,119 @@
+<view class="baseline-stack">
+  <view class="ts-card baseline-card">
+    <text class="baseline-label">{{copy.title}}</text>
+    <view class="baseline-head-row">
+      <text class="baseline-headline">{{copy.status[baseline.status]}}</text>
+      <text class="baseline-badge">{{copy.status[baseline.status]}}</text>
+    </view>
+    <text class="baseline-copy">{{copy.pilotGuardrail}}</text>
+    <text wx:if="{{alternativesText}}" class="baseline-copy">{{alternativesText}}</text>
+    <text class="baseline-copy">{{baseline.pilot_scope_note}}</text>
+    <text wx:if="{{baseline.evidence}}" class="baseline-evidence ts-value">{{evidenceText}}</text>
+    <text wx:else class="baseline-copy">{{copy.noMeaningfulChange}}</text>
+    <text class="baseline-copy">{{copy.segmentRule}}</text>
+    <text wx:if="{{notice}}" class="baseline-success">{{notice}}</text>
+    <text wx:if="{{errorMessage}}" class="baseline-error">{{errorMessage}}</text>
+    <text class="baseline-copy">{{baseline.science_note.description}}</text>
+    <view class="baseline-action" bindtap="onCopyScienceSource"><text>Source</text></view>
+  </view>
+
+  <view class="ts-card baseline-card">
+    <text class="baseline-section">{{copy.candidates}}</text>
+    <text class="baseline-copy">{{copy.candidateHint}}</text>
+    <block wx:if="{{baseline.candidates.length > 0}}">
+      <view wx:for="{{candidateRows}}" wx:key="activity_id" class="baseline-row">
+        <view class="baseline-row-copy">
+          <text class="baseline-row-value ts-value">{{item.headline}}</text>
+          <text class="baseline-copy">{{item.review_state}}</text>
+        </view>
+        <view class="baseline-action" data-index="{{index}}" bindtap="openConfirm">
+          <text>{{item.confirmation_response ? copy.reviewCandidate : copy.reviewCandidate}}</text>
+        </view>
+      </view>
+    </block>
+    <text wx:else class="baseline-copy">—</text>
+  </view>
+
+  <view class="ts-card baseline-card">
+    <text class="baseline-section">{{copy.title}}</text>
+    <text class="baseline-copy">{{copy.pilotGuardrail}}</text>
+    <text wx:if="{{baseline.test.scheduled_workout}}" class="baseline-copy">{{copy.scheduleTitle}} · {{scheduledDateDisplay}}</text>
+    <view class="baseline-actions">
+      <view wx:if="{{baseline.test.state === 'not_offered' && baseline.test.can_schedule}}" class="baseline-primary" bindtap="openOffer"><text>{{copy.reviewTest}}</text></view>
+      <view wx:if="{{baseline.test.can_schedule && baseline.test.state !== 'not_offered' && baseline.test.state !== 'scheduled'}}" class="baseline-primary" bindtap="openSchedule"><text>{{copy.scheduleTest}}</text></view>
+      <block wx:if="{{baseline.test.state === 'offered' || baseline.test.state === 'scheduled'}}">
+        <view class="baseline-secondary" bindtap="submitDecline"><text>{{copy.noTestPath}}</text></view>
+        <view class="baseline-secondary" bindtap="openComplete"><text>{{copy.completeTest}}</text></view>
+        <view class="baseline-secondary" bindtap="openStop"><text>{{copy.stopTest}}</text></view>
+      </block>
+    </view>
+  </view>
+
+  <view wx:if="{{dialogMode}}" class="baseline-mask">
+    <view class="baseline-sheet">
+      <text class="baseline-sheet-title">{{dialogMode === 'confirm' ? copy.confirmTitle : dialogMode === 'offer' ? copy.reviewTest : dialogMode === 'schedule' ? copy.scheduleTest : dialogMode === 'complete' ? copy.completeTest : copy.stopTest}}</text>
+
+      <block wx:if="{{dialogMode === 'confirm'}}">
+        <text class="baseline-copy">{{copy.confirmPurpose}}</text>
+        <picker mode="selector" range="{{copy.responseOptions}}" value="{{responseIndex}}" bindchange="onResponseChange">
+          <view class="baseline-picker"><text>{{copy.responseOptions[responseIndex]}}</text></view>
+        </picker>
+        <text class="baseline-copy">{{copy.confirmMeasured}}</text>
+        <picker mode="selector" range="{{copy.yesNo}}" value="{{measuredIndex}}" bindchange="onMeasuredChange">
+          <view class="baseline-picker"><text>{{copy.yesNo[measuredIndex]}}</text></view>
+        </picker>
+        <text class="baseline-copy">{{copy.confirmTiming}}</text>
+        <picker mode="selector" range="{{copy.yesNo}}" value="{{timingIndex}}" bindchange="onTimingChange">
+          <view class="baseline-picker"><text>{{copy.yesNo[timingIndex]}}</text></view>
+        </picker>
+      </block>
+
+      <block wx:if="{{dialogMode === 'offer'}}">
+        <text class="baseline-copy">{{copy.pilotGuardrail}}</text>
+      </block>
+
+      <block wx:if="{{dialogMode === 'schedule'}}">
+        <text class="baseline-copy">{{copy.scheduleTitle}}</text>
+        <picker mode="date" value="{{scheduleDate}}" start="{{scheduleDate}}" bindchange="onScheduleDate">
+          <view class="baseline-picker"><text>{{scheduleDate}}</text></view>
+        </picker>
+      </block>
+
+      <block wx:if="{{dialogMode === 'complete'}}">
+        <text class="baseline-copy">{{copy.completeCandidate}}</text>
+        <picker mode="selector" range="{{activityOptions}}" value="{{activityIndex}}" bindchange="onActivityChange">
+          <view class="baseline-picker"><text>{{activityOptions[activityIndex] || '—'}}</text></view>
+        </picker>
+        <text class="baseline-copy">{{copy.confirmMeasured}}</text>
+        <picker mode="selector" range="{{copy.yesNo}}" value="{{measuredIndex}}" bindchange="onMeasuredChange">
+          <view class="baseline-picker"><text>{{copy.yesNo[measuredIndex]}}</text></view>
+        </picker>
+        <text class="baseline-copy">{{copy.confirmTiming}}</text>
+        <picker mode="selector" range="{{copy.yesNo}}" value="{{timingIndex}}" bindchange="onTimingChange">
+          <view class="baseline-picker"><text>{{copy.yesNo[timingIndex]}}</text></view>
+        </picker>
+        <text class="baseline-copy">{{copy.completeProtocol}}</text>
+        <picker mode="selector" range="{{copy.yesNo}}" value="{{protocolIndex}}" bindchange="onProtocolChange">
+          <view class="baseline-picker"><text>{{copy.yesNo[protocolIndex]}}</text></view>
+        </picker>
+      </block>
+
+      <block wx:if="{{dialogMode === 'stop'}}">
+        <text class="baseline-copy">{{copy.stopReason}}</text>
+        <picker mode="selector" range="{{copy.stopReasonLabels}}" value="{{stopReasonIndex}}" bindchange="onStopReasonChange">
+          <view class="baseline-picker"><text>{{copy.stopReasonLabels[stopReasonIndex]}}</text></view>
+        </picker>
+      </block>
+
+      <view class="baseline-footer">
+        <view class="baseline-secondary" bindtap="closeDialog"><text>{{copy.cancel}}</text></view>
+        <view wx:if="{{dialogMode === 'confirm'}}" class="baseline-primary" bindtap="submitConfirm"><text>{{copy.save}}</text></view>
+        <view wx:if="{{dialogMode === 'offer'}}" class="baseline-secondary" bindtap="submitDecline"><text>{{copy.noTestPath}}</text></view>
+        <view wx:if="{{dialogMode === 'offer'}}" class="baseline-primary" bindtap="submitOffer"><text>{{copy.reviewTest}}</text></view>
+        <view wx:if="{{dialogMode === 'schedule'}}" class="baseline-primary" bindtap="submitSchedule"><text>{{copy.scheduleTest}}</text></view>
+        <view wx:if="{{dialogMode === 'complete'}}" class="baseline-primary" bindtap="submitComplete"><text>{{copy.save}}</text></view>
+        <view wx:if="{{dialogMode === 'stop'}}" class="baseline-primary" bindtap="submitStop"><text>{{copy.save}}</text></view>
+      </view>
+    </view>
+  </view>
+</view>

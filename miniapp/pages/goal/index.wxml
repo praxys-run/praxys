@@ -20,6 +20,22 @@
 
       <block wx:elif="{{hasResponse}}">
 
+        <view class="goal-edit-row">
+          <view class="goal-edit-trigger" bindtap="onOpenEditor">
+            <text>{{tr.changeGoal}}</text>
+          </view>
+        </view>
+
+        <goal-baseline
+          wx:if="{{goalKind === 'performance_5k' && baseline}}"
+          baseline="{{baseline}}"
+          goal="{{goal}}"
+          disabled="{{editorSaving}}"
+          bindrefresh="onCoachFeedbackStale"
+        />
+
+        <block wx:else>
+
         <!-- Trajectory header — shared by all modes.
              Eyebrow: mode context (Race/Goal/Tracking) + optional status badge.
              Headline: one-sentence verdict with key numbers. -->
@@ -179,6 +195,7 @@
           </view>
         </view>
 
+        </block>
       </block>
 
     </view>
@@ -231,6 +248,14 @@
         >
           <text class="goal-editor-toggle-label">{{tr.continuousGoal}}</text>
           <text class="goal-editor-toggle-desc ts-muted">{{tr.continuousGoalDesc}}</text>
+        </view>
+        <view
+          class="goal-editor-toggle-item {{editorType === 'performance_5k' ? 'goal-editor-toggle-item--active' : ''}}"
+          data-type="performance_5k"
+          bindtap="onPickEditorType"
+        >
+          <text class="goal-editor-toggle-label">{{tr.performanceGoal}}</text>
+          <text class="goal-editor-toggle-desc ts-muted">{{tr.performanceGoalDesc}}</text>
         </view>
       </view>
 

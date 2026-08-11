@@ -11,21 +11,49 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { useLocale } from '@/contexts/LocaleContext';
+import type { GoalKind } from '@/types/api';
 import { formatTime, parseTimeToSeconds } from '@/lib/format';
-import { Trans, useLingui } from '@lingui/react/macro';
 
 type DistanceKey = '5k' | '10k' | 'half' | 'marathon' | '50k' | '50mi' | '100k' | '100mi';
-
-type GoalType = 'race' | 'continuous';
 
 interface GoalEditorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  initialType: GoalType;
+  initialType: GoalKind;
   initialRaceDate: string;
   initialDistance: string;
   initialTargetTime: number | null;
-  onSave: (goal: { race_date: string; distance: string; target_time_sec: number }) => Promise<void>;
+  onSave: (goal: { goal_kind: GoalKind; race_date: string; distance: string; target_time_sec: number }) => Promise<void>;
+}
+
+function buildCopy(locale: string) {
+  const zh = locale === 'zh';
+  return {
+    title: zh ? '设置目标' : 'Set your goal',
+    description: zh ? '选择比赛目标、持续追踪，或 5 公里基线试点。' : 'Choose a race target, track continuous progress, or use the 5K baseline pilot.',
+    goalType: zh ? '目标类型' : 'Goal type',
+    race: zh ? '比赛目标' : 'Race goal',
+    raceDesc: zh ? '围绕明确的比赛日期训练' : 'Train toward a specific race date',
+    continuous: zh ? '持续追踪' : 'Continuous',
+    continuousDesc: zh ? '长期观察趋势' : 'Track trend over time',
+    performance: zh ? '5 公里表现' : '5K performance',
+    performanceDesc: zh ? '先用历史基线，再决定是否进入可选试点测试' : 'Use history first, then decide whether the optional pilot test is needed',
+    distance: zh ? '距离' : 'Distance',
+    raceDate: zh ? '比赛日期' : 'Race date',
+    targetTime: zh ? '目标时间' : 'Target time',
+    optional: zh ? '可选' : 'optional',
+    pickDate: zh ? '选择日期' : 'Pick a date',
+    cancel: zh ? '取消' : 'Cancel',
+    save: zh ? '保存目标' : 'Save goal',
+    saving: zh ? '保存中…' : 'Saving…',
+    raceDateRequired: zh ? '比赛目标需要日期' : 'Race date is required',
+    invalidTime: zh ? '时间格式无效，请使用 H:MM:SS 或 H:MM' : 'Invalid time format. Use H:MM:SS or H:MM',
+    failedToSave: zh ? '保存目标失败' : 'Failed to save goal',
+    raceTargetHint: zh ? '留空表示只追踪预测表现' : 'Leave blank to track predicted time only',
+    continuousHint: zh ? '留空表示只追踪趋势' : 'Leave blank to track trend only',
+    performanceHint: zh ? '当前试点只支持户外公路完整 5 公里耗时目标。' : 'This pilot currently supports only outdoor road 5K elapsed-time goals.',
+  };
 }
 
 export default function GoalEditor({
@@ -37,132 +65,115 @@ export default function GoalEditor({
   initialTargetTime,
   onSave,
 }: GoalEditorProps) {
-  const { t } = useLingui();
-  const [goalType, setGoalType] = useState<GoalType>(initialType);
+  const { locale } = useLocale();
+  const copy = buildCopy(locale);
+  const [goalType, setGoalType] = useState<GoalKind>(initialType);
   const [raceDate, setRaceDate] = useState(initialRaceDate);
   const [distance, setDistance] = useState(initialDistance || 'marathon');
-  const [targetTimeInput, setTargetTimeInput] = useState(
-    initialTargetTime ? formatTime(initialTargetTime) : ''
-  );
+  const [targetTimeInput, setTargetTimeInput] = useState(initialTargetTime ? formatTime(initialTargetTime) : '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const DISTANCES: { value: DistanceKey; label: string; placeholder: string }[] = [
-    { value: '5k', label: t`5K`, placeholder: t`e.g. 20:00` },
-    { value: '10k', label: t`10K`, placeholder: t`e.g. 42:00` },
-    { value: 'half', label: t`Half`, placeholder: t`e.g. 1:30:00` },
-    { value: 'marathon', label: t`Marathon`, placeholder: t`e.g. 3:00:00` },
-    { value: '50k', label: t`50K`, placeholder: t`e.g. 4:30:00` },
-    { value: '50mi', label: t`50 Mi`, placeholder: t`e.g. 8:00:00` },
-    { value: '100k', label: t`100K`, placeholder: t`e.g. 12:00:00` },
-    { value: '100mi', label: t`100 Mi`, placeholder: t`e.g. 24:00:00` },
+  const distances: { value: DistanceKey; label: string; placeholder: string }[] = [
+    { value: '5k', label: '5K', placeholder: '20:00' },
+    { value: '10k', label: '10K', placeholder: '42:00' },
+    { value: 'half', label: locale === 'zh' ? '半马' : 'Half', placeholder: '1:30:00' },
+    { value: 'marathon', label: locale === 'zh' ? '马拉松' : 'Marathon', placeholder: '3:00:00' },
+    { value: '50k', label: '50K', placeholder: '4:30:00' },
+    { value: '50mi', label: locale === 'zh' ? '50 英里' : '50 Mi', placeholder: '8:00:00' },
+    { value: '100k', label: '100K', placeholder: '12:00:00' },
+    { value: '100mi', label: locale === 'zh' ? '100 英里' : '100 Mi', placeholder: '24:00:00' },
   ];
 
-  const selectedDist = DISTANCES.find((d) => d.value === distance);
+  const effectiveDistance = goalType === 'performance_5k' ? '5k' : distance;
+  const selected = distances.find((item) => item.value === effectiveDistance);
 
   const handleSave = async () => {
     setError('');
-
     if (goalType === 'race' && !raceDate) {
-      setError(t`Race date is required`);
+      setError(copy.raceDateRequired);
       return;
     }
-
     const targetTimeSec = parseTimeToSeconds(targetTimeInput);
     if (targetTimeInput.trim() && targetTimeSec === null) {
-      setError(t`Invalid time format. Use H:MM:SS or H:MM`);
+      setError(copy.invalidTime);
       return;
     }
-
     setSaving(true);
     try {
       await onSave({
+        goal_kind: goalType,
         race_date: goalType === 'race' ? raceDate : '',
-        distance,
+        distance: effectiveDistance,
         target_time_sec: targetTimeSec || 0,
       });
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t`Failed to save goal`);
+      setError(err instanceof Error ? err.message : copy.failedToSave);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>
-            <Trans>Set Your Goal</Trans>
-          </DialogTitle>
-          <DialogDescription>
-            <Trans>Choose a race target or track continuous improvement.</Trans>
-          </DialogDescription>
+          <DialogTitle>{copy.title}</DialogTitle>
+          <DialogDescription>{copy.description}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 py-2">
-          {/* Goal type selection */}
-          <ToggleGroup
-            value={[goalType]}
-            onValueChange={(v) => { if (v.length > 0) setGoalType(v[v.length - 1] as GoalType); }}
-            className="grid grid-cols-2 gap-2"
-          >
-            <ToggleGroupItem value="race" className="flex-col items-start gap-1 h-auto py-3 px-4 data-[pressed]:border-primary data-[pressed]:bg-primary/10">
-              <span className="font-semibold text-sm"><Trans>Race Goal</Trans></span>
-              <span className="text-xs text-muted-foreground"><Trans>Train toward a specific race date</Trans></span>
-            </ToggleGroupItem>
-            <ToggleGroupItem value="continuous" className="flex-col items-start gap-1 h-auto py-3 px-4 data-[pressed]:border-primary data-[pressed]:bg-primary/10">
-              <span className="font-semibold text-sm"><Trans>Continuous</Trans></span>
-              <span className="text-xs text-muted-foreground"><Trans>Build fitness over time</Trans></span>
-            </ToggleGroupItem>
-          </ToggleGroup>
-
-          {/* Distance selection */}
           <div className="space-y-2">
-            <Label><Trans>Distance</Trans></Label>
+            <Label>{copy.goalType}</Label>
             <ToggleGroup
-              value={[distance]}
-              onValueChange={(v) => { if (v.length > 0) setDistance(v[v.length - 1]); }}
-              className="grid grid-cols-4 gap-1.5"
+              value={[goalType]}
+              onValueChange={(values) => { if (values.length > 0) setGoalType(values[values.length - 1] as GoalKind); }}
+              className="grid grid-cols-1 gap-2 sm:grid-cols-3"
             >
-              {DISTANCES.map((d) => (
-                <ToggleGroupItem key={d.value} value={d.value} className="text-xs data-[pressed]:border-primary data-[pressed]:bg-primary/10 data-[pressed]:text-primary">
-                  {d.label}
+              <ToggleGroupItem value="race" className="flex-col items-start gap-1 h-auto py-3 px-4 data-[pressed]:border-primary data-[pressed]:bg-primary/10">
+                <span className="font-semibold text-sm">{copy.race}</span>
+                <span className="text-xs text-muted-foreground text-left">{copy.raceDesc}</span>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="continuous" className="flex-col items-start gap-1 h-auto py-3 px-4 data-[pressed]:border-primary data-[pressed]:bg-primary/10">
+                <span className="font-semibold text-sm">{copy.continuous}</span>
+                <span className="text-xs text-muted-foreground text-left">{copy.continuousDesc}</span>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="performance_5k" className="flex-col items-start gap-1 h-auto py-3 px-4 data-[pressed]:border-primary data-[pressed]:bg-primary/10">
+                <span className="font-semibold text-sm">{copy.performance}</span>
+                <span className="text-xs text-muted-foreground text-left">{copy.performanceDesc}</span>
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+
+          <div className="space-y-2">
+            <Label>{copy.distance}</Label>
+            <ToggleGroup
+              value={[effectiveDistance]}
+              onValueChange={(values) => { if (values.length > 0) setDistance(values[values.length - 1]); }}
+              className="grid grid-cols-4 gap-1.5"
+              disabled={goalType === 'performance_5k'}
+            >
+              {distances.map((item) => (
+                <ToggleGroupItem key={item.value} value={item.value} className="text-xs data-[pressed]:border-primary data-[pressed]:bg-primary/10 data-[pressed]:text-primary">
+                  {item.label}
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>
           </div>
 
-          {/* Race date */}
           {goalType === 'race' && (
             <div className="space-y-2">
-              <Label htmlFor="race-date"><Trans>Race Date</Trans></Label>
-              <Input
-                id="race-date"
-                type="date"
-                value={raceDate}
-                onChange={(e) => setRaceDate(e.target.value)}
-              />
+              <Label htmlFor="goal-race-date">{copy.raceDate}</Label>
+              <Input id="goal-race-date" type="date" value={raceDate} onChange={(event) => setRaceDate(event.target.value)} placeholder={copy.pickDate} />
             </div>
           )}
 
-          {/* Target time */}
           <div className="space-y-2">
-            <Label htmlFor="target-time">
-              <Trans>Target Time</Trans> <span className="text-muted-foreground"><Trans>(optional)</Trans></span>
-            </Label>
-            <Input
-              id="target-time"
-              type="text"
-              value={targetTimeInput}
-              onChange={(e) => setTargetTimeInput(e.target.value)}
-              placeholder={selectedDist?.placeholder ?? 'H:MM:SS'}
-              className="font-data"
-            />
-            <p className="text-[10px] text-muted-foreground">
-              {goalType === 'race'
-                ? t`Leave blank to track predicted time only`
-                : t`What time are you working toward? Leave blank to track trend only`}
+            <Label htmlFor="goal-target-time">{copy.targetTime} <span className="text-muted-foreground">({copy.optional})</span></Label>
+            <Input id="goal-target-time" type="text" value={targetTimeInput} onChange={(event) => setTargetTimeInput(event.target.value)} placeholder={selected?.placeholder ?? 'H:MM:SS'} className="font-data" />
+            <p className="text-[11px] text-muted-foreground">
+              {goalType === 'race' ? copy.raceTargetHint : goalType === 'performance_5k' ? copy.performanceHint : copy.continuousHint}
             </p>
           </div>
 
@@ -170,12 +181,8 @@ export default function GoalEditor({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            <Trans>Cancel</Trans>
-          </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? <Trans>Saving...</Trans> : <Trans>Save Goal</Trans>}
-          </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{copy.cancel}</Button>
+          <Button onClick={handleSave} disabled={saving}>{saving ? copy.saving : copy.save}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -72,7 +72,7 @@ interface SeriesPayload {
 
 // ---- Editor snapshot ----
 interface EditorSnapshot {
-  type: 'race' | 'continuous';
+  type: 'race' | 'continuous' | 'performance_5k';
   distanceIndex: number;
   raceDate: string;
   targetTimeSec: number;
@@ -89,6 +89,8 @@ const ULTRA_DISTANCES = new Set(['50k', '50mi', '100k', '100mi']);
 // ---- Translations ----
 
 function buildGoalTr() {
+  const locale = (getApp<IAppOption>().globalData.locale ?? 'en') as 'en' | 'zh';
+  const zh = locale === 'zh';
   return {
     navTitle: t('Goal'),
     failedToLoad: t('Failed to load'),
@@ -107,6 +109,8 @@ function buildGoalTr() {
     raceGoalDesc: t('Train toward a specific race date'),
     continuousGoal: t('Continuous'),
     continuousGoalDesc: t('Build fitness over time'),
+    performanceGoal: zh ? '5 公里表现' : '5K performance',
+    performanceGoalDesc: zh ? '先用历史基线，再决定是否需要可选试点测试' : 'Use history first, then decide whether the optional pilot test is needed',
     distance: t('Distance'),
     raceDate: t('Race Date'),
     pickDate: t('Pick a date'),
@@ -184,7 +188,11 @@ interface GoalState {
   noteUltraExpanded: boolean;
 
   editorOpen: boolean;
-  editorType: 'race' | 'continuous';
+  goalKind: GoalResponse['goal_kind'] | '';
+  goal: GoalResponse['goal'] | null;
+  baseline: GoalResponse['baseline'] | null;
+
+  editorType: 'race' | 'continuous' | 'performance_5k';
   editorDistanceLabels: string[];
   editorDistanceIndex: number;
   editorRaceDate: string;
@@ -553,6 +561,7 @@ function buildGoalState(
   themeClass: string,
 ): Partial<GoalState> {
   const rc = response.race_countdown;
+  const goalKind = response.goal_kind ?? (response.goal?.eligible ? 'performance_5k' : (rc.race_date ? 'race' : 'continuous'));
   const rCheck = rc.reality_check;
   const display = response.display;
   const unit = display?.threshold_unit ?? 'W';
@@ -608,6 +617,9 @@ function buildGoalState(
 
   return {
     themeClass,
+    goalKind,
+    goal: response.goal ?? null,
+    baseline: response.baseline ?? null,
     loading: false,
     errorMessage: '',
     hasResponse: true,
@@ -694,6 +706,10 @@ const initialData: GoalState = {
   noteUltraText: '',
   noteUltraUrl: SCIENCE_ULTRA_URL,
   noteUltraExpanded: false,
+
+  goalKind: '',
+  goal: null,
+  baseline: null,
 
   editorOpen: false,
   editorType: 'race',
@@ -802,12 +818,12 @@ Page({
     const freshTr = buildGoalTr();
     this.setData({ tr: freshTr });
     const cached = (this.data as { _response?: GoalResponse })._response;
-    const goal = (cached?.race_countdown ?? null) as
-      | { distance?: string | null; race_date?: string | null; target_time_sec?: number | null }
+    const goal = ((cached?.goal ?? cached?.race_countdown) ?? null) as
+      | { goal_kind?: GoalResponse['goal_kind']; distance?: string | null; race_date?: string | null; target_time_sec?: number | null }
       | null;
     const distanceKey = (goal?.distance as DistanceKey | undefined) ?? 'marathon';
     const idx = Math.max(0, DISTANCE_CHOICES.findIndex((d) => d.key === distanceKey));
-    const editorType: 'race' | 'continuous' = goal?.race_date ? 'race' : 'continuous';
+    const editorType: 'race' | 'continuous' | 'performance_5k' = goal?.goal_kind === 'performance_5k' ? 'performance_5k' : (goal?.race_date ? 'race' : 'continuous');
     const targetTimeSec =
       goal?.target_time_sec && goal.target_time_sec > 0 ? goal.target_time_sec : 0;
     const timeParts = secondsToTimeParts(targetTimeSec);
@@ -839,13 +855,14 @@ Page({
   onDiscardKeep() { this.setData({ editorConfirmDiscard: false }); },
 
   onPickEditorType(e: WechatMiniprogram.TouchEvent) {
-    const type = e.currentTarget.dataset.type as 'race' | 'continuous' | undefined;
+    const type = e.currentTarget.dataset.type as 'race' | 'continuous' | 'performance_5k' | undefined;
     if (!type) return;
-    this.setData({ editorType: type });
+    this.setData({ editorType: type, ...(type === 'performance_5k' ? { editorDistanceIndex: 0 } : {}) });
     this.recomputeEditorDirty();
   },
 
   onPickEditorDistance(e: WechatMiniprogram.PickerChange) {
+    if (this.data.editorType === 'performance_5k') return;
     const idx = Number(e.detail.value);
     if (Number.isNaN(idx)) return;
     this.setData({ editorDistanceIndex: idx });
@@ -877,7 +894,7 @@ Page({
   async onSaveEditor() {
     if (!this.data.editorDirty || this.data.editorSaving) return;
     const tr = this.data.tr as ReturnType<typeof buildGoalTr>;
-    const editorType = this.data.editorType as 'race' | 'continuous';
+    const editorType = this.data.editorType as 'race' | 'continuous' | 'performance_5k';
     const editorDistanceIndex = this.data.editorDistanceIndex as number;
     const editorRaceDate = this.data.editorRaceDate as string;
     if (editorType === 'race' && !editorRaceDate) {
@@ -886,10 +903,10 @@ Page({
     }
     const targetTimeSec = timePartsToSeconds(this.data.editorTimeParts as number[]);
     this.setData({ editorSaving: true, editorError: '' });
-    const distance = DISTANCE_CHOICES[editorDistanceIndex]?.key ?? 'marathon';
+    const distance = editorType === 'performance_5k' ? '5k' : (DISTANCE_CHOICES[editorDistanceIndex]?.key ?? 'marathon');
     try {
       await apiPut('/api/settings', {
-        goal: { race_date: editorType === 'race' ? editorRaceDate : '', distance, target_time_sec: targetTimeSec },
+        goal: { goal_kind: editorType, race_date: editorType === 'race' ? editorRaceDate : '', distance, target_time_sec: targetTimeSec },
       });
       this.setData({ editorOpen: false, editorSaving: false });
       void this.refetch();
