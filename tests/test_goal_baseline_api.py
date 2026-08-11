@@ -671,6 +671,143 @@ def test_history_search_considers_non_preferred_sources(goal_api) -> None:
     assert [candidate["activity_id"] for candidate in response.json()["baseline"]["candidates"]] == ["stryd-run"]
 
 
+def test_history_search_deduplicates_providers_and_rejects_hidden_duplicate(
+    goal_api,
+) -> None:
+    client, db_session = goal_api
+    _seed_goal_user(db_session)
+    _add_activity(
+        db_session,
+        activity_id="garmin-run",
+        observed_date=date(2026, 8, 9),
+        distance_km=5.0,
+        duration_sec=1_240,
+        source="garmin",
+    )
+    _add_activity(
+        db_session,
+        activity_id="stryd-duplicate",
+        observed_date=date(2026, 8, 9),
+        distance_km=5.01,
+        duration_sec=1_245,
+        source="stryd",
+    )
+
+    response = client.get("/api/goal", headers=_headers("goal-baseline-owner"))
+    assert response.status_code == 200, response.text
+    assert [
+        candidate["activity_id"]
+        for candidate in response.json()["baseline"]["candidates"]
+    ] == ["garmin-run"]
+
+    hidden = client.post(
+        "/api/goal/baseline/history/confirm",
+        headers={
+            **_headers("goal-baseline-owner"),
+            "Idempotency-Key": "goal-history-hidden-duplicate",
+        },
+        json={
+            "activity_id": "stryd-duplicate",
+            "response": "race",
+            "measured_5k": True,
+            "elapsed_timing_confirmed": True,
+        },
+    )
+    assert hidden.status_code == 404
+
+
+def test_history_search_deduplicates_with_deterministic_source_fallback(
+    goal_api,
+) -> None:
+    client, db_session = goal_api
+    _seed_goal_user(db_session)
+    from db.models import UserConfig
+
+    with db_session.SessionLocal() as db:
+        config = db.query(UserConfig).filter(
+            UserConfig.user_id == "goal-baseline-owner",
+        ).one()
+        config.preferences = {
+            key: value
+            for key, value in (config.preferences or {}).items()
+            if key != "activities"
+        }
+        db.commit()
+    _add_activity(
+        db_session,
+        activity_id="garmin-fallback",
+        observed_date=date(2026, 8, 9),
+        distance_km=5.0,
+        duration_sec=1_240,
+        source="garmin",
+    )
+    _add_activity(
+        db_session,
+        activity_id="stryd-fallback-duplicate",
+        observed_date=date(2026, 8, 9),
+        distance_km=5.0,
+        duration_sec=1_245,
+        source="stryd",
+    )
+
+    response = client.get("/api/goal", headers=_headers("goal-baseline-owner"))
+    assert response.status_code == 200, response.text
+    assert len(response.json()["baseline"]["candidates"]) == 1
+
+
+def test_history_search_deduplicates_secondary_provider_cluster(
+    goal_api,
+) -> None:
+    client, db_session = goal_api
+    _seed_goal_user(db_session)
+    _add_activity(
+        db_session,
+        activity_id="garmin-unrelated",
+        observed_date=date(2026, 8, 10),
+        distance_km=10.0,
+        duration_sec=3_000,
+        source="garmin",
+    )
+    _add_activity(
+        db_session,
+        activity_id="stryd-secondary-duplicate",
+        observed_date=date(2026, 8, 9),
+        distance_km=5.0,
+        duration_sec=1_240,
+        source="stryd",
+    )
+    _add_activity(
+        db_session,
+        activity_id="coros-secondary-winner",
+        observed_date=date(2026, 8, 9),
+        distance_km=5.01,
+        duration_sec=1_245,
+        source="coros",
+    )
+
+    response = client.get("/api/goal", headers=_headers("goal-baseline-owner"))
+    assert response.status_code == 200, response.text
+    assert [
+        candidate["activity_id"]
+        for candidate in response.json()["baseline"]["candidates"]
+    ] == ["coros-secondary-winner"]
+
+    hidden = client.post(
+        "/api/goal/baseline/history/confirm",
+        headers={
+            **_headers("goal-baseline-owner"),
+            "Idempotency-Key": "goal-history-secondary-hidden-duplicate",
+        },
+        json={
+            "activity_id": "stryd-secondary-duplicate",
+            "response": "race",
+            "measured_5k": True,
+            "elapsed_timing_confirmed": True,
+        },
+    )
+    assert hidden.status_code == 404
+
+
 def test_completed_test_requires_a_candidate_from_the_scheduled_window(goal_api) -> None:
     client, db_session = goal_api
     _seed_goal_user(db_session)
@@ -680,6 +817,13 @@ def test_completed_test_requires_a_candidate_from_the_scheduled_window(goal_api)
         observed_date=date(2026, 8, 1),
         distance_km=5.0,
         duration_sec=1300,
+    )
+    _add_activity(
+        db_session,
+        activity_id="later-run",
+        observed_date=date(2026, 8, 21),
+        distance_km=5.0,
+        duration_sec=1_290,
     )
     assert client.post(
         "/api/goal/baseline/test",
@@ -704,6 +848,22 @@ def test_completed_test_requires_a_candidate_from_the_scheduled_window(goal_api)
         },
     )
     assert completed.status_code == 409
+
+    later = client.post(
+        "/api/goal/baseline/test",
+        headers={
+            **_headers("goal-baseline-owner"),
+            "Idempotency-Key": "goal-test-complete-later-window",
+        },
+        json={
+            "action": "complete",
+            "activity_id": "later-run",
+            "measured_5k": True,
+            "elapsed_timing_confirmed": True,
+            "protocol_followed": True,
+        },
+    )
+    assert later.status_code == 409
 
 
 def test_admin_evaluation_is_aggregate_only(goal_api) -> None:

@@ -18,6 +18,7 @@ from analysis.data_loader import (
     load_data_from_db,
     load_goal_baseline_confirmations,
     load_goal_baseline_test_records,
+    select_preferred_source,
 )
 from analysis.goal_baseline import (
     BASELINE_GUARDRAIL_DAYS,
@@ -668,11 +669,7 @@ def _load_candidate_activities(
     splits = data.get("splits", pd.DataFrame())
     if not isinstance(activities, pd.DataFrame) or activities.empty:
         return []
-    frame = activities.copy()
-    if activity_source:
-        from api.packs import _dedup_activities_by_primary_source
-
-        frame = _dedup_activities_by_primary_source(frame, activity_source)
+    frame = _deduplicate_activity_frame(activities.copy(), activity_source)
     if "date" in frame.columns:
         frame["date"] = pd.to_datetime(frame["date"], errors="coerce").dt.date
     candidate_ids = [
@@ -734,46 +731,99 @@ def _activity_by_id(
     activity_source: str | None,
     activity_id: str,
 ) -> BaselineActivity | None:
-    data = load_data_from_db(user_id, db, include_plan=False)
-    activities = data.get("activities", pd.DataFrame())
-    splits = data.get("splits", pd.DataFrame())
-    if not isinstance(activities, pd.DataFrame) or activities.empty:
-        return None
-    frame = activities.copy()
-    if "date" in frame.columns:
-        frame["date"] = pd.to_datetime(frame["date"], errors="coerce").dt.date
-    row_frame = frame[frame["activity_id"].astype(str) == activity_id]
-    if row_frame.empty:
-        return None
-    row = row_frame.iloc[-1]
-    if str(row.get("activity_type", "")).strip().casefold() != "running":
-        return None
-    observed_date = row.get("date")
-    if not isinstance(observed_date, date):
-        return None
-    distance_km = row.get("distance_km")
-    duration_sec = row.get("duration_sec")
-    if distance_km is None or duration_sec is None:
-        return None
-    split_count = 0
-    if isinstance(splits, pd.DataFrame) and not splits.empty and "activity_id" in splits.columns:
-        split_count = int((splits["activity_id"].astype(str) == activity_id).sum())
-    coverage = load_activity_sample_coverage(user_id, db, [activity_id])
-    observed_duration = None
-    gap_count = 0
-    if isinstance(coverage, pd.DataFrame) and not coverage.empty:
-        observed_duration = coverage["observed_duration_sec"].fillna(0).astype(float).sum()
-        gap_count = int(coverage["gap_count"].fillna(0).astype(int).sum())
-    return BaselineActivity(
+    return _candidate_activity_by_id(
+        db,
+        user_id=user_id,
+        activity_source=activity_source,
         activity_id=activity_id,
-        observed_date=observed_date,
-        distance_km=float(distance_km),
-        duration_sec=float(duration_sec),
-        activity_type=str(row.get("activity_type") or "running"),
-        source=str(row.get("source") or "") or None,
-        split_count=split_count,
-        sample_observed_duration_sec=observed_duration,
-        timing_gap_count=gap_count,
+    )
+
+
+def _deduplicate_activity_frame(
+    frame: pd.DataFrame,
+    activity_source: str | None,
+) -> pd.DataFrame:
+    """Apply the dashboard dedup policy per duplicate cluster."""
+    from api.packs import _dedup_activities_by_primary_source
+
+    if frame.empty or "source" not in frame.columns:
+        return frame
+
+    working = frame.reset_index(drop=True).copy()
+    working["_baseline_order"] = range(len(working))
+    working["_baseline_date"] = pd.to_datetime(
+        working["date"], errors="coerce",
+    ).dt.date
+    working["_baseline_duration"] = pd.to_numeric(
+        working.get("duration_sec", 0), errors="coerce",
+    ).fillna(0.0)
+    source_keys = (
+        working["source"].fillna("").astype(str).str.strip().str.casefold()
+    )
+
+    def rows_overlap(left_index: int, right_index: int) -> bool:
+        if source_keys.at[left_index] == source_keys.at[right_index]:
+            return False
+        left_duration = float(working.at[left_index, "_baseline_duration"])
+        right_duration = float(working.at[right_index, "_baseline_duration"])
+        if left_duration <= 0 or right_duration <= 0:
+            return False
+        return (
+            abs(left_duration - right_duration)
+            / max(left_duration, right_duration)
+        ) < 0.10
+
+    parts: list[pd.DataFrame] = []
+    for observed_date, date_group in working.groupby(
+        "_baseline_date", dropna=False, sort=False,
+    ):
+        remaining = list(date_group.index)
+        if pd.isna(observed_date):
+            parts.append(date_group)
+            continue
+
+        while remaining:
+            cluster = [remaining.pop(0)]
+            expanded = True
+            while expanded:
+                expanded = False
+                for candidate_index in remaining.copy():
+                    if any(
+                        rows_overlap(candidate_index, member_index)
+                        for member_index in cluster
+                    ):
+                        cluster.append(candidate_index)
+                        remaining.remove(candidate_index)
+                        expanded = True
+
+            cluster_frame = working.loc[cluster].copy()
+            selected = select_preferred_source(cluster_frame, activity_source)
+            effective_source = activity_source
+            if not selected.empty:
+                source_names = (
+                    selected["source"].fillna("").astype(str).str.strip()
+                )
+                nonempty_sources = source_names[source_names != ""]
+                if not nonempty_sources.empty:
+                    effective_source = str(nonempty_sources.iloc[0])
+            parts.append(
+                _dedup_activities_by_primary_source(
+                    cluster_frame,
+                    effective_source,
+                ),
+            )
+
+    return (
+        pd.concat(parts, ignore_index=True)
+        .sort_values("_baseline_order")
+        .drop(
+            columns=[
+                "_baseline_order",
+                "_baseline_date",
+                "_baseline_duration",
+            ],
+        )
+        .reset_index(drop=True)
     )
 
 

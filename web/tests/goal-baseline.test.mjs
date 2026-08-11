@@ -20,18 +20,23 @@ test('web goal page switches into the baseline pilot flow', async () => {
 });
 
 test('miniapp ships the same baseline semantics and endpoints', async () => {
-  const [page, component, template] = await Promise.all([
+  const [page, component, template, zhCatalog] = await Promise.all([
     read('../../miniapp/pages/goal/index.wxml'),
     read('../../miniapp/components/goal-baseline/index.ts'),
     read('../../miniapp/components/goal-baseline/index.wxml'),
+    read('../src/locales/zh/messages.po'),
   ]);
 
   assert.match(page, /goalKind === 'performance_5k'/);
   assert.match(page, /<goal-baseline/);
+  assert.match(page, /id="goal-baseline-panel"/);
   assert.match(component, /\/api\/goal\/baseline\/history\/confirm/);
   assert.match(component, /\/api\/goal\/baseline\/test/);
-  assert.match(component, /候选检索永远不等于资格认定/);
-  assert.match(component, /最大努力|maximal effort/i);
+  assert.match(component, /candidateHint: t\('Retrieval is never qualification/);
+  assert.match(component, /hasCandidates: candidateRows\.length > 0/);
+  assert.match(component, /maximal-effort/i);
+  assert.match(zhCatalog, /检索到候选活动不代表其已合格/);
+  assert.match(template, /wx:if="\{\{hasCandidates\}\}"/);
   assert.match(template, /baseline\.test\.state === 'not_offered'/);
   assert.match(template, /baseline\.test\.can_schedule && baseline\.test\.state !== 'not_offered' && baseline\.test\.state !== 'scheduled'/);
 });

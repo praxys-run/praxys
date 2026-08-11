@@ -2,32 +2,32 @@
   <view class="ts-card baseline-card">
     <text class="baseline-label">{{copy.title}}</text>
     <view class="baseline-head-row">
-      <text class="baseline-headline">{{copy.status[baseline.status]}}</text>
+      <text class="baseline-headline">{{copy.headline[baseline.status]}}</text>
       <text class="baseline-badge">{{copy.status[baseline.status]}}</text>
     </view>
     <text class="baseline-copy">{{copy.pilotGuardrail}}</text>
     <text wx:if="{{alternativesText}}" class="baseline-copy">{{alternativesText}}</text>
-    <text class="baseline-copy">{{baseline.pilot_scope_note}}</text>
+    <text class="baseline-copy">{{copy.pilotScope}}</text>
     <text wx:if="{{baseline.evidence}}" class="baseline-evidence ts-value">{{evidenceText}}</text>
     <text wx:else class="baseline-copy">{{copy.noMeaningfulChange}}</text>
     <text class="baseline-copy">{{copy.segmentRule}}</text>
     <text wx:if="{{notice}}" class="baseline-success">{{notice}}</text>
     <text wx:if="{{errorMessage}}" class="baseline-error">{{errorMessage}}</text>
-    <text class="baseline-copy">{{baseline.science_note.description}}</text>
+    <text class="baseline-copy">{{copy.scienceDescription}}</text>
     <view class="baseline-action" bindtap="onCopyScienceSource"><text>{{copy.sourceLabel}}</text></view>
   </view>
 
   <view class="ts-card baseline-card">
     <text class="baseline-section">{{copy.candidates}}</text>
     <text class="baseline-copy">{{copy.candidateHint}}</text>
-    <block wx:if="{{baseline.candidates.length > 0}}">
+    <block wx:if="{{hasCandidates}}">
       <view wx:for="{{candidateRows}}" wx:key="activity_id" class="baseline-row">
         <view class="baseline-row-copy">
           <text class="baseline-row-value ts-value">{{item.headline}}</text>
-          <text class="baseline-copy">{{item.review_state}}</text>
+          <text class="baseline-copy">{{item.reviewLabel}}</text>
         </view>
         <view class="baseline-action" data-index="{{index}}" bindtap="openConfirm">
-          <text>{{item.confirmation_response ? copy.reviewCandidate : copy.reviewCandidate}}</text>
+          <text>{{item.confirmation_response ? copy.changeCandidate : copy.reviewCandidate}}</text>
         </view>
       </view>
     </block>
@@ -35,8 +35,8 @@
   </view>
 
   <view class="ts-card baseline-card">
-    <text class="baseline-section">{{copy.title}}</text>
-    <text class="baseline-copy">{{copy.pilotGuardrail}}</text>
+    <text class="baseline-section">{{copy.testTitle}}</text>
+    <text class="baseline-copy">{{copy.testHint}}</text>
     <text wx:if="{{baseline.test.scheduled_workout}}" class="baseline-copy">{{copy.scheduleTitle}} · {{scheduledDateDisplay}}</text>
     <view class="baseline-actions">
       <view wx:if="{{baseline.test.state === 'not_offered' && baseline.test.can_schedule}}" class="baseline-primary" bindtap="openOffer"><text>{{copy.reviewTest}}</text></view>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLingui } from '@lingui/react/macro';
 import {
   Dialog,
   DialogContent,
@@ -11,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { useLocale } from '@/contexts/LocaleContext';
 import type { GoalKind } from '@/types/api';
 import { formatTime, parseTimeToSeconds } from '@/lib/format';
 
@@ -27,35 +27,6 @@ interface GoalEditorProps {
   onSave: (goal: { goal_kind: GoalKind; race_date: string; distance: string; target_time_sec: number }) => Promise<void>;
 }
 
-function buildCopy(locale: string) {
-  const zh = locale === 'zh';
-  return {
-    title: zh ? '设置目标' : 'Set your goal',
-    description: zh ? '选择比赛目标、持续追踪，或 5 公里基线试点。' : 'Choose a race target, track continuous progress, or use the 5K baseline pilot.',
-    goalType: zh ? '目标类型' : 'Goal type',
-    race: zh ? '比赛目标' : 'Race goal',
-    raceDesc: zh ? '围绕明确的比赛日期训练' : 'Train toward a specific race date',
-    continuous: zh ? '持续追踪' : 'Continuous',
-    continuousDesc: zh ? '长期观察趋势' : 'Track trend over time',
-    performance: zh ? '5 公里表现' : '5K performance',
-    performanceDesc: zh ? '先用历史基线，再决定是否进入可选试点测试' : 'Use history first, then decide whether the optional pilot test is needed',
-    distance: zh ? '距离' : 'Distance',
-    raceDate: zh ? '比赛日期' : 'Race date',
-    targetTime: zh ? '目标时间' : 'Target time',
-    optional: zh ? '可选' : 'optional',
-    pickDate: zh ? '选择日期' : 'Pick a date',
-    cancel: zh ? '取消' : 'Cancel',
-    save: zh ? '保存目标' : 'Save goal',
-    saving: zh ? '保存中…' : 'Saving…',
-    raceDateRequired: zh ? '比赛目标需要日期' : 'Race date is required',
-    invalidTime: zh ? '时间格式无效，请使用 H:MM:SS 或 H:MM' : 'Invalid time format. Use H:MM:SS or H:MM',
-    failedToSave: zh ? '保存目标失败' : 'Failed to save goal',
-    raceTargetHint: zh ? '留空表示只追踪预测表现' : 'Leave blank to track predicted time only',
-    continuousHint: zh ? '留空表示只追踪趋势' : 'Leave blank to track trend only',
-    performanceHint: zh ? '当前试点只支持户外公路完整 5 公里耗时目标。' : 'This pilot currently supports only outdoor road 5K elapsed-time goals.',
-  };
-}
-
 export default function GoalEditor({
   open,
   onOpenChange,
@@ -65,8 +36,32 @@ export default function GoalEditor({
   initialTargetTime,
   onSave,
 }: GoalEditorProps) {
-  const { locale } = useLocale();
-  const copy = buildCopy(locale);
+  const { t } = useLingui();
+  const copy = {
+    title: t`Set your goal`,
+    description: t`Choose a race target, track continuous progress, or use the 5K baseline pilot.`,
+    goalType: t`Goal type`,
+    race: t`Race goal`,
+    raceDesc: t`Train toward a specific race date`,
+    continuous: t`Continuous`,
+    continuousDesc: t`Track trend over time`,
+    performance: t`5K performance`,
+    performanceDesc: t`Use history first, then decide whether the optional pilot test is needed`,
+    distance: t`Distance`,
+    raceDate: t`Race date`,
+    targetTime: t`Target time`,
+    optional: t`optional`,
+    pickDate: t`Pick a date`,
+    cancel: t`Cancel`,
+    save: t`Save goal`,
+    saving: t`Saving…`,
+    raceDateRequired: t`Race date is required`,
+    invalidTime: t`Invalid time format. Use H:MM:SS or H:MM`,
+    failedToSave: t`Failed to save goal`,
+    raceTargetHint: t`Leave blank to track predicted time only`,
+    continuousHint: t`Leave blank to track trend only`,
+    performanceHint: t`This pilot currently supports only outdoor road 5K elapsed-time goals.`,
+  };
   const [goalType, setGoalType] = useState<GoalKind>(initialType);
   const [raceDate, setRaceDate] = useState(initialRaceDate);
   const [distance, setDistance] = useState(initialDistance || 'marathon');
@@ -77,12 +72,12 @@ export default function GoalEditor({
   const distances: { value: DistanceKey; label: string; placeholder: string }[] = [
     { value: '5k', label: '5K', placeholder: '20:00' },
     { value: '10k', label: '10K', placeholder: '42:00' },
-    { value: 'half', label: locale === 'zh' ? '半马' : 'Half', placeholder: '1:30:00' },
-    { value: 'marathon', label: locale === 'zh' ? '马拉松' : 'Marathon', placeholder: '3:00:00' },
+    { value: 'half', label: t`Half`, placeholder: '1:30:00' },
+    { value: 'marathon', label: t`Marathon`, placeholder: '3:00:00' },
     { value: '50k', label: '50K', placeholder: '4:30:00' },
-    { value: '50mi', label: locale === 'zh' ? '50 英里' : '50 Mi', placeholder: '8:00:00' },
+    { value: '50mi', label: t`50 Mi`, placeholder: '8:00:00' },
     { value: '100k', label: '100K', placeholder: '12:00:00' },
-    { value: '100mi', label: locale === 'zh' ? '100 英里' : '100 Mi', placeholder: '24:00:00' },
+    { value: '100mi', label: t`100 Mi`, placeholder: '24:00:00' },
   ];
 
   const effectiveDistance = goalType === 'performance_5k' ? '5k' : distance;

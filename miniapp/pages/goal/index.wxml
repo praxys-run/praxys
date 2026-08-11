@@ -27,6 +27,7 @@
         </view>
 
         <goal-baseline
+          id="goal-baseline-panel"
           wx:if="{{goalKind === 'performance_5k' && baseline}}"
           baseline="{{baseline}}"
           goal="{{goal}}"

@@ -1,4 +1,3 @@
-import type { IAppOption } from '../../app';
 import { apiPost } from '../../utils/api-client';
 import { copyUrlToClipboard } from '../../utils/markdown';
 import type { ApiError } from '../../utils/api-client';
@@ -8,6 +7,7 @@ import type {
   GoalBaselineResponse,
 } from '../../types/api';
 import { formatTime } from '../../utils/format';
+import { t } from '../../utils/i18n';
 
 const STOP_REASONS = [
   'acute_illness',
@@ -29,63 +29,87 @@ function todayIso(): string {
   return `${now.getFullYear()}-${month}-${day}`;
 }
 
-function buildCopy(locale: 'en' | 'zh') {
-  const zh = locale === 'zh';
+function buildCopy() {
   return {
-    title: zh ? '5 公里基线试点' : '5K baseline pilot',
-    current: zh ? '当前证据' : 'Current evidence',
-    candidates: zh ? '历史候选活动' : 'History candidates',
-    candidateHint: zh ? '候选检索永远不等于资格认定；只有完整活动、明确确认的测距与计时才可能成为基线。' : 'Retrieval is never qualification; only explicit confirmation can make a full activity count as baseline evidence.',
-    segmentRule: zh ? '任意 5 公里片段、最佳分段、轻松跑或长跑中的快速段都不会成为基线。' : 'Arbitrary 5K segments, best splits, and fast sections inside easy, long, or mixed runs never count as baseline evidence.',
-    noMeaningfulChange: zh ? '目前还没有可用的“有意义变化”阈值。' : 'There is no meaningful-change threshold yet.',
-    pilotGuardrail: zh ? '42 天规则是 Praxys 试点护栏；可选测试是最大努力。' : 'The 42-day rule is a Praxys pilot guardrail; the optional test is maximal effort.',
-    reviewCandidate: zh ? '确认这次活动' : 'Review this effort',
-    reviewTest: zh ? '查看可选测试' : 'Review optional test',
-    scheduleTest: zh ? '安排可选测试' : 'Schedule optional test',
-    completeTest: zh ? '记录测试结果' : 'Record test result',
-    stopTest: zh ? '停止这次测试' : 'Stop this test',
-    noTestPath: zh ? '先不做测试' : 'Stay on the no-test path',
+    title: t('5K baseline pilot'),
+    current: t('Current evidence'),
+    candidates: t('History candidates'),
+    candidateHint: t('Retrieval is never qualification; only a full activity with explicit distance, timing, and purpose confirmation can become a baseline.'),
+    segmentRule: t('Arbitrary 5K segments, best splits, or fast sections inside easy, long, or mixed runs never count as baseline evidence.'),
+    noMeaningfulChange: t('There is no meaningful-change threshold yet.'),
+    pilotGuardrail: t('The 42-day rule is a Praxys pilot guardrail, not a physiological cutoff.'),
+    pilotScope: t('This pilot is only for adults who already can complete 5 km.'),
+    scienceDescription: t('Qualified 5 km history comes first. The 42-day freshness rule, the optional maximal-effort outdoor 5 km test, and the no-meaningful-change warning are Praxys pilot guardrails, not published universal cutoffs.'),
+    testHint: t('This is a maximal-effort test, and the no-test path always stays available.'),
+    testTitle: t('Optional 5K pilot test'),
+    reviewCandidate: t('Review this effort'),
+    changeCandidate: t('Change confirmation'),
+    reviewTest: t('Review optional test'),
+    scheduleTest: t('Schedule optional test'),
+    completeTest: t('Record test result'),
+    stopTest: t('Stop this test'),
+    noTestPath: t('Stay on the no-test path'),
     status: {
-      current: zh ? '当前' : 'Current',
-      stale: zh ? '已过期' : 'Stale',
-      incomparable: zh ? '待确认' : 'Needs review',
-      missing: zh ? '缺少证据' : 'Missing evidence',
-      not_required: zh ? '当前目标不需要' : 'Not required',
-      pending_test: zh ? '测试待完成' : 'Test pending',
+      current: t('Current'),
+      stale: t('Stale'),
+      incomparable: t('Needs review'),
+      missing: t('Missing evidence'),
+      not_required: t('Not required'),
+      pending_test: t('Test pending'),
+    },
+    headline: {
+      current: t('History first: you already have usable current 5K evidence.'),
+      stale: t('You have older 5K evidence. Praxys keeps it visible and can optionally offer a new pilot test.'),
+      incomparable: t('Praxys found candidate 5K efforts, but they are not qualified yet.'),
+      missing: t('Praxys has not found qualified 5K history yet.'),
+      not_required: t('The current goal is outside this 5K baseline pilot.'),
+      pending_test: t('The optional 5K pilot test is in progress.'),
+    },
+    reviewState: {
+      needs_confirmation: t('Needs confirmation'),
+      qualified: t('Qualified'),
+      excluded: t('Excluded'),
+      distance_unverified: t('Distance not verified'),
+      timing_unresolved: t('Timing needs review'),
     },
     responseOptions: [
-      zh ? '请选择' : 'Choose one',
-      zh ? '测量好的 5 公里比赛' : 'Measured 5K race',
-      zh ? '明确的 5 公里全力完成' : 'Intentional all-out complete 5K',
-      zh ? '不是全力 5 公里' : 'Not an all-out 5K effort',
+      t('Choose one'),
+      t('Measured 5K race'),
+      t('Intentional all-out complete 5K'),
+      t('Not an all-out 5K effort'),
     ],
-    yesNo: [zh ? '请选择' : 'Choose one', zh ? '是' : 'Yes', zh ? '否' : 'No'],
-    confirmTitle: zh ? '确认这次活动' : 'Review this activity',
-    confirmPurpose: zh ? '这次完整活动是什么？' : 'What was this full activity?',
-    confirmMeasured: zh ? '是否是测量好的完整 5 公里？' : 'Was the full effort a measured 5K?',
-    confirmTiming: zh ? '记录时间是否反映了无未解决暂停的耗时？' : 'Did the recorded time reflect elapsed timing with no unresolved pauses?',
-    scheduleTitle: zh ? '安排日期' : 'Scheduled date',
-    completeCandidate: zh ? '选择同步活动' : 'Choose a synced activity',
-    completeProtocol: zh ? '是否按完整协议执行？' : 'Did you follow the exact protocol?',
-    stopReason: zh ? '停止原因' : 'Stop reason',
+    yesNo: [t('Choose one'), t('Yes'), t('No')],
+    confirmTitle: t('Review this activity'),
+    confirmPurpose: t('What was this full activity?'),
+    confirmMeasured: t('Was the full effort a measured 5K?'),
+    confirmTiming: t('Did the recorded time reflect elapsed timing with no unresolved pauses?'),
+    scheduleTitle: t('Scheduled date'),
+    completeCandidate: t('Choose a synced activity'),
+    completeProtocol: t('Did you follow the exact protocol?'),
+    stopReason: t('Stop reason'),
     stopReasonLabels: [
-      zh ? '请选择' : 'Choose one',
-      zh ? '急性疾病' : 'Acute illness',
-      zh ? '疼痛或伤病改变了跑步方式' : 'Pain or injury altered the run',
-      zh ? '胸痛或压迫感' : 'Chest pain or pressure',
-      zh ? '晕厥或接近晕厥' : 'Fainting or near-fainting',
-      zh ? '异常严重气短' : 'Unusually severe breathlessness',
-      zh ? '意识混乱或失去协调' : 'Confusion or loss of coordination',
-      zh ? '其他红旗症状' : 'Another red-flag symptom',
-      zh ? '已有医疗限制或临床建议不要做高强度测试' : 'A clinician or restriction already rules out vigorous testing',
-      zh ? '恢复不足或显著疲劳未解决' : 'Recovery was inadequate or fatigue stayed unresolved',
-      zh ? '天气、空气、交通、能见度或路面不安全' : 'Weather, air, traffic, visibility, or footing was unsafe',
+      t('Choose one'),
+      t('Acute illness'),
+      t('Pain or injury altered the run'),
+      t('Chest pain or pressure'),
+      t('Fainting or near-fainting'),
+      t('Unusually severe breathlessness'),
+      t('Confusion or loss of coordination'),
+      t('Another red-flag symptom'),
+      t('A clinician or restriction already rules out vigorous testing'),
+      t('Recovery was inadequate or fatigue stayed unresolved'),
+      t('Weather, air, traffic, visibility, or footing was unsafe'),
     ],
-    cancel: zh ? '取消' : 'Cancel',
-    save: zh ? '保存' : 'Save',
-    success: zh ? '已更新 5 公里基线。' : 'Updated the 5K baseline.',
-    sourceLabel: zh ? '来源' : 'Source',
-    recordUnavailable: zh ? '当前没有可记录的同步候选活动。' : 'No synced candidate is available yet.',
+    alternatives: {
+      noTestPath: t('Continue without a test'),
+      completionGoal: t('Use a completion or consistency goal'),
+    },
+    cancel: t('Cancel'),
+    save: t('Save'),
+    success: t('Updated the 5K baseline.'),
+    sourceLabel: t('Source'),
+    recordUnavailable: t('No synced candidate is available yet.'),
+    requestFailed: t('Request failed'),
   };
 }
 
@@ -96,8 +120,7 @@ Component({
     disabled: { type: Boolean, value: false },
   },
   data: {
-    locale: (getApp<IAppOption>().globalData.locale ?? 'en') as 'en' | 'zh',
-    copy: buildCopy((getApp<IAppOption>().globalData.locale ?? 'en') as 'en' | 'zh'),
+    copy: buildCopy(),
     dialogMode: '',
     activeCandidateIndex: 0,
     responseIndex: 0,
@@ -107,6 +130,7 @@ Component({
     activityIndex: 0,
     protocolIndex: 0,
     stopReasonIndex: 0,
+    hasCandidates: false,
     candidateRows: [] as Array<Record<string, unknown>>,
     activityOptions: [] as string[],
     evidenceText: '',
@@ -119,19 +143,28 @@ Component({
   observers: {
     baseline(next: GoalBaselineResponse | null) {
       if (!next) return;
-      const locale = this.data.locale as 'en' | 'zh';
+      const copy = buildCopy();
       const candidateRows = next.candidates.map((candidate) => ({
         ...candidate,
         headline: `${candidate.observed_date} · ${candidate.distance_km != null ? candidate.distance_km.toFixed(2) : '—'} km · ${candidate.duration_sec ? formatTime(Math.round(candidate.duration_sec)) : '—'}`,
+        reviewLabel: copy.reviewState[candidate.review_state],
       }));
-      const activityOptions = [locale === 'zh' ? '请选择' : 'Choose one', ...next.candidates.map((candidate) => `${candidate.observed_date} · ${candidate.distance_km != null ? candidate.distance_km.toFixed(2) : '—'} km`)];
+      const activityOptions = [copy.yesNo[0], ...next.candidates.map((candidate) => `${candidate.observed_date} · ${candidate.distance_km != null ? candidate.distance_km.toFixed(2) : '—'} km`)];
       const evidenceText = next.evidence
         ? `${next.evidence.observed_date} · ${next.evidence.distance_km != null ? next.evidence.distance_km.toFixed(2) : '—'} km · ${next.evidence.elapsed_time_sec ? formatTime(Math.round(next.evidence.elapsed_time_sec)) : '—'}`
         : '';
-      const alternativesText = (next.alternatives ?? []).join(' · ');
+      const alternativesText = (next.alternatives ?? []).map((alternative) => (
+        alternative === 'no_test_path'
+          ? copy.alternatives.noTestPath
+          : alternative === 'completion_or_consistency_goal'
+            ? copy.alternatives.completionGoal
+            : alternative
+      )).join(' · ');
       this.setData({
+        copy,
         activityIndex: 0,
         scheduleDate: next.test.scheduled_workout?.date ?? todayIso(),
+        hasCandidates: candidateRows.length > 0,
         candidateRows,
         activityOptions,
         evidenceText,
@@ -238,7 +271,7 @@ Component({
         this.triggerEvent('refresh');
       } catch (e) {
         const err = e as Partial<ApiError>;
-        this.setData({ saving: false, errorMessage: err?.detail ?? 'Request failed' });
+        this.setData({ saving: false, errorMessage: err?.detail ?? this.data.copy.requestFailed });
       }
     },
   },
