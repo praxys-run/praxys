@@ -1428,6 +1428,178 @@ class DashboardCache(Base):
     )
 
 
+class AdaptivePlanGoalSnapshot(Base):
+    """Immutable owner-scoped goal target and horizon captured for one plan."""
+
+    __tablename__ = "adaptive_plan_goal_snapshots"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    version = Column(Integer, nullable=False, default=1)
+    state = Column(String(20), nullable=False, default="draft")
+    goal_kind = Column(String(40), nullable=False)
+    target = Column(JSON, nullable=False, default=dict)
+    horizon_start = Column(Date, nullable=False)
+    horizon_end = Column(Date, nullable=False)
+    snapshot = Column(JSON, nullable=False, default=dict)
+    acknowledged_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "id",
+            name="uq_adaptive_goal_snapshot_owner",
+        ),
+        CheckConstraint("version >= 1", name="ck_adaptive_goal_version_positive"),
+        CheckConstraint(
+            "state IN ('draft','active','superseded')",
+            name="ck_adaptive_goal_state",
+        ),
+        CheckConstraint(
+            "horizon_end >= horizon_start",
+            name="ck_adaptive_goal_horizon_order",
+        ),
+        Index("ix_adaptive_goal_user_created", "user_id", "created_at"),
+    )
+
+
+class AdaptivePlan(Base):
+    """Aggregate identity and lifecycle for an athlete-owned adaptive plan."""
+
+    __tablename__ = "adaptive_plans"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    goal_snapshot_id = Column(
+        String(36),
+        ForeignKey("adaptive_plan_goal_snapshots.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    lifecycle = Column(String(20), nullable=False, default="draft")
+    version = Column(Integer, nullable=False, default=0)
+    active_proposal_id = Column(String(36), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "id", name="uq_adaptive_plan_owner"),
+        CheckConstraint("version >= 0", name="ck_adaptive_plan_version_nonnegative"),
+        CheckConstraint(
+            "lifecycle IN ('draft','active','completed','archived')",
+            name="ck_adaptive_plan_lifecycle",
+        ),
+        Index(
+            "uq_adaptive_plan_one_active",
+            "user_id",
+            unique=True,
+            sqlite_where=text("lifecycle IN ('draft','active')"),
+            postgresql_where=text("lifecycle IN ('draft','active')"),
+        ),
+        Index("ix_adaptive_plan_user_lifecycle", "user_id", "lifecycle"),
+    )
+
+
+class PlanProposal(Base):
+    """Immutable structured proposal that is not canonical until adopted."""
+
+    __tablename__ = "plan_proposals"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    adaptive_plan_id = Column(
+        String(36),
+        ForeignKey("adaptive_plans.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    goal_snapshot_id = Column(
+        String(36),
+        ForeignKey("adaptive_plan_goal_snapshots.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    version = Column(Integer, nullable=False)
+    state = Column(String(20), nullable=False, default="draft")
+    origin = Column(String(80), nullable=False)
+    actor_type = Column(String(20), nullable=False)
+    actor_id = Column(String(100), nullable=True)
+    base_plan_version = Column(Integer, nullable=False)
+    supersedes_proposal_id = Column(
+        String(36),
+        ForeignKey("plan_proposals.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    policy_version = Column(String(80), nullable=True)
+    model_version = Column(String(80), nullable=True)
+    science_version = Column(String(80), nullable=True)
+    assumptions = Column(JSON, nullable=False, default=list)
+    unknowns = Column(JSON, nullable=False, default=list)
+    warnings = Column(JSON, nullable=False, default=list)
+    alternatives = Column(JSON, nullable=False, default=list)
+    expires_at = Column(DateTime, nullable=True)
+    idempotency_key = Column(String(128), nullable=True)
+    decision_idempotency_key = Column(String(128), nullable=True)
+    workout_snapshot = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    decided_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "id", name="uq_plan_proposal_owner"),
+        UniqueConstraint(
+            "adaptive_plan_id",
+            "version",
+            name="uq_plan_proposal_plan_version",
+        ),
+        UniqueConstraint(
+            "user_id",
+            "idempotency_key",
+            name="uq_plan_proposal_idempotency",
+        ),
+        CheckConstraint("version >= 1", name="ck_plan_proposal_version_positive"),
+        CheckConstraint(
+            "base_plan_version >= 0",
+            name="ck_plan_proposal_base_version_nonnegative",
+        ),
+        CheckConstraint(
+            "state IN ('draft','superseded','rejected','adopted','expired')",
+            name="ck_plan_proposal_state",
+        ),
+        CheckConstraint(
+            "actor_type IN ('user','agent','system')",
+            name="ck_plan_proposal_actor_type",
+        ),
+        Index("ix_plan_proposal_user_state", "user_id", "state", "created_at"),
+        Index(
+            "ix_plan_proposal_plan_state",
+            "adaptive_plan_id",
+            "state",
+            "version",
+        ),
+    )
+
+
 class TrainingPlan(Base):
     """Planned workouts from Praxys or an external platform."""
 
@@ -1476,6 +1648,12 @@ class TrainingPlan(Base):
     # a server-truncated fallback for backend windowing and legacy rows.
     start_time = Column(DateTime, nullable=True)
     meta = Column(JSON, nullable=True)  # generation and provider provenance details
+    adaptive_plan_id = Column(
+        String(36),
+        ForeignKey("adaptive_plans.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     __table_args__ = (
         UniqueConstraint(

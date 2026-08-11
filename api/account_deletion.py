@@ -12,6 +12,8 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from db.models import (
+    AdaptivePlan,
+    AdaptivePlanGoalSnapshot,
     Activity,
     ActivitySample,
     ActivitySplit,
@@ -38,6 +40,7 @@ from db.models import (
     McpAccessToken,
     PlanDelivery,
     PlanDeliveryAttempt,
+    PlanProposal,
     PlanRevision,
     PlanTargetCalendarSync,
     PlanTargetWorkout,
@@ -192,6 +195,9 @@ def _delete_user_owned_rows(db: Session, user_id: str) -> None:
         Activity,
         RecoveryData,
         FitnessData,
+        PlanProposal,
+        AdaptivePlan,
+        AdaptivePlanGoalSnapshot,
         TrainingPlan,
         PlanTargetWorkout,
         PlanTargetCalendarSync,

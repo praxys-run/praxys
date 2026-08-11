@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 from analysis.config import load_config_from_db
 from api.views import utc_isoformat
 from db.models import (
+    AdaptivePlan,
+    AdaptivePlanGoalSnapshot,
     Activity,
     ActivitySplit,
     FitnessData,
@@ -18,6 +20,7 @@ from db.models import (
     GoalBaselineSnapshot,
     GoalBaselineTestRecord,
     RecoveryData,
+    PlanProposal,
     TrainingPlan,
 )
 
@@ -95,6 +98,7 @@ _FITNESS_FIELDS = (
 )
 _TRAINING_PLAN_FIELDS = (
     "canonical_id",
+    "adaptive_plan_id",
     "date",
     "workout_type",
     "planned_duration_min",
@@ -111,6 +115,51 @@ _TRAINING_PLAN_FIELDS = (
     "external_id",
     "start_time",
     "meta",
+)
+
+_ADAPTIVE_GOAL_SNAPSHOT_FIELDS = (
+    "id",
+    "version",
+    "state",
+    "goal_kind",
+    "target",
+    "horizon_start",
+    "horizon_end",
+    "snapshot",
+    "acknowledged_at",
+    "created_at",
+)
+_ADAPTIVE_PLAN_FIELDS = (
+    "id",
+    "goal_snapshot_id",
+    "lifecycle",
+    "version",
+    "active_proposal_id",
+    "created_at",
+    "updated_at",
+)
+_PLAN_PROPOSAL_FIELDS = (
+    "id",
+    "adaptive_plan_id",
+    "goal_snapshot_id",
+    "version",
+    "state",
+    "origin",
+    "actor_type",
+    "actor_id",
+    "base_plan_version",
+    "supersedes_proposal_id",
+    "policy_version",
+    "model_version",
+    "science_version",
+    "assumptions",
+    "unknowns",
+    "warnings",
+    "alternatives",
+    "expires_at",
+    "created_at",
+    "decided_at",
+    "workout_snapshot",
 )
 
 _GOAL_BASELINE_CONFIRMATION_FIELDS = (
@@ -261,6 +310,31 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
             .all(),
             _TRAINING_PLAN_FIELDS,
         ),
+        "adaptive_plan_proposals": {
+            "schema_version": 1,
+            "exported_at": utc_isoformat(datetime.now(timezone.utc)),
+            "goal_snapshots": _serialize_rows(
+                db.query(AdaptivePlanGoalSnapshot)
+                .filter(AdaptivePlanGoalSnapshot.user_id == user_id)
+                .order_by(AdaptivePlanGoalSnapshot.created_at, AdaptivePlanGoalSnapshot.version)
+                .all(),
+                _ADAPTIVE_GOAL_SNAPSHOT_FIELDS,
+            ),
+            "plans": _serialize_rows(
+                db.query(AdaptivePlan)
+                .filter(AdaptivePlan.user_id == user_id)
+                .order_by(AdaptivePlan.created_at, AdaptivePlan.id)
+                .all(),
+                _ADAPTIVE_PLAN_FIELDS,
+            ),
+            "proposals": _serialize_rows(
+                db.query(PlanProposal)
+                .filter(PlanProposal.user_id == user_id)
+                .order_by(PlanProposal.created_at, PlanProposal.version)
+                .all(),
+                _PLAN_PROPOSAL_FIELDS,
+            ),
+        },
         "goal_baseline": {
             "schema_version": 1,
             "exported_at": utc_isoformat(datetime.now(timezone.utc)),

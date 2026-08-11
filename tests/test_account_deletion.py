@@ -92,6 +92,8 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
     """Insert one row in every user-owned table account deletion must purge."""
     from db.agent_loop import record_decision, record_outcome
     from db.models import (
+        AdaptivePlan,
+        AdaptivePlanGoalSnapshot,
         Activity,
         ActivitySample,
         ActivitySplit,
@@ -120,6 +122,7 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
         McpAccessToken,
         PlanDelivery,
         PlanDeliveryAttempt,
+        PlanProposal,
         PlanRevision,
         PlanTargetCalendarSync,
         PlanTargetWorkout,
@@ -153,6 +156,42 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
         db.add(ActivitySample(user_id=user_id, activity_id="a1", source="garmin", t_sec=1))
         db.add(RecoveryData(user_id=user_id, date=date(2026, 6, 1), source="oura"))
         db.add(FitnessData(user_id=user_id, date=date(2026, 6, 1), metric_type="cp_estimate", value=300))
+        db.add(AdaptivePlanGoalSnapshot(
+            id="delete-goal-snapshot",
+            user_id=user_id,
+            version=1,
+            state="active",
+            goal_kind="race",
+            target={"distance": "10k"},
+            horizon_start=date(2026, 6, 1),
+            horizon_end=date(2026, 6, 30),
+            snapshot={"goal_kind": "race"},
+        ))
+        db.add(AdaptivePlan(
+            id="delete-adaptive-plan",
+            user_id=user_id,
+            goal_snapshot_id="delete-goal-snapshot",
+            lifecycle="active",
+            version=1,
+            active_proposal_id="delete-proposal",
+        ))
+        db.add(PlanProposal(
+            id="delete-proposal",
+            user_id=user_id,
+            adaptive_plan_id="delete-adaptive-plan",
+            goal_snapshot_id="delete-goal-snapshot",
+            version=1,
+            state="adopted",
+            origin="test",
+            actor_type="user",
+            actor_id=user_id,
+            base_plan_version=0,
+            assumptions=[],
+            unknowns=[],
+            warnings=[],
+            alternatives=[],
+            workout_snapshot=[{"canonical_id": "delete-plan", "date": "2026-06-02"}],
+        ))
         db.add(GoalBaselineConfirmation(
             id="baseline-confirmation",
             lineage_id="baseline-confirmation-lineage",
@@ -212,7 +251,13 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
             test_record_id="baseline-test",
             candidate_count=1,
         ))
-        db.add(TrainingPlan(user_id=user_id, date=date(2026, 6, 2), source="ai", workout_type="easy"))
+        db.add(TrainingPlan(
+            user_id=user_id,
+            adaptive_plan_id="delete-adaptive-plan",
+            date=date(2026, 6, 2),
+            source="ai",
+            workout_type="easy",
+        ))
         revision = PlanRevision(
             user_id=user_id,
             operation="upsert",
@@ -457,6 +502,8 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
     assert res.json() == {"status": "deleted", "email": "athlete@example.test"}
 
     from db.models import (
+        AdaptivePlan,
+        AdaptivePlanGoalSnapshot,
         Activity,
         ActivitySample,
         ActivitySplit,
@@ -483,6 +530,7 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
         McpAccessToken,
         PlanDelivery,
         PlanDeliveryAttempt,
+        PlanProposal,
         PlanRevision,
         PlanTargetCalendarSync,
         PlanTargetWorkout,
@@ -511,6 +559,9 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
             DashboardCache,
             Feedback,
             FitnessData,
+            PlanProposal,
+            AdaptivePlan,
+            AdaptivePlanGoalSnapshot,
             LabsAnalysisJob,
             LabsDeletionTombstone,
             LabsExperimentEnrollment,

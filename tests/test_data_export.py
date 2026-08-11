@@ -21,6 +21,8 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
     from api.auth import get_current_user_id
     from api.main import app
     from db.models import (
+        AdaptivePlan,
+        AdaptivePlanGoalSnapshot,
         Activity,
         ActivitySplit,
         FitnessData,
@@ -29,6 +31,7 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
         GoalBaselineSnapshot,
         GoalBaselineTestRecord,
         RecoveryData,
+        PlanProposal,
         TrainingPlan,
         User,
         UserConfig,
@@ -61,6 +64,78 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 user_id=other_id,
                 display_name="Other",
                 goal={"target_label": "other-goal"},
+            ),
+            AdaptivePlanGoalSnapshot(
+                id="owner-goal-snapshot",
+                user_id=owner_id,
+                version=1,
+                state="active",
+                goal_kind="race",
+                target={"distance": "10k", "target_label": "owner-proposal-goal"},
+                horizon_start=date(2026, 8, 1),
+                horizon_end=date(2026, 8, 31),
+                snapshot={"goal_kind": "race"},
+            ),
+            AdaptivePlanGoalSnapshot(
+                id="other-goal-snapshot",
+                user_id=other_id,
+                version=1,
+                state="active",
+                goal_kind="race",
+                target={"target_label": "other-proposal-goal"},
+                horizon_start=date(2026, 8, 1),
+                horizon_end=date(2026, 8, 31),
+                snapshot={"goal_kind": "race"},
+            ),
+            AdaptivePlan(
+                id="owner-adaptive-plan",
+                user_id=owner_id,
+                goal_snapshot_id="owner-goal-snapshot",
+                lifecycle="active",
+                version=1,
+                active_proposal_id="owner-proposal",
+            ),
+            AdaptivePlan(
+                id="other-adaptive-plan",
+                user_id=other_id,
+                goal_snapshot_id="other-goal-snapshot",
+                lifecycle="active",
+                version=1,
+                active_proposal_id="other-proposal",
+            ),
+            PlanProposal(
+                id="owner-proposal",
+                user_id=owner_id,
+                adaptive_plan_id="owner-adaptive-plan",
+                goal_snapshot_id="owner-goal-snapshot",
+                version=1,
+                state="adopted",
+                origin="test",
+                actor_type="user",
+                actor_id=owner_id,
+                base_plan_version=0,
+                assumptions=[],
+                unknowns=[],
+                warnings=[],
+                alternatives=[],
+                workout_snapshot=[{"canonical_id": "owner-plan", "date": "2026-08-05"}],
+            ),
+            PlanProposal(
+                id="other-proposal",
+                user_id=other_id,
+                adaptive_plan_id="other-adaptive-plan",
+                goal_snapshot_id="other-goal-snapshot",
+                version=1,
+                state="adopted",
+                origin="test",
+                actor_type="user",
+                actor_id=other_id,
+                base_plan_version=0,
+                assumptions=[],
+                unknowns=[],
+                warnings=[],
+                alternatives=[],
+                workout_snapshot=[{"canonical_id": "other-plan", "date": "2026-08-05"}],
             ),
             Activity(
                 user_id=owner_id,
@@ -226,6 +301,16 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
     assert [row["readiness_score"] for row in payload["recovery"]] == [88.0]
     assert [row["value"] for row in payload["fitness"]] == [290.0]
     assert [row["canonical_id"] for row in payload["training_plans"]] == ["owner-plan"]
+    assert payload["adaptive_plan_proposals"]["schema_version"] == 1
+    assert [
+        row["id"] for row in payload["adaptive_plan_proposals"]["goal_snapshots"]
+    ] == ["owner-goal-snapshot"]
+    assert [
+        row["id"] for row in payload["adaptive_plan_proposals"]["plans"]
+    ] == ["owner-adaptive-plan"]
+    assert [
+        row["id"] for row in payload["adaptive_plan_proposals"]["proposals"]
+    ] == ["owner-proposal"]
     assert payload["goal_baseline"] == {
         "schema_version": 1,
         "exported_at": payload["goal_baseline"]["exported_at"],
@@ -254,6 +339,8 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
         "other-goal",
         "other-activity",
         "other-plan",
+        "other-proposal",
+        "other-proposal-goal",
         "owner-raw-credential",
         "owner-wrapped-key",
         "owner-encrypted-token",
