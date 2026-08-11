@@ -3279,7 +3279,7 @@ export const I18N_CATALOG: Record<Locale, Record<string, string>> = {
     "Stop this test": "停止本次测试",
     "Stop using": "停止用于计划",
     "Stop using this context?": "停止使用这条信息？",
-    "Stopping or declining preserves your account and the no-test path.": "停止或放弃测试不会影响账户，也可以继续选择不测试。",
+    "Stopping or declining preserves your account and the no-test path.": "停止或放弃测试不会影响账号，也可以继续选择不测试。",
     "Stored until": "信息保留至",
     "Strava Client ID": "Strava 客户端 ID",
     "Strava Client Secret": "Strava 客户端密钥",

@@ -7941,7 +7941,7 @@ msgstr "停止使用这条信息？"
 
 #: src/components/GoalBaselinePanel.tsx:132
 msgid "Stopping or declining preserves your account and the no-test path."
-msgstr "停止或放弃测试不会影响账户，也可以继续选择不测试。"
+msgstr "停止或放弃测试不会影响账号，也可以继续选择不测试。"
 
 #: src/components/PersonalContextPanel.tsx:1170
 msgid "Stored until"
