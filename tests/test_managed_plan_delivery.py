@@ -776,6 +776,32 @@ def test_changing_owned_workout_to_rest_removes_target_copy(managed_db):
     assert adapter.calendar == []
 
 
+def test_removal_still_deletes_owned_workout_when_target_content_drifted(
+    managed_db,
+):
+    db, adapter = managed_db
+    plan = _add_plan(db, date(2026, 8, 3), description="Before")
+    _run(db, adapter, now=datetime(2026, 8, 1, 9))
+    adapter.calendar[0]["workout_description"] = "Edited in target"
+    adapter.calendar[0]["provider_content_fingerprint"] = "external-edit"
+    plan.workout_type = "rest"
+    plan.workout_description = "Rest"
+    db.commit()
+
+    result = _run(
+        db,
+        adapter,
+        now=datetime(2026, 8, 1, 10),
+        trigger="plan_upsert",
+    )
+
+    assert result.status == "complete"
+    assert result.items[0].action == "remove"
+    assert result.items[0].status == "removed"
+    assert adapter.delete_attempts == 1
+    assert adapter.calendar == []
+
+
 def test_rest_cleanup_rechecks_canonical_before_delete(managed_db):
     db, adapter = managed_db
     plan = _add_plan(db, date(2026, 8, 3), description="Before")

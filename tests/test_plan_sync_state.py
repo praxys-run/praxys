@@ -1353,7 +1353,6 @@ def test_windowed_view_cannot_reclassify_moved_owned_workout_as_target_only(
         },
     )
     assert stale_accept.status_code == 404
-
     db = db_session.SessionLocal()
     try:
         assert db.query(TrainingPlan).filter(
@@ -1366,6 +1365,40 @@ def test_windowed_view_cannot_reclassify_moved_owned_workout_as_target_only(
         ).count() == 1
     finally:
         db.close()
+
+
+def test_orphaned_delivery_observation_stays_visible_as_target_only(api_client):
+    client, user_id = api_client
+    target = date.today() + timedelta(days=3)
+    _seed_synced_delivery(
+        user_id,
+        target,
+        "easy",
+        "orphaned-stryd-id",
+        workout_description="Owned in the past",
+        provider_content_version="a" * 64,
+        provider_account_id="stryd-account",
+        canonical_id="missing-canonical-id",
+    )
+    _seed_target_snapshot(user_id, [{
+        "date": target.isoformat(),
+        "workout_type": "easy",
+        "workout_description": "Still on Stryd",
+        "external_id": "orphaned-stryd-id",
+        "provider_content_fingerprint": "b" * 64,
+        "provider_payload_fingerprint": "c" * 64,
+    }])
+
+    response = client.get(
+        f"/api/plan?start={target.isoformat()}&end={target.isoformat()}"
+    )
+
+    assert response.status_code == 200, response.text
+    workouts = response.json()["workouts"]
+    assert len(workouts) == 1
+    assert workouts[0]["owner"] == "external"
+    assert workouts[0]["workout_type"] == "easy"
+    assert workouts[0]["reconciliation"]["state"] == "target_only"
 
 
 def test_target_only_workout_coexists_with_ai_workout_on_same_date(api_client):
