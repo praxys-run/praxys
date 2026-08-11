@@ -17,7 +17,7 @@ import { PRELOAD_RELOAD_KEY } from './lib/preload-recovery';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { ScienceProvider } from './contexts/ScienceContext';
-import { LocaleProvider } from './contexts/LocaleContext';
+import { LocaleProvider, useLocale } from './contexts/LocaleContext';
 import { StatsigProvider } from './contexts/StatsigContext';
 import LocaleSync from './contexts/LocaleSync';
 import Layout from './components/Layout';
@@ -26,6 +26,7 @@ import { Skeleton } from './components/ui/skeleton';
 // the auth entry point, Today is where every logged-in user lands. All
 // three must be in the initial bundle for fastest cold-load.
 import Landing from './pages/Landing';
+import PublicInfo from './pages/PublicInfo';
 import Login from './pages/Login';
 import Today from './pages/Today';
 import Setup from './pages/Setup';
@@ -150,6 +151,11 @@ export default function App() {
             <BrowserRouter>
               <Routes>
               <Route path="/" element={<LandingOrApp />} />
+              <Route path="/zh" element={<Landing publicLocale="zh" />} />
+              <Route path="/product" element={<PublicInfo locale="en" pageKey="product" />} />
+              <Route path="/faq" element={<PublicInfo locale="en" pageKey="faq" />} />
+              <Route path="/zh/product" element={<PublicInfo locale="zh" pageKey="product" />} />
+              <Route path="/zh/faq" element={<PublicInfo locale="zh" pageKey="faq" />} />
               <Route path="/login" element={<LoginGuard />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
@@ -247,10 +253,12 @@ function TodayOrSetup() {
  *  repeat visits to `/`. */
 function LandingOrApp() {
   const { isAuthenticated, isDemo, isLoading } = useAuth();
+  const { locale } = useLocale();
 
   if (isLoading) return null;
   if (isAuthenticated && !isDemo) return <Navigate to="/today" replace />;
-  return <Landing />;
+  if (locale === 'zh') return <Navigate to="/zh" replace />;
+  return <Landing publicLocale="en" />;
 }
 
 /** If already authenticated, redirect away from login page. */

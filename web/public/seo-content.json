@@ -1,0 +1,217 @@
+{
+  "site": {
+    "name": "Praxys",
+    "baseUrl": "https://www.praxys.run",
+    "image": "https://www.praxys.run/og-card.png"
+  },
+  "locales": {
+    "en": {
+      "language": "en",
+      "alternateLocale": "zh_CN",
+      "nav": {
+        "home": "Home",
+        "product": "Product",
+        "faq": "FAQ",
+        "signIn": "Sign in",
+        "tryDemo": "Try the demo"
+      },
+      "home": {
+        "path": "/",
+        "alternatePath": "/zh",
+        "title": "Praxys — Science-grounded training decisions for runners",
+        "description": "Praxys interprets Garmin, Stryd, and Oura data into daily training decisions, adaptive plans, race forecasts, and cited sport-science explanations.",
+        "heading": "Turn training data into a decision.",
+        "lead": "Praxys is a science-grounded endurance training system for self-coached runners. It combines your training and recovery data, explains what it means, and recommends the next action.",
+        "summaryPoints": [
+          "Choose power, heart rate, or pace as your training base.",
+          "Use a managed 14-day plan window with explicit delivery and ownership controls.",
+          "Join opt-in Praxys Labs experiments without turning early research into training advice."
+        ]
+      },
+      "product": {
+        "path": "/product",
+        "alternatePath": "/zh/product",
+        "title": "Praxys product capabilities — Training decisions, plans, Labs, and forecasts",
+        "description": "See how Praxys turns Garmin, Stryd, and Oura data into daily readiness decisions, training diagnosis, managed plans, race forecasts, and opt-in Labs research.",
+        "heading": "A training system that takes a position.",
+        "lead": "Praxys is built for runners who want an answer, not another dashboard. It interprets fragmented training data into a clear recommendation, then shows the evidence and published methodology behind it.",
+        "sections": [
+          {
+            "heading": "Daily training decisions",
+            "body": "Praxys combines recent load, sleep, HRV, resting heart rate, and upcoming training into a go, modify, or rest signal. The recommendation is deterministic when AI services are unavailable."
+          },
+          {
+            "heading": "Training diagnosis",
+            "body": "Weekly analysis reviews zone distribution, threshold trends, fitness-fatigue balance, and workout execution. Intensity analysis uses activity splits rather than diluted whole-activity average power."
+          },
+          {
+            "heading": "Managed training plans",
+            "body": "Praxys can manage its own or explicitly adopted workouts in a rolling 14-day window. Delivery is opt-in, provider-aware, auditable, and designed not to edit or delete manual or other-coach workouts."
+          },
+          {
+            "heading": "Race forecasts and goals",
+            "body": "Race predictions quantify the gap between current evidence and a target. Praxys supports road and trail distances from 5K through 100 miles and distinguishes estimates from stronger evidence."
+          },
+          {
+            "heading": "Praxys Labs",
+            "body": "Labs contains voluntary, consented experiments that inspect an athlete's own history. The first experiment explores historical heart-rate response across modeled heat and humidity at comparable recorded Stryd power; it is not a forecast, heat-safety assessment, or training prescription."
+          },
+          {
+            "heading": "Published science, visible in context",
+            "body": "Metrics, formulas, and constants carry source citations. Athletes can inspect how a number was calculated and choose among supported training theories instead of treating one opaque model as universal truth."
+          }
+        ],
+        "dataHeading": "Data sources and training bases",
+        "dataBody": "Praxys currently ingests Garmin activities and fitness data, Stryd running-power data, and Oura recovery data. Athletes can train by power, heart rate, or pace; running power is supported deeply but is not required.",
+        "boundaryHeading": "What the AI coach does not do",
+        "boundaries": [
+          "It does not replace medical care or present research experiments as safety advice.",
+          "It does not invent evidence when data is missing or bypass deterministic plan validation.",
+          "It does not publish athlete data, credentials, screenshots, or private context to public trackers."
+        ]
+      },
+      "faq": {
+        "path": "/faq",
+        "alternatePath": "/zh/faq",
+        "title": "Praxys FAQ — Running power, recovery, managed plans, privacy, and China access",
+        "description": "Direct answers about Praxys training bases, Garmin/Stryd/Oura data, AI coaching, managed plans, Labs, privacy, and the planned praxys.cn mainland-China domain.",
+        "heading": "Questions runners ask before trusting a training system.",
+        "lead": "Short answers first. Praxys is specific about what it can infer, what remains uncertain, and where athlete consent sets the boundary.",
+        "questions": [
+          {
+            "question": "Do I need a running power meter to use Praxys?",
+            "answer": "No. You choose power, heart rate, or pace as your training base. Stryd and Garmin running power enable deeper power analysis, but Praxys is designed to work for runners without a power meter."
+          },
+          {
+            "question": "Which platforms does Praxys use?",
+            "answer": "The core data path supports Garmin for activities and fitness data, Stryd for running power, and Oura for recovery. Platform connections remain private to the athlete's account."
+          },
+          {
+            "question": "How is Praxys different from a generic AI running coach?",
+            "answer": "Praxys computes cited training metrics first, applies deterministic safety and validation rules, and uses AI as an optional explanation and planning layer. The app continues to work without an AI endpoint."
+          },
+          {
+            "question": "What is a managed plan?",
+            "answer": "A managed plan lets Praxys own and roll forward its own or explicitly adopted workouts for the next 14 days. The athlete chooses the delivery target and can pause, resume, reconcile conflicts, or leave managed mode."
+          },
+          {
+            "question": "What is Praxys Labs?",
+            "answer": "Labs is an opt-in research area for inspecting your own historical data under a versioned consent and methodology. Early findings are labeled with their limitations and are not silently converted into advice."
+          },
+          {
+            "question": "Does Praxys sell or publish athlete data?",
+            "answer": "No. Athlete data is account-scoped. Credentials are encrypted, feedback screenshots remain private, and public issue reports receive scrubbed descriptions rather than raw private material."
+          },
+          {
+            "question": "Will Praxys be available on praxys.cn?",
+            "answer": "The praxys.cn ICP filing is in progress. Until the mainland domain is approved and launched, the canonical public site remains www.praxys.run. The China frontend will use the same product content and a China-appropriate delivery origin while the authenticated API remains shared."
+          }
+        ]
+      }
+    },
+    "zh": {
+      "language": "zh-CN",
+      "alternateLocale": "en_US",
+      "nav": {
+        "home": "首页",
+        "product": "产品",
+        "faq": "常见问题",
+        "signIn": "登录",
+        "tryDemo": "试用演示"
+      },
+      "home": {
+        "path": "/zh",
+        "alternatePath": "/",
+        "title": "Praxys — 为跑者提供有科学依据的训练决策",
+        "description": "Praxys 将 Garmin、Stryd 与 Oura 数据转化为每日训练决策、动态计划、比赛预测和带文献来源的运动科学解释。",
+        "heading": "把训练数据，变成明确决策。",
+        "lead": "Praxys 是为自主训练跑者打造的科学训练系统。它整合训练与恢复数据，解释这些数据意味着什么，并给出下一步行动建议。",
+        "summaryPoints": [
+          "可选择功率、心率或配速作为训练基础。",
+          "通过明确的交付与归属控制，管理未来 14 天的滚动训练计划。",
+          "自愿参加 Praxys Labs 实验，同时避免把早期研究误当作训练建议。"
+        ]
+      },
+      "product": {
+        "path": "/zh/product",
+        "alternatePath": "/product",
+        "title": "Praxys 产品能力 — 训练决策、计划、Labs 与比赛预测",
+        "description": "了解 Praxys 如何把 Garmin、Stryd 与 Oura 数据转化为每日状态判断、训练诊断、托管计划、比赛预测和自愿参与的 Labs 研究。",
+        "heading": "一个会明确给出判断的训练系统。",
+        "lead": "Praxys 面向需要答案、而不是更多仪表盘的跑者。它把分散的训练数据解释成清晰建议，并展示建议背后的证据与已发表方法。",
+        "sections": [
+          {
+            "heading": "每日训练决策",
+            "body": "Praxys 综合近期负荷、睡眠、HRV、静息心率与接下来的训练，给出正常训练、调整或休息的信号。即使 AI 服务不可用，确定性规则仍会提供建议。"
+          },
+          {
+            "heading": "训练诊断",
+            "body": "每周分析训练区间分布、阈值趋势、体能与疲劳平衡以及训练执行情况。强度分析使用分段数据，而不是被热身、放松和恢复段稀释的整次活动平均功率。"
+          },
+          {
+            "heading": "托管训练计划",
+            "body": "Praxys 可以在未来 14 天的滚动窗口内管理自己生成或由跑者明确接管的训练。交付需要主动开启，遵循平台能力并保留审计记录，不会编辑或删除手动创建或其他教练安排的训练。"
+          },
+          {
+            "heading": "比赛预测与目标",
+            "body": "比赛预测会量化当前证据与目标之间的差距。Praxys 支持从 5 公里到 100 英里的公路与越野距离，并明确区分估算与证据更强的结论。"
+          },
+          {
+            "heading": "Praxys Labs",
+            "body": "Labs 提供需要明确同意的自愿实验，用于检查跑者自己的历史数据。首个实验探索在相近 Stryd 记录功率下，历史心率与模型化温湿度条件的关系；它不是预测、热安全评估或训练处方。"
+          },
+          {
+            "heading": "在上下文中展示科学依据",
+            "body": "指标、公式与常数都带有来源。跑者可以查看数值如何计算，也可以选择受支持的训练理论，而不是被迫相信一个不透明模型适用于所有人。"
+          }
+        ],
+        "dataHeading": "数据来源与训练基础",
+        "dataBody": "Praxys 当前接入 Garmin 活动与体能数据、Stryd 跑步功率数据和 Oura 恢复数据。跑者可以按功率、心率或配速训练；系统深入支持跑步功率，但不要求必须使用。",
+        "boundaryHeading": "AI 教练不会做什么",
+        "boundaries": [
+          "不会替代医疗服务，也不会把研究实验包装成安全建议。",
+          "不会在数据缺失时编造证据，也不会绕过确定性的计划校验。",
+          "不会把跑者数据、凭据、截图或私密背景发布到公开追踪系统。"
+        ]
+      },
+      "faq": {
+        "path": "/zh/faq",
+        "alternatePath": "/faq",
+        "title": "Praxys 常见问题 — 跑步功率、恢复、托管计划、隐私与中国访问",
+        "description": "直接了解 Praxys 的训练基础、Garmin/Stryd/Oura 数据、AI 教练、托管计划、Labs、隐私以及计划中的 praxys.cn 中国大陆域名。",
+        "heading": "在信任一个训练系统之前，跑者常问的问题。",
+        "lead": "先给直接答案。Praxys 会明确说明能够推断什么、哪些地方仍有不确定性，以及跑者的同意如何划定边界。",
+        "questions": [
+          {
+            "question": "使用 Praxys 必须有跑步功率计吗？",
+            "answer": "不需要。你可以选择功率、心率或配速作为训练基础。Stryd 与 Garmin 跑步功率可以支持更深入的功率分析，但没有功率计的跑者也能使用 Praxys。"
+          },
+          {
+            "question": "Praxys 使用哪些平台的数据？",
+            "answer": "核心数据链路支持 Garmin 的活动与体能数据、Stryd 的跑步功率数据，以及 Oura 的恢复数据。平台连接信息始终只属于对应跑者账号。"
+          },
+          {
+            "question": "Praxys 与通用 AI 跑步教练有什么不同？",
+            "answer": "Praxys 先计算带文献来源的训练指标，再执行确定性的安全与校验规则，最后把 AI 作为可选的解释和计划层。即使没有 AI 服务，应用仍能正常工作。"
+          },
+          {
+            "question": "什么是托管计划？",
+            "answer": "托管计划允许 Praxys 滚动管理未来 14 天内由自己生成或由跑者明确接管的训练。跑者选择交付目标，并可暂停、恢复、处理冲突或退出托管模式。"
+          },
+          {
+            "question": "什么是 Praxys Labs？",
+            "answer": "Labs 是自愿参与的研究区域，通过版本化的同意文本与方法检查你自己的历史数据。早期结果会明确标注限制，不会被悄悄转化成训练建议。"
+          },
+          {
+            "question": "Praxys 会出售或公开跑者数据吗？",
+            "answer": "不会。跑者数据按账号隔离，凭据经过加密，反馈截图保持私有；公开问题只会收到经过清理的描述，而不是原始私密材料。"
+          },
+          {
+            "question": "Praxys 会在 praxys.cn 上提供服务吗？",
+            "answer": "praxys.cn 正在进行 ICP 备案。在中国大陆域名获批并上线前，规范公共站点仍是 www.praxys.run。中国前端将使用同一套产品内容和适合中国大陆的交付源，认证 API 仍保持共享。"
+          }
+        ]
+      }
+    }
+  }
+}

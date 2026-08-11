@@ -1,4 +1,4 @@
-import { useState, type SyntheticEvent } from 'react';
+import { useEffect, useState, type SyntheticEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
 import { useLocale } from '@/contexts/LocaleContext';
@@ -6,6 +6,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { PraxysFlag } from '@/components/PraxysFlag';
 import StatusIndicator from '@/components/StatusIndicator';
 import type { SupportedLocale } from '@/i18n/init';
+import { usePublicSeo } from '@/hooks/usePublicSeo';
+import { publicContent } from '@/lib/public-content';
 import './Landing.css';
 
 /** Demo account credentials. Hardcoded by design — demo is read-only and
@@ -47,9 +49,15 @@ type Copy = {
   closeMicro: string;
   footerLeft: string;
   footerRight: string;
-  footerStravaNote: string;
   termsLink: string;
   privacyLink: string;
+  productLink: string;
+  faqLink: string;
+  discoverTitle: string;
+  discoverBody: string;
+  discoverManaged: string;
+  discoverLabs: string;
+  discoverScience: string;
   vizCpLabel: string;
   vizCpDelta: string;
   vizCpUnit: string;
@@ -112,9 +120,15 @@ const COPY: Record<SupportedLocale, Copy> = {
     closeMicro: 'No signup for the demo · your data stays yours',
     footerLeft: 'Praxys Endurance',
     footerRight: 'praxys.run',
-    footerStravaNote: 'Compatible with Strava',
     termsLink: 'Terms',
     privacyLink: 'Privacy',
+    productLink: 'Product',
+    faqLink: 'FAQ',
+    discoverTitle: 'See the whole system, not just the dashboard.',
+    discoverBody: 'Praxys now spans daily decisions, managed training plans, race forecasts, and opt-in Labs research. The public product guide explains the boundaries and evidence behind each capability.',
+    discoverManaged: 'Managed plans · rolling 14-day delivery with explicit ownership',
+    discoverLabs: 'Praxys Labs · voluntary historical experiments, never silent advice',
+    discoverScience: 'Science · cited formulas, visible limitations, configurable theories',
     vizCpLabel: 'Your CP',
     vizCpDelta: '+6 W · 14 d',
     vizCpUnit: 'W',
@@ -173,9 +187,15 @@ const COPY: Record<SupportedLocale, Copy> = {
     closeMicro: '演示无需注册 · 你的数据始终属于你',
     footerLeft: 'Praxys Endurance',
     footerRight: 'praxys.run',
-    footerStravaNote: 'Compatible with Strava',
     termsLink: '服务条款',
     privacyLink: '隐私政策',
+    productLink: '产品',
+    faqLink: '常见问题',
+    discoverTitle: '看到完整训练系统，而不只是一个仪表盘。',
+    discoverBody: 'Praxys 现已覆盖每日决策、托管训练计划、比赛预测和自愿参与的 Labs 研究。公共产品指南会说明每项能力背后的边界与证据。',
+    discoverManaged: '托管计划 · 未来 14 天滚动交付，并明确训练归属',
+    discoverLabs: 'Praxys Labs · 自愿参与历史实验，不会悄悄转化为建议',
+    discoverScience: '科学依据 · 公式有来源、限制可见、理论可配置',
     vizCpLabel: '你的 CP',
     vizCpDelta: '+6 W · 14 天',
     vizCpUnit: '瓦',
@@ -187,12 +207,19 @@ const COPY: Record<SupportedLocale, Copy> = {
   },
 };
 
-export default function Landing() {
+export default function Landing({ publicLocale }: { publicLocale?: SupportedLocale }) {
   const { locale, setLocale } = useLocale();
   const { login, logout, isDemo } = useAuth();
   const navigate = useNavigate();
   const [demoState, setDemoState] = useState<'idle' | 'loading' | 'error'>('idle');
-  const t = COPY[locale];
+  const activeLocale = publicLocale ?? locale;
+  const t = COPY[activeLocale];
+  const publicNav = publicContent.locales[activeLocale];
+  usePublicSeo('home', activeLocale);
+
+  useEffect(() => {
+    if (publicLocale && publicLocale !== locale) void setLocale(publicLocale);
+  }, [locale, publicLocale, setLocale]);
 
   const handleDemo = async () => {
     // If a demo session already exists (user tried demo earlier and came
@@ -233,7 +260,11 @@ export default function Landing() {
             <span className="name">Praxys</span>
           </div>
           <div className="landing-header-nav">
-            <LanguageToggle locale={locale} setLocale={setLocale} />
+            <nav className="landing-primary-nav" aria-label={activeLocale === 'zh' ? '公共页面' : 'Public pages'}>
+              <Link to={publicNav.product.path}>{t.productLink}</Link>
+              <Link to={publicNav.faq.path}>{t.faqLink}</Link>
+            </nav>
+            <LanguageToggle locale={activeLocale} setLocale={setLocale} />
             {isDemo ? (
               <button type="button" className="landing-btn-signin" onClick={logout}>
                 {t.exitDemo}
@@ -283,6 +314,22 @@ export default function Landing() {
           )}
         </section>
 
+        <section className="landing-discover">
+          <div>
+            <h2>{t.discoverTitle}</h2>
+            <p>{t.discoverBody}</p>
+            <div className="landing-discover-actions">
+              <Link to={publicNav.product.path} className="landing-btn-primary">{t.productLink}</Link>
+              <Link to={publicNav.faq.path} className="landing-btn-ghost">{t.faqLink}</Link>
+            </div>
+          </div>
+          <ul>
+            <li>{t.discoverManaged}</li>
+            <li>{t.discoverLabs}</li>
+            <li>{t.discoverScience}</li>
+          </ul>
+        </section>
+
         {/* ─── FEATURES ─── */}
         <section id="why" className="landing-features">
           <div className="landing-features-head">
@@ -315,10 +362,8 @@ export default function Landing() {
         <section className="landing-platforms-band">
           <span className="label">{t.platformsLabel}</span>
           <img src="/logos/garmin.png" alt="Garmin" className="plogo plogo-garmin" onError={handleLogoError} />
-          <img src="/logos/coros.png" alt="COROS" className="plogo plogo-coros" onError={handleLogoError} />
           <img src="/logos/stryd.svg" alt="Stryd" className="plogo plogo-stryd" onError={handleLogoError} />
           <img src="/logos/oura.svg" alt="Oura" className="plogo plogo-oura" onError={handleLogoError} />
-          <img src="/logos/strava.svg" alt="Strava" className="plogo plogo-strava" onError={handleLogoError} />
         </section>
 
         {/* ─── CLOSE ─── */}
@@ -346,7 +391,7 @@ export default function Landing() {
             <PraxysFlag className="h-4 w-4" strokeWidth={3} />
             <span>{t.footerLeft}</span>
           </div>
-          <span className="fnote">{t.footerStravaNote}</span>
+          <span className="fnote"><Link to={publicNav.product.path}>{t.productLink}</Link> · <Link to={publicNav.faq.path}>{t.faqLink}</Link></span>
           <StatusIndicator className="landing-status" />
           <span><a href="/terms">{t.termsLink}</a> · <a href="/privacy">{t.privacyLink}</a></span>
           <span>{t.footerRight}</span>
@@ -429,7 +474,10 @@ function LanguageToggle({
       <button
         type="button"
         className={locale === 'en' ? 'active' : ''}
-        onClick={() => void setLocale('en')}
+        onClick={() => {
+          void setLocale('en');
+          window.location.assign('/');
+        }}
         aria-pressed={locale === 'en'}
       >
         EN
@@ -437,7 +485,10 @@ function LanguageToggle({
       <button
         type="button"
         className={locale === 'zh' ? 'active' : ''}
-        onClick={() => void setLocale('zh')}
+        onClick={() => {
+          void setLocale('zh');
+          window.location.assign('/zh');
+        }}
         aria-pressed={locale === 'zh'}
       >
         中
