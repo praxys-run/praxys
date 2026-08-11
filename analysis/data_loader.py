@@ -1031,6 +1031,109 @@ def load_activity_sample_coverage(
     return result[columns]
 
 
+
+def load_goal_baseline_confirmations(
+    user_id: str,
+    db: Session,
+    *,
+    goal_signature: str | None = None,
+) -> pd.DataFrame:
+    """Load retained history confirmations for one athlete and goal slice."""
+    params: dict[str, object] = {"uid": user_id}
+    where = ["user_id = :uid"]
+    if goal_signature:
+        where.append("goal_signature = :goal_signature")
+        params["goal_signature"] = goal_signature
+    frame = pd.read_sql(
+        text(
+            "SELECT * FROM goal_baseline_confirmations WHERE "
+            + " AND ".join(where)
+            + " ORDER BY created_at, version"
+        ),
+        db.bind,
+        params=params,
+        parse_dates=["created_at"],
+    )
+    return frame
+
+
+def load_goal_baseline_test_records(
+    user_id: str,
+    db: Session,
+    *,
+    goal_signature: str | None = None,
+) -> pd.DataFrame:
+    """Load retained optional-test lifecycle rows for one athlete."""
+    params: dict[str, object] = {"uid": user_id}
+    where = ["user_id = :uid"]
+    if goal_signature:
+        where.append("goal_signature = :goal_signature")
+        params["goal_signature"] = goal_signature
+    frame = pd.read_sql(
+        text(
+            "SELECT * FROM goal_baseline_test_records WHERE "
+            + " AND ".join(where)
+            + " ORDER BY created_at, version"
+        ),
+        db.bind,
+        params=params,
+        parse_dates=["created_at", "scheduled_date"],
+    )
+    if "scheduled_date" in frame.columns and not frame.empty:
+        frame["scheduled_date"] = pd.to_datetime(frame["scheduled_date"]).dt.date
+    return frame
+
+
+def load_goal_baseline_snapshots(
+    user_id: str,
+    db: Session,
+    *,
+    goal_signature: str | None = None,
+) -> pd.DataFrame:
+    """Load retained evidence snapshots for one athlete."""
+    params: dict[str, object] = {"uid": user_id}
+    where = ["user_id = :uid"]
+    if goal_signature:
+        where.append("goal_signature = :goal_signature")
+        params["goal_signature"] = goal_signature
+    frame = pd.read_sql(
+        text(
+            "SELECT * FROM goal_baseline_snapshots WHERE "
+            + " AND ".join(where)
+            + " ORDER BY created_at, version"
+        ),
+        db.bind,
+        params=params,
+        parse_dates=["created_at", "observed_date"],
+    )
+    if "observed_date" in frame.columns and not frame.empty:
+        frame["observed_date"] = pd.to_datetime(frame["observed_date"]).dt.date
+    return frame
+
+
+def load_goal_baseline_assessments(
+    user_id: str,
+    db: Session,
+    *,
+    goal_signature: str | None = None,
+) -> pd.DataFrame:
+    """Load retained assessment history for one athlete."""
+    params: dict[str, object] = {"uid": user_id}
+    where = ["user_id = :uid"]
+    if goal_signature:
+        where.append("goal_signature = :goal_signature")
+        params["goal_signature"] = goal_signature
+    return pd.read_sql(
+        text(
+            "SELECT * FROM goal_baseline_assessments WHERE "
+            + " AND ".join(where)
+            + " ORDER BY created_at, version"
+        ),
+        db.bind,
+        params=params,
+        parse_dates=["created_at"],
+    )
+
 def load_environment_response_preflight_counts(
     user_id: str,
     db: Session,

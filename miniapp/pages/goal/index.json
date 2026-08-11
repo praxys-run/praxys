@@ -4,7 +4,8 @@
     "nav-bar": "/components/nav-bar/index",
     "line-chart": "/components/line-chart/index",
     "state-card": "../../components/state-card/index",
-    "insight-feedback": "/components/insight-feedback/index"
+    "insight-feedback": "/components/insight-feedback/index",
+    "goal-baseline": "../../components/goal-baseline/index"
   },
   "backgroundColor": "@bgColor",
   "backgroundColorBottom": "@bgColor",

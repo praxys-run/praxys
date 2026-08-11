@@ -223,7 +223,7 @@ def test_compute_source_version_is_deterministic(cache_client):
         assert "samples=0" in training
         assert "v=peer-metric-volume-training-v13" in training
         goal = compute_source_version(db, user_id, "goal")
-        assert "v=fixed-heat-model-goal-v2" in goal
+        assert "v=history-first-5k-baseline-v1" in goal
     finally:
         db.close()
 
@@ -375,8 +375,8 @@ def test_goal_recomputes_prior_response_version(cache_client):
     try:
         current_version = compute_source_version(db, user_id, "goal")
         prior_version = current_version.replace(
-            "v=fixed-heat-model-goal-v2",
-            "v=fixed-heat-model-goal-v1",
+            "v=history-first-5k-baseline-v1",
+            "v=fixed-heat-model-goal-v0",
         )
         assert prior_version != current_version
         db.add(DashboardCache(

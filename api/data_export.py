@@ -13,6 +13,10 @@ from db.models import (
     Activity,
     ActivitySplit,
     FitnessData,
+    GoalBaselineAssessment,
+    GoalBaselineConfirmation,
+    GoalBaselineSnapshot,
+    GoalBaselineTestRecord,
     RecoveryData,
     TrainingPlan,
 )
@@ -109,6 +113,76 @@ _TRAINING_PLAN_FIELDS = (
     "meta",
 )
 
+_GOAL_BASELINE_CONFIRMATION_FIELDS = (
+    "id",
+    "lineage_id",
+    "version",
+    "supersedes_id",
+    "goal_signature",
+    "goal_snapshot",
+    "activity_id",
+    "response",
+    "measured_5k",
+    "elapsed_timing_confirmed",
+    "created_at",
+)
+_GOAL_BASELINE_TEST_FIELDS = (
+    "id",
+    "lineage_id",
+    "version",
+    "supersedes_id",
+    "goal_signature",
+    "goal_snapshot",
+    "state",
+    "protocol_id",
+    "scheduled_date",
+    "plan_canonical_id",
+    "activity_id",
+    "observed_date",
+    "measured_5k",
+    "elapsed_timing_confirmed",
+    "protocol_followed",
+    "reason_code",
+    "safety_stop",
+    "created_at",
+)
+_GOAL_BASELINE_SNAPSHOT_FIELDS = (
+    "id",
+    "lineage_id",
+    "version",
+    "supersedes_id",
+    "goal_signature",
+    "goal_snapshot",
+    "source_kind",
+    "source_id",
+    "provenance",
+    "observed_date",
+    "distance_km",
+    "elapsed_time_sec",
+    "measured_5k",
+    "elapsed_timing_confirmed",
+    "qualification_status",
+    "change_comparability",
+    "invalidators",
+    "created_at",
+)
+_GOAL_BASELINE_ASSESSMENT_FIELDS = (
+    "id",
+    "lineage_id",
+    "version",
+    "supersedes_id",
+    "goal_signature",
+    "goal_snapshot",
+    "policy_version",
+    "science_decision_id",
+    "status",
+    "readiness",
+    "evidence_snapshot_id",
+    "test_record_id",
+    "candidate_count",
+    "created_at",
+)
+
 
 def _json_value(value: Any) -> Any:
     """Convert database scalar values to JSON-safe export values."""
@@ -149,7 +223,7 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
 
     config = _without_credentials(asdict(load_config_from_db(user_id, db)))
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "exported_at": utc_isoformat(datetime.now(timezone.utc)),
         "user_config": config,
         "activities": _serialize_rows(
@@ -187,6 +261,38 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
             .all(),
             _TRAINING_PLAN_FIELDS,
         ),
+        "goal_baseline": {
+            "schema_version": 1,
+            "exported_at": utc_isoformat(datetime.now(timezone.utc)),
+            "confirmations": _serialize_rows(
+                db.query(GoalBaselineConfirmation)
+                .filter(GoalBaselineConfirmation.user_id == user_id)
+                .order_by(GoalBaselineConfirmation.created_at, GoalBaselineConfirmation.version)
+                .all(),
+                _GOAL_BASELINE_CONFIRMATION_FIELDS,
+            ),
+            "tests": _serialize_rows(
+                db.query(GoalBaselineTestRecord)
+                .filter(GoalBaselineTestRecord.user_id == user_id)
+                .order_by(GoalBaselineTestRecord.created_at, GoalBaselineTestRecord.version)
+                .all(),
+                _GOAL_BASELINE_TEST_FIELDS,
+            ),
+            "snapshots": _serialize_rows(
+                db.query(GoalBaselineSnapshot)
+                .filter(GoalBaselineSnapshot.user_id == user_id)
+                .order_by(GoalBaselineSnapshot.created_at, GoalBaselineSnapshot.version)
+                .all(),
+                _GOAL_BASELINE_SNAPSHOT_FIELDS,
+            ),
+            "assessments": _serialize_rows(
+                db.query(GoalBaselineAssessment)
+                .filter(GoalBaselineAssessment.user_id == user_id)
+                .order_by(GoalBaselineAssessment.created_at, GoalBaselineAssessment.version)
+                .all(),
+                _GOAL_BASELINE_ASSESSMENT_FIELDS,
+            ),
+        },
         "personal_context": build_personal_context_export(
             db,
             user_id=user_id,

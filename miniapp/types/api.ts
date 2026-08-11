@@ -100,7 +100,7 @@ export interface SettingsConfig {
   training_base: TrainingBase;
   thresholds: Record<string, number | string | null>;
   zones: Record<string, number[]>;
-  goal: { race_date?: string; distance?: string; target_time_sec?: number; [key: string]: unknown };
+  goal: { goal_kind?: GoalKind; race_date?: string; distance?: string; target_time_sec?: number; [key: string]: unknown };
   source_options: Record<string, unknown>;
   /** UI language preference ("en" | "zh"). `null` means auto-detect from browser. */
   language: UiLanguage | null;
@@ -1722,7 +1722,147 @@ export interface CpTrendData {
   months_flat?: number;
 }
 
+export type GoalKind = 'race' | 'continuous' | 'performance_5k';
+export type GoalBaselineStatus =
+  | 'current'
+  | 'stale'
+  | 'incomparable'
+  | 'missing'
+  | 'not_required'
+  | 'pending_test';
+export type GoalBaselineReadiness =
+  | 'sufficient_baseline'
+  | 'insufficient_evidence'
+  | 'non_diagnostic_safety_stop';
+export interface GoalBaselineEvidence {
+  provenance: 'race' | 'intentional_all_out' | 'pilot_test';
+  observed_date: string;
+  age_days: number;
+  distance_km: number | null;
+  elapsed_time_sec: number | null;
+  activity_id: string | null;
+  measured_5k_confirmed: boolean;
+  elapsed_timing_confirmed: boolean;
+  change_comparability: 'not_assessed' | 'supporting' | 'incomparable' | 'directly_comparable';
+}
+export interface GoalBaselineCandidate {
+  activity_id: string;
+  observed_date: string;
+  distance_km: number | null;
+  duration_sec: number | null;
+  source: string | null;
+  review_state:
+    | 'needs_confirmation'
+    | 'qualified'
+    | 'excluded'
+    | 'distance_unverified'
+    | 'timing_unresolved';
+  confirmation_response: 'race' | 'intentional_all_out' | 'not_all_out' | null;
+  measured_5k_confirmed: boolean | null;
+  elapsed_timing_confirmed: boolean | null;
+  full_activity_only: true;
+  split_count: number;
+  sample_observed_duration_sec: number | null;
+  timing_gap_count: number;
+}
+export interface GoalBaselineTimelineItem {
+  id: string;
+  kind: 'confirmation' | 'test';
+  state: string;
+  occurred_at: string;
+  activity_id?: string;
+  reason_code?: string | null;
+  version: number;
+}
+export interface GoalBaselineTestView {
+  state: 'not_offered' | 'offered' | 'scheduled' | 'declined' | 'stopped' | 'completed' | 'invalidated' | 'deleted';
+  available: boolean;
+  can_schedule: boolean;
+  scheduled_workout: { canonical_id: string; date: string } | null;
+  last_reason_code: string | null;
+  delivery?: Record<string, unknown>;
+}
+export interface GoalBaselineResponse {
+  policy_version: string;
+  science_decision_id: string;
+  pilot_protocol_id: string;
+  pilot_guardrail_days: number;
+  status: GoalBaselineStatus;
+  readiness: GoalBaselineReadiness;
+  history_search_complete: true;
+  full_activity_only: true;
+  optional_test_is_maximal_effort: true;
+  no_meaningful_change_threshold_yet: true;
+  pilot_scope_note: string;
+  alternatives: string[];
+  evidence: GoalBaselineEvidence | null;
+  candidates: GoalBaselineCandidate[];
+  test: GoalBaselineTestView;
+  timeline: GoalBaselineTimelineItem[];
+  science_note: ScienceNoteInfo;
+}
+export interface GoalBaselineConfirmationRecord {
+  id: string;
+  lineage_id: string;
+  version: number;
+  supersedes_id: string | null;
+  activity_id: string;
+  response: 'race' | 'intentional_all_out' | 'not_all_out' | 'deleted';
+  measured_5k: boolean;
+  elapsed_timing_confirmed: boolean;
+  created_at: string;
+}
+export interface GoalBaselineTestRecord {
+  id: string;
+  lineage_id: string;
+  version: number;
+  supersedes_id: string | null;
+  state: GoalBaselineTestView['state'];
+  protocol_id: string;
+  scheduled_date: string | null;
+  plan_canonical_id: string | null;
+  activity_id: string | null;
+  reason_code: string | null;
+  safety_stop: boolean;
+  created_at: string;
+  scheduled_workout?: GoalBaselineTestView['scheduled_workout'];
+}
+export interface GoalBaselineMutationResponse {
+  replayed: boolean;
+  baseline: GoalBaselineResponse;
+  confirmation?: GoalBaselineConfirmationRecord | null;
+  test?: GoalBaselineTestRecord | null;
+}
+export type GoalBaselineErrorCode =
+  | 'GOAL_BASELINE_IDEMPOTENCY_CONFLICT'
+  | 'GOAL_BASELINE_NOT_FOUND'
+  | 'GOAL_BASELINE_MUTATION_FORBIDDEN'
+  | 'GOAL_BASELINE_INVALID_REQUEST';
+export interface GoalBaselineErrorDetail {
+  code: GoalBaselineErrorCode;
+  message: string;
+}
+export interface GoalBaselineEvaluationResponse {
+  schema_version: number;
+  policy_version: string;
+  generated_at: string;
+  operational_counts: Record<string, unknown>;
+  checks: Record<string, unknown>;
+  falsification: Record<string, unknown>;
+  review_gate: Record<string, string>;
+}
+
+
 export interface GoalResponse {
+  goal_kind?: GoalKind;
+  goal?: {
+    goal_kind?: GoalKind;
+    distance?: string | null;
+    target_time_sec?: number | null;
+    race_date?: string | null;
+    eligible?: boolean;
+  };
+  baseline?: GoalBaselineResponse;
   race_countdown: RaceCountdown;
   cp_trend: CpTrendChart;
   cp_trend_data: CpTrendData;

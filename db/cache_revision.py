@@ -16,6 +16,7 @@ and the bump points in ``db/sync_writer.py`` + the config-mutation routes):
     recovery    — RecoveryData rows (Oura sleep/HRV/RHR + Garmin variants)
     fitness     — FitnessData rows (CP, LTHR, threshold pace, max/rest HR)
     plans       — TrainingPlan rows plus plan revision/delivery ledger state
+    goals       — Goal baseline persistence and audit state
     config      — UserConfig rows (settings, science choice, goal updates)
 
 A counter beats a timestamp because two writes within the same wall-clock
@@ -47,6 +48,7 @@ SCOPES: tuple[str, ...] = (
     "recovery",
     "fitness",
     "plans",
+    "goals",
     "config",
 )
 
