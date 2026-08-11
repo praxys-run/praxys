@@ -2,7 +2,6 @@
 
 from datetime import date
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
 
 import pandas as pd
 import pytest
@@ -196,66 +195,72 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     assert five_km_review.human_reviewers == []
     assert five_km_review.supersedes == []
     assert five_km_review.superseded_by is None
-    assert five_km_review.method.review_type.value == "rapid"
-    assert any(
-        "live PubMed ESearch/EFetch, Crossref Works, and DOI-resolver requests failed"
-        in limitation
-        for limitation in five_km_review.method.method_limitations
-    )
+    assert five_km_review.method.review_type.value == "rigorous"
+    assert len(five_km_review.citations) >= 9
+    assert {
+        "outdoor-5k-plan.structured-periodization-bounded-benefit",
+        "outdoor-5k-plan.mostly-low-intensity-no-universal-winner",
+        "outdoor-5k-plan.one-to-two-quality-sessions-indirect",
+        "outdoor-5k-plan.taper-volume-reduction-supported",
+        "outdoor-5k-plan.fixed-progression-not-safety-threshold",
+        "outdoor-5k-plan.individual-outcomes-require-error-aware-validation",
+    } <= {claim.id for claim in five_km_review.claims}
+    assert {
+        "Verification: boullosa-2020 - full-text",
+        "Verification: wang-2023 - full-text",
+        "Verification: bonafiglia-2021 - full-text",
+    } <= {
+        note.split(";", 1)[0] for note in five_km_review.review_notes
+    }
     assert five_km_decision.status == "draft"
     assert five_km_decision.human_reviewers == []
     assert five_km_decision.supersedes == []
     assert five_km_decision.superseded_by is None
-    assert five_km_decision.evidence_review_ids == [five_km_review.id]
-    assert set(five_km_decision.evidence_claim_ids) == {
-        claim.id for claim in five_km_review.claims
-    }
-    five_km_pubmed_sources = [
-        source
-        for source in five_km_review.method.sources
-        if source.name.startswith("PubMed ")
+    assert five_km_decision.evidence_review_ids == [
+        "evidence-preplan-baseline-policy-v1",
+        five_km_review.id,
     ]
-    assert len(five_km_pubmed_sources) == 4
-    for source in five_km_pubmed_sources:
-        parsed_source = urlparse(source.search_string)
-        assert parsed_source.scheme == "https"
-        assert parsed_source.netloc == "eutils.ncbi.nlm.nih.gov"
-        assert parse_qs(parsed_source.query)["db"] == ["pubmed"]
+    assert {
+        claim.id for claim in five_km_review.claims
+    } <= set(five_km_decision.evidence_claim_ids)
     five_km_parameters = {
         parameter.name: parameter
         for parameter in five_km_decision.model_parameters
     }
-    assert five_km_parameters["policy_lifecycle"].value == (
-        "draft_decision_proposal_no_active_behavior"
+    assert five_km_parameters["activation_and_authority"].value[
+        "active_behavior"
+    ] is False
+    assert five_km_parameters["plan_horizon_and_reassessment"].value[
+        "block_days"
+    ] == 28
+    assert five_km_parameters["recent_history_prerequisite"].value[
+        "minimum_usable_completed_weeks"
+    ] == 3
+    assert five_km_parameters["goal_target_and_feasibility_handling"].value[
+        "target_time_can_increase_frequency_minutes_or_intensity"
+    ] is False
+    assert five_km_parameters["planned_intensity_distribution"].value[
+        "minimum_low_intensity_running_minutes_fraction"
+    ] == 0.70
+    assert five_km_parameters["quality_day_spacing"].value[
+        "maximum_quality_days_per_7_days"
+    ] == 2
+    assert five_km_parameters["weekly_running_minutes"].value[
+        "fixed_10_percent_rule_allowed"
+    ] is False
+    assert five_km_parameters["power_and_zone_targets"].value[
+        "generic_threshold_percentage_range_allowed"
+    ] is False
+    assert five_km_parameters[
+        "deterministic_generation_and_optional_ai"
+    ].value["complete_non_ai_path_required"] is True
+    assert five_km_parameters["planned_intensity_distribution"].value[
+        "prohibited_historical_intensity_source"
+    ] == ["activity_avg_power"]
+    assert any(
+        "No generation implementation" in note
+        for note in five_km_decision.decision_notes
     )
-    assert five_km_parameters["generation_and_record_acceptance"].value == {
-        "generate_candidate_plan": "disabled",
-        "accept_candidate_plan": "disabled",
-        "accept_or_mutate_athlete_records": "disabled",
-        "write_or_sync_workouts": "disabled",
-        "automatic_adjustment": "disabled",
-    }
-    assert five_km_parameters["existing_max_plan_span_days"].value == 35
-    assert five_km_parameters[
-        "existing_threshold_target_power_fraction_range"
-    ].value == {
-        "minimum": 0.4,
-        "maximum": 1.3,
-        "reference": "current_threshold",
-    }
-    assert five_km_parameters[
-        "existing_quality_session_limit_per_iso_week"
-    ].value["maximum"] == 3
-    assert five_km_parameters["existing_passive_rest_rule"].value == {
-        "minimum_passive_rest_days": 1,
-        "required_when_scheduled_rows_in_iso_week_at_least": 6,
-        "labels": ["rest", "off"],
-    }
-    assert five_km_parameters["existing_context_lookback_weeks"].value == 8
-    assert five_km_parameters["existing_staleness_age_days"].value == 28
-    assert five_km_parameters[
-        "existing_staleness_threshold_drift_percent"
-    ].value == 3
     assert {
         parameter.classification.value
         for parameter in five_km_parameters.values()

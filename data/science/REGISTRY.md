@@ -33,7 +33,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 |---|---:|---|---|
 | [evidence-adaptive-training-load-v1](evidence/adaptive-training-load/evidence-adaptive-training-load-v1.yaml) — Adaptive endurance-training load decisions | 1 | adaptive-training-load | 2026-08-08 |
 | [evidence-individual-goal-feasibility-v1](evidence/individual-goal-feasibility/evidence-individual-goal-feasibility-v1.yaml) — Individual goal feasibility and prediction limits | 1 | individual-goal-feasibility | 2026-08-08 |
-| [evidence-outdoor-5k-plan-generation-policy-v1](evidence/outdoor-5k-plan-generation-policy/evidence-outdoor-5k-plan-generation-policy-v1.yaml) — Bounded evidence for an adult recreational outdoor 5 km plan-generation proposal | 1 | outdoor-5k-plan-generation-policy | 2026-08-11 |
+| [evidence-outdoor-5k-plan-generation-policy-v1](evidence/outdoor-5k-plan-generation-policy/evidence-outdoor-5k-plan-generation-policy-v1.yaml) — Adult recreational outdoor 5 km plan generation | 1 | outdoor-5k-plan-generation-policy | 2026-08-11 |
 | [evidence-plan-outcome-interpretation-v1](evidence/plan-outcome-interpretation/evidence-plan-outcome-interpretation-v1.yaml) — Training-plan outcome interpretation | 1 | plan-outcome-interpretation | 2026-08-08 |
 | [evidence-running-field-tests-v1](evidence/running-field-tests/evidence-running-field-tests-v1.yaml) — Running field tests for plan baselines and outcomes | 1 | running-field-tests | 2026-08-08 |
 | [evidence-short-interruption-detraining-v1](evidence/short-interruption-detraining/evidence-short-interruption-detraining-v1.yaml) — Short training interruption and detraining | 1 | short-interruption-detraining | 2026-08-08 |
@@ -43,7 +43,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 | Record | Version | Topic/model | Reviewed/decided |
 |---|---:|---|---|
 | [sdr-adaptive-plan-feasibility-and-adjustment-v1](decisions/sdr-adaptive-plan-feasibility-and-adjustment-v1.yaml) — Bound adaptive-plan feasibility, adjustment, and outcome interpretation | 1 | adaptive-plan-policy-v1 | 2026-08-08 |
-| [sdr-outdoor-5k-plan-generation-policy-v1](decisions/sdr-outdoor-5k-plan-generation-policy-v1.yaml) — Draft bounded adult recreational outdoor 5 km plan-generation policy | 1 | outdoor-5k-plan-generation-policy-v1-draft | 2026-08-11 |
+| [sdr-outdoor-5k-plan-generation-policy-v1](decisions/sdr-outdoor-5k-plan-generation-policy-v1.yaml) — Propose a history-anchored 28-day outdoor 5 km plan block | 1 | outdoor-5k-plan-generation-policy-v1 | 2026-08-11 |
 
 ## Superseded
 

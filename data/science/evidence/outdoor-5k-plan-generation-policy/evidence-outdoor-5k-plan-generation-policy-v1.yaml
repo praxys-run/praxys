@@ -1,13 +1,12 @@
 schema_version: 1
 id: evidence-outdoor-5k-plan-generation-policy-v1
 version: 1
-title: "Bounded evidence for an adult recreational outdoor 5 km plan-generation proposal"
+title: "Adult recreational outdoor 5 km plan generation"
 research_question: >
-  For adults who recreationally run outdoors and can already complete 5 km,
-  what does the available evidence support, and not support, for a
-  suggestion-only 5 km plan-generation policy; specifically, can it justify
-  fixed generation, progression, intensity, recovery, workload, or individual
-  outcome rules?
+  For adults aged 18 years or older who are self-coached recreational road
+  runners, can already complete 5 km, and have an outdoor road 5 km
+  elapsed-time goal, what evidence supports and limits a conservative,
+  suggestion-only multi-week plan-generation policy?
 topic: outdoor-5k-plan-generation-policy
 status: draft
 authors:
@@ -16,109 +15,246 @@ human_reviewers: []
 created_on: 2026-08-11
 reviewed_on:
 intended_product_purpose: >
-  Provide a reproducible, decision-proposal evidence bundle for a narrowly
-  bounded future policy: adult recreational runners, outdoor road 5 km
-  elapsed-time goals, and suggestion-only candidate plans. This draft neither
-  authorizes nor changes plan generation, plan acceptance, record acceptance,
-  APIs, theories, model parameters, data retention, or any user-facing
-  behavior. It is not medical, return-to-sport, injury-treatment, coaching
-  clearance, or performance-guarantee evidence. Any future AI or LLM output
-  would remain untrusted candidate content, not evidence, medical advice, a
-  command, or authority to execute an action or collect extra athlete context.
+  Bound the first Praxys plan-generation proposal to one accepted baseline and
+  goal population. Separate evidence for structured training, training-
+  intensity distribution, quality-session frequency, tapering, progression,
+  and individual-response interpretation from Praxys guardrails such as the
+  plan horizon, recent-history requirement, and deterministic validation
+  envelope. This draft does not authorize implementation or change user-facing
+  behavior until an identified human science reviewer accepts the decision.
 scope:
   population:
-    - Adults aged 18 years or older who recreationally run outdoors and can already complete 5 km
-    - Self-coached recreational road runners with an outdoor 5 km elapsed-time goal, only if a future approved goal contract selects that scope
-    - Apparently healthy adults represented by the included evidence, noting limited direct representation of the intended population
+    - Adults aged 18 years or older
+    - Self-coached recreational road runners already able to complete 5 km
+    - Outdoor road 5 km elapsed-time performance goals
   intervention_or_exposure:
-    - Structured endurance-running training and its intensity distribution
-    - Fixed weekly progression and workload-derived generation limits
-    - Candidate plan validation rules using threshold-relative targets, session labels, rest labels, dates, or plan age
-    - A matched outdoor 5 km performance observation as a possible future plan anchor
+    - Structured and periodized endurance-running programs
+    - Polarized, pyramidal, threshold-heavy, and other training-intensity distributions
+    - Continuous, interval, and high-intensity training used by recreational runners
+    - Pre-event tapering in endurance athletes
+    - Fixed weekly progression and workload-ratio rules
+    - Classification of individual training response
   comparator:
-    - Alternative intensity distributions or predefined endurance training
+    - Nonperiodized or control training
+    - Alternative structured training-intensity distributions
     - Standard versus 10 percent graded novice-running progression
-    - Causal safety-threshold interpretation versus descriptive workload monitoring
-    - Group-average evidence versus individual prediction or response classification
-    - Matched versus unmatched performance-test protocols
+    - Maintained versus reduced taper intensity, frequency, or volume
+    - Error-aware versus naive individual-response classification
   outcomes:
-    - Recreational-running performance
-    - Running-related injury incidence and safety-boundary limits
-    - Validity of individual prediction or fixed generation rules
-    - Protocol-specific performance-test interpretation
-    - Scope, uncertainty, and falsifiability of a future product policy
+    - 5,000 m or closely applicable endurance performance
+    - Time-trial performance and physiological adaptation
+    - Running-related injury incidence
+    - Training tolerance and burden
+    - Validity of individual prediction and fixed prescription rules
 method:
-  review_type: rapid
+  review_type: rigorous
   search_date: 2026-08-11
   sources:
-    - name: PubMed ESearch - recreational runner training and progression
-      search_string: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmode=json&retmax=20&term=%28%28recreational+runner%2A%5BTitle%2FAbstract%5D%29+OR+%28novice+runner%2A%5BTitle%2FAbstract%5D%29%29+AND+%28training%5BTitle%2FAbstract%5D+OR+plan%5BTitle%2FAbstract%5D+OR+progression%5BTitle%2FAbstract%5D+OR+periodization%5BTitle%2FAbstract%5D%29+AND+%28adult%5BMeSH+Terms%5D%29"
-    - name: PubMed ESearch - running intensity distribution and structured training
-      search_string: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmode=json&retmax=20&term=%28running%5BTitle%2FAbstract%5D+OR+runner%2A%5BTitle%2FAbstract%5D%29+AND+%28%22training+intensity+distribution%22%5BTitle%2FAbstract%5D+OR+periodization%5BTitle%2FAbstract%5D+OR+%22structured+training%22%5BTitle%2FAbstract%5D%29+AND+adult%5BMeSH+Terms%5D"
-    - name: PubMed ESearch - running workload and progression constraints
-      search_string: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmode=json&retmax=20&term=%28running%5BTitle%2FAbstract%5D+OR+endurance%5BTitle%2FAbstract%5D%29+AND+%28progression%5BTitle%2FAbstract%5D+OR+%22acute+chronic+workload%22%5BTitle%2FAbstract%5D+OR+%2210%25+rule%22%5BTitle%2FAbstract%5D%29+AND+adult%5BMeSH+Terms%5D"
-    - name: PubMed EFetch - exact candidate metadata and abstracts
-      search_string: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&retmode=xml&id=23752040%2C17940147%2C32502973%2C34819869%2C26473759%2C18348590"
-    - name: Crossref Works API - exact DOI metadata
+    - name: PubMed - training-intensity distribution and periodization
       search_string: >
-        GET https://api.crossref.org/works/{doi} for
-        10.1123/ijspp.2012-0350, 10.1177/0363546507307505,
-        10.1123/ijspp.2019-0864, 10.3389/fphys.2021.665044,
-        10.2165/00007256-200838040-00003, and
-        10.1249/MSS.0000000000000664
+        (training intensity distribution[Title/Abstract] OR
+        polarized[Title/Abstract] OR pyramidal[Title/Abstract] OR
+        periodization[Title/Abstract] OR "interval training"[Title/Abstract])
+        AND (running[Title/Abstract] OR runner*[Title/Abstract] OR
+        endurance[Title/Abstract]) AND
+        (recreational[Title/Abstract] OR adult[MeSH Terms])
+    - name: PubMed - frequency, taper, recovery, and long run
+      search_string: >
+        (running[Title/Abstract] OR runner*[Title/Abstract]) AND
+        (frequency[Title/Abstract] OR "weekly sessions"[Title/Abstract] OR
+        "rest day"[Title/Abstract] OR "recovery week"[Title/Abstract] OR
+        taper[Title/Abstract] OR "long run"[Title/Abstract] OR
+        periodization[Title/Abstract]) AND
+        (performance[Title/Abstract] OR "5 k"[Title/Abstract] OR
+        "5000 m"[Title/Abstract])
+    - name: PubMed - structured recreational 5 km training
+      search_string: >
+        (recreational runner*[Title/Abstract]) AND
+        (structured training[Title/Abstract] OR
+        periodization[Title/Abstract] OR
+        nonperiodized[Title/Abstract]) AND
+        (5000 m[Title/Abstract] OR 5 km[Title/Abstract] OR
+        performance[Title/Abstract])
+    - name: PubMed - progression and workload limits
+      search_string: >
+        (running[Title/Abstract] OR endurance[Title/Abstract]) AND
+        (progression[Title/Abstract] OR
+        "acute chronic workload"[Title/Abstract] OR
+        "10% rule"[Title/Abstract]) AND adult[MeSH Terms]
+    - name: PubMed exact identifier verification
+      search_string: >
+        30161090[PMID] OR 23752040[PMID] OR 34749417[PMID] OR
+        39888556[PMID] OR 32183425[PMID] OR 37163550[PMID] OR
+        17940147[PMID] OR 32502973[PMID] OR 34819869[PMID]
+    - name: PubMed Central full text
+      search_string: >
+        PMC7183043 OR PMC10171681 OR PMC8606564
+    - name: Crossref exact DOI metadata
+      search_string: >
+        GET /works/{doi} for 10.1519/JSC.0000000000002805,
+        10.1123/ijspp.2012-0350, 10.1055/a-1559-3623,
+        10.1007/s40279-024-02149-3, 10.3390/sports8030035,
+        10.1371/journal.pone.0282838,
+        10.1177/0363546507307505, 10.1123/ijspp.2019-0864,
+        and 10.3389/fphys.2021.665044
+    - name: University of Stirling publication record
+      search_string: "https://www.stir.ac.uk/research/hub/publication/2095779"
   inclusion_criteria:
-    - Adult human running or endurance-training research with a reproducible protocol or systematic method
-    - Studies or reviews that report a performance, injury, workload-methodology, measurement, individual-response, or screening boundary relevant to a proposed rule
-    - Stable DOI or PMID metadata already represented identically in the local science registry
-    - Claims limited to what the verified access level can support
+    - Systematic reviews, meta-analyses, controlled studies, or authoritative methodological reviews relevant to adult endurance running
+    - Recreational-running studies with performance outcomes
+    - Evidence that directly challenges a proposed progression, workload, or individual-response rule
+    - Stable DOI or PMID metadata and an accessible abstract or full text
   exclusion_criteria:
-    - Children-only, clinical, rehabilitation, return-to-sport, diagnosis, treatment, or clearance evidence as direct support for this product proposal
-    - Vendor rules, coach opinion, LLM output, device estimates, or uncited web summaries
-    - Team-sport associations presented as causal recreational-running prescriptions
-    - Papers that do not establish a reproducible method or a bounded claim relevant to the question
-    - Inaccessible findings used to supply effect sizes, exact thresholds, or individual guarantees
+    - Vendor plans, coaching blogs, LLM output, and uncited training conventions
+    - Team-sport workload associations presented as direct running prescriptions
+    - Children-only, clinical rehabilitation, treatment, return-to-sport, or pregnancy-specific prescription
+    - Studies without a reproducible method or a relevant performance, safety, or inference boundary
+    - Inaccessible findings used to supply an effect estimate or strong conclusion
   quality_appraisal: >
-    Candidate claims were appraised for directness to adult recreational outdoor
-    5 km running, design, protocol transparency, individual-versus-group
-    inference, outcome type, causal identification, measurement error, and
-    whether a result justifies a product threshold. A source was not treated as
-    evidence for a fixed product rule merely because it reported a group mean,
-    a training association, or a familiar coaching convention.
+    Two agent passes independently checked the included citations and claim
+    boundaries. Claims were appraised for design, sample size, directness to
+    recreational road runners and 5 km performance, intervention detail,
+    outcome validity, risk of subgroup or adherence bias, population transfer,
+    and whether a finding can justify an individual product threshold.
+    Abstract-only sources support only their reported abstract conclusions.
+    Full-text reviews were inspected for the specific recommendation or effect
+    used. No source was treated as evidence for a fixed Praxys value merely
+    because the value is conventional.
   method_limitations:
-    - One reviewer performed the planned search and local record reconciliation; duplicate screening, extraction, and formal risk-of-bias assessment were not performed.
-    - On 2026-08-11, all attempted live PubMed ESearch/EFetch, Crossref Works, and DOI-resolver requests failed before a response because the review environment could not resolve eutils.ncbi.nlm.nih.gov, api.crossref.org, or doi.org. No result count, abstract, full text, or new external metadata was retrieved.
-    - The six retained citations were selected only because their identifiers and bibliographic fields exactly match citations in existing local Evidence Reviews, which record earlier PubMed/Crossref access levels. That local reconciliation is not a replacement for an independent live metadata or full-text check.
-    - Consequently, this draft does not assert a newly reproduced systematic search, an exhaustive evidence base, new effect estimates, or a full-text appraisal on 2026-08-11.
-    - The evidence is sparse or indirect for unsupervised outdoor 5 km plans, women, older runners, novice runners, sparse-data users, different training bases, and any LLM-mediated plan-generation workflow.
-    - No included source validates Praxys's existing 35-day span, 40 to 130 percent threshold range, three-session limit, rest rule, eight-week context window, 28-day staleness rule, 3 percent drift warning, or a complete 5 km generation policy.
+    - Screening and extraction were performed by agents rather than independent human reviewers.
+    - SPORTDiscus, Scopus, and Web of Science were not searched directly in this run.
+    - Bradbury 2020, Munoz 2014, Campos 2022, Rosenblat 2025, Buist 2008, and Impellizzeri 2020 were verified at abstract level, so detailed risk-of-bias assessment was not possible.
+    - Boullosa 2020 is a narrative review and its one-to-two quality-session recommendation is expert synthesis rather than a pooled causal threshold.
+    - Taper evidence combines multiple endurance sports and performance levels; directness to a self-coached recreational 5 km plan is limited.
+    - Women, older adults, sparse-history runners, low-frequency runners, and consumer running-power users are underrepresented.
+    - No reviewed source validates a 28-day generation horizon, a three-build/one-recovery cycle, a 60 to 70 percent recovery week, a universal long-run progression rule, or a generic threshold-power percentage envelope.
 claims:
-  - id: outdoor-5k-plan.structured-training-not-universal-policy
+  - id: outdoor-5k-plan.structured-periodization-bounded-benefit
     statement: >
-      Structured endurance training can improve performance in some
-      recreational-running contexts, but the retained evidence does not
-      establish one universally superior intensity distribution, periodization,
-      session count, duration, or 5 km plan-generation rule.
+      A structured periodized running program can improve 5,000 m performance
+      in recreational runners compared with nonperiodized control training, but
+      the reviewed evidence does not establish one superior periodization
+      sequence or a complete Praxys schedule.
+    source_ids:
+      - bradbury-2020
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: 5,000 m time-trial improvement
+        range_low: 76.8
+        range_high: 112.8
+        unit: seconds
+        context: >
+          Mean improvement in the two periodized groups after 12 weeks and
+          three sessions per week; the control improved 3.6 seconds.
+    applicable_population:
+      - Recreational adult runners similar to the 30-person controlled study
+    domain:
+      - Structured training
+      - Periodization
+      - 5,000 m performance
+    limitations:
+      - The study was small and verified from its abstract.
+      - Testing used a 400 m grass track, not the accepted outdoor-road protocol.
+      - Linear and reverse-linear periodization did not differ significantly.
+      - The study does not validate a four-week horizon, a deterministic generator, or an individual outcome guarantee.
+  - id: outdoor-5k-plan.mostly-low-intensity-no-universal-winner
+    statement: >
+      The reviewed running and endurance evidence supports a majority of
+      training volume at low intensity and does not establish one universally
+      superior polarized or pyramidal distribution for recreational runners.
+      Threshold-heavy training is not supported as the default.
     source_ids:
       - munoz-2014
+      - campos-2022
+      - rosenblat-2025
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Polarized versus between-threshold 10 km improvement
+        range_low: 3.6
+        range_high: 5.0
+        unit: percent
+        context: >
+          Both recreational-runner groups improved; the between-group
+          difference was not significant in the primary analysis.
+      - metric: Polarized versus pyramidal time-trial performance
+        estimate: -0.05
+        unit: standardized mean difference
+        context: >
+          Network meta-analysis found no significant overall difference;
+          p=0.34.
+    applicable_population:
+      - Recreational runners in the 10 km controlled study
+      - Middle- and long-distance runners in the systematic review
+      - Recreational and competitive endurance athletes in the network meta-analysis
+    domain:
+      - Training-intensity distribution
+      - Low-intensity volume
+      - Performance
+    limitations:
+      - Only one included controlled study was directly recreational-running specific.
+      - Zone quantification methods differ across studies.
+      - The evidence does not validate one exact percentage for every athlete.
+      - Rosenblat subgroup findings concerned VO2max and performance level, not direct individualized 5 km prescriptions.
+  - id: outdoor-5k-plan.one-to-two-quality-sessions-indirect
+    statement: >
+      A full-text narrative review of recreational endurance running generally
+      recommends combining one to two high-intensity interval sessions per week
+      with more moderate- and low-intensity continuous running. This supports a
+      conservative product ceiling, not a universal biological threshold.
+    source_ids:
+      - boullosa-2020
     evidence_strength: low
     applicable_population:
-      - Recreational adult runners similar to the small controlled study
-      - Adult recreational outdoor 5 km runners only as an indirect target population
+      - Recreational endurance runners represented by the reviewed literature
     domain:
-      - Structured endurance training
-      - Intensity distribution
-      - Policy generalization limit
+      - Session frequency
+      - High-intensity training
+      - Product guardrail input
     limitations:
-      - The primary between-group performance difference was not significant in the retained study.
-      - A favorable polarized result came from a smaller adherence-defined subset.
-      - The source does not evaluate an outdoor 5 km product workflow, LLM-generated sessions, safety events, or any Praxys heuristic.
+      - The source is a narrative review with heterogeneous underlying studies.
+      - It does not compare exactly one versus two quality sessions.
+      - It does not define quality-session taxonomy, spacing, duration, or a safety limit.
+  - id: outdoor-5k-plan.taper-volume-reduction-supported
+    statement: >
+      Across mixed endurance sports, tapering can improve time-trial
+      performance. The strongest reviewed strategy reduced volume by 41 to 60
+      percent while maintaining intensity and frequency; 8 to 14 days produced
+      the largest subgroup effect, although other durations up to 21 days also
+      improved performance.
+    source_ids:
+      - wang-2023
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Time-trial performance after taper
+        estimate: -0.45
+        unit: standardized mean difference
+        context: Overall pre- versus post-taper result across 14 studies
+      - metric: Time-trial performance with 41 to 60 percent volume reduction
+        estimate: -0.77
+        unit: standardized mean difference
+        context: Subgroup effect; 95% CI -1.23 to -0.30
+      - metric: Time-trial performance with 8 to 14 day taper
+        estimate: -1.47
+        unit: standardized mean difference
+        context: Largest duration subgroup effect; 95% CI -2.75 to -0.19
+    applicable_population:
+      - Endurance athletes represented by the meta-analysis
+      - Recreational 5 km runners only as an indirect taper population
+    domain:
+      - Taper
+      - Volume
+      - Intensity
+      - Frequency
+    limitations:
+      - Sports, performance levels, and event distances were mixed.
+      - The analysis does not validate a universal recreational 5 km taper.
+      - Taper effects depend on prior training and interactions among load variables.
   - id: outdoor-5k-plan.fixed-progression-not-safety-threshold
     statement: >
-      The retained novice-runner trial did not show lower running-related injury
-      incidence from its 10 percent graded program, and the workload-ratio
-      critique identifies conceptual and statistical limits. Together, these
-      sources do not establish a causal, individual, fixed progression or
-      workload threshold for an outdoor 5 km generation policy.
+      A novice-runner program based on the 10 percent rule did not reduce
+      running-related injury compared with a standard program, and acute-to-
+      chronic workload ratio zones lack established causal support for training
+      recommendations. Neither should be used as an individual safety law.
     source_ids:
       - buist-2008
       - impellizzeri-2020
@@ -128,26 +264,24 @@ claims:
         range_low: 20.3
         range_high: 20.8
         unit: percent
-        context: Standard versus graded 13-week novice-running programs; p=0.90 in the retained randomized trial
+        context: Standard 8-week versus 10-percent-rule 13-week novice programs; p=0.90
     applicable_population:
-      - Novice adult runners similar to the randomized cohort
+      - Novice adult runners in the randomized trial
       - Athletic workload-monitoring populations for the methodological critique
-      - Adult recreational outdoor 5 km runners only as a conservative product-boundary extrapolation
     domain:
       - Progression
-      - Workload interpretation
-      - Injury-prevention claim limit
+      - Injury-prevention claim limits
+      - Workload monitoring
     limitations:
-      - The trial does not show that every alternative progression is equally safe or effective.
-      - The critique does not make training history irrelevant or validate a replacement universal threshold.
-      - Neither source evaluates the named Praxys validation heuristics, a 5 km plan, individual medical risk, or a return-to-running decision.
-  - id: outdoor-5k-plan.individual-targets-require-validation
+      - Injury incidence does not determine optimal performance progression.
+      - The trial does not prove that every faster progression is safe.
+      - The critique does not make training history irrelevant or validate a replacement threshold.
+  - id: outdoor-5k-plan.individual-outcomes-require-error-aware-validation
     statement: >
-      Group-average exercise-response evidence cannot by itself produce an
-      individual probability, safe target range, session count, or expected 5
-      km outcome. Any future individualized quantitative policy needs a defined
-      outcome, measurement-error treatment, representative development data,
-      calibration, and independent validation.
+      Group-average training effects cannot by themselves establish an
+      individual response, success probability, or meaningful change. Error,
+      within-person variability, and a predeclared worthwhile-change rule must
+      be addressed before individual classifications are made.
     source_ids:
       - bonafiglia-2021
     evidence_strength: moderate
@@ -155,55 +289,29 @@ claims:
       - metric: Studies statistically estimating interindividual trainability
         estimate: 9
         unit: studies
-        context: 9 of 149 studies in the retained systematic review
+        context: 9 of 149 studies in the systematic review
     applicable_population:
-      - Adults completing standardized exercise interventions
-      - Recreational outdoor 5 km runners only as a future validation population
+      - Adults in standardized exercise-training studies
+      - Recreational 5 km runners only as a future validation population
     domain:
       - Individual response
-      - Individual prediction
-      - Plan-target claim limit
+      - Measurement error
+      - Probability and outcome claim limits
     limitations:
-      - The review was not a running-plan or race-goal prediction study.
-      - It does not supply a valid threshold-relative target, progression size, rest count, or probability cut point.
-      - This is a boundary on inference, not evidence that individual responses never differ.
-  - id: outdoor-5k-plan.matched-performance-evidence-is-limited
-    statement: >
-      A performance test used to anchor or evaluate an outdoor 5 km policy
-      should match the target performance and use protocol-specific validity,
-      reliability, and sensitivity evidence; unlike tests, routes, or model
-      estimates cannot be silently treated as equivalent direct 5 km evidence.
-    source_ids:
-      - currell-2008
-    evidence_strength: moderate
-    applicable_population:
-      - Sports-performance testing populations represented by the review
-      - Adult recreational outdoor 5 km runners only where a future protocol establishes direct applicability
-    domain:
-      - Measurement validity
-      - Baseline and outcome interpretation
-    limitations:
-      - Exact error, meaningful change, and comparability depend on protocol, distance, setting, and population.
-      - The review does not choose an outdoor 5 km protocol, validate the existing Praxys baseline pilot, or authorize a plan generator.
-  - id: outdoor-5k-plan.vigorous-screening-is-not-clearance
-    statement: >
-      Current signs and symptoms are relevant to participation decisions before
-      vigorous exercise. This supports a conservative stop-and-escalate
-      boundary for a future optional plan or field-test flow, not diagnosis,
-      treatment, clearance, risk prediction, or automated return-to-sport.
-    source_ids:
-      - riebe-2015
-    evidence_strength: low
-    applicable_population:
-      - Adults considering exercise participation under the reviewed screening approach
-      - Recreational outdoor 5 km runners only as a conservative safety boundary
-    domain:
-      - Safety boundary
-      - Exercise participation
-    limitations:
-      - The guidance is not a validation study of a self-administered outdoor 5 km plan.
-      - It does not make vigorous training risk-free or validate product symptom wording, routing, or automated clearance.
+      - The review was not a running-plan or 5 km prediction study.
+      - It supplies no target, progression, session-count, or probability threshold.
 citations:
+  - id: bradbury-2020
+    title: "Comparison of Linear and Reverse Linear Periodized Programs With Equated Volume and Intensity for Endurance Running Performance"
+    authors:
+      - D. G. Bradbury
+      - G. J. Landers
+      - N. Benjanuvatra
+      - P. S. R. Goods
+    year: 2020
+    journal: Journal of Strength and Conditioning Research
+    doi: 10.1519/JSC.0000000000002805
+    pmid: "30161090"
   - id: munoz-2014
     title: "Does polarized training improve performance in recreational runners?"
     authors:
@@ -217,6 +325,71 @@ citations:
     journal: International Journal of Sports Physiology and Performance
     doi: 10.1123/ijspp.2012-0350
     pmid: "23752040"
+  - id: campos-2022
+    title: "Training-intensity Distribution on Middle- and Long-distance Runners: A Systematic Review"
+    authors:
+      - Y. Campos
+      - A. Casado
+      - J. G. Vieira
+      - M. Guimaraes
+      - L. Sant'Ana
+      - L. Leitao
+      - S. F. da Silva
+      - P. H. S. M. de Azevedo
+      - J. Vianna
+      - R. Dominguez
+    year: 2022
+    journal: International Journal of Sports Medicine
+    doi: 10.1055/a-1559-3623
+    pmid: "34749417"
+  - id: rosenblat-2025
+    title: "Which Training Intensity Distribution Intervention will Produce the Greatest Improvements in Maximal Oxygen Uptake and Time-Trial Performance in Endurance Athletes? A Systematic Review and Network Meta-analysis of Individual Participant Data"
+    authors:
+      - M. A. Rosenblat
+      - J. A. Watt
+      - J. I. Arnold
+      - G. Treff
+      - O. B. Sandbakk
+      - J. Esteve-Lanao
+      - L. Festa
+      - L. Filipas
+      - S. D. Galloway
+      - I. Munoz
+      - D. J. Ramos-Campo
+      - P. Schneeweiss
+      - S. Selles-Perez
+      - T. Stoggl
+      - R. K. Talsnes
+      - C. Zinner
+      - S. Seiler
+    year: 2025
+    journal: Sports Medicine
+    doi: 10.1007/s40279-024-02149-3
+    pmid: "39888556"
+  - id: boullosa-2020
+    title: "Factors Affecting Training and Physical Performance in Recreational Endurance Runners"
+    authors:
+      - D. Boullosa
+      - J. Esteve-Lanao
+      - A. Casado
+      - L. A. Peyre-Tartaruga
+      - R. Gomes da Rosa
+      - J. Del Coso
+    year: 2020
+    journal: Sports
+    doi: 10.3390/sports8030035
+    pmid: "32183425"
+  - id: wang-2023
+    title: "Effects of tapering on performance in endurance athletes: A systematic review and meta-analysis"
+    authors:
+      - Z. Wang
+      - Y. Wang
+      - W. Gao
+      - Y. Zhong
+    year: 2023
+    journal: PLOS ONE
+    doi: 10.1371/journal.pone.0282838
+    pmid: "37163550"
   - id: buist-2008
     title: "No effect of a graded training program on the number of running-related injuries in novice runners: a randomized controlled trial"
     authors:
@@ -252,63 +425,35 @@ citations:
     journal: Frontiers in Physiology
     doi: 10.3389/fphys.2021.665044
     pmid: "34819869"
-  - id: currell-2008
-    title: "Validity, reliability and sensitivity of measures of sporting performance"
-    authors:
-      - K. Currell
-      - A. E. Jeukendrup
-    year: 2008
-    journal: Sports Medicine
-    doi: 10.2165/00007256-200838040-00003
-    pmid: "18348590"
-  - id: riebe-2015
-    title: "Updating ACSM's Recommendations for Exercise Preparticipation Health Screening"
-    authors:
-      - D. Riebe
-      - B. A. Franklin
-      - P. D. Thompson
-      - C. E. Garber
-      - G. P. Whitfield
-      - M. Magal
-      - L. S. Pescatello
-    year: 2015
-    journal: Medicine & Science in Sports & Exercise
-    doi: 10.1249/MSS.0000000000000664
-    pmid: "26473759"
 known_gaps:
-  - A prospectively evaluated, reproducible outdoor 5 km plan-generation policy for adult recreational runners
-  - A valid individual mapping from current capability, training history, context, and threshold estimates to workout dose, progression, or success probability
-  - Direct evidence for the existing 35-day, 40 to 130 percent, three-quality-session, rest, eight-week, 28-day, and 3 percent heuristics
-  - Safety-event, adverse-symptom, and discontinuation rates for any proposed unsupervised outdoor 5 km policy
-  - Protocol-specific outdoor 5 km baseline repeatability, meaningful-change, and race-agreement evidence in the target population
-  - Fairness, missingness, and performance assessment across sex, age, training history, threshold availability, provider provenance, and sparse-data status
-  - An evaluation of LLM output reliability, prompt sensitivity, hallucination, or unsafe-plan rate for this use case
+  - A prospectively evaluated deterministic plan-generation policy for the accepted outdoor 5 km population
+  - A validated 28-day generation horizon or weekly reassessment interval
+  - A validated minimum recent-history requirement for safe dose anchoring
+  - Direct evidence for a universal three-build/one-recovery cycle or 60 to 70 percent recovery week
+  - Direct evidence for a universal recreational 5 km long-run progression rule
+  - A universal consumer running-power target envelope by workout type
+  - A validated deterministic mapping from personal history and availability to exact interval-session structure
+  - Representation and subgroup precision for women, older adults, low-frequency runners, sparse-history users, and different data providers
 conflicting_findings:
-  - Structured-training studies can report improvement while differing in intensity distribution, adherence, protocol, and population; the retained evidence does not identify one transferable policy.
-  - A workload history can be descriptively useful while workload-ratio thresholds remain unsuitable as causal injury limits.
-  - Fixed-distance performance tests can be useful under a defined protocol while outdoor context can weaken direct before/after comparability.
+  - Structured and mostly low-intensity programs can improve performance, while evidence does not identify one universally superior polarized or pyramidal distribution.
+  - Taper evidence supports lower volume with maintained intensity and frequency, but its directness varies by sport, event, and prior training.
+  - Training history is useful for context, while 10 percent and workload-ratio rules are not validated causal safety thresholds.
 follow_up_questions:
-  - Can a human-reviewed, pre-registered, suggestion-only policy outperform a no-change comparator without increasing adverse events or coercion?
-  - Which proposal inputs can be minimized while retaining reproducibility and allowing athletes to correct, exclude, or delete context?
-  - Which protocol, outcomes, error model, and stopping rules would support a future outdoor 5 km validation study?
-  - Do proposed rules remain calibrated and equitable across predefined subgroups and missing-data patterns?
-  - Does independently repeating the documented PubMed and Crossref searches change the source set or claim strength?
+  - Does the proposed 28-day stable-load guardrail improve plan relevance without increasing burden or adverse events?
+  - Which exact recent-history and schedule constraints minimize unsupported extrapolation?
+  - Which session templates can be validated without turning common coaching convention into published science?
+  - How should the policy behave when current capability is qualified but recent training history is sparse?
+  - Do outcomes, acceptance, edits, and safety exits differ by sex, age, training frequency, threshold availability, provider, or missingness?
 supersedes: []
 superseded_by:
 review_notes:
-  - "Verification: munoz-2014 - metadata; bibliographic fields matched the identical citation in evidence-adaptive-training-load-v1, whose recorded earlier check names PubMed PMID 23752040 and Crossref metadata; live external lookup was unavailable in this review environment; 2026-08-11."
-  - "Verification: buist-2008 - metadata; bibliographic fields matched the identical citation in evidence-adaptive-training-load-v1, whose recorded earlier check names PubMed PMID 17940147 and Crossref metadata; live external lookup was unavailable in this review environment; 2026-08-11."
-  - "Verification: impellizzeri-2020 - metadata; bibliographic fields matched the identical citation in evidence-adaptive-training-load-v1, whose recorded earlier check names PubMed PMID 32502973 and Crossref metadata; live external lookup was unavailable in this review environment; 2026-08-11."
-  - "Verification: bonafiglia-2021 - metadata; bibliographic fields matched the identical citation in evidence-individual-goal-feasibility-v1, whose recorded earlier check names PubMed Central PMC8606564 and PubMed metadata; live external lookup was unavailable in this review environment; 2026-08-11."
-  - "Verification: currell-2008 - metadata; bibliographic fields matched the identical citation in evidence-running-field-tests-v1, whose recorded earlier check names PubMed PMID 18348590 and Crossref metadata; live external lookup was unavailable in this review environment; 2026-08-11."
-  - "Verification: riebe-2015 - metadata; bibliographic fields matched the identical citation in evidence-preplan-baseline-policy-v1, whose recorded earlier check names PubMed PMID 26473759 and Crossref metadata; live external lookup was unavailable in this review environment; 2026-08-11."
-  - >
-    Reproducibility handoff: rerun every exact PubMed and Crossref request in
-    method, record result counts and access levels, independently screen the
-    candidates, and replace this local-metadata-only draft assessment before any
-    acceptance or product implementation is considered.
-  - >
-    Registry links: this draft review is registered at
-    data/science/evidence/outdoor-5k-plan-generation-policy/evidence-outdoor-5k-plan-generation-policy-v1.yaml
-    and is referenced only by the paired draft
-    data/science/decisions/sdr-outdoor-5k-plan-generation-policy-v1.yaml.
+  - "Verification: bradbury-2020 - abstract; PubMed PMID 30161090 and Crossref DOI metadata; 2026-08-11."
+  - "Verification: munoz-2014 - abstract; PubMed PMID 23752040 and Crossref DOI metadata; 2026-08-11."
+  - "Verification: campos-2022 - abstract; PubMed PMID 34749417 and Crossref DOI metadata; 2026-08-11."
+  - "Verification: rosenblat-2025 - abstract; University of Stirling publication record, PubMed PMID 39888556 metadata, and Crossref DOI metadata; 2026-08-11."
+  - "Verification: boullosa-2020 - full-text; PubMed Central PMC7183043 and Crossref DOI metadata; 2026-08-11."
+  - "Verification: wang-2023 - full-text; PubMed Central PMC10171681 and Crossref DOI metadata; 2026-08-11."
+  - "Verification: buist-2008 - abstract; PubMed PMID 17940147 and Crossref DOI metadata; 2026-08-11."
+  - "Verification: impellizzeri-2020 - abstract; PubMed PMID 32502973 and Crossref DOI metadata; 2026-08-11."
+  - "Verification: bonafiglia-2021 - full-text; PubMed Central PMC8606564 and Crossref DOI metadata; 2026-08-11."
+  - No source was found that validates a universal 28-day horizon, three-build/one-recovery cycle, 60 to 70 percent recovery week, long-run progression rule, or generic threshold-power range.
