@@ -88,7 +88,7 @@ method:
     - One reviewer performed the planned search and local record reconciliation; duplicate screening, extraction, and formal risk-of-bias assessment were not performed.
     - On 2026-08-11, all attempted live PubMed ESearch/EFetch, Crossref Works, and DOI-resolver requests failed before a response because the review environment could not resolve eutils.ncbi.nlm.nih.gov, api.crossref.org, or doi.org. No result count, abstract, full text, or new external metadata was retrieved.
     - The six retained citations were selected only because their identifiers and bibliographic fields exactly match citations in existing local Evidence Reviews, which record earlier PubMed/Crossref access levels. That local reconciliation is not a replacement for an independent live metadata or full-text check.
-    - Consequently, this draft does not assert a newly reproduced systematic search, an exhaustive evidence base, new effect estimates, or a full-text appraisal on 2026-08-11.
+    - Consequently, this draft does not assert a newly reproduced systematic search, an exhaustive evidence base, any study results or effect estimates, or a full-text appraisal on 2026-08-11.
     - The evidence is sparse or indirect for unsupervised outdoor 5 km plans, women, older runners, novice runners, sparse-data users, different training bases, and any LLM-mediated plan-generation workflow.
     - No included source validates Praxys's existing 35-day span, 40 to 130 percent threshold range, three-session limit, rest rule, eight-week context window, 28-day staleness rule, 3 percent drift warning, or a complete 5 km generation policy.
 claims:
@@ -114,21 +114,15 @@ claims:
       - The source does not evaluate an outdoor 5 km product workflow, LLM-generated sessions, safety events, or any Praxys heuristic.
   - id: outdoor-5k-plan.fixed-progression-not-safety-threshold
     statement: >
-      The retained novice-runner trial did not show lower running-related injury
-      incidence from its 10 percent graded program, and the workload-ratio
-      critique identifies conceptual and statistical limits. Together, these
-      sources do not establish a causal, individual, fixed progression or
-      workload threshold for an outdoor 5 km generation policy.
+      This metadata-only draft does not treat the cited novice-runner graded
+      program or workload-ratio critique as establishing a causal, individual,
+      fixed progression or workload threshold for an outdoor 5 km generation
+      policy. A human reviewer must verify the primary findings before making
+      any stronger source-specific claim.
     source_ids:
       - buist-2008
       - impellizzeri-2020
     evidence_strength: moderate
-    effect_estimates:
-      - metric: Running-related injury incidence
-        range_low: 20.3
-        range_high: 20.8
-        unit: percent
-        context: Standard versus graded 13-week novice-running programs; p=0.90 in the retained randomized trial
     applicable_population:
       - Novice adult runners similar to the randomized cohort
       - Athletic workload-monitoring populations for the methodological critique
@@ -143,19 +137,14 @@ claims:
       - Neither source evaluates the named Praxys validation heuristics, a 5 km plan, individual medical risk, or a return-to-running decision.
   - id: outdoor-5k-plan.individual-targets-require-validation
     statement: >
-      Group-average exercise-response evidence cannot by itself produce an
-      individual probability, safe target range, session count, or expected 5
-      km outcome. Any future individualized quantitative policy needs a defined
-      outcome, measurement-error treatment, representative development data,
-      calibration, and independent validation.
+      This metadata-only draft cannot use the cited group-average
+      exercise-response review to produce an individual probability, safe target
+      range, session count, or expected 5 km outcome. Any future individualized
+      quantitative policy needs a defined outcome, measurement-error treatment,
+      representative development data, calibration, and independent validation.
     source_ids:
       - bonafiglia-2021
     evidence_strength: moderate
-    effect_estimates:
-      - metric: Studies statistically estimating interindividual trainability
-        estimate: 9
-        unit: studies
-        context: 9 of 149 studies in the retained systematic review
     applicable_population:
       - Adults completing standardized exercise interventions
       - Recreational outdoor 5 km runners only as a future validation population

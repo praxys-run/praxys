@@ -197,6 +197,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     assert five_km_review.supersedes == []
     assert five_km_review.superseded_by is None
     assert five_km_review.method.review_type.value == "rapid"
+    assert all(not claim.effect_estimates for claim in five_km_review.claims)
     assert any(
         "live PubMed ESearch/EFetch, Crossref Works, and DOI-resolver requests failed"
         in limitation
