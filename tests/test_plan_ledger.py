@@ -120,7 +120,7 @@ def test_alembic_head_includes_mcp_access_grants():
 
     config = Config("alembic.ini")
     script = ScriptDirectory.from_config(config)
-    assert script.get_current_head() == "e6a7b8c9d0f1"
+    assert script.get_current_head() == "f7b8c9d0e1f2"
     assert script.get_revision("e6a7b8c9d0f1").down_revision == "d95e6f7a8b9c"
     assert script.get_revision("d95e6f7a8b9c").down_revision == "c84f0912ab6d"
 

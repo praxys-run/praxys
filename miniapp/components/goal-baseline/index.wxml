@@ -14,7 +14,7 @@
     <text wx:if="{{notice}}" class="baseline-success">{{notice}}</text>
     <text wx:if="{{errorMessage}}" class="baseline-error">{{errorMessage}}</text>
     <text class="baseline-copy">{{baseline.science_note.description}}</text>
-    <view class="baseline-action" bindtap="onCopyScienceSource"><text>Source</text></view>
+    <view class="baseline-action" bindtap="onCopyScienceSource"><text>{{copy.sourceLabel}}</text></view>
   </view>
 
   <view class="ts-card baseline-card">

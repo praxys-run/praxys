@@ -84,6 +84,7 @@ function buildCopy(locale: 'en' | 'zh') {
     cancel: zh ? '取消' : 'Cancel',
     save: zh ? '保存' : 'Save',
     success: zh ? '已更新 5 公里基线。' : 'Updated the 5K baseline.',
+    sourceLabel: zh ? '来源' : 'Source',
     recordUnavailable: zh ? '当前没有可记录的同步候选活动。' : 'No synced candidate is available yet.',
   };
 }
