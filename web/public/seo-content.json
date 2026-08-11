@@ -19,20 +19,21 @@
         "path": "/",
         "alternatePath": "/zh",
         "title": "Praxys — Science-grounded training decisions for runners",
-        "description": "Praxys interprets Garmin, Stryd, and Oura data into daily training decisions, adaptive plans, race forecasts, and cited sport-science explanations.",
+        "description": "Praxys interprets Garmin, Strava, COROS, Stryd, and Oura data into daily training decisions, adaptive plans, race forecasts, and cited sport-science explanations.",
         "heading": "Turn training data into a decision.",
+        "headingAccent": "a decision.",
         "lead": "Praxys is a science-grounded endurance training system for self-coached runners. It combines your training and recovery data, explains what it means, and recommends the next action.",
         "summaryPoints": [
-          "Choose power, heart rate, or pace as your training base.",
-          "Use a managed 14-day plan window with explicit delivery and ownership controls.",
-          "Join opt-in Praxys Labs experiments without turning early research into training advice."
+          "Daily decisions · go, modify, or rest, with the reasoning visible.",
+          "Training direction · zones, thresholds, plans, and race forecasts adapt to your data.",
+          "Science with boundaries · cited methods, explicit limitations, and opt-in Labs research."
         ]
       },
       "product": {
         "path": "/product",
         "alternatePath": "/zh/product",
         "title": "Praxys product capabilities — Training decisions, plans, Labs, and forecasts",
-        "description": "See how Praxys turns Garmin, Stryd, and Oura data into daily readiness decisions, training diagnosis, managed plans, race forecasts, and opt-in Labs research.",
+        "description": "See how Praxys turns Garmin, Strava, COROS, Stryd, and Oura data into daily readiness decisions, training diagnosis, plans, race forecasts, and opt-in research.",
         "heading": "A training system that takes a position.",
         "lead": "Praxys is built for runners who want an answer, not another dashboard. It interprets fragmented training data into a clear recommendation, then shows the evidence and published methodology behind it.",
         "sections": [
@@ -62,7 +63,7 @@
           }
         ],
         "dataHeading": "Data sources and training bases",
-        "dataBody": "Praxys currently ingests Garmin activities and fitness data, Stryd running-power data, and Oura recovery data. Athletes can train by power, heart rate, or pace; running power is supported deeply but is not required.",
+        "dataBody": "Praxys currently connects to Garmin and COROS for activities, fitness, and recovery signals; Strava for activities; Stryd for running power and training plans; and Oura for recovery. Athletes can train by power, heart rate, or pace; running power is supported deeply but is not required.",
         "boundaryHeading": "What the AI coach does not do",
         "boundaries": [
           "It does not replace medical care or present research experiments as safety advice.",
@@ -74,7 +75,7 @@
         "path": "/faq",
         "alternatePath": "/zh/faq",
         "title": "Praxys FAQ — Running power, recovery, managed plans, privacy, and China access",
-        "description": "Direct answers about Praxys training bases, Garmin/Stryd/Oura data, AI coaching, managed plans, Labs, privacy, and the planned praxys.cn mainland-China domain.",
+        "description": "Direct answers about Praxys training bases, Garmin, Strava, COROS, Stryd, and Oura data, AI coaching, plans, privacy, and the planned praxys.cn mainland-China domain.",
         "heading": "Questions runners ask before trusting a training system.",
         "lead": "Short answers first. Praxys is specific about what it can infer, what remains uncertain, and where athlete consent sets the boundary.",
         "questions": [
@@ -84,7 +85,7 @@
           },
           {
             "question": "Which platforms does Praxys use?",
-            "answer": "The core data path supports Garmin for activities and fitness data, Stryd for running power, and Oura for recovery. Platform connections remain private to the athlete's account."
+            "answer": "Praxys currently connects to Garmin and COROS for activities, fitness, and recovery signals; Strava for activities; Stryd for running power and training plans; and Oura for recovery. Platform connections remain private to the athlete's account."
           },
           {
             "question": "How is Praxys different from a generic AI running coach?",
@@ -123,20 +124,21 @@
         "path": "/zh",
         "alternatePath": "/",
         "title": "Praxys — 为跑者提供有科学依据的训练决策",
-        "description": "Praxys 将 Garmin、Stryd 与 Oura 数据转化为每日训练决策、动态计划、比赛预测和带文献来源的运动科学解释。",
+        "description": "Praxys 将 Garmin、Strava、COROS、Stryd 与 Oura 数据转化为每日训练决策、动态计划、比赛预测和带文献来源的运动科学解释。",
         "heading": "把训练数据，变成明确决策。",
+        "headingAccent": "明确决策。",
         "lead": "Praxys 是为自主训练跑者打造的科学训练系统。它整合训练与恢复数据，解释这些数据意味着什么，并给出下一步行动建议。",
         "summaryPoints": [
-          "可选择功率、心率或配速作为训练基础。",
-          "通过明确的交付与归属控制，管理未来 14 天的滚动训练计划。",
-          "自愿参加 Praxys Labs 实验，同时避免把早期研究误当作训练建议。"
+          "每日决策 · 给出正常训练、调整或休息的信号，并展示判断依据。",
+          "训练方向 · 区间、阈值、计划与比赛预测会随数据持续调整。",
+          "科学边界 · 方法有来源、限制明确，Labs 研究仅在自愿参与后进行。"
         ]
       },
       "product": {
         "path": "/zh/product",
         "alternatePath": "/product",
         "title": "Praxys 产品能力 — 训练决策、计划、Labs 与比赛预测",
-        "description": "了解 Praxys 如何把 Garmin、Stryd 与 Oura 数据转化为每日状态判断、训练诊断、托管计划、比赛预测和自愿参与的 Labs 研究。",
+        "description": "了解 Praxys 如何把 Garmin、Strava、COROS、Stryd 与 Oura 数据转化为每日状态判断、训练诊断、计划、比赛预测和自愿研究。",
         "heading": "一个会明确给出判断的训练系统。",
         "lead": "Praxys 面向需要答案、而不是更多仪表盘的跑者。它把分散的训练数据解释成清晰建议，并展示建议背后的证据与已发表方法。",
         "sections": [
@@ -166,7 +168,7 @@
           }
         ],
         "dataHeading": "数据来源与训练基础",
-        "dataBody": "Praxys 当前接入 Garmin 活动与体能数据、Stryd 跑步功率数据和 Oura 恢复数据。跑者可以按功率、心率或配速训练；系统深入支持跑步功率，但不要求必须使用。",
+        "dataBody": "Praxys 当前可连接 Garmin 与 COROS 的活动、体能和恢复信号，Strava 的活动数据，Stryd 的跑步功率与训练计划，以及 Oura 的恢复数据。跑者可以按功率、心率或配速训练；系统深入支持跑步功率，但不要求必须使用。",
         "boundaryHeading": "AI 教练不会做什么",
         "boundaries": [
           "不会替代医疗服务，也不会把研究实验包装成安全建议。",
@@ -178,7 +180,7 @@
         "path": "/zh/faq",
         "alternatePath": "/faq",
         "title": "Praxys 常见问题 — 跑步功率、恢复、托管计划、隐私与中国访问",
-        "description": "直接了解 Praxys 的训练基础、Garmin/Stryd/Oura 数据、AI 教练、托管计划、Labs、隐私以及计划中的 praxys.cn 中国大陆域名。",
+        "description": "直接了解 Praxys 的训练基础、Garmin、Strava、COROS、Stryd 与 Oura 数据、AI 教练、计划、隐私以及计划中的 praxys.cn 中国大陆域名。",
         "heading": "在信任一个训练系统之前，跑者常问的问题。",
         "lead": "先给直接答案。Praxys 会明确说明能够推断什么、哪些地方仍有不确定性，以及跑者的同意如何划定边界。",
         "questions": [
@@ -188,7 +190,7 @@
           },
           {
             "question": "Praxys 使用哪些平台的数据？",
-            "answer": "核心数据链路支持 Garmin 的活动与体能数据、Stryd 的跑步功率数据，以及 Oura 的恢复数据。平台连接信息始终只属于对应跑者账号。"
+            "answer": "Praxys 当前可连接 Garmin 与 COROS 的活动、体能和恢复信号，Strava 的活动数据，Stryd 的跑步功率与训练计划，以及 Oura 的恢复数据。平台连接信息始终只属于对应跑者账号。"
           },
           {
             "question": "Praxys 与通用 AI 跑步教练有什么不同？",

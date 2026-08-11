@@ -31,8 +31,6 @@ type Copy = {
   signIn: string;
   exitDemo: string;
   heroEyebrow: string;
-  heroTitle: { before: string; accent: string };
-  heroSub: string;
   ctaPrimary: string;
   ctaContinueDemo: string;
   ctaSecondary: string;
@@ -55,9 +53,6 @@ type Copy = {
   faqLink: string;
   discoverTitle: string;
   discoverBody: string;
-  discoverManaged: string;
-  discoverLabs: string;
-  discoverScience: string;
   vizCpLabel: string;
   vizCpDelta: string;
   vizCpUnit: string;
@@ -74,13 +69,7 @@ const COPY: Record<SupportedLocale, Copy> = {
   en: {
     signIn: 'Sign in',
     exitDemo: 'Exit demo',
-    heroEyebrow: 'Running · Sport science · Personalized',
-    heroTitle: {
-      before: 'Train like a pro.\n',
-      accent: 'Whatever your level.',
-    },
-    heroSub:
-      'Praxys turns your runs into science-grounded insights, personalized zones, and a training plan that evolves with you. For every runner — road to trail, first-timer to veteran.',
+    heroEyebrow: 'Endurance training · Decisions · Evidence',
     ctaPrimary: 'Try the demo',
     ctaContinueDemo: 'Continue to demo',
     ctaSecondary: 'Create account',
@@ -89,8 +78,8 @@ const COPY: Record<SupportedLocale, Copy> = {
     demoActiveNote: 'Demo session active — data is read-only.',
     featuresEyebrow: 'Why Praxys',
     featuresTitle: {
-      before: 'Pro-level training, ',
-      accent: 'made accessible',
+      before: 'Interpretation first. ',
+      accent: 'Evidence always',
       after: '.',
     },
     features: [
@@ -102,18 +91,18 @@ const COPY: Record<SupportedLocale, Copy> = {
       },
       {
         idx: '02 · Personalized',
-        title: 'Your data becomes your plan.',
+        title: 'Your data becomes your next action.',
         body:
-          'Praxys maps your runs into actionable insight — training zones, thresholds, race predictions, and a 4-week plan tuned to your fitness and fatigue. Everything adjusts as you do.',
+          'Praxys turns training and recovery data into a daily signal, personalized zones, threshold trends, race forecasts, and plans that adjust as your fitness and fatigue change.',
       },
       {
         idx: '03 · AI-native',
-        title: 'AI that reasons like a coach.',
+        title: 'AI is a layer, not the foundation.',
         body:
-          'Beyond charts: Praxys\'s AI interprets your training with the same published research behind every metric — flagging trends, explaining why, recommending what\'s next. Natural-language deep-dive via our Claude Code plugin.',
+          'Cited metrics and deterministic rules work without an AI service. When enabled, AI adds explanation, planning, and natural-language analysis without replacing the evidence underneath.',
       },
     ],
-    platformsLabel: 'Supports',
+    platformsLabel: 'Connects with',
     closeTitle: 'Ready to see what your training really says?',
     closeCtaPrimary: 'Try the demo',
     closeCtaSecondary: 'Create account',
@@ -124,11 +113,8 @@ const COPY: Record<SupportedLocale, Copy> = {
     privacyLink: 'Privacy',
     productLink: 'Product',
     faqLink: 'FAQ',
-    discoverTitle: 'See the whole system, not just the dashboard.',
-    discoverBody: 'Praxys now spans daily decisions, managed training plans, race forecasts, and opt-in Labs research. The public product guide explains the boundaries and evidence behind each capability.',
-    discoverManaged: 'Managed plans · rolling 14-day delivery with explicit ownership',
-    discoverLabs: 'Praxys Labs · voluntary historical experiments, never silent advice',
-    discoverScience: 'Science · cited formulas, visible limitations, configurable theories',
+    discoverTitle: 'From today’s decision to the season ahead.',
+    discoverBody: 'Praxys connects daily readiness, weekly diagnosis, adaptive planning, race forecasts, and opt-in research in one evidence-led training system.',
     vizCpLabel: 'Your CP',
     vizCpDelta: '+6 W · 14 d',
     vizCpUnit: 'W',
@@ -141,13 +127,7 @@ const COPY: Record<SupportedLocale, Copy> = {
   zh: {
     signIn: '登录',
     exitDemo: '退出演示',
-    heroEyebrow: '跑步 · 运动科学 · 个性化',
-    heroTitle: {
-      before: '像专业选手一样训练，\n',
-      accent: '无论水平高低。',
-    },
-    heroSub:
-      'Praxys 把你的跑步数据转化为有科学依据的洞察、个性化训练区间，以及一份随你进步而演进的训练方案。面向每一位跑者——从公路到越野、从新手到老将。',
+    heroEyebrow: '耐力训练 · 明确决策 · 科学依据',
     ctaPrimary: '试用演示',
     ctaContinueDemo: '继续演示',
     ctaSecondary: '创建账号',
@@ -156,8 +136,8 @@ const COPY: Record<SupportedLocale, Copy> = {
     demoActiveNote: '演示会话进行中 — 数据为只读。',
     featuresEyebrow: '为什么选择 Praxys',
     featuresTitle: {
-      before: '让专业级训练，',
-      accent: '人人可及',
+      before: '先给判断，',
+      accent: '始终展示依据',
       after: '。',
     },
     features: [
@@ -169,18 +149,18 @@ const COPY: Record<SupportedLocale, Copy> = {
       },
       {
         idx: '02 · 个性化',
-        title: '让你的数据，变成你的方案。',
+        title: '让你的数据，变成下一步行动。',
         body:
-          'Praxys 把你的跑步数据转化为可以直接执行的洞察——训练区间、阈值、比赛预测，以及依据你当下体能与疲劳状态生成的 4 周计划。你在变，方案也跟着变。',
+          'Praxys 把训练与恢复数据转化为每日信号、个性化区间、阈值趋势、比赛预测和训练计划，并随体能与疲劳变化持续调整。',
       },
       {
         idx: '03 · AI 原生',
-        title: '像教练一样推理的 AI。',
+        title: 'AI 是增强层，不是地基。',
         body:
-          '不止于图表：Praxys 的 AI 会以运动科学家的方式解读你的训练，依据与每个指标同源的研究，发现趋势、解释原因、给出下一步建议。通过我们的 Claude Code 插件，用自然语言深入对话。',
+          '即使没有 AI 服务，带文献来源的指标和确定性规则仍能运行。启用 AI 后，它会增加解释、计划和自然语言分析，但不会取代底层证据。',
       },
     ],
-    platformsLabel: '支持',
+    platformsLabel: '可连接',
     closeTitle: '想听听，你的训练到底在说什么吗？',
     closeCtaPrimary: '试用演示',
     closeCtaSecondary: '创建账号',
@@ -191,11 +171,8 @@ const COPY: Record<SupportedLocale, Copy> = {
     privacyLink: '隐私政策',
     productLink: '产品',
     faqLink: '常见问题',
-    discoverTitle: '看到完整训练系统，而不只是一个仪表盘。',
-    discoverBody: 'Praxys 现已覆盖每日决策、托管训练计划、比赛预测和自愿参与的 Labs 研究。公共产品指南会说明每项能力背后的边界与证据。',
-    discoverManaged: '托管计划 · 未来 14 天滚动交付，并明确训练归属',
-    discoverLabs: 'Praxys Labs · 自愿参与历史实验，不会悄悄转化为建议',
-    discoverScience: '科学依据 · 公式有来源、限制可见、理论可配置',
+    discoverTitle: '从今天怎么练，到整个赛季怎么走。',
+    discoverBody: 'Praxys 把每日状态、每周诊断、动态计划、比赛预测和自愿研究连接成一套以证据为基础的训练系统。',
     vizCpLabel: '你的 CP',
     vizCpDelta: '+6 W · 14 天',
     vizCpUnit: '瓦',
@@ -215,6 +192,11 @@ export default function Landing({ publicLocale }: { publicLocale?: SupportedLoca
   const activeLocale = publicLocale ?? locale;
   const t = COPY[activeLocale];
   const publicNav = publicContent.locales[activeLocale];
+  const homePage = publicNav.home;
+  const heroAccent = homePage.headingAccent;
+  const heroHeading = heroAccent && homePage.heading.endsWith(heroAccent)
+    ? homePage.heading.slice(0, -heroAccent.length)
+    : homePage.heading;
   usePublicSeo('home', activeLocale);
 
   useEffect(() => {
@@ -283,15 +265,10 @@ export default function Landing({ publicLocale }: { publicLocale?: SupportedLoca
         <section className="landing-hero">
           <div className="landing-hero-eyebrow landing-rise landing-rise-1">{t.heroEyebrow}</div>
           <h1 className="landing-rise landing-rise-2">
-            {t.heroTitle.before.split('\n').map((line, i, arr) => (
-              <span key={i}>
-                {line}
-                {i < arr.length - 1 && <br />}
-              </span>
-            ))}
-            <span className="accent">{t.heroTitle.accent}</span>
+            {heroHeading}
+            {heroAccent && <span className="accent">{heroAccent}</span>}
           </h1>
-          <p className="landing-hero-sub landing-rise landing-rise-3">{t.heroSub}</p>
+          <p className="landing-hero-sub landing-rise landing-rise-3">{homePage.lead}</p>
           <div className="landing-hero-actions landing-rise landing-rise-4">
             <button
               type="button"
@@ -324,9 +301,7 @@ export default function Landing({ publicLocale }: { publicLocale?: SupportedLoca
             </div>
           </div>
           <ul>
-            <li>{t.discoverManaged}</li>
-            <li>{t.discoverLabs}</li>
-            <li>{t.discoverScience}</li>
+            {homePage.summaryPoints?.map((point) => <li key={point}>{point}</li>)}
           </ul>
         </section>
 
@@ -362,6 +337,8 @@ export default function Landing({ publicLocale }: { publicLocale?: SupportedLoca
         <section className="landing-platforms-band">
           <span className="label">{t.platformsLabel}</span>
           <img src="/logos/garmin.png" alt="Garmin" className="plogo plogo-garmin" onError={handleLogoError} />
+          <img src="/logos/strava.svg" alt="Strava" className="plogo plogo-strava" onError={handleLogoError} />
+          <img src="/logos/coros.png" alt="COROS" className="plogo plogo-coros" onError={handleLogoError} />
           <img src="/logos/stryd.svg" alt="Stryd" className="plogo plogo-stryd" onError={handleLogoError} />
           <img src="/logos/oura.svg" alt="Oura" className="plogo plogo-oura" onError={handleLogoError} />
         </section>

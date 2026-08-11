@@ -19,6 +19,7 @@ export type PublicPage = {
   title: string;
   description: string;
   heading: string;
+  headingAccent?: string;
   lead: string;
   summaryPoints?: string[];
   sections?: PublicSection[];

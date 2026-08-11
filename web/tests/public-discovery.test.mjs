@@ -20,6 +20,18 @@ test('public pages have unique canonical paths and metadata', () => {
   for (const page of pages) {
     assert.ok(page.heading.length > 10);
     assert.ok(page.lead.length > 40);
+    if (page.headingAccent) assert.ok(page.heading.endsWith(page.headingAccent));
+  }
+});
+
+test('public product copy names every current platform connection', () => {
+  for (const locale of Object.values(content.locales)) {
+    const productText = JSON.stringify(locale.product);
+    const faqText = JSON.stringify(locale.faq);
+    for (const platform of ['Garmin', 'Strava', 'COROS', 'Stryd', 'Oura']) {
+      assert.match(productText, new RegExp(platform, 'i'));
+      assert.match(faqText, new RegExp(platform, 'i'));
+    }
   }
 });
 

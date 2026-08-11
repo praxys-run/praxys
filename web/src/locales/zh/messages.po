@@ -4060,7 +4060,7 @@ msgstr "Labs 操作失败"
 msgid "Labs could not load"
 msgstr "无法加载 Labs"
 
-#: src/App.tsx:100
+#: src/App.tsx:101
 msgid "Labs page update required"
 msgstr "需要更新 Labs 页面"
 
@@ -5931,7 +5931,7 @@ msgstr "Praxys 无法确定所在时区。请检查设备设置后重试。"
 msgid "Praxys could not finish delivery. Retrying keeps the Praxys version canonical."
 msgstr "Praxys 未能完成下发。重试后仍以 Praxys 版本为准。"
 
-#: src/App.tsx:103
+#: src/App.tsx:104
 msgid "Praxys could not finish loading this page after an app update. Reload once to use the current version."
 msgstr "应用更新后，此页面未能完成加载。重新加载一次即可使用最新版本。"
 
@@ -6914,7 +6914,7 @@ msgstr "相对模型心率"
 msgid "Relative modeled HR (bpm)"
 msgstr "相对模型心率（bpm）"
 
-#: src/App.tsx:112
+#: src/App.tsx:113
 msgid "Reload Labs"
 msgstr "重新加载 Labs"
 
