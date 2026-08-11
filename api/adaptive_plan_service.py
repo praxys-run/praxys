@@ -380,6 +380,58 @@ def _archive_expired_draft(
     return True
 
 
+def _expire_proposal_if_needed(
+    db: Session,
+    *,
+    user_id: str,
+    proposal: PlanProposal,
+    now: datetime,
+) -> bool:
+    if proposal.state != "draft" or not _proposal_expired(proposal, now=now):
+        return False
+    adaptive_plan = db.execute(
+        select(AdaptivePlan).where(
+            AdaptivePlan.user_id == user_id,
+            AdaptivePlan.id == proposal.adaptive_plan_id,
+        ).with_for_update()
+    ).scalar_one()
+    proposal.state = "expired"
+    proposal.decided_at = now
+    if adaptive_plan.active_proposal_id == proposal.id:
+        adaptive_plan.active_proposal_id = None
+    if adaptive_plan.version == 0:
+        adaptive_plan.lifecycle = "archived"
+    return True
+
+
+def _idempotent_proposal_hit(
+    db: Session,
+    *,
+    user_id: str,
+    proposal: PlanProposal,
+) -> dict[str, Any]:
+    try:
+        db.rollback()
+        lock_plan_writes(db, user_id)
+        locked = db.execute(
+            select(PlanProposal).where(
+                PlanProposal.user_id == user_id,
+                PlanProposal.id == proposal.id,
+            ).with_for_update()
+        ).scalar_one()
+        if _expire_proposal_if_needed(
+            db,
+            user_id=user_id,
+            proposal=locked,
+            now=datetime.utcnow(),
+        ):
+            db.commit()
+        return _proposal_to_dict(db, locked)
+    except Exception:
+        db.rollback()
+        raise
+
+
 def create_draft_proposal(
     db: Session,
     *,
@@ -390,7 +442,7 @@ def create_draft_proposal(
     """Create the first immutable proposal for a new adaptive plan aggregate."""
     existing = _existing_proposal_for_key(db, user_id=user_id, idempotency_key=payload.idempotency_key)
     if existing is not None:
-        return _proposal_to_dict(db, existing)
+        return _idempotent_proposal_hit(db, user_id=user_id, proposal=existing)
     goal = _validate_goal(payload.goal)
     workouts = _validate_workouts(
         payload.workouts,
@@ -459,7 +511,7 @@ def create_draft_proposal(
         db.rollback()
         existing = _existing_proposal_for_key(db, user_id=user_id, idempotency_key=payload.idempotency_key)
         if existing is not None:
-            return _proposal_to_dict(db, existing)
+            return _idempotent_proposal_hit(db, user_id=user_id, proposal=existing)
         raise AdaptivePlanError(409, "ADAPTIVE_PLAN_CONFLICT", "Adaptive plan proposal could not be created.") from exc
     except Exception:
         db.rollback()

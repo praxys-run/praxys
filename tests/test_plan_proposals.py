@@ -349,6 +349,10 @@ def test_expired_current_proposal_does_not_block_new_draft(proposal_client):
     created = client.post("/api/plan/proposals", json=payload)
     assert created.status_code == 201, created.text
 
+    retry = client.post("/api/plan/proposals", json=payload)
+    assert retry.status_code == 201, retry.text
+    assert retry.json()["state"] == "expired"
+
     current = client.get("/api/plan/proposals/current")
     assert current.status_code == 404
 
