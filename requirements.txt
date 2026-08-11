@@ -11,7 +11,7 @@
 # exception text "JWT_WEB cookie not set after ticket consumption". A
 # minor-version bump can rename either. Re-validate with
 # scripts/garmin_diagnose.py before loosening this bound.
-garminconnect>=0.3.8,<0.4.0
+garminconnect>=0.3.9,<0.4.0
 requests>=2.34.2
 python-dotenv>=1.2.2
 pandas>=3.0.5
@@ -28,10 +28,10 @@ aiosqlite>=0.22.1
 # SQLite (aiosqlite above) stays the default for local dev + tests.
 psycopg[binary]>=3.3.4
 alembic>=1.18.5
-fastapi-users[sqlalchemy]>=13.0.0
+fastapi-users[sqlalchemy]>=15.0.5
 cryptography>=48.0.0
 azure-identity>=1.25.3
-azure-keyvault-keys>=4.11.0
+azure-keyvault-keys>=4.11.1
 gunicorn>=26.0.0
 PyJWT>=2.13.0
 httpx>=0.28.1
@@ -44,7 +44,7 @@ statsig>=0.72.0,<1.0.0
 # Insights. No-op when APPLICATIONINSIGHTS_CONNECTION_STRING is unset, so
 # local dev is unaffected. The distro bundles the OTel instrumentations
 # for FastAPI, requests, SQLAlchemy, and logging.
-azure-monitor-opentelemetry>=1.6.0
+azure-monitor-opentelemetry>=1.8.9
 # Required for privacy-safe, high-cardinality product/feedback customEvents.
 azure-monitor-events-extension==0.1.0
 # Resource-context, managed-identity log queries for the admin operations
@@ -75,4 +75,4 @@ azure-servicebus>=7.14.3,<8.0.0
 # Headless Chromium via Playwright is used by scripts/generate_og_card.py
 # to rasterize web/public/og-card*.html into PNGs for OpenGraph / WeChat
 # share previews. See that script's docstring for setup/run notes.
-playwright==1.61.0
+playwright==1.62.0
