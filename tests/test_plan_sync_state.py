@@ -1369,7 +1369,7 @@ def test_windowed_view_cannot_reclassify_moved_owned_workout_as_target_only(
 
 def test_orphaned_delivery_observation_stays_visible_as_target_only(api_client):
     client, user_id = api_client
-    target = date.today() + timedelta(days=3)
+    target = date.today()
     _seed_synced_delivery(
         user_id,
         target,
