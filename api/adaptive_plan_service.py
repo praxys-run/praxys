@@ -572,6 +572,14 @@ def create_successor_proposal(
             raise AdaptivePlanError(404, "PLAN_PROPOSAL_NOT_FOUND", "Plan proposal not found.")
         if parent.version != expected_version:
             raise AdaptivePlanError(409, "PLAN_PROPOSAL_STALE", "The proposal version is stale.", current_version=parent.version)
+        if _expire_proposal_if_needed(
+            db,
+            user_id=user_id,
+            proposal=parent,
+            now=datetime.utcnow(),
+        ):
+            db.commit()
+            raise AdaptivePlanError(409, "PLAN_PROPOSAL_EXPIRED", "The proposal has expired.")
         if parent.state != "draft":
             raise AdaptivePlanError(409, "PLAN_PROPOSAL_NOT_EDITABLE", "Only draft proposals can be edited.", state=parent.state)
         adaptive_plan = db.execute(

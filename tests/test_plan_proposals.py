@@ -348,6 +348,16 @@ def test_expired_current_proposal_does_not_block_new_draft(proposal_client):
     payload["expires_at"] = (datetime.utcnow() - timedelta(minutes=5)).isoformat()
     created = client.post("/api/plan/proposals", json=payload)
     assert created.status_code == 201, created.text
+    created_body = created.json()
+
+    edit_payload = _proposal_payload(key="edit-expired-parent")
+    edit_payload["expected_version"] = 1
+    edit = client.post(
+        f"/api/plan/proposals/{created_body['id']}/edits",
+        json=edit_payload,
+    )
+    assert edit.status_code == 409
+    assert edit.json()["detail"]["code"] == "PLAN_PROPOSAL_EXPIRED"
 
     retry = client.post("/api/plan/proposals", json=payload)
     assert retry.status_code == 201, retry.text
