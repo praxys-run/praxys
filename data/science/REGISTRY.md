@@ -15,6 +15,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 | [evidence-heat-adaptation-v1](evidence/heat-adaptation/evidence-heat-adaptation-v1.yaml) — Repeated-exposure heat adaptation | 1 | heat-adaptation | 2026-07-25 |
 | [evidence-heat-decay-v1](evidence/heat-decay/evidence-heat-decay-v1.yaml) — Heat adaptation decay and re-induction | 1 | heat-decay | 2026-07-25 |
 | [evidence-personal-environment-response-v1](evidence/personal-environment-response/evidence-personal-environment-response-v1.yaml) — Personal retrospective environmental and heart-rate associations | 1 | personal-environment-response | 2026-08-08 |
+| [evidence-preplan-baseline-policy-v1](evidence/preplan-baseline-policy/evidence-preplan-baseline-policy-v1.yaml) — History-first pre-plan baseline evidence for 5 km road performance | 1 | preplan-baseline-policy | 2026-08-10 |
 
 ### Science decisions
 
@@ -22,6 +23,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 |---|---:|---|---|
 | [sdr-environmental-performance-v4](decisions/sdr-environmental-performance-v4.yaml) — Center comparable-power support on each athlete's observed training workload | 4 | environmental-performance-context-v4 | 2026-08-10 |
 | [sdr-heat-adaptation-v1](decisions/sdr-heat-adaptation-v1.yaml) — Interpret recent heat exposure as qualitative adaptation evidence | 1 | heat-adaptation-v8 | 2026-07-26 |
+| [sdr-preplan-baseline-policy-v1](decisions/sdr-preplan-baseline-policy-v1.yaml) — Use qualified 5 km history before offering an opt-in same-protocol baseline | 1 | preplan-baseline-policy-v1 | 2026-08-10 |
 
 ## Pending
 

@@ -35,6 +35,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "evidence-individual-goal-feasibility-v1",
         "evidence-plan-outcome-interpretation-v1",
         "evidence-personal-environment-response-v1",
+        "evidence-preplan-baseline-policy-v1",
         "evidence-running-field-tests-v1",
         "evidence-short-interruption-detraining-v1",
     }
@@ -45,6 +46,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "sdr-environmental-performance-v3",
         "sdr-environmental-performance-v4",
         "sdr-heat-adaptation-v1",
+        "sdr-preplan-baseline-policy-v1",
     }
     assert registry.evidence_reviews[
         "evidence-personal-environment-response-v1"
@@ -67,6 +69,119 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     assert registry.decisions[
         "sdr-adaptive-plan-feasibility-and-adjustment-v1"
     ].status == "draft"
+    assert registry.evidence_reviews[
+        "evidence-preplan-baseline-policy-v1"
+    ].status == "accepted"
+    assert registry.decisions["sdr-preplan-baseline-policy-v1"].status == (
+        "accepted"
+    )
+    baseline_review = registry.evidence_reviews[
+        "evidence-preplan-baseline-policy-v1"
+    ]
+    baseline_decision = registry.decisions[
+        "sdr-preplan-baseline-policy-v1"
+    ]
+    assert baseline_review.human_reviewers == ["github:dddtc2005"]
+    assert baseline_review.reviewed_on == date(2026, 8, 10)
+    assert baseline_decision.human_reviewers == ["github:dddtc2005"]
+    assert baseline_decision.decision_date == date(2026, 8, 10)
+    baseline_parameters = {
+        parameter.name: parameter
+        for parameter in baseline_decision.model_parameters
+    }
+    baseline_claims = {claim.id: claim for claim in baseline_review.claims}
+    assert baseline_parameters["personal_success_probability"].value == (
+        "disabled"
+    )
+    assert baseline_parameters["initial_scope"].value["age"] == "18_plus"
+    assert (
+        "baseline.current-capability-not-change-comparability"
+        in baseline_claims
+    )
+    hierarchy = baseline_parameters["baseline_evidence_hierarchy"].value
+    assert hierarchy["direct_current_capability"] == [
+        "verified_measured_5_km_race",
+        "explicitly_confirmed_intentional_all_out_5_km_effort_with_sufficient_distance_timing_and_provenance",
+    ]
+    assert hierarchy["direct_longitudinal_change"] == [
+        "same_protocol_5_km_observations_with_comparable_route_environment_recovery_timing_and_assistance"
+    ]
+    assert (
+        "arbitrary_5_km_segment_or_best_split_inside_another_workout"
+        in hierarchy["insufficient"]
+    )
+    history_qualification = baseline_parameters[
+        "history_first_qualification"
+    ].value
+    assert history_qualification["order"][0] == (
+        "search_existing_athlete_history_before_any_test_offer"
+    )
+    assert history_qualification["candidate_unit"] == (
+        "complete_activity_or_verified_race_result"
+    )
+    assert history_qualification["athlete_confirmation"] == {
+        "required_for_nonrace_all_out_effort": True,
+        "must_be_explicit": True,
+        "infer_from_pace_power_or_ranking": "prohibited",
+        "absent_or_ambiguous_response": "insufficient_evidence",
+    }
+    assert history_qualification["segment_and_sample_use"][
+        "arbitrary_5_km_segment_or_best_split_as_baseline"
+    ] == "prohibited"
+    assert history_qualification["segment_and_sample_use"][
+        "create_or_infer_performance_intent"
+    ] == "prohibited"
+    assert history_qualification["power_source"]["prohibited"] == [
+        "activity_avg_power"
+    ]
+    assert history_qualification["power_source"]["allowed"] == [
+        "activity_splits",
+        "activity_samples",
+    ]
+    pilot_offer = baseline_parameters["pilot_offer_policy"].value
+    assert pilot_offer["offer_only_when_current_capability_status"] == [
+        "missing",
+        "stale",
+        "incomparable",
+    ]
+    assert pilot_offer["participation"] == "explicit_opt_in"
+    assert pilot_offer["account_access"] == "never_blocked"
+    freshness = baseline_parameters["freshness_age_calculation"].value
+    assert freshness["current_through_day"] == 42
+    assert freshness["stale_from_day"] == 43
+    assert freshness["stale_retention"] == "preserve_as_supporting_history"
+    comparability = baseline_parameters[
+        "longitudinal_change_comparability"
+    ].value
+    assert comparability["directly_comparable"] == (
+        "same_protocol_and_comparable_route_environment_recovery_timing_and_assistance"
+    )
+    assert comparability["supporting"] == (
+        "qualified_5_km_results_with_incomplete_change_comparability_but_no_known_material_mismatch"
+    )
+    assert comparability["incomparable"] == (
+        "protocol_or_material_conditions_prevent_before_after_interpretation"
+    )
+    assert baseline_parameters["safety_stop_path"].value[
+        "feasibility_assessment"
+    ] == "insufficient_evidence"
+    intensity_sources = baseline_parameters["intensity_evidence_source"].value
+    assert intensity_sources["allowed"] == [
+        "activity_splits",
+        "activity_samples",
+    ]
+    assert intensity_sources["prohibited"] == ["activity_avg_power"]
+    assert set(intensity_sources["allowed"]).isdisjoint(
+        intensity_sources["prohibited"]
+    )
+    assert all(
+        parameter.classification.value in {
+            "published",
+            "estimate",
+            "guardrail",
+        }
+        for parameter in baseline_parameters.values()
+    )
 
     decision = registry.decisions["sdr-heat-adaptation-v1"]
     assert decision.status == "accepted"
