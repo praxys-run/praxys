@@ -2,6 +2,7 @@
 
 from datetime import date
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import pandas as pd
 import pytest
@@ -203,6 +204,17 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     assert set(five_km_decision.evidence_claim_ids) == {
         claim.id for claim in five_km_review.claims
     }
+    five_km_pubmed_sources = [
+        source
+        for source in five_km_review.method.sources
+        if source.name.startswith("PubMed ")
+    ]
+    assert len(five_km_pubmed_sources) == 4
+    for source in five_km_pubmed_sources:
+        parsed_source = urlparse(source.search_string)
+        assert parsed_source.scheme == "https"
+        assert parsed_source.netloc == "eutils.ncbi.nlm.nih.gov"
+        assert parse_qs(parsed_source.query)["db"] == ["pubmed"]
     five_km_parameters = {
         parameter.name: parameter
         for parameter in five_km_decision.model_parameters

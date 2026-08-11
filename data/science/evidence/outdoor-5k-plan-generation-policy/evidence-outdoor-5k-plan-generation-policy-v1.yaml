@@ -52,31 +52,13 @@ method:
   search_date: 2026-08-11
   sources:
     - name: PubMed ESearch - recreational runner training and progression
-      search_string: >
-        GET https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?
-        db=pubmed&retmode=json&retmax=20&term=((recreational
-        runner*[Title/Abstract]) OR (novice runner*[Title/Abstract])) AND
-        (training[Title/Abstract] OR plan[Title/Abstract] OR
-        progression[Title/Abstract] OR periodization[Title/Abstract]) AND
-        (adult[MeSH Terms])
+      search_string: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmode=json&retmax=20&term=%28%28recreational+runner%2A%5BTitle%2FAbstract%5D%29+OR+%28novice+runner%2A%5BTitle%2FAbstract%5D%29%29+AND+%28training%5BTitle%2FAbstract%5D+OR+plan%5BTitle%2FAbstract%5D+OR+progression%5BTitle%2FAbstract%5D+OR+periodization%5BTitle%2FAbstract%5D%29+AND+%28adult%5BMeSH+Terms%5D%29"
     - name: PubMed ESearch - running intensity distribution and structured training
-      search_string: >
-        GET https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?
-        db=pubmed&retmode=json&retmax=20&term=(running[Title/Abstract] OR
-        runner*[Title/Abstract]) AND ("training intensity
-        distribution"[Title/Abstract] OR periodization[Title/Abstract] OR
-        "structured training"[Title/Abstract]) AND adult[MeSH Terms]
+      search_string: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmode=json&retmax=20&term=%28running%5BTitle%2FAbstract%5D+OR+runner%2A%5BTitle%2FAbstract%5D%29+AND+%28%22training+intensity+distribution%22%5BTitle%2FAbstract%5D+OR+periodization%5BTitle%2FAbstract%5D+OR+%22structured+training%22%5BTitle%2FAbstract%5D%29+AND+adult%5BMeSH+Terms%5D"
     - name: PubMed ESearch - running workload and progression constraints
-      search_string: >
-        GET https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?
-        db=pubmed&retmode=json&retmax=20&term=(running[Title/Abstract] OR
-        endurance[Title/Abstract]) AND (progression[Title/Abstract] OR
-        "acute chronic workload"[Title/Abstract] OR "10% rule"[Title/Abstract])
-        AND adult[MeSH Terms]
+      search_string: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmode=json&retmax=20&term=%28running%5BTitle%2FAbstract%5D+OR+endurance%5BTitle%2FAbstract%5D%29+AND+%28progression%5BTitle%2FAbstract%5D+OR+%22acute+chronic+workload%22%5BTitle%2FAbstract%5D+OR+%2210%25+rule%22%5BTitle%2FAbstract%5D%29+AND+adult%5BMeSH+Terms%5D"
     - name: PubMed EFetch - exact candidate metadata and abstracts
-      search_string: >
-        GET https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?
-        db=pubmed&retmode=xml&id=23752040,17940147,32502973,34819869,26473759,18348590
+      search_string: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&retmode=xml&id=23752040%2C17940147%2C32502973%2C34819869%2C26473759%2C18348590"
     - name: Crossref Works API - exact DOI metadata
       search_string: >
         GET https://api.crossref.org/works/{doi} for
