@@ -334,6 +334,16 @@ def test_expired_proposal_adoption_rolls_back_without_delivery(proposal_client):
 
     assert adopt.status_code == 409
     assert adopt.json()["detail"]["code"] == "PLAN_PROPOSAL_EXPIRED"
+    retry = client.post(
+        f"/api/plan/proposals/{created['id']}/adopt",
+        json={
+            "expected_proposal_version": 1,
+            "expected_plan_version": 0,
+            "idempotency_key": "expired-adopt",
+        },
+    )
+    assert retry.status_code == 409
+    assert retry.json()["detail"]["code"] == "PLAN_PROPOSAL_EXPIRED"
     assert _training_plans(db_session) == []
     fresh = client.post(
         "/api/plan/proposals",
@@ -358,6 +368,12 @@ def test_expired_current_proposal_does_not_block_new_draft(proposal_client):
     )
     assert edit.status_code == 409
     assert edit.json()["detail"]["code"] == "PLAN_PROPOSAL_EXPIRED"
+    edit_retry = client.post(
+        f"/api/plan/proposals/{created_body['id']}/edits",
+        json=edit_payload,
+    )
+    assert edit_retry.status_code == 409
+    assert edit_retry.json()["detail"]["code"] == "PLAN_PROPOSAL_EXPIRED"
 
     retry = client.post("/api/plan/proposals", json=payload)
     assert retry.status_code == 201, retry.text
@@ -387,6 +403,12 @@ def test_expired_proposal_reject_returns_expired(proposal_client):
 
     assert reject.status_code == 409
     assert reject.json()["detail"]["code"] == "PLAN_PROPOSAL_EXPIRED"
+    retry = client.post(
+        f"/api/plan/proposals/{created['id']}/reject",
+        json={"expected_version": 1, "idempotency_key": "reject-expired"},
+    )
+    assert retry.status_code == 409
+    assert retry.json()["detail"]["code"] == "PLAN_PROPOSAL_EXPIRED"
 
 
 def test_expired_successor_idempotent_retry_returns_expired(proposal_client):

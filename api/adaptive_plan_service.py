@@ -572,6 +572,8 @@ def create_successor_proposal(
             raise AdaptivePlanError(404, "PLAN_PROPOSAL_NOT_FOUND", "Plan proposal not found.")
         if parent.version != expected_version:
             raise AdaptivePlanError(409, "PLAN_PROPOSAL_STALE", "The proposal version is stale.", current_version=parent.version)
+        if parent.state == "expired":
+            raise AdaptivePlanError(409, "PLAN_PROPOSAL_EXPIRED", "The proposal has expired.")
         if _expire_proposal_if_needed(
             db,
             user_id=user_id,
@@ -660,6 +662,8 @@ def reject_proposal(
         if proposal.state == "rejected" and proposal.decision_idempotency_key == idempotency_key:
             db.commit()
             return _proposal_to_dict(db, proposal)
+        if proposal.state == "expired":
+            raise AdaptivePlanError(409, "PLAN_PROPOSAL_EXPIRED", "The proposal has expired.")
         if proposal.state in _TERMINAL_PROPOSAL_STATES:
             raise AdaptivePlanError(409, "PLAN_PROPOSAL_DECIDED", "The proposal has already been decided.", state=proposal.state)
         if proposal.version != expected_version:
@@ -767,6 +771,8 @@ def adopt_proposal(
                 "revision_id": revision.id if revision else None,
                 "workouts": [plan_snapshot(row) for row in rows],
             }
+        if proposal.state == "expired":
+            raise AdaptivePlanError(409, "PLAN_PROPOSAL_EXPIRED", "The proposal has expired.")
         if proposal.state != "draft":
             raise AdaptivePlanError(409, "PLAN_PROPOSAL_NOT_ADOPTABLE", "Only active draft proposals can be adopted.", state=proposal.state)
         if proposal.version != expected_proposal_version:
