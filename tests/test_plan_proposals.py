@@ -187,6 +187,11 @@ def test_create_read_successor_and_reject_preserve_noncanonical_history(proposal
     assert reject.json()["state"] == "rejected"
     assert client.get("/api/plan/proposals/current").status_code == 404
     assert _training_plans(db_session) == []
+    fresh = client.post(
+        "/api/plan/proposals",
+        json=_proposal_payload(key="proposal-after-reject"),
+    )
+    assert fresh.status_code == 201, fresh.text
 
     from db.models import PlanProposal
 
@@ -329,3 +334,8 @@ def test_expired_proposal_adoption_rolls_back_without_delivery(proposal_client):
     assert adopt.status_code == 409
     assert adopt.json()["detail"]["code"] == "PLAN_PROPOSAL_EXPIRED"
     assert _training_plans(db_session) == []
+    fresh = client.post(
+        "/api/plan/proposals",
+        json=_proposal_payload(key="proposal-after-expiry"),
+    )
+    assert fresh.status_code == 201, fresh.text

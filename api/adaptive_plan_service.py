@@ -573,6 +573,8 @@ def reject_proposal(
         proposal.decision_idempotency_key = idempotency_key
         proposal.decided_at = datetime.utcnow()
         adaptive_plan.active_proposal_id = None
+        if adaptive_plan.version == 0:
+            adaptive_plan.lifecycle = "archived"
         db.commit()
     except AdaptivePlanError:
         db.rollback()
@@ -677,7 +679,9 @@ def adopt_proposal(
             proposal.state = "expired"
             proposal.decided_at = now
             adaptive_plan.active_proposal_id = None
-            db.flush()
+            if adaptive_plan.version == 0:
+                adaptive_plan.lifecycle = "archived"
+            db.commit()
             raise AdaptivePlanError(409, "PLAN_PROPOSAL_EXPIRED", "The proposal has expired.")
         goal = db.execute(
             select(AdaptivePlanGoalSnapshot).where(
