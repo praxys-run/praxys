@@ -1,7 +1,9 @@
 # Pre-plan baseline policy decision brief
 
-**Status:** Accepted science policy; approved by `@dddtc2005` on 2026-08-10;
-not implemented
+**Status:** Accepted science policy; approved by `@dddtc2005` on 2026-08-10.
+Issue #654 implements the first bounded API, persistence, web, and miniapp flow for
+`performance_5k` goals while broader validation, precision, and expansion work
+remain pending.
 
 **Canonical records:**
 
@@ -135,6 +137,36 @@ observed `missing`, `stale`, or `incomparable` status, return
 `insufficient_evidence`, and offer a deferred time criterion or an approved
 completion/consistency alternative. Never block the account, coerce a retest,
 or show a personal success probability.
+
+## Current implementation notes
+
+The first shipped implementation keeps the scope deliberately narrow:
+
+- A dedicated `performance_5k` goal kind activates the history-first baseline
+  flow. Existing race and continuous goals remain outside this pilot and return
+  `not_required`.
+- Candidate retrieval remains **full-activity only** and surfaces recent
+  near-5 km complete running activities for athlete review. Retrieval never
+  qualifies evidence by itself.
+- The current implementation uses a conservative **±0.25 km** near-5 km
+  review window for full-activity candidates. This is an implementation
+  heuristic for review, not a reviewed equivalence rule, and remains pending
+  prospective validation.
+- The UI states that the pilot is only for adults who already can complete
+  5 km. The repository does not yet store a dedicated profile field to enforce
+  that population boundary automatically at account level.
+- Qualification requires explicit athlete confirmation of measured distance,
+  elapsed timing without unresolved pauses, and either measured-race provenance
+  or intentional all-out effort.
+- Optional-test writes are explicit and auditable: offer, schedule, decline,
+  stop, and complete/invalidated actions persist versioned records and any
+  schedule uses the canonical workout/revision/delivery lane.
+- Export, account deletion, and aggregate-only admin evaluation include the
+  goal-baseline confirmation, snapshot, assessment, and optional-test records.
+
+The implementation does **not** add a meaningful-change threshold, cross-route
+comparability correction, personal success probability, or any automatic intent
+classification from pace, power, ranking, or fast segments.
 
 ## Accepted bounded decisions
 

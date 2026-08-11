@@ -660,6 +660,7 @@ def _update_settings(
     """Apply a settings update after any required provider lease is held."""
     config = load_config_from_db(user_id, db)
     prior_plan_management = dict(config.plan_management)
+    prior_goal = dict(config.goal)
     requested_execution_target = prior_plan_management.get(
         "execution_target"
     )
@@ -718,6 +719,7 @@ def _update_settings(
             )
         config = load_config_from_db(user_id, db)
         prior_plan_management = dict(config.plan_management)
+        prior_goal = dict(config.goal)
     prior_garmin_region = garmin_region(config.source_options)
     legacy_target_update_requested = False
     legacy_target: PlatformName | None = None
@@ -898,6 +900,17 @@ def _update_settings(
                 "The managed-plan preview expired. "
                 "Refresh the preview before enabling delivery."
             ),
+        )
+
+    if body.goal is not None:
+        from api.goal_baseline import retire_goal_baseline_for_goal_change
+
+        retire_goal_baseline_for_goal_change(
+            db,
+            user_id=user_id,
+            previous_goal=prior_goal,
+            next_goal=config.goal,
+            now=datetime.utcnow(),
         )
 
     # Bust ETag caches keyed on config (Today, Training, Goal, History,

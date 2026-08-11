@@ -70,7 +70,7 @@ logger = logging.getLogger(__name__)
 ENDPOINT_SCOPES: dict[str, tuple[str, ...]] = {
     "today":    ("activities", "splits", "samples", "recovery", "plans", "fitness", "config"),
     "training": ("activities", "splits", "samples", "recovery", "plans", "fitness", "config"),
-    "goal":     ("activities", "fitness", "config"),
+    "goal":     ("activities", "fitness", "plans", "goals", "config"),
     "history":  ("activities", "splits", "samples", "config"),
     "analysis": ("activities", "splits", "samples", "recovery", "fitness", "config"),
     "science":  ("config",),

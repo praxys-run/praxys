@@ -2,12 +2,13 @@ import { useState, type ReactNode } from 'react';
 import { useApi } from '@/hooks/useApi';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettings } from '@/contexts/SettingsContext';
-import type { GoalResponse } from '@/types/api';
+import type { GoalKind, GoalResponse } from '@/types/api';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import GoalEditor from '@/components/GoalEditor';
+import GoalBaselinePanel from '@/components/GoalBaselinePanel';
 import AiInsightsCard, { type CoachFallback } from '@/components/AiInsightsCard';
 import CpTrendChart from '@/components/charts/CpTrendChart';
 import DataHint from '@/components/DataHint';
@@ -388,7 +389,7 @@ function TrajectoryGoal({ data, onFeedbackStale }: { data: GoalResponse; onFeedb
 
 // --- Main Goal Page ---
 
-type GoalType = 'race' | 'continuous';
+type GoalType = GoalKind;
 
 function GoalSkeleton() {
   return (
@@ -413,12 +414,18 @@ export default function Goal() {
   const currentRaceDate = config?.goal?.race_date ? String(config.goal.race_date) : '';
   const currentDistance = config?.goal?.distance ? String(config.goal.distance) : 'marathon';
   const currentTargetTime = (() => {
-    const v = config?.goal?.target_time_sec ?? config?.goal?.race_target_time_sec;
+    const v = config?.goal?.target_time_sec;
     return v ? Number(v) || null : null;
   })();
-  const currentGoalType: GoalType = currentRaceDate ? 'race' : 'continuous';
+  const currentGoalType: GoalType = (() => {
+    const configured = String(config?.goal?.goal_kind ?? '').trim();
+    if (configured === 'race' || configured === 'continuous' || configured === 'performance_5k') {
+      return configured as GoalType;
+    }
+    return currentRaceDate ? 'race' : 'continuous';
+  })();
 
-  const handleSaveGoal = async (goal: { race_date: string; distance: string; target_time_sec: number }) => {
+  const handleSaveGoal = async (goal: { goal_kind: GoalKind; race_date: string; distance: string; target_time_sec: number }) => {
     await updateSettings({ goal });
     refetch();
   };
@@ -458,7 +465,16 @@ export default function Goal() {
         />
       )}
 
-      {data && <TrajectoryGoal data={data} onFeedbackStale={refetch} />}
+      {data && data.goal_kind === 'performance_5k' && data.baseline ? (
+        <GoalBaselinePanel
+          baseline={data.baseline}
+          goal={data.goal}
+          isDemo={isDemo}
+          onChanged={refetch}
+        />
+      ) : data ? (
+        <TrajectoryGoal data={data} onFeedbackStale={refetch} />
+      ) : null}
     </div>
   );
 }

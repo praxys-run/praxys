@@ -1,6 +1,6 @@
 # Adaptive plan goal contracts
 
-**Status:** Proposed in #603; not implemented
+**Status:** Proposed in #603. Issue #654 implements the bounded `performance_5k` baseline pilot state machine (`current` / `stale` / `incomparable` / `missing` / `not_required` / `pending_test`) while the broader adaptive goal-contract program remains in progress.
 
 **Parent epic:** #582
 
@@ -288,6 +288,7 @@ Baseline status is explicit:
 
 The recency boundary and comparability rules are scientific parameters and are
 not selected here.
+The shipped `performance_5k` pilot also uses `incomparable` when candidate history exists but measured-distance, elapsed-timing, or explicit-purpose qualification metadata remain insufficient or conflicting. That current-capability gate is separate from longitudinal protocol comparability.
 
 Praxys may still assess a goal with missing evidence, but must return
 `insufficient_evidence` and explain what would reduce uncertainty. It must not

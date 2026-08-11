@@ -142,6 +142,10 @@ const EN_GOAL = {
   'Leave blank to track predicted time only': 'Leave blank to track predicted time only',
   'What time are you working toward? Leave blank to track trend only':
     'What time are you working toward? Leave blank to track trend only',
+  'Choose a synced activity': 'Choose a synced activity',
+  'Did you follow the exact protocol?': 'Did you follow the exact protocol?',
+  'Stop reason': 'Stop reason',
+  'No synced candidate is available yet.': 'No synced candidate is available yet.',
   Comfortable: 'Comfortable',
   Stretch: 'Stretch',
   'Realistic targets': 'Realistic targets',
@@ -564,6 +568,10 @@ const ZH_GOAL = {
   'Leave blank to track predicted time only': '留空则只追踪预测完赛时间',
   'What time are you working toward? Leave blank to track trend only':
     '目标完赛时间是多少？留空则只追踪趋势',
+  'Choose a synced activity': '选择已同步的活动',
+  'Did you follow the exact protocol?': '是否完整执行了测试流程？',
+  'Stop reason': '停止原因',
+  'No synced candidate is available yet.': '目前没有可记录的已同步候选活动。',
   Comfortable: '稳妥目标',
   Stretch: '挑战目标',
   'Realistic targets': '可行的目标',

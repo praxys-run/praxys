@@ -1097,6 +1097,262 @@ class PersonalContextDeletionJob(Base):
     )
 
 
+class GoalBaselineConfirmation(Base):
+    """Append-only athlete confirmation for one history candidate."""
+
+    __tablename__ = "goal_baseline_confirmations"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    lineage_id = Column(String(36), nullable=False)
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    goal_signature = Column(String(64), nullable=False)
+    goal_snapshot = Column(JSON, nullable=False, default=dict)
+    version = Column(Integer, nullable=False, default=1)
+    supersedes_id = Column(
+        String(36),
+        ForeignKey("goal_baseline_confirmations.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    activity_id = Column(String(100), nullable=False)
+    response = Column(String(24), nullable=False)
+    measured_5k = Column(Boolean, nullable=False, default=False)
+    elapsed_timing_confirmed = Column(Boolean, nullable=False, default=False)
+    request_fingerprint = Column(String(64), nullable=False)
+    idempotency_key = Column(String(128), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "lineage_id",
+            "version",
+            name="uq_goal_baseline_confirmation_lineage_version",
+        ),
+        UniqueConstraint(
+            "user_id",
+            "idempotency_key",
+            name="uq_goal_baseline_confirmation_idempotency",
+        ),
+        CheckConstraint(
+            "version >= 1",
+            name="ck_goal_baseline_confirmation_version_positive",
+        ),
+        CheckConstraint(
+            "response IN ('race','intentional_all_out','not_all_out','deleted')",
+            name="ck_goal_baseline_confirmation_response",
+        ),
+        Index(
+            "ix_goal_baseline_confirmation_user_goal_activity",
+            "user_id",
+            "goal_signature",
+            "activity_id",
+            "created_at",
+        ),
+    )
+
+
+class GoalBaselineTestRecord(Base):
+    """Append-only optional-test lifecycle state for one goal baseline."""
+
+    __tablename__ = "goal_baseline_test_records"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    lineage_id = Column(String(36), nullable=False)
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    goal_signature = Column(String(64), nullable=False)
+    goal_snapshot = Column(JSON, nullable=False, default=dict)
+    version = Column(Integer, nullable=False, default=1)
+    supersedes_id = Column(
+        String(36),
+        ForeignKey("goal_baseline_test_records.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    state = Column(String(24), nullable=False)
+    protocol_id = Column(String(64), nullable=False)
+    request_fingerprint = Column(String(64), nullable=False)
+    idempotency_key = Column(String(128), nullable=True)
+    scheduled_date = Column(Date, nullable=True)
+    plan_canonical_id = Column(String(36), nullable=True)
+    activity_id = Column(String(100), nullable=True)
+    observed_date = Column(Date, nullable=True)
+    measured_5k = Column(Boolean, nullable=True)
+    elapsed_timing_confirmed = Column(Boolean, nullable=True)
+    protocol_followed = Column(Boolean, nullable=True)
+    reason_code = Column(String(64), nullable=True)
+    safety_stop = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "lineage_id",
+            "version",
+            name="uq_goal_baseline_test_lineage_version",
+        ),
+        UniqueConstraint(
+            "user_id",
+            "idempotency_key",
+            name="uq_goal_baseline_test_idempotency",
+        ),
+        CheckConstraint(
+            "version >= 1",
+            name="ck_goal_baseline_test_version_positive",
+        ),
+        CheckConstraint(
+            "state IN ('offered','scheduled','declined','stopped','completed','invalidated','deleted')",
+            name="ck_goal_baseline_test_state",
+        ),
+        CheckConstraint(
+            "reason_code IS NULL OR reason_code IN ('acute_illness','injury_or_pain_altering_running','chest_pain_or_pressure','fainting_or_near_fainting','unusual_severe_breathlessness','confusion_or_loss_of_coordination','other_red_flag_symptom','known_medical_restriction_or_reported_clinician_advice_against_vigorous_testing','self_reported_inadequate_recovery_or_unresolved_substantial_fatigue','unsafe_heat_cold_lightning_air_quality_visibility_traffic_footing_or_course','protocol_or_provenance_unresolved')",
+            name="ck_goal_baseline_test_reason_code",
+        ),
+        Index(
+            "ix_goal_baseline_test_user_goal_created",
+            "user_id",
+            "goal_signature",
+            "created_at",
+        ),
+    )
+
+
+class GoalBaselineSnapshot(Base):
+    """Versioned evidence snapshot retained for export and audit."""
+
+    __tablename__ = "goal_baseline_snapshots"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    lineage_id = Column(String(36), nullable=False)
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    goal_signature = Column(String(64), nullable=False)
+    goal_snapshot = Column(JSON, nullable=False, default=dict)
+    version = Column(Integer, nullable=False, default=1)
+    supersedes_id = Column(
+        String(36),
+        ForeignKey("goal_baseline_snapshots.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    source_kind = Column(String(24), nullable=False)
+    source_id = Column(String(100), nullable=True)
+    provenance = Column(String(24), nullable=False)
+    observed_date = Column(Date, nullable=True)
+    distance_km = Column(Float, nullable=True)
+    elapsed_time_sec = Column(Float, nullable=True)
+    measured_5k = Column(Boolean, nullable=False, default=False)
+    elapsed_timing_confirmed = Column(Boolean, nullable=False, default=False)
+    qualification_status = Column(String(24), nullable=False)
+    change_comparability = Column(String(24), nullable=False, default="not_assessed")
+    invalidators = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "lineage_id",
+            "version",
+            name="uq_goal_baseline_snapshot_lineage_version",
+        ),
+        CheckConstraint(
+            "version >= 1",
+            name="ck_goal_baseline_snapshot_version_positive",
+        ),
+        CheckConstraint(
+            "source_kind IN ('history_confirmation','pilot_test')",
+            name="ck_goal_baseline_snapshot_source_kind",
+        ),
+        CheckConstraint(
+            "provenance IN ('race','intentional_all_out','pilot_test','unqualified')",
+            name="ck_goal_baseline_snapshot_provenance",
+        ),
+        CheckConstraint(
+            "qualification_status IN ('direct_current','incomparable','invalidated','deleted')",
+            name="ck_goal_baseline_snapshot_qualification_status",
+        ),
+        CheckConstraint(
+            "change_comparability IN ('not_assessed','supporting','incomparable','directly_comparable')",
+            name="ck_goal_baseline_snapshot_change_comparability",
+        ),
+        Index(
+            "ix_goal_baseline_snapshot_user_goal_created",
+            "user_id",
+            "goal_signature",
+            "created_at",
+        ),
+    )
+
+
+class GoalBaselineAssessment(Base):
+    """Append-only rendered assessment retained for audit and export."""
+
+    __tablename__ = "goal_baseline_assessments"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    lineage_id = Column(String(36), nullable=False)
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    goal_signature = Column(String(64), nullable=False)
+    goal_snapshot = Column(JSON, nullable=False, default=dict)
+    version = Column(Integer, nullable=False, default=1)
+    supersedes_id = Column(
+        String(36),
+        ForeignKey("goal_baseline_assessments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    policy_version = Column(String(64), nullable=False)
+    science_decision_id = Column(String(64), nullable=False)
+    status = Column(String(24), nullable=False)
+    readiness = Column(String(40), nullable=False)
+    evidence_snapshot_id = Column(String(36), nullable=True)
+    test_record_id = Column(String(36), nullable=True)
+    candidate_count = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "lineage_id",
+            "version",
+            name="uq_goal_baseline_assessment_lineage_version",
+        ),
+        CheckConstraint(
+            "version >= 1",
+            name="ck_goal_baseline_assessment_version_positive",
+        ),
+        CheckConstraint(
+            "status IN ('current','stale','incomparable','missing','not_required','pending_test')",
+            name="ck_goal_baseline_assessment_status",
+        ),
+        CheckConstraint(
+            "readiness IN ('sufficient_baseline','insufficient_evidence','non_diagnostic_safety_stop')",
+            name="ck_goal_baseline_assessment_readiness",
+        ),
+        Index(
+            "ix_goal_baseline_assessment_user_goal_created",
+            "user_id",
+            "goal_signature",
+            "created_at",
+        ),
+    )
+
+
 class CacheRevision(Base):
     """Per-(user, scope) monotonic counter for HTTP cache revalidation (issue #147).
 

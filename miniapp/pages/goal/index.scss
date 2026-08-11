@@ -16,6 +16,23 @@
   padding: 32rpx 32rpx 200rpx;
 }
 
+.goal-edit-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 20rpx;
+}
+
+.goal-edit-trigger {
+  min-width: 180rpx;
+  padding: 14rpx 20rpx;
+  border-radius: 14rpx;
+  background: var(--surface-subtle);
+  color: var(--text);
+  text-align: center;
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
 // --- Trajectory header ---
 
 .goal-eyebrow-row {

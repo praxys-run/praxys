@@ -102,7 +102,7 @@ Section = Literal["today", "training", "goal"]
 SECTION_SCOPES: dict[Section, tuple[str, ...]] = {
     "today":    ("activities", "splits", "samples", "recovery", "plans", "fitness", "config"),
     "training": ("activities", "splits", "samples", "recovery", "plans", "fitness", "config"),
-    "goal":     ("activities", "fitness", "config"),
+    "goal":     ("activities", "fitness", "plans", "goals", "config"),
 }
 
 
