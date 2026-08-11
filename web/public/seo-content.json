@@ -47,7 +47,7 @@
           },
           {
             "heading": "Managed training plans",
-            "body": "Praxys can manage its own or explicitly adopted workouts in a rolling 14-day window. Delivery is opt-in, provider-aware, auditable, and designed not to edit or delete manual or other-coach workouts."
+            "body": "Praxys plan management is provider-independent: it can manage its own or explicitly adopted workouts in a rolling 14-day window. Delivery currently supports Garmin and Stryd, remains opt-in and auditable, and is designed not to edit or delete manual or other-coach workouts."
           },
           {
             "heading": "Race forecasts and goals",
@@ -63,7 +63,7 @@
           }
         ],
         "dataHeading": "Data sources and training bases",
-        "dataBody": "Praxys currently connects to Garmin and COROS for activities, fitness, and recovery signals; Strava for activities; Stryd for running power and training plans; and Oura for recovery. Athletes can train by power, heart rate, or pace; running power is supported deeply but is not required.",
+        "dataBody": "Praxys currently connects to Garmin and COROS for activities, fitness, and recovery signals; Strava for activities; Stryd for running power; and Oura for recovery. Plan management is provider-independent, with delivery currently supported to Garmin and Stryd. Athletes can train by power, heart rate, or pace; running power is supported deeply but is not required.",
         "boundaryHeading": "What the AI coach does not do",
         "boundaries": [
           "It does not replace medical care or present research experiments as safety advice.",
@@ -85,7 +85,7 @@
           },
           {
             "question": "Which platforms does Praxys use?",
-            "answer": "Praxys currently connects to Garmin and COROS for activities, fitness, and recovery signals; Strava for activities; Stryd for running power and training plans; and Oura for recovery. Platform connections remain private to the athlete's account."
+            "answer": "Praxys currently connects to Garmin and COROS for activities, fitness, and recovery signals; Strava for activities; Stryd for running power; and Oura for recovery. Plan management is provider-independent, with delivery currently supported to Garmin and Stryd. Platform connections remain private to the athlete's account."
           },
           {
             "question": "How is Praxys different from a generic AI running coach?",
@@ -93,7 +93,7 @@
           },
           {
             "question": "What is a managed plan?",
-            "answer": "A managed plan lets Praxys own and roll forward its own or explicitly adopted workouts for the next 14 days. The athlete chooses the delivery target and can pause, resume, reconcile conflicts, or leave managed mode."
+            "answer": "A managed plan lets Praxys own and roll forward its own or explicitly adopted workouts for the next 14 days, independently of the delivery provider. Garmin and Stryd are currently supported delivery targets. The athlete chooses the target and can pause, resume, reconcile conflicts, or leave managed mode."
           },
           {
             "question": "What is Praxys Labs?",
@@ -152,7 +152,7 @@
           },
           {
             "heading": "托管训练计划",
-            "body": "Praxys 可以在未来 14 天的滚动窗口内管理自己生成或由跑者明确接管的训练。交付需要主动开启，遵循平台能力并保留审计记录，不会编辑或删除手动创建或其他教练安排的训练。"
+            "body": "Praxys 的计划管理不依赖特定交付平台，可以在未来 14 天的滚动窗口内管理自己生成或由跑者明确接管的训练。目前支持交付到 Garmin 和 Stryd；交付需要主动开启并保留审计记录，不会编辑或删除手动创建或其他教练安排的训练。"
           },
           {
             "heading": "比赛预测与目标",
@@ -168,7 +168,7 @@
           }
         ],
         "dataHeading": "数据来源与训练基础",
-        "dataBody": "Praxys 当前可连接 Garmin 与 COROS 的活动、体能和恢复信号，Strava 的活动数据，Stryd 的跑步功率与训练计划，以及 Oura 的恢复数据。跑者可以按功率、心率或配速训练；系统深入支持跑步功率，但不要求必须使用。",
+        "dataBody": "Praxys 当前可连接 Garmin 与 COROS 的活动、体能和恢复信号，Strava 的活动数据，Stryd 的跑步功率，以及 Oura 的恢复数据。计划管理不依赖特定平台，目前支持交付到 Garmin 和 Stryd。跑者可以按功率、心率或配速训练；系统深入支持跑步功率，但不要求必须使用。",
         "boundaryHeading": "AI 教练不会做什么",
         "boundaries": [
           "不会替代医疗服务，也不会把研究实验包装成安全建议。",
@@ -190,7 +190,7 @@
           },
           {
             "question": "Praxys 使用哪些平台的数据？",
-            "answer": "Praxys 当前可连接 Garmin 与 COROS 的活动、体能和恢复信号，Strava 的活动数据，Stryd 的跑步功率与训练计划，以及 Oura 的恢复数据。平台连接信息始终只属于对应跑者账号。"
+            "answer": "Praxys 当前可连接 Garmin 与 COROS 的活动、体能和恢复信号，Strava 的活动数据，Stryd 的跑步功率，以及 Oura 的恢复数据。计划管理不依赖特定平台，目前支持交付到 Garmin 和 Stryd。平台连接信息始终只属于对应跑者账号。"
           },
           {
             "question": "Praxys 与通用 AI 跑步教练有什么不同？",
@@ -198,7 +198,7 @@
           },
           {
             "question": "什么是托管计划？",
-            "answer": "托管计划允许 Praxys 滚动管理未来 14 天内由自己生成或由跑者明确接管的训练。跑者选择交付目标，并可暂停、恢复、处理冲突或退出托管模式。"
+            "answer": "托管计划允许 Praxys 在不依赖特定交付平台的情况下，滚动管理未来 14 天内由自己生成或由跑者明确接管的训练。目前支持交付到 Garmin 和 Stryd。跑者选择交付目标，并可暂停、恢复、处理冲突或退出托管模式。"
           },
           {
             "question": "什么是 Praxys Labs？",

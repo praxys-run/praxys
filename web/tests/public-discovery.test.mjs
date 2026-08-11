@@ -35,6 +35,23 @@ test('public product copy names every current platform connection', () => {
   }
 });
 
+test('managed plan copy describes provider-independent Garmin and Stryd delivery', () => {
+  for (const locale of Object.values(content.locales)) {
+    const managedSection = locale.product.sections.find((section) =>
+      /managed training plans|托管训练计划/i.test(section.heading)
+    );
+    const managedQuestion = locale.faq.questions.find((item) =>
+      /managed plan|托管计划/i.test(item.question)
+    );
+    assert.ok(managedSection);
+    assert.ok(managedQuestion);
+    for (const platform of ['Garmin', 'Stryd']) {
+      assert.match(managedSection.body, new RegExp(platform, 'i'));
+      assert.match(managedQuestion.answer, new RegExp(platform, 'i'));
+    }
+  }
+});
+
 test('FAQ content covers product, privacy, and mainland China discovery', () => {
   for (const locale of Object.values(content.locales)) {
     const faqText = JSON.stringify(locale.faq);
