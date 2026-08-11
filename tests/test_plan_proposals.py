@@ -374,6 +374,21 @@ def test_expired_current_proposal_does_not_block_new_draft(proposal_client):
     assert _training_plans(db_session) == []
 
 
+def test_expired_proposal_reject_returns_expired(proposal_client):
+    client, _, _ = proposal_client
+    payload = _proposal_payload(key="expired-reject-create")
+    payload["expires_at"] = (datetime.utcnow() - timedelta(minutes=5)).isoformat()
+    created = client.post("/api/plan/proposals", json=payload).json()
+
+    reject = client.post(
+        f"/api/plan/proposals/{created['id']}/reject",
+        json={"expected_version": 1, "idempotency_key": "reject-expired"},
+    )
+
+    assert reject.status_code == 409
+    assert reject.json()["detail"]["code"] == "PLAN_PROPOSAL_EXPIRED"
+
+
 def test_expired_successor_idempotent_retry_returns_expired(proposal_client):
     client, _, _ = proposal_client
     created = client.post(

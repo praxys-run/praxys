@@ -664,6 +664,14 @@ def reject_proposal(
             raise AdaptivePlanError(409, "PLAN_PROPOSAL_DECIDED", "The proposal has already been decided.", state=proposal.state)
         if proposal.version != expected_version:
             raise AdaptivePlanError(409, "PLAN_PROPOSAL_STALE", "The proposal version is stale.", current_version=proposal.version)
+        if _expire_proposal_if_needed(
+            db,
+            user_id=user_id,
+            proposal=proposal,
+            now=datetime.utcnow(),
+        ):
+            db.commit()
+            raise AdaptivePlanError(409, "PLAN_PROPOSAL_EXPIRED", "The proposal has expired.")
         adaptive_plan = db.execute(
             select(AdaptivePlan).where(
                 AdaptivePlan.user_id == user_id,
