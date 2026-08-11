@@ -340,3 +340,21 @@ def test_expired_proposal_adoption_rolls_back_without_delivery(proposal_client):
         json=_proposal_payload(key="proposal-after-expiry"),
     )
     assert fresh.status_code == 201, fresh.text
+
+
+def test_expired_current_proposal_does_not_block_new_draft(proposal_client):
+    client, db_session, _ = proposal_client
+    payload = _proposal_payload(key="expired-current-create")
+    payload["expires_at"] = (datetime.utcnow() - timedelta(minutes=5)).isoformat()
+    created = client.post("/api/plan/proposals", json=payload)
+    assert created.status_code == 201, created.text
+
+    current = client.get("/api/plan/proposals/current")
+    assert current.status_code == 404
+
+    fresh = client.post(
+        "/api/plan/proposals",
+        json=_proposal_payload(key="fresh-after-current-expiry"),
+    )
+    assert fresh.status_code == 201, fresh.text
+    assert _training_plans(db_session) == []

@@ -350,6 +350,36 @@ def _active_plan(db: Session, *, user_id: str, for_update: bool = False) -> Adap
     return db.execute(stmt).scalar_one_or_none()
 
 
+def _proposal_expired(proposal: PlanProposal, *, now: datetime) -> bool:
+    return proposal.expires_at is not None and proposal.expires_at <= now
+
+
+def _archive_expired_draft(
+    db: Session,
+    *,
+    user_id: str,
+    adaptive_plan: AdaptivePlan,
+    now: datetime,
+) -> bool:
+    if not adaptive_plan.active_proposal_id:
+        return False
+    proposal = db.execute(
+        select(PlanProposal).where(
+            PlanProposal.user_id == user_id,
+            PlanProposal.id == adaptive_plan.active_proposal_id,
+            PlanProposal.state == "draft",
+        ).with_for_update()
+    ).scalar_one_or_none()
+    if proposal is None or not _proposal_expired(proposal, now=now):
+        return False
+    proposal.state = "expired"
+    proposal.decided_at = now
+    adaptive_plan.active_proposal_id = None
+    if adaptive_plan.version == 0:
+        adaptive_plan.lifecycle = "archived"
+    return True
+
+
 def create_draft_proposal(
     db: Session,
     *,
@@ -371,7 +401,16 @@ def create_draft_proposal(
     try:
         db.rollback()
         lock_plan_writes(db, user_id)
-        if _active_plan(db, user_id=user_id, for_update=True) is not None:
+        active_plan = _active_plan(db, user_id=user_id, for_update=True)
+        archived_expired = False
+        if active_plan is not None:
+            archived_expired = _archive_expired_draft(
+                db,
+                user_id=user_id,
+                adaptive_plan=active_plan,
+                now=datetime.utcnow(),
+            )
+        if active_plan is not None and not archived_expired:
             raise AdaptivePlanError(
                 409,
                 "ADAPTIVE_PLAN_ACTIVE_EXISTS",
@@ -442,6 +481,8 @@ def read_current_proposal(db: Session, *, user_id: str) -> dict[str, Any] | None
     if proposal is None:
         return None
     if proposal.state != "draft":
+        return None
+    if _proposal_expired(proposal, now=datetime.utcnow()):
         return None
     return _proposal_to_dict(db, proposal)
 
@@ -585,10 +626,6 @@ def reject_proposal(
         db.rollback()
         raise
     return _proposal_to_dict(db, proposal)
-
-
-def _proposal_expired(proposal: PlanProposal, *, now: datetime) -> bool:
-    return proposal.expires_at is not None and proposal.expires_at <= now
 
 
 def _plans_from_snapshot(user_id: str, adaptive_plan_id: str, workouts: Sequence[Mapping[str, Any]]) -> list[TrainingPlan]:
