@@ -372,3 +372,30 @@ def test_expired_current_proposal_does_not_block_new_draft(proposal_client):
     )
     assert fresh.status_code == 201, fresh.text
     assert _training_plans(db_session) == []
+
+
+def test_expired_successor_idempotent_retry_returns_expired(proposal_client):
+    client, _, _ = proposal_client
+    created = client.post(
+        "/api/plan/proposals",
+        json=_proposal_payload(key="successor-expiry-parent"),
+    ).json()
+    edit_payload = _proposal_payload(key="successor-expiry-edit")
+    edit_payload["expected_version"] = 1
+    edit_payload["expires_at"] = (
+        datetime.utcnow() - timedelta(minutes=5)
+    ).isoformat()
+    edited = client.post(
+        f"/api/plan/proposals/{created['id']}/edits",
+        json=edit_payload,
+    )
+    assert edited.status_code == 201, edited.text
+    assert edited.json()["state"] == "draft"
+
+    retry = client.post(
+        f"/api/plan/proposals/{created['id']}/edits",
+        json=edit_payload,
+    )
+    assert retry.status_code == 201, retry.text
+    assert retry.json()["state"] == "expired"
+    assert client.get("/api/plan/proposals/current").status_code == 404

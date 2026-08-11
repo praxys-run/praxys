@@ -551,7 +551,7 @@ def create_successor_proposal(
     """Supersede a draft proposal with a new immutable edited version."""
     existing = _existing_proposal_for_key(db, user_id=user_id, idempotency_key=payload.idempotency_key)
     if existing is not None:
-        return _proposal_to_dict(db, existing)
+        return _idempotent_proposal_hit(db, user_id=user_id, proposal=existing)
     goal = _validate_goal(payload.goal)
     workouts = _validate_workouts(
         payload.workouts,
@@ -629,7 +629,7 @@ def create_successor_proposal(
         db.rollback()
         existing = _existing_proposal_for_key(db, user_id=user_id, idempotency_key=payload.idempotency_key)
         if existing is not None:
-            return _proposal_to_dict(db, existing)
+            return _idempotent_proposal_hit(db, user_id=user_id, proposal=existing)
         raise AdaptivePlanError(409, "ADAPTIVE_PLAN_CONFLICT", "Adaptive plan proposal could not be edited.") from exc
     except Exception:
         db.rollback()
