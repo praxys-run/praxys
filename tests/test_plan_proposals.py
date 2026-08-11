@@ -70,10 +70,21 @@ def proposal_client(monkeypatch):
     app.dependency_overrides[get_data_user_id] = _override_user
     app.dependency_overrides[require_write_access] = _override_user
     app.dependency_overrides[get_db] = _override_db
+    delivery_calls: list[tuple[str, str]] = []
+
+    def _record_delivery(user_id: str, *, trigger: str) -> dict:
+        delivery_calls.append((user_id, trigger))
+        return {
+            "status": "skipped",
+            "target": None,
+            "reason": trigger,
+            "items": [],
+        }
+
     monkeypatch.setattr(
         adaptive_plan_route,
         "_trigger_managed_delivery",
-        lambda user_id, *, trigger: {"status": "skipped", "target": None, "reason": trigger, "items": []},
+        _record_delivery,
     )
     monkeypatch.setattr(
         ai_route,
@@ -82,6 +93,7 @@ def proposal_client(monkeypatch):
     )
     client = TestClient(app)
     client.current_user_id = current_user_id  # type: ignore[attr-defined]
+    client.delivery_calls = delivery_calls  # type: ignore[attr-defined]
     try:
         yield client, db_session, current_user_id
     finally:
@@ -191,6 +203,49 @@ def _csv_for(workouts: list[dict]) -> str:
     return out.getvalue()
 
 
+def test_http_validation_errors_use_typed_proposal_contract(proposal_client):
+    client, _, _ = proposal_client
+    unsupported = _proposal_payload(key="unsupported-field")
+    unsupported["workouts"][0]["avg_power"] = 200
+
+    extra_field = client.post("/api/plan/proposals", json=unsupported)
+    assert extra_field.status_code == 422
+    assert extra_field.json()["detail"] == {
+        "code": "PLAN_PROPOSAL_UNSUPPORTED_FIELD",
+        "message": "Unsupported proposal field supplied.",
+        "errors": [
+            {
+                "field": "workouts.0.avg_power",
+                "type": "extra_forbidden",
+            }
+        ],
+        "fields": ["workouts.0.avg_power"],
+    }
+
+    empty = _proposal_payload(key="empty-workouts")
+    empty["workouts"] = []
+    invalid_body = client.post("/api/plan/proposals", json=empty)
+    assert invalid_body.status_code == 422
+    assert invalid_body.json()["detail"]["code"] == (
+        "PLAN_PROPOSAL_VALIDATION_FAILED"
+    )
+    assert invalid_body.json()["detail"]["errors"][0]["field"] == "workouts"
+
+    invalid_path = client.post(
+        "/api/plan/proposals/not-a-uuid/adopt",
+        json={
+            "expected_proposal_version": 1,
+            "expected_plan_version": 0,
+            "idempotency_key": "invalid-path",
+        },
+    )
+    assert invalid_path.status_code == 422
+    assert invalid_path.json()["detail"]["code"] == (
+        "PLAN_PROPOSAL_VALIDATION_FAILED"
+    )
+    assert invalid_path.json()["detail"]["errors"][0]["field"] == "proposal_id"
+
+
 def test_create_read_successor_and_reject_preserve_noncanonical_history(proposal_client):
     client, db_session, _ = proposal_client
 
@@ -284,7 +339,10 @@ def test_adopt_exact_version_is_atomic_idempotent_and_preserves_workout_ids(prop
     body = adopt.json()
     assert body["status"] == "adopted"
     assert body["workouts"][0]["canonical_id"] == canonical_id
-    assert body["delivery"]["status"] == "skipped"
+    assert "delivery" not in body
+    assert client.delivery_calls == [  # type: ignore[attr-defined]
+        ("proposal-owner", "plan_proposal_adopt")
+    ]
     assert client.get("/api/plan/proposals/current").status_code == 404
 
     retry = client.post(
@@ -296,7 +354,15 @@ def test_adopt_exact_version_is_atomic_idempotent_and_preserves_workout_ids(prop
         },
     )
     assert retry.status_code == 200, retry.text
-    assert retry.json()["status"] == "already_adopted"
+    retry_body = retry.json()
+    assert retry_body["status"] == "already_adopted"
+    assert retry_body["proposal"] == body["proposal"]
+    assert retry_body["revision_id"] == body["revision_id"]
+    assert retry_body["workouts"] == body["workouts"]
+    assert "delivery" not in retry_body
+    assert client.delivery_calls == [  # type: ignore[attr-defined]
+        ("proposal-owner", "plan_proposal_adopt")
+    ]
 
     different_key = client.post(
         f"/api/plan/proposals/{created['id']}/adopt",
@@ -378,7 +444,30 @@ def test_new_draft_after_adoption_replaces_full_future_owned_scope(proposal_clie
     assert adopt.status_code == 200, adopt.text
     assert [row["date"] for row in adopt.json()["workouts"]] == [start.isoformat()]
 
-    from db.models import PlanRevision, TrainingPlan
+    initial_replay = client.post(
+        f"/api/plan/proposals/{initial['proposal']['id']}/adopt",
+        json={
+            "expected_proposal_version": initial["proposal"]["version"],
+            "expected_plan_version": 0,
+            "idempotency_key": "replace-scope-adopt-initial",
+        },
+    )
+    assert initial_replay.status_code == 200, initial_replay.text
+    replay_body = initial_replay.json()
+    assert replay_body["status"] == "already_adopted"
+    assert replay_body["proposal"] == initial["proposal"]
+    assert replay_body["revision_id"] == initial["revision_id"]
+    assert [row["date"] for row in replay_body["workouts"]] == [
+        (start + timedelta(days=offset)).isoformat()
+        for offset in range(3)
+    ]
+
+    from db.models import (
+        AdaptivePlan,
+        AdaptivePlanGoalSnapshot,
+        PlanRevision,
+        TrainingPlan,
+    )
 
     db = db_session.SessionLocal()
     try:
@@ -397,6 +486,16 @@ def test_new_draft_after_adoption_replaces_full_future_owned_scope(proposal_clie
         )
         assert len(revision.before_snapshot) == 3
         assert len(revision.after_snapshot) == 1
+        aggregate = db.query(AdaptivePlan).filter(
+            AdaptivePlan.id == draft["adaptive_plan_id"]
+        ).one()
+        assert aggregate.goal_snapshot_id == draft["goal_snapshot_id"]
+        assert db.query(AdaptivePlanGoalSnapshot).filter(
+            AdaptivePlanGoalSnapshot.id == initial["proposal"]["goal_snapshot_id"]
+        ).one().state == "superseded"
+        assert db.query(AdaptivePlanGoalSnapshot).filter(
+            AdaptivePlanGoalSnapshot.id == draft["goal_snapshot_id"]
+        ).one().state == "active"
     finally:
         db.close()
 
@@ -505,6 +604,126 @@ def test_canonical_mutation_between_draft_and_adoption_stales_proposal(
     try:
         proposal = db.query(PlanProposal).filter(PlanProposal.id == draft["id"]).one()
         assert proposal.state == "draft"
+    finally:
+        db.close()
+
+
+@pytest.mark.parametrize("terminal_state", ["rejected", "expired"])
+def test_first_proposal_with_canonical_history_can_be_replaced(
+    proposal_client,
+    terminal_state: str,
+):
+    client, db_session, _ = proposal_client
+    start = date.today() + timedelta(days=2)
+    upload = client.post(
+        "/api/plan/upload?mode=merge",
+        json={
+            "csv": _csv_for(
+                [
+                    {
+                        "date": start.isoformat(),
+                        "workout_type": "easy",
+                        "planned_duration_min": 35,
+                    }
+                ]
+            )
+        },
+    )
+    assert upload.status_code == 200, upload.text
+
+    payload = _proposal_payload(key=f"history-{terminal_state}-initial")
+    if terminal_state == "expired":
+        payload["expires_at"] = (
+            datetime.utcnow() - timedelta(minutes=5)
+        ).isoformat()
+    created = client.post("/api/plan/proposals", json=payload)
+    assert created.status_code == 201, created.text
+    first = created.json()
+    assert first["adaptive_plan"]["version"] == 1
+    assert first["adaptive_plan"]["lifecycle"] == "draft"
+
+    if terminal_state == "rejected":
+        terminal = client.post(
+            f"/api/plan/proposals/{first['id']}/reject",
+            json={
+                "expected_version": first["version"],
+                "idempotency_key": "history-reject-decision",
+            },
+        )
+        assert terminal.status_code == 200, terminal.text
+
+    replacement = client.post(
+        "/api/plan/proposals",
+        json=_proposal_payload(key=f"history-{terminal_state}-replacement"),
+    )
+    assert replacement.status_code == 201, replacement.text
+    assert replacement.json()["adaptive_plan_id"] != first["adaptive_plan_id"]
+
+    from db.models import AdaptivePlan, TrainingPlan
+
+    db = db_session.SessionLocal()
+    try:
+        prior = db.query(AdaptivePlan).filter(
+            AdaptivePlan.id == first["adaptive_plan_id"]
+        ).one()
+        assert prior.lifecycle == "archived"
+        assert db.query(TrainingPlan).filter(
+            TrainingPlan.user_id == "proposal-owner"
+        ).count() == 1
+    finally:
+        db.close()
+
+
+def test_expired_replacement_on_active_plan_allows_fresh_draft(
+    proposal_client,
+):
+    client, db_session, _ = proposal_client
+    initial = _adopt_payload(
+        client,
+        _proposal_payload(key="active-expiry-initial"),
+        key="active-expiry-adopt-initial",
+    )
+    adaptive_plan_id = initial["proposal"]["adaptive_plan_id"]
+    active_goal_id = initial["proposal"]["goal_snapshot_id"]
+
+    expired_payload = _proposal_payload(key="active-expiry-draft")
+    expired_payload["expires_at"] = (
+        datetime.utcnow() - timedelta(minutes=5)
+    ).isoformat()
+    expired = client.post(
+        "/api/plan/proposals",
+        json=expired_payload,
+    )
+    assert expired.status_code == 201, expired.text
+    expired_body = expired.json()
+    assert expired_body["adaptive_plan_id"] == adaptive_plan_id
+    assert expired_body["version"] == 2
+    assert client.get("/api/plan/proposals/current").status_code == 404
+
+    fresh = client.post(
+        "/api/plan/proposals",
+        json=_proposal_payload(key="active-expiry-fresh"),
+    )
+    assert fresh.status_code == 201, fresh.text
+    fresh_body = fresh.json()
+    assert fresh_body["adaptive_plan_id"] == adaptive_plan_id
+    assert fresh_body["version"] == 3
+    assert fresh_body["adaptive_plan"]["lifecycle"] == "active"
+
+    from db.models import AdaptivePlan, AdaptivePlanGoalSnapshot
+
+    db = db_session.SessionLocal()
+    try:
+        aggregate = db.query(AdaptivePlan).filter(
+            AdaptivePlan.id == adaptive_plan_id
+        ).one()
+        assert aggregate.goal_snapshot_id == active_goal_id
+        assert db.query(AdaptivePlanGoalSnapshot).filter(
+            AdaptivePlanGoalSnapshot.id == active_goal_id
+        ).one().state == "active"
+        assert db.query(AdaptivePlanGoalSnapshot).filter(
+            AdaptivePlanGoalSnapshot.id == expired_body["goal_snapshot_id"]
+        ).one().state == "draft"
     finally:
         db.close()
 

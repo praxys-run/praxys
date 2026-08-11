@@ -226,10 +226,8 @@ def adopt_plan_proposal(
     except AdaptivePlanError as exc:
         _raise(exc)
     if result["status"] == "adopted":
-        result["delivery"] = _trigger_managed_delivery(
+        _trigger_managed_delivery(
             user_id,
             trigger="plan_proposal_adopt",
         )
-    else:
-        result["delivery"] = None
     return result

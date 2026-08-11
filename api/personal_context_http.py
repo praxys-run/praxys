@@ -1,6 +1,8 @@
 """HTTP privacy boundary for personal-context endpoints."""
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import Request
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
@@ -10,6 +12,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 _CONTEXT_PREFIX = "/api/personal-context"
 _MCP_AUTH_PREFIX = "/api/auth/mcp"
+_PLAN_PROPOSAL_PREFIX = "/api/plan/proposals"
 _CACHE_CONTROL = "private, no-store"
 
 
@@ -25,8 +28,24 @@ def _is_mcp_auth_path(path: str) -> bool:
     )
 
 
+def _is_plan_proposal_path(path: str) -> bool:
+    return path == _PLAN_PROPOSAL_PREFIX or path.startswith(
+        f"{_PLAN_PROPOSAL_PREFIX}/"
+    )
+
+
 def _is_private_path(path: str) -> bool:
     return _is_context_path(path) or _is_mcp_auth_path(path)
+
+
+def _validation_field(error: dict[str, Any]) -> str:
+    location = error.get("loc") or ()
+    parts = [
+        str(part)
+        for part in location
+        if part not in {"body", "path", "query"}
+    ]
+    return ".".join(parts) or "request"
 
 
 class PersonalContextPrivacyMiddleware:
@@ -60,7 +79,38 @@ async def private_context_validation_error(
     request: Request,
     exc: RequestValidationError,
 ) -> Response:
-    """Avoid reflecting rejected private values in validation responses."""
+    """Normalize private and adaptive-proposal validation responses."""
+    if _is_plan_proposal_path(request.url.path):
+        errors = [
+            {
+                "field": _validation_field(error),
+                "type": str(error.get("type") or "value_error"),
+            }
+            for error in exc.errors()
+        ]
+        unsupported_fields = sorted(
+            {
+                item["field"]
+                for item in errors
+                if item["type"] == "extra_forbidden"
+            }
+        )
+        detail: dict[str, Any] = {
+            "code": (
+                "PLAN_PROPOSAL_UNSUPPORTED_FIELD"
+                if unsupported_fields
+                else "PLAN_PROPOSAL_VALIDATION_FAILED"
+            ),
+            "message": (
+                "Unsupported proposal field supplied."
+                if unsupported_fields
+                else "The plan proposal request is invalid."
+            ),
+            "errors": errors,
+        }
+        if unsupported_fields:
+            detail["fields"] = unsupported_fields
+        return JSONResponse(status_code=422, content={"detail": detail})
     if not _is_private_path(request.url.path):
         return await request_validation_exception_handler(request, exc)
     detail = (

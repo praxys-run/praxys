@@ -1286,10 +1286,20 @@ Common structured error `detail.code` values include
 `ADAPTIVE_PLAN_ACTIVE_EXISTS`, `ADAPTIVE_PLAN_VERSION_CONFLICT`, and
 `PLAN_PROPOSAL_ALREADY_ADOPTED`.
 
+Request-schema failures, including malformed proposal UUIDs and numeric bounds,
+return HTTP 422 with `detail.code=PLAN_PROPOSAL_VALIDATION_FAILED` plus
+privacy-minimized `errors` containing field paths and validation types.
+Forbidden fields return HTTP 422
+`detail.code=PLAN_PROPOSAL_UNSUPPORTED_FIELD`; rejected input values are not
+reflected.
+
 #### POST /api/plan/proposals
 
-Create the first draft proposal for a new adaptive-plan aggregate. A user may
-have only one `draft` or `active` adaptive plan at a time.
+Create a draft proposal. The first proposal creates a new adaptive-plan
+aggregate; after adoption, later drafts attach to that active aggregate when no
+proposal is active. An expired replacement does not block a fresh draft. A user
+may have only one `draft` or `active` adaptive plan and one active proposal at
+a time.
 
 ```json
 {
@@ -1367,7 +1377,10 @@ the canonical Praxys workouts in one transaction, marks the goal acknowledged
 and proposal adopted, increments the aggregate version, appends a linked
 `PlanRevision`, bumps the plan revision counter, commits, and only then invokes
 the existing managed-delivery trigger. Retrying with the same idempotency key is
-safe; retrying an adopted proposal with a different key returns
+safe and returns the original proposal, revision, and canonical workout
+snapshots with `status=already_adopted`; it does not re-trigger delivery.
+Delivery is a post-commit consequence and is not included in the response
+body. Retrying an adopted proposal with a different key returns
 `PLAN_PROPOSAL_ALREADY_ADOPTED`.
 
 ### POST /api/plan/workouts

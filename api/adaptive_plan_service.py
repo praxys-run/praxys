@@ -403,7 +403,7 @@ def _archive_expired_draft(
     proposal.state = "expired"
     proposal.decided_at = now
     adaptive_plan.active_proposal_id = None
-    if adaptive_plan.version == 0:
+    if adaptive_plan.lifecycle == "draft":
         adaptive_plan.lifecycle = "archived"
     return True
 
@@ -427,7 +427,7 @@ def _expire_proposal_if_needed(
     proposal.decided_at = now
     if adaptive_plan.active_proposal_id == proposal.id:
         adaptive_plan.active_proposal_id = None
-    if adaptive_plan.version == 0:
+    if adaptive_plan.lifecycle == "draft":
         adaptive_plan.lifecycle = "archived"
     return True
 
@@ -482,9 +482,8 @@ def create_draft_proposal(
         db.rollback()
         lock_plan_writes(db, user_id)
         active_plan = _active_plan(db, user_id=user_id, for_update=True)
-        archived_expired = False
         if active_plan is not None:
-            archived_expired = _archive_expired_draft(
+            _archive_expired_draft(
                 db,
                 user_id=user_id,
                 adaptive_plan=active_plan,
@@ -492,7 +491,6 @@ def create_draft_proposal(
             )
         if (
             active_plan is not None
-            and not archived_expired
             and active_plan.lifecycle == "active"
             and active_plan.active_proposal_id is None
         ):
@@ -531,11 +529,13 @@ def create_draft_proposal(
             )
             db.add(proposal)
             db.flush()
-            active_plan.goal_snapshot_id = goal_snapshot.id
             active_plan.active_proposal_id = proposal.id
             db.commit()
             return _proposal_to_dict(db, proposal)
-        if active_plan is not None and not archived_expired:
+        if (
+            active_plan is not None
+            and active_plan.lifecycle in _ACTIVE_PLAN_STATES
+        ):
             raise AdaptivePlanError(
                 409,
                 "ADAPTIVE_PLAN_ACTIVE_EXISTS",
@@ -676,11 +676,18 @@ def create_successor_proposal(
             )
         if adaptive_plan.active_proposal_id != parent.id:
             raise AdaptivePlanError(409, "PLAN_PROPOSAL_SUPERSEDED", "The proposal is no longer active.")
+        parent_goal = db.execute(
+            select(AdaptivePlanGoalSnapshot).where(
+                AdaptivePlanGoalSnapshot.user_id == user_id,
+                AdaptivePlanGoalSnapshot.id == parent.goal_snapshot_id,
+            ).with_for_update()
+        ).scalar_one()
         goal_snapshot = AdaptivePlanGoalSnapshot(user_id=user_id, version=parent.version + 1, **goal)
         db.add(goal_snapshot)
         db.flush()
         parent.state = "superseded"
         parent.decided_at = datetime.utcnow()
+        parent_goal.state = "superseded"
         proposal = PlanProposal(
             user_id=user_id,
             adaptive_plan_id=adaptive_plan.id,
@@ -705,7 +712,8 @@ def create_successor_proposal(
         )
         db.add(proposal)
         db.flush()
-        adaptive_plan.goal_snapshot_id = goal_snapshot.id
+        if adaptive_plan.lifecycle == "draft":
+            adaptive_plan.goal_snapshot_id = goal_snapshot.id
         adaptive_plan.active_proposal_id = proposal.id
         db.commit()
     except AdaptivePlanError:
@@ -772,7 +780,7 @@ def reject_proposal(
         proposal.decision_idempotency_key = idempotency_key
         proposal.decided_at = datetime.utcnow()
         adaptive_plan.active_proposal_id = None
-        if adaptive_plan.version == 0:
+        if adaptive_plan.lifecycle == "draft":
             adaptive_plan.lifecycle = "archived"
         db.commit()
     except AdaptivePlanError:
@@ -842,18 +850,27 @@ def adopt_proposal(
                     PlanRevision.idempotency_key == idempotency_key,
                 )
             ).scalar_one_or_none()
-            rows = db.execute(
-                select(TrainingPlan).where(
-                    TrainingPlan.user_id == user_id,
-                    TrainingPlan.adaptive_plan_id == proposal.adaptive_plan_id,
-                ).order_by(TrainingPlan.date, TrainingPlan.id)
-            ).scalars().all()
+            if revision is None:
+                raise AdaptivePlanError(
+                    500,
+                    "ADAPTIVE_PLAN_ADOPTION_REVISION_MISSING",
+                    "The adopted proposal is missing its canonical revision.",
+                )
+            proposal_snapshot = (revision.details or {}).get(
+                "proposal_snapshot"
+            )
+            if not isinstance(proposal_snapshot, Mapping):
+                raise AdaptivePlanError(
+                    500,
+                    "ADAPTIVE_PLAN_ADOPTION_SNAPSHOT_MISSING",
+                    "The adopted proposal is missing its immutable response snapshot.",
+                )
             db.commit()
             return {
                 "status": "already_adopted",
-                "proposal": _proposal_to_dict(db, proposal),
-                "revision_id": revision.id if revision else None,
-                "workouts": [plan_snapshot(row) for row in rows],
+                "proposal": proposal_snapshot,
+                "revision_id": revision.id,
+                "workouts": revision.after_snapshot or [],
             }
         if proposal.state == "expired":
             raise AdaptivePlanError(409, "PLAN_PROPOSAL_EXPIRED", "The proposal has expired.")
@@ -887,7 +904,7 @@ def adopt_proposal(
             proposal.state = "expired"
             proposal.decided_at = now
             adaptive_plan.active_proposal_id = None
-            if adaptive_plan.version == 0:
+            if adaptive_plan.lifecycle == "draft":
                 adaptive_plan.lifecycle = "archived"
             db.commit()
             raise AdaptivePlanError(409, "PLAN_PROPOSAL_EXPIRED", "The proposal has expired.")
@@ -895,6 +912,12 @@ def adopt_proposal(
             select(AdaptivePlanGoalSnapshot).where(
                 AdaptivePlanGoalSnapshot.user_id == user_id,
                 AdaptivePlanGoalSnapshot.id == proposal.goal_snapshot_id,
+            ).with_for_update()
+        ).scalar_one()
+        active_goal = db.execute(
+            select(AdaptivePlanGoalSnapshot).where(
+                AdaptivePlanGoalSnapshot.user_id == user_id,
+                AdaptivePlanGoalSnapshot.id == adaptive_plan.goal_snapshot_id,
             ).with_for_update()
         ).scalar_one()
         workouts = _validate_workouts(
@@ -920,11 +943,15 @@ def adopt_proposal(
         adaptive_plan.version = current_plan_version + 1
         adaptive_plan.lifecycle = "active"
         adaptive_plan.active_proposal_id = None
+        if active_goal.id != goal.id and active_goal.state == "active":
+            active_goal.state = "superseded"
+        adaptive_plan.goal_snapshot_id = goal.id
         goal.state = "active"
         goal.acknowledged_at = now
         proposal.state = "adopted"
         proposal.decision_idempotency_key = idempotency_key
         proposal.decided_at = now
+        proposal_snapshot = _proposal_to_dict(db, proposal)
         revision = record_plan_revision(
             db,
             user_id=user_id,
@@ -940,6 +967,7 @@ def adopt_proposal(
                 "proposal_version": proposal.version,
                 "goal_snapshot_id": goal.id,
                 "resulting_plan_version": adaptive_plan.version,
+                "proposal_snapshot": proposal_snapshot,
             },
             idempotency_key=idempotency_key,
         )
@@ -956,7 +984,7 @@ def adopt_proposal(
         raise
     return {
         "status": "adopted",
-        "proposal": _proposal_to_dict(db, proposal),
+        "proposal": proposal_snapshot,
         "revision_id": revision.id,
         "workouts": [plan_snapshot(row) for row in rows],
     }
