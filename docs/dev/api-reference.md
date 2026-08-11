@@ -1263,6 +1263,113 @@ workout-date window. `active` means the exact after-snapshot is still current,
 `undone` means the user restored it, and `superseded` means a later edit makes
 exact undo unsafe. `can_undo` is the authoritative action gate.
 
+### Adaptive plan proposals
+
+These authenticated endpoints provide the versioned, non-canonical proposal
+boundary for starting an adaptive plan. They accept already-structured goal and
+workout input only. They do **not** call an LLM, generate workouts, add new
+planning claims, or change managed-delivery consent. Generation remains
+unavailable until a human-accepted policy is implemented.
+
+Proposal records are athlete-owned and immutable: editing creates a successor
+proposal and marks the prior version superseded. Preview, rejection, stale
+versions, expiry, validation failures, and cross-owner requests do not write
+`training_plans` or provider-delivery state. Only exact-version adoption writes
+Praxys-owned canonical workouts, preserving each proposal workout's
+`canonical_id`, linking rows with `adaptive_plan_id`, appending a `PlanRevision`,
+and triggering already-consented provider delivery after the canonical commit.
+
+Common structured error `detail.code` values include
+`PLAN_PROPOSAL_VALIDATION_FAILED`, `PLAN_PROPOSAL_UNSUPPORTED_FIELD`,
+`PLAN_PROPOSAL_NOT_FOUND`, `PLAN_PROPOSAL_STALE`,
+`PLAN_PROPOSAL_SUPERSEDED`, `PLAN_PROPOSAL_EXPIRED`,
+`ADAPTIVE_PLAN_ACTIVE_EXISTS`, `ADAPTIVE_PLAN_VERSION_CONFLICT`, and
+`PLAN_PROPOSAL_ALREADY_ADOPTED`.
+
+#### POST /api/plan/proposals
+
+Create the first draft proposal for a new adaptive-plan aggregate. A user may
+have only one `draft` or `active` adaptive plan at a time.
+
+```json
+{
+  "goal": {
+    "goal_kind": "race",
+    "target": { "distance": "10k", "target_label": "Spring 10K" },
+    "horizon_start": "2026-04-11",
+    "horizon_end": "2026-05-09"
+  },
+  "workouts": [
+    {
+      "date": "2026-04-12",
+      "workout_type": "easy",
+      "planned_duration_min": 45,
+      "target_power_min": 190,
+      "target_power_max": 220,
+      "workout_description": "Aerobic run"
+    }
+  ],
+  "idempotency_key": "client-generated-key",
+  "origin": "api.plan.proposals",
+  "policy_version": "structured-only-v1",
+  "model_version": null,
+  "science_version": null,
+  "assumptions": [],
+  "unknowns": [],
+  "warnings": [],
+  "alternatives": [],
+  "expires_at": "2026-04-12T00:00:00"
+}
+```
+
+Response includes `id`, `adaptive_plan_id`, exact `version`, `state`,
+`base_plan_version`, normalized `workouts` with stable `canonical_id` values,
+the aggregate `{ id, version, lifecycle, active_proposal_id }`, and the
+immutable goal snapshot.
+
+#### GET /api/plan/proposals/current
+
+Return the authenticated athlete's active proposal and exact version, or 404
+`PLAN_PROPOSAL_NOT_FOUND` when none exists.
+
+#### POST /api/plan/proposals/{proposal_id}/edits
+
+Create a successor proposal. The request body is the same as
+`POST /api/plan/proposals` plus `expected_version`. The parent proposal must be
+the active draft with that exact version; it is never modified in place.
+
+#### POST /api/plan/proposals/{proposal_id}/reject
+
+Reject an exact active proposal without canonical writes.
+
+```json
+{
+  "expected_version": 2,
+  "idempotency_key": "reject-key"
+}
+```
+
+#### POST /api/plan/proposals/{proposal_id}/adopt
+
+Atomically adopt an exact proposal version into the canonical plan lane.
+
+```json
+{
+  "expected_proposal_version": 2,
+  "expected_plan_version": 0,
+  "idempotency_key": "adopt-key"
+}
+```
+
+Adoption locks the athlete's plan-write lane, verifies ownership, state, expiry,
+proposal version, and aggregate version, reruns deterministic validation, writes
+the canonical Praxys workouts in one transaction, marks the goal acknowledged
+and proposal adopted, increments the aggregate version, appends a linked
+`PlanRevision`, bumps the plan revision counter, commits, and only then invokes
+the existing managed-delivery trigger. Retrying with the same idempotency key is
+safe; retrying an adopted proposal with a different key returns
+`PLAN_PROPOSAL_ALREADY_ADOPTED`.
+
 ### POST /api/plan/workouts
 
 Create one future Praxys-owned canonical workout. Multiple canonical workouts
