@@ -39,6 +39,7 @@
 html[lang="zh"] .landing-root {
   --l-font-display: 'Noto Sans SC Variable', 'Geist Variable', sans-serif;
   --l-font-body: 'Noto Sans SC Variable', 'Geist Variable', sans-serif;
+  --l-font-data: 'JetBrains Mono Variable', 'Noto Sans SC Variable', monospace;
 }
 
 .dark .landing-root {
