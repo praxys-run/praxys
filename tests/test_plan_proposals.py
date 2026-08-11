@@ -1,7 +1,9 @@
 """Adaptive plan proposal API contract tests."""
 from __future__ import annotations
 
+import csv
 import importlib
+import io
 import os
 import tempfile
 from datetime import date, datetime, timedelta
@@ -49,6 +51,7 @@ def proposal_client(monkeypatch):
             db.close()
 
     from api.auth import get_current_user_id, get_data_user_id, require_write_access
+    from api.routes import ai as ai_route
     from api.routes import adaptive_plan as adaptive_plan_route
     from db.models import User
     from db.session import get_db
@@ -69,6 +72,11 @@ def proposal_client(monkeypatch):
     app.dependency_overrides[get_db] = _override_db
     monkeypatch.setattr(
         adaptive_plan_route,
+        "_trigger_managed_delivery",
+        lambda user_id, *, trigger: {"status": "skipped", "target": None, "reason": trigger, "items": []},
+    )
+    monkeypatch.setattr(
+        ai_route,
         "_trigger_managed_delivery",
         lambda user_id, *, trigger: {"status": "skipped", "target": None, "reason": trigger, "items": []},
     )
@@ -143,6 +151,44 @@ def _training_plans(db_session, user_id: str = "proposal-owner"):
         return db.query(TrainingPlan).filter(TrainingPlan.user_id == user_id).order_by(TrainingPlan.date).all()
     finally:
         db.close()
+
+
+def _adopt_payload(client: TestClient, payload: dict, *, key: str) -> dict:
+    created = client.post("/api/plan/proposals", json=payload)
+    assert created.status_code == 201, created.text
+    body = created.json()
+    adopted = client.post(
+        f"/api/plan/proposals/{body['id']}/adopt",
+        json={
+            "expected_proposal_version": body["version"],
+            "expected_plan_version": body["adaptive_plan"]["version"],
+            "idempotency_key": key,
+        },
+    )
+    assert adopted.status_code == 200, adopted.text
+    return adopted.json()
+
+
+def _csv_for(workouts: list[dict]) -> str:
+    fields = [
+        "date",
+        "workout_type",
+        "planned_duration_min",
+        "planned_distance_km",
+        "target_power_min",
+        "target_power_max",
+        "target_hr_min",
+        "target_hr_max",
+        "target_pace_min",
+        "target_pace_max",
+        "workout_description",
+    ]
+    out = io.StringIO()
+    writer = csv.DictWriter(out, fieldnames=fields)
+    writer.writeheader()
+    for workout in workouts:
+        writer.writerow({field: workout.get(field, "") for field in fields})
+    return out.getvalue()
 
 
 def test_create_read_successor_and_reject_preserve_noncanonical_history(proposal_client):
@@ -278,6 +324,187 @@ def test_adopt_exact_version_is_atomic_idempotent_and_preserves_workout_ids(prop
         assert proposal.state == "adopted"
         revision = db.query(PlanRevision).filter(PlanRevision.idempotency_key == "adopt-once").one()
         assert revision.details["proposal_id"] == created["id"]
+    finally:
+        db.close()
+
+
+def test_new_draft_after_adoption_replaces_full_future_owned_scope(proposal_client):
+    client, db_session, _ = proposal_client
+    start = date.today() + timedelta(days=2)
+    initial = _adopt_payload(
+        client,
+        _proposal_payload(
+            key="replace-scope-initial",
+            workouts=[
+                {
+                    "date": (start + timedelta(days=offset)).isoformat(),
+                    "workout_type": "easy",
+                    "planned_duration_min": 40 + offset,
+                }
+                for offset in range(3)
+            ],
+        ),
+        key="replace-scope-adopt-initial",
+    )
+    assert len(initial["workouts"]) == 3
+
+    replacement = client.post(
+        "/api/plan/proposals",
+        json=_proposal_payload(
+            key="replace-scope-draft",
+            workouts=[
+                {
+                    "date": start.isoformat(),
+                    "workout_type": "tempo",
+                    "planned_duration_min": 55,
+                }
+            ],
+        ),
+    )
+    assert replacement.status_code == 201, replacement.text
+    draft = replacement.json()
+    assert draft["version"] == 2
+    assert draft["adaptive_plan"]["version"] == 1
+    assert draft["adaptive_plan_id"] == initial["proposal"]["adaptive_plan_id"]
+
+    adopt = client.post(
+        f"/api/plan/proposals/{draft['id']}/adopt",
+        json={
+            "expected_proposal_version": draft["version"],
+            "expected_plan_version": draft["adaptive_plan"]["version"],
+            "idempotency_key": "replace-scope-adopt-replacement",
+        },
+    )
+    assert adopt.status_code == 200, adopt.text
+    assert [row["date"] for row in adopt.json()["workouts"]] == [start.isoformat()]
+
+    from db.models import PlanRevision, TrainingPlan
+
+    db = db_session.SessionLocal()
+    try:
+        plans = (
+            db.query(TrainingPlan)
+            .filter(TrainingPlan.user_id == "proposal-owner")
+            .order_by(TrainingPlan.date)
+            .all()
+        )
+        assert [plan.date for plan in plans] == [start]
+        assert all(plan.adaptive_plan_id == draft["adaptive_plan_id"] for plan in plans)
+        revision = (
+            db.query(PlanRevision)
+            .filter(PlanRevision.idempotency_key == "replace-scope-adopt-replacement")
+            .one()
+        )
+        assert len(revision.before_snapshot) == 3
+        assert len(revision.after_snapshot) == 1
+    finally:
+        db.close()
+
+
+@pytest.mark.parametrize("mutation", ["upload", "upsert", "delete", "reconciliation"])
+def test_canonical_mutation_between_draft_and_adoption_stales_proposal(
+    proposal_client,
+    mutation: str,
+):
+    client, db_session, _ = proposal_client
+    start = date.today() + timedelta(days=2)
+    _adopt_payload(
+        client,
+        _proposal_payload(
+            key=f"{mutation}-stale-initial",
+            workouts=[
+                {
+                    "date": start.isoformat(),
+                    "workout_type": "easy",
+                    "planned_duration_min": 45,
+                }
+            ],
+        ),
+        key=f"{mutation}-stale-adopt-initial",
+    )
+    draft_response = client.post(
+        "/api/plan/proposals",
+        json=_proposal_payload(
+            key=f"{mutation}-stale-draft",
+            workouts=[
+                {
+                    "date": start.isoformat(),
+                    "workout_type": "tempo",
+                    "planned_duration_min": 50,
+                }
+            ],
+        ),
+    )
+    assert draft_response.status_code == 201, draft_response.text
+    draft = draft_response.json()
+    expected_plan_version = draft["adaptive_plan"]["version"]
+
+    if mutation == "upload":
+        changed = client.post(
+            "/api/plan/upload?mode=merge",
+            json={
+                "csv": _csv_for(
+                    [
+                        {
+                            "date": start.isoformat(),
+                            "workout_type": "easy",
+                            "planned_duration_min": 35,
+                            "workout_description": "Uploaded edit",
+                        }
+                    ]
+                )
+            },
+        )
+        assert changed.status_code == 200, changed.text
+    elif mutation == "upsert":
+        changed = client.put(
+            f"/api/plan/{start.isoformat()}",
+            json={"workout_type": "easy", "planned_duration_min": 35},
+        )
+        assert changed.status_code == 200, changed.text
+    elif mutation == "delete":
+        changed = client.delete(f"/api/plan/{start.isoformat()}")
+        assert changed.status_code == 200, changed.text
+        assert changed.json()["rows"] == 1
+    else:
+        from db.plan_ledger import lock_plan_writes, record_plan_revision
+
+        db = db_session.SessionLocal()
+        try:
+            db.rollback()
+            lock_plan_writes(db, "proposal-owner")
+            record_plan_revision(
+                db,
+                user_id="proposal-owner",
+                operation="accept_target",
+                actor_type="user",
+                actor_id="proposal-owner",
+                origin="api.plan.reconciliation.accept",
+                before=[],
+                after=[],
+                details={"target": "garmin", "test": mutation},
+            )
+            db.commit()
+        finally:
+            db.close()
+
+    adopt = client.post(
+        f"/api/plan/proposals/{draft['id']}/adopt",
+        json={
+            "expected_proposal_version": draft["version"],
+            "expected_plan_version": expected_plan_version,
+            "idempotency_key": f"{mutation}-stale-adopt-draft",
+        },
+    )
+    assert adopt.status_code == 409, adopt.text
+    assert adopt.json()["detail"]["code"] == "ADAPTIVE_PLAN_VERSION_CONFLICT"
+
+    from db.models import PlanProposal
+
+    db = db_session.SessionLocal()
+    try:
+        proposal = db.query(PlanProposal).filter(PlanProposal.id == draft["id"]).one()
+        assert proposal.state == "draft"
     finally:
         db.close()
 

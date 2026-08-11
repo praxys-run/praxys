@@ -6,7 +6,7 @@ from datetime import date, datetime
 from typing import Any, Mapping, Sequence
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -350,6 +350,34 @@ def _active_plan(db: Session, *, user_id: str, for_update: bool = False) -> Adap
     return db.execute(stmt).scalar_one_or_none()
 
 
+def _canonical_plan_version(db: Session, *, user_id: str) -> int:
+    """Return the owner-scoped canonical plan revision-stream version."""
+    return int(
+        db.execute(
+            select(func.count(PlanRevision.id)).where(PlanRevision.user_id == user_id)
+        ).scalar_one()
+        or 0
+    )
+
+
+def _sync_plan_version(db: Session, *, user_id: str, adaptive_plan: AdaptivePlan) -> int:
+    current_version = max(
+        int(adaptive_plan.version or 0),
+        _canonical_plan_version(db, user_id=user_id),
+    )
+    adaptive_plan.version = current_version
+    return current_version
+
+
+def _next_proposal_version(db: Session, *, adaptive_plan_id: str) -> int:
+    current = db.execute(
+        select(func.max(PlanProposal.version)).where(
+            PlanProposal.adaptive_plan_id == adaptive_plan_id
+        )
+    ).scalar_one()
+    return int(current or 0) + 1
+
+
 def _proposal_expired(proposal: PlanProposal, *, now: datetime) -> bool:
     return proposal.expires_at is not None and proposal.expires_at <= now
 
@@ -462,6 +490,51 @@ def create_draft_proposal(
                 adaptive_plan=active_plan,
                 now=datetime.utcnow(),
             )
+        if (
+            active_plan is not None
+            and not archived_expired
+            and active_plan.lifecycle == "active"
+            and active_plan.active_proposal_id is None
+        ):
+            plan_version = _sync_plan_version(
+                db,
+                user_id=user_id,
+                adaptive_plan=active_plan,
+            )
+            goal_snapshot = AdaptivePlanGoalSnapshot(
+                user_id=user_id,
+                version=_next_proposal_version(db, adaptive_plan_id=active_plan.id),
+                **goal,
+            )
+            db.add(goal_snapshot)
+            db.flush()
+            proposal = PlanProposal(
+                user_id=user_id,
+                adaptive_plan_id=active_plan.id,
+                goal_snapshot_id=goal_snapshot.id,
+                version=goal_snapshot.version,
+                state="draft",
+                origin=payload.origin,
+                actor_type=payload.actor_type,
+                actor_id=payload.actor_id,
+                base_plan_version=plan_version,
+                policy_version=payload.policy_version,
+                model_version=payload.model_version,
+                science_version=payload.science_version,
+                assumptions=_json_list(payload.assumptions),
+                unknowns=_json_list(payload.unknowns),
+                warnings=_json_list(payload.warnings),
+                alternatives=_json_list(payload.alternatives),
+                expires_at=payload.expires_at,
+                idempotency_key=payload.idempotency_key,
+                workout_snapshot=workouts,
+            )
+            db.add(proposal)
+            db.flush()
+            active_plan.goal_snapshot_id = goal_snapshot.id
+            active_plan.active_proposal_id = proposal.id
+            db.commit()
+            return _proposal_to_dict(db, proposal)
         if active_plan is not None and not archived_expired:
             raise AdaptivePlanError(
                 409,
@@ -475,7 +548,7 @@ def create_draft_proposal(
             user_id=user_id,
             goal_snapshot_id=goal_snapshot.id,
             lifecycle="draft",
-            version=0,
+            version=_canonical_plan_version(db, user_id=user_id),
         )
         db.add(adaptive_plan)
         db.flush()
@@ -590,6 +663,17 @@ def create_successor_proposal(
                 AdaptivePlan.id == parent.adaptive_plan_id,
             ).with_for_update()
         ).scalar_one()
+        plan_version = max(
+            int(adaptive_plan.version or 0),
+            _canonical_plan_version(db, user_id=user_id),
+        )
+        if plan_version != parent.base_plan_version:
+            raise AdaptivePlanError(
+                409,
+                "ADAPTIVE_PLAN_VERSION_CONFLICT",
+                "The adaptive plan changed after the proposal was loaded.",
+                current_version=plan_version,
+            )
         if adaptive_plan.active_proposal_id != parent.id:
             raise AdaptivePlanError(409, "PLAN_PROPOSAL_SUPERSEDED", "The proposal is no longer active.")
         goal_snapshot = AdaptivePlanGoalSnapshot(user_id=user_id, version=parent.version + 1, **goal)
@@ -606,7 +690,7 @@ def create_successor_proposal(
             origin=payload.origin,
             actor_type=payload.actor_type,
             actor_id=payload.actor_id,
-            base_plan_version=adaptive_plan.version,
+            base_plan_version=plan_version,
             supersedes_proposal_id=parent.id,
             policy_version=payload.policy_version,
             model_version=payload.model_version,
@@ -783,8 +867,19 @@ def adopt_proposal(
                 AdaptivePlan.id == proposal.adaptive_plan_id,
             ).with_for_update()
         ).scalar_one()
-        if adaptive_plan.version != expected_plan_version:
-            raise AdaptivePlanError(409, "ADAPTIVE_PLAN_VERSION_CONFLICT", "The adaptive plan changed after the proposal was loaded.", current_version=adaptive_plan.version)
+        current_plan_version = max(
+            int(adaptive_plan.version or 0),
+            _canonical_plan_version(db, user_id=user_id),
+        )
+        if proposal.base_plan_version != expected_plan_version:
+            raise AdaptivePlanError(
+                409,
+                "ADAPTIVE_PLAN_VERSION_CONFLICT",
+                "The proposal was based on a different canonical plan version.",
+                current_version=current_plan_version,
+            )
+        if current_plan_version != expected_plan_version:
+            raise AdaptivePlanError(409, "ADAPTIVE_PLAN_VERSION_CONFLICT", "The adaptive plan changed after the proposal was loaded.", current_version=current_plan_version)
         if adaptive_plan.active_proposal_id != proposal.id:
             raise AdaptivePlanError(409, "PLAN_PROPOSAL_SUPERSEDED", "The proposal is no longer active.")
         now = datetime.utcnow()
@@ -809,11 +904,10 @@ def adopt_proposal(
             current_date=current_date,
         )
         rows = _plans_from_snapshot(user_id, adaptive_plan.id, workouts)
-        date_values = [date.fromisoformat(str(item["date"])) for item in workouts]
         existing_query = db.query(TrainingPlan).filter(
             TrainingPlan.user_id == user_id,
             TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
-            TrainingPlan.date.in_(date_values),
+            TrainingPlan.date >= current_date,
         )
         before_rows = existing_query.order_by(TrainingPlan.date, TrainingPlan.id).all()
         before = [plan_snapshot(row) for row in before_rows]
@@ -823,7 +917,7 @@ def adopt_proposal(
         for row in rows:
             db.add(row)
         db.flush()
-        adaptive_plan.version += 1
+        adaptive_plan.version = current_plan_version + 1
         adaptive_plan.lifecycle = "active"
         adaptive_plan.active_proposal_id = None
         goal.state = "active"
