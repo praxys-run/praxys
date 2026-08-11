@@ -94,10 +94,11 @@ method:
 claims:
   - id: outdoor-5k-plan.structured-training-not-universal-policy
     statement: >
-      Structured endurance training can improve performance in some
-      recreational-running contexts, but the retained evidence does not
-      establish one universally superior intensity distribution, periodization,
-      session count, duration, or 5 km plan-generation rule.
+      This metadata-only draft cannot use the cited structured-training article
+      to establish a superior intensity distribution, periodization, session
+      count, duration, or 5 km plan-generation rule. A human reviewer must
+      retrieve and appraise the article before making a source-specific
+      performance claim.
     source_ids:
       - munoz-2014
     evidence_strength: low
@@ -109,9 +110,8 @@ claims:
       - Intensity distribution
       - Policy generalization limit
     limitations:
-      - The primary between-group performance difference was not significant in the retained study.
-      - A favorable polarized result came from a smaller adherence-defined subset.
-      - The source does not evaluate an outdoor 5 km product workflow, LLM-generated sessions, safety events, or any Praxys heuristic.
+      - No abstract or full text was retrieved in this review, so the study design, outcomes, and applicability remain unverified.
+      - This draft does not use the citation to validate an outdoor 5 km product workflow, LLM-generated sessions, safety events, or any Praxys heuristic.
   - id: outdoor-5k-plan.fixed-progression-not-safety-threshold
     statement: >
       This metadata-only draft does not treat the cited novice-runner graded
@@ -122,7 +122,7 @@ claims:
     source_ids:
       - buist-2008
       - impellizzeri-2020
-    evidence_strength: moderate
+    evidence_strength: low
     applicable_population:
       - Novice adult runners similar to the randomized cohort
       - Athletic workload-monitoring populations for the methodological critique
@@ -132,9 +132,8 @@ claims:
       - Workload interpretation
       - Injury-prevention claim limit
     limitations:
-      - The trial does not show that every alternative progression is equally safe or effective.
-      - The critique does not make training history irrelevant or validate a replacement universal threshold.
-      - Neither source evaluates the named Praxys validation heuristics, a 5 km plan, individual medical risk, or a return-to-running decision.
+      - No abstract or full text was retrieved in this review, so the reported designs, findings, and applicability remain unverified.
+      - This draft does not use either citation to validate the named Praxys validation heuristics, a 5 km plan, individual medical risk, or a return-to-running decision.
   - id: outdoor-5k-plan.individual-targets-require-validation
     statement: >
       This metadata-only draft cannot use the cited group-average
@@ -144,7 +143,7 @@ claims:
       representative development data, calibration, and independent validation.
     source_ids:
       - bonafiglia-2021
-    evidence_strength: moderate
+    evidence_strength: low
     applicable_population:
       - Adults completing standardized exercise interventions
       - Recreational outdoor 5 km runners only as a future validation population
@@ -153,18 +152,17 @@ claims:
       - Individual prediction
       - Plan-target claim limit
     limitations:
-      - The review was not a running-plan or race-goal prediction study.
-      - It does not supply a valid threshold-relative target, progression size, rest count, or probability cut point.
-      - This is a boundary on inference, not evidence that individual responses never differ.
+      - No abstract or full text was retrieved in this review, so the review's methods, findings, and applicability remain unverified.
+      - This draft does not use the citation to supply a threshold-relative target, progression size, rest count, or probability cut point.
   - id: outdoor-5k-plan.matched-performance-evidence-is-limited
     statement: >
-      A performance test used to anchor or evaluate an outdoor 5 km policy
-      should match the target performance and use protocol-specific validity,
-      reliability, and sensitivity evidence; unlike tests, routes, or model
-      estimates cannot be silently treated as equivalent direct 5 km evidence.
+      This metadata-only draft will not treat unlike tests, routes, or model
+      estimates as equivalent direct 5 km evidence. A future policy must define
+      protocol-specific validity, reliability, and sensitivity evidence before
+      using a performance test to anchor or evaluate an outdoor 5 km policy.
     source_ids:
       - currell-2008
-    evidence_strength: moderate
+    evidence_strength: low
     applicable_population:
       - Sports-performance testing populations represented by the review
       - Adult recreational outdoor 5 km runners only where a future protocol establishes direct applicability
@@ -172,14 +170,15 @@ claims:
       - Measurement validity
       - Baseline and outcome interpretation
     limitations:
-      - Exact error, meaningful change, and comparability depend on protocol, distance, setting, and population.
-      - The review does not choose an outdoor 5 km protocol, validate the existing Praxys baseline pilot, or authorize a plan generator.
+      - No abstract or full text was retrieved in this review, so the review's methods, findings, and applicability remain unverified.
+      - This draft does not use the citation to choose an outdoor 5 km protocol, validate the existing Praxys baseline pilot, or authorize a plan generator.
   - id: outdoor-5k-plan.vigorous-screening-is-not-clearance
     statement: >
-      Current signs and symptoms are relevant to participation decisions before
-      vigorous exercise. This supports a conservative stop-and-escalate
-      boundary for a future optional plan or field-test flow, not diagnosis,
-      treatment, clearance, risk prediction, or automated return-to-sport.
+      This metadata-only draft proposes a conservative stop-and-escalate
+      boundary for a future optional plan or field-test flow; it does not use
+      the cited guidance to diagnose, treat, clear participation, predict risk,
+      or automate return-to-sport. A human reviewer must verify the guidance
+      before a source-specific safety claim is made.
     source_ids:
       - riebe-2015
     evidence_strength: low
@@ -190,8 +189,8 @@ claims:
       - Safety boundary
       - Exercise participation
     limitations:
-      - The guidance is not a validation study of a self-administered outdoor 5 km plan.
-      - It does not make vigorous training risk-free or validate product symptom wording, routing, or automated clearance.
+      - No full text was retrieved in this review, so the guidance and its applicability remain unverified.
+      - This draft does not use the citation to validate product symptom wording, routing, automated clearance, or an unsupervised outdoor 5 km plan.
 citations:
   - id: munoz-2014
     title: "Does polarized training improve performance in recreational runners?"
@@ -273,9 +272,7 @@ known_gaps:
   - Fairness, missingness, and performance assessment across sex, age, training history, threshold availability, provider provenance, and sparse-data status
   - An evaluation of LLM output reliability, prompt sensitivity, hallucination, or unsafe-plan rate for this use case
 conflicting_findings:
-  - Structured-training studies can report improvement while differing in intensity distribution, adherence, protocol, and population; the retained evidence does not identify one transferable policy.
-  - A workload history can be descriptively useful while workload-ratio thresholds remain unsuitable as causal injury limits.
-  - Fixed-distance performance tests can be useful under a defined protocol while outdoor context can weaken direct before/after comparability.
+  - The locally reconciled citations cover different training, workload, and performance-testing topics, but their findings must be independently verified before they can resolve a policy choice.
 follow_up_questions:
   - Can a human-reviewed, pre-registered, suggestion-only policy outperform a no-change comparator without increasing adverse events or coercion?
   - Which proposal inputs can be minimized while retaining reproducibility and allowing athletes to correct, exclude, or delete context?
