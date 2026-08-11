@@ -48,7 +48,7 @@ scope:
     - Protocol-specific performance-test interpretation
     - Scope, uncertainty, and falsifiability of a future product policy
 method:
-  review_type: rigorous
+  review_type: rapid
   search_date: 2026-08-11
   sources:
     - name: PubMed ESearch - recreational runner training and progression
