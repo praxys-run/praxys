@@ -36,6 +36,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "evidence-plan-outcome-interpretation-v1",
         "evidence-personal-environment-response-v1",
         "evidence-preplan-baseline-policy-v1",
+        "evidence-outdoor-5k-plan-generation-policy-v1",
         "evidence-running-field-tests-v1",
         "evidence-short-interruption-detraining-v1",
     }
@@ -46,6 +47,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "sdr-environmental-performance-v3",
         "sdr-environmental-performance-v4",
         "sdr-heat-adaptation-v1",
+        "sdr-outdoor-5k-plan-generation-policy-v1",
         "sdr-preplan-baseline-policy-v1",
     }
     assert registry.evidence_reviews[
@@ -182,6 +184,64 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         }
         for parameter in baseline_parameters.values()
     )
+
+    five_km_review = registry.evidence_reviews[
+        "evidence-outdoor-5k-plan-generation-policy-v1"
+    ]
+    five_km_decision = registry.decisions[
+        "sdr-outdoor-5k-plan-generation-policy-v1"
+    ]
+    assert five_km_review.status == "draft"
+    assert five_km_review.human_reviewers == []
+    assert five_km_review.supersedes == []
+    assert five_km_review.superseded_by is None
+    assert five_km_decision.status == "draft"
+    assert five_km_decision.human_reviewers == []
+    assert five_km_decision.supersedes == []
+    assert five_km_decision.superseded_by is None
+    assert five_km_decision.evidence_review_ids == [five_km_review.id]
+    assert set(five_km_decision.evidence_claim_ids) == {
+        claim.id for claim in five_km_review.claims
+    }
+    five_km_parameters = {
+        parameter.name: parameter
+        for parameter in five_km_decision.model_parameters
+    }
+    assert five_km_parameters["policy_lifecycle"].value == (
+        "draft_decision_proposal_no_active_behavior"
+    )
+    assert five_km_parameters["generation_and_record_acceptance"].value == {
+        "generate_candidate_plan": "disabled",
+        "accept_candidate_plan": "disabled",
+        "accept_or_mutate_athlete_records": "disabled",
+        "write_or_sync_workouts": "disabled",
+        "automatic_adjustment": "disabled",
+    }
+    assert five_km_parameters["existing_max_plan_span_days"].value == 35
+    assert five_km_parameters[
+        "existing_threshold_target_power_fraction_range"
+    ].value == {
+        "minimum": 0.4,
+        "maximum": 1.3,
+        "reference": "current_threshold",
+    }
+    assert five_km_parameters[
+        "existing_quality_session_limit_per_iso_week"
+    ].value["maximum"] == 3
+    assert five_km_parameters["existing_passive_rest_rule"].value == {
+        "minimum_passive_rest_days": 1,
+        "required_when_scheduled_rows_in_iso_week_at_least": 6,
+        "labels": ["rest", "off"],
+    }
+    assert five_km_parameters["existing_context_lookback_weeks"].value == 8
+    assert five_km_parameters["existing_staleness_age_days"].value == 28
+    assert five_km_parameters[
+        "existing_staleness_threshold_drift_percent"
+    ].value == 3
+    assert {
+        parameter.classification.value
+        for parameter in five_km_parameters.values()
+    } <= {"published", "estimate", "guardrail"}
 
     decision = registry.decisions["sdr-heat-adaptation-v1"]
     assert decision.status == "accepted"

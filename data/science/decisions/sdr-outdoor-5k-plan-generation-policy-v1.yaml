@@ -1,0 +1,372 @@
+schema_version: 1
+id: sdr-outdoor-5k-plan-generation-policy-v1
+version: 1
+title: "Draft bounded adult recreational outdoor 5 km plan-generation policy"
+status: draft
+decision_date: 2026-08-11
+owners:
+  - team:praxys
+human_reviewers: []
+model_version: outdoor-5k-plan-generation-policy-v1-draft
+evidence_review_ids:
+  - evidence-outdoor-5k-plan-generation-policy-v1
+evidence_claim_ids:
+  - outdoor-5k-plan.structured-training-not-universal-policy
+  - outdoor-5k-plan.fixed-progression-not-safety-threshold
+  - outdoor-5k-plan.individual-targets-require-validation
+  - outdoor-5k-plan.matched-performance-evidence-is-limited
+  - outdoor-5k-plan.vigorous-screening-is-not-clearance
+accepted_interpretation: >
+  Proposed interpretation only; this draft is not accepted and has no active
+  implementation effect. If a human later accepts a successor policy after
+  independently repeating the evidence review, its first scope must remain
+  bounded to self-coached adults aged 18 years or older who recreationally run
+  outdoors, can already complete 5 km, and select an outdoor road 5 km
+  elapsed-time goal. It may produce at most an athlete-reviewable,
+  deterministic, versioned candidate plan with its inputs, evidence status,
+  heuristic labels, unknowns, safety exit, and no-change alternative visible.
+  Evidence supports neither a universal dose, intensity distribution, workload
+  threshold, rest count, target-power range, progression rate, personal success
+  probability, medical clearance, nor automated plan acceptance. Existing
+  generic validation checks are enumerated below rule by rule, but they are
+  product heuristics or data-integrity checks—not published 5 km safety or
+  efficacy rules—and this draft does not authorize their use for plan
+  generation, record acceptance, writing, syncing, or automatic adjustment.
+rejected_alternatives:
+  - alternative: Activate the existing generic validation heuristics as an accepted adult outdoor 5 km generation policy.
+    rationale: >
+      The retained evidence does not validate the existing values or their
+      combination for this population, outcome, or delivery mechanism. A draft
+      SDR cannot activate behavior.
+  - alternative: Present 35 days, 40 to 130 percent of threshold, three quality sessions, or one rest day as published safety thresholds.
+    rationale: >
+      These are existing product/data-integrity heuristics. The reviewed
+      literature does not publish them as individual causal safety limits for
+      recreational outdoor 5 km runners.
+  - alternative: Use a 10 percent progression rule or acute-to-chronic workload ratio as an automatic injury-prevention trigger.
+    rationale: >
+      The retained trial and methodological critique do not establish either
+      as a causal individual safety threshold.
+  - alternative: Generate a personal probability of reaching a 5 km goal or a guaranteed individualized target.
+    rationale: >
+      No calibrated, representative, externally validated Praxys model exists,
+      and group evidence cannot produce that individual claim.
+  - alternative: Treat any threshold estimate, device estimate, route, or field test as an interchangeable 5 km plan anchor.
+    rationale: >
+      Performance-test interpretation is protocol- and population-specific;
+      unmatched evidence cannot silently become direct 5 km evidence.
+  - alternative: Accept, write, sync, replace, or automatically adjust an athlete record after generating a candidate.
+    rationale: >
+      This decision-proposal document explicitly excludes record acceptance and
+      product behavior. Athlete review, approval, privacy controls, and a
+      separately accepted implementation decision would be required.
+  - alternative: Continue generation through illness, injury, red-flag symptoms, reported medical restriction, or unsafe outdoor conditions.
+    rationale: >
+      This proposal supplies only a non-diagnostic stop-and-escalate boundary;
+      it cannot diagnose, treat, clear, or prescribe return to sport.
+model_parameters:
+  - name: policy_lifecycle
+    value: draft_decision_proposal_no_active_behavior
+    classification: guardrail
+    rationale: >
+      This record remains a human-review proposal. It must not be read by a
+      shipped model or converted into generation behavior before acceptance and
+      an explicitly approved implementation change.
+    applies_to: evidence-review and decision lifecycle
+  - name: bounded_applicability
+    value:
+      age: 18_plus
+      runner: self_coached_recreational
+      setting: outdoor_road
+      distance: 5_km
+      criterion: elapsed_time
+      prerequisite: already_able_to_complete_5_km
+      excluded:
+        - under_18
+        - clinical_or_medical_use
+        - injury_rehabilitation
+        - return_to_sport
+        - trail
+        - treadmill
+        - ultradistance
+        - race_equivalence
+    classification: guardrail
+    evidence_claim_ids:
+      - outdoor-5k-plan.matched-performance-evidence-is-limited
+      - outdoor-5k-plan.vigorous-screening-is-not-clearance
+    rationale: >
+      Narrowing the proposal prevents unsupported transfer across populations,
+      settings, distances, medical contexts, and performance criteria.
+    applies_to: any future policy eligibility contract
+  - name: generation_and_record_acceptance
+    value:
+      generate_candidate_plan: disabled
+      accept_candidate_plan: disabled
+      accept_or_mutate_athlete_records: disabled
+      write_or_sync_workouts: disabled
+      automatic_adjustment: disabled
+    classification: guardrail
+    rationale: >
+      The trusted scope is decision-proposal documents only. No decision in
+      this draft creates a generation, approval, record-acceptance, write,
+      sync, or adjustment permission.
+    applies_to: all product and provider surfaces
+  - name: future_ai_output_treatment
+    value:
+      candidate_content: untrusted_non_authoritative
+      automatic_execution: prohibited
+      external_tool_or_provider_action: prohibited
+      extra_context_collection_from_output: prohibited
+    classification: guardrail
+    rationale: >
+      A model-generated plan is not scientific evidence, athlete consent,
+      medical advice, or an instruction to take an action. This boundary keeps
+      any future AI-mediated experiment reviewable and prevents output from
+      expanding the policy's collection, provider, or execution scope.
+    applies_to: future separately approved AI-mediated candidate-plan experiment
+  - name: existing_empty_plan_rejection
+    value: reject_empty_plan
+    classification: guardrail
+    rationale: >
+      api.ai.validate_plan currently rejects an empty list as a structural
+      integrity check. It is not an efficacy, safety, or completeness rule for
+      a future 5 km policy.
+    applies_to: existing generic api.ai.validate_plan heuristic
+  - name: existing_required_workout_fields
+    value:
+      - date
+      - workout_type
+    classification: guardrail
+    rationale: >
+      api.ai.validate_plan currently requires these fields. Required fields
+      make a candidate inspectable but do not make its dose, sequencing, or
+      safety valid.
+    applies_to: existing generic api.ai.validate_plan heuristic
+  - name: existing_date_parse_and_past_date_rejection
+    value:
+      parse_date_as_iso8601: true
+      reject_date_before_generation_day: true
+    classification: guardrail
+    rationale: >
+      api.ai.validate_plan currently parses ISO dates and rejects dates before
+      its execution-day clock. This is data integrity and scheduling hygiene,
+      not a published training effect or safety threshold.
+    applies_to: existing generic api.ai.validate_plan heuristic
+  - name: existing_max_plan_span_days
+    value: 35
+    classification: estimate
+    rationale: >
+      api.ai.validate_plan currently rejects a span over 35 days. No retained
+      source validates 35 days as an optimal or safe individual 5 km planning
+      horizon; a future policy would need to pre-register and test it.
+    applies_to: existing generic api.ai.validate_plan heuristic
+  - name: existing_threshold_target_power_fraction_range
+    value:
+      minimum: 0.4
+      maximum: 1.3
+      reference: current_threshold
+    classification: guardrail
+    rationale: >
+      api.ai.validate_plan currently checks supplied target-power values against
+      40 to 130 percent of a positive threshold. The check is not a 5 km
+      intensity prescription, does not validate the threshold estimate, and
+      does not establish individual safety or efficacy.
+    applies_to: existing generic api.ai.validate_plan heuristic
+  - name: existing_missing_threshold_disposition
+    value: existing_validator_skips_power_range_check;draft_policy_does_not_authorize_target_inference
+    classification: guardrail
+    rationale: >
+      The current generic validator skips its range check when threshold is
+      absent or nonpositive. This draft specifically does not turn missing
+      threshold data into inferred, invented, or automatically accepted 5 km
+      targets.
+    applies_to: existing generic api.ai.validate_plan heuristic
+  - name: existing_quality_session_limit_per_iso_week
+    value:
+      maximum: 3
+      labels:
+        - fartlek
+        - hill_repeat
+        - hill_repeats
+        - interval
+        - intervals
+        - long
+        - long_run
+        - race
+        - repetition
+        - repetitions
+        - speed
+        - tempo
+        - threshold
+        - time_trial
+        - vo2_max
+        - vo2max
+    classification: guardrail
+    rationale: >
+      api.ai.validate_plan currently counts known demanding labels by ISO week
+      and rejects more than three. The taxonomy and count are operational
+      heuristics, not a validated individual intensity-dose, injury-prevention,
+      or outdoor 5 km rule.
+    applies_to: existing generic api.ai.validate_plan heuristic
+  - name: existing_passive_rest_rule
+    value:
+      minimum_passive_rest_days: 1
+      required_when_scheduled_rows_in_iso_week_at_least: 6
+      labels:
+        - rest
+        - "off"
+    classification: guardrail
+    rationale: >
+      api.ai.validate_plan currently applies this labelled-rest check only to
+      ISO weeks with at least six scheduled rows. It does not measure recovery,
+      prove safety, or establish a universal rest requirement.
+    applies_to: existing generic api.ai.validate_plan heuristic
+  - name: existing_context_lookback_weeks
+    value: 8
+    classification: estimate
+    rationale: >
+      api.ai.build_training_context currently defaults to eight weeks of
+      recent sessions. The retained evidence does not validate eight weeks as
+      sufficient, necessary, representative, or privacy-minimal for a 5 km
+      policy.
+    applies_to: existing generic api.ai.build_training_context heuristic
+  - name: existing_staleness_age_days
+    value: 28
+    classification: guardrail
+    rationale: >
+      api.ai.check_plan_staleness currently warns after more than 28 days.
+      That warning is not an accepted expiry rule, fitness-loss estimate, or
+      generation authorization in this proposal.
+    applies_to: existing generic api.ai.check_plan_staleness heuristic
+  - name: existing_staleness_threshold_drift_percent
+    value: 3
+    classification: guardrail
+    rationale: >
+      api.ai.check_plan_staleness currently warns when a positive threshold
+      differs by more than 3 percent. This is not a validated measurement-error
+      or action threshold and cannot determine a plan change.
+    applies_to: existing generic api.ai.check_plan_staleness heuristic
+  - name: future_candidate_plan_envelope
+    value:
+      proposal_mode: athlete_reviewable_and_reversible
+      required_provenance:
+        - policy_version
+        - evidence_review_id
+        - evidence_claim_ids
+        - input_snapshot
+        - heuristic_labels
+        - uncertainty_and_no_change_alternative
+      personal_probability: prohibited
+      automatic_prescription: prohibited
+      automatic_catch_up_or_doubling: prohibited
+      workload_ratio_trigger: prohibited
+      fixed_progression_safety_claim: prohibited
+    classification: guardrail
+    evidence_claim_ids:
+      - outdoor-5k-plan.structured-training-not-universal-policy
+      - outdoor-5k-plan.fixed-progression-not-safety-threshold
+      - outdoor-5k-plan.individual-targets-require-validation
+    rationale: >
+      Evidence is insufficient to select a fixed dose or individual prediction.
+      A future experiment should therefore expose proposed inputs and choices,
+      preserve a no-change comparator, and avoid autonomous prescription.
+    applies_to: future separately approved policy experiment
+  - name: future_safety_and_privacy_boundary
+    value:
+      stop_generation_for:
+        - injury_or_pain_altering_running
+        - acute_illness
+        - red_flag_symptoms
+        - reported_medical_restriction
+        - self_reported_inadequate_recovery
+        - unsafe_outdoor_conditions
+      medical_action: no_diagnosis_no_treatment_no_clearance_no_return_to_sport
+      context_collection: minimum_necessary_structured_opt_in
+      free_text_inference: prohibited
+      sensitive_attribute_inference: prohibited
+      deletion_and_correction: required_before_any_future_experiment
+    classification: guardrail
+    evidence_claim_ids:
+      - outdoor-5k-plan.vigorous-screening-is-not-clearance
+    rationale: >
+      This isolates a non-diagnostic safety exit from performance inference and
+      prevents a future proposal from expanding optional athlete context into
+      sensitive inference, coercive collection, or a medical decision.
+    applies_to: future separately approved policy experiment
+applicability:
+  - Draft decision-proposal documentation only; no active model consumes this record.
+  - Any future scope is limited to self-coached adult recreational outdoor road runners who can already complete 5 km and select a 5 km elapsed-time goal.
+  - A future plan would be suggestion-only and athlete-reviewable, not a medical, rehabilitation, return-to-sport, or guaranteed-performance tool.
+  - The existing generic api.ai validation and staleness heuristics are documented as current code facts, not endorsed, changed, or expanded by this draft.
+user_facing_claim_limits:
+  - Do not say that this draft generates, approves, accepts, writes, syncs, or changes a plan or athlete record.
+  - Do not promise, estimate, or display an individual probability of 5 km goal achievement.
+  - Do not describe any existing number or session rule as published, personalized, optimal, safe, or medically cleared.
+  - Do not claim that a threshold estimate, workload ratio, session label, plan age, or a single field test proves readiness, injury risk, adaptation, or a needed action.
+  - Do not treat unmatched routes, protocols, devices, estimates, or environments as directly comparable 5 km evidence.
+  - Do not state that screening removes risk, clears vigorous exercise, diagnoses symptoms, or prescribes return to sport.
+safety_implications:
+  - Injury, acute illness, red-flag symptoms, reported medical restriction, inadequate recovery, and unsafe outdoor conditions are stop-and-escalate boundaries, not ordinary generation inputs.
+  - The draft does not authorize automated catch-up, compression, doubling, intensity escalation, plan replacement, or record acceptance.
+  - A future proposal must show uncertainty, a no-change alternative, and an immediate non-diagnostic safety exit before testing any candidate plan policy.
+  - Human review and a separately accepted implementation decision are required before any product behavior could cite this SDR.
+privacy_implications:
+  - This documentation-only change collects, sends, stores, infers, or exposes no athlete data.
+  - Any future experiment must use minimum-necessary, structured, purpose-limited, opt-in context and let the athlete correct, exclude, and delete it.
+  - A future policy must not infer medical, family, employment, identity, location, or other sensitive facts from training behavior, free text, or missing data.
+  - No cross-user contribution, provider credential, sync expansion, or privacy-boundary change is proposed.
+validation_plan:
+  - Before acceptance, an independent human science reviewer must reproduce the exact PubMed and Crossref requests in the paired Evidence Review, record result counts and source-access levels, and revise claims for any different source set.
+  - Before implementation, pre-register one deterministic, suggestion-only policy version with a complete input snapshot, candidate-plan output, no-change comparator, human-review protocol, stop criteria, and audit trail.
+  - Prospectively measure protocol-qualified 5 km outcome, completion, athlete acceptance or rejection, reversals, adverse or stop events, missingness, privacy requests, and unexpected generation failures.
+  - Pre-specify measurement error, comparable route/protocol rules, meaningful-change criteria, and a small set of primary outcomes before enrolling any user.
+  - Compare the candidate policy with no-change handling; do not use a historical uncontrolled before/after result as causal proof.
+  - Evaluate calibration, harms, acceptance, and error by sex, age, training history, baseline status, threshold availability, provider provenance, and missing-data status; do not expose an individual probability unless a later model is independently validated.
+  - Add deterministic tests for every accepted policy boundary, API contract, web flow, miniapp parity, record lifecycle, privacy deletion, and safety exit only in the separately approved implementation change.
+falsification_conditions:
+  - Independent search reproduction identifies evidence that materially changes the review's claim strength, population applicability, or excluded alternatives.
+  - Any proposed value is presented as a published individual safety, efficacy, or performance threshold despite its estimate or guardrail classification.
+  - A candidate policy cannot be deterministically replayed from its policy version, evidence links, input snapshot, and output.
+  - A candidate policy increases prospectively measured adverse or stop events, worsens the pre-registered primary outcome versus no-change handling, or shows unacceptable subgroup disparity.
+  - Athletes interpret a suggestion, category, or target as medical clearance, a guarantee, or a calibrated personal probability.
+  - An implementation accepts or mutates an athlete record, writes or syncs a workout, infers sensitive facts, or continues optimization through a safety boundary without a separately accepted decision.
+affected_surfaces:
+  models:
+    - "Decision-proposal documentation only; no active theory, model, formula, or heuristic is changed."
+    - "Future optional outdoor-5k-plan-generation-policy model, only after a separately accepted successor SDR."
+  apis:
+    - "No API contract change in this draft; future plan-generation, proposal, approval, and safety-exit contracts are explicitly out of scope."
+  clients:
+    - "No web or miniapp UI change in this draft; future web and miniapp parity, state, accessibility, and localized copy remain required before implementation."
+  science_notes:
+    - "No ScienceNote change in this draft; a future explanation would need to expose policy provenance, uncertainty, safety boundaries, and alternatives."
+supersedes: []
+superseded_by:
+decision_notes:
+  - >
+    Evidence mapping: outdoor-5k-plan.structured-training-not-universal-policy
+    is limited group evidence; outdoor-5k-plan.fixed-progression-not-safety-threshold
+    and outdoor-5k-plan.individual-targets-require-validation are uncertainty
+    boundaries; every `existing_*` parameter is a product heuristic or
+    data-integrity rule; future_safety_and_privacy_boundary is a separate
+    non-medical safety/privacy boundary.
+  - >
+    Rule-by-rule disposition: every current plan-generation-adjacent heuristic
+    found in api.ai.validate_plan, api.ai.build_training_context, and
+    api.ai.check_plan_staleness on 2026-08-11 is listed as a parameter above.
+    No unlisted existing code behavior is endorsed, and no listed behavior is
+    changed or activated.
+  - >
+    Complete implementation map: Evidence Review -> draft SDR -> no theory/model
+    change -> no analysis change -> no API change -> no web type/UI change -> no
+    miniapp change -> no ScienceNote change -> registry/document tests only ->
+    prospective falsification before any separately approved implementation.
+  - >
+    Existing accepted sdr-preplan-baseline-policy-v1 and
+    evidence-preplan-baseline-policy-v1 are neither superseded nor modified.
+    This draft does not accept any record and has no active supersession link.
+  - >
+    Human science review must decide whether to reject, revise, or accept a
+    successor after independent source retrieval. Acceptance alone would still
+    not authorize implementation; a complete implementation map and review
+    would be required.
