@@ -38,6 +38,14 @@ from starlette.responses import Response
 _DEFAULT_DIST_DIR = Path(__file__).resolve().parent.parent / "web" / "dist"
 _DEFAULT_DEPLOYED_SHA_FILE = Path(__file__).resolve().with_name("_deployed_sha.txt")
 _COMMIT_SHA_RE = re.compile(r"^[0-9a-fA-F]{40}$")
+_INDEXABLE_PUBLIC_PATHS = {
+    "/",
+    "/product",
+    "/faq",
+    "/zh",
+    "/zh/product",
+    "/zh/faq",
+}
 
 
 _ASSET_SUFFIXES = (
@@ -137,6 +145,9 @@ def create_app(
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        normalized_path = path.rstrip("/") or "/"
+        if normalized_path not in _INDEXABLE_PUBLIC_PATHS and not _looks_like_asset(path):
+            response.headers["X-Robots-Tag"] = "noindex, nofollow"
         return response
 
     @app.get("/healthz")

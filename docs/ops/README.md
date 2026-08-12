@@ -21,6 +21,7 @@ diagnose X". It complements — and links out to — the setup-oriented
 | [deploy.md](./deploy.md) | You're deploying the backend, frontend, or mini program — or need to roll back. |
 | [labs-analysis-worker.md](./labs-analysis-worker.md) | You're provisioning, enabling, or diagnosing isolated Labs analysis compute. |
 | [tencent-frontend.md](./tencent-frontend.md) | Provisioning or operating the mainland-China Lighthouse static frontend. |
+| [search-discovery.md](./search-discovery.md) | You're submitting public pages to search engines, measuring SEO/GEO, or preparing the `praxys.cn` cutover. |
 | [org-migration.md](./org-migration.md) | Migrating the repos from `dddtc2005` into the `praxys-run` org (OIDC pre-stage, App reinstall, tokens). |
 | [monitoring-and-alerts.md](./monitoring-and-alerts.md) | You want to query a telemetry signal or wire an email/Teams alert. |
 | [admin-tasks.md](./admin-tasks.md) | You're using `/admin/ops` or a focused admin route for health, incidents, users, feedback, or communications. |
