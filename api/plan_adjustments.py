@@ -54,6 +54,7 @@ _DELIVERY_OPERATION = "auto_adjustment_delivery"
 _UNDO_DELIVERY_OPERATION = "auto_adjustment_undo_delivery"
 
 _REST_MUTATION_FIELDS = (
+    "activity_type",
     "workout_type",
     "planned_duration_min",
     "planned_distance_km",
@@ -64,6 +65,8 @@ _REST_MUTATION_FIELDS = (
     "target_pace_min",
     "target_pace_max",
     "workout_description",
+    "workout_structure_version",
+    "workout_structure",
     "start_time",
     "meta",
 )

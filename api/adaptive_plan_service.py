@@ -6,12 +6,17 @@ from datetime import date, datetime
 from typing import Any, Mapping, Sequence
 from uuid import UUID, uuid4
 
+from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from analysis.config import PRAXYS_PLAN_SOURCES, PRAXYS_PLAN_WRITE_SOURCE
 from analysis.metrics import is_rest_workout
+from api.plan_workout_structure import (
+    normalize_adaptive_plan_discipline,
+    validate_structured_workout,
+)
 from db.cache_revision import bump_revisions
 from db.models import (
     AdaptivePlan,
@@ -37,6 +42,7 @@ class ProposalInput:
     """Structured, privacy-minimized input for one immutable proposal."""
 
     goal: Mapping[str, Any]
+    discipline: str
     workouts: Sequence[Mapping[str, Any]]
     origin: str
     actor_type: str
@@ -55,6 +61,7 @@ class ProposalInput:
 _WORKOUT_FIELDS = (
     "canonical_id",
     "date",
+    "activity_type",
     "workout_type",
     "planned_duration_min",
     "planned_distance_km",
@@ -65,6 +72,8 @@ _WORKOUT_FIELDS = (
     "target_pace_min",
     "target_pace_max",
     "workout_description",
+    "workout_structure_version",
+    "workout_structure",
 )
 
 
@@ -246,9 +255,29 @@ def _validate_workouts(
                 "workout_type is required.",
                 field=f"workouts[{index}].workout_type",
             )
+        activity_type = str(workout.get("activity_type") or "").strip()
+        if not activity_type:
+            raise AdaptivePlanError(
+                400,
+                "PLAN_PROPOSAL_VALIDATION_FAILED",
+                "activity_type is required.",
+                field=f"workouts[{index}].activity_type",
+            )
+        workout_structure_version = str(
+            workout.get("workout_structure_version") or ""
+        ).strip()
+        workout_structure = workout.get("workout_structure")
+        if not workout_structure_version or workout_structure is None:
+            raise AdaptivePlanError(
+                400,
+                "PLAN_PROPOSAL_VALIDATION_FAILED",
+                "workout_structure_version and workout_structure are required.",
+                field=f"workouts[{index}].workout_structure",
+            )
         item = {
             "canonical_id": canonical_id,
             "date": date_key,
+            "activity_type": activity_type,
             "workout_type": workout_type,
             "planned_duration_min": _bounded_number(workout.get("planned_duration_min"), field="planned_duration_min"),
             "planned_distance_km": _bounded_number(workout.get("planned_distance_km"), field="planned_distance_km"),
@@ -259,6 +288,7 @@ def _validate_workouts(
             "target_pace_min": workout.get("target_pace_min"),
             "target_pace_max": workout.get("target_pace_max"),
             "workout_description": workout.get("workout_description") or "",
+            "workout_structure_version": workout_structure_version,
         }
         for pace_field in ("target_pace_min", "target_pace_max"):
             pace = item[pace_field]
@@ -268,18 +298,27 @@ def _validate_workouts(
             raise AdaptivePlanError(400, "PLAN_PROPOSAL_TARGET_RANGE_INVALID", "Minimum target power cannot exceed maximum target power.")
         if item["target_hr_min"] is not None and item["target_hr_max"] is not None and item["target_hr_min"] > item["target_hr_max"]:
             raise AdaptivePlanError(400, "PLAN_PROPOSAL_TARGET_RANGE_INVALID", "Minimum target heart rate cannot exceed maximum target heart rate.")
-        if is_rest_workout(workout_type):
-            for field in (
-                "planned_duration_min",
-                "planned_distance_km",
-                "target_power_min",
-                "target_power_max",
-                "target_hr_min",
-                "target_hr_max",
-                "target_pace_min",
-                "target_pace_max",
-            ):
-                item[field] = None
+        try:
+            (
+                normalized_activity_type,
+                normalized_structure,
+                projections,
+            ) = validate_structured_workout(
+                workout_type=workout_type,
+                activity_type=activity_type,
+                workout_structure_version=workout_structure_version,
+                workout_structure=workout_structure,
+            )
+        except (ValidationError, ValueError) as exc:
+            raise AdaptivePlanError(
+                400,
+                "PLAN_PROPOSAL_VALIDATION_FAILED",
+                "Structured workout is invalid.",
+                field=f"workouts[{index}].workout_structure",
+            ) from exc
+        item["activity_type"] = normalized_activity_type
+        item["workout_structure"] = normalized_structure
+        item.update(projections)
         normalized.append(item)
     return sorted(normalized, key=lambda item: item["date"])
 
@@ -294,6 +333,7 @@ def _proposal_to_dict(
         "id": proposal.id,
         "adaptive_plan_id": proposal.adaptive_plan_id,
         "goal_snapshot_id": proposal.goal_snapshot_id,
+        "discipline": proposal.discipline,
         "version": proposal.version,
         "state": proposal.state,
         "base_plan_version": proposal.base_plan_version,
@@ -314,6 +354,7 @@ def _proposal_to_dict(
         "workouts": proposal.workout_snapshot or [],
         "adaptive_plan": None if plan is None else {
             "id": plan.id,
+            "discipline": plan.discipline,
             "version": plan.version,
             "lifecycle": plan.lifecycle,
             "active_proposal_id": plan.active_proposal_id,
@@ -472,6 +513,7 @@ def create_draft_proposal(
     if existing is not None:
         return _idempotent_proposal_hit(db, user_id=user_id, proposal=existing)
     goal = _validate_goal(payload.goal)
+    discipline = normalize_adaptive_plan_discipline(payload.discipline)
     workouts = _validate_workouts(
         payload.workouts,
         horizon_start=goal["horizon_start"],
@@ -510,6 +552,7 @@ def create_draft_proposal(
                 user_id=user_id,
                 adaptive_plan_id=active_plan.id,
                 goal_snapshot_id=goal_snapshot.id,
+                discipline=discipline,
                 version=goal_snapshot.version,
                 state="draft",
                 origin=payload.origin,
@@ -547,6 +590,7 @@ def create_draft_proposal(
         adaptive_plan = AdaptivePlan(
             user_id=user_id,
             goal_snapshot_id=goal_snapshot.id,
+            discipline=discipline,
             lifecycle="draft",
             version=_canonical_plan_version(db, user_id=user_id),
         )
@@ -556,6 +600,7 @@ def create_draft_proposal(
             user_id=user_id,
             adaptive_plan_id=adaptive_plan.id,
             goal_snapshot_id=goal_snapshot.id,
+            discipline=discipline,
             version=1,
             state="draft",
             origin=payload.origin,
@@ -626,6 +671,7 @@ def create_successor_proposal(
     if existing is not None:
         return _idempotent_proposal_hit(db, user_id=user_id, proposal=existing)
     goal = _validate_goal(payload.goal)
+    discipline = normalize_adaptive_plan_discipline(payload.discipline)
     workouts = _validate_workouts(
         payload.workouts,
         horizon_start=goal["horizon_start"],
@@ -692,6 +738,7 @@ def create_successor_proposal(
             user_id=user_id,
             adaptive_plan_id=adaptive_plan.id,
             goal_snapshot_id=goal_snapshot.id,
+            discipline=discipline,
             version=parent.version + 1,
             state="draft",
             origin=payload.origin,
@@ -714,6 +761,7 @@ def create_successor_proposal(
         db.flush()
         if adaptive_plan.lifecycle == "draft":
             adaptive_plan.goal_snapshot_id = goal_snapshot.id
+            adaptive_plan.discipline = discipline
         adaptive_plan.active_proposal_id = proposal.id
         db.commit()
     except AdaptivePlanError:
@@ -801,6 +849,7 @@ def _plans_from_snapshot(user_id: str, adaptive_plan_id: str, workouts: Sequence
                 adaptive_plan_id=adaptive_plan_id,
                 canonical_id=str(workout["canonical_id"]),
                 date=date.fromisoformat(str(workout["date"])),
+                activity_type=str(workout.get("activity_type") or ""),
                 workout_type=str(workout["workout_type"]),
                 planned_duration_min=workout.get("planned_duration_min"),
                 planned_distance_km=workout.get("planned_distance_km"),
@@ -811,6 +860,11 @@ def _plans_from_snapshot(user_id: str, adaptive_plan_id: str, workouts: Sequence
                 target_pace_min=workout.get("target_pace_min"),
                 target_pace_max=workout.get("target_pace_max"),
                 workout_description=workout.get("workout_description") or "",
+                workout_structure_version=str(
+                    workout.get("workout_structure_version") or ""
+                )
+                or None,
+                workout_structure=workout.get("workout_structure"),
                 source=PRAXYS_PLAN_WRITE_SOURCE,
                 workout_origin="proposal",
                 meta={"proposal_id": adaptive_plan_id},
@@ -940,6 +994,7 @@ def adopt_proposal(
         for row in rows:
             db.add(row)
         db.flush()
+        adaptive_plan.discipline = proposal.discipline
         adaptive_plan.version = current_plan_version + 1
         adaptive_plan.lifecycle = "active"
         adaptive_plan.active_proposal_id = None

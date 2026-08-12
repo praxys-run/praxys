@@ -743,6 +743,22 @@ def _row_to_workout(
             and row_date >= response_today
         ),
     }
+    activity_type = row.get("activity_type")
+    if pd.notna(activity_type) and activity_type != "":
+        workout["activity_type"] = str(activity_type)
+    structure_version = row.get("workout_structure_version")
+    if pd.notna(structure_version) and structure_version != "":
+        workout["workout_structure_version"] = str(structure_version)
+    structure = row.get("workout_structure")
+    if isinstance(structure, dict):
+        workout["workout_structure"] = dict(structure)
+    elif pd.notna(structure) and structure not in ("", None):
+        try:
+            parsed_structure = json.loads(str(structure))
+        except (TypeError, ValueError):
+            parsed_structure = None
+        if isinstance(parsed_structure, dict):
+            workout["workout_structure"] = parsed_structure
     canonical_id = row.get("canonical_id")
     if pd.notna(canonical_id) and canonical_id:
         workout["canonical_id"] = str(canonical_id)

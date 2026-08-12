@@ -125,25 +125,159 @@ def _goal_payload(start: date | None = None, end: date | None = None) -> dict:
     }
 
 
-def _proposal_payload(*, key: str = "proposal-create", workouts: list[dict] | None = None) -> dict:
+def _none_target() -> dict:
+    return {
+        "metric": "none",
+        "unit": "none",
+        "reference": "none",
+    }
+
+
+def _target(
+    metric: str,
+    unit: str,
+    reference: str,
+    *,
+    minimum: float | None = None,
+    maximum: float | None = None,
+) -> dict:
+    payload = {
+        "metric": metric,
+        "unit": unit,
+        "reference": reference,
+    }
+    if minimum is not None:
+        payload["min"] = minimum
+    if maximum is not None:
+        payload["max"] = maximum
+    return payload
+
+
+def _time_step(
+    minutes: int,
+    *,
+    phase: str = "other",
+    target: dict | None = None,
+) -> dict:
+    return {
+        "type": "step",
+        "phase": phase,
+        "termination": {
+            "type": "time",
+            "seconds": minutes * 60,
+        },
+        "target": target or _none_target(),
+    }
+
+
+def _repeat_group(repetitions: int, *steps: dict) -> dict:
+    return {
+        "type": "repeat",
+        "repetitions": repetitions,
+        "steps": list(steps),
+    }
+
+
+def _structure(*steps: dict) -> dict:
+    return {"steps": list(steps)}
+
+
+def _proposal_workout_defaults(workout: dict) -> dict:
+    normalized = dict(workout)
+    workout_type = str(normalized.get("workout_type") or "")
+    if "activity_type" not in normalized:
+        normalized["activity_type"] = (
+            "rest" if workout_type == "rest" else "running"
+        )
+    if "workout_structure_version" not in normalized:
+        normalized["workout_structure_version"] = "v1"
+    if "workout_structure" not in normalized:
+        if normalized["activity_type"] == "rest" or workout_type == "rest":
+            normalized["workout_structure"] = _structure()
+        else:
+            target = _none_target()
+            if (
+                normalized.get("target_power_min") is not None
+                or normalized.get("target_power_max") is not None
+            ):
+                target = _target(
+                    "power",
+                    "watts",
+                    "absolute",
+                    minimum=normalized.get("target_power_min"),
+                    maximum=normalized.get("target_power_max"),
+                )
+            duration_min = normalized.get("planned_duration_min")
+            if duration_min:
+                normalized["workout_structure"] = _structure(
+                    _time_step(
+                        int(duration_min),
+                        target=target,
+                    )
+                )
+            else:
+                normalized["workout_structure"] = {
+                    "steps": [
+                        {
+                            "type": "step",
+                            "phase": "other",
+                            "termination": {"type": "open"},
+                            "target": target,
+                        }
+                    ]
+                }
+    return normalized
+
+
+def _proposal_payload(
+    *,
+    key: str = "proposal-create",
+    discipline: str = "running",
+    workouts: list[dict] | None = None,
+) -> dict:
     start = date.today() + timedelta(days=1)
     return {
         "goal": _goal_payload(start, start + timedelta(days=7)),
-        "workouts": workouts or [
+        "discipline": discipline,
+        "workouts": [
+            _proposal_workout_defaults(workout)
+            for workout in (
+                workouts
+                if workouts is not None
+                else [
             {
                 "date": start.isoformat(),
+                "activity_type": "running",
                 "workout_type": "easy",
                 "planned_duration_min": 45,
                 "target_power_min": 200,
                 "target_power_max": 240,
                 "workout_description": "Aerobic run",
+                "workout_structure_version": "v1",
+                "workout_structure": _structure(
+                    _time_step(
+                        45,
+                        target=_target(
+                            "power",
+                            "watts",
+                            "absolute",
+                            minimum=200,
+                            maximum=240,
+                        ),
+                    )
+                ),
             },
             {
                 "date": (start + timedelta(days=1)).isoformat(),
+                "activity_type": "rest",
                 "workout_type": "rest",
                 "planned_duration_min": 30,
                 "planned_distance_km": 5,
+                "workout_structure_version": "v1",
+                "workout_structure": _structure(),
             },
+                ]
+            )
         ],
         "idempotency_key": key,
         "origin": "api.plan.proposals.test",
@@ -392,6 +526,270 @@ def test_adopt_exact_version_is_atomic_idempotent_and_preserves_workout_ids(prop
         assert revision.details["proposal_id"] == created["id"]
     finally:
         db.close()
+
+
+def test_road_and_trail_proposals_remain_distinguishable(proposal_client):
+    client, _, _ = proposal_client
+    start = date.today() + timedelta(days=2)
+    road_workout = {
+        "date": start.isoformat(),
+        "activity_type": "running",
+        "workout_type": "easy",
+        "planned_duration_min": 60,
+        "workout_structure_version": "v1",
+        "workout_structure": _structure(_time_step(60)),
+    }
+    trail_workout = {
+        **road_workout,
+        "activity_type": "trail_running",
+    }
+
+    road = client.post(
+        "/api/plan/proposals",
+        json=_proposal_payload(
+            key="road-proposal",
+            discipline="running",
+            workouts=[road_workout],
+        ),
+    )
+    assert road.status_code == 201, road.text
+    road_body = road.json()
+    assert road_body["discipline"] == "running"
+    assert road_body["workouts"][0]["activity_type"] == "running"
+
+    rejected = client.post(
+        f"/api/plan/proposals/{road_body['id']}/reject",
+        json={"expected_version": 1, "idempotency_key": "road-reject"},
+    )
+    assert rejected.status_code == 200, rejected.text
+
+    trail = client.post(
+        "/api/plan/proposals",
+        json=_proposal_payload(
+            key="trail-proposal",
+            discipline="trail_running",
+            workouts=[trail_workout],
+        ),
+    )
+    assert trail.status_code == 201, trail.text
+    trail_body = trail.json()
+    assert trail_body["discipline"] == "trail_running"
+    assert trail_body["workouts"][0]["activity_type"] == "trail_running"
+    assert road_body["workouts"][0]["planned_duration_min"] == (
+        trail_body["workouts"][0]["planned_duration_min"]
+    )
+
+
+def test_structured_workout_round_trips_through_adoption_and_replay(proposal_client):
+    client, db_session, _ = proposal_client
+    start = date.today() + timedelta(days=3)
+    trail_structure = _structure(
+        _time_step(15, phase="warmup"),
+        _repeat_group(
+            3,
+            _time_step(
+                4,
+                phase="work",
+                target=_target(
+                    "power",
+                    "percent_cp",
+                    "critical_power",
+                    minimum=90,
+                    maximum=95,
+                ),
+            ),
+            _time_step(3, phase="recovery"),
+        ),
+        _time_step(10, phase="cooldown"),
+    )
+    payload = _proposal_payload(
+        key="trail-structured-create",
+        discipline="trail_running",
+        workouts=[
+            {
+                "date": start.isoformat(),
+                "activity_type": "trail_running",
+                "workout_type": "interval",
+                "workout_description": "Trail hill session",
+                "workout_structure_version": "v1",
+                "workout_structure": trail_structure,
+            },
+            {
+                "date": (start + timedelta(days=1)).isoformat(),
+                "activity_type": "rest",
+                "workout_type": "rest",
+                "workout_structure_version": "v1",
+                "workout_structure": _structure(),
+            },
+        ],
+    )
+    created = client.post("/api/plan/proposals", json=payload)
+
+    assert created.status_code == 201, created.text
+    created_body = created.json()
+    assert created_body["discipline"] == "trail_running"
+    assert created_body["adaptive_plan"]["discipline"] == "trail_running"
+    assert created_body["workouts"][0]["activity_type"] == "trail_running"
+    assert created_body["workouts"][0]["workout_structure_version"] == "v1"
+    assert created_body["workouts"][0]["workout_structure"] == trail_structure
+    assert created_body["workouts"][0]["planned_duration_min"] == 46
+    assert created_body["workouts"][0]["planned_distance_km"] is None
+    assert created_body["workouts"][0]["target_power_min"] is None
+    assert created_body["workouts"][1]["activity_type"] == "rest"
+    assert created_body["workouts"][1]["workout_structure"]["steps"] == []
+    assert created_body["workouts"][1]["planned_duration_min"] is None
+
+    adopted = client.post(
+        f"/api/plan/proposals/{created_body['id']}/adopt",
+        json={
+            "expected_proposal_version": created_body["version"],
+            "expected_plan_version": created_body["adaptive_plan"]["version"],
+            "idempotency_key": "trail-structured-adopt",
+        },
+    )
+
+    assert adopted.status_code == 200, adopted.text
+    adopt_body = adopted.json()
+    assert adopt_body["status"] == "adopted"
+    assert adopt_body["proposal"]["discipline"] == "trail_running"
+    assert adopt_body["workouts"][0]["activity_type"] == "trail_running"
+    assert adopt_body["workouts"][0]["workout_structure_version"] == "v1"
+    assert adopt_body["workouts"][0]["workout_structure"] == trail_structure
+    assert adopt_body["workouts"][1]["workout_structure"]["steps"] == []
+
+    from db.models import PlanRevision, TrainingPlan
+
+    db = db_session.SessionLocal()
+    try:
+        plans = (
+            db.query(TrainingPlan)
+            .filter(TrainingPlan.user_id == "proposal-owner")
+            .order_by(TrainingPlan.date)
+            .all()
+        )
+        assert plans[0].activity_type == "trail_running"
+        assert plans[0].workout_structure_version == "v1"
+        assert plans[0].workout_structure == trail_structure
+        assert plans[1].activity_type == "rest"
+        assert plans[1].workout_structure == {"steps": []}
+        revision = (
+            db.query(PlanRevision)
+            .filter(PlanRevision.idempotency_key == "trail-structured-adopt")
+            .one()
+        )
+        assert revision.after_snapshot[0]["activity_type"] == "trail_running"
+        assert revision.after_snapshot[0]["workout_structure_version"] == "v1"
+        assert revision.after_snapshot[0]["workout_structure"] == trail_structure
+    finally:
+        db.close()
+
+    replacement = client.post(
+        "/api/plan/proposals",
+        json=_proposal_payload(
+            key="trail-structured-replacement",
+            discipline="running",
+            workouts=[
+                {
+                    "date": start.isoformat(),
+                    "activity_type": "running",
+                    "workout_type": "easy",
+                    "workout_structure_version": "v1",
+                    "workout_structure": _structure(_time_step(30)),
+                }
+            ],
+        ),
+    )
+    assert replacement.status_code == 201, replacement.text
+    replacement_body = replacement.json()
+
+    replacement_adopt = client.post(
+        f"/api/plan/proposals/{replacement_body['id']}/adopt",
+        json={
+            "expected_proposal_version": replacement_body["version"],
+            "expected_plan_version": replacement_body["adaptive_plan"]["version"],
+            "idempotency_key": "trail-structured-replacement-adopt",
+        },
+    )
+    assert replacement_adopt.status_code == 200, replacement_adopt.text
+
+    replay = client.post(
+        f"/api/plan/proposals/{created_body['id']}/adopt",
+        json={
+            "expected_proposal_version": created_body["version"],
+            "expected_plan_version": 0,
+            "idempotency_key": "trail-structured-adopt",
+        },
+    )
+    assert replay.status_code == 200, replay.text
+    replay_body = replay.json()
+    assert replay_body["status"] == "already_adopted"
+    assert replay_body["proposal"]["discipline"] == "trail_running"
+    assert replay_body["workouts"][0]["activity_type"] == "trail_running"
+    assert replay_body["workouts"][0]["workout_structure"] == trail_structure
+    assert replay_body["workouts"][1]["workout_structure"] == {"steps": []}
+
+
+def test_proposal_validation_rejects_invalid_structure_and_target_units(proposal_client):
+    client, _, _ = proposal_client
+    start = date.today() + timedelta(days=2)
+
+    missing_steps = client.post(
+        "/api/plan/proposals",
+        json=_proposal_payload(
+            key="missing-steps",
+            workouts=[
+                {
+                    "date": start.isoformat(),
+                    "activity_type": "running",
+                    "workout_type": "easy",
+                    "workout_structure_version": "v1",
+                    "workout_structure": _structure(),
+                }
+            ],
+        ),
+    )
+    assert missing_steps.status_code == 422
+    missing_steps_detail = missing_steps.json()["detail"]
+    assert missing_steps_detail["code"] == "PLAN_PROPOSAL_VALIDATION_FAILED"
+    assert all(set(item) == {"field", "type"} for item in missing_steps_detail["errors"])
+    assert any(
+        item["field"].startswith("workouts.0.workout_structure")
+        for item in missing_steps_detail["errors"]
+    )
+
+    invalid_target = client.post(
+        "/api/plan/proposals",
+        json=_proposal_payload(
+            key="invalid-target-combo",
+            workouts=[
+                {
+                    "date": start.isoformat(),
+                    "activity_type": "running",
+                    "workout_type": "easy",
+                    "workout_structure_version": "v1",
+                    "workout_structure": _structure(
+                        _time_step(
+                            20,
+                            target={
+                                "metric": "power",
+                                "unit": "bpm",
+                                "reference": "absolute",
+                                "min": 180,
+                            },
+                        )
+                    ),
+                }
+            ],
+        ),
+    )
+    assert invalid_target.status_code == 422
+    invalid_target_detail = invalid_target.json()["detail"]
+    assert invalid_target_detail["code"] == "PLAN_PROPOSAL_VALIDATION_FAILED"
+    assert all(set(item) == {"field", "type"} for item in invalid_target_detail["errors"])
+    assert any(
+        item["field"].startswith("workouts.0.workout_structure")
+        for item in invalid_target_detail["errors"]
+    )
 
 
 def test_new_draft_after_adoption_replaces_full_future_owned_scope(proposal_client):

@@ -158,24 +158,32 @@ def test_stryd_adapter_marks_rate_limit_as_safely_retryable(monkeypatch):
         adapter.create_workout(prepared)
 
 
-def test_stryd_prepared_payload_is_stable_and_tracks_threshold():
+def test_stryd_prepared_payload_ignores_free_text_and_tracks_real_targets():
     adapter = StrydPlanDeliveryAdapter({
         "email": "runner@example.test",
         "password": "secret",
     })
-    workout = {
+    free_text_only = {
         "date": "2026-08-02",
         "workout_type": "threshold",
         "planned_duration_min": 60,
         "workout_description": "20min @250-270W",
     }
+    power_target = {
+        **free_text_only,
+        "target_power_min": 250,
+        "target_power_max": 270,
+    }
 
-    first = adapter.prepare_workout(workout, threshold_value=280.0)
-    repeated = adapter.prepare_workout(workout, threshold_value=280.0)
-    changed = adapter.prepare_workout(workout, threshold_value=285.0)
+    first = adapter.prepare_workout(free_text_only, threshold_value=280.0)
+    repeated = adapter.prepare_workout(free_text_only, threshold_value=280.0)
+    changed = adapter.prepare_workout(free_text_only, threshold_value=285.0)
+    targeted = adapter.prepare_workout(power_target, threshold_value=280.0)
+    targeted_changed = adapter.prepare_workout(power_target, threshold_value=285.0)
 
     assert first == repeated
-    assert first.version != changed.version
+    assert first.version == changed.version
+    assert targeted.version != targeted_changed.version
 
 
 def test_delivery_authenticates_before_starting_ledger_attempt(tmp_path):

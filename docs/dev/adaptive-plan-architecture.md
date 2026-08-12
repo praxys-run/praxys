@@ -84,6 +84,7 @@ provider adapters or make platform calendars canonical.
 `AdaptivePlan` is the aggregate root. Its persistent contract needs:
 
 - opaque plan ID and owning user ID;
+- explicit primary discipline (`running` or `trail_running`), never inferred;
 - goal-contract ID and goal-contract version;
 - purpose, start, target/end date, and planning horizon;
 - lifecycle status;
@@ -147,8 +148,10 @@ Intensity evidence always uses activity splits or samples, never activity
 `PlanProposal` is immutable and non-canonical. It contains:
 
 - plan ID and base aggregate version;
+- explicit plan discipline plus per-workout `activity_type`;
 - proposal scope: plan, block, week, workout, goal, pause, resume, or end;
 - proposed before/after snapshots or a typed patch;
+- versioned workout structure (`v1`) instead of description-derived intervals;
 - evidence-snapshot and decision references;
 - rationale, uncertainty, trade-offs, and affected goal expectation;
 - policy, model, prompt, and science-decision versions;
@@ -158,6 +161,95 @@ Intensity evidence always uses activity splits or samples, never activity
 
 A proposal can be accepted, edited into a successor, rejected, deferred,
 expired, or superseded. None of those states mutates the plan except acceptance.
+
+### Structured workout contract v1
+
+Proposal workouts and canonical `TrainingPlan` rows carry a versioned
+`workout_structure` alongside compatibility flat fields. The structure is
+authoritative; flat duration, distance, and targets are projections derived
+only when Praxys can do so without inventing missing information.
+
+- `discipline` is the adaptive plan's primary lane (`running` or
+  `trail_running`).
+- `activity_type` is per workout and stays separate from `workout_type`
+  (`running`, `trail_running`, `cycling`, `strength`, `rest`, etc.).
+- Non-rest workouts need at least one executable step. Rest workouts may use
+  `{"steps": []}`.
+- Step phases are `warmup`, `work`, `recovery`, `cooldown`, or `other`.
+- Step terminations are `time`, `distance`, `open`, or `manual`.
+- Intensity targets are typed. Valid combinations are:
+  `none`; power in `watts` or `%CP`; heart rate in `bpm` or `%LTHR`; pace in
+  `sec_per_km` or threshold-relative `sec_per_km_delta`; and `RPE` on a
+  10-point scale.
+
+Example interval workout:
+
+```json
+{
+  "discipline": "trail_running",
+  "activity_type": "trail_running",
+  "workout_type": "interval",
+  "workout_structure_version": "v1",
+  "workout_structure": {
+    "steps": [
+      {
+        "type": "step",
+        "phase": "warmup",
+        "termination": { "type": "time", "seconds": 900 },
+        "target": {
+          "metric": "power",
+          "unit": "percent_cp",
+          "reference": "critical_power",
+          "min": 65,
+          "max": 75
+        }
+      },
+      {
+        "type": "repeat",
+        "repetitions": 4,
+        "steps": [
+          {
+            "type": "step",
+            "phase": "work",
+            "termination": { "type": "time", "seconds": 240 },
+            "target": {
+              "metric": "power",
+              "unit": "percent_cp",
+              "reference": "critical_power",
+              "min": 95,
+              "max": 100
+            }
+          },
+          {
+            "type": "step",
+            "phase": "recovery",
+            "termination": { "type": "time", "seconds": 180 },
+            "target": {
+              "metric": "power",
+              "unit": "percent_cp",
+              "reference": "critical_power",
+              "min": 60,
+              "max": 65
+            }
+          }
+        ]
+      },
+      {
+        "type": "step",
+        "phase": "cooldown",
+        "termination": { "type": "time", "seconds": 600 },
+        "target": {
+          "metric": "power",
+          "unit": "percent_cp",
+          "reference": "critical_power",
+          "min": 60,
+          "max": 70
+        }
+      }
+    ]
+  }
+}
+```
 
 ### Accepted revision
 

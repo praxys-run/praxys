@@ -1487,6 +1487,7 @@ class AdaptivePlan(Base):
         nullable=False,
         index=True,
     )
+    discipline = Column(String(30), nullable=False)
     lifecycle = Column(String(20), nullable=False, default="draft")
     version = Column(Integer, nullable=False, default=0)
     active_proposal_id = Column(String(36), nullable=True)
@@ -1504,6 +1505,10 @@ class AdaptivePlan(Base):
         CheckConstraint(
             "lifecycle IN ('draft','active','completed','archived')",
             name="ck_adaptive_plan_lifecycle",
+        ),
+        CheckConstraint(
+            "discipline IN ('running','trail_running')",
+            name="ck_adaptive_plan_discipline",
         ),
         Index(
             "uq_adaptive_plan_one_active",
@@ -1540,6 +1545,7 @@ class PlanProposal(Base):
         nullable=False,
         index=True,
     )
+    discipline = Column(String(30), nullable=False)
     version = Column(Integer, nullable=False)
     state = Column(String(20), nullable=False, default="draft")
     origin = Column(String(80), nullable=False)
@@ -1590,6 +1596,10 @@ class PlanProposal(Base):
             "actor_type IN ('user','agent','system')",
             name="ck_plan_proposal_actor_type",
         ),
+        CheckConstraint(
+            "discipline IN ('running','trail_running')",
+            name="ck_plan_proposal_discipline",
+        ),
         Index("ix_plan_proposal_user_state", "user_id", "state", "created_at"),
         Index(
             "ix_plan_proposal_plan_state",
@@ -1613,6 +1623,7 @@ class TrainingPlan(Base):
         default=lambda: str(uuid4()),
     )
     date = Column(Date, nullable=False)
+    activity_type = Column(String(30), nullable=True)
     workout_type = Column(String(50), nullable=True)
     planned_duration_min = Column(Float, nullable=True)
     planned_distance_km = Column(Float, nullable=True)
@@ -1623,6 +1634,8 @@ class TrainingPlan(Base):
     target_pace_min = Column(String(20), nullable=True)
     target_pace_max = Column(String(20), nullable=True)
     workout_description = Column(Text, nullable=True)
+    workout_structure_version = Column(String(20), nullable=True)
+    workout_structure = Column(JSON, nullable=True)
     # Ownership lane. ``ai`` remains a read-compatible legacy alias for
     # Praxys rows during rolling deployment.
     source = Column(String(20), default="stryd")

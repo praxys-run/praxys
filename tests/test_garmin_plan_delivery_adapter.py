@@ -585,6 +585,73 @@ def test_prepare_rejects_unverified_encodings(
         )
 
 
+def test_prepare_rejects_structured_workout_that_would_flatten_complex_steps() -> None:
+    adapter = _adapter(FakeGarmin())
+
+    with pytest.raises(
+        ProviderRequestError,
+        match="structured workout",
+    ):
+        adapter.prepare_workout(
+            _workout(
+                activity_type="trail_running",
+                workout_structure_version="v1",
+                workout_structure={
+                    "steps": [
+                        {
+                            "type": "step",
+                            "phase": "warmup",
+                            "termination": {
+                                "type": "time",
+                                "seconds": 900,
+                            },
+                            "target": {
+                                "metric": "none",
+                                "unit": "none",
+                                "reference": "none",
+                            },
+                        },
+                        {
+                            "type": "repeat",
+                            "repetitions": 4,
+                            "steps": [
+                                {
+                                    "type": "step",
+                                    "phase": "work",
+                                    "termination": {
+                                        "type": "time",
+                                        "seconds": 240,
+                                    },
+                                    "target": {
+                                        "metric": "power",
+                                        "unit": "percent_cp",
+                                        "reference": "critical_power",
+                                        "min": 95,
+                                        "max": 100,
+                                    },
+                                },
+                                {
+                                    "type": "step",
+                                    "phase": "recovery",
+                                    "termination": {
+                                        "type": "time",
+                                        "seconds": 180,
+                                    },
+                                    "target": {
+                                        "metric": "none",
+                                        "unit": "none",
+                                        "reference": "none",
+                                    },
+                                },
+                            ],
+                        },
+                    ]
+                },
+            ),
+            threshold_value=250,
+        )
+
+
 def test_create_checkpoints_both_garmin_identities() -> None:
     client = FakeGarmin()
     adapter = _adapter(client)

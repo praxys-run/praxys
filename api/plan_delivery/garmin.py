@@ -34,6 +34,7 @@ from api.plan_delivery.base import (
     ProviderRequestError,
     ProviderTransientError,
 )
+from api.plan_workout_structure import activity_type_supported_by_target
 from api.plan_delivery.capabilities import garmin_region
 from sync.garmin_sync import (
     enrich_training_plan_content,
@@ -391,6 +392,18 @@ class GarminPlanDeliveryAdapter:
         if not canonical_id:
             raise ProviderRequestError(
                 "Garmin delivery requires canonical workout identity"
+            )
+        if workout.get("workout_structure_version") or workout.get("workout_structure"):
+            raise ProviderRequestError(
+                "Garmin experimental delivery cannot safely encode structured workouts yet"
+            )
+        activity_type = str(workout.get("activity_type") or "running").strip()
+        if not activity_type_supported_by_target(
+            activity_type=activity_type,
+            target="garmin",
+        ):
+            raise ProviderRequestError(
+                "Garmin experimental delivery cannot safely encode this activity type yet"
             )
         unsupported = [
             field

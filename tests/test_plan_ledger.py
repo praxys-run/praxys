@@ -68,6 +68,90 @@ def test_canonical_identity_is_stable_but_not_part_of_content_version():
     })
 
 
+def test_workout_version_tracks_activity_type_and_structure_without_rehashing_legacy_rows():
+    from db.plan_ledger import workout_version
+
+    legacy = {
+        "date": date(2026, 8, 10),
+        "source": "ai",
+        "workout_type": "easy",
+        "planned_duration_min": 45,
+        "workout_description": "Aerobic run",
+    }
+    legacy_with_empty_structured_fields = {
+        **legacy,
+        "activity_type": None,
+        "workout_structure_version": None,
+        "workout_structure": None,
+    }
+    road = {
+        **legacy,
+        "activity_type": "running",
+        "workout_structure_version": "v1",
+        "workout_structure": {
+            "steps": [
+                {
+                    "type": "step",
+                    "phase": "other",
+                    "termination": {"type": "time", "seconds": 2700},
+                    "target": {
+                        "metric": "none",
+                        "unit": "none",
+                        "reference": "none",
+                    },
+                }
+            ]
+        },
+    }
+    trail = {
+        **road,
+        "activity_type": "trail_running",
+    }
+    changed_structure = {
+        **road,
+        "workout_structure": {
+            "steps": [
+                {
+                    "type": "step",
+                    "phase": "warmup",
+                    "termination": {"type": "time", "seconds": 600},
+                    "target": {
+                        "metric": "none",
+                        "unit": "none",
+                        "reference": "none",
+                    },
+                },
+                {
+                    "type": "step",
+                    "phase": "work",
+                    "termination": {"type": "time", "seconds": 2100},
+                    "target": {
+                        "metric": "none",
+                        "unit": "none",
+                        "reference": "none",
+                    },
+                },
+                {
+                    "type": "step",
+                    "phase": "cooldown",
+                    "termination": {"type": "time", "seconds": 300},
+                    "target": {
+                        "metric": "none",
+                        "unit": "none",
+                        "reference": "none",
+                    },
+                },
+            ]
+        },
+    }
+
+    assert workout_version(legacy) == workout_version(
+        legacy_with_empty_structured_fields
+    )
+    assert workout_version(road) != workout_version(trail)
+    assert workout_version(road) != workout_version(changed_structure)
+
+
 def test_sqlite_init_adds_ledger_tables_to_existing_database(tmp_path, monkeypatch):
     from sqlalchemy import create_engine, inspect
 

@@ -286,8 +286,96 @@ export type PlanReconciliationState =
 
 export type PlanResolutionAction = 'restore_praxys' | 'accept_target';
 
+export type AdaptivePlanDiscipline = 'running' | 'trail_running';
+
+export type PlanActivityType =
+  | 'running'
+  | 'trail_running'
+  | 'cycling'
+  | 'walking'
+  | 'hiking'
+  | 'strength'
+  | 'mobility'
+  | 'cross_training'
+  | 'rest'
+  | 'other';
+
+export type WorkoutStructureVersion = 'v1';
+
+export type WorkoutIntensityTarget =
+  | {
+      metric: 'none';
+      unit: 'none';
+      reference: 'none';
+      min?: never;
+      max?: never;
+    }
+  | {
+      metric: 'power';
+      unit: 'watts' | 'percent_cp';
+      reference: 'absolute' | 'critical_power';
+      min?: number | null;
+      max?: number | null;
+    }
+  | {
+      metric: 'heart_rate';
+      unit: 'bpm' | 'percent_lthr';
+      reference: 'absolute' | 'lthr';
+      min?: number | null;
+      max?: number | null;
+    }
+  | {
+      metric: 'pace';
+      unit: 'sec_per_km' | 'sec_per_km_delta';
+      reference: 'absolute' | 'threshold_pace';
+      min?: number | null;
+      max?: number | null;
+    }
+  | {
+      metric: 'rpe';
+      unit: 'scale_10';
+      reference: 'perceived_exertion';
+      min?: number | null;
+      max?: number | null;
+    };
+
+export type WorkoutTermination =
+  | {
+      type: 'time';
+      seconds: number;
+      meters?: never;
+    }
+  | {
+      type: 'distance';
+      meters: number;
+      seconds?: never;
+    }
+  | {
+      type: 'open' | 'manual';
+      seconds?: never;
+      meters?: never;
+    };
+
+export interface WorkoutStructureStep {
+  type: 'step';
+  phase: 'warmup' | 'work' | 'recovery' | 'cooldown' | 'other';
+  termination: WorkoutTermination;
+  target: WorkoutIntensityTarget;
+}
+
+export interface WorkoutStructureRepeatGroup {
+  type: 'repeat';
+  repetitions: number;
+  steps: WorkoutStructureStep[];
+}
+
+export interface WorkoutStructureV1 {
+  steps: Array<WorkoutStructureStep | WorkoutStructureRepeatGroup>;
+}
+
 export interface PlanTargetWorkoutSnapshot {
   date: string;
+  activity_type?: PlanActivityType | null;
   workout_type: string;
   planned_duration_min?: number | null;
   planned_distance_km?: number | null;
@@ -328,6 +416,7 @@ export interface PlannedWorkout {
   editable?: boolean;
   /** Absolute UTC instant of workout start; bucket the day in viewer tz. */
   start_time?: string | null;
+  activity_type?: PlanActivityType | null;
   workout_type: string;
   duration_min?: number;
   distance_km?: number;
@@ -338,6 +427,8 @@ export interface PlannedWorkout {
   pace_min?: string;
   pace_max?: string;
   description?: string;
+  workout_structure_version?: WorkoutStructureVersion | null;
+  workout_structure?: WorkoutStructureV1 | null;
   /** @deprecated Use `owner` and `origin`; retained during client rollout. */
   source: PlanWorkoutSource;
   /** Optional only while a new frontend may briefly talk to the prior API. */
@@ -426,6 +517,7 @@ export interface PlanResponse {
 
 export interface PlanWorkoutWriteFields {
   date: string;
+  activity_type?: PlanActivityType | null;
   workout_type: string;
   planned_duration_min: number | null;
   planned_distance_km: number | null;
@@ -436,10 +528,13 @@ export interface PlanWorkoutWriteFields {
   target_pace_min?: string | null;
   target_pace_max?: string | null;
   workout_description: string;
+  workout_structure_version?: WorkoutStructureVersion | null;
+  workout_structure?: WorkoutStructureV1 | null;
 }
 
 export interface PlanWorkoutCreateRequest {
   date: string;
+  activity_type?: PlanActivityType | null;
   workout_type: string;
   planned_duration_min?: number | null;
   planned_distance_km?: number | null;
@@ -450,11 +545,14 @@ export interface PlanWorkoutCreateRequest {
   target_pace_min?: string | null;
   target_pace_max?: string | null;
   workout_description?: string | null;
+  workout_structure_version?: WorkoutStructureVersion | null;
+  workout_structure?: WorkoutStructureV1 | null;
 }
 
 export interface PlanWorkoutUpdateRequest {
   expected_version: string;
   date?: string;
+  activity_type?: PlanActivityType | null;
   workout_type?: string;
   planned_duration_min?: number | null;
   planned_distance_km?: number | null;
@@ -465,6 +563,8 @@ export interface PlanWorkoutUpdateRequest {
   target_pace_min?: string | null;
   target_pace_max?: string | null;
   workout_description?: string | null;
+  workout_structure_version?: WorkoutStructureVersion | null;
+  workout_structure?: WorkoutStructureV1 | null;
 }
 
 export type PlanMutationErrorCode =
@@ -511,6 +611,7 @@ export interface PlanWorkoutMutationResponse {
   id: number;
   canonical_id: string;
   date: string;
+  activity_type: PlanActivityType | null;
   workout_type: string;
   planned_duration_min: number | null;
   planned_distance_km: number | null;
@@ -521,6 +622,8 @@ export interface PlanWorkoutMutationResponse {
   target_pace_min: string | null;
   target_pace_max: string | null;
   workout_description: string;
+  workout_structure_version: WorkoutStructureVersion | null;
+  workout_structure: WorkoutStructureV1 | null;
   /** @deprecated Use `owner` and `origin`; retained during client rollout. */
   source: 'ai';
   owner: 'praxys';
@@ -554,6 +657,122 @@ export interface PlanDayDeleteResponse {
   date: string;
   revision_id: string;
   delivery: PlanMutationDelivery | null;
+}
+
+export interface AdaptivePlanGoalSnapshotSummary {
+  id: string;
+  version: number;
+  state: 'draft' | 'active' | 'superseded';
+  goal_kind: string;
+  target: Record<string, unknown>;
+  horizon_start: string;
+  horizon_end: string;
+  acknowledged_at: string | null;
+}
+
+export interface AdaptivePlanSummary {
+  id: string;
+  discipline: AdaptivePlanDiscipline;
+  version: number;
+  lifecycle: 'draft' | 'active' | 'completed' | 'archived';
+  active_proposal_id: string | null;
+}
+
+export interface AdaptivePlanProposalWorkout {
+  canonical_id?: string;
+  date: string;
+  activity_type: PlanActivityType;
+  workout_type: string;
+  planned_duration_min: number | null;
+  planned_distance_km: number | null;
+  target_power_min: number | null;
+  target_power_max: number | null;
+  target_hr_min: number | null;
+  target_hr_max: number | null;
+  target_pace_min: string | null;
+  target_pace_max: string | null;
+  workout_description: string;
+  workout_structure_version: WorkoutStructureVersion;
+  workout_structure: WorkoutStructureV1;
+}
+
+export interface AdaptivePlanProposal {
+  id: string;
+  adaptive_plan_id: string;
+  goal_snapshot_id: string;
+  discipline: AdaptivePlanDiscipline;
+  version: number;
+  state: 'draft' | 'superseded' | 'rejected' | 'adopted' | 'expired';
+  base_plan_version: number;
+  supersedes_proposal_id: string | null;
+  origin: string;
+  actor_type: 'user' | 'agent' | 'system';
+  actor_id: string | null;
+  policy_version: string | null;
+  model_version: string | null;
+  science_version: string | null;
+  assumptions: unknown[];
+  unknowns: unknown[];
+  warnings: unknown[];
+  alternatives: unknown[];
+  expires_at: string | null;
+  created_at: string | null;
+  decided_at: string | null;
+  workouts: AdaptivePlanProposalWorkout[];
+  adaptive_plan: AdaptivePlanSummary | null;
+  goal: AdaptivePlanGoalSnapshotSummary | null;
+}
+
+export interface AdaptivePlanProposalMutationRequest {
+  goal: {
+    goal_kind: string;
+    target: Record<string, unknown>;
+    horizon_start: string;
+    horizon_end: string;
+  };
+  discipline: AdaptivePlanDiscipline;
+  workouts: AdaptivePlanProposalWorkout[];
+  idempotency_key: string;
+  origin?: string;
+  policy_version?: string | null;
+  model_version?: string | null;
+  science_version?: string | null;
+  assumptions?: unknown[];
+  unknowns?: unknown[];
+  warnings?: unknown[];
+  alternatives?: unknown[];
+  expires_at?: string | null;
+}
+
+export interface CanonicalPlanWorkoutSnapshot
+  extends AdaptivePlanProposalWorkout {
+  source?: string;
+  workout_origin?: string;
+  start_time?: string | null;
+  meta?: Record<string, unknown> | null;
+}
+
+export interface AdaptivePlanProposalEditRequest
+  extends AdaptivePlanProposalMutationRequest {
+  expected_version: number;
+}
+
+export interface AdaptivePlanProposalDecisionRequest {
+  expected_version: number;
+  idempotency_key: string;
+}
+
+export interface AdaptivePlanProposalAdoptRequest {
+  expected_proposal_version: number;
+  expected_plan_version: number;
+  idempotency_key: string;
+}
+
+export interface AdaptivePlanProposalAdoptResponse {
+  status: 'adopted' | 'already_adopted';
+  proposal: AdaptivePlanProposal;
+  revision_id: string;
+  workouts: CanonicalPlanWorkoutSnapshot[];
 }
 
 export type StrydPushResult =

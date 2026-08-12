@@ -9,8 +9,15 @@ import logging
 import re
 import uuid
 from datetime import date, datetime, timedelta, timezone
+from typing import Mapping
 
 import requests
+
+from api.plan_workout_structure import (
+    StructuredWorkoutRepeatGroupV1,
+    StructuredWorkoutStepV1,
+    StructuredWorkoutV1,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +61,7 @@ def normalize_stryd_delivery_content(payload: dict) -> dict:
         "blocks": _normalize_stryd_content_value(payload.get("blocks") or []),
         "workout_type": str(payload.get("workout_type") or ""),
         "description": str(payload.get("description") or ""),
+        "surface": str(payload.get("surface") or ""),
     }
 
 
@@ -447,6 +455,16 @@ def fetch_training_plan_api(
         workout_info = item.get("workout", {})
         title = workout_info.get("title", "")
         workout_type = workout_info.get("type", "") or _workout_type_from_name(title)
+        surface = str(
+            workout_info.get("surface")
+            or item.get("surface")
+            or "road"
+        ).strip()
+        activity_type = (
+            "trail_running"
+            if surface.casefold() == "trail"
+            else "running"
+        )
         provider_description = str(
             workout_info.get("desc")
             or workout_info.get("description")
@@ -458,6 +476,7 @@ def fetch_training_plan_api(
             "blocks": workout_info.get("blocks", []) or [],
             "workout_type": str(workout_info.get("type", "") or ""),
             "description": provider_description,
+            "surface": surface or "road",
         }
 
         # Total duration and distance from the top-level summary
@@ -523,6 +542,7 @@ def fetch_training_plan_api(
 
         row = {
             "date": workout_date,
+            "activity_type": activity_type,
             "workout_type": workout_type,
             "planned_duration_min": str(duration_min) if duration_min else "",
             "planned_distance_km": str(distance_km) if distance_km else "",
@@ -753,96 +773,95 @@ def _make_segment(
     }
 
 
-def _parse_structured_description(
-    description: str, cp_watts: float
-) -> list[dict] | None:
-    """Parse AI plan descriptions like 'WU 15min, 3x3min @275-290W w/ 3min jog recovery, CD 10min'.
-
-    Returns list of Stryd blocks if parseable, None if description is unstructured.
-    """
-    if not description:
-        return None
-
-    # Strip trailing markers like [DONE]
-    desc = re.sub(r"\s*\[DONE\]\s*$", "", description).strip()
-
-    blocks: list[dict] = []
-
-    # Try to extract structured segments from comma-separated parts
-    # Pattern: "WU 15min, 3x3min @275-290W w/ 3min jog recovery, CD 10min"
-    parts = [p.strip() for p in desc.split(",")]
-
-    for part in parts:
-        part_lower = part.lower()
-
-        # Warmup: "WU 15min" or "WU 10min easy"
-        wu_match = re.match(r"wu\s+(\d+)\s*min", part_lower)
-        if wu_match:
-            mins = int(wu_match.group(1))
-            blocks.append({
-                "uuid": str(uuid.uuid4()),
-                "repeat": 1,
-                "segments": [_make_segment("warmup", mins, 65, 75)],
-            })
-            continue
-
-        # Cooldown: "CD 10min"
-        cd_match = re.match(r"cd\s+(\d+)\s*min", part_lower)
-        if cd_match:
-            mins = int(cd_match.group(1))
-            blocks.append({
-                "uuid": str(uuid.uuid4()),
-                "repeat": 1,
-                "segments": [_make_segment("cooldown", mins, 65, 75)],
-            })
-            continue
-
-        # Intervals: "3x3min @275-290W w/ 3min jog recovery"
-        # or "4x4min @265-280W w/ 3min jog recovery"
-        interval_match = re.match(
-            r"(\d+)x(\d+)\s*min\s+@(\d+)-(\d+)w\s+w/\s+(\d+)\s*min",
-            part_lower,
+def _phase_to_stryd_intensity(phase: str) -> str:
+    mapping = {
+        "warmup": "warmup",
+        "work": "work",
+        "recovery": "rest",
+        "cooldown": "cooldown",
+    }
+    if phase not in mapping:
+        raise ValueError(
+            "Stryd structured delivery cannot safely encode the requested phase"
         )
-        if interval_match:
-            reps = int(interval_match.group(1))
-            work_min = int(interval_match.group(2))
-            power_min = int(interval_match.group(3))
-            power_max = int(interval_match.group(4))
-            rest_min = int(interval_match.group(5))
-            work_cp_min = round(power_min / cp_watts * 100)
-            work_cp_max = round(power_max / cp_watts * 100)
-            blocks.append({
-                "uuid": str(uuid.uuid4()),
-                "repeat": reps,
-                "segments": [
-                    _make_segment("work", work_min, work_cp_min, work_cp_max),
-                    _make_segment("rest", rest_min, 55, 65),
-                ],
-            })
-            continue
+    return mapping[phase]
 
-        # Tempo block: "15min @220-240W"
-        tempo_match = re.match(r"(\d+)\s*min\s+@(\d+)-(\d+)w", part_lower)
-        if tempo_match:
-            mins = int(tempo_match.group(1))
-            power_min = int(tempo_match.group(2))
-            power_max = int(tempo_match.group(3))
-            cp_min = round(power_min / cp_watts * 100)
-            cp_max = round(power_max / cp_watts * 100)
+
+def _structured_target_percent(
+    step: StructuredWorkoutStepV1,
+    cp_watts: float,
+) -> tuple[int, int]:
+    target = step.target
+    combo = (target.metric, target.unit, target.reference)
+    if combo == ("power", "percent_cp", "critical_power"):
+        minimum = target.min if target.min is not None else target.max
+        maximum = target.max if target.max is not None else target.min
+        assert minimum is not None
+        assert maximum is not None
+        return round(minimum), round(maximum)
+    if combo == ("power", "watts", "absolute"):
+        if cp_watts <= 0:
+            raise ValueError(
+                "Stryd structured delivery needs critical power to encode watt targets"
+            )
+        minimum = target.min if target.min is not None else target.max
+        maximum = target.max if target.max is not None else target.min
+        assert minimum is not None
+        assert maximum is not None
+        return (
+            round(float(minimum) / cp_watts * 100),
+            round(float(maximum) / cp_watts * 100),
+        )
+    raise ValueError(
+        "Stryd structured delivery cannot safely encode non-power intensity targets"
+    )
+
+
+def _structured_segment(
+    step: StructuredWorkoutStepV1,
+    cp_watts: float,
+) -> dict:
+    if step.termination.type != "time" or step.termination.seconds is None:
+        raise ValueError(
+            "Stryd structured delivery cannot safely encode non-time terminations"
+        )
+    cp_min, cp_max = _structured_target_percent(step, cp_watts)
+    return _make_segment(
+        _phase_to_stryd_intensity(step.phase),
+        step.termination.seconds / 60,
+        cp_min,
+        cp_max,
+    )
+
+
+def _structured_blocks_v1(
+    workout: Mapping[str, object],
+    cp_watts: float,
+) -> list[dict]:
+    structure = StructuredWorkoutV1.model_validate(
+        workout.get("workout_structure") or {}
+    )
+    blocks: list[dict] = []
+    for node in structure.steps:
+        if isinstance(node, StructuredWorkoutStepV1):
             blocks.append({
                 "uuid": str(uuid.uuid4()),
                 "repeat": 1,
-                "segments": [_make_segment("work", mins, cp_min, cp_max)],
+                "segments": [_structured_segment(node, cp_watts)],
             })
             continue
-
-    # Only return if we parsed at least a warmup or work block
-    has_content = any(
-        seg.get("intensity_class") in ("warmup", "work")
-        for b in blocks
-        for seg in b.get("segments", [])
-    )
-    return blocks if has_content else None
+        assert isinstance(node, StructuredWorkoutRepeatGroupV1)
+        blocks.append({
+            "uuid": str(uuid.uuid4()),
+            "repeat": node.repetitions,
+            "segments": [
+                _structured_segment(step, cp_watts)
+                for step in node.steps
+            ],
+        })
+    if not blocks:
+        return []
+    return blocks
 
 
 def build_workout_blocks(workout: dict, cp_watts: float) -> list[dict]:
@@ -856,12 +875,10 @@ def build_workout_blocks(workout: dict, cp_watts: float) -> list[dict]:
     Returns:
         List of Stryd block dicts ready for the create workout API.
     """
-    description = workout.get("workout_description", "")
-
-    # Try parsing structured descriptions first (interval/threshold/tempo workouts)
-    parsed = _parse_structured_description(description, cp_watts)
-    if parsed:
-        return parsed
+    if workout.get("workout_structure_version") == "v1":
+        blocks = _structured_blocks_v1(workout, cp_watts)
+        if blocks:
+            return blocks
 
     # Fallback: build a simple single-block workout from power targets and duration
     duration_min = float(workout.get("planned_duration_min") or 0)

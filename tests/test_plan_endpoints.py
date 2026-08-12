@@ -757,6 +757,127 @@ class TestCanonicalWorkoutManagement:
             "update",
         ]
 
+    def test_structured_workout_fields_round_trip_through_create_read_and_update(
+        self,
+        api_client,
+    ):
+        client, user_id = api_client
+        target = (date.today() + timedelta(days=4)).isoformat()
+        created = client.post("/api/plan/workouts", json={
+            "date": target,
+            "activity_type": "trail_running",
+            "workout_type": "tempo",
+            "workout_description": "Trail tempo",
+            "workout_structure_version": "v1",
+            "workout_structure": {
+                "steps": [
+                    {
+                        "type": "step",
+                        "phase": "warmup",
+                        "termination": {"type": "time", "seconds": 600},
+                        "target": {
+                            "metric": "power",
+                            "unit": "percent_cp",
+                            "reference": "critical_power",
+                            "min": 65,
+                            "max": 75,
+                        },
+                    },
+                    {
+                        "type": "step",
+                        "phase": "work",
+                        "termination": {"type": "time", "seconds": 1200},
+                        "target": {
+                            "metric": "power",
+                            "unit": "percent_cp",
+                            "reference": "critical_power",
+                            "min": 88,
+                            "max": 92,
+                        },
+                    },
+                    {
+                        "type": "step",
+                        "phase": "cooldown",
+                        "termination": {"type": "time", "seconds": 300},
+                        "target": {
+                            "metric": "power",
+                            "unit": "percent_cp",
+                            "reference": "critical_power",
+                            "min": 60,
+                            "max": 70,
+                        },
+                    },
+                ]
+            },
+        })
+        assert created.status_code == 201, created.text
+        created_body = created.json()
+        assert created_body["activity_type"] == "trail_running"
+        assert created_body["workout_structure_version"] == "v1"
+        assert created_body["workout_structure"]["steps"][1]["phase"] == "work"
+
+        listed = client.get(f"/api/plan?start={target}&end={target}")
+        assert listed.status_code == 200, listed.text
+        listed_workout = listed.json()["workouts"][0]
+        assert listed_workout["activity_type"] == "trail_running"
+        assert listed_workout["workout_structure"] == created_body["workout_structure"]
+
+        updated = client.put(
+            f"/api/plan/workouts/{created_body['canonical_id']}",
+            json={
+                "expected_version": created_body["workout_version"],
+                "workout_structure_version": "v1",
+                "workout_structure": {
+                    "steps": [
+                        {
+                            "type": "step",
+                            "phase": "warmup",
+                            "termination": {"type": "time", "seconds": 600},
+                            "target": {
+                                "metric": "power",
+                                "unit": "percent_cp",
+                                "reference": "critical_power",
+                                "min": 65,
+                                "max": 75,
+                            },
+                        },
+                        {
+                            "type": "step",
+                            "phase": "work",
+                            "termination": {"type": "time", "seconds": 1500},
+                            "target": {
+                                "metric": "power",
+                                "unit": "percent_cp",
+                                "reference": "critical_power",
+                                "min": 90,
+                                "max": 94,
+                            },
+                        },
+                    ]
+                },
+            },
+        )
+        assert updated.status_code == 200, updated.text
+        updated_body = updated.json()
+        assert updated_body["activity_type"] == "trail_running"
+        assert updated_body["workout_structure"]["steps"][1]["termination"]["seconds"] == 1500
+        assert updated_body["workout_version"] != created_body["workout_version"]
+
+        from db import session as db_session
+        from db.models import TrainingPlan
+
+        db = db_session.SessionLocal()
+        try:
+            row = db.query(TrainingPlan).filter(
+                TrainingPlan.user_id == user_id,
+                TrainingPlan.canonical_id == created_body["canonical_id"],
+            ).one()
+            assert row.activity_type == "trail_running"
+            assert row.workout_structure_version == "v1"
+            assert row.workout_structure == updated_body["workout_structure"]
+        finally:
+            db.close()
+
     def test_convert_to_rest_and_delete_require_current_version(
         self,
         api_client,

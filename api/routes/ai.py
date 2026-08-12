@@ -11,7 +11,14 @@ from typing import Optional, Self
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 from sqlalchemy.orm import Session
 
 from analysis.config import (
@@ -25,6 +32,15 @@ from analysis.config import (
 from analysis.metrics import is_rest_workout
 from api.auth import get_data_user_id, require_write_access
 from api.deps import get_dashboard_data
+from api.plan_workout_structure import (
+    PlanActivityType,
+    StructuredWorkoutV1,
+    WorkoutStructureVersion,
+    default_activity_type,
+    structure_is_explicit,
+    synthesize_v1_structure_from_flat,
+    validate_structured_workout,
+)
 from db.cache_revision import bump_revisions
 from db.models import TrainingPlan
 from db.plan_ledger import (
@@ -60,6 +76,7 @@ class PlanWorkout(BaseModel):
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
+    activity_type: PlanActivityType | None = None
     workout_type: str = Field(min_length=1, max_length=50)
     planned_duration_min: Optional[float] = Field(
         default=None,
@@ -86,6 +103,49 @@ class PlanWorkout(BaseModel):
     target_pace_min: Optional[str] = Field(default=None, max_length=20)
     target_pace_max: Optional[str] = Field(default=None, max_length=20)
     workout_description: Optional[str] = Field(default=None, max_length=4000)
+    workout_structure_version: WorkoutStructureVersion | None = None
+    workout_structure: StructuredWorkoutV1 | None = None
+
+    @model_validator(mode="after")
+    def validate_structure_pair(self) -> Self:
+        if (
+            self.workout_structure is None
+            and self.workout_structure_version is None
+        ):
+            return self
+        if (
+            self.workout_structure is None
+            or self.workout_structure_version is None
+        ):
+            raise ValueError(
+                "workout_structure and workout_structure_version must be provided together"
+            )
+        return self
+
+    @field_validator("workout_structure")
+    @classmethod
+    def validate_optional_structure(
+        cls,
+        value: StructuredWorkoutV1 | None,
+        info: ValidationInfo,
+    ) -> StructuredWorkoutV1 | None:
+        version = info.data.get("workout_structure_version")
+        if value is None and version is None:
+            return None
+        if value is None or version is None:
+            raise ValueError(
+                "workout_structure and workout_structure_version must be provided together"
+            )
+        validate_structured_workout(
+            workout_type=str(info.data.get("workout_type") or ""),
+            activity_type=str(
+                info.data.get("activity_type")
+                or default_activity_type(str(info.data.get("workout_type") or ""))
+            ),
+            workout_structure_version=str(version),
+            workout_structure=value,
+        )
+        return value
 
 class PlanWorkoutCreate(PlanWorkout):
     """Create one future Praxys-owned canonical workout."""
@@ -100,6 +160,7 @@ class PlanWorkoutUpdate(BaseModel):
 
     expected_version: str = Field(pattern=r"^[0-9a-f]{64}$")
     date: Optional[PlanDate] = None
+    activity_type: PlanActivityType | None = None
     workout_type: Optional[str] = Field(
         default=None,
         min_length=1,
@@ -130,6 +191,8 @@ class PlanWorkoutUpdate(BaseModel):
     target_pace_min: Optional[str] = Field(default=None, max_length=20)
     target_pace_max: Optional[str] = Field(default=None, max_length=20)
     workout_description: Optional[str] = Field(default=None, max_length=4000)
+    workout_structure_version: WorkoutStructureVersion | None = None
+    workout_structure: StructuredWorkoutV1 | None = None
 
     @model_validator(mode="after")
     def validate_update(self) -> Self:
@@ -137,13 +200,50 @@ class PlanWorkoutUpdate(BaseModel):
         changed = self.model_fields_set - {"expected_version"}
         if "date" in changed and self.date is None:
             raise ValueError("date cannot be null")
+        if "activity_type" in changed and self.activity_type is None:
+            raise ValueError("activity_type cannot be null")
         if "workout_type" in changed and self.workout_type is None:
             raise ValueError("workout_type cannot be null")
+        if (
+            "workout_structure" in changed
+            or "workout_structure_version" in changed
+        ):
+            if self.workout_structure is None or self.workout_structure_version is None:
+                raise ValueError(
+                    "workout_structure and workout_structure_version must be provided together"
+                )
         return self
+
+    @field_validator("workout_structure")
+    @classmethod
+    def validate_update_structure(
+        cls,
+        value: StructuredWorkoutV1 | None,
+        info: ValidationInfo,
+    ) -> StructuredWorkoutV1 | None:
+        if value is None:
+            return value
+        if info.data.get("workout_structure_version") is None:
+            return value
+        workout_type = str(info.data.get("workout_type") or "easy")
+        activity_type = str(
+            info.data.get("activity_type")
+            or default_activity_type(workout_type)
+        )
+        validate_structured_workout(
+            workout_type=workout_type,
+            activity_type=activity_type,
+            workout_structure_version=str(
+                info.data.get("workout_structure_version") or ""
+            ),
+            workout_structure=value,
+        )
+        return value
 
 
 _MUTABLE_WORKOUT_FIELDS = (
     "date",
+    "activity_type",
     "workout_type",
     "planned_duration_min",
     "planned_distance_km",
@@ -154,6 +254,8 @@ _MUTABLE_WORKOUT_FIELDS = (
     "target_pace_min",
     "target_pace_max",
     "workout_description",
+    "workout_structure_version",
+    "workout_structure",
 )
 
 
@@ -184,6 +286,7 @@ def _row_to_response(
         "id": plan.id,
         "canonical_id": plan.canonical_id,
         "date": plan.date.isoformat() if plan.date else None,
+        "activity_type": plan.activity_type,
         "workout_type": plan.workout_type or "",
         "planned_duration_min": plan.planned_duration_min,
         "planned_distance_km": plan.planned_distance_km,
@@ -194,6 +297,8 @@ def _row_to_response(
         "target_pace_min": plan.target_pace_min,
         "target_pace_max": plan.target_pace_max,
         "workout_description": plan.workout_description or "",
+        "workout_structure_version": plan.workout_structure_version,
+        "workout_structure": plan.workout_structure,
         # Deprecated compatibility value for older cached clients.
         "source": LEGACY_PRAXYS_PLAN_SOURCE,
         "owner": PRAXYS_PLAN_SOURCE,
@@ -274,6 +379,129 @@ def _normalize_rest_plan(plan: TrainingPlan) -> None:
         setattr(plan, field, None)
 
 
+_STRUCTURE_DRIVING_FIELDS = {
+    "activity_type",
+    "workout_type",
+    "planned_duration_min",
+    "planned_distance_km",
+    "target_power_min",
+    "target_power_max",
+    "target_hr_min",
+    "target_hr_max",
+    "target_pace_min",
+    "target_pace_max",
+}
+
+
+def _structured_fields_changed(fields: dict[str, object]) -> bool:
+    return bool(_STRUCTURE_DRIVING_FIELDS.intersection(fields))
+
+
+def _apply_flat_projections(
+    plan: TrainingPlan,
+    projections: dict[str, object],
+) -> None:
+    for field in (
+        "planned_duration_min",
+        "planned_distance_km",
+        "target_power_min",
+        "target_power_max",
+        "target_hr_min",
+        "target_hr_max",
+        "target_pace_min",
+        "target_pace_max",
+    ):
+        setattr(plan, field, projections.get(field))
+
+
+def _apply_explicit_structure(
+    plan: TrainingPlan,
+    *,
+    activity_type: str | None,
+    workout_structure_version: str,
+    workout_structure: StructuredWorkoutV1,
+) -> None:
+    normalized_activity_type, normalized_structure, projections = (
+        validate_structured_workout(
+            workout_type=str(plan.workout_type or ""),
+            activity_type=(
+                activity_type
+                or plan.activity_type
+                or default_activity_type(str(plan.workout_type or ""))
+            ),
+            workout_structure_version=workout_structure_version,
+            workout_structure=workout_structure,
+        )
+    )
+    plan.activity_type = normalized_activity_type
+    plan.workout_structure_version = workout_structure_version
+    plan.workout_structure = normalized_structure
+    _apply_flat_projections(plan, projections)
+
+
+def _synthesize_structure(
+    plan: TrainingPlan,
+    *,
+    activity_type: str | None,
+) -> None:
+    normalized_activity_type, version, structure = (
+        synthesize_v1_structure_from_flat(
+            workout_type=str(plan.workout_type or ""),
+            activity_type=activity_type or plan.activity_type,
+            planned_duration_min=plan.planned_duration_min,
+            planned_distance_km=plan.planned_distance_km,
+            target_power_min=plan.target_power_min,
+            target_power_max=plan.target_power_max,
+            target_hr_min=plan.target_hr_min,
+            target_hr_max=plan.target_hr_max,
+            target_pace_min=plan.target_pace_min,
+            target_pace_max=plan.target_pace_max,
+        )
+    )
+    plan.activity_type = normalized_activity_type
+    plan.workout_structure_version = version
+    plan.workout_structure = structure
+
+
+def _ensure_authoritative_structure(
+    plan: TrainingPlan,
+    *,
+    activity_type: str | None,
+    workout_structure_version: str | None,
+    workout_structure: StructuredWorkoutV1 | None,
+    structural_fields_changed: bool,
+) -> None:
+    if structure_is_explicit(
+        workout_structure_version=workout_structure_version,
+        workout_structure=workout_structure,
+    ):
+        assert workout_structure_version is not None
+        assert workout_structure is not None
+        _apply_explicit_structure(
+            plan,
+            activity_type=activity_type,
+            workout_structure_version=workout_structure_version,
+            workout_structure=workout_structure,
+        )
+        return
+    if is_rest_workout(str(plan.workout_type or "")):
+        _synthesize_structure(plan, activity_type="rest")
+        _normalize_rest_plan(plan)
+        return
+    if (
+        structural_fields_changed
+        or not plan.workout_structure_version
+        or plan.workout_structure is None
+    ):
+        _synthesize_structure(
+            plan,
+            activity_type=activity_type,
+        )
+        return
+    if not plan.activity_type:
+        plan.activity_type = default_activity_type(str(plan.workout_type or ""))
+
+
 def _apply_workout_fields(
     plan: TrainingPlan,
     fields: dict[str, object],
@@ -340,6 +568,22 @@ def _reuse_canonical_ids(
     existing: list[TrainingPlan],
 ) -> None:
     """Preserve logical workout identity across replace-style plan writes."""
+    def flat_signature(record: TrainingPlan) -> tuple[object, ...]:
+        snapshot = plan_snapshot(record)
+        return (
+            snapshot.get("date"),
+            snapshot.get("workout_type"),
+            snapshot.get("planned_duration_min"),
+            snapshot.get("planned_distance_km"),
+            snapshot.get("target_power_min"),
+            snapshot.get("target_power_max"),
+            snapshot.get("target_hr_min"),
+            snapshot.get("target_hr_max"),
+            snapshot.get("target_pace_min"),
+            snapshot.get("target_pace_max"),
+            snapshot.get("workout_description"),
+        )
+
     existing_by_version: dict[str, list[TrainingPlan]] = defaultdict(list)
     plans_by_version: dict[str, list[TrainingPlan]] = defaultdict(list)
     for row in existing:
@@ -354,6 +598,22 @@ def _reuse_canonical_ids(
         if len(version_plans) == 1 and len(version_existing) == 1:
             row = version_existing[0]
             version_plans[0].canonical_id = row.canonical_id
+            matched_existing.add(row.canonical_id)
+
+    existing_by_flat_signature: dict[tuple[object, ...], list[TrainingPlan]] = defaultdict(list)
+    plans_by_flat_signature: dict[tuple[object, ...], list[TrainingPlan]] = defaultdict(list)
+    for row in existing:
+        if row.canonical_id and row.canonical_id not in matched_existing:
+            existing_by_flat_signature[flat_signature(row)].append(row)
+    for plan in plans:
+        if not plan.canonical_id:
+            plans_by_flat_signature[flat_signature(plan)].append(plan)
+
+    for signature, signature_plans in plans_by_flat_signature.items():
+        signature_existing = existing_by_flat_signature.get(signature, [])
+        if len(signature_plans) == 1 and len(signature_existing) == 1:
+            row = signature_existing[0]
+            signature_plans[0].canonical_id = row.canonical_id
             matched_existing.add(row.canonical_id)
 
     unmatched_existing_by_date: dict[date, list[TrainingPlan]] = defaultdict(list)
@@ -463,6 +723,13 @@ def upload_plan(
             meta={"uploaded_at": datetime.utcnow().isoformat()},
             **kwargs,
         )
+        _ensure_authoritative_structure(
+            plan,
+            activity_type=None,
+            workout_structure_version=None,
+            workout_structure=None,
+            structural_fields_changed=True,
+        )
         _normalize_rest_plan(plan)
         parsed_rows.append(plan)
 
@@ -557,6 +824,13 @@ def upsert_plan_day(
         source=PRAXYS_PLAN_WRITE_SOURCE,
         workout_origin="manual",
         meta={"uploaded_at": datetime.utcnow().isoformat()},
+    )
+    _ensure_authoritative_structure(
+        plan,
+        activity_type=workout.activity_type,
+        workout_structure_version=workout.workout_structure_version,
+        workout_structure=workout.workout_structure,
+        structural_fields_changed=True,
     )
     _normalize_rest_plan(plan)
     _validate_plan_targets(plan)
@@ -676,6 +950,13 @@ def create_plan_workout(
         meta={"authored_at": datetime.utcnow().isoformat()},
     )
     _apply_workout_fields(plan, fields)
+    _ensure_authoritative_structure(
+        plan,
+        activity_type=workout.activity_type,
+        workout_structure_version=workout.workout_structure_version,
+        workout_structure=workout.workout_structure,
+        structural_fields_changed=True,
+    )
     _normalize_rest_plan(plan)
     _validate_plan_targets(plan)
     _assign_missing_canonical_ids([plan])
@@ -745,11 +1026,19 @@ def update_plan_workout(
         next_date = fields.get("date")
         if isinstance(next_date, date):
             _require_mutable_date(next_date, current_date)
+        structure_changed = _structured_fields_changed(fields)
         original_date = plan.date
         _apply_workout_fields(plan, fields)
         if plan.date != original_date:
             # A date-only editor cannot preserve an instant after rescheduling.
             plan.start_time = None
+        _ensure_authoritative_structure(
+            plan,
+            activity_type=workout.activity_type,
+            workout_structure_version=workout.workout_structure_version,
+            workout_structure=workout.workout_structure,
+            structural_fields_changed=structure_changed,
+        )
         _normalize_rest_plan(plan)
         _validate_plan_targets(plan)
         plan.source = PRAXYS_PLAN_WRITE_SOURCE

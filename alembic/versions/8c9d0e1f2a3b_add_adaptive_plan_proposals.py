@@ -58,6 +58,7 @@ def upgrade() -> None:
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.Column("user_id", sa.String(length=36), nullable=False),
         sa.Column("goal_snapshot_id", sa.String(length=36), nullable=False),
+        sa.Column("discipline", sa.String(length=30), nullable=False),
         sa.Column("lifecycle", sa.String(length=20), nullable=False),
         sa.Column("version", sa.Integer(), nullable=False),
         sa.Column("active_proposal_id", sa.String(length=36), nullable=True),
@@ -67,6 +68,10 @@ def upgrade() -> None:
         sa.CheckConstraint(
             "lifecycle IN ('draft','active','completed','archived')",
             name="ck_adaptive_plan_lifecycle",
+        ),
+        sa.CheckConstraint(
+            "discipline IN ('running','trail_running')",
+            name="ck_adaptive_plan_discipline",
         ),
         sa.ForeignKeyConstraint(["goal_snapshot_id"], ["adaptive_plan_goal_snapshots.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
@@ -91,6 +96,7 @@ def upgrade() -> None:
         sa.Column("user_id", sa.String(length=36), nullable=False),
         sa.Column("adaptive_plan_id", sa.String(length=36), nullable=False),
         sa.Column("goal_snapshot_id", sa.String(length=36), nullable=False),
+        sa.Column("discipline", sa.String(length=30), nullable=False),
         sa.Column("version", sa.Integer(), nullable=False),
         sa.Column("state", sa.String(length=20), nullable=False),
         sa.Column("origin", sa.String(length=80), nullable=False),
@@ -118,6 +124,10 @@ def upgrade() -> None:
             name="ck_plan_proposal_state",
         ),
         sa.CheckConstraint("actor_type IN ('user','agent','system')", name="ck_plan_proposal_actor_type"),
+        sa.CheckConstraint(
+            "discipline IN ('running','trail_running')",
+            name="ck_plan_proposal_discipline",
+        ),
         sa.ForeignKeyConstraint(["adaptive_plan_id"], ["adaptive_plans.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["goal_snapshot_id"], ["adaptive_plan_goal_snapshots.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["supersedes_proposal_id"], ["plan_proposals.id"], ondelete="SET NULL"),
@@ -135,6 +145,9 @@ def upgrade() -> None:
 
     with op.batch_alter_table("training_plans") as batch_op:
         batch_op.add_column(sa.Column("adaptive_plan_id", sa.String(length=36), nullable=True))
+        batch_op.add_column(sa.Column("activity_type", sa.String(length=30), nullable=True))
+        batch_op.add_column(sa.Column("workout_structure_version", sa.String(length=20), nullable=True))
+        batch_op.add_column(sa.Column("workout_structure", sa.JSON(), nullable=True))
         batch_op.create_foreign_key(
             "fk_training_plan_adaptive_plan",
             "adaptive_plans",
@@ -149,6 +162,9 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_training_plans_adaptive_plan_id"), table_name="training_plans")
     with op.batch_alter_table("training_plans") as batch_op:
         batch_op.drop_constraint("fk_training_plan_adaptive_plan", type_="foreignkey")
+        batch_op.drop_column("workout_structure")
+        batch_op.drop_column("workout_structure_version")
+        batch_op.drop_column("activity_type")
         batch_op.drop_column("adaptive_plan_id")
 
     op.drop_index("ix_plan_proposal_plan_state", table_name="plan_proposals")

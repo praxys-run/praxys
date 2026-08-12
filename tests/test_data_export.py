@@ -91,6 +91,7 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 id="owner-adaptive-plan",
                 user_id=owner_id,
                 goal_snapshot_id="owner-goal-snapshot",
+                discipline="running",
                 lifecycle="active",
                 version=1,
                 active_proposal_id="owner-proposal",
@@ -99,6 +100,7 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 id="other-adaptive-plan",
                 user_id=other_id,
                 goal_snapshot_id="other-goal-snapshot",
+                discipline="running",
                 lifecycle="active",
                 version=1,
                 active_proposal_id="other-proposal",
@@ -108,6 +110,7 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 user_id=owner_id,
                 adaptive_plan_id="owner-adaptive-plan",
                 goal_snapshot_id="owner-goal-snapshot",
+                discipline="running",
                 version=1,
                 state="adopted",
                 origin="test",
@@ -125,6 +128,7 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 user_id=other_id,
                 adaptive_plan_id="other-adaptive-plan",
                 goal_snapshot_id="other-goal-snapshot",
+                discipline="running",
                 version=1,
                 state="adopted",
                 origin="test",
@@ -189,13 +193,34 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 user_id=owner_id,
                 canonical_id="owner-plan",
                 date=date(2026, 8, 3),
+                activity_type="running",
                 workout_type="tempo",
+                workout_structure_version="v1",
+                workout_structure={
+                    "steps": [
+                        {
+                            "type": "step",
+                            "phase": "other",
+                            "termination": {"type": "time", "seconds": 2700},
+                            "target": {
+                                "metric": "power",
+                                "unit": "watts",
+                                "reference": "absolute",
+                                "min": 240,
+                                "max": 260,
+                            },
+                        }
+                    ]
+                },
             ),
             TrainingPlan(
                 user_id=other_id,
                 canonical_id="other-plan",
                 date=date(2026, 8, 4),
+                activity_type="rest",
                 workout_type="rest",
+                workout_structure_version="v1",
+                workout_structure={"steps": []},
             ),
             GoalBaselineConfirmation(
                 id="owner-confirmation",
@@ -301,6 +326,8 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
     assert [row["readiness_score"] for row in payload["recovery"]] == [88.0]
     assert [row["value"] for row in payload["fitness"]] == [290.0]
     assert [row["canonical_id"] for row in payload["training_plans"]] == ["owner-plan"]
+    assert payload["training_plans"][0]["activity_type"] == "running"
+    assert payload["training_plans"][0]["workout_structure_version"] == "v1"
     assert payload["adaptive_plan_proposals"]["schema_version"] == 1
     assert [
         row["id"] for row in payload["adaptive_plan_proposals"]["goal_snapshots"]
@@ -308,9 +335,14 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
     assert [
         row["id"] for row in payload["adaptive_plan_proposals"]["plans"]
     ] == ["owner-adaptive-plan"]
+    assert payload["adaptive_plan_proposals"]["plans"][0]["discipline"] == "running"
     assert [
         row["id"] for row in payload["adaptive_plan_proposals"]["proposals"]
     ] == ["owner-proposal"]
+    assert (
+        payload["adaptive_plan_proposals"]["proposals"][0]["discipline"]
+        == "running"
+    )
     assert payload["goal_baseline"] == {
         "schema_version": 1,
         "exported_at": payload["goal_baseline"]["exported_at"],

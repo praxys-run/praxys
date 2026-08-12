@@ -171,6 +171,7 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
             id="delete-adaptive-plan",
             user_id=user_id,
             goal_snapshot_id="delete-goal-snapshot",
+            discipline="running",
             lifecycle="active",
             version=1,
             active_proposal_id="delete-proposal",
@@ -180,6 +181,7 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
             user_id=user_id,
             adaptive_plan_id="delete-adaptive-plan",
             goal_snapshot_id="delete-goal-snapshot",
+            discipline="running",
             version=1,
             state="adopted",
             origin="test",
@@ -255,8 +257,24 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
             user_id=user_id,
             adaptive_plan_id="delete-adaptive-plan",
             date=date(2026, 6, 2),
+            activity_type="running",
             source="ai",
             workout_type="easy",
+            workout_structure_version="v1",
+            workout_structure={
+                "steps": [
+                    {
+                        "type": "step",
+                        "phase": "other",
+                        "termination": {"type": "time", "seconds": 1800},
+                        "target": {
+                            "metric": "none",
+                            "unit": "none",
+                            "reference": "none",
+                        },
+                    }
+                ]
+            },
         ))
         revision = PlanRevision(
             user_id=user_id,

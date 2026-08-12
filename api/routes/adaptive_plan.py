@@ -6,7 +6,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 from sqlalchemy.orm import Session
 
 from analysis.config import effective_athlete_date, load_config_from_db
@@ -20,6 +20,13 @@ from api.adaptive_plan_service import (
     reject_proposal,
 )
 from api.auth import get_data_user_id, require_write_access
+from api.plan_workout_structure import (
+    AdaptivePlanDiscipline,
+    PlanActivityType,
+    StructuredWorkoutV1,
+    WorkoutStructureVersion,
+    validate_structured_workout,
+)
 from api.routes.ai import _trigger_managed_delivery
 from db.session import get_db
 
@@ -45,6 +52,7 @@ class ProposalWorkoutInput(BaseModel):
 
     canonical_id: UUID | None = None
     date: date
+    activity_type: PlanActivityType
     workout_type: str = Field(min_length=1, max_length=50)
     planned_duration_min: float | None = Field(default=None, ge=0, le=1440)
     planned_distance_km: float | None = Field(default=None, ge=0, le=1000)
@@ -55,6 +63,25 @@ class ProposalWorkoutInput(BaseModel):
     target_pace_min: str | None = Field(default=None, max_length=20)
     target_pace_max: str | None = Field(default=None, max_length=20)
     workout_description: str | None = Field(default=None, max_length=4000)
+    workout_structure_version: WorkoutStructureVersion
+    workout_structure: StructuredWorkoutV1
+
+    @field_validator("workout_structure")
+    @classmethod
+    def validate_workout_structure(
+        cls,
+        value: StructuredWorkoutV1,
+        info: ValidationInfo,
+    ) -> StructuredWorkoutV1:
+        validate_structured_workout(
+            workout_type=str(info.data.get("workout_type") or ""),
+            activity_type=str(info.data.get("activity_type") or ""),
+            workout_structure_version=str(
+                info.data.get("workout_structure_version") or ""
+            ),
+            workout_structure=value,
+        )
+        return value
 
 
 class ProposalMutation(BaseModel):
@@ -63,6 +90,7 @@ class ProposalMutation(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     goal: ProposalGoalInput
+    discipline: AdaptivePlanDiscipline
     workouts: list[ProposalWorkoutInput] = Field(min_length=1)
     idempotency_key: str = Field(min_length=1, max_length=128)
     origin: str = Field(default="api.plan.proposals", min_length=1, max_length=80)
@@ -108,6 +136,7 @@ def _current_athlete_date(db: Session, user_id: str) -> date:
 def _proposal_input(payload: ProposalMutation, *, user_id: str) -> ProposalInput:
     return ProposalInput(
         goal=payload.goal.model_dump(mode="json"),
+        discipline=payload.discipline,
         workouts=[workout.model_dump(mode="json", exclude_none=True) for workout in payload.workouts],
         origin=payload.origin,
         actor_type="user",
