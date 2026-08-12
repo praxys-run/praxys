@@ -153,6 +153,7 @@ def test_parse_scheduled_workouts_normalizes_only_workout_items():
     assert rows == [
         {
             "date": "2026-08-05",
+            "activity_type": "running",
             "workout_type": "running",
             "planned_duration_min": "60.0",
             "planned_distance_km": "10.0",
