@@ -264,7 +264,7 @@ For **production operations** (deploy, config & secrets, monitoring & alerts, ad
 
 ## Claude Code Automations
 
-Automations live in `.claude/` and are committed so every contributor using Claude Code sees the same behavior. See `.claude/settings.json` for post-edit hooks (run pytest on Python changes; run ESLint on web TS changes; run the shared Impeccable detector on UI edits plus a stop-time deep pass), `.claude/agents/` for subagents (`science-reviewer`, `metric-addition-reviewer`, `api-contract-reviewer` — all read-only), and `.claude/skills/` for dev-workflow skills. The `ui-quality` skill points to the canonical vendored Impeccable copy in `.github/skills/impeccable/` so Claude and Copilot follow the same design policy.
+Automations live in `.claude/` and are committed so every contributor using Claude Code sees the same behavior. See `.claude/settings.json` for post-edit hooks (run pytest on Python changes; run ESLint on web TS changes; run the shared Impeccable detector on UI edits plus a stop-time deep pass), `.claude/agents/` for subagents (`science-reviewer`, `metric-addition-reviewer`, `api-contract-reviewer` — all read-only), and `.claude/skills/` for dev-workflow skills. The `ui-quality` skill points to the canonical vendored Impeccable copy in `.github/skills/impeccable/` so Claude and Copilot follow the same design policy. The `wechat-devtools` skill uses `scripts/wechatide` to bridge WSL2 to a separately installed Windows Nightly WeChat DevTools and reads Tencent's installed skill as the authoritative simulator/compiler/debugger contract.
 
 ## AI Skills
 
