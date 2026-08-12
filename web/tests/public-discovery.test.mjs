@@ -41,7 +41,7 @@ test('managed plan copy describes provider-independent Garmin and Stryd delivery
       /managed training plans|托管训练计划/i.test(section.heading)
     );
     const managedQuestion = locale.faq.questions.find((item) =>
-      /managed plan|托管计划/i.test(item.question)
+      /managed.*plan|托管.*计划/i.test(item.question)
     );
     assert.ok(managedSection);
     assert.ok(managedQuestion);
@@ -52,13 +52,16 @@ test('managed plan copy describes provider-independent Garmin and Stryd delivery
   }
 });
 
-test('FAQ content covers product, privacy, and mainland China discovery', () => {
+test('FAQ stays focused on product fit, connections, controlled AI, plans, and data use', () => {
   for (const locale of Object.values(content.locales)) {
     const faqText = JSON.stringify(locale.faq);
-    assert.match(faqText, /managed plan|托管计划/i);
-    assert.match(faqText, /Labs/i);
-    assert.match(faqText, /privacy|隐私/i);
-    assert.match(faqText, /praxys\.cn/i);
+    assert.equal(locale.faq.questions.length, 5);
+    assert.match(faqText, /managed.*plan|托管.*计划/i);
+    assert.match(faqText, /sport science|运动科学/i);
+    assert.match(faqText, /AI/i);
+    assert.match(faqText, /sell athlete data|出售跑者数据/i);
+    assert.doesNotMatch(faqText, /power meter|功率计/i);
+    assert.doesNotMatch(faqText, /praxys\.cn/i);
   }
 });
 
