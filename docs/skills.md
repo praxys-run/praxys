@@ -34,6 +34,40 @@ This is deliberately separate from the athlete-facing `/science` plugin skill.
 research literature or change Evidence Reviews, SDRs, formulas, or product
 behavior.
 
+## Developer WeChat DevTools
+
+`wechat-devtools` is the repository-owned integration at
+`.github/skills/wechat-devtools/SKILL.md`, with a thin Claude Code entry point
+at `.claude/skills/wechat-devtools/SKILL.md`. It is used for miniapp
+compilation, simulator automation, screenshots, console/network diagnostics,
+preview, and upload.
+
+The repository intentionally does not copy Tencent's skill. On Windows + WSL2,
+`scripts/wechatide` finds the separately installed `*-nightly` WeChat DevTools,
+invokes its Windows CLI, and synchronizes `miniapp/` to a generated local
+Windows mirror because DevTools rejects WSL UNC project roots. The WSL
+repository remains the only source of truth. Agents load the authoritative
+`wechatide-skill` from that installation, so DevTools upgrades update the tool
+contract without a stale vendored copy. Stable DevTools remains separate.
+
+Tencent provides no headless or no-focus simulator mode. To prevent accidental
+desktop interruption, `scripts/wechatide` refuses to launch the Windows CLI
+unless the user has approved foreground use and that one invocation is
+prefixed with `WECHATIDE_ALLOW_FOREGROUND=1`. Do not export it globally.
+Guaranteed isolation requires a separate Windows session or VM; WSL2 shares
+the user's desktop. Supported non-simulator build, preview, and upload work
+should use
+[`miniprogram-ci`](https://developers.weixin.qq.com/miniprogram/dev/devtools/ci.html).
+Tencent's
+[DevTools CLI](https://developers.weixin.qq.com/miniprogram/dev/devtools/cli.html)
+and
+[`miniprogram-automator`](https://developers.weixin.qq.com/miniprogram/dev/devtools/auto/automator.html)
+do not promise focus preservation.
+
+The first `Copilot` connection requires authorization in Nightly DevTools.
+Login, CLI access tokens, previews/uploads, cloud writes, and destructive
+operations remain subject to Tencent's interactive approval gates.
+
 ## Athlete-facing plugin requirements
 
 - [Claude Code](https://claude.com/claude-code) or [GitHub Copilot CLI](https://githubnext.com/projects/copilot-cli/)

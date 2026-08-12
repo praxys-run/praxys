@@ -776,6 +776,48 @@ def test_changing_owned_workout_to_rest_removes_target_copy(managed_db):
     assert adapter.calendar == []
 
 
+def test_same_day_removal_deletes_drifted_owned_workout_not_external(
+    managed_db,
+):
+    db, adapter = managed_db
+    today = date(2026, 8, 1)
+    plan = _add_plan(db, today, description="Before")
+    external_id = "external-coach-workout"
+    adapter.calendar.append({
+        "date": today.isoformat(),
+        "workout_type": "manual",
+        "workout_description": "External coach workout",
+        "external_id": external_id,
+        "provider_content_fingerprint": "external-content",
+        "provider_payload_fingerprint": "external-payload",
+    })
+    _run(db, adapter, now=datetime(2026, 8, 1, 9))
+    owned = next(
+        row for row in adapter.calendar
+        if row["external_id"] != external_id
+    )
+    owned["workout_description"] = "Edited in target"
+    owned["provider_content_fingerprint"] = "external-edit"
+    plan.workout_type = "rest"
+    plan.workout_description = "Rest"
+    db.commit()
+
+    result = _run(
+        db,
+        adapter,
+        now=datetime(2026, 8, 1, 10),
+        trigger="plan_upsert",
+    )
+
+    assert result.status == "complete"
+    assert result.items[0].action == "remove"
+    assert result.items[0].status == "removed"
+    assert adapter.delete_attempts == 1
+    assert [
+        row["external_id"] for row in adapter.calendar
+    ] == [external_id]
+
+
 def test_rest_cleanup_rechecks_canonical_before_delete(managed_db):
     db, adapter = managed_db
     plan = _add_plan(db, date(2026, 8, 3), description="Before")

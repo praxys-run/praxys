@@ -1,0 +1,22 @@
+User-agent: *
+Allow: /
+Allow: /product
+Allow: /faq
+Allow: /zh
+Allow: /zh/product
+Allow: /zh/faq
+Disallow: /admin
+Disallow: /api/
+Disallow: /goal
+Disallow: /history
+Disallow: /labs
+Disallow: /login
+Disallow: /mcp/
+Disallow: /science
+Disallow: /settings
+Disallow: /setup
+Disallow: /today
+Disallow: /training
+Disallow: /verify
+
+Sitemap: https://www.praxys.run/sitemap.xml
