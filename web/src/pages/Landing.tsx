@@ -99,7 +99,7 @@ const COPY: Record<SupportedLocale, Copy> = {
         idx: '03 · AI-native',
         title: 'AI is a layer, not the foundation.',
         body:
-          'Cited metrics and deterministic rules work without an AI service. When enabled, AI adds explanation, planning, and natural-language analysis without replacing the evidence underneath.',
+          'Praxys establishes the foundation with cited methods and deterministic validation, then uses AI to explain changes, adapt plans, and explore the evidence in greater depth.',
       },
     ],
     platformsLabel: 'Connects with',
@@ -157,7 +157,7 @@ const COPY: Record<SupportedLocale, Copy> = {
         idx: '03 · AI 增强',
         title: 'AI 增强理解，不替代科学基础。',
         body:
-          '即使没有 AI 服务，带文献来源的指标和确定性规则仍能运行。启用 AI 后，它会帮助解释变化、调整计划和深入分析，但不会取代底层证据。',
+          'Praxys 先用有文献依据的方法和确定性校验打好基础，再用 AI 帮助解释变化、调整计划和深入分析。',
       },
     ],
     platformsLabel: '可连接',
