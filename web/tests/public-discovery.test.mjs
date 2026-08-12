@@ -35,10 +35,10 @@ test('public product copy names every current platform connection', () => {
   }
 });
 
-test('managed plan copy describes provider-independent Garmin and Stryd delivery', () => {
+test('managed plan copy names current Garmin and Stryd delivery', () => {
   for (const locale of Object.values(content.locales)) {
     const managedSection = locale.product.sections.find((section) =>
-      /managed training plans|托管训练计划/i.test(section.heading)
+      /Garmin/i.test(section.body) && /Stryd/i.test(section.body)
     );
     const managedQuestion = locale.faq.questions.find((item) =>
       /managed.*plan|托管.*计划/i.test(item.question)
