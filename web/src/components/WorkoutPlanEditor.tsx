@@ -30,10 +30,14 @@ import WorkoutStructureEditor from '@/components/WorkoutStructureEditor';
 import { apiFetch } from '@/hooks/useApi';
 import { isRestWorkoutType } from '@/lib/plan';
 import {
+  commitAllWorkoutEditorTargetInputs,
+  createWorkoutEditorStructure,
   createStructuredStep,
   deriveFlatFieldsFromStructure,
+  serializeWorkoutEditorStructure,
   synthesizeStructureFromFlat,
-  validateWorkoutStructure,
+  validateWorkoutEditorStructure,
+  type WorkoutEditorStructureV1,
 } from '@/lib/workout-structure';
 import type {
   PlanActivityType,
@@ -90,9 +94,9 @@ interface WorkoutDraft {
   paceMax: string;
   description: string;
   mode: EditorMode;
-  structure: WorkoutStructureV1;
+  structure: WorkoutEditorStructureV1;
   /** Preserve a tree while the athlete temporarily picks Rest in the form. */
-  previousNonRestStructure: WorkoutStructureV1 | null;
+  previousNonRestStructure: WorkoutEditorStructureV1 | null;
 }
 
 function numberOrNull(value: string): number | null {
@@ -120,10 +124,10 @@ function portableActivity(
   return value == null ? defaultActivity(workoutType) : 'other';
 }
 
-function structuredDefault(workoutType: string): WorkoutStructureV1 {
-  return isRestWorkoutType(workoutType)
+function structuredDefault(workoutType: string): WorkoutEditorStructureV1 {
+  return createWorkoutEditorStructure(isRestWorkoutType(workoutType)
     ? { steps: [] }
-    : { steps: [createStructuredStep()] };
+    : { steps: [createStructuredStep()] });
 }
 
 function supportedStructure(
@@ -171,8 +175,8 @@ function initialDraft(
     && !hasStructure
   );
   const sourceDate = source?.date ?? defaultDate;
-  const structure: WorkoutStructureV1 = structureFromSource
-    ? structureFromSource
+  const structure: WorkoutEditorStructureV1 = structureFromSource
+    ? createWorkoutEditorStructure(structureFromSource)
     : structuredDefault(workoutType);
   return {
     date: sourceDate >= minimumDate ? sourceDate : defaultDate,
@@ -232,6 +236,7 @@ function writeFields(draft: WorkoutDraft): WorkoutEditorSaveFields {
   const flat = flatWriteFields(draft);
   if (draft.mode === 'legacy') return flat;
   const isRest = isRestWorkoutType(draft.workoutType);
+  const canonicalStructure = serializeWorkoutEditorStructure(draft.structure);
   const projection = isRest
     ? {
         planned_duration_min: null,
@@ -243,13 +248,13 @@ function writeFields(draft: WorkoutDraft): WorkoutEditorSaveFields {
         target_pace_min: null,
         target_pace_max: null,
       }
-    : deriveFlatFieldsFromStructure(draft.structure);
+    : deriveFlatFieldsFromStructure(canonicalStructure);
   return {
     ...flat,
     ...projection,
     activity_type: isRest ? 'rest' : draft.activityType,
     workout_structure_version: 'v1',
-    workout_structure: draft.structure,
+    workout_structure: canonicalStructure,
   };
 }
 
@@ -258,7 +263,10 @@ function validationErrors(draft: WorkoutDraft): string[] {
   if (!draft.date) errors.push('Choose a date for this workout.');
   if (!draft.workoutType.trim()) errors.push('Enter a workout purpose.');
   if (draft.mode === 'structured') {
-    errors.push(...validateWorkoutStructure(draft.structure, draft.workoutType));
+    errors.push(...validateWorkoutEditorStructure(
+      draft.structure,
+      draft.workoutType,
+    ));
   }
   return errors;
 }
@@ -465,7 +473,11 @@ export default function WorkoutPlanEditor({
         paceMin: draft.paceMin.trim() || null,
         paceMax: draft.paceMax.trim() || null,
       });
-      setDraft((current) => ({ ...current, mode: 'structured', structure }));
+      setDraft((current) => ({
+        ...current,
+        mode: 'structured',
+        structure: createWorkoutEditorStructure(structure),
+      }));
       setLocalError(null);
     } catch {
       setLocalError(
@@ -482,8 +494,18 @@ export default function WorkoutPlanEditor({
       );
       return;
     }
-    const errors = validationErrors(draft);
-    if (errors.length > 0) {
+    const committed = draft.mode === 'structured'
+      ? commitAllWorkoutEditorTargetInputs(draft.structure)
+      : { structure: draft.structure, valid: true };
+    const nextDraft = {
+      ...draft,
+      structure: committed.structure,
+    };
+    if (draft.mode === 'structured') {
+      setDraft(nextDraft);
+    }
+    const errors = validationErrors(nextDraft);
+    if (!committed.valid || errors.length > 0) {
       setLocalError(
         draft.mode === 'structured'
           ? t`Review the highlighted step fields. Every typed target and termination must be complete.`
@@ -492,7 +514,7 @@ export default function WorkoutPlanEditor({
       return;
     }
     setLocalError(null);
-    onSave(writeFields(draft));
+    onSave(writeFields(nextDraft));
   };
 
   const convertToRest = () => {
@@ -506,7 +528,7 @@ export default function WorkoutPlanEditor({
         ...draft,
         activityType: 'rest',
         workoutType: 'rest',
-        structure: { steps: [] },
+        structure: createWorkoutEditorStructure({ steps: [] }),
       }),
       workout_type: 'rest',
       activity_type: 'rest',

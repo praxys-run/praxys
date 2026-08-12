@@ -2,16 +2,26 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  commitAllWorkoutEditorTargetInputs,
+  commitWorkoutEditorTargetInput,
+  createWorkoutEditorStructure,
   createRepeatGroup,
   createStructuredStep,
   deriveFlatFieldsFromStructure,
+  duplicateWorkoutEditorNode,
   duplicateWorkoutNode,
   formatDeterministicDistance,
   formatDeterministicDuration,
+  insertWorkoutEditorNode,
   insertWorkoutNode,
+  moveWorkoutEditorNode,
   moveWorkoutNode,
+  removeWorkoutEditorNode,
   removeWorkoutNode,
+  restoreRemovedWorkoutEditorNode,
   restoreRemovedWorkoutNode,
+  serializeWorkoutEditorStructure,
+  setWorkoutEditorTargetInput,
   summarizeWorkoutStructure,
   synthesizeStructureFromFlat,
 } from '../src/lib/workout-structure.ts';
@@ -167,6 +177,108 @@ test('undo restores the deleted tree instead of guessing a moved repeat parent',
   assert.deepEqual(
     restoreRemovedWorkoutNode(reordered, removed.removed),
     original,
+  );
+});
+
+test('stable editor identities keep repeated moves on the same logical node', () => {
+  let editor = createWorkoutEditorStructure({
+    steps: [
+      { ...timeStep('work', 60), label: 'A' },
+      { ...timeStep('work', 60), label: 'B' },
+      { ...timeStep('work', 60), label: 'C' },
+    ],
+  });
+  const cId = editor.steps[2].editorId;
+
+  editor = moveWorkoutEditorNode(editor, cId, 'up');
+  editor = moveWorkoutEditorNode(editor, cId, 'up');
+
+  assert.deepEqual(editor.steps.map((node) => node.label), ['C', 'A', 'B']);
+  assert.equal(editor.steps[0].editorId, cId);
+});
+
+test('editor identities survive undo while inserts and duplicates get new ids', () => {
+  let editor = createWorkoutEditorStructure({
+    steps: [
+      { ...timeStep('work', 60), label: 'A' },
+      { ...timeStep('work', 60), label: 'B' },
+    ],
+  });
+  const aId = editor.steps[0].editorId;
+  const bId = editor.steps[1].editorId;
+
+  editor = duplicateWorkoutEditorNode(editor, bId);
+  assert.notEqual(editor.steps[2].editorId, bId);
+  editor = insertWorkoutEditorNode(
+    editor,
+    aId,
+    { ...timeStep('recovery', 30), label: 'inserted' },
+    'after',
+  );
+  assert.ok(![aId, bId].includes(editor.steps[1].editorId));
+
+  const removed = removeWorkoutEditorNode(editor, bId);
+  assert.ok(removed.removed);
+  const restored = restoreRemovedWorkoutEditorNode(
+    removed.structure,
+    removed.removed,
+  );
+  assert.equal(restored.steps.find((node) => node.label === 'B')?.editorId, bId);
+});
+
+test('raw target drafts commit on blur and never enter serialized API payloads', () => {
+  let editor = createWorkoutEditorStructure({
+    steps: [timeStep('work', 60, {
+      metric: 'power',
+      unit: 'percent_cp',
+      reference: 'critical_power',
+      min: 95,
+      max: 100,
+    })],
+  });
+  const nodeId = editor.steps[0].editorId;
+
+  editor = setWorkoutEditorTargetInput(editor, nodeId, 'min', '-');
+  assert.equal(editor.steps[0].targetInputs.min, '-');
+  assert.equal(serializeWorkoutEditorStructure(editor).steps[0].target.min, 95);
+  editor = setWorkoutEditorTargetInput(editor, nodeId, 'min', '.');
+  assert.equal(editor.steps[0].targetInputs.min, '.');
+  assert.equal(serializeWorkoutEditorStructure(editor).steps[0].target.min, 95);
+  editor = setWorkoutEditorTargetInput(editor, nodeId, 'min', '95.');
+  assert.equal(editor.steps[0].targetInputs.min, '95.');
+  assert.equal(serializeWorkoutEditorStructure(editor).steps[0].target.min, 95);
+  editor = setWorkoutEditorTargetInput(editor, nodeId, 'min', '95.5');
+  const committed = commitWorkoutEditorTargetInput(
+    editor,
+    nodeId,
+    'min',
+  );
+
+  assert.equal(committed.valid, true);
+  assert.equal(committed.structure.steps[0].target.min, 95.5);
+  const payload = {
+    workout_structure: serializeWorkoutEditorStructure(committed.structure),
+  };
+  assert.doesNotMatch(JSON.stringify(payload), /editorId|targetInputs/);
+});
+
+test('hydrated finite scientific notation remains valid when saved untouched', () => {
+  const editor = createWorkoutEditorStructure({
+    steps: [timeStep('work', 60, {
+      metric: 'power',
+      unit: 'percent_cp',
+      reference: 'critical_power',
+      min: 1e-7,
+      max: 1,
+    })],
+  });
+
+  assert.equal(editor.steps[0].targetInputs.min, '1e-7');
+  const committed = commitAllWorkoutEditorTargetInputs(editor);
+  assert.equal(committed.valid, true);
+  assert.equal(
+    serializeWorkoutEditorStructure(committed.structure).steps[0].target.min,
+    1e-7,
   );
 });
 

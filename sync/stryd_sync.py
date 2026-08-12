@@ -19,6 +19,7 @@ from api.plan_workout_structure import (
     StructuredWorkoutV1,
     inspect_workout_structure,
     project_workout_provider_compatibility,
+    stryd_percent_cp_bounds_are_integral,
 )
 
 logger = logging.getLogger(__name__)
@@ -977,7 +978,11 @@ def _structured_target_percent(
         maximum = target.max if target.max is not None else target.min
         assert minimum is not None
         assert maximum is not None
-        return round(minimum), round(maximum)
+        if not stryd_percent_cp_bounds_are_integral(target):
+            raise ValueError(
+                "Stryd structured delivery requires whole-number %CP bounds"
+            )
+        return int(minimum), int(maximum)
     if combo == ("power", "watts", "absolute"):
         if cp_watts <= 0:
             raise ValueError(
@@ -1115,6 +1120,10 @@ def build_workout_blocks(workout: dict, cp_watts: float) -> list[dict]:
             raise ValueError(
                 "Stryd structured delivery cannot safely encode "
                 "non-power intensity targets"
+            )
+        if "target_precision_not_supported" in reason_codes:
+            raise ValueError(
+                "Stryd structured delivery requires whole-number %CP bounds"
             )
         if "empty_structure_not_supported" in reason_codes:
             raise ValueError(

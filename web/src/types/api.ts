@@ -421,13 +421,14 @@ export type WorkoutProviderCompatibilityReasonCode =
   | 'phase_not_supported'
   | 'structured_workout_not_supported'
   | 'target_not_supported'
+  | 'target_precision_not_supported'
   | 'termination_not_supported'
   | 'wording_not_supported';
 
 export interface WorkoutProviderCompatibilityReason {
   code: WorkoutProviderCompatibilityReasonCode;
   /** Canonical tree location, present when a specific node is lossy. */
-  path?: string;
+  path?: string | null;
 }
 
 /**

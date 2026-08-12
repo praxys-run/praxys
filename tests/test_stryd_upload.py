@@ -181,6 +181,71 @@ class TestBuildWorkoutBlocks:
             "second": 3,
         }
 
+    def test_structured_percent_cp_payload_preserves_integral_bounds(self):
+        workout = {
+            "workout_type": "interval",
+            "activity_type": "running",
+            "workout_structure_version": "v1",
+            "workout_structure": {
+                "steps": [{
+                    "type": "step",
+                    "phase": "work",
+                    "termination": {"type": "time", "seconds": 180},
+                    "target": {
+                        "metric": "power",
+                        "unit": "percent_cp",
+                        "reference": "critical_power",
+                        "min": 95,
+                        "max": 96,
+                    },
+                }],
+            },
+        }
+
+        intensity = build_workout_blocks(
+            workout,
+            cp_watts=248.0,
+        )[0]["segments"][0]["intensity_percent"]
+
+        assert intensity == {"min": 95, "max": 96, "value": 95}
+        assert isinstance(intensity["min"], int)
+        assert isinstance(intensity["max"], int)
+
+    @pytest.mark.parametrize(
+        ("minimum", "maximum"),
+        [
+            (95.5, 96.5),
+            (95.4, 95.49),
+        ],
+    )
+    def test_structured_percent_cp_delivery_rejects_fractional_bounds(
+        self,
+        minimum,
+        maximum,
+    ):
+        workout = {
+            "workout_type": "interval",
+            "activity_type": "running",
+            "workout_structure_version": "v1",
+            "workout_structure": {
+                "steps": [{
+                    "type": "step",
+                    "phase": "work",
+                    "termination": {"type": "time", "seconds": 180},
+                    "target": {
+                        "metric": "power",
+                        "unit": "percent_cp",
+                        "reference": "critical_power",
+                        "min": minimum,
+                        "max": maximum,
+                    },
+                }],
+            },
+        }
+
+        with pytest.raises(ValueError, match="whole-number %CP bounds"):
+            build_workout_blocks(workout, cp_watts=248.0)
+
     @pytest.mark.parametrize(
         "structure_fields",
         [

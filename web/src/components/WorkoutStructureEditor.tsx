@@ -23,32 +23,35 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  commitWorkoutEditorTargetInput,
+  createWorkoutEditorRepeat,
+  createWorkoutEditorStep,
   createRepeatGroup,
   createStructuredStep,
-  duplicateWorkoutNode,
+  duplicateWorkoutEditorNode,
   formatDeterministicDistance,
   formatDeterministicDuration,
-  insertWorkoutNode,
-  moveWorkoutNode,
-  removeWorkoutNode,
-  restoreRemovedWorkoutNode,
+  insertWorkoutEditorNode,
+  moveWorkoutEditorNode,
+  removeWorkoutEditorNode,
+  restoreRemovedWorkoutEditorNode,
+  setWorkoutEditorTargetInput,
   summarizeWorkoutStructure,
   targetForKind,
   targetKind,
-  updateWorkoutRepeat,
-  updateWorkoutStep,
-  validateWorkoutStructure,
-  type RemovedWorkoutNode,
-  type WorkoutNodePath,
+  updateWorkoutEditorRepeat,
+  updateWorkoutEditorStep,
+  validateWorkoutEditorStructure,
+  type RemovedWorkoutEditorNode,
+  type WorkoutEditorRepeat,
+  type WorkoutEditorStep,
+  type WorkoutEditorStructureV1,
   type WorkoutTargetKind,
 } from '@/lib/workout-structure';
 import type {
-  WorkoutIntensityTarget,
   WorkoutProviderCompatibility,
   WorkoutProviderCompatibilityReasonCode,
-  WorkoutStructureRepeatGroup,
   WorkoutStructureStep,
-  WorkoutStructureV1,
   WorkoutTermination,
 } from '@/types/api';
 
@@ -85,27 +88,6 @@ const TARGET_BOUNDS: Record<
   rpe: { min: 0, max: 10, label: 'RPE' },
 };
 
-function numberOrUndefined(value: string): number | undefined {
-  if (!value.trim()) return undefined;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function targetWithBound(
-  target: WorkoutIntensityTarget,
-  bound: 'min' | 'max',
-  value: string,
-): WorkoutIntensityTarget {
-  const next = { ...target } as Record<string, unknown>;
-  const parsed = numberOrUndefined(value);
-  if (parsed === undefined) {
-    delete next[bound];
-  } else {
-    next[bound] = parsed;
-  }
-  return next as WorkoutIntensityTarget;
-}
-
 function terminationForType(
   termination: WorkoutTermination,
   type: WorkoutTermination['type'],
@@ -138,16 +120,18 @@ export default function WorkoutStructureEditor({
   compatibilityError,
   onChange,
 }: {
-  structure: WorkoutStructureV1;
+  structure: WorkoutEditorStructureV1;
   workoutType: string;
   disabled: boolean;
   compatibility: WorkoutProviderCompatibility[] | null;
   compatibilityLoading: boolean;
   compatibilityError: string | null;
-  onChange: (structure: WorkoutStructureV1) => void;
+  onChange: (structure: WorkoutEditorStructureV1) => void;
 }) {
   const { t } = useLingui();
-  const [lastRemoved, setLastRemoved] = useState<RemovedWorkoutNode | null>(
+  const [lastRemoved, setLastRemoved] = useState<
+    RemovedWorkoutEditorNode | null
+  >(
     null,
   );
   const summary = useMemo(
@@ -155,7 +139,7 @@ export default function WorkoutStructureEditor({
     [structure],
   );
   const validationErrors = useMemo(
-    () => validateWorkoutStructure(structure, workoutType),
+    () => validateWorkoutEditorStructure(structure, workoutType),
     [structure, workoutType],
   );
   const validationMessage = validationErrors.length > 0
@@ -201,27 +185,28 @@ export default function WorkoutStructureEditor({
     phase_not_supported: t`This step semantic cannot be represented safely.`,
     structured_workout_not_supported: t`Structured workouts are not supported by this provider.`,
     target_not_supported: t`This typed target cannot be represented safely.`,
+    target_precision_not_supported: t`Stryd accepts only whole-number %CP bounds; fractional values would be rounded.`,
     termination_not_supported: t`This step termination cannot be represented safely.`,
     wording_not_supported: t`Step or repeat wording cannot be preserved safely.`,
   };
 
-  const commitStructure = (next: WorkoutStructureV1) => {
+  const commitStructure = (next: WorkoutEditorStructureV1) => {
     setLastRemoved(null);
     onChange(next);
   };
 
   const updateStep = (
-    path: WorkoutNodePath,
+    editorId: string,
     update: Partial<WorkoutStructureStep>,
-  ) => commitStructure(updateWorkoutStep(structure, path, update));
+  ) => commitStructure(updateWorkoutEditorStep(structure, editorId, update));
 
   const updateRepeat = (
-    rootIndex: number,
-    update: Partial<WorkoutStructureRepeatGroup>,
-  ) => commitStructure(updateWorkoutRepeat(structure, rootIndex, update));
+    editorId: string,
+    update: Partial<Omit<WorkoutEditorRepeat, 'editorId'>>,
+  ) => commitStructure(updateWorkoutEditorRepeat(structure, editorId, update));
 
-  const removeNode = (path: WorkoutNodePath) => {
-    const result = removeWorkoutNode(structure, path);
+  const removeNode = (editorId: string) => {
+    const result = removeWorkoutEditorNode(structure, editorId);
     if (!result.removed) return;
     onChange(result.structure);
     setLastRemoved(result.removed);
@@ -229,7 +214,7 @@ export default function WorkoutStructureEditor({
 
   const restoreNode = () => {
     if (!lastRemoved) return;
-    onChange(restoreRemovedWorkoutNode(structure, lastRemoved));
+    onChange(restoreRemovedWorkoutEditorNode(structure, lastRemoved));
     setLastRemoved(null);
   };
 
@@ -237,18 +222,40 @@ export default function WorkoutStructureEditor({
     commitStructure({
       steps: [
         ...structure.steps,
-        kind === 'step' ? createStructuredStep() : createRepeatGroup(),
+        kind === 'step'
+          ? createWorkoutEditorStep()
+          : createWorkoutEditorRepeat(),
       ],
     });
   };
 
-  const addRepeatChild = (rootIndex: number) => {
-    const repeat = structure.steps[rootIndex];
+  const addRepeatChild = (editorId: string) => {
+    const repeat = structure.steps.find((node) => node.editorId === editorId);
     if (!repeat || repeat.type !== 'repeat') return;
-    updateRepeat(rootIndex, {
-      steps: [...repeat.steps, createStructuredStep()],
+    updateRepeat(editorId, {
+      steps: [...repeat.steps, createWorkoutEditorStep()],
     });
   };
+
+  const updateTargetInput = (
+    editorId: string,
+    bound: 'min' | 'max',
+    value: string,
+  ) => commitStructure(setWorkoutEditorTargetInput(
+    structure,
+    editorId,
+    bound,
+    value,
+  ));
+
+  const commitTargetInput = (
+    editorId: string,
+    bound: 'min' | 'max',
+  ) => commitStructure(commitWorkoutEditorTargetInput(
+    structure,
+    editorId,
+    bound,
+  ).structure);
 
   return (
     <section className="border-y border-border py-5">
@@ -315,9 +322,8 @@ export default function WorkoutStructureEditor({
         {structure.steps.map((node, rootIndex) => (
           node.type === 'step' ? (
             <StepEditor
-              key={`root-${rootIndex}`}
+              key={node.editorId}
               step={node}
-              path={[rootIndex]}
               index={rootIndex}
               siblingCount={structure.steps.length}
               disabled={disabled}
@@ -326,24 +332,26 @@ export default function WorkoutStructureEditor({
               targetDetailLabels={targetDetailLabels}
               onUpdate={updateStep}
               onMove={(direction) => commitStructure(
-                moveWorkoutNode(structure, [rootIndex], direction),
+                moveWorkoutEditorNode(structure, node.editorId, direction),
               )}
               onInsert={(position) => commitStructure(
-                insertWorkoutNode(
+                insertWorkoutEditorNode(
                   structure,
-                  [rootIndex],
+                  node.editorId,
                   createStructuredStep(),
                   position,
                 ),
               )}
               onDuplicate={() => commitStructure(
-                duplicateWorkoutNode(structure, [rootIndex]),
+                duplicateWorkoutEditorNode(structure, node.editorId),
               )}
-              onDelete={() => removeNode([rootIndex])}
+              onDelete={() => removeNode(node.editorId)}
+              onTargetInput={updateTargetInput}
+              onTargetBlur={commitTargetInput}
             />
           ) : (
             <RepeatEditor
-              key={`repeat-${rootIndex}`}
+              key={node.editorId}
               repeat={node}
               rootIndex={rootIndex}
               rootCount={structure.steps.length}
@@ -351,49 +359,45 @@ export default function WorkoutStructureEditor({
               phaseLabels={phaseLabels}
               targetLabels={targetLabels}
               targetDetailLabels={targetDetailLabels}
-              onUpdate={(update) => updateRepeat(rootIndex, update)}
+              onUpdate={(update) => updateRepeat(node.editorId, update)}
               onMove={(direction) => commitStructure(
-                moveWorkoutNode(structure, [rootIndex], direction),
+                moveWorkoutEditorNode(structure, node.editorId, direction),
               )}
               onInsert={(position) => commitStructure(
-                insertWorkoutNode(
+                insertWorkoutEditorNode(
                   structure,
-                  [rootIndex],
+                  node.editorId,
                   createRepeatGroup(),
                   position,
                 ),
               )}
               onDuplicate={() => commitStructure(
-                duplicateWorkoutNode(structure, [rootIndex]),
+                duplicateWorkoutEditorNode(structure, node.editorId),
               )}
-              onDelete={() => removeNode([rootIndex])}
-              onAddChild={() => addRepeatChild(rootIndex)}
-              onUpdateChild={(childIndex, update) => updateStep(
-                [rootIndex, childIndex],
-                update,
-              )}
-              onMoveChild={(childIndex, direction) => commitStructure(
-                moveWorkoutNode(
+              onDelete={() => removeNode(node.editorId)}
+              onAddChild={() => addRepeatChild(node.editorId)}
+              onUpdateChild={updateStep}
+              onMoveChild={(childEditorId, direction) => commitStructure(
+                moveWorkoutEditorNode(
                   structure,
-                  [rootIndex, childIndex],
+                  childEditorId,
                   direction,
                 ),
               )}
-              onInsertChild={(childIndex, position) => commitStructure(
-                insertWorkoutNode(
+              onInsertChild={(childEditorId, position) => commitStructure(
+                insertWorkoutEditorNode(
                   structure,
-                  [rootIndex, childIndex],
+                  childEditorId,
                   createStructuredStep(),
                   position,
                 ),
               )}
-              onDuplicateChild={(childIndex) => commitStructure(
-                duplicateWorkoutNode(structure, [rootIndex, childIndex]),
+              onDuplicateChild={(childEditorId) => commitStructure(
+                duplicateWorkoutEditorNode(structure, childEditorId),
               )}
-              onDeleteChild={(childIndex) => removeNode([
-                rootIndex,
-                childIndex,
-              ])}
+              onDeleteChild={removeNode}
+              onTargetInput={updateTargetInput}
+              onTargetBlur={commitTargetInput}
             />
           )
         ))}
@@ -482,7 +486,6 @@ function ProfileItem({
 
 function StepEditor({
   step,
-  path,
   index,
   siblingCount,
   disabled,
@@ -494,9 +497,10 @@ function StepEditor({
   onInsert,
   onDuplicate,
   onDelete,
+  onTargetInput,
+  onTargetBlur,
 }: {
-  step: WorkoutStructureStep;
-  path: WorkoutNodePath;
+  step: WorkoutEditorStep;
   index: number;
   siblingCount: number;
   disabled: boolean;
@@ -504,17 +508,26 @@ function StepEditor({
   targetLabels: Record<WorkoutTargetKind, string>;
   targetDetailLabels: Record<WorkoutTargetKind, string>;
   onUpdate: (
-    path: WorkoutNodePath,
+    editorId: string,
     update: Partial<WorkoutStructureStep>,
   ) => void;
   onMove: (direction: 'up' | 'down') => void;
   onInsert: (position: 'before' | 'after') => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  onTargetInput: (
+    editorId: string,
+    bound: 'min' | 'max',
+    value: string,
+  ) => void;
+  onTargetBlur: (
+    editorId: string,
+    bound: 'min' | 'max',
+  ) => void;
 }) {
   const { t } = useLingui();
   const kind = targetKind(step.target);
-  const prefix = `workout-step-${path.join('-')}`;
+  const prefix = `workout-step-${step.editorId}`;
   const bounds = kind === 'none' ? null : TARGET_BOUNDS[kind];
   return (
     <div className="border-y border-border py-4" role="treeitem">
@@ -540,7 +553,7 @@ function StepEditor({
             disabled={disabled}
             onValueChange={(value) => {
               if (!value) return;
-              onUpdate(path, {
+              onUpdate(step.editorId, {
                 phase: value as WorkoutStructureStep['phase'],
               });
             }}
@@ -562,7 +575,7 @@ function StepEditor({
             value={step.label ?? ''}
             maxLength={80}
             disabled={disabled}
-            onChange={(event) => onUpdate(path, {
+            onChange={(event) => onUpdate(step.editorId, {
               label: event.target.value || null,
             })}
             placeholder={t`e.g. Uphill effort`}
@@ -575,7 +588,7 @@ function StepEditor({
           idPrefix={prefix}
           termination={step.termination}
           disabled={disabled}
-          onChange={(termination) => onUpdate(path, { termination })}
+          onChange={(termination) => onUpdate(step.editorId, { termination })}
         />
         <div className="space-y-1.5">
           <Label htmlFor={`${prefix}-target`}><Trans>Target type</Trans></Label>
@@ -584,7 +597,7 @@ function StepEditor({
             disabled={disabled}
             onValueChange={(value) => {
               if (!value) return;
-              onUpdate(path, {
+              onUpdate(step.editorId, {
                 target: targetForKind(value as WorkoutTargetKind),
               });
             }}
@@ -616,16 +629,19 @@ function StepEditor({
             <Label htmlFor={`${prefix}-target-min`}><Trans>Target minimum</Trans></Label>
             <Input
               id={`${prefix}-target-min`}
-              type="number"
-              inputMode="decimal"
-              step="any"
+              type="text"
+              inputMode={bounds && bounds.min < 0 ? 'text' : 'decimal'}
               min={bounds?.min}
               max={bounds?.max}
-              value={step.target.min ?? ''}
+              value={step.targetInputs.min}
               disabled={disabled}
-              onChange={(event) => onUpdate(path, {
-                target: targetWithBound(step.target, 'min', event.target.value),
-              })}
+              aria-invalid={step.targetInputs.minInvalid || undefined}
+              onChange={(event) => onTargetInput(
+                step.editorId,
+                'min',
+                event.target.value,
+              )}
+              onBlur={() => onTargetBlur(step.editorId, 'min')}
               className="font-data"
               placeholder={t`Optional`}
             />
@@ -634,16 +650,19 @@ function StepEditor({
             <Label htmlFor={`${prefix}-target-max`}><Trans>Target maximum</Trans></Label>
             <Input
               id={`${prefix}-target-max`}
-              type="number"
-              inputMode="decimal"
-              step="any"
+              type="text"
+              inputMode={bounds && bounds.min < 0 ? 'text' : 'decimal'}
               min={bounds?.min}
               max={bounds?.max}
-              value={step.target.max ?? ''}
+              value={step.targetInputs.max}
               disabled={disabled}
-              onChange={(event) => onUpdate(path, {
-                target: targetWithBound(step.target, 'max', event.target.value),
-              })}
+              aria-invalid={step.targetInputs.maxInvalid || undefined}
+              onChange={(event) => onTargetInput(
+                step.editorId,
+                'max',
+                event.target.value,
+              )}
+              onBlur={() => onTargetBlur(step.editorId, 'max')}
               className="font-data"
               placeholder={t`Optional`}
             />
@@ -659,7 +678,7 @@ function StepEditor({
           disabled={disabled}
           maxLength={1000}
           rows={2}
-          onChange={(event) => onUpdate(path, {
+          onChange={(event) => onUpdate(step.editorId, {
             instructions: event.target.value || null,
           })}
           className="flex w-full resize-y rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50"
@@ -689,34 +708,47 @@ function RepeatEditor({
   onInsertChild,
   onDuplicateChild,
   onDeleteChild,
+  onTargetInput,
+  onTargetBlur,
 }: {
-  repeat: WorkoutStructureRepeatGroup;
+  repeat: WorkoutEditorRepeat;
   rootIndex: number;
   rootCount: number;
   disabled: boolean;
   phaseLabels: Record<WorkoutStructureStep['phase'], string>;
   targetLabels: Record<WorkoutTargetKind, string>;
   targetDetailLabels: Record<WorkoutTargetKind, string>;
-  onUpdate: (update: Partial<WorkoutStructureRepeatGroup>) => void;
+  onUpdate: (
+    update: Partial<Omit<WorkoutEditorRepeat, 'editorId'>>
+  ) => void;
   onMove: (direction: 'up' | 'down') => void;
   onInsert: (position: 'before' | 'after') => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onAddChild: () => void;
   onUpdateChild: (
-    childIndex: number,
+    childEditorId: string,
     update: Partial<WorkoutStructureStep>,
   ) => void;
-  onMoveChild: (childIndex: number, direction: 'up' | 'down') => void;
+  onMoveChild: (childEditorId: string, direction: 'up' | 'down') => void;
   onInsertChild: (
-    childIndex: number,
+    childEditorId: string,
     position: 'before' | 'after',
   ) => void;
-  onDuplicateChild: (childIndex: number) => void;
-  onDeleteChild: (childIndex: number) => void;
+  onDuplicateChild: (childEditorId: string) => void;
+  onDeleteChild: (childEditorId: string) => void;
+  onTargetInput: (
+    editorId: string,
+    bound: 'min' | 'max',
+    value: string,
+  ) => void;
+  onTargetBlur: (
+    editorId: string,
+    bound: 'min' | 'max',
+  ) => void;
 }) {
   const { t } = useLingui();
-  const prefix = `workout-repeat-${rootIndex}`;
+  const prefix = `workout-repeat-${repeat.editorId}`;
   return (
     <div className="border-y border-border bg-muted/25 py-4 pl-3" role="treeitem">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -784,20 +816,21 @@ function RepeatEditor({
         <div className="mt-2 space-y-3">
           {repeat.steps.map((step, childIndex) => (
             <StepEditor
-              key={`repeat-${rootIndex}-step-${childIndex}`}
+              key={step.editorId}
               step={step}
-              path={[rootIndex, childIndex]}
               index={childIndex}
               siblingCount={repeat.steps.length}
               disabled={disabled}
               phaseLabels={phaseLabels}
               targetLabels={targetLabels}
               targetDetailLabels={targetDetailLabels}
-              onUpdate={(_path, update) => onUpdateChild(childIndex, update)}
-              onMove={(direction) => onMoveChild(childIndex, direction)}
-              onInsert={(position) => onInsertChild(childIndex, position)}
-              onDuplicate={() => onDuplicateChild(childIndex)}
-              onDelete={() => onDeleteChild(childIndex)}
+              onUpdate={onUpdateChild}
+              onMove={(direction) => onMoveChild(step.editorId, direction)}
+              onInsert={(position) => onInsertChild(step.editorId, position)}
+              onDuplicate={() => onDuplicateChild(step.editorId)}
+              onDelete={() => onDeleteChild(step.editorId)}
+              onTargetInput={onTargetInput}
+              onTargetBlur={onTargetBlur}
             />
           ))}
         </div>

@@ -332,6 +332,124 @@ def test_stryd_compatibility_rejects_one_sided_structured_targets() -> None:
     }]
 
 
+def _stryd_percent_cp_compatibility(
+    minimum: float,
+    maximum: float,
+) -> dict[str, object]:
+    structure = StructuredWorkoutV1.model_validate({
+        "steps": [{
+            "type": "step",
+            "phase": "work",
+            "termination": {"type": "time", "seconds": 180},
+            "target": {
+                "metric": "power",
+                "unit": "percent_cp",
+                "reference": "critical_power",
+                "min": minimum,
+                "max": maximum,
+            },
+        }],
+    })
+    compatibility = project_workout_provider_compatibility(
+        activity_type="running",
+        workout_structure_version="v1",
+        workout_structure=structure,
+        planned_duration_min=3,
+        planned_distance_km=None,
+        target_power_min=None,
+        target_power_max=None,
+        target_hr_min=None,
+        target_hr_max=None,
+        target_pace_min=None,
+        target_pace_max=None,
+    )
+    return next(item for item in compatibility if item["target"] == "stryd")
+
+
+def test_stryd_compatibility_accepts_integral_percent_cp_bounds() -> None:
+    """The connector payload can preserve whole-number percentages exactly."""
+    stryd = _stryd_percent_cp_compatibility(95, 96)
+
+    assert stryd == {
+        "target": "stryd",
+        "compatible": True,
+        "mode": "structured",
+        "reasons": [],
+    }
+
+
+@pytest.mark.parametrize(
+    ("minimum", "maximum"),
+    [
+        (95.5, 96.5),
+        (95.4, 95.49),
+    ],
+)
+def test_stryd_compatibility_rejects_fractional_percent_cp_bounds(
+    minimum: float,
+    maximum: float,
+) -> None:
+    """Fractional and integer-collapsing ranges must never preview as lossless."""
+    stryd = _stryd_percent_cp_compatibility(minimum, maximum)
+
+    assert stryd["compatible"] is False
+    assert stryd["mode"] == "unsupported"
+    assert stryd["reasons"] == [{
+        "code": "target_precision_not_supported",
+        "path": "steps[0].target",
+    }]
+
+
+def test_stryd_precision_reason_requires_two_present_percent_cp_bounds() -> None:
+    """A later one-sided target stays a shape failure, not a precision failure."""
+    structure = StructuredWorkoutV1.model_validate({
+        "steps": [
+            {
+                "type": "step",
+                "phase": "work",
+                "termination": {"type": "time", "seconds": 60},
+                "target": {
+                    "metric": "heart_rate",
+                    "unit": "bpm",
+                    "reference": "absolute",
+                    "min": 150,
+                    "max": 160,
+                },
+            },
+            {
+                "type": "step",
+                "phase": "work",
+                "termination": {"type": "time", "seconds": 60},
+                "target": {
+                    "metric": "power",
+                    "unit": "percent_cp",
+                    "reference": "critical_power",
+                    "min": 95,
+                },
+            },
+        ],
+    })
+    compatibility = project_workout_provider_compatibility(
+        activity_type="running",
+        workout_structure_version="v1",
+        workout_structure=structure,
+        planned_duration_min=2,
+        planned_distance_km=None,
+        target_power_min=None,
+        target_power_max=None,
+        target_hr_min=None,
+        target_hr_max=None,
+        target_pace_min=None,
+        target_pace_max=None,
+    )
+    stryd = next(item for item in compatibility if item["target"] == "stryd")
+
+    assert stryd["reasons"] == [{
+        "code": "target_not_supported",
+        "path": "steps[0].target",
+    }]
+
+
 @pytest.mark.parametrize(
     "overrides",
     [

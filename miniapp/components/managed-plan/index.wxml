@@ -311,42 +311,42 @@
             wx:for="{{editorStructureView}}"
             wx:for-item="node"
             wx:for-index="rootIndex"
-            wx:key="rootIndex"
+            wx:key="editorId"
           >
             <view wx:if="{{node.type === 'step'}}" class="managed-plan__node">
               <view class="managed-plan__node-heading">
                 <text>{{tr.step}} {{rootIndex + 1}}</text>
                 <view class="managed-plan__node-actions">
-                  <button data-root="{{rootIndex}}" data-action="move-up" disabled="{{editorSaving || rootIndex === 0}}" bindtap="onStructuredAction">{{tr.moveUp}}</button>
-                  <button data-root="{{rootIndex}}" data-action="move-down" disabled="{{editorSaving || rootIndex === editorStructureView.length - 1}}" bindtap="onStructuredAction">{{tr.moveDown}}</button>
-                  <button data-root="{{rootIndex}}" data-action="insert-before" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.insertBefore}}</button>
-                  <button data-root="{{rootIndex}}" data-action="insert-after" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.insertAfter}}</button>
-                  <button data-root="{{rootIndex}}" data-action="duplicate" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.duplicate}}</button>
-                  <button data-root="{{rootIndex}}" data-action="delete" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.delete}}</button>
+                  <button data-editor-id="{{node.editorId}}" data-action="move-up" disabled="{{editorSaving || rootIndex === 0}}" bindtap="onStructuredAction">{{tr.moveUp}}</button>
+                  <button data-editor-id="{{node.editorId}}" data-action="move-down" disabled="{{editorSaving || rootIndex === editorStructureView.length - 1}}" bindtap="onStructuredAction">{{tr.moveDown}}</button>
+                  <button data-editor-id="{{node.editorId}}" data-action="insert-before" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.insertBefore}}</button>
+                  <button data-editor-id="{{node.editorId}}" data-action="insert-after" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.insertAfter}}</button>
+                  <button data-editor-id="{{node.editorId}}" data-action="duplicate" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.duplicate}}</button>
+                  <button data-editor-id="{{node.editorId}}" data-action="delete" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.delete}}</button>
                 </view>
               </view>
               <view class="managed-plan__node-fields">
                 <view class="managed-plan__field">
                   <text class="managed-plan__field-label">{{tr.stepSemantic}}</text>
-                  <picker range="{{editorPhaseLabels}}" value="{{node.phaseIndex}}" disabled="{{editorSaving}}" data-root="{{rootIndex}}" bindchange="onStructuredPhaseChange">
+                  <picker range="{{editorPhaseLabels}}" value="{{node.phaseIndex}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" bindchange="onStructuredPhaseChange">
                     <view class="managed-plan__field-value">{{editorPhaseLabels[node.phaseIndex]}}</view>
                   </picker>
                 </view>
                 <view class="managed-plan__field">
                   <text class="managed-plan__field-label">{{tr.optionalLabel}}</text>
-                  <input class="managed-plan__field-input" value="{{node.label}}" maxlength="80" placeholder="{{tr.uphillEffort}}" disabled="{{editorSaving}}" data-root="{{rootIndex}}" data-field="label" bindinput="onStructuredInput" />
+                  <input class="managed-plan__field-input" value="{{node.label}}" maxlength="80" placeholder="{{tr.uphillEffort}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" data-field="label" bindinput="onStructuredInput" />
                 </view>
                 <view class="managed-plan__field">
                   <text class="managed-plan__field-label">{{tr.termination}}</text>
-                  <picker range="{{editorTerminationLabels}}" value="{{node.terminationIndex}}" disabled="{{editorSaving}}" data-root="{{rootIndex}}" bindchange="onStructuredTerminationChange">
+                  <picker range="{{editorTerminationLabels}}" value="{{node.terminationIndex}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" bindchange="onStructuredTerminationChange">
                     <view class="managed-plan__field-value">{{editorTerminationLabels[node.terminationIndex]}}</view>
                   </picker>
-                  <input wx:if="{{node.termination.type === 'time'}}" class="managed-plan__field-input ts-value" type="number" value="{{node.termination.seconds}}" placeholder="{{tr.timeSeconds}}" disabled="{{editorSaving}}" data-root="{{rootIndex}}" data-field="seconds" bindinput="onStructuredInput" />
-                  <input wx:if="{{node.termination.type === 'distance'}}" class="managed-plan__field-input ts-value" type="number" value="{{node.termination.meters}}" placeholder="{{tr.distanceMeters}}" disabled="{{editorSaving}}" data-root="{{rootIndex}}" data-field="meters" bindinput="onStructuredInput" />
+                  <input wx:if="{{node.termination.type === 'time'}}" class="managed-plan__field-input ts-value" type="number" value="{{node.termination.seconds}}" placeholder="{{tr.timeSeconds}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" data-field="seconds" bindinput="onStructuredInput" />
+                  <input wx:if="{{node.termination.type === 'distance'}}" class="managed-plan__field-input ts-value" type="number" value="{{node.termination.meters}}" placeholder="{{tr.distanceMeters}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" data-field="meters" bindinput="onStructuredInput" />
                 </view>
                 <view class="managed-plan__field">
                   <text class="managed-plan__field-label">{{tr.targetType}}</text>
-                  <picker range="{{editorTargetLabels}}" value="{{node.targetIndex}}" disabled="{{editorSaving}}" data-root="{{rootIndex}}" bindchange="onStructuredTargetChange">
+                  <picker range="{{editorTargetLabels}}" value="{{node.targetIndex}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" bindchange="onStructuredTargetChange">
                     <view class="managed-plan__field-value">{{editorTargetLabels[node.targetIndex]}}</view>
                   </picker>
                   <text class="managed-plan__field-hint">{{node.targetDetail}}</text>
@@ -354,16 +354,16 @@
                 <block wx:if="{{node.target.metric !== 'none'}}">
                   <view class="managed-plan__field">
                     <text class="managed-plan__field-label">{{tr.targetMinimum}}</text>
-                    <input class="managed-plan__field-input ts-value" type="number" value="{{node.target.min}}" placeholder="{{tr.optional}}" disabled="{{editorSaving}}" data-root="{{rootIndex}}" data-field="targetMin" bindinput="onStructuredInput" />
+                    <input class="managed-plan__field-input ts-value" type="text" value="{{node.targetInputs.min}}" placeholder="{{tr.optional}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" data-field="targetMin" bindinput="onStructuredInput" bindblur="onStructuredTargetBlur" />
                   </view>
                   <view class="managed-plan__field">
                     <text class="managed-plan__field-label">{{tr.targetMaximum}}</text>
-                    <input class="managed-plan__field-input ts-value" type="number" value="{{node.target.max}}" placeholder="{{tr.optional}}" disabled="{{editorSaving}}" data-root="{{rootIndex}}" data-field="targetMax" bindinput="onStructuredInput" />
+                    <input class="managed-plan__field-input ts-value" type="text" value="{{node.targetInputs.max}}" placeholder="{{tr.optional}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" data-field="targetMax" bindinput="onStructuredInput" bindblur="onStructuredTargetBlur" />
                   </view>
                 </block>
                 <view class="managed-plan__field managed-plan__field--wide">
                   <text class="managed-plan__field-label">{{tr.stepInstructions}}</text>
-                  <textarea class="managed-plan__field-textarea" value="{{node.instructions}}" maxlength="1000" auto-height placeholder="{{tr.optionalCoachingCue}}" disabled="{{editorSaving}}" data-root="{{rootIndex}}" data-field="instructions" bindinput="onStructuredInput"></textarea>
+                  <textarea class="managed-plan__field-textarea" value="{{node.instructions}}" maxlength="1000" auto-height placeholder="{{tr.optionalCoachingCue}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" data-field="instructions" bindinput="onStructuredInput"></textarea>
                 </view>
               </view>
             </view>
@@ -372,61 +372,61 @@
               <view class="managed-plan__node-heading">
                 <text>{{tr.repeatGroup}}</text>
                 <view class="managed-plan__node-actions">
-                  <button data-root="{{rootIndex}}" data-action="move-up" disabled="{{editorSaving || rootIndex === 0}}" bindtap="onStructuredAction">{{tr.moveUp}}</button>
-                  <button data-root="{{rootIndex}}" data-action="move-down" disabled="{{editorSaving || rootIndex === editorStructureView.length - 1}}" bindtap="onStructuredAction">{{tr.moveDown}}</button>
-                  <button data-root="{{rootIndex}}" data-action="insert-before" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.insertBefore}}</button>
-                  <button data-root="{{rootIndex}}" data-action="insert-after" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.insertAfter}}</button>
-                  <button data-root="{{rootIndex}}" data-action="duplicate" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.duplicate}}</button>
-                  <button data-root="{{rootIndex}}" data-action="delete" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.delete}}</button>
+                  <button data-editor-id="{{node.editorId}}" data-action="move-up" disabled="{{editorSaving || rootIndex === 0}}" bindtap="onStructuredAction">{{tr.moveUp}}</button>
+                  <button data-editor-id="{{node.editorId}}" data-action="move-down" disabled="{{editorSaving || rootIndex === editorStructureView.length - 1}}" bindtap="onStructuredAction">{{tr.moveDown}}</button>
+                  <button data-editor-id="{{node.editorId}}" data-action="insert-before" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.insertBefore}}</button>
+                  <button data-editor-id="{{node.editorId}}" data-action="insert-after" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.insertAfter}}</button>
+                  <button data-editor-id="{{node.editorId}}" data-action="duplicate" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.duplicate}}</button>
+                  <button data-editor-id="{{node.editorId}}" data-action="delete" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.delete}}</button>
                 </view>
               </view>
               <view class="managed-plan__node-fields">
                 <view class="managed-plan__field">
                   <text class="managed-plan__field-label">{{tr.repeatLabel}}</text>
-                  <input class="managed-plan__field-input" value="{{node.label}}" maxlength="80" placeholder="{{tr.mainSet}}" disabled="{{editorSaving}}" data-root="{{rootIndex}}" data-field="repeatLabel" bindinput="onStructuredInput" />
+                  <input class="managed-plan__field-input" value="{{node.label}}" maxlength="80" placeholder="{{tr.mainSet}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" data-field="repeatLabel" bindinput="onStructuredInput" />
                 </view>
                 <view class="managed-plan__field">
                   <text class="managed-plan__field-label">{{tr.repetitions}}</text>
-                  <input class="managed-plan__field-input ts-value" type="number" value="{{node.repetitions}}" disabled="{{editorSaving}}" data-root="{{rootIndex}}" data-field="repetitions" bindinput="onStructuredInput" />
+                  <input class="managed-plan__field-input ts-value" type="number" value="{{node.repetitions}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" data-field="repetitions" bindinput="onStructuredInput" />
                 </view>
               </view>
               <text class="managed-plan__repeat-detail">{{tr.oneLevelRepeat}}</text>
               <view class="managed-plan__repeat-children">
-                <block wx:for="{{node.steps}}" wx:for-item="child" wx:for-index="childIndex" wx:key="childIndex">
+                <block wx:for="{{node.steps}}" wx:for-item="child" wx:for-index="childIndex" wx:key="editorId">
                   <view class="managed-plan__node managed-plan__node--child">
                     <view class="managed-plan__node-heading">
                       <text>{{tr.step}} {{childIndex + 1}}</text>
                       <view class="managed-plan__node-actions">
-                        <button data-root="{{rootIndex}}" data-child="{{childIndex}}" data-action="move-up" disabled="{{editorSaving || childIndex === 0}}" bindtap="onStructuredAction">{{tr.moveUp}}</button>
-                        <button data-root="{{rootIndex}}" data-child="{{childIndex}}" data-action="move-down" disabled="{{editorSaving || childIndex === node.steps.length - 1}}" bindtap="onStructuredAction">{{tr.moveDown}}</button>
-                        <button data-root="{{rootIndex}}" data-child="{{childIndex}}" data-action="insert-before" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.insertBefore}}</button>
-                        <button data-root="{{rootIndex}}" data-child="{{childIndex}}" data-action="insert-after" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.insertAfter}}</button>
-                        <button data-root="{{rootIndex}}" data-child="{{childIndex}}" data-action="duplicate" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.duplicate}}</button>
-                        <button data-root="{{rootIndex}}" data-child="{{childIndex}}" data-action="delete" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.delete}}</button>
+                        <button data-editor-id="{{child.editorId}}" data-action="move-up" disabled="{{editorSaving || childIndex === 0}}" bindtap="onStructuredAction">{{tr.moveUp}}</button>
+                        <button data-editor-id="{{child.editorId}}" data-action="move-down" disabled="{{editorSaving || childIndex === node.steps.length - 1}}" bindtap="onStructuredAction">{{tr.moveDown}}</button>
+                        <button data-editor-id="{{child.editorId}}" data-action="insert-before" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.insertBefore}}</button>
+                        <button data-editor-id="{{child.editorId}}" data-action="insert-after" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.insertAfter}}</button>
+                        <button data-editor-id="{{child.editorId}}" data-action="duplicate" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.duplicate}}</button>
+                        <button data-editor-id="{{child.editorId}}" data-action="delete" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.delete}}</button>
                       </view>
                     </view>
                     <view class="managed-plan__node-fields">
                       <view class="managed-plan__field">
                         <text class="managed-plan__field-label">{{tr.stepSemantic}}</text>
-                        <picker range="{{editorPhaseLabels}}" value="{{child.phaseIndex}}" disabled="{{editorSaving}}" data-root="{{rootIndex}}" data-child="{{childIndex}}" bindchange="onStructuredPhaseChange">
+                        <picker range="{{editorPhaseLabels}}" value="{{child.phaseIndex}}" disabled="{{editorSaving}}" data-editor-id="{{child.editorId}}" bindchange="onStructuredPhaseChange">
                           <view class="managed-plan__field-value">{{editorPhaseLabels[child.phaseIndex]}}</view>
                         </picker>
                       </view>
                       <view class="managed-plan__field">
                         <text class="managed-plan__field-label">{{tr.optionalLabel}}</text>
-                        <input class="managed-plan__field-input" value="{{child.label}}" maxlength="80" placeholder="{{tr.uphillEffort}}" disabled="{{editorSaving}}" data-root="{{rootIndex}}" data-child="{{childIndex}}" data-field="label" bindinput="onStructuredInput" />
+                        <input class="managed-plan__field-input" value="{{child.label}}" maxlength="80" placeholder="{{tr.uphillEffort}}" disabled="{{editorSaving}}" data-editor-id="{{child.editorId}}" data-field="label" bindinput="onStructuredInput" />
                       </view>
                       <view class="managed-plan__field">
                         <text class="managed-plan__field-label">{{tr.termination}}</text>
-                        <picker range="{{editorTerminationLabels}}" value="{{child.terminationIndex}}" disabled="{{editorSaving}}" data-root="{{rootIndex}}" data-child="{{childIndex}}" bindchange="onStructuredTerminationChange">
+                        <picker range="{{editorTerminationLabels}}" value="{{child.terminationIndex}}" disabled="{{editorSaving}}" data-editor-id="{{child.editorId}}" bindchange="onStructuredTerminationChange">
                           <view class="managed-plan__field-value">{{editorTerminationLabels[child.terminationIndex]}}</view>
                         </picker>
-                        <input wx:if="{{child.termination.type === 'time'}}" class="managed-plan__field-input ts-value" type="number" value="{{child.termination.seconds}}" placeholder="{{tr.timeSeconds}}" disabled="{{editorSaving}}" data-root="{{rootIndex}}" data-child="{{childIndex}}" data-field="seconds" bindinput="onStructuredInput" />
-                        <input wx:if="{{child.termination.type === 'distance'}}" class="managed-plan__field-input ts-value" type="number" value="{{child.termination.meters}}" placeholder="{{tr.distanceMeters}}" disabled="{{editorSaving}}" data-root="{{rootIndex}}" data-child="{{childIndex}}" data-field="meters" bindinput="onStructuredInput" />
+                        <input wx:if="{{child.termination.type === 'time'}}" class="managed-plan__field-input ts-value" type="number" value="{{child.termination.seconds}}" placeholder="{{tr.timeSeconds}}" disabled="{{editorSaving}}" data-editor-id="{{child.editorId}}" data-field="seconds" bindinput="onStructuredInput" />
+                        <input wx:if="{{child.termination.type === 'distance'}}" class="managed-plan__field-input ts-value" type="number" value="{{child.termination.meters}}" placeholder="{{tr.distanceMeters}}" disabled="{{editorSaving}}" data-editor-id="{{child.editorId}}" data-field="meters" bindinput="onStructuredInput" />
                       </view>
                       <view class="managed-plan__field">
                         <text class="managed-plan__field-label">{{tr.targetType}}</text>
-                        <picker range="{{editorTargetLabels}}" value="{{child.targetIndex}}" disabled="{{editorSaving}}" data-root="{{rootIndex}}" data-child="{{childIndex}}" bindchange="onStructuredTargetChange">
+                        <picker range="{{editorTargetLabels}}" value="{{child.targetIndex}}" disabled="{{editorSaving}}" data-editor-id="{{child.editorId}}" bindchange="onStructuredTargetChange">
                           <view class="managed-plan__field-value">{{editorTargetLabels[child.targetIndex]}}</view>
                         </picker>
                         <text class="managed-plan__field-hint">{{child.targetDetail}}</text>
@@ -434,22 +434,22 @@
                       <block wx:if="{{child.target.metric !== 'none'}}">
                         <view class="managed-plan__field">
                           <text class="managed-plan__field-label">{{tr.targetMinimum}}</text>
-                          <input class="managed-plan__field-input ts-value" type="number" value="{{child.target.min}}" placeholder="{{tr.optional}}" disabled="{{editorSaving}}" data-root="{{rootIndex}}" data-child="{{childIndex}}" data-field="targetMin" bindinput="onStructuredInput" />
+                          <input class="managed-plan__field-input ts-value" type="text" value="{{child.targetInputs.min}}" placeholder="{{tr.optional}}" disabled="{{editorSaving}}" data-editor-id="{{child.editorId}}" data-field="targetMin" bindinput="onStructuredInput" bindblur="onStructuredTargetBlur" />
                         </view>
                         <view class="managed-plan__field">
                           <text class="managed-plan__field-label">{{tr.targetMaximum}}</text>
-                          <input class="managed-plan__field-input ts-value" type="number" value="{{child.target.max}}" placeholder="{{tr.optional}}" disabled="{{editorSaving}}" data-root="{{rootIndex}}" data-child="{{childIndex}}" data-field="targetMax" bindinput="onStructuredInput" />
+                          <input class="managed-plan__field-input ts-value" type="text" value="{{child.targetInputs.max}}" placeholder="{{tr.optional}}" disabled="{{editorSaving}}" data-editor-id="{{child.editorId}}" data-field="targetMax" bindinput="onStructuredInput" bindblur="onStructuredTargetBlur" />
                         </view>
                       </block>
                       <view class="managed-plan__field managed-plan__field--wide">
                         <text class="managed-plan__field-label">{{tr.stepInstructions}}</text>
-                        <textarea class="managed-plan__field-textarea" value="{{child.instructions}}" maxlength="1000" auto-height placeholder="{{tr.optionalCoachingCue}}" disabled="{{editorSaving}}" data-root="{{rootIndex}}" data-child="{{childIndex}}" data-field="instructions" bindinput="onStructuredInput"></textarea>
+                        <textarea class="managed-plan__field-textarea" value="{{child.instructions}}" maxlength="1000" auto-height placeholder="{{tr.optionalCoachingCue}}" disabled="{{editorSaving}}" data-editor-id="{{child.editorId}}" data-field="instructions" bindinput="onStructuredInput"></textarea>
                       </view>
                     </view>
                   </view>
                 </block>
               </view>
-              <button class="managed-plan__structured-action" data-root="{{rootIndex}}" data-action="add-repeat-step" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.addRepeatStep}}</button>
+              <button class="managed-plan__structured-action" data-editor-id="{{node.editorId}}" data-action="add-repeat-step" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.addRepeatStep}}</button>
             </view>
           </block>
         </view>

@@ -1549,7 +1549,10 @@ provider, inspect credentials, or trigger delivery.
 
 Reason codes identify the exact loss boundary: `wording_not_supported`,
 `phase_not_supported`, `termination_not_supported`, and
-`target_not_supported` for the Stryd structured subset; Garmin reports
+`target_not_supported` for the Stryd structured subset. Stryd's existing
+connector payload accepts only integral `intensity_percent` bounds, so
+fractional `%CP` targets return `target_precision_not_supported` instead of
+being rounded (including ranges that would collapse after rounding). Garmin reports
 `structured_workout_not_supported` instead of flattening a tree. Additional
 codes cover invalid/empty structures, unsupported activities, unsupported
 flat targets, and a required flat duration. Stryd also reports

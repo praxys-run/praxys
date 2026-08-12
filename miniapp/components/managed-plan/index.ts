@@ -22,25 +22,36 @@ import { personalContextEvidenceIds } from '../../utils/personal-context';
 import {
   PHASE_VALUES,
   TARGET_KINDS,
+  commitAllWorkoutEditorTargetInputs,
+  commitWorkoutEditorTargetInput,
   createRepeat,
   createStep,
+  createWorkoutEditorRepeat,
+  createWorkoutEditorStep,
+  createWorkoutEditorStructure,
   deriveFlat,
-  duplicateNode,
+  duplicateWorkoutEditorNode,
   formatDeterministicDistance,
   formatDeterministicDuration,
-  insertNode,
-  moveNode,
-  removeNode,
-  restoreNode,
+  insertWorkoutEditorNode,
+  moveWorkoutEditorNode,
+  removeWorkoutEditorNode,
+  restoreRemovedWorkoutEditorNode,
+  serializeWorkoutEditorStructure,
+  setWorkoutEditorTargetInput,
   summarize,
   synthesizeFromFlat,
   targetForKind,
   targetKind,
-  updateRepeat,
-  updateStep,
-  validate,
-  type RemovedNode,
+  updateWorkoutEditorRepeat,
+  updateWorkoutEditorStep,
+  validateWorkoutEditorStructure,
+  workoutEditorNodePath,
+  type RemovedWorkoutEditorNode,
   type TargetKind,
+  type WorkoutEditorRepeat,
+  type WorkoutEditorStep,
+  type WorkoutEditorStructureV1,
   type WorkoutNodePath,
 } from '../../utils/workout-structure';
 import type {
@@ -61,8 +72,6 @@ import type {
   StrydPushResult,
   WorkoutProviderCompatibility,
   WorkoutProviderCompatibilityReasonCode,
-  WorkoutStructureRepeatGroup,
-  WorkoutStructureStep,
   WorkoutStructureV1,
 } from '../../types/api';
 import type { ManagedPlanState } from '../../utils/managed-plan';
@@ -133,14 +142,14 @@ const ACTIVITY_VALUES: PlanActivityType[] = [
 
 const TERMINATION_VALUES = ['time', 'distance', 'open', 'manual'] as const;
 
-interface EditorStepView extends WorkoutStructureStep {
+interface EditorStepView extends WorkoutEditorStep {
   phaseIndex: number;
   targetIndex: number;
   terminationIndex: number;
   targetDetail: string;
 }
 
-interface EditorRepeatView extends Omit<WorkoutStructureRepeatGroup, 'steps'> {
+interface EditorRepeatView extends Omit<WorkoutEditorRepeat, 'steps'> {
   steps: EditorStepView[];
 }
 
@@ -779,10 +788,10 @@ function portableActivityType(
   return value == null ? defaultActivityType(workoutType) : 'other';
 }
 
-function defaultStructure(workoutType: string): WorkoutStructureV1 {
-  return isRestWorkoutType(workoutType)
+function defaultStructure(workoutType: string): WorkoutEditorStructureV1 {
+  return createWorkoutEditorStructure(isRestWorkoutType(workoutType)
     ? { steps: [] }
-    : { steps: [createStep()] };
+    : { steps: [createStep()] });
 }
 
 function supportedStructure(
@@ -837,7 +846,7 @@ function targetRange(minimum: number, maximum: number, unit: string): string {
 }
 
 function structureView(
-  structure: WorkoutStructureV1,
+  structure: WorkoutEditorStructureV1,
 ): Array<EditorStepView | EditorRepeatView> {
   return structure.steps.map((node) => {
     if (node.type === 'step') return stepView(node);
@@ -848,7 +857,7 @@ function structureView(
   });
 }
 
-function stepView(step: WorkoutStructureStep): EditorStepView {
+function stepView(step: WorkoutEditorStep): EditorStepView {
   const kind = targetKind(step.target);
   return {
     ...step,
@@ -863,14 +872,14 @@ function stepView(step: WorkoutStructureStep): EditorStepView {
 }
 
 function summaryLabels(
-  structure: WorkoutStructureV1,
+  structure: WorkoutEditorStructureV1,
 ): {
   duration: string;
   distance: string;
   load: string;
   steps: number;
 } {
-  const summary = summarize(structure);
+  const summary = summarize(serializeWorkoutEditorStructure(structure));
   return {
     duration: summary.duration.certainty === 'deterministic'
       ? `${formatDeterministicDuration(summary.duration.seconds)} · ${t('deterministic')}`
@@ -897,6 +906,7 @@ function compatibilityViews(
     phase_not_supported: t('This step semantic cannot be represented safely.'),
     structured_workout_not_supported: t('Structured workouts are not supported by this provider.'),
     target_not_supported: t('This typed target cannot be represented safely.'),
+    target_precision_not_supported: t('Stryd accepts only whole-number %CP bounds; fractional values would be rounded.'),
     termination_not_supported: t('This step termination cannot be represented safely.'),
     wording_not_supported: t('Step or repeat wording cannot be preserved safely.'),
   };
@@ -1072,7 +1082,7 @@ Component({
     editorStructured: true,
     editorUnsupportedStructure: false,
     editorStructure: defaultStructure('easy'),
-    editorLastNonRestStructure: defaultStructure('easy') as WorkoutStructureV1 | null,
+    editorLastNonRestStructure: defaultStructure('easy') as WorkoutEditorStructureV1 | null,
     editorStructureView: [] as Array<EditorStepView | EditorRepeatView>,
     editorPhaseValues: [...PHASE_VALUES] as string[],
     editorPhaseLabels: [] as string[],
@@ -1084,7 +1094,7 @@ Component({
     editorSummaryDistance: '',
     editorSummaryLoad: '',
     editorSummarySteps: 0,
-    editorUndo: null as RemovedNode | null,
+    editorUndo: null as RemovedWorkoutEditorNode | null,
     editorCompatibility: [] as CompatibilityView[],
     editorCompatibilityLoading: false,
     editorCompatibilityError: '',
@@ -1477,8 +1487,8 @@ Component({
       const structured = !unsupportedStructure && (
         hasStructure || workout == null
       );
-      const structure: WorkoutStructureV1 = structureFromSource
-        ? structureFromSource
+      const structure: WorkoutEditorStructureV1 = structureFromSource
+        ? createWorkoutEditorStructure(structureFromSource)
         : defaultStructure(workoutType);
       const summary = summaryLabels(structure);
       const date = workout?.date && workout.date >= this.data.minimumDate
@@ -1728,7 +1738,7 @@ Component({
     },
 
     applyStructuredEditor(
-      structure: WorkoutStructureV1,
+      structure: WorkoutEditorStructureV1,
       extra: Record<string, unknown> = {},
     ) {
       const summary = summaryLabels(structure);
@@ -1747,24 +1757,25 @@ Component({
     editorPath(
       event: { currentTarget: { dataset: Record<string, unknown> } },
     ): WorkoutNodePath | null {
-      const root = Number(event.currentTarget.dataset.root);
-      const rawChild = event.currentTarget.dataset.child;
-      if (!Number.isInteger(root) || root < 0) return null;
-      if (rawChild === undefined || rawChild === '') return [root];
-      const child = Number(rawChild);
-      return Number.isInteger(child) && child >= 0 ? [root, child] : null;
+      const editorId = String(
+        event.currentTarget.dataset.editorId ?? '',
+      );
+      return editorId
+        ? workoutEditorNodePath(this.data.editorStructure, editorId)
+        : null;
     },
 
     onStructuredPhaseChange(
       event: WechatMiniprogram.CustomEvent<{ value: string }>,
     ) {
       const path = this.editorPath(event);
+      const editorId = String(event.currentTarget.dataset.editorId ?? '');
       const index = Number(event.detail.value);
       const phase = PHASE_VALUES[index];
-      if (!path || !phase) return;
-      this.applyStructuredEditor(updateStep(
+      if (!path || !editorId || !phase) return;
+      this.applyStructuredEditor(updateWorkoutEditorStep(
         this.data.editorStructure,
-        path,
+        editorId,
         { phase },
       ));
     },
@@ -1773,9 +1784,10 @@ Component({
       event: WechatMiniprogram.CustomEvent<{ value: string }>,
     ) {
       const path = this.editorPath(event);
+      const editorId = String(event.currentTarget.dataset.editorId ?? '');
       const index = Number(event.detail.value);
       const type = TERMINATION_VALUES[index];
-      if (!path || !type) return;
+      if (!path || !editorId || !type) return;
       const rootNode = this.data.editorStructure.steps[path[0]];
       const node = path.length === 1
         ? rootNode
@@ -1798,9 +1810,9 @@ Component({
                 : 1000,
             }
           : { type };
-      this.applyStructuredEditor(updateStep(
+      this.applyStructuredEditor(updateWorkoutEditorStep(
         this.data.editorStructure,
-        path,
+        editorId,
         { termination },
       ));
     },
@@ -1809,28 +1821,30 @@ Component({
       event: WechatMiniprogram.CustomEvent<{ value: string }>,
     ) {
       const path = this.editorPath(event);
+      const editorId = String(event.currentTarget.dataset.editorId ?? '');
       const index = Number(event.detail.value);
       const kind = this.data.editorTargetValues[index];
-      if (!path || !kind) return;
-      this.applyStructuredEditor(updateStep(
+      if (!path || !editorId || !kind) return;
+      this.applyStructuredEditor(updateWorkoutEditorStep(
         this.data.editorStructure,
-        path,
+        editorId,
         { target: targetForKind(kind) },
       ));
     },
 
     onStructuredInput(event: WechatMiniprogram.Input) {
       const path = this.editorPath(event);
+      const editorId = String(event.currentTarget.dataset.editorId ?? '');
       const field = String(event.currentTarget.dataset.field ?? '');
       const value = String(event.detail.value ?? '');
-      if (!path) return;
+      if (!path || !editorId) return;
       if (field === 'repeatLabel' || field === 'repetitions') {
         const rootIndex = path[0];
         const repeat = this.data.editorStructure.steps[rootIndex];
         if (!repeat || repeat.type !== 'repeat') return;
-        this.applyStructuredEditor(updateRepeat(
+        this.applyStructuredEditor(updateWorkoutEditorRepeat(
           this.data.editorStructure,
-          rootIndex,
+          editorId,
           field === 'repeatLabel'
             ? { label: value || null }
             : {
@@ -1849,9 +1863,9 @@ Component({
           : null;
       if (!step || step.type !== 'step') return;
       if (field === 'label' || field === 'instructions') {
-        this.applyStructuredEditor(updateStep(
+        this.applyStructuredEditor(updateWorkoutEditorStep(
           this.data.editorStructure,
-          path,
+          editorId,
           { [field]: value || null },
         ));
         return;
@@ -1859,9 +1873,9 @@ Component({
       if (field === 'seconds' && step.termination.type === 'time') {
         const seconds = Number(value);
         if (!Number.isInteger(seconds)) return;
-        this.applyStructuredEditor(updateStep(
+        this.applyStructuredEditor(updateWorkoutEditorStep(
           this.data.editorStructure,
-          path,
+          editorId,
           { termination: { type: 'time', seconds } },
         ));
         return;
@@ -1869,53 +1883,76 @@ Component({
       if (field === 'meters' && step.termination.type === 'distance') {
         const meters = Number(value);
         if (!Number.isInteger(meters)) return;
-        this.applyStructuredEditor(updateStep(
+        this.applyStructuredEditor(updateWorkoutEditorStep(
           this.data.editorStructure,
-          path,
+          editorId,
           { termination: { type: 'distance', meters } },
         ));
         return;
       }
       if (field === 'targetMin' || field === 'targetMax') {
-        const target = { ...step.target } as Record<string, unknown>;
-        const numeric = optionalNumber(value);
         const bound = field === 'targetMin' ? 'min' : 'max';
-        if (numeric === null) delete target[bound];
-        else target[bound] = numeric;
-        this.applyStructuredEditor(updateStep(
+        this.applyStructuredEditor(setWorkoutEditorTargetInput(
           this.data.editorStructure,
-          path,
-          { target: target as typeof step.target },
-        ));
+          editorId,
+          bound,
+          value,
+        ), { editorError: '' });
       }
+    },
+
+    onStructuredTargetBlur(event: WechatMiniprogram.Input) {
+      const editorId = String(event.currentTarget.dataset.editorId ?? '');
+      const field = String(event.currentTarget.dataset.field ?? '');
+      if (
+        !editorId
+        || (field !== 'targetMin' && field !== 'targetMax')
+      ) return;
+      const committed = commitWorkoutEditorTargetInput(
+        this.data.editorStructure,
+        editorId,
+        field === 'targetMin' ? 'min' : 'max',
+      );
+      const validationCode = validateWorkoutEditorStructure(
+        committed.structure,
+        this.data.editorWorkoutType,
+      );
+      this.applyStructuredEditor(committed.structure, {
+        editorError: validationCode
+          ? t(
+            'Review the highlighted step fields. Every typed target and termination must be complete.',
+          )
+          : '',
+      });
     },
 
     onStructuredAction(event: WechatMiniprogram.TouchEvent) {
       const path = this.editorPath(event);
+      const editorId = String(event.currentTarget.dataset.editorId ?? '');
       const action = String(event.currentTarget.dataset.action ?? '');
-      if (!path) return;
+      if (!path || !editorId) return;
       if (action === 'add-repeat-step') {
         const repeat = this.data.editorStructure.steps[path[0]];
         if (!repeat || repeat.type !== 'repeat') return;
-        this.applyStructuredEditor(updateRepeat(
+        this.applyStructuredEditor(updateWorkoutEditorRepeat(
           this.data.editorStructure,
-          path[0],
-          { steps: [...repeat.steps, createStep()] },
+          editorId,
+          { steps: [...repeat.steps, createWorkoutEditorStep()] },
         ));
         return;
       }
       if (action === 'move-up' || action === 'move-down') {
-        this.applyStructuredEditor(moveNode(
+        this.applyStructuredEditor(moveWorkoutEditorNode(
           this.data.editorStructure,
-          path,
+          editorId,
           action === 'move-up' ? 'up' : 'down',
         ));
         return;
       }
       if (action === 'duplicate') {
-        this.applyStructuredEditor(duplicateNode(
+        this.applyStructuredEditor(duplicateWorkoutEditorNode(
           this.data.editorStructure,
-          path,
+          editorId,
         ));
         return;
       }
@@ -1924,16 +1961,19 @@ Component({
         const node = path.length === 1 && rootNode?.type === 'repeat'
           ? createRepeat()
           : createStep();
-        this.applyStructuredEditor(insertNode(
+        this.applyStructuredEditor(insertWorkoutEditorNode(
           this.data.editorStructure,
-          path,
+          editorId,
           node,
           action === 'insert-after',
         ));
         return;
       }
       if (action === 'delete') {
-        const result = removeNode(this.data.editorStructure, path);
+        const result = removeWorkoutEditorNode(
+          this.data.editorStructure,
+          editorId,
+        );
         if (!result.removed) return;
         this.applyStructuredEditor(result.structure, {
           editorUndo: result.removed,
@@ -1943,21 +1983,27 @@ Component({
 
     onAddStructuredStep() {
       this.applyStructuredEditor({
-        steps: [...this.data.editorStructure.steps, createStep()],
+        steps: [
+          ...this.data.editorStructure.steps,
+          createWorkoutEditorStep(),
+        ],
       });
     },
 
     onAddStructuredRepeat() {
       this.applyStructuredEditor({
-        steps: [...this.data.editorStructure.steps, createRepeat()],
+        steps: [
+          ...this.data.editorStructure.steps,
+          createWorkoutEditorRepeat(),
+        ],
       });
     },
 
     onUndoStructuredDelete() {
-      const removed = this.data.editorUndo as RemovedNode | null;
+      const removed = this.data.editorUndo as RemovedWorkoutEditorNode | null;
       if (!removed) return;
       this.applyStructuredEditor(
-        restoreNode(this.data.editorStructure, removed),
+        restoreRemovedWorkoutEditorNode(this.data.editorStructure, removed),
         { editorUndo: null },
       );
     },
@@ -1975,7 +2021,7 @@ Component({
           paceMin: this.data.editorPaceMin.trim() || null,
           paceMax: this.data.editorPaceMax.trim() || null,
         });
-        this.applyStructuredEditor(structure, {
+        this.applyStructuredEditor(createWorkoutEditorStructure(structure), {
           editorStructured: true,
           editorError: '',
         });
@@ -1986,7 +2032,10 @@ Component({
       }
     },
 
-    editorValidationError(): string | null {
+    editorValidationError(
+      structure?: WorkoutEditorStructureV1,
+    ): string | null {
+      const currentStructure = structure ?? this.data.editorStructure;
       if (!this.data.editorDate) return this.data.tr.date;
       if (!this.data.editorWorkoutType.trim()) {
         return this.data.tr.customWorkoutPurpose;
@@ -1999,8 +2048,8 @@ Component({
       }
       return this.data.editorStructured
         ? (
-          validate(
-            this.data.editorStructure,
+          validateWorkoutEditorStructure(
+            currentStructure,
             this.data.editorWorkoutType,
           )
             ? t(
@@ -2011,9 +2060,12 @@ Component({
         : null;
     },
 
-    editorPayload():
+    editorPayload(
+      structure?: WorkoutEditorStructureV1,
+    ):
       | PlanWorkoutWriteFields
       | Omit<PlanWorkoutUpdateRequest, 'expected_version'> {
+      const currentStructure = structure ?? this.data.editorStructure;
       if (this.data.editorUnsupportedStructure) {
         return {
           date: this.data.editorDate,
@@ -2054,6 +2106,9 @@ Component({
       if (!this.data.editorStructured) {
         return flat as PlanWorkoutWriteFields;
       }
+      const canonicalStructure = serializeWorkoutEditorStructure(
+        currentStructure,
+      );
       const projection = isRest
         ? {
             planned_duration_min: null,
@@ -2065,13 +2120,13 @@ Component({
             target_pace_min: null,
             target_pace_max: null,
           }
-        : deriveFlat(this.data.editorStructure);
+        : deriveFlat(canonicalStructure);
       return {
         ...flat,
         ...projection,
         activity_type: isRest ? 'rest' : this.data.editorActivityType,
         workout_structure_version: 'v1',
-        workout_structure: this.data.editorStructure,
+        workout_structure: canonicalStructure,
       } as PlanWorkoutWriteFields;
     },
 
@@ -2081,14 +2136,33 @@ Component({
         || !this.data.editorDate
         || !this.data.editorWorkoutType
       ) return;
-      const validationError = this.editorValidationError();
-      if (validationError) {
-        this.setData({ editorError: validationError });
+      const committed = this.data.editorStructured
+        ? commitAllWorkoutEditorTargetInputs(this.data.editorStructure)
+        : { structure: this.data.editorStructure, valid: true };
+      const validationError = this.editorValidationError(committed.structure);
+      if (this.data.editorStructured) {
+        const summary = summaryLabels(committed.structure);
+        this.setData({
+          editorStructure: committed.structure,
+          editorStructureView: structureView(committed.structure),
+          editorSummaryDuration: summary.duration,
+          editorSummaryDistance: summary.distance,
+          editorSummaryLoad: summary.load,
+          editorSummarySteps: summary.steps,
+        });
+      }
+      if (!committed.valid || validationError) {
+        this.setData({
+          editorError: validationError
+            ?? t(
+              'Review the highlighted step fields. Every typed target and termination must be complete.',
+            ),
+        });
         return;
       }
       this.setData({ editorSaving: true, editorError: '', actionError: '' });
       try {
-        const payload = this.editorPayload();
+        const payload = this.editorPayload(committed.structure);
         let result: PlanWorkoutMutationResponse;
         if (this.data.editorMode === 'edit') {
           if (

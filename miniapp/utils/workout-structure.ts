@@ -84,6 +84,394 @@ const TARGETS: Record<TargetKind, WorkoutIntensityTarget> = {
   },
 };
 
+export interface WorkoutEditorTargetInputs {
+  min: string;
+  max: string;
+  minInvalid: boolean;
+  maxInvalid: boolean;
+}
+
+export interface WorkoutEditorStep extends WorkoutStructureStep {
+  /** Stable only for one editor session; stripped before every API request. */
+  editorId: string;
+  /** Raw drafts preserve partial signed/decimal input until blur or save. */
+  targetInputs: WorkoutEditorTargetInputs;
+}
+
+export interface WorkoutEditorRepeat extends Omit<
+  WorkoutStructureRepeatGroup,
+  'steps'
+> {
+  /** Stable only for one editor session; stripped before every API request. */
+  editorId: string;
+  steps: WorkoutEditorStep[];
+}
+
+export type WorkoutEditorNode = WorkoutEditorStep | WorkoutEditorRepeat;
+
+export interface WorkoutEditorStructureV1 {
+  steps: WorkoutEditorNode[];
+}
+
+export interface RemovedWorkoutEditorNode {
+  node: WorkoutEditorNode;
+  previousStructure: WorkoutEditorStructureV1;
+}
+
+export interface RemoveWorkoutEditorNodeResult {
+  structure: WorkoutEditorStructureV1;
+  removed: RemovedWorkoutEditorNode | null;
+}
+
+let workoutEditorIdSequence = 0;
+
+function nextWorkoutEditorId(): string {
+  workoutEditorIdSequence += 1;
+  return `workout-editor-node-${workoutEditorIdSequence}`;
+}
+
+function targetInputsFor(
+  target: WorkoutIntensityTarget,
+): WorkoutEditorTargetInputs {
+  return {
+    min: target.min?.toString() ?? '',
+    max: target.max?.toString() ?? '',
+    minInvalid: false,
+    maxInvalid: false,
+  };
+}
+
+function createWorkoutEditorStepFromCanonical(
+  step: WorkoutStructureStep,
+  createId: () => string,
+): WorkoutEditorStep {
+  return {
+    ...clone(step),
+    editorId: createId(),
+    targetInputs: targetInputsFor(step.target),
+  };
+}
+
+function createWorkoutEditorNodeFromCanonical(
+  node: WorkoutNode,
+  createId: () => string,
+): WorkoutEditorNode {
+  if (node.type === 'step') {
+    return createWorkoutEditorStepFromCanonical(node, createId);
+  }
+  return {
+    ...clone(node),
+    editorId: createId(),
+    steps: node.steps.map((step) => (
+      createWorkoutEditorStepFromCanonical(step, createId)
+    )),
+  };
+}
+
+/** Hydrate canonical workout data with stable, API-excluded editor state. */
+export function createWorkoutEditorStructure(
+  structure: WorkoutStructureV1,
+  createId: () => string = nextWorkoutEditorId,
+): WorkoutEditorStructureV1 {
+  return {
+    steps: structure.steps.map((node) => (
+      createWorkoutEditorNodeFromCanonical(node, createId)
+    )),
+  };
+}
+
+export function createWorkoutEditorStep(
+  overrides: Partial<WorkoutStructureStep> = {},
+): WorkoutEditorStep {
+  return createWorkoutEditorStepFromCanonical(
+    createStep(overrides),
+    nextWorkoutEditorId,
+  );
+}
+
+export function createWorkoutEditorRepeat(
+  overrides: Partial<WorkoutStructureRepeatGroup> = {},
+): WorkoutEditorRepeat {
+  return createWorkoutEditorNodeFromCanonical(
+    createRepeat(overrides),
+    nextWorkoutEditorId,
+  ) as WorkoutEditorRepeat;
+}
+
+function serializeWorkoutEditorNode(node: WorkoutEditorNode): WorkoutNode {
+  if (node.type === 'step') {
+    const {
+      editorId: _editorId,
+      targetInputs: _targetInputs,
+      ...step
+    } = node;
+    return clone(step) as WorkoutStructureStep;
+  }
+  const {
+    editorId: _editorId,
+    steps,
+    ...repeat
+  } = node;
+  return {
+    ...clone(repeat),
+    steps: steps.map((step) => (
+      serializeWorkoutEditorNode(step) as WorkoutStructureStep
+    )),
+  };
+}
+
+/** Return canonical API data with all editor identities and drafts removed. */
+export function serializeWorkoutEditorStructure(
+  structure: WorkoutEditorStructureV1,
+): WorkoutStructureV1 {
+  return {
+    steps: structure.steps.map(serializeWorkoutEditorNode),
+  };
+}
+
+function cloneWorkoutEditorStructure(
+  structure: WorkoutEditorStructureV1,
+): WorkoutEditorStructureV1 {
+  return clone(structure);
+}
+
+export function workoutEditorNodePath(
+  structure: WorkoutEditorStructureV1,
+  editorId: string,
+): WorkoutNodePath | null {
+  for (let rootIndex = 0; rootIndex < structure.steps.length; rootIndex += 1) {
+    const node = structure.steps[rootIndex];
+    if (node.editorId === editorId) return [rootIndex];
+    if (node.type !== 'repeat') continue;
+    const childIndex = node.steps.findIndex(
+      (step) => step.editorId === editorId,
+    );
+    if (childIndex >= 0) return [rootIndex, childIndex];
+  }
+  return null;
+}
+
+function workoutEditorNodesAtPath(
+  structure: WorkoutEditorStructureV1,
+  path: WorkoutNodePath,
+): WorkoutEditorNode[] | null {
+  if (path.length === 1) return structure.steps;
+  const parent = structure.steps[path[0]];
+  return parent?.type === 'repeat' ? parent.steps : null;
+}
+
+function workoutEditorNodeAtPath(
+  structure: WorkoutEditorStructureV1,
+  path: WorkoutNodePath,
+): WorkoutEditorNode | null {
+  return workoutEditorNodesAtPath(structure, path)?.[
+    path[path.length - 1]
+  ] ?? null;
+}
+
+export function updateWorkoutEditorStep(
+  structure: WorkoutEditorStructureV1,
+  editorId: string,
+  update: Partial<WorkoutStructureStep>,
+): WorkoutEditorStructureV1 {
+  const path = workoutEditorNodePath(structure, editorId);
+  const next = cloneWorkoutEditorStructure(structure);
+  if (!path) return next;
+  const step = workoutEditorNodeAtPath(next, path);
+  if (!step || step.type !== 'step') return next;
+  Object.assign(step, clone(update));
+  if (update.target !== undefined) {
+    step.targetInputs = targetInputsFor(step.target);
+  }
+  return next;
+}
+
+export function updateWorkoutEditorRepeat(
+  structure: WorkoutEditorStructureV1,
+  editorId: string,
+  update: Partial<Omit<WorkoutEditorRepeat, 'editorId'>>,
+): WorkoutEditorStructureV1 {
+  const path = workoutEditorNodePath(structure, editorId);
+  const next = cloneWorkoutEditorStructure(structure);
+  if (!path || path.length !== 1) return next;
+  const repeat = next.steps[path[0]];
+  if (!repeat || repeat.type !== 'repeat') return next;
+  Object.assign(repeat, clone(update));
+  return next;
+}
+
+export function insertWorkoutEditorNode(
+  structure: WorkoutEditorStructureV1,
+  targetEditorId: string,
+  node: WorkoutNode,
+  after: boolean,
+): WorkoutEditorStructureV1 {
+  const path = workoutEditorNodePath(structure, targetEditorId);
+  const next = cloneWorkoutEditorStructure(structure);
+  if (!path) return next;
+  const nodes = workoutEditorNodesAtPath(next, path);
+  if (!nodes) return next;
+  const index = path[path.length - 1] + (after ? 1 : 0);
+  nodes.splice(
+    index,
+    0,
+    createWorkoutEditorNodeFromCanonical(node, nextWorkoutEditorId),
+  );
+  return next;
+}
+
+export function duplicateWorkoutEditorNode(
+  structure: WorkoutEditorStructureV1,
+  editorId: string,
+): WorkoutEditorStructureV1 {
+  const path = workoutEditorNodePath(structure, editorId);
+  if (!path) return cloneWorkoutEditorStructure(structure);
+  const node = workoutEditorNodeAtPath(structure, path);
+  return node
+    ? insertWorkoutEditorNode(
+        structure,
+        editorId,
+        serializeWorkoutEditorNode(node),
+        true,
+      )
+    : cloneWorkoutEditorStructure(structure);
+}
+
+export function moveWorkoutEditorNode(
+  structure: WorkoutEditorStructureV1,
+  editorId: string,
+  direction: 'up' | 'down',
+): WorkoutEditorStructureV1 {
+  const path = workoutEditorNodePath(structure, editorId);
+  const next = cloneWorkoutEditorStructure(structure);
+  if (!path) return next;
+  const nodes = workoutEditorNodesAtPath(next, path);
+  if (!nodes) return next;
+  const index = path[path.length - 1];
+  const destination = direction === 'up' ? index - 1 : index + 1;
+  if (destination < 0 || destination >= nodes.length) return next;
+  [nodes[index], nodes[destination]] = [nodes[destination], nodes[index]];
+  return next;
+}
+
+export function removeWorkoutEditorNode(
+  structure: WorkoutEditorStructureV1,
+  editorId: string,
+): RemoveWorkoutEditorNodeResult {
+  const path = workoutEditorNodePath(structure, editorId);
+  const next = cloneWorkoutEditorStructure(structure);
+  if (!path) return { structure: next, removed: null };
+  const nodes = workoutEditorNodesAtPath(next, path);
+  if (!nodes) return { structure: next, removed: null };
+  const [node] = nodes.splice(path[path.length - 1], 1);
+  return node
+    ? {
+        structure: next,
+        removed: {
+          node,
+          previousStructure: cloneWorkoutEditorStructure(structure),
+        },
+      }
+    : { structure: next, removed: null };
+}
+
+export function restoreRemovedWorkoutEditorNode(
+  _structure: WorkoutEditorStructureV1,
+  removed: RemovedWorkoutEditorNode,
+): WorkoutEditorStructureV1 {
+  return cloneWorkoutEditorStructure(removed.previousStructure);
+}
+
+export function setWorkoutEditorTargetInput(
+  structure: WorkoutEditorStructureV1,
+  editorId: string,
+  bound: 'min' | 'max',
+  value: string,
+): WorkoutEditorStructureV1 {
+  const path = workoutEditorNodePath(structure, editorId);
+  const next = cloneWorkoutEditorStructure(structure);
+  if (!path) return next;
+  const step = workoutEditorNodeAtPath(next, path);
+  if (!step || step.type !== 'step') return next;
+  step.targetInputs[bound] = value;
+  if (bound === 'min') step.targetInputs.minInvalid = false;
+  else step.targetInputs.maxInvalid = false;
+  return next;
+}
+
+const COMPLETE_DECIMAL = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
+
+function commitTargetInput(
+  step: WorkoutEditorStep,
+  bound: 'min' | 'max',
+): boolean {
+  const raw = step.targetInputs[bound].trim();
+  const valid = raw === '' || COMPLETE_DECIMAL.test(raw);
+  const parsed = raw === '' ? undefined : Number(raw);
+  const finite = parsed === undefined || Number.isFinite(parsed);
+  if (!valid || !finite) {
+    if (bound === 'min') step.targetInputs.minInvalid = true;
+    else step.targetInputs.maxInvalid = true;
+    return false;
+  }
+  const target = { ...step.target } as Record<string, unknown>;
+  if (parsed === undefined) delete target[bound];
+  else target[bound] = parsed;
+  step.target = target as WorkoutIntensityTarget;
+  if (bound === 'min') step.targetInputs.minInvalid = false;
+  else step.targetInputs.maxInvalid = false;
+  return true;
+}
+
+export function commitWorkoutEditorTargetInput(
+  structure: WorkoutEditorStructureV1,
+  editorId: string,
+  bound: 'min' | 'max',
+): { structure: WorkoutEditorStructureV1; valid: boolean } {
+  const path = workoutEditorNodePath(structure, editorId);
+  const next = cloneWorkoutEditorStructure(structure);
+  if (!path) return { structure: next, valid: false };
+  const step = workoutEditorNodeAtPath(next, path);
+  if (!step || step.type !== 'step') {
+    return { structure: next, valid: false };
+  }
+  return {
+    structure: next,
+    valid: commitTargetInput(step, bound),
+  };
+}
+
+export function commitAllWorkoutEditorTargetInputs(
+  structure: WorkoutEditorStructureV1,
+): { structure: WorkoutEditorStructureV1; valid: boolean } {
+  const next = cloneWorkoutEditorStructure(structure);
+  let valid = true;
+  for (const node of next.steps) {
+    const steps = node.type === 'step' ? [node] : node.steps;
+    for (const step of steps) {
+      if (step.target.metric === 'none') continue;
+      valid = commitTargetInput(step, 'min') && valid;
+      valid = commitTargetInput(step, 'max') && valid;
+    }
+  }
+  return { structure: next, valid };
+}
+
+export function validateWorkoutEditorStructure(
+  structure: WorkoutEditorStructureV1,
+  workoutType: string,
+): StructureValidationCode | null {
+  const hasInvalidInput = structure.steps.some((node) => {
+    const steps = node.type === 'step' ? [node] : node.steps;
+    return steps.some((step) => (
+      step.targetInputs.minInvalid || step.targetInputs.maxInvalid
+    ));
+  });
+  return hasInvalidInput
+    ? 'target_input_invalid'
+    : validate(serializeWorkoutEditorStructure(structure), workoutType);
+}
+
 export function createStep(
   overrides: Partial<WorkoutStructureStep> = {},
 ): WorkoutStructureStep {
@@ -243,6 +631,7 @@ export type StructureValidationCode =
   | 'time_termination_invalid'
   | 'distance_termination_invalid'
   | 'target_combination_invalid'
+  | 'target_input_invalid'
   | 'target_bound_missing'
   | 'target_range_invalid'
   | 'target_out_of_range';

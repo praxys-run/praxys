@@ -39,6 +39,7 @@ test('web and miniapp expose the same structured editing capabilities', async ()
   for (const marker of [
     'editorStructured',
     'onStructuredAction',
+    'onStructuredTargetBlur',
     'onStructuredPhaseChange',
     'onStructuredTerminationChange',
     'onStructuredTargetChange',
@@ -66,10 +67,19 @@ test('web and miniapp expose the same structured editing capabilities', async ()
       : miniTemplate;
     assert.match(source, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
-  assert.doesNotMatch(
-    miniTemplate,
-    /type="digit"[^>]*data-field="target(?:Min|Max)"/,
-  );
+  const targetInputs = miniTemplate.match(
+    /<input[^>]*data-field="target(?:Min|Max)"[^>]*\/>/g,
+  ) ?? [];
+  assert.equal(targetInputs.length, 4);
+  for (const input of targetInputs) {
+    assert.match(input, /type="text"/);
+    assert.match(input, /data-editor-id=/);
+    assert.match(input, /bindblur="onStructuredTargetBlur"/);
+    assert.doesNotMatch(input, /type="(?:number|digit)"/);
+  }
+  assert.match(miniTemplate, /wx:key="editorId"/);
+  assert.match(miniTemplate, /data-editor-id="{{node\.editorId}}"/);
+  assert.match(miniTemplate, /data-editor-id="{{child\.editorId}}"/);
   assert.match(
     miniTemplate,
     /<scroll-view[\s\S]{0,200}class="managed-plan__editor-scroll"/,
@@ -87,7 +97,12 @@ test('web and miniapp expose the same structured editing capabilities', async ()
     /onCloseEditor\(\)[\s\S]{0,200}setCustomTabBarHidden\(false\)/,
   );
   assert.match(miniController, /editorWorkoutType:\s*workoutType,/);
-  assert.match(webStructureEditor, /step="any"/);
+  assert.match(miniController, /setWorkoutEditorTargetInput/);
+  assert.match(miniController, /commitWorkoutEditorTargetInput/);
+  assert.match(miniController, /serializeWorkoutEditorStructure/);
+  assert.match(webStructureEditor, /value=\{step\.targetInputs\.min\}/);
+  assert.match(webStructureEditor, /type="text"/);
+  assert.match(webStructureEditor, /onBlur=\{\(\) => onTargetBlur/);
 
   assert.ok(miniTypes.endsWith(webTypes));
   assert.match(webTypes, /interface WorkoutProviderCompatibility/);
@@ -188,4 +203,117 @@ test('miniapp validation and exact formatting match the portable contract', asyn
   });
   assert.equal(pace.target_pace_min, '05:20');
   assert.equal(pace.target_pace_max, '05:22');
+});
+
+test('miniapp editor identities and raw target drafts stay editor-only', async () => {
+  const mini = await import(
+    '../../miniapp/utils/workout-structure.ts'
+  );
+  const step = (label, target) => ({
+    type: 'step',
+    phase: 'work',
+    label,
+    termination: { type: 'time', seconds: 60 },
+    target,
+  });
+  let editor = mini.createWorkoutEditorStructure({
+    steps: [
+      step('A', { metric: 'none', unit: 'none', reference: 'none' }),
+      step('B', { metric: 'none', unit: 'none', reference: 'none' }),
+      step('C', { metric: 'none', unit: 'none', reference: 'none' }),
+    ],
+  });
+  const cId = editor.steps[2].editorId;
+  editor = mini.moveWorkoutEditorNode(editor, cId, 'up');
+  editor = mini.moveWorkoutEditorNode(editor, cId, 'up');
+  assert.deepEqual(editor.steps.map((node) => node.label), ['C', 'A', 'B']);
+  assert.equal(editor.steps[0].editorId, cId);
+
+  const cases = [
+    {
+      target: {
+        metric: 'power',
+        unit: 'percent_cp',
+        reference: 'critical_power',
+        min: 95,
+      },
+      raw: '95.5',
+      value: 95.5,
+    },
+    {
+      target: {
+        metric: 'rpe',
+        unit: 'scale_10',
+        reference: 'perceived_exertion',
+        min: 7,
+      },
+      raw: '7.5',
+      value: 7.5,
+    },
+    {
+      target: {
+        metric: 'pace',
+        unit: 'sec_per_km_delta',
+        reference: 'threshold_pace',
+        min: 0,
+      },
+      raw: '-10',
+      value: -10,
+    },
+  ];
+  for (const item of cases) {
+    let targetEditor = mini.createWorkoutEditorStructure({
+      steps: [step('target', item.target)],
+    });
+    const id = targetEditor.steps[0].editorId;
+    for (const partial of ['-', '.', `${item.raw}.`]) {
+      targetEditor = mini.setWorkoutEditorTargetInput(
+        targetEditor,
+        id,
+        'min',
+        partial,
+      );
+      assert.equal(targetEditor.steps[0].targetInputs.min, partial);
+      assert.equal(
+        mini.serializeWorkoutEditorStructure(targetEditor).steps[0].target.min,
+        item.target.min,
+      );
+    }
+    targetEditor = mini.setWorkoutEditorTargetInput(
+      targetEditor,
+      id,
+      'min',
+      item.raw,
+    );
+    const committed = mini.commitWorkoutEditorTargetInput(
+      targetEditor,
+      id,
+      'min',
+    );
+    assert.equal(committed.valid, true);
+    assert.equal(committed.structure.steps[0].target.min, item.value);
+    assert.doesNotMatch(
+      JSON.stringify(mini.serializeWorkoutEditorStructure(committed.structure)),
+      /editorId|targetInputs/,
+    );
+  }
+
+  const tiny = mini.createWorkoutEditorStructure({
+    steps: [step('tiny', {
+      metric: 'power',
+      unit: 'percent_cp',
+      reference: 'critical_power',
+      min: 1e-7,
+      max: 1,
+    })],
+  });
+  assert.equal(tiny.steps[0].targetInputs.min, '1e-7');
+  const committedTiny = mini.commitAllWorkoutEditorTargetInputs(tiny);
+  assert.equal(committedTiny.valid, true);
+  assert.equal(
+    mini.serializeWorkoutEditorStructure(
+      committedTiny.structure,
+    ).steps[0].target.min,
+    1e-7,
+  );
 });

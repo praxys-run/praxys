@@ -1603,6 +1603,45 @@ class TestCanonicalWorkoutManagement:
         }
         assert _list_plan_rows(user_id) == []
 
+    def test_compatibility_preview_rejects_fractional_stryd_percent_cp(
+        self,
+        api_client,
+    ):
+        client, _ = api_client
+        target = (date.today() + timedelta(days=3)).isoformat()
+        response = client.post("/api/plan/workouts/compatibility", json={
+            "date": target,
+            "activity_type": "running",
+            "workout_type": "threshold",
+            "workout_structure_version": "v1",
+            "workout_structure": {
+                "steps": [{
+                    "type": "step",
+                    "phase": "work",
+                    "termination": {"type": "time", "seconds": 300},
+                    "target": {
+                        "metric": "power",
+                        "unit": "percent_cp",
+                        "reference": "critical_power",
+                        "min": 95.5,
+                        "max": 96.5,
+                    },
+                }],
+            },
+        })
+
+        assert response.status_code == 200, response.text
+        stryd = next(
+            item
+            for item in response.json()["providers"]
+            if item["target"] == "stryd"
+        )
+        assert stryd["compatible"] is False
+        assert stryd["reasons"] == [{
+            "code": "target_precision_not_supported",
+            "path": "steps[0].target",
+        }]
+
     def test_external_and_other_user_workouts_are_not_mutable(
         self,
         api_client,
