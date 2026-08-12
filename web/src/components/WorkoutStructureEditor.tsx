@@ -26,6 +26,8 @@ import {
   createRepeatGroup,
   createStructuredStep,
   duplicateWorkoutNode,
+  formatDeterministicDistance,
+  formatDeterministicDuration,
   insertWorkoutNode,
   moveWorkoutNode,
   removeWorkoutNode,
@@ -127,18 +129,6 @@ function terminationForType(
   return { type };
 }
 
-function totalTimeLabel(seconds: number): string {
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  return remainder ? `${hours} h ${remainder} min` : `${hours} h`;
-}
-
-function totalDistanceLabel(meters: number): string {
-  return `${(meters / 1000).toFixed(meters % 1000 === 0 ? 0 : 2)} km`;
-}
-
 export default function WorkoutStructureEditor({
   structure,
   workoutType,
@@ -215,15 +205,20 @@ export default function WorkoutStructureEditor({
     wording_not_supported: t`Step or repeat wording cannot be preserved safely.`,
   };
 
+  const commitStructure = (next: WorkoutStructureV1) => {
+    setLastRemoved(null);
+    onChange(next);
+  };
+
   const updateStep = (
     path: WorkoutNodePath,
     update: Partial<WorkoutStructureStep>,
-  ) => onChange(updateWorkoutStep(structure, path, update));
+  ) => commitStructure(updateWorkoutStep(structure, path, update));
 
   const updateRepeat = (
     rootIndex: number,
     update: Partial<WorkoutStructureRepeatGroup>,
-  ) => onChange(updateWorkoutRepeat(structure, rootIndex, update));
+  ) => commitStructure(updateWorkoutRepeat(structure, rootIndex, update));
 
   const removeNode = (path: WorkoutNodePath) => {
     const result = removeWorkoutNode(structure, path);
@@ -239,7 +234,7 @@ export default function WorkoutStructureEditor({
   };
 
   const addRoot = (kind: 'step' | 'repeat') => {
-    onChange({
+    commitStructure({
       steps: [
         ...structure.steps,
         kind === 'step' ? createStructuredStep() : createRepeatGroup(),
@@ -281,14 +276,14 @@ export default function WorkoutStructureEditor({
         <ProfileItem
           label={t`Duration`}
           value={summary.duration.certainty === 'deterministic'
-            ? totalTimeLabel(summary.duration.seconds)
+            ? formatDeterministicDuration(summary.duration.seconds)
             : t`Unknown`}
           certainty={summary.duration.certainty}
         />
         <ProfileItem
           label={t`Distance`}
           value={summary.distance.certainty === 'deterministic'
-            ? totalDistanceLabel(summary.distance.meters)
+            ? formatDeterministicDistance(summary.distance.meters)
             : t`Unknown`}
           certainty={summary.distance.certainty}
         />
@@ -330,10 +325,10 @@ export default function WorkoutStructureEditor({
               targetLabels={targetLabels}
               targetDetailLabels={targetDetailLabels}
               onUpdate={updateStep}
-              onMove={(direction) => onChange(
+              onMove={(direction) => commitStructure(
                 moveWorkoutNode(structure, [rootIndex], direction),
               )}
-              onInsert={(position) => onChange(
+              onInsert={(position) => commitStructure(
                 insertWorkoutNode(
                   structure,
                   [rootIndex],
@@ -341,7 +336,7 @@ export default function WorkoutStructureEditor({
                   position,
                 ),
               )}
-              onDuplicate={() => onChange(
+              onDuplicate={() => commitStructure(
                 duplicateWorkoutNode(structure, [rootIndex]),
               )}
               onDelete={() => removeNode([rootIndex])}
@@ -357,10 +352,10 @@ export default function WorkoutStructureEditor({
               targetLabels={targetLabels}
               targetDetailLabels={targetDetailLabels}
               onUpdate={(update) => updateRepeat(rootIndex, update)}
-              onMove={(direction) => onChange(
+              onMove={(direction) => commitStructure(
                 moveWorkoutNode(structure, [rootIndex], direction),
               )}
-              onInsert={(position) => onChange(
+              onInsert={(position) => commitStructure(
                 insertWorkoutNode(
                   structure,
                   [rootIndex],
@@ -368,7 +363,7 @@ export default function WorkoutStructureEditor({
                   position,
                 ),
               )}
-              onDuplicate={() => onChange(
+              onDuplicate={() => commitStructure(
                 duplicateWorkoutNode(structure, [rootIndex]),
               )}
               onDelete={() => removeNode([rootIndex])}
@@ -377,14 +372,14 @@ export default function WorkoutStructureEditor({
                 [rootIndex, childIndex],
                 update,
               )}
-              onMoveChild={(childIndex, direction) => onChange(
+              onMoveChild={(childIndex, direction) => commitStructure(
                 moveWorkoutNode(
                   structure,
                   [rootIndex, childIndex],
                   direction,
                 ),
               )}
-              onInsertChild={(childIndex, position) => onChange(
+              onInsertChild={(childIndex, position) => commitStructure(
                 insertWorkoutNode(
                   structure,
                   [rootIndex, childIndex],
@@ -392,7 +387,7 @@ export default function WorkoutStructureEditor({
                   position,
                 ),
               )}
-              onDuplicateChild={(childIndex) => onChange(
+              onDuplicateChild={(childIndex) => commitStructure(
                 duplicateWorkoutNode(structure, [rootIndex, childIndex]),
               )}
               onDeleteChild={(childIndex) => removeNode([
@@ -623,6 +618,7 @@ function StepEditor({
               id={`${prefix}-target-min`}
               type="number"
               inputMode="decimal"
+              step="any"
               min={bounds?.min}
               max={bounds?.max}
               value={step.target.min ?? ''}
@@ -640,6 +636,7 @@ function StepEditor({
               id={`${prefix}-target-max`}
               type="number"
               inputMode="decimal"
+              step="any"
               min={bounds?.min}
               max={bounds?.max}
               value={step.target.max ?? ''}

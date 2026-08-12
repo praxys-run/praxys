@@ -271,6 +271,67 @@ def test_provider_compatibility_rejects_lossy_flat_stryd_defaults() -> None:
     } >= {"duration_required", "target_not_supported"}
 
 
+def test_provider_compatibility_rejects_subsecond_flat_durations() -> None:
+    """A preview must reject durations that adapters round down to zero."""
+    compatibility = project_workout_provider_compatibility(
+        activity_type="running",
+        workout_structure_version=None,
+        workout_structure=None,
+        planned_duration_min=0.001,
+        planned_distance_km=None,
+        target_power_min=200,
+        target_power_max=220,
+        target_hr_min=None,
+        target_hr_max=None,
+        target_pace_min=None,
+        target_pace_max=None,
+    )
+
+    for provider in compatibility:
+        assert provider["compatible"] is False
+        assert "duration_required" in {
+            reason["code"] for reason in provider["reasons"]
+        }
+
+
+def test_stryd_compatibility_rejects_one_sided_structured_targets() -> None:
+    """Stryd cannot preserve whether a single bound is a floor or ceiling."""
+    structure = StructuredWorkoutV1.model_validate({
+        "steps": [{
+            "type": "step",
+            "phase": "work",
+            "termination": {"type": "time", "seconds": 180},
+            "target": {
+                "metric": "power",
+                "unit": "percent_cp",
+                "reference": "critical_power",
+                "min": 95,
+            },
+        }],
+    })
+
+    compatibility = project_workout_provider_compatibility(
+        activity_type="running",
+        workout_structure_version="v1",
+        workout_structure=structure,
+        planned_duration_min=3,
+        planned_distance_km=None,
+        target_power_min=None,
+        target_power_max=None,
+        target_hr_min=None,
+        target_hr_max=None,
+        target_pace_min=None,
+        target_pace_max=None,
+    )
+    stryd = next(item for item in compatibility if item["target"] == "stryd")
+
+    assert stryd["compatible"] is False
+    assert stryd["reasons"] == [{
+        "code": "target_not_supported",
+        "path": "steps[0].target",
+    }]
+
+
 @pytest.mark.parametrize(
     "overrides",
     [

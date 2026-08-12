@@ -26,6 +26,8 @@ import {
   createStep,
   deriveFlat,
   duplicateNode,
+  formatDeterministicDistance,
+  formatDeterministicDuration,
   insertNode,
   moveNode,
   removeNode,
@@ -269,6 +271,13 @@ function translations() {
     hillRepeats: t('Hill repeats'),
     testing: t('Testing'),
     structuredSteps: t('Structured steps'),
+    newerWorkoutStructure: t('Newer workout structure'),
+    unsupportedStructureDetail: t(
+      'This workout uses a newer portable structure that this editor cannot change safely. Date and notes remain editable; Praxys preserves the structure byte-for-byte.',
+    ),
+    unsupportedStructureFork: t(
+      'This source uses a newer workout structure and cannot be duplicated without losing details.',
+    ),
     legacyFlatSummary: t('Legacy flat summary'),
     convertToStructured: t('Convert to structured steps'),
     legacySummaryDetail: t(
@@ -755,10 +764,44 @@ function defaultActivityType(workoutType: string): PlanActivityType {
   return isRestWorkoutType(workoutType) ? 'rest' : 'running';
 }
 
+function portableActivityType(
+  value: unknown,
+  workoutType: string,
+): PlanActivityType {
+  if (isRestWorkoutType(workoutType)) return 'rest';
+  if (
+    typeof value === 'string'
+    && value !== 'rest'
+    && ACTIVITY_VALUES.includes(value as PlanActivityType)
+  ) {
+    return value as PlanActivityType;
+  }
+  return value == null ? defaultActivityType(workoutType) : 'other';
+}
+
 function defaultStructure(workoutType: string): WorkoutStructureV1 {
   return isRestWorkoutType(workoutType)
     ? { steps: [] }
     : { steps: [createStep()] };
+}
+
+function supportedStructure(
+  workout: PlannedWorkout | null,
+): WorkoutStructureV1 | null {
+  if (
+    workout?.workout_structure_version !== 'v1'
+    || workout.workout_structure == null
+    || (
+      workout.workout_structure_status != null
+      && workout.workout_structure_status !== 'supported'
+    )
+  ) return null;
+  const candidate = workout.workout_structure;
+  if (
+    typeof candidate !== 'object'
+    || !Array.isArray((candidate as { steps?: unknown }).steps)
+  ) return null;
+  return candidate as WorkoutStructureV1;
 }
 
 function targetDetail(
@@ -830,10 +873,10 @@ function summaryLabels(
   const summary = summarize(structure);
   return {
     duration: summary.duration.certainty === 'deterministic'
-      ? `${Math.round(summary.duration.seconds / 60)} min · ${t('deterministic')}`
+      ? `${formatDeterministicDuration(summary.duration.seconds)} · ${t('deterministic')}`
       : `${t('Unknown')} · ${t('unknown')}`,
     distance: summary.distance.certainty === 'deterministic'
-      ? `${(summary.distance.meters / 1000).toFixed(2)} km · ${t('deterministic')}`
+      ? `${formatDeterministicDistance(summary.distance.meters)} · ${t('deterministic')}`
       : `${t('Unknown')} · ${t('unknown')}`,
     load: summary.load.certainty === 'estimated'
       ? `${t('Estimated from targets')} · ${t('estimated')}`
@@ -1013,6 +1056,7 @@ Component({
     editorActivityValues: [...ACTIVITY_VALUES] as PlanActivityType[],
     editorActivityLabels: [] as string[],
     editorStructured: true,
+    editorUnsupportedStructure: false,
     editorStructure: defaultStructure('easy'),
     editorLastNonRestStructure: defaultStructure('easy') as WorkoutStructureV1 | null,
     editorStructureView: [] as Array<EditorStepView | EditorRepeatView>,
@@ -1383,8 +1427,10 @@ Component({
       forking = false,
     ) {
       const workoutType = workout?.workout_type ?? 'easy';
-      const activityType = workout?.activity_type
-        ?? defaultActivityType(workoutType);
+      const activityType = portableActivityType(
+        workout?.activity_type,
+        workoutType,
+      );
       const typeOptions = workoutTypeOptions(
         workoutType,
         this.data.tr as ReturnType<typeof translations>,
@@ -1396,15 +1442,27 @@ Component({
       const defaultDate = this.data.windowStart > this.data.minimumDate
         ? this.data.windowStart
         : this.data.minimumDate;
-      const hasStructure = (
-        workout?.workout_structure_version === 'v1'
-        && workout.workout_structure != null
+      const structureFromSource = supportedStructure(workout);
+      const hasStructure = structureFromSource != null;
+      const hasAnyStructure = (
+        workout != null
+        && (
+          (
+            workout.workout_structure_status != null
+            && workout.workout_structure_status !== 'absent'
+            && workout.workout_structure_status !== 'supported'
+          )
+          ||
+          workout.workout_structure_version != null
+          || workout.workout_structure != null
+        )
       );
-      const structured = hasStructure || workout == null;
-      const structure: WorkoutStructureV1 = (
-        hasStructure && workout?.workout_structure
-      )
-        ? workout.workout_structure
+      const unsupportedStructure = hasAnyStructure && !hasStructure;
+      const structured = !unsupportedStructure && (
+        hasStructure || workout == null
+      );
+      const structure: WorkoutStructureV1 = structureFromSource
+        ? structureFromSource
         : defaultStructure(workoutType);
       const summary = summaryLabels(structure);
       const date = workout?.date && workout.date >= this.data.minimumDate
@@ -1417,9 +1475,7 @@ Component({
         editorCanonicalId: forking ? '' : workout?.canonical_id ?? '',
         editorExpectedVersion: forking ? '' : workout?.workout_version ?? '',
         editorDate: date ?? localIsoDate(),
-        editorWorkoutType: typeOptions.values[typeOptions.index] === '__custom__'
-          ? ''
-          : workoutType,
+        editorWorkoutType: workoutType,
         editorCustomPurpose: typeOptions.values[typeOptions.index] === '__custom__'
           ? workoutType
           : '',
@@ -1434,6 +1490,7 @@ Component({
         editorActivityValues: activityOptions.values,
         editorActivityLabels: activityOptions.labels,
         editorStructured: structured,
+        editorUnsupportedStructure: unsupportedStructure,
         editorStructure: structure,
         editorLastNonRestStructure: structured && !isRestWorkoutType(workoutType)
           ? structure
@@ -1444,7 +1501,9 @@ Component({
         editorSummaryLoad: summary.load,
         editorSummarySteps: summary.steps,
         editorUndo: null,
-        editorCompatibility: [],
+        editorCompatibility: unsupportedStructure
+          ? compatibilityViews(workout?.provider_compatibility ?? [])
+          : [],
         editorCompatibilityLoading: false,
         editorCompatibilityError: '',
         editorDuration: workout?.duration_min?.toString() ?? '',
@@ -1568,16 +1627,27 @@ Component({
     clearCompatibilityPreview() {
       const componentState = this as unknown as {
         _compatibilityTimer?: number;
+        _compatibilityRequestId?: number;
       };
       if (componentState._compatibilityTimer !== undefined) {
         clearTimeout(componentState._compatibilityTimer);
         componentState._compatibilityTimer = undefined;
       }
+      componentState._compatibilityRequestId = (
+        componentState._compatibilityRequestId ?? 0
+      ) + 1;
     },
 
     scheduleCompatibilityPreview() {
       this.clearCompatibilityPreview();
       if (!this.data.editorOpen) return;
+      if (this.data.editorUnsupportedStructure) {
+        this.setData({
+          editorCompatibilityLoading: false,
+          editorCompatibilityError: '',
+        });
+        return;
+      }
       const validationError = this.editorValidationError();
       if (validationError) {
         this.setData({
@@ -1589,15 +1659,21 @@ Component({
       }
       const componentState = this as unknown as {
         _compatibilityTimer?: number;
+        _compatibilityRequestId?: number;
       };
+      const requestId = componentState._compatibilityRequestId ?? 0;
       componentState._compatibilityTimer = setTimeout(() => {
         componentState._compatibilityTimer = undefined;
-        void this.previewCompatibility();
+        void this.previewCompatibility(requestId);
       }, 250);
     },
 
-    async previewCompatibility() {
+    async previewCompatibility(requestId: number) {
       if (!this.data.editorOpen || this.data.editorSaving) return;
+      const componentState = this as unknown as {
+        _compatibilityRequestId?: number;
+      };
+      if (componentState._compatibilityRequestId !== requestId) return;
       this.setData({
         editorCompatibilityLoading: true,
         editorCompatibilityError: '',
@@ -1607,19 +1683,28 @@ Component({
           '/api/plan/workouts/compatibility',
           this.editorPayload(),
         );
-        if (!this.data.editorOpen) return;
+        if (
+          !this.data.editorOpen
+          || componentState._compatibilityRequestId !== requestId
+        ) return;
         this.setData({
           editorCompatibility: compatibilityViews(response.providers),
           editorCompatibilityError: '',
         });
       } catch {
-        if (!this.data.editorOpen) return;
+        if (
+          !this.data.editorOpen
+          || componentState._compatibilityRequestId !== requestId
+        ) return;
         this.setData({
           editorCompatibility: [],
           editorCompatibilityError: this.data.tr.compatibilityUnavailable,
         });
       } finally {
-        if (this.data.editorOpen) {
+        if (
+          this.data.editorOpen
+          && componentState._compatibilityRequestId === requestId
+        ) {
           this.setData({ editorCompatibilityLoading: false });
         }
       }
@@ -1637,6 +1722,7 @@ Component({
         editorSummaryDistance: summary.distance,
         editorSummaryLoad: summary.load,
         editorSummarySteps: summary.steps,
+        editorUndo: null,
         ...extra,
       }, () => this.scheduleCompatibilityPreview());
     },
@@ -1888,6 +1974,12 @@ Component({
       if (!this.data.editorWorkoutType.trim()) {
         return this.data.tr.customWorkoutPurpose;
       }
+      if (
+        this.data.editorUnsupportedStructure
+        && this.data.editorMode !== 'edit'
+      ) {
+        return this.data.tr.unsupportedStructureFork;
+      }
       return this.data.editorStructured
         ? (
           validate(
@@ -1902,7 +1994,15 @@ Component({
         : null;
     },
 
-    editorPayload(): PlanWorkoutWriteFields {
+    editorPayload():
+      | PlanWorkoutWriteFields
+      | Omit<PlanWorkoutUpdateRequest, 'expected_version'> {
+      if (this.data.editorUnsupportedStructure) {
+        return {
+          date: this.data.editorDate,
+          workout_description: this.data.editorDescription.trim(),
+        };
+      }
       const isRest = isRestWorkoutType(this.data.editorWorkoutType);
       const flat = {
         date: this.data.editorDate,
@@ -1980,12 +2080,24 @@ Component({
           ) {
             throw new Error(this.data.tr.refreshBeforeEditing);
           }
+          const updatePayload: PlanWorkoutUpdateRequest = (
+            this.data.editorUnsupportedStructure
+              ? {
+                  expected_version: this.data.editorExpectedVersion,
+                  date: this.data.editorDate,
+                  workout_description: this.data.editorDescription.trim(),
+                }
+              : {
+                  ...(payload as PlanWorkoutWriteFields),
+                  activity_type: this.data.editorIsRest
+                    ? 'rest'
+                    : this.data.editorActivityType,
+                  expected_version: this.data.editorExpectedVersion,
+                }
+          );
           result = await apiPut<PlanWorkoutMutationResponse>(
             `/api/plan/workouts/${encodeURIComponent(this.data.editorCanonicalId)}`,
-            {
-              ...payload,
-              expected_version: this.data.editorExpectedVersion,
-            } satisfies PlanWorkoutUpdateRequest,
+            updatePayload,
           );
         } else {
           result = await apiPost<PlanWorkoutMutationResponse>(
@@ -2062,6 +2174,7 @@ Component({
     async onConvertToRest() {
       if (
         this.data.editorMode !== 'edit'
+        || this.data.editorUnsupportedStructure
         || !this.data.editorCanonicalId
         || !this.data.editorExpectedVersion
         || this.data.editorSaving

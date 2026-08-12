@@ -377,6 +377,25 @@ def normalize_activity_type(
     return normalized
 
 
+def project_activity_type(
+    workout_type: str,
+    activity_type: object,
+) -> str:
+    """Project provider text into the strict portable activity enum.
+
+    Provider-owned calendar rows may contain sport keys Praxys does not yet
+    model. Returning ``other`` keeps the API contract truthful without
+    treating an unknown activity as road running or mutating source data.
+    """
+    try:
+        return normalize_activity_type(
+            workout_type,
+            None if activity_type is None else str(activity_type),
+        )
+    except ValueError:
+        return "rest" if is_rest_workout(workout_type) else "other"
+
+
 def validate_structured_workout(
     *,
     workout_type: str,
@@ -699,7 +718,7 @@ def _garmin_workout_compatibility(
             reasons.append(WorkoutProviderCompatibilityReason(
                 code="target_not_supported",
             ))
-        if not _positive_number(planned_duration_min):
+        if not _duration_encodes_positive_seconds(planned_duration_min):
             reasons.append(WorkoutProviderCompatibilityReason(
                 code="duration_required",
             ))
@@ -738,7 +757,7 @@ def _stryd_workout_compatibility(
             reasons.append(WorkoutProviderCompatibilityReason(
                 code="activity_type_not_supported",
             ))
-        if not _positive_number(planned_duration_min):
+        if not _duration_encodes_positive_seconds(planned_duration_min):
             reasons.append(WorkoutProviderCompatibilityReason(
                 code="duration_required",
             ))
@@ -844,10 +863,14 @@ def _stryd_workout_compatibility(
             )
             if (
                 target_path is None
-                and target_combo not in {
-                    ("power", "watts", "absolute"),
-                    ("power", "percent_cp", "critical_power"),
-                }
+                and (
+                    target_combo not in {
+                        ("power", "watts", "absolute"),
+                        ("power", "percent_cp", "critical_power"),
+                    }
+                    or step.target.min is None
+                    or step.target.max is None
+                )
             ):
                 target_path = f"{path}.target"
 
@@ -883,6 +906,13 @@ def _positive_number(value: object) -> bool:
         return math.isfinite(float(value)) and float(value) > 0
     except (TypeError, ValueError):
         return False
+
+
+def _duration_encodes_positive_seconds(value: object) -> bool:
+    """Match adapters that encode legacy minutes as rounded whole seconds."""
+    if not _positive_number(value):
+        return False
+    return round(float(value) * 60) >= 1
 
 
 def stryd_surface_for_activity_type(activity_type: str | None) -> str:

@@ -111,6 +111,7 @@ def _seed_external_plan(
     *,
     date_iso: str,
     workout_type: str = "easy",
+    activity_type: str | None = None,
 ) -> str:
     """Insert one provider-owned row and return its non-editable UUID."""
     from datetime import datetime
@@ -123,6 +124,7 @@ def _seed_external_plan(
             user_id=user_id,
             date=datetime.strptime(date_iso, "%Y-%m-%d").date(),
             workout_type=workout_type,
+            activity_type=activity_type,
             workout_description="External coach workout",
             source="stryd",
             workout_origin="imported",
@@ -595,6 +597,7 @@ class TestCanonicalWorkoutManagement:
             user_id,
             date_iso=external_target,
             workout_type="tempo",
+            activity_type="ultra_trail",
         )
 
         response = client.get(
@@ -619,7 +622,10 @@ class TestCanonicalWorkoutManagement:
         )
         assert praxys["editable"] is True
         assert len(praxys["workout_version"]) == 64
+        assert praxys["workout_structure_status"] == "absent"
         assert external["editable"] is False
+        assert external["activity_type"] == "other"
+        assert external["workout_structure_status"] == "absent"
         assert "workout_version" not in external
 
     def test_list_window_and_editability_use_athlete_date(
@@ -1060,6 +1066,80 @@ class TestCanonicalWorkoutManagement:
             assert row.activity_type == "trail_running"
         finally:
             db.close()
+
+    def test_newer_structure_allows_note_edit_without_rewriting_tree(
+        self,
+        api_client,
+    ):
+        client, user_id = api_client
+        target = (date.today() + timedelta(days=5)).isoformat()
+        _seed_plan(user_id, [(target, "interval", "Future structure")])
+        future_structure = {
+            "steps": [{
+                "type": "repeat",
+                "repetitions": 3,
+                "steps": [{
+                    "type": "ramp",
+                    "from": 70,
+                    "to": 90,
+                }],
+            }],
+        }
+
+        from db import session as db_session
+        from db.models import TrainingPlan
+
+        db = db_session.SessionLocal()
+        try:
+            row = db.query(TrainingPlan).filter(
+                TrainingPlan.user_id == user_id,
+                TrainingPlan.date == datetime.strptime(
+                    target,
+                    "%Y-%m-%d",
+                ).date(),
+            ).one()
+            row.activity_type = "trail_running"
+            row.workout_structure_version = "v2"
+            row.workout_structure = future_structure
+            db.commit()
+            canonical_id = row.canonical_id
+        finally:
+            db.close()
+
+        listed = client.get(
+            f"/api/plan?start={target}&end={target}",
+        ).json()["workouts"][0]
+        assert listed["workout_structure_status"] == "unsupported"
+        assert listed["workout_structure_version"] == "v2"
+        assert listed["workout_structure"] == future_structure
+
+        updated_response = client.put(
+            f"/api/plan/workouts/{canonical_id}",
+            json={
+                "expected_version": listed["workout_version"],
+                "date": target,
+                "workout_description": "Notes stay safe",
+            },
+        )
+
+        assert updated_response.status_code == 200, updated_response.text
+        updated = updated_response.json()
+        assert updated["workout_structure_status"] == "unsupported"
+        assert updated["workout_structure_version"] == "v2"
+        assert updated["workout_structure"] == future_structure
+        assert updated["workout_description"] == "Notes stay safe"
+
+        rejected = client.put(
+            f"/api/plan/workouts/{canonical_id}",
+            json={
+                "expected_version": updated["workout_version"],
+                "activity_type": "running",
+            },
+        )
+        assert rejected.status_code == 409, rejected.text
+        assert rejected.json()["detail"]["code"] == (
+            "PLAN_WORKOUT_STRUCTURE_UNSUPPORTED"
+        )
 
     def test_rest_transitions_reset_activity_and_structure_without_500(
         self,

@@ -20,6 +20,7 @@ from api.plan_workout_structure import (
     default_activity_type,
     inspect_workout_structure,
     normalize_activity_type,
+    project_activity_type,
     validate_structured_workout,
 )
 from db.models import (
@@ -308,9 +309,14 @@ class PlanReconciliationItem:
             result["target_workout_id"] = self.observation.id
             result["external_id"] = self.observation.external_id
             if self.observation.present:
-                result["target_workout"] = dict(
+                target_workout = dict(
                     self.observation.normalized_workout or {}
                 )
+                target_workout["activity_type"] = project_activity_type(
+                    str(target_workout.get("workout_type") or ""),
+                    target_workout.get("activity_type"),
+                )
+                result["target_workout"] = target_workout
         elif self.delivery is not None and self.delivery.external_id:
             result["external_id"] = self.delivery.external_id
         if self.match_basis:

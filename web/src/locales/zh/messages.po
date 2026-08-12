@@ -46,7 +46,7 @@ msgid "{0, plural, one {# recommendation} other {# recommendations}}"
 msgstr "{0, plural, other {# 条建议}}"
 
 #. placeholder {0}: data.workouts.length
-#: src/components/UpcomingPlanCard.tsx:1449
+#: src/components/UpcomingPlanCard.tsx:1471
 msgid "{0, plural, one {# workout} other {# workouts}}"
 msgstr "{0, plural, other {# 次训练}}"
 
@@ -236,7 +236,7 @@ msgstr "{abbrev} <0>{dirLabel}</0>。再同步一些活动后即可生成比赛�
 msgid "{completed} of {0} steps complete"
 msgstr "已完成 {completed} / {0} 步"
 
-#: src/components/UpcomingPlanCard.tsx:1442
+#: src/components/UpcomingPlanCard.tsx:1464
 msgid "{conflictCount, plural, one {# needs review} other {# need review}}"
 msgstr "{conflictCount, plural, other {# 个待处理}}"
 
@@ -490,7 +490,7 @@ msgstr "已触发非诊断安全停止；Praxys 不会给出诊断、治疗或�
 #~ msgid "A normal warm-weather session can maintain adaptation when recovery allows."
 #~ msgstr "恢复状态允许时，一次正常的温热环境训练即可帮助维持热适应。"
 
-#: src/components/WorkoutStructureEditor.tsx:207
+#: src/components/WorkoutStructureEditor.tsx:197
 msgid "A positive duration is required by the provider."
 msgstr "设备需要大于 0 的时长。"
 
@@ -673,7 +673,7 @@ msgstr "活动证据"
 msgid "Activity gauge"
 msgstr "活跃度"
 
-#: src/components/WorkoutPlanEditor.tsx:578
+#: src/components/WorkoutPlanEditor.tsx:656
 msgid "Activity is the schedule lane (for example road or trail), not the session purpose."
 msgstr "活动是计划的运动场景（例如公路或越野），不是训练目的。"
 
@@ -722,15 +722,15 @@ msgstr "急性疾病"
 msgid "Add availability"
 msgstr "调整可训练时间"
 
-#: src/components/WorkoutPlanEditor.tsx:518
+#: src/components/WorkoutPlanEditor.tsx:594
 msgid "Add one future workout to the Praxys canonical plan."
 msgstr "将一项未来训练加入 Praxys 主计划。"
 
-#: src/components/WorkoutStructureEditor.tsx:426
+#: src/components/WorkoutStructureEditor.tsx:421
 msgid "Add repeat"
 msgstr "添加重复组"
 
-#: src/components/WorkoutStructureEditor.tsx:816
+#: src/components/WorkoutStructureEditor.tsx:813
 msgid "Add repeat step"
 msgstr "添加重复步骤"
 
@@ -738,17 +738,17 @@ msgstr "添加重复步骤"
 msgid "Add screenshot"
 msgstr "添加截图"
 
-#: src/components/WorkoutStructureEditor.tsx:416
+#: src/components/WorkoutStructureEditor.tsx:411
 msgid "Add step"
 msgstr "添加步骤"
 
-#: src/components/UpcomingPlanCard.tsx:1615
+#: src/components/UpcomingPlanCard.tsx:1637
 msgid "Add the first workout"
 msgstr "添加首项训练"
 
-#: src/components/UpcomingPlanCard.tsx:1462
-#: src/components/WorkoutPlanEditor.tsx:504
-#: src/components/WorkoutPlanEditor.tsx:753
+#: src/components/UpcomingPlanCard.tsx:1484
+#: src/components/WorkoutPlanEditor.tsx:580
+#: src/components/WorkoutPlanEditor.tsx:861
 msgid "Add workout"
 msgstr "添加训练"
 
@@ -916,7 +916,7 @@ msgstr "允许访问结构化计划个性化信息？"
 msgid "Allowed for this item"
 msgstr "仅当前版本已允许"
 
-#: src/components/WorkoutStructureEditor.tsx:611
+#: src/components/WorkoutStructureEditor.tsx:606
 msgid "Allowed range"
 msgstr "允许范围"
 
@@ -929,15 +929,15 @@ msgstr "已有邀请码？"
 msgid "Also send my optional note"
 msgstr "同时发送补充说明"
 
-#: src/components/UpcomingPlanCard.tsx:1535
+#: src/components/UpcomingPlanCard.tsx:1557
 msgid "An earlier automatic change was superseded"
 msgstr "此前的自动调整已被后续更改覆盖"
 
-#: src/components/WorkoutStructureEditor.tsx:208
+#: src/components/WorkoutStructureEditor.tsx:198
 msgid "An empty structured workout cannot be sent."
 msgstr "无法发送空的结构化训练。"
 
-#: src/components/UpcomingPlanCard.tsx:1486
+#: src/components/UpcomingPlanCard.tsx:1508
 msgid "An external planner overlaps the Praxys plan. Use one planner at a time to avoid duplicate or conflicting sessions."
 msgstr "其他计划源与 Praxys 计划有重叠。建议一次只使用一个计划源，避免重复或冲突训练。"
 
@@ -1275,7 +1275,7 @@ msgstr "Bootstrap 区间"
 msgid "Both thresholds must be met. The bars describe model evidence, not a biological adaptation percentage."
 msgstr "必须同时达到两个阈值。这些进度条表示模型证据，而不是生理适应百分比。"
 
-#: src/components/UpcomingPlanCard.tsx:1410
+#: src/components/UpcomingPlanCard.tsx:1432
 msgid "Browse plan dates"
 msgstr "浏览训练计划日期"
 
@@ -1350,7 +1350,7 @@ msgstr "计算器"
 #: src/components/ManagedPlanSettingsCard.tsx:1454
 #: src/components/PersonalContextPanel.tsx:1475
 #: src/components/UpcomingPlanCard.tsx:843
-#: src/components/WorkoutPlanEditor.tsx:744
+#: src/components/WorkoutPlanEditor.tsx:847
 #: src/pages/admin/AdminOps.tsx:1215
 #: src/pages/admin/AdminUsers.tsx:1043
 #: src/pages/admin/AdminUsers.tsx:1073
@@ -1459,7 +1459,7 @@ msgstr "请在连接步骤检查账号信息，然后重试。"
 msgid "Checking data requirements"
 msgstr "正在检查数据要求"
 
-#: src/components/WorkoutStructureEditor.tsx:1015
+#: src/components/WorkoutStructureEditor.tsx:1012
 msgid "Checking provider compatibility…"
 msgstr "正在检查平台兼容性…"
 
@@ -1624,11 +1624,11 @@ msgstr "公告"
 msgid "Comparable-power activity support"
 msgstr "可比功率活动支持"
 
-#: src/components/WorkoutPlanEditor.tsx:312
+#: src/components/WorkoutPlanEditor.tsx:382
 msgid "Compatibility preview is unavailable. Check your connection and try again."
 msgstr "兼容性预览暂不可用。请检查网络后重试。"
 
-#: src/components/WorkoutStructureEditor.tsx:1045
+#: src/components/WorkoutStructureEditor.tsx:1042
 msgid "Compatible"
 msgstr "兼容"
 
@@ -1844,15 +1844,15 @@ msgstr "符合条件的历史数据中，连续 Stryd 功率采样缺失过多�
 msgid "Control self-registration and the committed-seat cap."
 msgstr "控制自助注册和已承诺席位上限。"
 
-#: src/components/WorkoutPlanEditor.tsx:727
+#: src/components/WorkoutPlanEditor.tsx:830
 msgid "Convert to rest"
 msgstr "改为休息"
 
-#: src/components/WorkoutPlanEditor.tsx:656
+#: src/components/WorkoutPlanEditor.tsx:756
 msgid "Convert to structured steps"
 msgstr "转换为结构化步骤"
 
-#: src/components/WorkoutStructureEditor.tsx:179
+#: src/components/WorkoutStructureEditor.tsx:169
 msgid "Cool-down"
 msgstr "放松"
 
@@ -1881,7 +1881,7 @@ msgstr "更正计划个性化信息"
 #~ msgid "Cosmetic — changes names and colors without affecting calculations"
 #~ msgstr "仅外观——更改名称与颜色，不影响计算"
 
-#: src/components/UpcomingPlanCard.tsx:1242
+#: src/components/UpcomingPlanCard.tsx:1264
 msgid "Could not add this workout"
 msgstr "无法添加这项训练"
 
@@ -1895,11 +1895,11 @@ msgstr "无法计算湿球温度代理值。"
 msgid "Could not change the execution target"
 msgstr "无法更换执行平台"
 
-#: src/components/WorkoutPlanEditor.tsx:402
+#: src/components/WorkoutPlanEditor.tsx:472
 msgid "Could not convert this legacy workout."
 msgstr "无法转换此旧版训练。"
 
-#: src/components/UpcomingPlanCard.tsx:1286
+#: src/components/UpcomingPlanCard.tsx:1308
 msgid "Could not convert this workout to rest"
 msgstr "无法将这项训练改为休息"
 
@@ -1908,7 +1908,7 @@ msgstr "无法将这项训练改为休息"
 msgid "Could not delete this private context."
 msgstr "无法删除这条计划个性化信息。"
 
-#: src/components/UpcomingPlanCard.tsx:1315
+#: src/components/UpcomingPlanCard.tsx:1337
 msgid "Could not delete this workout"
 msgstr "无法删除这项训练"
 
@@ -2000,7 +2000,7 @@ msgstr "无法更新自动计划调整设置"
 #~ msgstr "无法更新 Garmin 实验性下发"
 
 #: src/components/UpcomingPlanCard.tsx:1204
-#: src/components/UpcomingPlanCard.tsx:1229
+#: src/components/UpcomingPlanCard.tsx:1251
 msgid "Could not update this workout"
 msgstr "无法更新这项训练"
 
@@ -2146,7 +2146,7 @@ msgid "Critical: {0}. Major: {1}. Minor: {2}."
 msgstr "严重：{0}。重大：{1}。轻微：{2}。"
 
 #: src/components/UpcomingPlanCard.tsx:571
-#: src/components/WorkoutPlanEditor.tsx:344
+#: src/components/WorkoutPlanEditor.tsx:414
 msgid "Cross-training"
 msgstr "交叉训练"
 
@@ -2201,7 +2201,7 @@ msgid "Current evidence"
 msgstr "当前证据"
 
 #: src/components/ManagedPlanSettingsCard.tsx:993
-#: src/components/UpcomingPlanCard.tsx:1551
+#: src/components/UpcomingPlanCard.tsx:1573
 msgid "Current HRV crossed your personal caution band."
 msgstr "当前 HRV 低于个人警戒区间。"
 
@@ -2214,17 +2214,17 @@ msgstr "当前符合条件的证据"
 msgid "Currently set to {0}-based training"
 msgstr "当前为基于 {0} 的训练"
 
-#: src/components/WorkoutPlanEditor.tsx:352
-#: src/components/WorkoutPlanEditor.tsx:606
+#: src/components/WorkoutPlanEditor.tsx:422
+#: src/components/WorkoutPlanEditor.tsx:684
 msgid "Custom wording"
 msgstr "自定义措辞"
 
-#: src/components/WorkoutPlanEditor.tsx:615
+#: src/components/WorkoutPlanEditor.tsx:693
 msgid "Custom workout purpose"
 msgstr "自定义训练目的"
 
 #: src/components/UpcomingPlanCard.tsx:566
-#: src/components/WorkoutPlanEditor.tsx:339
+#: src/components/WorkoutPlanEditor.tsx:409
 #: src/pages/Setup.tsx:165
 msgid "Cycling"
 msgstr "骑行"
@@ -2269,7 +2269,7 @@ msgstr "数据库"
 msgid "Database health failures"
 msgstr "数据库健康检查失败"
 
-#: src/components/WorkoutPlanEditor.tsx:527
+#: src/components/WorkoutPlanEditor.tsx:603
 msgid "Date"
 msgstr "日期"
 
@@ -2356,8 +2356,8 @@ msgid "Degraded Performance"
 msgstr "性能降级"
 
 #: src/components/PersonalContextPanel.tsx:1538
-#: src/components/WorkoutPlanEditor.tsx:716
-#: src/components/WorkoutStructureEditor.tsx:984
+#: src/components/WorkoutPlanEditor.tsx:816
+#: src/components/WorkoutStructureEditor.tsx:981
 msgid "Delete"
 msgstr "删除"
 
@@ -2386,7 +2386,7 @@ msgstr "删除保留历史记录"
 msgid "Delete this context permanently?"
 msgstr "永久删除这条信息？"
 
-#: src/components/WorkoutPlanEditor.tsx:455
+#: src/components/WorkoutPlanEditor.tsx:531
 msgid "Delete this workout?"
 msgstr "删除这项训练？"
 
@@ -2400,7 +2400,7 @@ msgstr "删除用户"
 #~ msgid "Delete User"
 #~ msgstr "删除用户"
 
-#: src/components/WorkoutPlanEditor.tsx:492
+#: src/components/WorkoutPlanEditor.tsx:568
 msgid "Delete workout"
 msgstr "删除训练"
 
@@ -2418,7 +2418,7 @@ msgstr "删除中"
 msgid "Deleting..."
 msgstr "删除中…"
 
-#: src/components/WorkoutPlanEditor.tsx:492
+#: src/components/WorkoutPlanEditor.tsx:568
 #: src/pages/admin/AdminUsers.tsx:1076
 msgid "Deleting…"
 msgstr "正在删除…"
@@ -2505,7 +2505,7 @@ msgstr "当天暂无详细活动证据。"
 msgid "Details"
 msgstr "详情"
 
-#: src/components/WorkoutStructureEditor.tsx:478
+#: src/components/WorkoutStructureEditor.tsx:473
 msgid "deterministic"
 msgstr "确定"
 
@@ -2609,18 +2609,18 @@ msgstr "距离"
 #: src/components/charts/WeeklyVolumeChart.tsx:89
 #: src/components/charts/WeeklyVolumeChart.tsx:98
 #: src/components/GoalEditor.tsx:50
-#: src/components/WorkoutStructureEditor.tsx:289
-#: src/components/WorkoutStructureEditor.tsx:837
-#: src/components/WorkoutStructureEditor.tsx:858
+#: src/components/WorkoutStructureEditor.tsx:284
+#: src/components/WorkoutStructureEditor.tsx:834
+#: src/components/WorkoutStructureEditor.tsx:855
 #: src/pages/Settings.tsx:1405
 msgid "Distance"
 msgstr "距离"
 
-#: src/components/WorkoutPlanEditor.tsx:795
+#: src/components/WorkoutPlanEditor.tsx:903
 msgid "Distance (km)"
 msgstr "距离（公里）"
 
-#: src/components/WorkoutStructureEditor.tsx:891
+#: src/components/WorkoutStructureEditor.tsx:888
 msgid "Distance in meters"
 msgstr "距离（米）"
 
@@ -2690,15 +2690,15 @@ msgstr "改为轻松跑（功率保持在恢复区间）"
 #~ msgstr ""
 
 #: src/components/UpcomingPlanCard.tsx:704
-#: src/components/WorkoutStructureEditor.tsx:973
+#: src/components/WorkoutStructureEditor.tsx:970
 msgid "Duplicate"
 msgstr "复制"
 
-#: src/components/WorkoutPlanEditor.tsx:501
+#: src/components/WorkoutPlanEditor.tsx:577
 msgid "Duplicate into Praxys"
 msgstr "复制到 Praxys"
 
-#: src/components/WorkoutPlanEditor.tsx:750
+#: src/components/WorkoutPlanEditor.tsx:858
 msgid "Duplicate workout"
 msgstr "复制训练"
 
@@ -2708,11 +2708,11 @@ msgstr "长期偏好"
 
 #: src/components/ActivityCard.tsx:87
 #: src/components/SplitBreakdown.tsx:48
-#: src/components/WorkoutStructureEditor.tsx:282
+#: src/components/WorkoutStructureEditor.tsx:277
 msgid "Duration"
 msgstr "时长"
 
-#: src/components/WorkoutPlanEditor.tsx:787
+#: src/components/WorkoutPlanEditor.tsx:895
 msgid "Duration (minutes)"
 msgstr "时长（分钟）"
 
@@ -2744,11 +2744,11 @@ msgstr "时长（分钟）"
 #~ msgid "e.g. 42:00"
 #~ msgstr "例如 42:00"
 
-#: src/components/WorkoutPlanEditor.tsx:867
+#: src/components/WorkoutPlanEditor.tsx:975
 msgid "e.g. 5:20"
 msgstr "例如 5:20"
 
-#: src/components/WorkoutPlanEditor.tsx:884
+#: src/components/WorkoutPlanEditor.tsx:992
 msgid "e.g. 5:45"
 msgstr "例如 5:45"
 
@@ -2756,15 +2756,15 @@ msgstr "例如 5:45"
 #~ msgid "e.g. 8:00:00"
 #~ msgstr "例如 8:00:00"
 
-#: src/components/WorkoutStructureEditor.tsx:751
+#: src/components/WorkoutStructureEditor.tsx:748
 msgid "e.g. Main set"
 msgstr "例如：主训练组"
 
-#: src/components/WorkoutPlanEditor.tsx:626
+#: src/components/WorkoutPlanEditor.tsx:704
 msgid "e.g. Race rehearsal"
 msgstr "例如：比赛模拟"
 
-#: src/components/WorkoutStructureEditor.tsx:573
+#: src/components/WorkoutStructureEditor.tsx:568
 msgid "e.g. Uphill effort"
 msgstr "例如：上坡发力"
 
@@ -2797,7 +2797,7 @@ msgstr "每个数值代表截至所示日期的一个互不重叠的 7 天周期
 #~ msgstr "每个数值代表截至所示日期的一个互不重叠的 7 天周期。零活动周仍计入序列和平均值；趋势比较前后两个半段。这是 Praxys 的运营性摘要，并非准备度评分。"
 
 #: src/components/UpcomingPlanCard.tsx:576
-#: src/components/WorkoutPlanEditor.tsx:326
+#: src/components/WorkoutPlanEditor.tsx:396
 msgid "Easy"
 msgstr "轻松跑"
 
@@ -2816,7 +2816,7 @@ msgstr "轻松跑"
 msgid "Edit"
 msgstr "编辑"
 
-#: src/components/WorkoutPlanEditor.tsx:503
+#: src/components/WorkoutPlanEditor.tsx:579
 msgid "Edit workout"
 msgstr "编辑训练"
 
@@ -2974,11 +2974,11 @@ msgstr "仍可使用的装备（可多选）"
 msgid "Error"
 msgstr "错误"
 
-#: src/components/WorkoutStructureEditor.tsx:480
+#: src/components/WorkoutStructureEditor.tsx:475
 msgid "estimated"
 msgstr "估算"
 
-#: src/components/WorkoutStructureEditor.tsx:298
+#: src/components/WorkoutStructureEditor.tsx:293
 msgid "Estimated from targets"
 msgstr "按目标估算"
 
@@ -3197,7 +3197,7 @@ msgstr "加载设置失败"
 msgid "Failed to load training data"
 msgstr "训练数据加载失败"
 
-#: src/components/UpcomingPlanCard.tsx:1345
+#: src/components/UpcomingPlanCard.tsx:1367
 msgid "Failed to load training plan"
 msgstr "训练计划加载失败"
 
@@ -3300,7 +3300,7 @@ msgstr "反馈处理"
 msgid "Findings"
 msgstr "解读要点"
 
-#: src/components/WorkoutStructureEditor.tsx:1027
+#: src/components/WorkoutStructureEditor.tsx:1024
 msgid "Finish the required step fields to preview compatibility."
 msgstr "请完成必填步骤字段后预览兼容性。"
 
@@ -3551,19 +3551,19 @@ msgstr "有邀请码？"
 msgid "Heart Rate"
 msgstr "心率"
 
-#: src/components/WorkoutStructureEditor.tsx:187
+#: src/components/WorkoutStructureEditor.tsx:177
 msgid "Heart rate · %LTHR"
 msgstr "心率 · %LTHR"
 
-#: src/components/WorkoutStructureEditor.tsx:186
+#: src/components/WorkoutStructureEditor.tsx:176
 msgid "Heart rate · bpm"
 msgstr "心率 · bpm"
 
-#: src/components/WorkoutPlanEditor.tsx:824
+#: src/components/WorkoutPlanEditor.tsx:932
 msgid "Heart-rate maximum (bpm)"
 msgstr "最高心率（bpm）"
 
-#: src/components/WorkoutPlanEditor.tsx:817
+#: src/components/WorkoutPlanEditor.tsx:925
 msgid "Heart-rate minimum (bpm)"
 msgstr "最低心率（bpm）"
 
@@ -3667,13 +3667,13 @@ msgid "High variability"
 msgstr "变异性偏高"
 
 #: src/components/UpcomingPlanCard.tsx:568
-#: src/components/WorkoutPlanEditor.tsx:341
+#: src/components/WorkoutPlanEditor.tsx:411
 #: src/pages/Setup.tsx:167
 msgid "Hiking"
 msgstr "徒步"
 
 #: src/components/UpcomingPlanCard.tsx:582
-#: src/components/WorkoutPlanEditor.tsx:332
+#: src/components/WorkoutPlanEditor.tsx:402
 msgid "Hill repeats"
 msgstr "爬坡重复"
 
@@ -3971,15 +3971,15 @@ msgstr "上升"
 msgid "Info"
 msgstr "信息"
 
-#: src/components/WorkoutStructureEditor.tsx:963
+#: src/components/WorkoutStructureEditor.tsx:960
 msgid "Insert after"
 msgstr "后插入"
 
-#: src/components/WorkoutStructureEditor.tsx:953
+#: src/components/WorkoutStructureEditor.tsx:950
 msgid "Insert before"
 msgstr "前插入"
 
-#: src/components/UpcomingPlanCard.tsx:1563
+#: src/components/UpcomingPlanCard.tsx:1585
 msgid "Inspect context"
 msgstr "查看个性化信息"
 
@@ -4038,7 +4038,7 @@ msgid "Interpret this workout without guessing a cause"
 msgstr "用于理解这次训练，不推测原因"
 
 #: src/components/UpcomingPlanCard.tsx:581
-#: src/components/WorkoutPlanEditor.tsx:331
+#: src/components/WorkoutPlanEditor.tsx:401
 msgid "Intervals"
 msgstr "间歇跑"
 
@@ -4173,7 +4173,7 @@ msgstr "选填备注请控制在 280 个字符以内。"
 msgid "keep the Praxys workout canonical and replace or recreate the target version."
 msgstr "继续以 Praxys 训练为准，并替换或重新创建目标平台版本。"
 
-#: src/components/WorkoutPlanEditor.tsx:483
+#: src/components/WorkoutPlanEditor.tsx:559
 msgid "Keep workout"
 msgstr "保留训练"
 
@@ -4302,7 +4302,7 @@ msgstr "退出托管模式？"
 msgid "Leaving…"
 msgstr "正在退出…"
 
-#: src/components/WorkoutPlanEditor.tsx:638
+#: src/components/WorkoutPlanEditor.tsx:738
 msgid "Legacy flat summary"
 msgstr "旧版扁平摘要"
 
@@ -4405,7 +4405,7 @@ msgstr "实时探测"
 #~ msgid "Live state"
 #~ msgstr "实时状态"
 
-#: src/components/WorkoutStructureEditor.tsx:296
+#: src/components/WorkoutStructureEditor.tsx:291
 msgid "Load"
 msgstr "负荷"
 
@@ -4470,7 +4470,7 @@ msgstr "退出登录"
 #~ msgstr "登录"
 
 #: src/components/UpcomingPlanCard.tsx:578
-#: src/components/WorkoutPlanEditor.tsx:328
+#: src/components/WorkoutPlanEditor.tsx:398
 msgid "Long run"
 msgstr "长距离跑"
 
@@ -4590,7 +4590,7 @@ msgstr "托管运动员"
 msgid "Managed by Praxys"
 msgstr "由 Praxys 托管"
 
-#: src/components/UpcomingPlanCard.tsx:1635
+#: src/components/UpcomingPlanCard.tsx:1657
 msgid "Managed delivery is active, but this window contains no Praxys-owned workouts. External workouts remain untouched."
 msgstr "托管下发已启用，但此窗口内没有 Praxys 管理的训练。外部训练保持不变。"
 
@@ -4646,8 +4646,8 @@ msgstr "用于访问权限、通知和服务状态的管理入口。"
 msgid "Management routes remain available. Retry the aggregate health snapshot."
 msgstr "管理入口仍可用。请重试获取聚合健康快照。"
 
-#: src/components/WorkoutStructureEditor.tsx:839
-#: src/components/WorkoutStructureEditor.tsx:860
+#: src/components/WorkoutStructureEditor.tsx:836
+#: src/components/WorkoutStructureEditor.tsx:857
 msgid "Manual"
 msgstr "手动结束"
 
@@ -4787,7 +4787,7 @@ msgid "Mixed providers"
 msgstr "数据来源混合"
 
 #: src/components/UpcomingPlanCard.tsx:570
-#: src/components/WorkoutPlanEditor.tsx:343
+#: src/components/WorkoutPlanEditor.tsx:413
 msgid "Mobility"
 msgstr "灵活性训练"
 
@@ -4877,19 +4877,19 @@ msgstr "还需要更多历史 HRV 数据，Praxys 才能建立你的个人恢复
 msgid "Motivation"
 msgstr "训练动力不足"
 
-#: src/components/WorkoutStructureEditor.tsx:943
+#: src/components/WorkoutStructureEditor.tsx:940
 msgid "Move down"
 msgstr "下移"
 
-#: src/components/WorkoutStructureEditor.tsx:940
+#: src/components/WorkoutStructureEditor.tsx:937
 msgid "Move step down"
 msgstr "下移步骤"
 
-#: src/components/WorkoutStructureEditor.tsx:929
+#: src/components/WorkoutStructureEditor.tsx:926
 msgid "Move step up"
 msgstr "上移步骤"
 
-#: src/components/WorkoutStructureEditor.tsx:932
+#: src/components/WorkoutStructureEditor.tsx:929
 msgid "Move up"
 msgstr "上移"
 
@@ -5035,6 +5035,10 @@ msgstr "新邀请码："
 msgid "New to Praxys?"
 msgstr "第一次使用 Praxys？"
 
+#: src/components/WorkoutPlanEditor.tsx:714
+msgid "Newer workout structure"
+msgstr "较新版本的训练结构"
+
 #: src/pages/admin/AdminFeedback.tsx:381
 msgid "Newly triaged work will appear here when admin action is needed."
 msgstr "新分诊且需要管理员处理的工作会显示在这里。"
@@ -5043,7 +5047,7 @@ msgstr "新分诊且需要管理员处理的工作会显示在这里。"
 msgid "Next"
 msgstr "下一页"
 
-#: src/components/UpcomingPlanCard.tsx:1431
+#: src/components/UpcomingPlanCard.tsx:1453
 msgid "Next plan window"
 msgstr "下一时间段"
 
@@ -5301,7 +5305,7 @@ msgstr "在此时间窗口内未记录系统性故障类别。"
 msgid "No systemic sync failures"
 msgstr "无系统性同步失败"
 
-#: src/components/WorkoutStructureEditor.tsx:183
+#: src/components/WorkoutStructureEditor.tsx:173
 msgid "No target"
 msgstr "无目标"
 
@@ -5322,7 +5326,7 @@ msgstr "暂无可显示的工单"
 msgid "No Today events were recorded in this window."
 msgstr "在此时间窗口内未记录 Today 事件。"
 
-#: src/components/WorkoutStructureEditor.tsx:193
+#: src/components/WorkoutStructureEditor.tsx:183
 msgid "No unit or reference"
 msgstr "无单位或参考值"
 
@@ -5379,7 +5383,7 @@ msgstr "今日无训练安排"
 msgid "No workout scheduled."
 msgstr "今日无训练安排。"
 
-#: src/components/UpcomingPlanCard.tsx:1599
+#: src/components/UpcomingPlanCard.tsx:1621
 msgid "No workouts scheduled in this window."
 msgstr "这段时间内暂无训练安排。"
 
@@ -5487,7 +5491,7 @@ msgstr "未请求"
 msgid "Not required"
 msgstr "当前目标无需基线"
 
-#: src/components/WorkoutStructureEditor.tsx:1046
+#: src/components/WorkoutStructureEditor.tsx:1043
 msgid "Not safely representable"
 msgstr "无法安全表达"
 
@@ -5627,8 +5631,8 @@ msgstr "只有今天唯一一项由 Praxys 生成的高强度训练可以改为�
 msgid "Only workouts recorded in Praxys's delivery ledger are removed. Manual and other-coach workouts stay untouched."
 msgstr "只会移除 Praxys 下发记录中的训练。手动添加及其他教练安排的训练保持不变。"
 
-#: src/components/WorkoutStructureEditor.tsx:838
-#: src/components/WorkoutStructureEditor.tsx:859
+#: src/components/WorkoutStructureEditor.tsx:835
+#: src/components/WorkoutStructureEditor.tsx:856
 #: src/pages/admin/AdminUsers.tsx:388
 msgid "Open"
 msgstr "开放"
@@ -5713,9 +5717,9 @@ msgstr "运维队列"
 msgid "optional"
 msgstr "选填"
 
-#: src/components/WorkoutPlanEditor.tsx:849
-#: src/components/WorkoutStructureEditor.tsx:634
-#: src/components/WorkoutStructureEditor.tsx:651
+#: src/components/WorkoutPlanEditor.tsx:957
+#: src/components/WorkoutStructureEditor.tsx:630
+#: src/components/WorkoutStructureEditor.tsx:648
 msgid "Optional"
 msgstr "选填"
 
@@ -5731,7 +5735,7 @@ msgstr "可选，之后也可以在目标页面设置"
 msgid "Optional 5K pilot test"
 msgstr "可选 5 公里试点测试"
 
-#: src/components/WorkoutStructureEditor.tsx:669
+#: src/components/WorkoutStructureEditor.tsx:666
 msgid "Optional coaching cue"
 msgstr "可选教练提示"
 
@@ -5743,7 +5747,7 @@ msgstr "可选备注"
 msgid "Optional context helps Praxys avoid guessing. Share only what changes the plan."
 msgstr "补充这些信息可以避免 Praxys 自行推测。只填写会影响训练计划的内容。"
 
-#: src/components/WorkoutStructureEditor.tsx:564
+#: src/components/WorkoutStructureEditor.tsx:559
 msgid "Optional label"
 msgstr "可选标签"
 
@@ -5751,7 +5755,7 @@ msgstr "可选标签"
 msgid "Optional pilot test"
 msgstr "可选试点测试"
 
-#: src/components/WorkoutPlanEditor.tsx:695
+#: src/components/WorkoutPlanEditor.tsx:795
 msgid "Optional session-level notes"
 msgstr "可选的整节训练备注"
 
@@ -5765,8 +5769,8 @@ msgstr "选项"
 
 #: src/components/PersonalContextPanel.tsx:235
 #: src/components/UpcomingPlanCard.tsx:573
-#: src/components/WorkoutPlanEditor.tsx:346
-#: src/components/WorkoutStructureEditor.tsx:180
+#: src/components/WorkoutPlanEditor.tsx:416
+#: src/components/WorkoutStructureEditor.tsx:170
 #: src/pages/admin/AdminFeedback.tsx:124
 msgid "Other"
 msgstr "其他"
@@ -5808,19 +5812,19 @@ msgstr "归属冲突"
 msgid "Pace"
 msgstr "配速"
 
-#: src/components/WorkoutStructureEditor.tsx:188
+#: src/components/WorkoutStructureEditor.tsx:178
 msgid "Pace · sec/km"
 msgstr "配速 · 秒/公里"
 
-#: src/components/WorkoutStructureEditor.tsx:189
+#: src/components/WorkoutStructureEditor.tsx:179
 msgid "Pace · threshold delta"
 msgstr "配速 · 阈值差"
 
-#: src/components/WorkoutPlanEditor.tsx:872
+#: src/components/WorkoutPlanEditor.tsx:980
 msgid "Pace maximum (min/km)"
 msgstr "配速上限（分/公里）"
 
-#: src/components/WorkoutPlanEditor.tsx:855
+#: src/components/WorkoutPlanEditor.tsx:963
 msgid "Pace minimum (min/km)"
 msgstr "配速下限（分/公里）"
 
@@ -5925,7 +5929,7 @@ msgstr "选择日期"
 msgid "Plan"
 msgstr "计划"
 
-#: src/components/WorkoutPlanEditor.tsx:556
+#: src/components/WorkoutPlanEditor.tsx:632
 msgid "Plan activity"
 msgstr "计划活动"
 
@@ -6008,7 +6012,7 @@ msgstr "策略门禁自动合并"
 msgid "Pool"
 msgstr "泳池"
 
-#: src/components/WorkoutStructureEditor.tsx:782
+#: src/components/WorkoutStructureEditor.tsx:779
 msgid "Portable v1 permits one repeat level. Add atomic steps here, not another repeat."
 msgstr "便携版 v1 仅支持一层重复组。请在此添加原子步骤，不要再嵌套重复组。"
 
@@ -6035,11 +6039,11 @@ msgstr "PostgreSQL 连接数"
 msgid "Power"
 msgstr "功率"
 
-#: src/components/WorkoutStructureEditor.tsx:185
+#: src/components/WorkoutStructureEditor.tsx:175
 msgid "Power · %CP"
 msgstr "功率 · %CP"
 
-#: src/components/WorkoutStructureEditor.tsx:184
+#: src/components/WorkoutStructureEditor.tsx:174
 msgid "Power · watts"
 msgstr "功率 · 瓦"
 
@@ -6063,11 +6067,11 @@ msgstr "功率 · 瓦"
 #~ msgid "Power {0} · CP {1} · CP source {2}"
 #~ msgstr "功率 {0} · CP {1} · CP 来源 {2}"
 
-#: src/components/WorkoutPlanEditor.tsx:810
+#: src/components/WorkoutPlanEditor.tsx:918
 msgid "Power ceiling (W)"
 msgstr "功率上限（W）"
 
-#: src/components/WorkoutPlanEditor.tsx:803
+#: src/components/WorkoutPlanEditor.tsx:911
 msgid "Power floor (W)"
 msgstr "功率下限（W）"
 
@@ -6223,7 +6227,7 @@ msgstr "Praxys 正在负责制定训练计划。"
 msgid "Praxys Labs"
 msgstr "Praxys 实验室"
 
-#: src/components/UpcomingPlanCard.tsx:1529
+#: src/components/UpcomingPlanCard.tsx:1551
 msgid "Praxys made a conservative plan change"
 msgstr "Praxys 已保守调整计划"
 
@@ -6241,8 +6245,8 @@ msgstr "在手机上使用 Praxys"
 msgid "Praxys only"
 msgstr "仅 Praxys"
 
-#: src/components/UpcomingPlanCard.tsx:1620
-#: src/components/UpcomingPlanCard.tsx:1700
+#: src/components/UpcomingPlanCard.tsx:1642
+#: src/components/UpcomingPlanCard.tsx:1722
 msgid "Praxys only changes workouts it created or you explicitly adopt. Manual workouts and workouts from another coach stay untouched."
 msgstr "Praxys 只会修改由 Praxys 创建或明确采纳的训练。手动添加及其他教练创建的训练不会受到影响。"
 
@@ -6325,7 +6329,7 @@ msgstr "预览中"
 msgid "Previous"
 msgstr "上一页"
 
-#: src/components/UpcomingPlanCard.tsx:1418
+#: src/components/UpcomingPlanCard.tsx:1440
 msgid "Previous plan window"
 msgstr "上一时间段"
 
@@ -6455,7 +6459,7 @@ msgstr "数据来源或认证失败"
 msgid "Provider authentication"
 msgstr "数据来源认证"
 
-#: src/components/WorkoutStructureEditor.tsx:1005
+#: src/components/WorkoutStructureEditor.tsx:1002
 msgid "Provider compatibility"
 msgstr "平台兼容性"
 
@@ -6924,8 +6928,8 @@ msgstr "可恢复：{0}。重试耗尽：{1}。卡在进行中：{2}。"
 #: src/components/RecoveryPanel.tsx:57
 #: src/components/RecoveryPanel.tsx:58
 #: src/components/UpcomingPlanCard.tsx:577
-#: src/components/WorkoutPlanEditor.tsx:327
-#: src/components/WorkoutStructureEditor.tsx:177
+#: src/components/WorkoutPlanEditor.tsx:397
+#: src/components/WorkoutStructureEditor.tsx:167
 #: src/lib/display-labels.ts:42
 #: src/lib/phase-label.ts:16
 #: src/pages/Science.tsx:26
@@ -7065,12 +7069,12 @@ msgstr "刷新失败，正在显示上次成功的快照。"
 #~ msgid "Refresh failed\" \"刷新失败"
 #~ msgstr ""
 
-#: src/components/UpcomingPlanCard.tsx:1302
+#: src/components/UpcomingPlanCard.tsx:1324
 msgid "Refresh the plan before deleting this workout."
 msgstr "请先刷新计划，再删除这项训练。"
 
-#: src/components/UpcomingPlanCard.tsx:1216
-#: src/components/UpcomingPlanCard.tsx:1258
+#: src/components/UpcomingPlanCard.tsx:1220
+#: src/components/UpcomingPlanCard.tsx:1280
 msgid "Refresh the plan before editing this workout."
 msgstr "请先刷新计划，再编辑这项训练。"
 
@@ -7188,15 +7192,15 @@ msgstr "正在移除…"
 msgid "Rep"
 msgstr "组"
 
-#: src/components/WorkoutStructureEditor.tsx:779
+#: src/components/WorkoutStructureEditor.tsx:776
 msgid "Repeat children"
 msgstr "重复组内步骤"
 
-#: src/components/WorkoutStructureEditor.tsx:728
+#: src/components/WorkoutStructureEditor.tsx:725
 msgid "Repeat group"
 msgstr "重复组"
 
-#: src/components/WorkoutStructureEditor.tsx:742
+#: src/components/WorkoutStructureEditor.tsx:739
 msgid "Repeat label"
 msgstr "重复组标签"
 
@@ -7208,7 +7212,7 @@ msgstr "重复组标签"
 msgid "Repeated weekly use"
 msgstr "每周重复使用率"
 
-#: src/components/WorkoutStructureEditor.tsx:755
+#: src/components/WorkoutStructureEditor.tsx:752
 msgid "Repetitions"
 msgstr "重复次数"
 
@@ -7279,10 +7283,10 @@ msgstr "已解决"
 #: src/components/ManagedPlanSettingsCard.tsx:983
 #: src/components/UpcomingPlanCard.tsx:572
 #: src/components/UpcomingPlanCard.tsx:584
-#: src/components/UpcomingPlanCard.tsx:1548
-#: src/components/WorkoutPlanEditor.tsx:334
-#: src/components/WorkoutPlanEditor.tsx:345
-#: src/components/WorkoutStructureEditor.tsx:178
+#: src/components/UpcomingPlanCard.tsx:1570
+#: src/components/WorkoutPlanEditor.tsx:404
+#: src/components/WorkoutPlanEditor.tsx:415
+#: src/components/WorkoutStructureEditor.tsx:168
 #: src/lib/phase-label.ts:17
 msgid "Rest"
 msgstr "休息"
@@ -7333,7 +7337,7 @@ msgid "Restore Praxys:"
 msgstr "恢复 Praxys 版本："
 
 #: src/components/ManagedPlanSettingsCard.tsx:1006
-#: src/components/UpcomingPlanCard.tsx:1578
+#: src/components/UpcomingPlanCard.tsx:1600
 msgid "Restore workout"
 msgstr "恢复训练"
 
@@ -7343,7 +7347,7 @@ msgstr "已恢复"
 
 #: src/components/ManagedPlanSettingsCard.tsx:1005
 #: src/components/UpcomingPlanCard.tsx:860
-#: src/components/UpcomingPlanCard.tsx:1577
+#: src/components/UpcomingPlanCard.tsx:1599
 msgid "Restoring…"
 msgstr "正在恢复…"
 
@@ -7367,7 +7371,7 @@ msgstr "检索到候选活动不代表其已合格；只有完整活动，并明
 #: src/components/ManagedPlanSettingsCard.tsx:1026
 #: src/components/PersonalContextPanel.tsx:755
 #: src/components/UpcomingPlanCard.tsx:341
-#: src/components/UpcomingPlanCard.tsx:1349
+#: src/components/UpcomingPlanCard.tsx:1371
 #: src/pages/admin/AdminFeedback.tsx:582
 #: src/pages/admin/AdminRouteState.tsx:36
 #: src/pages/admin/AdminUsers.tsx:544
@@ -7463,7 +7467,7 @@ msgstr "保存前确认"
 #: src/components/UpcomingPlanCard.tsx:439
 #: src/components/UpcomingPlanCard.tsx:469
 #: src/components/UpcomingPlanCard.tsx:483
-#: src/components/UpcomingPlanCard.tsx:1501
+#: src/components/UpcomingPlanCard.tsx:1523
 msgid "Review conflict"
 msgstr "处理冲突"
 
@@ -7510,8 +7514,8 @@ msgid "Review the exact purpose and access below. The plugin cannot approve this
 msgstr "请核对以下具体用途和权限。插件无法批准此请求、读取补充说明、授予 AI 权限或自行保存计划个性化信息。"
 
 #: src/components/UpcomingPlanCard.tsx:1185
-#: src/components/WorkoutPlanEditor.tsx:413
-#: src/components/WorkoutStructureEditor.tsx:172
+#: src/components/WorkoutPlanEditor.tsx:489
+#: src/components/WorkoutStructureEditor.tsx:162
 msgid "Review the highlighted step fields. Every typed target and termination must be complete."
 msgstr "请检查标出的步骤字段。每个带类型的目标和结束条件都必须完整。"
 
@@ -7557,7 +7561,7 @@ msgid "Road"
 msgstr "公路"
 
 #: src/components/UpcomingPlanCard.tsx:564
-#: src/components/WorkoutPlanEditor.tsx:337
+#: src/components/WorkoutPlanEditor.tsx:407
 msgid "Road running"
 msgstr "公路跑"
 
@@ -7573,7 +7577,7 @@ msgstr "滚动 1 / 7 / 30 天"
 msgid "Rolling recompute limit reached"
 msgstr "已达到滚动重新计算上限"
 
-#: src/components/WorkoutStructureEditor.tsx:190
+#: src/components/WorkoutStructureEditor.tsx:180
 msgid "RPE · 0–10"
 msgstr "主观用力程度（RPE）· 0–10"
 
@@ -7698,7 +7702,7 @@ msgstr "保存"
 msgid "Save target"
 msgstr "保存执行平台"
 
-#: src/components/WorkoutPlanEditor.tsx:752
+#: src/components/WorkoutPlanEditor.tsx:860
 msgid "Save workout"
 msgstr "保存训练"
 
@@ -7722,7 +7726,7 @@ msgstr "正在保存决定…"
 msgid "Saving target…"
 msgstr "正在保存执行平台…"
 
-#: src/components/WorkoutPlanEditor.tsx:549
+#: src/components/WorkoutPlanEditor.tsx:625
 msgid "Saving will reschedule this workout."
 msgstr "保存后，这项训练会改期。"
 
@@ -7731,7 +7735,7 @@ msgstr "保存后，这项训练会改期。"
 #~ msgstr "保存中…"
 
 #: src/components/GoalEditor.tsx:57
-#: src/components/WorkoutPlanEditor.tsx:748
+#: src/components/WorkoutPlanEditor.tsx:856
 #: src/pages/Login.tsx:472
 msgid "Saving…"
 msgstr "保存中…"
@@ -7813,7 +7817,7 @@ msgstr "选择执行平台不会立即启用下发。下一步会先确认托管
 msgid "Self-registration"
 msgstr "自助注册"
 
-#: src/components/WorkoutStructureEditor.tsx:266
+#: src/components/WorkoutStructureEditor.tsx:261
 msgid "Semantics describe the portable step. Labels and instructions preserve your own wording; Praxys never infers a warm-up, cool-down, or repeat from it."
 msgstr "语义描述可移植的步骤。标签和说明保留你的措辞；Praxys 不会从中推断热身、放松或重复组。"
 
@@ -8117,7 +8121,7 @@ msgstr "部分既往热适应可能仍然存在，但不同适应反应的证据
 msgid "Source"
 msgstr "来源"
 
-#: src/components/WorkoutPlanEditor.tsx:733
+#: src/components/WorkoutPlanEditor.tsx:836
 msgid "Source stays unchanged"
 msgstr "源训练保持不变"
 
@@ -8198,31 +8202,31 @@ msgstr "暂不测试"
 msgid "Steady"
 msgstr "匀速"
 
-#: src/components/WorkoutStructureEditor.tsx:275
+#: src/components/WorkoutStructureEditor.tsx:270
 msgid "step"
 msgstr "步骤"
 
-#: src/components/WorkoutStructureEditor.tsx:528
+#: src/components/WorkoutStructureEditor.tsx:523
 msgid "Step"
 msgstr "步骤"
 
-#: src/components/WorkoutStructureEditor.tsx:658
+#: src/components/WorkoutStructureEditor.tsx:655
 msgid "Step instructions"
 msgstr "步骤说明"
 
-#: src/components/WorkoutStructureEditor.tsx:215
+#: src/components/WorkoutStructureEditor.tsx:205
 msgid "Step or repeat wording cannot be preserved safely."
 msgstr "无法安全保留步骤或重复组的措辞。"
 
-#: src/components/WorkoutStructureEditor.tsx:433
+#: src/components/WorkoutStructureEditor.tsx:428
 msgid "Step removed. You can restore it before saving."
 msgstr "步骤已删除。保存前可以恢复。"
 
-#: src/components/WorkoutStructureEditor.tsx:542
+#: src/components/WorkoutStructureEditor.tsx:537
 msgid "Step semantic"
 msgstr "步骤语义"
 
-#: src/components/WorkoutStructureEditor.tsx:276
+#: src/components/WorkoutStructureEditor.tsx:271
 msgid "steps"
 msgstr "步骤"
 
@@ -8265,7 +8269,7 @@ msgid "Strava Client Secret"
 msgstr "Strava 客户端密钥"
 
 #: src/components/UpcomingPlanCard.tsx:569
-#: src/components/WorkoutPlanEditor.tsx:342
+#: src/components/WorkoutPlanEditor.tsx:412
 #: src/pages/Setup.tsx:169
 msgid "Strength"
 msgstr "力量训练"
@@ -8295,11 +8299,11 @@ msgstr "已保存的信息"
 msgid "Structured fields sent"
 msgstr "将发送的信息"
 
-#: src/components/WorkoutStructureEditor.tsx:263
+#: src/components/WorkoutStructureEditor.tsx:258
 msgid "Structured steps"
 msgstr "结构化步骤"
 
-#: src/components/WorkoutStructureEditor.tsx:212
+#: src/components/WorkoutStructureEditor.tsx:202
 msgid "Structured workouts are not supported by this provider."
 msgstr "该平台不支持结构化训练。"
 
@@ -8566,11 +8570,11 @@ msgstr "目标 {metricName}"
 msgid "Target a race or track continuous improvement"
 msgstr "瞄准一场比赛或追踪持续提升"
 
-#: src/components/WorkoutStructureEditor.tsx:638
+#: src/components/WorkoutStructureEditor.tsx:634
 msgid "Target maximum"
 msgstr "目标上限"
 
-#: src/components/WorkoutStructureEditor.tsx:621
+#: src/components/WorkoutStructureEditor.tsx:616
 msgid "Target minimum"
 msgstr "目标下限"
 
@@ -8582,7 +8586,7 @@ msgstr "目标时间"
 msgid "Target Time"
 msgstr "目标完赛时间"
 
-#: src/components/WorkoutStructureEditor.tsx:586
+#: src/components/WorkoutStructureEditor.tsx:581
 msgid "Target type"
 msgstr "目标类型"
 
@@ -8607,7 +8611,7 @@ msgid "Temperature is missing from too many otherwise eligible activities."
 msgstr "其他条件合格的活动中，温度缺失过多。"
 
 #: src/components/UpcomingPlanCard.tsx:579
-#: src/components/WorkoutPlanEditor.tsx:329
+#: src/components/WorkoutPlanEditor.tsx:399
 #: src/lib/display-labels.ts:44
 #: src/lib/phase-label.ts:14
 msgid "Tempo"
@@ -8626,7 +8630,7 @@ msgstr "这类临时信息最长可生效 90 天。"
 msgid "Temporary service issue; retry queued"
 msgstr "临时服务问题，已排队重试"
 
-#: src/components/WorkoutStructureEditor.tsx:843
+#: src/components/WorkoutStructureEditor.tsx:840
 msgid "Termination"
 msgstr "结束条件"
 
@@ -8639,7 +8643,7 @@ msgid "Test pending"
 msgstr "测试待完成"
 
 #: src/components/UpcomingPlanCard.tsx:583
-#: src/components/WorkoutPlanEditor.tsx:333
+#: src/components/WorkoutPlanEditor.tsx:403
 msgid "Testing"
 msgstr "测试"
 
@@ -8831,7 +8835,7 @@ msgstr "Praxys 计划会保留，目标平台上的训练不会更改。"
 msgid "The Praxys workout is missing from {target}. Restoring it keeps the Praxys version canonical."
 msgstr "{target} 上缺少此 Praxys 训练。恢复后仍以 Praxys 版本为准。"
 
-#: src/components/UpcomingPlanCard.tsx:1532
+#: src/components/UpcomingPlanCard.tsx:1554
 msgid "The previous workout was restored"
 msgstr "已恢复上一项训练"
 
@@ -8877,7 +8881,7 @@ msgstr "同一可比功率范围未覆盖足够多的环境条件。"
 msgid "The selected day's activities show why each session entered or stayed outside the estimate."
 msgstr "所选日期的活动会说明每次训练为何被纳入估算，或为何仍未纳入。"
 
-#: src/components/WorkoutPlanEditor.tsx:508
+#: src/components/WorkoutPlanEditor.tsx:584
 msgid "The source workout stays locked. Save this copy as a new Praxys-owned workout before changing it."
 msgstr "源训练已锁定。请先将此副本另存为 Praxys 所有的训练，再修改。"
 
@@ -8897,7 +8901,7 @@ msgstr "这些阈值是 Praxys 基于热适应研究设定的操作性估计，�
 msgid "The weekly history will appear after the data service update completes."
 msgstr "数据服务更新完成后，每周历史图表将自动显示。"
 
-#: src/components/WorkoutStructureEditor.tsx:210
+#: src/components/WorkoutStructureEditor.tsx:200
 msgid "The workout structure is not a supported portable version."
 msgstr "训练结构不是受支持的便携版本。"
 
@@ -8925,7 +8929,7 @@ msgstr "按时间顺序的数据不足，无法评估该关系在后续活动中
 #~ msgid "There is not enough repeated qualifying exposure to estimate acclimatization to similar conditions."
 #~ msgstr "重复且符合条件的暴露还不够，暂时无法估算你是否适应相似环境。"
 
-#: src/components/WorkoutStructureEditor.tsx:206
+#: src/components/WorkoutStructureEditor.tsx:196
 msgid "This activity is not supported by the provider."
 msgstr "该平台不支持此活动类型。"
 
@@ -8937,11 +8941,11 @@ msgstr "仅在历史证据缺失、过期或仍待确认时提供。这是一项
 msgid "This cannot be undone. If this is the last admin account, deletion will be blocked."
 msgstr "此操作无法撤销。如果这是最后一个管理员账号，将无法删除。"
 
-#: src/components/UpcomingPlanCard.tsx:1555
+#: src/components/UpcomingPlanCard.tsx:1577
 msgid "This change used confirmed private context. The private detail is not copied into the plan record."
 msgstr "这次调整使用了已确认的计划个性化信息，具体内容不会写入计划记录。"
 
-#: src/components/WorkoutStructureEditor.tsx:1008
+#: src/components/WorkoutStructureEditor.tsx:1005
 msgid "This checks portable workout content only. It never connects to a provider or delivers a workout."
 msgstr "此检查仅验证可移植训练内容。不会连接平台或发送训练。"
 
@@ -8994,7 +8998,7 @@ msgstr "此护栏采用个体化 HRV 指导，且不会加载活动强度。具�
 #~ msgid "This guardrail uses individualized HRV guidance, never activity average power. Missing or stale recovery, a completed activity, multiple Praxys workouts, or an uncertain target calendar keeps the plan unchanged. Load, sleep, and other caution signals remain suggestions."
 #~ msgstr "此护栏采用个体化 HRV 指导，绝不使用活动平均功率。恢复数据缺失或过期、今天已有活动记录、存在多项 Praxys 训练，或目标日历状态不确定时，计划保持不变。负荷、睡眠及其他警戒信号仍只用于提供建议。"
 
-#: src/components/WorkoutPlanEditor.tsx:641
+#: src/components/WorkoutPlanEditor.tsx:741
 msgid "This imported or older workout has no portable tree. Edit its summary as-is, or explicitly convert one flat step without guessing semantics."
 msgstr "此导入或旧版训练没有便携结构树。可按原样编辑摘要，或显式转换为一个扁平步骤，不会猜测语义。"
 
@@ -9042,11 +9046,11 @@ msgstr "这不构成医疗许可，也不是个人耐热能力评估。"
 msgid "This is Stull’s psychrometric estimate from air temperature and relative humidity. It is not apparent temperature, natural wet bulb, outdoor WBGT, body temperature, or a heat-safety assessment."
 msgstr "这是根据气温和相对湿度计算的 Stull 干湿球湿球温度估算值。它不是体感温度、自然湿球温度、室外 WBGT、体温或高温安全评估。"
 
-#: src/components/WorkoutStructureEditor.tsx:1053
+#: src/components/WorkoutStructureEditor.tsx:1050
 msgid "This legacy flat workout has no portable tree to flatten."
 msgstr "此旧版扁平训练没有可被压扁的便携结构树。"
 
-#: src/components/WorkoutStructureEditor.tsx:209
+#: src/components/WorkoutStructureEditor.tsx:199
 msgid "This legacy flat workout would need a time duration and a power range to avoid provider defaults."
 msgstr "此旧版扁平训练需要时长和功率范围，才能避免使用平台默认值。"
 
@@ -9078,7 +9082,7 @@ msgstr "当前试点仅支持户外公路完整 5 公里耗时目标。"
 msgid "This pilot is only for adults who already can complete 5 km."
 msgstr "本试点仅适用于已经能够完成 5 公里的成年人。"
 
-#: src/components/WorkoutStructureEditor.tsx:1052
+#: src/components/WorkoutStructureEditor.tsx:1049
 msgid "This portable structure can be represented without flattening."
 msgstr "此便携结构可以不压扁地表达。"
 
@@ -9095,7 +9099,7 @@ msgstr "这个队列项已不存在。请刷新队列。"
 msgid "This quick check only covers definite prerequisites. The full analysis can still return insufficient support, an unstable association, or no conclusion."
 msgstr "快速检查只覆盖明确的前置条件。完整分析仍可能返回支持不足、关联不稳定或无法得出结论。"
 
-#: src/components/WorkoutPlanEditor.tsx:457
+#: src/components/WorkoutPlanEditor.tsx:533
 msgid "This removes the Praxys workout from the canonical plan. Any external workout stays untouched."
 msgstr "这会从 Praxys 主计划中删除该训练。外部训练不会受到影响。"
 
@@ -9122,11 +9126,16 @@ msgstr "此部分暂不可用，其他管理流程仍可使用。"
 msgid "This sits inside your displayed historical range and is marked on the curve."
 msgstr "该值位于已显示的历史范围内，并已标记在曲线上。"
 
-#: src/components/WorkoutStructureEditor.tsx:211
+#: src/components/WorkoutPlanEditor.tsx:481
+#: src/components/WorkoutPlanEditor.tsx:719
+msgid "This source uses a newer workout structure and cannot be duplicated without losing details."
+msgstr "此来源使用了较新版本的训练结构；为避免丢失细节，暂无法复制。"
+
+#: src/components/WorkoutStructureEditor.tsx:201
 msgid "This step semantic cannot be represented safely."
 msgstr "无法安全表达此步骤语义。"
 
-#: src/components/WorkoutStructureEditor.tsx:214
+#: src/components/WorkoutStructureEditor.tsx:204
 msgid "This step termination cannot be represented safely."
 msgstr "无法安全表达此步骤结束条件。"
 
@@ -9134,7 +9143,7 @@ msgstr "无法安全表达此步骤结束条件。"
 msgid "This structure is authoritative. Edit its steps instead of changing its flat summary."
 msgstr "此结构是权威内容。请编辑其步骤，而非更改扁平摘要。"
 
-#: src/components/WorkoutStructureEditor.tsx:213
+#: src/components/WorkoutStructureEditor.tsx:203
 msgid "This typed target cannot be represented safely."
 msgstr "无法安全表达此带类型的目标。"
 
@@ -9155,12 +9164,16 @@ msgstr "这项训练已在其他位置更新。计划已刷新，请重新打开
 msgid "This workout stays external unless you explicitly make it canonical in Praxys."
 msgstr "除非明确采纳到 Praxys，否则此训练会保持为外部训练。"
 
+#: src/components/WorkoutPlanEditor.tsx:724
+msgid "This workout uses a newer portable structure that this editor cannot change safely. Date and notes remain editable; Praxys preserves the structure byte-for-byte."
+msgstr "此训练使用了当前编辑器尚无法安全修改的较新便携结构。你仍可编辑日期和备注；Praxys 会完整原样保留该结构。"
+
 #: src/components/UpcomingPlanCard.tsx:160
 #~ msgid "This workout was imported from Stryd."
 #~ msgstr "此训练由 Stryd 导入。"
 
 #: src/components/UpcomingPlanCard.tsx:580
-#: src/components/WorkoutPlanEditor.tsx:330
+#: src/components/WorkoutPlanEditor.tsx:400
 #: src/lib/display-labels.ts:45
 #: src/lib/phase-label.ts:15
 msgid "Threshold"
@@ -9183,12 +9196,12 @@ msgstr "阈值"
 msgid "Thu"
 msgstr "周四"
 
-#: src/components/WorkoutStructureEditor.tsx:836
-#: src/components/WorkoutStructureEditor.tsx:857
+#: src/components/WorkoutStructureEditor.tsx:833
+#: src/components/WorkoutStructureEditor.tsx:854
 msgid "Time"
 msgstr "时间"
 
-#: src/components/WorkoutStructureEditor.tsx:873
+#: src/components/WorkoutStructureEditor.tsx:870
 msgid "Time in seconds"
 msgstr "时间（秒）"
 
@@ -9282,7 +9295,7 @@ msgstr "当前网络请求次数过多，请直接发邮件联系我们。"
 msgid "Total users tracked"
 msgstr "已记录用户总数"
 
-#: src/components/WorkoutStructureEditor.tsx:304
+#: src/components/WorkoutStructureEditor.tsx:299
 msgid "Totals are deterministic only when every repeated step has the same measurable termination. Praxys does not invent a training-load score here."
 msgstr "仅当每个重复步骤具有同一可测结束条件时，总计才是确定的。Praxys 不会在此虚构训练负荷分数。"
 
@@ -9304,7 +9317,7 @@ msgid "Trail"
 msgstr "越野"
 
 #: src/components/UpcomingPlanCard.tsx:565
-#: src/components/WorkoutPlanEditor.tsx:338
+#: src/components/WorkoutPlanEditor.tsx:408
 msgid "Trail running"
 msgstr "越野跑"
 
@@ -9384,7 +9397,7 @@ msgstr "来自后端可信遥测边界的同步与连接结果。"
 #~ msgid "Trusted Today signals"
 #~ msgstr "受信任的今日信号"
 
-#: src/components/UpcomingPlanCard.tsx:1601
+#: src/components/UpcomingPlanCard.tsx:1623
 msgid "Try a longer window above."
 msgstr "试试上方更长的时间窗口。"
 
@@ -9477,35 +9490,35 @@ msgstr "安全相关信息不支持 AI 处理"
 msgid "Unclassified"
 msgstr "未分类"
 
-#: src/components/WorkoutStructureEditor.tsx:443
+#: src/components/WorkoutStructureEditor.tsx:438
 msgid "Undo"
 msgstr "撤销"
 
-#: src/components/WorkoutStructureEditor.tsx:195
+#: src/components/WorkoutStructureEditor.tsx:185
 msgid "Unit: %CP · Reference: critical power"
 msgstr "单位：%CP · 参考：临界功率"
 
-#: src/components/WorkoutStructureEditor.tsx:197
+#: src/components/WorkoutStructureEditor.tsx:187
 msgid "Unit: %LTHR · Reference: LTHR"
 msgstr "单位：%LTHR · 参考：乳酸阈值心率"
 
-#: src/components/WorkoutStructureEditor.tsx:200
+#: src/components/WorkoutStructureEditor.tsx:190
 msgid "Unit: 10-point scale · Reference: perceived exertion"
 msgstr "单位：10 分制 · 参考：主观用力程度"
 
-#: src/components/WorkoutStructureEditor.tsx:196
+#: src/components/WorkoutStructureEditor.tsx:186
 msgid "Unit: bpm · Reference: absolute"
 msgstr "单位：bpm · 参考：绝对值"
 
-#: src/components/WorkoutStructureEditor.tsx:198
+#: src/components/WorkoutStructureEditor.tsx:188
 msgid "Unit: sec/km · Reference: absolute"
 msgstr "单位：秒/公里 · 参考：绝对值"
 
-#: src/components/WorkoutStructureEditor.tsx:199
+#: src/components/WorkoutStructureEditor.tsx:189
 msgid "Unit: sec/km delta · Reference: threshold pace"
 msgstr "单位：秒/公里差 · 参考：阈值配速"
 
-#: src/components/WorkoutStructureEditor.tsx:194
+#: src/components/WorkoutStructureEditor.tsx:184
 msgid "Unit: watts · Reference: absolute"
 msgstr "单位：瓦 · 参考：绝对值"
 
@@ -9513,13 +9526,13 @@ msgstr "单位：瓦 · 参考：绝对值"
 msgid "Units"
 msgstr "单位"
 
-#: src/components/WorkoutStructureEditor.tsx:481
+#: src/components/WorkoutStructureEditor.tsx:476
 msgid "unknown"
 msgstr "未知"
 
-#: src/components/WorkoutStructureEditor.tsx:285
-#: src/components/WorkoutStructureEditor.tsx:292
-#: src/components/WorkoutStructureEditor.tsx:299
+#: src/components/WorkoutStructureEditor.tsx:280
+#: src/components/WorkoutStructureEditor.tsx:287
+#: src/components/WorkoutStructureEditor.tsx:294
 msgid "Unknown"
 msgstr "未知"
 
@@ -9548,7 +9561,7 @@ msgstr "未验证"
 msgid "Up to date"
 msgstr "最新"
 
-#: src/components/UpcomingPlanCard.tsx:1404
+#: src/components/UpcomingPlanCard.tsx:1426
 msgid "Upcoming Plan"
 msgstr "近期计划"
 
@@ -9556,7 +9569,7 @@ msgstr "近期计划"
 msgid "Update message (optional)"
 msgstr "更新信息（可选）"
 
-#: src/components/WorkoutPlanEditor.tsx:513
+#: src/components/WorkoutPlanEditor.tsx:589
 msgid "Update the canonical plan here. Connector delivery changes only when managed delivery is active."
 msgstr "在这里更新主计划。只有启用托管交付后，变更才会同步到执行平台。"
 
@@ -9780,12 +9793,12 @@ msgid "Waitlist unavailable"
 msgstr "候补名单不可用"
 
 #: src/components/UpcomingPlanCard.tsx:567
-#: src/components/WorkoutPlanEditor.tsx:340
+#: src/components/WorkoutPlanEditor.tsx:410
 #: src/pages/Setup.tsx:168
 msgid "Walking"
 msgstr "步行"
 
-#: src/components/WorkoutStructureEditor.tsx:175
+#: src/components/WorkoutStructureEditor.tsx:165
 msgid "Warm-up"
 msgstr "热身"
 
@@ -10006,7 +10019,7 @@ msgstr "已撤回"
 msgid "Within reference band"
 msgstr "处于参考区间内"
 
-#: src/components/WorkoutStructureEditor.tsx:176
+#: src/components/WorkoutStructureEditor.tsx:166
 msgid "Work"
 msgstr "训练"
 
@@ -10020,7 +10033,7 @@ msgstr "负荷证据"
 
 #: src/components/ManagedPlanSettingsCard.tsx:979
 #: src/components/PersonalContextPanel.tsx:879
-#: src/components/UpcomingPlanCard.tsx:1546
+#: src/components/UpcomingPlanCard.tsx:1568
 msgid "Workout"
 msgstr "训练"
 
@@ -10049,11 +10062,11 @@ msgstr "训练情况说明"
 msgid "Workout interpretation"
 msgstr "训练解读"
 
-#: src/components/WorkoutPlanEditor.tsx:682
+#: src/components/WorkoutPlanEditor.tsx:782
 msgid "Workout notes"
 msgstr "训练备注"
 
-#: src/components/WorkoutPlanEditor.tsx:587
+#: src/components/WorkoutPlanEditor.tsx:665
 msgid "Workout purpose"
 msgstr "训练目的"
 
@@ -10061,7 +10074,7 @@ msgstr "训练目的"
 msgid "Workout status"
 msgstr "训练完成情况"
 
-#: src/components/WorkoutStructureEditor.tsx:319
+#: src/components/WorkoutStructureEditor.tsx:314
 msgid "Workout steps"
 msgstr "训练步骤"
 

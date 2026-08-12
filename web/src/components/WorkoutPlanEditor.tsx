@@ -40,6 +40,7 @@ import type {
   PlannedWorkout,
   PlanWorkoutCompatibilityRequest,
   PlanWorkoutCompatibilityResponse,
+  PlanWorkoutUpdateRequest,
   PlanWorkoutWriteFields,
   WorkoutStructureV1,
 } from '@/types/api';
@@ -70,7 +71,10 @@ const ACTIVITIES: PlanActivityType[] = [
   'other',
 ];
 
-type EditorMode = 'legacy' | 'structured';
+type EditorMode = 'legacy' | 'structured' | 'unsupported';
+type WorkoutEditorSaveFields =
+  | PlanWorkoutWriteFields
+  | Omit<PlanWorkoutUpdateRequest, 'expected_version'>;
 
 interface WorkoutDraft {
   date: string;
@@ -101,10 +105,44 @@ function defaultActivity(workoutType: string): PlanActivityType {
   return isRestWorkoutType(workoutType) ? 'rest' : 'running';
 }
 
+function portableActivity(
+  value: unknown,
+  workoutType: string,
+): PlanActivityType {
+  if (isRestWorkoutType(workoutType)) return 'rest';
+  if (
+    typeof value === 'string'
+    && value !== 'rest'
+    && ACTIVITIES.includes(value as PlanActivityType)
+  ) {
+    return value as PlanActivityType;
+  }
+  return value == null ? defaultActivity(workoutType) : 'other';
+}
+
 function structuredDefault(workoutType: string): WorkoutStructureV1 {
   return isRestWorkoutType(workoutType)
     ? { steps: [] }
     : { steps: [createStructuredStep()] };
+}
+
+function supportedStructure(
+  workout: PlannedWorkout | null,
+): WorkoutStructureV1 | null {
+  if (
+    workout?.workout_structure_version !== 'v1'
+    || workout.workout_structure == null
+    || (
+      workout.workout_structure_status != null
+      && workout.workout_structure_status !== 'supported'
+    )
+  ) return null;
+  const candidate = workout.workout_structure;
+  if (
+    typeof candidate !== 'object'
+    || !Array.isArray((candidate as { steps?: unknown }).steps)
+  ) return null;
+  return candidate as WorkoutStructureV1;
 }
 
 function initialDraft(
@@ -115,17 +153,26 @@ function initialDraft(
 ): WorkoutDraft {
   const source = workout ?? seedWorkout;
   const workoutType = source?.workout_type ?? 'easy';
-  const activityType = source?.activity_type
-    ?? defaultActivity(workoutType);
-  const hasStructure = (
-    source?.workout_structure_version === 'v1'
-    && source.workout_structure != null
+  const activityType = portableActivity(source?.activity_type, workoutType);
+  const structureFromSource = supportedStructure(source);
+  const hasStructure = structureFromSource != null;
+  const hasUnsupportedStructure = (
+    source != null
+    && (
+      (
+        source.workout_structure_status != null
+        && source.workout_structure_status !== 'absent'
+        && source.workout_structure_status !== 'supported'
+      )
+      ||
+      source.workout_structure_version != null
+      || source.workout_structure != null
+    )
+    && !hasStructure
   );
   const sourceDate = source?.date ?? defaultDate;
-  const structure: WorkoutStructureV1 = (
-    hasStructure && source?.workout_structure
-  )
-    ? source.workout_structure
+  const structure: WorkoutStructureV1 = structureFromSource
+    ? structureFromSource
     : structuredDefault(workoutType);
   return {
     date: sourceDate >= minimumDate ? sourceDate : defaultDate,
@@ -142,7 +189,11 @@ function initialDraft(
     description: source?.description ?? '',
     // Existing legacy rows stay flat until the athlete explicitly converts
     // them. New Praxys authoring starts from the portable rich structure.
-    mode: hasStructure || source == null ? 'structured' : 'legacy',
+    mode: hasUnsupportedStructure
+      ? 'unsupported'
+      : hasStructure || source == null
+        ? 'structured'
+        : 'legacy',
     structure,
     previousNonRestStructure: !isRestWorkoutType(workoutType)
       ? structure
@@ -171,7 +222,13 @@ function flatWriteFields(draft: WorkoutDraft): Omit<
   };
 }
 
-function writeFields(draft: WorkoutDraft): PlanWorkoutWriteFields {
+function writeFields(draft: WorkoutDraft): WorkoutEditorSaveFields {
+  if (draft.mode === 'unsupported') {
+    return {
+      date: draft.date,
+      workout_description: draft.description.trim(),
+    };
+  }
   const flat = flatWriteFields(draft);
   if (draft.mode === 'legacy') return flat;
   const isRest = isRestWorkoutType(draft.workoutType);
@@ -235,7 +292,7 @@ export default function WorkoutPlanEditor({
   working: boolean;
   error: string | null;
   onOpenChange: (open: boolean) => void;
-  onSave: (fields: PlanWorkoutWriteFields) => void;
+  onSave: (fields: WorkoutEditorSaveFields) => void;
   onConvertToRest: (date: string) => void;
   onDelete: () => void;
 }) {
@@ -254,6 +311,7 @@ export default function WorkoutPlanEditor({
   );
   const editing = workout != null;
   const forking = !editing && seedWorkout != null;
+  const unsupportedFork = forking && draft.mode === 'unsupported';
   const restSelected = isRestWorkoutType(draft.workoutType);
   const selectedPurpose = PURPOSES.includes(
     draft.workoutType as typeof PURPOSES[number],
@@ -262,12 +320,16 @@ export default function WorkoutPlanEditor({
     : CUSTOM_PURPOSE;
   const draftErrors = useMemo(() => validationErrors(draft), [draft]);
   const compatibilityPayload = useMemo(
-    () => writeFields(draft) as PlanWorkoutCompatibilityRequest,
+    () => draft.mode === 'unsupported'
+      ? null
+      : writeFields(draft) as PlanWorkoutCompatibilityRequest,
     [draft],
   );
-  const previewIssue = (
-    draftErrors[0] ?? errorMessage(compatibilityPayload)
-  );
+  const previewIssue = draft.mode === 'unsupported'
+    ? null
+    : draftErrors[0] ?? errorMessage(
+        compatibilityPayload as PlanWorkoutCompatibilityRequest,
+      );
 
   useEffect(() => {
     if (!open) return;
@@ -286,6 +348,12 @@ export default function WorkoutPlanEditor({
 
   useEffect(() => {
     if (!open) return undefined;
+    if (draft.mode === 'unsupported') {
+      setCompatibilityLoading(false);
+      setCompatibility(workout?.provider_compatibility ?? null);
+      setCompatibilityError(null);
+      return undefined;
+    }
     if (previewIssue) {
       setCompatibilityLoading(false);
       setCompatibility(null);
@@ -300,7 +368,9 @@ export default function WorkoutPlanEditor({
         const response = await apiFetch('/api/plan/workouts/compatibility', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(compatibilityPayload),
+          body: JSON.stringify(
+            compatibilityPayload as PlanWorkoutCompatibilityRequest,
+          ),
         });
         if (!response.ok) throw new Error('preview failed');
         const preview = await response.json() as PlanWorkoutCompatibilityResponse;
@@ -320,7 +390,7 @@ export default function WorkoutPlanEditor({
       active = false;
       window.clearTimeout(timeout);
     };
-  }, [compatibilityPayload, open, previewIssue, t]);
+  }, [compatibilityPayload, draft.mode, open, previewIssue, t, workout]);
 
   const purposeLabels: Record<string, string> = {
     easy: t`Easy`,
@@ -406,6 +476,12 @@ export default function WorkoutPlanEditor({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (unsupportedFork) {
+      setLocalError(
+        t`This source uses a newer workout structure and cannot be duplicated without losing details.`,
+      );
+      return;
+    }
     const errors = validationErrors(draft);
     if (errors.length > 0) {
       setLocalError(
@@ -420,7 +496,7 @@ export default function WorkoutPlanEditor({
   };
 
   const convertToRest = () => {
-    if (!editing) return;
+    if (!editing || draft.mode === 'unsupported') return;
     if (draft.mode === 'legacy') {
       onConvertToRest(draft.date);
       return;
@@ -557,7 +633,9 @@ export default function WorkoutPlanEditor({
                 </Label>
                 <Select
                   value={restSelected ? 'rest' : draft.activityType}
-                  disabled={working || restSelected}
+                  disabled={
+                    working || restSelected || draft.mode === 'unsupported'
+                  }
                   onValueChange={(value) => setDraft((current) => ({
                     ...current,
                     activityType: (value ?? current.activityType) as PlanActivityType,
@@ -588,7 +666,7 @@ export default function WorkoutPlanEditor({
                 </Label>
                 <Select
                   value={selectedPurpose}
-                  disabled={working}
+                  disabled={working || draft.mode === 'unsupported'}
                   onValueChange={(value) => {
                     if (value) setPurpose(value);
                   }}
@@ -617,7 +695,7 @@ export default function WorkoutPlanEditor({
                   <Input
                     id="plan-workout-custom-purpose"
                     value={draft.workoutType}
-                    disabled={working}
+                    disabled={working || draft.mode === 'unsupported'}
                     maxLength={50}
                     onChange={(event) => setDraft((current) => ({
                       ...current,
@@ -630,7 +708,29 @@ export default function WorkoutPlanEditor({
               )}
             </div>
 
-            {draft.mode === 'legacy' ? (
+            {draft.mode === 'unsupported' ? (
+              <section className="border-y border-border py-5">
+                <h3 className="mb-2 text-sm font-semibold text-foreground">
+                  <Trans>Newer workout structure</Trans>
+                </h3>
+                <Alert>
+                  <AlertDescription className="text-xs leading-relaxed">
+                    {unsupportedFork ? (
+                      <Trans>
+                        This source uses a newer workout structure and cannot
+                        be duplicated without losing details.
+                      </Trans>
+                    ) : (
+                      <Trans>
+                        This workout uses a newer portable structure that this
+                        editor cannot change safely. Date and notes remain
+                        editable; Praxys preserves the structure byte-for-byte.
+                      </Trans>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              </section>
+            ) : draft.mode === 'legacy' ? (
               <section className="border-y border-border py-5">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
@@ -716,7 +816,10 @@ export default function WorkoutPlanEditor({
                     <Trans>Delete</Trans>
                   </Button>
                 )}
-                {editing && !isRestWorkoutType(workout.workout_type) && (
+                {editing
+                  && draft.mode !== 'unsupported'
+                  && !isRestWorkoutType(workout.workout_type)
+                  && (
                   <Button
                     type="button"
                     variant="outline"
@@ -726,7 +829,7 @@ export default function WorkoutPlanEditor({
                     <Moon aria-hidden="true" />
                     <Trans>Convert to rest</Trans>
                   </Button>
-                )}
+                  )}
                 {forking && (
                   <span className="inline-flex items-center gap-1.5 self-center text-xs text-muted-foreground">
                     <GitFork className="h-3.5 w-3.5 text-accent-cobalt" aria-hidden="true" />
@@ -743,7 +846,12 @@ export default function WorkoutPlanEditor({
                 >
                   <Trans>Cancel</Trans>
                 </Button>
-                <Button type="submit" disabled={working || draftErrors.length > 0}>
+                <Button
+                  type="submit"
+                  disabled={
+                    working || draftErrors.length > 0 || unsupportedFork
+                  }
+                >
                   {working
                     ? <Trans>Saving…</Trans>
                     : forking

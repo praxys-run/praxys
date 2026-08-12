@@ -1205,7 +1205,11 @@ export default function UpcomingPlanCard() {
     );
   };
 
-  const saveWorkout = async (fields: PlanWorkoutWriteFields) => {
+  const saveWorkout = async (
+    fields:
+      | PlanWorkoutWriteFields
+      | Omit<PlanWorkoutUpdateRequest, 'expected_version'>,
+  ) => {
     setEditorWorking(true);
     setEditorError(null);
     setMutationNotice(null);
@@ -1215,10 +1219,28 @@ export default function UpcomingPlanCard() {
         if (!workout.canonical_id || !workout.workout_version) {
           throw new Error(t`Refresh the plan before editing this workout.`);
         }
-        const payload: PlanWorkoutUpdateRequest = {
-          ...fields,
+        const {
+          activity_type: activityType,
+          workout_structure_version: structureVersion,
+          workout_structure: structure,
+          ...updateFields
+        } = fields;
+        const updateBase = {
+          ...updateFields,
+          ...(activityType == null
+            ? {}
+            : { activity_type: activityType }),
           expected_version: workout.workout_version,
         };
+        const payload: PlanWorkoutUpdateRequest = (
+          structureVersion === 'v1' && structure != null
+            ? {
+                ...updateBase,
+                workout_structure_version: structureVersion,
+                workout_structure: structure,
+              }
+            : updateBase
+        );
         const result = await requestPlanMutation<PlanWorkoutMutationResponse>(
           `/api/plan/workouts/${encodeURIComponent(workout.canonical_id)}`,
           {

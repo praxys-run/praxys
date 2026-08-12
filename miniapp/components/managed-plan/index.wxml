@@ -211,7 +211,7 @@
           <picker
             range="{{editorActivityLabels}}"
             value="{{editorActivityIndex}}"
-            disabled="{{editorSaving || editorIsRest}}"
+            disabled="{{editorSaving || editorIsRest || editorUnsupportedStructure}}"
             bindchange="onEditorActivityChange"
           >
             <view class="managed-plan__field-value">
@@ -225,7 +225,7 @@
           <picker
             range="{{editorTypeLabels}}"
             value="{{editorTypeIndex}}"
-            disabled="{{editorSaving}}"
+            disabled="{{editorSaving || editorUnsupportedStructure}}"
             bindchange="onEditorTypeChange"
           >
             <view class="managed-plan__field-value">
@@ -244,13 +244,35 @@
             value="{{editorCustomPurpose}}"
             maxlength="50"
             placeholder="{{tr.raceRehearsal}}"
-            disabled="{{editorSaving}}"
+            disabled="{{editorSaving || editorUnsupportedStructure}}"
             bindinput="onEditorCustomPurpose"
           />
         </view>
       </view>
 
-      <view wx:if="{{editorStructured}}" class="managed-plan__structured">
+      <view wx:if="{{editorUnsupportedStructure}}" class="managed-plan__structured">
+        <text class="managed-plan__structured-title">{{tr.newerWorkoutStructure}}</text>
+        <text class="managed-plan__structured-detail">
+          {{editorMode === 'edit' ? tr.unsupportedStructureDetail : tr.unsupportedStructureFork}}
+        </text>
+        <view class="managed-plan__editor-fields">
+          <view class="managed-plan__field managed-plan__field--wide">
+            <text class="managed-plan__field-label">{{tr.workoutNotes}}</text>
+            <textarea
+              class="managed-plan__field-textarea"
+              value="{{editorDescription}}"
+              maxlength="4000"
+              auto-height
+              placeholder="{{tr.optional}}"
+              data-field="editorDescription"
+              disabled="{{editorSaving}}"
+              bindinput="onEditorInput"
+            ></textarea>
+          </view>
+        </view>
+      </view>
+
+      <view wx:elif="{{editorStructured}}" class="managed-plan__structured">
         <view class="managed-plan__structured-heading">
           <view>
             <text class="managed-plan__structured-title">{{tr.structuredSteps}}</text>
@@ -613,7 +635,7 @@
             bindtap="onDeleteWorkout"
           >{{tr.deleteWorkout}}</button>
           <button
-            wx:if="{{!editorIsRest}}"
+            wx:if="{{!editorIsRest && !editorUnsupportedStructure}}"
             class="managed-plan__editor-rest"
             disabled="{{editorSaving}}"
             bindtap="onConvertToRest"
@@ -622,7 +644,7 @@
 
         <button
           class="managed-plan__editor-save"
-          disabled="{{editorSaving}}"
+          disabled="{{editorSaving || (editorUnsupportedStructure && editorMode !== 'edit')}}"
           bindtap="onSaveWorkout"
         >
           <text wx:if="{{editorSaving}}">{{tr.saving}}</text>

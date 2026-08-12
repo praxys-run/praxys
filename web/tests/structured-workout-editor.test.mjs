@@ -6,9 +6,12 @@ import {
   createStructuredStep,
   deriveFlatFieldsFromStructure,
   duplicateWorkoutNode,
+  formatDeterministicDistance,
+  formatDeterministicDuration,
   insertWorkoutNode,
   moveWorkoutNode,
   removeWorkoutNode,
+  restoreRemovedWorkoutNode,
   summarizeWorkoutStructure,
   synthesizeStructureFromFlat,
 } from '../src/lib/workout-structure.ts';
@@ -142,4 +145,49 @@ test('legacy flat workouts convert only when the athlete explicitly requests it'
       max: 250,
     },
   }]);
+});
+
+test('undo restores the deleted tree instead of guessing a moved repeat parent', () => {
+  const original = {
+    steps: [
+      createRepeatGroup({
+        label: 'A',
+        steps: [timeStep('work', 60)],
+      }),
+      createRepeatGroup({
+        label: 'B',
+        steps: [timeStep('recovery', 60)],
+      }),
+    ],
+  };
+  const removed = removeWorkoutNode(original, [0, 0]);
+  assert.ok(removed.removed);
+  const reordered = moveWorkoutNode(removed.structure, [0], 'down');
+
+  assert.deepEqual(
+    restoreRemovedWorkoutNode(reordered, removed.removed),
+    original,
+  );
+});
+
+test('exact totals retain seconds and meters without rounded claims', () => {
+  assert.equal(formatDeterministicDuration(90), '1:30');
+  assert.equal(formatDeterministicDuration(1), '0:01');
+  assert.equal(formatDeterministicDistance(1), '1 m');
+  assert.equal(formatDeterministicDistance(1234), '1.234 km');
+});
+
+test('pace flat projections use the backend half-even rounding contract', () => {
+  const projected = deriveFlatFieldsFromStructure({
+    steps: [timeStep('work', 60, {
+      metric: 'pace',
+      unit: 'sec_per_km',
+      reference: 'absolute',
+      min: 320.5,
+      max: 321.5,
+    })],
+  });
+
+  assert.equal(projected.target_pace_min, '05:20');
+  assert.equal(projected.target_pace_max, '05:22');
 });

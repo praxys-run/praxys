@@ -244,6 +244,10 @@ def _row_to_response(
     revision_id: str | None = None,
     delivery: dict | None = None,
 ) -> dict:
+    structure_inspection = inspect_workout_structure(
+        workout_structure_version=plan.workout_structure_version,
+        workout_structure=plan.workout_structure,
+    )
     response = {
         "id": plan.id,
         "canonical_id": plan.canonical_id,
@@ -261,6 +265,7 @@ def _row_to_response(
         "workout_description": plan.workout_description or "",
         "workout_structure_version": plan.workout_structure_version,
         "workout_structure": plan.workout_structure,
+        "workout_structure_status": structure_inspection.state,
         # Deprecated compatibility value for older cached clients.
         "source": LEGACY_PRAXYS_PLAN_SOURCE,
         "owner": PRAXYS_PLAN_SOURCE,

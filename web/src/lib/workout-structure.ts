@@ -42,6 +42,7 @@ export interface RemovedWorkoutNode {
   node: WorkoutNode;
   parentPath: readonly [number] | null;
   index: number;
+  previousStructure: WorkoutStructureV1;
 }
 
 export interface RemoveWorkoutNodeResult {
@@ -213,26 +214,17 @@ export function removeWorkoutNode(
       node,
       parentPath: path.length === 2 ? [path[0]] : null,
       index,
+      previousStructure: cloneStructure(structure),
     },
     path: [...path] as WorkoutNodePath,
   };
 }
 
 export function restoreRemovedWorkoutNode(
-  structure: WorkoutStructureV1,
+  _structure: WorkoutStructureV1,
   removed: RemovedWorkoutNode,
 ): WorkoutStructureV1 {
-  const next = cloneStructure(structure);
-  const nodes = removed.parentPath
-    ? repeatChildren(next, removed.parentPath[0])
-    : next.steps;
-  if (!nodes) return next;
-  nodes.splice(
-    Math.min(Math.max(removed.index, 0), nodes.length),
-    0,
-    cloneNode(removed.node),
-  );
-  return next;
+  return cloneStructure(removed.previousStructure);
 }
 
 export function updateWorkoutStep(
@@ -298,6 +290,26 @@ export function summarizeWorkoutStructure(
       : { certainty: 'unknown' },
     executableSteps: steps.length,
   };
+}
+
+/** Format an exact integer-second total without rounding it to minutes. */
+export function formatDeterministicDuration(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainder = seconds % 60;
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(
+      remainder,
+    ).padStart(2, '0')}`;
+  }
+  return `${minutes}:${String(remainder).padStart(2, '0')}`;
+}
+
+/** Format an exact integer-meter total without displaying rounded zero km. */
+export function formatDeterministicDistance(meters: number): string {
+  if (meters < 1000) return `${meters} m`;
+  const kilometers = (meters / 1000).toFixed(3).replace(/\.?0+$/, '');
+  return `${kilometers} km`;
 }
 
 export function deriveFlatFieldsFromStructure(
@@ -524,12 +536,22 @@ function projectableTargetSignature(
 
 function formatPace(value: number | null): string | null {
   if (value === null) return null;
-  const rounded = Math.round(value);
+  const rounded = roundHalfEven(value);
   const minutes = Math.floor(rounded / 60);
   const seconds = rounded % 60;
   return `${minutes.toString().padStart(2, '0')}:${seconds
     .toString()
     .padStart(2, '0')}`;
+}
+
+function roundHalfEven(value: number): number {
+  const lower = Math.floor(value);
+  const fraction = value - lower;
+  const tolerance = Number.EPSILON * Math.max(1, Math.abs(value)) * 2;
+  if (Math.abs(fraction - 0.5) <= tolerance) {
+    return lower % 2 === 0 ? lower : lower + 1;
+  }
+  return Math.round(value);
 }
 
 function targetFromFlat({

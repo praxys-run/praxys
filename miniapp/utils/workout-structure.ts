@@ -193,6 +193,7 @@ export interface RemovedNode {
   node: WorkoutNode;
   parentIndex: number | null;
   index: number;
+  previousStructure: WorkoutStructureV1;
 }
 
 export function removeNode(
@@ -211,26 +212,17 @@ export function removeNode(
           node,
           parentIndex: path.length === 2 ? path[0] : null,
           index,
+          previousStructure: cloneStructure(structure),
         },
       }
     : { structure: next, removed: null };
 }
 
 export function restoreNode(
-  structure: WorkoutStructureV1,
+  _structure: WorkoutStructureV1,
   removed: RemovedNode,
 ): WorkoutStructureV1 {
-  const next = cloneStructure(structure);
-  const nodes = removed.parentIndex === null
-    ? next.steps
-    : childSteps(next, removed.parentIndex);
-  if (!nodes) return next;
-  nodes.splice(
-    Math.min(Math.max(removed.index, 0), nodes.length),
-    0,
-    clone(removed.node),
-  );
-  return next;
+  return cloneStructure(removed.previousStructure);
 }
 
 export interface StructureSummary {
@@ -243,10 +235,17 @@ export interface StructureSummary {
 export type StructureValidationCode =
   | 'non_rest_requires_step'
   | 'rest_cannot_have_steps'
+  | 'repeat_count_invalid'
+  | 'repeat_steps_required'
+  | 'repeat_label_too_long'
+  | 'step_label_too_long'
+  | 'step_instructions_too_long'
   | 'time_termination_invalid'
   | 'distance_termination_invalid'
+  | 'target_combination_invalid'
   | 'target_bound_missing'
-  | 'target_range_invalid';
+  | 'target_range_invalid'
+  | 'target_out_of_range';
 
 export function summarize(
   structure: WorkoutStructureV1,
@@ -281,6 +280,26 @@ export function summarize(
       : { certainty: 'unknown' },
     executableSteps: steps.length,
   };
+}
+
+/** Format an exact integer-second total without rounding it to minutes. */
+export function formatDeterministicDuration(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainder = seconds % 60;
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(
+      remainder,
+    ).padStart(2, '0')}`;
+  }
+  return `${minutes}:${String(remainder).padStart(2, '0')}`;
+}
+
+/** Format an exact integer-meter total without displaying rounded zero km. */
+export function formatDeterministicDistance(meters: number): string {
+  if (meters < 1000) return `${meters} m`;
+  const kilometers = (meters / 1000).toFixed(3).replace(/\.?0+$/, '');
+  return `${kilometers} km`;
 }
 
 export function deriveFlat(
@@ -371,6 +390,18 @@ export function validate(
   structure: WorkoutStructureV1,
   workoutType: string,
 ): StructureValidationCode | null {
+  for (const node of structure.steps) {
+    if (node.type !== 'repeat') continue;
+    if (
+      !Number.isInteger(node.repetitions)
+      || node.repetitions < 1
+      || node.repetitions > 100
+    ) return 'repeat_count_invalid';
+    if (!node.steps.length) return 'repeat_steps_required';
+    if ((node.label?.trim().length ?? 0) > 80) {
+      return 'repeat_label_too_long';
+    }
+  }
   const steps = expandSteps(structure);
   if (!isRest(workoutType) && !steps.length) {
     return 'non_rest_requires_step';
@@ -379,6 +410,12 @@ export function validate(
     return 'rest_cannot_have_steps';
   }
   for (const step of steps) {
+    if ((step.label?.trim().length ?? 0) > 80) {
+      return 'step_label_too_long';
+    }
+    if ((step.instructions?.trim().length ?? 0) > 1000) {
+      return 'step_instructions_too_long';
+    }
     if (
       step.termination.type === 'time'
       && (!Number.isInteger(step.termination.seconds)
@@ -391,19 +428,47 @@ export function validate(
         || step.termination.meters < 1
         || step.termination.meters > 1000000)
     ) return 'distance_termination_invalid';
-    if (step.target.metric !== 'none') {
-      if (
-        step.target.min == null
-        && step.target.max == null
-      ) {
-        return 'target_bound_missing';
+    if (step.target.metric === 'none') {
+      if (step.target.min != null || step.target.max != null) {
+        return 'target_combination_invalid';
       }
-      if (
-        step.target.min != null
-        && step.target.max != null
-        && step.target.min > step.target.max
-      ) return 'target_range_invalid';
+      continue;
     }
+    const kind = targetKind(step.target);
+    const expected = TARGETS[kind];
+    if (
+      kind === 'none'
+      || expected.metric !== step.target.metric
+      || expected.unit !== step.target.unit
+      || expected.reference !== step.target.reference
+    ) {
+      return 'target_combination_invalid';
+    }
+    if (
+      step.target.min == null
+      && step.target.max == null
+    ) {
+      return 'target_bound_missing';
+    }
+    const bounds: Record<Exclude<TargetKind, 'none'>, [number, number]> = {
+      power_watts: [0, 5000],
+      power_cp: [0, 300],
+      heart_rate_bpm: [0, 300],
+      heart_rate_lthr: [0, 200],
+      pace_absolute: [0, 7200],
+      pace_threshold: [-7200, 7200],
+      rpe: [0, 10],
+    };
+    const [minimum, maximum] = bounds[kind];
+    if ([step.target.min, step.target.max].some((value) => (
+      value != null
+      && (!Number.isFinite(value) || value < minimum || value > maximum)
+    ))) return 'target_out_of_range';
+    if (
+      step.target.min != null
+      && step.target.max != null
+      && step.target.min > step.target.max
+    ) return 'target_range_invalid';
   }
   return null;
 }
@@ -555,10 +620,20 @@ function parsePace(value: string | null): number | null {
 
 function formatPace(value: number | null): string | null {
   if (value === null) return null;
-  const rounded = Math.round(value);
+  const rounded = roundHalfEven(value);
   return `${String(Math.floor(rounded / 60)).padStart(2, '0')}:${String(
     rounded % 60,
   ).padStart(2, '0')}`;
+}
+
+function roundHalfEven(value: number): number {
+  const lower = Math.floor(value);
+  const fraction = value - lower;
+  const tolerance = Number.EPSILON * Math.max(1, Math.abs(value)) * 2;
+  if (Math.abs(fraction - 0.5) <= tolerance) {
+    return lower % 2 === 0 ? lower : lower + 1;
+  }
+  return Math.round(value);
 }
 
 function isRest(value: string): boolean {

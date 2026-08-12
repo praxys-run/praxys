@@ -301,6 +301,11 @@ export type PlanActivityType =
   | 'other';
 
 export type WorkoutStructureVersion = 'v1';
+export type WorkoutStructureState =
+  | 'absent'
+  | 'supported'
+  | 'invalid'
+  | 'unsupported';
 
 type WorkoutIntensityBounds =
   | {
@@ -449,9 +454,9 @@ export interface PlanTargetWorkoutSnapshot {
   target_pace_min?: string | null;
   target_pace_max?: string | null;
   workout_description?: string;
-  workout_structure_status?: 'absent' | 'supported' | 'unsupported';
-  workout_structure_version?: WorkoutStructureVersion | null;
-  workout_structure?: WorkoutStructureV1 | null;
+  workout_structure_status?: WorkoutStructureState;
+  workout_structure_version?: string | null;
+  workout_structure?: unknown;
   start_time?: string | null;
 }
 
@@ -493,8 +498,9 @@ export interface PlannedWorkout {
   pace_min?: string;
   pace_max?: string;
   description?: string;
-  workout_structure_version?: WorkoutStructureVersion | null;
-  workout_structure?: WorkoutStructureV1 | null;
+  workout_structure_status?: WorkoutStructureState;
+  workout_structure_version?: string | null;
+  workout_structure?: unknown;
   provider_compatibility?: WorkoutProviderCompatibility[];
   /** @deprecated Use `owner` and `origin`; retained during client rollout. */
   source: PlanWorkoutSource;
@@ -638,7 +644,7 @@ export interface PlanWorkoutCompatibilityResponse {
 interface PlanWorkoutUpdateValues {
   expected_version: string;
   date?: string;
-  activity_type?: PlanActivityType | null;
+  activity_type?: PlanActivityType;
   workout_type?: string;
   planned_duration_min?: number | null;
   planned_distance_km?: number | null;
@@ -713,8 +719,9 @@ export interface PlanWorkoutMutationResponse {
   target_pace_min: string | null;
   target_pace_max: string | null;
   workout_description: string;
-  workout_structure_version: WorkoutStructureVersion | null;
-  workout_structure: WorkoutStructureV1 | null;
+  workout_structure_status: WorkoutStructureState;
+  workout_structure_version: string | null;
+  workout_structure: unknown;
   /** @deprecated Use `owner` and `origin`; retained during client rollout. */
   source: 'ai';
   owner: 'praxys';
