@@ -54,6 +54,10 @@ state coverage, and the PR evidence required by CI.
   semantics when useful, never as a substitute for rendered review. If no
   browser tool is available, keep the PR draft and say that rendered
   verification is incomplete.
+- For local miniapp work on Windows + WSL2, invoke the repository
+  `wechat-devtools` skill. It bridges to the separately installed Nightly
+  WeChat DevTools for compilation, simulator automation, screenshots, and
+  console/network inspection. Tencent's installed skill remains authoritative.
 - Follow `.github/instructions/ui-quality.instructions.md` for the complete
   path-specific flow. Classify design-system discoveries as fixed locally,
   updated in the design source of truth, or linked to a filed follow-up, and
