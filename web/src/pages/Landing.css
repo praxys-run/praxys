@@ -410,18 +410,6 @@ html[lang="zh"] .landing-hero-sub { line-height: 1.7; }
   margin-bottom: clamp(32px, 5vw, 56px);
   max-width: 640px;
 }
-.landing-features-head .eyebrow {
-  display: inline-block;
-  font-family: var(--l-font-data);
-  font-size: 10.5px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--l-primary);
-  margin-bottom: 12px;
-  padding: 3px 8px;
-  border: 1px solid color-mix(in oklab, var(--l-primary) 35%, transparent);
-  border-radius: 2px;
-}
 .landing-features-head h2 {
   font-family: var(--l-font-display);
   font-weight: 500;
@@ -510,167 +498,206 @@ html[lang="zh"] .landing-fcard h3 { letter-spacing: 0.005em; line-height: 1.4; }
 }
 html[lang="zh"] .landing-fcard p { font-size: 13px; line-height: 1.8; }
 
-/* ─── Mini viz: Personalization zones ───────────────────── */
-.miniviz-cp {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.miniviz-cp .stat {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-.miniviz-cp .stat-label {
-  font-family: var(--l-font-data);
-  font-size: 9.5px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--l-ink-ghost);
-}
-.miniviz-cp .stat-value {
-  font-family: var(--l-font-data);
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: 'tnum' 1, 'zero' 1;
-  font-size: 26px;
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  color: var(--l-ink);
-  line-height: 1;
-}
-.miniviz-cp .stat-unit {
-  font-family: var(--l-font-display);
-  font-size: 12px;
-  color: var(--l-ink-ghost);
-  font-weight: 400;
-}
-.miniviz-cp .stat-delta {
-  margin-left: auto;
-  font-family: var(--l-font-data);
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--l-primary);
-  letter-spacing: 0.04em;
-}
-.miniviz-cp .zone-bar {
-  display: flex;
-  height: 10px;
-  border-radius: 2px;
-  overflow: hidden;
-  gap: 2px;
-}
-.miniviz-cp .zone {
-  border-radius: 2px;
-}
-.miniviz-cp .zone.z1 { background: color-mix(in oklab, var(--l-cobalt) 55%, var(--l-card)); }
-.miniviz-cp .zone.z2 { background: color-mix(in oklab, var(--l-cobalt) 75%, transparent); }
-.miniviz-cp .zone.z3 { background: var(--l-primary); }
-.miniviz-cp .zone.z4 { background: var(--l-amber); }
-.miniviz-cp .zone.z5 { background: var(--l-rust); }
-.miniviz-cp .zone-legend {
-  display: flex;
-  justify-content: space-between;
-  font-family: var(--l-font-data);
-  font-size: 9.5px;
-  letter-spacing: 0.14em;
-  color: var(--l-ink-ghost);
-}
-
-/* ─── Mini viz: Formula card ────────────────────────────── */
-.miniviz-formula {
-  background: color-mix(in oklab, var(--l-cobalt) 5%, var(--l-card));
-  border: 1px solid color-mix(in oklab, var(--l-cobalt) 22%, var(--l-rule));
-  border-left: 1px solid var(--l-cobalt);
-  border-radius: 2px;
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.miniviz-formula .eyebrow {
-  font-family: var(--l-font-data);
-  font-size: 9.5px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--l-cobalt);
-}
-.miniviz-formula .expr {
-  font-family: var(--l-font-data);
-  font-variant-numeric: tabular-nums;
-  font-size: 15px;
-  color: var(--l-ink);
-  letter-spacing: -0.01em;
-  line-height: 1.5;
-}
-.miniviz-formula .expr .v {
-  color: var(--l-primary);
-  font-weight: 600;
-}
-.miniviz-formula .sub {
-  font-family: var(--l-font-data);
-  font-variant-numeric: tabular-nums;
-  font-size: 13.5px;
-  color: var(--l-ink-soft);
-  letter-spacing: -0.005em;
-}
-.miniviz-formula .sub .res {
-  color: var(--l-primary);
-  font-weight: 600;
-  font-size: 15px;
-}
-.miniviz-formula .cite {
-  margin-top: 4px;
-  padding-top: 8px;
-  border-top: 1px dashed color-mix(in oklab, var(--l-cobalt) 25%, var(--l-rule));
-  font-family: var(--l-font-data);
-  font-size: 9.5px;
-  letter-spacing: 0.06em;
-  color: var(--l-ink-ghost);
-}
-
-/* ─── Mini viz: Claude conversation ─────────────────────── */
-.miniviz-claude {
+/* ─── Mini product examples ─────────────────────────────── */
+.miniviz-decision,
+.miniviz-plan,
+.miniviz-goal {
   display: flex;
   flex-direction: column;
   gap: 10px;
   font-family: var(--l-font-data);
-  font-size: 11.5px;
-  line-height: 1.55;
+  font-variant-numeric: tabular-nums;
 }
-.miniviz-claude .line {
+
+.decision-head,
+.plan-head {
   display: flex;
-  gap: 6px;
-}
-.miniviz-claude .line.prompt {
-  color: var(--l-ink);
-  font-weight: 500;
-  letter-spacing: -0.003em;
-}
-.miniviz-claude .line.prompt .chev {
-  color: var(--l-primary);
-  font-weight: 600;
-  flex-shrink: 0;
-}
-.miniviz-claude .line.answer {
-  color: var(--l-ink-soft);
-  padding-left: 13px;
-  border-left: 1px solid color-mix(in oklab, var(--l-primary) 40%, var(--l-rule));
-  letter-spacing: -0.003em;
-  animation: typingIn 1.6s ease-out both;
-  animation-delay: 420ms;
-}
-.miniviz-claude .cite {
-  margin-top: 4px;
-  padding-top: 8px;
-  border-top: 1px dashed color-mix(in oklab, var(--l-cobalt) 25%, var(--l-rule));
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--l-ink-ghost);
   font-size: 9.5px;
-  letter-spacing: 0.08em;
-  color: var(--l-cobalt);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
-@keyframes typingIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+.decision-head strong {
+  color: var(--l-amber);
+  font-size: 10px;
+  font-weight: 700;
+}
+.decision-action {
+  color: var(--l-ink);
+  font-family: var(--l-font-display);
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.miniviz-decision ul {
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.miniviz-decision li {
+  padding: 7px 0 7px 14px;
+  border-top: 1px solid var(--l-rule-soft);
+  color: var(--l-ink-soft);
+  font-size: 10.5px;
+  line-height: 1.4;
+  position: relative;
+}
+.miniviz-decision li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--l-cobalt);
+}
+
+.plan-head strong {
+  color: var(--l-primary);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+.plan-day {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 0;
+  border-top: 1px solid var(--l-rule-soft);
+}
+.plan-day span {
+  color: var(--l-cobalt);
+  font-size: 9.5px;
+  text-transform: uppercase;
+}
+.plan-day strong {
+  color: var(--l-ink);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.goal-label {
+  color: var(--l-ink-ghost);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.goal-times {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.goal-times div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.goal-times span {
+  color: var(--l-ink-ghost);
+  font-size: 9.5px;
+}
+.goal-times strong {
+  color: var(--l-ink);
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+.goal-times div:last-child strong {
+  color: var(--l-primary);
+}
+.goal-gap {
+  padding-top: 9px;
+  border-top: 1px solid var(--l-rule-soft);
+  color: var(--l-cobalt);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* ─── Labs proof point ──────────────────────────────────── */
+.landing-labs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.9fr);
+  gap: clamp(36px, 7vw, 88px);
+  align-items: center;
+  padding: clamp(52px, 8vw, 88px) 0;
+  border-top: 1px solid var(--l-rule);
+}
+.landing-labs-copy h2 {
+  max-width: 18ch;
+  margin: 0 0 18px;
+  color: var(--l-ink);
+  font-family: var(--l-font-display);
+  font-size: clamp(28px, 3.8vw, 42px);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+html[lang="zh"] .landing-labs-copy h2 {
+  max-width: 14ch;
+  letter-spacing: 0.005em;
+  line-height: 1.3;
+}
+.landing-labs-copy p {
+  max-width: 60ch;
+  margin: 0 0 26px;
+  color: var(--l-ink-soft);
+  font-size: 14.5px;
+  line-height: 1.75;
+}
+.landing-labs-panel {
+  padding: clamp(24px, 4vw, 34px);
+  border: 1px solid color-mix(in oklab, var(--l-cobalt) 24%, var(--l-rule));
+  border-radius: 5px;
+  background: color-mix(in oklab, var(--l-cobalt) 5%, var(--l-card));
+}
+.landing-labs-consent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 22px;
+  color: var(--l-cobalt);
+  font-family: var(--l-font-data);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.landing-labs-consent span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--l-primary);
+}
+.landing-labs-panel > p {
+  margin: 0 0 20px;
+  color: var(--l-ink);
+  font-family: var(--l-font-display);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.landing-labs-panel ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.landing-labs-panel li {
+  padding: 9px 0;
+  border-top: 1px solid color-mix(in oklab, var(--l-cobalt) 14%, var(--l-rule-soft));
+  color: var(--l-ink-soft);
+  font-family: var(--l-font-data);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 880px) {
+  .landing-labs { grid-template-columns: 1fr; }
 }
 
 /* ─── Final CTA ─────────────────────────────────────────── */
@@ -997,6 +1024,8 @@ html[lang="zh"] .landing-close h2 { letter-spacing: 0.005em; line-height: 1.35; 
   .landing-close h2 { font-size: 26px; }
   .landing-primary-nav { display: none; }
   .landing-discover { grid-template-columns: 1fr; }
+  .landing-labs { grid-template-columns: 1fr; gap: 28px; }
+  .landing-labs-copy h2 { max-width: 16ch; }
   .public-capability-list section { grid-template-columns: 1fr; }
   .public-info-hero h1 { font-size: 38px; }
   .public-info-root .landing-header-nav { gap: 8px; }

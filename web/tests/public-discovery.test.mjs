@@ -7,6 +7,8 @@ const content = JSON.parse(
 );
 const robots = await readFile(new URL('../public/robots.txt', import.meta.url), 'utf8');
 const sitemap = await readFile(new URL('../public/sitemap.xml', import.meta.url), 'utf8');
+const appSource = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
+const landingSource = await readFile(new URL('../src/pages/Landing.tsx', import.meta.url), 'utf8');
 
 test('public pages have unique canonical paths and metadata', () => {
   const pages = Object.values(content.locales).flatMap((locale) => [
@@ -73,4 +75,10 @@ test('robots and sitemap expose only the canonical public surface', () => {
     assert.match(robots, new RegExp(`Disallow: ${path}`));
     assert.doesNotMatch(sitemap, new RegExp(`www\\.praxys\\.run${path}`));
   }
+});
+
+test('public language switching uses explicit locale routes', () => {
+  assert.match(appSource, /get\('lang'\) === 'en'/);
+  assert.match(landingSource, /window\.location\.assign\('\/\?lang=en'\)/);
+  assert.match(landingSource, /window\.location\.assign\('\/zh'\)/);
 });

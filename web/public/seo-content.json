@@ -24,9 +24,10 @@
         "headingAccent": "a decision.",
         "lead": "Praxys is a science-grounded endurance training system for self-coached runners. It combines your training and recovery data, explains what it means, and recommends the next action.",
         "summaryPoints": [
-          "Daily decisions · go, modify, or rest, with the reasoning visible.",
-          "Training direction · zones, thresholds, plans, and race forecasts adapt to your data.",
-          "Science with boundaries · cited methods, explicit limitations, and opt-in Labs research."
+          "Today · train as planned, modify the session, or prioritize recovery.",
+          "This week · understand progress, fatigue, and training quality.",
+          "Next 14 days · follow an adaptive plan synchronized with Garmin or Stryd.",
+          "Race day · see whether the goal is realistic and what still needs to change."
         ]
       },
       "product": {
@@ -121,9 +122,10 @@
         "headingAccent": "下一步怎么练。",
         "lead": "Praxys 是为自主训练跑者打造的科学训练系统。它把训练与恢复数据放在一起，解释当前状态，并给出下一步怎么练的建议。",
         "summaryPoints": [
-          "每日建议 · 按计划训练、适当调整，还是优先恢复，并说明原因。",
-          "训练方向 · 区间、阈值、计划和比赛预测会随你的数据持续更新。",
-          "科学边界 · 方法有来源、限制说清楚，Labs 研究只在你主动同意后进行。"
+          "今天 · 按计划训练、适当调整，还是优先恢复。",
+          "本周 · 看清训练进展、疲劳状态和完成质量。",
+          "未来 14 天 · 跟随动态计划，并同步到 Garmin 或 Stryd。",
+          "比赛日 · 判断目标是否现实，以及接下来还需要改变什么。"
         ]
       },
       "product": {

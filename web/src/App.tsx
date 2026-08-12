@@ -254,10 +254,12 @@ function TodayOrSetup() {
 function LandingOrApp() {
   const { isAuthenticated, isDemo, isLoading } = useAuth();
   const { locale } = useLocale();
+  const location = useLocation();
+  const forceEnglish = new URLSearchParams(location.search).get('lang') === 'en';
 
   if (isLoading) return null;
   if (isAuthenticated && !isDemo) return <Navigate to="/today" replace />;
-  if (locale === 'zh') return <Navigate to="/zh" replace />;
+  if (locale === 'zh' && !forceEnglish) return <Navigate to="/zh" replace />;
   return <Landing publicLocale="en" />;
 }
 

@@ -37,7 +37,6 @@ type Copy = {
   demoLoading: string;
   demoError: string;
   demoActiveNote: string;
-  featuresEyebrow: string;
   featuresTitle: { before: string; accent: string; after: string };
   features: [FeatureCopy, FeatureCopy, FeatureCopy];
   platformsLabel: string;
@@ -53,17 +52,29 @@ type Copy = {
   faqLink: string;
   discoverTitle: string;
   discoverBody: string;
-  vizCpLabel: string;
-  vizCpDelta: string;
-  vizCpUnit: string;
-  vizFormulaEyebrow: string;
-  vizFormulaCite: string;
-  vizClaudePrompt: string;
-  vizClaudeAnswer: string;
-  vizClaudeCite: string;
+  vizDecisionLabel: string;
+  vizDecisionState: string;
+  vizDecisionAction: string;
+  vizDecisionReasons: [string, string];
+  vizPlanLabel: string;
+  vizPlanSync: string;
+  vizPlanDays: [PlanDayCopy, PlanDayCopy, PlanDayCopy];
+  vizGoalLabel: string;
+  vizGoalCurrentLabel: string;
+  vizGoalCurrent: string;
+  vizGoalTargetLabel: string;
+  vizGoalTarget: string;
+  vizGoalGap: string;
+  labsHeading: string;
+  labsBody: string;
+  labsCta: string;
+  labsQuestion: string;
+  labsConsent: string;
+  labsSignals: [string, string, string];
 };
 
 type FeatureCopy = { idx: string; title: string; body: string };
+type PlanDayCopy = { day: string; session: string };
 
 const COPY: Record<SupportedLocale, Copy> = {
   en: {
@@ -76,30 +87,29 @@ const COPY: Record<SupportedLocale, Copy> = {
     demoLoading: 'Loading demo…',
     demoError: 'Demo temporarily unavailable. Try signing in instead.',
     demoActiveNote: 'Demo session active — data is read-only.',
-    featuresEyebrow: 'Why Praxys',
     featuresTitle: {
-      before: 'Interpretation first. ',
-      accent: 'Evidence always',
+      before: 'One system. ',
+      accent: 'Every training horizon',
       after: '.',
     },
     features: [
       {
-        idx: '01 · Science',
-        title: 'Grounded in published research.',
+        idx: 'Today',
+        title: 'A decision, not another score.',
         body:
-          'Every zone, formula, and prediction traces back to peer-reviewed sport science — Coggan, Riegel, Monod & Scherrer, Stryd RPP. Click any number to see its source.',
+          'Training load and recovery signals become a clear recommendation, with the reasons visible.',
       },
       {
-        idx: '02 · Personalized',
-        title: 'Your data becomes your next action.',
+        idx: 'Next 14 days',
+        title: 'A plan that follows your current state.',
         body:
-          'Praxys turns training and recovery data into a daily signal, personalized zones, threshold trends, race forecasts, and plans that adjust as your fitness and fatigue change.',
+          'Managed workouts adjust as training and recovery change, then synchronize with Garmin or Stryd.',
       },
       {
-        idx: '03 · AI-native',
-        title: 'AI is a layer, not the foundation.',
+        idx: 'Race day',
+        title: 'A goal grounded in current evidence.',
         body:
-          'Praxys establishes the foundation with cited methods and deterministic validation, then uses AI to explain changes, adapt plans, and explore the evidence in greater depth.',
+          'Forecasts show the gap between current ability and the target, so ambition becomes a concrete training problem.',
       },
     ],
     platformsLabel: 'Connects with',
@@ -114,15 +124,30 @@ const COPY: Record<SupportedLocale, Copy> = {
     productLink: 'Product',
     faqLink: 'FAQ',
     discoverTitle: 'From today’s decision to the season ahead.',
-    discoverBody: 'Praxys connects daily readiness, weekly diagnosis, adaptive planning, race forecasts, and opt-in research in one evidence-led training system.',
-    vizCpLabel: 'Your CP',
-    vizCpDelta: '+6 W · 14 d',
-    vizCpUnit: 'W',
-    vizFormulaEyebrow: 'Critical Power',
-    vizFormulaCite: 'Monod & Scherrer · 1965',
-    vizClaudePrompt: 'Why is my fitness dropping?',
-    vizClaudeAnswer: 'TSB −22 W · overload. Back off 2–3 days, then rebuild.',
-    vizClaudeCite: 'via Praxys · Claude Code plugin',
+    discoverBody: 'Praxys connects daily guidance, weekly review, adaptive planning, and race goals so each decision builds on the same training history.',
+    vizDecisionLabel: "Today's recommendation",
+    vizDecisionState: 'Modify',
+    vizDecisionAction: 'Reduce intensity',
+    vizDecisionReasons: ['Recovery below recent baseline', 'Training load remains elevated'],
+    vizPlanLabel: 'Managed plan',
+    vizPlanSync: 'Sync · Garmin / Stryd',
+    vizPlanDays: [
+      { day: 'Tue', session: 'Easy · 45 min' },
+      { day: 'Thu', session: 'Threshold · 4 × 8 min' },
+      { day: 'Sun', session: 'Long run · 1 h 50 min' },
+    ],
+    vizGoalLabel: 'Marathon forecast',
+    vizGoalCurrentLabel: 'Current',
+    vizGoalCurrent: '3:18',
+    vizGoalTargetLabel: 'Goal',
+    vizGoalTarget: '3:10',
+    vizGoalGap: '8 min gap',
+    labsHeading: 'Your training history can answer new questions.',
+    labsBody: 'Praxys Labs lets you voluntarily explore questions using your own historical data. The first experiment examines heart-rate response across heat and humidity at comparable recorded running power.',
+    labsCta: 'Explore the full product',
+    labsQuestion: 'How did the environment change my response at the same effort?',
+    labsConsent: 'Runs only when you opt in',
+    labsSignals: ['Historical activities', 'Comparable Stryd power', 'Modeled weather'],
   },
   zh: {
     signIn: '登录',
@@ -134,30 +159,29 @@ const COPY: Record<SupportedLocale, Copy> = {
     demoLoading: '正在加载演示……',
     demoError: '演示暂时不可用，请尝试登录。',
     demoActiveNote: '演示会话进行中 — 数据为只读。',
-    featuresEyebrow: '为什么选择 Praxys',
     featuresTitle: {
-      before: '先说结论，',
-      accent: '依据随时可查',
+      before: '一套系统，',
+      accent: '贯穿每个训练阶段',
       after: '。',
     },
     features: [
       {
-        idx: '01 · 科学依据',
-        title: '每个结论，都有研究依据。',
+        idx: '今天',
+        title: '给出判断，而不只是一个分数。',
         body:
-          '训练区间、公式和预测都能追溯到同行评审的运动科学文献——Coggan、Riegel、Monod & Scherrer、Stryd RPP。点击数值，就能查看出处。',
+          '把训练负荷与恢复状态放在一起，给出明确建议，并说明背后的原因。',
       },
       {
-        idx: '02 · 因人而异',
-        title: '从你的数据出发，告诉你下一步怎么练。',
+        idx: '未来 14 天',
+        title: '跟随一份会根据状态调整的计划。',
         body:
-          'Praxys 把训练与恢复数据转化为每日建议、个性化区间、阈值变化、比赛预测和训练计划，并随体能与疲劳状态持续调整。',
+          '托管训练会随训练与恢复状态调整，并同步到 Garmin 或 Stryd。',
       },
       {
-        idx: '03 · AI 增强',
-        title: 'AI 增强理解，不替代科学基础。',
+        idx: '比赛日',
+        title: '让目标建立在当前能力之上。',
         body:
-          'Praxys 先用有文献依据的方法和确定性校验打好基础，再用 AI 帮助解释变化、调整计划和深入分析。',
+          '比赛预测会显示当前能力与目标之间的差距，把愿望变成具体的训练问题。',
       },
     ],
     platformsLabel: '可连接',
@@ -172,15 +196,30 @@ const COPY: Record<SupportedLocale, Copy> = {
     productLink: '产品',
     faqLink: '常见问题',
     discoverTitle: '从今天怎么练，到整个赛季怎么安排。',
-    discoverBody: 'Praxys 把每日状态、每周复盘、动态计划、比赛预测和自愿研究串联起来，形成一套以证据为基础的训练系统。',
-    vizCpLabel: '你的 CP',
-    vizCpDelta: '+6 W · 14 天',
-    vizCpUnit: '瓦',
-    vizFormulaEyebrow: 'Critical Power',
-    vizFormulaCite: 'Monod & Scherrer · 1965',
-    vizClaudePrompt: '最近体能为什么下滑？',
-    vizClaudeAnswer: 'TSB −22 W · 负荷偏高。先减量 2–3 天，再逐步恢复。',
-    vizClaudeCite: '来自 Praxys · Claude Code 插件',
+    discoverBody: 'Praxys 把每日建议、每周复盘、动态计划和比赛目标串联起来，让每次判断都建立在同一份训练历史之上。',
+    vizDecisionLabel: '今日建议',
+    vizDecisionState: '适当调整',
+    vizDecisionAction: '降低训练强度',
+    vizDecisionReasons: ['恢复状态低于近期水平', '训练负荷仍然偏高'],
+    vizPlanLabel: '托管训练计划',
+    vizPlanSync: '同步 · Garmin / Stryd',
+    vizPlanDays: [
+      { day: '周二', session: '轻松跑 · 45 分钟' },
+      { day: '周四', session: '阈值训练 · 4 × 8 分钟' },
+      { day: '周日', session: '长距离 · 1 小时 50 分' },
+    ],
+    vizGoalLabel: '马拉松预测',
+    vizGoalCurrentLabel: '当前',
+    vizGoalCurrent: '3:18',
+    vizGoalTargetLabel: '目标',
+    vizGoalTarget: '3:10',
+    vizGoalGap: '相差 8 分钟',
+    labsHeading: '你的训练历史，还能回答新的问题。',
+    labsBody: 'Praxys Labs 让你自愿使用自己的历史数据探索训练问题。首个实验会比较相近跑步功率下，心率反应随温度和湿度发生的变化。',
+    labsCta: '查看完整产品介绍',
+    labsQuestion: '在相同强度下，环境如何影响我的身体反应？',
+    labsConsent: '只有主动同意后才会运行',
+    labsSignals: ['历史活动', '相近 Stryd 功率', '模型天气数据'],
   },
 };
 
@@ -231,7 +270,7 @@ export default function Landing({ publicLocale }: { publicLocale?: SupportedLoca
   const ctaPrimaryLabel = isDemo ? t.ctaContinueDemo : t.ctaPrimary;
   const closeCtaPrimaryLabel = isDemo ? t.ctaContinueDemo : t.closeCtaPrimary;
 
-  const Vizzes = [VizScience, VizPersonal, VizClaude] as const;
+  const Vizzes = [VizDecision, VizPlan, VizGoal] as const;
 
   return (
     <div className="landing-root">
@@ -246,7 +285,7 @@ export default function Landing({ publicLocale }: { publicLocale?: SupportedLoca
               <Link to={publicNav.product.path}>{t.productLink}</Link>
               <Link to={publicNav.faq.path}>{t.faqLink}</Link>
             </nav>
-            <LanguageToggle locale={activeLocale} setLocale={setLocale} />
+            <LanguageToggle locale={activeLocale} />
             {isDemo ? (
               <button type="button" className="landing-btn-signin" onClick={logout}>
                 {t.exitDemo}
@@ -308,7 +347,6 @@ export default function Landing({ publicLocale }: { publicLocale?: SupportedLoca
         {/* ─── FEATURES ─── */}
         <section id="why" className="landing-features">
           <div className="landing-features-head">
-            <span className="eyebrow">{t.featuresEyebrow}</span>
             <h2>
               {t.featuresTitle.before}
               <em>{t.featuresTitle.accent}</em>
@@ -330,6 +368,26 @@ export default function Landing({ publicLocale }: { publicLocale?: SupportedLoca
                 </article>
               );
             })}
+          </div>
+        </section>
+
+        <section className="landing-labs">
+          <div className="landing-labs-copy">
+            <h2>{t.labsHeading}</h2>
+            <p>{t.labsBody}</p>
+            <Link to={publicNav.product.path} className="landing-btn-ghost">
+              {t.labsCta}
+            </Link>
+          </div>
+          <div className="landing-labs-panel">
+            <div className="landing-labs-consent">
+              <span aria-hidden="true" />
+              {t.labsConsent}
+            </div>
+            <p>{t.labsQuestion}</p>
+            <ul>
+              {t.labsSignals.map((signal) => <li key={signal}>{signal}</li>)}
+            </ul>
           </div>
         </section>
 
@@ -382,78 +440,65 @@ export default function Landing({ publicLocale }: { publicLocale?: SupportedLoca
    Mini product vizzes
    ────────────────────────────────────────────────────────── */
 
-function VizScience({ t }: { t: Copy }) {
+function VizDecision({ t }: { t: Copy }) {
   return (
-    <div className="miniviz-formula">
-      <div className="eyebrow">◆ {t.vizFormulaEyebrow}</div>
-      <div className="expr">
-        CP = <span className="v">W′</span> / t + <span className="v">P</span>
+    <div className="miniviz-decision">
+      <div className="decision-head">
+        <span>{t.vizDecisionLabel}</span>
+        <strong>{t.vizDecisionState}</strong>
       </div>
-      <div className="sub">
-        = <span className="res">281 W</span>
-      </div>
-      <div className="cite">— {t.vizFormulaCite}</div>
+      <div className="decision-action">{t.vizDecisionAction}</div>
+      <ul>
+        {t.vizDecisionReasons.map((reason) => <li key={reason}>{reason}</li>)}
+      </ul>
     </div>
   );
 }
 
-function VizPersonal({ t }: { t: Copy }) {
+function VizPlan({ t }: { t: Copy }) {
   return (
-    <div className="miniviz-cp">
-      <div className="stat">
-        <span className="stat-label">{t.vizCpLabel}</span>
+    <div className="miniviz-plan">
+      <div className="plan-head">
+        <span>{t.vizPlanLabel}</span>
+        <strong>{t.vizPlanSync}</strong>
       </div>
-      <div className="stat" style={{ marginTop: -6 }}>
-        <span className="stat-value">281</span>
-        <span className="stat-unit">{t.vizCpUnit}</span>
-        <span className="stat-delta">▲ {t.vizCpDelta}</span>
-      </div>
-      <div className="zone-bar" aria-hidden="true">
-        <span className="zone z1" style={{ width: '12%' }} />
-        <span className="zone z2" style={{ width: '38%' }} />
-        <span className="zone z3" style={{ width: '28%' }} />
-        <span className="zone z4" style={{ width: '16%' }} />
-        <span className="zone z5" style={{ width: '6%' }} />
-      </div>
-      <div className="zone-legend">
-        <span>Z1</span>
-        <span>Z2</span>
-        <span>Z3</span>
-        <span>Z4</span>
-        <span>Z5</span>
-      </div>
+      {t.vizPlanDays.map((item) => (
+        <div className="plan-day" key={item.day}>
+          <span>{item.day}</span>
+          <strong>{item.session}</strong>
+        </div>
+      ))}
     </div>
   );
 }
 
-function VizClaude({ t }: { t: Copy }) {
+function VizGoal({ t }: { t: Copy }) {
   return (
-    <div className="miniviz-claude">
-      <div className="line prompt">
-        <span className="chev">▸</span>
-        {t.vizClaudePrompt}
+    <div className="miniviz-goal">
+      <div className="goal-label">{t.vizGoalLabel}</div>
+      <div className="goal-times">
+        <div>
+          <span>{t.vizGoalCurrentLabel}</span>
+          <strong>{t.vizGoalCurrent}</strong>
+        </div>
+        <div>
+          <span>{t.vizGoalTargetLabel}</span>
+          <strong>{t.vizGoalTarget}</strong>
+        </div>
       </div>
-      <div className="line answer">{t.vizClaudeAnswer}</div>
-      <div className="cite">{t.vizClaudeCite}</div>
+      <div className="goal-gap">{t.vizGoalGap}</div>
     </div>
   );
 }
 
-function LanguageToggle({
-  locale,
-  setLocale,
-}: {
-  locale: SupportedLocale;
-  setLocale: (l: SupportedLocale) => Promise<void>;
-}) {
+function LanguageToggle({ locale }: { locale: SupportedLocale }) {
   return (
     <div className="landing-lang-toggle" role="group" aria-label="Language">
       <button
         type="button"
         className={locale === 'en' ? 'active' : ''}
         onClick={() => {
-          void setLocale('en');
-          window.location.assign('/');
+          window.location.assign('/?lang=en');
         }}
         aria-pressed={locale === 'en'}
       >
@@ -463,7 +508,6 @@ function LanguageToggle({
         type="button"
         className={locale === 'zh' ? 'active' : ''}
         onClick={() => {
-          void setLocale('zh');
           window.location.assign('/zh');
         }}
         aria-pressed={locale === 'zh'}
