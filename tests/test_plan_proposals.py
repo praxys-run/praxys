@@ -956,7 +956,11 @@ def test_canonical_mutation_between_draft_and_adoption_stales_proposal(
     elif mutation == "upsert":
         changed = client.put(
             f"/api/plan/{start.isoformat()}",
-            json={"workout_type": "easy", "planned_duration_min": 35},
+            json={
+                "workout_type": "easy",
+                "planned_duration_min": 45,
+                "workout_description": "Upserted note",
+            },
         )
         assert changed.status_code == 200, changed.text
     elif mutation == "delete":

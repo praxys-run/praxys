@@ -212,7 +212,7 @@ def test_workout_authoring_is_versioned_and_cross_client() -> None:
         "minimum_date?: string",
         "interface PlanUploadResponse",
         "interface PlanDayDeleteResponse",
-        "interface PlanWorkoutWriteFields",
+        "type PlanWorkoutWriteFields =",
         "interface PlanWorkoutDeleteResponse",
     ):
         assert marker in web_types
