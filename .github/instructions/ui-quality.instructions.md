@@ -29,9 +29,12 @@ as styling after implementation.
 7. Run the feature with sample data and inspect the real interaction in one
    bounded desktop/mobile pass. Prefer Chrome DevTools MCP; the cloud coding
    agent can use built-in Playwright. Praxys MCP may supply synthetic data
-   semantics but never replaces rendered review. Use keyboard navigation and
-   inspect console errors. Fix the batch of findings, then perform at most one
-   confirmation pass.
+   semantics but never replaces rendered review. For WeChat on Windows + WSL2,
+   use the repository skill only after the user approves foreground
+   interruption; Tencent has no headless/no-focus simulator mode. Never replace
+   registered tools with raw desktop focus, cursor, keyboard, mouse, or
+   coordinate automation. Use keyboard navigation and inspect console errors.
+   Fix the batch of findings, then perform at most one confirmation pass.
 8. Run the smallest relevant tests plus `cd web && npm run build`, miniapp
    `npm run typecheck` when applicable, and:
 

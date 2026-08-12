@@ -58,6 +58,9 @@ state coverage, and the PR evidence required by CI.
   `wechat-devtools` skill. It bridges to the separately installed Nightly
   WeChat DevTools for compilation, simulator automation, screenshots, and
   console/network inspection. Tencent's installed skill remains authoritative.
+  Tencent has no headless/no-focus simulator mode, so the wrapper blocks launch
+  until the user approves foreground interruption for that time window. Never
+  use raw Windows focus, cursor, mouse, keyboard, or coordinate automation.
 - Follow `.github/instructions/ui-quality.instructions.md` for the complete
   path-specific flow. Classify design-system discoveries as fixed locally,
   updated in the design source of truth, or linked to a filed follow-up, and
