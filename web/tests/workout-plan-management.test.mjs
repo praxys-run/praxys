@@ -25,6 +25,10 @@ test('web plan management uses canonical identity and version fences', async () 
   assert.match(editor, /Saving will reschedule this workout/);
   assert.match(editor, /Heart-rate minimum/);
   assert.match(editor, /Pace maximum/);
+  assert.match(
+    editor,
+    /id="plan-workout-duration"[\s\S]*?step="any"/,
+  );
   assert.match(editor, /Convert to rest/);
   assert.match(editor, /Delete this workout\?/);
 });

@@ -292,7 +292,7 @@ export default function WorkoutPlanEditor({
                   type="number"
                   min="0"
                   max="1440"
-                  step="1"
+                  step="any"
                   inputMode="decimal"
                   value={draft.duration}
                   disabled={working || restSelected}
