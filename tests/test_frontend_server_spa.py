@@ -31,7 +31,23 @@ def fake_dist(tmp_path):
     """
     dist = tmp_path / "web" / "dist"
     (dist / "assets").mkdir(parents=True)
-    (dist / "index.html").write_text("<!doctype html><html><body>SPA</body></html>")
+    (dist / "index.html").write_text(
+        "<!doctype html><html><body>SPA</body></html>",
+        encoding="utf-8",
+    )
+    for path, heading in (
+        ("product", "Product"),
+        ("faq", "FAQ"),
+        ("zh", "中文"),
+        ("zh/product", "产品"),
+        ("zh/faq", "常见问题"),
+    ):
+        route_dir = dist / path
+        route_dir.mkdir(parents=True)
+        (route_dir / "index.html").write_text(
+            f"<!doctype html><html><body><h1>{heading}</h1></body></html>",
+            encoding="utf-8",
+        )
     (dist / "assets" / "index-abc123.js").write_text("console.log('app');\n")
     (dist / "favicon.svg").write_text("<svg/>")
     return dist
@@ -62,6 +78,23 @@ def test_spa_route_falls_back_to_index_html(client):
         res = client.get(path)
         assert res.status_code == 200, f"{path} -> {res.status_code}"
         assert "SPA" in res.text
+
+
+@pytest.mark.parametrize(
+    ("path", "heading"),
+    [
+        ("/product", "Product"),
+        ("/faq", "FAQ"),
+        ("/zh", "中文"),
+        ("/zh/product", "产品"),
+        ("/zh/faq", "常见问题"),
+    ],
+)
+def test_public_routes_return_prerendered_html(client, path, heading):
+    res = client.get(path)
+    assert res.status_code == 200
+    assert f"<h1>{heading}</h1>" in res.text
+    assert "x-robots-tag" not in res.headers
 
 
 def test_known_asset_path_returns_real_content(client):
@@ -117,6 +150,15 @@ def test_cache_control_must_revalidate_on_spa_route_fallback(client):
     res = client.get("/today")
     cc = res.headers.get("cache-control", "")
     assert "must-revalidate" in cc
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/login", "/today", "/training", "/goal", "/labs", "/admin/ops", "/verify"],
+)
+def test_private_and_operational_routes_are_noindex(client, path):
+    res = client.get(path)
+    assert res.headers.get("x-robots-tag") == "noindex, nofollow"
 
 
 def test_healthz_endpoint(client):
