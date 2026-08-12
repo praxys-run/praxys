@@ -1,4 +1,8 @@
-import type { WorkoutIntensityTarget } from './api';
+import type {
+  WorkoutIntensityTarget,
+  WorkoutStructureRepeatGroup,
+  WorkoutStructureStep,
+} from './api';
 
 const supported: WorkoutIntensityTarget[] = [
   {
@@ -37,4 +41,41 @@ const missingBounds: WorkoutIntensityTarget = {
   reference: 'absolute',
 };
 
-void [supported, mismatched, missingBounds];
+const wordedRestStep: WorkoutStructureStep = {
+  type: 'step',
+  phase: 'rest',
+  label: 'Full recovery',
+  instructions: 'Stand easy and reset before the next effort.',
+  termination: { type: 'time', seconds: 60 },
+  target: {
+    metric: 'none',
+    unit: 'none',
+    reference: 'none',
+  },
+};
+const namedRepeatGroup: WorkoutStructureRepeatGroup = {
+  type: 'repeat',
+  label: 'Main set',
+  repetitions: 3,
+  steps: [wordedRestStep],
+};
+const semanticRepeatIsInvalid: WorkoutStructureStep = {
+  type: 'step',
+  // @ts-expect-error Repeat is structural, never a step semantic.
+  phase: 'repeat',
+  termination: { type: 'time', seconds: 60 },
+  target: {
+    metric: 'none',
+    unit: 'none',
+    reference: 'none',
+  },
+};
+
+void [
+  supported,
+  mismatched,
+  missingBounds,
+  wordedRestStep,
+  namedRepeatGroup,
+  semanticRepeatIsInvalid,
+];

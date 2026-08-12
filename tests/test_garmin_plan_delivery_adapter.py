@@ -601,6 +601,8 @@ def test_prepare_rejects_structured_workout_that_would_flatten_complex_steps() -
                         {
                             "type": "step",
                             "phase": "warmup",
+                            "label": "Easy opening",
+                            "instructions": "Settle before the first rep.",
                             "termination": {
                                 "type": "time",
                                 "seconds": 900,
@@ -613,6 +615,7 @@ def test_prepare_rejects_structured_workout_that_would_flatten_complex_steps() -
                         },
                         {
                             "type": "repeat",
+                            "label": "Main set",
                             "repetitions": 4,
                             "steps": [
                                 {

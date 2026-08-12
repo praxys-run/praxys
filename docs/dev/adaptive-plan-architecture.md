@@ -175,7 +175,16 @@ only when Praxys can do so without inventing missing information.
   (`running`, `trail_running`, `cycling`, `strength`, `rest`, etc.).
 - Non-rest workouts need at least one executable step. Rest workouts may use
   `{"steps": []}` and must not retain executable steps.
-- Step phases are `warmup`, `work`, `recovery`, `cooldown`, or `other`.
+- Step semantics are the fixed portable set `warmup`, `work`, `recovery`,
+  `rest`, `cooldown`, and `other`. Warm-up and cool-down steps are optional
+  and have no positional requirement. A `repeat` is a structural group, never
+  a step semantic.
+- A step may carry a user-defined `label` of at most 80 characters and
+  user-defined coaching `instructions` of at most 1000 characters. A repeat
+  group may carry a user-defined `label` of at most 80 characters. Praxys
+  trims leading and trailing whitespace, treats blank-only optional wording
+  as absent, rejects overflow rather than truncating it, and otherwise retains
+  the normalized canonical wording exactly.
 - Step terminations are `time`, `distance`, `open`, or `manual`.
 - Intensity targets are typed. Valid combinations are:
   `none`; power in `watts` or `%CP`; heart rate in `bpm` or `%LTHR`; pace in
@@ -192,15 +201,20 @@ row explicitly synthesizes and validates a new executable v1 structure.
 
 Provider dispatch follows the same distinction. Stryd translates only
 non-empty v1 time steps/repeats whose phases map to warmup, work, recovery, or
-cooldown and whose targets are power-based. Distance/open/manual terminations,
-`other` phases, non-power targets, provider-specific modifiers, malformed
-pairs, and unknown versions are rejected instead of flattened. Garmin
-currently accepts only genuinely flat running rows and rejects every structured
-workout. For reconciliation, Stryd track, treadmill, and unknown surfaces are
-also unrepresentable because the canonical activity contract can round-trip
-only road running and trail running. Garmin calendar summaries are not
-acceptable target snapshots until their authoritative template steps have a
-lossless provider-neutral translation.
+cooldown and whose targets are power-based. The connector has no verified
+lossless mapping for step/group labels or step instructions, so any structured
+workout containing that wording is rejected with the existing provider-request
+unsupported path; it is never sent with wording silently removed. The portable
+`rest` phase is also rejected because Stryd cannot distinguish it losslessly
+from recovery. Distance/open/manual terminations, `other` phases, non-power
+targets, provider-specific modifiers, malformed pairs, and unknown versions
+are rejected instead of flattened. Garmin currently accepts only genuinely
+flat running rows and rejects every structured workout. For reconciliation,
+Stryd track, treadmill, and unknown surfaces are also unrepresentable because
+the canonical activity contract can round-trip only road running and trail
+running. Garmin calendar summaries are not acceptable target snapshots until
+their authoritative template steps have a lossless provider-neutral
+translation.
 
 Example interval workout:
 
@@ -215,6 +229,8 @@ Example interval workout:
       {
         "type": "step",
         "phase": "warmup",
+        "label": "Trail warm-up",
+        "instructions": "Stay relaxed on the first climb.",
         "termination": { "type": "time", "seconds": 900 },
         "target": {
           "metric": "power",
@@ -226,11 +242,14 @@ Example interval workout:
       },
       {
         "type": "repeat",
+        "label": "Main set",
         "repetitions": 4,
         "steps": [
           {
             "type": "step",
             "phase": "work",
+            "label": "Uphill power",
+            "instructions": "Run tall with quick feet and quiet shoulders.",
             "termination": { "type": "time", "seconds": 240 },
             "target": {
               "metric": "power",
@@ -243,6 +262,8 @@ Example interval workout:
           {
             "type": "step",
             "phase": "recovery",
+            "label": "Float down",
+            "instructions": "Keep moving without chasing pace.",
             "termination": { "type": "time", "seconds": 180 },
             "target": {
               "metric": "power",
@@ -257,6 +278,8 @@ Example interval workout:
       {
         "type": "step",
         "phase": "cooldown",
+        "label": "Easy finish",
+        "instructions": "Let effort fall naturally.",
         "termination": { "type": "time", "seconds": 600 },
         "target": {
           "metric": "power",

@@ -1016,6 +1016,24 @@ def _structured_blocks_v1(
     structure: StructuredWorkoutV1,
     cp_watts: float,
 ) -> list[dict]:
+    for node in structure.steps:
+        node_steps = (
+            [node]
+            if isinstance(node, StructuredWorkoutStepV1)
+            else node.steps
+        )
+        if (
+            isinstance(node, StructuredWorkoutRepeatGroupV1)
+            and node.label is not None
+        ) or any(
+            step.label is not None or step.instructions is not None
+            for step in node_steps
+        ):
+            raise ValueError(
+                "Stryd structured delivery cannot safely encode "
+                "user-defined wording"
+            )
+
     blocks: list[dict] = []
     for node in structure.steps:
         if isinstance(node, StructuredWorkoutStepV1):

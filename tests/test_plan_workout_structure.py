@@ -5,6 +5,8 @@ import pytest
 from pydantic import ValidationError
 
 from api.plan_workout_structure import (
+    WORKOUT_INSTRUCTIONS_MAX_LENGTH,
+    WORKOUT_LABEL_MAX_LENGTH,
     StructuredWorkoutV1,
     inspect_workout_structure,
     synthesize_v1_structure_from_flat,
@@ -82,6 +84,111 @@ def test_compatibility_synthesis_returns_a_validated_model() -> None:
     assert structure.steps[0].termination.seconds == 123
     assert structure.steps[0].target.min == 200
     assert structure.steps[0].target.max == 240
+
+
+def test_user_wording_is_trimmed_once_and_blank_wording_is_absent() -> None:
+    structure = StructuredWorkoutV1.model_validate({
+        "steps": [
+            {
+                "type": "step",
+                "phase": "rest",
+                "label": "  Float recovery  ",
+                "instructions": "  Keep the cadence light; do not surge.  ",
+                "termination": {"type": "time", "seconds": 60},
+                "target": {
+                    "metric": "none",
+                    "unit": "none",
+                    "reference": "none",
+                },
+            },
+            {
+                "type": "repeat",
+                "label": "  Main set  ",
+                "repetitions": 2,
+                "steps": [
+                    {
+                        "type": "step",
+                        "phase": "work",
+                        "label": "\t",
+                        "instructions": "\n ",
+                        "termination": {"type": "time", "seconds": 30},
+                        "target": {
+                            "metric": "none",
+                            "unit": "none",
+                            "reference": "none",
+                        },
+                    }
+                ],
+            },
+        ]
+    })
+
+    normalized = structure.model_dump(mode="json", exclude_none=True)
+    assert normalized["steps"][0]["label"] == "Float recovery"
+    assert normalized["steps"][0]["instructions"] == (
+        "Keep the cadence light; do not surge."
+    )
+    assert normalized["steps"][1]["label"] == "Main set"
+    assert "label" not in normalized["steps"][1]["steps"][0]
+    assert "instructions" not in normalized["steps"][1]["steps"][0]
+
+
+@pytest.mark.parametrize(
+    ("field", "limit"),
+    [
+        ("label", WORKOUT_LABEL_MAX_LENGTH),
+        ("instructions", WORKOUT_INSTRUCTIONS_MAX_LENGTH),
+    ],
+)
+def test_step_wording_limits_reject_instead_of_truncating(
+    field: str,
+    limit: int,
+) -> None:
+    step = {
+        "type": "step",
+        "phase": "work",
+        field: "界" * (limit + 1),
+        "termination": {"type": "time", "seconds": 60},
+        "target": {
+            "metric": "none",
+            "unit": "none",
+            "reference": "none",
+        },
+    }
+
+    with pytest.raises(ValidationError) as error:
+        StructuredWorkoutV1.model_validate({"steps": [step]})
+
+    assert any(
+        item["type"] == "string_too_long"
+        for item in error.value.errors(include_input=False)
+    )
+
+
+def test_repeat_label_limit_rejects_instead_of_truncating() -> None:
+    with pytest.raises(ValidationError) as error:
+        StructuredWorkoutV1.model_validate({
+            "steps": [{
+                "type": "repeat",
+                "label": "M" * (WORKOUT_LABEL_MAX_LENGTH + 1),
+                "repetitions": 2,
+                "steps": [{
+                    "type": "step",
+                    "phase": "work",
+                    "termination": {"type": "time", "seconds": 60},
+                    "target": {
+                        "metric": "none",
+                        "unit": "none",
+                        "reference": "none",
+                    },
+                }],
+            }],
+        })
+
+    assert any(
+        item["type"] == "string_too_long"
+        for item in error.value.errors(include_input=False)
+    )
 
 
 @pytest.mark.parametrize(

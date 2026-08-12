@@ -1,4 +1,5 @@
 """Unit and schema tests for the managed-plan revision/delivery ledger."""
+import copy
 from datetime import date
 import logging
 
@@ -150,6 +151,46 @@ def test_workout_version_tracks_activity_type_and_structure_without_rehashing_le
     )
     assert workout_version(road) != workout_version(trail)
     assert workout_version(road) != workout_version(changed_structure)
+
+    worded = {
+        **road,
+        "workout_structure": {
+            "steps": [{
+                "type": "repeat",
+                "label": "Main set",
+                "repetitions": 3,
+                "steps": [{
+                    "type": "step",
+                    "phase": "work",
+                    "label": "Threshold",
+                    "instructions": "Stay smooth through the final minute.",
+                    "termination": {"type": "time", "seconds": 300},
+                    "target": {
+                        "metric": "none",
+                        "unit": "none",
+                        "reference": "none",
+                    },
+                }],
+            }],
+        },
+    }
+    changed_step_label = copy.deepcopy(worded)
+    changed_step_label["workout_structure"]["steps"][0]["steps"][0][
+        "label"
+    ] = "Threshold rep"
+    changed_instructions = copy.deepcopy(worded)
+    changed_instructions["workout_structure"]["steps"][0]["steps"][0][
+        "instructions"
+    ] = "Stay smooth and controlled through the final minute."
+    changed_repeat_label = copy.deepcopy(worded)
+    changed_repeat_label["workout_structure"]["steps"][0]["label"] = (
+        "Primary set"
+    )
+
+    canonical_version = workout_version(worded)
+    assert workout_version(changed_step_label) != canonical_version
+    assert workout_version(changed_instructions) != canonical_version
+    assert workout_version(changed_repeat_label) != canonical_version
 
 
 def test_sqlite_init_adds_ledger_tables_to_existing_database(tmp_path, monkeypatch):

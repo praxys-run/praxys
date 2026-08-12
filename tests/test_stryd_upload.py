@@ -283,6 +283,99 @@ class TestBuildWorkoutBlocks:
         with pytest.raises(ValueError, match="cannot safely encode"):
             build_workout_blocks(workout, cp_watts=248.0)
 
+    @pytest.mark.parametrize(
+        "structure",
+        [
+            {
+                "steps": [{
+                    "type": "step",
+                    "phase": "work",
+                    "label": "Threshold",
+                    "termination": {"type": "time", "seconds": 300},
+                    "target": {
+                        "metric": "power",
+                        "unit": "percent_cp",
+                        "reference": "critical_power",
+                        "min": 95,
+                        "max": 100,
+                    },
+                }],
+            },
+            {
+                "steps": [{
+                    "type": "step",
+                    "phase": "work",
+                    "instructions": "Hold form through the final minute.",
+                    "termination": {"type": "time", "seconds": 300},
+                    "target": {
+                        "metric": "power",
+                        "unit": "percent_cp",
+                        "reference": "critical_power",
+                        "min": 95,
+                        "max": 100,
+                    },
+                }],
+            },
+            {
+                "steps": [{
+                    "type": "repeat",
+                    "label": "Main set",
+                    "repetitions": 3,
+                    "steps": [{
+                        "type": "step",
+                        "phase": "work",
+                        "termination": {"type": "time", "seconds": 300},
+                        "target": {
+                            "metric": "power",
+                            "unit": "percent_cp",
+                            "reference": "critical_power",
+                            "min": 95,
+                            "max": 100,
+                        },
+                    }],
+                }],
+            },
+        ],
+    )
+    def test_structured_wording_is_rejected_instead_of_silently_dropped(
+        self,
+        structure,
+    ):
+        workout = {
+            "workout_type": "interval",
+            "workout_structure_version": "v1",
+            "workout_structure": structure,
+        }
+
+        with pytest.raises(
+            ValueError,
+            match="cannot safely encode user-defined wording",
+        ):
+            build_workout_blocks(workout, cp_watts=248.0)
+
+    def test_portable_rest_phase_remains_unsupported_by_stryd(self):
+        workout = {
+            "workout_type": "interval",
+            "workout_structure_version": "v1",
+            "workout_structure": {
+                "steps": [{
+                    "type": "step",
+                    "phase": "rest",
+                    "termination": {"type": "time", "seconds": 60},
+                    "target": {
+                        "metric": "power",
+                        "unit": "percent_cp",
+                        "reference": "critical_power",
+                        "min": 55,
+                        "max": 60,
+                    },
+                }],
+            },
+        }
+
+        with pytest.raises(ValueError, match="cannot safely encode"):
+            build_workout_blocks(workout, cp_watts=248.0)
+
     def test_description_is_not_parsed_without_structured_workout(self):
         """Legacy flat workouts no longer recover interval structure from free text."""
         workout = {

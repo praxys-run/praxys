@@ -5,7 +5,13 @@ import math
 from dataclasses import dataclass
 from typing import Annotated, Any, Literal, Mapping
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 from pydantic_core import PydanticCustomError
 
 from analysis.metrics import is_rest_workout
@@ -23,7 +29,14 @@ PlanActivityType = Literal[
     "rest",
     "other",
 ]
-WorkoutPhase = Literal["warmup", "work", "recovery", "cooldown", "other"]
+WorkoutPhase = Literal[
+    "warmup",
+    "work",
+    "recovery",
+    "rest",
+    "cooldown",
+    "other",
+]
 WorkoutStructureVersion = Literal["v1"]
 WorkoutStructureState = Literal[
     "absent",
@@ -49,6 +62,20 @@ _SUPPORTED_ACTIVITY_TYPES_BY_TARGET = {
     "stryd": {"running", "trail_running"},
     "garmin": {"running"},
 }
+
+# Limits are measured after trimming and reject overflow without truncation.
+# Labels stay compact enough for portable list/device surfaces; instructions
+# retain a substantially larger canonical coaching cue in Praxys.
+WORKOUT_LABEL_MAX_LENGTH = 80
+WORKOUT_INSTRUCTIONS_MAX_LENGTH = 1000
+
+
+def _normalize_optional_user_wording(value: object) -> object:
+    """Trim optional wording and represent blank-only input as absent."""
+    if not isinstance(value, str):
+        return value
+    normalized = value.strip()
+    return normalized or None
 
 
 @dataclass(frozen=True)
@@ -192,8 +219,28 @@ class StructuredWorkoutStepV1(BaseModel):
 
     type: Literal["step"] = "step"
     phase: WorkoutPhase
+    label: str | None = Field(
+        default=None,
+        max_length=WORKOUT_LABEL_MAX_LENGTH,
+        description=(
+            "Optional user-defined display label, trimmed without truncation."
+        ),
+    )
+    instructions: str | None = Field(
+        default=None,
+        max_length=WORKOUT_INSTRUCTIONS_MAX_LENGTH,
+        description=(
+            "Optional user-defined coaching cue, trimmed without truncation."
+        ),
+    )
     termination: WorkoutTerminationV1
     target: IntensityTargetV1
+
+    @field_validator("label", "instructions", mode="before")
+    @classmethod
+    def normalize_user_wording(cls, value: object) -> object:
+        """Normalize optional user wording without changing internal text."""
+        return _normalize_optional_user_wording(value)
 
 
 class StructuredWorkoutRepeatGroupV1(BaseModel):
@@ -202,8 +249,21 @@ class StructuredWorkoutRepeatGroupV1(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     type: Literal["repeat"] = "repeat"
+    label: str | None = Field(
+        default=None,
+        max_length=WORKOUT_LABEL_MAX_LENGTH,
+        description=(
+            "Optional user-defined group label, trimmed without truncation."
+        ),
+    )
     repetitions: int = Field(ge=1, le=100)
     steps: list[StructuredWorkoutStepV1] = Field(min_length=1)
+
+    @field_validator("label", mode="before")
+    @classmethod
+    def normalize_user_label(cls, value: object) -> object:
+        """Normalize an optional group label without changing internal text."""
+        return _normalize_optional_user_wording(value)
 
 
 StructuredWorkoutNodeV1 = Annotated[

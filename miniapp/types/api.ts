@@ -376,13 +376,25 @@ export type WorkoutTermination =
 
 export interface WorkoutStructureStep {
   type: 'step';
-  phase: 'warmup' | 'work' | 'recovery' | 'cooldown' | 'other';
+  phase:
+    | 'warmup'
+    | 'work'
+    | 'recovery'
+    | 'rest'
+    | 'cooldown'
+    | 'other';
+  /** Trimmed user-defined display label; at most 80 characters. */
+  label?: string | null;
+  /** Trimmed user-defined coaching cue; at most 1000 characters. */
+  instructions?: string | null;
   termination: WorkoutTermination;
   target: WorkoutIntensityTarget;
 }
 
 export interface WorkoutStructureRepeatGroup {
   type: 'repeat';
+  /** Trimmed user-defined group label; at most 80 characters. */
+  label?: string | null;
   repetitions: number;
   steps: WorkoutStructureStep[];
 }

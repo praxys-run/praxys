@@ -1321,12 +1321,22 @@ cross-training and rest activity types.
 
 `workout_structure_version="v1"` uses a strictly typed `workout_structure`
 object with ordered executable `step`s and `repeat` groups. Valid phases are
-`warmup`, `work`, `recovery`, `cooldown`, and `other`; terminations are
-`time`, `distance`, `open`, and `manual`. Intensity targets are typed rather
-than free-form dicts: `none`; power in `watts` or `%CP`; heart rate in `bpm`
-or `%LTHR`; pace in `sec_per_km` or threshold-relative `sec_per_km_delta`; and
-`rpe`. Non-rest workouts need at least one executable step. Rest workouts may
-have `{"steps": []}`.
+the fixed portable semantics `warmup`, `work`, `recovery`, `rest`, `cooldown`,
+and `other`; warm-up and cool-down are optional and not positionally required.
+`repeat` remains structural rather than becoming a semantic step type.
+Terminations are `time`, `distance`, `open`, and `manual`. Intensity targets
+are typed rather than free-form dicts: `none`; power in `watts` or `%CP`; heart
+rate in `bpm` or `%LTHR`; pace in `sec_per_km` or threshold-relative
+`sec_per_km_delta`; and `rpe`. Non-rest workouts need at least one executable
+step. Rest workouts may have `{"steps": []}`.
+
+User wording is separate from those semantics. Steps accept an optional
+`label` (80 characters) and optional coaching `instructions` (1000
+characters); repeat groups accept an optional `label` (80 characters).
+Leading and trailing whitespace is trimmed, blank-only optional wording is
+omitted, and over-limit input is rejected rather than truncated. Internal
+spacing, punctuation, case, and Unicode in the normalized value are retained
+in the canonical proposal and plan.
 
 #### POST /api/plan/proposals
 
@@ -1357,6 +1367,8 @@ a time.
           {
             "type": "step",
             "phase": "warmup",
+            "label": "Trail warm-up",
+            "instructions": "Stay relaxed on the first climb.",
             "termination": { "type": "time", "seconds": 900 },
             "target": {
               "metric": "power",
@@ -1368,11 +1380,14 @@ a time.
           },
           {
             "type": "repeat",
+            "label": "Main set",
             "repetitions": 4,
             "steps": [
               {
                 "type": "step",
                 "phase": "work",
+                "label": "Uphill power",
+                "instructions": "Run tall with quick feet and quiet shoulders.",
                 "termination": { "type": "time", "seconds": 240 },
                 "target": {
                   "metric": "power",
@@ -1385,6 +1400,8 @@ a time.
               {
                 "type": "step",
                 "phase": "recovery",
+                "label": "Float down",
+                "instructions": "Keep moving without chasing pace.",
                 "termination": { "type": "time", "seconds": 180 },
                 "target": {
                   "metric": "power",
@@ -1399,6 +1416,8 @@ a time.
           {
             "type": "step",
             "phase": "cooldown",
+            "label": "Easy finish",
+            "instructions": "Let effort fall naturally.",
             "termination": { "type": "time", "seconds": 600 },
             "target": {
               "metric": "power",
@@ -1482,10 +1501,13 @@ only translates provider-safe subsets: Stryd currently supports time-based
 power steps and repeat groups with warmup/work/recovery/cooldown phases, while
 Garmin still rejects all structured workouts and unsupported activity types
 instead of flattening them into a single duration-only block. Stryd also
-rejects empty structured workouts, `other` phases, non-time terminations,
-non-power targets, provider-specific segment modifiers, unknown versions, and
-mismatched version/payload pairs. Legacy flat delivery is used only when both
-structure fields are absent.
+rejects empty structured workouts, the portable `rest` and `other` phases,
+non-time terminations, non-power targets, provider-specific segment modifiers,
+unknown versions, and mismatched version/payload pairs. Because the current
+connector has no verified lossless mapping for step/group labels or step
+instructions, Stryd rejects any structured workout containing that wording
+through the existing typed provider-request error instead of dropping it.
+Legacy flat delivery is used only when both structure fields are absent.
 
 ### POST /api/plan/workouts
 

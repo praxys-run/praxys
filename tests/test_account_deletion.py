@@ -192,7 +192,28 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
             unknowns=[],
             warnings=[],
             alternatives=[],
-            workout_snapshot=[{"canonical_id": "delete-plan", "date": "2026-06-02"}],
+            workout_snapshot=[{
+                "canonical_id": "delete-plan",
+                "date": "2026-06-02",
+                "workout_structure_version": "v1",
+                "workout_structure": {
+                    "steps": [{
+                        "type": "step",
+                        "phase": "work",
+                        "label": "Delete this label",
+                        "instructions": "Delete this private coaching cue.",
+                        "termination": {
+                            "type": "time",
+                            "seconds": 1800,
+                        },
+                        "target": {
+                            "metric": "none",
+                            "unit": "none",
+                            "reference": "none",
+                        },
+                    }],
+                },
+            }],
         ))
         db.add(GoalBaselineConfirmation(
             id="baseline-confirmation",
@@ -266,6 +287,8 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
                     {
                         "type": "step",
                         "phase": "other",
+                        "label": "Delete this label",
+                        "instructions": "Delete this private coaching cue.",
                         "termination": {"type": "time", "seconds": 1800},
                         "target": {
                             "metric": "none",

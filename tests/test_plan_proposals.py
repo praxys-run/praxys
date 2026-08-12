@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import csv
+import copy
 import importlib
 import io
 import os
@@ -158,8 +159,10 @@ def _time_step(
     *,
     phase: str = "other",
     target: dict | None = None,
+    label: str | None = None,
+    instructions: str | None = None,
 ) -> dict:
-    return {
+    step = {
         "type": "step",
         "phase": phase,
         "termination": {
@@ -168,14 +171,26 @@ def _time_step(
         },
         "target": target or _none_target(),
     }
+    if label is not None:
+        step["label"] = label
+    if instructions is not None:
+        step["instructions"] = instructions
+    return step
 
 
-def _repeat_group(repetitions: int, *steps: dict) -> dict:
-    return {
+def _repeat_group(
+    repetitions: int,
+    *steps: dict,
+    label: str | None = None,
+) -> dict:
+    group = {
         "type": "repeat",
         "repetitions": repetitions,
         "steps": list(steps),
     }
+    if label is not None:
+        group["label"] = label
+    return group
 
 
 def _structure(*steps: dict) -> dict:
@@ -584,12 +599,19 @@ def test_structured_workout_round_trips_through_adoption_and_replay(proposal_cli
     client, db_session, _ = proposal_client
     start = date.today() + timedelta(days=3)
     trail_structure = _structure(
-        _time_step(15, phase="warmup"),
+        _time_step(
+            15,
+            phase="warmup",
+            label="Trail warm-up",
+            instructions="Stay relaxed on the first climb.",
+        ),
         _repeat_group(
             3,
             _time_step(
                 4,
                 phase="work",
+                label="Uphill power",
+                instructions="Strong form—quick feet, quiet shoulders.",
                 target=_target(
                     "power",
                     "percent_cp",
@@ -598,9 +620,20 @@ def test_structured_workout_round_trips_through_adoption_and_replay(proposal_cli
                     maximum=95,
                 ),
             ),
-            _time_step(3, phase="recovery"),
+            _time_step(
+                3,
+                phase="recovery",
+                label="Float down",
+                instructions="Keep moving; do not chase pace.",
+            ),
+            label="Main set",
         ),
-        _time_step(10, phase="cooldown"),
+        _time_step(
+            10,
+            phase="cooldown",
+            label="Easy finish",
+            instructions="Let effort fall naturally.",
+        ),
     )
     payload = _proposal_payload(
         key="trail-structured-create",
@@ -639,11 +672,34 @@ def test_structured_workout_round_trips_through_adoption_and_replay(proposal_cli
     assert created_body["workouts"][1]["workout_structure"]["steps"] == []
     assert created_body["workouts"][1]["planned_duration_min"] is None
 
+    current = client.get("/api/plan/proposals/current")
+    assert current.status_code == 200, current.text
+    assert current.json()["workouts"][0]["workout_structure"] == trail_structure
+
+    edited_structure = copy.deepcopy(trail_structure)
+    edited_structure["steps"][1]["label"] = "Main set — revised"
+    edited_structure["steps"][1]["steps"][0]["instructions"] = (
+        "Strong form—quick feet, quiet shoulders; hold back on rep one."
+    )
+    edit_payload = copy.deepcopy(payload)
+    edit_payload["idempotency_key"] = "trail-structured-edit"
+    edit_payload["expected_version"] = created_body["version"]
+    edit_payload["workouts"][0]["workout_structure"] = edited_structure
+    edited = client.post(
+        f"/api/plan/proposals/{created_body['id']}/edits",
+        json=edit_payload,
+    )
+    assert edited.status_code == 201, edited.text
+    edited_body = edited.json()
+    assert edited_body["version"] == created_body["version"] + 1
+    assert edited_body["workouts"][0]["workout_structure"] == edited_structure
+    assert created_body["workouts"][0]["workout_structure"] == trail_structure
+
     adopted = client.post(
-        f"/api/plan/proposals/{created_body['id']}/adopt",
+        f"/api/plan/proposals/{edited_body['id']}/adopt",
         json={
-            "expected_proposal_version": created_body["version"],
-            "expected_plan_version": created_body["adaptive_plan"]["version"],
+            "expected_proposal_version": edited_body["version"],
+            "expected_plan_version": edited_body["adaptive_plan"]["version"],
             "idempotency_key": "trail-structured-adopt",
         },
     )
@@ -654,10 +710,11 @@ def test_structured_workout_round_trips_through_adoption_and_replay(proposal_cli
     assert adopt_body["proposal"]["discipline"] == "trail_running"
     assert adopt_body["workouts"][0]["activity_type"] == "trail_running"
     assert adopt_body["workouts"][0]["workout_structure_version"] == "v1"
-    assert adopt_body["workouts"][0]["workout_structure"] == trail_structure
+    assert adopt_body["workouts"][0]["workout_structure"] == edited_structure
     assert adopt_body["workouts"][1]["workout_structure"]["steps"] == []
 
-    from db.models import PlanRevision, TrainingPlan
+    from db.models import PlanProposal, PlanRevision, TrainingPlan
+    from db.plan_ledger import workout_version
 
     db = db_session.SessionLocal()
     try:
@@ -669,9 +726,16 @@ def test_structured_workout_round_trips_through_adoption_and_replay(proposal_cli
         )
         assert plans[0].activity_type == "trail_running"
         assert plans[0].workout_structure_version == "v1"
-        assert plans[0].workout_structure == trail_structure
+        assert plans[0].workout_structure == edited_structure
         assert plans[1].activity_type == "rest"
         assert plans[1].workout_structure == {"steps": []}
+        immutable_parent = db.query(PlanProposal).filter(
+            PlanProposal.id == created_body["id"]
+        ).one()
+        assert (
+            immutable_parent.workout_snapshot[0]["workout_structure"]
+            == trail_structure
+        )
         revision = (
             db.query(PlanRevision)
             .filter(PlanRevision.idempotency_key == "trail-structured-adopt")
@@ -679,7 +743,13 @@ def test_structured_workout_round_trips_through_adoption_and_replay(proposal_cli
         )
         assert revision.after_snapshot[0]["activity_type"] == "trail_running"
         assert revision.after_snapshot[0]["workout_structure_version"] == "v1"
-        assert revision.after_snapshot[0]["workout_structure"] == trail_structure
+        assert (
+            revision.after_snapshot[0]["workout_structure"]
+            == edited_structure
+        )
+        assert workout_version(revision.after_snapshot[0]) == workout_version(
+            adopt_body["workouts"][0]
+        )
     finally:
         db.close()
 
@@ -713,9 +783,9 @@ def test_structured_workout_round_trips_through_adoption_and_replay(proposal_cli
     assert replacement_adopt.status_code == 200, replacement_adopt.text
 
     replay = client.post(
-        f"/api/plan/proposals/{created_body['id']}/adopt",
+        f"/api/plan/proposals/{edited_body['id']}/adopt",
         json={
-            "expected_proposal_version": created_body["version"],
+            "expected_proposal_version": edited_body["version"],
             "expected_plan_version": 0,
             "idempotency_key": "trail-structured-adopt",
         },
@@ -725,8 +795,138 @@ def test_structured_workout_round_trips_through_adoption_and_replay(proposal_cli
     assert replay_body["status"] == "already_adopted"
     assert replay_body["proposal"]["discipline"] == "trail_running"
     assert replay_body["workouts"][0]["activity_type"] == "trail_running"
-    assert replay_body["workouts"][0]["workout_structure"] == trail_structure
+    assert replay_body["workouts"][0]["workout_structure"] == edited_structure
     assert replay_body["workouts"][1]["workout_structure"] == {"steps": []}
+
+
+def test_workout_wording_normalization_limits_and_openapi_are_private(
+    proposal_client,
+):
+    client, _, _ = proposal_client
+    from api.plan_workout_structure import (
+        WORKOUT_INSTRUCTIONS_MAX_LENGTH,
+        WORKOUT_LABEL_MAX_LENGTH,
+    )
+
+    start = date.today() + timedelta(days=2)
+    blank_structure = _structure(
+        _time_step(
+            5,
+            phase="work",
+            label=" \t ",
+            instructions="\n ",
+        ),
+        _repeat_group(
+            2,
+            _time_step(1, phase="recovery"),
+            label="  ",
+        ),
+    )
+    blank = client.post(
+        "/api/plan/proposals",
+        json=_proposal_payload(
+            key="blank-wording",
+            workouts=[{
+                "date": start.isoformat(),
+                "workout_type": "interval",
+                "workout_structure_version": "v1",
+                "workout_structure": blank_structure,
+            }],
+        ),
+    )
+    assert blank.status_code == 201, blank.text
+    normalized_nodes = blank.json()["workouts"][0]["workout_structure"]["steps"]
+    assert "label" not in normalized_nodes[0]
+    assert "instructions" not in normalized_nodes[0]
+    assert "label" not in normalized_nodes[1]
+
+    too_long_cases = [
+        (
+            "step-label",
+            _structure(_time_step(
+                5,
+                phase="work",
+                label="private-label-" + "界" * WORKOUT_LABEL_MAX_LENGTH,
+            )),
+            "private-label-",
+        ),
+        (
+            "step-instructions",
+            _structure(_time_step(
+                5,
+                phase="work",
+                instructions=(
+                    "private-instructions-"
+                    + "界" * WORKOUT_INSTRUCTIONS_MAX_LENGTH
+                ),
+            )),
+            "private-instructions-",
+        ),
+        (
+            "repeat-label",
+            _structure(_repeat_group(
+                2,
+                _time_step(1, phase="work"),
+                label=(
+                    "private-repeat-"
+                    + "界" * WORKOUT_LABEL_MAX_LENGTH
+                ),
+            )),
+            "private-repeat-",
+        ),
+    ]
+    for suffix, structure, private_marker in too_long_cases:
+        response = client.post(
+            "/api/plan/proposals",
+            json=_proposal_payload(
+                key=f"overlong-{suffix}",
+                workouts=[{
+                    "date": start.isoformat(),
+                    "workout_type": "interval",
+                    "workout_structure_version": "v1",
+                    "workout_structure": structure,
+                }],
+            ),
+        )
+        assert response.status_code == 422, response.text
+        detail = response.json()["detail"]
+        assert detail["code"] == "PLAN_PROPOSAL_VALIDATION_FAILED"
+        assert any(
+            error["type"] == "string_too_long"
+            and "workout_structure" in error["field"]
+            for error in detail["errors"]
+        )
+        assert private_marker not in response.text
+
+    schemas = client.get("/openapi.json").json()["components"]["schemas"]
+    step_schema = schemas["StructuredWorkoutStepV1"]["properties"]
+    repeat_schema = schemas["StructuredWorkoutRepeatGroupV1"]["properties"]
+
+    def _string_limit(schema: dict) -> int | None:
+        candidates = schema.get("anyOf", [schema])
+        return next(
+            (
+                candidate.get("maxLength")
+                for candidate in candidates
+                if candidate.get("type") == "string"
+            ),
+            None,
+        )
+
+    assert _string_limit(step_schema["label"]) == WORKOUT_LABEL_MAX_LENGTH
+    assert (
+        _string_limit(step_schema["instructions"])
+        == WORKOUT_INSTRUCTIONS_MAX_LENGTH
+    )
+    assert _string_limit(repeat_schema["label"]) == WORKOUT_LABEL_MAX_LENGTH
+    assert set(step_schema["phase"]["enum"]) == {
+        "warmup",
+        "work",
+        "recovery",
+        "rest",
+        "cooldown",
+        "other",
+    }
 
 
 def test_proposal_validation_rejects_invalid_structure_and_target_units(proposal_client):
@@ -898,7 +1098,10 @@ def test_new_draft_after_adoption_replaces_full_future_owned_scope(proposal_clie
         db.close()
 
 
-@pytest.mark.parametrize("mutation", ["upload", "upsert", "delete", "reconciliation"])
+@pytest.mark.parametrize(
+    "mutation",
+    ["upload", "upsert", "delete", "reconciliation", "wording_update"],
+)
 def test_canonical_mutation_between_draft_and_adoption_stales_proposal(
     proposal_client,
     mutation: str,
@@ -967,7 +1170,7 @@ def test_canonical_mutation_between_draft_and_adoption_stales_proposal(
         changed = client.delete(f"/api/plan/{start.isoformat()}")
         assert changed.status_code == 200, changed.text
         assert changed.json()["rows"] == 1
-    else:
+    elif mutation == "reconciliation":
         from db.plan_ledger import lock_plan_writes, record_plan_revision
 
         db = db_session.SessionLocal()
@@ -988,6 +1191,37 @@ def test_canonical_mutation_between_draft_and_adoption_stales_proposal(
             db.commit()
         finally:
             db.close()
+    else:
+        from db.models import TrainingPlan
+        from db.plan_ledger import plan_snapshot, workout_version
+
+        db = db_session.SessionLocal()
+        try:
+            canonical = db.query(TrainingPlan).filter(
+                TrainingPlan.user_id == "proposal-owner",
+                TrainingPlan.date == start,
+            ).one()
+            canonical_id = canonical.canonical_id
+            expected_workout_version = workout_version(
+                plan_snapshot(canonical)
+            )
+            structure = copy.deepcopy(canonical.workout_structure)
+        finally:
+            db.close()
+        structure["steps"][0]["label"] = "Updated athlete label"
+        structure["steps"][0]["instructions"] = (
+            "Preserve this exact coaching cue."
+        )
+        changed = client.put(
+            f"/api/plan/workouts/{canonical_id}",
+            json={
+                "expected_version": expected_workout_version,
+                "workout_structure_version": "v1",
+                "workout_structure": structure,
+            },
+        )
+        assert changed.status_code == 200, changed.text
+        assert changed.json()["workout_version"] != expected_workout_version
 
     adopt = client.post(
         f"/api/plan/proposals/{draft['id']}/adopt",

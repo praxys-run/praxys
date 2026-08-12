@@ -788,6 +788,8 @@ class TestCanonicalWorkoutManagement:
                     {
                         "type": "step",
                         "phase": "warmup",
+                        "label": "Easy opening",
+                        "instructions": "Relax and settle before the main set.",
                         "termination": {"type": "time", "seconds": 600},
                         "target": {
                             "metric": "power",
@@ -914,11 +916,14 @@ class TestCanonicalWorkoutManagement:
                 },
                 {
                     "type": "repeat",
+                    "label": "Main set",
                     "repetitions": 4,
                     "steps": [
                         {
                             "type": "step",
                             "phase": "work",
+                            "label": "On",
+                            "instructions": "Run tall; hold the prescribed power.",
                             "termination": {
                                 "type": "time",
                                 "seconds": 240,
@@ -934,6 +939,8 @@ class TestCanonicalWorkoutManagement:
                         {
                             "type": "step",
                             "phase": "recovery",
+                            "label": "Float",
+                            "instructions": "Keep moving without forcing pace.",
                             "termination": {
                                 "type": "time",
                                 "seconds": 180,
@@ -951,6 +958,8 @@ class TestCanonicalWorkoutManagement:
                 {
                     "type": "step",
                     "phase": "cooldown",
+                    "label": "Easy finish",
+                    "instructions": "Let the effort fall naturally.",
                     "termination": {"type": "time", "seconds": 600},
                     "target": {
                         "metric": "power",

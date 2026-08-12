@@ -121,7 +121,30 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 unknowns=[],
                 warnings=[],
                 alternatives=[],
-                workout_snapshot=[{"canonical_id": "owner-plan", "date": "2026-08-05"}],
+                workout_snapshot=[{
+                    "canonical_id": "owner-plan",
+                    "date": "2026-08-05",
+                    "workout_structure_version": "v1",
+                    "workout_structure": {
+                        "steps": [{
+                            "type": "step",
+                            "phase": "work",
+                            "label": "Owner tempo",
+                            "instructions": "Hold form through the finish.",
+                            "termination": {
+                                "type": "time",
+                                "seconds": 2700,
+                            },
+                            "target": {
+                                "metric": "power",
+                                "unit": "watts",
+                                "reference": "absolute",
+                                "min": 240,
+                                "max": 260,
+                            },
+                        }],
+                    },
+                }],
             ),
             PlanProposal(
                 id="other-proposal",
@@ -201,6 +224,8 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                         {
                             "type": "step",
                             "phase": "other",
+                            "label": "Owner tempo",
+                            "instructions": "Hold form through the finish.",
                             "termination": {"type": "time", "seconds": 2700},
                             "target": {
                                 "metric": "power",
@@ -328,6 +353,12 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
     assert [row["canonical_id"] for row in payload["training_plans"]] == ["owner-plan"]
     assert payload["training_plans"][0]["activity_type"] == "running"
     assert payload["training_plans"][0]["workout_structure_version"] == "v1"
+    assert payload["training_plans"][0]["workout_structure"]["steps"][0][
+        "label"
+    ] == "Owner tempo"
+    assert payload["training_plans"][0]["workout_structure"]["steps"][0][
+        "instructions"
+    ] == "Hold form through the finish."
     assert payload["adaptive_plan_proposals"]["schema_version"] == 1
     assert [
         row["id"] for row in payload["adaptive_plan_proposals"]["goal_snapshots"]
@@ -342,6 +373,13 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
     assert (
         payload["adaptive_plan_proposals"]["proposals"][0]["discipline"]
         == "running"
+    )
+    exported_proposal_step = payload["adaptive_plan_proposals"]["proposals"][0][
+        "workout_snapshot"
+    ][0]["workout_structure"]["steps"][0]
+    assert exported_proposal_step["label"] == "Owner tempo"
+    assert exported_proposal_step["instructions"] == (
+        "Hold form through the finish."
     )
     assert payload["goal_baseline"] == {
         "schema_version": 1,

@@ -6,6 +6,8 @@ import type {
   ScopedPersonalContextAccessRequest,
   ScopedPersonalContextDraftRequest,
   WorkoutIntensityTarget,
+  WorkoutStructureRepeatGroup,
+  WorkoutStructureStep,
 } from './api';
 
 const payload = {
@@ -157,6 +159,35 @@ const nullIntensityTarget: WorkoutIntensityTarget = {
   min: null,
   max: null,
 };
+const wordedRestStep: WorkoutStructureStep = {
+  type: 'step',
+  phase: 'rest',
+  label: 'Full recovery',
+  instructions: 'Stand easy and reset before the next effort.',
+  termination: { type: 'time', seconds: 60 },
+  target: {
+    metric: 'none',
+    unit: 'none',
+    reference: 'none',
+  },
+};
+const namedRepeatGroup: WorkoutStructureRepeatGroup = {
+  type: 'repeat',
+  label: 'Main set',
+  repetitions: 3,
+  steps: [wordedRestStep],
+};
+const semanticRepeatIsInvalid: WorkoutStructureStep = {
+  type: 'step',
+  // @ts-expect-error Repeat is structural, never a step semantic.
+  phase: 'repeat',
+  termination: { type: 'time', seconds: 60 },
+  target: {
+    metric: 'none',
+    unit: 'none',
+    reference: 'none',
+  },
+};
 const structuredWorkoutUpdate: PlanWorkoutUpdateRequest = {
   expected_version: 'a'.repeat(64),
   workout_structure_version: 'v1',
@@ -191,6 +222,9 @@ void [
   mismatchedIntensityTuple,
   unboundedIntensityTarget,
   nullIntensityTarget,
+  wordedRestStep,
+  namedRepeatGroup,
+  semanticRepeatIsInvalid,
   structuredWorkoutUpdate,
   mismatchedStructureUpdate,
 ];

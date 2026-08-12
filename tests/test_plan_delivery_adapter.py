@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from api.plan_delivery.base import (
     PlanDeliveryAdapter,
     ProviderAuthenticationError,
+    ProviderRequestError,
     ProviderTransientError,
 )
 from api.plan_delivery.service import (
@@ -184,6 +185,45 @@ def test_stryd_prepared_payload_ignores_free_text_and_tracks_real_targets():
     assert first == repeated
     assert first.version == changed.version
     assert targeted.version != targeted_changed.version
+
+
+def test_stryd_adapter_returns_typed_unsupported_error_for_step_wording():
+    adapter = StrydPlanDeliveryAdapter({
+        "email": "runner@example.test",
+        "password": "secret",
+    })
+
+    with pytest.raises(
+        ProviderRequestError,
+        match="cannot safely encode user-defined wording",
+    ):
+        adapter.prepare_workout(
+            {
+                "date": "2026-08-02",
+                "workout_type": "threshold",
+                "workout_structure_version": "v1",
+                "workout_structure": {
+                    "steps": [{
+                        "type": "step",
+                        "phase": "work",
+                        "label": "Threshold",
+                        "instructions": "Stay smooth.",
+                        "termination": {
+                            "type": "time",
+                            "seconds": 300,
+                        },
+                        "target": {
+                            "metric": "power",
+                            "unit": "percent_cp",
+                            "reference": "critical_power",
+                            "min": 95,
+                            "max": 100,
+                        },
+                    }],
+                },
+            },
+            threshold_value=280.0,
+        )
 
 
 def test_delivery_authenticates_before_starting_ledger_attempt(tmp_path):

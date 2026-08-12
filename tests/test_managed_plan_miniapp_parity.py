@@ -168,6 +168,7 @@ def test_workout_authoring_is_versioned_and_cross_client() -> None:
     markup = _source(MANAGED_PLAN_WXML)
     web_types = _source(WEB_TYPES)
     mini_types = _source(MINI_TYPES)
+    assert mini_types.endswith(web_types)
 
     for source in (web, mini):
         assert "/api/plan/workouts" in source
@@ -214,6 +215,9 @@ def test_workout_authoring_is_versioned_and_cross_client() -> None:
         "interface PlanDayDeleteResponse",
         "type PlanWorkoutWriteFields =",
         "interface PlanWorkoutDeleteResponse",
+        "label?: string | null",
+        "instructions?: string | null",
+        "| 'rest'",
     ):
         assert marker in web_types
         assert marker in mini_types
