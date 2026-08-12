@@ -70,6 +70,13 @@ synchronizes `miniapp/` to a generated Windows-side mirror before project
 operations; the WSL repository remains authoritative. Stable WeChat DevTools
 remains separate and is not selected by default.
 
+Simulator automation preserves the developer's foreground application by
+default. Bring DevTools forward only for a user-approved watched or interactive
+step by prefixing that single invocation with
+`WECHATIDE_ALLOW_FOREGROUND=1`.
+Direct Windows focus, cursor, mouse-event, or coordinate automation is not an
+acceptable substitute for the registered `wechatide` tools.
+
 ## Brand floor
 
 The full source of truth is `DESIGN.md`. The high-frequency invariants are:

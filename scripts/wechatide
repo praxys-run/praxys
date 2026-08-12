@@ -114,9 +114,16 @@ for arg in "$@"; do
   fi
 done
 
-exec "${powershell_exe}" \
-  -NoProfile \
-  -ExecutionPolicy Bypass \
-  -File "$(wslpath -w "${powershell_script}")" \
-  -InstallRoot "$(wslpath -w "${install_root}")" \
-  "${converted_args[@]}"
+powershell_args=(
+  -NoProfile
+  -ExecutionPolicy Bypass
+  -File "$(wslpath -w "${powershell_script}")"
+  -InstallRoot "$(wslpath -w "${install_root}")"
+)
+
+if [[ "${WECHATIDE_ALLOW_FOREGROUND:-}" =~ ^(1|[Tt][Rr][Uu][Ee]|[Yy][Ee][Ss])$ ]]; then
+  powershell_args+=(-AllowForeground)
+fi
+
+powershell_args+=("${converted_args[@]}")
+exec "${powershell_exe}" "${powershell_args[@]}"

@@ -50,6 +50,11 @@ repository remains the only source of truth. Agents load the authoritative
 `wechatide-skill` from that installation, so DevTools upgrades update the tool
 contract without a stale vendored copy. Stable DevTools remains separate.
 
+CLI-driven verification preserves the developer's current foreground
+application by default, so simulator automation does not repeatedly interrupt
+other work. For an explicitly watched or interactive command, prefix only that
+invocation with `WECHATIDE_ALLOW_FOREGROUND=1`; do not export it globally.
+
 The first `Copilot` connection requires authorization in Nightly DevTools.
 Login, CLI access tokens, previews/uploads, cloud writes, and destructive
 operations remain subject to Tencent's interactive approval gates.

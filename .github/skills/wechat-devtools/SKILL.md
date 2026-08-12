@@ -42,6 +42,27 @@ receives the repository `miniapp/` path the wrapper first synchronizes it to a
 generated Windows-side mirror, then passes that local Windows path. The WSL
 repository remains the only source of truth; never edit the mirror.
 
+The wrapper preserves the user's foreground application by default while the
+Windows CLI runs. Keep that behavior for unattended compilation, simulator
+automation, screenshots, and diagnostics. Only when the user explicitly wants
+to watch or interact with DevTools, scope the opt-out to that one command:
+
+```bash
+WECHATIDE_ALLOW_FOREGROUND=1 scripts/wechatide ...
+```
+
+Do not export `WECHATIDE_ALLOW_FOREGROUND` for the whole shell or enable it
+merely to simplify rendered verification. Login, authorization, and other
+interactive approval flows may use it after telling the user that DevTools
+will come to the foreground.
+
+Never bypass the installed skill with direct Windows desktop automation such
+as `SetForegroundWindow`, `SwitchToThisWindow`, cursor positioning, synthetic
+mouse events, or coordinate clicks outside the registered `wechatide` tools.
+If an interaction cannot be completed through the upstream automation scene
+without taking over the desktop, leave rendered verification incomplete until
+the user explicitly approves a watched session.
+
 Set `WECHATIDE_INSTALL_ROOT` to an explicit WSL path only when Nightly is
 installed outside the normal Tencent directory. Set
 `WECHATIDE_PROJECT_MIRROR` only when the generated mirror needs a different
