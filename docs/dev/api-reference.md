@@ -1266,6 +1266,11 @@ Canonical Praxys workouts may also include:
   workout steps. Flat `duration_min`, `distance_km`, and target fields remain
   compatibility projections only and may be `null` for complex workouts when
   Praxys cannot safely derive a single legacy value.
+- `provider_compatibility` — content-only, typed compatibility for `garmin`
+  and `stryd`. Each item has `compatible`, `mode`
+  (`legacy_flat`, `structured`, or `unsupported`), and named reason codes.
+  It does not report connection state, credentials, authorization, or whether
+  a delivery is currently enabled.
 
 Target reconciliation snapshots may additionally include
 `workout_structure_status` (`supported` or `unsupported`) plus a losslessly
@@ -1508,6 +1513,49 @@ connector has no verified lossless mapping for step/group labels or step
 instructions, Stryd rejects any structured workout containing that wording
 through the existing typed provider-request error instead of dropping it.
 Legacy flat delivery is used only when both structure fields are absent.
+
+### POST /api/plan/workouts/compatibility
+
+Validate an unsaved workout payload against the same lossless provider-content
+rules used by delivery adapters. The body has the same shape as
+`POST /api/plan/workouts`, including `date`, activity, purpose, flat fields,
+and optional v1 structure. This endpoint does **not** save a workout, contact a
+provider, inspect credentials, or trigger delivery.
+
+```json
+{
+  "providers": [
+    {
+      "target": "garmin",
+      "compatible": false,
+      "mode": "unsupported",
+      "reasons": [
+        { "code": "structured_workout_not_supported" },
+        { "code": "activity_type_not_supported" }
+      ]
+    },
+    {
+      "target": "stryd",
+      "compatible": false,
+      "mode": "unsupported",
+      "reasons": [
+        { "code": "wording_not_supported", "path": "steps[0].label" },
+        { "code": "termination_not_supported", "path": "steps[0].termination" }
+      ]
+    }
+  ]
+}
+```
+
+Reason codes identify the exact loss boundary: `wording_not_supported`,
+`phase_not_supported`, `termination_not_supported`, and
+`target_not_supported` for the Stryd structured subset; Garmin reports
+`structured_workout_not_supported` instead of flattening a tree. Additional
+codes cover invalid/empty structures, unsupported activities, unsupported
+flat targets, and a required flat duration. Stryd also reports
+`flat_workout_not_lossless` when a legacy row would require the connector's
+old default duration or default power zone; Praxys rejects that delivery rather
+than applying a hidden default.
 
 ### POST /api/plan/workouts
 

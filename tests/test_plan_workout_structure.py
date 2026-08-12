@@ -9,6 +9,7 @@ from api.plan_workout_structure import (
     WORKOUT_LABEL_MAX_LENGTH,
     StructuredWorkoutV1,
     inspect_workout_structure,
+    project_workout_provider_compatibility,
     synthesize_v1_structure_from_flat,
 )
 
@@ -189,6 +190,85 @@ def test_repeat_label_limit_rejects_instead_of_truncating() -> None:
         item["type"] == "string_too_long"
         for item in error.value.errors(include_input=False)
     )
+
+
+def test_provider_compatibility_names_lossy_structured_details() -> None:
+    """Provider previews must explain loss rather than flattening a tree."""
+    structure = StructuredWorkoutV1.model_validate({
+        "steps": [{
+            "type": "repeat",
+            "label": "Main hill set",
+            "repetitions": 2,
+            "steps": [{
+                "type": "step",
+                "phase": "rest",
+                "label": "Reset",
+                "instructions": "Walk until breathing settles.",
+                "termination": {"type": "manual"},
+                "target": {
+                    "metric": "rpe",
+                    "unit": "scale_10",
+                    "reference": "perceived_exertion",
+                    "min": 3,
+                },
+            }],
+        }],
+    })
+
+    compatibility = project_workout_provider_compatibility(
+        activity_type="trail_running",
+        workout_structure_version="v1",
+        workout_structure=structure,
+        planned_duration_min=None,
+        planned_distance_km=None,
+        target_power_min=None,
+        target_power_max=None,
+        target_hr_min=None,
+        target_hr_max=None,
+        target_pace_min=None,
+        target_pace_max=None,
+    )
+    by_target = {item["target"]: item for item in compatibility}
+
+    assert by_target["garmin"]["compatible"] is False
+    assert {
+        reason["code"] for reason in by_target["garmin"]["reasons"]
+    } >= {
+        "structured_workout_not_supported",
+        "activity_type_not_supported",
+    }
+    assert by_target["stryd"]["compatible"] is False
+    assert {
+        reason["code"] for reason in by_target["stryd"]["reasons"]
+    } == {
+        "wording_not_supported",
+        "phase_not_supported",
+        "termination_not_supported",
+        "target_not_supported",
+    }
+
+
+def test_provider_compatibility_rejects_lossy_flat_stryd_defaults() -> None:
+    """Flat HR/no-duration rows must not preview as safe Stryd delivery."""
+    compatibility = project_workout_provider_compatibility(
+        activity_type="running",
+        workout_structure_version=None,
+        workout_structure=None,
+        planned_duration_min=None,
+        planned_distance_km=None,
+        target_power_min=None,
+        target_power_max=None,
+        target_hr_min=140,
+        target_hr_max=150,
+        target_pace_min=None,
+        target_pace_max=None,
+    )
+    stryd = next(item for item in compatibility if item["target"] == "stryd")
+
+    assert stryd["compatible"] is False
+    assert {
+        reason["code"] for reason in stryd["reasons"]
+    } >= {"duration_required", "target_not_supported"}
 
 
 @pytest.mark.parametrize(

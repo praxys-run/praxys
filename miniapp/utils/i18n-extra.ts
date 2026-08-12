@@ -167,7 +167,6 @@ const EN_GOAL = {
   close: 'Close',
   behind: 'Behind',
   unlikely: 'Unlikely',
-  unknown: '—',
   // Discard-edits modal
   'Discard changes?': 'Discard changes?',
   'Your goal edits will be lost.': 'Your goal edits will be lost.',
@@ -593,7 +592,6 @@ const ZH_GOAL = {
   close: '接近',
   behind: '落后',
   unlikely: '难以实现',
-  unknown: '—',
   // Discard-edits modal
   'Discard changes?': '放弃修改？',
   'Your goal edits will be lost.': '当前修改将不会保存。',

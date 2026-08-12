@@ -1497,6 +1497,9 @@ def test_existing_unowned_stryd_row_does_not_block_praxys_delivery(
             "date": workout_date,
             "source": "ai",
             "workout_type": "easy",
+            "planned_duration_min": 45,
+            "target_power_min": 180,
+            "target_power_max": 200,
             "workout_description": "Canonical workout",
         },
         {
@@ -1578,6 +1581,9 @@ def test_push_delivers_selected_praxys_workouts_on_same_date(
             "date": workout_date,
             "source": "ai",
             "workout_type": "easy",
+            "planned_duration_min": 45,
+            "target_power_min": 180,
+            "target_power_max": 200,
             "workout_description": "Morning",
         },
         {
@@ -1585,6 +1591,9 @@ def test_push_delivers_selected_praxys_workouts_on_same_date(
             "date": workout_date,
             "source": "ai",
             "workout_type": "easy",
+            "planned_duration_min": 45,
+            "target_power_min": 180,
+            "target_power_max": 200,
             "workout_description": "Evening",
         },
     ])

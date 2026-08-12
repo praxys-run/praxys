@@ -60,6 +60,9 @@ from api.plan_delivery import (
     load_plan_delivery_adapter,
 )
 from api.plan_reconciliation import load_plan_reconciliation_item
+from api.plan_workout_structure import (
+    project_workout_provider_compatibility,
+)
 from api.plan_cleanup import (
     PlanCleanupAmbiguousTargets,
     PlanCleanupRequiresExternalMode,
@@ -787,6 +790,23 @@ def _row_to_workout(
                 if field in {"description", "pace_min", "pace_max"}
                 else float(val)
             )
+    workout["provider_compatibility"] = (
+        project_workout_provider_compatibility(
+            activity_type=workout.get("activity_type"),
+            workout_structure_version=workout.get(
+                "workout_structure_version"
+            ),
+            workout_structure=workout.get("workout_structure"),
+            planned_duration_min=workout.get("duration_min"),
+            planned_distance_km=workout.get("distance_km"),
+            target_power_min=workout.get("power_min"),
+            target_power_max=workout.get("power_max"),
+            target_hr_min=workout.get("hr_min"),
+            target_hr_max=workout.get("hr_max"),
+            target_pace_min=workout.get("pace_min"),
+            target_pace_max=workout.get("pace_max"),
+        )
+    )
     return workout
 
 

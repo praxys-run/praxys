@@ -403,6 +403,42 @@ export interface WorkoutStructureV1 {
   steps: Array<WorkoutStructureStep | WorkoutStructureRepeatGroup>;
 }
 
+export type WorkoutProviderCompatibilityTarget = 'garmin' | 'stryd';
+
+export type WorkoutProviderCompatibilityMode =
+  | 'legacy_flat'
+  | 'structured'
+  | 'unsupported';
+
+export type WorkoutProviderCompatibilityReasonCode =
+  | 'activity_type_not_supported'
+  | 'duration_required'
+  | 'empty_structure_not_supported'
+  | 'flat_workout_not_lossless'
+  | 'invalid_structure'
+  | 'phase_not_supported'
+  | 'structured_workout_not_supported'
+  | 'target_not_supported'
+  | 'termination_not_supported'
+  | 'wording_not_supported';
+
+export interface WorkoutProviderCompatibilityReason {
+  code: WorkoutProviderCompatibilityReasonCode;
+  /** Canonical tree location, present when a specific node is lossy. */
+  path?: string;
+}
+
+/**
+ * Content-only provider projection. This neither checks a connection nor
+ * requests delivery; it names details a provider would lose.
+ */
+export interface WorkoutProviderCompatibility {
+  target: WorkoutProviderCompatibilityTarget;
+  compatible: boolean;
+  mode: WorkoutProviderCompatibilityMode;
+  reasons: WorkoutProviderCompatibilityReason[];
+}
+
 export interface PlanTargetWorkoutSnapshot {
   date: string;
   activity_type?: PlanActivityType | null;
@@ -462,6 +498,7 @@ export interface PlannedWorkout {
   description?: string;
   workout_structure_version?: WorkoutStructureVersion | null;
   workout_structure?: WorkoutStructureV1 | null;
+  provider_compatibility?: WorkoutProviderCompatibility[];
   /** @deprecated Use `owner` and `origin`; retained during client rollout. */
   source: PlanWorkoutSource;
   /** Optional only while a new frontend may briefly talk to the prior API. */
@@ -593,6 +630,13 @@ interface PlanWorkoutCreateValues {
 
 export type PlanWorkoutCreateRequest =
   PlanWorkoutCreateValues & OptionalWorkoutStructureFields;
+
+/** Draft-only compatibility request; it never writes or delivers a workout. */
+export type PlanWorkoutCompatibilityRequest = PlanWorkoutCreateRequest;
+
+export interface PlanWorkoutCompatibilityResponse {
+  providers: WorkoutProviderCompatibility[];
+}
 
 interface PlanWorkoutUpdateValues {
   expected_version: string;

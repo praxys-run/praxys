@@ -363,6 +363,8 @@
 }
 
 .managed-plan__workout-type,
+.managed-plan__workout-activity,
+.managed-plan__workout-source,
 .managed-plan__details,
 .managed-plan__description {
   display: block;
@@ -381,6 +383,18 @@
   color: var(--text-muted);
   font-size: 20rpx;
   line-height: 1.4;
+}
+
+.managed-plan__workout-activity,
+.managed-plan__workout-source {
+  margin-top: 3rpx;
+  color: var(--text-muted);
+  font-size: 18rpx;
+  line-height: 1.3;
+}
+
+.managed-plan__workout-source {
+  color: var(--accent-cobalt);
 }
 
 .managed-plan__description {
@@ -562,6 +576,225 @@ button.managed-plan__status {
   padding: 28rpx 0;
 }
 
+.managed-plan__structured {
+  padding: 28rpx 0 4rpx;
+  border-top: 1rpx solid var(--border-subtle);
+}
+
+.managed-plan__structured-heading,
+.managed-plan__node-heading,
+.managed-plan__compatibility-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.managed-plan__structured-title {
+  display: block;
+  color: var(--text);
+  font-size: 25rpx;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.managed-plan__structured-detail,
+.managed-plan__repeat-detail,
+.managed-plan__field-hint {
+  display: block;
+  margin-top: 6rpx;
+  color: var(--text-muted);
+  font-size: 19rpx;
+  line-height: 1.45;
+}
+
+.managed-plan__structured-count {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 19rpx;
+}
+
+.managed-plan__profile {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12rpx;
+  margin-top: 20rpx;
+  padding: 16rpx 0;
+  border-top: 1rpx solid var(--border-subtle);
+  border-bottom: 1rpx solid var(--border-subtle);
+}
+
+.managed-plan__profile-item {
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 18rpx;
+  line-height: 1.35;
+}
+
+.managed-plan__profile-item text:last-child {
+  display: block;
+  margin-top: 4rpx;
+  color: var(--text);
+  font-size: 19rpx;
+  word-break: break-word;
+}
+
+.managed-plan__nodes {
+  margin-top: 18rpx;
+}
+
+.managed-plan__node {
+  padding: 20rpx 0;
+  border-top: 1rpx solid var(--border-subtle);
+}
+
+.managed-plan__node--repeat {
+  padding-right: 16rpx;
+  padding-left: 16rpx;
+  background-color: var(--surface-subtle);
+}
+
+.managed-plan__node--child {
+  padding-left: 16rpx;
+  border-left: 1rpx solid var(--border);
+}
+
+.managed-plan__node-heading {
+  color: var(--text);
+  font-size: 22rpx;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.managed-plan__node-actions,
+.managed-plan__structured-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6rpx;
+}
+
+.managed-plan__node-actions button,
+.managed-plan__structured-action,
+.managed-plan__structured-undo button {
+  min-height: 88rpx;
+  margin: 0;
+  padding: 0 12rpx;
+  border: 1rpx solid var(--border);
+  border-radius: 10rpx;
+  background-color: transparent;
+  color: var(--text);
+  font-size: 18rpx;
+  font-weight: 600;
+  line-height: 86rpx;
+}
+
+.managed-plan__node-actions button:disabled,
+.managed-plan__structured-action:disabled,
+.managed-plan__structured-undo button:disabled {
+  opacity: 0.45;
+}
+
+.managed-plan__node-actions button::after,
+.managed-plan__structured-action::after,
+.managed-plan__structured-undo button::after {
+  border: 0;
+}
+
+.managed-plan__node-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20rpx 16rpx;
+  margin-top: 18rpx;
+}
+
+.managed-plan__repeat-children {
+  margin-top: 16rpx;
+}
+
+.managed-plan__structured-actions {
+  justify-content: flex-start;
+  margin-top: 18rpx;
+}
+
+.managed-plan__structured-undo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  margin-top: 18rpx;
+  padding: 14rpx 0;
+  border-top: 1rpx solid var(--border-subtle);
+  border-bottom: 1rpx solid var(--border-subtle);
+  color: var(--text);
+  font-size: 19rpx;
+  line-height: 1.4;
+}
+
+.managed-plan__structured-undo button {
+  flex: none;
+  border-color: transparent;
+  color: var(--accent-cobalt);
+}
+
+.managed-plan__compatibility {
+  margin-top: 24rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid var(--border-subtle);
+}
+
+.managed-plan__compatibility-loading {
+  display: block;
+  margin-top: 12rpx;
+  color: var(--accent-cobalt);
+  font-size: 20rpx;
+}
+
+.managed-plan__compatibility-error {
+  display: block;
+  margin-top: 12rpx;
+  color: var(--warning);
+  font-size: 20rpx;
+  line-height: 1.45;
+}
+
+.managed-plan__compatibility-provider {
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid var(--border-subtle);
+}
+
+.managed-plan__compatibility-status {
+  font-size: 19rpx;
+  font-weight: 650;
+}
+
+.managed-plan__compatibility-status--safe {
+  color: var(--primary);
+}
+
+.managed-plan__compatibility-status--warning {
+  color: var(--warning);
+}
+
+.managed-plan__compatibility-reason {
+  display: block;
+  margin-top: 6rpx;
+  color: var(--text-muted);
+  font-size: 19rpx;
+  line-height: 1.4;
+}
+
+.managed-plan__legacy-heading {
+  grid-column: 1 / -1;
+  padding-bottom: 18rpx;
+  border-bottom: 1rpx solid var(--border-subtle);
+}
+
+.managed-plan__legacy-heading .managed-plan__structured-action {
+  margin-top: 12rpx;
+  color: var(--primary);
+}
+
 .managed-plan__field {
   min-width: 0;
 }
@@ -616,6 +849,16 @@ button.managed-plan__status {
   gap: 12rpx;
   padding-top: 18rpx;
   border-top: 1rpx solid var(--border-subtle);
+}
+
+.managed-plan__editor-bottom {
+  position: sticky;
+  z-index: 2;
+  bottom: 0;
+  margin-top: 18rpx;
+  padding: 18rpx 0 calc(8rpx + env(safe-area-inset-bottom));
+  border-top: 1rpx solid var(--border-subtle);
+  background-color: var(--surface);
 }
 
 .managed-plan__editor-delete,

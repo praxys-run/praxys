@@ -392,8 +392,8 @@ class TestBuildWorkoutBlocks:
         assert seg["duration_time"] == {"hour": 1, "minute": 5, "second": 0}
         assert seg["intensity_percent"] == {"min": 107, "max": 113, "value": 110}
 
-    def test_rest_day_fallback(self):
-        """Rest day still produces blocks (caller should filter)."""
+    def test_rest_day_fallback_is_rejected_without_hidden_defaults(self):
+        """A flat rest row cannot silently become a default Stryd block."""
         workout = {
             "workout_type": "rest",
             "planned_duration_min": "",
@@ -401,12 +401,11 @@ class TestBuildWorkoutBlocks:
             "target_power_max": "",
             "workout_description": "Rest day.",
         }
-        blocks = build_workout_blocks(workout, cp_watts=248.0)
-        # Falls back to default single block
-        assert len(blocks) == 1
+        with pytest.raises(ValueError, match="flat delivery cannot safely encode"):
+            build_workout_blocks(workout, cp_watts=248.0)
 
-    def test_no_power_targets_uses_defaults(self):
-        """When power targets are missing, uses type-based defaults."""
+    def test_no_power_targets_are_rejected_without_hidden_defaults(self):
+        """A flat row cannot gain a type-derived provider target."""
         workout = {
             "workout_type": "long_run",
             "planned_duration_min": "140",
@@ -414,10 +413,8 @@ class TestBuildWorkoutBlocks:
             "target_power_max": "",
             "workout_description": "Long trail run.",
         }
-        blocks = build_workout_blocks(workout, cp_watts=248.0)
-        seg = blocks[0]["segments"][0]
-        assert seg["intensity_percent"]["min"] == 68
-        assert seg["intensity_percent"]["max"] == 78
+        with pytest.raises(ValueError, match="flat delivery cannot safely encode"):
+            build_workout_blocks(workout, cp_watts=248.0)
 
     def test_blocks_have_uuids(self):
         """All blocks and segments have unique UUIDs."""

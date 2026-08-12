@@ -1471,6 +1471,58 @@ class TestCanonicalWorkoutManagement:
         assert response.status_code == 400
         assert response.json()["detail"]["code"] == "PLAN_NO_CHANGES"
 
+    def test_compatibility_preview_is_typed_and_never_delivers(
+        self,
+        api_client,
+    ):
+        """Draft compatibility names lossy fields without writing a workout."""
+        client, user_id = api_client
+        target = (date.today() + timedelta(days=3)).isoformat()
+        response = client.post("/api/plan/workouts/compatibility", json={
+            "date": target,
+            "activity_type": "trail_running",
+            "workout_type": "hill_repeat",
+            "workout_structure_version": "v1",
+            "workout_structure": {
+                "steps": [{
+                    "type": "repeat",
+                    "label": "Hill set",
+                    "repetitions": 2,
+                    "steps": [{
+                        "type": "step",
+                        "phase": "rest",
+                        "label": "Walk",
+                        "instructions": "Wait for breathing to settle.",
+                        "termination": {"type": "manual"},
+                        "target": {
+                            "metric": "rpe",
+                            "unit": "scale_10",
+                            "reference": "perceived_exertion",
+                            "min": 3,
+                        },
+                    }],
+                }],
+            },
+        })
+
+        assert response.status_code == 200, response.text
+        by_target = {
+            item["target"]: item
+            for item in response.json()["providers"]
+        }
+        assert by_target["garmin"]["compatible"] is False
+        assert by_target["garmin"]["mode"] == "unsupported"
+        assert by_target["stryd"]["compatible"] is False
+        assert {
+            reason["code"] for reason in by_target["stryd"]["reasons"]
+        } == {
+            "wording_not_supported",
+            "phase_not_supported",
+            "termination_not_supported",
+            "target_not_supported",
+        }
+        assert _list_plan_rows(user_id) == []
+
     def test_external_and_other_user_workouts_are_not_mutable(
         self,
         api_client,

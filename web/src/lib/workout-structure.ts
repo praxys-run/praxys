@@ -1,0 +1,691 @@
+import type {
+  WorkoutIntensityTarget,
+  WorkoutStructureRepeatGroup,
+  WorkoutStructureStep,
+  WorkoutStructureV1,
+  WorkoutTermination,
+} from '@/types/api';
+
+export type WorkoutNode = WorkoutStructureStep | WorkoutStructureRepeatGroup;
+export type WorkoutNodePath = readonly [number] | readonly [number, number];
+export type WorkoutMoveDirection = 'up' | 'down';
+export type WorkoutInsertPosition = 'before' | 'after';
+
+export interface WorkoutStructureFlatFields {
+  planned_duration_min: number | null;
+  planned_distance_km: number | null;
+  target_power_min: number | null;
+  target_power_max: number | null;
+  target_hr_min: number | null;
+  target_hr_max: number | null;
+  target_pace_min: string | null;
+  target_pace_max: string | null;
+}
+
+export type WorkoutTotal =
+  | { certainty: 'deterministic'; seconds: number }
+  | { certainty: 'unknown' };
+
+export type WorkoutDistanceTotal =
+  | { certainty: 'deterministic'; meters: number }
+  | { certainty: 'unknown' };
+
+export interface WorkoutStructureSummary {
+  duration: WorkoutTotal;
+  distance: WorkoutDistanceTotal;
+  /** A certainty label, never an invented physiological load value. */
+  load: { certainty: 'estimated' | 'unknown' };
+  executableSteps: number;
+}
+
+export interface RemovedWorkoutNode {
+  node: WorkoutNode;
+  parentPath: readonly [number] | null;
+  index: number;
+}
+
+export interface RemoveWorkoutNodeResult {
+  structure: WorkoutStructureV1;
+  removed: RemovedWorkoutNode | null;
+  path: WorkoutNodePath | null;
+}
+
+const TARGET_COMBINATIONS = {
+  none: {
+    metric: 'none',
+    unit: 'none',
+    reference: 'none',
+  },
+  power_watts: {
+    metric: 'power',
+    unit: 'watts',
+    reference: 'absolute',
+  },
+  power_cp: {
+    metric: 'power',
+    unit: 'percent_cp',
+    reference: 'critical_power',
+  },
+  heart_rate_bpm: {
+    metric: 'heart_rate',
+    unit: 'bpm',
+    reference: 'absolute',
+  },
+  heart_rate_lthr: {
+    metric: 'heart_rate',
+    unit: 'percent_lthr',
+    reference: 'lthr',
+  },
+  pace_absolute: {
+    metric: 'pace',
+    unit: 'sec_per_km',
+    reference: 'absolute',
+  },
+  pace_threshold: {
+    metric: 'pace',
+    unit: 'sec_per_km_delta',
+    reference: 'threshold_pace',
+  },
+  rpe: {
+    metric: 'rpe',
+    unit: 'scale_10',
+    reference: 'perceived_exertion',
+  },
+} as const;
+
+export type WorkoutTargetKind = keyof typeof TARGET_COMBINATIONS;
+
+export const WORKOUT_TARGET_KINDS = Object.keys(
+  TARGET_COMBINATIONS,
+) as WorkoutTargetKind[];
+
+export function targetKind(target: WorkoutIntensityTarget): WorkoutTargetKind {
+  const match = WORKOUT_TARGET_KINDS.find((kind) => {
+    const candidate = TARGET_COMBINATIONS[kind];
+    return candidate.metric === target.metric
+      && candidate.unit === target.unit
+      && candidate.reference === target.reference;
+  });
+  return match ?? 'none';
+}
+
+export function targetForKind(kind: WorkoutTargetKind): WorkoutIntensityTarget {
+  const target = TARGET_COMBINATIONS[kind];
+  if (kind === 'none') {
+    return { metric: 'none', unit: 'none', reference: 'none' };
+  }
+  const defaults: Record<Exclude<WorkoutTargetKind, 'none'>, number> = {
+    power_watts: 1,
+    power_cp: 1,
+    heart_rate_bpm: 1,
+    heart_rate_lthr: 1,
+    pace_absolute: 1,
+    pace_threshold: 0,
+    rpe: 1,
+  };
+  return {
+    ...target,
+    min: defaults[kind],
+  } as WorkoutIntensityTarget;
+}
+
+export function createStructuredStep(
+  overrides: Partial<WorkoutStructureStep> = {},
+): WorkoutStructureStep {
+  return {
+    type: 'step',
+    phase: 'other',
+    termination: { type: 'open' },
+    target: { metric: 'none', unit: 'none', reference: 'none' },
+    ...cloneValue(overrides),
+  };
+}
+
+export function createRepeatGroup(
+  overrides: Partial<WorkoutStructureRepeatGroup> = {},
+): WorkoutStructureRepeatGroup {
+  return {
+    type: 'repeat',
+    repetitions: 2,
+    steps: [createStructuredStep()],
+    ...cloneValue(overrides),
+  };
+}
+
+export function insertWorkoutNode(
+  structure: WorkoutStructureV1,
+  path: WorkoutNodePath,
+  node: WorkoutNode,
+  position: WorkoutInsertPosition,
+): WorkoutStructureV1 {
+  const next = cloneStructure(structure);
+  const target = nodeArrayAtPath(next, path);
+  if (!target) return next;
+  const index = path[path.length - 1];
+  const insertionIndex = position === 'before' ? index : index + 1;
+  target.splice(insertionIndex, 0, cloneNode(node));
+  return next;
+}
+
+export function duplicateWorkoutNode(
+  structure: WorkoutStructureV1,
+  path: WorkoutNodePath,
+): WorkoutStructureV1 {
+  const node = workoutNodeAtPath(structure, path);
+  return node
+    ? insertWorkoutNode(structure, path, node, 'after')
+    : cloneStructure(structure);
+}
+
+export function moveWorkoutNode(
+  structure: WorkoutStructureV1,
+  path: WorkoutNodePath,
+  direction: WorkoutMoveDirection,
+): WorkoutStructureV1 {
+  const next = cloneStructure(structure);
+  const nodes = nodeArrayAtPath(next, path);
+  if (!nodes) return next;
+  const index = path[path.length - 1];
+  const replacementIndex = direction === 'up' ? index - 1 : index + 1;
+  if (replacementIndex < 0 || replacementIndex >= nodes.length) return next;
+  [nodes[index], nodes[replacementIndex]] = [
+    nodes[replacementIndex],
+    nodes[index],
+  ];
+  return next;
+}
+
+export function removeWorkoutNode(
+  structure: WorkoutStructureV1,
+  path: WorkoutNodePath,
+): RemoveWorkoutNodeResult {
+  const next = cloneStructure(structure);
+  const nodes = nodeArrayAtPath(next, path);
+  if (!nodes) {
+    return { structure: next, removed: null, path: null };
+  }
+  const index = path[path.length - 1];
+  const [node] = nodes.splice(index, 1);
+  if (!node) return { structure: next, removed: null, path: null };
+  return {
+    structure: next,
+    removed: {
+      node,
+      parentPath: path.length === 2 ? [path[0]] : null,
+      index,
+    },
+    path: [...path] as WorkoutNodePath,
+  };
+}
+
+export function restoreRemovedWorkoutNode(
+  structure: WorkoutStructureV1,
+  removed: RemovedWorkoutNode,
+): WorkoutStructureV1 {
+  const next = cloneStructure(structure);
+  const nodes = removed.parentPath
+    ? repeatChildren(next, removed.parentPath[0])
+    : next.steps;
+  if (!nodes) return next;
+  nodes.splice(
+    Math.min(Math.max(removed.index, 0), nodes.length),
+    0,
+    cloneNode(removed.node),
+  );
+  return next;
+}
+
+export function updateWorkoutStep(
+  structure: WorkoutStructureV1,
+  path: WorkoutNodePath,
+  update: Partial<WorkoutStructureStep>,
+): WorkoutStructureV1 {
+  const next = cloneStructure(structure);
+  const step = workoutNodeAtPath(next, path);
+  if (!step || step.type !== 'step') return next;
+  Object.assign(step, cloneValue(update));
+  return next;
+}
+
+export function updateWorkoutRepeat(
+  structure: WorkoutStructureV1,
+  rootIndex: number,
+  update: Partial<WorkoutStructureRepeatGroup>,
+): WorkoutStructureV1 {
+  const next = cloneStructure(structure);
+  const node = next.steps[rootIndex];
+  if (!node || node.type !== 'repeat') return next;
+  Object.assign(node, cloneValue(update));
+  return next;
+}
+
+export function summarizeWorkoutStructure(
+  structure: WorkoutStructureV1,
+): WorkoutStructureSummary {
+  const steps = expandWorkoutSteps(structure);
+  let seconds = 0;
+  let meters = 0;
+  let durationKnown = true;
+  let distanceKnown = true;
+
+  for (const step of steps) {
+    if (step.termination.type === 'time') {
+      seconds += step.termination.seconds;
+      distanceKnown = false;
+    } else if (step.termination.type === 'distance') {
+      meters += step.termination.meters;
+      durationKnown = false;
+    } else {
+      durationKnown = false;
+      distanceKnown = false;
+    }
+  }
+
+  const allTargeted = steps.length > 0
+    && steps.every((step) => step.target.metric !== 'none');
+  return {
+    duration: durationKnown
+      ? { certainty: 'deterministic', seconds }
+      : { certainty: 'unknown' },
+    distance: distanceKnown
+      ? { certainty: 'deterministic', meters }
+      : { certainty: 'unknown' },
+    // This certainty deliberately carries no numerical load model. A typed
+    // target plus exact duration is enough to label the profile estimated;
+    // a training-load score belongs to the analysis layer, not this editor.
+    load: durationKnown && allTargeted
+      ? { certainty: 'estimated' }
+      : { certainty: 'unknown' },
+    executableSteps: steps.length,
+  };
+}
+
+export function deriveFlatFieldsFromStructure(
+  structure: WorkoutStructureV1,
+): WorkoutStructureFlatFields {
+  const steps = expandWorkoutSteps(structure);
+  const summary = summarizeWorkoutStructure(structure);
+  const result: WorkoutStructureFlatFields = {
+    planned_duration_min: summary.duration.certainty === 'deterministic'
+      ? round(summary.duration.seconds / 60, 3)
+      : null,
+    planned_distance_km: summary.distance.certainty === 'deterministic'
+      ? round(summary.distance.meters / 1000, 3)
+      : null,
+    target_power_min: null,
+    target_power_max: null,
+    target_hr_min: null,
+    target_hr_max: null,
+    target_pace_min: null,
+    target_pace_max: null,
+  };
+  if (!steps.length) return result;
+
+  const signatures = steps.map((step) => (
+    projectableTargetSignature(step.target)
+  ));
+  if (signatures.some((signature) => signature === null)) return result;
+  const [signature] = signatures;
+  if (!signature || signatures.some(
+    (candidate) => JSON.stringify(candidate) !== JSON.stringify(signature),
+  )) {
+    return result;
+  }
+  const [metric, minimum, maximum] = signature;
+  if (metric === 'power') {
+    result.target_power_min = minimum;
+    result.target_power_max = maximum;
+  } else if (metric === 'heart_rate') {
+    result.target_hr_min = minimum;
+    result.target_hr_max = maximum;
+  } else if (metric === 'pace') {
+    result.target_pace_min = formatPace(minimum);
+    result.target_pace_max = formatPace(maximum);
+  }
+  return result;
+}
+
+export function synthesizeStructureFromFlat({
+  workoutType,
+  durationMinutes,
+  distanceKm,
+  powerMin,
+  powerMax,
+  hrMin,
+  hrMax,
+  paceMin,
+  paceMax,
+}: {
+  workoutType: string;
+  durationMinutes: number | null;
+  distanceKm: number | null;
+  powerMin: number | null;
+  powerMax: number | null;
+  hrMin: number | null;
+  hrMax: number | null;
+  paceMin: string | null;
+  paceMax: string | null;
+}): WorkoutStructureV1 {
+  if (isRestWorkoutType(workoutType)) return { steps: [] };
+  const duration = finiteNonnegative(durationMinutes);
+  const distance = finiteNonnegative(distanceKm);
+  if (duration && distance) {
+    throw new Error(
+      'Choose either a duration or a distance before converting to steps.',
+    );
+  }
+  const termination: WorkoutTermination = duration
+    ? { type: 'time', seconds: Math.round(duration * 60) }
+    : distance
+      ? { type: 'distance', meters: Math.round(distance * 1000) }
+      : { type: 'open' };
+  if (
+    (termination.type === 'time' && termination.seconds < 1)
+    || (termination.type === 'distance' && termination.meters < 1)
+  ) {
+    throw new Error('The selected termination is too small to convert.');
+  }
+  return {
+    steps: [createStructuredStep({
+      phase: 'other',
+      termination,
+      target: targetFromFlat({
+        powerMin,
+        powerMax,
+        hrMin,
+        hrMax,
+        paceMin,
+        paceMax,
+      }),
+    })],
+  };
+}
+
+export function validateWorkoutStructure(
+  structure: WorkoutStructureV1,
+  workoutType: string,
+): string[] {
+  const errors: string[] = [];
+  const steps = expandWorkoutSteps(structure);
+  if (!isRestWorkoutType(workoutType) && !steps.length) {
+    errors.push('Add at least one executable step for a non-rest workout.');
+  }
+  if (isRestWorkoutType(workoutType) && steps.length) {
+    errors.push('A rest workout cannot contain executable steps.');
+  }
+  structure.steps.forEach((node, rootIndex) => {
+    if (node.type === 'repeat') {
+      if (!node.steps.length) {
+        errors.push(`Repeat ${rootIndex + 1} needs at least one step.`);
+      }
+      if (!Number.isInteger(node.repetitions)
+        || node.repetitions < 1
+        || node.repetitions > 100) {
+        errors.push(`Repeat ${rootIndex + 1} must repeat from 1 to 100 times.`);
+      }
+    }
+  });
+  steps.forEach((step, index) => {
+    const label = step.label?.trim() ?? '';
+    const instructions = step.instructions?.trim() ?? '';
+    if (label.length > 80) {
+      errors.push(`Step ${index + 1} label must be 80 characters or fewer.`);
+    }
+    if (instructions.length > 1000) {
+      errors.push(
+        `Step ${index + 1} instructions must be 1000 characters or fewer.`,
+      );
+    }
+    errors.push(...validateTermination(step.termination, index));
+    errors.push(...validateTarget(step.target, index));
+  });
+  return errors;
+}
+
+function expandWorkoutSteps(structure: WorkoutStructureV1): WorkoutStructureStep[] {
+  const expanded: WorkoutStructureStep[] = [];
+  for (const node of structure.steps) {
+    if (node.type === 'step') {
+      expanded.push(node);
+      continue;
+    }
+    for (let count = 0; count < node.repetitions; count += 1) {
+      expanded.push(...node.steps);
+    }
+  }
+  return expanded;
+}
+
+function nodeArrayAtPath(
+  structure: WorkoutStructureV1,
+  path: WorkoutNodePath,
+): WorkoutNode[] | null {
+  if (path.length === 1) return structure.steps;
+  return repeatChildren(structure, path[0]);
+}
+
+function repeatChildren(
+  structure: WorkoutStructureV1,
+  rootIndex: number,
+): WorkoutStructureStep[] | null {
+  const node = structure.steps[rootIndex];
+  return node?.type === 'repeat' ? node.steps : null;
+}
+
+function workoutNodeAtPath(
+  structure: WorkoutStructureV1,
+  path: WorkoutNodePath,
+): WorkoutNode | null {
+  const nodes = nodeArrayAtPath(structure, path);
+  return nodes?.[path[path.length - 1]] ?? null;
+}
+
+function cloneStructure(structure: WorkoutStructureV1): WorkoutStructureV1 {
+  return {
+    steps: structure.steps.map(cloneNode),
+  };
+}
+
+function cloneNode(node: WorkoutNode): WorkoutNode {
+  if (node.type === 'step') {
+    return {
+      ...node,
+      termination: { ...node.termination },
+      target: { ...node.target } as WorkoutIntensityTarget,
+    };
+  }
+  return {
+    ...node,
+    steps: node.steps.map(cloneNode) as WorkoutStructureStep[],
+  };
+}
+
+function cloneValue<T>(value: T): T {
+  if (value === undefined || value === null) return value;
+  return structuredClone(value);
+}
+
+function projectableTargetSignature(
+  target: WorkoutIntensityTarget,
+): ['none' | 'power' | 'heart_rate' | 'pace', number | null, number | null] | null {
+  const combo = `${target.metric}:${target.unit}:${target.reference}`;
+  if (combo === 'none:none:none') return ['none', null, null];
+  if (combo === 'power:watts:absolute') {
+    return ['power', target.min ?? null, target.max ?? null];
+  }
+  if (combo === 'heart_rate:bpm:absolute') {
+    return ['heart_rate', target.min ?? null, target.max ?? null];
+  }
+  if (combo === 'pace:sec_per_km:absolute') {
+    return ['pace', target.min ?? null, target.max ?? null];
+  }
+  return null;
+}
+
+function formatPace(value: number | null): string | null {
+  if (value === null) return null;
+  const rounded = Math.round(value);
+  const minutes = Math.floor(rounded / 60);
+  const seconds = rounded % 60;
+  return `${minutes.toString().padStart(2, '0')}:${seconds
+    .toString()
+    .padStart(2, '0')}`;
+}
+
+function targetFromFlat({
+  powerMin,
+  powerMax,
+  hrMin,
+  hrMax,
+  paceMin,
+  paceMax,
+}: {
+  powerMin: number | null;
+  powerMax: number | null;
+  hrMin: number | null;
+  hrMax: number | null;
+  paceMin: string | null;
+  paceMax: string | null;
+}): WorkoutIntensityTarget {
+  const hasPower = powerMin !== null || powerMax !== null;
+  const hasHr = hrMin !== null || hrMax !== null;
+  const parsedPaceMin = parsePace(paceMin);
+  const parsedPaceMax = parsePace(paceMax);
+  const hasPace = parsedPaceMin !== null || parsedPaceMax !== null;
+  if ([hasPower, hasHr, hasPace].filter(Boolean).length > 1) {
+    throw new Error('Choose one target metric before converting to steps.');
+  }
+  if (hasPower) {
+    return boundedTarget(
+      { metric: 'power', unit: 'watts', reference: 'absolute' },
+      powerMin,
+      powerMax,
+    );
+  }
+  if (hasHr) {
+    return boundedTarget(
+      { metric: 'heart_rate', unit: 'bpm', reference: 'absolute' },
+      hrMin,
+      hrMax,
+    );
+  }
+  if (hasPace) {
+    return boundedTarget(
+      { metric: 'pace', unit: 'sec_per_km', reference: 'absolute' },
+      parsedPaceMin,
+      parsedPaceMax,
+    );
+  }
+  if ((paceMin?.trim() || paceMax?.trim()) && !hasPace) {
+    throw new Error('Enter pace as minutes:seconds before converting.');
+  }
+  return { metric: 'none', unit: 'none', reference: 'none' };
+}
+
+function boundedTarget(
+  target: Omit<Exclude<WorkoutIntensityTarget, {
+    metric: 'none';
+  }>, 'min' | 'max'>,
+  min: number | null,
+  max: number | null,
+): WorkoutIntensityTarget {
+  if (min === null && max === null) {
+    throw new Error('A target needs at least one bound.');
+  }
+  return {
+    ...target,
+    ...(min !== null ? { min } : {}),
+    ...(max !== null ? { max } : {}),
+  } as WorkoutIntensityTarget;
+}
+
+function parsePace(value: string | null): number | null {
+  const text = value?.trim() ?? '';
+  if (!text) return null;
+  const parts = text.split(':');
+  if (parts.length !== 2) return null;
+  const minutes = Number(parts[0]);
+  const seconds = Number(parts[1]);
+  if (!Number.isInteger(minutes) || !Number.isFinite(seconds)
+    || minutes < 0 || seconds < 0 || seconds >= 60) {
+    return null;
+  }
+  const result = minutes * 60 + seconds;
+  return result > 0 ? result : null;
+}
+
+function finiteNonnegative(value: number | null): number | null {
+  if (value === null || !Number.isFinite(value) || value < 0) return null;
+  return value;
+}
+
+function isRestWorkoutType(value: string): boolean {
+  return ['rest', 'off'].includes(value.trim().toLowerCase());
+}
+
+function round(value: number, decimals: number): number {
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
+}
+
+function validateTermination(
+  termination: WorkoutTermination,
+  stepIndex: number,
+): string[] {
+  if (
+    termination.type === 'time'
+    && (!Number.isInteger(termination.seconds)
+      || termination.seconds < 1
+      || termination.seconds > 86_400)
+  ) {
+    return [`Step ${stepIndex + 1} needs time from 1 to 86400 seconds.`];
+  }
+  if (
+    termination.type === 'distance'
+    && (!Number.isInteger(termination.meters)
+      || termination.meters < 1
+      || termination.meters > 1_000_000)
+  ) {
+    return [`Step ${stepIndex + 1} needs distance from 1 to 1000000 meters.`];
+  }
+  return [];
+}
+
+function validateTarget(
+  target: WorkoutIntensityTarget,
+  stepIndex: number,
+): string[] {
+  if (target.metric === 'none') return [];
+  if (target.min == null && target.max == null) {
+    return [`Step ${stepIndex + 1} target needs a minimum or maximum.`];
+  }
+  const bounds: Record<WorkoutTargetKind, readonly [number, number]> = {
+    none: [0, 0],
+    power_watts: [0, 5000],
+    power_cp: [0, 300],
+    heart_rate_bpm: [0, 300],
+    heart_rate_lthr: [0, 200],
+    pace_absolute: [0, 7200],
+    pace_threshold: [-7200, 7200],
+    rpe: [0, 10],
+  };
+  const [minimum, maximum] = bounds[targetKind(target)];
+  for (const value of [target.min, target.max]) {
+    if (
+      value != null
+      && (!Number.isFinite(value) || value < minimum || value > maximum)
+    ) {
+      return [
+        `Step ${stepIndex + 1} target must stay between ${minimum} and ${maximum}.`,
+      ];
+    }
+  }
+  if (
+    target.min != null
+    && target.max != null
+    && target.min > target.max
+  ) {
+    return [`Step ${stepIndex + 1} target minimum cannot exceed maximum.`];
+  }
+  return [];
+}

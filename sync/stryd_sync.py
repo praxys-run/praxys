@@ -18,6 +18,7 @@ from api.plan_workout_structure import (
     StructuredWorkoutStepV1,
     StructuredWorkoutV1,
     inspect_workout_structure,
+    project_workout_provider_compatibility,
 )
 
 logger = logging.getLogger(__name__)
@@ -1072,6 +1073,62 @@ def build_workout_blocks(workout: dict, cp_watts: float) -> list[dict]:
         ),
         workout_structure=workout.get("workout_structure"),
     )
+    compatibility = next(
+        item
+        for item in project_workout_provider_compatibility(
+            activity_type=workout.get("activity_type"),
+            workout_structure_version=workout.get(
+                "workout_structure_version"
+            ),
+            workout_structure=workout.get("workout_structure"),
+            planned_duration_min=workout.get("planned_duration_min"),
+            planned_distance_km=workout.get("planned_distance_km"),
+            target_power_min=workout.get("target_power_min"),
+            target_power_max=workout.get("target_power_max"),
+            target_hr_min=workout.get("target_hr_min"),
+            target_hr_max=workout.get("target_hr_max"),
+            target_pace_min=workout.get("target_pace_min"),
+            target_pace_max=workout.get("target_pace_max"),
+        )
+        if item["target"] == "stryd"
+    )
+    if not compatibility["compatible"]:
+        reason_codes = {
+            reason["code"] for reason in compatibility["reasons"]
+        }
+        if "wording_not_supported" in reason_codes:
+            raise ValueError(
+                "Stryd structured delivery cannot safely encode "
+                "user-defined wording"
+            )
+        if "phase_not_supported" in reason_codes:
+            raise ValueError(
+                "Stryd structured delivery cannot safely encode "
+                "the requested phase"
+            )
+        if "termination_not_supported" in reason_codes:
+            raise ValueError(
+                "Stryd structured delivery cannot safely encode "
+                "non-time terminations"
+            )
+        if "target_not_supported" in reason_codes:
+            raise ValueError(
+                "Stryd structured delivery cannot safely encode "
+                "non-power intensity targets"
+            )
+        if "empty_structure_not_supported" in reason_codes:
+            raise ValueError(
+                "Stryd structured delivery cannot encode an empty workout"
+            )
+        if "flat_workout_not_lossless" in reason_codes:
+            raise ValueError(
+                "Stryd flat delivery cannot safely encode this workout "
+                "without a positive duration and a power range"
+            )
+        raise ValueError(
+            "Stryd structured delivery rejected an invalid or unsupported "
+            "workout structure"
+        )
     if inspection.state == "supported":
         assert inspection.structure is not None
         blocks = _structured_blocks_v1(
