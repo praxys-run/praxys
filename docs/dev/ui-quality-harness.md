@@ -49,16 +49,26 @@ the rendered files trigger it.
 7. Classify design-system impact: fix a local defect now; update a clear missing
    reusable rule/token/component in the source of truth; or file a linked
    `Design system gap` issue for a broad decision or out-of-scope migration.
-8. Run the real feature with sample data. Inspect desktop and mobile together
-   with Chrome DevTools MCP or built-in cloud-agent Playwright, exercise the
-   interaction by keyboard, and review console output. Praxys MCP may provide
-   synthetic data semantics but does not replace rendered review. Fix findings
-   in one batch, then do at most one confirmation pass.
+8. Run the real feature with sample data. Inspect web desktop and mobile
+   together with Chrome DevTools MCP or built-in cloud-agent Playwright. For a
+   local miniapp change on Windows + WSL2, invoke `wechat-devtools` and inspect
+   the affected page in the WeChat simulator, including screenshots and
+   console/network output. Praxys MCP may provide synthetic data semantics but
+   does not replace rendered review. Fix findings in one batch, then do at most
+   one confirmation pass.
 9. Run targeted tests, builds/typechecks, and the local gate. Complete the PR
    evidence before marking the PR ready.
 
 If browser automation is unavailable, the contributor must not claim rendered
 verification. An agent keeps the PR draft and records the limitation.
+
+The repository does not vendor Tencent's DevTools skill. The
+`wechat-devtools` wrapper reads the authoritative copy from a separately
+installed Nightly build and uses `scripts/wechatide` to cross the WSL2/Windows
+process boundary. Because DevTools rejects WSL UNC project roots, the wrapper
+synchronizes `miniapp/` to a generated Windows-side mirror before project
+operations; the WSL repository remains authoritative. Stable WeChat DevTools
+remains separate and is not selected by default.
 
 ## Brand floor
 
