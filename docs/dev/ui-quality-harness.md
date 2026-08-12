@@ -70,6 +70,14 @@ synchronizes `miniapp/` to a generated Windows-side mirror before project
 operations; the WSL repository remains authoritative. Stable WeChat DevTools
 remains separate and is not selected by default.
 
+Tencent provides no headless or no-focus simulator mode. The wrapper blocks
+Windows CLI launch by default; after explicit user approval, prefix each
+required invocation with `WECHATIDE_ALLOW_FOREGROUND=1`. Do not export the
+permission globally. For uninterrupted local work, schedule the rendered pass
+or use a separate Windows session/VM.
+Direct Windows focus, cursor, mouse-event, or coordinate automation is not an
+acceptable substitute for the registered `wechatide` tools.
+
 ## Brand floor
 
 The full source of truth is `DESIGN.md`. The high-frequency invariants are:
