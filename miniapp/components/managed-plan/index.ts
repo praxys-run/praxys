@@ -998,6 +998,20 @@ function resolutionDescription(
   return lines.join('\n\n');
 }
 
+function setCustomTabBarHidden(hidden: boolean): void {
+  try {
+    const pages = getCurrentPages();
+    const page = pages[pages.length - 1] as unknown as {
+      getTabBar?: () => {
+        setData: (patch: { hidden: boolean }) => void;
+      } | null;
+    };
+    page?.getTabBar?.()?.setData({ hidden });
+  } catch {
+    // The tab bar may not exist while a page is attaching or detaching.
+  }
+}
+
 Component({
   options: { addGlobalClass: true },
 
@@ -1142,6 +1156,7 @@ Component({
     detached() {
       this.clearMidnightRefresh();
       this.clearCompatibilityPreview();
+      setCustomTabBarHidden(false);
       invalidateManagedPlanRequests(this);
     },
   },
@@ -1426,6 +1441,7 @@ Component({
       workout: PlannedWorkout | null,
       forking = false,
     ) {
+      setCustomTabBarHidden(true);
       const workoutType = workout?.workout_type ?? 'easy';
       const activityType = portableActivityType(
         workout?.activity_type,
@@ -1522,6 +1538,7 @@ Component({
     onCloseEditor() {
       if (this.data.editorSaving) return;
       this.clearCompatibilityPreview();
+      setCustomTabBarHidden(false);
       this.setData({ editorOpen: false, editorError: '' });
     },
 
@@ -2106,6 +2123,7 @@ Component({
           );
         }
         await this.moveWindowToDate(result.date);
+        setCustomTabBarHidden(false);
         this.setData({ editorOpen: false, editorError: '' });
         wx.showToast({
           title: this.data.tr.done,
@@ -2154,6 +2172,7 @@ Component({
             this.data.editorCanonicalId,
           )}?${params}`,
         );
+        setCustomTabBarHidden(false);
         this.setData({ editorOpen: false, editorError: '' });
         wx.showToast({
           title: this.data.tr.done,
@@ -2210,6 +2229,7 @@ Component({
           restPayload,
         );
         await this.moveWindowToDate(result.date);
+        setCustomTabBarHidden(false);
         this.setData({ editorOpen: false, editorError: '' });
         wx.showToast({
           title: this.data.tr.done,
@@ -2234,6 +2254,7 @@ Component({
       const apiError = error as Partial<ApiError>;
       if (apiError.code === 'UNAUTHENTICATED') return;
       if (apiError.code === 'PLAN_VERSION_CONFLICT') {
+        setCustomTabBarHidden(false);
         this.setData({
           editorOpen: false,
           editorError: '',
@@ -2249,6 +2270,7 @@ Component({
         return;
       }
       if (apiError.code === 'PLAN_HISTORY_IMMUTABLE') {
+        setCustomTabBarHidden(false);
         this.setData({
           editorOpen: false,
           editorError: '',

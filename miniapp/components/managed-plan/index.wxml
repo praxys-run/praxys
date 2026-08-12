@@ -192,6 +192,12 @@
         >{{tr.cancel}}</button>
       </view>
 
+      <scroll-view
+        scroll-y="{{true}}"
+        enhanced="{{true}}"
+        show-scrollbar="{{false}}"
+        class="managed-plan__editor-scroll"
+      >
       <view class="managed-plan__editor-fields">
         <view class="managed-plan__field">
           <text class="managed-plan__field-label">{{tr.date}}</text>
@@ -617,6 +623,7 @@
           ></textarea>
         </view>
       </view>
+      </scroll-view>
 
       <view class="managed-plan__editor-bottom">
         <text

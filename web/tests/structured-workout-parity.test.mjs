@@ -49,6 +49,7 @@ test('web and miniapp expose the same structured editing capabilities', async ()
     'editorUnsupportedStructure',
     '_compatibilityRequestId',
     '/api/plan/workouts/compatibility',
+    'setCustomTabBarHidden',
   ]) {
     assert.match(miniController, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
@@ -57,6 +58,7 @@ test('web and miniapp expose the same structured editing capabilities', async ()
     'bindtap="onAddStructuredRepeat"',
     'bindtap="onUndoStructuredDelete"',
     'bindtap="onDuplicateWorkout"',
+    'managed-plan__editor-scroll',
     'env(safe-area-inset-bottom)',
   ]) {
     const source = marker.includes('safe-area')
@@ -67,6 +69,22 @@ test('web and miniapp expose the same structured editing capabilities', async ()
   assert.doesNotMatch(
     miniTemplate,
     /type="digit"[^>]*data-field="target(?:Min|Max)"/,
+  );
+  assert.match(
+    miniTemplate,
+    /<scroll-view[\s\S]{0,200}class="managed-plan__editor-scroll"/,
+  );
+  assert.match(
+    miniTemplate,
+    /<\/scroll-view>\s*<view class="managed-plan__editor-bottom">/,
+  );
+  assert.match(
+    miniController,
+    /openWorkoutEditor\([\s\S]{0,200}setCustomTabBarHidden\(true\)/,
+  );
+  assert.match(
+    miniController,
+    /onCloseEditor\(\)[\s\S]{0,200}setCustomTabBarHidden\(false\)/,
   );
   assert.match(miniController, /editorWorkoutType:\s*workoutType,/);
   assert.match(webStructureEditor, /step="any"/);
