@@ -97,8 +97,10 @@ and synthetic sandbox preparation. The cloud config's literal
 `actions/setup-python`; local profiles continue to require the project
 virtualenv unless `PRAXYS_MCP_PYTHON` is explicitly set.
 
-The setup workflow also owns the cloud agent's Node 22 dependency bootstrap.
-It uses `npm install` because the current Lingui package metadata is not strict
+The setup workflow also owns the cloud agent's Node 24 LTS dependency
+bootstrap. Application web and mini-program build workflows use the same Node
+major so CI validation and production artifacts share a supported baseline. It
+uses `npm install` because the current Lingui package metadata is not strict
 `npm ci` compatible, then restores and verifies `web/package-lock.json` before
 the agent starts. This requires no secret or repository variable; change the
 workflow and this runbook together if the install strategy changes.
