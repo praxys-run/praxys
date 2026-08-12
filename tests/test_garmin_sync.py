@@ -158,6 +158,7 @@ def test_parse_scheduled_workouts_normalizes_only_workout_items():
             "planned_duration_min": "60.0",
             "planned_distance_km": "10.0",
             "workout_description": "Threshold 5 x 5",
+            "workout_structure_status": "unsupported",
             "external_id": "7001",
             "provider_references": {
                 "template_id": "9001",

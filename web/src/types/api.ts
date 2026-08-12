@@ -302,6 +302,26 @@ export type PlanActivityType =
 
 export type WorkoutStructureVersion = 'v1';
 
+type WorkoutIntensityBounds =
+  | {
+      min: number;
+      max?: number | null;
+    }
+  | {
+      min?: number | null;
+      max: number;
+    };
+
+type BoundedWorkoutIntensityTarget<
+  Metric extends string,
+  Unit extends string,
+  Reference extends string,
+> = {
+  metric: Metric;
+  unit: Unit;
+  reference: Reference;
+} & WorkoutIntensityBounds;
+
 export type WorkoutIntensityTarget =
   | {
       metric: 'none';
@@ -310,34 +330,29 @@ export type WorkoutIntensityTarget =
       min?: never;
       max?: never;
     }
-  | {
-      metric: 'power';
-      unit: 'watts' | 'percent_cp';
-      reference: 'absolute' | 'critical_power';
-      min?: number | null;
-      max?: number | null;
-    }
-  | {
-      metric: 'heart_rate';
-      unit: 'bpm' | 'percent_lthr';
-      reference: 'absolute' | 'lthr';
-      min?: number | null;
-      max?: number | null;
-    }
-  | {
-      metric: 'pace';
-      unit: 'sec_per_km' | 'sec_per_km_delta';
-      reference: 'absolute' | 'threshold_pace';
-      min?: number | null;
-      max?: number | null;
-    }
-  | {
-      metric: 'rpe';
-      unit: 'scale_10';
-      reference: 'perceived_exertion';
-      min?: number | null;
-      max?: number | null;
-    };
+  | BoundedWorkoutIntensityTarget<'power', 'watts', 'absolute'>
+  | BoundedWorkoutIntensityTarget<
+      'power',
+      'percent_cp',
+      'critical_power'
+    >
+  | BoundedWorkoutIntensityTarget<'heart_rate', 'bpm', 'absolute'>
+  | BoundedWorkoutIntensityTarget<
+      'heart_rate',
+      'percent_lthr',
+      'lthr'
+    >
+  | BoundedWorkoutIntensityTarget<'pace', 'sec_per_km', 'absolute'>
+  | BoundedWorkoutIntensityTarget<
+      'pace',
+      'sec_per_km_delta',
+      'threshold_pace'
+    >
+  | BoundedWorkoutIntensityTarget<
+      'rpe',
+      'scale_10',
+      'perceived_exertion'
+    >;
 
 export type WorkoutTermination =
   | {
@@ -386,6 +401,9 @@ export interface PlanTargetWorkoutSnapshot {
   target_pace_min?: string | null;
   target_pace_max?: string | null;
   workout_description?: string;
+  workout_structure_status?: 'absent' | 'supported' | 'unsupported';
+  workout_structure_version?: WorkoutStructureVersion | null;
+  workout_structure?: WorkoutStructureV1 | null;
   start_time?: string | null;
 }
 
@@ -515,7 +533,17 @@ export interface PlanResponse {
   adjustments?: PlanAdjustment[];
 }
 
-export interface PlanWorkoutWriteFields {
+type OptionalWorkoutStructureFields =
+  | {
+      workout_structure_version?: never;
+      workout_structure?: never;
+    }
+  | {
+      workout_structure_version: WorkoutStructureVersion;
+      workout_structure: WorkoutStructureV1;
+    };
+
+interface PlanWorkoutWriteFieldValues {
   date: string;
   activity_type?: PlanActivityType | null;
   workout_type: string;
@@ -528,11 +556,12 @@ export interface PlanWorkoutWriteFields {
   target_pace_min?: string | null;
   target_pace_max?: string | null;
   workout_description: string;
-  workout_structure_version?: WorkoutStructureVersion | null;
-  workout_structure?: WorkoutStructureV1 | null;
 }
 
-export interface PlanWorkoutCreateRequest {
+export type PlanWorkoutWriteFields =
+  PlanWorkoutWriteFieldValues & OptionalWorkoutStructureFields;
+
+interface PlanWorkoutCreateValues {
   date: string;
   activity_type?: PlanActivityType | null;
   workout_type: string;
@@ -545,11 +574,12 @@ export interface PlanWorkoutCreateRequest {
   target_pace_min?: string | null;
   target_pace_max?: string | null;
   workout_description?: string | null;
-  workout_structure_version?: WorkoutStructureVersion | null;
-  workout_structure?: WorkoutStructureV1 | null;
 }
 
-export interface PlanWorkoutUpdateRequest {
+export type PlanWorkoutCreateRequest =
+  PlanWorkoutCreateValues & OptionalWorkoutStructureFields;
+
+interface PlanWorkoutUpdateValues {
   expected_version: string;
   date?: string;
   activity_type?: PlanActivityType | null;
@@ -563,15 +593,19 @@ export interface PlanWorkoutUpdateRequest {
   target_pace_min?: string | null;
   target_pace_max?: string | null;
   workout_description?: string | null;
-  workout_structure_version?: WorkoutStructureVersion | null;
-  workout_structure?: WorkoutStructureV1 | null;
 }
+
+export type PlanWorkoutUpdateRequest =
+  PlanWorkoutUpdateValues & OptionalWorkoutStructureFields;
 
 export type PlanMutationErrorCode =
   | 'PLAN_HISTORY_IMMUTABLE'
   | 'PLAN_TARGET_RANGE_INVALID'
   | 'PLAN_WORKOUT_NOT_FOUND'
   | 'PLAN_VERSION_CONFLICT'
+  | 'PLAN_STRUCTURE_PROJECTION_CONFLICT'
+  | 'PLAN_WORKOUT_STRUCTURE_INVALID'
+  | 'PLAN_WORKOUT_STRUCTURE_UNSUPPORTED'
   | 'PLAN_NO_CHANGES';
 
 export interface PlanMutationErrorDetail {
@@ -579,6 +613,7 @@ export interface PlanMutationErrorDetail {
   message: string;
   current_version?: string;
   minimum_date?: string;
+  fields?: string[];
 }
 
 export interface PlanMutationErrorResponse {

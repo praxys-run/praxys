@@ -9,7 +9,7 @@ import logging
 import re
 import uuid
 from datetime import date, datetime, timedelta, timezone
-from typing import Mapping
+from typing import Any, Mapping
 
 import requests
 
@@ -17,6 +17,7 @@ from api.plan_workout_structure import (
     StructuredWorkoutRepeatGroupV1,
     StructuredWorkoutStepV1,
     StructuredWorkoutV1,
+    inspect_workout_structure,
 )
 
 logger = logging.getLogger(__name__)
@@ -386,6 +387,145 @@ def fetch_activities_api(
     return rows, raw_activities
 
 
+def _stryd_integer(
+    value: object,
+    *,
+    default: int | None = None,
+) -> int:
+    if value in (None, ""):
+        if default is None:
+            raise ValueError("Stryd structured value is missing")
+        return default
+    if isinstance(value, bool):
+        raise ValueError("Stryd structured value is not an integer")
+    candidate = float(value)
+    if not candidate.is_integer():
+        raise ValueError("Stryd structured value is not an integer")
+    return int(candidate)
+
+
+def _stryd_step_from_segment(
+    segment: Mapping[str, Any],
+) -> StructuredWorkoutStepV1:
+    duration_type = str(
+        segment.get("duration_type") or "time"
+    ).strip().casefold()
+    duration_time = segment.get("duration_time")
+    if duration_type != "time" or not isinstance(duration_time, Mapping):
+        raise ValueError("Stryd termination cannot be represented safely")
+    if float(segment.get("duration_distance") or 0) != 0:
+        raise ValueError("Stryd distance termination cannot be represented safely")
+    hours = _stryd_integer(duration_time.get("hour"), default=0)
+    minutes = _stryd_integer(duration_time.get("minute"), default=0)
+    seconds = _stryd_integer(duration_time.get("second"), default=0)
+    if hours < 0 or not 0 <= minutes < 60 or not 0 <= seconds < 60:
+        raise ValueError("Stryd time termination is invalid")
+    total_seconds = hours * 3600 + minutes * 60 + seconds
+
+    phase_map = {
+        "warmup": "warmup",
+        "work": "work",
+        "rest": "recovery",
+        "recovery": "recovery",
+        "cooldown": "cooldown",
+    }
+    intensity_class = str(
+        segment.get("intensity_class") or ""
+    ).strip().casefold()
+    phase = phase_map.get(intensity_class)
+    if phase is None:
+        raise ValueError("Stryd phase cannot be represented safely")
+    intensity_type = str(
+        segment.get("intensity_type") or "percentage"
+    ).strip().casefold()
+    intensity_percent = segment.get("intensity_percent")
+    if (
+        intensity_type != "percentage"
+        or not isinstance(intensity_percent, Mapping)
+    ):
+        raise ValueError("Stryd intensity cannot be represented safely")
+    minimum = intensity_percent.get("min")
+    maximum = intensity_percent.get("max")
+    target: dict[str, object] = {
+        "metric": "power",
+        "unit": "percent_cp",
+        "reference": "critical_power",
+    }
+    if minimum not in (None, ""):
+        target["min"] = float(minimum)
+    if maximum not in (None, ""):
+        target["max"] = float(maximum)
+    if len(target) == 3:
+        raise ValueError("Stryd intensity bounds are missing")
+    if bool(segment.get("flexible")):
+        raise ValueError("Flexible Stryd segments are unsupported")
+    for field in ("incline", "grade", "pdc_target"):
+        if float(segment.get(field) or 0) != 0:
+            raise ValueError("Stryd segment modifiers are unsupported")
+    return StructuredWorkoutStepV1.model_validate({
+        "type": "step",
+        "phase": phase,
+        "termination": {
+            "type": "time",
+            "seconds": total_seconds,
+        },
+        "target": target,
+    })
+
+
+def _provider_neutral_stryd_structure(
+    blocks: object,
+) -> tuple[str, dict[str, Any] | None]:
+    """Translate only the lossless Stryd subset into provider-neutral v1."""
+    if blocks in (None, []):
+        return "absent", None
+    try:
+        if not isinstance(blocks, list):
+            raise ValueError("Stryd blocks are invalid")
+        nodes: list[dict[str, Any]] = []
+        for block in blocks:
+            if not isinstance(block, Mapping):
+                raise ValueError("Stryd block is invalid")
+            raw_segments = block.get("segments")
+            if not isinstance(raw_segments, list) or not raw_segments:
+                raise ValueError("Stryd block has no executable segments")
+            segments = [
+                _stryd_step_from_segment(segment)
+                for segment in raw_segments
+                if isinstance(segment, Mapping)
+            ]
+            if len(segments) != len(raw_segments):
+                raise ValueError("Stryd segment is invalid")
+            repetitions = _stryd_integer(
+                block.get("repeat"),
+                default=1,
+            )
+            if repetitions == 1:
+                nodes.extend(
+                    segment.model_dump(mode="json", exclude_none=True)
+                    for segment in segments
+                )
+            else:
+                nodes.append({
+                    "type": "repeat",
+                    "repetitions": repetitions,
+                    "steps": [
+                        segment.model_dump(
+                            mode="json",
+                            exclude_none=True,
+                        )
+                        for segment in segments
+                    ],
+                })
+        model = StructuredWorkoutV1.model_validate({"steps": nodes})
+    except (ArithmeticError, TypeError, ValueError):
+        return "unsupported", None
+    return (
+        "supported",
+        model.model_dump(mode="json", exclude_none=True),
+    )
+
+
 def fetch_training_plan_api(
     user_id: str,
     token: str,
@@ -491,6 +631,15 @@ def fetch_training_plan_api(
         power_min = ""
         power_max = ""
         blocks = workout_info.get("blocks", [])
+        structure_status, workout_structure = (
+            _provider_neutral_stryd_structure(blocks)
+        )
+        if surface.casefold() not in {"road", "trail"}:
+            # The provider surface participates in reconciliation
+            # fingerprints. Collapsing track/treadmill/unknown surfaces to
+            # running would make a later restore emit a different workout.
+            structure_status = "unsupported"
+            workout_structure = None
         for block in blocks:
             for seg in block.get("segments", []):
                 if seg.get("intensity_class") == "work":
@@ -559,6 +708,12 @@ def fetch_training_plan_api(
                 stryd_delivery_payload_fingerprint(provider_payload)
             ),
         }
+        if structure_status != "absent":
+            row["workout_structure_status"] = structure_status
+        if structure_status == "supported":
+            assert workout_structure is not None
+            row["workout_structure_version"] = "v1"
+            row["workout_structure"] = workout_structure
         logger.debug(f"    {workout_date} — {workout_type} ({duration_min}min, {distance_km}km) [id={external_id}]")
         rows.append(row)
 
@@ -746,9 +901,32 @@ def _make_segment(
     cp_max_pct: int,
 ) -> dict:
     """Build a single Stryd workout segment."""
-    h = int(minutes // 60)
-    m = int(minutes % 60)
-    s = int((minutes * 60) % 60)
+    total_seconds = round(float(minutes) * 60)
+    return _make_segment_seconds(
+        intensity_class,
+        total_seconds,
+        cp_min_pct,
+        cp_max_pct,
+    )
+
+
+def _make_segment_seconds(
+    intensity_class: str,
+    total_seconds: int,
+    cp_min_pct: int,
+    cp_max_pct: int,
+) -> dict:
+    """Build a Stryd segment without reconstructing integer seconds."""
+    if (
+        isinstance(total_seconds, bool)
+        or not isinstance(total_seconds, int)
+        or total_seconds < 1
+    ):
+        raise ValueError(
+            "Stryd structured delivery requires positive integer seconds"
+        )
+    h, remainder = divmod(total_seconds, 3600)
+    m, s = divmod(remainder, 60)
     return {
         "desc": "",
         "desc_no_cp": "",
@@ -826,21 +1004,18 @@ def _structured_segment(
             "Stryd structured delivery cannot safely encode non-time terminations"
         )
     cp_min, cp_max = _structured_target_percent(step, cp_watts)
-    return _make_segment(
+    return _make_segment_seconds(
         _phase_to_stryd_intensity(step.phase),
-        step.termination.seconds / 60,
+        step.termination.seconds,
         cp_min,
         cp_max,
     )
 
 
 def _structured_blocks_v1(
-    workout: Mapping[str, object],
+    structure: StructuredWorkoutV1,
     cp_watts: float,
 ) -> list[dict]:
-    structure = StructuredWorkoutV1.model_validate(
-        workout.get("workout_structure") or {}
-    )
     blocks: list[dict] = []
     for node in structure.steps:
         if isinstance(node, StructuredWorkoutStepV1):
@@ -859,8 +1034,6 @@ def _structured_blocks_v1(
                 for step in node.steps
             ],
         })
-    if not blocks:
-        return []
     return blocks
 
 
@@ -875,10 +1048,28 @@ def build_workout_blocks(workout: dict, cp_watts: float) -> list[dict]:
     Returns:
         List of Stryd block dicts ready for the create workout API.
     """
-    if workout.get("workout_structure_version") == "v1":
-        blocks = _structured_blocks_v1(workout, cp_watts)
-        if blocks:
-            return blocks
+    inspection = inspect_workout_structure(
+        workout_structure_version=workout.get(
+            "workout_structure_version"
+        ),
+        workout_structure=workout.get("workout_structure"),
+    )
+    if inspection.state == "supported":
+        assert inspection.structure is not None
+        blocks = _structured_blocks_v1(
+            inspection.structure,
+            cp_watts,
+        )
+        if not blocks:
+            raise ValueError(
+                "Stryd structured delivery cannot encode an empty workout"
+            )
+        return blocks
+    if inspection.state != "absent":
+        raise ValueError(
+            "Stryd structured delivery rejected an invalid or unsupported "
+            "workout structure"
+        )
 
     # Fallback: build a simple single-block workout from power targets and duration
     duration_min = float(workout.get("planned_duration_min") or 0)

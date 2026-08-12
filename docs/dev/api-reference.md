@@ -1267,6 +1267,17 @@ Canonical Praxys workouts may also include:
   compatibility projections only and may be `null` for complex workouts when
   Praxys cannot safely derive a single legacy value.
 
+Target reconciliation snapshots may additionally include
+`workout_structure_status` (`supported` or `unsupported`) plus a losslessly
+translated v1 structure. `activity_type` and supported structure are part of
+the snapshot generation and opaque reconciliation identity. Unsupported
+provider structures do not advertise `accept_target`; Praxys never combines a
+flat target edit with stale canonical activity or steps. Stryd track,
+treadmill, and unknown surfaces are also marked unsupported because they
+cannot round-trip through the canonical activity types. Garmin target
+snapshots remain unsupported until authoritative template steps can be
+translated losslessly.
+
 `adjustments` is newest-first durable audit history filtered to the requested
 workout-date window. `active` means the exact after-snapshot is still current,
 `undone` means the user restored it, and `superseded` means a later edit makes
@@ -1468,9 +1479,13 @@ body. Retrying an adopted proposal with a different key returns
 
 Managed delivery consumes the authoritative structured workout definition. It
 only translates provider-safe subsets: Stryd currently supports time-based
-power steps and repeat groups, while Garmin still rejects structured workouts
-and unsupported activity types instead of flattening them into a single
-duration-only block.
+power steps and repeat groups with warmup/work/recovery/cooldown phases, while
+Garmin still rejects all structured workouts and unsupported activity types
+instead of flattening them into a single duration-only block. Stryd also
+rejects empty structured workouts, `other` phases, non-time terminations,
+non-power targets, provider-specific segment modifiers, unknown versions, and
+mismatched version/payload pairs. Legacy flat delivery is used only when both
+structure fields are absent.
 
 ### POST /api/plan/workouts
 
@@ -1593,11 +1608,22 @@ append-only `revision_id`, and delivery summary.
 Supplying `workout_structure_version="v1"` and `workout_structure` replaces the
 authoritative structured definition. If a client omits structured fields,
 legacy flat authoring remains compatible, but the structure remains
-authoritative whenever Praxys already has one.
+authoritative whenever Praxys already has one. Supplied flat fields must equal
+its derived compatibility projections; otherwise the update returns
+`409 PLAN_STRUCTURE_PROJECTION_CONFLICT` without changing the row. Transitions
+into rest set `activity_type="rest"` and replace an authoritative structure
+with empty v1 (legacy-flat rows remain flat). Transitions out of authoritative
+rest default stale `activity_type="rest"` to `running` and synthesize a
+validated executable v1 structure from the explicitly supplied flat values.
+That compatibility synthesis accepts at most one positive termination
+modality; supplying both duration and distance returns
+`PLAN_WORKOUT_STRUCTURE_INVALID` instead of dropping either projection.
 
 Structured update errors use `detail.code`: `PLAN_HISTORY_IMMUTABLE`,
 `PLAN_TARGET_RANGE_INVALID`, `PLAN_WORKOUT_NOT_FOUND`,
-`PLAN_VERSION_CONFLICT`, or the defensive `PLAN_NO_CHANGES`.
+`PLAN_VERSION_CONFLICT`, `PLAN_STRUCTURE_PROJECTION_CONFLICT`,
+`PLAN_WORKOUT_STRUCTURE_INVALID`, `PLAN_WORKOUT_STRUCTURE_UNSUPPORTED`, or the
+defensive `PLAN_NO_CHANGES`.
 `PLAN_VERSION_CONFLICT` also includes `current_version`, while
 `PLAN_HISTORY_IMMUTABLE` includes `minimum_date`, computed in the athlete's
 configured timezone with a UTC fallback.
@@ -1730,8 +1756,12 @@ Actions:
   normalized content, the ledger is rebound without an unnecessary provider
   write.
 - `accept_target` — transactionally copy the stored normalized target workout
-  into the canonical Praxys row, preserve target provenance in plan metadata,
-  and append both a plan revision and import delivery event.
+  into the canonical Praxys row, atomically replacing activity type, flat
+  projections, and the structure/version pair; preserve target provenance in
+  plan metadata; and append both a plan revision and import delivery event.
+  When the provider supplied a safely translated v1 structure it remains
+  authoritative. A genuinely flat observation clears any stale canonical
+  structure. Unrepresentable provider structures cannot be accepted.
 
 Both actions are idempotent for the same reconciliation subject and canonical
 version. Account changes, stale/unowned delete candidates, and changed

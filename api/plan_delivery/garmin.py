@@ -34,7 +34,10 @@ from api.plan_delivery.base import (
     ProviderRequestError,
     ProviderTransientError,
 )
-from api.plan_workout_structure import activity_type_supported_by_target
+from api.plan_workout_structure import (
+    activity_type_supported_by_target,
+    inspect_workout_structure,
+)
 from api.plan_delivery.capabilities import garmin_region
 from sync.garmin_sync import (
     enrich_training_plan_content,
@@ -393,9 +396,19 @@ class GarminPlanDeliveryAdapter:
             raise ProviderRequestError(
                 "Garmin delivery requires canonical workout identity"
             )
-        if workout.get("workout_structure_version") or workout.get("workout_structure"):
+        structure = inspect_workout_structure(
+            workout_structure_version=workout.get(
+                "workout_structure_version"
+            ),
+            workout_structure=workout.get("workout_structure"),
+        )
+        if structure.state == "supported":
             raise ProviderRequestError(
                 "Garmin experimental delivery cannot safely encode structured workouts yet"
+            )
+        if structure.state != "absent":
+            raise ProviderRequestError(
+                "Garmin delivery rejected an invalid or unsupported workout structure"
             )
         activity_type = str(workout.get("activity_type") or "running").strip()
         if not activity_type_supported_by_target(

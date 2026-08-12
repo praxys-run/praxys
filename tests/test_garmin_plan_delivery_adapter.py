@@ -652,6 +652,38 @@ def test_prepare_rejects_structured_workout_that_would_flatten_complex_steps() -
         )
 
 
+@pytest.mark.parametrize(
+    "updates",
+    [
+        {
+            "workout_structure_version": "",
+            "workout_structure": None,
+        },
+        {
+            "workout_structure_version": None,
+            "workout_structure": {},
+        },
+        {
+            "workout_structure_version": "v2",
+            "workout_structure": {"steps": []},
+        },
+    ],
+)
+def test_prepare_rejects_invalid_structure_pairs_instead_of_flat_delivery(
+    updates: Mapping[str, object],
+) -> None:
+    adapter = _adapter(FakeGarmin())
+
+    with pytest.raises(
+        ProviderRequestError,
+        match="workout structure",
+    ):
+        adapter.prepare_workout(
+            _workout(**updates),
+            threshold_value=250,
+        )
+
+
 def test_create_checkpoints_both_garmin_identities() -> None:
     client = FakeGarmin()
     adapter = _adapter(client)

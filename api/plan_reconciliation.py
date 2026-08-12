@@ -16,6 +16,12 @@ from api.plan_delivery.base import (
     provider_account_references_match,
     provider_snapshot_references_match,
 )
+from api.plan_workout_structure import (
+    default_activity_type,
+    inspect_workout_structure,
+    normalize_activity_type,
+    validate_structured_workout,
+)
 from db.models import (
     PlanDelivery,
     PlanTargetCalendarSync,
@@ -151,6 +157,54 @@ def _resolution_identity(
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _observation_can_be_accepted(
+    observation: PlanTargetWorkout | None,
+) -> bool:
+    if observation is None or not observation.present:
+        return False
+    # Existing Garmin observations predate explicit representation status.
+    # Their calendar summaries never contained authoritative template steps,
+    # so they must remain unacceptably lossy after an in-place upgrade too.
+    if str(observation.target or "").strip().casefold() == "garmin":
+        return False
+    snapshot = observation.normalized_workout or {}
+    status = str(
+        snapshot.get("workout_structure_status") or ""
+    ).strip()
+    if status not in {"", "absent", "supported"}:
+        return False
+    inspection = inspect_workout_structure(
+        workout_structure_version=snapshot.get(
+            "workout_structure_version"
+        ),
+        workout_structure=snapshot.get("workout_structure"),
+    )
+    if status == "absent" and inspection.state != "absent":
+        return False
+    if status == "supported" and inspection.state != "supported":
+        return False
+    workout_type = str(snapshot.get("workout_type") or "")
+    activity_type = str(
+        snapshot.get("activity_type")
+        or default_activity_type(workout_type)
+    )
+    try:
+        if inspection.state == "absent":
+            normalize_activity_type(workout_type, activity_type)
+            return True
+        if inspection.state != "supported" or inspection.structure is None:
+            return False
+        validate_structured_workout(
+            workout_type=workout_type,
+            activity_type=activity_type,
+            workout_structure_version="v1",
+            workout_structure=inspection.structure,
+        )
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
 @dataclass(frozen=True)
 class PlanReconciliationItem:
     """One canonical or target-only workout reconciliation result."""
@@ -222,12 +276,16 @@ class PlanReconciliationItem:
 
     @property
     def resolutions(self) -> list[str]:
+        can_accept = _observation_can_be_accepted(self.observation)
         if self.state == "target_only":
-            return ["accept_target"]
+            return ["accept_target"] if can_accept else []
         if self.reason == "external_id_changed":
-            return ["accept_target"]
+            return ["accept_target"] if can_accept else []
         if self.state in {"target_edited", "canonical_changed"}:
-            return ["restore_praxys", "accept_target"]
+            resolutions = ["restore_praxys"]
+            if can_accept:
+                resolutions.append("accept_target")
+            return resolutions
         if self.state in {"target_deleted", "delivery_failed"}:
             return ["restore_praxys"]
         return []

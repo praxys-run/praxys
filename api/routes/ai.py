@@ -7,7 +7,7 @@ import logging
 from collections import defaultdict
 from dataclasses import asdict, is_dataclass
 from datetime import date, datetime
-from typing import Optional, Self
+from typing import Mapping, Optional, Self
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -15,8 +15,6 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    ValidationInfo,
-    field_validator,
     model_validator,
 )
 from sqlalchemy.orm import Session
@@ -36,8 +34,8 @@ from api.plan_workout_structure import (
     PlanActivityType,
     StructuredWorkoutV1,
     WorkoutStructureVersion,
-    default_activity_type,
-    structure_is_explicit,
+    inspect_workout_structure,
+    normalize_activity_type,
     synthesize_v1_structure_from_flat,
     validate_structured_workout,
 )
@@ -122,31 +120,6 @@ class PlanWorkout(BaseModel):
             )
         return self
 
-    @field_validator("workout_structure")
-    @classmethod
-    def validate_optional_structure(
-        cls,
-        value: StructuredWorkoutV1 | None,
-        info: ValidationInfo,
-    ) -> StructuredWorkoutV1 | None:
-        version = info.data.get("workout_structure_version")
-        if value is None and version is None:
-            return None
-        if value is None or version is None:
-            raise ValueError(
-                "workout_structure and workout_structure_version must be provided together"
-            )
-        validate_structured_workout(
-            workout_type=str(info.data.get("workout_type") or ""),
-            activity_type=str(
-                info.data.get("activity_type")
-                or default_activity_type(str(info.data.get("workout_type") or ""))
-            ),
-            workout_structure_version=str(version),
-            workout_structure=value,
-        )
-        return value
-
 class PlanWorkoutCreate(PlanWorkout):
     """Create one future Praxys-owned canonical workout."""
 
@@ -213,33 +186,6 @@ class PlanWorkoutUpdate(BaseModel):
                     "workout_structure and workout_structure_version must be provided together"
                 )
         return self
-
-    @field_validator("workout_structure")
-    @classmethod
-    def validate_update_structure(
-        cls,
-        value: StructuredWorkoutV1 | None,
-        info: ValidationInfo,
-    ) -> StructuredWorkoutV1 | None:
-        if value is None:
-            return value
-        if info.data.get("workout_structure_version") is None:
-            return value
-        workout_type = str(info.data.get("workout_type") or "easy")
-        activity_type = str(
-            info.data.get("activity_type")
-            or default_activity_type(workout_type)
-        )
-        validate_structured_workout(
-            workout_type=workout_type,
-            activity_type=activity_type,
-            workout_structure_version=str(
-                info.data.get("workout_structure_version") or ""
-            ),
-            workout_structure=value,
-        )
-        return value
-
 
 _MUTABLE_WORKOUT_FIELDS = (
     "date",
@@ -392,43 +338,61 @@ _STRUCTURE_DRIVING_FIELDS = {
     "target_pace_max",
 }
 
-
-def _structured_fields_changed(fields: dict[str, object]) -> bool:
-    return bool(_STRUCTURE_DRIVING_FIELDS.intersection(fields))
+_COMPATIBILITY_PROJECTION_FIELDS = (
+    "planned_duration_min",
+    "planned_distance_km",
+    "target_power_min",
+    "target_power_max",
+    "target_hr_min",
+    "target_hr_max",
+    "target_pace_min",
+    "target_pace_max",
+)
 
 
 def _apply_flat_projections(
     plan: TrainingPlan,
     projections: dict[str, object],
 ) -> None:
-    for field in (
-        "planned_duration_min",
-        "planned_distance_km",
-        "target_power_min",
-        "target_power_max",
-        "target_hr_min",
-        "target_hr_max",
-        "target_pace_min",
-        "target_pace_max",
-    ):
+    for field in _COMPATIBILITY_PROJECTION_FIELDS:
         setattr(plan, field, projections.get(field))
+
+
+def _effective_activity_type(
+    plan: TrainingPlan,
+    *,
+    previous_workout_type: str | None,
+    previous_activity_type: str | None,
+) -> str:
+    workout_type = str(plan.workout_type or "")
+    if is_rest_workout(workout_type):
+        return "rest"
+    candidate = str(plan.activity_type or "").strip() or None
+    if candidate is None:
+        candidate = (
+            str(previous_activity_type or "").strip()
+            or None
+        )
+    if (
+        previous_workout_type is not None
+        and is_rest_workout(previous_workout_type)
+        and candidate == "rest"
+    ):
+        candidate = None
+    return normalize_activity_type(workout_type, candidate)
 
 
 def _apply_explicit_structure(
     plan: TrainingPlan,
     *,
-    activity_type: str | None,
+    activity_type: str,
     workout_structure_version: str,
     workout_structure: StructuredWorkoutV1,
 ) -> None:
     normalized_activity_type, normalized_structure, projections = (
         validate_structured_workout(
             workout_type=str(plan.workout_type or ""),
-            activity_type=(
-                activity_type
-                or plan.activity_type
-                or default_activity_type(str(plan.workout_type or ""))
-            ),
+            activity_type=activity_type,
             workout_structure_version=workout_structure_version,
             workout_structure=workout_structure,
         )
@@ -442,12 +406,12 @@ def _apply_explicit_structure(
 def _synthesize_structure(
     plan: TrainingPlan,
     *,
-    activity_type: str | None,
+    activity_type: str,
 ) -> None:
-    normalized_activity_type, version, structure = (
+    normalized_activity_type, version, structure_model = (
         synthesize_v1_structure_from_flat(
             workout_type=str(plan.workout_type or ""),
-            activity_type=activity_type or plan.activity_type,
+            activity_type=activity_type,
             planned_duration_min=plan.planned_duration_min,
             planned_distance_km=plan.planned_distance_km,
             target_power_min=plan.target_power_min,
@@ -458,48 +422,238 @@ def _synthesize_structure(
             target_pace_max=plan.target_pace_max,
         )
     )
-    plan.activity_type = normalized_activity_type
-    plan.workout_structure_version = version
-    plan.workout_structure = structure
+    _apply_explicit_structure(
+        plan,
+        activity_type=normalized_activity_type,
+        workout_structure_version=version,
+        workout_structure=structure_model,
+    )
+
+
+def _projection_values_match(
+    field: str,
+    supplied: object,
+    projected: object,
+) -> bool:
+    if supplied is None or projected is None:
+        return supplied is None and projected is None
+    if field in {
+        "planned_duration_min",
+        "planned_distance_km",
+        "target_power_min",
+        "target_power_max",
+        "target_hr_min",
+        "target_hr_max",
+    }:
+        try:
+            return abs(float(supplied) - float(projected)) <= 1e-6
+        except (TypeError, ValueError):
+            return False
+    return str(supplied) == str(projected)
+
+
+def _projection_conflicts(
+    supplied_fields: Mapping[str, object],
+    projections: Mapping[str, object],
+) -> list[str]:
+    return sorted(
+        field
+        for field in _COMPATIBILITY_PROJECTION_FIELDS
+        if field in supplied_fields
+        and not _projection_values_match(
+            field,
+            supplied_fields.get(field),
+            projections.get(field),
+        )
+    )
+
+
+def _raise_structure_error(
+    *,
+    code: str,
+    message: str,
+    status_code: int,
+    **details: object,
+) -> None:
+    raise HTTPException(
+        status_code=status_code,
+        detail=_mutation_error(code, message, **details),
+    )
+
+
+def _ensure_authoritative_structure_unchecked(
+    plan: TrainingPlan,
+    *,
+    supplied_fields: Mapping[str, object],
+    previous_snapshot: Mapping[str, object] | None,
+) -> None:
+    requested = inspect_workout_structure(
+        workout_structure_version=supplied_fields.get(
+            "workout_structure_version"
+        ),
+        workout_structure=supplied_fields.get("workout_structure"),
+    )
+    previous = inspect_workout_structure(
+        workout_structure_version=(
+            previous_snapshot.get("workout_structure_version")
+            if previous_snapshot is not None
+            else None
+        ),
+        workout_structure=(
+            previous_snapshot.get("workout_structure")
+            if previous_snapshot is not None
+            else None
+        ),
+    )
+    previous_workout_type = (
+        str(previous_snapshot.get("workout_type") or "")
+        if previous_snapshot is not None
+        else None
+    )
+    previous_activity_type = (
+        str(previous_snapshot.get("activity_type") or "")
+        if previous_snapshot is not None
+        else None
+    )
+    current_workout_type = str(plan.workout_type or "")
+    activity_type = _effective_activity_type(
+        plan,
+        previous_workout_type=previous_workout_type,
+        previous_activity_type=previous_activity_type,
+    )
+
+    if requested.state != "absent":
+        if requested.state != "supported" or requested.structure is None:
+            _raise_structure_error(
+                code="PLAN_WORKOUT_STRUCTURE_INVALID",
+                message=(
+                    "Workout structure and version must form a supported "
+                    "authoritative pair."
+                ),
+                status_code=422,
+            )
+        _apply_explicit_structure(
+            plan,
+            activity_type=activity_type,
+            workout_structure_version="v1",
+            workout_structure=requested.structure,
+        )
+        return
+
+    if previous_snapshot is None:
+        # New legacy flat CRUD and CSV writes remain genuinely flat.
+        plan.activity_type = activity_type
+        plan.workout_structure_version = None
+        plan.workout_structure = None
+        return
+
+    previous_rest = is_rest_workout(previous_workout_type or "")
+    current_rest = is_rest_workout(current_workout_type)
+    if current_rest and not previous_rest:
+        if previous.state == "absent":
+            plan.activity_type = "rest"
+            plan.workout_structure_version = None
+            plan.workout_structure = None
+        else:
+            _apply_explicit_structure(
+                plan,
+                activity_type="rest",
+                workout_structure_version="v1",
+                workout_structure=StructuredWorkoutV1(),
+            )
+        return
+
+    if previous_rest and not current_rest:
+        if previous.state == "supported":
+            _synthesize_structure(
+                plan,
+                activity_type=activity_type,
+            )
+        elif previous.state == "absent":
+            plan.activity_type = activity_type
+            plan.workout_structure_version = None
+            plan.workout_structure = None
+        else:
+            _raise_structure_error(
+                code="PLAN_WORKOUT_STRUCTURE_UNSUPPORTED",
+                message=(
+                    "This workout structure must be replaced explicitly "
+                    "before changing workout fields."
+                ),
+                status_code=409,
+            )
+        return
+
+    if previous.state == "supported" and previous.structure is not None:
+        normalized_activity, normalized_structure, projections = (
+            validate_structured_workout(
+                workout_type=current_workout_type,
+                activity_type=activity_type,
+                workout_structure_version="v1",
+                workout_structure=previous.structure,
+            )
+        )
+        conflicts = _projection_conflicts(supplied_fields, projections)
+        if conflicts:
+            _raise_structure_error(
+                code="PLAN_STRUCTURE_PROJECTION_CONFLICT",
+                message=(
+                    "Flat workout fields cannot change an authoritative "
+                    "workout structure."
+                ),
+                status_code=409,
+                fields=conflicts,
+            )
+        plan.activity_type = normalized_activity
+        plan.workout_structure_version = "v1"
+        plan.workout_structure = normalized_structure
+        _apply_flat_projections(plan, projections)
+        return
+
+    if previous.state == "absent":
+        plan.activity_type = activity_type
+        plan.workout_structure_version = None
+        plan.workout_structure = None
+        return
+
+    if _STRUCTURE_DRIVING_FIELDS.intersection(supplied_fields):
+        _raise_structure_error(
+            code="PLAN_WORKOUT_STRUCTURE_UNSUPPORTED",
+            message=(
+                "This workout structure must be replaced explicitly before "
+                "changing workout fields."
+            ),
+            status_code=409,
+        )
+    # Non-structural edits preserve future structure versions byte-for-byte.
+    plan.workout_structure_version = previous_snapshot.get(
+        "workout_structure_version"
+    )
+    plan.workout_structure = previous_snapshot.get("workout_structure")
 
 
 def _ensure_authoritative_structure(
     plan: TrainingPlan,
     *,
-    activity_type: str | None,
-    workout_structure_version: str | None,
-    workout_structure: StructuredWorkoutV1 | None,
-    structural_fields_changed: bool,
+    supplied_fields: Mapping[str, object],
+    previous_snapshot: Mapping[str, object] | None,
 ) -> None:
-    if structure_is_explicit(
-        workout_structure_version=workout_structure_version,
-        workout_structure=workout_structure,
-    ):
-        assert workout_structure_version is not None
-        assert workout_structure is not None
-        _apply_explicit_structure(
+    try:
+        _ensure_authoritative_structure_unchecked(
             plan,
-            activity_type=activity_type,
-            workout_structure_version=workout_structure_version,
-            workout_structure=workout_structure,
+            supplied_fields=supplied_fields,
+            previous_snapshot=previous_snapshot,
         )
-        return
-    if is_rest_workout(str(plan.workout_type or "")):
-        _synthesize_structure(plan, activity_type="rest")
-        _normalize_rest_plan(plan)
-        return
-    if (
-        structural_fields_changed
-        or not plan.workout_structure_version
-        or plan.workout_structure is None
-    ):
-        _synthesize_structure(
-            plan,
-            activity_type=activity_type,
-        )
-        return
-    if not plan.activity_type:
-        plan.activity_type = default_activity_type(str(plan.workout_type or ""))
+    except HTTPException:
+        raise
+    except (ArithmeticError, TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=_mutation_error(
+                "PLAN_WORKOUT_STRUCTURE_INVALID",
+                "Workout fields cannot form a valid authoritative structure.",
+            ),
+        ) from exc
 
 
 def _apply_workout_fields(
@@ -725,10 +879,8 @@ def upload_plan(
         )
         _ensure_authoritative_structure(
             plan,
-            activity_type=None,
-            workout_structure_version=None,
-            workout_structure=None,
-            structural_fields_changed=True,
+            supplied_fields=kwargs,
+            previous_snapshot=None,
         )
         _normalize_rest_plan(plan)
         parsed_rows.append(plan)
@@ -808,9 +960,11 @@ def upsert_plan_day(
         raise HTTPException(400, "date must be YYYY-MM-DD")
     _require_mutable_date(d, current_date)
 
+    fields = workout.model_dump()
     plan = TrainingPlan(
         user_id=user_id,
         date=d,
+        activity_type=workout.activity_type,
         workout_type=workout.workout_type,
         planned_duration_min=workout.planned_duration_min,
         planned_distance_km=workout.planned_distance_km,
@@ -825,15 +979,6 @@ def upsert_plan_day(
         workout_origin="manual",
         meta={"uploaded_at": datetime.utcnow().isoformat()},
     )
-    _ensure_authoritative_structure(
-        plan,
-        activity_type=workout.activity_type,
-        workout_structure_version=workout.workout_structure_version,
-        workout_structure=workout.workout_structure,
-        structural_fields_changed=True,
-    )
-    _normalize_rest_plan(plan)
-    _validate_plan_targets(plan)
     try:
         db.rollback()
         lock_plan_writes(db, user_id)
@@ -844,6 +989,15 @@ def upsert_plan_day(
         )
         before_rows = existing.order_by(TrainingPlan.id).all()
         before = [plan_snapshot(row) for row in before_rows]
+        _ensure_authoritative_structure(
+            plan,
+            supplied_fields=fields,
+            previous_snapshot=(
+                before[0] if len(before) == 1 else None
+            ),
+        )
+        _normalize_rest_plan(plan)
+        _validate_plan_targets(plan)
         _reuse_canonical_ids([plan], before_rows)
         _assign_missing_canonical_ids([plan])
         for row in before_rows:
@@ -952,10 +1106,8 @@ def create_plan_workout(
     _apply_workout_fields(plan, fields)
     _ensure_authoritative_structure(
         plan,
-        activity_type=workout.activity_type,
-        workout_structure_version=workout.workout_structure_version,
-        workout_structure=workout.workout_structure,
-        structural_fields_changed=True,
+        supplied_fields=fields,
+        previous_snapshot=None,
     )
     _normalize_rest_plan(plan)
     _validate_plan_targets(plan)
@@ -1026,7 +1178,6 @@ def update_plan_workout(
         next_date = fields.get("date")
         if isinstance(next_date, date):
             _require_mutable_date(next_date, current_date)
-        structure_changed = _structured_fields_changed(fields)
         original_date = plan.date
         _apply_workout_fields(plan, fields)
         if plan.date != original_date:
@@ -1034,10 +1185,8 @@ def update_plan_workout(
             plan.start_time = None
         _ensure_authoritative_structure(
             plan,
-            activity_type=workout.activity_type,
-            workout_structure_version=workout.workout_structure_version,
-            workout_structure=workout.workout_structure,
-            structural_fields_changed=structure_changed,
+            supplied_fields=fields,
+            previous_snapshot=before[0],
         )
         _normalize_rest_plan(plan)
         _validate_plan_targets(plan)

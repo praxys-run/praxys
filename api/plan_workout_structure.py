@@ -1,6 +1,8 @@
 """Typed workout-structure contract and compatibility helpers."""
 from __future__ import annotations
 
+import math
+from dataclasses import dataclass
 from typing import Annotated, Any, Literal, Mapping
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -23,6 +25,12 @@ PlanActivityType = Literal[
 ]
 WorkoutPhase = Literal["warmup", "work", "recovery", "cooldown", "other"]
 WorkoutStructureVersion = Literal["v1"]
+WorkoutStructureState = Literal[
+    "absent",
+    "supported",
+    "invalid",
+    "unsupported",
+]
 
 _ALLOWED_DISCIPLINES = {"running", "trail_running"}
 _ALLOWED_ACTIVITY_TYPES = {
@@ -41,6 +49,14 @@ _SUPPORTED_ACTIVITY_TYPES_BY_TARGET = {
     "stryd": {"running", "trail_running"},
     "garmin": {"running"},
 }
+
+
+@dataclass(frozen=True)
+class WorkoutStructureInspection:
+    """Classification of one persisted structure/version pair."""
+
+    state: WorkoutStructureState
+    structure: StructuredWorkoutV1 | None = None
 
 
 class IntensityTargetV1(BaseModel):
@@ -114,6 +130,11 @@ class IntensityTargetV1(BaseModel):
             value = getattr(self, value_name)
             if value is None:
                 continue
+            if not math.isfinite(value):
+                raise PydanticCustomError(
+                    "workout_intensity_target_invalid",
+                    "Intensity target bounds must be finite.",
+                )
             if value < low or value > high:
                 raise PydanticCustomError(
                     "workout_intensity_target_out_of_range",
@@ -199,6 +220,32 @@ class StructuredWorkoutV1(BaseModel):
     steps: list[StructuredWorkoutNodeV1] = Field(default_factory=list)
 
 
+def inspect_workout_structure(
+    *,
+    workout_structure_version: object,
+    workout_structure: object,
+) -> WorkoutStructureInspection:
+    """Distinguish truly flat rows from supported and unsafe structures."""
+    if workout_structure_version is None and workout_structure is None:
+        return WorkoutStructureInspection(state="absent")
+    if workout_structure_version is None or workout_structure is None:
+        return WorkoutStructureInspection(state="invalid")
+    if workout_structure_version != "v1":
+        return WorkoutStructureInspection(state="unsupported")
+    try:
+        model = (
+            workout_structure
+            if isinstance(workout_structure, StructuredWorkoutV1)
+            else StructuredWorkoutV1.model_validate(workout_structure)
+        )
+    except (TypeError, ValueError):
+        return WorkoutStructureInspection(state="invalid")
+    return WorkoutStructureInspection(
+        state="supported",
+        structure=model,
+    )
+
+
 def normalize_adaptive_plan_discipline(value: str) -> str:
     """Normalize and validate an adaptive-plan discipline string."""
     normalized = str(value or "").strip()
@@ -249,10 +296,14 @@ def validate_structured_workout(
         if isinstance(workout_structure, StructuredWorkoutV1)
         else StructuredWorkoutV1.model_validate(workout_structure)
     )
-    if not is_rest_workout(workout_type) and executable_step_count(model) < 1:
+    step_count = executable_step_count(model)
+    if not is_rest_workout(workout_type) and step_count < 1:
         raise ValueError("non-rest workouts require at least one executable step")
-    if is_rest_workout(workout_type) and normalized_activity_type != "rest":
-        raise ValueError("rest workouts must use activity_type=rest")
+    if is_rest_workout(workout_type):
+        if normalized_activity_type != "rest":
+            raise ValueError("rest workouts must use activity_type=rest")
+        if step_count:
+            raise ValueError("rest workouts cannot include executable steps")
     structure_dict = model.model_dump(mode="json", exclude_none=True)
     return (
         normalized_activity_type,
@@ -374,24 +425,52 @@ def synthesize_v1_structure_from_flat(
     target_hr_max: float | None,
     target_pace_min: str | None,
     target_pace_max: str | None,
-) -> tuple[str, str, dict[str, Any]]:
+) -> tuple[str, str, StructuredWorkoutV1]:
     """Build a compatibility v1 structure from legacy flat workout fields."""
     normalized_activity_type = normalize_activity_type(
         workout_type,
         activity_type,
     )
     if is_rest_workout(workout_type):
-        return normalized_activity_type, "v1", {"steps": []}
+        return normalized_activity_type, "v1", StructuredWorkoutV1()
 
-    if planned_duration_min is not None and planned_duration_min > 0:
+    duration = _finite_nonnegative(
+        planned_duration_min,
+        field_name="planned duration",
+    )
+    distance = _finite_nonnegative(
+        planned_distance_km,
+        field_name="planned distance",
+    )
+    if (
+        duration is not None
+        and duration > 0
+        and distance is not None
+        and distance > 0
+    ):
+        raise ValueError(
+            "planned duration and distance cannot both be represented "
+            "by one structured termination"
+        )
+    if duration is not None and duration > 0:
+        seconds = round(duration * 60)
+        if seconds < 1:
+            raise ValueError(
+                "planned duration is too small for a structured termination"
+            )
         termination = {
             "type": "time",
-            "seconds": round(planned_duration_min * 60),
+            "seconds": seconds,
         }
-    elif planned_distance_km is not None and planned_distance_km > 0:
+    elif distance is not None and distance > 0:
+        meters = round(distance * 1000)
+        if meters < 1:
+            raise ValueError(
+                "planned distance is too small for a structured termination"
+            )
         termination = {
             "type": "distance",
-            "meters": round(planned_distance_km * 1000),
+            "meters": meters,
         }
     else:
         termination = {"type": "open"}
@@ -411,7 +490,14 @@ def synthesize_v1_structure_from_flat(
             ),
         }],
     }
-    return normalized_activity_type, "v1", structure
+    model = StructuredWorkoutV1.model_validate(structure)
+    validate_structured_workout(
+        workout_type=workout_type,
+        activity_type=normalized_activity_type,
+        workout_structure_version="v1",
+        workout_structure=model,
+    )
+    return normalized_activity_type, "v1", model
 
 
 def activity_type_supported_by_target(
@@ -482,8 +568,26 @@ def _parse_pace_seconds(value: str | None) -> float | None:
             text = text[: -len(suffix)].strip()
     if ":" in text:
         try:
-            minutes, seconds = text.split(":", 1)
-            total = int(minutes) * 60 + float(seconds)
+            parts = text.split(":")
+            if len(parts) == 2:
+                minutes = int(parts[0])
+                seconds = float(parts[1])
+                if minutes < 0 or not 0 <= seconds < 60:
+                    return None
+                total = minutes * 60 + seconds
+            elif len(parts) == 3:
+                hours = int(parts[0])
+                minutes = int(parts[1])
+                seconds = float(parts[2])
+                if (
+                    hours < 0
+                    or not 0 <= minutes < 60
+                    or not 0 <= seconds < 60
+                ):
+                    return None
+                total = hours * 3600 + minutes * 60 + seconds
+            else:
+                return None
             return total if total > 0 else None
         except ValueError:
             return None
@@ -492,6 +596,19 @@ def _parse_pace_seconds(value: str | None) -> float | None:
     except ValueError:
         return None
     return candidate if candidate > 0 else None
+
+
+def _finite_nonnegative(
+    value: float | None,
+    *,
+    field_name: str,
+) -> float | None:
+    if value is None:
+        return None
+    candidate = float(value)
+    if not math.isfinite(candidate) or candidate < 0:
+        raise ValueError(f"{field_name} must be finite and non-negative")
+    return candidate
 
 
 def _compatibility_target_from_flat(
@@ -503,6 +620,16 @@ def _compatibility_target_from_flat(
     target_pace_min: str | None,
     target_pace_max: str | None,
 ) -> dict[str, Any]:
+    target_families = sum((
+        target_power_min is not None or target_power_max is not None,
+        target_hr_min is not None or target_hr_max is not None,
+        bool(str(target_pace_min or "").strip())
+        or bool(str(target_pace_max or "").strip()),
+    ))
+    if target_families > 1:
+        raise ValueError(
+            "flat targets use multiple metrics and cannot form one v1 target"
+        )
     if target_power_min is not None or target_power_max is not None:
         result = {
             "metric": "power",
@@ -527,6 +654,14 @@ def _compatibility_target_from_flat(
         return result
     pace_min = _parse_pace_seconds(target_pace_min)
     pace_max = _parse_pace_seconds(target_pace_max)
+    if (
+        str(target_pace_min or "").strip()
+        and pace_min is None
+    ) or (
+        str(target_pace_max or "").strip()
+        and pace_max is None
+    ):
+        raise ValueError("pace target is invalid")
     if pace_min is not None or pace_max is not None:
         result = {
             "metric": "pace",

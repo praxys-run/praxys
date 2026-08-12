@@ -174,13 +174,33 @@ only when Praxys can do so without inventing missing information.
 - `activity_type` is per workout and stays separate from `workout_type`
   (`running`, `trail_running`, `cycling`, `strength`, `rest`, etc.).
 - Non-rest workouts need at least one executable step. Rest workouts may use
-  `{"steps": []}`.
+  `{"steps": []}` and must not retain executable steps.
 - Step phases are `warmup`, `work`, `recovery`, `cooldown`, or `other`.
 - Step terminations are `time`, `distance`, `open`, or `manual`.
 - Intensity targets are typed. Valid combinations are:
   `none`; power in `watts` or `%CP`; heart rate in `bpm` or `%LTHR`; pace in
   `sec_per_km` or threshold-relative `sec_per_km_delta`; and `RPE` on a
   10-point scale.
+
+Rows with both structure fields absent remain legacy-flat. A version without a
+payload, a payload without a version, or an unknown version is not flat and
+must fail closed. Flat editors may update notes and other non-structural fields
+without resubmitting the authoritative structure; any changed flat projection
+must match the projection derived from that structure. Entering rest replaces
+an authoritative structure with empty v1, while leaving an authoritative rest
+row explicitly synthesizes and validates a new executable v1 structure.
+
+Provider dispatch follows the same distinction. Stryd translates only
+non-empty v1 time steps/repeats whose phases map to warmup, work, recovery, or
+cooldown and whose targets are power-based. Distance/open/manual terminations,
+`other` phases, non-power targets, provider-specific modifiers, malformed
+pairs, and unknown versions are rejected instead of flattened. Garmin
+currently accepts only genuinely flat running rows and rejects every structured
+workout. For reconciliation, Stryd track, treadmill, and unknown surfaces are
+also unrepresentable because the canonical activity contract can round-trip
+only road running and trail running. Garmin calendar summaries are not
+acceptable target snapshots until their authoritative template steps have a
+lossless provider-neutral translation.
 
 Example interval workout:
 

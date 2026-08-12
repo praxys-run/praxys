@@ -391,6 +391,10 @@ def parse_scheduled_workouts(
                 else ""
             ),
             "workout_description": description,
+            # Garmin's calendar summary omits the authoritative template
+            # steps. Until those steps have a lossless provider-neutral
+            # translation, accepting this snapshot must fail closed.
+            "workout_structure_status": "unsupported",
             "external_id": external_id,
             "provider_references": {
                 "template_id": workout_id,

@@ -149,6 +149,140 @@ class TestBuildWorkoutBlocks:
         assert blocks[2]["segments"][0]["intensity_class"] == "cooldown"
         assert blocks[2]["segments"][0]["duration_time"]["minute"] == 10
 
+    def test_structured_step_preserves_integer_seconds(self):
+        workout = {
+            "workout_type": "interval",
+            "activity_type": "running",
+            "workout_structure_version": "v1",
+            "workout_structure": {
+                "steps": [{
+                    "type": "step",
+                    "phase": "work",
+                    "termination": {"type": "time", "seconds": 123},
+                    "target": {
+                        "metric": "power",
+                        "unit": "percent_cp",
+                        "reference": "critical_power",
+                        "min": 95,
+                        "max": 100,
+                    },
+                }],
+            },
+        }
+
+        segment = build_workout_blocks(
+            workout,
+            cp_watts=248.0,
+        )[0]["segments"][0]
+
+        assert segment["duration_time"] == {
+            "hour": 0,
+            "minute": 2,
+            "second": 3,
+        }
+
+    @pytest.mark.parametrize(
+        "structure_fields",
+        [
+            {
+                "workout_structure_version": "v2",
+                "workout_structure": {"steps": []},
+            },
+            {
+                "workout_structure_version": "v1",
+                "workout_structure": None,
+            },
+            {
+                "workout_structure": {
+                    "steps": [{
+                        "type": "step",
+                        "phase": "work",
+                        "termination": {
+                            "type": "time",
+                            "seconds": 300,
+                        },
+                        "target": {
+                            "metric": "power",
+                            "unit": "percent_cp",
+                            "reference": "critical_power",
+                            "min": 95,
+                            "max": 100,
+                        },
+                    }],
+                },
+            },
+            {
+                "workout_structure_version": "v1",
+                "workout_structure": {"steps": []},
+            },
+        ],
+    )
+    def test_unknown_mismatched_and_empty_structures_never_fall_back_to_flat(
+        self,
+        structure_fields,
+    ):
+        workout = {
+            "workout_type": "interval",
+            "planned_duration_min": 45,
+            "target_power_min": 240,
+            "target_power_max": 260,
+            **structure_fields,
+        }
+
+        with pytest.raises(
+            ValueError,
+            match="structured delivery",
+        ):
+            build_workout_blocks(workout, cp_watts=248.0)
+
+    @pytest.mark.parametrize(
+        "step",
+        [
+            {
+                "type": "step",
+                "phase": "other",
+                "termination": {"type": "time", "seconds": 300},
+                "target": {
+                    "metric": "power",
+                    "unit": "percent_cp",
+                    "reference": "critical_power",
+                    "min": 95,
+                },
+            },
+            {
+                "type": "step",
+                "phase": "work",
+                "termination": {"type": "distance", "meters": 1000},
+                "target": {
+                    "metric": "power",
+                    "unit": "percent_cp",
+                    "reference": "critical_power",
+                    "min": 95,
+                },
+            },
+            {
+                "type": "step",
+                "phase": "work",
+                "termination": {"type": "time", "seconds": 300},
+                "target": {
+                    "metric": "heart_rate",
+                    "unit": "bpm",
+                    "reference": "absolute",
+                    "min": 150,
+                },
+            },
+        ],
+    )
+    def test_only_exact_safe_v1_subset_is_translated(self, step):
+        workout = {
+            "workout_type": "interval",
+            "workout_structure_version": "v1",
+            "workout_structure": {"steps": [step]},
+        }
+
+        with pytest.raises(ValueError, match="cannot safely encode"):
+            build_workout_blocks(workout, cp_watts=248.0)
+
     def test_description_is_not_parsed_without_structured_workout(self):
         """Legacy flat workouts no longer recover interval structure from free text."""
         workout = {

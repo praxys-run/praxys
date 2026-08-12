@@ -65,7 +65,8 @@ test('web and miniapp share the generated mutation contract', async () => {
     'minimum_date?: string',
     'interface PlanUploadResponse',
     'interface PlanDayDeleteResponse',
-    'interface PlanWorkoutWriteFields',
+    'type OptionalWorkoutStructureFields',
+    'type PlanWorkoutWriteFields',
     'interface PlanWorkoutDeleteResponse',
   ];
 

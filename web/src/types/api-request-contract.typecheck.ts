@@ -2,8 +2,10 @@ import type {
   ContextPilotRunRequest,
   PersonalContextAiConsentRequest,
   PersonalContextDraftRequest,
+  PlanWorkoutUpdateRequest,
   ScopedPersonalContextAccessRequest,
   ScopedPersonalContextDraftRequest,
+  WorkoutIntensityTarget,
 } from './api';
 
 const payload = {
@@ -122,6 +124,50 @@ const invalidGrantedAiConsent: PersonalContextAiConsentRequest = {
   client: 'web',
 };
 
+const absolutePowerTarget: WorkoutIntensityTarget = {
+  metric: 'power',
+  unit: 'watts',
+  reference: 'absolute',
+  min: 200,
+};
+const thresholdPaceTarget: WorkoutIntensityTarget = {
+  metric: 'pace',
+  unit: 'sec_per_km_delta',
+  reference: 'threshold_pace',
+  max: 15,
+};
+// @ts-expect-error Unit and reference must be the exact Python-supported tuple.
+const mismatchedIntensityTuple: WorkoutIntensityTarget = {
+  metric: 'power',
+  unit: 'watts',
+  reference: 'critical_power',
+  min: 200,
+};
+// @ts-expect-error Every non-none intensity target needs a numeric bound.
+const unboundedIntensityTarget: WorkoutIntensityTarget = {
+  metric: 'heart_rate',
+  unit: 'bpm',
+  reference: 'absolute',
+};
+// @ts-expect-error Null placeholders do not satisfy the at-least-one-bound rule.
+const nullIntensityTarget: WorkoutIntensityTarget = {
+  metric: 'rpe',
+  unit: 'scale_10',
+  reference: 'perceived_exertion',
+  min: null,
+  max: null,
+};
+const structuredWorkoutUpdate: PlanWorkoutUpdateRequest = {
+  expected_version: 'a'.repeat(64),
+  workout_structure_version: 'v1',
+  workout_structure: { steps: [] },
+};
+// @ts-expect-error Structure version and payload must be supplied together.
+const mismatchedStructureUpdate: PlanWorkoutUpdateRequest = {
+  expected_version: 'a'.repeat(64),
+  workout_structure_version: 'v1',
+};
+
 void [
   unlinkedDraft,
   linkedDraft,
@@ -140,4 +186,11 @@ void [
   deniedAiConsent,
   withdrawnAiConsent,
   invalidGrantedAiConsent,
+  absolutePowerTarget,
+  thresholdPaceTarget,
+  mismatchedIntensityTuple,
+  unboundedIntensityTarget,
+  nullIntensityTarget,
+  structuredWorkoutUpdate,
+  mismatchedStructureUpdate,
 ];

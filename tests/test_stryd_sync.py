@@ -99,8 +99,155 @@ def test_fetch_training_plan_parses_power_targets(mock_get):
     assert rows[0]["target_power_max"] == "262"  # round(250 * 105 / 100) = 262 (banker's rounding)
     assert rows[0]["workout_type"] == "threshold"
     assert rows[0]["workout_description"] == "Edited on Stryd"
+    assert rows[0]["activity_type"] == "running"
+    assert rows[0]["workout_structure_status"] == "supported"
+    assert rows[0]["workout_structure_version"] == "v1"
+    assert rows[0]["workout_structure"] == {
+        "steps": [{
+            "type": "step",
+            "phase": "work",
+            "termination": {"type": "time", "seconds": 1200},
+            "target": {
+                "metric": "power",
+                "unit": "percent_cp",
+                "reference": "critical_power",
+                "min": 95.0,
+                "max": 105.0,
+            },
+        }],
+    }
     assert len(rows[0]["provider_content_fingerprint"]) == 64
     assert len(rows[0]["provider_payload_fingerprint"]) == 64
+
+
+@patch("sync.stryd_sync.requests.get")
+def test_fetch_training_plan_preserves_repeat_structure_and_trail_activity(
+    mock_get,
+):
+    workout = {
+        "deleted": False,
+        "date": "2026-04-04T02:00:00Z",
+        "workout": {
+            "title": "Trail intervals",
+            "type": "intervals",
+            "surface": "trail",
+            "blocks": [{
+                "repeat": 4,
+                "segments": [
+                    {
+                        "duration_type": "time",
+                        "duration_time": {
+                            "hour": 0,
+                            "minute": 2,
+                            "second": 3,
+                        },
+                        "intensity_class": "work",
+                        "intensity_type": "percentage",
+                        "intensity_percent": {"min": 100, "max": 105},
+                    },
+                    {
+                        "duration_type": "time",
+                        "duration_time": {
+                            "hour": 0,
+                            "minute": 1,
+                            "second": 17,
+                        },
+                        "intensity_class": "rest",
+                        "intensity_type": "percentage",
+                        "intensity_percent": {"min": 55, "max": 65},
+                    },
+                ],
+            }],
+        },
+    }
+    mock_get.return_value = MagicMock(
+        json=MagicMock(return_value={"workouts": [workout]}),
+        raise_for_status=MagicMock(),
+    )
+
+    row = fetch_training_plan_api("user-1", "tok")[0]
+
+    assert row["activity_type"] == "trail_running"
+    assert row["workout_structure_status"] == "supported"
+    repeat = row["workout_structure"]["steps"][0]
+    assert repeat["type"] == "repeat"
+    assert repeat["repetitions"] == 4
+    assert [
+        step["termination"]["seconds"] for step in repeat["steps"]
+    ] == [123, 77]
+    assert [step["phase"] for step in repeat["steps"]] == [
+        "work",
+        "recovery",
+    ]
+
+
+@patch("sync.stryd_sync.requests.get")
+def test_fetch_training_plan_marks_unrepresentable_provider_structure(
+    mock_get,
+):
+    workout = {
+        "deleted": False,
+        "date": "2026-04-04T02:00:00Z",
+        "workout": {
+            "title": "Provider-specific workout",
+            "type": "intervals",
+            "blocks": [{
+                "repeat": 2,
+                "segments": [{
+                    "duration_type": "distance",
+                    "duration_distance": 1,
+                    "distance_unit_selected": "mi",
+                    "intensity_class": "work",
+                    "intensity_type": "percentage",
+                    "intensity_percent": {"min": 100, "max": 105},
+                }],
+            }],
+        },
+    }
+    mock_get.return_value = MagicMock(
+        json=MagicMock(return_value={"workouts": [workout]}),
+        raise_for_status=MagicMock(),
+    )
+
+    row = fetch_training_plan_api("user-1", "tok")[0]
+
+    assert row["workout_structure_status"] == "unsupported"
+    assert "workout_structure_version" not in row
+    assert "workout_structure" not in row
+
+
+@patch("sync.stryd_sync.requests.get")
+def test_fetch_training_plan_rejects_non_round_trippable_surface(mock_get):
+    workout = {
+        "deleted": False,
+        "date": "2026-04-04T02:00:00Z",
+        "workout": {
+            "title": "Track intervals",
+            "type": "intervals",
+            "surface": "track",
+            "blocks": [{
+                "repeat": 1,
+                "segments": [{
+                    "duration_type": "time",
+                    "duration_time": {"minute": 5},
+                    "intensity_class": "work",
+                    "intensity_type": "percentage",
+                    "intensity_percent": {"min": 100, "max": 105},
+                }],
+            }],
+        },
+    }
+    mock_get.return_value = MagicMock(
+        json=MagicMock(return_value={"workouts": [workout]}),
+        raise_for_status=MagicMock(),
+    )
+
+    row = fetch_training_plan_api("user-1", "tok")[0]
+
+    assert row["activity_type"] == "running"
+    assert row["workout_structure_status"] == "unsupported"
+    assert "workout_structure_version" not in row
+    assert "workout_structure" not in row
 
 
 @patch("sync.stryd_sync.requests.get")
