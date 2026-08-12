@@ -1202,13 +1202,6 @@ def _owned_removal_safe(
         current_references=exact.provider_references or {},
     ):
         return False, "provider_account_mismatch"
-    if exact.workout_date != delivery.workout_date:
-        return False, "target_workout_moved"
-    if (
-        not delivery.provider_content_version
-        or exact.content_fingerprint != delivery.provider_content_version
-    ):
-        return False, "target_workout_edited"
     return True, None
 
 
@@ -1756,8 +1749,16 @@ def _run_rolling_delivery_for_user(
                 continue
             if (
                 item.state
-                not in {"matching", "pending_observation", "canonical_changed"}
+                not in {
+                    "matching",
+                    "pending_observation",
+                    "canonical_changed",
+                    "target_edited",
+                    "target_deleted",
+                    "delivery_failed",
+                }
                 or item.delivery is None
+                or not item.delivery.external_id
             ):
                 items.append(_result(
                     canonical_id,
