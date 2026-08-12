@@ -42,6 +42,36 @@ receives the repository `miniapp/` path the wrapper first synchronizes it to a
 generated Windows-side mirror, then passes that local Windows path. The WSL
 repository remains the only source of truth; never edit the mirror.
 
+Tencent exposes no headless, background, or no-focus mode for simulator work.
+Even `liteMode` opens a visible simulator, and the first call for a client name
+may open an authorization window. The wrapper therefore refuses to launch the
+Windows CLI by default. After the user explicitly approves foreground
+interruption, scope permission to each required command:
+
+```bash
+WECHATIDE_ALLOW_FOREGROUND=1 scripts/wechatide ...
+```
+
+Do not export `WECHATIDE_ALLOW_FOREGROUND` for the shell, put it in `.env`, or
+enable it merely to satisfy rendered evidence. The local-only
+`--print-skill-root`, `--sync-project`, and `--print-project-root` operations do
+not launch DevTools and remain available without permission.
+
+Never bypass the installed skill with direct Windows desktop automation such
+as `SetForegroundWindow`, `SwitchToThisWindow`, cursor positioning, synthetic
+mouse events, or coordinate clicks outside the registered `wechatide` tools.
+If an interaction cannot be completed through the upstream automation scene
+without taking over the desktop, either schedule a user-approved session or
+leave rendered verification incomplete. For guaranteed isolation, use a
+dedicated Windows session or VM; WSL2 alone shares the user's Windows desktop.
+
+Use `miniprogram-ci` for supported GUI-free build, preview, and upload work.
+It does not provide simulator interaction, screenshots, or console/network
+inspection. `miniprogram-automator.connect()` can reuse an existing automation
+WebSocket, but Tencent does not guarantee that simulator operations will avoid
+raising the window, and the current `wechatide-skill` does not expose that
+connection mode.
+
 Set `WECHATIDE_INSTALL_ROOT` to an explicit WSL path only when Nightly is
 installed outside the normal Tencent directory. Set
 `WECHATIDE_PROJECT_MIRROR` only when the generated mirror needs a different
@@ -75,6 +105,13 @@ Read `<version>` from the installed upstream `SKILL.md`; do not hardcode it.
 Complete the upstream status, login, token, approval, and asynchronous-task
 gates before invoking business tools. Never store a CLI access token in the
 repository or print it in logs.
+
+`check_wechatide_status` is logically read-only but still requires client
+authorization, so its first call can open DevTools. Treat it as foreground
+capable. Do not probe the special authorization command with
+`wechatide auth -h`; that route starts authorization instead of behaving like
+ordinary tool help. Read the installed readiness documentation for its
+contract.
 
 ## Verification boundary
 

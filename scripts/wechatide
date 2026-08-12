@@ -90,6 +90,17 @@ if [[ "${1:-}" == "--print-project-root" ]]; then
   exit 0
 fi
 
+if [[ ! "${WECHATIDE_ALLOW_FOREGROUND:-}" =~ ^(1|[Tt][Rr][Uu][Ee]|[Yy][Ee][Ss])$ ]]; then
+  cat >&2 <<'EOF'
+Refusing to launch WeChat DevTools without explicit foreground permission.
+Tencent's agent CLI can open authorization UI, and simulator automation has no
+headless or no-focus mode. After the user approves possible Windows UI
+interruption, retry only the required command with
+WECHATIDE_ALLOW_FOREGROUND=1.
+EOF
+  exit 2
+fi
+
 if [[ ! -f "${powershell_script}" ]]; then
   echo "Missing PowerShell bridge: ${powershell_script}" >&2
   exit 1

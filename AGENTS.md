@@ -19,6 +19,7 @@
 - **Tasks:** Add UI components, new pages, improve visualizations, and preserve web/miniapp feature parity
 - **Context needed:** `.github/skills/ui-quality/SKILL.md`, `PRODUCT.md`, `DESIGN.md`, `docs/dev/design-system.md`, `web/src/types/api.ts`, and the `useApi` hook pattern
 - **Key rule:** Invoke the `ui-quality` skill for every user-visible change. It must route through Impeccable, rendered desktop/mobile inspection, state and accessibility coverage, and the CI evidence block. All data comes from API via `useApi<T>`; data numbers use `font-data`.
+- **WeChat desktop boundary:** Tencent provides no headless/no-focus simulator mode. On Windows + WSL2, use `wechat-devtools` only during a user-approved foreground window, never from an unattended background agent, and never via raw Windows focus/cursor/mouse/keyboard automation.
 
 ### API Agent
 - **Focus:** `api/main.py`, `api/deps.py`, `api/auth.py`, `api/routes/`
