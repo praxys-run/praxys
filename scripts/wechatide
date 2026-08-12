@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+powershell_script="${repo_root}/scripts/wechatide.ps1"
+
+if [[ -z "${WSL_DISTRO_NAME:-}" ]] && ! grep -qi microsoft /proc/sys/kernel/osrelease 2>/dev/null; then
+  echo "scripts/wechatide currently supports WSL2 calling Windows WeChat DevTools." >&2
+  exit 1
+fi
+
+resolve_install_root() {
+  if [[ -n "${WECHATIDE_INSTALL_ROOT:-}" ]]; then
+    if [[ ! -d "${WECHATIDE_INSTALL_ROOT}" ]]; then
+      echo "WECHATIDE_INSTALL_ROOT is not a directory: ${WECHATIDE_INSTALL_ROOT}" >&2
+      exit 1
+    fi
+    printf '%s\n' "${WECHATIDE_INSTALL_ROOT}"
+    return
+  fi
+
+  local candidates=()
+  local candidate
+  shopt -s nullglob
+  for candidate in /mnt/?/"Program Files (x86)"/Tencent/*-nightly; do
+    [[ -f "${candidate}/wechatide.cmd" ]] && candidates+=("${candidate}")
+  done
+  shopt -u nullglob
+
+  if (( ${#candidates[@]} == 0 )); then
+    echo "Nightly WeChat DevTools was not found. Set WECHATIDE_INSTALL_ROOT to its WSL path." >&2
+    exit 1
+  fi
+
+  printf '%s\n' "${candidates[0]}"
+}
+
+install_root="$(resolve_install_root)"
+skill_root="${install_root}/resources/app.asar.unpacked/wechatide-skill"
+miniapp_source="${repo_root}/miniapp"
+windows_drive_mount="${install_root%%/Program Files*}"
+miniapp_mirror="${WECHATIDE_PROJECT_MIRROR:-${windows_drive_mount}/Praxys/wechatide/praxys-miniapp}"
+
+sync_miniapp() {
+  if ! command -v rsync >/dev/null 2>&1; then
+    echo "rsync is required to synchronize the miniapp into Windows." >&2
+    exit 1
+  fi
+
+  if [[ "${miniapp_mirror}" != /mnt/?/* || "${miniapp_mirror}" == "${miniapp_source}" ]]; then
+    echo "WECHATIDE_PROJECT_MIRROR must be a dedicated directory on a mounted Windows drive." >&2
+    exit 1
+  fi
+
+  mkdir -p "${miniapp_mirror}"
+  mirror_marker="${miniapp_mirror}/.praxys-wechatide-mirror"
+  if [[ ! -f "${mirror_marker}" ]] &&
+    find "${miniapp_mirror}" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
+    echo "Refusing to synchronize into a non-empty unmarked directory: ${miniapp_mirror}" >&2
+    exit 1
+  fi
+  touch "${mirror_marker}"
+
+  rsync -a --delete \
+    --exclude .praxys-wechatide-mirror \
+    --exclude node_modules/ \
+    --exclude miniprogram_npm/ \
+    --exclude project.private.config.json \
+    --exclude '*.log' \
+    "${miniapp_source}/" "${miniapp_mirror}/"
+}
+
+if [[ "${1:-}" == "--print-skill-root" ]]; then
+  if [[ ! -f "${skill_root}/SKILL.md" ]]; then
+    echo "The installed WeChat DevTools does not contain wechatide-skill: ${skill_root}" >&2
+    exit 1
+  fi
+  printf '%s\n' "${skill_root}"
+  exit 0
+fi
+
+if [[ "${1:-}" == "--sync-project" ]]; then
+  sync_miniapp
+  printf '%s\n' "${miniapp_mirror}"
+  exit 0
+fi
+
+if [[ "${1:-}" == "--print-project-root" ]]; then
+  printf '%s\n' "${miniapp_mirror}"
+  exit 0
+fi
+
+if [[ ! -f "${powershell_script}" ]]; then
+  echo "Missing PowerShell bridge: ${powershell_script}" >&2
+  exit 1
+fi
+
+powershell_exe="/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
+if [[ ! -x "${powershell_exe}" ]]; then
+  echo "Windows PowerShell is unavailable; WSL interop must be enabled." >&2
+  exit 1
+fi
+
+converted_args=()
+for arg in "$@"; do
+  if [[ "${arg}" == "${miniapp_source}" || "${arg}" == "${miniapp_source}/"* ]]; then
+    sync_miniapp
+    relative_path="${arg#"${miniapp_source}"}"
+    converted_args+=("$(wslpath -w "${miniapp_mirror}${relative_path}")")
+  elif [[ "${arg}" == /* && -e "${arg}" ]]; then
+    converted_args+=("$(wslpath -w "${arg}")")
+  else
+    converted_args+=("${arg}")
+  fi
+done
+
+exec "${powershell_exe}" \
+  -NoProfile \
+  -ExecutionPolicy Bypass \
+  -File "$(wslpath -w "${powershell_script}")" \
+  -InstallRoot "$(wslpath -w "${install_root}")" \
+  "${converted_args[@]}"

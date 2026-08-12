@@ -284,6 +284,10 @@ The repo ships committed Claude Code automations in `.claude/`. Full inventory i
   - `api-contract-reviewer` — cross-reads Python response shapes against TS interfaces.
 - **Dev skills**:
   - `ui-quality` — mandatory cross-agent UI workflow; delegates to the canonical Impeccable copy under `.github/skills/`.
+  - `wechat-devtools` — bridges WSL2 agents to the separately installed Windows
+    Nightly WeChat DevTools. It loads Tencent's installed `wechatide-skill`
+    rather than vendoring a stale copy, and provides simulator, compile,
+    screenshot, console/network, preview, and upload workflows.
   - `seed-and-preview` — resets the local DB to sample data and boots API + Vite. User-invocable only (has side effects). See `.claude/skills/seed-and-preview/SKILL.md`.
 
 If a hook is getting in your way, edit `.claude/settings.json`. If a reviewer agent misses a pattern, extend its prompt in `.claude/agents/<name>.md` — they are just markdown with YAML frontmatter.
