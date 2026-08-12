@@ -627,7 +627,27 @@ def build_plan_reconciliation(
         )
         if canonical is None:
             if observation is not None:
-                consumed_observations.add(observation.id)
+                observation_type = _normalized_type(
+                    (observation.normalized_workout or {}).get(
+                        "workout_type"
+                    )
+                )
+                could_shadow_replacement = any(
+                    row.date == observation.workout_date
+                    and (
+                        not observation_type
+                        or _normalized_type(row.workout_type)
+                        == observation_type
+                    )
+                    for row in available_canonicals
+                )
+                if (
+                    could_shadow_replacement
+                    and delivery.provider_content_version
+                    and observation.content_fingerprint
+                    == delivery.provider_content_version
+                ):
+                    consumed_observations.add(observation.id)
             continue
 
         state, reason = _classify_delivery(
