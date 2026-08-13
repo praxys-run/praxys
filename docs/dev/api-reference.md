@@ -1369,6 +1369,15 @@ regeneration require write access.
   successor; a new regeneration request with unchanged source input returns
   `409 OUTDOOR_5K_REGENERATION_INPUT_UNCHANGED`.
 
+For either write endpoint, an exact retry (same key and complete request
+payload, including the expected source revision) replays the persisted response
+before evaluating the current source fence. This makes transport retries safe
+after a configuration, baseline, activity, or calendar-reservation change. A
+different payload with the same key returns
+`409 OUTDOOR_5K_IDEMPOTENCY_CONFLICT`; a fresh key still requires the exact
+current source revision and is rechecked while the owner-scoped plan write lock
+is held before proposal persistence.
+
 Requests use this structured shape (weekday values are Monday `0` through
 Sunday `6`):
 
@@ -1398,6 +1407,11 @@ or one of the accepted no-plan codes
 `no_schedule_within_envelope`. A changed source revision returns
 `409 OUTDOOR_5K_SOURCE_REVISION_STALE`; an idempotency-key reuse for different
 input returns `409 OUTDOOR_5K_IDEMPOTENCY_CONFLICT`.
+
+`maximum_session_duration_min` must be positive, but has no universal product
+floor or upper cap. The generator limits scheduled duration against the stated
+maximum and completed-history anchors; it emits `unsupported_frequency` when
+recent modal completed-running frequency is below the three-day envelope.
 
 Successful proposal records retain only the structured observed input snapshot,
 structured athlete constraints, derived history statistics, baseline snapshot

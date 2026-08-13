@@ -4,6 +4,8 @@ Pure-function tests (no DB connection) covering the DATABASE_URL /
 PRAXYS_DATABASE_URL resolution and psycopg-driver normalization added in
 db/session.py.
 """
+from datetime import datetime
+
 import pytest
 
 
@@ -151,5 +153,95 @@ def test_existing_sqlite_gets_additive_compatibility_columns(dbs, tmp_path):
         } <= context_indexes
         assert "personal_context_commands" in tables
         assert "ai_insight_feedback" in tables
+    finally:
+        engine.dispose()
+
+
+def test_existing_sqlite_plan_proposals_get_idempotency_fingerprint(
+    dbs,
+    tmp_path,
+):
+    """A pre-5K proposal table remains ORM-readable and writable after boot."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from db.models import PlanProposal
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'legacy-proposals.db'}")
+    try:
+        with engine.begin() as conn:
+            conn.exec_driver_sql(
+                """
+                CREATE TABLE plan_proposals (
+                    id VARCHAR(36) PRIMARY KEY NOT NULL,
+                    user_id VARCHAR(36) NOT NULL,
+                    adaptive_plan_id VARCHAR(36) NOT NULL,
+                    goal_snapshot_id VARCHAR(36) NOT NULL,
+                    discipline VARCHAR(30) NOT NULL,
+                    version INTEGER NOT NULL,
+                    state VARCHAR(20) NOT NULL,
+                    origin VARCHAR(80) NOT NULL,
+                    actor_type VARCHAR(20) NOT NULL,
+                    actor_id VARCHAR(100),
+                    base_plan_version INTEGER NOT NULL,
+                    supersedes_proposal_id VARCHAR(36),
+                    policy_version VARCHAR(80),
+                    model_version VARCHAR(80),
+                    science_version VARCHAR(80),
+                    assumptions JSON NOT NULL,
+                    unknowns JSON NOT NULL,
+                    warnings JSON NOT NULL,
+                    alternatives JSON NOT NULL,
+                    expires_at DATETIME,
+                    idempotency_key VARCHAR(128),
+                    decision_idempotency_key VARCHAR(128),
+                    workout_snapshot JSON NOT NULL,
+                    created_at DATETIME NOT NULL,
+                    decided_at DATETIME
+                )
+                """
+            )
+
+        dbs._ensure_schema(engine, "sqlite")
+        with engine.connect() as conn:
+            columns = {
+                row[1]
+                for row in conn.exec_driver_sql(
+                    'PRAGMA table_info("plan_proposals")'
+                )
+            }
+        assert "idempotency_fingerprint" in columns
+
+        session = sessionmaker(bind=engine)()
+        try:
+            session.add(
+                PlanProposal(
+                    id="legacy-proposal",
+                    user_id="legacy-owner",
+                    adaptive_plan_id="legacy-plan",
+                    goal_snapshot_id="legacy-goal",
+                    discipline="running",
+                    version=1,
+                    state="draft",
+                    origin="test.legacy",
+                    actor_type="system",
+                    base_plan_version=0,
+                    assumptions=[],
+                    unknowns=[],
+                    warnings=[],
+                    alternatives=[],
+                    idempotency_key="legacy-key",
+                    idempotency_fingerprint="a" * 64,
+                    workout_snapshot=[],
+                    created_at=datetime(2026, 8, 13),
+                )
+            )
+            session.commit()
+            session.expire_all()
+            proposal = session.get(PlanProposal, "legacy-proposal")
+            assert proposal is not None
+            assert proposal.idempotency_fingerprint == "a" * 64
+        finally:
+            session.close()
     finally:
         engine.dispose()

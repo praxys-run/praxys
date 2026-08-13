@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 import hashlib
 import json
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any, Callable, Mapping, MutableMapping, Sequence
 from uuid import UUID, uuid4
 
 from pydantic import ValidationError
@@ -401,6 +401,14 @@ def _idempotency_conflict() -> AdaptivePlanError:
     )
 
 
+def _mark_idempotency_replay(
+    idempotency_replay_state: MutableMapping[str, bool] | None,
+) -> None:
+    """Tell an optional policy caller that this invocation returned a replay."""
+    if idempotency_replay_state is not None:
+        idempotency_replay_state["replayed"] = True
+
+
 def _proposal_request_fingerprint(
     *,
     payload: ProposalInput,
@@ -582,9 +590,19 @@ def create_draft_proposal(
     user_id: str,
     payload: ProposalInput,
     current_date: date,
+    before_persist: Callable[[Session], None] | None = None,
+    idempotency_replay_state: MutableMapping[str, bool] | None = None,
     on_created: Callable[[Session, PlanProposal], None] | None = None,
 ) -> dict[str, Any]:
-    """Create the first immutable proposal for a new adaptive plan aggregate."""
+    """Create the first immutable proposal for a new adaptive plan aggregate.
+
+    ``before_persist`` runs after the owner-scoped plan write lock is held,
+    before any proposal row is staged. Policy services use it to recheck
+    mutable source inputs in that locked transaction.
+
+    ``idempotency_replay_state`` lets a policy wrapper reconstruct its own
+    persisted response when an in-flight exact retry is found under that lock.
+    """
     goal = _validate_goal(payload.goal)
     discipline = normalize_adaptive_plan_discipline(payload.discipline)
     workouts = _validate_workouts(
@@ -611,11 +629,31 @@ def create_draft_proposal(
             proposal=existing,
             request_fingerprint=request_fingerprint,
         ):
+            _mark_idempotency_replay(idempotency_replay_state)
             return _idempotent_proposal_hit(db, user_id=user_id, proposal=existing)
         raise _idempotency_conflict()
     try:
         db.rollback()
         lock_plan_writes(db, user_id)
+        existing = _existing_proposal_for_key(
+            db,
+            user_id=user_id,
+            idempotency_key=payload.idempotency_key,
+        )
+        if existing is not None:
+            if _idempotency_matches_proposal(
+                proposal=existing,
+                request_fingerprint=request_fingerprint,
+            ):
+                _mark_idempotency_replay(idempotency_replay_state)
+                return _idempotent_proposal_hit(
+                    db,
+                    user_id=user_id,
+                    proposal=existing,
+                )
+            raise _idempotency_conflict()
+        if before_persist is not None:
+            before_persist(db)
         active_plan = _active_plan(db, user_id=user_id, for_update=True)
         if active_plan is not None:
             _archive_expired_draft(
@@ -732,6 +770,7 @@ def create_draft_proposal(
                 proposal=existing,
                 request_fingerprint=request_fingerprint,
             ):
+                _mark_idempotency_replay(idempotency_replay_state)
                 return _idempotent_proposal_hit(db, user_id=user_id, proposal=existing)
             raise _idempotency_conflict()
         raise AdaptivePlanError(409, "ADAPTIVE_PLAN_CONFLICT", "Adaptive plan proposal could not be created.") from exc
@@ -785,10 +824,19 @@ def create_successor_proposal(
     expected_version: int,
     payload: ProposalInput,
     current_date: date,
+    before_persist: Callable[[Session], None] | None = None,
+    idempotency_replay_state: MutableMapping[str, bool] | None = None,
     on_created: Callable[[Session, PlanProposal], None] | None = None,
     allow_policy_successor: bool = False,
 ) -> dict[str, Any]:
-    """Supersede a draft proposal with a new immutable edited version."""
+    """Supersede a draft proposal with a new immutable edited version.
+
+    ``before_persist`` runs under the owner-scoped plan write lock before the
+    predecessor is read or a successor is staged.
+
+    ``idempotency_replay_state`` lets a policy wrapper reconstruct its own
+    persisted response when an in-flight exact retry is found under that lock.
+    """
     goal = _validate_goal(payload.goal)
     discipline = normalize_adaptive_plan_discipline(payload.discipline)
     workouts = _validate_workouts(
@@ -815,11 +863,31 @@ def create_successor_proposal(
             proposal=existing,
             request_fingerprint=request_fingerprint,
         ):
+            _mark_idempotency_replay(idempotency_replay_state)
             return _idempotent_proposal_hit(db, user_id=user_id, proposal=existing)
         raise _idempotency_conflict()
     try:
         db.rollback()
         lock_plan_writes(db, user_id)
+        existing = _existing_proposal_for_key(
+            db,
+            user_id=user_id,
+            idempotency_key=payload.idempotency_key,
+        )
+        if existing is not None:
+            if _idempotency_matches_proposal(
+                proposal=existing,
+                request_fingerprint=request_fingerprint,
+            ):
+                _mark_idempotency_replay(idempotency_replay_state)
+                return _idempotent_proposal_hit(
+                    db,
+                    user_id=user_id,
+                    proposal=existing,
+                )
+            raise _idempotency_conflict()
+        if before_persist is not None:
+            before_persist(db)
         parent = db.execute(
             select(PlanProposal).where(
                 PlanProposal.user_id == user_id,
@@ -926,6 +994,7 @@ def create_successor_proposal(
                 proposal=existing,
                 request_fingerprint=request_fingerprint,
             ):
+                _mark_idempotency_replay(idempotency_replay_state)
                 return _idempotent_proposal_hit(db, user_id=user_id, proposal=existing)
             raise _idempotency_conflict()
         raise AdaptivePlanError(409, "ADAPTIVE_PLAN_CONFLICT", "Adaptive plan proposal could not be edited.") from exc

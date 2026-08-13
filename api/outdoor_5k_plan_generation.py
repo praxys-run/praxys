@@ -19,6 +19,7 @@ from analysis.outdoor_5k_plan_generation import (
     OUTDOOR_5K_EVIDENCE_CLAIM_IDS,
     OUTDOOR_5K_EVIDENCE_REVIEW_IDS,
     OUTDOOR_5K_POLICY_VERSION,
+    OUTDOOR_5K_REASSESSMENT_DAYS,
     OUTDOOR_5K_SCIENCE_DECISION_ID,
     GeneratedOutdoor5KPlan,
     GeneratedWorkout,
@@ -104,6 +105,21 @@ def generate_outdoor_5k_proposal(
     idempotency_key: str,
 ) -> tuple[dict[str, Any], bool]:
     """Persist one valid immutable proposal or return a typed no-plan result."""
+    request_fingerprint = _request_fingerprint(
+        request_kind="generate",
+        expected_source_revision=expected_source_revision,
+        constraints=constraints,
+        outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
+    )
+    replay = _idempotency_replay(
+        db,
+        user_id=user_id,
+        idempotency_key=idempotency_key,
+        request_fingerprint=request_fingerprint,
+    )
+    if replay is not None:
+        return replay, True
+
     generation_input, result = _evaluate(
         db,
         user_id=user_id,
@@ -114,18 +130,6 @@ def generate_outdoor_5k_proposal(
         expected_source_revision=expected_source_revision,
         actual_source_revision=result.deterministic_input_hash,
     )
-    request_fingerprint = _request_fingerprint(
-        request_kind="generate",
-        source_revision=result.deterministic_input_hash,
-    )
-    replay = _idempotency_replay(
-        db,
-        user_id=user_id,
-        idempotency_key=idempotency_key,
-        request_fingerprint=request_fingerprint,
-    )
-    if replay is not None:
-        return replay, True
     if result.code != "ready" or result.plan is None:
         return _readiness_envelope(generation_input, result), False
 
@@ -134,11 +138,20 @@ def generate_outdoor_5k_proposal(
         result=result,
         idempotency_key=idempotency_key,
     )
+    idempotency_replay_state = {"replayed": False}
     proposal = create_draft_proposal(
         db,
         user_id=user_id,
         payload=proposal_input,
         current_date=generation_input.athlete_today,
+        before_persist=lambda session: _require_locked_source_revision(
+            session,
+            user_id=user_id,
+            constraints=constraints,
+            outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
+            expected_source_revision=expected_source_revision,
+        ),
+        idempotency_replay_state=idempotency_replay_state,
         on_created=lambda session, created: _record_generation(
             session,
             user_id=user_id,
@@ -150,6 +163,20 @@ def generate_outdoor_5k_proposal(
             predecessor=None,
         ),
     )
+    if idempotency_replay_state["replayed"]:
+        replay = _idempotency_replay(
+            db,
+            user_id=user_id,
+            idempotency_key=idempotency_key,
+            request_fingerprint=request_fingerprint,
+        )
+        if replay is not None:
+            return replay, True
+        raise Outdoor5KGenerationError(
+            409,
+            "OUTDOOR_5K_IDEMPOTENCY_CONFLICT",
+            "This idempotency key was already used for a different proposal request.",
+        )
     return _proposal_envelope(
         generation_input,
         result,
@@ -170,6 +197,22 @@ def regenerate_outdoor_5k_proposal(
     idempotency_key: str,
 ) -> tuple[dict[str, Any], bool]:
     """Create one bounded immutable successor after an exact source revision."""
+    request_fingerprint = _request_fingerprint(
+        request_kind="regenerate",
+        expected_source_revision=expected_source_revision,
+        constraints=constraints,
+        outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
+        predecessor=(proposal_id, expected_proposal_version),
+    )
+    replay = _idempotency_replay(
+        db,
+        user_id=user_id,
+        idempotency_key=idempotency_key,
+        request_fingerprint=request_fingerprint,
+    )
+    if replay is not None:
+        return replay, True
+
     parent = db.execute(
         select(PlanProposal).where(
             PlanProposal.user_id == user_id,
@@ -206,19 +249,6 @@ def regenerate_outdoor_5k_proposal(
         expected_source_revision=expected_source_revision,
         actual_source_revision=result.deterministic_input_hash,
     )
-    request_fingerprint = _request_fingerprint(
-        request_kind="regenerate",
-        source_revision=result.deterministic_input_hash,
-        predecessor=(parent.id, parent.version),
-    )
-    replay = _idempotency_replay(
-        db,
-        user_id=user_id,
-        idempotency_key=idempotency_key,
-        request_fingerprint=request_fingerprint,
-    )
-    if replay is not None:
-        return replay, True
     parent_audit = _generation_for_proposal(db, user_id=user_id, proposal_id=parent.id)
     if (
         parent_audit is not None
@@ -237,6 +267,7 @@ def regenerate_outdoor_5k_proposal(
         result=result,
         idempotency_key=idempotency_key,
     )
+    idempotency_replay_state = {"replayed": False}
     proposal = create_successor_proposal(
         db,
         user_id=user_id,
@@ -244,6 +275,14 @@ def regenerate_outdoor_5k_proposal(
         expected_version=expected_proposal_version,
         payload=proposal_input,
         current_date=generation_input.athlete_today,
+        before_persist=lambda session: _require_locked_source_revision(
+            session,
+            user_id=user_id,
+            constraints=constraints,
+            outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
+            expected_source_revision=expected_source_revision,
+        ),
+        idempotency_replay_state=idempotency_replay_state,
         allow_policy_successor=True,
         on_created=lambda session, created: _record_generation(
             session,
@@ -256,6 +295,20 @@ def regenerate_outdoor_5k_proposal(
             predecessor=(parent.id, parent.version),
         ),
     )
+    if idempotency_replay_state["replayed"]:
+        replay = _idempotency_replay(
+            db,
+            user_id=user_id,
+            idempotency_key=idempotency_key,
+            request_fingerprint=request_fingerprint,
+        )
+        if replay is not None:
+            return replay, True
+        raise Outdoor5KGenerationError(
+            409,
+            "OUTDOOR_5K_IDEMPOTENCY_CONFLICT",
+            "This idempotency key was already used for a different proposal request.",
+        )
     return _proposal_envelope(
         generation_input,
         result,
@@ -566,8 +619,8 @@ def _idempotency_replay(
             "OUTDOOR_5K_IDEMPOTENCY_CONFLICT",
             "This idempotency key was already used for a different proposal request.",
         )
-    proposal = read_proposal(db, user_id=user_id, proposal_id=existing.id)
-    if proposal is None:
+    proposal_view = read_proposal(db, user_id=user_id, proposal_id=existing.id)
+    if proposal_view is None:
         raise Outdoor5KGenerationError(
             409,
             "OUTDOOR_5K_IDEMPOTENCY_CONFLICT",
@@ -580,8 +633,9 @@ def _idempotency_replay(
         "science_decision_id": audit.science_decision_id,
         "source_revision": audit.source_revision,
         "result": audit.validation_results,
-        "proposal": proposal,
+        "proposal": proposal_view,
         "replayed": True,
+        "reassessment_dates": _persisted_reassessment_dates(proposal_view),
     }
 
 
@@ -633,13 +687,19 @@ def _result_without_plan(result: Outdoor5KGenerationResult) -> dict[str, Any]:
 def _request_fingerprint(
     *,
     request_kind: str,
-    source_revision: str,
+    expected_source_revision: str,
+    constraints: PlanGenerationConstraints,
+    outdoor_road_goal_confirmed: bool,
     predecessor: tuple[str, int] | None = None,
 ) -> str:
-    """Hash one exact generation command without retaining private payloads twice."""
+    """Hash one exact client command without reading mutable source state."""
     payload = {
         "request_kind": request_kind,
-        "source_revision": source_revision,
+        "expected_source_revision": expected_source_revision,
+        "constraints": _constraints_snapshot(
+            constraints,
+            outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
+        ),
         "predecessor": (
             {"proposal_id": predecessor[0], "version": predecessor[1]}
             if predecessor is not None
@@ -648,6 +708,41 @@ def _request_fingerprint(
     }
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _require_locked_source_revision(
+    db: Session,
+    *,
+    user_id: str,
+    constraints: PlanGenerationConstraints,
+    outdoor_road_goal_confirmed: bool,
+    expected_source_revision: str,
+) -> None:
+    """Recheck the exact source hash after the owner-scoped plan lock is held."""
+    db.expire_all()
+    _, locked_result = _evaluate(
+        db,
+        user_id=user_id,
+        constraints=constraints,
+        outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
+    )
+    _require_source_revision(
+        expected_source_revision=expected_source_revision,
+        actual_source_revision=locked_result.deterministic_input_hash,
+    )
+
+
+def _persisted_reassessment_dates(proposal: dict[str, Any]) -> list[str]:
+    """Rebuild the immutable response dates from the persisted proposal horizon."""
+    goal = proposal.get("goal") or {}
+    try:
+        horizon_start = date.fromisoformat(str(goal["horizon_start"]))
+    except (KeyError, TypeError, ValueError):
+        return []
+    return [
+        (horizon_start + timedelta(days=OUTDOOR_5K_REASSESSMENT_DAYS * index)).isoformat()
+        for index in range(4)
+    ]
 
 
 def _proposal_matches_generated_plan(

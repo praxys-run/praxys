@@ -413,6 +413,7 @@ _SQLITE_COMPAT_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
     ),
     "plan_proposals": (
         ("discipline", "VARCHAR(30) NOT NULL DEFAULT 'running'"),
+        ("idempotency_fingerprint", "VARCHAR(64)"),
     ),
     "training_plans": (
         ("canonical_id", "VARCHAR(36)"),

@@ -366,6 +366,21 @@ def generate_outdoor_5k_plan(
             missing="three usable completed running weeks and a run within fourteen days",
             alternatives=("future_consistency_or_base_policy",),
         )
+    # The three-day envelope is an accepted v1 policy guardrail, not a
+    # physiological threshold or a claim about an individual athlete.
+    if statistics.recent_modal_running_frequency < 3:
+        return _no_plan(
+            code="unsupported_frequency",
+            input_hash=input_hash,
+            statistics=statistics,
+            rule="recent_history_frequency",
+            reason=(
+                "The recent modal completed-running frequency is below the "
+                "three-day policy envelope."
+            ),
+            missing=None,
+            alternatives=("future_consistency_or_base_policy",),
+        )
     constraint_error = _constraint_error(generation_input.constraints)
     if constraint_error is not None:
         code, rule, reason, alternatives = constraint_error
@@ -655,10 +670,10 @@ def _build_schedule(
             reassessment_date=week_start,
         )
         if is_taper:
+            # V1 selects 50% inside its accepted 41–60% taper guardrail; this
+            # is not a universal taper prescription (see the accepted SDR).
             weekly_cap //= 2
         base_duration = min(session_limit, weekly_cap // frequency)
-        if base_duration < 15:
-            return None
         longest_date = _longest_date(
             selected_dates,
             generation_input.constraints.preferred_longest_run_weekday,
@@ -669,7 +684,7 @@ def _build_schedule(
             longest_date=longest_date,
             quality_count=_quality_count(
                 frequency=frequency,
-                weekly_minutes=base_duration * frequency,
+                base_duration=base_duration,
                 session_limit=session_limit,
             ),
             week_index=index,
@@ -722,7 +737,7 @@ def _longest_date(
 def _quality_count(
     *,
     frequency: int,
-    weekly_minutes: int,
+    base_duration: int,
     session_limit: int,
 ) -> int:
     required_minutes = max(
@@ -731,7 +746,12 @@ def _quality_count(
     )
     if session_limit < required_minutes:
         return 0
-    if weekly_minutes < frequency * required_minutes:
+    low_intensity_minutes = (frequency - 1) * base_duration
+    total_minutes = low_intensity_minutes + required_minutes
+    if (
+        low_intensity_minutes <= 0
+        or low_intensity_minutes / total_minutes < 0.70
+    ):
         return 0
     # The accepted envelope permits up to two quality days but does not require
     # two. V1 chooses the simplest one-session template when it fits.

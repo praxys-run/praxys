@@ -52,7 +52,7 @@ class Outdoor5KConstraintsRequest(BaseModel):
     safety_stop: bool = False
     outdoor_road_goal_confirmed: bool
     available_weekdays: list[Weekday] = Field(min_length=1, max_length=7)
-    maximum_session_duration_min: int = Field(ge=1, le=240)
+    maximum_session_duration_min: int = Field(ge=1)
     unavailable_dates: list[date] = Field(default_factory=list, max_length=28)
     preferred_longest_run_weekday: Weekday | None = None
 
