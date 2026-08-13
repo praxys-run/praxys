@@ -47,6 +47,7 @@ DELIVERY_ATTEMPT_LEASE = timedelta(minutes=5)
 _SNAPSHOT_FIELDS = (
     "canonical_id",
     "date",
+    "activity_type",
     "workout_type",
     "planned_duration_min",
     "planned_distance_km",
@@ -57,6 +58,8 @@ _SNAPSHOT_FIELDS = (
     "target_pace_min",
     "target_pace_max",
     "workout_description",
+    "workout_structure_version",
+    "workout_structure",
     "source",
     "workout_origin",
     "start_time",
@@ -228,6 +231,22 @@ def plan_snapshot(record: Any) -> dict[str, Any]:
         field: _json_value(_read_field(record, field))
         for field in _SNAPSHOT_FIELDS
     }
+    for json_field in ("workout_structure", "meta"):
+        raw_value = snapshot.get(json_field)
+        if not isinstance(raw_value, str):
+            continue
+        try:
+            parsed = json.loads(raw_value)
+        except (TypeError, ValueError):
+            continue
+        snapshot[json_field] = _json_value(parsed)
+    for optional_field in (
+        "activity_type",
+        "workout_structure_version",
+        "workout_structure",
+    ):
+        if snapshot.get(optional_field) in (None, ""):
+            snapshot.pop(optional_field, None)
     snapshot["source"] = snapshot.get("source") or PRAXYS_PLAN_SOURCE
     snapshot["workout_origin"] = normalize_workout_origin(
         snapshot.get("workout_origin"),

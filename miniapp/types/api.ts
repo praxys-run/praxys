@@ -289,8 +289,165 @@ export type PlanReconciliationState =
 
 export type PlanResolutionAction = 'restore_praxys' | 'accept_target';
 
+export type AdaptivePlanDiscipline = 'running' | 'trail_running';
+
+export type PlanActivityType =
+  | 'running'
+  | 'trail_running'
+  | 'cycling'
+  | 'walking'
+  | 'hiking'
+  | 'strength'
+  | 'mobility'
+  | 'cross_training'
+  | 'rest'
+  | 'other';
+
+export type WorkoutStructureVersion = 'v1';
+export type WorkoutStructureState =
+  | 'absent'
+  | 'supported'
+  | 'invalid'
+  | 'unsupported';
+
+type WorkoutIntensityBounds =
+  | {
+      min: number;
+      max?: number | null;
+    }
+  | {
+      min?: number | null;
+      max: number;
+    };
+
+type BoundedWorkoutIntensityTarget<
+  Metric extends string,
+  Unit extends string,
+  Reference extends string,
+> = {
+  metric: Metric;
+  unit: Unit;
+  reference: Reference;
+} & WorkoutIntensityBounds;
+
+export type WorkoutIntensityTarget =
+  | {
+      metric: 'none';
+      unit: 'none';
+      reference: 'none';
+      min?: never;
+      max?: never;
+    }
+  | BoundedWorkoutIntensityTarget<'power', 'watts', 'absolute'>
+  | BoundedWorkoutIntensityTarget<
+      'power',
+      'percent_cp',
+      'critical_power'
+    >
+  | BoundedWorkoutIntensityTarget<'heart_rate', 'bpm', 'absolute'>
+  | BoundedWorkoutIntensityTarget<
+      'heart_rate',
+      'percent_lthr',
+      'lthr'
+    >
+  | BoundedWorkoutIntensityTarget<'pace', 'sec_per_km', 'absolute'>
+  | BoundedWorkoutIntensityTarget<
+      'pace',
+      'sec_per_km_delta',
+      'threshold_pace'
+    >
+  | BoundedWorkoutIntensityTarget<
+      'rpe',
+      'scale_10',
+      'perceived_exertion'
+    >;
+
+export type WorkoutTermination =
+  | {
+      type: 'time';
+      seconds: number;
+      meters?: never;
+    }
+  | {
+      type: 'distance';
+      meters: number;
+      seconds?: never;
+    }
+  | {
+      type: 'open' | 'manual';
+      seconds?: never;
+      meters?: never;
+    };
+
+export interface WorkoutStructureStep {
+  type: 'step';
+  phase:
+    | 'warmup'
+    | 'work'
+    | 'recovery'
+    | 'rest'
+    | 'cooldown'
+    | 'other';
+  /** Trimmed user-defined display label; at most 80 characters. */
+  label?: string | null;
+  /** Trimmed user-defined coaching cue; at most 1000 characters. */
+  instructions?: string | null;
+  termination: WorkoutTermination;
+  target: WorkoutIntensityTarget;
+}
+
+export interface WorkoutStructureRepeatGroup {
+  type: 'repeat';
+  /** Trimmed user-defined group label; at most 80 characters. */
+  label?: string | null;
+  repetitions: number;
+  steps: WorkoutStructureStep[];
+}
+
+export interface WorkoutStructureV1 {
+  steps: Array<WorkoutStructureStep | WorkoutStructureRepeatGroup>;
+}
+
+export type WorkoutProviderCompatibilityTarget = 'garmin' | 'stryd';
+
+export type WorkoutProviderCompatibilityMode =
+  | 'legacy_flat'
+  | 'structured'
+  | 'unsupported';
+
+export type WorkoutProviderCompatibilityReasonCode =
+  | 'activity_type_not_supported'
+  | 'duration_required'
+  | 'empty_structure_not_supported'
+  | 'flat_workout_not_lossless'
+  | 'invalid_structure'
+  | 'phase_not_supported'
+  | 'structured_workout_not_supported'
+  | 'target_not_supported'
+  | 'target_precision_not_supported'
+  | 'termination_not_supported'
+  | 'wording_not_supported';
+
+export interface WorkoutProviderCompatibilityReason {
+  code: WorkoutProviderCompatibilityReasonCode;
+  /** Canonical tree location, present when a specific node is lossy. */
+  path?: string | null;
+}
+
+/**
+ * Content-only provider projection. This neither checks a connection nor
+ * requests delivery; it names details a provider would lose.
+ */
+export interface WorkoutProviderCompatibility {
+  target: WorkoutProviderCompatibilityTarget;
+  compatible: boolean;
+  mode: WorkoutProviderCompatibilityMode;
+  reasons: WorkoutProviderCompatibilityReason[];
+}
+
 export interface PlanTargetWorkoutSnapshot {
   date: string;
+  activity_type?: PlanActivityType | null;
   workout_type: string;
   planned_duration_min?: number | null;
   planned_distance_km?: number | null;
@@ -301,6 +458,9 @@ export interface PlanTargetWorkoutSnapshot {
   target_pace_min?: string | null;
   target_pace_max?: string | null;
   workout_description?: string;
+  workout_structure_status?: WorkoutStructureState;
+  workout_structure_version?: string | null;
+  workout_structure?: unknown;
   start_time?: string | null;
 }
 
@@ -331,6 +491,7 @@ export interface PlannedWorkout {
   editable?: boolean;
   /** Absolute UTC instant of workout start; bucket the day in viewer tz. */
   start_time?: string | null;
+  activity_type?: PlanActivityType | null;
   workout_type: string;
   duration_min?: number;
   distance_km?: number;
@@ -341,6 +502,10 @@ export interface PlannedWorkout {
   pace_min?: string;
   pace_max?: string;
   description?: string;
+  workout_structure_status?: WorkoutStructureState;
+  workout_structure_version?: string | null;
+  workout_structure?: unknown;
+  provider_compatibility?: WorkoutProviderCompatibility[];
   /** @deprecated Use `owner` and `origin`; retained during client rollout. */
   source: PlanWorkoutSource;
   /** Optional only while a new frontend may briefly talk to the prior API. */
@@ -427,8 +592,19 @@ export interface PlanResponse {
   adjustments?: PlanAdjustment[];
 }
 
-export interface PlanWorkoutWriteFields {
+type OptionalWorkoutStructureFields =
+  | {
+      workout_structure_version?: never;
+      workout_structure?: never;
+    }
+  | {
+      workout_structure_version: WorkoutStructureVersion;
+      workout_structure: WorkoutStructureV1;
+    };
+
+interface PlanWorkoutWriteFieldValues {
   date: string;
+  activity_type?: PlanActivityType | null;
   workout_type: string;
   planned_duration_min: number | null;
   planned_distance_km: number | null;
@@ -441,8 +617,12 @@ export interface PlanWorkoutWriteFields {
   workout_description: string;
 }
 
-export interface PlanWorkoutCreateRequest {
+export type PlanWorkoutWriteFields =
+  PlanWorkoutWriteFieldValues & OptionalWorkoutStructureFields;
+
+interface PlanWorkoutCreateValues {
   date: string;
+  activity_type?: PlanActivityType | null;
   workout_type: string;
   planned_duration_min?: number | null;
   planned_distance_km?: number | null;
@@ -455,9 +635,20 @@ export interface PlanWorkoutCreateRequest {
   workout_description?: string | null;
 }
 
-export interface PlanWorkoutUpdateRequest {
+export type PlanWorkoutCreateRequest =
+  PlanWorkoutCreateValues & OptionalWorkoutStructureFields;
+
+/** Draft-only compatibility request; it never writes or delivers a workout. */
+export type PlanWorkoutCompatibilityRequest = PlanWorkoutCreateRequest;
+
+export interface PlanWorkoutCompatibilityResponse {
+  providers: WorkoutProviderCompatibility[];
+}
+
+interface PlanWorkoutUpdateValues {
   expected_version: string;
   date?: string;
+  activity_type?: PlanActivityType;
   workout_type?: string;
   planned_duration_min?: number | null;
   planned_distance_km?: number | null;
@@ -470,11 +661,17 @@ export interface PlanWorkoutUpdateRequest {
   workout_description?: string | null;
 }
 
+export type PlanWorkoutUpdateRequest =
+  PlanWorkoutUpdateValues & OptionalWorkoutStructureFields;
+
 export type PlanMutationErrorCode =
   | 'PLAN_HISTORY_IMMUTABLE'
   | 'PLAN_TARGET_RANGE_INVALID'
   | 'PLAN_WORKOUT_NOT_FOUND'
   | 'PLAN_VERSION_CONFLICT'
+  | 'PLAN_STRUCTURE_PROJECTION_CONFLICT'
+  | 'PLAN_WORKOUT_STRUCTURE_INVALID'
+  | 'PLAN_WORKOUT_STRUCTURE_UNSUPPORTED'
   | 'PLAN_NO_CHANGES';
 
 export interface PlanMutationErrorDetail {
@@ -482,6 +679,7 @@ export interface PlanMutationErrorDetail {
   message: string;
   current_version?: string;
   minimum_date?: string;
+  fields?: string[];
 }
 
 export interface PlanMutationErrorResponse {
@@ -514,6 +712,7 @@ export interface PlanWorkoutMutationResponse {
   id: number;
   canonical_id: string;
   date: string;
+  activity_type: PlanActivityType | null;
   workout_type: string;
   planned_duration_min: number | null;
   planned_distance_km: number | null;
@@ -524,6 +723,9 @@ export interface PlanWorkoutMutationResponse {
   target_pace_min: string | null;
   target_pace_max: string | null;
   workout_description: string;
+  workout_structure_status: WorkoutStructureState;
+  workout_structure_version: string | null;
+  workout_structure: unknown;
   /** @deprecated Use `owner` and `origin`; retained during client rollout. */
   source: 'ai';
   owner: 'praxys';
@@ -557,6 +759,122 @@ export interface PlanDayDeleteResponse {
   date: string;
   revision_id: string;
   delivery: PlanMutationDelivery | null;
+}
+
+export interface AdaptivePlanGoalSnapshotSummary {
+  id: string;
+  version: number;
+  state: 'draft' | 'active' | 'superseded';
+  goal_kind: string;
+  target: Record<string, unknown>;
+  horizon_start: string;
+  horizon_end: string;
+  acknowledged_at: string | null;
+}
+
+export interface AdaptivePlanSummary {
+  id: string;
+  discipline: AdaptivePlanDiscipline;
+  version: number;
+  lifecycle: 'draft' | 'active' | 'completed' | 'archived';
+  active_proposal_id: string | null;
+}
+
+export interface AdaptivePlanProposalWorkout {
+  canonical_id?: string;
+  date: string;
+  activity_type: PlanActivityType;
+  workout_type: string;
+  planned_duration_min: number | null;
+  planned_distance_km: number | null;
+  target_power_min: number | null;
+  target_power_max: number | null;
+  target_hr_min: number | null;
+  target_hr_max: number | null;
+  target_pace_min: string | null;
+  target_pace_max: string | null;
+  workout_description: string;
+  workout_structure_version: WorkoutStructureVersion;
+  workout_structure: WorkoutStructureV1;
+}
+
+export interface AdaptivePlanProposal {
+  id: string;
+  adaptive_plan_id: string;
+  goal_snapshot_id: string;
+  discipline: AdaptivePlanDiscipline;
+  version: number;
+  state: 'draft' | 'superseded' | 'rejected' | 'adopted' | 'expired';
+  base_plan_version: number;
+  supersedes_proposal_id: string | null;
+  origin: string;
+  actor_type: 'user' | 'agent' | 'system';
+  actor_id: string | null;
+  policy_version: string | null;
+  model_version: string | null;
+  science_version: string | null;
+  assumptions: unknown[];
+  unknowns: unknown[];
+  warnings: unknown[];
+  alternatives: unknown[];
+  expires_at: string | null;
+  created_at: string | null;
+  decided_at: string | null;
+  workouts: AdaptivePlanProposalWorkout[];
+  adaptive_plan: AdaptivePlanSummary | null;
+  goal: AdaptivePlanGoalSnapshotSummary | null;
+}
+
+export interface AdaptivePlanProposalMutationRequest {
+  goal: {
+    goal_kind: string;
+    target: Record<string, unknown>;
+    horizon_start: string;
+    horizon_end: string;
+  };
+  discipline: AdaptivePlanDiscipline;
+  workouts: AdaptivePlanProposalWorkout[];
+  idempotency_key: string;
+  origin?: string;
+  policy_version?: string | null;
+  model_version?: string | null;
+  science_version?: string | null;
+  assumptions?: unknown[];
+  unknowns?: unknown[];
+  warnings?: unknown[];
+  alternatives?: unknown[];
+  expires_at?: string | null;
+}
+
+export interface CanonicalPlanWorkoutSnapshot
+  extends AdaptivePlanProposalWorkout {
+  source?: string;
+  workout_origin?: string;
+  start_time?: string | null;
+  meta?: Record<string, unknown> | null;
+}
+
+export interface AdaptivePlanProposalEditRequest
+  extends AdaptivePlanProposalMutationRequest {
+  expected_version: number;
+}
+
+export interface AdaptivePlanProposalDecisionRequest {
+  expected_version: number;
+  idempotency_key: string;
+}
+
+export interface AdaptivePlanProposalAdoptRequest {
+  expected_proposal_version: number;
+  expected_plan_version: number;
+  idempotency_key: string;
+}
+
+export interface AdaptivePlanProposalAdoptResponse {
+  status: 'adopted' | 'already_adopted';
+  proposal: AdaptivePlanProposal;
+  revision_id: string;
+  workouts: CanonicalPlanWorkoutSnapshot[];
 }
 
 export type StrydPushResult =

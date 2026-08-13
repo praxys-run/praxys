@@ -1,6 +1,7 @@
 """Persistence helpers for execution-target calendar reconciliation."""
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import date, datetime, timezone
 from typing import Any, Mapping, Sequence
 
@@ -92,7 +93,7 @@ def normalized_target_workout(row: Mapping[str, Any]) -> dict[str, Any]:
     if workout_date is None:
         raise ValueError("target workout must include an ISO date")
     start_time = _parse_datetime(row.get("start_time"))
-    return {
+    normalized = {
         "date": workout_date.isoformat(),
         "workout_type": str(row.get("workout_type") or ""),
         "planned_duration_min": _float_or_none(
@@ -120,6 +121,29 @@ def normalized_target_workout(row: Mapping[str, Any]) -> dict[str, Any]:
         ),
         "start_time": start_time.isoformat() if start_time else None,
     }
+    activity_type = str(row.get("activity_type") or "").strip()
+    if activity_type:
+        normalized["activity_type"] = activity_type
+    structure_status = str(
+        row.get("workout_structure_status") or ""
+    ).strip()
+    if structure_status:
+        normalized["workout_structure_status"] = structure_status
+    if (
+        "workout_structure_version" in row
+        and row.get("workout_structure_version") is not None
+    ):
+        normalized["workout_structure_version"] = str(
+            row.get("workout_structure_version")
+        )
+    if (
+        "workout_structure" in row
+        and row.get("workout_structure") is not None
+    ):
+        normalized["workout_structure"] = deepcopy(
+            row.get("workout_structure")
+        )
+    return normalized
 
 
 def record_target_calendar_sync(

@@ -343,6 +343,11 @@ def parse_scheduled_workouts(
         if not isinstance(title, str) or not title.strip():
             raise ValueError("Garmin workout is missing its title")
         title = title.strip()
+        activity_type = _garmin_calendar_text(
+            item.get("sportType")
+            or item.get("sportTypeKey")
+            or "running"
+        ).strip().casefold()
         workout_type = _garmin_calendar_text(
             item.get("workoutType")
             or item.get("sportTypeKey")
@@ -373,6 +378,7 @@ def parse_scheduled_workouts(
 
         row: dict[str, Any] = {
             "date": workout_date.isoformat(),
+            "activity_type": activity_type or "running",
             "workout_type": workout_type,
             "planned_duration_min": (
                 str(round(duration_seconds / 60, 1))
@@ -385,6 +391,10 @@ def parse_scheduled_workouts(
                 else ""
             ),
             "workout_description": description,
+            # Garmin's calendar summary omits the authoritative template
+            # steps. Until those steps have a lossless provider-neutral
+            # translation, accepting this snapshot must fail closed.
+            "workout_structure_status": "unsupported",
             "external_id": external_id,
             "provider_references": {
                 "template_id": workout_id,

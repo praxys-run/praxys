@@ -21,6 +21,8 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
     from api.auth import get_current_user_id
     from api.main import app
     from db.models import (
+        AdaptivePlan,
+        AdaptivePlanGoalSnapshot,
         Activity,
         ActivitySplit,
         FitnessData,
@@ -29,6 +31,7 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
         GoalBaselineSnapshot,
         GoalBaselineTestRecord,
         RecoveryData,
+        PlanProposal,
         TrainingPlan,
         User,
         UserConfig,
@@ -61,6 +64,105 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 user_id=other_id,
                 display_name="Other",
                 goal={"target_label": "other-goal"},
+            ),
+            AdaptivePlanGoalSnapshot(
+                id="owner-goal-snapshot",
+                user_id=owner_id,
+                version=1,
+                state="active",
+                goal_kind="race",
+                target={"distance": "10k", "target_label": "owner-proposal-goal"},
+                horizon_start=date(2026, 8, 1),
+                horizon_end=date(2026, 8, 31),
+                snapshot={"goal_kind": "race"},
+            ),
+            AdaptivePlanGoalSnapshot(
+                id="other-goal-snapshot",
+                user_id=other_id,
+                version=1,
+                state="active",
+                goal_kind="race",
+                target={"target_label": "other-proposal-goal"},
+                horizon_start=date(2026, 8, 1),
+                horizon_end=date(2026, 8, 31),
+                snapshot={"goal_kind": "race"},
+            ),
+            AdaptivePlan(
+                id="owner-adaptive-plan",
+                user_id=owner_id,
+                goal_snapshot_id="owner-goal-snapshot",
+                discipline="running",
+                lifecycle="active",
+                version=1,
+                active_proposal_id="owner-proposal",
+            ),
+            AdaptivePlan(
+                id="other-adaptive-plan",
+                user_id=other_id,
+                goal_snapshot_id="other-goal-snapshot",
+                discipline="running",
+                lifecycle="active",
+                version=1,
+                active_proposal_id="other-proposal",
+            ),
+            PlanProposal(
+                id="owner-proposal",
+                user_id=owner_id,
+                adaptive_plan_id="owner-adaptive-plan",
+                goal_snapshot_id="owner-goal-snapshot",
+                discipline="running",
+                version=1,
+                state="adopted",
+                origin="test",
+                actor_type="user",
+                actor_id=owner_id,
+                base_plan_version=0,
+                assumptions=[],
+                unknowns=[],
+                warnings=[],
+                alternatives=[],
+                workout_snapshot=[{
+                    "canonical_id": "owner-plan",
+                    "date": "2026-08-05",
+                    "workout_structure_version": "v1",
+                    "workout_structure": {
+                        "steps": [{
+                            "type": "step",
+                            "phase": "work",
+                            "label": "Owner tempo",
+                            "instructions": "Hold form through the finish.",
+                            "termination": {
+                                "type": "time",
+                                "seconds": 2700,
+                            },
+                            "target": {
+                                "metric": "power",
+                                "unit": "watts",
+                                "reference": "absolute",
+                                "min": 240,
+                                "max": 260,
+                            },
+                        }],
+                    },
+                }],
+            ),
+            PlanProposal(
+                id="other-proposal",
+                user_id=other_id,
+                adaptive_plan_id="other-adaptive-plan",
+                goal_snapshot_id="other-goal-snapshot",
+                discipline="running",
+                version=1,
+                state="adopted",
+                origin="test",
+                actor_type="user",
+                actor_id=other_id,
+                base_plan_version=0,
+                assumptions=[],
+                unknowns=[],
+                warnings=[],
+                alternatives=[],
+                workout_snapshot=[{"canonical_id": "other-plan", "date": "2026-08-05"}],
             ),
             Activity(
                 user_id=owner_id,
@@ -114,13 +216,36 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 user_id=owner_id,
                 canonical_id="owner-plan",
                 date=date(2026, 8, 3),
+                activity_type="running",
                 workout_type="tempo",
+                workout_structure_version="v1",
+                workout_structure={
+                    "steps": [
+                        {
+                            "type": "step",
+                            "phase": "other",
+                            "label": "Owner tempo",
+                            "instructions": "Hold form through the finish.",
+                            "termination": {"type": "time", "seconds": 2700},
+                            "target": {
+                                "metric": "power",
+                                "unit": "watts",
+                                "reference": "absolute",
+                                "min": 240,
+                                "max": 260,
+                            },
+                        }
+                    ]
+                },
             ),
             TrainingPlan(
                 user_id=other_id,
                 canonical_id="other-plan",
                 date=date(2026, 8, 4),
+                activity_type="rest",
                 workout_type="rest",
+                workout_structure_version="v1",
+                workout_structure={"steps": []},
             ),
             GoalBaselineConfirmation(
                 id="owner-confirmation",
@@ -226,6 +351,36 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
     assert [row["readiness_score"] for row in payload["recovery"]] == [88.0]
     assert [row["value"] for row in payload["fitness"]] == [290.0]
     assert [row["canonical_id"] for row in payload["training_plans"]] == ["owner-plan"]
+    assert payload["training_plans"][0]["activity_type"] == "running"
+    assert payload["training_plans"][0]["workout_structure_version"] == "v1"
+    assert payload["training_plans"][0]["workout_structure"]["steps"][0][
+        "label"
+    ] == "Owner tempo"
+    assert payload["training_plans"][0]["workout_structure"]["steps"][0][
+        "instructions"
+    ] == "Hold form through the finish."
+    assert payload["adaptive_plan_proposals"]["schema_version"] == 1
+    assert [
+        row["id"] for row in payload["adaptive_plan_proposals"]["goal_snapshots"]
+    ] == ["owner-goal-snapshot"]
+    assert [
+        row["id"] for row in payload["adaptive_plan_proposals"]["plans"]
+    ] == ["owner-adaptive-plan"]
+    assert payload["adaptive_plan_proposals"]["plans"][0]["discipline"] == "running"
+    assert [
+        row["id"] for row in payload["adaptive_plan_proposals"]["proposals"]
+    ] == ["owner-proposal"]
+    assert (
+        payload["adaptive_plan_proposals"]["proposals"][0]["discipline"]
+        == "running"
+    )
+    exported_proposal_step = payload["adaptive_plan_proposals"]["proposals"][0][
+        "workout_snapshot"
+    ][0]["workout_structure"]["steps"][0]
+    assert exported_proposal_step["label"] == "Owner tempo"
+    assert exported_proposal_step["instructions"] == (
+        "Hold form through the finish."
+    )
     assert payload["goal_baseline"] == {
         "schema_version": 1,
         "exported_at": payload["goal_baseline"]["exported_at"],
@@ -254,6 +409,8 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
         "other-goal",
         "other-activity",
         "other-plan",
+        "other-proposal",
+        "other-proposal-goal",
         "owner-raw-credential",
         "owner-wrapped-key",
         "owner-encrypted-token",

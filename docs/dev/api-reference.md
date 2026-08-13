@@ -1258,10 +1258,307 @@ The legacy `sync_state` maps matching/pending to `synced`, undelivered to
 rollout eligibility pass and its internal connection-generation fence matches.
 Clients can hide the entire sync column when it is `null`.
 
+Canonical Praxys workouts may also include:
+
+- `activity_type` — explicit per-workout execution type (`running`,
+  `trail_running`, `cycling`, `rest`, etc.), distinct from `workout_type`.
+- `workout_structure_version` / `workout_structure` — authoritative structured
+  workout steps. Flat `duration_min`, `distance_km`, and target fields remain
+  compatibility projections only and may be `null` for complex workouts when
+  Praxys cannot safely derive a single legacy value.
+- `provider_compatibility` — content-only, typed compatibility for `garmin`
+  and `stryd`. Each item has `compatible`, `mode`
+  (`legacy_flat`, `structured`, or `unsupported`), and named reason codes.
+  It does not report connection state, credentials, authorization, or whether
+  a delivery is currently enabled.
+
+Target reconciliation snapshots may additionally include
+`workout_structure_status` (`supported` or `unsupported`) plus a losslessly
+translated v1 structure. `activity_type` and supported structure are part of
+the snapshot generation and opaque reconciliation identity. Unsupported
+provider structures do not advertise `accept_target`; Praxys never combines a
+flat target edit with stale canonical activity or steps. Stryd track,
+treadmill, and unknown surfaces are also marked unsupported because they
+cannot round-trip through the canonical activity types. Garmin target
+snapshots remain unsupported until authoritative template steps can be
+translated losslessly.
+
 `adjustments` is newest-first durable audit history filtered to the requested
 workout-date window. `active` means the exact after-snapshot is still current,
 `undone` means the user restored it, and `superseded` means a later edit makes
 exact undo unsafe. `can_undo` is the authoritative action gate.
+
+### Adaptive plan proposals
+
+These authenticated endpoints provide the versioned, non-canonical proposal
+boundary for starting an adaptive plan. They accept already-structured goal and
+workout input only. They do **not** call an LLM, generate workouts, add new
+planning claims, or change managed-delivery consent. Generation remains
+unavailable until a human-accepted policy is implemented.
+
+Proposal records are athlete-owned and immutable: editing creates a successor
+proposal and marks the prior version superseded. Preview, rejection, stale
+versions, expiry, validation failures, and cross-owner requests do not write
+`training_plans` or provider-delivery state. Only exact-version adoption writes
+Praxys-owned canonical workouts, preserving each proposal workout's
+`canonical_id`, linking rows with `adaptive_plan_id`, appending a `PlanRevision`,
+and triggering already-consented provider delivery after the canonical commit.
+
+Common structured error `detail.code` values include
+`PLAN_PROPOSAL_VALIDATION_FAILED`, `PLAN_PROPOSAL_UNSUPPORTED_FIELD`,
+`PLAN_PROPOSAL_NOT_FOUND`, `PLAN_PROPOSAL_STALE`,
+`PLAN_PROPOSAL_SUPERSEDED`, `PLAN_PROPOSAL_EXPIRED`,
+`ADAPTIVE_PLAN_ACTIVE_EXISTS`, `ADAPTIVE_PLAN_VERSION_CONFLICT`, and
+`PLAN_PROPOSAL_ALREADY_ADOPTED`.
+
+Request-schema failures, including malformed proposal UUIDs and numeric bounds,
+return HTTP 422 with `detail.code=PLAN_PROPOSAL_VALIDATION_FAILED` plus
+privacy-minimized `errors` containing field paths and validation types.
+Forbidden fields return HTTP 422
+`detail.code=PLAN_PROPOSAL_UNSUPPORTED_FIELD`; rejected input values are not
+reflected.
+
+`discipline` is explicit at the adaptive-plan level and is currently one of
+`running` or `trail_running`. Each proposal workout also carries its own
+explicit `activity_type`, which stays separate from `workout_type` so Praxys
+can preserve `running` versus `trail_running` end-to-end while still allowing
+cross-training and rest activity types.
+
+`workout_structure_version="v1"` uses a strictly typed `workout_structure`
+object with ordered executable `step`s and `repeat` groups. Valid phases are
+the fixed portable semantics `warmup`, `work`, `recovery`, `rest`, `cooldown`,
+and `other`; warm-up and cool-down are optional and not positionally required.
+`repeat` remains structural rather than becoming a semantic step type.
+Terminations are `time`, `distance`, `open`, and `manual`. Intensity targets
+are typed rather than free-form dicts: `none`; power in `watts` or `%CP`; heart
+rate in `bpm` or `%LTHR`; pace in `sec_per_km` or threshold-relative
+`sec_per_km_delta`; and `rpe`. Non-rest workouts need at least one executable
+step. Rest workouts may have `{"steps": []}`.
+
+User wording is separate from those semantics. Steps accept an optional
+`label` (80 characters) and optional coaching `instructions` (1000
+characters); repeat groups accept an optional `label` (80 characters).
+Leading and trailing whitespace is trimmed, blank-only optional wording is
+omitted, and over-limit input is rejected rather than truncated. Internal
+spacing, punctuation, case, and Unicode in the normalized value are retained
+in the canonical proposal and plan.
+
+#### POST /api/plan/proposals
+
+Create a draft proposal. The first proposal creates a new adaptive-plan
+aggregate; after adoption, later drafts attach to that active aggregate when no
+proposal is active. An expired replacement does not block a fresh draft. A user
+may have only one `draft` or `active` adaptive plan and one active proposal at
+a time.
+
+```json
+{
+  "goal": {
+    "goal_kind": "race",
+    "target": { "distance": "10k", "target_label": "Spring 10K" },
+    "horizon_start": "2026-04-11",
+    "horizon_end": "2026-05-09"
+  },
+  "discipline": "trail_running",
+  "workouts": [
+    {
+      "date": "2026-04-12",
+      "activity_type": "trail_running",
+      "workout_type": "interval",
+      "workout_description": "Hill session",
+      "workout_structure_version": "v1",
+      "workout_structure": {
+        "steps": [
+          {
+            "type": "step",
+            "phase": "warmup",
+            "label": "Trail warm-up",
+            "instructions": "Stay relaxed on the first climb.",
+            "termination": { "type": "time", "seconds": 900 },
+            "target": {
+              "metric": "power",
+              "unit": "percent_cp",
+              "reference": "critical_power",
+              "min": 65,
+              "max": 75
+            }
+          },
+          {
+            "type": "repeat",
+            "label": "Main set",
+            "repetitions": 4,
+            "steps": [
+              {
+                "type": "step",
+                "phase": "work",
+                "label": "Uphill power",
+                "instructions": "Run tall with quick feet and quiet shoulders.",
+                "termination": { "type": "time", "seconds": 240 },
+                "target": {
+                  "metric": "power",
+                  "unit": "percent_cp",
+                  "reference": "critical_power",
+                  "min": 95,
+                  "max": 100
+                }
+              },
+              {
+                "type": "step",
+                "phase": "recovery",
+                "label": "Float down",
+                "instructions": "Keep moving without chasing pace.",
+                "termination": { "type": "time", "seconds": 180 },
+                "target": {
+                  "metric": "power",
+                  "unit": "percent_cp",
+                  "reference": "critical_power",
+                  "min": 60,
+                  "max": 65
+                }
+              }
+            ]
+          },
+          {
+            "type": "step",
+            "phase": "cooldown",
+            "label": "Easy finish",
+            "instructions": "Let effort fall naturally.",
+            "termination": { "type": "time", "seconds": 600 },
+            "target": {
+              "metric": "power",
+              "unit": "percent_cp",
+              "reference": "critical_power",
+              "min": 60,
+              "max": 70
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "idempotency_key": "client-generated-key",
+  "origin": "api.plan.proposals",
+  "policy_version": "structured-only-v1",
+  "model_version": null,
+  "science_version": null,
+  "assumptions": [],
+  "unknowns": [],
+  "warnings": [],
+  "alternatives": [],
+  "expires_at": "2026-04-12T00:00:00"
+}
+```
+
+Response includes `id`, `adaptive_plan_id`, exact `version`, `state`,
+`discipline`, normalized `workouts` with stable `canonical_id` values plus
+compatibility flat projections, the aggregate
+`{ id, discipline, version, lifecycle, active_proposal_id }`, and the immutable
+goal snapshot.
+
+#### GET /api/plan/proposals/current
+
+Return the authenticated athlete's active proposal and exact version, or 404
+`PLAN_PROPOSAL_NOT_FOUND` when none exists.
+
+#### POST /api/plan/proposals/{proposal_id}/edits
+
+Create a successor proposal. The request body is the same as
+`POST /api/plan/proposals` plus `expected_version`. The parent proposal must be
+the active draft with that exact version; it is never modified in place.
+
+#### POST /api/plan/proposals/{proposal_id}/reject
+
+Reject an exact active proposal without canonical writes.
+
+```json
+{
+  "expected_version": 2,
+  "idempotency_key": "reject-key"
+}
+```
+
+#### POST /api/plan/proposals/{proposal_id}/adopt
+
+Atomically adopt an exact proposal version into the canonical plan lane.
+
+```json
+{
+  "expected_proposal_version": 2,
+  "expected_plan_version": 0,
+  "idempotency_key": "adopt-key"
+}
+```
+
+Adoption locks the athlete's plan-write lane, verifies ownership, state, expiry,
+proposal version, and aggregate version, reruns deterministic validation, writes
+the canonical Praxys workouts in one transaction, marks the goal acknowledged
+and proposal adopted, increments the aggregate version, appends a linked
+`PlanRevision`, bumps the plan revision counter, commits, and only then invokes
+the existing managed-delivery trigger. Retrying with the same idempotency key is
+safe and returns the original proposal, revision, and canonical workout
+snapshots with `status=already_adopted`; it does not re-trigger delivery.
+Delivery is a post-commit consequence and is not included in the response
+body. Retrying an adopted proposal with a different key returns
+`PLAN_PROPOSAL_ALREADY_ADOPTED`.
+
+Managed delivery consumes the authoritative structured workout definition. It
+only translates provider-safe subsets: Stryd currently supports time-based
+power steps and repeat groups with warmup/work/recovery/cooldown phases, while
+Garmin still rejects all structured workouts and unsupported activity types
+instead of flattening them into a single duration-only block. Stryd also
+rejects empty structured workouts, the portable `rest` and `other` phases,
+non-time terminations, non-power targets, provider-specific segment modifiers,
+unknown versions, and mismatched version/payload pairs. Because the current
+connector has no verified lossless mapping for step/group labels or step
+instructions, Stryd rejects any structured workout containing that wording
+through the existing typed provider-request error instead of dropping it.
+Legacy flat delivery is used only when both structure fields are absent.
+
+### POST /api/plan/workouts/compatibility
+
+Validate an unsaved workout payload against the same lossless provider-content
+rules used by delivery adapters. The body has the same shape as
+`POST /api/plan/workouts`, including `date`, activity, purpose, flat fields,
+and optional v1 structure. This endpoint does **not** save a workout, contact a
+provider, inspect credentials, or trigger delivery.
+
+```json
+{
+  "providers": [
+    {
+      "target": "garmin",
+      "compatible": false,
+      "mode": "unsupported",
+      "reasons": [
+        { "code": "structured_workout_not_supported" },
+        { "code": "activity_type_not_supported" }
+      ]
+    },
+    {
+      "target": "stryd",
+      "compatible": false,
+      "mode": "unsupported",
+      "reasons": [
+        { "code": "wording_not_supported", "path": "steps[0].label" },
+        { "code": "termination_not_supported", "path": "steps[0].termination" }
+      ]
+    }
+  ]
+}
+```
+
+Reason codes identify the exact loss boundary: `wording_not_supported`,
+`phase_not_supported`, `termination_not_supported`, and
+`target_not_supported` for the Stryd structured subset. Stryd's existing
+connector payload accepts only integral `intensity_percent` bounds, so
+fractional `%CP` targets return `target_precision_not_supported` instead of
+being rounded (including ranges that would collapse after rounding). Garmin reports
+`structured_workout_not_supported` instead of flattening a tree. Additional
+codes cover invalid/empty structures, unsupported activities, unsupported
+flat targets, and a required flat duration. Stryd also reports
+`flat_workout_not_lossless` when a legacy row would require the connector's
+old default duration or default power zone; Praxys rejects that delivery rather
+than applying a hidden default.
 
 ### POST /api/plan/workouts
 
@@ -1272,24 +1569,59 @@ may share a date. External provider rows are never replaced.
 ```json
 {
   "date": "2026-04-12",
-  "workout_type": "easy",
-  "planned_duration_min": 45,
-  "planned_distance_km": 8.0,
-  "target_power_min": 150,
-  "target_power_max": 200,
-  "target_hr_min": null,
-  "target_hr_max": null,
-  "target_pace_min": null,
-  "target_pace_max": null,
-  "workout_description": "Easy aerobic run"
+  "activity_type": "trail_running",
+  "workout_type": "tempo",
+  "workout_description": "Trail tempo progression",
+  "workout_structure_version": "v1",
+  "workout_structure": {
+    "steps": [
+      {
+        "type": "step",
+        "phase": "warmup",
+        "termination": { "type": "time", "seconds": 600 },
+        "target": {
+          "metric": "power",
+          "unit": "percent_cp",
+          "reference": "critical_power",
+          "min": 65,
+          "max": 75
+        }
+      },
+      {
+        "type": "step",
+        "phase": "work",
+        "termination": { "type": "time", "seconds": 1800 },
+        "target": {
+          "metric": "power",
+          "unit": "percent_cp",
+          "reference": "critical_power",
+          "min": 88,
+          "max": 92
+        }
+      },
+      {
+        "type": "step",
+        "phase": "cooldown",
+        "termination": { "type": "time", "seconds": 300 },
+        "target": {
+          "metric": "power",
+          "unit": "percent_cp",
+          "reference": "critical_power",
+          "min": 60,
+          "max": 70
+        }
+      }
+    ]
+  }
 }
 ```
 
 **Response:** `201` with the created row plus `status="created"`,
-`workout_version`, `revision_id`, `editable`, and the post-commit `delivery`
-run summary. The summary publishes only `status`, `target`, `reason`, and
-`items`. Past dates return `409 PLAN_HISTORY_IMMUTABLE`; invalid power or
-heart-rate ordering returns `400 PLAN_TARGET_RANGE_INVALID`. Ordinary Pydantic
+`workout_version`, `revision_id`, `editable`, the authoritative
+`activity_type`/`workout_structure*` fields, and the post-commit `delivery` run
+summary. The summary publishes only `status`, `target`, `reason`, and `items`.
+Past dates return `409 PLAN_HISTORY_IMMUTABLE`; invalid power or heart-rate
+ordering returns `400 PLAN_TARGET_RANGE_INVALID`. Ordinary Pydantic
 shape/range failures return 422.
 
 ### PUT /api/plan/workouts/{canonical_id}
@@ -1304,13 +1636,36 @@ other-user identities return the same user-scoped `404`.
 ```json
 {
   "expected_version": "d8d5c9...64-hex-characters",
-  "date": "2026-04-13",
-  "workout_type": "threshold",
-  "planned_duration_min": 55,
-  "planned_distance_km": null,
-  "target_power_min": 235,
-  "target_power_max": 255,
-  "workout_description": "2 x 20 min"
+  "activity_type": "trail_running",
+  "workout_structure_version": "v1",
+  "workout_structure": {
+    "steps": [
+      {
+        "type": "step",
+        "phase": "warmup",
+        "termination": { "type": "time", "seconds": 600 },
+        "target": {
+          "metric": "power",
+          "unit": "percent_cp",
+          "reference": "critical_power",
+          "min": 65,
+          "max": 75
+        }
+      },
+      {
+        "type": "step",
+        "phase": "work",
+        "termination": { "type": "time", "seconds": 1500 },
+        "target": {
+          "metric": "power",
+          "unit": "percent_cp",
+          "reference": "critical_power",
+          "min": 90,
+          "max": 94
+        }
+      }
+    ]
+  }
 }
 ```
 
@@ -1323,9 +1678,25 @@ and start-time targets regardless of which optional fields the client sends.
 The response includes `status="updated"`, the resulting `workout_version`,
 append-only `revision_id`, and delivery summary.
 
+Supplying `workout_structure_version="v1"` and `workout_structure` replaces the
+authoritative structured definition. If a client omits structured fields,
+legacy flat authoring remains compatible, but the structure remains
+authoritative whenever Praxys already has one. Supplied flat fields must equal
+its derived compatibility projections; otherwise the update returns
+`409 PLAN_STRUCTURE_PROJECTION_CONFLICT` without changing the row. Transitions
+into rest set `activity_type="rest"` and replace an authoritative structure
+with empty v1 (legacy-flat rows remain flat). Transitions out of authoritative
+rest default stale `activity_type="rest"` to `running` and synthesize a
+validated executable v1 structure from the explicitly supplied flat values.
+That compatibility synthesis accepts at most one positive termination
+modality; supplying both duration and distance returns
+`PLAN_WORKOUT_STRUCTURE_INVALID` instead of dropping either projection.
+
 Structured update errors use `detail.code`: `PLAN_HISTORY_IMMUTABLE`,
 `PLAN_TARGET_RANGE_INVALID`, `PLAN_WORKOUT_NOT_FOUND`,
-`PLAN_VERSION_CONFLICT`, or the defensive `PLAN_NO_CHANGES`.
+`PLAN_VERSION_CONFLICT`, `PLAN_STRUCTURE_PROJECTION_CONFLICT`,
+`PLAN_WORKOUT_STRUCTURE_INVALID`, `PLAN_WORKOUT_STRUCTURE_UNSUPPORTED`, or the
+defensive `PLAN_NO_CHANGES`.
 `PLAN_VERSION_CONFLICT` also includes `current_version`, while
 `PLAN_HISTORY_IMMUTABLE` includes `minimum_date`, computed in the athlete's
 configured timezone with a UTC fallback.
@@ -1458,8 +1829,12 @@ Actions:
   normalized content, the ledger is rebound without an unnecessary provider
   write.
 - `accept_target` — transactionally copy the stored normalized target workout
-  into the canonical Praxys row, preserve target provenance in plan metadata,
-  and append both a plan revision and import delivery event.
+  into the canonical Praxys row, atomically replacing activity type, flat
+  projections, and the structure/version pair; preserve target provenance in
+  plan metadata; and append both a plan revision and import delivery event.
+  When the provider supplied a safely translated v1 structure it remains
+  authoritative. A genuinely flat observation clears any stale canonical
+  structure. Unrepresentable provider structures cannot be accepted.
 
 Both actions are idempotent for the same reconciliation subject and canonical
 version. Account changes, stale/unowned delete candidates, and changed
