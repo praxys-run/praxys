@@ -325,6 +325,50 @@ def test_taper_covers_the_full_pre_event_window_and_keeps_quality_when_fit() -> 
         )
 
 
+def test_eight_day_target_allows_a_target_truncated_partial_taper_week() -> None:
+    """A valid Mon/Tue/Wed runner keeps the available Monday before a Tuesday event."""
+    base = _input()
+    block_start = date(2026, 8, 17)
+    target_date = block_start + timedelta(days=8)
+    result = generate_outdoor_5k_plan(
+        replace(
+            base,
+            block_start=block_start,
+            history=_three_run_history(base.athlete_today, duration_min=60),
+            goal=replace(base.goal, target_event_date=target_date),
+            constraints=replace(
+                base.constraints,
+                available_weekdays=(0, 1, 2),
+                maximum_session_duration_min=60,
+                preferred_longest_run_weekday=2,
+            ),
+        )
+    )
+
+    assert result.code == "ready"
+    assert result.plan is not None
+    assert [week.is_taper for week in result.plan.weeks] == [True, True]
+    assert [
+        [workout.scheduled_date for workout in week.workouts]
+        for week in result.plan.weeks
+    ] == [
+        [block_start, block_start + timedelta(days=1), block_start + timedelta(days=2)],
+        [block_start + timedelta(days=7)],
+    ]
+    final_taper_week = result.plan.weeks[-1]
+    final_taper_minutes = sum(
+        workout.planned_duration_min for workout in final_taper_week.workouts
+    )
+
+    assert final_taper_minutes == 30
+    assert all(
+        workout.intensity_bucket == "low"
+        and workout.scheduled_date < target_date
+        for workout in final_taper_week.workouts
+    )
+    assert 0.41 <= (60 - final_taper_minutes) / 60 <= 0.60
+
+
 def test_taper_uses_half_the_normal_schedule_not_half_capacity() -> None:
     """The 50% taper target references generated normal work, not capacity."""
     base = _input()

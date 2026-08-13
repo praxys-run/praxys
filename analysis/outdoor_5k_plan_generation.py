@@ -653,6 +653,14 @@ def _build_schedule(
         week_start = generation_input.block_start + timedelta(days=index * 7)
         if week_start >= schedule_end:
             break
+        is_taper = _is_taper_week(
+            generation_input,
+            reassessment_date=week_start,
+        )
+        is_target_truncated_taper = _is_target_truncated_taper_period(
+            generation_input,
+            reassessment_date=week_start,
+        )
         dates = tuple(
             current
             for current in (
@@ -663,20 +671,21 @@ def _build_schedule(
             and current < schedule_end
         )
         if len(dates) < frequency:
-            return None
+            if not is_target_truncated_taper:
+                return None
+            if not dates:
+                continue
         selected_dates = _select_schedule_dates(
             dates,
-            frequency=frequency,
+            frequency=len(dates) if is_target_truncated_taper else frequency,
             preferred_longest_run_weekday=(
-                generation_input.constraints.preferred_longest_run_weekday
+                None
+                if is_target_truncated_taper
+                else generation_input.constraints.preferred_longest_run_weekday
             ),
         )
         if selected_dates is None:
             return None
-        is_taper = _is_taper_week(
-            generation_input,
-            reassessment_date=week_start,
-        )
         longest_date = _longest_date(
             selected_dates,
             generation_input.constraints.preferred_longest_run_weekday,
@@ -687,7 +696,7 @@ def _build_schedule(
             longest_date=longest_date,
             quality_count=_quality_count(
                 selected_dates,
-                frequency=frequency,
+                frequency=len(selected_dates),
                 base_duration=normal_base_duration,
                 session_limit=session_limit,
                 longest_date=longest_date,
@@ -715,7 +724,7 @@ def _build_schedule(
         workouts = _taper_workouts(
             dates,
             normal_workouts=week.workouts,
-            frequency=frequency,
+            frequency=len(dates),
             session_limit=session_limit,
             normal_base_duration=normal_base_duration,
             longest_date=longest_date,
@@ -1019,7 +1028,24 @@ def _validate_schedule(
     taper_start = _taper_start(generation_input)
     for week in weeks:
         workouts = week.workouts
-        if not 3 <= len(workouts) <= 5 or len(workouts) != expected_frequency:
+        period_start = generation_input.block_start + timedelta(
+            days=OUTDOOR_5K_REASSESSMENT_DAYS * (week.week_number - 1)
+        )
+        is_target_truncated_taper = _is_target_truncated_taper_period(
+            generation_input,
+            reassessment_date=period_start,
+        )
+        # The accepted three-to-five-day guardrail governs complete seven-day
+        # periods. A target-truncated taper cannot add post-event workouts to
+        # satisfy that count, so it retains only its pre-event available dates.
+        if is_target_truncated_taper:
+            frequency_is_valid = 1 <= len(workouts) <= expected_frequency
+        else:
+            frequency_is_valid = (
+                3 <= len(workouts) <= 5
+                and len(workouts) == expected_frequency
+            )
+        if not frequency_is_valid:
             return (
                 "unsupported_frequency",
                 "schedule_frequency_and_spacing",
@@ -1047,6 +1073,9 @@ def _validate_schedule(
             )
         if week.is_taper:
             dates = tuple(item.scheduled_date for item in workouts)
+            reference_frequency = (
+                len(dates) if is_target_truncated_taper else expected_frequency
+            )
             normal_reference_minutes = sum(
                 _steps_duration(item.steps)
                 for item in _week_workouts(
@@ -1058,7 +1087,7 @@ def _validate_schedule(
                     ),
                     quality_count=_quality_count(
                         dates,
-                        frequency=expected_frequency,
+                        frequency=reference_frequency,
                         base_duration=normal_base_duration,
                         session_limit=session_limit,
                         longest_date=_longest_date(
@@ -1153,6 +1182,22 @@ def _is_taper_week(
         taper_start is not None
         and event_date is not None
         and taper_start <= reassessment_date < event_date
+    )
+
+
+def _is_target_truncated_taper_period(
+    generation_input: Outdoor5KGenerationInput,
+    *,
+    reassessment_date: date,
+) -> bool:
+    """Return whether a taper period ends before its normal seven-day boundary."""
+    schedule_end = _schedule_end_exclusive(generation_input)
+    return (
+        _is_taper_week(
+            generation_input,
+            reassessment_date=reassessment_date,
+        )
+        and reassessment_date < schedule_end < reassessment_date + timedelta(days=7)
     )
 
 
