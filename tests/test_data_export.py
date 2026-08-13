@@ -30,6 +30,7 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
         GoalBaselineConfirmation,
         GoalBaselineSnapshot,
         GoalBaselineTestRecord,
+        Outdoor5KPlanGeneration,
         RecoveryData,
         PlanProposal,
         TrainingPlan,
@@ -163,6 +164,46 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 warnings=[],
                 alternatives=[],
                 workout_snapshot=[{"canonical_id": "other-plan", "date": "2026-08-05"}],
+            ),
+            Outdoor5KPlanGeneration(
+                id="owner-generation",
+                user_id=owner_id,
+                proposal_id="owner-proposal",
+                policy_version="outdoor-5k-plan-generation-policy-v1",
+                generator_version="outdoor-5k-deterministic-generator-v1",
+                science_decision_id="sdr-outdoor-5k-plan-generation-policy-v1",
+                evidence_review_ids=["evidence-outdoor-5k-plan-generation-policy-v1"],
+                evidence_claim_ids=["outdoor-5k-plan.fixed-progression-not-safety-threshold"],
+                ai_explanation_present=False,
+                baseline_snapshot_id="owner-snapshot",
+                source_revision="a" * 64,
+                deterministic_input_hash="a" * 64,
+                request_kind="generate",
+                request_fingerprint="c" * 64,
+                observed_input_snapshot={"completed_running_history": []},
+                constraint_snapshot={"available_weekdays": [0, 2, 5]},
+                derived_history_statistics={"usable_completed_weeks": 3},
+                validation_results={"code": "ready"},
+            ),
+            Outdoor5KPlanGeneration(
+                id="other-generation",
+                user_id=other_id,
+                proposal_id="other-proposal",
+                policy_version="outdoor-5k-plan-generation-policy-v1",
+                generator_version="outdoor-5k-deterministic-generator-v1",
+                science_decision_id="sdr-outdoor-5k-plan-generation-policy-v1",
+                evidence_review_ids=["evidence-outdoor-5k-plan-generation-policy-v1"],
+                evidence_claim_ids=["outdoor-5k-plan.fixed-progression-not-safety-threshold"],
+                ai_explanation_present=False,
+                baseline_snapshot_id=None,
+                source_revision="b" * 64,
+                deterministic_input_hash="b" * 64,
+                request_kind="generate",
+                request_fingerprint="d" * 64,
+                observed_input_snapshot={"completed_running_history": []},
+                constraint_snapshot={"available_weekdays": [0, 2, 5]},
+                derived_history_statistics={"usable_completed_weeks": 3},
+                validation_results={"code": "ready"},
             ),
             Activity(
                 user_id=owner_id,
@@ -344,7 +385,7 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
         'attachment; filename="praxys-data-export-'
     )
     payload = response.json()
-    assert payload["schema_version"] == 3
+    assert payload["schema_version"] == 4
     assert payload["user_config"]["goal"]["target_label"] == "owner-goal"
     assert [row["activity_id"] for row in payload["activities"]] == ["owner-activity"]
     assert [row["activity_id"] for row in payload["activity_splits"]] == ["owner-activity"]
@@ -393,6 +434,14 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
     assert payload["goal_baseline"]["tests"][0]["id"] == "owner-test"
     assert payload["goal_baseline"]["snapshots"][0]["id"] == "owner-snapshot"
     assert payload["goal_baseline"]["assessments"][0]["id"] == "owner-assessment"
+    assert payload["outdoor_5k_plan_generation"] == {
+        "schema_version": 1,
+        "exported_at": payload["outdoor_5k_plan_generation"]["exported_at"],
+        "records": [payload["outdoor_5k_plan_generation"]["records"][0]],
+    }
+    assert payload["outdoor_5k_plan_generation"]["records"][0]["id"] == (
+        "owner-generation"
+    )
     assert payload["personal_context"] == {
         "schema_version": 1,
         "exported_at": payload["personal_context"]["exported_at"],

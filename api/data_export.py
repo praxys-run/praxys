@@ -19,6 +19,7 @@ from db.models import (
     GoalBaselineConfirmation,
     GoalBaselineSnapshot,
     GoalBaselineTestRecord,
+    Outdoor5KPlanGeneration,
     RecoveryData,
     PlanProposal,
     TrainingPlan,
@@ -166,6 +167,28 @@ _PLAN_PROPOSAL_FIELDS = (
     "decided_at",
     "workout_snapshot",
 )
+_OUTDOOR_5K_PLAN_GENERATION_FIELDS = (
+    "id",
+    "proposal_id",
+    "policy_version",
+    "generator_version",
+    "science_decision_id",
+    "evidence_review_ids",
+    "evidence_claim_ids",
+    "ai_explanation_present",
+    "baseline_snapshot_id",
+    "source_revision",
+    "deterministic_input_hash",
+    "request_kind",
+    "request_fingerprint",
+    "predecessor_proposal_id",
+    "predecessor_version",
+    "observed_input_snapshot",
+    "constraint_snapshot",
+    "derived_history_statistics",
+    "validation_results",
+    "created_at",
+)
 
 _GOAL_BASELINE_CONFIRMATION_FIELDS = (
     "id",
@@ -277,7 +300,7 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
 
     config = _without_credentials(asdict(load_config_from_db(user_id, db)))
     return {
-        "schema_version": 3,
+        "schema_version": 4,
         "exported_at": utc_isoformat(datetime.now(timezone.utc)),
         "user_config": config,
         "activities": _serialize_rows(
@@ -370,6 +393,17 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
                 .order_by(GoalBaselineAssessment.created_at, GoalBaselineAssessment.version)
                 .all(),
                 _GOAL_BASELINE_ASSESSMENT_FIELDS,
+            ),
+        },
+        "outdoor_5k_plan_generation": {
+            "schema_version": 1,
+            "exported_at": utc_isoformat(datetime.now(timezone.utc)),
+            "records": _serialize_rows(
+                db.query(Outdoor5KPlanGeneration)
+                .filter(Outdoor5KPlanGeneration.user_id == user_id)
+                .order_by(Outdoor5KPlanGeneration.created_at, Outdoor5KPlanGeneration.id)
+                .all(),
+                _OUTDOOR_5K_PLAN_GENERATION_FIELDS,
             ),
         },
         "personal_context": build_personal_context_export(

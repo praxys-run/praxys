@@ -7,8 +7,9 @@ from __future__ import annotations
 
 import logging
 import os
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import TYPE_CHECKING, Collection
+from typing import TYPE_CHECKING, Collection, Literal
 
 import pandas as pd
 from sqlalchemy import bindparam, text
@@ -43,6 +44,24 @@ REQUIRED_COLUMNS: dict[str, list[str]] = {
     "sleep": ["date"],
     "readiness": ["date"],
 }
+
+
+@dataclass(frozen=True)
+class PlanGenerationActivity:
+    """One bounded completed run with source provenance for plan generation."""
+
+    activity_id: str
+    observed_date: date
+    duration_min: float
+    source: str
+
+
+@dataclass(frozen=True)
+class PlanGenerationData:
+    """Purpose-bounded observations needed by the deterministic 5K generator."""
+
+    activities: tuple[PlanGenerationActivity, ...]
+    reserved_dates: tuple[date, ...]
 
 
 def discover_activity_types(
@@ -935,6 +954,101 @@ def load_activity_records(
     if "date" in result.columns and not result.empty:
         result["date"] = pd.to_datetime(result["date"]).dt.date
     return _ensure_numeric_pace(result)
+
+
+def load_plan_generation_data(
+    user_id: str,
+    db: Session,
+    *,
+    athlete_today: date,
+    block_start: date,
+    activity_source: str | None,
+    purpose: Literal["plan_generation"],
+) -> PlanGenerationData:
+    """Load the small, provenance-preserving 5K generation evidence window.
+
+    This loader intentionally has a purpose fence: it returns only six
+    completed calendar weeks of positive-duration running observations and
+    future non-Praxys calendar reservations.  It never selects activity
+    ``avg_power`` or broad training-context/narrative data.  Historical
+    intensity is not used by the policy-v1 generator; if a future accepted
+    policy requires it, it must add a separately bounded split/sample query.
+    """
+    if purpose != "plan_generation":
+        raise ValueError("plan-generation data may only be loaded for plan_generation")
+
+    current_week_start = athlete_today - timedelta(days=athlete_today.weekday())
+    history_start = current_week_start - timedelta(days=42)
+    history_end = current_week_start - timedelta(days=1)
+    activity_rows = pd.read_sql(
+        text(
+            "SELECT activity_id, date, duration_sec, source "
+            "FROM activities "
+            "WHERE user_id = :uid "
+            "  AND date BETWEEN :history_start AND :history_end "
+            "  AND LOWER(activity_type) = 'running' "
+            "  AND duration_sec > 0 "
+            "ORDER BY date, activity_id, source "
+            "LIMIT 500"
+        ),
+        db.bind,
+        params={
+            "uid": user_id,
+            "history_start": history_start,
+            "history_end": history_end,
+        },
+        parse_dates=["date"],
+    )
+    # A plan must never count the same physical run from two synced providers
+    # as two completed sessions. Select one deterministic provider for this
+    # bounded history window while retaining that selected source on every
+    # returned observation.
+    activity_rows = select_preferred_source(activity_rows, activity_source)
+    activities = tuple(
+        PlanGenerationActivity(
+            activity_id=str(row.activity_id),
+            observed_date=pd.Timestamp(row.date).date(),
+            duration_min=float(row.duration_sec) / 60.0,
+            source=str(row.source or ""),
+        )
+        for row in activity_rows.itertuples(index=False)
+        if pd.notna(row.date)
+        and pd.notna(row.duration_sec)
+        and float(row.duration_sec) > 0
+    )
+
+    reservation_end = block_start + timedelta(days=27)
+    reservations = pd.read_sql(
+        text(
+            "SELECT date, source "
+            "FROM training_plans "
+            "WHERE user_id = :uid "
+            "  AND date BETWEEN :block_start AND :reservation_end "
+            "ORDER BY date, id"
+        ),
+        db.bind,
+        params={
+            "uid": user_id,
+            "block_start": block_start,
+            "reservation_end": reservation_end,
+        },
+        parse_dates=["date"],
+    )
+    reserved_dates = tuple(
+        sorted(
+            {
+                pd.Timestamp(row.date).date()
+                for row in reservations.itertuples(index=False)
+                if pd.notna(row.date)
+                and normalize_plan_source(getattr(row, "source", None))
+                not in PRAXYS_PLAN_SOURCES
+            }
+        )
+    )
+    return PlanGenerationData(
+        activities=activities,
+        reserved_dates=reserved_dates,
+    )
 
 
 def load_activity_sample_coverage(

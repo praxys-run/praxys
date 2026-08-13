@@ -1,11 +1,11 @@
 """Authenticated adaptive plan proposal endpoints."""
 from __future__ import annotations
 
-from datetime import date, datetime
-from typing import Any
+from datetime import date, datetime, timezone
+from typing import Any, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 from sqlalchemy.orm import Session
 
@@ -103,6 +103,14 @@ class ProposalMutation(BaseModel):
     alternatives: list[Any] = Field(default_factory=list)
     expires_at: datetime | None = None
 
+    @field_validator("expires_at")
+    @classmethod
+    def normalize_expiry_to_utc(cls, value: datetime | None) -> datetime | None:
+        """Store offset-aware public timestamps in the proposal UTC representation."""
+        if value is None or value.tzinfo is None:
+            return value
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+
 
 class ProposalEditRequest(ProposalMutation):
     """Exact-version edit request that creates a successor proposal."""
@@ -127,6 +135,75 @@ class ProposalAdoptRequest(BaseModel):
     expected_proposal_version: int = Field(ge=1)
     expected_plan_version: int = Field(ge=0)
     idempotency_key: str = Field(min_length=1, max_length=128)
+
+
+class AdaptivePlanReferenceResponse(BaseModel):
+    """Typed adaptive-plan identity included with immutable proposal responses."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    discipline: str
+    version: int
+    lifecycle: str
+    active_proposal_id: str | None
+
+
+class ProposalGoalSnapshotResponse(BaseModel):
+    """Typed immutable goal snapshot carried by a proposal response."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    version: int
+    state: str
+    goal_kind: str
+    target: dict[str, Any]
+    horizon_start: str
+    horizon_end: str
+    acknowledged_at: str | None
+
+
+class PlanProposalResponse(BaseModel):
+    """Typed owner-scoped immutable proposal lifecycle representation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    adaptive_plan_id: str
+    goal_snapshot_id: str
+    discipline: str
+    version: int
+    state: str
+    base_plan_version: int
+    supersedes_proposal_id: str | None
+    origin: str
+    actor_type: str
+    actor_id: str | None
+    policy_version: str | None
+    model_version: str | None
+    science_version: str | None
+    assumptions: list[Any]
+    unknowns: list[Any]
+    warnings: list[Any]
+    alternatives: list[Any]
+    expires_at: str | None
+    created_at: str | None
+    decided_at: str | None
+    workouts: list[dict[str, Any]]
+    adaptive_plan: AdaptivePlanReferenceResponse | None
+    goal: ProposalGoalSnapshotResponse | None
+
+
+class ProposalAdoptionResponse(BaseModel):
+    """Typed result of an exact canonical adoption command."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["adopted", "already_adopted"]
+    proposal: PlanProposalResponse
+    revision_id: str
+    workouts: list[dict[str, Any]]
 
 
 def _current_athlete_date(db: Session, user_id: str) -> date:
@@ -157,7 +234,11 @@ def _raise(error: AdaptivePlanError) -> None:
     raise HTTPException(status_code=error.status_code, detail=error.detail)
 
 
-@router.post("/plan/proposals", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/plan/proposals",
+    status_code=status.HTTP_201_CREATED,
+    response_model=PlanProposalResponse,
+)
 def create_plan_proposal(
     payload: ProposalMutation,
     user_id: str = Depends(require_write_access),
@@ -175,12 +256,14 @@ def create_plan_proposal(
         _raise(exc)
 
 
-@router.get("/plan/proposals/current")
+@router.get("/plan/proposals/current", response_model=PlanProposalResponse)
 def get_current_plan_proposal(
+    response: Response,
     user_id: str = Depends(get_data_user_id),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Read the authenticated athlete's active proposal and exact version."""
+    response.headers["Cache-Control"] = "private, no-store"
     proposal = read_current_proposal(db, user_id=user_id)
     if proposal is None:
         raise HTTPException(
@@ -193,7 +276,11 @@ def get_current_plan_proposal(
     return proposal
 
 
-@router.post("/plan/proposals/{proposal_id}/edits", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/plan/proposals/{proposal_id}/edits",
+    status_code=status.HTTP_201_CREATED,
+    response_model=PlanProposalResponse,
+)
 def edit_plan_proposal(
     proposal_id: UUID,
     payload: ProposalEditRequest,
@@ -214,7 +301,10 @@ def edit_plan_proposal(
         _raise(exc)
 
 
-@router.post("/plan/proposals/{proposal_id}/reject")
+@router.post(
+    "/plan/proposals/{proposal_id}/reject",
+    response_model=PlanProposalResponse,
+)
 def reject_plan_proposal(
     proposal_id: UUID,
     payload: ProposalDecisionRequest,
@@ -234,7 +324,10 @@ def reject_plan_proposal(
         _raise(exc)
 
 
-@router.post("/plan/proposals/{proposal_id}/adopt")
+@router.post(
+    "/plan/proposals/{proposal_id}/adopt",
+    response_model=ProposalAdoptionResponse,
+)
 def adopt_plan_proposal(
     proposal_id: UUID,
     payload: ProposalAdoptRequest,
@@ -254,7 +347,11 @@ def adopt_plan_proposal(
         )
     except AdaptivePlanError as exc:
         _raise(exc)
-    if result["status"] == "adopted":
+    if (
+        result["status"] == "adopted"
+        and result["proposal"].get("policy_version")
+        != "outdoor-5k-plan-generation-policy-v1"
+    ):
         _trigger_managed_delivery(
             user_id,
             trigger="plan_proposal_adopt",
