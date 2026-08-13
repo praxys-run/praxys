@@ -1597,13 +1597,12 @@ class TestCanonicalWorkoutManagement:
             reason["code"] for reason in by_target["stryd"]["reasons"]
         } == {
             "wording_not_supported",
-            "phase_not_supported",
             "termination_not_supported",
             "target_not_supported",
         }
         assert _list_plan_rows(user_id) == []
 
-    def test_compatibility_preview_rejects_fractional_stryd_percent_cp(
+    def test_compatibility_preview_accepts_fractional_stryd_percent_cp(
         self,
         api_client,
     ):
@@ -1636,11 +1635,8 @@ class TestCanonicalWorkoutManagement:
             for item in response.json()["providers"]
             if item["target"] == "stryd"
         )
-        assert stryd["compatible"] is False
-        assert stryd["reasons"] == [{
-            "code": "target_precision_not_supported",
-            "path": "steps[0].target",
-        }]
+        assert stryd["compatible"] is True
+        assert stryd["reasons"] == []
 
     def test_external_and_other_user_workouts_are_not_mutable(
         self,
