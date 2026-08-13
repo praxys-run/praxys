@@ -1412,6 +1412,13 @@ input returns `409 OUTDOOR_5K_IDEMPOTENCY_CONFLICT`.
 floor or upper cap. The generator limits scheduled duration against the stated
 maximum and completed-history anchors; it emits `unsupported_frequency` when
 recent modal completed-running frequency is below the three-day envelope.
+When an eligible target event falls inside the proposal horizon, the proposal
+ends on race eve: it never schedules a workout on or after the target date.
+For a target eight to fourteen days after a block or reassessment anchor, that
+entire pre-event span is a taper. Taper volume is selected nearest to 50% of
+the same-date normal schedule, subject to discrete scheduling, and must be
+reduced by 41–60%; if stated availability cannot form that bounded taper, the
+endpoint returns `no_schedule_within_envelope` rather than relaxing the policy.
 
 Successful proposal records retain only the structured observed input snapshot,
 structured athlete constraints, derived history statistics, baseline snapshot

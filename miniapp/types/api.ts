@@ -877,6 +877,101 @@ export interface AdaptivePlanProposalAdoptResponse {
   workouts: CanonicalPlanWorkoutSnapshot[];
 }
 
+export type Outdoor5KWeekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+export type Outdoor5KResultCode =
+  | 'ready'
+  | 'unsupported_goal_or_population'
+  | 'safety_stop'
+  | 'insufficient_or_stale_baseline'
+  | 'insufficient_goal_horizon'
+  | 'goal_gap_not_actionable_v1'
+  | 'insufficient_recent_history'
+  | 'clarification_required'
+  | 'unsupported_frequency'
+  | 'contradictory_constraints'
+  | 'unsupported_power_target'
+  | 'no_schedule_within_envelope';
+
+/** Shared request fields for every deterministic outdoor-road 5K endpoint. */
+export interface Outdoor5KConstraintsRequest {
+  age_18_or_older: boolean;
+  self_coached_recreational_road_runner: boolean;
+  can_complete_5k: boolean;
+  safety_stop?: boolean;
+  outdoor_road_goal_confirmed: boolean;
+  available_weekdays: Outdoor5KWeekday[];
+  maximum_session_duration_min: number;
+  unavailable_dates?: string[];
+  preferred_longest_run_weekday?: Outdoor5KWeekday | null;
+}
+
+export interface Outdoor5KReadinessRequest extends Outdoor5KConstraintsRequest {}
+
+export interface Outdoor5KGenerateRequest extends Outdoor5KConstraintsRequest {
+  expected_source_revision: string;
+  idempotency_key: string;
+}
+
+export interface Outdoor5KRegenerateRequest extends Outdoor5KGenerateRequest {
+  expected_proposal_version: number;
+}
+
+export interface Outdoor5KHistoryStatistics {
+  usable_completed_weeks: number;
+  recent_modal_running_frequency: number;
+  recent_typical_complete_week_minutes: number;
+  recent_maximum_complete_week_minutes: number;
+  recent_longest_completed_run_minutes: number;
+  latest_run_date: string | null;
+}
+
+export interface Outdoor5KOutcomeResponse {
+  policy_version: string;
+  generator_version: string;
+  science_decision_id: string;
+  code: Outdoor5KResultCode;
+  deterministic_input_hash: string;
+  history_statistics: Outdoor5KHistoryStatistics;
+  failed_rule_id: string | null;
+  observed_or_stated_reason: string | null;
+  uncertainty_or_missing_field: string | null;
+  alternatives: string[];
+}
+
+export interface Outdoor5KReadinessResponse {
+  schema_version: 1;
+  policy_version: string;
+  generator_version: string;
+  science_decision_id: string;
+  source_revision: string;
+  athlete_today: string;
+  block_start: string;
+  result: Outdoor5KOutcomeResponse;
+}
+
+export interface Outdoor5KAlternativesResponse extends Outdoor5KReadinessResponse {
+  alternatives: string[];
+}
+
+export interface Outdoor5KProposalResponse {
+  schema_version: 1;
+  policy_version: string;
+  generator_version: string;
+  science_decision_id: string;
+  source_revision: string;
+  result: Outdoor5KOutcomeResponse;
+  proposal: AdaptivePlanProposal | null;
+  replayed: boolean;
+  reassessment_dates: string[];
+}
+
+export type Outdoor5KGenerateResponse =
+  | Outdoor5KProposalResponse
+  | Outdoor5KReadinessResponse;
+
+export type Outdoor5KRegenerateResponse = Outdoor5KGenerateResponse;
+
 export type StrydPushResult =
   | {
       date: string;

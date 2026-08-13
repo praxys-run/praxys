@@ -224,8 +224,8 @@ def _expanded_step_duration(step) -> int:
     return int(step.duration_min or 0)
 
 
-def _four_day_taper_input(event_offset: int) -> Outdoor5KGenerationInput:
-    """Build a schedule where a bounded taper can retain one quality session."""
+def _three_day_taper_input(event_offset: int) -> Outdoor5KGenerationInput:
+    """Build a three-day schedule where a bounded taper retains quality."""
     base = _input()
     block_start = date(2026, 8, 17)
     history: list[RunningHistoryObservation] = []
@@ -235,9 +235,9 @@ def _four_day_taper_input(event_offset: int) -> Outdoor5KGenerationInput:
         for offset in (0, 1, 3, 5):
             history.append(
                 RunningHistoryObservation(
-                    activity_id=f"four-day-{week}-{offset}",
+                    activity_id=f"three-day-{week}-{offset}",
                     observed_date=week_start + timedelta(days=offset),
-                    duration_min=60,
+                    duration_min=120,
                     source="garmin",
                 )
             )
@@ -251,16 +251,16 @@ def _four_day_taper_input(event_offset: int) -> Outdoor5KGenerationInput:
         history=tuple(history),
         constraints=replace(
             base.constraints,
-            available_weekdays=(0, 1, 2, 3, 4),
-            maximum_session_duration_min=60,
-            preferred_longest_run_weekday=4,
+            available_weekdays=(0, 1, 2),
+            maximum_session_duration_min=120,
+            preferred_longest_run_weekday=2,
         ),
     )
 
 
-def test_generation_uses_exact_step_duration_and_never_schedules_target_date() -> None:
-    """Workout structures, not summaries, enforce duration and target-date caps."""
-    generation_input = _four_day_taper_input(10)
+def test_generation_uses_exact_step_duration_and_stops_before_target_date() -> None:
+    """Workout structures enforce duration and never schedule on or after race day."""
+    generation_input = _three_day_taper_input(10)
     result = generate_outdoor_5k_plan(generation_input)
 
     assert result.code == "ready"
@@ -270,7 +270,7 @@ def test_generation_uses_exact_step_duration_and_never_schedules_target_date() -
     all_workouts = [
         workout for week in result.plan.weeks for workout in week.workouts
     ]
-    assert target_date not in {workout.scheduled_date for workout in all_workouts}
+    assert all(workout.scheduled_date < target_date for workout in all_workouts)
     assert all(
         workout.planned_duration_min
         == sum(_expanded_step_duration(step) for step in workout.steps)
@@ -283,84 +283,156 @@ def test_generation_uses_exact_step_duration_and_never_schedules_target_date() -
     )
 
 
-def test_taper_is_anchored_to_block_or_reassessment_and_keeps_quality_when_fit() -> None:
-    """Accepted 8–14-day taper windows retain one bounded quality exposure."""
-    first_window = generate_outdoor_5k_plan(_four_day_taper_input(10))
-    reassessment_window = generate_outdoor_5k_plan(_four_day_taper_input(17))
+def test_taper_covers_the_full_pre_event_window_and_keeps_quality_when_fit() -> None:
+    """An accepted 8–14-day taper runs through race eve without post-race work."""
+    first_input = _three_day_taper_input(10)
+    reassessment_input = _three_day_taper_input(17)
+    first_window = generate_outdoor_5k_plan(first_input)
+    reassessment_window = generate_outdoor_5k_plan(reassessment_input)
 
     assert first_window.plan is not None
     assert reassessment_window.plan is not None
     assert [week.is_taper for week in first_window.plan.weeks] == [
         True,
-        False,
-        False,
-        False,
+        True,
     ]
     assert [week.is_taper for week in reassessment_window.plan.weeks] == [
         False,
         True,
-        False,
-        False,
+        True,
     ]
-    for result in (first_window, reassessment_window):
+    for result, generation_input in (
+        (first_window, first_input),
+        (reassessment_window, reassessment_input),
+    ):
         assert result.plan is not None
-        taper_week = next(week for week in result.plan.weeks if week.is_taper)
-        assert sum(
-            workout.intensity_bucket == "quality"
-            for workout in taper_week.workouts
-        ) == 1
+        target_date = generation_input.goal.target_event_date
+        assert target_date is not None
+        assert result.plan.horizon_end == target_date - timedelta(days=1)
+        assert all(
+            workout.scheduled_date < target_date
+            for week in result.plan.weeks
+            for workout in week.workouts
+        )
+        assert all(
+            sum(
+                workout.intensity_bucket == "quality"
+                for workout in week.workouts
+            )
+            == 1
+            for week in result.plan.weeks
+            if week.is_taper
+        )
 
 
-def test_three_day_180_history_taper_is_half_scale_and_excludes_target_race() -> None:
-    """Taper weeks preserve a longest easy run at 41–60% of a normal schedule."""
+def test_taper_uses_half_the_normal_schedule_not_half_capacity() -> None:
+    """The 50% taper target references generated normal work, not capacity."""
     base = _input()
     block_start = date(2026, 8, 17)
-    target_date = block_start + timedelta(days=10)
+    target_date = block_start + timedelta(days=17)
     result = generate_outdoor_5k_plan(
         replace(
             base,
             block_start=block_start,
-            history=_three_run_history(base.athlete_today, duration_min=180),
+            history=_three_run_history(base.athlete_today, duration_min=61),
             goal=replace(base.goal, target_event_date=target_date),
             constraints=replace(
                 base.constraints,
-                available_weekdays=(0, 1, 2, 3, 5),
-                maximum_session_duration_min=180,
-                preferred_longest_run_weekday=5,
+                available_weekdays=(0, 1, 2),
+                maximum_session_duration_min=61,
+                preferred_longest_run_weekday=2,
             ),
         )
     )
 
     assert result.code == "ready"
     assert result.plan is not None
-    taper_week, normal_week = result.plan.weeks[:2]
+    normal_reference = generate_outdoor_5k_plan(
+        replace(
+            base,
+            block_start=block_start,
+            history=_three_run_history(base.athlete_today, duration_min=61),
+            constraints=replace(
+                base.constraints,
+                available_weekdays=(0, 1, 2),
+                maximum_session_duration_min=61,
+                preferred_longest_run_weekday=2,
+            ),
+        )
+    )
+    assert normal_reference.plan is not None
+    taper_week = result.plan.weeks[1]
     taper_minutes = sum(
         workout.planned_duration_min for workout in taper_week.workouts
     )
     normal_minutes = sum(
-        workout.planned_duration_min for workout in normal_week.workouts
+        workout.planned_duration_min
+        for workout in normal_reference.plan.weeks[1].workouts
     )
     taper_long_run = next(
         workout
         for workout in taper_week.workouts
         if workout.workout_type == "longest_easy"
     )
-    normal_long_run = next(
-        workout
-        for workout in normal_week.workouts
-        if workout.workout_type == "longest_easy"
-    )
 
     assert taper_week.is_taper is True
-    assert normal_week.is_taper is False
-    assert 0.41 <= taper_minutes / normal_minutes <= 0.60
-    assert taper_long_run.planned_duration_min == 90
-    assert normal_long_run.planned_duration_min == 180
+    assert normal_minutes == 150
+    assert taper_minutes == 75
+    assert abs(2 * taper_minutes - normal_minutes) == 0
+    assert 0.41 <= (normal_minutes - taper_minutes) / normal_minutes <= 0.60
+    assert taper_long_run.planned_duration_min == 25
+    assert all(
+        workout.scheduled_date < target_date
+        for week in result.plan.weeks
+        for workout in week.workouts
+    )
     assert target_date not in {
         workout.scheduled_date
         for week in result.plan.weeks
         for workout in week.workouts
     }
+
+
+def test_taper_retains_short_interval_quality_when_the_envelope_allows() -> None:
+    """A valid short interval must not be rejected by the longer template's floor."""
+    base = _input()
+    block_start = date(2026, 8, 17)
+    target_date = block_start + timedelta(days=17)
+    result = generate_outdoor_5k_plan(
+        replace(
+            base,
+            block_start=block_start,
+            history=_three_run_history(base.athlete_today, duration_min=66),
+            goal=replace(base.goal, target_event_date=target_date),
+            constraints=replace(
+                base.constraints,
+                available_weekdays=(0, 1, 2),
+                maximum_session_duration_min=66,
+                preferred_longest_run_weekday=2,
+            ),
+        )
+    )
+
+    assert result.code == "ready"
+    assert result.plan is not None
+    taper_week = result.plan.weeks[1]
+    taper_minutes = sum(
+        workout.planned_duration_min for workout in taper_week.workouts
+    )
+    low_minutes = sum(
+        workout.planned_duration_min
+        for workout in taper_week.workouts
+        if workout.intensity_bucket == "low"
+    )
+
+    assert taper_week.is_taper is True
+    assert taper_minutes == 94
+    assert low_minutes / taper_minutes >= 0.70
+    assert [
+        workout.template_id
+        for workout in taper_week.workouts
+        if workout.intensity_bucket == "quality"
+    ] == ["outdoor-5k-short-interval-quality-v1"]
 
 
 def test_three_by_five_history_taper_stays_within_volume_guardrail() -> None:
@@ -379,24 +451,23 @@ def test_three_by_five_history_taper_stays_within_volume_guardrail() -> None:
             constraints=replace(
                 base.constraints,
                 maximum_session_duration_min=5,
+                available_weekdays=(0, 1, 2),
+                preferred_longest_run_weekday=2,
             ),
         )
     )
 
     assert result.code == "ready"
     assert result.plan is not None
-    taper_week, normal_week = result.plan.weeks[:2]
+    taper_week = result.plan.weeks[0]
+    normal_minutes = 15
     taper_minutes = sum(
         workout.planned_duration_min for workout in taper_week.workouts
     )
-    normal_minutes = sum(
-        workout.planned_duration_min for workout in normal_week.workouts
-    )
 
     assert taper_week.is_taper is True
-    assert normal_week.is_taper is False
     assert normal_minutes == 15
-    assert 0.41 <= taper_minutes / normal_minutes <= 0.60
+    assert 0.41 <= (normal_minutes - taper_minutes) / normal_minutes <= 0.60
 
 
 def test_stale_or_missing_baseline_is_a_typed_no_plan_outcome() -> None:

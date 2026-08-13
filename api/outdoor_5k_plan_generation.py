@@ -737,11 +737,14 @@ def _persisted_reassessment_dates(proposal: dict[str, Any]) -> list[str]:
     goal = proposal.get("goal") or {}
     try:
         horizon_start = date.fromisoformat(str(goal["horizon_start"]))
+        horizon_end = date.fromisoformat(str(goal["horizon_end"]))
     except (KeyError, TypeError, ValueError):
         return []
     return [
         (horizon_start + timedelta(days=OUTDOOR_5K_REASSESSMENT_DAYS * index)).isoformat()
         for index in range(4)
+        if horizon_start + timedelta(days=OUTDOOR_5K_REASSESSMENT_DAYS * index)
+        <= horizon_end
     ]
 
 
