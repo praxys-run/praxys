@@ -815,7 +815,6 @@ def _stryd_workout_compatibility(
     phase_path: str | None = None
     termination_path: str | None = None
     target_path: str | None = None
-    target_precision_path: str | None = None
     for root_index, node in enumerate(inspection.structure.steps):
         if (
             isinstance(node, StructuredWorkoutRepeatGroupV1)
@@ -849,13 +848,14 @@ def _stryd_workout_compatibility(
                     "warmup",
                     "work",
                     "recovery",
+                    "rest",
                     "cooldown",
                 }
             ):
                 phase_path = f"{path}.phase"
             if (
                 termination_path is None
-                and step.termination.type != "time"
+                and step.termination.type not in {"time", "distance"}
             ):
                 termination_path = f"{path}.termination"
             target_combo = (
@@ -864,30 +864,34 @@ def _stryd_workout_compatibility(
                 step.target.reference,
             )
             target_shape_supported = (
-                target_combo in {
-                    ("power", "watts", "absolute"),
-                    ("power", "percent_cp", "critical_power"),
-                }
-                and step.target.min is not None
-                and step.target.max is not None
+                target_combo == ("none", "none", "none")
+                or (
+                    target_combo in {
+                        ("power", "watts", "absolute"),
+                        ("power", "percent_cp", "critical_power"),
+                    }
+                    and step.target.min is not None
+                    and step.target.max is not None
+                )
+                or (
+                    target_combo
+                    == ("rpe", "scale_10", "perceived_exertion")
+                    and step.target.min is not None
+                    and step.target.max is not None
+                    and step.target.min == step.target.max
+                    and float(step.target.min).is_integer()
+                    and 1 <= step.target.min <= 10
+                )
             )
             if not target_shape_supported:
                 if target_path is None:
                     target_path = f"{path}.target"
-            elif (
-                target_precision_path is None
-                and target_combo
-                == ("power", "percent_cp", "critical_power")
-                and not stryd_percent_cp_bounds_are_integral(step.target)
-            ):
-                target_precision_path = f"{path}.target"
 
     for code, path in (
         ("wording_not_supported", wording_path),
         ("phase_not_supported", phase_path),
         ("termination_not_supported", termination_path),
         ("target_not_supported", target_path),
-        ("target_precision_not_supported", target_precision_path),
     ):
         if path is not None:
             reasons.append(WorkoutProviderCompatibilityReason(
@@ -899,28 +903,6 @@ def _stryd_workout_compatibility(
         compatible=not reasons,
         mode="structured" if not reasons else "unsupported",
         reasons=reasons,
-    )
-
-
-def stryd_percent_cp_bounds_are_integral(
-    target: IntensityTargetV1,
-) -> bool:
-    """Return whether Stryd can preserve both percent-CP bounds exactly.
-
-    The existing Stryd connector payload represents ``intensity_percent``
-    minimum, maximum, and midpoint as whole numbers. Canonical fractional
-    percentages therefore cannot be delivered losslessly and must not be
-    rounded.
-    """
-    if (
-        target.metric,
-        target.unit,
-        target.reference,
-    ) != ("power", "percent_cp", "critical_power"):
-        return True
-    return all(
-        value is not None and float(value).is_integer()
-        for value in (target.min, target.max)
     )
 
 

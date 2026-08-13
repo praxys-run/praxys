@@ -181,7 +181,7 @@ class TestBuildWorkoutBlocks:
             "second": 3,
         }
 
-    def test_structured_percent_cp_payload_preserves_integral_bounds(self):
+    def test_structured_percent_cp_payload_preserves_bounds(self):
         workout = {
             "workout_type": "interval",
             "activity_type": "running",
@@ -207,9 +207,7 @@ class TestBuildWorkoutBlocks:
             cp_watts=248.0,
         )[0]["segments"][0]["intensity_percent"]
 
-        assert intensity == {"min": 95, "max": 96, "value": 95}
-        assert isinstance(intensity["min"], int)
-        assert isinstance(intensity["max"], int)
+        assert intensity == {"min": 95, "max": 96, "value": 96}
 
     @pytest.mark.parametrize(
         ("minimum", "maximum"),
@@ -218,7 +216,7 @@ class TestBuildWorkoutBlocks:
             (95.4, 95.49),
         ],
     )
-    def test_structured_percent_cp_delivery_rejects_fractional_bounds(
+    def test_structured_percent_cp_delivery_preserves_fractional_bounds(
         self,
         minimum,
         maximum,
@@ -243,8 +241,41 @@ class TestBuildWorkoutBlocks:
             },
         }
 
-        with pytest.raises(ValueError, match="whole-number %CP bounds"):
-            build_workout_blocks(workout, cp_watts=248.0)
+        intensity = build_workout_blocks(
+            workout,
+            cp_watts=248.0,
+        )[0]["segments"][0]["intensity_percent"]
+
+        assert intensity["min"] == minimum
+        assert intensity["max"] == maximum
+
+    def test_structured_exact_percent_cp_uses_powercenter_value_field(self):
+        workout = {
+            "workout_type": "interval",
+            "activity_type": "running",
+            "workout_structure_version": "v1",
+            "workout_structure": {
+                "steps": [{
+                    "type": "step",
+                    "phase": "work",
+                    "termination": {"type": "time", "seconds": 180},
+                    "target": {
+                        "metric": "power",
+                        "unit": "percent_cp",
+                        "reference": "critical_power",
+                        "min": 100,
+                        "max": 100,
+                    },
+                }],
+            },
+        }
+
+        intensity = build_workout_blocks(
+            workout,
+            cp_watts=248.0,
+        )[0]["segments"][0]["intensity_percent"]
+
+        assert intensity == {"min": 0, "max": 0, "value": 100.0}
 
     @pytest.mark.parametrize(
         "structure_fields",
@@ -307,17 +338,6 @@ class TestBuildWorkoutBlocks:
                 "type": "step",
                 "phase": "other",
                 "termination": {"type": "time", "seconds": 300},
-                "target": {
-                    "metric": "power",
-                    "unit": "percent_cp",
-                    "reference": "critical_power",
-                    "min": 95,
-                },
-            },
-            {
-                "type": "step",
-                "phase": "work",
-                "termination": {"type": "distance", "meters": 1000},
                 "target": {
                     "metric": "power",
                     "unit": "percent_cp",
@@ -418,28 +438,104 @@ class TestBuildWorkoutBlocks:
         ):
             build_workout_blocks(workout, cp_watts=248.0)
 
-    def test_portable_rest_phase_remains_unsupported_by_stryd(self):
+    def test_structured_distance_rest_and_no_target_match_powercenter_schema(
+        self,
+    ):
+        workout = {
+            "workout_type": "interval",
+            "workout_structure_version": "v1",
+            "workout_structure": {
+                "steps": [{
+                    "type": "repeat",
+                    "repetitions": 6,
+                    "steps": [
+                        {
+                            "type": "step",
+                            "phase": "work",
+                            "termination": {
+                                "type": "distance",
+                                "meters": 1000,
+                            },
+                            "target": {
+                                "metric": "power",
+                                "unit": "percent_cp",
+                                "reference": "critical_power",
+                                "min": 100,
+                                "max": 120,
+                            },
+                        },
+                        {
+                            "type": "step",
+                            "phase": "rest",
+                            "termination": {
+                                "type": "time",
+                                "seconds": 120,
+                            },
+                            "target": {
+                                "metric": "none",
+                                "unit": "none",
+                                "reference": "none",
+                            },
+                        },
+                    ],
+                }],
+            },
+        }
+
+        block = build_workout_blocks(workout, cp_watts=248.0)[0]
+        work, rest = block["segments"]
+
+        assert block["repeat"] == 6
+        assert work["duration_type"] == "distance"
+        assert work["duration_distance"] == 1
+        assert work["distance_unit_selected"] == "km"
+        assert work["intensity_class"] == "work"
+        assert rest["duration_type"] == "time"
+        assert rest["duration_time"] == {
+            "hour": 0,
+            "minute": 2,
+            "second": 0,
+        }
+        assert rest["intensity_class"] == "rest"
+        assert rest["intensity_type"] == ""
+        assert rest["intensity_percent"] == {
+            "min": 0,
+            "max": 0,
+            "value": 0,
+        }
+
+    def test_structured_exact_rpe_uses_powercenter_rpe_fields(self):
         workout = {
             "workout_type": "interval",
             "workout_structure_version": "v1",
             "workout_structure": {
                 "steps": [{
                     "type": "step",
-                    "phase": "rest",
-                    "termination": {"type": "time", "seconds": 60},
+                    "phase": "work",
+                    "termination": {"type": "time", "seconds": 180},
                     "target": {
-                        "metric": "power",
-                        "unit": "percent_cp",
-                        "reference": "critical_power",
-                        "min": 55,
-                        "max": 60,
+                        "metric": "rpe",
+                        "unit": "scale_10",
+                        "reference": "perceived_exertion",
+                        "min": 7,
+                        "max": 7,
                     },
                 }],
             },
         }
 
-        with pytest.raises(ValueError, match="cannot safely encode"):
-            build_workout_blocks(workout, cp_watts=248.0)
+        segment = build_workout_blocks(
+            workout,
+            cp_watts=248.0,
+        )[0]["segments"][0]
+
+        assert segment["intensity_type"] == "rpe"
+        assert segment["rpe_selected"] == 7
+        assert segment["intensity_percent"] == {
+            "min": 0,
+            "max": 0,
+            "value": 0,
+        }
 
     def test_description_is_not_parsed_without_structured_workout(self):
         """Legacy flat workouts no longer recover interval structure from free text."""

@@ -242,7 +242,6 @@ def test_provider_compatibility_names_lossy_structured_details() -> None:
         reason["code"] for reason in by_target["stryd"]["reasons"]
     } == {
         "wording_not_supported",
-        "phase_not_supported",
         "termination_not_supported",
         "target_not_supported",
     }
@@ -366,8 +365,8 @@ def _stryd_percent_cp_compatibility(
     return next(item for item in compatibility if item["target"] == "stryd")
 
 
-def test_stryd_compatibility_accepts_integral_percent_cp_bounds() -> None:
-    """The connector payload can preserve whole-number percentages exactly."""
+def test_stryd_compatibility_accepts_percent_cp_bounds() -> None:
+    """PowerCenter accepts complete percentage ranges."""
     stryd = _stryd_percent_cp_compatibility(95, 96)
 
     assert stryd == {
@@ -385,23 +384,23 @@ def test_stryd_compatibility_accepts_integral_percent_cp_bounds() -> None:
         (95.4, 95.49),
     ],
 )
-def test_stryd_compatibility_rejects_fractional_percent_cp_bounds(
+def test_stryd_compatibility_accepts_fractional_percent_cp_bounds(
     minimum: float,
     maximum: float,
 ) -> None:
-    """Fractional and integer-collapsing ranges must never preview as lossless."""
+    """PowerCenter numeric inputs preserve fractional percentage ranges."""
     stryd = _stryd_percent_cp_compatibility(minimum, maximum)
 
-    assert stryd["compatible"] is False
-    assert stryd["mode"] == "unsupported"
-    assert stryd["reasons"] == [{
-        "code": "target_precision_not_supported",
-        "path": "steps[0].target",
-    }]
+    assert stryd == {
+        "target": "stryd",
+        "compatible": True,
+        "mode": "structured",
+        "reasons": [],
+    }
 
 
-def test_stryd_precision_reason_requires_two_present_percent_cp_bounds() -> None:
-    """A later one-sided target stays a shape failure, not a precision failure."""
+def test_stryd_reports_the_first_unsupported_target_path() -> None:
+    """A later unsupported target does not replace the first actionable path."""
     structure = StructuredWorkoutV1.model_validate({
         "steps": [
             {
@@ -448,6 +447,130 @@ def test_stryd_precision_reason_requires_two_present_percent_cp_bounds() -> None
         "code": "target_not_supported",
         "path": "steps[0].target",
     }]
+
+
+def test_stryd_compatibility_matches_current_powercenter_builder() -> None:
+    """Distance, Rest, and no-target steps are valid PowerCenter structures."""
+    structure = StructuredWorkoutV1.model_validate({
+        "steps": [
+            {
+                "type": "step",
+                "phase": "warmup",
+                "termination": {"type": "time", "seconds": 600},
+                "target": {
+                    "metric": "power",
+                    "unit": "percent_cp",
+                    "reference": "critical_power",
+                    "min": 60,
+                    "max": 80,
+                },
+            },
+            {
+                "type": "repeat",
+                "repetitions": 6,
+                "steps": [
+                    {
+                        "type": "step",
+                        "phase": "work",
+                        "termination": {
+                            "type": "distance",
+                            "meters": 1000,
+                        },
+                        "target": {
+                            "metric": "power",
+                            "unit": "percent_cp",
+                            "reference": "critical_power",
+                            "min": 100,
+                            "max": 120,
+                        },
+                    },
+                    {
+                        "type": "step",
+                        "phase": "rest",
+                        "termination": {"type": "time", "seconds": 120},
+                        "target": {
+                            "metric": "none",
+                            "unit": "none",
+                            "reference": "none",
+                        },
+                    },
+                ],
+            },
+            {
+                "type": "step",
+                "phase": "cooldown",
+                "termination": {"type": "open"},
+                "target": {
+                    "metric": "heart_rate",
+                    "unit": "bpm",
+                    "reference": "absolute",
+                    "min": 130,
+                    "max": 150,
+                },
+            },
+        ],
+    })
+
+    compatibility = project_workout_provider_compatibility(
+        activity_type="running",
+        workout_structure_version="v1",
+        workout_structure=structure,
+        planned_duration_min=None,
+        planned_distance_km=None,
+        target_power_min=None,
+        target_power_max=None,
+        target_hr_min=None,
+        target_hr_max=None,
+        target_pace_min=None,
+        target_pace_max=None,
+    )
+    stryd = next(item for item in compatibility if item["target"] == "stryd")
+
+    assert stryd["reasons"] == [
+        {
+            "code": "termination_not_supported",
+            "path": "steps[2].termination",
+        },
+        {
+            "code": "target_not_supported",
+            "path": "steps[2].target",
+        },
+    ]
+
+
+def test_stryd_compatibility_accepts_one_exact_rpe() -> None:
+    structure = StructuredWorkoutV1.model_validate({
+        "steps": [{
+            "type": "step",
+            "phase": "work",
+            "termination": {"type": "time", "seconds": 180},
+            "target": {
+                "metric": "rpe",
+                "unit": "scale_10",
+                "reference": "perceived_exertion",
+                "min": 7,
+                "max": 7,
+            },
+        }],
+    })
+
+    compatibility = project_workout_provider_compatibility(
+        activity_type="running",
+        workout_structure_version="v1",
+        workout_structure=structure,
+        planned_duration_min=3,
+        planned_distance_km=None,
+        target_power_min=None,
+        target_power_max=None,
+        target_hr_min=None,
+        target_hr_max=None,
+        target_pace_min=None,
+        target_pace_max=None,
+    )
+    stryd = next(item for item in compatibility if item["target"] == "stryd")
+
+    assert stryd["compatible"] is True
+    assert stryd["reasons"] == []
 
 
 @pytest.mark.parametrize(
