@@ -11,6 +11,7 @@
     aria-hidden="{{activeMetric !== ''}}"
   >
     <view class="train-content">
+    <outdoor-5k-plan-start />
     <managed-plan id="training-managed-plan" scope="window" />
     <personal-context />
 

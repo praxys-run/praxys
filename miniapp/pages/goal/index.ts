@@ -125,6 +125,9 @@ function buildGoalTr() {
     discardConfirm: t('Discard'),
     keepEditing: t('Keep editing'),
     discardPrompt: t('Discard changes?'),
+    outdoor5kPlan: t('Outdoor road 5K plan'),
+    outdoor5kPlanDetail: t('A preview checks current evidence and constraints. It is a proposal, not yet your plan.'),
+    openPlanPreview: t('Open plan preview'),
   };
 }
 
@@ -770,6 +773,9 @@ Page({
     const fallback =
       locale === 'zh' ? '像专业选手一样训练，无论水平高低。' : 'Train like a pro. Whatever your level.';
     return buildTimelineMessage(eyebrow || fallback);
+  },
+  onStartOutdoor5kPlan() {
+    wx.switchTab({ url: '/pages/training/index' });
   },
 
   onScrollRefresh() {

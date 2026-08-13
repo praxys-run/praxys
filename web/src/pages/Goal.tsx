@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import GoalEditor from '@/components/GoalEditor';
 import GoalBaselinePanel from '@/components/GoalBaselinePanel';
+import { Outdoor5KGoalEntry } from '@/components/Outdoor5KPlanStart';
 import AiInsightsCard, { type CoachFallback } from '@/components/AiInsightsCard';
 import CpTrendChart from '@/components/charts/CpTrendChart';
 import DataHint from '@/components/DataHint';
@@ -466,12 +467,15 @@ export default function Goal() {
       )}
 
       {data && data.goal_kind === 'performance_5k' && data.baseline ? (
-        <GoalBaselinePanel
-          baseline={data.baseline}
-          goal={data.goal}
-          isDemo={isDemo}
-          onChanged={refetch}
-        />
+        <>
+          <Outdoor5KGoalEntry baseline={data.baseline} />
+          <GoalBaselinePanel
+            baseline={data.baseline}
+            goal={data.goal}
+            isDemo={isDemo}
+            onChanged={refetch}
+          />
+        </>
       ) : data ? (
         <TrajectoryGoal data={data} onFeedbackStale={refetch} />
       ) : null}

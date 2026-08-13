@@ -1,0 +1,108 @@
+<view class="plan-start">
+  <block wx:if="{{loading}}">
+    <state-card type="loading" />
+  </block>
+
+  <block wx:elif="{{!supportedGoal}}">
+    <view class="ts-card plan-start-card">
+      <text class="plan-start-title">{{tr.title}}</text>
+      <text class="plan-start-copy">{{tr.supportedGoal}}</text>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view class="ts-card plan-start-card">
+      <text class="plan-start-title">{{tr.title}}</text>
+      <text class="plan-start-copy">{{tr.proposalNotPlan}}</text>
+
+      <view class="plan-start-rule"></view>
+      <text class="plan-start-section">{{tr.scope}}</text>
+      <text class="plan-start-copy">{{tr.scopeDetail}}</text>
+      <view class="plan-start-toggle {{adult ? 'plan-start-toggle--active' : ''}}" data-field="adult" bindtap="onToggleScope" aria-role="button" aria-pressed="{{adult}}"><text>{{tr.adult}}</text></view>
+      <view class="plan-start-toggle {{selfCoached ? 'plan-start-toggle--active' : ''}}" data-field="selfCoached" bindtap="onToggleScope" aria-role="button" aria-pressed="{{selfCoached}}"><text>{{tr.selfCoached}}</text></view>
+      <view class="plan-start-toggle {{canComplete ? 'plan-start-toggle--active' : ''}}" data-field="canComplete" bindtap="onToggleScope" aria-role="button" aria-pressed="{{canComplete}}"><text>{{tr.canComplete}}</text></view>
+      <view class="plan-start-toggle {{outdoorRoad ? 'plan-start-toggle--active' : ''}}" data-field="outdoorRoad" bindtap="onToggleScope" aria-role="button" aria-pressed="{{outdoorRoad}}"><text>{{tr.outdoorRoad}}</text></view>
+
+      <view class="plan-start-rule"></view>
+      <text class="plan-start-section">{{tr.safety}}</text>
+      <text class="plan-start-copy">{{tr.safetyDetail}}</text>
+      <view class="plan-start-toggle {{safetyStop ? 'plan-start-toggle--danger' : ''}}" bindtap="onToggleSafety" aria-role="button" aria-pressed="{{safetyStop}}"><text>{{safetyStop ? tr.safetyOn : tr.safetyOff}}</text></view>
+
+      <view class="plan-start-rule"></view>
+      <text class="plan-start-section">{{tr.days}}</text>
+      <text class="plan-start-copy">{{tr.dayDetail}}</text>
+      <view class="plan-start-days">
+        <view wx:for="{{dayOptions}}" wx:key="value" class="plan-start-day {{item.selected ? 'plan-start-day--active' : ''}}" data-day="{{item.value}}" bindtap="onToggleDay" aria-role="button" aria-pressed="{{item.selected}}"><text>{{item.label}}</text></view>
+      </view>
+
+      <view wx:if="{{selectedDayRows.length}}" class="plan-start-limits">
+        <view wx:for="{{selectedDayRows}}" wx:key="value" class="plan-start-limit">
+          <text class="plan-start-label">{{item.label}} · {{tr.timeLimit}}</text>
+          <input class="plan-start-input ts-value" type="number" value="{{item.duration}}" data-day="{{item.value}}" bindinput="onDurationInput" />
+        </view>
+      </view>
+
+      <view wx:if="{{selectedDayRows.length}}" class="plan-start-picker-wrap">
+        <text class="plan-start-label">{{tr.longDay}}</text>
+        <picker mode="selector" range="{{longDayOptions}}" value="{{longDayIndex}}" bindchange="onLongDayChange">
+          <view class="plan-start-picker"><text>{{longDayOptions[longDayIndex]}}</text></view>
+        </picker>
+      </view>
+
+      <view class="plan-start-note">
+        <text class="plan-start-note-title">{{tr.terrain}}</text>
+        <text class="plan-start-copy">{{tr.terrainDetail}}</text>
+      </view>
+      <view wx:if="{{perDayLimitConflict}}" class="plan-start-warning">
+        <text>{{tr.perDayUnsupported}}</text>
+        <text class="plan-start-copy">{{tr.perDayUnsupportedDetail}}</text>
+      </view>
+
+      <text wx:if="{{errorMessage}}" class="plan-start-error">{{errorMessage}}</text>
+      <view class="plan-start-primary" bindtap="onCheckReadiness" aria-role="button"><text>{{working === 'readiness' ? tr.checking : tr.check}}</text></view>
+      <view wx:if="{{readiness && readiness.result.code === 'ready' && !proposal}}" class="plan-start-secondary" bindtap="onGenerate" aria-role="button"><text>{{working === 'generate' ? tr.creating : tr.create}}</text></view>
+    </view>
+
+    <view wx:if="{{readiness}}" class="ts-card plan-start-card">
+      <text class="plan-start-title">{{tr.result}}</text>
+      <text class="plan-start-badge">{{readiness.result.code}}</text>
+      <text class="plan-start-copy">{{readinessReason}}</text>
+      <view wx:if="{{readiness.result.alternatives.length}}" class="plan-start-list">
+        <text wx:for="{{readiness.result.alternatives}}" wx:key="*this" class="plan-start-copy">· {{item}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{proposal}}" class="ts-card plan-start-card">
+      <text class="plan-start-title">{{tr.proposal}}</text>
+      <text class="plan-start-badge">{{proposal.state}}</text>
+      <text class="plan-start-copy">{{tr.proposalNotPlan}}</text>
+      <view class="plan-start-version-grid">
+        <text class="ts-muted">{{tr.policy}}</text><text class="ts-value">{{proposal.policy_version || '—'}}</text>
+        <text class="ts-muted">{{tr.generator}}</text><text class="ts-value">{{proposal.model_version || '—'}}</text>
+        <text class="ts-muted">{{tr.science}}</text><text class="ts-value">{{proposal.science_version || '—'}}</text>
+      </view>
+      <view class="plan-start-workouts">
+        <view wx:for="{{proposal.workouts}}" wx:key="date" class="plan-start-workout">
+          <text><text class="ts-value">{{item.date}}</text> · {{item.workout_type}}</text>
+          <text class="ts-value">{{item.planned_duration_min || '—'}} min</text>
+        </view>
+      </view>
+      <text class="plan-start-copy">{{tr.inputsOnly}}</text>
+      <block wx:if="{{proposal.state === 'draft'}}">
+        <view class="plan-start-primary" bindtap="onAdopt" aria-role="button"><text>{{working === 'adopt' ? tr.adopting : tr.adopt}}</text></view>
+        <view class="plan-start-secondary" bindtap="onRegenerate" aria-role="button"><text>{{working === 'regenerate' ? tr.regenerating : tr.regenerate}}</text></view>
+        <view class="plan-start-ghost" bindtap="onReject" aria-role="button"><text>{{working === 'reject' ? tr.rejecting : tr.reject}}</text></view>
+      </block>
+      <view wx:if="{{proposal.state === 'adopted'}}" class="plan-start-note">
+        <text class="plan-start-note-title">{{tr.deliveryDisabled}}</text>
+      </view>
+      <view wx:if="{{proposal.state === 'expired' || proposal.state === 'rejected' || proposal.state === 'superseded'}}" class="plan-start-warning">
+        <text>{{tr.lifecycle}}</text>
+        <text class="plan-start-copy">{{tr.lifecycleDetail}}</text>
+      </view>
+    </view>
+
+    <text wx:if="{{notice}}" class="plan-start-success">{{notice}}</text>
+    <view wx:if="{{errorMessage}}" class="plan-start-retry" bindtap="onRefreshProposal" aria-role="button"><text>{{tr.refresh}}</text></view>
+  </block>
+</view>

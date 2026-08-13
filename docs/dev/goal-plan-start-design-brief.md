@@ -1,0 +1,7 @@
+# Goal → plan-start brief
+
+- **Job and audience:** An adult recreational runner with an outdoor-road 5K performance goal moves from Goal evidence into a non-canonical plan preview; this is an Operate flow for an athlete deciding whether to adopt a plan, not a promise of a result.
+- **Sequence:** Goal keeps purpose, history-first baseline evidence, and the entry action. Training holds scoped availability, a transparent readiness result, a proposal clearly marked as not yet canonical, exact-version regeneration/rejection/adoption, then the existing delivery-consent surface only after adoption.
+- **Direction:** Preserve the Field Lab's flat, warm-paper instrument layout: green for the one action at each step; cobalt for policy, version, uncertainty, and sources. Use the existing cards, alerts, sheets, inputs, and workout structure editor rather than a new navigation lane.
+- **Boundaries:** The shared deterministic API remains the sole source of eligibility, scheduling, targets, and alternatives. V1 accepts one shared session-duration limit, so distinct per-day limits and terrain/equipment customization are explicitly surfaced as unsupported rather than approximated in either client.
+- **States:** Loading, slow/offline and retry; unsupported/missing goal; every baseline/readiness code; missing or sparse history; contradictory availability; no-power outcome; fallback explanation; validation; draft/expired/rejected/superseded/stale/adopted lifecycle; delivery disabled, preview, failure, and conflict.
