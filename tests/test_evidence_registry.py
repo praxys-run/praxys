@@ -191,8 +191,9 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     five_km_decision = registry.decisions[
         "sdr-outdoor-5k-plan-generation-policy-v1"
     ]
-    assert five_km_review.status == "draft"
-    assert five_km_review.human_reviewers == []
+    assert five_km_review.status == "accepted"
+    assert five_km_review.human_reviewers == ["github:dddtc2005"]
+    assert five_km_review.reviewed_on == date(2026, 8, 13)
     assert five_km_review.supersedes == []
     assert five_km_review.superseded_by is None
     assert five_km_review.method.review_type.value == "rigorous"
@@ -212,8 +213,9 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     } <= {
         note.split(";", 1)[0] for note in five_km_review.review_notes
     }
-    assert five_km_decision.status == "draft"
-    assert five_km_decision.human_reviewers == []
+    assert five_km_decision.status == "accepted"
+    assert five_km_decision.human_reviewers == ["github:dddtc2005"]
+    assert five_km_decision.decision_date == date(2026, 8, 13)
     assert five_km_decision.supersedes == []
     assert five_km_decision.superseded_by is None
     assert five_km_decision.evidence_review_ids == [
@@ -229,7 +231,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     }
     assert five_km_parameters["activation_and_authority"].value[
         "active_behavior"
-    ] is False
+    ] is True
     assert five_km_parameters["plan_horizon_and_reassessment"].value[
         "block_days"
     ] == 28
@@ -258,7 +260,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "prohibited_historical_intensity_source"
     ] == ["activity_avg_power"]
     assert any(
-        "No generation implementation" in note
+        "authorizes bounded implementation work" in note
         for note in five_km_decision.decision_notes
     )
     assert {

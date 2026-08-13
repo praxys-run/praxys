@@ -8,20 +8,21 @@ research_question: >
   elapsed-time goal, what evidence supports and limits a conservative,
   suggestion-only multi-week plan-generation policy?
 topic: outdoor-5k-plan-generation-policy
-status: draft
+status: accepted
 authors:
   - agent:github-copilot
-human_reviewers: []
+human_reviewers:
+  - github:dddtc2005
 created_on: 2026-08-11
-reviewed_on:
+reviewed_on: 2026-08-13
 intended_product_purpose: >
   Bound the first Praxys plan-generation proposal to one accepted baseline and
   goal population. Separate evidence for structured training, training-
   intensity distribution, quality-session frequency, tapering, progression,
   and individual-response interpretation from Praxys guardrails such as the
   plan horizon, recent-history requirement, and deterministic validation
-  envelope. This draft does not authorize implementation or change user-facing
-  behavior until an identified human science reviewer accepts the decision.
+  envelope. This accepted review supplies evidence boundaries for the linked
+  decision but does not itself implement or change user-facing behavior.
 scope:
   population:
     - Adults aged 18 years or older

@@ -1,12 +1,13 @@
 schema_version: 1
 id: sdr-outdoor-5k-plan-generation-policy-v1
 version: 1
-title: "Propose a history-anchored 28-day outdoor 5 km plan block"
-status: draft
-decision_date: 2026-08-11
+title: "Use a history-anchored 28-day outdoor 5 km plan block"
+status: accepted
+decision_date: 2026-08-13
 owners:
   - team:praxys
-human_reviewers: []
+human_reviewers:
+  - github:dddtc2005
 model_version: outdoor-5k-plan-generation-policy-v1
 evidence_review_ids:
   - evidence-preplan-baseline-policy-v1
@@ -23,7 +24,7 @@ evidence_claim_ids:
   - outdoor-5k-plan.fixed-progression-not-safety-threshold
   - outdoor-5k-plan.individual-outcomes-require-error-aware-validation
 accepted_interpretation: >
-  This draft proposes a suggestion-only, deterministic 28-day adaptive plan
+  Praxys accepts a suggestion-only, deterministic 28-day adaptive plan
   block for adults aged 18 years or older who match the accepted outdoor road
   5 km baseline population, hold a current qualified 5 km baseline, and have
   enough recent complete running history to anchor dose. The block is a
@@ -45,8 +46,9 @@ accepted_interpretation: >
   inputs yield a typed no-plan outcome and a bounded alternative rather than
   extrapolation. The proposal makes no efficacy guarantee, personal success
   probability, medical inference, causal adherence diagnosis, or automatic
-  catch-up recommendation. It becomes active only after an identified human
-  science reviewer accepts this SDR and a separate implementation is reviewed.
+  catch-up recommendation. This accepted decision authorizes a separately
+  reviewed implementation within these bounds; it does not itself ship
+  behavior.
 rejected_alternatives:
   - alternative: "Keep the plugin's current 28-day prompt and validator unchanged"
     rationale: >
@@ -90,7 +92,7 @@ rejected_alternatives:
 model_parameters:
   - name: activation_and_authority
     value:
-      active_behavior: false
+      active_behavior: true
       human_acceptance_required: true
       suggestion_only: true
       canonical_adoption_requires_separate_explicit_consent: true
@@ -98,9 +100,9 @@ model_parameters:
     classification: guardrail
     evidence_claim_ids: []
     rationale: >
-      Draft science records do not authorize behavior. Separating proposal,
-      adoption, and delivery preserves athlete control and the canonical plan
-      boundary.
+      Human acceptance activates this policy for a separately reviewed
+      implementation. Separating proposal, adoption, and delivery preserves
+      athlete control and the canonical plan boundary.
     applies_to: outdoor-5k-plan-generation-policy-v1
   - name: eligible_goal_and_population
     value:
@@ -450,7 +452,7 @@ model_parameters:
   - name: validation_order_and_no_plan_states
     value:
       validation_order:
-        - draft_policy_not_active
+        - accepted_policy_active
         - eligible_goal_and_population
         - athlete_reported_safety_stop
         - current_qualified_baseline
@@ -569,7 +571,7 @@ validation_plan:
   - Do not claim effectiveness from the process/safety pilot. A later efficacy comparison against a versioned minimal static template requires a separate pre-registered protocol, human science approval, adequate sample size, and guardrail outcomes.
   - Expansion to other distances, beginner plans, progression rules, autonomous revision, or personal outcome probabilities requires a new Evidence Review and SDR.
 falsification_conditions:
-  - Any implementation activates this draft before explicit human acceptance.
+  - Any implementation activates a non-accepted policy version or bypasses explicit human acceptance.
   - A proposal is generated outside the eligible population, baseline, or recent-history prerequisites.
   - Any client, AI path, or direct API call can bypass deterministic validation.
   - The same versioned inputs produce a different schedule.
@@ -603,7 +605,7 @@ affected_surfaces:
 supersedes: []
 superseded_by:
 decision_notes:
-  - This is Decision proposal mode. Both the Evidence Review and SDR remain draft, with no human reviewer recorded and no active behavior.
+  - The Evidence Review and SDR were accepted by github:dddtc2005 on 2026-08-13; this activates the policy boundary for separate implementation review.
   - "Rule disposition: retain 28 days only as a rolling workflow guardrail, not as an optimal training duration."
   - "Rule disposition: reject the fixed three-build/one-recovery cycle."
   - "Rule disposition: reject plus or minus 10 percent progression as a safety law; v1 programs no progression beyond the recent typical complete week."
@@ -613,12 +615,12 @@ decision_notes:
   - "Rule disposition: keep at most one longest easy run only when recent history supports it and never progress it beyond the recent longest completed run."
   - "Rule disposition: reject generic 40 to 130 percent threshold-power bounds; power is optional and tied to the active athlete-specific zone model."
   - Exact interval repeat structure remains a product-template guardrail and evidence gap. Human acceptance of this envelope does not turn a future template into published science.
-  - Keep active_behavior false while this record is draft. Human acceptance is necessary but not sufficient for shipping.
-  - After acceptance, implement the deterministic policy as a pure versioned analysis service with no I/O or global state.
+  - Human acceptance activates the policy boundary but remains insufficient for shipping without separate implementation review.
+  - Implement the deterministic policy as a pure versioned analysis service with no I/O or global state.
   - Load current baseline evidence, six completed weeks of running history, split or sample intensity evidence, active zone models, and explicit athlete constraints through the data layer.
   - Return a versioned non-canonical proposal or a typed no-plan outcome; generation must not write canonical workouts.
   - Validate proposal freshness and adopt atomically through the adaptive-plan proposal domain while keeping provider delivery separate.
   - Use the same generator and validator for web, miniapp, plugin, and MCP clients.
   - Register exact deterministic workout-template IDs and steps with the model version; they remain product guardrails and must not be described as published optima.
-  - Human science review is required before issue 670 implements active generation.
-  - No generation implementation, active model behavior, theory change, API response, or user-facing claim is authorized by this draft alone.
+  - Human science review was completed before issue 670 begins active generation implementation.
+  - This accepted decision authorizes bounded implementation work, not an efficacy claim, automatic adoption, provider delivery, or release without implementation review.
