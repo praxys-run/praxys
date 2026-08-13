@@ -34,6 +34,11 @@
           disabled="{{editorSaving}}"
           bindrefresh="onCoachFeedbackStale"
         />
+        <view wx:if="{{goalKind === 'performance_5k' && baseline}}" class="ts-card outdoor-5k-goal-entry">
+          <text class="goal-section-title">{{tr.outdoor5kPlan}}</text>
+          <text class="goal-copy ts-muted">{{tr.outdoor5kPlanDetail}}</text>
+          <view class="goal-primary-action" bindtap="onStartOutdoor5kPlan" aria-role="button"><text>{{tr.openPlanPreview}}</text></view>
+        </view>
 
         <block wx:else>
 

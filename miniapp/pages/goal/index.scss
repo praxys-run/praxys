@@ -16,6 +16,13 @@
   padding: 32rpx 32rpx 200rpx;
 }
 
+.outdoor-5k-goal-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+  margin-top: 24rpx;
+}
+
 .goal-edit-row {
   display: flex;
   justify-content: flex-end;

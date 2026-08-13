@@ -1,0 +1,195 @@
+.plan-start {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.plan-start-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.plan-start-title {
+  color: var(--ts-fg);
+  font-size: 32rpx;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.plan-start-section,
+.plan-start-label,
+.plan-start-note-title {
+  color: var(--ts-fg);
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.plan-start-copy {
+  color: var(--ts-muted);
+  font-size: 25rpx;
+  line-height: 1.55;
+}
+
+.plan-start-rule {
+  height: 1rpx;
+  background: var(--ts-rule);
+}
+
+.plan-start-toggle,
+.plan-start-primary,
+.plan-start-secondary,
+.plan-start-ghost,
+.plan-start-retry,
+.plan-start-picker,
+.plan-start-day {
+  min-height: 88rpx;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12rpx;
+}
+
+.plan-start-toggle,
+.plan-start-secondary,
+.plan-start-ghost,
+.plan-start-picker,
+.plan-start-day,
+.plan-start-retry {
+  border: 1rpx solid var(--ts-rule);
+  color: var(--ts-fg);
+  background: var(--ts-card);
+}
+
+.plan-start-toggle {
+  justify-content: flex-start;
+  padding: 0 24rpx;
+  font-size: 25rpx;
+}
+
+.plan-start-toggle--active,
+.plan-start-primary {
+  border: 1rpx solid var(--ts-primary);
+  background: var(--ts-primary);
+  color: var(--ts-paper);
+}
+
+.plan-start-toggle--danger {
+  border: 1rpx solid var(--ts-danger);
+  color: var(--ts-danger);
+}
+
+.plan-start-primary,
+.plan-start-secondary,
+.plan-start-ghost {
+  padding: 0 24rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.plan-start-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.plan-start-day {
+  width: 84rpx;
+  font-size: 24rpx;
+}
+
+.plan-start-day--active {
+  border-color: var(--ts-primary);
+  color: var(--ts-primary);
+}
+
+.plan-start-limits,
+.plan-start-version-grid,
+.plan-start-workouts,
+.plan-start-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.plan-start-limit {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.plan-start-input {
+  min-height: 80rpx;
+  box-sizing: border-box;
+  border: 1rpx solid var(--ts-rule);
+  border-radius: 12rpx;
+  padding: 0 20rpx;
+  color: var(--ts-fg);
+}
+
+.plan-start-picker-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.plan-start-picker {
+  justify-content: flex-start;
+  padding: 0 20rpx;
+  font-size: 25rpx;
+}
+
+.plan-start-note,
+.plan-start-warning {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  border-top: 1rpx solid var(--ts-rule);
+  border-bottom: 1rpx solid var(--ts-rule);
+  padding: 18rpx 0;
+}
+
+.plan-start-warning .plan-start-note-title,
+.plan-start-error {
+  color: var(--ts-danger);
+}
+
+.plan-start-badge {
+  align-self: flex-start;
+  border: 1rpx solid var(--ts-rule);
+  border-radius: 8rpx;
+  padding: 5rpx 12rpx;
+  color: var(--ts-muted);
+  font-family: var(--ts-font-data);
+  font-size: 21rpx;
+}
+
+.plan-start-version-grid {
+  display: grid;
+  grid-template-columns: 170rpx 1fr;
+  gap: 8rpx 16rpx;
+  border-top: 1rpx solid var(--ts-rule);
+  border-bottom: 1rpx solid var(--ts-rule);
+  padding: 16rpx 0;
+  font-size: 23rpx;
+}
+
+.plan-start-workout {
+  display: flex;
+  justify-content: space-between;
+  gap: 16rpx;
+  border-bottom: 1rpx solid var(--ts-rule);
+  padding-bottom: 12rpx;
+  color: var(--ts-fg);
+  font-size: 24rpx;
+}
+
+.plan-start-success {
+  color: var(--ts-primary);
+  font-size: 25rpx;
+}
+
+.plan-start-error {
+  font-size: 25rpx;
+}

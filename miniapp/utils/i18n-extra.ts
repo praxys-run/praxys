@@ -962,6 +962,42 @@ const ZH_PRIVATE_CONTEXT = {
     '后续请求发送前可随时撤回；已经由 AI 服务处理的请求无法撤回。',
 };
 
+const EN_PLAN_START = {
+  'This pilot is available only for the supported outdoor road 5K performance goal.':
+    'This pilot is available only for the supported outdoor road 5K performance goal.',
+  'For adult, self-coached recreational outdoor-road 5K runners. This is not a diagnosis, clearance, or performance guarantee.':
+    'For adult, self-coached recreational outdoor-road 5K runners. This is not a diagnosis, clearance, or performance guarantee.',
+  'Tell Praxys if a safety stop applies. The policy will stop this path and show its bounded alternatives.':
+    'Tell Praxys if a safety stop applies. The policy will stop this path and show its bounded alternatives.',
+  'Select availability, then give the same supported session limit for every selected day.':
+    'Select availability, then give the same supported session limit for every selected day.',
+  'Time limit (minutes)': 'Time limit (minutes)',
+  ready: 'ready',
+  'This proposal cannot mutate the canonical plan. Review readiness and create a new proposal when you are ready.':
+    'This proposal cannot mutate the canonical plan. Review readiness and create a new proposal when you are ready.',
+  'A preview checks current evidence and constraints. It is a proposal, not yet your plan.':
+    'A preview checks current evidence and constraints. It is a proposal, not yet your plan.',
+  Science: 'Science',
+};
+
+const ZH_PLAN_START = {
+  'This pilot is available only for the supported outdoor road 5K performance goal.':
+    '此试点仅适用于受支持的户外公路 5 公里表现目标。',
+  'For adult, self-coached recreational outdoor-road 5K runners. This is not a diagnosis, clearance, or performance guarantee.':
+    '面向成年、自主训练的休闲户外公路 5 公里跑者。这不是诊断、健康许可或表现保证。',
+  'Tell Praxys if a safety stop applies. The policy will stop this path and show its bounded alternatives.':
+    '如果存在安全停止条件，请告知 Praxys。政策将停止此路径并显示其限定的替代方案。',
+  'Select availability, then give the same supported session limit for every selected day.':
+    '选择可用日期，然后为每个选定日期填写相同的受支持单次训练上限。',
+  'Time limit (minutes)': '时间上限（分钟）',
+  ready: '就绪',
+  'This proposal cannot mutate the canonical plan. Review readiness and create a new proposal when you are ready.':
+    '此提案无法更改规范计划。准备好后请复核准备情况并创建新提案。',
+  'A preview checks current evidence and constraints. It is a proposal, not yet your plan.':
+    '预览会核查当前证据和限制条件。它只是提案，尚未成为你的计划。',
+  Science: '科学',
+};
+
 export const I18N_EXTRA: Record<Locale, Record<string, string>> = {
   en: {
     ...EN_AUTH,
@@ -976,6 +1012,7 @@ export const I18N_EXTRA: Record<Locale, Record<string, string>> = {
     ...EN_LABS,
     ...EN_LEGAL,
     ...EN_PRIVATE_CONTEXT,
+    ...EN_PLAN_START,
   },
   zh: {
     ...ZH_AUTH,
@@ -990,5 +1027,6 @@ export const I18N_EXTRA: Record<Locale, Record<string, string>> = {
     ...ZH_LABS,
     ...ZH_LEGAL,
     ...ZH_PRIVATE_CONTEXT,
+    ...ZH_PLAN_START,
   },
 };
