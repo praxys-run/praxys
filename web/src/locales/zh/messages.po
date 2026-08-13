@@ -250,7 +250,7 @@ msgstr "{conflictCount, plural, other {# 个待处理}}"
 #~ msgid "{conflictCount} need review"
 #~ msgstr "{conflictCount} 个待处理"
 
-#: src/components/Outdoor5KPlanStart.tsx:544
+#: src/components/Outdoor5KPlanStart.tsx:552
 msgid "{dayLabel} time limit (minutes)"
 msgstr "{dayLabel} 时间上限（分钟）"
 
@@ -516,7 +516,7 @@ msgstr "已触发非诊断安全停止；Praxys 不会给出诊断、治疗或�
 msgid "A positive judgment synchronizes agent-ready; when it newly labels an open, non-backlogged linked issue, the assignment workflow hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain."
 msgstr "正向判断会同步 agent-ready；若这次操作为处于开启状态且未列入 backlog 的关联议题新添标签，指派工作流会将其交给 Copilot。负向判断会移除标签，但已有指派或 PR 可能保留。"
 
-#: src/components/Outdoor5KPlanStart.tsx:120
+#: src/components/Outdoor5KPlanStart.tsx:113
 msgid "A preview is a proposal, not yet your plan. Praxys checks the current evidence and constraints again before it creates one."
 msgstr "预览只是提案，尚未成为你的计划。Praxys 会在创建前再次核查当前证据与限制条件。"
 
@@ -555,7 +555,7 @@ msgstr "单次活动对结果的影响过大。"
 msgid "A Stryd-aligned Critical Power value is required for this experiment."
 msgstr "此实验需要与 Stryd 数据一致的临界功率值。"
 
-#: src/components/Outdoor5KPlanStart.tsx:335
+#: src/components/Outdoor5KPlanStart.tsx:340
 msgid "A successor proposal is ready. The earlier proposal is preserved as superseded."
 msgstr "后继提案已就绪。此前的提案会保留为已取代。"
 
@@ -809,7 +809,7 @@ msgstr "管理后台"
 msgid "Admin sections"
 msgstr "管理模块"
 
-#: src/components/Outdoor5KPlanStart.tsx:697
+#: src/components/Outdoor5KPlanStart.tsx:705
 msgid "Adopt exact proposal"
 msgstr "采纳此精确提案"
 
@@ -821,7 +821,7 @@ msgstr "前往设置启用"
 msgid "Adopt Praxys as your planner before enabling automatic changes. Coaching remains suggestion-only."
 msgstr "将 Praxys 设为计划方后，才能启用自动调整。目前仍仅提供建议。"
 
-#: src/components/Outdoor5KPlanStart.tsx:697
+#: src/components/Outdoor5KPlanStart.tsx:705
 msgid "Adopting…"
 msgstr "正在采纳…"
 
@@ -1153,7 +1153,7 @@ msgstr "可参与的实验"
 msgid "Available minutes must be a whole number from 1 to 1440."
 msgstr "可训练时长须为 1 到 1440 之间的整数。"
 
-#: src/components/Outdoor5KPlanStart.tsx:514
+#: src/components/Outdoor5KPlanStart.tsx:522
 msgid "Available run days"
 msgstr "可跑步的日期"
 
@@ -1276,12 +1276,12 @@ msgstr "基准"
 msgid "Baseline evidence is currently sufficient."
 msgstr "当前基线证据足够。"
 
-#: src/components/Outdoor5KPlanStart.tsx:455
+#: src/components/Outdoor5KPlanStart.tsx:463
 msgid "Baseline needs review"
 msgstr "基线需要复核"
 
-#: src/components/Outdoor5KPlanStart.tsx:112
-#: src/components/Outdoor5KPlanStart.tsx:455
+#: src/components/Outdoor5KPlanStart.tsx:105
+#: src/components/Outdoor5KPlanStart.tsx:463
 msgid "Baseline ready"
 msgstr "基线已就绪"
 
@@ -1510,7 +1510,7 @@ msgstr "后续已更改"
 msgid "Changed what I'll do"
 msgstr "调整了今天的训练安排"
 
-#: src/components/Outdoor5KPlanStart.tsx:602
+#: src/components/Outdoor5KPlanStart.tsx:610
 msgid "Check readiness"
 msgstr "检查准备情况"
 
@@ -1534,7 +1534,7 @@ msgstr "正在检查交付兼容性…"
 #~ msgid "Checking provider compatibility…"
 #~ msgstr "正在检查平台兼容性…"
 
-#: src/components/Outdoor5KPlanStart.tsx:602
+#: src/components/Outdoor5KPlanStart.tsx:610
 msgid "Checking readiness…"
 msgstr "正在检查准备情况…"
 
@@ -1588,7 +1588,7 @@ msgstr "请先选择原因类型。"
 msgid "Choose primary source"
 msgstr "选择首选数据来源"
 
-#: src/components/Outdoor5KPlanStart.tsx:201
+#: src/components/Outdoor5KPlanStart.tsx:195
 msgid "Choose the days you are available to run."
 msgstr "请选择可以跑步的日期。"
 
@@ -1721,7 +1721,7 @@ msgstr "兼容性预览暂不可用。请检查网络后重试。"
 msgid "Complete these steps to unlock your training insights"
 msgstr "完成以下步骤，解锁训练解读"
 
-#: src/components/Outdoor5KPlanStart.tsx:626
+#: src/components/Outdoor5KPlanStart.tsx:634
 msgid "complete weeks; latest run"
 msgstr "个完整周；最近一次跑步"
 
@@ -1773,7 +1773,7 @@ msgstr "确认已满 18 周岁后才能加入此实验。"
 msgid "Confirm the boundary before Praxys writes to {targetLabel}."
 msgstr "确认管理边界后，Praxys 才会写入 {targetLabel}。"
 
-#: src/components/Outdoor5KPlanStart.tsx:199
+#: src/components/Outdoor5KPlanStart.tsx:193
 msgid "Confirm the supported athlete and goal scope first."
 msgstr "请先确认受支持的运动员和目标范围。"
 
@@ -1977,13 +1977,13 @@ msgstr "更正计划个性化信息"
 msgid "Could not add this workout"
 msgstr "无法添加这项训练"
 
-#: src/components/Outdoor5KPlanStart.tsx:391
-#: src/components/Outdoor5KPlanStart.tsx:399
+#: src/components/Outdoor5KPlanStart.tsx:398
+#: src/components/Outdoor5KPlanStart.tsx:407
 msgid "Could not adopt the proposal."
 msgstr "无法采纳该提案。"
 
-#: src/components/Outdoor5KPlanStart.tsx:266
-#: src/components/Outdoor5KPlanStart.tsx:271
+#: src/components/Outdoor5KPlanStart.tsx:270
+#: src/components/Outdoor5KPlanStart.tsx:275
 msgid "Could not assess this plan start."
 msgstr "无法评估此计划起点。"
 
@@ -2005,8 +2005,8 @@ msgstr "无法转换此旧版训练。"
 msgid "Could not convert this workout to rest"
 msgstr "无法将这项训练改为休息"
 
-#: src/components/Outdoor5KPlanStart.tsx:294
-#: src/components/Outdoor5KPlanStart.tsx:304
+#: src/components/Outdoor5KPlanStart.tsx:298
+#: src/components/Outdoor5KPlanStart.tsx:309
 msgid "Could not create the proposal."
 msgstr "无法创建提案。"
 
@@ -2040,7 +2040,7 @@ msgstr "无法退出托管模式"
 msgid "Could not load automatic change history."
 msgstr "无法加载自动调整记录。"
 
-#: src/components/Outdoor5KPlanStart.tsx:410
+#: src/components/Outdoor5KPlanStart.tsx:418
 msgid "Could not load plan-start context"
 msgstr "无法加载计划起点上下文"
 
@@ -2057,17 +2057,17 @@ msgstr "无法加载这条计划个性化信息。"
 msgid "Could not pause delivery"
 msgstr "无法暂停下发"
 
-#: src/components/Outdoor5KPlanStart.tsx:645
+#: src/components/Outdoor5KPlanStart.tsx:653
 msgid "Could not refresh proposal state"
 msgstr "无法刷新提案状态"
 
-#: src/components/Outdoor5KPlanStart.tsx:331
-#: src/components/Outdoor5KPlanStart.tsx:341
+#: src/components/Outdoor5KPlanStart.tsx:336
+#: src/components/Outdoor5KPlanStart.tsx:347
 msgid "Could not regenerate the proposal."
 msgstr "无法重新生成提案。"
 
-#: src/components/Outdoor5KPlanStart.tsx:363
-#: src/components/Outdoor5KPlanStart.tsx:368
+#: src/components/Outdoor5KPlanStart.tsx:369
+#: src/components/Outdoor5KPlanStart.tsx:375
 msgid "Could not reject the proposal."
 msgstr "无法拒绝该提案。"
 
@@ -2219,7 +2219,7 @@ msgstr "创建账号"
 msgid "Create and manage dismissible banners shown to all users."
 msgstr "创建和管理向所有用户显示、可关闭的横幅公告。"
 
-#: src/components/Outdoor5KPlanStart.tsx:606
+#: src/components/Outdoor5KPlanStart.tsx:614
 msgid "Create proposal"
 msgstr "创建提案"
 
@@ -2243,7 +2243,7 @@ msgstr "创建时间"
 msgid "Creating account…"
 msgstr "正在创建账号…"
 
-#: src/components/Outdoor5KPlanStart.tsx:606
+#: src/components/Outdoor5KPlanStart.tsx:614
 msgid "Creating proposal…"
 msgstr "正在创建提案…"
 
@@ -2587,7 +2587,7 @@ msgstr "下发结果"
 msgid "Delivery preview"
 msgstr "交付预览"
 
-#: src/components/Outdoor5KPlanStart.tsx:723
+#: src/components/Outdoor5KPlanStart.tsx:731
 msgid "Delivery remains disabled. Review the existing 14-day managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan."
 msgstr "投递仍处于禁用状态。请查看现有的 14 天托管投递预览，并且只有在希望 Praxys 投递此规范计划时才明确同意。"
 
@@ -3110,7 +3110,7 @@ msgstr "请使用当前显示的单位输入完整数值。"
 msgid "Enter numeric temperature and humidity values."
 msgstr "请输入有效的温度和湿度数值。"
 
-#: src/components/Outdoor5KPlanStart.tsx:205
+#: src/components/Outdoor5KPlanStart.tsx:199
 msgid "Enter one whole-minute limit for every selected day."
 msgstr "请为每个选定日期输入相同的整分钟上限。"
 
@@ -3248,7 +3248,7 @@ msgstr "执行平台已更换，下发仍保持暂停。"
 msgid "Expired"
 msgstr "已过期"
 
-#: src/components/Outdoor5KPlanStart.tsx:691
+#: src/components/Outdoor5KPlanStart.tsx:699
 msgid "Expires:"
 msgstr "到期时间："
 
@@ -3665,7 +3665,7 @@ msgstr "请前往 cloud.ouraring.com/personal-access-tokens 生成令牌。"
 msgid "Generating…"
 msgstr "正在生成…"
 
-#: src/components/Outdoor5KPlanStart.tsx:669
+#: src/components/Outdoor5KPlanStart.tsx:677
 msgid "Generator"
 msgstr "生成器"
 
@@ -3908,7 +3908,7 @@ msgstr "历史候选活动"
 msgid "History first: you already have usable current 5K evidence."
 msgstr "先看历史：已有可用的当前 5 公里能力证据。"
 
-#: src/components/Outdoor5KPlanStart.tsx:624
+#: src/components/Outdoor5KPlanStart.tsx:632
 msgid "History used:"
 msgstr "已使用的历史："
 
@@ -4096,15 +4096,15 @@ msgstr "湿度（%）"
 msgid "I agree to the <0>Terms of Service</0> and <1>Privacy Policy</1>."
 msgstr "我同意<0>服务条款</0>和<1>隐私政策</1>。"
 
-#: src/components/Outdoor5KPlanStart.tsx:472
+#: src/components/Outdoor5KPlanStart.tsx:480
 msgid "I am 18 or older."
 msgstr "我已满 18 周岁。"
 
-#: src/components/Outdoor5KPlanStart.tsx:473
+#: src/components/Outdoor5KPlanStart.tsx:481
 msgid "I am self-coached for recreational road running."
 msgstr "我是自主训练的休闲公路跑者。"
 
-#: src/components/Outdoor5KPlanStart.tsx:474
+#: src/components/Outdoor5KPlanStart.tsx:482
 msgid "I can currently complete 5 km."
 msgstr "我目前可以完成 5 公里。"
 
@@ -5134,7 +5134,7 @@ msgstr "上移"
 msgid "Multiple platforms provide <0>{0}</0> data. Which should be the primary source?"
 msgstr "多个平台都提供 <0>{0}</0> 数据。要将哪个设为主要来源？"
 
-#: src/components/Outdoor5KPlanStart.tsx:475
+#: src/components/Outdoor5KPlanStart.tsx:483
 msgid "My goal is an outdoor road 5K."
 msgstr "我的目标是户外公路 5 公里。"
 
@@ -5474,8 +5474,8 @@ msgstr "本周暂无计划负荷"
 msgid "No Praxys workouts are scheduled in this window. Future Praxys-created workouts will enter the rolling window automatically."
 msgstr "此窗口内暂无 Praxys 训练。之后由 Praxys 创建的训练会自动进入滚动窗口。"
 
-#: src/components/Outdoor5KPlanStart.tsx:577
-#: src/components/Outdoor5KPlanStart.tsx:579
+#: src/components/Outdoor5KPlanStart.tsx:585
+#: src/components/Outdoor5KPlanStart.tsx:587
 msgid "No preference"
 msgstr "无偏好"
 
@@ -5520,7 +5520,7 @@ msgstr "暂无可关联的近期 Praxys 训练。"
 #~ msgid "No reliable heat history yet"
 #~ msgstr "尚无可靠的热适应历史"
 
-#: src/components/Outdoor5KPlanStart.tsx:509
+#: src/components/Outdoor5KPlanStart.tsx:517
 msgid "No safety stop"
 msgstr "没有安全停止条件"
 
@@ -5935,7 +5935,7 @@ msgstr "查看反馈"
 #~ msgid "Open incident"
 #~ msgstr "发布事故"
 
-#: src/components/Outdoor5KPlanStart.tsx:125
+#: src/components/Outdoor5KPlanStart.tsx:118
 msgid "Open plan preview"
 msgstr "打开计划预览"
 
@@ -6053,11 +6053,11 @@ msgstr "服务中断"
 #~ msgid "Outdoor connector temperature and humidity plus work at or above 50% of a same-provider current CP. Timestamped samples need at least 90% duration coverage; splits are the fallback. A session counts at 30 effective minutes."
 #~ msgstr "室外连接器提供的温度和湿度，加上达到同一提供方当前 CP 50% 及以上的训练负荷。时间戳样本需覆盖至少 90% 的活动时长；否则回退到分段数据。单次训练达到 30 个加权分钟才计入。"
 
-#: src/components/Outdoor5KPlanStart.tsx:102
+#: src/components/Outdoor5KPlanStart.tsx:95
 msgid "Outdoor road 5K plan"
 msgstr "户外公路 5 公里计划"
 
-#: src/components/Outdoor5KPlanStart.tsx:423
+#: src/components/Outdoor5KPlanStart.tsx:431
 msgid "Outdoor road 5K plans"
 msgstr "户外公路 5 公里计划"
 
@@ -6197,11 +6197,11 @@ msgstr "训练指标"
 msgid "Pending <0>{0}</0>"
 msgstr "待处理 <0>{0}</0>"
 
-#: src/components/Outdoor5KPlanStart.tsx:561
+#: src/components/Outdoor5KPlanStart.tsx:569
 msgid "Per-day limits are unsupported"
 msgstr "不支持按日设置上限"
 
-#: src/components/Outdoor5KPlanStart.tsx:204
+#: src/components/Outdoor5KPlanStart.tsx:198
 msgid "Per-day limits are unsupported by this policy. Use one shared limit for all selected days."
 msgstr "此政策不支持按日设置上限。请为所有选定日期使用一个共享上限。"
 
@@ -6246,11 +6246,11 @@ msgstr "计划活动"
 msgid "Plan adjustment"
 msgstr "计划调整"
 
-#: src/components/Outdoor5KPlanStart.tsx:721
+#: src/components/Outdoor5KPlanStart.tsx:729
 msgid "Plan adopted"
 msgstr "计划已采纳"
 
-#: src/components/Outdoor5KPlanStart.tsx:396
+#: src/components/Outdoor5KPlanStart.tsx:403
 msgid "Plan adopted. Delivery remains disabled until you explicitly enable it."
 msgstr "计划已采纳。在你明确启用前，投递仍处于禁用状态。"
 
@@ -6262,11 +6262,11 @@ msgstr "计划个性化信息"
 msgid "Plan management"
 msgstr "计划托管"
 
-#: src/components/Outdoor5KPlanStart.tsx:447
+#: src/components/Outdoor5KPlanStart.tsx:455
 msgid "Plan preview"
 msgstr "计划预览"
 
-#: src/components/Outdoor5KPlanStart.tsx:658
+#: src/components/Outdoor5KPlanStart.tsx:666
 msgid "Plan proposal"
 msgstr "计划提案"
 
@@ -6278,7 +6278,7 @@ msgstr "计划提案"
 msgid "Plan window"
 msgstr "计划范围"
 
-#: src/components/Outdoor5KPlanStart.tsx:742
+#: src/components/Outdoor5KPlanStart.tsx:750
 msgid "Plan-start action did not complete"
 msgstr "计划起点操作未完成"
 
@@ -6327,7 +6327,7 @@ msgstr "请检查邮箱格式后重试。"
 msgid "Please verify your email before signing in. Check your inbox for the link."
 msgstr "登录前请先验证邮箱。请查看收件箱中的验证链接。"
 
-#: src/components/Outdoor5KPlanStart.tsx:668
+#: src/components/Outdoor5KPlanStart.tsx:676
 msgid "Policy"
 msgstr "政策"
 
@@ -6653,7 +6653,7 @@ msgstr "不想说明"
 msgid "Prefer to wait?"
 msgstr "想先等等？"
 
-#: src/components/Outdoor5KPlanStart.tsx:572
+#: src/components/Outdoor5KPlanStart.tsx:580
 msgid "Preferred longest-run day"
 msgstr "偏好的最长跑日期"
 
@@ -6784,15 +6784,15 @@ msgstr "设为管理员"
 msgid "Prompt-semantic slice:"
 msgstr "提示词语义样本："
 
-#: src/components/Outdoor5KPlanStart.tsx:298
+#: src/components/Outdoor5KPlanStart.tsx:302
 msgid "Proposal created. It has not changed your canonical plan."
 msgstr "提案已创建。它尚未更改你的规范计划。"
 
-#: src/components/Outdoor5KPlanStart.tsx:365
+#: src/components/Outdoor5KPlanStart.tsx:371
 msgid "Proposal rejected. Your canonical plan was not changed."
 msgstr "提案已拒绝。你的规范计划未被更改。"
 
-#: src/components/Outdoor5KPlanStart.tsx:711
+#: src/components/Outdoor5KPlanStart.tsx:719
 msgid "Proposal state needs a fresh preview"
 msgstr "提案状态需要新的预览"
 
@@ -7040,7 +7040,7 @@ msgstr "镜像主页数据的只读账号。"
 msgid "Readiness"
 msgstr "准备度"
 
-#: src/components/Outdoor5KPlanStart.tsx:617
+#: src/components/Outdoor5KPlanStart.tsx:625
 msgid "Readiness result"
 msgstr "准备情况结果"
 
@@ -7430,7 +7430,7 @@ msgstr "刷新失败，正在显示上次成功的快照。"
 #~ msgid "Refresh failed\" \"刷新失败"
 #~ msgstr ""
 
-#: src/components/Outdoor5KPlanStart.tsx:746
+#: src/components/Outdoor5KPlanStart.tsx:754
 msgid "Refresh proposal"
 msgstr "刷新提案"
 
@@ -7451,11 +7451,11 @@ msgstr "先刷新数据来源日历；仅在确认上次写入不存在后重试
 msgid "Refresh the provider calendar, re-check ownership, and allow one fenced retry for this item."
 msgstr "刷新数据来源日历，重新核对所有权，然后仅允许此项进行一次受保护的重试。"
 
-#: src/components/Outdoor5KPlanStart.tsx:701
+#: src/components/Outdoor5KPlanStart.tsx:709
 msgid "Regenerate successor"
 msgstr "重新生成后继提案"
 
-#: src/components/Outdoor5KPlanStart.tsx:701
+#: src/components/Outdoor5KPlanStart.tsx:709
 msgid "Regenerating…"
 msgstr "正在重新生成…"
 
@@ -7500,7 +7500,7 @@ msgstr "注册设置暂不可用"
 msgid "Reject"
 msgstr "驳回"
 
-#: src/components/Outdoor5KPlanStart.tsx:704
+#: src/components/Outdoor5KPlanStart.tsx:712
 msgid "Reject or defer"
 msgstr "拒绝或暂缓"
 
@@ -7509,7 +7509,7 @@ msgstr "拒绝或暂缓"
 msgid "Rejected"
 msgstr "已拒绝"
 
-#: src/components/Outdoor5KPlanStart.tsx:704
+#: src/components/Outdoor5KPlanStart.tsx:712
 msgid "Rejecting…"
 msgstr "正在拒绝…"
 
@@ -7761,8 +7761,8 @@ msgstr "检索到候选活动不代表其已合格；只有完整活动，并明
 
 #: src/components/ManagedPlanSettingsCard.tsx:608
 #: src/components/ManagedPlanSettingsCard.tsx:1026
-#: src/components/Outdoor5KPlanStart.tsx:413
-#: src/components/Outdoor5KPlanStart.tsx:648
+#: src/components/Outdoor5KPlanStart.tsx:421
+#: src/components/Outdoor5KPlanStart.tsx:656
 #: src/components/PersonalContextPanel.tsx:755
 #: src/components/UpcomingPlanCard.tsx:341
 #: src/components/UpcomingPlanCard.tsx:1371
@@ -7853,7 +7853,7 @@ msgstr "查看并恢复"
 msgid "Review and turn on"
 msgstr "查看并启用"
 
-#: src/components/Outdoor5KPlanStart.tsx:113
+#: src/components/Outdoor5KPlanStart.tsx:106
 msgid "Review baseline"
 msgstr "复核基线"
 
@@ -7881,7 +7881,7 @@ msgstr "查看下发队列"
 msgid "Review first issue"
 msgstr "查看第一个问题"
 
-#: src/components/Outdoor5KPlanStart.tsx:429
+#: src/components/Outdoor5KPlanStart.tsx:437
 msgid "Review goal"
 msgstr "复核目标"
 
@@ -7911,7 +7911,7 @@ msgstr "审核报告、管理截图，并同步关联的 GitHub issue。"
 msgid "Review required"
 msgstr "需要审核"
 
-#: src/components/Outdoor5KPlanStart.tsx:237
+#: src/components/Outdoor5KPlanStart.tsx:241
 msgid "Review the constraints and try again."
 msgstr "请复核限制条件后重试。"
 
@@ -8060,11 +8060,11 @@ msgstr "安全"
 msgid "Safety policy"
 msgstr "安全策略"
 
-#: src/components/Outdoor5KPlanStart.tsx:495
+#: src/components/Outdoor5KPlanStart.tsx:503
 msgid "Safety stop"
 msgstr "安全停止"
 
-#: src/components/Outdoor5KPlanStart.tsx:509
+#: src/components/Outdoor5KPlanStart.tsx:517
 msgid "Safety stop applies"
 msgstr "存在安全停止条件"
 
@@ -8185,7 +8185,7 @@ msgstr "安排测试会通过标准的训练、修订和投递流程写入计划
 msgid "Science"
 msgstr "科学"
 
-#: src/components/Outdoor5KPlanStart.tsx:670
+#: src/components/Outdoor5KPlanStart.tsx:678
 msgid "Science decision"
 msgstr "科学决策"
 
@@ -8201,7 +8201,7 @@ msgstr "科学模型"
 msgid "Scientific models"
 msgstr "科学模型"
 
-#: src/components/Outdoor5KPlanStart.tsx:462
+#: src/components/Outdoor5KPlanStart.tsx:470
 msgid "Scope and guardrails"
 msgstr "范围与护栏"
 
@@ -8250,7 +8250,7 @@ msgstr "选择一个指标，查看图表或依据。"
 msgid "Select an execution target in Settings to continue delivery."
 msgstr "请先在设置中选择执行平台，再继续下发。"
 
-#: src/components/Outdoor5KPlanStart.tsx:516
+#: src/components/Outdoor5KPlanStart.tsx:524
 msgid "Select availability, then give the same supported session limit for each selected day."
 msgstr "选择可用日期，然后为每个选定日期填写相同的受支持单次训练上限。"
 
@@ -8377,7 +8377,7 @@ msgstr "请设置功率阈值，让 Praxys 无需使用被热身和放松稀释�
 msgid "Set goal"
 msgstr "设置目标"
 
-#: src/components/Outdoor5KPlanStart.tsx:449
+#: src/components/Outdoor5KPlanStart.tsx:457
 msgid "Set the constraints you can actually keep. Praxys returns a deterministic proposal; it is not yet your plan."
 msgstr "设置你实际能够遵守的限制条件。Praxys 会返回一个确定性提案；它尚未成为你的计划。"
 
@@ -9078,7 +9078,7 @@ msgstr "目标类型"
 #~ msgid "Telemetry trust boundary"
 #~ msgstr "遥测信任边界"
 
-#: src/components/Outdoor5KPlanStart.tsx:497
+#: src/components/Outdoor5KPlanStart.tsx:505
 msgid "Tell Praxys if a safety stop applies. It will stop this plan path and show policy-bounded alternatives."
 msgstr "如果存在安全停止条件，请告知 Praxys。它将停止此计划路径并显示政策限定的替代方案。"
 
@@ -9126,7 +9126,7 @@ msgstr "结束条件"
 msgid "Termination"
 msgstr "结束条件"
 
-#: src/components/Outdoor5KPlanStart.tsx:590
+#: src/components/Outdoor5KPlanStart.tsx:598
 msgid "Terrain and equipment"
 msgstr "地形和装备"
 
@@ -9163,7 +9163,7 @@ msgstr "没有填写也是完整状态，并不代表数据缺失。Praxys 会�
 msgid "The 42-day rule is a Praxys pilot guardrail, not a physiological cutoff."
 msgstr "42 天规则是 Praxys 的试点护栏，不是生理学界值。"
 
-#: src/components/Outdoor5KPlanStart.tsx:563
+#: src/components/Outdoor5KPlanStart.tsx:571
 msgid "The accepted deterministic policy has one shared maximum-session field. Praxys will not invent a per-day rule or silently reduce your schedule; use one limit for all selected days."
 msgstr "已接受的确定性政策只有一个共享的单次训练上限字段。Praxys 不会臆造按日规则，也不会悄悄缩减你的安排；请为所有选定日期使用同一个上限。"
 
@@ -9247,7 +9247,7 @@ msgstr "冷却期可避免意外重复分析。"
 msgid "The current goal is outside this 5K baseline pilot."
 msgstr "当前目标不在本次 5 公里基线试点范围内。"
 
-#: src/components/Outdoor5KPlanStart.tsx:620
+#: src/components/Outdoor5KPlanStart.tsx:628
 msgid "The deterministic policy returned no additional explanation."
 msgstr "确定性政策没有返回额外说明。"
 
@@ -9525,7 +9525,7 @@ msgstr "无法自动重试此次下发。请查看已刷新的队列，确认所
 msgid "This delivery changed before recovery started. Review the refreshed queue."
 msgstr "恢复开始前，此次下发状态已变更。请查看已刷新的队列。"
 
-#: src/components/Outdoor5KPlanStart.tsx:635
+#: src/components/Outdoor5KPlanStart.tsx:643
 msgid "This deterministic result uses the published and pilot guardrails named by the policy response. It is not AI coaching and does not make an injury, readiness, or goal guarantee."
 msgstr "此确定性结果使用政策响应中列出的已发表和试点护栏。它不是 AI 指导，也不对受伤、准备情况或目标达成作出保证。"
 
@@ -9538,7 +9538,7 @@ msgstr "这类信息会进入安全流程，暂停常规训练优化。Praxys �
 msgid "This evaluates past training only; it does not assess today's weather or conditions."
 msgstr "这仅评估过往训练，不评估今天的天气或环境条件。"
 
-#: src/components/Outdoor5KPlanStart.tsx:395
+#: src/components/Outdoor5KPlanStart.tsx:402
 msgid "This exact proposal was already adopted. Delivery remains disabled until you explicitly enable it."
 msgstr "此精确提案已被采纳。在你明确启用前，投递仍处于禁用状态。"
 
@@ -9578,7 +9578,7 @@ msgstr "这条解读已更新。请先刷新页面，再提交反馈。"
 msgid "This is a maximal-effort test, and the no-test path always stays available."
 msgstr "这是最大努力测试；始终可以选择不测试。"
 
-#: src/components/Outdoor5KPlanStart.tsx:464
+#: src/components/Outdoor5KPlanStart.tsx:472
 msgid "This is a pilot for adult, self-coached recreational outdoor-road 5K runners. It does not diagnose, clear, or guarantee a performance outcome."
 msgstr "这是面向成年、自主训练休闲户外公路 5 公里跑者的试点。它不进行诊断、不作出健康许可，也不保证表现结果。"
 
@@ -9650,7 +9650,7 @@ msgstr "这项权限与托管下发相互独立。启用前请确认具体边界
 msgid "This pilot currently supports only outdoor road 5K elapsed-time goals."
 msgstr "当前试点仅支持户外公路完整 5 公里耗时目标。"
 
-#: src/components/Outdoor5KPlanStart.tsx:104
+#: src/components/Outdoor5KPlanStart.tsx:97
 msgid "This pilot is for adult, self-coached recreational runners preparing for an outdoor road 5K."
 msgstr "此试点面向准备户外公路 5 公里的成年、自主训练休闲跑者。"
 
@@ -9658,11 +9658,11 @@ msgstr "此试点面向准备户外公路 5 公里的成年、自主训练休闲
 msgid "This pilot is only for adults who already can complete 5 km."
 msgstr "本试点仅适用于已经能够完成 5 公里的成年人。"
 
-#: src/components/Outdoor5KPlanStart.tsx:425
+#: src/components/Outdoor5KPlanStart.tsx:433
 msgid "This plan-start pilot is available only for the supported outdoor road 5K performance goal."
 msgstr "此计划起点试点仅适用于受支持的户外公路 5 公里表现目标。"
 
-#: src/components/Outdoor5KPlanStart.tsx:592
+#: src/components/Outdoor5KPlanStart.tsx:600
 msgid "This policy supports outdoor road running only. Terrain, treadmill, trail, and equipment preferences are unsupported inputs and are not inferred."
 msgstr "此政策仅支持户外公路跑。地形、跑步机、越野和装备偏好均为不受支持的输入，也不会被推断。"
 
@@ -9671,11 +9671,11 @@ msgstr "此政策仅支持户外公路跑。地形、跑步机、越野和装备
 #~ msgstr "此便携结构可以不压扁地表达。"
 
 #. placeholder {0}: proposalStateLabel(activeProposal.state)
-#: src/components/Outdoor5KPlanStart.tsx:713
+#: src/components/Outdoor5KPlanStart.tsx:721
 msgid "This proposal is {0}. It cannot mutate the canonical plan; review readiness and create a new proposal when you are ready."
 msgstr "此提案为 {0}。它无法更改规范计划；准备好后请复核准备情况并创建新提案。"
 
-#: src/components/Outdoor5KPlanStart.tsx:660
+#: src/components/Outdoor5KPlanStart.tsx:668
 msgid "This proposal is not yet your plan. It cannot deliver workouts until after explicit adoption and separate delivery consent."
 msgstr "此提案尚未成为你的计划。在明确采纳并单独同意投递前，它不能投递训练。"
 
@@ -10654,7 +10654,7 @@ msgstr "训练"
 msgid "Workout conflict requires athlete input"
 msgstr "训练冲突需要运动员介入"
 
-#: src/components/Outdoor5KPlanStart.tsx:681
+#: src/components/Outdoor5KPlanStart.tsx:689
 msgid "Workout content is view-only in this deterministic policy. Change the bounded inputs above and regenerate to create an immutable successor; Praxys never constructs replacement workouts in this client."
 msgstr "在此确定性政策中，训练内容只能查看。请更改上方的受限输入并重新生成，以创建不可变的后继提案；Praxys 不会在此客户端构造替换训练。"
 

@@ -250,7 +250,7 @@ msgstr "{conflictCount, plural, one {# needs review} other {# need review}}"
 #~ msgid "{conflictCount} need review"
 #~ msgstr "{conflictCount} need review"
 
-#: src/components/Outdoor5KPlanStart.tsx:544
+#: src/components/Outdoor5KPlanStart.tsx:552
 msgid "{dayLabel} time limit (minutes)"
 msgstr "{dayLabel} time limit (minutes)"
 
@@ -516,7 +516,7 @@ msgstr "A non-diagnostic safety stop is active; Praxys does not diagnose, treat,
 msgid "A positive judgment synchronizes agent-ready; when it newly labels an open, non-backlogged linked issue, the assignment workflow hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain."
 msgstr "A positive judgment synchronizes agent-ready; when it newly labels an open, non-backlogged linked issue, the assignment workflow hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain."
 
-#: src/components/Outdoor5KPlanStart.tsx:120
+#: src/components/Outdoor5KPlanStart.tsx:113
 msgid "A preview is a proposal, not yet your plan. Praxys checks the current evidence and constraints again before it creates one."
 msgstr "A preview is a proposal, not yet your plan. Praxys checks the current evidence and constraints again before it creates one."
 
@@ -556,7 +556,7 @@ msgstr "A single activity has too much influence on the result."
 msgid "A Stryd-aligned Critical Power value is required for this experiment."
 msgstr "A Stryd-aligned Critical Power value is required for this experiment."
 
-#: src/components/Outdoor5KPlanStart.tsx:335
+#: src/components/Outdoor5KPlanStart.tsx:340
 msgid "A successor proposal is ready. The earlier proposal is preserved as superseded."
 msgstr "A successor proposal is ready. The earlier proposal is preserved as superseded."
 
@@ -810,7 +810,7 @@ msgstr "Admin console"
 msgid "Admin sections"
 msgstr "Admin sections"
 
-#: src/components/Outdoor5KPlanStart.tsx:697
+#: src/components/Outdoor5KPlanStart.tsx:705
 msgid "Adopt exact proposal"
 msgstr "Adopt exact proposal"
 
@@ -822,7 +822,7 @@ msgstr "Adopt in Settings"
 msgid "Adopt Praxys as your planner before enabling automatic changes. Coaching remains suggestion-only."
 msgstr "Adopt Praxys as your planner before enabling automatic changes. Coaching remains suggestion-only."
 
-#: src/components/Outdoor5KPlanStart.tsx:697
+#: src/components/Outdoor5KPlanStart.tsx:705
 msgid "Adopting…"
 msgstr "Adopting…"
 
@@ -1154,7 +1154,7 @@ msgstr "Available experiments"
 msgid "Available minutes must be a whole number from 1 to 1440."
 msgstr "Available minutes must be a whole number from 1 to 1440."
 
-#: src/components/Outdoor5KPlanStart.tsx:514
+#: src/components/Outdoor5KPlanStart.tsx:522
 msgid "Available run days"
 msgstr "Available run days"
 
@@ -1277,12 +1277,12 @@ msgstr "Baseline"
 msgid "Baseline evidence is currently sufficient."
 msgstr "Baseline evidence is currently sufficient."
 
-#: src/components/Outdoor5KPlanStart.tsx:455
+#: src/components/Outdoor5KPlanStart.tsx:463
 msgid "Baseline needs review"
 msgstr "Baseline needs review"
 
-#: src/components/Outdoor5KPlanStart.tsx:112
-#: src/components/Outdoor5KPlanStart.tsx:455
+#: src/components/Outdoor5KPlanStart.tsx:105
+#: src/components/Outdoor5KPlanStart.tsx:463
 msgid "Baseline ready"
 msgstr "Baseline ready"
 
@@ -1511,7 +1511,7 @@ msgstr "Changed later"
 msgid "Changed what I'll do"
 msgstr "Changed what I'll do"
 
-#: src/components/Outdoor5KPlanStart.tsx:602
+#: src/components/Outdoor5KPlanStart.tsx:610
 msgid "Check readiness"
 msgstr "Check readiness"
 
@@ -1535,7 +1535,7 @@ msgstr "Checking delivery compatibility…"
 #~ msgid "Checking provider compatibility…"
 #~ msgstr "Checking provider compatibility…"
 
-#: src/components/Outdoor5KPlanStart.tsx:602
+#: src/components/Outdoor5KPlanStart.tsx:610
 msgid "Checking readiness…"
 msgstr "Checking readiness…"
 
@@ -1589,7 +1589,7 @@ msgstr "Choose one category to continue."
 msgid "Choose primary source"
 msgstr "Choose primary source"
 
-#: src/components/Outdoor5KPlanStart.tsx:201
+#: src/components/Outdoor5KPlanStart.tsx:195
 msgid "Choose the days you are available to run."
 msgstr "Choose the days you are available to run."
 
@@ -1722,7 +1722,7 @@ msgstr "Compatibility preview is unavailable. Check your connection and try agai
 msgid "Complete these steps to unlock your training insights"
 msgstr "Complete these steps to unlock your training insights"
 
-#: src/components/Outdoor5KPlanStart.tsx:626
+#: src/components/Outdoor5KPlanStart.tsx:634
 msgid "complete weeks; latest run"
 msgstr "complete weeks; latest run"
 
@@ -1774,7 +1774,7 @@ msgstr "Confirm that you are 18 or older to join this experiment."
 msgid "Confirm the boundary before Praxys writes to {targetLabel}."
 msgstr "Confirm the boundary before Praxys writes to {targetLabel}."
 
-#: src/components/Outdoor5KPlanStart.tsx:199
+#: src/components/Outdoor5KPlanStart.tsx:193
 msgid "Confirm the supported athlete and goal scope first."
 msgstr "Confirm the supported athlete and goal scope first."
 
@@ -1978,13 +1978,13 @@ msgstr "Correct private context"
 msgid "Could not add this workout"
 msgstr "Could not add this workout"
 
-#: src/components/Outdoor5KPlanStart.tsx:391
-#: src/components/Outdoor5KPlanStart.tsx:399
+#: src/components/Outdoor5KPlanStart.tsx:398
+#: src/components/Outdoor5KPlanStart.tsx:407
 msgid "Could not adopt the proposal."
 msgstr "Could not adopt the proposal."
 
-#: src/components/Outdoor5KPlanStart.tsx:266
-#: src/components/Outdoor5KPlanStart.tsx:271
+#: src/components/Outdoor5KPlanStart.tsx:270
+#: src/components/Outdoor5KPlanStart.tsx:275
 msgid "Could not assess this plan start."
 msgstr "Could not assess this plan start."
 
@@ -2006,8 +2006,8 @@ msgstr "Could not convert this legacy workout."
 msgid "Could not convert this workout to rest"
 msgstr "Could not convert this workout to rest"
 
-#: src/components/Outdoor5KPlanStart.tsx:294
-#: src/components/Outdoor5KPlanStart.tsx:304
+#: src/components/Outdoor5KPlanStart.tsx:298
+#: src/components/Outdoor5KPlanStart.tsx:309
 msgid "Could not create the proposal."
 msgstr "Could not create the proposal."
 
@@ -2041,7 +2041,7 @@ msgstr "Could not leave managed mode"
 msgid "Could not load automatic change history."
 msgstr "Could not load automatic change history."
 
-#: src/components/Outdoor5KPlanStart.tsx:410
+#: src/components/Outdoor5KPlanStart.tsx:418
 msgid "Could not load plan-start context"
 msgstr "Could not load plan-start context"
 
@@ -2058,17 +2058,17 @@ msgstr "Could not load this private context."
 msgid "Could not pause delivery"
 msgstr "Could not pause delivery"
 
-#: src/components/Outdoor5KPlanStart.tsx:645
+#: src/components/Outdoor5KPlanStart.tsx:653
 msgid "Could not refresh proposal state"
 msgstr "Could not refresh proposal state"
 
-#: src/components/Outdoor5KPlanStart.tsx:331
-#: src/components/Outdoor5KPlanStart.tsx:341
+#: src/components/Outdoor5KPlanStart.tsx:336
+#: src/components/Outdoor5KPlanStart.tsx:347
 msgid "Could not regenerate the proposal."
 msgstr "Could not regenerate the proposal."
 
-#: src/components/Outdoor5KPlanStart.tsx:363
-#: src/components/Outdoor5KPlanStart.tsx:368
+#: src/components/Outdoor5KPlanStart.tsx:369
+#: src/components/Outdoor5KPlanStart.tsx:375
 msgid "Could not reject the proposal."
 msgstr "Could not reject the proposal."
 
@@ -2220,7 +2220,7 @@ msgstr "Create an account"
 msgid "Create and manage dismissible banners shown to all users."
 msgstr "Create and manage dismissible banners shown to all users."
 
-#: src/components/Outdoor5KPlanStart.tsx:606
+#: src/components/Outdoor5KPlanStart.tsx:614
 msgid "Create proposal"
 msgstr "Create proposal"
 
@@ -2244,7 +2244,7 @@ msgstr "Created"
 msgid "Creating account…"
 msgstr "Creating account…"
 
-#: src/components/Outdoor5KPlanStart.tsx:606
+#: src/components/Outdoor5KPlanStart.tsx:614
 msgid "Creating proposal…"
 msgstr "Creating proposal…"
 
@@ -2588,7 +2588,7 @@ msgstr "Delivery outcomes"
 msgid "Delivery preview"
 msgstr "Delivery preview"
 
-#: src/components/Outdoor5KPlanStart.tsx:723
+#: src/components/Outdoor5KPlanStart.tsx:731
 msgid "Delivery remains disabled. Review the existing 14-day managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan."
 msgstr "Delivery remains disabled. Review the existing 14-day managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan."
 
@@ -3103,7 +3103,7 @@ msgstr "Enter a complete value in this unit."
 msgid "Enter numeric temperature and humidity values."
 msgstr "Enter numeric temperature and humidity values."
 
-#: src/components/Outdoor5KPlanStart.tsx:205
+#: src/components/Outdoor5KPlanStart.tsx:199
 msgid "Enter one whole-minute limit for every selected day."
 msgstr "Enter one whole-minute limit for every selected day."
 
@@ -3241,7 +3241,7 @@ msgstr "Execution target changed. Delivery remains paused."
 msgid "Expired"
 msgstr "Expired"
 
-#: src/components/Outdoor5KPlanStart.tsx:691
+#: src/components/Outdoor5KPlanStart.tsx:699
 msgid "Expires:"
 msgstr "Expires:"
 
@@ -3658,7 +3658,7 @@ msgstr "Generate a token at cloud.ouraring.com/personal-access-tokens."
 msgid "Generating…"
 msgstr "Generating…"
 
-#: src/components/Outdoor5KPlanStart.tsx:669
+#: src/components/Outdoor5KPlanStart.tsx:677
 msgid "Generator"
 msgstr "Generator"
 
@@ -3901,7 +3901,7 @@ msgstr "History candidates"
 msgid "History first: you already have usable current 5K evidence."
 msgstr "History first: you already have usable current 5K evidence."
 
-#: src/components/Outdoor5KPlanStart.tsx:624
+#: src/components/Outdoor5KPlanStart.tsx:632
 msgid "History used:"
 msgstr "History used:"
 
@@ -4053,15 +4053,15 @@ msgstr "Humidity (%)"
 msgid "I agree to the <0>Terms of Service</0> and <1>Privacy Policy</1>."
 msgstr "I agree to the <0>Terms of Service</0> and <1>Privacy Policy</1>."
 
-#: src/components/Outdoor5KPlanStart.tsx:472
+#: src/components/Outdoor5KPlanStart.tsx:480
 msgid "I am 18 or older."
 msgstr "I am 18 or older."
 
-#: src/components/Outdoor5KPlanStart.tsx:473
+#: src/components/Outdoor5KPlanStart.tsx:481
 msgid "I am self-coached for recreational road running."
 msgstr "I am self-coached for recreational road running."
 
-#: src/components/Outdoor5KPlanStart.tsx:474
+#: src/components/Outdoor5KPlanStart.tsx:482
 msgid "I can currently complete 5 km."
 msgstr "I can currently complete 5 km."
 
@@ -5083,7 +5083,7 @@ msgstr "Move up"
 msgid "Multiple platforms provide <0>{0}</0> data. Which should be the primary source?"
 msgstr "Multiple platforms provide <0>{0}</0> data. Which should be the primary source?"
 
-#: src/components/Outdoor5KPlanStart.tsx:475
+#: src/components/Outdoor5KPlanStart.tsx:483
 msgid "My goal is an outdoor road 5K."
 msgstr "My goal is an outdoor road 5K."
 
@@ -5419,8 +5419,8 @@ msgstr "No planned load this week"
 msgid "No Praxys workouts are scheduled in this window. Future Praxys-created workouts will enter the rolling window automatically."
 msgstr "No Praxys workouts are scheduled in this window. Future Praxys-created workouts will enter the rolling window automatically."
 
-#: src/components/Outdoor5KPlanStart.tsx:577
-#: src/components/Outdoor5KPlanStart.tsx:579
+#: src/components/Outdoor5KPlanStart.tsx:585
+#: src/components/Outdoor5KPlanStart.tsx:587
 msgid "No preference"
 msgstr "No preference"
 
@@ -5465,7 +5465,7 @@ msgstr "No recent Praxys workout is available to link."
 #~ msgid "No reliable heat history yet"
 #~ msgstr "No reliable heat history yet"
 
-#: src/components/Outdoor5KPlanStart.tsx:509
+#: src/components/Outdoor5KPlanStart.tsx:517
 msgid "No safety stop"
 msgstr "No safety stop"
 
@@ -5868,7 +5868,7 @@ msgstr "Open feedback"
 #~ msgid "Open incident"
 #~ msgstr "Open incident"
 
-#: src/components/Outdoor5KPlanStart.tsx:125
+#: src/components/Outdoor5KPlanStart.tsx:118
 msgid "Open plan preview"
 msgstr "Open plan preview"
 
@@ -5986,11 +5986,11 @@ msgstr "Outage"
 #~ msgid "Outdoor connector temperature and humidity plus work at or above 50% of a same-provider current CP. Timestamped samples need at least 90% duration coverage; splits are the fallback. A session counts at 30 effective minutes."
 #~ msgstr "Outdoor connector temperature and humidity plus work at or above 50% of a same-provider current CP. Timestamped samples need at least 90% duration coverage; splits are the fallback. A session counts at 30 effective minutes."
 
-#: src/components/Outdoor5KPlanStart.tsx:102
+#: src/components/Outdoor5KPlanStart.tsx:95
 msgid "Outdoor road 5K plan"
 msgstr "Outdoor road 5K plan"
 
-#: src/components/Outdoor5KPlanStart.tsx:423
+#: src/components/Outdoor5KPlanStart.tsx:431
 msgid "Outdoor road 5K plans"
 msgstr "Outdoor road 5K plans"
 
@@ -6130,11 +6130,11 @@ msgstr "Peer metrics"
 msgid "Pending <0>{0}</0>"
 msgstr "Pending <0>{0}</0>"
 
-#: src/components/Outdoor5KPlanStart.tsx:561
+#: src/components/Outdoor5KPlanStart.tsx:569
 msgid "Per-day limits are unsupported"
 msgstr "Per-day limits are unsupported"
 
-#: src/components/Outdoor5KPlanStart.tsx:204
+#: src/components/Outdoor5KPlanStart.tsx:198
 msgid "Per-day limits are unsupported by this policy. Use one shared limit for all selected days."
 msgstr "Per-day limits are unsupported by this policy. Use one shared limit for all selected days."
 
@@ -6179,11 +6179,11 @@ msgstr "Plan activity"
 msgid "Plan adjustment"
 msgstr "Plan adjustment"
 
-#: src/components/Outdoor5KPlanStart.tsx:721
+#: src/components/Outdoor5KPlanStart.tsx:729
 msgid "Plan adopted"
 msgstr "Plan adopted"
 
-#: src/components/Outdoor5KPlanStart.tsx:396
+#: src/components/Outdoor5KPlanStart.tsx:403
 msgid "Plan adopted. Delivery remains disabled until you explicitly enable it."
 msgstr "Plan adopted. Delivery remains disabled until you explicitly enable it."
 
@@ -6195,11 +6195,11 @@ msgstr "Plan context"
 msgid "Plan management"
 msgstr "Plan management"
 
-#: src/components/Outdoor5KPlanStart.tsx:447
+#: src/components/Outdoor5KPlanStart.tsx:455
 msgid "Plan preview"
 msgstr "Plan preview"
 
-#: src/components/Outdoor5KPlanStart.tsx:658
+#: src/components/Outdoor5KPlanStart.tsx:666
 msgid "Plan proposal"
 msgstr "Plan proposal"
 
@@ -6211,7 +6211,7 @@ msgstr "Plan proposal"
 msgid "Plan window"
 msgstr "Plan window"
 
-#: src/components/Outdoor5KPlanStart.tsx:742
+#: src/components/Outdoor5KPlanStart.tsx:750
 msgid "Plan-start action did not complete"
 msgstr "Plan-start action did not complete"
 
@@ -6260,7 +6260,7 @@ msgstr "Please check your email format and try again."
 msgid "Please verify your email before signing in. Check your inbox for the link."
 msgstr "Please verify your email before signing in. Check your inbox for the link."
 
-#: src/components/Outdoor5KPlanStart.tsx:668
+#: src/components/Outdoor5KPlanStart.tsx:676
 msgid "Policy"
 msgstr "Policy"
 
@@ -6578,7 +6578,7 @@ msgstr "Prefer not to say"
 msgid "Prefer to wait?"
 msgstr "Prefer to wait?"
 
-#: src/components/Outdoor5KPlanStart.tsx:572
+#: src/components/Outdoor5KPlanStart.tsx:580
 msgid "Preferred longest-run day"
 msgstr "Preferred longest-run day"
 
@@ -6705,15 +6705,15 @@ msgstr "Promote to Admin"
 msgid "Prompt-semantic slice:"
 msgstr "Prompt-semantic slice:"
 
-#: src/components/Outdoor5KPlanStart.tsx:298
+#: src/components/Outdoor5KPlanStart.tsx:302
 msgid "Proposal created. It has not changed your canonical plan."
 msgstr "Proposal created. It has not changed your canonical plan."
 
-#: src/components/Outdoor5KPlanStart.tsx:365
+#: src/components/Outdoor5KPlanStart.tsx:371
 msgid "Proposal rejected. Your canonical plan was not changed."
 msgstr "Proposal rejected. Your canonical plan was not changed."
 
-#: src/components/Outdoor5KPlanStart.tsx:711
+#: src/components/Outdoor5KPlanStart.tsx:719
 msgid "Proposal state needs a fresh preview"
 msgstr "Proposal state needs a fresh preview"
 
@@ -6953,7 +6953,7 @@ msgstr "Read-only accounts that mirror your dashboard data."
 msgid "Readiness"
 msgstr "Readiness"
 
-#: src/components/Outdoor5KPlanStart.tsx:617
+#: src/components/Outdoor5KPlanStart.tsx:625
 msgid "Readiness result"
 msgstr "Readiness result"
 
@@ -7327,7 +7327,7 @@ msgstr "Refresh failed"
 msgid "Refresh failed. Showing the last successful snapshot."
 msgstr "Refresh failed. Showing the last successful snapshot."
 
-#: src/components/Outdoor5KPlanStart.tsx:746
+#: src/components/Outdoor5KPlanStart.tsx:754
 msgid "Refresh proposal"
 msgstr "Refresh proposal"
 
@@ -7348,11 +7348,11 @@ msgstr "Refresh the provider calendar first, then replay only if the prior write
 msgid "Refresh the provider calendar, re-check ownership, and allow one fenced retry for this item."
 msgstr "Refresh the provider calendar, re-check ownership, and allow one fenced retry for this item."
 
-#: src/components/Outdoor5KPlanStart.tsx:701
+#: src/components/Outdoor5KPlanStart.tsx:709
 msgid "Regenerate successor"
 msgstr "Regenerate successor"
 
-#: src/components/Outdoor5KPlanStart.tsx:701
+#: src/components/Outdoor5KPlanStart.tsx:709
 msgid "Regenerating…"
 msgstr "Regenerating…"
 
@@ -7397,7 +7397,7 @@ msgstr "Registration settings unavailable"
 msgid "Reject"
 msgstr "Reject"
 
-#: src/components/Outdoor5KPlanStart.tsx:704
+#: src/components/Outdoor5KPlanStart.tsx:712
 msgid "Reject or defer"
 msgstr "Reject or defer"
 
@@ -7406,7 +7406,7 @@ msgstr "Reject or defer"
 msgid "Rejected"
 msgstr "Rejected"
 
-#: src/components/Outdoor5KPlanStart.tsx:704
+#: src/components/Outdoor5KPlanStart.tsx:712
 msgid "Rejecting…"
 msgstr "Rejecting…"
 
@@ -7646,8 +7646,8 @@ msgstr "Retrieval is never qualification; only a full activity with explicit dis
 
 #: src/components/ManagedPlanSettingsCard.tsx:608
 #: src/components/ManagedPlanSettingsCard.tsx:1026
-#: src/components/Outdoor5KPlanStart.tsx:413
-#: src/components/Outdoor5KPlanStart.tsx:648
+#: src/components/Outdoor5KPlanStart.tsx:421
+#: src/components/Outdoor5KPlanStart.tsx:656
 #: src/components/PersonalContextPanel.tsx:755
 #: src/components/UpcomingPlanCard.tsx:341
 #: src/components/UpcomingPlanCard.tsx:1371
@@ -7738,7 +7738,7 @@ msgstr "Review and resume"
 msgid "Review and turn on"
 msgstr "Review and turn on"
 
-#: src/components/Outdoor5KPlanStart.tsx:113
+#: src/components/Outdoor5KPlanStart.tsx:106
 msgid "Review baseline"
 msgstr "Review baseline"
 
@@ -7766,7 +7766,7 @@ msgstr "Review delivery queue"
 msgid "Review first issue"
 msgstr "Review first issue"
 
-#: src/components/Outdoor5KPlanStart.tsx:429
+#: src/components/Outdoor5KPlanStart.tsx:437
 msgid "Review goal"
 msgstr "Review goal"
 
@@ -7796,7 +7796,7 @@ msgstr "Review reports, manage screenshots, and sync linked GitHub issues."
 msgid "Review required"
 msgstr "Review required"
 
-#: src/components/Outdoor5KPlanStart.tsx:237
+#: src/components/Outdoor5KPlanStart.tsx:241
 msgid "Review the constraints and try again."
 msgstr "Review the constraints and try again."
 
@@ -7933,11 +7933,11 @@ msgstr "Safety"
 msgid "Safety policy"
 msgstr "Safety policy"
 
-#: src/components/Outdoor5KPlanStart.tsx:495
+#: src/components/Outdoor5KPlanStart.tsx:503
 msgid "Safety stop"
 msgstr "Safety stop"
 
-#: src/components/Outdoor5KPlanStart.tsx:509
+#: src/components/Outdoor5KPlanStart.tsx:517
 msgid "Safety stop applies"
 msgstr "Safety stop applies"
 
@@ -8058,7 +8058,7 @@ msgstr "Scheduling writes through the canonical workout, revision, and delivery 
 msgid "Science"
 msgstr "Science"
 
-#: src/components/Outdoor5KPlanStart.tsx:670
+#: src/components/Outdoor5KPlanStart.tsx:678
 msgid "Science decision"
 msgstr "Science decision"
 
@@ -8074,7 +8074,7 @@ msgstr "Science models"
 msgid "Scientific models"
 msgstr "Scientific models"
 
-#: src/components/Outdoor5KPlanStart.tsx:462
+#: src/components/Outdoor5KPlanStart.tsx:470
 msgid "Scope and guardrails"
 msgstr "Scope and guardrails"
 
@@ -8123,7 +8123,7 @@ msgstr "Select a metric to inspect its chart or evidence."
 msgid "Select an execution target in Settings to continue delivery."
 msgstr "Select an execution target in Settings to continue delivery."
 
-#: src/components/Outdoor5KPlanStart.tsx:516
+#: src/components/Outdoor5KPlanStart.tsx:524
 msgid "Select availability, then give the same supported session limit for each selected day."
 msgstr "Select availability, then give the same supported session limit for each selected day."
 
@@ -8250,7 +8250,7 @@ msgstr "Set a power threshold so Praxys can identify sustained work without usin
 msgid "Set goal"
 msgstr "Set goal"
 
-#: src/components/Outdoor5KPlanStart.tsx:449
+#: src/components/Outdoor5KPlanStart.tsx:457
 msgid "Set the constraints you can actually keep. Praxys returns a deterministic proposal; it is not yet your plan."
 msgstr "Set the constraints you can actually keep. Praxys returns a deterministic proposal; it is not yet your plan."
 
@@ -8927,7 +8927,7 @@ msgstr "Target type"
 #~ msgid "Telemetry trust boundary"
 #~ msgstr "Telemetry trust boundary"
 
-#: src/components/Outdoor5KPlanStart.tsx:497
+#: src/components/Outdoor5KPlanStart.tsx:505
 msgid "Tell Praxys if a safety stop applies. It will stop this plan path and show policy-bounded alternatives."
 msgstr "Tell Praxys if a safety stop applies. It will stop this plan path and show policy-bounded alternatives."
 
@@ -8975,7 +8975,7 @@ msgstr "termination"
 msgid "Termination"
 msgstr "Termination"
 
-#: src/components/Outdoor5KPlanStart.tsx:590
+#: src/components/Outdoor5KPlanStart.tsx:598
 msgid "Terrain and equipment"
 msgstr "Terrain and equipment"
 
@@ -9012,7 +9012,7 @@ msgstr "That is a complete state, not missing data. Praxys keeps the reason unkn
 msgid "The 42-day rule is a Praxys pilot guardrail, not a physiological cutoff."
 msgstr "The 42-day rule is a Praxys pilot guardrail, not a physiological cutoff."
 
-#: src/components/Outdoor5KPlanStart.tsx:563
+#: src/components/Outdoor5KPlanStart.tsx:571
 msgid "The accepted deterministic policy has one shared maximum-session field. Praxys will not invent a per-day rule or silently reduce your schedule; use one limit for all selected days."
 msgstr "The accepted deterministic policy has one shared maximum-session field. Praxys will not invent a per-day rule or silently reduce your schedule; use one limit for all selected days."
 
@@ -9096,7 +9096,7 @@ msgstr "The cooldown prevents accidental repeat analysis."
 msgid "The current goal is outside this 5K baseline pilot."
 msgstr "The current goal is outside this 5K baseline pilot."
 
-#: src/components/Outdoor5KPlanStart.tsx:620
+#: src/components/Outdoor5KPlanStart.tsx:628
 msgid "The deterministic policy returned no additional explanation."
 msgstr "The deterministic policy returned no additional explanation."
 
@@ -9367,7 +9367,7 @@ msgstr "This delivery cannot be replayed automatically. Review the refreshed que
 msgid "This delivery changed before recovery started. Review the refreshed queue."
 msgstr "This delivery changed before recovery started. Review the refreshed queue."
 
-#: src/components/Outdoor5KPlanStart.tsx:635
+#: src/components/Outdoor5KPlanStart.tsx:643
 msgid "This deterministic result uses the published and pilot guardrails named by the policy response. It is not AI coaching and does not make an injury, readiness, or goal guarantee."
 msgstr "This deterministic result uses the published and pilot guardrails named by the policy response. It is not AI coaching and does not make an injury, readiness, or goal guarantee."
 
@@ -9380,7 +9380,7 @@ msgstr "This enters the safety path and stops ordinary performance optimization.
 msgid "This evaluates past training only; it does not assess today's weather or conditions."
 msgstr "This evaluates past training only; it does not assess today's weather or conditions."
 
-#: src/components/Outdoor5KPlanStart.tsx:395
+#: src/components/Outdoor5KPlanStart.tsx:402
 msgid "This exact proposal was already adopted. Delivery remains disabled until you explicitly enable it."
 msgstr "This exact proposal was already adopted. Delivery remains disabled until you explicitly enable it."
 
@@ -9420,7 +9420,7 @@ msgstr "This insight changed. Refresh the page before sending feedback."
 msgid "This is a maximal-effort test, and the no-test path always stays available."
 msgstr "This is a maximal-effort test, and the no-test path always stays available."
 
-#: src/components/Outdoor5KPlanStart.tsx:464
+#: src/components/Outdoor5KPlanStart.tsx:472
 msgid "This is a pilot for adult, self-coached recreational outdoor-road 5K runners. It does not diagnose, clear, or guarantee a performance outcome."
 msgstr "This is a pilot for adult, self-coached recreational outdoor-road 5K runners. It does not diagnose, clear, or guarantee a performance outcome."
 
@@ -9492,7 +9492,7 @@ msgstr "This permission is separate from managed delivery. Review the exact boun
 msgid "This pilot currently supports only outdoor road 5K elapsed-time goals."
 msgstr "This pilot currently supports only outdoor road 5K elapsed-time goals."
 
-#: src/components/Outdoor5KPlanStart.tsx:104
+#: src/components/Outdoor5KPlanStart.tsx:97
 msgid "This pilot is for adult, self-coached recreational runners preparing for an outdoor road 5K."
 msgstr "This pilot is for adult, self-coached recreational runners preparing for an outdoor road 5K."
 
@@ -9500,11 +9500,11 @@ msgstr "This pilot is for adult, self-coached recreational runners preparing for
 msgid "This pilot is only for adults who already can complete 5 km."
 msgstr "This pilot is only for adults who already can complete 5 km."
 
-#: src/components/Outdoor5KPlanStart.tsx:425
+#: src/components/Outdoor5KPlanStart.tsx:433
 msgid "This plan-start pilot is available only for the supported outdoor road 5K performance goal."
 msgstr "This plan-start pilot is available only for the supported outdoor road 5K performance goal."
 
-#: src/components/Outdoor5KPlanStart.tsx:592
+#: src/components/Outdoor5KPlanStart.tsx:600
 msgid "This policy supports outdoor road running only. Terrain, treadmill, trail, and equipment preferences are unsupported inputs and are not inferred."
 msgstr "This policy supports outdoor road running only. Terrain, treadmill, trail, and equipment preferences are unsupported inputs and are not inferred."
 
@@ -9513,11 +9513,11 @@ msgstr "This policy supports outdoor road running only. Terrain, treadmill, trai
 #~ msgstr "This portable structure can be represented without flattening."
 
 #. placeholder {0}: proposalStateLabel(activeProposal.state)
-#: src/components/Outdoor5KPlanStart.tsx:713
+#: src/components/Outdoor5KPlanStart.tsx:721
 msgid "This proposal is {0}. It cannot mutate the canonical plan; review readiness and create a new proposal when you are ready."
 msgstr "This proposal is {0}. It cannot mutate the canonical plan; review readiness and create a new proposal when you are ready."
 
-#: src/components/Outdoor5KPlanStart.tsx:660
+#: src/components/Outdoor5KPlanStart.tsx:668
 msgid "This proposal is not yet your plan. It cannot deliver workouts until after explicit adoption and separate delivery consent."
 msgstr "This proposal is not yet your plan. It cannot deliver workouts until after explicit adoption and separate delivery consent."
 
@@ -10492,7 +10492,7 @@ msgstr "Workout"
 msgid "Workout conflict requires athlete input"
 msgstr "Workout conflict requires athlete input"
 
-#: src/components/Outdoor5KPlanStart.tsx:681
+#: src/components/Outdoor5KPlanStart.tsx:689
 msgid "Workout content is view-only in this deterministic policy. Change the bounded inputs above and regenerate to create an immutable successor; Praxys never constructs replacement workouts in this client."
 msgstr "Workout content is view-only in this deterministic policy. Change the bounded inputs above and regenerate to create an immutable successor; Praxys never constructs replacement workouts in this client."
 
