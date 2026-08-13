@@ -21,6 +21,10 @@ from api.plan_delivery.base import (
     ProviderRequestError,
     ProviderTransientError,
 )
+from api.plan_workout_structure import (
+    activity_type_supported_by_target,
+    stryd_surface_for_activity_type,
+)
 from db.plan_ledger import normalize_stryd_workout_id
 from sync import stryd_sync
 
@@ -102,6 +106,14 @@ class StrydPlanDeliveryAdapter:
         threshold_value: float,
     ) -> dict[str, Any]:
         try:
+            activity_type = str(workout.get("activity_type") or "running").strip()
+            if not activity_type_supported_by_target(
+                activity_type=activity_type,
+                target="stryd",
+            ):
+                raise ProviderRequestError(
+                    "Stryd delivery cannot safely encode this activity type"
+                )
             raw_blocks = stryd_sync.build_workout_blocks(
                 dict(workout),
                 threshold_value,
@@ -133,6 +145,7 @@ class StrydPlanDeliveryAdapter:
                 "description": str(
                     workout.get("workout_description") or ""
                 ),
+                "surface": stryd_surface_for_activity_type(activity_type),
             }
         except (ArithmeticError, KeyError, TypeError, ValueError) as exc:
             raise ProviderRequestError(str(exc)) from exc

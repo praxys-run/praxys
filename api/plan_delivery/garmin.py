@@ -34,6 +34,9 @@ from api.plan_delivery.base import (
     ProviderRequestError,
     ProviderTransientError,
 )
+from api.plan_workout_structure import (
+    project_workout_provider_compatibility,
+)
 from api.plan_delivery.capabilities import garmin_region
 from sync.garmin_sync import (
     enrich_training_plan_content,
@@ -61,14 +64,6 @@ _MAX_DURATION_SECONDS = 24 * 60 * 60
 _MIN_MUTATION_INTERVAL_SECONDS = 1.0
 _MUTATION_PACE_LOCK = threading.Lock()
 _last_mutation_started_at = 0.0
-_TARGET_FIELDS = (
-    "target_power_min",
-    "target_power_max",
-    "target_hr_min",
-    "target_hr_max",
-    "target_pace_min",
-    "target_pace_max",
-)
 _GARMIN_ERRORS = (
     GarminConnectAuthenticationError,
     GarminConnectConnectionError,
@@ -392,15 +387,51 @@ class GarminPlanDeliveryAdapter:
             raise ProviderRequestError(
                 "Garmin delivery requires canonical workout identity"
             )
-        unsupported = [
-            field
-            for field in _TARGET_FIELDS
-            if workout.get(field) not in (None, "", 0, 0.0)
-        ]
-        if unsupported:
+        compatibility = next(
+            item
+            for item in project_workout_provider_compatibility(
+                activity_type=workout.get("activity_type"),
+                workout_structure_version=workout.get(
+                    "workout_structure_version"
+                ),
+                workout_structure=workout.get("workout_structure"),
+                planned_duration_min=workout.get("planned_duration_min"),
+                planned_distance_km=workout.get("planned_distance_km"),
+                target_power_min=workout.get("target_power_min"),
+                target_power_max=workout.get("target_power_max"),
+                target_hr_min=workout.get("target_hr_min"),
+                target_hr_max=workout.get("target_hr_max"),
+                target_pace_min=workout.get("target_pace_min"),
+                target_pace_max=workout.get("target_pace_max"),
+            )
+            if item["target"] == "garmin"
+        )
+        if not compatibility["compatible"]:
+            reason_codes = {
+                reason["code"] for reason in compatibility["reasons"]
+            }
+            if "structured_workout_not_supported" in reason_codes:
+                raise ProviderRequestError(
+                    "Garmin experimental delivery cannot safely encode "
+                    "structured workouts yet"
+                )
+            if "invalid_structure" in reason_codes:
+                raise ProviderRequestError(
+                    "Garmin delivery rejected an invalid or unsupported "
+                    "workout structure"
+                )
+            if "activity_type_not_supported" in reason_codes:
+                raise ProviderRequestError(
+                    "Garmin experimental delivery cannot safely encode "
+                    "this activity type yet"
+                )
+            if "target_not_supported" in reason_codes:
+                raise ProviderRequestError(
+                    "Garmin experimental delivery cannot safely encode "
+                    "power, heart-rate, or pace targets yet"
+                )
             raise ProviderRequestError(
-                "Garmin experimental delivery cannot safely encode "
-                "power, heart-rate, or pace targets yet"
+                "Garmin experimental delivery requires a duration"
             )
         try:
             duration_minutes = _number(

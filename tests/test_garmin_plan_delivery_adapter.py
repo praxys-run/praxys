@@ -585,6 +585,108 @@ def test_prepare_rejects_unverified_encodings(
         )
 
 
+def test_prepare_rejects_structured_workout_that_would_flatten_complex_steps() -> None:
+    adapter = _adapter(FakeGarmin())
+
+    with pytest.raises(
+        ProviderRequestError,
+        match="structured workout",
+    ):
+        adapter.prepare_workout(
+            _workout(
+                activity_type="trail_running",
+                workout_structure_version="v1",
+                workout_structure={
+                    "steps": [
+                        {
+                            "type": "step",
+                            "phase": "warmup",
+                            "label": "Easy opening",
+                            "instructions": "Settle before the first rep.",
+                            "termination": {
+                                "type": "time",
+                                "seconds": 900,
+                            },
+                            "target": {
+                                "metric": "none",
+                                "unit": "none",
+                                "reference": "none",
+                            },
+                        },
+                        {
+                            "type": "repeat",
+                            "label": "Main set",
+                            "repetitions": 4,
+                            "steps": [
+                                {
+                                    "type": "step",
+                                    "phase": "work",
+                                    "termination": {
+                                        "type": "time",
+                                        "seconds": 240,
+                                    },
+                                    "target": {
+                                        "metric": "power",
+                                        "unit": "percent_cp",
+                                        "reference": "critical_power",
+                                        "min": 95,
+                                        "max": 100,
+                                    },
+                                },
+                                {
+                                    "type": "step",
+                                    "phase": "recovery",
+                                    "termination": {
+                                        "type": "time",
+                                        "seconds": 180,
+                                    },
+                                    "target": {
+                                        "metric": "none",
+                                        "unit": "none",
+                                        "reference": "none",
+                                    },
+                                },
+                            ],
+                        },
+                    ]
+                },
+            ),
+            threshold_value=250,
+        )
+
+
+@pytest.mark.parametrize(
+    "updates",
+    [
+        {
+            "workout_structure_version": "",
+            "workout_structure": None,
+        },
+        {
+            "workout_structure_version": None,
+            "workout_structure": {},
+        },
+        {
+            "workout_structure_version": "v2",
+            "workout_structure": {"steps": []},
+        },
+    ],
+)
+def test_prepare_rejects_invalid_structure_pairs_instead_of_flat_delivery(
+    updates: Mapping[str, object],
+) -> None:
+    adapter = _adapter(FakeGarmin())
+
+    with pytest.raises(
+        ProviderRequestError,
+        match="workout structure",
+    ):
+        adapter.prepare_workout(
+            _workout(**updates),
+            threshold_value=250,
+        )
+
+
 def test_create_checkpoints_both_garmin_identities() -> None:
     client = FakeGarmin()
     adapter = _adapter(client)

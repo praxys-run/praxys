@@ -283,6 +283,61 @@ def test_hrv_rule_makes_one_bounded_rest_replacement() -> None:
     assert decision["idempotency_key"].endswith(TODAY.isoformat())
 
 
+def test_hrv_rest_replacement_removes_authoritative_executable_steps() -> None:
+    before = {
+        **_hard_workout(),
+        "activity_type": "trail_running",
+        "workout_structure_version": "v1",
+        "workout_structure": {
+            "steps": [{
+                "type": "repeat",
+                "repetitions": 4,
+                "steps": [{
+                    "type": "step",
+                    "phase": "work",
+                    "termination": {"type": "time", "seconds": 240},
+                    "target": {
+                        "metric": "power",
+                        "unit": "percent_cp",
+                        "reference": "critical_power",
+                        "min": 100,
+                        "max": 105,
+                    },
+                }],
+            }],
+        },
+    }
+
+    decision = _evaluate(workouts=[before])
+
+    assert decision["status"] == "adjust"
+    assert decision["after"]["activity_type"] == "rest"
+    assert decision["after"]["workout_structure_version"] == "v1"
+    assert decision["after"]["workout_structure"] == {"steps": []}
+
+
+def test_hrv_rest_replacement_keeps_legacy_flat_rows_flat() -> None:
+    decision = _evaluate(workouts=[_hard_workout()])
+
+    assert decision["after"]["activity_type"] == "rest"
+    assert decision["after"]["workout_structure_version"] is None
+    assert decision["after"]["workout_structure"] is None
+
+
+def test_hrv_rest_replacement_treats_explicit_null_structure_as_flat() -> None:
+    before = {
+        **_hard_workout(),
+        "workout_structure_version": None,
+        "workout_structure": None,
+    }
+
+    decision = _evaluate(workouts=[before])
+
+    assert decision["after"]["activity_type"] == "rest"
+    assert decision["after"]["workout_structure_version"] is None
+    assert decision["after"]["workout_structure"] is None
+
+
 @pytest.fixture
 def adjustment_db(tmp_path):
     """Yield an isolated enabled policy database with deterministic evidence."""

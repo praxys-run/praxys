@@ -408,9 +408,19 @@ _SQLITE_COMPAT_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
         ("today_decision_check_shown_at", "DATETIME"),
         ("today_decision_check_submitted_at", "DATETIME"),
     ),
+    "adaptive_plans": (
+        ("discipline", "VARCHAR(30) NOT NULL DEFAULT 'running'"),
+    ),
+    "plan_proposals": (
+        ("discipline", "VARCHAR(30) NOT NULL DEFAULT 'running'"),
+    ),
     "training_plans": (
         ("canonical_id", "VARCHAR(36)"),
+        ("activity_type", "VARCHAR(30)"),
+        ("workout_structure_version", "VARCHAR(20)"),
+        ("workout_structure", "JSON"),
         ("workout_origin", "VARCHAR(30) NOT NULL DEFAULT 'legacy'"),
+        ("adaptive_plan_id", "VARCHAR(36)"),
     ),
     "plan_deliveries": (
         ("canonical_id", "VARCHAR(36)"),

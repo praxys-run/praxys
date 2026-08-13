@@ -1,4 +1,5 @@
 """Unit and schema tests for the managed-plan revision/delivery ledger."""
+import copy
 from datetime import date
 import logging
 
@@ -68,6 +69,130 @@ def test_canonical_identity_is_stable_but_not_part_of_content_version():
     })
 
 
+def test_workout_version_tracks_activity_type_and_structure_without_rehashing_legacy_rows():
+    from db.plan_ledger import workout_version
+
+    legacy = {
+        "date": date(2026, 8, 10),
+        "source": "ai",
+        "workout_type": "easy",
+        "planned_duration_min": 45,
+        "workout_description": "Aerobic run",
+    }
+    legacy_with_empty_structured_fields = {
+        **legacy,
+        "activity_type": None,
+        "workout_structure_version": None,
+        "workout_structure": None,
+    }
+    road = {
+        **legacy,
+        "activity_type": "running",
+        "workout_structure_version": "v1",
+        "workout_structure": {
+            "steps": [
+                {
+                    "type": "step",
+                    "phase": "other",
+                    "termination": {"type": "time", "seconds": 2700},
+                    "target": {
+                        "metric": "none",
+                        "unit": "none",
+                        "reference": "none",
+                    },
+                }
+            ]
+        },
+    }
+    trail = {
+        **road,
+        "activity_type": "trail_running",
+    }
+    changed_structure = {
+        **road,
+        "workout_structure": {
+            "steps": [
+                {
+                    "type": "step",
+                    "phase": "warmup",
+                    "termination": {"type": "time", "seconds": 600},
+                    "target": {
+                        "metric": "none",
+                        "unit": "none",
+                        "reference": "none",
+                    },
+                },
+                {
+                    "type": "step",
+                    "phase": "work",
+                    "termination": {"type": "time", "seconds": 2100},
+                    "target": {
+                        "metric": "none",
+                        "unit": "none",
+                        "reference": "none",
+                    },
+                },
+                {
+                    "type": "step",
+                    "phase": "cooldown",
+                    "termination": {"type": "time", "seconds": 300},
+                    "target": {
+                        "metric": "none",
+                        "unit": "none",
+                        "reference": "none",
+                    },
+                },
+            ]
+        },
+    }
+
+    assert workout_version(legacy) == workout_version(
+        legacy_with_empty_structured_fields
+    )
+    assert workout_version(road) != workout_version(trail)
+    assert workout_version(road) != workout_version(changed_structure)
+
+    worded = {
+        **road,
+        "workout_structure": {
+            "steps": [{
+                "type": "repeat",
+                "label": "Main set",
+                "repetitions": 3,
+                "steps": [{
+                    "type": "step",
+                    "phase": "work",
+                    "label": "Threshold",
+                    "instructions": "Stay smooth through the final minute.",
+                    "termination": {"type": "time", "seconds": 300},
+                    "target": {
+                        "metric": "none",
+                        "unit": "none",
+                        "reference": "none",
+                    },
+                }],
+            }],
+        },
+    }
+    changed_step_label = copy.deepcopy(worded)
+    changed_step_label["workout_structure"]["steps"][0]["steps"][0][
+        "label"
+    ] = "Threshold rep"
+    changed_instructions = copy.deepcopy(worded)
+    changed_instructions["workout_structure"]["steps"][0]["steps"][0][
+        "instructions"
+    ] = "Stay smooth and controlled through the final minute."
+    changed_repeat_label = copy.deepcopy(worded)
+    changed_repeat_label["workout_structure"]["steps"][0]["label"] = (
+        "Primary set"
+    )
+
+    canonical_version = workout_version(worded)
+    assert workout_version(changed_step_label) != canonical_version
+    assert workout_version(changed_instructions) != canonical_version
+    assert workout_version(changed_repeat_label) != canonical_version
+
+
 def test_sqlite_init_adds_ledger_tables_to_existing_database(tmp_path, monkeypatch):
     from sqlalchemy import create_engine, inspect
 
@@ -114,13 +239,14 @@ def test_sqlite_init_adds_ledger_tables_to_existing_database(tmp_path, monkeypat
         db_session.AsyncSessionLocal = None
 
 
-def test_alembic_head_includes_mcp_access_grants():
+def test_alembic_head_includes_adaptive_plan_proposals():
     from alembic.config import Config
     from alembic.script import ScriptDirectory
 
     config = Config("alembic.ini")
     script = ScriptDirectory.from_config(config)
-    assert script.get_current_head() == "f7b8c9d0e1f2"
+    assert script.get_current_head() == "8c9d0e1f2a3b"
+    assert script.get_revision("8c9d0e1f2a3b").down_revision == "f7b8c9d0e1f2"
     assert script.get_revision("e6a7b8c9d0f1").down_revision == "d95e6f7a8b9c"
     assert script.get_revision("d95e6f7a8b9c").down_revision == "c84f0912ab6d"
 

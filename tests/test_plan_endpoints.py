@@ -111,6 +111,7 @@ def _seed_external_plan(
     *,
     date_iso: str,
     workout_type: str = "easy",
+    activity_type: str | None = None,
 ) -> str:
     """Insert one provider-owned row and return its non-editable UUID."""
     from datetime import datetime
@@ -123,6 +124,7 @@ def _seed_external_plan(
             user_id=user_id,
             date=datetime.strptime(date_iso, "%Y-%m-%d").date(),
             workout_type=workout_type,
+            activity_type=activity_type,
             workout_description="External coach workout",
             source="stryd",
             workout_origin="imported",
@@ -227,6 +229,20 @@ class TestUploadReplaceMode:
         assert rows[0]["date"] == new_date
         assert rows[0]["source"] == PRAXYS_PLAN_WRITE_SOURCE
         assert rows[0]["workout_origin"] == "generated"
+        from db import session as db_session
+        from db.models import TrainingPlan
+
+        db = db_session.SessionLocal()
+        try:
+            uploaded = db.query(TrainingPlan).filter(
+                TrainingPlan.user_id == user_id,
+                TrainingPlan.date == date.fromisoformat(new_date),
+            ).one()
+            assert uploaded.activity_type == "running"
+            assert uploaded.workout_structure_version is None
+            assert uploaded.workout_structure is None
+        finally:
+            db.close()
 
     def test_replace_preserves_past_rows(self, api_client):
         client, user_id = api_client
@@ -581,6 +597,7 @@ class TestCanonicalWorkoutManagement:
             user_id,
             date_iso=external_target,
             workout_type="tempo",
+            activity_type="ultra_trail",
         )
 
         response = client.get(
@@ -605,7 +622,10 @@ class TestCanonicalWorkoutManagement:
         )
         assert praxys["editable"] is True
         assert len(praxys["workout_version"]) == 64
+        assert praxys["workout_structure_status"] == "absent"
         assert external["editable"] is False
+        assert external["activity_type"] == "other"
+        assert external["workout_structure_status"] == "absent"
         assert "workout_version" not in external
 
     def test_list_window_and_editability_use_athlete_date(
@@ -756,6 +776,507 @@ class TestCanonicalWorkoutManagement:
             "create",
             "update",
         ]
+
+    def test_structured_workout_fields_round_trip_through_create_read_and_update(
+        self,
+        api_client,
+    ):
+        client, user_id = api_client
+        target = (date.today() + timedelta(days=4)).isoformat()
+        created = client.post("/api/plan/workouts", json={
+            "date": target,
+            "activity_type": "trail_running",
+            "workout_type": "tempo",
+            "workout_description": "Trail tempo",
+            "workout_structure_version": "v1",
+            "workout_structure": {
+                "steps": [
+                    {
+                        "type": "step",
+                        "phase": "warmup",
+                        "label": "Easy opening",
+                        "instructions": "Relax and settle before the main set.",
+                        "termination": {"type": "time", "seconds": 600},
+                        "target": {
+                            "metric": "power",
+                            "unit": "percent_cp",
+                            "reference": "critical_power",
+                            "min": 65,
+                            "max": 75,
+                        },
+                    },
+                    {
+                        "type": "step",
+                        "phase": "work",
+                        "termination": {"type": "time", "seconds": 1200},
+                        "target": {
+                            "metric": "power",
+                            "unit": "percent_cp",
+                            "reference": "critical_power",
+                            "min": 88,
+                            "max": 92,
+                        },
+                    },
+                    {
+                        "type": "step",
+                        "phase": "cooldown",
+                        "termination": {"type": "time", "seconds": 300},
+                        "target": {
+                            "metric": "power",
+                            "unit": "percent_cp",
+                            "reference": "critical_power",
+                            "min": 60,
+                            "max": 70,
+                        },
+                    },
+                ]
+            },
+        })
+        assert created.status_code == 201, created.text
+        created_body = created.json()
+        assert created_body["activity_type"] == "trail_running"
+        assert created_body["workout_structure_version"] == "v1"
+        assert created_body["workout_structure"]["steps"][1]["phase"] == "work"
+
+        listed = client.get(f"/api/plan?start={target}&end={target}")
+        assert listed.status_code == 200, listed.text
+        listed_workout = listed.json()["workouts"][0]
+        assert listed_workout["activity_type"] == "trail_running"
+        assert listed_workout["workout_structure"] == created_body["workout_structure"]
+
+        updated = client.put(
+            f"/api/plan/workouts/{created_body['canonical_id']}",
+            json={
+                "expected_version": created_body["workout_version"],
+                "workout_structure_version": "v1",
+                "workout_structure": {
+                    "steps": [
+                        {
+                            "type": "step",
+                            "phase": "warmup",
+                            "termination": {"type": "time", "seconds": 600},
+                            "target": {
+                                "metric": "power",
+                                "unit": "percent_cp",
+                                "reference": "critical_power",
+                                "min": 65,
+                                "max": 75,
+                            },
+                        },
+                        {
+                            "type": "step",
+                            "phase": "work",
+                            "termination": {"type": "time", "seconds": 1500},
+                            "target": {
+                                "metric": "power",
+                                "unit": "percent_cp",
+                                "reference": "critical_power",
+                                "min": 90,
+                                "max": 94,
+                            },
+                        },
+                    ]
+                },
+            },
+        )
+        assert updated.status_code == 200, updated.text
+        updated_body = updated.json()
+        assert updated_body["activity_type"] == "trail_running"
+        assert updated_body["workout_structure"]["steps"][1]["termination"]["seconds"] == 1500
+        assert updated_body["workout_version"] != created_body["workout_version"]
+
+        from db import session as db_session
+        from db.models import TrainingPlan
+
+        db = db_session.SessionLocal()
+        try:
+            row = db.query(TrainingPlan).filter(
+                TrainingPlan.user_id == user_id,
+                TrainingPlan.canonical_id == created_body["canonical_id"],
+            ).one()
+            assert row.activity_type == "trail_running"
+            assert row.workout_structure_version == "v1"
+            assert row.workout_structure == updated_body["workout_structure"]
+        finally:
+            db.close()
+
+    def test_flat_editor_preserves_authoritative_repeat_structure(
+        self,
+        api_client,
+    ):
+        client, user_id = api_client
+        target = (date.today() + timedelta(days=4)).isoformat()
+        structure = {
+            "steps": [
+                {
+                    "type": "step",
+                    "phase": "warmup",
+                    "termination": {"type": "time", "seconds": 600},
+                    "target": {
+                        "metric": "power",
+                        "unit": "percent_cp",
+                        "reference": "critical_power",
+                        "min": 65,
+                        "max": 75,
+                    },
+                },
+                {
+                    "type": "repeat",
+                    "label": "Main set",
+                    "repetitions": 4,
+                    "steps": [
+                        {
+                            "type": "step",
+                            "phase": "work",
+                            "label": "On",
+                            "instructions": "Run tall; hold the prescribed power.",
+                            "termination": {
+                                "type": "time",
+                                "seconds": 240,
+                            },
+                            "target": {
+                                "metric": "power",
+                                "unit": "percent_cp",
+                                "reference": "critical_power",
+                                "min": 105,
+                                "max": 110,
+                            },
+                        },
+                        {
+                            "type": "step",
+                            "phase": "recovery",
+                            "label": "Float",
+                            "instructions": "Keep moving without forcing pace.",
+                            "termination": {
+                                "type": "time",
+                                "seconds": 180,
+                            },
+                            "target": {
+                                "metric": "power",
+                                "unit": "percent_cp",
+                                "reference": "critical_power",
+                                "min": 55,
+                                "max": 65,
+                            },
+                        },
+                    ],
+                },
+                {
+                    "type": "step",
+                    "phase": "cooldown",
+                    "label": "Easy finish",
+                    "instructions": "Let the effort fall naturally.",
+                    "termination": {"type": "time", "seconds": 600},
+                    "target": {
+                        "metric": "power",
+                        "unit": "percent_cp",
+                        "reference": "critical_power",
+                        "min": 60,
+                        "max": 70,
+                    },
+                },
+            ],
+        }
+        created_response = client.post("/api/plan/workouts", json={
+            "date": target,
+            "activity_type": "trail_running",
+            "workout_type": "interval",
+            "workout_description": "Four repeats",
+            "workout_structure_version": "v1",
+            "workout_structure": structure,
+        })
+        assert created_response.status_code == 201, created_response.text
+        created = created_response.json()
+        assert created["planned_duration_min"] == 48
+
+        # Web and miniapp send every flat projection on a note-only save.
+        updated_response = client.put(
+            f"/api/plan/workouts/{created['canonical_id']}",
+            json={
+                "expected_version": created["workout_version"],
+                "date": target,
+                "workout_type": "interval",
+                "planned_duration_min": 48,
+                "planned_distance_km": None,
+                "target_power_min": None,
+                "target_power_max": None,
+                "target_hr_min": None,
+                "target_hr_max": None,
+                "target_pace_min": None,
+                "target_pace_max": None,
+                "workout_description": "Notes only",
+            },
+        )
+
+        assert updated_response.status_code == 200, updated_response.text
+        updated = updated_response.json()
+        assert updated["activity_type"] == "trail_running"
+        assert updated["workout_structure"] == structure
+        assert updated["workout_description"] == "Notes only"
+
+        conflict = client.put(
+            f"/api/plan/workouts/{created['canonical_id']}",
+            json={
+                "expected_version": updated["workout_version"],
+                "planned_duration_min": 49,
+            },
+        )
+        assert conflict.status_code == 409, conflict.text
+        assert conflict.json()["detail"] == {
+            "code": "PLAN_STRUCTURE_PROJECTION_CONFLICT",
+            "message": (
+                "Flat workout fields cannot change an authoritative "
+                "workout structure."
+            ),
+            "fields": ["planned_duration_min"],
+        }
+
+        upsert_response = client.put(
+            f"/api/plan/{target}",
+            json={
+                "workout_type": "interval",
+                "planned_duration_min": 48,
+                "planned_distance_km": None,
+                "target_power_min": None,
+                "target_power_max": None,
+                "target_hr_min": None,
+                "target_hr_max": None,
+                "target_pace_min": None,
+                "target_pace_max": None,
+                "workout_description": "Legacy editor notes",
+            },
+        )
+        assert upsert_response.status_code == 200, upsert_response.text
+        upserted = upsert_response.json()
+        assert upserted["canonical_id"] == created["canonical_id"]
+        assert upserted["activity_type"] == "trail_running"
+        assert upserted["workout_structure"] == structure
+
+        from db import session as db_session
+        from db.models import TrainingPlan
+
+        db = db_session.SessionLocal()
+        try:
+            row = db.query(TrainingPlan).filter(
+                TrainingPlan.user_id == user_id,
+                TrainingPlan.canonical_id == created["canonical_id"],
+            ).one()
+            assert row.workout_structure == structure
+            assert row.planned_duration_min == 48
+            assert row.activity_type == "trail_running"
+        finally:
+            db.close()
+
+    def test_newer_structure_allows_note_edit_without_rewriting_tree(
+        self,
+        api_client,
+    ):
+        client, user_id = api_client
+        target = (date.today() + timedelta(days=5)).isoformat()
+        _seed_plan(user_id, [(target, "interval", "Future structure")])
+        future_structure = {
+            "steps": [{
+                "type": "repeat",
+                "repetitions": 3,
+                "steps": [{
+                    "type": "ramp",
+                    "from": 70,
+                    "to": 90,
+                }],
+            }],
+        }
+
+        from db import session as db_session
+        from db.models import TrainingPlan
+
+        db = db_session.SessionLocal()
+        try:
+            row = db.query(TrainingPlan).filter(
+                TrainingPlan.user_id == user_id,
+                TrainingPlan.date == datetime.strptime(
+                    target,
+                    "%Y-%m-%d",
+                ).date(),
+            ).one()
+            row.activity_type = "trail_running"
+            row.workout_structure_version = "v2"
+            row.workout_structure = future_structure
+            db.commit()
+            canonical_id = row.canonical_id
+        finally:
+            db.close()
+
+        listed = client.get(
+            f"/api/plan?start={target}&end={target}",
+        ).json()["workouts"][0]
+        assert listed["workout_structure_status"] == "unsupported"
+        assert listed["workout_structure_version"] == "v2"
+        assert listed["workout_structure"] == future_structure
+
+        updated_response = client.put(
+            f"/api/plan/workouts/{canonical_id}",
+            json={
+                "expected_version": listed["workout_version"],
+                "date": target,
+                "workout_description": "Notes stay safe",
+            },
+        )
+
+        assert updated_response.status_code == 200, updated_response.text
+        updated = updated_response.json()
+        assert updated["workout_structure_status"] == "unsupported"
+        assert updated["workout_structure_version"] == "v2"
+        assert updated["workout_structure"] == future_structure
+        assert updated["workout_description"] == "Notes stay safe"
+
+        rejected = client.put(
+            f"/api/plan/workouts/{canonical_id}",
+            json={
+                "expected_version": updated["workout_version"],
+                "activity_type": "running",
+            },
+        )
+        assert rejected.status_code == 409, rejected.text
+        assert rejected.json()["detail"]["code"] == (
+            "PLAN_WORKOUT_STRUCTURE_UNSUPPORTED"
+        )
+
+    def test_rest_transitions_reset_activity_and_structure_without_500(
+        self,
+        api_client,
+    ):
+        client, _ = api_client
+        target = (date.today() + timedelta(days=4)).isoformat()
+        created = client.post("/api/plan/workouts", json={
+            "date": target,
+            "activity_type": "trail_running",
+            "workout_type": "interval",
+            "workout_structure_version": "v1",
+            "workout_structure": {
+                "steps": [{
+                    "type": "step",
+                    "phase": "work",
+                    "termination": {"type": "time", "seconds": 1200},
+                    "target": {
+                        "metric": "power",
+                        "unit": "percent_cp",
+                        "reference": "critical_power",
+                        "min": 95,
+                        "max": 100,
+                    },
+                }],
+            },
+        }).json()
+
+        rest_response = client.put(
+            f"/api/plan/workouts/{created['canonical_id']}",
+            json={
+                "expected_version": created["workout_version"],
+                "workout_type": "rest",
+                "planned_duration_min": None,
+                "planned_distance_km": None,
+                "target_power_min": None,
+                "target_power_max": None,
+                "target_hr_min": None,
+                "target_hr_max": None,
+                "target_pace_min": None,
+                "target_pace_max": None,
+            },
+        )
+        assert rest_response.status_code == 200, rest_response.text
+        rest = rest_response.json()
+        assert rest["activity_type"] == "rest"
+        assert rest["workout_structure_version"] == "v1"
+        assert rest["workout_structure"] == {"steps": []}
+
+        # A cached client may echo the former rest activity while changing
+        # purpose. The server owns the transition default and must not throw.
+        easy_response = client.put(
+            f"/api/plan/workouts/{created['canonical_id']}",
+            json={
+                "expected_version": rest["workout_version"],
+                "activity_type": "rest",
+                "workout_type": "easy",
+                "planned_duration_min": 30,
+            },
+        )
+        assert easy_response.status_code == 200, easy_response.text
+        easy = easy_response.json()
+        assert easy["activity_type"] == "running"
+        assert easy["workout_structure_version"] == "v1"
+        assert easy["workout_structure"]["steps"][0]["termination"] == {
+            "type": "time",
+            "seconds": 1800,
+        }
+
+    def test_legacy_flat_crud_stays_flat_and_invalid_transition_is_typed(
+        self,
+        api_client,
+    ):
+        client, _ = api_client
+        target = (date.today() + timedelta(days=4)).isoformat()
+        flat_response = client.post("/api/plan/workouts", json={
+            "date": target,
+            "workout_type": "easy",
+            "planned_duration_min": 40,
+        })
+        assert flat_response.status_code == 201, flat_response.text
+        flat = flat_response.json()
+        assert flat["activity_type"] == "running"
+        assert flat["workout_structure_version"] is None
+        assert flat["workout_structure"] is None
+
+        rest_response = client.put(
+            f"/api/plan/workouts/{flat['canonical_id']}",
+            json={
+                "expected_version": flat["workout_version"],
+                "workout_type": "rest",
+            },
+        )
+        assert rest_response.status_code == 200, rest_response.text
+        rest = rest_response.json()
+        assert rest["activity_type"] == "rest"
+        assert rest["workout_structure_version"] is None
+        assert rest["workout_structure"] is None
+
+        # Explicitly opting a rest row into v1 makes the transition synthesis
+        # path authoritative; values that round to an invalid step fail safely.
+        structured_rest = client.put(
+            f"/api/plan/workouts/{flat['canonical_id']}",
+            json={
+                "expected_version": rest["workout_version"],
+                "workout_structure_version": "v1",
+                "workout_structure": {"steps": []},
+            },
+        ).json()
+        invalid = client.put(
+            f"/api/plan/workouts/{flat['canonical_id']}",
+            json={
+                "expected_version": structured_rest["workout_version"],
+                "workout_type": "easy",
+                "planned_duration_min": 0.001,
+            },
+        )
+        assert invalid.status_code == 422, invalid.text
+        assert invalid.json()["detail"]["code"] == (
+            "PLAN_WORKOUT_STRUCTURE_INVALID"
+        )
+
+        ambiguous_termination = client.put(
+            f"/api/plan/workouts/{flat['canonical_id']}",
+            json={
+                "expected_version": structured_rest["workout_version"],
+                "workout_type": "easy",
+                "planned_duration_min": 30,
+                "planned_distance_km": 5,
+            },
+        )
+        assert ambiguous_termination.status_code == 422, (
+            ambiguous_termination.text
+        )
+        assert ambiguous_termination.json()["detail"]["code"] == (
+            "PLAN_WORKOUT_STRUCTURE_INVALID"
+        )
 
     def test_convert_to_rest_and_delete_require_current_version(
         self,
@@ -1029,6 +1550,93 @@ class TestCanonicalWorkoutManagement:
 
         assert response.status_code == 400
         assert response.json()["detail"]["code"] == "PLAN_NO_CHANGES"
+
+    def test_compatibility_preview_is_typed_and_never_delivers(
+        self,
+        api_client,
+    ):
+        """Draft compatibility names lossy fields without writing a workout."""
+        client, user_id = api_client
+        target = (date.today() + timedelta(days=3)).isoformat()
+        response = client.post("/api/plan/workouts/compatibility", json={
+            "date": target,
+            "activity_type": "trail_running",
+            "workout_type": "hill_repeat",
+            "workout_structure_version": "v1",
+            "workout_structure": {
+                "steps": [{
+                    "type": "repeat",
+                    "label": "Hill set",
+                    "repetitions": 2,
+                    "steps": [{
+                        "type": "step",
+                        "phase": "rest",
+                        "label": "Walk",
+                        "instructions": "Wait for breathing to settle.",
+                        "termination": {"type": "manual"},
+                        "target": {
+                            "metric": "rpe",
+                            "unit": "scale_10",
+                            "reference": "perceived_exertion",
+                            "min": 3,
+                        },
+                    }],
+                }],
+            },
+        })
+
+        assert response.status_code == 200, response.text
+        by_target = {
+            item["target"]: item
+            for item in response.json()["providers"]
+        }
+        assert by_target["garmin"]["compatible"] is False
+        assert by_target["garmin"]["mode"] == "unsupported"
+        assert by_target["stryd"]["compatible"] is False
+        assert {
+            reason["code"] for reason in by_target["stryd"]["reasons"]
+        } == {
+            "wording_not_supported",
+            "termination_not_supported",
+            "target_not_supported",
+        }
+        assert _list_plan_rows(user_id) == []
+
+    def test_compatibility_preview_accepts_fractional_stryd_percent_cp(
+        self,
+        api_client,
+    ):
+        client, _ = api_client
+        target = (date.today() + timedelta(days=3)).isoformat()
+        response = client.post("/api/plan/workouts/compatibility", json={
+            "date": target,
+            "activity_type": "running",
+            "workout_type": "threshold",
+            "workout_structure_version": "v1",
+            "workout_structure": {
+                "steps": [{
+                    "type": "step",
+                    "phase": "work",
+                    "termination": {"type": "time", "seconds": 300},
+                    "target": {
+                        "metric": "power",
+                        "unit": "percent_cp",
+                        "reference": "critical_power",
+                        "min": 95.5,
+                        "max": 96.5,
+                    },
+                }],
+            },
+        })
+
+        assert response.status_code == 200, response.text
+        stryd = next(
+            item
+            for item in response.json()["providers"]
+            if item["target"] == "stryd"
+        )
+        assert stryd["compatible"] is True
+        assert stryd["reasons"] == []
 
     def test_external_and_other_user_workouts_are_not_mutable(
         self,

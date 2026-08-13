@@ -14,6 +14,7 @@ from analysis.config import (
     PRAXYS_PLAN_SOURCES,
     PRAXYS_PLAN_WRITE_SOURCE,
 )
+from analysis.metrics import is_rest_workout
 from api.plan_delivery.base import (
     PlanDeliveryAdapter,
     ProviderAuthenticationError,
@@ -32,6 +33,12 @@ from api.plan_reconciliation import (
     PlanReconciliationItem,
     observation_matches_calendar,
     plan_target_calendar_generation,
+)
+from api.plan_workout_structure import (
+    default_activity_type,
+    inspect_workout_structure,
+    normalize_activity_type,
+    validate_structured_workout,
 )
 from db.cache_revision import bump_revisions
 from db.models import (
@@ -254,8 +261,7 @@ def resumable_plan_resolution(
     )
 
 
-_PLAN_FIELDS = (
-    "workout_type",
+_FLAT_PLAN_FIELDS = (
     "planned_duration_min",
     "planned_distance_km",
     "target_power_min",
@@ -264,7 +270,6 @@ _PLAN_FIELDS = (
     "target_hr_max",
     "target_pace_min",
     "target_pace_max",
-    "workout_description",
 )
 
 
@@ -297,10 +302,96 @@ def _apply_target_snapshot(
     workout_date = snapshot.get("date")
     if not isinstance(workout_date, str):
         raise PlanResolutionConflict("Target workout has no usable date")
-    plan.date = date.fromisoformat(workout_date)
-    for field in _PLAN_FIELDS:
-        setattr(plan, field, snapshot.get(field))
-    plan.start_time = _parse_start_time(snapshot.get("start_time"))
+    try:
+        normalized_date = date.fromisoformat(workout_date)
+    except ValueError as exc:
+        raise PlanResolutionConflict(
+            "Target workout has no usable date"
+        ) from exc
+    workout_type = str(snapshot.get("workout_type") or "")
+    status = str(
+        snapshot.get("workout_structure_status") or ""
+    ).strip()
+    if status not in {"", "absent", "supported"}:
+        raise PlanResolutionConflict(
+            "Target workout structure cannot be represented safely"
+        )
+    inspection = inspect_workout_structure(
+        workout_structure_version=snapshot.get(
+            "workout_structure_version"
+        ),
+        workout_structure=snapshot.get("workout_structure"),
+    )
+    if (
+        status == "absent"
+        and inspection.state != "absent"
+    ) or (
+        status == "supported"
+        and inspection.state != "supported"
+    ):
+        raise PlanResolutionConflict(
+            "Target workout structure cannot be represented safely"
+        )
+    activity_type = str(
+        snapshot.get("activity_type")
+        or default_activity_type(workout_type)
+    )
+    values: dict[str, Any] = {
+        field: snapshot.get(field)
+        for field in _FLAT_PLAN_FIELDS
+    }
+    try:
+        if inspection.state == "absent":
+            normalized_activity = normalize_activity_type(
+                workout_type,
+                activity_type,
+            )
+            normalized_version = None
+            normalized_structure = None
+            if is_rest_workout(workout_type):
+                values = {
+                    field: None for field in _FLAT_PLAN_FIELDS
+                }
+        elif (
+            inspection.state == "supported"
+            and inspection.structure is not None
+        ):
+            (
+                normalized_activity,
+                normalized_structure,
+                values,
+            ) = validate_structured_workout(
+                workout_type=workout_type,
+                activity_type=activity_type,
+                workout_structure_version="v1",
+                workout_structure=inspection.structure,
+            )
+            normalized_version = "v1"
+        else:
+            raise ValueError("unsafe target structure")
+    except (TypeError, ValueError) as exc:
+        raise PlanResolutionConflict(
+            "Target workout structure cannot be represented safely"
+        ) from exc
+    raw_start_time = snapshot.get("start_time")
+    normalized_start_time = _parse_start_time(raw_start_time)
+    if raw_start_time not in (None, "") and normalized_start_time is None:
+        raise PlanResolutionConflict(
+            "Target workout has no usable start time"
+        )
+
+    # Validation above completes before any canonical field is mutated.
+    plan.date = normalized_date
+    plan.activity_type = normalized_activity
+    plan.workout_type = workout_type
+    for field in _FLAT_PLAN_FIELDS:
+        setattr(plan, field, values.get(field))
+    plan.workout_description = str(
+        snapshot.get("workout_description") or ""
+    )
+    plan.workout_structure_version = normalized_version
+    plan.workout_structure = normalized_structure
+    plan.start_time = normalized_start_time
     plan.source = PRAXYS_PLAN_WRITE_SOURCE
     plan.workout_origin = "accepted_target"
     plan.external_id = None

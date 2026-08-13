@@ -309,6 +309,18 @@ def evaluate_conservative_plan_adjustment(
 
     after = dict(workout)
     after["workout_type"] = "rest"
+    after["activity_type"] = "rest"
+    # Persisted legacy-flat rows encode absent nullable structure columns as
+    # None; plan snapshots may either include those nulls or omit the keys.
+    if (
+        workout.get("workout_structure_version") is None
+        and workout.get("workout_structure") is None
+    ):
+        after["workout_structure_version"] = None
+        after["workout_structure"] = None
+    else:
+        after["workout_structure_version"] = "v1"
+        after["workout_structure"] = {"steps": []}
     for field in (
         "planned_duration_min",
         "planned_distance_km",

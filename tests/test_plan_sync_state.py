@@ -1889,17 +1889,58 @@ def test_stale_external_id_uses_unique_fingerprint_candidate(api_client):
 def test_accept_target_is_transactional_and_records_provenance(api_client):
     client, user_id = api_client
     target = date.today() + timedelta(days=10)
+    target_structure = {
+        "steps": [{
+            "type": "repeat",
+            "repetitions": 4,
+            "steps": [
+                {
+                    "type": "step",
+                    "phase": "work",
+                    "termination": {"type": "time", "seconds": 240},
+                    "target": {
+                        "metric": "power",
+                        "unit": "percent_cp",
+                        "reference": "critical_power",
+                        "min": 100,
+                        "max": 105,
+                    },
+                },
+                {
+                    "type": "step",
+                    "phase": "recovery",
+                    "termination": {"type": "time", "seconds": 120},
+                    "target": {
+                        "metric": "power",
+                        "unit": "percent_cp",
+                        "reference": "critical_power",
+                        "min": 55,
+                        "max": 65,
+                    },
+                },
+            ],
+        }],
+    }
     _seed_target_snapshot(user_id, [{
         "date": target.isoformat(),
+        "activity_type": "trail_running",
         "workout_type": "coach workout",
         "planned_duration_min": "52",
         "workout_description": "Imported coach session",
+        "workout_structure_status": "supported",
+        "workout_structure_version": "v1",
+        "workout_structure": target_structure,
         "external_id": "coach-target",
         "provider_references": {"template_id": "coach-template"},
         "provider_content_fingerprint": "a" * 64,
         "provider_payload_fingerprint": "b" * 64,
     }])
     target_workout = client.get("/api/plan").json()["workouts"][0]
+    assert target_workout["activity_type"] == "trail_running"
+    assert target_workout["workout_structure"] == target_structure
+    assert target_workout["reconciliation"]["target_workout"][
+        "workout_structure"
+    ] == target_structure
     reconciliation_id = target_workout["reconciliation"]["id"]
     bare_retry = client.post(
         "/api/plan/reconciliation/resolve",
@@ -1947,7 +1988,10 @@ def test_accept_target_is_transactional_and_records_provenance(api_client):
         ).one()
         assert canonical.source == PRAXYS_PLAN_WRITE_SOURCE
         assert canonical.workout_origin == "accepted_target"
+        assert canonical.activity_type == "trail_running"
         assert canonical.workout_description == "Imported coach session"
+        assert canonical.workout_structure_version == "v1"
+        assert canonical.workout_structure == target_structure
         assert canonical.meta["accepted_from_target"]["external_id"] == (
             "coach-target"
         )
@@ -1968,12 +2012,183 @@ def test_accept_target_is_transactional_and_records_provenance(api_client):
         ).one()
         assert attempt.operation == "import"
         assert attempt.response["revision_id"] == revision.id
+        assert revision.after_snapshot[0]["activity_type"] == (
+            "trail_running"
+        )
+        assert revision.after_snapshot[0]["workout_structure"] == (
+            target_structure
+        )
+        from db.plan_ledger import plan_snapshot, workout_version
+
+        assert delivery.plan_version == workout_version(
+            plan_snapshot(canonical)
+        )
+        assert delivery.workout_version == "b" * 64
     finally:
         db.close()
 
     body = client.get("/api/plan").json()
     assert body["workouts"][0]["reconciliation"]["state"] == "matching"
     assert target.isoformat() not in body["stryd_status"]
+
+
+def test_accept_flat_target_atomically_clears_stale_activity_and_structure(
+    api_client,
+):
+    client, user_id = api_client
+    target = date.today() + timedelta(days=10)
+    structured = {
+        "steps": [{
+            "type": "step",
+            "phase": "work",
+            "termination": {"type": "time", "seconds": 1800},
+            "target": {
+                "metric": "power",
+                "unit": "percent_cp",
+                "reference": "critical_power",
+                "min": 90,
+                "max": 95,
+            },
+        }],
+    }
+    _seed_target_snapshot(user_id, [{
+        "date": target.isoformat(),
+        "activity_type": "trail_running",
+        "workout_type": "interval",
+        "workout_structure_status": "supported",
+        "workout_structure_version": "v1",
+        "workout_structure": structured,
+        "external_id": "replace-authoritative-target",
+        "provider_content_fingerprint": "a" * 64,
+        "provider_payload_fingerprint": "b" * 64,
+    }])
+    first_item = client.get("/api/plan").json()["workouts"][0]
+    first = client.post(
+        "/api/plan/reconciliation/resolve",
+        json={
+            "reconciliation_id": first_item["reconciliation"]["id"],
+            "action": "accept_target",
+        },
+    )
+    assert first.status_code == 200, first.text
+
+    _seed_target_snapshot(user_id, [{
+        "date": target.isoformat(),
+        "activity_type": "running",
+        "workout_type": "easy",
+        "planned_duration_min": "45",
+        "workout_description": "Provider flattened this workout",
+        "external_id": "replace-authoritative-target",
+        "provider_content_fingerprint": "c" * 64,
+        "provider_payload_fingerprint": "d" * 64,
+    }])
+    changed = client.get("/api/plan").json()["workouts"][0]
+    assert changed["reconciliation"]["state"] == "target_edited"
+    second = client.post(
+        "/api/plan/reconciliation/resolve",
+        json={
+            "reconciliation_id": changed["reconciliation"]["id"],
+            "action": "accept_target",
+        },
+    )
+    assert second.status_code == 200, second.text
+
+    from db import session as db_session
+    from db.models import PlanDelivery, PlanRevision, TrainingPlan
+    from db.plan_ledger import plan_snapshot, workout_version
+
+    db = db_session.SessionLocal()
+    try:
+        canonical = db.query(TrainingPlan).filter(
+            TrainingPlan.user_id == user_id,
+            TrainingPlan.canonical_id == first.json()["canonical_id"],
+        ).one()
+        assert canonical.activity_type == "running"
+        assert canonical.workout_type == "easy"
+        assert canonical.planned_duration_min == 45
+        assert canonical.workout_structure_version is None
+        assert canonical.workout_structure is None
+        revisions = db.query(PlanRevision).filter(
+            PlanRevision.user_id == user_id,
+            PlanRevision.operation == "accept_target",
+        ).order_by(PlanRevision.created_at).all()
+        assert revisions[-1].before_snapshot[0]["workout_structure"] == (
+            structured
+        )
+        assert "workout_structure" not in revisions[-1].after_snapshot[0]
+        delivery = db.query(PlanDelivery).filter(
+            PlanDelivery.user_id == user_id,
+            PlanDelivery.external_id == "replace-authoritative-target",
+            PlanDelivery.state == "synced",
+        ).one()
+        assert delivery.plan_version == workout_version(
+            plan_snapshot(canonical)
+        )
+        assert delivery.workout_version == "d" * 64
+    finally:
+        db.close()
+
+
+def test_unrepresentable_target_structure_cannot_be_accepted(api_client):
+    client, user_id = api_client
+    target = date.today() + timedelta(days=10)
+    _seed_target_snapshot(user_id, [{
+        "date": target.isoformat(),
+        "activity_type": "running",
+        "workout_type": "interval",
+        "planned_duration_min": "45",
+        "workout_structure_status": "unsupported",
+        "external_id": "unsupported-target",
+        "provider_content_fingerprint": "a" * 64,
+        "provider_payload_fingerprint": "b" * 64,
+    }])
+
+    target_workout = client.get("/api/plan").json()["workouts"][0]
+    reconciliation = target_workout["reconciliation"]
+    assert reconciliation["target_workout"][
+        "workout_structure_status"
+    ] == "unsupported"
+    assert reconciliation["resolutions"] == []
+
+    response = client.post(
+        "/api/plan/reconciliation/resolve",
+        json={
+            "reconciliation_id": reconciliation["id"],
+            "action": "accept_target",
+        },
+    )
+    assert response.status_code == 409, response.text
+
+    from db import session as db_session
+    from db.models import TrainingPlan
+
+    db = db_session.SessionLocal()
+    try:
+        assert db.query(TrainingPlan).filter(
+            TrainingPlan.user_id == user_id,
+            TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
+        ).count() == 0
+    finally:
+        db.close()
+
+
+def test_legacy_garmin_summary_without_structure_status_is_not_acceptable():
+    from api.plan_reconciliation import _observation_can_be_accepted
+    from db.models import PlanTargetWorkout
+
+    observation = PlanTargetWorkout(
+        target="garmin",
+        present=True,
+        normalized_workout={
+            "date": (date.today() + timedelta(days=10)).isoformat(),
+            "activity_type": "running",
+            "workout_type": "interval",
+            "planned_duration_min": 45,
+            "workout_description": "Legacy Garmin calendar summary",
+        },
+    )
+
+    assert _observation_can_be_accepted(observation) is False
 
 
 def test_accept_target_failure_rolls_back_canonical_and_ledger(

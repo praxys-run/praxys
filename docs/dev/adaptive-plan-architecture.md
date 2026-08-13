@@ -84,6 +84,7 @@ provider adapters or make platform calendars canonical.
 `AdaptivePlan` is the aggregate root. Its persistent contract needs:
 
 - opaque plan ID and owning user ID;
+- explicit primary discipline (`running` or `trail_running`), never inferred;
 - goal-contract ID and goal-contract version;
 - purpose, start, target/end date, and planning horizon;
 - lifecycle status;
@@ -147,8 +148,10 @@ Intensity evidence always uses activity splits or samples, never activity
 `PlanProposal` is immutable and non-canonical. It contains:
 
 - plan ID and base aggregate version;
+- explicit plan discipline plus per-workout `activity_type`;
 - proposal scope: plan, block, week, workout, goal, pause, resume, or end;
 - proposed before/after snapshots or a typed patch;
+- versioned workout structure (`v1`) instead of description-derived intervals;
 - evidence-snapshot and decision references;
 - rationale, uncertainty, trade-offs, and affected goal expectation;
 - policy, model, prompt, and science-decision versions;
@@ -158,6 +161,138 @@ Intensity evidence always uses activity splits or samples, never activity
 
 A proposal can be accepted, edited into a successor, rejected, deferred,
 expired, or superseded. None of those states mutates the plan except acceptance.
+
+### Structured workout contract v1
+
+Proposal workouts and canonical `TrainingPlan` rows carry a versioned
+`workout_structure` alongside compatibility flat fields. The structure is
+authoritative; flat duration, distance, and targets are projections derived
+only when Praxys can do so without inventing missing information.
+
+- `discipline` is the adaptive plan's primary lane (`running` or
+  `trail_running`).
+- `activity_type` is per workout and stays separate from `workout_type`
+  (`running`, `trail_running`, `cycling`, `strength`, `rest`, etc.).
+- Non-rest workouts need at least one executable step. Rest workouts may use
+  `{"steps": []}` and must not retain executable steps.
+- Step semantics are the fixed portable set `warmup`, `work`, `recovery`,
+  `rest`, `cooldown`, and `other`. Warm-up and cool-down steps are optional
+  and have no positional requirement. A `repeat` is a structural group, never
+  a step semantic.
+- A step may carry a user-defined `label` of at most 80 characters and
+  user-defined coaching `instructions` of at most 1000 characters. A repeat
+  group may carry a user-defined `label` of at most 80 characters. Praxys
+  trims leading and trailing whitespace, treats blank-only optional wording
+  as absent, rejects overflow rather than truncating it, and otherwise retains
+  the normalized canonical wording exactly.
+- Step terminations are `time`, `distance`, `open`, or `manual`.
+- Intensity targets are typed. Valid combinations are:
+  `none`; power in `watts` or `%CP`; heart rate in `bpm` or `%LTHR`; pace in
+  `sec_per_km` or threshold-relative `sec_per_km_delta`; and `RPE` on a
+  10-point scale.
+
+Rows with both structure fields absent remain legacy-flat. A version without a
+payload, a payload without a version, or an unknown version is not flat and
+must fail closed. Flat editors may update notes and other non-structural fields
+without resubmitting the authoritative structure; any changed flat projection
+must match the projection derived from that structure. Entering rest replaces
+an authoritative structure with empty v1, while leaving an authoritative rest
+row explicitly synthesizes and validates a new executable v1 structure.
+
+Provider dispatch follows the same distinction. Stryd translates only
+non-empty v1 time steps/repeats whose phases map to warmup, work, recovery, or
+cooldown and whose targets are power-based. The connector has no verified
+lossless mapping for step/group labels or step instructions, so any structured
+workout containing that wording is rejected with the existing provider-request
+unsupported path; it is never sent with wording silently removed. The portable
+`rest` phase is also rejected because Stryd cannot distinguish it losslessly
+from recovery. Distance/open/manual terminations, `other` phases, non-power
+targets, provider-specific modifiers, malformed pairs, and unknown versions
+are rejected instead of flattened. Garmin currently accepts only genuinely
+flat running rows and rejects every structured workout. For reconciliation,
+Stryd track, treadmill, and unknown surfaces are also unrepresentable because
+the canonical activity contract can round-trip only road running and trail
+running. Garmin calendar summaries are not acceptable target snapshots until
+their authoritative template steps have a lossless provider-neutral
+translation.
+
+Example interval workout:
+
+```json
+{
+  "discipline": "trail_running",
+  "activity_type": "trail_running",
+  "workout_type": "interval",
+  "workout_structure_version": "v1",
+  "workout_structure": {
+    "steps": [
+      {
+        "type": "step",
+        "phase": "warmup",
+        "label": "Trail warm-up",
+        "instructions": "Stay relaxed on the first climb.",
+        "termination": { "type": "time", "seconds": 900 },
+        "target": {
+          "metric": "power",
+          "unit": "percent_cp",
+          "reference": "critical_power",
+          "min": 65,
+          "max": 75
+        }
+      },
+      {
+        "type": "repeat",
+        "label": "Main set",
+        "repetitions": 4,
+        "steps": [
+          {
+            "type": "step",
+            "phase": "work",
+            "label": "Uphill power",
+            "instructions": "Run tall with quick feet and quiet shoulders.",
+            "termination": { "type": "time", "seconds": 240 },
+            "target": {
+              "metric": "power",
+              "unit": "percent_cp",
+              "reference": "critical_power",
+              "min": 95,
+              "max": 100
+            }
+          },
+          {
+            "type": "step",
+            "phase": "recovery",
+            "label": "Float down",
+            "instructions": "Keep moving without chasing pace.",
+            "termination": { "type": "time", "seconds": 180 },
+            "target": {
+              "metric": "power",
+              "unit": "percent_cp",
+              "reference": "critical_power",
+              "min": 60,
+              "max": 65
+            }
+          }
+        ]
+      },
+      {
+        "type": "step",
+        "phase": "cooldown",
+        "label": "Easy finish",
+        "instructions": "Let effort fall naturally.",
+        "termination": { "type": "time", "seconds": 600 },
+        "target": {
+          "metric": "power",
+          "unit": "percent_cp",
+          "reference": "critical_power",
+          "min": 60,
+          "max": 70
+        }
+      }
+    ]
+  }
+}
+```
 
 ### Accepted revision
 
