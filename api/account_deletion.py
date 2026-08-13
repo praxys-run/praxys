@@ -30,6 +30,7 @@ from db.models import (
     GoalBaselineConfirmation,
     GoalBaselineSnapshot,
     GoalBaselineTestRecord,
+    Outdoor5KPlanGeneration,
     Invitation,
     LabsAnalysisJob,
     LabsAnalysisOutbox,
@@ -192,6 +193,7 @@ def _delete_user_owned_rows(db: Session, user_id: str) -> None:
     for model in (
         ActivitySample,
         ActivitySplit,
+        Outdoor5KPlanGeneration,
         Activity,
         RecoveryData,
         FitnessData,

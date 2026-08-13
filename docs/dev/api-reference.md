@@ -1343,6 +1343,95 @@ omitted, and over-limit input is rejected rather than truncated. Internal
 spacing, punctuation, case, and Unicode in the normalized value are retained
 in the canonical proposal and plan.
 
+#### Deterministic outdoor-road 5K generation
+
+The accepted `outdoor-5k-plan-generation-policy-v1` is a suggestion-only,
+non-AI 28-day generator. It accepts only a current qualified history-first 5K
+baseline, six bounded completed-history weeks, and explicit structured
+availability/safety statements. It does not read free-text personal context,
+use activity `avg_power`, infer medical state, promise a target outcome, write
+canonical workouts during generation, or initiate provider delivery.
+
+All four endpoints use the authenticated caller's own records. Readiness and
+alternatives require ordinary authenticated data access; generation and
+regeneration require write access.
+
+- `POST /api/plan/outdoor-5k/readiness` evaluates the exact typed input and
+  returns a `source_revision`.
+- `POST /api/plan/outdoor-5k/alternatives` returns only the bounded next steps
+  for that same readiness input.
+- `POST /api/plan/outdoor-5k/generate` requires
+  `expected_source_revision` and `idempotency_key`; it returns either a typed
+  no-plan result or a newly persisted immutable `PlanProposal`.
+- `POST /api/plan/outdoor-5k/proposals/{proposal_id}/regenerate` additionally
+  requires `expected_proposal_version` and can only create a successor after
+  the source revision changed. An exact idempotent retry returns its existing
+  successor; a new regeneration request with unchanged source input returns
+  `409 OUTDOOR_5K_REGENERATION_INPUT_UNCHANGED`.
+
+For either write endpoint, an exact retry (same key and complete request
+payload, including the expected source revision) replays the persisted response
+before evaluating the current source fence. This makes transport retries safe
+after a configuration, baseline, activity, or calendar-reservation change. A
+different payload with the same key returns
+`409 OUTDOOR_5K_IDEMPOTENCY_CONFLICT`; a fresh key still requires the exact
+current source revision and is rechecked while the owner-scoped plan write lock
+is held before proposal persistence.
+
+Requests use this structured shape (weekday values are Monday `0` through
+Sunday `6`):
+
+```json
+{
+  "age_18_or_older": true,
+  "self_coached_recreational_road_runner": true,
+  "can_complete_5k": true,
+  "safety_stop": false,
+  "outdoor_road_goal_confirmed": true,
+  "available_weekdays": [0, 2, 5],
+  "maximum_session_duration_min": 60,
+  "unavailable_dates": [],
+  "preferred_longest_run_weekday": 5
+}
+```
+
+Generation adds a 64-character `expected_source_revision` and an
+8–128-character `idempotency_key`; regeneration also adds
+`expected_proposal_version`. Every outcome has a typed `result.code`: `ready`
+or one of the accepted no-plan codes
+`unsupported_goal_or_population`, `safety_stop`,
+`insufficient_or_stale_baseline`, `insufficient_goal_horizon`,
+`goal_gap_not_actionable_v1`, `insufficient_recent_history`,
+`clarification_required`, `unsupported_frequency`,
+`contradictory_constraints`, `unsupported_power_target`, or
+`no_schedule_within_envelope`. A changed source revision returns
+`409 OUTDOOR_5K_SOURCE_REVISION_STALE`; an idempotency-key reuse for different
+input returns `409 OUTDOOR_5K_IDEMPOTENCY_CONFLICT`.
+
+`maximum_session_duration_min` must be positive, but has no universal product
+floor or upper cap. The generator limits scheduled duration against the stated
+maximum and completed-history anchors; it emits `unsupported_frequency` when
+recent modal completed-running frequency is below the three-day envelope.
+When an eligible target event falls inside the proposal horizon, the proposal
+ends on race eve: it never schedules a workout on or after the target date.
+For a target eight to fourteen days after a block or reassessment anchor, that
+entire pre-event span is a taper. Taper volume is selected nearest to 50% of
+the same-date normal schedule, subject to discrete scheduling, and must be
+reduced by 41–60%; if stated availability cannot form that bounded taper, the
+endpoint returns `no_schedule_within_envelope` rather than relaxing the policy.
+
+Successful proposal records retain only the structured observed input snapshot,
+structured athlete constraints, derived history statistics, baseline snapshot
+reference, validation result, policy/generator/science-decision versions,
+evidence review and claim IDs, a deterministic non-AI marker, and replay hash.
+The exact quality-session structures are versioned Praxys product guardrails,
+not published training optima. Records are available only to the owning
+authenticated athlete, appear in
+`GET /api/me/export` as `outdoor_5k_plan_generation`, and are hard-deleted with
+the account. No provider receives this record. Proposal adoption reruns the
+history-first baseline and deterministic source fence atomically; adoption of
+this policy does **not** trigger managed-provider delivery.
+
 #### POST /api/plan/proposals
 
 Create a draft proposal. The first proposal creates a new adaptive-plan
@@ -1500,6 +1589,11 @@ snapshots with `status=already_adopted`; it does not re-trigger delivery.
 Delivery is a post-commit consequence and is not included in the response
 body. Retrying an adopted proposal with a different key returns
 `PLAN_PROPOSAL_ALREADY_ADOPTED`.
+
+The deterministic outdoor-road 5K policy is a deliberate exception: adoption
+first reruns its current baseline and exact source-revision checks, but it
+does not invoke managed delivery. Delivery remains a separately consented
+operation outside this generator.
 
 Managed delivery consumes the authoritative structured workout definition. It
 only translates provider-safe subsets: Stryd currently supports time-based

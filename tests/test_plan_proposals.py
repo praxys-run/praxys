@@ -7,7 +7,7 @@ import importlib
 import io
 import os
 import tempfile
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
@@ -416,6 +416,7 @@ def test_create_read_successor_and_reject_preserve_noncanonical_history(proposal
     current = client.get("/api/plan/proposals/current")
     assert current.status_code == 200, current.text
     assert current.json()["id"] == first["id"]
+    assert current.headers["cache-control"] == "private, no-store"
 
     edited_workouts = first["workouts"]
     edited_workouts[0] = {**edited_workouts[0], "workout_description": "Edited aerobic run"}
@@ -452,6 +453,48 @@ def test_create_read_successor_and_reject_preserve_noncanonical_history(proposal
         assert parent.state == "superseded"
         assert parent.workout_snapshot[0]["workout_description"] == "Aerobic run"
         assert child.workout_snapshot[0]["workout_description"] == "Edited aerobic run"
+    finally:
+        db.close()
+
+
+def test_proposal_idempotency_binds_the_complete_create_request(proposal_client):
+    """A reused proposal key cannot replay a changed immutable request."""
+    client, _, _ = proposal_client
+    payload = _proposal_payload(key="proposal-fingerprint")
+    created = client.post("/api/plan/proposals", json=payload)
+    assert created.status_code == 201, created.text
+
+    changed = copy.deepcopy(payload)
+    changed["workouts"][0]["workout_description"] = "Different private request"
+    conflict = client.post("/api/plan/proposals", json=changed)
+
+    assert conflict.status_code == 409, conflict.text
+    assert conflict.json()["detail"]["code"] == "PLAN_PROPOSAL_IDEMPOTENCY_CONFLICT"
+
+
+def test_proposal_expiry_is_normalized_to_utc_before_naive_storage(proposal_client):
+    """An offset-aware expiry cannot shift the persisted proposal lifetime."""
+    client, db_session, current_user = proposal_client
+    payload = _proposal_payload(key="proposal-offset-expiry")
+    payload["expires_at"] = "2030-01-02T09:30:00+08:00"
+    created = client.post("/api/plan/proposals", json=payload)
+    assert created.status_code == 201, created.text
+
+    from db.models import PlanProposal
+
+    db = db_session.SessionLocal()
+    try:
+        proposal = db.query(PlanProposal).filter(
+            PlanProposal.user_id == current_user["value"]
+        ).one()
+        assert proposal.expires_at == datetime(
+            2030,
+            1,
+            2,
+            1,
+            30,
+            tzinfo=timezone.utc,
+        ).replace(tzinfo=None)
     finally:
         db.close()
 

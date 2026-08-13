@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
-from typing import Any, Mapping, Sequence
+from datetime import date, datetime, timezone
+import hashlib
+import json
+from typing import Any, Callable, Mapping, MutableMapping, Sequence
 from uuid import UUID, uuid4
 
 from pydantic import ValidationError
@@ -372,6 +374,87 @@ def _proposal_to_dict(
     }
 
 
+def _idempotency_matches_proposal(
+    *,
+    proposal: PlanProposal,
+    request_fingerprint: str,
+) -> bool:
+    """Return whether an idempotency replay is the exact same immutable command."""
+    return proposal.idempotency_fingerprint == request_fingerprint
+
+
+def _utc_naive(value: datetime | None) -> datetime | None:
+    """Normalize a validated public timestamp to the SQLite UTC representation."""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def _idempotency_conflict() -> AdaptivePlanError:
+    """Build the safe error returned for a non-identical idempotency reuse."""
+    return AdaptivePlanError(
+        409,
+        "PLAN_PROPOSAL_IDEMPOTENCY_CONFLICT",
+        "This idempotency key was already used for a different proposal request.",
+    )
+
+
+def _mark_idempotency_replay(
+    idempotency_replay_state: MutableMapping[str, bool] | None,
+) -> None:
+    """Tell an optional policy caller that this invocation returned a replay."""
+    if idempotency_replay_state is not None:
+        idempotency_replay_state["replayed"] = True
+
+
+def _proposal_request_fingerprint(
+    *,
+    payload: ProposalInput,
+    goal: Mapping[str, Any],
+    discipline: str,
+    workouts: Sequence[Mapping[str, Any]],
+    predecessor_proposal_id: str | None,
+    predecessor_version: int | None,
+) -> str:
+    """Hash the complete immutable proposal command without retaining duplicate PII."""
+    expires_at = _utc_naive(payload.expires_at)
+    requested_workouts: list[dict[str, Any]] = []
+    for workout in payload.workouts:
+        item = dict(workout)
+        # Initial proposal identity is generated server-side when omitted. It
+        # must not make an otherwise exact retry look like a new command.
+        if item.get("canonical_id") in (None, ""):
+            item.pop("canonical_id", None)
+        requested_workouts.append(item)
+    command = {
+        "goal": {
+            "goal_kind": goal["goal_kind"],
+            "target": goal["target"],
+            "horizon_start": goal["horizon_start"].isoformat(),
+            "horizon_end": goal["horizon_end"].isoformat(),
+        },
+        "discipline": discipline,
+        "workouts": requested_workouts,
+        "origin": payload.origin,
+        "actor_type": payload.actor_type,
+        "actor_id": payload.actor_id,
+        "policy_version": payload.policy_version,
+        "model_version": payload.model_version,
+        "science_version": payload.science_version,
+        "assumptions": _json_list(payload.assumptions),
+        "unknowns": _json_list(payload.unknowns),
+        "warnings": _json_list(payload.warnings),
+        "alternatives": _json_list(payload.alternatives),
+        "expires_at": expires_at.isoformat() if expires_at is not None else None,
+        "predecessor_proposal_id": predecessor_proposal_id,
+        "predecessor_version": predecessor_version,
+    }
+    canonical = json.dumps(command, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def _existing_proposal_for_key(db: Session, *, user_id: str, idempotency_key: str) -> PlanProposal | None:
     return db.execute(
         select(PlanProposal).where(
@@ -507,11 +590,19 @@ def create_draft_proposal(
     user_id: str,
     payload: ProposalInput,
     current_date: date,
+    before_persist: Callable[[Session], None] | None = None,
+    idempotency_replay_state: MutableMapping[str, bool] | None = None,
+    on_created: Callable[[Session, PlanProposal], None] | None = None,
 ) -> dict[str, Any]:
-    """Create the first immutable proposal for a new adaptive plan aggregate."""
-    existing = _existing_proposal_for_key(db, user_id=user_id, idempotency_key=payload.idempotency_key)
-    if existing is not None:
-        return _idempotent_proposal_hit(db, user_id=user_id, proposal=existing)
+    """Create the first immutable proposal for a new adaptive plan aggregate.
+
+    ``before_persist`` runs after the owner-scoped plan write lock is held,
+    before any proposal row is staged. Policy services use it to recheck
+    mutable source inputs in that locked transaction.
+
+    ``idempotency_replay_state`` lets a policy wrapper reconstruct its own
+    persisted response when an in-flight exact retry is found under that lock.
+    """
     goal = _validate_goal(payload.goal)
     discipline = normalize_adaptive_plan_discipline(payload.discipline)
     workouts = _validate_workouts(
@@ -520,9 +611,49 @@ def create_draft_proposal(
         horizon_end=goal["horizon_end"],
         current_date=current_date,
     )
+    request_fingerprint = _proposal_request_fingerprint(
+        payload=payload,
+        goal=goal,
+        discipline=discipline,
+        workouts=workouts,
+        predecessor_proposal_id=None,
+        predecessor_version=None,
+    )
+    existing = _existing_proposal_for_key(
+        db,
+        user_id=user_id,
+        idempotency_key=payload.idempotency_key,
+    )
+    if existing is not None:
+        if _idempotency_matches_proposal(
+            proposal=existing,
+            request_fingerprint=request_fingerprint,
+        ):
+            _mark_idempotency_replay(idempotency_replay_state)
+            return _idempotent_proposal_hit(db, user_id=user_id, proposal=existing)
+        raise _idempotency_conflict()
     try:
         db.rollback()
         lock_plan_writes(db, user_id)
+        existing = _existing_proposal_for_key(
+            db,
+            user_id=user_id,
+            idempotency_key=payload.idempotency_key,
+        )
+        if existing is not None:
+            if _idempotency_matches_proposal(
+                proposal=existing,
+                request_fingerprint=request_fingerprint,
+            ):
+                _mark_idempotency_replay(idempotency_replay_state)
+                return _idempotent_proposal_hit(
+                    db,
+                    user_id=user_id,
+                    proposal=existing,
+                )
+            raise _idempotency_conflict()
+        if before_persist is not None:
+            before_persist(db)
         active_plan = _active_plan(db, user_id=user_id, for_update=True)
         if active_plan is not None:
             _archive_expired_draft(
@@ -566,13 +697,16 @@ def create_draft_proposal(
                 unknowns=_json_list(payload.unknowns),
                 warnings=_json_list(payload.warnings),
                 alternatives=_json_list(payload.alternatives),
-                expires_at=payload.expires_at,
+                expires_at=_utc_naive(payload.expires_at),
                 idempotency_key=payload.idempotency_key,
+                idempotency_fingerprint=request_fingerprint,
                 workout_snapshot=workouts,
             )
             db.add(proposal)
             db.flush()
             active_plan.active_proposal_id = proposal.id
+            if on_created is not None:
+                on_created(db, proposal)
             db.commit()
             return _proposal_to_dict(db, proposal)
         if (
@@ -614,13 +748,16 @@ def create_draft_proposal(
             unknowns=_json_list(payload.unknowns),
             warnings=_json_list(payload.warnings),
             alternatives=_json_list(payload.alternatives),
-            expires_at=payload.expires_at,
+            expires_at=_utc_naive(payload.expires_at),
             idempotency_key=payload.idempotency_key,
+            idempotency_fingerprint=request_fingerprint,
             workout_snapshot=workouts,
         )
         db.add(proposal)
         db.flush()
         adaptive_plan.active_proposal_id = proposal.id
+        if on_created is not None:
+            on_created(db, proposal)
         db.commit()
     except AdaptivePlanError:
         db.rollback()
@@ -629,7 +766,13 @@ def create_draft_proposal(
         db.rollback()
         existing = _existing_proposal_for_key(db, user_id=user_id, idempotency_key=payload.idempotency_key)
         if existing is not None:
-            return _idempotent_proposal_hit(db, user_id=user_id, proposal=existing)
+            if _idempotency_matches_proposal(
+                proposal=existing,
+                request_fingerprint=request_fingerprint,
+            ):
+                _mark_idempotency_replay(idempotency_replay_state)
+                return _idempotent_proposal_hit(db, user_id=user_id, proposal=existing)
+            raise _idempotency_conflict()
         raise AdaptivePlanError(409, "ADAPTIVE_PLAN_CONFLICT", "Adaptive plan proposal could not be created.") from exc
     except Exception:
         db.rollback()
@@ -657,6 +800,22 @@ def read_current_proposal(db: Session, *, user_id: str) -> dict[str, Any] | None
     return _proposal_to_dict(db, proposal)
 
 
+def read_proposal(
+    db: Session,
+    *,
+    user_id: str,
+    proposal_id: str,
+) -> dict[str, Any] | None:
+    """Return one owner-scoped immutable proposal in any lifecycle state."""
+    proposal = db.execute(
+        select(PlanProposal).where(
+            PlanProposal.user_id == user_id,
+            PlanProposal.id == proposal_id,
+        )
+    ).scalar_one_or_none()
+    return _proposal_to_dict(db, proposal) if proposal is not None else None
+
+
 def create_successor_proposal(
     db: Session,
     *,
@@ -665,11 +824,19 @@ def create_successor_proposal(
     expected_version: int,
     payload: ProposalInput,
     current_date: date,
+    before_persist: Callable[[Session], None] | None = None,
+    idempotency_replay_state: MutableMapping[str, bool] | None = None,
+    on_created: Callable[[Session, PlanProposal], None] | None = None,
+    allow_policy_successor: bool = False,
 ) -> dict[str, Any]:
-    """Supersede a draft proposal with a new immutable edited version."""
-    existing = _existing_proposal_for_key(db, user_id=user_id, idempotency_key=payload.idempotency_key)
-    if existing is not None:
-        return _idempotent_proposal_hit(db, user_id=user_id, proposal=existing)
+    """Supersede a draft proposal with a new immutable edited version.
+
+    ``before_persist`` runs under the owner-scoped plan write lock before the
+    predecessor is read or a successor is staged.
+
+    ``idempotency_replay_state`` lets a policy wrapper reconstruct its own
+    persisted response when an in-flight exact retry is found under that lock.
+    """
     goal = _validate_goal(payload.goal)
     discipline = normalize_adaptive_plan_discipline(payload.discipline)
     workouts = _validate_workouts(
@@ -678,9 +845,49 @@ def create_successor_proposal(
         horizon_end=goal["horizon_end"],
         current_date=current_date,
     )
+    request_fingerprint = _proposal_request_fingerprint(
+        payload=payload,
+        goal=goal,
+        discipline=discipline,
+        workouts=workouts,
+        predecessor_proposal_id=proposal_id,
+        predecessor_version=expected_version,
+    )
+    existing = _existing_proposal_for_key(
+        db,
+        user_id=user_id,
+        idempotency_key=payload.idempotency_key,
+    )
+    if existing is not None:
+        if _idempotency_matches_proposal(
+            proposal=existing,
+            request_fingerprint=request_fingerprint,
+        ):
+            _mark_idempotency_replay(idempotency_replay_state)
+            return _idempotent_proposal_hit(db, user_id=user_id, proposal=existing)
+        raise _idempotency_conflict()
     try:
         db.rollback()
         lock_plan_writes(db, user_id)
+        existing = _existing_proposal_for_key(
+            db,
+            user_id=user_id,
+            idempotency_key=payload.idempotency_key,
+        )
+        if existing is not None:
+            if _idempotency_matches_proposal(
+                proposal=existing,
+                request_fingerprint=request_fingerprint,
+            ):
+                _mark_idempotency_replay(idempotency_replay_state)
+                return _idempotent_proposal_hit(
+                    db,
+                    user_id=user_id,
+                    proposal=existing,
+                )
+            raise _idempotency_conflict()
+        if before_persist is not None:
+            before_persist(db)
         parent = db.execute(
             select(PlanProposal).where(
                 PlanProposal.user_id == user_id,
@@ -703,6 +910,15 @@ def create_successor_proposal(
             raise AdaptivePlanError(409, "PLAN_PROPOSAL_EXPIRED", "The proposal has expired.")
         if parent.state != "draft":
             raise AdaptivePlanError(409, "PLAN_PROPOSAL_NOT_EDITABLE", "Only draft proposals can be edited.", state=parent.state)
+        if (
+            parent.policy_version == "outdoor-5k-plan-generation-policy-v1"
+            and not allow_policy_successor
+        ):
+            raise AdaptivePlanError(
+                409,
+                "OUTDOOR_5K_PROPOSAL_REGENERATE_REQUIRED",
+                "Use the deterministic outdoor 5K regenerate endpoint for this proposal.",
+            )
         adaptive_plan = db.execute(
             select(AdaptivePlan).where(
                 AdaptivePlan.user_id == user_id,
@@ -753,8 +969,9 @@ def create_successor_proposal(
             unknowns=_json_list(payload.unknowns),
             warnings=_json_list(payload.warnings),
             alternatives=_json_list(payload.alternatives),
-            expires_at=payload.expires_at,
+            expires_at=_utc_naive(payload.expires_at),
             idempotency_key=payload.idempotency_key,
+            idempotency_fingerprint=request_fingerprint,
             workout_snapshot=workouts,
         )
         db.add(proposal)
@@ -763,6 +980,8 @@ def create_successor_proposal(
             adaptive_plan.goal_snapshot_id = goal_snapshot.id
             adaptive_plan.discipline = discipline
         adaptive_plan.active_proposal_id = proposal.id
+        if on_created is not None:
+            on_created(db, proposal)
         db.commit()
     except AdaptivePlanError:
         db.rollback()
@@ -771,7 +990,13 @@ def create_successor_proposal(
         db.rollback()
         existing = _existing_proposal_for_key(db, user_id=user_id, idempotency_key=payload.idempotency_key)
         if existing is not None:
-            return _idempotent_proposal_hit(db, user_id=user_id, proposal=existing)
+            if _idempotency_matches_proposal(
+                proposal=existing,
+                request_fingerprint=request_fingerprint,
+            ):
+                _mark_idempotency_replay(idempotency_replay_state)
+                return _idempotent_proposal_hit(db, user_id=user_id, proposal=existing)
+            raise _idempotency_conflict()
         raise AdaptivePlanError(409, "ADAPTIVE_PLAN_CONFLICT", "Adaptive plan proposal could not be edited.") from exc
     except Exception:
         db.rollback()
@@ -962,6 +1187,20 @@ def adopt_proposal(
                 adaptive_plan.lifecycle = "archived"
             db.commit()
             raise AdaptivePlanError(409, "PLAN_PROPOSAL_EXPIRED", "The proposal has expired.")
+        if proposal.policy_version == "outdoor-5k-plan-generation-policy-v1":
+            # This import stays local to keep the generic immutable-proposal
+            # foundation independent of the policy-specific data orchestration.
+            # The policy service reruns the #665 current-baseline boundary and
+            # exact deterministic source revision before canonical mutation.
+            from api.outdoor_5k_plan_generation import (
+                validate_outdoor_5k_proposal_adoption,
+            )
+
+            validate_outdoor_5k_proposal_adoption(
+                db,
+                user_id=user_id,
+                proposal=proposal,
+            )
         goal = db.execute(
             select(AdaptivePlanGoalSnapshot).where(
                 AdaptivePlanGoalSnapshot.user_id == user_id,

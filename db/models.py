@@ -1566,6 +1566,7 @@ class PlanProposal(Base):
     alternatives = Column(JSON, nullable=False, default=list)
     expires_at = Column(DateTime, nullable=True)
     idempotency_key = Column(String(128), nullable=True)
+    idempotency_fingerprint = Column(String(64), nullable=True)
     decision_idempotency_key = Column(String(128), nullable=True)
     workout_snapshot = Column(JSON, nullable=False, default=list)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -1606,6 +1607,58 @@ class PlanProposal(Base):
             "adaptive_plan_id",
             "state",
             "version",
+        ),
+    )
+
+
+class Outdoor5KPlanGeneration(Base):
+    """Immutable audit record for one deterministic outdoor-road 5K proposal."""
+
+    __tablename__ = "outdoor_5k_plan_generations"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    proposal_id = Column(
+        String(36),
+        ForeignKey("plan_proposals.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    policy_version = Column(String(80), nullable=False)
+    generator_version = Column(String(80), nullable=False)
+    science_decision_id = Column(String(120), nullable=False)
+    evidence_review_ids = Column(JSON, nullable=False, default=list)
+    evidence_claim_ids = Column(JSON, nullable=False, default=list)
+    ai_explanation_present = Column(Boolean, nullable=False, default=False)
+    baseline_snapshot_id = Column(String(36), nullable=True)
+    source_revision = Column(String(64), nullable=False)
+    deterministic_input_hash = Column(String(64), nullable=False)
+    request_kind = Column(String(20), nullable=False)
+    request_fingerprint = Column(String(64), nullable=False)
+    predecessor_proposal_id = Column(String(36), nullable=True)
+    predecessor_version = Column(Integer, nullable=True)
+    observed_input_snapshot = Column(JSON, nullable=False, default=dict)
+    constraint_snapshot = Column(JSON, nullable=False, default=dict)
+    derived_history_statistics = Column(JSON, nullable=False, default=dict)
+    validation_results = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "proposal_id",
+            name="uq_outdoor_5k_generation_proposal_owner",
+        ),
+        Index(
+            "ix_outdoor_5k_generation_user_revision",
+            "user_id",
+            "source_revision",
         ),
     )
 

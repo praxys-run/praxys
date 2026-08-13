@@ -10,6 +10,7 @@ from analysis.data_loader import (
     load_all_data,
     load_data,
     load_heat_adaptation_inputs_from_files,
+    load_plan_generation_data,
     match_activities,
 )
 
@@ -44,6 +45,79 @@ def test_load_all_data_with_files():
         data = load_all_data(tmpdir)
         assert len(data["oura_readiness"]) == 1
         assert data["oura_readiness"].iloc[0]["readiness_score"] == 82
+
+
+def test_plan_generation_loader_is_bounded_and_excludes_activity_average_power():
+    """Plan generation gets only local-date running evidence and reservations."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from db.models import Activity, Base, TrainingPlan
+
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine)()
+    athlete_today = date(2026, 8, 13)
+    try:
+        session.add_all([
+            Activity(
+                user_id="loader-owner",
+                activity_id="in-window-run",
+                date=date(2026, 8, 5),
+                activity_type="running",
+                duration_sec=45 * 60,
+                avg_power=321,
+                source="garmin",
+            ),
+            Activity(
+                user_id="loader-owner",
+                activity_id="wrong-sport",
+                date=date(2026, 8, 5),
+                activity_type="cycling",
+                duration_sec=45 * 60,
+                avg_power=222,
+                source="garmin",
+            ),
+            Activity(
+                user_id="loader-owner",
+                activity_id="too-old",
+                date=date(2026, 6, 1),
+                activity_type="running",
+                duration_sec=45 * 60,
+                source="garmin",
+            ),
+            TrainingPlan(
+                user_id="loader-owner",
+                canonical_id="external-reservation",
+                date=date(2026, 8, 15),
+                source="manual",
+            ),
+            TrainingPlan(
+                user_id="loader-owner",
+                canonical_id="praxys-row",
+                date=date(2026, 8, 16),
+                source="praxys",
+            ),
+        ])
+        session.commit()
+
+        data = load_plan_generation_data(
+            "loader-owner",
+            session,
+            athlete_today=athlete_today,
+            block_start=date(2026, 8, 14),
+            activity_source="garmin",
+            purpose="plan_generation",
+        )
+
+        assert [(item.activity_id, item.observed_date, item.duration_min, item.source) for item in data.activities] == [
+            ("in-window-run", date(2026, 8, 5), 45.0, "garmin"),
+        ]
+        assert not hasattr(data.activities[0], "avg_power")
+        assert data.reserved_dates == (date(2026, 8, 15),)
+    finally:
+        session.close()
+        engine.dispose()
 
 
 class TestDiscoverActivityTypes:
