@@ -1398,9 +1398,15 @@ export default function UpcomingPlanCard() {
   const defaultEditorDate = data.window.start < minimumDate
     ? minimumDate
     : data.window.start;
-  const editorDialog = (
+  const editorKey = editor?.mode === 'edit'
+    ? `edit:${workoutKey(editor.workout)}:${editor.workout.workout_version ?? ''}`
+    : editor?.seedWorkout
+      ? `fork:${workoutKey(editor.seedWorkout)}`
+      : `create:${defaultEditorDate}`;
+  const editorDialog = editor ? (
     <WorkoutPlanEditor
-      open={editor != null}
+      key={editorKey}
+      open
       workout={editorWorkout}
       seedWorkout={editorSeedWorkout}
       minimumDate={minimumDate}
@@ -1417,7 +1423,7 @@ export default function UpcomingPlanCard() {
       onConvertToRest={(date) => void convertWorkoutToRest(date)}
       onDelete={() => void deleteWorkout()}
     />
-  );
+  ) : null;
   const header = (
     <>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">

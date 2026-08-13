@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import WorkoutStructureEditor from '@/components/WorkoutStructureEditor';
+import { useSettings } from '@/contexts/SettingsContext';
 import { apiFetch } from '@/hooks/useApi';
 import { isRestWorkoutType } from '@/lib/plan';
 import {
@@ -46,6 +47,7 @@ import type {
   PlanWorkoutCompatibilityResponse,
   PlanWorkoutUpdateRequest,
   PlanWorkoutWriteFields,
+  UnitSystem,
   WorkoutStructureV1,
 } from '@/types/api';
 
@@ -124,10 +126,17 @@ function portableActivity(
   return value == null ? defaultActivity(workoutType) : 'other';
 }
 
-function structuredDefault(workoutType: string): WorkoutEditorStructureV1 {
-  return createWorkoutEditorStructure(isRestWorkoutType(workoutType)
-    ? { steps: [] }
-    : { steps: [createStructuredStep()] });
+function structuredDefault(
+  workoutType: string,
+  unitSystem: UnitSystem,
+): WorkoutEditorStructureV1 {
+  return createWorkoutEditorStructure(
+    isRestWorkoutType(workoutType)
+      ? { steps: [] }
+      : { steps: [createStructuredStep()] },
+    undefined,
+    unitSystem,
+  );
 }
 
 function supportedStructure(
@@ -154,6 +163,7 @@ function initialDraft(
   seedWorkout: PlannedWorkout | null,
   defaultDate: string,
   minimumDate: string,
+  unitSystem: UnitSystem,
 ): WorkoutDraft {
   const source = workout ?? seedWorkout;
   const workoutType = source?.workout_type ?? 'easy';
@@ -176,8 +186,8 @@ function initialDraft(
   );
   const sourceDate = source?.date ?? defaultDate;
   const structure: WorkoutEditorStructureV1 = structureFromSource
-    ? createWorkoutEditorStructure(structureFromSource)
-    : structuredDefault(workoutType);
+    ? createWorkoutEditorStructure(structureFromSource, undefined, unitSystem)
+    : structuredDefault(workoutType, unitSystem);
   return {
     date: sourceDate >= minimumDate ? sourceDate : defaultDate,
     activityType,
@@ -278,19 +288,7 @@ function errorMessage(
   return null;
 }
 
-export default function WorkoutPlanEditor({
-  open,
-  workout,
-  seedWorkout = null,
-  minimumDate,
-  defaultDate,
-  working,
-  error,
-  onOpenChange,
-  onSave,
-  onConvertToRest,
-  onDelete,
-}: {
+interface WorkoutPlanEditorProps {
   open: boolean;
   workout: PlannedWorkout | null;
   /** A source-owned row can be forked without ever editing its source copy. */
@@ -303,10 +301,50 @@ export default function WorkoutPlanEditor({
   onSave: (fields: WorkoutEditorSaveFields) => void;
   onConvertToRest: (date: string) => void;
   onDelete: () => void;
+}
+
+export default function WorkoutPlanEditor(
+  props: WorkoutPlanEditorProps,
+) {
+  const { config, loading } = useSettings();
+  if (loading && config == null) return null;
+  return (
+    <WorkoutPlanEditorSession
+      {...props}
+      initialUnitSystem={config?.unit_system ?? 'metric'}
+      deliveryTarget={config?.plan_management.execution_target ?? null}
+    />
+  );
+}
+
+function WorkoutPlanEditorSession({
+  open,
+  workout,
+  seedWorkout = null,
+  minimumDate,
+  defaultDate,
+  working,
+  error,
+  onOpenChange,
+  onSave,
+  onConvertToRest,
+  onDelete,
+  initialUnitSystem,
+  deliveryTarget,
+}: WorkoutPlanEditorProps & {
+  initialUnitSystem: UnitSystem;
+  deliveryTarget: string | null;
 }) {
   const { t } = useLingui();
+  const [unitSystem] = useState(initialUnitSystem);
   const [draft, setDraft] = useState<WorkoutDraft>(
-    () => initialDraft(workout, seedWorkout, defaultDate, minimumDate),
+    () => initialDraft(
+      workout,
+      seedWorkout,
+      defaultDate,
+      minimumDate,
+      unitSystem,
+    ),
   );
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -340,34 +378,7 @@ export default function WorkoutPlanEditor({
       );
 
   useEffect(() => {
-    if (!open) return;
-    const next = initialDraft(
-      workout,
-      seedWorkout,
-      defaultDate,
-      minimumDate,
-    );
-    setDraft(next);
-    setConfirmDelete(false);
-    setLocalError(null);
-    setCompatibility(workout?.provider_compatibility ?? null);
-    setCompatibilityError(null);
-  }, [defaultDate, minimumDate, open, seedWorkout, workout]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    if (draft.mode === 'unsupported') {
-      setCompatibilityLoading(false);
-      setCompatibility(workout?.provider_compatibility ?? null);
-      setCompatibilityError(null);
-      return undefined;
-    }
-    if (previewIssue) {
-      setCompatibilityLoading(false);
-      setCompatibility(null);
-      setCompatibilityError(null);
-      return undefined;
-    }
+    if (!open || draft.mode === 'unsupported' || previewIssue) return undefined;
     let active = true;
     const timeout = window.setTimeout(async () => {
       setCompatibilityLoading(true);
@@ -398,7 +409,24 @@ export default function WorkoutPlanEditor({
       active = false;
       window.clearTimeout(timeout);
     };
-  }, [compatibilityPayload, draft.mode, open, previewIssue, t, workout]);
+  }, [compatibilityPayload, draft.mode, open, previewIssue, t]);
+
+  const displayedCompatibility = draft.mode === 'unsupported'
+    ? workout?.provider_compatibility ?? null
+    : previewIssue
+      ? null
+      : compatibility;
+  const displayedCompatibilityLoading = (
+    draft.mode !== 'unsupported'
+    && previewIssue == null
+    && compatibilityLoading
+  );
+  const displayedCompatibilityError = (
+    draft.mode !== 'unsupported'
+    && previewIssue == null
+  )
+    ? compatibilityError
+    : null;
 
   const purposeLabels: Record<string, string> = {
     easy: t`Easy`,
@@ -439,7 +467,8 @@ export default function WorkoutPlanEditor({
         ? isRest
           ? { steps: [] }
           : current.structure.steps.length === 0
-            ? current.previousNonRestStructure ?? structuredDefault(nextType)
+            ? current.previousNonRestStructure
+              ?? structuredDefault(nextType, unitSystem)
             : current.structure
         : current.structure;
       return {
@@ -476,7 +505,11 @@ export default function WorkoutPlanEditor({
       setDraft((current) => ({
         ...current,
         mode: 'structured',
-        structure: createWorkoutEditorStructure(structure),
+        structure: createWorkoutEditorStructure(
+          structure,
+          undefined,
+          unitSystem,
+        ),
       }));
       setLocalError(null);
     } catch {
@@ -495,7 +528,7 @@ export default function WorkoutPlanEditor({
       return;
     }
     const committed = draft.mode === 'structured'
-      ? commitAllWorkoutEditorTargetInputs(draft.structure)
+      ? commitAllWorkoutEditorTargetInputs(draft.structure, unitSystem)
       : { structure: draft.structure, valid: true };
     const nextDraft = {
       ...draft,
@@ -538,6 +571,13 @@ export default function WorkoutPlanEditor({
   };
 
   const dialogError = localError ?? error;
+  const saveBlocker = unsupportedFork
+    ? t`This source cannot be duplicated without losing workout details.`
+    : draftErrors.length > 0
+      ? draft.mode === 'structured'
+        ? t`Fix the marked structured step before saving.`
+        : draftErrors[0]
+      : null;
 
   return (
     <Dialog
@@ -546,7 +586,7 @@ export default function WorkoutPlanEditor({
         if (!working) onOpenChange(next);
       }}
     >
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="min-w-0 max-h-[92vh] overflow-x-hidden overflow-y-auto sm:max-w-5xl">
         {confirmDelete && workout ? (
           <>
             <DialogHeader>
@@ -592,7 +632,7 @@ export default function WorkoutPlanEditor({
             </DialogFooter>
           </>
         ) : (
-          <form onSubmit={submit}>
+          <form onSubmit={submit} className="min-w-0">
             <DialogHeader>
               <DialogTitle>
                 {forking
@@ -789,9 +829,11 @@ export default function WorkoutPlanEditor({
                 structure={draft.structure}
                 workoutType={draft.workoutType}
                 disabled={working}
-                compatibility={compatibility}
-                compatibilityLoading={compatibilityLoading}
-                compatibilityError={compatibilityError}
+                unitSystem={unitSystem}
+                deliveryTarget={deliveryTarget}
+                compatibility={displayedCompatibility}
+                compatibilityLoading={displayedCompatibilityLoading}
+                compatibilityError={displayedCompatibilityError}
                 onChange={(structure) => {
                   setLocalError(null);
                   setDraft((current) => ({ ...current, structure }));
@@ -859,29 +901,36 @@ export default function WorkoutPlanEditor({
                   </span>
                 )}
               </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={working}
-                  onClick={() => onOpenChange(false)}
-                >
-                  <Trans>Cancel</Trans>
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={
-                    working || draftErrors.length > 0 || unsupportedFork
-                  }
-                >
-                  {working
-                    ? <Trans>Saving…</Trans>
-                    : forking
-                      ? <Trans>Duplicate workout</Trans>
-                      : editing
-                        ? <Trans>Save workout</Trans>
-                        : <Trans>Add workout</Trans>}
-                </Button>
+              <div className="flex flex-col items-stretch gap-1 sm:items-end">
+                {saveBlocker && (
+                  <p className="text-xs text-destructive" role="alert">
+                    {saveBlocker}
+                  </p>
+                )}
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={working}
+                    onClick={() => onOpenChange(false)}
+                  >
+                    <Trans>Cancel</Trans>
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={
+                      working || draftErrors.length > 0 || unsupportedFork
+                    }
+                  >
+                    {working
+                      ? <Trans>Saving…</Trans>
+                      : forking
+                        ? <Trans>Duplicate workout</Trans>
+                        : editing
+                          ? <Trans>Save workout</Trans>
+                          : <Trans>Add workout</Trans>}
+                  </Button>
+                </div>
               </div>
             </div>
           </form>

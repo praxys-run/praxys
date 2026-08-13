@@ -33,8 +33,11 @@ import {
   duplicateWorkoutEditorNode,
   formatDeterministicDistance,
   formatDeterministicDuration,
+  formatWorkoutDistanceInput,
   insertWorkoutEditorNode,
   moveWorkoutEditorNode,
+  parseWorkoutDistanceInput,
+  parseWorkoutPaceInput,
   removeWorkoutEditorNode,
   restoreRemovedWorkoutEditorNode,
   serializeWorkoutEditorStructure,
@@ -46,6 +49,7 @@ import {
   updateWorkoutEditorRepeat,
   updateWorkoutEditorStep,
   validateWorkoutEditorStructure,
+  workoutEditorIdForCompatibilityPath,
   workoutEditorNodePath,
   type RemovedWorkoutEditorNode,
   type TargetKind,
@@ -70,8 +74,10 @@ import type {
   PlanTargetWorkoutSnapshot,
   SettingsResponse,
   StrydPushResult,
+  UnitSystem,
   WorkoutProviderCompatibility,
   WorkoutProviderCompatibilityReasonCode,
+  WorkoutStructureStep,
   WorkoutStructureV1,
 } from '../../types/api';
 import type { ManagedPlanState } from '../../utils/managed-plan';
@@ -141,16 +147,81 @@ const ACTIVITY_VALUES: PlanActivityType[] = [
 ];
 
 const TERMINATION_VALUES = ['time', 'distance', 'open', 'manual'] as const;
+const TARGET_BOUNDS: Record<
+  Exclude<TargetKind, 'none'>,
+  { min: number; max: number }
+> = {
+  power_watts: { min: 0, max: 5000 },
+  power_cp: { min: 0, max: 300 },
+  heart_rate_bpm: { min: 0, max: 300 },
+  heart_rate_lthr: { min: 0, max: 200 },
+  pace_absolute: { min: 0, max: 7200 },
+  pace_threshold: { min: -7200, max: 7200 },
+  rpe: { min: 0, max: 10 },
+};
+const SLIDER_TARGETS: Partial<Record<
+  TargetKind,
+  { min: number; max: number; step: number }
+>> = {
+  power_cp: { min: 0, max: 300, step: 1 },
+  heart_rate_lthr: { min: 0, max: 200, step: 1 },
+  rpe: { min: 0, max: 10, step: 0.5 },
+};
 
 interface EditorStepView extends WorkoutEditorStep {
   phaseIndex: number;
   targetIndex: number;
   terminationIndex: number;
   targetDetail: string;
+  order: string;
+  title: string;
+  detail: string;
+  invalid: boolean;
+  durationHours: number;
+  durationMinutes: number;
+  durationSeconds: number;
+  distanceValue: string;
+  distanceUnit: string;
+  targetUnit: string;
+  targetPlaceholder: string;
+  sliderEnabled: boolean;
+  sliderMinimum: number;
+  sliderMaximum: number;
+  sliderStep: number;
+  sliderLow: number;
+  sliderHigh: number;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
 }
 
 interface EditorRepeatView extends Omit<WorkoutEditorRepeat, 'steps'> {
   steps: EditorStepView[];
+  order: string;
+  title: string;
+  detail: string;
+  invalid: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+}
+
+interface EditorOutlineView {
+  editorId: string;
+  order: string;
+  title: string;
+  detail: string;
+  depth: 0 | 1;
+  type: 'step' | 'repeat';
+  phase: string;
+  selected: boolean;
+  invalid: boolean;
+}
+
+interface CompatibilityReasonView {
+  key: string;
+  path: string;
+  message: string;
+  editorId: string;
+  linked: boolean;
 }
 
 interface CompatibilityView {
@@ -158,9 +229,10 @@ interface CompatibilityView {
   title: string;
   status: string;
   compatible: boolean;
-  tone: 'safe' | 'warning';
+  primary: boolean;
+  tone: 'safe' | 'warning' | 'danger';
   detail: string;
-  reasons: string[];
+  reasons: CompatibilityReasonView[];
 }
 
 function translations() {
@@ -216,6 +288,10 @@ function translations() {
     addWorkout: t('Add workout'),
     editWorkout: t('Edit workout'),
     duplicateWorkout: t('Duplicate workout'),
+    addFutureWorkout: t('Add one future workout to the Praxys canonical plan.'),
+    updateCanonicalPlan: t(
+      'Update the canonical plan here. Connector delivery changes only when managed delivery is active.',
+    ),
     sourceOwned: t('Source-owned'),
     sourceStaysUnchanged: t('Source stays unchanged'),
     workoutType: t('Workout purpose'),
@@ -279,7 +355,20 @@ function translations() {
     intervals: t('Intervals'),
     hillRepeats: t('Hill repeats'),
     testing: t('Testing'),
-    structuredSteps: t('Structured steps'),
+    workoutStructure: t('Workout structure'),
+    structureGuide: t(
+      'Build the canonical workout once. Select a step in the profile or order list to edit it; Praxys keeps richer details even when a delivery platform cannot represent them.',
+    ),
+    workoutProfile: t('Workout profile'),
+    sequenceNotLoad: t('Sequence, not invented training load'),
+    workoutOrder: t('Workout order'),
+    selectOneItem: t(
+      'Select one item to edit. Repeat children stay visibly nested.',
+    ),
+    noExecutableSteps: t('No executable steps yet.'),
+    fixMarkedStep: t(
+      'Fix the marked step before saving. Every target and termination must be complete.',
+    ),
     newerWorkoutStructure: t('Newer workout structure'),
     unsupportedStructureDetail: t(
       'This workout uses a newer portable structure that this editor cannot change safely. Date and notes remain editable; Praxys preserves the structure byte-for-byte.',
@@ -297,6 +386,7 @@ function translations() {
     work: t('Work'),
     cooldown: t('Cool-down'),
     step: t('Step'),
+    steps: t('steps'),
     optionalLabel: t('Optional label'),
     uphillEffort: t('e.g. Uphill effort'),
     termination: t('Termination'),
@@ -304,29 +394,20 @@ function translations() {
     distance: t('Distance'),
     open: t('Open'),
     manual: t('Manual'),
-    timeSeconds: t('Time in seconds'),
-    distanceMeters: t('Distance in meters'),
     targetType: t('Target type'),
-    noTarget: t('No target'),
-    powerWatts: t('Power · watts'),
-    powerCp: t('Power · %CP'),
-    heartRateBpm: t('Heart rate · bpm'),
-    heartRateLthr: t('Heart rate · %LTHR'),
-    paceAbsolute: t('Pace · sec/km'),
-    paceThreshold: t('Pace · threshold delta'),
-    rpe: t('RPE · 0–10'),
     targetMinimum: t('Target minimum'),
     targetMaximum: t('Target maximum'),
-    allowedRange: t('Allowed range'),
+    targetRange: t('Target range'),
+    dragRangeOrType: t('Drag the range or type exact values.'),
+    typePreciseBounds: t('Type precise bounds in the visible unit.'),
     stepInstructions: t('Step instructions'),
     optionalCoachingCue: t('Optional coaching cue'),
     repeatGroup: t('Repeat group'),
     repeatLabel: t('Repeat label'),
     mainSet: t('e.g. Main set'),
     repetitions: t('Repetitions'),
-    repeatChildren: t('Repeat children'),
     oneLevelRepeat: t(
-      'Portable v1 permits one repeat level. Add atomic steps here, not another repeat.',
+      'Select a child to edit it. Portable v1 permits one repeat level.',
     ),
     addStep: t('Add step'),
     addRepeat: t('Add repeat'),
@@ -347,25 +428,26 @@ function translations() {
     totalsDetail: t(
       'Totals are deterministic only when every repeated step has the same measurable termination. Praxys does not invent a training-load score here.',
     ),
-    providerCompatibility: t('Provider compatibility'),
-    compatibilityDetail: t(
-      'This checks portable workout content only. It never connects to a provider or delivers a workout.',
+    hourShort: t('hr'),
+    minuteShort: t('min'),
+    secondShort: t('sec'),
+    deliveryPreview: t('Delivery preview'),
+    deliveryPreviewDetail: t(
+      'Praxys keeps the canonical workout. This preview explains what the selected platform can receive without losing meaning.',
     ),
-    checkingCompatibility: t('Checking provider compatibility…'),
+    noDeliveryTarget: t(
+      'No Garmin or Stryd execution target is selected. Compatibility remains informational until plan delivery is configured.',
+    ),
+    compareOtherProviders: t('Compare other providers'),
+    hideOtherProviders: t('Hide other providers'),
+    checkingCompatibility: t('Checking delivery compatibility…'),
     compatibilityUnavailable: t(
       'Compatibility preview is unavailable. Check your connection and try again.',
     ),
     finishStepsForCompatibility: t(
-      'Finish the required step fields to preview compatibility.',
+      'Finish the required step fields to preview delivery.',
     ),
-    compatible: t('Compatible'),
     notSafelyRepresentable: t('Not safely representable'),
-    compatibleStructure: t(
-      'This portable structure can be represented without flattening.',
-    ),
-    compatibleLegacy: t(
-      'This legacy flat workout has no portable tree to flatten.',
-    ),
   };
 }
 
@@ -788,10 +870,17 @@ function portableActivityType(
   return value == null ? defaultActivityType(workoutType) : 'other';
 }
 
-function defaultStructure(workoutType: string): WorkoutEditorStructureV1 {
-  return createWorkoutEditorStructure(isRestWorkoutType(workoutType)
-    ? { steps: [] }
-    : { steps: [createStep()] });
+function defaultStructure(
+  workoutType: string,
+  unitSystem: UnitSystem = 'metric',
+): WorkoutEditorStructureV1 {
+  return createWorkoutEditorStructure(
+    isRestWorkoutType(workoutType)
+      ? { steps: [] }
+      : { steps: [createStep()] },
+    undefined,
+    unitSystem,
+  );
 }
 
 function supportedStructure(
@@ -815,50 +904,139 @@ function supportedStructure(
 
 function targetDetail(
   kind: TargetKind,
+  unitSystem: UnitSystem,
 ): string {
   const details: Record<TargetKind, string> = {
     none: t('No unit or reference'),
-    power_watts: t('Unit: watts · Reference: absolute'),
-    power_cp: t('Unit: %CP · Reference: critical power'),
-    heart_rate_bpm: t('Unit: bpm · Reference: absolute'),
-    heart_rate_lthr: t('Unit: %LTHR · Reference: LTHR'),
-    pace_absolute: t('Unit: sec/km · Reference: absolute'),
-    pace_threshold: t('Unit: sec/km delta · Reference: threshold pace'),
-    rpe: t('Unit: 10-point scale · Reference: perceived exertion'),
+    power_watts: t('Absolute running power in watts.'),
+    power_cp: t("Percentage of the athlete's current critical power."),
+    heart_rate_bpm: t('Absolute heart rate in beats per minute.'),
+    heart_rate_lthr: t(
+      "Percentage of the athlete's lactate-threshold heart rate.",
+    ),
+    pace_absolute: unitSystem === 'imperial'
+      ? t('Enter pace as minutes:seconds per mile.')
+      : t('Enter pace as minutes:seconds per kilometre.'),
+    pace_threshold: unitSystem === 'imperial'
+      ? t('Seconds per mile faster or slower than threshold pace.')
+      : t('Seconds per kilometre faster or slower than threshold pace.'),
+    rpe: t('Perceived exertion on a 0–10 scale.'),
   };
-  const ranges: Record<TargetKind, string> = {
-    none: '',
-    power_watts: targetRange(0, 5000, 'W'),
-    power_cp: targetRange(0, 300, '%CP'),
-    heart_rate_bpm: targetRange(0, 300, 'bpm'),
-    heart_rate_lthr: targetRange(0, 200, '%LTHR'),
-    pace_absolute: targetRange(0, 7200, 'sec/km'),
-    pace_threshold: targetRange(-7200, 7200, 'sec/km Δ'),
-    rpe: targetRange(0, 10, 'RPE'),
-  };
-  return ranges[kind]
-    ? `${details[kind]} · ${t('Allowed range')}: ${ranges[kind]}`
-    : details[kind];
+  return details[kind];
 }
 
-function targetRange(minimum: number, maximum: number, unit: string): string {
-  return `${minimum}–${maximum} ${unit}`;
+function targetLabels(unitSystem: UnitSystem): string[] {
+  return [
+    t('No target'),
+    t('Power · watts'),
+    t('Power · %CP'),
+    t('Heart rate · bpm'),
+    t('Heart rate · %LTHR'),
+    unitSystem === 'imperial'
+      ? t('Pace · min/mi')
+      : t('Pace · min/km'),
+    unitSystem === 'imperial'
+      ? t('Pace · threshold delta in sec/mi')
+      : t('Pace · threshold delta in sec/km'),
+    t('RPE · 0–10'),
+  ];
+}
+
+function targetUnit(kind: TargetKind, unitSystem: UnitSystem): string {
+  const units: Record<TargetKind, string> = {
+    none: '',
+    power_watts: 'W',
+    power_cp: '%CP',
+    heart_rate_bpm: 'bpm',
+    heart_rate_lthr: '%LTHR',
+    pace_absolute: unitSystem === 'imperial' ? 'min/mi' : 'min/km',
+    pace_threshold: unitSystem === 'imperial' ? 'sec/mi Δ' : 'sec/km Δ',
+    rpe: 'RPE',
+  };
+  return units[kind];
 }
 
 function structureView(
   structure: WorkoutEditorStructureV1,
+  unitSystem: UnitSystem,
 ): Array<EditorStepView | EditorRepeatView> {
-  return structure.steps.map((node) => {
-    if (node.type === 'step') return stepView(node);
+  return structure.steps.map((node, rootIndex) => {
+    if (node.type === 'step') {
+      return stepView(
+        node,
+        String(rootIndex + 1),
+        unitSystem,
+        rootIndex > 0,
+        rootIndex < structure.steps.length - 1,
+      );
+    }
+    const steps = node.steps.map((step, childIndex) => (
+      stepView(
+        step,
+        `${rootIndex + 1}.${childIndex + 1}`,
+        unitSystem,
+        childIndex > 0,
+        childIndex < node.steps.length - 1,
+      )
+    ));
     return {
       ...node,
-      steps: node.steps.map(stepView),
+      steps,
+      order: String(rootIndex + 1),
+      title: node.label?.trim() || t('Repeat group'),
+      detail: tFmt(
+        '{0} rounds · {1} steps',
+        node.repetitions,
+        node.steps.length,
+      ),
+      invalid: repeatInvalid(node, unitSystem),
+      canMoveUp: rootIndex > 0,
+      canMoveDown: rootIndex < structure.steps.length - 1,
     };
   });
 }
 
-function stepView(step: WorkoutEditorStep): EditorStepView {
+function stepView(
+  step: WorkoutEditorStep,
+  order: string,
+  unitSystem: UnitSystem,
+  canMoveUp: boolean,
+  canMoveDown: boolean,
+): EditorStepView {
   const kind = targetKind(step.target);
+  const durationHours = step.termination.type === 'time'
+    ? Math.floor(step.termination.seconds / 3600)
+    : 0;
+  const durationMinutes = step.termination.type === 'time'
+    ? Math.floor((step.termination.seconds % 3600) / 60)
+    : 0;
+  const durationSeconds = step.termination.type === 'time'
+    ? step.termination.seconds % 60
+    : 0;
+  const distance = step.termination.type === 'distance'
+    ? formatWorkoutDistanceInput(step.termination.meters, unitSystem)
+    : { value: '', unit: unitSystem === 'imperial' ? 'mi' : 'm' };
+  const slider = SLIDER_TARGETS[kind];
+  const rawMinimum = Number(step.targetInputs.min);
+  const rawMaximum = Number(step.targetInputs.max);
+  const sliderLow = slider
+    ? clamp(
+      step.targetInputs.min.trim() && Number.isFinite(rawMinimum)
+        ? rawMinimum
+        : slider.min,
+      slider.min,
+      slider.max,
+    )
+    : 0;
+  const sliderHigh = slider
+    ? clamp(
+      step.targetInputs.max.trim() && Number.isFinite(rawMaximum)
+        ? rawMaximum
+        : Math.min(slider.max, sliderLow + slider.step * 10),
+      sliderLow,
+      slider.max,
+    )
+    : 0;
   return {
     ...step,
     phaseIndex: Math.max(0, PHASE_VALUES.indexOf(step.phase)),
@@ -867,12 +1045,214 @@ function stepView(step: WorkoutEditorStep): EditorStepView {
       0,
       TERMINATION_VALUES.indexOf(step.termination.type),
     ),
-    targetDetail: targetDetail(kind),
+    targetDetail: targetDetail(kind, unitSystem),
+    order,
+    title: step.label?.trim() || phaseLabel(step.phase),
+    detail: stepSummary(step, unitSystem),
+    invalid: stepInvalid(step, unitSystem),
+    durationHours,
+    durationMinutes,
+    durationSeconds,
+    distanceValue: distance.value,
+    distanceUnit: distance.unit,
+    targetUnit: targetUnit(kind, unitSystem),
+    targetPlaceholder: kind === 'pace_absolute'
+      ? t('e.g. 5:20')
+      : t('Optional'),
+    sliderEnabled: slider != null,
+    sliderMinimum: slider?.min ?? 0,
+    sliderMaximum: slider?.max ?? 0,
+    sliderStep: slider?.step ?? 1,
+    sliderLow,
+    sliderHigh,
+    canMoveUp,
+    canMoveDown,
   };
+}
+
+function outlineView(
+  structure: WorkoutEditorStructureV1,
+  selectedId: string,
+  unitSystem: UnitSystem,
+): EditorOutlineView[] {
+  return structureView(structure, unitSystem).flatMap((node) => {
+    const root: EditorOutlineView = {
+      editorId: node.editorId,
+      order: node.order,
+      title: node.title,
+      detail: node.detail,
+      depth: 0,
+      type: node.type,
+      phase: node.type === 'step' ? node.phase : '',
+      selected: node.editorId === selectedId,
+      invalid: node.invalid,
+    };
+    return node.type === 'step'
+      ? [root]
+      : [
+          root,
+          ...node.steps.map((step) => ({
+            editorId: step.editorId,
+            order: step.order,
+            title: step.title,
+            detail: step.detail,
+            depth: 1 as const,
+            type: 'step' as const,
+            phase: step.phase,
+            selected: step.editorId === selectedId,
+            invalid: step.invalid,
+          })),
+        ];
+  });
+}
+
+function selectedNodeView(
+  structure: WorkoutEditorStructureV1,
+  selectedId: string,
+  unitSystem: UnitSystem,
+): EditorStepView | EditorRepeatView | null {
+  for (const node of structureView(structure, unitSystem)) {
+    if (node.editorId === selectedId) return node;
+    if (node.type === 'repeat') {
+      const child = node.steps.find((step) => step.editorId === selectedId);
+      if (child) return child;
+    }
+  }
+  return null;
+}
+
+function selectedStructureView(
+  structure: WorkoutEditorStructureV1,
+  selectedId: string,
+  unitSystem: UnitSystem,
+): Array<EditorStepView | EditorRepeatView> {
+  const selected = selectedNodeView(structure, selectedId, unitSystem);
+  if (!selected) {
+    return [];
+  }
+  return selected.type === 'repeat'
+    ? [{ ...selected, steps: [] }]
+    : [selected];
+}
+
+function firstEditorId(structure: WorkoutEditorStructureV1): string {
+  return structure.steps[0]?.editorId ?? '';
+}
+
+function addedEditorId(
+  before: WorkoutEditorStructureV1,
+  after: WorkoutEditorStructureV1,
+): string {
+  const existing = new Set(outlineView(before, '', 'metric').map(
+    (item) => item.editorId,
+  ));
+  return outlineView(after, '', 'metric').find(
+    (item) => !existing.has(item.editorId),
+  )?.editorId ?? '';
+}
+
+function phaseLabel(phase: WorkoutStructureStep['phase']): string {
+  const labels: Record<WorkoutStructureStep['phase'], string> = {
+    warmup: t('Warm-up'),
+    work: t('Work'),
+    recovery: t('Recovery'),
+    rest: t('Rest'),
+    cooldown: t('Cool-down'),
+    other: t('Other'),
+  };
+  return labels[phase];
+}
+
+function stepSummary(
+  step: WorkoutEditorStep,
+  unitSystem: UnitSystem,
+): string {
+  const termination = step.termination.type === 'time'
+    ? formatDeterministicDuration(step.termination.seconds)
+    : step.termination.type === 'distance'
+      ? formatDeterministicDistance(step.termination.meters, unitSystem)
+      : step.termination.type === 'manual'
+        ? t('Manual lap')
+        : t('Open');
+  const kind = targetKind(step.target);
+  const range = [step.targetInputs.min, step.targetInputs.max]
+    .filter(Boolean)
+    .join('–');
+  return range
+    ? `${termination} · ${range} ${targetUnit(kind, unitSystem)}`
+    : termination;
+}
+
+function parsedTargetDraft(
+  raw: string,
+  kind: TargetKind,
+  unitSystem: UnitSystem,
+): number | undefined | null {
+  const value = raw.trim();
+  if (!value) return undefined;
+  if (kind === 'pace_absolute') {
+    return parseWorkoutPaceInput(value, unitSystem);
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  if (kind === 'pace_threshold' && unitSystem === 'imperial') {
+    return parsed / 1.609344;
+  }
+  return parsed;
+}
+
+function stepInvalid(
+  step: WorkoutEditorStep,
+  unitSystem: UnitSystem,
+): boolean {
+  if (step.targetInputs.minInvalid || step.targetInputs.maxInvalid) return true;
+  if (
+    step.termination.type === 'time'
+    && (!Number.isInteger(step.termination.seconds)
+      || step.termination.seconds < 1
+      || step.termination.seconds > 86_400)
+  ) return true;
+  if (
+    step.termination.type === 'distance'
+    && (!Number.isInteger(step.termination.meters)
+      || step.termination.meters < 1
+      || step.termination.meters > 1_000_000)
+  ) return true;
+  const kind = targetKind(step.target);
+  if (kind === 'none') return false;
+  const minimum = parsedTargetDraft(step.targetInputs.min, kind, unitSystem);
+  const maximum = parsedTargetDraft(step.targetInputs.max, kind, unitSystem);
+  if (minimum === null || maximum === null) return true;
+  if (minimum === undefined && maximum === undefined) return true;
+  if (
+    minimum !== undefined
+    && maximum !== undefined
+    && minimum > maximum
+  ) return true;
+  const bounds = TARGET_BOUNDS[kind];
+  return [minimum, maximum].some((value) => (
+    value !== undefined && (value < bounds.min || value > bounds.max)
+  ));
+}
+
+function repeatInvalid(
+  repeat: WorkoutEditorRepeat,
+  unitSystem: UnitSystem,
+): boolean {
+  return repeat.steps.length === 0
+    || !Number.isInteger(repeat.repetitions)
+    || repeat.repetitions < 1
+    || repeat.repetitions > 100
+    || repeat.steps.some((step) => stepInvalid(step, unitSystem));
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(Math.max(value, minimum), maximum);
 }
 
 function summaryLabels(
   structure: WorkoutEditorStructureV1,
+  unitSystem: UnitSystem,
 ): {
   duration: string;
   distance: string;
@@ -883,46 +1263,127 @@ function summaryLabels(
   return {
     duration: summary.duration.certainty === 'deterministic'
       ? `${formatDeterministicDuration(summary.duration.seconds)} · ${t('deterministic')}`
-      : `${t('Unknown')} · ${t('unknown')}`,
+      : t('Unknown'),
     distance: summary.distance.certainty === 'deterministic'
-      ? `${formatDeterministicDistance(summary.distance.meters)} · ${t('deterministic')}`
-      : `${t('Unknown')} · ${t('unknown')}`,
+      ? `${formatDeterministicDistance(summary.distance.meters, unitSystem)} · ${t('deterministic')}`
+      : t('Unknown'),
     load: summary.load.certainty === 'estimated'
       ? `${t('Estimated from targets')} · ${t('estimated')}`
-      : `${t('Unknown')} · ${t('unknown')}`,
+      : t('Unknown'),
     steps: summary.executableSteps,
   };
 }
 
 function compatibilityViews(
   compatibility: WorkoutProviderCompatibility[],
+  structure: WorkoutEditorStructureV1,
+  selectedTarget: string,
+  unitSystem: UnitSystem,
 ): CompatibilityView[] {
   const reasons: Record<WorkoutProviderCompatibilityReasonCode, string> = {
-    activity_type_not_supported: t('This activity is not supported by the provider.'),
-    duration_required: t('A positive duration is required by the provider.'),
-    empty_structure_not_supported: t('An empty structured workout cannot be sent.'),
-    flat_workout_not_lossless: t('This legacy flat workout would need a time duration and a power range to avoid provider defaults.'),
-    invalid_structure: t('The workout structure is not a supported portable version.'),
-    phase_not_supported: t('This step semantic cannot be represented safely.'),
-    structured_workout_not_supported: t('Structured workouts are not supported by this provider.'),
-    target_not_supported: t('This typed target cannot be represented safely.'),
-    target_precision_not_supported: t('Stryd accepts only whole-number %CP bounds; fractional values would be rounded.'),
-    termination_not_supported: t('This step termination cannot be represented safely.'),
-    wording_not_supported: t('Step or repeat wording cannot be preserved safely.'),
+    activity_type_not_supported: t(
+      'The provider does not support this activity type.',
+    ),
+    duration_required: t(
+      'The provider needs a positive workout duration.',
+    ),
+    empty_structure_not_supported: t(
+      'The provider cannot receive an empty structured workout.',
+    ),
+    flat_workout_not_lossless: t(
+      'The legacy summary needs a duration and power range before it can be delivered without provider defaults.',
+    ),
+    invalid_structure: t('The portable workout structure is invalid.'),
+    phase_not_supported: t(
+      'The provider cannot preserve this step semantic.',
+    ),
+    structured_workout_not_supported: t(
+      'The provider does not support structured-workout delivery yet.',
+    ),
+    target_not_supported: t(
+      'The provider cannot preserve this target type.',
+    ),
+    target_precision_not_supported: t(
+      'Stryd requires whole-number %CP bounds; a fractional value would be rounded.',
+    ),
+    termination_not_supported: t(
+      'The provider cannot preserve this termination type.',
+    ),
+    wording_not_supported: t(
+      'The provider cannot preserve this label or coaching instruction.',
+    ),
   };
-  return compatibility.map((item) => ({
-    target: item.target,
-    title: item.target === 'garmin' ? 'Garmin' : 'Stryd',
-    status: item.compatible ? t('Compatible') : t('Not safely representable'),
-    compatible: item.compatible,
-    tone: item.compatible ? 'safe' : 'warning',
-    detail: item.compatible
-      ? item.mode === 'structured'
-        ? t('This portable structure can be represented without flattening.')
-        : t('This legacy flat workout has no portable tree to flatten.')
-      : '',
-    reasons: item.reasons.map((reason) => reasons[reason.code]),
-  }));
+  const outline = outlineView(structure, '', unitSystem);
+  return compatibility.map((item) => {
+    const primary = item.target === selectedTarget;
+    const tone: CompatibilityView['tone'] = item.compatible
+      ? 'safe'
+      : primary
+        ? 'danger'
+        : 'warning';
+    return {
+      target: item.target,
+      title: item.target === 'garmin' ? 'Garmin' : 'Stryd',
+      status: item.compatible
+        ? t('Ready to deliver')
+        : primary
+          ? t('Delivery blocked')
+          : t('Not safely representable'),
+      compatible: item.compatible,
+      primary,
+      tone,
+      detail: item.compatible
+        ? item.mode === 'structured'
+          ? t('The ordered steps and target ranges can be delivered without flattening.')
+          : t('This legacy workout has no structured tree to deliver.')
+        : primary
+          ? t(
+            'You can still save this workout in Praxys, but managed delivery cannot preserve it until the marked details are changed.',
+          )
+          : '',
+      reasons: item.reasons.map((reason) => {
+        const editorId = workoutEditorIdForCompatibilityPath(
+          structure,
+          reason.path,
+        ) ?? '';
+        const itemView = outline.find((candidate) => (
+          candidate.editorId === editorId
+        ));
+        const field = compatibilityField(reason.path);
+        const location = itemView
+          ? `${itemView.order} · ${itemView.title}${field ? ` · ${field}` : ''}`
+          : t('Workout');
+        return {
+          key: `${reason.code}-${reason.path ?? ''}`,
+          path: location,
+          message: reasons[reason.code],
+          editorId,
+          linked: editorId !== '',
+        };
+      }),
+    };
+  }).sort((left, right) => Number(right.primary) - Number(left.primary));
+}
+
+function compatibilityData(compatibility: CompatibilityView[]) {
+  return {
+    editorCompatibility: compatibility,
+    editorSelectedCompatibility: compatibility.find(
+      (provider) => provider.primary,
+    ) ?? null,
+    editorOtherCompatibility: compatibility.filter(
+      (provider) => !provider.primary,
+    ),
+  };
+}
+
+function compatibilityField(path: string | null | undefined): string {
+  if (path?.endsWith('.phase')) return t('semantic');
+  if (path?.endsWith('.termination')) return t('termination');
+  if (path?.endsWith('.target')) return t('target');
+  if (path?.endsWith('.label')) return t('label');
+  if (path?.endsWith('.instructions')) return t('instructions');
+  return '';
 }
 
 function adjustmentNotice(
@@ -1050,6 +1511,7 @@ Component({
     managementAction: '',
     target: '' as string,
     targetConnected: false,
+    unitSystem: 'metric' as UnitSystem,
     canWrite: true,
     workingKey: '',
     mutationAvailable: false,
@@ -1081,9 +1543,12 @@ Component({
     editorActivityLabels: [] as string[],
     editorStructured: true,
     editorUnsupportedStructure: false,
-    editorStructure: defaultStructure('easy'),
-    editorLastNonRestStructure: defaultStructure('easy') as WorkoutEditorStructureV1 | null,
+    editorStructure: defaultStructure('easy', 'metric'),
+    editorLastNonRestStructure: defaultStructure('easy', 'metric') as WorkoutEditorStructureV1 | null,
     editorStructureView: [] as Array<EditorStepView | EditorRepeatView>,
+    editorOutline: [] as EditorOutlineView[],
+    editorSelectedId: '',
+    editorSelectedNode: null as EditorStepView | EditorRepeatView | null,
     editorPhaseValues: [...PHASE_VALUES] as string[],
     editorPhaseLabels: [] as string[],
     editorTargetValues: [...TARGET_KINDS] as TargetKind[],
@@ -1096,6 +1561,9 @@ Component({
     editorSummarySteps: 0,
     editorUndo: null as RemovedWorkoutEditorNode | null,
     editorCompatibility: [] as CompatibilityView[],
+    editorSelectedCompatibility: null as CompatibilityView | null,
+    editorOtherCompatibility: [] as CompatibilityView[],
+    editorShowOtherCompatibility: false,
     editorCompatibilityLoading: false,
     editorCompatibilityError: '',
     editorDuration: '',
@@ -1142,16 +1610,7 @@ Component({
           tr.other,
         ],
         editorTargetValues: [...TARGET_KINDS],
-        editorTargetLabels: [
-          tr.noTarget,
-          tr.powerWatts,
-          tr.powerCp,
-          tr.heartRateBpm,
-          tr.heartRateLthr,
-          tr.paceAbsolute,
-          tr.paceThreshold,
-          tr.rpe,
-        ],
+        editorTargetLabels: targetLabels('metric'),
         editorTerminationValues: [...TERMINATION_VALUES],
         editorTerminationLabels: [
           tr.time,
@@ -1286,6 +1745,8 @@ Component({
           managementAction: management.action,
           target: target ?? '',
           targetConnected,
+          unitSystem: settings.config.unit_system,
+          editorTargetLabels: targetLabels(settings.config.unit_system),
           canWrite,
           workingKey,
           mutationAvailable,
@@ -1487,13 +1948,27 @@ Component({
       const structured = !unsupportedStructure && (
         hasStructure || workout == null
       );
+      const unitSystem = this.data.unitSystem;
       const structure: WorkoutEditorStructureV1 = structureFromSource
-        ? createWorkoutEditorStructure(structureFromSource)
-        : defaultStructure(workoutType);
-      const summary = summaryLabels(structure);
+        ? createWorkoutEditorStructure(
+          structureFromSource,
+          undefined,
+          unitSystem,
+        )
+        : defaultStructure(workoutType, unitSystem);
+      const summary = summaryLabels(structure, unitSystem);
+      const selectedId = firstEditorId(structure);
       const date = workout?.date && workout.date >= this.data.minimumDate
         ? workout.date
         : defaultDate;
+      const initialCompatibility = unsupportedStructure
+        ? compatibilityViews(
+          workout?.provider_compatibility ?? [],
+          structure,
+          this.data.target,
+          unitSystem,
+        )
+        : [];
       this.setData({
         editorOpen: true,
         editorMode: workout && !forking ? 'edit' : 'create',
@@ -1521,15 +1996,25 @@ Component({
         editorLastNonRestStructure: structured && !isRestWorkoutType(workoutType)
           ? structure
           : null,
-        editorStructureView: structureView(structure),
+        editorStructureView: selectedStructureView(
+          structure,
+          selectedId,
+          unitSystem,
+        ),
+        editorOutline: outlineView(structure, selectedId, unitSystem),
+        editorSelectedId: selectedId,
+        editorSelectedNode: selectedNodeView(
+          structure,
+          selectedId,
+          unitSystem,
+        ),
         editorSummaryDuration: summary.duration,
         editorSummaryDistance: summary.distance,
         editorSummaryLoad: summary.load,
         editorSummarySteps: summary.steps,
         editorUndo: null,
-        editorCompatibility: unsupportedStructure
-          ? compatibilityViews(workout?.provider_compatibility ?? [])
-          : [],
+        ...compatibilityData(initialCompatibility),
+        editorShowOtherCompatibility: false,
         editorCompatibilityLoading: false,
         editorCompatibilityError: '',
         editorDuration: workout?.duration_min?.toString() ?? '',
@@ -1554,6 +2039,64 @@ Component({
 
     stopPropagation() {},
 
+    selectStructuredNode(editorId: string, callback?: () => void) {
+      if (!editorId || !workoutEditorNodePath(
+        this.data.editorStructure,
+        editorId,
+      )) return false;
+      this.setData({
+        editorSelectedId: editorId,
+        editorStructureView: selectedStructureView(
+          this.data.editorStructure,
+          editorId,
+          this.data.unitSystem,
+        ),
+        editorOutline: outlineView(
+          this.data.editorStructure,
+          editorId,
+          this.data.unitSystem,
+        ),
+        editorSelectedNode: selectedNodeView(
+          this.data.editorStructure,
+          editorId,
+          this.data.unitSystem,
+        ),
+      }, callback);
+      return true;
+    },
+
+    onSelectStructuredNode(event: WechatMiniprogram.TouchEvent) {
+      const editorId = String(event.currentTarget.dataset.editorId ?? '');
+      this.selectStructuredNode(editorId);
+    },
+
+    scrollEditorToNode(editorId: string) {
+      const query = wx.createSelectorQuery().in(this);
+      query.select('.managed-plan__editor-scroll').node((result) => {
+        const context = (
+          result as unknown as {
+            node?: { scrollIntoView?: (selector: string) => void };
+          } | null
+        )?.node;
+        context?.scrollIntoView?.(`#managed-plan-inspector-${editorId}`);
+      });
+      query.exec();
+    },
+
+    onSelectCompatibilityReason(event: WechatMiniprogram.TouchEvent) {
+      const editorId = String(event.currentTarget.dataset.editorId ?? '');
+      this.selectStructuredNode(
+        editorId,
+        () => this.scrollEditorToNode(editorId),
+      );
+    },
+
+    onToggleOtherCompatibility() {
+      this.setData({
+        editorShowOtherCompatibility: !this.data.editorShowOtherCompatibility,
+      });
+    },
+
     onEditorDateChange(
       event: WechatMiniprogram.CustomEvent<{ value: string }>,
     ) {
@@ -1573,10 +2116,16 @@ Component({
           ? { steps: [] }
           : this.data.editorStructure.steps.length === 0
             ? this.data.editorLastNonRestStructure
-              ?? defaultStructure(workoutType)
+              ?? defaultStructure(workoutType, this.data.unitSystem)
             : this.data.editorStructure
         : this.data.editorStructure;
-      const summary = summaryLabels(structure);
+      const summary = summaryLabels(structure, this.data.unitSystem);
+      const selectedId = workoutEditorNodePath(
+        structure,
+        this.data.editorSelectedId,
+      )
+        ? this.data.editorSelectedId
+        : firstEditorId(structure);
       this.setData({
         editorTypeIndex: nextIndex,
         editorWorkoutType: workoutType,
@@ -1597,7 +2146,22 @@ Component({
             ? this.data.editorStructure
             : this.data.editorLastNonRestStructure
           : this.data.editorLastNonRestStructure,
-        editorStructureView: structureView(structure),
+        editorStructureView: selectedStructureView(
+          structure,
+          selectedId,
+          this.data.unitSystem,
+        ),
+        editorOutline: outlineView(
+          structure,
+          selectedId,
+          this.data.unitSystem,
+        ),
+        editorSelectedId: selectedId,
+        editorSelectedNode: selectedNodeView(
+          structure,
+          selectedId,
+          this.data.unitSystem,
+        ),
         editorSummaryDuration: summary.duration,
         editorSummaryDistance: summary.distance,
         editorSummaryLoad: summary.load,
@@ -1678,7 +2242,8 @@ Component({
       const validationError = this.editorValidationError();
       if (validationError) {
         this.setData({
-          editorCompatibility: [],
+          ...compatibilityData([]),
+          editorShowOtherCompatibility: false,
           editorCompatibilityLoading: false,
           editorCompatibilityError: '',
         });
@@ -1714,8 +2279,14 @@ Component({
           !this.data.editorOpen
           || componentState._compatibilityRequestId !== requestId
         ) return;
+        const compatibility = compatibilityViews(
+          response.providers,
+          this.data.editorStructure,
+          this.data.target,
+          this.data.unitSystem,
+        );
         this.setData({
-          editorCompatibility: compatibilityViews(response.providers),
+          ...compatibilityData(compatibility),
           editorCompatibilityError: '',
         });
       } catch {
@@ -1724,7 +2295,8 @@ Component({
           || componentState._compatibilityRequestId !== requestId
         ) return;
         this.setData({
-          editorCompatibility: [],
+          ...compatibilityData([]),
+          editorShowOtherCompatibility: false,
           editorCompatibilityError: this.data.tr.compatibilityUnavailable,
         });
       } finally {
@@ -1739,18 +2311,49 @@ Component({
 
     applyStructuredEditor(
       structure: WorkoutEditorStructureV1,
-      extra: Record<string, unknown> = {},
+      extra: {
+        editorSelectedId?: string;
+        editorUndo?: RemovedWorkoutEditorNode | null;
+        [key: string]: unknown;
+      } = {},
     ) {
-      const summary = summaryLabels(structure);
+      const requestedSelectedId = typeof extra.editorSelectedId === 'string'
+        ? extra.editorSelectedId
+        : this.data.editorSelectedId;
+      const selectedId = workoutEditorNodePath(structure, requestedSelectedId)
+        ? requestedSelectedId
+        : firstEditorId(structure);
+      const summary = summaryLabels(structure, this.data.unitSystem);
+      const editorUndo = Object.prototype.hasOwnProperty.call(
+        extra,
+        'editorUndo',
+      )
+        ? extra.editorUndo
+        : null;
       this.setData({
+        ...extra,
         editorStructure: structure,
-        editorStructureView: structureView(structure),
+        editorStructureView: selectedStructureView(
+          structure,
+          selectedId,
+          this.data.unitSystem,
+        ),
+        editorOutline: outlineView(
+          structure,
+          selectedId,
+          this.data.unitSystem,
+        ),
+        editorSelectedId: selectedId,
+        editorSelectedNode: selectedNodeView(
+          structure,
+          selectedId,
+          this.data.unitSystem,
+        ),
         editorSummaryDuration: summary.duration,
         editorSummaryDistance: summary.distance,
         editorSummaryLoad: summary.load,
         editorSummarySteps: summary.steps,
-        editorUndo: null,
-        ...extra,
+        editorUndo,
       }, () => this.scheduleCompatibilityPreview());
     },
 
@@ -1829,6 +2432,7 @@ Component({
         this.data.editorStructure,
         editorId,
         { target: targetForKind(kind) },
+        this.data.unitSystem,
       ));
     },
 
@@ -1870,19 +2474,50 @@ Component({
         ));
         return;
       }
-      if (field === 'seconds' && step.termination.type === 'time') {
-        const seconds = Number(value);
-        if (!Number.isInteger(seconds)) return;
+      if (
+        (
+          field === 'durationHours'
+          || field === 'durationMinutes'
+          || field === 'durationSeconds'
+        )
+        && step.termination.type === 'time'
+      ) {
+        const part = Number(value);
+        if (!Number.isInteger(part) || part < 0) return;
+        const hours = Math.floor(step.termination.seconds / 3600);
+        const minutes = Math.floor((step.termination.seconds % 3600) / 60);
+        const seconds = step.termination.seconds % 60;
+        const nextHours = field === 'durationHours' ? part : hours;
+        const nextMinutes = field === 'durationMinutes'
+          ? Math.min(part, 59)
+          : minutes;
+        const nextSeconds = field === 'durationSeconds'
+          ? Math.min(part, 59)
+          : seconds;
         this.applyStructuredEditor(updateWorkoutEditorStep(
           this.data.editorStructure,
           editorId,
-          { termination: { type: 'time', seconds } },
+          {
+            termination: {
+              type: 'time',
+              seconds: nextHours * 3600 + nextMinutes * 60 + nextSeconds,
+            },
+          },
         ));
         return;
       }
-      if (field === 'meters' && step.termination.type === 'distance') {
-        const meters = Number(value);
-        if (!Number.isInteger(meters)) return;
+      if (
+        field === 'distanceValue'
+        && step.termination.type === 'distance'
+      ) {
+        this.setData({
+          'editorSelectedNode.distanceValue': value,
+        });
+        const meters = parseWorkoutDistanceInput(
+          value,
+          this.data.unitSystem,
+        );
+        if (meters == null) return;
         this.applyStructuredEditor(updateWorkoutEditorStep(
           this.data.editorStructure,
           editorId,
@@ -1901,6 +2536,32 @@ Component({
       }
     },
 
+    onStructuredDistanceBlur(event: WechatMiniprogram.Input) {
+      const editorId = String(event.currentTarget.dataset.editorId ?? '');
+      const path = workoutEditorNodePath(
+        this.data.editorStructure,
+        editorId,
+      );
+      if (!path || editorId !== this.data.editorSelectedId) return;
+      const rootNode = this.data.editorStructure.steps[path[0]];
+      const step = path.length === 1
+        ? rootNode
+        : rootNode?.type === 'repeat'
+          ? rootNode.steps[path[1]]
+          : null;
+      if (
+        !step
+        || step.type !== 'step'
+        || step.termination.type !== 'distance'
+      ) return;
+      this.setData({
+        'editorSelectedNode.distanceValue': formatWorkoutDistanceInput(
+          step.termination.meters,
+          this.data.unitSystem,
+        ).value,
+      });
+    },
+
     onStructuredTargetBlur(event: WechatMiniprogram.Input) {
       const editorId = String(event.currentTarget.dataset.editorId ?? '');
       const field = String(event.currentTarget.dataset.field ?? '');
@@ -1912,6 +2573,7 @@ Component({
         this.data.editorStructure,
         editorId,
         field === 'targetMin' ? 'min' : 'max',
+        this.data.unitSystem,
       );
       const validationCode = validateWorkoutEditorStructure(
         committed.structure,
@@ -1926,6 +2588,57 @@ Component({
       });
     },
 
+    onStructuredRangeChange(
+      event: WechatMiniprogram.CustomEvent<{ value: number }>,
+    ) {
+      const editorId = String(event.currentTarget.dataset.editorId ?? '');
+      const bound = String(event.currentTarget.dataset.bound ?? '');
+      if (!editorId || (bound !== 'min' && bound !== 'max')) return;
+      const path = workoutEditorNodePath(this.data.editorStructure, editorId);
+      if (!path) return;
+      const root = this.data.editorStructure.steps[path[0]];
+      const step = path.length === 1
+        ? root
+        : root?.type === 'repeat'
+          ? root.steps[path[1]]
+          : null;
+      if (!step || step.type !== 'step') return;
+      const kind = targetKind(step.target);
+      const slider = SLIDER_TARGETS[kind];
+      if (!slider) return;
+      const value = clamp(
+        Number(event.detail.value),
+        slider.min,
+        slider.max,
+      );
+      const otherRaw = bound === 'min'
+        ? step.targetInputs.max
+        : step.targetInputs.min;
+      const parsedOther = otherRaw.trim() === '' ? value : Number(otherRaw);
+      const other = Number.isFinite(parsedOther) ? parsedOther : value;
+      const nextValue = bound === 'min' && Number.isFinite(other)
+        ? Math.min(value, other)
+        : bound === 'max' && Number.isFinite(other)
+          ? Math.max(value, other)
+          : value;
+      let structure = setWorkoutEditorTargetInput(
+        this.data.editorStructure,
+        editorId,
+        bound,
+        String(nextValue),
+      );
+      structure = commitWorkoutEditorTargetInput(
+        structure,
+        editorId,
+        bound,
+        this.data.unitSystem,
+      ).structure;
+      this.applyStructuredEditor(structure, {
+        editorSelectedId: editorId,
+        editorError: '',
+      });
+    },
+
     onStructuredAction(event: WechatMiniprogram.TouchEvent) {
       const path = this.editorPath(event);
       const editorId = String(event.currentTarget.dataset.editorId ?? '');
@@ -1934,11 +2647,12 @@ Component({
       if (action === 'add-repeat-step') {
         const repeat = this.data.editorStructure.steps[path[0]];
         if (!repeat || repeat.type !== 'repeat') return;
+        const child = createWorkoutEditorStep({}, this.data.unitSystem);
         this.applyStructuredEditor(updateWorkoutEditorRepeat(
           this.data.editorStructure,
           editorId,
-          { steps: [...repeat.steps, createWorkoutEditorStep()] },
-        ));
+          { steps: [...repeat.steps, child] },
+        ), { editorSelectedId: child.editorId });
         return;
       }
       if (action === 'move-up' || action === 'move-down') {
@@ -1950,10 +2664,17 @@ Component({
         return;
       }
       if (action === 'duplicate') {
-        this.applyStructuredEditor(duplicateWorkoutEditorNode(
+        const next = duplicateWorkoutEditorNode(
           this.data.editorStructure,
           editorId,
-        ));
+          this.data.unitSystem,
+        );
+        this.applyStructuredEditor(next, {
+          editorSelectedId: addedEditorId(
+            this.data.editorStructure,
+            next,
+          ) || editorId,
+        });
         return;
       }
       if (action === 'insert-before' || action === 'insert-after') {
@@ -1961,12 +2682,19 @@ Component({
         const node = path.length === 1 && rootNode?.type === 'repeat'
           ? createRepeat()
           : createStep();
-        this.applyStructuredEditor(insertWorkoutEditorNode(
+        const next = insertWorkoutEditorNode(
           this.data.editorStructure,
           editorId,
           node,
           action === 'insert-after',
-        ));
+          this.data.unitSystem,
+        );
+        this.applyStructuredEditor(next, {
+          editorSelectedId: addedEditorId(
+            this.data.editorStructure,
+            next,
+          ) || editorId,
+        });
         return;
       }
       if (action === 'delete') {
@@ -1975,28 +2703,46 @@ Component({
           editorId,
         );
         if (!result.removed) return;
+        const remaining = new Set(outlineView(
+          result.structure,
+          '',
+          this.data.unitSystem,
+        ).map((item) => item.editorId));
+        const beforeIds = this.data.editorOutline.map(
+          (item: EditorOutlineView) => item.editorId,
+        );
+        const removedIndex = beforeIds.indexOf(editorId);
+        const candidates = [
+          ...beforeIds.slice(removedIndex + 1),
+          ...beforeIds.slice(0, removedIndex).reverse(),
+        ];
         this.applyStructuredEditor(result.structure, {
           editorUndo: result.removed,
+          editorSelectedId: candidates.find((candidate) => (
+            remaining.has(candidate)
+          )) ?? '',
         });
       }
     },
 
     onAddStructuredStep() {
+      const step = createWorkoutEditorStep({}, this.data.unitSystem);
       this.applyStructuredEditor({
         steps: [
           ...this.data.editorStructure.steps,
-          createWorkoutEditorStep(),
+          step,
         ],
-      });
+      }, { editorSelectedId: step.editorId });
     },
 
     onAddStructuredRepeat() {
+      const repeat = createWorkoutEditorRepeat({}, this.data.unitSystem);
       this.applyStructuredEditor({
         steps: [
           ...this.data.editorStructure.steps,
-          createWorkoutEditorRepeat(),
+          repeat,
         ],
-      });
+      }, { editorSelectedId: repeat.editorId });
     },
 
     onUndoStructuredDelete() {
@@ -2004,7 +2750,10 @@ Component({
       if (!removed) return;
       this.applyStructuredEditor(
         restoreRemovedWorkoutEditorNode(this.data.editorStructure, removed),
-        { editorUndo: null },
+        {
+          editorUndo: null,
+          editorSelectedId: removed.node.editorId,
+        },
       );
     },
 
@@ -2021,10 +2770,17 @@ Component({
           paceMin: this.data.editorPaceMin.trim() || null,
           paceMax: this.data.editorPaceMax.trim() || null,
         });
-        this.applyStructuredEditor(createWorkoutEditorStructure(structure), {
-          editorStructured: true,
-          editorError: '',
-        });
+        this.applyStructuredEditor(
+          createWorkoutEditorStructure(
+            structure,
+            undefined,
+            this.data.unitSystem,
+          ),
+          {
+            editorStructured: true,
+            editorError: '',
+          },
+        );
       } catch (error) {
         this.setData({
           editorError: t('Could not convert this legacy workout.'),
@@ -2137,14 +2893,41 @@ Component({
         || !this.data.editorWorkoutType
       ) return;
       const committed = this.data.editorStructured
-        ? commitAllWorkoutEditorTargetInputs(this.data.editorStructure)
+        ? commitAllWorkoutEditorTargetInputs(
+          this.data.editorStructure,
+          this.data.unitSystem,
+        )
         : { structure: this.data.editorStructure, valid: true };
       const validationError = this.editorValidationError(committed.structure);
       if (this.data.editorStructured) {
-        const summary = summaryLabels(committed.structure);
+        const summary = summaryLabels(
+          committed.structure,
+          this.data.unitSystem,
+        );
+        const selectedId = workoutEditorNodePath(
+          committed.structure,
+          this.data.editorSelectedId,
+        )
+          ? this.data.editorSelectedId
+          : firstEditorId(committed.structure);
         this.setData({
           editorStructure: committed.structure,
-          editorStructureView: structureView(committed.structure),
+          editorStructureView: selectedStructureView(
+            committed.structure,
+            selectedId,
+            this.data.unitSystem,
+          ),
+          editorOutline: outlineView(
+            committed.structure,
+            selectedId,
+            this.data.unitSystem,
+          ),
+          editorSelectedId: selectedId,
+          editorSelectedNode: selectedNodeView(
+            committed.structure,
+            selectedId,
+            this.data.unitSystem,
+          ),
           editorSummaryDuration: summary.duration,
           editorSummaryDistance: summary.distance,
           editorSummaryLoad: summary.load,

@@ -283,6 +283,10 @@ const EN_TODAY = {
 };
 
 const EN_TRAINING = {
+  'Add step': 'Add step',
+  'Add repeat': 'Add repeat',
+  'Compare other providers': 'Compare other providers',
+  'Delivery blocked': 'Delivery blocked',
   'No training data yet. Sync Garmin / Stryd from the web app (Settings → Sync) to populate this view.':
     'No training data yet. Sync Garmin / Stryd from the web app (Settings → Sync) to populate this view.',
   Volume: 'Volume',
@@ -700,6 +704,10 @@ const ZH_TODAY = {
 };
 
 const ZH_TRAINING = {
+  'Add step': '添加步骤',
+  'Add repeat': '添加重复组',
+  'Compare other providers': '比较其他平台',
+  'Delivery blocked': '交付受阻',
   'No training data yet. Sync Garmin / Stryd from the web app (Settings → Sync) to populate this view.':
     '暂无训练数据。请先在网页端的“设置 → 同步”中同步 Garmin / Stryd 数据。',
   Volume: '里程',

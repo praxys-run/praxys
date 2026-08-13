@@ -46,7 +46,7 @@ msgid "{0, plural, one {# recommendation} other {# recommendations}}"
 msgstr "{0, plural, one {# recommendation} other {# recommendations}}"
 
 #. placeholder {0}: data.workouts.length
-#: src/components/UpcomingPlanCard.tsx:1471
+#: src/components/UpcomingPlanCard.tsx:1477
 msgid "{0, plural, one {# workout} other {# workouts}}"
 msgstr "{0, plural, one {# workout} other {# workouts}}"
 
@@ -142,6 +142,12 @@ msgstr "{0} narrow change class(es) may merge through the independent policy gat
 msgid "{0} of {1} steps complete"
 msgstr "{0} of {1} steps complete"
 
+#. placeholder {0}: node.repetitions
+#. placeholder {1}: node.steps.length
+#: src/components/WorkoutStructureEditor.tsx:424
+msgid "{0} rounds · {1} steps"
+msgstr "{0} rounds · {1} steps"
+
 #. placeholder {0}: status.contributing_sessions
 #. placeholder {1}: status.exposure_days
 #. placeholder {2}: status.effective_heat_minutes
@@ -236,7 +242,7 @@ msgstr "{abbrev} is <0>{dirLabel}</0>. Add more activities for a race-time predi
 msgid "{completed} of {0} steps complete"
 msgstr "{completed} of {0} steps complete"
 
-#: src/components/UpcomingPlanCard.tsx:1464
+#: src/components/UpcomingPlanCard.tsx:1470
 msgid "{conflictCount, plural, one {# needs review} other {# need review}}"
 msgstr "{conflictCount, plural, one {# needs review} other {# need review}}"
 
@@ -491,8 +497,8 @@ msgstr "A non-diagnostic safety stop is active; Praxys does not diagnose, treat,
 #~ msgstr "A normal warm-weather session can maintain adaptation when recovery allows."
 
 #: src/components/WorkoutStructureEditor.tsx:181
-msgid "A positive duration is required by the provider."
-msgstr "A positive duration is required by the provider."
+#~ msgid "A positive duration is required by the provider."
+#~ msgstr "A positive duration is required by the provider."
 
 #: src/pages/admin/AdminFeedback.tsx:522
 #~ msgid "A positive judgment adds agent-ready; for an open, non-backlogged linked issue, this hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain."
@@ -565,6 +571,14 @@ msgstr "Above baseline"
 #: src/components/RecoveryPanel.tsx:18
 msgid "Above reference band"
 msgstr "Above reference band"
+
+#: src/components/WorkoutStructureEditor.tsx:126
+msgid "Absolute heart rate in beats per minute."
+msgstr "Absolute heart rate in beats per minute."
+
+#: src/components/WorkoutStructureEditor.tsx:124
+msgid "Absolute running power in watts."
+msgstr "Absolute running power in watts."
 
 #: src/components/charts/FormSparkline.tsx:29
 #~ msgid "Absorbing training while maintaining fitness."
@@ -674,7 +688,7 @@ msgstr "Activity evidence"
 msgid "Activity gauge"
 msgstr "Activity gauge"
 
-#: src/components/WorkoutPlanEditor.tsx:678
+#: src/components/WorkoutPlanEditor.tsx:718
 msgid "Activity is the schedule lane (for example road or trail), not the session purpose."
 msgstr "Activity is the schedule lane (for example road or trail), not the session purpose."
 
@@ -719,19 +733,27 @@ msgstr "Acute illness"
 #~ msgid "Adaptation evidence is recent. Keep normal training; extra heat is not required."
 #~ msgstr "Adaptation evidence is recent. Keep normal training; extra heat is not required."
 
+#: src/components/WorkoutStructureEditor.tsx:682
+msgid "Add a step or repeat group to begin."
+msgstr "Add a step or repeat group to begin."
+
+#: src/components/WorkoutStructureEditor.tsx:1412
+msgid "Add at least one step to this repeat."
+msgstr "Add at least one step to this repeat."
+
 #: src/components/PersonalContextPanel.tsx:729
 msgid "Add availability"
 msgstr "Add availability"
 
-#: src/components/WorkoutPlanEditor.tsx:616
+#: src/components/WorkoutPlanEditor.tsx:656
 msgid "Add one future workout to the Praxys canonical plan."
 msgstr "Add one future workout to the Praxys canonical plan."
 
 #: src/components/WorkoutStructureEditor.tsx:425
-msgid "Add repeat"
-msgstr "Add repeat"
+#~ msgid "Add repeat"
+#~ msgstr "Add repeat"
 
-#: src/components/WorkoutStructureEditor.tsx:846
+#: src/components/WorkoutStructureEditor.tsx:1382
 msgid "Add repeat step"
 msgstr "Add repeat step"
 
@@ -740,16 +762,16 @@ msgid "Add screenshot"
 msgstr "Add screenshot"
 
 #: src/components/WorkoutStructureEditor.tsx:415
-msgid "Add step"
-msgstr "Add step"
+#~ msgid "Add step"
+#~ msgstr "Add step"
 
-#: src/components/UpcomingPlanCard.tsx:1637
+#: src/components/UpcomingPlanCard.tsx:1643
 msgid "Add the first workout"
 msgstr "Add the first workout"
 
-#: src/components/UpcomingPlanCard.tsx:1484
-#: src/components/WorkoutPlanEditor.tsx:602
-#: src/components/WorkoutPlanEditor.tsx:883
+#: src/components/UpcomingPlanCard.tsx:1490
+#: src/components/WorkoutPlanEditor.tsx:642
+#: src/components/WorkoutPlanEditor.tsx:931
 msgid "Add workout"
 msgstr "Add workout"
 
@@ -918,8 +940,8 @@ msgid "Allowed for this item"
 msgstr "Allowed for this item"
 
 #: src/components/WorkoutStructureEditor.tsx:619
-msgid "Allowed range"
-msgstr "Allowed range"
+#~ msgid "Allowed range"
+#~ msgstr "Allowed range"
 
 #: src/pages/Login.tsx:476
 #: src/pages/Login.tsx:501
@@ -930,15 +952,15 @@ msgstr "Already have an invitation code?"
 msgid "Also send my optional note"
 msgstr "Also send my optional note"
 
-#: src/components/UpcomingPlanCard.tsx:1557
+#: src/components/UpcomingPlanCard.tsx:1563
 msgid "An earlier automatic change was superseded"
 msgstr "An earlier automatic change was superseded"
 
 #: src/components/WorkoutStructureEditor.tsx:182
-msgid "An empty structured workout cannot be sent."
-msgstr "An empty structured workout cannot be sent."
+#~ msgid "An empty structured workout cannot be sent."
+#~ msgstr "An empty structured workout cannot be sent."
 
-#: src/components/UpcomingPlanCard.tsx:1508
+#: src/components/UpcomingPlanCard.tsx:1514
 msgid "An external planner overlaps the Praxys plan. Use one planner at a time to avoid duplicate or conflicting sessions."
 msgstr "An external planner overlaps the Praxys plan. Use one planner at a time to avoid duplicate or conflicting sessions."
 
@@ -1276,7 +1298,7 @@ msgstr "Bootstrap interval"
 msgid "Both thresholds must be met. The bars describe model evidence, not a biological adaptation percentage."
 msgstr "Both thresholds must be met. The bars describe model evidence, not a biological adaptation percentage."
 
-#: src/components/UpcomingPlanCard.tsx:1432
+#: src/components/UpcomingPlanCard.tsx:1438
 msgid "Browse plan dates"
 msgstr "Browse plan dates"
 
@@ -1307,6 +1329,10 @@ msgstr "Bug reports and feature requests submitted from the app. Priority orders
 #: src/components/HeatAdaptationPanel.tsx:55
 #~ msgid "Build gradually; do not add intensity solely for heat."
 #~ msgstr "Build gradually; do not add intensity solely for heat."
+
+#: src/components/WorkoutStructureEditor.tsx:614
+msgid "Build the canonical workout once. Select a step in the profile or order list to edit it; Praxys keeps richer details even when a delivery platform cannot represent them."
+msgstr "Build the canonical workout once. Select a step in the profile or order list to edit it; Praxys keeps richer details even when a delivery platform cannot represent them."
 
 #: src/components/HeatAdaptationPanel.tsx:19
 msgid "Building"
@@ -1351,7 +1377,7 @@ msgstr "Calculator"
 #: src/components/ManagedPlanSettingsCard.tsx:1454
 #: src/components/PersonalContextPanel.tsx:1475
 #: src/components/UpcomingPlanCard.tsx:843
-#: src/components/WorkoutPlanEditor.tsx:869
+#: src/components/WorkoutPlanEditor.tsx:917
 #: src/pages/admin/AdminOps.tsx:1215
 #: src/pages/admin/AdminUsers.tsx:1043
 #: src/pages/admin/AdminUsers.tsx:1073
@@ -1377,6 +1403,10 @@ msgstr "Cancel preview"
 #: src/pages/admin/AdminFeedback.tsx:491
 msgid "Candidate"
 msgstr "Candidate"
+
+#: src/components/WorkoutStructureEditor.tsx:1979
+msgid "Canonical workout remains safe"
+msgstr "Canonical workout remains safe"
 
 #: src/pages/admin/AdminOps.tsx:397
 msgid "CAPTCHA required"
@@ -1460,9 +1490,13 @@ msgstr "Check your credentials in the connection step, then try again."
 msgid "Checking data requirements"
 msgstr "Checking data requirements"
 
+#: src/components/WorkoutStructureEditor.tsx:1880
+msgid "Checking delivery compatibility…"
+msgstr "Checking delivery compatibility…"
+
 #: src/components/WorkoutStructureEditor.tsx:1045
-msgid "Checking provider compatibility…"
-msgstr "Checking provider compatibility…"
+#~ msgid "Checking provider compatibility…"
+#~ msgstr "Checking provider compatibility…"
 
 #: src/components/GoalBaselinePanel.tsx:163
 msgid "Chest pain or pressure"
@@ -1625,13 +1659,18 @@ msgstr "Communications"
 msgid "Comparable-power activity support"
 msgstr "Comparable-power activity support"
 
-#: src/components/WorkoutPlanEditor.tsx:390
+#. placeholder {0}: others.length
+#: src/components/WorkoutStructureEditor.tsx:1929
+msgid "Compare other providers ({0})"
+msgstr "Compare other providers ({0})"
+
+#: src/components/WorkoutPlanEditor.tsx:401
 msgid "Compatibility preview is unavailable. Check your connection and try again."
 msgstr "Compatibility preview is unavailable. Check your connection and try again."
 
 #: src/components/WorkoutStructureEditor.tsx:1075
-msgid "Compatible"
-msgstr "Compatible"
+#~ msgid "Compatible"
+#~ msgstr "Compatible"
 
 #: src/components/SetupChecklist.tsx:98
 #: src/pages/Setup.tsx:579
@@ -1845,15 +1884,15 @@ msgstr "Continuous Stryd sample power is missing from too much of the eligible h
 msgid "Control self-registration and the committed-seat cap."
 msgstr "Control self-registration and the committed-seat cap."
 
-#: src/components/WorkoutPlanEditor.tsx:852
+#: src/components/WorkoutPlanEditor.tsx:894
 msgid "Convert to rest"
 msgstr "Convert to rest"
 
-#: src/components/WorkoutPlanEditor.tsx:778
+#: src/components/WorkoutPlanEditor.tsx:818
 msgid "Convert to structured steps"
 msgstr "Convert to structured steps"
 
-#: src/components/WorkoutStructureEditor.tsx:153
+#: src/components/WorkoutStructureEditor.tsx:327
 msgid "Cool-down"
 msgstr "Cool-down"
 
@@ -1896,7 +1935,7 @@ msgstr "Could not calculate the wet-bulb proxy."
 msgid "Could not change the execution target"
 msgstr "Could not change the execution target"
 
-#: src/components/WorkoutPlanEditor.tsx:484
+#: src/components/WorkoutPlanEditor.tsx:517
 msgid "Could not convert this legacy workout."
 msgstr "Could not convert this legacy workout."
 
@@ -2147,7 +2186,7 @@ msgid "Critical: {0}. Major: {1}. Minor: {2}."
 msgstr "Critical: {0}. Major: {1}. Minor: {2}."
 
 #: src/components/UpcomingPlanCard.tsx:571
-#: src/components/WorkoutPlanEditor.tsx:422
+#: src/components/WorkoutPlanEditor.tsx:450
 msgid "Cross-training"
 msgstr "Cross-training"
 
@@ -2202,7 +2241,7 @@ msgid "Current evidence"
 msgstr "Current evidence"
 
 #: src/components/ManagedPlanSettingsCard.tsx:993
-#: src/components/UpcomingPlanCard.tsx:1573
+#: src/components/UpcomingPlanCard.tsx:1579
 msgid "Current HRV crossed your personal caution band."
 msgstr "Current HRV crossed your personal caution band."
 
@@ -2215,17 +2254,17 @@ msgstr "Current qualifying evidence"
 msgid "Currently set to {0}-based training"
 msgstr "Currently set to {0}-based training"
 
-#: src/components/WorkoutPlanEditor.tsx:430
-#: src/components/WorkoutPlanEditor.tsx:706
+#: src/components/WorkoutPlanEditor.tsx:458
+#: src/components/WorkoutPlanEditor.tsx:746
 msgid "Custom wording"
 msgstr "Custom wording"
 
-#: src/components/WorkoutPlanEditor.tsx:715
+#: src/components/WorkoutPlanEditor.tsx:755
 msgid "Custom workout purpose"
 msgstr "Custom workout purpose"
 
 #: src/components/UpcomingPlanCard.tsx:566
-#: src/components/WorkoutPlanEditor.tsx:417
+#: src/components/WorkoutPlanEditor.tsx:445
 #: src/pages/Setup.tsx:165
 msgid "Cycling"
 msgstr "Cycling"
@@ -2270,7 +2309,7 @@ msgstr "Database"
 msgid "Database health failures"
 msgstr "Database health failures"
 
-#: src/components/WorkoutPlanEditor.tsx:625
+#: src/components/WorkoutPlanEditor.tsx:665
 msgid "Date"
 msgstr "Date"
 
@@ -2357,8 +2396,8 @@ msgid "Degraded Performance"
 msgstr "Degraded Performance"
 
 #: src/components/PersonalContextPanel.tsx:1538
-#: src/components/WorkoutPlanEditor.tsx:838
-#: src/components/WorkoutStructureEditor.tsx:1014
+#: src/components/WorkoutPlanEditor.tsx:880
+#: src/components/WorkoutStructureEditor.tsx:1785
 msgid "Delete"
 msgstr "Delete"
 
@@ -2387,7 +2426,7 @@ msgstr "Delete retained history"
 msgid "Delete this context permanently?"
 msgstr "Delete this context permanently?"
 
-#: src/components/WorkoutPlanEditor.tsx:553
+#: src/components/WorkoutPlanEditor.tsx:593
 msgid "Delete this workout?"
 msgstr "Delete this workout?"
 
@@ -2401,7 +2440,7 @@ msgstr "Delete user"
 #~ msgid "Delete User"
 #~ msgstr "Delete User"
 
-#: src/components/WorkoutPlanEditor.tsx:590
+#: src/components/WorkoutPlanEditor.tsx:630
 msgid "Delete workout"
 msgstr "Delete workout"
 
@@ -2419,7 +2458,7 @@ msgstr "Deleting"
 msgid "Deleting..."
 msgstr "Deleting..."
 
-#: src/components/WorkoutPlanEditor.tsx:590
+#: src/components/WorkoutPlanEditor.tsx:630
 #: src/pages/admin/AdminUsers.tsx:1076
 msgid "Deleting…"
 msgstr "Deleting…"
@@ -2450,6 +2489,14 @@ msgstr "Delivery never started"
 #: src/pages/admin/AdminOps.tsx:1019
 msgid "Delivery outcomes"
 msgstr "Delivery outcomes"
+
+#: src/components/WorkoutStructureEditor.tsx:1869
+msgid "Delivery preview"
+msgstr "Delivery preview"
+
+#: src/components/WorkoutStructureEditor.tsx:1976
+msgid "Delivery to {providerName} is blocked"
+msgstr "Delivery to {providerName} is blocked"
 
 #: src/pages/admin/AdminUsers.tsx:605
 msgid "Demo"
@@ -2506,7 +2553,7 @@ msgstr "Detailed activity evidence is unavailable for this day."
 msgid "Details"
 msgstr "Details"
 
-#: src/components/WorkoutStructureEditor.tsx:477
+#: src/components/WorkoutStructureEditor.tsx:975
 msgid "deterministic"
 msgstr "deterministic"
 
@@ -2610,20 +2657,25 @@ msgstr "Dist"
 #: src/components/charts/WeeklyVolumeChart.tsx:89
 #: src/components/charts/WeeklyVolumeChart.tsx:98
 #: src/components/GoalEditor.tsx:50
-#: src/components/WorkoutStructureEditor.tsx:291
-#: src/components/WorkoutStructureEditor.tsx:867
-#: src/components/WorkoutStructureEditor.tsx:888
+#: src/components/WorkoutStructureEditor.tsx:817
+#: src/components/WorkoutStructureEditor.tsx:1437
+#: src/components/WorkoutStructureEditor.tsx:1486
 #: src/pages/Settings.tsx:1405
 msgid "Distance"
 msgstr "Distance"
 
-#: src/components/WorkoutPlanEditor.tsx:925
+#: src/components/WorkoutPlanEditor.tsx:974
 msgid "Distance (km)"
 msgstr "Distance (km)"
 
+#. placeholder {0}: distance.unit
+#: src/components/WorkoutStructureEditor.tsx:1530
+msgid "Distance in {0}"
+msgstr "Distance in {0}"
+
 #: src/components/WorkoutStructureEditor.tsx:921
-msgid "Distance in meters"
-msgstr "Distance in meters"
+#~ msgid "Distance in meters"
+#~ msgstr "Distance in meters"
 
 #: src/pages/Training.tsx:301
 #~ msgid "Distance in non-overlapping seven-day buckets, including zero-activity weeks."
@@ -2670,6 +2722,10 @@ msgstr "Download a JSON copy of your activities, recovery, fitness, plans, and s
 msgid "Draft one change for your review"
 msgstr "Draft one change for your review"
 
+#: src/components/WorkoutStructureEditor.tsx:1654
+msgid "Drag the range or type exact values."
+msgstr "Drag the range or type exact values."
+
 #: src/pages/Settings.tsx:1457
 msgid "Drive your zone calculations and training load. Values come from connected sources; pick which source to use when you have more than one."
 msgstr "Drive your zone calculations and training load. Values come from connected sources; pick which source to use when you have more than one."
@@ -2683,15 +2739,15 @@ msgid "Drop to easy run (keep power in recovery zone)"
 msgstr "Drop to easy run (keep power in recovery zone)"
 
 #: src/components/UpcomingPlanCard.tsx:704
-#: src/components/WorkoutStructureEditor.tsx:1003
+#: src/components/WorkoutStructureEditor.tsx:1779
 msgid "Duplicate"
 msgstr "Duplicate"
 
-#: src/components/WorkoutPlanEditor.tsx:599
+#: src/components/WorkoutPlanEditor.tsx:639
 msgid "Duplicate into Praxys"
 msgstr "Duplicate into Praxys"
 
-#: src/components/WorkoutPlanEditor.tsx:880
+#: src/components/WorkoutPlanEditor.tsx:928
 msgid "Duplicate workout"
 msgstr "Duplicate workout"
 
@@ -2701,11 +2757,11 @@ msgstr "Durable preference"
 
 #: src/components/ActivityCard.tsx:87
 #: src/components/SplitBreakdown.tsx:48
-#: src/components/WorkoutStructureEditor.tsx:284
+#: src/components/WorkoutStructureEditor.tsx:810
 msgid "Duration"
 msgstr "Duration"
 
-#: src/components/WorkoutPlanEditor.tsx:917
+#: src/components/WorkoutPlanEditor.tsx:966
 msgid "Duration (minutes)"
 msgstr "Duration (minutes)"
 
@@ -2737,11 +2793,12 @@ msgstr "Duration (minutes)"
 #~ msgid "e.g. 42:00"
 #~ msgstr "e.g. 42:00"
 
-#: src/components/WorkoutPlanEditor.tsx:997
+#: src/components/WorkoutPlanEditor.tsx:1046
+#: src/components/WorkoutStructureEditor.tsx:1644
 msgid "e.g. 5:20"
 msgstr "e.g. 5:20"
 
-#: src/components/WorkoutPlanEditor.tsx:1014
+#: src/components/WorkoutPlanEditor.tsx:1063
 msgid "e.g. 5:45"
 msgstr "e.g. 5:45"
 
@@ -2749,15 +2806,15 @@ msgstr "e.g. 5:45"
 #~ msgid "e.g. 8:00:00"
 #~ msgstr "e.g. 8:00:00"
 
-#: src/components/WorkoutStructureEditor.tsx:780
+#: src/components/WorkoutStructureEditor.tsx:1334
 msgid "e.g. Main set"
 msgstr "e.g. Main set"
 
-#: src/components/WorkoutPlanEditor.tsx:726
+#: src/components/WorkoutPlanEditor.tsx:766
 msgid "e.g. Race rehearsal"
 msgstr "e.g. Race rehearsal"
 
-#: src/components/WorkoutStructureEditor.tsx:581
+#: src/components/WorkoutStructureEditor.tsx:1187
 msgid "e.g. Uphill effort"
 msgstr "e.g. Uphill effort"
 
@@ -2790,7 +2847,7 @@ msgstr "Each value is a non-overlapping seven-day bucket ending on the shown dat
 #~ msgstr "Each value is a non-overlapping seven-day bucket ending on the shown date. Zero-activity weeks remain in the series and average; the trend compares the older and newer halves. This is a Praxys operational summary, not a readiness score."
 
 #: src/components/UpcomingPlanCard.tsx:576
-#: src/components/WorkoutPlanEditor.tsx:404
+#: src/components/WorkoutPlanEditor.tsx:432
 msgid "Easy"
 msgstr "Easy"
 
@@ -2809,7 +2866,7 @@ msgstr "Easy Run"
 msgid "Edit"
 msgstr "Edit"
 
-#: src/components/WorkoutPlanEditor.tsx:601
+#: src/components/WorkoutPlanEditor.tsx:641
 msgid "Edit workout"
 msgstr "Edit workout"
 
@@ -2940,9 +2997,21 @@ msgstr "Enough activities exist overall, but the required environment, power, an
 msgid "Enough source data to attempt the experiment"
 msgstr "Enough source data to attempt the experiment"
 
+#: src/components/WorkoutStructureEditor.tsx:1723
+msgid "Enter a complete value in this unit."
+msgstr "Enter a complete value in this unit."
+
 #: src/pages/LabsEnvironment.tsx:722
 msgid "Enter numeric temperature and humidity values."
 msgstr "Enter numeric temperature and humidity values."
+
+#: src/components/WorkoutStructureEditor.tsx:133
+msgid "Enter pace as minutes:seconds per kilometre."
+msgstr "Enter pace as minutes:seconds per kilometre."
+
+#: src/components/WorkoutStructureEditor.tsx:134
+msgid "Enter pace as minutes:seconds per mile."
+msgstr "Enter pace as minutes:seconds per mile."
 
 #: src/components/PersonalContextPanel.tsx:233
 #: src/components/PersonalContextPanel.tsx:234
@@ -2967,11 +3036,11 @@ msgstr "Equipment still available (optional)"
 msgid "Error"
 msgstr "Error"
 
-#: src/components/WorkoutStructureEditor.tsx:479
+#: src/components/WorkoutStructureEditor.tsx:976
 msgid "estimated"
 msgstr "estimated"
 
-#: src/components/WorkoutStructureEditor.tsx:300
+#: src/components/WorkoutStructureEditor.tsx:829
 msgid "Estimated from targets"
 msgstr "Estimated from targets"
 
@@ -3294,8 +3363,12 @@ msgid "Findings"
 msgstr "Findings"
 
 #: src/components/WorkoutStructureEditor.tsx:1057
-msgid "Finish the required step fields to preview compatibility."
-msgstr "Finish the required step fields to preview compatibility."
+#~ msgid "Finish the required step fields to preview compatibility."
+#~ msgstr "Finish the required step fields to preview compatibility."
+
+#: src/components/WorkoutStructureEditor.tsx:1892
+msgid "Finish the required step fields to preview delivery."
+msgstr "Finish the required step fields to preview delivery."
 
 #: src/pages/Settings.tsx:58
 #: src/pages/Settings.tsx:1369
@@ -3306,6 +3379,14 @@ msgstr "Fitness"
 #: src/pages/Training.tsx:394
 #~ msgid "Fitness / Fatigue / Form"
 #~ msgstr "Fitness / Fatigue / Form"
+
+#: src/components/WorkoutStructureEditor.tsx:643
+msgid "Fix the marked step before saving. Every target and termination must be complete."
+msgstr "Fix the marked step before saving. Every target and termination must be complete."
+
+#: src/components/WorkoutPlanEditor.tsx:578
+msgid "Fix the marked structured step before saving."
+msgstr "Fix the marked structured step before saving."
 
 #: src/pages/Goal.tsx:193
 msgid "flat"
@@ -3544,19 +3625,19 @@ msgstr "Have an invitation code?"
 msgid "Heart Rate"
 msgstr "Heart Rate"
 
-#: src/components/WorkoutStructureEditor.tsx:161
+#: src/components/WorkoutStructureEditor.tsx:335
 msgid "Heart rate · %LTHR"
 msgstr "Heart rate · %LTHR"
 
-#: src/components/WorkoutStructureEditor.tsx:160
+#: src/components/WorkoutStructureEditor.tsx:334
 msgid "Heart rate · bpm"
 msgstr "Heart rate · bpm"
 
-#: src/components/WorkoutPlanEditor.tsx:954
+#: src/components/WorkoutPlanEditor.tsx:1003
 msgid "Heart-rate maximum (bpm)"
 msgstr "Heart-rate maximum (bpm)"
 
-#: src/components/WorkoutPlanEditor.tsx:947
+#: src/components/WorkoutPlanEditor.tsx:996
 msgid "Heart-rate minimum (bpm)"
 msgstr "Heart-rate minimum (bpm)"
 
@@ -3639,6 +3720,10 @@ msgstr "Hide details"
 msgid "Hide methodology details"
 msgstr "Hide methodology details"
 
+#: src/components/WorkoutStructureEditor.tsx:1928
+msgid "Hide other providers"
+msgstr "Hide other providers"
+
 #: src/pages/admin/AdminFeedback.tsx:109
 msgid "High"
 msgstr "High"
@@ -3660,13 +3745,13 @@ msgid "High variability"
 msgstr "High variability"
 
 #: src/components/UpcomingPlanCard.tsx:568
-#: src/components/WorkoutPlanEditor.tsx:419
+#: src/components/WorkoutPlanEditor.tsx:447
 #: src/pages/Setup.tsx:167
 msgid "Hiking"
 msgstr "Hiking"
 
 #: src/components/UpcomingPlanCard.tsx:582
-#: src/components/WorkoutPlanEditor.tsx:410
+#: src/components/WorkoutPlanEditor.tsx:438
 msgid "Hill repeats"
 msgstr "Hill repeats"
 
@@ -3746,6 +3831,10 @@ msgstr "How to read this experiment"
 #: src/pages/Setup.tsx:794
 msgid "How your zones and training load are calculated"
 msgstr "How your zones and training load are calculated"
+
+#: src/components/WorkoutStructureEditor.tsx:1494
+msgid "hr"
+msgstr "hr"
 
 #: src/components/SplitBreakdown.tsx:50
 msgid "HR"
@@ -3928,21 +4017,25 @@ msgstr "Increasing"
 msgid "Info"
 msgstr "Info"
 
-#: src/components/WorkoutStructureEditor.tsx:993
+#: src/components/WorkoutStructureEditor.tsx:1773
 msgid "Insert after"
 msgstr "Insert after"
 
-#: src/components/WorkoutStructureEditor.tsx:983
+#: src/components/WorkoutStructureEditor.tsx:1767
 msgid "Insert before"
 msgstr "Insert before"
 
-#: src/components/UpcomingPlanCard.tsx:1585
+#: src/components/UpcomingPlanCard.tsx:1591
 msgid "Inspect context"
 msgstr "Inspect context"
 
 #: src/components/PersonalContextPanel.tsx:1313
 msgid "Inspect what is stored, where it was used, and who may process it."
 msgstr "Inspect what is stored, where it was used, and who may process it."
+
+#: src/components/WorkoutStructureEditor.tsx:150
+msgid "instructions"
+msgstr "instructions"
 
 #: src/components/RecoveryPanel.tsx:21
 #: src/pages/Today.tsx:230
@@ -3995,7 +4088,7 @@ msgid "Interpret this workout without guessing a cause"
 msgstr "Interpret this workout without guessing a cause"
 
 #: src/components/UpcomingPlanCard.tsx:581
-#: src/components/WorkoutPlanEditor.tsx:409
+#: src/components/WorkoutPlanEditor.tsx:437
 msgid "Intervals"
 msgstr "Intervals"
 
@@ -4126,7 +4219,7 @@ msgstr "Keep the optional note to 280 characters or fewer."
 msgid "keep the Praxys workout canonical and replace or recreate the target version."
 msgstr "keep the Praxys workout canonical and replace or recreate the target version."
 
-#: src/components/WorkoutPlanEditor.tsx:581
+#: src/components/WorkoutPlanEditor.tsx:621
 msgid "Keep workout"
 msgstr "Keep workout"
 
@@ -4142,6 +4235,10 @@ msgstr "Keep workout"
 #: src/pages/Training.tsx:312
 msgid "km/wk"
 msgstr "km/wk"
+
+#: src/components/WorkoutStructureEditor.tsx:149
+msgid "label"
+msgstr "label"
 
 #: src/components/AppSidebar.tsx:132
 msgid "Labs"
@@ -4255,7 +4352,7 @@ msgstr "Leave managed mode?"
 msgid "Leaving…"
 msgstr "Leaving…"
 
-#: src/components/WorkoutPlanEditor.tsx:760
+#: src/components/WorkoutPlanEditor.tsx:800
 msgid "Legacy flat summary"
 msgstr "Legacy flat summary"
 
@@ -4358,7 +4455,7 @@ msgstr "Live probe"
 #~ msgid "Live state"
 #~ msgstr "Live state"
 
-#: src/components/WorkoutStructureEditor.tsx:298
+#: src/components/WorkoutStructureEditor.tsx:827
 msgid "Load"
 msgstr "Load"
 
@@ -4423,7 +4520,7 @@ msgstr "Log out"
 #~ msgstr "Login"
 
 #: src/components/UpcomingPlanCard.tsx:578
-#: src/components/WorkoutPlanEditor.tsx:406
+#: src/components/WorkoutPlanEditor.tsx:434
 msgid "Long run"
 msgstr "Long run"
 
@@ -4539,7 +4636,7 @@ msgstr "Managed athletes"
 msgid "Managed by Praxys"
 msgstr "Managed by Praxys"
 
-#: src/components/UpcomingPlanCard.tsx:1657
+#: src/components/UpcomingPlanCard.tsx:1663
 msgid "Managed delivery is active, but this window contains no Praxys-owned workouts. External workouts remain untouched."
 msgstr "Managed delivery is active, but this window contains no Praxys-owned workouts. External workouts remain untouched."
 
@@ -4595,8 +4692,8 @@ msgstr "Management routes for access, communications, and service status."
 msgid "Management routes remain available. Retry the aggregate health snapshot."
 msgstr "Management routes remain available. Retry the aggregate health snapshot."
 
-#: src/components/WorkoutStructureEditor.tsx:869
-#: src/components/WorkoutStructureEditor.tsx:890
+#: src/components/WorkoutStructureEditor.tsx:1439
+#: src/components/WorkoutStructureEditor.tsx:1488
 msgid "Manual"
 msgstr "Manual"
 
@@ -4607,6 +4704,10 @@ msgstr "Manual and other-coach workouts remain external and will not be edited o
 #: src/components/ManagedPlanSettingsCard.tsx:1175
 msgid "Manual and other-coach workouts stay untouched. Delivery remains paused throughout."
 msgstr "Manual and other-coach workouts stay untouched. Delivery remains paused throughout."
+
+#: src/components/WorkoutStructureEditor.tsx:395
+msgid "Manual lap"
+msgstr "Manual lap"
 
 #: src/pages/LabsEnvironment.tsx:331
 msgid "manual recomputes remaining"
@@ -4680,6 +4781,7 @@ msgstr "Microsoft Azure AI"
 #: src/components/ManagedPlanSettingsCard.tsx:628
 #: src/components/UpcomingPlanCard.tsx:773
 #: src/components/UpcomingPlanCard.tsx:795
+#: src/components/WorkoutStructureEditor.tsx:1498
 msgid "min"
 msgstr "min"
 
@@ -4736,7 +4838,7 @@ msgid "Mixed providers"
 msgstr "Mixed providers"
 
 #: src/components/UpcomingPlanCard.tsx:570
-#: src/components/WorkoutPlanEditor.tsx:421
+#: src/components/WorkoutPlanEditor.tsx:449
 msgid "Mobility"
 msgstr "Mobility"
 
@@ -4826,19 +4928,19 @@ msgstr "More historical HRV observations are needed before Praxys can form a per
 msgid "Motivation"
 msgstr "Motivation"
 
-#: src/components/WorkoutStructureEditor.tsx:973
+#: src/components/WorkoutStructureEditor.tsx:1761
 msgid "Move down"
 msgstr "Move down"
 
 #: src/components/WorkoutStructureEditor.tsx:970
-msgid "Move step down"
-msgstr "Move step down"
+#~ msgid "Move step down"
+#~ msgstr "Move step down"
 
 #: src/components/WorkoutStructureEditor.tsx:959
-msgid "Move step up"
-msgstr "Move step up"
+#~ msgid "Move step up"
+#~ msgstr "Move step up"
 
-#: src/components/WorkoutStructureEditor.tsx:962
+#: src/components/WorkoutStructureEditor.tsx:1755
 msgid "Move up"
 msgstr "Move up"
 
@@ -4980,7 +5082,7 @@ msgstr "New invitation code:"
 msgid "New to Praxys?"
 msgstr "New to Praxys?"
 
-#: src/components/WorkoutPlanEditor.tsx:736
+#: src/components/WorkoutPlanEditor.tsx:776
 msgid "Newer workout structure"
 msgstr "Newer workout structure"
 
@@ -4992,7 +5094,7 @@ msgstr "Newly triaged work will appear here when admin action is needed."
 msgid "Next"
 msgstr "Next"
 
-#: src/components/UpcomingPlanCard.tsx:1453
+#: src/components/UpcomingPlanCard.tsx:1459
 msgid "Next plan window"
 msgstr "Next plan window"
 
@@ -5105,6 +5207,10 @@ msgstr "No delivery result was returned for this workout"
 msgid "No evidence"
 msgstr "No evidence"
 
+#: src/components/WorkoutStructureEditor.tsx:846
+msgid "No executable steps yet."
+msgstr "No executable steps yet."
+
 #: src/components/PersonalContextPanel.tsx:810
 msgid "no expiry"
 msgstr "no expiry"
@@ -5124,6 +5230,10 @@ msgstr "No feedback rows are waiting for review or retry."
 #: src/pages/Admin.tsx:952
 #~ msgid "No feedback yet."
 #~ msgstr "No feedback yet."
+
+#: src/components/WorkoutStructureEditor.tsx:1899
+msgid "No Garmin or Stryd execution target is selected. Compatibility remains informational until plan delivery is configured."
+msgstr "No Garmin or Stryd execution target is selected. Compatibility remains informational until plan delivery is configured."
 
 #: src/pages/Settings.tsx:1427
 msgid "No goal set. Set a race target or distance goal to unlock predictions and countdown."
@@ -5226,6 +5336,10 @@ msgstr "No recent Praxys workout is available to link."
 msgid "No split data available."
 msgstr "No split data available."
 
+#: src/components/WorkoutStructureEditor.tsx:679
+msgid "No step selected"
+msgstr "No step selected"
+
 #: src/components/HeatAdaptationPanel.tsx:449
 msgid "No supported heat evidence for this day."
 msgstr "No supported heat evidence for this day."
@@ -5250,7 +5364,7 @@ msgstr "No systemic failure classes were recorded in this window."
 msgid "No systemic sync failures"
 msgstr "No systemic sync failures"
 
-#: src/components/WorkoutStructureEditor.tsx:157
+#: src/components/WorkoutStructureEditor.tsx:331
 msgid "No target"
 msgstr "No target"
 
@@ -5271,7 +5385,7 @@ msgstr "No tickets to show"
 msgid "No Today events were recorded in this window."
 msgstr "No Today events were recorded in this window."
 
-#: src/components/WorkoutStructureEditor.tsx:167
+#: src/components/WorkoutStructureEditor.tsx:123
 msgid "No unit or reference"
 msgstr "No unit or reference"
 
@@ -5316,7 +5430,7 @@ msgstr "No Workout Scheduled"
 msgid "No workout scheduled."
 msgstr "No workout scheduled."
 
-#: src/components/UpcomingPlanCard.tsx:1621
+#: src/components/UpcomingPlanCard.tsx:1627
 msgid "No workouts scheduled in this window."
 msgstr "No workouts scheduled in this window."
 
@@ -5424,7 +5538,7 @@ msgstr "Not requested"
 msgid "Not required"
 msgstr "Not required"
 
-#: src/components/WorkoutStructureEditor.tsx:1076
+#: src/components/WorkoutStructureEditor.tsx:2013
 msgid "Not safely representable"
 msgstr "Not safely representable"
 
@@ -5564,8 +5678,9 @@ msgstr "Only today's single Praxys-generated hard workout can become rest, and o
 msgid "Only workouts recorded in Praxys's delivery ledger are removed. Manual and other-coach workouts stay untouched."
 msgstr "Only workouts recorded in Praxys's delivery ledger are removed. Manual and other-coach workouts stay untouched."
 
-#: src/components/WorkoutStructureEditor.tsx:868
-#: src/components/WorkoutStructureEditor.tsx:889
+#: src/components/WorkoutStructureEditor.tsx:396
+#: src/components/WorkoutStructureEditor.tsx:1438
+#: src/components/WorkoutStructureEditor.tsx:1487
 #: src/pages/admin/AdminUsers.tsx:388
 msgid "Open"
 msgstr "Open"
@@ -5650,9 +5765,8 @@ msgstr "Operator queue"
 msgid "optional"
 msgstr "optional"
 
-#: src/components/WorkoutPlanEditor.tsx:979
-#: src/components/WorkoutStructureEditor.tsx:646
-#: src/components/WorkoutStructureEditor.tsx:667
+#: src/components/WorkoutPlanEditor.tsx:1028
+#: src/components/WorkoutStructureEditor.tsx:1644
 msgid "Optional"
 msgstr "Optional"
 
@@ -5668,7 +5782,7 @@ msgstr "Optional — you can always set this later from the Goal page"
 msgid "Optional 5K pilot test"
 msgstr "Optional 5K pilot test"
 
-#: src/components/WorkoutStructureEditor.tsx:685
+#: src/components/WorkoutStructureEditor.tsx:1257
 msgid "Optional coaching cue"
 msgstr "Optional coaching cue"
 
@@ -5680,7 +5794,7 @@ msgstr "Optional comment"
 msgid "Optional context helps Praxys avoid guessing. Share only what changes the plan."
 msgstr "Optional context helps Praxys avoid guessing. Share only what changes the plan."
 
-#: src/components/WorkoutStructureEditor.tsx:572
+#: src/components/WorkoutStructureEditor.tsx:1178
 msgid "Optional label"
 msgstr "Optional label"
 
@@ -5688,7 +5802,7 @@ msgstr "Optional label"
 msgid "Optional pilot test"
 msgstr "Optional pilot test"
 
-#: src/components/WorkoutPlanEditor.tsx:817
+#: src/components/WorkoutPlanEditor.tsx:859
 msgid "Optional session-level notes"
 msgstr "Optional session-level notes"
 
@@ -5702,8 +5816,8 @@ msgstr "Options"
 
 #: src/components/PersonalContextPanel.tsx:235
 #: src/components/UpcomingPlanCard.tsx:573
-#: src/components/WorkoutPlanEditor.tsx:424
-#: src/components/WorkoutStructureEditor.tsx:154
+#: src/components/WorkoutPlanEditor.tsx:452
+#: src/components/WorkoutStructureEditor.tsx:328
 #: src/pages/admin/AdminFeedback.tsx:124
 msgid "Other"
 msgstr "Other"
@@ -5745,19 +5859,35 @@ msgstr "Ownership conflict"
 msgid "Pace"
 msgstr "Pace"
 
+#: src/components/WorkoutStructureEditor.tsx:338
+msgid "Pace · min/km"
+msgstr "Pace · min/km"
+
+#: src/components/WorkoutStructureEditor.tsx:337
+msgid "Pace · min/mi"
+msgstr "Pace · min/mi"
+
 #: src/components/WorkoutStructureEditor.tsx:162
-msgid "Pace · sec/km"
-msgstr "Pace · sec/km"
+#~ msgid "Pace · sec/km"
+#~ msgstr "Pace · sec/km"
 
 #: src/components/WorkoutStructureEditor.tsx:163
-msgid "Pace · threshold delta"
-msgstr "Pace · threshold delta"
+#~ msgid "Pace · threshold delta"
+#~ msgstr "Pace · threshold delta"
 
-#: src/components/WorkoutPlanEditor.tsx:1002
+#: src/components/WorkoutStructureEditor.tsx:341
+msgid "Pace · threshold delta in sec/km"
+msgstr "Pace · threshold delta in sec/km"
+
+#: src/components/WorkoutStructureEditor.tsx:340
+msgid "Pace · threshold delta in sec/mi"
+msgstr "Pace · threshold delta in sec/mi"
+
+#: src/components/WorkoutPlanEditor.tsx:1051
 msgid "Pace maximum (min/km)"
 msgstr "Pace maximum (min/km)"
 
-#: src/components/WorkoutPlanEditor.tsx:985
+#: src/components/WorkoutPlanEditor.tsx:1034
 msgid "Pace minimum (min/km)"
 msgstr "Pace minimum (min/km)"
 
@@ -5841,6 +5971,18 @@ msgstr "Peer metrics"
 msgid "Pending <0>{0}</0>"
 msgstr "Pending <0>{0}</0>"
 
+#: src/components/WorkoutStructureEditor.tsx:128
+msgid "Perceived exertion on a 0–10 scale."
+msgstr "Perceived exertion on a 0–10 scale."
+
+#: src/components/WorkoutStructureEditor.tsx:125
+msgid "Percentage of the athlete's current critical power."
+msgstr "Percentage of the athlete's current critical power."
+
+#: src/components/WorkoutStructureEditor.tsx:127
+msgid "Percentage of the athlete's lactate-threshold heart rate."
+msgstr "Percentage of the athlete's lactate-threshold heart rate."
+
 #: src/pages/Settings.tsx:1591
 msgid "Permanently remove your Praxys account, synced data, plans, settings, and encrypted credentials."
 msgstr "Permanently remove your Praxys account, synced data, plans, settings, and encrypted credentials."
@@ -5862,7 +6004,7 @@ msgstr "Pick a date"
 msgid "Plan"
 msgstr "Plan"
 
-#: src/components/WorkoutPlanEditor.tsx:654
+#: src/components/WorkoutPlanEditor.tsx:694
 msgid "Plan activity"
 msgstr "Plan activity"
 
@@ -5946,8 +6088,8 @@ msgid "Pool"
 msgstr "Pool"
 
 #: src/components/WorkoutStructureEditor.tsx:811
-msgid "Portable v1 permits one repeat level. Add atomic steps here, not another repeat."
-msgstr "Portable v1 permits one repeat level. Add atomic steps here, not another repeat."
+#~ msgid "Portable v1 permits one repeat level. Add atomic steps here, not another repeat."
+#~ msgstr "Portable v1 permits one repeat level. Add atomic steps here, not another repeat."
 
 #: src/pages/Today.tsx:303
 #~ msgid "positive"
@@ -5968,11 +6110,11 @@ msgstr "PostgreSQL connections"
 msgid "Power"
 msgstr "Power"
 
-#: src/components/WorkoutStructureEditor.tsx:159
+#: src/components/WorkoutStructureEditor.tsx:333
 msgid "Power · %CP"
 msgstr "Power · %CP"
 
-#: src/components/WorkoutStructureEditor.tsx:158
+#: src/components/WorkoutStructureEditor.tsx:332
 msgid "Power · watts"
 msgstr "Power · watts"
 
@@ -5996,11 +6138,11 @@ msgstr "Power · watts"
 #~ msgid "Power {0} · CP {1} · CP source {2}"
 #~ msgstr "Power {0} · CP {1} · CP source {2}"
 
-#: src/components/WorkoutPlanEditor.tsx:940
+#: src/components/WorkoutPlanEditor.tsx:989
 msgid "Power ceiling (W)"
 msgstr "Power ceiling (W)"
 
-#: src/components/WorkoutPlanEditor.tsx:933
+#: src/components/WorkoutPlanEditor.tsx:982
 msgid "Power floor (W)"
 msgstr "Power floor (W)"
 
@@ -6148,11 +6290,15 @@ msgstr "Praxys is read-only and leaves every target workout untouched."
 msgid "Praxys is your active planner."
 msgstr "Praxys is your active planner."
 
+#: src/components/WorkoutStructureEditor.tsx:1872
+msgid "Praxys keeps the canonical workout. This preview explains what the selected platform can receive without losing meaning."
+msgstr "Praxys keeps the canonical workout. This preview explains what the selected platform can receive without losing meaning."
+
 #: src/pages/Labs.tsx:32
 msgid "Praxys Labs"
 msgstr "Praxys Labs"
 
-#: src/components/UpcomingPlanCard.tsx:1551
+#: src/components/UpcomingPlanCard.tsx:1557
 msgid "Praxys made a conservative plan change"
 msgstr "Praxys made a conservative plan change"
 
@@ -6170,8 +6316,8 @@ msgstr "Praxys on your phone"
 msgid "Praxys only"
 msgstr "Praxys only"
 
-#: src/components/UpcomingPlanCard.tsx:1642
-#: src/components/UpcomingPlanCard.tsx:1722
+#: src/components/UpcomingPlanCard.tsx:1648
+#: src/components/UpcomingPlanCard.tsx:1728
 msgid "Praxys only changes workouts it created or you explicitly adopt. Manual workouts and workouts from another coach stay untouched."
 msgstr "Praxys only changes workouts it created or you explicitly adopt. Manual workouts and workouts from another coach stay untouched."
 
@@ -6254,7 +6400,7 @@ msgstr "Previewing"
 msgid "Previous"
 msgstr "Previous"
 
-#: src/components/UpcomingPlanCard.tsx:1440
+#: src/components/UpcomingPlanCard.tsx:1446
 msgid "Previous plan window"
 msgstr "Previous plan window"
 
@@ -6381,8 +6527,8 @@ msgid "Provider authentication"
 msgstr "Provider authentication"
 
 #: src/components/WorkoutStructureEditor.tsx:1035
-msgid "Provider compatibility"
-msgstr "Provider compatibility"
+#~ msgid "Provider compatibility"
+#~ msgstr "Provider compatibility"
 
 #: src/pages/admin/AdminOps.tsx:490
 msgid "Provider failure"
@@ -6603,6 +6749,10 @@ msgstr "Readiness"
 #: src/pages/Science.tsx:26
 msgid "Reads readiness from the body's signals."
 msgstr "Reads readiness from the body's signals."
+
+#: src/components/WorkoutStructureEditor.tsx:2013
+msgid "Ready to deliver"
+msgstr "Ready to deliver"
 
 #: src/pages/Goal.tsx:370
 msgid "Realistic alternative targets"
@@ -6841,8 +6991,8 @@ msgstr "Recoverable: {0}. Retry exhausted: {1}. Stuck in progress: {2}."
 #: src/components/RecoveryPanel.tsx:57
 #: src/components/RecoveryPanel.tsx:58
 #: src/components/UpcomingPlanCard.tsx:577
-#: src/components/WorkoutPlanEditor.tsx:405
-#: src/components/WorkoutStructureEditor.tsx:151
+#: src/components/WorkoutPlanEditor.tsx:433
+#: src/components/WorkoutStructureEditor.tsx:325
 #: src/lib/display-labels.ts:42
 #: src/lib/phase-label.ts:16
 #: src/pages/Science.tsx:26
@@ -7089,17 +7239,28 @@ msgstr "Removing…"
 msgid "Rep"
 msgstr "Rep"
 
-#: src/components/WorkoutStructureEditor.tsx:808
-msgid "Repeat children"
-msgstr "Repeat children"
+#: src/components/WorkoutStructureEditor.tsx:1071
+msgid "Repeat"
+msgstr "Repeat"
 
-#: src/components/WorkoutStructureEditor.tsx:757
+#: src/components/WorkoutStructureEditor.tsx:808
+#~ msgid "Repeat children"
+#~ msgstr "Repeat children"
+
+#: src/components/WorkoutStructureEditor.tsx:419
+#: src/components/WorkoutStructureEditor.tsx:889
+#: src/components/WorkoutStructureEditor.tsx:907
+#: src/components/WorkoutStructureEditor.tsx:1303
 msgid "Repeat group"
 msgstr "Repeat group"
 
-#: src/components/WorkoutStructureEditor.tsx:771
+#: src/components/WorkoutStructureEditor.tsx:1325
 msgid "Repeat label"
 msgstr "Repeat label"
+
+#: src/components/WorkoutStructureEditor.tsx:1365
+msgid "Repeat steps"
+msgstr "Repeat steps"
 
 #: src/pages/admin/AdminOps.tsx:764
 #~ msgid "Repeated use"
@@ -7109,7 +7270,7 @@ msgstr "Repeat label"
 msgid "Repeated weekly use"
 msgstr "Repeated weekly use"
 
-#: src/components/WorkoutStructureEditor.tsx:784
+#: src/components/WorkoutStructureEditor.tsx:1339
 msgid "Repetitions"
 msgstr "Repetitions"
 
@@ -7180,10 +7341,10 @@ msgstr "Resolved"
 #: src/components/ManagedPlanSettingsCard.tsx:983
 #: src/components/UpcomingPlanCard.tsx:572
 #: src/components/UpcomingPlanCard.tsx:584
-#: src/components/UpcomingPlanCard.tsx:1570
-#: src/components/WorkoutPlanEditor.tsx:412
-#: src/components/WorkoutPlanEditor.tsx:423
-#: src/components/WorkoutStructureEditor.tsx:152
+#: src/components/UpcomingPlanCard.tsx:1576
+#: src/components/WorkoutPlanEditor.tsx:440
+#: src/components/WorkoutPlanEditor.tsx:451
+#: src/components/WorkoutStructureEditor.tsx:326
 #: src/lib/phase-label.ts:17
 msgid "Rest"
 msgstr "Rest"
@@ -7222,7 +7383,7 @@ msgid "Restore Praxys:"
 msgstr "Restore Praxys:"
 
 #: src/components/ManagedPlanSettingsCard.tsx:1006
-#: src/components/UpcomingPlanCard.tsx:1600
+#: src/components/UpcomingPlanCard.tsx:1606
 msgid "Restore workout"
 msgstr "Restore workout"
 
@@ -7232,7 +7393,7 @@ msgstr "Restored"
 
 #: src/components/ManagedPlanSettingsCard.tsx:1005
 #: src/components/UpcomingPlanCard.tsx:860
-#: src/components/UpcomingPlanCard.tsx:1599
+#: src/components/UpcomingPlanCard.tsx:1605
 msgid "Restoring…"
 msgstr "Restoring…"
 
@@ -7352,7 +7513,7 @@ msgstr "Review before saving"
 #: src/components/UpcomingPlanCard.tsx:439
 #: src/components/UpcomingPlanCard.tsx:469
 #: src/components/UpcomingPlanCard.tsx:483
-#: src/components/UpcomingPlanCard.tsx:1523
+#: src/components/UpcomingPlanCard.tsx:1529
 msgid "Review conflict"
 msgstr "Review conflict"
 
@@ -7363,6 +7524,10 @@ msgstr "Review delivery queue"
 #: src/components/ManagedPlanSettingsCard.tsx:560
 #~ msgid "Review experimental access"
 #~ msgstr "Review experimental access"
+
+#: src/components/WorkoutStructureEditor.tsx:658
+msgid "Review first issue"
+msgstr "Review first issue"
 
 #: src/components/HeatAdaptationPanel.tsx:141
 #~ msgid "Review heat history"
@@ -7399,8 +7564,7 @@ msgid "Review the exact purpose and access below. The plugin cannot approve this
 msgstr "Review the exact purpose and access below. The plugin cannot approve this request, read private notes, grant AI consent, or save context on its own."
 
 #: src/components/UpcomingPlanCard.tsx:1185
-#: src/components/WorkoutPlanEditor.tsx:511
-#: src/components/WorkoutStructureEditor.tsx:146
+#: src/components/WorkoutPlanEditor.tsx:544
 msgid "Review the highlighted step fields. Every typed target and termination must be complete."
 msgstr "Review the highlighted step fields. Every typed target and termination must be complete."
 
@@ -7446,7 +7610,7 @@ msgid "Road"
 msgstr "Road"
 
 #: src/components/UpcomingPlanCard.tsx:564
-#: src/components/WorkoutPlanEditor.tsx:415
+#: src/components/WorkoutPlanEditor.tsx:443
 msgid "Road running"
 msgstr "Road running"
 
@@ -7462,7 +7626,7 @@ msgstr "Rolling 1 / 7 / 30 days"
 msgid "Rolling recompute limit reached"
 msgstr "Rolling recompute limit reached"
 
-#: src/components/WorkoutStructureEditor.tsx:164
+#: src/components/WorkoutStructureEditor.tsx:342
 msgid "RPE · 0–10"
 msgstr "RPE · 0–10"
 
@@ -7575,7 +7739,7 @@ msgstr "Save private context"
 msgid "Save target"
 msgstr "Save target"
 
-#: src/components/WorkoutPlanEditor.tsx:882
+#: src/components/WorkoutPlanEditor.tsx:930
 msgid "Save workout"
 msgstr "Save workout"
 
@@ -7599,7 +7763,7 @@ msgstr "Saving decision…"
 msgid "Saving target…"
 msgstr "Saving target…"
 
-#: src/components/WorkoutPlanEditor.tsx:647
+#: src/components/WorkoutPlanEditor.tsx:687
 msgid "Saving will reschedule this workout."
 msgstr "Saving will reschedule this workout."
 
@@ -7608,7 +7772,7 @@ msgstr "Saving will reschedule this workout."
 #~ msgstr "Saving..."
 
 #: src/components/GoalEditor.tsx:57
-#: src/components/WorkoutPlanEditor.tsx:878
+#: src/components/WorkoutPlanEditor.tsx:926
 #: src/pages/Login.tsx:472
 msgid "Saving…"
 msgstr "Saving…"
@@ -7661,10 +7825,26 @@ msgstr "Screenshot unavailable"
 msgid "Seat cap"
 msgstr "Seat cap"
 
+#: src/components/WorkoutStructureEditor.tsx:1500
+msgid "sec"
+msgstr "sec"
+
+#: src/components/WorkoutStructureEditor.tsx:137
+msgid "Seconds per kilometre faster or slower than threshold pace."
+msgstr "Seconds per kilometre faster or slower than threshold pace."
+
+#: src/components/WorkoutStructureEditor.tsx:138
+msgid "Seconds per mile faster or slower than threshold pace."
+msgstr "Seconds per mile faster or slower than threshold pace."
+
 #: src/pages/Settings.tsx:1158
 #: src/pages/Setup.tsx:1049
 msgid "Securely signing in to Garmin. This can take 15-30 seconds because Garmin rate-limits automated logins. Please keep this window open."
 msgstr "Securely signing in to Garmin. This can take 15-30 seconds because Garmin rate-limits automated logins. Please keep this window open."
+
+#: src/components/WorkoutStructureEditor.tsx:1368
+msgid "Select a child to edit it. Portable v1 permits one repeat level."
+msgstr "Select a child to edit it. Portable v1 permits one repeat level."
 
 #: src/components/HeatAdaptationPanel.tsx:317
 msgid "Select a day to inspect what entered the estimate."
@@ -7678,6 +7858,10 @@ msgstr "Select a metric to inspect its chart or evidence."
 msgid "Select an execution target in Settings to continue delivery."
 msgstr "Select an execution target in Settings to continue delivery."
 
+#: src/components/WorkoutStructureEditor.tsx:1011
+msgid "Select one item to edit. Repeat children stay visibly nested."
+msgstr "Select one item to edit. Repeat children stay visibly nested."
+
 #: src/pages/Settings.tsx:1150
 msgid "Select the region matching your COROS account."
 msgstr "Select the region matching your COROS account."
@@ -7690,9 +7874,13 @@ msgstr "Selecting a target does not enable delivery. You will confirm the manage
 msgid "Self-registration"
 msgstr "Self-registration"
 
+#: src/components/WorkoutStructureEditor.tsx:146
+msgid "semantic"
+msgstr "semantic"
+
 #: src/components/WorkoutStructureEditor.tsx:268
-msgid "Semantics describe the portable step. Labels and instructions preserve your own wording; Praxys never infers a warm-up, cool-down, or repeat from it."
-msgstr "Semantics describe the portable step. Labels and instructions preserve your own wording; Praxys never infers a warm-up, cool-down, or repeat from it."
+#~ msgid "Semantics describe the portable step. Labels and instructions preserve your own wording; Praxys never infers a warm-up, cool-down, or repeat from it."
+#~ msgstr "Semantics describe the portable step. Labels and instructions preserve your own wording; Praxys never infers a warm-up, cool-down, or repeat from it."
 
 #: src/components/AiInsightsCard.tsx:373
 msgid "Send"
@@ -7730,6 +7918,10 @@ msgstr "Sensitivity gate"
 #: src/components/AiInsightsCard.tsx:309
 msgid "Sent"
 msgstr "Sent"
+
+#: src/components/WorkoutStructureEditor.tsx:841
+msgid "Sequence, not invented training load"
+msgstr "Sequence, not invented training load"
 
 #: src/pages/admin/AdminOps.tsx:1329
 msgid "Server error rate"
@@ -7974,7 +8166,7 @@ msgstr "Some prior heat adaptation may persist, while response-specific evidence
 msgid "Source"
 msgstr "Source"
 
-#: src/components/WorkoutPlanEditor.tsx:858
+#: src/components/WorkoutPlanEditor.tsx:900
 msgid "Source stays unchanged"
 msgstr "Source stays unchanged"
 
@@ -8055,31 +8247,32 @@ msgstr "Stay on the no-test path"
 msgid "Steady"
 msgstr "Steady"
 
-#: src/components/WorkoutStructureEditor.tsx:277
+#: src/components/WorkoutStructureEditor.tsx:623
 msgid "step"
 msgstr "step"
 
-#: src/components/WorkoutStructureEditor.tsx:536
+#: src/components/WorkoutStructureEditor.tsx:1061
+#: src/components/WorkoutStructureEditor.tsx:1132
 msgid "Step"
 msgstr "Step"
 
-#: src/components/WorkoutStructureEditor.tsx:674
+#: src/components/WorkoutStructureEditor.tsx:1245
 msgid "Step instructions"
 msgstr "Step instructions"
 
 #: src/components/WorkoutStructureEditor.tsx:190
-msgid "Step or repeat wording cannot be preserved safely."
-msgstr "Step or repeat wording cannot be preserved safely."
+#~ msgid "Step or repeat wording cannot be preserved safely."
+#~ msgstr "Step or repeat wording cannot be preserved safely."
 
-#: src/components/WorkoutStructureEditor.tsx:432
+#: src/components/WorkoutStructureEditor.tsx:757
 msgid "Step removed. You can restore it before saving."
 msgstr "Step removed. You can restore it before saving."
 
-#: src/components/WorkoutStructureEditor.tsx:550
+#: src/components/WorkoutStructureEditor.tsx:1154
 msgid "Step semantic"
 msgstr "Step semantic"
 
-#: src/components/WorkoutStructureEditor.tsx:278
+#: src/components/WorkoutStructureEditor.tsx:624
 msgid "steps"
 msgstr "steps"
 
@@ -8122,7 +8315,7 @@ msgid "Strava Client Secret"
 msgstr "Strava Client Secret"
 
 #: src/components/UpcomingPlanCard.tsx:569
-#: src/components/WorkoutPlanEditor.tsx:420
+#: src/components/WorkoutPlanEditor.tsx:448
 #: src/pages/Setup.tsx:169
 msgid "Strength"
 msgstr "Strength"
@@ -8153,16 +8346,20 @@ msgid "Structured fields sent"
 msgstr "Structured fields sent"
 
 #: src/components/WorkoutStructureEditor.tsx:265
-msgid "Structured steps"
-msgstr "Structured steps"
+#~ msgid "Structured steps"
+#~ msgstr "Structured steps"
 
 #: src/components/WorkoutStructureEditor.tsx:186
-msgid "Structured workouts are not supported by this provider."
-msgstr "Structured workouts are not supported by this provider."
+#~ msgid "Structured workouts are not supported by this provider."
+#~ msgstr "Structured workouts are not supported by this provider."
 
 #: src/components/WorkoutStructureEditor.tsx:188
-msgid "Stryd accepts only whole-number %CP bounds; fractional values would be rounded."
-msgstr "Stryd accepts only whole-number %CP bounds; fractional values would be rounded."
+#~ msgid "Stryd accepts only whole-number %CP bounds; fractional values would be rounded."
+#~ msgstr "Stryd accepts only whole-number %CP bounds; fractional values would be rounded."
+
+#: src/components/WorkoutStructureEditor.tsx:356
+msgid "Stryd requires whole-number %CP bounds; a fractional value would be rounded."
+msgstr "Stryd requires whole-number %CP bounds; a fractional value would be rounded."
 
 #: src/components/HeatAdaptationPanel.tsx:80
 #~ msgid "Stryd-provided activity weather"
@@ -8404,9 +8601,9 @@ msgstr "Systemic sync failures affected {systemicAffectedUsers} users in this wi
 msgid "Systemic sync failures unavailable"
 msgstr "Systemic sync failures unavailable"
 
-#: src/components/ZoneAnalysisCard.tsx:45
-#~ msgid "target"
-#~ msgstr "target"
+#: src/components/WorkoutStructureEditor.tsx:148
+msgid "target"
+msgstr "target"
 
 #: src/components/WorkoutTimeline.tsx:41
 #: src/pages/Goal.tsx:247
@@ -8423,13 +8620,19 @@ msgstr "Target {metricName}"
 msgid "Target a race or track continuous improvement"
 msgstr "Target a race or track continuous improvement"
 
-#: src/components/WorkoutStructureEditor.tsx:650
+#: src/components/WorkoutStructureEditor.tsx:1672
+#: src/components/WorkoutStructureEditor.tsx:1694
 msgid "Target maximum"
 msgstr "Target maximum"
 
-#: src/components/WorkoutStructureEditor.tsx:629
+#: src/components/WorkoutStructureEditor.tsx:1671
+#: src/components/WorkoutStructureEditor.tsx:1694
 msgid "Target minimum"
 msgstr "Target minimum"
+
+#: src/components/WorkoutStructureEditor.tsx:1650
+msgid "Target range"
+msgstr "Target range"
 
 #: src/components/GoalEditor.tsx:52
 msgid "Target time"
@@ -8439,7 +8642,7 @@ msgstr "Target time"
 msgid "Target Time"
 msgstr "Target Time"
 
-#: src/components/WorkoutStructureEditor.tsx:594
+#: src/components/WorkoutStructureEditor.tsx:1202
 msgid "Target type"
 msgstr "Target type"
 
@@ -8464,7 +8667,7 @@ msgid "Temperature is missing from too many otherwise eligible activities."
 msgstr "Temperature is missing from too many otherwise eligible activities."
 
 #: src/components/UpcomingPlanCard.tsx:579
-#: src/components/WorkoutPlanEditor.tsx:407
+#: src/components/WorkoutPlanEditor.tsx:435
 #: src/lib/display-labels.ts:44
 #: src/lib/phase-label.ts:14
 msgid "Tempo"
@@ -8483,7 +8686,11 @@ msgstr "Temporary context can stay active for at most 90 days."
 msgid "Temporary service issue; retry queued"
 msgstr "Temporary service issue; retry queued"
 
-#: src/components/WorkoutStructureEditor.tsx:873
+#: src/components/WorkoutStructureEditor.tsx:147
+msgid "termination"
+msgstr "termination"
+
+#: src/components/WorkoutStructureEditor.tsx:1469
 msgid "Termination"
 msgstr "Termination"
 
@@ -8496,7 +8703,7 @@ msgid "Test pending"
 msgstr "Test pending"
 
 #: src/components/UpcomingPlanCard.tsx:583
-#: src/components/WorkoutPlanEditor.tsx:411
+#: src/components/WorkoutPlanEditor.tsx:439
 msgid "Testing"
 msgstr "Testing"
 
@@ -8547,6 +8754,14 @@ msgstr "The analysis did not finish successfully."
 #: src/pages/LabsEnvironment.tsx:98
 msgid "The analysis worker could not complete the model after repeated infrastructure attempts."
 msgstr "The analysis worker could not complete the model after repeated infrastructure attempts."
+
+#: src/components/WorkoutStructureEditor.tsx:1562
+msgid "The athlete ends this step when ready."
+msgstr "The athlete ends this step when ready."
+
+#: src/components/WorkoutStructureEditor.tsx:1563
+msgid "The athlete ends this step with a manual lap action."
+msgstr "The athlete ends this step with a manual lap action."
 
 #: src/pages/LabsEnvironment.tsx:88
 msgid "The available Critical Power does not match the eligible Stryd power regime."
@@ -8644,6 +8859,10 @@ msgstr "The latest HRV reading is out of date. Follow the plan without an HRV-ba
 msgid "The latest HRV reading is too old for a same-day recovery classification. Sync your device to refresh it."
 msgstr "The latest HRV reading is too old for a same-day recovery classification. Sync your device to refresh it."
 
+#: src/components/WorkoutStructureEditor.tsx:351
+msgid "The legacy summary needs a duration and power range before it can be delivered without provider defaults."
+msgstr "The legacy summary needs a duration and power range before it can be delivered without provider defaults."
+
 #: src/pages/LabsEnvironment.tsx:1313
 msgid "The line is a historical model inside supported ranges only. A blank range means comparable stable workload did not pass the display floor; Praxys does not estimate or connect through it. The shaded band shows aggregate uncertainty where the curve is supported. It does not identify a causal personal coefficient and never extrapolates beyond your observed domain. Wind, solar load, clothing, hydration, fatigue, and other unmeasured conditions can still differ between runs."
 msgstr "The line is a historical model inside supported ranges only. A blank range means comparable stable workload did not pass the display floor; Praxys does not estimate or connect through it. The shaded band shows aggregate uncertainty where the curve is supported. It does not identify a causal personal coefficient and never extrapolates beyond your observed domain. Wind, solar load, clothing, hydration, fatigue, and other unmeasured conditions can still differ between runs."
@@ -8673,6 +8892,14 @@ msgstr "The next {MANAGED_PLAN_WINDOW_DAYS} days roll forward automatically; <0>
 msgid "The optional 5K pilot test is in progress."
 msgstr "The optional 5K pilot test is in progress."
 
+#: src/components/WorkoutStructureEditor.tsx:2021
+msgid "The ordered steps and target ranges can be delivered without flattening."
+msgstr "The ordered steps and target ranges can be delivered without flattening."
+
+#: src/components/WorkoutStructureEditor.tsx:352
+msgid "The portable workout structure is invalid."
+msgstr "The portable workout structure is invalid."
+
 #: src/components/UpcomingPlanCard.tsx:248
 msgid "The Praxys plan is preserved; no target workouts will change."
 msgstr "The Praxys plan is preserved; no target workouts will change."
@@ -8681,9 +8908,41 @@ msgstr "The Praxys plan is preserved; no target workouts will change."
 msgid "The Praxys workout is missing from {target}. Restoring it keeps the Praxys version canonical."
 msgstr "The Praxys workout is missing from {target}. Restoring it keeps the Praxys version canonical."
 
-#: src/components/UpcomingPlanCard.tsx:1554
+#: src/components/UpcomingPlanCard.tsx:1560
 msgid "The previous workout was restored"
 msgstr "The previous workout was restored"
+
+#: src/components/WorkoutStructureEditor.tsx:358
+msgid "The provider cannot preserve this label or coaching instruction."
+msgstr "The provider cannot preserve this label or coaching instruction."
+
+#: src/components/WorkoutStructureEditor.tsx:353
+msgid "The provider cannot preserve this step semantic."
+msgstr "The provider cannot preserve this step semantic."
+
+#: src/components/WorkoutStructureEditor.tsx:355
+msgid "The provider cannot preserve this target type."
+msgstr "The provider cannot preserve this target type."
+
+#: src/components/WorkoutStructureEditor.tsx:357
+msgid "The provider cannot preserve this termination type."
+msgstr "The provider cannot preserve this termination type."
+
+#: src/components/WorkoutStructureEditor.tsx:350
+msgid "The provider cannot receive an empty structured workout."
+msgstr "The provider cannot receive an empty structured workout."
+
+#: src/components/WorkoutStructureEditor.tsx:354
+msgid "The provider does not support structured-workout delivery yet."
+msgstr "The provider does not support structured-workout delivery yet."
+
+#: src/components/WorkoutStructureEditor.tsx:348
+msgid "The provider does not support this activity type."
+msgstr "The provider does not support this activity type."
+
+#: src/components/WorkoutStructureEditor.tsx:349
+msgid "The provider needs a positive workout duration."
+msgstr "The provider needs a positive workout duration."
 
 #: src/pages/admin/AdminOps.tsx:815
 msgid "The public status feed has no unresolved incidents."
@@ -8727,7 +8986,7 @@ msgstr "The same comparable-power range is not represented across enough environ
 msgid "The selected day's activities show why each session entered or stayed outside the estimate."
 msgstr "The selected day's activities show why each session entered or stayed outside the estimate."
 
-#: src/components/WorkoutPlanEditor.tsx:606
+#: src/components/WorkoutPlanEditor.tsx:646
 msgid "The source workout stays locked. Save this copy as a new Praxys-owned workout before changing it."
 msgstr "The source workout stays locked. Save this copy as a new Praxys-owned workout before changing it."
 
@@ -8748,8 +9007,8 @@ msgid "The weekly history will appear after the data service update completes."
 msgstr "The weekly history will appear after the data service update completes."
 
 #: src/components/WorkoutStructureEditor.tsx:184
-msgid "The workout structure is not a supported portable version."
-msgstr "The workout structure is not a supported portable version."
+#~ msgid "The workout structure is not a supported portable version."
+#~ msgstr "The workout structure is not a supported portable version."
 
 #: src/components/AppSidebar.tsx:220
 msgid "Theme"
@@ -8776,8 +9035,8 @@ msgstr "There is not enough chronological history to evaluate whether the relati
 #~ msgstr "There is not enough repeated qualifying exposure to estimate acclimatization to similar conditions."
 
 #: src/components/WorkoutStructureEditor.tsx:180
-msgid "This activity is not supported by the provider."
-msgstr "This activity is not supported by the provider."
+#~ msgid "This activity is not supported by the provider."
+#~ msgstr "This activity is not supported by the provider."
 
 #: src/components/GoalBaselinePanel.tsx:126
 msgid "This appears only when history is missing, stale, or still needs review. It is a maximal-effort outdoor 5K pilot."
@@ -8787,13 +9046,13 @@ msgstr "This appears only when history is missing, stale, or still needs review.
 msgid "This cannot be undone. If this is the last admin account, deletion will be blocked."
 msgstr "This cannot be undone. If this is the last admin account, deletion will be blocked."
 
-#: src/components/UpcomingPlanCard.tsx:1577
+#: src/components/UpcomingPlanCard.tsx:1583
 msgid "This change used confirmed private context. The private detail is not copied into the plan record."
 msgstr "This change used confirmed private context. The private detail is not copied into the plan record."
 
 #: src/components/WorkoutStructureEditor.tsx:1038
-msgid "This checks portable workout content only. It never connects to a provider or delivers a workout."
-msgstr "This checks portable workout content only. It never connects to a provider or delivers a workout."
+#~ msgid "This checks portable workout content only. It never connects to a provider or delivers a workout."
+#~ msgstr "This checks portable workout content only. It never connects to a provider or delivers a workout."
 
 #: src/pages/LabsEnvironment.tsx:812
 msgid "This combination is outside Praxys’s conservative Stull method domain."
@@ -8844,7 +9103,7 @@ msgstr "This guardrail uses individualized HRV guidance and never loads activity
 #~ msgid "This guardrail uses individualized HRV guidance, never activity average power. Missing or stale recovery, a completed activity, multiple Praxys workouts, or an uncertain target calendar keeps the plan unchanged. Load, sleep, and other caution signals remain suggestions."
 #~ msgstr "This guardrail uses individualized HRV guidance, never activity average power. Missing or stale recovery, a completed activity, multiple Praxys workouts, or an uncertain target calendar keeps the plan unchanged. Load, sleep, and other caution signals remain suggestions."
 
-#: src/components/WorkoutPlanEditor.tsx:763
+#: src/components/WorkoutPlanEditor.tsx:803
 msgid "This imported or older workout has no portable tree. Edit its summary as-is, or explicitly convert one flat step without guessing semantics."
 msgstr "This imported or older workout has no portable tree. Edit its summary as-is, or explicitly convert one flat step without guessing semantics."
 
@@ -8893,12 +9152,16 @@ msgid "This is Stull’s psychrometric estimate from air temperature and relativ
 msgstr "This is Stull’s psychrometric estimate from air temperature and relative humidity. It is not apparent temperature, natural wet bulb, outdoor WBGT, body temperature, or a heat-safety assessment."
 
 #: src/components/WorkoutStructureEditor.tsx:1083
-msgid "This legacy flat workout has no portable tree to flatten."
-msgstr "This legacy flat workout has no portable tree to flatten."
+#~ msgid "This legacy flat workout has no portable tree to flatten."
+#~ msgstr "This legacy flat workout has no portable tree to flatten."
 
 #: src/components/WorkoutStructureEditor.tsx:183
-msgid "This legacy flat workout would need a time duration and a power range to avoid provider defaults."
-msgstr "This legacy flat workout would need a time duration and a power range to avoid provider defaults."
+#~ msgid "This legacy flat workout would need a time duration and a power range to avoid provider defaults."
+#~ msgstr "This legacy flat workout would need a time duration and a power range to avoid provider defaults."
+
+#: src/components/WorkoutStructureEditor.tsx:2022
+msgid "This legacy workout has no structured tree to deliver."
+msgstr "This legacy workout has no structured tree to deliver."
 
 #: src/pages/Verify.tsx:67
 msgid "This link is invalid or has expired. Try signing in to request a new link."
@@ -8929,8 +9192,8 @@ msgid "This pilot is only for adults who already can complete 5 km."
 msgstr "This pilot is only for adults who already can complete 5 km."
 
 #: src/components/WorkoutStructureEditor.tsx:1082
-msgid "This portable structure can be represented without flattening."
-msgstr "This portable structure can be represented without flattening."
+#~ msgid "This portable structure can be represented without flattening."
+#~ msgstr "This portable structure can be represented without flattening."
 
 #: src/components/HeatAdaptationPanel.tsx:137
 #~ msgid "This qualitative tracker uses connector-provided air temperature and relative humidity, Stull's natural-shade wet-bulb approximation, and split-level power relative to current CP. Effective minutes are weighted evidence, not literal exposure time. Wind and solar radiation are excluded, and the stage thresholds plus 7–28 day decay window are Praxys operational estimates rather than a medical or physiological diagnosis."
@@ -8945,7 +9208,7 @@ msgstr "This queue item no longer exists. Refresh the queue."
 msgid "This quick check only covers definite prerequisites. The full analysis can still return insufficient support, an unstable association, or no conclusion."
 msgstr "This quick check only covers definite prerequisites. The full analysis can still return insufficient support, an unstable association, or no conclusion."
 
-#: src/components/WorkoutPlanEditor.tsx:555
+#: src/components/WorkoutPlanEditor.tsx:595
 msgid "This removes the Praxys workout from the canonical plan. Any external workout stays untouched."
 msgstr "This removes the Praxys workout from the canonical plan. Any external workout stays untouched."
 
@@ -8972,26 +9235,30 @@ msgstr "This section is unavailable. Other management workflows remain available
 msgid "This sits inside your displayed historical range and is marked on the curve."
 msgstr "This sits inside your displayed historical range and is marked on the curve."
 
-#: src/components/WorkoutPlanEditor.tsx:493
-#: src/components/WorkoutPlanEditor.tsx:741
+#: src/components/WorkoutPlanEditor.tsx:575
+msgid "This source cannot be duplicated without losing workout details."
+msgstr "This source cannot be duplicated without losing workout details."
+
+#: src/components/WorkoutPlanEditor.tsx:526
+#: src/components/WorkoutPlanEditor.tsx:781
 msgid "This source uses a newer workout structure and cannot be duplicated without losing details."
 msgstr "This source uses a newer workout structure and cannot be duplicated without losing details."
 
 #: src/components/WorkoutStructureEditor.tsx:185
-msgid "This step semantic cannot be represented safely."
-msgstr "This step semantic cannot be represented safely."
+#~ msgid "This step semantic cannot be represented safely."
+#~ msgstr "This step semantic cannot be represented safely."
 
 #: src/components/WorkoutStructureEditor.tsx:189
-msgid "This step termination cannot be represented safely."
-msgstr "This step termination cannot be represented safely."
+#~ msgid "This step termination cannot be represented safely."
+#~ msgstr "This step termination cannot be represented safely."
 
 #: src/components/UpcomingPlanCard.tsx:1191
 msgid "This structure is authoritative. Edit its steps instead of changing its flat summary."
 msgstr "This structure is authoritative. Edit its steps instead of changing its flat summary."
 
 #: src/components/WorkoutStructureEditor.tsx:187
-msgid "This typed target cannot be represented safely."
-msgstr "This typed target cannot be represented safely."
+#~ msgid "This typed target cannot be represented safely."
+#~ msgstr "This typed target cannot be represented safely."
 
 #. placeholder {0}: deleteUser?.email
 #: src/pages/admin/AdminUsers.tsx:1065
@@ -9010,7 +9277,7 @@ msgstr "This workout changed elsewhere. The plan was refreshed; reopen the worko
 msgid "This workout stays external unless you explicitly make it canonical in Praxys."
 msgstr "This workout stays external unless you explicitly make it canonical in Praxys."
 
-#: src/components/WorkoutPlanEditor.tsx:746
+#: src/components/WorkoutPlanEditor.tsx:786
 msgid "This workout uses a newer portable structure that this editor cannot change safely. Date and notes remain editable; Praxys preserves the structure byte-for-byte."
 msgstr "This workout uses a newer portable structure that this editor cannot change safely. Date and notes remain editable; Praxys preserves the structure byte-for-byte."
 
@@ -9019,7 +9286,7 @@ msgstr "This workout uses a newer portable structure that this editor cannot cha
 #~ msgstr "This workout was imported from Stryd."
 
 #: src/components/UpcomingPlanCard.tsx:580
-#: src/components/WorkoutPlanEditor.tsx:408
+#: src/components/WorkoutPlanEditor.tsx:436
 #: src/lib/display-labels.ts:45
 #: src/lib/phase-label.ts:15
 msgid "Threshold"
@@ -9042,14 +9309,14 @@ msgstr "Thresholds"
 msgid "Thu"
 msgstr "Thu"
 
-#: src/components/WorkoutStructureEditor.tsx:866
-#: src/components/WorkoutStructureEditor.tsx:887
+#: src/components/WorkoutStructureEditor.tsx:1436
+#: src/components/WorkoutStructureEditor.tsx:1485
 msgid "Time"
 msgstr "Time"
 
 #: src/components/WorkoutStructureEditor.tsx:903
-msgid "Time in seconds"
-msgstr "Time in seconds"
+#~ msgid "Time in seconds"
+#~ msgstr "Time in seconds"
 
 #: src/components/charts/CpTrendChart.tsx:68
 msgid "Time range"
@@ -9137,7 +9404,7 @@ msgstr "Too many attempts from this network. Please email us instead."
 msgid "Total users tracked"
 msgstr "Total users tracked"
 
-#: src/components/WorkoutStructureEditor.tsx:306
+#: src/components/WorkoutStructureEditor.tsx:945
 msgid "Totals are deterministic only when every repeated step has the same measurable termination. Praxys does not invent a training-load score here."
 msgstr "Totals are deterministic only when every repeated step has the same measurable termination. Praxys does not invent a training-load score here."
 
@@ -9159,7 +9426,7 @@ msgid "Trail"
 msgstr "Trail"
 
 #: src/components/UpcomingPlanCard.tsx:565
-#: src/components/WorkoutPlanEditor.tsx:416
+#: src/components/WorkoutPlanEditor.tsx:444
 msgid "Trail running"
 msgstr "Trail running"
 
@@ -9239,7 +9506,7 @@ msgstr "Trusted sync and connection outcomes from the backend telemetry boundary
 #~ msgid "Trusted Today signals"
 #~ msgstr "Trusted Today signals"
 
-#: src/components/UpcomingPlanCard.tsx:1623
+#: src/components/UpcomingPlanCard.tsx:1629
 msgid "Try a longer window above."
 msgstr "Try a longer window above."
 
@@ -9305,6 +9572,10 @@ msgstr "Type"
 msgid "Type DELETE to confirm."
 msgstr "Type DELETE to confirm."
 
+#: src/components/WorkoutStructureEditor.tsx:1655
+msgid "Type precise bounds in the visible unit."
+msgstr "Type precise bounds in the visible unit."
+
 #: src/pages/Goal.tsx:87
 msgid "Ultra distance power fractions (50K+) are estimates with limited research backing. Riegel's exponent is validated only up to marathon distance. Predictions beyond marathon carry significantly higher uncertainty due to factors like fueling, terrain, heat, and pacing strategy that dominate ultra performance but are not captured by power/pace models."
 msgstr "Ultra distance power fractions (50K+) are estimates with limited research backing. Riegel's exponent is validated only up to marathon distance. Predictions beyond marathon carry significantly higher uncertainty due to factors like fueling, terrain, heat, and pacing strategy that dominate ultra performance but are not captured by power/pace models."
@@ -9332,49 +9603,49 @@ msgstr "Unavailable for safety context"
 msgid "Unclassified"
 msgstr "Unclassified"
 
-#: src/components/WorkoutStructureEditor.tsx:442
+#: src/components/WorkoutStructureEditor.tsx:767
 msgid "Undo"
 msgstr "Undo"
 
 #: src/components/WorkoutStructureEditor.tsx:169
-msgid "Unit: %CP · Reference: critical power"
-msgstr "Unit: %CP · Reference: critical power"
+#~ msgid "Unit: %CP · Reference: critical power"
+#~ msgstr "Unit: %CP · Reference: critical power"
 
 #: src/components/WorkoutStructureEditor.tsx:171
-msgid "Unit: %LTHR · Reference: LTHR"
-msgstr "Unit: %LTHR · Reference: LTHR"
+#~ msgid "Unit: %LTHR · Reference: LTHR"
+#~ msgstr "Unit: %LTHR · Reference: LTHR"
 
 #: src/components/WorkoutStructureEditor.tsx:174
-msgid "Unit: 10-point scale · Reference: perceived exertion"
-msgstr "Unit: 10-point scale · Reference: perceived exertion"
+#~ msgid "Unit: 10-point scale · Reference: perceived exertion"
+#~ msgstr "Unit: 10-point scale · Reference: perceived exertion"
 
 #: src/components/WorkoutStructureEditor.tsx:170
-msgid "Unit: bpm · Reference: absolute"
-msgstr "Unit: bpm · Reference: absolute"
+#~ msgid "Unit: bpm · Reference: absolute"
+#~ msgstr "Unit: bpm · Reference: absolute"
 
 #: src/components/WorkoutStructureEditor.tsx:172
-msgid "Unit: sec/km · Reference: absolute"
-msgstr "Unit: sec/km · Reference: absolute"
+#~ msgid "Unit: sec/km · Reference: absolute"
+#~ msgstr "Unit: sec/km · Reference: absolute"
 
 #: src/components/WorkoutStructureEditor.tsx:173
-msgid "Unit: sec/km delta · Reference: threshold pace"
-msgstr "Unit: sec/km delta · Reference: threshold pace"
+#~ msgid "Unit: sec/km delta · Reference: threshold pace"
+#~ msgstr "Unit: sec/km delta · Reference: threshold pace"
 
 #: src/components/WorkoutStructureEditor.tsx:168
-msgid "Unit: watts · Reference: absolute"
-msgstr "Unit: watts · Reference: absolute"
+#~ msgid "Unit: watts · Reference: absolute"
+#~ msgstr "Unit: watts · Reference: absolute"
 
 #: src/pages/Settings.tsx:774
 msgid "Units"
 msgstr "Units"
 
-#: src/components/WorkoutStructureEditor.tsx:480
-msgid "unknown"
-msgstr "unknown"
+#: src/components/WorkoutStructureEditor.tsx:985
+#~ msgid "unknown"
+#~ msgstr "unknown"
 
-#: src/components/WorkoutStructureEditor.tsx:287
-#: src/components/WorkoutStructureEditor.tsx:294
-#: src/components/WorkoutStructureEditor.tsx:301
+#: src/components/WorkoutStructureEditor.tsx:813
+#: src/components/WorkoutStructureEditor.tsx:823
+#: src/components/WorkoutStructureEditor.tsx:830
 msgid "Unknown"
 msgstr "Unknown"
 
@@ -9403,7 +9674,7 @@ msgstr "Unverified"
 msgid "Up to date"
 msgstr "Up to date"
 
-#: src/components/UpcomingPlanCard.tsx:1426
+#: src/components/UpcomingPlanCard.tsx:1432
 msgid "Upcoming Plan"
 msgstr "Upcoming Plan"
 
@@ -9411,7 +9682,7 @@ msgstr "Upcoming Plan"
 msgid "Update message (optional)"
 msgstr "Update message (optional)"
 
-#: src/components/WorkoutPlanEditor.tsx:611
+#: src/components/WorkoutPlanEditor.tsx:651
 msgid "Update the canonical plan here. Connector delivery changes only when managed delivery is active."
 msgstr "Update the canonical plan here. Connector delivery changes only when managed delivery is active."
 
@@ -9635,12 +9906,12 @@ msgid "Waitlist unavailable"
 msgstr "Waitlist unavailable"
 
 #: src/components/UpcomingPlanCard.tsx:567
-#: src/components/WorkoutPlanEditor.tsx:418
+#: src/components/WorkoutPlanEditor.tsx:446
 #: src/pages/Setup.tsx:168
 msgid "Walking"
 msgstr "Walking"
 
-#: src/components/WorkoutStructureEditor.tsx:149
+#: src/components/WorkoutStructureEditor.tsx:323
 msgid "Warm-up"
 msgstr "Warm-up"
 
@@ -9861,7 +10132,7 @@ msgstr "Withdrawn"
 msgid "Within reference band"
 msgstr "Within reference band"
 
-#: src/components/WorkoutStructureEditor.tsx:150
+#: src/components/WorkoutStructureEditor.tsx:324
 msgid "Work"
 msgstr "Work"
 
@@ -9875,7 +10146,7 @@ msgstr "Workload evidence"
 
 #: src/components/ManagedPlanSettingsCard.tsx:979
 #: src/components/PersonalContextPanel.tsx:879
-#: src/components/UpcomingPlanCard.tsx:1568
+#: src/components/UpcomingPlanCard.tsx:1574
 msgid "Workout"
 msgstr "Workout"
 
@@ -9904,11 +10175,21 @@ msgstr "Workout explanation"
 msgid "Workout interpretation"
 msgstr "Workout interpretation"
 
-#: src/components/WorkoutPlanEditor.tsx:804
+#: src/components/WorkoutPlanEditor.tsx:846
 msgid "Workout notes"
 msgstr "Workout notes"
 
-#: src/components/WorkoutPlanEditor.tsx:687
+#: src/components/WorkoutStructureEditor.tsx:1004
+#: src/components/WorkoutStructureEditor.tsx:1015
+msgid "Workout order"
+msgstr "Workout order"
+
+#: src/components/WorkoutStructureEditor.tsx:838
+#: src/components/WorkoutStructureEditor.tsx:852
+msgid "Workout profile"
+msgstr "Workout profile"
+
+#: src/components/WorkoutPlanEditor.tsx:727
 msgid "Workout purpose"
 msgstr "Workout purpose"
 
@@ -9917,8 +10198,12 @@ msgid "Workout status"
 msgstr "Workout status"
 
 #: src/components/WorkoutStructureEditor.tsx:321
-msgid "Workout steps"
-msgstr "Workout steps"
+#~ msgid "Workout steps"
+#~ msgstr "Workout steps"
+
+#: src/components/WorkoutStructureEditor.tsx:611
+msgid "Workout structure"
+msgstr "Workout structure"
 
 #: src/components/WorkoutPlanEditor.tsx:259
 #~ msgid "Workout type"
@@ -9939,6 +10224,10 @@ msgstr "You can attach up to 3 images."
 #: src/pages/LabsEnvironment.tsx:280
 msgid "You can leave this page and return later. No action is needed while the analysis runs."
 msgstr "You can leave this page and return later. No action is needed while the analysis runs."
+
+#: src/components/WorkoutStructureEditor.tsx:1983
+msgid "You can still save this workout in Praxys, but managed delivery cannot preserve it until the marked details are changed."
+msgstr "You can still save this workout in Praxys, but managed delivery cannot preserve it until the marked details are changed."
 
 #: src/components/PersonalContextPanel.tsx:1649
 msgid "You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed. Deleting the item removes local provider-use receipts and dependent private explanations."

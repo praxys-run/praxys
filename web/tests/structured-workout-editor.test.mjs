@@ -12,10 +12,14 @@ import {
   duplicateWorkoutNode,
   formatDeterministicDistance,
   formatDeterministicDuration,
+  formatWorkoutDistanceInput,
+  formatWorkoutPaceInput,
   insertWorkoutEditorNode,
   insertWorkoutNode,
   moveWorkoutEditorNode,
   moveWorkoutNode,
+  parseWorkoutDistanceInput,
+  parseWorkoutPaceInput,
   removeWorkoutEditorNode,
   removeWorkoutNode,
   restoreRemovedWorkoutEditorNode,
@@ -24,6 +28,7 @@ import {
   setWorkoutEditorTargetInput,
   summarizeWorkoutStructure,
   synthesizeStructureFromFlat,
+  workoutEditorIdForCompatibilityPath,
 } from '../src/lib/workout-structure.ts';
 
 function timeStep(phase, seconds, target = {
@@ -282,11 +287,101 @@ test('hydrated finite scientific notation remains valid when saved untouched', (
   );
 });
 
+test('updating one target bound preserves an absent opposite bound', () => {
+  let editor = createWorkoutEditorStructure({
+    steps: [timeStep('work', 60, {
+      metric: 'rpe',
+      unit: 'scale_10',
+      reference: 'perceived_exertion',
+      min: 7,
+    })],
+  });
+  const editorId = editor.steps[0].editorId;
+  editor = setWorkoutEditorTargetInput(editor, editorId, 'min', '8');
+  editor = commitWorkoutEditorTargetInput(
+    editor,
+    editorId,
+    'min',
+  ).structure;
+
+  const target = serializeWorkoutEditorStructure(editor).steps[0].target;
+  assert.equal(target.min, 8);
+  assert.equal(target.max, undefined);
+});
+
 test('exact totals retain seconds and meters without rounded claims', () => {
   assert.equal(formatDeterministicDuration(90), '1:30');
   assert.equal(formatDeterministicDuration(1), '0:01');
   assert.equal(formatDeterministicDistance(1), '1 m');
   assert.equal(formatDeterministicDistance(1234), '1.234 km');
+  assert.equal(formatDeterministicDistance(1609.344, 'imperial'), '1 mi');
+});
+
+test('editor presentation follows athlete units without changing canonical values', () => {
+  assert.deepEqual(formatWorkoutDistanceInput(1000, 'metric'), {
+    value: '1000',
+    unit: 'm',
+  });
+  assert.deepEqual(formatWorkoutDistanceInput(1609, 'imperial'), {
+    value: '0.9998',
+    unit: 'mi',
+  });
+  assert.equal(parseWorkoutDistanceInput('0.25', 'imperial'), 402);
+  assert.equal(formatWorkoutPaceInput(300, 'metric'), '5:00');
+  assert.equal(formatWorkoutPaceInput(300, 'imperial'), '8:02.803');
+  assert.equal(parseWorkoutPaceInput('5:00', 'metric'), 300);
+  const seventeenMinuteMile = parseWorkoutPaceInput('17:00', 'imperial');
+  assert.equal(
+    formatWorkoutPaceInput(seventeenMinuteMile, 'imperial'),
+    '17:00',
+  );
+  assert.ok(Math.abs(
+    parseWorkoutPaceInput('8:02.803', 'imperial') - 300,
+  ) < 0.001);
+
+  const editor = createWorkoutEditorStructure({
+    steps: [timeStep('work', 60, {
+      metric: 'pace',
+      unit: 'sec_per_km',
+      reference: 'absolute',
+      min: 300,
+      max: 330,
+    })],
+  }, undefined, 'imperial');
+  assert.equal(editor.steps[0].targetInputs.min, '8:02.803');
+  const committed = commitAllWorkoutEditorTargetInputs(editor, 'imperial');
+  assert.ok(Math.abs(committed.structure.steps[0].target.min - 300) < 0.001);
+});
+
+test('provider paths select the exact stable editor node', () => {
+  const editor = createWorkoutEditorStructure({
+    steps: [
+      timeStep('warmup', 600),
+      createRepeatGroup({
+        repetitions: 4,
+        steps: [
+          timeStep('work', 60),
+          timeStep('recovery', 60),
+        ],
+      }),
+    ],
+  });
+
+  assert.equal(
+    workoutEditorIdForCompatibilityPath(editor, 'steps[0].target'),
+    editor.steps[0].editorId,
+  );
+  assert.equal(
+    workoutEditorIdForCompatibilityPath(
+      editor,
+      'steps[1].steps[1].termination',
+    ),
+    editor.steps[1].steps[1].editorId,
+  );
+  assert.equal(
+    workoutEditorIdForCompatibilityPath(editor, 'steps[9].target'),
+    null,
+  );
 });
 
 test('pace flat projections use the backend half-even rounding contract', () => {

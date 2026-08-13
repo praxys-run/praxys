@@ -1,4 +1,5 @@
 import type {
+  UnitSystem,
   WorkoutIntensityTarget,
   WorkoutStructureRepeatGroup,
   WorkoutStructureStep,
@@ -51,6 +52,8 @@ export interface RemoveWorkoutEditorNodeResult {
 }
 
 let workoutEditorIdSequence = 0;
+const KM_PER_MILE = 1.609344;
+const METERS_PER_MILE = 1609.344;
 
 function nextWorkoutEditorId(): string {
   workoutEditorIdSequence += 1;
@@ -59,10 +62,22 @@ function nextWorkoutEditorId(): string {
 
 function targetInputsFor(
   target: WorkoutIntensityTarget,
+  unitSystem: UnitSystem = 'metric',
 ): WorkoutEditorTargetInputs {
+  const kind = targetKind(target);
+  const formatBound = (value: number | null | undefined): string => {
+    if (value == null) return '';
+    if (kind === 'pace_absolute') {
+      return formatWorkoutPaceInput(value, unitSystem);
+    }
+    if (kind === 'pace_threshold' && unitSystem === 'imperial') {
+      return trimDecimal(value * KM_PER_MILE, 6);
+    }
+    return value.toString();
+  };
   return {
-    min: target.min?.toString() ?? '',
-    max: target.max?.toString() ?? '',
+    min: formatBound(target.min),
+    max: formatBound(target.max),
     minInvalid: false,
     maxInvalid: false,
   };
@@ -71,26 +86,28 @@ function targetInputsFor(
 function createWorkoutEditorStepFromCanonical(
   step: WorkoutStructureStep,
   createId: () => string,
+  unitSystem: UnitSystem = 'metric',
 ): WorkoutEditorStep {
   return {
     ...cloneNode(step),
     editorId: createId(),
-    targetInputs: targetInputsFor(step.target),
+    targetInputs: targetInputsFor(step.target, unitSystem),
   } as WorkoutEditorStep;
 }
 
 function createWorkoutEditorNodeFromCanonical(
   node: WorkoutNode,
   createId: () => string,
+  unitSystem: UnitSystem = 'metric',
 ): WorkoutEditorNode {
   if (node.type === 'step') {
-    return createWorkoutEditorStepFromCanonical(node, createId);
+    return createWorkoutEditorStepFromCanonical(node, createId, unitSystem);
   }
   return {
     ...node,
     editorId: createId(),
     steps: node.steps.map((step) => (
-      createWorkoutEditorStepFromCanonical(step, createId)
+      createWorkoutEditorStepFromCanonical(step, createId, unitSystem)
     )),
   };
 }
@@ -99,29 +116,34 @@ function createWorkoutEditorNodeFromCanonical(
 export function createWorkoutEditorStructure(
   structure: WorkoutStructureV1,
   createId: () => string = nextWorkoutEditorId,
+  unitSystem: UnitSystem = 'metric',
 ): WorkoutEditorStructureV1 {
   return {
     steps: structure.steps.map((node) => (
-      createWorkoutEditorNodeFromCanonical(node, createId)
+      createWorkoutEditorNodeFromCanonical(node, createId, unitSystem)
     )),
   };
 }
 
 export function createWorkoutEditorStep(
   overrides: Partial<WorkoutStructureStep> = {},
+  unitSystem: UnitSystem = 'metric',
 ): WorkoutEditorStep {
   return createWorkoutEditorStepFromCanonical(
     createStructuredStep(overrides),
     nextWorkoutEditorId,
+    unitSystem,
   );
 }
 
 export function createWorkoutEditorRepeat(
   overrides: Partial<WorkoutStructureRepeatGroup> = {},
+  unitSystem: UnitSystem = 'metric',
 ): WorkoutEditorRepeat {
   return createWorkoutEditorNodeFromCanonical(
     createRepeatGroup(overrides),
     nextWorkoutEditorId,
+    unitSystem,
   ) as WorkoutEditorRepeat;
 }
 
@@ -214,6 +236,7 @@ export function updateWorkoutEditorStep(
   structure: WorkoutEditorStructureV1,
   editorId: string,
   update: Partial<WorkoutStructureStep>,
+  unitSystem: UnitSystem = 'metric',
 ): WorkoutEditorStructureV1 {
   const path = workoutEditorNodePath(structure, editorId);
   const next = cloneWorkoutEditorStructure(structure);
@@ -222,7 +245,7 @@ export function updateWorkoutEditorStep(
   if (!step || step.type !== 'step') return next;
   Object.assign(step, cloneValue(update));
   if (update.target !== undefined) {
-    step.targetInputs = targetInputsFor(step.target);
+    step.targetInputs = targetInputsFor(step.target, unitSystem);
   }
   return next;
 }
@@ -246,6 +269,7 @@ export function insertWorkoutEditorNode(
   targetEditorId: string,
   node: WorkoutNode,
   position: WorkoutInsertPosition,
+  unitSystem: UnitSystem = 'metric',
 ): WorkoutEditorStructureV1 {
   const path = workoutEditorNodePath(structure, targetEditorId);
   const next = cloneWorkoutEditorStructure(structure);
@@ -256,7 +280,11 @@ export function insertWorkoutEditorNode(
   nodes.splice(
     position === 'before' ? index : index + 1,
     0,
-    createWorkoutEditorNodeFromCanonical(node, nextWorkoutEditorId),
+    createWorkoutEditorNodeFromCanonical(
+      node,
+      nextWorkoutEditorId,
+      unitSystem,
+    ),
   );
   return next;
 }
@@ -264,6 +292,7 @@ export function insertWorkoutEditorNode(
 export function duplicateWorkoutEditorNode(
   structure: WorkoutEditorStructureV1,
   editorId: string,
+  unitSystem: UnitSystem = 'metric',
 ): WorkoutEditorStructureV1 {
   const path = workoutEditorNodePath(structure, editorId);
   if (!path) return cloneWorkoutEditorStructure(structure);
@@ -274,6 +303,7 @@ export function duplicateWorkoutEditorNode(
         editorId,
         serializeWorkoutEditorNode(node),
         'after',
+        unitSystem,
       )
     : cloneWorkoutEditorStructure(structure);
 }
@@ -348,10 +378,27 @@ const COMPLETE_DECIMAL = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 function commitTargetInput(
   step: WorkoutEditorStep,
   bound: 'min' | 'max',
+  unitSystem: UnitSystem = 'metric',
 ): boolean {
   const raw = step.targetInputs[bound].trim();
-  const valid = raw === '' || COMPLETE_DECIMAL.test(raw);
-  const parsed = raw === '' ? undefined : Number(raw);
+  const kind = targetKind(step.target);
+  const pace = kind === 'pace_absolute' && raw !== ''
+    ? parseWorkoutPaceInput(raw, unitSystem)
+    : null;
+  const valid = raw === ''
+    || (kind === 'pace_absolute'
+      ? pace !== null
+      : COMPLETE_DECIMAL.test(raw));
+  const displayValue = raw === ''
+    ? undefined
+    : kind === 'pace_absolute'
+      ? pace ?? Number.NaN
+      : Number(raw);
+  const parsed = kind === 'pace_threshold'
+    && unitSystem === 'imperial'
+    && displayValue !== undefined
+    ? displayValue / KM_PER_MILE
+    : displayValue;
   const finite = parsed === undefined || Number.isFinite(parsed);
   if (!valid || !finite) {
     if (bound === 'min') step.targetInputs.minInvalid = true;
@@ -371,6 +418,7 @@ export function commitWorkoutEditorTargetInput(
   structure: WorkoutEditorStructureV1,
   editorId: string,
   bound: 'min' | 'max',
+  unitSystem: UnitSystem = 'metric',
 ): { structure: WorkoutEditorStructureV1; valid: boolean } {
   const path = workoutEditorNodePath(structure, editorId);
   const next = cloneWorkoutEditorStructure(structure);
@@ -381,12 +429,13 @@ export function commitWorkoutEditorTargetInput(
   }
   return {
     structure: next,
-    valid: commitTargetInput(step, bound),
+    valid: commitTargetInput(step, bound, unitSystem),
   };
 }
 
 export function commitAllWorkoutEditorTargetInputs(
   structure: WorkoutEditorStructureV1,
+  unitSystem: UnitSystem = 'metric',
 ): { structure: WorkoutEditorStructureV1; valid: boolean } {
   const next = cloneWorkoutEditorStructure(structure);
   let valid = true;
@@ -394,11 +443,28 @@ export function commitAllWorkoutEditorTargetInputs(
     const steps = node.type === 'step' ? [node] : node.steps;
     for (const step of steps) {
       if (step.target.metric === 'none') continue;
-      valid = commitTargetInput(step, 'min') && valid;
-      valid = commitTargetInput(step, 'max') && valid;
+      valid = commitTargetInput(step, 'min', unitSystem) && valid;
+      valid = commitTargetInput(step, 'max', unitSystem) && valid;
     }
   }
   return { structure: next, valid };
+}
+
+/** Resolve a backend compatibility path to the stable editor node it names. */
+export function workoutEditorIdForCompatibilityPath(
+  structure: WorkoutEditorStructureV1,
+  path: string | null | undefined,
+): string | null {
+  const match = path?.match(
+    /^steps\[(\d+)\](?:\.steps\[(\d+)\])?/,
+  );
+  if (!match) return null;
+  const root = structure.steps[Number(match[1])];
+  if (!root) return null;
+  if (match[2] == null) return root.editorId;
+  return root.type === 'repeat'
+    ? root.steps[Number(match[2])]?.editorId ?? null
+    : null;
 }
 
 export function validateWorkoutEditorStructure(
@@ -715,10 +781,96 @@ export function formatDeterministicDuration(seconds: number): string {
 }
 
 /** Format an exact integer-meter total without displaying rounded zero km. */
-export function formatDeterministicDistance(meters: number): string {
+export function formatDeterministicDistance(
+  meters: number,
+  unitSystem: UnitSystem = 'metric',
+): string {
+  if (unitSystem === 'imperial') {
+    if (meters < METERS_PER_MILE) {
+      return `${trimDecimal(meters / 0.9144, 1)} yd`;
+    }
+    return `${trimDecimal(meters / METERS_PER_MILE, 3)} mi`;
+  }
   if (meters < 1000) return `${meters} m`;
   const kilometers = (meters / 1000).toFixed(3).replace(/\.?0+$/, '');
   return `${kilometers} km`;
+}
+
+/** Format a canonical distance termination for the athlete's unit system. */
+export function formatWorkoutDistanceInput(
+  meters: number,
+  unitSystem: UnitSystem = 'metric',
+): { value: string; unit: 'm' | 'mi' } {
+  return unitSystem === 'imperial'
+    ? {
+        value: trimDecimal(meters / METERS_PER_MILE, 4),
+        unit: 'mi',
+      }
+    : { value: meters.toString(), unit: 'm' };
+}
+
+/** Convert a visible distance termination back to canonical integer meters. */
+export function parseWorkoutDistanceInput(
+  value: string,
+  unitSystem: UnitSystem = 'metric',
+): number | null {
+  if (!COMPLETE_DECIMAL.test(value.trim())) return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return Math.round(
+    unitSystem === 'imperial' ? parsed * METERS_PER_MILE : parsed,
+  );
+}
+
+/** Format canonical seconds-per-kilometre as an editable M:SS pace. */
+export function formatWorkoutPaceInput(
+  secondsPerKm: number,
+  unitSystem: UnitSystem = 'metric',
+): string {
+  const visible = unitSystem === 'imperial'
+    ? secondsPerKm * KM_PER_MILE
+    : secondsPerKm;
+  const roundedVisible = Math.round(visible * 1000) / 1000;
+  const minutes = Math.floor(roundedVisible / 60);
+  const seconds = roundedVisible - minutes * 60;
+  const rawSeconds = trimDecimal(seconds, 3);
+  const secondsText = seconds < 10 ? `0${rawSeconds}` : rawSeconds;
+  return `${minutes}:${secondsText}`;
+}
+
+/** Parse an editable M:SS pace into canonical seconds per kilometre. */
+export function parseWorkoutPaceInput(
+  value: string,
+  unitSystem: UnitSystem = 'metric',
+): number | null {
+  const raw = value.trim();
+  if (!raw) return null;
+  const parts = raw.split(':');
+  let visibleSeconds: number;
+  if (parts.length === 1 && COMPLETE_DECIMAL.test(raw)) {
+    visibleSeconds = Number(raw);
+  } else if (parts.length === 2) {
+    const minutes = Number(parts[0]);
+    const seconds = Number(parts[1]);
+    if (
+      !Number.isInteger(minutes)
+      || minutes < 0
+      || !Number.isFinite(seconds)
+      || seconds < 0
+      || seconds >= 60
+    ) return null;
+    visibleSeconds = minutes * 60 + seconds;
+  } else {
+    return null;
+  }
+  if (!Number.isFinite(visibleSeconds) || visibleSeconds <= 0) return null;
+  return unitSystem === 'imperial'
+    ? visibleSeconds / KM_PER_MILE
+    : visibleSeconds;
+}
+
+function trimDecimal(value: number, decimals: number): string {
+  return value.toFixed(decimals).replace(/\.?0+$/, '');
 }
 
 export function deriveFlatFieldsFromStructure(

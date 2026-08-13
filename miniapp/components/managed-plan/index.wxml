@@ -181,9 +181,7 @@
           <text wx:if="{{editorForked}}" class="managed-plan__editor-title">{{tr.duplicateWorkout}}</text>
           <text wx:elif="{{editorMode === 'edit'}}" class="managed-plan__editor-title">{{tr.editWorkout}}</text>
           <text wx:else class="managed-plan__editor-title">{{tr.addWorkout}}</text>
-          <text class="managed-plan__editor-detail">
-            {{editorForked ? tr.sourceStaysUnchanged : tr.externalWorkoutsUntouched}}
-          </text>
+          <text class="managed-plan__editor-detail">{{editorForked ? tr.sourceStaysUnchanged : (editorMode === 'edit' ? tr.updateCanonicalPlan : tr.addFutureWorkout)}}</text>
         </view>
         <button
           class="managed-plan__editor-close"
@@ -281,14 +279,10 @@
       <view wx:elif="{{editorStructured}}" class="managed-plan__structured">
         <view class="managed-plan__structured-heading">
           <view>
-            <text class="managed-plan__structured-title">{{tr.structuredSteps}}</text>
-            <text class="managed-plan__structured-detail">
-              {{tr.totalsDetail}}
-            </text>
+            <text class="managed-plan__structured-title">{{tr.workoutStructure}}</text>
+            <text class="managed-plan__structured-detail">{{tr.structureGuide}}</text>
           </view>
-          <text class="managed-plan__structured-count ts-value">
-            {{editorSummarySteps}} {{tr.step}}
-          </text>
+          <text class="managed-plan__structured-count ts-value">{{editorSummarySteps}} {{editorSummarySteps === 1 ? tr.step : tr.steps}}</text>
         </view>
 
         <view class="managed-plan__profile">
@@ -306,23 +300,82 @@
           </view>
         </view>
 
-        <view class="managed-plan__nodes">
+        <view class="managed-plan__profile-map">
+          <view class="managed-plan__profile-map-heading">
+            <text>{{tr.workoutProfile}}</text>
+            <text>{{tr.sequenceNotLoad}}</text>
+          </view>
+          <scroll-view
+            wx:if="{{editorOutline.length > 0}}"
+            scroll-x="{{true}}"
+            enhanced="{{true}}"
+            show-scrollbar="{{false}}"
+            class="managed-plan__timeline"
+          >
+            <view class="managed-plan__timeline-inner">
+              <button
+                wx:for="{{editorOutline}}"
+                wx:for-item="item"
+                wx:key="editorId"
+                class="managed-plan__timeline-item managed-plan__timeline-item--{{item.type}} managed-plan__timeline-item--depth-{{item.depth}} managed-plan__timeline-item--{{item.phase}} {{item.selected ? 'managed-plan__timeline-item--selected' : ''}} {{item.invalid ? 'managed-plan__timeline-item--invalid' : ''}}"
+                data-editor-id="{{item.editorId}}"
+                disabled="{{editorSaving}}"
+                bindtap="onSelectStructuredNode"
+              >
+                <text class="managed-plan__timeline-order ts-value">{{item.order}}</text>
+                <text class="managed-plan__timeline-title">{{item.title}}</text>
+              </button>
+            </view>
+          </scroll-view>
+          <text wx:else class="managed-plan__timeline-empty">{{tr.noExecutableSteps}}</text>
+        </view>
+
+        <text wx:if="{{editorError}}" class="managed-plan__structured-error" role="alert">{{tr.fixMarkedStep}}</text>
+
+        <view class="managed-plan__outline">
+          <text class="managed-plan__structured-title">{{tr.workoutOrder}}</text>
+          <text class="managed-plan__structured-detail">{{tr.selectOneItem}}</text>
+          <view class="managed-plan__outline-list">
+            <button
+              wx:for="{{editorOutline}}"
+              wx:for-item="item"
+              wx:key="editorId"
+              class="managed-plan__outline-item managed-plan__outline-item--depth-{{item.depth}} {{item.selected ? 'managed-plan__outline-item--selected' : ''}} {{item.invalid ? 'managed-plan__outline-item--invalid' : ''}}"
+              data-editor-id="{{item.editorId}}"
+              disabled="{{editorSaving}}"
+              bindtap="onSelectStructuredNode"
+            >
+              <text class="managed-plan__outline-order ts-value">{{item.order}}</text>
+              <view class="managed-plan__outline-copy">
+                <text>{{item.title}}</text>
+                <text class="ts-value">{{item.detail}}</text>
+              </view>
+              <text wx:if="{{item.type === 'repeat'}}" class="managed-plan__outline-kind">×</text>
+              <text wx:if="{{item.invalid}}" class="managed-plan__outline-invalid">!</text>
+            </button>
+          </view>
+        </view>
+
+        <view class="managed-plan__nodes managed-plan__inspector">
           <block
             wx:for="{{editorStructureView}}"
             wx:for-item="node"
             wx:for-index="rootIndex"
             wx:key="editorId"
           >
-            <view wx:if="{{node.type === 'step'}}" class="managed-plan__node">
+            <view wx:if="{{node.type === 'step'}}" id="managed-plan-inspector-{{node.editorId}}" class="managed-plan__node">
               <view class="managed-plan__node-heading">
-                <text>{{tr.step}} {{rootIndex + 1}}</text>
+                <view>
+                  <text class="managed-plan__node-eyebrow">{{tr.step}}</text>
+                  <text class="managed-plan__node-title">{{node.order}} · {{node.title}}</text>
+                </view>
                 <view class="managed-plan__node-actions">
-                  <button data-editor-id="{{node.editorId}}" data-action="move-up" disabled="{{editorSaving || rootIndex === 0}}" bindtap="onStructuredAction">{{tr.moveUp}}</button>
-                  <button data-editor-id="{{node.editorId}}" data-action="move-down" disabled="{{editorSaving || rootIndex === editorStructureView.length - 1}}" bindtap="onStructuredAction">{{tr.moveDown}}</button>
+                  <button data-editor-id="{{node.editorId}}" data-action="move-up" disabled="{{editorSaving || !node.canMoveUp}}" bindtap="onStructuredAction">{{tr.moveUp}}</button>
+                  <button data-editor-id="{{node.editorId}}" data-action="move-down" disabled="{{editorSaving || !node.canMoveDown}}" bindtap="onStructuredAction">{{tr.moveDown}}</button>
                   <button data-editor-id="{{node.editorId}}" data-action="insert-before" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.insertBefore}}</button>
                   <button data-editor-id="{{node.editorId}}" data-action="insert-after" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.insertAfter}}</button>
                   <button data-editor-id="{{node.editorId}}" data-action="duplicate" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.duplicate}}</button>
-                  <button data-editor-id="{{node.editorId}}" data-action="delete" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.delete}}</button>
+                  <button class="managed-plan__node-action--danger" data-editor-id="{{node.editorId}}" data-action="delete" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.delete}}</button>
                 </view>
               </view>
               <view class="managed-plan__node-fields">
@@ -336,13 +389,29 @@
                   <text class="managed-plan__field-label">{{tr.optionalLabel}}</text>
                   <input class="managed-plan__field-input" value="{{node.label}}" maxlength="80" placeholder="{{tr.uphillEffort}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" data-field="label" bindinput="onStructuredInput" />
                 </view>
-                <view class="managed-plan__field">
+                <view class="managed-plan__field managed-plan__field--wide">
                   <text class="managed-plan__field-label">{{tr.termination}}</text>
                   <picker range="{{editorTerminationLabels}}" value="{{node.terminationIndex}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" bindchange="onStructuredTerminationChange">
                     <view class="managed-plan__field-value">{{editorTerminationLabels[node.terminationIndex]}}</view>
                   </picker>
-                  <input wx:if="{{node.termination.type === 'time'}}" class="managed-plan__field-input ts-value" type="number" value="{{node.termination.seconds}}" placeholder="{{tr.timeSeconds}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" data-field="seconds" bindinput="onStructuredInput" />
-                  <input wx:if="{{node.termination.type === 'distance'}}" class="managed-plan__field-input ts-value" type="number" value="{{node.termination.meters}}" placeholder="{{tr.distanceMeters}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" data-field="meters" bindinput="onStructuredInput" />
+                  <view wx:if="{{node.termination.type === 'time'}}" class="managed-plan__duration-row">
+                    <view class="managed-plan__input-with-unit">
+                      <input class="managed-plan__field-input ts-value" type="number" value="{{node.durationHours}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" data-field="durationHours" bindinput="onStructuredInput" />
+                      <text>{{tr.hourShort}}</text>
+                    </view>
+                    <view class="managed-plan__input-with-unit">
+                      <input class="managed-plan__field-input ts-value" type="number" value="{{node.durationMinutes}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" data-field="durationMinutes" bindinput="onStructuredInput" />
+                      <text>{{tr.minuteShort}}</text>
+                    </view>
+                    <view class="managed-plan__input-with-unit">
+                      <input class="managed-plan__field-input ts-value" type="number" value="{{node.durationSeconds}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" data-field="durationSeconds" bindinput="onStructuredInput" />
+                      <text>{{tr.secondShort}}</text>
+                    </view>
+                  </view>
+                  <view wx:if="{{node.termination.type === 'distance'}}" class="managed-plan__input-with-unit">
+                    <input class="managed-plan__field-input ts-value" type="digit" value="{{node.distanceValue}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" data-field="distanceValue" bindinput="onStructuredInput" bindblur="onStructuredDistanceBlur" />
+                    <text>{{node.distanceUnit}}</text>
+                  </view>
                 </view>
                 <view class="managed-plan__field">
                   <text class="managed-plan__field-label">{{tr.targetType}}</text>
@@ -352,13 +421,30 @@
                   <text class="managed-plan__field-hint">{{node.targetDetail}}</text>
                 </view>
                 <block wx:if="{{node.target.metric !== 'none'}}">
-                  <view class="managed-plan__field">
-                    <text class="managed-plan__field-label">{{tr.targetMinimum}}</text>
-                    <input class="managed-plan__field-input ts-value" type="text" value="{{node.targetInputs.min}}" placeholder="{{tr.optional}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" data-field="targetMin" bindinput="onStructuredInput" bindblur="onStructuredTargetBlur" />
+                  <view wx:if="{{node.sliderEnabled}}" class="managed-plan__range-control">
+                    <view class="managed-plan__range-heading">
+                      <text>{{tr.targetRange}}</text>
+                      <text class="ts-value">{{node.targetInputs.min}}–{{node.targetInputs.max}} {{node.targetUnit}}</text>
+                    </view>
+                    <slider min="{{node.sliderMinimum}}" max="{{node.sliderMaximum}}" step="{{node.sliderStep}}" value="{{node.sliderLow}}" block-size="22" data-editor-id="{{node.editorId}}" data-bound="min" disabled="{{editorSaving}}" bindchanging="onStructuredRangeChange" bindchange="onStructuredRangeChange" />
+                    <slider min="{{node.sliderMinimum}}" max="{{node.sliderMaximum}}" step="{{node.sliderStep}}" value="{{node.sliderHigh}}" block-size="22" data-editor-id="{{node.editorId}}" data-bound="max" disabled="{{editorSaving}}" bindchanging="onStructuredRangeChange" bindchange="onStructuredRangeChange" />
+                    <text class="managed-plan__field-hint">{{tr.dragRangeOrType}}</text>
                   </view>
-                  <view class="managed-plan__field">
-                    <text class="managed-plan__field-label">{{tr.targetMaximum}}</text>
-                    <input class="managed-plan__field-input ts-value" type="text" value="{{node.targetInputs.max}}" placeholder="{{tr.optional}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" data-field="targetMax" bindinput="onStructuredInput" bindblur="onStructuredTargetBlur" />
+                  <view class="managed-plan__range-inputs">
+                    <view class="managed-plan__field">
+                      <text class="managed-plan__field-label">{{tr.targetMinimum}}</text>
+                      <view class="managed-plan__input-with-unit">
+                        <input class="managed-plan__field-input ts-value" type="text" value="{{node.targetInputs.min}}" placeholder="{{tr.optional}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" data-field="targetMin" bindinput="onStructuredInput" bindblur="onStructuredTargetBlur" />
+                        <text wx:if="{{node.targetUnit}}">{{node.targetUnit}}</text>
+                      </view>
+                    </view>
+                    <view class="managed-plan__field">
+                      <text class="managed-plan__field-label">{{tr.targetMaximum}}</text>
+                      <view class="managed-plan__input-with-unit">
+                        <input class="managed-plan__field-input ts-value" type="text" value="{{node.targetInputs.max}}" placeholder="{{tr.optional}}" disabled="{{editorSaving}}" data-editor-id="{{node.editorId}}" data-field="targetMax" bindinput="onStructuredInput" bindblur="onStructuredTargetBlur" />
+                        <text wx:if="{{node.targetUnit}}">{{node.targetUnit}}</text>
+                      </view>
+                    </view>
                   </view>
                 </block>
                 <view class="managed-plan__field managed-plan__field--wide">
@@ -368,16 +454,19 @@
               </view>
             </view>
 
-            <view wx:else class="managed-plan__node managed-plan__node--repeat">
+            <view wx:else id="managed-plan-inspector-{{node.editorId}}" class="managed-plan__node managed-plan__node--repeat">
               <view class="managed-plan__node-heading">
-                <text>{{tr.repeatGroup}}</text>
+                <view>
+                  <text class="managed-plan__node-eyebrow">{{tr.repeatGroup}}</text>
+                  <text class="managed-plan__node-title">{{node.order}} · {{node.title}}</text>
+                </view>
                 <view class="managed-plan__node-actions">
-                  <button data-editor-id="{{node.editorId}}" data-action="move-up" disabled="{{editorSaving || rootIndex === 0}}" bindtap="onStructuredAction">{{tr.moveUp}}</button>
-                  <button data-editor-id="{{node.editorId}}" data-action="move-down" disabled="{{editorSaving || rootIndex === editorStructureView.length - 1}}" bindtap="onStructuredAction">{{tr.moveDown}}</button>
+                  <button data-editor-id="{{node.editorId}}" data-action="move-up" disabled="{{editorSaving || !node.canMoveUp}}" bindtap="onStructuredAction">{{tr.moveUp}}</button>
+                  <button data-editor-id="{{node.editorId}}" data-action="move-down" disabled="{{editorSaving || !node.canMoveDown}}" bindtap="onStructuredAction">{{tr.moveDown}}</button>
                   <button data-editor-id="{{node.editorId}}" data-action="insert-before" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.insertBefore}}</button>
                   <button data-editor-id="{{node.editorId}}" data-action="insert-after" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.insertAfter}}</button>
                   <button data-editor-id="{{node.editorId}}" data-action="duplicate" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.duplicate}}</button>
-                  <button data-editor-id="{{node.editorId}}" data-action="delete" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.delete}}</button>
+                  <button class="managed-plan__node-action--danger" data-editor-id="{{node.editorId}}" data-action="delete" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.delete}}</button>
                 </view>
               </view>
               <view class="managed-plan__node-fields">
@@ -391,64 +480,7 @@
                 </view>
               </view>
               <text class="managed-plan__repeat-detail">{{tr.oneLevelRepeat}}</text>
-              <view class="managed-plan__repeat-children">
-                <block wx:for="{{node.steps}}" wx:for-item="child" wx:for-index="childIndex" wx:key="editorId">
-                  <view class="managed-plan__node managed-plan__node--child">
-                    <view class="managed-plan__node-heading">
-                      <text>{{tr.step}} {{childIndex + 1}}</text>
-                      <view class="managed-plan__node-actions">
-                        <button data-editor-id="{{child.editorId}}" data-action="move-up" disabled="{{editorSaving || childIndex === 0}}" bindtap="onStructuredAction">{{tr.moveUp}}</button>
-                        <button data-editor-id="{{child.editorId}}" data-action="move-down" disabled="{{editorSaving || childIndex === node.steps.length - 1}}" bindtap="onStructuredAction">{{tr.moveDown}}</button>
-                        <button data-editor-id="{{child.editorId}}" data-action="insert-before" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.insertBefore}}</button>
-                        <button data-editor-id="{{child.editorId}}" data-action="insert-after" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.insertAfter}}</button>
-                        <button data-editor-id="{{child.editorId}}" data-action="duplicate" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.duplicate}}</button>
-                        <button data-editor-id="{{child.editorId}}" data-action="delete" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.delete}}</button>
-                      </view>
-                    </view>
-                    <view class="managed-plan__node-fields">
-                      <view class="managed-plan__field">
-                        <text class="managed-plan__field-label">{{tr.stepSemantic}}</text>
-                        <picker range="{{editorPhaseLabels}}" value="{{child.phaseIndex}}" disabled="{{editorSaving}}" data-editor-id="{{child.editorId}}" bindchange="onStructuredPhaseChange">
-                          <view class="managed-plan__field-value">{{editorPhaseLabels[child.phaseIndex]}}</view>
-                        </picker>
-                      </view>
-                      <view class="managed-plan__field">
-                        <text class="managed-plan__field-label">{{tr.optionalLabel}}</text>
-                        <input class="managed-plan__field-input" value="{{child.label}}" maxlength="80" placeholder="{{tr.uphillEffort}}" disabled="{{editorSaving}}" data-editor-id="{{child.editorId}}" data-field="label" bindinput="onStructuredInput" />
-                      </view>
-                      <view class="managed-plan__field">
-                        <text class="managed-plan__field-label">{{tr.termination}}</text>
-                        <picker range="{{editorTerminationLabels}}" value="{{child.terminationIndex}}" disabled="{{editorSaving}}" data-editor-id="{{child.editorId}}" bindchange="onStructuredTerminationChange">
-                          <view class="managed-plan__field-value">{{editorTerminationLabels[child.terminationIndex]}}</view>
-                        </picker>
-                        <input wx:if="{{child.termination.type === 'time'}}" class="managed-plan__field-input ts-value" type="number" value="{{child.termination.seconds}}" placeholder="{{tr.timeSeconds}}" disabled="{{editorSaving}}" data-editor-id="{{child.editorId}}" data-field="seconds" bindinput="onStructuredInput" />
-                        <input wx:if="{{child.termination.type === 'distance'}}" class="managed-plan__field-input ts-value" type="number" value="{{child.termination.meters}}" placeholder="{{tr.distanceMeters}}" disabled="{{editorSaving}}" data-editor-id="{{child.editorId}}" data-field="meters" bindinput="onStructuredInput" />
-                      </view>
-                      <view class="managed-plan__field">
-                        <text class="managed-plan__field-label">{{tr.targetType}}</text>
-                        <picker range="{{editorTargetLabels}}" value="{{child.targetIndex}}" disabled="{{editorSaving}}" data-editor-id="{{child.editorId}}" bindchange="onStructuredTargetChange">
-                          <view class="managed-plan__field-value">{{editorTargetLabels[child.targetIndex]}}</view>
-                        </picker>
-                        <text class="managed-plan__field-hint">{{child.targetDetail}}</text>
-                      </view>
-                      <block wx:if="{{child.target.metric !== 'none'}}">
-                        <view class="managed-plan__field">
-                          <text class="managed-plan__field-label">{{tr.targetMinimum}}</text>
-                          <input class="managed-plan__field-input ts-value" type="text" value="{{child.targetInputs.min}}" placeholder="{{tr.optional}}" disabled="{{editorSaving}}" data-editor-id="{{child.editorId}}" data-field="targetMin" bindinput="onStructuredInput" bindblur="onStructuredTargetBlur" />
-                        </view>
-                        <view class="managed-plan__field">
-                          <text class="managed-plan__field-label">{{tr.targetMaximum}}</text>
-                          <input class="managed-plan__field-input ts-value" type="text" value="{{child.targetInputs.max}}" placeholder="{{tr.optional}}" disabled="{{editorSaving}}" data-editor-id="{{child.editorId}}" data-field="targetMax" bindinput="onStructuredInput" bindblur="onStructuredTargetBlur" />
-                        </view>
-                      </block>
-                      <view class="managed-plan__field managed-plan__field--wide">
-                        <text class="managed-plan__field-label">{{tr.stepInstructions}}</text>
-                        <textarea class="managed-plan__field-textarea" value="{{child.instructions}}" maxlength="1000" auto-height placeholder="{{tr.optionalCoachingCue}}" disabled="{{editorSaving}}" data-editor-id="{{child.editorId}}" data-field="instructions" bindinput="onStructuredInput"></textarea>
-                      </view>
-                    </view>
-                  </view>
-                </block>
-              </view>
+              <text class="managed-plan__repeat-detail ts-value">{{node.detail}}</text>
               <button class="managed-plan__structured-action" data-editor-id="{{node.editorId}}" data-action="add-repeat-step" disabled="{{editorSaving}}" bindtap="onStructuredAction">{{tr.addRepeatStep}}</button>
             </view>
           </block>
@@ -462,23 +494,43 @@
           <button disabled="{{editorSaving}}" bindtap="onUndoStructuredDelete">{{tr.undo}}</button>
         </view>
         <view class="managed-plan__compatibility">
-          <text class="managed-plan__structured-title">{{tr.providerCompatibility}}</text>
-          <text class="managed-plan__structured-detail">{{tr.compatibilityDetail}}</text>
+          <view class="managed-plan__compatibility-intro">
+            <view>
+              <text class="managed-plan__structured-title">{{tr.deliveryPreview}}</text>
+              <text class="managed-plan__structured-detail">{{tr.deliveryPreviewDetail}}</text>
+            </view>
+            <text wx:if="{{editorSelectedCompatibility}}" class="managed-plan__compatibility-status managed-plan__compatibility-status--{{editorSelectedCompatibility.tone}}">{{editorSelectedCompatibility.status}}</text>
+          </view>
           <text wx:if="{{editorCompatibilityLoading}}" class="managed-plan__compatibility-loading">{{tr.checkingCompatibility}}</text>
           <text wx:if="{{editorCompatibilityError}}" class="managed-plan__compatibility-error">{{editorCompatibilityError}}</text>
           <text wx:if="{{!editorCompatibilityLoading && !editorCompatibilityError && editorCompatibility.length === 0}}" class="managed-plan__structured-detail">{{tr.finishStepsForCompatibility}}</text>
-          <block wx:for="{{editorCompatibility}}" wx:for-item="provider" wx:key="target">
-            <view class="managed-plan__compatibility-provider">
-              <view class="managed-plan__compatibility-heading">
+          <text wx:if="{{!editorCompatibilityLoading && !editorCompatibilityError && editorCompatibility.length > 0 && !editorSelectedCompatibility}}" class="managed-plan__structured-detail">{{tr.noDeliveryTarget}}</text>
+          <view wx:if="{{editorSelectedCompatibility}}" class="managed-plan__compatibility-provider managed-plan__compatibility-provider--{{editorSelectedCompatibility.tone}}">
+            <view class="managed-plan__compatibility-heading">
+              <text>{{editorSelectedCompatibility.title}}</text>
+            </view>
+            <text wx:if="{{editorSelectedCompatibility.detail}}" class="managed-plan__structured-detail">{{editorSelectedCompatibility.detail}}</text>
+            <block wx:for="{{editorSelectedCompatibility.reasons}}" wx:for-item="reason" wx:key="key">
+              <button
+                class="managed-plan__compatibility-reason {{reason.linked ? 'managed-plan__compatibility-reason--linked' : ''}}"
+                data-editor-id="{{reason.editorId}}"
+                disabled="{{editorSaving || !reason.linked}}"
+                bindtap="onSelectCompatibilityReason"
+              >
+                <text class="managed-plan__compatibility-reason-path ts-value">{{reason.path}}</text>
+                <text class="managed-plan__compatibility-reason-message">{{reason.message}}</text>
+              </button>
+            </block>
+          </view>
+          <view wx:if="{{editorOtherCompatibility.length > 0}}" class="managed-plan__compatibility-other">
+            <button class="managed-plan__compatibility-toggle" bindtap="onToggleOtherCompatibility">{{editorShowOtherCompatibility ? tr.hideOtherProviders : tr.compareOtherProviders}}</button>
+            <view wx:if="{{editorShowOtherCompatibility}}" class="managed-plan__compatibility-chips">
+              <view wx:for="{{editorOtherCompatibility}}" wx:for-item="provider" wx:key="target" class="managed-plan__compatibility-chip">
                 <text>{{provider.title}}</text>
                 <text class="managed-plan__compatibility-status managed-plan__compatibility-status--{{provider.tone}}">{{provider.status}}</text>
               </view>
-              <text wx:if="{{provider.detail}}" class="managed-plan__structured-detail">{{provider.detail}}</text>
-              <block wx:for="{{provider.reasons}}" wx:for-item="reason" wx:key="*this">
-                <text class="managed-plan__compatibility-reason">{{reason}}</text>
-              </block>
             </view>
-          </block>
+          </view>
         </view>
         <view class="managed-plan__editor-fields">
           <view class="managed-plan__field managed-plan__field--wide">
