@@ -638,6 +638,12 @@ def _build_schedule(
     )
     if generation_input.goal.target_event_date is not None:
         blocked_dates.add(generation_input.goal.target_event_date)
+    weekly_cap = min(
+        statistics.recent_typical_complete_week_minutes,
+        statistics.recent_maximum_complete_week_minutes,
+        session_limit * frequency,
+    )
+    normal_base_duration = min(session_limit, weekly_cap // frequency)
     weeks: list[GeneratedWeek] = []
     for index in range(4):
         week_start = generation_input.block_start + timedelta(days=index * 7)
@@ -660,31 +666,21 @@ def _build_schedule(
         )
         if selected_dates is None:
             return None
-        weekly_cap = min(
-            statistics.recent_typical_complete_week_minutes,
-            statistics.recent_maximum_complete_week_minutes,
-            session_limit * frequency,
-        )
         is_taper = _is_taper_week(
             generation_input,
             reassessment_date=week_start,
         )
-        if is_taper:
-            # V1 selects 50% inside its accepted 41–60% taper guardrail; this
-            # is not a universal taper prescription (see the accepted SDR).
-            weekly_cap //= 2
-        base_duration = min(session_limit, weekly_cap // frequency)
         longest_date = _longest_date(
             selected_dates,
             generation_input.constraints.preferred_longest_run_weekday,
         )
-        workouts = _week_workouts(
+        normal_workouts = _week_workouts(
             selected_dates,
-            base_duration=base_duration,
+            base_duration=normal_base_duration,
             longest_date=longest_date,
             quality_count=_quality_count(
                 frequency=frequency,
-                base_duration=base_duration,
+                base_duration=normal_base_duration,
                 session_limit=session_limit,
             ),
             week_index=index,
@@ -693,8 +689,45 @@ def _build_schedule(
             GeneratedWeek(
                 week_number=index + 1,
                 is_taper=is_taper,
-                workouts=workouts,
+                workouts=normal_workouts,
             )
+        )
+    normal_minutes = tuple(
+        sum(item.planned_duration_min for item in week.workouts)
+        for week in weeks
+        if not week.is_taper
+    )
+    if not normal_minutes:
+        return None
+    for index, week in enumerate(weeks):
+        if not week.is_taper:
+            continue
+        dates = tuple(item.scheduled_date for item in week.workouts)
+        longest_date = _longest_date(
+            dates,
+            generation_input.constraints.preferred_longest_run_weekday,
+        )
+        # V1 selects 50% inside its accepted 41–60% taper guardrail; this is
+        # not a universal taper prescription (see the accepted SDR).
+        workouts = _taper_workouts(
+            dates,
+            normal_workouts=week.workouts,
+            normal_schedule_minutes=normal_minutes + (
+                sum(item.planned_duration_min for item in week.workouts),
+            ),
+            frequency=frequency,
+            session_limit=session_limit,
+            normal_base_duration=normal_base_duration,
+            target_base_duration=(weekly_cap // 2) // frequency,
+            longest_date=longest_date,
+            week_index=index,
+        )
+        if workouts is None:
+            return None
+        weeks[index] = GeneratedWeek(
+            week_number=week.week_number,
+            is_taper=True,
+            workouts=workouts,
         )
     return tuple(weeks)
 
@@ -765,10 +798,12 @@ def _week_workouts(
     longest_date: date,
     quality_count: int,
     week_index: int,
+    durations_by_date: Mapping[date, int] | None = None,
 ) -> tuple[GeneratedWorkout, ...]:
     quality_dates = _quality_dates(dates, longest_date, quality_count)
     workouts: list[GeneratedWorkout] = []
     for position, scheduled_date in enumerate(sorted(dates)):
+        duration = (durations_by_date or {}).get(scheduled_date, base_duration)
         if scheduled_date in quality_dates:
             template_id = (
                 "outdoor-5k-controlled-quality-v1"
@@ -782,7 +817,7 @@ def _week_workouts(
                     template_id="outdoor-5k-longest-easy-v1",
                     scheduled_date=scheduled_date,
                     workout_type="longest_easy",
-                    duration=base_duration,
+                    duration=duration,
                 )
             )
         else:
@@ -791,10 +826,88 @@ def _week_workouts(
                     template_id="outdoor-5k-easy-v1",
                     scheduled_date=scheduled_date,
                     workout_type="easy",
-                    duration=base_duration,
+                    duration=duration,
                 )
             )
     return tuple(workouts)
+
+
+def _taper_workouts(
+    dates: Sequence[date],
+    *,
+    normal_workouts: Sequence[GeneratedWorkout],
+    normal_schedule_minutes: Sequence[int],
+    frequency: int,
+    session_limit: int,
+    normal_base_duration: int,
+    target_base_duration: int,
+    longest_date: date,
+    week_index: int,
+) -> tuple[GeneratedWorkout, ...] | None:
+    """Build the nearest integer taper schedule within the accepted volume range."""
+    own_normal_minutes = sum(
+        item.planned_duration_min for item in normal_workouts
+    )
+    candidates: list[tuple[int, int, tuple[GeneratedWorkout, ...]]] = []
+    for base_duration in range(1, normal_base_duration + 1):
+        workouts = _week_workouts(
+            dates,
+            base_duration=base_duration,
+            longest_date=longest_date,
+            quality_count=_quality_count(
+                frequency=frequency,
+                base_duration=base_duration,
+                session_limit=session_limit,
+            ),
+            week_index=week_index,
+        )
+        taper_minutes = sum(item.planned_duration_min for item in workouts)
+        if all(
+            _is_taper_volume_within_bounds(taper_minutes, volume)
+            for volume in normal_schedule_minutes
+        ):
+            candidates.append((base_duration, taper_minutes, workouts))
+    if candidates:
+        return min(
+            candidates,
+            key=lambda candidate: (
+                abs(candidate[0] - target_base_duration),
+                abs(2 * candidate[1] - own_normal_minutes),
+                candidate[0],
+            ),
+        )[2]
+
+    minimum_minutes = max(
+        (41 * volume + 99) // 100 for volume in normal_schedule_minutes
+    )
+    maximum_minutes = min(
+        (60 * volume) // 100 for volume in normal_schedule_minutes
+    )
+    target_minutes = min(
+        max((own_normal_minutes + 1) // 2, minimum_minutes),
+        maximum_minutes,
+    )
+    if not (
+        minimum_minutes <= target_minutes <= maximum_minutes
+        and frequency <= target_minutes <= frequency * normal_base_duration
+    ):
+        return None
+    base_duration, extra_minutes = divmod(target_minutes, frequency)
+    duration_dates = (longest_date,) + tuple(
+        item for item in sorted(dates) if item != longest_date
+    )
+    durations_by_date = {
+        scheduled_date: base_duration + int(index < extra_minutes)
+        for index, scheduled_date in enumerate(duration_dates)
+    }
+    return _week_workouts(
+        dates,
+        base_duration=base_duration,
+        longest_date=longest_date,
+        quality_count=0,
+        week_index=week_index,
+        durations_by_date=durations_by_date,
+    )
 
 
 def _quality_dates(
@@ -858,6 +971,17 @@ def _quality_workout(template_id: str, scheduled_date: date) -> GeneratedWorkout
     )
 
 
+def _is_taper_volume_within_bounds(
+    taper_minutes: int,
+    normal_minutes: int,
+) -> bool:
+    """Return whether a taper's integer volume is within the accepted range."""
+    return (
+        normal_minutes > 0
+        and 41 * normal_minutes <= 100 * taper_minutes <= 60 * normal_minutes
+    )
+
+
 def _validate_schedule(
     weeks: Sequence[GeneratedWeek],
     *,
@@ -868,6 +992,11 @@ def _validate_schedule(
         len(generation_input.constraints.available_weekdays),
         statistics.recent_modal_running_frequency,
         5,
+    )
+    normal_schedule_minutes = tuple(
+        sum(_steps_duration(item.steps) for item in week.workouts)
+        for week in weeks
+        if not week.is_taper
     )
     for week in weeks:
         workouts = week.workouts
@@ -891,13 +1020,20 @@ def _validate_schedule(
             statistics.recent_typical_complete_week_minutes,
             statistics.recent_maximum_complete_week_minutes,
         )
-        if week.is_taper:
-            cap //= 2
         if total_minutes > cap:
             return (
                 "no_schedule_within_envelope",
                 "weekly_and_session_duration_bounds",
                 "The generated week exceeds the history-anchored minute limit.",
+            )
+        if week.is_taper and not all(
+            _is_taper_volume_within_bounds(total_minutes, normal_minutes)
+            for normal_minutes in normal_schedule_minutes
+        ):
+            return (
+                "no_schedule_within_envelope",
+                "taper_volume_reduction",
+                "Generated taper volume is outside the accepted 41–60% range.",
             )
         if any(
             _steps_duration(item.steps)

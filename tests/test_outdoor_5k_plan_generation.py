@@ -363,6 +363,42 @@ def test_three_day_180_history_taper_is_half_scale_and_excludes_target_race() ->
     }
 
 
+def test_three_by_five_history_taper_stays_within_volume_guardrail() -> None:
+    """Integer taper rounding keeps a valid low-volume plan within 41–60%."""
+    base = _input()
+    block_start = date(2026, 8, 17)
+    result = generate_outdoor_5k_plan(
+        replace(
+            base,
+            block_start=block_start,
+            history=_three_run_history(base.athlete_today, duration_min=5),
+            goal=replace(
+                base.goal,
+                target_event_date=block_start + timedelta(days=10),
+            ),
+            constraints=replace(
+                base.constraints,
+                maximum_session_duration_min=5,
+            ),
+        )
+    )
+
+    assert result.code == "ready"
+    assert result.plan is not None
+    taper_week, normal_week = result.plan.weeks[:2]
+    taper_minutes = sum(
+        workout.planned_duration_min for workout in taper_week.workouts
+    )
+    normal_minutes = sum(
+        workout.planned_duration_min for workout in normal_week.workouts
+    )
+
+    assert taper_week.is_taper is True
+    assert normal_week.is_taper is False
+    assert normal_minutes == 15
+    assert 0.41 <= taper_minutes / normal_minutes <= 0.60
+
+
 def test_stale_or_missing_baseline_is_a_typed_no_plan_outcome() -> None:
     """Baseline failure never extrapolates a performance-shaped plan."""
     result = generate_outdoor_5k_plan(_input(baseline_current=False))
