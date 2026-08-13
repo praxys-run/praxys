@@ -13,6 +13,8 @@ import {
   ChevronRight,
   CircleAlert,
   CloudUpload,
+  GitFork,
+  LockKeyhole,
   LoaderCircle,
   Pause,
   Pencil,
@@ -532,6 +534,7 @@ function WorkoutRow({
   error,
   onDeliver,
   onEdit,
+  onDuplicate,
   onReview,
 }: {
   workout: PlannedWorkout;
@@ -544,6 +547,7 @@ function WorkoutRow({
   error?: string;
   onDeliver: () => void;
   onEdit?: () => void;
+  onDuplicate?: () => void;
   onReview: () => void;
 }) {
   const { t } = useLingui();
@@ -554,6 +558,34 @@ function WorkoutRow({
     workout.start_time,
   );
   const color = getTypeColor(workout.workout_type);
+  const activity = workout.activity_type
+    ?? (isRestWorkoutType(workout.workout_type) ? 'rest' : 'running');
+  const activityLabels: Record<string, string> = {
+    running: t`Road running`,
+    trail_running: t`Trail running`,
+    cycling: t`Cycling`,
+    walking: t`Walking`,
+    hiking: t`Hiking`,
+    strength: t`Strength`,
+    mobility: t`Mobility`,
+    cross_training: t`Cross-training`,
+    rest: t`Rest`,
+    other: t`Other`,
+  };
+  const purposeLabels: Record<string, string> = {
+    easy: t`Easy`,
+    recovery: t`Recovery`,
+    long_run: t`Long run`,
+    tempo: t`Tempo`,
+    threshold: t`Threshold`,
+    interval: t`Intervals`,
+    hill_repeat: t`Hill repeats`,
+    testing: t`Testing`,
+    rest: t`Rest`,
+  };
+  const purpose = purposeLabels[workout.workout_type]
+    ?? formatType(workout.workout_type);
+  const sourceOwned = !isPraxysOwned(workout);
   const details: string[] = [];
   if (workout.duration_min != null) details.push(`${Math.round(workout.duration_min)}m`);
   if (workout.distance_km != null) details.push(`${workout.distance_km}km`);
@@ -605,8 +637,17 @@ function WorkoutRow({
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <span className={`inline-flex rounded px-2 py-0.5 text-xs font-semibold ${color.bg} ${color.text}`}>
-            {formatType(workout.workout_type)}
+            {purpose}
           </span>
+          <span className="text-[11px] font-medium text-muted-foreground">
+            {activityLabels[activity] ?? formatType(activity)}
+          </span>
+          {sourceOwned && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+              <LockKeyhole className="h-3 w-3" aria-hidden="true" />
+              <Trans>Source-owned</Trans>
+            </span>
+          )}
           {details.length > 0 && (
             <span className="truncate font-data text-xs text-muted-foreground">
               {details.join(' · ')}
@@ -648,6 +689,19 @@ function WorkoutRow({
           >
             <Pencil className="h-3 w-3" aria-hidden="true" />
             <Trans>Edit</Trans>
+          </Button>
+        )}
+        {onDuplicate && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            disabled={editDisabled}
+            onClick={onDuplicate}
+            className="rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <GitFork className="h-3 w-3" aria-hidden="true" />
+            <Trans>Duplicate</Trans>
           </Button>
         )}
       </div>
@@ -962,7 +1016,9 @@ export default function UpcomingPlanCard() {
   const [undoingAdjustment, setUndoingAdjustment] = useState<string | null>(null);
   const [adjustmentError, setAdjustmentError] = useState<string | null>(null);
   const [editor, setEditor] = useState<
-    { mode: 'create' } | { mode: 'edit'; workout: PlannedWorkout } | null
+    | { mode: 'create'; seedWorkout?: PlannedWorkout }
+    | { mode: 'edit'; workout: PlannedWorkout }
+    | null
   >(null);
   const [editorWorking, setEditorWorking] = useState(false);
   const [editorError, setEditorError] = useState<string | null>(null);
@@ -1124,6 +1180,24 @@ export default function UpcomingPlanCard() {
       );
       return;
     }
+    if (mutationError.code === 'PLAN_WORKOUT_STRUCTURE_INVALID') {
+      setEditorError(
+        t`Review the highlighted step fields. Every typed target and termination must be complete.`,
+      );
+      return;
+    }
+    if (mutationError.code === 'PLAN_STRUCTURE_PROJECTION_CONFLICT') {
+      setEditorError(
+        t`This structure is authoritative. Edit its steps instead of changing its flat summary.`,
+      );
+      return;
+    }
+    if (mutationError.code === 'PLAN_WORKOUT_STRUCTURE_UNSUPPORTED') {
+      setEditorError(
+        t`This imported structure cannot be edited safely. Duplicate it into a supported Praxys workout first.`,
+      );
+      return;
+    }
     setEditorError(
       actionError instanceof Error
         ? actionError.message
@@ -1131,7 +1205,11 @@ export default function UpcomingPlanCard() {
     );
   };
 
-  const saveWorkout = async (fields: PlanWorkoutWriteFields) => {
+  const saveWorkout = async (
+    fields:
+      | PlanWorkoutWriteFields
+      | Omit<PlanWorkoutUpdateRequest, 'expected_version'>,
+  ) => {
     setEditorWorking(true);
     setEditorError(null);
     setMutationNotice(null);
@@ -1141,10 +1219,28 @@ export default function UpcomingPlanCard() {
         if (!workout.canonical_id || !workout.workout_version) {
           throw new Error(t`Refresh the plan before editing this workout.`);
         }
-        const payload: PlanWorkoutUpdateRequest = {
-          ...fields,
+        const {
+          activity_type: activityType,
+          workout_structure_version: structureVersion,
+          workout_structure: structure,
+          ...updateFields
+        } = fields;
+        const updateBase = {
+          ...updateFields,
+          ...(activityType == null
+            ? {}
+            : { activity_type: activityType }),
           expected_version: workout.workout_version,
         };
+        const payload: PlanWorkoutUpdateRequest = (
+          structureVersion === 'v1' && structure != null
+            ? {
+                ...updateBase,
+                workout_structure_version: structureVersion,
+                workout_structure: structure,
+              }
+            : updateBase
+        );
         const result = await requestPlanMutation<PlanWorkoutMutationResponse>(
           `/api/plan/workouts/${encodeURIComponent(workout.canonical_id)}`,
           {
@@ -1196,6 +1292,7 @@ export default function UpcomingPlanCard() {
           body: JSON.stringify({
             expected_version: workout.workout_version,
             date: workoutDate,
+            activity_type: 'rest',
             workout_type: 'rest',
             planned_duration_min: null,
             planned_distance_km: null,
@@ -1294,14 +1391,24 @@ export default function UpcomingPlanCard() {
     ? personalContextEvidenceIds(latestAdjustment.evidence)
     : [];
   const editorWorkout = editor?.mode === 'edit' ? editor.workout : null;
+  const editorSeedWorkout = editor?.mode === 'create'
+    ? editor.seedWorkout ?? null
+    : null;
   const minimumDate = data.management?.minimum_date ?? localDay;
   const defaultEditorDate = data.window.start < minimumDate
     ? minimumDate
     : data.window.start;
-  const editorDialog = (
+  const editorKey = editor?.mode === 'edit'
+    ? `edit:${workoutKey(editor.workout)}:${editor.workout.workout_version ?? ''}`
+    : editor?.seedWorkout
+      ? `fork:${workoutKey(editor.seedWorkout)}`
+      : `create:${defaultEditorDate}`;
+  const editorDialog = editor ? (
     <WorkoutPlanEditor
-      open={editor != null}
+      key={editorKey}
+      open
       workout={editorWorkout}
+      seedWorkout={editorSeedWorkout}
       minimumDate={minimumDate}
       defaultDate={defaultEditorDate}
       working={editorWorking}
@@ -1316,7 +1423,7 @@ export default function UpcomingPlanCard() {
       onConvertToRest={(date) => void convertWorkoutToRest(date)}
       onDelete={() => void deleteWorkout()}
     />
-  );
+  ) : null;
   const header = (
     <>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -1602,6 +1709,15 @@ export default function UpcomingPlanCard() {
                     setEditor({ mode: 'edit', workout });
                   }
                 : undefined
+              }
+              onDuplicate={
+                mutationAvailable && !isPraxysOwned(workout)
+                  ? () => {
+                      setEditorError(null);
+                      setMutationNotice(null);
+                      setEditor({ mode: 'create', seedWorkout: workout });
+                    }
+                  : undefined
               }
               onReview={() => review(workout)}
             />

@@ -182,7 +182,7 @@ def test_fetch_training_plan_preserves_repeat_structure_and_trail_activity(
 
 
 @patch("sync.stryd_sync.requests.get")
-def test_fetch_training_plan_marks_unrepresentable_provider_structure(
+def test_fetch_training_plan_normalizes_distance_termination(
     mock_get,
 ):
     workout = {
@@ -211,9 +211,76 @@ def test_fetch_training_plan_marks_unrepresentable_provider_structure(
 
     row = fetch_training_plan_api("user-1", "tok")[0]
 
-    assert row["workout_structure_status"] == "unsupported"
-    assert "workout_structure_version" not in row
-    assert "workout_structure" not in row
+    assert row["workout_structure_status"] == "supported"
+    repeat = row["workout_structure"]["steps"][0]
+    assert repeat["repetitions"] == 2
+    assert repeat["steps"][0]["termination"] == {
+        "type": "distance",
+        "meters": 1609,
+    }
+
+
+@patch("sync.stryd_sync.requests.get")
+def test_fetch_training_plan_parses_no_target_and_rpe(mock_get):
+    workout = {
+        "deleted": False,
+        "date": "2026-04-04T02:00:00Z",
+        "workout": {
+            "title": "Mixed targets",
+            "type": "intervals",
+            "blocks": [{
+                "repeat": 1,
+                "segments": [
+                    {
+                        "duration_type": "time",
+                        "duration_time": {"minute": 2},
+                        "intensity_class": "rest",
+                        "intensity_type": "",
+                        "intensity_percent": {
+                            "min": 0,
+                            "max": 0,
+                            "value": 0,
+                        },
+                    },
+                    {
+                        "duration_type": "time",
+                        "duration_time": {"minute": 3},
+                        "intensity_class": "work",
+                        "intensity_type": "rpe",
+                        "rpe_selected": 7,
+                        "intensity_percent": {
+                            "min": 0,
+                            "max": 0,
+                            "value": 0,
+                        },
+                    },
+                ],
+            }],
+        },
+    }
+    mock_get.return_value = MagicMock(
+        json=MagicMock(return_value={"workouts": [workout]}),
+        raise_for_status=MagicMock(),
+    )
+
+    row = fetch_training_plan_api("user-1", "tok")[0]
+
+    assert row["workout_structure_status"] == "supported"
+    rest, work = row["workout_structure"]["steps"]
+    assert rest["phase"] == "rest"
+    assert rest["target"] == {
+        "metric": "none",
+        "unit": "none",
+        "reference": "none",
+    }
+    assert work["phase"] == "work"
+    assert work["target"] == {
+        "metric": "rpe",
+        "unit": "scale_10",
+        "reference": "perceived_exertion",
+        "min": 7.0,
+        "max": 7.0,
+    }
 
 
 @patch("sync.stryd_sync.requests.get")

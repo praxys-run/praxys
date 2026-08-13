@@ -6,6 +6,7 @@ and workout upload/delete via the Stryd calendar and activity APIs.
 import hashlib
 import json
 import logging
+import math
 import re
 import uuid
 from datetime import date, datetime, timedelta, timezone
@@ -18,6 +19,7 @@ from api.plan_workout_structure import (
     StructuredWorkoutStepV1,
     StructuredWorkoutV1,
     inspect_workout_structure,
+    project_workout_provider_compatibility,
 )
 
 logger = logging.getLogger(__name__)
@@ -404,59 +406,162 @@ def _stryd_integer(
     return int(candidate)
 
 
+def _stryd_number(value: object) -> float:
+    """Return one finite numeric Stryd field."""
+    if isinstance(value, bool):
+        raise ValueError("Stryd structured value is not numeric")
+    candidate = float(value)
+    if not math.isfinite(candidate):
+        raise ValueError("Stryd structured value is not finite")
+    return candidate
+
+
+def _stryd_distance_meters(
+    value: object,
+    unit: object,
+) -> int:
+    """Normalize a positive Stryd distance to canonical whole metres."""
+    distance = _stryd_number(value)
+    normalized_unit = str(unit or "").strip().casefold()
+    factors = {
+        "m": 1.0,
+        "meter": 1.0,
+        "meters": 1.0,
+        "km": 1000.0,
+        "kilometer": 1000.0,
+        "kilometers": 1000.0,
+        "mi": 1609.344,
+        "mile": 1609.344,
+        "miles": 1609.344,
+    }
+    factor = factors.get(normalized_unit)
+    if factor is None or distance <= 0:
+        raise ValueError("Stryd distance termination is invalid")
+    meters = round(distance * factor)
+    if meters < 1:
+        raise ValueError("Stryd distance termination is invalid")
+    return meters
+
+
+def _stryd_target_from_segment(
+    segment: Mapping[str, Any],
+) -> dict[str, object]:
+    """Translate one current PowerCenter intensity shape."""
+    raw_intensity_type = segment.get("intensity_type")
+    intensity_type = (
+        "percentage"
+        if raw_intensity_type is None
+        else str(raw_intensity_type).strip().casefold()
+    )
+    if intensity_type == "":
+        return {
+            "metric": "none",
+            "unit": "none",
+            "reference": "none",
+        }
+    if intensity_type == "rpe":
+        rpe = _stryd_integer(segment.get("rpe_selected"))
+        if not 1 <= rpe <= 10:
+            raise ValueError("Stryd RPE target is invalid")
+        return {
+            "metric": "rpe",
+            "unit": "scale_10",
+            "reference": "perceived_exertion",
+            "min": rpe,
+            "max": rpe,
+        }
+    if intensity_type != "percentage":
+        raise ValueError("Stryd intensity cannot be represented safely")
+
+    intensity_percent = segment.get("intensity_percent")
+    if not isinstance(intensity_percent, Mapping):
+        raise ValueError("Stryd intensity cannot be represented safely")
+    raw_minimum = intensity_percent.get("min")
+    raw_maximum = intensity_percent.get("max")
+    raw_value = intensity_percent.get("value")
+    has_minimum = raw_minimum not in (None, "")
+    has_maximum = raw_maximum not in (None, "")
+    minimum = _stryd_number(raw_minimum) if has_minimum else None
+    maximum = _stryd_number(raw_maximum) if has_maximum else None
+
+    target: dict[str, object] = {
+        "metric": "power",
+        "unit": "percent_cp",
+        "reference": "critical_power",
+    }
+    if (
+        minimum == 0
+        and maximum == 0
+        and raw_value not in (None, "")
+    ):
+        value = _stryd_number(raw_value)
+        target["min"] = value
+        target["max"] = value
+        return target
+    if minimum is not None:
+        target["min"] = minimum
+    if maximum is not None:
+        target["max"] = maximum
+    if len(target) == 3:
+        if raw_value in (None, ""):
+            raise ValueError("Stryd intensity bounds are missing")
+        value = _stryd_number(raw_value)
+        target["min"] = value
+        target["max"] = value
+    return target
+
+
 def _stryd_step_from_segment(
     segment: Mapping[str, Any],
 ) -> StructuredWorkoutStepV1:
     duration_type = str(
         segment.get("duration_type") or "time"
     ).strip().casefold()
-    duration_time = segment.get("duration_time")
-    if duration_type != "time" or not isinstance(duration_time, Mapping):
+    if duration_type == "time":
+        duration_time = segment.get("duration_time")
+        if not isinstance(duration_time, Mapping):
+            raise ValueError("Stryd termination cannot be represented safely")
+        if float(segment.get("duration_distance") or 0) != 0:
+            raise ValueError(
+                "Stryd distance termination cannot be represented safely"
+            )
+        hours = _stryd_integer(duration_time.get("hour"), default=0)
+        minutes = _stryd_integer(duration_time.get("minute"), default=0)
+        seconds = _stryd_integer(duration_time.get("second"), default=0)
+        if hours < 0 or not 0 <= minutes < 60 or not 0 <= seconds < 60:
+            raise ValueError("Stryd time termination is invalid")
+        total_seconds = hours * 3600 + minutes * 60 + seconds
+        termination: dict[str, object] = {
+            "type": "time",
+            "seconds": total_seconds,
+        }
+    elif duration_type == "distance":
+        termination = {
+            "type": "distance",
+            "meters": _stryd_distance_meters(
+                segment.get("duration_distance"),
+                segment.get("distance_unit_selected"),
+            ),
+        }
+    else:
         raise ValueError("Stryd termination cannot be represented safely")
-    if float(segment.get("duration_distance") or 0) != 0:
-        raise ValueError("Stryd distance termination cannot be represented safely")
-    hours = _stryd_integer(duration_time.get("hour"), default=0)
-    minutes = _stryd_integer(duration_time.get("minute"), default=0)
-    seconds = _stryd_integer(duration_time.get("second"), default=0)
-    if hours < 0 or not 0 <= minutes < 60 or not 0 <= seconds < 60:
-        raise ValueError("Stryd time termination is invalid")
-    total_seconds = hours * 3600 + minutes * 60 + seconds
 
+    target = _stryd_target_from_segment(segment)
     phase_map = {
         "warmup": "warmup",
         "work": "work",
-        "rest": "recovery",
         "recovery": "recovery",
         "cooldown": "cooldown",
     }
     intensity_class = str(
         segment.get("intensity_class") or ""
     ).strip().casefold()
-    phase = phase_map.get(intensity_class)
+    if intensity_class == "rest":
+        phase = "rest" if target["metric"] == "none" else "recovery"
+    else:
+        phase = phase_map.get(intensity_class)
     if phase is None:
         raise ValueError("Stryd phase cannot be represented safely")
-    intensity_type = str(
-        segment.get("intensity_type") or "percentage"
-    ).strip().casefold()
-    intensity_percent = segment.get("intensity_percent")
-    if (
-        intensity_type != "percentage"
-        or not isinstance(intensity_percent, Mapping)
-    ):
-        raise ValueError("Stryd intensity cannot be represented safely")
-    minimum = intensity_percent.get("min")
-    maximum = intensity_percent.get("max")
-    target: dict[str, object] = {
-        "metric": "power",
-        "unit": "percent_cp",
-        "reference": "critical_power",
-    }
-    if minimum not in (None, ""):
-        target["min"] = float(minimum)
-    if maximum not in (None, ""):
-        target["max"] = float(maximum)
-    if len(target) == 3:
-        raise ValueError("Stryd intensity bounds are missing")
     if bool(segment.get("flexible")):
         raise ValueError("Flexible Stryd segments are unsupported")
     for field in ("incline", "grade", "pdc_target"):
@@ -465,10 +570,7 @@ def _stryd_step_from_segment(
     return StructuredWorkoutStepV1.model_validate({
         "type": "step",
         "phase": phase,
-        "termination": {
-            "type": "time",
-            "seconds": total_seconds,
-        },
+        "termination": termination,
         "target": target,
     })
 
@@ -956,6 +1058,7 @@ def _phase_to_stryd_intensity(phase: str) -> str:
         "warmup": "warmup",
         "work": "work",
         "recovery": "rest",
+        "rest": "rest",
         "cooldown": "cooldown",
     }
     if phase not in mapping:
@@ -965,33 +1068,115 @@ def _phase_to_stryd_intensity(phase: str) -> str:
     return mapping[phase]
 
 
-def _structured_target_percent(
+def _structured_target_fields(
     step: StructuredWorkoutStepV1,
     cp_watts: float,
-) -> tuple[int, int]:
+) -> dict[str, object]:
     target = step.target
     combo = (target.metric, target.unit, target.reference)
-    if combo == ("power", "percent_cp", "critical_power"):
-        minimum = target.min if target.min is not None else target.max
-        maximum = target.max if target.max is not None else target.min
-        assert minimum is not None
-        assert maximum is not None
-        return round(minimum), round(maximum)
+    if combo == ("none", "none", "none"):
+        return {
+            "intensity_type": "",
+            "intensity_percent": {"min": 0, "max": 0, "value": 0},
+            "rpe_selected": 1,
+        }
+    if combo == ("rpe", "scale_10", "perceived_exertion"):
+        if (
+            target.min is None
+            or target.max is None
+            or target.min != target.max
+            or not float(target.min).is_integer()
+            or not 1 <= target.min <= 10
+        ):
+            raise ValueError(
+                "Stryd structured delivery requires one exact whole-number RPE"
+            )
+        return {
+            "intensity_type": "rpe",
+            "intensity_percent": {"min": 0, "max": 0, "value": 0},
+            "rpe_selected": int(target.min),
+        }
+    if combo not in {
+        ("power", "percent_cp", "critical_power"),
+        ("power", "watts", "absolute"),
+    }:
+        raise ValueError(
+            "Stryd structured delivery cannot safely encode "
+            "the requested intensity target"
+        )
+    if target.min is None or target.max is None:
+        raise ValueError(
+            "Stryd structured delivery requires both target bounds"
+        )
+    minimum = float(target.min)
+    maximum = float(target.max)
     if combo == ("power", "watts", "absolute"):
         if cp_watts <= 0:
             raise ValueError(
-                "Stryd structured delivery needs critical power to encode watt targets"
+                "Stryd structured delivery needs critical power to encode "
+                "watt targets"
             )
-        minimum = target.min if target.min is not None else target.max
-        maximum = target.max if target.max is not None else target.min
-        assert minimum is not None
-        assert maximum is not None
-        return (
-            round(float(minimum) / cp_watts * 100),
-            round(float(maximum) / cp_watts * 100),
+        minimum = minimum / cp_watts * 100
+        maximum = maximum / cp_watts * 100
+    if minimum < 0 or maximum > 500:
+        raise ValueError(
+            "Stryd structured delivery requires power targets between "
+            "0 and 500% CP"
         )
+    if minimum == maximum:
+        intensity_percent = {
+            "min": 0,
+            "max": 0,
+            "value": minimum,
+        }
+    else:
+        intensity_percent = {
+            "min": minimum,
+            "max": maximum,
+            "value": math.floor((minimum + maximum) / 2 + 0.5),
+        }
+    return {
+        "intensity_type": "percentage",
+        "intensity_percent": intensity_percent,
+        "rpe_selected": 1,
+    }
+
+
+def _structured_termination_fields(
+    step: StructuredWorkoutStepV1,
+) -> dict[str, object]:
+    """Translate one canonical termination to PowerCenter fields."""
+    if step.termination.type == "time":
+        assert step.termination.seconds is not None
+        hours, remainder = divmod(step.termination.seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return {
+            "duration_type": "time",
+            "duration_time": {
+                "hour": hours,
+                "minute": minutes,
+                "second": seconds,
+            },
+            "distance_unit_selected": "km",
+            "duration_distance": 0,
+        }
+    if step.termination.type == "distance":
+        assert step.termination.meters is not None
+        if step.termination.meters % 1000 == 0:
+            distance = step.termination.meters // 1000
+            unit = "km"
+        else:
+            distance = step.termination.meters
+            unit = "meter"
+        return {
+            "duration_type": "distance",
+            "duration_time": {"hour": 0, "minute": 0, "second": 0},
+            "distance_unit_selected": unit,
+            "duration_distance": distance,
+        }
     raise ValueError(
-        "Stryd structured delivery cannot safely encode non-power intensity targets"
+        "Stryd structured delivery cannot safely encode "
+        "the requested termination"
     )
 
 
@@ -999,17 +1184,19 @@ def _structured_segment(
     step: StructuredWorkoutStepV1,
     cp_watts: float,
 ) -> dict:
-    if step.termination.type != "time" or step.termination.seconds is None:
-        raise ValueError(
-            "Stryd structured delivery cannot safely encode non-time terminations"
-        )
-    cp_min, cp_max = _structured_target_percent(step, cp_watts)
-    return _make_segment_seconds(
-        _phase_to_stryd_intensity(step.phase),
-        step.termination.seconds,
-        cp_min,
-        cp_max,
-    )
+    return {
+        "desc": "",
+        "desc_no_cp": "",
+        **_structured_termination_fields(step),
+        "intensity_class": _phase_to_stryd_intensity(step.phase),
+        **_structured_target_fields(step, cp_watts),
+        "flexible": False,
+        "incline": 0,
+        "grade": 0,
+        "pdc_target": 0,
+        "zone_selected": 0,
+        "uuid": str(uuid.uuid4()),
+    }
 
 
 def _structured_blocks_v1(
@@ -1072,6 +1259,66 @@ def build_workout_blocks(workout: dict, cp_watts: float) -> list[dict]:
         ),
         workout_structure=workout.get("workout_structure"),
     )
+    compatibility = next(
+        item
+        for item in project_workout_provider_compatibility(
+            activity_type=workout.get("activity_type"),
+            workout_structure_version=workout.get(
+                "workout_structure_version"
+            ),
+            workout_structure=workout.get("workout_structure"),
+            planned_duration_min=workout.get("planned_duration_min"),
+            planned_distance_km=workout.get("planned_distance_km"),
+            target_power_min=workout.get("target_power_min"),
+            target_power_max=workout.get("target_power_max"),
+            target_hr_min=workout.get("target_hr_min"),
+            target_hr_max=workout.get("target_hr_max"),
+            target_pace_min=workout.get("target_pace_min"),
+            target_pace_max=workout.get("target_pace_max"),
+        )
+        if item["target"] == "stryd"
+    )
+    if not compatibility["compatible"]:
+        reason_codes = {
+            reason["code"] for reason in compatibility["reasons"]
+        }
+        if "wording_not_supported" in reason_codes:
+            raise ValueError(
+                "Stryd structured delivery cannot safely encode "
+                "user-defined wording"
+            )
+        if "phase_not_supported" in reason_codes:
+            raise ValueError(
+                "Stryd structured delivery cannot safely encode "
+                "the requested phase"
+            )
+        if "termination_not_supported" in reason_codes:
+            raise ValueError(
+                "Stryd structured delivery cannot safely encode "
+                "the requested termination"
+            )
+        if "target_not_supported" in reason_codes:
+            raise ValueError(
+                "Stryd structured delivery cannot safely encode "
+                "the requested intensity target"
+            )
+        if "target_precision_not_supported" in reason_codes:
+            raise ValueError(
+                "Stryd structured delivery requires whole-number %CP bounds"
+            )
+        if "empty_structure_not_supported" in reason_codes:
+            raise ValueError(
+                "Stryd structured delivery cannot encode an empty workout"
+            )
+        if "flat_workout_not_lossless" in reason_codes:
+            raise ValueError(
+                "Stryd flat delivery cannot safely encode this workout "
+                "without a positive duration and a power range"
+            )
+        raise ValueError(
+            "Stryd structured delivery rejected an invalid or unsupported "
+            "workout structure"
+        )
     if inspection.state == "supported":
         assert inspection.structure is not None
         blocks = _structured_blocks_v1(

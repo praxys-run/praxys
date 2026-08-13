@@ -25,12 +25,16 @@ test('web plan management uses canonical identity and version fences', async () 
   assert.match(editor, /Saving will reschedule this workout/);
   assert.match(editor, /Heart-rate minimum/);
   assert.match(editor, /Pace maximum/);
-  assert.match(
-    editor,
-    /id="plan-workout-duration"[\s\S]*?step="any"/,
-  );
+  assert.match(editor, /id: 'plan-workout-duration'/);
+  assert.match(editor, /step: 'any'/);
   assert.match(editor, /Convert to rest/);
   assert.match(editor, /Delete this workout\?/);
+  assert.match(editor, /workout_structure_version: 'v1'/);
+  assert.match(editor, /Convert to structured steps/);
+  assert.match(editor, /\/api\/plan\/workouts\/compatibility/);
+  assert.match(plan, /seedWorkout/);
+  assert.match(plan, /trail_running: t`Trail running`/);
+  assert.match(plan, /purposeLabels/);
 });
 
 test('miniapp exposes the same canonical workout operations', async () => {

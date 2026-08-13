@@ -33,9 +33,11 @@ from api.deps import get_dashboard_data
 from api.plan_workout_structure import (
     PlanActivityType,
     StructuredWorkoutV1,
+    WorkoutProviderCompatibility,
     WorkoutStructureVersion,
     inspect_workout_structure,
     normalize_activity_type,
+    project_workout_provider_compatibility,
     synthesize_v1_structure_from_flat,
     validate_structured_workout,
 )
@@ -124,6 +126,20 @@ class PlanWorkoutCreate(PlanWorkout):
     """Create one future Praxys-owned canonical workout."""
 
     date: PlanDate
+
+
+class PlanWorkoutCompatibilityRequest(PlanWorkout):
+    """Validate an unsaved workout against provider content capabilities."""
+
+    date: PlanDate
+
+
+class PlanWorkoutCompatibilityResponse(BaseModel):
+    """Typed, content-only compatibility preview for the portable workout."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    providers: list[WorkoutProviderCompatibility]
 
 
 class PlanWorkoutUpdate(BaseModel):
@@ -228,6 +244,10 @@ def _row_to_response(
     revision_id: str | None = None,
     delivery: dict | None = None,
 ) -> dict:
+    structure_inspection = inspect_workout_structure(
+        workout_structure_version=plan.workout_structure_version,
+        workout_structure=plan.workout_structure,
+    )
     response = {
         "id": plan.id,
         "canonical_id": plan.canonical_id,
@@ -245,6 +265,7 @@ def _row_to_response(
         "workout_description": plan.workout_description or "",
         "workout_structure_version": plan.workout_structure_version,
         "workout_structure": plan.workout_structure,
+        "workout_structure_status": structure_inspection.state,
         # Deprecated compatibility value for older cached clients.
         "source": LEGACY_PRAXYS_PLAN_SOURCE,
         "owner": PRAXYS_PLAN_SOURCE,
@@ -1084,6 +1105,52 @@ def delete_plan_day(
         "date": plan_date,
         "revision_id": revision.id,
         "delivery": delivery,
+    }
+
+
+@router.post(
+    "/plan/workouts/compatibility",
+    response_model=PlanWorkoutCompatibilityResponse,
+)
+def preview_plan_workout_compatibility(
+    workout: PlanWorkoutCompatibilityRequest,
+    user_id: str = Depends(get_data_user_id),
+) -> dict[str, object]:
+    """Preview lossless provider compatibility without saving or delivering.
+
+    The endpoint intentionally has no database mutation, provider lookup, or
+    credential access. It validates the same canonical payload shape accepted
+    by workout CRUD, then returns content-only reasons that clients can
+    localize before a delivery is ever requested.
+    """
+    del user_id
+    fields = workout.model_dump()
+    candidate = TrainingPlan(
+        source=PRAXYS_PLAN_WRITE_SOURCE,
+        workout_origin="manual",
+    )
+    _apply_workout_fields(candidate, fields)
+    _ensure_authoritative_structure(
+        candidate,
+        supplied_fields=fields,
+        previous_snapshot=None,
+    )
+    _normalize_rest_plan(candidate)
+    _validate_plan_targets(candidate)
+    return {
+        "providers": project_workout_provider_compatibility(
+            activity_type=candidate.activity_type,
+            workout_structure_version=candidate.workout_structure_version,
+            workout_structure=candidate.workout_structure,
+            planned_duration_min=candidate.planned_duration_min,
+            planned_distance_km=candidate.planned_distance_km,
+            target_power_min=candidate.target_power_min,
+            target_power_max=candidate.target_power_max,
+            target_hr_min=candidate.target_hr_min,
+            target_hr_max=candidate.target_hr_max,
+            target_pace_min=candidate.target_pace_min,
+            target_pace_max=candidate.target_pace_max,
+        ),
     }
 
 

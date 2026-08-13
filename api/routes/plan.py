@@ -60,6 +60,11 @@ from api.plan_delivery import (
     load_plan_delivery_adapter,
 )
 from api.plan_reconciliation import load_plan_reconciliation_item
+from api.plan_workout_structure import (
+    inspect_workout_structure,
+    project_activity_type,
+    project_workout_provider_compatibility,
+)
 from api.plan_cleanup import (
     PlanCleanupAmbiguousTargets,
     PlanCleanupRequiresExternalMode,
@@ -743,9 +748,15 @@ def _row_to_workout(
             and row_date >= response_today
         ),
     }
-    activity_type = row.get("activity_type")
-    if pd.notna(activity_type) and activity_type != "":
-        workout["activity_type"] = str(activity_type)
+    raw_activity_type = row.get("activity_type")
+    workout["activity_type"] = project_activity_type(
+        workout["workout_type"],
+        (
+            raw_activity_type
+            if pd.notna(raw_activity_type) and raw_activity_type != ""
+            else None
+        ),
+    )
     structure_version = row.get("workout_structure_version")
     if pd.notna(structure_version) and structure_version != "":
         workout["workout_structure_version"] = str(structure_version)
@@ -759,6 +770,11 @@ def _row_to_workout(
             parsed_structure = None
         if isinstance(parsed_structure, dict):
             workout["workout_structure"] = parsed_structure
+    structure_inspection = inspect_workout_structure(
+        workout_structure_version=workout.get("workout_structure_version"),
+        workout_structure=workout.get("workout_structure"),
+    )
+    workout["workout_structure_status"] = structure_inspection.state
     canonical_id = row.get("canonical_id")
     if pd.notna(canonical_id) and canonical_id:
         workout["canonical_id"] = str(canonical_id)
@@ -787,6 +803,23 @@ def _row_to_workout(
                 if field in {"description", "pace_min", "pace_max"}
                 else float(val)
             )
+    workout["provider_compatibility"] = (
+        project_workout_provider_compatibility(
+            activity_type=workout.get("activity_type"),
+            workout_structure_version=workout.get(
+                "workout_structure_version"
+            ),
+            workout_structure=workout.get("workout_structure"),
+            planned_duration_min=workout.get("duration_min"),
+            planned_distance_km=workout.get("distance_km"),
+            target_power_min=workout.get("power_min"),
+            target_power_max=workout.get("power_max"),
+            target_hr_min=workout.get("hr_min"),
+            target_hr_max=workout.get("hr_max"),
+            target_pace_min=workout.get("pace_min"),
+            target_pace_max=workout.get("pace_max"),
+        )
+    )
     return workout
 
 

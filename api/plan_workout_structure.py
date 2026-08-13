@@ -44,6 +44,25 @@ WorkoutStructureState = Literal[
     "invalid",
     "unsupported",
 ]
+ProviderCompatibilityTarget = Literal["garmin", "stryd"]
+ProviderCompatibilityMode = Literal[
+    "legacy_flat",
+    "structured",
+    "unsupported",
+]
+ProviderCompatibilityReasonCode = Literal[
+    "activity_type_not_supported",
+    "duration_required",
+    "empty_structure_not_supported",
+    "flat_workout_not_lossless",
+    "invalid_structure",
+    "phase_not_supported",
+    "structured_workout_not_supported",
+    "target_not_supported",
+    "target_precision_not_supported",
+    "termination_not_supported",
+    "wording_not_supported",
+]
 
 _ALLOWED_DISCIPLINES = {"running", "trail_running"}
 _ALLOWED_ACTIVITY_TYPES = {
@@ -280,6 +299,28 @@ class StructuredWorkoutV1(BaseModel):
     steps: list[StructuredWorkoutNodeV1] = Field(default_factory=list)
 
 
+class WorkoutProviderCompatibilityReason(BaseModel):
+    """One lossless-delivery constraint for a named provider."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    code: ProviderCompatibilityReasonCode
+    path: str | None = None
+
+
+class WorkoutProviderCompatibility(BaseModel):
+    """Provider-neutral content compatibility for one canonical workout."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    target: ProviderCompatibilityTarget
+    compatible: bool
+    mode: ProviderCompatibilityMode
+    reasons: list[WorkoutProviderCompatibilityReason] = Field(
+        default_factory=list,
+    )
+
+
 def inspect_workout_structure(
     *,
     workout_structure_version: object,
@@ -335,6 +376,25 @@ def normalize_activity_type(
     if not workout_is_rest and normalized == "rest":
         raise ValueError("non-rest workouts cannot use activity_type=rest")
     return normalized
+
+
+def project_activity_type(
+    workout_type: str,
+    activity_type: object,
+) -> str:
+    """Project provider text into the strict portable activity enum.
+
+    Provider-owned calendar rows may contain sport keys Praxys does not yet
+    model. Returning ``other`` keeps the API contract truthful without
+    treating an unknown activity as road running or mutating source data.
+    """
+    try:
+        return normalize_activity_type(
+            workout_type,
+            None if activity_type is None else str(activity_type),
+        )
+    except ValueError:
+        return "rest" if is_rest_workout(workout_type) else "other"
 
 
 def validate_structured_workout(
@@ -572,6 +632,300 @@ def activity_type_supported_by_target(
         return False
     normalized_activity_type = str(activity_type or "running").strip()
     return normalized_activity_type in supported
+
+
+def project_workout_provider_compatibility(
+    *,
+    activity_type: str | None,
+    workout_structure_version: object,
+    workout_structure: object,
+    planned_duration_min: object,
+    planned_distance_km: object,
+    target_power_min: object,
+    target_power_max: object,
+    target_hr_min: object,
+    target_hr_max: object,
+    target_pace_min: object,
+    target_pace_max: object,
+) -> list[dict[str, Any]]:
+    """Project content-only provider compatibility without adapting a workout.
+
+    This mirrors the narrow structures accepted by the existing delivery
+    adapters. It deliberately reports every lossy detail instead of deriving
+    a flat representation or contacting a provider. Connection eligibility,
+    credentials, and delivery authorization remain separate concerns.
+    """
+    inspection = inspect_workout_structure(
+        workout_structure_version=workout_structure_version,
+        workout_structure=workout_structure,
+    )
+    normalized_activity_type = str(activity_type or "running").strip()
+
+    return [
+        _garmin_workout_compatibility(
+            activity_type=normalized_activity_type,
+            inspection=inspection,
+            planned_duration_min=planned_duration_min,
+            target_values=(
+                target_power_min,
+                target_power_max,
+                target_hr_min,
+                target_hr_max,
+                target_pace_min,
+                target_pace_max,
+            ),
+        ).model_dump(mode="json", exclude_none=True),
+        _stryd_workout_compatibility(
+            activity_type=normalized_activity_type,
+            inspection=inspection,
+            planned_duration_min=planned_duration_min,
+            planned_distance_km=planned_distance_km,
+            target_power_min=target_power_min,
+            target_power_max=target_power_max,
+            target_hr_min=target_hr_min,
+            target_hr_max=target_hr_max,
+            target_pace_min=target_pace_min,
+            target_pace_max=target_pace_max,
+        ).model_dump(mode="json", exclude_none=True),
+    ]
+
+
+def _garmin_workout_compatibility(
+    *,
+    activity_type: str,
+    inspection: WorkoutStructureInspection,
+    planned_duration_min: object,
+    target_values: tuple[object, ...],
+) -> WorkoutProviderCompatibility:
+    """Describe the flat running subset accepted by Garmin delivery."""
+    reasons: list[WorkoutProviderCompatibilityReason] = []
+    if inspection.state != "absent":
+        reasons.append(WorkoutProviderCompatibilityReason(
+            code=(
+                "structured_workout_not_supported"
+                if inspection.state == "supported"
+                else "invalid_structure"
+            ),
+        ))
+    if not activity_type_supported_by_target(
+        activity_type=activity_type,
+        target="garmin",
+    ):
+        reasons.append(WorkoutProviderCompatibilityReason(
+            code="activity_type_not_supported",
+        ))
+    if inspection.state == "absent":
+        if _has_provider_target(target_values):
+            reasons.append(WorkoutProviderCompatibilityReason(
+                code="target_not_supported",
+            ))
+        if not _duration_encodes_positive_seconds(planned_duration_min):
+            reasons.append(WorkoutProviderCompatibilityReason(
+                code="duration_required",
+            ))
+    return WorkoutProviderCompatibility(
+        target="garmin",
+        compatible=not reasons,
+        mode=(
+            "legacy_flat"
+            if inspection.state == "absent"
+            else "unsupported"
+        ),
+        reasons=reasons,
+    )
+
+
+def _stryd_workout_compatibility(
+    *,
+    activity_type: str,
+    inspection: WorkoutStructureInspection,
+    planned_duration_min: object,
+    planned_distance_km: object,
+    target_power_min: object,
+    target_power_max: object,
+    target_hr_min: object,
+    target_hr_max: object,
+    target_pace_min: object,
+    target_pace_max: object,
+) -> WorkoutProviderCompatibility:
+    """Describe Stryd's verified portable-structure subset."""
+    if inspection.state == "absent":
+        reasons: list[WorkoutProviderCompatibilityReason] = []
+        if not activity_type_supported_by_target(
+            activity_type=activity_type,
+            target="stryd",
+        ):
+            reasons.append(WorkoutProviderCompatibilityReason(
+                code="activity_type_not_supported",
+            ))
+        if not _duration_encodes_positive_seconds(planned_duration_min):
+            reasons.append(WorkoutProviderCompatibilityReason(
+                code="duration_required",
+            ))
+        if _positive_number(planned_distance_km):
+            reasons.append(WorkoutProviderCompatibilityReason(
+                code="flat_workout_not_lossless",
+            ))
+        has_power_min = _positive_number(target_power_min)
+        has_power_max = _positive_number(target_power_max)
+        has_non_power_target = any((
+            target_hr_min not in (None, ""),
+            target_hr_max not in (None, ""),
+            bool(str(target_pace_min or "").strip()),
+            bool(str(target_pace_max or "").strip()),
+        ))
+        if has_non_power_target or has_power_min != has_power_max:
+            reasons.append(WorkoutProviderCompatibilityReason(
+                code="target_not_supported",
+            ))
+        if not (has_power_min and has_power_max):
+            reasons.append(WorkoutProviderCompatibilityReason(
+                code="flat_workout_not_lossless",
+            ))
+        return WorkoutProviderCompatibility(
+            target="stryd",
+            compatible=not reasons,
+            mode="legacy_flat",
+            reasons=reasons,
+        )
+    if inspection.state != "supported" or inspection.structure is None:
+        return WorkoutProviderCompatibility(
+            target="stryd",
+            compatible=False,
+            mode="unsupported",
+            reasons=[WorkoutProviderCompatibilityReason(
+                code="invalid_structure",
+            )],
+        )
+
+    reasons: list[WorkoutProviderCompatibilityReason] = []
+    if not activity_type_supported_by_target(
+        activity_type=activity_type,
+        target="stryd",
+    ):
+        reasons.append(WorkoutProviderCompatibilityReason(
+            code="activity_type_not_supported",
+        ))
+    if not inspection.structure.steps:
+        reasons.append(WorkoutProviderCompatibilityReason(
+            code="empty_structure_not_supported",
+        ))
+
+    wording_path: str | None = None
+    phase_path: str | None = None
+    termination_path: str | None = None
+    target_path: str | None = None
+    for root_index, node in enumerate(inspection.structure.steps):
+        if (
+            isinstance(node, StructuredWorkoutRepeatGroupV1)
+            and node.label is not None
+            and wording_path is None
+        ):
+            wording_path = f"steps[{root_index}].label"
+        node_steps = (
+            [node]
+            if isinstance(node, StructuredWorkoutStepV1)
+            else node.steps
+        )
+        for child_index, step in enumerate(node_steps):
+            path = (
+                f"steps[{root_index}]"
+                if isinstance(node, StructuredWorkoutStepV1)
+                else f"steps[{root_index}].steps[{child_index}]"
+            )
+            if (
+                wording_path is None
+                and (step.label is not None or step.instructions is not None)
+            ):
+                wording_path = (
+                    f"{path}.label"
+                    if step.label is not None
+                    else f"{path}.instructions"
+                )
+            if (
+                phase_path is None
+                and step.phase not in {
+                    "warmup",
+                    "work",
+                    "recovery",
+                    "rest",
+                    "cooldown",
+                }
+            ):
+                phase_path = f"{path}.phase"
+            if (
+                termination_path is None
+                and step.termination.type not in {"time", "distance"}
+            ):
+                termination_path = f"{path}.termination"
+            target_combo = (
+                step.target.metric,
+                step.target.unit,
+                step.target.reference,
+            )
+            target_shape_supported = (
+                target_combo == ("none", "none", "none")
+                or (
+                    target_combo in {
+                        ("power", "watts", "absolute"),
+                        ("power", "percent_cp", "critical_power"),
+                    }
+                    and step.target.min is not None
+                    and step.target.max is not None
+                )
+                or (
+                    target_combo
+                    == ("rpe", "scale_10", "perceived_exertion")
+                    and step.target.min is not None
+                    and step.target.max is not None
+                    and step.target.min == step.target.max
+                    and float(step.target.min).is_integer()
+                    and 1 <= step.target.min <= 10
+                )
+            )
+            if not target_shape_supported:
+                if target_path is None:
+                    target_path = f"{path}.target"
+
+    for code, path in (
+        ("wording_not_supported", wording_path),
+        ("phase_not_supported", phase_path),
+        ("termination_not_supported", termination_path),
+        ("target_not_supported", target_path),
+    ):
+        if path is not None:
+            reasons.append(WorkoutProviderCompatibilityReason(
+                code=code,
+                path=path,
+            ))
+    return WorkoutProviderCompatibility(
+        target="stryd",
+        compatible=not reasons,
+        mode="structured" if not reasons else "unsupported",
+        reasons=reasons,
+    )
+
+
+def _has_provider_target(values: tuple[object, ...]) -> bool:
+    """Return whether a legacy flat target would be omitted by Garmin."""
+    return any(value not in (None, "", 0, 0.0) for value in values)
+
+
+def _positive_number(value: object) -> bool:
+    """Return whether a finite numeric value is strictly positive."""
+    if isinstance(value, bool):
+        return False
+    try:
+        return math.isfinite(float(value)) and float(value) > 0
+    except (TypeError, ValueError):
+        return False
+
+
+def _duration_encodes_positive_seconds(value: object) -> bool:
+    """Match adapters that encode legacy minutes as rounded whole seconds."""
+    if not _positive_number(value):
+        return False
+    return round(float(value) * 60) >= 1
 
 
 def stryd_surface_for_activity_type(activity_type: str | None) -> str:

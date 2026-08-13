@@ -73,9 +73,29 @@ Detection: `LocaleContext` + `detectBrowserLocale`. Stored preference overrides 
 | Dropdowns | `Select` (never raw `<select>`) |
 | Buttons | `Button` with variants (never raw `<button>`) |
 | Form fields | `Input` + `Label` (never raw `<input>`) |
+| Bounded numeric ranges | `RangeSlider` paired with exact `Input` fields |
 | Status indicators | `Badge` with severity-based variants |
 | Progress bars | `Progress` |
 | Navigation | `Sidebar` (collapsible, sheet drawer on mobile) |
+
+### Bounded numeric ranges
+
+Use a slider only when the value has a meaningful finite scale and athletes
+benefit from adjusting an approximate range, such as RPE or a percentage of a
+known threshold. Keep watts, heart rate, pace, distance, and other
+precision-first values as explicit inputs.
+
+- Pair the two-thumb `RangeSlider` with exact minimum and maximum `Input`
+  fields; the slider must never be the only way to enter a value.
+- Show the unit, scale endpoints, and distinct accessible labels for both
+  thumbs. Keyboard adjustment and visible focus are required.
+- Use primary green for the selected range. Reserve destructive red for invalid
+  values or blockers, not ordinary high-intensity work.
+- Convert display units only at the editor boundary. Persist the canonical
+  domain unit so changing metric/imperial preference does not change the
+  workout.
+- On the miniapp, use equivalent native sliders plus exact fields rather than
+  copying desktop geometry.
 
 ### Reasoning surfaces
 

@@ -304,6 +304,11 @@ export type PlanActivityType =
   | 'other';
 
 export type WorkoutStructureVersion = 'v1';
+export type WorkoutStructureState =
+  | 'absent'
+  | 'supported'
+  | 'invalid'
+  | 'unsupported';
 
 type WorkoutIntensityBounds =
   | {
@@ -403,6 +408,43 @@ export interface WorkoutStructureV1 {
   steps: Array<WorkoutStructureStep | WorkoutStructureRepeatGroup>;
 }
 
+export type WorkoutProviderCompatibilityTarget = 'garmin' | 'stryd';
+
+export type WorkoutProviderCompatibilityMode =
+  | 'legacy_flat'
+  | 'structured'
+  | 'unsupported';
+
+export type WorkoutProviderCompatibilityReasonCode =
+  | 'activity_type_not_supported'
+  | 'duration_required'
+  | 'empty_structure_not_supported'
+  | 'flat_workout_not_lossless'
+  | 'invalid_structure'
+  | 'phase_not_supported'
+  | 'structured_workout_not_supported'
+  | 'target_not_supported'
+  | 'target_precision_not_supported'
+  | 'termination_not_supported'
+  | 'wording_not_supported';
+
+export interface WorkoutProviderCompatibilityReason {
+  code: WorkoutProviderCompatibilityReasonCode;
+  /** Canonical tree location, present when a specific node is lossy. */
+  path?: string | null;
+}
+
+/**
+ * Content-only provider projection. This neither checks a connection nor
+ * requests delivery; it names details a provider would lose.
+ */
+export interface WorkoutProviderCompatibility {
+  target: WorkoutProviderCompatibilityTarget;
+  compatible: boolean;
+  mode: WorkoutProviderCompatibilityMode;
+  reasons: WorkoutProviderCompatibilityReason[];
+}
+
 export interface PlanTargetWorkoutSnapshot {
   date: string;
   activity_type?: PlanActivityType | null;
@@ -416,9 +458,9 @@ export interface PlanTargetWorkoutSnapshot {
   target_pace_min?: string | null;
   target_pace_max?: string | null;
   workout_description?: string;
-  workout_structure_status?: 'absent' | 'supported' | 'unsupported';
-  workout_structure_version?: WorkoutStructureVersion | null;
-  workout_structure?: WorkoutStructureV1 | null;
+  workout_structure_status?: WorkoutStructureState;
+  workout_structure_version?: string | null;
+  workout_structure?: unknown;
   start_time?: string | null;
 }
 
@@ -460,8 +502,10 @@ export interface PlannedWorkout {
   pace_min?: string;
   pace_max?: string;
   description?: string;
-  workout_structure_version?: WorkoutStructureVersion | null;
-  workout_structure?: WorkoutStructureV1 | null;
+  workout_structure_status?: WorkoutStructureState;
+  workout_structure_version?: string | null;
+  workout_structure?: unknown;
+  provider_compatibility?: WorkoutProviderCompatibility[];
   /** @deprecated Use `owner` and `origin`; retained during client rollout. */
   source: PlanWorkoutSource;
   /** Optional only while a new frontend may briefly talk to the prior API. */
@@ -594,10 +638,17 @@ interface PlanWorkoutCreateValues {
 export type PlanWorkoutCreateRequest =
   PlanWorkoutCreateValues & OptionalWorkoutStructureFields;
 
+/** Draft-only compatibility request; it never writes or delivers a workout. */
+export type PlanWorkoutCompatibilityRequest = PlanWorkoutCreateRequest;
+
+export interface PlanWorkoutCompatibilityResponse {
+  providers: WorkoutProviderCompatibility[];
+}
+
 interface PlanWorkoutUpdateValues {
   expected_version: string;
   date?: string;
-  activity_type?: PlanActivityType | null;
+  activity_type?: PlanActivityType;
   workout_type?: string;
   planned_duration_min?: number | null;
   planned_distance_km?: number | null;
@@ -672,8 +723,9 @@ export interface PlanWorkoutMutationResponse {
   target_pace_min: string | null;
   target_pace_max: string | null;
   workout_description: string;
-  workout_structure_version: WorkoutStructureVersion | null;
-  workout_structure: WorkoutStructureV1 | null;
+  workout_structure_status: WorkoutStructureState;
+  workout_structure_version: string | null;
+  workout_structure: unknown;
   /** @deprecated Use `owner` and `origin`; retained during client rollout. */
   source: 'ai';
   owner: 'praxys';
