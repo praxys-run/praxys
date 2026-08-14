@@ -2,11 +2,12 @@ schema_version: 1
 id: sdr-plan-generation-eligibility-safety-v1
 version: 1
 title: "Match plan generation by capability, history, and non-medical safety state"
-status: draft
+status: accepted
 decision_date: 2026-08-14
 owners:
   - team:praxys
-human_reviewers: []
+human_reviewers:
+  - github:dddtc2005
 model_version: plan-generation-eligibility-safety-v1
 evidence_review_ids:
   - evidence-plan-generation-eligibility-safety-v1
@@ -21,22 +22,22 @@ evidence_claim_ids:
   - eligibility.current-symptoms-support-stop-not-clearance
   - eligibility.evidence-quality-no-personal-probability
 accepted_interpretation: >
-  If accepted, every Praxys training-plan flow would separate goal capture from
+  Praxys accepts that every training-plan flow must separate goal capture from
   plan generation. A user may record a supported discipline, distance, surface,
   completion or performance intent, and optional target date even when no
-  accepted generator policy currently matches. A shared deterministic router
-  would then evaluate current goal-relevant capability, history depth, recent
-  consistency, event context, time-bounded training patterns, evidence
-  directness, adult scope, non-medical safety state, and athlete-stated
-  constraints before selecting an independently accepted sport-, distance-,
-  intent-, and context-specific policy. Beginner, currently capable, returning,
-  sparse-history, high-load, race-dense, and other states would describe the
-  current evidence window rather than label the person as recreational,
-  serious, professional, or elite. Imported events and profile fields would
-  remain source-labelled candidates until their product purpose is disclosed
-  and the athlete confirms or corrects them. Adult eligibility or another
-  truly policy-critical field may block the dependent plan path; missing
-  optional age, sex, or other modifiers would instead remain unknown and
+  accepted generator policy currently matches. Once separately implemented and
+  activated, a shared deterministic router will evaluate current goal-relevant
+  capability, history depth, recent consistency, event context, time-bounded
+  training patterns, evidence directness, adult scope, non-medical safety state,
+  and athlete-stated constraints before selecting an independently accepted
+  sport-, distance-, intent-, and context-specific policy. Beginner, currently
+  capable, returning, sparse-history, high-load, race-dense, and other states
+  must describe the current evidence window rather than label the person as
+  recreational, serious, professional, or elite. Imported events and profile
+  fields must remain source-labelled candidates until their product purpose is
+  disclosed and the athlete confirms or corrects them. Adult eligibility or
+  another truly policy-critical field may block the dependent plan path;
+  missing optional age, sex, or other modifiers must instead remain unknown and
   disable only the dependent adjustment or metric. Unknown sex may never
   silently become male. A no-event goal may route to rolling training and a
   separately accepted, explicitly chosen completion activity or performance
@@ -51,8 +52,9 @@ accepted_interpretation: >
   prohibited. Optional AI may explain or structure reviewable inputs but
   cannot invent identity, event, profile, capability, history, or safety
   context; broaden eligibility; weaken validation; approve; adopt; mutate; or
-  deliver a plan. This draft authorizes no product behavior until explicit
-  human science acceptance and a separately reviewed implementation.
+  deliver a plan. This accepted decision authorizes the shared routing boundary
+  but no product behavior until the migration gates pass and a separately
+  reviewed implementation is activated.
 rejected_alternatives:
   - alternative: "Hide or reject a goal because no accepted generator policy currently matches"
     rationale: >
@@ -140,9 +142,10 @@ model_parameters:
       managed_provider_delivery_requires_separate_explicit_consent: true
     classification: guardrail
     rationale: >
-      A draft cross-cutting policy cannot activate generation. Separate
-      proposal, adoption, and delivery authority preserves athlete control and
-      prevents this shared classifier from becoming a planner.
+      Acceptance establishes the cross-cutting routing boundary but does not
+      activate generation. Separate proposal, adoption, and delivery authority
+      preserves athlete control and prevents this shared classifier from
+      becoming a planner.
     applies_to: plan-generation-eligibility-safety-v1
   - name: goal_intent_and_policy_separation
     value:
@@ -176,17 +179,17 @@ model_parameters:
     applies_to: goal capture, capability discovery, and every training-plan entry
   - name: existing_policy_alignment_gate
     value:
-      accepted_records_requiring_successor_alignment:
+      accepted_records_requiring_successor_alignment_before_activation:
         - sdr-preplan-baseline-policy-v1
         - sdr-outdoor-5k-plan-generation-policy-v1
-      draft_records_requiring_alignment_before_acceptance:
+      draft_records_requiring_alignment_before_activation:
         - sdr-adaptive-plan-feasibility-and-adjustment-v1
       alignment_topics:
         - goal_recording_independent_from_policy_availability
         - dynamic_patterns_instead_of_static_runner_identity
         - event_context_and_no_event_routing
         - profile_provenance_and_field_level_missingness
-      accepted_records_remain_unchanged_in_this_draft: true
+      accepted_records_remain_unchanged_in_this_decision: true
       shared_router_activation_before_successor_acceptance: false
     classification: guardrail
     rationale: >
@@ -788,7 +791,7 @@ validation_plan:
   - Audit provider imports for purpose disclosure, minimum fields, confirmation, conflict handling, deletion, and no silent overwrite.
   - Verify missing optional age or sex disables only the dependent modifier or metric and never selects a hidden male default.
   - Verify every enabled capability also references an accepted distance-specific SDR and cannot inherit another policy's numeric values.
-  - Require draft successor coverage for accepted baseline and outdoor 5 km records before shared-router activation; do not edit or supersede accepted history without human approval.
+  - Require accepted successor coverage for baseline and outdoor 5 km records before shared-router activation; draft successors may be prepared but cannot satisfy the activation gate, and accepted history must not be edited or superseded without human approval.
   - Audit every UI, API, plugin, and MCP response for personal probabilities, hidden policy relaxation, invented context, or diagnosis-shaped wording.
   - Pre-register safety exits, adverse reports, acceptance, edits, rejection, burden, and subgroup stop criteria before any suggestion-first pilot.
   - Require a successor decision before promoting sparse-history or masters status to a separate policy family or adding autonomous permissions.
@@ -797,7 +800,7 @@ falsification_conditions:
   - The shared router activates while accepted baseline or outdoor 5 km records still rely on unaligned static identity or goal-flow assumptions.
   - A goal-distance match alone enables generation despite a population, capability, history, evidence, or safety mismatch.
   - A beginner enters an already-capable policy without a separately accepted family.
-  - A goal-distance-novel runner enters an already-capable policy despite the draft conservative routing guardrail.
+  - A goal-distance-novel runner enters an already-capable policy despite the accepted conservative routing guardrail.
   - A static recreational, serious, professional, elite, or beginner identity determines routing after current data changes.
   - A dynamic pattern lacks an evaluation window, version, provenance, or correction path.
   - An empty or unavailable event calendar is treated as proof that no race or maximal effort exists.
@@ -844,10 +847,10 @@ affected_surfaces:
 supersedes: []
 superseded_by:
 decision_notes:
-  - "This is a decision proposal for issue #685, not an accepted policy or implementation authorization."
-  - Human review should focus on goal-versus-policy separation, dynamic pattern semantics, event-calendar completeness, provider-profile confirmation, field-level missingness, first-completion routing, masters modifiers, and symptom-stop semantics.
+  - "Human acceptance for issue #685 records the shared routing boundary, not implementation authorization."
+  - Human review accepted goal-versus-policy separation, dynamic pattern semantics, event-calendar completeness, provider-profile confirmation, field-level missingness, first-completion routing, masters modifiers, and symptom-stop semantics.
   - Accepted pre-plan baseline and outdoor 5 km records remain unchanged; separately reviewed successor records are required before shared-router activation.
-  - No numeric recent-history, weekly-frequency, intensity, quality-session, long-run, progression, taper, horizon, event-priority, or reassessment value is selected by this draft.
-  - "Impact map: draft Evidence Review -> draft SDR -> future goal and shared pure routing model -> capability registry -> dynamic pattern, event, profile, and evidence snapshots -> API contract -> web types and UI -> miniapp parity -> plugin/MCP parity -> ScienceNote and localization -> tests -> offline shadow validation -> suggestion-first pilot."
+  - No numeric recent-history, weekly-frequency, intensity, quality-session, long-run, progression, taper, horizon, event-priority, or reassessment value is selected by this shared decision.
+  - "Impact map: accepted Evidence Review -> accepted inactive SDR -> future goal and shared pure routing model -> capability registry -> dynamic pattern, event, profile, and evidence snapshots -> API contract -> web types and UI -> miniapp parity -> plugin/MCP parity -> ScienceNote and localization -> tests -> offline shadow validation -> suggestion-first pilot."
   - Accepted 5 km records remain unchanged and continue to govern only their current implementation.
-  - Explicit human acceptance and a separate implementation review are required before this model version can become active.
+  - Human acceptance is recorded; migration gates and a separate implementation review remain required before this model version can become active.

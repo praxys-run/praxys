@@ -9,12 +9,13 @@ research_question: >
   performance policy with an optional race date, confirmed event context, and
   an optional athlete-chosen benchmark when no race exists?
 topic: road-10k-plan-generation-policy
-status: draft
+status: accepted
 authors:
   - agent:github-copilot
-human_reviewers: []
+human_reviewers:
+  - github:dddtc2005
 created_on: 2026-08-14
-reviewed_on:
+reviewed_on: 2026-08-14
 intended_product_purpose: >
   Define the distance-specific evidence boundary for one dynamically matched
   road 10 km performance pattern without copying the accepted outdoor 5 km

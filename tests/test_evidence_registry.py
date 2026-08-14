@@ -302,7 +302,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     assert decision.human_reviewers == ["github:dddtc2005"]
 
 
-def test_plan_generation_eligibility_proposal_stays_inactive_and_cross_cutting() -> None:
+def test_plan_generation_eligibility_policy_is_accepted_but_inactive_and_cross_cutting() -> None:
     registry = load_science_registry()
     review = registry.evidence_reviews[
         "evidence-plan-generation-eligibility-safety-v1"
@@ -311,9 +311,9 @@ def test_plan_generation_eligibility_proposal_stays_inactive_and_cross_cutting()
         "sdr-plan-generation-eligibility-safety-v1"
     ]
 
-    assert review.status == "draft"
-    assert review.human_reviewers == []
-    assert review.reviewed_on is None
+    assert review.status == "accepted"
+    assert review.human_reviewers == ["github:dddtc2005"]
+    assert review.reviewed_on == date(2026, 8, 14)
     assert review.method.review_type.value == "rigorous"
     assert len(review.citations) >= 17
     assert {
@@ -331,8 +331,8 @@ def test_plan_generation_eligibility_proposal_stays_inactive_and_cross_cutting()
     } <= {note.split(";", 1)[0] for note in review.review_notes}
     _assert_exact_verification_notes(review)
 
-    assert decision.status == "draft"
-    assert decision.human_reviewers == []
+    assert decision.status == "accepted"
+    assert decision.human_reviewers == ["github:dddtc2005"]
     assert decision.evidence_review_ids == [review.id]
     assert {claim.id for claim in review.claims} == set(
         decision.evidence_claim_ids
@@ -361,12 +361,17 @@ def test_plan_generation_eligibility_proposal_stays_inactive_and_cross_cutting()
         "goal_recorded_plan_policy_unavailable"
     )
     alignment = parameters["existing_policy_alignment_gate"].value
-    assert alignment["accepted_records_requiring_successor_alignment"] == [
+    assert alignment[
+        "accepted_records_requiring_successor_alignment_before_activation"
+    ] == [
         "sdr-preplan-baseline-policy-v1",
         "sdr-outdoor-5k-plan-generation-policy-v1",
     ]
+    assert alignment["draft_records_requiring_alignment_before_activation"] == [
+        "sdr-adaptive-plan-feasibility-and-adjustment-v1",
+    ]
     assert alignment[
-        "accepted_records_remain_unchanged_in_this_draft"
+        "accepted_records_remain_unchanged_in_this_decision"
     ] is True
     assert alignment[
         "shared_router_activation_before_successor_acceptance"
@@ -500,12 +505,12 @@ def test_plan_generation_eligibility_proposal_stays_inactive_and_cross_cutting()
         "athlete_reported_safety_stop"
     ].value["stop_reasons"]
     assert any(
-        "not an accepted policy" in note
+        "Human acceptance for issue #685" in note
         for note in decision.decision_notes
     )
 
 
-def test_road_10k_policy_proposal_is_distance_specific_and_inactive() -> None:
+def test_road_10k_policy_is_accepted_distance_specific_and_inactive() -> None:
     registry = load_science_registry()
     review = registry.evidence_reviews[
         "evidence-road-10k-plan-generation-policy-v1"
@@ -514,9 +519,9 @@ def test_road_10k_policy_proposal_is_distance_specific_and_inactive() -> None:
         "sdr-road-10k-plan-generation-policy-v1"
     ]
 
-    assert review.status == "draft"
-    assert review.human_reviewers == []
-    assert review.reviewed_on is None
+    assert review.status == "accepted"
+    assert review.human_reviewers == ["github:dddtc2005"]
+    assert review.reviewed_on == date(2026, 8, 14)
     assert review.method.review_type.value == "rigorous"
     assert len(review.citations) >= 19
     assert {
@@ -539,8 +544,8 @@ def test_road_10k_policy_proposal_is_distance_specific_and_inactive() -> None:
     } <= {note.split(";", 1)[0] for note in review.review_notes}
     _assert_exact_verification_notes(review)
 
-    assert decision.status == "draft"
-    assert decision.human_reviewers == []
+    assert decision.status == "accepted"
+    assert decision.human_reviewers == ["github:dddtc2005"]
     assert decision.evidence_review_ids == [
         "evidence-plan-generation-eligibility-safety-v1",
         review.id,
@@ -561,6 +566,14 @@ def test_road_10k_policy_proposal_is_distance_specific_and_inactive() -> None:
     assert activation["distance_policy_required_status_before_activation"] == (
         "accepted"
     )
+    assert activation["human_science_acceptance_recorded"] is True
+    assert activation[
+        "implementation_review_required_before_activation"
+    ] is True
+    assert activation["capability_registry_entry_default_enabled"] is False
+    assert activation[
+        "generator_api_web_and_miniapp_activation_in_this_record"
+    ] is False
     assert parameters["road_10k_goal_tuple"].value["goal_kind"] == (
         "distance_10k"
     )
@@ -791,7 +804,7 @@ def test_road_10k_policy_proposal_is_distance_specific_and_inactive() -> None:
         "published"
     )
     assert any(
-        "stacked decision proposal for issue #686" in note
+        "Human acceptance for issue #686" in note
         for note in decision.decision_notes
     )
 

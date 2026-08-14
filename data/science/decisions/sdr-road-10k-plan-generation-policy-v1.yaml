@@ -2,11 +2,12 @@ schema_version: 1
 id: sdr-road-10k-plan-generation-policy-v1
 version: 1
 title: "History-anchored adult outdoor road 10 km performance policy"
-status: draft
+status: accepted
 decision_date: 2026-08-14
 owners:
   - team:praxys
-human_reviewers: []
+human_reviewers:
+  - github:dddtc2005
 model_version: road-10k-plan-generation-policy-v1
 evidence_review_ids:
   - evidence-plan-generation-eligibility-safety-v1
@@ -37,16 +38,17 @@ model_parameters:
         sdr_id: sdr-plan-generation-eligibility-safety-v1
         required_status_before_activation: accepted
       distance_policy_required_status_before_activation: accepted
-      human_science_review_required: true
+      human_science_acceptance_recorded: true
+      implementation_review_required_before_activation: true
       capability_registry_entry_default_enabled: false
       generator_api_web_and_miniapp_activation_in_this_record: false
     evidence_claim_ids:
       - eligibility.evidence-quality-no-personal-probability
     rationale: >
-      The shared eligibility proposal and this distance-specific decision are
-      both draft. No generator, route, registry availability, web control, or
-      miniapp control may activate before coordinated human acceptance and
-      implementation review.
+      The shared eligibility and distance-specific boundaries are accepted,
+      but acceptance alone does not activate a generator, route, registry
+      capability, web control, or miniapp control. Exact execution-window and
+      workout-template decisions plus implementation review remain required.
   - name: road_10k_goal_tuple
     classification: guardrail
     value:
@@ -894,8 +896,8 @@ privacy_implications:
 validation_plan:
   - >
     Registry validation must prove exact Evidence Review and claim links,
-    globally unique IDs, draft lifecycle validity, parameter classifications,
-    conditional accepted wording, and inactive behavior.
+    globally unique IDs, accepted lifecycle metadata, parameter
+    classifications, bounded accepted wording, and inactive behavior.
   - >
     Unit tests must cover the exact performance intent, adult history-rich pattern,
     direct-baseline hierarchy, 56-day freshness guardrail, eight-week history
@@ -1000,25 +1002,25 @@ affected_surfaces:
 supersedes: []
 superseded_by:
 accepted_interpretation: >
-  If accepted by identified human science reviewers, this SDR would authorize
-  only the bounded, inactive-by-default outdoor road 10 km performance policy
-  for an adult, currently capable, history-rich dynamic training pattern. The
-  goal may have no race date or target time; planning would be rolling, and an
-  optional benchmark would require explicit athlete scheduling. Confirmed
-  races would consume quality and load, with race-dense conflicts resolved
-  before a full proposal. This SDR would not activate a generator, choose the
+  Praxys accepts only the bounded, inactive-by-default outdoor road 10 km
+  performance policy for an adult, currently capable, history-rich dynamic
+  training pattern. The goal may have no race date or target time; planning is
+  rolling, and an optional benchmark requires explicit athlete scheduling.
+  Confirmed races consume quality and load, with race-dense conflicts resolved
+  before a full proposal. This SDR does not activate a generator, choose the
   exact execution-window length, accept workout templates, validate personal
   probabilities, authorize first-completion or clinical planning, label the
   person recreational or professional, or generalize to another distance or
   surface.
 decision_notes:
   - >
-    This is a stacked decision proposal for issue #686 and depends on the draft
-    shared eligibility and safety policy from issue #685.
+    Human acceptance for issue #686 records this distance-specific boundary
+    and its dependency on the accepted shared eligibility and safety policy
+    from issue #685.
   - >
-    The preferred recommendation is the narrow generation option. If reviewers
-    do not accept the required guardrails, the product recommendation falls
-    back to readiness-only rather than copying the outdoor 5 km generator.
+    The accepted recommendation is the narrow generation option. Any future
+    challenge to the required guardrails falls back to readiness-only rather
+    than copying the outdoor 5 km generator.
   - >
     The main unresolved scientific gaps are exact 10 km workout templates,
     direct long-run prescription, execution-window length, reassessment
@@ -1030,9 +1032,10 @@ decision_notes:
     pilot decision thresholds are product guardrails, not published biology or
     inherited 5 km defaults. No 42-day eligibility horizon remains.
   - >
-    No runtime behavior changes while this record is draft. If accepted and
-    implemented later, rollout must remain default-off, suggestion-only, and
-    reversible without substituting the 5 km policy.
+    Acceptance does not change runtime behavior. If implemented later, rollout
+    must remain default-off, suggestion-only, and reversible without
+    substituting the 5 km policy.
   - >
-    Human science approval is required before lifecycle transition,
-    implementation activation, pilot authorization, or user-facing claims.
+    Human science acceptance is recorded. Implementation activation, pilot
+    authorization, and user-facing claims still require their documented
+    reviews and validation.
