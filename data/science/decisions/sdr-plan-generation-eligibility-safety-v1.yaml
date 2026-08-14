@@ -1,0 +1,519 @@
+schema_version: 1
+id: sdr-plan-generation-eligibility-safety-v1
+version: 1
+title: "Match plan generation by capability, history, and non-medical safety state"
+status: draft
+decision_date: 2026-08-14
+owners:
+  - team:praxys
+human_reviewers: []
+model_version: plan-generation-eligibility-safety-v1
+evidence_review_ids:
+  - evidence-plan-generation-eligibility-safety-v1
+evidence_claim_ids:
+  - eligibility.novice-recreational-different-evidence-family
+  - eligibility.recent-history-anchor-without-universal-threshold
+  - eligibility.fixed-progression-and-acwr-not-safety-laws
+  - eligibility.goal-relevant-current-capability-task-specific
+  - eligibility.intensity-mostly-low-no-universal-winner
+  - eligibility.one-to-two-quality-sessions-indirect
+  - eligibility.masters-modifier-not-age-exclusion
+  - eligibility.current-symptoms-support-stop-not-clearance
+  - eligibility.evidence-quality-no-personal-probability
+accepted_interpretation: >
+  If accepted, every automatic running-plan generator must first pass one
+  shared, deterministic eligibility policy and then an independently accepted
+  distance-specific policy. Capability matching uses independent goal,
+  population, current-capability, history-depth, recent-consistency, evidence-
+  directness, age-modifier, safety, and athlete-constraint fields rather than
+  treating race distance as a proxy for readiness. Beginner runners require a
+  separate accepted policy family; goal-distance-novel runners are routed the
+  same way as a conservative guardrail pending direct validation. A currently capable
+  runner with sparse but usable recent history may be eligible only with
+  explicit uncertainty under a distance policy that can stay inside that
+  evidence; no usable history anchor yields a typed no-plan result. Masters or
+  older-adult status is a modifier, not an exclusion by age alone. Current
+  athlete-reported symptoms, unsupported medical intent, an adult-scope
+  mismatch, missing required current capability, contradictory inputs, or an
+  absent history anchor fail closed without diagnosis or hidden relaxation.
+  The shared policy does not choose exact recent-week counts, running-day
+  ranges, low-intensity percentages, quality-session ceilings, long-run limits,
+  progression, taper, or schedule templates. Each enabled goal policy must
+  define and classify those values independently; accepted outdoor 5 km
+  numbers do not become defaults. Fixed 10 percent progression, ACWR
+  prescription zones, automatic catch-up, personal success probabilities,
+  causal missed-training explanations, and activity average power for
+  intensity analysis remain prohibited. Optional AI may explain or translate
+  reviewable structured inputs but cannot broaden eligibility, invent context,
+  weaken validation, approve, adopt, mutate, or deliver a plan. This draft
+  authorizes no product behavior until explicit human science acceptance and a
+  separately reviewed implementation.
+rejected_alternatives:
+  - alternative: "Match plan-generation capability by goal distance alone"
+    rationale: >
+      Distance does not establish current capability, training-history depth,
+      recent consistency, age-related context, evidence directness, or safety
+      state. Distance-only matching would silently route unsupported
+      populations into an accepted policy.
+  - alternative: "Reuse the accepted outdoor 5 km history and schedule numbers as shared defaults"
+    rationale: >
+      The 5 km horizon, history counts, frequency range, low-intensity floor,
+      quality ceiling, long-run bound, and taper choice are policy-specific
+      guardrails. The review found no evidence that makes them universal.
+  - alternative: "Scale the first accepted performance policy down for beginners or novel-distance runners"
+    rationale: >
+      Novice runners have a different evidence and injury-incidence profile.
+      A plan reviewed for already-capable recreational runners cannot be made
+      applicable by reducing duration or volume without a separate decision.
+      Direct evidence for grouping goal-distance novelty with beginners is
+      absent; that routing is a conservative guardrail for human review.
+  - alternative: "Exclude masters and older runners from automatic generation by age"
+    rationale: >
+      Age changes performance and training capacity, while masters athletes can
+      retain high capability. Actual capability, history, constraints, and
+      safety state are more defensible than a universal age cutoff.
+  - alternative: "Use a fixed 10 percent rule or ACWR zone as the shared safety gate"
+    rationale: >
+      The reviewed randomized trial did not reduce injury with the 10 percent
+      rule, and ACWR zones do not establish causal individual prescriptions.
+  - alternative: "Treat current symptoms as a warning while still generating a vigorous plan"
+    rationale: >
+      The safety boundary should stop performance optimization rather than
+      produce a success-shaped plan that could be misread as clearance.
+  - alternative: "Require personal narrative explaining missed training before eligibility can be assessed"
+    rationale: >
+      Narrative is unnecessary for the deterministic path, increases privacy
+      burden, and invites unsupported causal inference. Missing context remains
+      unknown.
+  - alternative: "Let an LLM choose the closest policy and validate the plan afterward"
+    rationale: >
+      Post-hoc validation cannot make eligibility deterministic or prevent the
+      model from broadening population, inventing context, or hiding a failed
+      precondition.
+  - alternative: "Publish a personal success probability or responder category"
+    rationale: >
+      No prospectively calibrated, externally validated model exists for the
+      supported goal and population tuples, and group evidence does not justify
+      an individual probability.
+model_parameters:
+  - name: activation_and_authority
+    value:
+      active_behavior: false
+      human_acceptance_required: true
+      shared_precondition_only: true
+      accepted_distance_policy_required: true
+      suggestion_only: true
+      canonical_adoption_requires_separate_explicit_consent: true
+      managed_provider_delivery_requires_separate_explicit_consent: true
+    classification: guardrail
+    rationale: >
+      A draft cross-cutting policy cannot activate generation. Separate
+      proposal, adoption, and delivery authority preserves athlete control and
+      prevents this shared classifier from becoming a planner.
+    applies_to: plan-generation-eligibility-safety-v1
+  - name: capability_match_axes
+    value:
+      required:
+        - adult_scope
+        - discipline
+        - goal_kind
+        - goal_distance
+        - goal_surface
+        - goal_outcome
+        - goal_relevant_current_capability
+        - history_depth
+        - recent_consistency
+        - evidence_directness
+        - masters_modifier
+        - athlete_reported_safety_stop
+        - athlete_stated_constraints
+      distance_is_history_proxy: false
+      distance_is_capability_proxy: false
+      missing_material_axis_result: clarification_required
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.novice-recreational-different-evidence-family
+      - eligibility.recent-history-anchor-without-universal-threshold
+      - eligibility.goal-relevant-current-capability-task-specific
+      - eligibility.masters-modifier-not-age-exclusion
+    rationale: >
+      Independent axes prevent a matching goal label from erasing population,
+      history, capability, evidence, or safety differences.
+    applies_to: shared capability discovery and generator entry
+  - name: population_family_routing
+    value:
+      adult_history_rich_currently_capable: continue_to_distance_policy
+      adult_sparse_history_currently_capable:
+        with_usable_recent_anchor: eligible_with_uncertainty
+        without_usable_recent_anchor: insufficient_recent_history_anchor
+      adult_beginner: separate_accepted_policy_required
+      adult_goal_distance_novel: conservative_separate_policy_route_pending_validation
+      masters_or_older_adult: modifier_not_exclusion
+      child_or_adolescent: unsupported_by_adult_policy
+      medical_rehabilitation_treatment_pregnancy_specific_or_return_to_sport: unsupported_intent
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.novice-recreational-different-evidence-family
+      - eligibility.recent-history-anchor-without-universal-threshold
+      - eligibility.masters-modifier-not-age-exclusion
+    rationale: >
+      The routing preserves applicability without inventing exact age, history,
+      or dose cutoffs. The beginner route follows the different evidence
+      family; the goal-distance-novel route is an explicit conservative
+      guardrail rather than an evidence-backed equivalence.
+    applies_to: plan-generation capability matching
+  - name: history_depth_states
+    value:
+      states:
+        - beginner_or_goal_distance_novel
+        - sparse_history
+        - history_rich
+        - unknown
+      cross_cutting_minimum_weeks: none_defined
+      cross_cutting_minimum_sessions: none_defined
+      cross_cutting_latest_run_days: none_defined
+      distance_policy_must_define_any_numeric_boundary: true
+      no_usable_recent_anchor_result: insufficient_recent_history_anchor
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.recent-history-anchor-without-universal-threshold
+    rationale: >
+      Recent history matters for extrapolation, but the review did not validate
+      one universal count. Numeric values must be justified and versioned by
+      each distance and population policy.
+    applies_to: shared history sufficiency classification
+  - name: goal_relevant_current_capability_states
+    value:
+      - direct_current
+      - supporting_uncertain
+      - missing
+      - contradictory
+      - not_required_by_distance_policy
+      - out_of_scope
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.goal-relevant-current-capability-task-specific
+    rationale: >
+      Task-specific evidence and supporting evidence have different roles.
+      Each distance policy decides which state is sufficient without silently
+      converting an unlike protocol or performance into direct capability.
+    applies_to: shared current-capability classification
+  - name: evidence_directness_states
+    value:
+      - direct
+      - supporting
+      - indirect
+      - missing
+      - contradictory
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.goal-relevant-current-capability-task-specific
+      - eligibility.evidence-quality-no-personal-probability
+    rationale: >
+      Explicit directness prevents heterogeneous or low-quality evidence from
+      becoming a confidence score, probability, or hidden substitute.
+    applies_to: capability and proposal evidence snapshots
+  - name: eligibility_outcomes
+    value:
+      ready_for_distance_policy: all_shared_preconditions_satisfied
+      eligible_with_uncertainty: usable_evidence_with_explicit_nonblocking_limits
+      clarification_required: material_goal_constraint_or_provenance_field_missing
+      unsupported_population_or_intent: no_matching_accepted_population_policy
+      current_symptom_stop: athlete_reported_non_medical_safety_boundary
+      insufficient_goal_relevant_capability: required_capability_not_established
+      insufficient_recent_history_anchor: no_usable_recent_anchor_for_dose
+      contradictory_evidence: material_inputs_cannot_be_reconciled
+      no_accepted_distance_policy: shared_policy_passed_but_goal_policy_inactive
+    classification: guardrail
+    rationale: >
+      Typed outcomes distinguish uncertainty, unsupported scope, safety, and
+      unavailable science from service errors or success-shaped fallbacks.
+    applies_to: shared eligibility API and all plan-generation clients
+  - name: athlete_reported_safety_stop
+    value:
+      stop_reasons:
+        - acute_illness
+        - injury_or_pain_altering_running
+        - chest_pain_or_pressure
+        - fainting_or_near_fainting
+        - unusual_severe_breathlessness
+        - confusion_or_loss_of_coordination
+        - other_red_flag_symptom
+        - known_medical_restriction_or_reported_clinician_advice_against_vigorous_exercise
+        - self_reported_inadequate_recovery_or_unresolved_substantial_fatigue
+        - unsafe_heat_cold_lightning_air_quality_visibility_traffic_footing_or_course
+      result: current_symptom_stop
+      diagnosis_treatment_or_clearance: prohibited
+      automatic_return_to_sport: prohibited
+      absent_report_means_risk_free: false
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.current-symptoms-support-stop-not-clearance
+    rationale: >
+      The reviewed screening guidance supports attention to current symptoms,
+      not a diagnostic or clearance tool. The structured list makes the stop
+      auditable while preserving the non-medical boundary.
+    applies_to: vigorous plan and optional maximal-test entry
+  - name: cross_cutting_schedule_values
+    value:
+      weekly_running_frequency: not_defined
+      recent_history_count: not_defined
+      minimum_low_intensity_fraction: not_defined
+      maximum_quality_sessions: not_defined
+      quality_spacing: not_defined
+      longest_run_limit: not_defined
+      weekly_progression: not_defined
+      taper: not_defined
+      block_horizon: not_defined
+      reassessment_cadence: not_defined
+      exact_workout_templates: not_defined
+      accepted_5_km_values_are_defaults: false
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.recent-history-anchor-without-universal-threshold
+      - eligibility.intensity-mostly-low-no-universal-winner
+      - eligibility.one-to-two-quality-sessions-indirect
+    rationale: >
+      The evidence supports dimensions and broad tendencies, not one schedule
+      envelope for every population and goal. Each distance policy must classify
+      its exact values as published, estimate, or guardrail.
+    applies_to: every distance-specific generation policy
+  - name: progression_and_workload_rules
+    value:
+      fixed_10_percent_rule_allowed: false
+      acwr_prescription_zones_allowed: false
+      automatic_missed_session_catch_up_allowed: false
+      recent_history_may_be_descriptive: true
+      distance_policy_replacement_threshold_required_if_used: true
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.fixed-progression-and-acwr-not-safety-laws
+      - eligibility.recent-history-anchor-without-universal-threshold
+    rationale: >
+      Rejecting invalid universal rules does not make training history
+      irrelevant. Any replacement must have explicit provenance and cannot be
+      smuggled in as an unlabelled safety law.
+    applies_to: every distance-specific generation and adjustment policy
+  - name: historical_intensity_evidence_source
+    value:
+      allowed:
+        - activity_splits
+        - activity_samples
+      prohibited:
+        - activity_avg_power
+      whole_activity_average_can_establish_interval_intensity: false
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.intensity-mostly-low-no-universal-winner
+    rationale: >
+      Whole-activity averages are diluted by warm-up, cool-down, and recovery.
+      The repository-wide intensity boundary requires split- or sample-level
+      evidence and is independent of the selected goal distance.
+    applies_to: history-derived intensity inputs
+  - name: masters_modifier
+    value:
+      automatic_age_exclusion: false
+      universal_masters_age_cutoff: none_defined
+      evaluate_with:
+        - goal_relevant_current_capability
+        - recent_history
+        - athlete_stated_availability
+        - session_time_limits
+        - evidence_directness
+        - athlete_reported_safety_stop
+      can_be_promoted_to_separate_family_after_validation: true
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.masters-modifier-not-age-exclusion
+    rationale: >
+      Age affects physiology without determining individual capability. A
+      modifier keeps uncertainty visible while avoiding unsupported exclusion
+      or exact recovery prescriptions.
+    applies_to: capability matching and distance-policy validation
+  - name: context_provenance_and_privacy
+    value:
+      provenance_classes:
+        - observed
+        - athlete_stated
+        - inferred
+        - assumed
+        - unknown
+      free_text_personal_context_required: false
+      purpose_bounded_structured_context_preferred: true
+      missed_training_reason_inference: prohibited
+      missing_context_means_unknown: true
+      athlete_can_correct_exclude_or_delete_context: true
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.evidence-quality-no-personal-probability
+    rationale: >
+      Provenance and optional context prevent behavior from becoming an
+      invented personal or medical explanation and minimize collection beyond
+      what eligibility needs.
+    applies_to: eligibility input, proposal evidence, and decision traces
+  - name: deterministic_matching_and_optional_ai
+    value:
+      complete_non_ai_path_required: true
+      deterministic_given_same_versioned_inputs: true
+      ai_allowed:
+        - explain_eligibility_result
+        - compare_already_valid_policy_options
+        - translate_athlete_text_into_reviewable_structured_fields
+      ai_prohibited:
+        - select_an_unaccepted_policy
+        - broaden_population
+        - invent_current_capability
+        - invent_history_or_personal_context
+        - weaken_or_skip_validation
+        - diagnose_or_clear
+        - approve_adopt_mutate_or_deliver_plan
+      all_ai_structured_output_revalidated: true
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.evidence-quality-no-personal-probability
+    rationale: >
+      AI may improve explanation without becoming a second eligibility or
+      planning authority.
+    applies_to: API, web, miniapp, plugin, and MCP plan-start clients
+  - name: personal_success_probability
+    value: disabled
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.evidence-quality-no-personal-probability
+    rationale: >
+      No accepted and externally validated model estimates goal achievement
+      for the matched population, history, and goal tuple.
+    applies_to: eligibility, feasibility, proposal, and outcome presentation
+  - name: validation_order
+    value:
+      - accepted_shared_policy
+      - accepted_distance_policy
+      - adult_scope_and_supported_intent
+      - goal_tuple_match
+      - athlete_reported_safety_stop
+      - goal_relevant_current_capability
+      - history_depth_and_recent_anchor
+      - evidence_directness_and_contradiction
+      - masters_modifier_and_stated_constraints
+      - distance_specific_schedule_validation
+      - deterministic_replay_hash
+    classification: guardrail
+    rationale: >
+      The order prevents schedule construction from preceding policy,
+      population, safety, capability, or evidence checks.
+    applies_to: shared eligibility and distance-specific generator orchestration
+  - name: replay_and_audit_record
+    value:
+      persist:
+        - shared_policy_version
+        - distance_policy_version
+        - matched_capability_id
+        - normalized_goal_tuple
+        - population_family
+        - current_capability_state
+        - history_depth_state
+        - recent_consistency_state
+        - masters_modifier
+        - evidence_directness_state
+        - safety_stop_state
+        - athlete_stated_constraint_snapshot
+        - eligibility_result
+        - failed_rule_id
+        - clarification_fields
+        - deterministic_input_hash
+      same_inputs_and_versions_require_same_result: true
+      changed_material_input_requires_new_evaluation: true
+    classification: guardrail
+    rationale: >
+      Versioned replay is required to audit false stops, false-safe routing,
+      subgroup effects, edits, and policy drift without retaining unrestricted
+      narrative.
+    applies_to: eligibility evidence snapshots and proposal audit
+applicability:
+  - Applies only as a shared precondition for adult running-plan generation.
+  - Does not itself enable a goal, distance, surface, population, horizon, workout, or provider-delivery capability.
+  - Beginner runners require a separate accepted policy family.
+  - Goal-distance-novel runners conservatively require a separate policy pending direct validation; this is a Praxys guardrail, not a published equivalence to beginners.
+  - Sparse-history runners require an explicit usable recent anchor and a distance policy that supports uncertainty; otherwise generation fails closed.
+  - Masters and older-adult runners are not excluded by age alone.
+  - Medical rehabilitation, treatment, pregnancy-specific prescription, diagnosis, clearance, and return-to-sport remain unsupported intents.
+  - Distance-specific policies remain responsible for exact baseline, history, schedule, intensity, progression, long-run, taper, and reassessment values.
+  - Existing accepted outdoor 5 km values remain specific to that accepted policy.
+user_facing_claim_limits:
+  - Do not call a runner eligible merely because the selected distance matches an available policy.
+  - Explain whether the limiting state is population, current capability, history, evidence quality, safety, constraints, or unavailable accepted science.
+  - Do not describe beginner, sparse-history, history-rich, or masters states as diagnoses or personal risk probabilities.
+  - Do not imply that masters or older runners are incapable based on age alone.
+  - Do not present recent-history counts, frequency ranges, intensity percentages, quality ceilings, progression, or long-run limits as cross-cutting published safety thresholds.
+  - Do not transfer an accepted 5 km number or template to another distance without a separate accepted decision.
+  - Do not present the 10 percent rule or ACWR as a causal safety zone.
+  - Do not infer why training was missed or require personal narrative for the deterministic path.
+  - Do not promise goal achievement, assign a personal probability, or label an athlete a responder.
+  - Do not present a symptom stop as diagnosis, treatment, clearance, or return-to-sport advice.
+safety_implications:
+  - Current athlete-reported illness, injury, red-flag symptoms, substantial unresolved fatigue, reported restriction, or unsafe conditions stop performance-plan generation.
+  - An unsupported medical, rehabilitation, pregnancy-specific, or return-to-sport request exits the performance-planning flow.
+  - Absence of a reported stop does not constitute medical clearance or proof that vigorous exercise is risk-free.
+  - No automatic catch-up, doubling, compression, or compensatory increase follows missed training.
+  - No distance policy may bypass shared safety, capability, history, or evidence checks.
+  - Use activity splits or samples, never activity average power, when historical intensity matters.
+privacy_implications:
+  - Collect only the owner-scoped structured fields needed to match, explain, replay, and audit eligibility.
+  - Personal narrative is optional and unnecessary for the deterministic path.
+  - Keep observed, athlete-stated, inferred, assumed, and unknown inputs distinct.
+  - Do not infer medical state, family, employment, identity, or reasons for missed training from behavior.
+  - Allow athlete correction, exclusion, and deletion of stated context and derived eligibility traces under existing account controls.
+  - Do not place raw context, exact location, symptoms, or unrestricted prompts in generic logs, public trackers, or evaluation corpora.
+validation_plan:
+  - Human science review must accept, revise, or reject this Evidence Review and SDR before any shared eligibility behavior cites them.
+  - Implement first in offline shadow mode against versioned goal and history snapshots without exposing or adopting a plan.
+  - Measure eligibility and no-plan distributions, clarification burden, false-stop review, contradictory-input handling, and deterministic replay stability.
+  - Segment results by beginner, sparse-history, history-rich, masters, sex, age band, provider, and missingness when sample size permits.
+  - Compare candidate recent-history anchors without presenting any candidate as a causal injury threshold.
+  - Verify every enabled capability also references an accepted distance-specific SDR and cannot inherit another policy's numeric values.
+  - Audit every UI, API, plugin, and MCP response for personal probabilities, hidden policy relaxation, invented context, or diagnosis-shaped wording.
+  - Pre-register safety exits, adverse reports, acceptance, edits, rejection, burden, and subgroup stop criteria before any suggestion-first pilot.
+  - Require a successor decision before promoting sparse-history or masters status to a separate policy family or adding autonomous permissions.
+falsification_conditions:
+  - A goal-distance match alone enables generation despite a population, capability, history, evidence, or safety mismatch.
+  - A beginner enters an already-capable policy without a separately accepted family.
+  - A goal-distance-novel runner enters an already-capable policy despite the draft conservative routing guardrail.
+  - A runner with no usable recent history anchor receives a dose-shaped plan.
+  - Masters or older runners are rejected solely because of age, or age is used to infer a fixed recovery need.
+  - Current symptoms produce a plan, or the stop response is presented as medical diagnosis or clearance.
+  - Any accepted outdoor 5 km numeric value becomes a cross-cutting default without a new decision.
+  - Fixed 10 percent progression, ACWR zones, automatic catch-up, or activity average power enters generation.
+  - Missing context is invented, narrative is required, or a reason for missed training is inferred.
+  - Optional AI can select an unaccepted policy or bypass deterministic eligibility validation.
+  - The same versioned inputs produce a different eligibility result.
+  - A user-facing surface emits a personal success probability, responder label, or guarantee.
+  - Prospective review shows material false-safe routing, subgroup exclusion, privacy burden, or unsafe behavior that cannot be bounded.
+affected_surfaces:
+  models:
+    - Future plan-generation-eligibility-safety-v1 pure policy model
+    - Plan-generation capability registry and matcher
+    - Goal, evidence, and eligibility snapshots
+    - Adaptive-plan proposal audit and deterministic replay record
+  apis:
+    - Shared owner-scoped plan-generation capability discovery
+    - Shared eligibility evaluation and typed no-plan contract
+    - Distance-specific readiness and proposal APIs
+  clients:
+    - Web Goal and Training plan-start flows
+    - WeChat miniapp plan-start parity
+    - Plugin and MCP capability discovery and proposal tools
+    - English and Simplified Chinese eligibility, uncertainty, and safety copy
+  science_notes:
+    - Why population, current capability, and history are separate eligibility dimensions
+    - Why exact schedule values remain distance-specific guardrails
+    - Why masters status modifies uncertainty without excluding by age
+    - Why symptoms stop generation without diagnosis or clearance
+supersedes: []
+superseded_by:
+decision_notes:
+  - "This is a decision proposal for issue #685, not an accepted policy or implementation authorization."
+  - Human review should focus on the beginner-family boundary, sparse-history handling, masters modifier, symptom-stop semantics, and whether any cross-cutting field is overly broad.
+  - No numeric recent-history, weekly-frequency, intensity, quality-session, long-run, progression, taper, horizon, or reassessment value is selected by this draft.
+  - "Impact map: draft Evidence Review -> draft SDR -> future shared pure eligibility model -> capability registry -> data loading and owner-scoped evidence snapshot -> API contract -> web types and UI -> miniapp parity -> plugin/MCP parity -> ScienceNote and localization -> tests -> offline shadow validation -> suggestion-first pilot."
+  - Accepted 5 km records remain unchanged and continue to govern only their current implementation.
+  - Explicit human acceptance and a separate implementation review are required before this model version can become active.

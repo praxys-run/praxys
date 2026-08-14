@@ -37,6 +37,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "evidence-personal-environment-response-v1",
         "evidence-preplan-baseline-policy-v1",
         "evidence-outdoor-5k-plan-generation-policy-v1",
+        "evidence-plan-generation-eligibility-safety-v1",
         "evidence-running-field-tests-v1",
         "evidence-short-interruption-detraining-v1",
     }
@@ -48,6 +49,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "sdr-environmental-performance-v4",
         "sdr-heat-adaptation-v1",
         "sdr-outdoor-5k-plan-generation-policy-v1",
+        "sdr-plan-generation-eligibility-safety-v1",
         "sdr-preplan-baseline-policy-v1",
     }
     assert registry.evidence_reviews[
@@ -278,6 +280,102 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "evidence-heat-decay-v1",
     }
     assert decision.human_reviewers == ["github:dddtc2005"]
+
+
+def test_plan_generation_eligibility_proposal_stays_inactive_and_cross_cutting() -> None:
+    registry = load_science_registry()
+    review = registry.evidence_reviews[
+        "evidence-plan-generation-eligibility-safety-v1"
+    ]
+    decision = registry.decisions[
+        "sdr-plan-generation-eligibility-safety-v1"
+    ]
+
+    assert review.status == "draft"
+    assert review.human_reviewers == []
+    assert review.reviewed_on is None
+    assert review.method.review_type.value == "rigorous"
+    assert len(review.citations) >= 17
+    assert {
+        "eligibility.novice-recreational-different-evidence-family",
+        "eligibility.recent-history-anchor-without-universal-threshold",
+        "eligibility.goal-relevant-current-capability-task-specific",
+        "eligibility.masters-modifier-not-age-exclusion",
+        "eligibility.current-symptoms-support-stop-not-clearance",
+        "eligibility.evidence-quality-no-personal-probability",
+    } <= {claim.id for claim in review.claims}
+    assert {
+        "Verification: videbaek-2015 - full-text",
+        "Verification: correia-2024 - full-text",
+        "Verification: boullosa-2020 - full-text",
+    } <= {note.split(";", 1)[0] for note in review.review_notes}
+
+    assert decision.status == "draft"
+    assert decision.human_reviewers == []
+    assert decision.evidence_review_ids == [review.id]
+    assert {claim.id for claim in review.claims} == set(
+        decision.evidence_claim_ids
+    )
+    parameters = {
+        parameter.name: parameter
+        for parameter in decision.model_parameters
+    }
+    assert parameters["activation_and_authority"].value[
+        "active_behavior"
+    ] is False
+    assert parameters["population_family_routing"].value[
+        "adult_beginner"
+    ] == "separate_accepted_policy_required"
+    assert parameters["population_family_routing"].value[
+        "adult_goal_distance_novel"
+    ] == "conservative_separate_policy_route_pending_validation"
+    assert parameters["population_family_routing"].value[
+        "masters_or_older_adult"
+    ] == "modifier_not_exclusion"
+    assert parameters["history_depth_states"].value[
+        "cross_cutting_minimum_weeks"
+    ] == "none_defined"
+    assert parameters["cross_cutting_schedule_values"].value[
+        "accepted_5_km_values_are_defaults"
+    ] is False
+    assert parameters["progression_and_workload_rules"].value[
+        "fixed_10_percent_rule_allowed"
+    ] is False
+    assert parameters["progression_and_workload_rules"].value[
+        "acwr_prescription_zones_allowed"
+    ] is False
+    assert parameters["historical_intensity_evidence_source"].value[
+        "prohibited"
+    ] == ["activity_avg_power"]
+    assert parameters["personal_success_probability"].value == "disabled"
+    assert parameters["deterministic_matching_and_optional_ai"].value[
+        "complete_non_ai_path_required"
+    ] is True
+    assert {
+        "broaden_population",
+        "invent_history_or_personal_context",
+        "diagnose_or_clear",
+    } <= set(
+        parameters["deterministic_matching_and_optional_ai"].value[
+            "ai_prohibited"
+        ]
+    )
+    assert parameters["context_provenance_and_privacy"].value[
+        "missed_training_reason_inference"
+    ] == "prohibited"
+    assert parameters["athlete_reported_safety_stop"].value[
+        "diagnosis_treatment_or_clearance"
+    ] == "prohibited"
+    assert parameters["athlete_reported_safety_stop"].value[
+        "absent_report_means_risk_free"
+    ] is False
+    assert "chest_pain_or_pressure" in parameters[
+        "athlete_reported_safety_stop"
+    ].value["stop_reasons"]
+    assert any(
+        "not an accepted policy" in note
+        for note in decision.decision_notes
+    )
 
 
 def test_environmental_performance_decision_preserves_product_boundaries() -> None:
