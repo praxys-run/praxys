@@ -3,11 +3,13 @@ id: evidence-plan-generation-eligibility-safety-v1
 version: 1
 title: "Cross-cutting plan-generation eligibility and safety"
 research_question: >
-  For adults considered for automatic running-plan generation, what evidence
-  supports treating current goal-relevant capability, training-history depth,
-  recent consistency, age, evidence quality, and athlete-reported safety state
-  as independent eligibility axes, and which exact planning limits remain
-  Praxys guardrails rather than published prescriptions?
+  For adults selecting a running goal or requesting automatic plan generation,
+  what evidence supports treating goal intent, current goal-relevant
+  capability, training-history depth, recent consistency, age, evidence
+  quality, and athlete-reported safety state as independent routing axes, and
+  which goal-selection, event-context, dynamic-pattern, profile-provenance, and
+  exact planning choices remain Praxys guardrails rather than published
+  prescriptions?
 topic: plan-generation-eligibility-safety
 status: draft
 authors:
@@ -16,35 +18,48 @@ human_reviewers: []
 created_on: 2026-08-14
 reviewed_on:
 intended_product_purpose: >
-  Define a shared evidence boundary that every distance-specific generator
-  must pass before it can offer a proposal. Distinguish beginner runners from
-  already-capable runners, preserve goal-distance novelty as an unresolved
-  conservative routing question, keep sparse-history and masters status as
-  explicit uncertainty dimensions, stop on unsupported or athlete-reported
-  safety states, and prevent exact 5 km pilot values, progression folklore,
-  workload ratios, or opaque AI inference from becoming universal
-  plan-generation rules.
+  Define a shared evidence boundary and product-routing contract for every
+  training plan. Keep goal selection independent from plan availability, route
+  completion and performance intent through current capability and history,
+  represent training context as time-bounded patterns rather than static
+  runner identities, make no-event and race-calendar context explicit, and
+  preserve field-level provenance and missingness. Stop on unsupported or
+  athlete-reported safety states, and prevent exact 5 km pilot values,
+  demographic assumptions, progression folklore, workload ratios, or opaque
+  AI inference from becoming universal plan-generation rules.
 scope:
   population:
-    - Adults aged 18 years or older considered for self-coached recreational running plans
-    - Beginner runners as a distinct evidence population
+    - Adults aged 18 years or older selecting a running goal or requesting a plan
+    - Beginner and already-capable runners as distinct evidence populations rather than permanent product identities
     - Goal-distance-novel runners as an unresolved conservative routing question
     - Sparse-history and history-rich runners as independent history states
     - Masters and older adult runners as an age-related modifier population
   intervention_or_exposure:
+    - Goal capture that remains independent from plan-policy availability
     - Automatic plan-generation eligibility and capability matching
+    - Time-bounded training-context patterns derived from observed and athlete-confirmed inputs
+    - No-event, single-event, and race-dense calendar context
+    - User-entered and provider-imported profile or event provenance
     - Recent running consistency, weekly distance change, and single-session distance change
     - Task-specific current-capability and time-trial evidence
     - Training-intensity distribution and quality-session frequency
     - Fixed weekly progression and acute-to-chronic workload-ratio rules
     - Athlete-reported symptoms and non-medical safety-stop routing
   comparator:
+    - Blocking goal selection because no accepted generator policy exists
     - Distance-only capability matching
-    - Beginner and history-rich runners treated as one policy population
+    - Static recreational, serious, professional, beginner, or elite identity labels
+    - Beginner and history-rich evidence populations treated as one policy
+    - Provider profile data treated as canonical without confirmation or purpose limitation
     - Universal progression, frequency, intensity, or long-run thresholds
     - Warning-only handling when generation inputs are unsupported or unsafe
     - Error-aware uncertainty handling versus personal probability or responder labels
   outcomes:
+    - Goal recordability independent from current plan-generation support
+    - Transparent distance-policy routing and clarification
+    - Event-context completeness and schedule-conflict handling
+    - Dynamic pattern provenance, recency, confidence, and correction
+    - Field-level missing-data effects and data minimization
     - Evidence applicability and eligibility classification
     - Running-related injury incidence and association
     - Training-performance support and uncertainty
@@ -133,6 +148,9 @@ method:
     - Several included sources were verified only at abstract level, limiting detailed risk-of-bias appraisal.
     - Running-injury evidence is heterogeneous and observational evidence cannot define an individual safe threshold.
     - Masters evidence is indirect for automatic plan generation and underrepresents older women.
+    - No reviewed source validates static runner identity labels as plan-routing variables.
+    - No reviewed source validates one event-calendar schema, race-priority system, dynamic-pattern vocabulary, or no-event goal-validation workflow.
+    - No reviewed source establishes that age, sex, exact date of birth, or provider profile data must be collected for every running plan.
     - No reviewed source validates one recent-history count, weekly frequency range, low-intensity percentage, quality-session ceiling, or long-run limit for every running goal.
 claims:
   - id: eligibility.novice-recreational-different-evidence-family
@@ -652,6 +670,10 @@ known_gaps:
   - A validated recent-history depth threshold for automatic dose anchoring
   - A universal recreational-running frequency or long-run prescription
   - Direct plan-generation trials comparing beginner, sparse-history, history-rich, and masters policy states
+  - A validated dynamic training-context pattern vocabulary and transition rule
+  - A validated no-event completion or performance-goal capstone workflow
+  - A validated race-dense event-calendar prioritization and conflict policy
+  - A minimal provider-profile and user-confirmation contract with field-level consent and retention evidence
   - Prospective evidence that a masters modifier improves decisions without unnecessary exclusion
   - Representative evidence for women, older women, low-frequency runners, and provider-specific missingness
   - A validated minimal context vocabulary that improves fit without pressuring athletes to disclose why training was missed
@@ -660,9 +682,14 @@ conflicting_findings:
   - Recent distance changes are associated with injury in some windows and exposure definitions, while weekly ratios and longer follow-up did not consistently retain associations.
   - Mostly low-intensity organization is supported, while studies do not identify one universally superior polarized or pyramidal distribution.
   - Older age changes performance and recovery physiology, while highly capable masters athletes show that age alone is not a capability classification.
+  - Studies use novice, recreational, trained, and elite cohort labels, while those labels do not establish stable product identities or deterministic individual plan routes.
 follow_up_questions:
   - Which recent-history states and minimum anchors best prevent unsupported dose extrapolation?
   - When should sparse-history or masters status become a separate policy family rather than a modifier?
+  - Which dynamic patterns improve routing without becoming permanent labels or opaque scores?
+  - When should a no-event goal use a controlled completion activity, an opt-in performance benchmark, or continued rolling training?
+  - Which imported event and profile fields materially improve planning, and which should remain point-of-use questions?
+  - How should primary, supporting, and training events alter quality-session, recovery, and taper decisions?
   - Which exact distance-specific values can be prospectively tested without being presented as published safety thresholds?
   - How often do clarification requests improve plan fit versus increase privacy burden or abandonment?
   - Which false-stop, false-safe, adverse-exit, and subgroup criteria should stop or narrow a future policy?
@@ -686,4 +713,4 @@ review_notes:
   - "Verification: burtscher-2022 - abstract; Europe PMC PMID 36078762 and Crossref DOI metadata; 2026-08-14."
   - "Verification: riebe-2015 - abstract; Europe PMC PMID 26473759 and Crossref DOI metadata; 2026-08-14."
   - "Verification: bonafiglia-2021 - abstract; Europe PMC PMID 34819869 and Crossref DOI metadata; 2026-08-14."
-  - No source was found that validates one cross-cutting recent-history count, weekly running frequency, low-intensity percentage, quality-session ceiling, or long-run limit.
+  - No source was found that validates one cross-cutting recent-history count, weekly running frequency, low-intensity percentage, quality-session ceiling, long-run limit, event-priority schema, dynamic-pattern vocabulary, or mandatory demographic profile.

@@ -323,18 +323,64 @@ def test_plan_generation_eligibility_proposal_stays_inactive_and_cross_cutting()
     assert parameters["activation_and_authority"].value[
         "active_behavior"
     ] is False
-    assert parameters["population_family_routing"].value[
-        "adult_beginner"
-    ] == "separate_accepted_policy_required"
-    assert parameters["population_family_routing"].value[
-        "adult_goal_distance_novel"
+    assert parameters["activation_and_authority"].value[
+        "goal_capture_is_independent_from_plan_availability"
+    ] is True
+    goal_routing = parameters["goal_intent_and_policy_separation"].value
+    assert goal_routing[
+        "goal_may_be_recorded_without_matching_plan_policy"
+    ] is True
+    assert set(goal_routing["intent_states"]) == {
+        "completion",
+        "performance",
+        "continuous_development",
+        "unknown",
+    }
+    assert goal_routing["unavailable_policy_result"] == (
+        "goal_recorded_plan_policy_unavailable"
+    )
+    assert parameters["capability_and_history_routing"].value[
+        "first_distance_completion"
+    ] == "separate_accepted_completion_policy_required"
+    assert parameters["capability_and_history_routing"].value[
+        "goal_distance_novel_performance"
     ] == "conservative_separate_policy_route_pending_validation"
-    assert parameters["population_family_routing"].value[
+    assert parameters["capability_and_history_routing"].value[
         "masters_or_older_adult"
     ] == "modifier_not_exclusion"
+    assert parameters["capability_and_history_routing"].value[
+        "static_identity_labels_used_for_routing"
+    ] is False
     assert parameters["history_depth_states"].value[
         "cross_cutting_minimum_weeks"
     ] == "none_defined"
+    patterns = parameters["dynamic_training_context_patterns"].value
+    assert patterns["pattern_is_person_identity"] is False
+    assert patterns["time_bounded"] is True
+    assert patterns["same_athlete_may_change_patterns"] is True
+    assert patterns["correction_changes_provenance_not_observed_history"] is True
+    assert "race_dense" in patterns["pattern_axes"]["event_context"]
+    event_context = parameters["event_context_and_calendar"].value
+    assert event_context["no_calendar_records_means_no_events"] is False
+    assert event_context[
+        "provider_import_requires_athlete_confirmation"
+    ] is True
+    assert event_context["no_event_completion_route"] == (
+        "separately_accepted_controlled_goal_activity"
+    )
+    assert event_context["no_event_performance_route"] == (
+        "separately_accepted_opt_in_benchmark"
+    )
+    assert event_context[
+        "race_or_maximal_effort_counts_as_training_load"
+    ] is True
+    outcomes = parameters["eligibility_outcomes"].value
+    assert outcomes["goal_recorded_plan_policy_unavailable"] == (
+        "valid_goal_without_matching_accepted_policy"
+    )
+    assert outcomes["unresolved_event_context"] == (
+        "material_race_or_maximal_effort_context_unknown"
+    )
     assert parameters["cross_cutting_schedule_values"].value[
         "accepted_5_km_values_are_defaults"
     ] is False
@@ -347,13 +393,47 @@ def test_plan_generation_eligibility_proposal_stays_inactive_and_cross_cutting()
     assert parameters["historical_intensity_evidence_source"].value[
         "prohibited"
     ] == ["activity_avg_power"]
+    profile = parameters["profile_fields_and_missingness"].value
+    assert profile[
+        "provider_technical_access_is_blanket_product_consent"
+    ] is False
+    assert profile["exact_birth_date_storage_required"] is False
+    assert profile["optional_physiological_sex"][
+        "unknown_may_default_to_male"
+    ] is False
+    assert profile["missing_field_policy"]["age_modifier"] == (
+        "continue_without_age_adjustment"
+    )
+    assert profile["missing_field_policy"]["physiological_sex_modifier"] == (
+        "disable_dependent_metric_or_use_separately_accepted_neutral_method"
+    )
+    assert profile["missing_field_policy"][
+        "unrelated_optional_profile_field"
+    ] == "does_not_block_plan"
+    assert parameters["validation_order"].value[0] == (
+        "goal_recorded_and_normalized"
+    )
+    assert "material_event_context_and_schedule_conflicts" in parameters[
+        "validation_order"
+    ].value
+    replay_fields = set(parameters["replay_and_audit_record"].value["persist"])
+    assert {
+        "goal_record_state",
+        "dynamic_pattern_snapshot",
+        "event_context_state",
+        "profile_field_provenance",
+        "missing_field_effects",
+    } <= replay_fields
     assert parameters["personal_success_probability"].value == "disabled"
     assert parameters["deterministic_matching_and_optional_ai"].value[
         "complete_non_ai_path_required"
     ] is True
     assert {
         "broaden_population",
+        "assign_static_runner_identity",
         "invent_history_or_personal_context",
+        "invent_or_confirm_event_context",
+        "confirm_or_overwrite_provider_profile",
         "diagnose_or_clear",
     } <= set(
         parameters["deterministic_matching_and_optional_ai"].value[
@@ -363,6 +443,9 @@ def test_plan_generation_eligibility_proposal_stays_inactive_and_cross_cutting()
     assert parameters["context_provenance_and_privacy"].value[
         "missed_training_reason_inference"
     ] == "prohibited"
+    assert parameters["context_provenance_and_privacy"].value[
+        "imported_event_or_profile_candidate_is_confirmed"
+    ] is False
     assert parameters["athlete_reported_safety_stop"].value[
         "diagnosis_treatment_or_clearance"
     ] == "prohibited"

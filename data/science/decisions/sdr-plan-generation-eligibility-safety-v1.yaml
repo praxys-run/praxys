@@ -21,40 +21,71 @@ evidence_claim_ids:
   - eligibility.current-symptoms-support-stop-not-clearance
   - eligibility.evidence-quality-no-personal-probability
 accepted_interpretation: >
-  If accepted, every automatic running-plan generator must first pass one
-  shared, deterministic eligibility policy and then an independently accepted
-  distance-specific policy. Capability matching uses independent goal,
-  population, current-capability, history-depth, recent-consistency, evidence-
-  directness, age-modifier, safety, and athlete-constraint fields rather than
-  treating race distance as a proxy for readiness. Beginner runners require a
-  separate accepted policy family; goal-distance-novel runners are routed the
-  same way as a conservative guardrail pending direct validation. A currently capable
-  runner with sparse but usable recent history may be eligible only with
-  explicit uncertainty under a distance policy that can stay inside that
-  evidence; no usable history anchor yields a typed no-plan result. Masters or
-  older-adult status is a modifier, not an exclusion by age alone. Current
-  athlete-reported symptoms, unsupported medical intent, an adult-scope
-  mismatch, missing required current capability, contradictory inputs, or an
-  absent history anchor fail closed without diagnosis or hidden relaxation.
-  The shared policy does not choose exact recent-week counts, running-day
-  ranges, low-intensity percentages, quality-session ceilings, long-run limits,
-  progression, taper, or schedule templates. Each enabled goal policy must
-  define and classify those values independently; accepted outdoor 5 km
-  numbers do not become defaults. Fixed 10 percent progression, ACWR
-  prescription zones, automatic catch-up, personal success probabilities,
-  causal missed-training explanations, and activity average power for
-  intensity analysis remain prohibited. Optional AI may explain or translate
-  reviewable structured inputs but cannot broaden eligibility, invent context,
-  weaken validation, approve, adopt, mutate, or deliver a plan. This draft
-  authorizes no product behavior until explicit human science acceptance and a
-  separately reviewed implementation.
+  If accepted, every Praxys training-plan flow would separate goal capture from
+  plan generation. A user may record a supported discipline, distance, surface,
+  completion or performance intent, and optional target date even when no
+  accepted generator policy currently matches. A shared deterministic router
+  would then evaluate current goal-relevant capability, history depth, recent
+  consistency, event context, time-bounded training patterns, evidence
+  directness, adult scope, non-medical safety state, and athlete-stated
+  constraints before selecting an independently accepted sport-, distance-,
+  intent-, and context-specific policy. Beginner, currently capable, returning,
+  sparse-history, high-load, race-dense, and other states would describe the
+  current evidence window rather than label the person as recreational,
+  serious, professional, or elite. Imported events and profile fields would
+  remain source-labelled candidates until their product purpose is disclosed
+  and the athlete confirms or corrects them. Adult eligibility or another
+  truly policy-critical field may block the dependent plan path; missing
+  optional age, sex, or other modifiers would instead remain unknown and
+  disable only the dependent adjustment or metric. Unknown sex may never
+  silently become male. A no-event goal may route to rolling training and a
+  separately accepted, explicitly chosen completion activity or performance
+  benchmark. Confirmed races and maximal efforts count as training load and
+  must be reconciled before schedule generation; no calendar data may be
+  interpreted as proof that no events exist. The shared policy does not choose
+  exact history counts, running-day ranges, intensity percentages, quality
+  ceilings, long-run limits, horizons, progression, taper, event priorities, or
+  workout templates. Fixed 10 percent progression, ACWR prescription zones,
+  automatic catch-up, personal success probabilities, causal missed-training
+  explanations, and activity average power for intensity analysis remain
+  prohibited. Optional AI may explain or structure reviewable inputs but
+  cannot invent identity, event, profile, capability, history, or safety
+  context; broaden eligibility; weaken validation; approve; adopt; mutate; or
+  deliver a plan. This draft authorizes no product behavior until explicit
+  human science acceptance and a separately reviewed implementation.
 rejected_alternatives:
+  - alternative: "Hide or reject a goal because no accepted generator policy currently matches"
+    rationale: >
+      Goal intent is durable user choice, while policy availability is a
+      versioned product capability. Conflating them prevents honest readiness
+      and future routing and makes unsupported science look like an invalid
+      user goal.
   - alternative: "Match plan-generation capability by goal distance alone"
     rationale: >
       Distance does not establish current capability, training-history depth,
       recent consistency, age-related context, evidence directness, or safety
       state. Distance-only matching would silently route unsupported
       populations into an accepted policy.
+  - alternative: "Classify a runner as recreational, serious, professional, or elite and route permanently from that identity"
+    rationale: >
+      Study cohort labels describe sampled populations, not stable product
+      identities. Capability, history, load, event density, recovery, and
+      constraints can change within the same athlete and must be re-evaluated.
+  - alternative: "Assume an empty calendar means the athlete has no races or maximal efforts"
+    rationale: >
+      Missing event data is unknown. Unrecorded races can conflict with quality
+      sessions, recovery, and taper decisions, especially for race-dense
+      runners.
+  - alternative: "Treat an OAuth-accessible provider profile as confirmed canonical truth"
+    rationale: >
+      Technical access does not establish current accuracy, product-purpose
+      understanding, minimum-necessary retention, or permission to overwrite a
+      user-confirmed Praxys value.
+  - alternative: "Require every demographic profile field before generating any plan"
+    rationale: >
+      Missing optional modifiers should affect only the dependent adjustment or
+      metric. Blocking an otherwise supported plan would increase privacy
+      burden without evidence that every field materially improves it.
   - alternative: "Reuse the accepted outdoor 5 km history and schedule numbers as shared defaults"
     rationale: >
       The 5 km horizon, history counts, frequency range, low-intensity floor,
@@ -102,6 +133,8 @@ model_parameters:
       human_acceptance_required: true
       shared_precondition_only: true
       accepted_distance_policy_required: true
+      goal_capture_is_independent_from_plan_availability: true
+      goal_capture_is_not_plan_adoption: true
       suggestion_only: true
       canonical_adoption_requires_separate_explicit_consent: true
       managed_provider_delivery_requires_separate_explicit_consent: true
@@ -111,24 +144,58 @@ model_parameters:
       proposal, adoption, and delivery authority preserves athlete control and
       prevents this shared classifier from becoming a planner.
     applies_to: plan-generation-eligibility-safety-v1
+  - name: goal_intent_and_policy_separation
+    value:
+      goal_may_be_recorded_without_matching_plan_policy: true
+      supported_goal_fields:
+        - discipline
+        - distance
+        - surface
+        - intent
+        - optional_target_time
+        - optional_target_date
+      intent_states:
+        - completion
+        - performance
+        - continuous_development
+        - unknown
+      goal_record_state_is_not_eligibility_state: true
+      unavailable_policy_result: goal_recorded_plan_policy_unavailable
+      unsupported_goal_syntax_result: goal_clarification_required
+      distance_policy_must_declare_supported_intents: true
+      no_goal_time_or_date_default_inference: true
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.goal-relevant-current-capability-task-specific
+      - eligibility.evidence-quality-no-personal-probability
+    rationale: >
+      A goal expresses athlete intent; an accepted policy expresses current
+      product evidence and capability. Keeping those states separate lets every
+      plan flow route completion, performance, and undated goals honestly
+      without manufacturing a schedule or rejecting a valid aspiration.
+    applies_to: goal capture, capability discovery, and every training-plan entry
   - name: capability_match_axes
     value:
       required:
         - adult_scope
         - discipline
+        - goal_intent
         - goal_kind
         - goal_distance
         - goal_surface
         - goal_outcome
+        - event_context
         - goal_relevant_current_capability
         - history_depth
         - recent_consistency
+        - training_context_patterns
         - evidence_directness
         - masters_modifier
         - athlete_reported_safety_stop
         - athlete_stated_constraints
       distance_is_history_proxy: false
       distance_is_capability_proxy: false
+      study_cohort_label_is_user_identity: false
       missing_material_axis_result: clarification_required
     classification: guardrail
     evidence_claim_ids:
@@ -138,19 +205,23 @@ model_parameters:
       - eligibility.masters-modifier-not-age-exclusion
     rationale: >
       Independent axes prevent a matching goal label from erasing population,
-      history, capability, evidence, or safety differences.
+      history, capability, event, evidence, or safety differences and prevent a
+      static runner label from replacing current data.
     applies_to: shared capability discovery and generator entry
-  - name: population_family_routing
+  - name: capability_and_history_routing
     value:
-      adult_history_rich_currently_capable: continue_to_distance_policy
-      adult_sparse_history_currently_capable:
+      currently_capable_history_rich: continue_to_matching_intent_and_distance_policy
+      currently_capable_sparse_history:
         with_usable_recent_anchor: eligible_with_uncertainty
         without_usable_recent_anchor: insufficient_recent_history_anchor
-      adult_beginner: separate_accepted_policy_required
-      adult_goal_distance_novel: conservative_separate_policy_route_pending_validation
+      first_distance_completion: separate_accepted_completion_policy_required
+      goal_distance_novel_performance: conservative_separate_policy_route_pending_validation
+      returning_after_interruption: separate_supported_state_or_readiness_only
+      outside_reviewed_training_envelope: evidence_indirect_or_no_matching_policy
       masters_or_older_adult: modifier_not_exclusion
       child_or_adolescent: unsupported_by_adult_policy
       medical_rehabilitation_treatment_pregnancy_specific_or_return_to_sport: unsupported_intent
+      static_identity_labels_used_for_routing: false
     classification: guardrail
     evidence_claim_ids:
       - eligibility.novice-recreational-different-evidence-family
@@ -158,9 +229,10 @@ model_parameters:
       - eligibility.masters-modifier-not-age-exclusion
     rationale: >
       The routing preserves applicability without inventing exact age, history,
-      or dose cutoffs. The beginner route follows the different evidence
-      family; the goal-distance-novel route is an explicit conservative
-      guardrail rather than an evidence-backed equivalence.
+      dose, or identity cutoffs. States describe the current evidence window
+      and can change over time. First-completion and goal-distance-novel routes
+      remain separate product guardrails rather than evidence-backed
+      equivalences.
     applies_to: plan-generation capability matching
   - name: history_depth_states
     value:
@@ -182,6 +254,111 @@ model_parameters:
       one universal count. Numeric values must be justified and versioned by
       each distance and population policy.
     applies_to: shared history sufficiency classification
+  - name: dynamic_training_context_patterns
+    value:
+      pattern_axes:
+        capability:
+          - first_attempt
+          - currently_capable
+          - returning
+          - unknown
+        history:
+          - stable
+          - sparse
+          - interrupted
+          - unknown
+        load_relative_to_self:
+          - below_recent
+          - within_recent
+          - above_recent
+          - unknown
+        event_context:
+          - confirmed_none
+          - single_target
+          - race_dense
+          - unknown
+        intensity_structure:
+          - mostly_low
+          - quality_dense
+          - mixed
+          - unknown
+        recovery_context:
+          - stable
+          - constrained
+          - unknown
+        evidence_directness:
+          - direct
+          - supporting
+          - indirect
+          - missing
+          - contradictory
+      pattern_is_person_identity: false
+      time_bounded: true
+      evaluation_window_and_version_required: true
+      provenance_and_confidence_required: true
+      same_athlete_may_change_patterns: true
+      athlete_may_confirm_or_correct: true
+      correction_changes_provenance_not_observed_history: true
+      safety_or_policy_boundary_override_by_correction: false
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.recent-history-anchor-without-universal-threshold
+      - eligibility.goal-relevant-current-capability-task-specific
+      - eligibility.evidence-quality-no-personal-probability
+    rationale: >
+      Current capability and training context can improve, regress, or become
+      uncertain. A versioned multidimensional pattern preserves that change and
+      its evidence instead of assigning a permanent recreational,
+      professional, beginner, or elite identity.
+    applies_to: shared plan routing, explanation, and replay
+  - name: event_context_and_calendar
+    value:
+      context_states:
+        - confirmed_none
+        - single_target
+        - race_dense
+        - unknown
+      event_sources:
+        - athlete_entered
+        - provider_imported_candidate
+      provider_import_requires_athlete_confirmation: true
+      minimum_event_fields:
+        - date
+        - discipline
+        - distance_or_duration
+        - surface_or_format
+        - intent
+        - priority
+        - source
+      priority_states:
+        - primary
+        - supporting
+        - training
+        - unknown
+      no_calendar_records_means_no_events: false
+      point_of_use_future_event_confirmation_required: true
+      no_event_completion_route: separately_accepted_controlled_goal_activity
+      no_event_performance_route: separately_accepted_opt_in_benchmark
+      no_automatic_goal_activity_date: true
+      race_or_maximal_effort_counts_as_training_load: true
+      distance_policy_must_reconcile:
+        - quality_session_count
+        - spacing
+        - recovery
+        - taper
+        - schedule_conflicts
+      material_unknown_event_context_result: clarification_or_limited_guidance
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.recent-history-anchor-without-universal-threshold
+      - eligibility.evidence-quality-no-personal-probability
+    rationale: >
+      The review validates no universal calendar or priority schema. Event
+      context is nevertheless a material schedule input: confirmed races and
+      maximal efforts consume load, while missing records remain unknown.
+      Completion activities, benchmarks, priorities, and conflict handling
+      require explicit distance-policy decisions and athlete confirmation.
+    applies_to: every dated, undated, and race-dense training-plan route
   - name: goal_relevant_current_capability_states
     value:
       - direct_current
@@ -215,19 +392,23 @@ model_parameters:
     applies_to: capability and proposal evidence snapshots
   - name: eligibility_outcomes
     value:
+      goal_recorded_plan_policy_unavailable: valid_goal_without_matching_accepted_policy
       ready_for_distance_policy: all_shared_preconditions_satisfied
       eligible_with_uncertainty: usable_evidence_with_explicit_nonblocking_limits
       clarification_required: material_goal_constraint_or_provenance_field_missing
-      unsupported_population_or_intent: no_matching_accepted_population_policy
+      limited_guidance: optional_or_event_context_missing_but_no_safety_stop
+      no_matching_policy: no_accepted_policy_for_current_intent_and_pattern
       current_symptom_stop: athlete_reported_non_medical_safety_boundary
       insufficient_goal_relevant_capability: required_capability_not_established
       insufficient_recent_history_anchor: no_usable_recent_anchor_for_dose
+      unresolved_event_context: material_race_or_maximal_effort_context_unknown
       contradictory_evidence: material_inputs_cannot_be_reconciled
       no_accepted_distance_policy: shared_policy_passed_but_goal_policy_inactive
     classification: guardrail
     rationale: >
-      Typed outcomes distinguish uncertainty, unsupported scope, safety, and
-      unavailable science from service errors or success-shaped fallbacks.
+      Typed outcomes keep a valid recorded goal separate from uncertainty,
+      unavailable science, event clarification, safety, and service errors.
+      Missing a policy cannot retroactively make the athlete's goal invalid.
     applies_to: shared eligibility API and all plan-generation clients
   - name: athlete_reported_safety_stop
     value:
@@ -265,7 +446,11 @@ model_parameters:
       weekly_progression: not_defined
       taper: not_defined
       block_horizon: not_defined
+      target_date_required: not_defined
+      rolling_execution_window: not_defined
       reassessment_cadence: not_defined
+      event_priority_effect: not_defined
+      no_event_goal_activity: not_defined
       exact_workout_templates: not_defined
       accepted_5_km_values_are_defaults: false
     classification: guardrail
@@ -314,6 +499,16 @@ model_parameters:
     value:
       automatic_age_exclusion: false
       universal_masters_age_cutoff: none_defined
+      exact_date_of_birth_required: false
+      acceptable_age_context:
+        - athlete_confirmed_adult_scope
+        - athlete_confirmed_age_band
+        - athlete_confirmed_birth_year
+        - unknown
+      age_may_be_inferred_from_performance: false
+      unknown_age_blocks_only:
+        - adult_policy_when_adult_scope_is_unconfirmed
+        - accepted_age_dependent_adjustment
       evaluate_with:
         - goal_relevant_current_capability
         - recent_history
@@ -330,11 +525,72 @@ model_parameters:
       modifier keeps uncertainty visible while avoiding unsupported exclusion
       or exact recovery prescriptions.
     applies_to: capability matching and distance-policy validation
+  - name: profile_fields_and_missingness
+    value:
+      profile_layers:
+        durable_athlete_confirmed_profile:
+          - adult_scope_or_age_context
+          - optional_physiology_fields
+          - stable_preferences
+        dynamic_training_context:
+          - capability_pattern
+          - history_pattern
+          - load_pattern
+          - event_pattern
+          - recovery_pattern
+          - evidence_directness
+      field_sources:
+        - athlete_entered
+        - athlete_confirmed_provider_value
+        - provider_imported_candidate
+        - derived
+        - unknown
+      provider_technical_access_is_blanket_product_consent: false
+      provider_import_requirements:
+        - disclosed_product_purpose
+        - minimum_necessary_field
+        - source_and_observed_at
+        - athlete_confirmation_before_canonical_use
+        - no_silent_overwrite
+      conflicting_provider_or_user_values_result: clarification_required
+      exact_birth_date_storage_required: false
+      preferred_age_storage:
+        - age_band
+        - birth_year
+      optional_physiological_sex:
+        collected_only_for_accepted_dependent_model: true
+        user_may_decline: true
+        unknown_may_default_to_male: false
+      missing_field_policy:
+        adult_scope_for_adult_only_policy: block_dependent_plan_path
+        current_safety_state: block_vigorous_plan_path
+        material_event_context: clarification_or_limited_guidance
+        age_modifier: continue_without_age_adjustment
+        physiological_sex_modifier: disable_dependent_metric_or_use_separately_accepted_neutral_method
+        unrelated_optional_profile_field: does_not_block_plan
+      athlete_controls:
+        - view
+        - confirm
+        - correct
+        - decline
+        - delete
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.masters-modifier-not-age-exclusion
+      - eligibility.evidence-quality-no-personal-probability
+    rationale: >
+      The review does not show that every demographic field improves every
+      plan. Purpose-bound provenance and field-level consequences minimize
+      privacy burden, prevent provider data from becoming silent truth, and
+      prevent unknown sex from becoming a hidden male default.
+    applies_to: profile, provider imports, plan eligibility, and dependent metrics
   - name: context_provenance_and_privacy
     value:
       provenance_classes:
         - observed
         - athlete_stated
+        - athlete_confirmed_provider_value
+        - provider_imported_candidate
         - inferred
         - assumed
         - unknown
@@ -342,6 +598,8 @@ model_parameters:
       purpose_bounded_structured_context_preferred: true
       missed_training_reason_inference: prohibited
       missing_context_means_unknown: true
+      imported_event_or_profile_candidate_is_confirmed: false
+      dynamic_pattern_requires_source_window_and_version: true
       athlete_can_correct_exclude_or_delete_context: true
     classification: guardrail
     evidence_claim_ids:
@@ -362,8 +620,11 @@ model_parameters:
       ai_prohibited:
         - select_an_unaccepted_policy
         - broaden_population
+        - assign_static_runner_identity
         - invent_current_capability
         - invent_history_or_personal_context
+        - invent_or_confirm_event_context
+        - confirm_or_overwrite_provider_profile
         - weaken_or_skip_validation
         - diagnose_or_clear
         - approve_adopt_mutate_or_deliver_plan
@@ -386,15 +647,17 @@ model_parameters:
     applies_to: eligibility, feasibility, proposal, and outcome presentation
   - name: validation_order
     value:
+      - goal_recorded_and_normalized
       - accepted_shared_policy
-      - accepted_distance_policy
+      - accepted_matching_sport_distance_and_intent_policy
       - adult_scope_and_supported_intent
-      - goal_tuple_match
       - athlete_reported_safety_stop
+      - material_event_context_and_schedule_conflicts
       - goal_relevant_current_capability
       - history_depth_and_recent_anchor
+      - dynamic_training_context_patterns
       - evidence_directness_and_contradiction
-      - masters_modifier_and_stated_constraints
+      - optional_profile_modifiers_and_stated_constraints
       - distance_specific_schedule_validation
       - deterministic_replay_hash
     classification: guardrail
@@ -409,7 +672,14 @@ model_parameters:
         - distance_policy_version
         - matched_capability_id
         - normalized_goal_tuple
-        - population_family
+        - goal_record_state
+        - matched_intent_policy
+        - dynamic_pattern_snapshot
+        - pattern_evaluation_window
+        - event_context_state
+        - confirmed_event_snapshot
+        - profile_field_provenance
+        - missing_field_effects
         - current_capability_state
         - history_depth_state
         - recent_consistency_state
@@ -430,20 +700,31 @@ model_parameters:
       narrative.
     applies_to: eligibility evidence snapshots and proposal audit
 applicability:
-  - Applies only as a shared precondition for adult running-plan generation.
-  - Does not itself enable a goal, distance, surface, population, horizon, workout, or provider-delivery capability.
-  - Beginner runners require a separate accepted policy family.
-  - Goal-distance-novel runners conservatively require a separate policy pending direct validation; this is a Praxys guardrail, not a published equivalence to beginners.
+  - Applies as the shared goal-capture and plan-routing contract for every Praxys training plan, while the reviewed evidence remains running-specific.
+  - Does not itself enable a sport, distance, intent, surface, horizon, workout, goal activity, benchmark, event-priority rule, or provider-delivery capability.
+  - A syntactically valid goal may remain recorded when no accepted plan policy matches.
+  - First-completion runners require a separate accepted intent and distance policy.
+  - Goal-distance-novel performance runners conservatively require a separate policy pending direct validation; this is a Praxys guardrail, not an identity label.
   - Sparse-history runners require an explicit usable recent anchor and a distance policy that supports uncertainty; otherwise generation fails closed.
   - Masters and older-adult runners are not excluded by age alone.
+  - No recreational, serious, professional, elite, beginner, or other cohort term becomes a permanent user identity or sole routing variable.
+  - No-event, single-target, and race-dense context remain separate dynamic states and require confirmed event information when scheduling would materially differ.
+  - Provider-imported profile and event fields remain candidates until purpose-bounded confirmation.
+  - Missing optional demographic modifiers affect only their dependent adjustment or metric; adult-scope uncertainty may still block an adult-only plan path.
   - Medical rehabilitation, treatment, pregnancy-specific prescription, diagnosis, clearance, and return-to-sport remain unsupported intents.
   - Distance-specific policies remain responsible for exact baseline, history, schedule, intensity, progression, long-run, taper, and reassessment values.
   - Existing accepted outdoor 5 km values remain specific to that accepted policy.
 user_facing_claim_limits:
+  - Do not hide or invalidate a goal merely because no accepted generator policy currently matches.
   - Do not call a runner eligible merely because the selected distance matches an available policy.
   - Explain whether the limiting state is population, current capability, history, evidence quality, safety, constraints, or unavailable accepted science.
-  - Do not describe beginner, sparse-history, history-rich, or masters states as diagnoses or personal risk probabilities.
+  - Describe completion, capability, history, load, event, recovery, and evidence states as current time-bounded patterns, not personal identities.
+  - Do not describe first-attempt, sparse-history, history-rich, race-dense, high-load, or masters states as diagnoses or personal risk probabilities.
+  - Do not call a user recreational, serious, professional, or elite from an opaque score or permanent classification.
   - Do not imply that masters or older runners are incapable based on age alone.
+  - Do not imply that missing age or sex makes every plan invalid, or that unknown sex means male.
+  - Do not present imported provider fields as user-confirmed facts before confirmation.
+  - Do not treat an empty event calendar as confirmation that no races or maximal efforts exist.
   - Do not present recent-history counts, frequency ranges, intensity percentages, quality ceilings, progression, or long-run limits as cross-cutting published safety thresholds.
   - Do not transfer an accepted 5 km number or template to another distance without a separate accepted decision.
   - Do not present the 10 percent rule or ACWR as a causal safety zone.
@@ -455,29 +736,47 @@ safety_implications:
   - An unsupported medical, rehabilitation, pregnancy-specific, or return-to-sport request exits the performance-planning flow.
   - Absence of a reported stop does not constitute medical clearance or proof that vigorous exercise is risk-free.
   - No automatic catch-up, doubling, compression, or compensatory increase follows missed training.
+  - Confirmed races, benchmarks, and maximal efforts count as training load and must be reconciled with quality-session and recovery limits.
+  - Material unknown future-event context prevents a full conflict-sensitive schedule, but does not invalidate the underlying goal.
   - No distance policy may bypass shared safety, capability, history, or evidence checks.
   - Use activity splits or samples, never activity average power, when historical intensity matters.
 privacy_implications:
   - Collect only the owner-scoped structured fields needed to match, explain, replay, and audit eligibility.
   - Personal narrative is optional and unnecessary for the deterministic path.
-  - Keep observed, athlete-stated, inferred, assumed, and unknown inputs distinct.
+  - Keep observed, athlete-stated, athlete-confirmed provider, provider-candidate, inferred, assumed, and unknown inputs distinct.
+  - Technical provider access does not authorize unrestricted retention, repurposing, or silent canonical use of every available profile field.
+  - Prefer adult attestation, age band, or birth year over exact birth date when exact date is unnecessary.
+  - Collect physiological sex only for an accepted dependent model with disclosed purpose; declining it must not silently select a male default.
   - Do not infer medical state, family, employment, identity, or reasons for missed training from behavior.
   - Allow athlete correction, exclusion, and deletion of stated context and derived eligibility traces under existing account controls.
   - Do not place raw context, exact location, symptoms, or unrestricted prompts in generic logs, public trackers, or evaluation corpora.
 validation_plan:
   - Human science review must accept, revise, or reject this Evidence Review and SDR before any shared eligibility behavior cites them.
   - Implement first in offline shadow mode against versioned goal and history snapshots without exposing or adopting a plan.
-  - Measure eligibility and no-plan distributions, clarification burden, false-stop review, contradictory-input handling, and deterministic replay stability.
-  - Segment results by beginner, sparse-history, history-rich, masters, sex, age band, provider, and missingness when sample size permits.
+  - Measure goal-recording success separately from matched-policy, limited-guidance, clarification, and no-plan distributions.
+  - Measure clarification burden, event conflicts, false-stop review, contradictory-input handling, pattern transitions, and deterministic replay stability.
+  - Verify the same athlete can change patterns across versioned windows without historical observations being rewritten.
+  - Validate no-event completion and performance routes separately before enabling a controlled goal activity or benchmark.
+  - Validate single-target and race-dense schedules with confirmed event priorities before any automated taper or recovery behavior.
+  - Segment results by current pattern, age band, sex, provider, and missingness only when the data was lawfully collected and sample size permits.
   - Compare candidate recent-history anchors without presenting any candidate as a causal injury threshold.
+  - Audit provider imports for purpose disclosure, minimum fields, confirmation, conflict handling, deletion, and no silent overwrite.
+  - Verify missing optional age or sex disables only the dependent modifier or metric and never selects a hidden male default.
   - Verify every enabled capability also references an accepted distance-specific SDR and cannot inherit another policy's numeric values.
   - Audit every UI, API, plugin, and MCP response for personal probabilities, hidden policy relaxation, invented context, or diagnosis-shaped wording.
   - Pre-register safety exits, adverse reports, acceptance, edits, rejection, burden, and subgroup stop criteria before any suggestion-first pilot.
   - Require a successor decision before promoting sparse-history or masters status to a separate policy family or adding autonomous permissions.
 falsification_conditions:
+  - A valid goal cannot be recorded because no accepted plan policy matches.
   - A goal-distance match alone enables generation despite a population, capability, history, evidence, or safety mismatch.
   - A beginner enters an already-capable policy without a separately accepted family.
   - A goal-distance-novel runner enters an already-capable policy despite the draft conservative routing guardrail.
+  - A static recreational, serious, professional, elite, or beginner identity determines routing after current data changes.
+  - A dynamic pattern lacks an evaluation window, version, provenance, or correction path.
+  - An empty or unavailable event calendar is treated as proof that no race or maximal effort exists.
+  - A confirmed race or benchmark is omitted from quality-session, load, recovery, or schedule-conflict validation.
+  - Provider profile or event data becomes canonical or overwrites a user-confirmed value without disclosed purpose and confirmation.
+  - Missing optional age or sex blocks an unrelated plan, or unknown sex silently selects a male coefficient.
   - A runner with no usable recent history anchor receives a dose-shaped plan.
   - Masters or older runners are rejected solely because of age, or age is used to infer a fixed recovery need.
   - Current symptoms produce a plan, or the stop response is presented as medical diagnosis or clearance.
@@ -492,19 +791,26 @@ affected_surfaces:
   models:
     - Future plan-generation-eligibility-safety-v1 pure policy model
     - Plan-generation capability registry and matcher
-    - Goal, evidence, and eligibility snapshots
+    - Goal intent, dynamic pattern, event, profile, evidence, and eligibility snapshots
+    - Event-calendar confirmation and conflict model
+    - Purpose-bounded profile provenance and missing-field model
     - Adaptive-plan proposal audit and deterministic replay record
   apis:
-    - Shared owner-scoped plan-generation capability discovery
+    - Shared owner-scoped goal capture and plan-generation capability discovery
     - Shared eligibility evaluation and typed no-plan contract
+    - Profile and event candidate confirmation, correction, and deletion
     - Distance-specific readiness and proposal APIs
   clients:
-    - Web Goal and Training plan-start flows
+    - Web Goal, profile, event-calendar, and Training plan-start flows
     - WeChat miniapp plan-start parity
     - Plugin and MCP capability discovery and proposal tools
     - English and Simplified Chinese eligibility, uncertainty, and safety copy
   science_notes:
-    - Why population, current capability, and history are separate eligibility dimensions
+    - Why goal choice remains separate from current plan availability
+    - Why current capability, history, event context, and patterns are separate routing dimensions
+    - Why patterns describe a time-bounded state rather than the athlete's identity
+    - Why provider profile access still requires purpose-bounded confirmation
+    - Why optional demographic missingness affects only dependent behavior
     - Why exact schedule values remain distance-specific guardrails
     - Why masters status modifies uncertainty without excluding by age
     - Why symptoms stop generation without diagnosis or clearance
@@ -512,8 +818,8 @@ supersedes: []
 superseded_by:
 decision_notes:
   - "This is a decision proposal for issue #685, not an accepted policy or implementation authorization."
-  - Human review should focus on the beginner-family boundary, sparse-history handling, masters modifier, symptom-stop semantics, and whether any cross-cutting field is overly broad.
-  - No numeric recent-history, weekly-frequency, intensity, quality-session, long-run, progression, taper, horizon, or reassessment value is selected by this draft.
-  - "Impact map: draft Evidence Review -> draft SDR -> future shared pure eligibility model -> capability registry -> data loading and owner-scoped evidence snapshot -> API contract -> web types and UI -> miniapp parity -> plugin/MCP parity -> ScienceNote and localization -> tests -> offline shadow validation -> suggestion-first pilot."
+  - Human review should focus on goal-versus-policy separation, dynamic pattern semantics, event-calendar completeness, provider-profile confirmation, field-level missingness, first-completion routing, masters modifiers, and symptom-stop semantics.
+  - No numeric recent-history, weekly-frequency, intensity, quality-session, long-run, progression, taper, horizon, event-priority, or reassessment value is selected by this draft.
+  - "Impact map: draft Evidence Review -> draft SDR -> future goal and shared pure routing model -> capability registry -> dynamic pattern, event, profile, and evidence snapshots -> API contract -> web types and UI -> miniapp parity -> plugin/MCP parity -> ScienceNote and localization -> tests -> offline shadow validation -> suggestion-first pilot."
   - Accepted 5 km records remain unchanged and continue to govern only their current implementation.
   - Explicit human acceptance and a separate implementation review are required before this model version can become active.
