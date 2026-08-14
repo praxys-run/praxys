@@ -78,7 +78,7 @@ def test_miniapp_uses_analysis_and_me_as_primary_tabs() -> None:
         assert "kind: 'me'" in source
         assert "pages/history/index" not in source
 
-    assert '<outdoor-5k-plan-start />' in training
+    assert '<outdoor-5k-plan-start id="training-plan-start" />' in training
     assert '<managed-plan id="training-managed-plan" scope="window" />' in training
     assert '<personal-context id="training-personal-context" />' in training
     assert "train-metric-row" not in training
@@ -87,6 +87,8 @@ def test_miniapp_uses_analysis_and_me_as_primary_tabs() -> None:
     assert "HEAT_HISTORY_SCROLL_KEY" in training_script
     assert "wx.switchTab({" in training_script
     assert "url: '/pages/analysis/index'" in training_script
+    assert "'#training-plan-start'" in training_script
+    assert "planStart?.refresh?.()" in training_script
 
     assert "train-metric-row" in analysis
     assert "coach-receipt" in analysis
@@ -97,6 +99,7 @@ def test_miniapp_uses_analysis_and_me_as_primary_tabs() -> None:
     assert "setTabBarSelected(this, 2)" in analysis_script
     assert "consumeHeatHistoryScrollRequest()" in analysis_script
     assert "activeMetric: 'heat'" in analysis_script
+    assert "this.refetch({ background: true })" in analysis_script
 
     assert 'bindtap="onOpenSettings"' in me
     assert 'bindtap="onOpenScience"' in me
@@ -107,6 +110,18 @@ def test_miniapp_uses_analysis_and_me_as_primary_tabs() -> None:
     assert "onNavigateToLabs" not in settings
     assert "wx.reLaunch({ url: '/pages/me/index' })" in settings_script
     assert "wx.navigateTo({ url: '/pages/settings/index' })" in managed_plan
+
+
+def test_miniapp_plan_start_refreshes_server_state_and_localized_copy() -> None:
+    """Training refreshes the plan-start card without discarding form inputs."""
+    plan_start = _source("miniapp/components/outdoor-5k-plan-start/index.ts")
+
+    assert "attached() {" in plan_start
+    assert "void this.refresh()" in plan_start
+    assert "async refresh()" in plan_start
+    assert "const tr = copy()" in plan_start
+    assert "const options = dayOptions(this.data.dayOptions)" in plan_start
+    assert "await this.load()" in plan_start
 
 
 def test_legacy_activity_page_reuses_analysis_history() -> None:

@@ -15,7 +15,7 @@
       </view>
 
       <view class="train-section">
-        <outdoor-5k-plan-start />
+        <outdoor-5k-plan-start id="training-plan-start" />
       </view>
       <view class="train-section">
         <managed-plan id="training-managed-plan" scope="window" />

@@ -80,6 +80,14 @@ Page<TrainingState, PageMethods>({
     }
     applyThemeChrome();
     setTabBarSelected(this, 1);
+    const isReturning = pageState._hasShown === true;
+    pageState._hasShown = true;
+    if (isReturning) {
+      const planStart = this.selectComponent(
+        '#training-plan-start',
+      ) as unknown as RefreshableComponent | null;
+      void planStart?.refresh?.();
+    }
     if (hasLegacyHeatTarget() && pageState._openingLegacyAnalysis !== true) {
       pageState._openingLegacyAnalysis = true;
       wx.switchTab({
@@ -93,6 +101,9 @@ Page<TrainingState, PageMethods>({
 
   async onScrollRefresh() {
     this.setData({ refreshing: true });
+    const planStart = this.selectComponent(
+      '#training-plan-start',
+    ) as unknown as RefreshableComponent | null;
     const managedPlan = this.selectComponent(
       '#training-managed-plan',
     ) as unknown as RefreshableComponent | null;
@@ -101,6 +112,7 @@ Page<TrainingState, PageMethods>({
     ) as unknown as RefreshableComponent | null;
     try {
       await Promise.all([
+        planStart?.refresh?.() ?? Promise.resolve(),
         managedPlan?.refresh?.() ?? Promise.resolve(),
         personalContext?.refresh?.() ?? Promise.resolve(),
       ]);

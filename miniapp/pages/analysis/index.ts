@@ -906,11 +906,14 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
   onScrollRefresh() {
     this.setData({ refreshing: true });
     const refresh = this.data.activeSection === 'activities'
-      ? (
-          this.selectComponent(
-            '#analysis-activity-history',
-          ) as unknown as ActivityHistoryComponent | null
-        )?.refresh() ?? Promise.resolve()
+      ? Promise.all([
+          (
+            this.selectComponent(
+              '#analysis-activity-history',
+            ) as unknown as ActivityHistoryComponent | null
+          )?.refresh() ?? Promise.resolve(),
+          this.refetch({ background: true }),
+        ]).then(() => undefined)
       : this.refetch();
     void refresh.finally(() => this.setData({ refreshing: false }));
   },
