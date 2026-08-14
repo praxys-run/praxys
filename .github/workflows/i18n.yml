@@ -303,6 +303,8 @@ jobs:
 
             - Impeccable: `audit web/src/locales/zh/messages.po` via the automated context-aware native-copy critic
             - Visual review: desktop and mobile rendered review not applicable - generated locale catalog only; no component or layout files changed
+            - Primary journey: generated Chinese catalog -> synchronized miniapp catalog -> maintainer copy review
+            - Reviewer handoff: none - catalog-only automation has no distinct visual journey; the diff and localized builds are the review surfaces
             - States checked: active catalog coverage, placeholders, protected tokens, terminology, typography, and long Chinese copy
             - Accessibility: no interaction, focus, contrast, motion, or touch-target behavior changed
             - Design system impact: none - the existing localization and typography systems cover catalog-only changes

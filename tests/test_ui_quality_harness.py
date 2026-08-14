@@ -19,6 +19,8 @@ VALID_WEB_EVIDENCE = """\
 ## UI quality
 - Impeccable: `polish web/src/pages/Today.tsx`
 - Visual review: desktop 1440x900; mobile 390x844
+- Primary journey: Today -> recovery verdict -> supporting metrics
+- Reviewer handoff: local-only - test-screenshots/ui-quality/today/index.html reviewed in the maintainer session
 - States checked: loading, empty, error, success, long EN/zh
 - Accessibility: keyboard, focus, contrast, reduced motion, touch targets
 - Design system impact: none - existing tokens and components cover this change
@@ -73,6 +75,33 @@ def test_web_evidence_requires_impeccable_and_two_viewports():
         has_miniapp=False,
     )
     assert "Web UI evidence must include both desktop and mobile review." in errors
+
+
+def test_reviewer_handoff_accepts_bounded_modes_with_detail():
+    current_handoff = (
+        "local-only - test-screenshots/ui-quality/today/index.html "
+        "reviewed in the maintainer session"
+    )
+    for handoff in (
+        "local-only - test-screenshots/ui-quality/pr-123/index.html",
+        "PR media - 25 second journey video and unsupported-state screenshot",
+        "CI artifact - frontend-quality run 123456",
+        "preview - https://preview.example.test/pr-123",
+        "none - copy-only change reviewed live; media adds no reviewer value",
+    ):
+        evidence = VALID_WEB_EVIDENCE.replace(current_handoff, handoff)
+        assert validate_ui_evidence(
+            evidence,
+            has_web=True,
+            has_miniapp=False,
+        ) == []
+
+    errors = validate_ui_evidence(
+        VALID_WEB_EVIDENCE.replace(current_handoff, "uploaded somewhere"),
+        has_web=True,
+        has_miniapp=False,
+    )
+    assert any("reviewer handoff" in error for error in errors)
 
 
 def test_template_placeholders_do_not_count_as_evidence():
@@ -205,7 +234,13 @@ def test_harness_is_wired_into_agents_and_required_ci():
     assert "--allow-unverified-draft" in workflow
     assert "UI Quality Harness (mandatory)" in instructions
     assert "scripts/agent_preflight.py --base origin/main" in instructions
-    assert (ROOT / ".github" / "skills" / "ui-quality" / "SKILL.md").is_file()
+    skill_path = ROOT / ".github" / "skills" / "ui-quality" / "SKILL.md"
+    assert skill_path.is_file()
+    skill = skill_path.read_text(encoding="utf-8")
+    assert "test-screenshots/ui-quality/<branch-or-pr>/" in skill
+    assert "15-45 second video" in skill
+    assert "browser-native WebM is acceptable locally" in skill
+    assert "downscaled raster storyboard" in skill
     assert (
         ROOT / ".github" / "instructions" / "ui-quality.instructions.md"
     ).is_file()
