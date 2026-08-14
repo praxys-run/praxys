@@ -13,6 +13,8 @@ Do not check any item that was not actually performed.
 - [ ] Applicability, uncertainty, safety boundaries, and rejected alternatives are documented.
 - [ ] Record lifecycle is versioned/superseded; accepted evidence and decisions were not rewritten.
 - [ ] Artifact-mode review packets and machine contracts were regenerated and carry matching source/contract digests.
+- [ ] The SDR decision sheet states the reviewer task, proposed approvals, explicit deferrals, approval effects, and non-authorizations.
+- [ ] Every machine-contract parameter group is mapped to at least one decision-sheet item.
 - [ ] Every code-consumed field appears verbatim in the generated human review packet.
 - [ ] Accepted artifact-mode records include the required digest-bound `evidence_reviewer` or `decision_approver`; active contracts include an `implementation_reviewer`.
 - [ ] Accepted legacy records still identify their human reviewer and review date.
