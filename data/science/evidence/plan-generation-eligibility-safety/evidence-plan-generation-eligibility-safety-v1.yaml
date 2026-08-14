@@ -11,12 +11,13 @@ research_question: >
   exact planning choices remain Praxys guardrails rather than published
   prescriptions?
 topic: plan-generation-eligibility-safety
-status: draft
+status: accepted
 authors:
   - agent:github-copilot
-human_reviewers: []
+human_reviewers:
+  - github:dddtc2005
 created_on: 2026-08-14
-reviewed_on:
+reviewed_on: 2026-08-14
 intended_product_purpose: >
   Define a shared evidence boundary and product-routing contract for every
   training plan. Keep goal selection independent from plan availability, route
