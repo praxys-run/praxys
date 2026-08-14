@@ -1,0 +1,752 @@
+schema_version: 1
+id: evidence-road-10k-plan-generation-policy-v1
+version: 1
+title: "History-rich adult recreational road 10 km plan generation"
+research_question: >
+  For adults aged 18 years or older who are self-coached recreational road
+  runners, can already complete 10 km, have sufficient recent training
+  history, and hold an outdoor road 10 km elapsed-time goal, what evidence
+  supports and limits a conservative, suggestion-only plan-generation policy?
+topic: road-10k-plan-generation-policy
+status: draft
+authors:
+  - agent:github-copilot
+human_reviewers: []
+created_on: 2026-08-14
+reviewed_on:
+intended_product_purpose: >
+  Define whether and how Praxys may offer a history-rich road 10 km proposal
+  without copying the accepted outdoor 5 km pilot's horizon, history counts,
+  intensity percentage, frequency envelope, long-run rule, or workout
+  templates. Separate direct 10 km task and baseline evidence from broader
+  endurance evidence, observational associations, and transparent Praxys
+  guardrails. Keep current capability, longitudinal comparability, taper,
+  safety, uncertainty, and individual-outcome limits explicit.
+scope:
+  population:
+    - Adults aged 18 years or older
+    - Self-coached recreational road runners already able to complete 10 km
+    - Runners with sufficient recent history to anchor frequency, duration, and session distance
+    - Outdoor road 10 km elapsed-time performance goals
+  intervention_or_exposure:
+    - Structured endurance-running programs and training-intensity distributions
+    - Threshold-related and interval training in recreational runners
+    - Weekly training distance, frequency, duration, and prior race experience
+    - Same-distance 10 km race and time-trial evidence
+    - Pre-event tapering in endurance athletes
+    - Fixed weekly progression and workload-ratio rules
+    - Baseline freshness, protocol comparability, and individual-response interpretation
+  comparator:
+    - Polarized, focused, pyramidal, threshold-heavy, or other structured distributions
+    - Qualified same-distance performance versus unlike tests or model outputs
+    - Official 10 km race versus standardized 10 km track or laboratory time trial
+    - Maintained versus reduced taper volume, intensity, and frequency
+    - Fixed 10 percent progression or ACWR zones versus uncertainty-aware history anchoring
+    - Error-aware versus naive individual-response classification
+  outcomes:
+    - 10 km elapsed-time performance
+    - Threshold-related speed, running economy, and time-trial performance
+    - Training burden and schedule feasibility
+    - Running-related injury claim limits
+    - Baseline validity, reproducibility, and longitudinal comparability
+    - Limits of personal prediction and automatic generation
+method:
+  review_type: rigorous
+  search_date: 2026-08-14
+  sources:
+    - name: Europe PMC - 10 km training interventions and intensity distribution
+      search_string: >
+        (TITLE:"10 km" OR TITLE:"10-km" OR ABSTRACT:"10 km" OR
+        ABSTRACT:"10-km") AND (running OR runner*) AND
+        (training OR "training intensity distribution" OR threshold OR
+        interval* OR periodization) AND (recreational OR adult)
+    - name: Europe PMC - 10 km baseline and field-test comparability
+      search_string: >
+        (TITLE:"10 km" OR ABSTRACT:"10 km") AND
+        ("time trial" OR race OR "field test" OR reproducibility OR
+        agreement OR reliability OR validity) AND (running OR runner*)
+    - name: Europe PMC - 5 km and 10 km physiological context
+      search_string: >
+        ((TITLE:"5 km" OR ABSTRACT:"5 km") AND
+        (TITLE:"10 km" OR ABSTRACT:"10 km")) AND
+        ("anaerobic threshold" OR "lactate threshold" OR VO2max OR
+        "running economy" OR pacing)
+    - name: Europe PMC - 10 km dose, frequency, and performance predictors
+      search_string: >
+        (TITLE:"10 km" OR ABSTRACT:"10 km") AND
+        (recreational OR amateur) AND
+        ("training distance" OR "weekly mileage" OR "training frequency" OR
+        performance predictors)
+    - name: Europe PMC - 10 km long-run evidence gap
+      search_string: >
+        (TITLE:"10 km" OR ABSTRACT:"10 km") AND
+        ("long run" OR "longest run") AND (recreational OR amateur)
+    - name: Europe PMC exact identifier verification
+      search_string: >
+        7201924[PMID] OR 33250778[PMID] OR 23752040[PMID] OR
+        33344993[PMID] OR 34749417[PMID] OR 38717713[PMID] OR
+        32183425[PMID] OR 27570626[PMID] OR 37163550[PMID] OR
+        39908409[PMID] OR 18348590[PMID] OR 17762371[PMID] OR
+        10966148[PMID] OR 17940147[PMID] OR 32502973[PMID] OR
+        34819869[PMID] OR 26473759[PMID]
+    - name: PubMed Central full text
+      search_string: "PMC7183043 OR PMC10171681 OR PMC8606564"
+    - name: Crossref exact DOI and abstract verification
+      search_string: >
+        GET /works/{doi} for 10.1007/BF00428959,
+        10.3389/fphys.2020.585267, 10.1123/ijspp.2012-0350,
+        10.3389/fspor.2019.00070, 10.1055/a-1559-3623,
+        10.1007/s40279-024-02034-z, 10.3390/sports8030035,
+        10.14198/jhse.2024.191.17, 10.1186/s13102-016-0052-y,
+        10.1371/journal.pone.0282838, 10.26582/k.52.2.16,
+        10.1080/07420528.2025.2459668,
+        10.2165/00007256-200838040-00003,
+        10.1249/MSS.0b013e31806010f5,
+        10.2165/00007256-200030020-00002,
+        10.1177/0363546507307505, 10.1123/ijspp.2019-0864,
+        10.3389/fphys.2021.665044, and
+        10.1249/MSS.0000000000000664
+    - name: Hrcak exact article verification
+      search_string: "https://hrcak.srce.hr/247753"
+  inclusion_criteria:
+    - Adult human runners, with direct recreational 10 km evidence prioritized
+    - Primary studies, controlled trials, systematic reviews, meta-analyses, or authoritative guidance
+    - Closely applicable endurance evidence only when transfer limits were explicit
+    - Stable DOI, PMID, or exact article URL and a verified abstract or accessible full text
+    - Evidence relevant to performance, dose, intensity, taper, testing, progression, safety, or individual inference
+  exclusion_criteria:
+    - Beginner-to-10K and sparse-history planning as direct policy evidence
+    - Half-marathon, marathon, trail, or ultra prescriptions used as direct 10 km schedule evidence
+    - Clinical rehabilitation, treatment, pregnancy-specific prescription, diagnosis, clearance, or return-to-sport
+    - Vendor plans, coaching blogs, LLM output, and uncited conventions
+    - Inaccessible findings used to supply an effect estimate or strong conclusion
+  quality_appraisal: >
+    Claims were appraised for directness to adult recreational outdoor road
+    10 km performance, intervention design, sample size, training-distribution
+    definition, outcome specificity, observational confounding, protocol
+    standardization, repeatability and agreement, age and sex representation,
+    and whether a finding could justify an individual product threshold.
+    Direct 10 km evidence was kept separate from mixed-endurance evidence and
+    from exact Praxys workflow or schedule choices.
+  method_limitations:
+    - Screening and extraction were performed by agents rather than independent human reviewers.
+    - SPORTDiscus, Scopus, Embase, and Web of Science were not searched directly in this run.
+    - Direct recreational outdoor-road 10 km intervention evidence was sparse.
+    - Several key sources were verified only at abstract level.
+    - The Kumagai study involved 17 runners aged 16 to 18 years and is retained only as indirect physiological context, not adult policy authorization.
+    - Weekly-distance and frequency findings are observational and cannot establish prescription thresholds.
+    - The dedicated 10 km long-run search did not identify a direct randomized recreational 10 km long-run dose trial.
+    - Women, older recreational runners, low-frequency runners, and consumer running-power users are underrepresented.
+    - No reviewed source validates an exact 10 km block length, reassessment cadence, recent-history count, weekly frequency range, long-run progression, or deterministic workout template.
+claims:
+  - id: road-10k-plan.task-specific-capability-not-single-marker
+    statement: >
+      Ten-kilometre performance is related to sustainable threshold-associated
+      running speed and interacting aerobic determinants, but no single marker
+      defines an individual 10 km plan. This supports a 10 km-specific task and
+      baseline contract while rejecting automatic transfer from a 5 km policy
+      or a single physiological estimate.
+    source_ids:
+      - kumagai-1982
+      - stoa-2020
+    evidence_strength: low
+    effect_estimates:
+      - metric: Correlation between anaerobic-threshold VO2 and 10 km performance
+        estimate: -0.839
+        unit: correlation
+        context: Seventeen young endurance runners aged 16 to 18 years
+      - metric: Ten-kilometre performance variance associated with anaerobic-threshold VO2
+        estimate: 70.4
+        unit: percent variance
+        context: Seventeen young endurance runners aged 16 to 18 years
+      - metric: Lactate-threshold velocity variation explained by maximal aerobic speed times individual threshold
+        estimate: 90
+        unit: percent variance
+        context: Seventy-five recreational through elite male and female runners; standard error 4.0 percent
+    applicable_population:
+      - Adult competitive runners in the lactate-threshold study
+      - Young endurance runners only as indirect physiological context
+    domain:
+      - Goal specificity
+      - Threshold-associated speed
+      - Physiological claim limits
+    limitations:
+      - The Kumagai cohort included minors and cannot directly authorize an adult product policy.
+      - Neither study tested an automatic plan generator or exact workout prescription.
+      - Threshold percentage alone did not determine threshold velocity in the adult study.
+      - The sources do not establish a 5 km-to-10 km conversion or one causal training target.
+  - id: road-10k-plan.mostly-low-intensity-no-universal-winner
+    statement: >
+      The reviewed direct and broader endurance evidence supports a majority of
+      training at low intensity and does not establish one universally
+      superior polarized, focused, pyramidal, or threshold distribution for
+      recreational 10 km performance.
+    source_ids:
+      - munoz-2014
+      - festa-2020
+      - campos-2022
+      - oliveira-2024
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Ten-kilometre improvement with polarized training
+        estimate: 5.0
+        unit: percent
+        context: Recreational runners; primary between-group difference was not significant
+      - metric: Ten-kilometre improvement with between-threshold training
+        estimate: 3.6
+        unit: percent
+        context: Recreational runners; primary between-group difference was not significant
+      - metric: Polarized versus other distributions for time-trial performance
+        estimate: -0.01
+        range_low: -0.28
+        range_high: 0.25
+        unit: standardized mean difference
+        context: Seventeen-study meta-analysis; p=0.92
+      - metric: Focused versus polarized training-time difference
+        estimate: 17
+        unit: percent less training time
+        context: Similar recreational-runner improvements over eight weeks
+    applicable_population:
+      - Recreational runners in controlled training studies
+      - Middle- and long-distance runners in the systematic review
+      - Adult endurance athletes represented by the meta-analysis
+    domain:
+      - Training-intensity distribution
+      - Low-intensity training
+      - Ten-kilometre performance
+    limitations:
+      - Studies used different zone definitions, interventions, and outcomes.
+      - The direct 10 km controlled study did not establish a significant universal winner.
+      - The evidence does not validate one exact percentage for every athlete.
+      - The focused-training study used a 2 km performance outcome rather than 10 km.
+  - id: road-10k-plan.one-to-two-quality-sessions-indirect
+    statement: >
+      A narrative review of recreational endurance running generally
+      recommends one to two high-intensity interval sessions per week with
+      more moderate- and low-intensity continuous running. This is indirect
+      support for a conservative 10 km product ceiling, not a universal
+      biological threshold.
+    source_ids:
+      - boullosa-2020
+    evidence_strength: low
+    applicable_population:
+      - Recreational endurance runners represented by the reviewed literature
+    domain:
+      - Quality-session frequency
+      - High-intensity training
+      - Product guardrail input
+    limitations:
+      - The source is a narrative review with heterogeneous studies.
+      - It does not compare exactly one versus two sessions for 10 km outcomes.
+      - It does not define spacing, duration, taxonomy, or a safety threshold.
+  - id: road-10k-plan.volume-frequency-associated-not-prescriptive
+    statement: >
+      Weekly training distance, training frequency, training duration, and
+      prior race experience are associated with recreational 10 km performance,
+      but the reviewed evidence is observational and does not establish
+      universal weekly dose, frequency, or mandatory long-run prescriptions.
+    source_ids:
+      - suwankan-2024
+      - vickers-2016
+    evidence_strength: low
+    effect_estimates:
+      - metric: Correlation between weekly training distance and 10 km time
+        estimate: -0.605
+        unit: correlation
+        context: Sixty recreational runners completing a 10 km track effort
+      - metric: Correlation between weekly training days and 10 km time
+        estimate: -0.583
+        unit: correlation
+        context: Sixty recreational runners completing a 10 km track effort
+      - metric: Variance in 10 km time explained by physical and training characteristics
+        estimate: 57
+        unit: percent variance
+        context: Multiple regression in sixty recreational runners
+    applicable_population:
+      - Recreational runners in the direct 10 km observational study
+      - Recreational endurance runners in the large Internet survey
+    domain:
+      - Weekly volume
+      - Running frequency
+      - Training history
+      - Long-run evidence gap
+    limitations:
+      - Associations do not establish causation or an individual prescription.
+      - Self-selection, prior fitness, and training experience can confound the findings.
+      - The evidence supplies no safe weekly kilometres, minutes, frequency range, or long-run percentage.
+      - The dedicated long-run search found no direct randomized recreational 10 km prescription trial.
+  - id: road-10k-plan.fixed-progression-not-safety-law
+    statement: >
+      A novice-running program based on the 10 percent rule did not reduce
+      running-related injury compared with a standard program, and acute-to-
+      chronic workload-ratio zones lack established causal support for
+      individual training recommendations. Neither should govern a 10 km plan
+      as a safety law.
+    source_ids:
+      - buist-2008
+      - impellizzeri-2020
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Running-related injury incidence
+        range_low: 20.3
+        range_high: 20.8
+        unit: percent
+        context: Standard versus 10-percent-rule novice-running programs; p=0.90
+    applicable_population:
+      - Novice adult runners in the randomized trial
+      - Athletic workload-monitoring populations for the methodological critique
+    domain:
+      - Progression
+      - Workload monitoring
+      - Safety claim limits
+    limitations:
+      - The trial does not show that every faster progression is safe.
+      - Injury outcomes do not define optimal 10 km performance progression.
+      - The critique does not make training history irrelevant or validate a replacement threshold.
+  - id: road-10k-plan.taper-volume-reduction-supported
+    statement: >
+      Across mixed endurance sports, tapering can improve time-trial
+      performance. The strongest reviewed strategy reduced volume by 41 to 60
+      percent while maintaining intensity and frequency; 8 to 14 days produced
+      the largest duration subgroup effect, with improvement also reported for
+      other durations up to 21 days.
+    source_ids:
+      - wang-2023
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Time-trial performance after taper
+        estimate: -0.45
+        unit: standardized mean difference
+        context: Overall pre- versus post-taper result across 14 studies
+      - metric: Time-trial performance with 41 to 60 percent volume reduction
+        estimate: -0.77
+        unit: standardized mean difference
+        context: Subgroup effect; 95 percent CI -1.23 to -0.30
+      - metric: Time-trial performance with an 8 to 14 day taper
+        estimate: -1.47
+        unit: standardized mean difference
+        context: Largest duration subgroup effect; 95 percent CI -2.75 to -0.19
+    applicable_population:
+      - Endurance athletes represented by the meta-analysis
+      - Recreational road 10 km runners only as an indirect taper population
+    domain:
+      - Taper
+      - Volume
+      - Intensity
+      - Frequency
+    limitations:
+      - Sports, performance levels, and event distances were mixed.
+      - The analysis does not validate a universal recreational 10 km taper.
+      - Taper effects depend on prior training and interactions among load variables.
+  - id: road-10k-baseline.same-distance-direct-capability
+    statement: >
+      A qualified same-distance 10 km race or intentional all-out effort is
+      the most task-direct current-capability evidence. Fixed-distance time
+      trials are generally more reliable than time-to-exhaustion tests, and one
+      amateur-runner study found good agreement and reproducibility among a
+      simulated 10 km track time trial, threshold-derived speeds, and official
+      10 km race speed.
+    source_ids:
+      - currell-2008
+      - laursen-2007
+      - ribeiro-2020
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Five-kilometre time-trial coefficient of variation
+        estimate: 2.0
+        unit: percent
+        context: General fixed-distance reliability evidence in runners
+      - metric: Five-kilometre time-to-exhaustion coefficient of variation
+        estimate: 15.1
+        unit: percent
+        context: General time-to-exhaustion reliability evidence in runners
+      - metric: Difference between predicted or simulated and official 10 km running speed
+        range_low: -0.79
+        range_high: 0.55
+        unit: kilometres per hour
+        context: Thirty-four amateur runners
+      - metric: Standard error of estimate for 10 km running speed
+        range_low: 0.14
+        range_high: 0.59
+        unit: kilometres per hour
+        context: Critical velocity, anaerobic threshold, and simulated track time trial
+    applicable_population:
+      - Amateur runners in the direct 10 km agreement study
+      - Sports-performance testing populations represented by the review
+      - Runners in the repeated fixed-distance study
+    domain:
+      - Baseline current capability
+      - Time-trial validity
+      - Ten-kilometre task directness
+    limitations:
+      - Agreement does not make every road race and solo time trial interchangeable.
+      - Threshold-derived speeds remain supporting rather than direct elapsed-time evidence.
+      - The studies do not define Praxys qualification metadata, freshness, or automatic equivalence.
+  - id: road-10k-baseline.comparability-time-of-day-matters
+    statement: >
+      Longitudinal 10 km comparison requires a standardized, sufficiently
+      comparable protocol and context. A small laboratory study found material
+      circadian variation even after familiarization and standardization,
+      showing that identical distance alone does not establish direct
+      before-and-after comparability.
+    source_ids:
+      - edwards-2025
+      - currell-2008
+    evidence_strength: low
+    effect_estimates:
+      - metric: Circadian amplitude in standardized 10 km finish time
+        estimate: 149
+        unit: seconds
+        context: Twelve recreationally active adult males after three familiarization trials
+      - metric: Circadian difference in standardized 10 km finish time
+        estimate: 5.0
+        unit: percent
+        context: Six laboratory time trials across 24 hours; Cohen d=0.80
+    applicable_population:
+      - Recreationally active adult males in the laboratory study
+      - Sports-performance testing populations represented by the review
+    domain:
+      - Longitudinal comparability
+      - Time of day
+      - Protocol standardization
+    limitations:
+      - The sample included 12 men and used laboratory rather than outdoor road testing.
+      - The evidence does not define an outdoor time-of-day tolerance or correction.
+      - Route, weather, recovery, assistance, and pacing effects remain protocol specific.
+  - id: road-10k-baseline.freshness-cutoff-not-validated
+    statement: >
+      Some cardiorespiratory and endurance adaptations can change during fewer
+      than four weeks of insufficient training, with outcome- and training-
+      status-dependent timing and magnitude. This does not validate a universal
+      28-, 42-, 56-, or other fixed-day 10 km baseline-expiry cutoff.
+    source_ids:
+      - mujika-2000
+    evidence_strength: low
+    applicable_population:
+      - Trained and recently trained adults represented by the narrative review
+      - Recreational 10 km runners only as a conservative product extrapolation
+    domain:
+      - Evidence freshness
+      - Detraining
+    limitations:
+      - The review is narrative and trained athletes are overrepresented.
+      - Training gain, detraining, illness, and contextual change need not follow the same time course.
+      - A bounded search cannot establish that no protocol-specific freshness evidence exists.
+  - id: road-10k-plan.individual-outcomes-require-error-aware-validation
+    statement: >
+      Group-average training effects cannot establish an individual 10 km
+      response, goal-achievement probability, or meaningful change without
+      accounting for measurement error, within-person variability, and a
+      predeclared protocol-specific worthwhile-change rule.
+    source_ids:
+      - bonafiglia-2021
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Studies statistically estimating interindividual trainability
+        estimate: 9
+        unit: studies
+        context: Nine of 149 exercise-training studies in the systematic review
+    applicable_population:
+      - Adults in standardized exercise-training studies
+      - Recreational 10 km runners only as a future validation population
+    domain:
+      - Individual response
+      - Measurement error
+      - Probability and outcome claim limits
+    limitations:
+      - The review was not a 10 km plan or prediction study.
+      - It supplies no target, progression, session-count, or probability threshold.
+  - id: road-10k-plan.symptom-based-test-stop-boundary
+    statement: >
+      Current signs and symptoms are relevant before vigorous exercise. This
+      supports a conservative stop before an optional maximal 10 km test or
+      vigorous plan path, but does not validate diagnosis, treatment,
+      clearance, or return-to-sport advice.
+    source_ids:
+      - riebe-2015
+    evidence_strength: low
+    applicable_population:
+      - Adults considering exercise participation under the reviewed ACSM screening approach
+    domain:
+      - Preparticipation screening
+      - Optional maximal test
+      - Safety boundary
+    limitations:
+      - The guidance is not a validation study of a self-administered 10 km test.
+      - Passing a screen does not make maximal exercise risk-free.
+      - Praxys-specific wording and routing remain product guardrails.
+citations:
+  - id: kumagai-1982
+    title: "Relationships of the anaerobic threshold with the 5 km, 10 km, and 10 mile races"
+    authors:
+      - S. Kumagai
+      - K. Tanaka
+      - Y. Matsuura
+      - A. Matsuzaka
+      - K. Hirakoba
+      - K. Asano
+    year: 1982
+    journal: European Journal of Applied Physiology and Occupational Physiology
+    doi: 10.1007/BF00428959
+    pmid: "7201924"
+  - id: stoa-2020
+    title: "Factors Influencing Running Velocity at Lactate Threshold in Male and Female Runners at Different Levels of Performance"
+    authors:
+      - E. M. Stoa
+      - J. Helgerud
+      - B. R. Ronnestad
+      - J. Hansen
+      - S. Ellefsen
+      - O. Storen
+    year: 2020
+    journal: Frontiers in Physiology
+    doi: 10.3389/fphys.2020.585267
+    pmid: "33250778"
+  - id: munoz-2014
+    title: "Does polarized training improve performance in recreational runners?"
+    authors:
+      - I. Munoz
+      - S. Seiler
+      - J. Bautista
+      - J. Espana
+      - E. Larumbe
+      - J. Esteve-Lanao
+    year: 2014
+    journal: International Journal of Sports Physiology and Performance
+    doi: 10.1123/ijspp.2012-0350
+    pmid: "23752040"
+  - id: festa-2020
+    title: "Effects of Different Training Intensity Distribution in Recreational Runners"
+    authors:
+      - L. Festa
+      - C. Tarperi
+      - K. Skroce
+      - A. La Torre
+      - F. Schena
+    year: 2020
+    journal: Frontiers in Sports and Active Living
+    doi: 10.3389/fspor.2019.00070
+    pmid: "33344993"
+  - id: campos-2022
+    title: "Training-intensity Distribution on Middle- and Long-distance Runners: A Systematic Review"
+    authors:
+      - Y. Campos
+      - A. Casado
+      - J. G. Vieira
+      - M. Guimaraes
+      - L. Sant'Ana
+      - L. Leitao
+      - S. F. da Silva
+      - P. H. S. M. de Azevedo
+      - J. Vianna
+      - R. Dominguez
+    year: 2022
+    journal: International Journal of Sports Medicine
+    doi: 10.1055/a-1559-3623
+    pmid: "34749417"
+  - id: oliveira-2024
+    title: "Comparison of Polarized Versus Other Types of Endurance Training Intensity Distribution on Athletes' Endurance Performance: A Systematic Review with Meta-analysis"
+    authors:
+      - P. Silva Oliveira
+      - G. Boppre
+      - H. Fonseca
+    year: 2024
+    journal: Sports Medicine
+    doi: 10.1007/s40279-024-02034-z
+    pmid: "38717713"
+  - id: boullosa-2020
+    title: "Factors Affecting Training and Physical Performance in Recreational Endurance Runners"
+    authors:
+      - D. Boullosa
+      - J. Esteve-Lanao
+      - A. Casado
+      - L. A. Peyre-Tartaruga
+      - R. Gomes da Rosa
+      - J. Del Coso
+    year: 2020
+    journal: Sports
+    doi: 10.3390/sports8030035
+    pmid: "32183425"
+  - id: suwankan-2024
+    title: "Prediction of 10 km running time by physical and training characteristics in recreational runners"
+    authors:
+      - T. Suwankan
+      - S. Suwankan
+      - A. Theanthong
+      - S. Kemarat
+    year: 2024
+    journal: Journal of Human Sport and Exercise
+    doi: 10.14198/jhse.2024.191.17
+  - id: vickers-2016
+    title: "An empirical study of race times in recreational endurance runners"
+    authors:
+      - A. J. Vickers
+      - E. A. Vertosick
+    year: 2016
+    journal: BMC Sports Science, Medicine and Rehabilitation
+    doi: 10.1186/s13102-016-0052-y
+    pmid: "27570626"
+  - id: wang-2023
+    title: "Effects of tapering on performance in endurance athletes: A systematic review and meta-analysis"
+    authors:
+      - Z. Wang
+      - Y. Wang
+      - W. Gao
+      - Y. Zhong
+    year: 2023
+    journal: PLOS ONE
+    doi: 10.1371/journal.pone.0282838
+    pmid: "37163550"
+  - id: ribeiro-2020
+    title: "Agreement and reproducibility of field and laboratory tests in the prediction of running speed in a 10-km race in amateur runners"
+    authors:
+      - H. S. Ribeiro
+      - H. de L. Correa
+      - L. K. B. Lima
+      - M. B. Costa Filha
+      - S. L. Albuquerque Neto
+      - E. S. Barros
+      - A. P. Ferreira
+    year: 2020
+    journal: Kinesiology
+    doi: 10.26582/k.52.2.16
+  - id: edwards-2025
+    title: "Evidence of a circadian variation in 10-km laboratory running time-trial performance, where a standardised approach has been employed"
+    authors:
+      - B. J. Edwards
+      - B. B. Boyle
+      - J. G. Burniston
+      - D. A. Doran
+      - D. Emery
+      - M. Giacomoni
+      - E. Mahon
+      - S. A. Pullinger
+    year: 2025
+    journal: Chronobiology International
+    doi: 10.1080/07420528.2025.2459668
+    pmid: "39908409"
+  - id: currell-2008
+    title: "Validity, reliability and sensitivity of measures of sporting performance"
+    authors:
+      - K. Currell
+      - A. E. Jeukendrup
+    year: 2008
+    journal: Sports Medicine
+    doi: 10.2165/00007256-200838040-00003
+    pmid: "18348590"
+  - id: laursen-2007
+    title: "Reliability of time-to-exhaustion versus time-trial running tests in runners"
+    authors:
+      - P. B. Laursen
+      - G. T. Francis
+      - C. R. Abbiss
+      - M. J. Newton
+      - K. Nosaka
+    year: 2007
+    journal: Medicine & Science in Sports & Exercise
+    doi: 10.1249/MSS.0b013e31806010f5
+  - id: mujika-2000
+    title: "Detraining: loss of training-induced physiological and performance adaptations. Part I: short term insufficient training stimulus"
+    authors:
+      - I. Mujika
+      - S. Padilla
+    year: 2000
+    journal: Sports Medicine
+    doi: 10.2165/00007256-200030020-00002
+    pmid: "10966148"
+  - id: buist-2008
+    title: "No effect of a graded training program on the number of running-related injuries in novice runners: a randomized controlled trial"
+    authors:
+      - I. Buist
+      - S. W. Bredeweg
+      - W. van Mechelen
+      - K. A. P. M. Lemmink
+      - G. J. Pepping
+      - R. L. Diercks
+    year: 2008
+    journal: The American Journal of Sports Medicine
+    doi: 10.1177/0363546507307505
+    pmid: "17940147"
+  - id: impellizzeri-2020
+    title: "Acute:Chronic Workload Ratio: Conceptual Issues and Fundamental Pitfalls"
+    authors:
+      - F. M. Impellizzeri
+      - M. S. Tenan
+      - T. Kempton
+      - A. Novak
+      - A. J. Coutts
+    year: 2020
+    journal: International Journal of Sports Physiology and Performance
+    doi: 10.1123/ijspp.2019-0864
+    pmid: "32502973"
+  - id: bonafiglia-2021
+    title: "A Systematic Review Examining the Approaches Used to Estimate Interindividual Differences in Trainability and Classify Individual Responses to Exercise Training"
+    authors:
+      - J. T. Bonafiglia
+      - N. Preobrazenski
+      - B. J. Gurd
+    year: 2021
+    journal: Frontiers in Physiology
+    doi: 10.3389/fphys.2021.665044
+    pmid: "34819869"
+  - id: riebe-2015
+    title: "Updating ACSM's Recommendations for Exercise Preparticipation Health Screening"
+    authors:
+      - D. Riebe
+      - B. A. Franklin
+      - P. D. Thompson
+      - C. E. Garber
+      - G. P. Whitfield
+      - M. Magal
+      - L. S. Pescatello
+    year: 2015
+    journal: Medicine & Science in Sports & Exercise
+    doi: 10.1249/MSS.0000000000000664
+    pmid: "26473759"
+known_gaps:
+  - A prospectively evaluated deterministic road 10 km plan-generation policy
+  - Direct adult recreational road 10 km evidence distinguishing useful threshold and interval session structures
+  - A validated 42-day generation horizon or 14-day reassessment interval
+  - A validated minimum recent-history requirement for safe dose anchoring
+  - A validated 75 percent low-intensity floor or three-to-six-day running range
+  - A direct recreational 10 km long-run dose or progression rule
+  - A validated deterministic mapping from personal history and availability to exact workout steps
+  - A validated 56-day direct-baseline freshness cutoff
+  - Agreement and repeatability for one standardized unsupervised outdoor road 10 km test
+  - Representation and subgroup precision for women, older adults, low-frequency runners, and different providers
+conflicting_findings:
+  - Direct recreational evidence shows improvement under different intensity distributions without a universal performance winner.
+  - More weekly distance and frequency are associated with faster 10 km performance, while observational data do not establish a safe or optimal prescription.
+  - A standardized 10 km time trial can agree with race speed under one protocol, while time of day and other context can materially affect repeated results.
+  - Taper evidence supports lower volume with maintained intensity and frequency, while its directness varies by sport, event, and prior training.
+follow_up_questions:
+  - Does a 42-day stable-load block improve 10 km proposal relevance without increasing burden or adverse events?
+  - Which recent-history counts and frequency bounds minimize unsupported extrapolation?
+  - Is a 75 percent planned low-intensity floor understandable and useful without becoming a universal claim?
+  - Which threshold and 10 km-specific interval templates can be validated as product guardrails?
+  - Should a maximal 10 km test be offered at all, or should stale and missing direct evidence remain readiness-only?
+  - How should route, time of day, environment, assistance, and recovery affect longitudinal comparability?
+  - Do outcomes, acceptance, edits, and safety exits differ by sex, age, frequency, provider, or missingness?
+supersedes: []
+superseded_by:
+review_notes:
+  - "Verification: kumagai-1982 - abstract; Europe PMC PMID 7201924 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: stoa-2020 - abstract; Europe PMC PMID 33250778 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: munoz-2014 - abstract; Europe PMC PMID 23752040 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: festa-2020 - abstract; Europe PMC PMID 33344993 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: campos-2022 - abstract; Europe PMC PMID 34749417 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: oliveira-2024 - abstract; Europe PMC PMID 38717713 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: boullosa-2020 - full-text; PubMed Central PMC7183043, Europe PMC PMID 32183425, and Crossref DOI metadata; 2026-08-14."
+  - "Verification: suwankan-2024 - abstract; Crossref abstract and DOI metadata; 2026-08-14."
+  - "Verification: vickers-2016 - abstract; Europe PMC PMID 27570626 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: wang-2023 - full-text; PubMed Central PMC10171681, Europe PMC PMID 37163550, and Crossref DOI metadata; 2026-08-14."
+  - "Verification: ribeiro-2020 - abstract; Hrcak article record, Crossref abstract, and DOI metadata; 2026-08-14."
+  - "Verification: edwards-2025 - abstract; Europe PMC PMID 39908409 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: currell-2008 - abstract; Europe PMC PMID 18348590 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: laursen-2007 - abstract; Europe PMC PMID 17762371 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: mujika-2000 - abstract; Europe PMC PMID 10966148 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: buist-2008 - abstract; Europe PMC PMID 17940147 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: impellizzeri-2020 - abstract; Europe PMC PMID 32502973 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: bonafiglia-2021 - full-text; PubMed Central PMC8606564, Europe PMC PMID 34819869, and Crossref DOI metadata; 2026-08-14."
+  - "Verification: riebe-2015 - abstract; Europe PMC PMID 26473759 and Crossref DOI metadata; 2026-08-14."
+  - No source was found that validates a universal 10 km horizon, reassessment cadence, recent-history count, running-day range, long-run rule, exact interval template, or generic power target.

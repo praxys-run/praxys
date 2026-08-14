@@ -37,6 +37,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 | [evidence-individual-goal-feasibility-v1](evidence/individual-goal-feasibility/evidence-individual-goal-feasibility-v1.yaml) — Individual goal feasibility and prediction limits | 1 | individual-goal-feasibility | 2026-08-08 |
 | [evidence-plan-generation-eligibility-safety-v1](evidence/plan-generation-eligibility-safety/evidence-plan-generation-eligibility-safety-v1.yaml) — Cross-cutting plan-generation eligibility and safety | 1 | plan-generation-eligibility-safety | 2026-08-14 |
 | [evidence-plan-outcome-interpretation-v1](evidence/plan-outcome-interpretation/evidence-plan-outcome-interpretation-v1.yaml) — Training-plan outcome interpretation | 1 | plan-outcome-interpretation | 2026-08-08 |
+| [evidence-road-10k-plan-generation-policy-v1](evidence/road-10k-plan-generation-policy/evidence-road-10k-plan-generation-policy-v1.yaml) — History-rich adult recreational road 10 km plan generation | 1 | road-10k-plan-generation-policy | 2026-08-14 |
 | [evidence-running-field-tests-v1](evidence/running-field-tests/evidence-running-field-tests-v1.yaml) — Running field tests for plan baselines and outcomes | 1 | running-field-tests | 2026-08-08 |
 | [evidence-short-interruption-detraining-v1](evidence/short-interruption-detraining/evidence-short-interruption-detraining-v1.yaml) — Short training interruption and detraining | 1 | short-interruption-detraining | 2026-08-08 |
 
@@ -46,6 +47,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 |---|---:|---|---|
 | [sdr-adaptive-plan-feasibility-and-adjustment-v1](decisions/sdr-adaptive-plan-feasibility-and-adjustment-v1.yaml) — Bound adaptive-plan feasibility, adjustment, and outcome interpretation | 1 | adaptive-plan-policy-v1 | 2026-08-08 |
 | [sdr-plan-generation-eligibility-safety-v1](decisions/sdr-plan-generation-eligibility-safety-v1.yaml) — Match plan generation by capability, history, and non-medical safety state | 1 | plan-generation-eligibility-safety-v1 | 2026-08-14 |
+| [sdr-road-10k-plan-generation-policy-v1](decisions/sdr-road-10k-plan-generation-policy-v1.yaml) — History-rich adult recreational outdoor road 10 km plan policy | 1 | road-10k-plan-generation-policy-v1 | 2026-08-14 |
 
 ## Superseded
 
