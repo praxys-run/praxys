@@ -174,6 +174,27 @@ model_parameters:
       plan flow route completion, performance, and undated goals honestly
       without manufacturing a schedule or rejecting a valid aspiration.
     applies_to: goal capture, capability discovery, and every training-plan entry
+  - name: existing_policy_alignment_gate
+    value:
+      accepted_records_requiring_successor_alignment:
+        - sdr-preplan-baseline-policy-v1
+        - sdr-outdoor-5k-plan-generation-policy-v1
+      draft_records_requiring_alignment_before_acceptance:
+        - sdr-adaptive-plan-feasibility-and-adjustment-v1
+      alignment_topics:
+        - goal_recording_independent_from_policy_availability
+        - dynamic_patterns_instead_of_static_runner_identity
+        - event_context_and_no_event_routing
+        - profile_provenance_and_field_level_missingness
+      accepted_records_remain_unchanged_in_this_draft: true
+      shared_router_activation_before_successor_acceptance: false
+    classification: guardrail
+    rationale: >
+      Existing accepted records preserve review history and cannot be silently
+      rewritten. Their self-coached recreational scope and earlier goal-flow
+      assumptions require coordinated successor decisions before this shared
+      router can govern shipped 5 km or baseline behavior.
+    applies_to: science lifecycle migration and shared-router activation
   - name: capability_match_axes
     value:
       required:
@@ -714,6 +735,7 @@ applicability:
   - Medical rehabilitation, treatment, pregnancy-specific prescription, diagnosis, clearance, and return-to-sport remain unsupported intents.
   - Distance-specific policies remain responsible for exact baseline, history, schedule, intensity, progression, long-run, taper, and reassessment values.
   - Existing accepted outdoor 5 km values remain specific to that accepted policy.
+  - Existing accepted baseline and outdoor 5 km records require coordinated successor alignment before this shared router can activate.
 user_facing_claim_limits:
   - Do not hide or invalidate a goal merely because no accepted generator policy currently matches.
   - Do not call a runner eligible merely because the selected distance matches an available policy.
@@ -763,11 +785,13 @@ validation_plan:
   - Audit provider imports for purpose disclosure, minimum fields, confirmation, conflict handling, deletion, and no silent overwrite.
   - Verify missing optional age or sex disables only the dependent modifier or metric and never selects a hidden male default.
   - Verify every enabled capability also references an accepted distance-specific SDR and cannot inherit another policy's numeric values.
+  - Require draft successor coverage for accepted baseline and outdoor 5 km records before shared-router activation; do not edit or supersede accepted history without human approval.
   - Audit every UI, API, plugin, and MCP response for personal probabilities, hidden policy relaxation, invented context, or diagnosis-shaped wording.
   - Pre-register safety exits, adverse reports, acceptance, edits, rejection, burden, and subgroup stop criteria before any suggestion-first pilot.
   - Require a successor decision before promoting sparse-history or masters status to a separate policy family or adding autonomous permissions.
 falsification_conditions:
   - A valid goal cannot be recorded because no accepted plan policy matches.
+  - The shared router activates while accepted baseline or outdoor 5 km records still rely on unaligned static identity or goal-flow assumptions.
   - A goal-distance match alone enables generation despite a population, capability, history, evidence, or safety mismatch.
   - A beginner enters an already-capable policy without a separately accepted family.
   - A goal-distance-novel runner enters an already-capable policy despite the draft conservative routing guardrail.
@@ -819,6 +843,7 @@ superseded_by:
 decision_notes:
   - "This is a decision proposal for issue #685, not an accepted policy or implementation authorization."
   - Human review should focus on goal-versus-policy separation, dynamic pattern semantics, event-calendar completeness, provider-profile confirmation, field-level missingness, first-completion routing, masters modifiers, and symptom-stop semantics.
+  - Accepted pre-plan baseline and outdoor 5 km records remain unchanged; separately reviewed successor records are required before shared-router activation.
   - No numeric recent-history, weekly-frequency, intensity, quality-session, long-run, progression, taper, horizon, event-priority, or reassessment value is selected by this draft.
   - "Impact map: draft Evidence Review -> draft SDR -> future goal and shared pure routing model -> capability registry -> dynamic pattern, event, profile, and evidence snapshots -> API contract -> web types and UI -> miniapp parity -> plugin/MCP parity -> ScienceNote and localization -> tests -> offline shadow validation -> suggestion-first pilot."
   - Accepted 5 km records remain unchanged and continue to govern only their current implementation.

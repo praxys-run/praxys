@@ -339,6 +339,17 @@ def test_plan_generation_eligibility_proposal_stays_inactive_and_cross_cutting()
     assert goal_routing["unavailable_policy_result"] == (
         "goal_recorded_plan_policy_unavailable"
     )
+    alignment = parameters["existing_policy_alignment_gate"].value
+    assert alignment["accepted_records_requiring_successor_alignment"] == [
+        "sdr-preplan-baseline-policy-v1",
+        "sdr-outdoor-5k-plan-generation-policy-v1",
+    ]
+    assert alignment[
+        "accepted_records_remain_unchanged_in_this_draft"
+    ] is True
+    assert alignment[
+        "shared_router_activation_before_successor_acceptance"
+    ] is False
     assert parameters["capability_and_history_routing"].value[
         "first_distance_completion"
     ] == "separate_accepted_completion_policy_required"
