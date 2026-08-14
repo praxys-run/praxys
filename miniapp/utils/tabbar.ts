@@ -66,9 +66,9 @@ export function refreshTabBarLocale(page: { getTabBar?: unknown }): void {
     const tabs = [
       { pagePath: 'pages/today/index', text: t('Today'), kind: 'today' },
       { pagePath: 'pages/training/index', text: t('Training'), kind: 'training' },
-      { pagePath: 'pages/history/index', text: t('Activities'), kind: 'activities' },
+      { pagePath: 'pages/analysis/index', text: t('Analysis'), kind: 'analysis' },
       { pagePath: 'pages/goal/index', text: t('Goal'), kind: 'goal' },
-      { pagePath: 'pages/settings/index', text: t('Settings'), kind: 'settings' },
+      { pagePath: 'pages/me/index', text: t('Me'), kind: 'me' },
     ];
     callTabBar(page, { tabs });
   }).catch(() => { /* tab labels will refresh on next pageLifetimes.show */ });

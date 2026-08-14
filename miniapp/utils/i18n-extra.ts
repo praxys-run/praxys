@@ -409,6 +409,20 @@ const EN_SETTINGS = {
   'Kiviniemi et al. (2007) source': 'Kiviniemi et al. (2007) source',
 };
 
+const EN_ME = {
+  Me: 'Me',
+  'Observed training': 'Observed training',
+  'Account & data': 'Account & data',
+  'Connections, thresholds, plan delivery, preferences, and account access.':
+    'Connections, thresholds, plan delivery, preferences, and account access.',
+  Explore: 'Explore',
+  Experimental: 'Experimental',
+  About: 'About',
+  'Terms & Privacy': 'Terms & Privacy',
+  'Legal documents, privacy, and data rights.':
+    'Legal documents, privacy, and data rights.',
+};
+
 const EN_NAV_CHARTS = {
   // Page titles (for nav-bar / custom-tab-bar)
   Today: 'Today',
@@ -814,6 +828,20 @@ const ZH_SETTINGS = {
   'Kiviniemi et al. (2007) source': 'Kiviniemi 等（2007）来源',
 };
 
+const ZH_ME = {
+  Me: '我的',
+  'Observed training': '训练观察',
+  'Account & data': '账号与数据',
+  'Connections, thresholds, plan delivery, preferences, and account access.':
+    '管理平台连接、训练阈值、计划下发、偏好与账号访问。',
+  Explore: '探索',
+  Experimental: '实验功能',
+  About: '关于',
+  'Terms & Privacy': '条款与隐私',
+  'Legal documents, privacy, and data rights.':
+    '查看法律文件、隐私说明与数据权利。',
+};
+
 const ZH_NAV_CHARTS = {
   Today: '今日',
   'Avg Pace': '平均配速',
@@ -1007,6 +1035,7 @@ export const I18N_EXTRA: Record<Locale, Record<string, string>> = {
     ...EN_COACH,
     ...EN_HISTORY_SCIENCE,
     ...EN_SETTINGS,
+    ...EN_ME,
     ...EN_NAV_CHARTS,
     ...EN_HEAT,
     ...EN_LABS,
@@ -1022,6 +1051,7 @@ export const I18N_EXTRA: Record<Locale, Record<string, string>> = {
     ...ZH_COACH,
     ...ZH_HISTORY_SCIENCE,
     ...ZH_SETTINGS,
+    ...ZH_ME,
     ...ZH_NAV_CHARTS,
     ...ZH_HEAT,
     ...ZH_LABS,

@@ -5,15 +5,15 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 WEB_TODAY = ROOT / "web" / "src" / "pages" / "Today.tsx"
-WEB_TRAINING = ROOT / "web" / "src" / "pages" / "Training.tsx"
+WEB_ANALYSIS = ROOT / "web" / "src" / "pages" / "Analysis.tsx"
 WEB_HEAT = ROOT / "web" / "src" / "components" / "HeatAdaptationPanel.tsx"
 WEB_METRIC_SHEET = ROOT / "web" / "src" / "components" / "MetricDetailSheet.tsx"
 WEB_TSB_CHART = ROOT / "web" / "src" / "components" / "charts" / "FitnessFatigueChart.tsx"
 WEB_VOLUME_CHART = ROOT / "web" / "src" / "components" / "charts" / "WeeklyVolumeChart.tsx"
 MINI_TODAY = ROOT / "miniapp" / "pages" / "today" / "index.wxml"
 MINI_TODAY_TS = ROOT / "miniapp" / "pages" / "today" / "index.ts"
-MINI_TRAINING = ROOT / "miniapp" / "pages" / "training" / "index.wxml"
-MINI_TRAINING_TS = ROOT / "miniapp" / "pages" / "training" / "index.ts"
+MINI_ANALYSIS = ROOT / "miniapp" / "pages" / "analysis" / "index.wxml"
+MINI_ANALYSIS_TS = ROOT / "miniapp" / "pages" / "analysis" / "index.ts"
 MINI_HEAT = ROOT / "miniapp" / "utils" / "heat-adaptation.ts"
 WEB_SCIENCE = ROOT / "web" / "src" / "pages" / "Science.tsx"
 MINI_SCIENCE = ROOT / "miniapp" / "pages" / "science" / "index.wxml"
@@ -41,15 +41,15 @@ def test_today_does_not_imply_current_weather_is_available() -> None:
     assert "buildHeatAdaptationView" not in mini_today_ts
 
 
-def test_training_owns_the_longitudinal_heat_story() -> None:
-    """Training should present five aligned peer metrics with bounded details."""
-    web_training = _source(WEB_TRAINING)
+def test_analysis_owns_the_longitudinal_heat_story() -> None:
+    """Analysis should present five aligned peer metrics with bounded details."""
+    web_training = _source(WEB_ANALYSIS)
     web_heat = _source(WEB_HEAT)
     web_metric_sheet = _source(WEB_METRIC_SHEET)
     web_tsb_chart = _source(WEB_TSB_CHART)
     web_volume_chart = _source(WEB_VOLUME_CHART)
-    mini_training = _source(MINI_TRAINING)
-    mini_training_ts = _source(MINI_TRAINING_TS)
+    mini_training = _source(MINI_ANALYSIS)
+    mini_training_ts = _source(MINI_ANALYSIS_TS)
     mini_today_ts = _source(MINI_TODAY_TS)
     mini_heat = _source(MINI_HEAT)
 
@@ -141,7 +141,7 @@ def test_training_owns_the_longitudinal_heat_story() -> None:
 def test_heat_safety_notices_render_from_server_codes_on_both_clients() -> None:
     """Heat safety limits stay visible across the web and miniapp detail views."""
     web_heat = _source(WEB_HEAT)
-    mini_training = _source(MINI_TRAINING)
+    mini_training = _source(MINI_ANALYSIS)
     mini_heat = _source(MINI_HEAT)
 
     for code in (

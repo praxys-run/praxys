@@ -1,0 +1,90 @@
+.me-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.me-scroll {
+  min-height: 0;
+  flex: 1;
+  background-color: var(--bg);
+}
+
+.me-content {
+  padding: 32rpx 32rpx 200rpx;
+}
+
+.me-section + .me-section {
+  margin-top: 52rpx;
+}
+
+.me-row {
+  display: flex;
+  min-height: 116rpx;
+  align-items: center;
+  gap: 24rpx;
+  padding: 20rpx 4rpx;
+  border-bottom: 1rpx solid var(--border-subtle);
+}
+
+.me-row--pressed {
+  background-color: var(--surface-subtle);
+}
+
+.me-section .me-row:first-of-type {
+  border-top: 1rpx solid var(--border-subtle);
+}
+
+.me-row__copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 7rpx;
+}
+
+.me-row__title-line {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.me-row__title {
+  color: var(--text);
+  font-size: 27rpx;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.me-row__detail {
+  color: var(--text-muted);
+  font-size: 21rpx;
+  line-height: 1.45;
+}
+
+.me-row__badge {
+  padding: 4rpx 10rpx;
+  border: 1rpx solid var(--warning);
+  border-radius: 8rpx;
+  color: var(--warning);
+  font-size: 18rpx;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.me-row__chevron {
+  flex: none;
+  width: 14rpx;
+  height: 14rpx;
+  margin-right: 6rpx;
+  border-right: 3rpx solid var(--text-muted);
+  border-bottom: 3rpx solid var(--text-muted);
+  transform: rotate(-45deg);
+}
+
+.me-version {
+  display: block;
+  margin-top: 56rpx;
+  font-size: 20rpx;
+  text-align: center;
+}

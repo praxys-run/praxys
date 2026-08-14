@@ -1,0 +1,6 @@
+{
+  "component": true,
+  "usingComponents": {
+    "state-card": "/components/state-card/index"
+  }
+}

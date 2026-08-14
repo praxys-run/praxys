@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import type { ComponentType, SVGProps } from 'react';
-import { Sun, Moon, Monitor, TrendingUp, Target, Clock, BookOpen, FlaskConical, Settings, LogOut, ListChecks, ShieldCheck, MessageSquarePlus, Smartphone } from 'lucide-react';
+import { Sun, Moon, Monitor, CalendarDays, TrendingUp, Target, Clock, BookOpen, FlaskConical, Settings, LogOut, ListChecks, ShieldCheck, MessageSquarePlus, Smartphone } from 'lucide-react';
 import { PraxysFlag } from '@/components/PraxysFlag';
 import FeedbackDialog from '@/components/FeedbackDialog';
 import { MobileAppDialog } from '@/components/MobileApp';
@@ -117,12 +117,13 @@ export default function AppSidebar() {
   );
   const pendingFeedback = feedbackSummary?.actionable ?? 0;
 
-  // Active-cluster: daily-use training surfaces. Today, Training, Goal,
-  // Activities. The home item stays "Today" regardless of setup state —
+  // Active-cluster: daily-use surfaces. Today, managed Training, Analysis,
+  // Goal, Activities. The home item stays "Today" regardless of setup state —
   // setup gets its own dedicated banner row above the active cluster.
   const activeItems: NavItem[] = [
     { to: '/today', icon: Sun, label: t`Today` },
-    { to: '/training', icon: TrendingUp, label: t`Training` },
+    { to: '/training', icon: CalendarDays, label: t`Training` },
+    { to: '/analysis', icon: TrendingUp, label: t`Analysis` },
     { to: '/goal', icon: Target, label: t`Goal` },
     { to: '/history', icon: Clock, label: t`Activities` },
   ];
@@ -193,7 +194,7 @@ export default function AppSidebar() {
               {displayName ? (
                 <>
                   <span className="truncate text-xs font-medium text-foreground">{displayName}</span>
-                  <span className="truncate text-[10px] text-muted-foreground">{email}</span>
+                  <span className="truncate text-xs text-muted-foreground">{email}</span>
                 </>
               ) : (
                 <span className="truncate text-xs text-muted-foreground">{email}</span>

@@ -468,7 +468,7 @@ from contradicting the canonical verdict.
 
 **Auth.** `api/llm.py::get_client()` uses `DefaultAzureCredential` + `get_bearer_token_provider` — same scaffolding as `scripts/translate_missing.py`. No API key path. Reasoning deployment configured via `PRAXYS_INSIGHT_MODEL`; new-string translation via `TRANSLATE_MODEL`; native-language catalog editor/critic review via `TRANSLATE_REVIEW_MODEL`.
 
-**Mini program.** Training and Goal render the same durable insight receipts as
+**Mini program.** Analysis and Goal render the same durable insight receipts as
 web with deterministic fallbacks. Today renders only the canonical deterministic
 signal and never requests a `daily_brief` row.
 
@@ -553,11 +553,19 @@ training/workout semantics around the raw responses.
 ### web/
 
 React SPA (Vite + TypeScript + Tailwind v4 + shadcn/ui):
-- **`pages/`**: 4 pages matching dashboard tabs (Today, Training, Goal, Settings) + Science
+- **`pages/`**: Today, managed Training, Analysis, Goal, Activities, Settings, Science, and supporting Labs/admin routes
 - **`components/`**: UI components, one per card/section
 - **`hooks/`**: `useApi<T>` for data fetching with loading/error states
 - **`types/api.ts`**: TypeScript interfaces matching API response shapes
 - **`lib/chart-theme.ts`**: Single source of truth for chart colors
+
+### miniapp/
+
+Native WeChat Mini Program (Skyline + TypeScript):
+- **Primary tabs**: Today, managed Training, Analysis, Goal, and Me
+- **Analysis**: observed-training interpretation plus an in-page Activities view
+- **Me**: hub for Settings, Training Science, Labs, and legal surfaces
+- **Legacy routes**: History remains as a non-tab wrapper for existing deep links
 
 ### plugins/praxys/
 

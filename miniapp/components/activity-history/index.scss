@@ -1,0 +1,106 @@
+.activity-history {
+  padding: 32rpx 32rpx 96rpx;
+}
+
+.activity-history--tabbed {
+  padding-bottom: 200rpx;
+}
+
+.activity-history__total {
+  display: block;
+  margin-bottom: 24rpx;
+  font-size: 24rpx;
+}
+
+.activity-history__row-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx;
+  margin-bottom: 12rpx;
+}
+
+.activity-history__date {
+  font-size: 24rpx;
+  font-variant-numeric: tabular-nums;
+}
+
+.activity-history__type {
+  margin-left: auto;
+  color: var(--text);
+  font-size: 26rpx;
+  text-transform: capitalize;
+}
+
+.activity-history__chevron {
+  flex: none;
+  width: 12rpx;
+  height: 12rpx;
+  border-right: 2rpx solid var(--text-muted);
+  border-bottom: 2rpx solid var(--text-muted);
+  transform: rotate(-45deg);
+}
+
+.activity-history__chevron--open {
+  transform: rotate(45deg);
+}
+
+.activity-history__metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32rpx;
+  margin-top: 8rpx;
+}
+
+.activity-history__metric {
+  min-width: 100rpx;
+}
+
+.activity-history__metric-label {
+  display: block;
+  font-size: 20rpx;
+  letter-spacing: 1rpx;
+  text-transform: uppercase;
+}
+
+.activity-history__metric-value {
+  display: block;
+  color: var(--text);
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.activity-history__splits {
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid var(--border-subtle);
+}
+
+.activity-history__split-row {
+  display: flex;
+  align-items: baseline;
+  gap: 24rpx;
+  padding: 6rpx 0;
+}
+
+.activity-history__split-num {
+  width: 48rpx;
+  font-size: 22rpx;
+}
+
+.activity-history__split-cell {
+  min-width: 100rpx;
+  font-size: 24rpx;
+}
+
+.activity-history__split-more {
+  display: block;
+  padding-top: 8rpx;
+  font-size: 22rpx;
+}
+
+.activity-history__footer {
+  display: block;
+  padding: 32rpx 0;
+  font-size: 24rpx;
+  text-align: center;
+}

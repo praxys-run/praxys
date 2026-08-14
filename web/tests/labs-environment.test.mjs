@@ -158,17 +158,17 @@ test('stale Labs chunks reload once instead of looping', async () => {
 });
 
 test('miniapp Labs preserves the web experiment lifecycle', async () => {
-  const [catalog, controller, template, app, settings] = await Promise.all([
+  const [catalog, controller, template, app, me] = await Promise.all([
     read('../../miniapp/pages/labs/index.ts'),
     read('../../miniapp/pages/labs/environment-response/index.ts'),
     read('../../miniapp/pages/labs/environment-response/index.wxml'),
     read('../../miniapp/app.json'),
-    read('../../miniapp/pages/settings/index.wxml'),
+    read('../../miniapp/pages/me/index.wxml'),
   ]);
 
   assert.match(app, /pages\/labs\/index/);
   assert.match(app, /pages\/labs\/environment-response\/index/);
-  assert.match(settings, /onNavigateToLabs/);
+  assert.match(me, /onOpenLabs/);
   assert.match(catalog, /pages\/labs\/environment-response\/index/);
   assert.doesNotMatch(catalog, /environment-response\/preflight/);
   assert.match(catalog, /Open to check/);
