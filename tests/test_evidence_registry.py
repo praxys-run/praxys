@@ -56,6 +56,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "evidence-preplan-baseline-policy-v1",
         "evidence-outdoor-5k-plan-generation-policy-v1",
         "evidence-plan-generation-eligibility-safety-v1",
+        "evidence-road-10k-plan-generation-policy-v1",
         "evidence-running-field-tests-v1",
         "evidence-short-interruption-detraining-v1",
     }
@@ -69,6 +70,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "sdr-outdoor-5k-plan-generation-policy-v1",
         "sdr-plan-generation-eligibility-safety-v1",
         "sdr-preplan-baseline-policy-v1",
+        "sdr-road-10k-plan-generation-policy-v1",
     }
     assert registry.evidence_reviews[
         "evidence-personal-environment-response-v1"
@@ -499,6 +501,297 @@ def test_plan_generation_eligibility_proposal_stays_inactive_and_cross_cutting()
     ].value["stop_reasons"]
     assert any(
         "not an accepted policy" in note
+        for note in decision.decision_notes
+    )
+
+
+def test_road_10k_policy_proposal_is_distance_specific_and_inactive() -> None:
+    registry = load_science_registry()
+    review = registry.evidence_reviews[
+        "evidence-road-10k-plan-generation-policy-v1"
+    ]
+    decision = registry.decisions[
+        "sdr-road-10k-plan-generation-policy-v1"
+    ]
+
+    assert review.status == "draft"
+    assert review.human_reviewers == []
+    assert review.reviewed_on is None
+    assert review.method.review_type.value == "rigorous"
+    assert len(review.citations) >= 19
+    assert {
+        "road-10k-plan.task-specific-capability-not-single-marker",
+        "road-10k-plan.mostly-low-intensity-no-universal-winner",
+        "road-10k-plan.one-to-two-quality-sessions-indirect",
+        "road-10k-plan.volume-frequency-associated-not-prescriptive",
+        "road-10k-plan.fixed-progression-not-safety-law",
+        "road-10k-plan.taper-volume-reduction-supported",
+        "road-10k-baseline.same-distance-direct-capability",
+        "road-10k-baseline.comparability-time-of-day-matters",
+        "road-10k-baseline.freshness-cutoff-not-validated",
+        "road-10k-plan.individual-outcomes-require-error-aware-validation",
+        "road-10k-plan.symptom-based-test-stop-boundary",
+    } <= {claim.id for claim in review.claims}
+    assert {
+        "Verification: boullosa-2020 - full-text",
+        "Verification: wang-2023 - full-text",
+        "Verification: bonafiglia-2021 - full-text",
+    } <= {note.split(";", 1)[0] for note in review.review_notes}
+    _assert_exact_verification_notes(review)
+
+    assert decision.status == "draft"
+    assert decision.human_reviewers == []
+    assert decision.evidence_review_ids == [
+        "evidence-plan-generation-eligibility-safety-v1",
+        review.id,
+    ]
+    assert {claim.id for claim in review.claims} <= set(
+        decision.evidence_claim_ids
+    )
+    parameters = {
+        parameter.name: parameter
+        for parameter in decision.model_parameters
+    }
+    activation = parameters["road_10k_activation_and_dependency"].value
+    assert activation["active_behavior"] is False
+    assert activation["shared_policy_dependency"] == {
+        "sdr_id": "sdr-plan-generation-eligibility-safety-v1",
+        "required_status_before_activation": "accepted",
+    }
+    assert activation["distance_policy_required_status_before_activation"] == (
+        "accepted"
+    )
+    assert parameters["road_10k_goal_tuple"].value["goal_kind"] == (
+        "distance_10k"
+    )
+    assert parameters["road_10k_goal_tuple"].value["goal_intent"] == (
+        "performance"
+    )
+    assert parameters["road_10k_goal_tuple"].value["distance_m"] == 10000
+    assert parameters["road_10k_goal_tuple"].value["surface"] == (
+        "outdoor_road"
+    )
+    assert parameters["road_10k_goal_tuple"].value[
+        "target_time_optional"
+    ] is True
+    assert parameters["road_10k_goal_tuple"].value[
+        "no_event_performance_goal_supported"
+    ] is True
+    pattern = parameters["road_10k_supported_training_pattern"].value
+    assert pattern["adult_scope"] == "confirmed"
+    assert pattern["capability_pattern"] == "currently_capable"
+    assert pattern["history_pattern"] == "stable"
+    assert pattern["load_pattern"] == "within_recent"
+    assert pattern["event_context"] == [
+        "confirmed_none",
+        "single_target",
+        "race_dense",
+    ]
+    assert pattern["race_dense_requires_resolved_conflicts"] is True
+    assert pattern["evidence_directness"] == ["direct", "supporting"]
+    assert pattern[
+        "recreational_serious_professional_or_elite_identity_used"
+    ] is False
+    assert parameters["road_10k_direct_baseline_hierarchy"].value[
+        "excluded_as_direct_baseline"
+    ][0] == "five_k_result_or_conversion"
+    baseline = parameters["road_10k_direct_baseline_hierarchy"].value
+    assert baseline["accepted_evidence_order"] == [
+        "organized_outdoor_road_10k_race_with_elapsed_time",
+        "explicit_all_out_standardized_outdoor_road_or_track_10k_time_trial",
+    ]
+    assert "standardized_laboratory_10k_time_trial" in baseline[
+        "supporting_only"
+    ]
+    assert parameters["road_10k_baseline_freshness"].value[
+        "current_through_completed_days"
+    ] == 56
+    history = parameters["road_10k_recent_history_prerequisite"].value
+    assert history["completed_weeks_lookback"] == 8
+    assert history["minimum_usable_completed_weeks"] == 4
+    assert history["minimum_runs_per_usable_week"] == 3
+    assert history["latest_run_within_completed_days"] == 10
+    assert history["intensity_usable_when_any"] == [
+        "activity_splits_available",
+        "activity_samples_available",
+    ]
+    assert history["disallowed_intensity_source"] == [
+        "activity_avg_power"
+    ]
+    rolling = parameters[
+        "road_10k_rolling_planning_and_reassessment"
+    ].value
+    assert rolling["fixed_full_block_days"] == "none_defined"
+    assert rolling["fixed_horizon_eligibility_gate"] is False
+    assert rolling["exact_committed_execution_window_days"] == (
+        "not_accepted"
+    )
+    assert {
+        "new_or_changed_confirmed_event",
+        "material_training_pattern_change",
+        "athlete_requested_review",
+    } <= set(rolling["reassessment_triggers"])
+    target_routing = parameters["road_10k_target_date_routing"].value
+    assert target_routing["no_target_date"] == (
+        "rolling_performance_plan_with_optional_opt_in_benchmark"
+    )
+    assert target_routing["target_within_8_to_14_completed_days"] == (
+        "taper_or_maintain_only_if_all_other_inputs_pass"
+    )
+    assert target_routing["short_horizon_invalidates_goal"] is False
+    event_context = parameters[
+        "road_10k_event_and_benchmark_context"
+    ].value
+    assert event_context["imported_event_must_be_athlete_confirmed"] is True
+    assert event_context["every_race_or_maximal_effort"] == {
+        "counts_as_quality_session": True,
+        "counts_as_training_load": True,
+        "requires_recovery_and_spacing_validation": True,
+    }
+    assert event_context["no_event_performance_goal"][
+        "optional_benchmark"
+    ]["never_auto_schedule"] is True
+    assert event_context["no_event_completion_goal"] == (
+        "route_to_separate_completion_policy"
+    )
+    assert parameters["road_10k_running_frequency"].value[
+        "minimum_running_days_per_7_day_unit"
+    ] == 3
+    assert parameters["road_10k_running_frequency"].value[
+        "maximum_running_days_per_7_day_unit"
+    ] == 6
+    assert parameters["road_10k_running_frequency"].value[
+        "higher_requested_frequency_outcome"
+    ] == "cap_to_policy_history_and_availability"
+    session_mix = parameters["road_10k_session_taxonomy_and_mix"].value
+    assert session_mix["exact_step_templates"][
+        "inherited_from_outdoor_5k"
+    ] is False
+    assert parameters["road_10k_quality_spacing"].value[
+        "maximum_quality_sessions_per_7_day_unit"
+    ] == 2
+    assert parameters["road_10k_quality_spacing"].value[
+        "consecutive_quality_running_days_allowed"
+    ] is False
+    assert parameters["road_10k_low_intensity_floor"].value[
+        "minimum_planned_low_intensity_fraction"
+    ] == 0.75
+    assert parameters["road_10k_history_anchored_load"].value[
+        "planned_progression_above_recent_typical_in_v1"
+    ] is False
+    assert parameters["road_10k_history_anchored_load"].value[
+        "every_non_taper_weekly_minutes_must_not_exceed"
+    ] == [
+        "recent_median_usable_weekly_running_minutes",
+        "athlete_stated_weekly_time_limit",
+    ]
+    assert parameters["road_10k_longest_easy_boundary"].value[
+        "mandatory_long_run"
+    ] is False
+    assert parameters["road_10k_power_and_intensity_targets"].value[
+        "generic_percent_of_threshold_or_cp_targets"
+    ] is False
+    assert parameters["road_10k_selected_taper_guardrail"].value[
+        "planned_volume_reduction_percent"
+    ] == 50
+    taper = parameters["road_10k_selected_taper_guardrail"].value
+    assert taper["rounding_note"] == (
+        "rounded_product_guardrail_from_50_5_percent_range_midpoint"
+    )
+    assert taper["reference_minutes_for_window"] == (
+        "reference_daily_running_minutes_times_actual_taper_window_days"
+    )
+    assert taper[
+        "target_event_elapsed_time_included_in_planned_training_minutes"
+    ] is False
+    comparability = parameters["road_10k_protocol_comparability"].value
+    assert comparability["missing_metadata_outcome"] == (
+        "outcome_comparison_unavailable"
+    )
+    assert comparability["plan_generation_eligibility_affected"] is False
+    assert parameters["road_10k_goal_and_probability_limits"].value[
+        "personal_goal_achievement_probability"
+    ] == "disabled"
+    typed_outcomes = parameters["road_10k_typed_outcomes"].value
+    assert typed_outcomes["unsupported_distance_fallback"] == "none"
+    assert {
+        name
+        for name, outcome in typed_outcomes["outcomes"].items()
+        if outcome["plan_returned"] is False
+    } == {
+        "intent_requires_separate_policy",
+        "training_pattern_outside_current_policy",
+        "adult_scope_unconfirmed",
+        "safety_stop",
+        "insufficient_direct_baseline",
+        "stale_direct_baseline",
+        "insufficient_recent_history",
+        "insufficient_history_rich_frequency",
+        "unresolved_event_context",
+        "limited_guidance_event_conflict",
+        "contradictory_input",
+        "unsupported_capability",
+    }
+    assert typed_outcomes["outcomes"]["eligible_rolling_proposal"][
+        "plan_returned"
+    ] is True
+    assert typed_outcomes["outcomes"]["eligible_taper_or_event_adjustment"][
+        "plan_returned"
+    ] is True
+    assert all(
+        outcome.get("goal_remains_recorded") is True
+        for outcome in typed_outcomes["outcomes"].values()
+        if outcome["plan_returned"] is False
+    )
+    assert typed_outcomes["outcomes"]["limited_guidance_event_conflict"][
+        "limited_guidance_returned"
+    ] is True
+    assert parameters["road_10k_suggestion_only_state_transition"].value[
+        "generator_may_not"
+    ] == [
+        "write_adopted_plan_without_consent",
+        "deliver_or_publish_without_consent",
+        "overwrite_adopted_future_days_at_reassessment",
+        "schedule_a_missed_workout_makeup",
+        "infer_why_a_workout_was_missed",
+        "auto_schedule_a_benchmark_or_change_event_priority",
+    ]
+    assert set(
+        parameters["road_10k_suggestion_only_state_transition"].value[
+            "AI_may_not"
+        ]
+    ) == {
+        "widen_eligibility",
+        "assign_recreational_serious_professional_or_elite_identity",
+        "invent_missing_context",
+        "invent_or_confirm_event_context",
+        "confirm_or_overwrite_profile_fields",
+        "reinterpret_unknown_as_safe_or_eligible",
+        "override_deterministic_validation",
+        "adopt_deliver_or_publish",
+    }
+    thresholds = parameters[
+        "road_10k_pilot_falsification_thresholds"
+    ].value
+    assert thresholds["deterministic_invariant_breach_tolerance"] == 0
+    assert thresholds["dry_run"][
+        "maximum_single_guardrail_exclusion_fraction"
+    ] == 0.50
+    assert thresholds["opt_in_pilot"]["maximum_major_edit_fraction"] == 0.30
+    assert thresholds["opt_in_pilot"]["major_edit_definition"][
+        "evaluation_window"
+    ] == "one_versioned_committed_execution_window"
+    assert thresholds["opt_in_pilot"][
+        "maximum_taper_vs_non_taper_rejection_or_major_edit_gap"
+    ] == 0.15
+    assert thresholds["opt_in_pilot"][
+        "serious_adverse_events_triggering_immediate_pause"
+    ] == 1
+    assert parameters["road_10k_published_taper_findings"].classification.value == (
+        "published"
+    )
+    assert any(
+        "stacked decision proposal for issue #686" in note
         for note in decision.decision_notes
     )
 
