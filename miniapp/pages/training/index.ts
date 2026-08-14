@@ -842,6 +842,10 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
     }
     if (returningToTab || localeChanged) {
       void this.refetch({ background: true });
+      const planStart = this.selectComponent(
+        '#training-plan-start',
+      ) as unknown as { refresh?: () => Promise<void> } | null;
+      void planStart?.refresh?.();
     }
     if (consumeHeatHistoryScrollRequest()) {
       pgMut._scrollToHeatPending = true;
@@ -887,6 +891,10 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
 
   onScrollRefresh() {
     this.setData({ refreshing: true });
+    const planStart = this.selectComponent(
+      '#training-plan-start',
+    ) as unknown as { refresh?: () => Promise<void> } | null;
+    void planStart?.refresh?.();
     const managedPlan = this.selectComponent(
       '#training-managed-plan',
     ) as unknown as { refresh?: () => Promise<void> } | null;

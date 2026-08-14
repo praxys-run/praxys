@@ -162,6 +162,26 @@ Intensity evidence always uses activity splits or samples, never activity
 A proposal can be accepted, edited into a successor, rejected, deferred,
 expired, or superseded. None of those states mutates the plan except acceptance.
 
+### Plan-generation capability registry
+
+Every interface discovers automatic generation through one authenticated,
+versioned capability registry rather than selecting a planner from hard-coded
+client conditions. The registry:
+
+- contains accepted generation policies only;
+- resolves the authenticated athlete's current normalized goal on the backend;
+- returns the exact policy, generator, science decision, constraint-schema,
+  horizon, reassessment cadence, and policy-specific action paths;
+- returns `no_accepted_policy` when no reviewed policy matches instead of
+  repurposing another distance or population policy; and
+- keeps the existing typed policy endpoints compatible while web, miniapp,
+  plugin, MCP, and future agents share the same discovery contract.
+
+Draft Evidence Reviews, draft SDRs, roadmap intent, and unsupported populations
+never make a capability available. Adding a capability requires its own accepted
+science decision plus deterministic validation and client support for the named
+constraint schema.
+
 ### Structured workout contract v1
 
 Proposal workouts and canonical `TrainingPlan` rows carry a versioned

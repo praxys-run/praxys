@@ -39,15 +39,21 @@ import type {
   Outdoor5KReadinessResponse,
   Outdoor5KRegenerateResponse,
   Outdoor5KWeekday,
+  PlanGenerationCapabilitiesResponse,
 } from '@/types/api';
 
 const DAYS: Outdoor5KWeekday[] = [0, 1, 2, 3, 4, 5, 6];
+const SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_ID = 'outdoor_road_5k_constraints_v1';
 
 type DayLimits = Partial<Record<Outdoor5KWeekday, string>>;
 type LifecycleOperation = 'generate' | 'regenerate' | 'reject' | 'adopt';
 
 function idempotencyKey(): string {
   return crypto.randomUUID();
+}
+
+function proposalActionHref(template: string, proposalId: string): string {
+  return template.replace('{proposal_id}', encodeURIComponent(proposalId));
 }
 
 function isProposalResponse(
@@ -78,46 +84,116 @@ function baselineCopy(
   return baseline.readiness === 'sufficient_baseline' ? ready : pending;
 }
 
-export function Outdoor5KGoalEntry({
+export function PlanStartGoalEntry({
   baseline,
 }: {
   baseline: GoalBaselineResponse | undefined;
 }) {
   const { t } = useLingui();
   const navigate = useNavigate();
-  const canStart = baseline?.readiness === 'sufficient_baseline';
+  const {
+    data: discovery,
+    loading,
+    error,
+    refetch,
+  } = useApi<PlanGenerationCapabilitiesResponse>(
+    '/api/plan/generation/capabilities',
+    { timeoutMs: 12_000 },
+  );
+  const capability = discovery?.selected_capability ?? null;
+  const capabilitySupported = capability?.constraint_schema_id
+    === SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_ID;
+  const capabilityUpdateRequired = capability != null && !capabilitySupported;
+  const canStart = capabilitySupported
+    && baseline?.readiness === 'sufficient_baseline';
+  const badgeVariant = error || capabilityUpdateRequired
+    ? 'destructive'
+    : canStart
+      ? 'default'
+      : 'outline';
+
+  if (loading) {
+    return (
+      <Card className="mb-5">
+        <CardHeader>
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="mt-3 h-4 w-full max-w-xl" />
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
     <Card className="mb-5">
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="max-w-2xl">
-            <CardTitle><Trans>Outdoor road 5K plan</Trans></CardTitle>
+            <CardTitle><Trans>Start a training plan</Trans></CardTitle>
             <CardDescription className="mt-2">
-              <Trans>
-                This pilot is for adult, self-coached recreational runners preparing for an outdoor road 5K.
-              </Trans>
+              {error ? (
+                <Trans>Could not load the accepted plan-generation policies.</Trans>
+              ) : capabilityUpdateRequired ? (
+                <Trans>Update required for this plan policy</Trans>
+              ) : capability ? (
+                <Trans>
+                  Praxys has an accepted <span className="font-data">{capability.horizon_days}</span>-day outdoor-road 5K policy for this goal.
+                </Trans>
+              ) : (
+                <Trans>
+                  Automatic generation is not available for this goal yet. Praxys will not reuse another policy outside its accepted scope.
+                </Trans>
+              )}
             </CardDescription>
           </div>
-          <Badge variant={canStart ? 'default' : 'outline'}>
-            {baselineCopy(
-              baseline,
-              t`Baseline ready`,
-              t`Review baseline`,
-            )}
+          <Badge variant={badgeVariant}>
+            {error
+              ? t`Policy check failed`
+              : capabilityUpdateRequired
+                ? t`Update required for this plan policy`
+                : capability
+                  ? baselineCopy(
+                    baseline,
+                    t`Baseline ready`,
+                    t`Review baseline`,
+                  )
+                  : t`No accepted policy`}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-          <Trans>
-            A preview is a proposal, not yet your plan. Praxys checks the current evidence and constraints again before it creates one.
-          </Trans>
+          {error ? (
+            <Trans>
+              Retry the policy check before opening a preview. Praxys will not infer availability from the current goal alone.
+            </Trans>
+          ) : capabilityUpdateRequired ? (
+            <Trans>
+              This client does not recognize the selected policy input contract and will not guess how to create a plan.
+            </Trans>
+          ) : capability ? (
+            <Trans>
+              A preview is a proposal, not yet your plan. Praxys checks the current evidence and constraints again before it creates one.
+            </Trans>
+          ) : (
+            <Trans>
+              You can keep this goal and manage workouts manually while separate road and trail policies go through science review.
+            </Trans>
+          )}
         </p>
-        <Button onClick={() => navigate('/training#outdoor-5k-plan')} className="min-h-11 shrink-0">
-          <Trans>Open plan preview</Trans>
-          <ChevronRight aria-hidden="true" />
-        </Button>
+        {error ? (
+          <Button variant="outline" onClick={() => void refetch()} className="min-h-11 shrink-0">
+            <Trans>Retry policy check</Trans>
+          </Button>
+        ) : capabilitySupported || !capability ? (
+          <Button
+            variant={capabilitySupported ? 'default' : 'outline'}
+            onClick={() => navigate(capabilitySupported ? '/training#plan-start' : '/training')}
+            className="min-h-11 shrink-0"
+          >
+            {capabilitySupported ? <Trans>Open plan preview</Trans> : <Trans>Manage workouts</Trans>}
+            <ChevronRight aria-hidden="true" />
+          </Button>
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -125,7 +201,7 @@ export function Outdoor5KGoalEntry({
 
 function PlanStartSkeleton() {
   return (
-    <Card id="outdoor-5k-plan">
+    <Card id="plan-start">
       <CardHeader>
         <Skeleton className="h-6 w-52" />
         <Skeleton className="mt-3 h-4 w-full max-w-xl" />
@@ -138,7 +214,7 @@ function PlanStartSkeleton() {
   );
 }
 
-export default function Outdoor5KPlanStart() {
+export default function PlanStart() {
   const { t } = useLingui();
   const { locale } = useLocale();
   const { isDemo } = useAuth();
@@ -150,6 +226,15 @@ export default function Outdoor5KPlanStart() {
     error: goalError,
     refetch: refetchGoal,
   } = useApi<GoalResponse>('/api/goal', { timeoutMs: 12_000 });
+  const {
+    data: capabilityDiscovery,
+    loading: capabilityLoading,
+    error: capabilityError,
+    refetch: refetchCapabilities,
+  } = useApi<PlanGenerationCapabilitiesResponse>(
+    '/api/plan/generation/capabilities',
+    { timeoutMs: 12_000 },
+  );
   const {
     data: currentProposal,
     error: currentProposalError,
@@ -173,7 +258,18 @@ export default function Outdoor5KPlanStart() {
   const [notice, setNotice] = useState<string | null>(null);
   const idempotencyKeys = useRef<Partial<Record<LifecycleOperation, string>>>({});
 
-  const activeProposal = proposal ?? currentProposal;
+  const capability = capabilityDiscovery?.selected_capability ?? null;
+  const selectedLocalProposal = (
+    proposal?.policy_version === capability?.policy_version
+      ? proposal
+      : null
+  );
+  const selectedCurrentProposal = (
+    currentProposal?.policy_version === capability?.policy_version
+      ? currentProposal
+      : null
+  );
+  const activeProposal = selectedLocalProposal ?? selectedCurrentProposal;
   const noCurrentProposal = currentProposalError === 'HTTP 404';
   const proposalLoadError = currentProposalError && !noCurrentProposal
     ? currentProposalError
@@ -256,13 +352,14 @@ export default function Outdoor5KPlanStart() {
   };
 
   const requestReadiness = async (): Promise<Outdoor5KReadinessResponse | null> => {
+    const activeCapability = capability;
     const body = constraints();
-    if (!body) return null;
+    if (!body || !activeCapability) return null;
     setWorking('readiness');
     setError(null);
     setNotice(null);
     try {
-      const response = await apiFetch('/api/plan/outdoor-5k/readiness', {
+      const response = await apiFetch(activeCapability.actions.readiness_href, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -280,13 +377,19 @@ export default function Outdoor5KPlanStart() {
   };
 
   const generate = async () => {
+    const activeCapability = capability;
     const checked = await requestReadiness();
     const body = constraints();
-    if (!checked || !body || checked.result.code !== 'ready') return;
+    if (
+      !checked
+      || !body
+      || !activeCapability
+      || checked.result.code !== 'ready'
+    ) return;
     setWorking('generate');
     setError(null);
     try {
-      const response = await apiFetch('/api/plan/outdoor-5k/generate', {
+      const response = await apiFetch(activeCapability.actions.generate_href, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -313,7 +416,8 @@ export default function Outdoor5KPlanStart() {
   };
 
   const regenerate = async () => {
-    if (!activeProposal) return;
+    const activeCapability = capability;
+    if (!activeProposal || !activeCapability) return;
     const checked = await requestReadiness();
     const body = constraints();
     if (!checked || !body || checked.result.code !== 'ready') return;
@@ -321,7 +425,10 @@ export default function Outdoor5KPlanStart() {
     setError(null);
     try {
       const response = await apiFetch(
-        `/api/plan/outdoor-5k/proposals/${encodeURIComponent(activeProposal.id)}/regenerate`,
+        proposalActionHref(
+          activeCapability.actions.regenerate_href_template,
+          activeProposal.id,
+        ),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -410,15 +517,79 @@ export default function Outdoor5KPlanStart() {
     }
   };
 
-  if (goalLoading) return <PlanStartSkeleton />;
+  if (goalLoading || capabilityLoading) return <PlanStartSkeleton />;
 
-  if (goalError) {
+  if (goalError || capabilityError) {
     return (
-      <Alert id="outdoor-5k-plan" variant="destructive">
+      <Alert id="plan-start" variant="destructive">
         <AlertTitle><Trans>Could not load plan-start context</Trans></AlertTitle>
         <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-          <span>{goalError}</span>
-          <Button variant="outline" size="sm" onClick={() => void refetchGoal()}><Trans>Retry</Trans></Button>
+          <span>{goalError ?? capabilityError}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void refetchGoal();
+              void refetchCapabilities();
+            }}
+          >
+            <Trans>Retry</Trans>
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (!capability) {
+    return (
+      <Card id="plan-start">
+        <CardHeader>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle><Trans>Plan generation for this goal</Trans></CardTitle>
+              <CardDescription className="mt-2">
+                <Trans>
+                  No accepted automatic policy matches this goal yet. Praxys keeps manual plan management available instead of repurposing the 5K policy.
+                </Trans>
+              </CardDescription>
+            </div>
+            <Badge variant="outline"><Trans>No accepted policy</Trans></Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3 border-t border-border pt-4">
+          <p className="text-sm text-muted-foreground">
+            <Trans>
+              Road and trail policies are exposed here only after their population, goal, and safety boundaries are reviewed and versioned.
+            </Trans>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            <Trans>Current goal:</Trans>{' '}
+            <span className="font-data">
+              {capabilityDiscovery?.goal.goal_kind.replace(/_/g, ' ')}
+              {capabilityDiscovery?.goal.distance
+                ? ` · ${capabilityDiscovery.goal.distance.toUpperCase()}`
+                : ''}
+            </span>
+          </p>
+          <Button variant="outline" onClick={() => navigate('/goal')}>
+            <Trans>Review goal</Trans>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (
+    capability.constraint_schema_id
+    !== SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_ID
+  ) {
+    return (
+      <Alert id="plan-start" variant="destructive">
+        <AlertTitle><Trans>Update required for this plan policy</Trans></AlertTitle>
+        <AlertDescription>
+          <Trans>
+            This client does not recognize the selected policy input contract and will not guess how to create a plan.
+          </Trans>
         </AlertDescription>
       </Alert>
     );
@@ -426,15 +597,23 @@ export default function Outdoor5KPlanStart() {
 
   if (goal?.goal_kind !== 'performance_5k') {
     return (
-      <Card id="outdoor-5k-plan">
+      <Card id="plan-start">
         <CardHeader>
-          <CardTitle><Trans>Outdoor road 5K plans</Trans></CardTitle>
+          <CardTitle><Trans>Plan-start context changed</Trans></CardTitle>
           <CardDescription>
-            <Trans>This plan-start pilot is available only for the supported outdoor road 5K performance goal.</Trans>
+            <Trans>The goal response and capability response no longer agree. Refresh before creating a proposal.</Trans>
           </CardDescription>
         </CardHeader>
         <CardContent className="border-t border-border pt-4">
-          <Button onClick={() => navigate('/goal')}><Trans>Review goal</Trans></Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              void refetchGoal();
+              void refetchCapabilities();
+            }}
+          >
+            <Trans>Refresh plan context</Trans>
+          </Button>
         </CardContent>
       </Card>
     );
@@ -447,15 +626,15 @@ export default function Outdoor5KPlanStart() {
   const hasLifecycleState = activeProposal && !isDraft && !isAdopted;
 
   return (
-    <section id="outdoor-5k-plan" aria-labelledby="outdoor-5k-plan-title" className="scroll-mt-6 space-y-5">
+    <section id="plan-start" aria-labelledby="plan-start-title" className="scroll-mt-6 space-y-5">
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="max-w-2xl">
-              <CardTitle id="outdoor-5k-plan-title"><Trans>Plan preview</Trans></CardTitle>
+              <CardTitle id="plan-start-title"><Trans>Plan preview</Trans></CardTitle>
               <CardDescription className="mt-2">
                 <Trans>
-                  Set the constraints you can actually keep. Praxys returns a deterministic proposal; it is not yet your plan.
+                  Set the constraints you can actually keep. Praxys returns a versioned <span className="font-data">{capability.horizon_days}</span>-day proposal; it is not yet your plan.
                 </Trans>
               </CardDescription>
             </div>

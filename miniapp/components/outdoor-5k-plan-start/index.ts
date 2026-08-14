@@ -4,13 +4,14 @@ import { t } from '../../utils/i18n';
 import type {
   AdaptivePlanProposal,
   AdaptivePlanProposalAdoptResponse,
-  GoalResponse,
   Outdoor5KConstraintsRequest,
   Outdoor5KGenerateResponse,
   Outdoor5KOutcomeResponse,
   Outdoor5KReadinessResponse,
   Outdoor5KRegenerateResponse,
   Outdoor5KWeekday,
+  PlanGenerationCapabilitiesResponse,
+  PlanGenerationCapability,
 } from '../../types/api';
 
 interface DayOption {
@@ -25,7 +26,9 @@ type LifecycleOperation = 'generate' | 'regenerate' | 'reject' | 'adopt';
 function copy() {
   return {
     title: t('Plan preview'),
-    supportedGoal: t('This pilot is available only for the supported outdoor road 5K performance goal.'),
+    unsupportedTitle: t('Plan generation for this goal'),
+    supportedGoal: t('No accepted automatic policy matches this goal yet. Praxys keeps manual plan management available instead of repurposing the 5K policy.'),
+    updateRequired: t('This client does not recognize the selected policy input contract and will not guess how to create a plan.'),
     scope: t('Scope and guardrails'),
     scopeDetail: t('For adult, self-coached recreational outdoor-road 5K runners. This is not a diagnosis, clearance, or performance guarantee.'),
     adult: t('I am 18 or older.'),
@@ -114,7 +117,9 @@ Component({
   data: {
     tr: copy(),
     loading: true,
-    supportedGoal: false,
+    capabilityAvailable: false,
+    capability: null as PlanGenerationCapability | null,
+    capabilityMessage: copy().supportedGoal,
     adult: false,
     selfCoached: false,
     canComplete: false,
@@ -151,24 +156,73 @@ Component({
       delete operationKeys[operation];
       this.setData({ operationKeys });
     },
-    async load() {
-      this.setData({ loading: true, errorMessage: '' });
+    async refresh(): Promise<void> {
+      await this.load();
+    },
+    async load(): Promise<void> {
+      const componentState = this as unknown as Record<string, unknown>;
+      const previousRequestId = typeof componentState._loadRequestId === 'number'
+        ? componentState._loadRequestId
+        : 0;
+      const requestId = previousRequestId + 1;
+      componentState._loadRequestId = requestId;
+      this.setData({
+        loading: true,
+        capability: null,
+        capabilityAvailable: false,
+        capabilityMessage: this.data.tr.supportedGoal,
+        proposal: null,
+        readiness: null,
+        readinessReason: '',
+        errorMessage: '',
+        notice: '',
+      });
       try {
-        const [goal, proposal] = await Promise.all([
-          apiGet<GoalResponse>('/api/goal'),
-          apiGet<AdaptivePlanProposal>('/api/plan/proposals/current').catch((error: ApiError) => {
-            if (error.status === 404) return null;
-            throw error;
-          }),
-        ]);
+        const discovery = await apiGet<PlanGenerationCapabilitiesResponse>(
+          '/api/plan/generation/capabilities',
+        );
+        if (componentState._loadRequestId !== requestId) return;
+        const capability = discovery.selected_capability;
+        const capabilityAvailable = capability?.constraint_schema_id
+          === 'outdoor_road_5k_constraints_v1';
+        let proposal: AdaptivePlanProposal | null = null;
+        let proposalError = '';
+        if (capabilityAvailable) {
+          try {
+            proposal = await apiGet<AdaptivePlanProposal>(
+              '/api/plan/proposals/current',
+            );
+          } catch (error) {
+            const apiError = error as ApiError;
+            if (apiError.status !== 404) {
+              proposalError = apiError.detail ?? this.data.tr.requestFailed;
+            }
+          }
+        }
+        if (componentState._loadRequestId !== requestId) return;
         this.setData({
           loading: false,
-          supportedGoal: goal.goal_kind === 'performance_5k',
-          proposal,
+          capability,
+          capabilityAvailable,
+          capabilityMessage: capability && !capabilityAvailable
+            ? this.data.tr.updateRequired
+            : this.data.tr.supportedGoal,
+          proposal: proposal?.policy_version === capability?.policy_version
+            ? proposal
+            : null,
+          errorMessage: proposalError,
         });
       } catch (error) {
+        if (componentState._loadRequestId !== requestId) return;
         const apiError = error as Partial<ApiError>;
-        this.setData({ loading: false, errorMessage: apiError.detail ?? this.data.tr.requestFailed });
+        this.setData({
+          loading: false,
+          capability: null,
+          capabilityAvailable: false,
+          proposal: null,
+          capabilityMessage: this.data.tr.requestFailed,
+          errorMessage: apiError.detail ?? this.data.tr.requestFailed,
+        });
       }
     },
     onToggleScope(e: WechatMiniprogram.TouchEvent) {
@@ -265,11 +319,12 @@ Component({
     },
     async checkReadiness(): Promise<Outdoor5KReadinessResponse | null> {
       const constraints = this.constraints();
-      if (!constraints) return null;
+      const capability = this.data.capability;
+      if (!constraints || !capability) return null;
       this.setData({ working: 'readiness', errorMessage: '', notice: '' });
       try {
         const readiness = await apiPost<Outdoor5KReadinessResponse>(
-          '/api/plan/outdoor-5k/readiness',
+          capability.actions.readiness_href,
           constraints,
         );
         this.setData({
@@ -292,10 +347,11 @@ Component({
       if (this.data.working) return;
       const readiness = await this.checkReadiness();
       const constraints = this.constraints();
-      if (!readiness || !constraints || readiness.result.code !== 'ready') return;
+      const capability = this.data.capability;
+      if (!readiness || !constraints || !capability || readiness.result.code !== 'ready') return;
       this.setData({ working: 'generate', errorMessage: '' });
       try {
-        const response = await apiPost<Outdoor5KGenerateResponse>('/api/plan/outdoor-5k/generate', {
+        const response = await apiPost<Outdoor5KGenerateResponse>(capability.actions.generate_href, {
           ...constraints,
           expected_source_revision: readiness.source_revision,
           idempotency_key: this.operationKey('generate'),
@@ -318,11 +374,15 @@ Component({
       const proposal = this.data.proposal;
       const readiness = await this.checkReadiness();
       const constraints = this.constraints();
-      if (!proposal || !readiness || !constraints || readiness.result.code !== 'ready') return;
+      const capability = this.data.capability;
+      if (!proposal || !readiness || !constraints || !capability || readiness.result.code !== 'ready') return;
       this.setData({ working: 'regenerate', errorMessage: '' });
       try {
         const response = await apiPost<Outdoor5KRegenerateResponse>(
-          `/api/plan/outdoor-5k/proposals/${proposal.id}/regenerate`,
+          capability.actions.regenerate_href_template.replace(
+            '{proposal_id}',
+            encodeURIComponent(proposal.id),
+          ),
           {
             ...constraints,
             expected_source_revision: readiness.source_revision,

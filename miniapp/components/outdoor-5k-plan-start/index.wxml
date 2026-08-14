@@ -3,10 +3,12 @@
     <state-card type="loading" />
   </block>
 
-  <block wx:elif="{{!supportedGoal}}">
+  <block wx:elif="{{!capabilityAvailable}}">
     <view class="ts-card plan-start-card">
-      <text class="plan-start-title">{{tr.title}}</text>
-      <text class="plan-start-copy">{{tr.supportedGoal}}</text>
+      <text class="plan-start-title">{{tr.unsupportedTitle}}</text>
+      <text class="plan-start-copy">{{capabilityMessage}}</text>
+      <text wx:if="{{errorMessage}}" class="plan-start-error">{{errorMessage}}</text>
+      <view wx:if="{{errorMessage}}" class="plan-start-retry" bindtap="onRefreshProposal" aria-role="button"><text>{{tr.retry}}</text></view>
     </view>
   </block>
 

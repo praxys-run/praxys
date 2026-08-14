@@ -10,6 +10,10 @@ test('web declares the shared outdoor 5K endpoint contracts', async () => {
     read('../../miniapp/types/api.ts'),
   ]);
   const required = [
+    'interface PlanGenerationActions',
+    'interface PlanGenerationCapability',
+    'interface PlanGenerationCapabilitiesResponse',
+    "unsupported_reason: 'no_accepted_policy' | null",
     'type Outdoor5KWeekday = 0 | 1 | 2 | 3 | 4 | 5 | 6',
     'interface Outdoor5KConstraintsRequest',
     'interface Outdoor5KReadinessRequest',
