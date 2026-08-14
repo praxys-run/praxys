@@ -7,7 +7,6 @@
     "bar-chart": "/components/bar-chart/index",
     "state-card": "../../components/state-card/index",
     "insight-feedback": "/components/insight-feedback/index",
-    "observed-training-switch": "/components/observed-training-switch/index",
     "activity-history": "/components/activity-history/index"
   },
   "backgroundColor": "@bgColor",

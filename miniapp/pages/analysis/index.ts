@@ -40,6 +40,9 @@ function isTrainingMetricId(value: string): value is TrainingMetricId {
 function buildTrainingTr() {
   return {
     navTitle: t('Analysis'),
+    observedTraining: t('Observed training'),
+    analysisTab: t('Analysis'),
+    activitiesTab: t('Activities'),
     failedToLoad: t('Failed to load'),
     retry: t('Retry'),
     noData: t(
@@ -803,7 +806,7 @@ function consumeHeatHistoryScrollRequest(): boolean {
 
 interface PageMethods extends WechatMiniprogram.IAnyObject {
   onObservedSectionChange(
-    event: WechatMiniprogram.CustomEvent<{ value: ObservedTrainingSection }>,
+    event: WechatMiniprogram.TouchEvent,
   ): void;
   onScrollToBottom(): void;
   onOpenMetricDetail(e: WechatMiniprogram.TouchEvent): void;
@@ -931,14 +934,20 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
   },
 
   onObservedSectionChange(
-    event: WechatMiniprogram.CustomEvent<{ value: ObservedTrainingSection }>,
+    event: WechatMiniprogram.TouchEvent,
   ) {
-    const value = event.detail.value;
-    if (value !== 'analysis' && value !== 'activities') return;
+    if (this.data.activeMetric !== '') return;
+    const value = String(event.currentTarget.dataset.value ?? '');
+    if (
+      (value !== 'analysis' && value !== 'activities')
+      || value === this.data.activeSection
+    ) {
+      return;
+    }
     const pageState = this as unknown as Record<string, unknown>;
     pageState._activeMetric = '';
     this.setData({
-      activeSection: value,
+      activeSection: value as ObservedTrainingSection,
       activeMetric: '',
       metricSheetTitle: '',
       metricSheetDescription: '',

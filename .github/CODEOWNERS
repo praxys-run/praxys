@@ -51,7 +51,6 @@
 /miniapp/pages/goal/                @dddtc2005
 /miniapp/pages/settings/            @dddtc2005
 /miniapp/components/activity-history/ @dddtc2005
-/miniapp/components/observed-training-switch/ @dddtc2005
 /miniapp/utils/heat-adaptation.ts   @dddtc2005
 /miniapp/utils/i18n-extra.ts        @dddtc2005
 /miniapp/types/api.ts               @dddtc2005

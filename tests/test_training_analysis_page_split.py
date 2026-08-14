@@ -94,7 +94,10 @@ def test_miniapp_uses_analysis_and_me_as_primary_tabs() -> None:
     assert "coach-receipt" in analysis
     assert "<managed-plan" not in analysis
     assert "<personal-context" not in analysis
-    assert "<observed-training-switch" in analysis
+    assert 'class="observed-switch"' in analysis
+    assert 'data-value="analysis"' in analysis
+    assert 'data-value="activities"' in analysis
+    assert 'bindtap="onObservedSectionChange"' in analysis
     assert "<activity-history" in analysis
     assert "setTabBarSelected(this, 2)" in analysis_script
     assert "consumeHeatHistoryScrollRequest()" in analysis_script

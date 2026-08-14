@@ -1,11 +1,33 @@
 <view class="train-root {{themeClass}} {{languageClass}}">
   <nav-bar title="{{tr.navTitle}}" theme-class="{{themeClass}}" aria-hidden="{{activeMetric !== ''}}" />
 
-  <observed-training-switch
-    active="{{activeSection}}"
-    disabled="{{activeMetric !== ''}}"
-    bind:change="onObservedSectionChange"
-  />
+  <view
+    class="observed-switch"
+    role="tablist"
+    aria-label="{{tr.observedTraining}}"
+    aria-hidden="{{activeMetric !== ''}}"
+  >
+    <view
+      class="observed-switch__item {{activeSection === 'analysis' ? 'observed-switch__item--active' : ''}} {{activeMetric !== '' ? 'observed-switch__item--disabled' : ''}}"
+      data-value="analysis"
+      bindtap="onObservedSectionChange"
+      role="tab"
+      aria-selected="{{activeSection === 'analysis'}}"
+      aria-disabled="{{activeMetric !== ''}}"
+    >
+      <text>{{tr.analysisTab}}</text>
+    </view>
+    <view
+      class="observed-switch__item {{activeSection === 'activities' ? 'observed-switch__item--active' : ''}} {{activeMetric !== '' ? 'observed-switch__item--disabled' : ''}}"
+      data-value="activities"
+      bindtap="onObservedSectionChange"
+      role="tab"
+      aria-selected="{{activeSection === 'activities'}}"
+      aria-disabled="{{activeMetric !== ''}}"
+    >
+      <text>{{tr.activitiesTab}}</text>
+    </view>
+  </view>
 
   <scroll-view
     scroll-y="{{true}}"
