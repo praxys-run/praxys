@@ -1,0 +1,717 @@
+schema_version: 1
+id: evidence-plan-generation-eligibility-safety-v1
+version: 1
+title: "Cross-cutting plan-generation eligibility and safety"
+research_question: >
+  For adults selecting a running goal or requesting automatic plan generation,
+  what evidence supports treating goal intent, current goal-relevant
+  capability, training-history depth, recent consistency, age, evidence
+  quality, and athlete-reported safety state as independent routing axes, and
+  which goal-selection, event-context, dynamic-pattern, profile-provenance, and
+  exact planning choices remain Praxys guardrails rather than published
+  prescriptions?
+topic: plan-generation-eligibility-safety
+status: accepted
+authors:
+  - agent:github-copilot
+human_reviewers:
+  - github:dddtc2005
+created_on: 2026-08-14
+reviewed_on: 2026-08-14
+intended_product_purpose: >
+  Define a shared evidence boundary and product-routing contract for every
+  training plan. Keep goal selection independent from plan availability, route
+  completion and performance intent through current capability and history,
+  represent training context as time-bounded patterns rather than static
+  runner identities, make no-event and race-calendar context explicit, and
+  preserve field-level provenance and missingness. Stop on unsupported or
+  athlete-reported safety states, and prevent exact 5 km pilot values,
+  demographic assumptions, progression folklore, workload ratios, or opaque
+  AI inference from becoming universal plan-generation rules.
+scope:
+  population:
+    - Adults aged 18 years or older selecting a running goal or requesting a plan
+    - Beginner and already-capable runners as distinct evidence populations rather than permanent product identities
+    - Goal-distance-novel runners as an unresolved conservative routing question
+    - Sparse-history and history-rich runners as independent history states
+    - Masters and older adult runners as an age-related modifier population
+  intervention_or_exposure:
+    - Goal capture that remains independent from plan-policy availability
+    - Automatic plan-generation eligibility and capability matching
+    - Time-bounded training-context patterns derived from observed and athlete-confirmed inputs
+    - No-event, single-event, and race-dense calendar context
+    - User-entered and provider-imported profile or event provenance
+    - Recent running consistency, weekly distance change, and single-session distance change
+    - Task-specific current-capability and time-trial evidence
+    - Training-intensity distribution and quality-session frequency
+    - Fixed weekly progression and acute-to-chronic workload-ratio rules
+    - Athlete-reported symptoms and non-medical safety-stop routing
+  comparator:
+    - Blocking goal selection because no accepted generator policy exists
+    - Distance-only capability matching
+    - Static recreational, serious, professional, beginner, or elite identity labels
+    - Beginner and history-rich evidence populations treated as one policy
+    - Provider profile data treated as canonical without confirmation or purpose limitation
+    - Universal progression, frequency, intensity, or long-run thresholds
+    - Warning-only handling when generation inputs are unsupported or unsafe
+    - Error-aware uncertainty handling versus personal probability or responder labels
+  outcomes:
+    - Goal recordability independent from current plan-generation support
+    - Transparent distance-policy routing and clarification
+    - Event-context completeness and schedule-conflict handling
+    - Dynamic pattern provenance, recency, confidence, and correction
+    - Field-level missing-data effects and data minimization
+    - Evidence applicability and eligibility classification
+    - Running-related injury incidence and association
+    - Training-performance support and uncertainty
+    - Task validity, reliability, and current-capability interpretation
+    - Non-medical fail-closed safety behavior
+    - Limits on individual prediction and exact prescription
+method:
+  review_type: rigorous
+  search_date: 2026-08-14
+  sources:
+    - name: Europe PMC - running history, experience, and injury
+      search_string: >
+        (running OR runners) AND
+        (novice OR recreational OR experience OR "training history" OR
+        consistency) AND (injury OR "running-related injury")
+    - name: Europe PMC - progression and workload
+      search_string: >
+        (running OR runners) AND
+        ("weekly running distance" OR "training load" OR progression OR spike
+        OR "acute:chronic workload" OR ACWR OR "10% rule")
+    - name: Europe PMC - masters and older runners
+      search_string: >
+        (masters OR "older adult*" OR aging OR ageing) AND
+        (runner* OR "endurance athlete*" OR "masters athlete*")
+    - name: Europe PMC - preparticipation safety
+      search_string: >
+        (exercise OR running) AND
+        ("preparticipation screening" OR "signs and symptoms")
+    - name: Europe PMC - training-intensity distribution
+      search_string: >
+        ("training intensity distribution" OR polarized OR pyramidal) AND
+        (runner* OR endurance)
+    - name: Europe PMC - individual response and prediction limits
+      search_string: >
+        (trainability OR "individual response*" OR responders OR
+        non-responders) AND "exercise training"
+    - name: Europe PMC exact identifier verification
+      search_string: >
+        25951917[PMID] OR 38697289[PMID] OR 30526231[PMID] OR
+        40623829[PMID] OR 17940147[PMID] OR 32502973[PMID] OR
+        18348590[PMID] OR 17762371[PMID] OR 32183425[PMID] OR
+        34749417[PMID] OR 23752040[PMID] OR 39888556[PMID] OR
+        26473759[PMID] OR 19516148[PMID] OR 17717011[PMID] OR
+        36078762[PMID] OR 34819869[PMID]
+    - name: PubMed Central full text
+      search_string: >
+        PMC4473093 OR PMC11336318 OR PMC7183043
+    - name: Crossref exact DOI metadata
+      search_string: >
+        GET /works/{doi} for 10.1007/s40279-015-0333-8,
+        10.1016/j.jshs.2024.04.011, 10.2519/jospt.2019.8541,
+        10.1136/bjsports-2024-109380,
+        10.1177/0363546507307505, 10.1123/ijspp.2019-0864,
+        10.2165/00007256-200838040-00003,
+        10.1249/MSS.0b013e31806010f5, 10.3390/sports8030035,
+        10.1055/a-1559-3623, 10.1123/ijspp.2012-0350,
+        10.1007/s40279-024-02149-3,
+        10.1249/MSS.0000000000000664,
+        10.1249/MSS.0b013e3181a0c95c,
+        10.1113/jphysiol.2007.141879,
+        10.3390/ijerph191711050, and
+        10.3389/fphys.2021.665044
+  inclusion_criteria:
+    - Adult human running or endurance evidence relevant to eligibility, history, capability, age, intensity, progression, or safety
+    - Systematic reviews, meta-analyses, prospective cohorts, randomized trials, or authoritative guidelines
+    - Stable DOI or PMID metadata and a verified abstract or accessible full text
+    - Evidence that directly challenges a universal prescription or personal prediction claim
+  exclusion_criteria:
+    - Children-only evidence used as direct support for an adult policy
+    - Clinical rehabilitation, treatment, pregnancy-specific prescription, diagnosis, clearance, or return-to-sport protocols
+    - Vendor plans, coaching blogs, LLM output, and uncited conventions
+    - Team-sport workload associations presented as direct running prescriptions
+    - Inaccessible findings used for an effect estimate or strong conclusion
+  quality_appraisal: >
+    Sources were appraised for study design, population definition, directness
+    to recreational running and automatic plan generation, objective versus
+    self-reported exposure and outcome, confounding and causal limitations,
+    protocol validity and reliability, age and sex representation, and whether
+    a reported association could justify an individual product threshold.
+    Exact product-state names and limits were never treated as published merely
+    because a source supported the relevance of the underlying dimension.
+  method_limitations:
+    - Screening and extraction were performed by agents rather than independent human reviewers.
+    - Direct searches of SPORTDiscus, Scopus, Embase, and Web of Science were not performed in this run.
+    - Exact search-result counts and a PRISMA flow were not retained.
+    - Several included sources were verified only at abstract level, limiting detailed risk-of-bias appraisal.
+    - Running-injury evidence is heterogeneous and observational evidence cannot define an individual safe threshold.
+    - Masters evidence is indirect for automatic plan generation and underrepresents older women.
+    - No reviewed source validates static runner identity labels as plan-routing variables.
+    - No reviewed source validates one event-calendar schema, race-priority system, dynamic-pattern vocabulary, or no-event goal-validation workflow.
+    - No reviewed source establishes that age, sex, exact date of birth, or provider profile data must be collected for every running plan.
+    - No reviewed source validates one recent-history count, weekly frequency range, low-intensity percentage, quality-session ceiling, or long-run limit for every running goal.
+claims:
+  - id: eligibility.novice-recreational-different-evidence-family
+    statement: >
+      Novice runners have materially higher running-related injury incidence
+      than recreational runners in the reviewed meta-analysis. This supports
+      treating beginner runners as a separate evidence family rather than
+      silently applying a policy reviewed for already-capable history-rich
+      runners.
+    source_ids:
+      - videbaek-2015
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Running-related injuries in novice runners
+        estimate: 17.8
+        range_low: 16.7
+        range_high: 19.1
+        unit: injuries per 1000 running hours
+        context: Weighted incidence and 95 percent confidence interval
+      - metric: Running-related injuries in recreational runners
+        estimate: 7.7
+        range_low: 6.9
+        range_high: 8.7
+        unit: injuries per 1000 running hours
+        context: Weighted incidence and 95 percent confidence interval
+    applicable_population:
+      - Novice and recreational runners represented by the systematic review
+    domain:
+      - Population eligibility
+      - Training-history family
+      - Injury incidence
+    limitations:
+      - Injury definitions and runner classifications were heterogeneous.
+      - The evidence does not define an exact beginner threshold or a personal injury probability.
+      - Higher incidence does not validate a specific beginner plan.
+      - Routing goal-distance-novel runners with beginners is a conservative Praxys guardrail that needs separate validation.
+  - id: eligibility.recent-history-anchor-without-universal-threshold
+    statement: >
+      Abrupt weekly or single-session distance increases are associated with
+      higher running-related injury rates, while the reviewed evidence is
+      heterogeneous and does not establish one universal safe increase. Recent
+      consistency and recent longest-session history are therefore relevant
+      eligibility dimensions, not validated prescription cutoffs.
+    source_ids:
+      - damsted-2019
+      - frandsen-2025
+      - correia-2024
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Injury risk difference after a 20 to 60 percent weekly distance increase
+        estimate: 22.6
+        range_low: 0.9
+        range_high: 44.3
+        unit: percent risk difference
+        context: >
+          Twenty-one-day comparison with less than 20 percent increase in a
+          261-runner half-marathon preparation cohort
+      - metric: Overuse-injury rate after a small single-session distance spike
+        estimate: 1.64
+        range_low: 1.31
+        range_high: 2.05
+        unit: adjusted hazard rate ratio
+        context: >
+          Greater than 10 to 30 percent above the longest run in the prior
+          30 days in a 5205-runner cohort
+      - metric: Overuse-injury rate after a large single-session distance spike
+        estimate: 2.28
+        range_low: 1.50
+        range_high: 3.48
+        unit: adjusted hazard rate ratio
+        context: >
+          Greater than 100 percent above the longest run in the prior 30 days
+          in a 5205-runner cohort
+    applicable_population:
+      - Adult recreational runners in prospective observational cohorts
+      - Running-injury populations represented by the umbrella review
+    domain:
+      - Recent consistency
+      - Session-distance history
+      - Injury association
+    limitations:
+      - These studies do not establish causation or an individual safety threshold.
+      - The weekly association was significant at 21 days but not later follow-up points.
+      - The single-session cohort used self-reported injury outcomes and did not validate an automatic plan rule.
+      - The umbrella review found only critically low or low-quality systematic reviews.
+  - id: eligibility.fixed-progression-and-acwr-not-safety-laws
+    statement: >
+      A novice-running program based on the 10 percent rule did not reduce
+      running-related injury compared with a standard program, and acute-to-
+      chronic workload-ratio zones lack established causal support for
+      individual training recommendations. Neither should be used as a
+      universal plan-generation safety law.
+    source_ids:
+      - buist-2008
+      - impellizzeri-2020
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Running-related injury incidence
+        range_low: 20.3
+        range_high: 20.8
+        unit: percent
+        context: Standard versus 10-percent-rule novice-running programs; p=0.90
+    applicable_population:
+      - Novice adult runners in the randomized trial
+      - Athletic workload-monitoring populations for the methodological critique
+    domain:
+      - Progression
+      - Workload monitoring
+      - Safety claim limits
+    limitations:
+      - The trial does not show that every faster progression is safe.
+      - Injury outcomes do not determine an optimal performance progression.
+      - The critique does not make recent training history irrelevant or validate a replacement threshold.
+  - id: eligibility.goal-relevant-current-capability-task-specific
+    statement: >
+      Current performance evidence is most interpretable when the task and
+      protocol match the intended outcome. Fixed-distance time trials are
+      generally more reliable than time-to-exhaustion tests, supporting an
+      explicit goal-relevant current-capability axis rather than automatic
+      substitution from a different test protocol.
+    source_ids:
+      - currell-2008
+      - laursen-2007
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Five-kilometre time-trial coefficient of variation
+        estimate: 2.0
+        unit: percent
+        context: Repeated fixed-distance running time trials in runners
+      - metric: Five-kilometre time-to-exhaustion coefficient of variation
+        estimate: 15.1
+        unit: percent
+        context: Repeated time-to-exhaustion running tests in runners
+    applicable_population:
+      - Sports-performance testing populations represented by the review
+      - Runners in the repeated-test study
+    domain:
+      - Current capability
+      - Protocol validity
+      - Reliability
+    limitations:
+      - The sources do not make solo time trials and races automatically interchangeable.
+      - They do not validate a universal baseline freshness cutoff.
+      - They do not define Praxys capability-state labels or a cross-distance conversion.
+  - id: eligibility.intensity-mostly-low-no-universal-winner
+    statement: >
+      Running and endurance evidence supports organizing most training at low
+      intensity and does not establish one universally superior polarized or
+      pyramidal distribution. Threshold-heavy training is not supported as a
+      cross-cutting default.
+    source_ids:
+      - munoz-2014
+      - campos-2022
+      - rosenblat-2025
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Recreational-runner 10 km improvement with polarized training
+        estimate: 5.0
+        unit: percent
+        context: Primary between-group comparison was not significant
+      - metric: Recreational-runner 10 km improvement with between-threshold training
+        estimate: 3.6
+        unit: percent
+        context: Primary between-group comparison was not significant
+      - metric: Polarized versus pyramidal time-trial performance
+        estimate: -0.05
+        unit: standardized mean difference
+        context: Network meta-analysis; p=0.34
+    applicable_population:
+      - Recreational runners in the controlled 10 km study
+      - Middle- and long-distance runners in the systematic review
+      - Recreational and competitive endurance athletes in the network meta-analysis
+    domain:
+      - Training-intensity distribution
+      - Low-intensity training
+      - Performance
+    limitations:
+      - Zone definitions and training protocols differed.
+      - The evidence does not validate one exact low-intensity percentage for every athlete or goal.
+      - The evidence does not define exact quality-session spacing or templates.
+  - id: eligibility.one-to-two-quality-sessions-indirect
+    statement: >
+      A narrative review of recreational endurance running generally
+      recommends one to two high-intensity interval sessions per week with
+      more moderate- and low-intensity continuous running. This is indirect
+      support for a conservative product ceiling, not a universal biological
+      or safety threshold.
+    source_ids:
+      - boullosa-2020
+    evidence_strength: low
+    applicable_population:
+      - Recreational endurance runners represented by the reviewed literature
+    domain:
+      - Quality-session frequency
+      - High-intensity training
+      - Product guardrail input
+    limitations:
+      - The source is a narrative review of heterogeneous studies.
+      - It does not compare exactly one versus two quality sessions.
+      - It does not define spacing, duration, taxonomy, or a safety limit.
+  - id: eligibility.masters-age-change-not-automatic-exclusion
+    statement: >
+      Endurance performance and training capacity change with age, while
+      masters athletes and older adults can retain high capability and benefit
+      from continued exercise. The reviewed evidence supports neither
+      automatic exclusion by age nor a universal age cutoff or recovery rule.
+    source_ids:
+      - tanaka-2008
+      - chodzko-zajko-2009
+      - burtscher-2022
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Variance in VO2max decline explained by training-volume change in men
+        estimate: 54
+        unit: percent
+        context: Regression synthesis in aging masters endurance athletes
+      - metric: Variance in VO2max decline explained by training-volume change in women
+        estimate: 39
+        unit: percent
+        context: Regression synthesis in aging masters endurance athletes
+    applicable_population:
+      - Masters endurance athletes represented by the reviews
+      - Older adults represented by the ACSM position stand
+    domain:
+      - Age and masters status
+      - Training capacity
+      - Eligibility non-exclusion
+    limitations:
+      - Masters athletes are selected, trained populations and are not representative of every older runner.
+      - The evidence does not define an age cutoff, recovery rule, or safe automatic plan.
+      - Treating age as an uncertainty or recovery modifier is a Praxys guardrail that requires prospective validation.
+      - Women and older women are underrepresented.
+  - id: eligibility.current-symptoms-support-stop-not-clearance
+    statement: >
+      Current signs and symptoms are relevant before vigorous exercise. This
+      supports a conservative, non-medical fail-closed stop before a vigorous
+      plan or maximal field-test path, but does not support diagnosis,
+      treatment, clearance, or return-to-sport advice.
+    source_ids:
+      - riebe-2015
+    evidence_strength: low
+    applicable_population:
+      - Adults considering exercise participation under the reviewed ACSM screening approach
+    domain:
+      - Preparticipation screening
+      - Safety boundary
+      - Fail-closed routing
+    limitations:
+      - The source is not a validation study of Praxys symptom wording or automatic generation.
+      - Absence of a reported symptom does not establish that vigorous exercise is risk-free.
+      - The policy cannot infer a medical state from training behavior.
+  - id: eligibility.evidence-quality-no-personal-probability
+    statement: >
+      Running-injury evidence is heterogeneous and often low quality, while
+      individual exercise-response classification is methodologically fragile
+      unless measurement error and within-person variability are addressed.
+      These limitations support explicit evidence-directness states and reject
+      personal success probabilities or deterministic responder labels.
+    source_ids:
+      - correia-2024
+      - bonafiglia-2021
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Critically low-quality running-injury systematic reviews
+        estimate: 8
+        unit: reviews
+        context: Thirteen reviews included in the umbrella review
+      - metric: Low-quality running-injury systematic reviews
+        estimate: 5
+        unit: reviews
+        context: Thirteen reviews included in the umbrella review
+      - metric: Studies statistically estimating interindividual trainability
+        estimate: 9
+        unit: studies
+        context: Nine of 149 exercise-training studies in the systematic review
+    applicable_population:
+      - Running-injury research populations represented by the umbrella review
+      - Adults in standardized exercise-training studies
+    domain:
+      - Evidence quality
+      - Individual response
+      - Prediction claim limits
+    limitations:
+      - The exercise-response review was not a running-plan prediction study.
+      - Low evidence quality does not make personalization impossible.
+      - No source provides a calibrated plan-generation success probability.
+citations:
+  - id: videbaek-2015
+    title: "Incidence of Running-Related Injuries Per 1000 h of running in Different Types of Runners: A Systematic Review and Meta-Analysis"
+    authors:
+      - S. Videbaek
+      - A. M. Bueno
+      - R. O. Nielsen
+      - S. Rasmussen
+    year: 2015
+    journal: Sports Medicine
+    doi: 10.1007/s40279-015-0333-8
+    pmid: "25951917"
+  - id: correia-2024
+    title: "Risk factors for running-related injuries: An umbrella systematic review"
+    authors:
+      - C. K. Correia
+      - J. M. Machado
+      - F. H. Dominski
+      - M. P. de Castro
+      - H. de Brito Fontana
+      - C. Ruschel
+    year: 2024
+    journal: Journal of Sport and Health Science
+    doi: 10.1016/j.jshs.2024.04.011
+    pmid: "38697289"
+  - id: damsted-2019
+    title: "The Association Between Changes in Weekly Running Distance and Running-Related Injury: Preparing for a Half Marathon"
+    authors:
+      - C. Damsted
+      - E. T. Parner
+      - H. Sorensen
+      - L. Malisoux
+      - A. Hulme
+      - R. O. Nielsen
+    year: 2019
+    journal: Journal of Orthopaedic & Sports Physical Therapy
+    doi: 10.2519/jospt.2019.8541
+    pmid: "30526231"
+  - id: frandsen-2025
+    title: "How much running is too much? Identifying high-risk running sessions in a 5200-person cohort study"
+    authors:
+      - J. Schuster Brandt Frandsen
+      - A. Hulme
+      - E. T. Parner
+      - M. Moller
+      - I. Lindman
+      - J. Abrahamson
+      - N. Sjorup Simonsen
+      - J. Sandell Jacobsen
+      - D. Ramskov
+      - S. Skejo
+      - L. Malisoux
+      - M. L. Bertelsen
+      - R. O. Nielsen
+    year: 2025
+    journal: British Journal of Sports Medicine
+    doi: 10.1136/bjsports-2024-109380
+    pmid: "40623829"
+  - id: buist-2008
+    title: "No effect of a graded training program on the number of running-related injuries in novice runners: a randomized controlled trial"
+    authors:
+      - I. Buist
+      - S. W. Bredeweg
+      - W. van Mechelen
+      - K. A. P. M. Lemmink
+      - G. J. Pepping
+      - R. L. Diercks
+    year: 2008
+    journal: The American Journal of Sports Medicine
+    doi: 10.1177/0363546507307505
+    pmid: "17940147"
+  - id: impellizzeri-2020
+    title: "Acute:Chronic Workload Ratio: Conceptual Issues and Fundamental Pitfalls"
+    authors:
+      - F. M. Impellizzeri
+      - M. S. Tenan
+      - T. Kempton
+      - A. Novak
+      - A. J. Coutts
+    year: 2020
+    journal: International Journal of Sports Physiology and Performance
+    doi: 10.1123/ijspp.2019-0864
+    pmid: "32502973"
+  - id: currell-2008
+    title: "Validity, reliability and sensitivity of measures of sporting performance"
+    authors:
+      - K. Currell
+      - A. E. Jeukendrup
+    year: 2008
+    journal: Sports Medicine
+    doi: 10.2165/00007256-200838040-00003
+    pmid: "18348590"
+  - id: laursen-2007
+    title: "Reliability of time-to-exhaustion versus time-trial running tests in runners"
+    authors:
+      - P. B. Laursen
+      - G. T. Francis
+      - C. R. Abbiss
+      - M. J. Newton
+      - K. Nosaka
+    year: 2007
+    journal: Medicine & Science in Sports & Exercise
+    doi: 10.1249/MSS.0b013e31806010f5
+  - id: munoz-2014
+    title: "Does polarized training improve performance in recreational runners?"
+    authors:
+      - I. Munoz
+      - S. Seiler
+      - J. Bautista
+      - J. Espana
+      - E. Larumbe
+      - J. Esteve-Lanao
+    year: 2014
+    journal: International Journal of Sports Physiology and Performance
+    doi: 10.1123/ijspp.2012-0350
+    pmid: "23752040"
+  - id: campos-2022
+    title: "Training-intensity Distribution on Middle- and Long-distance Runners: A Systematic Review"
+    authors:
+      - Y. Campos
+      - A. Casado
+      - J. G. Vieira
+      - M. Guimaraes
+      - L. Sant'Ana
+      - L. Leitao
+      - S. F. da Silva
+      - P. H. S. M. de Azevedo
+      - J. Vianna
+      - R. Dominguez
+    year: 2022
+    journal: International Journal of Sports Medicine
+    doi: 10.1055/a-1559-3623
+    pmid: "34749417"
+  - id: rosenblat-2025
+    title: "Which Training Intensity Distribution Intervention will Produce the Greatest Improvements in Maximal Oxygen Uptake and Time-Trial Performance in Endurance Athletes? A Systematic Review and Network Meta-analysis of Individual Participant Data"
+    authors:
+      - M. A. Rosenblat
+      - J. A. Watt
+      - J. I. Arnold
+      - G. Treff
+      - O. B. Sandbakk
+      - J. Esteve-Lanao
+      - L. Festa
+      - L. Filipas
+      - S. D. Galloway
+      - I. Munoz
+      - D. J. Ramos-Campo
+      - P. Schneeweiss
+      - S. Selles-Perez
+      - T. Stoggl
+      - R. K. Talsnes
+      - C. Zinner
+      - S. Seiler
+    year: 2025
+    journal: Sports Medicine
+    doi: 10.1007/s40279-024-02149-3
+    pmid: "39888556"
+  - id: boullosa-2020
+    title: "Factors Affecting Training and Physical Performance in Recreational Endurance Runners"
+    authors:
+      - D. Boullosa
+      - J. Esteve-Lanao
+      - A. Casado
+      - L. A. Peyre-Tartaruga
+      - R. Gomes da Rosa
+      - J. Del Coso
+    year: 2020
+    journal: Sports
+    doi: 10.3390/sports8030035
+    pmid: "32183425"
+  - id: tanaka-2008
+    title: "Endurance exercise performance in Masters athletes: age-associated changes and underlying physiological mechanisms"
+    authors:
+      - H. Tanaka
+      - D. R. Seals
+    year: 2008
+    journal: The Journal of Physiology
+    doi: 10.1113/jphysiol.2007.141879
+    pmid: "17717011"
+  - id: chodzko-zajko-2009
+    title: "American College of Sports Medicine position stand. Exercise and physical activity for older adults"
+    authors:
+      - American College of Sports Medicine
+      - W. J. Chodzko-Zajko
+      - D. N. Proctor
+      - M. A. Fiatarone Singh
+      - C. T. Minson
+      - C. R. Nigg
+      - G. J. Salem
+      - J. S. Skinner
+    year: 2009
+    journal: Medicine & Science in Sports & Exercise
+    doi: 10.1249/MSS.0b013e3181a0c95c
+    pmid: "19516148"
+  - id: burtscher-2022
+    title: "The Impact of Training on the Loss of Cardiorespiratory Fitness in Aging Masters Endurance Athletes"
+    authors:
+      - J. Burtscher
+      - B. Strasser
+      - M. Burtscher
+      - G. P. Millet
+    year: 2022
+    journal: International Journal of Environmental Research and Public Health
+    doi: 10.3390/ijerph191711050
+    pmid: "36078762"
+  - id: riebe-2015
+    title: "Updating ACSM's Recommendations for Exercise Preparticipation Health Screening"
+    authors:
+      - D. Riebe
+      - B. A. Franklin
+      - P. D. Thompson
+      - C. E. Garber
+      - G. P. Whitfield
+      - M. Magal
+      - L. S. Pescatello
+    year: 2015
+    journal: Medicine & Science in Sports & Exercise
+    doi: 10.1249/MSS.0000000000000664
+    pmid: "26473759"
+  - id: bonafiglia-2021
+    title: "A Systematic Review Examining the Approaches Used to Estimate Interindividual Differences in Trainability and Classify Individual Responses to Exercise Training"
+    authors:
+      - J. T. Bonafiglia
+      - N. Preobrazenski
+      - B. J. Gurd
+    year: 2021
+    journal: Frontiers in Physiology
+    doi: 10.3389/fphys.2021.665044
+    pmid: "34819869"
+known_gaps:
+  - A validated recent-history depth threshold for automatic dose anchoring
+  - A universal recreational-running frequency or long-run prescription
+  - Direct plan-generation trials comparing beginner, sparse-history, history-rich, and masters policy states
+  - A validated dynamic training-context pattern vocabulary and transition rule
+  - A validated no-event completion or performance-goal capstone workflow
+  - A validated race-dense event-calendar prioritization and conflict policy
+  - A minimal provider-profile and user-confirmation contract with field-level consent and retention evidence
+  - Prospective evidence that a masters modifier improves decisions without unnecessary exclusion
+  - Representative evidence for women, older women, low-frequency runners, and provider-specific missingness
+  - A validated minimal context vocabulary that improves fit without pressuring athletes to disclose why training was missed
+  - Calibrated individual plan-achievement probabilities for any supported population
+conflicting_findings:
+  - Recent distance changes are associated with injury in some windows and exposure definitions, while weekly ratios and longer follow-up did not consistently retain associations.
+  - Mostly low-intensity organization is supported, while studies do not identify one universally superior polarized or pyramidal distribution.
+  - Older age changes performance and recovery physiology, while highly capable masters athletes show that age alone is not a capability classification.
+  - Studies use novice, recreational, trained, and elite cohort labels, while those labels do not establish stable product identities or deterministic individual plan routes.
+follow_up_questions:
+  - Which recent-history states and minimum anchors best prevent unsupported dose extrapolation?
+  - When should sparse-history or masters status become a separate policy family rather than a modifier?
+  - Which dynamic patterns improve routing without becoming permanent labels or opaque scores?
+  - When should a no-event goal use a controlled completion activity, an opt-in performance benchmark, or continued rolling training?
+  - Which imported event and profile fields materially improve planning, and which should remain point-of-use questions?
+  - How should primary, supporting, and training events alter quality-session, recovery, and taper decisions?
+  - Which exact distance-specific values can be prospectively tested without being presented as published safety thresholds?
+  - How often do clarification requests improve plan fit versus increase privacy burden or abandonment?
+  - Which false-stop, false-safe, adverse-exit, and subgroup criteria should stop or narrow a future policy?
+supersedes: []
+superseded_by:
+review_notes:
+  - "Verification: videbaek-2015 - full-text; PubMed Central PMC4473093, Europe PMC PMID 25951917, and Crossref DOI metadata; 2026-08-14."
+  - "Verification: correia-2024 - full-text; PubMed Central PMC11336318, Europe PMC PMID 38697289, and Crossref DOI metadata; 2026-08-14."
+  - "Verification: damsted-2019 - abstract; Europe PMC PMID 30526231 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: frandsen-2025 - abstract; Europe PMC PMID 40623829 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: buist-2008 - abstract; Europe PMC PMID 17940147 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: impellizzeri-2020 - abstract; Europe PMC PMID 32502973 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: currell-2008 - abstract; Europe PMC PMID 18348590 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: laursen-2007 - abstract; Europe PMC PMID 17762371 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: munoz-2014 - abstract; Europe PMC PMID 23752040 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: campos-2022 - abstract; Europe PMC PMID 34749417 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: rosenblat-2025 - abstract; Europe PMC PMID 39888556 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: boullosa-2020 - full-text; PubMed Central PMC7183043, Europe PMC PMID 32183425, and Crossref DOI metadata; 2026-08-14."
+  - "Verification: tanaka-2008 - abstract; Europe PMC PMID 17717011 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: chodzko-zajko-2009 - abstract; Europe PMC PMID 19516148 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: burtscher-2022 - abstract; Europe PMC PMID 36078762 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: riebe-2015 - abstract; Europe PMC PMID 26473759 and Crossref DOI metadata; 2026-08-14."
+  - "Verification: bonafiglia-2021 - abstract; Europe PMC PMID 34819869 and Crossref DOI metadata; 2026-08-14."
+  - No source was found that validates one cross-cutting recent-history count, weekly running frequency, low-intensity percentage, quality-session ceiling, long-run limit, event-priority schema, dynamic-pattern vocabulary, or mandatory demographic profile.
