@@ -22,7 +22,7 @@ Garmin/Stryd/Oura APIs → sync/*.py → db/sync_writer.py → SQLite (trainsigh
 
 | Directory | Owns | Key Files |
 |-----------|------|-----------|
-| `sync/` | Platform fetch + parse | `garmin_sync.py`, `stryd_sync.py`, `oura_sync.py`, `csv_utils.py` |
+| `sync/` | Platform fetch + parse (`stryd_sync.py` uses the external `stryd-client` transport) | `garmin_sync.py`, `stryd_sync.py`, `oura_sync.py`, `csv_utils.py` |
 | `analysis/` | Metric computation | `metrics.py` (pure functions), `data_loader.py` (loads from DB), `science.py` (theory YAML loader), `evidence_registry.py` (versioned evidence/SDR validation), `config.py` (`UserConfig`), `zones.py`, `thresholds.py`, `training_base.py` |
 | `analysis/providers/` | Pluggable data sources | `base.py` (ABCs), `garmin.py`, `stryd.py`, `oura.py`, `ai.py`, `models.py` |
 | `db/` | SQLite layer | `models.py` (SQLAlchemy), `session.py`, `crypto.py` (Fernet credential encryption), `sync_writer.py` (upserts), `sync_scheduler.py` |

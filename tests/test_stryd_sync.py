@@ -5,6 +5,7 @@ import pytest
 import requests
 
 from sync.stryd_sync import (
+    _login_api,
     _workout_type_from_name,
     fetch_activities_api,
     fetch_training_plan_api,
@@ -17,6 +18,23 @@ def test_workout_type_from_name():
     assert _workout_type_from_name("Day 48 - Long") == "long"
     assert _workout_type_from_name("Day 47 - Recovery") == "recovery"
     assert _workout_type_from_name("Custom Name") == "custom name"
+
+
+@patch("sync.stryd_sync.StrydClient")
+def test_login_delegates_to_shared_stryd_client(mock_client):
+    session = MagicMock(user_id="stryd-user", token="stryd-token")
+    mock_client.return_value.authenticate.return_value = session
+
+    assert _login_api("runner@example.test", "secret") == (
+        "stryd-user",
+        "stryd-token",
+    )
+    mock_client.assert_called_once_with(
+        email="runner@example.test",
+        password="secret",
+        timeout=15,
+        http=requests,
+    )
 
 
 def test_delivery_content_fingerprint_ignores_provider_uuids():
