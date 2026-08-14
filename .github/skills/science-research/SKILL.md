@@ -150,6 +150,12 @@ Follow the existing registry schema and lifecycle:
 - Run `python scripts/generate_science_artifacts.py` and hand reviewers the
   generated Markdown packet, not raw YAML. The packet must include the exact
   machine JSON contract and the same decision/contract digests.
+- Artifact-mode SDRs must define a typed `decision_review` manifest. Start the
+  packet with a short decision sheet that tells the reviewer exactly what to
+  approve, what is explicitly deferred, what approval changes, and what it
+  does not authorize. Map every `model_parameters` group to at least one
+  decision item. Keep the full parameter/evidence/contract material in the
+  audit appendix; never ask a human to infer the decision by skimming it.
 - Evidence, decision, and implementation review are separate roles. Only a
   digest-bound `evidence_reviewer` may accept an artifact-mode Evidence Review;
   only a `decision_approver` may accept its SDR; only an
@@ -212,8 +218,8 @@ End every run with these artifacts or explicitly state why one does not apply:
 4. Unresolved evidence gaps, conflicts, and validation/falsification plan.
 5. Implementation impact map and reviewer checklist.
 6. For artifact-mode work, generated Evidence Review and SDR review packets,
-   the exact inactive machine contract, and any still-missing role-scoped
-   approval artifacts.
+   the action-oriented decision manifest, the exact inactive machine contract,
+   and any still-missing role-scoped approval artifacts.
 
 Name the mode, verification limits, and the human approval still required in
 the handoff. Do not present a draft as shipped science.

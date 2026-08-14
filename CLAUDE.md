@@ -48,7 +48,7 @@ All training metrics, predictions, and insights must be grounded in exercise sci
 - **Use published values** over guesswork (Stryd race power percentages, Riegel, Banister TRIMP)
 - **Flag estimates** — values without strong research backing noted as estimates in code and UI
 - **Register new theories** — new theory YAML must link an accepted Science Decision Record; unlinked legacy theories are migration-only exceptions
-- **Separate review from runtime artifacts** — new science records use generated human review packets, generated machine contracts, matching digests, and role-scoped approvals; runtime code never derives values from prose
+- **Separate review from runtime artifacts** — new science records use action-oriented decision sheets, collapsed audit appendices, generated machine contracts, matching digests, and role-scoped approvals; every contract group maps to a decision item and runtime code never derives values from prose
 
 ## Gotchas
 

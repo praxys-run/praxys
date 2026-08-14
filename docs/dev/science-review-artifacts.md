@@ -10,7 +10,9 @@ Deterministic generation produces separate projections:
 
 ```text
 canonical typed record
-  ├─ review packet Markdown      human review surface
+  ├─ review packet Markdown
+  │    ├─ decision sheet         primary human review surface
+  │    └─ audit appendix         evidence, parameters, exact contract
   └─ policy contract JSON        code consumption surface
 ```
 
@@ -31,6 +33,38 @@ Artifact-mode SDRs also declare their runtime boundary:
 artifact_policy:
   runtime_state: inactive
 ```
+
+They must also define an action-oriented `decision_review` manifest. Each item
+states the question, proposed decision, effect of approval, what remains
+unauthorized, and the exact contract groups it covers:
+
+```yaml
+decision_review:
+  reviewer_task: >
+    Approve the decision sheet as a unit or request changes by item ID.
+  approval_statement: >
+    I approve the proposed decisions and explicit deferrals as one inactive
+    science decision. I am not approving implementation or activation.
+  items:
+    - id: supported-scope
+      title: Accept the supported population and goal scope
+      disposition: approve
+      question: Should this policy cover the stated training pattern?
+      proposed_decision: Accept the bounded scope.
+      approval_effect:
+        - The mapped routing groups become accepted decision inputs.
+      does_not_authorize:
+        - Any unresolved schedule or dose.
+      parameter_names:
+        - example_goal_tuple
+        - example_supported_pattern
+      evidence_claim_ids:
+        - example.scope-supported
+```
+
+Every `model_parameters` group must appear in at least one decision-review
+item. This makes hidden machine behavior a schema error rather than a reviewer
+discovery problem.
 
 `accepted` and `active` are different states. An accepted decision may remain
 inactive until implementation, migration, validation, and rollout gates pass.
@@ -56,11 +90,17 @@ Use `--check` in CI or review automation:
 python scripts/generate_science_artifacts.py --check
 ```
 
-Review packets contain the full question, method, claims, verification levels,
-decision interpretation, exact parameters, rationale, applicability, safety
-and privacy boundaries, validation/falsification plans, unresolved content,
-and exact generated JSON contract. Canonical payloads are included in
-collapsible sections so no reviewed field is hidden.
+Evidence packets contain the full question, method, claims, verification
+levels, and limitations. Decision packets begin with the reviewer's task and a
+short decision sheet separated into proposed approvals and explicit deferrals.
+The reviewer approves the sheet as a unit or requests changes by item ID.
+Evidence details, exact parameters, alternatives, claim limits, safety/privacy,
+validation/falsification, the machine contract, and canonical payload remain
+available in collapsed audit appendices.
+
+The appendix guarantees completeness; it is not a substitute for a clear
+decision sheet and reviewers must not approve merely because they found no
+obvious issue while skimming it.
 
 Contracts contain only typed implementation data:
 
@@ -105,7 +145,7 @@ Roles are intentionally distinct:
 | Role | Reviews | Required before |
 |---|---|---|
 | `evidence_reviewer` | Search method, evidence claims, citation verification, limitations and gaps | Artifact-mode Evidence Review acceptance |
-| `decision_approver` | Interpretation, exact parameters, applicability, claim limits, safety/privacy, activation boundary | Artifact-mode SDR acceptance |
+| `decision_approver` | Explicit decision sheet, mapped parameters, deferrals, applicability, claim limits, safety/privacy, activation boundary | Artifact-mode SDR acceptance |
 | `implementation_reviewer` | Contract mapping, runtime diff, validation | Contract activation |
 
 Changing reviewed content changes its digest and makes the approval stale.
@@ -116,11 +156,14 @@ digests, requiring renewed decision and implementation review.
 
 1. Create draft Evidence Review and SDR records with `approval_mode: artifact`.
 2. Generate review packets and contracts.
-3. Review the generated packet, not raw YAML syntax.
-4. Correct the canonical record and regenerate until the packet is stable.
-5. Record role-scoped approval against the displayed digest.
-6. Atomically accept the record and add the approval artifact.
-7. Keep the contract inactive until implementation review and rollout gates
+3. For an SDR, review the decision sheet first. Approve it as a unit or request
+   changes by item ID; do not infer a decision from the audit appendix.
+4. Use the audit appendix only to investigate evidence, mappings, and exact
+   machine values.
+5. Correct the canonical record and regenerate until the packet is stable.
+6. Record role-scoped approval against the displayed digest.
+7. Atomically accept the record and add the approval artifact.
+8. Keep the contract inactive until implementation review and rollout gates
    are complete.
 
 Legacy records remain supported with `approval_mode: legacy`. New science
