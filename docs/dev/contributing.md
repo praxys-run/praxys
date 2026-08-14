@@ -210,9 +210,14 @@ The full flow and maintenance instructions live in
    new or materially reworked flow and `polish` before handoff.
 3. Inspect the real feature with sample data at desktop and mobile sizes, with
    keyboard navigation and relevant states.
-4. Run the web build, miniapp typecheck when applicable, and
+4. Keep detailed screenshots and recordings local under the gitignored
+   `test-screenshots/ui-quality/<branch-or-pr>/` directory. Use screenshots for
+   static/state comparisons, a short video for sequence-dependent interaction,
+   and publish only the minimum media needed for asynchronous PR review.
+5. Run the web build, miniapp typecheck when applicable, and
    `python scripts/check_ui_quality.py --base origin/main --head HEAD --skip-evidence`.
-5. Complete the PR template's `## UI quality` block. If a browser is
+6. Complete the PR template's `## UI quality` block, including the primary
+   journey and reviewer handoff mode. If a browser is
    unavailable, keep the PR draft and state that rendered verification remains
    incomplete.
 

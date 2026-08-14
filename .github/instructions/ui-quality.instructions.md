@@ -35,18 +35,34 @@ as styling after implementation.
    registered tools with raw desktop focus, cursor, keyboard, mouse, or
    coordinate automation. Use keyboard navigation and inspect console errors.
    Fix the batch of findings, then perform at most one confirmation pass.
-8. Run the smallest relevant tests plus `cd web && npm run build`, miniapp
+8. Store detailed captures locally under the gitignored
+   `test-screenshots/ui-quality/<branch-or-pr>/` directory. Use
+   native-resolution screenshots for static or state comparisons, a focused
+   15-45 second video for sequence-dependent interactions, and both only for a
+   material multi-step journey with important edge states. Prefer MP4 for
+   publication; browser-native WebM is acceptable for local review. Never
+   flatten full screens into a downscaled raster storyboard. Use synthetic data
+   and keep credentials, personal training data, raw feedback screenshots, and
+   authenticated network archives out of captures.
+9. Match the handoff to the reviewer. For synchronous local review, share the
+   live URL and local gallery path in the active session and upload nothing.
+   For asynchronous PR review, publish only the minimum useful recording or
+   2-3 stills; keep exhaustive evidence local or in a CI artifact. Create a
+   persistent cloud preview or gallery only when explicitly requested.
+10. Run the smallest relevant tests plus `cd web && npm run build`, miniapp
    `npm run typecheck` when applicable, and:
 
    ```bash
    python scripts/check_ui_quality.py --base origin/main --head HEAD --skip-evidence
    ```
 
-9. Include the exact `## UI quality` block from the PR template, including the
-   mandatory `Design system impact` disposition. Never claim a
-   viewport, state, or accessibility check that was not actually performed. If
-   rendered verification is unavailable, keep the PR draft and record the
-   limitation.
+11. Include the exact `## UI quality` block from the PR template, including the
+    mandatory `Primary journey`, `Reviewer handoff`, and `Design system impact`
+    fields. `Reviewer handoff` must start with `local-only`, `PR media`,
+    `CI artifact`, `preview`, or `none`, followed by a concrete explanation.
+    Never claim a viewport, state, accessibility check, or published artifact
+    that was not actually performed. If rendered verification is unavailable,
+    keep the PR draft and record the limitation.
 
 Brand invariants are binding: green means action, cobalt means reasoning,
 surfaces use warm-paper tokens, numbers use `font-data`, scientific explanations

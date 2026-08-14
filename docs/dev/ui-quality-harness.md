@@ -56,11 +56,59 @@ the rendered files trigger it.
    console/network output. Praxys MCP may provide synthetic data semantics but
    does not replace rendered review. Fix findings in one batch, then do at most
    one confirmation pass.
-9. Run targeted tests, builds/typechecks, and the local gate. Complete the PR
+9. Choose reviewer evidence using the policy below, keeping detailed captures
+   local by default.
+10. Run targeted tests, builds/typechecks, and the local gate. Complete the PR
    evidence before marking the PR ready.
 
 If browser automation is unavailable, the contributor must not claim rendered
 verification. An agent keeps the PR draft and records the limitation.
+
+## Reviewer evidence and local storage
+
+Detailed review media is local-first. Store native-resolution source files
+under:
+
+```text
+test-screenshots/ui-quality/<branch-or-pr>/
+```
+
+The parent directory is gitignored. A useful local bundle contains clearly
+named screenshots or recordings plus an optional `index.html` that links to the
+original files. Do not flatten desktop screens into a single raster storyboard:
+PR columns and full-page screenshot helpers can silently downscale it until the
+UI copy is unreadable.
+
+Choose the smallest medium that preserves the behavior under review:
+
+| Change | Preferred evidence |
+|---|---|
+| Static styling, copy, chart, or one stable state | Native-resolution screenshots |
+| Responsive differences or loading, empty, error, permission, or unsupported states | Screenshots for each materially different viewport/state |
+| Multi-page navigation, forms, timing, animation, gestures, or progressive state | Focused 15-45 second video; prefer MP4 for publication, while browser-native WebM is acceptable locally |
+| Material multi-step journey plus important edge states | Short primary-journey video and 2-3 edge-state screenshots |
+
+Use synthetic data only. Captures must not contain credentials, access tokens,
+personal training data, raw feedback screenshots, or authenticated HAR/network
+archives. Do not add a product dependency only to record evidence. Use the
+available Chrome/Playwright/WeChat recorder; if recording is unavailable,
+capture the sequence as native-resolution stills.
+
+The review audience determines publication:
+
+- **Synchronous local review:** share the live URL and local gallery path in the
+  active agent session. Keep credentials in that session and upload no media.
+- **Asynchronous PR review:** publish only the minimum useful evidence: one
+  short recording, 2-3 stills, or both for a material journey. Keep the
+  exhaustive state set local or in a CI artifact.
+- **Persistent cloud review:** create an authenticated preview or static
+  gallery only when explicitly requested. Blob storage can host static media
+  but is not an interactive application preview.
+
+The PR remains a concise decision record. `Primary journey` tells reviewers
+what path matters; `Reviewer handoff` says where the evidence lives without
+requiring public media. Valid handoff modes are `local-only`, `PR media`,
+`CI artifact`, `preview`, and `none`, each followed by a concrete explanation.
 
 The repository does not vendor Tencent's DevTools skill. The
 `wechat-devtools` wrapper reads the authoritative copy from a separately
@@ -116,6 +164,8 @@ and requires:
 ## UI quality
 - Impeccable: `polish web/src/...`
 - Visual review: desktop 1440x900; mobile 390x844
+- Primary journey: Goal -> plan preview -> readiness
+- Reviewer handoff: local-only - `test-screenshots/ui-quality/pr-123/index.html`
 - States checked: loading, empty, error, success, long EN/zh
 - Accessibility: keyboard, focus, contrast, reduced motion, touch targets
 - Design system impact: none - existing tokens and components cover this change
