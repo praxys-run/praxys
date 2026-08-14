@@ -647,6 +647,16 @@ def render_decision_review_packet(
             continue
         lines.extend([f"### {heading}", ""])
         for item in items:
+            parameter_label = (
+                "contract group"
+                if len(item.parameter_names) == 1
+                else "contract groups"
+            )
+            claim_label = (
+                "evidence claim"
+                if len(item.evidence_claim_ids) == 1
+                else "evidence claims"
+            )
             lines.extend([
                 f"#### `{item.id}` — {item.title}",
                 "",
@@ -666,8 +676,8 @@ def render_decision_review_packet(
             lines.extend([
                 "",
                 "<details><summary>Traceability: "
-                f"{len(item.parameter_names)} contract groups, "
-                f"{len(item.evidence_claim_ids)} evidence claims</summary>",
+                f"{len(item.parameter_names)} {parameter_label}, "
+                f"{len(item.evidence_claim_ids)} {claim_label}</summary>",
                 "",
                 "- **Contract groups covered:** "
                 + ", ".join(
