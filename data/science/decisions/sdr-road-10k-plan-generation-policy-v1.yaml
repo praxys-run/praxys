@@ -80,16 +80,17 @@ model_parameters:
     classification: guardrail
     value:
       adult_scope: confirmed
-      capability_pattern: currently_capable_10k
-      history_pattern: history_rich
-      load_pattern: within_recent_personal_envelope
+      capability_pattern: currently_capable
+      history_pattern: stable
+      load_pattern: within_recent
       event_context:
         - confirmed_none
         - single_target
-        - race_dense_with_resolved_conflicts
+        - race_dense
+      race_dense_requires_resolved_conflicts: true
       evidence_directness:
         - direct
-        - supporting_with_explicit_limits
+        - supporting
       current_symptoms: absent
       explicit_exclusions:
         - adult_scope_unconfirmed

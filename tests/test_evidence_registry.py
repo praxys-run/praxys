@@ -537,17 +537,7 @@ def test_road_10k_policy_proposal_is_distance_specific_and_inactive() -> None:
         "Verification: wang-2023 - full-text",
         "Verification: bonafiglia-2021 - full-text",
     } <= {note.split(";", 1)[0] for note in review.review_notes}
-    verification_notes = [
-        note
-        for note in review.review_notes
-        if note.startswith("Verification:")
-    ]
-    assert len(verification_notes) == len(review.citations)
-    for citation in review.citations:
-        assert sum(
-            note.startswith(f"Verification: {citation.id} -")
-            for note in verification_notes
-        ) == 1
+    _assert_exact_verification_notes(review)
 
     assert decision.status == "draft"
     assert decision.human_reviewers == []
@@ -589,7 +579,16 @@ def test_road_10k_policy_proposal_is_distance_specific_and_inactive() -> None:
     ] is True
     pattern = parameters["road_10k_supported_training_pattern"].value
     assert pattern["adult_scope"] == "confirmed"
-    assert pattern["capability_pattern"] == "currently_capable_10k"
+    assert pattern["capability_pattern"] == "currently_capable"
+    assert pattern["history_pattern"] == "stable"
+    assert pattern["load_pattern"] == "within_recent"
+    assert pattern["event_context"] == [
+        "confirmed_none",
+        "single_target",
+        "race_dense",
+    ]
+    assert pattern["race_dense_requires_resolved_conflicts"] is True
+    assert pattern["evidence_directness"] == ["direct", "supporting"]
     assert pattern[
         "recreational_serious_professional_or_elite_identity_used"
     ] is False
