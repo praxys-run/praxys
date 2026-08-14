@@ -40,6 +40,8 @@ import { hasSkippedSetupForSession, useSetupStatus } from './hooks/useSetupStatu
 // thereafter (cache headers set by frontend_server/main.py).
 const loadTraining = () => import('./pages/Training');
 const Training = lazy(loadTraining);
+const loadAnalysis = () => import('./pages/Analysis');
+const Analysis = lazy(loadAnalysis);
 const Goal = lazy(() => import('./pages/Goal'));
 const History = lazy(() => import('./pages/History'));
 const Science = lazy(() => import('./pages/Science'));
@@ -186,6 +188,7 @@ export default function App() {
                 <Route path="today" element={<TodayOrSetup />} />
                 <Route path="setup" element={<Setup />} />
                 <Route path="training" element={<Suspense fallback={null}><Training /></Suspense>} />
+                <Route path="analysis" element={<Suspense fallback={null}><Analysis /></Suspense>} />
                 <Route path="goal" element={<Suspense fallback={null}><Goal /></Suspense>} />
                 <Route path="history" element={<Suspense fallback={null}><History /></Suspense>} />
                 <Route path="science" element={<Suspense fallback={null}><Science /></Suspense>} />

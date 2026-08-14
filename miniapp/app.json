@@ -3,7 +3,9 @@
     "pages/login/index",
     "pages/today/index",
     "pages/training/index",
+    "pages/analysis/index",
     "pages/goal/index",
+    "pages/me/index",
     "pages/history/index",
     "pages/settings/index",
     "pages/labs/index",
@@ -38,9 +40,9 @@
     "list": [
       { "pagePath": "pages/today/index", "text": "Today" },
       { "pagePath": "pages/training/index", "text": "Training" },
-      { "pagePath": "pages/history/index", "text": "Activities" },
+      { "pagePath": "pages/analysis/index", "text": "Analysis" },
       { "pagePath": "pages/goal/index", "text": "Goal" },
-      { "pagePath": "pages/settings/index", "text": "Settings" }
+      { "pagePath": "pages/me/index", "text": "Me" }
     ]
   },
   "sitemapLocation": "sitemap.json"

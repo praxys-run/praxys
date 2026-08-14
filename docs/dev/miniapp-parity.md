@@ -19,18 +19,23 @@ Pages with no miniapp counterpart by design:
 ## Read-side parity
 
 The mini program already mirrors web's read-only views on every shared
-page (Today / Training / Goal / History / Science / Settings). Charts,
+page (Today / Training / Analysis / Goal / Activities / Science / Settings). Charts,
 text cards, citations, recommendations, milestone trackers — all
 present and powered by the same API responses.
+
+The native five-tab information architecture is `Today | Training | Analysis | Goal | Me`.
+Analysis owns an in-page `Overview | Activities` switch. Me owns the
+secondary Settings, Training Science, Labs, and legal destinations; the legacy
+History route remains available only for existing deep links.
 
 Known minor gaps:
 
 | Page | Surface | Status | Notes |
 |------|---------|--------|-------|
 | Today | `WeeklyLoadMini` 7-day load-vs-target bar | partial | Data is in state (`hasWeekLoad`, `weekLoadActual`, `weekLoadPlannedSuffix`) but the bar viz is a text-only card on miniapp. Acceptable since the page is already dense. |
-| Training | `AiInsightsCard` (CLI training-review insights) | gap | Web reads `/api/insights/training_review`. Skipped on miniapp until LLM endpoint replaces rule-based prose (see memory: `project_llm_insights_i18n`). |
-| Training | `SleepPerfChart` (sleep score vs avg power) | matched | Closed by issue #76. |
-| Training | `UpcomingPlanCard` (next 7-28 days from `/api/training`) | gap | Today already shows a single upcoming workout; weekly preview is a nice-to-have. |
+| Analysis | `AiInsightsCard` (training-review insights) | matched | Both clients read `/api/insights/training_review` and retain the deterministic rule-based fallback. |
+| Analysis | `SleepPerfChart` (sleep score vs avg power) | matched | Closed by issue #76. |
+| Training | `UpcomingPlanCard` / managed schedule | matched | Web and miniapp both expose the upcoming Praxys-managed schedule from the Training workspace. |
 
 ---
 

@@ -1,4 +1,4 @@
-<view class="managed-plan managed-plan--{{scope}}">
+<view class="managed-plan managed-plan--{{scope}} {{languageClass}}">
   <view wx:if="{{scope === 'window'}}" class="managed-plan__header">
     <view>
       <text class="managed-plan__title">{{tr.upcomingPlan}}</text>

@@ -7,7 +7,8 @@ import { initialDashboardUrl } from '../src/lib/dashboard-prefetch.ts';
 
 test('prefetches the authenticated cold-load dashboard route', () => {
   assert.equal(initialDashboardUrl('/today', true), '/api/today');
-  assert.equal(initialDashboardUrl('/training', true), '/api/training');
+  assert.equal(initialDashboardUrl('/analysis', true), '/api/training');
+  assert.equal(initialDashboardUrl('/training', true), null);
   assert.equal(initialDashboardUrl('/', true), '/api/today');
   assert.equal(initialDashboardUrl('/today', false), null);
   assert.equal(initialDashboardUrl('/settings', true), null);
@@ -33,7 +34,7 @@ test('setup status shares React Query requests across consumers', async () => {
 
 test('daily pages use the app freshness policy instead of forced focus fetches', async () => {
   const sources = await Promise.all(
-    ['Today.tsx', 'Training.tsx'].map((name) =>
+    ['Today.tsx', 'Training.tsx', 'Analysis.tsx'].map((name) =>
       readFile(new URL(`../src/pages/${name}`, import.meta.url), 'utf8'),
     ),
   );
@@ -51,6 +52,7 @@ test('keeps chart code off the initial Today preload path', async () => {
   ]);
 
   assert.match(appSource, /const loadTraining = \(\) => import\('\.\/pages\/Training'\)/);
+  assert.match(appSource, /const loadAnalysis = \(\) => import\('\.\/pages\/Analysis'\)/);
   assert.match(appSource, /requestIdleCallback\(/);
   assert.match(appSource, /cancelIdleCallback\(idleCallbackId\)/);
   assert.match(viteSource, /context\.hostType !== 'html'/);

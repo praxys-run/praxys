@@ -12,15 +12,16 @@ The job to be done: **interpret my training data into a clear next action**. Use
 
 Physical context matters and shapes design choices: the app is opened outdoors, on a phone, often pre- or post-run. Bright sunlight, dawn light, sweaty hands, distracted attention. Design for that, not for the comfortable office desk.
 
-The mini program (`miniapp/`) serves the WeChat-native CN audience; it's a view + manage companion to the web app, not a thin port. Feature parity for daily-use surfaces (signal, training, goal, sync, settings); registration + platform connection happens once on praxys.run.
+The mini program (`miniapp/`) serves the WeChat-native CN audience; it's a view + manage companion to the web app, not a thin port. Its five primary destinations are Today, managed Training, Analysis, Goal, and Me. Activities live inside Analysis; settings, data controls, science, Labs, and legal surfaces live under Me. Registration + platform connection still happens once on praxys.run.
 
 ## Product Purpose
 
 Scientific training system for endurance runners. Praxys ingests multi-source data — Garmin, Stryd, Oura Ring — and produces interpreted, methodology-cited outputs. The user picks their **training base** (power, heart rate, or pace); the system computes thresholds (CP, LTHR, threshold pace), zones, and load against whichever modality fits their gear and preference. Power is supported well because Stryd / Garmin power exists, but it's one option of three, not a prerequisite.
 
 - **Today's signal:** go / modify / rest, grounded in HRV, sleep, resting HR, recent load.
-- **Training diagnosis:** zone distribution, CP / threshold trend, fitness-fatigue balance, suggestions.
-- **AI training plans:** 4-week plans regenerated against current state and goals.
+- **Managed training:** start, adopt, review, adjust, pause, and end Praxys-owned plans.
+- **Analysis:** zone distribution, CP / threshold trend, fitness-fatigue balance, heat adaptation, and Praxys Coach interpretation across all observed training.
+- **AI training plans:** plans regenerated against current state and goals.
 - **Race forecast:** prediction + goal feasibility, with the gap quantified.
 - **Configurable science:** four-pillar theory framework (load model, recovery, race prediction, zones); users can swap theories.
 

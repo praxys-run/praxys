@@ -1,0 +1,29 @@
+.observed-switch {
+  display: flex;
+  flex: none;
+  padding: 0 32rpx;
+  border-bottom: 1rpx solid var(--border-subtle);
+  background-color: var(--bg);
+}
+
+.observed-switch__item {
+  display: flex;
+  min-height: 88rpx;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 4rpx solid transparent;
+  color: var(--text-muted);
+  font-size: 24rpx;
+  font-weight: 550;
+}
+
+.observed-switch__item--active {
+  border-bottom-color: var(--primary);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.observed-switch__item--disabled {
+  pointer-events: none;
+}

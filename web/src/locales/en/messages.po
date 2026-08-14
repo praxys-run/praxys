@@ -18,7 +18,7 @@ msgid " · "
 msgstr " · "
 
 #. placeholder {0}: data.diagnosis.lookback_weeks
-#: src/pages/Training.tsx:364
+#: src/pages/Analysis.tsx:360
 msgid "· last {0} weeks"
 msgstr "· last {0} weeks"
 
@@ -176,7 +176,7 @@ msgstr "{0} shadow decisions · {1} labels applied · {2} durable outcomes"
 #~ msgstr "{0} work min · {1} effective min"
 
 #. placeholder {0}: data.diagnosis.lookback_weeks
-#: src/pages/Training.tsx:314
+#: src/pages/Analysis.tsx:307
 msgid "{0}-week average"
 msgstr "{0}-week average"
 
@@ -671,7 +671,7 @@ msgstr "Active incidents: {0}"
 msgid "Active until"
 msgstr "Active until"
 
-#: src/components/AppSidebar.tsx:127
+#: src/components/AppSidebar.tsx:128
 #: src/pages/History.tsx:38
 #: src/pages/Settings.tsx:56
 #: src/pages/Settings.tsx:67
@@ -729,11 +729,11 @@ msgstr "Activity-summary weather"
 msgid "Actual"
 msgstr "Actual"
 
-#: src/pages/Training.tsx:296
+#: src/pages/Analysis.tsx:289
 msgid "Actual and planned weekly load across the recent training window."
 msgstr "Actual and planned weekly load across the recent training window."
 
-#: src/pages/Training.tsx:293
+#: src/pages/Analysis.tsx:286
 msgid "actual vs planned, avg"
 msgstr "actual vs planned, avg"
 
@@ -796,7 +796,7 @@ msgstr "Adjudicated"
 msgid "Adjust Workout"
 msgstr "Adjust Workout"
 
-#: src/components/AppSidebar.tsx:137
+#: src/components/AppSidebar.tsx:138
 #: src/pages/admin/AdminLayout.tsx:35
 #: src/pages/admin/AdminUsers.tsx:616
 msgid "Admin"
@@ -987,6 +987,11 @@ msgstr "An external planner overlaps the Praxys plan. Use one planner at a time 
 #: src/pages/Login.tsx:130
 msgid "An unexpected error occurred."
 msgstr "An unexpected error occurred."
+
+#: src/components/AppSidebar.tsx:126
+#: src/pages/Analysis.tsx:350
+msgid "Analysis"
+msgstr "Analysis"
 
 #: src/pages/LabsEnvironment.tsx:1204
 msgid "Analysis needs a manual retry"
@@ -2647,7 +2652,7 @@ msgid "Detailed activity evidence is unavailable for this day."
 msgstr "Detailed activity evidence is unavailable for this day."
 
 #: src/components/FeedbackDialog.tsx:228
-#: src/pages/Training.tsx:81
+#: src/pages/Analysis.tsx:78
 msgid "Details"
 msgstr "Details"
 
@@ -2663,8 +2668,8 @@ msgstr "Developing"
 msgid "Diagnose Praxys-owned workout delivery without exposing athlete identity or provider workout data."
 msgstr "Diagnose Praxys-owned workout delivery without exposing athlete identity or provider workout data."
 
-#: src/pages/Training.tsx:360
-#: src/pages/Training.tsx:362
+#: src/pages/Analysis.tsx:356
+#: src/pages/Analysis.tsx:358
 msgid "Diagnosis"
 msgstr "Diagnosis"
 
@@ -2787,7 +2792,7 @@ msgstr "Distance not verified"
 #~ msgid "Distribution deviates from target"
 #~ msgstr "Distribution deviates from target"
 
-#: src/pages/Training.tsx:261
+#: src/pages/Analysis.tsx:254
 msgid "Distribution match"
 msgstr "Distribution match"
 
@@ -3345,6 +3350,10 @@ msgstr "Failed to load"
 msgid "Failed to load activities"
 msgstr "Failed to load activities"
 
+#: src/pages/Analysis.tsx:168
+msgid "Failed to load analysis"
+msgstr "Failed to load analysis"
+
 #: src/pages/Goal.tsx:449
 msgid "Failed to load goal data"
 msgstr "Failed to load goal data"
@@ -3362,8 +3371,8 @@ msgid "Failed to load settings"
 msgstr "Failed to load settings"
 
 #: src/pages/Training.tsx:175
-msgid "Failed to load training data"
-msgstr "Failed to load training data"
+#~ msgid "Failed to load training data"
+#~ msgstr "Failed to load training data"
 
 #: src/components/UpcomingPlanCard.tsx:1367
 msgid "Failed to load training plan"
@@ -3696,7 +3705,7 @@ msgstr "Go to dashboard"
 msgid "Go to sign in"
 msgstr "Go to sign in"
 
-#: src/components/AppSidebar.tsx:126
+#: src/components/AppSidebar.tsx:127
 #: src/components/GoalBaselinePanel.tsx:96
 #: src/pages/admin/AdminUsers.tsx:871
 #: src/pages/Goal.tsx:137
@@ -3755,8 +3764,8 @@ msgstr "Heart-rate maximum (bpm)"
 msgid "Heart-rate minimum (bpm)"
 msgstr "Heart-rate minimum (bpm)"
 
-#: src/pages/Training.tsx:343
-#: src/pages/Training.tsx:346
+#: src/pages/Analysis.tsx:336
+#: src/pages/Analysis.tsx:339
 msgid "Heat adaptation"
 msgstr "Heat adaptation"
 
@@ -4362,7 +4371,7 @@ msgstr "Keep workout"
 #~ msgid "km / week, {0}wk avg"
 #~ msgstr "km / week, {0}wk avg"
 
-#: src/pages/Training.tsx:313
+#: src/pages/Analysis.tsx:306
 msgid "km/wk"
 msgstr "km/wk"
 
@@ -4370,7 +4379,7 @@ msgstr "km/wk"
 msgid "label"
 msgstr "label"
 
-#: src/components/AppSidebar.tsx:132
+#: src/components/AppSidebar.tsx:133
 msgid "Labs"
 msgstr "Labs"
 
@@ -4383,7 +4392,7 @@ msgstr "Labs action failed"
 msgid "Labs could not load"
 msgstr "Labs could not load"
 
-#: src/App.tsx:101
+#: src/App.tsx:103
 msgid "Labs page update required"
 msgstr "Labs page update required"
 
@@ -4603,7 +4612,7 @@ msgstr "Load & Fitness"
 
 #: src/components/charts/FitnessFatigueChart.tsx:87
 #: src/components/charts/FitnessFatigueChart.tsx:235
-#: src/pages/Training.tsx:241
+#: src/pages/Analysis.tsx:234
 msgid "Load balance"
 msgstr "Load balance"
 
@@ -4611,8 +4620,8 @@ msgstr "Load balance"
 msgid "Load balance (TSB)"
 msgstr "Load balance (TSB)"
 
-#: src/pages/Training.tsx:290
-#: src/pages/Training.tsx:294
+#: src/pages/Analysis.tsx:283
+#: src/pages/Analysis.tsx:287
 msgid "Load compliance"
 msgstr "Load compliance"
 
@@ -4640,8 +4649,8 @@ msgstr "Loading…"
 #~ msgid "Log in to connect your CLI plugin"
 #~ msgstr "Log in to connect your CLI plugin"
 
-#: src/components/AppSidebar.tsx:226
-#: src/components/AppSidebar.tsx:228
+#: src/components/AppSidebar.tsx:227
+#: src/components/AppSidebar.tsx:229
 msgid "Log out"
 msgstr "Log out"
 
@@ -4667,7 +4676,7 @@ msgstr "Long-term and recent modeled loads are near balance."
 msgid "Long-term load"
 msgstr "Long-term load"
 
-#: src/pages/Training.tsx:237
+#: src/pages/Analysis.tsx:230
 msgid "long-term load above recent load"
 msgstr "long-term load above recent load"
 
@@ -4675,7 +4684,7 @@ msgstr "long-term load above recent load"
 #~ msgid "long-term load higher"
 #~ msgstr "long-term load higher"
 
-#: src/pages/Training.tsx:243
+#: src/pages/Analysis.tsx:236
 msgid "Long-term load, recent load, and their modeled balance over time."
 msgstr "Long-term load, recent load, and their modeled balance over time."
 
@@ -4980,11 +4989,11 @@ msgstr "Mode"
 msgid "Model version"
 msgstr "Model version"
 
-#: src/pages/Training.tsx:235
+#: src/pages/Analysis.tsx:228
 msgid "modeled balance (CTL−ATL)"
 msgstr "modeled balance (CTL−ATL)"
 
-#: src/pages/Training.tsx:240
+#: src/pages/Analysis.tsx:233
 msgid "modeled loads balanced"
 msgstr "modeled loads balanced"
 
@@ -5095,7 +5104,7 @@ msgstr "near baseline"
 msgid "Near baseline"
 msgstr "Near baseline"
 
-#: src/pages/Training.tsx:303
+#: src/pages/Analysis.tsx:296
 msgid "Need 2 weeks of synced activity to compare planned vs actual. {daysToCompare} more days to go."
 msgstr "Need 2 weeks of synced activity to compare planned vs actual. {daysToCompare} more days to go."
 
@@ -5544,7 +5553,7 @@ msgstr "No users found."
 msgid "No waitlist signups yet."
 msgstr "No waitlist signups yet."
 
-#: src/pages/Training.tsx:328
+#: src/pages/Analysis.tsx:321
 msgid "No weekly distance history yet"
 msgstr "No weekly distance history yet"
 
@@ -5618,7 +5627,7 @@ msgstr "Not an all-out 5K effort"
 msgid "Not connected"
 msgstr "Not connected"
 
-#: src/pages/Training.tsx:275
+#: src/pages/Analysis.tsx:268
 msgid "Not enough complete intensity data for zone comparison"
 msgstr "Not enough complete intensity data for zone comparison"
 
@@ -5642,11 +5651,11 @@ msgstr "Not enough data to show CP trend"
 #~ msgid "Not enough data yet for accurate fitness tracking"
 #~ msgstr "Not enough data yet for accurate fitness tracking"
 
-#: src/pages/Training.tsx:249
+#: src/pages/Analysis.tsx:242
 msgid "Not enough data yet for stable load tracking"
 msgstr "Not enough data yet for stable load tracking"
 
-#: src/pages/Training.tsx:302
+#: src/pages/Analysis.tsx:295
 msgid "Not enough data yet for weekly load comparison"
 msgstr "Not enough data yet for weekly load comparison"
 
@@ -5726,7 +5735,7 @@ msgstr "Observed"
 msgid "Observed proxy range"
 msgstr "Observed proxy range"
 
-#: src/pages/Training.tsx:269
+#: src/pages/Analysis.tsx:262
 msgid "Observed time in each intensity zone compared with the selected training theory."
 msgstr "Observed time in each intensity zone compared with the selected training theory."
 
@@ -6121,7 +6130,7 @@ msgstr "Pausing…"
 msgid "Peak Interval {intensityLabel}"
 msgstr "Peak Interval {intensityLabel}"
 
-#: src/pages/Training.tsx:372
+#: src/pages/Analysis.tsx:368
 msgid "Peer metrics"
 msgstr "Peer metrics"
 
@@ -6421,7 +6430,7 @@ msgstr "Praxys could not determine your time zone. Check your device settings an
 msgid "Praxys could not finish delivery. Retrying keeps the Praxys version canonical."
 msgstr "Praxys could not finish delivery. Retrying keeps the Praxys version canonical."
 
-#: src/App.tsx:104
+#: src/App.tsx:106
 msgid "Praxys could not finish loading this page after an app update. Reload once to use the current version."
 msgstr "Praxys could not finish loading this page after an app update. Reload once to use the current version."
 
@@ -6493,8 +6502,8 @@ msgstr "Praxys Labs"
 msgid "Praxys made a conservative plan change"
 msgstr "Praxys made a conservative plan change"
 
-#: src/components/AppSidebar.tsx:208
-#: src/components/AppSidebar.tsx:210
+#: src/components/AppSidebar.tsx:209
+#: src/components/AppSidebar.tsx:211
 msgid "Praxys on mobile"
 msgstr "Praxys on mobile"
 
@@ -7040,7 +7049,7 @@ msgstr "Recent HRV observations have no measurable variation, so Praxys cannot f
 msgid "Recent load"
 msgstr "Recent load"
 
-#: src/pages/Training.tsx:239
+#: src/pages/Analysis.tsx:232
 msgid "recent load above long-term load"
 msgstr "recent load above long-term load"
 
@@ -7188,7 +7197,7 @@ msgstr "Record test result"
 msgid "Record the test result"
 msgstr "Record the test result"
 
-#: src/pages/Training.tsx:317
+#: src/pages/Analysis.tsx:310
 msgid "Recorded distance in non-overlapping seven-day buckets, including weeks with no recorded distance."
 msgstr "Recorded distance in non-overlapping seven-day buckets, including weeks with no recorded distance."
 
@@ -7430,7 +7439,7 @@ msgstr "Relative modeled HR"
 msgid "Relative modeled HR (bpm)"
 msgstr "Relative modeled HR (bpm)"
 
-#: src/App.tsx:113
+#: src/App.tsx:115
 msgid "Reload Labs"
 msgstr "Reload Labs"
 
@@ -7654,6 +7663,7 @@ msgstr "Retrieval is never qualification; only a full activity with explicit dis
 #: src/pages/admin/AdminFeedback.tsx:582
 #: src/pages/admin/AdminRouteState.tsx:36
 #: src/pages/admin/AdminUsers.tsx:544
+#: src/pages/Analysis.tsx:171
 #: src/pages/Goal.tsx:452
 #: src/pages/History.tsx:53
 #: src/pages/Labs.tsx:56
@@ -7663,7 +7673,6 @@ msgstr "Retrieval is never qualification; only a full activity with explicit dis
 #: src/pages/Settings.tsx:335
 #: src/pages/Today.tsx:352
 #: src/pages/Today.tsx:511
-#: src/pages/Training.tsx:178
 msgid "Retry"
 msgstr "Retry"
 
@@ -7773,6 +7782,10 @@ msgstr "Review goal"
 #: src/components/HeatAdaptationPanel.tsx:141
 #~ msgid "Review heat history"
 #~ msgstr "Review heat history"
+
+#: src/pages/Analysis.tsx:353
+msgid "Review load, volume, heat adaptation, and Praxys Coach."
+msgstr "Review load, volume, heat adaptation, and Praxys Coach."
 
 #: src/components/GoalBaselinePanel.tsx:111
 msgid "Review optional test"
@@ -8054,7 +8067,7 @@ msgstr "Scheduled date"
 msgid "Scheduling writes through the canonical workout, revision, and delivery lane. Nothing changes silently."
 msgstr "Scheduling writes through the canonical workout, revision, and delivery lane. Nothing changes silently."
 
-#: src/components/AppSidebar.tsx:131
+#: src/components/AppSidebar.tsx:132
 msgid "Science"
 msgstr "Science"
 
@@ -8115,7 +8128,7 @@ msgstr "Select a child to edit it. Portable v1 permits one repeat level."
 msgid "Select a day to inspect what entered the estimate."
 msgstr "Select a day to inspect what entered the estimate."
 
-#: src/pages/Training.tsx:375
+#: src/pages/Analysis.tsx:371
 msgid "Select a metric to inspect its chart or evidence."
 msgstr "Select a metric to inspect its chart or evidence."
 
@@ -8155,8 +8168,8 @@ msgstr "semantic"
 msgid "Send"
 msgstr "Send"
 
-#: src/components/AppSidebar.tsx:214
-#: src/components/AppSidebar.tsx:216
+#: src/components/AppSidebar.tsx:215
+#: src/components/AppSidebar.tsx:217
 #: src/components/FeedbackDialog.tsx:184
 #: src/components/FeedbackDialog.tsx:317
 msgid "Send feedback"
@@ -8270,13 +8283,13 @@ msgstr "Set your goal"
 msgid "Set your name"
 msgstr "Set your name"
 
-#: src/components/AppSidebar.tsx:136
+#: src/components/AppSidebar.tsx:137
 #: src/pages/Settings.tsx:694
 msgid "Settings"
 msgstr "Settings"
 
-#: src/components/AppSidebar.tsx:159
-#: src/components/AppSidebar.tsx:163
+#: src/components/AppSidebar.tsx:160
+#: src/components/AppSidebar.tsx:164
 msgid "Setup"
 msgstr "Setup"
 
@@ -8492,6 +8505,10 @@ msgstr "Start sync"
 #: src/pages/admin/AdminOps.tsx:746
 msgid "Start with operator action, then use health and usage context to choose the next workflow."
 msgstr "Start with operator action, then use health and usage context to choose the next workflow."
+
+#: src/pages/Training.tsx:21
+msgid "Start, review, and adjust the plan Praxys manages for you."
+msgstr "Start, review, and adjust the plan Praxys manages for you."
 
 #: src/pages/Status.tsx:266
 msgid "Started"
@@ -8775,7 +8792,7 @@ msgstr "Sync now"
 msgid "Sync power-source metadata so Praxys can verify that activity and threshold power are comparable."
 msgstr "Sync power-source metadata so Praxys can verify that activity and threshold power are comparable."
 
-#: src/pages/Training.tsx:333
+#: src/pages/Analysis.tsx:326
 msgid "Sync recent activities to populate the weekly distance series."
 msgstr "Sync recent activities to populate the weekly distance series."
 
@@ -8791,7 +8808,7 @@ msgstr "Sync reliability"
 #~ msgid "Sync sample or split power so workload can contribute."
 #~ msgstr "Sync sample or split power so workload can contribute."
 
-#: src/pages/Training.tsx:276
+#: src/pages/Analysis.tsx:269
 msgid "Sync split or sample data with enough duration coverage to compare against the selected theory."
 msgstr "Sync split or sample data with enough duration coverage to compare against the selected theory."
 
@@ -9020,7 +9037,7 @@ msgstr "The accepted deterministic policy has one shared maximum-session field. 
 msgid "The accepted Praxys evidence review found controlled support for heat-related cardiovascular drift, but no field study validating a causal or predictive personal Stull wet-bulb response curve. V1 is therefore descriptive and Stryd-only."
 msgstr "The accepted Praxys evidence review found controlled support for heat-related cardiovascular drift, but no field study validating a causal or predictive personal Stull wet-bulb response curve. V1 is therefore descriptive and Stryd-only."
 
-#: src/pages/Training.tsx:250
+#: src/pages/Analysis.tsx:243
 msgid "The active load model uses a {loadTimeConstantDays}-day long-term time constant. Need {daysToPmc} more days of history."
 msgstr "The active load model uses a {loadTimeConstantDays}-day long-term time constant. Need {daysToPmc} more days of history."
 
@@ -9295,7 +9312,7 @@ msgstr "The target version is unavailable."
 msgid "The thresholds are Praxys operational estimates grounded in heat-acclimatization research, not a direct physiological measurement."
 msgstr "The thresholds are Praxys operational estimates grounded in heat-acclimatization research, not a direct physiological measurement."
 
-#: src/pages/Training.tsx:332
+#: src/pages/Analysis.tsx:325
 msgid "The weekly history will appear after the data service update completes."
 msgstr "The weekly history will appear after the data service update completes."
 
@@ -9303,7 +9320,7 @@ msgstr "The weekly history will appear after the data service update completes."
 #~ msgid "The workout structure is not a supported portable version."
 #~ msgstr "The workout structure is not a supported portable version."
 
-#: src/components/AppSidebar.tsx:220
+#: src/components/AppSidebar.tsx:221
 msgid "Theme"
 msgstr "Theme"
 
@@ -9765,7 +9782,7 @@ msgid "Train toward a specific race date"
 msgstr "Train toward a specific race date"
 
 #: src/components/AppSidebar.tsx:125
-#: src/pages/Training.tsx:357
+#: src/pages/Training.tsx:18
 msgid "Training"
 msgstr "Training"
 
@@ -9844,7 +9861,7 @@ msgstr "Try a longer window above."
 msgid "Try another filter or sync again after new reports arrive."
 msgstr "Try another filter or sync again after new reports arrive."
 
-#: src/pages/Training.tsx:230
+#: src/pages/Analysis.tsx:223
 msgid "TSB"
 msgstr "TSB"
 
@@ -10205,7 +10222,7 @@ msgstr "VO2max"
 msgid "VO2max, CP, LTHR, training status"
 msgstr "VO2max, CP, LTHR, training status"
 
-#: src/pages/Training.tsx:311
+#: src/pages/Analysis.tsx:304
 msgid "Volume"
 msgstr "Volume"
 
@@ -10214,7 +10231,7 @@ msgid "Voluntary experiments that help you inspect your own training history wit
 msgstr "Voluntary experiments that help you inspect your own training history without turning early research into advice."
 
 #. placeholder {0}: data.diagnosis.theory_name
-#: src/pages/Training.tsx:265
+#: src/pages/Analysis.tsx:258
 msgid "vs {0}"
 msgstr "vs {0}"
 
@@ -10227,7 +10244,7 @@ msgstr "vs {0} baseline"
 msgid "vs {theoryName}"
 msgstr "vs {theoryName}"
 
-#: src/pages/Training.tsx:266
+#: src/pages/Analysis.tsx:259
 msgid "vs target zones"
 msgstr "vs target zones"
 
@@ -10325,11 +10342,11 @@ msgstr "Week ending {0}"
 msgid "Weekly average"
 msgstr "Weekly average"
 
-#: src/pages/Training.tsx:327
+#: src/pages/Analysis.tsx:320
 msgid "Weekly chart temporarily unavailable"
 msgstr "Weekly chart temporarily unavailable"
 
-#: src/pages/Training.tsx:196
+#: src/pages/Analysis.tsx:189
 msgid "Weekly diagnosis ready."
 msgstr "Weekly diagnosis ready."
 
@@ -10345,7 +10362,7 @@ msgstr "Weekly Load"
 #~ msgid "Weekly Review"
 #~ msgstr "Weekly Review"
 
-#: src/pages/Training.tsx:315
+#: src/pages/Analysis.tsx:308
 msgid "Weekly volume"
 msgstr "Weekly volume"
 
@@ -10716,7 +10733,7 @@ msgstr "Zone 3 (Hard)"
 #~ msgid "Zone Analysis"
 #~ msgstr "Zone Analysis"
 
-#: src/pages/Training.tsx:267
+#: src/pages/Analysis.tsx:260
 msgid "Zone distribution"
 msgstr "Zone distribution"
 

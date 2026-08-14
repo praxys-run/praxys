@@ -4,6 +4,6 @@ export function initialDashboardUrl(
 ): '/api/today' | '/api/training' | null {
   if (!hasToken) return null;
   if (pathname === '/' || pathname === '/today') return '/api/today';
-  if (pathname === '/training') return '/api/training';
+  if (pathname === '/analysis') return '/api/training';
   return null;
 }

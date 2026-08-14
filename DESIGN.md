@@ -189,7 +189,7 @@ A restrained five-color system: warm-paper neutrals plus four named role colors 
 ### Hierarchy
 
 - **Display** (Geist 500, `clamp(2rem, 4vw, 3rem)`, line-height 1.1, letter-spacing -0.02em): brand moments, the wordmark, hero numbers on the Today signal hero. Used sparingly.
-- **Headline** (Geist 600, 1.5rem, line-height 1.2): page titles ("Today", "Goal", "History").
+- **Headline** (Geist 600, 1.5rem, line-height 1.2): page titles ("Today", "Training", "Analysis", "Goal", "History").
 - **Title** (Geist 600, 1.125rem, line-height 1.3): card headers, section titles inside pages.
 - **Body** (Geist 400, 0.875rem, line-height 1.5): the working text. Cap line length at 65–75ch for prose blocks (rare in this product — most surfaces are dashboards).
 - **Label** (JetBrains Mono 600, 0.6875rem, uppercase, letter-spacing 0.05em): section eyebrow labels, table headers, ScienceNote section markers ("WHY THIS RECOMMENDATION", "METHODOLOGY", "CITATION").
@@ -261,14 +261,14 @@ The component is deliberately *minimal* — it adds reasoning depth without clai
 - **Banner**: solid `var(--accent-cobalt-val)` background, `var(--card)` text. Mono-caps brand mark on the left, mono timestamp on the right.
 - **Body**: `var(--card)` background, headline + structured lists. Findings get type-coded mono tags (`[+]` positive, `[!]` warning, `[·]` neutral); recommendations get cobalt `→` arrows.
 - **Foot**: `var(--muted)` background, mono small-caps theory attribution, right-aligned.
-- **Pattern**: full-bleed within its grid cell. Reusable on Goal / History / Settings whenever an LLM insight or narrative explanation is the primary content.
+- **Pattern**: full-bleed within its grid cell. Reusable on Analysis / Goal / History / Settings whenever an LLM insight or narrative explanation is the primary content.
 
 **The Reasoning Color Rule.** Cobalt encodes "the system explaining itself" through *color* — banner backgrounds, eyebrow labels, citation links, recommendation arrows, ScienceNote triggers. It does *not* encode reasoning through a 3px-left-rail-on-rounded-card geometry; that specific shape became the AI-generated-UI cliché in 2025–26 and is now retired. If you reach for a thicker-than-1px cobalt left border, you're recreating the exact pattern this rule was built to push back against. Use the receipt's banner header instead, or the ScienceNote's color-only treatment.
 
 ### Navigation
 
-- **Web** (`AppSidebar`): collapsible sidebar on desktop, sheet drawer on mobile. Sticky mobile header with `SidebarTrigger` (hamburger). Active route shown by `primary` left-edge indicator and bolder weight, not background fill — the sidebar stays calm.
-- **Miniapp**: custom Skyline `nav-bar` (top) + custom tab bar (bottom), both painted with the same paper / ink tokens. The mini program is mobile-first, so navigation density is higher than the web's sidebar.
+- **Web** (`AppSidebar`): collapsible sidebar on desktop, sheet drawer on mobile. Today, managed Training, Analysis, Goal, and Activities are distinct entries. Active route shown by `primary` left-edge indicator and bolder weight, not background fill — the sidebar stays calm.
+- **Miniapp**: custom Skyline `nav-bar` (top) + custom tab bar (bottom), both painted with the same paper / ink tokens. The five primary destinations are Today, managed Training, Analysis, Goal, and Me. Analysis uses a flat `Overview | Activities` switch so interpretation and source activities stay together; Me is the calm hub for Settings, Training Science, Labs, and legal surfaces.
 
 ### Charts (signature: trend, distribution, fitness-fatigue)
 

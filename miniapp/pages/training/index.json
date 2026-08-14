@@ -3,11 +3,6 @@
   "usingComponents": {
     "outdoor-5k-plan-start": "../../components/outdoor-5k-plan-start/index",
     "nav-bar": "/components/nav-bar/index",
-    "line-chart": "/components/line-chart/index",
-    "scatter-chart": "/components/scatter-chart/index",
-    "bar-chart": "/components/bar-chart/index",
-    "state-card": "../../components/state-card/index",
-    "insight-feedback": "/components/insight-feedback/index",
     "managed-plan": "/components/managed-plan/index",
     "personal-context": "/components/personal-context/index"
   },
