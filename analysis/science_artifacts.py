@@ -17,6 +17,7 @@ from analysis.evidence_registry import (
     ApprovalMode,
     ArtifactRuntimeState,
     ClaimId,
+    DecisionReviewDisposition,
     EvidenceReview,
     Identity,
     ParameterClassification,
@@ -578,16 +579,19 @@ def render_decision_review_packet(
     registry: ScienceRegistry,
     decision_id: str,
 ) -> str:
-    """Render one decision and its exact machine contract for human approval."""
+    """Render an action-oriented decision sheet plus a complete audit appendix."""
     decision = registry.decisions[decision_id]
+    if decision.decision_review is None:
+        raise ValueError(
+            f"Artifact decision {decision_id} has no decision review manifest"
+        )
     contract = build_policy_contract(registry, decision_id)
-    contract_json = render_policy_contract_json(contract).rstrip()
     approvals = load_science_approvals(registry.science_dir)
     lines = [
         f"# Science decision review packet: {decision.title}",
         "",
-        "> Generated from the canonical SDR. Every code-consumed field appears "
-        "verbatim in the exact contract section; no prose is parsed into code.",
+        "> Start with the decision sheet. The audit appendix preserves every "
+        "code-consumed field, but it is not the reviewer's primary task.",
         "",
         f"- **Record:** `{decision.id}`",
         f"- **Lifecycle:** `{decision.status.value}`",
@@ -610,9 +614,84 @@ def render_decision_review_packet(
             ReviewRole.IMPLEMENTATION_REVIEWER,
         ),
         "",
-        "## Decision approval artifact template",
+        "## Your task",
         "",
-        "Create this only after a human approves the decision packet:",
+        decision.decision_review.reviewer_task,
+        "",
+        "Choose one outcome:",
+        "",
+        "1. **Approve the decision sheet as a unit.** This accepts both the "
+        "proposed decisions and the explicit deferrals below.",
+        "2. **Request changes by item ID.** Do this when any proposal, effect, "
+        "or non-authorization is unclear or wrong.",
+        "",
+        "Do not approve merely because the audit appendix looks reasonable or "
+        "because you found no obvious problem while skimming it.",
+        "",
+        "## Decision sheet",
+        "",
+    ]
+    section_headings = {
+        DecisionReviewDisposition.APPROVE:
+            "Proposed decisions to approve",
+        DecisionReviewDisposition.DEFER:
+            "Decisions explicitly deferred",
+    }
+    for disposition, heading in section_headings.items():
+        items = [
+            item
+            for item in decision.decision_review.items
+            if item.disposition == disposition
+        ]
+        if not items:
+            continue
+        lines.extend([f"### {heading}", ""])
+        for item in items:
+            lines.extend([
+                f"#### `{item.id}` — {item.title}",
+                "",
+                f"- **Question:** {item.question}",
+                f"- **Proposed decision:** {item.proposed_decision}",
+                "- **Approval means:**",
+            ])
+            lines.extend(
+                f"  - {effect}"
+                for effect in item.approval_effect
+            )
+            lines.append("- **This does not authorize:**")
+            lines.extend(
+                f"  - {boundary}"
+                for boundary in item.does_not_authorize
+            )
+            lines.extend([
+                "- **Contract groups covered:** "
+                + ", ".join(
+                    f"`{parameter_name}`"
+                    for parameter_name in item.parameter_names
+                ),
+                "- **Evidence claims:** "
+                + (
+                    ", ".join(
+                        f"`{claim_id}`"
+                        for claim_id in item.evidence_claim_ids
+                    )
+                    or "_None; product or lifecycle boundary only_"
+                ),
+                "",
+            ])
+
+    lines.extend([
+        "## Approval statement",
+        "",
+        "A decision approval bound to the displayed digest attests:",
+        "",
+        f"> {decision.decision_review.approval_statement}",
+        "",
+        f"- **Decision approval:** {_approval_label(approvals, decision.id, ReviewRole.DECISION_APPROVER)}",
+        "",
+        "### Decision approval artifact template",
+        "",
+        "Create this only after a human can make the approval statement above:",
         "",
         "```yaml",
         _render_approval_template(
@@ -623,32 +702,22 @@ def render_decision_review_packet(
         ),
         "```",
         "",
-        "## Implementation approval artifact template",
+        "## Audit appendix",
         "",
-        "Create this only after code matches the contract and activation is "
-        "separately approved:",
+        "<details><summary>Evidence, parameters, alternatives, limits, and validation</summary>",
         "",
-        "```yaml",
-        _render_approval_template(
-            subject_kind=ReviewSubjectKind.IMPLEMENTATION_CONTRACT,
-            subject_id=decision.id,
-            subject_digest=contract.contract_digest,
-            role=ReviewRole.IMPLEMENTATION_REVIEWER,
-        ),
-        "```",
-        "",
-        "## Accepted interpretation",
+        "### Accepted interpretation",
         "",
         decision.accepted_interpretation,
         "",
-        "## Linked evidence",
+        "### Linked evidence",
         "",
-    ]
+    ])
     for claim_id in decision.evidence_claim_ids:
         claim = registry.claims[claim_id]
         review_id = registry.claim_review_ids[claim_id]
         lines.extend([
-            f"### `{claim.id}` — {claim.evidence_strength.value}",
+            f"#### `{claim.id}` — {claim.evidence_strength.value}",
             "",
             claim.statement,
             "",
@@ -658,10 +727,10 @@ def render_decision_review_packet(
             "",
         ])
 
-    lines.extend(["## Reviewed parameters", ""])
+    lines.extend(["### Reviewed parameters", ""])
     for parameter in decision.model_parameters:
         lines.extend([
-            f"### `{parameter.name}` — {parameter.classification.value}",
+            f"#### `{parameter.name}` — {parameter.classification.value}",
             "",
             f"- **Applies to:** {parameter.applies_to or '_Not specified_'}",
             "- **Evidence claims:** "
@@ -686,10 +755,10 @@ def render_decision_review_packet(
             "",
         ])
 
-    lines.extend(["## Rejected alternatives", ""])
+    lines.extend(["### Rejected alternatives", ""])
     for alternative in decision.rejected_alternatives:
         lines.extend([
-            f"### {alternative.alternative}",
+            f"#### {alternative.alternative}",
             "",
             alternative.rationale,
             "",
@@ -702,16 +771,31 @@ def render_decision_review_packet(
         "Validation plan": decision.validation_plan,
         "Falsification conditions": decision.falsification_conditions,
         "Decision notes": decision.decision_notes,
-    }))
+    }, heading_level=3))
     lines.extend([
-        "## Exact machine contract",
+        "</details>",
         "",
-        "This is the same canonical JSON payload written to the generated "
-        "contract file.",
+    ])
+    lines.extend(_render_exact_payload(
+        "Exact machine contract — code consumption audit",
+        contract.model_dump(mode="json"),
+    ))
+    lines.extend([
+        "<details><summary>Implementation approval template — not part of decision approval</summary>",
         "",
-        "```json",
-        contract_json,
+        "Create this only after code matches an accepted contract and runtime "
+        "activation is separately approved:",
+        "",
+        "```yaml",
+        _render_approval_template(
+            subject_kind=ReviewSubjectKind.IMPLEMENTATION_CONTRACT,
+            subject_id=decision.id,
+            subject_digest=contract.contract_digest,
+            role=ReviewRole.IMPLEMENTATION_REVIEWER,
+        ),
         "```",
+        "",
+        "</details>",
         "",
     ])
     lines.extend(_render_exact_payload(
@@ -849,10 +933,14 @@ def _verification_levels(review: EvidenceReview) -> dict[str, str]:
     return levels
 
 
-def _render_named_lists(sections: dict[str, list[str]]) -> list[str]:
+def _render_named_lists(
+    sections: dict[str, list[str]],
+    *,
+    heading_level: int = 2,
+) -> list[str]:
     lines: list[str] = []
     for heading, values in sections.items():
-        lines.extend([f"## {heading}", ""])
+        lines.extend([f"{'#' * heading_level} {heading}", ""])
         if values:
             lines.extend(f"- {value}" for value in values)
         else:

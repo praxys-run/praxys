@@ -61,6 +61,21 @@ class RegistryModel(BaseModel):
     )
 
 
+def _contains_json_literal(value: Any, literal: str) -> bool:
+    """Return whether a nested JSON-compatible value contains one literal."""
+    if isinstance(value, dict):
+        return any(
+            _contains_json_literal(nested, literal)
+            for nested in value.values()
+        )
+    if isinstance(value, list):
+        return any(
+            _contains_json_literal(nested, literal)
+            for nested in value
+        )
+    return value == literal
+
+
 class RecordStatus(StrEnum):
     """Lifecycle state for immutable registry records."""
 
@@ -82,6 +97,13 @@ class ArtifactRuntimeState(StrEnum):
 
     INACTIVE = "inactive"
     ACTIVE = "active"
+
+
+class DecisionReviewDisposition(StrEnum):
+    """How one human-facing decision item is handled by this SDR."""
+
+    APPROVE = "approve"
+    DEFER = "defer"
 
 
 class ReviewType(StrEnum):
@@ -366,6 +388,56 @@ class DecisionArtifactPolicy(RegistryModel):
     runtime_state: ArtifactRuntimeState = ArtifactRuntimeState.INACTIVE
 
 
+class DecisionReviewItem(RegistryModel):
+    """One explicit decision or deferral presented to the human approver."""
+
+    id: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
+    title: str = Field(min_length=1)
+    disposition: DecisionReviewDisposition
+    question: str = Field(min_length=1)
+    proposed_decision: str = Field(min_length=1)
+    approval_effect: list[str] = Field(min_length=1)
+    does_not_authorize: list[str] = Field(min_length=1)
+    parameter_names: list[str] = Field(min_length=1)
+    evidence_claim_ids: list[ClaimId] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_item(self) -> "DecisionReviewItem":
+        """Keep each decision item's contract and evidence mapping unambiguous."""
+        if len(self.parameter_names) != len(set(self.parameter_names)):
+            raise ValueError(
+                "decision review item parameter names must be unique"
+            )
+        if len(self.evidence_claim_ids) != len(set(self.evidence_claim_ids)):
+            raise ValueError(
+                "decision review item evidence claim IDs must be unique"
+            )
+        return self
+
+
+class DecisionReviewManifest(RegistryModel):
+    """Action-oriented human review sheet bound to one science decision."""
+
+    reviewer_task: str = Field(min_length=1)
+    approval_statement: str = Field(min_length=1)
+    items: list[DecisionReviewItem] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_manifest(self) -> "DecisionReviewManifest":
+        """Require unique items and at least one affirmative product decision."""
+        item_ids = [item.id for item in self.items]
+        if len(item_ids) != len(set(item_ids)):
+            raise ValueError("decision review item IDs must be unique")
+        if not any(
+            item.disposition == DecisionReviewDisposition.APPROVE
+            for item in self.items
+        ):
+            raise ValueError(
+                "decision review manifest requires an approve item"
+            )
+        return self
+
+
 class ScienceDecisionRecord(RegistryModel):
     """Versioned record of how Praxys interprets accepted evidence."""
 
@@ -382,6 +454,7 @@ class ScienceDecisionRecord(RegistryModel):
     evidence_review_ids: list[RecordId] = Field(min_length=1)
     evidence_claim_ids: list[ClaimId] = Field(min_length=1)
     accepted_interpretation: str = Field(min_length=1)
+    decision_review: DecisionReviewManifest | None = None
     rejected_alternatives: list[RejectedAlternative] = Field(min_length=1)
     model_parameters: list[ParameterProvenance] = Field(default_factory=list)
     applicability: list[str] = Field(min_length=1)
@@ -420,9 +493,64 @@ class ScienceDecisionRecord(RegistryModel):
                 raise ValueError(
                     "artifact-reviewed decisions require artifact_policy"
                 )
-        elif self.artifact_policy is not None:
+            if self.decision_review is None:
+                raise ValueError(
+                    "artifact-reviewed decisions require decision_review"
+                )
+            reviewed_parameters = {
+                parameter_name
+                for item in self.decision_review.items
+                for parameter_name in item.parameter_names
+            }
+            unknown_parameters = reviewed_parameters - set(parameter_names)
+            if unknown_parameters:
+                raise ValueError(
+                    "decision review references unknown parameters: "
+                    f"{sorted(unknown_parameters)}"
+                )
+            missing_parameters = set(parameter_names) - reviewed_parameters
+            if missing_parameters:
+                raise ValueError(
+                    "decision review does not cover parameters: "
+                    f"{sorted(missing_parameters)}"
+                )
+            deferred_parameters = {
+                parameter_name
+                for item in self.decision_review.items
+                if item.disposition == DecisionReviewDisposition.DEFER
+                for parameter_name in item.parameter_names
+            }
+            unresolved_parameters = {
+                parameter.name
+                for parameter in self.model_parameters
+                if _contains_json_literal(
+                    parameter.value,
+                    "not_accepted",
+                )
+            }
+            hidden_deferrals = unresolved_parameters - deferred_parameters
+            if hidden_deferrals:
+                raise ValueError(
+                    "decision review does not explicitly defer unresolved "
+                    f"parameters: {sorted(hidden_deferrals)}"
+                )
+            reviewed_claims = {
+                claim_id
+                for item in self.decision_review.items
+                for claim_id in item.evidence_claim_ids
+            }
+            unknown_claims = reviewed_claims - set(self.evidence_claim_ids)
+            if unknown_claims:
+                raise ValueError(
+                    "decision review references unlinked evidence claims: "
+                    f"{sorted(unknown_claims)}"
+                )
+        elif (
+            self.artifact_policy is not None
+            or self.decision_review is not None
+        ):
             raise ValueError(
-                "legacy-reviewed decisions cannot define artifact_policy"
+                "legacy-reviewed decisions cannot define artifact review data"
             )
         if (
             self.artifact_policy is not None

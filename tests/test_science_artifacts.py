@@ -13,6 +13,9 @@ from analysis.evidence_registry import (
     ApprovalMode,
     ArtifactRuntimeState,
     DecisionArtifactPolicy,
+    DecisionReviewDisposition,
+    DecisionReviewItem,
+    DecisionReviewManifest,
     EvidenceReview,
     RecordStatus,
     ScienceDecisionRecord,
@@ -40,6 +43,81 @@ _SHARED_EVIDENCE_ID = "evidence-plan-generation-eligibility-safety-v1"
 _DECISION_ID = "sdr-road-10k-plan-generation-policy-v1"
 
 
+def _decision_review_manifest(
+    decision: ScienceDecisionRecord,
+) -> DecisionReviewManifest:
+    def contains_not_accepted(value: object) -> bool:
+        if isinstance(value, dict):
+            return any(
+                contains_not_accepted(nested)
+                for nested in value.values()
+            )
+        if isinstance(value, list):
+            return any(
+                contains_not_accepted(nested)
+                for nested in value
+            )
+        return value == "not_accepted"
+
+    approved_parameters = [
+        parameter.name
+        for parameter in decision.model_parameters
+        if not contains_not_accepted(parameter.value)
+    ]
+    deferred_parameters = [
+        parameter.name
+        for parameter in decision.model_parameters
+        if contains_not_accepted(parameter.value)
+    ]
+    return DecisionReviewManifest(
+        reviewer_task=(
+            "Decide whether the proposed scope and explicit deferrals are "
+            "acceptable. Do not review implementation code in this role."
+        ),
+        approval_statement=(
+            "I approve every proposed decision and explicit deferral in this "
+            "sheet as one inactive science decision. I am not approving "
+            "implementation or runtime activation."
+        ),
+        items=[
+            DecisionReviewItem(
+                id="policy-boundary",
+                title="Accept the policy boundary",
+                disposition=DecisionReviewDisposition.APPROVE,
+                question="Should Praxys accept this bounded policy?",
+                proposed_decision=(
+                    "Accept the stated scope, safety boundary, and claim limits."
+                ),
+                approval_effect=[
+                    "The mapped contract groups become accepted decision inputs.",
+                ],
+                does_not_authorize=[
+                    "Runtime activation or automatic plan adoption.",
+                ],
+                parameter_names=approved_parameters,
+                evidence_claim_ids=[decision.evidence_claim_ids[0]],
+            ),
+            DecisionReviewItem(
+                id="deferred-implementation-details",
+                title="Keep implementation details deferred",
+                disposition=DecisionReviewDisposition.DEFER,
+                question="Should the remaining implementation details stay open?",
+                proposed_decision=(
+                    "Keep the mapped details unresolved until a later decision."
+                ),
+                approval_effect=[
+                    "The mapped groups remain visible but do not activate code.",
+                ],
+                does_not_authorize=[
+                    "Filling deferred values from prose, defaults, or AI.",
+                ],
+                parameter_names=deferred_parameters,
+                evidence_claim_ids=[],
+            ),
+        ],
+    )
+
+
 def _write_yaml(path: Path, payload: dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -64,10 +142,12 @@ def _write_fixture_records(
         if status == RecordStatus.ACCEPTED
         else None,
     })
-    decision = current.decisions[_DECISION_ID].model_copy(update={
+    base_decision = current.decisions[_DECISION_ID]
+    decision = base_decision.model_copy(update={
         "status": status,
         "approval_mode": ApprovalMode.ARTIFACT,
         "human_reviewers": [],
+        "decision_review": _decision_review_manifest(base_decision),
         "artifact_policy": DecisionArtifactPolicy(
             runtime_state=runtime_state,
         ),
@@ -198,6 +278,17 @@ def test_draft_artifact_records_render_complete_review_and_contract(
     assert "activity_avg_power" in expected[decision_packet_path]
     assert "Exact reviewed evidence payload" in expected[evidence_packet_path]
     assert "range -0.28 to 0.25" in expected[evidence_packet_path]
+    packet = expected[decision_packet_path]
+    assert packet.index("## Your task") < packet.index("## Decision sheet")
+    assert packet.index("## Decision sheet") < packet.index(
+        "## Audit appendix"
+    )
+    assert "Approve the decision sheet as a unit" in packet
+    assert "Proposed decisions to approve" in packet
+    assert "Decisions explicitly deferred" in packet
+    assert "Do not approve merely because the audit appendix" in packet
+    assert "I approve every proposed decision" in packet
+    assert "<details><summary>Evidence, parameters" in packet
 
     assert sync_science_artifacts(registry, check=False)
     assert sync_science_artifacts(registry, check=True) == []
@@ -212,15 +303,68 @@ def test_draft_artifact_records_render_complete_review_and_contract(
     assert sync_science_artifacts(registry, check=True) == [contract_path]
 
 
+def test_artifact_decision_review_must_cover_every_contract_group(
+    tmp_path: Path,
+) -> None:
+    science_dir = tmp_path / "science"
+    _, decision = _write_fixture_records(
+        science_dir,
+        status=RecordStatus.DRAFT,
+    )
+    payload = decision.model_dump(mode="json")
+
+    payload_without_review = {
+        **payload,
+        "decision_review": None,
+    }
+    with pytest.raises(
+        ValidationError,
+        match="require decision_review",
+    ):
+        ScienceDecisionRecord.model_validate(payload_without_review)
+
+    missing_payload = json.loads(json.dumps(payload))
+    missing_payload["decision_review"]["items"][0][
+        "parameter_names"
+    ].pop()
+    with pytest.raises(
+        ValidationError,
+        match="does not cover parameters",
+    ):
+        ScienceDecisionRecord.model_validate(missing_payload)
+
+    unknown_payload = json.loads(json.dumps(payload))
+    unknown_payload["decision_review"]["items"][0][
+        "parameter_names"
+    ].append("unknown_contract_group")
+    with pytest.raises(
+        ValidationError,
+        match="references unknown parameters",
+    ):
+        ScienceDecisionRecord.model_validate(unknown_payload)
+
+    hidden_deferral_payload = json.loads(json.dumps(payload))
+    hidden_deferral_payload["decision_review"]["items"][1][
+        "disposition"
+    ] = DecisionReviewDisposition.APPROVE.value
+    with pytest.raises(
+        ValidationError,
+        match="does not explicitly defer unresolved parameters",
+    ):
+        ScienceDecisionRecord.model_validate(hidden_deferral_payload)
+
+
 def test_review_digests_ignore_lifecycle_but_change_reviewed_content() -> None:
     current = load_science_registry()
     review = current.evidence_reviews[_EVIDENCE_ID].model_copy(update={
         "approval_mode": ApprovalMode.ARTIFACT,
         "human_reviewers": [],
     })
-    decision = current.decisions[_DECISION_ID].model_copy(update={
+    base_decision = current.decisions[_DECISION_ID]
+    decision = base_decision.model_copy(update={
         "approval_mode": ApprovalMode.ARTIFACT,
         "human_reviewers": [],
+        "decision_review": _decision_review_manifest(base_decision),
         "artifact_policy": DecisionArtifactPolicy(),
     })
 

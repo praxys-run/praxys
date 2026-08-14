@@ -88,6 +88,12 @@ contract with matching digests. Humans approve the generated packet through a
 role-scoped approval artifact; runtime code consumes only the generated
 contract and never derives values from prose.
 
+Artifact-mode SDRs also provide a typed `decision_review` manifest. The
+generated packet begins with its concise decision sheet; every contract
+parameter group must be mapped to an explicit proposed decision or deferral.
+The complete evidence, parameter, and contract material remains a collapsed
+audit appendix rather than the reviewer's primary task.
+
 ### Research before changing science
 
 Use the repository-owned
