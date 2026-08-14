@@ -23,6 +23,24 @@ from analysis.metrics import compute_heat_adaptation
 from analysis.science import load_theory
 
 
+def _assert_exact_verification_notes(review: EvidenceReview) -> None:
+    """Require one recognized verification level for every cited source."""
+    allowed_levels = {"full-text", "abstract", "metadata", "inaccessible"}
+    notes = [
+        note
+        for note in review.review_notes
+        if note.startswith("Verification:")
+    ]
+
+    assert len(notes) == len(review.citations)
+    for citation in review.citations:
+        marker = f"Verification: {citation.id} - "
+        matches = [note for note in notes if note.startswith(marker)]
+        assert len(matches) == 1
+        level = matches[0].split(";", 1)[0].removeprefix(marker).strip()
+        assert level in allowed_levels
+
+
 def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     registry = load_science_registry()
 
@@ -300,7 +318,7 @@ def test_plan_generation_eligibility_proposal_stays_inactive_and_cross_cutting()
         "eligibility.novice-recreational-different-evidence-family",
         "eligibility.recent-history-anchor-without-universal-threshold",
         "eligibility.goal-relevant-current-capability-task-specific",
-        "eligibility.masters-modifier-not-age-exclusion",
+        "eligibility.masters-age-change-not-automatic-exclusion",
         "eligibility.current-symptoms-support-stop-not-clearance",
         "eligibility.evidence-quality-no-personal-probability",
     } <= {claim.id for claim in review.claims}
@@ -309,6 +327,7 @@ def test_plan_generation_eligibility_proposal_stays_inactive_and_cross_cutting()
         "Verification: correia-2024 - full-text",
         "Verification: boullosa-2020 - full-text",
     } <= {note.split(";", 1)[0] for note in review.review_notes}
+    _assert_exact_verification_notes(review)
 
     assert decision.status == "draft"
     assert decision.human_reviewers == []
@@ -365,6 +384,15 @@ def test_plan_generation_eligibility_proposal_stays_inactive_and_cross_cutting()
     assert parameters["history_depth_states"].value[
         "cross_cutting_minimum_weeks"
     ] == "none_defined"
+    assert parameters["history_depth_states"].value["states"] == [
+        "no_usable_history",
+        "sparse_history",
+        "history_rich",
+        "unknown",
+    ]
+    assert parameters["history_depth_states"].value[
+        "first_attempt_or_goal_distance_novel_is_history_state"
+    ] is False
     patterns = parameters["dynamic_training_context_patterns"].value
     assert patterns["pattern_is_person_identity"] is False
     assert patterns["time_bounded"] is True
@@ -384,6 +412,9 @@ def test_plan_generation_eligibility_proposal_stays_inactive_and_cross_cutting()
     )
     assert event_context[
         "race_or_maximal_effort_counts_as_training_load"
+    ] is True
+    assert event_context[
+        "race_or_maximal_effort_counts_as_quality_session"
     ] is True
     outcomes = parameters["eligibility_outcomes"].value
     assert outcomes["goal_recorded_plan_policy_unavailable"] == (

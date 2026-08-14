@@ -17,7 +17,7 @@ evidence_claim_ids:
   - eligibility.goal-relevant-current-capability-task-specific
   - eligibility.intensity-mostly-low-no-universal-winner
   - eligibility.one-to-two-quality-sessions-indirect
-  - eligibility.masters-modifier-not-age-exclusion
+  - eligibility.masters-age-change-not-automatic-exclusion
   - eligibility.current-symptoms-support-stop-not-clearance
   - eligibility.evidence-quality-no-personal-probability
 accepted_interpretation: >
@@ -223,7 +223,7 @@ model_parameters:
       - eligibility.novice-recreational-different-evidence-family
       - eligibility.recent-history-anchor-without-universal-threshold
       - eligibility.goal-relevant-current-capability-task-specific
-      - eligibility.masters-modifier-not-age-exclusion
+      - eligibility.masters-age-change-not-automatic-exclusion
     rationale: >
       Independent axes prevent a matching goal label from erasing population,
       history, capability, event, evidence, or safety differences and prevent a
@@ -247,7 +247,7 @@ model_parameters:
     evidence_claim_ids:
       - eligibility.novice-recreational-different-evidence-family
       - eligibility.recent-history-anchor-without-universal-threshold
-      - eligibility.masters-modifier-not-age-exclusion
+      - eligibility.masters-age-change-not-automatic-exclusion
     rationale: >
       The routing preserves applicability without inventing exact age, history,
       dose, or identity cutoffs. States describe the current evidence window
@@ -258,10 +258,12 @@ model_parameters:
   - name: history_depth_states
     value:
       states:
-        - beginner_or_goal_distance_novel
+        - no_usable_history
         - sparse_history
         - history_rich
         - unknown
+      first_attempt_or_goal_distance_novel_is_history_state: false
+      first_attempt_is_capability_pattern: true
       cross_cutting_minimum_weeks: none_defined
       cross_cutting_minimum_sessions: none_defined
       cross_cutting_latest_run_days: none_defined
@@ -362,6 +364,7 @@ model_parameters:
       no_event_performance_route: separately_accepted_opt_in_benchmark
       no_automatic_goal_activity_date: true
       race_or_maximal_effort_counts_as_training_load: true
+      race_or_maximal_effort_counts_as_quality_session: true
       distance_policy_must_reconcile:
         - quality_session_count
         - spacing
@@ -540,7 +543,7 @@ model_parameters:
       can_be_promoted_to_separate_family_after_validation: true
     classification: guardrail
     evidence_claim_ids:
-      - eligibility.masters-modifier-not-age-exclusion
+      - eligibility.masters-age-change-not-automatic-exclusion
     rationale: >
       Age affects physiology without determining individual capability. A
       modifier keeps uncertainty visible while avoiding unsupported exclusion
@@ -597,7 +600,7 @@ model_parameters:
         - delete
     classification: guardrail
     evidence_claim_ids:
-      - eligibility.masters-modifier-not-age-exclusion
+      - eligibility.masters-age-change-not-automatic-exclusion
       - eligibility.evidence-quality-no-personal-probability
     rationale: >
       The review does not show that every demographic field improves every

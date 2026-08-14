@@ -351,13 +351,12 @@ claims:
       - The source is a narrative review of heterogeneous studies.
       - It does not compare exactly one versus two quality sessions.
       - It does not define spacing, duration, taxonomy, or a safety limit.
-  - id: eligibility.masters-modifier-not-age-exclusion
+  - id: eligibility.masters-age-change-not-automatic-exclusion
     statement: >
       Endurance performance and training capacity change with age, while
       masters athletes and older adults can retain high capability and benefit
-      from continued exercise. Age alone does not support automatic exclusion;
-      masters status is better treated as an explicit uncertainty and recovery
-      modifier alongside actual capability and recent history.
+      from continued exercise. The reviewed evidence supports neither
+      automatic exclusion by age nor a universal age cutoff or recovery rule.
     source_ids:
       - tanaka-2008
       - chodzko-zajko-2009
@@ -378,10 +377,11 @@ claims:
     domain:
       - Age and masters status
       - Training capacity
-      - Eligibility modifier
+      - Eligibility non-exclusion
     limitations:
       - Masters athletes are selected, trained populations and are not representative of every older runner.
       - The evidence does not define an age cutoff, recovery rule, or safe automatic plan.
+      - Treating age as an uncertainty or recovery modifier is a Praxys guardrail that requires prospective validation.
       - Women and older women are underrepresented.
   - id: eligibility.current-symptoms-support-stop-not-clearance
     statement: >
