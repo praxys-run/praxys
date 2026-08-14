@@ -12,7 +12,10 @@ Do not check any item that was not actually performed.
 - [ ] Each formula, constant, and user-facing claim has provenance or an explicit estimate/guardrail rationale.
 - [ ] Applicability, uncertainty, safety boundaries, and rejected alternatives are documented.
 - [ ] Record lifecycle is versioned/superseded; accepted evidence and decisions were not rewritten.
-- [ ] A human reviewer is named for any accepted SDR or shipped scientific behavior.
+- [ ] Artifact-mode review packets and machine contracts were regenerated and carry matching source/contract digests.
+- [ ] Every code-consumed field appears verbatim in the generated human review packet.
+- [ ] Accepted artifact-mode records include the required digest-bound `evidence_reviewer` or `decision_approver`; active contracts include an `implementation_reviewer`.
+- [ ] Accepted legacy records still identify their human reviewer and review date.
 
 ## Product and implementation
 
@@ -24,6 +27,7 @@ Do not check any item that was not actually performed.
 ## Validation and review
 
 - [ ] Tests cover the changed behavior and the stated validation/falsification plan.
+- [ ] `python scripts/generate_science_artifacts.py --check` passes.
 - [ ] English and Chinese scientific copy have been reviewed for equivalent meaning.
 - [ ] `science-reviewer` ran for `analysis/` or `data/science/` changes and reported its source-verification boundary.
 - [ ] `metric-addition-reviewer` and `api-contract-reviewer` ran when their scopes apply.
