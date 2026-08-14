@@ -12,6 +12,10 @@
 # minor-version bump can rename either. Re-validate with
 # scripts/garmin_diagnose.py before loosening this bound.
 garminconnect>=0.3.9,<0.4.0
+# Unofficial Stryd PowerCenter transport extracted from Praxys. The release
+# artifact is hash-pinned because the upstream API is undocumented and this
+# dependency owns the compatibility boundary.
+stryd-client @ https://github.com/praxys-run/python-stryd-client/releases/download/v0.1.1/stryd_client-0.1.1-py3-none-any.whl#sha256=634ad3022ef89b1e974de2f1378479f4bbc8ad501d0e6eb611e917cf27812f52
 requests>=2.34.2
 python-dotenv>=1.2.2
 pandas>=3.0.5
