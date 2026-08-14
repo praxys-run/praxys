@@ -3,7 +3,7 @@
     "road-half-marathon-plan-generation-policy-v1",
     "shared dynamic training-pattern and confirmed event snapshots"
   ],
-  "contract_digest": "sha256:2a9519c747d1c2b7bf80eefa1008f6b9687d69493f0d656aae0a647699ab40cc",
+  "contract_digest": "sha256:a1d99a0b562d2b5a04ae5057793dd915e486c7dc5f3667e26aff197210942afe",
   "decision_id": "sdr-road-half-marathon-plan-generation-policy-v1",
   "decision_status": "draft",
   "decision_version": 1,
@@ -751,5 +751,5 @@
   },
   "runtime_state": "inactive",
   "schema_version": 1,
-  "source_decision_digest": "sha256:ea808fa86de3b3b91b81d76da3eb91991cfdbf93da11d0f343cb4594be55e9f7"
+  "source_decision_digest": "sha256:8b578c26dc6ed33eaed91c881edb68de4693a657f370d37e98d96ef04e35ed68"
 }

@@ -856,6 +856,42 @@ def test_road_half_marathon_policy_is_draft_artifact_and_inactive() -> None:
         parameter.name: parameter
         for parameter in decision.model_parameters
     }
+    assert decision.decision_review is not None
+    review_items = {
+        item.id: item
+        for item in decision.decision_review.items
+    }
+    assert {
+        item_id
+        for item_id, item in review_items.items()
+        if item.disposition.value == "approve"
+    } == {
+        "supported-scope",
+        "evidence-use",
+        "hard-boundaries",
+        "mostly-low-structure",
+    }
+    assert {
+        item_id
+        for item_id, item in review_items.items()
+        if item.disposition.value == "defer"
+    } == {
+        "defer-baseline-history",
+        "defer-dose-taper",
+        "defer-fueling",
+        "defer-pilot-activation",
+    }
+    assert {
+        parameter_name
+        for item in review_items.values()
+        for parameter_name in item.parameter_names
+    } == set(parameters)
+    assert "mostly-low-intensity organizational boundary" in (
+        decision.decision_review.approval_statement
+    )
+    assert "does not approve implementation or runtime activation" in (
+        decision.decision_review.approval_statement
+    )
     assert all(
         not name.startswith(("road_10k_", "outdoor_5k_"))
         for name in parameters

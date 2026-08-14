@@ -566,7 +566,20 @@ def test_half_marathon_packet_contains_exact_inactive_contract() -> None:
     ]["exact_workout_templates"] == "not_accepted"
     assert exact_contract_block in packet
     assert packet.count("_Pending_") >= 2
-    assert "## Exact machine contract" in packet
+    assert packet.index("## Your task") < packet.index("## Decision sheet")
+    assert packet.index("## Decision sheet") < packet.index(
+        "## Audit appendix"
+    )
+    assert "`supported-scope`" in packet
+    assert "`evidence-use`" in packet
+    assert "`hard-boundaries`" in packet
+    assert "`mostly-low-structure`" in packet
+    assert "`defer-baseline-history`" in packet
+    assert "`defer-dose-taper`" in packet
+    assert "`defer-fueling`" in packet
+    assert "`defer-pilot-activation`" in packet
+    assert "Exact machine contract — code consumption audit" in packet
+    assert "<details><summary>Traceability:" in packet
     assert "activity_avg_power" in packet
     assert "Review this packet, not the raw YAML" in expected[
         evidence_packet_path
