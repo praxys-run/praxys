@@ -22,7 +22,7 @@ Garmin/Stryd/Oura APIs → sync/*.py → db/sync_writer.py → SQLite (trainsigh
 
 | Directory | Owns | Key Files |
 |-----------|------|-----------|
-| `sync/` | Platform fetch + parse | `garmin_sync.py`, `stryd_sync.py`, `oura_sync.py`, `csv_utils.py` |
+| `sync/` | Platform fetch + parse (`stryd_sync.py` uses the external `stryd-client` transport) | `garmin_sync.py`, `stryd_sync.py`, `oura_sync.py`, `csv_utils.py` |
 | `analysis/` | Metric computation | `metrics.py` (pure functions), `data_loader.py` (loads from DB), `science.py` (theory YAML loader), `evidence_registry.py` (versioned evidence/SDR validation), `config.py` (`UserConfig`), `zones.py`, `thresholds.py`, `training_base.py` |
 | `analysis/providers/` | Pluggable data sources | `base.py` (ABCs), `garmin.py`, `stryd.py`, `oura.py`, `ai.py`, `models.py` |
 | `db/` | SQLite layer | `models.py` (SQLAlchemy), `session.py`, `crypto.py` (Fernet credential encryption), `sync_writer.py` (upserts), `sync_scheduler.py` |
@@ -48,6 +48,7 @@ All training metrics, predictions, and insights must be grounded in exercise sci
 - **Use published values** over guesswork (Stryd race power percentages, Riegel, Banister TRIMP)
 - **Flag estimates** — values without strong research backing noted as estimates in code and UI
 - **Register new theories** — new theory YAML must link an accepted Science Decision Record; unlinked legacy theories are migration-only exceptions
+- **Separate review from runtime artifacts** — new science records use generated human review packets, generated machine contracts, matching digests, and role-scoped approvals; runtime code never derives values from prose
 
 ## Gotchas
 

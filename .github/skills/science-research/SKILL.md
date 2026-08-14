@@ -145,8 +145,21 @@ Follow the existing registry schema and lifecycle:
   every parameter as `published`, `estimate`, or `guardrail`, and document
   rejected alternatives, claim limits, safety/privacy implications, and a
   falsification plan.
-- Only an identified human reviewer can accept an SDR or approve a behavior
-  change. Regenerate `data/science/REGISTRY.md` after valid record changes.
+- New records use `approval_mode: artifact`; draft SDRs declare
+  `artifact_policy.runtime_state: inactive`.
+- Run `python scripts/generate_science_artifacts.py` and hand reviewers the
+  generated Markdown packet, not raw YAML. The packet must include the exact
+  machine JSON contract and the same decision/contract digests.
+- Evidence, decision, and implementation review are separate roles. Only a
+  digest-bound `evidence_reviewer` may accept an artifact-mode Evidence Review;
+  only a `decision_approver` may accept its SDR; only an
+  `implementation_reviewer` may activate its contract.
+- A human reviewer fills each of those roles; generated packets, schema
+  validation, agents, and CI cannot substitute for that judgment.
+- Agents may prepare canonical records, packets, contracts, and lifecycle
+  patches. They may not create human approval artifacts, accept records,
+  activate contracts, or claim approval.
+- Regenerate `data/science/REGISTRY.md` after valid record changes.
 
 ## 5. Map evidence to product behavior
 
@@ -198,6 +211,9 @@ End every run with these artifacts or explicitly state why one does not apply:
 3. Concise product recommendation, alternatives considered, and claim limits.
 4. Unresolved evidence gaps, conflicts, and validation/falsification plan.
 5. Implementation impact map and reviewer checklist.
+6. For artifact-mode work, generated Evidence Review and SDR review packets,
+   the exact inactive machine contract, and any still-missing role-scoped
+   approval artifacts.
 
 Name the mode, verification limits, and the human approval still required in
 the handoff. Do not present a draft as shipped science.

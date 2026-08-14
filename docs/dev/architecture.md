@@ -122,13 +122,17 @@ If `KEY_VAULT_URL` is set, the `CredentialVault` initializes an Azure `Cryptogra
 
 ### Plan Delivery Boundary
 
-`api/plan_delivery/` separates provider-neutral orchestration from Stryd API
-details. The service authenticates before starting a durable attempt, scopes
-credentials and ledger rows to the authenticated Praxys user, and records a
-fingerprint of the exact provider payload (including CP-derived workout
-blocks), plus a normalized content fingerprint that excludes volatile provider
-identifiers. The canonical Praxys plan version remains separate so
-reconciliation can distinguish a Praxys edit from a target edit.
+`api/plan_delivery/` separates provider-neutral orchestration from Stryd
+details. Raw authentication and PowerCenter HTTP operations live in the
+external [`stryd-client`](https://github.com/praxys-run/python-stryd-client)
+package; `sync/stryd_sync.py` retains Praxys-specific parsing, workout
+translation, and fingerprints. The service authenticates before starting a
+durable attempt, scopes credentials and ledger rows to the authenticated
+Praxys user, and records a fingerprint of the exact provider payload
+(including CP-derived workout blocks), plus a normalized content fingerprint
+that excludes volatile provider identifiers. The canonical Praxys plan version
+remains separate so reconciliation can distinguish a Praxys edit from a target
+edit.
 
 Successful creates persist the authenticated provider account ID. A later
 delete is refused if the user has reconnected a different provider account.
@@ -514,11 +518,15 @@ Database layer:
 
 ### sync/
 
-Each sync script (`garmin_sync.py`, `stryd_sync.py`, `oura_sync.py`) is self-contained:
+Each sync adapter (`garmin_sync.py`, `stryd_sync.py`, `oura_sync.py`):
 - Authenticates with the platform API
 - Fetches new data since last sync (or from `--from-date`)
 - Normalizes to the model schema
 - Writes to the database via `db/sync_writer.py`
+
+Stryd's undocumented endpoint transport is isolated in the external
+`stryd-client` package. Praxys owns only normalization, persistence, and
+training/workout semantics around the raw responses.
 
 `sync_all.py` orchestrates all three with error isolation per source.
 
