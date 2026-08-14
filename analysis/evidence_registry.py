@@ -70,6 +70,20 @@ class RecordStatus(StrEnum):
     RETIRED = "retired"
 
 
+class ApprovalMode(StrEnum):
+    """How human review is recorded for one science record."""
+
+    LEGACY = "legacy"
+    ARTIFACT = "artifact"
+
+
+class ArtifactRuntimeState(StrEnum):
+    """Whether a generated implementation contract may be consumed."""
+
+    INACTIVE = "inactive"
+    ACTIVE = "active"
+
+
 class ReviewType(StrEnum):
     """Depth of the documented literature review."""
 
@@ -251,6 +265,7 @@ class EvidenceReview(RegistryModel):
     research_question: str = Field(min_length=1)
     topic: str = Field(min_length=1)
     status: RecordStatus
+    approval_mode: ApprovalMode = ApprovalMode.LEGACY
     authors: list[Identity] = Field(min_length=1)
     human_reviewers: list[Identity] = Field(default_factory=list)
     created_on: date
@@ -282,7 +297,18 @@ class EvidenceReview(RegistryModel):
             raise ValueError("citation IDs must be unique within a review")
         if self.reviewed_on is not None and self.reviewed_on < self.created_on:
             raise ValueError("reviewed_on must not predate created_on")
-        if self.status in {RecordStatus.ACCEPTED, RecordStatus.SUPERSEDED}:
+        if (
+            self.approval_mode == ApprovalMode.ARTIFACT
+            and self.human_reviewers
+        ):
+            raise ValueError(
+                "artifact-reviewed records use role-scoped approval files, "
+                "not human_reviewers"
+            )
+        if (
+            self.approval_mode == ApprovalMode.LEGACY
+            and self.status in {RecordStatus.ACCEPTED, RecordStatus.SUPERSEDED}
+        ):
             _require_human_review(self.human_reviewers, self.reviewed_on)
         if self.status == RecordStatus.SUPERSEDED and self.superseded_by is None:
             raise ValueError("superseded records require superseded_by")
@@ -334,6 +360,12 @@ class AffectedSurfaces(RegistryModel):
     science_notes: list[str] = Field(default_factory=list)
 
 
+class DecisionArtifactPolicy(RegistryModel):
+    """Generated-artifact and runtime-consumption boundary for one SDR."""
+
+    runtime_state: ArtifactRuntimeState = ArtifactRuntimeState.INACTIVE
+
+
 class ScienceDecisionRecord(RegistryModel):
     """Versioned record of how Praxys interprets accepted evidence."""
 
@@ -342,6 +374,7 @@ class ScienceDecisionRecord(RegistryModel):
     version: int = Field(ge=1)
     title: str = Field(min_length=1)
     status: RecordStatus
+    approval_mode: ApprovalMode = ApprovalMode.LEGACY
     decision_date: date
     owners: list[Identity] = Field(min_length=1)
     human_reviewers: list[Identity] = Field(default_factory=list)
@@ -358,6 +391,7 @@ class ScienceDecisionRecord(RegistryModel):
     validation_plan: list[str] = Field(min_length=1)
     falsification_conditions: list[str] = Field(min_length=1)
     affected_surfaces: AffectedSurfaces
+    artifact_policy: DecisionArtifactPolicy | None = None
     supersedes: list[RecordId] = Field(default_factory=list)
     superseded_by: RecordId | None = None
     decision_notes: list[str] = Field(default_factory=list)
@@ -376,7 +410,32 @@ class ScienceDecisionRecord(RegistryModel):
             raise ValueError("evidence review IDs must be unique")
         if len(self.evidence_claim_ids) != len(set(self.evidence_claim_ids)):
             raise ValueError("evidence claim IDs must be unique")
-        if self.status in {RecordStatus.ACCEPTED, RecordStatus.SUPERSEDED}:
+        if self.approval_mode == ApprovalMode.ARTIFACT:
+            if self.human_reviewers:
+                raise ValueError(
+                    "artifact-reviewed records use role-scoped approval files, "
+                    "not human_reviewers"
+                )
+            if self.artifact_policy is None:
+                raise ValueError(
+                    "artifact-reviewed decisions require artifact_policy"
+                )
+        elif self.artifact_policy is not None:
+            raise ValueError(
+                "legacy-reviewed decisions cannot define artifact_policy"
+            )
+        if (
+            self.artifact_policy is not None
+            and self.artifact_policy.runtime_state == ArtifactRuntimeState.ACTIVE
+            and self.status != RecordStatus.ACCEPTED
+        ):
+            raise ValueError(
+                "active implementation contracts require an accepted decision"
+            )
+        if (
+            self.approval_mode == ApprovalMode.LEGACY
+            and self.status in {RecordStatus.ACCEPTED, RecordStatus.SUPERSEDED}
+        ):
             _require_human_review(self.human_reviewers, self.decision_date)
         if self.status == RecordStatus.SUPERSEDED and self.superseded_by is None:
             raise ValueError("superseded records require superseded_by")
@@ -576,7 +635,7 @@ def _load_science_registry(root: Path) -> ScienceRegistry:
     _validate_supersession(evidence_reviews)
     _validate_supersession(decisions)
 
-    return ScienceRegistry(
+    registry = ScienceRegistry(
         science_dir=root,
         evidence_reviews=evidence_reviews,
         decisions=decisions,
@@ -586,6 +645,10 @@ def _load_science_registry(root: Path) -> ScienceRegistry:
         review_paths=review_paths,
         decision_paths=decision_paths,
     )
+    from analysis.science_artifacts import validate_registry_approvals
+
+    validate_registry_approvals(registry)
+    return registry
 
 
 def _validate_schema_version(raw: dict[str, Any], path: Path) -> None:
