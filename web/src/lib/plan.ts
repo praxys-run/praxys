@@ -1,6 +1,7 @@
 import type { PlanManagementConfig, PlannedWorkout } from '@/types/api';
 
 export const MANAGED_PLAN_WINDOW_DAYS = 14;
+export const MAX_MANAGED_PLAN_WINDOW_DAYS = 28;
 
 function utcIsoDate(value: Date): string {
   const year = value.getUTCFullYear();

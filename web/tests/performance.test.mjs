@@ -8,7 +8,15 @@ import { initialDashboardUrl } from '../src/lib/dashboard-prefetch.ts';
 test('prefetches the authenticated cold-load dashboard route', () => {
   assert.equal(initialDashboardUrl('/today', true), '/api/today');
   assert.equal(initialDashboardUrl('/analysis', true), '/api/training');
-  assert.equal(initialDashboardUrl('/training', true), null);
+  const trainingUrl = initialDashboardUrl('/training', true);
+  assert.match(
+    trainingUrl,
+    /^\/api\/plan\?start=\d{4}-\d{2}-\d{2}&end=\d{4}-\d{2}-\d{2}$/,
+  );
+  const trainingWindow = new URL(trainingUrl, 'https://www.praxys.run');
+  const start = Date.parse(trainingWindow.searchParams.get('start'));
+  const end = Date.parse(trainingWindow.searchParams.get('end'));
+  assert.equal((end - start) / 86_400_000, 27);
   assert.equal(initialDashboardUrl('/', true), '/api/today');
   assert.equal(initialDashboardUrl('/today', false), null);
   assert.equal(initialDashboardUrl('/settings', true), null);

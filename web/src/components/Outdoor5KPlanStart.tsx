@@ -142,19 +142,33 @@ export default function Outdoor5KPlanStart() {
   const { t } = useLingui();
   const { locale } = useLocale();
   const { isDemo } = useAuth();
-  const { config, planDeliveryOptions, updateSettings } = useSettings();
+  const {
+    config,
+    error: settingsError,
+    loading: settingsLoading,
+    planDeliveryOptions,
+    refetch: refetchSettings,
+    updateSettings,
+  } = useSettings();
   const navigate = useNavigate();
+  const performance5kGoal = config?.goal.goal_kind === 'performance_5k';
   const {
     data: goal,
     loading: goalLoading,
     error: goalError,
     refetch: refetchGoal,
-  } = useApi<GoalResponse>('/api/goal', { timeoutMs: 12_000 });
+  } = useApi<GoalResponse>(
+    '/api/goal',
+    { timeoutMs: 12_000, enabled: performance5kGoal },
+  );
   const {
     data: currentProposal,
     error: currentProposalError,
     refetch: refetchProposal,
-  } = useApi<AdaptivePlanProposal>('/api/plan/proposals/current', { timeoutMs: 12_000 });
+  } = useApi<AdaptivePlanProposal>(
+    '/api/plan/proposals/current',
+    { timeoutMs: 12_000, enabled: performance5kGoal },
+  );
 
   const [availableDays, setAvailableDays] = useState<Outdoor5KWeekday[]>([]);
   const [dayLimits, setDayLimits] = useState<DayLimits>({});
@@ -410,21 +424,23 @@ export default function Outdoor5KPlanStart() {
     }
   };
 
-  if (goalLoading) return <PlanStartSkeleton />;
+  if (settingsLoading) return <PlanStartSkeleton />;
 
-  if (goalError) {
+  if (settingsError) {
     return (
       <Alert id="outdoor-5k-plan" variant="destructive">
         <AlertTitle><Trans>Could not load plan-start context</Trans></AlertTitle>
         <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-          <span>{goalError}</span>
-          <Button variant="outline" size="sm" onClick={() => void refetchGoal()}><Trans>Retry</Trans></Button>
+          <span>{settingsError}</span>
+          <Button variant="outline" size="sm" onClick={refetchSettings}><Trans>Retry</Trans></Button>
         </AlertDescription>
       </Alert>
     );
   }
 
-  if (goal?.goal_kind !== 'performance_5k') {
+  if (!config) return <PlanStartSkeleton />;
+
+  if (!performance5kGoal) {
     return (
       <Card id="outdoor-5k-plan">
         <CardHeader>
@@ -439,6 +455,20 @@ export default function Outdoor5KPlanStart() {
       </Card>
     );
   }
+
+  if (goalError) {
+    return (
+      <Alert id="outdoor-5k-plan" variant="destructive">
+        <AlertTitle><Trans>Could not load plan-start context</Trans></AlertTitle>
+        <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+          <span>{goalError}</span>
+          <Button variant="outline" size="sm" onClick={() => void refetchGoal()}><Trans>Retry</Trans></Button>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (goalLoading || !goal) return <PlanStartSkeleton />;
 
   const baseline = goal.baseline;
   const result = readiness?.result;
