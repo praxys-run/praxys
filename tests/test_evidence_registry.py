@@ -572,15 +572,27 @@ def test_road_10k_policy_proposal_is_distance_specific_and_inactive() -> None:
         "accepted"
     )
     assert parameters["road_10k_goal_tuple"].value["goal_kind"] == (
-        "performance_10k"
+        "distance_10k"
+    )
+    assert parameters["road_10k_goal_tuple"].value["goal_intent"] == (
+        "performance"
     )
     assert parameters["road_10k_goal_tuple"].value["distance_m"] == 10000
     assert parameters["road_10k_goal_tuple"].value["surface"] == (
         "outdoor_road"
     )
-    assert parameters["road_10k_supported_population"].value[
-        "minimum_age_years"
-    ] == 18
+    assert parameters["road_10k_goal_tuple"].value[
+        "target_time_optional"
+    ] is True
+    assert parameters["road_10k_goal_tuple"].value[
+        "no_event_performance_goal_supported"
+    ] is True
+    pattern = parameters["road_10k_supported_training_pattern"].value
+    assert pattern["adult_scope"] == "confirmed"
+    assert pattern["capability_pattern"] == "currently_capable_10k"
+    assert pattern[
+        "recreational_serious_professional_or_elite_identity_used"
+    ] is False
     assert parameters["road_10k_direct_baseline_hierarchy"].value[
         "excluded_as_direct_baseline"
     ][0] == "five_k_result_or_conversion"
@@ -607,18 +619,41 @@ def test_road_10k_policy_proposal_is_distance_specific_and_inactive() -> None:
     assert history["disallowed_intensity_source"] == [
         "activity_avg_power"
     ]
-    assert parameters["road_10k_block_and_reassessment"].value[
-        "full_block_days"
-    ] == 42
-    assert parameters["road_10k_block_and_reassessment"].value[
-        "reassessment_interval_days"
-    ] == 14
-    target_routing = parameters["road_10k_target_date_routing"].value
-    assert target_routing["target_8_to_14_completed_days_away"] == (
-        "taper_only_proposal_if_all_other_inputs_pass"
+    rolling = parameters[
+        "road_10k_rolling_planning_and_reassessment"
+    ].value
+    assert rolling["fixed_full_block_days"] == "none_defined"
+    assert rolling["fixed_horizon_eligibility_gate"] is False
+    assert rolling["exact_committed_execution_window_days"] == (
+        "not_accepted"
     )
-    assert target_routing["target_0_to_7_completed_days_away"] == (
-        "insufficient_policy_horizon"
+    assert {
+        "new_or_changed_confirmed_event",
+        "material_training_pattern_change",
+        "athlete_requested_review",
+    } <= set(rolling["reassessment_triggers"])
+    target_routing = parameters["road_10k_target_date_routing"].value
+    assert target_routing["no_target_date"] == (
+        "rolling_performance_plan_with_optional_opt_in_benchmark"
+    )
+    assert target_routing["target_within_8_to_14_completed_days"] == (
+        "taper_or_maintain_only_if_all_other_inputs_pass"
+    )
+    assert target_routing["short_horizon_invalidates_goal"] is False
+    event_context = parameters[
+        "road_10k_event_and_benchmark_context"
+    ].value
+    assert event_context["imported_event_must_be_athlete_confirmed"] is True
+    assert event_context["every_race_or_maximal_effort"] == {
+        "counts_as_quality_session": True,
+        "counts_as_training_load": True,
+        "requires_recovery_and_spacing_validation": True,
+    }
+    assert event_context["no_event_performance_goal"][
+        "optional_benchmark"
+    ]["never_auto_schedule"] is True
+    assert event_context["no_event_completion_goal"] == (
+        "route_to_separate_completion_policy"
     )
     assert parameters["road_10k_running_frequency"].value[
         "minimum_running_days_per_7_day_unit"
@@ -685,23 +720,32 @@ def test_road_10k_policy_proposal_is_distance_specific_and_inactive() -> None:
         for name, outcome in typed_outcomes["outcomes"].items()
         if outcome["plan_returned"] is False
     } == {
-        "unsupported_goal_tuple",
-        "unsupported_population",
+        "intent_requires_separate_policy",
+        "training_pattern_outside_current_policy",
+        "adult_scope_unconfirmed",
         "safety_stop",
         "insufficient_direct_baseline",
         "stale_direct_baseline",
         "insufficient_recent_history",
         "insufficient_history_rich_frequency",
-        "insufficient_full_block_horizon",
-        "insufficient_policy_horizon",
+        "unresolved_event_context",
+        "limited_guidance_event_conflict",
         "contradictory_input",
         "unsupported_capability",
     }
-    assert typed_outcomes["outcomes"]["eligible_full_block"][
+    assert typed_outcomes["outcomes"]["eligible_rolling_proposal"][
         "plan_returned"
     ] is True
-    assert typed_outcomes["outcomes"]["eligible_taper_only"][
+    assert typed_outcomes["outcomes"]["eligible_taper_or_event_adjustment"][
         "plan_returned"
+    ] is True
+    assert all(
+        outcome.get("goal_remains_recorded") is True
+        for outcome in typed_outcomes["outcomes"].values()
+        if outcome["plan_returned"] is False
+    )
+    assert typed_outcomes["outcomes"]["limited_guidance_event_conflict"][
+        "limited_guidance_returned"
     ] is True
     assert parameters["road_10k_suggestion_only_state_transition"].value[
         "generator_may_not"
@@ -711,6 +755,7 @@ def test_road_10k_policy_proposal_is_distance_specific_and_inactive() -> None:
         "overwrite_adopted_future_days_at_reassessment",
         "schedule_a_missed_workout_makeup",
         "infer_why_a_workout_was_missed",
+        "auto_schedule_a_benchmark_or_change_event_priority",
     ]
     assert set(
         parameters["road_10k_suggestion_only_state_transition"].value[
@@ -718,7 +763,10 @@ def test_road_10k_policy_proposal_is_distance_specific_and_inactive() -> None:
         ]
     ) == {
         "widen_eligibility",
+        "assign_recreational_serious_professional_or_elite_identity",
         "invent_missing_context",
+        "invent_or_confirm_event_context",
+        "confirm_or_overwrite_profile_fields",
         "reinterpret_unknown_as_safe_or_eligible",
         "override_deterministic_validation",
         "adopt_deliver_or_publish",
@@ -731,6 +779,12 @@ def test_road_10k_policy_proposal_is_distance_specific_and_inactive() -> None:
         "maximum_single_guardrail_exclusion_fraction"
     ] == 0.50
     assert thresholds["opt_in_pilot"]["maximum_major_edit_fraction"] == 0.30
+    assert thresholds["opt_in_pilot"]["major_edit_definition"][
+        "evaluation_window"
+    ] == "one_versioned_committed_execution_window"
+    assert thresholds["opt_in_pilot"][
+        "maximum_taper_vs_non_taper_rejection_or_major_edit_gap"
+    ] == 0.15
     assert thresholds["opt_in_pilot"][
         "serious_adverse_events_triggering_immediate_pause"
     ] == 1

@@ -1,12 +1,13 @@
 schema_version: 1
 id: evidence-road-10k-plan-generation-policy-v1
 version: 1
-title: "History-rich adult recreational road 10 km plan generation"
+title: "History-anchored adult outdoor road 10 km performance planning"
 research_question: >
-  For adults aged 18 years or older who are self-coached recreational road
-  runners, can already complete 10 km, have sufficient recent training
-  history, and hold an outdoor road 10 km elapsed-time goal, what evidence
-  supports and limits a conservative, suggestion-only plan-generation policy?
+  For adults aged 18 years or older whose current training-context pattern
+  shows direct 10 km capability and sufficient recent history, what evidence
+  supports and limits a conservative, suggestion-only outdoor road 10 km
+  performance policy with an optional race date, confirmed event context, and
+  an optional athlete-chosen benchmark when no race exists?
 topic: road-10k-plan-generation-policy
 status: draft
 authors:
@@ -15,24 +16,27 @@ human_reviewers: []
 created_on: 2026-08-14
 reviewed_on:
 intended_product_purpose: >
-  Define whether and how Praxys may offer a history-rich road 10 km proposal
-  without copying the accepted outdoor 5 km pilot's horizon, history counts,
-  intensity percentage, frequency envelope, long-run rule, or workout
-  templates. Separate direct 10 km task and baseline evidence from broader
-  endurance evidence, observational associations, and transparent Praxys
-  guardrails. Keep current capability, longitudinal comparability, taper,
-  safety, uncertainty, and individual-outcome limits explicit.
+  Define the distance-specific evidence boundary for one dynamically matched
+  road 10 km performance pattern without copying the accepted outdoor 5 km
+  pilot's horizon, history counts, intensity percentage, frequency envelope,
+  long-run rule, or workout templates. Keep goal selection, first-completion
+  routing, event-calendar confirmation, runner-pattern classification, and
+  profile provenance in the shared policy. Separate direct 10 km task and
+  baseline evidence from broader endurance evidence, observational
+  associations, and transparent Praxys guardrails.
 scope:
   population:
     - Adults aged 18 years or older
-    - Self-coached recreational road runners already able to complete 10 km
+    - Runners whose current pattern includes direct 10 km capability
     - Runners with sufficient recent history to anchor frequency, duration, and session distance
-    - Outdoor road 10 km elapsed-time performance goals
+    - Outdoor road 10 km performance intent with or without a confirmed target event
+    - Recreational and amateur cohorts as the primary evidence base, not permanent product identities
   intervention_or_exposure:
     - Structured endurance-running programs and training-intensity distributions
     - Threshold-related and interval training in recreational runners
     - Weekly training distance, frequency, duration, and prior race experience
     - Same-distance 10 km race and time-trial evidence
+    - Confirmed races, dense event calendars, and optional no-race performance benchmarks as product context
     - Pre-event tapering in endurance athletes
     - Fixed weekly progression and workload-ratio rules
     - Baseline freshness, protocol comparability, and individual-response interpretation
@@ -42,6 +46,8 @@ scope:
     - Official 10 km race versus standardized 10 km track or laboratory time trial
     - Maintained versus reduced taper volume, intensity, and frequency
     - Fixed 10 percent progression or ACWR zones versus uncertainty-aware history anchoring
+    - A fixed six-week eligibility horizon versus goal-date-aware rolling planning
+    - Permanent recreational or professional identity labels versus dynamic training-context patterns
     - Error-aware versus naive individual-response classification
   outcomes:
     - 10 km elapsed-time performance
@@ -49,6 +55,7 @@ scope:
     - Training burden and schedule feasibility
     - Running-related injury claim limits
     - Baseline validity, reproducibility, and longitudinal comparability
+    - Event conflict, optional benchmark, and rolling-plan claim limits
     - Limits of personal prediction and automatic generation
 method:
   review_type: rigorous
@@ -121,8 +128,8 @@ method:
     - Vendor plans, coaching blogs, LLM output, and uncited conventions
     - Inaccessible findings used to supply an effect estimate or strong conclusion
   quality_appraisal: >
-    Claims were appraised for directness to adult recreational outdoor road
-    10 km performance, intervention design, sample size, training-distribution
+    Claims were appraised for directness to adult outdoor road 10 km
+    performance, intervention design, sample size, training-distribution
     definition, outcome specificity, observational confounding, protocol
     standardization, repeatability and agreement, age and sex representation,
     and whether a finding could justify an individual product threshold.
@@ -137,7 +144,8 @@ method:
     - Weekly-distance and frequency findings are observational and cannot establish prescription thresholds.
     - The dedicated 10 km long-run search did not identify a direct randomized recreational 10 km long-run dose trial.
     - Women, older recreational runners, low-frequency runners, and consumer running-power users are underrepresented.
-    - No reviewed source validates an exact 10 km block length, reassessment cadence, recent-history count, weekly frequency range, long-run progression, or deterministic workout template.
+    - Cohort labels such as recreational or competitive do not validate a permanent user identity or routing label.
+    - No reviewed source validates an exact 10 km block length, rolling execution window, reassessment cadence, recent-history count, weekly frequency range, long-run progression, event-priority rule, or deterministic workout template.
 claims:
   - id: road-10k-plan.task-specific-capability-not-single-marker
     statement: >
@@ -706,13 +714,16 @@ citations:
 known_gaps:
   - A prospectively evaluated deterministic road 10 km plan-generation policy
   - Direct adult recreational road 10 km evidence distinguishing useful threshold and interval session structures
-  - A validated 42-day generation horizon or 14-day reassessment interval
+  - A validated rolling execution window or reassessment trigger
   - A validated minimum recent-history requirement for safe dose anchoring
   - A validated 75 percent low-intensity floor or three-to-six-day running range
   - A direct recreational 10 km long-run dose or progression rule
   - A validated deterministic mapping from personal history and availability to exact workout steps
   - A validated 56-day direct-baseline freshness cutoff
   - Agreement and repeatability for one standardized unsupervised outdoor road 10 km test
+  - A validated no-race 10 km performance-benchmark workflow
+  - A validated race-dense event-priority, taper, and recovery policy
+  - A validated mapping from dynamic training-context patterns to 10 km schedule variants
   - Representation and subgroup precision for women, older adults, low-frequency runners, and different providers
 conflicting_findings:
   - Direct recreational evidence shows improvement under different intensity distributions without a universal performance winner.
@@ -720,11 +731,13 @@ conflicting_findings:
   - A standardized 10 km time trial can agree with race speed under one protocol, while time of day and other context can materially affect repeated results.
   - Taper evidence supports lower volume with maintained intensity and frequency, while its directness varies by sport, event, and prior training.
 follow_up_questions:
-  - Does a 42-day stable-load block improve 10 km proposal relevance without increasing burden or adverse events?
+  - Which rolling execution window and reassessment triggers improve relevance without becoming a biological claim?
   - Which recent-history counts and frequency bounds minimize unsupported extrapolation?
   - Is a 75 percent planned low-intensity floor understandable and useful without becoming a universal claim?
   - Which threshold and 10 km-specific interval templates can be validated as product guardrails?
   - Should a maximal 10 km test be offered at all, or should stale and missing direct evidence remain readiness-only?
+  - When should a no-race performance goal receive an optional benchmark, and when should rolling training continue without one?
+  - How should confirmed primary, supporting, and training events consume quality-session, taper, and recovery capacity?
   - How should route, time of day, environment, assistance, and recovery affect longitudinal comparability?
   - Do outcomes, acceptance, edits, and safety exits differ by sex, age, frequency, provider, or missingness?
 supersedes: []

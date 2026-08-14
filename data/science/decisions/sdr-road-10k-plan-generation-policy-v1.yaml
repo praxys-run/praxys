@@ -1,7 +1,7 @@
 schema_version: 1
 id: sdr-road-10k-plan-generation-policy-v1
 version: 1
-title: "History-rich adult recreational outdoor road 10 km plan policy"
+title: "History-anchored adult outdoor road 10 km performance policy"
 status: draft
 decision_date: 2026-08-14
 owners:
@@ -50,14 +50,16 @@ model_parameters:
   - name: road_10k_goal_tuple
     classification: guardrail
     value:
-      goal_kind: performance_10k
+      goal_kind: distance_10k
+      goal_intent: performance
       sport: running
       distance_m: 10000
       surface: outdoor_road
       primary_outcome: elapsed_time
-      target_time_required: true
+      target_time_optional: true
       target_date_optional: true
-      unsupported_goal_variants:
+      no_event_performance_goal_supported: true
+      separate_policy_variants:
         - first_10k_completion
         - sparse_history_10k
         - indoor_treadmill_10k
@@ -70,35 +72,46 @@ model_parameters:
       - eligibility.goal-relevant-current-capability-task-specific
       - road-10k-plan.task-specific-capability-not-single-marker
     rationale: >
-      The first capability is intentionally one exact population-and-goal
-      tuple. Other 10 km intents and surfaces require separate evidence and
-      policy rather than silent fallback.
-  - name: road_10k_supported_population
+      The shared router may record any valid 10 km goal. This distance policy
+      matches only current performance intent with direct capability and usable
+      history; completion, sparse-history, and other surfaces require separate
+      evidence without invalidating the user's goal.
+  - name: road_10k_supported_training_pattern
     classification: guardrail
     value:
-      minimum_age_years: 18
-      coaching_context: self_coached_recreational
-      current_distance_status: already_able_to_complete_10k
-      history_class: history_rich
+      adult_scope: confirmed
+      capability_pattern: currently_capable_10k
+      history_pattern: history_rich
+      load_pattern: within_recent_personal_envelope
+      event_context:
+        - confirmed_none
+        - single_target
+        - race_dense_with_resolved_conflicts
+      evidence_directness:
+        - direct
+        - supporting_with_explicit_limits
       current_symptoms: absent
       explicit_exclusions:
-        - minor
-        - first_10k_or_beginner_progression
+        - adult_scope_unconfirmed
+        - first_10k_completion_requires_separate_policy
         - sparse_or_missing_recent_history
         - current_injury_illness_or_concerning_symptoms
         - return_to_sport_or_rehabilitation
         - medical_clearance_or_treatment_intent
         - pregnancy_specific_prescription
-        - elite_or_professional_programming
+        - current_pattern_outside_reviewed_evidence_envelope
+        - unresolved_material_event_context
         - unsupported_surface_or_distance
+      recreational_serious_professional_or_elite_identity_used: false
     evidence_claim_ids:
       - eligibility.current-symptoms-support-stop-not-clearance
       - road-10k-plan.symptom-based-test-stop-boundary
       - road-10k-plan.volume-frequency-associated-not-prescriptive
     rationale: >
-      Direct generation evidence is sparse. Restricting v1 to established adult
-      recreational 10 km runners with usable history limits extrapolation and
-      keeps beginner, clinical, and elite contexts outside the model.
+      Direct generation evidence is sparse and primarily sampled recreational
+      or amateur cohorts. V1 therefore matches a current data pattern and
+      evidence envelope rather than assigning the athlete a permanent
+      recreational, serious, professional, or elite identity.
   - name: road_10k_direct_baseline_hierarchy
     classification: guardrail
     value:
@@ -160,7 +173,7 @@ model_parameters:
       offered_only_when:
         - shared_safety_eligibility_passes
         - direct_baseline_is_missing_or_stale
-        - runner_already_completes_10k
+        - current_capability_pattern_supports_10k
         - recent_history_supports_the_effort
         - athlete_explicitly_opts_in
       protocol:
@@ -215,46 +228,110 @@ model_parameters:
       history-rich cohort than the outdoor 5 km pilot. They are conservative
       implementation guards for dose anchoring, not published eligibility
       thresholds.
-  - name: road_10k_block_and_reassessment
+  - name: road_10k_rolling_planning_and_reassessment
     classification: guardrail
     value:
-      full_block_days: 42
       calendar_schedule_unit_days: 7
-      reassessment_interval_days: 14
-      checkpoints_at_completed_days:
-        - 14
-        - 28
-      each_checkpoint_requires:
+      fixed_full_block_days: none_defined
+      target_date_required: false
+      fixed_horizon_eligibility_gate: false
+      planning_horizon:
+        dated_goal: through_confirmed_goal_event
+        undated_goal: rolling_until_athlete_changes_or_ends_goal
+      exact_committed_execution_window_days: not_accepted
+      exact_execution_window_requires_versioned_implementation_guardrail: true
+      reassessment_triggers:
+        - completed_committed_execution_window
+        - new_or_changed_confirmed_event
+        - material_training_pattern_change
+        - new_qualified_10k_baseline
+        - changed_availability_or_constraint
+        - athlete_requested_review
+      each_reassessment_requires:
         - fresh_eligibility_evaluation
         - updated_completed_history
+        - updated_event_context
+        - updated_dynamic_pattern_snapshot
         - explicit_review_before_replacing_adopted_future_days
-      no_automatic_progression_between_checkpoints: true
+      no_automatic_progression_between_reassessments: true
     evidence_claim_ids:
       - eligibility.recent-history-anchor-without-universal-threshold
       - road-10k-plan.volume-frequency-associated-not-prescriptive
       - road-10k-plan.individual-outcomes-require-error-aware-validation
     rationale: >
-      No source validates a 10 km horizon or reassessment cadence. A six-week
-      proposal permits a distinct threshold-and-specificity structure, while
-      two-week checkpoints limit stale scheduling and avoid daily automatic
-      churn. Both values require prospective falsification.
+      No source validates a 42-day horizon, another fixed eligibility horizon,
+      or one reassessment cadence. Goal time and current context determine the
+      planning horizon, while a separately versioned short execution window
+      limits stale scheduling. Its exact duration remains unresolved rather
+      than masquerading as 10 km biology.
   - name: road_10k_target_date_routing
     classification: guardrail
     value:
-      no_target_date: generate_one_42_day_block
-      target_at_least_42_completed_days_away: generate_one_42_day_block
-      target_15_to_41_completed_days_away: insufficient_full_block_horizon
-      target_8_to_14_completed_days_away: taper_only_proposal_if_all_other_inputs_pass
-      target_0_to_7_completed_days_away: insufficient_policy_horizon
+      no_target_date: rolling_performance_plan_with_optional_opt_in_benchmark
+      future_target_date: select_supported_build_maintain_or_taper_state
+      target_within_8_to_14_completed_days: taper_or_maintain_only_if_all_other_inputs_pass
+      very_short_horizon: preserve_goal_limit_adaptation_claim_and_offer_supported_near_term_state
       past_or_invalid_target_date: invalid_goal_context
+      short_horizon_invalidates_goal: false
+      short_horizon_may_limit:
+        - expected_adaptation_claim
+        - schedule_scope
+        - available_quality_exposures
       target_time_may_increase_dose: false
     evidence_claim_ids:
       - road-10k-plan.taper-volume-reduction-supported
       - road-10k-plan.individual-outcomes-require-error-aware-validation
     rationale: >
-      V1 avoids compressing an unvalidated full block to fit an imminent event.
-      The taper-only window reflects indirect published duration evidence; all
-      routing thresholds remain conservative product guards.
+      A goal remains valid regardless of time available. The policy may narrow
+      its adaptation claim or route to maintain, taper, benchmark preparation,
+      or limited guidance, but may not reject the goal because it does not fit
+      an arbitrary six-week block. The 8-to-14-day taper evidence remains
+      indirect.
+  - name: road_10k_event_and_benchmark_context
+    classification: guardrail
+    value:
+      shared_event_states_consumed:
+        - confirmed_none
+        - single_target
+        - race_dense
+      imported_event_must_be_athlete_confirmed: true
+      event_priorities:
+        primary:
+          may_trigger_taper: true
+        supporting:
+          may_trigger_full_taper: false
+        training:
+          may_trigger_full_taper: false
+      every_race_or_maximal_effort:
+        counts_as_quality_session: true
+        counts_as_training_load: true
+        requires_recovery_and_spacing_validation: true
+      race_dense_full_proposal_requires:
+        - quality_ceiling_preserved
+        - nonconsecutive_quality_preserved
+        - history_load_caps_preserved
+        - recovery_space_available
+      unresolved_or_conflicting_race_dense_result: limited_guidance_event_conflict
+      no_event_performance_goal:
+        rolling_training_allowed: true
+        optional_benchmark:
+          distance_m: 10000
+          intent: all_out_elapsed_time
+          athlete_selects_and_confirms_date: true
+          never_auto_schedule: true
+          counts_as_quality_session: true
+      no_event_completion_goal: route_to_separate_completion_policy
+    evidence_claim_ids:
+      - road-10k-plan.one-to-two-quality-sessions-indirect
+      - road-10k-plan.taper-volume-reduction-supported
+      - road-10k-baseline.same-distance-direct-capability
+      - road-10k-plan.individual-outcomes-require-error-aware-validation
+    rationale: >
+      The reviewed evidence validates no universal race-priority or dense-
+      calendar algorithm. Confirmed races and maximal efforts nevertheless
+      consume quality and load. A no-event performance goal may continue
+      rolling training and optionally use an athlete-chosen benchmark, while a
+      first-completion goal remains a separate policy family.
   - name: road_10k_running_frequency
     classification: guardrail
     value:
@@ -281,7 +358,7 @@ model_parameters:
         - longest_easy
         - controlled_threshold_quality
         - ten_k_specific_interval_quality
-        - event_or_opt_in_baseline_test
+        - confirmed_event_or_opt_in_10k_benchmark
       per_7_day_unit:
         three_running_days:
           maximum_quality_sessions: 1
@@ -325,7 +402,7 @@ model_parameters:
       minimum_between_quality_sessions:
         one_easy_rest_or_non_running_day: true
       optional_maximal_10k_test_counts_as_quality: true
-      target_event_counts_as_quality: true
+      every_confirmed_race_or_benchmark_counts_as_quality: true
       missed_quality_makeup_allowed: false
     evidence_claim_ids:
       - road-10k-plan.one-to-two-quality-sessions-indirect
@@ -381,8 +458,9 @@ model_parameters:
       - road-10k-plan.fixed-progression-not-safety-law
     rationale: >
       Direct 10 km evidence does not establish an optimal progression. The
-      first block therefore tests schedule structure without prescribing more
-      than the runner's recent typical or completed maximum exposure.
+      rolling execution window therefore tests schedule structure without
+      prescribing more than the runner's recent typical or completed maximum
+      exposure.
   - name: road_10k_longest_easy_boundary
     classification: guardrail
     value:
@@ -444,9 +522,10 @@ model_parameters:
     classification: guardrail
     value:
       apply_only_when:
-        - fixed_target_date_exists
-        - target_is_8_to_14_completed_days_away_at_taper_start
+        - confirmed_primary_event_or_benchmark_date_exists
+        - event_is_8_to_14_completed_days_away_at_taper_start
         - recent_history_and_constraints_remain_valid
+        - event_calendar_conflicts_are_resolved
       planned_volume_reduction_percent: 50
       rounding_note: rounded_product_guardrail_from_50_5_percent_range_midpoint
       taper_window_days_before_event:
@@ -521,34 +600,49 @@ model_parameters:
     classification: guardrail
     value:
       outcomes:
-        eligible_full_block:
+        eligible_rolling_proposal:
           plan_returned: true
           adoption_required: true
-        eligible_taper_only:
+        eligible_taper_or_event_adjustment:
           plan_returned: true
           adoption_required: true
-        unsupported_goal_tuple:
+        intent_requires_separate_policy:
           plan_returned: false
-        unsupported_population:
+          goal_remains_recorded: true
+        training_pattern_outside_current_policy:
           plan_returned: false
+          goal_remains_recorded: true
+        adult_scope_unconfirmed:
+          plan_returned: false
+          goal_remains_recorded: true
         safety_stop:
           plan_returned: false
+          goal_remains_recorded: true
         insufficient_direct_baseline:
           plan_returned: false
+          goal_remains_recorded: true
         stale_direct_baseline:
           plan_returned: false
+          goal_remains_recorded: true
         insufficient_recent_history:
           plan_returned: false
+          goal_remains_recorded: true
         insufficient_history_rich_frequency:
           plan_returned: false
-        insufficient_full_block_horizon:
+          goal_remains_recorded: true
+        unresolved_event_context:
           plan_returned: false
-        insufficient_policy_horizon:
+          goal_remains_recorded: true
+        limited_guidance_event_conflict:
           plan_returned: false
+          limited_guidance_returned: true
+          goal_remains_recorded: true
         contradictory_input:
           plan_returned: false
+          goal_remains_recorded: true
         unsupported_capability:
           plan_returned: false
+          goal_remains_recorded: true
       unknown_values_are_not_false_or_zero: true
       unsupported_distance_fallback: none
     evidence_claim_ids:
@@ -557,8 +651,9 @@ model_parameters:
       - eligibility.evidence-quality-no-personal-probability
       - road-10k-baseline.comparability-time-of-day-matters
     rationale: >
-      Typed no-plan outcomes preserve uncertainty and prevent a request for an
-      unsupported 10 km context from looking like successful generation.
+      Typed outcomes preserve the recorded 10 km goal while separating rolling
+      proposals, event adjustments, limited guidance, another intent policy,
+      missing context, and deterministic no-plan states.
   - name: road_10k_suggestion_only_state_transition
     classification: guardrail
     value:
@@ -574,9 +669,13 @@ model_parameters:
         - overwrite_adopted_future_days_at_reassessment
         - schedule_a_missed_workout_makeup
         - infer_why_a_workout_was_missed
+        - auto_schedule_a_benchmark_or_change_event_priority
       AI_may_not:
         - widen_eligibility
+        - assign_recreational_serious_professional_or_elite_identity
         - invent_missing_context
+        - invent_or_confirm_event_context
+        - confirm_or_overwrite_profile_fields
         - reinterpret_unknown_as_safe_or_eligible
         - override_deterministic_validation
         - adopt_deliver_or_publish
@@ -607,8 +706,13 @@ model_parameters:
         - capability_registry_version
         - shared_policy_version
         - distance_policy_version
+        - goal_intent_and_record_state
+        - dynamic_training_pattern_snapshot
+        - confirmed_event_context_and_priorities
+        - profile_field_provenance_and_missing_effects
         - baseline_source_reference
         - history_cutoff
+        - committed_execution_window_version
         - normalized_constraints
         - selected_template_ids
         - typed_outcome_code
@@ -633,7 +737,7 @@ model_parameters:
         major_edit_definition:
           absolute_planned_minutes_change_fraction_greater_than: 0.20
           or_scheduled_running_days_changed_at_least: 2
-          evaluation_window_days: 14
+          evaluation_window: one_versioned_committed_execution_window
         maximum_symptom_stop_fraction: 0.10
         maximum_optional_baseline_test_stop_or_noncompletion_fraction: 0.10
         serious_adverse_events_triggering_immediate_pause: 1
@@ -641,7 +745,7 @@ model_parameters:
           - plausibly_related
           - unknown
         maximum_median_absolute_repeat_10k_difference_fraction: 0.05
-        maximum_taper_vs_full_block_rejection_or_major_edit_gap: 0.15
+        maximum_taper_vs_non_taper_rejection_or_major_edit_gap: 0.15
       threshold_breach_action:
         - pause_activation_or_pilot
         - inspect_missingness_and_subgroups
@@ -660,10 +764,13 @@ model_parameters:
     value:
       always_show:
         - proposal_not_guarantee
-        - exact_counts_percentages_and_horizons_are_product_guardrails
+        - exact_counts_percentages_and_execution_windows_are_product_guardrails
         - direct_and_indirect_evidence_boundary
         - unresolved_long_run_and_template_evidence
         - baseline_source_and_comparability_status
+        - dynamic_training_pattern_and_evaluation_window
+        - confirmed_event_context_and_priority
+        - missing_profile_fields_and_specific_effects
         - assumptions
         - unknowns
         - risks
@@ -684,6 +791,18 @@ model_parameters:
       The interface must distinguish evidence, uncertainty, and Praxys policy
       choices instead of presenting a deterministic schedule as certainty.
 rejected_alternatives:
+  - alternative: "Require a 42-day block before a 10 km goal can receive any plan"
+    rationale: >
+      No reviewed source validates 42 days, and an arbitrary block length must
+      not invalidate a goal. Dated and undated goals instead use rolling
+      execution windows and context-specific build, maintain, taper,
+      benchmark, or limited-guidance states.
+  - alternative: "Route by recreational, serious, professional, or elite identity"
+    rationale: >
+      The evidence base primarily samples recreational and amateur cohorts, but
+      those labels do not establish a permanent user identity. Current
+      capability, history, load, event context, constraints, and evidence
+      directness determine whether this policy matches.
   - alternative: "Copy the accepted outdoor 5 km generator and substitute 10 km labels"
     rationale: >
       The 5 km horizon, history counts, frequency envelope, low-intensity
@@ -711,17 +830,18 @@ rejected_alternatives:
       A language model cannot repair missing evidence, validate safety, or
       provide deterministic replay and falsification.
 applicability:
-  - Adults aged 18 years or older
-  - Self-coached recreational runners already able to complete 10 km
-  - History-rich runners with a qualified recent same-distance result
-  - Outdoor road 10 km elapsed-time goals only
+  - Adult scope confirmed under the shared policy
+  - Current 10 km capability and history-rich patterns with a qualified recent same-distance result
+  - Outdoor road 10 km performance intent, with target time and target date optional
+  - Confirmed no-event, single-target, or conflict-resolved race-dense context
+  - Study evidence is primarily recreational and amateur; no cohort label becomes a user identity
   - Suggestion-only deterministic proposals after shared eligibility passes
 user_facing_claim_limits:
   - >
     The proposal is a conservative product policy, not a scientifically optimal
     10 km plan, medical advice, safety guarantee, or goal-time guarantee.
   - >
-    Exact counts, percentages, horizons, freshness windows, and schedule
+    Exact counts, percentages, execution windows, freshness windows, and schedule
     mappings must be labelled as Praxys guardrails with linked rationale.
   - >
     The product may describe a gap to a qualified baseline but may not show a
@@ -733,6 +853,13 @@ user_facing_claim_limits:
   - >
     No 5 km result, percentage, template, or conversion may be represented as
     accepted 10 km evidence.
+  - >
+    Do not reject or hide a 10 km goal because it lacks a race date, target
+    time, or matching completion policy; explain the currently available route.
+  - >
+    Do not call the athlete recreational, serious, professional, or elite from
+    this policy; describe only the current training-context pattern and
+    evidence coverage.
 safety_implications:
   - >
     Current concerning symptoms, illness, injury, rehabilitation intent,
@@ -745,14 +872,18 @@ safety_implications:
     A maximal 10 km test is optional, never auto-scheduled, counts as a quality
     effort, and requires an explicit no-test alternative.
   - >
+    Every confirmed race or benchmark counts as quality and load. Unresolved
+    race-dense conflicts prevent a full proposal rather than silently stacking
+    sessions.
+  - >
     No missed-workout makeup, consecutive quality days, target-gap dose
     escalation, 10 percent rule, ACWR prescription zone, or activity-average
     power intensity analysis is allowed.
 privacy_implications:
   - >
     Use the minimum necessary authenticated user's goal, direct-result
-    metadata, completed history, accepted zone model, constraints, symptoms,
-    and consent state.
+    metadata, dynamic pattern snapshot, confirmed event context, completed
+    history, accepted zone model, constraints, symptoms, and consent state.
   - >
     Do not infer diagnoses, injury causes, missed-workout reasons, pregnancy
     status, mental state, or external life circumstances from training data.
@@ -765,11 +896,22 @@ validation_plan:
     globally unique IDs, draft lifecycle validity, parameter classifications,
     conditional accepted wording, and inactive behavior.
   - >
-    Unit tests must cover the exact goal tuple, adult history-rich population,
+    Unit tests must cover the exact performance intent, adult history-rich pattern,
     direct-baseline hierarchy, 56-day freshness guardrail, eight-week history
-    rule, 42-day block, 14-day reassessment, three-to-six-day frequency, 75
-    percent low-intensity floor, quality spacing, no mandatory long run,
-    history caps, taper routing, and every typed no-plan outcome.
+    rule, rolling planning without a fixed-horizon eligibility gate,
+    reassessment triggers, three-to-six-day frequency, 75 percent low-intensity
+    floor, quality spacing, no mandatory long run, history caps, taper routing,
+    event conflicts, and every typed outcome.
+  - >
+    Tests must prove an undated performance goal remains eligible for rolling
+    planning, an optional benchmark is never auto-scheduled, first-completion
+    routes to a separate policy, and a short horizon limits claims rather than
+    invalidating the goal.
+  - >
+    Tests must prove every confirmed race or benchmark consumes quality and
+    load, only a confirmed primary event or benchmark may trigger the selected
+    taper, imported events require confirmation, and unresolved race-dense
+    conflicts return limited guidance.
   - >
     Tests must prove that only road or track 10 km results qualify as direct
     baselines, laboratory tests remain supporting evidence, and missing
@@ -783,21 +925,24 @@ validation_plan:
   - >
     Tests must prove any-of split-or-sample intensity semantics, deterministic
     frequency capping, every non-taper week at or below recent median minutes,
-    the normalized 8-to-14-day taper calculation excluding event time, and the
-    predeclared dry-run and pilot falsification thresholds.
+    the normalized 8-to-14-day taper calculation excluding event time, a
+    versioned execution window, and the predeclared dry-run and pilot
+    falsification thresholds.
   - >
     Property tests must establish deterministic replay, no invalid or duplicate
     schedule dates, no frequency or history-cap breach, nonconsecutive quality
-    sessions, and stable output for identical normalized inputs and versions.
+    sessions including events, deterministic pattern transitions, and stable
+    output for identical normalized inputs and versions.
   - >
     Before any activation, exact 10 km workout templates must be versioned as
     guardrails and reviewed against this SDR; implementation may not import the
     outdoor 5 km template registry.
   - >
-    Retrospective dry runs must report eligible and no-plan rates, baseline and
-    comparability missingness, history-rule exclusions, frequency and duration
-    cap effects, taper-only frequency, edits, rejections, and subgroup slices
-    without publishing private athlete data.
+    Retrospective dry runs must report rolling-proposal, limited-guidance, and
+    no-plan rates; baseline, event, profile, and comparability missingness;
+    history-rule exclusions; frequency and duration cap effects; taper use;
+    edits; rejections; pattern transitions; and subgroup slices without
+    publishing private athlete data.
   - >
     A prospective opt-in pilot must predeclare relevance, adherence,
     acceptance, edit distance, quality stacking, symptom exits, adverse events,
@@ -806,12 +951,12 @@ validation_plan:
 falsification_conditions:
   - >
     Pause activation after any deterministic invariant breach, replay mismatch,
-    schedule beyond availability or policy frequency, non-taper week above
-    recent median minutes, session beyond a recent maximum, or plan returned
+    schedule beyond availability or policy frequency, an unconfirmed event
+    used, non-taper week above recent median minutes, session beyond a recent maximum, or plan returned
     for unsupported, stale-baseline, symptomatic, contradictory, or
     sparse-history input.
   - >
-    Revisit the implicated history, horizon, frequency, or intensity guardrail
+    Revisit the implicated history, execution-window, frequency, or intensity guardrail
     if it alone excludes more than 50 percent of otherwise eligible dry-run
     cases, or if its absolute exclusion gap exceeds 20 percentage points across
     a predeclared subgroup with at least 30 cases per comparison group.
@@ -822,10 +967,18 @@ falsification_conditions:
     repeated qualified 10 km tests exceeds 5 percent.
   - >
     Revisit the schedule mapping if more than 30 percent of adopted proposals
-    need a major 14-day edit, defined as more than 20 percent absolute planned-
-    minute change or at least two scheduled running days changed. Revisit the
-    taper if its rejection-or-major-edit rate exceeds the full-block rate by
-    more than 15 percentage points.
+    need a major edit within one versioned execution window, defined as more
+    than 20 percent absolute planned-minute change or at least two scheduled
+    running days changed. Revisit the taper if its rejection-or-major-edit rate
+    exceeds the non-taper rate by more than 15 percentage points.
+  - >
+    Reject the routing design if an undated goal cannot continue rolling
+    training, if a short horizon invalidates the goal, if a benchmark is
+    automatically scheduled, or if a static recreational or professional label
+    overrides the current training pattern.
+  - >
+    Pause race-dense routing after any quality-ceiling, spacing, load, recovery,
+    or event-priority invariant breach.
   - >
     Pause the pilot if symptom stops exceed 10 percent. Do not claim personal
     response or causal plan benefit unless a separately approved, predeclared
@@ -834,23 +987,29 @@ falsification_conditions:
 affected_surfaces:
   models:
     - road-10k-plan-generation-policy-v1
+    - shared dynamic training-pattern and confirmed event snapshots
   apis:
-    - future authenticated 10 km plan capability and typed proposal endpoints
+    - future authenticated 10 km goal, event, capability, and typed proposal endpoints
   clients:
-    - future web 10 km proposal, consent, no-plan, and ScienceNote states
+    - future web 10 km goal, event confirmation, proposal, consent, limited-guidance, no-plan, and ScienceNote states
     - future miniapp feature, type, write, state, i18n, and consent parity
   science_notes:
     - Explain direct versus indirect evidence and every product guardrail.
-    - Show baseline source, comparability, assumptions, unknowns, risks, and alternatives.
+    - Show dynamic pattern, event context, baseline source, comparability, assumptions, unknowns, risks, and alternatives.
 supersedes: []
 superseded_by:
 accepted_interpretation: >
   If accepted by identified human science reviewers, this SDR would authorize
-  only the bounded, inactive-by-default, history-rich adult recreational
-  outdoor road 10 km proposal described above. It would not by itself activate
-  a generator, accept exact workout templates, validate personal probabilities,
-  authorize beginner or clinical planning, or generalize the policy to another
-  distance or surface.
+  only the bounded, inactive-by-default outdoor road 10 km performance policy
+  for an adult, currently capable, history-rich dynamic training pattern. The
+  goal may have no race date or target time; planning would be rolling, and an
+  optional benchmark would require explicit athlete scheduling. Confirmed
+  races would consume quality and load, with race-dense conflicts resolved
+  before a full proposal. This SDR would not activate a generator, choose the
+  exact execution-window length, accept workout templates, validate personal
+  probabilities, authorize first-completion or clinical planning, label the
+  person recreational or professional, or generalize to another distance or
+  surface.
 decision_notes:
   - >
     This is a stacked decision proposal for issue #686 and depends on the draft
@@ -861,13 +1020,14 @@ decision_notes:
     back to readiness-only rather than copying the outdoor 5 km generator.
   - >
     The main unresolved scientific gaps are exact 10 km workout templates,
-    direct long-run prescription, schedule horizon, reassessment cadence,
+    direct long-run prescription, execution-window length, reassessment
+    triggers, event-priority behavior, no-event benchmark timing,
     recent-history counts, baseline freshness, and subgroup validity.
   - >
-    The 42-day block, 14-day reassessment, eight-week/four-week/three-run/ten-day
-    history rule, three-to-six-day envelope, 75 percent low-intensity floor,
-    and pilot decision thresholds are product guardrails, not published
-    biology or inherited 5 km defaults.
+    The eight-week/four-week/three-run/ten-day history rule, three-to-six-day
+    envelope, 75 percent low-intensity floor, event-priority behavior, and
+    pilot decision thresholds are product guardrails, not published biology or
+    inherited 5 km defaults. No 42-day eligibility horizon remains.
   - >
     No runtime behavior changes while this record is draft. If accepted and
     implemented later, rollout must remain default-off, suggestion-only, and
