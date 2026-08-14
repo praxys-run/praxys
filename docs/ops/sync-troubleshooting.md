@@ -1,8 +1,13 @@
 # Sync troubleshooting
 
-> **Summary:** Diagnose and recover stuck platform syncs (Garmin / Stryd / Oura).
+> **Summary:** Diagnose and recover stuck syncs for supported platforms.
 > **Use when:** A user's dashboard data or managed workouts stop updating, or a
 > connection card shows `auth_required`.
+
+The private Stryd adapter is visible only to the single account targeted by
+Statsig gate `stryd_connection_enabled`. For every other account it is omitted
+from settings and sync status, schedulers skip it before credential loading,
+and direct actions return 404. Do not add a broader rule while troubleshooting.
 
 Domain detail lives in [`docs/dev/gotchas.md`](../dev/gotchas.md) → "Garmin sync";
 this is the operational quick-path.
@@ -112,7 +117,7 @@ returns to `synced` until deletion succeeds.
    - **Experimental Garmin policy**: confirm the connection is healthy and ask
      the athlete to review and re-enable consent in Settings. Never copy the
      consent hash or enable it directly in the database. Unsupported target
-     shapes require choosing Stryd or revising the canonical workout; do not
+     shapes require choosing another compatible target or revising the canonical workout; do not
      strip target data to force a Garmin write.
 3. If needed, search logs for `Managed delivery blocked`, `Managed removal
    failed`, or `Managed replacement blocked`. Logged categories are bounded;

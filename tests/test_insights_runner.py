@@ -191,6 +191,7 @@ def test_requests_twelve_week_context_for_insight_reviews(
     )
 
     assert captured["recent_training_weeks"] == 12
+    assert captured["include_stryd_plan"] is False
 
 
 def test_generates_both_durable_insights_when_hash_differs(

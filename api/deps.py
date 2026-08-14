@@ -1947,11 +1947,17 @@ def _compute_diagnosis(
 # ---------------------------------------------------------------------------
 
 
-def get_dashboard_data(user_id: str = None, db=None) -> dict:
+def get_dashboard_data(
+    user_id: str = None,
+    db=None,
+    *,
+    include_stryd_plan: bool = True,
+) -> dict:
     """Load all data and compute all metrics.
 
     If user_id and db are provided, loads from database.
     Otherwise falls back to file-based loading (backward compatibility).
+    Set ``include_stryd_plan=False`` at viewer-aware read boundaries.
     """
     _ensure_env()
 
@@ -1971,7 +1977,11 @@ def get_dashboard_data(user_id: str = None, db=None) -> dict:
         data["recovery"], config.preferences.get("recovery"),
     )
     all_plans = data["plan"].copy()
-    data["plan"] = select_plan_for_analysis(data["plan"], config)
+    if not include_stryd_plan:
+        from api.stryd_access import without_stryd_plan_rows
+
+        all_plans = without_stryd_plan_rows(all_plans)
+    data["plan"] = select_plan_for_analysis(all_plans, config)
     merged = data["activities"]
 
     # Deduplicate activities by primary source preference.

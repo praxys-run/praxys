@@ -28,7 +28,11 @@ from analysis.config import (
     load_config_from_db,
 )
 from analysis.metrics import is_rest_workout
-from api.auth import get_data_user_id, require_write_access
+from api.auth import (
+    get_current_user_id,
+    get_data_user_id,
+    require_write_access,
+)
 from api.deps import get_dashboard_data
 from api.plan_workout_structure import (
     PlanActivityType,
@@ -41,6 +45,7 @@ from api.plan_workout_structure import (
     synthesize_v1_structure_from_flat,
     validate_structured_workout,
 )
+from api.stryd_access import stryd_connection_enabled
 from db.cache_revision import bump_revisions
 from db.models import TrainingPlan
 from db.plan_ledger import (
@@ -58,13 +63,21 @@ PlanDate = date
 
 @router.get("/ai/context")
 def get_ai_context(
+    viewer_user_id: str = Depends(get_current_user_id),
     user_id: str = Depends(get_data_user_id),
     db: Session = Depends(get_db),
 ):
     """Return full training context for AI plan generation."""
-    data = get_dashboard_data(user_id=user_id, db=db)
+    data = get_dashboard_data(
+        user_id=user_id,
+        db=db,
+        include_stryd_plan=stryd_connection_enabled(
+            db,
+            user_id=viewer_user_id,
+        ),
+    )
     from api.ai import _build_context_from_data
-    return _build_context_from_data(data)
+    return _build_context_from_data(data, user_id=user_id, db=db)
 
 
 class PlanUpload(BaseModel):
@@ -1114,7 +1127,9 @@ def delete_plan_day(
 )
 def preview_plan_workout_compatibility(
     workout: PlanWorkoutCompatibilityRequest,
+    viewer_user_id: str = Depends(get_current_user_id),
     user_id: str = Depends(get_data_user_id),
+    db: Session = Depends(get_db),
 ) -> dict[str, object]:
     """Preview lossless provider compatibility without saving or delivering.
 
@@ -1137,20 +1152,27 @@ def preview_plan_workout_compatibility(
     )
     _normalize_rest_plan(candidate)
     _validate_plan_targets(candidate)
+    providers = project_workout_provider_compatibility(
+        activity_type=candidate.activity_type,
+        workout_structure_version=candidate.workout_structure_version,
+        workout_structure=candidate.workout_structure,
+        planned_duration_min=candidate.planned_duration_min,
+        planned_distance_km=candidate.planned_distance_km,
+        target_power_min=candidate.target_power_min,
+        target_power_max=candidate.target_power_max,
+        target_hr_min=candidate.target_hr_min,
+        target_hr_max=candidate.target_hr_max,
+        target_pace_min=candidate.target_pace_min,
+        target_pace_max=candidate.target_pace_max,
+    )
+    if not stryd_connection_enabled(db, user_id=viewer_user_id):
+        providers = [
+            provider
+            for provider in providers
+            if provider.get("target") != "stryd"
+        ]
     return {
-        "providers": project_workout_provider_compatibility(
-            activity_type=candidate.activity_type,
-            workout_structure_version=candidate.workout_structure_version,
-            workout_structure=candidate.workout_structure,
-            planned_duration_min=candidate.planned_duration_min,
-            planned_distance_km=candidate.planned_distance_km,
-            target_power_min=candidate.target_power_min,
-            target_power_max=candidate.target_power_max,
-            target_hr_min=candidate.target_hr_min,
-            target_hr_max=candidate.target_hr_max,
-            target_pace_min=candidate.target_pace_min,
-            target_pace_max=candidate.target_pace_max,
-        ),
+        "providers": providers,
     }
 
 

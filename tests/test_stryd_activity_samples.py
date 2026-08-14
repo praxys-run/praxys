@@ -2,7 +2,12 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from sync.stryd_sync import fetch_activity_splits
+from sync.stryd_sync import fetch_activity_splits, stryd_client_available
+
+pytestmark = pytest.mark.skipif(
+    not stryd_client_available(),
+    reason="private stryd-client dependency is unavailable",
+)
 
 
 def _mock_response(data: dict) -> MagicMock:

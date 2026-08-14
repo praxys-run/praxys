@@ -46,7 +46,7 @@ function buildTrainingTr() {
     failedToLoad: t('Failed to load'),
     retry: t('Retry'),
     noData: t(
-      'No training data yet. Sync Garmin / Stryd from the web app (Settings → Sync) to populate this view.',
+      'No training data yet. Sync a connected platform from the web app (Settings → Sync) to populate this view.',
     ),
 
     // Diagnosis section eyebrow.

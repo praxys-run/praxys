@@ -1,8 +1,8 @@
 /**
  * Official brand wordmarks for the platforms Praxys connects to.
  *
- * Web-optimized copies live at `web/public/logos/{garmin.png, coros.png,
- * oura.svg, stryd.svg, strava.svg}`. Vendor source files (AI/EPS/PDF + alt colour
+ * Public landing-page copies live at `web/public/logos/{garmin.png, coros.png,
+ * oura.svg, strava.svg}`. Vendor source files (AI/EPS/PDF + alt colour
  * variants) are kept out of the repo to keep SWA deploys fast — store them
  * elsewhere if you need them for future design work.
  *
@@ -94,4 +94,3 @@ export function CorosWordmark({ className }: WordmarkProps) {
     />
   );
 }
-

@@ -15,7 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from './components/ui/alert';
 import { Button } from './components/ui/button';
 import { PRELOAD_RELOAD_KEY } from './lib/preload-recovery';
 import { AuthProvider, useAuth } from './hooks/useAuth';
-import { SettingsProvider } from './contexts/SettingsContext';
+import { SettingsProvider, useSettings } from './contexts/SettingsContext';
 import { ScienceProvider } from './contexts/ScienceContext';
 import { LocaleProvider, useLocale } from './contexts/LocaleContext';
 import { StatsigProvider } from './contexts/StatsigContext';
@@ -121,6 +121,11 @@ class LabsRouteBoundary extends Component<
 }
 
 function LabsRoute({ children }: { children: ReactNode }) {
+  const { platformCapabilities, loading } = useSettings();
+  if (loading) return <RouteChunkSkeleton />;
+  if (!Object.prototype.hasOwnProperty.call(platformCapabilities, 'stryd')) {
+    return <Navigate to="/science" replace />;
+  }
   return (
     <LabsRouteBoundary>
       <Suspense fallback={<RouteChunkSkeleton />}>{children}</Suspense>

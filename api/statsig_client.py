@@ -62,6 +62,11 @@ async def shutdown_statsig() -> None:
         _initialized = False
 
 
+def is_statsig_initialized() -> bool:
+    """Return whether the server SDK is ready for gate evaluation."""
+    return _initialized
+
+
 def get_statsig_user(
     user_id: str,
     email: str | None,

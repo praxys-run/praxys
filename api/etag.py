@@ -184,6 +184,30 @@ def compute_etag(
     return f'W/"{digest}"'
 
 
+def compute_endpoint_etag(
+    db: Session,
+    user_id: str,
+    endpoint: str,
+    *,
+    variant: str | None = None,
+) -> str:
+    """Build an endpoint ETag with date, schema, and representation salts."""
+    salt_parts: list[str] = []
+    if endpoint in _DATE_SALTED_ENDPOINTS:
+        salt_parts.append(f"d={date.today().isoformat()}")
+    response_version = ENDPOINT_RESPONSE_VERSIONS.get(endpoint)
+    if response_version:
+        salt_parts.append(f"v={response_version}")
+    if variant:
+        salt_parts.append(f"variant={variant}")
+    return compute_etag(
+        db,
+        user_id,
+        ENDPOINT_SCOPES[endpoint],
+        salt="&".join(salt_parts) or None,
+    )
+
+
 class ETagGuard:
     """Per-request ETag carrier returned by ``etag_guard_for_scopes``.
 
@@ -251,22 +275,12 @@ def etag_guard_for_endpoint(endpoint: str):
     The dependency reuses the route's ``user_id`` + ``db`` resolution path
     so there's no second auth round-trip, just one extra small SELECT.
     """
-    scopes = ENDPOINT_SCOPES[endpoint]
-    date_salted = endpoint in _DATE_SALTED_ENDPOINTS
-
     def _dep(
         request: Request,
         user_id: str = Depends(get_data_user_id),
         db: Session = Depends(get_db),
     ) -> ETagGuard:
-        salt_parts: list[str] = []
-        if date_salted:
-            salt_parts.append(f"d={date.today().isoformat()}")
-        response_version = ENDPOINT_RESPONSE_VERSIONS.get(endpoint)
-        if response_version:
-            salt_parts.append(f"v={response_version}")
-        salt = "&".join(salt_parts) or None
-        etag = compute_etag(db, user_id, scopes, salt=salt)
+        etag = compute_endpoint_etag(db, user_id, endpoint)
         return ETagGuard(etag, request.headers.get("if-none-match"))
 
     return _dep

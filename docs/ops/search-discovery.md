@@ -36,9 +36,9 @@ curl -sSI https://www.praxys.run/today | grep -i '^x-robots-tag: noindex'
 |---|---|
 | Branded | `praxys`, `praxys endurance`, `praxys running` |
 | Training decisions | `running readiness training decision`, `should I modify my run based on HRV` |
-| Power and thresholds | `running critical power training zones`, `Stryd power training analysis` |
+| Power and thresholds | `running critical power training zones`, `running power training analysis` |
 | Plans and forecasts | `adaptive running training plan`, `science based race time prediction` |
-| Recovery and data integration | `Garmin Oura Stryd training analysis` |
+| Recovery and data integration | `Garmin Oura training analysis` |
 
 Record indexed public URLs, impressions, clicks, demo starts, and account
 creation attributed to organic/referral traffic. Raw page views are diagnostic,
@@ -67,8 +67,8 @@ not a success metric.
   without JavaScript.
 - Authenticated and operational routes return `X-Robots-Tag: noindex, nofollow`
   and are absent from the sitemap.
-- Product and FAQ claims match shipped behavior; Labs limitations and managed
-  plan ownership boundaries remain visible.
+- Product and FAQ claims match shipped behavior, including managed-plan
+  ownership boundaries.
 
 ## Rollback / Recovery
 

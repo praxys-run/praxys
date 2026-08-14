@@ -23,7 +23,8 @@ Navigate to the **Settings** page and add your data sources:
 | Platform | Credentials | How to Get |
 |----------|-------------|------------|
 | Garmin | Email + password | Your [Garmin Connect](https://connect.garmin.com/) account |
-| Stryd | Email + password | Your [Stryd](https://www.stryd.com/) account |
+| Strava | OAuth app credentials | Create an app at [strava.com/settings/api](https://www.strava.com/settings/api) |
+| COROS | Email + password | Your COROS Training Hub account |
 | Oura | Personal access token | Generate at [cloud.ouraring.com/personal-access-tokens](https://cloud.ouraring.com/personal-access-tokens) |
 
 You only need to connect the platforms you use. Unconfigured sources are skipped automatically.
@@ -40,7 +41,7 @@ After connecting at least one platform:
 
 1. Go to the **Settings** page and click **Sync**
 2. Choose a backfill period — **6 months** is recommended for meaningful trend analysis
-3. Sync progress is shown per platform (Garmin, Stryd, Oura)
+3. Sync progress is shown for each connected platform
 4. Once complete, data appears on the dashboard automatically
 
 Subsequent syncs happen automatically in the background (default every 6 hours).
@@ -52,7 +53,7 @@ or trigger a manual sync at any time.
 Complete these steps on the **Settings** page to get personalized analysis:
 
 1. **Choose your training base:**
-   - **Power** (recommended if you have Stryd) — uses Critical Power (CP) for zones and load
+   - **Power** — uses Critical Power (CP) for zones and load when your activity source provides compatible running-power data
    - **Heart rate** — uses Lactate Threshold HR (LTHR) for zones, TRIMP for load
    - **Pace** — uses threshold pace for zones, rTSS for load
 
@@ -65,7 +66,7 @@ Complete these steps on the **Settings** page to get personalized analysis:
 ### Setup Checklist
 
 - [ ] Register and log in
-- [ ] Connect at least one platform (Garmin, Stryd, or Oura)
+- [ ] Connect at least one supported platform
 - [ ] Run first sync with 6-month backfill
 - [ ] Choose your training base (power / HR / pace)
 - [ ] Set a goal distance and optional target time
@@ -80,7 +81,7 @@ Run everything on your machine. Same features, same auth flow.
 
 - Python 3.11+
 - Node.js 18+ (for the web dashboard)
-- At least one of: Garmin Connect account, Stryd account, Oura Ring
+- At least one supported activity or recovery platform account
 
 ### 1. Clone and Install
 
@@ -108,7 +109,7 @@ Edit `.env` and generate the required encryption key:
 python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
-Paste the key as the value for `PRAXYS_LOCAL_ENCRYPTION_KEY` in `.env`. This key encrypts platform credentials (Garmin/Stryd/Oura passwords) at rest.
+Paste the key as the value for `PRAXYS_LOCAL_ENCRYPTION_KEY` in `.env`. This key encrypts platform credentials and access tokens at rest.
 
 `.env` settings:
 

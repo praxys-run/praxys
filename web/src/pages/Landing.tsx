@@ -65,12 +65,6 @@ type Copy = {
   vizGoalTargetLabel: string;
   vizGoalTarget: string;
   vizGoalGap: string;
-  labsHeading: string;
-  labsBody: string;
-  labsCta: string;
-  labsQuestion: string;
-  labsConsent: string;
-  labsSignals: [string, string, string];
 };
 
 type FeatureCopy = { idx: string; title: string; body: string };
@@ -103,7 +97,7 @@ const COPY: Record<SupportedLocale, Copy> = {
         idx: 'Next 14 days',
         title: 'A plan that follows your current state.',
         body:
-          'Managed workouts adjust as training and recovery change, then synchronize with Garmin or Stryd.',
+          'Managed workouts adjust as training and recovery change, then synchronize with an available delivery platform.',
       },
       {
         idx: 'Race day',
@@ -130,7 +124,7 @@ const COPY: Record<SupportedLocale, Copy> = {
     vizDecisionAction: 'Reduce intensity',
     vizDecisionReasons: ['Recovery below recent baseline', 'Training load remains elevated'],
     vizPlanLabel: 'Managed plan',
-    vizPlanSync: 'Sync · Garmin / Stryd',
+    vizPlanSync: 'Delivery · selected platform',
     vizPlanDays: [
       { day: 'Tue', session: 'Easy · 45 min' },
       { day: 'Thu', session: 'Threshold · 4 × 8 min' },
@@ -142,12 +136,6 @@ const COPY: Record<SupportedLocale, Copy> = {
     vizGoalTargetLabel: 'Goal',
     vizGoalTarget: '3:10',
     vizGoalGap: '8 min gap',
-    labsHeading: 'Your training history can answer new questions.',
-    labsBody: 'Praxys Labs lets you voluntarily explore questions using your own historical data. The first experiment examines heart-rate response across heat and humidity at comparable recorded running power.',
-    labsCta: 'Explore the full product',
-    labsQuestion: 'How did the environment change my response at the same effort?',
-    labsConsent: 'Runs only when you opt in',
-    labsSignals: ['Historical activities', 'Comparable Stryd power', 'Modeled weather'],
   },
   zh: {
     signIn: '登录',
@@ -175,7 +163,7 @@ const COPY: Record<SupportedLocale, Copy> = {
         idx: '未来 14 天',
         title: '跟随一份会根据状态调整的计划。',
         body:
-          '托管训练会随训练与恢复状态调整，并同步到 Garmin 或 Stryd。',
+          '托管训练会随训练与恢复状态调整，并同步到账号可用的训练平台。',
       },
       {
         idx: '比赛日',
@@ -202,7 +190,7 @@ const COPY: Record<SupportedLocale, Copy> = {
     vizDecisionAction: '降低训练强度',
     vizDecisionReasons: ['恢复状态低于近期水平', '训练负荷仍然偏高'],
     vizPlanLabel: '托管训练计划',
-    vizPlanSync: '同步 · Garmin / Stryd',
+    vizPlanSync: '同步 · 已选平台',
     vizPlanDays: [
       { day: '周二', session: '轻松跑 · 45 分钟' },
       { day: '周四', session: '阈值训练 · 4 × 8 分钟' },
@@ -214,12 +202,6 @@ const COPY: Record<SupportedLocale, Copy> = {
     vizGoalTargetLabel: '目标',
     vizGoalTarget: '3:10',
     vizGoalGap: '相差 8 分钟',
-    labsHeading: '你的训练历史，还能回答新的问题。',
-    labsBody: 'Praxys Labs 让你自愿使用自己的历史数据探索训练问题。首个实验会比较相近跑步功率下，心率反应随温度和湿度发生的变化。',
-    labsCta: '查看完整产品介绍',
-    labsQuestion: '在相同强度下，环境如何影响我的身体反应？',
-    labsConsent: '只有主动同意后才会运行',
-    labsSignals: ['历史活动', '相近 Stryd 功率', '模型天气数据'],
   },
 };
 
@@ -371,33 +353,12 @@ export default function Landing({ publicLocale }: { publicLocale?: SupportedLoca
           </div>
         </section>
 
-        <section className="landing-labs">
-          <div className="landing-labs-copy">
-            <h2>{t.labsHeading}</h2>
-            <p>{t.labsBody}</p>
-            <Link to={publicNav.product.path} className="landing-btn-ghost">
-              {t.labsCta}
-            </Link>
-          </div>
-          <div className="landing-labs-panel">
-            <div className="landing-labs-consent">
-              <span aria-hidden="true" />
-              {t.labsConsent}
-            </div>
-            <p>{t.labsQuestion}</p>
-            <ul>
-              {t.labsSignals.map((signal) => <li key={signal}>{signal}</li>)}
-            </ul>
-          </div>
-        </section>
-
         {/* ─── PLATFORMS (quieter) ─── */}
         <section className="landing-platforms-band">
           <span className="label">{t.platformsLabel}</span>
           <img src="/logos/garmin.png" alt="Garmin" className="plogo plogo-garmin" onError={handleLogoError} />
           <img src="/logos/strava.svg" alt="Strava" className="plogo plogo-strava" onError={handleLogoError} />
           <img src="/logos/coros.png" alt="COROS" className="plogo plogo-coros" onError={handleLogoError} />
-          <img src="/logos/stryd.svg" alt="Stryd" className="plogo plogo-stryd" onError={handleLogoError} />
           <img src="/logos/oura.svg" alt="Oura" className="plogo plogo-oura" onError={handleLogoError} />
         </section>
 

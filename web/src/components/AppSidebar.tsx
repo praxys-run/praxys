@@ -103,7 +103,7 @@ export default function AppSidebar() {
   const location = useLocation();
   const { theme, setTheme } = useTheme();
   const { logout, email, isAdmin } = useAuth();
-  const { config } = useSettings();
+  const { config, platformCapabilities } = useSettings();
   const setup = useSetupStatus();
   const { t, i18n } = useLingui();
   const displayName = config?.display_name || null;
@@ -130,7 +130,9 @@ export default function AppSidebar() {
   // Reference: theory + methodology surfaces.
   const referenceItems: NavItem[] = [
     { to: '/science', icon: BookOpen, label: t`Science` },
-    { to: '/labs', icon: FlaskConical, label: t`Labs` },
+    ...(Object.prototype.hasOwnProperty.call(platformCapabilities, 'stryd')
+      ? [{ to: '/labs', icon: FlaskConical, label: t`Labs` }]
+      : []),
   ];
   // Configuration: the user adjusts the system here (rare, deliberate).
   const configItems: NavItem[] = [

@@ -30,27 +30,32 @@ test('public product copy names every current platform connection', () => {
   for (const locale of Object.values(content.locales)) {
     const productText = JSON.stringify(locale.product);
     const faqText = JSON.stringify(locale.faq);
-    for (const platform of ['Garmin', 'Strava', 'COROS', 'Stryd', 'Oura']) {
+    for (const platform of ['Garmin', 'Strava', 'COROS', 'Oura']) {
       assert.match(productText, new RegExp(platform, 'i'));
       assert.match(faqText, new RegExp(platform, 'i'));
     }
+    assert.doesNotMatch(productText, /Stryd/i);
+    assert.doesNotMatch(faqText, /Stryd/i);
+    assert.doesNotMatch(productText, /Praxys Labs|Praxys 实验室/i);
+    assert.doesNotMatch(faqText, /Praxys Labs|Praxys 实验室/i);
   }
+  assert.doesNotMatch(landingSource, /Praxys Labs|landing-labs|labsHeading/i);
 });
 
-test('managed plan copy names current Garmin and Stryd delivery', () => {
+test('managed plan copy follows account-available delivery capabilities', () => {
   for (const locale of Object.values(content.locales)) {
     const managedSection = locale.product.sections.find((section) =>
-      /Garmin/i.test(section.body) && /Stryd/i.test(section.body)
+      /plan|计划/i.test(section.heading)
     );
     const managedQuestion = locale.faq.questions.find((item) =>
       /managed.*plan|托管.*计划/i.test(item.question)
     );
     assert.ok(managedSection);
     assert.ok(managedQuestion);
-    for (const platform of ['Garmin', 'Stryd']) {
-      assert.match(managedSection.body, new RegExp(platform, 'i'));
-      assert.match(managedQuestion.answer, new RegExp(platform, 'i'));
-    }
+    assert.match(managedSection.body, /available to your account|账号当前可用/i);
+    assert.match(managedQuestion.answer, /available to your account|账号当前可用/i);
+    assert.doesNotMatch(managedSection.body, /Stryd/i);
+    assert.doesNotMatch(managedQuestion.answer, /Stryd/i);
   }
 });
 

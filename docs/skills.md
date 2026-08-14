@@ -268,7 +268,7 @@ evidence or proposing a product interpretation use the repository
 
 ### /sync-data
 
-Sync training data from Garmin, Stryd, and/or Oura Ring.
+Sync training data from the platforms available to the account.
 
 **When to use:** Pulling latest data, backfilling history, checking sync status.
 

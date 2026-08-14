@@ -215,8 +215,12 @@ class FakeDeliveryAdapter:
 
 
 @pytest.fixture
-def managed_db(tmp_path):
+def managed_db(tmp_path, monkeypatch):
     """Yield an enabled managed-plan database and fake provider."""
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, _user: gate_name == "stryd_connection_enabled",
+    )
     engine = create_engine(f"sqlite:///{tmp_path / 'managed-delivery.db'}")
     Base.metadata.create_all(engine)
     session_factory = sessionmaker(bind=engine)

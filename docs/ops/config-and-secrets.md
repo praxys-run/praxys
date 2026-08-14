@@ -26,7 +26,8 @@ transient — the next deploy overwrites them.**
 | `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` | OIDC login to Azure for deploys (no client secret). The principal is resource-group Contributor; the Labs runbook additionally grants only `Microsoft.Resources/subscriptions/providers/read` through a custom subscription role so provider preflight works without RBAC-write authority. | deploy workflows |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription targeted by deployment workflows | deploy workflows |
 | `PRAXYS_JWT_SECRET` | JWT signing key | pushed to App Service setting by `deploy-backend.yml` |
-| `STATSIG_SDK_KEY` | Optional Statsig server SDK key (`secret-*`). Backend-only; absence fails closed with all gates off. | App Service setting (backend) |
+| `STATSIG_SDK_KEY` | Optional for the main app, required for the isolated Labs worker. Statsig server SDK key (`secret-*`); absence fails closed with all gates off. | App Service setting (backend); Container Apps Job secret `statsig-sdk-key` via `deploy-labs-worker.yml` |
+| `STRYD_CLIENT_WHEEL_B64` | Base64-encoded, hash-pinned private `stryd-client` v0.2.0 wheel. Trusted CI installs it for transport tests; backend deployment materializes the wheel for Oryx. Fork CI receives no secret and exercises the package-absent path instead. | `ci-premerge.yml`, `deploy-backend.yml` |
 | `PRAXYS_DATABASE_URL` | Postgres DSN (#360). May carry the DB password unless Entra auth is used. **Optional** until cutover; empty = SQLite. | App Service setting (backend) |
 | `PRAXYS_LABS_DATABASE_URL` | Passwordless Postgres DSN whose username is `id-praxys-labs-worker`. Stored separately so the Container Apps Job uses its own least-privilege Entra principal, never the backend admin identity. | `deploy-labs-worker.yml` -> Container Apps secret `database-url` |
 | `WECHAT_MINIAPP_APPID` / `WECHAT_MINIAPP_SECRET` | WeChat Mini Program auth | App Service setting (backend) |
@@ -335,6 +336,7 @@ The final Statsig Console state owned by this integration is exactly:
 | Resource type | Name | Default / schema | Rules |
 |---|---|---|---|
 | Feature gate | `garmin_plan_delivery_eligible` | `false` in every environment | Optional reviewed allow rule matching only dedicated users by internal Praxys UUID. Never add a global pass rule. |
+| Feature gate | `stryd_connection_enabled` | `false` in every environment | One exact-email allow rule for the maintainer account only. The backend removes Stryd from settings, sync, plan delivery, Labs, schedulers, and direct actions for every other account. Never add a percentage or global pass rule. |
 | Dynamic config | `insight_daily_cap` | `{"value": 30}` where `value` is an integer | No experiment assignment. Runtime rules may return another validated positive integer. |
 | Dynamic config | `labs_environment_recompute_policy` | `{"value":{"cooldown_hours":6,"window_hours":24,"max_requests":3}}`; all fields are integers | No experiment assignment. A reviewed per-user UUID rule may set `cooldown_hours` to `0` for targeted testing. Keep `window_hours` between 1 and 168, `cooldown_hours` between 0 and `window_hours`, and `max_requests` between 1 and 100. |
 
@@ -356,6 +358,13 @@ The Garmin gate is evaluated only after
 capability checks, durable execution-target selection, or the
 account-generation/region fence. Remove superseded issue-251 resources from
 the Statsig project; do not create an experiment for this integration.
+
+The Stryd gate has no client-side authority. Backend responses omit the private
+provider and Stryd-only Labs capability for ineligible users, and direct action
+paths return 404. Web and miniapp navigation mirror those filtered responses.
+The account must also be active, non-demo, connected, and running a deployment
+that contains the private wheel. Missing Statsig configuration or evaluation
+errors fail closed.
 
 When Statsig is unavailable or the dynamic-config property is absent, the
 backend keeps `PRAXYS_INSIGHT_DAILY_CAP` and then `30` as the insight fallback.
@@ -381,10 +390,40 @@ gh variable set VITE_STATSIG_CLIENT_KEY --repo praxys-run/praxys
 Verify the backend App Service contains `STATSIG_SDK_KEY` and `STATSIG_ENV`
 without printing their values, and inspect the built SPA only for the expected
 public `client-*` key. Removing `STATSIG_SDK_KEY` and redeploying is a
-fail-closed rollback for Garmin eligibility; both dynamic configs resume their
-documented fallbacks. To roll back only a Labs exception, remove its targeted
-rule and confirm the API again reports `cooldown_hours: 6`,
+fail-closed rollback for Garmin and Stryd eligibility; both dynamic configs
+resume their documented fallbacks. To roll back only Stryd access, disable
+`stryd_connection_enabled` or remove its single maintainer rule. To roll back
+only a Labs recompute exception, remove its targeted rule and confirm the API
+again reports `cooldown_hours: 6`,
 `window_hours: 24`, and `remaining_requests` against a three-request window.
+
+### Private Stryd wheel provisioning
+
+The public Praxys repository must not hold a token that can clone the private
+client repository. GitHub deploy keys are disabled for that repository, so the
+current pinned wheel is stored directly as an encrypted Actions secret. The
+workflows materialize it under ignored `.private-deps/`, verify SHA-256
+`d5ecc8c14beafe1cf2df6e5021b0bee71094b15cf14dfc039f0652c8c9c030e4`,
+and never deploy client source.
+
+Provision or rotate the secret from a trusted local checkout after verifying
+the intended wheel:
+
+```bash
+wheel=/path/to/stryd_client-0.2.0-py3-none-any.whl
+test "$(sha256sum "$wheel" | cut -d' ' -f1)" = \
+  d5ecc8c14beafe1cf2df6e5021b0bee71094b15cf14dfc039f0652c8c9c030e4
+base64 -w 0 "$wheel" \
+  | gh secret set STRYD_CLIENT_WHEEL_B64 --repo praxys-run/praxys
+```
+
+When upgrading the private package, change the filename and expected digest in
+both workflows in the same PR, update this runbook, then replace the secret
+before merge. A missing or mismatched secret fails backend deployment; normal
+CI without the secret validates that Praxys still imports and serves all
+non-Stryd features. Removing the secret is an emergency package-distribution
+rollback, but disable the Statsig gate first so the maintainer UI also fails
+closed.
 
 ### Azure Key Vault (`kv-trainsight`)
 - RSA key `trainsight-master-key` — the master key that wraps the per-user
@@ -398,19 +437,10 @@ annotated list. Minimum: `PRAXYS_LOCAL_ENCRYPTION_KEY` (Fernet); `PRAXYS_ENV=dev
 to boot without a JWT secret.
 
 Platform credentials used by sync and plan delivery are encrypted per user in
-`user_connections`; production does not read global `STRYD_EMAIL` /
-`STRYD_PASSWORD` values for API writes. A legacy local-only fallback is
-available when all three conditions hold:
-
-- `PRAXYS_ENV=development` in the root `.env` or process environment (the
-  server intentionally does not accept this opt-in from `sync/.env`);
-- `PRAXYS_STRYD_ENV_USER_ID` exactly matches the authenticated Praxys user ID;
-- `STRYD_EMAIL` and `STRYD_PASSWORD` are present in the process environment or
-  `sync/.env`.
-
-The explicit user-ID pin prevents one local account from borrowing another
-account's environment credentials. Do not add these values to
-`deploy-backend.yml`, GitHub Actions, or App Service settings.
+`user_connections`; the server does not read global platform usernames or
+passwords for API writes. Do not add personal platform credentials to
+`deploy-backend.yml`, GitHub Actions, App Service settings, or shared local
+environment files.
 
 Garmin consumer-API workout delivery is an unsupported, duration-only
 rollout protected by independent deployment, eligibility, account-generation,
@@ -833,6 +863,8 @@ without routing production work to it:
 | Value | Source of truth | Notes |
 |---|---|---|
 | `PRAXYS_LABS_DATABASE_URL` | GitHub Actions secret | Passwordless DSN using username `id-praxys-labs-worker`; injected only into the Container Apps Job secret. |
+| `STATSIG_SDK_KEY` | Existing GitHub Actions secret | Injected into the Container Apps Job as secret `statsig-sdk-key`. The worker refuses to receive a message until Statsig initializes so a targeting outage cannot cancel eligible queued work. |
+| `STATSIG_ENV` | Existing GitHub Actions variable | Injected as the worker's Statsig tier; defaults to `production` in `deploy-labs-worker.yml`. |
 | `PRAXYS_LABS_WORKER_DEPLOY_ENABLED` | GitHub Actions variable | Default off. Exact `true` lets `deploy-labs-worker.yml` reconcile Bicep resources, but only after the one-time GHCR package visibility check in the worker runbook. |
 | `PRAXYS_LABS_EXECUTION_MODE` | GitHub Actions variable | Defaults to `inline`; switch to `service_bus` only after worker verification. |
 | `PRAXYS_LABS_SERVICE_BUS_FQDN` | Derived by `deploy-backend.yml` | The workflow discovers the namespace tagged `praxysComponent=labs-analysis`; do not hand-set it in the portal. |
@@ -849,8 +881,10 @@ mapping as an Entra administrator. The table-owning backend identity then runs
 only the non-GPS sample columns consumed by the research pack, restricts
 enrollment/job updates to worker-owned processing fields, and permits only
 `user_id`, `platform`, `status`, and `preferences` reads on
-`user_connections`. It does not grant access to encrypted credentials or token
-bundles.
+`user_connections`. Gate targeting receives column-limited reads of `users.id`,
+`email`, `is_active`, `is_superuser`, and `is_demo`; password hashes and other
+account columns remain denied. It does not grant access to encrypted
+credentials or token bundles.
 
 ```bash
 gh secret set PRAXYS_LABS_DATABASE_URL \

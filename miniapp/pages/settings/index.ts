@@ -63,12 +63,12 @@ function buildSettingsTr() {
     connections: t('Connections'),
     manageOnWeb: t('Manage connections from the web app.'),
     noPlatformsHint: t(
-      "No platforms connected. Link Garmin / Stryd / Oura from the web app — their OAuth flows aren't supported in mini programs.",
+      'No platforms connected. Manage supported connections from the web app.',
     ),
     thresholds: t('Thresholds'),
     thresholdsHint: t('Auto-detected from synced fitness data; override on the web.'),
     thresholdsEmpty: t(
-      'No thresholds yet. Sync Garmin / Stryd data to auto-detect CP, LTHR, and pace — or enter values manually on the web.',
+      'No thresholds yet. Sync fitness data to auto-detect CP, LTHR, and pace — or enter values manually on the web.',
     ),
     theme: t('Theme'),
     themeAuto: t('Auto'),
@@ -114,7 +114,7 @@ function buildSettingsTr() {
     syncStarted: t('Sync started in the background.'),
     syncFailed: t('Sync request failed. Try again from the web app if it persists.'),
     trainingBaseHint: t(
-      'What metric Praxys uses to measure intensity. Power needs Stryd; Pace works with anything that gives you GPS.',
+      'What metric Praxys uses to measure intensity. Power needs a compatible running-power source; Pace works with GPS activity data.',
     ),
     trainingBasePower: t('Power'),
     trainingBaseHr: t('Heart rate'),

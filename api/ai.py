@@ -223,6 +223,7 @@ def build_training_context(
     db=None,
     *,
     recent_training_weeks: int = 8,
+    include_stryd_plan: bool = True,
 ) -> dict:
     """Build a structured training context dict for LLM plan generation.
 
@@ -233,10 +234,15 @@ def build_training_context(
     Pass ``user_id`` + ``db`` for multi-user mode. The default 8-week history
     remains appropriate for plan generation and general consumers; callers
     producing longer-range reviews can explicitly request a wider window.
+    Viewer-aware consumers set ``include_stryd_plan`` from the private gate.
     """
     from api.deps import get_dashboard_data
 
-    data = get_dashboard_data(user_id=user_id, db=db)
+    data = get_dashboard_data(
+        user_id=user_id,
+        db=db,
+        include_stryd_plan=include_stryd_plan,
+    )
     return _build_context_from_data(
         data,
         user_id=user_id,
