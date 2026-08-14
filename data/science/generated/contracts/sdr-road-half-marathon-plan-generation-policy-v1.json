@@ -1,0 +1,755 @@
+{
+  "affected_models": [
+    "road-half-marathon-plan-generation-policy-v1",
+    "shared dynamic training-pattern and confirmed event snapshots"
+  ],
+  "contract_digest": "sha256:2a9519c747d1c2b7bf80eefa1008f6b9687d69493f0d656aae0a647699ab40cc",
+  "decision_id": "sdr-road-half-marathon-plan-generation-policy-v1",
+  "decision_status": "draft",
+  "decision_version": 1,
+  "evidence_claim_ids": [
+    "eligibility.recent-history-anchor-without-universal-threshold",
+    "eligibility.fixed-progression-and-acwr-not-safety-laws",
+    "eligibility.goal-relevant-current-capability-task-specific",
+    "eligibility.current-symptoms-support-stop-not-clearance",
+    "eligibility.evidence-quality-no-personal-probability",
+    "eligibility.masters-age-change-not-automatic-exclusion",
+    "road-half-marathon.task-specific-capability-is-multifactor",
+    "road-half-marathon.volume-and-long-run-are-associative",
+    "road-half-marathon.taper-is-indirectly-supported",
+    "road-half-marathon.fueling-and-gut-practice-supported",
+    "road-half-marathon.direct-field-baseline-preferred-with-error",
+    "road-half-marathon.exact-long-run-dose-unproven",
+    "road-half-marathon.intensity-distribution-no-universal-winner",
+    "road-half-marathon.recovery-spacing-unresolved",
+    "road-half-marathon.subgroup-dose-rules-unproven"
+  ],
+  "evidence_review_ids": [
+    "evidence-plan-generation-eligibility-safety-v1",
+    "evidence-road-half-marathon-plan-generation-policy-v1"
+  ],
+  "linked_evidence_digests": {
+    "evidence-plan-generation-eligibility-safety-v1": "sha256:e884907d33783edc6cdb16fd5504f7f10b6d68f968bfe7cf87e3f024b5bda773",
+    "evidence-road-half-marathon-plan-generation-policy-v1": "sha256:22a2df413eb204395db0444fe1b97a7b7bf42e58010ee614dea30945b9eb14e9"
+  },
+  "model_version": "road-half-marathon-plan-generation-policy-v1",
+  "parameters": {
+    "road_half_marathon_activation_and_dependency": {
+      "applies_to": "policy lifecycle and capability registry",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.evidence-quality-no-personal-probability"
+      ],
+      "value": {
+        "active_behavior": false,
+        "capability_registry_entry_default_enabled": false,
+        "decision_approval_artifact_required": true,
+        "distance_policy_required_status_before_activation": "accepted",
+        "evidence_review_required_status_before_activation": "accepted",
+        "generator_api_web_miniapp_plugin_and_mcp_activation_in_this_record": false,
+        "implementation_approval_artifact_required": true,
+        "shared_policy_dependency": {
+          "required_status_before_activation": "accepted",
+          "sdr_id": "sdr-plan-generation-eligibility-safety-v1"
+        }
+      }
+    },
+    "road_half_marathon_baseline_freshness": {
+      "applies_to": "capability freshness",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "road-half-marathon.direct-field-baseline-preferred-with-error"
+      ],
+      "value": {
+        "exact_current_through_completed_days": "not_accepted",
+        "missing_or_stale_outcome": "readiness_only",
+        "no_biological_expiry_claim": true,
+        "required_before_activation": true,
+        "stale_boundary": "not_accepted"
+      }
+    },
+    "road_half_marathon_direct_baseline_hierarchy": {
+      "applies_to": "baseline qualification",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.goal-relevant-current-capability-task-specific",
+        "road-half-marathon.task-specific-capability-is-multifactor",
+        "road-half-marathon.direct-field-baseline-preferred-with-error"
+      ],
+      "value": {
+        "accepted_evidence_order": [
+          "organized_outdoor_road_half_marathon_with_elapsed_time",
+          "athlete_confirmed_standardized_outdoor_road_half_marathon_time_trial"
+        ],
+        "allowed_assistance_statuses": "not_accepted",
+        "allowed_surface_values": "not_accepted",
+        "automatic_maximal_baseline_test": "prohibited",
+        "baseline_qualification_algorithm": "not_accepted",
+        "direct_current_capability_required": true,
+        "distance_match_tolerance_m": "not_accepted",
+        "excluded_as_direct": [
+          "shorter_race_conversion",
+          "marathon_or_ultra_split",
+          "passive_fastest_half_marathon_segment",
+          "personal_best_without_source_activity",
+          "activity_average_power",
+          "vendor_readiness_or_race_score"
+        ],
+        "missing_direct_result_outcome": "insufficient_direct_half_marathon_baseline",
+        "required_metadata": [
+          "completed_at",
+          "elapsed_time_seconds",
+          "measured_distance_m",
+          "route_or_event_identifier",
+          "surface",
+          "assistance_status",
+          "source_provider",
+          "race_or_intentional_time_trial_flag"
+        ],
+        "standardized_time_trial_protocol": "not_accepted",
+        "supporting_only": [
+          "cooper_test",
+          "current_vo2max_or_vvo2max",
+          "current_threshold_or_critical_speed",
+          "weekly_training_distance",
+          "recent_longest_run",
+          "race_forecast_with_error",
+          "split_or_sample_pacing_distribution"
+        ]
+      }
+    },
+    "road_half_marathon_event_context": {
+      "applies_to": "event calendar and schedule conflicts",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "road-half-marathon.recovery-spacing-unresolved",
+        "road-half-marathon.taper-is-indirectly-supported",
+        "eligibility.evidence-quality-no-personal-probability"
+      ],
+      "value": {
+        "confirmed_primary_event_may_trigger_taper_only_after_taper_guardrail_acceptance": true,
+        "every_race_or_maximal_effort": {
+          "counts_as_quality_session": true,
+          "counts_as_training_load": true,
+          "requires_recovery_reassessment": true
+        },
+        "imported_event_must_be_athlete_confirmed": true,
+        "no_event_performance_goal": {
+          "automatic_half_marathon_benchmark": "prohibited",
+          "goal_remains_recorded": true,
+          "rolling_policy_before_activation": "readiness_only"
+        },
+        "shared_event_states_consumed": [
+          "confirmed_none",
+          "single_target",
+          "race_dense"
+        ],
+        "unresolved_race_dense_outcome": "limited_guidance_event_conflict"
+      }
+    },
+    "road_half_marathon_fueling_practice_policy": {
+      "applies_to": "fueling-practice context and user communication",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "road-half-marathon.fueling-and-gut-practice-supported"
+      ],
+      "value": {
+        "athlete_may_decline_optional_profile_or_tolerance_detail": true,
+        "automatic_carbohydrate_loading_from_distance_label": "prohibited",
+        "exact_duration_bands_and_prompts": "not_accepted",
+        "fueling_prompt_is_medical_or_dietetic_treatment": false,
+        "missing_optional_detail_effect": "generic_uncertainty_only",
+        "new_race_day_strategy_without_practice": "prohibited",
+        "product_carbohydrate_grams_per_hour_range_or_cap": "not_accepted",
+        "product_during_exercise_duration_bands": "not_accepted",
+        "product_glycogen_loading_duration_threshold": "not_accepted",
+        "published_findings_are_runtime_routing_rules": false,
+        "required_inputs": [
+          "expected_event_duration_band",
+          "prior_during_run_carbohydrate_practice",
+          "prior_gastrointestinal_tolerance_or_issue",
+          "athlete_preference"
+        ]
+      }
+    },
+    "road_half_marathon_goal_tuple": {
+      "applies_to": "goal normalization and distance-policy selection",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.goal-relevant-current-capability-task-specific",
+        "road-half-marathon.task-specific-capability-is-multifactor"
+      ],
+      "value": {
+        "goal_intent": "performance",
+        "goal_kind": "distance_half_marathon",
+        "no_event_goal_may_remain_recorded": true,
+        "primary_outcome": "elapsed_time",
+        "separate_policy_variants": [
+          "first_half_marathon_completion",
+          "sparse_history_half_marathon",
+          "treadmill_half_marathon",
+          "trail_half_marathon",
+          "multisport_run_leg",
+          "marathon_or_ultra",
+          "medically_directed_rehabilitation",
+          "pregnancy_specific_planning"
+        ],
+        "sport": "running",
+        "surface": "outdoor_road",
+        "target_date_optional": true,
+        "target_time_optional": true
+      }
+    },
+    "road_half_marathon_history_anchored_load_and_long_run": {
+      "applies_to": "weekly exposure and longest-run boundary",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.fixed-progression-and-acwr-not-safety-laws",
+        "road-half-marathon.volume-and-long-run-are-associative",
+        "road-half-marathon.exact-long-run-dose-unproven"
+      ],
+      "value": {
+        "acwr_prescription_zone_used": false,
+        "athlete_availability_and_single_session_limits_are_hard_caps": true,
+        "automatic_long_run_progression": false,
+        "exact_long_run_distance_or_duration": "not_accepted",
+        "exact_long_run_share_of_weekly_volume": "not_accepted",
+        "exact_weekly_progression": "not_accepted",
+        "mandatory_long_run": false,
+        "observed_32_km_week_or_21_km_long_run_used_as_minimum": false,
+        "planned_longest_run_may_not_exceed_recent_completed_maximum": "proposed_guardrail_for_review",
+        "planned_weekly_exposure_may_not_exceed_recent_completed_maximum": "proposed_guardrail_for_review",
+        "target_gap_may_raise_load": false,
+        "ten_percent_rule_used": false
+      }
+    },
+    "road_half_marathon_intensity_structure": {
+      "applies_to": "session structure and intensity analysis",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "road-half-marathon.intensity-distribution-no-universal-winner",
+        "road-half-marathon.recovery-spacing-unresolved"
+      ],
+      "value": {
+        "activity_average_power_allowed": false,
+        "allowed_session_categories": [
+          "easy",
+          "longest_easy",
+          "controlled_threshold",
+          "half_marathon_specific_or_race_pace",
+          "interval",
+          "confirmed_event"
+        ],
+        "consecutive_quality_running_days_allowed": "proposed_false_for_review",
+        "exact_low_intensity_fraction": "not_accepted",
+        "exact_session_mix": "not_accepted",
+        "exact_step_templates": "not_accepted",
+        "generic_percent_of_threshold_or_critical_power_targets": false,
+        "intensity_source_priority": [
+          "activity_splits",
+          "activity_samples"
+        ],
+        "maximum_quality_sessions_per_7_day_unit": "not_accepted",
+        "mostly_low_intensity_structure_required": true
+      }
+    },
+    "road_half_marathon_open_decisions": {
+      "applies_to": "human decision review",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "road-half-marathon.volume-and-long-run-are-associative",
+        "road-half-marathon.exact-long-run-dose-unproven",
+        "road-half-marathon.intensity-distribution-no-universal-winner",
+        "road-half-marathon.recovery-spacing-unresolved",
+        "road-half-marathon.taper-is-indirectly-supported",
+        "road-half-marathon.fueling-and-gut-practice-supported"
+      ],
+      "value": {
+        "aggressive_short_horizon_variant": "not_accepted",
+        "baseline_freshness_days": "not_accepted",
+        "direct_baseline_qualification_algorithm": "not_accepted",
+        "exact_workout_templates": "not_accepted",
+        "execution_window_and_reassessment_cadence": "not_accepted",
+        "frequency_envelope": "not_accepted",
+        "fueling_duration_bands_and_prompts": "not_accepted",
+        "fueling_intake_range_or_cap": "not_accepted",
+        "fueling_loading_duration_threshold": "not_accepted",
+        "long_run_share_distance_and_ceiling": "not_accepted",
+        "low_intensity_floor": "not_accepted",
+        "minimum_history_counts": "not_accepted",
+        "pilot_go_no_go_thresholds": "not_accepted",
+        "quality_session_ceiling_and_spacing": "not_accepted",
+        "selected_taper_guardrail": "not_accepted",
+        "taper_training_minutes_accounting": "not_accepted",
+        "weekly_progression_rule": "not_accepted"
+      }
+    },
+    "road_half_marathon_planning_and_reassessment": {
+      "applies_to": "proposal horizon and reassessment",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.recent-history-anchor-without-universal-threshold",
+        "eligibility.fixed-progression-and-acwr-not-safety-laws",
+        "road-half-marathon.volume-and-long-run-are-associative"
+      ],
+      "value": {
+        "automatic_progression_between_reassessments": false,
+        "each_reassessment_requires": [
+          "fresh_shared_eligibility",
+          "updated_history_and_longest_run",
+          "updated_event_context",
+          "updated_dynamic_pattern_snapshot",
+          "updated_fueling_practice_context",
+          "explicit_review_before_replacing_adopted_future_days"
+        ],
+        "exact_calendar_reassessment_cadence": "not_accepted",
+        "exact_committed_execution_window_days": "not_accepted",
+        "fixed_full_block_days": "none_defined",
+        "fixed_horizon_eligibility_gate": false,
+        "reassessment_triggers": [
+          "new_or_changed_confirmed_event",
+          "material_training_pattern_change",
+          "new_qualified_half_marathon_result",
+          "changed_availability_or_constraint",
+          "changed_fueling_tolerance_or_practice",
+          "completed_target_event",
+          "athlete_requested_review"
+        ],
+        "target_date_required": false
+      }
+    },
+    "road_half_marathon_privacy_and_audit": {
+      "applies_to": "audit and privacy",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.evidence-quality-no-personal-probability"
+      ],
+      "value": {
+        "minimum_necessary_inputs_only": true,
+        "no_inference_of": [
+          "diagnosis",
+          "injury_cause",
+          "pregnancy_status",
+          "mental_state",
+          "missed_training_reason",
+          "gastrointestinal_diagnosis"
+        ],
+        "no_publication_of": [
+          "raw_health_data",
+          "private_activity_data",
+          "inferred_sensitive_context"
+        ],
+        "replay_record_must_include": [
+          "shared_and_distance_policy_versions",
+          "decision_and_contract_digests",
+          "goal_record_state",
+          "dynamic_pattern_snapshot",
+          "confirmed_event_context",
+          "profile_and_fueling_field_provenance",
+          "baseline_source",
+          "history_cutoff_and_inputs",
+          "unresolved_guardrail_versions",
+          "typed_outcome",
+          "proposal_hash"
+        ]
+      }
+    },
+    "road_half_marathon_protocol_comparability_and_outcomes": {
+      "applies_to": "post-plan evaluation",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "road-half-marathon.direct-field-baseline-preferred-with-error",
+        "road-half-marathon.task-specific-capability-is-multifactor",
+        "eligibility.evidence-quality-no-personal-probability"
+      ],
+      "value": {
+        "causal_plan_effect_claim": "prohibited",
+        "direct_before_after_claim_requires": [
+          "comparable_half_marathon_distance_and_result_type",
+          "known_route_or_event",
+          "known_surface",
+          "known_assistance_status",
+          "known_environment_context_when_available",
+          "no_material_protocol_change"
+        ],
+        "missing_comparability_outcome": "descriptive_context_only",
+        "personal_responder_classification": "prohibited",
+        "supporting_post_plan_inputs": [
+          "split_level_pacing_and_pace_decline",
+          "adherence_and_edit_burden",
+          "fueling_practice_and_gastrointestinal_response",
+          "recovery_response",
+          "weekly_volume_frequency_and_longest_run_change"
+        ]
+      }
+    },
+    "road_half_marathon_published_fueling_findings": {
+      "applies_to": "fueling evidence display only",
+      "classification": "published",
+      "evidence_claim_ids": [
+        "road-half-marathon.fueling-and-gut-practice-supported"
+      ],
+      "value": {
+        "direct_half_marathon_dose_validation": false,
+        "gut_training": {
+          "carbohydrate_malabsorption_reduction_reported_percent": {
+            "high": 54,
+            "low": 45
+          },
+          "gastrointestinal_discomfort_reduction_reported_percent": 47
+        },
+        "source_guidance": {
+          "around_one_hour": {
+            "small_amount_or_carbohydrate_mouth_rinse_supported": true
+          },
+          "glycogen_loading": {
+            "source_boundary_minutes": 90,
+            "source_statement": "not_recommended_for_events_shorter_than_boundary"
+          },
+          "longer_endurance_exercise": {
+            "reported_carbohydrate_grams_per_hour": {
+              "high": 60,
+              "low": 30
+            }
+          }
+        }
+      }
+    },
+    "road_half_marathon_published_taper_findings": {
+      "applies_to": "taper evidence",
+      "classification": "published",
+      "evidence_claim_ids": [
+        "road-half-marathon.taper-is-indirectly-supported"
+      ],
+      "value": {
+        "direct_adult_road_half_marathon_validation": false,
+        "evidence_population": "mixed_endurance_athletes",
+        "maintain_frequency": true,
+        "maintain_intensity": true,
+        "strongest_duration_subgroup_days": {
+          "maximum": 14,
+          "minimum": 8
+        },
+        "strongest_volume_reduction_percent": {
+          "maximum": 60,
+          "minimum": 41
+        }
+      }
+    },
+    "road_half_marathon_published_volume_and_long_run_findings": {
+      "applies_to": "evidence display and guardrail rationale",
+      "classification": "published",
+      "evidence_claim_ids": [
+        "road-half-marathon.volume-and-long-run-are-associative"
+      ],
+      "value": {
+        "causal_dose_or_safety_established": false,
+        "longest_run_category_associated_with_faster_time_km_more_than": 21,
+        "longest_run_finish_time_coefficient_minutes": -3.87,
+        "observational_only": true,
+        "study_population": "adult_recreational_half_marathon_runners",
+        "weekly_distance_category_associated_with_faster_time_km_more_than": 32,
+        "weekly_distance_finish_time_coefficient_minutes": -4.19
+      }
+    },
+    "road_half_marathon_recent_history_inputs": {
+      "applies_to": "history-rich qualification",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.recent-history-anchor-without-universal-threshold",
+        "road-half-marathon.volume-and-long-run-are-associative",
+        "road-half-marathon.exact-long-run-dose-unproven"
+      ],
+      "value": {
+        "disallowed_intensity_source": [
+          "activity_avg_power"
+        ],
+        "exact_lookback_weeks": "not_accepted",
+        "history_qualification_algorithm": "not_accepted",
+        "intensity_source_priority": [
+          "activity_splits",
+          "activity_samples"
+        ],
+        "latest_run_freshness_days": "not_accepted",
+        "minimum_runs_per_usable_week": "not_accepted",
+        "minimum_usable_weeks": "not_accepted",
+        "required_observations": [
+          "completed_weekly_running_minutes_and_distance",
+          "completed_running_days_per_week",
+          "recent_longest_run_duration_and_distance",
+          "quality_session_and_event_density",
+          "recent_load_relative_to_self",
+          "availability_and_single_session_constraints",
+          "prior_half_marathon_count_when_known"
+        ],
+        "unresolved_history_outcome": "insufficient_history_anchor"
+      }
+    },
+    "road_half_marathon_recovery_boundary": {
+      "applies_to": "recovery and quality spacing",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "road-half-marathon.recovery-spacing-unresolved",
+        "eligibility.current-symptoms-support-stop-not-clearance"
+      ],
+      "value": {
+        "completed_half_marathon_requires_pattern_and_recovery_reassessment": true,
+        "event_or_benchmark_counts_as_quality_and_load": true,
+        "exact_hours_between_quality_sessions": "not_accepted",
+        "high_intensity_recovery_run_automatically_scheduled": false,
+        "missed_quality_makeup_allowed": false,
+        "symptoms_override_recovery_schedule": true,
+        "universal_one_to_three_day_recovery_rule": false
+      }
+    },
+    "road_half_marathon_selected_taper_guardrail": {
+      "applies_to": "event taper selection",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "road-half-marathon.taper-is-indirectly-supported"
+      ],
+      "value": {
+        "exact_frequency_rule": "not_accepted",
+        "exact_intensity_exposure": "not_accepted",
+        "exact_taper_window_days": "not_accepted",
+        "exact_volume_reduction_percent": "not_accepted",
+        "no_extra_sharpening_or_makeup": true,
+        "personal_performance_gain_claim": "prohibited",
+        "pre_event_training_minutes_accounting": "not_accepted",
+        "required_before_taper_activation": true,
+        "target_event_elapsed_time_included_in_training_minutes": "not_accepted"
+      }
+    },
+    "road_half_marathon_suggestion_only_state_transition": {
+      "applies_to": "proposal and adoption state",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.evidence-quality-no-personal-probability"
+      ],
+      "value": {
+        "AI_may_not": [
+          "broaden_eligibility",
+          "invent_capability_history_event_profile_or_safety_context",
+          "choose_unaccepted_guardrails",
+          "override_deterministic_validation",
+          "create_human_approval_artifacts",
+          "activate_adopt_deliver_or_publish"
+        ],
+        "generated_state_after_future_activation": "proposed",
+        "generator_may_not": [
+          "adopt_or_deliver_without_consent",
+          "overwrite_adopted_future_days",
+          "auto_schedule_a_half_marathon_benchmark",
+          "auto_change_event_priority",
+          "schedule_missed_workout_makeup",
+          "infer_missed_workout_reason",
+          "invent_fueling_tolerance"
+        ],
+        "user_may": [
+          "review",
+          "edit",
+          "reject",
+          "explicitly_adopt"
+        ]
+      }
+    },
+    "road_half_marathon_supported_training_pattern": {
+      "applies_to": "shared pattern routing",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.current-symptoms-support-stop-not-clearance",
+        "eligibility.masters-age-change-not-automatic-exclusion",
+        "road-half-marathon.subgroup-dose-rules-unproven"
+      ],
+      "value": {
+        "adult_scope": "confirmed",
+        "capability_pattern": "currently_capable",
+        "current_symptoms": "absent",
+        "event_context": [
+          "confirmed_none",
+          "single_target",
+          "race_dense"
+        ],
+        "evidence_directness": [
+          "direct",
+          "supporting"
+        ],
+        "explicit_exclusions": [
+          "adult_scope_unconfirmed",
+          "first_half_marathon_completion_requires_separate_policy",
+          "sparse_interrupted_or_missing_history",
+          "current_injury_illness_or_concerning_symptoms",
+          "rehabilitation_return_to_sport_or_medical_clearance",
+          "pregnancy_specific_prescription",
+          "unresolved_material_event_context",
+          "unsupported_surface_distance_or_intent"
+        ],
+        "history_pattern": "stable",
+        "load_pattern": "within_recent",
+        "permanent_runner_identity_used": false,
+        "race_dense_requires_resolved_conflicts": true
+      }
+    },
+    "road_half_marathon_target_and_short_horizon_routing": {
+      "applies_to": "target communication and short-horizon routing",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.evidence-quality-no-personal-probability",
+        "road-half-marathon.direct-field-baseline-preferred-with-error"
+      ],
+      "value": {
+        "aggressive_or_catch_up_variant": "not_accepted",
+        "near_event_supported_states": [
+          "readiness_only",
+          "maintain",
+          "taper_after_taper_guardrail_acceptance",
+          "limited_guidance"
+        ],
+        "personal_goal_achievement_probability": "disabled",
+        "personal_injury_probability": "disabled",
+        "short_horizon_invalidates_goal": false,
+        "target_gap_dose_escalation": "prohibited",
+        "target_time_may": [
+          "label_goal",
+          "compute_descriptive_gap_to_direct_baseline",
+          "select_uncertainty_copy"
+        ],
+        "target_time_may_not": [
+          "increase_weekly_volume",
+          "increase_frequency",
+          "lengthen_longest_run",
+          "add_quality",
+          "weaken_history_or_safety_rules"
+        ]
+      }
+    },
+    "road_half_marathon_typed_outcomes": {
+      "applies_to": "future API and client outcome contract",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.evidence-quality-no-personal-probability",
+        "eligibility.current-symptoms-support-stop-not-clearance",
+        "road-half-marathon.direct-field-baseline-preferred-with-error"
+      ],
+      "value": {
+        "current_runtime_state": "policy_inactive",
+        "outcomes": {
+          "adult_scope_unconfirmed": {
+            "goal_remains_recorded": true,
+            "plan_returned": false
+          },
+          "contradictory_input": {
+            "goal_remains_recorded": true,
+            "plan_returned": false
+          },
+          "eligible_future_policy_pattern": {
+            "goal_remains_recorded": true,
+            "plan_returned_while_inactive": false,
+            "review_packet_available": true
+          },
+          "insufficient_direct_half_marathon_baseline": {
+            "goal_remains_recorded": true,
+            "plan_returned": false
+          },
+          "insufficient_history_anchor": {
+            "goal_remains_recorded": true,
+            "plan_returned": false
+          },
+          "intent_requires_separate_policy": {
+            "goal_remains_recorded": true,
+            "plan_returned": false
+          },
+          "limited_guidance_event_conflict": {
+            "goal_remains_recorded": true,
+            "limited_guidance_returned": true,
+            "plan_returned": false
+          },
+          "safety_stop": {
+            "goal_remains_recorded": true,
+            "plan_returned": false
+          },
+          "unresolved_event_context": {
+            "goal_remains_recorded": true,
+            "plan_returned": false
+          },
+          "unresolved_policy_guardrail": {
+            "goal_remains_recorded": true,
+            "plan_returned": false
+          }
+        },
+        "unknown_values_are_not_false_or_zero": true,
+        "unsupported_distance_fallback": "none"
+      }
+    },
+    "road_half_marathon_user_facing_uncertainty": {
+      "applies_to": "future English and Simplified Chinese review and product copy",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "road-half-marathon.volume-and-long-run-are-associative",
+        "road-half-marathon.taper-is-indirectly-supported",
+        "road-half-marathon.fueling-and-gut-practice-supported",
+        "road-half-marathon.subgroup-dose-rules-unproven"
+      ],
+      "value": {
+        "always_show": [
+          "current_policy_is_draft_and_inactive",
+          "proposal_not_guarantee",
+          "direct_associative_and_indirect_evidence_boundaries",
+          "exact_unaccepted_guardrails",
+          "baseline_source_and_prediction_error",
+          "current_dynamic_pattern",
+          "confirmed_event_context",
+          "fueling_duration_and_tolerance_assumptions",
+          "missing_profile_fields_and_specific_effects",
+          "risks_unknowns_and_alternatives",
+          "typed_no_plan_reason"
+        ],
+        "forbidden_copy": [
+          "scientifically_optimal_half_marathon_plan",
+          "safe_because_within_recent_history",
+          "guaranteed_goal_time",
+          "personal_success_or_injury_probability",
+          "medically_cleared",
+          "required_32_km_week",
+          "required_overdistance_long_run",
+          "automatic_carb_loading"
+        ]
+      }
+    },
+    "road_half_marathon_validation_and_pilot_thresholds": {
+      "applies_to": "offline validation and future opt-in pilot",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.evidence-quality-no-personal-probability",
+        "road-half-marathon.direct-field-baseline-preferred-with-error",
+        "road-half-marathon.subgroup-dose-rules-unproven"
+      ],
+      "value": {
+        "deterministic_invariant_breach_tolerance": 0,
+        "deterministic_replay_mismatch_tolerance": 0,
+        "dry_run_metrics_required": [
+          "eligibility_and_no_plan_rates",
+          "each_guardrail_exclusion_rate",
+          "subgroup_missingness_and_exclusion_gaps",
+          "proposal_edit_and_rejection_burden",
+          "fueling_prompt_acceptance_and_tolerance_missingness",
+          "event_conflicts_and_recovery_exits"
+        ],
+        "exact_dry_run_go_no_go_thresholds": "not_accepted",
+        "exact_prospective_pause_thresholds": "not_accepted",
+        "prospective_pilot_metrics_required": [
+          "adoption_and_edit_distance",
+          "adherence_burden",
+          "quality_and_event_stacking",
+          "symptom_stops_and_adverse_events",
+          "fueling_tolerance",
+          "comparable_half_marathon_outcomes",
+          "withdrawal"
+        ]
+      }
+    }
+  },
+  "runtime_state": "inactive",
+  "schema_version": 1,
+  "source_decision_digest": "sha256:ea808fa86de3b3b91b81d76da3eb91991cfdbf93da11d0f343cb4594be55e9f7"
+}

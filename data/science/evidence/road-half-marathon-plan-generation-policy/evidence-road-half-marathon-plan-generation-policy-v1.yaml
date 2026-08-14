@@ -1,0 +1,702 @@
+schema_version: 1
+id: evidence-road-half-marathon-plan-generation-policy-v1
+version: 1
+title: "History-anchored adult outdoor road half-marathon performance planning"
+research_question: >
+  For adults aged 18 years or older whose current training-context pattern
+  shows direct half-marathon capability and stable recent running history, what
+  evidence supports and limits suggestion-only outdoor road half-marathon
+  performance planning with optional target time and date, confirmed event
+  context, durability and long-run inputs, tapering, and fueling practice?
+topic: road-half-marathon-plan-generation-policy
+status: draft
+approval_mode: artifact
+authors:
+  - agent:github-copilot
+human_reviewers: []
+created_on: 2026-08-14
+reviewed_on:
+intended_product_purpose: >
+  Define the evidence boundary for one history-rich outdoor road
+  half-marathon performance policy without inheriting 5 km or 10 km schedule
+  numbers. Separate direct half-marathon capability and observational training
+  associations from mixed-endurance taper, intensity-distribution, recovery,
+  and sports-nutrition evidence. Identify where Praxys still needs explicit
+  product guardrails for history depth, baseline freshness, long-run exposure,
+  quality spacing, progression, execution windows, target communication,
+  fueling prompts, and post-plan evaluation.
+scope:
+  population:
+    - Adults aged 18 years or older
+    - Runners with current direct outdoor road half-marathon capability
+    - Runners with stable recent history sufficient to anchor their own training exposure
+    - Outdoor road half-marathon performance intent with or without a confirmed target event
+    - Recreational and amateur cohorts as evidence populations, not permanent user identities
+  intervention_or_exposure:
+    - Half-marathon performance demands, pacing, and prediction inputs
+    - Weekly running volume, frequency, and longest-run exposure
+    - Mostly-low-intensity, threshold, interval, and race-specific training organization
+    - Long-run, recovery, and quality-session spacing
+    - Pre-event tapering
+    - During-run carbohydrate intake and fueling-practice or gut-training exposure
+    - Same-task field results, field tests, laboratory markers, and outcome comparability
+  comparator:
+    - Lower versus higher observed weekly volume or longest-run exposure
+    - Polarized, pyramidal, threshold-heavy, or other intensity distributions
+    - Reduced versus maintained training volume, intensity, or frequency during taper
+    - Field performance versus laboratory or multivariable prediction
+    - Practiced versus unpracticed during-exercise fueling
+    - Rest versus different post-half-marathon recovery-running intensities
+  outcomes:
+    - Half-marathon finish time and pacing decline
+    - Time-trial or endurance performance
+    - Prediction error and comparability
+    - Recovery time course
+    - Gastrointestinal discomfort and carbohydrate malabsorption
+    - Applicability, adherence burden, and uncertainty
+method:
+  review_type: rigorous
+  search_date: 2026-08-14
+  sources:
+    - name: Europe PMC
+      search_string: '("half-marathon" OR "half marathon") AND (training OR performance OR predictor* OR pacing OR physiology) AND (runner* OR running)'
+    - name: Europe PMC
+      search_string: '("half-marathon" OR "half marathon") AND ("long run" OR "longest endurance run")'
+    - name: Europe PMC
+      search_string: '("half-marathon" OR "half marathon") AND (threshold OR tempo OR interval OR "race pace") AND training'
+    - name: Europe PMC
+      search_string: '(recreational runners OR runners) AND (threshold training OR interval training OR training intensity distribution OR polarized) AND (systematic review OR randomized)'
+    - name: Europe PMC
+      search_string: '("endurance athletes" OR runners) AND taper AND (systematic review OR meta-analysis)'
+    - name: Europe PMC
+      search_string: '"Carbohydrates for training and competition"'
+    - name: Europe PMC
+      search_string: '"International Association of Athletics Federations Consensus Statement 2019: Nutrition for Athletics"'
+    - name: Europe PMC
+      search_string: '"The Effect of Gut-Training and Feeding-Challenge on Markers of Gastrointestinal Status in Response to Endurance Exercise: A Systematic Literature Review"'
+    - name: Europe PMC
+      search_string: '"New Horizons in Carbohydrate Research and Application for Endurance Athletes"'
+    - name: Europe PMC
+      search_string: '("half-marathon" OR "half marathon") AND (women OR female) AND (training OR performance predict*)'
+    - name: Europe PMC
+      search_string: '("half-marathon" OR "half marathon") AND (older OR masters OR age) AND training'
+    - name: PubMed Central
+      search_string: "Full-text retrieval for included PMCID records discovered through Europe PMC"
+    - name: Bounded web discovery
+      search_string: "Candidate-source discovery only; effect claims required Europe PMC, PubMed, PMC, DOI, or publisher verification"
+  inclusion_criteria:
+    - Adult human evidence relevant to outdoor road half-marathon performance planning
+    - Systematic reviews, meta-analyses, controlled studies, observational half-marathon studies, or authoritative sports-nutrition consensus
+    - Stable DOI, PMID, or publisher metadata
+    - Direct half-marathon evidence preferred; broader endurance transfer labelled explicitly
+  exclusion_criteria:
+    - Beginner or sparse-history plans used as direct evidence for this policy
+    - Trail, ultra, multisport, rehabilitation, pregnancy-specific, return-to-sport, or medical prescription
+    - Coaching plans, vendor material, blogs, or uncited conventions
+    - Metadata-only or inaccessible sources used for strong effect or dosing claims
+  quality_appraisal: >
+    Claims were appraised for directness to adult outdoor road half-marathon
+    planning, study design, self-reported versus measured training, sample
+    size, sex and age representation, ecological validity, and whether results
+    support individual prescription or only population association. Direct
+    half-marathon training-dose evidence is predominantly observational;
+    mixed-endurance taper and nutrition evidence is more mature but indirect.
+  method_limitations:
+    - SPORTDiscus, Embase, and Web of Science were not directly screened in this run
+    - Much half-marathon-specific evidence is observational and several predictor studies are male-only
+    - Several intensity-distribution and nutrition sources were verified at abstract level only
+    - No direct female-specific or masters-specific half-marathon planning trial was identified
+    - Modern durability constructs have little direct adult half-marathon planning evidence
+claims:
+  - id: road-half-marathon.task-specific-capability-is-multifactor
+    statement: >
+      Half-marathon performance and pacing reflect multiple interacting
+      training, physiological, anthropometric, biomechanical, age, and sex
+      factors rather than one marker. This supports task-specific capability
+      matching but not a universal durability score or single-marker gate.
+    source_ids:
+      - ogueta-alday-2018
+      - gomez-molina-2017
+      - nikolaidis-2019-ljubljana
+      - cuk-2019-vienna
+    evidence_strength: low
+    effect_estimates:
+      - metric: Performance-model explained variance
+        range_low: 90.3
+        range_high: 96.2
+        unit: percent
+        context: Four male half-marathon prediction models in Gomez-Molina et al. 2017
+    applicable_population:
+      - Adult half-marathon runners
+      - Mechanistic and prediction evidence primarily from men
+    domain:
+      - Capability matching
+      - Pacing
+      - Performance prediction
+    limitations:
+      - Predictor studies do not establish causal training prescriptions
+      - Direct durability mechanisms and individual thresholds were not validated
+      - Male-heavy samples limit subgroup transfer
+  - id: road-half-marathon.volume-and-long-run-are-associative
+    statement: >
+      Higher recent weekly running volume and longer single-run exposure are
+      associated with faster half-marathon finish time and less pace decline,
+      but the observational evidence does not establish a universal weekly
+      dose, frequency, longest-run minimum, or injury-safe prescription.
+    source_ids:
+      - fokkema-2020
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Finish-time coefficient for more than 32 km per week
+        estimate: -4.19
+        range_low: -6.52
+        range_high: -1.85
+        unit: minutes
+        context: Adjusted observational half-marathon model in 556 runners
+      - metric: Finish-time coefficient for longest run above 21 km
+        estimate: -3.87
+        range_low: -6.31
+        range_high: -1.44
+        unit: minutes
+        context: Adjusted observational half-marathon model in 556 runners
+    applicable_population:
+      - Adult recreational half-marathon entrants
+    domain:
+      - Weekly volume
+      - Longest-run exposure
+      - Pacing decline
+    limitations:
+      - Self-reported training exposure
+      - Categorical observational comparisons rather than randomized dose response
+      - No causal proof of safety, optimality, or progression rate
+  - id: road-half-marathon.taper-is-indirectly-supported
+    statement: >
+      Mixed-endurance evidence supports reducing training volume while
+      maintaining intensity and usually frequency before a key event, with the
+      strongest pooled subgroup signal around 8 to 14 days. The evidence does
+      not validate one half-marathon-specific taper template or personal gain.
+    source_ids:
+      - wang-2023
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Time-trial performance after taper
+        estimate: -0.45
+        range_low: -0.68
+        range_high: -0.23
+        unit: standardized_mean_difference
+        context: Mixed-endurance meta-analysis; 95% confidence interval
+      - metric: Performance with 41 to 60 percent volume reduction
+        estimate: -0.77
+        range_low: -1.23
+        range_high: -0.30
+        unit: standardized_mean_difference
+        context: Mixed-endurance taper subgroup; 95% confidence interval
+      - metric: Performance with 8 to 14 day taper
+        estimate: -1.47
+        range_low: -2.75
+        range_high: -0.19
+        unit: standardized_mean_difference
+        context: Mixed-endurance taper-duration subgroup; 95% confidence interval
+    applicable_population:
+      - Endurance athletes, indirectly including road runners
+    domain:
+      - Taper
+      - Event preparation
+    limitations:
+      - Mixed sports and event distances
+      - Not a direct adult road half-marathon taper trial set
+      - Heterogeneous prior training and protocols
+  - id: road-half-marathon.fueling-and-gut-practice-supported
+    statement: >
+      Carbohydrate intake during exercise is supported around
+      half-marathon-duration efforts, with small amounts or mouth rinse useful
+      around one hour and 30 to 60 grams per hour supported for longer
+      endurance exercise. Practicing intake can reduce gastrointestinal
+      discomfort and carbohydrate malabsorption, but tolerance and race
+      duration remain individual and gut-training performance effects are
+      uncertain.
+    source_ids:
+      - burke-2011
+      - burke-2019-iaaf
+      - martinez-2023
+      - podlogar-2022
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Gastrointestinal discomfort reduction
+        estimate: 47
+        unit: percent
+        context: Two repeated-carbohydrate-feeding protocols summarized in Martinez et al. 2023
+      - metric: Carbohydrate malabsorption reduction
+        range_low: 45
+        range_high: 54
+        unit: percent
+        context: Two gut-training studies summarized in Martinez et al. 2023
+    applicable_population:
+      - Adult endurance athletes
+      - Half-marathon runners whose expected duration and tolerance make intake relevant
+    domain:
+      - During-run fueling
+      - Gastrointestinal tolerance
+      - Fueling practice
+    limitations:
+      - Most numeric guidance is broader endurance evidence rather than half-marathon-only evidence
+      - Expected duration varies substantially within the same race distance
+      - No universal carbohydrate-loading rule applies to every half-marathon runner
+  - id: road-half-marathon.direct-field-baseline-preferred-with-error
+    statement: >
+      Recent same-task or closely comparable field performance is more direct
+      for half-marathon capability than laboratory markers or multivariable
+      predictions alone. Even validated prediction models retain meaningful
+      error and do not support a personal success probability.
+    source_ids:
+      - alvero-cruz-2019
+      - nikolaidis-knechtle-2023-hm-predictors
+      - gomez-molina-2017
+    evidence_strength: low
+    effect_estimates:
+      - metric: Cooper-test half-marathon prediction standard error
+        estimate: 3.78
+        unit: minutes
+        context: 23 recreational male runners in Alvero-Cruz et al. 2019
+      - metric: Laboratory-model half-marathon prediction standard error
+        estimate: 5.28
+        unit: minutes
+        context: 23 recreational male runners in Alvero-Cruz et al. 2019
+      - metric: Validation standard deviation around prediction bias
+        estimate: 12.8
+        unit: minutes
+        context: 134 male recreational runners in Nikolaidis and Knechtle 2023
+    applicable_population:
+      - Recreational male runners in the direct predictor studies
+    domain:
+      - Baseline hierarchy
+      - Target communication
+      - Outcome uncertainty
+    limitations:
+      - Small or male-only samples
+      - Field-test equations are not universal replacements for same-task results
+      - Prediction error remains material for an individual goal
+  - id: road-half-marathon.exact-long-run-dose-unproven
+    statement: >
+      Meaningful longest-run exposure is associated with half-marathon
+      performance, but no reviewed randomized evidence establishes an exact
+      longest-run share of weekly volume, exact ceiling, mandatory distance,
+      or universal progression rule.
+    source_ids:
+      - fokkema-2020
+    evidence_strength: low
+    applicable_population:
+      - Adult recreational half-marathon entrants
+    domain:
+      - Long run
+      - Progression
+    limitations:
+      - One categorical observational half-marathon study anchors the direct evidence
+      - A longest run above race distance cannot be generalized as a requirement
+      - Injury non-association in the cohort is not a safety guarantee
+  - id: road-half-marathon.intensity-distribution-no-universal-winner
+    statement: >
+      Mostly-low-intensity organization with some threshold, interval, or
+      race-specific work is broadly supported, but direct and mixed-distance
+      evidence does not establish one universally superior polarized,
+      pyramidal, threshold-heavy, quality-session count, or race-pace
+      distribution for half-marathon planning. In the cited 10 km trial, both
+      groups improved and the primary between-group difference was not
+      statistically significant.
+    source_ids:
+      - munoz-2014
+      - campos-2022
+      - rosenblat-2025
+      - boullosa-2020
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Within-group ten-kilometre improvement under polarized training
+        estimate: 5
+        unit: percent
+        context: Recreational-runner trial; primary between-group difference was not significant
+      - metric: Within-group ten-kilometre improvement under between-threshold training
+        estimate: 3.6
+        unit: percent
+        context: Recreational-runner trial; primary between-group difference was not significant
+    applicable_population:
+      - Recreational and trained endurance runners
+      - Indirect transfer to adult road half-marathon planning
+    domain:
+      - Intensity distribution
+      - Threshold and interval work
+    limitations:
+      - Different zone definitions, event distances, and sports
+      - No direct adult road half-marathon intervention establishes an exact distribution
+      - One to two quality sessions per week remains an indirect coaching-oriented recommendation
+      - The cited 5.0 versus 3.6 percent trial changes did not differ significantly in the primary comparison
+  - id: road-half-marathon.recovery-spacing-unresolved
+    statement: >
+      Direct evidence does not establish one optimal recovery strategy or
+      exact spacing rule between half-marathon training sessions. Post-race
+      studies suggest different outcomes may recover over roughly one to three
+      days and that higher-intensity recovery running can delay recovery, but
+      these findings do not define a universal schedule rule.
+    source_ids:
+      - li-2024
+      - wang-2025-hm-recovery
+      - zhou-2026-hm-mri-recovery
+    evidence_strength: low
+    applicable_population:
+      - Adult endurance athletes
+      - Recreational runners after simulated or completed half-marathon efforts
+    domain:
+      - Recovery
+      - Quality-session spacing
+      - Post-event behavior
+    limitations:
+      - Small direct half-marathon samples
+      - Outcomes differ across biomechanics, proprioception, and MRI markers
+      - Post-race recovery does not directly prescribe routine training-session spacing
+  - id: road-half-marathon.subgroup-dose-rules-unproven
+    statement: >
+      Women and older adults are represented in large half-marathon pacing and
+      performance datasets, but direct training-response and prediction
+      studies remain male-heavy. Observed age or sex differences do not
+      establish subgroup-specific automatic training doses.
+    source_ids:
+      - leyk-2007
+      - nikolaidis-2019-ljubljana
+      - cuk-2019-vienna
+      - gomez-molina-2017
+      - alvero-cruz-2019
+      - nikolaidis-knechtle-2023-hm-predictors
+    evidence_strength: low
+    effect_estimates:
+      - metric: Observed performance decline from age 50 to 69
+        range_low: 2.6
+        range_high: 4.4
+        unit: percent_per_decade
+        context: Large marathon and half-marathon observational dataset in Leyk et al. 2007
+    applicable_population:
+      - Adult women and men across age groups in observational race datasets
+    domain:
+      - Subgroup applicability
+      - Age context
+      - Sex context
+    limitations:
+      - Observational pacing and participation data do not establish dose response
+      - Direct predictor studies are predominantly male
+      - Unknown sex or age cannot be converted into a hidden default
+citations:
+  - id: fokkema-2020
+    title: "Training for a (half-)marathon: Training volume and longest endurance run related to performance and running injuries"
+    authors:
+      - T. Fokkema
+      - A. A. D. N. van Damme
+      - M. W. J. Fornerod
+      - R. J. de Vos
+      - S. M. A. Bierma-Zeinstra
+      - M. van Middelkoop
+    year: 2020
+    journal: Scandinavian Journal of Medicine & Science in Sports
+    doi: 10.1111/sms.13725
+    pmid: "32421886"
+  - id: ogueta-alday-2018
+    title: "Similarities and differences among half-marathon runners according to their performance level"
+    authors:
+      - A. Ogueta-Alday
+      - J. C. Morante
+      - J. Gomez-Molina
+      - J. Garcia-Lopez
+    year: 2018
+    journal: PLOS ONE
+    doi: 10.1371/journal.pone.0191688
+    pmid: "29364940"
+  - id: gomez-molina-2017
+    title: "Predictive Variables of Half-Marathon Performance for Male Runners"
+    authors:
+      - J. Gomez-Molina
+      - A. Ogueta-Alday
+      - J. Camara
+      - C. Stickley
+      - J. A. Rodriguez-Marroyo
+      - J. Garcia-Lopez
+    year: 2017
+    journal: Journal of Sports Science & Medicine
+    pmid: "28630571"
+  - id: nikolaidis-2019-ljubljana
+    title: "Performance and Pacing of Age Groups in Half-Marathon and Marathon"
+    authors:
+      - P. T. Nikolaidis
+      - I. Cuk
+      - T. Rosemann
+      - B. Knechtle
+    year: 2019
+    journal: International Journal of Environmental Research and Public Health
+    doi: 10.3390/ijerph16101777
+    pmid: "31137495"
+  - id: cuk-2019-vienna
+    title: "Age Differences in Pacing in Endurance Running: Comparison between Marathon and Half-Marathon Men and Women"
+    authors:
+      - I. Cuk
+      - P. T. Nikolaidis
+      - S. Markovic
+      - B. Knechtle
+    year: 2019
+    journal: Medicina
+    doi: 10.3390/medicina55080479
+    pmid: "31416198"
+  - id: leyk-2007
+    title: "Age-related changes in marathon and half-marathon performances"
+    authors:
+      - D. Leyk
+      - O. Erley
+      - D. Ridder
+      - M. Leurs
+      - T. Ruther
+      - M. Wunderlich
+      - A. Sievert
+      - K. Baum
+      - D. Essfeld
+    year: 2007
+    journal: International Journal of Sports Medicine
+    doi: 10.1055/s-2006-924658
+    pmid: "17600902"
+  - id: alvero-cruz-2019
+    title: "Cooper Test Provides Better Half-Marathon Performance Prediction in Recreational Runners Than Laboratory Tests"
+    authors:
+      - J. R. Alvero-Cruz
+      - E. A. Carnero
+      - M. A. Giraldez Garcia
+      - F. Alacid
+      - T. Rosemann
+      - P. T. Nikolaidis
+      - B. Knechtle
+    year: 2019
+    journal: Frontiers in Physiology
+    doi: 10.3389/fphys.2019.01349
+    pmid: "31749711"
+  - id: nikolaidis-knechtle-2023-hm-predictors
+    title: "Predictors of half-marathon performance in male recreational athletes"
+    authors:
+      - P. T. Nikolaidis
+      - B. Knechtle
+    year: 2023
+    journal: EXCLI Journal
+    doi: 10.17179/excli2023-6198
+    pmid: "37534223"
+  - id: munoz-2014
+    title: "Does polarized training improve performance in recreational runners?"
+    authors:
+      - I. Munoz
+      - S. Seiler
+      - J. Bautista
+      - J. Espana
+      - E. Larumbe
+      - J. Esteve-Lanao
+    year: 2014
+    journal: International Journal of Sports Physiology and Performance
+    doi: 10.1123/ijspp.2012-0350
+    pmid: "23752040"
+  - id: campos-2022
+    title: "Training-intensity Distribution on Middle- and Long-distance Runners: A Systematic Review"
+    authors:
+      - Y. Campos
+      - A. Casado
+      - J. G. Vieira
+      - M. Guimaraes
+      - L. Sant'Ana
+      - L. Leitao
+      - S. F. da Silva
+      - P. H. S. M. de Azevedo
+      - J. Vianna
+      - R. Dominguez
+    year: 2022
+    journal: International Journal of Sports Medicine
+    doi: 10.1055/a-1559-3623
+    pmid: "34749417"
+  - id: rosenblat-2025
+    title: "Which Training Intensity Distribution Intervention will Produce the Greatest Improvements in Maximal Oxygen Uptake and Time-Trial Performance in Endurance Athletes? A Systematic Review and Network Meta-analysis of Individual Participant Data"
+    authors:
+      - M. A. Rosenblat
+      - J. A. Watt
+      - J. I. Arnold
+      - G. Treff
+      - O. B. Sandbakk
+      - J. Esteve-Lanao
+      - L. Festa
+      - L. Filipas
+      - S. D. Galloway
+      - I. Munoz
+      - D. J. Ramos-Campo
+      - P. Schneeweiss
+      - S. Selles-Perez
+      - T. Stoggl
+      - R. K. Talsnes
+      - C. Zinner
+      - S. Seiler
+    year: 2025
+    journal: Sports Medicine
+    doi: 10.1007/s40279-024-02149-3
+    pmid: "39888556"
+  - id: boullosa-2020
+    title: "Factors Affecting Training and Physical Performance in Recreational Endurance Runners"
+    authors:
+      - D. Boullosa
+      - J. Esteve-Lanao
+      - A. Casado
+      - L. A. Peyre-Tartaruga
+      - R. Gomes da Rosa
+      - J. Del Coso
+    year: 2020
+    journal: Sports
+    doi: 10.3390/sports8030035
+    pmid: "32183425"
+  - id: wang-2023
+    title: "Effects of tapering on performance in endurance athletes: A systematic review and meta-analysis"
+    authors:
+      - Z. Wang
+      - Y. Wang
+      - W. Gao
+      - Y. Zhong
+    year: 2023
+    journal: PLOS ONE
+    doi: 10.1371/journal.pone.0282838
+    pmid: "37163550"
+  - id: li-2024
+    title: "Effectiveness of Recovery Strategies After Training and Competition in Endurance Athletes: An Umbrella Review"
+    authors:
+      - S. Li
+      - M. Kempe
+      - M. Brink
+      - K. Lemmink
+    year: 2024
+    journal: Sports Medicine - Open
+    doi: 10.1186/s40798-024-00724-6
+    pmid: "38753045"
+  - id: burke-2011
+    title: "Carbohydrates for training and competition"
+    authors:
+      - L. M. Burke
+      - J. A. Hawley
+      - S. H. Wong
+      - A. E. Jeukendrup
+    year: 2011
+    journal: Journal of Sports Sciences
+    doi: 10.1080/02640414.2011.585473
+    pmid: "21660838"
+  - id: burke-2019-iaaf
+    title: "International Association of Athletics Federations Consensus Statement 2019: Nutrition for Athletics"
+    authors:
+      - L. M. Burke
+      - L. M. Castell
+      - D. J. Casa
+      - G. L. Close
+      - R. J. S. Costa
+      - P. Desbrow
+      - S. L. Halson
+      - L. M. Lis
+      - A. K. Melin
+      - P. Peeling
+      - P. U. Saunders
+      - G. J. Slater
+      - J. Sygo
+      - O. C. Witard
+      - S. Bermon
+      - T. Stellingwerff
+    year: 2019
+    journal: International Journal of Sport Nutrition and Exercise Metabolism
+    doi: 10.1123/ijsnem.2019-0065
+    pmid: "30952204"
+  - id: martinez-2023
+    title: "The Effect of Gut-Training and Feeding-Challenge on Markers of Gastrointestinal Status in Response to Endurance Exercise: A Systematic Literature Review"
+    authors:
+      - I. G. Martinez
+      - A. S. Mika
+      - J. R. Biesiekierski
+      - R. J. S. Costa
+    year: 2023
+    journal: Sports Medicine
+    doi: 10.1007/s40279-023-01841-0
+    pmid: "37061651"
+  - id: podlogar-2022
+    title: "New Horizons in Carbohydrate Research and Application for Endurance Athletes"
+    authors:
+      - T. Podlogar
+      - G. A. Wallis
+    year: 2022
+    journal: Sports Medicine
+    doi: 10.1007/s40279-022-01757-1
+    pmid: "36173597"
+  - id: wang-2025-hm-recovery
+    title: "Biomechanical Changes and the Time Course of Recovery in Lower Extremities of Recreational Runners Following a Simulated Treadmill Half-Marathon"
+    authors:
+      - W. Wang
+      - S. Xu
+      - I. Komnik
+      - J. Viellehner
+      - M. Zedler
+      - W. Potthast
+    year: 2025
+    journal: Sports Medicine - Open
+    doi: 10.1186/s40798-025-00824-x
+    pmid: "40025365"
+  - id: zhou-2026-hm-mri-recovery
+    title: "Quantitative MRI evaluation of the effects of rest and different intensities of running on the recovery of thigh muscle microdamage after a half marathon"
+    authors:
+      - J. Zhou
+      - C. Xu
+      - Y. Wu
+      - X. Mao
+      - Z. Hu
+      - Z. Wei
+      - Y. Li
+      - J. Huang
+    year: 2026
+    journal: BMC Sports Science, Medicine and Rehabilitation
+    doi: 10.1186/s13102-026-01640-w
+    pmid: "41792789"
+known_gaps:
+  - A prospectively evaluated deterministic adult road half-marathon plan-generation policy
+  - A randomized adult road half-marathon longest-run dose or share trial
+  - Direct comparison of one versus two quality sessions per week in half-marathon planning
+  - A validated exact hard-session spacing rule for half-marathon training
+  - A validated baseline freshness window or minimum recent-history threshold
+  - A validated execution-window length, reassessment cadence, or aggressive short-horizon alternative
+  - Exact half-marathon threshold, race-specific, long-run, recovery, and fueling-practice templates
+  - Direct female-specific and masters-specific half-marathon training-response evidence
+  - A validated activity-average-power intensity prescription
+conflicting_findings:
+  - Different intensity distributions improve endurance performance without one universal winner.
+  - Post-half-marathon recovery varies by outcome and post-race behavior rather than following one universal one-to-three-day rule.
+  - Carb-loading guidance changes around expected duration, so the half-marathon distance label alone is insufficient.
+  - Higher volume and longer runs associate with performance, while observational evidence cannot establish causal dose or safety.
+follow_up_questions:
+  - Which direct-result freshness boundary should qualify current half-marathon capability?
+  - How much stable recent history is enough to anchor volume, frequency, quality density, and longest-run exposure?
+  - Should v1 select any exact quality-session ceiling, low-intensity floor, or long-run cap?
+  - Which execution window and reassessment cadence should be reviewed before activation?
+  - Should an athlete without a recent direct half-marathon result remain readiness-only rather than receive a maximal benchmark?
+  - How should expected duration and prior gastrointestinal tolerance change fueling prompts?
+  - Which taper choice should be selected from the indirect 8-to-14-day and 41-to-60-percent evidence?
+  - How should aggressive targets or short horizons route without catch-up or target-gap dose escalation?
+  - Which post-plan outcomes are sufficiently comparable for descriptive evaluation?
+  - Do eligibility, edits, fueling tolerance, recovery, and outcomes differ across sex, age, provider, and missingness groups?
+supersedes: []
+superseded_by:
+review_notes:
+  - "Verification: fokkema-2020 - full-text; Europe PMC PMID 32421886 metadata and PubMed Central PMC7496388 full text; 2026-08-14."
+  - "Verification: ogueta-alday-2018 - full-text; Europe PMC PMID 29364940 metadata and PubMed Central PMC5783408 full text; 2026-08-14."
+  - "Verification: gomez-molina-2017 - full-text; Europe PMC PMID 28630571 metadata and PubMed Central PMC5465980 full text; 2026-08-14."
+  - "Verification: nikolaidis-2019-ljubljana - full-text; Europe PMC PMID 31137495 metadata and PubMed Central PMC6572072 full text; 2026-08-14."
+  - "Verification: cuk-2019-vienna - full-text; Europe PMC PMID 31416198 metadata and PubMed Central PMC6723688 full text; 2026-08-14."
+  - "Verification: leyk-2007 - abstract; Europe PMC PMID 17600902 metadata and abstract; 2026-08-14."
+  - "Verification: alvero-cruz-2019 - full-text; Europe PMC PMID 31749711 metadata and PubMed Central PMC6848386 full text; 2026-08-14."
+  - "Verification: nikolaidis-knechtle-2023-hm-predictors - full-text; Europe PMC PMID 37534223 metadata and PubMed Central PMC10390894 full text; 2026-08-14."
+  - "Verification: munoz-2014 - abstract; Europe PMC PMID 23752040 metadata and abstract; 2026-08-14."
+  - "Verification: campos-2022 - abstract; Europe PMC PMID 34749417 metadata and abstract; 2026-08-14."
+  - "Verification: rosenblat-2025 - abstract; Europe PMC PMID 39888556 metadata and abstract; 2026-08-14."
+  - "Verification: boullosa-2020 - full-text; Europe PMC PMID 32183425 metadata and PubMed Central PMC7183043 full text; 2026-08-14."
+  - "Verification: wang-2023 - full-text; Europe PMC PMID 37163550 metadata and PubMed Central PMC10171681 full text; 2026-08-14."
+  - "Verification: li-2024 - full-text; Europe PMC PMID 38753045 metadata and PubMed Central PMC11098991 full text; 2026-08-14."
+  - "Verification: burke-2011 - abstract; Europe PMC PMID 21660838 metadata and abstract; 2026-08-14."
+  - "Verification: burke-2019-iaaf - abstract; Europe PMC PMID 30952204 metadata and abstract; 2026-08-14."
+  - "Verification: martinez-2023 - full-text; Europe PMC PMID 37061651 metadata and PubMed Central PMC10185635 full text; 2026-08-14."
+  - "Verification: podlogar-2022 - full-text; Europe PMC PMID 36173597 metadata and PubMed Central PMC9734239 full text; 2026-08-14."
+  - "Verification: wang-2025-hm-recovery - full-text; Europe PMC PMID 40025365 metadata and PubMed Central PMC11872820 full text; 2026-08-14."
+  - "Verification: zhou-2026-hm-mri-recovery - full-text; Europe PMC PMID 41792789 metadata and PubMed Central PMC13081450 full text; 2026-08-14."
