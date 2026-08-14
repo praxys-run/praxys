@@ -664,6 +664,11 @@ def render_decision_review_packet(
                 for boundary in item.does_not_authorize
             )
             lines.extend([
+                "",
+                "<details><summary>Traceability: "
+                f"{len(item.parameter_names)} contract groups, "
+                f"{len(item.evidence_claim_ids)} evidence claims</summary>",
+                "",
                 "- **Contract groups covered:** "
                 + ", ".join(
                     f"`{parameter_name}`"
@@ -677,6 +682,8 @@ def render_decision_review_packet(
                     )
                     or "_None; product or lifecycle boundary only_"
                 ),
+                "",
+                "</details>",
                 "",
             ])
 

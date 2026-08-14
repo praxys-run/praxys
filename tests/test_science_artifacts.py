@@ -289,6 +289,7 @@ def test_draft_artifact_records_render_complete_review_and_contract(
     assert "Do not approve merely because the audit appendix" in packet
     assert "I approve every proposed decision" in packet
     assert "<details><summary>Evidence, parameters" in packet
+    assert "<details><summary>Traceability:" in packet
 
     assert sync_science_artifacts(registry, check=False)
     assert sync_science_artifacts(registry, check=True) == []
