@@ -864,6 +864,14 @@ def _render_named_lists(sections: dict[str, list[str]]) -> list[str]:
 def _render_effect_estimate(estimate: dict[str, Any]) -> str:
     if estimate.get("estimate") is not None:
         value = str(estimate["estimate"])
+        if (
+            estimate.get("range_low") is not None
+            and estimate.get("range_high") is not None
+        ):
+            value += (
+                f" (range {estimate['range_low']} to "
+                f"{estimate['range_high']})"
+            )
     else:
         value = f"{estimate['range_low']} to {estimate['range_high']}"
     return (

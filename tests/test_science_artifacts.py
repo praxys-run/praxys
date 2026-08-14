@@ -197,6 +197,7 @@ def test_draft_artifact_records_render_complete_review_and_contract(
     assert contract.contract_digest in expected[decision_packet_path]
     assert "activity_avg_power" in expected[decision_packet_path]
     assert "Exact reviewed evidence payload" in expected[evidence_packet_path]
+    assert "range -0.28 to 0.25" in expected[evidence_packet_path]
 
     assert sync_science_artifacts(registry, check=False)
     assert sync_science_artifacts(registry, check=True) == []
