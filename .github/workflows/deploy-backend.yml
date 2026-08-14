@@ -11,7 +11,6 @@ on:
       - 'db/**'
       - 'config/agent-loop-policies.json'
       - 'data/science/**'
-      - 'tests/**'
       - 'requirements.txt'
       - 'scripts/appinsights_boundary.sh'
       - 'scripts/provision_labs_worker_db.py'
@@ -70,6 +69,7 @@ jobs:
             VERSION="$(date -u +%Y.%m.%d).${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}"
           fi
           echo "${VERSION}" > api/_build_version.txt
+          echo "PRAXYS_EXPECTED_API_VERSION=${VERSION}" >> "$GITHUB_ENV"
           echo "Build version: ${VERSION}"
 
       - name: Wait for compatible frontend deployment
@@ -373,3 +373,61 @@ jobs:
         with:
           app-name: trainsight-app
           resource-group-name: rg-trainsight
+
+      - name: Verify deployed backend cutover
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          set -euo pipefail
+          version_url="https://api.praxys.run/api/version"
+          ready_url="https://api.praxys.run/api/health/ready"
+
+          deployment_ready() {
+            local version_payload ready_payload live_version ready_status
+            version_payload="$(
+              curl --fail --silent --show-error --max-time 8 \
+                --header "Cache-Control: no-cache" \
+                "${version_url}" 2>/dev/null || true
+            )"
+            ready_payload="$(
+              curl --fail --silent --show-error --max-time 8 \
+                --header "Cache-Control: no-cache" \
+                "${ready_url}" 2>/dev/null || true
+            )"
+            live_version="$(
+              jq -r '.version // empty' <<< "${version_payload}" \
+                2>/dev/null || true
+            )"
+            ready_status="$(
+              jq -r '.status // empty' <<< "${ready_payload}" \
+                2>/dev/null || true
+            )"
+            echo "Live version=${live_version:-unavailable} readiness=${ready_status:-unavailable}"
+            [[ "${live_version}" == "${PRAXYS_EXPECTED_API_VERSION}" &&
+               "${ready_status}" == "ready" ]]
+          }
+
+          for attempt in {1..6}; do
+            if deployment_ready; then
+              exit 0
+            fi
+            echo "Waiting for deployed backend cutover (${attempt}/6)."
+            sleep 10
+          done
+
+          echo "OneDeploy did not activate the expected build; restarting App Service once."
+          az webapp restart \
+            --name trainsight-app \
+            --resource-group rg-trainsight \
+            --only-show-errors
+
+          for attempt in {1..30}; do
+            if deployment_ready; then
+              exit 0
+            fi
+            echo "Waiting for backend after restart (${attempt}/30)."
+            sleep 5
+          done
+
+          echo "Expected backend build did not become ready after restart." >&2
+          exit 1

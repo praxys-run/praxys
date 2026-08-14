@@ -41,6 +41,27 @@ def test_web_separates_plan_management_from_analysis() -> None:
     assert "{ to: '/analysis'" in sidebar
 
 
+def test_web_training_prioritizes_one_plan_request() -> None:
+    """Training preloads one maximum window and defers secondary plan reads."""
+    prefetch = _source("web/src/lib/dashboard-prefetch.ts")
+    plan = _source("web/src/lib/plan.ts")
+    upcoming = _source("web/src/components/UpcomingPlanCard.tsx")
+    context = _source("web/src/components/PersonalContextPanel.tsx")
+    plan_start = _source("web/src/components/Outdoor5KPlanStart.tsx")
+
+    assert "MAX_MANAGED_PLAN_WINDOW_DAYS = 28" in plan
+    assert "pathname === '/training'" in prefetch
+    assert "planWindowUrl(MAX_MANAGED_PLAN_WINDOW_DAYS)" in prefetch
+    assert "planWindowUrl(\n      MAX_MANAGED_PLAN_WINDOW_DAYS," in upcoming
+    assert "workouts: planData.workouts.filter" in upcoming
+    assert "window: { start: windowStart, end: windowEnd }" in upcoming
+    assert (
+        "enabled: composerOpen && form.mode === 'execution_explanation'"
+        in context
+    )
+    assert "enabled: performance5kGoal" in plan_start
+
+
 def test_miniapp_uses_analysis_and_me_as_primary_tabs() -> None:
     """The five-tab miniapp exposes observed training and secondary tools."""
     training = _source("miniapp/pages/training/index.wxml")

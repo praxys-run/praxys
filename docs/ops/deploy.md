@@ -8,7 +8,7 @@
 
 | Surface | Workflow | Triggers | Target |
 |---|---|---|---|
-| Backend (API) | `deploy-backend.yml` | push to `main` touching backend code/tests, observability config/scripts, or the workflow; or `api-*` tag | App Service `trainsight-app` |
+| Backend (API) | `deploy-backend.yml` | push to `main` touching backend runtime code, observability config/scripts, dependencies, or the workflow; or `api-*` tag | App Service `trainsight-app` |
 | Labs analysis worker | `deploy-labs-worker.yml` | push to `main` touching worker/backend analysis code, its Dockerfile/requirements, Bicep, tests, or the workflow; manual dispatch | Service Bus + Container Apps Job; Azure deploy is gated by `PRAXYS_LABS_WORKER_DEPLOY_ENABLED=true` |
 | Frontend (SPA) | `deploy-frontend-appservice.yml` | push to `main` touching the SPA/static server, observability config/scripts, or the workflow; or `web-*` tag | App Service `praxys-frontend`; optionally Tencent Lighthouse |
 | Mini program | `miniapp-publish.yml` | `miniapp-YYYY.MM.MICRO` release tag (robot 1); `main` pushes auto-publish a dev build (robot 5) | WeChat (`miniprogram-ci`) |
@@ -33,10 +33,18 @@ Automatic on merge to `main` (for the paths above). The workflow:
 5. Waits for the App Service SCM deployment endpoint to remain healthy across
    three probes after the configuration recycle, then runs
    `azure/webapps-deploy`.
+6. Verifies that `/api/version` reports the stamped build and database
+   readiness is green. If OneDeploy has not activated the new process after
+   the initial activation probes, the workflow performs one App Service
+   restart and verifies again before reporting success.
 
 The settle gate is load-bearing: App Service management writes recycle the SCM
 container, and starting ZipDeploy during that recycle aborts the deployment
 with `Deployment has been stopped due to SCM container restart`.
+
+Test-only changes do not deploy the backend. Pull requests already run the
+backend suite in the required pre-merge workflow; recycling production when no
+runtime artifact changed adds outage risk without changing the service.
 
 Force a deploy without a code change: re-run the latest `deploy-backend.yml` run
 (`gh run rerun <id>`), or push an `api-YYYY.MM.MICRO` tag for a versioned release.

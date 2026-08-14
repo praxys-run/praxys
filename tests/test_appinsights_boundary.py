@@ -66,6 +66,13 @@ def test_backend_workflow_enforces_server_only_ingestion() -> None:
     assert "stable_probes >= 3" in workflow
     assert "timeout-minutes: 8" in workflow
     assert "timeout 20s az webapp" in workflow
+    assert "      - 'tests/**'" not in workflow
+    assert "PRAXYS_EXPECTED_API_VERSION" in workflow
+    assert "Verify deployed backend cutover" in workflow
+    assert "OneDeploy did not activate the expected build" in workflow
+    assert "az webapp restart" in workflow
+    assert 'live_version}" == "${PRAXYS_EXPECTED_API_VERSION}' in workflow
+    assert 'ready_status}" == "ready"' in workflow
     assert "group: deploy-backend-production" in workflow
     assert "cancel-in-progress: false" in workflow
     assert "Monitoring Metrics Publisher" in script
