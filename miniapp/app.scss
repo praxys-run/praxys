@@ -87,6 +87,18 @@ page {
   padding: 32rpx;
 }
 
+.history-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.history-scroll {
+  min-height: 0;
+  flex: 1;
+  background-color: var(--bg);
+}
+
 .ts-card {
   background-color: var(--surface);
   border-radius: 16rpx;
