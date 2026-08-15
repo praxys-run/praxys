@@ -680,6 +680,8 @@ def test_workflow_uses_trusted_code_and_rechecks_the_exact_pr_head() -> None:
 
     assert "issue_comment:" in workflow
     assert "pull_request_target:" in workflow
+    assert '"$GITHUB_EVENT_PATH"' in workflow
+    assert "github.event_path" not in workflow
     assert "head.repo.full_name == $repository" in workflow
     assert 'any(.labels[]; .name == "science")' in workflow
     assert "compare/${default_sha}...${head_sha}" in workflow

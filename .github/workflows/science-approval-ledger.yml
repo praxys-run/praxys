@@ -39,21 +39,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           EVENT_NAME: ${{ github.event_name }}
-          EVENT_PATH: ${{ github.event_path }}
           INPUT_PR_NUMBER: ${{ inputs.pr_number }}
         shell: bash
         run: |
           set -euo pipefail
           case "$EVENT_NAME" in
             issue_comment)
-              if jq -e '.issue.pull_request != null' "$EVENT_PATH" >/dev/null; then
-                pr_numbers="$(jq -c '[.issue.number]' "$EVENT_PATH")"
+              if jq -e '.issue.pull_request != null' "$GITHUB_EVENT_PATH" >/dev/null; then
+                pr_numbers="$(jq -c '[.issue.number]' "$GITHUB_EVENT_PATH")"
               else
                 pr_numbers='[]'
               fi
               ;;
             pull_request_target)
-              pr_numbers="$(jq -c '[.pull_request.number]' "$EVENT_PATH")"
+              pr_numbers="$(jq -c '[.pull_request.number]' "$GITHUB_EVENT_PATH")"
               ;;
             workflow_dispatch)
               if [[ -n "$INPUT_PR_NUMBER" && "$INPUT_PR_NUMBER" != "0" ]]; then
