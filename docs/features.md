@@ -32,7 +32,7 @@ Race prediction and goal tracking:
 ### Settings
 
 Configuration management:
-- **Connections**: Add/remove data sources (Garmin, Stryd, Oura)
+- **Connections**: Add/remove supported activity and recovery data sources
 - **Training Base**: Switch between power, HR, or pace
 - **Thresholds**: Auto-detected or manual override for CP, LTHR, pace
 - **Goal**: Race date, distance, target time
@@ -67,7 +67,7 @@ Analyzes the last 6 weeks across 4 dimensions:
 ### Race Prediction
 
 Two models:
-- **Critical Power Model**: Uses Stryd race power fractions (5K: 103.8% CP, marathon: 89.9% CP) and power-to-pace regression
+- **Critical Power Model**: Uses published race-power fractions (5K: 103.8% CP, marathon: 89.9% CP) and power-to-pace regression
 - **Riegel Formula**: T2 = T1 * (D2/D1)^1.06, pace-based extrapolation
 
 ### Recovery Analysis
@@ -88,7 +88,7 @@ AI generates personalized 4-week plans following:
 - Zone targets based on current threshold and selected zone framework
 - Recovery-aware scheduling
 
-Plans can be pushed to Stryd for watch integration.
+Managed plans can use the delivery options available to the athlete's account.
 
 ### Science Framework
 
@@ -99,5 +99,6 @@ Swappable training theories backed by published research. Each theory is a YAML 
 | Platform | Provides |
 |----------|----------|
 | Garmin Connect | Activities, splits, daily metrics (VO2max, RHR), lactate threshold |
-| Stryd | Power data, running dynamics, CP estimates, training plan |
+| Strava | Activities, routes, pace, and heart rate |
+| COROS | Activities, recovery data, and fitness estimates |
 | Oura Ring | Sleep scores/stages, readiness, HRV, resting HR |

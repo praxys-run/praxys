@@ -161,11 +161,13 @@ class RequestContext:
         db,
         *,
         include_plan: bool = True,
+        include_stryd_plan: bool = True,
     ) -> None:
         _ensure_env()
         self.user_id = user_id
         self.db = db
         self.include_plan = include_plan
+        self.include_stryd_plan = include_stryd_plan
         self.today = date.today()
 
     # --- raw inputs --------------------------------------------------------
@@ -236,7 +238,12 @@ class RequestContext:
     @cached_property
     def all_plans(self) -> pd.DataFrame:
         """All plan sources for management and sync-state comparisons."""
-        return self._data["plan"]
+        plans = self._data["plan"]
+        if self.include_stryd_plan:
+            return plans
+        from api.stryd_access import without_stryd_plan_rows
+
+        return without_stryd_plan_rows(plans)
 
     @cached_property
     def plan(self) -> pd.DataFrame:

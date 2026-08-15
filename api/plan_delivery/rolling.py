@@ -214,6 +214,15 @@ def _delivery_gate(
         return _DeliveryGate(target, None, "delivery_paused")
     if not target:
         return _DeliveryGate(None, None, "execution_target_missing")
+    if target == "stryd":
+        from api.stryd_access import stryd_connection_enabled
+
+        if not stryd_connection_enabled(db, user_id=user_id):
+            return _DeliveryGate(
+                target,
+                None,
+                "delivery_not_eligible",
+            )
     connection = db.execute(
         connection_query.where(UserConnection.platform == target)
     ).scalar_one_or_none()

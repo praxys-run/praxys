@@ -1,16 +1,17 @@
 """Today's training signal endpoint."""
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from api.auth import get_data_user_id
+from api.auth import get_current_user_id, get_data_user_id
 from api.dashboard_cache import cached_or_compute
-from api.etag import CACHE_CONTROL, ETagGuard, etag_guard_for_endpoint
+from api.etag import CACHE_CONTROL, ETagGuard, compute_endpoint_etag
 from api.packs import (
     RequestContext,
     get_signal_pack,
     get_today_widgets,
 )
+from api.stryd_access import stryd_connection_enabled
 from analysis.metrics import apply_heat_adaptation_guidance
 from db.session import get_db
 
@@ -30,9 +31,18 @@ def _recovery_theory_meta(science: dict) -> dict | None:
     }
 
 
-def _build_today_payload(user_id: str, db: Session) -> dict:
+def _build_today_payload(
+    user_id: str,
+    db: Session,
+    *,
+    include_stryd_plan: bool = True,
+) -> dict:
     """Compute the /api/today response from L1 packs (cache miss path)."""
-    ctx = RequestContext(user_id=user_id, db=db)
+    ctx = RequestContext(
+        user_id=user_id,
+        db=db,
+        include_stryd_plan=include_stryd_plan,
+    )
     signal = get_signal_pack(ctx)
     widgets = get_today_widgets(ctx)
     heat_adaptation = apply_heat_adaptation_guidance(
@@ -69,16 +79,38 @@ def _build_today_payload(user_id: str, db: Session) -> dict:
 
 @router.get("/today")
 def get_today(
-    guard: ETagGuard = Depends(etag_guard_for_endpoint("today")),
+    request: Request,
+    viewer_user_id: str = Depends(get_current_user_id),
     user_id: str = Depends(get_data_user_id),
     db: Session = Depends(get_db),
 ):
+    stryd_enabled = stryd_connection_enabled(
+        db,
+        user_id=viewer_user_id,
+    )
+    guard = ETagGuard(
+        compute_endpoint_etag(
+            db,
+            user_id,
+            "today",
+            variant="stryd-on" if stryd_enabled else "stryd-off",
+        ),
+        request.headers.get("if-none-match"),
+    )
     if guard.is_match:
         return guard.not_modified()
+    compute = lambda: _build_today_payload(
+        user_id,
+        db,
+        include_stryd_plan=stryd_enabled,
+    )
     body = cached_or_compute(
-        db, user_id, "today",
-        compute=lambda: _build_today_payload(user_id, db),
+        db,
+        user_id,
+        "today",
+        compute=compute,
         source_version_field="coach_snapshot",
+        use_cache=not stryd_enabled,
     )
     return Response(
         content=body,

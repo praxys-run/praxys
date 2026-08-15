@@ -155,7 +155,12 @@ export default function Setup({ onSkip }: SetupProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { email } = useAuth();
-  const { config, updateSettings, refetch: refetchSettings } = useSettings();
+  const {
+    config,
+    platformCapabilities,
+    updateSettings,
+    refetch: refetchSettings,
+  } = useSettings();
   const setup = useSetupStatus();
   const { t } = useLingui();
 
@@ -173,7 +178,7 @@ export default function Setup({ onSkip }: SetupProps) {
   const baseInfo = (base: TrainingBase): { label: string; desc: string } => {
     switch (base) {
       case 'power':
-        return { label: t`Power`, desc: t`Zones & load from Critical Power (best with Stryd)` };
+        return { label: t`Power`, desc: t`Zones & load from Critical Power` };
       case 'hr':
         return { label: t`Heart Rate`, desc: t`Zones & load from Lactate Threshold HR` };
       case 'pace':
@@ -356,6 +361,12 @@ export default function Setup({ onSkip }: SetupProps) {
     if (platforms.includes('oura')) return 'hr';
     return null;
   })();
+  const visibleConnectablePlatforms = CONNECTABLE_PLATFORMS.filter(
+    (platform) => Object.prototype.hasOwnProperty.call(
+      platformCapabilities,
+      platform,
+    ),
+  );
 
   if (setup.loading) {
     return (
@@ -605,7 +616,7 @@ export default function Setup({ onSkip }: SetupProps) {
           icon={<Link2 className="h-4 w-4" />}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mt-4">
-            {CONNECTABLE_PLATFORMS.map((platform) => {
+            {visibleConnectablePlatforms.map((platform) => {
               const meta = PLATFORM_META[platform];
               const isConnected = setup.connectedPlatforms.includes(platform);
               return (

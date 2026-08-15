@@ -18,6 +18,15 @@ TABLE_PRIVILEGES: dict[str, tuple[str, ...]] = {
 }
 
 COLUMN_PRIVILEGES: dict[str, dict[str, tuple[str, ...]]] = {
+    "users": {
+        "SELECT": (
+            "id",
+            "email",
+            "is_active",
+            "is_superuser",
+            "is_demo",
+        ),
+    },
     "activity_samples": {
         "SELECT": (
             "user_id",

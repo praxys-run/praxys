@@ -1,4 +1,4 @@
-"""Upcoming training plan endpoint with Stryd push integration."""
+"""Upcoming training plan endpoints and provider delivery controls."""
 import json
 import logging
 import math
@@ -64,6 +64,11 @@ from api.plan_workout_structure import (
     inspect_workout_structure,
     project_activity_type,
     project_workout_provider_compatibility,
+)
+from api.stryd_access import (
+    require_stryd_connection_enabled,
+    stryd_connection_enabled,
+    without_stryd_delivery_metadata,
 )
 from api.plan_cleanup import (
     PlanCleanupAmbiguousTargets,
@@ -368,16 +373,27 @@ def _compute_ai_sync_state(
     return "mismatch"
 
 
-def _resolve_sync_target(ctx: RequestContext) -> str | None:
+def _resolve_sync_target(
+    ctx: RequestContext,
+    *,
+    stryd_enabled: bool | None = None,
+) -> str | None:
     """Name of the platform Praxys plan rows get pushed to.
 
     Explicit managed-plan intent survives a temporary disconnect. Legacy
     users without that intent retain the existing connected-Stryd fallback.
     """
+    if stryd_enabled is None:
+        stryd_enabled = stryd_connection_enabled(
+            ctx.db,
+            user_id=ctx.user_id,
+        )
     configured = ctx.config.plan_management.get("execution_target")
-    if configured in {"stryd", "garmin"}:
-        return str(configured)
-    if "stryd" in (ctx.config.connections or []):
+    if configured == "garmin":
+        return "garmin"
+    if configured == "stryd" and stryd_enabled:
+        return "stryd"
+    if stryd_enabled and "stryd" in (ctx.config.connections or []):
         return "stryd"
 
     ledger_targets = {
@@ -388,7 +404,7 @@ def _resolve_sync_target(ctx: RequestContext) -> str | None:
                 PlanDelivery.state != "removed",
             )
         ).scalars()
-        if target in {"stryd", "garmin"}
+        if target == "garmin" or (target == "stryd" and stryd_enabled)
     }
     ledger_targets.update({
         str(target)
@@ -397,7 +413,7 @@ def _resolve_sync_target(ctx: RequestContext) -> str | None:
                 PlanTargetCalendarSync.user_id == ctx.user_id,
             )
         ).scalars()
-        if target in {"stryd", "garmin"}
+        if target == "garmin" or (target == "stryd" and stryd_enabled)
     })
     if len(ledger_targets) == 1:
         return ledger_targets.pop()
@@ -429,14 +445,19 @@ def get_plan(
 
     Window framing is mixed into the ETag salt so two clients hitting
     different windows can't bleed cache into each other. The delivery ledger
-    is authoritative. A legacy per-user Stryd JSON file,
-    when present, is imported idempotently before the ETag is computed.
+    is authoritative. A legacy per-user provider cache, when present, is
+    imported idempotently before the ETag is computed.
     """
     db.rollback()
-    _import_legacy_stryd_status_if_compatible(
+    stryd_enabled = stryd_connection_enabled(
         db,
-        user_id=user_id,
+        user_id=viewer_user_id,
     )
+    if stryd_enabled:
+        _import_legacy_stryd_status_if_compatible(
+            db,
+            user_id=user_id,
+        )
     response_today = effective_athlete_date(load_config_from_db(user_id, db))
     start_d, end_d = _resolve_window(
         start,
@@ -451,6 +472,7 @@ def get_plan(
             f"v={PLAN_RESPONSE_VERSION}"
             f"&today={response_today.isoformat()}"
             f"&writable={int(can_write)}"
+            f"&stryd={int(stryd_enabled)}"
             f"&start={start_d.isoformat()}"
             f"&end={end_d.isoformat()}"
         ),
@@ -462,14 +484,25 @@ def get_plan(
 
     ctx = RequestContext(user_id=user_id, db=db)
     plan_df = ctx.all_plans
-    sync_target = _resolve_sync_target(ctx)
-    ledger_target = sync_target or "stryd"
-    reconciliation = build_plan_reconciliation(
-        db,
-        user_id=user_id,
-        target=ledger_target,
-        start=start_d,
-        end=end_d,
+    sync_target = _resolve_sync_target(
+        ctx,
+        stryd_enabled=stryd_enabled,
+    )
+    ledger_target = (
+        sync_target
+        if sync_target is not None
+        else ("stryd" if stryd_enabled else None)
+    )
+    reconciliation = (
+        build_plan_reconciliation(
+            db,
+            user_id=user_id,
+            target=ledger_target,
+            start=start_d,
+            end=end_d,
+        )
+        if ledger_target is not None
+        else None
     )
     current_snapshots: dict[str, dict] = {}
     if not plan_df.empty and "date" in plan_df.columns:
@@ -481,18 +514,26 @@ def get_plan(
         for _, current_row in current_rows.iterrows():
             snapshot = plan_snapshot(current_row)
             current_snapshots[str(snapshot["date"])] = snapshot
-    push_status = delivery_status_for_snapshots(
-        db,
-        user_id=user_id,
-        target="stryd",
-        current_snapshots=current_snapshots,
+    push_status = (
+        delivery_status_for_snapshots(
+            db,
+            user_id=user_id,
+            target="stryd",
+            current_snapshots=current_snapshots,
+        )
+        if stryd_enabled
+        else {}
     )
-    current_delivery_status = delivery_status_for_snapshots(
-        db,
-        user_id=user_id,
-        target=ledger_target,
-        current_snapshots=current_snapshots,
-        include_prior_versions=False,
+    current_delivery_status = (
+        delivery_status_for_snapshots(
+            db,
+            user_id=user_id,
+            target=ledger_target,
+            current_snapshots=current_snapshots,
+            include_prior_versions=False,
+        )
+        if ledger_target is not None
+        else {}
     )
 
     workouts: list[dict] = []
@@ -509,20 +550,22 @@ def get_plan(
         )
         target_rows = (
             windowed[windowed["source"] == ledger_target]
-            if has_source else windowed.iloc[0:0]
+            if has_source and ledger_target is not None
+            else windowed.iloc[0:0]
         )
         owned_target_external_ids: set[str] = set()
-        for raw_id in db.execute(
-            select(PlanDelivery.external_id).where(
-                PlanDelivery.user_id == user_id,
-                PlanDelivery.target == ledger_target,
-                PlanDelivery.state != "removed",
-                PlanDelivery.external_id.is_not(None),
-            )
-        ).scalars():
-            normalized_id = normalize_stryd_workout_id(raw_id)
-            if normalized_id is not None:
-                owned_target_external_ids.add(normalized_id)
+        if ledger_target is not None:
+            for raw_id in db.execute(
+                select(PlanDelivery.external_id).where(
+                    PlanDelivery.user_id == user_id,
+                    PlanDelivery.target == ledger_target,
+                    PlanDelivery.state != "removed",
+                    PlanDelivery.external_id.is_not(None),
+                )
+            ).scalars():
+                normalized_id = normalize_stryd_workout_id(raw_id)
+                if normalized_id is not None:
+                    owned_target_external_ids.add(normalized_id)
 
         if reconciliation is not None:
             for _, row in praxys_rows.sort_values(["date", "id"]).iterrows():
@@ -644,10 +687,17 @@ def get_plan(
     overlap_date_set = set(overlap_dates)
     for workout in workouts:
         workout["external_overlap"] = workout["date"] in overlap_date_set
+        if not stryd_enabled:
+            compatibility = workout.get("provider_compatibility")
+            if isinstance(compatibility, list):
+                workout["provider_compatibility"] = [
+                    item
+                    for item in compatibility
+                    if item.get("target") != "stryd"
+                ]
 
     body = {
         "workouts": workouts,
-        "stryd_status": push_status,
         "sync_target": sync_target,
         "window": {"start": start_d.isoformat(), "end": end_d.isoformat()},
         "management": {
@@ -662,8 +712,11 @@ def get_plan(
             limit=20,
             start=start_d,
             end=end_d,
+            include_stryd_delivery=stryd_enabled,
         )["items"],
     }
+    if stryd_enabled:
+        body["stryd_status"] = push_status
     return Response(
         content=json.dumps(body),
         media_type="application/json",
@@ -674,6 +727,7 @@ def get_plan(
 @router.get("/plan/adjustments")
 def get_plan_adjustments(
     limit: int = Query(20, ge=1, le=50),
+    viewer_user_id: str = Depends(get_current_user_id),
     user_id: str = Depends(get_data_user_id),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -682,22 +736,41 @@ def get_plan_adjustments(
         db,
         user_id=user_id,
         limit=limit,
+        include_stryd_delivery=stryd_connection_enabled(
+            db,
+            user_id=viewer_user_id,
+        ),
     )
 
 
 @router.post("/plan/adjustments/{revision_id}/undo")
 def restore_plan_adjustment(
     revision_id: str,
+    viewer_user_id: str = Depends(get_current_user_id),
     user_id: str = Depends(require_write_access),
     db: Session = Depends(get_db),
 ) -> dict:
     """Undo a supported revision only while its exact result remains current."""
     try:
-        return undo_plan_adjustment(
+        result = undo_plan_adjustment(
             db,
             user_id=user_id,
             revision_id=revision_id,
         )
+        if (
+            "delivery" in result
+            and not stryd_connection_enabled(
+                db,
+                user_id=viewer_user_id,
+            )
+        ):
+            result = {
+                **result,
+                "delivery": without_stryd_delivery_metadata(
+                    result["delivery"],
+                ),
+            }
+        return result
     except PlanAdjustmentNotFoundError as exc:
         raise HTTPException(
             status_code=404,
@@ -866,7 +939,7 @@ def _resolve_stryd_delivery_cp(data: dict) -> float | None:
     return cp_watts if math.isfinite(cp_watts) and cp_watts > 0 else None
 
 
-@router.post("/plan/push-stryd")
+@router.post("/plan/push-stryd", include_in_schema=False)
 def push_plan_to_stryd(
     request: PushStrydRequest,
     current_user_id: str = Depends(require_write_access),
@@ -876,6 +949,7 @@ def push_plan_to_stryd(
 
     Converts Praxys workouts to Stryd structured format and uploads them.
     """
+    require_stryd_connection_enabled(db, user_id=current_user_id)
     db.rollback()
     try:
         _guard_manual_delivery_target(
@@ -1141,6 +1215,11 @@ def resolve_plan_reconciliation(
             status_code=409,
             detail="Select a plan execution target before resolving conflicts",
         )
+    if target == "stryd":
+        require_stryd_connection_enabled(
+            db,
+            user_id=current_user_id,
+        )
     provider_name = target.capitalize()
     if "@" not in request.reconciliation_id:
         raise HTTPException(
@@ -1345,6 +1424,29 @@ def cleanup_plan_deliveries(
 ) -> dict:
     """Remove future target workouts that belong to the caller's ledger."""
     db.rollback()
+    if not stryd_connection_enabled(db, user_id=current_user_id):
+        config = load_config_from_db(current_user_id, db)
+        has_stryd_state = (
+            config.plan_management.get("execution_target") == "stryd"
+            or db.execute(
+                select(PlanDelivery.id).where(
+                    PlanDelivery.user_id == current_user_id,
+                    PlanDelivery.target == "stryd",
+                    PlanDelivery.state != "removed",
+                ).limit(1)
+            ).scalar_one_or_none()
+            is not None
+            or db.execute(
+                select(PlanTargetCalendarSync.id).where(
+                    PlanTargetCalendarSync.user_id == current_user_id,
+                    PlanTargetCalendarSync.target == "stryd",
+                ).limit(1)
+            ).scalar_one_or_none()
+            is not None
+            or os.path.exists(_stryd_push_status_path(current_user_id))
+        )
+        if has_stryd_state:
+            raise HTTPException(status_code=404, detail="Not found")
     legacy_import = _import_legacy_stryd_status_if_compatible(
         db,
         user_id=current_user_id,
@@ -1405,13 +1507,17 @@ def cleanup_plan_deliveries(
     return result.to_dict()
 
 
-@router.delete("/plan/stryd-workout/{workout_id}")
+@router.delete(
+    "/plan/stryd-workout/{workout_id}",
+    include_in_schema=False,
+)
 def delete_stryd_workout(
     workout_id: str,
     current_user_id: str = Depends(require_write_access),
     db: Session = Depends(get_db),
 ) -> dict:
     """Delete a previously pushed workout from Stryd."""
+    require_stryd_connection_enabled(db, user_id=current_user_id)
     normalized_workout_id = normalize_stryd_workout_id(workout_id)
     if normalized_workout_id is None:
         raise HTTPException(status_code=400, detail="Invalid Stryd workout id")

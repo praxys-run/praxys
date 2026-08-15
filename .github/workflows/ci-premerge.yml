@@ -43,8 +43,35 @@ jobs:
           cache: pip
           cache-dependency-path: requirements.txt
 
+      - name: Detect private Stryd client access
+        id: stryd-client
+        env:
+          WHEEL_B64: ${{ secrets.STRYD_CLIENT_WHEEL_B64 }}
+        run: |
+          if [ -n "$WHEEL_B64" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Materialize private Stryd client
+        if: steps.stryd-client.outputs.available == 'true'
+        env:
+          WHEEL_B64: ${{ secrets.STRYD_CLIENT_WHEEL_B64 }}
+        run: |
+          mkdir -p .private-deps
+          printf '%s' "$WHEEL_B64" \
+            | base64 --decode \
+            > .private-deps/stryd_client-0.2.0-py3-none-any.whl
+          echo "d5ecc8c14beafe1cf2df6e5021b0bee71094b15cf14dfc039f0652c8c9c030e4  .private-deps/stryd_client-0.2.0-py3-none-any.whl" \
+            | sha256sum --check
+
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          if [ "${{ steps.stryd-client.outputs.available }}" = "true" ]; then
+            pip install .private-deps/stryd_client-0.2.0-py3-none-any.whl
+          fi
 
       - name: Run backend tests
         run: python -m pytest tests/ -v

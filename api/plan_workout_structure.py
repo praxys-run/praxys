@@ -44,7 +44,7 @@ WorkoutStructureState = Literal[
     "invalid",
     "unsupported",
 ]
-ProviderCompatibilityTarget = Literal["garmin", "stryd"]
+ProviderCompatibilityTarget = str
 ProviderCompatibilityMode = Literal[
     "legacy_flat",
     "structured",
@@ -319,6 +319,14 @@ class WorkoutProviderCompatibility(BaseModel):
     reasons: list[WorkoutProviderCompatibilityReason] = Field(
         default_factory=list,
     )
+
+    @field_validator("target")
+    @classmethod
+    def validate_target(cls, value: str) -> str:
+        """Accept only registered compatibility targets."""
+        if value not in _SUPPORTED_ACTIVITY_TYPES_BY_TARGET:
+            raise ValueError("Unsupported provider compatibility target")
+        return value
 
 
 def inspect_workout_structure(

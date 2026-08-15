@@ -4,6 +4,9 @@ param location string = resourceGroup().location
 param image string
 @secure()
 param databaseUrl string
+@secure()
+param statsigSdkKey string
+param statsigEnv string = 'production'
 param logAnalyticsWorkspaceName string
 param backendAppInsightsName string
 param actionGroupName string = 'praxys-feedback-ag'
@@ -100,6 +103,10 @@ resource worker 'Microsoft.App/jobs@2025-01-01' = {
           name: 'database-url'
           value: databaseUrl
         }
+        {
+          name: 'statsig-sdk-key'
+          value: statsigSdkKey
+        }
       ]
       eventTriggerConfig: {
         parallelism: 1
@@ -161,6 +168,14 @@ resource worker 'Microsoft.App/jobs@2025-01-01' = {
             {
               name: 'PRAXYS_LABS_EXECUTION_MODE'
               value: 'service_bus'
+            }
+            {
+              name: 'STATSIG_SDK_KEY'
+              secretRef: 'statsig-sdk-key'
+            }
+            {
+              name: 'STATSIG_ENV'
+              value: statsigEnv
             }
             {
               name: 'PRAXYS_LABS_SERVICE_BUS_FQDN'

@@ -23,6 +23,11 @@ def capture_delivery_connection_generation(
     refresh: bool = False,
 ) -> str | None:
     """Return the live connection generation used to fence provider writes."""
+    if target == "stryd":
+        from api.stryd_access import stryd_connection_enabled
+
+        if not stryd_connection_enabled(db, user_id=user_id):
+            raise DeliveryMutationBlockedError("delivery_not_eligible")
     query = select(UserConnection).where(
         UserConnection.user_id == user_id,
         UserConnection.platform == target,

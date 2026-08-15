@@ -379,6 +379,67 @@ def test_check_and_sync_skips_auth_required_connections(db_setup, monkeypatch) -
     )
 
 
+def test_check_and_sync_skips_stryd_when_private_gate_is_off(
+    db_setup,
+    monkeypatch,
+) -> None:
+    """The scheduler must not decrypt or call a private provider when gated."""
+    from db import session as db_session
+    from db import sync_scheduler
+    from db.models import UserConfig
+
+    user_id, _ = db_setup
+    db = db_session.SessionLocal()
+    try:
+        conn = _make_connection(db, user_id, platform="stryd")
+        conn.last_sync = datetime.utcnow() - timedelta(days=1)
+        db.add(UserConfig(user_id=user_id))
+        db.commit()
+    finally:
+        db.close()
+
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda _gate_name, _user: False,
+    )
+    sync_calls: list[str] = []
+    monkeypatch.setattr(
+        sync_scheduler,
+        "_sync_connection",
+        lambda uid, platform, db, **kwargs: sync_calls.append(
+            f"{uid}:{platform}"
+        ),
+    )
+
+    sync_scheduler._check_and_sync()
+
+    assert sync_calls == []
+
+
+def test_sync_connection_checks_stryd_gate_before_credentials(
+    db_setup,
+    monkeypatch,
+) -> None:
+    """Defense in depth blocks direct scheduler calls before decryption."""
+    from db import session as db_session
+    from db import sync_scheduler
+
+    user_id, _ = db_setup
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda _gate_name, _user: False,
+    )
+    monkeypatch.setattr(
+        "db.connection_credentials.load_connection_credentials",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("credentials must not be loaded")
+        ),
+    )
+
+    with db_session.SessionLocal() as db:
+        sync_scheduler._sync_connection(user_id, "stryd", db)
+
+
 def test_check_and_sync_routes_failure_through_record_sync_failure(
     db_setup, monkeypatch,
 ) -> None:

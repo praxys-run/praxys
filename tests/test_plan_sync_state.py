@@ -36,8 +36,10 @@ def api_client(monkeypatch):
     )
     monkeypatch.setattr(
         "api.statsig_client.check_gate",
-        lambda gate_name, _user: gate_name
-        == "garmin_plan_delivery_eligible",
+        lambda gate_name, _user: gate_name in {
+            "garmin_plan_delivery_eligible",
+            "stryd_connection_enabled",
+        },
     )
     monkeypatch.setenv(
         "PRAXYS_LOCAL_ENCRYPTION_KEY",
@@ -192,7 +194,10 @@ def _seed_synced_delivery(
     return delivery_id
 
 
-def test_plan_exposes_adjustment_history_and_exact_undo(api_client):
+def test_plan_exposes_adjustment_history_and_exact_undo(
+    api_client,
+    monkeypatch,
+):
     client, user_id = api_client
     from db import session as db_session
     from db.models import TrainingPlan
@@ -236,7 +241,14 @@ def test_plan_exposes_adjustment_history_and_exact_undo(api_client):
                 "evidence": {"hrv_latest_date": today.isoformat()},
                 "bounds": {"workouts_changed": 1},
                 "citations": [],
-                "delivery": {"status": "pending"},
+                "delivery": {
+                    "requested": True,
+                    "target": "stryd",
+                    "status": "success",
+                    "items": [{
+                        "external_id": "private-stryd-workout-id",
+                    }],
+                },
             },
             idempotency_key=f"auto-adjust:1:{plan.canonical_id}:{today}",
         )
@@ -249,14 +261,50 @@ def test_plan_exposes_adjustment_history_and_exact_undo(api_client):
         f"/api/plan?start={today.isoformat()}&end={today.isoformat()}"
     )
     history_response = client.get("/api/plan/adjustments")
-    undo_response = client.post(
-        f"/api/plan/adjustments/{revision_id}/undo"
-    )
 
     assert plan_response.status_code == 200, plan_response.text
     assert plan_response.json()["adjustments"][0]["id"] == revision_id
     assert history_response.status_code == 200, history_response.text
     assert history_response.json()["items"][0]["can_undo"] is True
+    assert (
+        history_response.json()["items"][0]["delivery"]["target"]
+        == "stryd"
+    )
+
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, _user: (
+            gate_name == "garmin_plan_delivery_eligible"
+        ),
+    )
+    hidden_plan = client.get(
+        f"/api/plan?start={today.isoformat()}&end={today.isoformat()}",
+        headers={"If-None-Match": plan_response.headers["etag"]},
+    )
+    hidden_history = client.get("/api/plan/adjustments")
+    assert hidden_plan.status_code == 200, hidden_plan.text
+    assert hidden_plan.headers["etag"] != plan_response.headers["etag"]
+    assert hidden_plan.json()["adjustments"][0]["delivery"] == {
+        "requested": True,
+        "status": "success",
+    }
+    assert hidden_history.json()["items"][0]["delivery"] == {
+        "requested": True,
+        "status": "success",
+    }
+    assert "private-stryd-workout-id" not in hidden_plan.text
+    assert "private-stryd-workout-id" not in hidden_history.text
+
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, _user: gate_name in {
+            "garmin_plan_delivery_eligible",
+            "stryd_connection_enabled",
+        },
+    )
+    undo_response = client.post(
+        f"/api/plan/adjustments/{revision_id}/undo"
+    )
     assert undo_response.status_code == 200, undo_response.text
     assert undo_response.json()["status"] == "undone"
 
@@ -269,6 +317,41 @@ def test_plan_exposes_adjustment_history_and_exact_undo(api_client):
         assert restored.planned_duration_min == 50
     finally:
         db.close()
+
+
+def test_adjustment_undo_hides_stryd_delivery_metadata(
+    api_client,
+    monkeypatch,
+):
+    client, _ = api_client
+    from api.routes import plan as plan_route
+
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, _user: (
+            gate_name == "garmin_plan_delivery_eligible"
+        ),
+    )
+    monkeypatch.setattr(
+        plan_route,
+        "undo_plan_adjustment",
+        lambda _db, *, user_id, revision_id: {
+            "status": "undone",
+            "adjustment_revision_id": revision_id,
+            "revision_id": "undo-revision",
+            "delivery": {
+                "target": "stryd",
+                "status": "success",
+                "items": [{"external_id": "private-stryd-workout-id"}],
+            },
+        },
+    )
+
+    response = client.post("/api/plan/adjustments/adjustment-1/undo")
+    assert response.status_code == 200, response.text
+    assert response.status_code == 200, response.text
+    assert response.json()["delivery"] == {"status": "success"}
+    assert "private-stryd-workout-id" not in response.text
 
 
 def _seed_target_snapshot(

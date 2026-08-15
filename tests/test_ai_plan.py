@@ -51,6 +51,45 @@ def _make_plan(days: int = 28, start: date | None = None, **overrides) -> list[d
     return plan
 
 
+def test_ai_context_filters_plan_for_authenticated_viewer(monkeypatch) -> None:
+    """AI context uses viewer eligibility, not the demo source account."""
+    from api.routes import ai as ai_routes
+
+    calls: dict[str, object] = {}
+    database = object()
+
+    def gate(db, *, user_id):
+        calls["gate"] = (db, user_id)
+        return False
+
+    def dashboard(*, user_id, db, include_stryd_plan):
+        calls["dashboard"] = (user_id, db, include_stryd_plan)
+        return {"plan": "filtered"}
+
+    def context(data, *, user_id, db):
+        calls["context"] = (data, user_id, db)
+        return {"status": "ok"}
+
+    monkeypatch.setattr(ai_routes, "stryd_connection_enabled", gate)
+    monkeypatch.setattr(ai_routes, "get_dashboard_data", dashboard)
+    monkeypatch.setattr("api.ai._build_context_from_data", context)
+
+    result = ai_routes.get_ai_context(
+        viewer_user_id="demo-viewer",
+        user_id="source-user",
+        db=database,
+    )
+
+    assert result == {"status": "ok"}
+    assert calls["gate"] == (database, "demo-viewer")
+    assert calls["dashboard"] == ("source-user", database, False)
+    assert calls["context"] == (
+        {"plan": "filtered"},
+        "source-user",
+        database,
+    )
+
+
 # ---------------------------------------------------------------------------
 # validate_plan tests
 # ---------------------------------------------------------------------------

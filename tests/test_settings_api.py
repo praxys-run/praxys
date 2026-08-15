@@ -29,8 +29,10 @@ def api_client(monkeypatch):
     )
     monkeypatch.setattr(
         "api.statsig_client.check_gate",
-        lambda gate_name, _user: gate_name
-        == "garmin_plan_delivery_eligible",
+        lambda gate_name, _user: gate_name in {
+            "garmin_plan_delivery_eligible",
+            "stryd_connection_enabled",
+        },
     )
     monkeypatch.setenv(
         "PRAXYS_LOCAL_ENCRYPTION_KEY", "JKkx_5SVHKQDr0HSMrwl0KQHcA0pl5pxsYSLEAQDB4o="
@@ -44,7 +46,11 @@ def api_client(monkeypatch):
     db_session.init_db()
 
     from api.main import app
-    from api.auth import require_write_access, get_data_user_id
+    from api.auth import (
+        get_current_user_id,
+        get_data_user_id,
+        require_write_access,
+    )
     from db.session import get_db
     from api.routes import sync as _sync_routes
 
@@ -83,6 +89,7 @@ def api_client(monkeypatch):
         finally:
             db.close()
 
+    app.dependency_overrides[get_current_user_id] = _override_user
     app.dependency_overrides[require_write_access] = _override_user
     app.dependency_overrides[get_data_user_id] = _override_user
     app.dependency_overrides[get_db] = _override_db
@@ -182,6 +189,144 @@ def test_get_settings_distinguishes_configured_from_live_connections(
     assert body["connection_statuses"] == {
         "stryd": "auth_required",
     }
+
+
+def test_stryd_surfaces_and_actions_are_hidden_when_gate_is_off(
+    api_client,
+    monkeypatch,
+):
+    client, user_id = api_client
+    _seed_connection(user_id, "stryd")
+    selected = client.put("/api/settings", json={
+        "plan_management": {
+            "mode": "praxys",
+            "execution_target": "stryd",
+            "delivery_enabled": False,
+        },
+    })
+    assert selected.status_code == 200, selected.text
+
+    from db import session as db_session
+    from db.models import UserConfig
+
+    db = db_session.SessionLocal()
+    try:
+        config = db.get(UserConfig, user_id)
+        config.activity_routing = {
+            "default": "stryd",
+            "running": "stryd",
+            "cycling": "garmin",
+        }
+        db.commit()
+    finally:
+        db.close()
+
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, _user: (
+            gate_name == "garmin_plan_delivery_eligible"
+        ),
+    )
+
+    settings = client.get("/api/settings")
+    assert settings.status_code == 200, settings.text
+    body = settings.json()
+    assert "stryd" not in body["config"]["connections"]
+    assert body["config"]["plan_management"]["execution_target"] is None
+    assert body["config"]["plan_management"]["delivery_enabled"] is False
+    assert body["config"]["activity_routing"] == {"cycling": "garmin"}
+    assert "stryd" not in body["connection_statuses"]
+    assert "stryd" not in body["platform_capabilities"]
+    assert all(
+        option["platform"] != "stryd"
+        for option in body["plan_delivery_options"]
+    )
+    assert all(
+        "stryd" not in providers
+        for providers in body["available_providers"].values()
+    )
+
+    connections = client.get("/api/settings/connections")
+    assert connections.status_code == 200, connections.text
+    assert "stryd" not in connections.json()["connections"]
+
+    update = client.put(
+        "/api/settings",
+        json={"connections": ["stryd"]},
+    )
+    assert update.status_code == 404, update.text
+
+    connect = client.post(
+        "/api/settings/connections/stryd",
+        json={"email": "runner@example.test", "password": "secret"},
+    )
+    assert connect.status_code == 404, connect.text
+
+    sync = client.post("/api/sync/stryd")
+    assert sync.status_code == 404, sync.text
+
+
+def test_legacy_mixed_case_stryd_values_are_sanitized() -> None:
+    """Persisted provider casing cannot evade response or mutation filters."""
+    from analysis.config import UserConfig
+    from api.routes.settings import (
+        SettingsUpdate,
+        _settings_update_requests_stryd,
+        _without_stryd_config,
+        _without_stryd_thresholds,
+    )
+
+    config = UserConfig()
+    config.connections = [" STRYD ", "garmin"]
+    config.preferences = {
+        "plan": "sTrYd",
+        "threshold_sources": {
+            "cp_watts": "STRYD",
+            "lthr_bpm": "garmin",
+        },
+    }
+    config.plan_management = {
+        "mode": "praxys",
+        "execution_target": " Stryd ",
+        "delivery_enabled": True,
+        "adjustment_policy": "suggest_only",
+    }
+    config.activity_routing = {
+        "running": "STRYD",
+        "cycling": "garmin",
+    }
+
+    payload = _without_stryd_config(config)
+    thresholds = _without_stryd_thresholds({
+        "cp_watts": {
+            "value": 265,
+            "source": "STRYD",
+            "options": [{"source": " STRYD ", "value": 265}],
+        },
+        "lthr_bpm": {
+            "value": 170,
+            "source": "garmin",
+            "options": [{"source": "garmin", "value": 170}],
+        },
+    })
+
+    assert payload["connections"] == ["garmin"]
+    assert payload["preferences"] == {
+        "threshold_sources": {"lthr_bpm": "garmin"},
+    }
+    assert payload["plan_management"]["execution_target"] is None
+    assert payload["plan_management"]["delivery_enabled"] is False
+    assert payload["activity_routing"] == {"cycling": "garmin"}
+    assert thresholds == {
+        "lthr_bpm": {
+            "value": 170,
+            "source": "garmin",
+            "options": [{"source": "garmin", "value": 170}],
+        },
+    }
+    assert _settings_update_requests_stryd(
+        SettingsUpdate(connections=[" STRYD "])
+    )
 
 
 def test_get_settings_exposes_safe_plan_management_defaults(api_client):
@@ -376,7 +521,7 @@ def test_garmin_delivery_requires_statsig_eligibility(
     )
     monkeypatch.setattr(
         "api.statsig_client.check_gate",
-        lambda _gate_name, _user: False,
+        lambda gate_name, _user: gate_name == "stryd_connection_enabled",
     )
 
     blocked = client.put("/api/settings", json={
@@ -591,7 +736,7 @@ def test_paused_switch_to_garmin_enforces_account_eligibility(
     assert adopted.status_code == 200, adopted.text
     monkeypatch.setattr(
         "api.statsig_client.check_gate",
-        lambda _gate_name, _user: False,
+        lambda gate_name, _user: gate_name == "stryd_connection_enabled",
     )
 
     blocked = client.put("/api/settings", json={
