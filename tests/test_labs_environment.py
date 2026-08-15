@@ -2287,6 +2287,14 @@ def test_worker_infrastructure_provisions_gate_identity() -> None:
     assert "name: 'STATSIG_ENV'" in bicep
     assert "STATSIG_SDK_KEY: ${{ secrets.STATSIG_SDK_KEY }}" in workflow
     assert 'statsigSdkKey="${STATSIG_SDK_KEY}"' in workflow
+    deploy_header = workflow.split("\n  deploy:\n", 1)[1].split(
+        "\n    steps:\n",
+        1,
+    )[0]
+    assert (
+        "STATSIG_ENV: ${{ vars.STATSIG_ENV || 'production' }}"
+        in deploy_header
+    )
     assert COLUMN_PRIVILEGES["users"]["SELECT"] == (
         "id",
         "email",
