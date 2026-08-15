@@ -12,13 +12,13 @@ research_question: >
   hydration practice, taper and recovery, environment and altitude, and
   reassessment and outcomes?
 topic: road-marathon-plan-generation-policy
-status: draft
+status: accepted
 approval_mode: artifact
 authors:
   - agent:github-copilot
 human_reviewers: []
 created_on: 2026-08-15
-reviewed_on:
+reviewed_on: 2026-08-15
 intended_product_purpose: >
   Define the evidence boundary for one currently-capable, history-rich adult
   outdoor road-marathon performance policy without inheriting any 5 km, 10 km,
