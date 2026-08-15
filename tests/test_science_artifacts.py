@@ -518,6 +518,78 @@ def test_approval_roles_require_complete_scopes() -> None:
         ScienceApproval.model_validate(payload)
 
 
+def test_half_marathon_packet_contains_exact_inactive_contract() -> None:
+    registry = load_science_registry()
+    expected = expected_science_artifacts(registry)
+    evidence_id = (
+        "evidence-road-half-marathon-plan-generation-policy-v1"
+    )
+    decision_id = "sdr-road-half-marathon-plan-generation-policy-v1"
+    evidence_packet_path = (
+        Path("generated") / "review-packets" / f"{evidence_id}.md"
+    )
+    decision_packet_path = (
+        Path("generated") / "review-packets" / f"{decision_id}.md"
+    )
+    contract_path = (
+        Path("generated") / "contracts" / f"{decision_id}.json"
+    )
+
+    contract = SciencePolicyContract.model_validate_json(
+        expected[contract_path]
+    )
+    packet = expected[decision_packet_path]
+    exact_contract_block = (
+        "```json\n"
+        + render_policy_contract_json(contract).rstrip()
+        + "\n```"
+    )
+
+    assert contract.decision_status == RecordStatus.ACCEPTED
+    assert contract.runtime_state == ArtifactRuntimeState.INACTIVE
+    assert contract.parameter_values[
+        "road_half_marathon_baseline_freshness"
+    ]["exact_current_through_completed_days"] == "not_accepted"
+    assert contract.parameter_values[
+        "road_half_marathon_direct_baseline_hierarchy"
+    ]["baseline_qualification_algorithm"] == "not_accepted"
+    assert contract.parameter_values[
+        "road_half_marathon_selected_taper_guardrail"
+    ]["target_event_elapsed_time_included_in_training_minutes"] == (
+        "not_accepted"
+    )
+    assert contract.parameter_values[
+        "road_half_marathon_fueling_practice_policy"
+    ]["product_glycogen_loading_duration_threshold"] == "not_accepted"
+    assert contract.parameter_values[
+        "road_half_marathon_open_decisions"
+    ]["exact_workout_templates"] == "not_accepted"
+    assert exact_contract_block in packet
+    assert (
+        "**Decision approval:** `github:dddtc2005` on `2026-08-14`"
+        in packet
+    )
+    assert packet.count("_Pending_") == 1
+    assert packet.index("## Your task") < packet.index("## Decision sheet")
+    assert packet.index("## Decision sheet") < packet.index(
+        "## Audit appendix"
+    )
+    assert "`supported-scope`" in packet
+    assert "`evidence-use`" in packet
+    assert "`hard-boundaries`" in packet
+    assert "`mostly-low-structure`" in packet
+    assert "`defer-baseline-history`" in packet
+    assert "`defer-dose-taper`" in packet
+    assert "`defer-fueling`" in packet
+    assert "`defer-pilot-activation`" in packet
+    assert "Exact machine contract — code consumption audit" in packet
+    assert "<details><summary>Traceability:" in packet
+    assert "activity_avg_power" in packet
+    assert "Review this packet, not the raw YAML" in expected[
+        evidence_packet_path
+    ]
+
+
 def test_repository_generated_science_artifacts_are_current() -> None:
     registry = load_science_registry()
     assert sync_science_artifacts(registry, check=True) == []
