@@ -1,0 +1,13 @@
+schema_version: 1
+subject_kind: evidence_review
+subject_id: evidence-road-half-marathon-plan-generation-policy-v1
+subject_digest: sha256:22a2df413eb204395db0444fe1b97a7b7bf42e58010ee614dea30945b9eb14e9
+reviewer: github:dddtc2005
+role: evidence_reviewer
+reviewed_on: '2026-08-14'
+scopes:
+- citation_verification
+- evidence_claims
+- limitations_and_gaps
+- search_method
+source_ref: https://github.com/praxys-run/praxys/pull/702#issuecomment-5295014914

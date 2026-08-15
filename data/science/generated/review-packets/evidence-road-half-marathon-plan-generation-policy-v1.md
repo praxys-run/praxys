@@ -3,11 +3,11 @@
 > Generated from the canonical Evidence Review. Review this packet, not the raw YAML. Any source change invalidates the digest below.
 
 - **Record:** `evidence-road-half-marathon-plan-generation-policy-v1`
-- **Lifecycle:** `draft`
+- **Lifecycle:** `accepted`
 - **Review mode:** `artifact`
 - **Reviewed content digest:** `sha256:22a2df413eb204395db0444fe1b97a7b7bf42e58010ee614dea30945b9eb14e9`
 - **Required role:** `evidence_reviewer`
-- **Approval:** _Pending_
+- **Approval:** `github:dddtc2005` on `2026-08-14` ([source](https://github.com/praxys-run/praxys/pull/702#issuecomment-5295014914))
 
 ## Approval
 

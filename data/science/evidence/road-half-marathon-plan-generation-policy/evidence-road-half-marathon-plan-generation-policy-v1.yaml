@@ -9,13 +9,13 @@ research_question: >
   performance planning with optional target time and date, confirmed event
   context, durability and long-run inputs, tapering, and fueling practice?
 topic: road-half-marathon-plan-generation-policy
-status: draft
+status: accepted
 approval_mode: artifact
 authors:
   - agent:github-copilot
 human_reviewers: []
 created_on: 2026-08-14
-reviewed_on:
+reviewed_on: 2026-08-14
 intended_product_purpose: >
   Define the evidence boundary for one history-rich outdoor road
   half-marathon performance policy without inheriting 5 km or 10 km schedule

@@ -3,13 +3,13 @@
 > Start with the decision sheet. The audit appendix preserves every code-consumed field, but it is not the reviewer's primary task.
 
 - **Record:** `sdr-road-half-marathon-plan-generation-policy-v1`
-- **Lifecycle:** `draft`
+- **Lifecycle:** `accepted`
 - **Model version:** `road-half-marathon-plan-generation-policy-v1`
 - **Runtime state:** `inactive`
 - **Decision digest:** `sha256:8b578c26dc6ed33eaed91c881edb68de4693a657f370d37e98d96ef04e35ed68`
-- **Contract digest:** `sha256:a1d99a0b562d2b5a04ae5057793dd915e486c7dc5f3667e26aff197210942afe`
+- **Contract digest:** `sha256:011c6dcd5bac15dc5e760a782f2363c2908eda0a86b6334de47f1c20882c89bc`
 - **Required decision role:** `decision_approver`
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-08-14` ([source](https://github.com/praxys-run/praxys/pull/702#issuecomment-5294993695))
 - **Required activation role:** `implementation_reviewer`
 - **Implementation approval:** _Pending_
 
@@ -182,7 +182,7 @@ A decision approval bound to the displayed digest attests:
 
 > I approve the supported scope, evidence-use limits, and hard safety and control boundaries below, including a mostly-low-intensity organizational boundary without an exact distribution. I also agree that baseline/history rules, training dose and taper, fueling rules, and pilot thresholds remain deferred. I understand this decision stays inactive and does not approve implementation or runtime activation.
 
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-08-14` ([source](https://github.com/praxys-run/praxys/pull/702#issuecomment-5294993695))
 
 ### Decision approval
 
@@ -1196,9 +1196,9 @@ AI cannot repair missing evidence, verify events or profile fields, broaden elig
     "road-half-marathon-plan-generation-policy-v1",
     "shared dynamic training-pattern and confirmed event snapshots"
   ],
-  "contract_digest": "sha256:a1d99a0b562d2b5a04ae5057793dd915e486c7dc5f3667e26aff197210942afe",
+  "contract_digest": "sha256:011c6dcd5bac15dc5e760a782f2363c2908eda0a86b6334de47f1c20882c89bc",
   "decision_id": "sdr-road-half-marathon-plan-generation-policy-v1",
-  "decision_status": "draft",
+  "decision_status": "accepted",
   "decision_version": 1,
   "evidence_claim_ids": [
     "eligibility.recent-history-anchor-without-universal-threshold",

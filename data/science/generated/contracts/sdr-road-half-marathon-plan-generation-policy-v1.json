@@ -3,9 +3,9 @@
     "road-half-marathon-plan-generation-policy-v1",
     "shared dynamic training-pattern and confirmed event snapshots"
   ],
-  "contract_digest": "sha256:a1d99a0b562d2b5a04ae5057793dd915e486c7dc5f3667e26aff197210942afe",
+  "contract_digest": "sha256:011c6dcd5bac15dc5e760a782f2363c2908eda0a86b6334de47f1c20882c89bc",
   "decision_id": "sdr-road-half-marathon-plan-generation-policy-v1",
-  "decision_status": "draft",
+  "decision_status": "accepted",
   "decision_version": 1,
   "evidence_claim_ids": [
     "eligibility.recent-history-anchor-without-universal-threshold",
