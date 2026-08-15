@@ -545,7 +545,7 @@ def test_half_marathon_packet_contains_exact_inactive_contract() -> None:
         + "\n```"
     )
 
-    assert contract.decision_status == RecordStatus.DRAFT
+    assert contract.decision_status == RecordStatus.ACCEPTED
     assert contract.runtime_state == ArtifactRuntimeState.INACTIVE
     assert contract.parameter_values[
         "road_half_marathon_baseline_freshness"
@@ -565,7 +565,11 @@ def test_half_marathon_packet_contains_exact_inactive_contract() -> None:
         "road_half_marathon_open_decisions"
     ]["exact_workout_templates"] == "not_accepted"
     assert exact_contract_block in packet
-    assert packet.count("_Pending_") >= 2
+    assert (
+        "**Decision approval:** `github:dddtc2005` on `2026-08-14`"
+        in packet
+    )
+    assert packet.count("_Pending_") == 1
     assert packet.index("## Your task") < packet.index("## Decision sheet")
     assert packet.index("## Decision sheet") < packet.index(
         "## Audit appendix"

@@ -811,7 +811,7 @@ def test_road_10k_policy_is_accepted_distance_specific_and_inactive() -> None:
     )
 
 
-def test_road_half_marathon_policy_is_draft_artifact_and_inactive() -> None:
+def test_road_half_marathon_policy_is_accepted_artifact_and_inactive() -> None:
     registry = load_science_registry()
     review = registry.evidence_reviews[
         "evidence-road-half-marathon-plan-generation-policy-v1"
@@ -820,10 +820,10 @@ def test_road_half_marathon_policy_is_draft_artifact_and_inactive() -> None:
         "sdr-road-half-marathon-plan-generation-policy-v1"
     ]
 
-    assert review.status == "draft"
+    assert review.status == RecordStatus.ACCEPTED
     assert review.approval_mode == "artifact"
     assert review.human_reviewers == []
-    assert review.reviewed_on is None
+    assert review.reviewed_on == date(2026, 8, 14)
     assert review.method.review_type.value == "rigorous"
     assert len(review.citations) >= 20
     assert {
@@ -839,7 +839,7 @@ def test_road_half_marathon_policy_is_draft_artifact_and_inactive() -> None:
     } == {claim.id for claim in review.claims}
     _assert_exact_verification_notes(review)
 
-    assert decision.status == "draft"
+    assert decision.status == RecordStatus.ACCEPTED
     assert decision.approval_mode == "artifact"
     assert decision.human_reviewers == []
     assert decision.artifact_policy is not None
