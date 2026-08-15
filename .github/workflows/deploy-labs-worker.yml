@@ -108,6 +108,8 @@ jobs:
     if: vars.PRAXYS_LABS_WORKER_DEPLOY_ENABLED == 'true'
     needs: test-and-build
     runs-on: ubuntu-latest
+    env:
+      STATSIG_ENV: ${{ vars.STATSIG_ENV || 'production' }}
     steps:
       - uses: actions/checkout@v7
       - name: Load Azure resource names
@@ -140,7 +142,6 @@ jobs:
         env:
           PRAXYS_LABS_DATABASE_URL: ${{ secrets.PRAXYS_LABS_DATABASE_URL }}
           STATSIG_SDK_KEY: ${{ secrets.STATSIG_SDK_KEY }}
-          STATSIG_ENV: ${{ vars.STATSIG_ENV || 'production' }}
         run: |
           set -euo pipefail
           if [[ -z "${PRAXYS_LABS_DATABASE_URL}" ]]; then
