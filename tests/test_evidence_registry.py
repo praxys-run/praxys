@@ -1231,7 +1231,7 @@ def test_road_marathon_policy_has_accepted_evidence_and_draft_decision() -> None
         "narrow-modular-scope",
         "evidence-use",
         "hard-boundaries",
-        "qualitative-organization-context",
+        "adaptive-evidence-informed-loop",
     }
     assert {
         item_id
@@ -1298,6 +1298,11 @@ def test_road_marathon_policy_has_accepted_evidence_and_draft_decision() -> None
     )
     assert pattern["history_pattern"] == "stable_recent"
     assert pattern["load_pattern"] == "within_recent"
+    assert pattern["current_concerning_symptoms"] == "absent"
+    assert (
+        "current_injury_illness_or_concerning_symptoms"
+        in pattern["explicit_exclusions"]
+    )
     assert pattern["cohort_labels_are_permanent_runner_identities"] is False
 
     modular = parameters["road_marathon_modular_policy_structure"].value
@@ -1316,6 +1321,24 @@ def test_road_marathon_policy_has_accepted_evidence_and_draft_decision() -> None
         "missing_context_disables_or_degrades_dependent_module_only"
     ] is True
     assert modular["missing_context_may_block_independent_modules"] is False
+    assert modular["supported_route_must_take_actionable_position"] is True
+    assert modular[
+        "disclaimer_only_output_allowed_for_supported_safe_route"
+    ] is False
+    assert modular["scientific_evidence_roles"] == [
+        "bound_candidate_strategies",
+        "inform_initial_prior",
+        "explain_athlete_specific_recommendation",
+        "define_expected_and_contradictory_signals",
+    ]
+    assert modular["feedback_loop_stages"] == [
+        "sense_current_state",
+        "select_candidate_strategy",
+        "propose_reviewable_action",
+        "athlete_review_edit_reject_or_adopt",
+        "observe_completion_response_and_outcome",
+        "reassess_next_recommendation",
+    ]
 
     baseline = parameters[
         "road_marathon_direct_baseline_hierarchy"
@@ -1357,7 +1380,14 @@ def test_road_marathon_policy_has_accepted_evidence_and_draft_decision() -> None
     intensity = parameters[
         "road_marathon_intensity_and_race_specific_policy"
     ].value
-    assert intensity["mostly_low_intensity_organization_required"] is True
+    assert intensity["mostly_low_intensity_organization_required"] is False
+    assert intensity[
+        "mostly_low_organization_is_candidate_scientific_prior"
+    ] is True
+    assert intensity["individualized_training_organization_required"] is True
+    assert intensity["organization_must_be_reassessed_from_feedback"] is True
+    assert intensity["exact_strategy_selection_algorithm"] == "not_accepted"
+    assert intensity["exact_feedback_adjustment_algorithm"] == "not_accepted"
     assert intensity["marathon_pace_or_race_specific_dose"] == (
         "not_accepted"
     )
@@ -1393,6 +1423,34 @@ def test_road_marathon_policy_has_accepted_evidence_and_draft_decision() -> None
         "degraded_modules": ["environment_altitude"],
         "goal_remains_recorded": True,
     }
+    assert outcomes[
+        "supported_safe_route_must_return_actionable_recommendation"
+    ] is True
+    assert outcomes[
+        "disclaimer_only_response_allowed_for_supported_safe_route"
+    ] is False
+    assert outcomes[
+        "no_plan_or_limited_outcome_must_include_actionable_resolution_path"
+    ] is True
+
+    reassessment = parameters[
+        "road_marathon_reassessment_and_outcome_policy"
+    ].value
+    assert reassessment["feedback_loop_required"] is True
+    assert reassessment[
+        "next_recommendation_must_record_response_to_feedback"
+    ] is True
+    assert reassessment[
+        "exact_feedback_weighting_and_update_algorithm"
+    ] == "not_accepted"
+    assert reassessment["causal_plan_effect_claim"] == "prohibited"
+    assert reassessment["personal_responder_classification"] == "prohibited"
+    assert reassessment["absence_of_improvement_proves_nonresponse"] is False
+
+    validation = parameters[
+        "road_marathon_validation_privacy_and_open_decisions"
+    ].value
+    assert validation["unreviewed_online_learning_allowed"] is False
 
     published_volume = parameters[
         "road_marathon_published_volume_and_long_run_findings"
