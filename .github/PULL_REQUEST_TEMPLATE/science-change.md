@@ -16,7 +16,8 @@ Do not check any item that was not actually performed.
 - [ ] The SDR decision sheet states the reviewer task, proposed approvals, explicit deferrals, approval effects, and non-authorizations.
 - [ ] Every machine-contract parameter group is mapped to at least one decision-sheet item.
 - [ ] Every code-consumed field appears verbatim in the generated human review packet.
-- [ ] Accepted artifact-mode records include the required digest-bound `evidence_reviewer` or `decision_approver`; active contracts include an `implementation_reviewer`.
+- [ ] Human approvals explicitly name the role, subject, and digest in an authenticated source; automation materialized the matching artifact without widening scope.
+- [ ] Accepted artifact-mode records include the required digest-bound `evidence_reviewer` or `decision_approver`; active contracts include a separately approved `implementation_reviewer`.
 - [ ] Accepted legacy records still identify their human reviewer and review date.
 
 ## Product and implementation

@@ -1,9 +1,11 @@
 # Set up the selective-review policy App
 
 > **Summary:** Provision the dedicated GitHub App that performs privileged
-> selective-review actions without bypassing required checks.
+> review-governance and science approval-ledger actions without bypassing
+> required checks.
 > **Use when:** Preparing to enable, smoke-test, or rotate Loop A selective
-> review. Ordinary review-required operation does not need this App.
+> review, or to materialize a digest-bound science approval. Ordinary
+> review-required operation without science acceptance does not need this App.
 
 ## Prerequisites
 
@@ -20,16 +22,18 @@ require `backend-tests` and `selective-review-policy` against the latest base,
 with zero mandatory approvals. Those statuses are the merge authority.
 
 The dedicated GitHub App remains a separate privileged identity that submits an
-advisory `APPROVE`, revokes policy-owned state, and enables normal squash
-auto-merge only after the deterministic policy passes. Copilot Code Review,
-Rubber Duck, the Praxys invariant reviewer, and the App approval are
-defense-in-depth evidence; none replaces the required statuses.
+advisory `APPROVE`, revokes policy-owned state, enables normal squash auto-merge
+only after the deterministic policy passes, and commits science lifecycle files
+only after the required gate verifies an exact human-authored approval comment.
+Copilot Code Review, Rubber Duck, the Praxys invariant reviewer, and the App
+approval are defense-in-depth evidence; none replaces the required statuses.
 
 The policy is intentionally safe before this App exists. When selective review
 is disabled, no class is promoted, or a PR is otherwise review-required, the
 workflow succeeds without minting or requiring App credentials. The App becomes
 mandatory only for an exact autonomous candidate or cleanup of previously
-created policy-App state.
+created policy-App state. It is also mandatory when the science approval ledger
+must write verified artifacts to a PR branch.
 
 ## Steps
 
@@ -37,11 +41,12 @@ created policy-App state.
 
 GitHub → **Settings → Developer settings → GitHub Apps → New GitHub App**:
 
-- **Name:** `praxys-review-policy` (or another dedicated policy-only name).
+- **Name:** `praxys-review-policy` (or another dedicated review-governance name).
 - **Homepage URL:** `https://www.praxys.run`.
 - **Webhook:** disabled.
 - **Repository permissions → Contents:** **Read and write**. GitHub requires this
-  to enable normal pull-request auto-merge.
+  to enable normal pull-request auto-merge and commit verified science approval
+  artifacts to the reviewed branch.
 - **Repository permissions → Pull requests:** **Read and write**. This permits
   the App to submit an approving review.
 - No Issues, Actions, Checks, Administration, or Workflow write permission.
@@ -104,8 +109,9 @@ Default-off behavior:
 
 | Policy result | App credentials |
 |---|---|
-| Disabled, unpromoted, sensitive, or otherwise review-required | Not read or required |
+| Disabled, unpromoted, sensitive, or otherwise review-required without science acceptance | Not read or required |
 | Enabled exact promoted candidate | Required; absence fails closed |
+| Verified science approval must be materialized | Required; absence fails closed |
 | Prior bot-authored policy approval/auto-merge needs cleanup | Required; absence leaves the required policy status failed |
 
 ### 4. Promote one proven class

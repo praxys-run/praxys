@@ -685,20 +685,33 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 
 def load_science_registry(
     science_dir: str | Path | None = None,
+    *,
+    validate_approvals: bool = True,
 ) -> ScienceRegistry:
     """Load the default cached registry or an uncached explicit registry path."""
     if science_dir is None:
+        if not validate_approvals:
+            raise ValueError(
+                "approval validation can only be disabled for an explicit path"
+            )
         return _load_default_science_registry()
-    return _load_science_registry(Path(science_dir))
+    return _load_science_registry(
+        Path(science_dir),
+        validate_approvals=validate_approvals,
+    )
 
 
 @lru_cache(maxsize=1)
 def _load_default_science_registry() -> ScienceRegistry:
     """Load the immutable application registry once per process."""
-    return _load_science_registry(_SCIENCE_DIR)
+    return _load_science_registry(_SCIENCE_DIR, validate_approvals=True)
 
 
-def _load_science_registry(root: Path) -> ScienceRegistry:
+def _load_science_registry(
+    root: Path,
+    *,
+    validate_approvals: bool,
+) -> ScienceRegistry:
     """Load and cross-validate all registry records beneath ``root``."""
     evidence_reviews: dict[str, EvidenceReview] = {}
     decisions: dict[str, ScienceDecisionRecord] = {}
@@ -773,9 +786,10 @@ def _load_science_registry(root: Path) -> ScienceRegistry:
         review_paths=review_paths,
         decision_paths=decision_paths,
     )
-    from analysis.science_artifacts import validate_registry_approvals
+    if validate_approvals:
+        from analysis.science_artifacts import validate_registry_approvals
 
-    validate_registry_approvals(registry)
+        validate_registry_approvals(registry)
     return registry
 
 
