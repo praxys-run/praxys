@@ -590,6 +590,109 @@ def test_half_marathon_packet_contains_exact_inactive_contract() -> None:
     ]
 
 
+def test_marathon_packet_contains_exact_draft_inactive_contract() -> None:
+    registry = load_science_registry()
+    expected = expected_science_artifacts(registry)
+    evidence_id = "evidence-road-marathon-plan-generation-policy-v1"
+    decision_id = "sdr-road-marathon-plan-generation-policy-v1"
+    evidence_packet_path = (
+        Path("generated") / "review-packets" / f"{evidence_id}.md"
+    )
+    decision_packet_path = (
+        Path("generated") / "review-packets" / f"{decision_id}.md"
+    )
+    contract_path = (
+        Path("generated") / "contracts" / f"{decision_id}.json"
+    )
+
+    contract = SciencePolicyContract.model_validate_json(
+        expected[contract_path]
+    )
+    packet = expected[decision_packet_path]
+    exact_contract_block = (
+        "```json\n"
+        + render_policy_contract_json(contract).rstrip()
+        + "\n```"
+    )
+
+    assert contract.decision_status == RecordStatus.DRAFT
+    assert contract.runtime_state == ArtifactRuntimeState.INACTIVE
+    assert contract.parameter_values[
+        "road_marathon_direct_baseline_hierarchy"
+    ]["baseline_qualification_algorithm"] == "not_accepted"
+    assert contract.parameter_values[
+        "road_marathon_readiness_and_history_qualification"
+    ]["minimum_usable_weeks"] == "not_accepted"
+    assert contract.parameter_values[
+        "road_marathon_history_anchored_load_policy"
+    ]["plan_length_days"] == "not_accepted"
+    assert contract.parameter_values[
+        "road_marathon_long_run_and_durability_policy"
+    ]["exact_long_run_distance"] == "not_accepted"
+    assert contract.parameter_values[
+        "road_marathon_intensity_and_race_specific_policy"
+    ]["marathon_pace_or_race_specific_dose"] == "not_accepted"
+    assert contract.parameter_values[
+        "road_marathon_taper_and_recovery_policy"
+    ]["target_event_elapsed_time_included_in_training_minutes"] == (
+        "not_accepted"
+    )
+    assert contract.parameter_values[
+        "road_marathon_fueling_and_hydration_policy"
+    ]["fluid_millilitres_per_hour_rule"] == "not_accepted"
+    assert contract.parameter_values[
+        "road_marathon_environment_and_altitude_policy"
+    ]["personal_altitude_pace_or_finish_time_correction"] == "not_accepted"
+    assert contract.parameter_values[
+        "road_marathon_reassessment_and_outcome_policy"
+    ]["exact_post_marathon_outcome_window"] == "not_accepted"
+    assert contract.parameter_values[
+        "road_marathon_validation_privacy_and_open_decisions"
+    ]["runtime_activation_criteria"] == "not_accepted"
+
+    decision = registry.decisions[decision_id]
+    assert decision.decision_review is not None
+    assert [
+        item.id
+        for item in decision.decision_review.items
+        if item.disposition == DecisionReviewDisposition.APPROVE
+    ] == [
+        "narrow-modular-scope",
+        "evidence-use",
+        "hard-boundaries",
+        "qualitative-organization-context",
+    ]
+    assert [
+        item.id
+        for item in decision.decision_review.items
+        if item.disposition == DecisionReviewDisposition.DEFER
+    ] == [
+        "defer-baseline-history",
+        "defer-dose-specific-work",
+        "defer-taper-recovery",
+        "defer-fueling-hydration-environment",
+        "defer-secondary-rollout",
+    ]
+
+    assert exact_contract_block in packet
+    assert "**Decision approval:** _Pending_" in packet
+    assert "**Implementation approval:** _Pending_" in packet
+    assert packet.index("## Your task") < packet.index("## Decision sheet")
+    assert packet.index("## Decision sheet") < packet.index(
+        "## Audit appendix"
+    )
+    assert (
+        packet.index(decision.decision_review.reviewer_task)
+        < packet.index("## Audit appendix")
+    )
+    assert "Exact machine contract — code consumption audit" in packet
+    assert "activity_avg_power" in packet
+    assert "goal_recorded_plan_policy_unavailable" in packet
+    assert "Review this packet, not the raw YAML" in expected[
+        evidence_packet_path
+    ]
+
+
 def test_repository_generated_science_artifacts_are_current() -> None:
     registry = load_science_registry()
     assert sync_science_artifacts(registry, check=True) == []
