@@ -184,26 +184,22 @@ A decision approval bound to the displayed digest attests:
 
 - **Decision approval:** _Pending_
 
-### Decision approval artifact template
+### Decision approval
 
-Create this only after a human can make the approval statement above:
+Approve in this GitHub comment format or in an authenticated agent session. For session approval, the agent mirrors this exact statement to the human-authenticated PR comment before automation records the YAML and lifecycle transition.
 
-```yaml
-schema_version: 1
-subject_kind: science_decision
-subject_id: sdr-road-half-marathon-plan-generation-policy-v1
-subject_digest: sha256:8b578c26dc6ed33eaed91c881edb68de4693a657f370d37e98d96ef04e35ed68
-reviewer: github:<reviewer>
-role: decision_approver
-reviewed_on: <YYYY-MM-DD>
-scopes:
-- activation_boundary
-- applicability
-- claim_limits
-- decision_interpretation
-- parameters
-- safety_and_privacy
-source_ref: <GitHub review URL>
+```markdown
+Praxys science approval — **APPROVE**
+
+- Role: `decision_approver`
+- Subject: `sdr-road-half-marathon-plan-generation-policy-v1`
+- Digest: `sha256:8b578c26dc6ed33eaed91c881edb68de4693a657f370d37e98d96ef04e35ed68`
+
+> I approve the supported scope, evidence-use limits, and hard safety and control boundaries below, including a mostly-low-intensity organizational boundary without an exact distribution. I also agree that baseline/history rules, training dose and taper, fueling rules, and pilot thresholds remain deferred. I understand this decision stays inactive and does not approve implementation or runtime activation.
+
+<!-- praxys-science-approval:v1
+{"role":"decision_approver","subject_digest":"sha256:8b578c26dc6ed33eaed91c881edb68de4693a657f370d37e98d96ef04e35ed68","subject_id":"sdr-road-half-marathon-plan-generation-policy-v1","subject_kind":"science_decision"}
+-->
 ```
 
 ## Audit appendix
@@ -1954,24 +1950,9 @@ AI cannot repair missing evidence, verify events or profile fields, broaden elig
 
 </details>
 
-<details><summary>Implementation approval template — not part of decision approval</summary>
+<details><summary>Implementation approval — not part of decision approval</summary>
 
-Create this only after code matches an accepted contract and runtime activation is separately approved:
-
-```yaml
-schema_version: 1
-subject_kind: implementation_contract
-subject_id: sdr-road-half-marathon-plan-generation-policy-v1
-subject_digest: sha256:a1d99a0b562d2b5a04ae5057793dd915e486c7dc5f3667e26aff197210942afe
-reviewer: github:<reviewer>
-role: implementation_reviewer
-reviewed_on: <YYYY-MM-DD>
-scopes:
-- contract_mapping
-- runtime_diff
-- validation
-source_ref: <GitHub review URL>
-```
+Runtime activation remains fail-closed until implementation approval can bind both the active contract digest and the exact reviewed code diff/validation evidence. Evidence or decision approval cannot fill this role.
 
 </details>
 

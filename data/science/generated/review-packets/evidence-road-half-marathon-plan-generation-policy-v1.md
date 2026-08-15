@@ -9,24 +9,22 @@
 - **Required role:** `evidence_reviewer`
 - **Approval:** _Pending_
 
-## Approval artifact template
+## Approval
 
-Create this only after a human completes the packet review:
+Approve in this GitHub comment format or in an authenticated agent session. For session approval, the agent mirrors this exact statement to the human-authenticated PR comment before automation records the YAML; reviewers do not edit it by hand.
 
-```yaml
-schema_version: 1
-subject_kind: evidence_review
-subject_id: evidence-road-half-marathon-plan-generation-policy-v1
-subject_digest: sha256:22a2df413eb204395db0444fe1b97a7b7bf42e58010ee614dea30945b9eb14e9
-reviewer: github:<reviewer>
-role: evidence_reviewer
-reviewed_on: <YYYY-MM-DD>
-scopes:
-- citation_verification
-- evidence_claims
-- limitations_and_gaps
-- search_method
-source_ref: <GitHub review URL>
+```markdown
+Praxys science approval — **APPROVE**
+
+- Role: `evidence_reviewer`
+- Subject: `evidence-road-half-marathon-plan-generation-policy-v1`
+- Digest: `sha256:22a2df413eb204395db0444fe1b97a7b7bf42e58010ee614dea30945b9eb14e9`
+
+> I approve this Evidence Review's search method, evidence claims, citation verification, limitations, and gaps for the displayed digest.
+
+<!-- praxys-science-approval:v1
+{"role":"evidence_reviewer","subject_digest":"sha256:22a2df413eb204395db0444fe1b97a7b7bf42e58010ee614dea30945b9eb14e9","subject_id":"evidence-road-half-marathon-plan-generation-policy-v1","subject_kind":"evidence_review"}
+-->
 ```
 
 ## Question and product purpose
