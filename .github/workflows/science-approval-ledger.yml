@@ -1,0 +1,333 @@
+name: Materialize science approvals
+
+on:
+  issue_comment:
+    types: [created, edited]
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/science-approval-ledger.yml'
+      - 'analysis/evidence_registry.py'
+      - 'analysis/science_approval_workflow.py'
+      - 'analysis/science_artifacts.py'
+      - 'scripts/materialize_science_approvals.py'
+      - 'scripts/verify_science_approval_sources.py'
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Optional science pull request to reconcile
+        required: false
+        type: number
+
+# This workflow writes only deterministic approval/lifecycle artifacts. It
+# never executes pull-request code: the trusted materializer comes from main.
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      pr_numbers: ${{ steps.targets.outputs.pr_numbers }}
+    steps:
+      - name: Resolve science pull requests
+        id: targets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_PATH: ${{ github.event_path }}
+          INPUT_PR_NUMBER: ${{ inputs.pr_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$EVENT_NAME" in
+            issue_comment)
+              if jq -e '.issue.pull_request != null' "$EVENT_PATH" >/dev/null; then
+                pr_numbers="$(jq -c '[.issue.number]' "$EVENT_PATH")"
+              else
+                pr_numbers='[]'
+              fi
+              ;;
+            pull_request_target)
+              pr_numbers="$(jq -c '[.pull_request.number]' "$EVENT_PATH")"
+              ;;
+            workflow_dispatch)
+              if [[ -n "$INPUT_PR_NUMBER" && "$INPUT_PR_NUMBER" != "0" ]]; then
+                pr_numbers="$(jq -cn --argjson number "$INPUT_PR_NUMBER" '[ $number ]')"
+              else
+                pr_numbers="$(
+                  gh pr list --repo "$GITHUB_REPOSITORY" --state open \
+                    --label science --limit 100 --json number \
+                    --jq '[.[].number]'
+                )"
+              fi
+              ;;
+            push)
+              pr_numbers="$(
+                gh pr list --repo "$GITHUB_REPOSITORY" --state open \
+                  --label science --limit 100 --json number \
+                  --jq '[.[].number]'
+              )"
+              ;;
+            *)
+              pr_numbers='[]'
+              ;;
+          esac
+          echo "pr_numbers=$(jq -c . <<< "$pr_numbers")" >> "$GITHUB_OUTPUT"
+
+  materialize:
+    needs: discover
+    if: needs.discover.outputs.pr_numbers != '[]'
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        pr_number: ${{ fromJSON(needs.discover.outputs.pr_numbers) }}
+    concurrency:
+      group: science-approval-${{ matrix.pr_number }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify pull request snapshot
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ matrix.pr_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          pull="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          if ! jq -e --arg repository "$GITHUB_REPOSITORY" '
+            .state == "open"
+            and .base.ref == "main"
+            and .head.repo.full_name == $repository
+            and .head.ref != .base.ref
+            and any(.labels[]; .name == "science")
+          ' <<< "$pull" >/dev/null; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          head_sha="$(jq -r .head.sha <<< "$pull")"
+          default_sha="$(
+            gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" \
+              --jq .object.sha
+          )"
+          relation="$(
+            gh api \
+              "repos/${GITHUB_REPOSITORY}/compare/${default_sha}...${head_sha}" \
+              --jq .status
+          )"
+          if [[ "$relation" != "ahead" && "$relation" != "identical" ]]; then
+            echo "Approval materialization waits until the PR contains current main."
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          {
+            echo "eligible=true"
+            echo "head_ref=$(jq -r .head.ref <<< "$pull")"
+            echo "head_sha=$head_sha"
+            echo "default_sha=$default_sha"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Checkout trusted materializer
+        if: steps.target.outputs.eligible == 'true'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.target.outputs.default_sha }}
+          path: trusted
+          persist-credentials: false
+
+      - name: Mint trusted policy App token
+        if: >-
+          steps.target.outputs.eligible == 'true' &&
+          vars.PRAXYS_REVIEW_POLICY_APP_ID != '' &&
+          vars.PRAXYS_REVIEW_POLICY_APP_SLUG != ''
+        id: policy-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.PRAXYS_REVIEW_POLICY_APP_ID }}
+          private-key: ${{ secrets.PRAXYS_REVIEW_POLICY_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+
+      - name: Require the exact policy App identity
+        if: steps.target.outputs.eligible == 'true'
+        env:
+          POLICY_APP_TOKEN: ${{ steps.policy-token.outputs.token }}
+          POLICY_APP_SLUG: ${{ steps.policy-token.outputs.app-slug }}
+          EXPECTED_POLICY_APP_SLUG: ${{ vars.PRAXYS_REVIEW_POLICY_APP_SLUG }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$EXPECTED_POLICY_APP_SLUG" ||
+            -z "$POLICY_APP_TOKEN" ||
+            "$POLICY_APP_SLUG" != "$EXPECTED_POLICY_APP_SLUG" ]]; then
+            echo "::error::The configured policy App is required to write the approval ledger."
+            exit 1
+          fi
+
+      - name: Checkout pull request branch without executing it
+        if: steps.target.outputs.eligible == 'true'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.target.outputs.head_ref }}
+          path: candidate
+          fetch-depth: 0
+          token: ${{ steps.policy-token.outputs.token }}
+
+      - name: Confirm checked-out head
+        if: steps.target.outputs.eligible == 'true'
+        env:
+          EXPECTED_HEAD_SHA: ${{ steps.target.outputs.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C candidate rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+
+      - uses: actions/setup-python@v7
+        if: steps.target.outputs.eligible == 'true'
+        with:
+          python-version: '3.12'
+
+      - name: Install trusted materializer dependencies
+        if: steps.target.outputs.eligible == 'true'
+        run: >-
+          pip install --quiet --disable-pip-version-check
+          'pydantic==2.13.4' 'pyyaml==6.0.3'
+
+      - name: Fetch comments and reviewer permissions
+        if: steps.target.outputs.eligible == 'true'
+        id: review-input
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ matrix.pr_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          comments="$RUNNER_TEMP/science-comments-${PR_NUMBER}.json"
+          permissions="$RUNNER_TEMP/science-permissions-${PR_NUMBER}.json"
+          gh api --paginate \
+            "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" \
+            | jq -s 'add' > "$comments"
+          printf '{}\n' > "$permissions"
+          while IFS= read -r login; do
+            encoded="$(jq -rn --arg value "$login" '$value | @uri')"
+            permission="$(
+              gh api \
+                "repos/${GITHUB_REPOSITORY}/collaborators/${encoded}/permission" \
+                --jq .permission 2>/dev/null || printf 'none'
+            )"
+            next="$permissions.next"
+            jq --arg login "$login" --arg permission "$permission" \
+              '. + {($login): $permission}' "$permissions" > "$next"
+            mv "$next" "$permissions"
+          done < <(jq -r '.[].user.login // empty' "$comments" | sort -u)
+          {
+            echo "comments=$comments"
+            echo "permissions=$permissions"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Verify existing approval sources and generated files
+        if: steps.target.outputs.eligible == 'true'
+        env:
+          PYTHONPATH: ${{ github.workspace }}/trusted
+        run: >-
+          python trusted/scripts/verify_science_approval_sources.py
+          --base-science-dir trusted/data/science
+          --head-science-dir candidate/data/science
+          --github-comments "${{ steps.review-input.outputs.comments }}"
+          --github-permissions "${{ steps.review-input.outputs.permissions }}"
+
+      - name: Materialize authenticated approvals
+        if: steps.target.outputs.eligible == 'true'
+        env:
+          PYTHONPATH: ${{ github.workspace }}/trusted
+        run: >-
+          python trusted/scripts/materialize_science_approvals.py
+          --science-dir candidate/data/science
+          --github-comments "${{ steps.review-input.outputs.comments }}"
+          --github-permissions "${{ steps.review-input.outputs.permissions }}"
+
+      - name: Verify materialized approval sources and generated files
+        if: steps.target.outputs.eligible == 'true'
+        env:
+          PYTHONPATH: ${{ github.workspace }}/trusted
+        run: >-
+          python trusted/scripts/verify_science_approval_sources.py
+          --base-science-dir trusted/data/science
+          --head-science-dir candidate/data/science
+          --github-comments "${{ steps.review-input.outputs.comments }}"
+          --github-permissions "${{ steps.review-input.outputs.permissions }}"
+
+      - name: Verify deterministic change boundary
+        if: steps.target.outputs.eligible == 'true'
+        id: changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed="$(
+            {
+              git -C candidate diff --name-only
+              git -C candidate ls-files --others --exclude-standard
+            } | sort -u
+          )"
+          if [[ -z "$changed" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          while IFS= read -r path; do
+            case "$path" in
+              data/science/REGISTRY.md | \
+              data/science/approvals/*.yaml | \
+              data/science/evidence/*.yaml | \
+              data/science/decisions/*.yaml | \
+              data/science/generated/review-packets/*.md | \
+              data/science/generated/contracts/*.json)
+                ;;
+              *)
+                echo "::error::Approval automation changed disallowed path: $path"
+                exit 1
+                ;;
+            esac
+          done <<< "$changed"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Commit approval ledger update
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          PR_NUMBER: ${{ matrix.pr_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -C candidate config user.name "github-actions[bot]"
+          git -C candidate config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C candidate add data/science
+          git -C candidate commit \
+            -m "Record authenticated science approvals" \
+            -m "Materialize digest-bound human approvals from PR #${PR_NUMBER} without changing runtime activation." \
+            -m "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
+
+      - name: Push only onto the verified pull request head
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ matrix.pr_number }}
+          EXPECTED_HEAD_SHA: ${{ steps.target.outputs.head_sha }}
+          HEAD_REF: ${{ steps.target.outputs.head_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          current_head="$(
+            gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq .head.sha
+          )"
+          if [[ "$current_head" != "$EXPECTED_HEAD_SHA" ]]; then
+            echo "::error::Pull request head changed during approval materialization."
+            exit 1
+          fi
+          git -C candidate push origin "HEAD:${HEAD_REF}"

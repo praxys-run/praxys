@@ -84,8 +84,10 @@ Science changes use two linked, versioned records before implementation:
 New records use the artifact review workflow documented in
 [`science-review-artifacts.md`](science-review-artifacts.md). The canonical
 typed record generates a human review packet and a separate machine JSON
-contract with matching digests. Humans approve the generated packet through a
-role-scoped approval artifact; runtime code consumes only the generated
+contract with matching digests. Humans approve the generated packet in an
+authenticated GitHub or agent session. Session approvals are mirrored by the
+agent to an exact human-authenticated GitHub PR comment; trusted automation
+materializes the role-scoped artifact. Runtime code consumes only the generated
 contract and never derives values from prose.
 
 Artifact-mode SDRs also provide a typed `decision_review` manifest. The
@@ -145,11 +147,14 @@ honestly; neither level lets schema validation declare a paper true.
      Published values require a supporting claim; estimates and guardrails
      require an explicit Praxys rationale. This includes `params` plus
      behavior-driving `signal`, `diagnosis`, and `tsb_zones` values.
-   - Only a digest-bound `decision_approver` artifact may move an artifact-mode
-     SDR to `accepted`. A separate `implementation_reviewer` artifact is
-     required before its generated contract becomes active. Agents may prepare
-     draft records and generated artifacts but cannot create human approvals,
-     accept records, or activate contracts.
+   - Only an explicit human `decision_approver` approval bound to the displayed
+     digest may move an artifact-mode SDR to `accepted`. The human may approve
+     in GitHub or an authenticated agent session; the agent mirrors session
+     approval to a human-authenticated GitHub PR comment, then automation may
+     materialize the YAML and lifecycle transition. It must preserve human
+     identity and may not infer or widen approval. Runtime activation remains
+     blocked until `implementation_reviewer` approval also binds the exact
+     reviewed code diff and validation evidence.
 
 3. **Create or update the canonical English theory YAML** in
    `data/science/{pillar}/{theory_id}.yaml`:

@@ -288,6 +288,9 @@ def test_draft_artifact_records_render_complete_review_and_contract(
     assert "Decisions explicitly deferred" in packet
     assert "Do not approve merely because the audit appendix" in packet
     assert "I approve every proposed decision" in packet
+    assert "human-authenticated PR comment" in packet
+    assert "<!-- praxys-science-approval:v1" in packet
+    assert "reviewers do not edit it by hand" in expected[evidence_packet_path]
     assert "<details><summary>Evidence, parameters" in packet
     assert "<details><summary>Traceability:" in packet
 
@@ -375,8 +378,18 @@ def test_review_digests_ignore_lifecycle_but_change_reviewed_content() -> None:
             "reviewed_on": None,
         })
     )
+    assert evidence_review_digest(review) == evidence_review_digest(
+        review.model_copy(update={
+            "supersedes": [_SHARED_EVIDENCE_ID],
+        })
+    )
     assert science_decision_digest(decision) == science_decision_digest(
         decision.model_copy(update={"status": RecordStatus.DRAFT})
+    )
+    assert science_decision_digest(decision) == science_decision_digest(
+        decision.model_copy(update={
+            "supersedes": ["sdr-plan-generation-eligibility-safety-v1"],
+        })
     )
 
     changed_parameters = list(decision.model_parameters)

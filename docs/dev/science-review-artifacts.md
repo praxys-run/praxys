@@ -118,9 +118,13 @@ rejects a draft, non-accepted, inactive, stale, or unapproved contract.
 ## Role-scoped approvals
 
 Artifact-mode records do not use the legacy unscoped `human_reviewers` field.
-Each human attestation is a separate YAML file beneath
+Each human attestation is stored as a YAML file beneath
 `data/science/approvals/` and binds one reviewer, role, scope, date, source
-reference, and immutable digest:
+reference, and immutable digest. Reviewers do not edit this YAML. They approve
+the displayed digest in an authenticated GitHub PR comment. When approval is
+given in a local/remote agent session, the agent mirrors the exact statement to
+GitHub using the human's authenticated identity; an agent or trusted workflow
+then materializes the record:
 
 ```yaml
 schema_version: 1
@@ -151,6 +155,58 @@ Roles are intentionally distinct:
 Changing reviewed content changes its digest and makes the approval stale.
 Changing an SDR from inactive to active changes both its decision and contract
 digests, requiring renewed decision and implementation review.
+The implementation role is part of the schema, but automated materialization
+currently rejects it until the attestation can bind the exact code diff and
+validation evidence as well as the contract digest.
+
+### What counts as approval
+
+Approval must be an explicit human decision against the exact displayed digest:
+
+- identify the evidence, decision, or implementation role;
+- identify the subject record and immutable digest;
+- make the packet's approval statement, or an unambiguous equivalent;
+- come from an authenticated source that identifies the reviewer;
+- preserve a durable source URL in the generated approval artifact.
+
+GitHub comments are verified against repository `write`, `maintain`, or `admin`
+permission and bot identities are rejected. Local and remote approvals still
+count as the human decision, but the agent must mirror them to this verifiable
+GitHub source before changing lifecycle state. This is bookkeeping performed by
+the agent, not another review requested from the human.
+
+Agents and CI may transcribe a qualifying approval; they may not infer one from
+"looks fine", silence, a skimmed packet, or their own recommendation. Evidence
+and decision approval never imply implementation approval or runtime
+activation.
+
+### Automatic materialization
+
+The packet includes a copyable `praxys-science-approval:v1` comment marker.
+`.github/workflows/science-approval-ledger.yml` reads comments on
+same-repository science PRs, verifies human repository permission, runs only
+the trusted materializer from `main`, and commits deterministic lifecycle files
+back with the independently configured policy GitHub App. It never executes
+pull-request code. The required `selective-review-policy` gate independently
+re-verifies every new approval artifact against the source comment and checks
+the trusted generated packets/contracts before merge.
+
+The materializer verifies the current digest, applies linked evidence and
+decision transitions atomically, regenerates packets/contracts/indexes, and
+leaves `runtime_state` unchanged. A stale digest, unverified artifact, tampered
+packet, or accepted decision whose linked evidence remains draft fails without
+modifying the working tree.
+
+The automatic ledger handles first-version acceptance only. A successor record
+requires an agent-prepared coordinated patch that marks predecessors
+`superseded`, adds reciprocal links, and updates governed references atomically.
+`supersedes` links are normalized as lifecycle metadata in review digests, so
+that approved scientific content does not become stale when this explicit
+transition is applied; the ledger never guesses the predecessor.
+
+Implementation approval is intentionally not automated yet. A contract cannot
+be activated until that approval can also bind the exact reviewed code diff and
+validation evidence; a contract digest alone is insufficient.
 
 ## Review workflow
 
@@ -161,8 +217,11 @@ digests, requiring renewed decision and implementation review.
 4. Use the audit appendix only to investigate evidence, mappings, and exact
    machine values.
 5. Correct the canonical record and regenerate until the packet is stable.
-6. Record role-scoped approval against the displayed digest.
-7. Atomically accept the record and add the approval artifact.
+6. Give explicit approval against the displayed digest in GitHub or an
+   authenticated agent session; the agent mirrors session approval to the
+   canonical GitHub comment without asking the human to edit YAML.
+7. Let the agent/workflow atomically materialize the role-scoped artifact and
+   accepted lifecycle transition; do not hand-edit approval YAML.
 8. Keep the contract inactive until implementation review and rollout gates
    are complete.
 
