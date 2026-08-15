@@ -2,6 +2,17 @@ name: Deploy Backend to Azure App Service
 
 on:
   workflow_dispatch:
+    inputs:
+      sync_config:
+        description: Reconcile App Service settings, telemetry, and alerts
+        required: true
+        default: true
+        type: boolean
+      run_tests:
+        description: Run the full backend suite before deploying
+        required: true
+        default: false
+        type: boolean
   push:
     branches: [main]
     paths:
@@ -30,6 +41,7 @@ concurrency:
 
 jobs:
   test:
+    if: github.ref_type == 'tag' || inputs.run_tests == true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -45,11 +57,41 @@ jobs:
 
   deploy:
     needs: test
+    if: always() && (needs.test.result == 'success' || needs.test.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      - name: Determine deployment mode
+        id: mode
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          SYNC_CONFIG_INPUT: ${{ inputs.sync_config }}
+        run: |
+          set -euo pipefail
+          sync_config=false
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            sync_config="${SYNC_CONFIG_INPUT:-false}"
+          elif [[ "${GITHUB_REF_TYPE}" == "branch" ]]; then
+            if [[ ! "${BEFORE_SHA:-}" =~ ^[0-9a-f]{40}$ ||
+                  "${BEFORE_SHA}" == "0000000000000000000000000000000000000000" ]]; then
+              sync_config=true
+            else
+              changed_files="$(git diff --name-only "${BEFORE_SHA}" "${GITHUB_SHA}")"
+              if grep -Eq \
+                '^(\.github/azure-observability\.env|\.github/workflows/deploy-backend\.yml|scripts/appinsights_boundary\.sh)$' \
+                <<< "${changed_files}"; then
+                sync_config=true
+              fi
+            fi
+          fi
+
+          echo "sync_config=${sync_config}" >> "$GITHUB_OUTPUT"
+          echo "Reconcile Azure configuration: ${sync_config}"
 
       - name: Load observability resource names
         shell: bash
@@ -159,11 +201,45 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Wait for compatible Labs worker
+        env:
+          PRAXYS_LABS_EXECUTION_MODE: ${{ vars.PRAXYS_LABS_EXECUTION_MODE || 'inline' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${PRAXYS_LABS_EXECUTION_MODE}" == "service_bus" ]]; then
+            expected_worker_image="ghcr.io/praxys-run/praxys-labs-worker:${GITHUB_SHA}"
+            for attempt in {1..90}; do
+              deployed_worker_image="$(
+                az containerapp job show \
+                  --name praxys-labs-environment-worker \
+                  --resource-group rg-trainsight \
+                  --query "properties.template.containers[0].image" \
+                  -o tsv 2>/dev/null || true
+              )"
+              if [[ "${deployed_worker_image}" == "${expected_worker_image}" ]]; then
+                exit 0
+              fi
+              echo "Waiting for compatible Labs worker ${expected_worker_image} (${attempt}/90)."
+              sleep 10
+            done
+            echo "ERROR: service_bus mode requires the Labs worker from the same commit before backend deployment." >&2
+            exit 1
+          fi
+
+          if [[ "${PRAXYS_LABS_EXECUTION_MODE}" != "inline" &&
+                "${PRAXYS_LABS_EXECUTION_MODE}" != "disabled" ]]; then
+            echo "ERROR: invalid PRAXYS_LABS_EXECUTION_MODE" >&2
+            exit 1
+          fi
+
       - name: Enforce backend telemetry trust boundary
+        if: steps.mode.outputs.sync_config == 'true'
         shell: bash
         run: bash scripts/appinsights_boundary.sh backend-preflight
 
       - name: Sync App Service settings
+        if: steps.mode.outputs.sync_config == 'true'
         env:
           AZURE_AI_ENDPOINT: ${{ vars.AZURE_AI_ENDPOINT }}
           KEY_VAULT_URL: ${{ vars.KEY_VAULT_URL }}
@@ -237,27 +313,6 @@ jobs:
           LABS_SERVICE_BUS_FQDN=""
           LABS_SERVICE_BUS_QUEUE="labs-environment-response"
           if [[ "${PRAXYS_LABS_EXECUTION_MODE}" == "service_bus" ]]; then
-            expected_worker_image="ghcr.io/praxys-run/praxys-labs-worker:${GITHUB_SHA}"
-            worker_ready="false"
-            for attempt in {1..90}; do
-              deployed_worker_image="$(
-                az containerapp job show \
-                  --name praxys-labs-environment-worker \
-                  --resource-group rg-trainsight \
-                  --query "properties.template.containers[0].image" \
-                  -o tsv 2>/dev/null || true
-              )"
-              if [[ "${deployed_worker_image}" == "${expected_worker_image}" ]]; then
-                worker_ready="true"
-                break
-              fi
-              echo "Waiting for compatible Labs worker ${expected_worker_image} (${attempt}/90)."
-              sleep 10
-            done
-            if [[ "${worker_ready}" != "true" ]]; then
-              echo "ERROR: service_bus mode requires the Labs worker from the same commit before backend deployment." >&2
-              exit 1
-            fi
             LABS_SERVICE_BUS_NAMESPACE="$(
               az servicebus namespace list \
                 --resource-group rg-trainsight \
@@ -329,10 +384,12 @@ jobs:
             --always-on true
 
       - name: Cut over backend telemetry and alerts
+        if: steps.mode.outputs.sync_config == 'true'
         shell: bash
         run: bash scripts/appinsights_boundary.sh backend-cutover
 
       - name: Wait for App Service deployment endpoint to settle
+        if: steps.mode.outputs.sync_config == 'true'
         timeout-minutes: 8
         shell: bash
         run: |

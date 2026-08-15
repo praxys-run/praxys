@@ -60,6 +60,10 @@ def test_backend_workflow_enforces_server_only_ingestion() -> None:
     assert "praxys-frontend.azurewebsites.net/healthz" in workflow
     assert ".deployed_sha" in workflow
     assert "Deployed frontend commit is not yet compatible" in workflow
+    assert "Determine deployment mode" in workflow
+    assert "sync_config:" in workflow
+    assert "steps.mode.outputs.sync_config == 'true'" in workflow
+    assert "scripts/appinsights_boundary\\.sh" in workflow
     assert "Wait for App Service deployment endpoint to settle" in workflow
     assert "sleep 90" in workflow
     assert "az webapp log deployment list" in workflow
@@ -75,6 +79,11 @@ def test_backend_workflow_enforces_server_only_ingestion() -> None:
     assert 'ready_status}" == "ready"' in workflow
     assert "group: deploy-backend-production" in workflow
     assert "cancel-in-progress: false" in workflow
+    assert "github.ref_type == 'tag' || inputs.run_tests == true" in workflow
+    assert (
+        "needs.test.result == 'success' || "
+        "needs.test.result == 'skipped'"
+    ) in workflow
     assert "Monitoring Metrics Publisher" in script
     assert "Monitoring Reader" in script
     assert "userAssignedIdentities" in script

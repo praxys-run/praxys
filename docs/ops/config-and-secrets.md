@@ -9,12 +9,15 @@
 
 The backend's App Service **application settings are owned by the deploy
 workflow**, not the portal. `.github/workflows/deploy-backend.yml` → *Sync App
-Service settings* runs `az webapp config appsettings set` on **every deploy**
-with a fixed list sourced from GitHub Actions secrets/variables (plus a few
-literals). The Application Insights routing string is the deliberate exception
-to the GitHub-value source: the workflow resolves it directly from the
-backend-only Azure component. **Editing these keys in the Azure Portal is
-transient — the next deploy overwrites them.**
+Service settings* runs `az webapp config appsettings set` when deployment
+configuration changes, or when a manual dispatch uses `sync_config=true` (the
+default), with a fixed list sourced from GitHub Actions secrets/variables (plus
+a few literals). Runtime-only merges skip the write because even an idempotent
+App Service configuration update recycles the SCM container. The Application
+Insights routing string is the deliberate exception to the GitHub-value
+source: the workflow resolves it directly from the backend-only Azure
+component. **Editing these keys in the Azure Portal is transient — the next
+configuration-sync deploy overwrites them.**
 
 ## Where each thing lives
 

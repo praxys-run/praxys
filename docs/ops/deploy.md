@@ -15,39 +15,61 @@
 
 Targets authenticate through Azure OIDC or the WeChat upload key. The Tencent
 lane uses an outbound-only self-hosted Runner restricted to the production
-workflow; GitHub Actions does not SSH into Lighthouse. Backend + frontend run
-their test/build gates **before** deploying.
+workflow; GitHub Actions does not SSH into Lighthouse.
 
-**Pre-merge gate.** Before any deploy, `ci-premerge.yml` runs independent backend and frontend validation on every PR to `main`. A red required context blocks merge, so regressions never reach deployment (see [environment.md](./environment.md) → Repo governance). `deploy-backend.yml` re-runs the backend suite post-merge as a deploy-time backstop.
+**Pre-merge gate.** Before any deploy, `ci-premerge.yml` runs independent
+backend and frontend validation on every PR to `main`. A red required context
+blocks merge, so regressions never reach deployment (see
+[environment.md](./environment.md) -> Repo governance). Normal backend deploys
+rely on that required check instead of repeating the same five-minute suite
+after merge. `api-*` tags always run the suite again; manual dispatches can opt
+in with `run_tests=true`.
 
 GitHub-hosted Python jobs use `actions/setup-python@v7` to provision the workflow-pinned Python 3.11/3.12 runtimes and require no separate runner configuration.
 
 ## Backend deploy
 
 Automatic on merge to `main` (for the paths above). The workflow:
-1. Checks out the Praxys plugin submodule and runs `pytest tests/`.
-2. Stamps `api/_build_version.txt`.
-3. Waits for a compatible live frontend `deployed_sha`.
-4. Uses OIDC to enforce the telemetry boundary, sync App Service settings (see
-   [config-and-secrets.md](./config-and-secrets.md)).
-5. Waits for the App Service SCM deployment endpoint to remain healthy across
-   three probes after the configuration recycle, then runs
-   `azure/webapps-deploy`.
-6. Verifies that `/api/version` reports the stamped build and database
+1. Stamps `api/_build_version.txt`.
+2. Waits for a compatible live frontend `deployed_sha` and, in isolated Labs
+   mode, the exact same commit of the Labs worker.
+3. Uses Azure OIDC and runs `azure/webapps-deploy`.
+4. When deployment configuration changed, first reconciles the telemetry
+   boundary, App Service settings, and alerts (see
+   [config-and-secrets.md](./config-and-secrets.md)), then waits for the SCM
+   endpoint to settle after the resulting configuration recycle.
+5. Verifies that `/api/version` reports the stamped build and database
    readiness is green. If OneDeploy has not activated the new process after
    the initial activation probes, the workflow performs one App Service
    restart and verifies again before reporting success.
 
-The settle gate is load-bearing: App Service management writes recycle the SCM
-container, and starting ZipDeploy during that recycle aborts the deployment
-with `Deployment has been stopped due to SCM container restart`.
+The configuration path runs automatically when the workflow, observability
+resource map, or telemetry boundary script changes. Manual dispatch defaults
+`sync_config=true`, which is required after changing a GitHub Actions secret or
+variable. Ordinary runtime-only merges skip those idempotent management writes
+and their two-minute recycle wait.
+
+When configuration is reconciled, the settle gate remains load-bearing: App
+Service management writes recycle the SCM container, and starting ZipDeploy
+during that recycle aborts the deployment with
+`Deployment has been stopped due to SCM container restart`.
 
 Test-only changes do not deploy the backend. Pull requests already run the
 backend suite in the required pre-merge workflow; recycling production when no
 runtime artifact changed adds outage risk without changing the service.
 
-Force a deploy without a code change: re-run the latest `deploy-backend.yml` run
-(`gh run rerun <id>`), or push an `api-YYYY.MM.MICRO` tag for a versioned release.
+Force a deploy without a code change:
+
+```bash
+# Fast code redeploy; preserves the current App Service configuration.
+gh workflow run deploy-backend.yml --ref main -f sync_config=false
+
+# Reconcile GitHub-owned settings/telemetry before deploying (the default).
+gh workflow run deploy-backend.yml --ref main -f sync_config=true
+```
+
+An `api-YYYY.MM.MICRO` tag performs a versioned release and always runs backend
+tests first.
 
 ## Labs analysis worker deploy
 
