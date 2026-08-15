@@ -1,0 +1,15 @@
+schema_version: 1
+subject_kind: science_decision
+subject_id: sdr-road-half-marathon-plan-generation-policy-v1
+subject_digest: sha256:8b578c26dc6ed33eaed91c881edb68de4693a657f370d37e98d96ef04e35ed68
+reviewer: github:dddtc2005
+role: decision_approver
+reviewed_on: '2026-08-14'
+scopes:
+- activation_boundary
+- applicability
+- claim_limits
+- decision_interpretation
+- parameters
+- safety_and_privacy
+source_ref: https://github.com/praxys-run/praxys/pull/702#issuecomment-5294993695

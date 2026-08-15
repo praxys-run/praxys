@@ -162,9 +162,25 @@ Follow the existing registry schema and lifecycle:
   `implementation_reviewer` may activate its contract.
 - A human reviewer fills each of those roles; generated packets, schema
   validation, agents, and CI cannot substitute for that judgment.
-- Agents may prepare canonical records, packets, contracts, and lifecycle
-  patches. They may not create human approval artifacts, accept records,
-  activate contracts, or claim approval.
+- Human approval may be given in an authenticated GitHub PR comment or an
+  authenticated local/remote agent session. It counts only when the human
+  explicitly approves the named role, subject, and displayed immutable digest.
+  A vague "looks fine", absence of objections, or agent inference is not
+  approval.
+- After an approval in a local/remote session, the agent mirrors the exact
+  role, subject, digest, and approval statement to a human-authenticated GitHub
+  PR comment. The reviewer performs no YAML bookkeeping. Only after GitHub
+  verifies that human identity and repository permission may an agent or
+  trusted workflow materialize the digest-bound approval artifact and lifecycle
+  transition. The agent is a recorder, never the approver.
+- Agents and automation must not invent, widen, or reuse an approval, and must
+  not activate a contract from an evidence or decision approval. Automated
+  runtime activation remains disabled until implementation approval can bind
+  the active contract digest, exact reviewed code diff, and validation
+  evidence.
+- The automatic ledger accepts first-version records only. Successors still
+  require the coordinated reciprocal supersession patch described above; the
+  ledger must not infer or partially apply predecessor transitions.
 - Regenerate `data/science/REGISTRY.md` after valid record changes.
 
 ## 5. Map evidence to product behavior

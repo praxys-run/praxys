@@ -195,7 +195,7 @@ def digest_payload(payload: Any) -> str:
 
 def evidence_review_payload(review: EvidenceReview) -> dict[str, Any]:
     """Return the complete human-reviewed evidence content without lifecycle."""
-    return review.model_dump(
+    payload = review.model_dump(
         mode="json",
         exclude={
             "approval_mode",
@@ -205,13 +205,15 @@ def evidence_review_payload(review: EvidenceReview) -> dict[str, Any]:
             "superseded_by",
         },
     )
+    payload["supersedes"] = []
+    return payload
 
 
 def science_decision_payload(
     decision: ScienceDecisionRecord,
 ) -> dict[str, Any]:
     """Return the complete human-reviewed decision content without lifecycle."""
-    return decision.model_dump(
+    payload = decision.model_dump(
         mode="json",
         exclude={
             "approval_mode",
@@ -220,6 +222,8 @@ def science_decision_payload(
             "superseded_by",
         },
     )
+    payload["supersedes"] = []
+    return payload
 
 
 def evidence_review_digest(review: EvidenceReview) -> str:
@@ -464,16 +468,20 @@ def render_evidence_review_packet(
         f"- **Required role:** `{ReviewRole.EVIDENCE_REVIEWER.value}`",
         f"- **Approval:** {_approval_label(approvals, review.id, ReviewRole.EVIDENCE_REVIEWER)}",
         "",
-        "## Approval artifact template",
+        "## Approval",
         "",
-        "Create this only after a human completes the packet review:",
+        "Approve in this GitHub comment format or in an authenticated agent "
+        "session. For session approval, the agent mirrors this exact statement "
+        "to the human-authenticated PR comment before automation records the "
+        "YAML; reviewers do not edit it by hand.",
         "",
-        "```yaml",
-        _render_approval_template(
+        "```markdown",
+        render_approval_comment_template(
             subject_kind=ReviewSubjectKind.EVIDENCE_REVIEW,
             subject_id=review.id,
             subject_digest=digest,
             role=ReviewRole.EVIDENCE_REVIEWER,
+            approval_statement=evidence_approval_statement(),
         ),
         "```",
         "",
@@ -706,16 +714,20 @@ def render_decision_review_packet(
         "",
         f"- **Decision approval:** {_approval_label(approvals, decision.id, ReviewRole.DECISION_APPROVER)}",
         "",
-        "### Decision approval artifact template",
+        "### Decision approval",
         "",
-        "Create this only after a human can make the approval statement above:",
+        "Approve in this GitHub comment format or in an authenticated agent "
+        "session. For session approval, the agent mirrors this exact statement "
+        "to the human-authenticated PR comment before automation records the "
+        "YAML and lifecycle transition.",
         "",
-        "```yaml",
-        _render_approval_template(
+        "```markdown",
+        render_approval_comment_template(
             subject_kind=ReviewSubjectKind.SCIENCE_DECISION,
             subject_id=decision.id,
             subject_digest=contract.source_decision_digest,
             role=ReviewRole.DECISION_APPROVER,
+            approval_statement=decision.decision_review.approval_statement,
         ),
         "```",
         "",
@@ -798,19 +810,12 @@ def render_decision_review_packet(
         contract.model_dump(mode="json"),
     ))
     lines.extend([
-        "<details><summary>Implementation approval template — not part of decision approval</summary>",
+        "<details><summary>Implementation approval — not part of decision approval</summary>",
         "",
-        "Create this only after code matches an accepted contract and runtime "
-        "activation is separately approved:",
-        "",
-        "```yaml",
-        _render_approval_template(
-            subject_kind=ReviewSubjectKind.IMPLEMENTATION_CONTRACT,
-            subject_id=decision.id,
-            subject_digest=contract.contract_digest,
-            role=ReviewRole.IMPLEMENTATION_REVIEWER,
-        ),
-        "```",
+        "Runtime activation remains fail-closed until implementation approval "
+        "can bind both the active contract digest and the exact reviewed code "
+        "diff/validation evidence. Evidence or decision approval cannot fill "
+        "this role.",
         "",
         "</details>",
         "",
@@ -1006,31 +1011,86 @@ def _render_exact_payload(
     ]
 
 
-def _render_approval_template(
+def required_review_scopes(role: ReviewRole) -> list[ReviewScope]:
+    """Return the complete deterministic scope set required for one role."""
+    return sorted(
+        _REQUIRED_SCOPES[role],
+        key=lambda item: item.value,
+    )
+
+
+def evidence_approval_statement() -> str:
+    """Return the exact attestation shown for Evidence Review approval."""
+    return (
+        "I approve this Evidence Review's search method, evidence claims, "
+        "citation verification, limitations, and gaps for the displayed "
+        "digest."
+    )
+
+
+def approval_statement_for_subject(
+    registry: ScienceRegistry,
+    *,
+    subject_kind: ReviewSubjectKind,
+    subject_id: str,
+    role: ReviewRole,
+) -> str:
+    """Resolve the exact canonical statement for an approvable subject."""
+    if (
+        subject_kind == ReviewSubjectKind.EVIDENCE_REVIEW
+        and role == ReviewRole.EVIDENCE_REVIEWER
+        and subject_id in registry.evidence_reviews
+    ):
+        return evidence_approval_statement()
+    if (
+        subject_kind == ReviewSubjectKind.SCIENCE_DECISION
+        and role == ReviewRole.DECISION_APPROVER
+        and subject_id in registry.decisions
+    ):
+        decision_review = registry.decisions[subject_id].decision_review
+        if decision_review is None:
+            raise ValueError(
+                f"Science decision {subject_id} lacks a decision review"
+            )
+        return decision_review.approval_statement
+    raise ValueError(
+        "Automated approval supports evidence_reviewer and "
+        "decision_approver only"
+    )
+
+
+def render_approval_comment_template(
     *,
     subject_kind: ReviewSubjectKind,
     subject_id: str,
     subject_digest: str,
     role: ReviewRole,
+    approval_statement: str,
 ) -> str:
-    payload = {
-        "schema_version": 1,
+    marker = {
         "subject_kind": subject_kind.value,
         "subject_id": subject_id,
         "subject_digest": subject_digest,
-        "reviewer": "github:<reviewer>",
         "role": role.value,
-        "reviewed_on": "<YYYY-MM-DD>",
-        "scopes": [
-            scope.value
-            for scope in sorted(
-                _REQUIRED_SCOPES[role],
-                key=lambda item: item.value,
-            )
-        ],
-        "source_ref": "<GitHub review URL>",
     }
-    return yaml.safe_dump(payload, sort_keys=False).rstrip()
+    return "\n".join([
+        "Praxys science approval — **APPROVE**",
+        "",
+        f"- Role: `{role.value}`",
+        f"- Subject: `{subject_id}`",
+        f"- Digest: `{subject_digest}`",
+        "",
+        f"> {approval_statement}",
+        "",
+        "<!-- praxys-science-approval:v1",
+        json.dumps(
+            marker,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ),
+        "-->",
+    ])
 
 
 def is_digest(value: str) -> bool:

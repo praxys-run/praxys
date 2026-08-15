@@ -9,12 +9,15 @@
 
 The backend's App Service **application settings are owned by the deploy
 workflow**, not the portal. `.github/workflows/deploy-backend.yml` → *Sync App
-Service settings* runs `az webapp config appsettings set` on **every deploy**
-with a fixed list sourced from GitHub Actions secrets/variables (plus a few
-literals). The Application Insights routing string is the deliberate exception
-to the GitHub-value source: the workflow resolves it directly from the
-backend-only Azure component. **Editing these keys in the Azure Portal is
-transient — the next deploy overwrites them.**
+Service settings* runs `az webapp config appsettings set` when deployment
+configuration changes, or when a manual dispatch uses `sync_config=true` (the
+default), with a fixed list sourced from GitHub Actions secrets/variables (plus
+a few literals). Runtime-only merges skip the write because even an idempotent
+App Service configuration update recycles the SCM container. The Application
+Insights routing string is the deliberate exception to the GitHub-value
+source: the workflow resolves it directly from the backend-only Azure
+component. **Editing these keys in the Azure Portal is transient — the next
+configuration-sync deploy overwrites them.**
 
 ## Where each thing lives
 
@@ -36,7 +39,7 @@ transient — the next deploy overwrites them.**
 | `COPILOT_GITHUB_TOKEN` | Fine-grained PAT owned by the Copilot subscriber, with only *Account permissions → Copilot Requests: Read*. Used solely for Agentic Workflow inference; repository operations continue to use `GITHUB_TOKEN`. Do not grant `copilot-requests: write` in those workflows or gh-aw ignores this secret in favor of organization billing. | Agentic Workflow `.md` sources |
 | `COPILOT_ASSIGN_TOKEN` | **Required for workflow auto-assign** — fine-grained PAT (*Issues: write*, this repo only, with expiry). Agent assignment needs a user token; the built-in `GITHUB_TOKEN` is forbidden (issue #400). Manual UI assignment doesn't need it. | `assign-copilot.yml` |
 | `PRAXYS_GITHUB_APP_PRIVATE_KEY` | Feedback GitHub App private key. The app has Issues read/write and Pull requests read; tokens are minted on demand. | App Service setting (backend) |
-| `PRAXYS_REVIEW_POLICY_APP_PRIVATE_KEY` | Independent selective-review App key. The App has Contents write + Pull requests write solely to approve qualifying PRs and enable normal auto-merge. Optional while every PR is review-required; mandatory only for an autonomous candidate or stale policy-state cleanup. | `selective-review.yml` |
+| `PRAXYS_REVIEW_POLICY_APP_PRIVATE_KEY` | Independent review-governance App key. The App has Contents write + Pull requests write to approve qualifying PRs, enable normal auto-merge, and commit verified science approval-ledger updates without using `GITHUB_TOKEN`. Optional for ordinary review-required PRs without science acceptance; required for autonomous review actions and science approval materialization. | `selective-review.yml`, `science-approval-ledger.yml` |
 
 ### GitHub Actions → Variables
 `… → Variables` (non-secret; build variables are inlined into the SPA and ship to browsers)
@@ -63,8 +66,8 @@ transient — the next deploy overwrites them.**
 | `PRAXYS_GITHUB_APP_ID` / `PRAXYS_GITHUB_APP_INSTALLATION_ID` | Feedback GitHub App identifiers. | App Service setting (backend) |
 | `PRAXYS_FEEDBACK_GITHUB_REPO` / `PRAXYS_FEEDBACK_GITHUB_LABELS` / `PRAXYS_FEEDBACK_GITHUB_ASSIGNEES` | Feedback issue target and optional issue metadata. | App Service setting (backend) |
 | `PRAXYS_AGENT_READY_SHADOW` / `PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION` | Withhold active labels, or run a versioned semantic challenger without acting. Both are optional and default off. | App Service setting (backend) |
-| `PRAXYS_REVIEW_POLICY_APP_ID` | App ID for the independent selective-review GitHub App. Optional on ordinary review-required runs. | `selective-review.yml` |
-| `PRAXYS_REVIEW_POLICY_APP_SLUG` | Expected URL slug for the independent App, without `[bot]`; lets pre-credential evaluation recognize only that App's prior blocking reviews and verifies the minted identity. | `selective-review.yml`, `selective-review-emergency-stop.yml` |
+| `PRAXYS_REVIEW_POLICY_APP_ID` | App ID for the independent review-governance GitHub App. Optional on ordinary review-required runs, but required to materialize verified science approvals. | `selective-review.yml`, `science-approval-ledger.yml` |
+| `PRAXYS_REVIEW_POLICY_APP_SLUG` | Expected URL slug for the independent App, without `[bot]`; lets pre-credential evaluation recognize only that App's prior blocking reviews and verifies every minted privileged identity. | `selective-review.yml`, `selective-review-emergency-stop.yml`, `science-approval-ledger.yml` |
 | `PRAXYS_SELECTIVE_REVIEW_ENABLED` | Master enable; absent/anything except `true` keeps every PR review-required. | `selective-review.yml` |
 | `PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH` | Emergency stop; `true` disables approval even when the master enable and class promotion are active. | `selective-review.yml` |
 | `TENCENT_LIGHTHOUSE_DEPLOY_ENABLED` | Set `true` only after Nginx and the workflow-restricted `praxys-production` Runner Group are healthy. Unset/false skips the China deploy without affecting Azure. | `deploy-frontend-appservice.yml` |
@@ -817,8 +820,9 @@ agent profile. These are **repo settings, not deploy-managed**:
   `PRAXYS_REVIEW_POLICY_APP_SLUG` +
   `PRAXYS_REVIEW_POLICY_APP_PRIVATE_KEY`; workflows derive the exact bot login
   from the minted token and verify it against the configured slug. These App
-  values may remain absent while the committed policy is unpromoted/default-off;
-  review-required runs do not inspect them. Provisioning:
+  values may remain absent while the committed policy is unpromoted/default-off
+  only when no science approval must be materialized; the science approval
+  ledger fails closed without them. Provisioning:
   [setup-review-policy-app.md](./setup-review-policy-app.md).
 - The repository setting **Allow auto-merge** is shared by
   `selective-review.yml` and `dependabot-auto-merge.yml`. Auto-merge remains

@@ -1,0 +1,1143 @@
+schema_version: 1
+id: sdr-road-half-marathon-plan-generation-policy-v1
+version: 1
+title: "History-anchored adult outdoor road half-marathon performance policy"
+status: accepted
+approval_mode: artifact
+decision_date: 2026-08-14
+owners:
+  - team:praxys
+human_reviewers: []
+model_version: road-half-marathon-plan-generation-policy-v1
+evidence_review_ids:
+  - evidence-plan-generation-eligibility-safety-v1
+  - evidence-road-half-marathon-plan-generation-policy-v1
+evidence_claim_ids:
+  - eligibility.recent-history-anchor-without-universal-threshold
+  - eligibility.fixed-progression-and-acwr-not-safety-laws
+  - eligibility.goal-relevant-current-capability-task-specific
+  - eligibility.current-symptoms-support-stop-not-clearance
+  - eligibility.evidence-quality-no-personal-probability
+  - eligibility.masters-age-change-not-automatic-exclusion
+  - road-half-marathon.task-specific-capability-is-multifactor
+  - road-half-marathon.volume-and-long-run-are-associative
+  - road-half-marathon.taper-is-indirectly-supported
+  - road-half-marathon.fueling-and-gut-practice-supported
+  - road-half-marathon.direct-field-baseline-preferred-with-error
+  - road-half-marathon.exact-long-run-dose-unproven
+  - road-half-marathon.intensity-distribution-no-universal-winner
+  - road-half-marathon.recovery-spacing-unresolved
+  - road-half-marathon.subgroup-dose-rules-unproven
+accepted_interpretation: >
+  If accepted by a digest-bound decision approver, this SDR would authorize
+  only an inactive-by-default policy boundary for adult outdoor road
+  half-marathon performance intent with current direct half-marathon
+  capability, stable recent history, within-recent load, confirmed event
+  context, and absent current symptom-stop inputs. The goal could have an
+  optional target time and date and would remain recorded when no generator
+  route matches. Population evidence would inform uncertainty, taper, and
+  fueling communication without creating a personal success probability.
+  This draft does not select a direct-baseline qualification algorithm,
+  baseline freshness window, minimum history counts, frequency envelope, exact
+  volume progression, low-intensity percentage, quality-session ceiling,
+  long-run share or distance, hard-session spacing, taper prescription or
+  accounting, execution window, fueling duration or intake rules, workout
+  templates, aggressive short-horizon alternative, or pilot thresholds. It
+  does not activate a generator or authorize beginner, sparse-history,
+  clinical, trail, marathon, or ultra planning.
+decision_review:
+  reviewer_task: >
+    Decide whether the four proposed policy boundaries are acceptable and
+    whether the four listed implementation areas should remain explicitly
+    deferred. Approve the sheet as a unit, or request changes by item ID. The
+    exact contract is an audit appendix, not the primary review task.
+  approval_statement: >
+    I approve the supported scope, evidence-use limits, and hard safety and
+    control boundaries below, including a mostly-low-intensity organizational
+    boundary without an exact distribution. I also agree that baseline/history
+    rules, training dose and taper, fueling rules, and pilot thresholds remain
+    deferred. I understand this decision stays inactive and does not approve
+    implementation or runtime activation.
+  items:
+    - id: supported-scope
+      title: Accept the narrow V1 population and goal scope
+      disposition: approve
+      question: >
+        Should V1 recognize adult outdoor-road half-marathon performance goals
+        only when current direct capability, stable history, within-recent
+        load, event context, and symptom-stop inputs match the stated pattern?
+      proposed_decision: >
+        Accept that narrow pattern, preserve every user's goal when no route
+        matches, and use typed no-plan or limited-guidance outcomes instead of
+        silently substituting another distance or intent.
+      approval_effect:
+        - The half-marathon performance pattern becomes an accepted policy boundary.
+        - First-completion, sparse-history, trail, treadmill, clinical, marathon, and ultra cases remain separate policies.
+        - A future implementation may expose these typed outcomes only after separate implementation approval.
+      does_not_authorize:
+        - Any generated workout, schedule, target-time guarantee, or automatic benchmark.
+        - Runtime activation, plan adoption, delivery, or publication.
+      parameter_names:
+        - road_half_marathon_activation_and_dependency
+        - road_half_marathon_goal_tuple
+        - road_half_marathon_supported_training_pattern
+        - road_half_marathon_event_context
+        - road_half_marathon_typed_outcomes
+      evidence_claim_ids:
+        - eligibility.goal-relevant-current-capability-task-specific
+        - eligibility.current-symptoms-support-stop-not-clearance
+        - eligibility.masters-age-change-not-automatic-exclusion
+        - road-half-marathon.task-specific-capability-is-multifactor
+    - id: evidence-use
+      title: Accept how population evidence may and may not be used
+      disposition: approve
+      question: >
+        Should the reviewed volume, longest-run, taper, fueling, and prediction
+        findings be retained as bounded evidence context rather than converted
+        into personal thresholds or prescriptions?
+      proposed_decision: >
+        Accept the reported source findings and their uncertainty labels for
+        explanation and later validation, while prohibiting personal
+        probability, causal plan-benefit, universal dose, and distance-only
+        fueling claims.
+      approval_effect:
+        - Published findings may support review notes, uncertainty, and future validation design.
+        - Before/after outcomes require comparable protocols and remain descriptive rather than causal.
+      does_not_authorize:
+        - Treating 32 km per week, a 21 km long run, taper ranges, or fueling ranges as eligibility or prescription.
+        - A personal success probability, injury probability, responder label, or medically safe claim.
+      parameter_names:
+        - road_half_marathon_published_volume_and_long_run_findings
+        - road_half_marathon_published_taper_findings
+        - road_half_marathon_published_fueling_findings
+        - road_half_marathon_protocol_comparability_and_outcomes
+        - road_half_marathon_user_facing_uncertainty
+      evidence_claim_ids:
+        - eligibility.evidence-quality-no-personal-probability
+        - road-half-marathon.volume-and-long-run-are-associative
+        - road-half-marathon.taper-is-indirectly-supported
+        - road-half-marathon.fueling-and-gut-practice-supported
+        - road-half-marathon.direct-field-baseline-preferred-with-error
+    - id: hard-boundaries
+      title: Accept conservative safety, consent, and automation boundaries
+      disposition: approve
+      question: >
+        Should Praxys prohibit automatic maximal half-marathon baseline tests,
+        target-gap dose escalation, generic progression laws,
+        activity-average-power intensity analysis, missed-workout makeup,
+        unpracticed race fueling, sensitive inference, and AI authority
+        expansion?
+      proposed_decision: >
+        Accept those prohibitions and keep every future plan suggestion-only,
+        athlete-editable, explicitly adopted, auditable, and subordinate to
+        symptom stops and deterministic validation.
+      approval_effect:
+        - Direct capability cannot be manufactured from predictions or passive segments.
+        - AI cannot invent missing context, select deferred rules, approve, activate, adopt, or deliver a plan.
+        - Athlete constraints, consent, privacy, and symptom stops remain hard boundaries.
+      does_not_authorize:
+        - The unresolved numeric or algorithmic parts of the same contract groups.
+        - Medical diagnosis, clearance, treatment, or inference of sensitive context.
+      parameter_names:
+        - road_half_marathon_direct_baseline_hierarchy
+        - road_half_marathon_target_and_short_horizon_routing
+        - road_half_marathon_history_anchored_load_and_long_run
+        - road_half_marathon_intensity_structure
+        - road_half_marathon_recovery_boundary
+        - road_half_marathon_selected_taper_guardrail
+        - road_half_marathon_fueling_practice_policy
+        - road_half_marathon_suggestion_only_state_transition
+        - road_half_marathon_privacy_and_audit
+      evidence_claim_ids:
+        - eligibility.fixed-progression-and-acwr-not-safety-laws
+        - eligibility.current-symptoms-support-stop-not-clearance
+        - road-half-marathon.direct-field-baseline-preferred-with-error
+        - road-half-marathon.exact-long-run-dose-unproven
+        - road-half-marathon.recovery-spacing-unresolved
+    - id: mostly-low-structure
+      title: Accept a mostly-low-intensity organizational boundary
+      disposition: approve
+      question: >
+        Should any future V1 plan use a mostly-low-intensity structure while
+        leaving the exact low-intensity percentage, quality-session count,
+        distribution model, and workout mix unresolved?
+      proposed_decision: >
+        Accept only the broad mostly-low organizational boundary, based on
+        indirect mixed-distance endurance evidence, without claiming one
+        universally superior polarized, pyramidal, threshold, or race-pace
+        distribution.
+      approval_effect:
+        - A future implementation must organize more work as low intensity than as threshold or high intensity.
+        - The boundary must remain labelled as indirect to adult road half-marathon planning.
+      does_not_authorize:
+        - A low-intensity percentage, quality-session ceiling, exact spacing, or named distribution model.
+        - Any use of activity-average power for intensity analysis.
+      parameter_names:
+        - road_half_marathon_intensity_structure
+      evidence_claim_ids:
+        - road-half-marathon.intensity-distribution-no-universal-winner
+    - id: defer-baseline-history
+      title: Defer baseline qualification and history sufficiency
+      disposition: defer
+      question: >
+        Should exact direct-result qualification, freshness, history counts,
+        lookback, and reassessment cadence remain unresolved?
+      proposed_decision: >
+        Keep these values and algorithms unaccepted until a later decision can
+        compare options and validation consequences.
+      approval_effect:
+        - Missing or stale capability and insufficient history remain typed readiness limitations.
+        - No implementation may copy 5 km or 10 km thresholds or invent defaults.
+      does_not_authorize:
+        - A distance tolerance, result expiry, minimum week/run count, or fixed reassessment cadence.
+        - An automatic maximal half-marathon baseline test.
+      parameter_names:
+        - road_half_marathon_direct_baseline_hierarchy
+        - road_half_marathon_baseline_freshness
+        - road_half_marathon_recent_history_inputs
+        - road_half_marathon_planning_and_reassessment
+      evidence_claim_ids:
+        - eligibility.recent-history-anchor-without-universal-threshold
+        - eligibility.goal-relevant-current-capability-task-specific
+        - road-half-marathon.direct-field-baseline-preferred-with-error
+    - id: defer-dose-taper
+      title: Defer training dose, session structure, recovery, and taper
+      disposition: defer
+      question: >
+        Should frequency, progression, long-run dose, intensity distribution,
+        quality spacing, short-horizon handling, taper, and event-minute
+        accounting remain unresolved?
+      proposed_decision: >
+        Keep every exact schedule and dose choice unaccepted; retain only the
+        approved hard prohibitions and source findings.
+      approval_effect:
+        - Future research or product review must select each value explicitly.
+        - A near target date cannot trigger catch-up or hidden dose escalation.
+      does_not_authorize:
+        - A weekly frequency range, low-intensity percentage, quality count, long-run share, or progression rate.
+        - An execution window, workout template, taper percentage/window, recovery interval, or event-minute formula.
+      parameter_names:
+        - road_half_marathon_target_and_short_horizon_routing
+        - road_half_marathon_history_anchored_load_and_long_run
+        - road_half_marathon_intensity_structure
+        - road_half_marathon_recovery_boundary
+        - road_half_marathon_selected_taper_guardrail
+      evidence_claim_ids:
+        - eligibility.fixed-progression-and-acwr-not-safety-laws
+        - road-half-marathon.exact-long-run-dose-unproven
+        - road-half-marathon.intensity-distribution-no-universal-winner
+        - road-half-marathon.recovery-spacing-unresolved
+        - road-half-marathon.taper-is-indirectly-supported
+    - id: defer-fueling
+      title: Defer product fueling rules
+      disposition: defer
+      question: >
+        Should product duration bands, intake ranges or caps, carbohydrate
+        loading thresholds, and exact prompts remain unresolved?
+      proposed_decision: >
+        Keep the product rules unaccepted while retaining only the approved
+        evidence-use limits, prior-practice requirement, and distance-only
+        automation prohibition.
+      approval_effect:
+        - Fueling guidance cannot route from the half-marathon label alone.
+        - Future rules must consider expected duration, prior practice, tolerance, and athlete preference.
+      does_not_authorize:
+        - A 90-minute product threshold or a 30 to 60 grams-per-hour personal prescription.
+        - A new race-day strategy without practice and athlete choice.
+      parameter_names:
+        - road_half_marathon_fueling_practice_policy
+      evidence_claim_ids:
+        - road-half-marathon.fueling-and-gut-practice-supported
+    - id: defer-pilot-activation
+      title: Defer pilot thresholds and all remaining open decisions
+      disposition: defer
+      question: >
+        Should statistical go/no-go thresholds, safety pause thresholds, exact
+        workouts, and every catalogued open decision remain unresolved before
+        implementation or activation?
+      proposed_decision: >
+        Keep the contract inactive and require separately reviewed values,
+        implementation mapping, deterministic replay, and an opt-in pilot
+        protocol before runtime use.
+      approval_effect:
+        - Deterministic invariant and replay tolerance remain zero.
+        - All statistical, schedule, and rollout thresholds remain explicit future decisions.
+      does_not_authorize:
+        - Implementing unresolved values, marking the capability available, or running a pilot.
+        - Treating this science decision approval as implementation or activation approval.
+      parameter_names:
+        - road_half_marathon_planning_and_reassessment
+        - road_half_marathon_validation_and_pilot_thresholds
+        - road_half_marathon_open_decisions
+      evidence_claim_ids:
+        - eligibility.evidence-quality-no-personal-probability
+        - road-half-marathon.subgroup-dose-rules-unproven
+rejected_alternatives:
+  - alternative: "Copy the accepted 5 km or 10 km policy and replace the distance label"
+    rationale: >
+      Half-marathon durability, longest-run exposure, target duration,
+      fueling, recovery, and event demands differ materially. Existing distance
+      guardrails are not universal evidence and cannot be silently inherited.
+  - alternative: "Require more than 32 km per week or a longest run above 21 km"
+    rationale: >
+      Those thresholds describe observational categories associated with
+      performance in one cohort. They do not establish causal eligibility,
+      safety, or an optimal prescription.
+  - alternative: "Use a predicted half-marathon time as direct current capability"
+    rationale: >
+      Field and laboratory models retain meaningful individual error and are
+      predominantly male. They may support context but cannot manufacture a
+      direct same-task result or personal probability.
+  - alternative: "Schedule a maximal half-marathon benchmark when direct evidence is missing"
+    rationale: >
+      A maximal half-marathon is burdensome and the review did not validate an
+      automatic benchmark workflow. Missing direct capability remains a typed
+      readiness limitation until a separate policy is accepted.
+  - alternative: "Select a universal polarized, pyramidal, threshold, or race-pace distribution"
+    rationale: >
+      Mixed-distance evidence supports multiple organizations and no universal
+      winner. Exact distribution and session templates remain product choices.
+  - alternative: "Use an aggressive catch-up block when the target is near"
+    rationale: >
+      No reviewed evidence validates target-gap dose escalation, compressed
+      progression, automatic makeup, or a universal short-horizon salvage plan.
+  - alternative: "Apply one fueling prescription to every half-marathon"
+    rationale: >
+      Expected duration and gastrointestinal tolerance vary substantially.
+      Distance alone does not determine carbohydrate-loading or intake needs.
+  - alternative: "Let AI fill missing policy values or infer athlete context"
+    rationale: >
+      AI cannot repair missing evidence, verify events or profile fields,
+      broaden eligibility, create approvals, or provide deterministic replay.
+model_parameters:
+  - name: road_half_marathon_activation_and_dependency
+    classification: guardrail
+    value:
+      active_behavior: false
+      shared_policy_dependency:
+        sdr_id: sdr-plan-generation-eligibility-safety-v1
+        required_status_before_activation: accepted
+      distance_policy_required_status_before_activation: accepted
+      evidence_review_required_status_before_activation: accepted
+      decision_approval_artifact_required: true
+      implementation_approval_artifact_required: true
+      capability_registry_entry_default_enabled: false
+      generator_api_web_miniapp_plugin_and_mcp_activation_in_this_record: false
+    evidence_claim_ids:
+      - eligibility.evidence-quality-no-personal-probability
+    rationale: >
+      Draft science, generated artifacts, and review packets do not activate
+      product behavior. Acceptance, implementation review, exact unresolved
+      guardrails, deterministic validation, and rollout remain separate gates.
+    applies_to: policy lifecycle and capability registry
+  - name: road_half_marathon_goal_tuple
+    classification: guardrail
+    value:
+      goal_kind: distance_half_marathon
+      goal_intent: performance
+      sport: running
+      surface: outdoor_road
+      primary_outcome: elapsed_time
+      target_time_optional: true
+      target_date_optional: true
+      no_event_goal_may_remain_recorded: true
+      separate_policy_variants:
+        - first_half_marathon_completion
+        - sparse_history_half_marathon
+        - treadmill_half_marathon
+        - trail_half_marathon
+        - multisport_run_leg
+        - marathon_or_ultra
+        - medically_directed_rehabilitation
+        - pregnancy_specific_planning
+    evidence_claim_ids:
+      - eligibility.goal-relevant-current-capability-task-specific
+      - road-half-marathon.task-specific-capability-is-multifactor
+    rationale: >
+      Goal choice remains durable and independent from generator availability.
+      This distance policy is limited to current performance intent and cannot
+      be scaled down to completion or sparse-history populations.
+    applies_to: goal normalization and distance-policy selection
+  - name: road_half_marathon_supported_training_pattern
+    classification: guardrail
+    value:
+      adult_scope: confirmed
+      capability_pattern: currently_capable
+      history_pattern: stable
+      load_pattern: within_recent
+      event_context:
+        - confirmed_none
+        - single_target
+        - race_dense
+      race_dense_requires_resolved_conflicts: true
+      evidence_directness:
+        - direct
+        - supporting
+      current_symptoms: absent
+      explicit_exclusions:
+        - adult_scope_unconfirmed
+        - first_half_marathon_completion_requires_separate_policy
+        - sparse_interrupted_or_missing_history
+        - current_injury_illness_or_concerning_symptoms
+        - rehabilitation_return_to_sport_or_medical_clearance
+        - pregnancy_specific_prescription
+        - unresolved_material_event_context
+        - unsupported_surface_distance_or_intent
+      permanent_runner_identity_used: false
+    evidence_claim_ids:
+      - eligibility.current-symptoms-support-stop-not-clearance
+      - eligibility.masters-age-change-not-automatic-exclusion
+      - road-half-marathon.subgroup-dose-rules-unproven
+    rationale: >
+      V1 matches a time-bounded evidence pattern rather than a recreational,
+      serious, professional, elite, female, male, or masters identity.
+    applies_to: shared pattern routing
+  - name: road_half_marathon_direct_baseline_hierarchy
+    classification: guardrail
+    value:
+      direct_current_capability_required: true
+      accepted_evidence_order:
+        - organized_outdoor_road_half_marathon_with_elapsed_time
+        - athlete_confirmed_standardized_outdoor_road_half_marathon_time_trial
+      required_metadata:
+        - completed_at
+        - elapsed_time_seconds
+        - measured_distance_m
+        - route_or_event_identifier
+        - surface
+        - assistance_status
+        - source_provider
+        - race_or_intentional_time_trial_flag
+      supporting_only:
+        - cooper_test
+        - current_vo2max_or_vvo2max
+        - current_threshold_or_critical_speed
+        - weekly_training_distance
+        - recent_longest_run
+        - race_forecast_with_error
+        - split_or_sample_pacing_distribution
+      excluded_as_direct:
+        - shorter_race_conversion
+        - marathon_or_ultra_split
+        - passive_fastest_half_marathon_segment
+        - personal_best_without_source_activity
+        - activity_average_power
+        - vendor_readiness_or_race_score
+      automatic_maximal_baseline_test: prohibited
+      missing_direct_result_outcome: insufficient_direct_half_marathon_baseline
+      baseline_qualification_algorithm: not_accepted
+      distance_match_tolerance_m: not_accepted
+      allowed_surface_values: not_accepted
+      allowed_assistance_statuses: not_accepted
+      standardized_time_trial_protocol: not_accepted
+    evidence_claim_ids:
+      - eligibility.goal-relevant-current-capability-task-specific
+      - road-half-marathon.task-specific-capability-is-multifactor
+      - road-half-marathon.direct-field-baseline-preferred-with-error
+    rationale: >
+      Same-task field evidence is most direct. Prediction, physiology, and
+      shorter-distance performance may support context but retain meaningful
+      individual error and cannot silently authorize generation.
+    applies_to: baseline qualification
+  - name: road_half_marathon_baseline_freshness
+    classification: guardrail
+    value:
+      exact_current_through_completed_days: not_accepted
+      stale_boundary: not_accepted
+      no_biological_expiry_claim: true
+      required_before_activation: true
+      missing_or_stale_outcome: readiness_only
+    evidence_claim_ids:
+      - road-half-marathon.direct-field-baseline-preferred-with-error
+    rationale: >
+      No reviewed source validates a half-marathon result expiry threshold.
+      Selecting one is a product guardrail that must be reviewed separately
+      before activation.
+    applies_to: capability freshness
+  - name: road_half_marathon_recent_history_inputs
+    classification: guardrail
+    value:
+      required_observations:
+        - completed_weekly_running_minutes_and_distance
+        - completed_running_days_per_week
+        - recent_longest_run_duration_and_distance
+        - quality_session_and_event_density
+        - recent_load_relative_to_self
+        - availability_and_single_session_constraints
+        - prior_half_marathon_count_when_known
+      exact_lookback_weeks: not_accepted
+      minimum_usable_weeks: not_accepted
+      minimum_runs_per_usable_week: not_accepted
+      latest_run_freshness_days: not_accepted
+      history_qualification_algorithm: not_accepted
+      intensity_source_priority:
+        - activity_splits
+        - activity_samples
+      disallowed_intensity_source:
+        - activity_avg_power
+      unresolved_history_outcome: insufficient_history_anchor
+    evidence_claim_ids:
+      - eligibility.recent-history-anchor-without-universal-threshold
+      - road-half-marathon.volume-and-long-run-are-associative
+      - road-half-marathon.exact-long-run-dose-unproven
+    rationale: >
+      History must anchor the runner's own exposure, but the review does not
+      establish universal counts. Exact qualification remains visible rather
+      than inheriting 5 km or 10 km values.
+    applies_to: history-rich qualification
+  - name: road_half_marathon_planning_and_reassessment
+    classification: guardrail
+    value:
+      target_date_required: false
+      fixed_full_block_days: none_defined
+      fixed_horizon_eligibility_gate: false
+      exact_committed_execution_window_days: not_accepted
+      exact_calendar_reassessment_cadence: not_accepted
+      reassessment_triggers:
+        - new_or_changed_confirmed_event
+        - material_training_pattern_change
+        - new_qualified_half_marathon_result
+        - changed_availability_or_constraint
+        - changed_fueling_tolerance_or_practice
+        - completed_target_event
+        - athlete_requested_review
+      each_reassessment_requires:
+        - fresh_shared_eligibility
+        - updated_history_and_longest_run
+        - updated_event_context
+        - updated_dynamic_pattern_snapshot
+        - updated_fueling_practice_context
+        - explicit_review_before_replacing_adopted_future_days
+      automatic_progression_between_reassessments: false
+    evidence_claim_ids:
+      - eligibility.recent-history-anchor-without-universal-threshold
+      - eligibility.fixed-progression-and-acwr-not-safety-laws
+      - road-half-marathon.volume-and-long-run-are-associative
+    rationale: >
+      No reviewed evidence establishes an exact half-marathon plan horizon or
+      reassessment cadence. Rolling context and explicit triggers are retained,
+      while the committed execution window remains an open decision.
+    applies_to: proposal horizon and reassessment
+  - name: road_half_marathon_target_and_short_horizon_routing
+    classification: guardrail
+    value:
+      target_time_may:
+        - label_goal
+        - compute_descriptive_gap_to_direct_baseline
+        - select_uncertainty_copy
+      target_time_may_not:
+        - increase_weekly_volume
+        - increase_frequency
+        - lengthen_longest_run
+        - add_quality
+        - weaken_history_or_safety_rules
+      personal_goal_achievement_probability: disabled
+      personal_injury_probability: disabled
+      short_horizon_invalidates_goal: false
+      near_event_supported_states:
+        - readiness_only
+        - maintain
+        - taper_after_taper_guardrail_acceptance
+        - limited_guidance
+      aggressive_or_catch_up_variant: not_accepted
+      target_gap_dose_escalation: prohibited
+    evidence_claim_ids:
+      - eligibility.evidence-quality-no-personal-probability
+      - road-half-marathon.direct-field-baseline-preferred-with-error
+    rationale: >
+      Prediction error is material and no personal probability or compressed
+      catch-up policy is validated. A short horizon limits the claim and
+      available states rather than invalidating the athlete's goal.
+    applies_to: target communication and short-horizon routing
+  - name: road_half_marathon_event_context
+    classification: guardrail
+    value:
+      shared_event_states_consumed:
+        - confirmed_none
+        - single_target
+        - race_dense
+      imported_event_must_be_athlete_confirmed: true
+      every_race_or_maximal_effort:
+        counts_as_quality_session: true
+        counts_as_training_load: true
+        requires_recovery_reassessment: true
+      confirmed_primary_event_may_trigger_taper_only_after_taper_guardrail_acceptance: true
+      unresolved_race_dense_outcome: limited_guidance_event_conflict
+      no_event_performance_goal:
+        goal_remains_recorded: true
+        rolling_policy_before_activation: readiness_only
+        automatic_half_marathon_benchmark: prohibited
+    evidence_claim_ids:
+      - road-half-marathon.recovery-spacing-unresolved
+      - road-half-marathon.taper-is-indirectly-supported
+      - eligibility.evidence-quality-no-personal-probability
+    rationale: >
+      Event priority and dense-calendar behavior remain product guardrails.
+      Confirmed events nevertheless consume load and quality capacity, and a
+      maximal half-marathon benchmark is never silently created.
+    applies_to: event calendar and schedule conflicts
+  - name: road_half_marathon_published_volume_and_long_run_findings
+    classification: published
+    value:
+      study_population: adult_recreational_half_marathon_runners
+      weekly_distance_category_associated_with_faster_time_km_more_than: 32
+      longest_run_category_associated_with_faster_time_km_more_than: 21
+      weekly_distance_finish_time_coefficient_minutes: -4.19
+      longest_run_finish_time_coefficient_minutes: -3.87
+      observational_only: true
+      causal_dose_or_safety_established: false
+    evidence_claim_ids:
+      - road-half-marathon.volume-and-long-run-are-associative
+    rationale: >
+      Values reproduce the direct observational study and are not eligibility
+      thresholds or prescriptions.
+    applies_to: evidence display and guardrail rationale
+  - name: road_half_marathon_history_anchored_load_and_long_run
+    classification: guardrail
+    value:
+      mandatory_long_run: false
+      automatic_long_run_progression: false
+      exact_long_run_share_of_weekly_volume: not_accepted
+      exact_long_run_distance_or_duration: not_accepted
+      exact_weekly_progression: not_accepted
+      planned_weekly_exposure_may_not_exceed_recent_completed_maximum: proposed_guardrail_for_review
+      planned_longest_run_may_not_exceed_recent_completed_maximum: proposed_guardrail_for_review
+      athlete_availability_and_single_session_limits_are_hard_caps: true
+      observed_32_km_week_or_21_km_long_run_used_as_minimum: false
+      ten_percent_rule_used: false
+      acwr_prescription_zone_used: false
+      target_gap_may_raise_load: false
+    evidence_claim_ids:
+      - eligibility.fixed-progression-and-acwr-not-safety-laws
+      - road-half-marathon.volume-and-long-run-are-associative
+      - road-half-marathon.exact-long-run-dose-unproven
+    rationale: >
+      The direct evidence is associative. V1 must not convert population bins
+      into requirements. Proposed self-history caps are deliberately surfaced
+      for review rather than presented as proven optimal progression.
+    applies_to: weekly exposure and longest-run boundary
+  - name: road_half_marathon_intensity_structure
+    classification: guardrail
+    value:
+      mostly_low_intensity_structure_required: true
+      exact_low_intensity_fraction: not_accepted
+      maximum_quality_sessions_per_7_day_unit: not_accepted
+      consecutive_quality_running_days_allowed: proposed_false_for_review
+      allowed_session_categories:
+        - easy
+        - longest_easy
+        - controlled_threshold
+        - half_marathon_specific_or_race_pace
+        - interval
+        - confirmed_event
+      exact_session_mix: not_accepted
+      exact_step_templates: not_accepted
+      generic_percent_of_threshold_or_critical_power_targets: false
+      intensity_source_priority:
+        - activity_splits
+        - activity_samples
+      activity_average_power_allowed: false
+    evidence_claim_ids:
+      - road-half-marathon.intensity-distribution-no-universal-winner
+      - road-half-marathon.recovery-spacing-unresolved
+    rationale: >
+      Evidence supports mostly-low organization and some quality work without
+      one universal distribution, quality count, or template. Nonconsecutive
+      placement is a proposed conservative guardrail requiring explicit review.
+    applies_to: session structure and intensity analysis
+  - name: road_half_marathon_recovery_boundary
+    classification: guardrail
+    value:
+      exact_hours_between_quality_sessions: not_accepted
+      universal_one_to_three_day_recovery_rule: false
+      high_intensity_recovery_run_automatically_scheduled: false
+      completed_half_marathon_requires_pattern_and_recovery_reassessment: true
+      event_or_benchmark_counts_as_quality_and_load: true
+      symptoms_override_recovery_schedule: true
+      missed_quality_makeup_allowed: false
+    evidence_claim_ids:
+      - road-half-marathon.recovery-spacing-unresolved
+      - eligibility.current-symptoms-support-stop-not-clearance
+    rationale: >
+      Recovery evidence varies by measure and post-race behavior. The policy
+      rejects one exact spacing law and uses reassessment rather than
+      automatically scheduling recovery intensity or missed-session makeup.
+    applies_to: recovery and quality spacing
+  - name: road_half_marathon_published_taper_findings
+    classification: published
+    value:
+      evidence_population: mixed_endurance_athletes
+      strongest_volume_reduction_percent:
+        minimum: 41
+        maximum: 60
+      maintain_intensity: true
+      maintain_frequency: true
+      strongest_duration_subgroup_days:
+        minimum: 8
+        maximum: 14
+      direct_adult_road_half_marathon_validation: false
+    evidence_claim_ids:
+      - road-half-marathon.taper-is-indirectly-supported
+    rationale: >
+      These values reproduce the reviewed meta-analysis and remain explicitly
+      indirect to adult road half-marathon planning.
+    applies_to: taper evidence
+  - name: road_half_marathon_selected_taper_guardrail
+    classification: guardrail
+    value:
+      exact_volume_reduction_percent: not_accepted
+      exact_taper_window_days: not_accepted
+      exact_frequency_rule: not_accepted
+      exact_intensity_exposure: not_accepted
+      pre_event_training_minutes_accounting: not_accepted
+      target_event_elapsed_time_included_in_training_minutes: not_accepted
+      no_extra_sharpening_or_makeup: true
+      personal_performance_gain_claim: prohibited
+      required_before_taper_activation: true
+    evidence_claim_ids:
+      - road-half-marathon.taper-is-indirectly-supported
+    rationale: >
+      The evidence range is useful but does not select one half-marathon
+      template. The exact product guardrail is intentionally left for human
+      review.
+    applies_to: event taper selection
+  - name: road_half_marathon_published_fueling_findings
+    classification: published
+    value:
+      source_guidance:
+        around_one_hour:
+          small_amount_or_carbohydrate_mouth_rinse_supported: true
+        longer_endurance_exercise:
+          reported_carbohydrate_grams_per_hour:
+            low: 30
+            high: 60
+        glycogen_loading:
+          source_boundary_minutes: 90
+          source_statement: not_recommended_for_events_shorter_than_boundary
+      gut_training:
+        gastrointestinal_discomfort_reduction_reported_percent: 47
+        carbohydrate_malabsorption_reduction_reported_percent:
+          low: 45
+          high: 54
+      direct_half_marathon_dose_validation: false
+    evidence_claim_ids:
+      - road-half-marathon.fueling-and-gut-practice-supported
+    rationale: >
+      Values reproduce broader-endurance source findings for evidence display.
+      They are not product duration bands, intake minima or maxima, or an
+      automatic half-marathon fueling prescription.
+    applies_to: fueling evidence display only
+  - name: road_half_marathon_fueling_practice_policy
+    classification: guardrail
+    value:
+      published_findings_are_runtime_routing_rules: false
+      required_inputs:
+        - expected_event_duration_band
+        - prior_during_run_carbohydrate_practice
+        - prior_gastrointestinal_tolerance_or_issue
+        - athlete_preference
+      product_during_exercise_duration_bands: not_accepted
+      product_carbohydrate_grams_per_hour_range_or_cap: not_accepted
+      product_glycogen_loading_duration_threshold: not_accepted
+      exact_duration_bands_and_prompts: not_accepted
+      new_race_day_strategy_without_practice: prohibited
+      automatic_carbohydrate_loading_from_distance_label: prohibited
+      fueling_prompt_is_medical_or_dietetic_treatment: false
+      athlete_may_decline_optional_profile_or_tolerance_detail: true
+      missing_optional_detail_effect: generic_uncertainty_only
+    evidence_claim_ids:
+      - road-half-marathon.fueling-and-gut-practice-supported
+    rationale: >
+      The product must not turn general sports-nutrition ranges into a hidden
+      individualized prescription. Product duration branches, intake
+      ranges/caps, loading thresholds, and exact prompts remain review
+      decisions.
+    applies_to: fueling-practice context and user communication
+  - name: road_half_marathon_protocol_comparability_and_outcomes
+    classification: guardrail
+    value:
+      direct_before_after_claim_requires:
+        - comparable_half_marathon_distance_and_result_type
+        - known_route_or_event
+        - known_surface
+        - known_assistance_status
+        - known_environment_context_when_available
+        - no_material_protocol_change
+      supporting_post_plan_inputs:
+        - split_level_pacing_and_pace_decline
+        - adherence_and_edit_burden
+        - fueling_practice_and_gastrointestinal_response
+        - recovery_response
+        - weekly_volume_frequency_and_longest_run_change
+      missing_comparability_outcome: descriptive_context_only
+      causal_plan_effect_claim: prohibited
+      personal_responder_classification: prohibited
+    evidence_claim_ids:
+      - road-half-marathon.direct-field-baseline-preferred-with-error
+      - road-half-marathon.task-specific-capability-is-multifactor
+      - eligibility.evidence-quality-no-personal-probability
+    rationale: >
+      Same distance alone does not establish comparable conditions or causal
+      plan benefit. Evaluation separates observed outcome, execution, context,
+      and unresolved causal hypotheses.
+    applies_to: post-plan evaluation
+  - name: road_half_marathon_typed_outcomes
+    classification: guardrail
+    value:
+      current_runtime_state: policy_inactive
+      outcomes:
+        eligible_future_policy_pattern:
+          plan_returned_while_inactive: false
+          goal_remains_recorded: true
+          review_packet_available: true
+        intent_requires_separate_policy:
+          plan_returned: false
+          goal_remains_recorded: true
+        insufficient_direct_half_marathon_baseline:
+          plan_returned: false
+          goal_remains_recorded: true
+        insufficient_history_anchor:
+          plan_returned: false
+          goal_remains_recorded: true
+        adult_scope_unconfirmed:
+          plan_returned: false
+          goal_remains_recorded: true
+        safety_stop:
+          plan_returned: false
+          goal_remains_recorded: true
+        unresolved_event_context:
+          plan_returned: false
+          goal_remains_recorded: true
+        limited_guidance_event_conflict:
+          plan_returned: false
+          limited_guidance_returned: true
+          goal_remains_recorded: true
+        unresolved_policy_guardrail:
+          plan_returned: false
+          goal_remains_recorded: true
+        contradictory_input:
+          plan_returned: false
+          goal_remains_recorded: true
+      unknown_values_are_not_false_or_zero: true
+      unsupported_distance_fallback: none
+    evidence_claim_ids:
+      - eligibility.evidence-quality-no-personal-probability
+      - eligibility.current-symptoms-support-stop-not-clearance
+      - road-half-marathon.direct-field-baseline-preferred-with-error
+    rationale: >
+      Typed outcomes preserve goal intent while the draft and unresolved
+      implementation guardrails keep every plan path inactive.
+    applies_to: future API and client outcome contract
+  - name: road_half_marathon_suggestion_only_state_transition
+    classification: guardrail
+    value:
+      generated_state_after_future_activation: proposed
+      user_may:
+        - review
+        - edit
+        - reject
+        - explicitly_adopt
+      generator_may_not:
+        - adopt_or_deliver_without_consent
+        - overwrite_adopted_future_days
+        - auto_schedule_a_half_marathon_benchmark
+        - auto_change_event_priority
+        - schedule_missed_workout_makeup
+        - infer_missed_workout_reason
+        - invent_fueling_tolerance
+      AI_may_not:
+        - broaden_eligibility
+        - invent_capability_history_event_profile_or_safety_context
+        - choose_unaccepted_guardrails
+        - override_deterministic_validation
+        - create_human_approval_artifacts
+        - activate_adopt_deliver_or_publish
+    evidence_claim_ids:
+      - eligibility.evidence-quality-no-personal-probability
+    rationale: >
+      Deterministic validation, role-scoped human approval, and athlete consent
+      remain separate authority boundaries.
+    applies_to: proposal and adoption state
+  - name: road_half_marathon_privacy_and_audit
+    classification: guardrail
+    value:
+      minimum_necessary_inputs_only: true
+      no_inference_of:
+        - diagnosis
+        - injury_cause
+        - pregnancy_status
+        - mental_state
+        - missed_training_reason
+        - gastrointestinal_diagnosis
+      no_publication_of:
+        - raw_health_data
+        - private_activity_data
+        - inferred_sensitive_context
+      replay_record_must_include:
+        - shared_and_distance_policy_versions
+        - decision_and_contract_digests
+        - goal_record_state
+        - dynamic_pattern_snapshot
+        - confirmed_event_context
+        - profile_and_fueling_field_provenance
+        - baseline_source
+        - history_cutoff_and_inputs
+        - unresolved_guardrail_versions
+        - typed_outcome
+        - proposal_hash
+    evidence_claim_ids:
+      - eligibility.evidence-quality-no-personal-probability
+    rationale: >
+      Future generation must remain reproducible without inferring or exposing
+      sensitive explanations.
+    applies_to: audit and privacy
+  - name: road_half_marathon_validation_and_pilot_thresholds
+    classification: guardrail
+    value:
+      deterministic_invariant_breach_tolerance: 0
+      deterministic_replay_mismatch_tolerance: 0
+      dry_run_metrics_required:
+        - eligibility_and_no_plan_rates
+        - each_guardrail_exclusion_rate
+        - subgroup_missingness_and_exclusion_gaps
+        - proposal_edit_and_rejection_burden
+        - fueling_prompt_acceptance_and_tolerance_missingness
+        - event_conflicts_and_recovery_exits
+      exact_dry_run_go_no_go_thresholds: not_accepted
+      prospective_pilot_metrics_required:
+        - adoption_and_edit_distance
+        - adherence_burden
+        - quality_and_event_stacking
+        - symptom_stops_and_adverse_events
+        - fueling_tolerance
+        - comparable_half_marathon_outcomes
+        - withdrawal
+      exact_prospective_pause_thresholds: not_accepted
+    evidence_claim_ids:
+      - eligibility.evidence-quality-no-personal-probability
+      - road-half-marathon.direct-field-baseline-preferred-with-error
+      - road-half-marathon.subgroup-dose-rules-unproven
+    rationale: >
+      Zero deterministic invariant tolerance is an engineering requirement.
+      Statistical go/no-go and safety pause thresholds need a separate reviewed
+      pilot protocol rather than being copied from another distance.
+    applies_to: offline validation and future opt-in pilot
+  - name: road_half_marathon_user_facing_uncertainty
+    classification: guardrail
+    value:
+      always_show:
+        - current_policy_is_draft_and_inactive
+        - proposal_not_guarantee
+        - direct_associative_and_indirect_evidence_boundaries
+        - exact_unaccepted_guardrails
+        - baseline_source_and_prediction_error
+        - current_dynamic_pattern
+        - confirmed_event_context
+        - fueling_duration_and_tolerance_assumptions
+        - missing_profile_fields_and_specific_effects
+        - risks_unknowns_and_alternatives
+        - typed_no_plan_reason
+      forbidden_copy:
+        - scientifically_optimal_half_marathon_plan
+        - safe_because_within_recent_history
+        - guaranteed_goal_time
+        - personal_success_or_injury_probability
+        - medically_cleared
+        - required_32_km_week
+        - required_overdistance_long_run
+        - automatic_carb_loading
+    evidence_claim_ids:
+      - road-half-marathon.volume-and-long-run-are-associative
+      - road-half-marathon.taper-is-indirectly-supported
+      - road-half-marathon.fueling-and-gut-practice-supported
+      - road-half-marathon.subgroup-dose-rules-unproven
+    rationale: >
+      The review surface must distinguish direct findings, broader-endurance
+      transfer, unresolved guardrails, and product choices from certainty.
+    applies_to: future English and Simplified Chinese review and product copy
+  - name: road_half_marathon_open_decisions
+    classification: guardrail
+    value:
+      direct_baseline_qualification_algorithm: not_accepted
+      baseline_freshness_days: not_accepted
+      minimum_history_counts: not_accepted
+      frequency_envelope: not_accepted
+      weekly_progression_rule: not_accepted
+      long_run_share_distance_and_ceiling: not_accepted
+      low_intensity_floor: not_accepted
+      quality_session_ceiling_and_spacing: not_accepted
+      execution_window_and_reassessment_cadence: not_accepted
+      selected_taper_guardrail: not_accepted
+      taper_training_minutes_accounting: not_accepted
+      fueling_duration_bands_and_prompts: not_accepted
+      fueling_intake_range_or_cap: not_accepted
+      fueling_loading_duration_threshold: not_accepted
+      aggressive_short_horizon_variant: not_accepted
+      exact_workout_templates: not_accepted
+      pilot_go_no_go_thresholds: not_accepted
+    evidence_claim_ids:
+      - road-half-marathon.volume-and-long-run-are-associative
+      - road-half-marathon.exact-long-run-dose-unproven
+      - road-half-marathon.intensity-distribution-no-universal-winner
+      - road-half-marathon.recovery-spacing-unresolved
+      - road-half-marathon.taper-is-indirectly-supported
+      - road-half-marathon.fueling-and-gut-practice-supported
+    rationale: >
+      The review packet must make every unresolved behavior-driving choice
+      explicit. None may be inferred by implementation or hidden in prose.
+    applies_to: human decision review
+applicability:
+  - Adult scope confirmed by the accepted shared router
+  - Current direct outdoor road half-marathon capability
+  - Stable recent history and within-recent load pattern
+  - Performance intent with optional target time and target date
+  - Confirmed-none, single-target, or conflict-resolved race-dense event context
+  - Suggestion-only future behavior after all open guardrails and implementation reviews are accepted
+  - Evidence cohorts include recreational and amateur runners without assigning a permanent identity
+user_facing_claim_limits:
+  - >
+    This draft is an evidence and product-decision boundary, not a usable
+    half-marathon generator, optimal plan, safety guarantee, medical advice, or
+    goal-time guarantee.
+  - >
+    Observed 32 km weekly volume and over-21 km longest-run categories must not
+    be presented as requirements, safe thresholds, or optimal doses.
+  - >
+    Taper and fueling values must be labelled as broader-endurance evidence
+    with half-marathon-specific uncertainty.
+  - >
+    Target time and indirect predictions may describe uncertainty but may not
+    create a personal success probability or justify higher dose.
+  - >
+    Missing optional age, sex, or fueling-tolerance detail affects only the
+    dependent communication or feature and never silently defaults to male.
+  - >
+    No 5 km or 10 km count, percentage, window, template, or progression rule
+    is accepted for half-marathon use through this record.
+safety_implications:
+  - >
+    Current concerning symptoms, illness, injury, rehabilitation,
+    return-to-sport, medical-clearance, pregnancy-specific, or contradictory
+    safety context stops the vigorous-plan path without diagnosis or treatment.
+  - >
+    Completing a half-marathon, staying within recent history, or lacking
+    symptoms does not establish medical clearance or guarantee freedom from
+    harm.
+  - >
+    No maximal half-marathon benchmark is automatically proposed when direct
+    capability is missing or stale.
+  - >
+    Confirmed races and maximal efforts count as quality and load; unresolved
+    dense-event conflicts prevent a full proposal.
+  - >
+    No target-gap escalation, catch-up, ten-percent rule, ACWR prescription
+    zone, high-intensity recovery prescription, or activity-average-power
+    intensity analysis is allowed.
+privacy_implications:
+  - >
+    Use only the authenticated athlete's minimum necessary goal, activity,
+    event, profile, constraints, fueling-practice, and optional symptom context.
+  - >
+    Provider fields remain source-labelled candidates until their purpose is
+    disclosed and the athlete confirms or corrects them.
+  - >
+    Do not infer or publish diagnosis, injury cause, pregnancy status,
+    gastrointestinal diagnosis, mental state, missed-training reason, or
+    external life circumstance.
+validation_plan:
+  - >
+    Registry validation must prove exact Evidence Review and claim links,
+    globally unique IDs, draft lifecycle validity, parameter classifications,
+    exact citation verification notes, and inactive artifact policy.
+  - >
+    Artifact validation must prove that the generated Evidence Review and SDR
+    packets carry current digests and that the exact machine contract embedded
+    in the SDR packet matches the generated JSON contract.
+  - >
+    Tests must lock the exact supported tuple, current-capability and stable-
+    history patterns, official distance, direct-baseline hierarchy, event
+    accounting, activity-split/sample boundary, and typed no-plan states.
+  - >
+    Tests must prove every behavior-driving open choice remains
+    `not_accepted`, no 5 km or 10 km numeric rule is inherited, and runtime
+    state remains inactive without evidence, decision, and implementation
+    approval artifacts.
+  - >
+    Before activation, separately reviewed decisions must select direct
+    baseline qualification and freshness, history qualification, load and
+    long-run caps, intensity and quality structure, taper and event-minute
+    accounting, fueling duration/intake rules and prompts, execution windows,
+    exact templates, and pilot thresholds.
+  - >
+    Offline dry runs must report exclusion, missingness, event conflict,
+    edit/rejection burden, subgroup gaps, fueling-context availability, and
+    deterministic replay without publishing private athlete data.
+  - >
+    A prospective opt-in pilot must predeclare adoption, adherence, edit
+    distance, quality stacking, symptom and adverse-event exits, fueling
+    tolerance, comparable outcomes, withdrawal, and human go/no-go thresholds.
+falsification_conditions:
+  - >
+    Reject the policy if any implementation emits a plan while the contract is
+    draft or inactive, consumes an unapproved parameter, or omits a
+    code-consumed field from the human review packet.
+  - >
+    Reject routing if a shorter-distance conversion, prediction, threshold,
+    activity-average power, or passive segment is treated as direct current
+    half-marathon capability.
+  - >
+    Reject schedule mapping if observational 32 km or 21 km categories become
+    universal eligibility or dose requirements.
+  - >
+    Reject target routing if a short horizon invalidates the goal, increases
+    dose, schedules catch-up, or produces a personal probability.
+  - >
+    Reject fueling behavior if distance alone triggers carbohydrate loading or
+    a new race-day intake strategy without prior practice and consent.
+  - >
+    Pause future activation after any deterministic invariant or replay breach,
+    unconfirmed event use, quality/load event omission, unsupported population,
+    hidden demographic default, symptom-stop override, or approval-digest
+    mismatch.
+  - >
+    Revise or reject candidate guardrails when predeclared dry-run or pilot
+    thresholds are breached; those thresholds are themselves not accepted by
+    this draft.
+affected_surfaces:
+  models:
+    - road-half-marathon-plan-generation-policy-v1
+    - shared dynamic training-pattern and confirmed event snapshots
+  apis:
+    - future authenticated half-marathon capability and typed proposal endpoints
+    - future event, fueling-practice, and confirmation inputs
+  clients:
+    - generated human Evidence Review and SDR packets
+    - future web half-marathon goal, readiness, event, fueling, proposal, consent, and no-plan states
+    - future miniapp feature, write, type, state, i18n, and consent parity
+    - future plugin and MCP capability discovery and proposal parity
+  science_notes:
+    - Explain direct, associative, and broader-endurance evidence separately.
+    - Show every unresolved guardrail, baseline source, event state, fueling assumption, risk, and alternative.
+artifact_policy:
+  runtime_state: inactive
+supersedes: []
+superseded_by:
+decision_notes:
+  - "This artifact-mode decision proposal addresses issue #688 and remains draft and inactive."
+  - >
+    Human review should use the generated packet rather than raw YAML. The
+    packet includes the exact machine contract and digest-bound approval
+    templates.
+  - >
+    The core proposed scope is history-rich, currently capable adult outdoor
+    road half-marathon performance planning; completion and sparse-history
+    policies remain separate.
+  - >
+    Direct evidence supports task-specific capability, observational volume
+    and longest-run associations, and error-aware target communication.
+    Taper, intensity distribution, recovery, and fueling transfer from broader
+    endurance evidence with explicit limits.
+  - >
+    Every unresolved schedule, dose, taper, fueling, and pilot choice is
+    encoded as `not_accepted`; implementation may not infer a value.
+  - "Impact map: draft Evidence Review -> generated evidence packet -> draft SDR -> generated decision packet and inactive contract -> role-scoped approvals -> future pure routing and policy implementation -> API -> web and miniapp parity -> ScienceNote and localization -> offline validation -> opt-in pilot."
