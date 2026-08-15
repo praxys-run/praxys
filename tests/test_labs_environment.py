@@ -88,6 +88,10 @@ def labs_client(monkeypatch):
             "full_analysis_still_required": True,
         },
     )
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, _user: gate_name == "stryd_connection_enabled",
+    )
     app.dependency_overrides[get_current_user_id] = override_user
     app.dependency_overrides[require_write_access] = override_user
     app.dependency_overrides[get_db] = override_db
@@ -102,6 +106,83 @@ def labs_client(monkeypatch):
         db_session.async_engine = None
         db_session.AsyncSessionLocal = None
         tmpdir.cleanup()
+
+
+def test_labs_environment_is_hidden_when_stryd_gate_is_disabled(
+    labs_client,
+    monkeypatch,
+) -> None:
+    """Stryd-only Labs surfaces fail closed for an ineligible account."""
+    client, _, _ = labs_client
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda *_args: False,
+    )
+
+    assert client.get("/api/labs/environment-response").status_code == 404
+    assert (
+        client.get("/api/labs/environment-response/preflight").status_code
+        == 404
+    )
+    assert client.post(
+        "/api/labs/environment-response/wet-bulb",
+        json={
+            "temperature_c": 20.0,
+            "relative_humidity_pct": 50.0,
+        },
+    ).status_code == 404
+
+
+def test_queued_labs_job_is_cancelled_after_access_revocation(
+    labs_client,
+    monkeypatch,
+) -> None:
+    """A previously queued private job must not run after gate revocation."""
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import (
+        LabsAnalysisJob,
+        LabsAnalysisOutbox,
+        LabsExperimentEnrollment,
+    )
+
+    with db_session.SessionLocal() as db:
+        decision = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        job_id = decision.job.id
+
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda *_args: False,
+    )
+    monkeypatch.setattr(
+        labs_environment,
+        "_build_private_dataset_bundle",
+        lambda *_args: (_ for _ in ()).throw(
+            AssertionError("revoked job reached private analysis"),
+        ),
+    )
+
+    result = labs_environment.process_environment_response_job(job_id)
+
+    assert result.outcome == "cancelled"
+    with db_session.SessionLocal() as db:
+        job = db.get(LabsAnalysisJob, job_id)
+        outbox = db.query(LabsAnalysisOutbox).filter(
+            LabsAnalysisOutbox.job_id == job_id,
+        ).one()
+        enrollment = db.get(
+            LabsExperimentEnrollment,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        )
+        assert job.status == "cancelled"
+        assert job.failure_code == "stryd_access_revoked"
+        assert outbox.status == "cancelled"
+        assert enrollment.status == "unavailable"
 
 
 def _aggregate_result() -> dict:
@@ -2125,6 +2206,16 @@ def test_worker_startup_check_initializes_database_without_receiving(
     )
     monkeypatch.setattr(
         labs_worker,
+        "_initialize_feature_gates",
+        lambda: events.append("feature-gates"),
+    )
+    monkeypatch.setattr(
+        labs_worker,
+        "_shutdown_feature_gates",
+        lambda: events.append("feature-gates-shutdown"),
+    )
+    monkeypatch.setattr(
+        labs_worker,
         "_initialize_database",
         lambda: events.append("database"),
     )
@@ -2140,7 +2231,69 @@ def test_worker_startup_check_initializes_database_without_receiving(
     )
 
     assert labs_worker.main(["--startup-check"]) == 0
-    assert events == ["telemetry", "database", "verify"]
+    assert events == [
+        "telemetry",
+        "feature-gates",
+        "database",
+        "verify",
+        "feature-gates-shutdown",
+    ]
+
+
+def test_worker_fails_before_receive_when_feature_gates_are_unavailable(
+    monkeypatch,
+) -> None:
+    """A targeting outage preserves queued work instead of cancelling it."""
+    from api import labs_worker
+
+    events: list[str] = []
+    monkeypatch.setenv("PRAXYS_SKIP_MIGRATIONS", "false")
+    monkeypatch.setenv("PRAXYS_HIDE_SQL_PARAMETERS", "false")
+    monkeypatch.setattr(labs_worker, "_configure_telemetry", lambda: None)
+    monkeypatch.setattr(
+        labs_worker,
+        "_initialize_feature_gates",
+        lambda: (_ for _ in ()).throw(RuntimeError("unavailable")),
+    )
+    monkeypatch.setattr(
+        labs_worker,
+        "_shutdown_feature_gates",
+        lambda: events.append("shutdown"),
+    )
+    monkeypatch.setattr(
+        labs_worker,
+        "run_once",
+        lambda: events.append("receive"),
+    )
+
+    assert labs_worker.main([]) == 1
+    assert events == ["shutdown"]
+
+
+def test_worker_infrastructure_provisions_gate_identity() -> None:
+    """Worker deployment and grants include only the gate data it needs."""
+    from api.labs_worker_permissions import COLUMN_PRIVILEGES
+
+    root = Path(__file__).parents[1]
+    bicep = (root / "infra" / "labs-worker.bicep").read_text(
+        encoding="utf-8",
+    )
+    workflow = (
+        root / ".github" / "workflows" / "deploy-labs-worker.yml"
+    ).read_text(encoding="utf-8")
+
+    assert "param statsigSdkKey string" in bicep
+    assert "secretRef: 'statsig-sdk-key'" in bicep
+    assert "name: 'STATSIG_ENV'" in bicep
+    assert "STATSIG_SDK_KEY: ${{ secrets.STATSIG_SDK_KEY }}" in workflow
+    assert 'statsigSdkKey="${STATSIG_SDK_KEY}"' in workflow
+    assert COLUMN_PRIVILEGES["users"]["SELECT"] == (
+        "id",
+        "email",
+        "is_active",
+        "is_superuser",
+        "is_demo",
+    )
 
 
 def test_worker_database_verification_checks_exact_grants(
@@ -2966,28 +3119,13 @@ def test_availability_reason_does_not_mask_failed_release_gate() -> None:
     assert reason["code"] == "insufficient_curve_bin_support"
 
 
-def test_openapi_exposes_strict_labs_response_schema(labs_client) -> None:
+def test_openapi_hides_private_labs_schema(labs_client) -> None:
     client, _, _ = labs_client
 
     schema = client.get("/openapi.json").json()
-    response = schema["paths"]["/api/labs/environment-response"]["get"][
-        "responses"
-    ]["200"]["content"]["application/json"]["schema"]
 
-    assert response["$ref"].endswith("/EnvironmentResponseState")
-    state = schema["components"]["schemas"]["EnvironmentResponseState"]
-    assert state["additionalProperties"] is False
-    assert "status" in state["properties"]
-    assert "availability_reason" in state["properties"]
-    assert "result" in state["properties"]
-    eligibility = schema["components"]["schemas"][
-        "EnvironmentEligibilityCounts"
-    ]
-    workload_support = schema["components"]["schemas"][
-        "EnvironmentWorkloadSupport"
-    ]
-    uncertainty = schema["components"]["schemas"]["EnvironmentUncertainty"]
-    assert eligibility["additionalProperties"] is False
-    assert "workload_support" in eligibility["properties"]
-    assert workload_support["additionalProperties"] is False
-    assert uncertainty["additionalProperties"] is False
+    assert all("/api/labs/" not in path for path in schema["paths"])
+    assert all(
+        not name.startswith("Environment")
+        for name in schema["components"]["schemas"]
+    )

@@ -21,6 +21,10 @@ def api_client(monkeypatch, tmp_path):
         "PRAXYS_LOCAL_ENCRYPTION_KEY", "JKkx_5SVHKQDr0HSMrwl0KQHcA0pl5pxsYSLEAQDB4o="
     )
     monkeypatch.setenv("PRAXYS_JWT_SECRET", "test-secret-endpoint-push-status")
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, _user: gate_name == "stryd_connection_enabled",
+    )
 
     from db import session as db_session
     db_session.engine = None
@@ -91,7 +95,12 @@ def api_client(monkeypatch, tmp_path):
 
     client = TestClient(app)
     try:
-        yield {"client": client, "current": current_user_id}
+        yield {
+            "client": client,
+            "current": current_user_id,
+            "db_session": db_session,
+            "status_dir": scratch_root,
+        }
     finally:
         app.dependency_overrides.clear()
         if db_session.engine is not None:
@@ -107,6 +116,30 @@ def api_client(monkeypatch, tmp_path):
         db_session.async_engine = None
         db_session.AsyncSessionLocal = None
         tmpdir.cleanup()
+
+
+def test_stryd_action_routes_return_not_found_when_gate_is_off(
+    api_client,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda _gate_name, _user: False,
+    )
+    client = api_client["client"]
+
+    pushed = client.post(
+        "/api/plan/push-stryd",
+        json={"workout_dates": ["2026-08-01"]},
+    )
+    assert pushed.status_code == 404, pushed.text
+
+    deleted = client.delete("/api/plan/stryd-workout/123")
+    assert deleted.status_code == 404, deleted.text
+
+    plan = client.get("/api/plan")
+    assert plan.status_code == 200, plan.text
+    assert "stryd_status" not in plan.json()
 
 
 def _store_stryd_credentials(
@@ -481,10 +514,6 @@ def test_unpinned_global_stryd_credentials_are_not_used(
     monkeypatch.delenv("PRAXYS_STRYD_ENV_USER_ID", raising=False)
     monkeypatch.setenv("STRYD_EMAIL", "global@example.test")
     monkeypatch.setenv("STRYD_PASSWORD", "global-password")
-    monkeypatch.setattr(
-        "api.plan_delivery.credentials.dotenv_values",
-        lambda path: {},
-    )
     calls = {"login": 0}
 
     def _login(email: str, password: str) -> tuple[str, str]:
@@ -646,12 +675,11 @@ def test_key_vault_credential_failure_requires_reconnect(
     assert calls["login"] == 0
 
 
-def test_pinned_development_user_can_use_legacy_stryd_environment(
+def test_pinned_development_stryd_environment_is_not_used(
     api_client,
     monkeypatch,
 ):
     user_id = "legacy-local-user"
-    workout_date = "2026-05-07"
     api_client["current"]["value"] = user_id
     assert api_client["client"].get("/api/plan").status_code == 200
     _delete_stryd_credentials(user_id)
@@ -660,53 +688,24 @@ def test_pinned_development_user_can_use_legacy_stryd_environment(
     monkeypatch.setenv("PRAXYS_STRYD_ENV_USER_ID", user_id)
     monkeypatch.setenv("STRYD_EMAIL", "local@example.test")
     monkeypatch.setenv("STRYD_PASSWORD", "local-password")
-    monkeypatch.setattr(
-        "api.plan_delivery.credentials.dotenv_values",
-        lambda path: {},
-    )
-    captured: dict[str, str] = {}
+    calls = {"login": 0}
 
     def _login(email: str, password: str) -> tuple[str, str]:
-        captured.update(email=email, password=password)
+        calls["login"] += 1
         return "local-provider-user", "local-token"
 
-    plan_df = pd.DataFrame([{
-        "date": workout_date,
-        "workout_type": "easy",
-        "planned_duration_min": 45,
-        "workout_description": "easy",
-        "source": "ai",
-    }])
     monkeypatch.setattr("sync.stryd_sync._login_api", _login)
-    monkeypatch.setattr(
-        "sync.stryd_sync.build_workout_blocks",
-        lambda workout, cp: [],
-    )
-    monkeypatch.setattr(
-        "sync.stryd_sync.create_workout_api",
-        lambda **kwargs: {"id": "legacy-local-id"},
-    )
-    monkeypatch.setattr(
-        "api.routes.plan.get_dashboard_data",
-        lambda user_id, db: {
-            "plan": plan_df,
-            "all_plans": plan_df,
-            "latest_cp": 260.0,
-            "activities": pd.DataFrame(),
-        },
-    )
 
     response = api_client["client"].post(
         "/api/plan/push-stryd",
-        json={"workout_dates": [workout_date]},
+        json={"workout_dates": ["2026-05-07"]},
     )
 
-    assert response.status_code == 200, response.text
-    assert response.json()["results"][0]["workout_id"] == "legacy-local-id"
-    assert captured == {
-        "email": "local@example.test",
-        "password": "local-password",
-    }
+    assert response.status_code == 400, response.text
+    assert response.json()["detail"] == (
+        "No Stryd credentials. Connect Stryd in Settings first."
+    )
+    assert calls["login"] == 0
 
 
 def test_push_endpoint_persists_under_calling_user(api_client, monkeypatch):
@@ -1485,6 +1484,65 @@ def test_delete_requires_callers_delivery_before_external_call(
 
     assert response.status_code == 404
     assert calls == {"login": 0, "delete": 0}
+
+
+def test_cleanup_does_not_import_legacy_stryd_state_when_gate_is_off(
+    api_client,
+    monkeypatch,
+):
+    client = api_client["client"]
+    assert client.get("/api/settings").status_code == 200
+
+    from db.models import (
+        PlanDelivery,
+        PlanTargetCalendarSync,
+        UserConfig,
+        UserConnection,
+    )
+    from db.plan_ledger import legacy_stryd_status_path
+
+    with api_client["db_session"].SessionLocal() as db:
+        db.query(PlanDelivery).filter_by(user_id="alice").delete()
+        db.query(PlanTargetCalendarSync).filter_by(user_id="alice").delete()
+        db.query(UserConnection).filter_by(
+            user_id="alice",
+            platform="stryd",
+        ).delete()
+        config = db.get(UserConfig, "alice")
+        if config is not None:
+            config.plan_management = {
+                "mode": "external",
+                "execution_target": None,
+                "delivery_enabled": False,
+                "adjustment_policy": "suggest_only",
+            }
+        db.commit()
+
+    path = legacy_stryd_status_path(api_client["status_dir"], "alice")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(
+            {
+                "2026-08-15": {
+                    "workout_id": "legacy-owned",
+                    "pushed_at": "2026-08-14T00:00:00Z",
+                    "status": "pushed",
+                },
+            },
+            handle,
+        )
+
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda _gate_name, _user: False,
+    )
+    response = client.post(
+        "/api/plan/deliveries/cleanup",
+        json={"scope": "future"},
+    )
+
+    assert response.status_code == 404
+    assert os.path.exists(path)
 
 
 def test_existing_unowned_stryd_row_does_not_block_praxys_delivery(

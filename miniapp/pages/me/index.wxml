@@ -36,6 +36,7 @@
           <view class="me-row__chevron" aria-hidden="true"></view>
         </view>
         <view
+          wx:if="{{showLabs}}"
           class="me-row"
           bindtap="onOpenLabs"
           hover-class="me-row--pressed"

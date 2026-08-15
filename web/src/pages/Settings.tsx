@@ -662,6 +662,13 @@ export default function Settings() {
   };
 
   const connections = config.connections || [];
+  const visibleConnectablePlatforms = CONNECTABLE_PLATFORMS.filter(
+    (platform) => Object.prototype.hasOwnProperty.call(
+      platformCapabilities,
+      platform,
+    ),
+  );
+  const strydAvailable = visibleConnectablePlatforms.includes('stryd');
   const anySyncing = Object.values(syncStatus).some((s) => s.status === 'syncing');
   const rawSyncInterval = String(
     (config.source_options as Record<string, unknown> | undefined)?.sync_interval_hours
@@ -900,7 +907,7 @@ export default function Settings() {
         </Card>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-          {CONNECTABLE_PLATFORMS.map((platform) => {
+          {visibleConnectablePlatforms.map((platform) => {
             const meta = PLATFORM_META[platform] || { label: platform };
             const caps = platformCapabilities[platform] || {};
             const status = syncStatus[platform];
@@ -1258,7 +1265,7 @@ export default function Settings() {
               );
             })}
           </div>
-          {config.training_base === 'power' && !connections.includes('stryd') && (
+          {strydAvailable && config.training_base === 'power' && !connections.includes('stryd') && (
             <div
               className="mt-4 rounded-lg border border-accent-cobalt/30 bg-accent-cobalt/5 p-3"
               style={{ borderLeftWidth: '3px', borderLeftColor: 'var(--color-accent-cobalt)' }}

@@ -13,7 +13,16 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any, Mapping
 
 import requests
-from stryd_client import StrydClient, StrydClientError
+
+try:
+    from stryd_client import StrydClient, StrydClientError
+except ModuleNotFoundError as exc:
+    if exc.name != "stryd_client":
+        raise
+    StrydClient = None
+
+    class StrydClientError(Exception):
+        """Fallback error type while the private client is unavailable."""
 
 from api.plan_workout_structure import (
     StructuredWorkoutRepeatGroupV1,
@@ -26,14 +35,32 @@ from api.plan_workout_structure import (
 logger = logging.getLogger(__name__)
 
 
+class StrydClientUnavailableError(RuntimeError):
+    """The private Stryd transport is not installed on this worker."""
+
+
+def stryd_client_available() -> bool:
+    """Return whether the private Stryd transport is installed."""
+    return StrydClient is not None
+
+
+def _require_stryd_client():
+    """Return the installed client type or fail explicitly."""
+    if StrydClient is None:
+        raise StrydClientUnavailableError(
+            "Stryd integration is unavailable on this worker"
+        )
+    return StrydClient
+
+
 def _authenticated_client(
     user_id: str | None,
     token: str,
     *,
     timeout: float,
-) -> StrydClient:
+) -> Any:
     """Create a token-backed client using this module's injectable transport."""
-    return StrydClient.from_token(
+    return _require_stryd_client().from_token(
         token=token,
         user_id=user_id,
         timeout=timeout,
@@ -98,7 +125,7 @@ def stryd_delivery_payload_fingerprint(payload: dict) -> str:
 def _login_api(email: str, password: str) -> tuple[str, str]:
     """Login via Stryd API. Returns (user_id, token)."""
     logger.debug("  Logging in via Stryd API...")
-    session = StrydClient(
+    session = _require_stryd_client()(
         email=email,
         password=password,
         timeout=15,

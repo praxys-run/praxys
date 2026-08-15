@@ -9,7 +9,13 @@ from sync.stryd_sync import (
     _workout_type_from_name,
     fetch_activities_api,
     fetch_training_plan_api,
+    stryd_client_available,
     stryd_delivery_content_fingerprint,
+)
+
+pytestmark = pytest.mark.skipif(
+    not stryd_client_available(),
+    reason="private stryd-client dependency is unavailable",
 )
 
 

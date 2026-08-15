@@ -139,10 +139,16 @@ jobs:
       - name: Deploy queue, identity, job, and alerts
         env:
           PRAXYS_LABS_DATABASE_URL: ${{ secrets.PRAXYS_LABS_DATABASE_URL }}
+          STATSIG_SDK_KEY: ${{ secrets.STATSIG_SDK_KEY }}
+          STATSIG_ENV: ${{ vars.STATSIG_ENV || 'production' }}
         run: |
           set -euo pipefail
           if [[ -z "${PRAXYS_LABS_DATABASE_URL}" ]]; then
             echo "PRAXYS_LABS_DATABASE_URL is required when worker deployment is enabled." >&2
+            exit 1
+          fi
+          if [[ -z "${STATSIG_SDK_KEY}" ]]; then
+            echo "STATSIG_SDK_KEY is required when worker deployment is enabled." >&2
             exit 1
           fi
           az deployment group create \
@@ -153,6 +159,8 @@ jobs:
               location="${AZURE_LOCATION}" \
               image="${IMAGE}:${GITHUB_SHA}" \
               databaseUrl="${PRAXYS_LABS_DATABASE_URL}" \
+              statsigSdkKey="${STATSIG_SDK_KEY}" \
+              statsigEnv="${STATSIG_ENV}" \
               logAnalyticsWorkspaceName="${LOG_ANALYTICS_WORKSPACE}" \
               backendAppInsightsName="${BACKEND_APPINSIGHTS_NAME}" \
             --only-show-errors \
@@ -265,12 +273,15 @@ jobs:
                 maxExecutions:properties.configuration.eventTriggerConfig.scale.maxExecutions,
                 image:properties.template.containers[0].image,
                 cpu:properties.template.containers[0].resources.cpu,
-                memory:properties.template.containers[0].resources.memory
+                memory:properties.template.containers[0].resources.memory,
+                statsigEnv:properties.template.containers[0].env[?name=='STATSIG_ENV']|[0].value,
+                statsigSecretRef:properties.template.containers[0].env[?name=='STATSIG_SDK_KEY']|[0].secretRef
               }" -o json
           )"
           echo "${job_config}"
           jq -e \
             --arg image "${IMAGE}:${GITHUB_SHA}" \
+            --arg statsig_env "${STATSIG_ENV}" \
             '.triggerType == "Event"
               and .timeout == 1800
               and .retries == 0
@@ -280,7 +291,9 @@ jobs:
               and .maxExecutions == 1
               and .image == $image
               and .cpu == 1
-              and .memory == "2Gi"' \
+              and .memory == "2Gi"
+              and .statsigEnv == $statsig_env
+              and .statsigSecretRef == "statsig-sdk-key"' \
             <<< "${job_config}" >/dev/null
 
           queue_config="$(

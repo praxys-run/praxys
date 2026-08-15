@@ -38,8 +38,24 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
+      - name: Materialize private Stryd client
+        env:
+          WHEEL_B64: ${{ secrets.STRYD_CLIENT_WHEEL_B64 }}
+        run: |
+          if [ -z "$WHEEL_B64" ]; then
+            echo "::error::STRYD_CLIENT_WHEEL_B64 is required for backend deployment"
+            exit 1
+          fi
+          mkdir -p .private-deps
+          printf '%s' "$WHEEL_B64" \
+            | base64 --decode \
+            > .private-deps/stryd_client-0.2.0-py3-none-any.whl
+          echo "d5ecc8c14beafe1cf2df6e5021b0bee71094b15cf14dfc039f0652c8c9c030e4  .private-deps/stryd_client-0.2.0-py3-none-any.whl" \
+            | sha256sum --check
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          pip install .private-deps/stryd_client-0.2.0-py3-none-any.whl
       - name: Run tests
         run: python -m pytest tests/ -v
 
@@ -71,6 +87,21 @@ jobs:
           echo "${VERSION}" > api/_build_version.txt
           echo "PRAXYS_EXPECTED_API_VERSION=${VERSION}" >> "$GITHUB_ENV"
           echo "Build version: ${VERSION}"
+
+      - name: Materialize private Stryd client for Oryx
+        env:
+          WHEEL_B64: ${{ secrets.STRYD_CLIENT_WHEEL_B64 }}
+        run: |
+          if [ -z "$WHEEL_B64" ]; then
+            echo "::error::STRYD_CLIENT_WHEEL_B64 is required for backend deployment"
+            exit 1
+          fi
+          mkdir -p .private-deps
+          wheel=".private-deps/stryd_client-0.2.0-py3-none-any.whl"
+          printf '%s' "$WHEEL_B64" | base64 --decode > "$wheel"
+          echo "d5ecc8c14beafe1cf2df6e5021b0bee71094b15cf14dfc039f0652c8c9c030e4  $wheel" \
+            | sha256sum --check
+          printf '\n%s\n' "$wheel" >> requirements.txt
 
       - name: Wait for compatible frontend deployment
         if: github.event_name == 'push' && github.ref_type == 'branch'

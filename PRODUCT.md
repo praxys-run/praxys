@@ -16,7 +16,7 @@ The mini program (`miniapp/`) serves the WeChat-native CN audience; it's a view 
 
 ## Product Purpose
 
-Scientific training system for endurance runners. Praxys ingests multi-source data — Garmin, Stryd, Oura Ring — and produces interpreted, methodology-cited outputs. The user picks their **training base** (power, heart rate, or pace); the system computes thresholds (CP, LTHR, threshold pace), zones, and load against whichever modality fits their gear and preference. Power is supported well because Stryd / Garmin power exists, but it's one option of three, not a prerequisite.
+Scientific training system for endurance runners. Praxys combines activity and recovery data from supported platforms and produces interpreted, methodology-cited outputs. The user picks their **training base** (power, heart rate, or pace); the system computes thresholds (CP, LTHR, threshold pace), zones, and load against whichever modality fits their gear and preference. Power is one option of three, not a prerequisite.
 
 - **Today's signal:** go / modify / rest, grounded in HRV, sleep, resting HR, recent load.
 - **Managed training:** start, adopt, review, adjust, pause, and end Praxys-owned plans.

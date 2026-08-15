@@ -2,6 +2,8 @@ import { setTabBarSelected } from '../../utils/tabbar';
 import type { IAppOption } from '../../app';
 import { applyThemeChrome, themeClassName } from '../../utils/theme';
 import { detectLocale, t } from '../../utils/i18n';
+import { apiGet } from '../../utils/api-client';
+import type { SettingsResponse } from '../../types/api';
 import { MINIAPP_BUILD_VERSION } from '../../utils/version';
 
 function translations() {
@@ -30,6 +32,7 @@ Page({
     locale: detectLocale(),
     tr: translations(),
     appVersion: MINIAPP_BUILD_VERSION,
+    showLabs: false,
   },
 
   onLoad() {
@@ -52,6 +55,20 @@ Page({
     if (Object.keys(patch).length > 0) this.setData(patch);
     applyThemeChrome();
     setTabBarSelected(this, 4);
+    void this.refreshPrivateCapabilities();
+  },
+
+  async refreshPrivateCapabilities() {
+    try {
+      const settings = await apiGet<SettingsResponse>('/api/settings');
+      const showLabs = Object.prototype.hasOwnProperty.call(
+        settings.platform_capabilities,
+        'stryd',
+      );
+      if (showLabs !== this.data.showLabs) this.setData({ showLabs });
+    } catch (error) {
+      console.warn('[me] private capability check failed:', error);
+    }
   },
 
   onOpenSettings() {

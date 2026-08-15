@@ -124,6 +124,7 @@ def _run(db: Session, user_id: str) -> dict:
     from analysis.insight_hash import compute_dataset_hash
     from api.ai import build_training_context
     from api import statsig_client
+    from api.stryd_access import stryd_connection_enabled
     from api.insights_generator import (
         generate_race_forecast,
         generate_training_review,
@@ -150,6 +151,10 @@ def _run(db: Session, user_id: str) -> dict:
                 user_id=user_id,
                 db=db,
                 recent_training_weeks=INSIGHT_CONTEXT_LOOKBACK_WEEKS,
+                include_stryd_plan=stryd_connection_enabled(
+                    db,
+                    user_id=user_id,
+                ),
             )
             source_revisions = get_revisions(db, user_id, SCOPES)
             if run_date == date.today() and revisions_before == source_revisions:

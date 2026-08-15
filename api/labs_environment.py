@@ -1138,6 +1138,9 @@ def _claim_job(
     identity = _job_identity(db, job_id)
     if identity is None:
         return None
+    from api.stryd_access import stryd_connection_enabled
+
+    access_enabled = stryd_connection_enabled(db, user_id=identity[0])
     begin_serialized_write(db)
     lock_revision_writes(db, identity[0])
     row = _locked_enrollment(db, identity[0], identity[1])
@@ -1155,6 +1158,38 @@ def _claim_job(
         claimable = True
     if not claimable:
         db.rollback()
+        return None
+    if not access_enabled:
+        completed_at = datetime.utcnow()
+        job.status = "cancelled"
+        job.failure_code = "stryd_access_revoked"
+        job.retryable_failure = False
+        job.completed_at = completed_at
+        job.lease_expires_at = None
+        job.updated_at = completed_at
+        outbox = (
+            db.query(LabsAnalysisOutbox)
+            .filter(LabsAnalysisOutbox.job_id == job.id)
+            .with_for_update()
+            .one_or_none()
+        )
+        if outbox is not None:
+            outbox.status = "cancelled"
+            outbox.lease_expires_at = None
+            outbox.updated_at = completed_at
+        if _same_job_generation(row, job):
+            assert row is not None
+            row.status = "unavailable"
+            row.availability_reason = None
+            row.started_at = None
+            row.completed_at = completed_at
+            row.updated_at = completed_at
+        db.commit()
+        _record_job_event(
+            job,
+            event="cancelled",
+            outcome="access_revoked",
+        )
         return None
     if _same_job_generation(row, job) and not _uses_current_model(row, job):
         _cancel_model_mismatch(db, row, job)

@@ -24,7 +24,11 @@ from fastapi import APIRouter, BackgroundTasks, Depends
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
-from api.auth import get_data_user_id, require_write_access
+from api.auth import (
+    get_current_user_id,
+    get_data_user_id,
+    require_write_access,
+)
 from api.env_compat import getenv_compat
 from api.views import utc_isoformat
 from db.session import get_db
@@ -1134,6 +1138,11 @@ def _run_sync(
     garmin_token_state: dict[str, object] = {}
 
     try:
+        if source == "stryd":
+            from api.stryd_access import stryd_connection_enabled
+
+            if not stryd_connection_enabled(db, user_id=user_id):
+                raise RuntimeError("Stryd integration is not available")
         token_lease = (
             _garmin_tokenstore_lease(user_id)
             if source == "garmin"
@@ -2637,12 +2646,19 @@ def _sync_coros(user_id: str, creds: dict, from_date: str | None,
 
 @router.get("/sync/status")
 def get_sync_status(
+    viewer_user_id: str = Depends(get_current_user_id),
     user_id: str = Depends(get_data_user_id),
     db: Session = Depends(get_db),
 ) -> dict:
     """Return current sync status for this user's connected platforms."""
+    from api.stryd_access import stryd_connection_enabled
     from db.models import UserConnection
     from db.sync_scheduler import ACTIVE_CONNECTION_STATUSES
+
+    stryd_enabled = stryd_connection_enabled(
+        db,
+        user_id=viewer_user_id,
+    )
 
     # Snapshot runtime status under lock to avoid reading partial updates.
     # _get_user_status acquires _sync_lock internally, so call it outside
@@ -2658,6 +2674,8 @@ def get_sync_status(
     result = {}
     for conn in connections:
         src = conn.platform
+        if src == "stryd" and not stryd_enabled:
+            continue
         runtime = runtime_snapshot.get(src, {})
         result[src] = {
             "status": runtime.get("status", "idle"),
@@ -2669,6 +2687,8 @@ def get_sync_status(
 
     # Include platforms with env var creds but no DB connection (dev mode)
     for src in _DEFAULT_SOURCES:
+        if src == "stryd" and not stryd_enabled:
+            continue
         if src not in result:
             creds = _get_credentials(user_id, src, db)
             if creds:
@@ -2694,6 +2714,10 @@ def trigger_sync(
     """Trigger sync for a single source using the user's stored credentials."""
     if source not in _DEFAULT_SOURCES:
         return {"status": "error", "message": f"Unknown source: {source}"}
+    if source == "stryd":
+        from api.stryd_access import require_stryd_connection_enabled
+
+        require_stryd_connection_enabled(db, user_id=user_id)
 
     sync_snapshot = _sync_credentials_snapshot(
         user_id,
@@ -2741,6 +2765,11 @@ def trigger_sync_all(
     status = _get_user_status(user_id)
 
     for source in _DEFAULT_SOURCES:
+        if source == "stryd":
+            from api.stryd_access import stryd_connection_enabled
+
+            if not stryd_connection_enabled(db, user_id=user_id):
+                continue
         sync_snapshot = _sync_credentials_snapshot(
             user_id,
             source,

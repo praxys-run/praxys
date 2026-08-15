@@ -224,8 +224,8 @@ const EN_TODAY = {
   'Weekly distance': 'Weekly distance',
   '{lookback}-week average · {average} km/week':
     '{lookback}-week average · {average} km/week',
-  'What metric Praxys uses to measure intensity. Power needs Stryd; Pace works with anything that gives you GPS.':
-    'What metric Praxys uses to measure intensity. Power needs Stryd; Pace works with anything that gives you GPS.',
+  'What metric Praxys uses to measure intensity. Power needs a compatible running-power source; Pace works with GPS activity data.':
+    'What metric Praxys uses to measure intensity. Power needs a compatible running-power source; Pace works with GPS activity data.',
   'Unbind your WeChat profile from this Praxys account so you can sign in as a different user.':
     'Unbind your WeChat profile from this Praxys account so you can sign in as a different user.',
   Splits: 'Splits',
@@ -287,8 +287,8 @@ const EN_TRAINING = {
   'Add repeat': 'Add repeat',
   'Compare other providers': 'Compare other providers',
   'Delivery blocked': 'Delivery blocked',
-  'No training data yet. Sync Garmin / Stryd from the web app (Settings → Sync) to populate this view.':
-    'No training data yet. Sync Garmin / Stryd from the web app (Settings → Sync) to populate this view.',
+  'No training data yet. Sync a connected platform from the web app (Settings → Sync) to populate this view.':
+    'No training data yet. Sync a connected platform from the web app (Settings → Sync) to populate this view.',
   Volume: 'Volume',
   'Weekly values': 'Weekly values',
   'Fitness & Fatigue': 'Fitness & Fatigue',
@@ -359,12 +359,12 @@ const EN_SETTINGS = {
   imperial: 'Imperial',
   Connections: 'Connections',
   'Manage connections from the web app.': 'Manage connections from the web app.',
-  "No platforms connected. Link Garmin / Stryd / Oura from the web app — their OAuth flows aren't supported in mini programs.":
-    "No platforms connected. Link Garmin / Stryd / Oura from the web app — their OAuth flows aren't supported in mini programs.",
+  'No platforms connected. Manage supported connections from the web app.':
+    'No platforms connected. Manage supported connections from the web app.',
   'Auto-detected from synced fitness data; override on the web.':
     'Auto-detected from synced fitness data; override on the web.',
-  'No thresholds yet. Sync Garmin / Stryd data to auto-detect CP, LTHR, and pace — or enter values manually on the web.':
-    'No thresholds yet. Sync Garmin / Stryd data to auto-detect CP, LTHR, and pace — or enter values manually on the web.',
+  'No thresholds yet. Sync fitness data to auto-detect CP, LTHR, and pace — or enter values manually on the web.':
+    'No thresholds yet. Sync fitness data to auto-detect CP, LTHR, and pace — or enter values manually on the web.',
   'Browse the load / recovery / prediction / zone theories':
     'Browse the load / recovery / prediction / zone theories',
   'Open Praxys on web': 'Open Praxys on web',
@@ -661,8 +661,8 @@ const ZH_TODAY = {
   'Weekly distance': '周里程',
   '{lookback}-week average · {average} km/week':
     '近 {lookback} 周平均 · {average} 公里/周',
-  'What metric Praxys uses to measure intensity. Power needs Stryd; Pace works with anything that gives you GPS.':
-    'Praxys 用这个指标衡量训练强度。功率需使用 Stryd；只要设备支持 GPS，即可使用配速。',
+  'What metric Praxys uses to measure intensity. Power needs a compatible running-power source; Pace works with GPS activity data.':
+    'Praxys 用这个指标衡量训练强度。功率需要兼容的跑步功率数据源；配速可使用 GPS 活动数据。',
   'Unbind your WeChat profile from this Praxys account so you can sign in as a different user.':
     '解除微信与当前 Praxys 账号的绑定，以便切换到其他账号。',
   Splits: '分段',
@@ -722,8 +722,8 @@ const ZH_TRAINING = {
   'Add repeat': '添加重复组',
   'Compare other providers': '比较其他平台',
   'Delivery blocked': '交付受阻',
-  'No training data yet. Sync Garmin / Stryd from the web app (Settings → Sync) to populate this view.':
-    '暂无训练数据。请先在网页端的“设置 → 同步”中同步 Garmin / Stryd 数据。',
+  'No training data yet. Sync a connected platform from the web app (Settings → Sync) to populate this view.':
+    '暂无训练数据。请先在网页端的“设置 → 同步”中同步已连接的平台。',
   Volume: '里程',
   'Weekly values': '每周数据',
   'Fitness & Fatigue': '体能与疲劳',
@@ -780,12 +780,12 @@ const ZH_SETTINGS = {
   imperial: '英制',
   Connections: '已连接平台',
   'Manage connections from the web app.': '已连接平台请前往网页端管理。',
-  "No platforms connected. Link Garmin / Stryd / Oura from the web app — their OAuth flows aren't supported in mini programs.":
-    '尚未连接平台。请前往网页端连接 Garmin / Stryd / Oura；小程序暂不支持这些平台的 OAuth 授权。',
+  'No platforms connected. Manage supported connections from the web app.':
+    '尚未连接平台。请前往网页端管理可用连接。',
   'Auto-detected from synced fitness data; override on the web.':
     '根据已同步的体能数据自动识别；如需调整，请前往网页端。',
-  'No thresholds yet. Sync Garmin / Stryd data to auto-detect CP, LTHR, and pace — or enter values manually on the web.':
-    '暂无阈值数据。同步 Garmin / Stryd 后可自动识别 CP、LTHR 和阈值配速，也可在网页端手动填写。',
+  'No thresholds yet. Sync fitness data to auto-detect CP, LTHR, and pace — or enter values manually on the web.':
+    '暂无阈值数据。同步体能数据后可自动识别 CP、LTHR 和阈值配速，也可在网页端手动填写。',
   'Browse the load / recovery / prediction / zone theories': '浏览负荷、恢复、预测和区间理论',
   'Open Praxys on web': '在网页端打开 Praxys',
   'Export my data on web': '在网页端导出我的数据',

@@ -436,7 +436,7 @@ function translations() {
       'Praxys keeps the canonical workout. This preview explains what the selected platform can receive without losing meaning.',
     ),
     noDeliveryTarget: t(
-      'No Garmin or Stryd execution target is selected. Compatibility remains informational until plan delivery is configured.',
+      'No execution target is selected. Compatibility remains informational until plan delivery is configured.',
     ),
     compareOtherProviders: t('Compare other providers'),
     hideOtherProviders: t('Hide other providers'),

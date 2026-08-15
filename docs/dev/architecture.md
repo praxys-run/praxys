@@ -3,7 +3,7 @@
 ## System Overview
 
 ```
-Garmin/Stryd/Oura APIs
+Supported platform APIs
         |
    sync/*.py          Fetch + normalize → DB rows
         |
@@ -109,7 +109,7 @@ The custom registration endpoint (`api/routes/register.py`) enforces these rules
 
 ### Credential Encryption
 
-Platform credentials (Garmin/Stryd passwords, Oura tokens) are stored encrypted using envelope encryption (`db/crypto.py`):
+Platform credentials and access tokens are stored encrypted using envelope encryption (`db/crypto.py`):
 
 1. A fresh **Data Encryption Key (DEK)** is generated per credential (Fernet)
 2. The DEK encrypts the credential JSON
@@ -122,11 +122,13 @@ If `KEY_VAULT_URL` is set, the `CredentialVault` initializes an Azure `Cryptogra
 
 ### Plan Delivery Boundary
 
-`api/plan_delivery/` separates provider-neutral orchestration from Stryd
-details. Raw authentication and PowerCenter HTTP operations live in the
-external [`stryd-client`](https://github.com/praxys-run/python-stryd-client)
-package; `sync/stryd_sync.py` retains Praxys-specific parsing, workout
-translation, and fingerprints. The service authenticates before starting a
+`api/plan_delivery/` separates provider-neutral orchestration from provider
+details. The maintainer-only Stryd adapter loads raw authentication and
+PowerCenter HTTP operations from a private, hash-pinned `stryd-client` wheel;
+`sync/stryd_sync.py` retains Praxys-specific parsing, workout translation, and
+fingerprints. `api/stryd_access.py` applies the default-off
+`stryd_connection_enabled` gate before credentials or provider I/O are reached.
+The service authenticates before starting a
 durable attempt, scopes credentials and ledger rows to the authenticated
 Praxys user, and records a fingerprint of the exact provider payload
 (including CP-derived workout blocks), plus a normalized content fingerprint
@@ -518,17 +520,17 @@ Database layer:
 
 ### sync/
 
-Each sync adapter (`garmin_sync.py`, `stryd_sync.py`, `oura_sync.py`):
+Each sync adapter:
 - Authenticates with the platform API
 - Fetches new data since last sync (or from `--from-date`)
 - Normalizes to the model schema
 - Writes to the database via `db/sync_writer.py`
 
-Stryd's undocumented endpoint transport is isolated in the external
-`stryd-client` package. Praxys owns only normalization, persistence, and
+The maintainer-only Stryd transport is isolated in the private `stryd-client`
+package. Praxys owns only normalization, persistence, access control, and
 training/workout semantics around the raw responses.
 
-`sync_all.py` orchestrates all three with error isolation per source.
+`sync_all.py` orchestrates configured sources with error isolation per source.
 
 ### analysis/
 
