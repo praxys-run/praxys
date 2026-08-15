@@ -1,7 +1,7 @@
-"""Stryd API integration — fetch/parse layer for the sync API route.
+"""Stryd fetch/parse layer for the sync API route.
 
 Provides login, activity fetch, training plan fetch, lap split computation,
-and workout upload/delete via the Stryd calendar and activity APIs.
+and workout translation around the reusable ``stryd-client`` transport.
 """
 import hashlib
 import json
@@ -14,6 +14,16 @@ from typing import Any, Mapping
 
 import requests
 
+try:
+    from stryd_client import StrydClient, StrydClientError
+except ModuleNotFoundError as exc:
+    if exc.name != "stryd_client":
+        raise
+    StrydClient = None
+
+    class StrydClientError(Exception):
+        """Fallback error type while the private client is unavailable."""
+
 from api.plan_workout_structure import (
     StructuredWorkoutRepeatGroupV1,
     StructuredWorkoutStepV1,
@@ -25,20 +35,43 @@ from api.plan_workout_structure import (
 logger = logging.getLogger(__name__)
 
 
+class StrydClientUnavailableError(RuntimeError):
+    """The private Stryd transport is not installed on this worker."""
+
+
+def stryd_client_available() -> bool:
+    """Return whether the private Stryd transport is installed."""
+    return StrydClient is not None
+
+
+def _require_stryd_client():
+    """Return the installed client type or fail explicitly."""
+    if StrydClient is None:
+        raise StrydClientUnavailableError(
+            "Stryd integration is unavailable on this worker"
+        )
+    return StrydClient
+
+
+def _authenticated_client(
+    user_id: str | None,
+    token: str,
+    *,
+    timeout: float,
+) -> Any:
+    """Create a token-backed client using this module's injectable transport."""
+    return _require_stryd_client().from_token(
+        token=token,
+        user_id=user_id,
+        timeout=timeout,
+        http=requests,
+    )
+
+
 def _workout_type_from_name(name: str) -> str:
     """Extract workout type from Stryd plan name like 'Day 46 - Steady Aerobic'."""
     m = re.match(r"Day\s+\d+\s*-\s*(.+)", name)
     return m.group(1).strip().lower() if m else name.lower()
-
-
-# --- API-based fetch ---
-
-STRYD_LOGIN_URL = "https://www.stryd.com/b/email/signin"
-STRYD_CALENDAR_API = "https://api.stryd.com/b/api/v1/users/{user_id}/calendar"
-STRYD_ACTIVITY_API = "https://api.stryd.com/b/api/v1/activities/{activity_id}"
-STRYD_WORKOUT_API = "https://api.stryd.com/b/api/v1/users/{user_id}/workouts"
-STRYD_ESTIMATE_API = "https://api.stryd.com/b/api/v1/users/workouts/estimate"
-STRYD_USER_API = "https://api.stryd.com/b/api/v1/users/{user_id}"
 
 
 def _normalize_stryd_content_value(value):
@@ -92,19 +125,14 @@ def stryd_delivery_payload_fingerprint(payload: dict) -> str:
 def _login_api(email: str, password: str) -> tuple[str, str]:
     """Login via Stryd API. Returns (user_id, token)."""
     logger.debug("  Logging in via Stryd API...")
-    resp = requests.post(
-        STRYD_LOGIN_URL,
-        json={"email": email, "password": password},
+    session = _require_stryd_client()(
+        email=email,
+        password=password,
         timeout=15,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    user_id = data.get("id", "")
-    token = data.get("token", "")
-    if not token:
-        raise RuntimeError("Login succeeded but no token in response")
-    logger.debug(f"  Login successful (user_id={user_id})")
-    return user_id, token
+        http=requests,
+    ).authenticate()
+    logger.debug(f"  Login successful (user_id={session.user_id})")
+    return session.user_id, session.token
 
 
 def fetch_current_cp(user_id: str, token: str) -> float | None:
@@ -115,15 +143,12 @@ def fetch_current_cp(user_id: str, token: str) -> float | None:
     shown on Stryd's Power Center. Per-activity ftp is a snapshot at activity
     time and may lag behind the profile value.
     """
-    url = STRYD_USER_API.format(user_id=user_id)
     try:
-        resp = requests.get(
-            url,
-            headers={"Authorization": f"Bearer {token}"},
+        data = _authenticated_client(
+            user_id,
+            token,
             timeout=15,
-        )
-        resp.raise_for_status()
-        data = resp.json()
+        ).get_profile()
         training_info = data.get("training_info") or {}
         cp = training_info.get("critical_power")
         if cp is not None:
@@ -132,7 +157,13 @@ def fetch_current_cp(user_id: str, token: str) -> float | None:
             return cp
         logger.debug("  No CP found in user profile training_info")
         return None
-    except Exception as e:
+    except (
+        requests.RequestException,
+        StrydClientError,
+        OverflowError,
+        TypeError,
+        ValueError,
+    ) as e:
         logger.debug(f"  Failed to fetch current CP: {e}")
         return None
 
@@ -151,14 +182,11 @@ def fetch_activity_splits(
     already fetched to compute lap averages; this function preserves them
     instead of discarding after averaging.
     """
-    url = STRYD_ACTIVITY_API.format(activity_id=activity_id)
-    resp = requests.get(
-        url,
-        headers={"Authorization": f"Bearer {token}"},
+    data = _authenticated_client(
+        user_id=None,
+        token=token,
         timeout=30,
-    )
-    resp.raise_for_status()
-    data = resp.json()
+    ).get_activity(activity_id)
 
     power_list = data.get("total_power_list", [])
     hr_list = data.get("heart_rate_list", [])
@@ -300,15 +328,14 @@ def fetch_activities_api(
     from_ts = int(start_dt.timestamp())
     to_ts = int(end_dt.timestamp())
 
-    url = STRYD_CALENDAR_API.format(user_id=user_id)
-    resp = requests.get(
-        url,
-        params={"from": from_ts, "to": to_ts, "include_deleted": "false"},
-        headers={"Authorization": f"Bearer {token}"},
+    data = _authenticated_client(
+        user_id,
+        token,
         timeout=30,
+    ).get_calendar(
+        from_timestamp=from_ts,
+        to_timestamp=to_ts,
     )
-    resp.raise_for_status()
-    data = resp.json()
 
     activities = data.get("activities", [])
     logger.debug(f"  API returned {len(activities)} activities")
@@ -654,15 +681,14 @@ def fetch_training_plan_api(
     from_ts = int(datetime.combine(start, datetime.min.time()).timestamp())
     to_ts = int(datetime.combine(end, datetime.max.time()).timestamp())
 
-    url = STRYD_CALENDAR_API.format(user_id=user_id)
-    resp = requests.get(
-        url,
-        params={"from": from_ts, "to": to_ts, "include_deleted": "false"},
-        headers={"Authorization": f"Bearer {token}"},
+    data = _authenticated_client(
+        user_id,
+        token,
         timeout=30,
+    ).get_calendar(
+        from_timestamp=from_ts,
+        to_timestamp=to_ts,
     )
-    resp.raise_for_status()
-    data = resp.json()
 
     workouts = data.get("workouts") or []
     logger.debug(f"  Plan API returned {len(workouts)} planned workouts")
@@ -831,14 +857,11 @@ def fetch_activity_detail_api(
     Returns the full activity object with populated *_list fields.
     Raises requests.HTTPError on API failure.
     """
-    url = STRYD_ACTIVITY_API.format(activity_id=activity_id)
-    resp = requests.get(
-        url,
-        headers={"Authorization": f"Bearer {token}"},
+    return _authenticated_client(
+        user_id=None,
+        token=token,
         timeout=30,
-    )
-    resp.raise_for_status()
-    return resp.json()
+    ).get_activity(activity_id)
 
 
 def compute_lap_splits(activity: dict, activity_id: str) -> list[dict]:
@@ -1404,7 +1427,6 @@ def create_workout_api(
     dt = datetime.strptime(workout_date, "%Y-%m-%d")
     timestamp = int(dt.replace(tzinfo=timezone.utc).timestamp())
 
-    url = STRYD_WORKOUT_API.format(user_id=user_id)
     payload = {
         "type": workout_type,
         "desc": description,
@@ -1419,18 +1441,14 @@ def create_workout_api(
         "tags": None,
     }
 
-    resp = requests.post(
-        url,
-        params={"timestamp": timestamp},
-        json=payload,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        },
+    return _authenticated_client(
+        user_id,
+        token,
         timeout=30,
+    ).create_workout(
+        timestamp=timestamp,
+        payload=payload,
     )
-    resp.raise_for_status()
-    return resp.json()
 
 
 def delete_workout_api(user_id: str, token: str, workout_id: str) -> bool:
@@ -1438,11 +1456,9 @@ def delete_workout_api(user_id: str, token: str, workout_id: str) -> bool:
 
     Returns True if successfully deleted.
     """
-    url = f"{STRYD_WORKOUT_API.format(user_id=user_id)}/{workout_id}"
-    resp = requests.delete(
-        url,
-        headers={"Authorization": f"Bearer {token}"},
+    _authenticated_client(
+        user_id,
+        token,
         timeout=30,
-    )
-    resp.raise_for_status()
+    ).delete_workout(workout_id)
     return True

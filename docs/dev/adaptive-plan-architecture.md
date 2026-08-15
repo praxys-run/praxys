@@ -641,15 +641,16 @@ fingerprint, policy/schema version, and timestamp.
 | Surface | Primary job | Agentic-loop role |
 | --- | --- | --- |
 | Today | Decide today's action | Immediate observation and bounded daily decision |
-| Plan | Manage future intent and accepted changes | Proposals, approvals, canonical revisions, lifecycle, and delivery |
-| Insights | Understand progress, risk, and gaps | Evaluation, expectation change, checkpoint and outcome explanation |
+| Training | Manage future intent and accepted changes | Proposals, approvals, canonical revisions, lifecycle, and delivery |
+| Analysis | Understand progress, risk, and gaps | Evaluation, expectation change, checkpoint and outcome explanation |
 | Goal | Define the objective and feasibility contract | Goal versioning, assumptions, and success criteria |
 | Activities | Inspect what occurred | Raw execution evidence and correction |
 
-Insights can initiate `propose_plan_change`, but Plan owns review and application
-of the canonical diff. Web can expose Plan and Insights as separate top-level
-routes. Miniapp can expose separate pages under one native Training entry point
-to preserve its constrained tab bar.
+Analysis can initiate `propose_plan_change`, but Training owns review and
+application of the canonical diff. Web exposes Training and Analysis as separate
+top-level routes. Miniapp exposes Training and Analysis as separate primary tabs;
+Analysis keeps its source Activities behind an in-page switch so the constrained
+five-item tab bar can reserve Me for settings and secondary tools.
 
 Plugin and MCP experiences may combine these jobs conversationally, but tool
 calls still respect the same query/command and permission boundaries.

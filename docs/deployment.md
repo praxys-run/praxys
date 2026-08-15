@@ -334,7 +334,7 @@ Set via Azure Portal > App Service > Configuration > Application settings:
 | `KEY_VAULT_URL` | `https://kv-trainsight.vault.azure.net/` | Key Vault URI |
 | `KEY_VAULT_KEY_NAME` | `trainsight-master-key` | RSA key name |
 
-Platform credentials (Garmin, Stryd, Oura) are entered by each user via the Settings page and stored encrypted in the database — no environment variables needed for those.
+Platform credentials are entered by each user through the Settings page and stored encrypted in the database — no provider login credentials belong in environment variables.
 
 ## Auto-Migration
 

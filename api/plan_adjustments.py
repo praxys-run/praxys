@@ -25,6 +25,7 @@ from analysis.plan_adjustments import (
 from analysis.science import load_active_science
 from api.deps import _compute_recovery_analysis, _recovery_for_guidance
 from api.plan_reconciliation import classify_plan_delivery_snapshot
+from api.stryd_access import without_stryd_delivery_metadata
 from api.views import utc_isoformat
 from db.cache_revision import bump_revisions
 from db.models import (
@@ -713,6 +714,7 @@ def list_plan_adjustments(
     limit: int = 20,
     start: date | None = None,
     end: date | None = None,
+    include_stryd_delivery: bool = True,
 ) -> dict[str, Any]:
     """Return durable automatic-change notices with current undoability."""
     bounded_limit = max(1, min(limit, 50))
@@ -830,6 +832,13 @@ def list_plan_adjustments(
             and isinstance(consequence.details, Mapping)
             else {}
         )
+        delivery = (
+            consequence_details.get("delivery")
+            or details.get("delivery")
+            or {}
+        )
+        if not include_stryd_delivery:
+            delivery = without_stryd_delivery_metadata(delivery)
         items.append({
             "id": revision.id,
             "created_at": utc_isoformat(revision.created_at),
@@ -844,11 +853,7 @@ def list_plan_adjustments(
             "evidence": details.get("evidence") or {},
             "bounds": details.get("bounds") or {},
             "citations": details.get("citations") or [],
-            "delivery": (
-                consequence_details.get("delivery")
-                or details.get("delivery")
-                or {}
-            ),
+            "delivery": delivery,
             "undo_revision_id": (
                 undo_revision.id if undo_revision is not None else None
             ),

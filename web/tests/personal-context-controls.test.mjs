@@ -164,7 +164,7 @@ test('web and miniapp expose the same private lifecycle controls', async () => {
   assert.match(mini, /include_history=false&include_narrative=false/);
   assert.match(template, /checked="\{\{purposeConfirmed\}\}"/);
   assert.match(template, /checked="\{\{aiPermissionConfirmed\}\}"/);
-  assert.match(trainingTemplate, /<personal-context \/>/);
+  assert.match(trainingTemplate, /<personal-context\b/);
 });
 
 test('miniapp context sheets hide the custom tab bar', async () => {

@@ -381,7 +381,20 @@ def _check_and_sync():
 
         now = datetime.utcnow()
         sync_intervals_by_user: dict[str, int] = {}
+        stryd_access_by_user: dict[str, bool] = {}
         for conn in connections:
+            if conn.platform == "stryd":
+                if conn.user_id not in stryd_access_by_user:
+                    from api.stryd_access import stryd_connection_enabled
+
+                    stryd_access_by_user[conn.user_id] = (
+                        stryd_connection_enabled(
+                            db,
+                            user_id=conn.user_id,
+                        )
+                    )
+                if not stryd_access_by_user[conn.user_id]:
+                    continue
             # Skip connections still in their backoff window. ``next_retry_at``
             # is bumped after every transient failure (see _record_sync_failure)
             # and cleared on success or reconnect (reset_connection_backoff).
@@ -485,6 +498,16 @@ def _sync_connection(
         require_connection_generation,
     )
     from db.models import UserConnection
+
+    if platform == "stryd":
+        from api.stryd_access import stryd_connection_enabled
+
+        if not stryd_connection_enabled(db, user_id=user_id):
+            logger.info(
+                "Skipping private Stryd sync for ineligible user=%s",
+                user_id,
+            )
+            return
 
     token_lease = nullcontext()
     if platform == "garmin":

@@ -101,8 +101,9 @@ function reason(result: Outdoor5KOutcomeResponse, fallback: string): string {
     ?? fallback;
 }
 
-function dayOptions(): DayOption[] {
-  return [
+function dayOptions(existing: DayOption[] = []): DayOption[] {
+  const previous = new Map(existing.map((option) => [option.value, option]));
+  const defaults: DayOption[] = [
     { value: 0, label: t('Mon'), selected: false, duration: '' },
     { value: 1, label: t('Tue'), selected: false, duration: '' },
     { value: 2, label: t('Wed'), selected: false, duration: '' },
@@ -111,6 +112,11 @@ function dayOptions(): DayOption[] {
     { value: 5, label: t('Sat'), selected: false, duration: '' },
     { value: 6, label: t('Sun'), selected: false, duration: '' },
   ];
+  return defaults.map((option) => ({
+    ...option,
+    selected: previous.get(option.value)?.selected ?? option.selected,
+    duration: previous.get(option.value)?.duration ?? option.duration,
+  }));
 }
 
 Component({
@@ -140,10 +146,23 @@ Component({
   },
   lifetimes: {
     attached() {
-      void this.load();
+      void this.refresh();
     },
   },
   methods: {
+    async refresh() {
+      const tr = copy();
+      const options = dayOptions(this.data.dayOptions);
+      const selectedDayRows = options.filter((option) => option.selected);
+      this.setData({
+        tr,
+        dayOptions: options,
+        selectedDayRows,
+        longDayOptions: [tr.noPreference, ...selectedDayRows.map((option) => option.label)],
+        longDayIndex: Math.min(this.data.longDayIndex, selectedDayRows.length),
+      });
+      await this.load();
+    },
     operationKey(operation: LifecycleOperation): string {
       const existing = this.data.operationKeys[operation];
       if (existing) return existing;
@@ -155,9 +174,6 @@ Component({
       const operationKeys = { ...this.data.operationKeys };
       delete operationKeys[operation];
       this.setData({ operationKeys });
-    },
-    async refresh(): Promise<void> {
-      await this.load();
     },
     async load(): Promise<void> {
       const componentState = this as unknown as Record<string, unknown>;

@@ -49,6 +49,23 @@ def api_client(monkeypatch):
     from db.session import get_db
 
     test_user_id = "test-user-plan-endpoints"
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, _user: gate_name == "stryd_connection_enabled",
+    )
+
+    from db.models import User
+    seed = db_session.SessionLocal()
+    try:
+        seed.add(User(
+            id=test_user_id,
+            email="plan-endpoints@test.local",
+            hashed_password="x",
+            is_active=True,
+        ))
+        seed.commit()
+    finally:
+        seed.close()
 
     def _override_user():
         return test_user_id
@@ -684,6 +701,7 @@ class TestCanonicalWorkoutManagement:
         body = response.json()
         assert body["management"]["can_write"] is False
         assert body["workouts"][0]["editable"] is False
+        assert "stryd_status" not in body
 
         app.dependency_overrides[get_current_user_id] = lambda: user_id
 
@@ -1637,6 +1655,83 @@ class TestCanonicalWorkoutManagement:
         )
         assert stryd["compatible"] is True
         assert stryd["reasons"] == []
+
+    def test_compatibility_preview_hides_stryd_when_gate_is_off(
+        self,
+        api_client,
+        monkeypatch,
+    ):
+        client, _ = api_client
+        monkeypatch.setattr(
+            "api.statsig_client.check_gate",
+            lambda gate_name, _user: (
+                gate_name == "garmin_plan_delivery_eligible"
+            ),
+        )
+
+        response = client.post(
+            "/api/plan/workouts/compatibility",
+            json={
+                "date": (date.today() + timedelta(days=3)).isoformat(),
+                "activity_type": "running",
+                "workout_type": "easy",
+                "planned_duration_min": 45,
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        assert [
+            provider["target"]
+            for provider in response.json()["providers"]
+        ] == ["garmin"]
+
+    def test_compatibility_preview_uses_viewer_eligibility(
+        self,
+        api_client,
+        monkeypatch,
+    ):
+        client, _ = api_client
+        from api.auth import get_current_user_id
+        from api.main import app
+        from db import session as db_session
+        from db.models import User
+
+        db = db_session.SessionLocal()
+        try:
+            db.add(User(
+                id="demo-compatibility-viewer",
+                email="demo-compatibility@test.local",
+                hashed_password="x",
+                is_active=True,
+                is_demo=True,
+            ))
+            db.commit()
+        finally:
+            db.close()
+
+        app.dependency_overrides[get_current_user_id] = (
+            lambda: "demo-compatibility-viewer"
+        )
+        monkeypatch.setattr(
+            "api.statsig_client.check_gate",
+            lambda _gate_name, _user: True,
+        )
+
+        response = client.post(
+            "/api/plan/workouts/compatibility",
+            json={
+                "date": (date.today() + timedelta(days=3)).isoformat(),
+                "activity_type": "running",
+                "workout_type": "easy",
+                "planned_duration_min": 45,
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        assert [
+            provider["target"]
+            for provider in response.json()["providers"]
+        ] == ["garmin"]
 
     def test_external_and_other_user_workouts_are_not_mutable(
         self,

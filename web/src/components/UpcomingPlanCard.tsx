@@ -45,6 +45,7 @@ import {
   useApi,
 } from '@/hooks/useApi';
 import {
+  MAX_MANAGED_PLAN_WINDOW_DAYS,
   athletePlanWindow,
   athletePlanDateDistance,
   isPraxysOwned,
@@ -72,7 +73,7 @@ import type {
 const WINDOW_OPTIONS = [
   { id: '1wk', days: 7 },
   { id: '2wk', days: 14 },
-  { id: '4wk', days: 28 },
+  { id: '4wk', days: MAX_MANAGED_PLAN_WINDOW_DAYS },
 ] as const;
 type WindowId = typeof WINDOW_OPTIONS[number]['id'];
 const WINDOW_STORAGE_KEY = 'praxys.plan_window';
@@ -1003,12 +1004,35 @@ export default function UpcomingPlanCard() {
   const windowStart = shiftAthletePlanDate(localDay, windowOffsetDays);
   const planUrl = useMemo(
     () => planWindowUrl(
-      windowDays,
+      MAX_MANAGED_PLAN_WINDOW_DAYS,
       new Date(`${windowStart}T12:00:00`),
     ),
-    [windowDays, windowStart],
+    [windowStart],
   );
-  const { data, loading, error, refetch } = useApi<PlanResponse>(planUrl);
+  const {
+    data: planData,
+    loading,
+    error,
+    refetch,
+  } = useApi<PlanResponse>(planUrl);
+  const data = useMemo<PlanResponse | null>(() => {
+    if (!planData) return null;
+    const windowEnd = shiftAthletePlanDate(windowStart, windowDays - 1);
+    const inWindow = (date: string) => (
+      date >= windowStart && date <= windowEnd
+    );
+    return {
+      ...planData,
+      workouts: planData.workouts.filter((workout) => inWindow(workout.date)),
+      window: { start: windowStart, end: windowEnd },
+      adjustments: planData.adjustments?.filter(
+        (adjustment) => (
+          adjustment.workout_date == null
+          || inWindow(adjustment.workout_date)
+        ),
+      ),
+    };
+  }, [planData, windowDays, windowStart]);
   const [workingKey, setWorkingKey] = useState<string | null>(null);
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
   const [reviewWorkout, setReviewWorkout] = useState<PlannedWorkout | null>(null);

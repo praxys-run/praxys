@@ -81,6 +81,21 @@ Science changes use two linked, versioned records before implementation:
 - An **Evidence Review** records what the literature supports.
 - A **Science Decision Record (SDR)** records how Praxys applies that evidence.
 
+New records use the artifact review workflow documented in
+[`science-review-artifacts.md`](science-review-artifacts.md). The canonical
+typed record generates a human review packet and a separate machine JSON
+contract with matching digests. Humans approve the generated packet in an
+authenticated GitHub or agent session. Session approvals are mirrored by the
+agent to an exact human-authenticated GitHub PR comment; trusted automation
+materializes the role-scoped artifact. Runtime code consumes only the generated
+contract and never derives values from prose.
+
+Artifact-mode SDRs also provide a typed `decision_review` manifest. The
+generated packet begins with its concise decision sheet; every contract
+parameter group must be mapped to an explicit proposed decision or deferral.
+The complete evidence, parameter, and contract material remains a collapsed
+audit appendix rather than the reviewer's primary task.
+
 ### Research before changing science
 
 Use the repository-owned
@@ -110,8 +125,10 @@ honestly; neither level lets schema validation declare a paper true.
 
 1. **Add an Evidence Review** at
    `data/science/evidence/{topic}/evidence-{topic}-v{N}.yaml`:
-   - Identify authors, human reviewers, review dates, purpose, and lifecycle
-     status.
+   - Set `approval_mode: artifact` for new records. Human approval lives in a
+     digest-bound file beneath `data/science/approvals/`, not in the legacy
+     `human_reviewers` list.
+   - Identify authors, purpose, and lifecycle status.
    - Preserve the exact searches, search date, selection rules, scope,
      evidence strength, effect estimates, applicability, limitations,
      conflicting findings, gaps, and follow-up questions.
@@ -120,6 +137,8 @@ honestly; neither level lets schema validation declare a paper true.
 
 2. **Add an SDR** at
    `data/science/decisions/sdr-{decision}-v{N}.yaml`:
+   - Set `approval_mode: artifact` and declare
+     `artifact_policy.runtime_state`. Draft decisions start `inactive`.
    - Link the exact evidence-review and claim IDs used.
    - Record the accepted interpretation, rejected alternatives, claim limits,
      applicability, safety/privacy implications, validation and falsification
@@ -128,8 +147,14 @@ honestly; neither level lets schema validation declare a paper true.
      Published values require a supporting claim; estimates and guardrails
      require an explicit Praxys rationale. This includes `params` plus
      behavior-driving `signal`, `diagnosis`, and `tsb_zones` values.
-   - Only an identified human reviewer may move a record to `accepted`. Agents
-     may prepare `draft` records but cannot accept or ship a science decision.
+   - Only an explicit human `decision_approver` approval bound to the displayed
+     digest may move an artifact-mode SDR to `accepted`. The human may approve
+     in GitHub or an authenticated agent session; the agent mirrors session
+     approval to a human-authenticated GitHub PR comment, then automation may
+     materialize the YAML and lifecycle transition. It must preserve human
+     identity and may not infer or widen approval. Runtime activation remains
+     blocked until `implementation_reviewer` approval also binds the exact
+     reviewed code diff and validation evidence.
 
 3. **Create or update the canonical English theory YAML** in
    `data/science/{pillar}/{theory_id}.yaml`:
@@ -151,11 +176,22 @@ honestly; neither level lets schema validation declare a paper true.
    metadata into theory or locale files. Localized YAML should contain only
    translated user-facing prose and identifiers needed by the locale loader.
 
-4. **Regenerate the index**:
+4. **Generate review and implementation artifacts**:
+
+   `python scripts/generate_science_artifacts.py`.
+
+   Review
+   `data/science/generated/review-packets/<record-id>.md`. The exact contract
+   JSON embedded in the packet must match
+   `data/science/generated/contracts/<sdr-id>.json`.
+
+5. **Regenerate the index**:
    `python scripts/generate_science_registry_index.py`.
 
-5. **Validate** with
-   `python -m pytest tests/test_evidence_registry.py tests/test_science.py`.
+6. **Validate** with
+   `python scripts/generate_science_artifacts.py --check` and
+   `python -m pytest tests/test_evidence_registry.py
+   tests/test_science_artifacts.py tests/test_science.py`.
    Then test the theory in Settings or through the `/science` skill.
 
 ### Updating a review without rewriting history
@@ -210,9 +246,14 @@ The full flow and maintenance instructions live in
    new or materially reworked flow and `polish` before handoff.
 3. Inspect the real feature with sample data at desktop and mobile sizes, with
    keyboard navigation and relevant states.
-4. Run the web build, miniapp typecheck when applicable, and
+4. Keep detailed screenshots and recordings local under the gitignored
+   `test-screenshots/ui-quality/<branch-or-pr>/` directory. Use screenshots for
+   static/state comparisons, a short video for sequence-dependent interaction,
+   and publish only the minimum media needed for asynchronous PR review.
+5. Run the web build, miniapp typecheck when applicable, and
    `python scripts/check_ui_quality.py --base origin/main --head HEAD --skip-evidence`.
-5. Complete the PR template's `## UI quality` block. If a browser is
+6. Complete the PR template's `## UI quality` block, including the primary
+   journey and reviewer handoff mode. If a browser is
    unavailable, keep the PR draft and state that rendered verification remains
    incomplete.
 

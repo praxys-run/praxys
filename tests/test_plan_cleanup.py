@@ -65,7 +65,11 @@ class FakeCleanupAdapter:
 
 
 @pytest.fixture
-def cleanup_db(tmp_path):
+def cleanup_db(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, _user: gate_name == "stryd_connection_enabled",
+    )
     engine = create_engine(f"sqlite:///{tmp_path / 'plan-cleanup.db'}")
     session_factory = sessionmaker(bind=engine)
     Base.metadata.create_all(engine)

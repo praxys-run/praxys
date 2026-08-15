@@ -101,12 +101,16 @@ export interface SettingsConfig {
   thresholds: Record<string, number | string | null>;
   zones: Record<string, number[]>;
   goal: { goal_kind?: GoalKind; race_date?: string; distance?: string; target_time_sec?: number; [key: string]: unknown };
+  activity_routing: Record<string, PlatformName>;
   source_options: Record<string, unknown>;
   /** UI language preference ("en" | "zh"). `null` means auto-detect from browser. */
   language: UiLanguage | null;
 }
 
-export interface SettingsUpdate extends Omit<Partial<SettingsConfig>, 'plan_management'> {
+export interface SettingsUpdate extends Omit<
+  Partial<SettingsConfig>,
+  'plan_management' | 'activity_routing'
+> {
   plan_management?: Partial<PlanManagementConfig>;
   managed_plan_preview_start?: string;
 }
@@ -574,8 +578,8 @@ export interface PlanAdjustmentUndoResponse {
 
 export interface PlanResponse {
   workouts: PlannedWorkout[];
-  /** Stryd push history. Used to be served by GET /api/plan/stryd-status. */
-  stryd_status: StrydPushStatus;
+  /** Legacy private-provider push history, present only for eligible accounts. */
+  stryd_status?: StrydPushStatus;
   /** Platform AI plan rows get pushed to. `null` when the user has no
    *  push target connected — UI hides sync chrome in that case. */
   sync_target: PlanExecutionTarget | null;

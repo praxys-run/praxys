@@ -107,6 +107,11 @@ def load_plan_delivery_adapter(
     target: str,
 ) -> PlanDeliveryAdapter:
     """Build a delivery adapter using only the caller's credentials."""
+    if target == "stryd":
+        from api.stryd_access import stryd_connection_enabled
+
+        if not stryd_connection_enabled(db, user_id=user_id):
+            raise DeliveryMutationBlockedError("delivery_not_eligible")
     adapter_type = _ADAPTER_TYPES.get(target)
     if adapter_type is None:
         raise UnsupportedDeliveryTargetError(

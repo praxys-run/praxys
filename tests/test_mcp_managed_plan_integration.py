@@ -113,6 +113,10 @@ def test_local_managed_plan_lifecycle_uses_host_api(
         "PRAXYS_LOCAL_ENCRYPTION_KEY",
         "JKkx_5SVHKQDr0HSMrwl0KQHcA0pl5pxsYSLEAQDB4o=",
     )
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, _user: gate_name == "stryd_connection_enabled",
+    )
 
     from db import session as db_session
 

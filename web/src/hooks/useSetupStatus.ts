@@ -130,7 +130,7 @@ export function useSetupStatus(): SetupStatus {
       label: 'Connect a platform',
       description: hasConnection
         ? `Connected: ${connectedPlatforms.join(', ')}`
-        : 'Link Garmin, Strava, Stryd, or Oura to pull your training data',
+        : 'Link a supported platform to pull your training data',
       done: hasConnection,
     },
     {

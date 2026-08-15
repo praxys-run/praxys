@@ -316,7 +316,6 @@ html[lang="zh"] .landing-hero-sub { line-height: 1.7; }
      band's baseline. Without the translate, ŌURA sits visibly low. */
 .landing-platforms-band .plogo-garmin { height: 18px; }
 .landing-platforms-band .plogo-coros  { height: 18px; }
-.landing-platforms-band .plogo-stryd  { height: 18px; }
 .landing-platforms-band .plogo-oura   { height: 22px; transform: translateY(-2px); }
 .landing-platforms-band .plogo-strava { height: 18px; }
 
@@ -617,87 +616,6 @@ html[lang="zh"] .landing-fcard p { font-size: 13px; line-height: 1.8; }
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
-}
-
-/* ─── Labs proof point ──────────────────────────────────── */
-.landing-labs {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.9fr);
-  gap: clamp(36px, 7vw, 88px);
-  align-items: center;
-  padding: clamp(52px, 8vw, 88px) 0;
-  border-top: 1px solid var(--l-rule);
-}
-.landing-labs-copy h2 {
-  max-width: 18ch;
-  margin: 0 0 18px;
-  color: var(--l-ink);
-  font-family: var(--l-font-display);
-  font-size: clamp(28px, 3.8vw, 42px);
-  font-weight: 500;
-  letter-spacing: -0.035em;
-  line-height: 1.1;
-}
-html[lang="zh"] .landing-labs-copy h2 {
-  max-width: 14ch;
-  letter-spacing: 0.005em;
-  line-height: 1.3;
-}
-.landing-labs-copy p {
-  max-width: 60ch;
-  margin: 0 0 26px;
-  color: var(--l-ink-soft);
-  font-size: 14.5px;
-  line-height: 1.75;
-}
-.landing-labs-panel {
-  padding: clamp(24px, 4vw, 34px);
-  border: 1px solid color-mix(in oklab, var(--l-cobalt) 24%, var(--l-rule));
-  border-radius: 5px;
-  background: color-mix(in oklab, var(--l-cobalt) 5%, var(--l-card));
-}
-.landing-labs-consent {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 22px;
-  color: var(--l-cobalt);
-  font-family: var(--l-font-data);
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.landing-labs-consent span {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--l-primary);
-}
-.landing-labs-panel > p {
-  margin: 0 0 20px;
-  color: var(--l-ink);
-  font-family: var(--l-font-display);
-  font-size: 20px;
-  font-weight: 500;
-  line-height: 1.4;
-}
-.landing-labs-panel ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.landing-labs-panel li {
-  padding: 9px 0;
-  border-top: 1px solid color-mix(in oklab, var(--l-cobalt) 14%, var(--l-rule-soft));
-  color: var(--l-ink-soft);
-  font-family: var(--l-font-data);
-  font-size: 10.5px;
-  letter-spacing: 0.02em;
-}
-
-@media (max-width: 880px) {
-  .landing-labs { grid-template-columns: 1fr; }
 }
 
 /* ─── Final CTA ─────────────────────────────────────────── */
@@ -1024,8 +942,6 @@ html[lang="zh"] .landing-close h2 { letter-spacing: 0.005em; line-height: 1.35; 
   .landing-close h2 { font-size: 26px; }
   .landing-primary-nav { display: none; }
   .landing-discover { grid-template-columns: 1fr; }
-  .landing-labs { grid-template-columns: 1fr; gap: 28px; }
-  .landing-labs-copy h2 { max-width: 16ch; }
   .public-capability-list section { grid-template-columns: 1fr; }
   .public-info-hero h1 { font-size: 38px; }
   .public-info-root .landing-header-nav { gap: 8px; }

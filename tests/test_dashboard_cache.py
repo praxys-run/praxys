@@ -61,7 +61,11 @@ def cache_client(monkeypatch):
     db_session.init_db()
 
     from api.main import app
-    from api.auth import get_data_user_id, require_write_access
+    from api.auth import (
+        get_current_user_id,
+        get_data_user_id,
+        require_write_access,
+    )
     from api.dashboard_cache import reset_stats
     from db.models import (
         Activity,
@@ -121,6 +125,7 @@ def cache_client(monkeypatch):
         finally:
             d.close()
 
+    app.dependency_overrides[get_current_user_id] = _override_user
     app.dependency_overrides[get_data_user_id] = _override_user
     app.dependency_overrides[require_write_access] = _override_user
     app.dependency_overrides[get_db] = _override_db
@@ -218,10 +223,10 @@ def test_compute_source_version_is_deterministic(cache_client):
             "today is date-salted — date.today() must appear in source_version"
         )
         assert "splits=0" in a
-        assert "v=heat-adaptation-today-v13" in a
+        assert "v=private-plan-boundary-today-v14" in a
         training = compute_source_version(db, user_id, "training")
         assert "samples=0" in training
-        assert "v=peer-metric-volume-training-v13" in training
+        assert "v=private-plan-boundary-training-v14" in training
         goal = compute_source_version(db, user_id, "goal")
         assert "v=history-first-5k-baseline-v1" in goal
     finally:
@@ -340,7 +345,7 @@ def test_today_recomputes_prior_response_version_with_snapshot(cache_client):
     try:
         current_version = compute_source_version(db, user_id, "today")
         prior_version = current_version.replace(
-            "v=heat-adaptation-today-v13",
+            "v=private-plan-boundary-today-v14",
             "v=heat-adaptation-today-v12",
         )
         assert prior_version != current_version

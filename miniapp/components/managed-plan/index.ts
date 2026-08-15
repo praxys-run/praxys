@@ -436,7 +436,7 @@ function translations() {
       'Praxys keeps the canonical workout. This preview explains what the selected platform can receive without losing meaning.',
     ),
     noDeliveryTarget: t(
-      'No Garmin or Stryd execution target is selected. Compatibility remains informational until plan delivery is configured.',
+      'No execution target is selected. Compatibility remains informational until plan delivery is configured.',
     ),
     compareOtherProviders: t('Compare other providers'),
     hideOtherProviders: t('Hide other providers'),
@@ -1494,6 +1494,7 @@ Component({
   },
 
   data: {
+    languageClass: detectLocale() === 'en' ? 'lang-en' : 'lang-zh',
     loading: true,
     errorMessage: '',
     actionError: '',
@@ -1584,6 +1585,7 @@ Component({
     attached() {
       const tr = translations();
       this.setData({
+        languageClass: detectLocale() === 'en' ? 'lang-en' : 'lang-zh',
         tr,
         editorTypeValues: [...WORKOUT_TYPE_VALUES],
         editorTypeLabels: [
@@ -1632,6 +1634,9 @@ Component({
 
   pageLifetimes: {
     show() {
+      this.setData({
+        languageClass: detectLocale() === 'en' ? 'lang-en' : 'lang-zh',
+      });
       this.scheduleMidnightRefresh();
       if (this.data.hasResponse) void this.refresh();
     },
@@ -1822,7 +1827,7 @@ Component({
     },
 
     onManagePlan() {
-      wx.switchTab({ url: '/pages/settings/index' });
+      wx.navigateTo({ url: '/pages/settings/index' });
     },
 
     onReviewFirstConflict() {

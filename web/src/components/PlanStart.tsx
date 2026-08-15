@@ -218,14 +218,15 @@ export default function PlanStart() {
   const { t } = useLingui();
   const { locale } = useLocale();
   const { isDemo } = useAuth();
-  const { config, planDeliveryOptions, updateSettings } = useSettings();
-  const navigate = useNavigate();
   const {
-    data: goal,
-    loading: goalLoading,
-    error: goalError,
-    refetch: refetchGoal,
-  } = useApi<GoalResponse>('/api/goal', { timeoutMs: 12_000 });
+    config,
+    error: settingsError,
+    loading: settingsLoading,
+    planDeliveryOptions,
+    refetch: refetchSettings,
+    updateSettings,
+  } = useSettings();
+  const navigate = useNavigate();
   const {
     data: capabilityDiscovery,
     loading: capabilityLoading,
@@ -235,11 +236,27 @@ export default function PlanStart() {
     '/api/plan/generation/capabilities',
     { timeoutMs: 12_000 },
   );
+  const capabilityGoal = capabilityDiscovery?.goal ?? null;
+  const capability = capabilityDiscovery?.selected_capability ?? null;
+  const capabilitySupported = capability?.constraint_schema_id
+    === SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_ID;
+  const {
+    data: goal,
+    loading: goalLoading,
+    error: goalError,
+    refetch: refetchGoal,
+  } = useApi<GoalResponse>(
+    '/api/goal',
+    { timeoutMs: 12_000, enabled: capabilitySupported },
+  );
   const {
     data: currentProposal,
     error: currentProposalError,
     refetch: refetchProposal,
-  } = useApi<AdaptivePlanProposal>('/api/plan/proposals/current', { timeoutMs: 12_000 });
+  } = useApi<AdaptivePlanProposal>(
+    '/api/plan/proposals/current',
+    { timeoutMs: 12_000, enabled: capabilitySupported },
+  );
 
   const [availableDays, setAvailableDays] = useState<Outdoor5KWeekday[]>([]);
   const [dayLimits, setDayLimits] = useState<DayLimits>({});
@@ -258,7 +275,6 @@ export default function PlanStart() {
   const [notice, setNotice] = useState<string | null>(null);
   const idempotencyKeys = useRef<Partial<Record<LifecycleOperation, string>>>({});
 
-  const capability = capabilityDiscovery?.selected_capability ?? null;
   const selectedLocalProposal = (
     proposal?.policy_version === capability?.policy_version
       ? proposal
@@ -517,19 +533,19 @@ export default function PlanStart() {
     }
   };
 
-  if (goalLoading || capabilityLoading) return <PlanStartSkeleton />;
+  if (settingsLoading || capabilityLoading) return <PlanStartSkeleton />;
 
-  if (goalError || capabilityError) {
+  if (settingsError || capabilityError) {
     return (
       <Alert id="plan-start" variant="destructive">
         <AlertTitle><Trans>Could not load plan-start context</Trans></AlertTitle>
         <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-          <span>{goalError ?? capabilityError}</span>
+          <span>{settingsError ?? capabilityError}</span>
           <Button
             variant="outline"
             size="sm"
             onClick={() => {
-              void refetchGoal();
+              refetchSettings();
               void refetchCapabilities();
             }}
           >
@@ -539,6 +555,8 @@ export default function PlanStart() {
       </Alert>
     );
   }
+
+  if (!config) return <PlanStartSkeleton />;
 
   if (!capability) {
     return (
@@ -579,10 +597,7 @@ export default function PlanStart() {
     );
   }
 
-  if (
-    capability.constraint_schema_id
-    !== SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_ID
-  ) {
+  if (!capabilitySupported) {
     return (
       <Alert id="plan-start" variant="destructive">
         <AlertTitle><Trans>Update required for this plan policy</Trans></AlertTitle>
@@ -595,7 +610,27 @@ export default function PlanStart() {
     );
   }
 
-  if (goal?.goal_kind !== 'performance_5k') {
+  if (goalError) {
+    return (
+      <Alert id="plan-start" variant="destructive">
+        <AlertTitle><Trans>Could not load plan-start context</Trans></AlertTitle>
+        <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+          <span>{goalError}</span>
+          <Button variant="outline" size="sm" onClick={() => void refetchGoal()}>
+            <Trans>Retry</Trans>
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (goalLoading || !goal) return <PlanStartSkeleton />;
+
+  if (
+    !capabilityGoal
+    || goal.goal_kind !== capabilityGoal.goal_kind
+    || (goal.goal?.distance ?? null) !== capabilityGoal.distance
+  ) {
     return (
       <Card id="plan-start">
         <CardHeader>

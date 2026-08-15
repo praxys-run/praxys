@@ -1,0 +1,84 @@
+<view class="activity-history {{tabbed ? 'activity-history--tabbed' : ''}}">
+  <text wx:if="{{hasActivities}}" class="activity-history__total ts-muted ts-value">{{totalLine}}</text>
+
+  <block wx:if="{{loading && !hasActivities}}">
+    <state-card type="loading" />
+    <state-card type="loading" />
+    <state-card type="loading" />
+  </block>
+
+  <block wx:elif="{{errorMessage && !hasActivities}}">
+    <state-card
+      type="error"
+      headline="{{tr.failedToLoad}}"
+      detail="{{errorMessage}}"
+      show-retry
+      bindretry="onRetry"
+    />
+  </block>
+
+  <state-card
+    wx:elif="{{!hasActivities}}"
+    type="empty"
+    headline="{{tr.noActivities}}"
+  />
+
+  <block wx:else>
+    <view
+      wx:for="{{activities}}"
+      wx:key="id"
+      class="ts-card activity-history__row"
+      data-id="{{item.id}}"
+      bindtap="toggleExpand"
+      aria-role="{{item.hasSplits ? 'button' : ''}}"
+      aria-label="{{item.tapHint}}"
+      aria-expanded="{{item.hasSplits ? item.expanded : false}}"
+    >
+      <view class="activity-history__row-head">
+        <view
+          wx:if="{{item.hasSplits}}"
+          class="activity-history__chevron ts-muted {{item.expanded ? 'activity-history__chevron--open' : ''}}"
+          aria-hidden="true"
+        ></view>
+        <text class="activity-history__date ts-muted ts-value">{{item.date}}</text>
+        <text class="activity-history__type">{{item.type}}</text>
+      </view>
+
+      <view class="activity-history__metrics">
+        <view
+          wx:for="{{item.metrics}}"
+          wx:key="label"
+          wx:for-item="metric"
+          class="activity-history__metric"
+        >
+          <text class="activity-history__metric-label ts-muted">{{metric.label}}</text>
+          <text class="activity-history__metric-value ts-value">{{metric.value}}</text>
+        </view>
+      </view>
+
+      <view wx:if="{{item.hasSplits && item.expanded}}" class="activity-history__splits">
+        <text class="ts-section-label ts-value">{{tr.splits}} ({{item.splitCount}})</text>
+        <view
+          wx:for="{{item.splitsDisplay}}"
+          wx:key="num"
+          wx:for-item="split"
+          class="activity-history__split-row"
+        >
+          <text class="activity-history__split-num ts-muted ts-value">{{split.num}}</text>
+          <text
+            wx:for="{{split.cells}}"
+            wx:key="*this"
+            wx:for-item="cell"
+            class="activity-history__split-cell ts-value"
+          >{{cell}}</text>
+        </view>
+        <text wx:if="{{item.hasMoreSplits}}" class="activity-history__split-more ts-muted ts-value">
+          + {{item.moreSplitsCount}} {{tr.more}}
+        </text>
+      </view>
+    </view>
+
+    <text wx:if="{{loadingMore}}" class="activity-history__footer ts-muted">{{tr.loadingMore}}</text>
+    <text wx:elif="{{hasReachedEnd}}" class="activity-history__footer ts-muted">{{tr.endOfActivities}}</text>
+  </block>
+</view>

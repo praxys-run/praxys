@@ -1,0 +1,9 @@
+{
+  "orientation": "portrait",
+  "usingComponents": {
+    "nav-bar": "/components/nav-bar/index"
+  },
+  "backgroundColor": "@bgColor",
+  "backgroundColorBottom": "@bgColor",
+  "backgroundColorContent": "@bgColor"
+}

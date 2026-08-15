@@ -2,6 +2,17 @@ name: Deploy Backend to Azure App Service
 
 on:
   workflow_dispatch:
+    inputs:
+      sync_config:
+        description: Reconcile App Service settings, telemetry, and alerts
+        required: true
+        default: true
+        type: boolean
+      run_tests:
+        description: Run the full backend suite before deploying
+        required: true
+        default: false
+        type: boolean
   push:
     branches: [main]
     paths:
@@ -11,7 +22,6 @@ on:
       - 'db/**'
       - 'config/agent-loop-policies.json'
       - 'data/science/**'
-      - 'tests/**'
       - 'requirements.txt'
       - 'scripts/appinsights_boundary.sh'
       - 'scripts/provision_labs_worker_db.py'
@@ -31,6 +41,7 @@ concurrency:
 
 jobs:
   test:
+    if: github.ref_type == 'tag' || inputs.run_tests == true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -39,18 +50,64 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
+      - name: Materialize private Stryd client
+        env:
+          WHEEL_B64: ${{ secrets.STRYD_CLIENT_WHEEL_B64 }}
+        run: |
+          if [ -z "$WHEEL_B64" ]; then
+            echo "::error::STRYD_CLIENT_WHEEL_B64 is required for backend deployment"
+            exit 1
+          fi
+          mkdir -p .private-deps
+          printf '%s' "$WHEEL_B64" \
+            | base64 --decode \
+            > .private-deps/stryd_client-0.2.0-py3-none-any.whl
+          echo "d5ecc8c14beafe1cf2df6e5021b0bee71094b15cf14dfc039f0652c8c9c030e4  .private-deps/stryd_client-0.2.0-py3-none-any.whl" \
+            | sha256sum --check
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          pip install .private-deps/stryd_client-0.2.0-py3-none-any.whl
       - name: Run tests
         run: python -m pytest tests/ -v
 
   deploy:
     needs: test
+    if: always() && (needs.test.result == 'success' || needs.test.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      - name: Determine deployment mode
+        id: mode
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          SYNC_CONFIG_INPUT: ${{ inputs.sync_config }}
+        run: |
+          set -euo pipefail
+          sync_config=false
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            sync_config="${SYNC_CONFIG_INPUT:-false}"
+          elif [[ "${GITHUB_REF_TYPE}" == "branch" ]]; then
+            if [[ ! "${BEFORE_SHA:-}" =~ ^[0-9a-f]{40}$ ||
+                  "${BEFORE_SHA}" == "0000000000000000000000000000000000000000" ]]; then
+              sync_config=true
+            else
+              changed_files="$(git diff --name-only "${BEFORE_SHA}" "${GITHUB_SHA}")"
+              if grep -Eq \
+                '^(\.github/azure-observability\.env|\.github/workflows/deploy-backend\.yml|scripts/appinsights_boundary\.sh)$' \
+                <<< "${changed_files}"; then
+                sync_config=true
+              fi
+            fi
+          fi
+
+          echo "sync_config=${sync_config}" >> "$GITHUB_OUTPUT"
+          echo "Reconcile Azure configuration: ${sync_config}"
 
       - name: Load observability resource names
         shell: bash
@@ -70,7 +127,23 @@ jobs:
             VERSION="$(date -u +%Y.%m.%d).${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}"
           fi
           echo "${VERSION}" > api/_build_version.txt
+          echo "PRAXYS_EXPECTED_API_VERSION=${VERSION}" >> "$GITHUB_ENV"
           echo "Build version: ${VERSION}"
+
+      - name: Materialize private Stryd client for Oryx
+        env:
+          WHEEL_B64: ${{ secrets.STRYD_CLIENT_WHEEL_B64 }}
+        run: |
+          if [ -z "$WHEEL_B64" ]; then
+            echo "::error::STRYD_CLIENT_WHEEL_B64 is required for backend deployment"
+            exit 1
+          fi
+          mkdir -p .private-deps
+          wheel=".private-deps/stryd_client-0.2.0-py3-none-any.whl"
+          printf '%s' "$WHEEL_B64" | base64 --decode > "$wheel"
+          echo "d5ecc8c14beafe1cf2df6e5021b0bee71094b15cf14dfc039f0652c8c9c030e4  $wheel" \
+            | sha256sum --check
+          printf '\n%s\n' "$wheel" >> requirements.txt
 
       - name: Wait for compatible frontend deployment
         if: github.event_name == 'push' && github.ref_type == 'branch'
@@ -159,11 +232,45 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Wait for compatible Labs worker
+        env:
+          PRAXYS_LABS_EXECUTION_MODE: ${{ vars.PRAXYS_LABS_EXECUTION_MODE || 'inline' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${PRAXYS_LABS_EXECUTION_MODE}" == "service_bus" ]]; then
+            expected_worker_image="ghcr.io/praxys-run/praxys-labs-worker:${GITHUB_SHA}"
+            for attempt in {1..90}; do
+              deployed_worker_image="$(
+                az containerapp job show \
+                  --name praxys-labs-environment-worker \
+                  --resource-group rg-trainsight \
+                  --query "properties.template.containers[0].image" \
+                  -o tsv 2>/dev/null || true
+              )"
+              if [[ "${deployed_worker_image}" == "${expected_worker_image}" ]]; then
+                exit 0
+              fi
+              echo "Waiting for compatible Labs worker ${expected_worker_image} (${attempt}/90)."
+              sleep 10
+            done
+            echo "ERROR: service_bus mode requires the Labs worker from the same commit before backend deployment." >&2
+            exit 1
+          fi
+
+          if [[ "${PRAXYS_LABS_EXECUTION_MODE}" != "inline" &&
+                "${PRAXYS_LABS_EXECUTION_MODE}" != "disabled" ]]; then
+            echo "ERROR: invalid PRAXYS_LABS_EXECUTION_MODE" >&2
+            exit 1
+          fi
+
       - name: Enforce backend telemetry trust boundary
+        if: steps.mode.outputs.sync_config == 'true'
         shell: bash
         run: bash scripts/appinsights_boundary.sh backend-preflight
 
       - name: Sync App Service settings
+        if: steps.mode.outputs.sync_config == 'true'
         env:
           AZURE_AI_ENDPOINT: ${{ vars.AZURE_AI_ENDPOINT }}
           KEY_VAULT_URL: ${{ vars.KEY_VAULT_URL }}
@@ -237,27 +344,6 @@ jobs:
           LABS_SERVICE_BUS_FQDN=""
           LABS_SERVICE_BUS_QUEUE="labs-environment-response"
           if [[ "${PRAXYS_LABS_EXECUTION_MODE}" == "service_bus" ]]; then
-            expected_worker_image="ghcr.io/praxys-run/praxys-labs-worker:${GITHUB_SHA}"
-            worker_ready="false"
-            for attempt in {1..90}; do
-              deployed_worker_image="$(
-                az containerapp job show \
-                  --name praxys-labs-environment-worker \
-                  --resource-group rg-trainsight \
-                  --query "properties.template.containers[0].image" \
-                  -o tsv 2>/dev/null || true
-              )"
-              if [[ "${deployed_worker_image}" == "${expected_worker_image}" ]]; then
-                worker_ready="true"
-                break
-              fi
-              echo "Waiting for compatible Labs worker ${expected_worker_image} (${attempt}/90)."
-              sleep 10
-            done
-            if [[ "${worker_ready}" != "true" ]]; then
-              echo "ERROR: service_bus mode requires the Labs worker from the same commit before backend deployment." >&2
-              exit 1
-            fi
             LABS_SERVICE_BUS_NAMESPACE="$(
               az servicebus namespace list \
                 --resource-group rg-trainsight \
@@ -329,10 +415,12 @@ jobs:
             --always-on true
 
       - name: Cut over backend telemetry and alerts
+        if: steps.mode.outputs.sync_config == 'true'
         shell: bash
         run: bash scripts/appinsights_boundary.sh backend-cutover
 
       - name: Wait for App Service deployment endpoint to settle
+        if: steps.mode.outputs.sync_config == 'true'
         timeout-minutes: 8
         shell: bash
         run: |
@@ -373,3 +461,61 @@ jobs:
         with:
           app-name: trainsight-app
           resource-group-name: rg-trainsight
+
+      - name: Verify deployed backend cutover
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          set -euo pipefail
+          version_url="https://api.praxys.run/api/version"
+          ready_url="https://api.praxys.run/api/health/ready"
+
+          deployment_ready() {
+            local version_payload ready_payload live_version ready_status
+            version_payload="$(
+              curl --fail --silent --show-error --max-time 8 \
+                --header "Cache-Control: no-cache" \
+                "${version_url}" 2>/dev/null || true
+            )"
+            ready_payload="$(
+              curl --fail --silent --show-error --max-time 8 \
+                --header "Cache-Control: no-cache" \
+                "${ready_url}" 2>/dev/null || true
+            )"
+            live_version="$(
+              jq -r '.version // empty' <<< "${version_payload}" \
+                2>/dev/null || true
+            )"
+            ready_status="$(
+              jq -r '.status // empty' <<< "${ready_payload}" \
+                2>/dev/null || true
+            )"
+            echo "Live version=${live_version:-unavailable} readiness=${ready_status:-unavailable}"
+            [[ "${live_version}" == "${PRAXYS_EXPECTED_API_VERSION}" &&
+               "${ready_status}" == "ready" ]]
+          }
+
+          for attempt in {1..6}; do
+            if deployment_ready; then
+              exit 0
+            fi
+            echo "Waiting for deployed backend cutover (${attempt}/6)."
+            sleep 10
+          done
+
+          echo "OneDeploy did not activate the expected build; restarting App Service once."
+          az webapp restart \
+            --name trainsight-app \
+            --resource-group rg-trainsight \
+            --only-show-errors
+
+          for attempt in {1..30}; do
+            if deployment_ready; then
+              exit 0
+            fi
+            echo "Waiting for backend after restart (${attempt}/30)."
+            sleep 5
+          done
+
+          echo "Expected backend build did not become ready after restart." >&2
+          exit 1

@@ -12,7 +12,13 @@ Do not check any item that was not actually performed.
 - [ ] Each formula, constant, and user-facing claim has provenance or an explicit estimate/guardrail rationale.
 - [ ] Applicability, uncertainty, safety boundaries, and rejected alternatives are documented.
 - [ ] Record lifecycle is versioned/superseded; accepted evidence and decisions were not rewritten.
-- [ ] A human reviewer is named for any accepted SDR or shipped scientific behavior.
+- [ ] Artifact-mode review packets and machine contracts were regenerated and carry matching source/contract digests.
+- [ ] The SDR decision sheet states the reviewer task, proposed approvals, explicit deferrals, approval effects, and non-authorizations.
+- [ ] Every machine-contract parameter group is mapped to at least one decision-sheet item.
+- [ ] Every code-consumed field appears verbatim in the generated human review packet.
+- [ ] Human approvals explicitly name the role, subject, and digest in an authenticated source; automation materialized the matching artifact without widening scope.
+- [ ] Accepted artifact-mode records include the required digest-bound `evidence_reviewer` or `decision_approver`; active contracts include a separately approved `implementation_reviewer`.
+- [ ] Accepted legacy records still identify their human reviewer and review date.
 
 ## Product and implementation
 
@@ -24,6 +30,7 @@ Do not check any item that was not actually performed.
 ## Validation and review
 
 - [ ] Tests cover the changed behavior and the stated validation/falsification plan.
+- [ ] `python scripts/generate_science_artifacts.py --check` passes.
 - [ ] English and Chinese scientific copy have been reviewed for equivalent meaning.
 - [ ] `science-reviewer` ran for `analysis/` or `data/science/` changes and reported its source-verification boundary.
 - [ ] `metric-addition-reviewer` and `api-contract-reviewer` ran when their scopes apply.
@@ -38,6 +45,8 @@ Do not check any item that was not actually performed.
 <!-- Required when web/ or miniapp/ user-visible behavior changes. Delete only when no rendered UI changed. -->
 - Impeccable: <!-- command and target, for example `polish web/src/pages/Today.tsx` -->
 - Visual review: <!-- web: desktop + mobile dimensions; miniapp: WeChat/Skyline device -->
+- Primary journey: <!-- concise reviewer path, for example Goal -> plan preview -> readiness -->
+- Reviewer handoff: <!-- local-only - path/session; PR media - links/summary; CI artifact - run; preview - URL; none - reason -->
 - States checked: <!-- loading, empty, error, success, disabled, long EN/zh, as applicable -->
 - Accessibility: <!-- keyboard, focus, contrast, reduced motion, touch targets -->
 - Design system impact: <!-- none - reason / updated in this PR - changed path / follow-up #123 - gap -->

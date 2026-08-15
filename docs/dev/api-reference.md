@@ -1133,9 +1133,7 @@ provider external ID, and normalized provider-content fingerprint. It never
 collapses workouts by date, so manual or coach-authored workouts can coexist
 with one or more Praxys workouts on the same day.
 
-`sync_state` remains as a backward-compatible summary. `stryd_status` keeps the
-legacy date-keyed pushed-workout shape; it includes outbound Praxys deliveries,
-not target workouts accepted into the canonical plan.
+`sync_state` remains as a backward-compatible summary of managed delivery.
 
 **Query params:**
 - `start` *(YYYY-MM-DD, default = today)* — window start.
@@ -1170,8 +1168,8 @@ not target workouts accepted into the canonical plan.
         "id": "delivery:311ef6f2-c119-4bfd-a0e7-b697403bcb21@0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
         "state": "target_edited",
         "conflict": true,
-        "target": "stryd",
-        "external_id": "stryd_123",
+        "target": "garmin",
+        "external_id": "garmin_123",
         "match_basis": "external_id",
         "reason": "content_changed",
         "resolutions": ["restore_praxys", "accept_target"],
@@ -1179,15 +1177,12 @@ not target workouts accepted into the canonical plan.
           "date": "2026-04-11",
           "workout_type": "threshold",
           "planned_duration_min": 60,
-          "workout_description": "Edited on Stryd"
+          "workout_description": "Edited on Garmin"
         }
       }
     }
   ],
-  "stryd_status": {
-    "2026-04-11": { "workout_id": "stryd_123", "pushed_at": "...", "status": "pushed" }
-  },
-  "sync_target": "stryd",
+  "sync_target": "garmin",
   "window": { "start": "2026-04-11", "end": "2026-04-25" },
   "management": {
     "mutation_api_version": 1,
@@ -1613,17 +1608,11 @@ does not invoke managed delivery. Delivery remains a separately consented
 operation outside this generator.
 
 Managed delivery consumes the authoritative structured workout definition. It
-only translates provider-safe subsets: Stryd currently supports time-based
-power steps and repeat groups with warmup/work/recovery/cooldown phases, while
-Garmin still rejects all structured workouts and unsupported activity types
-instead of flattening them into a single duration-only block. Stryd also
-rejects empty structured workouts, the portable `rest` and `other` phases,
-non-time terminations, non-power targets, provider-specific segment modifiers,
-unknown versions, and mismatched version/payload pairs. Because the current
-connector has no verified lossless mapping for step/group labels or step
-instructions, Stryd rejects any structured workout containing that wording
-through the existing typed provider-request error instead of dropping it.
-Legacy flat delivery is used only when both structure fields are absent.
+translates provider-safe subsets. Every adapter rejects unsupported activity
+types, phases, terminations, targets, modifiers, wording, unknown versions, and
+mismatched version/payload pairs instead of flattening or silently dropping
+content. Legacy flat delivery is used only when both structure fields are
+absent.
 
 ### POST /api/plan/workouts/compatibility
 
@@ -1644,15 +1633,6 @@ provider, inspect credentials, or trigger delivery.
         { "code": "structured_workout_not_supported" },
         { "code": "activity_type_not_supported" }
       ]
-    },
-    {
-      "target": "stryd",
-      "compatible": false,
-      "mode": "unsupported",
-      "reasons": [
-        { "code": "wording_not_supported", "path": "steps[0].label" },
-        { "code": "termination_not_supported", "path": "steps[0].termination" }
-      ]
     }
   ]
 }
@@ -1660,13 +1640,12 @@ provider, inspect credentials, or trigger delivery.
 
 Reason codes identify the exact loss boundary: `wording_not_supported`,
 `phase_not_supported`, `termination_not_supported`, and
-`target_not_supported` for the Stryd structured subset. Stryd's existing
-connector payload accepts only integral `intensity_percent` bounds, so
-fractional `%CP` targets return `target_precision_not_supported` instead of
-being rounded (including ranges that would collapse after rounding). Garmin reports
-`structured_workout_not_supported` instead of flattening a tree. Additional
+`target_not_supported`. Adapters with integral-only target bounds return
+`target_precision_not_supported` for fractional `%CP` targets instead of
+rounding them, including ranges that would collapse after rounding. Garmin
+reports `structured_workout_not_supported` instead of flattening a tree. Additional
 codes cover invalid/empty structures, unsupported activities, unsupported
-flat targets, and a required flat duration. Stryd also reports
+flat targets, and a required flat duration. Adapters also report
 `flat_workout_not_lossless` when a legacy row would require the connector's
 old default duration or default power zone; Praxys rejects that delivery rather
 than applying a hidden default.
@@ -1866,57 +1845,6 @@ An unknown or other-user revision returns `404`. Exact retries return
 canonical restore succeeded but its append-only delivery consequence still
 needs recovery.
 
-### POST /api/plan/push-stryd
-
-Push only Praxys-owned plan rows to the Stryd calendar. Imported Stryd rows are
-never eligible, even when they are the analytically preferred plan source.
-
-The endpoint authenticates with the caller's encrypted Stryd
-`UserConnection`; global environment credentials are never shared across
-users. Missing or unreadable stored credentials return `400` with a reconnect
-instruction, and a provider login rejection returns `502`. The only environment
-fallback is local development with an explicit
-`PRAXYS_STRYD_ENV_USER_ID=<authenticated-user-id>` pin.
-
-Delivery identity is `(user, target, canonical workout key, provider-payload
-fingerprint)`. The fingerprint covers the exact transformed request, including
-CP-derived workout blocks. A second normalized fingerprint excludes volatile
-provider UUIDs so target-side edits can be detected reliably. Retrying a
-definite provider rejection appends an attempt to the same delivery row.
-Ambiguous outcomes and edits to a Praxys-owned target workout require explicit
-reconciliation. Retrying an already-synced payload returns its existing workout
-ID without creating a duplicate.
-
-Unowned Stryd workouts never block a create and are never deleted or replaced.
-If a requested date contains multiple Praxys workouts, each durable canonical
-workout is delivered independently and response entries include
-`canonical_id` and `workout_type`. Clients performing a row-level action can
-also send `canonical_ids`; the endpoint then delivers only matching workouts
-on the requested dates. Omitting it preserves the date-level behavior.
-
-**Request body:**
-```json
-{
-  "workout_dates": ["2026-04-11"],
-  "canonical_ids": ["4ac3254f-23cf-4f1f-a609-927f37d5e763"]
-}
-```
-
-**Response:**
-```json
-{
-  "results": [
-    {
-      "date": "2026-04-11",
-      "canonical_id": "4ac3254f-23cf-4f1f-a609-927f37d5e763",
-      "workout_type": "threshold",
-      "status": "success",
-      "workout_id": "stryd_123"
-    }
-  ]
-}
-```
-
 ### POST /api/plan/reconciliation/resolve
 
 Apply one explicit conflict resolution. `reconciliation_id` is the opaque,
@@ -1956,25 +1884,6 @@ I/O. If restore removal succeeds but recreation fails, the same ID can resume
 only from its durable revision plus successful-removal attempt, and only while
 every unrelated calendar observation remains unchanged.
 
-### DELETE /api/plan/stryd-workout/{workout_id}
-
-Remove a workout from Stryd calendar and transition its delivery-ledger row to
-`removed`. Removal attempts remain auditable; a failed removal keeps the prior
-successful delivery state. An interrupted removal can be retried after its lease
-expires; attempt fencing prevents a late superseded result from undoing the
-newer outcome. The workout ID must belong to the caller's delivery ledger;
-unknown IDs return `404` before any Stryd request.
-
-Removal uses the same caller-owned encrypted connection. Unknown IDs are
-rejected before credentials are loaded. New deliveries also persist the
-authenticated provider account identity, so reconnecting a different Stryd
-account blocks deletion with `409`. Credential/authentication failures occur
-before the provider attempt; provider and finalization failures remain explicit
-and never return a success-shaped fallback. Migrated rows that predate stored
-provider-account identity are verified against the live current-account
-calendar before their first removal; a missing/moved ID requires reconciliation
-instead of treating a cross-account `404` as success.
-
 ### POST /api/plan/deliveries/cleanup
 
 Explicitly remove future workouts recorded in the caller's provider-neutral
@@ -1984,7 +1893,7 @@ before any provider cleanup starts, so an interrupted cleanup fails safe.
 Every delete rechecks external mode, the unchanged execution target, an
 actively connected provider, and the credential generation before touching the
 provider.
-Cleanup imports any legacy Stryd delivery snapshot before deciding that the
+Cleanup imports any legacy provider delivery snapshot before deciding that the
 ledger is clear. A corrupt snapshot is quarantined with a durable unresolved
 marker, so later retries continue returning `409` until valid legacy state is
 imported through an explicitly authoritative recovery or the marker is
@@ -2002,7 +1911,7 @@ suppressed while unresolved.
 ```json
 {
   "status": "complete|partial",
-  "target": "stryd",
+  "target": "garmin",
   "window": { "start": "2026-04-11", "end": null },
   "removed_count": 3,
   "remaining_count": 1,
@@ -2010,7 +1919,7 @@ suppressed while unresolved.
     {
       "canonical_id": "f0219570-4bda-49df-86a7-1b73ad80af6c",
       "workout_date": "2026-04-12",
-      "external_id": "stryd_124",
+      "external_id": "garmin_124",
       "status": "removed|already_absent|blocked|failed",
       "reason": null
     }
@@ -2116,11 +2025,11 @@ Current configuration, platform capabilities, and detected thresholds.
 ```json
 {
   "config": {
-    "connections": ["garmin", "stryd", "oura"],
+    "connections": ["garmin", "oura"],
     "preferences": { "activities": "garmin", "recovery": "oura", "plan": "ai" },
     "plan_management": {
       "mode": "external",
-      "execution_target": "stryd",
+      "execution_target": null,
       "delivery_enabled": false,
       "adjustment_policy": "suggest_only"
     },
@@ -2135,7 +2044,6 @@ Current configuration, platform capabilities, and detected thresholds.
   },
   "connection_statuses": {
     "garmin": "connected",
-    "stryd": "auth_required",
     "oura": "connected"
   },
   "platform_capabilities": {
@@ -2143,14 +2051,13 @@ Current configuration, platform capabilities, and detected thresholds.
   },
   "plan_delivery_options": [
     { "platform": "garmin", "selectable": false, "reason": "account_not_eligible" },
-    { "platform": "stryd", "selectable": true, "reason": null },
     { "platform": "strava", "selectable": false, "reason": "delivery_not_supported" }
   ],
   "detected_thresholds": {
-    "cp_watts": { "value": 247.8, "source": "stryd" }
+    "cp_watts": { "value": 247.8, "source": "activities" }
   },
   "effective_thresholds": {
-    "cp_watts": { "value": 247.8, "origin": "auto (stryd)" }
+    "cp_watts": { "value": 247.8, "origin": "auto (activities)" }
   },
   "display": { "..." : "..." }
 }
@@ -2318,11 +2225,6 @@ Return connected platforms and their status. Credentials are never exposed.
       "status": "connected",
       "last_sync": "2026-04-10T08:30:00",
       "has_credentials": true
-    },
-    "stryd": {
-      "status": "disconnected",
-      "last_sync": null,
-      "has_credentials": false
     }
   }
 }
@@ -2330,9 +2232,9 @@ Return connected platforms and their status. Credentials are never exposed.
 
 ### POST /api/settings/connections/{platform}
 
-Connect a platform by storing encrypted credentials. Platform must be one of: `garmin`, `stryd`, `oura`.
+Connect an account-available platform by storing encrypted credentials.
 
-**Request body (Garmin/Stryd):**
+**Request body (Garmin):**
 ```json
 {
   "email": "user@example.com",
@@ -2636,14 +2538,19 @@ Current sync status for all sources.
 ```json
 {
   "garmin": { "status": "idle|syncing|done|error", "last_sync": "ISO timestamp", "error": null },
-  "stryd": { "..." : "..." },
+  "strava": { "..." : "..." },
+  "coros": { "..." : "..." },
   "oura": { "..." : "..." }
 }
 ```
 
+The private Stryd source is included only when the authenticated account passes
+the default-off `stryd_connection_enabled` gate. It is otherwise omitted.
+
 ### POST /api/sync/{source}
 
-Trigger sync for a single source (garmin, stryd, oura). Runs in background.
+Trigger sync for a single supported source. Runs in background. A direct Stryd
+request returns 404 unless the authenticated account passes the private gate.
 
 **Request body (optional):**
 ```json

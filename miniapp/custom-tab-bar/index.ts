@@ -7,7 +7,7 @@
  * sync the active state by reading `getCurrentPages()` in
  * `pageLifetimes.show` — this avoids per-page wiring.
  *
- * The 5 pages (Today / Training / Activities / Goal / Settings) match
+ * The 5 pages (Today / Training / Analysis / Goal / Me) match
  * `tabBar.list` in app.json. `kind` is the icon discriminator; SCSS
  * draws the right shape per kind.
  */
@@ -18,7 +18,7 @@ import type { IAppOption } from '../app';
 interface TabConfig {
   pagePath: string;
   text: string;
-  kind: 'today' | 'training' | 'activities' | 'goal' | 'settings';
+  kind: 'today' | 'training' | 'analysis' | 'goal' | 'me';
 }
 
 // Built lazily so tab labels reflect the *current* language preference,
@@ -28,9 +28,9 @@ function buildTabs(): TabConfig[] {
   return [
     { pagePath: 'pages/today/index', text: t('Today'), kind: 'today' },
     { pagePath: 'pages/training/index', text: t('Training'), kind: 'training' },
-    { pagePath: 'pages/history/index', text: t('Activities'), kind: 'activities' },
+    { pagePath: 'pages/analysis/index', text: t('Analysis'), kind: 'analysis' },
     { pagePath: 'pages/goal/index', text: t('Goal'), kind: 'goal' },
-    { pagePath: 'pages/settings/index', text: t('Settings'), kind: 'settings' },
+    { pagePath: 'pages/me/index', text: t('Me'), kind: 'me' },
   ];
 }
 

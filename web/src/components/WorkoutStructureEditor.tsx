@@ -1897,7 +1897,7 @@ function ProviderCompatibilitySummary({
         <Alert className="mt-3">
           <AlertDescription className="text-xs">
             <Trans>
-              No Garmin or Stryd execution target is selected. Compatibility
+              No execution target is selected. Compatibility
               remains informational until plan delivery is configured.
             </Trans>
           </AlertDescription>

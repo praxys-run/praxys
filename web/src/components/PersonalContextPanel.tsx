@@ -190,16 +190,21 @@ export default function PersonalContextPanel() {
     error,
     refetch,
   } = useApi<PersonalContextListResponse>(listUrl);
-  const recentPlanUrl = useMemo(() => contextPlanUrl(), []);
-  const {
-    data: recentPlan,
-    loading: recentPlanLoading,
-  } = useApi<PlanResponse>(recentPlanUrl);
   const [composerOpen, setComposerOpen] = useState(false);
   const [form, setForm] = useState<PersonalContextDraftForm>(
     () => createPersonalContextDraft('temporary_constraint'),
   );
   const [editingItem, setEditingItem] = useState<PersonalContextItem | null>(null);
+  const recentPlanUrl = useMemo(() => contextPlanUrl(), []);
+  const {
+    data: recentPlan,
+    loading: recentPlanLoading,
+  } = useApi<PlanResponse>(
+    recentPlanUrl,
+    {
+      enabled: composerOpen && form.mode === 'execution_explanation',
+    },
+  );
   const [preview, setPreview] = useState<PersonalContextPreviewResponse | null>(null);
   const [previewRequest, setPreviewRequest] =
     useState<PersonalContextDraftRequest | null>(null);

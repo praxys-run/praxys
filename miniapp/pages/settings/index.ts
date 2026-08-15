@@ -1,4 +1,4 @@
-import { setTabBarSelected, setTabBarTheme } from '../../utils/tabbar';
+import { setTabBarTheme } from '../../utils/tabbar';
 import { apiDelete, apiGet, apiPost, apiPut } from '../../utils/api-client';
 import type { ApiError } from '../../utils/api-client';
 import { clearToken } from '../../utils/auth';
@@ -63,17 +63,13 @@ function buildSettingsTr() {
     connections: t('Connections'),
     manageOnWeb: t('Manage connections from the web app.'),
     noPlatformsHint: t(
-      "No platforms connected. Link Garmin / Stryd / Oura from the web app — their OAuth flows aren't supported in mini programs.",
+      'No platforms connected. Manage supported connections from the web app.',
     ),
     thresholds: t('Thresholds'),
     thresholdsHint: t('Auto-detected from synced fitness data; override on the web.'),
     thresholdsEmpty: t(
-      'No thresholds yet. Sync Garmin / Stryd data to auto-detect CP, LTHR, and pace — or enter values manually on the web.',
+      'No thresholds yet. Sync fitness data to auto-detect CP, LTHR, and pace — or enter values manually on the web.',
     ),
-    trainingScience: t('Training Science'),
-    scienceSubtitle: t('Browse the load / recovery / prediction / zone theories'),
-    labs: t('Labs'),
-    labsSubtitle: t('Explore voluntary experiments on your own training history'),
     theme: t('Theme'),
     themeAuto: t('Auto'),
     themeDark: t('Dark'),
@@ -118,7 +114,7 @@ function buildSettingsTr() {
     syncStarted: t('Sync started in the background.'),
     syncFailed: t('Sync request failed. Try again from the web app if it persists.'),
     trainingBaseHint: t(
-      'What metric Praxys uses to measure intensity. Power needs Stryd; Pace works with anything that gives you GPS.',
+      'What metric Praxys uses to measure intensity. Power needs a compatible running-power source; Pace works with GPS activity data.',
     ),
     trainingBasePower: t('Power'),
     trainingBaseHr: t('Heart rate'),
@@ -872,7 +868,6 @@ Page({
 
   onShow() {
     applyThemeChrome();
-    setTabBarSelected(this, 4);
     const pageState = this as unknown as Record<string, unknown>;
     if (pageState._hasShownOnce === true) {
       void this.refetch();
@@ -1505,7 +1500,7 @@ Page({
           // eslint-disable-next-line no-console
           console.warn('[settings] language backend sync failed:', err);
         }
-        // Brutal-but-reliable: reLaunch to Settings so every tab page
+        // Brutal-but-reliable: reLaunch to Me so every tab page
         // (and its custom-tab-bar Component instance) tears down and
         // rebuilds fresh in the new locale. The previous in-place
         // approach relied on each tab's `pageLifetimes.show` drift
@@ -1515,7 +1510,7 @@ Page({
         // the language change. The reLaunch approach mirrors what
         // the Login page does on locale switch and guarantees
         // every surface reads the new preference on first paint.
-        wx.reLaunch({ url: '/pages/settings/index' });
+        wx.reLaunch({ url: '/pages/me/index' });
       },
     });
   },
@@ -1559,12 +1554,12 @@ Page({
     });
   },
 
-  onNavigateToScience() {
-    wx.navigateTo({ url: '/pages/science/index' });
-  },
-
-  onNavigateToLabs() {
-    wx.navigateTo({ url: '/pages/labs/index' });
+  onBack() {
+    if (getCurrentPages().length > 1) {
+      wx.navigateBack();
+      return;
+    }
+    wx.switchTab({ url: '/pages/me/index' });
   },
 
   onCopyUrl() {

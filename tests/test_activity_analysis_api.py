@@ -283,6 +283,48 @@ def test_activity_analysis_is_owner_scoped(analysis_client) -> None:
     } == {"prior-1", "prior-2", "shared-activity"}
 
 
+def test_history_hides_stryd_source_selection_when_gate_is_off(
+    analysis_client,
+    monkeypatch,
+) -> None:
+    client = analysis_client["client"]
+    headers = analysis_client["owner_headers"]
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda _gate_name, _user: False,
+    )
+
+    hidden = client.get("/api/history?limit=10", headers=headers)
+    explicit = client.get(
+        "/api/history?limit=10&source=stryd",
+        headers=headers,
+    )
+
+    assert hidden.status_code == 200, hidden.text
+    assert hidden.json()["source_filter"] is None
+    assert any(
+        activity["source"] == "stryd"
+        for activity in hidden.json()["activities"]
+    ), "historical provenance should remain truthful"
+    assert explicit.status_code == 404
+
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda gate_name, _user: gate_name == "stryd_connection_enabled",
+    )
+    enabled = client.get(
+        "/api/history?limit=10",
+        headers={
+            **headers,
+            "If-None-Match": hidden.headers["etag"],
+        },
+    )
+
+    assert enabled.status_code == 200
+    assert enabled.headers["etag"] != hidden.headers["etag"]
+    assert enabled.json()["source_filter"] == "stryd"
+
+
 def test_analysis_exposes_provenance_segments_and_causal_context(
     analysis_client,
 ) -> None:

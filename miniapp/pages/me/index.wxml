@@ -1,0 +1,77 @@
+<view class="me-root {{themeClass}}">
+  <nav-bar title="{{tr.navTitle}}" theme-class="{{themeClass}}" />
+
+  <scroll-view scroll-y="{{true}}" class="me-scroll">
+    <view class="me-content">
+      <view class="me-section">
+        <text class="ts-section-label">{{tr.accountData}}</text>
+        <view
+          class="me-row"
+          bindtap="onOpenSettings"
+          hover-class="me-row--pressed"
+          aria-role="button"
+          aria-label="{{tr.settings}}"
+        >
+          <view class="me-row__copy">
+            <text class="me-row__title">{{tr.settings}}</text>
+            <text class="me-row__detail">{{tr.settingsDetail}}</text>
+          </view>
+          <view class="me-row__chevron" aria-hidden="true"></view>
+        </view>
+      </view>
+
+      <view class="me-section">
+        <text class="ts-section-label">{{tr.explore}}</text>
+        <view
+          class="me-row"
+          bindtap="onOpenScience"
+          hover-class="me-row--pressed"
+          aria-role="button"
+          aria-label="{{tr.science}}"
+        >
+          <view class="me-row__copy">
+            <text class="me-row__title">{{tr.science}}</text>
+            <text class="me-row__detail">{{tr.scienceDetail}}</text>
+          </view>
+          <view class="me-row__chevron" aria-hidden="true"></view>
+        </view>
+        <view
+          wx:if="{{showLabs}}"
+          class="me-row"
+          bindtap="onOpenLabs"
+          hover-class="me-row--pressed"
+          aria-role="button"
+          aria-label="{{tr.labs}}"
+        >
+          <view class="me-row__copy">
+            <view class="me-row__title-line">
+              <text class="me-row__title">{{tr.labs}}</text>
+              <text class="me-row__badge">{{tr.experimental}}</text>
+            </view>
+            <text class="me-row__detail">{{tr.labsDetail}}</text>
+          </view>
+          <view class="me-row__chevron" aria-hidden="true"></view>
+        </view>
+      </view>
+
+      <view class="me-section">
+        <text class="ts-section-label">{{tr.about}}</text>
+        <view
+          class="me-row"
+          bindtap="onOpenLegal"
+          hover-class="me-row--pressed"
+          aria-role="button"
+          aria-label="{{tr.legal}}"
+        >
+          <view class="me-row__copy">
+            <text class="me-row__title">{{tr.legal}}</text>
+            <text class="me-row__detail">{{tr.legalDetail}}</text>
+          </view>
+          <view class="me-row__chevron" aria-hidden="true"></view>
+        </view>
+      </view>
+
+      <text wx:if="{{appVersion}}" class="me-version ts-muted ts-value">{{appVersion}}</text>
+    </view>
+  </scroll-view>
+</view>

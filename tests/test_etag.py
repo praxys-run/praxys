@@ -45,7 +45,11 @@ def etag_client(monkeypatch):
     db_session.init_db()
 
     from api.main import app
-    from api.auth import get_data_user_id, require_write_access
+    from api.auth import (
+        get_current_user_id,
+        get_data_user_id,
+        require_write_access,
+    )
     from db.models import (
         Activity,
         ActivitySplit,
@@ -102,6 +106,7 @@ def etag_client(monkeypatch):
         finally:
             d.close()
 
+    app.dependency_overrides[get_current_user_id] = _override_user
     app.dependency_overrides[get_data_user_id] = _override_user
     app.dependency_overrides[require_write_access] = _override_user
     app.dependency_overrides[get_db] = _override_db
@@ -133,8 +138,12 @@ def test_response_versions_cover_changed_endpoints():
     """Deployment salts invalidate pre-change cached endpoint bodies."""
     from api.etag import ENDPOINT_RESPONSE_VERSIONS
 
-    assert ENDPOINT_RESPONSE_VERSIONS["today"] == "heat-adaptation-today-v13"
-    assert ENDPOINT_RESPONSE_VERSIONS["training"] == "peer-metric-volume-training-v13"
+    assert ENDPOINT_RESPONSE_VERSIONS["today"] == (
+        "private-plan-boundary-today-v14"
+    )
+    assert ENDPOINT_RESPONSE_VERSIONS["training"] == (
+        "private-plan-boundary-training-v14"
+    )
     assert ENDPOINT_RESPONSE_VERSIONS["goal"] == "history-first-5k-baseline-v1"
     assert ENDPOINT_RESPONSE_VERSIONS["science"] == "fixed-heat-model-v2"
     assert ENDPOINT_RESPONSE_VERSIONS["plan"] == "workout-management-v7"
@@ -157,6 +166,84 @@ def test_compute_etag_is_deterministic_and_short(etag_client):
         assert len(a) == 20, f"ETag should be compact (got {a!r})"
     finally:
         db.close()
+
+
+def test_today_and_training_vary_private_plan_by_viewer(
+    etag_client,
+    monkeypatch,
+) -> None:
+    """Demo viewers cannot reuse an eligible owner's plan representation."""
+    from api.auth import get_current_user_id, get_data_user_id
+    from api.main import app
+    from db import session as db_session
+    from db.models import TrainingPlan, User
+
+    client, user_id = etag_client
+    db = db_session.SessionLocal()
+    try:
+        db.add(TrainingPlan(
+            user_id=user_id,
+            date=date.today() + timedelta(days=1),
+            workout_type="private-future",
+            planned_duration_min=50,
+            source=" STRYD ",
+        ))
+        db.add(User(
+            id="demo-etag-viewer",
+            email="demo-etag@example.com",
+            hashed_password="x",
+            is_demo=True,
+            demo_of=user_id,
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+    monkeypatch.setattr(
+        "api.statsig_client.check_gate",
+        lambda _gate_name, _user: True,
+    )
+
+    owner_today = client.get("/api/today")
+    owner_training = client.get("/api/training")
+    assert owner_today.status_code == 200
+    assert owner_training.status_code == 200
+    assert owner_today.json()["coach_snapshot"]
+    assert owner_today.json()["upcoming"][0]["workout_type"] == (
+        "private-future"
+    )
+    db = db_session.SessionLocal()
+    try:
+        from db.models import DashboardCache
+
+        assert db.get(DashboardCache, (user_id, "today")) is None
+        assert db.get(DashboardCache, (user_id, "training")) is None
+    finally:
+        db.close()
+
+    app.dependency_overrides[get_current_user_id] = (
+        lambda: "demo-etag-viewer"
+    )
+    app.dependency_overrides[get_data_user_id] = lambda: user_id
+
+    demo_today = client.get(
+        "/api/today",
+        headers={"If-None-Match": owner_today.headers["etag"]},
+    )
+    demo_training = client.get(
+        "/api/training",
+        headers={"If-None-Match": owner_training.headers["etag"]},
+    )
+
+    assert demo_today.status_code == 200
+    assert demo_training.status_code == 200
+    assert demo_today.headers["etag"] != owner_today.headers["etag"]
+    assert demo_training.headers["etag"] != owner_training.headers["etag"]
+    assert demo_today.json()["upcoming"] == []
+    assert client.get(
+        "/api/today",
+        headers={"If-None-Match": demo_today.headers["etag"]},
+    ).status_code == 304
 
 
 def test_bump_revisions_changes_etag(etag_client):

@@ -15,7 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from './components/ui/alert';
 import { Button } from './components/ui/button';
 import { PRELOAD_RELOAD_KEY } from './lib/preload-recovery';
 import { AuthProvider, useAuth } from './hooks/useAuth';
-import { SettingsProvider } from './contexts/SettingsContext';
+import { SettingsProvider, useSettings } from './contexts/SettingsContext';
 import { ScienceProvider } from './contexts/ScienceContext';
 import { LocaleProvider, useLocale } from './contexts/LocaleContext';
 import { StatsigProvider } from './contexts/StatsigContext';
@@ -40,6 +40,8 @@ import { hasSkippedSetupForSession, useSetupStatus } from './hooks/useSetupStatu
 // thereafter (cache headers set by frontend_server/main.py).
 const loadTraining = () => import('./pages/Training');
 const Training = lazy(loadTraining);
+const loadAnalysis = () => import('./pages/Analysis');
+const Analysis = lazy(loadAnalysis);
 const Goal = lazy(() => import('./pages/Goal'));
 const History = lazy(() => import('./pages/History'));
 const Science = lazy(() => import('./pages/Science'));
@@ -119,6 +121,11 @@ class LabsRouteBoundary extends Component<
 }
 
 function LabsRoute({ children }: { children: ReactNode }) {
+  const { platformCapabilities, loading } = useSettings();
+  if (loading) return <RouteChunkSkeleton />;
+  if (!Object.prototype.hasOwnProperty.call(platformCapabilities, 'stryd')) {
+    return <Navigate to="/science" replace />;
+  }
   return (
     <LabsRouteBoundary>
       <Suspense fallback={<RouteChunkSkeleton />}>{children}</Suspense>
@@ -186,6 +193,7 @@ export default function App() {
                 <Route path="today" element={<TodayOrSetup />} />
                 <Route path="setup" element={<Setup />} />
                 <Route path="training" element={<Suspense fallback={null}><Training /></Suspense>} />
+                <Route path="analysis" element={<Suspense fallback={null}><Analysis /></Suspense>} />
                 <Route path="goal" element={<Suspense fallback={null}><Goal /></Suspense>} />
                 <Route path="history" element={<Suspense fallback={null}><History /></Suspense>} />
                 <Route path="science" element={<Suspense fallback={null}><Science /></Suspense>} />

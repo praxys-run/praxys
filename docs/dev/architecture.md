@@ -3,7 +3,7 @@
 ## System Overview
 
 ```
-Garmin/Stryd/Oura APIs
+Supported platform APIs
         |
    sync/*.py          Fetch + normalize → DB rows
         |
@@ -109,7 +109,7 @@ The custom registration endpoint (`api/routes/register.py`) enforces these rules
 
 ### Credential Encryption
 
-Platform credentials (Garmin/Stryd passwords, Oura tokens) are stored encrypted using envelope encryption (`db/crypto.py`):
+Platform credentials and access tokens are stored encrypted using envelope encryption (`db/crypto.py`):
 
 1. A fresh **Data Encryption Key (DEK)** is generated per credential (Fernet)
 2. The DEK encrypts the credential JSON
@@ -122,13 +122,19 @@ If `KEY_VAULT_URL` is set, the `CredentialVault` initializes an Azure `Cryptogra
 
 ### Plan Delivery Boundary
 
-`api/plan_delivery/` separates provider-neutral orchestration from Stryd API
-details. The service authenticates before starting a durable attempt, scopes
-credentials and ledger rows to the authenticated Praxys user, and records a
-fingerprint of the exact provider payload (including CP-derived workout
-blocks), plus a normalized content fingerprint that excludes volatile provider
-identifiers. The canonical Praxys plan version remains separate so
-reconciliation can distinguish a Praxys edit from a target edit.
+`api/plan_delivery/` separates provider-neutral orchestration from provider
+details. The maintainer-only Stryd adapter loads raw authentication and
+PowerCenter HTTP operations from a private, hash-pinned `stryd-client` wheel;
+`sync/stryd_sync.py` retains Praxys-specific parsing, workout translation, and
+fingerprints. `api/stryd_access.py` applies the default-off
+`stryd_connection_enabled` gate before credentials or provider I/O are reached.
+The service authenticates before starting a
+durable attempt, scopes credentials and ledger rows to the authenticated
+Praxys user, and records a fingerprint of the exact provider payload
+(including CP-derived workout blocks), plus a normalized content fingerprint
+that excludes volatile provider identifiers. The canonical Praxys plan version
+remains separate so reconciliation can distinguish a Praxys edit from a target
+edit.
 
 Successful creates persist the authenticated provider account ID. A later
 delete is refused if the user has reconnected a different provider account.
@@ -464,7 +470,7 @@ from contradicting the canonical verdict.
 
 **Auth.** `api/llm.py::get_client()` uses `DefaultAzureCredential` + `get_bearer_token_provider` — same scaffolding as `scripts/translate_missing.py`. No API key path. Reasoning deployment configured via `PRAXYS_INSIGHT_MODEL`; new-string translation via `TRANSLATE_MODEL`; native-language catalog editor/critic review via `TRANSLATE_REVIEW_MODEL`.
 
-**Mini program.** Training and Goal render the same durable insight receipts as
+**Mini program.** Analysis and Goal render the same durable insight receipts as
 web with deterministic fallbacks. Today renders only the canonical deterministic
 signal and never requests a `daily_brief` row.
 
@@ -514,13 +520,17 @@ Database layer:
 
 ### sync/
 
-Each sync script (`garmin_sync.py`, `stryd_sync.py`, `oura_sync.py`) is self-contained:
+Each sync adapter:
 - Authenticates with the platform API
 - Fetches new data since last sync (or from `--from-date`)
 - Normalizes to the model schema
 - Writes to the database via `db/sync_writer.py`
 
-`sync_all.py` orchestrates all three with error isolation per source.
+The maintainer-only Stryd transport is isolated in the private `stryd-client`
+package. Praxys owns only normalization, persistence, access control, and
+training/workout semantics around the raw responses.
+
+`sync_all.py` orchestrates configured sources with error isolation per source.
 
 ### analysis/
 
@@ -545,11 +555,19 @@ Each sync script (`garmin_sync.py`, `stryd_sync.py`, `oura_sync.py`) is self-con
 ### web/
 
 React SPA (Vite + TypeScript + Tailwind v4 + shadcn/ui):
-- **`pages/`**: 4 pages matching dashboard tabs (Today, Training, Goal, Settings) + Science
+- **`pages/`**: Today, managed Training, Analysis, Goal, Activities, Settings, Science, and supporting Labs/admin routes
 - **`components/`**: UI components, one per card/section
 - **`hooks/`**: `useApi<T>` for data fetching with loading/error states
 - **`types/api.ts`**: TypeScript interfaces matching API response shapes
 - **`lib/chart-theme.ts`**: Single source of truth for chart colors
+
+### miniapp/
+
+Native WeChat Mini Program (Skyline + TypeScript):
+- **Primary tabs**: Today, managed Training, Analysis, Goal, and Me
+- **Analysis**: observed-training interpretation plus an in-page Activities view
+- **Me**: hub for Settings, Training Science, Labs, and legal surfaces
+- **Legacy routes**: History remains as a non-tab wrapper for existing deep links
 
 ### plugins/praxys/
 

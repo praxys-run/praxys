@@ -145,8 +145,43 @@ Follow the existing registry schema and lifecycle:
   every parameter as `published`, `estimate`, or `guardrail`, and document
   rejected alternatives, claim limits, safety/privacy implications, and a
   falsification plan.
-- Only an identified human reviewer can accept an SDR or approve a behavior
-  change. Regenerate `data/science/REGISTRY.md` after valid record changes.
+- New records use `approval_mode: artifact`; draft SDRs declare
+  `artifact_policy.runtime_state: inactive`.
+- Run `python scripts/generate_science_artifacts.py` and hand reviewers the
+  generated Markdown packet, not raw YAML. The packet must include the exact
+  machine JSON contract and the same decision/contract digests.
+- Artifact-mode SDRs must define a typed `decision_review` manifest. Start the
+  packet with a short decision sheet that tells the reviewer exactly what to
+  approve, what is explicitly deferred, what approval changes, and what it
+  does not authorize. Map every `model_parameters` group to at least one
+  decision item. Keep the full parameter/evidence/contract material in the
+  audit appendix; never ask a human to infer the decision by skimming it.
+- Evidence, decision, and implementation review are separate roles. Only a
+  digest-bound `evidence_reviewer` may accept an artifact-mode Evidence Review;
+  only a `decision_approver` may accept its SDR; only an
+  `implementation_reviewer` may activate its contract.
+- A human reviewer fills each of those roles; generated packets, schema
+  validation, agents, and CI cannot substitute for that judgment.
+- Human approval may be given in an authenticated GitHub PR comment or an
+  authenticated local/remote agent session. It counts only when the human
+  explicitly approves the named role, subject, and displayed immutable digest.
+  A vague "looks fine", absence of objections, or agent inference is not
+  approval.
+- After an approval in a local/remote session, the agent mirrors the exact
+  role, subject, digest, and approval statement to a human-authenticated GitHub
+  PR comment. The reviewer performs no YAML bookkeeping. Only after GitHub
+  verifies that human identity and repository permission may an agent or
+  trusted workflow materialize the digest-bound approval artifact and lifecycle
+  transition. The agent is a recorder, never the approver.
+- Agents and automation must not invent, widen, or reuse an approval, and must
+  not activate a contract from an evidence or decision approval. Automated
+  runtime activation remains disabled until implementation approval can bind
+  the active contract digest, exact reviewed code diff, and validation
+  evidence.
+- The automatic ledger accepts first-version records only. Successors still
+  require the coordinated reciprocal supersession patch described above; the
+  ledger must not infer or partially apply predecessor transitions.
+- Regenerate `data/science/REGISTRY.md` after valid record changes.
 
 ## 5. Map evidence to product behavior
 
@@ -198,6 +233,9 @@ End every run with these artifacts or explicitly state why one does not apply:
 3. Concise product recommendation, alternatives considered, and claim limits.
 4. Unresolved evidence gaps, conflicts, and validation/falsification plan.
 5. Implementation impact map and reviewer checklist.
+6. For artifact-mode work, generated Evidence Review and SDR review packets,
+   the action-oriented decision manifest, the exact inactive machine contract,
+   and any still-missing role-scoped approval artifacts.
 
 Name the mode, verification limits, and the human approval still required in
 the handoff. Do not present a draft as shipped science.

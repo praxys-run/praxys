@@ -56,10 +56,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          head_sha="$(
-            gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq .head.sha
-          )"
-          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+          pull="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          head_sha="$(jq -r .head.sha <<< "$pull")"
+          base_sha="$(jq -r .base.sha <<< "$pull")"
+          {
+            echo "head_sha=$head_sha"
+            echo "base_sha=$base_sha"
+          } >> "$GITHUB_OUTPUT"
           gh api -X POST "repos/${GITHUB_REPOSITORY}/statuses/${head_sha}" \
             -f state=pending \
             -f context=selective-review-policy \
@@ -75,6 +78,69 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
+
+      - name: Install science approval verifier dependencies
+        if: steps.target.outputs.pr_number != ''
+        run: >-
+          pip install --quiet --disable-pip-version-check
+          'pydantic==2.13.4' 'pyyaml==6.0.3'
+
+      - name: Checkout pull request base for science approval comparison
+        if: steps.target.outputs.pr_number != ''
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.gate-status.outputs.base_sha }}
+          path: approval-base
+          persist-credentials: false
+
+      - name: Checkout pull request head without executing it
+        if: steps.target.outputs.pr_number != ''
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.gate-status.outputs.head_sha }}
+          path: approval-head
+          persist-credentials: false
+
+      - name: Fetch science approval comments and reviewer permissions
+        if: steps.target.outputs.pr_number != ''
+        id: science-review-input
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          comments="$RUNNER_TEMP/science-comments-${PR_NUMBER}.json"
+          permissions="$RUNNER_TEMP/science-permissions-${PR_NUMBER}.json"
+          gh api --paginate \
+            "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" \
+            | jq -s 'add' > "$comments"
+          printf '{}\n' > "$permissions"
+          while IFS= read -r login; do
+            encoded="$(jq -rn --arg value "$login" '$value | @uri')"
+            permission="$(
+              gh api \
+                "repos/${GITHUB_REPOSITORY}/collaborators/${encoded}/permission" \
+                --jq .permission 2>/dev/null || printf 'none'
+            )"
+            next="$permissions.next"
+            jq --arg login "$login" --arg permission "$permission" \
+              '. + {($login): $permission}' "$permissions" > "$next"
+            mv "$next" "$permissions"
+          done < <(jq -r '.[].user.login // empty' "$comments" | sort -u)
+          {
+            echo "comments=$comments"
+            echo "permissions=$permissions"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Verify authenticated science approvals
+        if: steps.target.outputs.pr_number != ''
+        run: >-
+          python scripts/verify_science_approval_sources.py
+          --base-science-dir approval-base/data/science
+          --head-science-dir approval-head/data/science
+          --github-comments "${{ steps.science-review-input.outputs.comments }}"
+          --github-permissions "${{ steps.science-review-input.outputs.permissions }}"
 
       - name: Evaluate deterministic review policy
         id: policy

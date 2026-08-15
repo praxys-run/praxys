@@ -27,6 +27,9 @@ compute. Dispatch failures remain in the transactional outbox for retry.
   is deployed, and the backend has applied that migration.
 - Azure CLI, GitHub CLI, `psql`, and access to `rg-trainsight`.
 - GitHub package-admin access for the one-time GHCR visibility change.
+- The repository `STATSIG_SDK_KEY` secret and `STATSIG_ENV=production`
+  variable used by the backend. The worker reuses them for authoritative
+  per-account eligibility.
 - The existing action group `praxys-feedback-ag`, Log Analytics workspace
   `log-trainsight`, and backend Application Insights component
   `appi-praxys-backend`.
@@ -302,6 +305,8 @@ columns. In particular:
 - `labs_analysis_jobs` can update only attempt/processing state and timestamps;
 - `user_connections` is restricted to provider status/preferences, never
   encrypted credentials or token bundles; and
+- `users` is restricted to ID, email, active/admin/demo flags needed for
+  Statsig targeting, never password hashes or other account metadata; and
 - `training_plans` is not granted because the research worker constructs its
   request context with plan loading disabled.
 
@@ -335,13 +340,16 @@ In `log-trainsight`, query the last 15 minutes of
 `ContainerJobName_s == "praxys-labs-environment-worker"`. Confirm:
 
 - `Database startup check OK (postgresql)`;
+- `Labs worker feature-gate client ready`;
 - `Labs worker startup check completed`; and
 - no authentication, permission, or image-pull error.
 
 The helper copies the live execution template, preserving its image, secrets,
 environment, and resources, then overrides only the one execution's command.
-It checks the worker identity and exact table/column grants without receiving
-or settling a Service Bus delivery.
+It checks Statsig readiness, the worker identity, and exact table/column grants
+without receiving or settling a Service Bus delivery. A missing key or Statsig
+initialization failure exits before Service Bus receive, preserving queued jobs
+instead of misclassifying eligible users as revoked.
 
 ### 5. Cut over the backend
 

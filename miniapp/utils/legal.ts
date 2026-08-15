@@ -72,8 +72,8 @@ export const TERMS_SECTIONS: LegalSection[] = [
     },
     "body": [
       {
-        "en": "Connecting Garmin, Stryd, Oura, Strava or similar means you authorize us to fetch your data via your credentials. You confirm you may share it; their terms still apply. We are not affiliated with or endorsed by these providers.",
-        "zh": "连接 Garmin、Stryd、Oura、Strava 等即表示您授权我们使用您的凭据获取数据。您确认有权共享该数据；其各自条款仍适用。我们与上述提供方无隶属或背书关系。"
+        "en": "Connecting a third-party training or recovery service means you authorize us to fetch your data using the access method you provide. You confirm you may share it; that provider's terms still apply. We are not affiliated with or endorsed by connected providers.",
+        "zh": "连接第三方训练或恢复服务，即表示你授权我们通过你提供的访问方式获取数据。你确认有权共享这些数据，且仍需遵守相应服务商的条款。Praxys 与所连接的服务商不存在隶属或背书关系。"
       },
       {
         "en": "Some connections require your account credentials, which are stored encrypted and used only to retrieve your data; unofficial access may be limited or disrupted at any time. Health and fitness data is sensitive personal information — by connecting, you explicitly consent to its collection and processing for training analytics, and may withdraw consent by disconnecting or deleting your account.",

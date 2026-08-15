@@ -94,7 +94,7 @@
 }
 
 .managed-plan__count-label {
-  max-width: 180rpx;
+  max-width: 220rpx;
   font-size: 20rpx;
   line-height: 1.2;
   text-align: right;
@@ -147,6 +147,11 @@
   color: var(--text-muted);
   font-size: 21rpx;
   line-height: 1.45;
+}
+
+.managed-plan.lang-en .managed-plan__count-label,
+.managed-plan.lang-en .managed-plan__management-detail {
+  word-break: keep-all;
 }
 
 .managed-plan__manage,

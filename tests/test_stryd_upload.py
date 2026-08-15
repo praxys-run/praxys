@@ -9,6 +9,12 @@ from sync.stryd_sync import (
     create_workout_api,
     delete_workout_api,
     _make_segment,
+    stryd_client_available,
+)
+
+pytestmark = pytest.mark.skipif(
+    not stryd_client_available(),
+    reason="private stryd-client dependency is unavailable",
 )
 
 

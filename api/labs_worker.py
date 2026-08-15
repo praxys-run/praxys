@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import logging
 import os
 from typing import Any
@@ -47,6 +48,23 @@ def _initialize_database() -> None:
     from db.session import init_db
 
     init_db()
+
+
+def _initialize_feature_gates() -> None:
+    """Initialize the authoritative eligibility client before queue receive."""
+    from api.statsig_client import init_statsig, is_statsig_initialized
+
+    asyncio.run(init_statsig())
+    if not is_statsig_initialized():
+        raise RuntimeError("Labs worker feature-gate client is unavailable")
+    logger.info("Labs worker feature-gate client ready")
+
+
+def _shutdown_feature_gates() -> None:
+    """Flush and stop the worker's eligibility client."""
+    from api.statsig_client import shutdown_statsig
+
+    asyncio.run(shutdown_statsig())
 
 
 def _verify_database_connection() -> None:
@@ -184,18 +202,21 @@ def main(argv: list[str] | None = None) -> int:
     os.environ["PRAXYS_SKIP_MIGRATIONS"] = "true"
     os.environ["PRAXYS_HIDE_SQL_PARAMETERS"] = "true"
     _configure_telemetry()
-    if args.startup_check:
-        try:
+    try:
+        _initialize_feature_gates()
+        if args.startup_check:
             startup_check()
-        except Exception as exc:
-            logger.error(
-                "Labs worker startup check failed failure_class=%s",
-                type(exc).__name__,
-            )
-            return 1
+            return 0
+        run_once()
         return 0
-    run_once()
-    return 0
+    except Exception as exc:
+        logger.error(
+            "Labs worker execution failed failure_class=%s",
+            type(exc).__name__,
+        )
+        return 1
+    finally:
+        _shutdown_feature_gates()
 
 
 if __name__ == "__main__":

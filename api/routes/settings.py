@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -39,7 +39,11 @@ from analysis.providers import available_providers
 from analysis.thresholds import detect_thresholds
 from analysis.training_base import get_display_config
 from api import telemetry
-from api.auth import get_data_user_id, require_write_access
+from api.auth import (
+    get_current_user_id,
+    get_data_user_id,
+    require_write_access,
+)
 from api.env_compat import getenv_compat
 from api.plan_delivery import is_plan_delivery_target_registered
 from api.plan_delivery.capabilities import (
@@ -49,6 +53,11 @@ from api.plan_delivery.capabilities import (
     plan_delivery_account_fence_token,
     plan_delivery_options,
     plan_delivery_target_selectable,
+)
+from api.stryd_access import (
+    is_stryd_provider,
+    require_stryd_connection_enabled,
+    stryd_connection_enabled,
 )
 from api.views import utc_isoformat
 from db.models import UserConnection
@@ -141,12 +150,20 @@ class PlanManagementUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     mode: Literal["external", "praxys"] | None = None
-    execution_target: PlatformName | None = None
+    execution_target: str | None = None
     delivery_enabled: bool | None = None
     adjustment_policy: Literal[
         "suggest_only",
         "auto_conservative",
     ] | None = None
+
+    @field_validator("execution_target")
+    @classmethod
+    def validate_execution_target(cls, value: str | None) -> str | None:
+        """Validate targets without publishing private provider names."""
+        if value is not None and value not in PLATFORM_CAPABILITIES:
+            raise ValueError("Unsupported plan execution target")
+        return value
 
 
 class SettingsUpdate(BaseModel):
@@ -200,6 +217,7 @@ def _apply_plan_management_update(
     user_id: str,
     db: Session,
     garmin_eligible: bool,
+    stryd_eligible: bool,
 ) -> None:
     """Validate and merge an explicit managed-plan settings update."""
     changes = update.model_dump(exclude_unset=True)
@@ -288,6 +306,8 @@ def _apply_plan_management_update(
         "execution_target" in changes
         or changes.get("delivery_enabled") is True
     ):
+        if is_stryd_provider(target) and not stryd_eligible:
+            raise HTTPException(status_code=404, detail="Not found")
         if target not in config.connections:
             raise HTTPException(
                 status_code=400,
@@ -493,6 +513,7 @@ def _connection_statuses(
     db: Session,
     *,
     user_id: str,
+    stryd_enabled: bool,
 ) -> dict[str, str]:
     """Return fresh mutation-relevant status for each configured platform."""
     connections = db.execute(
@@ -503,6 +524,7 @@ def _connection_statuses(
     return {
         connection.platform: connection.status or "disconnected"
         for connection in connections
+        if stryd_enabled or not is_stryd_provider(connection.platform)
     }
 
 
@@ -577,14 +599,99 @@ def resolve_thresholds(
     return effective
 
 
+def _without_stryd_config(config: UserConfig) -> dict[str, Any]:
+    """Return a client-safe config without private Stryd selections."""
+    payload = asdict(config)
+    payload["connections"] = [
+        platform
+        for platform in payload.get("connections", [])
+        if not is_stryd_provider(platform)
+    ]
+    preferences = dict(payload.get("preferences") or {})
+    for key, value in list(preferences.items()):
+        if is_stryd_provider(value):
+            preferences.pop(key)
+    threshold_sources = preferences.get("threshold_sources")
+    if isinstance(threshold_sources, dict):
+        preferences["threshold_sources"] = {
+            key: value
+            for key, value in threshold_sources.items()
+            if not is_stryd_provider(value)
+        }
+    payload["preferences"] = preferences
+    plan_management = dict(payload.get("plan_management") or {})
+    if is_stryd_provider(plan_management.get("execution_target")):
+        plan_management["execution_target"] = None
+        plan_management["delivery_enabled"] = False
+    payload["plan_management"] = plan_management
+    payload["activity_routing"] = {
+        activity_type: platform
+        for activity_type, platform in (
+            payload.get("activity_routing") or {}
+        ).items()
+        if not is_stryd_provider(platform)
+    }
+    return payload
+
+
+def _without_stryd_thresholds(detected: dict[str, Any]) -> dict[str, Any]:
+    """Remove private Stryd threshold observations from a response."""
+    visible: dict[str, Any] = {}
+    for key, info in detected.items():
+        options = [
+            option
+            for option in info.get("options", [])
+            if not is_stryd_provider(option.get("source"))
+        ]
+        if not options:
+            continue
+        visible[key] = {
+            **info,
+            "value": options[0].get("value"),
+            "source": options[0].get("source"),
+            "options": options,
+        }
+    return visible
+
+
+def _settings_update_requests_stryd(body: SettingsUpdate) -> bool:
+    """Return whether one settings mutation selects the private provider."""
+    if (
+        body.connections is not None
+        and any(is_stryd_provider(value) for value in body.connections)
+    ):
+        return True
+    if (
+        body.plan_management is not None
+        and is_stryd_provider(body.plan_management.execution_target)
+    ):
+        return True
+
+    def contains_stryd(value: Any) -> bool:
+        if isinstance(value, str):
+            return value.strip().casefold() == "stryd"
+        if isinstance(value, dict):
+            return any(contains_stryd(item) for item in value.values())
+        if isinstance(value, (list, tuple, set)):
+            return any(contains_stryd(item) for item in value)
+        return False
+
+    return contains_stryd(body.preferences)
+
+
 @router.get("/settings")
 def get_settings(
+    viewer_user_id: str = Depends(get_current_user_id),
     user_id: str = Depends(get_data_user_id),
     db: Session = Depends(get_db),
 ) -> dict:
     """Return current user config, platform capabilities, detected thresholds, and display config."""
     config = load_config_from_db(user_id, db)
     garmin_eligible = _garmin_delivery_eligibility(user_id, db, config)
+    stryd_enabled = stryd_connection_enabled(
+        db,
+        user_id=viewer_user_id,
+    )
     connections = {
         connection.platform: connection
         for connection in db.query(UserConnection).filter(
@@ -594,35 +701,53 @@ def get_settings(
     registered_targets = _registered_plan_delivery_targets()
     avail = available_providers()
     detected = _detect_thresholds_from_db(user_id, db)
+    if not stryd_enabled:
+        detected = _without_stryd_thresholds(detected)
     effective = resolve_thresholds(
         config.thresholds,
         detected,
         threshold_sources=config.preferences.get("threshold_sources"),
         activity_source=config.preferences.get("activities"),
     )
+    capabilities = effective_platform_capabilities(
+        config,
+        connections=connections,
+        garmin_eligible=garmin_eligible,
+        registered_targets=registered_targets,
+    )
+    delivery_options = plan_delivery_options(
+        config,
+        connections=connections,
+        garmin_eligible=garmin_eligible,
+        registered_targets=registered_targets,
+    )
+    if not stryd_enabled:
+        capabilities.pop("stryd", None)
+        delivery_options = [
+            option
+            for option in delivery_options
+            if option.get("platform") != "stryd"
+        ]
     return {
-        "config": asdict(config),
+        "config": (
+            asdict(config)
+            if stryd_enabled
+            else _without_stryd_config(config)
+        ),
         "connection_statuses": _connection_statuses(
             db,
             user_id=user_id,
+            stryd_enabled=stryd_enabled,
         ),
-        "platform_capabilities": effective_platform_capabilities(
-            config,
-            connections=connections,
-            garmin_eligible=garmin_eligible,
-            registered_targets=registered_targets,
-        ),
-        "plan_delivery_options": plan_delivery_options(
-            config,
-            connections=connections,
-            garmin_eligible=garmin_eligible,
-            registered_targets=registered_targets,
-        ),
+        "platform_capabilities": capabilities,
+        "plan_delivery_options": delivery_options,
         "available_providers": {
-            "activities": avail.get("activities", []),
-            "recovery": avail.get("recovery", []),
-            "fitness": avail.get("fitness", []),
-            "plan": avail.get("plan", []),
+            category: [
+                provider
+                for provider in avail.get(category, [])
+                if stryd_enabled or not is_stryd_provider(provider)
+            ]
+            for category in ("activities", "recovery", "fitness", "plan")
         },
         "available_bases": ["power", "hr", "pace"],
         "display": get_display_config(config.training_base),
@@ -659,6 +784,9 @@ def _update_settings(
 ) -> dict:
     """Apply a settings update after any required provider lease is held."""
     config = load_config_from_db(user_id, db)
+    stryd_enabled = stryd_connection_enabled(db, user_id=user_id)
+    if not stryd_enabled and _settings_update_requests_stryd(body):
+        raise HTTPException(status_code=404, detail="Not found")
     prior_plan_management = dict(config.plan_management)
     prior_goal = dict(config.goal)
     requested_execution_target = prior_plan_management.get(
@@ -835,6 +963,7 @@ def _update_settings(
             user_id=user_id,
             db=db,
             garmin_eligible=garmin_eligible,
+            stryd_eligible=stryd_enabled,
         )
     elif legacy_target_update_requested:
         current_target = config.plan_management.get("execution_target")
@@ -988,26 +1117,40 @@ def _update_settings(
         ).all()
     }
     registered_targets = _registered_plan_delivery_targets()
+    capabilities = effective_platform_capabilities(
+        config,
+        connections=connections,
+        garmin_eligible=garmin_eligible,
+        registered_targets=registered_targets,
+    )
+    delivery_options = plan_delivery_options(
+        config,
+        connections=connections,
+        garmin_eligible=garmin_eligible,
+        registered_targets=registered_targets,
+    )
+    if not stryd_enabled:
+        capabilities.pop("stryd", None)
+        delivery_options = [
+            option
+            for option in delivery_options
+            if option.get("platform") != "stryd"
+        ]
     return {
         "status": "ok",
-        "config": asdict(config),
+        "config": (
+            asdict(config)
+            if stryd_enabled
+            else _without_stryd_config(config)
+        ),
         "display": get_display_config(config.training_base),
         "connection_statuses": _connection_statuses(
             db,
             user_id=user_id,
+            stryd_enabled=stryd_enabled,
         ),
-        "platform_capabilities": effective_platform_capabilities(
-            config,
-            connections=connections,
-            garmin_eligible=garmin_eligible,
-            registered_targets=registered_targets,
-        ),
-        "plan_delivery_options": plan_delivery_options(
-            config,
-            connections=connections,
-            garmin_eligible=garmin_eligible,
-            registered_targets=registered_targets,
-        ),
+        "platform_capabilities": capabilities,
+        "plan_delivery_options": delivery_options,
     }
 
 
@@ -1346,6 +1489,7 @@ def _strava_redirect_target(
 
 @router.get("/settings/connections")
 def get_connections(
+    viewer_user_id: str = Depends(get_current_user_id),
     user_id: str = Depends(get_data_user_id),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -1355,9 +1499,15 @@ def get_connections(
     connections = db.query(UserConnection).filter(
         UserConnection.user_id == user_id,
     ).all()
+    stryd_enabled = stryd_connection_enabled(
+        db,
+        user_id=viewer_user_id,
+    )
 
     result = {}
     for conn in connections:
+        if is_stryd_provider(conn.platform) and not stryd_enabled:
+            continue
         result[conn.platform] = {
             "status": conn.status,
             "last_sync": utc_isoformat(conn.last_sync),
@@ -1704,6 +1854,15 @@ def connect_platform(
 
     if platform not in PLATFORM_CAPABILITIES:
         return {"status": "error", "message": f"Unknown platform: {platform}"}
+    if platform == "stryd":
+        require_stryd_connection_enabled(db, user_id=user_id)
+        from sync.stryd_sync import stryd_client_available
+
+        if not stryd_client_available():
+            raise HTTPException(
+                status_code=503,
+                detail="Stryd integration is unavailable",
+            )
 
     # Build credentials dict based on platform
     if platform in ("garmin", "stryd"):

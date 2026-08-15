@@ -68,6 +68,8 @@ _DESIGN_GOVERNANCE_FILES = {
 _EVIDENCE_FIELDS = (
     "impeccable",
     "visual review",
+    "primary journey",
+    "reviewer handoff",
     "states checked",
     "accessibility",
     "design system impact",
@@ -101,6 +103,10 @@ _IMPECCABLE_COMMANDS = {
 }
 _PLACEHOLDER_RE = re.compile(
     r"(?:^|\b)(?:todo|tbd|pending|not checked|not run|n/?a)(?:\b|$)",
+    re.IGNORECASE,
+)
+_REVIEWER_HANDOFF_RE = re.compile(
+    r"^(?:local-only|pr media|ci artifact|preview|none)\s*-\s*\S.*$",
     re.IGNORECASE,
 )
 
@@ -286,6 +292,17 @@ def _validate_design_system_impact(
     ]
 
 
+def _validate_reviewer_handoff(value: str) -> list[str]:
+    normalized = re.sub(r"\s+", " ", value.strip())
+    if _REVIEWER_HANDOFF_RE.fullmatch(normalized):
+        return []
+    return [
+        "UI quality field 'reviewer handoff' must use one of: "
+        "'local-only - <path/session>', 'PR media - <links/summary>', "
+        "'CI artifact - <run>', 'preview - <URL>', or 'none - <reason>'."
+    ]
+
+
 def validate_ui_evidence(
     body: str,
     *,
@@ -330,6 +347,10 @@ def validate_ui_evidence(
                 governance_paths,
             )
         )
+
+    handoff_value = values.get("reviewer handoff", "")
+    if not _is_placeholder(handoff_value):
+        errors.extend(_validate_reviewer_handoff(handoff_value))
 
     impeccable_value = values.get("impeccable", "").lower()
     if impeccable_value and not any(

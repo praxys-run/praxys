@@ -8,6 +8,10 @@ from tests.test_settings_api import api_client
 def test_data_export_requires_authentication(api_client):
     """The self-service export remains unavailable without a bearer token."""
     client, _ = api_client
+    from api.auth import get_current_user_id
+    from api.main import app
+
+    app.dependency_overrides.pop(get_current_user_id, None)
 
     response = client.get("/api/me/export")
 

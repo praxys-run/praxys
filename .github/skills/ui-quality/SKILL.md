@@ -84,7 +84,43 @@ output. Fix findings in one batch and perform at most one confirmation pass.
 If no browser tool is available, do not claim visual verification. Keep the PR
 draft and record the limitation in the UI evidence.
 
-## 6. Validate and hand off
+## 6. Choose and store reviewer evidence
+
+Store detailed captures locally by default under:
+
+```text
+test-screenshots/ui-quality/<branch-or-pr>/
+```
+
+`test-screenshots/` is gitignored. Keep native-resolution source screenshots,
+recordings, and an optional `index.html` there; never commit them. A local HTML
+gallery must link to the original assets rather than flatten full screens into
+one downscaled raster storyboard.
+
+Choose the smallest medium that explains the change:
+
+| Change | Evidence |
+|---|---|
+| Static styling, copy, chart, or single-state change | Native-resolution screenshots |
+| Responsive behavior or important loading, empty, error, or unsupported states | Screenshots for each materially different viewport/state |
+| Navigation, forms, timing, animation, gestures, or a sequence that stills cannot explain | A focused 15-45 second video; prefer MP4 for publication, while browser-native WebM is acceptable locally |
+| Material multi-step journey with important edge states | Short primary-journey video plus 2-3 edge-state screenshots |
+
+Use synthetic data only. Do not capture credentials, tokens, personal training
+data, raw feedback screenshots, or authenticated network archives. Do not add a
+production dependency only to record evidence; use the available browser or
+platform recorder, and fall back to screenshots when recording is unavailable.
+
+Choose the handoff for the actual reviewer:
+
+- Synchronous local review: keep evidence local, share the live URL and local
+  gallery path in the active session, and keep credentials out of the PR.
+- Asynchronous PR review: publish only the minimum useful recording or 2-3
+  stills. Keep exhaustive state captures local or in a CI artifact.
+- Persistent cloud preview or gallery: create one only when explicitly
+  requested. Blob storage is for static evidence, not an interactive app.
+
+## 7. Validate and hand off
 
 Run the smallest relevant tests, web build, miniapp typecheck when applicable,
 and:
@@ -99,6 +135,8 @@ Complete this exact PR section:
 ## UI quality
 - Impeccable: `polish web/src/...`
 - Visual review: desktop 1440x900; mobile 390x844
+- Primary journey: Goal -> plan preview -> readiness
+- Reviewer handoff: local-only - `test-screenshots/ui-quality/pr-123/index.html`
 - States checked: loading, empty, error, success, long EN/zh
 - Accessibility: keyboard, focus, contrast, reduced motion, touch targets
 - Design system impact: none - existing tokens and components cover this change
@@ -108,4 +146,5 @@ Complete this exact PR section:
 
 Never fill the block with planned work or unverified claims. Impeccable findings
 must be fixed or documented as a narrow, intentional exception approved by a
-maintainer.
+maintainer. Valid reviewer handoff prefixes are `local-only`, `PR media`,
+`CI artifact`, `preview`, and `none`; every value needs a concrete explanation.

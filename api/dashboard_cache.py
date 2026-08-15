@@ -26,7 +26,7 @@ Invalidation semantics — reuse L2's revision counters:
   scopes sorted alphabetically so two callers produce byte-identical
   strings, plus date and response-version salts where applicable.
   Example for ``today`` on 2026-04-26 with all-zero revisions:
-  ``"activities=0|config=0|fitness=0|plans=0|recovery=0|samples=0|splits=0|d=2026-04-26|v=heat-adaptation-today-v13"``.
+  ``"activities=0|config=0|fitness=0|plans=0|recovery=0|samples=0|splits=0|d=2026-04-26|v=private-plan-boundary-today-v14"``.
   Any sync-writer or settings-route bump advances the relevant scope,
   so the cached row's source_version no longer matches and the next
   read recomputes.
@@ -438,6 +438,7 @@ def cached_or_compute(
     compute: Callable[[], dict],
     *,
     source_version_field: str | None = None,
+    use_cache: bool = True,
 ) -> bytes:
     """Return the JSON-encoded response body, served from cache or freshly built.
 
@@ -457,6 +458,9 @@ def cached_or_compute(
     Reliability: any expected DB-class failure inside the cache layer
     falls through to ``compute()`` and returns the freshly-encoded
     body. The cache layer must never break a request.
+
+    ``use_cache=False`` preserves the same response encoding and optional
+    snapshot field while bypassing both L3 reads and writes.
     """
     def _encode_snapshot_payload(source_version: str | None) -> bytes:
         payload = compute()
@@ -468,6 +472,21 @@ def cached_or_compute(
                 else None
             )
         return _encode(payload)
+
+    if not use_cache:
+        if source_version_field is None:
+            return _encode_snapshot_payload(None)
+        try:
+            snapshot_sv = compute_source_version(db, user_id, section)
+        except _RECOVERABLE_DB_ERRORS as exc:
+            logger.warning(
+                "dashboard_cache: bypass source_version lookup failed for "
+                "(user=%s, section=%s, error_id=L3_BYPASS_SV_FAIL, "
+                "exc_class=%s): %s",
+                user_id, section, type(exc).__name__, exc,
+            )
+            snapshot_sv = None
+        return _encode_snapshot_payload(snapshot_sv)
 
     # MUST happen before compute(). Race-correctness invariant — see
     # the module docstring's "Race-correctness" paragraph. Moving this

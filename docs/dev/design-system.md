@@ -76,7 +76,7 @@ Detection: `LocaleContext` + `detectBrowserLocale`. Stored preference overrides 
 | Bounded numeric ranges | `RangeSlider` paired with exact `Input` fields |
 | Status indicators | `Badge` with severity-based variants |
 | Progress bars | `Progress` |
-| Navigation | `Sidebar` (collapsible, sheet drawer on mobile) |
+| Navigation | Web: `Sidebar` (collapsible, sheet drawer on mobile). Miniapp: five-tab Skyline bar (`Today / Training / Analysis / Goal / Me`) with flat in-page switches for sibling views. |
 
 ### Bounded numeric ranges
 
@@ -107,7 +107,7 @@ Two patterns. Different jobs.
 - Expanded body: `text-muted-foreground`, small, leading-relaxed.
 - Citation link: `text-accent-cobalt` with underline on hover.
 
-**`coach-receipt` — narrative reasoning surface.** A standalone block where reasoning *is* the content. Today fills it from the deterministic signal; Training and Goal may use durable AI insights with rule-based fallbacks. Square-cornered, thin border, flat cobalt banner header with brand mark and optional timestamp, body with headline + findings + dashed rule + numbered recommendations, muted footer with theory attribution. Defined globally in `web/src/index.css` under `.coach-receipt`; reusable on any page. CSS classes: `coach-receipt`, `coach-banner`, `coach-mark`, `coach-stamp`, `coach-body`, `coach-headline`, `coach-rule`, `coach-label`, `coach-list`, `coach-row`, `coach-tag`, `coach-tag-rec`, `coach-text`, `coach-foot`.
+**`coach-receipt` — narrative reasoning surface.** A standalone block where reasoning *is* the content. Today fills it from the deterministic signal; Analysis and Goal may use durable AI insights with rule-based fallbacks. Square-cornered, thin border, flat cobalt banner header with brand mark and optional timestamp, body with headline + findings + dashed rule + numbered recommendations, muted footer with theory attribution. Defined globally in `web/src/index.css` under `.coach-receipt`; reusable on any page. CSS classes: `coach-receipt`, `coach-banner`, `coach-mark`, `coach-stamp`, `coach-body`, `coach-headline`, `coach-rule`, `coach-label`, `coach-list`, `coach-row`, `coach-tag`, `coach-tag-rec`, `coach-text`, `coach-foot`.
 
 **The retired rail-card pattern.** An earlier iteration of these docs prescribed a cobalt 3px left-border + cobalt-tinted card for the ScienceNote. That pattern became the AI-generated-UI cliché in 2025–26; the receipt's flat-banner geometry replaced it. **Don't reach for a >1px cobalt left border** — it's an absolute ban now (see DESIGN.md "Don't" list). Reasoning is encoded by cobalt *color* (banner backgrounds, eyebrow labels, citation links, recommendation arrows, ScienceNote triggers), not by rail-card shape.
 

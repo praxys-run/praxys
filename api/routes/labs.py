@@ -28,10 +28,11 @@ from api.labs_environment import (
 )
 from api.labs_dispatch import dispatch_job, notify_dispatcher
 from api.labs_tombstone_storage import TombstoneStorageError
+from api.stryd_access import require_stryd_connection_enabled
 from api.views import utc_isoformat
 from db.session import get_db
 
-router = APIRouter()
+router = APIRouter(include_in_schema=False)
 IdempotencyKey = Annotated[
     str | None,
     Header(
@@ -361,9 +362,11 @@ class EnvironmentPreflightResponse(BaseModel):
 )
 def calculate_environment_wet_bulb(
     body: EnvironmentWetBulbRequest,
-    _user_id: str = Depends(get_current_user_id),
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
 ) -> dict:
     """Calculate the non-persisted Stull psychrometric wet-bulb proxy."""
+    require_stryd_connection_enabled(db, user_id=user_id)
     estimate = estimate_wet_bulb_c(
         body.temperature_c,
         body.relative_humidity_pct,
@@ -392,6 +395,7 @@ def get_environment_response_preflight(
     db: Session = Depends(get_db),
 ) -> dict:
     """Return fast definite blockers without running or storing analysis."""
+    require_stryd_connection_enabled(db, user_id=user_id)
     return environment_response_preflight(db, user_id)
 
 
@@ -426,6 +430,7 @@ def get_environment_response(
     db: Session = Depends(get_db),
 ) -> dict:
     """Return consent, processing, diagnostics, and aggregate result state."""
+    require_stryd_connection_enabled(db, user_id=user_id)
     return public_state(db, user_id)
 
 
@@ -442,6 +447,7 @@ def enroll_environment_response(
     db: Session = Depends(get_db),
 ) -> dict:
     """Record explicit consent and queue private aggregate computation."""
+    require_stryd_connection_enabled(db, user_id=user_id)
     try:
         decision = enroll(
             db,
@@ -489,6 +495,7 @@ def recompute_environment_response(
     db: Session = Depends(get_db),
 ) -> dict:
     """Queue a fresh result under the existing explicit consent."""
+    require_stryd_connection_enabled(db, user_id=user_id)
     try:
         decision = queue_recompute(
             db,

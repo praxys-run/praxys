@@ -4,7 +4,7 @@ How Praxys protects your data and credentials.
 
 ## Credential Encryption
 
-Platform credentials (Garmin password, Stryd password, Oura token) and Garmin OAuth sessions are encrypted at rest using envelope encryption. They are **never stored in plaintext**, **never returned to the frontend**, and **never logged**.
+Platform credentials, access tokens, and Garmin OAuth sessions are encrypted at rest using envelope encryption. They are **never stored in plaintext**, **never returned to the frontend**, and **never logged**.
 
 ### How It Works
 
@@ -68,7 +68,7 @@ Praxys handles two distinct categories of passwords differently:
 
 **Your Praxys account password** — hashed with **Argon2id** (winner of the Password Hashing Competition, resistant to GPU and side-channel attacks). The raw password is never stored in plaintext. Used for JWT login only.
 
-**Platform credentials** (Garmin email+password, Stryd email+password, Oura personal access token) — encrypted with **envelope encryption** (per-user AES/Fernet DEK, wrapped by a KEK). These are never returned to the frontend, never logged, only decrypted in memory at sync time, and discarded immediately after the sync API call completes. See [Credential Encryption](#credential-encryption) above for the full scheme.
+**Platform credentials** (provider login credentials and access tokens) — encrypted with **envelope encryption** (per-user AES/Fernet DEK, wrapped by a KEK). These are never returned to the frontend, never logged, only decrypted in memory at sync time, and discarded immediately after the sync API call completes. See [Credential Encryption](#credential-encryption) above for the full scheme.
 
 ## Data Isolation
 

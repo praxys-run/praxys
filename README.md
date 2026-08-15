@@ -1,6 +1,6 @@
 # Praxys
 
-Sports science that meets you where you are. Praxys syncs data from Garmin, Stryd, and Oura Ring, computes training metrics (fitness/fatigue/form, zone analysis, CP trend, race predictions), and serves a modern web dashboard with AI-powered coaching skills — for elite athletes, serious amateurs, and curious beginners alike.
+Sports science that meets you where you are. Praxys combines training and recovery data from supported platforms, computes training metrics (fitness/fatigue/form, zone analysis, CP trend, race predictions), and serves a modern web dashboard with AI-powered coaching skills — for elite athletes, serious amateurs, and curious beginners alike.
 
 ![Praxys — every step, reasoned.](web/public/og-card.png)
 
@@ -59,8 +59,8 @@ startup does not depend on a machine-specific `python` command name.
 
 ## What's Inside
 
-- **Pure-function metrics** in `analysis/metrics.py` — fitness/fatigue/form, CP trend, zone distribution, Riegel + Stryd race predictions, all with source citations.
-- **Pluggable data sources** in `analysis/providers/` — Garmin Connect, Stryd, Oura Ring v2, plus an optional AI provider for plan generation.
+- **Pure-function metrics** in `analysis/metrics.py` — fitness/fatigue/form, CP trend, zone distribution, and critical-power + Riegel race predictions, all with source citations.
+- **Pluggable data sources** in `analysis/providers/` — Garmin Connect, Strava, COROS, Oura Ring v2, plus an optional AI provider for plan generation.
 - **Multi-user from day one** — JWT auth, invitation-based registration, Fernet-encrypted platform credentials, per-user Garmin token directories.
 - **Decoupled frontend host** — `frontend_server/` is a standalone App Service site (`praxys-frontend`), so the same `web/dist/` artifact can later sit behind Tencent COS for a CN audience without Azure-specific glue.
 - **Designed for scientific rigor** — every formula carries a citation, every estimate is flagged, the `science-reviewer` and `metric-addition-reviewer` agents enforce the discipline on every change.
@@ -87,16 +87,15 @@ Praxys is released under the [MIT License](LICENSE).
 
 ### Trademarks
 
-Garmin, Stryd, Oura, COROS, and WeChat are trademarks of their respective owners. Praxys is not affiliated with, endorsed by, or sponsored by any of these companies. Logos and names are used solely to identify the data sources the app can sync from.
+Garmin, Strava, Oura, COROS, and WeChat are trademarks of their respective owners. Praxys is not affiliated with, endorsed by, or sponsored by any of these companies. Logos and names are used solely to identify supported data sources.
 
 ### Third-party data sources
 
 - **Garmin Connect** — synced via the unofficial [`garminconnect`](https://github.com/cyberjunky/python-garminconnect) Python library. There is no official Garmin partnership; the integration depends on Garmin's consumer web endpoints continuing to work. Garmin's [Terms of Use](https://www.garmin.com/en-US/legal/general-terms-of-use/) restrict automated access — use at your own risk.
-- **Stryd** — synced via the same email/password endpoints the Stryd web app uses. There is no official partner API for individual users. Same risk class as Garmin.
 - **Oura Ring** — synced via the [official Oura API v2](https://cloud.ouraring.com/v2/docs) using a Personal Access Token. This is a supported integration path.
 - **COROS** — synced via the unofficial Training Hub web API (activities, HRV, resting HR, VO2max) and the reverse-engineered mobile API (sleep data). There is no official COROS partnership. Same risk class as Garmin.
 
 ### Where your data lives
 
 - **Self-hosted (local development or your own Azure deployment):** all data sits in your own SQLite database. You control the host, the backups, and who has access.
-- **Cloud app at `praxys.run`:** your activity, recovery, and goal data are stored in our managed Azure deployment. Your **platform credentials** (Garmin password, Stryd password, Oura access token) are protected with **envelope encryption** — per-user Fernet DEKs wrapped by a KEK held outside the database — so they're never stored in plaintext, never returned to the frontend, and never logged. Activity and recovery data themselves are not encrypted at the application layer beyond standard storage-level encryption. See [`docs/security.md`](docs/security.md) for the full scheme.
+- **Cloud app at `praxys.run`:** your activity, recovery, and goal data are stored in our managed Azure deployment. Platform credentials and access tokens are protected with **envelope encryption** — per-user Fernet DEKs wrapped by a KEK held outside the database — so they're never stored in plaintext, never returned to the frontend, and never logged. Activity and recovery data themselves are not encrypted at the application layer beyond standard storage-level encryption. See [`docs/security.md`](docs/security.md) for the full scheme.
