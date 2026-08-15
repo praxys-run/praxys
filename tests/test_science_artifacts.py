@@ -641,14 +641,35 @@ def test_marathon_packet_contains_exact_draft_inactive_contract() -> None:
         "road_marathon_fueling_and_hydration_policy"
     ]["fluid_millilitres_per_hour_rule"] == "not_accepted"
     assert contract.parameter_values[
+        "road_marathon_fueling_and_hydration_policy"
+    ]["missing_material_context_outcome"] == "fueling_module_limited"
+    assert contract.parameter_values[
+        "road_marathon_fueling_and_hydration_policy"
+    ]["missing_context_blocks_independent_plan_modules"] is False
+    assert contract.parameter_values[
         "road_marathon_environment_and_altitude_policy"
     ]["personal_altitude_pace_or_finish_time_correction"] == "not_accepted"
+    assert contract.parameter_values[
+        "road_marathon_environment_and_altitude_policy"
+    ]["incomplete_material_context_outcome"] == (
+        "environment_module_limited"
+    )
+    assert contract.parameter_values[
+        "road_marathon_environment_and_altitude_policy"
+    ]["missing_context_blocks_independent_plan_modules"] is False
     assert contract.parameter_values[
         "road_marathon_reassessment_and_outcome_policy"
     ]["exact_post_marathon_outcome_window"] == "not_accepted"
     assert contract.parameter_values[
         "road_marathon_validation_privacy_and_open_decisions"
     ]["runtime_activation_criteria"] == "not_accepted"
+    typed_outcomes = contract.parameter_values[
+        "road_marathon_typed_outcomes_and_suggestion_only_state"
+    ]["outcomes"]
+    assert typed_outcomes["fueling_module_limited"]["plan_returned"] is True
+    assert typed_outcomes["environment_module_limited"][
+        "plan_returned"
+    ] is True
 
     decision = registry.decisions[decision_id]
     assert decision.decision_review is not None
@@ -688,6 +709,8 @@ def test_marathon_packet_contains_exact_draft_inactive_contract() -> None:
     assert "Exact machine contract — code consumption audit" in packet
     assert "activity_avg_power" in packet
     assert "goal_recorded_plan_policy_unavailable" in packet
+    assert "fueling_module_limited" in packet
+    assert "environment_module_limited" in packet
     assert "Review this packet, not the raw YAML" in expected[
         evidence_packet_path
     ]

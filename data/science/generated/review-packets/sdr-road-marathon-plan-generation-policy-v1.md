@@ -6,8 +6,8 @@
 - **Lifecycle:** `draft`
 - **Model version:** `road-marathon-plan-generation-policy-v1`
 - **Runtime state:** `inactive`
-- **Decision digest:** `sha256:47cd30dc808ff50f87473fffbef98f172c499f5afd343efc0c246ec8b6fc6301`
-- **Contract digest:** `sha256:6c92a8154315a6a4ed4a169889fca0fd216e7baac07917eab3a27d44eed0dd95`
+- **Decision digest:** `sha256:45c46ffb85c77938461ed95b50850b240064d072c7d314a29b547ed7e2567e3a`
+- **Contract digest:** `sha256:aecc3a7298adab99cdf72d9885b2656b129f308d8faaedd1fc380c838f87a2e4`
 - **Required decision role:** `decision_approver`
 - **Decision approval:** _Pending_
 - **Required activation role:** `implementation_reviewer`
@@ -70,7 +70,8 @@ Do not approve merely because the audit appendix looks reasonable or because you
 - **Question:** Should every future proposal remain athlete-editable and explicitly adopted, with no automatic maximal marathon test, target-gap escalation, catch-up, activity-average-power intensity analysis, hidden demographic default, unconfirmed imported context, or AI authority expansion?
 - **Proposed decision:** Accept those prohibitions. Require direct confirmed capability, source-labelled inputs, activity splits or samples for intensity, deterministic validation, symptom stops, minimum-necessary data, and separate evidence, decision, implementation, and activation authority.
 - **Approval means:**
-  - Missing context produces a typed no-plan or limited-guidance result rather than an invented value.
+  - Missing module-specific context disables or degrades only the dependent module rather than blocking otherwise eligible independent plan modules.
+  - Eligibility, safety, capability, history, or unresolved event conflicts may still produce a typed no-plan result.
   - AI may explain reviewable inputs but cannot choose unresolved values, approve, activate, adopt, deliver, or publish.
   - Athlete constraints and consent remain authoritative.
 - **This does not authorize:**
@@ -161,10 +162,10 @@ Do not approve merely because the audit appendix looks reasonable or because you
 #### `defer-fueling-hydration-environment` — Defer fueling, hydration, environmental, and altitude values
 
 - **Question:** Should loading, duration, intake, fluid, sodium, gut-training numbers and prompts, plus environmental and altitude corrections and acclimation schedules, remain unresolved?
-- **Proposed decision:** Keep every behavior-driving nutrition, hydration, environmental, and altitude value unaccepted. Require practiced context and complete environmental inputs before any future dependent suggestion.
+- **Proposed decision:** Keep every behavior-driving nutrition, hydration, environmental, and altitude value unaccepted. Require practiced context and complete environmental inputs before any future dependent suggestion, while preserving independent plan modules when that context is missing.
 - **Approval means:**
-  - Missing fueling context returns fueling_context_required.
-  - Missing material environmental context returns environment_context_incomplete.
+  - Missing fueling context returns fueling_module_limited while otherwise eligible independent plan modules remain available.
+  - Missing material environmental context returns environment_module_limited while otherwise eligible independent plan modules remain available.
 - **This does not authorize:**
   - A distance-only intake, fluid, sodium, loading, sweat, or gut-training rule.
   - A personal pace correction, finish-time correction, or altitude acclimation schedule.
@@ -198,7 +199,7 @@ Do not approve merely because the audit appendix looks reasonable or because you
 
 A decision approval bound to the displayed digest attests:
 
-> I approve the narrow currently-capable adult outdoor road-marathon performance scope, bounded evidence use, hard suggestion-only and athlete-control boundaries, and qualitative mostly-low, durability, practiced-fueling, and environmental context. I agree that baseline and history qualification, all dose and race-specific work, taper and recovery, fueling, hydration and environment numbers, and secondary rollout choices remain deferred. This approval would not approve implementation, runtime activation, a plan length, or any unresolved value.
+> I approve the narrow currently-capable adult outdoor road-marathon performance scope, bounded evidence use, hard suggestion-only and athlete-control boundaries, and qualitative mostly-low, durability, practiced-fueling, and environmental context. Missing fueling, hydration, or environmental context degrades only the dependent module rather than blocking independent plan modules. I agree that baseline and history qualification, all dose and race-specific work, taper and recovery, fueling, hydration and environment numbers, and secondary rollout choices remain deferred. This approval would not approve implementation, runtime activation, a plan length, or any unresolved value.
 
 - **Decision approval:** _Pending_
 
@@ -211,12 +212,12 @@ Praxys science approval — **APPROVE**
 
 - Role: `decision_approver`
 - Subject: `sdr-road-marathon-plan-generation-policy-v1`
-- Digest: `sha256:47cd30dc808ff50f87473fffbef98f172c499f5afd343efc0c246ec8b6fc6301`
+- Digest: `sha256:45c46ffb85c77938461ed95b50850b240064d072c7d314a29b547ed7e2567e3a`
 
-> I approve the narrow currently-capable adult outdoor road-marathon performance scope, bounded evidence use, hard suggestion-only and athlete-control boundaries, and qualitative mostly-low, durability, practiced-fueling, and environmental context. I agree that baseline and history qualification, all dose and race-specific work, taper and recovery, fueling, hydration and environment numbers, and secondary rollout choices remain deferred. This approval would not approve implementation, runtime activation, a plan length, or any unresolved value.
+> I approve the narrow currently-capable adult outdoor road-marathon performance scope, bounded evidence use, hard suggestion-only and athlete-control boundaries, and qualitative mostly-low, durability, practiced-fueling, and environmental context. Missing fueling, hydration, or environmental context degrades only the dependent module rather than blocking independent plan modules. I agree that baseline and history qualification, all dose and race-specific work, taper and recovery, fueling, hydration and environment numbers, and secondary rollout choices remain deferred. This approval would not approve implementation, runtime activation, a plan length, or any unresolved value.
 
 <!-- praxys-science-approval:v1
-{"role":"decision_approver","subject_digest":"sha256:47cd30dc808ff50f87473fffbef98f172c499f5afd343efc0c246ec8b6fc6301","subject_id":"sdr-road-marathon-plan-generation-policy-v1","subject_kind":"science_decision"}
+{"role":"decision_approver","subject_digest":"sha256:45c46ffb85c77938461ed95b50850b240064d072c7d314a29b547ed7e2567e3a","subject_id":"sdr-road-marathon-plan-generation-policy-v1","subject_kind":"science_decision"}
 -->
 ```
 
@@ -226,7 +227,7 @@ Praxys science approval — **APPROVE**
 
 ### Accepted interpretation
 
-If accepted by a digest-bound human decision approver, this SDR would authorize only an inactive policy boundary for adults aged 18 years or older with current direct outdoor road-marathon capability, stable recent history that anchors their own exposure, within-recent load, performance intent, optional target time or date, and athlete-confirmed event context. Goal capture remains independent from generator availability. Missing optional age, sex, or profile modifiers disable only dependent adjustments and never default to male; imported profile and event data remain source-labelled until athlete confirmation. The proposed policy is suggestion-only and modular: entry/readiness; history/load; long-run/durability; intensity/race-specific work; fueling/hydration practice; taper/recovery; environment/altitude; and reassessment/outcomes. Population associations and source findings may support bounded explanation and validation but not personal probability, causal dose, or target-gap escalation. No plan length, baseline algorithm, history count, weekly frequency, progression, volume, long-run dose, durability cutoff, intensity distribution, race-specific dose, workout, taper, recovery, fueling, hydration, environment, altitude, race-density, subgroup, outcome, pilot, implementation, or activation rule is selected. No 5 km, 10 km, or half-marathon numeric rule is inherited. This proposal does not authorize first-marathon or completion intent, sparse history, returning, clinical, rehabilitation, pregnancy-specific, trail, ultra, or unsupported contexts. A no-event rolling preparation or simulation route requires a separately accepted completion or benchmark policy and may not invent an automatic maximal marathon simulation.
+If accepted by a digest-bound human decision approver, this SDR would authorize only an inactive policy boundary for adults aged 18 years or older with current direct outdoor road-marathon capability, stable recent history that anchors their own exposure, within-recent load, performance intent, optional target time or date, and athlete-confirmed event context. Goal capture remains independent from generator availability. Missing optional age, sex, or profile modifiers disable only dependent adjustments and never default to male; imported profile and event data remain source-labelled until athlete confirmation. The proposed policy is suggestion-only and modular: entry/readiness; history/load; long-run/durability; intensity/race-specific work; fueling/hydration practice; taper/recovery; environment/altitude; and reassessment/outcomes. Missing fueling, hydration, or environmental context disables or degrades only the dependent module and does not block otherwise eligible independent plan modules. Population associations and source findings may support bounded explanation and validation but not personal probability, causal dose, or target-gap escalation. No plan length, baseline algorithm, history count, weekly frequency, progression, volume, long-run dose, durability cutoff, intensity distribution, race-specific dose, workout, taper, recovery, fueling, hydration, environment, altitude, race-density, subgroup, outcome, pilot, implementation, or activation rule is selected. No 5 km, 10 km, or half-marathon numeric rule is inherited. This proposal does not authorize first-marathon or completion intent, sparse history, returning, clinical, rehabilitation, pregnancy-specific, trail, ultra, or unsupported contexts. A no-event rolling preparation or simulation route requires a separately accepted completion or benchmark policy and may not invent an automatic maximal marathon simulation.
 
 ### Linked evidence
 
@@ -674,6 +675,8 @@ Evidence of prior adaptation is not medical clearance or a current heat-illness 
     "athlete_editability",
     "typed_outcome"
   ],
+  "missing_context_disables_or_degrades_dependent_module_only": true,
+  "missing_context_may_block_independent_modules": false,
   "modules": [
     "entry_readiness",
     "history_load",
@@ -959,7 +962,8 @@ Evidence of prior adaptation is not medical clearance or a current heat-illness 
   "gut_training_protocol": "not_accepted",
   "hydration_prompt_content_and_timing": "not_accepted",
   "medical_or_dietetic_treatment_claim": false,
-  "missing_material_context_outcome": "fueling_context_required",
+  "missing_context_blocks_independent_plan_modules": false,
+  "missing_material_context_outcome": "fueling_module_limited",
   "new_race_day_strategy_without_practice": "prohibited",
   "practiced_strategy_required_before_race_day_suggestion": true,
   "required_context": [
@@ -1030,7 +1034,8 @@ Evidence of prior adaptation is not medical clearance or a current heat-illness 
   "environmental_plan_adjustment_rule": "not_accepted",
   "heat_acclimation_schedule": "not_accepted",
   "heat_adaptation_used_as_medical_clearance": false,
-  "incomplete_material_context_outcome": "environment_context_incomplete",
+  "incomplete_material_context_outcome": "environment_module_limited",
+  "missing_context_blocks_independent_plan_modules": false,
   "personal_altitude_pace_or_finish_time_correction": "not_accepted",
   "personal_temperature_or_wbgt_correction": "not_accepted",
   "population_coefficient_used_as_personal_counterfactual": false,
@@ -1128,13 +1133,19 @@ Evidence of prior adaptation is not medical clearance or a current heat-illness 
       "goal_remains_recorded": true,
       "plan_returned": false
     },
-    "environment_context_incomplete": {
+    "environment_module_limited": {
+      "degraded_modules": [
+        "environment_altitude"
+      ],
       "goal_remains_recorded": true,
-      "plan_returned": false
+      "plan_returned": true
     },
-    "fueling_context_required": {
+    "fueling_module_limited": {
+      "degraded_modules": [
+        "fueling_hydration_practice"
+      ],
       "goal_remains_recorded": true,
-      "plan_returned": false
+      "plan_returned": true
     },
     "goal_recorded_plan_policy_unavailable": {
       "goal_remains_recorded": true,
@@ -1310,7 +1321,7 @@ AI cannot repair missing evidence, confirm athlete inputs, broaden eligibility, 
 
 - Registry validation must prove the exact draft Evidence Review and claim links, globally consistent citation metadata, rigorous verification notes, four approve and five defer items, complete parameter coverage, literal `not_accepted` deferrals, and inactive artifact policy.
 - Artifact validation must prove that generated Evidence Review and SDR packets carry current digests and that the exact inactive machine contract embedded in the SDR packet matches the generated JSON contract.
-- Tests must lock the narrow population tuple, modular structure, direct baseline hierarchy, goal-policy separation, no-event benchmark boundary, source-labelled profile and event data, typed outcomes, and activity-split/sample intensity rule.
+- Tests must lock the narrow population tuple, modular structure, direct baseline hierarchy, goal-policy separation, no-event benchmark boundary, source-labelled profile and event data, module-local missing-context degradation, typed outcomes, and activity-split/sample intensity rule.
 - Tests must prove no plan length or shorter-distance numeric rule is inherited and that key observed values remain published source findings, not guardrail values.
 - Before implementation, separate human decisions must select every baseline, history, dose, long-run, durability, intensity, race-specific, taper, recovery, fueling, hydration, environment, altitude, reassessment, subgroup, outcome, pilot, and activation value.
 - Offline dry runs must report exclusions, missingness, source confirmation, event conflicts, subgroup gaps, edit and rejection burden, fueling, hydration and environment context, quality and event stacking, and deterministic replay without publishing private athlete data.
@@ -1323,6 +1334,7 @@ AI cannot repair missing evidence, confirm athlete inputs, broaden eligibility, 
 - Reject schedule mapping if observational source categories, durability correlations, pyramidal prevalence, taper effects, or target gap become eligibility or dose rules.
 - Reject no-event routing if it creates a maximal marathon simulation without a separately accepted completion or benchmark policy.
 - Reject fueling or hydration behavior if distance alone selects loading, intake, fluid, sodium, gut-training, or race-day strategy.
+- Reject modular routing if missing fueling, hydration, or environmental context blocks otherwise eligible independent plan modules or is replaced with an invented value.
 - Reject environmental behavior if population weather or chamber altitude findings become a personal correction, acclimation schedule, clearance, or guarantee.
 - Pause future activation after any deterministic invariant or replay breach, symptom-stop override, hidden demographic default, unconfirmed source use, unresolved event conflict, unsupported population, consent bypass, or approval-digest mismatch.
 
@@ -1344,7 +1356,7 @@ AI cannot repair missing evidence, confirm athlete inputs, broaden eligibility, 
     "road-marathon-plan-generation-policy-v1",
     "shared dynamic training-pattern and confirmed event snapshots"
   ],
-  "contract_digest": "sha256:6c92a8154315a6a4ed4a169889fca0fd216e7baac07917eab3a27d44eed0dd95",
+  "contract_digest": "sha256:aecc3a7298adab99cdf72d9885b2656b129f308d8faaedd1fc380c838f87a2e4",
   "decision_id": "sdr-road-marathon-plan-generation-policy-v1",
   "decision_status": "draft",
   "decision_version": 1,
@@ -1477,7 +1489,8 @@ AI cannot repair missing evidence, confirm athlete inputs, broaden eligibility, 
         "environmental_plan_adjustment_rule": "not_accepted",
         "heat_acclimation_schedule": "not_accepted",
         "heat_adaptation_used_as_medical_clearance": false,
-        "incomplete_material_context_outcome": "environment_context_incomplete",
+        "incomplete_material_context_outcome": "environment_module_limited",
+        "missing_context_blocks_independent_plan_modules": false,
         "personal_altitude_pace_or_finish_time_correction": "not_accepted",
         "personal_temperature_or_wbgt_correction": "not_accepted",
         "population_coefficient_used_as_personal_counterfactual": false,
@@ -1509,7 +1522,8 @@ AI cannot repair missing evidence, confirm athlete inputs, broaden eligibility, 
         "gut_training_protocol": "not_accepted",
         "hydration_prompt_content_and_timing": "not_accepted",
         "medical_or_dietetic_treatment_claim": false,
-        "missing_material_context_outcome": "fueling_context_required",
+        "missing_context_blocks_independent_plan_modules": false,
+        "missing_material_context_outcome": "fueling_module_limited",
         "new_race_day_strategy_without_practice": "prohibited",
         "practiced_strategy_required_before_race_day_suggestion": true,
         "required_context": [
@@ -1644,6 +1658,8 @@ AI cannot repair missing evidence, confirm athlete inputs, broaden eligibility, 
           "athlete_editability",
           "typed_outcome"
         ],
+        "missing_context_disables_or_degrades_dependent_module_only": true,
+        "missing_context_may_block_independent_modules": false,
         "modules": [
           "entry_readiness",
           "history_load",
@@ -2050,13 +2066,19 @@ AI cannot repair missing evidence, confirm athlete inputs, broaden eligibility, 
             "goal_remains_recorded": true,
             "plan_returned": false
           },
-          "environment_context_incomplete": {
+          "environment_module_limited": {
+            "degraded_modules": [
+              "environment_altitude"
+            ],
             "goal_remains_recorded": true,
-            "plan_returned": false
+            "plan_returned": true
           },
-          "fueling_context_required": {
+          "fueling_module_limited": {
+            "degraded_modules": [
+              "fueling_hydration_practice"
+            ],
             "goal_remains_recorded": true,
-            "plan_returned": false
+            "plan_returned": true
           },
           "goal_recorded_plan_policy_unavailable": {
             "goal_remains_recorded": true,
@@ -2155,7 +2177,7 @@ AI cannot repair missing evidence, confirm athlete inputs, broaden eligibility, 
   },
   "runtime_state": "inactive",
   "schema_version": 1,
-  "source_decision_digest": "sha256:47cd30dc808ff50f87473fffbef98f172c499f5afd343efc0c246ec8b6fc6301"
+  "source_decision_digest": "sha256:45c46ffb85c77938461ed95b50850b240064d072c7d314a29b547ed7e2567e3a"
 }
 ```
 
@@ -2171,7 +2193,7 @@ Runtime activation remains fail-closed until implementation approval can bind bo
 
 ```json
 {
-  "accepted_interpretation": "If accepted by a digest-bound human decision approver, this SDR would authorize only an inactive policy boundary for adults aged 18 years or older with current direct outdoor road-marathon capability, stable recent history that anchors their own exposure, within-recent load, performance intent, optional target time or date, and athlete-confirmed event context. Goal capture remains independent from generator availability. Missing optional age, sex, or profile modifiers disable only dependent adjustments and never default to male; imported profile and event data remain source-labelled until athlete confirmation. The proposed policy is suggestion-only and modular: entry/readiness; history/load; long-run/durability; intensity/race-specific work; fueling/hydration practice; taper/recovery; environment/altitude; and reassessment/outcomes. Population associations and source findings may support bounded explanation and validation but not personal probability, causal dose, or target-gap escalation. No plan length, baseline algorithm, history count, weekly frequency, progression, volume, long-run dose, durability cutoff, intensity distribution, race-specific dose, workout, taper, recovery, fueling, hydration, environment, altitude, race-density, subgroup, outcome, pilot, implementation, or activation rule is selected. No 5 km, 10 km, or half-marathon numeric rule is inherited. This proposal does not authorize first-marathon or completion intent, sparse history, returning, clinical, rehabilitation, pregnancy-specific, trail, ultra, or unsupported contexts. A no-event rolling preparation or simulation route requires a separately accepted completion or benchmark policy and may not invent an automatic maximal marathon simulation.",
+  "accepted_interpretation": "If accepted by a digest-bound human decision approver, this SDR would authorize only an inactive policy boundary for adults aged 18 years or older with current direct outdoor road-marathon capability, stable recent history that anchors their own exposure, within-recent load, performance intent, optional target time or date, and athlete-confirmed event context. Goal capture remains independent from generator availability. Missing optional age, sex, or profile modifiers disable only dependent adjustments and never default to male; imported profile and event data remain source-labelled until athlete confirmation. The proposed policy is suggestion-only and modular: entry/readiness; history/load; long-run/durability; intensity/race-specific work; fueling/hydration practice; taper/recovery; environment/altitude; and reassessment/outcomes. Missing fueling, hydration, or environmental context disables or degrades only the dependent module and does not block otherwise eligible independent plan modules. Population associations and source findings may support bounded explanation and validation but not personal probability, causal dose, or target-gap escalation. No plan length, baseline algorithm, history count, weekly frequency, progression, volume, long-run dose, durability cutoff, intensity distribution, race-specific dose, workout, taper, recovery, fueling, hydration, environment, altitude, race-density, subgroup, outcome, pilot, implementation, or activation rule is selected. No 5 km, 10 km, or half-marathon numeric rule is inherited. This proposal does not authorize first-marathon or completion intent, sparse history, returning, clinical, rehabilitation, pregnancy-specific, trail, ultra, or unsupported contexts. A no-event rolling preparation or simulation route requires a separately accepted completion or benchmark policy and may not invent an automatic maximal marathon simulation.",
   "affected_surfaces": {
     "apis": [
       "future authenticated marathon capability and typed proposal endpoints",
@@ -2214,7 +2236,7 @@ Runtime activation remains fail-closed until implementation approval can bind bo
     "Impact map: draft Evidence Review -> generated evidence packet -> draft SDR -> generated decision packet and inactive contract -> human evidence and decision review -> future implementation review -> future pure policy mapping -> API -> web and miniapp parity -> ScienceNote and localization -> offline validation -> opt-in pilot -> separately approved activation."
   ],
   "decision_review": {
-    "approval_statement": "I approve the narrow currently-capable adult outdoor road-marathon performance scope, bounded evidence use, hard suggestion-only and athlete-control boundaries, and qualitative mostly-low, durability, practiced-fueling, and environmental context. I agree that baseline and history qualification, all dose and race-specific work, taper and recovery, fueling, hydration and environment numbers, and secondary rollout choices remain deferred. This approval would not approve implementation, runtime activation, a plan length, or any unresolved value.",
+    "approval_statement": "I approve the narrow currently-capable adult outdoor road-marathon performance scope, bounded evidence use, hard suggestion-only and athlete-control boundaries, and qualitative mostly-low, durability, practiced-fueling, and environmental context. Missing fueling, hydration, or environmental context degrades only the dependent module rather than blocking independent plan modules. I agree that baseline and history qualification, all dose and race-specific work, taper and recovery, fueling, hydration and environment numbers, and secondary rollout choices remain deferred. This approval would not approve implementation, runtime activation, a plan length, or any unresolved value.",
     "items": [
       {
         "approval_effect": [
@@ -2284,7 +2306,8 @@ Runtime activation remains fail-closed until implementation approval can bind bo
       },
       {
         "approval_effect": [
-          "Missing context produces a typed no-plan or limited-guidance result rather than an invented value.",
+          "Missing module-specific context disables or degrades only the dependent module rather than blocking otherwise eligible independent plan modules.",
+          "Eligibility, safety, capability, history, or unresolved event conflicts may still produce a typed no-plan result.",
           "AI may explain reviewable inputs but cannot choose unresolved values, approve, activate, adopt, deliver, or publish.",
           "Athlete constraints and consent remain authoritative."
         ],
@@ -2433,8 +2456,8 @@ Runtime activation remains fail-closed until implementation approval can bind bo
       },
       {
         "approval_effect": [
-          "Missing fueling context returns fueling_context_required.",
-          "Missing material environmental context returns environment_context_incomplete."
+          "Missing fueling context returns fueling_module_limited while otherwise eligible independent plan modules remain available.",
+          "Missing material environmental context returns environment_module_limited while otherwise eligible independent plan modules remain available."
         ],
         "disposition": "defer",
         "does_not_authorize": [
@@ -2456,7 +2479,7 @@ Runtime activation remains fail-closed until implementation approval can bind bo
           "road_marathon_fueling_and_hydration_policy",
           "road_marathon_environment_and_altitude_policy"
         ],
-        "proposed_decision": "Keep every behavior-driving nutrition, hydration, environmental, and altitude value unaccepted. Require practiced context and complete environmental inputs before any future dependent suggestion.",
+        "proposed_decision": "Keep every behavior-driving nutrition, hydration, environmental, and altitude value unaccepted. Require practiced context and complete environmental inputs before any future dependent suggestion, while preserving independent plan modules when that context is missing.",
         "question": "Should loading, duration, intake, fluid, sodium, gut-training numbers and prompts, plus environmental and altitude corrections and acclimation schedules, remain unresolved?",
         "title": "Defer fueling, hydration, environmental, and altitude values"
       },
@@ -2528,6 +2551,7 @@ Runtime activation remains fail-closed until implementation approval can bind bo
     "Reject schedule mapping if observational source categories, durability correlations, pyramidal prevalence, taper effects, or target gap become eligibility or dose rules.",
     "Reject no-event routing if it creates a maximal marathon simulation without a separately accepted completion or benchmark policy.",
     "Reject fueling or hydration behavior if distance alone selects loading, intake, fluid, sodium, gut-training, or race-day strategy.",
+    "Reject modular routing if missing fueling, hydration, or environmental context blocks otherwise eligible independent plan modules or is replaced with an invented value.",
     "Reject environmental behavior if population weather or chamber altitude findings become a personal correction, acclimation schedule, clearance, or guarantee.",
     "Pause future activation after any deterministic invariant or replay breach, symptom-stop override, hidden demographic default, unconfirmed source use, unresolved event conflict, unsupported population, consent bypass, or approval-digest mismatch."
   ],
@@ -2771,6 +2795,8 @@ Runtime activation remains fail-closed until implementation approval can bind bo
           "athlete_editability",
           "typed_outcome"
         ],
+        "missing_context_disables_or_degrades_dependent_module_only": true,
+        "missing_context_may_block_independent_modules": false,
         "modules": [
           "entry_readiness",
           "history_load",
@@ -3056,7 +3082,8 @@ Runtime activation remains fail-closed until implementation approval can bind bo
         "gut_training_protocol": "not_accepted",
         "hydration_prompt_content_and_timing": "not_accepted",
         "medical_or_dietetic_treatment_claim": false,
-        "missing_material_context_outcome": "fueling_context_required",
+        "missing_context_blocks_independent_plan_modules": false,
+        "missing_material_context_outcome": "fueling_module_limited",
         "new_race_day_strategy_without_practice": "prohibited",
         "practiced_strategy_required_before_race_day_suggestion": true,
         "required_context": [
@@ -3136,7 +3163,8 @@ Runtime activation remains fail-closed until implementation approval can bind bo
         "environmental_plan_adjustment_rule": "not_accepted",
         "heat_acclimation_schedule": "not_accepted",
         "heat_adaptation_used_as_medical_clearance": false,
-        "incomplete_material_context_outcome": "environment_context_incomplete",
+        "incomplete_material_context_outcome": "environment_module_limited",
+        "missing_context_blocks_independent_plan_modules": false,
         "personal_altitude_pace_or_finish_time_correction": "not_accepted",
         "personal_temperature_or_wbgt_correction": "not_accepted",
         "population_coefficient_used_as_personal_counterfactual": false,
@@ -3237,13 +3265,19 @@ Runtime activation remains fail-closed until implementation approval can bind bo
             "goal_remains_recorded": true,
             "plan_returned": false
           },
-          "environment_context_incomplete": {
+          "environment_module_limited": {
+            "degraded_modules": [
+              "environment_altitude"
+            ],
             "goal_remains_recorded": true,
-            "plan_returned": false
+            "plan_returned": true
           },
-          "fueling_context_required": {
+          "fueling_module_limited": {
+            "degraded_modules": [
+              "fueling_hydration_practice"
+            ],
             "goal_remains_recorded": true,
-            "plan_returned": false
+            "plan_returned": true
           },
           "goal_recorded_plan_policy_unavailable": {
             "goal_remains_recorded": true,
@@ -3414,7 +3448,7 @@ Runtime activation remains fail-closed until implementation approval can bind bo
   "validation_plan": [
     "Registry validation must prove the exact draft Evidence Review and claim links, globally consistent citation metadata, rigorous verification notes, four approve and five defer items, complete parameter coverage, literal `not_accepted` deferrals, and inactive artifact policy.",
     "Artifact validation must prove that generated Evidence Review and SDR packets carry current digests and that the exact inactive machine contract embedded in the SDR packet matches the generated JSON contract.",
-    "Tests must lock the narrow population tuple, modular structure, direct baseline hierarchy, goal-policy separation, no-event benchmark boundary, source-labelled profile and event data, typed outcomes, and activity-split/sample intensity rule.",
+    "Tests must lock the narrow population tuple, modular structure, direct baseline hierarchy, goal-policy separation, no-event benchmark boundary, source-labelled profile and event data, module-local missing-context degradation, typed outcomes, and activity-split/sample intensity rule.",
     "Tests must prove no plan length or shorter-distance numeric rule is inherited and that key observed values remain published source findings, not guardrail values.",
     "Before implementation, separate human decisions must select every baseline, history, dose, long-run, durability, intensity, race-specific, taper, recovery, fueling, hydration, environment, altitude, reassessment, subgroup, outcome, pilot, and activation value.",
     "Offline dry runs must report exclusions, missingness, source confirmation, event conflicts, subgroup gaps, edit and rejection burden, fueling, hydration and environment context, quality and event stacking, and deterministic replay without publishing private athlete data.",

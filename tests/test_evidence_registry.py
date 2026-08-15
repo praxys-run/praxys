@@ -1148,7 +1148,7 @@ def test_road_half_marathon_policy_is_accepted_artifact_and_inactive() -> None:
     }
 
 
-def test_road_marathon_policy_is_complete_draft_artifact() -> None:
+def test_road_marathon_policy_has_accepted_evidence_and_draft_decision() -> None:
     registry = load_science_registry()
     review = registry.evidence_reviews[
         "evidence-road-marathon-plan-generation-policy-v1"
@@ -1157,11 +1157,11 @@ def test_road_marathon_policy_is_complete_draft_artifact() -> None:
         "sdr-road-marathon-plan-generation-policy-v1"
     ]
 
-    assert review.status == RecordStatus.DRAFT
+    assert review.status == RecordStatus.ACCEPTED
     assert review.approval_mode == "artifact"
     assert review.human_reviewers == []
     assert review.created_on == date(2026, 8, 15)
-    assert review.reviewed_on is None
+    assert review.reviewed_on == date(2026, 8, 15)
     assert review.method.review_type.value == "rigorous"
     assert len(review.citations) == 21
     assert {
@@ -1312,6 +1312,10 @@ def test_road_marathon_policy_is_complete_draft_artifact() -> None:
         "environment_altitude",
         "reassessment_outcomes",
     ]
+    assert modular[
+        "missing_context_disables_or_degrades_dependent_module_only"
+    ] is True
+    assert modular["missing_context_may_block_independent_modules"] is False
 
     baseline = parameters[
         "road_marathon_direct_baseline_hierarchy"
@@ -1373,12 +1377,22 @@ def test_road_marathon_policy_is_complete_draft_artifact() -> None:
         "capability_confirmation_required",
         "insufficient_history",
         "unresolved_event_conflict",
-        "fueling_context_required",
-        "environment_context_incomplete",
+        "fueling_module_limited",
+        "environment_module_limited",
         "plan_policy_inactive",
         "implementation_review_required",
         "limited_guidance_only",
     } == set(outcomes["outcomes"])
+    assert outcomes["outcomes"]["fueling_module_limited"] == {
+        "plan_returned": True,
+        "degraded_modules": ["fueling_hydration_practice"],
+        "goal_remains_recorded": True,
+    }
+    assert outcomes["outcomes"]["environment_module_limited"] == {
+        "plan_returned": True,
+        "degraded_modules": ["environment_altitude"],
+        "goal_remains_recorded": True,
+    }
 
     published_volume = parameters[
         "road_marathon_published_volume_and_long_run_findings"
