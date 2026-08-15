@@ -1,4 +1,67 @@
 {
   "schema_version": 1,
-  "proposals": []
+  "proposals": [
+    {
+      "id": "translation-catalog-shadow-eval-v1",
+      "status": "proposed",
+      "current_policy_version": "selective-review-v2",
+      "current_classifier_semantics": "review-policy-v2",
+      "evidence_window": {
+        "start": "2026-08-15",
+        "end": "2026-08-15",
+        "basis": "No qualifying current-version `[change-loop outcomes]` issues were retrievable from repository evidence during this run, so the window contains no replayed observations."
+      },
+      "evidence_links": [
+        {
+          "type": "policy",
+          "path": "config/agent-loop-policies.json",
+          "ref": "change.selective_review.candidate_classes.translation-catalog-only"
+        },
+        {
+          "type": "enforcement",
+          "path": "analysis/review_policy.py",
+          "ref": "evaluate_selective_review"
+        },
+        {
+          "type": "enforcement",
+          "path": "scripts/selective_review_gate.py",
+          "ref": "main"
+        },
+        {
+          "type": "test",
+          "path": "tests/test_review_policy.py",
+          "ref": "test_sensitive_paths_fail_closed_even_if_class_is_promoted"
+        },
+        {
+          "type": "test",
+          "path": "tests/test_review_policy.py",
+          "ref": "test_checked_in_policy_protects_science_docs_from_documentation_promotion"
+        },
+        {
+          "type": "test",
+          "path": "tests/test_selective_review_workflow.py",
+          "ref": "test_policy_tuner_rejects_stale_or_duplicate_proposals"
+        },
+        {
+          "type": "commit",
+          "sha": "5a9de02878361d6d2fd5cdf488e4e21b99c25bb4",
+          "description": "Introduced selective-review-v2 and review-policy-v2"
+        }
+      ],
+      "observed_pattern": "The active policy defines `translation-catalog-only` as a candidate class but simultaneously marks `web/src/locales/**` as sensitive, so `evaluate_selective_review()` always emits `sensitive_path_changed` before promotion can ever be evaluated for that class. No current-version replayed outcome evidence was available to show recurring misses, so this remains a shadow-only bookkeeping proposal rather than a deployable autonomy change.",
+      "current_policy_gap": "The checked-in enforcement leaves no evaluable path for translation-only changes: `config/agent-loop-policies.json` includes `web/src/locales/**` in `change.selective_review.sensitive_paths` while also defining `candidate_classes.translation-catalog-only`, and `analysis.review_policy.evaluate_selective_review()` unconditionally appends `sensitive_path_changed` for any matching path. `tests/test_review_policy.py::test_sensitive_paths_fail_closed_even_if_class_is_promoted` locks in that fail-closed behavior.",
+      "suggested_policy_change": "Add an explicit shadow-evaluation-only bookkeeping mode for candidate classes that are intentionally blocked by `sensitive_paths`, so future change-loop outcome reports can record current-version observations against the class without implying deployability or changing merge behavior.",
+      "expected_benefit": "Separates 'candidate class exists but is intentionally non-promotable' from 'candidate class lacks sufficient evidence', making later policy discussions auditable without weakening the deployed gate.",
+      "risks": [
+        "Could be misread as momentum toward promotion even though the class remains blocked by design.",
+        "Adds reporting complexity without improving runtime safety unless maintainers later decide the class should become evaluable."
+      ],
+      "rollback": "Delete this proposal entry if maintainers decide blocked candidate classes should stay undocumented until runtime policy changes make them evaluable.",
+      "eval_cases_needed_before_promotion": [
+        "Replay at least five current-version non-test translation-only PRs against the active semantics and record them outside the merge gate.",
+        "Prove a reporting schema can distinguish shadow observations from promotable observations without touching `promoted_classes`.",
+        "If maintainers later want deployability, first remove or narrow the sensitive-path block in policy and enforcement, then re-run `scripts/validate_review_policy.py` with fresh evidence."
+      ]
+    }
+  ]
 }
