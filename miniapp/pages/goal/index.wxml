@@ -26,20 +26,45 @@
           </view>
         </view>
 
-        <goal-baseline
-          id="goal-baseline-panel"
-          wx:if="{{goalKind === 'performance_5k' && baseline}}"
-          baseline="{{baseline}}"
-          goal="{{goal}}"
-          disabled="{{editorSaving}}"
-          bindrefresh="onCoachFeedbackStale"
-        />
-        <view wx:if="{{goalKind === 'performance_5k' && baseline}}" class="ts-card outdoor-5k-goal-entry">
-          <text class="goal-section-title">{{tr.outdoor5kPlan}}</text>
-          <text class="goal-copy ts-muted">{{tr.outdoor5kPlanDetail}}</text>
-          <view class="goal-primary-action" bindtap="onStartOutdoor5kPlan" aria-role="button"><text>{{tr.openPlanPreview}}</text></view>
+        <view class="ts-card plan-generation-goal-entry">
+          <view class="plan-generation-header">
+            <text class="goal-section-title">{{tr.planStartTitle}}</text>
+            <text class="plan-generation-badge plan-generation-badge--{{planCapabilityState}}">{{planCapabilityBadge}}</text>
+          </view>
+          <text class="goal-copy ts-muted">{{planCapabilityDescription}}</text>
+          <text wx:if="{{planCapabilityDetail}}" class="goal-copy ts-muted">{{planCapabilityDetail}}</text>
+          <view
+            wx:if="{{planCapabilityState === 'available'}}"
+            class="plan-generation-action plan-generation-action--primary"
+            bindtap="onOpenPlanManagement"
+            hover-class="plan-generation-action--pressed"
+            aria-role="button"
+          ><text>{{tr.openPlanPreview}}</text></view>
+          <view
+            wx:elif="{{planCapabilityState === 'error'}}"
+            class="plan-generation-action plan-generation-action--secondary"
+            bindtap="onRetryPlanCapability"
+            hover-class="plan-generation-action--pressed"
+            aria-role="button"
+          ><text>{{tr.retryPolicyCheck}}</text></view>
+          <view
+            wx:elif="{{planCapabilityState === 'unavailable'}}"
+            class="plan-generation-action plan-generation-action--secondary"
+            bindtap="onOpenPlanManagement"
+            hover-class="plan-generation-action--pressed"
+            aria-role="button"
+          ><text>{{tr.manageWorkouts}}</text></view>
         </view>
 
+        <block wx:if="{{goalKind === 'performance_5k' && baseline}}">
+          <goal-baseline
+            id="goal-baseline-panel"
+            baseline="{{baseline}}"
+            goal="{{goal}}"
+            disabled="{{editorSaving}}"
+            bindrefresh="onCoachFeedbackStale"
+          />
+        </block>
         <block wx:else>
 
         <!-- Trajectory header — shared by all modes.

@@ -1,8 +1,8 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { Trans } from '@lingui/react/macro';
 
-import Outdoor5KPlanStart from '@/components/Outdoor5KPlanStart';
 import PersonalContextPanel from '@/components/PersonalContextPanel';
+import PlanStart from '@/components/PlanStart';
 import UpcomingPlanCard from '@/components/UpcomingPlanCard';
 
 export default function Training() {
@@ -22,7 +22,7 @@ export default function Training() {
       </p>
 
       <div className="mt-8 space-y-12">
-        <Outdoor5KPlanStart />
+        <PlanStart />
         <UpcomingPlanCard />
       </div>
 

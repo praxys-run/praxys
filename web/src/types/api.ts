@@ -878,6 +878,44 @@ export interface AdaptivePlanProposalAdoptResponse {
   workouts: CanonicalPlanWorkoutSnapshot[];
 }
 
+export interface PlanGenerationActions {
+  readiness_href: string;
+  alternatives_href: string;
+  generate_href: string;
+  regenerate_href_template: string;
+}
+
+export interface PlanGenerationCapability {
+  id: string;
+  status: 'available';
+  policy_status: 'accepted';
+  discipline: AdaptivePlanDiscipline;
+  activity_types: string[];
+  goal_match: {
+    goal_kinds: string[];
+    distances: string[];
+    surfaces: string[];
+  };
+  constraint_schema_id: string;
+  policy_version: string;
+  generator_version: string;
+  science_decision_id: string;
+  horizon_days: number;
+  reassessment_days: number;
+  actions: PlanGenerationActions;
+}
+
+export interface PlanGenerationCapabilitiesResponse {
+  schema_version: 1;
+  goal: {
+    goal_kind: string;
+    distance: string | null;
+  };
+  selected_capability: PlanGenerationCapability | null;
+  capabilities: PlanGenerationCapability[];
+  unsupported_reason: 'no_accepted_policy' | null;
+}
+
 export type Outdoor5KWeekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 export type Outdoor5KResultCode =

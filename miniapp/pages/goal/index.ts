@@ -2,7 +2,13 @@ import { setTabBarSelected } from '../../utils/tabbar';
 import type { IAppOption } from '../../app';
 import { apiGet, apiPut } from '../../utils/api-client';
 import type { ApiError } from '../../utils/api-client';
-import type { GoalResponse, AiInsight, AiInsightFinding, InsightFeedbackVote } from '../../types/api';
+import type {
+  GoalResponse,
+  AiInsight,
+  AiInsightFinding,
+  InsightFeedbackVote,
+  PlanGenerationCapabilitiesResponse,
+} from '../../types/api';
 import { formatTime, formatPace } from '../../utils/format';
 import { applyThemeChrome, themeClassName } from '../../utils/theme';
 import {
@@ -125,9 +131,21 @@ function buildGoalTr() {
     discardConfirm: t('Discard'),
     keepEditing: t('Keep editing'),
     discardPrompt: t('Discard changes?'),
-    outdoor5kPlan: t('Outdoor road 5K plan'),
-    outdoor5kPlanDetail: t('A preview checks current evidence and constraints. It is a proposal, not yet your plan.'),
+    planStartTitle: t('Start a training plan'),
+    planStartAvailable: t('A preview is a proposal, not yet your plan. Praxys checks the current evidence and constraints again before it creates one.'),
+    planStartUnavailable: t('Automatic generation is not available for this goal yet. Praxys will not reuse another policy outside its accepted scope.'),
+    planStartUnavailableDetail: t('You can keep this goal and manage workouts manually while separate road and trail policies go through science review.'),
+    planStartLoadFailed: t('Could not load the accepted plan-generation policies.'),
+    planStartLoadFailedDetail: t('Retry the policy check before opening a preview. Praxys will not infer availability from the current goal alone.'),
+    planStartUpdateRequired: t('Update required for this plan policy'),
+    planStartUpdateRequiredDetail: t('This client does not recognize the selected policy input contract and will not guess how to create a plan.'),
+    policyCheckFailed: t('Policy check failed'),
+    noAcceptedPolicy: t('No accepted policy'),
+    baselineReady: t('Baseline ready'),
+    reviewBaseline: t('Review baseline'),
     openPlanPreview: t('Open plan preview'),
+    manageWorkouts: t('Manage workouts'),
+    retryPolicyCheck: t('Retry policy check'),
   };
 }
 
@@ -194,6 +212,10 @@ interface GoalState {
   goalKind: GoalResponse['goal_kind'] | '';
   goal: GoalResponse['goal'] | null;
   baseline: GoalResponse['baseline'] | null;
+  planCapabilityState: 'loading' | 'available' | 'unavailable' | 'error' | 'update_required';
+  planCapabilityDescription: string;
+  planCapabilityDetail: string;
+  planCapabilityBadge: string;
 
   editorType: 'race' | 'continuous' | 'performance_5k';
   editorDistanceLabels: string[];
@@ -713,6 +735,10 @@ const initialData: GoalState = {
   goalKind: '',
   goal: null,
   baseline: null,
+  planCapabilityState: 'loading',
+  planCapabilityDescription: '',
+  planCapabilityDetail: '',
+  planCapabilityBadge: '',
 
   editorOpen: false,
   editorType: 'race',
@@ -749,9 +775,15 @@ Page({
     }
     const curLocale = getApp<IAppOption>().globalData.locale;
     const pgMut = this as unknown as Record<string, unknown>;
+    const returningToTab = pgMut._hasShownOnce === true;
+    pgMut._hasShownOnce = true;
+    let localeChanged = false;
     if (curLocale !== pgMut._locale) {
       pgMut._locale = curLocale;
+      localeChanged = true;
       this.setData({ tr: buildGoalTr() });
+    }
+    if (returningToTab || localeChanged) {
       void this.refetch();
     }
     applyThemeChrome();
@@ -774,8 +806,12 @@ Page({
       locale === 'zh' ? '像专业选手一样训练，无论水平高低。' : 'Train like a pro. Whatever your level.';
     return buildTimelineMessage(eyebrow || fallback);
   },
-  onStartOutdoor5kPlan() {
+  onOpenPlanManagement() {
     wx.switchTab({ url: '/pages/training/index' });
+  },
+
+  onRetryPlanCapability() {
+    void this.refetch();
   },
 
   onScrollRefresh() {
@@ -938,9 +974,10 @@ Page({
     const requestId = previousRequestId + 1;
     pageState._refetchRequestId = requestId;
     this.setData({ loading: true, errorMessage: '' });
+    const tr = this.data.tr as ReturnType<typeof buildGoalTr>;
     try {
       const locale = (getApp<IAppOption>().globalData.locale ?? 'en') as 'en' | 'zh';
-      const [response, insight] = await Promise.all([
+      const [response, insight, capabilityResult] = await Promise.all([
         apiGet<GoalResponse>('/api/goal'),
         fetchInsight('race_forecast').catch((e) => {
           const fe = e as Partial<ApiError>;
@@ -948,10 +985,53 @@ Page({
           console.warn('[goal] race_forecast fetch failed; suppressing coach receipt:', e);
           return null;
         }),
+        apiGet<PlanGenerationCapabilitiesResponse>(
+          '/api/plan/generation/capabilities',
+        )
+          .then((data) => ({ data, error: '' }))
+          .catch((error: unknown) => {
+            const apiError = error as Partial<ApiError>;
+            return {
+              data: null,
+              error: apiError.detail ?? tr.planStartLoadFailed,
+            };
+          }),
       ]);
       if (pageState._refetchRequestId !== requestId) return;
+      const capability = capabilityResult.data?.selected_capability ?? null;
+      let planCapabilityState: GoalState['planCapabilityState'];
+      let planCapabilityDescription: string;
+      let planCapabilityDetail: string;
+      let planCapabilityBadge: string;
+      if (capabilityResult.error) {
+        planCapabilityState = 'error';
+        planCapabilityDescription = tr.planStartLoadFailed;
+        planCapabilityDetail = capabilityResult.error || tr.planStartLoadFailedDetail;
+        planCapabilityBadge = tr.policyCheckFailed;
+      } else if (!capability) {
+        planCapabilityState = 'unavailable';
+        planCapabilityDescription = tr.planStartUnavailable;
+        planCapabilityDetail = tr.planStartUnavailableDetail;
+        planCapabilityBadge = tr.noAcceptedPolicy;
+      } else if (capability.constraint_schema_id !== 'outdoor_road_5k_constraints_v1') {
+        planCapabilityState = 'update_required';
+        planCapabilityDescription = tr.planStartUpdateRequired;
+        planCapabilityDetail = tr.planStartUpdateRequiredDetail;
+        planCapabilityBadge = tr.planStartUpdateRequired;
+      } else {
+        planCapabilityState = 'available';
+        planCapabilityDescription = tr.planStartAvailable;
+        planCapabilityDetail = '';
+        planCapabilityBadge = response.baseline?.readiness === 'sufficient_baseline'
+          ? tr.baselineReady
+          : tr.reviewBaseline;
+      }
       this.setData({
         ...(buildGoalState(response, insight, locale, this.data.themeClass) as Record<string, unknown>),
+        planCapabilityState,
+        planCapabilityDescription,
+        planCapabilityDetail,
+        planCapabilityBadge,
         _response: response,
       } as Record<string, unknown>);
     } catch (e) {
@@ -961,7 +1041,6 @@ Page({
         this.setData({ loading: false });
         return;
       }
-      const tr = this.data.tr as ReturnType<typeof buildGoalTr>;
       this.setData({ loading: false, errorMessage: err?.detail ?? tr.failedToLoad, hasResponse: false });
     }
   },

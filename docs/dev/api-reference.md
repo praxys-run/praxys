@@ -1347,7 +1347,24 @@ availability/safety statements. It does not read free-text personal context,
 use activity `avg_power`, infer medical state, promise a target outcome, write
 canonical workouts during generation, or initiate provider delivery.
 
-All four endpoints use the authenticated caller's own records. Readiness and
+`GET /api/plan/generation/capabilities` is the shared discovery contract for
+web, miniapp, plugin, MCP, and agent clients. It returns:
+
+- the caller's privacy-minimized normalized goal (`goal_kind` and `distance`);
+- every currently accepted generation capability in deterministic order;
+- the one `selected_capability` matching that goal, or `null` with
+  `unsupported_reason: "no_accepted_policy"`;
+- exact policy, generator, science-decision, constraint-schema, horizon, and
+  reassessment versions; and
+- the policy-specific readiness, alternatives, generation, and regeneration
+  action paths.
+
+The registry does not expose draft or roadmap policies. A client that does not
+recognize the returned `constraint_schema_id` must fail closed rather than
+guessing the required inputs. The accepted outdoor-road 5K capability is
+currently the only entry; its existing endpoints remain backward compatible.
+
+All policy endpoints use the authenticated caller's own records. Readiness and
 alternatives require ordinary authenticated data access; generation and
 regeneration require write access.
 

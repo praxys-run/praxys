@@ -19,7 +19,7 @@ def test_web_separates_plan_management_from_analysis() -> None:
     sidebar = _source("web/src/components/AppSidebar.tsx")
 
     for component in (
-        "Outdoor5KPlanStart",
+        "PlanStart",
         "UpcomingPlanCard",
         "PersonalContextPanel",
     ):
@@ -47,7 +47,7 @@ def test_web_training_prioritizes_one_plan_request() -> None:
     plan = _source("web/src/lib/plan.ts")
     upcoming = _source("web/src/components/UpcomingPlanCard.tsx")
     context = _source("web/src/components/PersonalContextPanel.tsx")
-    plan_start = _source("web/src/components/Outdoor5KPlanStart.tsx")
+    plan_start = _source("web/src/components/PlanStart.tsx")
 
     assert "MAX_MANAGED_PLAN_WINDOW_DAYS = 28" in plan
     assert "pathname === '/training'" in prefetch
@@ -59,7 +59,7 @@ def test_web_training_prioritizes_one_plan_request() -> None:
         "enabled: composerOpen && form.mode === 'execution_explanation'"
         in context
     )
-    assert "enabled: performance5kGoal" in plan_start
+    assert "enabled: capabilitySupported" in plan_start
 
 
 def test_miniapp_uses_analysis_and_me_as_primary_tabs() -> None:
@@ -164,8 +164,8 @@ def test_goal_keeps_secondary_plan_entry() -> None:
     goal = _source("web/src/pages/Goal.tsx")
     mini_goal = _source("miniapp/pages/goal/index.ts")
 
-    assert "Outdoor5KGoalEntry" in goal
-    assert "navigate('/training#outdoor-5k-plan')" in _source(
-        "web/src/components/Outdoor5KPlanStart.tsx"
+    assert "PlanStartGoalEntry" in goal
+    assert "navigate(capabilitySupported ? '/training#plan-start'" in _source(
+        "web/src/components/PlanStart.tsx"
     )
     assert "wx.switchTab({ url: '/pages/training/index' })" in mini_goal

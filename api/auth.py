@@ -39,6 +39,10 @@ _MCP_SESSION_TOOL_ROUTES = frozenset({
     ("GET", "/api/settings/connections"),
     ("POST", "/api/plan/upload"),
     ("GET", "/api/plan"),
+    ("GET", "/api/plan/generation/capabilities"),
+    ("POST", "/api/plan/outdoor-5k/readiness"),
+    ("POST", "/api/plan/outdoor-5k/alternatives"),
+    ("POST", "/api/plan/outdoor-5k/generate"),
     ("POST", "/api/plan/deliveries/cleanup"),
     ("POST", "/api/plan/reconciliation/resolve"),
     ("POST", "/api/insights"),
@@ -49,6 +53,11 @@ _MCP_CONNECTION_PATH = re.compile(
     r"^/api/settings/connections/[^/]+$"
 )
 _MCP_PLAN_DAY_PATH = re.compile(r"^/api/plan/\d{4}-\d{2}-\d{2}$")
+_MCP_PLAN_REGENERATION_PATH = re.compile(
+    r"^/api/plan/outdoor-5k/proposals/"
+    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-"
+    r"[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}/regenerate$"
+)
 
 
 @dataclass(frozen=True)
@@ -168,7 +177,7 @@ def _require_data_access(
     identity: AuthenticatedIdentity,
     request: Request,
 ) -> None:
-    """Allow first-party JWTs or one explicit established plugin tool route."""
+    """Allow first-party JWTs or explicit established plugin tool routes."""
     if identity.credential_kind == "first_party_jwt":
         return
     scopes = identity.claims.get("scope")
@@ -183,6 +192,10 @@ def _require_data_access(
         or (
             method in {"PUT", "DELETE"}
             and _MCP_PLAN_DAY_PATH.fullmatch(path) is not None
+        )
+        or (
+            method == "POST"
+            and _MCP_PLAN_REGENERATION_PATH.fullmatch(path) is not None
         )
     )
     if (

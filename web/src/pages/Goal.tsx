@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useApi } from '@/hooks/useApi';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -9,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import GoalEditor from '@/components/GoalEditor';
 import GoalBaselinePanel from '@/components/GoalBaselinePanel';
-import { Outdoor5KGoalEntry } from '@/components/Outdoor5KPlanStart';
+import { PlanStartGoalEntry } from '@/components/PlanStart';
 import AiInsightsCard, { type CoachFallback } from '@/components/AiInsightsCard';
 import CpTrendChart from '@/components/charts/CpTrendChart';
 import DataHint from '@/components/DataHint';
@@ -408,6 +409,7 @@ function GoalSkeleton() {
 
 export default function Goal() {
   const { data, loading, error, refetch } = useApi<GoalResponse>('/api/goal');
+  const queryClient = useQueryClient();
   const { isDemo } = useAuth();
   const { config, updateSettings } = useSettings();
   const [isEditing, setIsEditing] = useState(false);
@@ -428,7 +430,12 @@ export default function Goal() {
 
   const handleSaveGoal = async (goal: { goal_kind: GoalKind; race_date: string; distance: string; target_time_sec: number }) => {
     await updateSettings({ goal });
-    refetch();
+    await Promise.all([
+      refetch(),
+      queryClient.invalidateQueries({
+        queryKey: ['/api/plan/generation/capabilities'],
+      }),
+    ]);
   };
 
   if (loading) return <GoalSkeleton />;
@@ -466,16 +473,15 @@ export default function Goal() {
         />
       )}
 
+      {data && <PlanStartGoalEntry baseline={data.baseline} />}
+
       {data && data.goal_kind === 'performance_5k' && data.baseline ? (
-        <>
-          <Outdoor5KGoalEntry baseline={data.baseline} />
-          <GoalBaselinePanel
-            baseline={data.baseline}
-            goal={data.goal}
-            isDemo={isDemo}
-            onChanged={refetch}
-          />
-        </>
+        <GoalBaselinePanel
+          baseline={data.baseline}
+          goal={data.goal}
+          isDemo={isDemo}
+          onChanged={refetch}
+        />
       ) : data ? (
         <TrajectoryGoal data={data} onFeedbackStale={refetch} />
       ) : null}
