@@ -1148,7 +1148,7 @@ def test_road_half_marathon_policy_is_accepted_artifact_and_inactive() -> None:
     }
 
 
-def test_road_marathon_policy_has_accepted_evidence_and_draft_decision() -> None:
+def test_road_marathon_policy_is_accepted_artifact_and_inactive() -> None:
     registry = load_science_registry()
     review = registry.evidence_reviews[
         "evidence-road-marathon-plan-generation-policy-v1"
@@ -1187,7 +1187,7 @@ def test_road_marathon_policy_has_accepted_evidence_and_draft_decision() -> None
         for note in review.review_notes
     )
 
-    assert decision.status == RecordStatus.DRAFT
+    assert decision.status == RecordStatus.ACCEPTED
     assert decision.approval_mode == "artifact"
     assert decision.decision_date == date(2026, 8, 15)
     assert decision.human_reviewers == []
