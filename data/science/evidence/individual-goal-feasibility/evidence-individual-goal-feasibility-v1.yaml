@@ -7,13 +7,13 @@ research_question: >
   population evidence and observed training response into an individual
   endurance athlete's goal-feasibility assessment?
 topic: individual-goal-feasibility
-status: draft
+status: accepted
 approval_mode: artifact
 authors:
   - agent:github-copilot
 human_reviewers: []
 created_on: 2026-08-08
-reviewed_on:
+reviewed_on: 2026-08-16
 intended_product_purpose: >
   Bound the claims Praxys may make before and during an adaptive plan without
   presenting population associations or noisy individual changes as a

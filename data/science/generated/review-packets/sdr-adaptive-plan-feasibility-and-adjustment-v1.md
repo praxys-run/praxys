@@ -3,13 +3,13 @@
 > Start with the decision sheet. The audit appendix preserves every code-consumed field, but it is not the reviewer's primary task.
 
 - **Record:** `sdr-adaptive-plan-feasibility-and-adjustment-v1`
-- **Lifecycle:** `draft`
+- **Lifecycle:** `accepted`
 - **Model version:** `adaptive-plan-policy-v1`
 - **Runtime state:** `inactive`
 - **Decision digest:** `sha256:b2108b70a45355a5f4c0a189cadfc3f6d33980daf0e5efa0db17a7d6e652e1c2`
-- **Contract digest:** `sha256:b04bd8ca2fb5de087adf7a588f171c0893dffd93e2368997f0f7527d5f0cde60`
+- **Contract digest:** `sha256:d9a56e6e799ebc1097bbc0b908f15d1e2db29ebc0d4df13b8e31a253d97f315b`
 - **Required decision role:** `decision_approver`
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-08-16` ([source](https://github.com/praxys-run/praxys/pull/714#issuecomment-5307168334))
 - **Required activation role:** `implementation_reviewer`
 - **Implementation approval:** _Pending_
 
@@ -185,7 +185,7 @@ A decision approval bound to the displayed digest attests:
 
 > I approve one shared inactive managed-plan recommendation contract. For an accepted safe route, Praxys must take a concrete and reviewable position, explain why it fits the athlete, identify the applicable science, state the expected signal and uncertainty, and request the feedback needed for reassessment. I approve science and distance-specific findings only as bounded candidate context, not universal personal rules, probabilities, or permanent runner identities. I approve the athlete-controlled sense-propose-review-observe-reassess loop, typed no-change and non-generation outcomes, comparable-outcome and causal limits, safety stops, source provenance, privacy, and the prohibition on disclaimer-only output and unreviewed online learning. I approve keeping these semantics shared across all managed plans while preserving accepted records until coordinated successor alignment. I agree that exact selection, weighting, thresholds, triggers, distance-specific dose and schedules, autonomy, implementation, pilot criteria, and runtime activation remain deferred. This approval would not approve implementation or activate the contract.
 
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-08-16` ([source](https://github.com/praxys-run/praxys/pull/714#issuecomment-5307168334))
 
 ### Decision approval
 
@@ -1149,9 +1149,9 @@ Medical assessment and return-to-sport decisions are outside this performance-pl
     "adaptive-plan observation, reassessment, outcome, and gap review",
     "managed-plan capability registry and distance-policy dependency graph"
   ],
-  "contract_digest": "sha256:b04bd8ca2fb5de087adf7a588f171c0893dffd93e2368997f0f7527d5f0cde60",
+  "contract_digest": "sha256:d9a56e6e799ebc1097bbc0b908f15d1e2db29ebc0d4df13b8e31a253d97f315b",
   "decision_id": "sdr-adaptive-plan-feasibility-and-adjustment-v1",
-  "decision_status": "draft",
+  "decision_status": "accepted",
   "decision_version": 1,
   "evidence_claim_ids": [
     "feasibility.group-evidence-not-personal-probability",

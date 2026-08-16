@@ -6,9 +6,9 @@
     "adaptive-plan observation, reassessment, outcome, and gap review",
     "managed-plan capability registry and distance-policy dependency graph"
   ],
-  "contract_digest": "sha256:b04bd8ca2fb5de087adf7a588f171c0893dffd93e2368997f0f7527d5f0cde60",
+  "contract_digest": "sha256:d9a56e6e799ebc1097bbc0b908f15d1e2db29ebc0d4df13b8e31a253d97f315b",
   "decision_id": "sdr-adaptive-plan-feasibility-and-adjustment-v1",
-  "decision_status": "draft",
+  "decision_status": "accepted",
   "decision_version": 1,
   "evidence_claim_ids": [
     "feasibility.group-evidence-not-personal-probability",

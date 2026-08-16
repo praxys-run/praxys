@@ -1,0 +1,13 @@
+schema_version: 1
+subject_kind: evidence_review
+subject_id: evidence-plan-outcome-interpretation-v1
+subject_digest: sha256:46026c614f9be03950e9e2d9f9e4bb6ef29d12f5882432105a5b522b7fb96956
+reviewer: github:dddtc2005
+role: evidence_reviewer
+reviewed_on: '2026-08-16'
+scopes:
+- citation_verification
+- evidence_claims
+- limitations_and_gaps
+- search_method
+source_ref: https://github.com/praxys-run/praxys/pull/714#issuecomment-5307155200

@@ -1,0 +1,15 @@
+schema_version: 1
+subject_kind: science_decision
+subject_id: sdr-adaptive-plan-feasibility-and-adjustment-v1
+subject_digest: sha256:b2108b70a45355a5f4c0a189cadfc3f6d33980daf0e5efa0db17a7d6e652e1c2
+reviewer: github:dddtc2005
+role: decision_approver
+reviewed_on: '2026-08-16'
+scopes:
+- activation_boundary
+- applicability
+- claim_limits
+- decision_interpretation
+- parameters
+- safety_and_privacy
+source_ref: https://github.com/praxys-run/praxys/pull/714#issuecomment-5307168334

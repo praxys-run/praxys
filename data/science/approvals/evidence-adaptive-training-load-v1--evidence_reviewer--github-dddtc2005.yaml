@@ -1,0 +1,13 @@
+schema_version: 1
+subject_kind: evidence_review
+subject_id: evidence-adaptive-training-load-v1
+subject_digest: sha256:101f9e5b3a9eeed9d8777d0cef8cf56f332372568fed32ba812c4f969551d50f
+reviewer: github:dddtc2005
+role: evidence_reviewer
+reviewed_on: '2026-08-16'
+scopes:
+- citation_verification
+- evidence_claims
+- limitations_and_gaps
+- search_method
+source_ref: https://github.com/praxys-run/praxys/pull/714#issuecomment-5307154836

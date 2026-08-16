@@ -1,0 +1,13 @@
+schema_version: 1
+subject_kind: evidence_review
+subject_id: evidence-individual-goal-feasibility-v1
+subject_digest: sha256:68dabbd3bed068c2829d6b77d9b0ee2503e8ae3874b745d2b61f5420680b94ba
+reviewer: github:dddtc2005
+role: evidence_reviewer
+reviewed_on: '2026-08-16'
+scopes:
+- citation_verification
+- evidence_claims
+- limitations_and_gaps
+- search_method
+source_ref: https://github.com/praxys-run/praxys/pull/714#issuecomment-5307154729

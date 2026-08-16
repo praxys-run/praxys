@@ -6,13 +6,13 @@ research_question: >
   What does adult endurance research support about short interruptions,
   reduced training, detraining, and non-medical return-to-training boundaries?
 topic: short-interruption-detraining
-status: draft
+status: accepted
 approval_mode: artifact
 authors:
   - agent:github-copilot
 human_reviewers: []
 created_on: 2026-08-08
-reviewed_on:
+reviewed_on: 2026-08-16
 intended_product_purpose: >
   Prevent Praxys from applying a fixed fitness-loss or return percentage after
   missed days, while supporting conservative reassessment after a meaningful

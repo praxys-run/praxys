@@ -6,13 +6,13 @@ research_question: >
   Which field-test properties support using a running test as direct or
   supporting evidence of change across an adaptive training plan?
 topic: running-field-tests
-status: draft
+status: accepted
 approval_mode: artifact
 authors:
   - agent:github-copilot
 human_reviewers: []
 created_on: 2026-08-08
-reviewed_on:
+reviewed_on: 2026-08-16
 intended_product_purpose: >
   Define when Praxys may compare field-test results across a plan and prevent
   unlike protocols, model estimates, or environmental conditions from being

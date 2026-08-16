@@ -2,7 +2,7 @@ schema_version: 1
 id: sdr-adaptive-plan-feasibility-and-adjustment-v1
 version: 1
 title: "Require actionable, feedback-aware recommendations across managed plans"
-status: draft
+status: accepted
 approval_mode: artifact
 decision_date: 2026-08-16
 owners:

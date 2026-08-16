@@ -6,13 +6,13 @@ research_question: >
   What evidence supports combining performance, physiological, subjective, and
   execution observations when interpreting an individual training-plan outcome?
 topic: plan-outcome-interpretation
-status: draft
+status: accepted
 approval_mode: artifact
 authors:
   - agent:github-copilot
 human_reviewers: []
 created_on: 2026-08-08
-reviewed_on:
+reviewed_on: 2026-08-16
 intended_product_purpose: >
   Bound post-plan review so Praxys separates observed outcome, plan execution,
   athlete context, and causal hypotheses rather than claiming to know why an

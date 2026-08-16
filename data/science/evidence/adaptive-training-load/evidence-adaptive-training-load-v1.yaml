@@ -7,13 +7,13 @@ research_question: >
   adjustment, and what limits apply to fixed progression, workload-ratio, and
   missed-session rules?
 topic: adaptive-training-load
-status: draft
+status: accepted
 approval_mode: artifact
 authors:
   - agent:github-copilot
 human_reviewers: []
 created_on: 2026-08-08
-reviewed_on:
+reviewed_on: 2026-08-16
 intended_product_purpose: >
   Bound when Praxys may use training structure, HRV, subjective monitoring, and
   repeated execution evidence to propose a change without turning common

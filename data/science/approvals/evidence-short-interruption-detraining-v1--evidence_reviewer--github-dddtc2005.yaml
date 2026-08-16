@@ -1,0 +1,13 @@
+schema_version: 1
+subject_kind: evidence_review
+subject_id: evidence-short-interruption-detraining-v1
+subject_digest: sha256:a68cb7a7655e1980c0ecd8cf7dfb737015b000ea9609572e460fabd13e932fb9
+reviewer: github:dddtc2005
+role: evidence_reviewer
+reviewed_on: '2026-08-16'
+scopes:
+- citation_verification
+- evidence_claims
+- limitations_and_gaps
+- search_method
+source_ref: https://github.com/praxys-run/praxys/pull/714#issuecomment-5307154937
