@@ -1,6 +1,8 @@
 """Tests for the versioned science evidence and decision registry."""
 
 from datetime import date
+import hashlib
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -58,6 +60,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "evidence-plan-generation-eligibility-safety-v1",
         "evidence-road-10k-plan-generation-policy-v1",
         "evidence-road-half-marathon-plan-generation-policy-v1",
+        "evidence-road-marathon-plan-generation-policy-v1",
         "evidence-running-field-tests-v1",
         "evidence-short-interruption-detraining-v1",
     }
@@ -73,6 +76,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "sdr-preplan-baseline-policy-v1",
         "sdr-road-10k-plan-generation-policy-v1",
         "sdr-road-half-marathon-plan-generation-policy-v1",
+        "sdr-road-marathon-plan-generation-policy-v1",
     }
     assert registry.evidence_reviews[
         "evidence-personal-environment-response-v1"
@@ -1142,6 +1146,416 @@ def test_road_half_marathon_policy_is_accepted_artifact_and_inactive() -> None:
             "deterministic_replay_mismatch_tolerance"
         ): 0,
     }
+
+
+def test_road_marathon_policy_is_accepted_artifact_and_inactive() -> None:
+    registry = load_science_registry()
+    review = registry.evidence_reviews[
+        "evidence-road-marathon-plan-generation-policy-v1"
+    ]
+    decision = registry.decisions[
+        "sdr-road-marathon-plan-generation-policy-v1"
+    ]
+
+    assert review.status == RecordStatus.ACCEPTED
+    assert review.approval_mode == "artifact"
+    assert review.human_reviewers == []
+    assert review.created_on == date(2026, 8, 15)
+    assert review.reviewed_on == date(2026, 8, 15)
+    assert review.method.review_type.value == "rigorous"
+    assert len(review.citations) == 21
+    assert {
+        "road-marathon.task-specific-capability-baseline-multifactorial",
+        "road-marathon.volume-frequency-longest-run-associative",
+        "road-marathon.durability-relevant-no-field-cutoff",
+        "road-marathon.marathon-tid-mostly-low-observational",
+        "road-marathon.taper-support-exact-parameters-uncertain",
+        "road-marathon.pacing-prediction-retains-individual-error",
+        "road-marathon.carbohydrate-support-contextual",
+        "road-marathon.gut-training-tolerance-not-universal",
+        "road-marathon.fluid-sodium-needs-variable",
+        "road-marathon.altitude-capacity-no-personal-correction",
+        "road-marathon.recovery-subgroup-outcome-rules-unvalidated",
+    } == {claim.id for claim in review.claims}
+    _assert_exact_verification_notes(review)
+    assert any(
+        "claims remain abstract-bounded" in note
+        for note in review.review_notes
+    )
+    assert any(
+        "erroneous PMID 26035721 was not used" in note
+        for note in review.review_notes
+    )
+
+    assert decision.status == RecordStatus.ACCEPTED
+    assert decision.approval_mode == "artifact"
+    assert decision.decision_date == date(2026, 8, 15)
+    assert decision.human_reviewers == []
+    assert decision.artifact_policy is not None
+    assert decision.artifact_policy.runtime_state == "inactive"
+    assert decision.evidence_review_ids == [
+        "evidence-plan-generation-eligibility-safety-v1",
+        review.id,
+        "evidence-environmental-performance-v1",
+        "evidence-heat-adaptation-v1",
+    ]
+    assert {claim.id for claim in review.claims} <= set(
+        decision.evidence_claim_ids
+    )
+
+    parameters = {
+        parameter.name: parameter
+        for parameter in decision.model_parameters
+    }
+    assert 18 <= len(parameters) <= 23
+    assert len(parameters) == 23
+    assert all(name.startswith("road_marathon_") for name in parameters)
+    parameter_text = yaml.safe_dump({
+        name: parameter.value
+        for name, parameter in parameters.items()
+    })
+    assert "road_half_marathon_" not in parameter_text
+    assert "road_10k_" not in parameter_text
+    assert "outdoor_5k_" not in parameter_text
+
+    assert decision.decision_review is not None
+    review_items = {
+        item.id: item
+        for item in decision.decision_review.items
+    }
+    assert {
+        item_id
+        for item_id, item in review_items.items()
+        if item.disposition.value == "approve"
+    } == {
+        "narrow-modular-scope",
+        "evidence-use",
+        "hard-boundaries",
+        "shared-adaptive-policy-dependency",
+    }
+    assert {
+        item_id
+        for item_id, item in review_items.items()
+        if item.disposition.value == "defer"
+    } == {
+        "defer-baseline-history",
+        "defer-dose-specific-work",
+        "defer-taper-recovery",
+        "defer-fueling-hydration-environment",
+        "defer-secondary-rollout",
+    }
+    assert {
+        parameter_name
+        for item in review_items.values()
+        for parameter_name in item.parameter_names
+    } == set(parameters)
+
+    def contains_not_accepted(value: object) -> bool:
+        if isinstance(value, dict):
+            return any(contains_not_accepted(item) for item in value.values())
+        if isinstance(value, list):
+            return any(contains_not_accepted(item) for item in value)
+        return value == "not_accepted"
+
+    unresolved_parameters = {
+        name
+        for name, parameter in parameters.items()
+        if contains_not_accepted(parameter.value)
+    }
+    deferred_parameters = {
+        parameter_name
+        for item in review_items.values()
+        if item.disposition.value == "defer"
+        for parameter_name in item.parameter_names
+    }
+    assert unresolved_parameters <= deferred_parameters
+
+    goal = parameters["road_marathon_goal_and_event_tuple"].value
+    assert goal["goal_kind"] == "distance_marathon"
+    assert goal["goal_intent"] == "performance"
+    assert goal["surface"] == "outdoor_road"
+    assert goal["target_time_optional"] is True
+    assert goal["target_date_optional"] is True
+    assert goal[
+        "goal_capture_independent_from_generator_availability"
+    ] is True
+    assert goal["unavailable_policy_result"] == (
+        "goal_recorded_plan_policy_unavailable"
+    )
+    assert goal["no_event_goal"][
+        "rolling_preparation_or_simulation_requires_"
+        "separately_accepted_completion_or_benchmark_policy"
+    ] is True
+    assert goal["no_event_goal"][
+        "automatic_maximal_marathon_simulation"
+    ] == "prohibited"
+
+    pattern = parameters[
+        "road_marathon_supported_training_pattern"
+    ].value
+    assert pattern["capability_pattern"] == (
+        "current_direct_outdoor_road_marathon"
+    )
+    assert pattern["history_pattern"] == "stable_recent"
+    assert pattern["load_pattern"] == "within_recent"
+    assert pattern["current_concerning_symptoms"] == "absent"
+    assert (
+        "current_injury_illness_or_concerning_symptoms"
+        in pattern["explicit_exclusions"]
+    )
+    assert pattern["cohort_labels_are_permanent_runner_identities"] is False
+
+    modular = parameters["road_marathon_modular_policy_structure"].value
+    assert modular["plan_length_selected"] is False
+    assert modular["modules"] == [
+        "entry_readiness",
+        "history_load",
+        "long_run_durability",
+        "intensity_race_specific_work",
+        "fueling_hydration_practice",
+        "taper_recovery",
+        "environment_altitude",
+        "reassessment_outcomes",
+    ]
+    assert modular[
+        "missing_context_disables_or_degrades_dependent_module_only"
+    ] is True
+    assert modular["missing_context_may_block_independent_modules"] is False
+
+    activation = parameters["road_marathon_activation_and_dependency"].value
+    assert activation["shared_adaptive_policy_dependency"] == {
+        "sdr_id": "sdr-adaptive-plan-feasibility-and-adjustment-v1",
+        "required_status_before_activation": "accepted",
+        "implementation_approval_required_before_activation": True,
+        "shared_recommendation_and_feedback_loop_defined_here": False,
+    }
+
+    baseline = parameters[
+        "road_marathon_direct_baseline_hierarchy"
+    ].value
+    assert baseline["preferred_direct_evidence"] == [
+        "athlete_confirmed_official_or_organized_"
+        "outdoor_road_marathon_result"
+    ]
+    assert "shorter_distance_conversion" in baseline["excluded_as_direct"]
+    assert "critical_speed_prediction" in baseline["excluded_as_direct"]
+    assert "activity_average_power" in baseline["excluded_as_direct"]
+    assert baseline[
+        "automatic_maximal_marathon_baseline_test"
+    ] == "prohibited"
+    assert baseline["baseline_qualification_algorithm"] == "not_accepted"
+    assert baseline["baseline_freshness_completed_days"] == "not_accepted"
+
+    history = parameters[
+        "road_marathon_readiness_and_history_qualification"
+    ].value
+    assert history["intensity_source_priority"] == [
+        "activity_splits",
+        "activity_samples",
+    ]
+    assert history["disallowed_intensity_source"] == [
+        "activity_avg_power"
+    ]
+    assert history["minimum_usable_weeks"] == "not_accepted"
+    assert history["stable_history_qualification_algorithm"] == (
+        "not_accepted"
+    )
+
+    load = parameters["road_marathon_history_anchored_load_policy"].value
+    assert load["plan_length_days"] == "not_accepted"
+    assert load["weekly_running_frequency_range"] == "not_accepted"
+    assert load["weekly_volume_target_or_range"] == "not_accepted"
+    assert load["shorter_distance_numeric_rules_inherited"] is False
+
+    intensity = parameters[
+        "road_marathon_intensity_and_race_specific_policy"
+    ].value
+    assert intensity["mostly_low_intensity_organization_required"] is False
+    assert intensity[
+        "mostly_low_organization_is_candidate_scientific_prior"
+    ] is True
+    assert intensity[
+        "training_organization_selected_by_shared_adaptive_policy"
+    ] is True
+    assert intensity["distance_policy_supplies_candidate_context_only"] is True
+    assert intensity["marathon_pace_or_race_specific_dose"] == (
+        "not_accepted"
+    )
+    assert intensity["exact_workout_templates"] == "not_accepted"
+    assert intensity["intensity_source_priority"] == [
+        "activity_splits",
+        "activity_samples",
+    ]
+    assert intensity["activity_avg_power_allowed"] is False
+
+    outcomes = parameters[
+        "road_marathon_typed_outcomes_and_suggestion_only_state"
+    ].value
+    assert outcomes["current_runtime_outcome"] == "plan_policy_inactive"
+    assert {
+        "goal_recorded_plan_policy_unavailable",
+        "capability_confirmation_required",
+        "insufficient_history",
+        "unresolved_event_conflict",
+        "fueling_module_limited",
+        "environment_module_limited",
+        "plan_policy_inactive",
+        "implementation_review_required",
+        "limited_guidance_only",
+    } == set(outcomes["outcomes"])
+    assert outcomes["outcomes"]["fueling_module_limited"] == {
+        "plan_returned": True,
+        "degraded_modules": ["fueling_hydration_practice"],
+        "goal_remains_recorded": True,
+    }
+    assert outcomes["outcomes"]["environment_module_limited"] == {
+        "plan_returned": True,
+        "degraded_modules": ["environment_altitude"],
+        "goal_remains_recorded": True,
+    }
+
+    reassessment = parameters[
+        "road_marathon_reassessment_and_outcome_policy"
+    ].value
+    assert reassessment[
+        "feedback_update_algorithm_owned_by_shared_adaptive_policy"
+    ] is True
+    assert "completed_sessions_and_adherence" in reassessment[
+        "marathon_observations_forwarded_to_shared_adaptive_policy"
+    ]
+    assert reassessment["causal_plan_effect_claim"] == "prohibited"
+    assert reassessment["personal_responder_classification"] == "prohibited"
+    assert reassessment["absence_of_improvement_proves_nonresponse"] is False
+
+    validation = parameters[
+        "road_marathon_validation_privacy_and_open_decisions"
+    ].value
+    assert validation[
+        "shared_adaptive_policy_contract_required_before_activation"
+    ] is True
+
+    published_volume = parameters[
+        "road_marathon_published_volume_and_long_run_findings"
+    ]
+    assert published_volume.classification.value == "published"
+    assert published_volume.value["weekly_volume_findings"][
+        "below_40_km_per_week_vs_40_to_65"
+    ]["finish_time_coefficient_minutes"] == 6.33
+    assert published_volume.value["weekly_volume_findings"][
+        "above_65_km_per_week_vs_40_to_65"
+    ]["finish_time_coefficient_minutes"] == -14.09
+    assert published_volume.value["longest_run_findings"]["below_25_km"][
+        "finish_time_coefficient_minutes"
+    ] == 13.44
+
+    published_durability = parameters[
+        "road_marathon_published_durability_findings"
+    ]
+    assert published_durability.classification.value == "published"
+    assert published_durability.value[
+        "longest_run_correlation_with_deterioration"
+    ] == -0.67
+    published_tid = parameters[
+        "road_marathon_published_intensity_distribution_findings"
+    ]
+    assert published_tid.value["marathons_analysed"] == 151813
+    assert published_tid.value[
+        "fastest_group_pyramidal_distribution_percent"
+    ] == {"greater_than": 80}
+    published_taper = parameters[
+        "road_marathon_published_taper_findings"
+    ]
+    assert published_taper.value["marathon_observational_finding"][
+        "median_benefit_percent_vs_minimal_taper"
+    ] == 2.6
+    published_altitude = parameters[
+        "road_marathon_published_environment_and_altitude_findings"
+    ]
+    assert published_altitude.value[
+        "acute_altitude_chamber_findings_per_1000_m"
+    ] == {
+        "vo2max_change_percent": -6.3,
+        "fixed_speed_time_to_exhaustion_change_percent": -14.5,
+    }
+
+    numeric_paths: list[str] = []
+
+    def collect_numeric_paths(value: object, path: str) -> None:
+        if isinstance(value, dict):
+            for key, nested in value.items():
+                collect_numeric_paths(nested, f"{path}.{key}")
+        elif isinstance(value, list):
+            for index, nested in enumerate(value):
+                collect_numeric_paths(nested, f"{path}[{index}]")
+        elif isinstance(value, (int, float)) and not isinstance(value, bool):
+            numeric_paths.append(path)
+
+    for name, parameter in parameters.items():
+        collect_numeric_paths(parameter.value, name)
+
+    assert all(
+        "_published_" in path
+        or path.endswith("deterministic_invariant_breach_tolerance")
+        or path.endswith("deterministic_replay_mismatch_tolerance")
+        for path in numeric_paths
+    )
+
+
+def test_road_marathon_search_manifest_is_complete_and_bound() -> None:
+    registry = load_science_registry()
+    review = registry.evidence_reviews[
+        "evidence-road-marathon-plan-generation-policy-v1"
+    ]
+    manifest_path = (
+        Path("data/science/evidence/road-marathon-plan-generation-policy")
+        / "search-manifest-road-marathon-plan-generation-policy-v1.json"
+    )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    assert manifest["evidence_review_id"] == review.id
+    assert manifest["executed_at"].startswith(
+        review.method.search_date.isoformat()
+    )
+    assert str(manifest_path) in review.method.quality_appraisal
+
+    method_queries = {
+        " ".join(source.search_string.split())
+        for source in review.method.sources
+    }
+    for query in manifest["queries"]:
+        pmids = query["pmids"]
+        assert query["result_count"] == len(pmids)
+        assert len(pmids) == len(set(pmids))
+        assert " ".join(query["query"].split()) in method_queries
+        digest = hashlib.sha256(
+            ("\n".join(pmids) + "\n").encode()
+        ).hexdigest()
+        assert query["result_pmids_sha256"] == f"sha256:{digest}"
+
+    citation_pmids = {
+        citation.id: citation.pmid
+        for citation in review.citations
+    }
+    decisions = {
+        decision["source_id"]: decision
+        for decision in manifest["screening_decisions"]
+    }
+    assert set(decisions) == set(citation_pmids)
+    assert all(
+        decision["disposition"] == "include"
+        for decision in decisions.values()
+    )
+    assert {
+        source_id: decision["pmid"]
+        for source_id, decision in decisions.items()
+    } == citation_pmids
+
+    exact_query = next(
+        query
+        for query in manifest["queries"]
+        if query["id"] == "exact-included-pmid-verification"
+    )
+    assert set(exact_query["pmids"]) == set(citation_pmids.values())
 
 
 def test_environmental_performance_decision_preserves_product_boundaries() -> None:

@@ -1,0 +1,1374 @@
+schema_version: 1
+id: sdr-road-marathon-plan-generation-policy-v1
+version: 1
+title: "History-anchored adult outdoor road-marathon performance policy"
+status: accepted
+approval_mode: artifact
+decision_date: 2026-08-15
+owners:
+  - team:praxys
+human_reviewers: []
+model_version: road-marathon-plan-generation-policy-v1
+evidence_review_ids:
+  - evidence-plan-generation-eligibility-safety-v1
+  - evidence-road-marathon-plan-generation-policy-v1
+  - evidence-environmental-performance-v1
+  - evidence-heat-adaptation-v1
+evidence_claim_ids:
+  - eligibility.recent-history-anchor-without-universal-threshold
+  - eligibility.fixed-progression-and-acwr-not-safety-laws
+  - eligibility.goal-relevant-current-capability-task-specific
+  - eligibility.current-symptoms-support-stop-not-clearance
+  - eligibility.evidence-quality-no-personal-probability
+  - eligibility.masters-age-change-not-automatic-exclusion
+  - road-marathon.task-specific-capability-baseline-multifactorial
+  - road-marathon.volume-frequency-longest-run-associative
+  - road-marathon.durability-relevant-no-field-cutoff
+  - road-marathon.marathon-tid-mostly-low-observational
+  - road-marathon.taper-support-exact-parameters-uncertain
+  - road-marathon.pacing-prediction-retains-individual-error
+  - road-marathon.carbohydrate-support-contextual
+  - road-marathon.gut-training-tolerance-not-universal
+  - road-marathon.fluid-sodium-needs-variable
+  - road-marathon.altitude-capacity-no-personal-correction
+  - road-marathon.recovery-subgroup-outcome-rules-unvalidated
+  - environment.heat-balance-multifactor
+  - environment.relative-humidity-insufficient
+  - environment.wbgt-population-performance
+  - environment.temperature-nonlinear
+  - environment.marathon-wbgt-performance-level
+  - environment.full-wbgt-inputs
+  - environment.no-universal-personal-correction
+  - heat-adaptation.repeated-exposure
+  - heat-safety.separate-from-adaptation
+accepted_interpretation: >
+  If accepted by a digest-bound human decision approver, this SDR would
+  authorize only an inactive policy boundary for adults aged 18 years or older
+  with current direct outdoor road-marathon capability, stable recent history
+  that anchors their own exposure, within-recent load, performance intent,
+  optional target time or date, and athlete-confirmed event context. Goal
+  capture remains independent from generator availability. Missing optional
+  age, sex, or profile modifiers disable only dependent adjustments and never
+  default to male; imported profile and event data remain source-labelled until
+  athlete confirmation. The proposed policy is suggestion-only and modular:
+  entry/readiness; history/load; long-run/durability; intensity/race-specific
+  work; fueling/hydration practice; taper/recovery; environment/altitude; and
+  reassessment/outcomes. Missing fueling, hydration, or environmental context
+  disables or degrades only the dependent module and does not block otherwise
+  eligible independent plan modules. Marathon-specific theories and findings
+  such as mostly-low organization, durability, fueling practice, and
+  environmental context remain candidate inputs rather than mandatory
+  templates. The cross-cutting actionable recommendation, athlete feedback,
+  reassessment, and outcome-interpretation loop belongs to
+  sdr-adaptive-plan-feasibility-and-adjustment-v1 and must be separately
+  accepted and implementation-approved before this distance policy can
+  activate. Population associations and source findings may support bounded
+  reasoning and validation but not personal probability, causal dose, or
+  target-gap escalation. No plan length, baseline algorithm, history count,
+  weekly frequency, progression, volume, long-run dose, intensity
+  distribution, race-specific dose, workout, taper, recovery, fueling,
+  hydration, environment, altitude, race-density, subgroup, outcome, pilot,
+  implementation, or activation rule is selected. No 5 km, 10 km, or
+  half-marathon numeric rule is inherited. This proposal does not authorize
+  first-marathon or completion intent, sparse history, returning, clinical,
+  rehabilitation, pregnancy-specific, trail, ultra, or unsupported contexts.
+  A no-event rolling preparation or simulation route requires a separately
+  accepted completion or benchmark policy and may not invent an automatic
+  maximal marathon simulation.
+decision_review:
+  reviewer_task: >
+    Decide whether the four proposed boundaries are acceptable and whether the
+    five listed implementation areas should remain explicitly deferred.
+    Approve the sheet as a unit or request changes by item ID. The audit
+    appendix is traceability, not the primary review task.
+  approval_statement: >
+    I approve the narrow currently-capable adult outdoor road-marathon
+    performance scope, bounded evidence use, hard suggestion-only and
+    athlete-control boundaries. Marathon-specific scientific findings are
+    candidate context rather than mandatory personal rules; mostly-low
+    organization is not required. The shared actionable recommendation,
+    athlete-feedback, reassessment, and outcome loop remains owned by
+    sdr-adaptive-plan-feasibility-and-adjustment-v1 and must be separately
+    accepted and implementation-approved. Missing fueling, hydration, or
+    environmental context degrades only the dependent module rather than
+    blocking independent plan modules. I agree that baseline and history
+    qualification, all dose and race-specific work, taper and recovery,
+    fueling, hydration and environment numbers, and secondary rollout choices
+    remain deferred. This approval would not approve the shared adaptive-plan
+    policy, implementation, runtime activation, a plan length, or any
+    unresolved value.
+  items:
+    - id: narrow-modular-scope
+      title: Accept the narrow population tuple and modular boundary
+      disposition: approve
+      question: >
+        Should V1 recognize only currently-capable adults with stable recent
+        history, within-recent load, road-marathon performance intent, and
+        confirmed event context, while preserving goals when no route matches?
+      proposed_decision: >
+        Accept that narrow tuple and the eight-module boundary. Keep
+        first-marathon/completion, sparse-history, returning or clinical,
+        pregnancy-specific, trail, ultra, and unsupported contexts in separate
+        policies. A no-event rolling preparation or simulation route requires
+        a separately accepted completion or benchmark policy.
+      approval_effect:
+        - The narrow performance tuple and eight-module policy structure become reviewable boundaries.
+        - Goal capture remains available when this policy is unavailable or inactive.
+        - Typed no-plan and limited-guidance outcomes preserve the athlete's goal without substituting another policy.
+      does_not_authorize:
+        - A plan length, generated schedule, automatic marathon benchmark, implementation, or activation.
+        - Reusing a shorter-distance numeric rule or treating a cohort label as a permanent runner identity.
+      parameter_names:
+        - road_marathon_activation_and_dependency
+        - road_marathon_goal_and_event_tuple
+        - road_marathon_supported_training_pattern
+        - road_marathon_modular_policy_structure
+        - road_marathon_typed_outcomes_and_suggestion_only_state
+      evidence_claim_ids:
+        - eligibility.goal-relevant-current-capability-task-specific
+        - eligibility.masters-age-change-not-automatic-exclusion
+        - road-marathon.task-specific-capability-baseline-multifactorial
+    - id: evidence-use
+      title: Accept bounded use of population findings and uncertainty
+      disposition: approve
+      question: >
+        Should the reviewed marathon and broader-endurance findings be retained
+        only as source findings, qualitative context, and future validation
+        inputs rather than personal probabilities or causal prescriptions?
+      proposed_decision: >
+        Retain the observed prediction error, volume and longest-run
+        associations, durability, training-intensity distribution, taper,
+        carbohydrate, gut-tolerance, fluid, sodium, environment, and altitude
+        findings with their directness and uncertainty labels.
+      approval_effect:
+        - Published findings may appear in review notes, source explanations, and validation design.
+        - Outcome comparisons remain descriptive and require comparable protocols and context.
+      does_not_authorize:
+        - Turning any reported category, coefficient, percentage, correlation, or subgroup observation into an individual rule.
+        - A personal success, injury, safety, responder, hydration, fueling, or environmental probability.
+      parameter_names:
+        - road_marathon_published_volume_and_long_run_findings
+        - road_marathon_published_durability_findings
+        - road_marathon_published_intensity_distribution_findings
+        - road_marathon_published_taper_findings
+        - road_marathon_published_fueling_and_gut_findings
+        - road_marathon_published_fluid_and_sodium_findings
+        - road_marathon_published_environment_and_altitude_findings
+        - road_marathon_reassessment_and_outcome_policy
+      evidence_claim_ids:
+        - eligibility.evidence-quality-no-personal-probability
+        - road-marathon.volume-frequency-longest-run-associative
+        - road-marathon.durability-relevant-no-field-cutoff
+        - road-marathon.marathon-tid-mostly-low-observational
+        - road-marathon.taper-support-exact-parameters-uncertain
+        - road-marathon.pacing-prediction-retains-individual-error
+        - road-marathon.carbohydrate-support-contextual
+        - road-marathon.gut-training-tolerance-not-universal
+        - road-marathon.fluid-sodium-needs-variable
+        - road-marathon.altitude-capacity-no-personal-correction
+        - environment.no-universal-personal-correction
+    - id: hard-boundaries
+      title: Accept hard control, consent, data, and automation boundaries
+      disposition: approve
+      question: >
+        Should every future proposal remain athlete-editable and explicitly
+        adopted, with no automatic maximal marathon test, target-gap
+        escalation, catch-up, activity-average-power intensity analysis, hidden
+        demographic default, unconfirmed imported context, or AI authority
+        expansion?
+      proposed_decision: >
+        Accept those prohibitions. Require direct confirmed capability,
+        source-labelled inputs, activity splits or samples for intensity,
+        deterministic validation, symptom stops, minimum-necessary data, and
+        separate evidence, decision, implementation, and activation authority.
+      approval_effect:
+        - Missing module-specific context disables or degrades only the dependent module rather than blocking otherwise eligible independent plan modules.
+        - Eligibility, safety, capability, history, or unresolved event conflicts may still produce a typed no-plan result.
+        - AI may explain reviewable inputs but cannot choose unresolved values, approve, activate, adopt, deliver, or publish.
+        - Athlete constraints and consent remain authoritative.
+      does_not_authorize:
+        - Any unresolved numeric or algorithmic value in the same contract groups.
+        - Medical diagnosis, treatment, clearance, sensitive inference, or a safety guarantee.
+      parameter_names:
+        - road_marathon_profile_and_source_provenance
+        - road_marathon_direct_baseline_hierarchy
+        - road_marathon_readiness_and_history_qualification
+        - road_marathon_history_anchored_load_policy
+        - road_marathon_long_run_and_durability_policy
+        - road_marathon_intensity_and_race_specific_policy
+        - road_marathon_taper_and_recovery_policy
+        - road_marathon_fueling_and_hydration_policy
+        - road_marathon_environment_and_altitude_policy
+        - road_marathon_reassessment_and_outcome_policy
+        - road_marathon_typed_outcomes_and_suggestion_only_state
+        - road_marathon_validation_privacy_and_open_decisions
+      evidence_claim_ids:
+        - eligibility.fixed-progression-and-acwr-not-safety-laws
+        - eligibility.current-symptoms-support-stop-not-clearance
+        - eligibility.evidence-quality-no-personal-probability
+        - road-marathon.task-specific-capability-baseline-multifactorial
+        - road-marathon.pacing-prediction-retains-individual-error
+        - road-marathon.fluid-sodium-needs-variable
+        - heat-safety.separate-from-adaptation
+    - id: shared-adaptive-policy-dependency
+      title: Keep adaptive recommendation and feedback semantics shared
+      disposition: approve
+      question: >
+        Should marathon-specific evidence remain candidate context while the
+        actionable recommendation, athlete-feedback, reassessment, and outcome
+        loop stays in one shared managed-plan policy?
+      proposed_decision: >
+        Treat mostly-low organization, durability, fueling practice, and
+        environmental findings as marathon-specific candidate context rather
+        than mandatory templates. Require
+        sdr-adaptive-plan-feasibility-and-adjustment-v1 to be separately
+        accepted and implementation-approved before activation instead of
+        duplicating shared recommendation and feedback logic here.
+      approval_effect:
+        - Mostly-low organization is one observational candidate prior and is not mandatory for every athlete or state.
+        - Marathon-specific observations may be passed to the shared adaptive-plan policy without defining a second feedback or recommendation engine.
+        - Marathon activation remains blocked until the shared adaptive-plan science and implementation are separately approved.
+      does_not_authorize:
+        - Acceptance of the draft shared adaptive-plan SDR, its evidence bundle, implementation, or runtime behavior.
+        - A fixed intensity distribution, mandatory mostly-low pattern, exact strategy-selection or feedback-update algorithm, causal responder label, race-specific workout, or distance-only nutrition rule.
+      parameter_names:
+        - road_marathon_activation_and_dependency
+        - road_marathon_published_durability_findings
+        - road_marathon_long_run_and_durability_policy
+        - road_marathon_published_intensity_distribution_findings
+        - road_marathon_intensity_and_race_specific_policy
+        - road_marathon_published_fueling_and_gut_findings
+        - road_marathon_fueling_and_hydration_policy
+        - road_marathon_published_fluid_and_sodium_findings
+        - road_marathon_published_environment_and_altitude_findings
+        - road_marathon_environment_and_altitude_policy
+        - road_marathon_reassessment_and_outcome_policy
+      evidence_claim_ids:
+        - eligibility.evidence-quality-no-personal-probability
+        - road-marathon.durability-relevant-no-field-cutoff
+        - road-marathon.marathon-tid-mostly-low-observational
+        - road-marathon.pacing-prediction-retains-individual-error
+        - road-marathon.carbohydrate-support-contextual
+        - road-marathon.gut-training-tolerance-not-universal
+        - road-marathon.fluid-sodium-needs-variable
+        - road-marathon.altitude-capacity-no-personal-correction
+        - environment.heat-balance-multifactor
+        - heat-adaptation.repeated-exposure
+    - id: defer-baseline-history
+      title: Defer qualification, freshness, history counts, and capability algorithm
+      disposition: defer
+      question: >
+        Should exact direct-result qualification, freshness, distance and event
+        validation, lookback, minimum history counts, and current-load
+        qualification remain unresolved?
+      proposed_decision: >
+        Keep every baseline and history algorithm unaccepted until a later
+        decision compares options, missingness, and validation consequences.
+      approval_effect:
+        - Missing or unconfirmed capability returns capability_confirmation_required.
+        - Insufficient stable recent history returns insufficient_history.
+      does_not_authorize:
+        - A result expiry, distance tolerance, event qualification rule, minimum week or run count, or automatic maximal marathon test.
+        - A shorter-distance conversion as direct current marathon capability.
+      parameter_names:
+        - road_marathon_direct_baseline_hierarchy
+        - road_marathon_readiness_and_history_qualification
+      evidence_claim_ids:
+        - eligibility.recent-history-anchor-without-universal-threshold
+        - eligibility.goal-relevant-current-capability-task-specific
+        - road-marathon.task-specific-capability-baseline-multifactorial
+        - road-marathon.pacing-prediction-retains-individual-error
+    - id: defer-dose-specific-work
+      title: Defer plan length, dose, long-run, intensity, and race-specific work
+      disposition: defer
+      question: >
+        Should plan length, frequency, progression, volume, long-run
+        distance/duration/share/cap, durability cutoff, marathon-pace or
+        race-specific work, quality ceiling and spacing, and exact workouts
+        remain unresolved?
+      proposed_decision: >
+        Keep every distance-specific dose and schedule value unaccepted.
+        Retain only the approved candidate-context treatment, shared adaptive
+        policy dependency, and hard prohibitions.
+      approval_effect:
+        - A future distance decision must select and validate each behavior-driving value explicitly.
+        - Target gap and missed sessions cannot create escalation or catch-up.
+      does_not_authorize:
+        - A plan horizon, weekly frequency or volume, progression, long-run prescription, quality count, spacing, session mix, or workout template.
+        - A mandatory mostly-low pattern, durability score, or activity-average-power intensity rule.
+      parameter_names:
+        - road_marathon_history_anchored_load_policy
+        - road_marathon_long_run_and_durability_policy
+        - road_marathon_intensity_and_race_specific_policy
+      evidence_claim_ids:
+        - eligibility.fixed-progression-and-acwr-not-safety-laws
+        - road-marathon.volume-frequency-longest-run-associative
+        - road-marathon.durability-relevant-no-field-cutoff
+        - road-marathon.marathon-tid-mostly-low-observational
+    - id: defer-taper-recovery
+      title: Defer taper, event accounting, recovery, and reassessment cadence
+      disposition: defer
+      question: >
+        Should taper window and reduction, intensity and frequency handling,
+        short-horizon alternative, event-minute accounting, recovery spacing,
+        reassessment cadence, and fixed outcome windows remain unresolved?
+      proposed_decision: >
+        Keep exact taper, recovery, reassessment, and outcome timing unaccepted
+        while preserving the no-makeup and post-event reassessment boundaries.
+      approval_effect:
+        - A completed marathon triggers reassessment without claiming general readiness.
+        - Observational taper effects remain source findings only.
+      does_not_authorize:
+        - A three-week taper prescription, fixed percentage reduction, recovery interval, event-minute formula, or meaningful-change window.
+        - Treating renal recovery as medical clearance or general training readiness.
+      parameter_names:
+        - road_marathon_taper_and_recovery_policy
+        - road_marathon_reassessment_and_outcome_policy
+      evidence_claim_ids:
+        - road-marathon.taper-support-exact-parameters-uncertain
+        - road-marathon.recovery-subgroup-outcome-rules-unvalidated
+    - id: defer-fueling-hydration-environment
+      title: Defer fueling, hydration, environmental, and altitude values
+      disposition: defer
+      question: >
+        Should loading, duration, intake, fluid, sodium, gut-training numbers
+        and prompts, plus environmental and altitude corrections and
+        acclimation schedules, remain unresolved?
+      proposed_decision: >
+        Keep every behavior-driving nutrition, hydration, environmental, and
+        altitude value unaccepted. Require practiced context and complete
+        environmental inputs before any future dependent suggestion, while
+        preserving independent plan modules when that context is missing.
+      approval_effect:
+        - Missing fueling context returns fueling_module_limited while otherwise eligible independent plan modules remain available.
+        - Missing material environmental context returns environment_module_limited while otherwise eligible independent plan modules remain available.
+      does_not_authorize:
+        - A distance-only intake, fluid, sodium, loading, sweat, or gut-training rule.
+        - A personal pace correction, finish-time correction, or altitude acclimation schedule.
+      parameter_names:
+        - road_marathon_fueling_and_hydration_policy
+        - road_marathon_environment_and_altitude_policy
+      evidence_claim_ids:
+        - road-marathon.carbohydrate-support-contextual
+        - road-marathon.gut-training-tolerance-not-universal
+        - road-marathon.fluid-sodium-needs-variable
+        - road-marathon.altitude-capacity-no-personal-correction
+        - environment.full-wbgt-inputs
+        - environment.no-universal-personal-correction
+        - heat-adaptation.repeated-exposure
+        - heat-safety.separate-from-adaptation
+    - id: defer-secondary-rollout
+      title: Defer target risk, race density, subgroup, outcomes, pilot, implementation, and activation
+      disposition: defer
+      question: >
+        Should target-risk thresholds, race-density and priority rules,
+        subgroup dose modifiers, outcome windows and meaningful-change
+        thresholds, pilot criteria, implementation mapping, and activation
+        remain unresolved?
+      proposed_decision: >
+        Keep the contract inactive and require separate human review of every
+        secondary rule, deterministic implementation mapping, and opt-in pilot
+        threshold before runtime use.
+      approval_effect:
+        - Deterministic invariant and replay tolerance remain zero.
+        - Every statistical, subgroup, event-density, outcome, implementation, and activation choice remains explicit future work.
+      does_not_authorize:
+        - Implementing unresolved values, advertising capability, starting a pilot, or activating any runtime surface.
+        - Treating science decision approval as implementation or activation approval.
+      parameter_names:
+        - road_marathon_supported_training_pattern
+        - road_marathon_reassessment_and_outcome_policy
+        - road_marathon_validation_privacy_and_open_decisions
+      evidence_claim_ids:
+        - eligibility.evidence-quality-no-personal-probability
+        - eligibility.masters-age-change-not-automatic-exclusion
+        - road-marathon.recovery-subgroup-outcome-rules-unvalidated
+rejected_alternatives:
+  - alternative: "Copy a 5 km, 10 km, or half-marathon policy and replace the distance label"
+    rationale: >
+      Marathon duration, direct capability, long-run durability, fueling,
+      hydration, taper, recovery, environment, and event demands differ.
+      Existing numeric guardrails are policy-specific and not universal
+      evidence.
+  - alternative: "Generate a performance plan for first-marathon or completion intent"
+    rationale: >
+      Current direct same-task capability and stable history define this
+      proposal. Completion and sparse-history populations need separately
+      reviewed policies.
+  - alternative: "Treat a prediction, critical speed, or shorter race as direct marathon capability"
+    rationale: >
+      Models retain material individual error and do not manufacture same-task
+      history, personal probability, or readiness.
+  - alternative: "Schedule a maximal marathon simulation when direct capability is missing"
+    rationale: >
+      A maximal simulation is burdensome and is not validated here. A no-event
+      rolling preparation or benchmark route requires a separately accepted
+      completion or benchmark policy.
+  - alternative: "Convert observed volume, longest-run, durability, or taper values into prescriptions"
+    rationale: >
+      The direct findings are observational, cross-sectional, or indirect and
+      do not establish an optimal or safe individual dose.
+  - alternative: "Select a universal pyramidal distribution or marathon-pace dose"
+    rationale: >
+      The direct dataset is observational and zone-definition dependent. It
+      does not establish a causal percentage, session count, spacing, or
+      workout mix.
+  - alternative: "Escalate dose to close a target-time gap or make up missed work"
+    rationale: >
+      Prediction error and population associations cannot justify compressed
+      progression, catch-up, or hidden dose escalation.
+  - alternative: "Use one marathon fueling, fluid, or sodium rule"
+    rationale: >
+      Duration, prior practice, tolerance, sweat response, environment, and
+      athlete preference vary; both inadequate replacement and overdrinking
+      matter.
+  - alternative: "Apply an altitude or weather coefficient to personal marathon pace"
+    rationale: >
+      Acute chamber effects and population weather associations are not
+      individualized corrections or acclimation schedules.
+  - alternative: "Let AI fill missing context or choose deferred values"
+    rationale: >
+      AI cannot repair missing evidence, confirm athlete inputs, broaden
+      eligibility, create approvals, activate runtime, or replace deterministic
+      review.
+model_parameters:
+  - name: road_marathon_activation_and_dependency
+    classification: guardrail
+    value:
+      active_behavior: false
+      runtime_state: inactive
+      shared_policy_dependency:
+        sdr_id: sdr-plan-generation-eligibility-safety-v1
+        required_status_before_activation: accepted
+      shared_adaptive_policy_dependency:
+        sdr_id: sdr-adaptive-plan-feasibility-and-adjustment-v1
+        required_status_before_activation: accepted
+        implementation_approval_required_before_activation: true
+        shared_recommendation_and_feedback_loop_defined_here: false
+      distance_evidence_required_status_before_activation: accepted
+      distance_decision_required_status_before_activation: accepted
+      evidence_review_approval_artifact_required: true
+      decision_approval_artifact_required: true
+      implementation_approval_artifact_required: true
+      capability_registry_entry_default_enabled: false
+      generator_api_web_miniapp_plugin_and_mcp_activation_in_this_record: false
+    evidence_claim_ids:
+      - eligibility.evidence-quality-no-personal-probability
+    rationale: >
+      Draft records, generated packets, and a science decision cannot activate
+      product behavior. Evidence, decision, implementation, and runtime
+      authority remain distinct.
+    applies_to: policy lifecycle and capability discovery
+  - name: road_marathon_goal_and_event_tuple
+    classification: guardrail
+    value:
+      goal_kind: distance_marathon
+      goal_intent: performance
+      sport: running
+      surface: outdoor_road
+      primary_outcome: elapsed_time
+      target_time_optional: true
+      target_date_optional: true
+      goal_capture_independent_from_generator_availability: true
+      unavailable_policy_result: goal_recorded_plan_policy_unavailable
+      event_context_must_be_athlete_confirmed: true
+      no_event_goal:
+        goal_remains_recorded: true
+        rolling_preparation_or_simulation_requires_separately_accepted_completion_or_benchmark_policy: true
+        automatic_maximal_marathon_simulation: prohibited
+      separate_policy_variants:
+        - first_marathon_or_completion_intent
+        - sparse_or_missing_history
+        - returning_after_interruption
+        - clinical_rehabilitation_or_return_to_sport
+        - pregnancy_specific_planning
+        - trail_marathon
+        - ultramarathon
+        - unsupported_surface_event_or_context
+    evidence_claim_ids:
+      - eligibility.goal-relevant-current-capability-task-specific
+      - road-marathon.task-specific-capability-baseline-multifactorial
+    rationale: >
+      Goal choice is durable user state. This policy is a narrow capability,
+      intent, surface, and evidence route rather than the definition of a valid
+      goal.
+    applies_to: goal normalization and marathon policy selection
+  - name: road_marathon_supported_training_pattern
+    classification: guardrail
+    value:
+      adult_scope: confirmed
+      capability_pattern: current_direct_outdoor_road_marathon
+      history_pattern: stable_recent
+      load_pattern: within_recent
+      intent_pattern: performance
+      event_context:
+        - confirmed_none
+        - single_target
+        - race_dense
+      race_dense_requires_resolved_conflicts: true
+      current_concerning_symptoms: absent
+      evidence_directness:
+        - direct
+        - supporting
+      explicit_exclusions:
+        - adult_scope_unconfirmed
+        - capability_unconfirmed
+        - first_marathon_or_completion_intent
+        - sparse_interrupted_or_missing_history
+        - outside_recent_load_pattern
+        - current_injury_illness_or_concerning_symptoms
+        - clinical_rehabilitation_return_to_sport_or_medical_clearance
+        - pregnancy_specific_prescription
+        - unresolved_material_event_conflict
+        - unsupported_surface_distance_or_intent
+      cohort_labels_are_permanent_runner_identities: false
+    evidence_claim_ids:
+      - eligibility.current-symptoms-support-stop-not-clearance
+      - eligibility.masters-age-change-not-automatic-exclusion
+      - road-marathon.recovery-subgroup-outcome-rules-unvalidated
+    rationale: >
+      The route matches a time-bounded evidence pattern rather than a permanent
+      recreational, amateur, female, male, faster, elite, or masters identity.
+    applies_to: shared eligibility and distance-policy routing
+  - name: road_marathon_profile_and_source_provenance
+    classification: guardrail
+    value:
+      adult_scope_confirmation_required: true
+      optional_modifier_fields:
+        - age_or_age_band
+        - sex
+        - profile_attributes
+        - prior_marathon_count
+        - environmental_history
+        - fueling_and_gastrointestinal_history
+      missing_optional_modifier_effect: disable_dependent_adjustment_only
+      unknown_sex_defaults_to_male: false
+      imported_profile_and_event_fields:
+        remain_source_labelled_until_athlete_confirmation: true
+        may_not_overwrite_athlete_confirmed_value: true
+        missing_is_unknown_not_false: true
+      minimum_necessary_inputs_only: true
+    evidence_claim_ids:
+      - eligibility.masters-age-change-not-automatic-exclusion
+      - eligibility.evidence-quality-no-personal-probability
+      - road-marathon.recovery-subgroup-outcome-rules-unvalidated
+    rationale: >
+      Optional modifiers cannot become hidden demographic assumptions or
+      unnecessary eligibility barriers. Athlete confirmation and field-level
+      provenance preserve accuracy and control.
+    applies_to: profile, event, and missing-data handling
+  - name: road_marathon_direct_baseline_hierarchy
+    classification: guardrail
+    value:
+      direct_current_capability_required: true
+      preferred_direct_evidence:
+        - athlete_confirmed_official_or_organized_outdoor_road_marathon_result
+      required_metadata:
+        - completed_at
+        - elapsed_time_seconds
+        - measured_distance_m
+        - route_or_event_identifier
+        - surface
+        - assistance_status
+        - source_provider
+        - athlete_confirmation_state
+      supporting_only:
+        - shorter_distance_race_result
+        - critical_speed_or_threshold
+        - current_vo2max_or_vvo2max
+        - weekly_training_volume_and_frequency
+        - recent_longest_run
+        - marathon_prediction_with_error
+        - split_or_sample_pacing_distribution
+      excluded_as_direct:
+        - shorter_distance_conversion
+        - critical_speed_prediction
+        - passive_marathon_segment_within_ultra
+        - unconfirmed_provider_personal_best
+        - activity_average_power
+        - vendor_readiness_or_race_score
+        - policy_generated_maximal_marathon_simulation
+      automatic_maximal_marathon_baseline_test: prohibited
+      baseline_qualification_algorithm: not_accepted
+      baseline_freshness_completed_days: not_accepted
+      distance_match_tolerance_m: not_accepted
+      accepted_event_qualification: not_accepted
+      accepted_assistance_statuses: not_accepted
+      missing_or_unconfirmed_outcome: capability_confirmation_required
+    evidence_claim_ids:
+      - eligibility.goal-relevant-current-capability-task-specific
+      - road-marathon.task-specific-capability-baseline-multifactorial
+      - road-marathon.pacing-prediction-retains-individual-error
+    rationale: >
+      Same-task confirmed history is most direct. Predictions and supporting
+      markers retain material individual error and cannot silently qualify a
+      runner or trigger a maximal marathon effort.
+    applies_to: direct capability confirmation
+  - name: road_marathon_readiness_and_history_qualification
+    classification: guardrail
+    value:
+      required_observations:
+        - completed_weekly_running_minutes_and_distance
+        - completed_running_days_per_week
+        - recent_longest_run_duration_and_distance
+        - quality_session_and_event_density
+        - recent_load_relative_to_self
+        - availability_and_single_session_constraints
+        - recovery_and_symptom_stop_state
+      exact_history_lookback_weeks: not_accepted
+      minimum_usable_weeks: not_accepted
+      minimum_runs_per_usable_week: not_accepted
+      latest_run_freshness_days: not_accepted
+      within_recent_load_qualification_algorithm: not_accepted
+      stable_history_qualification_algorithm: not_accepted
+      intensity_source_priority:
+        - activity_splits
+        - activity_samples
+      disallowed_intensity_source:
+        - activity_avg_power
+      insufficient_history_outcome: insufficient_history
+    evidence_claim_ids:
+      - eligibility.recent-history-anchor-without-universal-threshold
+      - eligibility.fixed-progression-and-acwr-not-safety-laws
+      - road-marathon.volume-frequency-longest-run-associative
+    rationale: >
+      Recent history must anchor the athlete's own exposure, but the literature
+      does not establish universal counts or a safe-load algorithm. Intensity
+      requires split-level or sample-level evidence.
+    applies_to: readiness and history-rich qualification
+  - name: road_marathon_modular_policy_structure
+    classification: guardrail
+    value:
+      plan_length_selected: false
+      modules:
+        - entry_readiness
+        - history_load
+        - long_run_durability
+        - intensity_race_specific_work
+        - fueling_hydration_practice
+        - taper_recovery
+        - environment_altitude
+        - reassessment_outcomes
+      each_module_must_declare:
+        - required_inputs
+        - missingness_effect
+        - evidence_or_guardrail_provenance
+        - athlete_editability
+        - typed_outcome
+      unresolved_module_cannot_be_filled_by_another_distance_policy: true
+      unresolved_dependent_module_preserves_goal_record: true
+      missing_context_disables_or_degrades_dependent_module_only: true
+      missing_context_may_block_independent_modules: false
+    evidence_claim_ids:
+      - eligibility.evidence-quality-no-personal-probability
+      - road-marathon.recovery-subgroup-outcome-rules-unvalidated
+    rationale: >
+      Modular boundaries keep missing context and unaccepted values local and
+      visible. They prevent one opaque schedule from hiding unsupported
+      behavior.
+    applies_to: policy composition and review
+  - name: road_marathon_published_volume_and_long_run_findings
+    classification: published
+    value:
+      study_population: adult_recreational_marathon_entrants
+      weekly_volume_findings:
+        below_40_km_per_week_vs_40_to_65:
+          finish_time_coefficient_minutes: 6.33
+          confidence_interval_minutes:
+            low: 0.18
+            high: 12.48
+        above_65_km_per_week_vs_40_to_65:
+          finish_time_coefficient_minutes: -14.09
+          confidence_interval_minutes:
+            low: -22.47
+            high: -5.72
+      longest_run_findings:
+        below_25_km:
+          finish_time_coefficient_minutes: 13.44
+          confidence_interval_minutes:
+            low: 5.34
+            high: 21.55
+        above_35_km_vs_30_to_35:
+          significantly_better: false
+      frequency_and_experience_association_descriptive_only: true
+      observational_only: true
+      eligibility_or_prescription_established: false
+    evidence_claim_ids:
+      - road-marathon.volume-frequency-longest-run-associative
+    rationale: >
+      These values reproduce source findings for explanation and validation.
+      They are not minima, maxima, targets, safe thresholds, or causal doses.
+    applies_to: evidence display and future validation design
+  - name: road_marathon_history_anchored_load_policy
+    classification: guardrail
+    value:
+      plan_length_days: not_accepted
+      weekly_running_frequency_range: not_accepted
+      weekly_volume_target_or_range: not_accepted
+      weekly_progression_rule: not_accepted
+      current_load_comparison_method: not_accepted
+      athlete_availability_is_hard_cap: true
+      target_gap_may_raise_load: false
+      missed_workout_catch_up_allowed: false
+      ten_percent_rule_used: false
+      acwr_prescription_zone_used: false
+      shorter_distance_numeric_rules_inherited: false
+    evidence_claim_ids:
+      - eligibility.fixed-progression-and-acwr-not-safety-laws
+      - road-marathon.volume-frequency-longest-run-associative
+      - road-marathon.pacing-prediction-retains-individual-error
+    rationale: >
+      Population associations and prediction error do not choose an individual
+      plan length, frequency, volume, or progression. Athlete constraints cap
+      future suggestions but do not prove an optimal dose.
+    applies_to: plan horizon and weekly exposure
+  - name: road_marathon_published_durability_findings
+    classification: published
+    value:
+      study_population: 26_performance_matched_well_trained_men
+      running_economy_deterioration_percent:
+        better_durability_group: 3.1
+        lower_durability_group: 6.0
+      longest_run_correlation_with_deterioration: -0.67
+      training_volume_correlation_with_deterioration: -0.48
+      design: cross_sectional
+      causal_or_field_cutoff_established: false
+    evidence_claim_ids:
+      - road-marathon.durability-relevant-no-field-cutoff
+    rationale: >
+      The values are descriptive source findings from a small male
+      cross-sectional sample and cannot define an automated cutoff or dose.
+    applies_to: durability evidence context
+  - name: road_marathon_long_run_and_durability_policy
+    classification: guardrail
+    value:
+      regular_long_run_is_qualitative_context: true
+      mandatory_overdistance_run: false
+      exact_long_run_distance: not_accepted
+      exact_long_run_duration: not_accepted
+      exact_long_run_share_of_weekly_volume: not_accepted
+      exact_long_run_frequency: not_accepted
+      exact_long_run_cap: not_accepted
+      durability_field_protocol: not_accepted
+      durability_field_cutoff: not_accepted
+      durability_score_used_for_eligibility_or_dose: false
+    evidence_claim_ids:
+      - road-marathon.volume-frequency-longest-run-associative
+      - road-marathon.durability-relevant-no-field-cutoff
+    rationale: >
+      Durability and long-run history are relevant descriptive context, but no
+      reviewed source selects a standardized field cutoff or exact long-run
+      prescription.
+    applies_to: long-run and durability module
+  - name: road_marathon_published_intensity_distribution_findings
+    classification: published
+    value:
+      marathons_analysed: 151813
+      runners_analysed: 119452
+      faster_runners_accumulated_more_zone_one_volume: true
+      fastest_group_pyramidal_distribution_percent:
+        greater_than: 80
+      observational: true
+      zone_definition_dependent: true
+      causal_optimum_or_individual_dose_established: false
+    evidence_claim_ids:
+      - road-marathon.marathon-tid-mostly-low-observational
+    rationale: >
+      The direct marathon dataset describes population organization. It does
+      not choose one athlete's percentage, session count, spacing, or workout
+      mix.
+    applies_to: intensity-distribution evidence context
+  - name: road_marathon_intensity_and_race_specific_policy
+    classification: guardrail
+    value:
+      mostly_low_intensity_organization_required: false
+      mostly_low_organization_is_candidate_scientific_prior: true
+      scientific_pattern_is_permanent_runner_identity: false
+      training_organization_selected_by_shared_adaptive_policy: true
+      distance_policy_supplies_candidate_context_only: true
+      durability_used_as_descriptive_context_only: true
+      race_specific_work_may_be_a_future_module: true
+      exact_low_intensity_fraction: not_accepted
+      selected_distribution_model: not_accepted
+      maximum_quality_sessions_per_7_day_unit: not_accepted
+      exact_hours_or_days_between_quality_sessions: not_accepted
+      marathon_pace_or_race_specific_dose: not_accepted
+      exact_session_mix: not_accepted
+      exact_workout_templates: not_accepted
+      target_gap_may_add_quality: false
+      missed_quality_makeup_allowed: false
+      intensity_source_priority:
+        - activity_splits
+        - activity_samples
+      activity_avg_power_allowed: false
+    evidence_claim_ids:
+      - road-marathon.marathon-tid-mostly-low-observational
+      - road-marathon.durability-relevant-no-field-cutoff
+      - road-marathon.pacing-prediction-retains-individual-error
+    rationale: >
+      Mostly-low organization is a common observational pattern and one
+      candidate prior, not a universal rule. The shared adaptive-plan policy
+      owns individualized strategy selection and feedback updates; this
+      distance policy contributes marathon-specific context only. Every exact
+      distribution, race-specific exposure, session count, spacing rule, and
+      workout remains a separate distance decision.
+    applies_to: intensity and race-specific work module
+  - name: road_marathon_published_taper_findings
+    classification: published
+    value:
+      marathon_observational_finding:
+        strict_taper_duration_weeks: 3
+        median_benefit_seconds_vs_minimal_taper: 332.4
+        median_benefit_percent_vs_minimal_taper: 2.6
+        causal_or_fixed_personal_benefit: false
+      mixed_endurance_meta_analysis:
+        maintain_intensity: true
+        maintain_frequency: true
+        time_trial_standardized_mean_difference:
+          estimate: -0.45
+          confidence_interval:
+            low: -0.68
+            high: -0.23
+        volume_reduction_41_to_60_percent_standardized_mean_difference:
+          estimate: -0.77
+          confidence_interval:
+            low: -1.23
+            high: -0.30
+        duration_8_to_14_days_standardized_mean_difference:
+          estimate: -1.47
+          confidence_interval:
+            low: -2.75
+            high: -0.19
+        direct_road_marathon_validation: false
+    evidence_claim_ids:
+      - road-marathon.taper-support-exact-parameters-uncertain
+    rationale: >
+      The marathon result is observational and the pooled values are indirect.
+      They remain source findings rather than the selected product taper.
+    applies_to: taper evidence context
+  - name: road_marathon_taper_and_recovery_policy
+    classification: guardrail
+    value:
+      exact_taper_window_days: not_accepted
+      exact_volume_reduction_percent: not_accepted
+      exact_intensity_exposure: not_accepted
+      exact_frequency_rule: not_accepted
+      pre_event_training_minutes_accounting: not_accepted
+      target_event_elapsed_time_included_in_training_minutes: not_accepted
+      short_horizon_alternative: not_accepted
+      post_marathon_recovery_interval: not_accepted
+      return_to_quality_or_long_run_rule: not_accepted
+      no_extra_sharpening_or_makeup: true
+      completed_marathon_requires_recovery_and_pattern_reassessment: true
+      renal_recovery_defines_general_readiness: false
+      personal_taper_gain_claim: prohibited
+    evidence_claim_ids:
+      - road-marathon.taper-support-exact-parameters-uncertain
+      - road-marathon.recovery-subgroup-outcome-rules-unvalidated
+      - eligibility.current-symptoms-support-stop-not-clearance
+    rationale: >
+      Taper and recovery evidence does not select one schedule, accounting
+      method, readiness interval, or short-horizon alternative.
+    applies_to: taper and recovery module
+  - name: road_marathon_published_fueling_and_gut_findings
+    classification: published
+    value:
+      acute_carbohydrate_supports_prolonged_endurance_performance_at_population_level: true
+      loading_and_intake_are_contextual: true
+      gut_training_findings:
+        gastrointestinal_discomfort_reduction_percent: 47
+        carbohydrate_malabsorption_reduction_percent:
+          low: 45
+          high: 54
+      universal_protocol_or_guaranteed_adaptation: false
+      direct_distance_only_marathon_prescription: false
+    evidence_claim_ids:
+      - road-marathon.carbohydrate-support-contextual
+      - road-marathon.gut-training-tolerance-not-universal
+    rationale: >
+      The values reproduce bounded source findings. They do not define product
+      duration bands, intake, loading, prompts, or guaranteed tolerance.
+    applies_to: fueling and gut-practice evidence context
+  - name: road_marathon_fueling_and_hydration_policy
+    classification: guardrail
+    value:
+      required_context:
+        - expected_event_duration_context
+        - prior_carbohydrate_practice
+        - prior_gastrointestinal_tolerance_or_issue
+        - fluid_and_sodium_practice
+        - environment_context
+        - athlete_preference
+      practiced_strategy_required_before_race_day_suggestion: true
+      new_race_day_strategy_without_practice: prohibited
+      carbohydrate_loading_rule: not_accepted
+      during_exercise_intake_rule: not_accepted
+      gut_training_protocol: not_accepted
+      fueling_prompt_content_and_timing: not_accepted
+      fluid_millilitres_per_hour_rule: not_accepted
+      sodium_rule: not_accepted
+      sweat_or_body_mass_loss_rule: not_accepted
+      hydration_prompt_content_and_timing: not_accepted
+      distance_only_routing_allowed: false
+      medical_or_dietetic_treatment_claim: false
+      missing_material_context_outcome: fueling_module_limited
+      missing_context_blocks_independent_plan_modules: false
+    evidence_claim_ids:
+      - road-marathon.carbohydrate-support-contextual
+      - road-marathon.gut-training-tolerance-not-universal
+      - road-marathon.fluid-sodium-needs-variable
+    rationale: >
+      Practiced fueling is a qualitative boundary. Exact intake, loading,
+      gut-training, fluid, sodium, sweat, and prompt rules require separate
+      review and athlete context.
+    applies_to: fueling, hydration, and practice module
+  - name: road_marathon_published_fluid_and_sodium_findings
+    classification: published
+    value:
+      fluid_needs_vary_with_athlete_and_context: true
+      sweat_rate_and_sodium_show_intra_and_interindividual_variability: true
+      both_under_replacement_and_overdrinking_matter: true
+      exercise_associated_hyponatremia_is_a_separate_safety_boundary: true
+      distance_only_millilitres_per_hour_or_sodium_rule_validated: false
+    evidence_claim_ids:
+      - road-marathon.fluid-sodium-needs-variable
+    rationale: >
+      The position, consensus, and variability review support a contextual
+      safety boundary rather than one personal replacement prescription.
+    applies_to: fluid and sodium evidence context
+  - name: road_marathon_published_environment_and_altitude_findings
+    classification: published
+    value:
+      environmental_heat_context:
+        heat_balance_is_multifactorial: true
+        relative_humidity_alone_is_insufficient: true
+        marathon_temperature_and_wbgt_findings_are_population_associations: true
+        universal_personal_correction_validated: false
+      acute_altitude_chamber_findings_per_1000_m:
+        vo2max_change_percent: -6.3
+        fixed_speed_time_to_exhaustion_change_percent: -14.5
+      altitude_findings_are_marathon_corrections: false
+      individualized_acclimation_schedule_validated: false
+      heat_adaptation_is_repeated_exposure_context_not_clearance: true
+    evidence_claim_ids:
+      - road-marathon.altitude-capacity-no-personal-correction
+      - environment.heat-balance-multifactor
+      - environment.relative-humidity-insufficient
+      - environment.wbgt-population-performance
+      - environment.temperature-nonlinear
+      - environment.marathon-wbgt-performance-level
+      - environment.no-universal-personal-correction
+      - heat-adaptation.repeated-exposure
+      - heat-safety.separate-from-adaptation
+    rationale: >
+      The source findings establish descriptive environmental and acute
+      capacity context. They do not define a personal pace, time, safety, or
+      acclimation rule.
+    applies_to: environment and altitude evidence context
+  - name: road_marathon_environment_and_altitude_policy
+    classification: guardrail
+    value:
+      required_environment_inputs_when_available:
+        - air_temperature
+        - atmospheric_moisture_or_vapor_pressure
+        - wind
+        - solar_or_radiant_load
+        - altitude_or_elevation_profile
+        - source_time_location_and_confidence
+      weather_or_course_data_must_remain_source_labelled: true
+      personal_temperature_or_wbgt_correction: not_accepted
+      personal_altitude_pace_or_finish_time_correction: not_accepted
+      altitude_acclimation_schedule: not_accepted
+      heat_acclimation_schedule: not_accepted
+      environmental_plan_adjustment_rule: not_accepted
+      population_coefficient_used_as_personal_counterfactual: false
+      heat_adaptation_used_as_medical_clearance: false
+      incomplete_material_context_outcome: environment_module_limited
+      missing_context_blocks_independent_plan_modules: false
+    evidence_claim_ids:
+      - road-marathon.altitude-capacity-no-personal-correction
+      - environment.full-wbgt-inputs
+      - environment.no-universal-personal-correction
+      - heat-adaptation.repeated-exposure
+      - heat-safety.separate-from-adaptation
+    rationale: >
+      Complete, source-labelled context is required before future dependent
+      explanation. No reviewed source selects an individualized correction,
+      adjustment, or acclimation schedule.
+    applies_to: environment and altitude module
+  - name: road_marathon_reassessment_and_outcome_policy
+    classification: guardrail
+    value:
+      reassessment_triggers:
+        - new_or_changed_confirmed_event
+        - new_qualified_marathon_result
+        - material_training_pattern_change
+        - completed_marathon_or_maximal_event
+        - changed_availability_or_constraint
+        - changed_fueling_hydration_or_environment_context
+        - athlete_requested_review
+      marathon_observations_forwarded_to_shared_adaptive_policy:
+        - completed_sessions_and_adherence
+        - athlete_edits_rejections_and_preferences
+        - perceived_effort_and_reported_response
+        - recovery_and_symptom_context
+        - split_or_sample_level_training_response
+        - comparable_event_or_field_outcomes
+      feedback_update_algorithm_owned_by_shared_adaptive_policy: true
+      exact_calendar_reassessment_cadence: not_accepted
+      exact_post_marathon_outcome_window: not_accepted
+      meaningful_change_threshold: not_accepted
+      outcome_comparability_algorithm: not_accepted
+      race_priority_and_conflict_resolution_rule: not_accepted
+      direct_before_after_claim_requires:
+        - comparable_distance_and_result_type
+        - known_route_or_event
+        - known_surface_and_assistance
+        - known_environment_when_available
+        - no_material_protocol_change
+      supporting_outcomes:
+        - split_level_pacing_and_pace_decline
+        - adherence_edit_and_rejection_burden
+        - fueling_and_gastrointestinal_response
+        - hydration_context_and_issues
+        - recovery_response
+        - weekly_volume_frequency_longest_run_and_quality_change
+      causal_plan_effect_claim: prohibited
+      personal_responder_classification: prohibited
+      absence_of_improvement_proves_nonresponse: false
+      renal_recovery_used_as_general_readiness: false
+    evidence_claim_ids:
+      - eligibility.evidence-quality-no-personal-probability
+      - road-marathon.pacing-prediction-retains-individual-error
+      - road-marathon.recovery-subgroup-outcome-rules-unvalidated
+      - environment.no-universal-personal-correction
+    rationale: >
+      Marathon-specific observations must remain available to the shared
+      adaptive-plan policy. This distance policy does not define a second
+      feedback engine and no reviewed source selects the exact cadence, fixed
+      outcome window, meaningful-change threshold, race-priority algorithm, or
+      causal attribution.
+    applies_to: reassessment and outcomes module
+  - name: road_marathon_typed_outcomes_and_suggestion_only_state
+    classification: guardrail
+    value:
+      current_runtime_outcome: plan_policy_inactive
+      outcomes:
+        goal_recorded_plan_policy_unavailable:
+          plan_returned: false
+          goal_remains_recorded: true
+        capability_confirmation_required:
+          plan_returned: false
+          goal_remains_recorded: true
+        insufficient_history:
+          plan_returned: false
+          goal_remains_recorded: true
+        unresolved_event_conflict:
+          plan_returned: false
+          goal_remains_recorded: true
+        fueling_module_limited:
+          plan_returned: true
+          degraded_modules:
+            - fueling_hydration_practice
+          goal_remains_recorded: true
+        environment_module_limited:
+          plan_returned: true
+          degraded_modules:
+            - environment_altitude
+          goal_remains_recorded: true
+        plan_policy_inactive:
+          plan_returned: false
+          goal_remains_recorded: true
+        implementation_review_required:
+          plan_returned: false
+          goal_remains_recorded: true
+        limited_guidance_only:
+          plan_returned: false
+          limited_guidance_returned: true
+          goal_remains_recorded: true
+      future_generated_state_after_activation: proposed
+      athlete_may:
+        - review
+        - edit
+        - reject
+        - explicitly_consent_to_adopt
+      generator_may_not:
+        - adopt_or_deliver_without_consent
+        - overwrite_adopted_future_days
+        - auto_schedule_a_maximal_marathon
+        - auto_change_event_priority
+        - schedule_missed_workout_makeup
+        - invent_fueling_hydration_or_environment_context
+      AI_may_not:
+        - broaden_eligibility
+        - invent_capability_history_event_profile_or_safety_context
+        - choose_unaccepted_values
+        - override_deterministic_validation
+        - create_human_approval_artifacts
+        - activate_adopt_deliver_or_publish
+    evidence_claim_ids:
+      - eligibility.evidence-quality-no-personal-probability
+      - eligibility.current-symptoms-support-stop-not-clearance
+      - road-marathon.pacing-prediction-retains-individual-error
+    rationale: >
+      Typed outcomes preserve goal intent and make missing context or authority
+      explicit. The shared adaptive-plan policy owns actionable recommendation
+      and feedback semantics; proposal, athlete adoption, delivery, and
+      activation remain distinct states here.
+    applies_to: future API and client state contract
+  - name: road_marathon_validation_privacy_and_open_decisions
+    classification: guardrail
+    value:
+      deterministic_invariant_breach_tolerance: 0
+      deterministic_replay_mismatch_tolerance: 0
+      target_risk_thresholds: not_accepted
+      race_density_and_priority_thresholds: not_accepted
+      subgroup_dose_modifiers: not_accepted
+      outcome_windows_and_meaningful_change_thresholds: not_accepted
+      exact_dry_run_go_no_go_thresholds: not_accepted
+      exact_prospective_pause_thresholds: not_accepted
+      implementation_mapping: not_accepted
+      runtime_activation_criteria: not_accepted
+      shared_adaptive_policy_contract_required_before_activation: true
+      dry_run_metrics_required:
+        - eligibility_and_each_typed_outcome_rate
+        - missingness_and_source_confirmation
+        - event_conflict_and_race_density
+        - subgroup_exclusion_and_edit_gaps
+        - proposal_edit_rejection_and_adoption_burden
+        - fueling_hydration_and_environment_context_availability
+        - quality_event_and_long_run_stacking
+        - deterministic_replay
+      prospective_metrics_required:
+        - adoption_and_edit_distance
+        - adherence_and_burden
+        - symptom_stops_and_adverse_events
+        - fueling_and_gastrointestinal_tolerance
+        - hydration_issues
+        - comparable_marathon_outcomes
+        - withdrawal
+      no_inference_of:
+        - diagnosis
+        - injury_cause
+        - pregnancy_status
+        - mental_state
+        - missed_training_reason
+        - gastrointestinal_diagnosis
+        - hydration_or_sodium_diagnosis
+      no_publication_of:
+        - raw_health_data
+        - private_activity_data
+        - inferred_sensitive_context
+      replay_record_must_include:
+        - policy_versions_and_contract_digests
+        - goal_record_state
+        - capability_and_history_sources
+        - split_or_sample_intensity_sources
+        - confirmed_event_context
+        - profile_fueling_hydration_and_environment_provenance
+        - unresolved_parameter_versions
+        - typed_outcome
+        - proposal_hash
+        - shared_adaptive_policy_version_and_contract_digest
+    evidence_claim_ids:
+      - eligibility.evidence-quality-no-personal-probability
+      - eligibility.masters-age-change-not-automatic-exclusion
+      - road-marathon.recovery-subgroup-outcome-rules-unvalidated
+      - road-marathon.fluid-sodium-needs-variable
+    rationale: >
+      Deterministic integrity is an engineering requirement. Statistical,
+      subgroup, event-density, outcome, implementation, and activation choices
+      need separate reviewed protocols and minimum-necessary private data. The
+      shared adaptive-plan contract must remain versioned and reviewable rather
+      than be redefined inside the distance policy.
+    applies_to: validation, privacy, implementation, and rollout
+applicability:
+  - Adults aged 18 years or older with adult scope confirmed
+  - Current direct athlete-confirmed outdoor road-marathon capability
+  - Stable recent running history and within-recent load
+  - Performance intent with optional target time or date
+  - Athlete-confirmed event context with unresolved conflicts excluded from a full proposal
+  - Separately accepted and implementation-approved shared adaptive-plan recommendation and feedback policy before activation
+  - Suggestion-only future behavior after every unresolved value and implementation review is accepted
+  - Cohort labels describe evidence populations and never permanent runner identities
+user_facing_claim_limits:
+  - >
+    This marathon record supplies distance-specific evidence and boundaries to
+    the shared managed-plan recommendation and feedback policy; it does not
+    define a separate recommendation engine or feedback loop.
+  - >
+    Mostly-low organization, durability, fueling practice, and environmental
+    findings are bounded candidate context rather than universal personal
+    rules or mandatory templates.
+  - >
+    This draft is an evidence and decision proposal, not a usable marathon
+    generator, optimal plan, safety guarantee, medical advice, target-time
+    guarantee, or personal probability.
+  - >
+    Fokkema volume and longest-run categories, durability correlations,
+    training-intensity distributions, taper effects, gut-tolerance findings,
+    and altitude chamber effects are source findings only.
+  - >
+    No plan length or 5 km, 10 km, or half-marathon numeric rule is accepted
+    for marathon use through this record.
+  - >
+    Missing optional age, sex, profile, fueling, hydration, or environmental
+    detail affects only the dependent adjustment and unknown sex never
+    defaults to male.
+  - >
+    No-event rolling preparation or simulation requires a separately accepted
+    completion or benchmark policy and cannot silently create a maximal
+    marathon.
+  - >
+    Environmental and altitude context may explain uncertainty but cannot
+    produce a personal pace, finish-time, acclimation, or safety correction.
+safety_implications:
+  - >
+    Current concerning symptoms, illness, injury, rehabilitation,
+    return-to-sport, medical-clearance, pregnancy-specific, or contradictory
+    safety context stops the vigorous-plan path without diagnosis or treatment.
+  - >
+    Prior marathon completion, within-recent history, renal recovery, practiced
+    fueling, or heat adaptation does not establish medical clearance or
+    guarantee freedom from harm.
+  - >
+    No maximal marathon benchmark, target-gap escalation, catch-up, fixed
+    progression law, ACWR prescription zone, distance-only hydration rule, or
+    activity-average-power intensity analysis is allowed.
+  - >
+    Both inadequate replacement and overdrinking matter; medical hydration,
+    sodium, heat-illness, or hyponatremia diagnosis and treatment remain
+    outside this performance policy.
+  - >
+    Confirmed races and maximal efforts must count as quality and load, and
+    unresolved event conflicts prevent a full proposal.
+privacy_implications:
+  - >
+    Use only the authenticated athlete's minimum necessary goal, activity,
+    event, profile, constraints, fueling, hydration, environment, and optional
+    symptom context.
+  - >
+    Provider-imported profile, event, weather, and course fields remain
+    source-labelled candidates until the athlete confirms or corrects them.
+  - >
+    Do not infer or publish diagnosis, injury cause, pregnancy status,
+    gastrointestinal or hydration diagnosis, mental state, missed-training
+    reason, or external life circumstance.
+validation_plan:
+  - >
+    Registry validation must prove the exact draft Evidence Review and claim
+    links, globally consistent citation metadata, rigorous verification notes,
+    four approve and five defer items, complete parameter coverage, literal
+    `not_accepted` deferrals, and inactive artifact policy.
+  - >
+    Artifact validation must prove that generated Evidence Review and SDR
+    packets carry current digests and that the exact inactive machine contract
+    embedded in the SDR packet matches the generated JSON contract.
+  - >
+    Tests must lock the narrow population tuple, modular structure, direct
+    baseline hierarchy, goal-policy separation, no-event benchmark boundary,
+    source-labelled profile and event data, module-local missing-context
+    degradation, the shared adaptive-policy dependency, typed outcomes, and
+    activity-split/sample intensity rule.
+  - >
+    Tests must prove no plan length or shorter-distance numeric rule is
+    inherited and that key observed values remain published source findings,
+    not guardrail values.
+  - >
+    Tests must prove mostly-low organization is a candidate prior rather than a
+    mandatory template and that the distance policy does not define its own
+    strategy-selection or feedback-update engine.
+  - >
+    Before implementation, separate human decisions must select every
+    baseline, history, dose, long-run, durability, intensity, race-specific,
+    taper, recovery, fueling, hydration, environment, altitude, reassessment,
+    subgroup, outcome, pilot, and activation value.
+  - >
+    Offline dry runs must report exclusions, missingness, source confirmation,
+    event conflicts, subgroup gaps, edit and rejection burden, shared adaptive
+    policy versioning, fueling, hydration and environment context, quality and
+    event stacking, and deterministic replay without publishing private
+    athlete data.
+  - >
+    A prospective opt-in pilot must predeclare human-reviewed go/no-go and
+    pause thresholds before any activation.
+falsification_conditions:
+  - >
+    Reject activation if the shared adaptive-plan SDR and its implementation
+    contract are not separately accepted, or if the marathon implementation
+    silently redefines shared recommendation, feedback, or outcome semantics.
+  - >
+    Reject the policy if any implementation emits a plan while the decision or
+    contract is draft or inactive, consumes an unaccepted value, or omits a
+    code-consumed field from the human review packet.
+  - >
+    Reject routing if prediction, critical speed, shorter-distance conversion,
+    passive segment, unconfirmed provider result, or activity average power is
+    treated as direct current marathon capability or intensity evidence.
+  - >
+    Reject schedule mapping if observational source categories, durability
+    correlations, pyramidal prevalence, taper effects, or target gap become
+    eligibility or dose rules, or if mostly-low organization becomes a
+    mandatory template rather than one candidate prior.
+  - >
+    Reject no-event routing if it creates a maximal marathon simulation without
+    a separately accepted completion or benchmark policy.
+  - >
+    Reject fueling or hydration behavior if distance alone selects loading,
+    intake, fluid, sodium, gut-training, or race-day strategy.
+  - >
+    Reject modular routing if missing fueling, hydration, or environmental
+    context blocks otherwise eligible independent plan modules or is replaced
+    with an invented value.
+  - >
+    Reject environmental behavior if population weather or chamber altitude
+    findings become a personal correction, acclimation schedule, clearance, or
+    guarantee.
+  - >
+    Pause future activation after any deterministic invariant or replay breach,
+    symptom-stop override, hidden demographic default, unconfirmed source use,
+    unresolved event conflict, unsupported population, consent bypass, or
+    approval-digest mismatch.
+affected_surfaces:
+  models:
+    - road-marathon-plan-generation-policy-v1
+    - shared dynamic training-pattern and confirmed event snapshots
+  apis:
+    - future authenticated marathon capability and typed proposal endpoints
+    - future event, profile, fueling, hydration, and environment confirmation inputs
+    - shared adaptive-plan proposal, feedback, observation, and reassessment endpoints governed outside this record
+  clients:
+    - generated human Evidence Review and SDR packets
+    - generated inactive machine contract
+    - future web marathon goal, readiness, event, context, proposal, consent, and no-plan states
+    - future miniapp feature, write, type, state, i18n, and consent parity
+    - future plugin and MCP capability discovery and proposal parity
+  science_notes:
+    - Explain direct, associative, cross-sectional, abstract-bounded, and indirect evidence separately.
+    - Show which marathon-specific findings are candidate context supplied to the shared adaptive-plan policy.
+    - Show unresolved values, baseline source, event state, context provenance, risk, and alternatives.
+artifact_policy:
+  runtime_state: inactive
+supersedes: []
+superseded_by:
+decision_notes:
+  - "This artifact-mode Decision proposal addresses issue #687 and remains draft and inactive."
+  - >
+    Human review must use the generated packet rather than raw YAML. The packet
+    includes the exact inactive machine contract and digest-bound approval
+    templates.
+  - >
+    First-marathon or completion intent, sparse history, returning, clinical,
+    rehabilitation, pregnancy-specific, trail, ultra, and unsupported contexts
+    require separate policies.
+  - >
+    All unresolved behavior-driving values are literal `not_accepted`; no
+    implementation may infer a value from source findings, another distance,
+    prose, or AI output.
+  - >
+    Impact map: draft Evidence Review -> generated evidence packet -> draft SDR
+    -> generated decision packet and inactive contract -> human evidence and
+    decision review -> future implementation review -> future pure policy
+    mapping -> separately accepted shared adaptive-plan policy -> API -> web and
+    miniapp parity -> ScienceNote and localization -> offline validation ->
+    opt-in pilot -> separately approved activation.

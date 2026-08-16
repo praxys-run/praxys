@@ -20,6 +20,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 | [evidence-preplan-baseline-policy-v1](evidence/preplan-baseline-policy/evidence-preplan-baseline-policy-v1.yaml) — History-first pre-plan baseline evidence for 5 km road performance | 1 | preplan-baseline-policy | 2026-08-10 |
 | [evidence-road-10k-plan-generation-policy-v1](evidence/road-10k-plan-generation-policy/evidence-road-10k-plan-generation-policy-v1.yaml) — History-anchored adult outdoor road 10 km performance planning | 1 | road-10k-plan-generation-policy | 2026-08-14 |
 | [evidence-road-half-marathon-plan-generation-policy-v1](evidence/road-half-marathon-plan-generation-policy/evidence-road-half-marathon-plan-generation-policy-v1.yaml) — History-anchored adult outdoor road half-marathon performance planning | 1 | road-half-marathon-plan-generation-policy | 2026-08-14 |
+| [evidence-road-marathon-plan-generation-policy-v1](evidence/road-marathon-plan-generation-policy/evidence-road-marathon-plan-generation-policy-v1.yaml) — History-anchored adult outdoor road-marathon performance planning | 1 | road-marathon-plan-generation-policy | 2026-08-15 |
 
 ### Science decisions
 
@@ -32,6 +33,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 | [sdr-preplan-baseline-policy-v1](decisions/sdr-preplan-baseline-policy-v1.yaml) — Use qualified 5 km history before offering an opt-in same-protocol baseline | 1 | preplan-baseline-policy-v1 | 2026-08-10 |
 | [sdr-road-10k-plan-generation-policy-v1](decisions/sdr-road-10k-plan-generation-policy-v1.yaml) — History-anchored adult outdoor road 10 km performance policy | 1 | road-10k-plan-generation-policy-v1 | 2026-08-14 |
 | [sdr-road-half-marathon-plan-generation-policy-v1](decisions/sdr-road-half-marathon-plan-generation-policy-v1.yaml) — History-anchored adult outdoor road half-marathon performance policy | 1 | road-half-marathon-plan-generation-policy-v1 | 2026-08-14 |
+| [sdr-road-marathon-plan-generation-policy-v1](decisions/sdr-road-marathon-plan-generation-policy-v1.yaml) — History-anchored adult outdoor road-marathon performance policy | 1 | road-marathon-plan-generation-policy-v1 | 2026-08-15 |
 
 ## Pending
 

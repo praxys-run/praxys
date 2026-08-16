@@ -590,6 +590,159 @@ def test_half_marathon_packet_contains_exact_inactive_contract() -> None:
     ]
 
 
+def test_marathon_packet_contains_exact_accepted_inactive_contract() -> None:
+    registry = load_science_registry()
+    expected = expected_science_artifacts(registry)
+    evidence_id = "evidence-road-marathon-plan-generation-policy-v1"
+    decision_id = "sdr-road-marathon-plan-generation-policy-v1"
+    evidence_packet_path = (
+        Path("generated") / "review-packets" / f"{evidence_id}.md"
+    )
+    decision_packet_path = (
+        Path("generated") / "review-packets" / f"{decision_id}.md"
+    )
+    contract_path = (
+        Path("generated") / "contracts" / f"{decision_id}.json"
+    )
+
+    contract = SciencePolicyContract.model_validate_json(
+        expected[contract_path]
+    )
+    packet = expected[decision_packet_path]
+    exact_contract_block = (
+        "```json\n"
+        + render_policy_contract_json(contract).rstrip()
+        + "\n```"
+    )
+
+    assert contract.decision_status == RecordStatus.ACCEPTED
+    assert contract.runtime_state == ArtifactRuntimeState.INACTIVE
+    assert contract.parameter_values[
+        "road_marathon_direct_baseline_hierarchy"
+    ]["baseline_qualification_algorithm"] == "not_accepted"
+    assert contract.parameter_values[
+        "road_marathon_readiness_and_history_qualification"
+    ]["minimum_usable_weeks"] == "not_accepted"
+    assert contract.parameter_values[
+        "road_marathon_history_anchored_load_policy"
+    ]["plan_length_days"] == "not_accepted"
+    assert contract.parameter_values[
+        "road_marathon_long_run_and_durability_policy"
+    ]["exact_long_run_distance"] == "not_accepted"
+    assert contract.parameter_values[
+        "road_marathon_intensity_and_race_specific_policy"
+    ]["marathon_pace_or_race_specific_dose"] == "not_accepted"
+    assert contract.parameter_values[
+        "road_marathon_intensity_and_race_specific_policy"
+    ]["mostly_low_intensity_organization_required"] is False
+    assert contract.parameter_values[
+        "road_marathon_intensity_and_race_specific_policy"
+    ]["mostly_low_organization_is_candidate_scientific_prior"] is True
+    assert contract.parameter_values[
+        "road_marathon_intensity_and_race_specific_policy"
+    ]["training_organization_selected_by_shared_adaptive_policy"] is True
+    assert contract.parameter_values[
+        "road_marathon_activation_and_dependency"
+    ]["shared_adaptive_policy_dependency"]["sdr_id"] == (
+        "sdr-adaptive-plan-feasibility-and-adjustment-v1"
+    )
+    assert contract.parameter_values[
+        "road_marathon_taper_and_recovery_policy"
+    ]["target_event_elapsed_time_included_in_training_minutes"] == (
+        "not_accepted"
+    )
+    assert contract.parameter_values[
+        "road_marathon_fueling_and_hydration_policy"
+    ]["fluid_millilitres_per_hour_rule"] == "not_accepted"
+    assert contract.parameter_values[
+        "road_marathon_fueling_and_hydration_policy"
+    ]["missing_material_context_outcome"] == "fueling_module_limited"
+    assert contract.parameter_values[
+        "road_marathon_fueling_and_hydration_policy"
+    ]["missing_context_blocks_independent_plan_modules"] is False
+    assert contract.parameter_values[
+        "road_marathon_environment_and_altitude_policy"
+    ]["personal_altitude_pace_or_finish_time_correction"] == "not_accepted"
+    assert contract.parameter_values[
+        "road_marathon_environment_and_altitude_policy"
+    ]["incomplete_material_context_outcome"] == (
+        "environment_module_limited"
+    )
+    assert contract.parameter_values[
+        "road_marathon_environment_and_altitude_policy"
+    ]["missing_context_blocks_independent_plan_modules"] is False
+    assert contract.parameter_values[
+        "road_marathon_reassessment_and_outcome_policy"
+    ]["exact_post_marathon_outcome_window"] == "not_accepted"
+    assert contract.parameter_values[
+        "road_marathon_reassessment_and_outcome_policy"
+    ]["feedback_update_algorithm_owned_by_shared_adaptive_policy"] is True
+    assert contract.parameter_values[
+        "road_marathon_validation_privacy_and_open_decisions"
+    ]["shared_adaptive_policy_contract_required_before_activation"] is True
+    assert contract.parameter_values[
+        "road_marathon_validation_privacy_and_open_decisions"
+    ]["runtime_activation_criteria"] == "not_accepted"
+    typed_outcomes = contract.parameter_values[
+        "road_marathon_typed_outcomes_and_suggestion_only_state"
+    ]["outcomes"]
+    assert typed_outcomes["fueling_module_limited"]["plan_returned"] is True
+    assert typed_outcomes["environment_module_limited"][
+        "plan_returned"
+    ] is True
+
+    decision = registry.decisions[decision_id]
+    assert decision.decision_review is not None
+    assert [
+        item.id
+        for item in decision.decision_review.items
+        if item.disposition == DecisionReviewDisposition.APPROVE
+    ] == [
+        "narrow-modular-scope",
+        "evidence-use",
+        "hard-boundaries",
+        "shared-adaptive-policy-dependency",
+    ]
+    assert [
+        item.id
+        for item in decision.decision_review.items
+        if item.disposition == DecisionReviewDisposition.DEFER
+    ] == [
+        "defer-baseline-history",
+        "defer-dose-specific-work",
+        "defer-taper-recovery",
+        "defer-fueling-hydration-environment",
+        "defer-secondary-rollout",
+    ]
+
+    assert exact_contract_block in packet
+    assert (
+        "**Decision approval:** `github:dddtc2005` on `2026-08-16`"
+        in packet
+    )
+    assert "**Implementation approval:** _Pending_" in packet
+    assert packet.count("_Pending_") == 1
+    assert packet.index("## Your task") < packet.index("## Decision sheet")
+    assert packet.index("## Decision sheet") < packet.index(
+        "## Audit appendix"
+    )
+    assert (
+        packet.index(decision.decision_review.reviewer_task)
+        < packet.index("## Audit appendix")
+    )
+    assert "Exact machine contract — code consumption audit" in packet
+    assert "activity_avg_power" in packet
+    assert "goal_recorded_plan_policy_unavailable" in packet
+    assert "fueling_module_limited" in packet
+    assert "environment_module_limited" in packet
+    assert "candidate context" in packet
+    assert "sdr-adaptive-plan-feasibility-and-adjustment-v1" in packet
+    assert "shared managed-plan policy" in packet
+    assert "Review this packet, not the raw YAML" in expected[
+        evidence_packet_path
+    ]
+
+
 def test_repository_generated_science_artifacts_are_current() -> None:
     registry = load_science_registry()
     assert sync_science_artifacts(registry, check=True) == []
