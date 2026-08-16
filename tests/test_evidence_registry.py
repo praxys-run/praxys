@@ -98,9 +98,13 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     workload_decision = registry.decisions["sdr-environmental-performance-v4"]
     assert workload_decision.status == "accepted"
     assert workload_decision.human_reviewers == ["github:dddtc2005"]
-    assert registry.decisions[
+    adaptive_decision = registry.decisions[
         "sdr-adaptive-plan-feasibility-and-adjustment-v1"
-    ].status == "draft"
+    ]
+    assert adaptive_decision.status == "accepted"
+    assert adaptive_decision.approval_mode == ApprovalMode.ARTIFACT
+    assert adaptive_decision.human_reviewers == []
+    assert adaptive_decision.decision_date == date(2026, 8, 16)
     assert registry.evidence_reviews[
         "evidence-preplan-baseline-policy-v1"
     ].status == "accepted"
@@ -310,7 +314,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     assert decision.human_reviewers == ["github:dddtc2005"]
 
 
-def test_adaptive_plan_policy_is_actionable_shared_and_inactive() -> None:
+def test_adaptive_plan_policy_is_accepted_shared_and_inactive() -> None:
     registry = load_science_registry()
     evidence_ids = [
         "evidence-individual-goal-feasibility-v1",
@@ -328,10 +332,10 @@ def test_adaptive_plan_policy_is_actionable_shared_and_inactive() -> None:
     }
 
     for review in reviews.values():
-        assert review.status == RecordStatus.DRAFT
+        assert review.status == RecordStatus.ACCEPTED
         assert review.approval_mode == ApprovalMode.ARTIFACT
         assert review.human_reviewers == []
-        assert review.reviewed_on is None
+        assert review.reviewed_on == date(2026, 8, 16)
         _assert_exact_verification_notes(review)
 
     feasibility_review = reviews[
@@ -382,9 +386,10 @@ def test_adaptive_plan_policy_is_actionable_shared_and_inactive() -> None:
     )
     assert "benhammou-2024" in reliability_claim.source_ids
 
-    assert decision.status == RecordStatus.DRAFT
+    assert decision.status == RecordStatus.ACCEPTED
     assert decision.approval_mode == ApprovalMode.ARTIFACT
     assert decision.human_reviewers == []
+    assert decision.decision_date == date(2026, 8, 16)
     assert decision.artifact_policy is not None
     assert (
         decision.artifact_policy.runtime_state
