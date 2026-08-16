@@ -1010,6 +1010,7 @@ const EN_PLAN_START = {
   'Select availability, then give the same supported session limit for every selected day.':
     'Select availability, then give the same supported session limit for every selected day.',
   'Time limit (minutes)': 'Time limit (minutes)',
+  'Refresh proposal': 'Refresh proposal',
   ready: 'ready',
   'This proposal cannot mutate the canonical plan. Review readiness and create a new proposal when you are ready.':
     'This proposal cannot mutate the canonical plan. Review readiness and create a new proposal when you are ready.',
@@ -1038,6 +1039,7 @@ const ZH_PLAN_START = {
   'Select availability, then give the same supported session limit for every selected day.':
     '选择可用日期，然后为每个选定日期填写相同的受支持单次训练上限。',
   'Time limit (minutes)': '时间上限（分钟）',
+  'Refresh proposal': '刷新提案',
   ready: '就绪',
   'This proposal cannot mutate the canonical plan. Review readiness and create a new proposal when you are ready.':
     '此提案无法更改规范计划。准备好后请复核准备情况并创建新提案。',
