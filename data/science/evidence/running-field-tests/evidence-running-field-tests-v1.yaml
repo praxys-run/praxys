@@ -7,6 +7,7 @@ research_question: >
   supporting evidence of change across an adaptive training plan?
 topic: running-field-tests
 status: draft
+approval_mode: artifact
 authors:
   - agent:github-copilot
 human_reviewers: []
@@ -38,7 +39,7 @@ scope:
     - Running-performance prediction
 method:
   review_type: rigorous
-  search_date: 2026-08-08
+  search_date: 2026-08-16
   sources:
     - name: PubMed
       search_string: >
@@ -47,16 +48,31 @@ method:
         "critical speed"[Title/Abstract]) AND
         (validity[Title/Abstract] OR reliability[Title/Abstract] OR
         repeatability[Title/Abstract])
+    - name: PubMed systematic-review update
+      search_string: >
+        (running[Title/Abstract] OR runners[Title/Abstract]) AND
+        (validity[Title/Abstract] OR reliability[Title/Abstract] OR
+        sensitivity[Title/Abstract]) AND systematic review[Publication Type]
+    - name: PubMed currency window
+      search_string: >
+        ((running[Title/Abstract] OR runner*[Title/Abstract]) AND
+        ("field test"[Title/Abstract] OR "time trial"[Title/Abstract] OR
+        "critical speed"[Title/Abstract]) AND
+        (validity[Title/Abstract] OR reliability[Title/Abstract] OR
+        repeatability[Title/Abstract])) AND
+        (2026/08/08:2026/08/16[edat])
     - name: PubMed exact identifier verification
       search_string: >
-        18348590[PMID] OR 26987118[PMID] OR 40134905[PMID] OR 27379951[PMID]
+        18348590[PMID] OR 26987118[PMID] OR 40134905[PMID] OR
+        27379951[PMID] OR 38324270[PMID]
     - name: PubMed Central
       search_string: "PMC4795745 OR PMC11933073"
     - name: Crossref DOI API
       search_string: >
         GET /works/{doi} for 10.2165/00007256-200838040-00003,
         10.1371/journal.pone.0151671, 10.3389/fspor.2025.1520914,
-        and 10.1519/JSC.0000000000001529
+        10.1519/JSC.0000000000001529,
+        and 10.23736/S0022-4707.23.15619-2
   inclusion_criteria:
     - Human running or walk/run field-test validity or reliability research
     - Reviews of sport-performance test validity, reliability, and sensitivity
@@ -70,10 +86,12 @@ method:
     Claims were appraised for construct match, protocol standardization,
     directness to running performance, test-retest reliability, sensitivity,
     sample size, setting, model dependence, and applicability to recreational
-    runners.
+    runners. The complete PubMed result sets, digests, and inclusion decisions
+    are bound in
+    data/science/evidence/running-field-tests/search-manifest-running-field-tests-v1.json.
   method_limitations:
     - Titles and abstracts were manually screened against the criteria; screening and appraisal were not duplicated by independent reviewers.
-    - Full text was not accessed for currell-2008 or nimmerichter-2017, so claims from those sources are limited to their abstracts.
+    - Full text was not accessed for currell-2008, nimmerichter-2017, or benhammou-2024, so claims from those sources are limited to their abstracts.
     - The search did not exhaust every race-distance time-trial protocol.
     - Some reviews mix children and adults or trained and recreational runners.
     - Environmental standardization and minimal detectable change remain protocol specific.
@@ -86,6 +104,7 @@ claims:
       time-to-exhaustion protocols.
     source_ids:
       - currell-2008
+      - benhammou-2024
     evidence_strength: moderate
     applicable_population:
       - Sports-performance testing populations represented by the review
@@ -95,6 +114,39 @@ claims:
     limitations:
       - Exact error depends on sport, distance, protocol, and population.
       - The review does not define one preferred running test for Praxys.
+      - Many runner-test studies do not report repeatability or sensitivity.
+  - id: field-test.running-reliability-and-sensitivity-underreported
+    statement: >
+      Running-test validity is more often reported than test-retest
+      reliability or sensitivity, so a valid construct alone is insufficient
+      to classify an individual change as meaningful.
+    source_ids:
+      - benhammou-2024
+    evidence_strength: moderate
+    effect_estimates:
+      - metric: Included runner-test studies
+        estimate: 23
+        unit: studies
+        context: Systematic review across track/road, trail, and inexperienced runners
+      - metric: Studies that ignored test-retest reliability
+        estimate: 87
+        unit: percent
+        context: Benhammou systematic review
+      - metric: Studies reporting test sensitivity
+        estimate: 0
+        unit: studies
+        context: Benhammou systematic review
+    applicable_population:
+      - Track and road runners
+      - Trail runners
+      - Inexperienced runners represented by the included studies
+    domain:
+      - Running-test reliability
+      - Sensitivity to change
+    limitations:
+      - The review does not validate one universal test or minimal detectable change.
+      - The included methods and runner backgrounds were heterogeneous.
+      - Abstract access limits detailed appraisal of individual study quality.
   - id: field-test.vo2-estimate-not-direct-performance
     statement: >
       Distance- and time-based walk/run tests can estimate cardiorespiratory
@@ -190,8 +242,21 @@ citations:
     journal: Journal of Strength and Conditioning Research
     doi: 10.1519/JSC.0000000000001529
     pmid: "27379951"
+  - id: benhammou-2024
+    title: "Is test specificity the issue in assessing aerobic fitness and performance of runners? A systematic review"
+    authors:
+      - S. Benhammou
+      - L. Mourot
+      - F. M. Clemente
+      - J. Coquart
+      - A. Belkadi
+    year: 2024
+    journal: The Journal of Sports Medicine and Physical Fitness
+    doi: 10.23736/S0022-4707.23.15619-2
+    pmid: "38324270"
 known_gaps:
   - Protocol-specific repeatability in Praxys recreational-runner populations
+  - Protocol-specific sensitivity and minimal detectable change in Praxys populations
   - Comparable baseline and outcome protocols for trail and ultra-distance goals
   - Environmental and fatigue-state standardization rules
   - Validity of provider-estimated critical power as an outcome endpoint
@@ -205,3 +270,5 @@ review_notes:
   - "Verification: mayorga-vega-2016 - full-text; PubMed Central PMC4795745 and PubMed metadata; 2026-08-08."
   - "Verification: lipkova-2025 - full-text; PubMed Central PMC11933073 and PubMed metadata; 2026-08-08."
   - "Verification: nimmerichter-2017 - abstract; PubMed PMID 27379951 and Crossref metadata; 2026-08-08."
+  - "Verification: benhammou-2024 - abstract; PubMed PMID 38324270 and DOI metadata; 2026-08-16."
+  - "Currency check: the complete PubMed searches were rerun through 2026-08-16; no record newly indexed from 2026-08-08 through 2026-08-16 changed the reviewed boundary."

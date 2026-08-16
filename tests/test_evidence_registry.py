@@ -12,6 +12,8 @@ from pydantic import ValidationError
 
 import analysis.metrics as metrics
 from analysis.evidence_registry import (
+    ApprovalMode,
+    ArtifactRuntimeState,
     CitationSource,
     EffectEstimate,
     EvidenceReview,
@@ -306,6 +308,220 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "evidence-heat-decay-v1",
     }
     assert decision.human_reviewers == ["github:dddtc2005"]
+
+
+def test_adaptive_plan_policy_is_actionable_shared_and_inactive() -> None:
+    registry = load_science_registry()
+    evidence_ids = [
+        "evidence-individual-goal-feasibility-v1",
+        "evidence-adaptive-training-load-v1",
+        "evidence-short-interruption-detraining-v1",
+        "evidence-running-field-tests-v1",
+        "evidence-plan-outcome-interpretation-v1",
+    ]
+    decision = registry.decisions[
+        "sdr-adaptive-plan-feasibility-and-adjustment-v1"
+    ]
+    reviews = {
+        evidence_id: registry.evidence_reviews[evidence_id]
+        for evidence_id in evidence_ids
+    }
+
+    for review in reviews.values():
+        assert review.status == RecordStatus.DRAFT
+        assert review.approval_mode == ApprovalMode.ARTIFACT
+        assert review.human_reviewers == []
+        assert review.reviewed_on is None
+        _assert_exact_verification_notes(review)
+
+    feasibility_review = reviews[
+        "evidence-individual-goal-feasibility-v1"
+    ]
+    assert {"renwick-2024", "xiao-ren-2025"} <= {
+        citation.id
+        for citation in feasibility_review.citations
+    }
+    repeatability_claim = next(
+        claim
+        for claim in feasibility_review.claims
+        if claim.id == "feasibility.no-permanent-responder-label"
+    )
+    assert {"renwick-2024", "xiao-ren-2025"} <= set(
+        repeatability_claim.source_ids
+    )
+    assert "permanent responder" in repeatability_claim.statement
+
+    load_review = reviews["evidence-adaptive-training-load-v1"]
+    duking = next(
+        citation
+        for citation in load_review.citations
+        if citation.id == "ducking-2021"
+    )
+    assert "P. Düking" in duking.authors
+
+    detraining_review = reviews[
+        "evidence-short-interruption-detraining-v1"
+    ]
+    assert "barbieri-2023" in {
+        citation.id
+        for citation in detraining_review.citations
+    }
+    assert all(
+        "15 weeks" not in claim.statement
+        and "33" not in claim.statement
+        and "66%" not in claim.statement
+        for claim in detraining_review.claims
+    )
+
+    field_test_review = reviews["evidence-running-field-tests-v1"]
+    reliability_claim = next(
+        claim
+        for claim in field_test_review.claims
+        if claim.id
+        == "field-test.running-reliability-and-sensitivity-underreported"
+    )
+    assert "benhammou-2024" in reliability_claim.source_ids
+
+    assert decision.status == RecordStatus.DRAFT
+    assert decision.approval_mode == ApprovalMode.ARTIFACT
+    assert decision.human_reviewers == []
+    assert decision.artifact_policy is not None
+    assert (
+        decision.artifact_policy.runtime_state
+        == ArtifactRuntimeState.INACTIVE
+    )
+    assert decision.evidence_review_ids == evidence_ids
+
+    parameters = {
+        parameter.name: parameter.value
+        for parameter in decision.model_parameters
+    }
+    actionable = parameters["actionable_recommendation_contract"]
+    assert actionable["supported_safe_route_requires_actionable_position"] is True
+    assert actionable["disclaimer_only_output_allowed"] is False
+    assert actionable["data_summary_only_output_allowed"] is False
+    assert actionable["required_fields"] == [
+        "next_action",
+        "athlete_specific_rationale",
+        "applicable_science",
+        "expected_signal",
+        "uncertainty",
+        "feedback_request",
+    ]
+
+    candidate_boundary = parameters[
+        "candidate_strategy_evidence_boundary"
+    ]
+    assert candidate_boundary[
+        "population_findings_role"
+    ] == "bounded_candidate_context_and_qualitative_initial_prior"
+    assert candidate_boundary[
+        "one_observed_response_creates_permanent_identity"
+    ] is False
+    assert candidate_boundary["unaccepted_source_may_drive_behavior"] is False
+
+    feasibility = parameters["goal_feasibility_semantics"]
+    assert set(feasibility["categories"]) == {
+        "insufficient_evidence",
+        "supported",
+        "challenging",
+        "aggressive",
+        "unsupported",
+    }
+    assert feasibility["category_thresholds"] == "not_accepted"
+    assert feasibility["category_is_personal_probability"] is False
+
+    loop = parameters["recommendation_loop_state_machine"]
+    assert loop["stages"] == [
+        "sense",
+        "select_candidate_strategy",
+        "propose",
+        "athlete_review",
+        "observe",
+        "reassess",
+    ]
+    assert loop["deterministic_replay_required"] is True
+    assert loop["proposal_is_immutable_and_non_canonical"] is True
+
+    feedback = parameters["observation_and_feedback_contract"]
+    assert "athlete_edit_rejection_or_deferral" in feedback[
+        "observation_classes"
+    ]
+    assert feedback["feedback_may_inform_versioned_reassessment"] is True
+    assert feedback["athlete_feedback_proves_causality"] is False
+    assert feedback["feedback_creates_permanent_responder_label"] is False
+
+    assert parameters["intensity_evidence_source"][
+        "activity_average_power_allowed"
+    ] is False
+    assert parameters["medical_stop_boundary"][
+        "performance_optimization_continues"
+    ] is False
+    assert parameters["online_learning_and_policy_updates"][
+        "runtime_rule_updates_from_feedback"
+    ] is False
+    assert parameters["privacy_and_traceability"][
+        "sensitive_trait_inference_allowed"
+    ] is False
+
+    alignment = parameters["accepted_policy_alignment_gate"]
+    assert alignment["records_already_naming_this_shared_policy"] == [
+        "sdr-plan-generation-eligibility-safety-v1",
+        "sdr-road-marathon-plan-generation-policy-v1",
+    ]
+    assert alignment[
+        "accepted_records_requiring_successor_or_explicit_implementation_alignment"
+    ] == [
+        "sdr-preplan-baseline-policy-v1",
+        "sdr-outdoor-5k-plan-generation-policy-v1",
+        "sdr-road-10k-plan-generation-policy-v1",
+        "sdr-road-half-marathon-plan-generation-policy-v1",
+    ]
+    assert alignment[
+        "no_distance_policy_may_define_a_second_feedback_engine"
+    ] is True
+    assert alignment["accepted_records_remain_unchanged_in_this_decision"] is True
+
+    assert parameters["strategy_selection_algorithm"][
+        "candidate_ranking"
+    ] == "not_accepted"
+    assert parameters["feedback_weighting_algorithm"][
+        "observation_weights"
+    ] == "not_accepted"
+    assert parameters["reassessment_trigger_algorithm"][
+        "scheduled_cadence"
+    ] == "not_accepted"
+    assert parameters["distance_specific_generation_rules"][
+        "workout_selection"
+    ] == "not_accepted"
+    assert parameters["implementation_pilot_and_activation"][
+        "runtime_activation"
+    ] == "not_accepted"
+    assert parameters["implementation_pilot_and_activation"][
+        "active_behavior"
+    ] is False
+
+    assert decision.decision_review is not None
+    assert [
+        item.id
+        for item in decision.decision_review.items
+        if item.disposition.value == "approve"
+    ] == [
+        "actionable-position",
+        "bounded-science",
+        "athlete-controlled-loop",
+        "hard-boundaries",
+        "shared-policy-alignment",
+    ]
+    assert [
+        item.id
+        for item in decision.decision_review.items
+        if item.disposition.value == "defer"
+    ] == [
+        "defer-selection-and-update",
+        "defer-distance-rules-and-autonomy",
+        "defer-implementation-and-activation",
+    ]
 
 
 def test_plan_generation_eligibility_policy_is_accepted_but_inactive_and_cross_cutting() -> None:
@@ -1556,6 +1772,156 @@ def test_road_marathon_search_manifest_is_complete_and_bound() -> None:
         if query["id"] == "exact-included-pmid-verification"
     )
     assert set(exact_query["pmids"]) == set(citation_pmids.values())
+
+
+@pytest.mark.parametrize(
+    ("review_id", "manifest_path"),
+    [
+        (
+            "evidence-individual-goal-feasibility-v1",
+            Path(
+                "data/science/evidence/individual-goal-feasibility/"
+                "search-manifest-individual-goal-feasibility-v1.json"
+            ),
+        ),
+        (
+            "evidence-adaptive-training-load-v1",
+            Path(
+                "data/science/evidence/adaptive-training-load/"
+                "search-manifest-adaptive-training-load-v1.json"
+            ),
+        ),
+        (
+            "evidence-short-interruption-detraining-v1",
+            Path(
+                "data/science/evidence/short-interruption-detraining/"
+                "search-manifest-short-interruption-detraining-v1.json"
+            ),
+        ),
+        (
+            "evidence-running-field-tests-v1",
+            Path(
+                "data/science/evidence/running-field-tests/"
+                "search-manifest-running-field-tests-v1.json"
+            ),
+        ),
+        (
+            "evidence-plan-outcome-interpretation-v1",
+            Path(
+                "data/science/evidence/plan-outcome-interpretation/"
+                "search-manifest-plan-outcome-interpretation-v1.json"
+            ),
+        ),
+    ],
+)
+def test_adaptive_search_manifests_are_complete_and_bound(
+    review_id: str,
+    manifest_path: Path,
+) -> None:
+    registry = load_science_registry()
+    review = registry.evidence_reviews[review_id]
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    assert manifest["evidence_review_id"] == review.id
+    assert manifest["executed_at"].startswith(
+        review.method.search_date.isoformat()
+    )
+    assert str(manifest_path) in review.method.quality_appraisal
+
+    method_queries = {
+        " ".join(source.search_string.split())
+        for source in review.method.sources
+    }
+    queries = {query["id"]: query for query in manifest["queries"]}
+    assert "currency-window" in queries
+    assert "exact-included-pmid-verification" in queries
+    for query in queries.values():
+        pmids = query["pmids"]
+        assert query["result_count"] == len(pmids)
+        assert len(pmids) == len(set(pmids))
+        assert " ".join(query["query"].split()) in method_queries
+        digest = hashlib.sha256(
+            ("\n".join(pmids) + "\n").encode()
+        ).hexdigest()
+        assert query["result_pmids_sha256"] == f"sha256:{digest}"
+
+    citation_pmids = {
+        citation.id: citation.pmid
+        for citation in review.citations
+    }
+    decisions = {
+        decision["source_id"]: decision
+        for decision in manifest["screening_decisions"]
+    }
+    assert set(decisions) == set(citation_pmids)
+    assert all(
+        decision["disposition"] == "include"
+        for decision in decisions.values()
+    )
+    assert {
+        source_id: decision["pmid"]
+        for source_id, decision in decisions.items()
+    } == citation_pmids
+
+    verification_levels = {
+        citation.id: next(
+            note.split(";", 1)[0]
+            .removeprefix(f"Verification: {citation.id} - ")
+            .strip()
+            for note in review.review_notes
+            if note.startswith(f"Verification: {citation.id} - ")
+        )
+        for citation in review.citations
+    }
+    assert {
+        source_id: decision["verification_level"]
+        for source_id, decision in decisions.items()
+    } == verification_levels
+
+    exact_query = queries["exact-included-pmid-verification"]
+    assert set(exact_query["pmids"]) == set(citation_pmids.values())
+
+    currency_decisions = manifest.get(
+        "currency_screening_decisions",
+        [],
+    )
+    currency_pmids = set(queries["currency-window"]["pmids"])
+    if currency_pmids:
+        assert {
+            decision["pmid"]
+            for decision in currency_decisions
+        } == currency_pmids
+        assert all(
+            decision["disposition"] == "exclude"
+            for decision in currency_decisions
+        )
+    else:
+        assert currency_decisions == []
+
+    if review_id == "evidence-adaptive-training-load-v1":
+        catch_up_query = queries["missed-session-catch-up-rule-search"]
+        assert catch_up_query["pmids"] == ["30380356"]
+        assert manifest["supplemental_screening_decisions"] == [
+            {
+                "query_id": "missed-session-catch-up-rule-search",
+                "pmid": "30380356",
+                "disposition": "exclude",
+                "rationale": (
+                    "Yeast beta-glucan trial reporting cold or flu symptom "
+                    "days after intense exercise; it does not evaluate "
+                    "rescheduling, compression, doubling, or replacement "
+                    "after a missed training session."
+                ),
+            }
+        ]
+
+    if review_id == "evidence-plan-outcome-interpretation-v1":
+        assert currency_pmids == {
+            "42577566",
+            "42582200",
+            "42588124",
+            "42600781",
+        }
 
 
 def test_environmental_performance_decision_preserves_product_boundaries() -> None:
