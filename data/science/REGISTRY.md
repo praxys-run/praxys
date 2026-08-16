@@ -45,11 +45,15 @@ Evidence reviews record what the literature supports. Science Decision Records (
 
 ### Evidence reviews
 
-_None._
+| Record | Version | Topic/model | Reviewed/decided |
+|---|---:|---|---|
+| [evidence-adult-running-plan-population-routing-v1](evidence/adult-running-plan-population-routing/evidence-adult-running-plan-population-routing-v1.yaml) — Adult running-plan population routing | 1 | adult-running-plan-population-routing | 2026-08-16 |
 
 ### Science decisions
 
-_None._
+| Record | Version | Topic/model | Reviewed/decided |
+|---|---:|---|---|
+| [sdr-adult-running-plan-population-routing-v1](decisions/sdr-adult-running-plan-population-routing-v1.yaml) — Route first-completion, sparse-history, and masters plans without permanent labels | 1 | adult-running-plan-population-routing-v1 | 2026-08-16 |
 
 ## Superseded
 

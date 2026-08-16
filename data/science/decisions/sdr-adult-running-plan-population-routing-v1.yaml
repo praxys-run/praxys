@@ -1,0 +1,685 @@
+schema_version: 1
+id: sdr-adult-running-plan-population-routing-v1
+version: 1
+title: "Route first-completion, sparse-history, and masters plans without permanent labels"
+status: draft
+approval_mode: artifact
+decision_date: 2026-08-16
+owners:
+  - team:praxys
+human_reviewers: []
+model_version: adult-running-plan-population-routing-v1
+evidence_review_ids:
+  - evidence-plan-generation-eligibility-safety-v1
+  - evidence-adult-running-plan-population-routing-v1
+evidence_claim_ids:
+  - eligibility.novice-recreational-different-evidence-family
+  - eligibility.recent-history-anchor-without-universal-threshold
+  - eligibility.goal-relevant-current-capability-task-specific
+  - eligibility.masters-age-change-not-automatic-exclusion
+  - eligibility.evidence-quality-no-personal-probability
+  - population.beginner-evidence-family-not-permanent-identity
+  - population.no-universal-beginner-schedule
+  - population.sparse-history-not-detraining-proof
+  - population.no-universal-returning-dose
+  - population.masters-context-not-age-exclusion
+  - population.masters-recovery-not-fixed-delay
+  - population.strength-and-cross-training-bounded-support
+  - population.sex-effects-are-construct-specific
+  - population.no-general-sex-or-gender-plan-family
+accepted_interpretation: >
+  If accepted by digest-bound human reviewers, this inactive decision would
+  keep every adult running goal selectable even when no accepted plan policy
+  currently matches. First completion would be a distance-specific intent and
+  capability family: prior completion of the goal distance would not be
+  required to choose the goal, but an accepted history-rich performance policy
+  could not be silently scaled down or reused. Sparse recorded history would
+  remain a dynamic evidence state rather than proof of detraining. A runner
+  with a usable recent anchor could enter only a separately accepted
+  uncertainty-aware population route. No usable history would yield
+  readiness-only, while sparse history without a usable recent anchor would
+  yield insufficient_recent_history_anchor. Return to consistency would
+  require athlete selection or confirmation, never an inference from missing
+  records. Observed continuity could refute an interruption but could not
+  establish a returning state. A return-to-consistency route would require its
+  own accepted policy before any dose-shaped schedule. Masters or older age
+  would modify an otherwise supported route through actual capability,
+  history, recovery, constraints, and optional age context; it would not
+  create automatic exclusion, a permanent identity, a universal age cutoff,
+  or a fixed recovery delay.
+  Physiological sex, menstrual or menopause context, and gender identity would
+  not define a general plan family or mandatory profile. A future accepted
+  dependent construct could request minimum-necessary, purpose-bound input,
+  allow unknown or declined values, and never default unknown sex to male.
+  Strength and cycling cross-training could appear only as bounded optional
+  candidate modules, without an injury-prevention guarantee or one-to-one
+  substitution rule. Every future population policy would use the accepted
+  shared adaptive recommendation and reassessment contract rather than create a
+  second feedback engine. Exact capability identifiers, horizons, weekly
+  frequencies, progression, run-walk ratios, long-run values, intensity,
+  restart dose, strength dose, cross-training substitution, age adjustment,
+  recovery interval, reassessment cadence, implementation, pilot, rollout, and
+  runtime activation remain explicitly not accepted. Existing accepted
+  distance policies and current runtime behavior remain unchanged.
+decision_review:
+  reviewer_task: >
+    Decide whether the six proposed population-routing boundaries are
+    acceptable and whether exact plan values plus implementation should remain
+    deferred. Approve the sheet as a unit or request changes by item ID. The
+    evidence appendix and machine contract provide traceability; the eight
+    items below are the actual decision.
+  approval_statement: >
+    I approve keeping all adult running goals selectable while routing plan
+    generation by current intent, capability, history, and confirmed context.
+    I approve first completion as a separate distance-specific policy family
+    that does not require prior completion of that distance. I approve sparse
+    history as a dynamic evidence state, return to consistency as an explicit
+    or confirmed state, masters age as a non-excluding modifier, and
+    physiological sex or reproductive context only as optional purpose-bound
+    inputs for a separately accepted dependent construct. Gender identity is
+    neither a plan-family selector nor a training-dose variable. I approve
+    bounded strength and cycling support plus the shared adaptive reassessment
+    dependency and the stated adult nonclinical safety scope. I agree that
+    exact schedules, thresholds, capability identifiers, profile algorithms,
+    implementation, pilot, rollout, and runtime activation remain deferred.
+    This approval would not implement or activate a plan.
+  items:
+    - id: first-completion-family
+      title: Let users choose completion goals without prior distance completion
+      disposition: approve
+      question: >
+        Should first completion be a separate distance-specific policy family
+        while goal selection remains available before that policy ships?
+      proposed_decision: >
+        Yes. Prior completion of the goal distance is not required to record or
+        select the goal. A first-completion route needs an independently
+        accepted distance policy and cannot reuse a history-rich performance
+        policy by reducing its dose. Performance intent without current direct
+        capability remains unavailable or requires clarification rather than
+        automatic coercion to completion intent.
+      approval_effect:
+        - A user may select 5 km, 10 km, half-marathon, or marathon completion before being able to complete that distance.
+        - First completion is an intent and current-capability route, not a permanent beginner identity.
+        - Missing policy support preserves the goal and returns an honest unavailable result.
+      does_not_authorize:
+        - Any first-completion schedule, capability identifier, workout, distance progression, or runtime route.
+        - Automatic conversion between completion and performance intent.
+      parameter_names:
+        - population_routing_authority
+        - first_completion_policy_family
+      evidence_claim_ids:
+        - eligibility.novice-recreational-different-evidence-family
+        - eligibility.goal-relevant-current-capability-task-specific
+        - population.beginner-evidence-family-not-permanent-identity
+        - population.no-universal-beginner-schedule
+    - id: sparse-history-and-returning
+      title: Separate missing history, usable anchors, and return-to-consistency intent
+      disposition: approve
+      question: >
+        Should sparse records remain an evidence state rather than proof of
+        detraining, with returning-to-consistency requiring explicit or
+        confirmed context?
+      proposed_decision: >
+        Yes. A usable recent anchor may support only a separately accepted
+        uncertainty-aware population route. No usable history yields
+        readiness-only, while sparse history without a usable recent anchor
+        yields insufficient_recent_history_anchor. Missing provider records do
+        not prove training stopped. Return to consistency is user-selectable or
+        athlete-confirmed. Observed continuity may refute an interruption but
+        cannot establish a returning state. No return-to-consistency route can
+        receive a dose-shaped schedule until its own policy is accepted.
+      approval_effect:
+        - The router distinguishes data missingness, sparse history, interruption, and return intent.
+        - No personal fitness-loss percentage is inferred from days without records.
+        - Existing history-rich performance policies remain protected from silent scope expansion.
+      does_not_authorize:
+        - A restart percentage, minimum history count, readiness test, retraining schedule, or automatic detraining estimate.
+        - Medical rehabilitation or return-to-sport prescription.
+      parameter_names:
+        - sparse_history_and_returning_routing
+      evidence_claim_ids:
+        - eligibility.recent-history-anchor-without-universal-threshold
+        - population.sparse-history-not-detraining-proof
+        - population.no-universal-returning-dose
+    - id: masters-context
+      title: Use age as context, never as automatic exclusion
+      disposition: approve
+      question: >
+        Should masters or older runners remain in the matching distance and
+        intent family, with optional age context and actual data modifying the
+        route rather than a universal cutoff?
+      proposed_decision: >
+        Yes. Masters status is not a separate base family and chronological age
+        never blocks an otherwise supported adult route. Actual capability,
+        history, training continuity, constraints, and observed or
+        athlete-reported recovery carry the decision. No fixed age cutoff or
+        recovery extension is accepted.
+      approval_effect:
+        - Highly capable older runners are not excluded by age.
+        - Missing optional age context disables only a future age-dependent modifier.
+        - Recovery remains individual and feedback-aware rather than calendar-age based.
+      does_not_authorize:
+        - A masters threshold, age score, recovery delay, reduced frequency, lower intensity, or modified progression value.
+        - Medical screening or clearance.
+      parameter_names:
+        - masters_context_modifier
+      evidence_claim_ids:
+        - eligibility.masters-age-change-not-automatic-exclusion
+        - population.masters-context-not-age-exclusion
+        - population.masters-recovery-not-fixed-delay
+    - id: purpose-bound-profile
+      title: Collect age, sex, or reproductive context only for an accepted purpose
+      disposition: approve
+      question: >
+        Should physiological sex, gender identity, date of birth, menstrual
+        context, and menopause remain non-mandatory unless a separately
+        accepted dependent construct requires them?
+      proposed_decision: >
+        Yes. Adult-scope confirmation remains required, but exact date of birth,
+        age band, physiological sex, menstrual status, menopause, and gender
+        identity are not global plan prerequisites. A future dependent model
+        must disclose purpose, collect only the minimum necessary input, allow
+        decline or unknown, preserve provenance, and disable only that
+        adjustment when input is missing. Gender identity is not a
+        training-dose variable, and unknown physiological sex never defaults to
+        male.
+      approval_effect:
+        - Profile collection follows evidence and purpose rather than convenience.
+        - Provider-imported fields remain source-labelled candidates until confirmed.
+        - Diagnosis-specific or reproductive constructs stay separate from general plan routing.
+      does_not_authorize:
+        - A female, male, menstrual, menopausal, transgender, nonbinary, or gender-based plan family.
+        - Hidden inference of sensitive traits, medical diagnosis, or mandatory disclosure.
+      parameter_names:
+        - profile_inputs_and_missingness
+      evidence_claim_ids:
+        - eligibility.evidence-quality-no-personal-probability
+        - population.sex-effects-are-construct-specific
+        - population.no-general-sex-or-gender-plan-family
+    - id: support-and-reassessment
+      title: Keep strength and cross-training bounded and reuse the shared loop
+      disposition: approve
+      question: >
+        Should strength and cycling remain optional support modules while every
+        future population plan uses the same accepted adaptive reassessment
+        semantics?
+      proposed_decision: >
+        Yes. Strength may be an optional performance-support candidate without
+        an injury-prevention guarantee. Cycling may be an optional
+        load-modulation candidate without one-to-one equivalence to running.
+        Exact dose and substitution remain policy-specific. Population plans
+        depend on the shared adaptive contract and cannot define a second
+        feedback or reassessment engine.
+      approval_effect:
+        - Supporting modalities remain modular and evidence-bounded.
+        - All distances and population routes share athlete-controlled feedback and reassessment semantics.
+        - Reassessment remains source-labelled and non-causal.
+      does_not_authorize:
+        - A strength frequency, cycling ratio, equivalent-impact formula, reassessment cadence, or automatic plan change.
+        - A claim that one support module prevents injury for an individual.
+      parameter_names:
+        - supporting_modalities
+        - shared_reassessment_dependency
+      evidence_claim_ids:
+        - population.strength-and-cross-training-bounded-support
+        - eligibility.evidence-quality-no-personal-probability
+    - id: adult-nonclinical-scope
+      title: Preserve the adult nonclinical safety boundary
+      disposition: approve
+      question: >
+        Should this population policy remain limited to adult nonclinical
+        running goals and stop performance optimization on athlete-reported
+        injury, acute illness, or red-flag symptoms?
+      proposed_decision: >
+        Yes. Child and adolescent planning, injury rehabilitation,
+        pregnancy-specific prescription, diagnosis, treatment, clearance, and
+        return-to-sport remain unsupported. Athlete-reported injury, acute
+        illness, or red-flag symptoms stop performance optimization without
+        generating a medical plan. Historical intensity may use splits or
+        samples, never activity-average power.
+      approval_effect:
+        - Population expansion cannot weaken the existing safety boundary.
+        - Unsupported medical or pediatric contexts return a typed stop or unavailable result.
+        - Intensity evidence preserves the repository split-level invariant.
+      does_not_authorize:
+        - Diagnosis, treatment, rehabilitation, pregnancy guidance, medical clearance, or a safety guarantee.
+        - Activity-average-power intensity inference.
+      parameter_names:
+        - safety_scope_boundary
+      evidence_claim_ids:
+        - eligibility.goal-relevant-current-capability-task-specific
+        - eligibility.evidence-quality-no-personal-probability
+    - id: exact-population-values
+      title: Defer all exact population schedule and modifier values
+      disposition: defer
+      question: >
+        Should exact completion, sparse-history, returning, masters, profile,
+        strength, cross-training, and reassessment values remain unapproved?
+      proposed_decision: >
+        Defer them. No reviewed evidence validates one cross-distance horizon,
+        frequency, progression, run-walk ratio, long-run limit, intensity
+        ceiling, anchor count, restart percentage, age cutoff, recovery delay,
+        strength dose, cycling substitution, profile algorithm, or
+        reassessment cadence.
+      approval_effect:
+        - Every behavior-driving value remains literal not_accepted in the contract.
+        - Future values require a versioned population and distance decision with validation.
+      does_not_authorize:
+        - Inferring values from study protocols, common coaching practice, another distance, prose, or AI output.
+      parameter_names:
+        - population_specific_numeric_prescription
+      evidence_claim_ids:
+        - population.no-universal-beginner-schedule
+        - population.no-universal-returning-dose
+        - population.masters-recovery-not-fixed-delay
+        - population.strength-and-cross-training-bounded-support
+        - population.no-general-sex-or-gender-plan-family
+    - id: implementation-and-activation
+      title: Defer implementation, pilot, rollout, and runtime activation
+      disposition: defer
+      question: >
+        Should registry code, policy logic, APIs, clients, pilot criteria, and
+        activation remain outside this science decision?
+      proposed_decision: >
+        Defer them. This record defines only the inactive product boundary.
+        Implementation needs exact route identifiers and deterministic
+        fixtures, web and miniapp parity, privacy and deletion behavior,
+        prospective evaluation, separate implementation review, and explicit
+        runtime activation.
+      approval_effect:
+        - Current capability discovery and plan generation remain unchanged.
+        - Human science approval cannot be mistaken for shipped behavior.
+      does_not_authorize:
+        - Code changes, user-facing claims, a pilot, a feature flag, rollout, or plan delivery.
+      parameter_names:
+        - implementation_pilot_and_activation
+      evidence_claim_ids: []
+rejected_alternatives:
+  - alternative: "Require a user to have already completed the goal distance before allowing the goal"
+    rationale: >
+      Goal intent is durable user choice. Current capability determines which
+      policy may generate a plan, not whether the goal can be recorded.
+  - alternative: "Scale a history-rich performance policy down for first completion"
+    rationale: >
+      Novice and first-completion populations have different applicability and
+      injury evidence, while no reviewed source validates a universal scaled
+      version of an accepted performance policy.
+  - alternative: "Treat missing or sparse Praxys records as proven detraining"
+    rationale: >
+      Detraining studies require known training reduction or cessation.
+      Provider missingness and unrecorded training remain unknown.
+  - alternative: "Use one restart percentage after any interruption"
+    rationale: >
+      Detraining differs by prior training, outcome, duration, and whether
+      training was reduced or stopped; no recreational restart formula was
+      validated.
+  - alternative: "Create a separate masters plan family or block users at age 40"
+    rationale: >
+      Competition and study definitions are administrative, not biological
+      cutoffs. Highly capable older athletes and large training-related
+      variation make automatic exclusion indefensible.
+  - alternative: "Add a fixed extra recovery day for every older runner"
+    rationale: >
+      Direct trained-runner studies show protocol-specific and
+      inter-individual recovery rather than a universal age delay.
+  - alternative: "Create female and male plan families and default unknown to male"
+    rationale: >
+      Overall injury risk is similar, specific constructs differ, and no
+      general sex-based plan family is validated. Unknown must remain unknown.
+  - alternative: "Require date of birth, physiological sex, menstrual status, or menopause before any plan"
+    rationale: >
+      No reviewed source establishes that every field improves every plan.
+      Collection must be purpose-bound and minimum necessary.
+  - alternative: "Treat strength as injury prevention or cycling as equivalent running"
+    rationale: >
+      Evidence supports bounded candidate use but not an individual guarantee
+      or universal substitution ratio.
+  - alternative: "Let each population policy define its own feedback engine"
+    rationale: >
+      Duplicate semantics would drift across distances and clients and conflict
+      with the accepted shared adaptive policy.
+  - alternative: "Implement the closest reasonable values now and validate later"
+    rationale: >
+      Evidence and product-boundary approval do not establish exact values,
+      implementation correctness, pilot safety, or runtime authority.
+model_parameters:
+  - name: population_routing_authority
+    value:
+      active_behavior: false
+      suggestion_only: true
+      goal_capture_independent_from_plan_availability: true
+      accepted_population_and_distance_policy_required: true
+      current_runtime_capability_registry_unchanged: true
+      current_accepted_distance_policies_unchanged: true
+      static_population_identity_allowed: false
+      shared_router_dependency: sdr-plan-generation-eligibility-safety-v1
+      shared_adaptive_dependency: sdr-adaptive-plan-feasibility-and-adjustment-v1
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.novice-recreational-different-evidence-family
+      - eligibility.goal-relevant-current-capability-task-specific
+      - population.beginner-evidence-family-not-permanent-identity
+    rationale: >
+      Goal choice, population applicability, generation, adoption, delivery,
+      and runtime activation are separate authorities.
+    applies_to: adult running-goal capture and future plan capability discovery
+  - name: first_completion_policy_family
+    value:
+      route_state: first_completion_policy_required
+      goal_intent: completion
+      prior_goal_distance_completion_required: false
+      first_at_goal_distance_is_permanent_beginner_identity: false
+      distance_specific_policy_required: true
+      history_rich_performance_policy_reuse: false
+      automatic_intent_coercion: false
+      no_matching_policy_result: completion_policy_unavailable
+      performance_without_current_direct_capability_result: performance_policy_unavailable_or_clarification_required
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.novice-recreational-different-evidence-family
+      - eligibility.goal-relevant-current-capability-task-specific
+      - population.no-universal-beginner-schedule
+    rationale: >
+      Completion is a valid goal before current distance capability exists,
+      while a performance policy cannot be broadened by reducing its dose.
+    applies_to: first-goal-distance completion and performance-intent clarification
+  - name: sparse_history_and_returning_routing
+    value:
+      history_states:
+        no_usable_history: readiness_only
+        sparse_with_usable_recent_anchor: uncertainty_aware_population_policy_required
+        sparse_without_usable_recent_anchor: insufficient_recent_history_anchor
+        history_rich: continue_to_matching_distance_and_intent_policy
+        unknown: clarification_required
+      observed_record_missingness_establishes_interruption: false
+      sparse_history_establishes_detraining: false
+      returning_state_requires_athlete_confirmation: true
+      observed_continuity_can_refute_interruption: true
+      observed_continuity_can_establish_returning_state: false
+      returning_to_consistency_intent_user_selectable: true
+      returning_to_consistency_intent_auto_inferred: false
+      returning_to_consistency_route: separate_accepted_consistency_policy_required
+      personal_detraining_loss_estimate_allowed: false
+      existing_history_rich_policy_reuse_without_alignment: false
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.recent-history-anchor-without-universal-threshold
+      - population.sparse-history-not-detraining-proof
+      - population.no-universal-returning-dose
+    rationale: >
+      History completeness, interruption, current capability, and goal intent
+      are distinct states and must not be collapsed into one inferred label.
+    applies_to: history sufficiency, interruption clarification, and return-to-consistency routing
+  - name: masters_context_modifier
+    value:
+      separate_base_policy_family: false
+      automatic_age_exclusion: false
+      universal_biological_age_cutoff: none_defined
+      fixed_age_based_recovery_extension: none_defined
+      route_inputs:
+        - current_goal_relevant_capability
+        - recent_history_and_continuity
+        - current_load_relative_to_self
+        - observed_or_athlete_reported_recovery
+        - athlete_stated_constraints
+        - optional_purpose_bound_age_context
+      missing_optional_age_context_result: base_route_without_age_dependent_modifier
+      study_or_competition_masters_label_is_person_identity: false
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.masters-age-change-not-automatic-exclusion
+      - population.masters-context-not-age-exclusion
+      - population.masters-recovery-not-fixed-delay
+    rationale: >
+      Age changes population physiology, but capability, training continuity,
+      and recovery vary enough that age alone cannot select or reject a plan.
+    applies_to: every otherwise-supported adult distance and intent route
+  - name: profile_inputs_and_missingness
+    value:
+      adult_scope_confirmation_required: true
+      exact_date_of_birth_globally_required: false
+      age_band_globally_required: false
+      physiological_sex_globally_required: false
+      menstrual_or_menopause_context_globally_required: false
+      gender_identity_is_training_dose_input: false
+      unknown_physiological_sex_default: unknown
+      user_may_decline_optional_fields: true
+      missing_optional_field_disables_only_dependent_adjustment: true
+      provider_imported_profile_is_confirmed_truth: false
+      provider_profile_requires_source_label_and_user_confirmation: true
+      future_field_requirements:
+        - separately_accepted_dependent_construct
+        - disclosed_product_purpose
+        - minimum_necessary_collection
+        - provenance
+        - correction
+        - deletion
+    classification: guardrail
+    evidence_claim_ids:
+      - population.sex-effects-are-construct-specific
+      - population.no-general-sex-or-gender-plan-family
+      - eligibility.evidence-quality-no-personal-probability
+    rationale: >
+      Physiological sex, reproductive context, and gender are distinct
+      constructs. Collection follows an accepted purpose rather than becoming
+      a blanket prerequisite.
+    applies_to: profile, point-of-use clarification, and future dependent modifiers
+  - name: supporting_modalities
+    value:
+      strength:
+        status: optional_candidate_support_module
+        possible_performance_support: true
+        individual_injury_prevention_guarantee: false
+        universal_population_dose: false
+      cycling_cross_training:
+        status: optional_candidate_load_modulation_module
+        one_to_one_running_substitution: false
+        sport_specific_capability_evidence_replacement: false
+        universal_population_dose: false
+      distance_and_population_policy_must_bound_any_module: true
+    classification: guardrail
+    evidence_claim_ids:
+      - population.strength-and-cross-training-bounded-support
+    rationale: >
+      Supporting modalities may be useful, while reviewed evidence does not
+      establish universal dose, equivalence, or injury prevention.
+    applies_to: future first-completion, sparse-history, returning, and masters modules
+  - name: shared_reassessment_dependency
+    value:
+      shared_policy: sdr-adaptive-plan-feasibility-and-adjustment-v1
+      shared_policy_runtime_state: inactive
+      population_policy_may_define_second_feedback_engine: false
+      reassessment_requires_source_labelled_evidence: true
+      reassessment_proves_individual_causality: false
+      universal_reassessment_cadence: none_defined
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.evidence-quality-no-personal-probability
+    rationale: >
+      Population routing changes applicability, not the shared semantics for
+      recommendation, athlete review, observation, and reassessment.
+    applies_to: every future managed population plan
+  - name: safety_scope_boundary
+    value:
+      adult_scope_only: true
+      child_or_adolescent_route: unsupported
+      injury_rehabilitation: unsupported
+      pregnancy_specific_prescription: unsupported
+      diagnosis_or_treatment: unsupported
+      medical_clearance: unsupported
+      return_to_sport: unsupported
+      athlete_reported_injury_acute_illness_or_red_flag_result: stop_performance_optimization
+      intensity_evidence_allowed:
+        - activity_splits
+        - activity_samples
+      activity_average_power_allowed_for_intensity: false
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.goal-relevant-current-capability-task-specific
+      - eligibility.evidence-quality-no-personal-probability
+    rationale: >
+      Population coverage cannot turn a nonclinical performance policy into
+      medical or pediatric guidance or weaken the split-level power invariant.
+    applies_to: population intake, capability routing, and historical intensity evidence
+  - name: population_specific_numeric_prescription
+    value:
+      runtime_capability_identifiers: not_accepted
+      first_completion_horizon_days: not_accepted
+      first_completion_weekly_running_frequency: not_accepted
+      first_completion_progression: not_accepted
+      first_completion_run_walk_ratio: not_accepted
+      first_completion_long_run_limit: not_accepted
+      first_completion_intensity_distribution: not_accepted
+      sparse_history_minimum_anchor_weeks: not_accepted
+      sparse_history_minimum_anchor_sessions: not_accepted
+      sparse_history_latest_run_days: not_accepted
+      returning_restart_percentage: not_accepted
+      returning_progression: not_accepted
+      masters_age_cutoff: not_accepted
+      masters_recovery_extension: not_accepted
+      masters_frequency_or_intensity_adjustment: not_accepted
+      physiological_sex_or_reproductive_adjustment: not_accepted
+      strength_frequency_and_load: not_accepted
+      cycling_substitution_ratio: not_accepted
+      reassessment_cadence_and_triggers: not_accepted
+    classification: guardrail
+    evidence_claim_ids:
+      - population.no-universal-beginner-schedule
+      - population.no-universal-returning-dose
+      - population.masters-recovery-not-fixed-delay
+      - population.strength-and-cross-training-bounded-support
+      - population.no-general-sex-or-gender-plan-family
+    rationale: >
+      The review supports routing boundaries and uncertainty, not one set of
+      behavior-driving values across populations and distances.
+    applies_to: all population-specific plan generation and reassessment values
+  - name: implementation_pilot_and_activation
+    value:
+      accepted_distance_policy_alignment: not_accepted
+      capability_registry_mapping: not_accepted
+      policy_router_logic: not_accepted
+      persistence_schema: not_accepted
+      api_contracts: not_accepted
+      web_and_miniapp_clients: not_accepted
+      plugin_and_mcp_contracts: not_accepted
+      profile_collection_and_privacy_operations: not_accepted
+      science_note_and_localization: not_accepted
+      pilot_population: not_accepted
+      comparator: not_accepted
+      primary_and_guardrail_metrics: not_accepted
+      sample_size_and_duration: not_accepted
+      success_failure_and_rollback_thresholds: not_accepted
+      implementation_approval: not_accepted
+      rollout: not_accepted
+      runtime_activation: not_accepted
+      active_behavior: false
+    classification: guardrail
+    rationale: >
+      Science and product-boundary review are separate from implementation,
+      prospective evaluation, rollout, delivery authority, and activation.
+    applies_to: implementation, pilot, rollout, and runtime
+applicability:
+  - Adult recreational running goals and future managed-plan capability discovery
+  - First-completion intent at any distance with a separately accepted distance policy
+  - Performance intent with current goal-relevant capability and population-appropriate history policy
+  - Sparse-history and nonclinical return-to-consistency routes after separate policy acceptance
+  - Masters and older runners as modifiers of otherwise-supported routes
+  - Web, WeChat miniapp, plugin, and MCP surfaces using the same route semantics
+user_facing_claim_limits:
+  - Do not require prior goal-distance completion before allowing a completion goal.
+  - Do not describe first completion, sparse history, returning, or masters as permanent identities.
+  - Do not imply that missing records prove detraining or reveal a personal capacity-loss percentage.
+  - Do not promise that age, sex, gender, strength, cycling, or one program determines safety or success.
+  - Do not present a masters cutoff, recovery delay, restart percentage, or reassessment cadence as published.
+  - Do not default unknown physiological sex to male or imply that gender identity determines training dose.
+  - Explain when an optional profile field supports a specific accepted construct and what happens when it is unknown.
+  - Do not imply that strength prevents injury or that cycling is equivalent to running.
+  - Preserve the goal and provide an honest unavailable, clarification, readiness-only, or safety result when no policy matches.
+safety_implications:
+  - Child and adolescent plans remain outside this adult policy.
+  - Injury rehabilitation, pregnancy-specific prescription, diagnosis, treatment, clearance, and return-to-sport remain unsupported.
+  - Athlete-reported injury, acute illness, or red-flag symptoms stop performance optimization without a success-shaped plan.
+  - No automatic catch-up, fixed progression, restart percentage, or age-based recovery rule.
+  - Historical intensity analysis uses activity splits or samples, never activity-average power.
+privacy_implications:
+  - Exact date of birth, age band, physiological sex, menstrual status, menopause, and gender identity are not global plan prerequisites.
+  - Optional fields require an accepted purpose, minimum-necessary collection, visible provenance, correction, and deletion.
+  - Provider-imported profile values remain source-labelled candidates until user confirmation.
+  - Unknown and declined values remain distinct and never become male, average, or inferred.
+  - Do not infer reproductive, medical, or gender context from training behavior.
+validation_plan:
+  - A digest-bound human evidence reviewer must accept, revise, or reject the new Evidence Review before this SDR can be accepted.
+  - A digest-bound human decision approver must review the eight-item decision sheet and exact inactive contract.
+  - Define exact future route identifiers and deterministic fixtures for first completion, sparse history with and without an anchor, explicit return-to-consistency, masters context, unknown profile fields, and unsupported safety scope.
+  - Verify goal capture remains available when no plan policy matches and no route silently changes completion or performance intent.
+  - Verify missing provider records never create an interruption, detraining percentage, sex default, masters exclusion, or medical inference.
+  - Verify every accepted population and distance policy reuses the shared adaptive recommendation and reassessment contract.
+  - Add registry, policy, API, web, miniapp, plugin, MCP, privacy, deletion, localization, and accessibility tests before implementation review.
+  - Predefine a prospective opt-in pilot with completion, adherence, usefulness, burden, abandonment, injury, adverse-event, and false-stop guardrails.
+  - Audit outcomes and route availability by age, sex where purpose-bound, history depth, return state, distance, intent, missingness, provider, language, and client.
+  - Require separate implementation review before runtime_state changes from inactive.
+falsification_conditions:
+  - A user cannot record a completion goal until already capable of the distance.
+  - A first-completion, sparse-history, or returning route silently reuses a history-rich performance schedule.
+  - Missing records are interpreted as training cessation or converted to a personal loss percentage.
+  - Chronological age alone excludes a runner or adds a fixed recovery delay.
+  - Unknown physiological sex defaults to male or gender identity changes training dose.
+  - Optional profile fields block a supported base route without an accepted dependent construct.
+  - Strength is presented as injury prevention or cycling as one-to-one running replacement.
+  - A population policy creates a second feedback or reassessment engine.
+  - Any literal not_accepted value becomes runtime behavior through prose, convention, another distance, or AI inference.
+  - Web, miniapp, plugin, or MCP surfaces produce different route semantics for the same inputs.
+  - A future pilot shows unacceptable abandonment, burden, adverse events, subgroup disparity, or false-stop rates against predefined criteria.
+affected_surfaces:
+  models:
+    - Shared plan-generation eligibility and population route contract
+    - Future distance-specific first-completion policies
+    - Future sparse-history and return-to-consistency policies
+    - Future masters and purpose-bound profile modifiers
+    - Shared adaptive recommendation and reassessment dependency graph
+  apis:
+    - Future plan-capability discovery and route-reason fields
+    - Future goal-intent clarification and readiness-only responses
+    - Future purpose-bound profile-field requests and provenance
+  clients:
+    - Future web Goal, Training, and managed-plan review experiences
+    - Future WeChat miniapp Goal, Training, and managed-plan parity
+    - Future plugin and MCP capability discovery with no hidden route expansion
+    - English and Chinese population-route, missingness, uncertainty, and safety copy
+  science_notes:
+    - Why first completion uses a separate policy family
+    - Why sparse records do not prove detraining
+    - Why age modifies context without automatic exclusion
+    - Why sex, gender, strength, and cross-training claims remain purpose-bound
+artifact_policy:
+  runtime_state: inactive
+supersedes: []
+superseded_by:
+decision_notes:
+  - "This artifact-mode Decision proposal addresses issue #689 and remains draft and inactive."
+  - >
+    The new rigorous Evidence Review compares first-completion, sparse-history,
+    returning-to-consistency, masters, strength, cross-training, physiological
+    sex, reproductive context, and gender evidence through 2026-08-16.
+  - >
+    The proposed architecture is hybrid: first completion is a
+    distance-specific policy family; sparse history is a dynamic evidence
+    state; return to consistency is an explicit intent or confirmed state;
+    masters is a non-excluding modifier; and sex or gender is not a general
+    policy family.
+  - >
+    This decision does not rewrite the accepted 5 km, 10 km, half-marathon,
+    marathon, baseline, eligibility, or adaptive records. Future implementation
+    must align them explicitly before any new route can activate.
+  - >
+    All unresolved behavior-driving values are literal not_accepted. No
+    implementation may infer a value from a study protocol, another distance,
+    common coaching practice, prose, or AI output.
+  - >
+    Impact map: rigorous Evidence Review and complete PubMed search manifest ->
+    generated evidence packet -> draft population SDR -> generated decision
+    packet and inactive machine contract -> human evidence and decision review
+    -> future distance and population policy decisions -> deterministic router
+    and capability mapping -> persistence and API -> web, miniapp, plugin, and
+    MCP parity -> ScienceNote and localization -> prospective opt-in pilot ->
+    separate implementation review -> separately approved activation.

@@ -1,0 +1,1328 @@
+# Evidence review packet: Adult running-plan population routing
+
+> Generated from the canonical Evidence Review. Review this packet, not the raw YAML. Any source change invalidates the digest below.
+
+- **Record:** `evidence-adult-running-plan-population-routing-v1`
+- **Lifecycle:** `draft`
+- **Review mode:** `artifact`
+- **Reviewed content digest:** `sha256:2b64d44749b4318cade113134a599f3646cb25805abed0f56728d9959c2ef0c8`
+- **Required role:** `evidence_reviewer`
+- **Approval:** _Pending_
+
+## Approval
+
+Approve in this GitHub comment format or in an authenticated agent session. For session approval, the agent mirrors this exact statement to the human-authenticated PR comment before automation records the YAML; reviewers do not edit it by hand.
+
+```markdown
+Praxys science approval — **APPROVE**
+
+- Role: `evidence_reviewer`
+- Subject: `evidence-adult-running-plan-population-routing-v1`
+- Digest: `sha256:2b64d44749b4318cade113134a599f3646cb25805abed0f56728d9959c2ef0c8`
+
+> I approve this Evidence Review's search method, evidence claims, citation verification, limitations, and gaps for the displayed digest.
+
+<!-- praxys-science-approval:v1
+{"role":"evidence_reviewer","subject_digest":"sha256:2b64d44749b4318cade113134a599f3646cb25805abed0f56728d9959c2ef0c8","subject_id":"evidence-adult-running-plan-population-routing-v1","subject_kind":"evidence_review"}
+-->
+```
+
+## Question and product purpose
+
+For adult recreational runners requesting a running plan, what evidence supports or limits separate policy handling for first-completion goals, sparse recorded history, nonclinical return to consistency, and masters or older runners; what evidence supports strength or cross-training modules; and do physiological sex, gender identity, age, or any fixed progression, recovery, reassessment, or schedule value justify a general plan family or mandatory profile input?
+
+Define the evidence boundary for population-aware adult running-plan routing without turning study cohort labels into permanent runner identities. Distinguish completion intent from performance intent, observed history missingness from confirmed interruption, and age context from automatic exclusion. Determine whether strength, cycling cross-training, physiological sex, menstrual-cycle context, menopause, or gender identity support a shared policy family, an optional purpose-bound modifier, or no current behavior. Keep all exact plan duration, frequency, progression, run-walk, long-run, intensity, recovery, restart, reassessment, and substitution values outside the evidence conclusion unless directly supported.
+
+## Scope
+
+## Population
+
+- Adults aged 18 years or older requesting recreational running plans
+- First-time or first-goal-distance completion runners
+- Runners with sparse or missing recent Praxys history
+- Nonclinical runners returning after a self-reported interruption
+- Runners selecting a return-to-consistency goal
+- Masters, middle-aged, and older recreational runners
+- Women, men, and people whose physiological sex or gender is unknown or undisclosed
+
+## Intervention or exposure
+
+- Beginner and named completion programs
+- Weekly distance, duration, frequency, intensity, and progression
+- Training reduction, cessation, detraining, and return to training
+- Age-associated endurance performance and post-exercise recovery
+- Strength training as an adjunct to running
+- Cycling as cross-training or partial running substitution
+- Physiological-sex-specific injury and exercise-performance evidence
+- Menstrual-cycle and menopause context
+- Reassessment or retest cadence
+
+## Comparator
+
+- One shared performance policy reused across all population states
+- A permanent beginner, recreational, serious, professional, or masters identity
+- Sparse records interpreted as proven detraining
+- Chronological age used as an automatic exclusion or fixed recovery delay
+- Physiological sex or gender identity used as a general plan-family selector
+- Fixed progression, restart, run-walk, long-run, recovery, or reassessment rules
+- Strength or cross-training treated as a universal injury-prevention or one-to-one substitution rule
+
+## Outcomes
+
+- Running-related injury incidence and program completion
+- Endurance capacity, performance, and training response
+- Recovery kinetics and inter-individual variation
+- Evidence applicability to automatic plan routing
+- Support for separate policy families versus dynamic modifiers
+- Profile-field necessity, missingness, and claim limits
+- Exact prescription values that remain unsupported
+
+## Review method
+
+- **Type:** `rigorous`
+- **Search date:** `2026-08-16`
+
+### Exact searches
+
+- **PubMed - beginner running reviews**
+  - `(running[Title/Abstract] OR runners[Title/Abstract]) AND (novice[Title/Abstract] OR beginner*[Title/Abstract]) AND (systematic review[Publication Type] OR meta-analysis[Publication Type])`
+- **PubMed - novice program trials**
+  - `(novice[Title/Abstract] OR beginner*[Title/Abstract] OR "first-time"[Title/Abstract]) AND running[Title/Abstract] AND (randomized controlled trial[Publication Type] OR controlled clinical trial[Publication Type] OR cohort[Title/Abstract])`
+- **PubMed - named beginner programs**
+  - `("couch to 5k"[Title/Abstract] OR "couch-to-5k"[Title/Abstract] OR "start to run"[Title/Abstract]) AND running[Title/Abstract]`
+- **PubMed - detraining reviews**
+  - `(detraining[Title/Abstract] OR "training cessation"[Title/Abstract]) AND (athlete*[Title/Abstract] OR endurance[Title/Abstract] OR running[Title/Abstract]) AND (systematic review[Publication Type] OR meta-analysis[Publication Type] OR review[Publication Type])`
+- **PubMed - masters athlete reviews**
+  - `("masters athlete"[Title/Abstract] OR "masters athletes"[Title/Abstract] OR "masters runner"[Title/Abstract] OR "masters runners"[Title/Abstract] OR "older endurance athlete"[Title/Abstract] OR "older endurance athletes"[Title/Abstract]) AND (systematic review[Publication Type] OR meta-analysis[Publication Type] OR review[Publication Type])`
+- **PubMed - masters running recovery**
+  - `(masters[Title/Abstract] OR middle-aged[Title/Abstract] OR older[Title/Abstract]) AND running[Title/Abstract] AND recovery[Title/Abstract] AND athlete*[Title/Abstract]`
+- **PubMed - runner strength reviews**
+  - `(running[Title/Abstract] OR runners[Title/Abstract]) AND ("strength training"[Title/Abstract] OR "resistance training"[Title/Abstract]) AND (systematic review[Publication Type] OR meta-analysis[Publication Type])`
+- **PubMed - first-marathon strength**
+  - `("first-time marathon"[Title/Abstract] OR "first-time marathoner"[Title/Abstract] OR "first-time marathoners"[Title/Abstract]) AND strength[Title/Abstract]`
+- **PubMed - running and cycling cross-training**
+  - `running[Title/Abstract] AND cycling[Title/Abstract] AND ("cross-training"[Title/Abstract] OR "cross training"[Title/Abstract]) AND (review[Publication Type] OR meta-analysis[Publication Type])`
+- **PubMed - sex and running reviews**
+  - `(running[Title/Abstract] OR runners[Title/Abstract]) AND ("sex differences"[Title/Abstract] OR female[Title/Abstract] OR women[Title/Abstract]) AND ("training response"[Title/Abstract] OR injury[Title/Abstract] OR performance[Title/Abstract] OR recovery[Title/Abstract]) AND (systematic review[Publication Type] OR meta-analysis[Publication Type])`
+- **PubMed - menstrual-cycle performance reviews**
+  - `"menstrual cycle"[Title/Abstract] AND "exercise performance"[Title/Abstract] AND (systematic review[Publication Type] OR meta-analysis[Publication Type])`
+- **PubMed - women masters reviews**
+  - `(women[Title/Abstract] OR female[Title/Abstract]) AND ("masters athlete"[Title/Abstract] OR "masters athletes"[Title/Abstract] OR "masters runner"[Title/Abstract] OR "masters runners"[Title/Abstract]) AND (review[Publication Type] OR systematic review[Publication Type])`
+- **PubMed - menopause and running reviews**
+  - `(running[Title/Abstract] OR runners[Title/Abstract] OR endurance[Title/Abstract]) AND (menopause[Title/Abstract] OR menopausal[Title/Abstract] OR perimenopause[Title/Abstract] OR perimenopausal[Title/Abstract]) AND (training[Title/Abstract] OR performance[Title/Abstract] OR recovery[Title/Abstract]) AND (systematic review[Publication Type] OR meta-analysis[Publication Type] OR review[Publication Type])`
+- **PubMed - transgender, nonbinary, and gender-diverse running**
+  - `(running[Title/Abstract] OR runners[Title/Abstract] OR endurance[Title/Abstract]) AND (transgender[Title/Abstract] OR nonbinary[Title/Abstract] OR "non-binary"[Title/Abstract] OR "gender diverse"[Title/Abstract] OR "gender identity"[Title/Abstract]) AND (training[Title/Abstract] OR performance[Title/Abstract] OR recovery[Title/Abstract])`
+- **PubMed - reassessment cadence**
+  - `(running[Title/Abstract] OR endurance[Title/Abstract]) AND (reassessment[Title/Abstract] OR "monitoring frequency"[Title/Abstract] OR "assessment cadence"[Title/Abstract] OR "retest interval"[Title/Abstract]) AND training[Title/Abstract]`
+- **PubMed - currency window**
+  - `((running[Title/Abstract] OR endurance[Title/Abstract]) AND (novice[Title/Abstract] OR beginner*[Title/Abstract] OR detraining[Title/Abstract] OR retraining[Title/Abstract] OR masters[Title/Abstract] OR older[Title/Abstract] OR "sex differences"[Title/Abstract] OR "menstrual cycle"[Title/Abstract] OR "cross-training"[Title/Abstract] OR "strength training"[Title/Abstract])) AND (2026/08/09:2026/08/16[edat])`
+- **PubMed - exact included PMID verification**
+  - `25951917[PMID] OR 34478518[PMID] OR 17940147[PMID] OR 29527322[PMID] OR 37681822[PMID] OR 36017396[PMID] OR 38344385[PMID] OR 17717011[PMID] OR 36078762[PMID] OR 18268815[PMID] OR 31445504[PMID] OR 35721873[PMID] OR 38627351[PMID] OR 31642726[PMID] OR 42267259[PMID] OR 33433864[PMID] OR 32661839[PMID] OR 39482845[PMID] OR 42072980[PMID] OR 40804607[PMID] OR 38143718[PMID]`
+- **PubMed Central full text**
+  - `PMC4473093 OR PMC9528699 OR PMC5841490 OR PMC10487403 OR PMC9398774 OR PMC10853933 OR PMC2375571 OR PMC9517884 OR PMC9201250 OR PMC11258194 OR PMC6931177 OR PMC13243379 OR PMC8053184 OR PMC7497427 OR PMC11527835 OR PMC13116005 OR PMC12350078 OR PMC10749040`
+
+## Inclusion criteria
+
+- Adult human running or endurance evidence relevant to population routing, training history, age, recovery, strength, cross-training, or sex-specific applicability
+- Systematic reviews, meta-analyses, randomized trials, prospective cohorts, or focused reviews where direct evidence was sparse
+- Stable PMID and DOI metadata verified in PubMed
+- Effect estimates used only from an indexed abstract or relevant accessible full text
+- Evidence gaps retained when no source established a direct automatic-plan rule
+
+## Exclusion criteria
+
+- Children-only or animal evidence used as direct support for an adult plan route
+- Injury rehabilitation, pregnancy-specific prescription, clinical return-to-sport, diagnosis, or treatment
+- Trail, ultra, military, team-sport, supplement, or unrelated clinical evidence presented as direct recreational road-running policy
+- Coaching plans, vendor schedules, blogs, search snippets, or uncited conventions
+- Sparse records treated as proof that training stopped
+- Metadata-only or inaccessible findings used for effect estimates or strong conclusions
+
+## Method limitations
+
+- Screening and extraction were performed by agents rather than independent human reviewers.
+- Direct searches of SPORTDiscus, Scopus, Embase, Web of Science, and CINAHL were not performed in this run.
+- Some randomized trials and reviews were available only as indexed abstracts.
+- Beginner definitions, injury definitions, follow-up, and denominators vary substantially across studies.
+- Detraining evidence mostly studies known reduction or cessation in trained populations, not missing consumer records or recreational restart plans.
+- Masters evidence is predominantly observational, often male-dominated, and rarely evaluates plan modifications.
+- Dedicated searches found sparse observational performance evidence in transgender women and nonbinary race participants, but no comparative running-plan family or training-dose study.
+- Menopause-specific searches found health, aging, and performance reviews but no menopause-specific running-plan intervention or dose rule.
+- Strength and cycling evidence does not directly define population-specific plan modules, injury prevention, or substitution ratios.
+- The reassessment search found no directly applicable running-plan cadence study.
+
+### Quality appraisal
+
+Sources were appraised for study design, population definition, directness to recreational running and automatic plan generation, exposure and injury definitions, self-report and attrition, protocol specificity, training status, age and sex representation, individual variation, confounding, certainty grading, and whether a group finding could justify a product family or exact personal prescription. Complete ordered PubMed result sets, hashes, source dispositions, access levels, and the 2026-08-16 currency screen are bound in data/science/evidence/adult-running-plan-population-routing/search-manifest-adult-running-plan-population-routing-v1.json.
+
+## Claims
+
+### `population.beginner-evidence-family-not-permanent-identity` — moderate
+
+Novice and recreational runners are studied as distinct evidence populations, but their injury estimates depend strongly on exposure denominator, follow-up, and inconsistent cohort definitions. This supports separate evidence handling for first-completion planning, not a permanent beginner identity or an individual injury probability.
+
+- **Sources:** `videbaek-2015`, `fredette-2022`
+- **Population:** Novice and recreational runners represented in the included reviews
+- **Domain:** Beginner evidence family; Running-related injury; Cohort-definition limits
+- **Limitations:**
+  - The two reviews use different denominators and should not be read as a stable ranking of personal risk.
+  - Study labels do not define when one person stops being a beginner.
+  - The evidence does not validate a first-completion plan, duration, or schedule.
+  - First-at-goal-distance and globally new-to-running are not established as the same physiological population.
+- **Verified effect estimates:**
+  - Novice-runner injury incidence: 17.8 (range 16.7 to 19.1) injuries per 1000 running hours (Weighted exposure-based estimate and 95 percent confidence interval in Videbaek et al.)
+  - Recreational-runner injury incidence: 7.7 (range 6.9 to 8.7) injuries per 1000 running hours (Weighted exposure-based estimate and 95 percent confidence interval in Videbaek et al.)
+  - Novice-runner event incidence: 14.9 percent (Pooled event proportion across heterogeneous follow-up periods in Fredette et al.)
+  - Recreational-runner event incidence: 26.1 percent (Pooled event proportion across heterogeneous follow-up periods in Fredette et al.)
+
+### `population.no-universal-beginner-schedule` — moderate
+
+Reviewed running-program evidence does not establish one universal beginner duration, progression percentage, frequency, run-walk ratio, intensity pattern, or preconditioning schedule. A 10 percent progression program did not reduce injury, intensity-focused and volume-focused progression did not differ clearly in injury risk, and one named beginner program had substantial injury and non-completion.
+
+- **Sources:** `fredette-2022`, `buist-2008`, `ramskov-2018`, `relph-2023`
+- **Population:** Adult novice and recreational runners in the included trials and cohort
+- **Domain:** Beginner schedule; Progression; Completion and attrition
+- **Limitations:**
+  - Null injury differences do not prove that all schedules are equivalent.
+  - Run Clever lost many participants before the randomized comparison period and studied recreational rather than first-time runners.
+  - Most Couch-to-5k participants were active and many had prior running experience.
+  - Injury prevention is not the only outcome relevant to completion planning.
+  - No reviewed trial validates one schedule across 5 km, 10 km, half-marathon, and marathon completion goals.
+- **Verified effect estimates:**
+  - Injury incidence in 10-percent-rule program: 20.8 percent (Thirteen-week graded novice program in Buist et al.)
+  - Injury incidence in standard program: 20.3 percent (Eight-week standard novice program in Buist et al.; p=0.90 versus graded program)
+  - Modified Couch-to-5k completion: 27.3 percent (Prospective observational program in Relph et al.)
+  - Modified Couch-to-5k reported injury: 19.0 percent (Twenty-one injuries among 110 participants in Relph et al.)
+
+### `population.sparse-history-not-detraining-proof` — moderate
+
+Detraining is defined and studied as a known reduction or cessation of training. Sparse, missing, or provider-limited Praxys records do not by themselves establish that training stopped, how much capacity changed, or whether the runner is returning.
+
+- **Sources:** `zheng-2022`, `barbieri-2023`
+- **Population:** Trained or endurance-trained participants with documented training reduction or cessation; Adult product users whose observed records may be incomplete
+- **Domain:** Sparse history; Detraining inference; Missing-data limits
+- **Limitations:**
+  - The product conclusion about record missingness is an epistemic guardrail, not a tested intervention.
+  - The reviews are not studies of consumer data completeness or provider outages.
+  - Self-reported interruption may still require clarification about partial versus complete training.
+
+### `population.no-universal-returning-dose` — moderate
+
+Training cessation can reduce cardiorespiratory fitness, with larger average effects after longer cessation, but effects vary by prior training, outcome, duration, and partial versus complete cessation. The reviewed evidence does not validate a universal restart percentage, weekly progression, preserved-capacity fraction, or return-to-consistency schedule.
+
+- **Sources:** `zheng-2022`, `barbieri-2023`
+- **Population:** Athletes and endurance-trained participants represented in detraining studies
+- **Domain:** Returning to consistency; Detraining; Restart-dose uncertainty
+- **Limitations:**
+  - VO2max does not represent every dimension of running capacity or tissue tolerance.
+  - Most evidence does not test recreational return-to-running prescriptions.
+  - Partial reduction and complete cessation cannot be treated as equivalent.
+  - The evidence cannot convert days without records into a personal loss percentage.
+- **Verified effect estimates:**
+  - Short-term detraining effect on VO2max: -0.62 (range -0.94 to -0.31) Hedges g (Meta-analytic effect and 95 percent confidence interval in Zheng et al.)
+  - Long-term detraining effect on VO2max: -1.42 (range -1.99 to -0.84) Hedges g (Meta-analytic effect and 95 percent confidence interval in Zheng et al.; substantial heterogeneity and publication-bias concern)
+
+### `population.masters-context-not-age-exclusion` — moderate
+
+Endurance performance and VO2max generally decline with age, while masters athletes retain high capability and changes in training volume explain substantial variation in observed decline. Chronological age is therefore relevant context but does not establish a universal exclusion, a fixed masters cutoff, or a separate base plan family.
+
+- **Sources:** `tanaka-2008`, `burtscher-2022`, `vangsgaard-2026`
+- **Population:** Masters and older endurance athletes represented by the included reviews; Women masters endurance athletes represented by the scoping review
+- **Domain:** Masters routing; Age-associated performance; Training-context modifier
+- **Limitations:**
+  - Reviews include highly trained athletes and cannot define a recreational automatic-plan adjustment.
+  - Observational associations with training volume do not prove an optimal dose.
+  - Published masters definitions often use age 35 or 40 for study or competition administration, not a biological threshold.
+  - Women masters evidence is sparse and mostly cross-sectional.
+- **Verified effect estimates:**
+  - Variance in male masters VO2max decline explained by training-volume change: 54.0 percent (Regression across longitudinal studies summarized by Burtscher et al.)
+  - Variance in female masters VO2max decline explained by training-volume change: 39.0 percent (Regression across limited female longitudinal studies summarized by Burtscher et al.)
+  - Women masters aerobic-capacity decline: 0.5 to 2.4 percent per year (Range across heterogeneous studies in the Vangsgaard et al. scoping review)
+
+### `population.masters-recovery-not-fixed-delay` — low
+
+Evidence on age and exercise recovery is limited and protocol-dependent. Trained older adults did not recover more slowly than younger trained adults in one downhill-running study, while a masters interval study showed that most runners recovered by 24 hours but a minority retained fatigue. This supports individual recovery context, not a universal age-based 24-, 48-, or 72-hour delay.
+
+- **Sources:** `fell-williams-2008`, `hayashi-2019`, `riazati-2022`
+- **Population:** Physically active and endurance-trained middle-aged or older adults; Masters club runners completing one high-intensity interval session
+- **Domain:** Masters recovery; Inter-individual variation; Fixed-delay limits
+- **Limitations:**
+  - Samples were small and protocols were acute, laboratory-based, and sometimes deliberately muscle damaging.
+  - Hayashi et al. combined men and women but did not establish sex-specific recovery rules.
+  - Riazati et al. studied 20 runners and did not test a plan-level recovery intervention.
+  - These studies do not define a weekly quality-session count or schedule.
+
+### `population.strength-and-cross-training-bounded-support` — moderate
+
+Strength training can improve running performance in some trained runner protocols, but certainty ranges from very low to moderate and one self-directed first-marathon strength program did not reduce overuse injury or improve finish time. Running-cycling cross-training shows no clear short-term between-group performance difference, but the limited heterogeneous evidence does not establish interchangeability or a one-to-one substitution ratio.
+
+- **Sources:** `llanos-lagos-2024`, `toresdahl-2020`, `menges-2026`
+- **Population:** Middle- and long-distance runners represented in strength studies; First-time marathon runners, most of whom had prior half-marathon experience; Trained or recreationally active participants in short cycling and running interventions
+- **Domain:** Strength support; Cross-training; Injury and performance claim limits
+- **Limitations:**
+  - Strength meta-analysis participants were mainly 17 to 40 years old and did not establish a masters-specific dose.
+  - The first-marathon strength trial tested one low-burden self-directed program, not all strength training.
+  - Cross-training evidence included only seven studies with old protocols and wide confidence intervals.
+  - No reviewed source validates a universal strength frequency, cross-training share, or impact-load equivalence.
+- **Verified effect estimates:**
+  - Running-performance effect of high-load strength training: -0.469 standardized effect size (Meta-analysis in Llanos-Lagos et al.; p=0.029 and very-low-to-moderate certainty across outcomes)
+  - Overuse injury causing marathon non-completion: 0.97 (range 0.57 to 1.63) risk ratio (Strength program versus observation in first-time marathon runners)
+  - Running-performance difference for cycling cross-training: 0.02 (range -0.62 to 0.66) Hedges g (Cross-training versus running-only meta-analysis; p=0.88)
+
+### `population.sex-effects-are-construct-specific` — moderate
+
+Overall running-injury rates were similar between female and male runners in the reviewed meta-analysis, while bone-stress and Achilles diagnoses differed. Average menstrual-cycle phase effects on exercise performance were trivial, heterogeneous, and low certainty. Physiological sex and reproductive context may therefore matter for a specifically accepted dependent construct, but do not supply one general running-plan rule.
+
+- **Sources:** `hollander-2021`, `mcnulty-2020`
+- **Population:** Female and male runners represented in prospective injury studies; Eumenorrheic women represented in exercise-performance studies
+- **Domain:** Physiological sex; Diagnosis-specific applicability; Menstrual-cycle claim limits
+- **Limitations:**
+  - Overall injury similarity does not erase diagnosis-specific or individual context.
+  - Injury and menstrual-cycle studies do not test running-plan families.
+  - Menstrual-cycle evidence was low quality and phase verification was inconsistent.
+  - Diagnosis, rehabilitation, pregnancy, and medical treatment remain outside this review.
+- **Verified effect estimates:**
+  - Overall injury risk in female versus male runners: 0.99 (range 0.9 to 1.1) risk ratio (Injuries per runner in Hollander et al.)
+  - Bone-stress injury risk in male versus female runners: 0.52 (range 0.36 to 0.76) risk ratio (Diagnosis-specific pooled estimate in Hollander et al.)
+  - Achilles tendinopathy risk in male versus female runners: 1.86 (range 1.25 to 2.79) risk ratio (Diagnosis-specific pooled estimate in Hollander et al.)
+  - Early-follicular exercise-performance effect: -0.06 (range -0.16 to 0.04) standardized effect size (Median pooled effect and 95 percent credible interval in McNulty et al.)
+
+### `population.no-general-sex-or-gender-plan-family` — low
+
+The included evidence and dedicated searches do not validate a general female, male, nonbinary, transgender, menstrual, menopausal, or gender-identity-based running-plan family. Women masters evidence remains sparse and largely observational, and menopause-specific prescription remains unresolved. The identified transgender-women and nonbinary running studies describe performance under hormone-therapy or race-category contexts; they do not compare plan families, prescribe training dose, or establish gender identity as a causal dose modifier. Any future field or adjustment must be purpose-bound to a separately accepted construct and allow unknown or declined input.
+
+- **Sources:** `daly-2024`, `vangsgaard-2026`, `hollander-2021`, `mcnulty-2020`, `harper-2025`, `armstrong-2023`
+- **Population:** Adult runners whose physiological sex, reproductive context, or gender may be relevant to a specific future construct; Women masters endurance athletes represented in the included reviews; Small selected samples of transgender women runners and nonbinary mass-participation runners represented in the included observational studies
+- **Domain:** Profile inputs; Sex and gender plan-family limits; Missingness and evidence gaps
+- **Limitations:**
+  - Absence of validating evidence is not evidence that no subgroup-specific model could ever be useful.
+  - The transgender-women study was small and heterogeneous, with partly retrospective self-reported training exposure and no comparative prescription.
+  - The nonbinary race analysis was observational, represented only athletes choosing the nonbinary category, and probabilistically inferred natal sex when prior records were unavailable.
+  - A descriptive performance association does not establish a causal training-response construct or justify collecting gender identity for dose selection.
+  - Physiological sex, gender identity, menstrual status, menopause, symptoms, and energy availability are distinct constructs.
+  - This claim does not define which future construct should be collected or how it should be modeled.
+
+## Citations and verification level
+
+| ID | Verification | Stable identifier | Citation |
+|---|---|---|---|
+| `videbaek-2015` | `full-text` | DOI `10.1007/s40279-015-0333-8` | Incidence of Running-Related Injuries Per 1000 h of running in Different Types of Runners: A Systematic Review and Meta-Analysis (2015) |
+| `fredette-2022` | `full-text` | DOI `10.4085/1062-6050-0195.21` | The Association Between Running Injuries and Training Parameters: A Systematic Review (2022) |
+| `buist-2008` | `abstract` | DOI `10.1177/0363546507307505` | No effect of a graded training program on the number of running-related injuries in novice runners: a randomized controlled trial (2008) |
+| `ramskov-2018` | `full-text` | DOI `10.1136/bmjsem-2017-000333` | Run Clever - No difference in risk of injury when comparing progression in running volume and running intensity in recreational runners: A randomised trial (2018) |
+| `relph-2023` | `full-text` | DOI `10.3390/ijerph20176682` | "Couch-to-5k or Couch to Ouch to Couch!?" Who Takes Part in Beginner Runner Programmes in the UK and Is Non-Completion Linked to Musculoskeletal Injury? (2023) |
+| `zheng-2022` | `full-text` | DOI `10.1155/2022/2130993` | Effects of Short- and Long-Term Detraining on Maximal Oxygen Uptake in Athletes: A Systematic Review and Meta-Analysis (2022) |
+| `barbieri-2023` | `full-text` | DOI `10.3389/fphys.2023.1334766` | Cardiorespiratory and metabolic consequences of detraining in endurance athletes (2023) |
+| `tanaka-2008` | `full-text` | DOI `10.1113/jphysiol.2007.141879` | Endurance exercise performance in Masters athletes: age-associated changes and underlying physiological mechanisms (2008) |
+| `burtscher-2022` | `full-text` | DOI `10.3390/ijerph191711050` | The Impact of Training on the Loss of Cardiorespiratory Fitness in Aging Masters Endurance Athletes (2022) |
+| `fell-williams-2008` | `abstract` | DOI `10.1123/japa.16.1.97` | The effect of aging on skeletal-muscle recovery from exercise: possible implications for aging athletes (2008) |
+| `hayashi-2019` | `abstract` | DOI `10.1055/a-0951-0017` | Recovery from Strenuous Downhill Running in Young and Older Physically Active Adults (2019) |
+| `riazati-2022` | `full-text` | DOI `10.3389/fspor.2022.830278` | Gait and Neuromuscular Changes Are Evident in Some Masters Club Level Runners 24-h After Interval Training Run (2022) |
+| `llanos-lagos-2024` | `full-text` | DOI `10.1007/s40279-024-02018-z` | The Effect of Strength Training Methods on Middle-Distance and Long-Distance Runners' Athletic Performance: A Systematic Review with Meta-analysis (2024) |
+| `toresdahl-2020` | `full-text` | DOI `10.1177/1941738119877180` | A Randomized Study of a Strength Training Program to Prevent Injuries in Runners of the New York City Marathon (2020) |
+| `menges-2026` | `full-text` | DOI `10.3389/fspor.2026.1843803` | Cross-training between running and cycling: effects on VO2max and running performance-a systematic review and meta-analysis (2026) |
+| `hollander-2021` | `full-text` | DOI `10.1007/s40279-020-01412-7` | Sex-Specific Differences in Running Injuries: A Systematic Review with Meta-Analysis and Meta-Regression (2021) |
+| `mcnulty-2020` | `full-text` | DOI `10.1007/s40279-020-01319-3` | The Effects of Menstrual Cycle Phase on Exercise Performance in Eumenorrheic Women: A Systematic Review and Meta-Analysis (2020) |
+| `daly-2024` | `full-text` | DOI `10.14814/phy2.70109` | The future of physiological research: A greater understanding of female master athletes and aging? (2024) |
+| `vangsgaard-2026` | `full-text` | DOI `10.3390/healthcare14081080` | Effects of Aging on Determinants of Endurance Performance in Women Masters Athletes: A Scoping Review (2026) |
+| `harper-2025` | `full-text` | DOI `10.1002/ejsc.70036` | Longitudinal Performance Changes in Transgender Women Athletes Pre and Post Gender Affirming Hormone Therapy (2025) |
+| `armstrong-2023` | `full-text` | DOI `10.1136/bmjsem-2023-001662` | Performance of non-binary athletes in mass-participation running events (2023) |
+
+## Known gaps
+
+- Direct trials comparing first-completion, history-rich performance, sparse-history performance, and return-to-consistency plan families
+- Distance-specific completion schedules for 5 km, 10 km, half-marathon, and marathon
+- A validated definition of sufficient recent history or recent anchor for each population and distance
+- Recreational return-to-running trials that define restart dose after nonclinical interruption
+- A validated biological masters cutoff or universal age-based recovery adjustment
+- Representative recovery and plan-intervention evidence for older women
+- Comparative training-plan and dose-response evidence for transgender, nonbinary, and gender-diverse runners
+- Evidence that physiological sex, date of birth, exact age, menstrual status, menopause, or gender identity must be collected for every plan
+- Population-specific strength dose, cross-training substitution ratio, and impact-load equivalence
+- A validated running-plan reassessment cadence or trigger
+- Prospective evidence that the proposed routing semantics improve adherence, completion, performance, or safety
+
+## Conflicting findings
+
+- Exposure-based injury incidence was higher in novice runners, while event proportions across heterogeneous follow-up were higher in recreational runners.
+- Age-associated performance decline is well described, while maintained training explains substantial variation and highly capable older athletes remain common.
+- General recovery reviews allow a possible age effect, while direct trained-runner studies did not show uniformly slower recovery and found marked individual variation.
+- Strength training can improve performance in trained runners, while one first-marathon program did not prevent injury or improve finish time.
+- Cycling cross-training did not differ clearly from running in short studies, while evidence was too limited to establish interchangeability.
+- Overall injury rates were similar by physiological sex, while specific diagnoses differed.
+- Menstrual-cycle performance effects were trivial on average, while individual and between-study variation was large.
+- Women masters observations suggest age and training-volume effects, while menopause-specific and intervention evidence remains insufficient.
+- Small transgender-women and nonbinary running studies report performance associations, while neither isolates a general training response nor tests a plan-family or dose rule.
+
+## Follow-up questions
+
+- Which distance-specific first-completion policy should be researched first?
+- What recent-history anchor is sufficient for an uncertainty-aware performance plan at each distance?
+- Should return-to-consistency be a user-selected goal family, a confirmed training-continuity state, or both?
+- Which objective and athlete-reported signals can support a masters modifier without using chronological age as a proxy for capability?
+- Which purpose-bound construct, if any, justifies asking for age, physiological sex, menstrual, menopause, or other profile context?
+- Can a strength or cycling module improve outcomes for first-completion, sparse-history, or masters runners without adding excessive burden?
+- What reassessment cadence should be tested without presenting it as established science?
+- Which subgroup, false-stop, adverse-event, abandonment, and burden criteria should narrow or stop a future pilot?
+
+<details><summary>Exact reviewed evidence payload</summary>
+
+```json
+{
+  "authors": [
+    "agent:github-copilot"
+  ],
+  "citations": [
+    {
+      "authors": [
+        "S. Videbaek",
+        "A. M. Bueno",
+        "R. O. Nielsen",
+        "S. Rasmussen"
+      ],
+      "doi": "10.1007/s40279-015-0333-8",
+      "id": "videbaek-2015",
+      "journal": "Sports Medicine",
+      "pmid": "25951917",
+      "title": "Incidence of Running-Related Injuries Per 1000 h of running in Different Types of Runners: A Systematic Review and Meta-Analysis",
+      "url": null,
+      "year": 2015
+    },
+    {
+      "authors": [
+        "A. Fredette",
+        "J. S. Roy",
+        "K. Perreault",
+        "F. Dupuis",
+        "C. Napier",
+        "J. F. Esculier"
+      ],
+      "doi": "10.4085/1062-6050-0195.21",
+      "id": "fredette-2022",
+      "journal": "Journal of Athletic Training",
+      "pmid": "34478518",
+      "title": "The Association Between Running Injuries and Training Parameters: A Systematic Review",
+      "url": null,
+      "year": 2022
+    },
+    {
+      "authors": [
+        "I. Buist",
+        "S. W. Bredeweg",
+        "W. van Mechelen",
+        "K. A. P. M. Lemmink",
+        "G. J. Pepping",
+        "R. L. Diercks"
+      ],
+      "doi": "10.1177/0363546507307505",
+      "id": "buist-2008",
+      "journal": "The American Journal of Sports Medicine",
+      "pmid": "17940147",
+      "title": "No effect of a graded training program on the number of running-related injuries in novice runners: a randomized controlled trial",
+      "url": null,
+      "year": 2008
+    },
+    {
+      "authors": [
+        "D. Ramskov",
+        "S. Rasmussen",
+        "H. Sorensen",
+        "E. T. Parner",
+        "M. Lind",
+        "R. O. Nielsen"
+      ],
+      "doi": "10.1136/bmjsem-2017-000333",
+      "id": "ramskov-2018",
+      "journal": "BMJ Open Sport and Exercise Medicine",
+      "pmid": "29527322",
+      "title": "Run Clever - No difference in risk of injury when comparing progression in running volume and running intensity in recreational runners: A randomised trial",
+      "url": null,
+      "year": 2018
+    },
+    {
+      "authors": [
+        "N. Relph",
+        "S. L. Taylor",
+        "D. L. Christian",
+        "P. Dey",
+        "M. B. Owen"
+      ],
+      "doi": "10.3390/ijerph20176682",
+      "id": "relph-2023",
+      "journal": "International Journal of Environmental Research and Public Health",
+      "pmid": "37681822",
+      "title": "\"Couch-to-5k or Couch to Ouch to Couch!?\" Who Takes Part in Beginner Runner Programmes in the UK and Is Non-Completion Linked to Musculoskeletal Injury?",
+      "url": null,
+      "year": 2023
+    },
+    {
+      "authors": [
+        "J. Zheng",
+        "T. Pan",
+        "Y. Jiang",
+        "Y. Shen"
+      ],
+      "doi": "10.1155/2022/2130993",
+      "id": "zheng-2022",
+      "journal": "BioMed Research International",
+      "pmid": "36017396",
+      "title": "Effects of Short- and Long-Term Detraining on Maximal Oxygen Uptake in Athletes: A Systematic Review and Meta-Analysis",
+      "url": null,
+      "year": 2022
+    },
+    {
+      "authors": [
+        "A. Barbieri",
+        "A. Fuk",
+        "G. Gallo",
+        "D. Gotti",
+        "A. Meloni",
+        "A. La Torre",
+        "L. Filipas",
+        "R. Codella"
+      ],
+      "doi": "10.3389/fphys.2023.1334766",
+      "id": "barbieri-2023",
+      "journal": "Frontiers in Physiology",
+      "pmid": "38344385",
+      "title": "Cardiorespiratory and metabolic consequences of detraining in endurance athletes",
+      "url": null,
+      "year": 2023
+    },
+    {
+      "authors": [
+        "H. Tanaka",
+        "D. R. Seals"
+      ],
+      "doi": "10.1113/jphysiol.2007.141879",
+      "id": "tanaka-2008",
+      "journal": "The Journal of Physiology",
+      "pmid": "17717011",
+      "title": "Endurance exercise performance in Masters athletes: age-associated changes and underlying physiological mechanisms",
+      "url": null,
+      "year": 2008
+    },
+    {
+      "authors": [
+        "J. Burtscher",
+        "B. Strasser",
+        "M. Burtscher",
+        "G. P. Millet"
+      ],
+      "doi": "10.3390/ijerph191711050",
+      "id": "burtscher-2022",
+      "journal": "International Journal of Environmental Research and Public Health",
+      "pmid": "36078762",
+      "title": "The Impact of Training on the Loss of Cardiorespiratory Fitness in Aging Masters Endurance Athletes",
+      "url": null,
+      "year": 2022
+    },
+    {
+      "authors": [
+        "J. Fell",
+        "D. Williams"
+      ],
+      "doi": "10.1123/japa.16.1.97",
+      "id": "fell-williams-2008",
+      "journal": "Journal of Aging and Physical Activity",
+      "pmid": "18268815",
+      "title": "The effect of aging on skeletal-muscle recovery from exercise: possible implications for aging athletes",
+      "url": null,
+      "year": 2008
+    },
+    {
+      "authors": [
+        "K. Hayashi",
+        "M. E. Leary",
+        "S. J. Roy",
+        "J. Laosiripisan",
+        "E. P. Pasha",
+        "H. Tanaka"
+      ],
+      "doi": "10.1055/a-0951-0017",
+      "id": "hayashi-2019",
+      "journal": "International Journal of Sports Medicine",
+      "pmid": "31445504",
+      "title": "Recovery from Strenuous Downhill Running in Young and Older Physically Active Adults",
+      "url": null,
+      "year": 2019
+    },
+    {
+      "authors": [
+        "S. Riazati",
+        "N. Caplan",
+        "M. Matabuena",
+        "P. R. Hayes"
+      ],
+      "doi": "10.3389/fspor.2022.830278",
+      "id": "riazati-2022",
+      "journal": "Frontiers in Sports and Active Living",
+      "pmid": "35721873",
+      "title": "Gait and Neuromuscular Changes Are Evident in Some Masters Club Level Runners 24-h After Interval Training Run",
+      "url": null,
+      "year": 2022
+    },
+    {
+      "authors": [
+        "C. Llanos-Lagos",
+        "R. Ramirez-Campillo",
+        "J. Moran",
+        "E. Saez de Villarreal"
+      ],
+      "doi": "10.1007/s40279-024-02018-z",
+      "id": "llanos-lagos-2024",
+      "journal": "Sports Medicine",
+      "pmid": "38627351",
+      "title": "The Effect of Strength Training Methods on Middle-Distance and Long-Distance Runners' Athletic Performance: A Systematic Review with Meta-analysis",
+      "url": null,
+      "year": 2024
+    },
+    {
+      "authors": [
+        "B. G. Toresdahl",
+        "K. McElheny",
+        "J. Metzl",
+        "B. Ammerman",
+        "B. Chang",
+        "J. Kinderknecht"
+      ],
+      "doi": "10.1177/1941738119877180",
+      "id": "toresdahl-2020",
+      "journal": "Sports Health",
+      "pmid": "31642726",
+      "title": "A Randomized Study of a Strength Training Program to Prevent Injuries in Runners of the New York City Marathon",
+      "url": null,
+      "year": 2020
+    },
+    {
+      "authors": [
+        "T. Menges",
+        "C. Dindorf",
+        "J. Dully",
+        "M. Frohlich"
+      ],
+      "doi": "10.3389/fspor.2026.1843803",
+      "id": "menges-2026",
+      "journal": "Frontiers in Sports and Active Living",
+      "pmid": "42267259",
+      "title": "Cross-training between running and cycling: effects on VO2max and running performance-a systematic review and meta-analysis",
+      "url": null,
+      "year": 2026
+    },
+    {
+      "authors": [
+        "K. Hollander",
+        "A. L. Rahlf",
+        "J. Wilke",
+        "C. Edler",
+        "S. Steib",
+        "A. Junge",
+        "A. Zech"
+      ],
+      "doi": "10.1007/s40279-020-01412-7",
+      "id": "hollander-2021",
+      "journal": "Sports Medicine",
+      "pmid": "33433864",
+      "title": "Sex-Specific Differences in Running Injuries: A Systematic Review with Meta-Analysis and Meta-Regression",
+      "url": null,
+      "year": 2021
+    },
+    {
+      "authors": [
+        "K. L. McNulty",
+        "K. J. Elliott-Sale",
+        "E. Dolan",
+        "P. A. Swinton",
+        "P. Ansdell",
+        "S. Goodall",
+        "K. Thomas",
+        "K. M. Hicks"
+      ],
+      "doi": "10.1007/s40279-020-01319-3",
+      "id": "mcnulty-2020",
+      "journal": "Sports Medicine",
+      "pmid": "32661839",
+      "title": "The Effects of Menstrual Cycle Phase on Exercise Performance in Eumenorrheic Women: A Systematic Review and Meta-Analysis",
+      "url": null,
+      "year": 2020
+    },
+    {
+      "authors": [
+        "L. S. Daly"
+      ],
+      "doi": "10.14814/phy2.70109",
+      "id": "daly-2024",
+      "journal": "Physiological Reports",
+      "pmid": "39482845",
+      "title": "The future of physiological research: A greater understanding of female master athletes and aging?",
+      "url": null,
+      "year": 2024
+    },
+    {
+      "authors": [
+        "D. Vangsgaard",
+        "M. Noumi",
+        "K. A. Hayden",
+        "P. K. Doyle-Baker"
+      ],
+      "doi": "10.3390/healthcare14081080",
+      "id": "vangsgaard-2026",
+      "journal": "Healthcare",
+      "pmid": "42072980",
+      "title": "Effects of Aging on Determinants of Endurance Performance in Women Masters Athletes: A Scoping Review",
+      "url": null,
+      "year": 2026
+    },
+    {
+      "authors": [
+        "J. Harper",
+        "R. C. Blagrove",
+        "E. Hunsicker",
+        "G. L. Witcomb",
+        "R. A. Ferguson",
+        "E. O'Donnell"
+      ],
+      "doi": "10.1002/ejsc.70036",
+      "id": "harper-2025",
+      "journal": "European Journal of Sport Science",
+      "pmid": "40804607",
+      "title": "Longitudinal Performance Changes in Transgender Women Athletes Pre and Post Gender Affirming Hormone Therapy",
+      "url": null,
+      "year": 2025
+    },
+    {
+      "authors": [
+        "J. Armstrong",
+        "A. Sullivan",
+        "G. M. Perry"
+      ],
+      "doi": "10.1136/bmjsem-2023-001662",
+      "id": "armstrong-2023",
+      "journal": "BMJ Open Sport & Exercise Medicine",
+      "pmid": "38143718",
+      "title": "Performance of non-binary athletes in mass-participation running events",
+      "url": null,
+      "year": 2023
+    }
+  ],
+  "claims": [
+    {
+      "applicable_population": [
+        "Novice and recreational runners represented in the included reviews"
+      ],
+      "domain": [
+        "Beginner evidence family",
+        "Running-related injury",
+        "Cohort-definition limits"
+      ],
+      "effect_estimates": [
+        {
+          "context": "Weighted exposure-based estimate and 95 percent confidence interval in Videbaek et al.",
+          "estimate": 17.8,
+          "metric": "Novice-runner injury incidence",
+          "range_high": 19.1,
+          "range_low": 16.7,
+          "unit": "injuries per 1000 running hours"
+        },
+        {
+          "context": "Weighted exposure-based estimate and 95 percent confidence interval in Videbaek et al.",
+          "estimate": 7.7,
+          "metric": "Recreational-runner injury incidence",
+          "range_high": 8.7,
+          "range_low": 6.9,
+          "unit": "injuries per 1000 running hours"
+        },
+        {
+          "context": "Pooled event proportion across heterogeneous follow-up periods in Fredette et al.",
+          "estimate": 14.9,
+          "metric": "Novice-runner event incidence",
+          "range_high": null,
+          "range_low": null,
+          "unit": "percent"
+        },
+        {
+          "context": "Pooled event proportion across heterogeneous follow-up periods in Fredette et al.",
+          "estimate": 26.1,
+          "metric": "Recreational-runner event incidence",
+          "range_high": null,
+          "range_low": null,
+          "unit": "percent"
+        }
+      ],
+      "evidence_strength": "moderate",
+      "id": "population.beginner-evidence-family-not-permanent-identity",
+      "limitations": [
+        "The two reviews use different denominators and should not be read as a stable ranking of personal risk.",
+        "Study labels do not define when one person stops being a beginner.",
+        "The evidence does not validate a first-completion plan, duration, or schedule.",
+        "First-at-goal-distance and globally new-to-running are not established as the same physiological population."
+      ],
+      "source_ids": [
+        "videbaek-2015",
+        "fredette-2022"
+      ],
+      "statement": "Novice and recreational runners are studied as distinct evidence populations, but their injury estimates depend strongly on exposure denominator, follow-up, and inconsistent cohort definitions. This supports separate evidence handling for first-completion planning, not a permanent beginner identity or an individual injury probability."
+    },
+    {
+      "applicable_population": [
+        "Adult novice and recreational runners in the included trials and cohort"
+      ],
+      "domain": [
+        "Beginner schedule",
+        "Progression",
+        "Completion and attrition"
+      ],
+      "effect_estimates": [
+        {
+          "context": "Thirteen-week graded novice program in Buist et al.",
+          "estimate": 20.8,
+          "metric": "Injury incidence in 10-percent-rule program",
+          "range_high": null,
+          "range_low": null,
+          "unit": "percent"
+        },
+        {
+          "context": "Eight-week standard novice program in Buist et al.; p=0.90 versus graded program",
+          "estimate": 20.3,
+          "metric": "Injury incidence in standard program",
+          "range_high": null,
+          "range_low": null,
+          "unit": "percent"
+        },
+        {
+          "context": "Prospective observational program in Relph et al.",
+          "estimate": 27.3,
+          "metric": "Modified Couch-to-5k completion",
+          "range_high": null,
+          "range_low": null,
+          "unit": "percent"
+        },
+        {
+          "context": "Twenty-one injuries among 110 participants in Relph et al.",
+          "estimate": 19.0,
+          "metric": "Modified Couch-to-5k reported injury",
+          "range_high": null,
+          "range_low": null,
+          "unit": "percent"
+        }
+      ],
+      "evidence_strength": "moderate",
+      "id": "population.no-universal-beginner-schedule",
+      "limitations": [
+        "Null injury differences do not prove that all schedules are equivalent.",
+        "Run Clever lost many participants before the randomized comparison period and studied recreational rather than first-time runners.",
+        "Most Couch-to-5k participants were active and many had prior running experience.",
+        "Injury prevention is not the only outcome relevant to completion planning.",
+        "No reviewed trial validates one schedule across 5 km, 10 km, half-marathon, and marathon completion goals."
+      ],
+      "source_ids": [
+        "fredette-2022",
+        "buist-2008",
+        "ramskov-2018",
+        "relph-2023"
+      ],
+      "statement": "Reviewed running-program evidence does not establish one universal beginner duration, progression percentage, frequency, run-walk ratio, intensity pattern, or preconditioning schedule. A 10 percent progression program did not reduce injury, intensity-focused and volume-focused progression did not differ clearly in injury risk, and one named beginner program had substantial injury and non-completion."
+    },
+    {
+      "applicable_population": [
+        "Trained or endurance-trained participants with documented training reduction or cessation",
+        "Adult product users whose observed records may be incomplete"
+      ],
+      "domain": [
+        "Sparse history",
+        "Detraining inference",
+        "Missing-data limits"
+      ],
+      "effect_estimates": [],
+      "evidence_strength": "moderate",
+      "id": "population.sparse-history-not-detraining-proof",
+      "limitations": [
+        "The product conclusion about record missingness is an epistemic guardrail, not a tested intervention.",
+        "The reviews are not studies of consumer data completeness or provider outages.",
+        "Self-reported interruption may still require clarification about partial versus complete training."
+      ],
+      "source_ids": [
+        "zheng-2022",
+        "barbieri-2023"
+      ],
+      "statement": "Detraining is defined and studied as a known reduction or cessation of training. Sparse, missing, or provider-limited Praxys records do not by themselves establish that training stopped, how much capacity changed, or whether the runner is returning."
+    },
+    {
+      "applicable_population": [
+        "Athletes and endurance-trained participants represented in detraining studies"
+      ],
+      "domain": [
+        "Returning to consistency",
+        "Detraining",
+        "Restart-dose uncertainty"
+      ],
+      "effect_estimates": [
+        {
+          "context": "Meta-analytic effect and 95 percent confidence interval in Zheng et al.",
+          "estimate": -0.62,
+          "metric": "Short-term detraining effect on VO2max",
+          "range_high": -0.31,
+          "range_low": -0.94,
+          "unit": "Hedges g"
+        },
+        {
+          "context": "Meta-analytic effect and 95 percent confidence interval in Zheng et al.; substantial heterogeneity and publication-bias concern",
+          "estimate": -1.42,
+          "metric": "Long-term detraining effect on VO2max",
+          "range_high": -0.84,
+          "range_low": -1.99,
+          "unit": "Hedges g"
+        }
+      ],
+      "evidence_strength": "moderate",
+      "id": "population.no-universal-returning-dose",
+      "limitations": [
+        "VO2max does not represent every dimension of running capacity or tissue tolerance.",
+        "Most evidence does not test recreational return-to-running prescriptions.",
+        "Partial reduction and complete cessation cannot be treated as equivalent.",
+        "The evidence cannot convert days without records into a personal loss percentage."
+      ],
+      "source_ids": [
+        "zheng-2022",
+        "barbieri-2023"
+      ],
+      "statement": "Training cessation can reduce cardiorespiratory fitness, with larger average effects after longer cessation, but effects vary by prior training, outcome, duration, and partial versus complete cessation. The reviewed evidence does not validate a universal restart percentage, weekly progression, preserved-capacity fraction, or return-to-consistency schedule."
+    },
+    {
+      "applicable_population": [
+        "Masters and older endurance athletes represented by the included reviews",
+        "Women masters endurance athletes represented by the scoping review"
+      ],
+      "domain": [
+        "Masters routing",
+        "Age-associated performance",
+        "Training-context modifier"
+      ],
+      "effect_estimates": [
+        {
+          "context": "Regression across longitudinal studies summarized by Burtscher et al.",
+          "estimate": 54.0,
+          "metric": "Variance in male masters VO2max decline explained by training-volume change",
+          "range_high": null,
+          "range_low": null,
+          "unit": "percent"
+        },
+        {
+          "context": "Regression across limited female longitudinal studies summarized by Burtscher et al.",
+          "estimate": 39.0,
+          "metric": "Variance in female masters VO2max decline explained by training-volume change",
+          "range_high": null,
+          "range_low": null,
+          "unit": "percent"
+        },
+        {
+          "context": "Range across heterogeneous studies in the Vangsgaard et al. scoping review",
+          "estimate": null,
+          "metric": "Women masters aerobic-capacity decline",
+          "range_high": 2.4,
+          "range_low": 0.5,
+          "unit": "percent per year"
+        }
+      ],
+      "evidence_strength": "moderate",
+      "id": "population.masters-context-not-age-exclusion",
+      "limitations": [
+        "Reviews include highly trained athletes and cannot define a recreational automatic-plan adjustment.",
+        "Observational associations with training volume do not prove an optimal dose.",
+        "Published masters definitions often use age 35 or 40 for study or competition administration, not a biological threshold.",
+        "Women masters evidence is sparse and mostly cross-sectional."
+      ],
+      "source_ids": [
+        "tanaka-2008",
+        "burtscher-2022",
+        "vangsgaard-2026"
+      ],
+      "statement": "Endurance performance and VO2max generally decline with age, while masters athletes retain high capability and changes in training volume explain substantial variation in observed decline. Chronological age is therefore relevant context but does not establish a universal exclusion, a fixed masters cutoff, or a separate base plan family."
+    },
+    {
+      "applicable_population": [
+        "Physically active and endurance-trained middle-aged or older adults",
+        "Masters club runners completing one high-intensity interval session"
+      ],
+      "domain": [
+        "Masters recovery",
+        "Inter-individual variation",
+        "Fixed-delay limits"
+      ],
+      "effect_estimates": [],
+      "evidence_strength": "low",
+      "id": "population.masters-recovery-not-fixed-delay",
+      "limitations": [
+        "Samples were small and protocols were acute, laboratory-based, and sometimes deliberately muscle damaging.",
+        "Hayashi et al. combined men and women but did not establish sex-specific recovery rules.",
+        "Riazati et al. studied 20 runners and did not test a plan-level recovery intervention.",
+        "These studies do not define a weekly quality-session count or schedule."
+      ],
+      "source_ids": [
+        "fell-williams-2008",
+        "hayashi-2019",
+        "riazati-2022"
+      ],
+      "statement": "Evidence on age and exercise recovery is limited and protocol-dependent. Trained older adults did not recover more slowly than younger trained adults in one downhill-running study, while a masters interval study showed that most runners recovered by 24 hours but a minority retained fatigue. This supports individual recovery context, not a universal age-based 24-, 48-, or 72-hour delay."
+    },
+    {
+      "applicable_population": [
+        "Middle- and long-distance runners represented in strength studies",
+        "First-time marathon runners, most of whom had prior half-marathon experience",
+        "Trained or recreationally active participants in short cycling and running interventions"
+      ],
+      "domain": [
+        "Strength support",
+        "Cross-training",
+        "Injury and performance claim limits"
+      ],
+      "effect_estimates": [
+        {
+          "context": "Meta-analysis in Llanos-Lagos et al.; p=0.029 and very-low-to-moderate certainty across outcomes",
+          "estimate": -0.469,
+          "metric": "Running-performance effect of high-load strength training",
+          "range_high": null,
+          "range_low": null,
+          "unit": "standardized effect size"
+        },
+        {
+          "context": "Strength program versus observation in first-time marathon runners",
+          "estimate": 0.97,
+          "metric": "Overuse injury causing marathon non-completion",
+          "range_high": 1.63,
+          "range_low": 0.57,
+          "unit": "risk ratio"
+        },
+        {
+          "context": "Cross-training versus running-only meta-analysis; p=0.88",
+          "estimate": 0.02,
+          "metric": "Running-performance difference for cycling cross-training",
+          "range_high": 0.66,
+          "range_low": -0.62,
+          "unit": "Hedges g"
+        }
+      ],
+      "evidence_strength": "moderate",
+      "id": "population.strength-and-cross-training-bounded-support",
+      "limitations": [
+        "Strength meta-analysis participants were mainly 17 to 40 years old and did not establish a masters-specific dose.",
+        "The first-marathon strength trial tested one low-burden self-directed program, not all strength training.",
+        "Cross-training evidence included only seven studies with old protocols and wide confidence intervals.",
+        "No reviewed source validates a universal strength frequency, cross-training share, or impact-load equivalence."
+      ],
+      "source_ids": [
+        "llanos-lagos-2024",
+        "toresdahl-2020",
+        "menges-2026"
+      ],
+      "statement": "Strength training can improve running performance in some trained runner protocols, but certainty ranges from very low to moderate and one self-directed first-marathon strength program did not reduce overuse injury or improve finish time. Running-cycling cross-training shows no clear short-term between-group performance difference, but the limited heterogeneous evidence does not establish interchangeability or a one-to-one substitution ratio."
+    },
+    {
+      "applicable_population": [
+        "Female and male runners represented in prospective injury studies",
+        "Eumenorrheic women represented in exercise-performance studies"
+      ],
+      "domain": [
+        "Physiological sex",
+        "Diagnosis-specific applicability",
+        "Menstrual-cycle claim limits"
+      ],
+      "effect_estimates": [
+        {
+          "context": "Injuries per runner in Hollander et al.",
+          "estimate": 0.99,
+          "metric": "Overall injury risk in female versus male runners",
+          "range_high": 1.1,
+          "range_low": 0.9,
+          "unit": "risk ratio"
+        },
+        {
+          "context": "Diagnosis-specific pooled estimate in Hollander et al.",
+          "estimate": 0.52,
+          "metric": "Bone-stress injury risk in male versus female runners",
+          "range_high": 0.76,
+          "range_low": 0.36,
+          "unit": "risk ratio"
+        },
+        {
+          "context": "Diagnosis-specific pooled estimate in Hollander et al.",
+          "estimate": 1.86,
+          "metric": "Achilles tendinopathy risk in male versus female runners",
+          "range_high": 2.79,
+          "range_low": 1.25,
+          "unit": "risk ratio"
+        },
+        {
+          "context": "Median pooled effect and 95 percent credible interval in McNulty et al.",
+          "estimate": -0.06,
+          "metric": "Early-follicular exercise-performance effect",
+          "range_high": 0.04,
+          "range_low": -0.16,
+          "unit": "standardized effect size"
+        }
+      ],
+      "evidence_strength": "moderate",
+      "id": "population.sex-effects-are-construct-specific",
+      "limitations": [
+        "Overall injury similarity does not erase diagnosis-specific or individual context.",
+        "Injury and menstrual-cycle studies do not test running-plan families.",
+        "Menstrual-cycle evidence was low quality and phase verification was inconsistent.",
+        "Diagnosis, rehabilitation, pregnancy, and medical treatment remain outside this review."
+      ],
+      "source_ids": [
+        "hollander-2021",
+        "mcnulty-2020"
+      ],
+      "statement": "Overall running-injury rates were similar between female and male runners in the reviewed meta-analysis, while bone-stress and Achilles diagnoses differed. Average menstrual-cycle phase effects on exercise performance were trivial, heterogeneous, and low certainty. Physiological sex and reproductive context may therefore matter for a specifically accepted dependent construct, but do not supply one general running-plan rule."
+    },
+    {
+      "applicable_population": [
+        "Adult runners whose physiological sex, reproductive context, or gender may be relevant to a specific future construct",
+        "Women masters endurance athletes represented in the included reviews",
+        "Small selected samples of transgender women runners and nonbinary mass-participation runners represented in the included observational studies"
+      ],
+      "domain": [
+        "Profile inputs",
+        "Sex and gender plan-family limits",
+        "Missingness and evidence gaps"
+      ],
+      "effect_estimates": [],
+      "evidence_strength": "low",
+      "id": "population.no-general-sex-or-gender-plan-family",
+      "limitations": [
+        "Absence of validating evidence is not evidence that no subgroup-specific model could ever be useful.",
+        "The transgender-women study was small and heterogeneous, with partly retrospective self-reported training exposure and no comparative prescription.",
+        "The nonbinary race analysis was observational, represented only athletes choosing the nonbinary category, and probabilistically inferred natal sex when prior records were unavailable.",
+        "A descriptive performance association does not establish a causal training-response construct or justify collecting gender identity for dose selection.",
+        "Physiological sex, gender identity, menstrual status, menopause, symptoms, and energy availability are distinct constructs.",
+        "This claim does not define which future construct should be collected or how it should be modeled."
+      ],
+      "source_ids": [
+        "daly-2024",
+        "vangsgaard-2026",
+        "hollander-2021",
+        "mcnulty-2020",
+        "harper-2025",
+        "armstrong-2023"
+      ],
+      "statement": "The included evidence and dedicated searches do not validate a general female, male, nonbinary, transgender, menstrual, menopausal, or gender-identity-based running-plan family. Women masters evidence remains sparse and largely observational, and menopause-specific prescription remains unresolved. The identified transgender-women and nonbinary running studies describe performance under hormone-therapy or race-category contexts; they do not compare plan families, prescribe training dose, or establish gender identity as a causal dose modifier. Any future field or adjustment must be purpose-bound to a separately accepted construct and allow unknown or declined input."
+    }
+  ],
+  "conflicting_findings": [
+    "Exposure-based injury incidence was higher in novice runners, while event proportions across heterogeneous follow-up were higher in recreational runners.",
+    "Age-associated performance decline is well described, while maintained training explains substantial variation and highly capable older athletes remain common.",
+    "General recovery reviews allow a possible age effect, while direct trained-runner studies did not show uniformly slower recovery and found marked individual variation.",
+    "Strength training can improve performance in trained runners, while one first-marathon program did not prevent injury or improve finish time.",
+    "Cycling cross-training did not differ clearly from running in short studies, while evidence was too limited to establish interchangeability.",
+    "Overall injury rates were similar by physiological sex, while specific diagnoses differed.",
+    "Menstrual-cycle performance effects were trivial on average, while individual and between-study variation was large.",
+    "Women masters observations suggest age and training-volume effects, while menopause-specific and intervention evidence remains insufficient.",
+    "Small transgender-women and nonbinary running studies report performance associations, while neither isolates a general training response nor tests a plan-family or dose rule."
+  ],
+  "created_on": "2026-08-16",
+  "follow_up_questions": [
+    "Which distance-specific first-completion policy should be researched first?",
+    "What recent-history anchor is sufficient for an uncertainty-aware performance plan at each distance?",
+    "Should return-to-consistency be a user-selected goal family, a confirmed training-continuity state, or both?",
+    "Which objective and athlete-reported signals can support a masters modifier without using chronological age as a proxy for capability?",
+    "Which purpose-bound construct, if any, justifies asking for age, physiological sex, menstrual, menopause, or other profile context?",
+    "Can a strength or cycling module improve outcomes for first-completion, sparse-history, or masters runners without adding excessive burden?",
+    "What reassessment cadence should be tested without presenting it as established science?",
+    "Which subgroup, false-stop, adverse-event, abandonment, and burden criteria should narrow or stop a future pilot?"
+  ],
+  "id": "evidence-adult-running-plan-population-routing-v1",
+  "intended_product_purpose": "Define the evidence boundary for population-aware adult running-plan routing without turning study cohort labels into permanent runner identities. Distinguish completion intent from performance intent, observed history missingness from confirmed interruption, and age context from automatic exclusion. Determine whether strength, cycling cross-training, physiological sex, menstrual-cycle context, menopause, or gender identity support a shared policy family, an optional purpose-bound modifier, or no current behavior. Keep all exact plan duration, frequency, progression, run-walk, long-run, intensity, recovery, restart, reassessment, and substitution values outside the evidence conclusion unless directly supported.",
+  "known_gaps": [
+    "Direct trials comparing first-completion, history-rich performance, sparse-history performance, and return-to-consistency plan families",
+    "Distance-specific completion schedules for 5 km, 10 km, half-marathon, and marathon",
+    "A validated definition of sufficient recent history or recent anchor for each population and distance",
+    "Recreational return-to-running trials that define restart dose after nonclinical interruption",
+    "A validated biological masters cutoff or universal age-based recovery adjustment",
+    "Representative recovery and plan-intervention evidence for older women",
+    "Comparative training-plan and dose-response evidence for transgender, nonbinary, and gender-diverse runners",
+    "Evidence that physiological sex, date of birth, exact age, menstrual status, menopause, or gender identity must be collected for every plan",
+    "Population-specific strength dose, cross-training substitution ratio, and impact-load equivalence",
+    "A validated running-plan reassessment cadence or trigger",
+    "Prospective evidence that the proposed routing semantics improve adherence, completion, performance, or safety"
+  ],
+  "method": {
+    "exclusion_criteria": [
+      "Children-only or animal evidence used as direct support for an adult plan route",
+      "Injury rehabilitation, pregnancy-specific prescription, clinical return-to-sport, diagnosis, or treatment",
+      "Trail, ultra, military, team-sport, supplement, or unrelated clinical evidence presented as direct recreational road-running policy",
+      "Coaching plans, vendor schedules, blogs, search snippets, or uncited conventions",
+      "Sparse records treated as proof that training stopped",
+      "Metadata-only or inaccessible findings used for effect estimates or strong conclusions"
+    ],
+    "inclusion_criteria": [
+      "Adult human running or endurance evidence relevant to population routing, training history, age, recovery, strength, cross-training, or sex-specific applicability",
+      "Systematic reviews, meta-analyses, randomized trials, prospective cohorts, or focused reviews where direct evidence was sparse",
+      "Stable PMID and DOI metadata verified in PubMed",
+      "Effect estimates used only from an indexed abstract or relevant accessible full text",
+      "Evidence gaps retained when no source established a direct automatic-plan rule"
+    ],
+    "method_limitations": [
+      "Screening and extraction were performed by agents rather than independent human reviewers.",
+      "Direct searches of SPORTDiscus, Scopus, Embase, Web of Science, and CINAHL were not performed in this run.",
+      "Some randomized trials and reviews were available only as indexed abstracts.",
+      "Beginner definitions, injury definitions, follow-up, and denominators vary substantially across studies.",
+      "Detraining evidence mostly studies known reduction or cessation in trained populations, not missing consumer records or recreational restart plans.",
+      "Masters evidence is predominantly observational, often male-dominated, and rarely evaluates plan modifications.",
+      "Dedicated searches found sparse observational performance evidence in transgender women and nonbinary race participants, but no comparative running-plan family or training-dose study.",
+      "Menopause-specific searches found health, aging, and performance reviews but no menopause-specific running-plan intervention or dose rule.",
+      "Strength and cycling evidence does not directly define population-specific plan modules, injury prevention, or substitution ratios.",
+      "The reassessment search found no directly applicable running-plan cadence study."
+    ],
+    "quality_appraisal": "Sources were appraised for study design, population definition, directness to recreational running and automatic plan generation, exposure and injury definitions, self-report and attrition, protocol specificity, training status, age and sex representation, individual variation, confounding, certainty grading, and whether a group finding could justify a product family or exact personal prescription. Complete ordered PubMed result sets, hashes, source dispositions, access levels, and the 2026-08-16 currency screen are bound in data/science/evidence/adult-running-plan-population-routing/search-manifest-adult-running-plan-population-routing-v1.json.",
+    "review_type": "rigorous",
+    "search_date": "2026-08-16",
+    "sources": [
+      {
+        "name": "PubMed - beginner running reviews",
+        "search_string": "(running[Title/Abstract] OR runners[Title/Abstract]) AND (novice[Title/Abstract] OR beginner*[Title/Abstract]) AND (systematic review[Publication Type] OR meta-analysis[Publication Type])"
+      },
+      {
+        "name": "PubMed - novice program trials",
+        "search_string": "(novice[Title/Abstract] OR beginner*[Title/Abstract] OR \"first-time\"[Title/Abstract]) AND running[Title/Abstract] AND (randomized controlled trial[Publication Type] OR controlled clinical trial[Publication Type] OR cohort[Title/Abstract])"
+      },
+      {
+        "name": "PubMed - named beginner programs",
+        "search_string": "(\"couch to 5k\"[Title/Abstract] OR \"couch-to-5k\"[Title/Abstract] OR \"start to run\"[Title/Abstract]) AND running[Title/Abstract]"
+      },
+      {
+        "name": "PubMed - detraining reviews",
+        "search_string": "(detraining[Title/Abstract] OR \"training cessation\"[Title/Abstract]) AND (athlete*[Title/Abstract] OR endurance[Title/Abstract] OR running[Title/Abstract]) AND (systematic review[Publication Type] OR meta-analysis[Publication Type] OR review[Publication Type])"
+      },
+      {
+        "name": "PubMed - masters athlete reviews",
+        "search_string": "(\"masters athlete\"[Title/Abstract] OR \"masters athletes\"[Title/Abstract] OR \"masters runner\"[Title/Abstract] OR \"masters runners\"[Title/Abstract] OR \"older endurance athlete\"[Title/Abstract] OR \"older endurance athletes\"[Title/Abstract]) AND (systematic review[Publication Type] OR meta-analysis[Publication Type] OR review[Publication Type])"
+      },
+      {
+        "name": "PubMed - masters running recovery",
+        "search_string": "(masters[Title/Abstract] OR middle-aged[Title/Abstract] OR older[Title/Abstract]) AND running[Title/Abstract] AND recovery[Title/Abstract] AND athlete*[Title/Abstract]"
+      },
+      {
+        "name": "PubMed - runner strength reviews",
+        "search_string": "(running[Title/Abstract] OR runners[Title/Abstract]) AND (\"strength training\"[Title/Abstract] OR \"resistance training\"[Title/Abstract]) AND (systematic review[Publication Type] OR meta-analysis[Publication Type])"
+      },
+      {
+        "name": "PubMed - first-marathon strength",
+        "search_string": "(\"first-time marathon\"[Title/Abstract] OR \"first-time marathoner\"[Title/Abstract] OR \"first-time marathoners\"[Title/Abstract]) AND strength[Title/Abstract]"
+      },
+      {
+        "name": "PubMed - running and cycling cross-training",
+        "search_string": "running[Title/Abstract] AND cycling[Title/Abstract] AND (\"cross-training\"[Title/Abstract] OR \"cross training\"[Title/Abstract]) AND (review[Publication Type] OR meta-analysis[Publication Type])"
+      },
+      {
+        "name": "PubMed - sex and running reviews",
+        "search_string": "(running[Title/Abstract] OR runners[Title/Abstract]) AND (\"sex differences\"[Title/Abstract] OR female[Title/Abstract] OR women[Title/Abstract]) AND (\"training response\"[Title/Abstract] OR injury[Title/Abstract] OR performance[Title/Abstract] OR recovery[Title/Abstract]) AND (systematic review[Publication Type] OR meta-analysis[Publication Type])"
+      },
+      {
+        "name": "PubMed - menstrual-cycle performance reviews",
+        "search_string": "\"menstrual cycle\"[Title/Abstract] AND \"exercise performance\"[Title/Abstract] AND (systematic review[Publication Type] OR meta-analysis[Publication Type])"
+      },
+      {
+        "name": "PubMed - women masters reviews",
+        "search_string": "(women[Title/Abstract] OR female[Title/Abstract]) AND (\"masters athlete\"[Title/Abstract] OR \"masters athletes\"[Title/Abstract] OR \"masters runner\"[Title/Abstract] OR \"masters runners\"[Title/Abstract]) AND (review[Publication Type] OR systematic review[Publication Type])"
+      },
+      {
+        "name": "PubMed - menopause and running reviews",
+        "search_string": "(running[Title/Abstract] OR runners[Title/Abstract] OR endurance[Title/Abstract]) AND (menopause[Title/Abstract] OR menopausal[Title/Abstract] OR perimenopause[Title/Abstract] OR perimenopausal[Title/Abstract]) AND (training[Title/Abstract] OR performance[Title/Abstract] OR recovery[Title/Abstract]) AND (systematic review[Publication Type] OR meta-analysis[Publication Type] OR review[Publication Type])"
+      },
+      {
+        "name": "PubMed - transgender, nonbinary, and gender-diverse running",
+        "search_string": "(running[Title/Abstract] OR runners[Title/Abstract] OR endurance[Title/Abstract]) AND (transgender[Title/Abstract] OR nonbinary[Title/Abstract] OR \"non-binary\"[Title/Abstract] OR \"gender diverse\"[Title/Abstract] OR \"gender identity\"[Title/Abstract]) AND (training[Title/Abstract] OR performance[Title/Abstract] OR recovery[Title/Abstract])"
+      },
+      {
+        "name": "PubMed - reassessment cadence",
+        "search_string": "(running[Title/Abstract] OR endurance[Title/Abstract]) AND (reassessment[Title/Abstract] OR \"monitoring frequency\"[Title/Abstract] OR \"assessment cadence\"[Title/Abstract] OR \"retest interval\"[Title/Abstract]) AND training[Title/Abstract]"
+      },
+      {
+        "name": "PubMed - currency window",
+        "search_string": "((running[Title/Abstract] OR endurance[Title/Abstract]) AND (novice[Title/Abstract] OR beginner*[Title/Abstract] OR detraining[Title/Abstract] OR retraining[Title/Abstract] OR masters[Title/Abstract] OR older[Title/Abstract] OR \"sex differences\"[Title/Abstract] OR \"menstrual cycle\"[Title/Abstract] OR \"cross-training\"[Title/Abstract] OR \"strength training\"[Title/Abstract])) AND (2026/08/09:2026/08/16[edat])"
+      },
+      {
+        "name": "PubMed - exact included PMID verification",
+        "search_string": "25951917[PMID] OR 34478518[PMID] OR 17940147[PMID] OR 29527322[PMID] OR 37681822[PMID] OR 36017396[PMID] OR 38344385[PMID] OR 17717011[PMID] OR 36078762[PMID] OR 18268815[PMID] OR 31445504[PMID] OR 35721873[PMID] OR 38627351[PMID] OR 31642726[PMID] OR 42267259[PMID] OR 33433864[PMID] OR 32661839[PMID] OR 39482845[PMID] OR 42072980[PMID] OR 40804607[PMID] OR 38143718[PMID]"
+      },
+      {
+        "name": "PubMed Central full text",
+        "search_string": "PMC4473093 OR PMC9528699 OR PMC5841490 OR PMC10487403 OR PMC9398774 OR PMC10853933 OR PMC2375571 OR PMC9517884 OR PMC9201250 OR PMC11258194 OR PMC6931177 OR PMC13243379 OR PMC8053184 OR PMC7497427 OR PMC11527835 OR PMC13116005 OR PMC12350078 OR PMC10749040"
+      }
+    ]
+  },
+  "research_question": "For adult recreational runners requesting a running plan, what evidence supports or limits separate policy handling for first-completion goals, sparse recorded history, nonclinical return to consistency, and masters or older runners; what evidence supports strength or cross-training modules; and do physiological sex, gender identity, age, or any fixed progression, recovery, reassessment, or schedule value justify a general plan family or mandatory profile input?",
+  "review_notes": [
+    "Verification: videbaek-2015 - full-text; PubMed PMID 25951917 and PubMed Central PMC4473093 relevant methods, results, discussion, and limitations; 2026-08-16.",
+    "Verification: fredette-2022 - full-text; PubMed PMID 34478518 and PubMed Central PMC9528699 relevant methods, results, discussion, and limitations; 2026-08-16.",
+    "Verification: buist-2008 - abstract; PubMed PMID 17940147 indexed abstract and DOI metadata; 2026-08-16.",
+    "Verification: ramskov-2018 - full-text; PubMed PMID 29527322 and PubMed Central PMC5841490 relevant methods, results, discussion, and limitations; 2026-08-16.",
+    "Verification: relph-2023 - full-text; PubMed PMID 37681822 and PubMed Central PMC10487403 relevant methods, results, discussion, and limitations; 2026-08-16.",
+    "Verification: zheng-2022 - full-text; PubMed PMID 36017396 and PubMed Central PMC9398774 relevant methods, results, discussion, and limitations; 2026-08-16.",
+    "Verification: barbieri-2023 - full-text; PubMed PMID 38344385 and PubMed Central PMC10853933 relevant methods, results, discussion, and limitations; 2026-08-16.",
+    "Verification: tanaka-2008 - full-text; PubMed PMID 17717011 and PubMed Central PMC2375571 relevant results and physiological interpretation; 2026-08-16.",
+    "Verification: burtscher-2022 - full-text; PubMed PMID 36078762 and PubMed Central PMC9517884 relevant methods, results, discussion, and limitations; 2026-08-16.",
+    "Verification: fell-williams-2008 - abstract; PubMed PMID 18268815 indexed abstract and DOI metadata; 2026-08-16.",
+    "Verification: hayashi-2019 - abstract; PubMed PMID 31445504 indexed abstract and DOI metadata; 2026-08-16.",
+    "Verification: riazati-2022 - full-text; PubMed PMID 35721873 and PubMed Central PMC9201250 relevant methods, results, discussion, and limitations; 2026-08-16.",
+    "Verification: llanos-lagos-2024 - full-text; PubMed PMID 38627351 and PubMed Central PMC11258194 relevant methods, results, certainty, and limitations; 2026-08-16.",
+    "Verification: toresdahl-2020 - full-text; PubMed PMID 31642726 and PubMed Central PMC6931177 relevant methods, results, discussion, and limitations; 2026-08-16.",
+    "Verification: menges-2026 - full-text; PubMed PMID 42267259 and PubMed Central PMC13243379 relevant methods, results, risk of bias, and limitations; 2026-08-16.",
+    "Verification: hollander-2021 - full-text; PubMed PMID 33433864 and PubMed Central PMC8053184 relevant methods, results, diagnosis-specific findings, and limitations; 2026-08-16.",
+    "Verification: mcnulty-2020 - full-text; PubMed PMID 32661839 and PubMed Central PMC7497427 relevant methods, results, quality appraisal, and limitations; 2026-08-16.",
+    "Verification: daly-2024 - full-text; PubMed PMID 39482845 and PubMed Central PMC11527835 relevant evidence-gap and female-masters discussion; 2026-08-16.",
+    "Verification: vangsgaard-2026 - full-text; PubMed PMID 42072980 and PubMed Central PMC13116005 relevant methods, results, menopause discussion, and limitations; 2026-08-16.",
+    "Verification: harper-2025 - full-text; PubMed PMID 40804607 and PubMed Central PMC12350078 relevant methods, training-volume analysis, results, and limitations; 2026-08-16.",
+    "Verification: armstrong-2023 - full-text; PubMed PMID 38143718 and PubMed Central PMC10749040 relevant methods, performance analysis, interpretation, and limitations; 2026-08-16.",
+    "Supplemental search screening: the menopause-and-running query recovered the included vangsgaard-2026 review plus health, aging, and general-exercise sources; none tested a menopause-specific running-plan family or dose rule. The gender-diverse-running query recovered harper-2025 and armstrong-2023 plus sport-eligibility, general-fitness, and non-running sources; none compared running-plan prescriptions. PubMed and PubMed Central; 2026-08-16.",
+    "No reviewed source validated a universal beginner schedule, restart percentage, masters cutoff, recovery delay, strength frequency, cross-training substitution ratio, sex- or gender-based plan family, or reassessment cadence."
+  ],
+  "schema_version": 1,
+  "scope": {
+    "comparator": [
+      "One shared performance policy reused across all population states",
+      "A permanent beginner, recreational, serious, professional, or masters identity",
+      "Sparse records interpreted as proven detraining",
+      "Chronological age used as an automatic exclusion or fixed recovery delay",
+      "Physiological sex or gender identity used as a general plan-family selector",
+      "Fixed progression, restart, run-walk, long-run, recovery, or reassessment rules",
+      "Strength or cross-training treated as a universal injury-prevention or one-to-one substitution rule"
+    ],
+    "intervention_or_exposure": [
+      "Beginner and named completion programs",
+      "Weekly distance, duration, frequency, intensity, and progression",
+      "Training reduction, cessation, detraining, and return to training",
+      "Age-associated endurance performance and post-exercise recovery",
+      "Strength training as an adjunct to running",
+      "Cycling as cross-training or partial running substitution",
+      "Physiological-sex-specific injury and exercise-performance evidence",
+      "Menstrual-cycle and menopause context",
+      "Reassessment or retest cadence"
+    ],
+    "outcomes": [
+      "Running-related injury incidence and program completion",
+      "Endurance capacity, performance, and training response",
+      "Recovery kinetics and inter-individual variation",
+      "Evidence applicability to automatic plan routing",
+      "Support for separate policy families versus dynamic modifiers",
+      "Profile-field necessity, missingness, and claim limits",
+      "Exact prescription values that remain unsupported"
+    ],
+    "population": [
+      "Adults aged 18 years or older requesting recreational running plans",
+      "First-time or first-goal-distance completion runners",
+      "Runners with sparse or missing recent Praxys history",
+      "Nonclinical runners returning after a self-reported interruption",
+      "Runners selecting a return-to-consistency goal",
+      "Masters, middle-aged, and older recreational runners",
+      "Women, men, and people whose physiological sex or gender is unknown or undisclosed"
+    ]
+  },
+  "supersedes": [],
+  "title": "Adult running-plan population routing",
+  "topic": "adult-running-plan-population-routing",
+  "version": 1
+}
+```
+
+</details>
