@@ -3,9 +3,9 @@
     "road-marathon-plan-generation-policy-v1",
     "shared dynamic training-pattern and confirmed event snapshots"
   ],
-  "contract_digest": "sha256:e513e05d5244b6fdd06e1ba2dbc27131cd8390dbaaf98cc15b6e68908200eafb",
+  "contract_digest": "sha256:892039473e553f1bb6c3539357623695a8f09423acbd6772abf2f5bc7e9da850",
   "decision_id": "sdr-road-marathon-plan-generation-policy-v1",
-  "decision_status": "draft",
+  "decision_status": "accepted",
   "decision_version": 1,
   "evidence_claim_ids": [
     "eligibility.recent-history-anchor-without-universal-threshold",

@@ -2,7 +2,7 @@ schema_version: 1
 id: sdr-road-marathon-plan-generation-policy-v1
 version: 1
 title: "History-anchored adult outdoor road-marathon performance policy"
-status: draft
+status: accepted
 approval_mode: artifact
 decision_date: 2026-08-15
 owners:

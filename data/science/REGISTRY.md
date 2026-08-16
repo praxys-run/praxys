@@ -33,6 +33,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 | [sdr-preplan-baseline-policy-v1](decisions/sdr-preplan-baseline-policy-v1.yaml) — Use qualified 5 km history before offering an opt-in same-protocol baseline | 1 | preplan-baseline-policy-v1 | 2026-08-10 |
 | [sdr-road-10k-plan-generation-policy-v1](decisions/sdr-road-10k-plan-generation-policy-v1.yaml) — History-anchored adult outdoor road 10 km performance policy | 1 | road-10k-plan-generation-policy-v1 | 2026-08-14 |
 | [sdr-road-half-marathon-plan-generation-policy-v1](decisions/sdr-road-half-marathon-plan-generation-policy-v1.yaml) — History-anchored adult outdoor road half-marathon performance policy | 1 | road-half-marathon-plan-generation-policy-v1 | 2026-08-14 |
+| [sdr-road-marathon-plan-generation-policy-v1](decisions/sdr-road-marathon-plan-generation-policy-v1.yaml) — History-anchored adult outdoor road-marathon performance policy | 1 | road-marathon-plan-generation-policy-v1 | 2026-08-15 |
 
 ## Pending
 
@@ -51,7 +52,6 @@ Evidence reviews record what the literature supports. Science Decision Records (
 | Record | Version | Topic/model | Reviewed/decided |
 |---|---:|---|---|
 | [sdr-adaptive-plan-feasibility-and-adjustment-v1](decisions/sdr-adaptive-plan-feasibility-and-adjustment-v1.yaml) — Bound adaptive-plan feasibility, adjustment, and outcome interpretation | 1 | adaptive-plan-policy-v1 | 2026-08-08 |
-| [sdr-road-marathon-plan-generation-policy-v1](decisions/sdr-road-marathon-plan-generation-policy-v1.yaml) — History-anchored adult outdoor road-marathon performance policy | 1 | road-marathon-plan-generation-policy-v1 | 2026-08-15 |
 
 ## Superseded
 

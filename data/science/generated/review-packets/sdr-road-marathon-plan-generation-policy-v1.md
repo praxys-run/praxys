@@ -3,13 +3,13 @@
 > Start with the decision sheet. The audit appendix preserves every code-consumed field, but it is not the reviewer's primary task.
 
 - **Record:** `sdr-road-marathon-plan-generation-policy-v1`
-- **Lifecycle:** `draft`
+- **Lifecycle:** `accepted`
 - **Model version:** `road-marathon-plan-generation-policy-v1`
 - **Runtime state:** `inactive`
 - **Decision digest:** `sha256:4373ebc76a216f03b0fdafcadd021fa8223299a2b56887e6f9452c7e1fb4eb15`
-- **Contract digest:** `sha256:e513e05d5244b6fdd06e1ba2dbc27131cd8390dbaaf98cc15b6e68908200eafb`
+- **Contract digest:** `sha256:892039473e553f1bb6c3539357623695a8f09423acbd6772abf2f5bc7e9da850`
 - **Required decision role:** `decision_approver`
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-08-16` ([source](https://github.com/praxys-run/praxys/pull/711#issuecomment-5306186620))
 - **Required activation role:** `implementation_reviewer`
 - **Implementation approval:** _Pending_
 
@@ -202,7 +202,7 @@ A decision approval bound to the displayed digest attests:
 
 > I approve the narrow currently-capable adult outdoor road-marathon performance scope, bounded evidence use, hard suggestion-only and athlete-control boundaries. Marathon-specific scientific findings are candidate context rather than mandatory personal rules; mostly-low organization is not required. The shared actionable recommendation, athlete-feedback, reassessment, and outcome loop remains owned by sdr-adaptive-plan-feasibility-and-adjustment-v1 and must be separately accepted and implementation-approved. Missing fueling, hydration, or environmental context degrades only the dependent module rather than blocking independent plan modules. I agree that baseline and history qualification, all dose and race-specific work, taper and recovery, fueling, hydration and environment numbers, and secondary rollout choices remain deferred. This approval would not approve the shared adaptive-plan policy, implementation, runtime activation, a plan length, or any unresolved value.
 
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-08-16` ([source](https://github.com/praxys-run/praxys/pull/711#issuecomment-5306186620))
 
 ### Decision approval
 
@@ -1384,9 +1384,9 @@ AI cannot repair missing evidence, confirm athlete inputs, broaden eligibility, 
     "road-marathon-plan-generation-policy-v1",
     "shared dynamic training-pattern and confirmed event snapshots"
   ],
-  "contract_digest": "sha256:e513e05d5244b6fdd06e1ba2dbc27131cd8390dbaaf98cc15b6e68908200eafb",
+  "contract_digest": "sha256:892039473e553f1bb6c3539357623695a8f09423acbd6772abf2f5bc7e9da850",
   "decision_id": "sdr-road-marathon-plan-generation-policy-v1",
-  "decision_status": "draft",
+  "decision_status": "accepted",
   "decision_version": 1,
   "evidence_claim_ids": [
     "eligibility.recent-history-anchor-without-universal-threshold",
