@@ -1231,7 +1231,7 @@ def test_road_marathon_policy_has_accepted_evidence_and_draft_decision() -> None
         "narrow-modular-scope",
         "evidence-use",
         "hard-boundaries",
-        "adaptive-evidence-informed-loop",
+        "shared-adaptive-policy-dependency",
     }
     assert {
         item_id
@@ -1321,24 +1321,14 @@ def test_road_marathon_policy_has_accepted_evidence_and_draft_decision() -> None
         "missing_context_disables_or_degrades_dependent_module_only"
     ] is True
     assert modular["missing_context_may_block_independent_modules"] is False
-    assert modular["supported_route_must_take_actionable_position"] is True
-    assert modular[
-        "disclaimer_only_output_allowed_for_supported_safe_route"
-    ] is False
-    assert modular["scientific_evidence_roles"] == [
-        "bound_candidate_strategies",
-        "inform_initial_prior",
-        "explain_athlete_specific_recommendation",
-        "define_expected_and_contradictory_signals",
-    ]
-    assert modular["feedback_loop_stages"] == [
-        "sense_current_state",
-        "select_candidate_strategy",
-        "propose_reviewable_action",
-        "athlete_review_edit_reject_or_adopt",
-        "observe_completion_response_and_outcome",
-        "reassess_next_recommendation",
-    ]
+
+    activation = parameters["road_marathon_activation_and_dependency"].value
+    assert activation["shared_adaptive_policy_dependency"] == {
+        "sdr_id": "sdr-adaptive-plan-feasibility-and-adjustment-v1",
+        "required_status_before_activation": "accepted",
+        "implementation_approval_required_before_activation": True,
+        "shared_recommendation_and_feedback_loop_defined_here": False,
+    }
 
     baseline = parameters[
         "road_marathon_direct_baseline_hierarchy"
@@ -1384,10 +1374,10 @@ def test_road_marathon_policy_has_accepted_evidence_and_draft_decision() -> None
     assert intensity[
         "mostly_low_organization_is_candidate_scientific_prior"
     ] is True
-    assert intensity["individualized_training_organization_required"] is True
-    assert intensity["organization_must_be_reassessed_from_feedback"] is True
-    assert intensity["exact_strategy_selection_algorithm"] == "not_accepted"
-    assert intensity["exact_feedback_adjustment_algorithm"] == "not_accepted"
+    assert intensity[
+        "training_organization_selected_by_shared_adaptive_policy"
+    ] is True
+    assert intensity["distance_policy_supplies_candidate_context_only"] is True
     assert intensity["marathon_pace_or_race_specific_dose"] == (
         "not_accepted"
     )
@@ -1423,26 +1413,16 @@ def test_road_marathon_policy_has_accepted_evidence_and_draft_decision() -> None
         "degraded_modules": ["environment_altitude"],
         "goal_remains_recorded": True,
     }
-    assert outcomes[
-        "supported_safe_route_must_return_actionable_recommendation"
-    ] is True
-    assert outcomes[
-        "disclaimer_only_response_allowed_for_supported_safe_route"
-    ] is False
-    assert outcomes[
-        "no_plan_or_limited_outcome_must_include_actionable_resolution_path"
-    ] is True
 
     reassessment = parameters[
         "road_marathon_reassessment_and_outcome_policy"
     ].value
-    assert reassessment["feedback_loop_required"] is True
     assert reassessment[
-        "next_recommendation_must_record_response_to_feedback"
+        "feedback_update_algorithm_owned_by_shared_adaptive_policy"
     ] is True
-    assert reassessment[
-        "exact_feedback_weighting_and_update_algorithm"
-    ] == "not_accepted"
+    assert "completed_sessions_and_adherence" in reassessment[
+        "marathon_observations_forwarded_to_shared_adaptive_policy"
+    ]
     assert reassessment["causal_plan_effect_claim"] == "prohibited"
     assert reassessment["personal_responder_classification"] == "prohibited"
     assert reassessment["absence_of_improvement_proves_nonresponse"] is False
@@ -1450,7 +1430,9 @@ def test_road_marathon_policy_has_accepted_evidence_and_draft_decision() -> None
     validation = parameters[
         "road_marathon_validation_privacy_and_open_decisions"
     ].value
-    assert validation["unreviewed_online_learning_allowed"] is False
+    assert validation[
+        "shared_adaptive_policy_contract_required_before_activation"
+    ] is True
 
     published_volume = parameters[
         "road_marathon_published_volume_and_long_run_findings"

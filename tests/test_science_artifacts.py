@@ -640,7 +640,12 @@ def test_marathon_packet_contains_exact_draft_inactive_contract() -> None:
     ]["mostly_low_organization_is_candidate_scientific_prior"] is True
     assert contract.parameter_values[
         "road_marathon_intensity_and_race_specific_policy"
-    ]["exact_feedback_adjustment_algorithm"] == "not_accepted"
+    ]["training_organization_selected_by_shared_adaptive_policy"] is True
+    assert contract.parameter_values[
+        "road_marathon_activation_and_dependency"
+    ]["shared_adaptive_policy_dependency"]["sdr_id"] == (
+        "sdr-adaptive-plan-feasibility-and-adjustment-v1"
+    )
     assert contract.parameter_values[
         "road_marathon_taper_and_recovery_policy"
     ]["target_event_elapsed_time_included_in_training_minutes"] == (
@@ -671,10 +676,10 @@ def test_marathon_packet_contains_exact_draft_inactive_contract() -> None:
     ]["exact_post_marathon_outcome_window"] == "not_accepted"
     assert contract.parameter_values[
         "road_marathon_reassessment_and_outcome_policy"
-    ]["feedback_loop_required"] is True
+    ]["feedback_update_algorithm_owned_by_shared_adaptive_policy"] is True
     assert contract.parameter_values[
-        "road_marathon_reassessment_and_outcome_policy"
-    ]["exact_feedback_weighting_and_update_algorithm"] == "not_accepted"
+        "road_marathon_validation_privacy_and_open_decisions"
+    ]["shared_adaptive_policy_contract_required_before_activation"] is True
     assert contract.parameter_values[
         "road_marathon_validation_privacy_and_open_decisions"
     ]["runtime_activation_criteria"] == "not_accepted"
@@ -685,15 +690,6 @@ def test_marathon_packet_contains_exact_draft_inactive_contract() -> None:
     assert typed_outcomes["environment_module_limited"][
         "plan_returned"
     ] is True
-    suggestion_state = contract.parameter_values[
-        "road_marathon_typed_outcomes_and_suggestion_only_state"
-    ]
-    assert suggestion_state[
-        "supported_safe_route_must_return_actionable_recommendation"
-    ] is True
-    assert suggestion_state[
-        "disclaimer_only_response_allowed_for_supported_safe_route"
-    ] is False
 
     decision = registry.decisions[decision_id]
     assert decision.decision_review is not None
@@ -705,7 +701,7 @@ def test_marathon_packet_contains_exact_draft_inactive_contract() -> None:
         "narrow-modular-scope",
         "evidence-use",
         "hard-boundaries",
-        "adaptive-evidence-informed-loop",
+        "shared-adaptive-policy-dependency",
     ]
     assert [
         item.id
@@ -735,9 +731,9 @@ def test_marathon_packet_contains_exact_draft_inactive_contract() -> None:
     assert "goal_recorded_plan_policy_unavailable" in packet
     assert "fueling_module_limited" in packet
     assert "environment_module_limited" in packet
-    assert "disclaimer-only output" in packet
-    assert "candidate strategies" in packet
-    assert "feedback loop" in packet
+    assert "candidate context" in packet
+    assert "sdr-adaptive-plan-feasibility-and-adjustment-v1" in packet
+    assert "shared managed-plan policy" in packet
     assert "Review this packet, not the raw YAML" in expected[
         evidence_packet_path
     ]

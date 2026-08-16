@@ -3,7 +3,7 @@
     "road-marathon-plan-generation-policy-v1",
     "shared dynamic training-pattern and confirmed event snapshots"
   ],
-  "contract_digest": "sha256:8314b326744c7a3c7e87974e28ff818b6557c1cf31ac1576a100b8413510de8e",
+  "contract_digest": "sha256:e513e05d5244b6fdd06e1ba2dbc27131cd8390dbaaf98cc15b6e68908200eafb",
   "decision_id": "sdr-road-marathon-plan-generation-policy-v1",
   "decision_status": "draft",
   "decision_version": 1,
@@ -65,6 +65,12 @@
         "generator_api_web_miniapp_plugin_and_mcp_activation_in_this_record": false,
         "implementation_approval_artifact_required": true,
         "runtime_state": "inactive",
+        "shared_adaptive_policy_dependency": {
+          "implementation_approval_required_before_activation": true,
+          "required_status_before_activation": "accepted",
+          "sdr_id": "sdr-adaptive-plan-feasibility-and-adjustment-v1",
+          "shared_recommendation_and_feedback_loop_defined_here": false
+        },
         "shared_policy_dependency": {
           "required_status_before_activation": "accepted",
           "sdr_id": "sdr-plan-generation-eligibility-safety-v1"
@@ -252,14 +258,12 @@
       ],
       "value": {
         "activity_avg_power_allowed": false,
+        "distance_policy_supplies_candidate_context_only": true,
         "durability_used_as_descriptive_context_only": true,
-        "exact_feedback_adjustment_algorithm": "not_accepted",
         "exact_hours_or_days_between_quality_sessions": "not_accepted",
         "exact_low_intensity_fraction": "not_accepted",
         "exact_session_mix": "not_accepted",
-        "exact_strategy_selection_algorithm": "not_accepted",
         "exact_workout_templates": "not_accepted",
-        "individualized_training_organization_required": true,
         "intensity_source_priority": [
           "activity_splits",
           "activity_samples"
@@ -269,19 +273,11 @@
         "missed_quality_makeup_allowed": false,
         "mostly_low_intensity_organization_required": false,
         "mostly_low_organization_is_candidate_scientific_prior": true,
-        "organization_must_be_reassessed_from_feedback": true,
-        "organization_selection_inputs": [
-          "athlete_confirmed_recent_training_pattern",
-          "current_capability_and_load_pattern",
-          "goal_intent_and_event_context",
-          "availability_constraints_and_preferences",
-          "applicable_scientific_theories_and_findings",
-          "observed_response_and_athlete_feedback"
-        ],
         "race_specific_work_may_be_a_future_module": true,
         "scientific_pattern_is_permanent_runner_identity": false,
         "selected_distribution_model": "not_accepted",
-        "target_gap_may_add_quality": false
+        "target_gap_may_add_quality": false,
+        "training_organization_selected_by_shared_adaptive_policy": true
       }
     },
     "road_marathon_long_run_and_durability_policy": {
@@ -312,21 +308,12 @@
         "road-marathon.recovery-subgroup-outcome-rules-unvalidated"
       ],
       "value": {
-        "disclaimer_only_output_allowed_for_supported_safe_route": false,
         "each_module_must_declare": [
           "required_inputs",
           "missingness_effect",
           "evidence_or_guardrail_provenance",
           "athlete_editability",
           "typed_outcome"
-        ],
-        "feedback_loop_stages": [
-          "sense_current_state",
-          "select_candidate_strategy",
-          "propose_reviewable_action",
-          "athlete_review_edit_reject_or_adopt",
-          "observe_completion_response_and_outcome",
-          "reassess_next_recommendation"
         ],
         "missing_context_disables_or_degrades_dependent_module_only": true,
         "missing_context_may_block_independent_modules": false,
@@ -341,21 +328,6 @@
           "reassessment_outcomes"
         ],
         "plan_length_selected": false,
-        "recommendation_must_declare": [
-          "next_action",
-          "athlete_specific_rationale",
-          "scientific_basis_and_applicability",
-          "expected_response_or_signal",
-          "uncertainty",
-          "feedback_needed_for_reassessment"
-        ],
-        "scientific_evidence_roles": [
-          "bound_candidate_strategies",
-          "inform_initial_prior",
-          "explain_athlete_specific_recommendation",
-          "define_expected_and_contradictory_signals"
-        ],
-        "supported_route_must_take_actionable_position": true,
         "unresolved_dependent_module_preserves_goal_record": true,
         "unresolved_module_cannot_be_filled_by_another_distance_policy": true
       }
@@ -625,9 +597,9 @@
           "no_material_protocol_change"
         ],
         "exact_calendar_reassessment_cadence": "not_accepted",
-        "exact_feedback_weighting_and_update_algorithm": "not_accepted",
         "exact_post_marathon_outcome_window": "not_accepted",
-        "feedback_inputs": [
+        "feedback_update_algorithm_owned_by_shared_adaptive_policy": true,
+        "marathon_observations_forwarded_to_shared_adaptive_policy": [
           "completed_sessions_and_adherence",
           "athlete_edits_rejections_and_preferences",
           "perceived_effort_and_reported_response",
@@ -635,9 +607,7 @@
           "split_or_sample_level_training_response",
           "comparable_event_or_field_outcomes"
         ],
-        "feedback_loop_required": true,
         "meaningful_change_threshold": "not_accepted",
-        "next_recommendation_must_record_response_to_feedback": true,
         "outcome_comparability_algorithm": "not_accepted",
         "personal_responder_classification": "prohibited",
         "race_priority_and_conflict_resolution_rule": "not_accepted",
@@ -645,9 +615,6 @@
           "new_or_changed_confirmed_event",
           "new_qualified_marathon_result",
           "material_training_pattern_change",
-          "completed_training_and_adherence_change",
-          "athlete_edit_rejection_or_reported_response",
-          "recovery_or_symptom_change",
           "completed_marathon_or_maximal_event",
           "changed_availability_or_constraint",
           "changed_fueling_hydration_or_environment_context",
@@ -752,7 +719,6 @@
           "explicitly_consent_to_adopt"
         ],
         "current_runtime_outcome": "plan_policy_inactive",
-        "disclaimer_only_response_allowed_for_supported_safe_route": false,
         "future_generated_state_after_activation": "proposed",
         "generator_may_not": [
           "adopt_or_deliver_without_consent",
@@ -762,7 +728,6 @@
           "schedule_missed_workout_makeup",
           "invent_fueling_hydration_or_environment_context"
         ],
-        "no_plan_or_limited_outcome_must_include_actionable_resolution_path": true,
         "outcomes": {
           "capability_confirmation_required": {
             "goal_remains_recorded": true,
@@ -807,16 +772,7 @@
             "goal_remains_recorded": true,
             "plan_returned": false
           }
-        },
-        "recommendation_must_include": [
-          "next_action",
-          "athlete_specific_rationale",
-          "scientific_basis_and_applicability",
-          "expected_response_or_signal",
-          "uncertainty",
-          "feedback_request"
-        ],
-        "supported_safe_route_must_return_actionable_recommendation": true
+        }
       }
     },
     "road_marathon_validation_privacy_and_open_decisions": {
@@ -833,13 +789,10 @@
         "deterministic_replay_mismatch_tolerance": 0,
         "dry_run_metrics_required": [
           "eligibility_and_each_typed_outcome_rate",
-          "actionable_recommendation_coverage_for_supported_safe_routes",
-          "recommendation_reasoning_expected_signal_and_feedback_completeness",
           "missingness_and_source_confirmation",
           "event_conflict_and_race_density",
           "subgroup_exclusion_and_edit_gaps",
           "proposal_edit_rejection_and_adoption_burden",
-          "feedback_to_next_proposal_traceability",
           "fueling_hydration_and_environment_context_availability",
           "quality_event_and_long_run_stacking",
           "deterministic_replay"
@@ -865,7 +818,6 @@
         "prospective_metrics_required": [
           "adoption_and_edit_distance",
           "adherence_and_burden",
-          "recommendation_change_after_athlete_feedback",
           "symptom_stops_and_adverse_events",
           "fueling_and_gastrointestinal_tolerance",
           "hydration_issues",
@@ -883,19 +835,16 @@
           "unresolved_parameter_versions",
           "typed_outcome",
           "proposal_hash",
-          "recommendation_hypothesis_and_expected_signal",
-          "athlete_feedback_and_observed_outcome",
-          "reassessment_reason",
-          "change_from_prior_proposal"
+          "shared_adaptive_policy_version_and_contract_digest"
         ],
         "runtime_activation_criteria": "not_accepted",
+        "shared_adaptive_policy_contract_required_before_activation": true,
         "subgroup_dose_modifiers": "not_accepted",
-        "target_risk_thresholds": "not_accepted",
-        "unreviewed_online_learning_allowed": false
+        "target_risk_thresholds": "not_accepted"
       }
     }
   },
   "runtime_state": "inactive",
   "schema_version": 1,
-  "source_decision_digest": "sha256:ffb7864995d0825713667c816f5d4c1255695fdf579857ca79c24e91c63c50f0"
+  "source_decision_digest": "sha256:4373ebc76a216f03b0fdafcadd021fa8223299a2b56887e6f9452c7e1fb4eb15"
 }
