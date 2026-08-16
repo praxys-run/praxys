@@ -7,12 +7,13 @@ research_question: >
   adjustment, and what limits apply to fixed progression, workload-ratio, and
   missed-session rules?
 topic: adaptive-training-load
-status: draft
+status: accepted
+approval_mode: artifact
 authors:
   - agent:github-copilot
 human_reviewers: []
 created_on: 2026-08-08
-reviewed_on:
+reviewed_on: 2026-08-16
 intended_product_purpose: >
   Bound when Praxys may use training structure, HRV, subjective monitoring, and
   repeated execution evidence to propose a change without turning common
@@ -27,6 +28,7 @@ scope:
     - HRV-guided endurance training
     - Graded running progression
     - Acute-to-chronic workload ratio interpretation
+    - Missed-session rescheduling and catch-up rules
   comparator:
     - Predefined endurance training
     - Alternative intensity distributions
@@ -39,7 +41,7 @@ scope:
     - Validity of automatic adjustment rules
 method:
   review_type: rigorous
-  search_date: 2026-08-08
+  search_date: 2026-08-16
   sources:
     - name: PubMed
       search_string: >
@@ -48,6 +50,22 @@ method:
         "heart rate variability guided"[Title/Abstract] OR
         "acute chronic workload"[Title/Abstract] OR "10% rule"[Title/Abstract])
         AND adult[MeSH Terms]
+    - name: PubMed currency window
+      search_string: >
+        ((running[Title/Abstract] OR endurance[Title/Abstract]) AND
+        (periodization[Title/Abstract] OR progression[Title/Abstract] OR
+        "heart rate variability guided"[Title/Abstract] OR
+        "acute chronic workload"[Title/Abstract] OR "10% rule"[Title/Abstract]))
+        AND (2026/08/08:2026/08/16[edat])
+    - name: PubMed missed-session rule search
+      search_string: >
+        ((running[Title/Abstract] OR endurance[Title/Abstract]) AND
+        (missed[Title/Abstract] AND
+        (workout*[Title/Abstract] OR "training session"[Title/Abstract] OR
+        "training sessions"[Title/Abstract])) AND
+        (doubl*[Title/Abstract] OR compress*[Title/Abstract] OR
+        replac*[Title/Abstract] OR reschedul*[Title/Abstract] OR
+        "catch-up"[Title/Abstract] OR "make-up"[Title/Abstract]))
     - name: PubMed exact identifier verification
       search_string: >
         34489178[PMID] OR 23752040[PMID] OR 17940147[PMID] OR 32502973[PMID]
@@ -60,6 +78,7 @@ method:
     - Adult endurance-training systematic reviews, meta-analyses, or controlled studies
     - Novice-running randomized progression studies
     - Methodological analysis of workload-derived decisions
+    - Studies directly evaluating how a missed running or endurance-training session should be rescheduled, compressed, doubled, or replaced
     - Stable DOI or PMID metadata and an abstract
   exclusion_criteria:
     - Team-sport associations presented as direct running prescriptions
@@ -70,9 +89,12 @@ method:
     Claims were appraised for randomization, directness to recreational
     runners, sample size, monitoring protocol, action-rule transparency,
     causal identification, and whether performance and safety outcomes were
-    distinguished.
+    distinguished. The complete PubMed result sets, digests, and inclusion
+    decisions are bound in
+    data/science/evidence/adaptive-training-load/search-manifest-adaptive-training-load-v1.json.
   method_limitations:
     - Titles and abstracts were manually screened against the criteria; screening and appraisal were not duplicated by independent reviewers.
+    - The missed-session search was limited to PubMed title and abstract terms and found no eligible training-adjustment study.
     - Full text was not accessed for the four included sources, so claims are restricted to abstract-supported results and limitations.
     - Periodization evidence is heterogeneous and not exhaustively reviewed here.
     - HRV studies use different devices, protocols, and decision algorithms.
@@ -176,7 +198,7 @@ citations:
   - id: ducking-2021
     title: "Monitoring and adapting endurance training on the basis of heart rate variability monitored by wearable technologies: A systematic review with meta-analysis"
     authors:
-      - P. Ducking
+      - P. Düking
       - C. Zinner
       - K. Trabelsi
       - J. L. Reed
@@ -228,4 +250,5 @@ review_notes:
   - "Verification: ducking-2021 - abstract; PubMed PMID 34489178 and Crossref metadata; 2026-08-08."
   - "Verification: buist-2008 - abstract; PubMed PMID 17940147 and Crossref metadata; 2026-08-08."
   - "Verification: impellizzeri-2020 - abstract; PubMed PMID 32502973 and Crossref metadata; 2026-08-08."
-  - No source was found that validates automatic catch-up, doubling, or proportional replacement after a missed session.
+  - "Currency check: a title/abstract query without the Adult MeSH indexing requirement found PMIDs 42596196, 42577566, 42572667, and 42568394 newly indexed from 2026-08-08 through 2026-08-16; physics, cirrhosis, knee-osteoarthritis review, and oncology scope respectively excluded them from the adaptive action-rule evidence."
+  - "Missed-session rule search: PMID 30380356 was excluded because it evaluated yeast beta-glucan and cold/flu symptom days after intense exercise, not rescheduling, compression, doubling, or replacement of a missed training session; no eligible source validated an automatic catch-up rule."

@@ -1,9 +1,10 @@
 schema_version: 1
 id: sdr-adaptive-plan-feasibility-and-adjustment-v1
 version: 1
-title: "Bound adaptive-plan feasibility, adjustment, and outcome interpretation"
-status: draft
-decision_date: 2026-08-08
+title: "Require actionable, feedback-aware recommendations across managed plans"
+status: accepted
+approval_mode: artifact
+decision_date: 2026-08-16
 owners:
   - team:praxys
 human_reviewers: []
@@ -17,6 +18,7 @@ evidence_review_ids:
 evidence_claim_ids:
   - feasibility.group-evidence-not-personal-probability
   - feasibility.error-aware-response-classification
+  - feasibility.no-permanent-responder-label
   - feasibility.calibration-required
   - load.structured-training-bounded-benefit
   - load.hrv-guidance-limited
@@ -26,244 +28,1018 @@ evidence_claim_ids:
   - detraining.reduced-dose-maintenance
   - detraining.partial-not-complete-cessation
   - field-test.protocol-validity-reliability-sensitivity
+  - field-test.running-reliability-and-sensitivity-underreported
   - field-test.vo2-estimate-not-direct-performance
   - field-test.critical-speed-protocol-dependent
   - outcome.subjective-monitoring-adds-signal
   - outcome.single-indicator-insufficient
   - outcome.observations-not-causal-explanation
 accepted_interpretation: >
-  If this draft is accepted, Praxys may provide a qualitative, uncertainty-aware
-  goal-feasibility assessment and may propose reversible plan changes when
-  multiple observations indicate that the current plan assumptions no longer
-  fit. Named categories, scopes, escalation rules, and safety stops are Praxys
-  guardrails rather than published biological thresholds. A proposal must show
-  its evidence, unknowns, expected trade-offs, and no-change alternative; it
-  remains suggestion-only until the athlete approves it. Individual numerical
-  success probabilities, universal workload zones, automatic missed-session
-  catch-up, fixed detraining loss, and causal post-plan explanations are outside
-  the evidence. Plan completion, execution, goal outcome, and causal
-  interpretation remain separate. Outcome evidence should use a comparable
-  protocol and exceed protocol-specific measurement noise, while post-plan
-  explanations remain ranked hypotheses with contrary evidence and unknowns.
+  If accepted by a digest-bound human decision approver, this inactive shared
+  policy would require every Praxys-owned managed-plan route to take a
+  concrete, reviewable position instead of returning only caveats, disclaimers,
+  or data summaries. When an accepted route is safe and supported, the result
+  must state the next action, why it fits the athlete's current evidence,
+  which accepted science constrains the recommendation, the expected signal,
+  material uncertainty, and what feedback will inform reassessment. A justified
+  no-change decision is an actionable position when it explains what remains
+  supported and what to observe next. Clarification, insufficient-evidence,
+  unsupported-route, and safety-stop results must also provide a concrete next
+  step without inventing a success-shaped plan. Distance and intent policies
+  supply accepted candidate strategies, constraints, and task-specific
+  evidence; this shared policy owns recommendation, athlete review, observation,
+  feedback, reassessment, and outcome semantics so each distance does not build
+  a second adaptive engine. Scientific findings and population evidence remain
+  bounded candidate context and qualitative initial priors, not universal
+  personal prescriptions, calibrated probabilities, or permanent runner
+  identities. Proposals remain suggestion-first, immutable, source-labelled,
+  editable, rejectable, and non-canonical until the athlete adopts an exact
+  version. Later training, athlete feedback, recovery or symptom reports, and
+  comparable outcomes may update the evidence state and trigger a new
+  versioned reassessment; they do not prove individual causality or authorize
+  runtime self-modification. Personal probabilities, permanent responder
+  labels, automatic missed-session catch-up, ACWR prescription zones, fixed
+  detraining loss, activity-average-power intensity inference, medical
+  diagnosis, unreviewed online learning, and hidden sensitive inference remain
+  prohibited. Exact strategy selection, weighting, thresholds, triggers,
+  distance-specific dose and schedule, autonomy, pilot criteria,
+  implementation, and runtime activation remain explicitly not accepted.
+decision_review:
+  reviewer_task: >
+    Decide whether the five proposed shared product boundaries are acceptable
+    and whether the three implementation areas should remain explicitly
+    deferred. Approve the sheet as a unit or request changes by item ID. The
+    audit appendix is traceability, not the primary review task.
+  approval_statement: >
+    I approve one shared inactive managed-plan recommendation contract. For an
+    accepted safe route, Praxys must take a concrete and reviewable position,
+    explain why it fits the athlete, identify the applicable science, state the
+    expected signal and uncertainty, and request the feedback needed for
+    reassessment. I approve science and distance-specific findings only as
+    bounded candidate context, not universal personal rules, probabilities, or
+    permanent runner identities. I approve the athlete-controlled
+    sense-propose-review-observe-reassess loop, typed no-change and
+    non-generation outcomes, comparable-outcome and causal limits, safety
+    stops, source provenance, privacy, and the prohibition on disclaimer-only
+    output and unreviewed online learning. I approve keeping these semantics
+    shared across all managed plans while preserving accepted records until
+    coordinated successor alignment. I agree that exact selection, weighting,
+    thresholds, triggers, distance-specific dose and schedules, autonomy,
+    implementation, pilot criteria, and runtime activation remain deferred.
+    This approval would not approve implementation or activate the contract.
+  items:
+    - id: actionable-position
+      title: Require a concrete recommendation, not disclaimer-only output
+      disposition: approve
+      question: >
+        Should every accepted safe managed-plan route return a concrete,
+        reviewable position with a next action and required reasoning fields?
+      proposed_decision: >
+        Require an actionable position. A change proposal, justified no-change,
+        focused clarification, insufficient-evidence result, unsupported-route
+        result, or safety stop must state the next step. For supported safe
+        routes, caveats or data summaries alone are not a valid product result.
+      approval_effect:
+        - Every managed-plan result has a typed position and concrete next step.
+        - The recommendation exposes athlete-specific rationale, applicable science, expected signal, uncertainty, and feedback request.
+        - Feasibility terms align with the existing goal-contract vocabulary without implying a probability.
+      does_not_authorize:
+        - Any category threshold, personal probability, workout, dose, schedule, implementation, or activation.
+        - A success-shaped plan when the route is unsupported, unsafe, or lacks required evidence.
+      parameter_names:
+        - managed_plan_policy_scope
+        - actionable_recommendation_contract
+        - goal_feasibility_semantics
+        - proposal_outcomes
+      evidence_claim_ids:
+        - feasibility.group-evidence-not-personal-probability
+        - feasibility.calibration-required
+        - load.structured-training-bounded-benefit
+        - outcome.single-indicator-insufficient
+    - id: bounded-science
+      title: Use science as bounded candidate context, not a personal rule
+      disposition: approve
+      question: >
+        Should accepted science and distance policies constrain candidate
+        strategies while the recommendation distinguishes evidence from
+        inference, assumption, athlete report, and unknowns?
+      proposed_decision: >
+        Use accepted population findings and distance-specific policies to
+        define candidate strategies and constraints. Require each recommendation
+        to show the evidence class and exact science references. Do not promote
+        one cohort result, theory, or observed response into a universal rule,
+        permanent identity, or personal causal claim.
+      approval_effect:
+        - Distance policies provide task-specific candidate context without duplicating the shared loop.
+        - Recommendation reasoning remains source-labelled and inspectable.
+        - Historical intensity evidence remains split- or sample-based.
+      does_not_authorize:
+        - Choosing a candidate strategy with an unreviewed algorithm or LLM judgment.
+        - Using activity average power, a permanent responder label, or a population association as an individual prescription.
+      parameter_names:
+        - candidate_strategy_evidence_boundary
+        - recommendation_reasoning_contract
+        - intensity_evidence_source
+      evidence_claim_ids:
+        - feasibility.error-aware-response-classification
+        - feasibility.no-permanent-responder-label
+        - load.hrv-guidance-limited
+        - load.acwr-not-causal-threshold
+        - field-test.protocol-validity-reliability-sensitivity
+        - outcome.observations-not-causal-explanation
+    - id: athlete-controlled-loop
+      title: Accept one athlete-controlled feedback and reassessment loop
+      disposition: approve
+      question: >
+        Should every managed plan use one versioned
+        sense-select-propose-review-observe-reassess loop with immutable
+        evidence and proposal traces?
+      proposed_decision: >
+        Accept the shared loop stages and athlete responses. Proposals remain
+        non-canonical until exact adoption; an edit creates a successor.
+        Completed training, plan divergence, athlete choices, perceived
+        response, recovery or symptom reports, availability, and comparable
+        outcomes may inform reassessment without proving causality.
+      approval_effect:
+        - Recommendation, adoption, observation, and reassessment are traceable and replayable.
+        - Athlete adoption, edit, rejection, and deferral remain distinct from model output.
+        - Comparable protocols and measurement uncertainty govern direct outcome interpretation.
+      does_not_authorize:
+        - An exact feedback weight, reassessment trigger, meaningful-change threshold, or automatic plan mutation.
+        - Treating adherence or one outcome as proof that the plan caused the result.
+      parameter_names:
+        - recommendation_loop_state_machine
+        - athlete_authority_and_consent
+        - observation_and_feedback_contract
+        - reassessment_contract
+        - comparable_outcome_protocol_required
+        - meaningful_change_policy
+        - causal_gap_explanation
+      evidence_claim_ids:
+        - feasibility.error-aware-response-classification
+        - detraining.short-term-system-specific
+        - detraining.partial-not-complete-cessation
+        - field-test.protocol-validity-reliability-sensitivity
+        - field-test.running-reliability-and-sensitivity-underreported
+        - field-test.critical-speed-protocol-dependent
+        - outcome.subjective-monitoring-adds-signal
+        - outcome.single-indicator-insufficient
+        - outcome.observations-not-causal-explanation
+    - id: hard-boundaries
+      title: Accept safety, epistemic, learning, and privacy boundaries
+      disposition: approve
+      question: >
+        Should personal probabilities, catch-up, ACWR zones, fixed detraining
+        loss, permanent responder labels, unreviewed online learning, medical
+        optimization, and hidden sensitive inference remain prohibited?
+      proposed_decision: >
+        Keep those prohibitions. Athlete-reported injury, acute illness, or
+        red-flag symptoms stop performance optimization. Feedback can inform a
+        future human-reviewed policy but cannot change runtime weights, rules,
+        or autonomy. Context stays optional, purpose-limited, correctable, and
+        deletable.
+      approval_effect:
+        - The shared loop cannot convert uncertainty into false precision or hidden automation.
+        - Safety stops remain separate from performance adaptation.
+        - Feedback and decision traces retain provenance without storing unrestricted sensitive narrative.
+      does_not_authorize:
+        - Diagnosis, treatment, medical clearance, return-to-sport prescription, or a safety guarantee.
+        - Runtime self-training, inferred sensitive traits, or permanent physiological profiling.
+      parameter_names:
+        - feasibility_probability
+        - missed_session_catch_up
+        - acwr_prescription_thresholds
+        - fixed_detraining_loss_per_day
+        - medical_stop_boundary
+        - online_learning_and_policy_updates
+        - privacy_and_traceability
+      evidence_claim_ids:
+        - feasibility.calibration-required
+        - feasibility.no-permanent-responder-label
+        - load.ten-percent-rule-not-safety-law
+        - load.acwr-not-causal-threshold
+        - detraining.short-term-system-specific
+        - outcome.observations-not-causal-explanation
+    - id: shared-policy-alignment
+      title: Keep recommendation and feedback semantics shared across plans
+      disposition: approve
+      question: >
+        Should one shared contract govern all managed-plan recommendation and
+        feedback semantics while accepted distance records remain unchanged
+        until explicit successor or implementation alignment?
+      proposed_decision: >
+        Accept one shared contract. Existing accepted 5 km, 10 km,
+        half-marathon, baseline, eligibility, and marathon decisions retain
+        their history. Each requires the mapped successor or implementation
+        alignment before shared runtime governance; no distance policy may
+        silently create a second feedback engine.
+      approval_effect:
+        - New managed-plan policies depend on the shared contract instead of duplicating it.
+        - Existing accepted records remain auditable and are not rewritten by this decision.
+        - Marathon keeps its already-declared shared dependency.
+      does_not_authorize:
+        - Rewriting an accepted SDR, changing shipped 5 km behavior, or activating any distance policy.
+        - Treating cross-distance scientific findings as interchangeable dose or schedule rules.
+      parameter_names:
+        - accepted_policy_alignment_gate
+      evidence_claim_ids:
+        - feasibility.group-evidence-not-personal-probability
+        - outcome.observations-not-causal-explanation
+    - id: defer-selection-and-update
+      title: Keep selection, feedback weighting, triggers, and thresholds open
+      disposition: defer
+      question: >
+        Should exact candidate ranking, feedback weighting, reassessment
+        triggers, feasibility cut points, and meaningful-change thresholds
+        remain unresolved?
+      proposed_decision: >
+        Keep every mapped value literally not accepted. A later reviewed
+        decision must define one narrow deterministic policy and its
+        population, inputs, comparator, error handling, and falsification plan.
+      approval_effect:
+        - The shared contract defines required semantics without pretending an optimal update algorithm is known.
+        - Future policy work can be reviewed as explicit behavior rather than inferred from prose.
+      does_not_authorize:
+        - Filling any value from common coaching practice, another distance, model output, or AI.
+        - Updating the policy from observed feedback without a successor decision.
+      parameter_names:
+        - goal_feasibility_semantics
+        - meaningful_change_policy
+        - strategy_selection_algorithm
+        - feedback_weighting_algorithm
+        - reassessment_trigger_algorithm
+      evidence_claim_ids:
+        - feasibility.error-aware-response-classification
+        - feasibility.calibration-required
+        - load.hrv-guidance-limited
+        - field-test.running-reliability-and-sensitivity-underreported
+    - id: defer-distance-rules-and-autonomy
+      title: Keep distance-specific generation and autonomy open
+      disposition: defer
+      question: >
+        Should workout selection, dose, schedule, progression, recovery,
+        fueling, environment, and any automatic adoption permission remain
+        separate decisions?
+      proposed_decision: >
+        Keep distance-specific generation values and autonomy expansion
+        unresolved. Distance policies must provide accepted candidate rules and
+        safety constraints; this shared contract does not choose their values.
+      approval_effect:
+        - Recommendation semantics can be reviewed independently from distance-specific prescriptions.
+        - Suggestion-first remains the only accepted autonomy mode.
+      does_not_authorize:
+        - A workout, plan horizon, progression, target, automatic adoption, provider delivery, or autonomous goal change.
+        - Inheriting a rule from another distance or training base.
+      parameter_names:
+        - distance_specific_generation_rules
+        - autonomy_expansion_policy
+      evidence_claim_ids:
+        - load.structured-training-bounded-benefit
+        - load.ten-percent-rule-not-safety-law
+        - detraining.reduced-dose-maintenance
+    - id: defer-implementation-and-activation
+      title: Keep implementation, pilot criteria, and activation open
+      disposition: defer
+      question: >
+        Should persistence, APIs, clients, pilot thresholds, implementation
+        approval, rollout, and runtime activation remain outside this decision?
+      proposed_decision: >
+        Keep the contract inactive. Require a reviewed deterministic mapping,
+        web and miniapp parity, plugin and MCP parity, privacy controls,
+        prospective pilot design, and separate implementation approval before
+        any runtime use.
+      approval_effect:
+        - Human evidence and decision review can complete without shipping behavior.
+        - Runtime code cannot consume this contract as active.
+      does_not_authorize:
+        - Database, API, analysis, UI, plugin, MCP, telemetry, model, rollout, or activation changes.
+        - Claiming benefit, safety, or personalization efficacy before prospective evaluation.
+      parameter_names:
+        - implementation_pilot_and_activation
+      evidence_claim_ids:
+        - feasibility.calibration-required
+        - outcome.observations-not-causal-explanation
 rejected_alternatives:
+  - alternative: Return caveats, disclaimers, or data summaries without a concrete next action.
+    rationale: >
+      Praxys exists to interpret evidence into a reviewable position. Safety and
+      uncertainty must shape the action, not replace product value when a safe
+      supported route exists.
+  - alternative: Let each distance policy define its own recommendation and feedback loop.
+    rationale: >
+      Duplicated semantics would drift across web, miniapp, plugin, MCP, and
+      distance policies and make athlete decisions and feedback incomparable.
   - alternative: Present a numerical probability that an individual athlete will achieve the goal.
     rationale: >
       No prospectively calibrated and externally validated Praxys prediction
       model exists for the target population and supported goal types.
   - alternative: Present qualitative feasibility categories as published scientific thresholds.
     rationale: >
-      The reviewed research supports uncertainty boundaries, not the proposed
-      product vocabulary or category cut points.
+      The reviewed research supports uncertainty boundaries, not the product
+      vocabulary or category cut points.
+  - alternative: Assign a permanent responder or non-responder profile from one plan outcome.
+    rationale: >
+      Measurement error, within-person variation, protocol, and context can
+      contribute to an observed response; one plan does not establish an
+      intrinsic identity.
   - alternative: Automatically make up, double, compress, or proportionally replace missed sessions.
     rationale: >
       No reviewed evidence validates a universal catch-up rule, and schedule
       interruption does not reveal the athlete's reason or current capacity.
   - alternative: Use acute-to-chronic workload ratio zones or the 10 percent rule as causal safety limits.
     rationale: >
-      The workload ratio has fundamental causal and statistical limitations,
-      while the reviewed novice-runner trial did not show lower injury incidence
-      from a 10 percent progression program.
+      The workload ratio has causal and statistical limitations, while the
+      reviewed novice-runner trial did not show lower injury incidence from a
+      10 percent progression program.
   - alternative: Infer a fixed percentage of fitness loss or return capacity from days missed.
     rationale: >
       Detraining differs by physiological system, training history, and whether
       training was reduced or stopped.
   - alternative: Compare unlike tests, environments, or model estimates as direct evidence of improvement.
     rationale: >
-      Test validity, reliability, and prediction error are protocol specific.
-      Cross-protocol changes can reflect measurement and model differences.
+      Test validity, reliability, sensitivity, and prediction error are
+      protocol specific.
   - alternative: Explain a goal miss from adherence, physiology, or athlete context alone.
     rationale: >
       These observations can inform hypotheses but do not establish individual
       causation without an appropriate prospective design.
+  - alternative: Let feedback automatically update runtime strategy weights, rules, prompts, or autonomy.
+    rationale: >
+      Observations can support future reviewed policy changes but do not
+      authorize an unreviewed online-learning system.
   - alternative: Continue performance-plan adaptation through illness, injury, or red-flag symptoms.
     rationale: >
       Medical assessment and return-to-sport decisions are outside this
       performance-planning evidence and require an explicit safety boundary.
 model_parameters:
-  - name: feasibility_categories
+  - name: managed_plan_policy_scope
     value:
-      - well_supported
-      - plausible_with_risks
-      - aggressive
-      - insufficient_evidence
+      applies_to: all_praxys_owned_managed_plans
+      disciplines:
+        - running
+        - trail_running
+      intents:
+        - race
+        - performance
+        - consistency_base
+        - approved_future_intents
+      surfaces:
+        - web
+        - miniapp
+        - plugin
+        - mcp
+      shared_semantics:
+        - recommendation
+        - athlete_review
+        - observation
+        - feedback
+        - reassessment
+        - outcome_interpretation
+      distance_policies_supply:
+        - eligibility
+        - candidate_strategies
+        - task_specific_constraints
+        - task_specific_evidence
+      distance_policies_must_not_duplicate_shared_loop: true
+    classification: guardrail
+    rationale: >
+      Recommendation and feedback semantics are cross-cutting product behavior.
+      Distance and intent policies remain responsible for accepted
+      task-specific candidates and constraints.
+    applies_to: every Praxys-owned managed-plan policy and client
+  - name: actionable_recommendation_contract
+    value:
+      supported_safe_route_requires_actionable_position: true
+      required_fields:
+        - next_action
+        - athlete_specific_rationale
+        - applicable_science
+        - expected_signal
+        - uncertainty
+        - feedback_request
+      justified_no_change_is_actionable: true
+      clarification_requires_one_focused_question: true
+      insufficient_evidence_requires_concrete_next_evidence_action: true
+      unsupported_route_requires_supported_alternative_or_honest_stop: true
+      safety_stop_requires_concrete_non_diagnostic_next_step: true
+      disclaimer_only_output_allowed: false
+      data_summary_only_output_allowed: false
+    classification: guardrail
+    evidence_claim_ids:
+      - feasibility.group-evidence-not-personal-probability
+      - feasibility.calibration-required
+      - outcome.single-indicator-insufficient
+    rationale: >
+      This is Praxys's positive product-value contract. It does not assert that
+      one algorithm is biologically optimal; it requires safe uncertainty to
+      shape a useful position instead of replacing it.
+    applies_to: recommendation and no-plan result contracts
+  - name: candidate_strategy_evidence_boundary
+    value:
+      accepted_science_role: constrain_candidate_set_and_explain_applicability
+      population_findings_role: bounded_candidate_context_and_qualitative_initial_prior
+      distance_policy_role: supply_task_specific_candidates_and_constraints
+      athlete_observations_role: update_current_state_and_test_fit_within_reviewed_policy
+      one_observed_response_creates_permanent_identity: false
+      population_association_becomes_personal_rule: false
+      candidate_prior_is_personal_probability: false
+      unaccepted_source_may_drive_behavior: false
+    classification: guardrail
+    evidence_claim_ids:
+      - feasibility.group-evidence-not-personal-probability
+      - feasibility.no-permanent-responder-label
+      - load.structured-training-bounded-benefit
+      - load.hrv-guidance-limited
+    rationale: >
+      The reviewed evidence constrains overclaiming and candidate applicability
+      but does not validate a universal strategy-selection algorithm.
+    applies_to: candidate strategy registry and recommendation reasoning
+  - name: recommendation_reasoning_contract
+    value:
+      evidence_classes:
+        - observed
+        - athlete_stated
+        - inferred
+        - assumed
+        - unknown
+      applicable_science_requires_exact_record_and_claim_references: true
+      athlete_specific_rationale_must_name_relevant_current_evidence: true
+      expected_signal_must_state_supporting_and_contrary_observations: true
+      uncertainty_must_name_material_unknowns: true
+      feedback_request_must_be_purpose_bounded: true
+      no_change_must_explain_what_remains_supported_and_what_to_observe: true
+      causal_language_without_causal_design: false
+    classification: guardrail
+    evidence_claim_ids:
+      - feasibility.error-aware-response-classification
+      - outcome.subjective-monitoring-adds-signal
+      - outcome.observations-not-causal-explanation
+    rationale: >
+      These fields make the recommendation inspectable and keep observation,
+      inference, assumption, and unknowns distinct.
+    applies_to: recommendation, clarification, no-change, and outcome explanations
+  - name: goal_feasibility_semantics
+    value:
+      categories:
+        insufficient_evidence: current_evidence_cannot_responsibly_assess_target
+        supported: no_material_concern_found_under_current_accepted_policy
+        challenging: plausible_with_material_execution_or_uncertainty_risks
+        aggressive: material_gap_or_compressed_horizon_requires_warning_and_alternatives
+        unsupported: outside_an_accepted_planning_boundary
+      category_thresholds: not_accepted
+      category_is_personal_probability: false
+      unsupported_allows_normal_success_shaped_plan: false
+      confidence_style: qualitative_and_explained
     classification: guardrail
     evidence_claim_ids:
       - feasibility.group-evidence-not-personal-probability
       - feasibility.calibration-required
     rationale: >
-      These names communicate qualitative product states without inventing a
-      personal probability. No reviewed paper defines their boundaries.
-    applies_to: adaptive-plan goal feasibility contract
+      The names align with the existing goal-contract proposal. The vocabulary
+      is a product guardrail; exact cut points remain unresolved.
+    applies_to: managed-plan goal feasibility and expectation assessments
+  - name: recommendation_loop_state_machine
+    value:
+      stages:
+        - sense
+        - select_candidate_strategy
+        - propose
+        - athlete_review
+        - observe
+        - reassess
+      evidence_snapshot_is_immutable: true
+      proposal_is_immutable_and_non_canonical: true
+      athlete_edit_creates_successor_proposal: true
+      rejection_preserves_canonical_plan: true
+      deferral_preserves_canonical_plan: true
+      adoption_commits_one_exact_version: true
+      observation_does_not_rewrite_prior_decision: true
+      reassessment_appends_a_new_versioned_decision: true
+      deterministic_replay_required: true
+    classification: guardrail
+    evidence_claim_ids:
+      - outcome.observations-not-causal-explanation
+    rationale: >
+      The loop is a product architecture and audit boundary, not a published
+      physiological algorithm.
+    applies_to: adaptive-plan decision, proposal, revision, and outcome traces
+  - name: athlete_authority_and_consent
+    value:
+      default_mode: athlete_approved_suggestions
+      allowed_responses:
+        - adopt
+        - edit_into_successor
+        - reject
+        - defer
+      proposal_is_canonical_before_adoption: false
+      goal_change_requires_successor_and_acknowledgement: true
+      pause_or_end_requires_explicit_athlete_action_or_separate_safety_policy: true
+      rejection_reason_optional: true
+      athlete_constraints_are_authoritative: true
+    classification: guardrail
+    rationale: >
+      Explicit athlete control keeps early policy behavior observable,
+      reversible, and separate from future autonomy decisions.
+    applies_to: proposal review, goal change, pause, resume, and end flows
+  - name: observation_and_feedback_contract
+    value:
+      observation_classes:
+        - completed_training
+        - planned_vs_completed_divergence
+        - athlete_edit_rejection_or_deferral
+        - perceived_response
+        - recovery_or_symptom_report
+        - changed_availability
+        - comparable_checkpoint_or_goal_outcome
+      provenance_classes:
+        - observed
+        - athlete_stated
+        - inferred
+        - assumed
+        - unknown
+      minimum_necessary_structured_context_preferred: true
+      one_workout_usually_sufficient_to_validate_policy: false
+      adherence_proves_adaptation: false
+      athlete_feedback_proves_causality: false
+      feedback_creates_permanent_responder_label: false
+      feedback_may_inform_versioned_reassessment: true
+    classification: guardrail
+    evidence_claim_ids:
+      - feasibility.no-permanent-responder-label
+      - outcome.subjective-monitoring-adds-signal
+      - outcome.single-indicator-insufficient
+      - outcome.observations-not-causal-explanation
+    rationale: >
+      Multiple source-labelled observations can reduce uncertainty without
+      becoming proof of cause or a permanent physiological profile.
+    applies_to: execution, context, checkpoint, and terminal outcome evidence
+  - name: reassessment_contract
+    value:
+      required_comparison:
+        - prior_position
+        - new_or_corrected_evidence
+        - unchanged_evidence
+        - contrary_signals
+        - expected_vs_observed_signal
+        - current_unknowns
+        - goal_implication
+        - plan_implication
+      result_types:
+        - propose_change
+        - no_change
+        - clarification_required
+        - insufficient_evidence
+        - safety_stop
+        - unsupported_route
+      smallest_supported_scope_preferred: true
+      stale_proposal_requires_new_evidence_snapshot: true
+      silent_rebase_or_plan_rewrite_allowed: false
+      result_must_reference_policy_model_and_science_versions: true
+    classification: guardrail
+    evidence_claim_ids:
+      - detraining.short-term-system-specific
+      - field-test.protocol-validity-reliability-sensitivity
+      - outcome.observations-not-causal-explanation
+    rationale: >
+      Reassessment should explain what changed and preserve contrary evidence,
+      rather than turning every observation into a plan mutation.
+    applies_to: workout, week, block, goal, pause, resume, and outcome reassessment
+  - name: proposal_outcomes
+    value:
+      types:
+        propose_change: reviewable_non_canonical_diff
+        no_change: keep_current_plan_with_reason_and_next_observation
+        clarification_required: one_focused_optional_question
+        insufficient_evidence: no_invented_action_and_one_concrete_evidence_step
+        safety_stop: stop_performance_optimization_without_diagnosis
+        unsupported_route: preserve_goal_and_offer_supported_alternative_or_honest_stop
+      every_type_requires_next_action: true
+      every_type_requires_reason_and_uncertainty: true
+      success_shaped_fallback_for_unavailable_route: false
+    classification: guardrail
+    evidence_claim_ids:
+      - feasibility.group-evidence-not-personal-probability
+      - outcome.single-indicator-insufficient
+    rationale: >
+      Typed outcomes let the product remain useful and honest without silently
+      converting uncertainty or unsupported scope into a normal plan.
+    applies_to: managed-plan recommendation API and client states
   - name: feasibility_probability
-    value: disabled
+    value:
+      personal_probability_enabled: false
+      prerequisite_before_future_enablement:
+        - defined_population_and_outcome
+        - representative_development_data
+        - prospective_calibration
+        - external_validation
+        - subgroup_and_drift_monitoring
+        - accepted_successor_decision
+        - implementation_approval
     classification: guardrail
     evidence_claim_ids:
       - feasibility.calibration-required
     rationale: >
-      Personal probabilities stay disabled until a defined model is developed,
-      calibrated, and externally validated in a representative population.
-    applies_to: adaptive-plan goal feasibility contract
-  - name: adjustment_mode
-    value: athlete_approved_suggestions
+      No reviewed source validates a Praxys personal goal-achievement
+      probability.
+    applies_to: feasibility and recommendation claims
+  - name: missed_session_catch_up
+    value:
+      automatic_doubling: false
+      automatic_compression: false
+      proportional_replacement: false
+      missed_session_alone_reveals_cause_or_capacity: false
+      reassessment_may_propose_smallest_supported_change: true
     classification: guardrail
     evidence_claim_ids:
-      - load.hrv-guidance-limited
-      - outcome.observations-not-causal-explanation
+      - load.ten-percent-rule-not-safety-law
+      - detraining.short-term-system-specific
     rationale: >
-      Evidence supports monitoring but does not validate Praxys-specific
-      autonomous action rules; explicit approval keeps early policy observable
-      and reversible.
-    applies_to: adaptive-plan policy engine
-  - name: adjustment_scopes
-    value:
-      - workout
-      - week
-      - block
-      - goal
-      - pause
-    classification: guardrail
-    rationale: >
-      These are product decision boundaries for isolating the smallest proposed
-      change. They are not physiological categories.
-    applies_to: adaptive-plan proposal contract
-  - name: proposal_boundaries
-    value:
-      clarify: material_context_or_data_ambiguity
-      no_change: current_assumptions_remain_supported
-      insufficient_evidence: observations_do_not_support_a_bounded_proposal
-      escalate: goal_pause_or_medical_stop_boundary
-    classification: guardrail
-    rationale: >
-      These routes prevent uncertain observations from being converted into an
-      action. Their exact triggers require separate prospective evaluation.
-    applies_to: adaptive-plan policy engine
-  - name: missed_session_catch_up
-    value: disabled
-    classification: guardrail
-    rationale: >
-      A missed session exposes neither the cause nor current capacity, and no
-      reviewed evidence supports universal catch-up.
-    applies_to: adaptive-plan policy engine
+      A missed session does not reveal why it was missed or the athlete's
+      current capacity, and no universal catch-up rule is validated.
+    applies_to: interruption and planned-versus-completed handling
   - name: acwr_prescription_thresholds
-    value: disabled
+    value:
+      descriptive_history_allowed: true
+      causal_risk_zone_allowed: false
+      automatic_prescription_trigger_allowed: false
     classification: guardrail
     evidence_claim_ids:
       - load.acwr-not-causal-threshold
     rationale: >
-      Workload history may remain descriptive, but ratio zones must not trigger
-      prescriptions as if they were established causal safety thresholds.
-    applies_to: adaptive-plan policy engine
+      Workload history can remain descriptive, but ratio zones are not
+      established causal safety thresholds.
+    applies_to: load evidence and proposal triggers
   - name: fixed_detraining_loss_per_day
-    value: disabled
+    value:
+      enabled: false
+      total_cessation_equals_partial_reduction: false
+      one_system_represents_all_capacity: false
     classification: guardrail
     evidence_claim_ids:
       - detraining.short-term-system-specific
+      - detraining.reduced-dose-maintenance
+      - detraining.partial-not-complete-cessation
     rationale: >
-      Outcomes decay at different rates and depend on prior training and the
-      remaining stimulus.
-    applies_to: adaptive-plan interruption handling
+      Detraining differs by outcome, prior training, and whether training was
+      reduced or stopped.
+    applies_to: interruption assessment and return proposals
   - name: comparable_outcome_protocol_required
-    value: true
+    value:
+      direct_change_evidence_requires:
+        - same_or_accepted_equivalent_protocol
+        - documented_conditions
+        - protocol_specific_reliability
+        - protocol_specific_sensitivity_or_error_boundary
+      device_estimate_is_automatically_equivalent: false
+      unlike_environment_is_automatically_equivalent: false
+      cross_protocol_change_is_direct_evidence: false
     classification: guardrail
     evidence_claim_ids:
       - field-test.protocol-validity-reliability-sensitivity
+      - field-test.running-reliability-and-sensitivity-underreported
+      - field-test.vo2-estimate-not-direct-performance
       - field-test.critical-speed-protocol-dependent
     rationale: >
-      The same documented protocol and comparable conditions are required
-      before baseline and outcome are treated as direct change evidence.
-    applies_to: adaptive-plan outcome evaluation
-  - name: meaningful_change_threshold
-    value: protocol_specific
+      Validity alone does not establish repeatability, sensitivity, or
+      equivalence for one athlete's change.
+    applies_to: baseline, checkpoint, and terminal outcome comparison
+  - name: meaningful_change_policy
+    value:
+      universal_percentage_allowed: false
+      rule: protocol_specific_and_error_aware
+      exact_protocol_thresholds: not_accepted
+      zero_based_responder_threshold_allowed: false
     classification: guardrail
     evidence_claim_ids:
       - feasibility.error-aware-response-classification
       - field-test.protocol-validity-reliability-sensitivity
+      - field-test.running-reliability-and-sensitivity-underreported
     rationale: >
-      Praxys must not use one universal percentage because repeatability and
-      sensitivity vary by outcome, population, and protocol.
-    applies_to: adaptive-plan outcome evaluation
+      Measurement error and sensitivity vary by outcome, protocol, and
+      population; exact thresholds require separate validation.
+    applies_to: response classification and outcome evaluation
   - name: medical_stop_boundary
     value:
-      - injury
-      - acute_illness
-      - red_flag_symptoms
+      athlete_reported_states:
+        - injury
+        - acute_illness
+        - red_flag_symptoms
+      performance_optimization_continues: false
+      diagnosis_or_treatment_allowed: false
+      return_to_sport_prescription_allowed: false
+      next_step: stop_performance_optimization_and_show_appropriate_non_diagnostic_guidance
     classification: guardrail
     rationale: >
-      These reports stop performance-plan optimization and route to appropriate
-      medical guidance; this SDR does not diagnose or prescribe return to sport.
-    applies_to: adaptive-plan context and proposal handling
+      This is a product safety stop outside the performance-planning evidence,
+      not a medical decision algorithm.
+    applies_to: context intake, recommendation, proposal, and reassessment
   - name: causal_gap_explanation
-    value: ranked_hypotheses_only
+    value:
+      output: ranked_hypotheses_with_contrary_evidence_and_unknowns
+      definitive_individual_cause_allowed: false
+      diagnosis_allowed: false
+      adherence_as_causal_proof_allowed: false
+      future_testable_question_allowed: true
     classification: guardrail
     evidence_claim_ids:
       - outcome.observations-not-causal-explanation
     rationale: >
-      Observations may support hypotheses, contrary evidence, and future tests
-      but not a definitive individual causal attribution.
-    applies_to: adaptive-plan gap review
+      Observations may support hypotheses and future tests but not definitive
+      individual causal attribution.
+    applies_to: checkpoint, terminal outcome, and plan gap review
+  - name: intensity_evidence_source
+    value:
+      allowed:
+        - activity_splits
+        - activity_samples
+      activity_average_power_allowed: false
+      missing_split_or_sample_evidence_result: intensity_inference_unavailable
+    classification: guardrail
+    rationale: >
+      Activity-average power is diluted by warmup, cooldown, and recovery and
+      cannot support interval-intensity interpretation.
+    applies_to: historical intensity evidence and recommendation rationale
+  - name: online_learning_and_policy_updates
+    value:
+      runtime_rule_updates_from_feedback: false
+      runtime_weight_updates_from_feedback: false
+      runtime_prompt_authority_expansion_from_feedback: false
+      runtime_autonomy_expansion_from_feedback: false
+      permanent_responder_profile_from_feedback: false
+      feedback_may_support_future_human_reviewed_successor: true
+      successor_requires:
+        - versioned_evidence
+        - accepted_science_decision
+        - deterministic_validation
+        - implementation_approval
+    classification: guardrail
+    evidence_claim_ids:
+      - feasibility.no-permanent-responder-label
+      - outcome.observations-not-causal-explanation
+    rationale: >
+      Feedback is evidence for reassessment and future policy research, not
+      permission for unreviewed online learning.
+    applies_to: policy, model, prompt, and autonomy updates
+  - name: privacy_and_traceability
+    value:
+      personal_context_optional: true
+      purpose_limited_collection: true
+      minimum_necessary_structured_context_preferred: true
+      source_provenance_visible: true
+      athlete_can_correct_exclude_and_delete_context: true
+      sensitive_trait_inference_allowed: false
+      raw_free_text_in_generic_decision_trace_allowed: false
+      decision_trace_requires:
+        - owning_user
+        - evidence_snapshot
+        - proposal_or_position
+        - policy_model_and_science_versions
+        - source_revisions
+        - later_outcome_links
+      account_deletion_covers_context_and_derived_adaptive_traces: true
+    classification: guardrail
+    evidence_claim_ids:
+      - outcome.subjective-monitoring-adds-signal
+      - outcome.observations-not-causal-explanation
+    rationale: >
+      Optional context can improve interpretation only when its purpose,
+      provenance, correction, access, and deletion boundaries are explicit.
+    applies_to: context, evidence snapshots, recommendations, and decision traces
+  - name: accepted_policy_alignment_gate
+    value:
+      records_already_naming_this_shared_policy:
+        - sdr-plan-generation-eligibility-safety-v1
+        - sdr-road-marathon-plan-generation-policy-v1
+      accepted_records_requiring_successor_or_explicit_implementation_alignment:
+        - sdr-preplan-baseline-policy-v1
+        - sdr-outdoor-5k-plan-generation-policy-v1
+        - sdr-road-10k-plan-generation-policy-v1
+        - sdr-road-half-marathon-plan-generation-policy-v1
+      accepted_records_remain_unchanged_in_this_decision: true
+      no_distance_policy_may_define_a_second_feedback_engine: true
+      new_managed_plan_policy_requires_shared_dependency: true
+      shared_runtime_governance_before_alignment: false
+    classification: guardrail
+    rationale: >
+      Accepted records cannot be silently rewritten. The map preserves history
+      while making future shared-loop alignment explicit.
+    applies_to: science lifecycle, implementation mapping, and managed-plan activation
+  - name: strategy_selection_algorithm
+    value:
+      candidate_ranking: not_accepted
+      tie_breaking: not_accepted
+      context_interactions: not_accepted
+      exploration_or_experiment_assignment: not_accepted
+      model_or_llm_role: not_accepted
+    classification: guardrail
+    evidence_claim_ids:
+      - load.hrv-guidance-limited
+      - feasibility.no-permanent-responder-label
+    rationale: >
+      The reviewed evidence does not validate a Praxys-specific algorithm for
+      selecting among candidate strategies.
+    applies_to: candidate selection policy
+  - name: feedback_weighting_algorithm
+    value:
+      observation_weights: not_accepted
+      missingness_handling: not_accepted
+      contradictory_signal_resolution: not_accepted
+      athlete_report_weight: not_accepted
+      recency_decay: not_accepted
+    classification: guardrail
+    evidence_claim_ids:
+      - outcome.subjective-monitoring-adds-signal
+      - outcome.single-indicator-insufficient
+    rationale: >
+      Multiple signals may inform reassessment, but no reviewed source defines
+      their Praxys-specific weights or conflict resolution.
+    applies_to: evidence evaluation and reassessment
+  - name: reassessment_trigger_algorithm
+    value:
+      scheduled_cadence: not_accepted
+      workout_divergence_threshold: not_accepted
+      recovery_or_symptom_threshold: not_accepted
+      availability_change_threshold: not_accepted
+      checkpoint_threshold: not_accepted
+      goal_expectation_change_threshold: not_accepted
+    classification: guardrail
+    evidence_claim_ids:
+      - detraining.short-term-system-specific
+      - field-test.running-reliability-and-sensitivity-underreported
+    rationale: >
+      The shared loop defines trigger categories but not exact timing or
+      thresholds.
+    applies_to: reassessment scheduler and event handling
+  - name: distance_specific_generation_rules
+    value:
+      plan_horizon: not_accepted
+      workout_selection: not_accepted
+      dose: not_accepted
+      schedule: not_accepted
+      progression: not_accepted
+      long_run: not_accepted
+      intensity_distribution: not_accepted
+      recovery: not_accepted
+      taper: not_accepted
+      fueling_hydration: not_accepted
+      environment_altitude: not_accepted
+      return_after_interruption: not_accepted
+    classification: guardrail
+    evidence_claim_ids:
+      - load.structured-training-bounded-benefit
+      - load.ten-percent-rule-not-safety-law
+      - detraining.reduced-dose-maintenance
+    rationale: >
+      These values remain owned by separately accepted distance, intent, and
+      context policies.
+    applies_to: plan generation and distance-specific recommendation candidates
+  - name: autonomy_expansion_policy
+    value:
+      current_default: suggestion_only
+      automatic_adoption_scope: not_accepted
+      automatic_goal_change: false
+      automatic_pause_or_resume: not_accepted
+      automatic_provider_delivery: not_accepted
+      consent_model: not_accepted
+      expiry_and_revocation: not_accepted
+    classification: guardrail
+    rationale: >
+      Any automatic action requires a separate exact consent, scope, evidence,
+      implementation, and revocation decision.
+    applies_to: proposal approval, canonical mutation, and provider delivery
+  - name: implementation_pilot_and_activation
+    value:
+      analysis_mapping: not_accepted
+      persistence_schema: not_accepted
+      api_contracts: not_accepted
+      web_and_miniapp_clients: not_accepted
+      plugin_and_mcp_contracts: not_accepted
+      science_note_and_localization: not_accepted
+      privacy_operations: not_accepted
+      pilot_population: not_accepted
+      comparator: not_accepted
+      primary_and_guardrail_metrics: not_accepted
+      sample_size_and_duration: not_accepted
+      success_failure_and_rollback_thresholds: not_accepted
+      implementation_approval: not_accepted
+      rollout: not_accepted
+      runtime_activation: not_accepted
+      active_behavior: false
+    classification: guardrail
+    rationale: >
+      Evidence and decision acceptance are separate from implementation,
+      prospective evaluation, rollout, and activation.
+    applies_to: implementation, pilot, rollout, and runtime
 applicability:
-  - Adult recreational runners using a multi-week goal-directed training plan
-  - Suggestion-first feasibility, workout, week, block, goal, pause, and outcome decisions
-  - Non-medical training interruptions and athlete-provided contextual constraints
+  - All Praxys-owned managed plans after their distance, intent, capability, history, and safety routes are separately accepted
+  - Adult self-coached runners and trail runners within the accepted policy that supplies candidate strategies
+  - Web, WeChat miniapp, plugin, and MCP surfaces using the same managed-plan contract
+  - Suggestion-first recommendation, athlete review, observation, reassessment, and outcome interpretation
   - Direct performance interpretation only when baseline and outcome protocols are comparable
 user_facing_claim_limits:
+  - Do not return only disclaimers or data summaries when a supported safe route can take an actionable position.
   - Do not promise or guarantee goal achievement.
   - Do not show an individual success probability until a prospectively calibrated and externally validated model is accepted.
-  - Label feasibility categories, adjustment scopes, and triggers as Praxys guidance rather than published thresholds.
-  - Distinguish what was observed, what is inferred, what is unknown, and what the athlete reported.
+  - Label feasibility categories, candidate priors, adjustment scopes, and triggers as Praxys guidance rather than published thresholds.
+  - Distinguish what was observed, athlete-stated, inferred, assumed, and unknown.
+  - Do not call one plan result a permanent responder or non-responder identity.
   - Do not imply that adherence proves adaptation or plan effectiveness.
   - Do not imply that HRV, workload ratio, or one response metric dictates a workout.
   - Do not call different protocols or environments equivalent direct evidence.
   - Present post-plan reasons as ranked hypotheses, never diagnosis or established individual causation.
+  - Explain when a no-change, clarification, insufficient-evidence, unsupported-route, or safety-stop result is the concrete next action.
 safety_implications:
   - Illness, injury, and red-flag symptoms stop performance optimization rather than triggering an automated return prescription.
   - No automatic doubling, catch-up, or compressed replacement of missed work.
-  - Every proposal includes a no-change alternative and identifies uncertainty.
-  - Goal or pause proposals require explicit athlete approval.
+  - Every position identifies uncertainty and the next safe action.
+  - Goal, pause, resume, end, and plan-change proposals remain non-canonical until explicitly adopted under an accepted authority policy.
+  - Unsupported or unsafe routes never return a normal success-shaped plan.
 privacy_implications:
   - Personal context is optional, purpose-limited, and private to the athlete's plan.
   - Store structured minimum-necessary context separately from free text where possible.
-  - Show what context informed each proposal and allow correction, exclusion, and deletion.
+  - Show what context informed each recommendation and allow correction, exclusion, and deletion.
   - Do not infer sensitive medical, family, employment, or identity details from behavior.
-  - Athlete context and adaptive traces must follow account deletion and retention controls.
+  - Do not store unrestricted athlete narrative in generic decision traces.
+  - Athlete context and adaptive traces follow account deletion, retention, access, and export controls.
 validation_plan:
-  - Human science review must accept, revise, or reject every Evidence Review and this SDR before product behavior cites them.
-  - Define one narrow suggestion-only policy with a versioned policy identifier and deterministic replay.
-  - Predefine outcome, comparable protocol, meaningful-change rule, safety events, and no-change comparator.
-  - Add registry, policy, API-contract, and client-state tests for every implemented decision boundary.
-  - Prospectively evaluate proposal precision, athlete acceptance, reversals, adverse events, and goal outcomes.
-  - Audit performance by sex, age, training history, goal type, missingness, and data-provider provenance.
+  - Human evidence review must accept, revise, or reject all five Evidence Reviews before this decision can be accepted.
+  - Human decision review must approve the decision sheet and inactive contract separately from implementation.
+  - Define one narrow deterministic suggestion-only policy with a versioned identifier, immutable evidence snapshot, and replay fixture.
+  - Predefine candidate strategies, outcome, comparable protocol, meaningful-change rule, safety events, and no-change comparator.
+  - Verify every supported safe fixture produces an actionable position with all required reasoning fields.
+  - Verify every clarification, insufficient-evidence, unsupported-route, and safety fixture produces a concrete next step without a success-shaped fallback.
+  - Add registry, policy, API-contract, web, miniapp, plugin, MCP, privacy, deletion, and client-state tests for every implemented boundary.
+  - Prospectively evaluate recommendation precision, usefulness, athlete adoption, edits, rejection, reversals, adverse events, and goal outcomes without updating runtime rules from those observations.
+  - Audit performance by sex, age, training history, goal type, distance, training base, missingness, language, surface, and data-provider provenance.
   - Calibrate any future numerical feasibility model and validate it externally before exposing probabilities.
-  - Require an approved successor SDR for each policy threshold or additional autonomous permission.
+  - Require an approved successor SDR for each algorithm, threshold, distance-policy alignment, or additional autonomous permission.
+  - Require separate implementation review before changing runtime_state from inactive.
 falsification_conditions:
-  - A category is interpreted by athletes as a calibrated probability or guarantee despite the claim limits.
+  - A supported safe route returns only caveats, disclaimers, or data without a concrete next action.
+  - Web, miniapp, plugin, or MCP surfaces produce different recommendation or athlete-decision semantics for the same policy input.
+  - A category is interpreted as a calibrated probability or guarantee despite the claim limits.
+  - One observed result creates a permanent responder identity or silently changes future policy weights.
   - Repeated comparable tests show changes within measurement noise while Praxys labels them meaningful.
-  - Prospective evaluation finds that the adaptive policy worsens goal outcomes or safety events versus no-change handling.
-  - Proposed adjustments cannot be reproduced from their versioned inputs, policy, and evidence.
+  - Prospective evaluation finds that the policy worsens goal outcomes, athlete burden, or safety events versus the predefined comparator.
+  - A recommendation, proposal, or reassessment cannot be reproduced from its versioned evidence, policy, model, and science inputs.
   - Context deletion fails to remove the athlete's private plan context or derived adaptive traces.
-  - A policy applies catch-up, workload-ratio, or fixed detraining rules that this decision disables.
+  - A policy applies catch-up, workload-ratio, fixed detraining, activity-average-power, or causal-explanation rules that this decision disables.
+  - A distance policy implements a second recommendation or feedback engine instead of the shared contract.
 affected_surfaces:
   models:
-    - adaptive-plan goal feasibility contract
-    - adaptive-plan policy engine
-    - adaptive-plan proposal and decision trace
-    - adaptive-plan outcome and gap review
+    - adaptive-plan goal feasibility and expectation contract
+    - shared managed-plan recommendation policy
+    - adaptive-plan proposal, athlete decision, and revision trace
+    - adaptive-plan observation, reassessment, outcome, and gap review
+    - managed-plan capability registry and distance-policy dependency graph
   apis:
-    - Future adaptive-plan feasibility endpoint
-    - Future adaptive-plan proposal and approval endpoints
-    - Future adaptive-plan outcome endpoint
+    - Future managed-plan assessment and recommendation endpoint
+    - Future plan proposal, edit, reject, defer, and adoption endpoints
+    - Future context request, observation, reassessment, and outcome endpoints
+    - Future shared contract discovery and provenance fields
   clients:
-    - Web Goal, Plan, and Insights experiences
-    - WeChat miniapp Goal, Plan, and Insights experiences
-    - Praxys plugin and MCP adaptive-plan tools
+    - Web Today, Training, Analysis, Goal, and managed-plan review experiences
+    - WeChat miniapp Today, Training, Analysis, Goal, and managed-plan parity
+    - Praxys plugin and MCP read/propose flows with athlete-controlled mutation
+    - English and Chinese recommendation, uncertainty, feedback, and safety copy
   science_notes:
-    - Goal feasibility methodology and uncertainty
-    - Why a plan change is proposed
-    - Outcome evidence and gap-review limits
+    - Why this recommendation fits the current athlete evidence
+    - Applicable science, candidate-strategy limits, and expected signal
+    - Goal feasibility methodology and probability limits
+    - Feedback, reassessment, comparable outcomes, and causal limits
+artifact_policy:
+  runtime_state: inactive
 supersedes: []
 superseded_by:
 decision_notes:
-  - This is a decision proposal for #607, not an accepted policy or implementation authorization.
-  - No exact action trigger is included because the reviewed evidence does not validate one.
-  - Existing accepted environmental-performance and heat-adaptation SDRs are not superseded; their evidence remains independently applicable when environmental context is used.
-  - Human review should focus on claim directness, category language, medical boundaries, and the first prospective policy evaluation.
+  - "This artifact-mode Decision proposal upgrades the merged #607 draft for issue #713 and remains draft and inactive."
+  - >
+    The five Evidence Reviews were rerun through 2026-08-16, converted to
+    artifact mode, and bound to complete PubMed search manifests. Four more
+    direct 2023-2025 reviews were added; no sixth Evidence Review is required.
+  - >
+    The positive actionable recommendation requirement is a Praxys product
+    guardrail supported by PRODUCT.md. The scientific evidence constrains
+    candidate use, measurement, uncertainty, and causal claims; it does not
+    prove this loop or any update algorithm is optimal.
+  - >
+    Human review must use the generated packets rather than raw YAML. The
+    decision packet begins with five proposed approvals and three explicit
+    deferrals and embeds the exact inactive machine contract.
+  - >
+    Accepted 5 km, 10 km, half-marathon, baseline, eligibility, and marathon
+    records are not rewritten here. Their successor or implementation
+    alignment is mapped before shared runtime governance.
+  - >
+    All unresolved behavior-driving values are literal `not_accepted`; no
+    implementation may infer a value from source findings, another distance,
+    common coaching practice, prose, or AI output.
+  - >
+    Impact map: five draft Evidence Reviews and search manifests -> generated
+    evidence packets -> draft shared SDR -> generated decision packet and
+    inactive contract -> human evidence and decision review -> coordinated
+    accepted-policy alignment -> future deterministic policy mapping ->
+    persistence and API -> web, miniapp, plugin, and MCP parity -> ScienceNote
+    and localization -> offline replay and privacy validation -> prospective
+    opt-in pilot -> separate implementation review -> separately approved
+    activation.

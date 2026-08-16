@@ -1,0 +1,632 @@
+{
+  "affected_models": [
+    "adaptive-plan goal feasibility and expectation contract",
+    "shared managed-plan recommendation policy",
+    "adaptive-plan proposal, athlete decision, and revision trace",
+    "adaptive-plan observation, reassessment, outcome, and gap review",
+    "managed-plan capability registry and distance-policy dependency graph"
+  ],
+  "contract_digest": "sha256:d9a56e6e799ebc1097bbc0b908f15d1e2db29ebc0d4df13b8e31a253d97f315b",
+  "decision_id": "sdr-adaptive-plan-feasibility-and-adjustment-v1",
+  "decision_status": "accepted",
+  "decision_version": 1,
+  "evidence_claim_ids": [
+    "feasibility.group-evidence-not-personal-probability",
+    "feasibility.error-aware-response-classification",
+    "feasibility.no-permanent-responder-label",
+    "feasibility.calibration-required",
+    "load.structured-training-bounded-benefit",
+    "load.hrv-guidance-limited",
+    "load.ten-percent-rule-not-safety-law",
+    "load.acwr-not-causal-threshold",
+    "detraining.short-term-system-specific",
+    "detraining.reduced-dose-maintenance",
+    "detraining.partial-not-complete-cessation",
+    "field-test.protocol-validity-reliability-sensitivity",
+    "field-test.running-reliability-and-sensitivity-underreported",
+    "field-test.vo2-estimate-not-direct-performance",
+    "field-test.critical-speed-protocol-dependent",
+    "outcome.subjective-monitoring-adds-signal",
+    "outcome.single-indicator-insufficient",
+    "outcome.observations-not-causal-explanation"
+  ],
+  "evidence_review_ids": [
+    "evidence-individual-goal-feasibility-v1",
+    "evidence-adaptive-training-load-v1",
+    "evidence-short-interruption-detraining-v1",
+    "evidence-running-field-tests-v1",
+    "evidence-plan-outcome-interpretation-v1"
+  ],
+  "linked_evidence_digests": {
+    "evidence-adaptive-training-load-v1": "sha256:101f9e5b3a9eeed9d8777d0cef8cf56f332372568fed32ba812c4f969551d50f",
+    "evidence-individual-goal-feasibility-v1": "sha256:68dabbd3bed068c2829d6b77d9b0ee2503e8ae3874b745d2b61f5420680b94ba",
+    "evidence-plan-outcome-interpretation-v1": "sha256:46026c614f9be03950e9e2d9f9e4bb6ef29d12f5882432105a5b522b7fb96956",
+    "evidence-running-field-tests-v1": "sha256:734d2abf59bab4b371ff8dbf5db1ae39ce5c9d82ae85593a66063687ea664ccc",
+    "evidence-short-interruption-detraining-v1": "sha256:a68cb7a7655e1980c0ecd8cf7dfb737015b000ea9609572e460fabd13e932fb9"
+  },
+  "model_version": "adaptive-plan-policy-v1",
+  "parameters": {
+    "accepted_policy_alignment_gate": {
+      "applies_to": "science lifecycle, implementation mapping, and managed-plan activation",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "accepted_records_remain_unchanged_in_this_decision": true,
+        "accepted_records_requiring_successor_or_explicit_implementation_alignment": [
+          "sdr-preplan-baseline-policy-v1",
+          "sdr-outdoor-5k-plan-generation-policy-v1",
+          "sdr-road-10k-plan-generation-policy-v1",
+          "sdr-road-half-marathon-plan-generation-policy-v1"
+        ],
+        "new_managed_plan_policy_requires_shared_dependency": true,
+        "no_distance_policy_may_define_a_second_feedback_engine": true,
+        "records_already_naming_this_shared_policy": [
+          "sdr-plan-generation-eligibility-safety-v1",
+          "sdr-road-marathon-plan-generation-policy-v1"
+        ],
+        "shared_runtime_governance_before_alignment": false
+      }
+    },
+    "actionable_recommendation_contract": {
+      "applies_to": "recommendation and no-plan result contracts",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "feasibility.group-evidence-not-personal-probability",
+        "feasibility.calibration-required",
+        "outcome.single-indicator-insufficient"
+      ],
+      "value": {
+        "clarification_requires_one_focused_question": true,
+        "data_summary_only_output_allowed": false,
+        "disclaimer_only_output_allowed": false,
+        "insufficient_evidence_requires_concrete_next_evidence_action": true,
+        "justified_no_change_is_actionable": true,
+        "required_fields": [
+          "next_action",
+          "athlete_specific_rationale",
+          "applicable_science",
+          "expected_signal",
+          "uncertainty",
+          "feedback_request"
+        ],
+        "safety_stop_requires_concrete_non_diagnostic_next_step": true,
+        "supported_safe_route_requires_actionable_position": true,
+        "unsupported_route_requires_supported_alternative_or_honest_stop": true
+      }
+    },
+    "acwr_prescription_thresholds": {
+      "applies_to": "load evidence and proposal triggers",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "load.acwr-not-causal-threshold"
+      ],
+      "value": {
+        "automatic_prescription_trigger_allowed": false,
+        "causal_risk_zone_allowed": false,
+        "descriptive_history_allowed": true
+      }
+    },
+    "athlete_authority_and_consent": {
+      "applies_to": "proposal review, goal change, pause, resume, and end flows",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "allowed_responses": [
+          "adopt",
+          "edit_into_successor",
+          "reject",
+          "defer"
+        ],
+        "athlete_constraints_are_authoritative": true,
+        "default_mode": "athlete_approved_suggestions",
+        "goal_change_requires_successor_and_acknowledgement": true,
+        "pause_or_end_requires_explicit_athlete_action_or_separate_safety_policy": true,
+        "proposal_is_canonical_before_adoption": false,
+        "rejection_reason_optional": true
+      }
+    },
+    "autonomy_expansion_policy": {
+      "applies_to": "proposal approval, canonical mutation, and provider delivery",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "automatic_adoption_scope": "not_accepted",
+        "automatic_goal_change": false,
+        "automatic_pause_or_resume": "not_accepted",
+        "automatic_provider_delivery": "not_accepted",
+        "consent_model": "not_accepted",
+        "current_default": "suggestion_only",
+        "expiry_and_revocation": "not_accepted"
+      }
+    },
+    "candidate_strategy_evidence_boundary": {
+      "applies_to": "candidate strategy registry and recommendation reasoning",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "feasibility.group-evidence-not-personal-probability",
+        "feasibility.no-permanent-responder-label",
+        "load.structured-training-bounded-benefit",
+        "load.hrv-guidance-limited"
+      ],
+      "value": {
+        "accepted_science_role": "constrain_candidate_set_and_explain_applicability",
+        "athlete_observations_role": "update_current_state_and_test_fit_within_reviewed_policy",
+        "candidate_prior_is_personal_probability": false,
+        "distance_policy_role": "supply_task_specific_candidates_and_constraints",
+        "one_observed_response_creates_permanent_identity": false,
+        "population_association_becomes_personal_rule": false,
+        "population_findings_role": "bounded_candidate_context_and_qualitative_initial_prior",
+        "unaccepted_source_may_drive_behavior": false
+      }
+    },
+    "causal_gap_explanation": {
+      "applies_to": "checkpoint, terminal outcome, and plan gap review",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "outcome.observations-not-causal-explanation"
+      ],
+      "value": {
+        "adherence_as_causal_proof_allowed": false,
+        "definitive_individual_cause_allowed": false,
+        "diagnosis_allowed": false,
+        "future_testable_question_allowed": true,
+        "output": "ranked_hypotheses_with_contrary_evidence_and_unknowns"
+      }
+    },
+    "comparable_outcome_protocol_required": {
+      "applies_to": "baseline, checkpoint, and terminal outcome comparison",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "field-test.protocol-validity-reliability-sensitivity",
+        "field-test.running-reliability-and-sensitivity-underreported",
+        "field-test.vo2-estimate-not-direct-performance",
+        "field-test.critical-speed-protocol-dependent"
+      ],
+      "value": {
+        "cross_protocol_change_is_direct_evidence": false,
+        "device_estimate_is_automatically_equivalent": false,
+        "direct_change_evidence_requires": [
+          "same_or_accepted_equivalent_protocol",
+          "documented_conditions",
+          "protocol_specific_reliability",
+          "protocol_specific_sensitivity_or_error_boundary"
+        ],
+        "unlike_environment_is_automatically_equivalent": false
+      }
+    },
+    "distance_specific_generation_rules": {
+      "applies_to": "plan generation and distance-specific recommendation candidates",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "load.structured-training-bounded-benefit",
+        "load.ten-percent-rule-not-safety-law",
+        "detraining.reduced-dose-maintenance"
+      ],
+      "value": {
+        "dose": "not_accepted",
+        "environment_altitude": "not_accepted",
+        "fueling_hydration": "not_accepted",
+        "intensity_distribution": "not_accepted",
+        "long_run": "not_accepted",
+        "plan_horizon": "not_accepted",
+        "progression": "not_accepted",
+        "recovery": "not_accepted",
+        "return_after_interruption": "not_accepted",
+        "schedule": "not_accepted",
+        "taper": "not_accepted",
+        "workout_selection": "not_accepted"
+      }
+    },
+    "feasibility_probability": {
+      "applies_to": "feasibility and recommendation claims",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "feasibility.calibration-required"
+      ],
+      "value": {
+        "personal_probability_enabled": false,
+        "prerequisite_before_future_enablement": [
+          "defined_population_and_outcome",
+          "representative_development_data",
+          "prospective_calibration",
+          "external_validation",
+          "subgroup_and_drift_monitoring",
+          "accepted_successor_decision",
+          "implementation_approval"
+        ]
+      }
+    },
+    "feedback_weighting_algorithm": {
+      "applies_to": "evidence evaluation and reassessment",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "outcome.subjective-monitoring-adds-signal",
+        "outcome.single-indicator-insufficient"
+      ],
+      "value": {
+        "athlete_report_weight": "not_accepted",
+        "contradictory_signal_resolution": "not_accepted",
+        "missingness_handling": "not_accepted",
+        "observation_weights": "not_accepted",
+        "recency_decay": "not_accepted"
+      }
+    },
+    "fixed_detraining_loss_per_day": {
+      "applies_to": "interruption assessment and return proposals",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "detraining.short-term-system-specific",
+        "detraining.reduced-dose-maintenance",
+        "detraining.partial-not-complete-cessation"
+      ],
+      "value": {
+        "enabled": false,
+        "one_system_represents_all_capacity": false,
+        "total_cessation_equals_partial_reduction": false
+      }
+    },
+    "goal_feasibility_semantics": {
+      "applies_to": "managed-plan goal feasibility and expectation assessments",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "feasibility.group-evidence-not-personal-probability",
+        "feasibility.calibration-required"
+      ],
+      "value": {
+        "categories": {
+          "aggressive": "material_gap_or_compressed_horizon_requires_warning_and_alternatives",
+          "challenging": "plausible_with_material_execution_or_uncertainty_risks",
+          "insufficient_evidence": "current_evidence_cannot_responsibly_assess_target",
+          "supported": "no_material_concern_found_under_current_accepted_policy",
+          "unsupported": "outside_an_accepted_planning_boundary"
+        },
+        "category_is_personal_probability": false,
+        "category_thresholds": "not_accepted",
+        "confidence_style": "qualitative_and_explained",
+        "unsupported_allows_normal_success_shaped_plan": false
+      }
+    },
+    "implementation_pilot_and_activation": {
+      "applies_to": "implementation, pilot, rollout, and runtime",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "active_behavior": false,
+        "analysis_mapping": "not_accepted",
+        "api_contracts": "not_accepted",
+        "comparator": "not_accepted",
+        "implementation_approval": "not_accepted",
+        "persistence_schema": "not_accepted",
+        "pilot_population": "not_accepted",
+        "plugin_and_mcp_contracts": "not_accepted",
+        "primary_and_guardrail_metrics": "not_accepted",
+        "privacy_operations": "not_accepted",
+        "rollout": "not_accepted",
+        "runtime_activation": "not_accepted",
+        "sample_size_and_duration": "not_accepted",
+        "science_note_and_localization": "not_accepted",
+        "success_failure_and_rollback_thresholds": "not_accepted",
+        "web_and_miniapp_clients": "not_accepted"
+      }
+    },
+    "intensity_evidence_source": {
+      "applies_to": "historical intensity evidence and recommendation rationale",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "activity_average_power_allowed": false,
+        "allowed": [
+          "activity_splits",
+          "activity_samples"
+        ],
+        "missing_split_or_sample_evidence_result": "intensity_inference_unavailable"
+      }
+    },
+    "managed_plan_policy_scope": {
+      "applies_to": "every Praxys-owned managed-plan policy and client",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "applies_to": "all_praxys_owned_managed_plans",
+        "disciplines": [
+          "running",
+          "trail_running"
+        ],
+        "distance_policies_must_not_duplicate_shared_loop": true,
+        "distance_policies_supply": [
+          "eligibility",
+          "candidate_strategies",
+          "task_specific_constraints",
+          "task_specific_evidence"
+        ],
+        "intents": [
+          "race",
+          "performance",
+          "consistency_base",
+          "approved_future_intents"
+        ],
+        "shared_semantics": [
+          "recommendation",
+          "athlete_review",
+          "observation",
+          "feedback",
+          "reassessment",
+          "outcome_interpretation"
+        ],
+        "surfaces": [
+          "web",
+          "miniapp",
+          "plugin",
+          "mcp"
+        ]
+      }
+    },
+    "meaningful_change_policy": {
+      "applies_to": "response classification and outcome evaluation",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "feasibility.error-aware-response-classification",
+        "field-test.protocol-validity-reliability-sensitivity",
+        "field-test.running-reliability-and-sensitivity-underreported"
+      ],
+      "value": {
+        "exact_protocol_thresholds": "not_accepted",
+        "rule": "protocol_specific_and_error_aware",
+        "universal_percentage_allowed": false,
+        "zero_based_responder_threshold_allowed": false
+      }
+    },
+    "medical_stop_boundary": {
+      "applies_to": "context intake, recommendation, proposal, and reassessment",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "athlete_reported_states": [
+          "injury",
+          "acute_illness",
+          "red_flag_symptoms"
+        ],
+        "diagnosis_or_treatment_allowed": false,
+        "next_step": "stop_performance_optimization_and_show_appropriate_non_diagnostic_guidance",
+        "performance_optimization_continues": false,
+        "return_to_sport_prescription_allowed": false
+      }
+    },
+    "missed_session_catch_up": {
+      "applies_to": "interruption and planned-versus-completed handling",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "load.ten-percent-rule-not-safety-law",
+        "detraining.short-term-system-specific"
+      ],
+      "value": {
+        "automatic_compression": false,
+        "automatic_doubling": false,
+        "missed_session_alone_reveals_cause_or_capacity": false,
+        "proportional_replacement": false,
+        "reassessment_may_propose_smallest_supported_change": true
+      }
+    },
+    "observation_and_feedback_contract": {
+      "applies_to": "execution, context, checkpoint, and terminal outcome evidence",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "feasibility.no-permanent-responder-label",
+        "outcome.subjective-monitoring-adds-signal",
+        "outcome.single-indicator-insufficient",
+        "outcome.observations-not-causal-explanation"
+      ],
+      "value": {
+        "adherence_proves_adaptation": false,
+        "athlete_feedback_proves_causality": false,
+        "feedback_creates_permanent_responder_label": false,
+        "feedback_may_inform_versioned_reassessment": true,
+        "minimum_necessary_structured_context_preferred": true,
+        "observation_classes": [
+          "completed_training",
+          "planned_vs_completed_divergence",
+          "athlete_edit_rejection_or_deferral",
+          "perceived_response",
+          "recovery_or_symptom_report",
+          "changed_availability",
+          "comparable_checkpoint_or_goal_outcome"
+        ],
+        "one_workout_usually_sufficient_to_validate_policy": false,
+        "provenance_classes": [
+          "observed",
+          "athlete_stated",
+          "inferred",
+          "assumed",
+          "unknown"
+        ]
+      }
+    },
+    "online_learning_and_policy_updates": {
+      "applies_to": "policy, model, prompt, and autonomy updates",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "feasibility.no-permanent-responder-label",
+        "outcome.observations-not-causal-explanation"
+      ],
+      "value": {
+        "feedback_may_support_future_human_reviewed_successor": true,
+        "permanent_responder_profile_from_feedback": false,
+        "runtime_autonomy_expansion_from_feedback": false,
+        "runtime_prompt_authority_expansion_from_feedback": false,
+        "runtime_rule_updates_from_feedback": false,
+        "runtime_weight_updates_from_feedback": false,
+        "successor_requires": [
+          "versioned_evidence",
+          "accepted_science_decision",
+          "deterministic_validation",
+          "implementation_approval"
+        ]
+      }
+    },
+    "privacy_and_traceability": {
+      "applies_to": "context, evidence snapshots, recommendations, and decision traces",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "outcome.subjective-monitoring-adds-signal",
+        "outcome.observations-not-causal-explanation"
+      ],
+      "value": {
+        "account_deletion_covers_context_and_derived_adaptive_traces": true,
+        "athlete_can_correct_exclude_and_delete_context": true,
+        "decision_trace_requires": [
+          "owning_user",
+          "evidence_snapshot",
+          "proposal_or_position",
+          "policy_model_and_science_versions",
+          "source_revisions",
+          "later_outcome_links"
+        ],
+        "minimum_necessary_structured_context_preferred": true,
+        "personal_context_optional": true,
+        "purpose_limited_collection": true,
+        "raw_free_text_in_generic_decision_trace_allowed": false,
+        "sensitive_trait_inference_allowed": false,
+        "source_provenance_visible": true
+      }
+    },
+    "proposal_outcomes": {
+      "applies_to": "managed-plan recommendation API and client states",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "feasibility.group-evidence-not-personal-probability",
+        "outcome.single-indicator-insufficient"
+      ],
+      "value": {
+        "every_type_requires_next_action": true,
+        "every_type_requires_reason_and_uncertainty": true,
+        "success_shaped_fallback_for_unavailable_route": false,
+        "types": {
+          "clarification_required": "one_focused_optional_question",
+          "insufficient_evidence": "no_invented_action_and_one_concrete_evidence_step",
+          "no_change": "keep_current_plan_with_reason_and_next_observation",
+          "propose_change": "reviewable_non_canonical_diff",
+          "safety_stop": "stop_performance_optimization_without_diagnosis",
+          "unsupported_route": "preserve_goal_and_offer_supported_alternative_or_honest_stop"
+        }
+      }
+    },
+    "reassessment_contract": {
+      "applies_to": "workout, week, block, goal, pause, resume, and outcome reassessment",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "detraining.short-term-system-specific",
+        "field-test.protocol-validity-reliability-sensitivity",
+        "outcome.observations-not-causal-explanation"
+      ],
+      "value": {
+        "required_comparison": [
+          "prior_position",
+          "new_or_corrected_evidence",
+          "unchanged_evidence",
+          "contrary_signals",
+          "expected_vs_observed_signal",
+          "current_unknowns",
+          "goal_implication",
+          "plan_implication"
+        ],
+        "result_must_reference_policy_model_and_science_versions": true,
+        "result_types": [
+          "propose_change",
+          "no_change",
+          "clarification_required",
+          "insufficient_evidence",
+          "safety_stop",
+          "unsupported_route"
+        ],
+        "silent_rebase_or_plan_rewrite_allowed": false,
+        "smallest_supported_scope_preferred": true,
+        "stale_proposal_requires_new_evidence_snapshot": true
+      }
+    },
+    "reassessment_trigger_algorithm": {
+      "applies_to": "reassessment scheduler and event handling",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "detraining.short-term-system-specific",
+        "field-test.running-reliability-and-sensitivity-underreported"
+      ],
+      "value": {
+        "availability_change_threshold": "not_accepted",
+        "checkpoint_threshold": "not_accepted",
+        "goal_expectation_change_threshold": "not_accepted",
+        "recovery_or_symptom_threshold": "not_accepted",
+        "scheduled_cadence": "not_accepted",
+        "workout_divergence_threshold": "not_accepted"
+      }
+    },
+    "recommendation_loop_state_machine": {
+      "applies_to": "adaptive-plan decision, proposal, revision, and outcome traces",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "outcome.observations-not-causal-explanation"
+      ],
+      "value": {
+        "adoption_commits_one_exact_version": true,
+        "athlete_edit_creates_successor_proposal": true,
+        "deferral_preserves_canonical_plan": true,
+        "deterministic_replay_required": true,
+        "evidence_snapshot_is_immutable": true,
+        "observation_does_not_rewrite_prior_decision": true,
+        "proposal_is_immutable_and_non_canonical": true,
+        "reassessment_appends_a_new_versioned_decision": true,
+        "rejection_preserves_canonical_plan": true,
+        "stages": [
+          "sense",
+          "select_candidate_strategy",
+          "propose",
+          "athlete_review",
+          "observe",
+          "reassess"
+        ]
+      }
+    },
+    "recommendation_reasoning_contract": {
+      "applies_to": "recommendation, clarification, no-change, and outcome explanations",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "feasibility.error-aware-response-classification",
+        "outcome.subjective-monitoring-adds-signal",
+        "outcome.observations-not-causal-explanation"
+      ],
+      "value": {
+        "applicable_science_requires_exact_record_and_claim_references": true,
+        "athlete_specific_rationale_must_name_relevant_current_evidence": true,
+        "causal_language_without_causal_design": false,
+        "evidence_classes": [
+          "observed",
+          "athlete_stated",
+          "inferred",
+          "assumed",
+          "unknown"
+        ],
+        "expected_signal_must_state_supporting_and_contrary_observations": true,
+        "feedback_request_must_be_purpose_bounded": true,
+        "no_change_must_explain_what_remains_supported_and_what_to_observe": true,
+        "uncertainty_must_name_material_unknowns": true
+      }
+    },
+    "strategy_selection_algorithm": {
+      "applies_to": "candidate selection policy",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "load.hrv-guidance-limited",
+        "feasibility.no-permanent-responder-label"
+      ],
+      "value": {
+        "candidate_ranking": "not_accepted",
+        "context_interactions": "not_accepted",
+        "exploration_or_experiment_assignment": "not_accepted",
+        "model_or_llm_role": "not_accepted",
+        "tie_breaking": "not_accepted"
+      }
+    }
+  },
+  "runtime_state": "inactive",
+  "schema_version": 1,
+  "source_decision_digest": "sha256:b2108b70a45355a5f4c0a189cadfc3f6d33980daf0e5efa0db17a7d6e652e1c2"
+}

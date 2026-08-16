@@ -32,6 +32,7 @@ from analysis.science_artifacts import (
     evidence_review_digest,
     expected_science_artifacts,
     load_policy_contract,
+    load_science_approvals,
     render_policy_contract_json,
     science_decision_digest,
     sync_science_artifacts,
@@ -516,6 +517,135 @@ def test_approval_roles_require_complete_scopes() -> None:
     payload["reviewer"] = "agent:copilot"
     with pytest.raises(ValidationError, match="identified human reviewer"):
         ScienceApproval.model_validate(payload)
+
+
+def test_adaptive_plan_packet_contains_exact_accepted_inactive_contract() -> None:
+    registry = load_science_registry()
+    decision_id = "sdr-adaptive-plan-feasibility-and-adjustment-v1"
+    decision = registry.decisions[decision_id]
+    expected_contract = build_policy_contract(registry, decision_id)
+    generated_contract = SciencePolicyContract.model_validate_json(
+        (
+            Path("data/science/generated/contracts")
+            / f"{decision_id}.json"
+        ).read_text(encoding="utf-8")
+    )
+    packet = (
+        Path("data/science/generated/review-packets")
+        / f"{decision_id}.md"
+    ).read_text(encoding="utf-8")
+
+    assert decision.status == RecordStatus.ACCEPTED
+    assert decision.approval_mode == ApprovalMode.ARTIFACT
+    assert decision.human_reviewers == []
+    assert decision.artifact_policy is not None
+    assert (
+        decision.artifact_policy.runtime_state
+        == ArtifactRuntimeState.INACTIVE
+    )
+    assert generated_contract == expected_contract
+    assert generated_contract.decision_status == RecordStatus.ACCEPTED
+    assert generated_contract.runtime_state == ArtifactRuntimeState.INACTIVE
+
+    exact_contract_block = (
+        "```json\n"
+        + render_policy_contract_json(expected_contract).rstrip()
+        + "\n```"
+    )
+    assert exact_contract_block in packet
+    assert expected_contract.source_decision_digest in packet
+    assert expected_contract.contract_digest in packet
+    assert packet.index("## Your task") < packet.index("## Decision sheet")
+    assert packet.index("## Decision sheet") < packet.index(
+        "## Audit appendix"
+    )
+    assert "**Decision approval:** _Pending_" not in packet
+    assert (
+        "**Decision approval:** `github:dddtc2005` on `2026-08-16`"
+        in packet
+    )
+    assert packet.count("**Implementation approval:** _Pending_") == 1
+    assert "Approve the decision sheet as a unit" in packet
+    assert "request changes by item ID" in packet
+
+    assert decision.decision_review is not None
+    approve_ids = [
+        item.id
+        for item in decision.decision_review.items
+        if item.disposition == DecisionReviewDisposition.APPROVE
+    ]
+    defer_ids = [
+        item.id
+        for item in decision.decision_review.items
+        if item.disposition == DecisionReviewDisposition.DEFER
+    ]
+    assert approve_ids == [
+        "actionable-position",
+        "bounded-science",
+        "athlete-controlled-loop",
+        "hard-boundaries",
+        "shared-policy-alignment",
+    ]
+    assert defer_ids == [
+        "defer-selection-and-update",
+        "defer-distance-rules-and-autonomy",
+        "defer-implementation-and-activation",
+    ]
+    for item_id in [*approve_ids, *defer_ids]:
+        assert packet.count(f"#### `{item_id}`") == 1
+
+    assert expected_contract.parameters[
+        "actionable_recommendation_contract"
+    ].value["disclaimer_only_output_allowed"] is False
+    assert expected_contract.parameters[
+        "recommendation_loop_state_machine"
+    ].value["deterministic_replay_required"] is True
+    assert expected_contract.parameters[
+        "privacy_and_traceability"
+    ].value["sensitive_trait_inference_allowed"] is False
+    assert expected_contract.parameters[
+        "implementation_pilot_and_activation"
+    ].value["active_behavior"] is False
+
+    subject_ids = {decision_id, *decision.evidence_review_ids}
+    approvals = [
+        approval
+        for approval in load_science_approvals(Path("data/science"))
+        if approval.subject_id in subject_ids
+    ]
+    assert {
+        (approval.subject_id, approval.role, approval.reviewer)
+        for approval in approvals
+    } == {
+        *{
+            (
+                evidence_id,
+                ReviewRole.EVIDENCE_REVIEWER,
+                "github:dddtc2005",
+            )
+            for evidence_id in decision.evidence_review_ids
+        },
+        (
+            decision_id,
+            ReviewRole.DECISION_APPROVER,
+            "github:dddtc2005",
+        ),
+    }
+
+    for evidence_id in decision.evidence_review_ids:
+        review = registry.evidence_reviews[evidence_id]
+        evidence_packet = (
+            Path("data/science/generated/review-packets")
+            / f"{evidence_id}.md"
+        ).read_text(encoding="utf-8")
+        assert review.status == RecordStatus.ACCEPTED
+        assert review.approval_mode == ApprovalMode.ARTIFACT
+        assert "- **Review mode:** `artifact`" in evidence_packet
+        assert (
+            "- **Approval:** `github:dddtc2005` on `2026-08-16`"
+            in evidence_packet
+        )
+        assert evidence_review_digest(review) in evidence_packet
 
 
 def test_half_marathon_packet_contains_exact_inactive_contract() -> None:
