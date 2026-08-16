@@ -845,9 +845,44 @@ def _update_settings(
                     "changing execution targets"
                 ),
             )
-        config = load_config_from_db(user_id, db)
-        prior_plan_management = dict(config.plan_management)
-        prior_goal = dict(config.goal)
+        db.commit()
+    from db.plan_ledger import lock_plan_writes
+
+    # Every settings save rewrites the full config row, including Goal state.
+    # Reload only after taking the shared plan-write lock so a stale unrelated
+    # settings request cannot overwrite a concurrently committed Goal.
+    db.rollback()
+    lock_plan_writes(db, user_id)
+    config = load_config_from_db(user_id, db)
+    prior_plan_management = dict(config.plan_management)
+    prior_goal = dict(config.goal)
+    requested_execution_target = prior_plan_management.get(
+        "execution_target"
+    )
+    if (
+        body.plan_management is not None
+        and "execution_target"
+        in body.plan_management.model_fields_set
+    ):
+        requested_execution_target = (
+            body.plan_management.execution_target
+        )
+    elif (
+        body.plan_management is None
+        and prior_plan_management.get("mode") == "external"
+        and body.preferences is not None
+        and "plan" in body.preferences
+    ):
+        requested_execution_target = _legacy_execution_target(
+            body.preferences["plan"]
+        )
+        candidate_connections = (
+            body.connections
+            if body.connections is not None
+            else config.connections
+        )
+        if requested_execution_target not in candidate_connections:
+            requested_execution_target = None
     prior_garmin_region = garmin_region(config.source_options)
     legacy_target_update_requested = False
     legacy_target: PlatformName | None = None

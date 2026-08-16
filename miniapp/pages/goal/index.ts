@@ -135,6 +135,8 @@ function buildGoalTr() {
     planStartAvailable: t('A preview is a proposal, not yet your plan. Praxys checks the current evidence and constraints again before it creates one.'),
     planStartUnavailable: t('Automatic generation is not available for this goal yet. Praxys will not reuse another policy outside its accepted scope.'),
     planStartUnavailableDetail: t('You can keep this goal and manage workouts manually while separate road and trail policies go through science review.'),
+    planStartOtherPurpose: t('The current Goal stays unchanged, and an accepted separate 5K plan purpose is available to preview.'),
+    planStartOtherPurposeDetail: t('Choose the accepted 5K purpose in Training. It remains independent from the current Goal unless you explicitly link it.'),
     planStartLoadFailed: t('Could not load the accepted plan-generation policies.'),
     planStartLoadFailedDetail: t('Retry the policy check before opening a preview. Praxys will not infer availability from the current goal alone.'),
     planStartUpdateRequired: t('Update required for this plan policy'),
@@ -143,7 +145,9 @@ function buildGoalTr() {
     noAcceptedPolicy: t('No accepted policy'),
     baselineReady: t('Baseline ready'),
     reviewBaseline: t('Review baseline'),
+    otherPlanPurpose: t('Other plan purpose available'),
     openPlanPreview: t('Open plan preview'),
+    choosePlanPurpose: t('Choose plan purpose'),
     manageWorkouts: t('Manage workouts'),
     retryPolicyCheck: t('Retry policy check'),
   };
@@ -212,7 +216,7 @@ interface GoalState {
   goalKind: GoalResponse['goal_kind'] | '';
   goal: GoalResponse['goal'] | null;
   baseline: GoalResponse['baseline'] | null;
-  planCapabilityState: 'loading' | 'available' | 'unavailable' | 'error' | 'update_required';
+  planCapabilityState: 'loading' | 'available' | 'alternate_available' | 'unavailable' | 'error' | 'update_required';
   planCapabilityDescription: string;
   planCapabilityDetail: string;
   planCapabilityBadge: string;
@@ -998,7 +1002,16 @@ Page({
           }),
       ]);
       if (pageState._refetchRequestId !== requestId) return;
-      const capability = capabilityResult.data?.selected_capability ?? null;
+      const discovery = capabilityResult.data;
+      const capability = discovery?.selected_capability ?? null;
+      const supportedCapabilities = discovery?.capabilities.filter(
+        (item) => item.constraint_schema_id
+          === 'outdoor_road_5k_constraints_v1',
+      ) ?? [];
+      const alternatePurposeAvailable = supportedCapabilities.some(
+        (item) => item.purpose.allows_capability_goal
+          || item.purpose.allows_unlinked,
+      );
       let planCapabilityState: GoalState['planCapabilityState'];
       let planCapabilityDescription: string;
       let planCapabilityDetail: string;
@@ -1008,16 +1021,25 @@ Page({
         planCapabilityDescription = tr.planStartLoadFailed;
         planCapabilityDetail = capabilityResult.error || tr.planStartLoadFailedDetail;
         planCapabilityBadge = tr.policyCheckFailed;
+      } else if (
+        capability
+        && capability.constraint_schema_id
+          !== 'outdoor_road_5k_constraints_v1'
+      ) {
+        planCapabilityState = 'update_required';
+        planCapabilityDescription = tr.planStartUpdateRequired;
+        planCapabilityDetail = tr.planStartUpdateRequiredDetail;
+        planCapabilityBadge = tr.planStartUpdateRequired;
+      } else if (!capability && alternatePurposeAvailable) {
+        planCapabilityState = 'alternate_available';
+        planCapabilityDescription = tr.planStartOtherPurpose;
+        planCapabilityDetail = tr.planStartOtherPurposeDetail;
+        planCapabilityBadge = tr.otherPlanPurpose;
       } else if (!capability) {
         planCapabilityState = 'unavailable';
         planCapabilityDescription = tr.planStartUnavailable;
         planCapabilityDetail = tr.planStartUnavailableDetail;
         planCapabilityBadge = tr.noAcceptedPolicy;
-      } else if (capability.constraint_schema_id !== 'outdoor_road_5k_constraints_v1') {
-        planCapabilityState = 'update_required';
-        planCapabilityDescription = tr.planStartUpdateRequired;
-        planCapabilityDetail = tr.planStartUpdateRequiredDetail;
-        planCapabilityBadge = tr.planStartUpdateRequired;
       } else {
         planCapabilityState = 'available';
         planCapabilityDescription = tr.planStartAvailable;

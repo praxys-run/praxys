@@ -1,6 +1,7 @@
 """Persistence and API helpers for the history-first 5 km baseline pilot."""
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date, datetime, timezone
 import hashlib
 import json
@@ -8,7 +9,7 @@ from typing import Any, Mapping
 from uuid import uuid4
 
 import pandas as pd
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -73,20 +74,140 @@ class GoalBaselineForbidden(RuntimeError):
     pass
 
 
+@dataclass(frozen=True)
+class _BaselinePurposeScope:
+    source: str | None
+    source_goal_id: str | None
+    source_goal_revision: str | None
+
+    def record_fields(self) -> dict[str, str | None]:
+        return {
+            "purpose_source": self.source,
+            "source_goal_id": self.source_goal_id,
+            "source_goal_revision": self.source_goal_revision,
+        }
+
+
+def _resolve_baseline_context(
+    db: Session,
+    *,
+    user_id: str,
+    goal_override: Mapping[str, Any] | None,
+    purpose_selection: Mapping[str, Any] | None,
+) -> tuple[Any, dict[str, Any], _BaselinePurposeScope]:
+    config = load_config_from_db(user_id, db)
+    if purpose_selection is not None:
+        from api.plan_generation_capabilities import (
+            resolve_plan_generation_purpose,
+        )
+
+        resolved = resolve_plan_generation_purpose(
+            db,
+            user_id=user_id,
+            selection=purpose_selection,
+        )
+        return (
+            config,
+            dict(resolved.goal),
+            _BaselinePurposeScope(
+                source=resolved.source,
+                source_goal_id=resolved.source_goal_id,
+                source_goal_revision=resolved.source_goal_revision,
+            ),
+        )
+    if goal_override is not None:
+        return (
+            config,
+            dict(goal_override),
+            _BaselinePurposeScope(None, None, None),
+        )
+
+    goal_source = dict(config.goal or {})
+    from api.plan_generation_capabilities import current_goal_reference
+
+    current_goal = current_goal_reference(
+        user_id=user_id,
+        goal=goal_source,
+    )
+    if current_goal is None:
+        return (
+            config,
+            goal_source,
+            _BaselinePurposeScope(None, None, None),
+        )
+    return (
+        config,
+        goal_source,
+        _BaselinePurposeScope(
+            source="current_goal",
+            source_goal_id=current_goal.goal_id,
+            source_goal_revision=current_goal.revision,
+        ),
+    )
+
+
+def _scope_test_frame(
+    frame: pd.DataFrame,
+    *,
+    scope: _BaselinePurposeScope,
+) -> pd.DataFrame:
+    if frame.empty:
+        return frame
+    if "purpose_source" not in frame.columns:
+        return (
+            frame
+            if scope.source in {None, "current_goal"}
+            else frame.iloc[0:0]
+        )
+
+    source = frame["purpose_source"]
+    if scope.source == "current_goal":
+        linked = (
+            source.eq("current_goal")
+            & frame["source_goal_id"].eq(scope.source_goal_id)
+        )
+        return frame.loc[linked | source.isna()]
+    if scope.source is None:
+        return frame.loc[source.isna()]
+    return frame.loc[
+        source.eq(scope.source)
+        & frame["source_goal_id"].isna()
+    ]
+
+
 def build_goal_baseline_view(
     db: Session,
     *,
     user_id: str,
     now: datetime | None = None,
+    goal_override: Mapping[str, Any] | None = None,
+    purpose_selection: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    config = load_config_from_db(user_id, db)
-    goal = build_goal_baseline_goal(config.goal)
+    config, goal_source, purpose_scope = _resolve_baseline_context(
+        db,
+        user_id=user_id,
+        goal_override=goal_override,
+        purpose_selection=purpose_selection,
+    )
+    goal = build_goal_baseline_goal(goal_source)
     athlete_today = effective_athlete_date(config, now=now)
     confirmations_frame = load_goal_baseline_confirmations(
         user_id, db, goal_signature=goal.goal_signature,
     )
     tests_frame = load_goal_baseline_test_records(
         user_id, db, goal_signature=goal.goal_signature,
+    )
+    tests_frame = _scope_test_frame(
+        tests_frame,
+        scope=purpose_scope,
+    )
+    athlete_has_scheduled_test = any(
+        row.state == "scheduled"
+        for row in _latest_test_records_by_lineage(
+            db,
+            user_id=user_id,
+            goal_signature=goal.goal_signature,
+        )
     )
     activities = _load_candidate_activities(
         db, user_id=user_id, activity_source=config.preferences.get("activities"),
@@ -100,10 +221,21 @@ def build_goal_baseline_view(
         confirmations=confirmations,
         tests=tests,
     )
-    latest_test_row = _latest_test_record(db, user_id=user_id, goal_signature=goal.goal_signature)
+    latest_test_row = _latest_test_record(
+        db,
+        user_id=user_id,
+        goal_signature=goal.goal_signature,
+        purpose_scope=purpose_scope,
+    )
     evidence = _serialize_evidence(evaluation.evidence)
     if evidence is not None and evidence.get("provenance") == "pilot_test":
-        snapshot = _latest_pilot_snapshot(db, user_id=user_id, goal_signature=goal.goal_signature)
+        snapshot = _current_evidence_snapshot(
+            db,
+            user_id=user_id,
+            goal_signature=goal.goal_signature,
+            purpose_scope=purpose_scope,
+            evidence=evidence,
+        )
         if snapshot is not None:
             evidence["elapsed_time_sec"] = snapshot.elapsed_time_sec
     return {
@@ -112,7 +244,7 @@ def build_goal_baseline_view(
             "goal_kind": goal.goal_kind,
             "distance": goal.distance,
             "target_time_sec": goal.target_time_sec,
-            "race_date": str(config.goal.get("race_date") or "") or None,
+            "race_date": str(goal_source.get("race_date") or "") or None,
             "eligible": goal.eligible,
         },
         "baseline": {
@@ -133,13 +265,21 @@ def build_goal_baseline_view(
             "test": {
                 "state": evaluation.test.state,
                 "available": evaluation.test.available,
-                "can_schedule": evaluation.test.can_schedule,
+                "can_schedule": (
+                    evaluation.test.can_schedule
+                    and not athlete_has_scheduled_test
+                ),
                 "scheduled_workout": _scheduled_workout_info(db, latest_test_row),
                 "last_reason_code": getattr(latest_test_row, "reason_code", None),
             },
             "timeline": _timeline(
                 confirmation_rows=_load_confirmation_rows(db, user_id=user_id, goal_signature=goal.goal_signature),
-                test_rows=_load_test_rows(db, user_id=user_id, goal_signature=goal.goal_signature),
+                test_rows=_load_test_rows(
+                    db,
+                    user_id=user_id,
+                    goal_signature=goal.goal_signature,
+                    purpose_scope=purpose_scope,
+                ),
             ),
             "science_note": {
                 "name": "History-first 5 km baseline pilot",
@@ -163,6 +303,23 @@ def build_goal_baseline_view(
     }
 
 
+def _baseline_for_goal(
+    db: Session,
+    *,
+    user_id: str,
+    now: datetime,
+    goal_override: Mapping[str, Any] | None,
+    purpose_selection: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    return build_goal_baseline_view(
+        db,
+        user_id=user_id,
+        now=now,
+        goal_override=goal_override,
+        purpose_selection=purpose_selection,
+    )["baseline"]
+
+
 def confirm_history_candidate(
     db: Session,
     *,
@@ -174,10 +331,19 @@ def confirm_history_candidate(
     idempotency_key: str,
     supersedes_confirmation_id: str | None = None,
     now: datetime | None = None,
+    goal_override: Mapping[str, Any] | None = None,
+    purpose_selection: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     timestamp = _utc_naive(now or datetime.utcnow())
-    config = load_config_from_db(user_id, db)
-    goal = build_goal_baseline_goal(config.goal)
+    db.rollback()
+    lock_plan_writes(db, user_id)
+    config, goal_source, purpose_scope = _resolve_baseline_context(
+        db,
+        user_id=user_id,
+        goal_override=goal_override,
+        purpose_selection=purpose_selection,
+    )
+    goal = build_goal_baseline_goal(goal_source)
     if not goal.eligible:
         raise GoalBaselineForbidden("BASELINE_NOT_REQUIRED")
     activity = _activity_by_id(
@@ -196,7 +362,10 @@ def confirm_history_candidate(
         "measured_5k": measured_5k,
         "elapsed_timing_confirmed": elapsed_timing_confirmed,
         "supersedes_confirmation_id": supersedes_confirmation_id,
+        "goal_signature": goal.goal_signature,
     }
+    if purpose_selection is not None:
+        payload.update(purpose_scope.record_fields())
     fingerprint = _request_fingerprint(payload)
     existing = _find_idempotent_row(
         db,
@@ -209,7 +378,13 @@ def confirm_history_candidate(
         return {
             "replayed": True,
             "confirmation": _serialize_confirmation_row(existing),
-            "baseline": build_goal_baseline_view(db, user_id=user_id, now=timestamp)["baseline"],
+            "baseline": _baseline_for_goal(
+                db,
+                user_id=user_id,
+                now=timestamp,
+                goal_override=goal_override,
+                purpose_selection=purpose_selection,
+            ),
         }
     predecessor = _resolve_confirmation_predecessor(
         db,
@@ -238,7 +413,13 @@ def confirm_history_candidate(
         return {
             "replayed": True,
             "confirmation": _serialize_confirmation_row(row),
-            "baseline": build_goal_baseline_view(db, user_id=user_id, now=timestamp)["baseline"],
+            "baseline": _baseline_for_goal(
+                db,
+                user_id=user_id,
+                now=timestamp,
+                goal_override=goal_override,
+                purpose_selection=purpose_selection,
+            ),
         }
     snapshot = _record_confirmation_snapshot(
         db,
@@ -249,33 +430,27 @@ def confirm_history_candidate(
         activity=activity,
         created_at=timestamp,
     )
-    if response in {"race", "intentional_all_out"} and measured_5k and elapsed_timing_confirmed:
-        latest_test = _latest_test_record(db, user_id=user_id, goal_signature=goal.goal_signature)
-        if latest_test is not None and latest_test.state in {"offered", "scheduled"}:
-            retired = GoalBaselineTestRecord(
-                lineage_id=latest_test.lineage_id,
-                user_id=user_id,
-                goal_signature=goal.goal_signature,
-                goal_snapshot=goal.goal_snapshot,
-                version=int(latest_test.version) + 1,
-                supersedes_id=latest_test.id,
-                state="deleted",
-                protocol_id=BASELINE_PROTOCOL_ID,
-                request_fingerprint=_request_fingerprint({"operation": "history_current", "activity_id": activity_id}),
-                idempotency_key=f"history-current:{row.id}",
-                created_at=timestamp,
-            )
-            created_retire = _insert_idempotent(db, retired)
-            if created_retire:
-                _remove_scheduled_test_workout(
-                    db,
-                    user_id=user_id,
-                    previous=latest_test,
-                    idempotency_key=retired.idempotency_key or retired.id,
-                    operation="goal_baseline_test_history_current",
-                    detail_reason="current_history_confirmed",
-                )
-    baseline = build_goal_baseline_view(db, user_id=user_id, now=timestamp)["baseline"]
+    retired_scheduled_test = False
+    if (
+        response in {"race", "intentional_all_out"}
+        and measured_5k
+        and elapsed_timing_confirmed
+    ):
+        retired_scheduled_test = _retire_tests_for_shared_history(
+            db,
+            user_id=user_id,
+            goal_signature=goal.goal_signature,
+            confirmation_id=row.id,
+            activity_id=activity_id,
+            created_at=timestamp,
+        )
+    baseline = _baseline_for_goal(
+        db,
+        user_id=user_id,
+        now=timestamp,
+        goal_override=goal_override,
+        purpose_selection=purpose_selection,
+    )
     _record_assessment_row(
         db,
         user_id=user_id,
@@ -286,12 +461,22 @@ def confirm_history_candidate(
         test_record_id=None,
         created_at=timestamp,
     )
-    bump_revisions(db, user_id, ["goals"])
+    bump_revisions(
+        db,
+        user_id,
+        ["goals", "plans"] if retired_scheduled_test else ["goals"],
+    )
     db.commit()
     return {
         "replayed": False,
         "confirmation": _serialize_confirmation_row(row),
-        "baseline": build_goal_baseline_view(db, user_id=user_id, now=timestamp)["baseline"],
+        "baseline": _baseline_for_goal(
+            db,
+            user_id=user_id,
+            now=timestamp,
+            goal_override=goal_override,
+            purpose_selection=purpose_selection,
+        ),
     }
 
 def mutate_optional_test(
@@ -307,10 +492,19 @@ def mutate_optional_test(
     protocol_followed: bool | None = None,
     reason_code: str | None = None,
     now: datetime | None = None,
+    goal_override: Mapping[str, Any] | None = None,
+    purpose_selection: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     timestamp = _utc_naive(now or datetime.utcnow())
-    config = load_config_from_db(user_id, db)
-    goal = build_goal_baseline_goal(config.goal)
+    db.rollback()
+    lock_plan_writes(db, user_id)
+    config, goal_source, purpose_scope = _resolve_baseline_context(
+        db,
+        user_id=user_id,
+        goal_override=goal_override,
+        purpose_selection=purpose_selection,
+    )
+    goal = build_goal_baseline_goal(goal_source)
     if not goal.eligible:
         raise GoalBaselineForbidden("BASELINE_NOT_REQUIRED")
     payload = {
@@ -321,7 +515,10 @@ def mutate_optional_test(
         "elapsed_timing_confirmed": elapsed_timing_confirmed,
         "protocol_followed": protocol_followed,
         "reason_code": reason_code,
+        "goal_signature": goal.goal_signature,
     }
+    if purpose_selection is not None:
+        payload.update(purpose_scope.record_fields())
     fingerprint = _request_fingerprint(payload)
     existing = _find_idempotent_row(
         db,
@@ -331,7 +528,13 @@ def mutate_optional_test(
         request_fingerprint=fingerprint,
     )
     if existing is not None:
-        replay_baseline = build_goal_baseline_view(db, user_id=user_id, now=timestamp)["baseline"]
+        replay_baseline = _baseline_for_goal(
+            db,
+            user_id=user_id,
+            now=timestamp,
+            goal_override=goal_override,
+            purpose_selection=purpose_selection,
+        )
         replay_test = _serialize_test_row(existing)
         replay_test["scheduled_workout"] = replay_baseline["test"].get("scheduled_workout")
         return {
@@ -340,8 +543,19 @@ def mutate_optional_test(
             "baseline": replay_baseline,
         }
 
-    baseline_before = build_goal_baseline_view(db, user_id=user_id, now=timestamp)["baseline"]
-    latest = _latest_test_record(db, user_id=user_id, goal_signature=goal.goal_signature)
+    baseline_before = _baseline_for_goal(
+        db,
+        user_id=user_id,
+        now=timestamp,
+        goal_override=goal_override,
+        purpose_selection=purpose_selection,
+    )
+    latest = _latest_test_record(
+        db,
+        user_id=user_id,
+        goal_signature=goal.goal_signature,
+        purpose_scope=purpose_scope,
+    )
     lineage_id = latest.lineage_id if latest is not None else str(uuid4())
     version = (int(latest.version) + 1) if latest is not None else 1
     pending_delivery = False
@@ -364,10 +578,17 @@ def mutate_optional_test(
             request_fingerprint=fingerprint,
             idempotency_key=idempotency_key,
             created_at=timestamp,
+            **purpose_scope.record_fields(),
         )
         created = _insert_idempotent(db, row)
         if not created:
-            replay_baseline = build_goal_baseline_view(db, user_id=user_id, now=timestamp)["baseline"]
+            replay_baseline = _baseline_for_goal(
+                db,
+                user_id=user_id,
+                now=timestamp,
+                goal_override=goal_override,
+                purpose_selection=purpose_selection,
+            )
             replay_test = _serialize_test_row(row)
             replay_test["scheduled_workout"] = replay_baseline["test"].get("scheduled_workout")
             return {"replayed": True, "test": replay_test, "baseline": replay_baseline}
@@ -376,7 +597,19 @@ def mutate_optional_test(
         athlete_today = effective_athlete_date(config, now=timestamp)
         if baseline_before["status"] == "current":
             raise GoalBaselineForbidden("CURRENT_HISTORY_SUPPRESSES_TEST")
-        if latest is not None and latest.state == "scheduled":
+        scheduled_test = next(
+            (
+                row
+                for row in _latest_test_records_by_lineage(
+                    db,
+                    user_id=user_id,
+                    goal_signature=goal.goal_signature,
+                )
+                if row.state == "scheduled"
+            ),
+            None,
+        )
+        if scheduled_test is not None:
             raise GoalBaselineForbidden("TEST_ALREADY_SCHEDULED")
         if scheduled_date is None:
             raise GoalBaselineInvalid("scheduled_date is required")
@@ -397,10 +630,17 @@ def mutate_optional_test(
             scheduled_date=scheduled_date,
             plan_canonical_id=canonical_id,
             created_at=timestamp,
+            **purpose_scope.record_fields(),
         )
         created = _insert_idempotent(db, row)
         if not created:
-            replay_baseline = build_goal_baseline_view(db, user_id=user_id, now=timestamp)["baseline"]
+            replay_baseline = _baseline_for_goal(
+                db,
+                user_id=user_id,
+                now=timestamp,
+                goal_override=goal_override,
+                purpose_selection=purpose_selection,
+            )
             replay_test = _serialize_test_row(row)
             replay_test["scheduled_workout"] = replay_baseline["test"].get("scheduled_workout")
             return {"replayed": True, "test": replay_test, "baseline": replay_baseline}
@@ -421,7 +661,11 @@ def mutate_optional_test(
             origin="api.goal.baseline.test",
             before=[],
             after=[workout],
-            details={"protocol_id": BASELINE_PROTOCOL_ID, "test_record_id": row.id},
+            details={
+                "protocol_id": BASELINE_PROTOCOL_ID,
+                "test_record_id": row.id,
+                **purpose_scope.record_fields(),
+            },
             idempotency_key=f"goal-baseline-test-schedule:{idempotency_key}",
         )
         bump_revisions(db, user_id, ["plans", "goals"])
@@ -447,10 +691,17 @@ def mutate_optional_test(
             reason_code=reason_code,
             safety_stop=reason_code in _URGENT_STOP_REASONS,
             created_at=timestamp,
+            **purpose_scope.record_fields(),
         )
         created = _insert_idempotent(db, row)
         if not created:
-            replay_baseline = build_goal_baseline_view(db, user_id=user_id, now=timestamp)["baseline"]
+            replay_baseline = _baseline_for_goal(
+                db,
+                user_id=user_id,
+                now=timestamp,
+                goal_override=goal_override,
+                purpose_selection=purpose_selection,
+            )
             replay_test = _serialize_test_row(row)
             replay_test["scheduled_workout"] = replay_baseline["test"].get("scheduled_workout")
             return {"replayed": True, "test": replay_test, "baseline": replay_baseline}
@@ -471,10 +722,17 @@ def mutate_optional_test(
             request_fingerprint=fingerprint,
             idempotency_key=idempotency_key,
             created_at=timestamp,
+            **purpose_scope.record_fields(),
         )
         created = _insert_idempotent(db, row)
         if not created:
-            replay_baseline = build_goal_baseline_view(db, user_id=user_id, now=timestamp)["baseline"]
+            replay_baseline = _baseline_for_goal(
+                db,
+                user_id=user_id,
+                now=timestamp,
+                goal_override=goal_override,
+                purpose_selection=purpose_selection,
+            )
             replay_test = _serialize_test_row(row)
             replay_test["scheduled_workout"] = replay_baseline["test"].get("scheduled_workout")
             return {"replayed": True, "test": replay_test, "baseline": replay_baseline}
@@ -516,10 +774,17 @@ def mutate_optional_test(
             protocol_followed=bool(protocol_followed) if protocol_followed is not None else None,
             reason_code=None if valid else "protocol_or_provenance_unresolved",
             created_at=timestamp,
+            **purpose_scope.record_fields(),
         )
         created = _insert_idempotent(db, row)
         if not created:
-            replay_baseline = build_goal_baseline_view(db, user_id=user_id, now=timestamp)["baseline"]
+            replay_baseline = _baseline_for_goal(
+                db,
+                user_id=user_id,
+                now=timestamp,
+                goal_override=goal_override,
+                purpose_selection=purpose_selection,
+            )
             replay_test = _serialize_test_row(row)
             replay_test["scheduled_workout"] = replay_baseline["test"].get("scheduled_workout")
             return {"replayed": True, "test": replay_test, "baseline": replay_baseline}
@@ -538,7 +803,13 @@ def mutate_optional_test(
     else:
         raise GoalBaselineInvalid(f"unsupported action {action!r}")
 
-    baseline = build_goal_baseline_view(db, user_id=user_id, now=timestamp)["baseline"]
+    baseline = _baseline_for_goal(
+        db,
+        user_id=user_id,
+        now=timestamp,
+        goal_override=goal_override,
+        purpose_selection=purpose_selection,
+    )
     _record_assessment_row(
         db,
         user_id=user_id,
@@ -554,12 +825,24 @@ def mutate_optional_test(
         from api.routes.ai import _trigger_managed_delivery
 
         delivery = _trigger_managed_delivery(user_id, trigger="goal_baseline_test_schedule")
-        fresh = build_goal_baseline_view(db, user_id=user_id, now=timestamp)["baseline"]
+        fresh = _baseline_for_goal(
+            db,
+            user_id=user_id,
+            now=timestamp,
+            goal_override=goal_override,
+            purpose_selection=purpose_selection,
+        )
         fresh["test"]["delivery"] = delivery
         test_payload = _serialize_test_row(row)
         test_payload["scheduled_workout"] = fresh["test"].get("scheduled_workout")
         return {"replayed": False, "test": test_payload, "baseline": fresh}
-    final_baseline = build_goal_baseline_view(db, user_id=user_id, now=timestamp)["baseline"]
+    final_baseline = _baseline_for_goal(
+        db,
+        user_id=user_id,
+        now=timestamp,
+        goal_override=goal_override,
+        purpose_selection=purpose_selection,
+    )
     test_payload = _serialize_test_row(row)
     test_payload["scheduled_workout"] = final_baseline["test"].get("scheduled_workout")
     return {
@@ -578,15 +861,41 @@ def retire_goal_baseline_for_goal_change(
     now: datetime | None = None,
 ) -> None:
     timestamp = _utc_naive(now or datetime.utcnow())
+    lock_plan_writes(db, user_id)
     previous = build_goal_baseline_goal(previous_goal)
     current = build_goal_baseline_goal(next_goal)
     if not previous.eligible:
         return
     if previous.goal_signature == current.goal_signature and previous.goal_kind == current.goal_kind:
         return
-    latest = _latest_test_record(db, user_id=user_id, goal_signature=previous.goal_signature)
+    from api.plan_generation_capabilities import current_goal_reference
+
+    previous_reference = current_goal_reference(
+        user_id=user_id,
+        goal=previous_goal,
+    )
+    if previous_reference is None:
+        return
+    purpose_scope = _BaselinePurposeScope(
+        source="current_goal",
+        source_goal_id=previous_reference.goal_id,
+        source_goal_revision=previous_reference.revision,
+    )
+    latest = _latest_test_record(
+        db,
+        user_id=user_id,
+        goal_signature=previous.goal_signature,
+        purpose_scope=purpose_scope,
+    )
     if latest is None or latest.state not in {"offered", "scheduled"}:
         return
+    retirement_fingerprint = _request_fingerprint({
+        "operation": "goal_change",
+        "test_record_id": latest.id,
+        "test_record_version": latest.version,
+        "from": previous.goal_signature,
+        "to": current.goal_signature,
+    })
     row = GoalBaselineTestRecord(
         lineage_id=latest.lineage_id,
         user_id=user_id,
@@ -596,9 +905,12 @@ def retire_goal_baseline_for_goal_change(
         supersedes_id=latest.id,
         state="deleted",
         protocol_id=BASELINE_PROTOCOL_ID,
-        request_fingerprint=_request_fingerprint({"operation": "goal_change", "from": previous.goal_signature, "to": current.goal_signature}),
-        idempotency_key=f"goal-change:{previous.goal_signature}:{current.goal_signature}",
+        request_fingerprint=retirement_fingerprint,
+        idempotency_key=f"goal-change:{retirement_fingerprint}",
         created_at=timestamp,
+        purpose_source=latest.purpose_source,
+        source_goal_id=latest.source_goal_id,
+        source_goal_revision=latest.source_goal_revision,
     )
     created = _insert_idempotent(db, row)
     if not created:
@@ -885,10 +1197,17 @@ def _load_confirmation_rows(db: Session, *, user_id: str, goal_signature: str) -
     )).scalars().all())
 
 
-def _load_test_rows(db: Session, *, user_id: str, goal_signature: str) -> list[GoalBaselineTestRecord]:
+def _load_test_rows(
+    db: Session,
+    *,
+    user_id: str,
+    goal_signature: str,
+    purpose_scope: _BaselinePurposeScope,
+) -> list[GoalBaselineTestRecord]:
     return list(db.execute(select(GoalBaselineTestRecord).where(
         GoalBaselineTestRecord.user_id == user_id,
         GoalBaselineTestRecord.goal_signature == goal_signature,
+        _test_purpose_clause(purpose_scope),
     )).scalars().all())
 
 
@@ -912,20 +1231,228 @@ def _resolve_confirmation_predecessor(
     ).order_by(GoalBaselineConfirmation.created_at.desc(), GoalBaselineConfirmation.version.desc()).limit(1)).scalar_one_or_none()
 
 
-def _latest_test_record(db: Session, *, user_id: str, goal_signature: str) -> GoalBaselineTestRecord | None:
-    return db.execute(select(GoalBaselineTestRecord).where(
+def _latest_test_record(
+    db: Session,
+    *,
+    user_id: str,
+    goal_signature: str,
+    purpose_scope: _BaselinePurposeScope,
+) -> GoalBaselineTestRecord | None:
+    return db.execute(
+        select(GoalBaselineTestRecord)
+        .where(
+            GoalBaselineTestRecord.user_id == user_id,
+            GoalBaselineTestRecord.goal_signature == goal_signature,
+            _test_purpose_clause(purpose_scope),
+        )
+        .order_by(
+            GoalBaselineTestRecord.created_at.desc(),
+            GoalBaselineTestRecord.version.desc(),
+        )
+        .limit(1)
+    ).scalar_one_or_none()
+
+
+def _latest_test_records_by_lineage(
+    db: Session,
+    *,
+    user_id: str,
+    goal_signature: str,
+) -> list[GoalBaselineTestRecord]:
+    rows = db.execute(
+        select(GoalBaselineTestRecord).where(
+            GoalBaselineTestRecord.user_id == user_id,
+            GoalBaselineTestRecord.goal_signature == goal_signature,
+        )
+    ).scalars()
+    latest: dict[str, GoalBaselineTestRecord] = {}
+    for row in rows:
+        existing = latest.get(row.lineage_id)
+        if existing is None or (
+            int(row.version),
+            row.created_at,
+        ) > (
+            int(existing.version),
+            existing.created_at,
+        ):
+            latest[row.lineage_id] = row
+    return list(latest.values())
+
+
+def _retire_tests_for_shared_history(
+    db: Session,
+    *,
+    user_id: str,
+    goal_signature: str,
+    confirmation_id: str,
+    activity_id: str,
+    created_at: datetime,
+) -> bool:
+    retired_scheduled_test = False
+    for latest in _latest_test_records_by_lineage(
+        db,
+        user_id=user_id,
+        goal_signature=goal_signature,
+    ):
+        if latest.state not in {"offered", "scheduled"}:
+            continue
+        fingerprint = _request_fingerprint({
+            "operation": "history_current",
+            "activity_id": activity_id,
+            "test_record_id": latest.id,
+            "test_record_version": latest.version,
+        })
+        retired = GoalBaselineTestRecord(
+            lineage_id=latest.lineage_id,
+            user_id=user_id,
+            goal_signature=goal_signature,
+            goal_snapshot=latest.goal_snapshot,
+            version=int(latest.version) + 1,
+            supersedes_id=latest.id,
+            state="deleted",
+            protocol_id=BASELINE_PROTOCOL_ID,
+            request_fingerprint=fingerprint,
+            idempotency_key=(
+                f"history-current:{confirmation_id}:{latest.id}"
+            ),
+            created_at=created_at,
+            purpose_source=latest.purpose_source,
+            source_goal_id=latest.source_goal_id,
+            source_goal_revision=latest.source_goal_revision,
+        )
+        if not _insert_idempotent(db, retired):
+            continue
+        retired_scheduled_test = retired_scheduled_test or (
+            latest.state == "scheduled"
+            and latest.plan_canonical_id is not None
+        )
+        _remove_scheduled_test_workout(
+            db,
+            user_id=user_id,
+            previous=latest,
+            idempotency_key=retired.id,
+            operation="goal_baseline_test_history_current",
+            detail_reason="current_history_confirmed",
+        )
+    return retired_scheduled_test
+
+
+def _test_purpose_clause(
+    purpose_scope: _BaselinePurposeScope,
+) -> Any:
+    if purpose_scope.source == "current_goal":
+        return or_(
+            GoalBaselineTestRecord.purpose_source.is_(None),
+            and_(
+                GoalBaselineTestRecord.purpose_source == "current_goal",
+                GoalBaselineTestRecord.source_goal_id
+                == purpose_scope.source_goal_id,
+            ),
+        )
+    if purpose_scope.source is None:
+        return GoalBaselineTestRecord.purpose_source.is_(None)
+    return and_(
+        GoalBaselineTestRecord.purpose_source == purpose_scope.source,
+        GoalBaselineTestRecord.source_goal_id.is_(None),
+    )
+
+
+def _current_evidence_snapshot(
+    db: Session,
+    *,
+    user_id: str,
+    goal_signature: str,
+    purpose_scope: _BaselinePurposeScope,
+    evidence: Mapping[str, Any] | None,
+) -> GoalBaselineSnapshot | None:
+    if not evidence:
+        return None
+    activity_id = evidence.get("activity_id")
+    provenance = evidence.get("provenance")
+    if provenance != "pilot_test":
+        if not activity_id:
+            return None
+        return db.execute(
+            select(GoalBaselineSnapshot)
+            .where(
+                GoalBaselineSnapshot.user_id == user_id,
+                GoalBaselineSnapshot.goal_signature == goal_signature,
+                GoalBaselineSnapshot.source_kind == "history_confirmation",
+                GoalBaselineSnapshot.source_id == str(activity_id),
+                GoalBaselineSnapshot.qualification_status == "direct_current",
+            )
+            .order_by(
+                GoalBaselineSnapshot.created_at.desc(),
+                GoalBaselineSnapshot.version.desc(),
+            )
+            .limit(1)
+        ).scalar_one_or_none()
+
+    test_query = select(GoalBaselineTestRecord).where(
         GoalBaselineTestRecord.user_id == user_id,
         GoalBaselineTestRecord.goal_signature == goal_signature,
-    ).order_by(GoalBaselineTestRecord.created_at.desc(), GoalBaselineTestRecord.version.desc()).limit(1)).scalar_one_or_none()
+        _test_purpose_clause(purpose_scope),
+        GoalBaselineTestRecord.state == "completed",
+        GoalBaselineTestRecord.measured_5k.is_(True),
+        GoalBaselineTestRecord.elapsed_timing_confirmed.is_(True),
+        GoalBaselineTestRecord.protocol_followed.is_(True),
+    )
+    if activity_id:
+        test_query = test_query.where(
+            GoalBaselineTestRecord.activity_id == str(activity_id)
+        )
+    test = db.execute(
+        test_query.order_by(
+            GoalBaselineTestRecord.observed_date.desc(),
+            GoalBaselineTestRecord.created_at.desc(),
+            GoalBaselineTestRecord.version.desc(),
+        ).limit(1)
+    ).scalar_one_or_none()
+    if test is None:
+        return None
+    return db.execute(
+        select(GoalBaselineSnapshot)
+        .where(
+            GoalBaselineSnapshot.user_id == user_id,
+            GoalBaselineSnapshot.goal_signature == goal_signature,
+            GoalBaselineSnapshot.source_kind == "pilot_test",
+            GoalBaselineSnapshot.source_id == test.id,
+            GoalBaselineSnapshot.qualification_status == "direct_current",
+        )
+        .order_by(
+            GoalBaselineSnapshot.created_at.desc(),
+            GoalBaselineSnapshot.version.desc(),
+        )
+        .limit(1)
+    ).scalar_one_or_none()
 
 
-def _latest_pilot_snapshot(db: Session, *, user_id: str, goal_signature: str) -> GoalBaselineSnapshot | None:
-    return db.execute(select(GoalBaselineSnapshot).where(
-        GoalBaselineSnapshot.user_id == user_id,
-        GoalBaselineSnapshot.goal_signature == goal_signature,
-        GoalBaselineSnapshot.source_kind == "pilot_test",
-        GoalBaselineSnapshot.qualification_status == "direct_current",
-    ).order_by(GoalBaselineSnapshot.created_at.desc(), GoalBaselineSnapshot.version.desc()).limit(1)).scalar_one_or_none()
+def resolve_goal_baseline_snapshot_id(
+    db: Session,
+    *,
+    user_id: str,
+    goal_signature: str,
+    evidence: Mapping[str, Any] | None,
+    purpose_selection: Mapping[str, Any] | None = None,
+) -> str | None:
+    """Resolve current evidence to its exact purpose-scoped audit snapshot."""
+    _, goal_source, purpose_scope = _resolve_baseline_context(
+        db,
+        user_id=user_id,
+        goal_override=None,
+        purpose_selection=purpose_selection,
+    )
+    goal = build_goal_baseline_goal(goal_source)
+    if goal.goal_signature != goal_signature:
+        return None
+    snapshot = _current_evidence_snapshot(
+        db,
+        user_id=user_id,
+        goal_signature=goal_signature,
+        purpose_scope=purpose_scope,
+        evidence=evidence,
+    )
+    return snapshot.id if snapshot is not None else None
 
 
 def _record_confirmation_snapshot(
@@ -993,11 +1520,24 @@ def _record_test_snapshot(
     activity: BaselineActivity,
     created_at: datetime,
 ) -> GoalBaselineSnapshot:
-    predecessor = db.execute(select(GoalBaselineSnapshot).where(
-        GoalBaselineSnapshot.user_id == user_id,
-        GoalBaselineSnapshot.goal_signature == goal_signature,
-        GoalBaselineSnapshot.source_kind == "pilot_test",
-    ).order_by(GoalBaselineSnapshot.created_at.desc(), GoalBaselineSnapshot.version.desc()).limit(1)).scalar_one_or_none()
+    lineage_test_ids = select(GoalBaselineTestRecord.id).where(
+        GoalBaselineTestRecord.user_id == user_id,
+        GoalBaselineTestRecord.lineage_id == test.lineage_id,
+    )
+    predecessor = db.execute(
+        select(GoalBaselineSnapshot)
+        .where(
+            GoalBaselineSnapshot.user_id == user_id,
+            GoalBaselineSnapshot.goal_signature == goal_signature,
+            GoalBaselineSnapshot.source_kind == "pilot_test",
+            GoalBaselineSnapshot.source_id.in_(lineage_test_ids),
+        )
+        .order_by(
+            GoalBaselineSnapshot.created_at.desc(),
+            GoalBaselineSnapshot.version.desc(),
+        )
+        .limit(1)
+    ).scalar_one_or_none()
     valid = test.state == "completed"
     row = GoalBaselineSnapshot(
         lineage_id=predecessor.lineage_id if predecessor is not None else str(uuid4()),

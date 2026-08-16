@@ -158,19 +158,158 @@ def _validate_goal(goal: Mapping[str, Any]) -> dict[str, Any]:
             "goal.target must be an object.",
             field="goal.target",
         )
+    purpose_source = str(goal.get("purpose_source") or "").strip() or None
+    if purpose_source not in {None, "current_goal", "capability", "unlinked"}:
+        raise AdaptivePlanError(
+            400,
+            "PLAN_PROPOSAL_VALIDATION_FAILED",
+            "goal.purpose_source is invalid.",
+            field="goal.purpose_source",
+        )
+    source_goal_id = str(goal.get("source_goal_id") or "").strip() or None
+    source_goal_revision = (
+        str(goal.get("source_goal_revision") or "").strip() or None
+    )
+    if purpose_source == "current_goal":
+        if source_goal_id is None or source_goal_revision is None:
+            raise AdaptivePlanError(
+                400,
+                "PLAN_PROPOSAL_VALIDATION_FAILED",
+                "Current-Goal proposals require source Goal provenance.",
+                field="goal.source_goal_id",
+            )
+        source_goal_id = _parse_uuid(
+            source_goal_id,
+            field="goal.source_goal_id",
+        )
+        if len(source_goal_revision) != 64:
+            raise AdaptivePlanError(
+                400,
+                "PLAN_PROPOSAL_VALIDATION_FAILED",
+                "goal.source_goal_revision must be a SHA-256 digest.",
+                field="goal.source_goal_revision",
+            )
+    elif source_goal_id is not None or source_goal_revision is not None:
+        raise AdaptivePlanError(
+            400,
+            "PLAN_PROPOSAL_VALIDATION_FAILED",
+            "Only current-Goal proposals may carry source Goal provenance.",
+            field="goal.source_goal_id",
+        )
     snapshot = {
         "goal_kind": goal_kind,
         "target": dict(target),
         "horizon_start": horizon_start.isoformat(),
         "horizon_end": horizon_end.isoformat(),
+        "purpose_source": purpose_source,
+        "source_goal_id": source_goal_id,
+        "source_goal_revision": source_goal_revision,
     }
     return {
+        "purpose_source": purpose_source,
+        "source_goal_id": source_goal_id,
+        "source_goal_revision": source_goal_revision,
         "goal_kind": goal_kind,
         "target": dict(target),
         "horizon_start": horizon_start,
         "horizon_end": horizon_end,
         "snapshot": snapshot,
     }
+
+
+def _require_validated_policy_purpose(
+    goal: Mapping[str, Any],
+    *,
+    validated_policy_purpose: bool,
+) -> None:
+    """Keep capability-owned purpose provenance behind policy validation."""
+    if (
+        goal.get("purpose_source") in {"capability", "unlinked"}
+        and not validated_policy_purpose
+    ):
+        raise AdaptivePlanError(
+            400,
+            "PLAN_PURPOSE_UNSUPPORTED",
+            (
+                "Capability-owned purpose provenance must be created through "
+                "an accepted plan-generation policy."
+            ),
+            field="goal.purpose_source",
+        )
+
+
+def _fence_current_goal_provenance(
+    db: Session,
+    *,
+    user_id: str,
+    goal: Mapping[str, Any],
+) -> None:
+    """Reject linked proposal writes after the mutable current Goal changes."""
+    if goal.get("purpose_source") != "current_goal":
+        return
+
+    from analysis.config import load_config_from_db
+    from api.plan_generation_capabilities import current_goal_reference
+
+    config = load_config_from_db(user_id, db)
+    current_goal = current_goal_reference(
+        user_id=user_id,
+        goal=dict(config.goal or {}),
+    )
+    if (
+        current_goal is None
+        or goal.get("source_goal_id") != current_goal.goal_id
+        or goal.get("source_goal_revision") != current_goal.revision
+    ):
+        raise AdaptivePlanError(
+            409,
+            "PLAN_PURPOSE_REASSESSMENT_REQUIRED",
+            "The Goal linked to this proposal changed; reassess before continuing.",
+            current_goal_id=(
+                current_goal.goal_id if current_goal is not None else None
+            ),
+            current_goal_revision=(
+                current_goal.revision if current_goal is not None else None
+            ),
+        )
+    if "goal_kind" not in goal or "target" not in goal:
+        return
+
+    from analysis.goal_baseline import build_goal_baseline_goal
+
+    target = goal.get("target")
+    if not isinstance(target, Mapping):
+        target = {}
+    expected = build_goal_baseline_goal(current_goal.raw_goal)
+    observed = build_goal_baseline_goal({
+        "goal_kind": goal.get("goal_kind"),
+        "distance": target.get("distance"),
+        "target_time_sec": target.get("target_time_sec"),
+        "race_target_time_sec": target.get("race_target_time_sec"),
+    })
+    expected_event_date = (
+        str(current_goal.raw_goal.get("race_date") or "").strip() or None
+    )
+    observed_event_date = (
+        str(
+            target.get("target_event_date")
+            or target.get("race_date")
+            or ""
+        ).strip()
+        or None
+    )
+    if (
+        observed.goal_kind != expected.goal_kind
+        or observed.distance != expected.distance
+        or observed.target_time_sec != expected.target_time_sec
+        or observed_event_date != expected_event_date
+    ):
+        raise AdaptivePlanError(
+            400,
+            "PLAN_PURPOSE_INVALID",
+            "The proposal goal does not match the linked current Goal.",
+            field="goal",
+        )
 
 
 def _bounded_number(value: Any, *, field: str) -> float | None:
@@ -365,6 +504,9 @@ def _proposal_to_dict(
             "id": goal.id,
             "version": goal.version,
             "state": goal.state,
+            "purpose_source": goal.purpose_source,
+            "source_goal_id": goal.source_goal_id,
+            "source_goal_revision": goal.source_goal_revision,
             "goal_kind": goal.goal_kind,
             "target": goal.target or {},
             "horizon_start": goal.horizon_start.isoformat(),
@@ -372,6 +514,24 @@ def _proposal_to_dict(
             "acknowledged_at": goal.acknowledged_at.isoformat() if goal.acknowledged_at else None,
         },
     }
+
+
+def _proposal_snapshot_for_replay(
+    snapshot: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Add nullable purpose provenance omitted by pre-purpose adoption snapshots."""
+    normalized = dict(snapshot)
+    goal = normalized.get("goal")
+    if isinstance(goal, Mapping):
+        normalized_goal = dict(goal)
+        for field in (
+            "purpose_source",
+            "source_goal_id",
+            "source_goal_revision",
+        ):
+            normalized_goal.setdefault(field, None)
+        normalized["goal"] = normalized_goal
+    return normalized
 
 
 def _idempotency_matches_proposal(
@@ -428,13 +588,20 @@ def _proposal_request_fingerprint(
         if item.get("canonical_id") in (None, ""):
             item.pop("canonical_id", None)
         requested_workouts.append(item)
+    goal_command = {
+        "goal_kind": goal["goal_kind"],
+        "target": goal["target"],
+        "horizon_start": goal["horizon_start"].isoformat(),
+        "horizon_end": goal["horizon_end"].isoformat(),
+    }
+    if goal.get("purpose_source") is not None:
+        goal_command.update({
+            "purpose_source": goal["purpose_source"],
+            "source_goal_id": goal.get("source_goal_id"),
+            "source_goal_revision": goal.get("source_goal_revision"),
+        })
     command = {
-        "goal": {
-            "goal_kind": goal["goal_kind"],
-            "target": goal["target"],
-            "horizon_start": goal["horizon_start"].isoformat(),
-            "horizon_end": goal["horizon_end"].isoformat(),
-        },
+        "goal": goal_command,
         "discipline": discipline,
         "workouts": requested_workouts,
         "origin": payload.origin,
@@ -593,6 +760,7 @@ def create_draft_proposal(
     before_persist: Callable[[Session], None] | None = None,
     idempotency_replay_state: MutableMapping[str, bool] | None = None,
     on_created: Callable[[Session, PlanProposal], None] | None = None,
+    validated_policy_purpose: bool = False,
 ) -> dict[str, Any]:
     """Create the first immutable proposal for a new adaptive plan aggregate.
 
@@ -604,6 +772,10 @@ def create_draft_proposal(
     persisted response when an in-flight exact retry is found under that lock.
     """
     goal = _validate_goal(payload.goal)
+    _require_validated_policy_purpose(
+        goal,
+        validated_policy_purpose=validated_policy_purpose,
+    )
     discipline = normalize_adaptive_plan_discipline(payload.discipline)
     workouts = _validate_workouts(
         payload.workouts,
@@ -652,6 +824,11 @@ def create_draft_proposal(
                     proposal=existing,
                 )
             raise _idempotency_conflict()
+        _fence_current_goal_provenance(
+            db,
+            user_id=user_id,
+            goal=goal,
+        )
         if before_persist is not None:
             before_persist(db)
         active_plan = _active_plan(db, user_id=user_id, for_update=True)
@@ -828,6 +1005,7 @@ def create_successor_proposal(
     idempotency_replay_state: MutableMapping[str, bool] | None = None,
     on_created: Callable[[Session, PlanProposal], None] | None = None,
     allow_policy_successor: bool = False,
+    validated_policy_purpose: bool = False,
 ) -> dict[str, Any]:
     """Supersede a draft proposal with a new immutable edited version.
 
@@ -838,6 +1016,10 @@ def create_successor_proposal(
     persisted response when an in-flight exact retry is found under that lock.
     """
     goal = _validate_goal(payload.goal)
+    _require_validated_policy_purpose(
+        goal,
+        validated_policy_purpose=validated_policy_purpose,
+    )
     discipline = normalize_adaptive_plan_discipline(payload.discipline)
     workouts = _validate_workouts(
         payload.workouts,
@@ -886,6 +1068,11 @@ def create_successor_proposal(
                     proposal=existing,
                 )
             raise _idempotency_conflict()
+        _fence_current_goal_provenance(
+            db,
+            user_id=user_id,
+            goal=goal,
+        )
         if before_persist is not None:
             before_persist(db)
         parent = db.execute(
@@ -1144,6 +1331,9 @@ def adopt_proposal(
                     "ADAPTIVE_PLAN_ADOPTION_SNAPSHOT_MISSING",
                     "The adopted proposal is missing its immutable response snapshot.",
                 )
+            proposal_snapshot = _proposal_snapshot_for_replay(
+                proposal_snapshot
+            )
             db.commit()
             return {
                 "status": "already_adopted",
@@ -1187,6 +1377,23 @@ def adopt_proposal(
                 adaptive_plan.lifecycle = "archived"
             db.commit()
             raise AdaptivePlanError(409, "PLAN_PROPOSAL_EXPIRED", "The proposal has expired.")
+        goal = db.execute(
+            select(AdaptivePlanGoalSnapshot).where(
+                AdaptivePlanGoalSnapshot.user_id == user_id,
+                AdaptivePlanGoalSnapshot.id == proposal.goal_snapshot_id,
+            ).with_for_update()
+        ).scalar_one()
+        _fence_current_goal_provenance(
+            db,
+            user_id=user_id,
+            goal={
+                "purpose_source": goal.purpose_source,
+                "source_goal_id": goal.source_goal_id,
+                "source_goal_revision": goal.source_goal_revision,
+                "goal_kind": goal.goal_kind,
+                "target": goal.target,
+            },
+        )
         if proposal.policy_version == "outdoor-5k-plan-generation-policy-v1":
             # This import stays local to keep the generic immutable-proposal
             # foundation independent of the policy-specific data orchestration.
@@ -1201,12 +1408,6 @@ def adopt_proposal(
                 user_id=user_id,
                 proposal=proposal,
             )
-        goal = db.execute(
-            select(AdaptivePlanGoalSnapshot).where(
-                AdaptivePlanGoalSnapshot.user_id == user_id,
-                AdaptivePlanGoalSnapshot.id == proposal.goal_snapshot_id,
-            ).with_for_update()
-        ).scalar_one()
         active_goal = db.execute(
             select(AdaptivePlanGoalSnapshot).where(
                 AdaptivePlanGoalSnapshot.user_id == user_id,

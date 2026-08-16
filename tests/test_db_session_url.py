@@ -245,3 +245,50 @@ def test_existing_sqlite_plan_proposals_get_idempotency_fingerprint(
             session.close()
     finally:
         engine.dispose()
+
+
+def test_existing_sqlite_goal_snapshots_get_purpose_provenance(
+    dbs,
+    tmp_path,
+):
+    """A pre-purpose goal snapshot table receives additive provenance."""
+    from sqlalchemy import create_engine
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'legacy-goals.db'}")
+    try:
+        with engine.begin() as conn:
+            conn.exec_driver_sql(
+                "CREATE TABLE adaptive_plan_goal_snapshots "
+                "(id VARCHAR(36) PRIMARY KEY NOT NULL)"
+            )
+            conn.exec_driver_sql(
+                "CREATE TABLE goal_baseline_test_records "
+                "(id VARCHAR(36) PRIMARY KEY NOT NULL)"
+            )
+
+        dbs._ensure_schema(engine, "sqlite")
+        with engine.connect() as conn:
+            goal_snapshot_columns = {
+                row[1]
+                for row in conn.exec_driver_sql(
+                    'PRAGMA table_info("adaptive_plan_goal_snapshots")'
+                )
+            }
+            baseline_test_columns = {
+                row[1]
+                for row in conn.exec_driver_sql(
+                    'PRAGMA table_info("goal_baseline_test_records")'
+                )
+            }
+        assert {
+            "purpose_source",
+            "source_goal_id",
+            "source_goal_revision",
+        } <= goal_snapshot_columns
+        assert {
+            "purpose_source",
+            "source_goal_id",
+            "source_goal_revision",
+        } <= baseline_test_columns
+    finally:
+        engine.dispose()

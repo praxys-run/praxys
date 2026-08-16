@@ -32,7 +32,9 @@ draft Science Decision Record that follow #603 in #582.
 ## Product decisions
 
 1. **Every adopted plan has an exact goal version.** A plan cannot target a
-   mutable settings dictionary.
+   mutable settings dictionary. The Goal page may supply the default version,
+   but an accepted capability may own a separate immutable goal contract
+   without changing the Goal page.
 2. **Intent is not yet a measurable goal.** "Improve my running" starts
    discovery but must resolve to an approved measurable goal contract before
    plan adoption.

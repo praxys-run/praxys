@@ -769,6 +769,9 @@ export interface AdaptivePlanGoalSnapshotSummary {
   id: string;
   version: number;
   state: 'draft' | 'active' | 'superseded';
+  purpose_source: PlanGenerationPurposeSource | null;
+  source_goal_id: string | null;
+  source_goal_revision: string | null;
   goal_kind: string;
   target: Record<string, unknown>;
   horizon_start: string;
@@ -832,6 +835,9 @@ export interface AdaptivePlanProposal {
 export interface AdaptivePlanProposalMutationRequest {
   goal: {
     goal_kind: string;
+    purpose_source?: PlanGenerationPurposeSource | null;
+    source_goal_id?: string | null;
+    source_goal_revision?: string | null;
     target: Record<string, unknown>;
     horizon_start: string;
     horizon_end: string;
@@ -888,6 +894,27 @@ export interface PlanGenerationActions {
   regenerate_href_template: string;
 }
 
+export type PlanGenerationPurposeSource =
+  | 'current_goal'
+  | 'capability'
+  | 'unlinked';
+
+export interface PlanGenerationPurposeSelection {
+  capability_id: string;
+  source: PlanGenerationPurposeSource;
+  expected_goal_id: string | null;
+  expected_goal_revision: string | null;
+}
+
+export interface PlanGenerationResolvedPurpose extends PlanGenerationPurposeSelection {
+  goal: {
+    goal_kind: string | null;
+    distance: string | null;
+    target_time_sec: number | null;
+    race_date: string | null;
+  };
+}
+
 export interface PlanGenerationCapability {
   id: string;
   status: 'available';
@@ -900,6 +927,13 @@ export interface PlanGenerationCapability {
     surfaces: string[];
   };
   constraint_schema_id: string;
+  purpose: {
+    schema_version: 1;
+    goal_kind: string;
+    distance: string | null;
+    allows_capability_goal: boolean;
+    allows_unlinked: boolean;
+  };
   policy_version: string;
   generator_version: string;
   science_decision_id: string;
@@ -910,12 +944,34 @@ export interface PlanGenerationCapability {
 
 export interface PlanGenerationCapabilitiesResponse {
   schema_version: 1;
+  purpose_schema_version: 1;
   goal: {
-    goal_kind: string;
+    goal_kind: string | null;
     distance: string | null;
   };
+  current_goal: {
+    id: string;
+    revision: string;
+    goal: {
+      goal_kind: string | null;
+      distance: string | null;
+    };
+  } | null;
   selected_capability: PlanGenerationCapability | null;
   capabilities: PlanGenerationCapability[];
+  active_plan_goal: {
+    adaptive_plan_id: string;
+    lifecycle: 'draft' | 'active';
+    goal_snapshot_id: string;
+    purpose_source: PlanGenerationPurposeSource | null;
+    source_goal_id: string | null;
+    source_goal_revision: string | null;
+    link_status:
+      | 'current'
+      | 'independent'
+      | 'reassessment_required'
+      | 'legacy_unknown';
+  } | null;
   unsupported_reason: 'no_accepted_policy' | null;
 }
 
@@ -937,6 +993,7 @@ export type Outdoor5KResultCode =
 
 /** Shared request fields for every deterministic outdoor-road 5K endpoint. */
 export interface Outdoor5KConstraintsRequest {
+  purpose?: PlanGenerationPurposeSelection;
   age_18_or_older: boolean;
   self_coached_recreational_road_runner: boolean;
   can_complete_5k: boolean;
@@ -987,6 +1044,8 @@ export interface Outdoor5KReadinessResponse {
   generator_version: string;
   science_decision_id: string;
   source_revision: string;
+  purpose: PlanGenerationResolvedPurpose;
+  baseline: GoalBaselineResponse;
   athlete_today: string;
   block_start: string;
   result: Outdoor5KOutcomeResponse;
@@ -1002,6 +1061,7 @@ export interface Outdoor5KProposalResponse {
   generator_version: string;
   science_decision_id: string;
   source_revision: string;
+  purpose: PlanGenerationResolvedPurpose;
   result: Outdoor5KOutcomeResponse;
   proposal: AdaptivePlanProposal | null;
   replayed: boolean;
@@ -1678,7 +1738,9 @@ export interface UserDataExportFitness {
 
 export interface UserDataExportTrainingPlan {
   canonical_id: string;
+  adaptive_plan_id: string | null;
   date: string;
+  activity_type: string | null;
   workout_type: string | null;
   planned_duration_min: number | null;
   planned_distance_km: number | null;
@@ -1689,6 +1751,8 @@ export interface UserDataExportTrainingPlan {
   target_pace_min: string | null;
   target_pace_max: string | null;
   workout_description: string | null;
+  workout_structure_version: string | null;
+  workout_structure: unknown;
   source: string | null;
   workout_origin: string;
   external_id: string | null;
@@ -1696,8 +1760,182 @@ export interface UserDataExportTrainingPlan {
   meta: Record<string, unknown> | null;
 }
 
+export interface UserDataExportAdaptiveGoalSnapshot {
+  id: string;
+  version: number;
+  state: string;
+  purpose_source: PlanGenerationPurposeSource | null;
+  source_goal_id: string | null;
+  source_goal_revision: string | null;
+  goal_kind: string;
+  target: Record<string, unknown>;
+  horizon_start: string;
+  horizon_end: string;
+  snapshot: Record<string, unknown>;
+  acknowledged_at: string | null;
+  created_at: string;
+}
+
+export interface UserDataExportAdaptivePlan {
+  id: string;
+  goal_snapshot_id: string;
+  discipline: string;
+  lifecycle: string;
+  version: number;
+  active_proposal_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserDataExportPlanProposal {
+  id: string;
+  adaptive_plan_id: string;
+  goal_snapshot_id: string;
+  discipline: string;
+  version: number;
+  state: string;
+  origin: string;
+  actor_type: string;
+  actor_id: string | null;
+  base_plan_version: number;
+  supersedes_proposal_id: string | null;
+  policy_version: string | null;
+  model_version: string | null;
+  science_version: string | null;
+  assumptions: unknown[];
+  unknowns: unknown[];
+  warnings: unknown[];
+  alternatives: unknown[];
+  expires_at: string | null;
+  created_at: string;
+  decided_at: string | null;
+  workout_snapshot: Record<string, unknown>[];
+}
+
+export interface UserDataExportAdaptivePlanProposals {
+  schema_version: 1;
+  exported_at: string;
+  goal_snapshots: UserDataExportAdaptiveGoalSnapshot[];
+  plans: UserDataExportAdaptivePlan[];
+  proposals: UserDataExportPlanProposal[];
+}
+
+export interface UserDataExportGoalBaselineConfirmation {
+  id: string;
+  lineage_id: string;
+  version: number;
+  supersedes_id: string | null;
+  goal_signature: string;
+  goal_snapshot: Record<string, unknown>;
+  activity_id: string;
+  response: string;
+  measured_5k: boolean;
+  elapsed_timing_confirmed: boolean;
+  created_at: string;
+}
+
+export interface UserDataExportGoalBaselineTest {
+  id: string;
+  lineage_id: string;
+  version: number;
+  supersedes_id: string | null;
+  goal_signature: string;
+  goal_snapshot: Record<string, unknown>;
+  purpose_source: PlanGenerationPurposeSource | null;
+  source_goal_id: string | null;
+  source_goal_revision: string | null;
+  state: string;
+  protocol_id: string;
+  scheduled_date: string | null;
+  plan_canonical_id: string | null;
+  activity_id: string | null;
+  observed_date: string | null;
+  measured_5k: boolean | null;
+  elapsed_timing_confirmed: boolean | null;
+  protocol_followed: boolean | null;
+  reason_code: string | null;
+  safety_stop: boolean;
+  created_at: string;
+}
+
+export interface UserDataExportGoalBaselineSnapshot {
+  id: string;
+  lineage_id: string;
+  version: number;
+  supersedes_id: string | null;
+  goal_signature: string;
+  goal_snapshot: Record<string, unknown>;
+  source_kind: string;
+  source_id: string | null;
+  provenance: string;
+  observed_date: string | null;
+  distance_km: number | null;
+  elapsed_time_sec: number | null;
+  measured_5k: boolean;
+  elapsed_timing_confirmed: boolean;
+  qualification_status: string;
+  change_comparability: string;
+  invalidators: unknown[];
+  created_at: string;
+}
+
+export interface UserDataExportGoalBaselineAssessment {
+  id: string;
+  lineage_id: string;
+  version: number;
+  supersedes_id: string | null;
+  goal_signature: string;
+  goal_snapshot: Record<string, unknown>;
+  policy_version: string;
+  science_decision_id: string;
+  status: string;
+  readiness: string;
+  evidence_snapshot_id: string | null;
+  test_record_id: string | null;
+  candidate_count: number;
+  created_at: string;
+}
+
+export interface UserDataExportGoalBaseline {
+  schema_version: 1;
+  exported_at: string;
+  confirmations: UserDataExportGoalBaselineConfirmation[];
+  tests: UserDataExportGoalBaselineTest[];
+  snapshots: UserDataExportGoalBaselineSnapshot[];
+  assessments: UserDataExportGoalBaselineAssessment[];
+}
+
+export interface UserDataExportOutdoor5KGeneration {
+  id: string;
+  proposal_id: string;
+  policy_version: string;
+  generator_version: string;
+  science_decision_id: string;
+  evidence_review_ids: string[];
+  evidence_claim_ids: string[];
+  ai_explanation_present: boolean;
+  baseline_snapshot_id: string | null;
+  source_revision: string;
+  deterministic_input_hash: string;
+  request_kind: string;
+  request_fingerprint: string;
+  predecessor_proposal_id: string | null;
+  predecessor_version: number | null;
+  observed_input_snapshot: Record<string, unknown>;
+  constraint_snapshot: Record<string, unknown>;
+  derived_history_statistics: Record<string, unknown>;
+  validation_results: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface UserDataExportOutdoor5KPlanGeneration {
+  schema_version: 1;
+  exported_at: string;
+  records: UserDataExportOutdoor5KGeneration[];
+}
+
 export interface UserDataExportResponse {
-  schema_version: 2;
+  schema_version: 4;
   exported_at: string;
   user_config: UserDataExportConfig;
   activities: UserDataExportActivity[];
@@ -1705,6 +1943,9 @@ export interface UserDataExportResponse {
   recovery: UserDataExportRecovery[];
   fitness: UserDataExportFitness[];
   training_plans: UserDataExportTrainingPlan[];
+  adaptive_plan_proposals: UserDataExportAdaptivePlanProposals;
+  goal_baseline: UserDataExportGoalBaseline;
+  outdoor_5k_plan_generation: UserDataExportOutdoor5KPlanGeneration;
   personal_context: PersonalContextExportResponse;
 }
 
@@ -2292,7 +2533,11 @@ export type GoalBaselineErrorCode =
   | 'GOAL_BASELINE_IDEMPOTENCY_CONFLICT'
   | 'GOAL_BASELINE_NOT_FOUND'
   | 'GOAL_BASELINE_MUTATION_FORBIDDEN'
-  | 'GOAL_BASELINE_INVALID_REQUEST';
+  | 'GOAL_BASELINE_INVALID_REQUEST'
+  | 'PLAN_PURPOSE_UNSUPPORTED'
+  | 'PLAN_PURPOSE_INVALID'
+  | 'PLAN_PURPOSE_UNAVAILABLE'
+  | 'PLAN_PURPOSE_STALE';
 export interface GoalBaselineErrorDetail {
   code: GoalBaselineErrorCode;
   message: string;

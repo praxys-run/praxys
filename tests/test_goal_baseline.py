@@ -79,6 +79,16 @@ def _test_record(
     )
 
 
+def test_goal_normalizer_accepts_legacy_target_time_alias() -> None:
+    goal = build_goal_baseline_goal({
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+        "race_target_time_sec": 1475,
+    })
+
+    assert goal.target_time_sec == 1475
+
+
 def test_non_performance_goals_return_not_required() -> None:
     goal = build_goal_baseline_goal({
         "goal_kind": "race",

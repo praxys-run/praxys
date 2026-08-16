@@ -44,7 +44,8 @@
   text-align: center;
 }
 
-.plan-generation-badge--available {
+.plan-generation-badge--available,
+.plan-generation-badge--alternate_available {
   border-color: var(--primary);
   color: var(--primary);
 }

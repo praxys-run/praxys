@@ -34,11 +34,13 @@ import { formatTime } from '@/lib/format';
 import type {
   GoalBaselineCandidate,
   GoalBaselineResponse,
+  PlanGenerationPurposeSelection,
 } from '@/types/api';
 
 interface GoalBaselinePanelProps {
   baseline: GoalBaselineResponse;
   goal: { distance?: string | null; target_time_sec?: number | null; eligible?: boolean } | undefined;
+  purpose?: PlanGenerationPurposeSelection;
   isDemo: boolean;
   onChanged: () => void;
 }
@@ -67,7 +69,13 @@ function formatDate(value: string, locale: string): string {
   });
 }
 
-export default function GoalBaselinePanel({ baseline, goal, isDemo, onChanged }: GoalBaselinePanelProps) {
+export default function GoalBaselinePanel({
+  baseline,
+  goal,
+  purpose,
+  isDemo,
+  onChanged,
+}: GoalBaselinePanelProps) {
   const { t } = useLingui();
   const { locale } = useLocale();
   const copy = {
@@ -212,7 +220,7 @@ export default function GoalBaselinePanel({ baseline, goal, isDemo, onChanged }:
           'Content-Type': 'application/json',
           'Idempotency-Key': crypto.randomUUID(),
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(purpose ? { ...body, purpose } : body),
       });
       if (!res.ok) {
         throw new Error(await extractErrorMessage(res, copy.requestFailed));

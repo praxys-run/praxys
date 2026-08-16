@@ -1351,9 +1351,15 @@ canonical workouts during generation, or initiate provider delivery.
 web, miniapp, plugin, MCP, and agent clients. It returns:
 
 - the caller's privacy-minimized normalized goal (`goal_kind` and `distance`);
+- a stable owner-scoped current-Goal ID plus a SHA-256 content revision for
+  optimistic purpose fencing;
 - every currently accepted generation capability in deterministic order;
 - the one `selected_capability` matching that goal, or `null` with
   `unsupported_reason: "no_accepted_policy"`;
+- each capability's accepted purpose contract, including whether it may be
+  selected independently from the Goal page;
+- the active adaptive plan's purpose provenance and link state (`current`,
+  `independent`, `reassessment_required`, or `legacy_unknown`), when present;
 - exact policy, generator, science-decision, constraint-schema, horizon, and
   reassessment versions; and
 - the policy-specific readiness, alternatives, generation, and regeneration
@@ -1363,13 +1369,17 @@ The registry does not expose draft or roadmap policies. A client that does not
 recognize the returned `constraint_schema_id` must fail closed rather than
 guessing the required inputs. The accepted outdoor-road 5K capability is
 currently the only entry; its existing endpoints remain backward compatible.
+The current Goal is the default purpose only when it matches that accepted
+capability. A client may instead select a capability-owned purpose when
+`purpose.allows_capability_goal` is true; doing so does not change or link the
+Goal page.
 
 All policy endpoints use the authenticated caller's own records. Readiness and
 alternatives require ordinary authenticated data access; generation and
 regeneration require write access.
 
 - `POST /api/plan/outdoor-5k/readiness` evaluates the exact typed input and
-  returns a `source_revision`.
+  returns a `source_revision` plus the resolved immutable `purpose`.
 - `POST /api/plan/outdoor-5k/alternatives` returns only the bounded next steps
   for that same readiness input.
 - `POST /api/plan/outdoor-5k/generate` requires
@@ -1390,11 +1400,25 @@ different payload with the same key returns
 current source revision and is rechecked while the owner-scoped plan write lock
 is held before proposal persistence.
 
+Purpose provenance is copied to the immutable adaptive-plan goal snapshot as
+`purpose_source`, `source_goal_id`, and `source_goal_revision`. A linked
+proposal cannot be adopted after its Goal revision changes; adoption returns
+`PLAN_PURPOSE_REASSESSMENT_REQUIRED`. Independent purposes are unaffected by
+later Goal edits. Exact retries of pre-purpose generation records remain
+replayable and surface legacy current-Goal provenance without inventing a
+missing historical Goal revision.
+
 Requests use this structured shape (weekday values are Monday `0` through
 Sunday `6`):
 
 ```json
 {
+  "purpose": {
+    "capability_id": "outdoor_road_5k_v1",
+    "source": "current_goal",
+    "expected_goal_id": "00000000-0000-0000-0000-000000000000",
+    "expected_goal_revision": "64-lowercase-hex-characters"
+  },
   "age_18_or_older": true,
   "self_coached_recreational_road_runner": true,
   "can_complete_5k": true,
@@ -1406,6 +1430,14 @@ Sunday `6`):
   "preferred_longest_run_weekday": 5
 }
 ```
+
+`purpose.source` is `current_goal`, `capability`, or `unlinked`. An explicit
+`current_goal` request must send the discovery response's exact Goal ID and
+revision; a Goal edit then fails closed and requires rediscovery. Capability
+and unlinked purposes must not send Goal provenance, and a capability may
+disable either mode. Older clients may omit `purpose`; the backend preserves
+compatibility by defaulting to the matching current Goal, never to an
+unrelated accepted capability.
 
 Generation adds a 64-character `expected_source_revision` and an
 8–128-character `idempotency_key`; regeneration also adds
@@ -1451,6 +1483,12 @@ aggregate; after adoption, later drafts attach to that active aggregate when no
 proposal is active. An expired replacement does not block a fresh draft. A user
 may have only one `draft` or `active` adaptive plan and one active proposal at
 a time.
+
+The generic endpoint may link a proposal to `current_goal` only when the
+submitted goal kind, distance, target time/date, Goal ID, and Goal revision
+match the owner's current Goal. Capability-owned and unlinked provenance must come
+through the accepted policy endpoint that validates that purpose contract; the
+generic endpoint rejects callers that assert those sources directly.
 
 ```json
 {

@@ -527,8 +527,8 @@ def test_stale_or_missing_baseline_is_a_typed_no_plan_outcome() -> None:
     )
 
 
-def _api_request() -> dict:
-    return {
+def _api_request(*, purpose: dict | None = None) -> dict:
+    payload = {
         "age_18_or_older": True,
         "self_coached_recreational_road_runner": True,
         "can_complete_5k": True,
@@ -539,6 +539,33 @@ def _api_request() -> dict:
         "unavailable_dates": [],
         "preferred_longest_run_weekday": 5,
     }
+    if purpose is not None:
+        payload["purpose"] = purpose
+    return payload
+
+
+def _current_goal_purpose(client) -> dict:
+    discovery = client.get("/api/plan/generation/capabilities")
+    assert discovery.status_code == 200, discovery.text
+    body = discovery.json()
+    return {
+        "capability_id": body["selected_capability"]["id"],
+        "source": "current_goal",
+        "expected_goal_id": body["current_goal"]["id"],
+        "expected_goal_revision": body["current_goal"]["revision"],
+    }
+
+
+def _replace_goal(db_session, *, user_id: str, goal: dict) -> None:
+    from db.models import UserConfig
+
+    db = db_session.SessionLocal()
+    try:
+        row = db.query(UserConfig).filter(UserConfig.user_id == user_id).one()
+        row.goal = goal
+        db.commit()
+    finally:
+        db.close()
 
 
 def _seed_api_context(db_session, user_id: str) -> None:
@@ -765,6 +792,342 @@ def test_api_generation_replays_idempotently_and_fences_stale_source(
         db.close()
 
 
+def test_api_generation_persists_explicit_current_goal_provenance(
+    proposal_client,
+) -> None:
+    client, db_session, current_user = proposal_client
+    user_id = current_user["value"]
+    _seed_api_context(db_session, user_id)
+    purpose = _current_goal_purpose(client)
+    request = _api_request(purpose=purpose)
+
+    readiness = client.post("/api/plan/outdoor-5k/readiness", json=request)
+    assert readiness.status_code == 200, readiness.text
+    assert readiness.json()["purpose"] == {
+        **purpose,
+        "goal": {
+            "goal_kind": "performance_5k",
+            "distance": "5k",
+            "target_time_sec": 1500,
+            "race_date": None,
+        },
+    }
+
+    created = client.post(
+        "/api/plan/outdoor-5k/generate",
+        json={
+            **request,
+            "expected_source_revision": readiness.json()["source_revision"],
+            "idempotency_key": "explicit-current-goal-purpose",
+        },
+    )
+    assert created.status_code == 201, created.text
+    goal = created.json()["proposal"]["goal"]
+    assert goal["purpose_source"] == "current_goal"
+    assert goal["source_goal_id"] == purpose["expected_goal_id"]
+    assert goal["source_goal_revision"] == purpose["expected_goal_revision"]
+
+
+def test_api_generation_normalizes_legacy_target_time_alias(
+    proposal_client,
+) -> None:
+    client, db_session, current_user = proposal_client
+    user_id = current_user["value"]
+    _seed_api_context(db_session, user_id)
+    _replace_goal(
+        db_session,
+        user_id=user_id,
+        goal={
+            "goal_kind": "performance_5k",
+            "distance": "5k",
+            "race_target_time_sec": 1475,
+        },
+    )
+    purpose = _current_goal_purpose(client)
+    request = _api_request(purpose=purpose)
+
+    readiness = client.post("/api/plan/outdoor-5k/readiness", json=request)
+    assert readiness.status_code == 200, readiness.text
+    assert readiness.json()["purpose"]["goal"]["target_time_sec"] == 1475
+
+    created = client.post(
+        "/api/plan/outdoor-5k/generate",
+        json={
+            **request,
+            "expected_source_revision": readiness.json()["source_revision"],
+            "idempotency_key": "legacy-target-time-alias",
+        },
+    )
+    assert created.status_code == 201, created.text
+    assert created.json()["proposal"]["goal"]["target"]["target_time_sec"] == 1475
+
+    from db.models import Outdoor5KPlanGeneration
+
+    db = db_session.SessionLocal()
+    try:
+        audit = db.query(Outdoor5KPlanGeneration).one()
+        assert audit.observed_input_snapshot["goal"]["target_time_sec"] == 1475
+    finally:
+        db.close()
+
+
+def test_api_generation_fences_stale_current_goal_selection(
+    proposal_client,
+) -> None:
+    client, db_session, current_user = proposal_client
+    user_id = current_user["value"]
+    _seed_api_context(db_session, user_id)
+    purpose = _current_goal_purpose(client)
+    _replace_goal(
+        db_session,
+        user_id=user_id,
+        goal={
+            "goal_kind": "performance_5k",
+            "distance": "5k",
+            "target_time_sec": 1490,
+        },
+    )
+
+    response = client.post(
+        "/api/plan/outdoor-5k/readiness",
+        json=_api_request(purpose=purpose),
+    )
+
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"]["code"] == "PLAN_PURPOSE_STALE"
+
+
+def test_api_generation_can_use_independent_5k_purpose_with_marathon_goal(
+    proposal_client,
+) -> None:
+    client, db_session, current_user = proposal_client
+    user_id = current_user["value"]
+    _seed_api_context(db_session, user_id)
+    _replace_goal(
+        db_session,
+        user_id=user_id,
+        goal={
+            "goal_kind": "race",
+            "distance": "marathon",
+            "race_date": "2027-04-18",
+        },
+    )
+    request = _api_request(
+        purpose={
+            "capability_id": "outdoor_road_5k_v1",
+            "source": "capability",
+        },
+    )
+
+    readiness = client.post("/api/plan/outdoor-5k/readiness", json=request)
+    assert readiness.status_code == 200, readiness.text
+    assert readiness.json()["result"]["code"] == "ready"
+    assert readiness.json()["purpose"]["source"] == "capability"
+    assert readiness.json()["purpose"]["expected_goal_id"] is None
+    assert readiness.json()["purpose"]["expected_goal_revision"] is None
+
+    created = client.post(
+        "/api/plan/outdoor-5k/generate",
+        json={
+            **request,
+            "expected_source_revision": readiness.json()["source_revision"],
+            "idempotency_key": "independent-5k-purpose",
+        },
+    )
+    assert created.status_code == 201, created.text
+    goal = created.json()["proposal"]["goal"]
+    assert goal["purpose_source"] == "capability"
+    assert goal["source_goal_id"] is None
+    assert goal["source_goal_revision"] is None
+    assert goal["target"]["distance"] == "5k"
+    assert goal["target"]["target_time_sec"] is None
+    assert goal["target"]["target_event_date"] is None
+
+
+def test_api_generation_rejects_unlinked_5k_purpose(
+    proposal_client,
+) -> None:
+    client, db_session, current_user = proposal_client
+    _seed_api_context(db_session, current_user["value"])
+
+    response = client.post(
+        "/api/plan/outdoor-5k/readiness",
+        json=_api_request(
+            purpose={
+                "capability_id": "outdoor_road_5k_v1",
+                "source": "unlinked",
+            },
+        ),
+    )
+
+    assert response.status_code == 400, response.text
+    assert response.json()["detail"]["code"] == "PLAN_PURPOSE_UNSUPPORTED"
+
+
+def test_independent_5k_purpose_can_confirm_its_own_baseline(
+    proposal_client,
+) -> None:
+    client, db_session, current_user = proposal_client
+    user_id = current_user["value"]
+    _seed_api_context(db_session, user_id)
+    _replace_goal(
+        db_session,
+        user_id=user_id,
+        goal={
+            "goal_kind": "race",
+            "distance": "marathon",
+            "race_date": "2027-04-18",
+        },
+    )
+    from db.models import GoalBaselineConfirmation, GoalBaselineSnapshot
+
+    db = db_session.SessionLocal()
+    try:
+        db.query(GoalBaselineSnapshot).filter(
+            GoalBaselineSnapshot.user_id == user_id
+        ).delete()
+        db.query(GoalBaselineConfirmation).filter(
+            GoalBaselineConfirmation.user_id == user_id
+        ).delete()
+        db.commit()
+    finally:
+        db.close()
+
+    purpose = {
+        "capability_id": "outdoor_road_5k_v1",
+        "source": "capability",
+    }
+    before = client.post(
+        "/api/plan/outdoor-5k/readiness",
+        json=_api_request(purpose=purpose),
+    )
+    assert before.status_code == 200, before.text
+    assert before.json()["result"]["code"] == (
+        "insufficient_or_stale_baseline"
+    )
+    assert before.json()["baseline"]["candidates"]
+
+    confirmed = client.post(
+        "/api/goal/baseline/history/confirm",
+        headers={"Idempotency-Key": "independent-purpose-baseline"},
+        json={
+            "activity_id": "current-baseline",
+            "response": "race",
+            "measured_5k": True,
+            "elapsed_timing_confirmed": True,
+            "purpose": purpose,
+        },
+    )
+    assert confirmed.status_code == 201, confirmed.text
+
+    after = client.post(
+        "/api/plan/outdoor-5k/readiness",
+        json=_api_request(purpose=purpose),
+    )
+    assert after.status_code == 200, after.text
+    assert after.json()["result"]["code"] == "ready"
+
+
+def test_current_goal_change_requires_draft_reassessment_before_adoption(
+    proposal_client,
+) -> None:
+    client, db_session, current_user = proposal_client
+    user_id = current_user["value"]
+    _seed_api_context(db_session, user_id)
+    purpose = _current_goal_purpose(client)
+    request = _api_request(purpose=purpose)
+    readiness = client.post("/api/plan/outdoor-5k/readiness", json=request)
+    assert readiness.status_code == 200, readiness.text
+    created = client.post(
+        "/api/plan/outdoor-5k/generate",
+        json={
+            **request,
+            "expected_source_revision": readiness.json()["source_revision"],
+            "idempotency_key": "linked-goal-reassessment",
+        },
+    )
+    assert created.status_code == 201, created.text
+    proposal = created.json()["proposal"]
+    _replace_goal(
+        db_session,
+        user_id=user_id,
+        goal={
+            "goal_kind": "performance_5k",
+            "distance": "5k",
+            "target_time_sec": 1490,
+        },
+    )
+
+    discovery = client.get("/api/plan/generation/capabilities")
+    assert discovery.status_code == 200, discovery.text
+    assert discovery.json()["active_plan_goal"]["link_status"] == (
+        "reassessment_required"
+    )
+
+    adopted = client.post(
+        f"/api/plan/proposals/{proposal['id']}/adopt",
+        json={
+            "expected_proposal_version": proposal["version"],
+            "expected_plan_version": proposal["adaptive_plan"]["version"],
+            "idempotency_key": "linked-goal-reassessment",
+        },
+    )
+    assert adopted.status_code == 409, adopted.text
+    assert adopted.json()["detail"]["code"] == (
+        "PLAN_PURPOSE_REASSESSMENT_REQUIRED"
+    )
+
+
+def test_independent_5k_plan_stays_valid_when_current_goal_changes(
+    proposal_client,
+) -> None:
+    client, db_session, current_user = proposal_client
+    user_id = current_user["value"]
+    _seed_api_context(db_session, user_id)
+    _replace_goal(
+        db_session,
+        user_id=user_id,
+        goal={"goal_kind": "race", "distance": "marathon"},
+    )
+    purpose = {
+        "capability_id": "outdoor_road_5k_v1",
+        "source": "capability",
+    }
+    request = _api_request(purpose=purpose)
+    readiness = client.post("/api/plan/outdoor-5k/readiness", json=request)
+    assert readiness.status_code == 200, readiness.text
+    created = client.post(
+        "/api/plan/outdoor-5k/generate",
+        json={
+            **request,
+            "expected_source_revision": readiness.json()["source_revision"],
+            "idempotency_key": "independent-goal-adoption",
+        },
+    )
+    assert created.status_code == 201, created.text
+    proposal = created.json()["proposal"]
+    _replace_goal(
+        db_session,
+        user_id=user_id,
+        goal={"goal_kind": "race", "distance": "half_marathon"},
+    )
+
+    adopted = client.post(
+        f"/api/plan/proposals/{proposal['id']}/adopt",
+        json={
+            "expected_proposal_version": proposal["version"],
+            "expected_plan_version": proposal["adaptive_plan"]["version"],
+            "idempotency_key": "independent-goal-adoption",
+        },
+    )
+    assert adopted.status_code == 200, adopted.text
+    discovery = client.get("/api/plan/generation/capabilities")
+    assert discovery.status_code == 200, discovery.text
+    assert discovery.json()["active_plan_goal"]["link_status"] == (
+        "independent"
+    )
+
+
 def test_api_accepts_policy_valid_duration_above_former_240_minute_cap(
     proposal_client,
 ) -> None:
@@ -858,6 +1221,159 @@ def test_api_idempotency_replays_before_source_fence_after_source_changes(
     assert changed_payload.json()["detail"]["code"] == (
         "OUTDOOR_5K_IDEMPOTENCY_CONFLICT"
     )
+
+
+def test_api_replays_pre_purpose_idempotency_audit(
+    proposal_client,
+) -> None:
+    """An exact pre-feature retry reconstructs its immutable current Goal."""
+    import api.outdoor_5k_plan_generation as generation_service
+    from db.models import (
+        AdaptivePlanGoalSnapshot,
+        Outdoor5KPlanGeneration,
+    )
+
+    client, db_session, current_user = proposal_client
+    _seed_api_context(db_session, current_user["value"])
+    readiness = client.post("/api/plan/outdoor-5k/readiness", json=_api_request())
+    assert readiness.status_code == 200, readiness.text
+    request = {
+        **_api_request(),
+        "expected_source_revision": readiness.json()["source_revision"],
+        "idempotency_key": "outdoor-5k-pre-purpose-replay",
+    }
+    created = client.post("/api/plan/outdoor-5k/generate", json=request)
+    assert created.status_code == 201, created.text
+    created_body = created.json()
+
+    db = db_session.SessionLocal()
+    try:
+        audit = db.query(Outdoor5KPlanGeneration).one()
+        constraints = generation_service._constraints_from_snapshot(
+            audit.constraint_snapshot
+        )
+        audit.request_fingerprint = (
+            generation_service._legacy_request_fingerprint(
+                request_kind="generate",
+                expected_source_revision=request["expected_source_revision"],
+                constraints=constraints,
+                outdoor_road_goal_confirmed=True,
+            )
+        )
+        observed_snapshot = dict(audit.observed_input_snapshot)
+        observed_snapshot.pop("purpose")
+        audit.observed_input_snapshot = observed_snapshot
+        constraint_snapshot = dict(audit.constraint_snapshot)
+        constraint_snapshot.pop("purpose")
+        audit.constraint_snapshot = constraint_snapshot
+        goal = db.get(
+            AdaptivePlanGoalSnapshot,
+            created_body["proposal"]["goal_snapshot_id"],
+        )
+        assert goal is not None
+        goal.purpose_source = None
+        goal.source_goal_id = None
+        goal.source_goal_revision = None
+        db.commit()
+    finally:
+        db.close()
+
+    replay = client.post("/api/plan/outdoor-5k/generate", json=request)
+
+    assert replay.status_code == 200, replay.text
+    replay_body = replay.json()
+    assert replay_body["replayed"] is True
+    assert replay_body["proposal"]["id"] == created_body["proposal"]["id"]
+    assert replay_body["purpose"] == {
+        "capability_id": "outdoor_road_5k_v1",
+        "source": "current_goal",
+        "expected_goal_id": None,
+        "expected_goal_revision": None,
+        "goal": created_body["purpose"]["goal"],
+    }
+
+
+def test_adoption_revalidates_pre_purpose_source_hash(
+    proposal_client,
+) -> None:
+    """A faithful pre-purpose draft remains adoptable when inputs are unchanged."""
+    import api.outdoor_5k_plan_generation as generation_service
+    from db.models import (
+        AdaptivePlanGoalSnapshot,
+        Outdoor5KPlanGeneration,
+        PlanProposal,
+    )
+
+    client, db_session, current_user = proposal_client
+    _seed_api_context(db_session, current_user["value"])
+    readiness = client.post("/api/plan/outdoor-5k/readiness", json=_api_request())
+    assert readiness.status_code == 200, readiness.text
+    request = {
+        **_api_request(),
+        "expected_source_revision": readiness.json()["source_revision"],
+        "idempotency_key": "outdoor-5k-pre-purpose-adopt",
+    }
+    created = client.post("/api/plan/outdoor-5k/generate", json=request)
+    assert created.status_code == 201, created.text
+    created_body = created.json()
+
+    db = db_session.SessionLocal()
+    try:
+        audit = db.query(Outdoor5KPlanGeneration).one()
+        constraints = generation_service._constraints_from_snapshot(
+            audit.constraint_snapshot
+        )
+        _, legacy_result, _, _ = generation_service._evaluate(
+            db,
+            user_id=current_user["value"],
+            constraints=constraints,
+            outdoor_road_goal_confirmed=True,
+            purpose_selection=None,
+            bind_purpose_revision=False,
+        )
+        assert legacy_result.plan is not None
+        audit.source_revision = legacy_result.deterministic_input_hash
+        audit.deterministic_input_hash = (
+            legacy_result.deterministic_input_hash
+        )
+        observed_snapshot = dict(audit.observed_input_snapshot)
+        observed_snapshot.pop("purpose")
+        audit.observed_input_snapshot = observed_snapshot
+        constraint_snapshot = dict(audit.constraint_snapshot)
+        constraint_snapshot.pop("purpose")
+        audit.constraint_snapshot = constraint_snapshot
+        goal = db.get(
+            AdaptivePlanGoalSnapshot,
+            created_body["proposal"]["goal_snapshot_id"],
+        )
+        assert goal is not None
+        goal.purpose_source = None
+        goal.source_goal_id = None
+        goal.source_goal_revision = None
+        proposal = db.get(PlanProposal, created_body["proposal"]["id"])
+        assert proposal is not None
+        proposal.workout_snapshot = generation_service._proposal_workouts(
+            legacy_result.plan,
+            legacy_result.deterministic_input_hash,
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    adoption = client.post(
+        f"/api/plan/proposals/{created_body['proposal']['id']}/adopt",
+        json={
+            "expected_proposal_version": (
+                created_body["proposal"]["version"]
+            ),
+            "expected_plan_version": (
+                created_body["proposal"]["adaptive_plan"]["version"]
+            ),
+            "idempotency_key": "outdoor-5k-pre-purpose-adoption",
+        },
+    )
+    assert adoption.status_code == 200, adoption.text
+    assert adoption.json()["status"] == "adopted"
 
 
 def test_inflight_exact_retry_replays_the_first_persisted_proposal(

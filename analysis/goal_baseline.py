@@ -139,6 +139,8 @@ def build_goal_baseline_goal(raw_goal: Mapping[str, Any] | None) -> GoalBaseline
         distance = "5k"
 
     raw_target = payload.get("target_time_sec")
+    if raw_target is None:
+        raw_target = payload.get("race_target_time_sec")
     target_time_sec: int | None
     if raw_target in (None, "", 0, "0"):
         target_time_sec = None

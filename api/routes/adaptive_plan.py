@@ -40,6 +40,17 @@ class ProposalGoalInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     goal_kind: str = Field(min_length=1, max_length=40)
+    purpose_source: Literal[
+        "current_goal",
+        "capability",
+        "unlinked",
+    ] | None = None
+    source_goal_id: UUID | None = None
+    source_goal_revision: str | None = Field(
+        default=None,
+        min_length=64,
+        max_length=64,
+    )
     target: dict[str, Any] = Field(default_factory=dict)
     horizon_start: date
     horizon_end: date
@@ -157,6 +168,9 @@ class ProposalGoalSnapshotResponse(BaseModel):
     id: str
     version: int
     state: str
+    purpose_source: str | None
+    source_goal_id: str | None
+    source_goal_revision: str | None
     goal_kind: str
     target: dict[str, Any]
     horizon_start: str

@@ -5,10 +5,12 @@ the unit-level normalize is tested in test_sync_scheduler.py; this file
 proves the API translates a ValueError into a structured 400 response and
 that the settings GET surfaces the allowed-options contract the UI depends on.
 """
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import json
 import os
 import tempfile
+import threading
 
 import pytest
 
@@ -150,6 +152,66 @@ def test_get_settings_exposes_sync_interval_options(api_client):
     body = res.json()
     assert body["sync_interval_options_hours"] == [6, 12, 24]
     assert body["default_sync_interval_hours"] == 6
+
+
+def test_put_science_reloads_config_after_plan_write_lock(
+    api_client,
+    monkeypatch,
+):
+    """A blocked science save must preserve a Goal committed while waiting."""
+    client, user_id = api_client
+    initial_goal = {
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+        "target_time_sec": 1_200,
+        "race_date": "",
+    }
+    saved = client.put("/api/settings", json={"goal": initial_goal})
+    assert saved.status_code == 200, saved.text
+
+    import api.routes.science as science
+    from db import session as db_session
+    from db.models import UserConfig
+    from db.plan_ledger import lock_plan_writes
+
+    lock_attempted = threading.Event()
+    original_lock = science.lock_plan_writes
+
+    def observed_lock(db, locked_user_id: str) -> None:
+        lock_attempted.set()
+        original_lock(db, locked_user_id)
+
+    monkeypatch.setattr(science, "lock_plan_writes", observed_lock)
+    concurrent_goal = {
+        **initial_goal,
+        "target_time_sec": 1_180,
+    }
+    locker = db_session.SessionLocal()
+    try:
+        locker.rollback()
+        lock_plan_writes(locker, user_id)
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            pending = executor.submit(
+                lambda: client.put(
+                    "/api/science",
+                    json={"science": {"load": "banister_ultra"}},
+                )
+            )
+            assert lock_attempted.wait(timeout=5)
+            row = locker.get(UserConfig, user_id)
+            assert row is not None
+            row.goal = concurrent_goal
+            locker.commit()
+            response = pending.result(timeout=10)
+    finally:
+        locker.close()
+
+    assert response.status_code == 200, response.text
+    with db_session.SessionLocal() as db:
+        row = db.get(UserConfig, user_id)
+        assert row is not None
+        assert row.goal == concurrent_goal
+        assert row.science["load"] == "banister_ultra"
 
 
 def _seed_connection(

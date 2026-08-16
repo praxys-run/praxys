@@ -50,6 +50,7 @@ class PlanGenerationCapabilityResponse(BaseModel):
     activity_types: list[str]
     goal_match: PlanGenerationGoalMatchResponse
     constraint_schema_id: str
+    purpose: dict[str, Any]
     policy_version: str
     generator_version: str
     science_decision_id: str
@@ -63,8 +64,37 @@ class PlanGenerationGoalResponse(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    goal_kind: str
+    goal_kind: str | None
     distance: str | None
+
+
+class PlanGenerationCurrentGoalResponse(BaseModel):
+    """Stable current-Goal identity used for optimistic purpose fencing."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    revision: str
+    goal: PlanGenerationGoalResponse
+
+
+class ActivePlanGoalResponse(BaseModel):
+    """How the current adaptive-plan goal relates to the mutable Goal."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    adaptive_plan_id: str
+    lifecycle: str
+    goal_snapshot_id: str
+    purpose_source: str | None
+    source_goal_id: str | None
+    source_goal_revision: str | None
+    link_status: Literal[
+        "current",
+        "independent",
+        "reassessment_required",
+        "legacy_unknown",
+    ]
 
 
 class PlanGenerationCapabilityDiscoveryResponse(BaseModel):
@@ -73,9 +103,12 @@ class PlanGenerationCapabilityDiscoveryResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     schema_version: Literal[1]
+    purpose_schema_version: Literal[1]
     goal: PlanGenerationGoalResponse
+    current_goal: PlanGenerationCurrentGoalResponse | None
     selected_capability: PlanGenerationCapabilityResponse | None
     capabilities: list[PlanGenerationCapabilityResponse]
+    active_plan_goal: ActivePlanGoalResponse | None
     unsupported_reason: Literal["no_accepted_policy"] | None
 
 

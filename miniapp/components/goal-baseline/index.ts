@@ -5,6 +5,7 @@ import type {
   GoalBaselineCandidate,
   GoalBaselineMutationResponse,
   GoalBaselineResponse,
+  PlanGenerationPurposeSelection,
 } from '../../types/api';
 import { formatTime } from '../../utils/format';
 import { t } from '../../utils/i18n';
@@ -117,6 +118,7 @@ Component({
   properties: {
     baseline: { type: Object, value: null },
     goal: { type: Object, value: null },
+    purpose: { type: Object, value: null },
     disabled: { type: Boolean, value: false },
   },
   data: {
@@ -264,7 +266,10 @@ Component({
     async runMutation(path: string, body: Record<string, unknown>) {
       this.setData({ saving: true, errorMessage: '', notice: '' });
       try {
-        await apiPost<GoalBaselineMutationResponse>(path, body, {
+        const purpose = this.properties.purpose as PlanGenerationPurposeSelection | null;
+        await apiPost<GoalBaselineMutationResponse>(path, purpose
+          ? { ...body, purpose }
+          : body, {
           headers: { 'Idempotency-Key': `${Date.now()}-${Math.random()}` },
         });
         this.setData({ saving: false, dialogMode: '', notice: this.data.copy.success });

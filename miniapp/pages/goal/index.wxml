@@ -34,12 +34,12 @@
           <text class="goal-copy ts-muted">{{planCapabilityDescription}}</text>
           <text wx:if="{{planCapabilityDetail}}" class="goal-copy ts-muted">{{planCapabilityDetail}}</text>
           <view
-            wx:if="{{planCapabilityState === 'available'}}"
+            wx:if="{{planCapabilityState === 'available' || planCapabilityState === 'alternate_available'}}"
             class="plan-generation-action plan-generation-action--primary"
             bindtap="onOpenPlanManagement"
             hover-class="plan-generation-action--pressed"
             aria-role="button"
-          ><text>{{tr.openPlanPreview}}</text></view>
+          ><text>{{planCapabilityState === 'alternate_available' ? tr.choosePlanPurpose : tr.openPlanPreview}}</text></view>
           <view
             wx:elif="{{planCapabilityState === 'error'}}"
             class="plan-generation-action plan-generation-action--secondary"

@@ -12,6 +12,7 @@ import type {
   Outdoor5KWeekday,
   PlanGenerationCapabilitiesResponse,
   PlanGenerationCapability,
+  PlanGenerationPurposeSelection,
 } from '../../types/api';
 
 interface DayOption {
@@ -21,13 +22,53 @@ interface DayOption {
   duration: string;
 }
 
+interface PurposeOption {
+  value: string;
+  label: string;
+  capabilityId: string;
+  source: PlanGenerationPurposeSelection['source'] | '';
+}
+
 type LifecycleOperation = 'generate' | 'regenerate' | 'reject' | 'adopt';
+
+function purposeValue(
+  source: PlanGenerationPurposeSelection['source'],
+  capabilityId: string,
+): string {
+  return `${source}:${capabilityId}`;
+}
+
+function samePurposeSelection(
+  left: PlanGenerationPurposeSelection | null | undefined,
+  right: PlanGenerationPurposeSelection | null | undefined,
+): boolean {
+  return Boolean(
+    left
+    && right
+    && left.capability_id === right.capability_id
+    && left.source === right.source
+    && left.expected_goal_id === right.expected_goal_id
+    && left.expected_goal_revision === right.expected_goal_revision,
+  );
+}
 
 function copy() {
   return {
     title: t('Plan preview'),
     unsupportedTitle: t('Plan generation for this goal'),
     supportedGoal: t('No accepted automatic policy matches this goal yet. Praxys keeps manual plan management available instead of repurposing the 5K policy.'),
+    purpose: t('Plan purpose'),
+    purposeDetail: t('The current Goal is the default when an accepted policy matches it. A separate purpose keeps that Goal unchanged.'),
+    choosePurpose: t('Choose an accepted plan purpose'),
+    purposeRequired: t('Choose an accepted plan purpose first.'),
+    currentGoalPurpose: t('Current Goal'),
+    separatePurpose: t('Separate plan purpose'),
+    unlinkedPurpose: t('Unlinked base plan'),
+    currentGoalUnavailable: t('The current Goal has no accepted automatic policy. Keep it unchanged, or choose an accepted separate purpose.'),
+    separatePurposeDetail: t('This proposal uses an accepted 5K goal contract without changing or linking to the Goal page.'),
+    reassessmentTitle: t('Plan purpose needs reassessment'),
+    reassessmentDetail: t('The current Goal changed after this plan purpose was captured. Check readiness again and create a fresh proposal before adoption.'),
+    conflictingPurpose: t('A draft exists for another plan purpose. Return to that purpose to review or reject it first.'),
     updateRequired: t('This client does not recognize the selected policy input contract and will not guess how to create a plan.'),
     scope: t('Scope and guardrails'),
     scopeDetail: t('For adult, self-coached recreational outdoor-road 5K runners. This is not a diagnosis, clearance, or performance guarantee.'),
@@ -54,6 +95,7 @@ function copy() {
     creating: t('Creating proposal…'),
     result: t('Readiness result'),
     proposal: t('Plan proposal'),
+    purposeLabel: t('Purpose'),
     policy: t('Policy'),
     generator: t('Generator'),
     science: t('Science'),
@@ -82,6 +124,7 @@ function copy() {
     alreadyAdopted: t('This exact proposal was already adopted. Delivery remains disabled until you explicitly enable it.'),
     lifecycle: t('Proposal state needs a fresh preview'),
     lifecycleDetail: t('This proposal cannot mutate the canonical plan. Review readiness and create a new proposal when you are ready.'),
+    adoptionPaused: t('Adoption is paused until the linked Goal is reassessed.'),
   };
 }
 
@@ -124,8 +167,19 @@ Component({
     tr: copy(),
     loading: true,
     capabilityAvailable: false,
+    capabilities: [] as PlanGenerationCapability[],
     capability: null as PlanGenerationCapability | null,
     capabilityMessage: copy().supportedGoal,
+    purposeOptions: [] as PurposeOption[],
+    purposeIndex: 0,
+    selectedPurpose: null as PlanGenerationPurposeSelection | null,
+    currentGoalId: '',
+    currentGoalRevision: '',
+    currentGoalUnavailable: false,
+    purposeIsSeparate: false,
+    activePlanNeedsReassessment: false,
+    proposalMatchesPurpose: true,
+    proposalPurposeLabel: '',
     adult: false,
     selfCoached: false,
     canComplete: false,
@@ -184,48 +238,163 @@ Component({
       componentState._loadRequestId = requestId;
       this.setData({
         loading: true,
+        capabilities: [],
         capability: null,
         capabilityAvailable: false,
         capabilityMessage: this.data.tr.supportedGoal,
+        purposeOptions: [],
+        purposeIndex: 0,
+        selectedPurpose: null,
+        currentGoalId: '',
+        currentGoalRevision: '',
+        currentGoalUnavailable: false,
+        purposeIsSeparate: false,
+        activePlanNeedsReassessment: false,
+        proposalMatchesPurpose: true,
+        proposalPurposeLabel: '',
         proposal: null,
         readiness: null,
         readinessReason: '',
         errorMessage: '',
         notice: '',
       });
+      let proposal: AdaptivePlanProposal | null = null;
+      let proposalError = '';
+      try {
+        proposal = await apiGet<AdaptivePlanProposal>(
+          '/api/plan/proposals/current',
+        );
+      } catch (error) {
+        const apiError = error as ApiError;
+        if (apiError.status !== 404) {
+          proposalError = apiError.detail ?? this.data.tr.requestFailed;
+        }
+      }
+      if (componentState._loadRequestId !== requestId) return;
       try {
         const discovery = await apiGet<PlanGenerationCapabilitiesResponse>(
           '/api/plan/generation/capabilities',
         );
         if (componentState._loadRequestId !== requestId) return;
-        const capability = discovery.selected_capability;
-        const capabilityAvailable = capability?.constraint_schema_id
-          === 'outdoor_road_5k_constraints_v1';
-        let proposal: AdaptivePlanProposal | null = null;
-        let proposalError = '';
-        if (capabilityAvailable) {
-          try {
-            proposal = await apiGet<AdaptivePlanProposal>(
-              '/api/plan/proposals/current',
-            );
-          } catch (error) {
-            const apiError = error as ApiError;
-            if (apiError.status !== 404) {
-              proposalError = apiError.detail ?? this.data.tr.requestFailed;
-            }
+        const capabilities = discovery.capabilities.filter(
+          (item) => item.constraint_schema_id
+            === 'outdoor_road_5k_constraints_v1',
+        );
+        const currentCapability = discovery.selected_capability?.constraint_schema_id
+          === 'outdoor_road_5k_constraints_v1'
+          ? discovery.selected_capability
+          : null;
+        const capabilityAvailable = Boolean(
+          currentCapability && discovery.current_goal,
+        ) || capabilities.some(
+          (item) => item.purpose.allows_capability_goal
+            || item.purpose.allows_unlinked,
+        );
+        const purposeOptions: PurposeOption[] = [{
+          value: '',
+          label: this.data.tr.choosePurpose,
+          capabilityId: '',
+          source: '',
+        }];
+        if (currentCapability && discovery.current_goal) {
+          purposeOptions.push({
+            value: purposeValue('current_goal', currentCapability.id),
+            label: `${this.data.tr.currentGoalPurpose} · ${
+              discovery.current_goal.goal.distance?.toUpperCase() ?? '5K'
+            }`,
+            capabilityId: currentCapability.id,
+            source: 'current_goal',
+          });
+        }
+        for (const item of capabilities) {
+          const distance = item.purpose.distance?.toUpperCase() ?? '5K';
+          if (item.purpose.allows_capability_goal) {
+            purposeOptions.push({
+              value: purposeValue('capability', item.id),
+              label: `${this.data.tr.separatePurpose} · ${distance}`,
+              capabilityId: item.id,
+              source: 'capability',
+            });
+          }
+          if (item.purpose.allows_unlinked) {
+            purposeOptions.push({
+              value: purposeValue('unlinked', item.id),
+              label: `${this.data.tr.unlinkedPurpose} · ${distance}`,
+              capabilityId: item.id,
+              source: 'unlinked',
+            });
           }
         }
-        if (componentState._loadRequestId !== requestId) return;
+        const proposalCapability = capabilities.find(
+          (item) => item.policy_version === proposal?.policy_version,
+        ) ?? null;
+        const proposalSource = proposal?.goal?.purpose_source
+          ?? (proposalCapability && currentCapability?.id === proposalCapability.id
+            ? 'current_goal'
+            : null);
+        const proposalValue = proposalCapability && proposalSource
+          ? purposeValue(proposalSource, proposalCapability.id)
+          : '';
+        let purposeIndex = proposalValue
+          ? purposeOptions.findIndex((option) => option.value === proposalValue)
+          : currentCapability
+            ? purposeOptions.findIndex(
+              (option) => option.value
+                === purposeValue('current_goal', currentCapability.id),
+            )
+            : 0;
+        if (purposeIndex < 0) purposeIndex = 0;
+        const selectedOption = purposeOptions[purposeIndex];
+        const capability = capabilities.find(
+          (item) => item.id === selectedOption?.capabilityId,
+        ) ?? null;
+        const selectedPurpose = selectedOption?.source && capability
+          ? {
+            capability_id: capability.id,
+            source: selectedOption.source,
+            expected_goal_id: selectedOption.source === 'current_goal'
+              ? discovery.current_goal?.id ?? null
+              : null,
+            expected_goal_revision: selectedOption.source === 'current_goal'
+              ? discovery.current_goal?.revision ?? null
+              : null,
+          } as PlanGenerationPurposeSelection
+          : null;
+        const proposalMatchesPurpose = !proposal || Boolean(
+          proposalCapability
+          && proposalValue
+          && proposalValue === selectedOption?.value,
+        );
         this.setData({
           loading: false,
+          capabilities,
           capability,
           capabilityAvailable,
-          capabilityMessage: capability && !capabilityAvailable
+          capabilityMessage: discovery.capabilities.length > 0
+            && !capabilityAvailable
             ? this.data.tr.updateRequired
             : this.data.tr.supportedGoal,
-          proposal: proposal?.policy_version === capability?.policy_version
-            ? proposal
-            : null,
+          purposeOptions,
+          purposeIndex,
+          selectedPurpose,
+          currentGoalId: discovery.current_goal?.id ?? '',
+          currentGoalRevision: discovery.current_goal?.revision ?? '',
+          currentGoalUnavailable: Boolean(
+            discovery.current_goal && !currentCapability,
+          ),
+          purposeIsSeparate: selectedPurpose?.source === 'capability',
+          activePlanNeedsReassessment:
+            discovery.active_plan_goal?.link_status
+              === 'reassessment_required',
+          proposal,
+          proposalMatchesPurpose,
+          proposalPurposeLabel: proposalSource === 'current_goal'
+            ? this.data.tr.currentGoalPurpose
+            : proposalSource === 'capability'
+              ? this.data.tr.separatePurpose
+              : proposalSource === 'unlinked'
+                ? this.data.tr.unlinkedPurpose
+                : '',
           errorMessage: proposalError,
         });
       } catch (error) {
@@ -233,13 +402,69 @@ Component({
         const apiError = error as Partial<ApiError>;
         this.setData({
           loading: false,
+          capabilities: [],
           capability: null,
           capabilityAvailable: false,
-          proposal: null,
+          purposeOptions: [],
+          selectedPurpose: null,
+          proposal,
+          proposalMatchesPurpose: !proposal,
+          proposalPurposeLabel: proposal?.goal?.purpose_source === 'current_goal'
+            ? this.data.tr.currentGoalPurpose
+            : proposal?.goal?.purpose_source === 'capability'
+              ? this.data.tr.separatePurpose
+              : proposal?.goal?.purpose_source === 'unlinked'
+                ? this.data.tr.unlinkedPurpose
+                : '',
           capabilityMessage: this.data.tr.requestFailed,
-          errorMessage: apiError.detail ?? this.data.tr.requestFailed,
+          errorMessage: apiError.detail
+            ?? (proposalError || this.data.tr.requestFailed),
         });
       }
+    },
+    onPurposeChange(e: WechatMiniprogram.PickerChange) {
+      if (this.data.working) return;
+      const purposeIndex = Number(e.detail.value);
+      const option = this.data.purposeOptions[purposeIndex];
+      const capability = this.data.capabilities.find(
+        (item) => item.id === option?.capabilityId,
+      ) ?? null;
+      const selectedPurpose = option?.source && capability
+        ? {
+          capability_id: capability.id,
+          source: option.source,
+          expected_goal_id: option.source === 'current_goal'
+            ? this.data.currentGoalId || null
+            : null,
+          expected_goal_revision: option.source === 'current_goal'
+            ? this.data.currentGoalRevision || null
+            : null,
+        } as PlanGenerationPurposeSelection
+        : null;
+      const proposal = this.data.proposal;
+      const proposalCapability = this.data.capabilities.find(
+        (item) => item.policy_version === proposal?.policy_version,
+      );
+      const proposalSource = proposal?.goal?.purpose_source
+        ?? (proposalCapability ? 'current_goal' : null);
+      const proposalValue = proposalCapability && proposalSource
+        ? purposeValue(proposalSource, proposalCapability.id)
+        : '';
+      this.setData({
+        purposeIndex,
+        selectedPurpose,
+        capability,
+        purposeIsSeparate: selectedPurpose?.source === 'capability',
+        proposalMatchesPurpose: !proposal || Boolean(
+          proposalCapability
+          && proposalValue
+          && proposalValue === option?.value,
+        ),
+        readiness: null,
+        readinessReason: '',
+        errorMessage: '',
+        notice: '',
+      });
     },
     onToggleScope(e: WechatMiniprogram.TouchEvent) {
       const field = String(e.currentTarget.dataset.field);
@@ -293,6 +518,11 @@ Component({
       this.setData({ longDayIndex: Number(e.detail.value), readiness: null, errorMessage: '' });
     },
     constraints(): Outdoor5KConstraintsRequest | null {
+      const purpose = this.data.selectedPurpose;
+      if (!purpose) {
+        this.setData({ errorMessage: this.data.tr.purposeRequired });
+        return null;
+      }
       const scopeComplete = this.data.adult
         && this.data.selfCoached
         && this.data.canComplete
@@ -323,6 +553,7 @@ Component({
       }
       const preferredIndex = this.data.longDayIndex;
       return {
+        purpose,
         age_18_or_older: this.data.adult,
         self_coached_recreational_road_runner: this.data.selfCoached,
         can_complete_5k: this.data.canComplete,
@@ -359,12 +590,21 @@ Component({
       if (this.data.working) return;
       await this.checkReadiness();
     },
+    async onBaselineRefresh() {
+      if (this.data.working) return;
+      await this.checkReadiness();
+    },
     async onGenerate() {
       if (this.data.working) return;
+      if (this.data.proposal && !this.data.proposalMatchesPurpose) {
+        this.setData({ errorMessage: this.data.tr.conflictingPurpose });
+        return;
+      }
       const readiness = await this.checkReadiness();
       const constraints = this.constraints();
       const capability = this.data.capability;
       if (!readiness || !constraints || !capability || readiness.result.code !== 'ready') return;
+      const requestPurpose = constraints.purpose;
       this.setData({ working: 'generate', errorMessage: '' });
       try {
         const response = await apiPost<Outdoor5KGenerateResponse>(capability.actions.generate_href, {
@@ -373,7 +613,25 @@ Component({
           idempotency_key: this.operationKey('generate'),
         });
         if (proposalResponse(response) && response.proposal) {
-          this.setData({ proposal: response.proposal, notice: this.data.tr.noProposal });
+          const proposalMatchesPurpose = samePurposeSelection(
+            response.purpose,
+            requestPurpose,
+          ) && samePurposeSelection(
+            requestPurpose,
+            this.data.selectedPurpose,
+          );
+          this.setData({
+            proposal: response.proposal,
+            proposalMatchesPurpose,
+            proposalPurposeLabel: requestPurpose?.source === 'current_goal'
+              ? this.data.tr.currentGoalPurpose
+              : requestPurpose?.source === 'capability'
+                ? this.data.tr.separatePurpose
+                : requestPurpose?.source === 'unlinked'
+                  ? this.data.tr.unlinkedPurpose
+                  : '',
+            notice: this.data.tr.noProposal,
+          });
         } else {
           this.setData({ readiness: response, readinessReason: reason(response.result, this.data.tr.noExplanation) });
         }
@@ -387,11 +645,16 @@ Component({
     },
     async onRegenerate() {
       if (this.data.working) return;
+      if (!this.data.proposalMatchesPurpose) {
+        this.setData({ errorMessage: this.data.tr.conflictingPurpose });
+        return;
+      }
       const proposal = this.data.proposal;
       const readiness = await this.checkReadiness();
       const constraints = this.constraints();
       const capability = this.data.capability;
       if (!proposal || !readiness || !constraints || !capability || readiness.result.code !== 'ready') return;
+      const requestPurpose = constraints.purpose;
       this.setData({ working: 'regenerate', errorMessage: '' });
       try {
         const response = await apiPost<Outdoor5KRegenerateResponse>(
@@ -407,7 +670,28 @@ Component({
           },
         );
         if (proposalResponse(response) && response.proposal) {
-          this.setData({ proposal: response.proposal, notice: this.data.tr.successor });
+          const proposalMatchesPurpose = samePurposeSelection(
+            response.purpose,
+            requestPurpose,
+          ) && samePurposeSelection(
+            requestPurpose,
+            this.data.selectedPurpose,
+          );
+          this.setData({
+            proposal: response.proposal,
+            proposalMatchesPurpose,
+            proposalPurposeLabel: requestPurpose?.source === 'current_goal'
+              ? this.data.tr.currentGoalPurpose
+              : requestPurpose?.source === 'capability'
+                ? this.data.tr.separatePurpose
+                : requestPurpose?.source === 'unlinked'
+                  ? this.data.tr.unlinkedPurpose
+                  : '',
+            activePlanNeedsReassessment: proposalMatchesPurpose
+              ? false
+              : this.data.activePlanNeedsReassessment,
+            notice: this.data.tr.successor,
+          });
         } else {
           this.setData({ readiness: response, readinessReason: reason(response.result, this.data.tr.noExplanation) });
         }
@@ -425,11 +709,16 @@ Component({
       if (!proposal) return;
       this.setData({ working: 'reject', errorMessage: '' });
       try {
-        const result = await apiPost<AdaptivePlanProposal>(
+        await apiPost<AdaptivePlanProposal>(
           `/api/plan/proposals/${proposal.id}/reject`,
           { expected_version: proposal.version, idempotency_key: this.operationKey('reject') },
         );
-        this.setData({ proposal: result, notice: this.data.tr.rejected });
+        this.setData({
+          proposal: null,
+          proposalMatchesPurpose: true,
+          proposalPurposeLabel: '',
+          notice: this.data.tr.rejected,
+        });
         this.clearOperationKey('reject');
       } catch (error) {
         const apiError = error as Partial<ApiError>;
@@ -440,6 +729,17 @@ Component({
     },
     async onAdopt() {
       if (this.data.working) return;
+      if (!this.data.proposalMatchesPurpose) {
+        this.setData({ errorMessage: this.data.tr.conflictingPurpose });
+        return;
+      }
+      if (
+        this.data.activePlanNeedsReassessment
+        && this.data.proposal?.goal?.purpose_source === 'current_goal'
+      ) {
+        this.setData({ errorMessage: this.data.tr.adoptionPaused });
+        return;
+      }
       const proposal = this.data.proposal;
       if (!proposal) return;
       this.setData({ working: 'adopt', errorMessage: '' });

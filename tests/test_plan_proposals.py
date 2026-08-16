@@ -304,6 +304,25 @@ def _proposal_payload(
     }
 
 
+def _save_current_goal(db_session, goal: dict) -> None:
+    from db.models import UserConfig
+
+    db = db_session.SessionLocal()
+    try:
+        row = (
+            db.query(UserConfig)
+            .filter(UserConfig.user_id == "proposal-owner")
+            .one_or_none()
+        )
+        if row is None:
+            row = UserConfig(user_id="proposal-owner")
+            db.add(row)
+        row.goal = goal
+        db.commit()
+    finally:
+        db.close()
+
+
 def _training_plans(db_session, user_id: str = "proposal-owner"):
     from db.models import TrainingPlan
 
@@ -584,6 +603,182 @@ def test_adopt_exact_version_is_atomic_idempotent_and_preserves_workout_ids(prop
         assert revision.details["proposal_id"] == created["id"]
     finally:
         db.close()
+
+
+def test_adopt_replay_normalizes_legacy_goal_provenance(proposal_client):
+    client, db_session, _ = proposal_client
+    start = date.today() + timedelta(days=2)
+    created = client.post(
+        "/api/plan/proposals",
+        json=_proposal_payload(
+            key="legacy-adoption-snapshot-create",
+            workouts=[
+                {
+                    "date": start.isoformat(),
+                    "workout_type": "easy",
+                    "planned_duration_min": 40,
+                }
+            ],
+        ),
+    ).json()
+    adoption_payload = {
+        "expected_proposal_version": created["version"],
+        "expected_plan_version": created["adaptive_plan"]["version"],
+        "idempotency_key": "legacy-adoption-snapshot-adopt",
+    }
+    adopted = client.post(
+        f"/api/plan/proposals/{created['id']}/adopt",
+        json=adoption_payload,
+    )
+    assert adopted.status_code == 200, adopted.text
+
+    from db.models import PlanRevision
+
+    db = db_session.SessionLocal()
+    try:
+        revision = db.get(PlanRevision, adopted.json()["revision_id"])
+        assert revision is not None
+        details = copy.deepcopy(revision.details)
+        legacy_goal = details["proposal_snapshot"]["goal"]
+        for field in (
+            "purpose_source",
+            "source_goal_id",
+            "source_goal_revision",
+        ):
+            legacy_goal.pop(field)
+        revision.details = details
+        db.commit()
+    finally:
+        db.close()
+
+    replay = client.post(
+        f"/api/plan/proposals/{created['id']}/adopt",
+        json=adoption_payload,
+    )
+    assert replay.status_code == 200, replay.text
+    replay_goal = replay.json()["proposal"]["goal"]
+    assert replay_goal["purpose_source"] is None
+    assert replay_goal["source_goal_id"] is None
+    assert replay_goal["source_goal_revision"] is None
+
+
+def test_generic_current_goal_provenance_fences_retries_and_adoption(
+    proposal_client,
+):
+    client, db_session, _ = proposal_client
+    from api.plan_generation_capabilities import current_goal_reference
+
+    first_goal = {
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+        "target_time_sec": 1500,
+    }
+    _save_current_goal(db_session, first_goal)
+    first_reference = current_goal_reference(
+        user_id="proposal-owner",
+        goal=first_goal,
+    )
+    assert first_reference is not None
+    payload = _proposal_payload(key="generic-current-goal")
+    payload["goal"].update({
+        "goal_kind": "performance_5k",
+        "target": {
+            "distance": "5k",
+            "target_time_sec": 1500,
+        },
+        "purpose_source": "current_goal",
+        "source_goal_id": first_reference.goal_id,
+        "source_goal_revision": first_reference.revision,
+    })
+    created = client.post("/api/plan/proposals", json=payload)
+    assert created.status_code == 201, created.text
+    created_body = created.json()
+
+    next_goal = {
+        **first_goal,
+        "target_time_sec": 1440,
+    }
+    _save_current_goal(db_session, next_goal)
+    next_reference = current_goal_reference(
+        user_id="proposal-owner",
+        goal=next_goal,
+    )
+    assert next_reference is not None
+
+    changed_retry = copy.deepcopy(payload)
+    changed_retry["goal"].update({
+        "source_goal_id": next_reference.goal_id,
+        "source_goal_revision": next_reference.revision,
+    })
+    retry = client.post("/api/plan/proposals", json=changed_retry)
+    assert retry.status_code == 409, retry.text
+    assert retry.json()["detail"]["code"] == (
+        "PLAN_PROPOSAL_IDEMPOTENCY_CONFLICT"
+    )
+
+    stale_create = copy.deepcopy(payload)
+    stale_create["idempotency_key"] = "generic-current-goal-stale"
+    stale = client.post("/api/plan/proposals", json=stale_create)
+    assert stale.status_code == 409, stale.text
+    assert stale.json()["detail"]["code"] == (
+        "PLAN_PURPOSE_REASSESSMENT_REQUIRED"
+    )
+
+    adopted = client.post(
+        f"/api/plan/proposals/{created_body['id']}/adopt",
+        json={
+            "expected_proposal_version": created_body["version"],
+            "expected_plan_version": created_body["adaptive_plan"]["version"],
+            "idempotency_key": "generic-current-goal-adopt",
+        },
+    )
+    assert adopted.status_code == 409, adopted.text
+    assert adopted.json()["detail"]["code"] == (
+        "PLAN_PURPOSE_REASSESSMENT_REQUIRED"
+    )
+
+
+def test_generic_current_goal_provenance_rejects_mismatched_goal(
+    proposal_client,
+):
+    client, db_session, _ = proposal_client
+    from api.plan_generation_capabilities import current_goal_reference
+
+    current_goal = {
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+        "target_time_sec": 1500,
+    }
+    _save_current_goal(db_session, current_goal)
+    reference = current_goal_reference(
+        user_id="proposal-owner",
+        goal=current_goal,
+    )
+    assert reference is not None
+    payload = _proposal_payload(key="generic-current-goal-mismatch")
+    payload["goal"].update({
+        "purpose_source": "current_goal",
+        "source_goal_id": reference.goal_id,
+        "source_goal_revision": reference.revision,
+    })
+
+    response = client.post("/api/plan/proposals", json=payload)
+
+    assert response.status_code == 400, response.text
+    assert response.json()["detail"]["code"] == "PLAN_PURPOSE_INVALID"
+
+
+def test_generic_proposal_rejects_unvalidated_capability_purpose(
+    proposal_client,
+):
+    client, _, _ = proposal_client
+    payload = _proposal_payload(key="generic-capability-purpose")
+    payload["goal"]["purpose_source"] = "capability"
+
+    response = client.post("/api/plan/proposals", json=payload)
+
+    assert response.status_code == 400, response.text
+    assert response.json()["detail"]["code"] == "PLAN_PURPOSE_UNSUPPORTED"
 
 
 def test_road_and_trail_proposals_remain_distinguishable(proposal_client):

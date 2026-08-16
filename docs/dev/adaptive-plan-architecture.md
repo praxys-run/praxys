@@ -172,6 +172,11 @@ client conditions. The registry:
 - resolves the authenticated athlete's current normalized goal on the backend;
 - returns the exact policy, generator, science decision, constraint-schema,
   horizon, reassessment cadence, and policy-specific action paths;
+- publishes a versioned purpose contract for each capability;
+- treats the current Goal as a default when it matches, not as a mandatory
+  binding for every plan;
+- supports an explicitly selected capability-owned purpose only when the
+  accepted capability permits it;
 - returns `no_accepted_policy` when no reviewed policy matches instead of
   repurposing another distance or population policy; and
 - keeps the existing typed policy endpoints compatible while web, miniapp,
@@ -181,6 +186,25 @@ Draft Evidence Reviews, draft SDRs, roadmap intent, and unsupported populations
 never make a capability available. Adding a capability requires its own accepted
 science decision plus deterministic validation and client support for the named
 constraint schema.
+
+### Plan-purpose provenance
+
+Plan purpose is resolved before readiness and remains part of every subsequent
+source fence, audit, proposal, and immutable goal snapshot:
+
+- `current_goal` references the owner-scoped current Goal by stable ID and
+  exact content revision;
+- `capability` uses the accepted capability's own bounded goal contract without
+  modifying or linking the Goal page; and
+- `unlinked` is available only when the accepted capability explicitly permits
+  a base plan with no goal contract.
+
+The current Goal is the client default only when an accepted capability matches
+it. Unsupported current Goals remain unchanged while the athlete may choose a
+separate accepted purpose. A material edit to a linked Goal marks the active
+plan or draft `reassessment_required`; independent plans remain independent.
+Legacy snapshots without provenance are reported as `legacy_unknown` rather
+than guessed into a current link.
 
 ### Structured workout contract v1
 
