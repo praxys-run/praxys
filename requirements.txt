@@ -21,7 +21,7 @@ uvicorn[standard]>=0.51.0
 pyyaml>=6.0.3
 portalocker>=2.8.0
 pydantic>=2.13.4
-sqlalchemy>=2.0.51
+sqlalchemy>=2.0.52
 aiosqlite>=0.22.1
 # PostgreSQL driver (psycopg3). Backs BOTH the sync and async SQLAlchemy
 # engines when PRAXYS_DATABASE_URL / DATABASE_URL points at Postgres (#360);
