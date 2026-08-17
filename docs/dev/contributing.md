@@ -79,7 +79,8 @@ How to extend Praxys with new features.
 Science changes use two linked, versioned records before implementation:
 
 - An **Evidence Review** records what the literature supports.
-- A **Science Decision Record (SDR)** records how Praxys applies that evidence.
+- A **product-first Science Decision Record (SDR)** records what user value
+  Praxys chooses to provide, why, and how the evidence constrains that choice.
 
 New records use the artifact review workflow documented in
 [`science-review-artifacts.md`](science-review-artifacts.md). The canonical
@@ -91,10 +92,11 @@ materializes the role-scoped artifact. Runtime code consumes only the generated
 contract and never derives values from prose.
 
 Artifact-mode SDRs also provide a typed `decision_review` manifest. The
-generated packet begins with its concise decision sheet; every contract
-parameter group must be mapped to an explicit proposed decision or deferral.
-The complete evidence, parameter, and contract material remains a collapsed
-audit appendix rather than the reviewer's primary task.
+schema-v2 packet begins with product value and then its concise decision sheet;
+schema-v1 packets retain their existing decision-sheet-first format. Every
+contract parameter group must be mapped to an explicit proposed decision or
+deferral. The complete evidence, parameter, and contract material remains a
+collapsed audit appendix rather than the reviewer's primary task.
 
 ### Research before changing science
 
@@ -103,8 +105,10 @@ Use the repository-owned
 before changing a scientific claim, formula, constant, safety boundary, theory,
 or user-facing interpretation. Its **Research-only** mode creates a bounded,
 auditable evidence update without changing accepted behavior; its **Decision
-proposal** mode adds a draft SDR, alternatives, claim limits, validation plan,
-and implementation/reviewer map for human review.
+proposal** mode hands the evidence bundle to the
+[`Praxys Product Policy`](../../.github/agents/product-policy.agent.md) agent,
+which adds the user problem, value hypothesis, scenarios, alternatives, outcome
+plan, draft SDR, and implementation/reviewer map.
 
 The athlete-facing `/science` plugin skill remains browse/select only. It does
 not research literature, edit evidence records, or make product decisions.
@@ -137,6 +141,10 @@ honestly; neither level lets schema validation declare a paper true.
 
 2. **Add an SDR** at
    `data/science/decisions/sdr-{decision}-v{N}.yaml`:
+   - New product decisions use `schema_version: 2` and define
+     `product_context` with the user problem, current gap, value hypothesis,
+     primary outcomes, representative scenarios, minimum valuable slice,
+     product non-goals, success metrics, and guardrail metrics.
    - Set `approval_mode: artifact` and declare
      `artifact_policy.runtime_state`. Draft decisions start `inactive`.
    - Link the exact evidence-review and claim IDs used.

@@ -1,5 +1,53 @@
 {
   "schema_version": 1,
+  "decision_autonomy": {
+    "version": "decision-autonomy-v1",
+    "status": "specification-only",
+    "objective": "minimize-human-attention-subject-to-quality-safety-and-reversibility",
+    "routing_outcomes": [
+      "agent-resolved",
+      "agent-reviewed",
+      "human-review-required",
+      "blocked"
+    ],
+    "default_judgment_route": "human-review-required",
+    "agent_only_classes": [
+      "schema-validation",
+      "artifact-regeneration",
+      "contract-consistency",
+      "test-execution"
+    ],
+    "human_review_factors": [
+      "new-product-promise",
+      "material-user-value-tradeoff",
+      "safety-or-medical-boundary",
+      "sensitive-data-collection",
+      "security-or-privacy-boundary",
+      "irreversible-or-high-blast-radius-action",
+      "unresolved-independent-agent-disagreement",
+      "out-of-policy-or-out-of-distribution-decision"
+    ],
+    "independence": {
+      "proposer_may_route_own_decision": false,
+      "implementation_agent_may_approve_own_change": false,
+      "router_may_materialize_human_approval": false
+    },
+    "promoted_judgment_classes": [],
+    "promotion_requirements": {
+      "minimum_completed_decisions": 5,
+      "minimum_observation_days": 7,
+      "maximum_human_correction_rate": 0.0,
+      "maximum_adverse_outcome_rate": 0.0,
+      "minimum_replay_score": 1.0,
+      "independent_policy_approval_required": true
+    },
+    "demotion_triggers": {
+      "any_human_correction": true,
+      "any_adverse_outcome": true,
+      "any_policy_escape": true,
+      "missing_outcome_observation": true
+    }
+  },
   "change": {
     "agent_ready": {
       "policy_name": "change.agent_ready",

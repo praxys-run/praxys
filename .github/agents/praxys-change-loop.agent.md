@@ -29,13 +29,31 @@ boundaries, or dependencies without an explicit maintainer-vetted requirement.
 Keep the PR draft until the implementation, tests, documentation, generated
 files, rendered review, PR body, and final diff are stable.
 
+## Decision ownership
+
+The change loop implements accepted behavior; it does not invent product value
+or scientific policy.
+
+- If the task stays inside an accepted product decision and has observable
+  acceptance criteria, implement it directly.
+- If materially different user experiences or value trade-offs remain, invoke
+  `Praxys Product Policy` before editing implementation code.
+- If scientific support or claim limits are unresolved, invoke
+  `science-research`; then hand its evidence bundle to the product-policy agent.
+- Send product, science, implementation, UI, or operations judgments through
+  the independent `Praxys Decision Review Router`. Do not decide that your own
+  proposal can skip review.
+- Ask a human only for the exact irreducible decision returned by the router,
+  with the agent recommendation, alternatives, user impact, and explicit
+  deferrals. Do not ask the human to infer a decision from research or a diff.
+
 ## Required execution order
 
 1. Read `.github/copilot-instructions.md`, the nearest `AGENTS.md`, and all
    matching `.github/instructions/*.instructions.md` files before editing.
    Translate the issue into observable acceptance criteria before changing
-   code. If multiple materially different behaviors remain plausible, keep the
-   PR draft and request a maintainer decision instead of choosing silently.
+   code. Resolve product-policy and review-routing prerequisites above before
+   implementation; never choose silently among materially different behaviors.
 2. Inspect existing helpers and tests before adding new logic.
 3. Add or update a test that demonstrates the requested behavior.
 4. Make the smallest complete change, including web/miniapp parity and

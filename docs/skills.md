@@ -18,13 +18,14 @@ second project-skill discovery match while it delegates to the same canonical
 policy.
 
 Use it to research a bounded science question, verify literature metadata and
-claim limits, update a versioned Evidence Review, or prepare a draft Science
-Decision Record (SDR) and product impact map. It has two explicit modes:
+claim limits, update a versioned Evidence Review, or prepare the evidence
+handoff for a product-policy decision. It has two explicit modes:
 
 - **Research-only** updates evidence in draft form without changing accepted
   product behavior.
-- **Decision proposal** adds a draft SDR, alternatives, claim boundaries,
-  validation plan, and implementation/reviewer map for human review.
+- **Decision proposal** hands the evidence, claim boundaries, validation needs,
+  and affected surfaces to the product-policy workflow, which owns the draft
+  SDR and implementation/reviewer map.
 
 It preserves historical records, requires search provenance and source
 verification levels, and never accepts or merges science on an agent's behalf.
@@ -33,6 +34,24 @@ This is deliberately separate from the athlete-facing `/science` plugin skill.
 `/science` remains browse/select only for shipped theories; it does not
 research literature or change Evidence Reviews, SDRs, formulas, or product
 behavior.
+
+## Developer product policy and review routing
+
+Two repository custom agents turn evidence and product context into a bounded
+implementation handoff:
+
+- `Praxys Product Policy` at
+  `.github/agents/product-policy.agent.md` drafts the user problem, value
+  hypothesis, scenarios, product options, minimum valuable slice, outcome
+  metrics, and schema-v2 product-first SDR.
+- `Praxys Decision Review Router` at
+  `.github/agents/decision-review-router.agent.md` independently routes the
+  decision as agent-resolved, agent-reviewed, human-review-required, or blocked.
+
+The product-policy agent does not perform science research or approve its own
+proposal. The review router does not create approvals or promote autonomy.
+Their shared contract is documented in
+`docs/dev/product-decision-loop.md`.
 
 ## Developer WeChat DevTools
 

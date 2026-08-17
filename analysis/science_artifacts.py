@@ -21,6 +21,7 @@ from analysis.evidence_registry import (
     EvidenceReview,
     Identity,
     ParameterClassification,
+    ProductDecisionContext,
     RecordId,
     RecordStatus,
     RegistryModel,
@@ -222,6 +223,8 @@ def science_decision_payload(
             "superseded_by",
         },
     )
+    if decision.product_context is None:
+        payload.pop("product_context", None)
     payload["supersedes"] = []
     return payload
 
@@ -583,6 +586,67 @@ def render_evidence_review_packet(
     return "\n".join(lines).rstrip() + "\n"
 
 
+def _render_product_decision_context(
+    context: ProductDecisionContext,
+) -> list[str]:
+    """Render the user-value framing that precedes a schema-v2 decision."""
+    lines = [
+        "## Product value",
+        "",
+        "### User problem",
+        "",
+        context.user_problem,
+        "",
+        "### Current product gap",
+        "",
+    ]
+    lines.extend(f"- {item}" for item in context.current_product_gap)
+    lines.extend([
+        "",
+        "### Value hypothesis",
+        "",
+        context.value_hypothesis,
+        "",
+        "### Primary user outcomes",
+        "",
+    ])
+    lines.extend(f"- {item}" for item in context.primary_user_outcomes)
+    lines.extend(["", "### User scenarios", ""])
+    for scenario in context.scenarios:
+        lines.extend([
+            f"#### `{scenario.id}`",
+            "",
+            f"- **User state:** {scenario.user_state}",
+            f"- **Current problem:** {scenario.current_problem}",
+            f"- **Proposed experience:** {scenario.proposed_experience}",
+            f"- **Expected value:** {scenario.expected_value}",
+            "- **Evidence claims:** "
+            + (
+                ", ".join(
+                    f"`{claim_id}`"
+                    for claim_id in scenario.evidence_claim_ids
+                )
+                or "_None; product hypothesis or guardrail only_"
+            ),
+            "- **Open questions:** "
+            + (
+                "; ".join(scenario.open_questions)
+                or "_None recorded_"
+            ),
+            "",
+        ])
+    lines.extend(["### Minimum valuable slice", ""])
+    lines.extend(f"- {item}" for item in context.minimum_valuable_slice)
+    lines.extend(["", "### Product non-goals", ""])
+    lines.extend(f"- {item}" for item in context.product_non_goals)
+    lines.extend(["", "### Outcome plan", "", "**Success metrics**", ""])
+    lines.extend(f"- {item}" for item in context.success_metrics)
+    lines.extend(["", "**Guardrail metrics**", ""])
+    lines.extend(f"- {item}" for item in context.guardrail_metrics)
+    lines.append("")
+    return lines
+
+
 def render_decision_review_packet(
     registry: ScienceRegistry,
     decision_id: str,
@@ -595,11 +659,19 @@ def render_decision_review_packet(
         )
     contract = build_policy_contract(registry, decision_id)
     approvals = load_science_approvals(registry.science_dir)
+    packet_intro = (
+        "> Start with product value, then review the decision sheet. The audit "
+        "appendix preserves every code-consumed field, but it is not the "
+        "reviewer's primary task."
+        if decision.product_context is not None
+        else
+        "> Start with the decision sheet. The audit appendix preserves every "
+        "code-consumed field, but it is not the reviewer's primary task."
+    )
     lines = [
         f"# Science decision review packet: {decision.title}",
         "",
-        "> Start with the decision sheet. The audit appendix preserves every "
-        "code-consumed field, but it is not the reviewer's primary task.",
+        packet_intro,
         "",
         f"- **Record:** `{decision.id}`",
         f"- **Lifecycle:** `{decision.status.value}`",
@@ -622,6 +694,12 @@ def render_decision_review_packet(
             ReviewRole.IMPLEMENTATION_REVIEWER,
         ),
         "",
+    ]
+    if decision.product_context is not None:
+        lines.extend(
+            _render_product_decision_context(decision.product_context)
+        )
+    lines.extend([
         "## Your task",
         "",
         decision.decision_review.reviewer_task,
@@ -638,7 +716,7 @@ def render_decision_review_packet(
         "",
         "## Decision sheet",
         "",
-    ]
+    ])
     section_headings = {
         DecisionReviewDisposition.APPROVE:
             "Proposed decisions to approve",

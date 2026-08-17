@@ -79,6 +79,24 @@ state coverage, and the PR evidence required by CI.
 See [CLAUDE.md](../CLAUDE.md) for complete conventions, how-to guides, and the module map.
 See [AGENTS.md](../AGENTS.md) for multi-agent workflow patterns.
 
+## Product decisions and human attention
+
+- Science research defines what evidence supports, does not support, and why.
+  It does not determine product value by itself.
+- Before implementation, use
+  `.github/agents/product-policy.agent.md` when materially different user
+  experiences or value trade-offs remain. New evidence-backed product
+  decisions use schema-v2 product-first SDRs.
+- Route judgment through
+  `.github/agents/decision-review-router.agent.md`. The proposer and
+  implementation agent cannot decide that their own work may skip review.
+- Minimize human attention by resolving deterministic work and accepted-policy
+  conformance with agents. Ask humans only for the exact irreducible product,
+  safety, privacy, or high-impact decision returned by the independent router.
+- The router is specification-only and default-human for unpromoted judgment
+  classes. See `docs/dev/product-decision-loop.md` and
+  `config/agent-loop-policies.json`.
+
 ## Coding-agent guidance (the change loop)
 
 When you (the GitHub Copilot coding agent) are assigned an issue labeled

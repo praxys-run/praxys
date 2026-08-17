@@ -33,6 +33,18 @@
 - **Context needed:** `api/deps.py` for data access, existing metrics for context injection, `plugins/praxys/` (git submodule of public [`praxys-run/praxys-coach-plugin`](https://github.com/praxys-run/praxys-coach-plugin)) for MCP tools
 - **Key rule:** AI features must be optional — guard with `is_available()`, app works fully without API key
 
+### Product Policy Agent
+- **Focus:** user problems, product value, evidence-to-product decisions, and schema-v2 SDRs
+- **Tasks:** turn accepted or draft evidence into user scenarios, product options, a recommended experience, a minimum valuable slice, and measurable success/guardrail outcomes
+- **Context needed:** `.github/agents/product-policy.agent.md`, `PRODUCT.md`, `docs/dev/product-decision-loop.md`, relevant Evidence Reviews/SDRs, current behavior, and representative feedback or telemetry
+- **Key rule:** Scientific constraints are inputs, not the product recommendation. State what value Praxys should provide and why; never approve your own decision or implementation.
+
+### Decision Review Router
+- **Focus:** cross-cutting allocation of agent review versus human review
+- **Tasks:** independently route product, science, implementation, UI, and operations judgments as `agent-resolved`, `agent-reviewed`, `human-review-required`, or `blocked`
+- **Context needed:** `.github/agents/decision-review-router.agent.md`, `config/agent-loop-policies.json`, accepted policies, independent reviewer findings, and observed outcomes
+- **Key rule:** The proposer and implementation agent cannot route or approve their own work. Default human review applies to unpromoted judgment classes.
+
 ### Ops / DevOps Agent
 - **Focus:** production operations — deploy, App Service config, secrets, monitoring/alerts, admin tasks
 - **Tasks:** wire alerts, rotate/add config, deploy & rollback, diagnose prod issues
@@ -43,10 +55,12 @@
 ## Workflow Patterns
 
 ### Adding a Feature End-to-End
-1. **Analysis Agent** adds metric to `metrics.py` + test
-2. **API Agent** exposes via `deps.py` + route
-3. **Frontend Agent** invokes `ui-quality`, then adds types, web/miniapp UI, and page integration
-4. Run `python -m pytest tests/`, `cd web && npm run build`, the relevant miniapp checks, and `python scripts/check_ui_quality.py --base origin/main --head HEAD --skip-evidence`
+1. **Product Policy Agent** confirms the accepted product behavior or drafts a product-first decision; use **Science Research** when evidence is needed
+2. **Decision Review Router** resolves the authorized review path and narrows any human decision
+3. **Analysis Agent** adds metric or computation changes plus tests
+4. **API Agent** exposes the behavior via `deps.py` + route
+5. **Frontend Agent** invokes `ui-quality`, then adds types, web/miniapp UI, and page integration
+6. Run `python -m pytest tests/`, `cd web && npm run build`, the relevant miniapp checks, and `python scripts/check_ui_quality.py --base origin/main --head HEAD --skip-evidence`
 
 ### Debugging a Data Issue
 1. **Data Pipeline Agent** checks sync output and database integrity

@@ -388,6 +388,49 @@ class DecisionArtifactPolicy(RegistryModel):
     runtime_state: ArtifactRuntimeState = ArtifactRuntimeState.INACTIVE
 
 
+class ProductDecisionScenario(RegistryModel):
+    """One user situation that a product-first science decision must resolve."""
+
+    id: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
+    user_state: str = Field(min_length=1)
+    current_problem: str = Field(min_length=1)
+    proposed_experience: str = Field(min_length=1)
+    expected_value: str = Field(min_length=1)
+    evidence_claim_ids: list[ClaimId] = Field(default_factory=list)
+    open_questions: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_scenario(self) -> "ProductDecisionScenario":
+        """Keep scenario evidence references unambiguous."""
+        if len(self.evidence_claim_ids) != len(set(self.evidence_claim_ids)):
+            raise ValueError(
+                "product scenario evidence claim IDs must be unique"
+            )
+        return self
+
+
+class ProductDecisionContext(RegistryModel):
+    """Product value and outcome framing for a schema-v2 SDR."""
+
+    user_problem: str = Field(min_length=1)
+    current_product_gap: list[str] = Field(min_length=1)
+    value_hypothesis: str = Field(min_length=1)
+    primary_user_outcomes: list[str] = Field(min_length=1)
+    scenarios: list[ProductDecisionScenario] = Field(min_length=1)
+    minimum_valuable_slice: list[str] = Field(min_length=1)
+    product_non_goals: list[str] = Field(min_length=1)
+    success_metrics: list[str] = Field(min_length=1)
+    guardrail_metrics: list[str] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_context(self) -> "ProductDecisionContext":
+        """Require unique scenarios for deterministic human review."""
+        scenario_ids = [scenario.id for scenario in self.scenarios]
+        if len(scenario_ids) != len(set(scenario_ids)):
+            raise ValueError("product scenario IDs must be unique")
+        return self
+
+
 class DecisionReviewItem(RegistryModel):
     """One explicit decision or deferral presented to the human approver."""
 
@@ -441,7 +484,7 @@ class DecisionReviewManifest(RegistryModel):
 class ScienceDecisionRecord(RegistryModel):
     """Versioned record of how Praxys interprets accepted evidence."""
 
-    schema_version: Literal[1]
+    schema_version: Literal[1, 2]
     id: RecordId
     version: int = Field(ge=1)
     title: str = Field(min_length=1)
@@ -454,6 +497,7 @@ class ScienceDecisionRecord(RegistryModel):
     evidence_review_ids: list[RecordId] = Field(min_length=1)
     evidence_claim_ids: list[ClaimId] = Field(min_length=1)
     accepted_interpretation: str = Field(min_length=1)
+    product_context: ProductDecisionContext | None = None
     decision_review: DecisionReviewManifest | None = None
     rejected_alternatives: list[RejectedAlternative] = Field(min_length=1)
     model_parameters: list[ParameterProvenance] = Field(default_factory=list)
@@ -483,6 +527,32 @@ class ScienceDecisionRecord(RegistryModel):
             raise ValueError("evidence review IDs must be unique")
         if len(self.evidence_claim_ids) != len(set(self.evidence_claim_ids)):
             raise ValueError("evidence claim IDs must be unique")
+        if self.schema_version == 2:
+            if self.approval_mode != ApprovalMode.ARTIFACT:
+                raise ValueError(
+                    "schema-v2 decisions require artifact review mode"
+                )
+            if self.product_context is None:
+                raise ValueError(
+                    "schema-v2 decisions require product_context"
+                )
+            scenario_claims = {
+                claim_id
+                for scenario in self.product_context.scenarios
+                for claim_id in scenario.evidence_claim_ids
+            }
+            unknown_scenario_claims = (
+                scenario_claims - set(self.evidence_claim_ids)
+            )
+            if unknown_scenario_claims:
+                raise ValueError(
+                    "product scenarios reference unlinked evidence claims: "
+                    f"{sorted(unknown_scenario_claims)}"
+                )
+        elif self.product_context is not None:
+            raise ValueError(
+                "product_context requires science decision schema version 2"
+            )
         if self.approval_mode == ApprovalMode.ARTIFACT:
             if self.human_reviewers:
                 raise ValueError(
@@ -720,7 +790,7 @@ def _load_science_registry(
 
     for path in _yaml_paths(root / "evidence"):
         raw = _load_yaml(path)
-        _validate_schema_version(raw, path)
+        _validate_schema_version(raw, path, allowed_versions={1})
         review = EvidenceReview.model_validate(raw)
         _add_record(evidence_reviews, review.id, review, path)
         _validate_record_filename(review.id, path)
@@ -728,7 +798,7 @@ def _load_science_registry(
 
     for path in _yaml_paths(root / "decisions"):
         raw = _load_yaml(path)
-        _validate_schema_version(raw, path)
+        _validate_schema_version(raw, path, allowed_versions={1, 2})
         decision = ScienceDecisionRecord.model_validate(raw)
         _add_record(decisions, decision.id, decision, path)
         _validate_record_filename(decision.id, path)
@@ -793,13 +863,24 @@ def _load_science_registry(
     return registry
 
 
-def _validate_schema_version(raw: dict[str, Any], path: Path) -> None:
+def _validate_schema_version(
+    raw: dict[str, Any],
+    path: Path,
+    *,
+    allowed_versions: set[int],
+) -> None:
     """Reject records whose schema is newer or older than this loader."""
     schema_version = raw.get("schema_version")
-    if schema_version != 1:
+    if schema_version not in allowed_versions:
+        versions = sorted(allowed_versions)
+        understood = (
+            f"version {versions[0]}"
+            if len(versions) == 1
+            else "versions " + " and ".join(str(version) for version in versions)
+        )
         raise ValueError(
             f"Unsupported schema_version {schema_version!r} in {path}; "
-            "this loader only understands version 1"
+            f"this loader only understands {understood}"
         )
 
 

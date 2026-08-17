@@ -92,6 +92,26 @@ def test_policy_config_matches_production_and_starts_default_deny() -> None:
     payload = json.loads(
         (ROOT / "config" / "agent-loop-policies.json").read_text(encoding="utf-8")
     )
+    autonomy = payload["decision_autonomy"]
+    assert autonomy["status"] == "specification-only"
+    assert autonomy["default_judgment_route"] == "human-review-required"
+    assert autonomy["routing_outcomes"] == [
+        "agent-resolved",
+        "agent-reviewed",
+        "human-review-required",
+        "blocked",
+    ]
+    assert autonomy["promoted_judgment_classes"] == []
+    assert autonomy["independence"] == {
+        "proposer_may_route_own_decision": False,
+        "implementation_agent_may_approve_own_change": False,
+        "router_may_materialize_human_approval": False,
+    }
+    assert {
+        "new-product-promise",
+        "sensitive-data-collection",
+        "irreversible-or-high-blast-radius-action",
+    } <= set(autonomy["human_review_factors"])
     assert payload["change"]["agent_ready"] == {
         "policy_name": AGENT_READY_POLICY_NAME,
         "version": AGENT_READY_POLICY_VERSION,

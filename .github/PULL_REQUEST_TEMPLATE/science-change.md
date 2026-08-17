@@ -13,6 +13,7 @@ Do not check any item that was not actually performed.
 - [ ] Applicability, uncertainty, safety boundaries, and rejected alternatives are documented.
 - [ ] Record lifecycle is versioned/superseded; accepted evidence and decisions were not rewritten.
 - [ ] Artifact-mode review packets and machine contracts were regenerated and carry matching source/contract digests.
+- [ ] New product decisions use schema-v2 `product_context` and state the user problem, value hypothesis, scenarios, minimum valuable slice, product non-goals, success metrics, and guardrail metrics.
 - [ ] The SDR decision sheet states the reviewer task, proposed approvals, explicit deferrals, approval effects, and non-authorizations.
 - [ ] Every machine-contract parameter group is mapped to at least one decision-sheet item.
 - [ ] Every code-consumed field appears verbatim in the generated human review packet.
@@ -22,6 +23,8 @@ Do not check any item that was not actually performed.
 
 ## Product and implementation
 
+- [ ] The proposed product value is explicit; scientific prohibitions are not presented as the product recommendation.
+- [ ] The independent decision-review router recorded whether agent review is sufficient or a bounded human decision remains.
 - [ ] Model version and migration behavior are documented when behavior changes.
 - [ ] The implementation preserves stated non-goals and does not turn group evidence into individual medical or performance guarantees.
 - [ ] `analysis/metrics.py` remains pure and never uses activity `avg_power` for intensity analysis.

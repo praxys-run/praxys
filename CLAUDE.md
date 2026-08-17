@@ -289,9 +289,16 @@ The repository-owned `science-research` Agent Skill lives at
 at `.claude/skills/praxys-science-research-claude/SKILL.md` named
 `praxys-science-research-claude` for direct invocation. It supports explicit
 Research-only and Decision proposal modes for versioned Evidence Reviews and
-draft SDRs, but never accepts a record or merges a science change without human
-approval. This does not expand the athlete-facing `science` skill beyond
-browsing and selecting shipped theories.
+evidence handoffs. Decision proposals continue through
+`.github/agents/product-policy.agent.md`, which creates product-first schema-v2
+SDRs, and `.github/agents/decision-review-router.agent.md`, which independently
+narrows any human decision. Neither agent accepts a record, promotes its own
+autonomy, or merges a science change. This does not expand the athlete-facing
+`science` skill beyond browsing and selecting shipped theories.
+
+The cross-loop contract, human-attention policy, and relationship between
+science, product policy, change, UI quality, ops, and meta/eval live in
+`docs/dev/product-decision-loop.md` and `docs/dev/agentic-loops.md`.
 
 The MCP server (`plugins/praxys/mcp-server/server.py`) runs in dual mode — local (direct DB) or remote (HTTP + JWT via `PRAXYS_URL`).
 
