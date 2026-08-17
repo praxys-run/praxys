@@ -2070,8 +2070,8 @@ msgstr "无法启用托管下发"
 msgid "Could not export private context."
 msgstr "无法导出计划个性化信息。"
 
-#: src/components/GoalPlanReconciliationDialog.tsx:63
-#: src/components/GoalPlanReconciliationDialog.tsx:87
+#: src/components/GoalPlanReconciliationDialog.tsx:77
+#: src/components/GoalPlanReconciliationDialog.tsx:101
 msgid "Could not keep the current plan. Reload and try again."
 msgstr "未能保留当前计划。请重新加载后再试。"
 
@@ -2502,7 +2502,7 @@ msgstr "停用"
 #~ msgid "Decaying"
 #~ msgstr "衰减中"
 
-#: src/components/GoalPlanReconciliationDialog.tsx:144
+#: src/components/GoalPlanReconciliationDialog.tsx:158
 msgid "Decide later"
 msgstr "稍后决定"
 
@@ -4448,7 +4448,7 @@ msgstr "如有可选活动，请保持轻松且简短"
 #~ msgid "Keep any optional movement easy and short\" \"可选活动请保持轻松且时间短"
 #~ msgstr ""
 
-#: src/components/GoalPlanReconciliationDialog.tsx:154
+#: src/components/GoalPlanReconciliationDialog.tsx:168
 msgid "Keep current plan"
 msgstr "保留当前计划"
 
@@ -4481,7 +4481,7 @@ msgstr "继续以 Praxys 训练为准，并替换或重新创建目标平台版�
 msgid "Keep workout"
 msgstr "保留训练"
 
-#: src/components/GoalPlanReconciliationDialog.tsx:153
+#: src/components/GoalPlanReconciliationDialog.tsx:167
 msgid "Keeping plan…"
 msgstr "正在保留计划…"
 
@@ -4898,7 +4898,7 @@ msgstr "前往设置管理"
 msgid "Manage incidents"
 msgstr "管理事件"
 
-#: src/components/GoalPlanReconciliationDialog.tsx:160
+#: src/components/GoalPlanReconciliationDialog.tsx:177
 msgid "Manage plan"
 msgstr "管理计划"
 
@@ -6381,7 +6381,7 @@ msgstr "计划已采纳。在你明确启用前，投递仍处于禁用状态。
 msgid "Plan context"
 msgstr "计划个性化信息"
 
-#: src/components/GoalPlanReconciliationDialog.tsx:137
+#: src/components/GoalPlanReconciliationDialog.tsx:151
 msgid "Plan decision not saved"
 msgstr "计划选择未保存"
 
@@ -8034,7 +8034,7 @@ msgstr "查看并恢复"
 msgid "Review and turn on"
 msgstr "查看并启用"
 
-#: src/components/GoalPlanReconciliationDialog.tsx:159
+#: src/components/GoalPlanReconciliationDialog.tsx:176
 msgid "Review and update plan"
 msgstr "查看并更新计划"
 
@@ -9585,7 +9585,7 @@ msgstr "无法加载托管计划运维队列。"
 msgid "The next {MANAGED_PLAN_WINDOW_DAYS} days roll forward automatically; <0>{0}</0> workouts are currently in scope."
 msgstr "未来 {MANAGED_PLAN_WINDOW_DAYS} 天会自动滚动；当前窗口内有 <0>{0}</0> 个训练。"
 
-#: src/components/GoalPlanReconciliationDialog.tsx:108
+#: src/components/GoalPlanReconciliationDialog.tsx:122
 msgid "The open proposal was built for your previous Goal and can no longer be adopted. Review a fresh proposal now or decide later."
 msgstr "当前草案基于之前的目标，已无法采纳。现在查看新草案，或稍后再决定。"
 
@@ -9597,7 +9597,7 @@ msgstr "可选 5 公里试点测试正在进行。"
 msgid "The ordered steps and target ranges can be delivered without flattening."
 msgstr "这些有序步骤和目标区间可以直接交付，无需简化。"
 
-#: src/components/GoalPlanReconciliationDialog.tsx:70
+#: src/components/GoalPlanReconciliationDialog.tsx:84
 msgid "The plan decision returned an unexpected state. Reload and try again."
 msgstr "计划选择返回了异常状态。请重新加载后再试。"
 
@@ -9727,7 +9727,7 @@ msgstr "符合条件的 Stryd 活动数量暂时不足。"
 msgid "There are not enough stable, comparable segments yet."
 msgstr "稳定且可比的分段数量暂时不足。"
 
-#: src/components/GoalPlanReconciliationDialog.tsx:119
+#: src/components/GoalPlanReconciliationDialog.tsx:133
 msgid "There is no approved automatic plan policy for this Goal yet. Praxys will not repurpose another policy. Keep the current plan independent, manage workouts manually, or decide later."
 msgstr "这个目标暂时没有获批的自动计划策略。Praxys 不会挪用其他策略。可以将当前计划转为独立计划，也可以手动管理训练或稍后决定。"
 
@@ -10440,7 +10440,7 @@ msgstr "未关联计划"
 msgid "until {0}"
 msgstr "至 {0}"
 
-#: src/components/GoalPlanReconciliationDialog.tsx:129
+#: src/components/GoalPlanReconciliationDialog.tsx:143
 msgid "Until you adopt a replacement, your current workouts and delivery continue unchanged."
 msgstr "在采纳替代计划之前，当前训练和下发保持不变。"
 
@@ -11067,7 +11067,7 @@ msgstr "个人可比功率范围"
 msgid "Your comparable range"
 msgstr "个人可比范围"
 
-#: src/components/GoalPlanReconciliationDialog.tsx:113
+#: src/components/GoalPlanReconciliationDialog.tsx:127
 msgid "Your current plan was built for your previous Goal. Review a successor proposal, keep this plan as an independent plan, or decide later."
 msgstr "当前计划基于之前的目标。可以查看后续草案、将当前计划保留为独立计划，或稍后决定。"
 
@@ -11096,7 +11096,7 @@ msgstr "计划仍由外部工具管理。"
 msgid "Your Garmin account has multi-factor authentication enabled. Enter the verification code Garmin sent you to finish connecting."
 msgstr "你的 Garmin 账号已启用多重验证。输入 Garmin 发送的验证码，完成连接。"
 
-#: src/components/GoalPlanReconciliationDialog.tsx:104
+#: src/components/GoalPlanReconciliationDialog.tsx:118
 msgid "Your Goal changed. Should your plan change too?"
 msgstr "目标已变更，训练计划也要调整吗？"
 

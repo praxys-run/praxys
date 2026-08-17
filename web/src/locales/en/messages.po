@@ -2071,8 +2071,8 @@ msgstr "Could not enable managed delivery"
 msgid "Could not export private context."
 msgstr "Could not export private context."
 
-#: src/components/GoalPlanReconciliationDialog.tsx:63
-#: src/components/GoalPlanReconciliationDialog.tsx:87
+#: src/components/GoalPlanReconciliationDialog.tsx:77
+#: src/components/GoalPlanReconciliationDialog.tsx:101
 msgid "Could not keep the current plan. Reload and try again."
 msgstr "Could not keep the current plan. Reload and try again."
 
@@ -2503,7 +2503,7 @@ msgstr "Deactivate"
 #~ msgid "Decaying"
 #~ msgstr "Decaying"
 
-#: src/components/GoalPlanReconciliationDialog.tsx:144
+#: src/components/GoalPlanReconciliationDialog.tsx:158
 msgid "Decide later"
 msgstr "Decide later"
 
@@ -4401,7 +4401,7 @@ msgstr "Judgment recorded. This feedback has no linked GitHub issue."
 msgid "Keep any optional movement easy and short"
 msgstr "Keep any optional movement easy and short"
 
-#: src/components/GoalPlanReconciliationDialog.tsx:154
+#: src/components/GoalPlanReconciliationDialog.tsx:168
 msgid "Keep current plan"
 msgstr "Keep current plan"
 
@@ -4434,7 +4434,7 @@ msgstr "keep the Praxys workout canonical and replace or recreate the target ver
 msgid "Keep workout"
 msgstr "Keep workout"
 
-#: src/components/GoalPlanReconciliationDialog.tsx:153
+#: src/components/GoalPlanReconciliationDialog.tsx:167
 msgid "Keeping plan…"
 msgstr "Keeping plan…"
 
@@ -4847,7 +4847,7 @@ msgstr "Manage in Settings"
 msgid "Manage incidents"
 msgstr "Manage incidents"
 
-#: src/components/GoalPlanReconciliationDialog.tsx:160
+#: src/components/GoalPlanReconciliationDialog.tsx:177
 msgid "Manage plan"
 msgstr "Manage plan"
 
@@ -6314,7 +6314,7 @@ msgstr "Plan adopted. Delivery remains disabled until you explicitly enable it."
 msgid "Plan context"
 msgstr "Plan context"
 
-#: src/components/GoalPlanReconciliationDialog.tsx:137
+#: src/components/GoalPlanReconciliationDialog.tsx:151
 msgid "Plan decision not saved"
 msgstr "Plan decision not saved"
 
@@ -7919,7 +7919,7 @@ msgstr "Review and resume"
 msgid "Review and turn on"
 msgstr "Review and turn on"
 
-#: src/components/GoalPlanReconciliationDialog.tsx:159
+#: src/components/GoalPlanReconciliationDialog.tsx:176
 msgid "Review and update plan"
 msgstr "Review and update plan"
 
@@ -9427,7 +9427,7 @@ msgstr "The managed-plan operator queue could not be loaded."
 msgid "The next {MANAGED_PLAN_WINDOW_DAYS} days roll forward automatically; <0>{0}</0> workouts are currently in scope."
 msgstr "The next {MANAGED_PLAN_WINDOW_DAYS} days roll forward automatically; <0>{0}</0> workouts are currently in scope."
 
-#: src/components/GoalPlanReconciliationDialog.tsx:108
+#: src/components/GoalPlanReconciliationDialog.tsx:122
 msgid "The open proposal was built for your previous Goal and can no longer be adopted. Review a fresh proposal now or decide later."
 msgstr "The open proposal was built for your previous Goal and can no longer be adopted. Review a fresh proposal now or decide later."
 
@@ -9439,7 +9439,7 @@ msgstr "The optional 5K pilot test is in progress."
 msgid "The ordered steps and target ranges can be delivered without flattening."
 msgstr "The ordered steps and target ranges can be delivered without flattening."
 
-#: src/components/GoalPlanReconciliationDialog.tsx:70
+#: src/components/GoalPlanReconciliationDialog.tsx:84
 msgid "The plan decision returned an unexpected state. Reload and try again."
 msgstr "The plan decision returned an unexpected state. Reload and try again."
 
@@ -9569,7 +9569,7 @@ msgstr "There are not enough eligible Stryd activities yet."
 msgid "There are not enough stable, comparable segments yet."
 msgstr "There are not enough stable, comparable segments yet."
 
-#: src/components/GoalPlanReconciliationDialog.tsx:119
+#: src/components/GoalPlanReconciliationDialog.tsx:133
 msgid "There is no approved automatic plan policy for this Goal yet. Praxys will not repurpose another policy. Keep the current plan independent, manage workouts manually, or decide later."
 msgstr "There is no approved automatic plan policy for this Goal yet. Praxys will not repurpose another policy. Keep the current plan independent, manage workouts manually, or decide later."
 
@@ -10278,7 +10278,7 @@ msgstr "Unlinked plan"
 msgid "until {0}"
 msgstr "until {0}"
 
-#: src/components/GoalPlanReconciliationDialog.tsx:129
+#: src/components/GoalPlanReconciliationDialog.tsx:143
 msgid "Until you adopt a replacement, your current workouts and delivery continue unchanged."
 msgstr "Until you adopt a replacement, your current workouts and delivery continue unchanged."
 
@@ -10905,7 +10905,7 @@ msgstr "Your comparable power range"
 msgid "Your comparable range"
 msgstr "Your comparable range"
 
-#: src/components/GoalPlanReconciliationDialog.tsx:113
+#: src/components/GoalPlanReconciliationDialog.tsx:127
 msgid "Your current plan was built for your previous Goal. Review a successor proposal, keep this plan as an independent plan, or decide later."
 msgstr "Your current plan was built for your previous Goal. Review a successor proposal, keep this plan as an independent plan, or decide later."
 
@@ -10934,7 +10934,7 @@ msgstr "Your external planner remains in control."
 msgid "Your Garmin account has multi-factor authentication enabled. Enter the verification code Garmin sent you to finish connecting."
 msgstr "Your Garmin account has multi-factor authentication enabled. Enter the verification code Garmin sent you to finish connecting."
 
-#: src/components/GoalPlanReconciliationDialog.tsx:104
+#: src/components/GoalPlanReconciliationDialog.tsx:118
 msgid "Your Goal changed. Should your plan change too?"
 msgstr "Your Goal changed. Should your plan change too?"
 
