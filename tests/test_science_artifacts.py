@@ -676,49 +676,84 @@ def test_population_routing_packet_contains_exact_draft_inactive_contract() -> N
 
     assert contract.decision_status == RecordStatus.DRAFT
     assert contract.runtime_state == ArtifactRuntimeState.INACTIVE
-    assert contract.parameter_values[
-        "first_completion_policy_family"
-    ]["prior_goal_distance_completion_required"] is False
-    assert contract.parameter_values[
-        "first_completion_policy_family"
-    ]["history_rich_performance_policy_reuse"] is False
-    assert contract.parameter_values[
-        "sparse_history_and_returning_routing"
-    ]["observed_record_missingness_establishes_interruption"] is False
-    assert contract.parameter_values[
-        "sparse_history_and_returning_routing"
-    ]["history_states"]["no_usable_history"] == "readiness_only"
-    assert contract.parameter_values[
-        "sparse_history_and_returning_routing"
-    ]["history_states"]["sparse_without_usable_recent_anchor"] == (
-        "insufficient_recent_history_anchor"
+    assert contract.linked_evidence_digests[evidence_id] == (
+        "sha256:2b64d44749b4318cade113134a599f3646cb25805abed0f56728d9959c2ef0c8"
     )
     assert contract.parameter_values[
-        "sparse_history_and_returning_routing"
-    ]["returning_state_requires_athlete_confirmation"] is True
+        "first_completion_applicability"
+    ]["permanent_identity_established"] is False
     assert contract.parameter_values[
-        "sparse_history_and_returning_routing"
-    ]["observed_continuity_can_establish_returning_state"] is False
+        "history_and_detraining_inference"
+    ]["sparse_or_missing_records_establish_detraining"] is False
     assert contract.parameter_values[
-        "masters_context_modifier"
-    ]["automatic_age_exclusion"] is False
+        "masters_applicability"
+    ]["universal_age_exclusion_established"] is False
     assert contract.parameter_values[
-        "profile_inputs_and_missingness"
-    ]["unknown_physiological_sex_default"] == "unknown"
+        "construct_specific_profile_evidence"
+    ]["general_plan_family_validated"] is False
     assert contract.parameter_values[
-        "profile_inputs_and_missingness"
-    ]["gender_identity_is_training_dose_input"] is False
+        "strength_and_cross_training_evidence"
+    ]["running_equivalence_established"] is False
     assert contract.parameter_values[
-        "shared_reassessment_dependency"
-    ]["population_policy_may_define_second_feedback_engine"] is False
+        "adult_nonclinical_scope"
+    ]["activity_average_power_valid_for_intensity"] is False
     assert set(
-        contract.parameter_values[
-            "population_specific_numeric_prescription"
-        ].values()
+        contract.parameter_values["exact_values"].values()
     ) == {"not_accepted"}
-    assert contract.parameter_values[
-        "implementation_pilot_and_activation"
-    ]["active_behavior"] is False
+
+    def mapping_keys(value: object) -> set[str]:
+        if isinstance(value, dict):
+            return set(value) | {
+                key
+                for nested in value.values()
+                for key in mapping_keys(nested)
+            }
+        if isinstance(value, list):
+            return {
+                key
+                for nested in value
+                for key in mapping_keys(nested)
+            }
+        return set()
+
+    forbidden_product_fields = {
+        "goal_capture_independent_from_plan_availability",
+        "prior_goal_distance_completion_required",
+        "route_state",
+        "goal_intent",
+        "automatic_intent_coercion",
+        "no_matching_policy_result",
+        "history_states",
+        "returning_state_requires_athlete_confirmation",
+        "returning_to_consistency_intent_user_selectable",
+        "provider_profile_requires_source_label_and_user_confirmation",
+        "future_field_requirements",
+        "shared_policy",
+        "population_policy_may_define_second_feedback_engine",
+        "accepted_distance_policy_alignment",
+        "capability_registry_mapping",
+        "policy_router_logic",
+        "persistence_schema",
+        "api_contracts",
+        "web_and_miniapp_clients",
+        "plugin_and_mcp_contracts",
+        "profile_collection_and_privacy_operations",
+        "primary_and_guardrail_metrics",
+        "implementation_approval",
+        "runtime_activation",
+    }
+    assert forbidden_product_fields.isdisjoint(
+        mapping_keys(contract.parameter_values)
+    )
+    serialized_contract = render_policy_contract_json(contract)
+    for route_result_or_dependency in (
+        "completion_policy_unavailable",
+        "readiness_only",
+        "insufficient_recent_history_anchor",
+        "clarification_required",
+        "sdr-adaptive-plan-feasibility-and-adjustment-v1",
+    ):
+        assert route_result_or_dependency not in serialized_contract
 
     decision = registry.decisions[decision_id]
     assert decision.decision_review is not None
@@ -727,11 +762,11 @@ def test_population_routing_packet_contains_exact_draft_inactive_contract() -> N
         for item in decision.decision_review.items
         if item.disposition == DecisionReviewDisposition.APPROVE
     ] == [
-        "first-completion-family",
-        "sparse-history-and-returning",
-        "masters-context",
-        "purpose-bound-profile",
-        "support-and-reassessment",
+        "first-completion-applicability",
+        "history-detraining-inference",
+        "masters-applicability",
+        "construct-specific-profile-evidence",
+        "strength-cross-training-evidence",
         "adult-nonclinical-scope",
     ]
     assert [
@@ -739,8 +774,8 @@ def test_population_routing_packet_contains_exact_draft_inactive_contract() -> N
         for item in decision.decision_review.items
         if item.disposition == DecisionReviewDisposition.DEFER
     ] == [
-        "exact-population-values",
-        "implementation-and-activation",
+        "all-exact-values",
+        "all-non-science-decisions",
     ]
 
     assert exact_contract_block in packet
@@ -751,21 +786,12 @@ def test_population_routing_packet_contains_exact_draft_inactive_contract() -> N
         "## Audit appendix"
     )
     assert "Approve the decision sheet as a unit" in packet
-    assert "prior distance completion" in packet
-    assert "No usable history yields readiness-only" in packet
-    assert (
-        "sparse history without a usable recent anchor yields "
-        "insufficient_recent_history_anchor"
-    ) in packet
-    assert (
-        "Observed continuity may refute an interruption but cannot "
-        "establish a returning state"
-    ) in packet
-    assert "unknown physiological sex never defaults to male" in packet
-    assert (
-        "Gender identity is neither a plan-family selector nor a "
-        "training-dose variable"
-    ) in packet
+    assert "distinct evidence and applicability family" in packet
+    assert "do not prove cessation or detraining" in packet
+    assert "no universal age exclusion" in packet
+    assert "construct-specific" in packet
+    assert "does not establish injury prevention" in packet
+    assert "outside Science authority" in packet
     assert "Review this packet, not the raw YAML" in evidence_packet
     assert "- **Approval:** _Pending_" in evidence_packet
     assert evidence_review_digest(

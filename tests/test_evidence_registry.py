@@ -26,6 +26,7 @@ from analysis.evidence_registry import (
 )
 from analysis.metrics import compute_heat_adaptation
 from analysis.science import load_theory
+from analysis.science_artifacts import evidence_review_digest
 
 
 def _assert_exact_verification_notes(review: EvidenceReview) -> None:
@@ -756,6 +757,16 @@ def test_adult_running_population_routing_is_draft_and_inactive() -> None:
     assert review.created_on == date(2026, 8, 16)
     assert review.method.review_type.value == "rigorous"
     assert len(review.citations) == 21
+    evidence_path = Path(
+        "data/science/evidence/adult-running-plan-population-routing/"
+        "evidence-adult-running-plan-population-routing-v1.yaml"
+    )
+    assert hashlib.sha256(evidence_path.read_bytes()).hexdigest() == (
+        "8122c5fc6fc9571dca5e2f80b6ea7b94df8ed138880e31c60cdcbcb9f3b69f75"
+    )
+    assert evidence_review_digest(review) == (
+        "sha256:2b64d44749b4318cade113134a599f3646cb25805abed0f56728d9959c2ef0c8"
+    )
     assert {
         "population.beginner-evidence-family-not-permanent-identity",
         "population.no-universal-beginner-schedule",
@@ -791,102 +802,112 @@ def test_adult_running_population_routing_is_draft_and_inactive() -> None:
         for parameter in decision.model_parameters
     }
     assert set(parameters) == {
-        "population_routing_authority",
-        "first_completion_policy_family",
-        "sparse_history_and_returning_routing",
-        "masters_context_modifier",
-        "profile_inputs_and_missingness",
-        "supporting_modalities",
-        "shared_reassessment_dependency",
-        "safety_scope_boundary",
-        "population_specific_numeric_prescription",
+        "first_completion_applicability",
+        "history_and_detraining_inference",
+        "masters_applicability",
+        "construct_specific_profile_evidence",
+        "strength_and_cross_training_evidence",
+        "adult_nonclinical_scope",
+        "exact_values",
+        "non_science_authority_boundary",
+    }
+
+    completion = parameters["first_completion_applicability"]
+    assert completion[
+        "novice_and_first_completion_distinct_from_history_rich_performance"
+    ] is True
+    assert completion["universal_schedule_established"] is False
+    assert completion["permanent_identity_established"] is False
+
+    history = parameters["history_and_detraining_inference"]
+    assert history[
+        "sparse_or_missing_records_establish_cessation"
+    ] is False
+    assert history[
+        "sparse_or_missing_records_establish_detraining"
+    ] is False
+    assert history[
+        "detraining_evidence_establishes_universal_restart_dose"
+    ] is False
+
+    masters = parameters["masters_applicability"]
+    assert masters["age_is_relevant_context"] is True
+    assert masters["universal_age_exclusion_established"] is False
+    assert masters["universal_age_cutoff_established"] is False
+    assert masters["fixed_age_based_recovery_delay_established"] is False
+
+    profile = parameters["construct_specific_profile_evidence"]
+    assert profile["evidence_is_construct_specific"] is True
+    assert profile["general_plan_family_validated"] is False
+    assert profile["universal_dose_rule_validated"] is False
+    assert profile["constructs"] == [
+        "physiological_sex",
+        "reproductive_context",
+        "menopause",
+        "transgender_and_nonbinary",
+        "gender_identity",
+    ]
+
+    support = parameters["strength_and_cross_training_evidence"]
+    assert support["strength_evidence_is_bounded"] is True
+    assert support["cycling_evidence_is_bounded"] is True
+    assert support["injury_prevention_established"] is False
+    assert support["running_equivalence_established"] is False
+    assert support["universal_dose_established"] is False
+
+    safety = parameters["adult_nonclinical_scope"]
+    assert safety["adult_nonclinical_scope_only"] is True
+    assert safety["pediatric_planning_within_scope"] is False
+    assert safety["medical_or_rehabilitation_prescription_within_scope"] is False
+    assert safety["pregnancy_specific_prescription_within_scope"] is False
+    assert safety["activity_average_power_valid_for_intensity"] is False
+    assert safety["valid_intensity_evidence_sources"] == [
+        "activity_splits",
+        "activity_samples",
+    ]
+
+    exact_values = parameters["exact_values"]
+    assert set(exact_values.values()) == {"not_accepted"}
+    assert set(exact_values) == {
+        "first_completion_schedule",
+        "history_sufficiency_thresholds",
+        "restart_dose",
+        "age_cutoff",
+        "age_based_recovery_delay",
+        "sex_reproductive_menopause_or_gender_dose_rule",
+        "strength_dose",
+        "cycling_substitution_ratio",
+    }
+
+    authority = parameters["non_science_authority_boundary"]
+    assert authority["science_authority"] == [
+        "evidence_applicability",
+        "uncertainty",
+        "claim_limits",
+        "safety_scope",
+    ]
+    assert set(authority["required_future_handoffs"]) == {
+        "product",
+        "design",
+        "trust",
+        "architecture",
+        "delivery",
+    }
+    decision_payload = decision.model_dump_json()
+    for forbidden_product_contract_term in (
+        "goal_capture_independent_from_plan_availability",
+        "prior_goal_distance_completion_required",
+        "completion_policy_unavailable",
+        "automatic_intent_coercion",
+        "returning_state_requires_athlete_confirmation",
+        "provider_profile_requires_source_label_and_user_confirmation",
+        "shared_adaptive_dependency",
+        "shared_policy_runtime_state",
+        "profile_collection_and_privacy_operations",
+        "primary_and_guardrail_metrics",
         "implementation_pilot_and_activation",
-    }
-
-    authority = parameters["population_routing_authority"]
-    assert authority[
-        "goal_capture_independent_from_plan_availability"
-    ] is True
-    assert authority["current_runtime_capability_registry_unchanged"] is True
-    assert authority["static_population_identity_allowed"] is False
-    assert authority["active_behavior"] is False
-
-    completion = parameters["first_completion_policy_family"]
-    assert completion["prior_goal_distance_completion_required"] is False
-    assert completion["distance_specific_policy_required"] is True
-    assert completion["history_rich_performance_policy_reuse"] is False
-    assert completion["automatic_intent_coercion"] is False
-    assert completion["no_matching_policy_result"] == (
-        "completion_policy_unavailable"
-    )
-
-    history = parameters["sparse_history_and_returning_routing"]
-    assert history["history_states"] == {
-        "no_usable_history": "readiness_only",
-        "sparse_with_usable_recent_anchor":
-            "uncertainty_aware_population_policy_required",
-        "sparse_without_usable_recent_anchor":
-            "insufficient_recent_history_anchor",
-        "history_rich": "continue_to_matching_distance_and_intent_policy",
-        "unknown": "clarification_required",
-    }
-    assert history[
-        "observed_record_missingness_establishes_interruption"
-    ] is False
-    assert history["sparse_history_establishes_detraining"] is False
-    assert history["returning_to_consistency_intent_user_selectable"] is True
-    assert history["returning_to_consistency_intent_auto_inferred"] is False
-    assert history["returning_state_requires_athlete_confirmation"] is True
-    assert history["observed_continuity_can_refute_interruption"] is True
-    assert history[
-        "observed_continuity_can_establish_returning_state"
-    ] is False
-    assert history["personal_detraining_loss_estimate_allowed"] is False
-
-    masters = parameters["masters_context_modifier"]
-    assert masters["separate_base_policy_family"] is False
-    assert masters["automatic_age_exclusion"] is False
-    assert masters["universal_biological_age_cutoff"] == "none_defined"
-    assert masters["fixed_age_based_recovery_extension"] == "none_defined"
-    assert masters["missing_optional_age_context_result"] == (
-        "base_route_without_age_dependent_modifier"
-    )
-
-    profile = parameters["profile_inputs_and_missingness"]
-    assert profile["adult_scope_confirmation_required"] is True
-    assert profile["exact_date_of_birth_globally_required"] is False
-    assert profile["physiological_sex_globally_required"] is False
-    assert profile["gender_identity_is_training_dose_input"] is False
-    assert profile["unknown_physiological_sex_default"] == "unknown"
-    assert profile["user_may_decline_optional_fields"] is True
-    assert profile[
-        "missing_optional_field_disables_only_dependent_adjustment"
-    ] is True
-
-    support = parameters["supporting_modalities"]
-    assert support["strength"]["individual_injury_prevention_guarantee"] is False
-    assert support["cycling_cross_training"][
-        "one_to_one_running_substitution"
-    ] is False
-    reassessment = parameters["shared_reassessment_dependency"]
-    assert reassessment["shared_policy"] == (
-        "sdr-adaptive-plan-feasibility-and-adjustment-v1"
-    )
-    assert reassessment[
-        "population_policy_may_define_second_feedback_engine"
-    ] is False
-    assert reassessment["universal_reassessment_cadence"] == "none_defined"
-
-    safety = parameters["safety_scope_boundary"]
-    assert safety["child_or_adolescent_route"] == "unsupported"
-    assert safety["return_to_sport"] == "unsupported"
-    assert safety["activity_average_power_allowed_for_intensity"] is False
-
-    numeric = parameters["population_specific_numeric_prescription"]
-    assert set(numeric.values()) == {"not_accepted"}
-    implementation = parameters["implementation_pilot_and_activation"]
-    assert implementation["runtime_activation"] == "not_accepted"
-    assert implementation["active_behavior"] is False
+    ):
+        assert forbidden_product_contract_term not in decision_payload
 
     assert decision.decision_review is not None
     assert [
@@ -894,11 +915,11 @@ def test_adult_running_population_routing_is_draft_and_inactive() -> None:
         for item in decision.decision_review.items
         if item.disposition == DecisionReviewDisposition.APPROVE
     ] == [
-        "first-completion-family",
-        "sparse-history-and-returning",
-        "masters-context",
-        "purpose-bound-profile",
-        "support-and-reassessment",
+        "first-completion-applicability",
+        "history-detraining-inference",
+        "masters-applicability",
+        "construct-specific-profile-evidence",
+        "strength-cross-training-evidence",
         "adult-nonclinical-scope",
     ]
     assert [
@@ -906,8 +927,8 @@ def test_adult_running_population_routing_is_draft_and_inactive() -> None:
         for item in decision.decision_review.items
         if item.disposition == DecisionReviewDisposition.DEFER
     ] == [
-        "exact-population-values",
-        "implementation-and-activation",
+        "all-exact-values",
+        "all-non-science-decisions",
     ]
 
 
