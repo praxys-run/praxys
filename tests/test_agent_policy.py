@@ -95,7 +95,7 @@ def test_policy_config_matches_production_and_starts_default_deny() -> None:
     assert payload["operating_model"] == {
         "path": "config/agentic-operating-model.json",
         "version": "praxys-agentic-operating-model-v1",
-        "status": "specification-only",
+        "status": "active-routing",
     }
     autonomy = payload["decision_autonomy"]
     assert autonomy["status"] == "specification-only"

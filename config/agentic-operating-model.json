@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "model_version": "praxys-agentic-operating-model-v1",
-  "status": "specification-only",
+  "status": "active-routing",
   "principles": [
     "agents-are-bounded-decision-owning-roles",
     "loops-improve-objects-rather-than-people-or-teams",
@@ -842,8 +842,11 @@
     }
   },
   "control_plane": {
+    "orchestrator_agent_path": ".github/agents/praxys-orchestrator.agent.md",
     "work_router_agent_path": ".github/agents/work-router.agent.md",
     "decision_review_router_agent_path": ".github/agents/decision-review-router.agent.md",
+    "task_routing_config_path": "config/agentic-task-routing.json",
+    "execution_parity_config_path": "config/copilot-execution-parity.json",
     "role_slots": [
       "lead",
       "contributors",

@@ -10,7 +10,6 @@ tools:
   - edit
   - search
   - agent
-  - playwright/*
   - chrome-devtools/*
   - praxys-local/*
 user-invocable: true

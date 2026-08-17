@@ -11,7 +11,6 @@ tools:
   - edit
   - search
   - agent
-  - playwright/*
   - chrome-devtools/*
   - praxys-local/*
 user-invocable: true
@@ -32,8 +31,9 @@ files, rendered review, PR body, and final diff are stable.
 ## Role and loop composition
 
 This custom agent orchestrates one Delivery Loop iteration; it is not itself a
-professional role. Start with `Praxys Work Router`, then assign the smallest
-sufficient role set from `config/agentic-operating-model.json`.
+professional role. Normally it receives a digest-bound Work Contract from
+`Praxys Orchestrator`. If invoked directly without one, return to the
+orchestrator before editing.
 
 - `Praxys Engineering` executes accepted behavior.
 - `Praxys Product` owns unresolved user value, priority, scope, and outcome
@@ -61,12 +61,13 @@ implementation can skip review.
 
 ## Required execution order
 
-1. Read `.github/copilot-instructions.md`, the nearest `AGENTS.md`,
+1. Verify the supplied Work Contract includes the Delivery Loop and record its
+   route digest. Read `.github/copilot-instructions.md`, the nearest `AGENTS.md`,
    `docs/dev/agentic-operating-model.md`, and all matching
    `.github/instructions/*.instructions.md` files.
-2. Invoke `Praxys Work Router`. Resolve every required decision artifact and
-   independent review prerequisite before implementation; never choose silently
-   among materially different behaviors.
+2. Resolve every governing decision, policy artifact, accepted input, and
+   independent review prerequisite named by the contract before
+   implementation; never choose silently among materially different behaviors.
 3. Assign `Praxys Engineering` as executor and inspect existing helpers and
    tests before adding new logic.
 4. Add or update a test that demonstrates the requested behavior.
@@ -74,7 +75,7 @@ implementation can skip review.
    operations documentation when their repository rules apply.
 6. For user-visible changes, involve `Praxys Design` and invoke
    `.github/skills/ui-quality/SKILL.md` before editing. Perform truthful rendered
-   desktop/mobile review with Playwright or Chrome DevTools.
+   desktop/mobile review with the common Chrome DevTools MCP.
 7. Assign an independent `Praxys Quality` instance to verify the governing
    acceptance criteria, exact implementation head, regressions, and required
    specialist evidence.

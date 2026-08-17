@@ -22,14 +22,14 @@ def test_assignment_deduplication_is_job_scoped() -> None:
     assert "cancel-in-progress: true" in assignment_job
 
 
-def test_assignment_selects_the_praxys_change_loop_custom_agent() -> None:
+def test_assignment_selects_the_praxys_orchestrator_custom_agent() -> None:
     """Agent-ready issues must not fall back to the generic Copilot profile."""
     workflow = WORKFLOW.read_text(encoding="utf-8")
 
     assert "GraphQL-Features: issues_copilot_assignment_api_support" in workflow
     assert "agentAssignment:" in workflow
     assert "customAgent:$customAgent" in workflow
-    assert "-F customAgent=praxys-change-loop" in workflow
+    assert "-F customAgent=praxys-orchestrator" in workflow
     assert "-F baseRef=main" in workflow
 
 

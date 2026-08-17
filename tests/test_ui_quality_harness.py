@@ -250,7 +250,7 @@ def test_harness_is_wired_into_agents_and_required_ci():
     ).read_text(encoding="utf-8")
     assert "description:" in agent
     assert "agent-ready" in agent
-    assert "playwright/*" in agent
+    assert "playwright/*" not in agent
     assert "python scripts/agent_preflight.py --base origin/main" in agent
 
     science_template = (
@@ -307,6 +307,8 @@ def test_ui_mcp_configs_are_pinned_and_cloud_safe():
         "resize_page",
     }.issubset(servers["chrome-devtools"]["tools"])
     cloud_praxys = servers["praxys-local"]
+    local_praxys = local_config["mcpServers"]["praxys-local"]
+    assert local_praxys["tools"] == cloud_praxys["tools"]
     assert cloud_praxys["command"] == "praxys-local-mcp"
     assert cloud_praxys["args"] == []
     assert "env" not in cloud_praxys

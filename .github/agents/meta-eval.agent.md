@@ -27,9 +27,11 @@ verification of the current change.
    effort, and latency.
 3. Replay candidate policies and run shadow comparisons before proposing
    promotion.
-4. Produce an Evaluation Report and a bounded Policy Change Proposal.
-5. Route the policy proposal through independent review and preserve an
-   immediate demotion or kill-switch path.
+4. Produce the Evaluation Report required by the Work Contract. Produce a
+   bounded Policy Change Proposal only when `policy-change-proposal` is a
+   required artifact.
+5. When a policy proposal exists, route it through independent review and
+   preserve an immediate demotion or kill-switch path.
 6. Update role boundaries when a distinct decision class emerges, or merge and
    retire a role when it no longer owns unique authority.
 

@@ -1,0 +1,314 @@
+{
+  "schema_version": 1,
+  "routing_version": "praxys-task-routing-v1",
+  "status": "active",
+  "operating_model_version": "praxys-agentic-operating-model-v1",
+  "orchestrator_agent_path": ".github/agents/praxys-orchestrator.agent.md",
+  "loop_agents": {
+    "product": ".github/agents/product.agent.md",
+    "science": ".github/agents/science.agent.md",
+    "design": ".github/agents/design.agent.md",
+    "delivery": ".github/agents/praxys-change-loop.agent.md",
+    "runtime": ".github/agents/operations.agent.md",
+    "incident": ".github/agents/operations.agent.md",
+    "meta-eval": ".github/agents/meta-eval.agent.md"
+  },
+  "primary_objects": {
+    "product-promise": {
+      "description": "The task primarily changes the product promise or expected user outcome.",
+      "loop": "product",
+      "required_roles": [
+        "product"
+      ],
+      "required_artifacts": [
+        "product-decision-record"
+      ],
+      "outcome_artifacts": [
+        "product-outcome-record"
+      ],
+      "executor_roles": [],
+      "verifier_roles": [],
+      "material_judgment": true
+    },
+    "scientific-evidence": {
+      "description": "The task primarily researches, verifies, or appraises scientific evidence and its uncertainty.",
+      "loop": "science",
+      "required_roles": [
+        "science"
+      ],
+      "required_artifacts": [
+        "evidence-review"
+      ],
+      "outcome_artifacts": [],
+      "executor_roles": [],
+      "verifier_roles": [],
+      "material_judgment": true
+    },
+    "user-experience": {
+      "description": "The task primarily changes the intended user journey, interaction, content, accessibility, or design system.",
+      "loop": "design",
+      "required_roles": [
+        "design"
+      ],
+      "required_artifacts": [
+        "design-decision-record",
+        "experience-specification"
+      ],
+      "outcome_artifacts": [],
+      "executor_roles": [],
+      "verifier_roles": [],
+      "material_judgment": true
+    },
+    "repository-behavior": {
+      "description": "The task primarily changes or repairs repository behavior and implementation quality.",
+      "loop": "delivery",
+      "required_roles": [
+        "engineering",
+        "quality"
+      ],
+      "required_artifacts": [
+        "implementation-impact-map",
+        "implementation-change",
+        "verification-evidence"
+      ],
+      "outcome_artifacts": [],
+      "executor_roles": [
+        "engineering"
+      ],
+      "verifier_roles": [
+        "quality"
+      ],
+      "material_judgment": false
+    },
+    "production-state": {
+      "description": "The task primarily changes deployment, runtime configuration, observability, capacity, or production reliability.",
+      "loop": "runtime",
+      "required_roles": [
+        "operations",
+        "quality"
+      ],
+      "required_artifacts": [
+        "operations-decision-record",
+        "release-evidence"
+      ],
+      "outcome_artifacts": [],
+      "executor_roles": [
+        "operations"
+      ],
+      "verifier_roles": [
+        "quality"
+      ],
+      "material_judgment": true
+    },
+    "production-incident": {
+      "description": "The task primarily detects, mitigates, verifies, or learns from a production incident.",
+      "loop": "incident",
+      "required_roles": [
+        "operations",
+        "quality"
+      ],
+      "required_artifacts": [
+        "operations-decision-record",
+        "incident-record"
+      ],
+      "outcome_artifacts": [],
+      "executor_roles": [
+        "operations"
+      ],
+      "verifier_roles": [
+        "quality"
+      ],
+      "material_judgment": true
+    },
+    "agent-system": {
+      "description": "The task primarily evaluates agents, prompts, routing, review effort, policy, or autonomy.",
+      "loop": "meta-eval",
+      "required_roles": [
+        "meta-eval",
+        "quality"
+      ],
+      "required_artifacts": [
+        "evaluation-report"
+      ],
+      "outcome_artifacts": [],
+      "executor_roles": [],
+      "verifier_roles": [
+        "quality"
+      ],
+      "material_judgment": true
+    }
+  },
+  "impacts": {
+    "product-value": {
+      "description": "The task contains a user-value, priority, scope, product-promise, or outcome decision.",
+      "loop": "product",
+      "required_roles": [
+        "product"
+      ],
+      "required_artifacts": [
+        "product-decision-record"
+      ],
+      "outcome_artifacts": [],
+      "executor_roles": [],
+      "verifier_roles": [],
+      "material_judgment": true
+    },
+    "scientific-evidence-or-claim": {
+      "description": "The task changes a scientific claim, formula, constant, model, applicability boundary, or safety interpretation.",
+      "loop": "science",
+      "required_roles": [
+        "science"
+      ],
+      "required_artifacts": [
+        "evidence-review",
+        "science-decision-record"
+      ],
+      "outcome_artifacts": [],
+      "executor_roles": [],
+      "verifier_roles": [],
+      "material_judgment": true
+    },
+    "user-visible-experience": {
+      "description": "The task changes user-visible behavior, interaction, content, accessibility, or rendered experience.",
+      "loop": "design",
+      "required_roles": [
+        "design"
+      ],
+      "required_artifacts": [
+        "design-decision-record",
+        "experience-specification"
+      ],
+      "outcome_artifacts": [],
+      "executor_roles": [],
+      "verifier_roles": [],
+      "material_judgment": true
+    },
+    "repository-change": {
+      "description": "The task edits repository code, configuration, tests, workflows, or durable documentation.",
+      "loop": "delivery",
+      "required_roles": [
+        "engineering",
+        "quality"
+      ],
+      "required_artifacts": [
+        "implementation-impact-map",
+        "implementation-change",
+        "verification-evidence"
+      ],
+      "outcome_artifacts": [],
+      "executor_roles": [
+        "engineering"
+      ],
+      "verifier_roles": [
+        "quality"
+      ],
+      "material_judgment": false
+    },
+    "production-operation": {
+      "description": "The task changes or executes deployment, runtime configuration, monitoring, capacity, rollback, or recovery.",
+      "loop": "runtime",
+      "required_roles": [
+        "operations",
+        "quality"
+      ],
+      "required_artifacts": [
+        "operations-decision-record",
+        "release-evidence"
+      ],
+      "outcome_artifacts": [],
+      "executor_roles": [
+        "operations"
+      ],
+      "verifier_roles": [
+        "quality"
+      ],
+      "material_judgment": true
+    },
+    "incident-response": {
+      "description": "The task responds to an active or recently mitigated production incident.",
+      "loop": "incident",
+      "required_roles": [
+        "operations",
+        "quality"
+      ],
+      "required_artifacts": [
+        "operations-decision-record",
+        "incident-record"
+      ],
+      "outcome_artifacts": [],
+      "executor_roles": [
+        "operations"
+      ],
+      "verifier_roles": [
+        "quality"
+      ],
+      "material_judgment": true
+    },
+    "agent-policy-or-autonomy": {
+      "description": "The task changes agent roles, prompts, models, routing, evaluation, review policy, or autonomy.",
+      "loop": "meta-eval",
+      "required_roles": [
+        "meta-eval",
+        "quality"
+      ],
+      "required_artifacts": [
+        "evaluation-report",
+        "policy-change-proposal"
+      ],
+      "outcome_artifacts": [],
+      "executor_roles": [],
+      "verifier_roles": [
+        "quality"
+      ],
+      "material_judgment": true
+    },
+    "architecture-boundary": {
+      "description": "The task crosses a service, datastore, domain, repository, irreversible migration, or material non-functional boundary.",
+      "loop": null,
+      "required_roles": [
+        "architecture"
+      ],
+      "required_artifacts": [
+        "architecture-decision-record"
+      ],
+      "outcome_artifacts": [],
+      "executor_roles": [],
+      "verifier_roles": [],
+      "material_judgment": true
+    },
+    "trust-boundary": {
+      "description": "The task changes security, privacy, identity, authorization, sensitive data, dependencies, or supply-chain trust.",
+      "loop": null,
+      "required_roles": [
+        "trust"
+      ],
+      "required_artifacts": [
+        "trust-decision-record"
+      ],
+      "outcome_artifacts": [],
+      "executor_roles": [],
+      "verifier_roles": [],
+      "material_judgment": true
+    }
+  },
+  "risk_triggers": [
+    "new-product-promise",
+    "material-user-value-tradeoff",
+    "safety-or-medical-boundary",
+    "sensitive-data-collection",
+    "security-or-privacy-boundary",
+    "irreversible-or-high-blast-radius-action",
+    "scientific-uncertainty",
+    "unresolved-independent-agent-disagreement",
+    "out-of-policy-or-out-of-distribution-decision"
+  ],
+  "nested_loop_order": [
+    "product",
+    "science",
+    "design",
+    "delivery",
+    "runtime",
+    "incident",
+    "meta-eval"
+  ]
+}

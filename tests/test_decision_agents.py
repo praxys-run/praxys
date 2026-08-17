@@ -48,7 +48,7 @@ def test_role_agent_manifests_are_available_and_bounded() -> None:
         ),
         "science.agent.md": (
             "Praxys Science",
-            "Science Decision Records",
+            "Science Decision Record",
             "Do not substitute scientific prohibitions",
         ),
         "trust.agent.md": (
@@ -94,6 +94,25 @@ def test_product_science_design_engineering_and_quality_stay_separate() -> None:
     assert "Do not replace Quality's verification" in meta
 
 
+def test_science_and_meta_outputs_follow_the_work_contract() -> None:
+    science_metadata, science_body = _agent(AGENTS / "science.agent.md")
+    _, meta_body = _agent(AGENTS / "meta-eval.agent.md")
+    normalized_science = _normalized(science_body)
+    normalized_meta = _normalized(meta_body)
+
+    assert "execute" in science_metadata["tools"]
+    assert "chrome-devtools/*" in science_metadata["tools"]
+    assert (
+        "only when `science-decision-record` is a required artifact"
+        in normalized_science
+    )
+    assert "In Research-only mode" in normalized_science
+    assert (
+        "only when `policy-change-proposal` is a required artifact"
+        in normalized_meta
+    )
+
+
 def test_decision_router_is_independent_and_default_human() -> None:
     metadata, body = _agent(AGENTS / "decision-review-router.agent.md")
 
@@ -119,7 +138,9 @@ def test_work_router_composes_roles_without_executing() -> None:
     normalized = _normalized(body)
 
     assert metadata["name"] == "Praxys Work Router"
-    assert metadata["tools"] == ["read", "search", "agent"]
+    assert metadata["tools"] == ["execute", "read", "search", "agent"]
+    assert "config/agentic-task-routing.json" in body
+    assert "scripts/route_agentic_task.py" in body
     for slot in (
         "lead",
         "contributors",
@@ -132,6 +153,22 @@ def test_work_router_composes_roles_without_executing() -> None:
         assert slot in normalized
     assert "Do not execute, approve, or review the work you route" in normalized
     assert "different directory or technology" in normalized
+
+
+def test_orchestrator_is_the_shared_deterministic_entry_point() -> None:
+    metadata, body = _agent(AGENTS / "praxys-orchestrator.agent.md")
+    normalized = _normalized(body)
+
+    assert metadata["name"] == "Praxys Orchestrator"
+    assert metadata["tools"] == ["execute", "read", "search", "agent"]
+    assert "common entry point" in normalized
+    assert "Praxys Work Router" in normalized
+    assert "scripts/route_agentic_task.py" in normalized
+    assert "artifact dependencies" in normalized
+    assert "Resume a loop" in normalized
+    assert "listed order is not an execution order" in normalized
+    assert "scripts/check_copilot_environment_parity.py" in normalized
+    assert "Do not edit code" in normalized
 
 
 def test_science_and_delivery_loops_use_role_handoffs() -> None:
@@ -152,7 +189,8 @@ def test_science_and_delivery_loops_use_role_handoffs() -> None:
         "must not substitute scientific prohibitions"
         in normalized_science_skill
     )
-    assert "Praxys Work Router" in change_loop
+    assert "Praxys Orchestrator" in change_loop
+    assert "Work Contract" in change_loop
     assert "Praxys Engineering" in change_loop
     assert "Praxys Quality" in change_loop
     assert "delivery loop implements accepted artifacts" in normalized_change_loop

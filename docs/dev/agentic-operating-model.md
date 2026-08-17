@@ -1,9 +1,10 @@
 # Praxys agentic operating model
 
-**Status:** Version 1 is specified and checked into
-`config/agentic-operating-model.json`. Role and router manifests are available,
-but judgment autonomy remains specification-only and default-human unless a
-narrow class is explicitly promoted.
+**Status:** Version 1 has active task routing through
+`config/agentic-operating-model.json` and
+`config/agentic-task-routing.json`. Judgment autonomy remains
+specification-only and default-human unless a narrow class is explicitly
+promoted.
 
 ## Core model
 
@@ -35,12 +36,11 @@ and observed outcomes.
                               |
                               v
                  +-------------------------+
-                 |  Intake / Work Router   |
+                 | Praxys Orchestrator     |
                  |                         |
-                 | - What object changes?  |
-                 | - What decisions exist? |
-                 | - What risks exist?     |
-                 | - Which loop applies?   |
+                 | Work Router classifies  |
+                 | deterministic router    |
+                 | emits Work Contract     |
                  +------------+------------+
                               |
                               v
@@ -81,9 +81,14 @@ and observed outcomes.
                   Policy and role updates
 ```
 
-The Work Router composes the smallest sufficient role set. It does not execute
-or review the task. The Decision Review Router allocates review authority after
-the proposer and required specialists have produced a durable decision.
+Praxys Orchestrator is the shared Local and Cloud entry point. Work Router
+selects one primary object plus bounded impacts and risks; the deterministic
+task router composes the smallest sufficient role set. The Decision Review
+Router allocates review authority after the proposer and required specialists
+have produced a durable decision.
+
+See [`copilot-execution-parity.md`](copilot-execution-parity.md) for the common
+entry point, tool contract, drift checks, and explicit environment limitations.
 
 ## Role slots
 
@@ -188,6 +193,11 @@ The diagram is dependency-based rather than strictly linear. A product decision
 may not need science, architecture, or trust input. The Work Router includes a
 role only when its decision class or activation trigger is present.
 
+The Work Contract's loop and artifact lists are sets in canonical presentation
+order, not a one-pass execution sequence. The primary loop owns the iteration;
+nested loops satisfy bounded dependencies; the orchestrator resumes a loop
+when its later stages depend on a nested result.
+
 ### Shared decision-record contract
 
 Product, Design, Architecture, Science, Trust, and Operations decisions share
@@ -236,8 +246,11 @@ A router or role must not invent persistence or approval semantics for a
 The control plane has two independent routers:
 
 1. **Work Router:** selects the object, primary loop, decision classes, role
-   slots, required artifacts, risks, and entry/exit criteria.
-2. **Decision Review Router:** returns exactly one review route:
+   traits, and risks from a checked-in enumeration.
+2. **Deterministic Task Router:** produces the digest-bound loops, agents,
+   lead/contributor/executor/verifier/outcome-observer slots, required
+   input/output artifacts, and review requirement.
+3. **Decision Review Router:** returns exactly one review route:
    `agent-resolved`, `agent-reviewed`, `human-review-required`, or `blocked`.
 
 Human review remains required by default for unpromoted judgment classes,
@@ -286,8 +299,9 @@ as other autonomy changes.
 
 For a future running-plan population-routing decision:
 
-1. Work Router selects the Product loop and detects Science, Design, Trust,
-   Engineering, and Quality decision classes.
+1. Praxys Orchestrator obtains a classification whose deterministic Work
+   Contract selects Product as primary and includes Science, Design, Trust,
+   Delivery, and Quality when triggered.
 2. Product owns whether every athlete may select the goal and what value each
    routed experience should provide.
 3. Science owns what training history or personal characteristics can support
@@ -307,9 +321,11 @@ For a future running-plan population-routing decision:
 
 ## Current boundary
 
-Version 1 defines and validates the operating model, role manifests, routers,
-artifacts, and independence policy. It does not promote a judgment class,
-authorize agent-created human approvals, or make every role autonomous.
+Version 1 defines and validates the operating model, routes every material task
+through a shared Local/Cloud orchestrator, and makes all seven loops selectable
+from task characteristics. It does not promote a judgment class, authorize
+agent-created human approvals, make every role autonomous, or provide Cloud
+production credentials and the WeChat desktop simulator.
 
 The first product-specific application will convert the pending adult running
 population-routing work into a Product Decision Record linked to its existing

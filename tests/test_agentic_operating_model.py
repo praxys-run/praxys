@@ -23,7 +23,7 @@ def test_operating_model_defines_roles_loops_and_control_plane() -> None:
     model = load_agentic_operating_model()
 
     assert model.model_version == "praxys-agentic-operating-model-v1"
-    assert model.status == "specification-only"
+    assert model.status == "active-routing"
     assert set(model.roles) == {
         "product",
         "design",
@@ -59,6 +59,15 @@ def test_operating_model_defines_roles_loops_and_control_plane() -> None:
         "human-review-required",
         "blocked",
     ]
+    assert model.control_plane.orchestrator_agent_path == (
+        ".github/agents/praxys-orchestrator.agent.md"
+    )
+    assert model.control_plane.task_routing_config_path == (
+        "config/agentic-task-routing.json"
+    )
+    assert model.control_plane.execution_parity_config_path == (
+        "config/copilot-execution-parity.json"
+    )
 
 
 def test_roles_own_decisions_not_technology_directories() -> None:

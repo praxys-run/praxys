@@ -6,10 +6,17 @@ Agents are bounded **roles**. Loops are learning workflows around an **object**.
 The Work Router composes roles into each loop instance; the independent
 Decision Review Router allocates review authority.
 
+`Praxys Orchestrator` is the common Local and Cloud entry point for every
+material task. It obtains an enumerated classification from Work Router, runs
+the deterministic task router, and invokes only the loops and roles in the
+resulting digest-bound Work Contract.
+
 Read:
 
 - `docs/dev/agentic-operating-model.md`
 - `config/agentic-operating-model.json`
+- `config/agentic-task-routing.json`
+- `config/copilot-execution-parity.json`
 - `config/agent-loop-policies.json`
 
 Do not treat this role list as a permanent org chart. Create, merge, or retire a
@@ -83,7 +90,8 @@ Engineering capabilities preserve repository-specific rules:
   claim limits, and science-specific runtime boundaries.
 - **Agent:** `.github/agents/science.agent.md`
 - **Skill:** `.github/skills/science-research/SKILL.md`
-- **Artifacts:** Evidence Review and Science Decision Record.
+- **Artifacts:** Evidence Review; Science Decision Record when the routed task
+  changes scientific product/runtime policy.
 - **Boundary:** Science constrains product choices but does not choose product
   value.
 
@@ -113,24 +121,39 @@ Engineering capabilities preserve repository-specific rules:
 - **Owns:** evaluation of agents, prompts, policies, routing, review effort, and
   autonomy across batches of outcomes.
 - **Agent:** `.github/agents/meta-eval.agent.md`
-- **Artifacts:** Evaluation Report and Policy Change Proposal.
+- **Artifacts:** Evaluation Report; Policy Change Proposal when the routed task
+  changes policy.
 - **Boundary:** Meta/Eval does not replace Quality for the current change and
   cannot promote itself from one successful outcome.
 
 ## Control plane
 
+### Praxys Orchestrator
+
+`.github/agents/praxys-orchestrator.agent.md` is selected locally through
+Copilot agent invocation and explicitly by the cloud assignment workflow. It
+does not classify or execute work itself: it delegates classification to Work
+Router, deterministic composition to `scripts/route_agentic_task.py`, and
+execution to the returned loop agents.
+
 ### Work Router
 
 `.github/agents/work-router.agent.md` identifies:
 
-- the object and primary loop;
-- decision classes and activation triggers;
-- lead, contributors, reviewers, executor, verifier, observer, and human
-  authority;
-- required durable artifacts;
-- entry, exit, and outcome criteria.
+- exactly one checked-in primary object;
+- every applicable checked-in impact and risk trigger;
+- concise evidence and uncertainty for that classification.
 
-It does not execute or review the task.
+`scripts/route_agentic_task.py` then deterministically returns the primary and
+nested loops, agents, lead, contributors, executor, verifier, input/output and
+outcome artifacts/observers, and decision-review requirement. Decision Review
+Router allocates independent reviewer and human-authority slots. Work Router
+adds entry and exit criteria; it does not execute or review the task.
+
+The primary loop owns the iteration. Nested-loop order is canonical
+presentation order, not a one-pass execution plan: schedule and resume agents
+from artifact dependencies until every current required artifact is complete.
+Outcome artifacts remain future observation obligations.
 
 ### Decision Review Router
 
@@ -148,7 +171,8 @@ materialize human authority.
 
 ### Adding or changing a product capability
 
-1. Work Router selects Product as the primary loop and assigns triggered roles.
+1. Praxys Orchestrator obtains the bounded classification and deterministic
+   Work Contract, with Product as the primary loop.
 2. Product produces or reuses an accepted Product Decision Record.
 3. Science, Trust, Architecture, and Design contribute only when their decision
    classes are present.
@@ -159,7 +183,8 @@ materialize human authority.
 
 ### Debugging a data issue
 
-1. Work Router normally selects the Delivery loop with Engineering as lead.
+1. Praxys Orchestrator normally routes the task to Delivery with Engineering
+   as executor and Quality as verifier.
 2. Engineering traces sync -> writer -> database -> loader -> metric.
 3. Add a reproducible test using the `tests/test_integration.py` fixture
    pattern.

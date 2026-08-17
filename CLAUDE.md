@@ -257,6 +257,7 @@ See `docs/dev/contributing.md` for which files to update with code changes. Key 
 - `docs/dev/ui-quality-harness.md` — mandatory Impeccable-led workflow, hooks, PR evidence, and CI gate for UI changes
 - `docs/dev/gotchas.md` — domain-specific traps
 - `docs/dev/agentic-operating-model.md` — role agents, loops, artifacts, routers, and role evolution
+- `docs/dev/copilot-execution-parity.md` — shared task routing, Local/Cloud tools, drift checks, and limitations
 - `docs/dev/agentic-loops.md` — shared trace/outcome/eval/policy substrate for self-improving loops
 - `plugins/praxys/skills/*/SKILL.md` — skill instructions
 

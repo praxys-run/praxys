@@ -1,8 +1,8 @@
 # Product loop
 
 **Status:** The Product role, loop contract, and shared Product Decision Record
-fields are specified in the Praxys agentic operating model. Judgment autonomy
-remains specification-only and default-human for unpromoted classes.
+fields are specified in the Praxys agentic operating model. Task routing is
+active; judgment autonomy remains default-human for unpromoted classes.
 
 ## Purpose
 

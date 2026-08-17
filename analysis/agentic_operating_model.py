@@ -153,8 +153,11 @@ class IndependencePolicy(OperatingModelRecord):
 class ControlPlaneDefinition(OperatingModelRecord):
     """Shared routing and review infrastructure outside role ownership."""
 
+    orchestrator_agent_path: str
     work_router_agent_path: str
     decision_review_router_agent_path: str
+    task_routing_config_path: str
+    execution_parity_config_path: str
     role_slots: list[
         Literal[
             "lead",
@@ -180,14 +183,17 @@ class ControlPlaneDefinition(OperatingModelRecord):
     @model_validator(mode="after")
     def validate_control_plane(self) -> "ControlPlaneDefinition":
         """Keep control-plane paths and enumerations deterministic."""
-        _validate_relative_path(
-            self.work_router_agent_path,
-            "work_router_agent_path",
-        )
-        _validate_relative_path(
-            self.decision_review_router_agent_path,
-            "decision_review_router_agent_path",
-        )
+        for label, path in (
+            ("orchestrator_agent_path", self.orchestrator_agent_path),
+            ("work_router_agent_path", self.work_router_agent_path),
+            (
+                "decision_review_router_agent_path",
+                self.decision_review_router_agent_path,
+            ),
+            ("task_routing_config_path", self.task_routing_config_path),
+            ("execution_parity_config_path", self.execution_parity_config_path),
+        ):
+            _validate_relative_path(path, label)
         _require_unique(self.role_slots, "role_slots")
         _require_unique(self.routing_outcomes, "routing_outcomes")
         return self
@@ -230,7 +236,7 @@ class AgenticOperatingModel(OperatingModelRecord):
 
     schema_version: Literal[1]
     model_version: str = Field(min_length=1)
-    status: Literal["specification-only"]
+    status: Literal["specification-only", "active-routing"]
     principles: list[str] = Field(min_length=1)
     canonical_stages: list[str] = Field(min_length=1)
     roles: dict[str, RoleDefinition] = Field(min_length=1)
@@ -407,6 +413,7 @@ def validate_agent_manifest_paths(
         if role.agent_path is not None
     ]
     paths.extend([
+        model.control_plane.orchestrator_agent_path,
         model.control_plane.work_router_agent_path,
         model.control_plane.decision_review_router_agent_path,
     ])
@@ -419,6 +426,18 @@ def validate_agent_manifest_paths(
     )
     if missing:
         raise ValueError(f"agent manifests are missing: {missing}")
+    missing_configs = sorted(
+        path
+        for path in (
+            model.control_plane.task_routing_config_path,
+            model.control_plane.execution_parity_config_path,
+        )
+        if not (root / path).is_file()
+    )
+    if missing_configs:
+        raise ValueError(
+            f"control-plane configs are missing: {missing_configs}"
+        )
 
 
 def load_agentic_operating_model(

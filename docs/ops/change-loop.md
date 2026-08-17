@@ -6,10 +6,12 @@
 > **Use when:** Enabling / operating / tuning the change loop, or debugging "I
 > labeled an issue `agent-ready` but Copilot was never assigned".
 
-Praxys runs two agentic loops. **The change loop (a.k.a. Loop A) lives here** and
-is GitHub-native: feedback → a drafted fix PR. The **incident loop (Loop B)** —
-AIOps / incident response — lives in the private `praxys-run/praxys-ops-agent`
-repo. This runbook is the change loop.
+Praxys defines seven object-improvement loops. This runbook covers the
+GitHub-native **Delivery loop** entry for qualifying bugs: feedback -> routed
+Work Contract -> drafted fix PR. Production incident execution still lives in
+the private `praxys-run/praxys-ops-agent` repo; the public Operations role can
+classify and hand off an Incident task without receiving production
+credentials.
 
 ## How it works
 
@@ -17,10 +19,13 @@ repo. This runbook is the change loop.
 feedback triage (api/feedback_triage.py)  ──adds `agent-ready` for a qualifying bug──┐
 a maintainer manually adds `agent-ready`  ───────────────────────────────────────────┤
                                                                                       ▼
-                          .github/workflows/assign-copilot.yml  ──assigns──▶  Copilot coding agent
+                          .github/workflows/assign-copilot.yml  ──assigns──▶  Praxys Orchestrator
                                                                                       │ opens
                                                                                       ▼
-                    draft PR ──▶ checks + outcome observer ──▶ maintainer-controlled merge (today)
+                          deterministic Work Contract ──▶ Delivery / Change Loop
+                                                                                      │ opens
+                                                                                      ▼
+                    draft PR ──▶ checks + outcome observer ──▶ policy-controlled merge gate
 ```
 
 `agent-ready` is the **sole trigger**; a bare issue-open never fires. Triage adds
@@ -59,9 +64,11 @@ can eventually route repeatedly proven narrow changes to policy-owned auto-merge
 while sensitive, broad, uncertain, or failing changes still require a human.
 
 The assignment uses GitHub's agent-assignment API with
-`customAgent=praxys-change-loop`, so every eligible issue starts with the
-checked-in `.github/agents/praxys-change-loop.agent.md` profile rather than the
-generic Copilot profile.
+`customAgent=praxys-orchestrator`, so every eligible issue starts with the
+checked-in `.github/agents/praxys-orchestrator.agent.md` profile. The
+orchestrator classifies the task, emits the deterministic Work Contract, and
+delegates repository implementation to
+`.github/agents/praxys-change-loop.agent.md`.
 
 Copilot PRs stay draft until the final preflight command and validated head SHA
 are recorded and the required branch checks pass.
@@ -192,7 +199,8 @@ Create a **fine-grained PAT**, least-privilege:
 
 - **Resource owner:** `praxys-run`; **Repository access:** *Only select
   repositories* → `praxys` (this repo only).
-- **Permissions:** *Issues → Read and write* (nothing else).
+- **Permissions:** *Issues → Read and write* and
+  *Copilot agent settings → Read*.
 - **Expiration:** set one (e.g. 90 days) and calendar a rotation.
 
 Then store it and re-run:
@@ -202,9 +210,35 @@ gh secret set COPILOT_ASSIGN_TOKEN -R praxys-run/praxys   # paste the PAT when p
 ```
 
 Manual assignment via the GitHub UI keeps working without this token (it uses
-your user session) — the token is only needed for the *workflow* to assign.
+your user session). The additional read permission lets the weekly
+`copilot-environment-parity.yml` job compare the live Cloud MCP setting with
+the reviewed repository contract.
 
-### 4. Confirm branch protection on `main`
+### 4. Verify Local/Cloud execution parity
+
+The authoritative common capabilities and limitations are
+`config/copilot-execution-parity.json`; the reviewed Cloud MCP payload is
+`config/copilot-cloud-mcp.json`.
+
+```bash
+python scripts/check_copilot_environment_parity.py
+python scripts/check_copilot_environment_parity.py \
+  --live \
+  --repo praxys-run/praxys
+```
+
+The first command is repository-only. The second calls the versioned GitHub
+Cloud-agent configuration API and requires the token permission above.
+`.github/workflows/copilot-environment-parity.yml` runs static validation on
+matching pull requests and live drift validation weekly and on relevant
+`main` pushes.
+
+If drift is detected, repair the repository setting from
+`config/copilot-cloud-mcp.json` or update the reviewed contract in a PR. Do not
+weaken an agent's required evidence because a tool is unavailable; keep the
+affected PR draft or block the loop.
+
+### 5. Confirm branch protection on `main`
 
 Protect `main` so the coding agent cannot ship or bypass checks:
 
@@ -242,7 +276,7 @@ Verify the required contexts with:
 gh api repos/praxys-run/praxys/branches/main/protection/required_status_checks
 ```
 
-### 5. Operate the GitHub Agentic Workflows layer
+### 6. Operate the GitHub Agentic Workflows layer
 
 The coding agent still owns implementation. Three repository-level
 [GitHub Agentic Workflows](https://github.com/github/gh-aw) add bounded judgment
@@ -303,10 +337,10 @@ initialization must not overwrite its Python/Node test environment.
   push after the first ready handoff returns the PR to draft before more work.
   Edit there rather than stuffing per-issue boilerplate into the public tracker.
 - **Specialized implementation agent:** `.github/agents/praxys-change-loop.agent.md`
-  is the cloud-agent profile for every `agent-ready` implementation. It exposes
-  the repository/browser tools needed by the change loop and converts the
-  general repository rules into an ordered implementation, review, and handoff
-  contract.
+  is the Delivery-loop implementation agent delegated by Praxys Orchestrator.
+  It exposes the repository/browser tools needed by the change loop and
+  converts the routed Work Contract into an ordered implementation, review,
+  and handoff.
 - **Deterministic final preflight:** after committing the implementation, the
   agent runs `python scripts/agent_preflight.py --base origin/main`. The command
   selects backend, web, Lingui, miniapp, and UI checks from the actual PR diff
@@ -329,10 +363,10 @@ initialization must not overwrite its Python/Node test environment.
   must inspect the rendered desktop/mobile path, complete the PR's
   `## UI quality` evidence (including design-system impact), and pass
   `scripts/check_ui_quality.py`. CI reports this as the independent required
-  `frontend-quality` context. Cloud agents have Playwright by default; repository MCP
-  settings may add pinned Chrome DevTools and read-only synthetic
-  `praxys-local` tools. A browser-less agent leaves the PR draft rather than
-  claiming verification. Full operation: `docs/dev/ui-quality-harness.md`.
+  `frontend-quality` context. Portable Local and Cloud agents use the same
+  pinned Chrome DevTools and read-only synthetic `praxys-local` tools. A
+  browser-less agent leaves the PR draft rather than claiming verification.
+  Full operation: `docs/dev/ui-quality-harness.md`.
 - **Model selection:** which LLM the coding agent uses is an **org/repo Copilot
   setting** (Settings → Copilot → Coding agent), not a per-assignment parameter —
   do not try to pin a model in `assign-copilot.yml`. Pick it in settings.

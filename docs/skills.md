@@ -46,10 +46,15 @@ It defines Product, Design, Engineering, Architecture, Quality, Science, Trust,
 Operations, and Meta/Eval as bounded decision-owning roles. Their manifests live
 under `.github/agents/`.
 
-`Praxys Work Router` selects the object, primary loop, decision classes, role
-slots, and required artifacts. `Praxys Decision Review Router` independently
-routes each material decision as `agent-resolved`, `agent-reviewed`,
-`human-review-required`, or `blocked`.
+`Praxys Orchestrator` is the shared Local and Cloud entry point. It invokes
+`Praxys Work Router` for an enumerated task classification, runs
+`scripts/route_agentic_task.py`, and dispatches the resulting digest-bound Work
+Contract. `Praxys Decision Review Router` independently routes each material
+decision as `agent-resolved`, `agent-reviewed`, `human-review-required`, or
+`blocked`.
+
+Local/Cloud capability parity and explicit limitations are documented in
+`docs/dev/copilot-execution-parity.md`.
 
 The proposer cannot select its own review route or review its own decision. An
 executor cannot verify its own high-risk work. Routers cannot approve or

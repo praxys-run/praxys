@@ -54,8 +54,8 @@ the rendered files trigger it.
 7. Classify design-system impact: fix a local defect now; update a clear missing
    reusable rule/token/component in the source of truth; or file a linked
    `Design system gap` issue for a broad decision or out-of-scope migration.
-8. Run the real feature with sample data. Inspect web desktop and mobile
-   together with Chrome DevTools MCP or built-in cloud-agent Playwright. For a
+8. Run the real feature with sample data. Portable Local and Cloud agents use
+   the common Chrome DevTools MCP; Cloud Playwright is optional. For a
    local miniapp change on Windows + WSL2, invoke `wechat-devtools` and inspect
    the affected page in the WeChat simulator, including screenshots and
    console/network output. Praxys MCP may provide synthetic data semantics but
@@ -96,7 +96,7 @@ Choose the smallest medium that preserves the behavior under review:
 Use synthetic data only. Captures must not contain credentials, access tokens,
 personal training data, raw feedback screenshots, or authenticated HAR/network
 archives. Do not add a product dependency only to record evidence. Use the
-available Chrome/Playwright/WeChat recorder; if recording is unavailable,
+available Chrome DevTools or WeChat recorder; if recording is unavailable,
 capture the sequence as native-resolution stills.
 
 The review audience determines publication:
@@ -202,10 +202,9 @@ substitute for design-system ownership.
 
 ## Browser and product MCP tools
 
-The GitHub Copilot cloud agent includes Playwright by default, so assigned
-issues do not need a separate browser installation to perform rendered review.
-The repository `.mcp.json` additionally pins Chrome DevTools MCP for local
-Copilot CLI/compatible clients. Chrome runs headless and isolated, opts out of
+The GitHub Copilot cloud agent may include Playwright, but portable Praxys
+agents use the same pinned Chrome DevTools MCP in Local and Cloud. Chrome runs
+headless and isolated, opts out of
 usage statistics and CrUX lookups, redacts network headers, and exposes only
 the interaction, screenshot, console, network, emulation, and Lighthouse tools
 used by this flow.
@@ -226,8 +225,9 @@ symlink to find the repository and selects the interpreter prepared by
 the pinned plugin runtime. The cloud payload must use that installed launcher
 rather than invoke the repository Python module directly.
 
-Use Chrome/Playwright to judge the rendered experience. Use `praxys-local` only
-to inspect the product's sample-data semantics or expected view payloads.
+Use Chrome DevTools to judge the portable rendered experience. Use
+`praxys-local` only to inspect the product's sample-data semantics or expected
+view payloads.
 
 ## Change-loop coding agents
 

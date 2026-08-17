@@ -64,9 +64,11 @@ weekly, or every N drafts). So:
 
 ## 3. Roles operate; loops learn
 
-Agents are decision-owning roles. Loops improve objects. The Work Router binds
-roles into a loop instance through lead, contributor, independent-reviewer,
-executor, verifier, observer, and human-authority slots.
+Agents are decision-owning roles. Loops improve objects. Praxys Orchestrator
+uses Work Router's bounded classification and
+`scripts/route_agentic_task.py` to bind lead, contributor, executor, verifier,
+and outcome-observer slots. Decision Review Router independently allocates the
+reviewer and human-authority slots.
 
 The initial roles are Product, Design, Engineering, Architecture, Quality,
 Science, Trust, Operations, and Meta/Eval. Traditional job names are an
@@ -90,12 +92,12 @@ Same OODA shape, different sensors and actuators:
 | Loop | Sense | Decide (policy) | Act | Learns from |
 |---|---|---|---|---|
 | **Product** | user problem, feedback, telemetry, strategy, accepted constraints | what user value Praxys should provide, for whom, and with which trade-offs | Product Decision Record and accepted implementation slice | target/guardrail metrics, adoption, abandonment, corrections |
-| **Science** | bounded science question, new research, challenged claim | what evidence supports, does not support, and with what uncertainty | Evidence Review and Science Decision Record | source corrections, later evidence, reviewer corrections, post-launch falsification |
+| **Science** | bounded science question, new research, challenged claim | what evidence supports, does not support, and with what uncertainty | Evidence Review; Science Decision Record only for a routed scientific product/runtime decision | source corrections, later evidence, reviewer corrections, post-launch falsification |
 | **Design** | accepted product intent, experience defects, design-system gaps | what journey, interaction, content, accessibility, and visual system should deliver the intent | Design Decision, Experience Specification, rendered review | completion, errors, accessibility findings, confusion, repeated design defects |
 | **Delivery** (first implementation — #362) | accepted decision, user feedback, defect, incident handoff | how to implement accepted behavior safely | Engineering produces a tested PR; Quality verifies it | correction, required checks, reverts, reopens, regressions |
 | **Runtime** | release candidate, config change, monitoring or capacity need | how to deploy, observe, recover, and roll back | release, runtime configuration, monitoring, runbooks | availability, latency, alerts, rollback, operator correction |
 | **Incident** (Loop B — `praxys-ops-agent`) | alerts, telemetry anomalies, error spikes | RCA + severity + is it auto-mitigable? | mitigate (restart/rollback/scale/config) + draft postmortem + **hand a fix to the change loop** | MTTR, recurrence, did the mitigation hold |
-| **Meta / eval** | completed agent decisions and outcomes | which role, prompt, model, route, or autonomy policy is underperforming | Evaluation Report and policy PR | correction, escalation quality, adverse outcomes, replay, human effort |
+| **Meta / eval** | completed agent decisions and outcomes | which role, prompt, model, route, or autonomy policy is underperforming | Evaluation Report; policy PR only when a routed policy change is warranted | correction, escalation quality, adverse outcomes, replay, human effort |
 
 The meta loop is special: its *product* is the other loops' policies. It is the
 engine of "self-improvement."
@@ -103,7 +105,8 @@ engine of "self-improvement."
 The primary handoff is:
 
 ```text
-user signal -> Work Router -> Product loop
+user signal -> Orchestrator -> Work Router -> deterministic Work Contract
+-> Product loop
 -> Science / Design / Trust / Architecture decisions when triggered
 -> Decision Review Router -> Delivery loop -> Quality verification
 -> Runtime loop -> product and meta outcomes
@@ -175,9 +178,10 @@ implementation agent never decides that its own PR is safe. Promotion starts in
 shadow mode and requires clean checks, no recorded corrections, enough
 post-merge observation, and a fast kill switch.
 
-The same substrate also owns the control plane. The Work Router selects the
-loop, role slots, triggered decisions, and required artifacts. The Decision
-Review Router independently chooses:
+The same substrate also owns the control plane. Work Router selects enumerated
+task characteristics; the deterministic task router selects loops, agents,
+slots, inputs, outputs, and review requirements. The Decision Review Router
+independently chooses:
 
 ```text
 agent-resolved | agent-reviewed | human-review-required | blocked
@@ -216,9 +220,9 @@ listed.
 
 ## 7. How it maps to the repos
 
-- **`praxys-run/praxys` (this repo, public).** Hosts the Product, Science,
-  Design, Delivery, Runtime, and Meta/Eval contracts and the **shared substrate**
-  (telemetry, the decisions/outcomes store, the eval corpus, the policy files).
+- **`praxys-run/praxys` (this repo, public).** Hosts all role and loop contracts,
+  portable routing, and the **shared substrate** (telemetry, the
+  decisions/outcomes store, the eval corpus, and policy files).
 - **`praxys-run/praxys-ops-agent` (private).** Hosts the **incident loop**;
   consumes the same substrate. Event-triggered + ephemeral, acting on praxys via a
   scoped GitHub App + Azure OIDC.
@@ -241,10 +245,10 @@ PR reconciliation; the checked-in replay corpus; Admin Ops learning aggregates;
 and the cross-agent UI quality harness (vendored Impeccable, Copilot/Claude
 hooks, PR evidence, CI gate, and invariant review).
 
-**Defined but not yet promoted:** the nine role manifests, Work Router,
-independent Decision Review Router, shared decision-record contract, and
-human-attention policy. The control plane is specification-only and
-default-human for judgment classes.
+**Active routing:** the shared Local/Cloud Orchestrator, nine role manifests,
+all seven primary-loop routes, Work Router classification, deterministic Work
+Contracts, independent Decision Review Router, common tool contract, and Cloud
+drift checks. Judgment autonomy remains default-human and unpromoted.
 
 **Remaining generalization:** persist the first Product Decision Record, run
 population routing through the role-composed workflow, capture corrections and

@@ -9,7 +9,6 @@ tools:
   - read
   - search
   - agent
-  - playwright/*
   - chrome-devtools/*
 user-invocable: true
 disable-model-invocation: false

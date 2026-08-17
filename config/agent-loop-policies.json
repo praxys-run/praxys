@@ -3,7 +3,7 @@
   "operating_model": {
     "path": "config/agentic-operating-model.json",
     "version": "praxys-agentic-operating-model-v1",
-    "status": "specification-only"
+    "status": "active-routing"
   },
   "decision_autonomy": {
     "version": "decision-autonomy-v1",
