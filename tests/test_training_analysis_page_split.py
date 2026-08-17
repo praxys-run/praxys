@@ -59,7 +59,7 @@ def test_web_training_prioritizes_one_plan_request() -> None:
         "enabled: composerOpen && form.mode === 'execution_explanation'"
         in context
     )
-    assert "enabled: capabilitySupported" in plan_start
+    assert "enabled: Boolean(usesCurrentGoal && capability)" in plan_start
 
 
 def test_miniapp_uses_analysis_and_me_as_primary_tabs() -> None:
@@ -165,7 +165,7 @@ def test_goal_keeps_secondary_plan_entry() -> None:
     mini_goal = _source("miniapp/pages/goal/index.ts")
 
     assert "PlanStartGoalEntry" in goal
-    assert "navigate(capabilitySupported ? '/training#plan-start'" in _source(
-        "web/src/components/PlanStart.tsx"
-    )
+    plan_start = _source("web/src/components/PlanStart.tsx")
+    assert "capabilitySupported || canChoosePurpose" in plan_start
+    assert "? '/training#plan-start'" in plan_start
     assert "wx.switchTab({ url: '/pages/training/index' })" in mini_goal

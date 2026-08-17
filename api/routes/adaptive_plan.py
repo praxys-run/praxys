@@ -16,6 +16,7 @@ from api.adaptive_plan_service import (
     adopt_proposal,
     create_draft_proposal,
     create_successor_proposal,
+    keep_current_plan_after_goal_change,
     read_current_proposal,
     reject_proposal,
 )
@@ -40,6 +41,17 @@ class ProposalGoalInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     goal_kind: str = Field(min_length=1, max_length=40)
+    purpose_source: Literal[
+        "current_goal",
+        "capability",
+        "unlinked",
+    ] | None = None
+    source_goal_id: UUID | None = None
+    source_goal_revision: str | None = Field(
+        default=None,
+        min_length=64,
+        max_length=64,
+    )
     target: dict[str, Any] = Field(default_factory=dict)
     horizon_start: date
     horizon_end: date
@@ -157,6 +169,9 @@ class ProposalGoalSnapshotResponse(BaseModel):
     id: str
     version: int
     state: str
+    purpose_source: str | None
+    source_goal_id: str | None
+    source_goal_revision: str | None
     goal_kind: str
     target: dict[str, Any]
     horizon_start: str
@@ -206,6 +221,29 @@ class ProposalAdoptionResponse(BaseModel):
     workouts: list[dict[str, Any]]
 
 
+class GoalPlanKeepRequest(BaseModel):
+    """Fence and persist one keep-current-plan Goal decision."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    expected_goal_revision: str = Field(min_length=64, max_length=64)
+    expected_goal_snapshot_id: UUID
+    idempotency_key: str = Field(min_length=1, max_length=128)
+
+
+class GoalPlanKeepResponse(BaseModel):
+    """Audited result of detaching an adopted plan from a changed Goal."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["kept", "already_kept"]
+    adaptive_plan_id: str
+    goal_snapshot_id: str
+    link_status: Literal["independent"]
+    rejected_proposal_id: str | None
+    revision_id: str
+
+
 def _current_athlete_date(db: Session, user_id: str) -> date:
     return effective_athlete_date(load_config_from_db(user_id, db))
 
@@ -232,6 +270,32 @@ def _proposal_input(payload: ProposalMutation, *, user_id: str) -> ProposalInput
 
 def _raise(error: AdaptivePlanError) -> None:
     raise HTTPException(status_code=error.status_code, detail=error.detail)
+
+
+@router.post(
+    "/plan/{adaptive_plan_id}/goal-reconciliation/keep-current",
+    response_model=GoalPlanKeepResponse,
+)
+def keep_current_plan_for_changed_goal(
+    adaptive_plan_id: UUID,
+    payload: GoalPlanKeepRequest,
+    user_id: str = Depends(require_write_access),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Keep adopted workouts and make their prior purpose independent."""
+    try:
+        return keep_current_plan_after_goal_change(
+            db,
+            user_id=user_id,
+            adaptive_plan_id=str(adaptive_plan_id),
+            expected_goal_revision=payload.expected_goal_revision,
+            expected_goal_snapshot_id=str(
+                payload.expected_goal_snapshot_id
+            ),
+            idempotency_key=payload.idempotency_key,
+        )
+    except AdaptivePlanError as exc:
+        _raise(exc)
 
 
 @router.post(

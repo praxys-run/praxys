@@ -6,6 +6,11 @@ import {
   fetchWithTimeout,
   shouldRetryApiRequest,
 } from '../lib/request-timeout';
+import {
+  ApiResponseError,
+  apiResponseError,
+  extractApiError,
+} from '../lib/api-error';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -14,6 +19,8 @@ interface UseApiResult<T> {
   loading: boolean;
   stale: boolean;
   error: string | null;
+  errorCode: string | null;
+  errorStatus: number | null;
   refetch: () => Promise<void>;
 }
 
@@ -91,7 +98,12 @@ async function apiFetcher<T>(
   if (prefetched) prefetchedResponses.delete(url);
   const prefetchedResponse = prefetched ? await prefetched : null;
   if (prefetchedResponse) {
-    if (!prefetchedResponse.ok) throw new Error(`HTTP ${prefetchedResponse.status}`);
+    if (!prefetchedResponse.ok) {
+      throw await apiResponseError(
+        prefetchedResponse,
+        `HTTP ${prefetchedResponse.status}`,
+      );
+    }
     return prefetchedResponse.json();
   }
 
@@ -100,7 +112,9 @@ async function apiFetcher<T>(
       const res = await apiFetch(url, {
         signal: requestSignal,
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        throw await apiResponseError(res, `HTTP ${res.status}`);
+      }
       return res.json();
     },
     signal,
@@ -120,19 +134,7 @@ startInitialDashboardPrefetch();
  *  - Non-JSON bodies (proxy HTML, empty) — falls back to `fallback`.
  */
 async function extractErrorMessage(res: Response, fallback: string): Promise<string> {
-  try {
-    const data = await res.json();
-    if (typeof data?.detail === 'string') return data.detail;
-    if (typeof data?.detail?.message === 'string') {
-      return data.detail.message;
-    }
-    if (typeof data?.message === 'string') return data.message;
-    if (Array.isArray(data?.detail) && data.detail.length > 0) {
-      const first = data.detail[0];
-      if (typeof first?.msg === 'string') return first.msg;
-    }
-  } catch { /* not JSON */ }
-  return fallback;
+  return (await extractApiError(res, fallback)).message;
 }
 
 export {
@@ -160,12 +162,15 @@ export function useApi<T>(url: string, options?: UseApiOptions): UseApiResult<T>
       : {}),
     ...(options?.timeoutMs ? { retry: shouldRetryApiRequest } : {}),
   });
+  const responseError = error instanceof ApiResponseError ? error : null;
 
   return {
     data: data ?? null,
     loading: isLoading,
     stale: isStale,
     error: error?.message ?? null,
+    errorCode: responseError?.code ?? null,
+    errorStatus: responseError?.status ?? null,
     refetch: async () => { await refetch(); },
   };
 }

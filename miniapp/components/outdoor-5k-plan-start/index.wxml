@@ -7,8 +7,6 @@
     <view class="ts-card plan-start-card">
       <text class="plan-start-title">{{tr.unsupportedTitle}}</text>
       <text class="plan-start-copy">{{capabilityMessage}}</text>
-      <text wx:if="{{errorMessage}}" class="plan-start-error">{{errorMessage}}</text>
-      <view wx:if="{{errorMessage}}" class="plan-start-retry" bindtap="onRefreshProposal" aria-role="button"><text>{{tr.retry}}</text></view>
     </view>
   </block>
 
@@ -17,6 +15,29 @@
       <text class="plan-start-title">{{tr.title}}</text>
       <text class="plan-start-copy">{{tr.proposalNotPlan}}</text>
 
+      <view class="plan-start-rule"></view>
+      <text class="plan-start-section">{{tr.purpose}}</text>
+      <text class="plan-start-copy">{{tr.purposeDetail}}</text>
+      <picker mode="selector" range="{{purposeOptions}}" range-key="label" value="{{purposeIndex}}" disabled="{{working !== ''}}" bindchange="onPurposeChange">
+        <view class="plan-start-picker"><text>{{purposeOptions[purposeIndex].label}}</text></view>
+      </picker>
+      <view wx:if="{{currentGoalUnavailable}}" class="plan-start-note">
+        <text class="plan-start-note-title">{{tr.unsupportedTitle}}</text>
+        <text class="plan-start-copy">{{tr.currentGoalUnavailable}}</text>
+      </view>
+      <view wx:if="{{purposeIsSeparate}}" class="plan-start-note">
+        <text class="plan-start-note-title">{{tr.separatePurpose}}</text>
+        <text class="plan-start-copy">{{tr.separatePurposeDetail}}</text>
+      </view>
+      <view wx:if="{{activePlanNeedsReassessment}}" class="plan-start-warning">
+        <text class="plan-start-note-title">{{tr.reassessmentTitle}}</text>
+        <text class="plan-start-copy">{{tr.reassessmentDetail}}</text>
+      </view>
+      <view wx:if="{{proposal && !proposalMatchesPurpose}}" class="plan-start-warning">
+        <text class="plan-start-copy">{{tr.conflictingPurpose}}</text>
+      </view>
+
+      <block wx:if="{{selectedPurpose}}">
       <view class="plan-start-rule"></view>
       <text class="plan-start-section">{{tr.scope}}</text>
       <text class="plan-start-copy">{{tr.scopeDetail}}</text>
@@ -62,7 +83,11 @@
 
       <text wx:if="{{errorMessage}}" class="plan-start-error">{{errorMessage}}</text>
       <view class="plan-start-primary" bindtap="onCheckReadiness" aria-role="button"><text>{{working === 'readiness' ? tr.checking : tr.check}}</text></view>
-      <view wx:if="{{readiness && readiness.result.code === 'ready' && !proposal}}" class="plan-start-secondary" bindtap="onGenerate" aria-role="button"><text>{{working === 'generate' ? tr.creating : tr.create}}</text></view>
+      <view wx:if="{{readiness && readiness.result.code === 'ready' && (!proposal || proposalMatchesPurpose) && !proposal}}" class="plan-start-secondary" bindtap="onGenerate" aria-role="button"><text>{{working === 'generate' ? tr.creating : tr.create}}</text></view>
+      </block>
+      <view wx:else class="plan-start-note">
+        <text class="plan-start-copy">{{tr.purposeRequired}}</text>
+      </view>
     </view>
 
     <view wx:if="{{readiness}}" class="ts-card plan-start-card">
@@ -74,11 +99,21 @@
       </view>
     </view>
 
-    <view wx:if="{{proposal}}" class="ts-card plan-start-card">
+    <goal-baseline
+      wx:if="{{readiness && readiness.result.code === 'insufficient_or_stale_baseline'}}"
+      baseline="{{readiness.baseline}}"
+      goal="{{readiness.purpose.goal}}"
+      purpose="{{selectedPurpose}}"
+      bind:refresh="onBaselineRefresh"
+    />
+  </block>
+
+  <view wx:if="{{proposal}}" class="ts-card plan-start-card">
       <text class="plan-start-title">{{tr.proposal}}</text>
       <text class="plan-start-badge">{{proposal.state}}</text>
       <text class="plan-start-copy">{{tr.proposalNotPlan}}</text>
       <view class="plan-start-version-grid">
+        <text class="ts-muted">{{tr.purposeLabel}}</text><text>{{proposalPurposeLabel || '—'}}</text>
         <text class="ts-muted">{{tr.policy}}</text><text class="ts-value">{{proposal.policy_version || '—'}}</text>
         <text class="ts-muted">{{tr.generator}}</text><text class="ts-value">{{proposal.model_version || '—'}}</text>
         <text class="ts-muted">{{tr.science}}</text><text class="ts-value">{{proposal.science_version || '—'}}</text>
@@ -91,8 +126,11 @@
       </view>
       <text class="plan-start-copy">{{tr.inputsOnly}}</text>
       <block wx:if="{{proposal.state === 'draft'}}">
-        <view class="plan-start-primary" bindtap="onAdopt" aria-role="button"><text>{{working === 'adopt' ? tr.adopting : tr.adopt}}</text></view>
-        <view class="plan-start-secondary" bindtap="onRegenerate" aria-role="button"><text>{{working === 'regenerate' ? tr.regenerating : tr.regenerate}}</text></view>
+        <view wx:if="{{activePlanNeedsReassessment && proposal.goal.purpose_source === 'current_goal'}}" class="plan-start-warning">
+          <text class="plan-start-copy">{{tr.adoptionPaused}}</text>
+        </view>
+        <view wx:if="{{proposalMatchesPurpose}}" class="plan-start-primary" bindtap="onAdopt" aria-role="button"><text>{{working === 'adopt' ? tr.adopting : tr.adopt}}</text></view>
+        <view wx:if="{{proposalMatchesPurpose}}" class="plan-start-secondary" bindtap="onRegenerate" aria-role="button"><text>{{working === 'regenerate' ? tr.regenerating : tr.regenerate}}</text></view>
         <view class="plan-start-ghost" bindtap="onReject" aria-role="button"><text>{{working === 'reject' ? tr.rejecting : tr.reject}}</text></view>
       </block>
       <view wx:if="{{proposal.state === 'adopted'}}" class="plan-start-note">
@@ -102,9 +140,9 @@
         <text>{{tr.lifecycle}}</text>
         <text class="plan-start-copy">{{tr.lifecycleDetail}}</text>
       </view>
-    </view>
+  </view>
 
-    <text wx:if="{{notice}}" class="plan-start-success">{{notice}}</text>
-    <view wx:if="{{errorMessage}}" class="plan-start-retry" bindtap="onRefreshProposal" aria-role="button"><text>{{tr.refresh}}</text></view>
-  </block>
+  <text wx:if="{{notice}}" class="plan-start-success">{{notice}}</text>
+  <text wx:if="{{errorMessage && !capabilityAvailable}}" class="plan-start-error">{{errorMessage}}</text>
+  <view wx:if="{{errorMessage}}" class="plan-start-retry" bindtap="onRefreshProposal" aria-role="button"><text>{{tr.refresh}}</text></view>
 </view>

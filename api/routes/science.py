@@ -24,6 +24,7 @@ from analysis.science import (
     load_theory,
     recommend_science,
 )
+from db.plan_ledger import lock_plan_writes
 from db.session import get_db
 
 router = APIRouter()
@@ -163,6 +164,11 @@ def update_science(
     db: Session = Depends(get_db),
 ) -> dict:
     """Update science theory selections and/or label preference."""
+    # This endpoint persists the full config row, including Goal state. Take
+    # the shared plan-write lock and only then load the mutation base so an
+    # unrelated stale science request cannot overwrite a newer Goal.
+    db.rollback()
+    lock_plan_writes(db, user_id)
     config = load_config_from_db(user_id, db)
 
     if "science" in body:

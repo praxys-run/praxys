@@ -1,11 +1,11 @@
 """Owner-scoped orchestration for deterministic outdoor-road 5K proposals."""
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import date, timedelta
 import hashlib
 import json
-from typing import Any
+from typing import Any, Mapping
 from uuid import NAMESPACE_URL, uuid5
 
 from sqlalchemy import select
@@ -39,8 +39,21 @@ from api.adaptive_plan_service import (
     create_successor_proposal,
     read_proposal,
 )
-from api.goal_baseline import build_goal_baseline_view
-from db.models import GoalBaselineSnapshot, Outdoor5KPlanGeneration, PlanProposal
+from api.goal_baseline import (
+    build_goal_baseline_view,
+    resolve_goal_baseline_snapshot_id,
+)
+from api.plan_generation_capabilities import (
+    OUTDOOR_ROAD_5K_CAPABILITY,
+    PlanPurposeError,
+    ResolvedPlanGenerationPurpose,
+    resolve_plan_generation_purpose,
+)
+from db.models import (
+    AdaptivePlanGoalSnapshot,
+    Outdoor5KPlanGeneration,
+    PlanProposal,
+)
 
 
 class Outdoor5KGenerationError(RuntimeError):
@@ -64,15 +77,22 @@ def build_outdoor_5k_readiness(
     user_id: str,
     constraints: PlanGenerationConstraints,
     outdoor_road_goal_confirmed: bool,
+    purpose_selection: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return the typed readiness envelope without persisting a proposal."""
-    generation_input, result = _evaluate(
+    generation_input, result, purpose, baseline = _evaluate(
         db,
         user_id=user_id,
         constraints=constraints,
         outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
+        purpose_selection=purpose_selection,
     )
-    return _readiness_envelope(generation_input, result)
+    return _readiness_envelope(
+        generation_input,
+        result,
+        purpose=purpose,
+        baseline=baseline,
+    )
 
 
 def build_outdoor_5k_alternatives(
@@ -81,16 +101,23 @@ def build_outdoor_5k_alternatives(
     user_id: str,
     constraints: PlanGenerationConstraints,
     outdoor_road_goal_confirmed: bool,
+    purpose_selection: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return bounded alternatives for the exact current readiness result."""
-    generation_input, result = _evaluate(
+    generation_input, result, purpose, baseline = _evaluate(
         db,
         user_id=user_id,
         constraints=constraints,
         outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
+        purpose_selection=purpose_selection,
     )
     return {
-        **_readiness_envelope(generation_input, result),
+        **_readiness_envelope(
+            generation_input,
+            result,
+            purpose=purpose,
+            baseline=baseline,
+        ),
         "alternatives": list(result.alternatives),
     }
 
@@ -103,6 +130,7 @@ def generate_outdoor_5k_proposal(
     outdoor_road_goal_confirmed: bool,
     expected_source_revision: str,
     idempotency_key: str,
+    purpose_selection: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], bool]:
     """Persist one valid immutable proposal or return a typed no-plan result."""
     request_fingerprint = _request_fingerprint(
@@ -110,32 +138,51 @@ def generate_outdoor_5k_proposal(
         expected_source_revision=expected_source_revision,
         constraints=constraints,
         outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
+        purpose_selection=purpose_selection,
+    )
+    legacy_request_fingerprint = (
+        _legacy_request_fingerprint(
+            request_kind="generate",
+            expected_source_revision=expected_source_revision,
+            constraints=constraints,
+            outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
+        )
+        if purpose_selection is None
+        else None
     )
     replay = _idempotency_replay(
         db,
         user_id=user_id,
         idempotency_key=idempotency_key,
         request_fingerprint=request_fingerprint,
+        legacy_request_fingerprint=legacy_request_fingerprint,
     )
     if replay is not None:
         return replay, True
 
-    generation_input, result = _evaluate(
+    generation_input, result, purpose, baseline = _evaluate(
         db,
         user_id=user_id,
         constraints=constraints,
         outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
+        purpose_selection=purpose_selection,
     )
     _require_source_revision(
         expected_source_revision=expected_source_revision,
         actual_source_revision=result.deterministic_input_hash,
     )
     if result.code != "ready" or result.plan is None:
-        return _readiness_envelope(generation_input, result), False
+        return _readiness_envelope(
+            generation_input,
+            result,
+            purpose=purpose,
+            baseline=baseline,
+        ), False
 
     proposal_input = _proposal_input(
         generation_input=generation_input,
         result=result,
+        purpose=purpose,
         idempotency_key=idempotency_key,
     )
     idempotency_replay_state = {"replayed": False}
@@ -149,15 +196,18 @@ def generate_outdoor_5k_proposal(
             user_id=user_id,
             constraints=constraints,
             outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
+            purpose_selection=purpose.selection_payload(),
             expected_source_revision=expected_source_revision,
         ),
         idempotency_replay_state=idempotency_replay_state,
+        validated_policy_purpose=True,
         on_created=lambda session, created: _record_generation(
             session,
             user_id=user_id,
             proposal=created,
             generation_input=generation_input,
             result=result,
+            purpose=purpose,
             request_kind="generate",
             request_fingerprint=request_fingerprint,
             predecessor=None,
@@ -169,6 +219,7 @@ def generate_outdoor_5k_proposal(
             user_id=user_id,
             idempotency_key=idempotency_key,
             request_fingerprint=request_fingerprint,
+            legacy_request_fingerprint=legacy_request_fingerprint,
         )
         if replay is not None:
             return replay, True
@@ -180,6 +231,7 @@ def generate_outdoor_5k_proposal(
     return _proposal_envelope(
         generation_input,
         result,
+        purpose=purpose,
         proposal=proposal,
         replayed=False,
     ), False
@@ -195,6 +247,7 @@ def regenerate_outdoor_5k_proposal(
     outdoor_road_goal_confirmed: bool,
     expected_source_revision: str,
     idempotency_key: str,
+    purpose_selection: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], bool]:
     """Create one bounded immutable successor after an exact source revision."""
     request_fingerprint = _request_fingerprint(
@@ -202,13 +255,26 @@ def regenerate_outdoor_5k_proposal(
         expected_source_revision=expected_source_revision,
         constraints=constraints,
         outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
+        purpose_selection=purpose_selection,
         predecessor=(proposal_id, expected_proposal_version),
+    )
+    legacy_request_fingerprint = (
+        _legacy_request_fingerprint(
+            request_kind="regenerate",
+            expected_source_revision=expected_source_revision,
+            constraints=constraints,
+            outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
+            predecessor=(proposal_id, expected_proposal_version),
+        )
+        if purpose_selection is None
+        else None
     )
     replay = _idempotency_replay(
         db,
         user_id=user_id,
         idempotency_key=idempotency_key,
         request_fingerprint=request_fingerprint,
+        legacy_request_fingerprint=legacy_request_fingerprint,
     )
     if replay is not None:
         return replay, True
@@ -239,11 +305,12 @@ def regenerate_outdoor_5k_proposal(
             current_version=parent.version,
         )
 
-    generation_input, result = _evaluate(
+    generation_input, result, purpose, baseline = _evaluate(
         db,
         user_id=user_id,
         constraints=constraints,
         outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
+        purpose_selection=purpose_selection,
     )
     _require_source_revision(
         expected_source_revision=expected_source_revision,
@@ -260,11 +327,17 @@ def regenerate_outdoor_5k_proposal(
             "Regeneration requires a changed versioned input.",
         )
     if result.code != "ready" or result.plan is None:
-        return _readiness_envelope(generation_input, result), False
+        return _readiness_envelope(
+            generation_input,
+            result,
+            purpose=purpose,
+            baseline=baseline,
+        ), False
 
     proposal_input = _proposal_input(
         generation_input=generation_input,
         result=result,
+        purpose=purpose,
         idempotency_key=idempotency_key,
     )
     idempotency_replay_state = {"replayed": False}
@@ -280,16 +353,19 @@ def regenerate_outdoor_5k_proposal(
             user_id=user_id,
             constraints=constraints,
             outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
+            purpose_selection=purpose.selection_payload(),
             expected_source_revision=expected_source_revision,
         ),
         idempotency_replay_state=idempotency_replay_state,
         allow_policy_successor=True,
+        validated_policy_purpose=True,
         on_created=lambda session, created: _record_generation(
             session,
             user_id=user_id,
             proposal=created,
             generation_input=generation_input,
             result=result,
+            purpose=purpose,
             request_kind="regenerate",
             request_fingerprint=request_fingerprint,
             predecessor=(parent.id, parent.version),
@@ -301,6 +377,7 @@ def regenerate_outdoor_5k_proposal(
             user_id=user_id,
             idempotency_key=idempotency_key,
             request_fingerprint=request_fingerprint,
+            legacy_request_fingerprint=legacy_request_fingerprint,
         )
         if replay is not None:
             return replay, True
@@ -312,6 +389,7 @@ def regenerate_outdoor_5k_proposal(
     return _proposal_envelope(
         generation_input,
         result,
+        purpose=purpose,
         proposal=proposal,
         replayed=False,
     ), False
@@ -336,12 +414,46 @@ def validate_outdoor_5k_proposal_adoption(
     outdoor_road_goal_confirmed = bool(
         snapshot.get("outdoor_road_goal_confirmed")
     )
-    generation_input, result = _evaluate(
-        db,
-        user_id=user_id,
-        constraints=constraints,
-        outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
-    )
+    purpose_selection = snapshot.get("purpose")
+    legacy_purpose = not isinstance(purpose_selection, Mapping)
+    if legacy_purpose:
+        goal_snapshot = db.get(
+            AdaptivePlanGoalSnapshot,
+            proposal.goal_snapshot_id,
+        )
+        legacy_purpose = bool(
+            goal_snapshot is not None
+            and goal_snapshot.purpose_source is None
+            and goal_snapshot.source_goal_id is None
+            and goal_snapshot.source_goal_revision is None
+        )
+        if not legacy_purpose:
+            raise AdaptivePlanError(
+                409,
+                "OUTDOOR_5K_PROPOSAL_REVALIDATION_FAILED",
+                "The proposal audit is missing its plan-purpose provenance.",
+                result_code="validation_failed",
+            )
+    try:
+        generation_input, result, _, _ = _evaluate(
+            db,
+            user_id=user_id,
+            constraints=constraints,
+            outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
+            purpose_selection=(
+                purpose_selection
+                if isinstance(purpose_selection, Mapping)
+                else None
+            ),
+            bind_purpose_revision=not legacy_purpose,
+        )
+    except PlanPurposeError as exc:
+        raise AdaptivePlanError(
+            409,
+            "PLAN_PURPOSE_REASSESSMENT_REQUIRED",
+            "The Goal linked to this proposal changed; reassess before adoption.",
+            purpose_error=exc.detail["code"],
+        ) from exc
     if (
         result.code != "ready"
         or result.deterministic_input_hash != audit.source_revision
@@ -380,13 +492,29 @@ def _evaluate(
     user_id: str,
     constraints: PlanGenerationConstraints,
     outdoor_road_goal_confirmed: bool,
-) -> tuple[Outdoor5KGenerationInput, Outdoor5KGenerationResult]:
+    purpose_selection: Mapping[str, Any] | None,
+    bind_purpose_revision: bool = True,
+) -> tuple[
+    Outdoor5KGenerationInput,
+    Outdoor5KGenerationResult,
+    ResolvedPlanGenerationPurpose,
+    dict[str, Any],
+]:
+    purpose = resolve_plan_generation_purpose(
+        db,
+        user_id=user_id,
+        selection=purpose_selection,
+    )
     config = load_config_from_db(user_id, db)
     athlete_today = effective_athlete_date(config)
     block_start = athlete_today + timedelta(days=1)
-    baseline_view = build_goal_baseline_view(db, user_id=user_id)
+    baseline_view = build_goal_baseline_view(
+        db,
+        user_id=user_id,
+        purpose_selection=purpose.selection_payload(),
+    )
     baseline = baseline_view["baseline"]
-    goal_contract = build_goal_baseline_goal(config.goal)
+    goal_contract = build_goal_baseline_goal(purpose.goal)
     generation_data = load_plan_generation_data(
         user_id,
         db,
@@ -404,14 +532,15 @@ def _evaluate(
             distance=goal_contract.distance,
             outdoor_road_confirmed=outdoor_road_goal_confirmed,
             target_time_sec=goal_contract.target_time_sec,
-            target_event_date=_goal_event_date(config.goal.get("race_date")),
+            target_event_date=_goal_event_date(purpose.goal.get("race_date")),
         ),
         baseline_current=baseline.get("status") == "current",
-        baseline_snapshot_id=_current_baseline_snapshot_id(
+        baseline_snapshot_id=resolve_goal_baseline_snapshot_id(
             db,
             user_id=user_id,
             goal_signature=goal_contract.goal_signature,
-            activity_id=(baseline.get("evidence") or {}).get("activity_id"),
+            evidence=baseline.get("evidence"),
+            purpose_selection=purpose.selection_payload(),
         ),
         baseline_evidence_date=_goal_evidence_date(
             (baseline.get("evidence") or {}).get("observed_date")
@@ -428,13 +557,39 @@ def _evaluate(
         reserved_dates=generation_data.reserved_dates,
         constraints=constraints,
     )
-    return generation_input, generate_outdoor_5k_plan(generation_input)
+    result = generate_outdoor_5k_plan(generation_input)
+    if bind_purpose_revision:
+        result = _bind_purpose_revision(
+            result,
+            purpose=purpose,
+        )
+    return generation_input, result, purpose, baseline
+
+
+def _bind_purpose_revision(
+    result: Outdoor5KGenerationResult,
+    *,
+    purpose: ResolvedPlanGenerationPurpose,
+) -> Outdoor5KGenerationResult:
+    """Include exact purpose provenance in the deterministic source fence."""
+    payload = {
+        "generator_input_hash": result.deterministic_input_hash,
+        "purpose": purpose.selection_payload(),
+    }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return replace(
+        result,
+        deterministic_input_hash=hashlib.sha256(
+            canonical.encode("utf-8")
+        ).hexdigest(),
+    )
 
 
 def _proposal_input(
     *,
     generation_input: Outdoor5KGenerationInput,
     result: Outdoor5KGenerationResult,
+    purpose: ResolvedPlanGenerationPurpose,
     idempotency_key: str,
 ) -> ProposalInput:
     if result.plan is None:
@@ -442,6 +597,9 @@ def _proposal_input(
     return ProposalInput(
         goal={
             "goal_kind": "performance_5k",
+            "purpose_source": purpose.source,
+            "source_goal_id": purpose.source_goal_id,
+            "source_goal_revision": purpose.source_goal_revision,
             "target": {
                 "distance": "5k",
                 "criterion": "elapsed_time_seconds",
@@ -530,11 +688,13 @@ def _record_generation(
     proposal: PlanProposal,
     generation_input: Outdoor5KGenerationInput,
     result: Outdoor5KGenerationResult,
+    purpose: ResolvedPlanGenerationPurpose,
     request_kind: str,
     request_fingerprint: str,
     predecessor: tuple[str, int] | None,
 ) -> None:
     observed_snapshot = {
+        "purpose": purpose.public_payload(),
         "goal": {
             "goal_kind": generation_input.goal.goal_kind,
             "distance": generation_input.goal.distance,
@@ -590,6 +750,7 @@ def _record_generation(
             constraint_snapshot=_constraints_snapshot(
                 generation_input.constraints,
                 outdoor_road_goal_confirmed=generation_input.goal.outdoor_road_confirmed,
+                purpose=purpose.selection_payload(),
             ),
             derived_history_statistics=_json_safe(asdict(result.history_statistics)),
             validation_results=result_snapshot,
@@ -603,6 +764,7 @@ def _idempotency_replay(
     user_id: str,
     idempotency_key: str,
     request_fingerprint: str,
+    legacy_request_fingerprint: str | None = None,
 ) -> dict[str, Any] | None:
     existing = db.execute(
         select(PlanProposal).where(
@@ -613,7 +775,13 @@ def _idempotency_replay(
     if existing is None:
         return None
     audit = _generation_for_proposal(db, user_id=user_id, proposal_id=existing.id)
-    if audit is None or audit.request_fingerprint != request_fingerprint:
+    accepted_fingerprints = {request_fingerprint}
+    if legacy_request_fingerprint is not None:
+        accepted_fingerprints.add(legacy_request_fingerprint)
+    if (
+        audit is None
+        or audit.request_fingerprint not in accepted_fingerprints
+    ):
         raise Outdoor5KGenerationError(
             409,
             "OUTDOOR_5K_IDEMPOTENCY_CONFLICT",
@@ -626,12 +794,14 @@ def _idempotency_replay(
             "OUTDOOR_5K_IDEMPOTENCY_CONFLICT",
             "This idempotency key belongs to a proposal that is no longer readable.",
         )
+    purpose = _replayed_purpose(audit, proposal_view=proposal_view)
     return {
         "schema_version": 1,
         "policy_version": audit.policy_version,
         "generator_version": audit.generator_version,
         "science_decision_id": audit.science_decision_id,
         "source_revision": audit.source_revision,
+        "purpose": purpose,
         "result": audit.validation_results,
         "proposal": proposal_view,
         "replayed": True,
@@ -639,10 +809,46 @@ def _idempotency_replay(
     }
 
 
+def _replayed_purpose(
+    audit: Outdoor5KPlanGeneration,
+    *,
+    proposal_view: dict[str, Any],
+) -> dict[str, Any]:
+    """Return stored purpose, reconstructing the pre-purpose current Goal."""
+    observed_snapshot = audit.observed_input_snapshot or {}
+    purpose = observed_snapshot.get("purpose")
+    if isinstance(purpose, dict):
+        return purpose
+    goal = observed_snapshot.get("goal")
+    if not isinstance(goal, dict):
+        raise Outdoor5KGenerationError(
+            409,
+            "OUTDOOR_5K_PROPOSAL_AUDIT_INVALID",
+            "The stored proposal audit cannot reconstruct its plan purpose.",
+            proposal_id=proposal_view.get("id"),
+        )
+    return {
+        "capability_id": OUTDOOR_ROAD_5K_CAPABILITY.capability_id,
+        "source": "current_goal",
+        "expected_goal_id": None,
+        "expected_goal_revision": None,
+        "goal": {
+            "goal_kind": goal.get("goal_kind"),
+            "distance": goal.get("distance"),
+            "target_time_sec": goal.get("target_time_sec"),
+            "race_date": (
+                goal.get("race_date")
+                or goal.get("target_event_date")
+            ),
+        },
+    }
+
+
 def _proposal_envelope(
     generation_input: Outdoor5KGenerationInput,
     result: Outdoor5KGenerationResult,
     *,
+    purpose: ResolvedPlanGenerationPurpose,
     proposal: dict[str, Any],
     replayed: bool,
 ) -> dict[str, Any]:
@@ -652,6 +858,7 @@ def _proposal_envelope(
         "generator_version": result.generator_version,
         "science_decision_id": result.science_decision_id,
         "source_revision": result.deterministic_input_hash,
+        "purpose": purpose.public_payload(),
         "result": _result_without_plan(result),
         "proposal": proposal,
         "replayed": replayed,
@@ -665,6 +872,9 @@ def _proposal_envelope(
 def _readiness_envelope(
     generation_input: Outdoor5KGenerationInput,
     result: Outdoor5KGenerationResult,
+    *,
+    purpose: ResolvedPlanGenerationPurpose,
+    baseline: dict[str, Any],
 ) -> dict[str, Any]:
     return {
         "schema_version": 1,
@@ -672,6 +882,8 @@ def _readiness_envelope(
         "generator_version": result.generator_version,
         "science_decision_id": result.science_decision_id,
         "source_revision": result.deterministic_input_hash,
+        "purpose": purpose.public_payload(),
+        "baseline": baseline,
         "athlete_today": generation_input.athlete_today.isoformat(),
         "block_start": generation_input.block_start.isoformat(),
         "result": _result_without_plan(result),
@@ -690,16 +902,26 @@ def _request_fingerprint(
     expected_source_revision: str,
     constraints: PlanGenerationConstraints,
     outdoor_road_goal_confirmed: bool,
+    purpose_selection: Mapping[str, Any] | None,
     predecessor: tuple[str, int] | None = None,
+    include_purpose: bool = True,
 ) -> str:
     """Hash one exact client command without reading mutable source state."""
+    constraints_snapshot = _constraints_snapshot(
+        constraints,
+        outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
+        purpose=(
+            dict(purpose_selection)
+            if purpose_selection is not None
+            else None
+        ),
+    )
+    if not include_purpose:
+        constraints_snapshot.pop("purpose")
     payload = {
         "request_kind": request_kind,
         "expected_source_revision": expected_source_revision,
-        "constraints": _constraints_snapshot(
-            constraints,
-            outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
-        ),
+        "constraints": constraints_snapshot,
         "predecessor": (
             {"proposal_id": predecessor[0], "version": predecessor[1]}
             if predecessor is not None
@@ -710,21 +932,43 @@ def _request_fingerprint(
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def _legacy_request_fingerprint(
+    *,
+    request_kind: str,
+    expected_source_revision: str,
+    constraints: PlanGenerationConstraints,
+    outdoor_road_goal_confirmed: bool,
+    predecessor: tuple[str, int] | None = None,
+) -> str:
+    """Hash the exact pre-purpose command shape for legacy retry replay."""
+    return _request_fingerprint(
+        request_kind=request_kind,
+        expected_source_revision=expected_source_revision,
+        constraints=constraints,
+        outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
+        purpose_selection=None,
+        predecessor=predecessor,
+        include_purpose=False,
+    )
+
+
 def _require_locked_source_revision(
     db: Session,
     *,
     user_id: str,
     constraints: PlanGenerationConstraints,
     outdoor_road_goal_confirmed: bool,
+    purpose_selection: Mapping[str, Any] | None,
     expected_source_revision: str,
 ) -> None:
     """Recheck the exact source hash after the owner-scoped plan lock is held."""
     db.expire_all()
-    _, locked_result = _evaluate(
+    _, locked_result, _, _ = _evaluate(
         db,
         user_id=user_id,
         constraints=constraints,
         outdoor_road_goal_confirmed=outdoor_road_goal_confirmed,
+        purpose_selection=purpose_selection,
     )
     _require_source_revision(
         expected_source_revision=expected_source_revision,
@@ -812,38 +1056,6 @@ def _generation_for_proposal(
     ).scalar_one_or_none()
 
 
-def _current_baseline_snapshot_id(
-    db: Session,
-    *,
-    user_id: str,
-    goal_signature: str,
-    activity_id: str | None,
-) -> str | None:
-    query = select(GoalBaselineSnapshot).where(
-        GoalBaselineSnapshot.user_id == user_id,
-        GoalBaselineSnapshot.goal_signature == goal_signature,
-        GoalBaselineSnapshot.qualification_status == "direct_current",
-    )
-    if activity_id:
-        exact = db.execute(
-            query.where(GoalBaselineSnapshot.source_id == str(activity_id))
-            .order_by(
-                GoalBaselineSnapshot.created_at.desc(),
-                GoalBaselineSnapshot.version.desc(),
-            )
-            .limit(1)
-        ).scalar_one_or_none()
-        if exact is not None:
-            return exact.id
-    latest = db.execute(
-        query.order_by(
-            GoalBaselineSnapshot.created_at.desc(),
-            GoalBaselineSnapshot.version.desc(),
-        ).limit(1)
-    ).scalar_one_or_none()
-    return latest.id if latest is not None else None
-
-
 def _goal_event_date(value: object) -> date | None:
     if isinstance(value, date):
         return value
@@ -870,6 +1082,7 @@ def _constraints_snapshot(
     constraints: PlanGenerationConstraints,
     *,
     outdoor_road_goal_confirmed: bool,
+    purpose: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "age_18_or_older": constraints.age_18_or_older,
@@ -885,6 +1098,7 @@ def _constraints_snapshot(
         ],
         "preferred_longest_run_weekday": constraints.preferred_longest_run_weekday,
         "outdoor_road_goal_confirmed": outdoor_road_goal_confirmed,
+        "purpose": dict(purpose) if purpose is not None else None,
     }
 
 

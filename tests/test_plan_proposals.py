@@ -304,6 +304,25 @@ def _proposal_payload(
     }
 
 
+def _save_current_goal(db_session, goal: dict) -> None:
+    from db.models import UserConfig
+
+    db = db_session.SessionLocal()
+    try:
+        row = (
+            db.query(UserConfig)
+            .filter(UserConfig.user_id == "proposal-owner")
+            .one_or_none()
+        )
+        if row is None:
+            row = UserConfig(user_id="proposal-owner")
+            db.add(row)
+        row.goal = goal
+        db.commit()
+    finally:
+        db.close()
+
+
 def _training_plans(db_session, user_id: str = "proposal-owner"):
     from db.models import TrainingPlan
 
@@ -584,6 +603,485 @@ def test_adopt_exact_version_is_atomic_idempotent_and_preserves_workout_ids(prop
         assert revision.details["proposal_id"] == created["id"]
     finally:
         db.close()
+
+
+def test_adopt_replay_normalizes_legacy_goal_provenance(proposal_client):
+    client, db_session, _ = proposal_client
+    start = date.today() + timedelta(days=2)
+    created = client.post(
+        "/api/plan/proposals",
+        json=_proposal_payload(
+            key="legacy-adoption-snapshot-create",
+            workouts=[
+                {
+                    "date": start.isoformat(),
+                    "workout_type": "easy",
+                    "planned_duration_min": 40,
+                }
+            ],
+        ),
+    ).json()
+    adoption_payload = {
+        "expected_proposal_version": created["version"],
+        "expected_plan_version": created["adaptive_plan"]["version"],
+        "idempotency_key": "legacy-adoption-snapshot-adopt",
+    }
+    adopted = client.post(
+        f"/api/plan/proposals/{created['id']}/adopt",
+        json=adoption_payload,
+    )
+    assert adopted.status_code == 200, adopted.text
+
+    from db.models import PlanRevision
+
+    db = db_session.SessionLocal()
+    try:
+        revision = db.get(PlanRevision, adopted.json()["revision_id"])
+        assert revision is not None
+        details = copy.deepcopy(revision.details)
+        legacy_goal = details["proposal_snapshot"]["goal"]
+        for field in (
+            "purpose_source",
+            "source_goal_id",
+            "source_goal_revision",
+        ):
+            legacy_goal.pop(field)
+        revision.details = details
+        db.commit()
+    finally:
+        db.close()
+
+    replay = client.post(
+        f"/api/plan/proposals/{created['id']}/adopt",
+        json=adoption_payload,
+    )
+    assert replay.status_code == 200, replay.text
+    replay_goal = replay.json()["proposal"]["goal"]
+    assert replay_goal["purpose_source"] is None
+    assert replay_goal["source_goal_id"] is None
+    assert replay_goal["source_goal_revision"] is None
+
+
+def test_generic_current_goal_provenance_fences_retries_and_adoption(
+    proposal_client,
+):
+    client, db_session, _ = proposal_client
+    from api.plan_generation_capabilities import current_goal_reference
+
+    first_goal = {
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+        "target_time_sec": 1500,
+    }
+    _save_current_goal(db_session, first_goal)
+    first_reference = current_goal_reference(
+        user_id="proposal-owner",
+        goal=first_goal,
+    )
+    assert first_reference is not None
+    payload = _proposal_payload(key="generic-current-goal")
+    payload["goal"].update({
+        "goal_kind": "performance_5k",
+        "target": {
+            "distance": "5k",
+            "target_time_sec": 1500,
+        },
+        "purpose_source": "current_goal",
+        "source_goal_id": first_reference.goal_id,
+        "source_goal_revision": first_reference.revision,
+    })
+    created = client.post("/api/plan/proposals", json=payload)
+    assert created.status_code == 201, created.text
+    created_body = created.json()
+
+    next_goal = {
+        **first_goal,
+        "target_time_sec": 1440,
+    }
+    _save_current_goal(db_session, next_goal)
+    next_reference = current_goal_reference(
+        user_id="proposal-owner",
+        goal=next_goal,
+    )
+    assert next_reference is not None
+
+    changed_retry = copy.deepcopy(payload)
+    changed_retry["goal"].update({
+        "source_goal_id": next_reference.goal_id,
+        "source_goal_revision": next_reference.revision,
+    })
+    retry = client.post("/api/plan/proposals", json=changed_retry)
+    assert retry.status_code == 409, retry.text
+    assert retry.json()["detail"]["code"] == (
+        "PLAN_PROPOSAL_IDEMPOTENCY_CONFLICT"
+    )
+
+    stale_create = copy.deepcopy(payload)
+    stale_create["idempotency_key"] = "generic-current-goal-stale"
+    stale = client.post("/api/plan/proposals", json=stale_create)
+    assert stale.status_code == 409, stale.text
+    assert stale.json()["detail"]["code"] == (
+        "PLAN_PURPOSE_REASSESSMENT_REQUIRED"
+    )
+
+    adopted = client.post(
+        f"/api/plan/proposals/{created_body['id']}/adopt",
+        json={
+            "expected_proposal_version": created_body["version"],
+            "expected_plan_version": created_body["adaptive_plan"]["version"],
+            "idempotency_key": "generic-current-goal-adopt",
+        },
+    )
+    assert adopted.status_code == 409, adopted.text
+    assert adopted.json()["detail"]["code"] == (
+        "PLAN_PURPOSE_REASSESSMENT_REQUIRED"
+    )
+
+
+def test_keep_current_plan_detaches_changed_goal_idempotently(
+    proposal_client,
+):
+    client, db_session, _ = proposal_client
+    from api.plan_generation_capabilities import current_goal_reference
+    from db.models import (
+        AdaptivePlan,
+        AdaptivePlanGoalSnapshot,
+        PlanRevision,
+    )
+
+    first_goal = {
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+        "target_time_sec": 1500,
+    }
+    _save_current_goal(db_session, first_goal)
+    first_reference = current_goal_reference(
+        user_id="proposal-owner",
+        goal=first_goal,
+    )
+    assert first_reference is not None
+    payload = _proposal_payload(key="keep-changed-goal")
+    payload["goal"].update({
+        "goal_kind": "performance_5k",
+        "target": {
+            "distance": "5k",
+            "target_time_sec": 1500,
+        },
+        "purpose_source": "current_goal",
+        "source_goal_id": first_reference.goal_id,
+        "source_goal_revision": first_reference.revision,
+    })
+    created = client.post("/api/plan/proposals", json=payload)
+    assert created.status_code == 201, created.text
+    created_body = created.json()
+    adopted = client.post(
+        f"/api/plan/proposals/{created_body['id']}/adopt",
+        json={
+            "expected_proposal_version": created_body["version"],
+            "expected_plan_version": created_body["adaptive_plan"]["version"],
+            "idempotency_key": "keep-changed-goal-adopt",
+        },
+    )
+    assert adopted.status_code == 200, adopted.text
+    adopted_body = adopted.json()
+    old_goal_snapshot_id = adopted_body["proposal"]["goal_snapshot_id"]
+    plan_id = adopted_body["proposal"]["adaptive_plan_id"]
+
+    next_goal = {**first_goal, "target_time_sec": 1440}
+    _save_current_goal(db_session, next_goal)
+    next_reference = current_goal_reference(
+        user_id="proposal-owner",
+        goal=next_goal,
+    )
+    assert next_reference is not None
+    decision = {
+        "expected_goal_revision": next_reference.revision,
+        "expected_goal_snapshot_id": old_goal_snapshot_id,
+        "idempotency_key": "keep-changed-goal-decision",
+    }
+    kept = client.post(
+        f"/api/plan/{plan_id}/goal-reconciliation/keep-current",
+        json=decision,
+    )
+
+    assert kept.status_code == 200, kept.text
+    kept_body = kept.json()
+    assert kept_body["status"] == "kept"
+    assert kept_body["link_status"] == "independent"
+    assert kept_body["rejected_proposal_id"] is None
+    assert kept_body["goal_snapshot_id"] != old_goal_snapshot_id
+
+    replay = client.post(
+        f"/api/plan/{plan_id}/goal-reconciliation/keep-current",
+        json=decision,
+    )
+    assert replay.status_code == 200, replay.text
+    assert replay.json() == {**kept_body, "status": "already_kept"}
+
+    discovery = client.get("/api/plan/generation/capabilities")
+    assert discovery.status_code == 200, discovery.text
+    assert discovery.json()["active_plan_goal"]["link_status"] == (
+        "independent"
+    )
+
+    with db_session.SessionLocal() as db:
+        plan = db.get(AdaptivePlan, plan_id)
+        assert plan is not None
+        detached_goal = db.get(
+            AdaptivePlanGoalSnapshot,
+            plan.goal_snapshot_id,
+        )
+        old_goal = db.get(
+            AdaptivePlanGoalSnapshot,
+            old_goal_snapshot_id,
+        )
+        revision = db.get(PlanRevision, kept_body["revision_id"])
+        assert detached_goal is not None
+        assert detached_goal.purpose_source == "capability"
+        assert detached_goal.source_goal_id is None
+        assert detached_goal.source_goal_revision is None
+        assert detached_goal.acknowledged_at is not None
+        assert old_goal is not None
+        assert old_goal.state == "superseded"
+        assert revision is not None
+        assert revision.operation == "keep_plan_after_goal_change"
+        assert revision.before_snapshot == revision.after_snapshot
+
+    latest_goal = {**next_goal, "target_time_sec": 1380}
+    _save_current_goal(db_session, latest_goal)
+    latest_reference = current_goal_reference(
+        user_id="proposal-owner",
+        goal=latest_goal,
+    )
+    assert latest_reference is not None
+    successor_payload = _proposal_payload(key="keep-changed-goal-relink")
+    successor_payload["goal"].update({
+        "goal_kind": "performance_5k",
+        "target": {
+            "distance": "5k",
+            "target_time_sec": 1380,
+        },
+        "purpose_source": "current_goal",
+        "source_goal_id": latest_reference.goal_id,
+        "source_goal_revision": latest_reference.revision,
+    })
+    successor = client.post(
+        "/api/plan/proposals",
+        json=successor_payload,
+    )
+    assert successor.status_code == 201, successor.text
+    successor_body = successor.json()
+    assert successor_body["adaptive_plan"]["id"] == plan_id
+    relinked = client.post(
+        f"/api/plan/proposals/{successor_body['id']}/adopt",
+        json={
+            "expected_proposal_version": successor_body["version"],
+            "expected_plan_version": (
+                successor_body["adaptive_plan"]["version"]
+            ),
+            "idempotency_key": "keep-changed-goal-relink-adopt",
+        },
+    )
+    assert relinked.status_code == 200, relinked.text
+    relinked_snapshot_id = (
+        relinked.json()["proposal"]["goal_snapshot_id"]
+    )
+
+    _save_current_goal(db_session, next_goal)
+    stale = client.post(
+        f"/api/plan/{plan_id}/goal-reconciliation/keep-current",
+        json={
+            "expected_goal_revision": latest_reference.revision,
+            "expected_goal_snapshot_id": relinked_snapshot_id,
+            "idempotency_key": "keep-changed-goal-stale",
+        },
+    )
+    assert stale.status_code == 409, stale.text
+    assert stale.json()["detail"]["code"] == (
+        "GOAL_PLAN_RECONCILIATION_STALE"
+    )
+
+    reused_key = client.post(
+        f"/api/plan/{plan_id}/goal-reconciliation/keep-current",
+        json={
+            "expected_goal_revision": next_reference.revision,
+            "expected_goal_snapshot_id": relinked_snapshot_id,
+            "idempotency_key": "keep-changed-goal-decision",
+        },
+    )
+    assert reused_key.status_code == 409, reused_key.text
+    assert reused_key.json()["detail"]["code"] == (
+        "GOAL_PLAN_RECONCILIATION_IDEMPOTENCY_CONFLICT"
+    )
+    still_linked = client.get("/api/plan/generation/capabilities")
+    assert still_linked.status_code == 200, still_linked.text
+    assert still_linked.json()["goal_plan_impact"][
+        "plan_goal_snapshot_id"
+    ] == relinked_snapshot_id
+
+    second_episode = client.post(
+        f"/api/plan/{plan_id}/goal-reconciliation/keep-current",
+        json={
+            "expected_goal_revision": next_reference.revision,
+            "expected_goal_snapshot_id": relinked_snapshot_id,
+            "idempotency_key": (
+                f"goal-plan-keep:{relinked_snapshot_id}"
+            ),
+        },
+    )
+    assert second_episode.status_code == 200, second_episode.text
+    assert second_episode.json()["status"] == "kept"
+
+
+@pytest.mark.parametrize("expired", [False, True])
+def test_keep_current_plan_resolves_stale_successor_proposal(
+    proposal_client,
+    expired: bool,
+):
+    client, db_session, _ = proposal_client
+    from api.plan_generation_capabilities import current_goal_reference
+    from db.models import PlanProposal
+
+    first_goal = {
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+        "target_time_sec": 1500,
+    }
+    _save_current_goal(db_session, first_goal)
+    first_reference = current_goal_reference(
+        user_id="proposal-owner",
+        goal=first_goal,
+    )
+    assert first_reference is not None
+    payload = _proposal_payload(key="keep-with-successor-initial")
+    payload["goal"].update({
+        "goal_kind": "performance_5k",
+        "target": {
+            "distance": "5k",
+            "target_time_sec": 1500,
+        },
+        "purpose_source": "current_goal",
+        "source_goal_id": first_reference.goal_id,
+        "source_goal_revision": first_reference.revision,
+    })
+    initial = client.post("/api/plan/proposals", json=payload)
+    assert initial.status_code == 201, initial.text
+    initial_body = initial.json()
+    adopted = client.post(
+        f"/api/plan/proposals/{initial_body['id']}/adopt",
+        json={
+            "expected_proposal_version": initial_body["version"],
+            "expected_plan_version": initial_body["adaptive_plan"]["version"],
+            "idempotency_key": "keep-with-successor-adopt",
+        },
+    )
+    assert adopted.status_code == 200, adopted.text
+    adopted_body = adopted.json()
+    plan_id = adopted_body["proposal"]["adaptive_plan_id"]
+    plan_goal_snapshot_id = adopted_body["proposal"]["goal_snapshot_id"]
+
+    second_goal = {**first_goal, "target_time_sec": 1440}
+    _save_current_goal(db_session, second_goal)
+    second_reference = current_goal_reference(
+        user_id="proposal-owner",
+        goal=second_goal,
+    )
+    assert second_reference is not None
+    successor_payload = _proposal_payload(key="keep-with-successor-draft")
+    successor_payload["goal"].update({
+        "goal_kind": "performance_5k",
+        "target": {
+            "distance": "5k",
+            "target_time_sec": 1440,
+        },
+        "purpose_source": "current_goal",
+        "source_goal_id": second_reference.goal_id,
+        "source_goal_revision": second_reference.revision,
+    })
+    successor = client.post(
+        "/api/plan/proposals",
+        json=successor_payload,
+    )
+    assert successor.status_code == 201, successor.text
+    if expired:
+        with db_session.SessionLocal() as db:
+            proposal = db.get(PlanProposal, successor.json()["id"])
+            assert proposal is not None
+            proposal.expires_at = datetime.utcnow() - timedelta(seconds=1)
+            db.commit()
+
+    third_goal = {**first_goal, "target_time_sec": 1380}
+    _save_current_goal(db_session, third_goal)
+    third_reference = current_goal_reference(
+        user_id="proposal-owner",
+        goal=third_goal,
+    )
+    assert third_reference is not None
+    kept = client.post(
+        f"/api/plan/{plan_id}/goal-reconciliation/keep-current",
+        json={
+            "expected_goal_revision": third_reference.revision,
+            "expected_goal_snapshot_id": plan_goal_snapshot_id,
+            "idempotency_key": "keep-with-successor-decision",
+        },
+    )
+
+    assert kept.status_code == 200, kept.text
+    assert kept.json()["rejected_proposal_id"] == (
+        None if expired else successor.json()["id"]
+    )
+    with db_session.SessionLocal() as db:
+        proposal = db.get(PlanProposal, successor.json()["id"])
+        assert proposal is not None
+        assert proposal.state == (
+            "expired" if expired else "rejected"
+        )
+        assert proposal.decision_idempotency_key == (
+            None if expired else "keep-with-successor-decision"
+        )
+
+
+def test_generic_current_goal_provenance_rejects_mismatched_goal(
+    proposal_client,
+):
+    client, db_session, _ = proposal_client
+    from api.plan_generation_capabilities import current_goal_reference
+
+    current_goal = {
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+        "target_time_sec": 1500,
+    }
+    _save_current_goal(db_session, current_goal)
+    reference = current_goal_reference(
+        user_id="proposal-owner",
+        goal=current_goal,
+    )
+    assert reference is not None
+    payload = _proposal_payload(key="generic-current-goal-mismatch")
+    payload["goal"].update({
+        "purpose_source": "current_goal",
+        "source_goal_id": reference.goal_id,
+        "source_goal_revision": reference.revision,
+    })
+
+    response = client.post("/api/plan/proposals", json=payload)
+
+    assert response.status_code == 400, response.text
+    assert response.json()["detail"]["code"] == "PLAN_PURPOSE_INVALID"
+
+
+def test_generic_proposal_rejects_unvalidated_capability_purpose(
+    proposal_client,
+):
+    client, _, _ = proposal_client
+    payload = _proposal_payload(key="generic-capability-purpose")
+    payload["goal"]["purpose_source"] = "capability"
+
+    response = client.post("/api/plan/proposals", json=payload)
+
+    assert response.status_code == 400, response.text
+    assert response.json()["detail"]["code"] == "PLAN_PURPOSE_UNSUPPORTED"
 
 
 def test_road_and_trail_proposals_remain_distinguishable(proposal_client):

@@ -172,6 +172,11 @@ client conditions. The registry:
 - resolves the authenticated athlete's current normalized goal on the backend;
 - returns the exact policy, generator, science decision, constraint-schema,
   horizon, reassessment cadence, and policy-specific action paths;
+- publishes a versioned purpose contract for each capability;
+- treats the current Goal as a default when it matches, not as a mandatory
+  binding for every plan;
+- supports an explicitly selected capability-owned purpose only when the
+  accepted capability permits it;
 - returns `no_accepted_policy` when no reviewed policy matches instead of
   repurposing another distance or population policy; and
 - keeps the existing typed policy endpoints compatible while web, miniapp,
@@ -181,6 +186,58 @@ Draft Evidence Reviews, draft SDRs, roadmap intent, and unsupported populations
 never make a capability available. Adding a capability requires its own accepted
 science decision plus deterministic validation and client support for the named
 constraint schema.
+
+### Plan-purpose provenance
+
+Plan purpose is resolved before readiness and remains part of every subsequent
+source fence, audit, proposal, and immutable goal snapshot:
+
+- `current_goal` references the owner-scoped current Goal by stable ID and
+  exact content revision;
+- `capability` uses the accepted capability's own bounded goal contract without
+  modifying or linking the Goal page; and
+- `unlinked` is available only when the accepted capability explicitly permits
+  a base plan with no goal contract.
+
+The current Goal is the client default only when an accepted capability matches
+it. Unsupported current Goals remain unchanged while the athlete may choose a
+separate accepted purpose. A material edit to a linked Goal marks the active
+plan or draft `reassessment_required`; independent plans remain independent.
+Legacy snapshots without provenance are reported as `legacy_unknown` rather
+than guessed into a current link.
+
+The mutable current Goal keeps one owner-scoped ID. Its revision hashes only
+the normalized plan-relevant fields: goal kind, distance, target time, and race
+date. Equivalent aliases, casing, empty values, and zero/null target values
+normalize before hashing; display labels and unrelated metadata never trigger
+plan reassessment.
+
+After a meaningful Goal edit, the settings write returns an authoritative
+Goal-plan impact so web and miniapp present the same decision. Settings reads
+and capability discovery expose the same outstanding impact after reload. A
+client may dismiss it for the current in-memory visit, but dismissal does not
+erase the authoritative `reassessment_required` state.
+
+- **Review and update** enters the existing successor-proposal flow. Canonical
+  workouts do not change until the athlete adopts an exact proposal.
+- **Keep current plan** preserves the canonical workouts and delivery state,
+  creates an acknowledged capability-owned successor goal snapshot, supersedes
+  the linked historical snapshot without mutating it, rejects any unexpired
+  stale draft, expires an elapsed draft, and records an idempotent append-only
+  plan revision.
+- **Decide later** leaves `reassessment_required` active. The current plan and
+  delivery continue; nothing pauses silently.
+
+If the new Goal has no accepted policy, automatic successor generation remains
+unavailable. The athlete can keep the current plan independently or manage
+workouts manually; Praxys never repurposes another policy. Independent and
+`legacy_unknown` plans do not gain inferred Goal linkage.
+
+Each keep decision is fenced by both the current Goal revision and the exact
+immutable linked plan-goal snapshot. That snapshot ID identifies the
+reconciliation episode, preventing an old idempotent response from being
+replayed if the same plan is later linked again and a prior Goal revision
+recurs. An expired successor draft is recorded as expired, not user-rejected.
 
 ### Structured workout contract v1
 

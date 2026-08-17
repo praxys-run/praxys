@@ -1,6 +1,7 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
-import type { DisplayConfig, PlanDeliveryOption, SettingsConfig, SettingsResponse, SettingsUpdate, SettingsUpdateResponse, TrainingBase, ThresholdValue, DetectedThreshold } from '../types/api';
+import { useQueryClient } from '@tanstack/react-query';
+import type { DisplayConfig, GoalPlanImpact, PlanDeliveryOption, SettingsConfig, SettingsResponse, SettingsUpdate, SettingsUpdateResponse, TrainingBase, ThresholdValue, DetectedThreshold } from '../types/api';
 import { API_BASE, getAuthHeaders } from '../hooks/useApi';
 
 interface SettingsContextValue {
@@ -15,7 +16,9 @@ interface SettingsContextValue {
   detectedThresholds: Record<string, DetectedThreshold>;
   loading: boolean;
   error: string | null;
-  updateSettings: (update: SettingsUpdate) => Promise<void>;
+  goalPlanImpact: GoalPlanImpact | null;
+  updateSettings: (update: SettingsUpdate) => Promise<SettingsUpdateResponse>;
+  dismissGoalPlanImpact: () => void;
   refetch: () => void;
 }
 
@@ -42,7 +45,11 @@ const SettingsContext = createContext<SettingsContextValue>({
   detectedThresholds: {},
   loading: true,
   error: null,
-  updateSettings: async () => {},
+  goalPlanImpact: null,
+  updateSettings: async () => {
+    throw new Error('SettingsProvider is not mounted');
+  },
+  dismissGoalPlanImpact: () => {},
   refetch: () => {},
 });
 
@@ -64,7 +71,15 @@ function planDeliveryOptionsFromResponse(
   }));
 }
 
+function goalPlanImpactKey(impact: GoalPlanImpact): string {
+  return [
+    impact.plan_goal_snapshot_id,
+    impact.current_goal_revision,
+  ].join(':');
+}
+
 export function SettingsProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [config, setConfig] = useState<SettingsConfig | null>(null);
   const [display, setDisplay] = useState<DisplayConfig>(DEFAULT_DISPLAY);
   const [connectionStatuses, setConnectionStatuses] = useState<
@@ -84,7 +99,20 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [detectedThresholds, setDetectedThresholds] = useState<Record<string, DetectedThreshold>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [goalPlanImpact, setGoalPlanImpact] =
+    useState<GoalPlanImpact | null>(null);
+  const dismissedGoalPlanImpactKey = useRef<string | null>(null);
   const [fetchKey, setFetchKey] = useState(0);
+  const applyGoalPlanImpact = useCallback((impact: GoalPlanImpact | null) => {
+    if (
+      impact
+      && goalPlanImpactKey(impact) === dismissedGoalPlanImpactKey.current
+    ) {
+      setGoalPlanImpact(null);
+      return;
+    }
+    setGoalPlanImpact(impact);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +139,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setAvailableBases(data.available_bases);
         setEffectiveThresholds(data.effective_thresholds ?? {});
         setDetectedThresholds(data.detected_thresholds ?? {});
+        applyGoalPlanImpact(data.goal_plan_impact ?? null);
         setError(null);
         setLoading(false);
       })
@@ -120,7 +149,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [fetchKey]);
+  }, [applyGoalPlanImpact, fetchKey]);
 
   useEffect(() => {
     const refreshAfterBackground = () => {
@@ -164,13 +193,36 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       data.platform_capabilities ?? platformCapabilities,
     );
     setPlanDeliveryOptions(planDeliveryOptionsFromResponse(data));
+    if (update.goal !== undefined) {
+      const impact = data.goal_plan_impact ?? null;
+      if (impact) dismissedGoalPlanImpactKey.current = null;
+      setGoalPlanImpact(impact);
+      void Promise.allSettled([
+        queryClient.invalidateQueries({ queryKey: ['/api/goal'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['/api/plan/generation/capabilities'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['/api/plan/proposals/current'],
+        }),
+      ]);
+    }
+    return data;
   };
 
+  const dismissGoalPlanImpact = useCallback(() => {
+    setGoalPlanImpact((impact) => {
+      if (impact) {
+        dismissedGoalPlanImpactKey.current = goalPlanImpactKey(impact);
+      }
+      return null;
+    });
+  }, []);
   const refetch = useCallback(() => setFetchKey((k) => k + 1), []);
 
   return (
     <SettingsContext.Provider
-      value={{ config, display, connectionStatuses, platformCapabilities, planDeliveryOptions, availableProviders, availableBases, effectiveThresholds, detectedThresholds, loading, error, updateSettings, refetch }}
+      value={{ config, display, connectionStatuses, platformCapabilities, planDeliveryOptions, availableProviders, availableBases, effectiveThresholds, detectedThresholds, loading, error, goalPlanImpact, updateSettings, dismissGoalPlanImpact, refetch }}
     >
       {children}
     </SettingsContext.Provider>

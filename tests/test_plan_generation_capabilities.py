@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from starlette.requests import Request
 
 from api.auth import AuthenticatedIdentity, _require_data_access
-from tests.test_plan_proposals import proposal_client
+from tests.test_plan_proposals import _proposal_payload, proposal_client
 
 
 def _save_goal(db_session, *, user_id: str, goal: dict) -> None:
@@ -16,10 +16,42 @@ def _save_goal(db_session, *, user_id: str, goal: dict) -> None:
 
     db = db_session.SessionLocal()
     try:
-        db.add(UserConfig(user_id=user_id, goal=goal))
+        row = (
+            db.query(UserConfig)
+            .filter(UserConfig.user_id == user_id)
+            .one_or_none()
+        )
+        if row is None:
+            row = UserConfig(user_id=user_id)
+            db.add(row)
+        row.goal = goal
         db.commit()
     finally:
         db.close()
+
+
+def _link_payload_to_goal(
+    payload: dict,
+    *,
+    goal: dict,
+    goal_id: str,
+    revision: str,
+) -> None:
+    target: dict[str, Any] = {}
+    if goal.get("distance") is not None:
+        target["distance"] = goal["distance"]
+    target_time_sec = goal.get("target_time_sec")
+    if target_time_sec is None:
+        target_time_sec = goal.get("race_target_time_sec")
+    if target_time_sec is not None:
+        target["target_time_sec"] = target_time_sec
+    payload["goal"].update({
+        "goal_kind": goal["goal_kind"],
+        "target": target,
+        "purpose_source": "current_goal",
+        "source_goal_id": goal_id,
+        "source_goal_revision": revision,
+    })
 
 
 def _plugin_identity() -> AuthenticatedIdentity:
@@ -42,6 +74,152 @@ def _request(method: str, path: str) -> Request:
         "server": ("testserver", 80),
         "scheme": "http",
     })
+
+
+def test_current_goal_revision_ignores_metadata_and_normalizes_aliases() -> None:
+    """Only the normalized plan contract contributes to Goal provenance."""
+    from api.plan_generation_capabilities import current_goal_reference
+
+    first = current_goal_reference(
+        user_id="goal-revision-owner",
+        goal={
+            "goal_kind": "PERFORMANCE_5K",
+            "distance": "5K",
+            "race_target_time_sec": "1500",
+            "race_date": "",
+            "display_label": "First label",
+            "metadata": {"updated_by": "web"},
+        },
+    )
+    second = current_goal_reference(
+        user_id="goal-revision-owner",
+        goal={
+            "goal_kind": "performance_5k",
+            "distance": "5k",
+            "target_time_sec": 1500,
+            "race_date": None,
+            "display_label": "Renamed",
+            "metadata": {"updated_by": "miniapp"},
+        },
+    )
+
+    assert first is not None
+    assert second is not None
+    assert first.goal_id == second.goal_id
+    assert first.revision == second.revision
+    assert first.contract == {
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+        "target_time_sec": 1500,
+        "race_date": None,
+    }
+
+
+@pytest.mark.parametrize(
+    ("first_aliases", "second_aliases", "changed_field"),
+    [
+        (
+            {
+                "race_target_time_sec": 1500,
+                "target_event_date": "2027-04-18",
+            },
+            {
+                "race_target_time_sec": 1440,
+                "target_event_date": "2027-04-18",
+            },
+            "target_time_sec",
+        ),
+        (
+            {
+                "race_target_time_sec": 1500,
+                "target_event_date": "2027-04-18",
+            },
+            {
+                "race_target_time_sec": 1500,
+                "target_event_date": "2027-05-02",
+            },
+            "race_date",
+        ),
+    ],
+)
+def test_current_goal_revision_falls_back_from_empty_canonical_fields(
+    first_aliases: dict[str, object],
+    second_aliases: dict[str, object],
+    changed_field: str,
+) -> None:
+    """Legacy aliases remain material when canonical fields are sentinels."""
+    from api.plan_generation_capabilities import current_goal_reference
+
+    canonical_sentinels = {
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+        "target_time_sec": 0,
+        "race_date": "",
+    }
+    first = current_goal_reference(
+        user_id="goal-revision-owner",
+        goal={**canonical_sentinels, **first_aliases},
+    )
+    second = current_goal_reference(
+        user_id="goal-revision-owner",
+        goal={**canonical_sentinels, **second_aliases},
+    )
+
+    assert first is not None
+    assert second is not None
+    assert first.contract[changed_field] != second.contract[changed_field]
+    assert first.revision != second.revision
+
+
+@pytest.mark.parametrize(
+    "changed_goal",
+    [
+        {
+            "goal_kind": "continuous",
+            "distance": "5k",
+            "target_time_sec": 1500,
+        },
+        {
+            "goal_kind": "performance_5k",
+            "distance": "10k",
+            "target_time_sec": 1500,
+        },
+        {
+            "goal_kind": "performance_5k",
+            "distance": "5k",
+            "target_time_sec": 1440,
+        },
+        {
+            "goal_kind": "performance_5k",
+            "distance": "5k",
+            "target_time_sec": 1500,
+            "race_date": "2027-04-18",
+        },
+    ],
+)
+def test_current_goal_revision_changes_with_plan_contract(
+    changed_goal: dict[str, object],
+) -> None:
+    """Each plan-relevant Goal field advances immutable provenance."""
+    from api.plan_generation_capabilities import current_goal_reference
+
+    original = current_goal_reference(
+        user_id="goal-revision-owner",
+        goal={
+            "goal_kind": "performance_5k",
+            "distance": "5k",
+            "target_time_sec": 1500,
+        },
+    )
+    changed = current_goal_reference(
+        user_id="goal-revision-owner",
+        goal=changed_goal,
+    )
+
+    assert original is not None
+    assert changed is not None
+    assert changed.goal_id == original.goal_id
+    assert changed.revision != original.revision
 
 
 @pytest.mark.parametrize(
@@ -119,6 +297,10 @@ def test_capability_discovery_selects_the_accepted_outdoor_5k_policy(
         "goal_kind": "performance_5k",
         "distance": "5k",
     }
+    assert body["current_goal"]["goal"] == body["goal"]
+    assert len(body["current_goal"]["id"]) == 36
+    assert len(body["current_goal"]["revision"]) == 64
+    assert body["active_plan_goal"] is None
     assert body["unsupported_reason"] is None
     assert len(body["capabilities"]) == 1
     capability = body["selected_capability"]
@@ -133,6 +315,13 @@ def test_capability_discovery_selects_the_accepted_outdoor_5k_policy(
     assert capability["constraint_schema_id"] == (
         "outdoor_road_5k_constraints_v1"
     )
+    assert capability["purpose"] == {
+        "schema_version": 1,
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+        "allows_capability_goal": True,
+        "allows_unlinked": False,
+    }
     assert capability["policy_version"] == (
         "outdoor-5k-plan-generation-policy-v1"
     )
@@ -142,6 +331,54 @@ def test_capability_discovery_selects_the_accepted_outdoor_5k_policy(
     assert capability["actions"]["regenerate_href_template"].endswith(
         "/{proposal_id}/regenerate"
     )
+
+
+def test_capability_discovery_canonicalizes_legacy_goal_values(
+    proposal_client,
+) -> None:
+    """Legacy case and omitted 5K distance still resolve canonically."""
+    client, db_session, current_user = proposal_client
+    _save_goal(
+        db_session,
+        user_id=current_user["value"],
+        goal={
+            "goal_kind": "PERFORMANCE_5K",
+            "target_time_sec": "not-a-number",
+        },
+    )
+
+    response = client.get("/api/plan/generation/capabilities")
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["goal"] == {
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+    }
+    assert body["selected_capability"]["id"] == (
+        "outdoor_road_5k_v1"
+    )
+    from api.plan_generation_capabilities import (
+        resolve_plan_generation_purpose,
+    )
+
+    with db_session.SessionLocal() as db:
+        purpose = resolve_plan_generation_purpose(
+            db,
+            user_id=current_user["value"],
+            selection={
+                "capability_id": body["selected_capability"]["id"],
+                "source": "current_goal",
+                "expected_goal_id": body["current_goal"]["id"],
+                "expected_goal_revision": body["current_goal"]["revision"],
+            },
+        )
+    assert purpose.public_payload()["goal"] == {
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+        "target_time_sec": None,
+        "race_date": None,
+    }
 
 
 def test_capability_discovery_is_owner_scoped_and_fails_closed(
@@ -175,8 +412,222 @@ def test_capability_discovery_is_owner_scoped_and_fails_closed(
         "goal_kind": "race",
         "distance": "marathon",
     }
+    assert other.json()["current_goal"]["goal"] == other.json()["goal"]
     assert other.json()["selected_capability"] is None
     assert other.json()["unsupported_reason"] == "no_accepted_policy"
     assert [item["id"] for item in other.json()["capabilities"]] == [
         "outdoor_road_5k_v1"
     ]
+    assert other.json()["capabilities"][0]["purpose"][
+        "allows_capability_goal"
+    ] is True
+
+
+def test_capability_discovery_uses_fresh_active_proposal_goal(
+    proposal_client,
+) -> None:
+    """A reassessed draft must not inherit stale linkage from the adopted plan."""
+    from api.plan_generation_capabilities import current_goal_reference
+
+    client, db_session, current_user = proposal_client
+    first_goal = {
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+        "target_time_sec": 1500,
+    }
+    _save_goal(
+        db_session,
+        user_id=current_user["value"],
+        goal=first_goal,
+    )
+    first_reference = current_goal_reference(
+        user_id=current_user["value"],
+        goal=first_goal,
+    )
+    assert first_reference is not None
+    initial_payload = _proposal_payload(key="capability-link-initial")
+    _link_payload_to_goal(
+        initial_payload,
+        goal=first_goal,
+        goal_id=first_reference.goal_id,
+        revision=first_reference.revision,
+    )
+    initial = client.post(
+        "/api/plan/proposals",
+        json=initial_payload,
+    )
+    assert initial.status_code == 201, initial.text
+    initial_body = initial.json()
+    adopted = client.post(
+        f"/api/plan/proposals/{initial_body['id']}/adopt",
+        json={
+            "expected_proposal_version": initial_body["version"],
+            "expected_plan_version": initial_body["adaptive_plan"]["version"],
+            "idempotency_key": "capability-link-adopt",
+        },
+    )
+    assert adopted.status_code == 200, adopted.text
+
+    next_goal = {
+        **first_goal,
+        "target_time_sec": 1440,
+    }
+    _save_goal(
+        db_session,
+        user_id=current_user["value"],
+        goal=next_goal,
+    )
+    next_reference = current_goal_reference(
+        user_id=current_user["value"],
+        goal=next_goal,
+    )
+    assert next_reference is not None
+    next_payload = _proposal_payload(key="capability-link-reassessed")
+    _link_payload_to_goal(
+        next_payload,
+        goal=next_goal,
+        goal_id=next_reference.goal_id,
+        revision=next_reference.revision,
+    )
+    reassessed = client.post("/api/plan/proposals", json=next_payload)
+    assert reassessed.status_code == 201, reassessed.text
+    reassessed_body = reassessed.json()
+
+    discovery = client.get("/api/plan/generation/capabilities")
+    assert discovery.status_code == 200, discovery.text
+    active_goal = discovery.json()["active_plan_goal"]
+    assert active_goal["goal_snapshot_id"] == (
+        reassessed_body["goal_snapshot_id"]
+    )
+    assert active_goal["source_goal_revision"] == next_reference.revision
+    assert active_goal["link_status"] == "current"
+
+
+def test_capability_discovery_ignores_expired_active_draft_goal(
+    proposal_client,
+) -> None:
+    """An expired draft cannot mask the adopted plan's purpose provenance."""
+    from datetime import datetime, timedelta
+
+    from api.plan_generation_capabilities import current_goal_reference
+    from db.models import PlanProposal
+
+    client, db_session, current_user = proposal_client
+    first_goal = {
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+        "target_time_sec": 1500,
+    }
+    _save_goal(
+        db_session,
+        user_id=current_user["value"],
+        goal=first_goal,
+    )
+    first_reference = current_goal_reference(
+        user_id=current_user["value"],
+        goal=first_goal,
+    )
+    assert first_reference is not None
+    initial_payload = _proposal_payload(key="expired-link-initial")
+    _link_payload_to_goal(
+        initial_payload,
+        goal=first_goal,
+        goal_id=first_reference.goal_id,
+        revision=first_reference.revision,
+    )
+    initial = client.post("/api/plan/proposals", json=initial_payload)
+    assert initial.status_code == 201, initial.text
+    initial_body = initial.json()
+    adopted = client.post(
+        f"/api/plan/proposals/{initial_body['id']}/adopt",
+        json={
+            "expected_proposal_version": initial_body["version"],
+            "expected_plan_version": initial_body["adaptive_plan"]["version"],
+            "idempotency_key": "expired-link-adopt",
+        },
+    )
+    assert adopted.status_code == 200, adopted.text
+    adopted_goal_snapshot_id = adopted.json()["proposal"]["goal_snapshot_id"]
+
+    next_goal = {**first_goal, "target_time_sec": 1440}
+    _save_goal(
+        db_session,
+        user_id=current_user["value"],
+        goal=next_goal,
+    )
+    next_reference = current_goal_reference(
+        user_id=current_user["value"],
+        goal=next_goal,
+    )
+    assert next_reference is not None
+    next_payload = _proposal_payload(key="expired-link-draft")
+    _link_payload_to_goal(
+        next_payload,
+        goal=next_goal,
+        goal_id=next_reference.goal_id,
+        revision=next_reference.revision,
+    )
+    draft = client.post("/api/plan/proposals", json=next_payload)
+    assert draft.status_code == 201, draft.text
+    with db_session.SessionLocal() as db:
+        row = db.get(PlanProposal, draft.json()["id"])
+        assert row is not None
+        row.expires_at = datetime.utcnow() - timedelta(seconds=1)
+        db.commit()
+
+    discovery = client.get("/api/plan/generation/capabilities")
+
+    assert discovery.status_code == 200, discovery.text
+    active_goal = discovery.json()["active_plan_goal"]
+    assert active_goal["goal_snapshot_id"] == adopted_goal_snapshot_id
+    assert active_goal["source_goal_revision"] == first_reference.revision
+    assert active_goal["link_status"] == "reassessment_required"
+
+
+def test_unsupported_goal_still_reports_linked_draft_for_recovery(
+    proposal_client,
+) -> None:
+    """Clients retain lifecycle access when a linked draft loses goal support."""
+    from api.plan_generation_capabilities import current_goal_reference
+
+    client, db_session, current_user = proposal_client
+    goal = {
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+        "target_time_sec": 1500,
+    }
+    _save_goal(db_session, user_id=current_user["value"], goal=goal)
+    reference = current_goal_reference(
+        user_id=current_user["value"],
+        goal=goal,
+    )
+    assert reference is not None
+    payload = _proposal_payload(key="unsupported-goal-draft")
+    _link_payload_to_goal(
+        payload,
+        goal=goal,
+        goal_id=reference.goal_id,
+        revision=reference.revision,
+    )
+    draft = client.post("/api/plan/proposals", json=payload)
+    assert draft.status_code == 201, draft.text
+    _save_goal(
+        db_session,
+        user_id=current_user["value"],
+        goal={
+            "goal_kind": "race",
+            "distance": "marathon",
+            "race_date": "2027-04-18",
+        },
+    )
+
+    discovery = client.get("/api/plan/generation/capabilities")
+
+    assert discovery.status_code == 200, discovery.text
+    assert discovery.json()["selected_capability"] is None
+    active_goal = discovery.json()["active_plan_goal"]
+    assert active_goal["goal_snapshot_id"] == draft.json()["goal_snapshot_id"]
+    assert active_goal["purpose_source"] == "current_goal"
+    assert active_goal["source_goal_id"] == reference.goal_id
+    assert active_goal["source_goal_revision"] == reference.revision
+    assert active_goal["link_status"] == "reassessment_required"

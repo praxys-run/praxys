@@ -1171,6 +1171,9 @@ class GoalBaselineTestRecord(Base):
     )
     goal_signature = Column(String(64), nullable=False)
     goal_snapshot = Column(JSON, nullable=False, default=dict)
+    purpose_source = Column(String(30), nullable=True)
+    source_goal_id = Column(String(36), nullable=True)
+    source_goal_revision = Column(String(64), nullable=True)
     version = Column(Integer, nullable=False, default=1)
     supersedes_id = Column(
         String(36),
@@ -1442,6 +1445,9 @@ class AdaptivePlanGoalSnapshot(Base):
     )
     version = Column(Integer, nullable=False, default=1)
     state = Column(String(20), nullable=False, default="draft")
+    purpose_source = Column(String(30), nullable=True)
+    source_goal_id = Column(String(36), nullable=True)
+    source_goal_revision = Column(String(64), nullable=True)
     goal_kind = Column(String(40), nullable=False)
     target = Column(JSON, nullable=False, default=dict)
     horizon_start = Column(Date, nullable=False)

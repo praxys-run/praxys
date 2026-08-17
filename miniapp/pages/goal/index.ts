@@ -1,13 +1,16 @@
 import { setTabBarSelected } from '../../utils/tabbar';
 import type { IAppOption } from '../../app';
-import { apiGet, apiPut } from '../../utils/api-client';
+import { apiGet, apiPost, apiPut } from '../../utils/api-client';
 import type { ApiError } from '../../utils/api-client';
 import type {
   GoalResponse,
+  GoalPlanImpact,
+  GoalPlanKeepResponse,
   AiInsight,
   AiInsightFinding,
   InsightFeedbackVote,
   PlanGenerationCapabilitiesResponse,
+  SettingsUpdateResponse,
 } from '../../types/api';
 import { formatTime, formatPace } from '../../utils/format';
 import { applyThemeChrome, themeClassName } from '../../utils/theme';
@@ -135,6 +138,8 @@ function buildGoalTr() {
     planStartAvailable: t('A preview is a proposal, not yet your plan. Praxys checks the current evidence and constraints again before it creates one.'),
     planStartUnavailable: t('Automatic generation is not available for this goal yet. Praxys will not reuse another policy outside its accepted scope.'),
     planStartUnavailableDetail: t('You can keep this goal and manage workouts manually while separate road and trail policies go through science review.'),
+    planStartOtherPurpose: t('The current Goal stays unchanged, and an accepted separate 5K plan purpose is available to preview.'),
+    planStartOtherPurposeDetail: t('Choose the accepted 5K purpose in Training. It remains independent from the current Goal unless you explicitly link it.'),
     planStartLoadFailed: t('Could not load the accepted plan-generation policies.'),
     planStartLoadFailedDetail: t('Retry the policy check before opening a preview. Praxys will not infer availability from the current goal alone.'),
     planStartUpdateRequired: t('Update required for this plan policy'),
@@ -143,10 +148,32 @@ function buildGoalTr() {
     noAcceptedPolicy: t('No accepted policy'),
     baselineReady: t('Baseline ready'),
     reviewBaseline: t('Review baseline'),
+    otherPlanPurpose: t('Other plan purpose available'),
     openPlanPreview: t('Open plan preview'),
+    choosePlanPurpose: t('Choose plan purpose'),
     manageWorkouts: t('Manage workouts'),
     retryPolicyCheck: t('Retry policy check'),
+    goalPlanTitle: t('Your Goal changed. Should your plan change too?'),
+    goalPlanDraftDescription: t('The open proposal was built for your previous Goal and can no longer be adopted. Review a fresh proposal now or decide later.'),
+    goalPlanSuccessorDescription: t('Your current plan was built for your previous Goal. Review a successor proposal, keep this plan as an independent plan, or decide later.'),
+    goalPlanUnsupportedDescription: t('There is no approved automatic plan policy for this Goal yet. Praxys will not repurpose another policy. Keep the current plan independent, manage workouts manually, or decide later.'),
+    goalPlanContinuity: t('Until you adopt a replacement, your current workouts and delivery continue unchanged.'),
+    planDecisionNotSaved: t('Plan decision not saved'),
+    decideLater: t('Decide later'),
+    keepCurrentPlan: t('Keep current plan'),
+    keepingPlan: t('Keeping plan…'),
+    reviewAndUpdatePlan: t('Review and update plan'),
+    managePlan: t('Manage plan'),
+    keepPlanFailed: t('Could not keep the current plan. Reload and try again.'),
+    unexpectedPlanState: t('The plan decision returned an unexpected state. Reload and try again.'),
   };
+}
+
+function goalPlanImpactKey(impact: GoalPlanImpact): string {
+  return [
+    impact.plan_goal_snapshot_id,
+    impact.current_goal_revision,
+  ].join(':');
 }
 
 function buildCoachTr(): CoachTranslations {
@@ -212,10 +239,13 @@ interface GoalState {
   goalKind: GoalResponse['goal_kind'] | '';
   goal: GoalResponse['goal'] | null;
   baseline: GoalResponse['baseline'] | null;
-  planCapabilityState: 'loading' | 'available' | 'unavailable' | 'error' | 'update_required';
+  planCapabilityState: 'loading' | 'available' | 'alternate_available' | 'unavailable' | 'error' | 'update_required';
   planCapabilityDescription: string;
   planCapabilityDetail: string;
   planCapabilityBadge: string;
+  goalPlanImpact: GoalPlanImpact | null;
+  goalPlanDecisionBusy: boolean;
+  goalPlanDecisionError: string;
 
   editorType: 'race' | 'continuous' | 'performance_5k';
   editorDistanceLabels: string[];
@@ -739,6 +769,9 @@ const initialData: GoalState = {
   planCapabilityDescription: '',
   planCapabilityDetail: '',
   planCapabilityBadge: '',
+  goalPlanImpact: null,
+  goalPlanDecisionBusy: false,
+  goalPlanDecisionError: '',
 
   editorOpen: false,
   editorType: 'race',
@@ -808,6 +841,81 @@ Page({
   },
   onOpenPlanManagement() {
     wx.switchTab({ url: '/pages/training/index' });
+  },
+
+  onReviewGoalPlan() {
+    if (this.data.goalPlanDecisionBusy) return;
+    const impact = this.data.goalPlanImpact as GoalPlanImpact | null;
+    const pageState = this as unknown as Record<string, unknown>;
+    pageState._dismissedGoalPlanImpactKey = impact
+      ? goalPlanImpactKey(impact)
+      : null;
+    this.setData({
+      goalPlanImpact: null,
+      goalPlanDecisionError: '',
+    });
+    wx.switchTab({ url: '/pages/training/index' });
+  },
+
+  onDeferGoalPlan() {
+    if (this.data.goalPlanDecisionBusy) return;
+    const impact = this.data.goalPlanImpact as GoalPlanImpact | null;
+    const pageState = this as unknown as Record<string, unknown>;
+    pageState._dismissedGoalPlanImpactKey = impact
+      ? goalPlanImpactKey(impact)
+      : null;
+    this.setData({
+      goalPlanImpact: null,
+      goalPlanDecisionError: '',
+    });
+  },
+
+  async onKeepGoalPlan() {
+    const impact = this.data.goalPlanImpact as GoalPlanImpact | null;
+    if (
+      !impact
+      || !impact.can_keep_current_plan
+      || this.data.goalPlanDecisionBusy
+    ) {
+      return;
+    }
+    const tr = this.data.tr as ReturnType<typeof buildGoalTr>;
+    this.setData({
+      goalPlanDecisionBusy: true,
+      goalPlanDecisionError: '',
+    });
+    try {
+      const result = await apiPost<GoalPlanKeepResponse>(
+        `/api/plan/${impact.adaptive_plan_id}/goal-reconciliation/keep-current`,
+        {
+          expected_goal_revision: impact.current_goal_revision,
+          expected_goal_snapshot_id: impact.plan_goal_snapshot_id,
+          idempotency_key:
+            `goal-plan-keep:${impact.plan_goal_snapshot_id}`,
+        },
+      );
+      if (result.link_status !== 'independent') {
+        throw new Error(tr.unexpectedPlanState);
+      }
+      this.setData({
+        goalPlanImpact: null,
+        goalPlanDecisionBusy: false,
+        goalPlanDecisionError: '',
+      });
+      void this.refetch();
+    } catch (e) {
+      const err = e as Partial<ApiError>;
+      if (err?.code === 'UNAUTHENTICATED') {
+        this.setData({ goalPlanDecisionBusy: false });
+        return;
+      }
+      this.setData({
+        goalPlanDecisionBusy: false,
+        goalPlanDecisionError: e instanceof Error
+          ? e.message
+          : err?.detail ?? tr.keepPlanFailed,
+      });
+    }
   },
 
   onRetryPlanCapability() {
@@ -947,10 +1055,28 @@ Page({
     this.setData({ editorSaving: true, editorError: '' });
     const distance = editorType === 'performance_5k' ? '5k' : (DISTANCE_CHOICES[editorDistanceIndex]?.key ?? 'marathon');
     try {
-      await apiPut('/api/settings', {
-        goal: { goal_kind: editorType, race_date: editorType === 'race' ? editorRaceDate : '', distance, target_time_sec: targetTimeSec },
+      const settingsResponse = await apiPut<SettingsUpdateResponse>(
+        '/api/settings',
+        {
+          goal: {
+            goal_kind: editorType,
+            race_date: editorType === 'race' ? editorRaceDate : '',
+            distance,
+            target_time_sec: targetTimeSec,
+          },
+        },
+      );
+      if (settingsResponse.goal_plan_impact) {
+        const pageState = this as unknown as Record<string, unknown>;
+        pageState._dismissedGoalPlanImpactKey = null;
+      }
+      this.setData({
+        editorOpen: false,
+        editorSaving: false,
+        goalPlanImpact: settingsResponse.goal_plan_impact,
+        goalPlanDecisionBusy: false,
+        goalPlanDecisionError: '',
       });
-      this.setData({ editorOpen: false, editorSaving: false });
       void this.refetch();
     } catch (e) {
       const err = e as Partial<ApiError>;
@@ -998,7 +1124,26 @@ Page({
           }),
       ]);
       if (pageState._refetchRequestId !== requestId) return;
-      const capability = capabilityResult.data?.selected_capability ?? null;
+      const discovery = capabilityResult.data;
+      const serverGoalPlanImpact = discovery
+        ? discovery.goal_plan_impact
+        : (this.data.goalPlanImpact as GoalPlanImpact | null);
+      const goalPlanImpact = (
+        serverGoalPlanImpact
+        && goalPlanImpactKey(serverGoalPlanImpact)
+          !== pageState._dismissedGoalPlanImpactKey
+      )
+        ? serverGoalPlanImpact
+        : null;
+      const capability = discovery?.selected_capability ?? null;
+      const supportedCapabilities = discovery?.capabilities.filter(
+        (item) => item.constraint_schema_id
+          === 'outdoor_road_5k_constraints_v1',
+      ) ?? [];
+      const alternatePurposeAvailable = supportedCapabilities.some(
+        (item) => item.purpose.allows_capability_goal
+          || item.purpose.allows_unlinked,
+      );
       let planCapabilityState: GoalState['planCapabilityState'];
       let planCapabilityDescription: string;
       let planCapabilityDetail: string;
@@ -1008,16 +1153,25 @@ Page({
         planCapabilityDescription = tr.planStartLoadFailed;
         planCapabilityDetail = capabilityResult.error || tr.planStartLoadFailedDetail;
         planCapabilityBadge = tr.policyCheckFailed;
+      } else if (
+        capability
+        && capability.constraint_schema_id
+          !== 'outdoor_road_5k_constraints_v1'
+      ) {
+        planCapabilityState = 'update_required';
+        planCapabilityDescription = tr.planStartUpdateRequired;
+        planCapabilityDetail = tr.planStartUpdateRequiredDetail;
+        planCapabilityBadge = tr.planStartUpdateRequired;
+      } else if (!capability && alternatePurposeAvailable) {
+        planCapabilityState = 'alternate_available';
+        planCapabilityDescription = tr.planStartOtherPurpose;
+        planCapabilityDetail = tr.planStartOtherPurposeDetail;
+        planCapabilityBadge = tr.otherPlanPurpose;
       } else if (!capability) {
         planCapabilityState = 'unavailable';
         planCapabilityDescription = tr.planStartUnavailable;
         planCapabilityDetail = tr.planStartUnavailableDetail;
         planCapabilityBadge = tr.noAcceptedPolicy;
-      } else if (capability.constraint_schema_id !== 'outdoor_road_5k_constraints_v1') {
-        planCapabilityState = 'update_required';
-        planCapabilityDescription = tr.planStartUpdateRequired;
-        planCapabilityDetail = tr.planStartUpdateRequiredDetail;
-        planCapabilityBadge = tr.planStartUpdateRequired;
       } else {
         planCapabilityState = 'available';
         planCapabilityDescription = tr.planStartAvailable;
@@ -1032,6 +1186,7 @@ Page({
         planCapabilityDescription,
         planCapabilityDetail,
         planCapabilityBadge,
+        goalPlanImpact,
         _response: response,
       } as Record<string, unknown>);
     } catch (e) {
