@@ -1,9 +1,10 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { CalendarDays, ChevronRight, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import ManagedPlanSettingsCard from '@/components/ManagedPlanSettingsCard';
+import GoalBaselinePanel from '@/components/GoalBaselinePanel';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,8 +27,10 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useAuth } from '@/hooks/useAuth';
-import { apiFetch, extractErrorMessage, useApi } from '@/hooks/useApi';
+import { apiFetch, useApi } from '@/hooks/useApi';
 import { useSettings } from '@/contexts/SettingsContext';
+import { extractApiError } from '@/lib/api-error';
+import { formatProposalDetail } from '@/lib/proposal-display';
 import type {
   AdaptivePlanProposal,
   AdaptivePlanProposalAdoptResponse,
@@ -40,6 +43,7 @@ import type {
   Outdoor5KRegenerateResponse,
   Outdoor5KWeekday,
   PlanGenerationCapabilitiesResponse,
+  PlanGenerationPurposeSelection,
 } from '@/types/api';
 
 const DAYS: Outdoor5KWeekday[] = [0, 1, 2, 3, 4, 5, 6];
@@ -47,6 +51,24 @@ const SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_ID = 'outdoor_road_5k_constraints_v
 
 type DayLimits = Partial<Record<Outdoor5KWeekday, string>>;
 type LifecycleOperation = 'generate' | 'regenerate' | 'reject' | 'adopt';
+type PurposeOptionSource = PlanGenerationPurposeSelection['source'];
+type PlanStartWorkingState = LifecycleOperation | 'readiness' | 'refresh';
+
+interface PlanStartErrorState {
+  message: string;
+  status?: number;
+  code?: string;
+}
+
+interface PlanStartRequestError extends Error {
+  status: number;
+  code?: string;
+}
+
+const PLAN_CONTEXT_RECOVERY_CODES = new Set([
+  'PLAN_PURPOSE_STALE',
+  'PLAN_PURPOSE_REASSESSMENT_REQUIRED',
+]);
 
 function idempotencyKey(): string {
   return crypto.randomUUID();
@@ -84,6 +106,65 @@ function baselineCopy(
   return baseline.readiness === 'sufficient_baseline' ? ready : pending;
 }
 
+function purposeKey(source: PurposeOptionSource, capabilityId: string): string {
+  return `${source}:${capabilityId}`;
+}
+
+function proposalPurposeKey(
+  proposal: AdaptivePlanProposal | null,
+): string | null {
+  const capabilityId = proposal?.policy_version
+    ? proposal.policy_version === 'outdoor-5k-plan-generation-policy-v1'
+      ? 'outdoor_road_5k_v1'
+      : null
+    : null;
+  const source = proposal?.goal?.purpose_source;
+  return capabilityId && source
+    ? purposeKey(source, capabilityId)
+    : null;
+}
+
+async function planStartResponse<T>(
+  response: Response,
+  fallback: string,
+): Promise<T> {
+  if (!response.ok) {
+    const extracted = await extractApiError(response, fallback);
+    const error = new Error(extracted.message) as PlanStartRequestError;
+    error.status = extracted.status;
+    error.code = extracted.code;
+    throw error;
+  }
+  return response.json() as Promise<T>;
+}
+
+function planStartError(
+  error: unknown,
+  fallback: string,
+): PlanStartErrorState {
+  if (!(error instanceof Error)) return { message: fallback };
+  const requestError = error as Partial<PlanStartRequestError>;
+  return {
+    message: error.message,
+    ...(typeof requestError.status === 'number'
+      ? { status: requestError.status }
+      : {}),
+    ...(typeof requestError.code === 'string'
+      ? { code: requestError.code }
+      : {}),
+  };
+}
+
+function needsPlanContextRecovery(
+  error: PlanStartErrorState | null,
+): boolean {
+  return Boolean(
+    error?.status === 409
+    && error.code
+    && PLAN_CONTEXT_RECOVERY_CODES.has(error.code),
+  );
+}
+
 export function PlanStartGoalEntry({
   baseline,
 }: {
@@ -103,9 +184,17 @@ export function PlanStartGoalEntry({
   const capability = discovery?.selected_capability ?? null;
   const capabilitySupported = capability?.constraint_schema_id
     === SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_ID;
+  const supportedCapabilities = discovery?.capabilities.filter(
+    (item) => item.constraint_schema_id
+      === SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_ID,
+  ) ?? [];
   const capabilityUpdateRequired = capability != null && !capabilitySupported;
   const canStart = capabilitySupported
     && baseline?.readiness === 'sufficient_baseline';
+  const canChoosePurpose = supportedCapabilities.some(
+    (item) => item.purpose.allows_capability_goal
+      || item.purpose.allows_unlinked,
+  );
   const badgeVariant = error || capabilityUpdateRequired
     ? 'destructive'
     : canStart
@@ -138,6 +227,10 @@ export function PlanStartGoalEntry({
                 <Trans>
                   Praxys has an accepted <span className="font-data">{capability.horizon_days}</span>-day outdoor-road 5K policy for this goal.
                 </Trans>
+              ) : canChoosePurpose ? (
+                <Trans>
+                  The current Goal stays unchanged, and an accepted separate 5K plan purpose is available to preview.
+                </Trans>
               ) : (
                 <Trans>
                   Automatic generation is not available for this goal yet. Praxys will not reuse another policy outside its accepted scope.
@@ -156,6 +249,8 @@ export function PlanStartGoalEntry({
                     t`Baseline ready`,
                     t`Review baseline`,
                   )
+                  : canChoosePurpose
+                    ? t`Other plan purpose available`
                   : t`No accepted policy`}
           </Badge>
         </div>
@@ -174,6 +269,10 @@ export function PlanStartGoalEntry({
             <Trans>
               A preview is a proposal, not yet your plan. Praxys checks the current evidence and constraints again before it creates one.
             </Trans>
+          ) : canChoosePurpose ? (
+            <Trans>
+              Choose the accepted 5K purpose in Training. It remains independent from the current Goal unless you explicitly link it.
+            </Trans>
           ) : (
             <Trans>
               You can keep this goal and manage workouts manually while separate road and trail policies go through science review.
@@ -184,13 +283,21 @@ export function PlanStartGoalEntry({
           <Button variant="outline" onClick={() => void refetch()} className="min-h-11 shrink-0">
             <Trans>Retry policy check</Trans>
           </Button>
-        ) : capabilitySupported || !capability ? (
+        ) : capabilitySupported || canChoosePurpose || !capability ? (
           <Button
-            variant={capabilitySupported ? 'default' : 'outline'}
-            onClick={() => navigate(capabilitySupported ? '/training#plan-start' : '/training')}
+            variant={capabilitySupported || canChoosePurpose ? 'default' : 'outline'}
+            onClick={() => navigate(
+              capabilitySupported || canChoosePurpose
+                ? '/training#plan-start'
+                : '/training',
+            )}
             className="min-h-11 shrink-0"
           >
-            {capabilitySupported ? <Trans>Open plan preview</Trans> : <Trans>Manage workouts</Trans>}
+            {capabilitySupported
+              ? <Trans>Open plan preview</Trans>
+              : canChoosePurpose
+                ? <Trans>Choose plan purpose</Trans>
+                : <Trans>Manage workouts</Trans>}
             <ChevronRight aria-hidden="true" />
           </Button>
         ) : null}
@@ -209,6 +316,54 @@ function PlanStartSkeleton() {
       <CardContent className="space-y-3">
         <Skeleton className="h-11 w-full" />
         <Skeleton className="h-24 w-full" />
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProposalRecoveryCard({
+  proposal,
+  isDemo,
+  rejecting,
+  onReject,
+}: {
+  proposal: AdaptivePlanProposal;
+  isDemo: boolean;
+  rejecting: boolean;
+  onReject: () => void;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <CardTitle><Trans>Plan proposal</Trans></CardTitle>
+          <Badge variant="outline">{proposalStateLabel(proposal.state)}</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5 border-t border-border pt-4">
+        <dl className="grid gap-3 text-sm sm:grid-cols-3">
+          <div><dt className="text-muted-foreground"><Trans>Policy</Trans></dt><dd className="mt-1 font-data">{proposal.policy_version ?? '—'}</dd></div>
+          <div><dt className="text-muted-foreground"><Trans>Generator</Trans></dt><dd className="mt-1 font-data">{proposal.model_version ?? '—'}</dd></div>
+          <div><dt className="text-muted-foreground"><Trans>Science decision</Trans></dt><dd className="mt-1 font-data">{proposal.science_version ?? '—'}</dd></div>
+        </dl>
+        <div className="divide-y divide-border border-y border-border">
+          {proposal.workouts.map((workout) => (
+            <div key={`${workout.date}-${workout.workout_type}`} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3 text-sm">
+              <span><span className="font-data">{workout.date}</span> · {workout.workout_type.replace(/_/g, ' ')}</span>
+              <span className="font-data text-muted-foreground">{workout.planned_duration_min ?? '—'} min</span>
+            </div>
+          ))}
+        </div>
+        {proposal.state === 'draft' && (
+          <Button
+            variant="ghost"
+            disabled={isDemo || rejecting}
+            onClick={onReject}
+            className="min-h-11"
+          >
+            {rejecting ? <Trans>Rejecting…</Trans> : <Trans>Reject or defer</Trans>}
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
@@ -236,10 +391,63 @@ export default function PlanStart() {
     '/api/plan/generation/capabilities',
     { timeoutMs: 12_000 },
   );
-  const capabilityGoal = capabilityDiscovery?.goal ?? null;
-  const capability = capabilityDiscovery?.selected_capability ?? null;
-  const capabilitySupported = capability?.constraint_schema_id
-    === SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_ID;
+  const supportedCapabilities = useMemo(
+    () => capabilityDiscovery?.capabilities.filter(
+      (item) => item.constraint_schema_id
+        === SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_ID,
+    ) ?? [],
+    [capabilityDiscovery],
+  );
+  const currentCapability = capabilityDiscovery?.selected_capability?.constraint_schema_id
+    === SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_ID
+    ? capabilityDiscovery.selected_capability
+    : null;
+  const hasSelectablePurpose = Boolean(
+    currentCapability && capabilityDiscovery?.current_goal,
+  ) || supportedCapabilities.some(
+    (item) => item.purpose.allows_capability_goal
+      || item.purpose.allows_unlinked,
+  );
+  const [selectedPurposeKey, setSelectedPurposeKey] = useState('');
+  const [selectedPurposeTouched, setSelectedPurposeTouched] = useState(false);
+  const [, selectedCapabilityId = ''] = selectedPurposeKey.split(':', 2);
+  const selectedPurposeSource = selectedPurposeKey.split(':', 1)[0] as PurposeOptionSource | '';
+  const capability = supportedCapabilities.find(
+    (item) => item.id === selectedCapabilityId,
+  ) ?? null;
+  const purposeSelection = useMemo<PlanGenerationPurposeSelection | null>(() => {
+    if (!capability || !selectedPurposeSource) return null;
+    if (selectedPurposeSource === 'current_goal') {
+      const currentGoal = capabilityDiscovery?.current_goal;
+      if (!currentGoal || currentCapability?.id !== capability.id) return null;
+      return {
+        capability_id: capability.id,
+        source: 'current_goal',
+        expected_goal_id: currentGoal.id,
+        expected_goal_revision: currentGoal.revision,
+      };
+    }
+    if (
+      selectedPurposeSource === 'capability'
+      && !capability.purpose.allows_capability_goal
+    ) return null;
+    if (
+      selectedPurposeSource === 'unlinked'
+      && !capability.purpose.allows_unlinked
+    ) return null;
+    return {
+      capability_id: capability.id,
+      source: selectedPurposeSource,
+      expected_goal_id: null,
+      expected_goal_revision: null,
+    };
+  }, [
+    capability,
+    capabilityDiscovery?.current_goal,
+    currentCapability?.id,
+    selectedPurposeSource,
+  ]);
+  const usesCurrentGoal = purposeSelection?.source === 'current_goal';
   const {
     data: goal,
     loading: goalLoading,
@@ -247,15 +455,16 @@ export default function PlanStart() {
     refetch: refetchGoal,
   } = useApi<GoalResponse>(
     '/api/goal',
-    { timeoutMs: 12_000, enabled: capabilitySupported },
+    { timeoutMs: 12_000, enabled: Boolean(usesCurrentGoal && capability) },
   );
   const {
     data: currentProposal,
     error: currentProposalError,
+    errorCode: currentProposalErrorCode,
     refetch: refetchProposal,
   } = useApi<AdaptivePlanProposal>(
     '/api/plan/proposals/current',
-    { timeoutMs: 12_000, enabled: capabilitySupported },
+    { timeoutMs: 12_000 },
   );
 
   const [availableDays, setAvailableDays] = useState<Outdoor5KWeekday[]>([]);
@@ -270,23 +479,113 @@ export default function PlanStart() {
     Outdoor5KReadinessResponse | Outdoor5KGenerateResponse | Outdoor5KRegenerateResponse | null
   >(null);
   const [proposal, setProposal] = useState<AdaptivePlanProposal | null>(null);
-  const [working, setWorking] = useState<'readiness' | 'generate' | 'regenerate' | 'reject' | 'adopt' | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [working, setWorking] = useState<PlanStartWorkingState | null>(null);
+  const [error, setError] = useState<PlanStartErrorState | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const idempotencyKeys = useRef<Partial<Record<LifecycleOperation, string>>>({});
 
-  const selectedLocalProposal = (
-    proposal?.policy_version === capability?.policy_version
-      ? proposal
+  useEffect(() => {
+    if (selectedPurposeTouched || !capabilityDiscovery) return;
+    const existingPurposeKey = proposalPurposeKey(currentProposal ?? null);
+    const [
+      existingPurposeSource = '',
+      existingCapabilityId = '',
+    ] = (existingPurposeKey ?? '').split(':', 2);
+    const existingCapability = supportedCapabilities.find(
+      (item) => item.id === existingCapabilityId,
+    );
+    const existingPurposeSelectable = (
+      existingPurposeSource === 'current_goal'
+        ? Boolean(
+          currentCapability?.id === existingCapabilityId
+          && capabilityDiscovery.current_goal,
+        )
+        : existingPurposeSource === 'capability'
+          ? Boolean(existingCapability?.purpose.allows_capability_goal)
+          : existingPurposeSource === 'unlinked'
+            ? Boolean(existingCapability?.purpose.allows_unlinked)
+            : false
+    );
+    if (
+      existingPurposeKey
+      && existingPurposeSelectable
+    ) {
+      setSelectedPurposeKey(existingPurposeKey);
+      return;
+    }
+    if (currentCapability && capabilityDiscovery.current_goal) {
+      setSelectedPurposeKey(
+        purposeKey('current_goal', currentCapability.id),
+      );
+    }
+  }, [
+    capabilityDiscovery,
+    currentCapability,
+    currentProposal,
+    selectedPurposeTouched,
+    supportedCapabilities,
+  ]);
+
+  const selectedLocalProposal = proposal;
+  const noCurrentProposal = currentProposalErrorCode === 'PLAN_PROPOSAL_NOT_FOUND';
+  const selectedCurrentProposal = noCurrentProposal
+    ? null
+    : currentProposal;
+  const policyProposal = selectedLocalProposal ?? selectedCurrentProposal;
+  const policyProposalPurposeKey = proposalPurposeKey(policyProposal);
+  const [
+    policyProposalPurposeSource = '',
+    policyProposalCapabilityId = '',
+  ] = (policyProposalPurposeKey ?? '').split(':', 2);
+  const policyProposalCapability = supportedCapabilities.find(
+    (item) => item.id === policyProposalCapabilityId,
+  );
+  const recognizedLegacyCurrentGoalProposal = Boolean(
+    policyProposal
+    && policyProposalPurposeKey == null
+    && policyProposal.policy_version === 'outdoor-5k-plan-generation-policy-v1'
+    && supportedCapabilities.some(
+      (item) => item.policy_version === policyProposal.policy_version,
+    ),
+  );
+  const activeProposal = (
+    policyProposal
+    && (
+      policyProposalPurposeKey === selectedPurposeKey
+      || (
+        recognizedLegacyCurrentGoalProposal
+        && selectedPurposeSource === 'current_goal'
+      )
+    )
+      ? policyProposal
       : null
   );
-  const selectedCurrentProposal = (
-    currentProposal?.policy_version === capability?.policy_version
-      ? currentProposal
-      : null
+  const conflictingProposal = policyProposal && !activeProposal
+    ? policyProposal
+    : null;
+  const displayedProposal = activeProposal ?? conflictingProposal;
+  const canSelectPolicyProposalPurpose = (
+    policyProposalPurposeSource === 'current_goal'
+      ? Boolean(
+        currentCapability?.id === policyProposalCapabilityId
+        && capabilityDiscovery?.current_goal,
+      )
+      : policyProposalPurposeSource === 'capability'
+        ? Boolean(policyProposalCapability?.purpose.allows_capability_goal)
+        : policyProposalPurposeSource === 'unlinked'
+          ? Boolean(policyProposalCapability?.purpose.allows_unlinked)
+          : false
   );
-  const activeProposal = selectedLocalProposal ?? selectedCurrentProposal;
-  const noCurrentProposal = currentProposalError === 'HTTP 404';
+  const proposalPurposeConflict = Boolean(
+    displayedProposal
+    && (
+      !activeProposal
+      || (
+        policyProposalPurposeKey != null
+        && !canSelectPolicyProposalPurpose
+      )
+    ),
+  );
   const proposalLoadError = currentProposalError && !noCurrentProposal
     ? currentProposalError
     : null;
@@ -301,7 +600,9 @@ export default function PlanStart() {
   const perDayLimitsUnsupported = availableDays.length > 1
     && new Set(availableDays.map((day) => dayLimits[day]?.trim() ?? '')).size > 1;
   const scopeComplete = adult && selfCoached && canComplete && outdoorRoad;
-  const formError = !scopeComplete
+  const formError = !purposeSelection
+    ? t`Choose an accepted plan purpose first.`
+    : !scopeComplete
     ? t`Confirm the supported athlete and goal scope first.`
     : availableDays.length === 0
       ? t`Choose the days you are available to run.`
@@ -314,6 +615,16 @@ export default function PlanStart() {
     new Intl.DateTimeFormat(locale === 'zh' ? 'zh-CN' : 'en-US', { weekday: short ? 'short' : 'long' })
       .format(new Date(Date.UTC(2024, 0, day + 1)))
   );
+  const selectedPurposeLabel = !purposeSelection
+    ? null
+    : purposeSelection.source === 'current_goal'
+      ? t`Current Goal · ${capabilityDiscovery?.current_goal?.goal.distance?.toUpperCase() ?? '5K'}`
+      : purposeSelection.source === 'capability'
+        ? t`Separate ${capability?.purpose.distance?.toUpperCase() ?? 'running'} plan purpose`
+        : t`Unlinked ${capability?.purpose.distance?.toUpperCase() ?? 'running'} base plan`;
+  const preferredLongestDayLabel = preferredLongestDay === ''
+    ? t`No preference`
+    : dayName(Number(preferredLongestDay) as Outdoor5KWeekday);
   const operationKey = (operation: LifecycleOperation): string => {
     const existing = idempotencyKeys.current[operation];
     if (existing) return existing;
@@ -323,6 +634,14 @@ export default function PlanStart() {
   };
   const clearOperationKey = (operation: LifecycleOperation) => {
     delete idempotencyKeys.current[operation];
+  };
+  const selectPurpose = (value: string | null) => {
+    if (working != null) return;
+    setSelectedPurposeTouched(true);
+    setSelectedPurposeKey(value ?? '');
+    setReadiness(null);
+    setError(null);
+    setNotice(null);
   };
 
   const toggleDay = (day: Outdoor5KWeekday) => {
@@ -349,11 +668,14 @@ export default function PlanStart() {
   };
 
   const constraints = (): Outdoor5KConstraintsRequest | null => {
-    if (formError || sharedDuration == null) {
-      setError(formError ?? t`Review the constraints and try again.`);
+    if (!purposeSelection || formError || sharedDuration == null) {
+      setError({
+        message: formError ?? t`Review the constraints and try again.`,
+      });
       return null;
     }
     return {
+      purpose: purposeSelection,
       age_18_or_older: adult,
       self_coached_recreational_road_runner: selfCoached,
       can_complete_5k: canComplete,
@@ -380,12 +702,17 @@ export default function PlanStart() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      if (!response.ok) throw new Error(await extractErrorMessage(response, t`Could not assess this plan start.`));
-      const value = await response.json() as Outdoor5KReadinessResponse;
+      const value = await planStartResponse<Outdoor5KReadinessResponse>(
+        response,
+        t`Could not assess this plan start.`,
+      );
       setReadiness(value);
       return value;
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : t`Could not assess this plan start.`);
+      setError(planStartError(
+        requestError,
+        t`Could not assess this plan start.`,
+      ));
       return null;
     } finally {
       setWorking(null);
@@ -414,18 +741,24 @@ export default function PlanStart() {
           idempotency_key: operationKey('generate'),
         }),
       });
-      if (!response.ok) throw new Error(await extractErrorMessage(response, t`Could not create the proposal.`));
-      const value = await response.json() as Outdoor5KGenerateResponse;
+      const value = await planStartResponse<Outdoor5KGenerateResponse>(
+        response,
+        t`Could not create the proposal.`,
+      );
       if (isProposalResponse(value) && value.proposal) {
         setProposal(value.proposal);
         setNotice(t`Proposal created. It has not changed your canonical plan.`);
         void refetchProposal();
+        void refetchCapabilities();
       } else {
         setReadiness(value);
       }
       clearOperationKey('generate');
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : t`Could not create the proposal.`);
+      setError(planStartError(
+        requestError,
+        t`Could not create the proposal.`,
+      ));
     } finally {
       setWorking(null);
     }
@@ -456,46 +789,61 @@ export default function PlanStart() {
           }),
         },
       );
-      if (!response.ok) throw new Error(await extractErrorMessage(response, t`Could not regenerate the proposal.`));
-      const value = await response.json() as Outdoor5KRegenerateResponse;
+      const value = await planStartResponse<Outdoor5KRegenerateResponse>(
+        response,
+        t`Could not regenerate the proposal.`,
+      );
       if (isProposalResponse(value) && value.proposal) {
         setProposal(value.proposal);
         setNotice(t`A successor proposal is ready. The earlier proposal is preserved as superseded.`);
         void refetchProposal();
+        void refetchCapabilities();
       } else {
         setReadiness(value);
       }
       clearOperationKey('regenerate');
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : t`Could not regenerate the proposal.`);
+      setError(planStartError(
+        requestError,
+        t`Could not regenerate the proposal.`,
+      ));
     } finally {
       setWorking(null);
     }
   };
 
   const reject = async () => {
-    if (!activeProposal) return;
+    if (!displayedProposal) return;
     setWorking('reject');
     setError(null);
     try {
       const response = await apiFetch(
-        `/api/plan/proposals/${encodeURIComponent(activeProposal.id)}/reject`,
+        `/api/plan/proposals/${encodeURIComponent(displayedProposal.id)}/reject`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            expected_version: activeProposal.version,
+            expected_version: displayedProposal.version,
             idempotency_key: operationKey('reject'),
           }),
         },
       );
-      if (!response.ok) throw new Error(await extractErrorMessage(response, t`Could not reject the proposal.`));
-      setProposal(await response.json() as AdaptivePlanProposal);
+      await planStartResponse<AdaptivePlanProposal>(
+        response,
+        t`Could not reject the proposal.`,
+      );
       setNotice(t`Proposal rejected. Your canonical plan was not changed.`);
       clearOperationKey('reject');
-      void refetchProposal();
+      await Promise.all([
+        refetchProposal(),
+        refetchCapabilities(),
+      ]);
+      setProposal(null);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : t`Could not reject the proposal.`);
+      setError(planStartError(
+        requestError,
+        t`Could not reject the proposal.`,
+      ));
     } finally {
       setWorking(null);
     }
@@ -518,147 +866,225 @@ export default function PlanStart() {
           }),
         },
       );
-      if (!response.ok) throw new Error(await extractErrorMessage(response, t`Could not adopt the proposal.`));
-      const value = await response.json() as AdaptivePlanProposalAdoptResponse;
+      const value = await planStartResponse<AdaptivePlanProposalAdoptResponse>(
+        response,
+        t`Could not adopt the proposal.`,
+      );
       setProposal(value.proposal);
       setNotice(value.status === 'already_adopted'
         ? t`This exact proposal was already adopted. Delivery remains disabled until you explicitly enable it.`
         : t`Plan adopted. Delivery remains disabled until you explicitly enable it.`);
       clearOperationKey('adopt');
       void refetchProposal();
+      void refetchCapabilities();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : t`Could not adopt the proposal.`);
+      setError(planStartError(
+        requestError,
+        t`Could not adopt the proposal.`,
+      ));
     } finally {
       setWorking(null);
     }
   };
 
+  const refreshPlanContext = async () => {
+    const goalIsRelevant = usesCurrentGoal
+      || displayedProposal?.goal?.purpose_source === 'current_goal';
+    setWorking('refresh');
+    setError(null);
+    setReadiness(null);
+    setProposal(null);
+    try {
+      await Promise.all([
+        refetchCapabilities(),
+        refetchProposal(),
+        ...(goalIsRelevant ? [refetchGoal()] : []),
+      ]);
+    } finally {
+      setWorking(null);
+    }
+  };
+  const proposalRecoveryCard = displayedProposal ? (
+    <div className="space-y-4">
+      <ProposalRecoveryCard
+        proposal={displayedProposal}
+        isDemo={isDemo}
+        rejecting={working === 'reject'}
+        onReject={() => void reject()}
+      />
+      {notice && <p className="text-sm text-primary" role="status">{notice}</p>}
+      {error && (
+        <Alert variant="destructive">
+          <AlertTitle><Trans>Plan-start action did not complete</Trans></AlertTitle>
+          <AlertDescription>{error.message}</AlertDescription>
+        </Alert>
+      )}
+    </div>
+  ) : null;
+
   if (settingsLoading || capabilityLoading) return <PlanStartSkeleton />;
 
   if (settingsError || capabilityError) {
     return (
-      <Alert id="plan-start" variant="destructive">
-        <AlertTitle><Trans>Could not load plan-start context</Trans></AlertTitle>
-        <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-          <span>{settingsError ?? capabilityError}</span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              refetchSettings();
-              void refetchCapabilities();
-            }}
-          >
-            <Trans>Retry</Trans>
-          </Button>
-        </AlertDescription>
-      </Alert>
+      <section className="space-y-6">
+        <Alert id="plan-start" variant="destructive">
+          <AlertTitle><Trans>Could not load plan-start context</Trans></AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>{settingsError ?? capabilityError}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                refetchSettings();
+                void refetchCapabilities();
+              }}
+            >
+              <Trans>Retry</Trans>
+            </Button>
+          </AlertDescription>
+        </Alert>
+        {proposalRecoveryCard}
+      </section>
     );
   }
 
-  if (!config) return <PlanStartSkeleton />;
+  if (!config) return proposalRecoveryCard ?? <PlanStartSkeleton />;
 
-  if (!capability) {
+  if (!hasSelectablePurpose) {
+    if (
+      supportedCapabilities.length === 0
+      && (capabilityDiscovery?.capabilities.length ?? 0) > 0
+    ) {
+      return (
+        <section className="space-y-6">
+          <Alert id="plan-start" variant="destructive">
+            <AlertTitle><Trans>Update required for this plan policy</Trans></AlertTitle>
+            <AlertDescription>
+              <Trans>
+                This client does not recognize the accepted policy input contract and will not guess how to create a plan.
+              </Trans>
+            </AlertDescription>
+          </Alert>
+          {proposalRecoveryCard}
+        </section>
+      );
+    }
     return (
-      <Card id="plan-start">
-        <CardHeader>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <CardTitle><Trans>Plan generation for this goal</Trans></CardTitle>
-              <CardDescription className="mt-2">
-                <Trans>
-                  No accepted automatic policy matches this goal yet. Praxys keeps manual plan management available instead of repurposing the 5K policy.
-                </Trans>
-              </CardDescription>
+      <section className="space-y-6">
+        <Card id="plan-start">
+          <CardHeader>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <CardTitle><Trans>Plan generation for this goal</Trans></CardTitle>
+                <CardDescription className="mt-2">
+                  <Trans>
+                    No accepted automatic policy matches this goal yet. Praxys keeps manual plan management available instead of repurposing the 5K policy.
+                  </Trans>
+                </CardDescription>
+              </div>
+              <Badge variant="outline"><Trans>No accepted policy</Trans></Badge>
             </div>
-            <Badge variant="outline"><Trans>No accepted policy</Trans></Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3 border-t border-border pt-4">
-          <p className="text-sm text-muted-foreground">
-            <Trans>
-              Road and trail policies are exposed here only after their population, goal, and safety boundaries are reviewed and versioned.
-            </Trans>
-          </p>
-          <p className="text-sm text-muted-foreground">
-            <Trans>Current goal:</Trans>{' '}
-            <span className="font-data">
-              {capabilityDiscovery?.goal.goal_kind.replace(/_/g, ' ')}
-              {capabilityDiscovery?.goal.distance
-                ? ` · ${capabilityDiscovery.goal.distance.toUpperCase()}`
-                : ''}
-            </span>
-          </p>
-          <Button variant="outline" onClick={() => navigate('/goal')}>
-            <Trans>Review goal</Trans>
-          </Button>
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent className="space-y-3 border-t border-border pt-4">
+            <p className="text-sm text-muted-foreground">
+              <Trans>
+                Road and trail policies are exposed here only after their population, goal, and safety boundaries are reviewed and versioned.
+              </Trans>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              <Trans>Current goal:</Trans>{' '}
+              <span className="font-data">
+                {capabilityDiscovery?.goal.goal_kind?.replace(/_/g, ' ') ?? '—'}
+                {capabilityDiscovery?.goal.distance
+                  ? ` · ${capabilityDiscovery.goal.distance.toUpperCase()}`
+                  : ''}
+              </span>
+            </p>
+            <Button variant="outline" onClick={() => navigate('/goal')}>
+              <Trans>Review goal</Trans>
+            </Button>
+          </CardContent>
+        </Card>
+        {proposalRecoveryCard}
+      </section>
     );
   }
 
-  if (!capabilitySupported) {
+  if (usesCurrentGoal && goalError) {
     return (
-      <Alert id="plan-start" variant="destructive">
-        <AlertTitle><Trans>Update required for this plan policy</Trans></AlertTitle>
-        <AlertDescription>
-          <Trans>
-            This client does not recognize the selected policy input contract and will not guess how to create a plan.
-          </Trans>
-        </AlertDescription>
-      </Alert>
+      <section className="space-y-6">
+        <Alert id="plan-start" variant="destructive">
+          <AlertTitle><Trans>Could not load plan-start context</Trans></AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>{goalError}</span>
+            <Button variant="outline" size="sm" onClick={() => void refetchGoal()}>
+              <Trans>Retry</Trans>
+            </Button>
+          </AlertDescription>
+        </Alert>
+        {proposalRecoveryCard}
+      </section>
     );
   }
 
-  if (goalError) {
-    return (
-      <Alert id="plan-start" variant="destructive">
-        <AlertTitle><Trans>Could not load plan-start context</Trans></AlertTitle>
-        <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-          <span>{goalError}</span>
-          <Button variant="outline" size="sm" onClick={() => void refetchGoal()}>
-            <Trans>Retry</Trans>
-          </Button>
-        </AlertDescription>
-      </Alert>
-    );
+  if (usesCurrentGoal && (goalLoading || !goal)) {
+    return proposalRecoveryCard ?? <PlanStartSkeleton />;
   }
-
-  if (goalLoading || !goal) return <PlanStartSkeleton />;
 
   if (
-    !capabilityGoal
-    || goal.goal_kind !== capabilityGoal.goal_kind
-    || (goal.goal?.distance ?? null) !== capabilityGoal.distance
+    usesCurrentGoal
+    && goal
+    && (
+      !currentCapability
+      || goal.goal_kind !== capabilityDiscovery?.goal.goal_kind
+      || (goal.goal?.distance ?? null) !== capabilityDiscovery?.goal.distance
+    )
   ) {
     return (
-      <Card id="plan-start">
-        <CardHeader>
-          <CardTitle><Trans>Plan-start context changed</Trans></CardTitle>
-          <CardDescription>
-            <Trans>The goal response and capability response no longer agree. Refresh before creating a proposal.</Trans>
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="border-t border-border pt-4">
-          <Button
-            variant="outline"
-            onClick={() => {
-              void refetchGoal();
-              void refetchCapabilities();
-            }}
-          >
-            <Trans>Refresh plan context</Trans>
-          </Button>
-        </CardContent>
-      </Card>
+      <section className="space-y-6">
+        <Card id="plan-start">
+          <CardHeader>
+            <CardTitle><Trans>Plan-start context changed</Trans></CardTitle>
+            <CardDescription>
+              <Trans>The goal response and capability response no longer agree. Refresh before creating a proposal.</Trans>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="border-t border-border pt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                void refetchGoal();
+                void refetchCapabilities();
+              }}
+            >
+              <Trans>Refresh plan context</Trans>
+            </Button>
+          </CardContent>
+        </Card>
+        {proposalRecoveryCard}
+      </section>
     );
   }
 
-  const baseline = goal.baseline;
+  const displayCapability = capability ?? currentCapability ?? supportedCapabilities[0]!;
+  const baseline = usesCurrentGoal
+    ? goal?.baseline
+    : readiness && 'baseline' in readiness
+      ? readiness.baseline
+      : undefined;
   const result = readiness?.result;
-  const isDraft = activeProposal?.state === 'draft';
-  const isAdopted = activeProposal?.state === 'adopted';
-  const hasLifecycleState = activeProposal && !isDraft && !isAdopted;
+  const isDraft = displayedProposal?.state === 'draft';
+  const isAdopted = displayedProposal?.state === 'adopted';
+  const hasLifecycleState = displayedProposal && !isDraft && !isAdopted;
+  const proposalNeedsReassessment = Boolean(
+    isDraft
+    && displayedProposal?.goal?.purpose_source === 'current_goal'
+    && capabilityDiscovery?.active_plan_goal?.link_status
+      === 'reassessment_required',
+  );
+  const baselineBadge = baseline
+    ? baselineCopy(baseline, t`Baseline ready`, t`Baseline needs review`)
+    : t`Readiness not checked`;
 
   return (
     <section id="plan-start" aria-labelledby="plan-start-title" className="scroll-mt-6 space-y-5">
@@ -669,16 +1095,123 @@ export default function PlanStart() {
               <CardTitle id="plan-start-title"><Trans>Plan preview</Trans></CardTitle>
               <CardDescription className="mt-2">
                 <Trans>
-                  Set the constraints you can actually keep. Praxys returns a versioned <span className="font-data">{capability.horizon_days}</span>-day proposal; it is not yet your plan.
+                  Choose what this plan is for, then set constraints you can actually keep. Praxys returns a versioned <span className="font-data">{displayCapability.horizon_days}</span>-day proposal; it is not yet your plan.
                 </Trans>
               </CardDescription>
             </div>
             <Badge variant={baseline?.readiness === 'sufficient_baseline' ? 'default' : 'outline'}>
-              {baselineCopy(baseline, t`Baseline ready`, t`Baseline needs review`)}
+              {baselineBadge}
             </Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-6 border-t border-border pt-5">
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold"><Trans>Plan purpose</Trans></h3>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                <Trans>
+                  The current Goal is the default when an accepted policy matches it. A separate purpose keeps that Goal unchanged.
+                </Trans>
+              </p>
+            </div>
+            <Select
+              value={selectedPurposeKey || undefined}
+              onValueChange={selectPurpose}
+              disabled={working != null}
+            >
+              <SelectTrigger aria-label={t`Plan purpose`}>
+                <SelectValue placeholder={t`Choose an accepted plan purpose`}>
+                  {selectedPurposeLabel}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {currentCapability && capabilityDiscovery?.current_goal && (
+                  <SelectItem value={purposeKey('current_goal', currentCapability.id)}>
+                    {t`Current Goal · ${capabilityDiscovery.current_goal.goal.distance?.toUpperCase() ?? '5K'}`}
+                  </SelectItem>
+                )}
+                {supportedCapabilities.map((item) => (
+                  item.purpose.allows_capability_goal ? (
+                    <SelectItem
+                      key={purposeKey('capability', item.id)}
+                      value={purposeKey('capability', item.id)}
+                    >
+                      {t`Separate ${item.purpose.distance?.toUpperCase() ?? 'running'} plan purpose`}
+                    </SelectItem>
+                  ) : null
+                ))}
+                {supportedCapabilities.map((item) => (
+                  item.purpose.allows_unlinked ? (
+                    <SelectItem
+                      key={purposeKey('unlinked', item.id)}
+                      value={purposeKey('unlinked', item.id)}
+                    >
+                      {t`Unlinked ${item.purpose.distance?.toUpperCase() ?? 'running'} base plan`}
+                    </SelectItem>
+                  ) : null
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {!currentCapability && capabilityDiscovery?.current_goal && (
+            <Alert>
+              <AlertTitle><Trans>Current Goal has no accepted automatic policy</Trans></AlertTitle>
+              <AlertDescription>
+                <Trans>
+                  Keep the current {capabilityDiscovery.current_goal.goal.distance?.toUpperCase() ?? 'goal'} unchanged, or choose an accepted separate purpose above.
+                </Trans>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {purposeSelection?.source === 'capability' && (
+            <Alert>
+              <AlertTitle><Trans>Separate from the current Goal</Trans></AlertTitle>
+              <AlertDescription>
+                <Trans>
+                  This proposal uses the accepted {capability?.purpose.distance?.toUpperCase() ?? '5K'} goal contract without changing or linking to the Goal page.
+                </Trans>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {capabilityDiscovery?.active_plan_goal?.link_status === 'reassessment_required' && (
+            <Alert variant="destructive">
+              <AlertTitle><Trans>Plan purpose needs reassessment</Trans></AlertTitle>
+              <AlertDescription>
+                <Trans>
+                  The current Goal changed after this plan purpose was captured. Check readiness again and create a fresh proposal before adoption.
+                </Trans>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {conflictingProposal && canSelectPolicyProposalPurpose && (
+            <Alert>
+              <AlertTitle><Trans>A draft exists for another plan purpose</Trans></AlertTitle>
+              <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                <span>
+                  <Trans>Return to that purpose to review or reject it before creating a different draft.</Trans>
+                </span>
+                {policyProposalPurposeKey && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => selectPurpose(policyProposalPurposeKey)}
+                  >
+                    <Trans>Review existing draft</Trans>
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <fieldset
+            disabled={!purposeSelection}
+            className="min-w-0 space-y-6 border-0 p-0 disabled:opacity-60"
+          >
           <Alert>
             <ShieldCheck className="size-4" aria-hidden="true" />
             <AlertTitle><Trans>Scope and guardrails</Trans></AlertTitle>
@@ -796,7 +1329,11 @@ export default function PlanStart() {
                 value={preferredLongestDay === '' ? 'none' : preferredLongestDay}
                 onValueChange={(value) => setPreferredLongestDay(value === 'none' || value == null ? '' : value)}
               >
-                <SelectTrigger id="outdoor-5k-long-day"><SelectValue placeholder={t`No preference`} /></SelectTrigger>
+                <SelectTrigger id="outdoor-5k-long-day">
+                  <SelectValue placeholder={t`No preference`}>
+                    {preferredLongestDayLabel}
+                  </SelectValue>
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none"><Trans>No preference</Trans></SelectItem>
                   {availableDays.map((day) => (
@@ -820,15 +1357,16 @@ export default function PlanStart() {
 
           {formError && <p className="text-sm text-destructive">{formError}</p>}
           <div className="flex flex-wrap gap-2">
-            <Button disabled={isDemo || working != null} onClick={() => void requestReadiness()} className="min-h-11">
+            <Button disabled={isDemo || working != null || !purposeSelection} onClick={() => void requestReadiness()} className="min-h-11">
               {working === 'readiness' ? <Trans>Checking readiness…</Trans> : <Trans>Check readiness</Trans>}
             </Button>
-            {result?.code === 'ready' && !activeProposal && (
+            {result?.code === 'ready' && !activeProposal && !conflictingProposal && (
               <Button variant="outline" disabled={isDemo || working != null} onClick={() => void generate()} className="min-h-11">
                 {working === 'generate' ? <Trans>Creating proposal…</Trans> : <Trans>Create proposal</Trans>}
               </Button>
             )}
           </div>
+          </fieldset>
         </CardContent>
       </Card>
 
@@ -862,6 +1400,22 @@ export default function PlanStart() {
         </Card>
       )}
 
+      {result?.code === 'insufficient_or_stale_baseline'
+        && readiness
+        && 'baseline' in readiness
+        && purposeSelection && (
+        <GoalBaselinePanel
+          baseline={readiness.baseline}
+          goal={readiness.purpose.goal}
+          purpose={purposeSelection}
+          isDemo={isDemo}
+          onChanged={() => {
+            if (usesCurrentGoal) void refetchGoal();
+            void requestReadiness();
+          }}
+        />
+      )}
+
       {proposalLoadError && (
         <Alert variant="destructive">
           <AlertTitle><Trans>Could not refresh proposal state</Trans></AlertTitle>
@@ -872,7 +1426,7 @@ export default function PlanStart() {
         </Alert>
       )}
 
-      {activeProposal && (
+      {displayedProposal && (
         <Card>
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -882,46 +1436,73 @@ export default function PlanStart() {
                   <Trans>This proposal is not yet your plan. It cannot deliver workouts until after explicit adoption and separate delivery consent.</Trans>
                 </CardDescription>
               </div>
-              <Badge variant={isAdopted ? 'default' : 'outline'}>{proposalStateLabel(activeProposal.state)}</Badge>
+              <Badge variant={isAdopted ? 'default' : 'outline'}>{proposalStateLabel(displayedProposal.state)}</Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-5 border-t border-border pt-4">
-            <dl className="grid gap-3 text-sm sm:grid-cols-3">
-              <div><dt className="text-muted-foreground"><Trans>Policy</Trans></dt><dd className="mt-1 font-data">{activeProposal.policy_version ?? '—'}</dd></div>
-              <div><dt className="text-muted-foreground"><Trans>Generator</Trans></dt><dd className="mt-1 font-data">{activeProposal.model_version ?? '—'}</dd></div>
-              <div><dt className="text-muted-foreground"><Trans>Science decision</Trans></dt><dd className="mt-1 font-data">{activeProposal.science_version ?? '—'}</dd></div>
+            <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+              <div>
+                <dt className="text-muted-foreground"><Trans>Purpose</Trans></dt>
+                <dd className="mt-1">
+                  {displayedProposal.goal?.purpose_source === 'current_goal'
+                    ? <Trans>Linked to current Goal</Trans>
+                    : displayedProposal.goal?.purpose_source === 'capability'
+                      ? <Trans>Separate plan purpose</Trans>
+                      : displayedProposal.goal?.purpose_source === 'unlinked'
+                        ? <Trans>Unlinked plan</Trans>
+                        : <Trans>Legacy purpose</Trans>}
+                </dd>
+              </div>
+              <div><dt className="text-muted-foreground"><Trans>Policy</Trans></dt><dd className="mt-1 font-data">{displayedProposal.policy_version ?? '—'}</dd></div>
+              <div><dt className="text-muted-foreground"><Trans>Generator</Trans></dt><dd className="mt-1 font-data">{displayedProposal.model_version ?? '—'}</dd></div>
+              <div><dt className="text-muted-foreground"><Trans>Science decision</Trans></dt><dd className="mt-1 font-data">{displayedProposal.science_version ?? '—'}</dd></div>
             </dl>
             <div className="divide-y divide-border border-y border-border">
-              {activeProposal.workouts.map((workout) => (
+              {displayedProposal.workouts.map((workout) => (
                 <div key={`${workout.date}-${workout.workout_type}`} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3 text-sm">
                   <span><span className="font-data">{workout.date}</span> · {workout.workout_type.replace(/_/g, ' ')}</span>
                   <span className="font-data text-muted-foreground">{workout.planned_duration_min ?? '—'} min</span>
                 </div>
               ))}
             </div>
-            <p className="text-sm text-muted-foreground">
-              <Trans>
-                Workout content is view-only in this deterministic policy. Change the bounded inputs above and regenerate to create an immutable successor; Praxys never constructs replacement workouts in this client.
-              </Trans>
-            </p>
-            {[activeProposal.assumptions, activeProposal.unknowns, activeProposal.warnings, activeProposal.alternatives]
+            {!proposalPurposeConflict && (
+              <p className="text-sm text-muted-foreground">
+                <Trans>
+                  Workout content is view-only in this deterministic policy. Change the bounded inputs above and regenerate to create an immutable successor; Praxys never constructs replacement workouts in this client.
+                </Trans>
+              </p>
+            )}
+            {[displayedProposal.assumptions, displayedProposal.unknowns, displayedProposal.warnings, displayedProposal.alternatives]
               .filter((items) => items.length > 0)
               .map((items, index) => (
-                <p key={index} className="text-sm text-muted-foreground">{items.map(String).join(' · ')}</p>
+                <p key={index} className="text-sm text-muted-foreground">{items.map(formatProposalDetail).join(' · ')}</p>
               ))}
-            {activeProposal.expires_at && (
-              <p className="text-sm text-muted-foreground"><Trans>Expires:</Trans> <span className="font-data">{activeProposal.expires_at}</span></p>
+            {displayedProposal.expires_at && (
+              <p className="text-sm text-muted-foreground"><Trans>Expires:</Trans> <span className="font-data">{displayedProposal.expires_at}</span></p>
+            )}
+
+            {proposalNeedsReassessment && (
+              <Alert variant="destructive">
+                <AlertTitle><Trans>Adoption is paused</Trans></AlertTitle>
+                <AlertDescription>
+                  <Trans>The linked Goal changed. Recheck readiness and regenerate this proposal before adopting it.</Trans>
+                </AlertDescription>
+              </Alert>
             )}
 
             {isDraft && (
               <div className="flex flex-wrap gap-2">
-                <Button disabled={isDemo || working != null} onClick={() => void adopt()} className="min-h-11">
-                  {working === 'adopt' ? <Trans>Adopting…</Trans> : <Trans>Adopt exact proposal</Trans>}
-                </Button>
-                <Button variant="outline" disabled={isDemo || working != null} onClick={() => void regenerate()} className="min-h-11">
-                  <RefreshCw aria-hidden="true" />
-                  {working === 'regenerate' ? <Trans>Regenerating…</Trans> : <Trans>Regenerate successor</Trans>}
-                </Button>
+                {!proposalPurposeConflict && (
+                  <>
+                    <Button disabled={isDemo || working != null || proposalNeedsReassessment} onClick={() => void adopt()} className="min-h-11">
+                      {working === 'adopt' ? <Trans>Adopting…</Trans> : <Trans>Adopt exact proposal</Trans>}
+                    </Button>
+                    <Button variant="outline" disabled={isDemo || working != null} onClick={() => void regenerate()} className="min-h-11">
+                      <RefreshCw aria-hidden="true" />
+                      {working === 'regenerate' ? <Trans>Regenerating…</Trans> : <Trans>Regenerate successor</Trans>}
+                    </Button>
+                  </>
+                )}
                 <Button variant="ghost" disabled={isDemo || working != null} onClick={() => void reject()} className="min-h-11">
                   {working === 'reject' ? <Trans>Rejecting…</Trans> : <Trans>Reject or defer</Trans>}
                 </Button>
@@ -933,7 +1514,7 @@ export default function PlanStart() {
                 <AlertTitle><Trans>Proposal state needs a fresh preview</Trans></AlertTitle>
                 <AlertDescription>
                   <Trans>
-                    This proposal is {proposalStateLabel(activeProposal.state)}. It cannot mutate the canonical plan; review readiness and create a new proposal when you are ready.
+                    This proposal is {proposalStateLabel(displayedProposal.state)}. It cannot mutate the canonical plan; review readiness and create a new proposal when you are ready.
                   </Trans>
                 </AlertDescription>
               </Alert>
@@ -963,9 +1544,16 @@ export default function PlanStart() {
         <Alert variant="destructive">
           <AlertTitle><Trans>Plan-start action did not complete</Trans></AlertTitle>
           <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-            <span>{error}</span>
-            {(error.includes('STALE') || error.includes('CONFLICT') || error.includes('409')) && (
-              <Button size="sm" variant="outline" onClick={() => void refetchProposal()}><Trans>Refresh proposal</Trans></Button>
+            <span>{error.message}</span>
+            {needsPlanContextRecovery(error) && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={working != null}
+                onClick={() => void refreshPlanContext()}
+              >
+                <Trans>Refresh plan context</Trans>
+              </Button>
             )}
           </AlertDescription>
         </Alert>

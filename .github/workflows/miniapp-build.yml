@@ -82,9 +82,9 @@ jobs:
         # secret. WeChat's main-package limit is 2 MB after compile and the
         # source is typically near 1:1 (no transpiled bundle to expand into).
         run: |
-          # Exclude node_modules and the auto-generated catalogs, which
-          # would skew the comparison vs what DevTools actually packages.
-          size=$(du -sk \
+          # Measure file bytes rather than allocated filesystem blocks.
+          # Exclude generated sources that DevTools does not package.
+          size=$(du --apparent-size -sk \
             --exclude=node_modules \
             --exclude='utils/i18n-catalog.ts' \
             . | cut -f1)

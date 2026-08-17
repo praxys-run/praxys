@@ -991,6 +991,16 @@ const ZH_PRIVATE_CONTEXT = {
 };
 
 const EN_PLAN_START = {
+  'Current Goal': 'Current Goal',
+  'Unlinked base plan': 'Unlinked base plan',
+  'The current Goal has no accepted automatic policy. Keep it unchanged, or choose an accepted separate purpose.':
+    'The current Goal has no accepted automatic policy. Keep it unchanged, or choose an accepted separate purpose.',
+  'This proposal uses an accepted 5K goal contract without changing or linking to the Goal page.':
+    'This proposal uses an accepted 5K goal contract without changing or linking to the Goal page.',
+  'A draft exists for another plan purpose. Return to that purpose to review or reject it first.':
+    'A draft exists for another plan purpose. Return to that purpose to review or reject it first.',
+  'Adoption is paused until the linked Goal is reassessed.':
+    'Adoption is paused until the linked Goal is reassessed.',
   'This pilot is available only for the supported outdoor road 5K performance goal.':
     'This pilot is available only for the supported outdoor road 5K performance goal.',
   'For adult, self-coached recreational outdoor-road 5K runners. This is not a diagnosis, clearance, or performance guarantee.':
@@ -1000,6 +1010,7 @@ const EN_PLAN_START = {
   'Select availability, then give the same supported session limit for every selected day.':
     'Select availability, then give the same supported session limit for every selected day.',
   'Time limit (minutes)': 'Time limit (minutes)',
+  'Refresh proposal': 'Refresh proposal',
   ready: 'ready',
   'This proposal cannot mutate the canonical plan. Review readiness and create a new proposal when you are ready.':
     'This proposal cannot mutate the canonical plan. Review readiness and create a new proposal when you are ready.',
@@ -1009,6 +1020,16 @@ const EN_PLAN_START = {
 };
 
 const ZH_PLAN_START = {
+  'Current Goal': '当前目标',
+  'Unlinked base plan': '未关联基础计划',
+  'The current Goal has no accepted automatic policy. Keep it unchanged, or choose an accepted separate purpose.':
+    '当前目标暂无已接受的自动计划政策。可保留目标不变，或选择已接受的独立计划用途。',
+  'This proposal uses an accepted 5K goal contract without changing or linking to the Goal page.':
+    '此提案使用已接受的 5 公里目标约定，不会更改或关联目标页。',
+  'A draft exists for another plan purpose. Return to that purpose to review or reject it first.':
+    '另一项计划用途已有草稿。请返回该用途，先审核或拒绝现有草稿。',
+  'Adoption is paused until the linked Goal is reassessed.':
+    '重新评估关联目标前，暂时无法采纳。',
   'This pilot is available only for the supported outdoor road 5K performance goal.':
     '此试点仅适用于受支持的户外公路 5 公里表现目标。',
   'For adult, self-coached recreational outdoor-road 5K runners. This is not a diagnosis, clearance, or performance guarantee.':
@@ -1018,6 +1039,7 @@ const ZH_PLAN_START = {
   'Select availability, then give the same supported session limit for every selected day.':
     '选择可用日期，然后为每个选定日期填写相同的受支持单次训练上限。',
   'Time limit (minutes)': '时间上限（分钟）',
+  'Refresh proposal': '刷新提案',
   ready: '就绪',
   'This proposal cannot mutate the canonical plan. Review readiness and create a new proposal when you are ready.':
     '此提案无法更改规范计划。准备好后请复核准备情况并创建新提案。',

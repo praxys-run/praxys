@@ -245,7 +245,7 @@ def test_alembic_head_includes_adaptive_plan_proposals():
 
     config = Config("alembic.ini")
     script = ScriptDirectory.from_config(config)
-    assert script.get_current_head() == "9d0e1f2a3b4c"
+    assert script.get_current_head() == "ae1f2a3b4c5d"
     assert script.get_revision("9d0e1f2a3b4c").down_revision == "8c9d0e1f2a3b"
     assert script.get_revision("8c9d0e1f2a3b").down_revision == "f7b8c9d0e1f2"
     assert script.get_revision("e6a7b8c9d0f1").down_revision == "d95e6f7a8b9c"

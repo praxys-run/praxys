@@ -2,6 +2,7 @@
   "component": true,
   "styleIsolation": "apply-shared",
   "usingComponents": {
-    "state-card": "../state-card/index"
+    "state-card": "../state-card/index",
+    "goal-baseline": "../goal-baseline/index"
   }
 }

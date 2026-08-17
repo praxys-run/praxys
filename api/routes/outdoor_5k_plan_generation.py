@@ -7,7 +7,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session
 
 from analysis.outdoor_5k_plan_generation import PlanGenerationConstraints
@@ -20,6 +20,7 @@ from api.outdoor_5k_plan_generation import (
     generate_outdoor_5k_proposal,
     regenerate_outdoor_5k_proposal,
 )
+from api.plan_generation_capabilities import PlanPurposeError
 from db.session import get_db
 
 
@@ -41,11 +42,52 @@ Outdoor5KResultCode = Literal[
 ]
 
 
+class PlanGenerationPurposeRequest(BaseModel):
+    """Exact current-Goal, capability-owned, or unlinked purpose selection."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    capability_id: str = Field(min_length=1, max_length=80)
+    source: Literal["current_goal", "capability", "unlinked"]
+    expected_goal_id: str | None = Field(
+        default=None,
+        min_length=36,
+        max_length=36,
+    )
+    expected_goal_revision: str | None = Field(
+        default=None,
+        min_length=64,
+        max_length=64,
+        pattern=r"^[0-9a-f]{64}$",
+    )
+
+    @model_validator(mode="after")
+    def validate_source_fence(self) -> "PlanGenerationPurposeRequest":
+        if self.source == "current_goal":
+            if (
+                self.expected_goal_id is None
+                or self.expected_goal_revision is None
+            ):
+                raise ValueError(
+                    "current_goal requires expected_goal_id and "
+                    "expected_goal_revision"
+                )
+        elif (
+            self.expected_goal_id is not None
+            or self.expected_goal_revision is not None
+        ):
+            raise ValueError(
+                "only current_goal may include expected Goal provenance"
+            )
+        return self
+
+
 class Outdoor5KConstraintsRequest(BaseModel):
     """Structured, purpose-bounded athlete statements for the deterministic path."""
 
     model_config = ConfigDict(extra="forbid", strict=True)
 
+    purpose: PlanGenerationPurposeRequest | None = None
     age_18_or_older: bool
     self_coached_recreational_road_runner: bool
     can_complete_5k: bool
@@ -95,6 +137,18 @@ class Outdoor5KOutcomeResponse(BaseModel):
     alternatives: list[str]
 
 
+class Outdoor5KPurposeResponse(BaseModel):
+    """Resolved purpose included in readiness and proposal responses."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    capability_id: str
+    source: Literal["current_goal", "capability", "unlinked"]
+    expected_goal_id: str | None
+    expected_goal_revision: str | None
+    goal: dict[str, Any]
+
+
 class Outdoor5KReadinessResponse(BaseModel):
     """Typed no-write readiness response."""
 
@@ -105,6 +159,8 @@ class Outdoor5KReadinessResponse(BaseModel):
     generator_version: str
     science_decision_id: str
     source_revision: str
+    purpose: Outdoor5KPurposeResponse
+    baseline: dict[str, Any]
     athlete_today: str
     block_start: str
     result: Outdoor5KOutcomeResponse
@@ -126,6 +182,7 @@ class Outdoor5KProposalResponse(BaseModel):
     generator_version: str
     science_decision_id: str
     source_revision: str
+    purpose: Outdoor5KPurposeResponse
     result: Outdoor5KOutcomeResponse
     proposal: dict[str, Any] | None = None
     replayed: bool = False
@@ -151,10 +208,20 @@ def _constraints(body: Outdoor5KConstraintsRequest) -> PlanGenerationConstraints
     )
 
 
+def _purpose(
+    body: Outdoor5KConstraintsRequest,
+) -> dict[str, Any] | None:
+    if body.purpose is None:
+        return None
+    return body.purpose.model_dump(mode="json")
+
+
 def _raise(error: Exception) -> None:
     if isinstance(error, Outdoor5KGenerationError):
         raise HTTPException(status_code=error.status_code, detail=error.detail)
     if isinstance(error, AdaptivePlanError):
+        raise HTTPException(status_code=error.status_code, detail=error.detail)
+    if isinstance(error, PlanPurposeError):
         raise HTTPException(status_code=error.status_code, detail=error.detail)
     raise error
 
@@ -175,6 +242,7 @@ def post_outdoor_5k_readiness(
             user_id=user_id,
             constraints=_constraints(body),
             outdoor_road_goal_confirmed=body.outdoor_road_goal_confirmed,
+            purpose_selection=_purpose(body),
         )
     except Exception as exc:
         _raise(exc)
@@ -197,6 +265,7 @@ def post_outdoor_5k_alternatives(
             user_id=user_id,
             constraints=_constraints(body),
             outdoor_road_goal_confirmed=body.outdoor_road_goal_confirmed,
+            purpose_selection=_purpose(body),
         )
     except Exception as exc:
         _raise(exc)
@@ -221,6 +290,7 @@ def post_outdoor_5k_generate(
             outdoor_road_goal_confirmed=body.outdoor_road_goal_confirmed,
             expected_source_revision=body.expected_source_revision,
             idempotency_key=body.idempotency_key,
+            purpose_selection=_purpose(body),
         )
     except Exception as exc:
         _raise(exc)
@@ -251,6 +321,7 @@ def post_outdoor_5k_regenerate(
             outdoor_road_goal_confirmed=body.outdoor_road_goal_confirmed,
             expected_source_revision=body.expected_source_revision,
             idempotency_key=body.idempotency_key,
+            purpose_selection=_purpose(body),
         )
     except Exception as exc:
         _raise(exc)

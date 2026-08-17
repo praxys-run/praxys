@@ -23,6 +23,9 @@ from api.goal_baseline import (
     mutate_optional_test,
 )
 from api.packs import RequestContext, get_race_pack
+from api.plan_generation_capabilities import (
+    PlanPurposeError,
+)
 from api.views import require_admin
 from db.session import get_db
 
@@ -38,6 +41,7 @@ class HistoryConfirmationRequest(BaseModel):
     measured_5k: bool
     elapsed_timing_confirmed: bool
     supersedes_confirmation_id: str | None = None
+    purpose: "GoalBaselinePurposeRequest | None" = None
 
 
 class GoalBaselineTestRequest(BaseModel):
@@ -50,6 +54,18 @@ class GoalBaselineTestRequest(BaseModel):
     elapsed_timing_confirmed: bool | None = None
     protocol_followed: bool | None = None
     reason_code: str | None = None
+    purpose: "GoalBaselinePurposeRequest | None" = None
+
+
+class GoalBaselinePurposeRequest(BaseModel):
+    """Purpose selection used to scope baseline evidence mutations."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    capability_id: str
+    source: Literal["current_goal", "capability", "unlinked"]
+    expected_goal_id: str | None = None
+    expected_goal_revision: str | None = None
 
 
 class GoalBaselineMutationResponse(BaseModel):
@@ -113,6 +129,11 @@ def _mutation_error(code: str, message: str, **details: object) -> dict:
 
 
 def _translate_goal_baseline_error(exc: Exception) -> None:
+    if isinstance(exc, PlanPurposeError):
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=exc.detail,
+        )
     if isinstance(exc, GoalBaselineConflict):
         raise HTTPException(
             status_code=409,
@@ -159,6 +180,12 @@ def _translate_goal_baseline_error(exc: Exception) -> None:
     raise exc
 
 
+def _purpose_selection(
+    purpose: GoalBaselinePurposeRequest | None,
+) -> dict | None:
+    return purpose.model_dump() if purpose is not None else None
+
+
 @router.post(
     "/goal/baseline/history/confirm",
     response_model=GoalBaselineMutationResponse,
@@ -180,6 +207,7 @@ def post_goal_baseline_history_confirmation(
             elapsed_timing_confirmed=body.elapsed_timing_confirmed,
             idempotency_key=idempotency_key,
             supersedes_confirmation_id=body.supersedes_confirmation_id,
+            purpose_selection=_purpose_selection(body.purpose),
         )
     except Exception as exc:
         _translate_goal_baseline_error(exc)
@@ -216,6 +244,7 @@ def post_goal_baseline_test_mutation(
             elapsed_timing_confirmed=body.elapsed_timing_confirmed,
             protocol_followed=body.protocol_followed,
             reason_code=body.reason_code,
+            purpose_selection=_purpose_selection(body.purpose),
         )
     except Exception as exc:
         _translate_goal_baseline_error(exc)

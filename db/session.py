@@ -411,6 +411,16 @@ _SQLITE_COMPAT_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
     "adaptive_plans": (
         ("discipline", "VARCHAR(30) NOT NULL DEFAULT 'running'"),
     ),
+    "adaptive_plan_goal_snapshots": (
+        ("purpose_source", "VARCHAR(30)"),
+        ("source_goal_id", "VARCHAR(36)"),
+        ("source_goal_revision", "VARCHAR(64)"),
+    ),
+    "goal_baseline_test_records": (
+        ("purpose_source", "VARCHAR(30)"),
+        ("source_goal_id", "VARCHAR(36)"),
+        ("source_goal_revision", "VARCHAR(64)"),
+    ),
     "plan_proposals": (
         ("discipline", "VARCHAR(30) NOT NULL DEFAULT 'running'"),
         ("idempotency_fingerprint", "VARCHAR(64)"),

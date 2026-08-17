@@ -728,6 +728,10 @@ def get_settings(
             for option in delivery_options
             if option.get("platform") != "stryd"
         ]
+    from api.plan_generation_capabilities import (
+        goal_plan_reconciliation_impact,
+    )
+
     return {
         "config": (
             asdict(config)
@@ -755,6 +759,10 @@ def get_settings(
         "effective_thresholds": effective,
         "sync_interval_options_hours": list(ALLOWED_SYNC_INTERVAL_HOURS),
         "default_sync_interval_hours": DEFAULT_SYNC_INTERVAL_HOURS,
+        "goal_plan_impact": goal_plan_reconciliation_impact(
+            db,
+            user_id=user_id,
+        ),
     }
 
 
@@ -845,9 +853,44 @@ def _update_settings(
                     "changing execution targets"
                 ),
             )
-        config = load_config_from_db(user_id, db)
-        prior_plan_management = dict(config.plan_management)
-        prior_goal = dict(config.goal)
+        db.commit()
+    from db.plan_ledger import lock_plan_writes
+
+    # Every settings save rewrites the full config row, including Goal state.
+    # Reload only after taking the shared plan-write lock so a stale unrelated
+    # settings request cannot overwrite a concurrently committed Goal.
+    db.rollback()
+    lock_plan_writes(db, user_id)
+    config = load_config_from_db(user_id, db)
+    prior_plan_management = dict(config.plan_management)
+    prior_goal = dict(config.goal)
+    requested_execution_target = prior_plan_management.get(
+        "execution_target"
+    )
+    if (
+        body.plan_management is not None
+        and "execution_target"
+        in body.plan_management.model_fields_set
+    ):
+        requested_execution_target = (
+            body.plan_management.execution_target
+        )
+    elif (
+        body.plan_management is None
+        and prior_plan_management.get("mode") == "external"
+        and body.preferences is not None
+        and "plan" in body.preferences
+    ):
+        requested_execution_target = _legacy_execution_target(
+            body.preferences["plan"]
+        )
+        candidate_connections = (
+            body.connections
+            if body.connections is not None
+            else config.connections
+        )
+        if requested_execution_target not in candidate_connections:
+            requested_execution_target = None
     prior_garmin_region = garmin_region(config.source_options)
     legacy_target_update_requested = False
     legacy_target: PlatformName | None = None
@@ -885,7 +928,24 @@ def _update_settings(
     if body.zones is not None:
         config.zones.update(body.zones)
     if body.goal is not None:
-        config.goal.update(body.goal)
+        goal_update = dict(body.goal)
+        if "target_time_sec" in goal_update:
+            goal_update.pop("race_target_time_sec", None)
+            config.goal.pop("race_target_time_sec", None)
+        elif "race_target_time_sec" in goal_update:
+            goal_update["target_time_sec"] = goal_update.pop(
+                "race_target_time_sec"
+            )
+            config.goal.pop("race_target_time_sec", None)
+        if "race_date" in goal_update:
+            goal_update.pop("target_event_date", None)
+            config.goal.pop("target_event_date", None)
+        elif "target_event_date" in goal_update:
+            goal_update["race_date"] = goal_update.pop(
+                "target_event_date"
+            )
+            config.goal.pop("target_event_date", None)
+        config.goal.update(goal_update)
     if body.source_options is not None:
         source_options_update = dict(body.source_options)
         if ATHLETE_TIMEZONE_OPTION in source_options_update:
@@ -1136,6 +1196,36 @@ def _update_settings(
             for option in delivery_options
             if option.get("platform") != "stryd"
         ]
+    goal_plan_impact = None
+    if body.goal is not None:
+        from api.plan_generation_capabilities import (
+            current_goal_reference,
+            goal_plan_reconciliation_impact,
+        )
+
+        previous_goal_reference = current_goal_reference(
+            user_id=user_id,
+            goal=prior_goal,
+        )
+        current_goal_reference_value = current_goal_reference(
+            user_id=user_id,
+            goal=dict(config.goal or {}),
+        )
+        previous_revision = (
+            previous_goal_reference.revision
+            if previous_goal_reference is not None
+            else None
+        )
+        current_revision = (
+            current_goal_reference_value.revision
+            if current_goal_reference_value is not None
+            else None
+        )
+        if previous_revision != current_revision:
+            goal_plan_impact = goal_plan_reconciliation_impact(
+                db,
+                user_id=user_id,
+            )
     return {
         "status": "ok",
         "config": (
@@ -1151,6 +1241,7 @@ def _update_settings(
         ),
         "platform_capabilities": capabilities,
         "plan_delivery_options": delivery_options,
+        "goal_plan_impact": goal_plan_impact,
     }
 
 

@@ -145,6 +145,11 @@ The first shipped implementation keeps the scope deliberately narrow:
 - A dedicated `performance_5k` goal kind activates the history-first baseline
   flow. Existing race and continuous goals remain outside this pilot and return
   `not_required`.
+- Plan creation defaults to the current Goal when it matches this policy, but
+  the same baseline view and mutation contract can be scoped to an explicitly
+  selected independent 5 km purpose. That selection does not expand the
+  accepted population, protocol, or evidence rules and does not modify the
+  Goal page.
 - Candidate retrieval remains **full-activity only** and surfaces recent
   near-5 km complete running activities for athlete review. Retrieval never
   qualifies evidence by itself.
@@ -160,7 +165,12 @@ The first shipped implementation keeps the scope deliberately narrow:
   or intentional all-out effort.
 - Optional-test writes are explicit and auditable: offer, schedule, decline,
   stop, and complete/invalidated actions persist versioned records and any
-  schedule uses the canonical workout/revision/delivery lane.
+  schedule uses the canonical workout/revision/delivery lane. Test lineages
+  carry their selected purpose provenance, so current-Goal edits retire only
+  current-Goal tests and leave independent-purpose tests intact. Legacy rows
+  without purpose provenance remain in the current-Goal lineage. Because the
+  protocol is maximal-effort, only one scheduled test may exist for the athlete
+  and 5 km goal signature across all purpose lineages.
 - Export, account deletion, and aggregate-only admin evaluation include the
   goal-baseline confirmation, snapshot, assessment, and optional-test records.
 

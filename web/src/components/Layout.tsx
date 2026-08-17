@@ -4,6 +4,7 @@ import AppSidebar from '@/components/AppSidebar';
 import TermsGate from '@/components/TermsGate';
 import SystemBanner from '@/components/SystemBanner';
 import StatusBanner from '@/components/StatusBanner';
+import GoalPlanReconciliationDialog from '@/components/GoalPlanReconciliationDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { Eye } from 'lucide-react';
 import { Trans } from '@lingui/react/macro';
@@ -26,6 +27,8 @@ export default function Layout() {
           <Outlet />
         </div>
       </main>
+
+      <GoalPlanReconciliationDialog />
 
       {/* Floating demo banner — always visible, anchored to bottom */}
       {isDemo && (
