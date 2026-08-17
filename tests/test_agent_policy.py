@@ -92,6 +92,44 @@ def test_policy_config_matches_production_and_starts_default_deny() -> None:
     payload = json.loads(
         (ROOT / "config" / "agent-loop-policies.json").read_text(encoding="utf-8")
     )
+    assert payload["operating_model"] == {
+        "path": "config/agentic-operating-model.json",
+        "version": "praxys-agentic-operating-model-v1",
+        "status": "active-routing",
+    }
+    autonomy = payload["decision_autonomy"]
+    assert autonomy["status"] == "specification-only"
+    assert autonomy["default_judgment_route"] == "human-review-required"
+    assert autonomy["routing_outcomes"] == [
+        "agent-resolved",
+        "agent-reviewed",
+        "human-review-required",
+        "blocked",
+    ]
+    assert autonomy["agent_reviewed_classes"] == []
+    assert autonomy["agent_reviewed_requirements"] == {
+        "class_must_be_explicitly_listed": True,
+        "reviewer_assignment_source": "work-router-independent-reviewers",
+        "minimum_independent_reviews": 1,
+        "reviewer_must_differ_from_proposer_and_executor": True,
+        "triggered_roles_must_be_assigned": True,
+        "deterministic_validation_required": True,
+        "decision_record_digest_required": True,
+        "human_review_factor_must_be_absent": True,
+    }
+    assert autonomy["promoted_judgment_classes"] == []
+    assert autonomy["independence"] == {
+        "proposer_may_select_own_review_route": False,
+        "proposer_may_review_own_decision": False,
+        "executor_may_verify_own_high_risk_work": False,
+        "router_may_approve": False,
+        "agent_may_materialize_human_approval": False,
+    }
+    assert {
+        "new-product-promise",
+        "sensitive-data-collection",
+        "irreversible-or-high-blast-radius-action",
+    } <= set(autonomy["human_review_factors"])
     assert payload["change"]["agent_ready"] == {
         "policy_name": AGENT_READY_POLICY_NAME,
         "version": AGENT_READY_POLICY_VERSION,

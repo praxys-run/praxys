@@ -1,59 +1,200 @@
-# AGENTS.md — Multi-Agent Workflow Guide
+# AGENTS.md - Praxys role and loop guide
 
-## Agent Roles
+## Operating model
 
-### Data Pipeline Agent
-- **Focus:** `sync/`, `db/sync_writer.py`, `db/models.py`, `analysis/data_loader.py`
-- **Tasks:** Add new data sources, fix sync issues, extend database schemas
-- **Context needed:** `.env.example` for server config, `db/models.py` for schema, `data_loader.py` for loading conventions
-- **Key rule:** All sync scripts write via `db/sync_writer.py` upsert functions for dedup-on-write
+Agents are bounded **roles**. Loops are learning workflows around an **object**.
+The Work Router composes roles into each loop instance; the independent
+Decision Review Router allocates review authority.
 
-### Analysis Agent
-- **Focus:** `analysis/metrics.py`, `api/deps.py`
-- **Tasks:** Add new metrics, improve predictions, fix computation bugs
-- **Context needed:** Read the "Split-Level Power Analysis" section in CLAUDE.md first
-- **Key rule:** All metric functions must be **pure** — no file I/O, no side effects, no global state. Data flows in via parameters, results flow out via return values.
+`Praxys Orchestrator` is the common Local and Cloud entry point for every
+material task. It obtains an enumerated classification from Work Router, runs
+the deterministic task router, and invokes only the loops and roles in the
+resulting digest-bound Work Contract.
 
-### Frontend Agent
-- **Focus:** `web/src/`, `miniapp/`, and shared product/design context
-- **Tasks:** Add UI components, new pages, improve visualizations, and preserve web/miniapp feature parity
-- **Context needed:** `.github/skills/ui-quality/SKILL.md`, `PRODUCT.md`, `DESIGN.md`, `docs/dev/design-system.md`, `web/src/types/api.ts`, and the `useApi` hook pattern
-- **Key rule:** Invoke the `ui-quality` skill for every user-visible change. It must route through Impeccable, rendered desktop/mobile inspection, state and accessibility coverage, and the CI evidence block. All data comes from API via `useApi<T>`; data numbers use `font-data`.
-- **WeChat desktop boundary:** Tencent provides no headless/no-focus simulator mode. On Windows + WSL2, use `wechat-devtools` only during a user-approved foreground window, never from an unattended background agent, and never via raw Windows focus/cursor/mouse/keyboard automation.
+Read:
 
-### API Agent
-- **Focus:** `api/main.py`, `api/deps.py`, `api/auth.py`, `api/routes/`
-- **Tasks:** Add endpoints, modify data layer
-- **Context needed:** `api/deps.py` `get_dashboard_data()` is the central data function — all routes call it fresh per request. All endpoints require JWT auth (see `api/auth.py`)
-- **Key rule:** Routes are thin — computation belongs in `analysis/metrics.py`, not in route handlers
+- `docs/dev/agentic-operating-model.md`
+- `config/agentic-operating-model.json`
+- `config/agentic-task-routing.json`
+- `config/copilot-execution-parity.json`
+- `config/agent-loop-policies.json`
 
-### AI Features Agent
-- **Focus:** `api/ai.py`, `api/routes/ai.py`, `analysis/providers/ai.py`, frontend AI components
-- **Tasks:** Extend LLM-powered coaching, natural language queries, plan generation
-- **Context needed:** `api/deps.py` for data access, existing metrics for context injection, `plugins/praxys/` (git submodule of public [`praxys-run/praxys-coach-plugin`](https://github.com/praxys-run/praxys-coach-plugin)) for MCP tools
-- **Key rule:** AI features must be optional — guard with `is_available()`, app works fully without API key
+Do not treat this role list as a permanent org chart. Create, merge, or retire a
+role only through the checked-in evolution criteria and a reviewed policy
+change.
 
-### Ops / DevOps Agent
-- **Focus:** production operations — deploy, App Service config, secrets, monitoring/alerts, admin tasks
-- **Tasks:** wire alerts, rotate/add config, deploy & rollback, diagnose prod issues
-- **Context needed:** the operations handbook **`docs/ops/README.md`** (runbook index). Each runbook is self-contained: `Prerequisites · Steps · Verify · Rollback`. `docs/deployment.md` for one-time Azure setup.
-- **Key rule:** App Service settings are owned by `deploy-backend.yml`, not the portal — change the GitHub secret/variable and re-deploy. Never commit secrets. **Any config / secret / infra / deploy change must update `docs/ops/` (esp. `config-and-secrets.md`) in the same PR** — where it's set and how to provision it.
-- **Monitoring / alerts:** the live alert inventory + cost model is `docs/ops/monitoring-and-alerts.md`. Log alerts bill by evaluation frequency (every frequency ≥15 min hits the same 0.50 floor — only sub-15-min costs more); metric alerts are flat and frequency-free. Every alert needs an action group (or it pages nobody) and a row in the inventory table — update it in the same PR.
+## Role agents
 
-## Workflow Patterns
+### Product
 
-### Adding a Feature End-to-End
-1. **Analysis Agent** adds metric to `metrics.py` + test
-2. **API Agent** exposes via `deps.py` + route
-3. **Frontend Agent** invokes `ui-quality`, then adds types, web/miniapp UI, and page integration
-4. Run `python -m pytest tests/`, `cd web && npm run build`, the relevant miniapp checks, and `python scripts/check_ui_quality.py --base origin/main --head HEAD --skip-evidence`
+- **Owns:** user problems, product promises, prioritization, value trade-offs,
+  minimum valuable scope, and target/guardrail outcomes.
+- **Agent:** `.github/agents/product.agent.md`
+- **Artifacts:** Product Decision Record and Product Outcome Record.
+- **Boundary:** Product does not invent science, design the final interaction,
+  implement code, or approve its own decision.
 
-### Debugging a Data Issue
-1. **Data Pipeline Agent** checks sync output and database integrity
-2. **Analysis Agent** traces through `data_loader.py` → `metrics.py` with sample data
-3. Use `tests/test_integration.py` fixture pattern for reproducible test cases
+### Design
 
-### Working with Sample Data
-- `data/sample/` contains tracked synthetic CSVs for all 7 data sources
-- `python scripts/seed_sample_data.py` copies sample → data/ for local testing
-- `python scripts/generate_sample_data.py` regenerates sample data after schema changes
+- **Owns:** user journeys, information architecture, interaction, visual
+  language, content, accessibility, and rendered experience.
+- **Agent:** `.github/agents/design.agent.md`
+- **Harness:** `.github/skills/ui-quality/SKILL.md`
+- **Artifacts:** Design Decision Record and Experience Specification.
+- **Boundary:** Design does not choose product priority or implement backend
+  behavior. Engineering implements; Quality independently verifies.
+
+### Engineering
+
+- **Owns:** implementation inside accepted Product, Design, Architecture,
+  Science, Trust, and Operations boundaries.
+- **Agent:** `.github/agents/engineering.agent.md`
+- **Artifacts:** Implementation Impact Map and Implementation Change.
+- **Capabilities:** frontend, backend/API, analysis, database, data pipeline,
+  provider integration, AI integration, migration, and test automation.
+- **Boundary:** A different directory or technology is not a new role.
+
+Engineering capabilities preserve repository-specific rules:
+
+| Capability | Primary paths | Invariants |
+|---|---|---|
+| Data pipeline | `sync/`, `db/sync_writer.py`, `db/models.py`, `analysis/data_loader.py` | All sync writes use `db/sync_writer.py` upserts |
+| Analysis | `analysis/metrics.py`, `api/deps.py` | Metrics are pure; intensity uses splits/samples, never activity `avg_power` |
+| API | `api/main.py`, `api/deps.py`, `api/auth.py`, `api/routes/` | Routes stay thin; authenticated data is recomputed through deps; only register/token are public |
+| Frontend | `web/src/`, `miniapp/` | Use `useApi<T>`, strict types, UI quality, and web/miniapp parity; use `wechat-devtools` only in a user-approved foreground window |
+| AI features | `api/ai.py`, `api/routes/ai.py`, `analysis/providers/ai.py`, `plugins/praxys/` | AI remains optional with deterministic fallbacks; plugin edits land in its submodule repository first |
+
+### Architecture
+
+- **Owns:** cross-cutting system boundaries, long-lived technical constraints,
+  non-functional trade-offs, and irreversible technical choices.
+- **Agent:** `.github/agents/architecture.agent.md`
+- **Artifact:** Architecture Decision Record.
+- **Activate for:** new service/datastore, cross-domain contract, irreversible
+  migration, or material reliability/scalability/performance risk.
+- **Boundary:** Routine local code design stays with Engineering.
+
+### Quality
+
+- **Owns:** test strategy, acceptance sufficiency, regression, exploratory
+  validation, and release confidence for the current change.
+- **Agent:** `.github/agents/quality.agent.md`
+- **Artifact:** Verification Evidence.
+- **Boundary:** High-risk verification is independent from the executor.
+  Quality does not replace specialist Science, Trust, Design, or Architecture
+  review.
+
+### Science
+
+- **Owns:** evidence claims, applicability, uncertainty, formulas, constants,
+  claim limits, and science-specific runtime boundaries.
+- **Agent:** `.github/agents/science.agent.md`
+- **Skill:** `.github/skills/science-research/SKILL.md`
+- **Artifacts:** Evidence Review; Science Decision Record when the routed task
+  changes scientific product/runtime policy.
+- **Boundary:** Science constrains product choices but does not choose product
+  value.
+
+### Trust
+
+- **Owns:** security, privacy, identity, authorization, sensitive data, threat
+  models, and dependency trust.
+- **Agent:** `.github/agents/trust.agent.md`
+- **Artifact:** Trust Decision Record.
+- **Boundary:** Never expose secrets or weaken private-by-construction,
+  encrypted-credential, per-user isolation, or server-authoritative controls.
+
+### Operations
+
+- **Owns:** deployment, runtime configuration, observability, capacity,
+  incidents, mitigation, rollback, and recovery.
+- **Agent:** `.github/agents/operations.agent.md`
+- **Artifacts:** Operations Decision Record, Release Evidence, Incident Record.
+- **Context:** start at `docs/ops/README.md`.
+- **Boundary:** Repository workflows own deployment settings. Any config,
+  secret, infra, alert, or deploy change updates `docs/ops/` in the same PR.
+  Every alert needs an action group and an inventory entry in
+  `docs/ops/monitoring-and-alerts.md`.
+
+### Meta/Eval
+
+- **Owns:** evaluation of agents, prompts, policies, routing, review effort, and
+  autonomy across batches of outcomes.
+- **Agent:** `.github/agents/meta-eval.agent.md`
+- **Artifacts:** Evaluation Report; Policy Change Proposal when the routed task
+  changes policy.
+- **Boundary:** Meta/Eval does not replace Quality for the current change and
+  cannot promote itself from one successful outcome.
+
+## Control plane
+
+### Praxys Orchestrator
+
+`.github/agents/praxys-orchestrator.agent.md` is selected locally through
+Copilot agent invocation and explicitly by the cloud assignment workflow. It
+does not classify or execute work itself: it delegates classification to Work
+Router, deterministic composition to `scripts/route_agentic_task.py`, and
+execution to the returned loop agents.
+
+### Work Router
+
+`.github/agents/work-router.agent.md` identifies:
+
+- exactly one checked-in primary object;
+- every applicable checked-in impact and risk trigger;
+- concise evidence and uncertainty for that classification.
+
+`scripts/route_agentic_task.py` then deterministically returns the primary and
+nested loops, agents, lead, contributors, executor, verifier, input/output and
+outcome artifacts/observers, and decision-review requirement. Decision Review
+Router allocates independent reviewer and human-authority slots. Work Router
+adds entry and exit criteria; it does not execute or review the task.
+
+The primary loop owns the iteration. Nested-loop order is canonical
+presentation order, not a one-pass execution plan: schedule and resume agents
+from artifact dependencies until every current required artifact is complete.
+Outcome artifacts remain future observation obligations.
+
+### Decision Review Router
+
+`.github/agents/decision-review-router.agent.md` returns exactly one route:
+
+```text
+agent-resolved | agent-reviewed | human-review-required | blocked
+```
+
+The proposer cannot select its own route or review its own decision. The
+executor cannot verify its own high-risk work. Routers cannot approve or
+materialize human authority.
+
+## Loop patterns
+
+### Adding or changing a product capability
+
+1. Praxys Orchestrator obtains the bounded classification and deterministic
+   Work Contract, with Product as the primary loop.
+2. Product produces or reuses an accepted Product Decision Record.
+3. Science, Trust, Architecture, and Design contribute only when their decision
+   classes are present.
+4. Decision Review Router resolves the authorized review path.
+5. Engineering implements the accepted artifacts.
+6. Quality independently verifies; Operations owns rollout when applicable.
+7. Product observes user outcomes; Meta/Eval observes agent and routing quality.
+
+### Debugging a data issue
+
+1. Praxys Orchestrator normally routes the task to Delivery with Engineering
+   as executor and Quality as verifier.
+2. Engineering traces sync -> writer -> database -> loader -> metric.
+3. Add a reproducible test using the `tests/test_integration.py` fixture
+   pattern.
+4. Invoke Science only if interpretation or scientific behavior changes,
+   Architecture only for cross-cutting data choices, and Trust for sensitive
+   data or isolation boundaries.
+
+### Working with sample data
+
+- `data/sample/` contains tracked synthetic fixtures.
+- `python scripts/seed_sample_data.py` copies sample data for local testing.
+- `python scripts/generate_sample_data.py` regenerates fixtures after schema
+  changes.

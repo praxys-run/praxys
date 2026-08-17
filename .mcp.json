@@ -57,7 +57,19 @@
     "praxys-local": {
       "command": "node",
       "args": ["scripts/run_praxys_mcp.cjs", "local"],
-      "env": {}
+      "env": {},
+      "tools": [
+        "get_daily_brief",
+        "get_training_review",
+        "get_race_forecast",
+        "get_training_context",
+        "get_settings",
+        "get_sync_settings",
+        "get_connections",
+        "get_managed_plan_status",
+        "get_sync_status",
+        "whoami"
+      ]
     },
     "praxys-dev-test": {
       "command": "node",

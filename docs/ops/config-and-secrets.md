@@ -37,7 +37,7 @@ configuration-sync deploy overwrites them.**
 | `PRAXYS_SMTP_PASSWORD` | SMTP client authorization code (WeCom/Exmail) for verification + invitation emails. **Optional.** | App Service setting (backend) |
 | `WECHAT_MINIAPP_UPLOAD_KEY` | Mini program CI upload key | `miniapp-publish.yml` |
 | `COPILOT_GITHUB_TOKEN` | Fine-grained PAT owned by the Copilot subscriber, with only *Account permissions → Copilot Requests: Read*. Used solely for Agentic Workflow inference; repository operations continue to use `GITHUB_TOKEN`. Do not grant `copilot-requests: write` in those workflows or gh-aw ignores this secret in favor of organization billing. | Agentic Workflow `.md` sources |
-| `COPILOT_ASSIGN_TOKEN` | **Required for workflow auto-assign** — fine-grained PAT (*Issues: write*, this repo only, with expiry). Agent assignment needs a user token; the built-in `GITHUB_TOKEN` is forbidden (issue #400). Manual UI assignment doesn't need it. | `assign-copilot.yml` |
+| `COPILOT_ASSIGN_TOKEN` | **Required for workflow auto-assign and live Cloud drift checks** — fine-grained PAT (*Issues: write* and *Copilot agent settings: read*, this repo only, with expiry). Agent assignment needs a user token; the built-in `GITHUB_TOKEN` is forbidden (issue #400). Manual UI assignment doesn't need it. | `assign-copilot.yml`, `copilot-environment-parity.yml` |
 | `PRAXYS_GITHUB_APP_PRIVATE_KEY` | Feedback GitHub App private key. The app has Issues read/write and Pull requests read; tokens are minted on demand. | App Service setting (backend) |
 | `PRAXYS_REVIEW_POLICY_APP_PRIVATE_KEY` | Independent review-governance App key. The App has Contents write + Pull requests write to approve qualifying PRs, enable normal auto-merge, and commit verified science approval-ledger updates without using `GITHUB_TOKEN`. Optional for ordinary review-required PRs without science acceptance; required for autonomous review actions and science approval materialization. | `selective-review.yml`, `science-approval-ledger.yml` |
 
@@ -85,7 +85,8 @@ and not the committed `.mcp.json` used by local Copilot CLI clients. Its source
 of truth is **Repository → Settings → Copilot → MCP servers**; the reviewed
 copy/paste payload is `config/copilot-cloud-mcp.json`.
 
-The cloud agent already includes Playwright. The additional configuration adds:
+Portable Praxys agents use the same reviewed capabilities in Local and Cloud.
+The Cloud repository setting adds:
 
 - pinned, headless, isolated Chrome DevTools with an explicit UI-review
   tool allowlist, usage statistics and CrUX disabled, and network headers
@@ -142,6 +143,33 @@ Provision after the setup workflow is present on `main`:
 
 Rollback by removing the affected server from repository MCP settings and
 saving. Built-in Playwright remains available when Chrome DevTools is removed.
+Portable Praxys agents must nevertheless record rendered verification as
+blocked rather than silently switching to an environment-specific path.
+
+The common capability contract is `config/copilot-execution-parity.json`.
+Validate repository state with:
+
+```bash
+python scripts/check_copilot_environment_parity.py
+```
+
+The live Cloud setting is external GitHub state. The scheduled and
+manually-dispatchable `.github/workflows/copilot-environment-parity.yml` calls
+the versioned `2026-03-10` configuration endpoint and compares it with the
+checked-in payload:
+
+```bash
+python scripts/check_copilot_environment_parity.py \
+  --live \
+  --repo praxys-run/praxys
+```
+
+The live check uses `COPILOT_ASSIGN_TOKEN`, which must include repository
+*Copilot agent settings: read*. A missing token, denied permission, missing
+required server, tool drift, or undeclared environment override fails the
+workflow. Restore the reviewed repository MCP payload to roll back accidental
+drift. If the contract itself changes, update the config, agents, setup
+workflow, parity tests, and this runbook in the same PR.
 
 ### GitHub Actions → Workflow permissions
 

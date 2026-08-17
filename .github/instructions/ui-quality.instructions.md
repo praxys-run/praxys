@@ -8,6 +8,11 @@ applyTo: "web/**,miniapp/**,DESIGN.md,PRODUCT.md,docs/brand/**,docs/dev/design-s
 Treat every user-visible change as an **Operate-mode** product design task, not
 as styling after implementation.
 
+Under the agentic operating model, Product owns user value, Design owns the
+intended experience, Engineering implements it, and Quality independently
+verifies it. The UI quality harness is the mandatory rendered Design harness;
+it does not authorize one implementation agent to collapse those roles.
+
 1. Invoke the repository `ui-quality` skill before editing. It loads and follows
    `.github/skills/impeccable/SKILL.md`; run its context command exactly once for
    the primary target.
@@ -27,9 +32,10 @@ as styling after implementation.
    link a `Design system gap` issue for a product decision, broad migration, or
    out-of-scope debt. Never hide the gap in a one-off or broad suppression.
 7. Run the feature with sample data and inspect the real interaction in one
-   bounded desktop/mobile pass. Prefer Chrome DevTools MCP; the cloud coding
-   agent can use built-in Playwright. Praxys MCP may supply synthetic data
-   semantics but never replaces rendered review. For WeChat on Windows + WSL2,
+   bounded desktop/mobile pass. Portable Local and Cloud agents use the common
+   Chrome DevTools MCP; built-in Cloud Playwright is optional rather than a
+   required alternate path. Praxys MCP may supply synthetic data semantics but
+   never replaces rendered review. For WeChat on Windows + WSL2,
    use the repository skill only after the user approves foreground
    interruption; Tencent has no headless/no-focus simulator mode. Never replace
    registered tools with raw desktop focus, cursor, keyboard, mouse, or

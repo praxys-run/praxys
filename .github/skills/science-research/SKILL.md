@@ -10,8 +10,8 @@ description: >-
 # Praxys Science Research
 
 Use this repository-level developer skill to turn a bounded science question
-into an auditable Evidence Review and, when requested, a product-decision
-proposal. It is not an athlete-facing coaching feature.
+into an auditable Evidence Review and a bounded evidence handoff for a Product
+decision. It is not an athlete-facing coaching feature.
 
 The plugin `/science` skill remains browse/select only: it may explain or
 select shipped theories, but it must not research literature, change evidence
@@ -37,10 +37,20 @@ behavior, or user-facing product claim.
 
 ### Decision proposal
 
-Decision-proposal work begins with the same Evidence Review process, then
-drafts a Science Decision Record and an implementation impact map. It may
-prepare a draft implementation only when the decision, boundaries, and
-validation plan are explicit. It must remain a draft for human review.
+Decision-proposal work begins with the same Evidence Review process. The
+`Praxys Science` role owns any required Science Decision Record (SDR): evidence
+interpretation, parameters, applicability, claim limits, and runtime boundary.
+It then hands the exact evidence and science artifacts to `Praxys Product`,
+which owns the Product Decision Record: user problem, product options, scenarios,
+value trade-offs, minimum valuable scope, and outcome metrics.
+
+Science may challenge or refine evidence mapping, but it must not substitute
+scientific prohibitions for a product recommendation. Product may choose among
+evidence-consistent options, but it must not invent scientific support.
+
+Engineering may prepare an implementation only after the required Product,
+Science, Design, Architecture, Trust, and review-routing prerequisites are
+explicit.
 
 Neither mode may mark a record `accepted`, claim human approval, merge a
 science change, or silently replace research history.
@@ -131,37 +141,46 @@ Follow the existing registry schema and lifecycle:
   decision coverage for all affected SDRs, using one or more draft SDRs without
   active supersession links; Research-only mode stops at the evidence bundle
   and escalation note.
-- After explicit human approval, apply the lifecycle change atomically:
+- After explicit human approval has been identity- and digest-verified through
+  the authorized approval ledger, apply the lifecycle change atomically:
   accept the successor Evidence Review and every successor SDR, activate all
   reciprocal supersession links, mark the evidence predecessor and every
   replaced SDR `superseded`, and update all governed theory/model references
-  in the same approved change. An agent may prepare that transition but may
-  not apply or claim the approval.
+  in the same approved change. An agent may prepare and execute that authorized
+  transition, but it may not originate, infer, widen, or claim the human
+  judgment.
 - Put search provenance in `method`, per-source verification in `review_notes`,
   claim strength in `claims`, and uncertainty in claim limitations, gaps, and
   conflicting findings.
-- In decision-proposal mode, create a draft SDR under
-  `data/science/decisions/`. Link exact Evidence Review and claim IDs, classify
-  every parameter as `published`, `estimate`, or `guardrail`, and document
-  rejected alternatives, claim limits, safety/privacy implications, and a
-  falsification plan.
+- In decision-proposal mode, create a draft SDR only when a scientific
+  interpretation or runtime science contract is needed. Link exact Evidence
+  Review and claim IDs, classify every parameter as `published`, `estimate`, or
+  `guardrail`, and document rejected scientific interpretations, claim limits,
+  safety/privacy implications, and a falsification plan.
+- Dispatch the completed evidence and science bundle to
+  `.github/agents/product.agent.md`. Product owns a separate Product Decision
+  Record and links the science artifacts as dependencies.
 - New records use `approval_mode: artifact`; draft SDRs declare
   `artifact_policy.runtime_state: inactive`.
 - Run `python scripts/generate_science_artifacts.py` and hand reviewers the
   generated Markdown packet, not raw YAML. The packet must include the exact
   machine JSON contract and the same decision/contract digests.
 - Artifact-mode SDRs must define a typed `decision_review` manifest. Start the
-  packet with a short decision sheet that tells the reviewer exactly what to
-  approve, what is explicitly deferred, what approval changes, and what it
-  does not authorize. Map every `model_parameters` group to at least one
+  science packet with a short decision sheet that tells the reviewer exactly
+  which scientific interpretation, parameters, applicability, deferrals, and
+  runtime boundaries are being approved. Product value belongs in the linked
+  Product Decision Record. Map every `model_parameters` group to at least one
   decision item. Keep the full parameter/evidence/contract material in the
-  audit appendix; never ask a human to infer the decision by skimming it.
+  audit appendix.
 - Evidence, decision, and implementation review are separate roles. Only a
   digest-bound `evidence_reviewer` may accept an artifact-mode Evidence Review;
   only a `decision_approver` may accept its SDR; only an
   `implementation_reviewer` may activate its contract.
-- A human reviewer fills each of those roles; generated packets, schema
-  validation, agents, and CI cannot substitute for that judgment.
+- Current science approval artifacts remain human-authenticated. The independent
+  decision-review router may reduce the review to the irreducible decision, but
+  it cannot replace a human role unless a narrow judgment class is explicitly
+  promoted through the repository autonomy policy. No such science class is
+  promoted by default.
 - Human approval may be given in an authenticated GitHub PR comment or an
   authenticated local/remote agent session. It counts only when the human
   explicitly approves the named role, subject, and displayed immutable digest.
@@ -183,9 +202,9 @@ Follow the existing registry schema and lifecycle:
   ledger must not infer or partially apply predecessor transitions.
 - Regenerate `data/science/REGISTRY.md` after valid record changes.
 
-## 5. Map evidence to product behavior
+## 5. Hand evidence to Product
 
-For decision proposals, state whether each proposed behavior is:
+For decision proposals, give the Product Agent a structured mapping:
 
 | Category | Required treatment |
 | --- | --- |
@@ -205,6 +224,16 @@ Metrics remain pure functions in `analysis/metrics.py`; data loading stays in
 `analysis/data_loader.py`; API routes remain thin. Do not make a science change
 that changes CP, load, diagnosis, race forecasts, or the canonical Today verdict
 unless the decision explicitly evaluates that impact.
+
+The Product handoff must identify:
+
+- the user problem the evidence may help solve;
+- what evidence positively supports, not only what it prohibits;
+- evidence-consistent product options and their trade-offs;
+- scientific uncertainties the product must surface or test;
+- behaviors that should not be offered;
+- product decisions that cannot be derived from literature and therefore need
+  product rationale, outcome metrics, and independent review routing.
 
 ## 6. Dispatch the required reviews
 
@@ -229,11 +258,13 @@ End every run with these artifacts or explicitly state why one does not apply:
 
 1. Updated or new Evidence Review, including search provenance and verification
    levels.
-2. Optional draft SDR for decision-proposal mode.
-3. Concise product recommendation, alternatives considered, and claim limits.
-4. Unresolved evidence gaps, conflicts, and validation/falsification plan.
-5. Implementation impact map and reviewer checklist.
-6. For artifact-mode work, generated Evidence Review and SDR review packets,
+2. Optional draft SDR for the scientific interpretation and runtime boundary.
+3. Product handoff for a separate Product Decision Record.
+4. Scientific implications and evidence-consistent options without choosing
+   product value.
+5. Unresolved evidence gaps, conflicts, and validation/falsification plan.
+6. Implementation impact map and reviewer checklist.
+7. For artifact-mode work, generated Evidence Review and SDR review packets,
    the action-oriented decision manifest, the exact inactive machine contract,
    and any still-missing role-scoped approval artifacts.
 

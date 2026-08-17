@@ -79,6 +79,36 @@ state coverage, and the PR evidence required by CI.
 See [CLAUDE.md](../CLAUDE.md) for complete conventions, how-to guides, and the module map.
 See [AGENTS.md](../AGENTS.md) for multi-agent workflow patterns.
 
+## Agentic operating model and human attention
+
+- Agents are bounded roles; loops improve objects over time. Read
+  `docs/dev/agentic-operating-model.md` and
+  `config/agentic-operating-model.json`.
+- For every material task, first invoke
+  `.github/agents/praxys-orchestrator.agent.md`. This is the shared Local and
+  Cloud entry point. It invokes Work Router, runs the deterministic
+  `scripts/route_agentic_task.py` contract, and delegates the returned loops.
+- Product owns user value; Design owns experience; Engineering implements;
+  Architecture owns triggered cross-cutting technical choices; Quality
+  independently verifies; Science owns evidence; Trust owns security/privacy;
+  Operations owns production state; Meta/Eval improves policies across outcomes.
+- API, frontend, backend, and data are Engineering capabilities, not independent
+  roles merely because they use different directories.
+- Route material judgment through
+  `.github/agents/decision-review-router.agent.md`. The proposer cannot select
+  its own route or review its own decision; the executor cannot verify its own
+  high-risk work; routers cannot approve.
+- Minimize human attention by resolving deterministic work and accepted-policy
+  conformance with agents. Ask humans only for the exact irreducible decision
+  returned by the independent router.
+- Task routing is active. Judgment autonomy remains specification-only and
+  default-human for unpromoted classes in
+  `config/agent-loop-policies.json`.
+- Portable agents use only the common capabilities in
+  `config/copilot-execution-parity.json`. Environment-specific capabilities
+  cannot alter routed authority and must follow the documented fail-closed
+  limitation.
+
 ## Coding-agent guidance (the change loop)
 
 When you (the GitHub Copilot coding agent) are assigned an issue labeled
@@ -86,8 +116,9 @@ When you (the GitHub Copilot coding agent) are assigned an issue labeled
 **draft PR** for human review — never merge, and never bypass branch protection:
 
 - Use the repository custom agent in
-  `.github/agents/praxys-change-loop.agent.md`; its description is intentionally
-  scoped to every `agent-ready` implementation.
+  `.github/agents/praxys-orchestrator.agent.md`; the cloud assignment workflow
+  selects it explicitly. It routes the task, then delegates repository
+  implementation to `.github/agents/praxys-change-loop.agent.md`.
 - **Always add or update a test** that fails before your change and passes
   after. Backend tests live in `tests/`.
 - **Keep the PR in draft while the patch is still moving.** Mark it ready only

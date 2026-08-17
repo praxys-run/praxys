@@ -1,9 +1,9 @@
 # Agentic loops — the self-improvement platform
 
-**Status:** Active implementation. The **change loop** (#362, PR #373) is the
-first instance. Durable decision/outcome records, a seed replay corpus, and
-aggregate learning metrics are built; selective-review promotion remains tracked
-in #377.
+**Status:** Active shared substrate. The **change loop** (#362, PR #373) is the
+first implemented instance. The versioned role/loop/control-plane contract is
+defined in `agentic-operating-model.md`; selective-review promotion remains
+tracked in #377.
 **Question:** How do AI agents run in *loops* — not one-shot pipelines — that
 learn from outcomes to improve the Praxys product *and* its operations?
 
@@ -21,8 +21,13 @@ learn from outcomes to improve the Praxys product *and* its operations?
     and tunes the **policy** that drives the inner loop (prompts, thresholds,
     rubrics, model, runbooks). It runs periodically / every N outcomes — **not**
     per PR. **This is where "self-improve" lives.**
-- It is not one loop but a **family** (change, incident, product/quality,
-  meta/eval) — same shape, different signals and actuators.
+- It is not one loop but a **family** (product, science, design, delivery,
+  runtime, incident, meta/eval) — same shape, different objects, signals, and
+  actuators.
+- A loop's **object is not a person**. It is the state being improved: evidence
+  claims, a product promise, repository behavior, production health, or the
+  agent policies themselves. Humans and agents are operators, approvers,
+  signal sources, or beneficiaries.
 - They share one **substrate**: trace log · outcome capture · eval corpus + replay
   · shadow→promote · policy-as-code + policy PRs · metrics + autonomy ladder.
   Building that substrate **once** — instead of per loop — is what makes the whole
@@ -57,21 +62,60 @@ weekly, or every N drafts). So:
   *policy* change (a PR against the prompt/rubric), which the next batch benefits
   from. Improvement compounds across iterations, not within one.
 
-## 3. The loop family
+## 3. Roles operate; loops learn
+
+Agents are decision-owning roles. Loops improve objects. Praxys Orchestrator
+uses Work Router's bounded classification and
+`scripts/route_agentic_task.py` to bind lead, contributor, executor, verifier,
+and outcome-observer slots. Decision Review Router independently allocates the
+reviewer and human-authority slots.
+
+The initial roles are Product, Design, Engineering, Architecture, Quality,
+Science, Trust, Operations, and Meta/Eval. Traditional job names are an
+evolvable starting taxonomy, not a permanent ontology. A role exists because it
+owns recurring decisions, durable artifacts, independence requirements, and
+outcome measures—not because it maps to a directory or technology.
+
+API, frontend, backend, data, and integration work are Engineering
+capabilities. Quality verifies the current change; Meta/Eval improves the agent
+system across many completed changes. Architecture is trigger-based rather than
+a mandatory gate for local code choices.
+
+See [`agentic-operating-model.md`](agentic-operating-model.md) and
+`config/agentic-operating-model.json` for the authoritative role, artifact,
+loop, router, and evolution contracts.
+
+## 4. The loop family
 
 Same OODA shape, different sensors and actuators:
 
 | Loop | Sense | Decide (policy) | Act | Learns from |
 |---|---|---|---|---|
-| **Change** (built — #362) | user feedback | is this a real, actionable defect? (`agent_eligible`) | Copilot drafts a fix PR | merged without correction / corrected / rejected; post-merge reverts or reopens |
+| **Product** | user problem, feedback, telemetry, strategy, accepted constraints | what user value Praxys should provide, for whom, and with which trade-offs | Product Decision Record and accepted implementation slice | target/guardrail metrics, adoption, abandonment, corrections |
+| **Science** | bounded science question, new research, challenged claim | what evidence supports, does not support, and with what uncertainty | Evidence Review; Science Decision Record only for a routed scientific product/runtime decision | source corrections, later evidence, reviewer corrections, post-launch falsification |
+| **Design** | accepted product intent, experience defects, design-system gaps | what journey, interaction, content, accessibility, and visual system should deliver the intent | Design Decision, Experience Specification, rendered review | completion, errors, accessibility findings, confusion, repeated design defects |
+| **Delivery** (first implementation — #362) | accepted decision, user feedback, defect, incident handoff | how to implement accepted behavior safely | Engineering produces a tested PR; Quality verifies it | correction, required checks, reverts, reopens, regressions |
+| **Runtime** | release candidate, config change, monitoring or capacity need | how to deploy, observe, recover, and roll back | release, runtime configuration, monitoring, runbooks | availability, latency, alerts, rollback, operator correction |
 | **Incident** (Loop B — `praxys-ops-agent`) | alerts, telemetry anomalies, error spikes | RCA + severity + is it auto-mitigable? | mitigate (restart/rollback/scale/config) + draft postmortem + **hand a fix to the change loop** | MTTR, recurrence, did the mitigation hold |
-| **Product / quality** | usage telemetry, feedback themes, funnels | what to build / fix next (prioritization) | draft specs/epics, sometimes prototype PRs | did the target metric move |
-| **Meta / eval** | the agents' own outcomes | which policy/prompt/model is underperforming | open **policy PRs**, swap models, adjust thresholds | eval score, acceptance rate, precision |
+| **Meta / eval** | completed agent decisions and outcomes | which role, prompt, model, route, or autonomy policy is underperforming | Evaluation Report; policy PR only when a routed policy change is warranted | correction, escalation quality, adverse outcomes, replay, human effort |
 
 The meta loop is special: its *product* is the other loops' policies. It is the
 engine of "self-improvement."
 
-## 4. The shared substrate (the actual "how")
+The primary handoff is:
+
+```text
+user signal -> Orchestrator -> Work Router -> deterministic Work Contract
+-> Product loop
+-> Science / Design / Trust / Architecture decisions when triggered
+-> Decision Review Router -> Delivery loop -> Quality verification
+-> Runtime loop -> product and meta outcomes
+```
+
+See [`product-decision-loop.md`](product-decision-loop.md) for the Product-loop
+specialization.
+
+## 5. The shared substrate (the actual "how")
 
 Every decision point — triage `kind`, `agent_eligible`, priority, sensitivity,
 RCA hypothesis, mitigation choice, prioritization — is a **policy**. Each policy
@@ -111,14 +155,14 @@ should run on the same six rails:
    only the proposals file; it cannot edit deployed policy, approve, or merge.
 6. **Metrics + an autonomy ladder.** Track acceptance rate, human-edit distance,
    MTTR, precision/recall, % autonomous vs escalated — and use them to move each
-   task-type up or down the autonomy ladder (§5). *Today:* the 30-day observer
+   task-type up or down the autonomy ladder (§6). *Today:* the 30-day observer
    reports lifecycle, readiness-CI attribution, corrections, test coverage, and
    reverts. *Built in part:* Admin Ops now shows durable decision/outcome counts
    and the versioned autonomy state from `config/agent-loop-policies.json`.
    Per-class promotion evidence lives in
    `data/agent_evals/change/review_promotion.json`.
 
-## 5. Autonomy ladder & guardrails
+## 6. Autonomy ladder, review routing, and guardrails
 
 Each task-type sits on a dial, raised **only** when the metrics in rail 6 justify
 it, and always revertible:
@@ -133,6 +177,27 @@ proven, explicitly promoted narrow class can merge without human review. The
 implementation agent never decides that its own PR is safe. Promotion starts in
 shadow mode and requires clean checks, no recorded corrections, enough
 post-merge observation, and a fast kill switch.
+
+The same substrate also owns the control plane. Work Router selects enumerated
+task characteristics; the deterministic task router selects loops, agents,
+slots, inputs, outputs, and review requirements. The Decision Review Router
+independently chooses:
+
+```text
+agent-resolved | agent-reviewed | human-review-required | blocked
+```
+
+Its objective is to minimize human attention subject to quality, safety,
+reversibility, and authenticated authority. The proposer cannot select its own
+review route or review its own decision; an executor cannot verify its own
+high-risk work; routers cannot approve. New product promises, material value
+trade-offs, sensitive-data collection, safety/privacy boundaries, irreversible
+actions, unresolved agent disagreement, and out-of-policy decisions remain
+default-human. The model lives in `config/agentic-operating-model.json`; review
+autonomy lives in `config/agent-loop-policies.json`. The `agent-reviewed` route
+is also default-off until a class is explicitly listed with independent
+reviewer and deterministic-validation requirements; no class is currently
+listed.
 
 **Non-negotiable guardrails** (apply to every loop):
 
@@ -153,20 +218,23 @@ post-merge observation, and a fast kill switch.
   context within the unified pre-merge workflow. Implementation agents cannot
   self-attest with placeholders or mark an unverified UI PR ready.
 
-## 6. How it maps to the repos
+## 7. How it maps to the repos
 
-- **`praxys-run/praxys` (this repo, public).** Hosts the **change loop** and the
-  **product/quality loop**, and is the natural home for the **shared substrate**
-  (telemetry, the decisions/outcomes store, the eval corpus, the policy files).
+- **`praxys-run/praxys` (this repo, public).** Hosts all role and loop contracts,
+  portable routing, and the **shared substrate** (telemetry, the
+  decisions/outcomes store, the eval corpus, and policy files).
 - **`praxys-run/praxys-ops-agent` (private).** Hosts the **incident loop**;
   consumes the same substrate. Event-triggered + ephemeral, acting on praxys via a
   scoped GitHub App + Azure OIDC.
-- **Cross-loop edges** (the interesting part): the incident loop can *emit into*
+- **Cross-loop edges** (the interesting part): the Product loop consumes
+  bounded Science, Design, Trust, and Architecture decisions and emits an
+  accepted implementation slice into the Delivery loop.
+  The incident loop can *emit into*
   the change loop (an RCA that needs a code fix becomes an `agent-ready`-eligible
   issue); change-loop rejections and incident postmortems both feed the **eval
   corpus** the meta loop learns from.
 
-## 7. Current state → gaps → phased rollout
+## 8. Current state → gaps → phased rollout
 
 **Have:** App Insights + `api/telemetry.py`; the change loop
 (`api/feedback_triage.py`, `.github/workflows/assign-copilot.yml`,
@@ -177,9 +245,15 @@ PR reconciliation; the checked-in replay corpus; Admin Ops learning aggregates;
 and the cross-agent UI quality harness (vendored Impeccable, Copilot/Claude
 hooks, PR evidence, CI gate, and invariant review).
 
-**Remaining generalization:** reuse these rails for incident and product loops,
-grow privacy-safe eval corpora, and promote a narrow Loop A class only after it
-accumulates the required clean evidence. No class is promoted at initial rollout.
+**Active routing:** the shared Local/Cloud Orchestrator, nine role manifests,
+all seven primary-loop routes, Work Router classification, deterministic Work
+Contracts, independent Decision Review Router, common tool contract, and Cloud
+drift checks. Judgment autonomy remains default-human and unpromoted.
+
+**Remaining generalization:** persist the first Product Decision Record, run
+population routing through the role-composed workflow, capture corrections and
+outcomes, reuse the rails across loops, and promote a narrow class only after it
+accumulates the required clean evidence.
 
 **Phases** (tracked in **#377**):
 
@@ -207,6 +281,14 @@ and product loops.
 - **Policy PR** — a human-reviewed, eval-gated PR that changes a policy file.
 - **Selective review** — an independent policy decides whether a PR needs human
   review; the implementation agent never decides its own eligibility.
+- **Decision review routing** — an independent policy allocates a decision to
+  agent resolution, independent agent review, bounded human review, or a block.
+- **Role** — a bounded owner of recurring decision classes and durable
+  artifacts.
+- **Capability / subagent** — a specialization inside a role without separate
+  authority unless explicitly promoted.
+- **Work routing** — selection of the object, primary loop, role slots,
+  triggered decisions, and required artifacts before execution.
 - **Autonomy ladder** — suggest → draft-with-review → policy-gated auto-merge →
   narrow-autonomous.
 
@@ -219,3 +301,5 @@ and product loops.
 - `docs/dev/microsoft-foundry-adoption-study.md` — Foundry runtime, evaluation,
   Coach-insight, and cost decisions for the change and incident loops.
 - `docs/dev/architecture.md` — the (non-agentic) system architecture.
+- `docs/dev/agentic-operating-model.md` — authoritative role, loop, artifact,
+  router, and role-evolution model.

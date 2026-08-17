@@ -1,0 +1,916 @@
+{
+  "schema_version": 1,
+  "model_version": "praxys-agentic-operating-model-v1",
+  "status": "active-routing",
+  "principles": [
+    "agents-are-bounded-decision-owning-roles",
+    "loops-improve-objects-rather-than-people-or-teams",
+    "governance-dynamically-binds-roles-to-loop-slots",
+    "durable-artifacts-are-the-interfaces-between-roles-and-loops",
+    "independent-review-is-separate-from-proposal-and-execution",
+    "human-attention-is-reserved-for-irreducible-authority-and-judgment",
+    "traditional-job-titles-are-an-evolvable-starting-taxonomy"
+  ],
+  "canonical_stages": [
+    "sense",
+    "frame",
+    "investigate",
+    "propose",
+    "review",
+    "decide",
+    "plan",
+    "act",
+    "verify",
+    "release",
+    "observe",
+    "learn"
+  ],
+  "roles": {
+    "product": {
+      "display_name": "Praxys Product",
+      "purpose": "Own user problems, product promises, prioritization, value trade-offs, and measurable user outcomes.",
+      "manifest_status": "available",
+      "agent_path": ".github/agents/product.agent.md",
+      "decision_classes": [
+        "user-problem-framing",
+        "product-prioritization",
+        "product-promise",
+        "material-user-value-tradeoff",
+        "minimum-valuable-scope",
+        "success-and-guardrail-metrics"
+      ],
+      "owned_artifacts": [
+        "product-decision-record",
+        "product-outcome-record"
+      ],
+      "capabilities": [
+        "discovery",
+        "product-policy",
+        "prioritization",
+        "scenario-design",
+        "outcome-analysis"
+      ],
+      "prohibited_actions": [
+        "invent-scientific-support",
+        "approve-own-product-decision",
+        "select-own-review-route",
+        "silently-implement-unresolved-product-tradeoffs"
+      ],
+      "activation_triggers": [
+        "new-product-promise",
+        "materially-different-user-experiences",
+        "priority-or-scope-tradeoff",
+        "target-or-guardrail-metric-definition"
+      ],
+      "outcome_measures": [
+        "target-and-guardrail-metric-movement",
+        "adoption-and-abandonment",
+        "human-product-correction",
+        "product-reversal-or-retirement"
+      ]
+    },
+    "design": {
+      "display_name": "Praxys Design",
+      "purpose": "Own user journeys, information architecture, interaction, visual language, content design, accessibility, and rendered experience.",
+      "manifest_status": "available",
+      "agent_path": ".github/agents/design.agent.md",
+      "decision_classes": [
+        "user-journey",
+        "information-architecture",
+        "interaction-model",
+        "visual-system",
+        "content-design",
+        "accessibility-and-inclusive-design"
+      ],
+      "owned_artifacts": [
+        "design-decision-record",
+        "experience-specification"
+      ],
+      "capabilities": [
+        "ux-research-synthesis",
+        "interaction-design",
+        "visual-design",
+        "content-and-i18n",
+        "accessibility",
+        "rendered-design-review"
+      ],
+      "prohibited_actions": [
+        "choose-product-priority-without-product-authority",
+        "implement-backend-behavior",
+        "self-attest-unrendered-experience",
+        "approve-own-high-impact-design-decision"
+      ],
+      "activation_triggers": [
+        "user-visible-behavior",
+        "new-or-materially-reworked-flow",
+        "design-system-change",
+        "content-or-accessibility-decision"
+      ],
+      "outcome_measures": [
+        "task-completion-and-error-rate",
+        "accessibility-findings",
+        "user-confusion-or-abandonment",
+        "repeated-design-system-defects"
+      ]
+    },
+    "engineering": {
+      "display_name": "Praxys Engineering",
+      "purpose": "Own implementation within accepted product, design, architecture, science, trust, and operations boundaries.",
+      "manifest_status": "available",
+      "agent_path": ".github/agents/engineering.agent.md",
+      "decision_classes": [
+        "local-code-design",
+        "implementation-plan",
+        "migration-execution",
+        "test-implementation",
+        "integration-detail"
+      ],
+      "owned_artifacts": [
+        "implementation-change",
+        "implementation-impact-map"
+      ],
+      "capabilities": [
+        "frontend",
+        "backend-and-api",
+        "data-pipeline",
+        "analysis-and-model-integration",
+        "database",
+        "external-integration",
+        "test-automation"
+      ],
+      "prohibited_actions": [
+        "invent-product-value",
+        "invent-scientific-policy",
+        "approve-own-implementation",
+        "cross-high-impact-architecture-or-trust-boundary-silently"
+      ],
+      "activation_triggers": [
+        "accepted-behavior-needs-implementation",
+        "repository-defect",
+        "migration-or-integration-work",
+        "test-or-tooling-change"
+      ],
+      "outcome_measures": [
+        "required-check-pass-rate",
+        "pr-caused-failure-rate",
+        "revert-or-reopen-rate",
+        "human-implementation-correction"
+      ]
+    },
+    "architecture": {
+      "display_name": "Praxys Architecture",
+      "purpose": "Own cross-cutting system boundaries, long-lived technical constraints, non-functional trade-offs, and irreversible technical choices.",
+      "manifest_status": "available",
+      "agent_path": ".github/agents/architecture.agent.md",
+      "decision_classes": [
+        "system-boundary",
+        "service-or-datastore-choice",
+        "cross-domain-contract",
+        "reliability-and-scalability-tradeoff",
+        "irreversible-technical-choice"
+      ],
+      "owned_artifacts": [
+        "architecture-decision-record"
+      ],
+      "capabilities": [
+        "system-design",
+        "data-architecture",
+        "reliability-design",
+        "integration-boundaries",
+        "technical-debt-and-evolution"
+      ],
+      "prohibited_actions": [
+        "become-a-mandatory-gate-for-local-code-choices",
+        "choose-product-value",
+        "approve-own-implementation",
+        "hide-long-term-tradeoffs-in-code-only"
+      ],
+      "activation_triggers": [
+        "new-service-or-datastore",
+        "cross-module-or-cross-repository-contract",
+        "irreversible-schema-or-migration",
+        "material-performance-reliability-or-scalability-risk"
+      ],
+      "outcome_measures": [
+        "architecture-decision-reversal",
+        "migration-or-integration-failure",
+        "non-functional-target-attainment",
+        "unplanned-cross-boundary-coupling"
+      ]
+    },
+    "quality": {
+      "display_name": "Praxys Quality",
+      "purpose": "Own test strategy, acceptance sufficiency, regression coverage, exploratory validation, and release confidence for the current change.",
+      "manifest_status": "available",
+      "agent_path": ".github/agents/quality.agent.md",
+      "decision_classes": [
+        "test-strategy",
+        "acceptance-sufficiency",
+        "regression-risk",
+        "exploratory-validation",
+        "release-confidence"
+      ],
+      "owned_artifacts": [
+        "verification-evidence"
+      ],
+      "capabilities": [
+        "test-design",
+        "automated-regression",
+        "exploratory-testing",
+        "contract-verification",
+        "release-readiness"
+      ],
+      "prohibited_actions": [
+        "verify-own-high-risk-implementation",
+        "choose-product-value",
+        "replace-science-security-or-design-specialist-review",
+        "claim-unperformed-validation"
+      ],
+      "activation_triggers": [
+        "implementation-change",
+        "behavioral-decision",
+        "release-candidate",
+        "regression-or-incident-risk"
+      ],
+      "outcome_measures": [
+        "escaped-defect-rate",
+        "false-release-block-rate",
+        "acceptance-gap-correction",
+        "validation-evidence-completeness"
+      ]
+    },
+    "science": {
+      "display_name": "Praxys Science",
+      "purpose": "Own evidence claims, scientific applicability, uncertainty, claim limits, and science-specific implementation boundaries.",
+      "manifest_status": "available",
+      "agent_path": ".github/agents/science.agent.md",
+      "decision_classes": [
+        "evidence-claim",
+        "scientific-applicability",
+        "scientific-uncertainty",
+        "formula-or-constant",
+        "science-claim-limit"
+      ],
+      "owned_artifacts": [
+        "evidence-review",
+        "science-decision-record"
+      ],
+      "capabilities": [
+        "literature-research",
+        "evidence-appraisal",
+        "claim-mapping",
+        "scientific-implementation-review",
+        "falsification-design"
+      ],
+      "prohibited_actions": [
+        "substitute-scientific-prohibitions-for-product-strategy",
+        "invent-inaccessible-evidence",
+        "approve-own-science-decision",
+        "activate-runtime-contract"
+      ],
+      "activation_triggers": [
+        "scientific-claim-or-formula",
+        "training-metric-or-model",
+        "medical-or-safety-boundary",
+        "evidence-backed-product-decision"
+      ],
+      "outcome_measures": [
+        "evidence-or-claim-correction-rate",
+        "unsupported-claim-escape",
+        "post-release-falsification-detection",
+        "science-review-rework"
+      ]
+    },
+    "trust": {
+      "display_name": "Praxys Trust",
+      "purpose": "Own security, privacy, identity, sensitive-data, threat-model, and dependency trust boundaries.",
+      "manifest_status": "available",
+      "agent_path": ".github/agents/trust.agent.md",
+      "decision_classes": [
+        "security-boundary",
+        "privacy-boundary",
+        "sensitive-data-collection",
+        "identity-and-authorization",
+        "dependency-and-supply-chain-risk"
+      ],
+      "owned_artifacts": [
+        "trust-decision-record"
+      ],
+      "capabilities": [
+        "threat-modeling",
+        "privacy-review",
+        "authentication-and-authorization-review",
+        "data-minimization",
+        "dependency-risk-review"
+      ],
+      "prohibited_actions": [
+        "expose-or-request-secrets",
+        "approve-own-security-sensitive-implementation",
+        "treat-client-gates-as-security-boundaries",
+        "weaken-existing-privacy-invariants"
+      ],
+      "activation_triggers": [
+        "authentication-or-authorization-change",
+        "new-sensitive-data",
+        "external-data-or-code-boundary",
+        "dependency-change",
+        "privacy-or-security-claim"
+      ],
+      "outcome_measures": [
+        "security-or-privacy-incident-rate",
+        "trust-review-correction-rate",
+        "data-minimization-conformance",
+        "control-verification-rate"
+      ]
+    },
+    "operations": {
+      "display_name": "Praxys Operations",
+      "purpose": "Own deployment, observability, capacity, incident mitigation, rollback, and production operational readiness.",
+      "manifest_status": "available",
+      "agent_path": ".github/agents/operations.agent.md",
+      "decision_classes": [
+        "deployment-plan",
+        "runtime-configuration",
+        "monitoring-and-alerting",
+        "incident-mitigation",
+        "rollback-and-recovery"
+      ],
+      "owned_artifacts": [
+        "operations-decision-record",
+        "release-evidence",
+        "incident-record"
+      ],
+      "capabilities": [
+        "deployment",
+        "observability",
+        "incident-response",
+        "capacity-and-reliability",
+        "rollback"
+      ],
+      "prohibited_actions": [
+        "perform-unapproved-high-impact-production-action",
+        "store-secrets-in-repository-artifacts",
+        "bypass-owned-deployment-workflows",
+        "claim-unverified-recovery"
+      ],
+      "activation_triggers": [
+        "deploy-or-runtime-config-change",
+        "monitoring-or-alert-change",
+        "production-incident",
+        "capacity-reliability-or-rollback-decision"
+      ],
+      "outcome_measures": [
+        "deployment-success-and-rollback-rate",
+        "availability-and-latency",
+        "time-to-detect-and-recover",
+        "runbook-or-alert-correction"
+      ]
+    },
+    "meta-eval": {
+      "display_name": "Praxys Meta/Eval",
+      "purpose": "Own evaluation of agents, prompts, policies, routing, review effort, and autonomy across batches of outcomes.",
+      "manifest_status": "available",
+      "agent_path": ".github/agents/meta-eval.agent.md",
+      "decision_classes": [
+        "agent-policy-change",
+        "prompt-or-model-change",
+        "review-routing-policy",
+        "autonomy-promotion-or-demotion",
+        "evaluation-corpus-change"
+      ],
+      "owned_artifacts": [
+        "evaluation-report",
+        "policy-change-proposal"
+      ],
+      "capabilities": [
+        "outcome-analysis",
+        "replay-evaluation",
+        "shadow-comparison",
+        "policy-tuning",
+        "autonomy-management"
+      ],
+      "prohibited_actions": [
+        "replace-quality-verification-for-current-change",
+        "promote-autonomy-from-single-success",
+        "self-approve-policy-change",
+        "optimize-review-count-at-expense-of-quality"
+      ],
+      "activation_triggers": [
+        "enough-completed-outcomes",
+        "human-correction-or-missed-escalation",
+        "policy-regression",
+        "autonomy-promotion-or-demotion-review"
+      ],
+      "outcome_measures": [
+        "human-correction-rate",
+        "missed-and-unnecessary-escalation-rate",
+        "adverse-outcome-rate",
+        "review-effort-and-latency",
+        "replay-and-shadow-score"
+      ]
+    }
+  },
+  "artifacts": {
+    "product-decision-record": {
+      "kind": "decision",
+      "implementation_status": "logical-contract",
+      "owner_role": "product",
+      "purpose": "Bind the user problem, options, product promise, value trade-offs, non-goals, and outcome plan.",
+      "depends_on": []
+    },
+    "product-outcome-record": {
+      "kind": "outcome",
+      "implementation_status": "logical-contract",
+      "owner_role": "product",
+      "purpose": "Record whether the product value hypothesis and guardrails moved after release.",
+      "depends_on": [
+        "product-decision-record",
+        "release-evidence"
+      ]
+    },
+    "design-decision-record": {
+      "kind": "decision",
+      "implementation_status": "logical-contract",
+      "owner_role": "design",
+      "purpose": "Bind material user-journey, interaction, content, accessibility, or design-system choices.",
+      "depends_on": [
+        "product-decision-record"
+      ]
+    },
+    "experience-specification": {
+      "kind": "execution",
+      "implementation_status": "logical-contract",
+      "owner_role": "design",
+      "purpose": "Describe the complete intended experience and state space for implementation.",
+      "depends_on": [
+        "product-decision-record"
+      ]
+    },
+    "implementation-change": {
+      "kind": "execution",
+      "implementation_status": "repository-native",
+      "owner_role": "engineering",
+      "purpose": "Implement accepted decisions as a tested repository change.",
+      "depends_on": []
+    },
+    "implementation-impact-map": {
+      "kind": "execution",
+      "implementation_status": "logical-contract",
+      "owner_role": "engineering",
+      "purpose": "Map accepted behavior across data, analysis, API, clients, operations, and tests.",
+      "depends_on": []
+    },
+    "architecture-decision-record": {
+      "kind": "decision",
+      "implementation_status": "logical-contract",
+      "owner_role": "architecture",
+      "purpose": "Bind cross-cutting technical choices, alternatives, constraints, and migration consequences.",
+      "depends_on": []
+    },
+    "verification-evidence": {
+      "kind": "verification",
+      "implementation_status": "repository-native",
+      "owner_role": "quality",
+      "purpose": "Record independent acceptance, regression, exploratory, and release-readiness evidence.",
+      "depends_on": [
+        "implementation-change"
+      ]
+    },
+    "evidence-review": {
+      "kind": "evidence",
+      "implementation_status": "schema-backed",
+      "owner_role": "science",
+      "purpose": "Record what scientific evidence supports, does not support, and with what uncertainty.",
+      "depends_on": []
+    },
+    "science-decision-record": {
+      "kind": "decision",
+      "implementation_status": "schema-backed",
+      "owner_role": "science",
+      "purpose": "Bind Praxys scientific interpretation, parameters, applicability, claim limits, and runtime boundary.",
+      "depends_on": [
+        "evidence-review"
+      ]
+    },
+    "trust-decision-record": {
+      "kind": "decision",
+      "implementation_status": "logical-contract",
+      "owner_role": "trust",
+      "purpose": "Bind security, privacy, identity, sensitive-data, or supply-chain decisions and controls.",
+      "depends_on": []
+    },
+    "operations-decision-record": {
+      "kind": "decision",
+      "implementation_status": "logical-contract",
+      "owner_role": "operations",
+      "purpose": "Bind material deployment, runtime configuration, monitoring, mitigation, or rollback choices.",
+      "depends_on": []
+    },
+    "release-evidence": {
+      "kind": "verification",
+      "implementation_status": "repository-native",
+      "owner_role": "operations",
+      "purpose": "Record the deployed artifact, operational checks, rollout state, and rollback readiness.",
+      "depends_on": [
+        "verification-evidence"
+      ]
+    },
+    "incident-record": {
+      "kind": "outcome",
+      "implementation_status": "logical-contract",
+      "owner_role": "operations",
+      "purpose": "Record incident signals, mitigation, recovery, recurrence, and follow-up handoffs.",
+      "depends_on": []
+    },
+    "evaluation-report": {
+      "kind": "outcome",
+      "implementation_status": "logical-contract",
+      "owner_role": "meta-eval",
+      "purpose": "Aggregate agent decisions, corrections, misses, outcomes, review effort, and replay results.",
+      "depends_on": []
+    },
+    "policy-change-proposal": {
+      "kind": "policy",
+      "implementation_status": "repository-native",
+      "owner_role": "meta-eval",
+      "purpose": "Propose a versioned, replay-backed change to agent prompts, routing, policy, or autonomy.",
+      "depends_on": [
+        "evaluation-report"
+      ]
+    }
+  },
+  "loops": {
+    "product": {
+      "object": "product-promise-and-expected-user-outcome",
+      "purpose": "Turn user signals and constraints into a falsifiable product decision, then learn from shipped outcomes.",
+      "lead_role": "product",
+      "participant_roles": [
+        "design",
+        "science",
+        "trust",
+        "architecture",
+        "quality",
+        "engineering",
+        "operations",
+        "meta-eval"
+      ],
+      "entry_signals": [
+        "user-need-or-feedback",
+        "product-strategy",
+        "telemetry-or-outcome-gap",
+        "new-evidence-or-constraint"
+      ],
+      "stages": [
+        "sense",
+        "frame",
+        "investigate",
+        "propose",
+        "review",
+        "decide",
+        "plan",
+        "act",
+        "verify",
+        "release",
+        "observe",
+        "learn"
+      ],
+      "artifacts": [
+        "product-decision-record",
+        "product-outcome-record"
+      ],
+      "outcome_signals": [
+        "target-metric-movement",
+        "guardrail-metric-movement",
+        "adoption-or-abandonment",
+        "human-correction-or-product-reversal"
+      ]
+    },
+    "science": {
+      "object": "scientific-evidence-claims-and-applicability",
+      "purpose": "Maintain auditable evidence and scientific policy without choosing product value.",
+      "lead_role": "science",
+      "participant_roles": [
+        "product",
+        "quality",
+        "trust",
+        "meta-eval"
+      ],
+      "entry_signals": [
+        "bounded-science-question",
+        "new-or-challenged-evidence",
+        "scientific-implementation-change",
+        "post-release-falsification-signal"
+      ],
+      "stages": [
+        "sense",
+        "frame",
+        "investigate",
+        "propose",
+        "review",
+        "decide",
+        "observe",
+        "learn"
+      ],
+      "artifacts": [
+        "evidence-review",
+        "science-decision-record"
+      ],
+      "outcome_signals": [
+        "source-or-claim-correction",
+        "new-conflicting-evidence",
+        "reviewer-correction",
+        "post-release-falsification"
+      ]
+    },
+    "design": {
+      "object": "user-experience-and-design-system",
+      "purpose": "Turn accepted product intent into a complete, accessible, coherent experience and improve the design system from repeated findings.",
+      "lead_role": "design",
+      "participant_roles": [
+        "product",
+        "engineering",
+        "quality",
+        "science",
+        "trust",
+        "meta-eval"
+      ],
+      "entry_signals": [
+        "accepted-product-decision",
+        "user-experience-defect",
+        "design-system-gap",
+        "accessibility-or-content-risk"
+      ],
+      "stages": [
+        "sense",
+        "frame",
+        "investigate",
+        "propose",
+        "review",
+        "decide",
+        "plan",
+        "act",
+        "verify",
+        "observe",
+        "learn"
+      ],
+      "artifacts": [
+        "design-decision-record",
+        "experience-specification",
+        "verification-evidence"
+      ],
+      "outcome_signals": [
+        "task-completion-and-error-rate",
+        "accessibility-finding",
+        "user-confusion-or-abandonment",
+        "repeated-design-system-defect"
+      ]
+    },
+    "delivery": {
+      "object": "repository-behavior-and-implementation-quality",
+      "purpose": "Implement accepted decisions without silently reopening product, design, science, trust, architecture, or operations policy.",
+      "lead_role": "engineering",
+      "participant_roles": [
+        "product",
+        "design",
+        "architecture",
+        "quality",
+        "science",
+        "trust",
+        "operations",
+        "meta-eval"
+      ],
+      "entry_signals": [
+        "accepted-decision-or-maintainer-vetted-task",
+        "repository-defect",
+        "incident-fix-handoff",
+        "technical-maintenance"
+      ],
+      "stages": [
+        "sense",
+        "frame",
+        "investigate",
+        "propose",
+        "review",
+        "decide",
+        "plan",
+        "act",
+        "verify",
+        "release",
+        "observe",
+        "learn"
+      ],
+      "artifacts": [
+        "implementation-impact-map",
+        "implementation-change",
+        "verification-evidence"
+      ],
+      "outcome_signals": [
+        "human-code-correction",
+        "required-check-result",
+        "post-merge-revert-or-reopen",
+        "production-regression"
+      ]
+    },
+    "runtime": {
+      "object": "production-state-and-service-reliability",
+      "purpose": "Release and operate accepted changes with observable health, safe rollback, and current runbooks.",
+      "lead_role": "operations",
+      "participant_roles": [
+        "engineering",
+        "quality",
+        "trust",
+        "architecture",
+        "meta-eval"
+      ],
+      "entry_signals": [
+        "release-candidate",
+        "runtime-config-change",
+        "monitoring-or-capacity-change",
+        "operational-readiness-gap"
+      ],
+      "stages": [
+        "sense",
+        "frame",
+        "investigate",
+        "propose",
+        "review",
+        "decide",
+        "plan",
+        "act",
+        "verify",
+        "release",
+        "observe",
+        "learn"
+      ],
+      "artifacts": [
+        "operations-decision-record",
+        "release-evidence"
+      ],
+      "outcome_signals": [
+        "availability-and-latency",
+        "alert-or-error-rate",
+        "rollback-or-recovery",
+        "operational-human-correction"
+      ]
+    },
+    "incident": {
+      "object": "production-health-and-mitigation-policy",
+      "purpose": "Detect, mitigate, verify, and learn from production incidents while handing durable fixes to the delivery loop.",
+      "lead_role": "operations",
+      "participant_roles": [
+        "engineering",
+        "architecture",
+        "quality",
+        "trust",
+        "product",
+        "meta-eval"
+      ],
+      "entry_signals": [
+        "alert",
+        "telemetry-anomaly",
+        "user-impact-report",
+        "security-or-privacy-incident"
+      ],
+      "stages": [
+        "sense",
+        "frame",
+        "investigate",
+        "propose",
+        "review",
+        "decide",
+        "plan",
+        "act",
+        "verify",
+        "observe",
+        "learn"
+      ],
+      "artifacts": [
+        "operations-decision-record",
+        "incident-record"
+      ],
+      "outcome_signals": [
+        "time-to-mitigation-and-recovery",
+        "recurrence",
+        "mitigation-held",
+        "follow-up-fix-outcome"
+      ]
+    },
+    "meta-eval": {
+      "object": "agent-prompts-policies-routing-and-autonomy",
+      "purpose": "Improve the operating model from batches of observed decisions without silently changing a live decision.",
+      "lead_role": "meta-eval",
+      "participant_roles": [
+        "quality",
+        "product",
+        "design",
+        "engineering",
+        "architecture",
+        "science",
+        "trust",
+        "operations"
+      ],
+      "entry_signals": [
+        "completed-decision-batch",
+        "human-correction-or-override",
+        "missed-or-unnecessary-escalation",
+        "revert-incident-or-policy-regression"
+      ],
+      "stages": [
+        "sense",
+        "frame",
+        "investigate",
+        "propose",
+        "review",
+        "decide",
+        "plan",
+        "act",
+        "verify",
+        "observe",
+        "learn"
+      ],
+      "artifacts": [
+        "evaluation-report",
+        "policy-change-proposal"
+      ],
+      "outcome_signals": [
+        "human-correction-rate",
+        "missed-and-unnecessary-escalation-rate",
+        "adverse-outcome-rate",
+        "review-effort-and-latency",
+        "replay-and-shadow-score"
+      ]
+    }
+  },
+  "control_plane": {
+    "orchestrator_agent_path": ".github/agents/praxys-orchestrator.agent.md",
+    "work_router_agent_path": ".github/agents/work-router.agent.md",
+    "decision_review_router_agent_path": ".github/agents/decision-review-router.agent.md",
+    "task_routing_config_path": "config/agentic-task-routing.json",
+    "execution_parity_config_path": "config/copilot-execution-parity.json",
+    "role_slots": [
+      "lead",
+      "contributors",
+      "independent_reviewers",
+      "executor",
+      "verifier",
+      "outcome_observer",
+      "human_authority"
+    ],
+    "routing_outcomes": [
+      "agent-resolved",
+      "agent-reviewed",
+      "human-review-required",
+      "blocked"
+    ],
+    "independence": {
+      "proposer_may_select_own_review_route": false,
+      "proposer_may_review_own_decision": false,
+      "executor_may_verify_own_high_risk_work": false,
+      "router_may_approve": false,
+      "agent_may_materialize_human_approval": false
+    },
+    "human_attention_objective": "Minimize human attention subject to quality, safety, reversibility, and authenticated authority."
+  },
+  "decision_record_contract": {
+    "required_fields": [
+      "id",
+      "schema_version",
+      "decision_type",
+      "owner_role",
+      "question",
+      "options",
+      "recommendation",
+      "rationale",
+      "dependencies",
+      "review_route",
+      "outcome_plan",
+      "digest"
+    ],
+    "specializations": {
+      "product-decision-record": "product",
+      "design-decision-record": "design",
+      "architecture-decision-record": "architecture",
+      "science-decision-record": "science",
+      "trust-decision-record": "trust",
+      "operations-decision-record": "operations"
+    }
+  },
+  "role_evolution": {
+    "create_role_when": [
+      "a-distinct-decision-class-recurs",
+      "independence-from-the-executor-is-required",
+      "a-durable-artifact-needs-clear-ownership",
+      "the-work-has-distinct-outcome-measures"
+    ],
+    "keep_as_capability_when": [
+      "the-work-is-a-specialization-within-an-existing-decision-boundary",
+      "no-independent-authority-or-artifact-is-needed",
+      "the-capability-is-infrequent-or-task-local"
+    ],
+    "retire_or_merge_role_when": [
+      "the-role-no-longer-owns-a-distinct-decision",
+      "the-decision-class-becomes-deterministic-and-policy-resolved",
+      "another-role-can-own-the-artifact-without-losing-independence"
+    ]
+  }
+}

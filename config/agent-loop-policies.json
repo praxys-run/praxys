@@ -1,5 +1,71 @@
 {
   "schema_version": 1,
+  "operating_model": {
+    "path": "config/agentic-operating-model.json",
+    "version": "praxys-agentic-operating-model-v1",
+    "status": "active-routing"
+  },
+  "decision_autonomy": {
+    "version": "decision-autonomy-v1",
+    "status": "specification-only",
+    "objective": "minimize-human-attention-subject-to-quality-safety-reversibility-and-authenticated-authority",
+    "routing_outcomes": [
+      "agent-resolved",
+      "agent-reviewed",
+      "human-review-required",
+      "blocked"
+    ],
+    "default_judgment_route": "human-review-required",
+    "agent_only_classes": [
+      "schema-validation",
+      "artifact-regeneration",
+      "contract-consistency",
+      "test-execution"
+    ],
+    "agent_reviewed_classes": [],
+    "agent_reviewed_requirements": {
+      "class_must_be_explicitly_listed": true,
+      "reviewer_assignment_source": "work-router-independent-reviewers",
+      "minimum_independent_reviews": 1,
+      "reviewer_must_differ_from_proposer_and_executor": true,
+      "triggered_roles_must_be_assigned": true,
+      "deterministic_validation_required": true,
+      "decision_record_digest_required": true,
+      "human_review_factor_must_be_absent": true
+    },
+    "human_review_factors": [
+      "new-product-promise",
+      "material-user-value-tradeoff",
+      "safety-or-medical-boundary",
+      "sensitive-data-collection",
+      "security-or-privacy-boundary",
+      "irreversible-or-high-blast-radius-action",
+      "unresolved-independent-agent-disagreement",
+      "out-of-policy-or-out-of-distribution-decision"
+    ],
+    "independence": {
+      "proposer_may_select_own_review_route": false,
+      "proposer_may_review_own_decision": false,
+      "executor_may_verify_own_high_risk_work": false,
+      "router_may_approve": false,
+      "agent_may_materialize_human_approval": false
+    },
+    "promoted_judgment_classes": [],
+    "promotion_requirements": {
+      "minimum_completed_decisions": 5,
+      "minimum_observation_days": 7,
+      "maximum_human_correction_rate": 0.0,
+      "maximum_adverse_outcome_rate": 0.0,
+      "minimum_replay_score": 1.0,
+      "independent_policy_approval_required": true
+    },
+    "demotion_triggers": {
+      "any_human_correction": true,
+      "any_adverse_outcome": true,
+      "any_policy_escape": true,
+      "missing_outcome_observation": true
+    }
+  },
   "change": {
     "agent_ready": {
       "policy_name": "change.agent_ready",

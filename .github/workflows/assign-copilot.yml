@@ -5,8 +5,9 @@ name: Change loop — assign agent-ready issues to Copilot
 # fix PR. The `agent-ready` label is the SOLE trigger — a bare issue-open never
 # fires. The feedback triage pipeline auto-adds the label for qualifying bugs
 # (kind=bug, not sensitive/needs_review, enough detail); a human adds it
-# manually to green-light anything else. Merge is always human (branch
-# protection): autonomy is drafting the fix, never shipping it.
+# manually to green-light anything else. The implementation agent never owns
+# merge authority: independent repository policy keeps unpromoted classes
+# human-reviewed and gates any future promoted narrow class.
 #
 # SECURITY: assigning a coding agent REQUIRES a user token (PAT/OAuth) in the
 # secret COPILOT_ASSIGN_TOKEN. The built-in GITHUB_TOKEN (a GitHub App
@@ -108,7 +109,7 @@ jobs:
           echo "found=true" >> "$GITHUB_OUTPUT"
           echo "actor_id=$id" >> "$GITHUB_OUTPUT"
 
-      - name: Assign the issue to the Praxys change-loop agent
+      - name: Assign the issue to the Praxys orchestrator
         if: steps.token.outputs.have == 'true' && steps.copilot.outputs.found == 'true'
         env:
           # MUST be the user token — the built-in token is forbidden here.
@@ -121,7 +122,7 @@ jobs:
           set -euo pipefail
           # The assignment API must name the checked-in custom agent explicitly.
           # Assigning only the generic actor does not guarantee that the Praxys
-          # change-loop profile, preflight, or UI handoff policy is used.
+          # orchestrator, deterministic task routing, or Delivery handoff is used.
           gh api graphql \
             -H 'GraphQL-Features: issues_copilot_assignment_api_support' \
             -f query='mutation(
@@ -147,8 +148,8 @@ jobs:
             -F actorIds="$ACTOR_ID" \
             -F targetRepositoryId="$TARGET_REPOSITORY_ID" \
             -F baseRef=main \
-            -F customAgent=praxys-change-loop
-          echo "Assigned issue #$ISSUE_NUMBER to the Praxys Change Loop custom agent." >> "$GITHUB_STEP_SUMMARY"
+            -F customAgent=praxys-orchestrator
+          echo "Assigned issue #$ISSUE_NUMBER to the Praxys Orchestrator custom agent." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Report assignment failure on the issue
         # Only for a genuine assignment error (token was present) — the

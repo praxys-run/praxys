@@ -256,7 +256,9 @@ See `docs/dev/contributing.md` for which files to update with code changes. Key 
 - `docs/dev/design-system.md` — design system implementation rules (translates brand guide → `web/src/`)
 - `docs/dev/ui-quality-harness.md` — mandatory Impeccable-led workflow, hooks, PR evidence, and CI gate for UI changes
 - `docs/dev/gotchas.md` — domain-specific traps
-- `docs/dev/agentic-loops.md` — how AI agents run in self-improving loops (change / incident / meta) and the shared substrate
+- `docs/dev/agentic-operating-model.md` — role agents, loops, artifacts, routers, and role evolution
+- `docs/dev/copilot-execution-parity.md` — shared task routing, Local/Cloud tools, drift checks, and limitations
+- `docs/dev/agentic-loops.md` — shared trace/outcome/eval/policy substrate for self-improving loops
 - `plugins/praxys/skills/*/SKILL.md` — skill instructions
 
 For **production operations** (deploy, config & secrets, monitoring & alerts, admin tasks, troubleshooting), start at the operations handbook: `docs/ops/README.md` — consistently-structured runbooks meant to be consumed by humans *and* AI agents.
@@ -289,9 +291,18 @@ The repository-owned `science-research` Agent Skill lives at
 at `.claude/skills/praxys-science-research-claude/SKILL.md` named
 `praxys-science-research-claude` for direct invocation. It supports explicit
 Research-only and Decision proposal modes for versioned Evidence Reviews and
-draft SDRs, but never accepts a record or merges a science change without human
-approval. This does not expand the athlete-facing `science` skill beyond
-browsing and selecting shipped theories.
+science decisions. Science then hands its exact artifacts to
+`.github/agents/product.agent.md`, which owns the separate Product Decision
+Record. `.github/agents/decision-review-router.agent.md` independently narrows
+any human decision. Neither role accepts its own record, promotes its own
+autonomy, or merges a science change. This does not expand the athlete-facing
+`science` skill beyond browsing and selecting shipped theories.
+
+The role/loop/control-plane contract lives in
+`docs/dev/agentic-operating-model.md` and
+`config/agentic-operating-model.json`. Product, Science, Design, Delivery,
+Runtime, Incident, and Meta/Eval loop details live in
+`docs/dev/agentic-loops.md` and `docs/dev/product-decision-loop.md`.
 
 The MCP server (`plugins/praxys/mcp-server/server.py`) runs in dual mode — local (direct DB) or remote (HTTP + JWT via `PRAXYS_URL`).
 

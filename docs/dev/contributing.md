@@ -76,10 +76,19 @@ How to extend Praxys with new features.
 
 ## Adding a New Science Theory
 
-Science changes use two linked, versioned records before implementation:
+Science changes use two linked, versioned science records before implementation:
 
 - An **Evidence Review** records what the literature supports.
-- A **Science Decision Record (SDR)** records how Praxys applies that evidence.
+- A **Science Decision Record (SDR)** records Praxys's scientific
+  interpretation, parameters, applicability, claim limits, and runtime
+  boundary.
+
+When the work also changes product behavior, Product separately owns a Product
+Decision Record covering the user problem, options, promise, trade-offs,
+minimum valuable scope, non-goals, and outcome plan. Science artifacts are
+dependencies of that product decision; they do not own product value. The
+shared record contract is specified in
+[`agentic-operating-model.md`](agentic-operating-model.md).
 
 New records use the artifact review workflow documented in
 [`science-review-artifacts.md`](science-review-artifacts.md). The canonical
@@ -90,11 +99,12 @@ agent to an exact human-authenticated GitHub PR comment; trusted automation
 materializes the role-scoped artifact. Runtime code consumes only the generated
 contract and never derives values from prose.
 
-Artifact-mode SDRs also provide a typed `decision_review` manifest. The
-generated packet begins with its concise decision sheet; every contract
+Artifact-mode SDRs also provide a typed `decision_review` manifest. The science
+packet begins with its concise scientific decision sheet. Every contract
 parameter group must be mapped to an explicit proposed decision or deferral.
 The complete evidence, parameter, and contract material remains a collapsed
-audit appendix rather than the reviewer's primary task.
+audit appendix rather than the reviewer's primary task. Product value belongs
+in the linked Product Decision Record, not the SDR.
 
 ### Research before changing science
 
@@ -103,8 +113,10 @@ Use the repository-owned
 before changing a scientific claim, formula, constant, safety boundary, theory,
 or user-facing interpretation. Its **Research-only** mode creates a bounded,
 auditable evidence update without changing accepted behavior; its **Decision
-proposal** mode adds a draft SDR, alternatives, claim limits, validation plan,
-and implementation/reviewer map for human review.
+proposal** mode creates any required draft SDR, then hands the evidence and
+science artifacts to
+[`Praxys Product`](../../.github/agents/product.agent.md), which owns the
+separate product decision and outcome plan.
 
 The athlete-facing `/science` plugin skill remains browse/select only. It does
 not research literature, edit evidence records, or make product decisions.
@@ -155,6 +167,11 @@ honestly; neither level lets schema validation declare a paper true.
      identity and may not infer or widen approval. Runtime activation remains
      blocked until `implementation_reviewer` approval also binds the exact
      reviewed code diff and validation evidence.
+
+   If the proposal changes product value or user behavior, also create or reuse
+   the separate Product Decision Record required by the Work Router. Do not put
+   product ownership into the SDR merely because the product decision depends
+   on science.
 
 3. **Create or update the canonical English theory YAML** in
    `data/science/{pillar}/{theory_id}.yaml`:
@@ -307,7 +324,7 @@ When making changes, update the relevant docs:
 | Convention changes | `CLAUDE.md` |
 | DB model changes | `CLAUDE.md` data sources |
 | New Claude automation (hook, agent, dev skill) | `CLAUDE.md` "Claude Code Automations" section |
-| Agentic loop / self-improvement / autonomy change | `docs/dev/agentic-loops.md`, tracker `#377` |
+| Agentic loop / self-improvement / autonomy change | `docs/dev/agentic-loops.md`, `docs/dev/agentic-operating-model.md`, and `docs/dev/copilot-execution-parity.md` when entry points or tools change; tracker `#377` |
 | UI quality harness / design-agent policy | `docs/dev/ui-quality-harness.md`, `CLAUDE.md`, and `docs/ops/change-loop.md` when coding-agent behavior changes |
 | Config / secret / infra / deploy change (env var, GitHub Actions secret/variable, App Service setting, Azure resource, RBAC, deploy workflow) | **`docs/ops/` handbook** — esp. `config-and-secrets.md` (where it's set + how to provision it) |
 

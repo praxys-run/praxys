@@ -14,6 +14,16 @@ argument-hint: "[target path or route]"
 
 Use this skill before editing any user-visible interface.
 
+This is the mandatory rendered harness for the **Praxys Design** role:
+
+- Product owns user value, priority, and product scope.
+- Design owns the intended journey, interaction, visual language, content,
+  accessibility, and complete state space.
+- Engineering implements the accepted Product and Design artifacts.
+- Quality independently verifies the exact rendered implementation.
+
+The harness does not let one implementation agent silently fill all four roles.
+
 ## 1. Enter Impeccable
 
 Load and follow `.github/skills/impeccable/SKILL.md`. Run once:
@@ -74,12 +84,13 @@ Impeccable suppression.
 
 ## 5. Inspect the rendered path
 
-Run the real feature with sample data. Prefer Chrome DevTools MCP; the GitHub
-Copilot cloud agent also has Playwright available by default. Use the synthetic
-read-only `praxys-local` MCP tools when product data semantics help the review,
-but never treat API output as rendered verification. Inspect desktop and mobile
-together, exercise the interaction with keyboard input, and check console
-output. Fix findings in one batch and perform at most one confirmation pass.
+Run the real feature with sample data. Portable Local and Cloud agents use the
+common Chrome DevTools MCP; Cloud Playwright may exist as an optional extension
+but is not required by the portable path. Use the synthetic read-only
+`praxys-local` MCP tools when product data semantics help the review, but never
+treat API output as rendered verification. Inspect desktop and mobile together,
+exercise the interaction with keyboard input, and check console output. Fix
+findings in one batch and perform at most one confirmation pass.
 
 If no browser tool is available, do not claim visual verification. Keep the PR
 draft and record the limitation in the UI evidence.

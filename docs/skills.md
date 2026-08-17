@@ -18,13 +18,14 @@ second project-skill discovery match while it delegates to the same canonical
 policy.
 
 Use it to research a bounded science question, verify literature metadata and
-claim limits, update a versioned Evidence Review, or prepare a draft Science
-Decision Record (SDR) and product impact map. It has two explicit modes:
+claim limits, update a versioned Evidence Review, or prepare the evidence
+handoff for a Product decision. It has two explicit modes:
 
 - **Research-only** updates evidence in draft form without changing accepted
   product behavior.
-- **Decision proposal** adds a draft SDR, alternatives, claim boundaries,
-  validation plan, and implementation/reviewer map for human review.
+- **Decision proposal** creates any required draft Science Decision Record for
+  scientific interpretation and runtime boundaries, then hands the evidence and
+  science artifacts to the Product role for a separate Product Decision Record.
 
 It preserves historical records, requires search provenance and source
 verification levels, and never accepts or merges science on an agent's behalf.
@@ -33,6 +34,31 @@ This is deliberately separate from the athlete-facing `/science` plugin skill.
 `/science` remains browse/select only for shipped theories; it does not
 research literature or change Evidence Reviews, SDRs, formulas, or product
 behavior.
+
+## Developer role agents and control plane
+
+The canonical operating model is:
+
+- `docs/dev/agentic-operating-model.md`
+- `config/agentic-operating-model.json`
+
+It defines Product, Design, Engineering, Architecture, Quality, Science, Trust,
+Operations, and Meta/Eval as bounded decision-owning roles. Their manifests live
+under `.github/agents/`.
+
+`Praxys Orchestrator` is the shared Local and Cloud entry point. It invokes
+`Praxys Work Router` for an enumerated task classification, runs
+`scripts/route_agentic_task.py`, and dispatches the resulting digest-bound Work
+Contract. `Praxys Decision Review Router` independently routes each material
+decision as `agent-resolved`, `agent-reviewed`, `human-review-required`, or
+`blocked`.
+
+Local/Cloud capability parity and explicit limitations are documented in
+`docs/dev/copilot-execution-parity.md`.
+
+The proposer cannot select its own review route or review its own decision. An
+executor cannot verify its own high-risk work. Routers cannot approve or
+materialize human authority.
 
 ## Developer WeChat DevTools
 

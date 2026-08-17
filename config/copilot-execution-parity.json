@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "parity_version": "praxys-copilot-execution-parity-v1",
+  "status": "active",
+  "orchestrator_agent_path": ".github/agents/praxys-orchestrator.agent.md",
+  "orchestrator_agent_slug": "praxys-orchestrator",
+  "routing_config_path": "config/agentic-task-routing.json",
+  "portable_agent_paths": [
+    ".github/agents/praxys-orchestrator.agent.md",
+    ".github/agents/work-router.agent.md",
+    ".github/agents/decision-review-router.agent.md",
+    ".github/agents/praxys-change-loop.agent.md",
+    ".github/agents/product.agent.md",
+    ".github/agents/design.agent.md",
+    ".github/agents/engineering.agent.md",
+    ".github/agents/architecture.agent.md",
+    ".github/agents/quality.agent.md",
+    ".github/agents/science.agent.md",
+    ".github/agents/trust.agent.md",
+    ".github/agents/operations.agent.md",
+    ".github/agents/meta-eval.agent.md"
+  ],
+  "common_builtin_tools": [
+    "execute",
+    "read",
+    "edit",
+    "search",
+    "agent"
+  ],
+  "common_mcp_servers": {
+    "chrome-devtools": {
+      "required_tools": [
+        "click",
+        "drag",
+        "fill",
+        "fill_form",
+        "handle_dialog",
+        "hover",
+        "press_key",
+        "type_text",
+        "close_page",
+        "list_pages",
+        "navigate_page",
+        "new_page",
+        "select_page",
+        "wait_for",
+        "emulate",
+        "resize_page",
+        "get_network_request",
+        "list_network_requests",
+        "evaluate_script",
+        "get_console_message",
+        "lighthouse_audit",
+        "list_console_messages",
+        "take_screenshot",
+        "take_snapshot"
+      ],
+      "allowed_live_env": {}
+    },
+    "praxys-local": {
+      "required_tools": [
+        "get_daily_brief",
+        "get_training_review",
+        "get_race_forecast",
+        "get_training_context",
+        "get_settings",
+        "get_sync_settings",
+        "get_connections",
+        "get_managed_plan_status",
+        "get_sync_status",
+        "whoami"
+      ],
+      "allowed_live_env": {
+        "PRAXYS_MCP_USE_CURRENT_PYTHON": "1"
+      }
+    }
+  },
+  "local": {
+    "mcp_config_path": ".mcp.json",
+    "entry_instruction_paths": [
+      ".github/copilot-instructions.md",
+      "AGENTS.md"
+    ],
+    "entry_method": "Automatic model delegation or `/agent Praxys Orchestrator` in Copilot CLI.",
+    "setup_markers": []
+  },
+  "cloud": {
+    "mcp_config_path": "config/copilot-cloud-mcp.json",
+    "entry_instruction_paths": [
+      ".github/copilot-instructions.md",
+      "AGENTS.md"
+    ],
+    "entry_method": "Explicit custom-agent assignment for agent-ready issues or manual Praxys Orchestrator selection.",
+    "setup_workflow_path": ".github/workflows/copilot-setup-steps.yml",
+    "assignment_workflow_path": ".github/workflows/assign-copilot.yml",
+    "parity_workflow_path": ".github/workflows/copilot-environment-parity.yml",
+    "setup_markers": [
+      "chrome-devtools-mcp@1.6.0 --version",
+      "/usr/local/bin/praxys-local-mcp",
+      "praxys-local-mcp --prepare-only"
+    ],
+    "parity_markers": [
+      "COPILOT_ASSIGN_TOKEN",
+      "--live",
+      "schedule:"
+    ]
+  },
+  "limitations": [
+    {
+      "id": "model-nondeterminism",
+      "environments": [
+        "local",
+        "cloud"
+      ],
+      "behavior": "Use the same enumerated classification and deterministic Work Contract; prose and intermediate reasoning may still differ.",
+      "rationale": "Copilot model selection and sampling are runtime concerns outside the repository contract."
+    },
+    {
+      "id": "cloud-settings-external-state",
+      "environments": [
+        "cloud"
+      ],
+      "behavior": "Run the scheduled and manual live parity check; block affected loops when required MCP tools are missing.",
+      "rationale": "Cloud MCP settings live in GitHub repository settings rather than the git tree."
+    },
+    {
+      "id": "production-credentials-and-mutations",
+      "environments": [
+        "cloud"
+      ],
+      "behavior": "Do not use production authentication, provider connections, sync, plan mutation, or high-impact operations from portable agents.",
+      "rationale": "Cloud parity intentionally uses a read-only synthetic Praxys profile."
+    },
+    {
+      "id": "wechat-desktop-simulator",
+      "environments": [
+        "cloud"
+      ],
+      "behavior": "Leave the PR draft and require a user-approved local foreground WeChat DevTools pass.",
+      "rationale": "Tencent provides no supported headless or no-focus simulator mode."
+    },
+    {
+      "id": "local-user-tool-extensions",
+      "environments": [
+        "local"
+      ],
+      "behavior": "Portable agents ignore user-level or local-only MCP tools unless a task explicitly leaves the portable path.",
+      "rationale": "Local Copilot may expose Azure, Statsig, dev-test, credentials, or personal tools that Cloud does not share."
+    },
+    {
+      "id": "automatic-cloud-trigger-coverage",
+      "environments": [
+        "cloud"
+      ],
+      "behavior": "Agent-ready issues are routed automatically; other cloud tasks must explicitly select Praxys Orchestrator.",
+      "rationale": "Not every Product, Science, Design, Runtime, Incident, or Meta/Eval signal has a safe repository event trigger."
+    },
+    {
+      "id": "default-branch-activation",
+      "environments": [
+        "cloud"
+      ],
+      "behavior": "Treat changed custom agents and setup steps as inactive until merged to the default branch, then run a disposable Cloud smoke task.",
+      "rationale": "GitHub Cloud agent loads repository custom-agent and setup configuration from the default branch."
+    },
+    {
+      "id": "external-source-access",
+      "environments": [
+        "local",
+        "cloud"
+      ],
+      "behavior": "Use the common isolated browser for public sources, record the actual verification level, and block strong conclusions when relevant full text is unavailable.",
+      "rationale": "Network availability, publisher access, and paywalls are external to the repository and portable agents do not inherit personal browser sessions."
+    }
+  ]
+}

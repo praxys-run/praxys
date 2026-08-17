@@ -1,0 +1,81 @@
+name: Copilot environment parity
+
+on:
+  pull_request:
+    paths:
+      - .github/agents/**
+      - .github/copilot-instructions.md
+      - .github/workflows/assign-copilot.yml
+      - .github/workflows/copilot-environment-parity.yml
+      - .github/workflows/copilot-setup-steps.yml
+      - .mcp.json
+      - AGENTS.md
+      - analysis/copilot_execution_parity.py
+      - config/agentic-task-routing.json
+      - config/copilot-cloud-mcp.json
+      - config/copilot-execution-parity.json
+      - scripts/check_copilot_environment_parity.py
+  push:
+    branches:
+      - main
+    paths:
+      - .github/agents/**
+      - .github/copilot-instructions.md
+      - .github/workflows/assign-copilot.yml
+      - .github/workflows/copilot-environment-parity.yml
+      - .github/workflows/copilot-setup-steps.yml
+      - .mcp.json
+      - AGENTS.md
+      - analysis/copilot_execution_parity.py
+      - config/agentic-task-routing.json
+      - config/copilot-cloud-mcp.json
+      - config/copilot-execution-parity.json
+      - scripts/check_copilot_environment_parity.py
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install parity-check dependencies
+        run: pip install -r requirements.txt
+      - name: Validate shared agents and tools
+        run: python scripts/check_copilot_environment_parity.py
+
+  live-cloud-parity:
+    if: github.event_name != 'pull_request'
+    needs: static-parity
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.COPILOT_ASSIGN_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install parity-check dependencies
+        run: pip install -r requirements.txt
+      - name: Require Cloud configuration access
+        run: |
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::COPILOT_ASSIGN_TOKEN is required for the live Cloud parity check."
+            exit 1
+          fi
+      - name: Compare live Cloud MCP settings
+        run: >-
+          python scripts/check_copilot_environment_parity.py
+          --live
+          --repo "$GITHUB_REPOSITORY"
