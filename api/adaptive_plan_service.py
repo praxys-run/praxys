@@ -280,7 +280,7 @@ def _fence_current_goal_provenance(
     target = goal.get("target")
     if not isinstance(target, Mapping):
         target = {}
-    expected = build_goal_baseline_goal(current_goal.raw_goal)
+    expected = build_goal_baseline_goal(current_goal.contract)
     observed = build_goal_baseline_goal({
         "goal_kind": goal.get("goal_kind"),
         "distance": target.get("distance"),
@@ -288,7 +288,7 @@ def _fence_current_goal_provenance(
         "race_target_time_sec": target.get("race_target_time_sec"),
     })
     expected_event_date = (
-        str(current_goal.raw_goal.get("race_date") or "").strip() or None
+        str(current_goal.contract.get("race_date") or "").strip() or None
     )
     observed_event_date = (
         str(
@@ -1250,6 +1250,253 @@ def reject_proposal(
         db.rollback()
         raise
     return _proposal_to_dict(db, proposal)
+
+
+def keep_current_plan_after_goal_change(
+    db: Session,
+    *,
+    user_id: str,
+    adaptive_plan_id: str,
+    expected_goal_revision: str,
+    expected_goal_snapshot_id: str,
+    idempotency_key: str,
+) -> dict[str, Any]:
+    """Keep adopted workouts while detaching them from a changed Goal."""
+    operation = "keep_plan_after_goal_change"
+    request_details = {
+        "adaptive_plan_id": adaptive_plan_id,
+        "expected_goal_revision": expected_goal_revision,
+        "expected_goal_snapshot_id": expected_goal_snapshot_id,
+    }
+    try:
+        db.rollback()
+        lock_plan_writes(db, user_id)
+        existing_revision = db.execute(
+            select(PlanRevision).where(
+                PlanRevision.user_id == user_id,
+                PlanRevision.idempotency_key == idempotency_key,
+            )
+        ).scalar_one_or_none()
+        if existing_revision is not None:
+            details = existing_revision.details or {}
+            if (
+                existing_revision.operation != operation
+                or details.get("request") != request_details
+            ):
+                raise AdaptivePlanError(
+                    409,
+                    "GOAL_PLAN_RECONCILIATION_IDEMPOTENCY_CONFLICT",
+                    "This idempotency key was already used for another plan decision.",
+                )
+            response = details.get("response")
+            if not isinstance(response, Mapping):
+                raise AdaptivePlanError(
+                    500,
+                    "GOAL_PLAN_RECONCILIATION_AUDIT_MISSING",
+                    "The saved plan decision is missing its audit response.",
+                )
+            db.commit()
+            return {**dict(response), "status": "already_kept"}
+
+        from analysis.config import load_config_from_db
+        from api.plan_generation_capabilities import current_goal_reference
+
+        config = load_config_from_db(user_id, db)
+        current_goal = current_goal_reference(
+            user_id=user_id,
+            goal=dict(config.goal or {}),
+        )
+        if (
+            current_goal is None
+            or current_goal.revision != expected_goal_revision
+        ):
+            raise AdaptivePlanError(
+                409,
+                "GOAL_PLAN_RECONCILIATION_STALE",
+                "The Goal changed after this plan decision was opened.",
+                current_goal_revision=(
+                    current_goal.revision
+                    if current_goal is not None
+                    else None
+                ),
+            )
+
+        adaptive_plan = db.execute(
+            select(AdaptivePlan).where(
+                AdaptivePlan.user_id == user_id,
+                AdaptivePlan.id == adaptive_plan_id,
+            ).with_for_update()
+        ).scalar_one_or_none()
+        if adaptive_plan is None:
+            raise AdaptivePlanError(
+                404,
+                "ADAPTIVE_PLAN_NOT_FOUND",
+                "The active plan was not found.",
+            )
+        if adaptive_plan.lifecycle != "active":
+            raise AdaptivePlanError(
+                409,
+                "GOAL_PLAN_RECONCILIATION_NO_ACTIVE_PLAN",
+                "Only an adopted active plan can be kept after a Goal change.",
+                lifecycle=adaptive_plan.lifecycle,
+            )
+        if adaptive_plan.goal_snapshot_id != expected_goal_snapshot_id:
+            raise AdaptivePlanError(
+                409,
+                "GOAL_PLAN_RECONCILIATION_STALE",
+                "The plan purpose changed after this decision was opened.",
+                current_goal_snapshot_id=adaptive_plan.goal_snapshot_id,
+            )
+
+        active_goal = db.execute(
+            select(AdaptivePlanGoalSnapshot).where(
+                AdaptivePlanGoalSnapshot.user_id == user_id,
+                AdaptivePlanGoalSnapshot.id == adaptive_plan.goal_snapshot_id,
+            ).with_for_update()
+        ).scalar_one()
+        active_goal_is_stale = (
+            active_goal.purpose_source == "current_goal"
+            and (
+                active_goal.source_goal_id != current_goal.goal_id
+                or active_goal.source_goal_revision != current_goal.revision
+            )
+        )
+        if not active_goal_is_stale:
+            raise AdaptivePlanError(
+                409,
+                "GOAL_PLAN_RECONCILIATION_STALE",
+                "This plan no longer needs the saved Goal-change decision.",
+            )
+
+        active_proposal: PlanProposal | None = None
+        proposal_goal: AdaptivePlanGoalSnapshot | None = None
+        now = datetime.utcnow()
+        if adaptive_plan.active_proposal_id is not None:
+            active_proposal = db.execute(
+                select(PlanProposal).where(
+                    PlanProposal.user_id == user_id,
+                    PlanProposal.id == adaptive_plan.active_proposal_id,
+                ).with_for_update()
+            ).scalar_one_or_none()
+            if active_proposal is not None:
+                if active_proposal.state != "draft":
+                    raise AdaptivePlanError(
+                        409,
+                        "GOAL_PLAN_RECONCILIATION_STALE",
+                        "The plan proposal changed after this decision was opened.",
+                    )
+                if _proposal_expired(active_proposal, now=now):
+                    active_proposal.state = "expired"
+                    active_proposal.decided_at = now
+                    adaptive_plan.active_proposal_id = None
+                    active_proposal = None
+                else:
+                    proposal_goal = db.execute(
+                        select(AdaptivePlanGoalSnapshot).where(
+                            AdaptivePlanGoalSnapshot.user_id == user_id,
+                            AdaptivePlanGoalSnapshot.id
+                            == active_proposal.goal_snapshot_id,
+                        ).with_for_update()
+                    ).scalar_one()
+                    proposal_goal_is_stale = (
+                        proposal_goal.purpose_source == "current_goal"
+                        and (
+                            proposal_goal.source_goal_id
+                            != current_goal.goal_id
+                            or proposal_goal.source_goal_revision
+                            != current_goal.revision
+                        )
+                    )
+                    if not proposal_goal_is_stale:
+                        raise AdaptivePlanError(
+                            409,
+                            "GOAL_PLAN_RECONCILIATION_STALE",
+                            "A newer plan proposal already owns the current Goal.",
+                        )
+
+        detached_goal = _validate_goal({
+            "goal_kind": active_goal.goal_kind,
+            "target": dict(active_goal.target or {}),
+            "horizon_start": active_goal.horizon_start,
+            "horizon_end": active_goal.horizon_end,
+            "purpose_source": "capability",
+            "source_goal_id": None,
+            "source_goal_revision": None,
+        })
+        detached_snapshot = AdaptivePlanGoalSnapshot(
+            user_id=user_id,
+            version=active_goal.version + 1,
+            state="active",
+            acknowledged_at=now,
+            **detached_goal,
+        )
+        db.add(detached_snapshot)
+        db.flush()
+
+        active_goal.state = "superseded"
+        adaptive_plan.goal_snapshot_id = detached_snapshot.id
+        rejected_proposal_id: str | None = None
+        if active_proposal is not None:
+            rejected_proposal_id = active_proposal.id
+            active_proposal.state = "rejected"
+            active_proposal.decision_idempotency_key = idempotency_key
+            active_proposal.decided_at = now
+            adaptive_plan.active_proposal_id = None
+            if proposal_goal is not None:
+                proposal_goal.state = "superseded"
+
+        plan_rows = db.execute(
+            select(TrainingPlan)
+            .where(
+                TrainingPlan.user_id == user_id,
+                TrainingPlan.adaptive_plan_id == adaptive_plan.id,
+            )
+            .order_by(TrainingPlan.date, TrainingPlan.id)
+        ).scalars().all()
+        response = {
+            "status": "kept",
+            "adaptive_plan_id": adaptive_plan.id,
+            "goal_snapshot_id": detached_snapshot.id,
+            "link_status": "independent",
+            "rejected_proposal_id": rejected_proposal_id,
+        }
+        revision = record_plan_revision(
+            db,
+            user_id=user_id,
+            operation=operation,
+            actor_type="user",
+            actor_id=user_id,
+            origin="goal_plan_reconciliation",
+            before=plan_rows,
+            after=plan_rows,
+            details={
+                "request": request_details,
+                "previous_goal_snapshot_id": active_goal.id,
+                "response": response,
+            },
+            idempotency_key=idempotency_key,
+        )
+        response["revision_id"] = revision.id
+        revision.details = {
+            **dict(revision.details or {}),
+            "response": response,
+        }
+        bump_revisions(db, user_id, ["plans"])
+        db.commit()
+        return response
+    except AdaptivePlanError:
+        db.rollback()
+        raise
+    except IntegrityError as exc:
+        db.rollback()
+        raise AdaptivePlanError(
+            409,
+            "GOAL_PLAN_RECONCILIATION_CONFLICT",
+            "The plan changed while saving this Goal decision.",
+        ) from exc
+    except Exception:
+        db.rollback()
+        raise
 
 
 def _plans_from_snapshot(user_id: str, adaptive_plan_id: str, workouts: Sequence[Mapping[str, Any]]) -> list[TrainingPlan]:

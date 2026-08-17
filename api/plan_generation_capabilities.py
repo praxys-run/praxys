@@ -94,6 +94,7 @@ class CurrentGoalReference:
     goal_id: str
     revision: str
     raw_goal: dict[str, Any]
+    contract: dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -155,6 +156,39 @@ OUTDOOR_ROAD_5K_CAPABILITY = PLAN_GENERATION_CAPABILITIES[0]
 _CAPABILITIES = PLAN_GENERATION_CAPABILITIES
 
 
+def canonical_goal_plan_contract(
+    goal: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """Return the normalized Goal fields that can change plan intent."""
+    normalized_input = dict(goal or {})
+    raw_target = normalized_input.get("target_time_sec")
+    target_is_empty = (
+        raw_target is None
+        or raw_target == 0
+        or (
+            isinstance(raw_target, str)
+            and raw_target.strip() in {"", "0"}
+        )
+    )
+    if target_is_empty:
+        normalized_input["target_time_sec"] = normalized_input.get(
+            "race_target_time_sec"
+        )
+
+    raw_race_date = normalized_input.get("race_date")
+    if not str(raw_race_date or "").strip():
+        raw_race_date = normalized_input.get("target_event_date")
+        normalized_input["race_date"] = raw_race_date
+    normalized = build_goal_baseline_goal(normalized_input)
+    race_date = str(raw_race_date or "").strip() or None
+    return {
+        "goal_kind": normalized.goal_kind,
+        "distance": normalized.distance,
+        "target_time_sec": normalized.target_time_sec,
+        "race_date": race_date,
+    }
+
+
 def current_goal_reference(
     *,
     user_id: str,
@@ -164,11 +198,11 @@ def current_goal_reference(
     raw_goal = dict(goal or {})
     if not raw_goal:
         return None
+    contract = canonical_goal_plan_contract(raw_goal)
     canonical = json.dumps(
-        raw_goal,
+        contract,
         sort_keys=True,
         separators=(",", ":"),
-        default=str,
     )
     return CurrentGoalReference(
         goal_id=str(
@@ -179,6 +213,7 @@ def current_goal_reference(
         ),
         revision=hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
         raw_goal=raw_goal,
+        contract=contract,
     )
 
 
@@ -273,7 +308,7 @@ def resolve_plan_generation_purpose(
         return ResolvedPlanGenerationPurpose(
             capability=capability,
             source=source,
-            goal=current_goal.raw_goal,
+            goal=current_goal.contract,
             source_goal_id=current_goal.goal_id,
             source_goal_revision=current_goal.revision,
         )
@@ -342,6 +377,10 @@ def discover_plan_generation_capabilities(
             for capability in PLAN_GENERATION_CAPABILITIES
         ],
         "active_plan_goal": active_plan_goal,
+        "goal_plan_impact": goal_plan_reconciliation_impact(
+            db,
+            user_id=user_id,
+        ),
         "unsupported_reason": (
             None if selected is not None else NO_ACCEPTED_PLAN_GENERATION_POLICY
         ),
@@ -451,6 +490,88 @@ def authorize_plan_generation_action(
     }
 
 
+def goal_plan_reconciliation_impact(
+    db: Session,
+    *,
+    user_id: str,
+) -> dict[str, Any] | None:
+    """Return a changed-Goal decision only when plan provenance is stale."""
+    config = load_config_from_db(user_id, db)
+    raw_goal = dict(config.goal or {})
+    current_goal = current_goal_reference(user_id=user_id, goal=raw_goal)
+    if current_goal is None:
+        return None
+    selected = _select_capability(raw_goal)
+    plan = db.execute(
+        select(AdaptivePlan)
+        .where(
+            AdaptivePlan.user_id == user_id,
+            AdaptivePlan.lifecycle.in_(("draft", "active")),
+        )
+        .order_by(AdaptivePlan.updated_at.desc())
+    ).scalars().first()
+    if plan is None:
+        return None
+
+    adopted_goal = db.get(AdaptivePlanGoalSnapshot, plan.goal_snapshot_id)
+    if adopted_goal is None:
+        return None
+    adopted_status = _goal_link_status(adopted_goal, current_goal)
+
+    active_proposal: PlanProposal | None = None
+    proposal_status: str | None = None
+    if plan.active_proposal_id is not None:
+        proposal = db.get(PlanProposal, plan.active_proposal_id)
+        if (
+            proposal is not None
+            and proposal.state == "draft"
+            and (
+                proposal.expires_at is None
+                or proposal.expires_at > datetime.utcnow()
+            )
+        ):
+            proposal_goal = db.get(
+                AdaptivePlanGoalSnapshot,
+                proposal.goal_snapshot_id,
+            )
+            if proposal_goal is not None:
+                active_proposal = proposal
+                proposal_status = _goal_link_status(
+                    proposal_goal,
+                    current_goal,
+                )
+
+    if proposal_status in {"current", "independent", "legacy_unknown"}:
+        return None
+    stale_proposal = proposal_status == "reassessment_required"
+    stale_adopted_plan = (
+        active_proposal is None
+        and adopted_status == "reassessment_required"
+    )
+    if not stale_proposal and not stale_adopted_plan:
+        return None
+
+    return {
+        "status": "reassessment_required",
+        "adaptive_plan_id": plan.id,
+        "lifecycle": plan.lifecycle,
+        "plan_goal_snapshot_id": adopted_goal.id,
+        "current_goal_id": current_goal.goal_id,
+        "current_goal_revision": current_goal.revision,
+        "can_generate_successor": selected is not None,
+        "can_keep_current_plan": (
+            plan.lifecycle == "active"
+            and adopted_status == "reassessment_required"
+        ),
+        "has_stale_proposal": stale_proposal,
+        "unsupported_reason": (
+            None
+            if selected is not None
+            else NO_ACCEPTED_PLAN_GENERATION_POLICY
+        ),
+    }
+
+
 def _active_plan_goal_link(
     db: Session,
     *,
@@ -483,19 +604,7 @@ def _active_plan_goal_link(
     if goal is None:
         return None
 
-    if goal.purpose_source in {"capability", "unlinked"}:
-        link_status = "independent"
-    elif goal.purpose_source == "current_goal":
-        if (
-            current_goal is not None
-            and goal.source_goal_id == current_goal.goal_id
-            and goal.source_goal_revision == current_goal.revision
-        ):
-            link_status = "current"
-        else:
-            link_status = "reassessment_required"
-    else:
-        link_status = "legacy_unknown"
+    link_status = _goal_link_status(goal, current_goal)
 
     return {
         "adaptive_plan_id": plan.id,
@@ -506,6 +615,23 @@ def _active_plan_goal_link(
         "source_goal_revision": goal.source_goal_revision,
         "link_status": link_status,
     }
+
+
+def _goal_link_status(
+    goal: AdaptivePlanGoalSnapshot,
+    current_goal: CurrentGoalReference | None,
+) -> str:
+    if goal.purpose_source in {"capability", "unlinked"}:
+        return "independent"
+    if goal.purpose_source == "current_goal":
+        if (
+            current_goal is not None
+            and goal.source_goal_id == current_goal.goal_id
+            and goal.source_goal_revision == current_goal.revision
+        ):
+            return "current"
+        return "reassessment_required"
+    return "legacy_unknown"
 
 
 def _select_capability(
@@ -535,18 +661,7 @@ def _normalize_goal(goal: Mapping[str, Any]) -> dict[str, str | None]:
 def _serialize_purpose_goal(
     goal: Mapping[str, Any],
 ) -> dict[str, Any]:
-    normalized_input = dict(goal)
-    if normalized_input.get("target_time_sec") is None:
-        normalized_input["target_time_sec"] = goal.get(
-            "race_target_time_sec"
-        )
-    normalized = build_goal_baseline_goal(normalized_input)
-    return {
-        "goal_kind": normalized.goal_kind,
-        "distance": normalized.distance,
-        "target_time_sec": normalized.target_time_sec,
-        "race_date": str(goal.get("race_date") or "").strip() or None,
-    }
+    return canonical_goal_plan_contract(goal)
 
 
 def _serialize_purpose(

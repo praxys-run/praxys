@@ -172,6 +172,7 @@ export interface SettingsResponse {
   display: DisplayConfig;
   detected_thresholds: Record<string, DetectedThreshold>;
   effective_thresholds: Record<string, ThresholdValue>;
+  goal_plan_impact: GoalPlanImpact | null;
 }
 
 export interface SettingsUpdateResponse {
@@ -181,6 +182,29 @@ export interface SettingsUpdateResponse {
   connection_statuses: SettingsResponse['connection_statuses'];
   platform_capabilities: SettingsResponse['platform_capabilities'];
   plan_delivery_options?: PlanDeliveryOption[];
+  goal_plan_impact: GoalPlanImpact | null;
+}
+
+export interface GoalPlanImpact {
+  status: 'reassessment_required';
+  adaptive_plan_id: string;
+  lifecycle: 'draft' | 'active';
+  plan_goal_snapshot_id: string;
+  current_goal_id: string;
+  current_goal_revision: string;
+  can_generate_successor: boolean;
+  can_keep_current_plan: boolean;
+  has_stale_proposal: boolean;
+  unsupported_reason: 'no_accepted_policy' | null;
+}
+
+export interface GoalPlanKeepResponse {
+  status: 'kept' | 'already_kept';
+  adaptive_plan_id: string;
+  goal_snapshot_id: string;
+  link_status: 'independent';
+  rejected_proposal_id: string | null;
+  revision_id: string;
 }
 
 export type PlatformConnectionStatus =
@@ -969,6 +993,7 @@ export interface PlanGenerationCapabilitiesResponse {
       | 'reassessment_required'
       | 'legacy_unknown';
   } | null;
+  goal_plan_impact: GoalPlanImpact | null;
   unsupported_reason: 'no_accepted_policy' | null;
 }
 

@@ -97,6 +97,23 @@ class ActivePlanGoalResponse(BaseModel):
     ]
 
 
+class GoalPlanImpactResponse(BaseModel):
+    """Outstanding decision caused by changed current-Goal provenance."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["reassessment_required"]
+    adaptive_plan_id: str
+    lifecycle: Literal["draft", "active"]
+    plan_goal_snapshot_id: str
+    current_goal_id: str
+    current_goal_revision: str
+    can_generate_successor: bool
+    can_keep_current_plan: bool
+    has_stale_proposal: bool
+    unsupported_reason: Literal["no_accepted_policy"] | None
+
+
 class PlanGenerationCapabilityDiscoveryResponse(BaseModel):
     """Versioned owner-scoped capability discovery response."""
 
@@ -109,6 +126,7 @@ class PlanGenerationCapabilityDiscoveryResponse(BaseModel):
     selected_capability: PlanGenerationCapabilityResponse | None
     capabilities: list[PlanGenerationCapabilityResponse]
     active_plan_goal: ActivePlanGoalResponse | None
+    goal_plan_impact: GoalPlanImpactResponse | None
     unsupported_reason: Literal["no_accepted_policy"] | None
 
 

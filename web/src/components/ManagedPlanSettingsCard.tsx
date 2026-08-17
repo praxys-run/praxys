@@ -51,6 +51,7 @@ import type {
   PlatformName,
   SettingsConfig,
   SettingsUpdate,
+  SettingsUpdateResponse,
 } from '@/types/api';
 
 const PLATFORM_LABELS: Record<PlatformName, string> = {
@@ -67,7 +68,9 @@ type LeaveChoice = 'keep' | 'remove';
 interface ManagedPlanSettingsCardProps {
   config: SettingsConfig;
   planDeliveryOptions: PlanDeliveryOption[];
-  updateSettings: (update: SettingsUpdate) => Promise<void>;
+  updateSettings: (
+    update: SettingsUpdate,
+  ) => Promise<SettingsUpdateResponse>;
 }
 
 function formatDate(value: string, locale: string): string {

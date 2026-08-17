@@ -11,6 +11,7 @@ import json
 import os
 import tempfile
 import threading
+from typing import Any
 
 import pytest
 
@@ -117,6 +118,200 @@ def api_client(monkeypatch):
         db_session.async_engine = None
         db_session.AsyncSessionLocal = None
         tmpdir.cleanup()
+
+
+def _adopt_linked_goal_plan(
+    client: Any,
+    *,
+    user_id: str,
+    goal: dict[str, Any],
+    key: str,
+) -> dict[str, Any]:
+    from api.plan_generation_capabilities import current_goal_reference
+    from tests.test_plan_proposals import _proposal_payload
+
+    reference = current_goal_reference(user_id=user_id, goal=goal)
+    assert reference is not None
+    payload = _proposal_payload(key=key)
+    payload["goal"].update({
+        "goal_kind": goal["goal_kind"],
+        "target": {
+            "distance": goal["distance"],
+            "target_time_sec": goal.get("target_time_sec"),
+        },
+        "purpose_source": "current_goal",
+        "source_goal_id": reference.goal_id,
+        "source_goal_revision": reference.revision,
+    })
+    created = client.post("/api/plan/proposals", json=payload)
+    assert created.status_code == 201, created.text
+    created_body = created.json()
+    adopted = client.post(
+        f"/api/plan/proposals/{created_body['id']}/adopt",
+        json={
+            "expected_proposal_version": created_body["version"],
+            "expected_plan_version": created_body["adaptive_plan"]["version"],
+            "idempotency_key": f"{key}-adopt",
+        },
+    )
+    assert adopted.status_code == 200, adopted.text
+    return adopted.json()
+
+
+def test_goal_update_reports_plan_reconciliation_only_for_real_change(
+    api_client,
+):
+    client, user_id = api_client
+    goal = {
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+        "target_time_sec": 1_500,
+        "race_date": "",
+    }
+    initial = client.put("/api/settings", json={"goal": goal})
+    assert initial.status_code == 200, initial.text
+    assert initial.json()["goal_plan_impact"] is None
+    adopted = _adopt_linked_goal_plan(
+        client,
+        user_id=user_id,
+        goal=goal,
+        key="settings-goal-impact",
+    )
+
+    unchanged = client.put("/api/settings", json={"goal": goal})
+    assert unchanged.status_code == 200, unchanged.text
+    assert unchanged.json()["goal_plan_impact"] is None
+
+    metadata_only = client.put(
+        "/api/settings",
+        json={"goal": {**goal, "display_label": "Spring 5K"}},
+    )
+    assert metadata_only.status_code == 200, metadata_only.text
+    assert metadata_only.json()["goal_plan_impact"] is None
+
+    changed_goal = {**goal, "target_time_sec": 1_440}
+    changed = client.put("/api/settings", json={"goal": changed_goal})
+
+    assert changed.status_code == 200, changed.text
+    impact = changed.json()["goal_plan_impact"]
+    assert impact == {
+        "status": "reassessment_required",
+        "adaptive_plan_id": adopted["proposal"]["adaptive_plan_id"],
+        "lifecycle": "active",
+        "plan_goal_snapshot_id": (
+            adopted["proposal"]["goal_snapshot_id"]
+        ),
+        "current_goal_id": impact["current_goal_id"],
+        "current_goal_revision": impact["current_goal_revision"],
+        "can_generate_successor": True,
+        "can_keep_current_plan": True,
+        "has_stale_proposal": False,
+        "unsupported_reason": None,
+    }
+
+    reloaded = client.get("/api/settings")
+    assert reloaded.status_code == 200, reloaded.text
+    assert reloaded.json()["goal_plan_impact"] == impact
+
+    kept = client.post(
+        "/api/plan/"
+        f"{impact['adaptive_plan_id']}/goal-reconciliation/keep-current",
+        json={
+            "expected_goal_revision": impact["current_goal_revision"],
+            "expected_goal_snapshot_id": (
+                impact["plan_goal_snapshot_id"]
+            ),
+            "idempotency_key": "settings-goal-impact-keep",
+        },
+    )
+    assert kept.status_code == 200, kept.text
+
+    independent_change = client.put(
+        "/api/settings",
+        json={"goal": {**changed_goal, "target_time_sec": 1_380}},
+    )
+    assert independent_change.status_code == 200, independent_change.text
+    assert independent_change.json()["goal_plan_impact"] is None
+
+
+def test_goal_update_reports_when_no_successor_policy_is_accepted(
+    api_client,
+):
+    client, user_id = api_client
+    goal = {
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+        "target_time_sec": 1_500,
+        "race_date": "",
+    }
+    saved = client.put("/api/settings", json={"goal": goal})
+    assert saved.status_code == 200, saved.text
+    _adopt_linked_goal_plan(
+        client,
+        user_id=user_id,
+        goal=goal,
+        key="settings-unsupported-impact",
+    )
+
+    changed = client.put(
+        "/api/settings",
+        json={
+            "goal": {
+                "goal_kind": "race",
+                "distance": "marathon",
+                "target_time_sec": 10_800,
+                "race_date": "2027-04-18",
+            },
+        },
+    )
+
+    assert changed.status_code == 200, changed.text
+    impact = changed.json()["goal_plan_impact"]
+    assert impact["status"] == "reassessment_required"
+    assert impact["can_generate_successor"] is False
+    assert impact["can_keep_current_plan"] is True
+    assert impact["unsupported_reason"] == "no_accepted_policy"
+
+
+def test_goal_update_explicit_clear_removes_legacy_aliases(
+    api_client,
+) -> None:
+    """Canonical clear values must not resurrect persisted legacy aliases."""
+    client, user_id = api_client
+    from analysis.config import load_config_from_db, save_config_to_db
+    from api.plan_generation_capabilities import current_goal_reference
+    from db import session as db_session
+
+    with db_session.SessionLocal() as db:
+        config = load_config_from_db(user_id, db)
+        config.goal = {
+            "goal_kind": "race",
+            "distance": "5k",
+            "target_time_sec": 0,
+            "race_target_time_sec": 1500,
+            "race_date": "",
+            "target_event_date": "2027-04-18",
+        }
+        save_config_to_db(user_id, config, db)
+
+    cleared = client.put(
+        "/api/settings",
+        json={
+            "goal": {
+                "target_time_sec": 0,
+                "race_date": "",
+            },
+        },
+    )
+
+    assert cleared.status_code == 200, cleared.text
+    saved_goal = cleared.json()["config"]["goal"]
+    assert "race_target_time_sec" not in saved_goal
+    assert "target_event_date" not in saved_goal
+    reference = current_goal_reference(user_id=user_id, goal=saved_goal)
+    assert reference is not None
+    assert reference.contract["target_time_sec"] is None
+    assert reference.contract["race_date"] is None
 
 
 def test_put_settings_rejects_invalid_sync_interval(api_client):

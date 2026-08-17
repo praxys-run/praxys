@@ -318,7 +318,8 @@
 
 // --- Goal editor bottom sheet ---
 
-.goal-editor-mask {
+.goal-editor-mask,
+.goal-plan-mask {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
   background-color: rgba(0, 0, 0, 0.45);
@@ -435,3 +436,105 @@
 
 .goal-editor-hint  { font-size: 22rpx; margin-top: 4rpx; margin-bottom: 8rpx; }
 .goal-editor-error { font-size: 24rpx; margin-top: 16rpx; }
+
+// --- Goal-plan reconciliation ---
+
+.goal-plan-mask {
+  z-index: 220;
+}
+
+.goal-plan-sheet {
+  width: 100%;
+  margin-bottom: calc(110rpx + env(safe-area-inset-bottom));
+  padding: 36rpx 32rpx 32rpx;
+  border-top-left-radius: 28rpx;
+  border-top-right-radius: 28rpx;
+  background-color: var(--surface);
+  box-shadow: 0 -4rpx 24rpx rgba(0, 0, 0, 0.15);
+}
+
+.goal-plan-title {
+  display: block;
+  color: var(--text);
+  font-size: 34rpx;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.goal-plan-description {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 26rpx;
+  line-height: 1.6;
+}
+
+.goal-plan-continuity {
+  margin: 24rpx 0;
+  padding: 20rpx 22rpx;
+  border: 1rpx solid var(--border-subtle);
+  border-radius: 14rpx;
+  background-color: var(--surface-subtle);
+}
+
+.goal-plan-continuity-text {
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+
+.goal-plan-error {
+  margin-bottom: 20rpx;
+  padding: 18rpx 20rpx;
+  border: 1rpx solid var(--destructive);
+  border-radius: 14rpx;
+  background-color: var(--surface-subtle);
+  color: var(--destructive);
+}
+
+.goal-plan-error-title,
+.goal-plan-error-message {
+  display: block;
+  font-size: 23rpx;
+  line-height: 1.5;
+}
+
+.goal-plan-error-title {
+  font-weight: 700;
+}
+
+.goal-plan-action {
+  display: flex;
+  min-height: 88rpx;
+  align-items: center;
+  justify-content: center;
+  margin-top: 14rpx;
+  padding: 0 28rpx;
+  border: 2rpx solid var(--border-subtle);
+  border-radius: 16rpx;
+  font-size: 26rpx;
+  font-weight: 700;
+  transition: opacity 120ms ease;
+}
+
+.goal-plan-action--primary {
+  border-color: var(--primary);
+  background-color: var(--primary);
+  color: var(--primary-on);
+}
+
+.goal-plan-action--secondary {
+  background-color: var(--surface-subtle);
+  color: var(--text);
+}
+
+.goal-plan-action--quiet {
+  border-color: transparent;
+  color: var(--text-muted);
+}
+
+.goal-plan-action--pressed {
+  opacity: 0.72;
+}
+
+.goal-plan-action--disabled {
+  opacity: 0.45;
+}

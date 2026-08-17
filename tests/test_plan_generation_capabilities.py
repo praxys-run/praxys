@@ -76,6 +76,152 @@ def _request(method: str, path: str) -> Request:
     })
 
 
+def test_current_goal_revision_ignores_metadata_and_normalizes_aliases() -> None:
+    """Only the normalized plan contract contributes to Goal provenance."""
+    from api.plan_generation_capabilities import current_goal_reference
+
+    first = current_goal_reference(
+        user_id="goal-revision-owner",
+        goal={
+            "goal_kind": "PERFORMANCE_5K",
+            "distance": "5K",
+            "race_target_time_sec": "1500",
+            "race_date": "",
+            "display_label": "First label",
+            "metadata": {"updated_by": "web"},
+        },
+    )
+    second = current_goal_reference(
+        user_id="goal-revision-owner",
+        goal={
+            "goal_kind": "performance_5k",
+            "distance": "5k",
+            "target_time_sec": 1500,
+            "race_date": None,
+            "display_label": "Renamed",
+            "metadata": {"updated_by": "miniapp"},
+        },
+    )
+
+    assert first is not None
+    assert second is not None
+    assert first.goal_id == second.goal_id
+    assert first.revision == second.revision
+    assert first.contract == {
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+        "target_time_sec": 1500,
+        "race_date": None,
+    }
+
+
+@pytest.mark.parametrize(
+    ("first_aliases", "second_aliases", "changed_field"),
+    [
+        (
+            {
+                "race_target_time_sec": 1500,
+                "target_event_date": "2027-04-18",
+            },
+            {
+                "race_target_time_sec": 1440,
+                "target_event_date": "2027-04-18",
+            },
+            "target_time_sec",
+        ),
+        (
+            {
+                "race_target_time_sec": 1500,
+                "target_event_date": "2027-04-18",
+            },
+            {
+                "race_target_time_sec": 1500,
+                "target_event_date": "2027-05-02",
+            },
+            "race_date",
+        ),
+    ],
+)
+def test_current_goal_revision_falls_back_from_empty_canonical_fields(
+    first_aliases: dict[str, object],
+    second_aliases: dict[str, object],
+    changed_field: str,
+) -> None:
+    """Legacy aliases remain material when canonical fields are sentinels."""
+    from api.plan_generation_capabilities import current_goal_reference
+
+    canonical_sentinels = {
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+        "target_time_sec": 0,
+        "race_date": "",
+    }
+    first = current_goal_reference(
+        user_id="goal-revision-owner",
+        goal={**canonical_sentinels, **first_aliases},
+    )
+    second = current_goal_reference(
+        user_id="goal-revision-owner",
+        goal={**canonical_sentinels, **second_aliases},
+    )
+
+    assert first is not None
+    assert second is not None
+    assert first.contract[changed_field] != second.contract[changed_field]
+    assert first.revision != second.revision
+
+
+@pytest.mark.parametrize(
+    "changed_goal",
+    [
+        {
+            "goal_kind": "continuous",
+            "distance": "5k",
+            "target_time_sec": 1500,
+        },
+        {
+            "goal_kind": "performance_5k",
+            "distance": "10k",
+            "target_time_sec": 1500,
+        },
+        {
+            "goal_kind": "performance_5k",
+            "distance": "5k",
+            "target_time_sec": 1440,
+        },
+        {
+            "goal_kind": "performance_5k",
+            "distance": "5k",
+            "target_time_sec": 1500,
+            "race_date": "2027-04-18",
+        },
+    ],
+)
+def test_current_goal_revision_changes_with_plan_contract(
+    changed_goal: dict[str, object],
+) -> None:
+    """Each plan-relevant Goal field advances immutable provenance."""
+    from api.plan_generation_capabilities import current_goal_reference
+
+    original = current_goal_reference(
+        user_id="goal-revision-owner",
+        goal={
+            "goal_kind": "performance_5k",
+            "distance": "5k",
+            "target_time_sec": 1500,
+        },
+    )
+    changed = current_goal_reference(
+        user_id="goal-revision-owner",
+        goal=changed_goal,
+    )
+
+    assert original is not None
+    assert changed is not None
+    assert changed.goal_id == original.goal_id
+    assert changed.revision != original.revision
+
+
 @pytest.mark.parametrize(
     ("method", "path"),
     [
