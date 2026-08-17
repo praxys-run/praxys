@@ -17,8 +17,6 @@ from analysis.evidence_registry import (
     DecisionReviewItem,
     DecisionReviewManifest,
     EvidenceReview,
-    ProductDecisionContext,
-    ProductDecisionScenario,
     RecordStatus,
     ScienceDecisionRecord,
     ScienceRegistry,
@@ -121,59 +119,6 @@ def _decision_review_manifest(
     )
 
 
-def _product_context(
-    decision: ScienceDecisionRecord,
-) -> ProductDecisionContext:
-    return ProductDecisionContext(
-        user_problem=(
-            "Eligible runners cannot tell what value the proposed policy "
-            "would add to their current planning experience."
-        ),
-        current_product_gap=[
-            "The current packet leads with constraints instead of user value.",
-            "Representative user states are not visible before approval.",
-        ],
-        value_hypothesis=(
-            "A scenario-led decision will let reviewers choose a useful, "
-            "bounded experience without deriving product strategy from papers."
-        ),
-        primary_user_outcomes=[
-            "Users receive an honest route matched to their current state.",
-            "Unsupported promises remain unavailable and explicit.",
-        ],
-        scenarios=[
-            ProductDecisionScenario(
-                id="eligible-runner",
-                user_state="An adult runner inside the accepted policy scope.",
-                current_problem="The product has no reviewed policy outcome.",
-                proposed_experience=(
-                    "Present the accepted bounded planning route and its "
-                    "uncertainty."
-                ),
-                expected_value=(
-                    "The runner can make an informed adoption decision."
-                ),
-                evidence_claim_ids=[decision.evidence_claim_ids[0]],
-                open_questions=[
-                    "The implementation interaction remains deferred.",
-                ],
-            ),
-        ],
-        minimum_valuable_slice=[
-            "Expose one reviewed route without activating delivery.",
-        ],
-        product_non_goals=[
-            "Do not promise a personal outcome probability.",
-        ],
-        success_metrics=[
-            "Eligible users can understand and select the reviewed route.",
-        ],
-        guardrail_metrics=[
-            "No unsupported scope expansion or silent activation occurs.",
-        ],
-    )
-
-
 def _write_yaml(path: Path, payload: dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -187,7 +132,6 @@ def _write_fixture_records(
     *,
     status: RecordStatus,
     runtime_state: ArtifactRuntimeState = ArtifactRuntimeState.INACTIVE,
-    product_first: bool = False,
 ) -> tuple[EvidenceReview, ScienceDecisionRecord]:
     current = load_science_registry()
     shared = current.evidence_reviews[_SHARED_EVIDENCE_ID]
@@ -201,15 +145,9 @@ def _write_fixture_records(
     })
     base_decision = current.decisions[_DECISION_ID]
     decision = base_decision.model_copy(update={
-        "schema_version": 2 if product_first else 1,
         "status": status,
         "approval_mode": ApprovalMode.ARTIFACT,
         "human_reviewers": [],
-        "product_context": (
-            _product_context(base_decision)
-            if product_first
-            else None
-        ),
         "decision_review": _decision_review_manifest(base_decision),
         "artifact_policy": DecisionArtifactPolicy(
             runtime_state=runtime_state,
@@ -368,85 +306,6 @@ def test_draft_artifact_records_render_complete_review_and_contract(
 
     (science_dir / contract_path).write_text("{}\n", encoding="utf-8")
     assert sync_science_artifacts(registry, check=True) == [contract_path]
-
-
-def test_schema_v2_packet_leads_with_product_value(
-    tmp_path: Path,
-) -> None:
-    science_dir = tmp_path / "science"
-    _, decision = _write_fixture_records(
-        science_dir,
-        status=RecordStatus.DRAFT,
-        product_first=True,
-    )
-    registry = load_science_registry(science_dir)
-    expected = expected_science_artifacts(registry)
-    packet_path = (
-        Path("generated")
-        / "review-packets"
-        / f"{decision.id}.md"
-    )
-    packet = expected[packet_path]
-
-    assert "Start with product value, then review the decision sheet" in packet
-    assert packet.index("## Product value") < packet.index("## Your task")
-    assert packet.index("## Your task") < packet.index("## Decision sheet")
-    assert "### User problem" in packet
-    assert "### Value hypothesis" in packet
-    assert "#### `eligible-runner`" in packet
-    assert "### Minimum valuable slice" in packet
-    assert "### Product non-goals" in packet
-    assert "**Success metrics**" in packet
-    assert "**Guardrail metrics**" in packet
-    assert science_decision_digest(
-        registry.decisions[decision.id]
-    ) in packet
-
-
-def test_product_context_changes_decision_digest_not_parameter_projection(
-    tmp_path: Path,
-) -> None:
-    legacy_dir = tmp_path / "legacy" / "science"
-    product_dir = tmp_path / "product" / "science"
-    _, legacy_decision = _write_fixture_records(
-        legacy_dir,
-        status=RecordStatus.DRAFT,
-    )
-    _, product_decision = _write_fixture_records(
-        product_dir,
-        status=RecordStatus.DRAFT,
-        product_first=True,
-    )
-    legacy_registry = load_science_registry(legacy_dir)
-    product_registry = load_science_registry(product_dir)
-
-    legacy_contract = build_policy_contract(
-        legacy_registry,
-        legacy_decision.id,
-    )
-    product_contract = build_policy_contract(
-        product_registry,
-        product_decision.id,
-    )
-
-    assert science_decision_digest(
-        legacy_registry.decisions[legacy_decision.id]
-    ) != science_decision_digest(
-        product_registry.decisions[product_decision.id]
-    )
-    assert legacy_contract.parameters == product_contract.parameters
-    assert (
-        legacy_contract.evidence_claim_ids
-        == product_contract.evidence_claim_ids
-    )
-    assert (
-        legacy_contract.evidence_review_ids
-        == product_contract.evidence_review_ids
-    )
-    assert (
-        legacy_contract.source_decision_digest
-        != product_contract.source_decision_digest
-    )
 
 
 def test_artifact_decision_review_must_cover_every_contract_group(

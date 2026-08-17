@@ -19,13 +19,13 @@ policy.
 
 Use it to research a bounded science question, verify literature metadata and
 claim limits, update a versioned Evidence Review, or prepare the evidence
-handoff for a product-policy decision. It has two explicit modes:
+handoff for a Product decision. It has two explicit modes:
 
 - **Research-only** updates evidence in draft form without changing accepted
   product behavior.
-- **Decision proposal** hands the evidence, claim boundaries, validation needs,
-  and affected surfaces to the product-policy workflow, which owns the draft
-  SDR and implementation/reviewer map.
+- **Decision proposal** creates any required draft Science Decision Record for
+  scientific interpretation and runtime boundaries, then hands the evidence and
+  science artifacts to the Product role for a separate Product Decision Record.
 
 It preserves historical records, requires search provenance and source
 verification levels, and never accepts or merges science on an agent's behalf.
@@ -35,23 +35,25 @@ This is deliberately separate from the athlete-facing `/science` plugin skill.
 research literature or change Evidence Reviews, SDRs, formulas, or product
 behavior.
 
-## Developer product policy and review routing
+## Developer role agents and control plane
 
-Two repository custom agents turn evidence and product context into a bounded
-implementation handoff:
+The canonical operating model is:
 
-- `Praxys Product Policy` at
-  `.github/agents/product-policy.agent.md` drafts the user problem, value
-  hypothesis, scenarios, product options, minimum valuable slice, outcome
-  metrics, and schema-v2 product-first SDR.
-- `Praxys Decision Review Router` at
-  `.github/agents/decision-review-router.agent.md` independently routes the
-  decision as agent-resolved, agent-reviewed, human-review-required, or blocked.
+- `docs/dev/agentic-operating-model.md`
+- `config/agentic-operating-model.json`
 
-The product-policy agent does not perform science research or approve its own
-proposal. The review router does not create approvals or promote autonomy.
-Their shared contract is documented in
-`docs/dev/product-decision-loop.md`.
+It defines Product, Design, Engineering, Architecture, Quality, Science, Trust,
+Operations, and Meta/Eval as bounded decision-owning roles. Their manifests live
+under `.github/agents/`.
+
+`Praxys Work Router` selects the object, primary loop, decision classes, role
+slots, and required artifacts. `Praxys Decision Review Router` independently
+routes each material decision as `agent-resolved`, `agent-reviewed`,
+`human-review-required`, or `blocked`.
+
+The proposer cannot select its own review route or review its own decision. An
+executor cannot verify its own high-risk work. Routers cannot approve or
+materialize human authority.
 
 ## Developer WeChat DevTools
 

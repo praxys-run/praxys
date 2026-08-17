@@ -8,12 +8,12 @@ Do not check any item that was not actually performed.
 
 - [ ] Linked Evidence Review: <!-- path or N/A with rationale -->
 - [ ] Linked Science Decision Record: <!-- path or N/A with rationale -->
+- [ ] Linked Product Decision Record when product value or user behavior changes: <!-- path or N/A with rationale -->
 - [ ] Sources have stable DOI/PMID/URL metadata and recorded verification levels.
 - [ ] Each formula, constant, and user-facing claim has provenance or an explicit estimate/guardrail rationale.
 - [ ] Applicability, uncertainty, safety boundaries, and rejected alternatives are documented.
 - [ ] Record lifecycle is versioned/superseded; accepted evidence and decisions were not rewritten.
 - [ ] Artifact-mode review packets and machine contracts were regenerated and carry matching source/contract digests.
-- [ ] New product decisions use schema-v2 `product_context` and state the user problem, value hypothesis, scenarios, minimum valuable slice, product non-goals, success metrics, and guardrail metrics.
 - [ ] The SDR decision sheet states the reviewer task, proposed approvals, explicit deferrals, approval effects, and non-authorizations.
 - [ ] Every machine-contract parameter group is mapped to at least one decision-sheet item.
 - [ ] Every code-consumed field appears verbatim in the generated human review packet.
@@ -24,6 +24,7 @@ Do not check any item that was not actually performed.
 ## Product and implementation
 
 - [ ] The proposed product value is explicit; scientific prohibitions are not presented as the product recommendation.
+- [ ] The Work Router assigned Product, Science, Design, Trust, Architecture, Engineering, Quality, and Operations only where their decision classes were triggered.
 - [ ] The independent decision-review router recorded whether agent review is sufficient or a bounded human decision remains.
 - [ ] Model version and migration behavior are documented when behavior changes.
 - [ ] The implementation preserves stated non-goals and does not turn group evidence into individual medical or performance guarantees.

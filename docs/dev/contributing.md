@@ -76,11 +76,19 @@ How to extend Praxys with new features.
 
 ## Adding a New Science Theory
 
-Science changes use two linked, versioned records before implementation:
+Science changes use two linked, versioned science records before implementation:
 
 - An **Evidence Review** records what the literature supports.
-- A **product-first Science Decision Record (SDR)** records what user value
-  Praxys chooses to provide, why, and how the evidence constrains that choice.
+- A **Science Decision Record (SDR)** records Praxys's scientific
+  interpretation, parameters, applicability, claim limits, and runtime
+  boundary.
+
+When the work also changes product behavior, Product separately owns a Product
+Decision Record covering the user problem, options, promise, trade-offs,
+minimum valuable scope, non-goals, and outcome plan. Science artifacts are
+dependencies of that product decision; they do not own product value. The
+shared record contract is specified in
+[`agentic-operating-model.md`](agentic-operating-model.md).
 
 New records use the artifact review workflow documented in
 [`science-review-artifacts.md`](science-review-artifacts.md). The canonical
@@ -91,12 +99,12 @@ agent to an exact human-authenticated GitHub PR comment; trusted automation
 materializes the role-scoped artifact. Runtime code consumes only the generated
 contract and never derives values from prose.
 
-Artifact-mode SDRs also provide a typed `decision_review` manifest. The
-schema-v2 packet begins with product value and then its concise decision sheet;
-schema-v1 packets retain their existing decision-sheet-first format. Every
-contract parameter group must be mapped to an explicit proposed decision or
-deferral. The complete evidence, parameter, and contract material remains a
-collapsed audit appendix rather than the reviewer's primary task.
+Artifact-mode SDRs also provide a typed `decision_review` manifest. The science
+packet begins with its concise scientific decision sheet. Every contract
+parameter group must be mapped to an explicit proposed decision or deferral.
+The complete evidence, parameter, and contract material remains a collapsed
+audit appendix rather than the reviewer's primary task. Product value belongs
+in the linked Product Decision Record, not the SDR.
 
 ### Research before changing science
 
@@ -105,10 +113,10 @@ Use the repository-owned
 before changing a scientific claim, formula, constant, safety boundary, theory,
 or user-facing interpretation. Its **Research-only** mode creates a bounded,
 auditable evidence update without changing accepted behavior; its **Decision
-proposal** mode hands the evidence bundle to the
-[`Praxys Product Policy`](../../.github/agents/product-policy.agent.md) agent,
-which adds the user problem, value hypothesis, scenarios, alternatives, outcome
-plan, draft SDR, and implementation/reviewer map.
+proposal** mode creates any required draft SDR, then hands the evidence and
+science artifacts to
+[`Praxys Product`](../../.github/agents/product.agent.md), which owns the
+separate product decision and outcome plan.
 
 The athlete-facing `/science` plugin skill remains browse/select only. It does
 not research literature, edit evidence records, or make product decisions.
@@ -141,10 +149,6 @@ honestly; neither level lets schema validation declare a paper true.
 
 2. **Add an SDR** at
    `data/science/decisions/sdr-{decision}-v{N}.yaml`:
-   - New product decisions use `schema_version: 2` and define
-     `product_context` with the user problem, current gap, value hypothesis,
-     primary outcomes, representative scenarios, minimum valuable slice,
-     product non-goals, success metrics, and guardrail metrics.
    - Set `approval_mode: artifact` and declare
      `artifact_policy.runtime_state`. Draft decisions start `inactive`.
    - Link the exact evidence-review and claim IDs used.
@@ -163,6 +167,11 @@ honestly; neither level lets schema validation declare a paper true.
      identity and may not infer or widen approval. Runtime activation remains
      blocked until `implementation_reviewer` approval also binds the exact
      reviewed code diff and validation evidence.
+
+   If the proposal changes product value or user behavior, also create or reuse
+   the separate Product Decision Record required by the Work Router. Do not put
+   product ownership into the SDR merely because the product decision depends
+   on science.
 
 3. **Create or update the canonical English theory YAML** in
    `data/science/{pillar}/{theory_id}.yaml`:

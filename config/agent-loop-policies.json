@@ -1,9 +1,14 @@
 {
   "schema_version": 1,
+  "operating_model": {
+    "path": "config/agentic-operating-model.json",
+    "version": "praxys-agentic-operating-model-v1",
+    "status": "specification-only"
+  },
   "decision_autonomy": {
     "version": "decision-autonomy-v1",
     "status": "specification-only",
-    "objective": "minimize-human-attention-subject-to-quality-safety-and-reversibility",
+    "objective": "minimize-human-attention-subject-to-quality-safety-reversibility-and-authenticated-authority",
     "routing_outcomes": [
       "agent-resolved",
       "agent-reviewed",
@@ -17,6 +22,17 @@
       "contract-consistency",
       "test-execution"
     ],
+    "agent_reviewed_classes": [],
+    "agent_reviewed_requirements": {
+      "class_must_be_explicitly_listed": true,
+      "reviewer_assignment_source": "work-router-independent-reviewers",
+      "minimum_independent_reviews": 1,
+      "reviewer_must_differ_from_proposer_and_executor": true,
+      "triggered_roles_must_be_assigned": true,
+      "deterministic_validation_required": true,
+      "decision_record_digest_required": true,
+      "human_review_factor_must_be_absent": true
+    },
     "human_review_factors": [
       "new-product-promise",
       "material-user-value-tradeoff",
@@ -28,9 +44,11 @@
       "out-of-policy-or-out-of-distribution-decision"
     ],
     "independence": {
-      "proposer_may_route_own_decision": false,
-      "implementation_agent_may_approve_own_change": false,
-      "router_may_materialize_human_approval": false
+      "proposer_may_select_own_review_route": false,
+      "proposer_may_review_own_decision": false,
+      "executor_may_verify_own_high_risk_work": false,
+      "router_may_approve": false,
+      "agent_may_materialize_human_approval": false
     },
     "promoted_judgment_classes": [],
     "promotion_requirements": {

@@ -1,28 +1,34 @@
-# Product decision loop
+# Product loop
 
-**Status:** Product-policy workflow and schema defined; decision-autonomy
-routing remains specification-only and default-human for judgment classes.
+**Status:** The Product role, loop contract, and shared Product Decision Record
+fields are specified in the Praxys agentic operating model. Judgment autonomy
+remains specification-only and default-human for unpromoted classes.
 
 ## Purpose
 
 Scientific evidence constrains what Praxys may claim, but it does not determine
 which user problem to solve or which evidence-consistent product experience to
-choose. The product decision loop converts evidence, product context, and user
-signals into a falsifiable product recommendation before the change loop writes
+choose. The Product loop converts evidence, product context, and user signals
+into a falsifiable product recommendation before the Delivery loop writes
 implementation code.
 
-The loop object is the **product promise and expected user outcome**. Agents and
-humans are participants:
+The loop object is the **product promise and expected user outcome**. The
+Product Agent leads; other roles contribute only their bounded decisions:
 
-| Participant | Responsibility |
+| Role or participant | Responsibility |
 |---|---|
 | Athlete or end user | Supplies needs, feedback, context, and observed outcomes |
-| Product-policy agent | Proposes user value, scenarios, options, and outcome measures |
-| Science-research agent | Supplies evidence claims, uncertainty, and claim limits |
+| Product Agent | Owns user value, scenarios, options, prioritization, and outcomes |
+| Design Agent | Owns the journey, interaction, content, accessibility, and rendered experience |
+| Science Agent | Owns evidence claims, uncertainty, applicability, and scientific limits |
+| Trust Agent | Owns privacy, security, identity, consent, and sensitive-data boundaries |
+| Architecture Agent | Owns triggered cross-cutting or irreversible technical decisions |
+| Engineering Agent | Implements accepted decisions without reopening them |
+| Quality Agent | Independently verifies the exact implementation and acceptance evidence |
+| Operations Agent | Owns rollout and runtime decisions when they apply |
 | Independent review router | Decides whether agent review is sufficient or a human judgment remains |
 | Product owner | Resolves genuinely novel, high-impact, or normative trade-offs |
-| Change-loop agent | Implements the accepted behavior without reopening the decision |
-| Outcome observer / meta agent | Measures results and proposes policy improvements |
+| Meta/Eval Agent | Evaluates role, routing, policy, and autonomy quality across outcomes |
 
 ## Position in the loop family
 
@@ -30,20 +36,19 @@ humans are participants:
 user feedback / telemetry / product goal
                     |
                     v
-           product decision loop
+              product loop
              |              |
              | needs evidence
              v              |
-        science-research ----+
+          science loop ------+
                     |
                     v
         accepted product decision
                     |
                     v
-               change loop
+              delivery loop
              /             \
-       rendered UI       deploy/config
-        UI quality           ops
+         design loop       runtime loop
              \             /
                     v
                   release
@@ -52,11 +57,13 @@ user feedback / telemetry / product goal
         outcomes -> product/meta loops
 ```
 
-- Science research is upstream evidence work. It does not choose product value.
-- The product-policy agent recommends what Praxys should provide and why.
-- The change loop implements an accepted decision; it must not invent one.
-- UI quality is a nested implementation harness, not the product-prioritization
-  authority.
+- Science owns evidence and scientific decisions. It does not choose product
+  value.
+- Product recommends what Praxys should provide and why.
+- Design owns the intended experience; Engineering implements it.
+- Quality independently verifies the current change.
+- The delivery loop implements accepted decisions; it must not invent them.
+- UI quality is the mandatory rendered Design harness, not product authority.
 - Ops is involved only when deployment, runtime configuration, monitoring, or
   incident response is affected.
 - The meta/eval outer loop improves all of these policies from accumulated
@@ -82,17 +89,16 @@ user feedback / telemetry / product goal
    decision with a recommendation, alternatives, consequences, and explicit
    deferrals. Do not ask the reviewer to infer the decision from an audit
    appendix.
-8. **Implement and observe.** The change loop consumes the accepted decision.
+8. **Implement and observe.** The Delivery loop consumes the accepted decision.
    Post-release outcomes feed the product and meta loops.
 
-## Product-first SDR schema
+## Product Decision Record
 
-New evidence-backed product decisions use science-decision `schema_version: 2`.
-Existing accepted schema-v1 records remain immutable.
+A Product Decision Record is owned by Product even when it depends on Science.
+It links Evidence Reviews and Science Decision Records instead of embedding or
+replacing their authority. Existing accepted science records remain immutable.
 
-A schema-v2 SDR retains the exact evidence, parameter, contract, approval, and
-activation boundaries established by schema v1, and additionally requires
-`product_context`:
+The product specialization adds:
 
 | Field | Review purpose |
 |---|---|
@@ -106,10 +112,11 @@ activation boundaries established by schema v1, and additionally requires
 | `success_metrics` | Signals that the value hypothesis is working |
 | `guardrail_metrics` | Signals that should narrow, stop, or reverse rollout |
 
-The generated packet presents product value and scenarios before the decision
-sheet. The audit appendix still contains every evidence, parameter, and exact
-machine-contract field. Product prose is digest-bound for review but is never
-parsed into runtime behavior.
+The shared record fields and specialization ownership are declared in
+`config/agentic-operating-model.json`. The first persisted Product Decision
+Record and generated product review packet will be introduced with the adult
+running population-routing application. Product prose remains reviewable and
+digest-bound but is never parsed into a science runtime contract.
 
 ## Evidence-to-product mapping
 
@@ -130,17 +137,19 @@ presenting it as established science.
 
 ## Human-attention routing
 
-The shared policy is declared in `config/agent-loop-policies.json`. Its
-objective is:
+The role and loop model is declared in
+`config/agentic-operating-model.json`; review autonomy remains in
+`config/agent-loop-policies.json`. Its objective is:
 
-> Minimize human attention subject to quality, safety, and reversibility.
+> Minimize human attention subject to quality, safety, reversibility, and
+> authenticated authority.
 
 The router returns:
 
 | Route | Meaning |
 |---|---|
 | `agent-resolved` | Deterministic validation or an explicitly promoted narrow class |
-| `agent-reviewed` | Accepted policy plus independent specialist review is sufficient |
+| `agent-reviewed` | An explicitly listed class passes all independent-review requirements |
 | `human-review-required` | A novel or high-impact judgment remains |
 | `blocked` | Required evidence, authority, or safe execution conditions are missing |
 
@@ -149,14 +158,18 @@ trade-off, sensitive-data collection, safety or medical boundary, security or
 privacy boundary, irreversible action, unresolved reviewer disagreement, or an
 out-of-policy decision.
 
-The proposer, implementation agent, and router cannot approve their own work.
-Current science approval artifacts remain human-authenticated. Agent-only
-judgment classes require a future explicit promotion; they are not created by
-this specification.
+The proposer cannot select its own review route or review its own decision. An
+executor cannot verify its own high-risk work. Routers cannot approve, and
+agents cannot materialize human approval. Current science approval artifacts
+remain human-authenticated. Agent-only judgment classes require a future
+explicit promotion; they are not created by this specification. The
+`agent-reviewed` eligibility list is also empty, so current product judgment
+continues to route to a human.
 
 ## Outer-loop improvement
 
-The meta/eval loop improves review routing from batches of outcomes:
+Product owns whether its value hypothesis worked. The Meta/Eval loop separately
+improves role assignment and review routing from batches of outcomes:
 
 - human acceptance without changes;
 - human corrections and overrides;

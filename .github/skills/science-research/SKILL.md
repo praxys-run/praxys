@@ -10,8 +10,8 @@ description: >-
 # Praxys Science Research
 
 Use this repository-level developer skill to turn a bounded science question
-into an auditable Evidence Review and a bounded evidence handoff for product
-policy. It is not an athlete-facing coaching feature.
+into an auditable Evidence Review and a bounded evidence handoff for a Product
+decision. It is not an athlete-facing coaching feature.
 
 The plugin `/science` skill remains browse/select only: it may explain or
 select shipped theories, but it must not research literature, change evidence
@@ -37,17 +37,20 @@ behavior, or user-facing product claim.
 
 ### Decision proposal
 
-Decision-proposal work begins with the same Evidence Review process, then hands
-the evidence, claim limits, and affected surfaces to the `Praxys Product Policy`
-agent. That agent owns the user problem, value hypothesis, product options,
-scenario experience, outcome metrics, and product-first Science Decision Record
-(SDR). Science research may challenge or refine the evidence mapping, but it
-must not substitute scientific prohibitions for a product recommendation.
+Decision-proposal work begins with the same Evidence Review process. The
+`Praxys Science` role owns any required Science Decision Record (SDR): evidence
+interpretation, parameters, applicability, claim limits, and runtime boundary.
+It then hands the exact evidence and science artifacts to `Praxys Product`,
+which owns the Product Decision Record: user problem, product options, scenarios,
+value trade-offs, minimum valuable scope, and outcome metrics.
 
-The product-policy proposal prepares the implementation impact map, not the
-implementation itself. The change loop may prepare a draft implementation only
-after the decision, boundaries, validation plan, and independent review route
-are explicit.
+Science may challenge or refine evidence mapping, but it must not substitute
+scientific prohibitions for a product recommendation. Product may choose among
+evidence-consistent options, but it must not invent scientific support.
+
+Engineering may prepare an implementation only after the required Product,
+Science, Design, Architecture, Trust, and review-routing prerequisites are
+explicit.
 
 Neither mode may mark a record `accepted`, claim human approval, merge a
 science change, or silently replace research history.
@@ -149,28 +152,26 @@ Follow the existing registry schema and lifecycle:
 - Put search provenance in `method`, per-source verification in `review_notes`,
   claim strength in `claims`, and uncertainty in claim limitations, gaps, and
   conflicting findings.
-- In decision-proposal mode, dispatch the evidence bundle to
-  `.github/agents/product-policy.agent.md`. New product-first SDRs use
-  `schema_version: 2`, link exact Evidence Review and claim IDs, classify every
-  parameter as `published`, `estimate`, or `guardrail`, and document rejected
-  alternatives, claim limits, safety/privacy implications, and a falsification
-  plan.
-- A schema-v2 SDR must define `product_context`: user problem, current product
-  gap, value hypothesis, primary outcomes, representative scenarios, minimum
-  valuable slice, product non-goals, success metrics, and guardrail metrics.
+- In decision-proposal mode, create a draft SDR only when a scientific
+  interpretation or runtime science contract is needed. Link exact Evidence
+  Review and claim IDs, classify every parameter as `published`, `estimate`, or
+  `guardrail`, and document rejected scientific interpretations, claim limits,
+  safety/privacy implications, and a falsification plan.
+- Dispatch the completed evidence and science bundle to
+  `.github/agents/product.agent.md`. Product owns a separate Product Decision
+  Record and links the science artifacts as dependencies.
 - New records use `approval_mode: artifact`; draft SDRs declare
   `artifact_policy.runtime_state: inactive`.
 - Run `python scripts/generate_science_artifacts.py` and hand reviewers the
   generated Markdown packet, not raw YAML. The packet must include the exact
   machine JSON contract and the same decision/contract digests.
-- Artifact-mode SDRs must define a typed `decision_review` manifest. For
-  schema-v2 SDRs, start the packet with product value and representative
-  scenarios, then present a short decision sheet that tells the reviewer
-  exactly what to approve, what is explicitly deferred, what approval changes,
-  and what it does not authorize. Schema-v1 packets retain their existing
-  decision-sheet-first format. Map every `model_parameters` group to at least
-  one decision item. Keep the full parameter/evidence/contract material in the
-  audit appendix; never ask a human to infer the decision by skimming it.
+- Artifact-mode SDRs must define a typed `decision_review` manifest. Start the
+  science packet with a short decision sheet that tells the reviewer exactly
+  which scientific interpretation, parameters, applicability, deferrals, and
+  runtime boundaries are being approved. Product value belongs in the linked
+  Product Decision Record. Map every `model_parameters` group to at least one
+  decision item. Keep the full parameter/evidence/contract material in the
+  audit appendix.
 - Evidence, decision, and implementation review are separate roles. Only a
   digest-bound `evidence_reviewer` may accept an artifact-mode Evidence Review;
   only a `decision_approver` may accept its SDR; only an
@@ -201,9 +202,9 @@ Follow the existing registry schema and lifecycle:
   ledger must not infer or partially apply predecessor transitions.
 - Regenerate `data/science/REGISTRY.md` after valid record changes.
 
-## 5. Hand evidence to product policy
+## 5. Hand evidence to Product
 
-For decision proposals, give the product-policy agent a structured mapping:
+For decision proposals, give the Product Agent a structured mapping:
 
 | Category | Required treatment |
 | --- | --- |
@@ -224,7 +225,7 @@ Metrics remain pure functions in `analysis/metrics.py`; data loading stays in
 that changes CP, load, diagnosis, race forecasts, or the canonical Today verdict
 unless the decision explicitly evaluates that impact.
 
-The product-policy handoff must identify:
+The Product handoff must identify:
 
 - the user problem the evidence may help solve;
 - what evidence positively supports, not only what it prohibits;
@@ -257,9 +258,10 @@ End every run with these artifacts or explicitly state why one does not apply:
 
 1. Updated or new Evidence Review, including search provenance and verification
    levels.
-2. Product-policy handoff for decision-proposal mode.
-3. Optional schema-v2 draft SDR created through the product-policy workflow.
-4. Concise product recommendation, alternatives considered, and claim limits.
+2. Optional draft SDR for the scientific interpretation and runtime boundary.
+3. Product handoff for a separate Product Decision Record.
+4. Scientific implications and evidence-consistent options without choosing
+   product value.
 5. Unresolved evidence gaps, conflicts, and validation/falsification plan.
 6. Implementation impact map and reviewer checklist.
 7. For artifact-mode work, generated Evidence Review and SDR review packets,

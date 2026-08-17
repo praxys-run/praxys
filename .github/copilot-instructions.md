@@ -79,22 +79,29 @@ state coverage, and the PR evidence required by CI.
 See [CLAUDE.md](../CLAUDE.md) for complete conventions, how-to guides, and the module map.
 See [AGENTS.md](../AGENTS.md) for multi-agent workflow patterns.
 
-## Product decisions and human attention
+## Agentic operating model and human attention
 
-- Science research defines what evidence supports, does not support, and why.
-  It does not determine product value by itself.
-- Before implementation, use
-  `.github/agents/product-policy.agent.md` when materially different user
-  experiences or value trade-offs remain. New evidence-backed product
-  decisions use schema-v2 product-first SDRs.
-- Route judgment through
-  `.github/agents/decision-review-router.agent.md`. The proposer and
-  implementation agent cannot decide that their own work may skip review.
+- Agents are bounded roles; loops improve objects over time. Read
+  `docs/dev/agentic-operating-model.md` and
+  `config/agentic-operating-model.json`.
+- Before material work, use `.github/agents/work-router.agent.md` to identify
+  the primary loop, decision classes, role slots, and required durable
+  artifacts.
+- Product owns user value; Design owns experience; Engineering implements;
+  Architecture owns triggered cross-cutting technical choices; Quality
+  independently verifies; Science owns evidence; Trust owns security/privacy;
+  Operations owns production state; Meta/Eval improves policies across outcomes.
+- API, frontend, backend, and data are Engineering capabilities, not independent
+  roles merely because they use different directories.
+- Route material judgment through
+  `.github/agents/decision-review-router.agent.md`. The proposer cannot select
+  its own route or review its own decision; the executor cannot verify its own
+  high-risk work; routers cannot approve.
 - Minimize human attention by resolving deterministic work and accepted-policy
-  conformance with agents. Ask humans only for the exact irreducible product,
-  safety, privacy, or high-impact decision returned by the independent router.
-- The router is specification-only and default-human for unpromoted judgment
-  classes. See `docs/dev/product-decision-loop.md` and
+  conformance with agents. Ask humans only for the exact irreducible decision
+  returned by the independent router.
+- The control plane is specification-only and default-human for unpromoted
+  judgment classes. Review autonomy remains in
   `config/agent-loop-policies.json`.
 
 ## Coding-agent guidance (the change loop)

@@ -18,10 +18,7 @@ from analysis.evidence_registry import (
     EffectEstimate,
     EvidenceReview,
     ParameterProvenance,
-    ProductDecisionContext,
-    ProductDecisionScenario,
     RecordStatus,
-    ScienceDecisionRecord,
     _validate_supersession,
     load_science_registry,
     render_registry_index,
@@ -2433,94 +2430,6 @@ def test_pubmed_url_must_match_structured_identifier() -> None:
 def test_parameter_provenance_requires_claims_or_rationale(raw: dict) -> None:
     with pytest.raises(ValidationError):
         ParameterProvenance.model_validate(raw)
-
-
-def test_schema_v2_decisions_require_product_value_context() -> None:
-    registry = load_science_registry()
-    decision = registry.decisions[
-        "sdr-adaptive-plan-feasibility-and-adjustment-v1"
-    ]
-    payload = decision.model_dump(mode="json")
-
-    with pytest.raises(
-        ValidationError,
-        match="schema-v2 decisions require product_context",
-    ):
-        ScienceDecisionRecord.model_validate({
-            **payload,
-            "schema_version": 2,
-            "product_context": None,
-        })
-
-    context = ProductDecisionContext(
-        user_problem="Athletes need an actionable managed-plan recommendation.",
-        current_product_gap=[
-            "A disclaimer-only response does not help the athlete decide.",
-        ],
-        value_hypothesis=(
-            "A bounded recommendation plus explicit uncertainty improves "
-            "decision quality without promising an outcome."
-        ),
-        primary_user_outcomes=[
-            "The athlete receives a concrete, reviewable position.",
-        ],
-        scenarios=[
-            ProductDecisionScenario(
-                id="accepted-safe-route",
-                user_state="The athlete has an accepted safe route.",
-                current_problem="The system can remain noncommittal.",
-                proposed_experience=(
-                    "Provide a bounded recommendation and request feedback."
-                ),
-                expected_value="The athlete can make an informed choice.",
-                evidence_claim_ids=[decision.evidence_claim_ids[0]],
-            ),
-        ],
-        minimum_valuable_slice=[
-            "Render one actionable recommendation without automatic adoption.",
-        ],
-        product_non_goals=[
-            "Do not guarantee personal success or medical safety.",
-        ],
-        success_metrics=[
-            "Athletes can identify the recommended action and uncertainty.",
-        ],
-        guardrail_metrics=[
-            "No recommendation crosses an accepted safety boundary.",
-        ],
-    )
-    product_first = ScienceDecisionRecord.model_validate({
-        **payload,
-        "schema_version": 2,
-        "product_context": context.model_dump(mode="json"),
-    })
-    assert product_first.product_context == context
-
-    with pytest.raises(
-        ValidationError,
-        match="product_context requires science decision schema version 2",
-    ):
-        ScienceDecisionRecord.model_validate({
-            **payload,
-            "product_context": context.model_dump(mode="json"),
-        })
-
-    unknown_claim_context = context.model_copy(update={
-        "scenarios": [
-            context.scenarios[0].model_copy(update={
-                "evidence_claim_ids": ["missing.product-claim"],
-            }),
-        ],
-    })
-    with pytest.raises(
-        ValidationError,
-        match="product scenarios reference unlinked evidence claims",
-    ):
-        ScienceDecisionRecord.model_validate({
-            **payload,
-            "schema_version": 2,
-            "product_context": unknown_claim_context.model_dump(mode="json"),
-        })
 
 
 @pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])

@@ -4,6 +4,11 @@ Praxys treats UI work as a product-quality change, not a final styling pass.
 The harness gives GitHub Copilot, the Copilot coding agent, Claude Code, and
 human contributors one brand-aware path from task intake to PR review.
 
+In the agentic operating model, Product owns user value, Design owns the
+experience, Engineering implements accepted artifacts, and Quality verifies the
+exact rendered change. This harness is the mandatory rendered Design and
+verification path; it does not make UI implementation a separate top-level role.
+
 ## Enforcement layers
 
 | Layer | Repository owner | What it guarantees |
