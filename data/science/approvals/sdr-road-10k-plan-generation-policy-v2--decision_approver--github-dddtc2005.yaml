@@ -1,0 +1,15 @@
+schema_version: 1
+subject_kind: science_decision
+subject_id: sdr-road-10k-plan-generation-policy-v2
+subject_digest: sha256:aa420e4c8b24ca6e0ce0340cc78934edca29c4cda70876dbf46d0a0ca2bee1ad
+reviewer: github:dddtc2005
+role: decision_approver
+reviewed_on: '2026-08-18'
+scopes:
+  - activation_boundary
+  - applicability
+  - claim_limits
+  - decision_interpretation
+  - parameters
+  - safety_and_privacy
+source_ref: https://github.com/praxys-run/praxys/pull/733#issuecomment-5327908194

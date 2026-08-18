@@ -39,7 +39,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 | [sdr-outdoor-5k-plan-generation-policy-v1](decisions/sdr-outdoor-5k-plan-generation-policy-v1.yaml) — Use a history-anchored 28-day outdoor 5 km plan block | 1 | outdoor-5k-plan-generation-policy-v1 | 2026-08-13 |
 | [sdr-plan-generation-eligibility-safety-v1](decisions/sdr-plan-generation-eligibility-safety-v1.yaml) — Match plan generation by capability, history, and non-medical safety state | 1 | plan-generation-eligibility-safety-v1 | 2026-08-14 |
 | [sdr-preplan-baseline-policy-v1](decisions/sdr-preplan-baseline-policy-v1.yaml) — Use qualified 5 km history before offering an opt-in same-protocol baseline | 1 | preplan-baseline-policy-v1 | 2026-08-10 |
-| [sdr-road-10k-plan-generation-policy-v1](decisions/sdr-road-10k-plan-generation-policy-v1.yaml) — History-anchored adult outdoor road 10 km performance policy | 1 | road-10k-plan-generation-policy-v1 | 2026-08-14 |
+| [sdr-road-10k-plan-generation-policy-v2](decisions/sdr-road-10k-plan-generation-policy-v2.yaml) — Generator-ready adult outdoor road 10 km performance policy | 2 | road-10k-plan-generation-policy-v2 | 2026-08-18 |
 | [sdr-road-half-marathon-plan-generation-policy-v1](decisions/sdr-road-half-marathon-plan-generation-policy-v1.yaml) — History-anchored adult outdoor road half-marathon performance policy | 1 | road-half-marathon-plan-generation-policy-v1 | 2026-08-14 |
 | [sdr-road-marathon-plan-generation-policy-v1](decisions/sdr-road-marathon-plan-generation-policy-v1.yaml) — History-anchored adult outdoor road-marathon performance policy | 1 | road-marathon-plan-generation-policy-v1 | 2026-08-15 |
 
@@ -66,6 +66,7 @@ _None._
 | [sdr-environmental-performance-v1](decisions/sdr-environmental-performance-v1.yaml) — Present environmental conditions as bounded performance context | 1 | environmental-performance-context-v1 | 2026-07-26 |
 | [sdr-environmental-performance-v2](decisions/sdr-environmental-performance-v2.yaml) — Present a private historical environmental-response experiment | 2 | environmental-performance-context-v2 | 2026-08-08 |
 | [sdr-environmental-performance-v3](decisions/sdr-environmental-performance-v3.yaml) — Display supported environmental-response subdomains without bridging gaps | 3 | environmental-performance-context-v3 | 2026-08-09 |
+| [sdr-road-10k-plan-generation-policy-v1](decisions/sdr-road-10k-plan-generation-policy-v1.yaml) — History-anchored adult outdoor road 10 km performance policy | 1 | road-10k-plan-generation-policy-v1 | 2026-08-14 |
 
 ## Retired
 
