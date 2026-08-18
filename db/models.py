@@ -1298,6 +1298,142 @@ class GoalBaselineSnapshot(Base):
     )
 
 
+class Road10KBaselineConfirmation(Base):
+    """Append-only athlete confirmation for one direct 10K candidate."""
+
+    __tablename__ = "road_10k_baseline_confirmations"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    lineage_id = Column(String(36), nullable=False)
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    goal_signature = Column(String(64), nullable=False)
+    goal_snapshot = Column(JSON, nullable=False, default=dict)
+    version = Column(Integer, nullable=False, default=1)
+    supersedes_id = Column(
+        String(36),
+        ForeignKey(
+            "road_10k_baseline_confirmations.id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+    )
+    activity_id = Column(String(100), nullable=False)
+    response = Column(String(24), nullable=False)
+    measured_10k = Column(Boolean, nullable=False, default=False)
+    elapsed_timing_confirmed = Column(Boolean, nullable=False, default=False)
+    request_fingerprint = Column(String(64), nullable=False)
+    idempotency_key = Column(String(128), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "lineage_id",
+            "version",
+            name="uq_road_10k_baseline_confirmation_lineage_version",
+        ),
+        UniqueConstraint(
+            "user_id",
+            "idempotency_key",
+            name="uq_road_10k_baseline_confirmation_idempotency",
+        ),
+        CheckConstraint(
+            "version >= 1",
+            name="ck_road_10k_baseline_confirmation_version_positive",
+        ),
+        CheckConstraint(
+            "response IN ('race','intentional_all_out','not_all_out','deleted')",
+            name="ck_road_10k_baseline_confirmation_response",
+        ),
+        Index(
+            "ix_road_10k_baseline_confirmation_user_goal_activity",
+            "user_id",
+            "goal_signature",
+            "activity_id",
+            "created_at",
+        ),
+    )
+
+
+class Road10KBaselineSnapshot(Base):
+    """Versioned direct 10K evidence snapshot retained for audit and export."""
+
+    __tablename__ = "road_10k_baseline_snapshots"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    lineage_id = Column(String(36), nullable=False)
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    goal_signature = Column(String(64), nullable=False)
+    goal_snapshot = Column(JSON, nullable=False, default=dict)
+    version = Column(Integer, nullable=False, default=1)
+    supersedes_id = Column(
+        String(36),
+        ForeignKey("road_10k_baseline_snapshots.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    source_kind = Column(String(24), nullable=False)
+    source_id = Column(String(100), nullable=True)
+    provenance = Column(String(24), nullable=False)
+    observed_date = Column(Date, nullable=True)
+    distance_km = Column(Float, nullable=True)
+    elapsed_time_sec = Column(Float, nullable=True)
+    measured_10k = Column(Boolean, nullable=False, default=False)
+    elapsed_timing_confirmed = Column(Boolean, nullable=False, default=False)
+    qualification_status = Column(String(24), nullable=False)
+    change_comparability = Column(
+        String(24),
+        nullable=False,
+        default="not_assessed",
+    )
+    invalidators = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "lineage_id",
+            "version",
+            name="uq_road_10k_baseline_snapshot_lineage_version",
+        ),
+        CheckConstraint(
+            "version >= 1",
+            name="ck_road_10k_baseline_snapshot_version_positive",
+        ),
+        CheckConstraint(
+            "source_kind IN ('history_confirmation')",
+            name="ck_road_10k_baseline_snapshot_source_kind",
+        ),
+        CheckConstraint(
+            "provenance IN ('race','intentional_all_out','unqualified')",
+            name="ck_road_10k_baseline_snapshot_provenance",
+        ),
+        CheckConstraint(
+            "qualification_status IN ('direct_current','incomparable','deleted')",
+            name="ck_road_10k_baseline_snapshot_qualification_status",
+        ),
+        CheckConstraint(
+            "change_comparability IN ('not_assessed','supporting','incomparable','directly_comparable')",
+            name="ck_road_10k_baseline_snapshot_change_comparability",
+        ),
+        Index(
+            "ix_road_10k_baseline_snapshot_user_goal_created",
+            "user_id",
+            "goal_signature",
+            "created_at",
+        ),
+    )
+
+
 class GoalBaselineAssessment(Base):
     """Append-only rendered assessment retained for audit and export."""
 
@@ -1663,6 +1799,68 @@ class Outdoor5KPlanGeneration(Base):
         ),
         Index(
             "ix_outdoor_5k_generation_user_revision",
+            "user_id",
+            "source_revision",
+        ),
+    )
+
+
+class Road10KPlanGeneration(Base):
+    """Immutable audit record for one deterministic road 10K proposal."""
+
+    __tablename__ = "road_10k_plan_generations"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    proposal_id = Column(
+        String(36),
+        ForeignKey("plan_proposals.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    capability_id = Column(String(80), nullable=False)
+    policy_version = Column(String(80), nullable=False)
+    generator_version = Column(String(80), nullable=False)
+    science_decision_id = Column(String(120), nullable=False)
+    source_decision_digest = Column(String(80), nullable=False)
+    contract_digest = Column(String(80), nullable=False)
+    baseline_snapshot_id = Column(String(36), nullable=True)
+    baseline_source = Column(String(24), nullable=True)
+    source_goal_id = Column(String(36), nullable=True)
+    source_goal_revision = Column(String(64), nullable=True)
+    history_cutoff_completed_days = Column(Integer, nullable=False)
+    history_observation_ids = Column(JSON, nullable=False, default=list)
+    training_pattern_snapshot_version = Column(String(80), nullable=False)
+    event_context_snapshot_version = Column(String(80), nullable=False)
+    active_zone_model_id = Column(String(80), nullable=True)
+    active_zone_model_version = Column(String(80), nullable=True)
+    normalized_constraints = Column(JSON, nullable=False, default=dict)
+    selected_template_ids = Column(JSON, nullable=False, default=list)
+    source_revision = Column(String(64), nullable=False)
+    deterministic_input_hash = Column(String(64), nullable=False)
+    request_kind = Column(String(20), nullable=False)
+    request_fingerprint = Column(String(64), nullable=False)
+    predecessor_proposal_id = Column(String(36), nullable=True)
+    predecessor_version = Column(Integer, nullable=True)
+    observed_input_snapshot = Column(JSON, nullable=False, default=dict)
+    derived_history_statistics = Column(JSON, nullable=False, default=dict)
+    validation_results = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "proposal_id",
+            name="uq_road_10k_generation_proposal_owner",
+        ),
+        Index(
+            "ix_road_10k_generation_user_revision",
             "user_id",
             "source_revision",
         ),

@@ -20,6 +20,14 @@ from analysis.outdoor_5k_plan_generation import (
     OUTDOOR_5K_REASSESSMENT_DAYS,
     OUTDOOR_5K_SCIENCE_DECISION_ID,
 )
+from analysis.road_10k_contract import (
+    ROAD_10K_CAPABILITY,
+    ROAD_10K_EXECUTION,
+    ROAD_10K_GENERATOR_VERSION,
+    ROAD_10K_POLICY_VERSION,
+    ROAD_10K_REQUIRED_INPUTS,
+    ROAD_10K_SCIENCE_DECISION_ID,
+)
 from db.models import AdaptivePlan, AdaptivePlanGoalSnapshot, PlanProposal
 
 
@@ -176,9 +184,45 @@ PLAN_GENERATION_CAPABILITIES = (
         allows_unlinked=False,
         routing_readiness_strategy="goal_baseline_v1",
     ),
+    PlanGenerationCapability(
+        capability_id=str(ROAD_10K_CAPABILITY["capability_id"]),
+        status="inactive",
+        discipline=str(ROAD_10K_CAPABILITY["discipline"]),
+        activity_types=tuple(str(item) for item in ROAD_10K_CAPABILITY["activity_types"]),
+        goal_kinds=tuple(str(item) for item in ROAD_10K_CAPABILITY["goal_kinds"]),
+        distances=(str(ROAD_10K_CAPABILITY["distance"]),),
+        surfaces=(str(ROAD_10K_CAPABILITY["surface"]),),
+        plan_intent=str(ROAD_10K_CAPABILITY["plan_intent"]),
+        constraint_schema_id=str(ROAD_10K_REQUIRED_INPUTS["constraint_schema_id"]),
+        policy_status="accepted",
+        policy_version=ROAD_10K_POLICY_VERSION,
+        generator_version=ROAD_10K_GENERATOR_VERSION,
+        science_decision_id=ROAD_10K_SCIENCE_DECISION_ID,
+        horizon_days=int(ROAD_10K_EXECUTION["committed_proposal_days"]),
+        reassessment_days=int(
+            ROAD_10K_EXECUTION["advisory_reassessment_after_completed_days"]
+        ),
+        readiness_href="/api/plan/road-10k/readiness",
+        alternatives_href="/api/plan/road-10k/alternatives",
+        generate_href="/api/plan/road-10k/generate",
+        regenerate_href_template=(
+            "/api/plan/road-10k/proposals/{proposal_id}/regenerate"
+        ),
+        purpose_goal_kind="performance_10k",
+        purpose_distance="10k",
+        allows_capability_goal=True,
+        allows_unlinked=False,
+        routing_readiness_strategy="road_10k_baseline_v1",
+    ),
 )
-OUTDOOR_ROAD_5K_CAPABILITY = PLAN_GENERATION_CAPABILITIES[0]
-_CAPABILITIES = PLAN_GENERATION_CAPABILITIES
+PLAN_GENERATION_CAPABILITY_CATALOG = PLAN_GENERATION_CAPABILITIES
+PLAN_GENERATION_CAPABILITIES = tuple(
+    capability
+    for capability in PLAN_GENERATION_CAPABILITY_CATALOG
+    if capability.status == "available"
+)
+OUTDOOR_ROAD_5K_CAPABILITY = PLAN_GENERATION_CAPABILITY_CATALOG[0]
+OUTDOOR_ROAD_10K_CAPABILITY = PLAN_GENERATION_CAPABILITY_CATALOG[1]
 
 
 def canonical_goal_plan_contract(
@@ -735,7 +779,7 @@ def _build_plan_routing(
     ]
     inferred_intent: PlanIntent | None = (
         "performance"
-        if normalized_goal["goal_kind"] == "performance_5k"
+        if normalized_goal["goal_kind"] in {"performance_5k", "performance_10k"}
         else None
     )
     selected_intent = explicit_intent or inferred_intent
@@ -874,10 +918,31 @@ def _routing_baseline_readiness(
     if capability.routing_readiness_strategy is None:
         return "sufficient_baseline"
     if capability.routing_readiness_strategy != "goal_baseline_v1":
-        raise RuntimeError(
-            "Unsupported plan-routing readiness strategy: "
-            f"{capability.routing_readiness_strategy}"
-        )
+        if capability.routing_readiness_strategy != "road_10k_baseline_v1":
+            raise RuntimeError(
+                "Unsupported plan-routing readiness strategy: "
+                f"{capability.routing_readiness_strategy}"
+            )
+        from api.road_10k_baseline import build_road_10k_baseline_view
+
+        purpose_selection = {
+            "capability_id": capability.capability_id,
+            "source": purpose_source,
+            "expected_goal_id": (
+                current_goal.goal_id if purpose_source == "current_goal" else None
+            ),
+            "expected_goal_revision": (
+                current_goal.revision
+                if purpose_source == "current_goal"
+                else None
+            ),
+        }
+        baseline = build_road_10k_baseline_view(
+            db,
+            user_id=user_id,
+            purpose_selection=purpose_selection,
+        )["baseline"]
+        return str(baseline["readiness"])
     from api.goal_baseline import build_goal_baseline_view
 
     purpose_selection = {

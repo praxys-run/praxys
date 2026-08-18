@@ -131,6 +131,10 @@ const EN_GOAL = {
   'Train toward a specific race date': 'Train toward a specific race date',
   Continuous: 'Continuous',
   'Build fitness over time': 'Build fitness over time',
+  '10K performance': '10K performance',
+  'Optional benchmark': 'Optional benchmark',
+  'Choose and date an optional benchmark only if you want one. Praxys never auto-schedules it.':
+    'Choose and date an optional benchmark only if you want one. Praxys never auto-schedules it.',
   Distance: 'Distance',
   'Race Date': 'Race Date',
   'Pick a date': 'Pick a date',
@@ -577,6 +581,10 @@ const ZH_GOAL = {
   'Train toward a specific race date': '围绕某场比赛备赛',
   Continuous: '持续提升',
   'Build fitness over time': '长期提升体能',
+  '10K performance': '10 公里表现',
+  'Optional benchmark': '可选基准测试',
+  'Choose and date an optional benchmark only if you want one. Praxys never auto-schedules it.':
+    '仅在你确实需要时才选择并填写可选基准日期。Praxys 绝不会自动安排。',
   Distance: '距离',
   'Race Date': '比赛日期',
   'Pick a date': '选择日期',

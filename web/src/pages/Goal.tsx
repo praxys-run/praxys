@@ -3,7 +3,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useApi } from '@/hooks/useApi';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettings } from '@/contexts/SettingsContext';
-import type { GoalKind, GoalResponse } from '@/types/api';
+import type {
+  GoalKind,
+  GoalResponse,
+  PlanGenerationCapabilitiesResponse,
+} from '@/types/api';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -409,6 +413,10 @@ function GoalSkeleton() {
 
 export default function Goal() {
   const { data, loading, error, refetch } = useApi<GoalResponse>('/api/goal');
+  const { data: capabilityDiscovery } = useApi<PlanGenerationCapabilitiesResponse>(
+    '/api/plan/generation/capabilities',
+    { timeoutMs: 12_000 },
+  );
   const queryClient = useQueryClient();
   const { isDemo } = useAuth();
   const { config, updateSettings } = useSettings();
@@ -422,11 +430,22 @@ export default function Goal() {
   })();
   const currentGoalType: GoalType = (() => {
     const configured = String(config?.goal?.goal_kind ?? '').trim();
-    if (configured === 'race' || configured === 'continuous' || configured === 'performance_5k') {
+    if (
+      configured === 'race'
+      || configured === 'continuous'
+      || configured === 'performance_5k'
+      || configured === 'performance_10k'
+    ) {
       return configured as GoalType;
     }
     return currentRaceDate ? 'race' : 'continuous';
   })();
+  const enablePerformance10k = currentGoalType === 'performance_10k'
+    || Boolean(
+      capabilityDiscovery?.capabilities.some(
+        (item) => item.constraint_schema_id === 'outdoor_road_10k_constraints_v1',
+      ),
+    );
 
   const handleSaveGoal = async (goal: { goal_kind: GoalKind; race_date: string; distance: string; target_time_sec: number }) => {
     await updateSettings({ goal });
@@ -469,13 +488,14 @@ export default function Goal() {
           initialRaceDate={currentRaceDate}
           initialDistance={currentDistance}
           initialTargetTime={currentTargetTime}
+          enablePerformance10k={enablePerformance10k}
           onSave={handleSaveGoal}
         />
       )}
 
       {data && <PlanStartGoalEntry />}
 
-      {data && data.goal_kind === 'performance_5k' && data.baseline ? (
+      {data && (data.goal_kind === 'performance_5k' || data.goal_kind === 'performance_10k') && data.baseline ? (
         <GoalBaselinePanel
           baseline={data.baseline}
           goal={data.goal}

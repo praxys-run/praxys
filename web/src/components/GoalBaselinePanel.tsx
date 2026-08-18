@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLingui } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -35,10 +35,13 @@ import type {
   GoalBaselineCandidate,
   GoalBaselineResponse,
   PlanGenerationPurposeSelection,
+  Road10KBaselineCandidate,
+  Road10KBaselineMutationResponse,
+  Road10KBaselineResponse,
 } from '@/types/api';
 
 interface GoalBaselinePanelProps {
-  baseline: GoalBaselineResponse;
+  baseline: GoalBaselineResponse | Road10KBaselineResponse;
   goal: { distance?: string | null; target_time_sec?: number | null; eligible?: boolean } | undefined;
   purpose?: PlanGenerationPurposeSelection;
   isDemo: boolean;
@@ -69,6 +72,293 @@ function formatDate(value: string, locale: string): string {
   });
 }
 
+function isRoad10KBaseline(
+  baseline: GoalBaselineResponse | Road10KBaselineResponse,
+): baseline is Road10KBaselineResponse {
+  return 'contract_digest' in baseline;
+}
+
+function Road10KBaselinePanel({
+  baseline,
+  goal,
+  purpose,
+  isDemo,
+  onChanged,
+}: {
+  baseline: Road10KBaselineResponse;
+  goal: GoalBaselinePanelProps['goal'];
+  purpose?: PlanGenerationPurposeSelection;
+  isDemo: boolean;
+  onChanged: () => void;
+}) {
+  const { t } = useLingui();
+  const { locale } = useLocale();
+  const copy = {
+    sectionLabel: t`10K direct baseline`,
+    status: {
+      current: t`Current`,
+      stale: t`Stale`,
+      incomparable: t`Needs review`,
+      missing: t`Missing evidence`,
+      not_required: t`Not required`,
+    },
+    headline: {
+      current: t`You already have usable current 10K evidence.`,
+      stale: t`You have older 10K evidence. Praxys keeps it visible, but new planning stays readiness-only until you refresh it.`,
+      incomparable: t`Praxys found candidate 10K efforts, but they are not qualified yet.`,
+      missing: t`Praxys has not found qualified 10K history yet.`,
+      not_required: t`The current goal is outside this direct 10K baseline flow.`,
+    },
+    readiness: {
+      sufficient_baseline: t`Direct 10K baseline evidence is currently sufficient.`,
+      insufficient_evidence: t`This is not a failure; it means current direct 10K evidence is still missing or stale.`,
+    },
+    target: t`Goal`,
+    evidence: t`Current evidence`,
+    age: t`Evidence age`,
+    candidateTitle: t`History candidates`,
+    candidateHint: t`Retrieval is never qualification; only a full activity with explicit distance, timing, and all-out or race confirmation can become a direct 10K baseline.`,
+    reviewCandidate: t`Review this effort`,
+    changeCandidate: t`Change confirmation`,
+    fullActivityOnly: t`Full activity only`,
+    segmentRule: t`Passive fastest 10K splits, best laps, or hard sections inside longer runs never count as direct 10K baseline evidence.`,
+    cutoff: t`The 56-day rule is a reviewed guardrail, not a physiological cutoff.`,
+    benchmarkTitle: t`Optional 10K benchmark`,
+    benchmarkHint: t`Choose and date an optional benchmark in the Training plan preview if you want one. Praxys never auto-schedules it.`,
+    scienceDescription: t`Only current direct 10K race or explicit all-out 10K history can qualify. The 56-day freshness guardrail and the optional benchmark path are reviewed product boundaries, not published universal cutoffs.`,
+    options: {
+      race: t`Measured 10K race`,
+      intentional_all_out: t`Intentional all-out complete 10K`,
+      not_all_out: t`Not a direct 10K baseline`,
+      yes: t`Yes`,
+      no: t`No`,
+    },
+    reviewState: {
+      needs_confirmation: t`Needs confirmation`,
+      qualified: t`Qualified`,
+      excluded: t`Excluded`,
+      distance_unverified: t`Distance not verified`,
+      timing_unresolved: t`Timing needs review`,
+    },
+    alternatives: {
+      optional_10k_benchmark: t`Choose an optional 10K benchmark date`,
+      manual_training: t`Keep training manually for now`,
+    },
+    dialog: {
+      confirmTitle: t`Review this activity`,
+      confirmDescription: t`Only explicit distance, timing, and intent confirmation can turn history into a direct 10K baseline.`,
+      effortLabel: t`What was this full activity?`,
+      measuredLabel: t`Was the full effort a measured 10K?`,
+      timingLabel: t`Did the recorded time reflect elapsed timing with no unresolved pauses?`,
+      save: t`Save`,
+      cancel: t`Cancel`,
+    },
+    choose: t`Choose one`,
+    mutationSuccess: t`Updated the 10K baseline.`,
+    requestFailed: t`Request failed`,
+  };
+  const alternatives = baseline.alternatives.map((alternative) => (
+    alternative === 'optional_10k_benchmark'
+      ? copy.alternatives.optional_10k_benchmark
+      : alternative === 'manual_training'
+        ? copy.alternatives.manual_training
+        : alternative
+  ));
+  const [activeCandidate, setActiveCandidate] = useState<Road10KBaselineCandidate | null>(null);
+  const [response, setResponse] = useState<ConfirmResponse>('unset');
+  const [measured, setMeasured] = useState<'yes' | 'no' | 'unset'>('unset');
+  const [timing, setTiming] = useState<'yes' | 'no' | 'unset'>('unset');
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const mutate = async (body: Record<string, unknown>) => {
+    setSaving(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await apiFetch('/api/plan/road-10k/baseline/history/confirm', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': crypto.randomUUID(),
+        },
+        body: JSON.stringify(purpose ? { ...body, purpose } : body),
+      });
+      if (!res.ok) {
+        throw new Error(await extractErrorMessage(res, copy.requestFailed));
+      }
+      await res.json() as Promise<Road10KBaselineMutationResponse>;
+      setNotice(copy.mutationSuccess);
+      setOpen(false);
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : copy.requestFailed);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (!activeCandidate) return;
+    if (response === 'unset' || measured === 'unset' || timing === 'unset') {
+      setError(copy.choose);
+      return;
+    }
+    await mutate({
+      activity_id: activeCandidate.activity_id,
+      response,
+      measured_10k: measured === 'yes',
+      elapsed_timing_confirmed: timing === 'yes',
+    });
+  };
+
+  return (
+    <div className="space-y-5">
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{copy.sectionLabel}</p>
+              <CardTitle className="mt-2 text-2xl leading-tight">{copy.headline[baseline.status]}</CardTitle>
+              <CardDescription className="mt-2">{copy.readiness[baseline.readiness]}</CardDescription>
+            </div>
+            <Badge variant="outline" className="uppercase tracking-wider">{copy.status[baseline.status]}</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{copy.target}</p>
+              <p className="mt-1 text-sm text-foreground">{goal?.distance?.toUpperCase() ?? '10K'} {goal?.target_time_sec ? <span className="font-data">· {formatTime(goal.target_time_sec)}</span> : null}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{copy.evidence}</p>
+              <p className="mt-1 text-sm text-foreground">{baseline.evidence ? `${copy.status.current} · ${baseline.evidence.provenance}` : '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{copy.age}</p>
+              <p className="mt-1 text-sm text-foreground font-data">{baseline.evidence ? t`${baseline.evidence.age_days} days` : '—'}</p>
+            </div>
+          </div>
+          {baseline.evidence && (
+            <div className="rounded-lg border border-border p-4">
+              <p className="text-sm text-foreground">
+                <span className="font-medium">{formatDate(baseline.evidence.observed_date, locale)}</span>
+                <span className="font-data"> · {baseline.evidence.distance_km?.toFixed(2)} km · {baseline.evidence.elapsed_time_sec ? formatTime(Math.round(baseline.evidence.elapsed_time_sec)) : '—'}</span>
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">{copy.cutoff}</p>
+            </div>
+          )}
+          <Alert>
+            <AlertTitle>{copy.fullActivityOnly}</AlertTitle>
+            <AlertDescription>{copy.segmentRule}</AlertDescription>
+          </Alert>
+          {notice && <p className="text-sm text-primary">{notice}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <ScienceNote text={copy.scienceDescription} sources={baseline.science_note.citations} />
+          {alternatives.length > 0 && (
+            <p className="text-sm text-muted-foreground">{alternatives.join(' · ')}</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{copy.candidateTitle}</CardTitle>
+          <CardDescription>{copy.candidateHint}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {baseline.candidates.length === 0 ? (
+            <p className="text-sm text-muted-foreground">—</p>
+          ) : baseline.candidates.map((candidate) => (
+            <div key={candidate.activity_id} className="flex flex-col gap-3 rounded-lg border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground font-data">{formatDate(candidate.observed_date, locale)} · {candidate.distance_km?.toFixed(2)} km · {candidate.duration_sec ? formatTime(Math.round(candidate.duration_sec)) : '—'}</p>
+                <p className="text-sm text-muted-foreground">{copy.reviewState[candidate.review_state]}</p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setActiveCandidate(candidate);
+                  setResponse((candidate.confirmation_response ?? 'unset') as ConfirmResponse);
+                  setMeasured(candidate.measured_10k_confirmed == null ? 'unset' : candidate.measured_10k_confirmed ? 'yes' : 'no');
+                  setTiming(candidate.elapsed_timing_confirmed == null ? 'unset' : candidate.elapsed_timing_confirmed ? 'yes' : 'no');
+                  setOpen(true);
+                  setError(null);
+                }}
+                disabled={isDemo || saving}
+              >
+                {candidate.confirmation_response ? copy.changeCandidate : copy.reviewCandidate}
+              </Button>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{copy.benchmarkTitle}</CardTitle>
+          <CardDescription>{copy.benchmarkHint}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            <Trans>Use the Training plan preview to add, date, or decline an optional benchmark. Praxys keeps it off the calendar until you explicitly choose it.</Trans>
+          </p>
+        </CardContent>
+      </Card>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{copy.dialog.confirmTitle}</DialogTitle>
+            <DialogDescription>{copy.dialog.confirmDescription}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="road-10k-confirm-effort">{copy.dialog.effortLabel}</Label>
+              <Select value={response === 'unset' ? null : response} onValueChange={(value) => setResponse((value ?? 'unset') as ConfirmResponse)}>
+                <SelectTrigger id="road-10k-confirm-effort" className="w-full"><SelectValue placeholder={copy.choose} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="race">{copy.options.race}</SelectItem>
+                  <SelectItem value="intentional_all_out">{copy.options.intentional_all_out}</SelectItem>
+                  <SelectItem value="not_all_out">{copy.options.not_all_out}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="road-10k-confirm-measured">{copy.dialog.measuredLabel}</Label>
+              <Select value={measured === 'unset' ? null : measured} onValueChange={(value) => setMeasured((value ?? 'unset') as 'yes' | 'no' | 'unset')}>
+                <SelectTrigger id="road-10k-confirm-measured" className="w-full"><SelectValue placeholder={copy.choose} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="yes">{copy.options.yes}</SelectItem>
+                  <SelectItem value="no">{copy.options.no}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="road-10k-confirm-timing">{copy.dialog.timingLabel}</Label>
+              <Select value={timing === 'unset' ? null : timing} onValueChange={(value) => setTiming((value ?? 'unset') as 'yes' | 'no' | 'unset')}>
+                <SelectTrigger id="road-10k-confirm-timing" className="w-full"><SelectValue placeholder={copy.choose} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="yes">{copy.options.yes}</SelectItem>
+                  <SelectItem value="no">{copy.options.no}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>{copy.dialog.cancel}</Button>
+            <Button onClick={handleConfirm} disabled={saving}>{copy.dialog.save}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 export default function GoalBaselinePanel({
   baseline,
   goal,
@@ -76,6 +366,17 @@ export default function GoalBaselinePanel({
   isDemo,
   onChanged,
 }: GoalBaselinePanelProps) {
+  if (isRoad10KBaseline(baseline)) {
+    return (
+      <Road10KBaselinePanel
+        baseline={baseline}
+        goal={goal}
+        purpose={purpose}
+        isDemo={isDemo}
+        onChanged={onChanged}
+      />
+    );
+  }
   const { t } = useLingui();
   const { locale } = useLocale();
   const copy = {

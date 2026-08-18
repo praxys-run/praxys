@@ -127,7 +127,7 @@ def build_goal_baseline_goal(raw_goal: Mapping[str, Any] | None) -> GoalBaseline
     """Return the normalized goal contract slice for baseline evaluation."""
     payload = dict(raw_goal or {})
     raw_kind = str(payload.get("goal_kind") or "").strip().casefold()
-    if raw_kind in {"race", "continuous", "performance_5k"}:
+    if raw_kind in {"race", "continuous", "performance_5k", "performance_10k"}:
         goal_kind = raw_kind
     elif payload.get("race_date"):
         goal_kind = "race"
@@ -137,6 +137,8 @@ def build_goal_baseline_goal(raw_goal: Mapping[str, Any] | None) -> GoalBaseline
     distance = str(payload.get("distance") or "").strip().casefold() or None
     if goal_kind == "performance_5k" and not distance:
         distance = "5k"
+    if goal_kind == "performance_10k" and not distance:
+        distance = "10k"
 
     raw_target = payload.get("target_time_sec")
     if raw_target is None:

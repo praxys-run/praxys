@@ -22,6 +22,7 @@ from api.goal_baseline import (
     confirm_history_candidate,
     mutate_optional_test,
 )
+from api.road_10k_baseline import build_road_10k_baseline_view
 from api.packs import RequestContext, get_race_pack
 from api.plan_generation_capabilities import (
     PlanPurposeError,
@@ -89,7 +90,11 @@ def _build_goal_payload(user_id: str, db: Session) -> dict:
     """Compute the /api/goal response from packs and baseline state."""
     ctx = RequestContext(user_id=user_id, db=db)
     race = get_race_pack(ctx)
-    baseline = build_goal_baseline_view(db, user_id=user_id)
+    raw_goal = dict(ctx.config.goal or {})
+    if str(raw_goal.get("goal_kind") or "").strip() == "performance_10k":
+        baseline = build_road_10k_baseline_view(db, user_id=user_id)
+    else:
+        baseline = build_goal_baseline_view(db, user_id=user_id)
     return {
         "race_countdown": race["race_countdown"],
         "cp_trend": race["cp_trend"],

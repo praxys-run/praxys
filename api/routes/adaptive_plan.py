@@ -414,7 +414,10 @@ def adopt_plan_proposal(
     if (
         result["status"] == "adopted"
         and result["proposal"].get("policy_version")
-        != "outdoor-5k-plan-generation-policy-v1"
+        not in {
+            "outdoor-5k-plan-generation-policy-v1",
+            "road-10k-plan-generation-policy-v2",
+        }
     ):
         _trigger_managed_delivery(
             user_id,

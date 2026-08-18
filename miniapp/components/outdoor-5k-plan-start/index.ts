@@ -56,6 +56,7 @@ function samePurposeSelection(
 function copy() {
   return {
     title: t('Plan preview'),
+    road10kTitle: t('10K performance'),
     unsupportedTitle: t('Plan generation for this goal'),
     supportedGoal: t('No accepted automatic policy matches this goal yet. Praxys keeps manual plan management available instead of repurposing the 5K policy.'),
     purpose: t('Plan purpose'),
@@ -90,6 +91,8 @@ function copy() {
     noPreference: t('No preference'),
     terrain: t('Terrain and equipment'),
     terrainDetail: t('This policy supports outdoor road running only. Terrain, treadmill, trail, and equipment preferences are unsupported inputs and are not inferred.'),
+    benchmark: t('Optional benchmark'),
+    benchmarkDetail: t('Choose and date an optional benchmark only if you want one. Praxys never auto-schedules it.'),
     check: t('Check readiness'),
     checking: t('Checking readiness…'),
     create: t('Create proposal'),
@@ -278,11 +281,15 @@ Component({
         );
         if (componentState._loadRequestId !== requestId) return;
         const capabilities = discovery.capabilities.filter(
-          (item) => item.constraint_schema_id
-            === 'outdoor_road_5k_constraints_v1',
+          (item) => [
+            'outdoor_road_5k_constraints_v1',
+            'outdoor_road_10k_constraints_v1',
+          ].includes(item.constraint_schema_id),
         );
-        const currentCapability = discovery.selected_capability?.constraint_schema_id
-          === 'outdoor_road_5k_constraints_v1'
+        const currentCapability = [
+          'outdoor_road_5k_constraints_v1',
+          'outdoor_road_10k_constraints_v1',
+        ].includes(discovery.selected_capability?.constraint_schema_id ?? '')
           ? discovery.selected_capability
           : null;
         const capabilityAvailable = Boolean(

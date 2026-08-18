@@ -659,6 +659,43 @@ def test_capability_discovery_is_owner_scoped_and_fails_closed(
     ] is True
 
 
+def test_inactive_road_10k_capability_stays_out_of_active_discovery(
+    proposal_client,
+) -> None:
+    """The reviewed 10K capability metadata must not appear until activation."""
+    client, db_session, current_user = proposal_client
+    _save_goal(
+        db_session,
+        user_id=current_user["value"],
+        goal={
+            "goal_kind": "performance_10k",
+            "distance": "10k",
+            "target_time_sec": 2_520,
+            "race_date": "2026-09-20",
+        },
+    )
+
+    response = client.get("/api/plan/generation/capabilities")
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["goal"] == {
+        "goal_kind": "performance_10k",
+        "distance": "10k",
+    }
+    assert body["selected_capability"] is None
+    assert all(
+        capability["id"] != "outdoor_road_10k_performance_v1"
+        for capability in body["capabilities"]
+    )
+    assert body["routing"]["intent"] == "performance"
+    assert body["routing"]["intent_source"] == "current_goal"
+    assert body["routing"]["state"] == "policy_unavailable"
+    assert body["routing"]["reason_code"] == "no_accepted_policy_for_intent"
+    assert body["current_goal"]["goal"] == body["goal"]
+    assert body["unsupported_reason"] == "no_accepted_policy"
+
+
 def test_capability_discovery_uses_fresh_active_proposal_goal(
     proposal_client,
 ) -> None:

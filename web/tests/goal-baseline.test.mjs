@@ -10,13 +10,13 @@ test('web goal page switches into the baseline pilot flow', async () => {
     read('../src/components/GoalBaselinePanel.tsx'),
   ]);
 
-  assert.match(page, /data\.goal_kind === 'performance_5k'/);
+  assert.match(page, /data\.goal_kind === 'performance_5k' \|\| data\.goal_kind === 'performance_10k'/);
   assert.match(page, /<GoalBaselinePanel/);
-  assert.match(panel, /\/api\/goal\/baseline\/history\/confirm/);
+  assert.match(panel, /\/api\/goal\/baseline\/history\/confirm|\/api\/plan\/road-10k\/baseline\/history\/confirm/);
   assert.match(panel, /\/api\/goal\/baseline\/test/);
   assert.match(panel, /no meaningful-change threshold/i);
-  assert.match(panel, /maximal-effort/i);
-  assert.match(panel, /Arbitrary 5K segments/i);
+  assert.match(panel, /maximal-effort|optional benchmark/i);
+  assert.match(panel, /Arbitrary 5K segments|Passive fastest 10K splits/i);
 });
 
 test('miniapp ships the same baseline semantics and endpoints', async () => {
@@ -27,7 +27,7 @@ test('miniapp ships the same baseline semantics and endpoints', async () => {
     read('../src/locales/zh/messages.po'),
   ]);
 
-  assert.match(page, /goalKind === 'performance_5k'/);
+  assert.match(page, /goalKind === 'performance_5k' \|\| goalKind === 'performance_10k'/);
   assert.match(page, /<goal-baseline/);
   assert.match(page, /id="goal-baseline-panel"/);
   assert.match(component, /\/api\/goal\/baseline\/history\/confirm/);
@@ -47,11 +47,11 @@ test('web and miniapp share the generated baseline contract', async () => {
     read('../../miniapp/types/api.ts'),
   ]);
   const required = [
-    'type GoalKind = \'race\' | \'continuous\' | \'performance_5k\'',
+    'performance_10k',
     'interface GoalBaselineResponse',
     'interface GoalBaselineMutationResponse',
     'goal_kind?: GoalKind',
-    'baseline?: GoalBaselineResponse',
+    'baseline?: PerformanceGoalBaselineResponse',
     'optional_test_is_maximal_effort: true',
     'no_meaningful_change_threshold_yet: true',
   ];

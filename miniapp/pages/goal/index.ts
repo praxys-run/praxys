@@ -84,7 +84,7 @@ interface SeriesPayload {
 
 // ---- Editor snapshot ----
 interface EditorSnapshot {
-  type: 'race' | 'continuous' | 'performance_5k';
+  type: 'race' | 'continuous' | 'performance_5k' | 'performance_10k';
   distanceIndex: number;
   raceDate: string;
   targetTimeSec: number;
@@ -123,6 +123,8 @@ function buildGoalTr() {
     continuousGoalDesc: t('Build fitness over time'),
     performanceGoal: zh ? '5 公里表现' : '5K performance',
     performanceGoalDesc: zh ? '先用历史基线，再决定是否需要可选试点测试' : 'Use history first, then decide whether the optional pilot test is needed',
+    performance10kGoal: zh ? '10 公里表现' : '10K performance',
+    performance10kGoalDesc: zh ? '先用直接 10 公里历史，再决定是否需要可选基准日期' : 'Use direct 10K history first, then decide whether to choose an optional benchmark date',
     distance: t('Distance'),
     raceDate: t('Race Date'),
     pickDate: t('Pick a date'),
@@ -340,8 +342,9 @@ interface GoalState {
   goalPlanImpact: GoalPlanImpact | null;
   goalPlanDecisionBusy: boolean;
   goalPlanDecisionError: string;
+  performance10kEnabled: boolean;
 
-  editorType: 'race' | 'continuous' | 'performance_5k';
+  editorType: 'race' | 'continuous' | 'performance_5k' | 'performance_10k';
   editorDistanceLabels: string[];
   editorDistanceIndex: number;
   editorRaceDate: string;
@@ -873,6 +876,7 @@ const initialData: GoalState = {
   goalPlanImpact: null,
   goalPlanDecisionBusy: false,
   goalPlanDecisionError: '',
+  performance10kEnabled: false,
 
   editorOpen: false,
   editorType: 'race',
@@ -1133,7 +1137,11 @@ Page({
       | null;
     const distanceKey = (goal?.distance as DistanceKey | undefined) ?? 'marathon';
     const idx = Math.max(0, DISTANCE_CHOICES.findIndex((d) => d.key === distanceKey));
-    const editorType: 'race' | 'continuous' | 'performance_5k' = goal?.goal_kind === 'performance_5k' ? 'performance_5k' : (goal?.race_date ? 'race' : 'continuous');
+    const editorType: 'race' | 'continuous' | 'performance_5k' | 'performance_10k' = goal?.goal_kind === 'performance_5k'
+      ? 'performance_5k'
+      : goal?.goal_kind === 'performance_10k'
+        ? 'performance_10k'
+        : (goal?.race_date ? 'race' : 'continuous');
     const targetTimeSec =
       goal?.target_time_sec && goal.target_time_sec > 0 ? goal.target_time_sec : 0;
     const timeParts = secondsToTimeParts(targetTimeSec);
@@ -1165,14 +1173,21 @@ Page({
   onDiscardKeep() { this.setData({ editorConfirmDiscard: false }); },
 
   onPickEditorType(e: WechatMiniprogram.TouchEvent) {
-    const type = e.currentTarget.dataset.type as 'race' | 'continuous' | 'performance_5k' | undefined;
+    const type = e.currentTarget.dataset.type as 'race' | 'continuous' | 'performance_5k' | 'performance_10k' | undefined;
     if (!type) return;
-    this.setData({ editorType: type, ...(type === 'performance_5k' ? { editorDistanceIndex: 0 } : {}) });
+    this.setData({
+      editorType: type,
+      ...(type === 'performance_5k'
+        ? { editorDistanceIndex: 0 }
+        : type === 'performance_10k'
+          ? { editorDistanceIndex: 1 }
+          : {}),
+    });
     this.recomputeEditorDirty();
   },
 
   onPickEditorDistance(e: WechatMiniprogram.PickerChange) {
-    if (this.data.editorType === 'performance_5k') return;
+    if (this.data.editorType === 'performance_5k' || this.data.editorType === 'performance_10k') return;
     const idx = Number(e.detail.value);
     if (Number.isNaN(idx)) return;
     this.setData({ editorDistanceIndex: idx });
@@ -1204,7 +1219,7 @@ Page({
   async onSaveEditor() {
     if (!this.data.editorDirty || this.data.editorSaving) return;
     const tr = this.data.tr as ReturnType<typeof buildGoalTr>;
-    const editorType = this.data.editorType as 'race' | 'continuous' | 'performance_5k';
+    const editorType = this.data.editorType as 'race' | 'continuous' | 'performance_5k' | 'performance_10k';
     const editorDistanceIndex = this.data.editorDistanceIndex as number;
     const editorRaceDate = this.data.editorRaceDate as string;
     if (editorType === 'race' && !editorRaceDate) {
@@ -1213,14 +1228,20 @@ Page({
     }
     const targetTimeSec = timePartsToSeconds(this.data.editorTimeParts as number[]);
     this.setData({ editorSaving: true, editorError: '' });
-    const distance = editorType === 'performance_5k' ? '5k' : (DISTANCE_CHOICES[editorDistanceIndex]?.key ?? 'marathon');
+    const distance = editorType === 'performance_5k'
+      ? '5k'
+      : editorType === 'performance_10k'
+        ? '10k'
+        : (DISTANCE_CHOICES[editorDistanceIndex]?.key ?? 'marathon');
     try {
       const settingsResponse = await apiPut<SettingsUpdateResponse>(
         '/api/settings',
         {
           goal: {
             goal_kind: editorType,
-            race_date: editorType === 'race' ? editorRaceDate : '',
+            race_date: editorType === 'race' || editorType === 'performance_10k'
+              ? editorRaceDate
+              : '',
             distance,
             target_time_sec: targetTimeSec,
           },
@@ -1296,8 +1317,10 @@ Page({
         ? serverGoalPlanImpact
         : null;
       const supportedCapabilityIds = discovery?.capabilities.filter(
-        (item) => item.constraint_schema_id
-          === 'outdoor_road_5k_constraints_v1',
+        (item) => [
+          'outdoor_road_5k_constraints_v1',
+          'outdoor_road_10k_constraints_v1',
+        ].includes(item.constraint_schema_id),
       ).map((item) => item.id) ?? [];
       const routing = discovery?.routing ?? null;
       const currentGoalId = discovery?.current_goal?.id ?? '';
@@ -1345,6 +1368,9 @@ Page({
         planCurrentGoalRevision: currentGoalRevision,
         planRoutingOptions: routing?.options ?? [],
         planSupportedCapabilityIds: supportedCapabilityIds,
+        performance10kEnabled: supportedCapabilityIds.includes(
+          'outdoor_road_10k_performance_v1',
+        ),
         goalPlanImpact,
         _response: response,
       } as Record<string, unknown>);

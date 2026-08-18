@@ -35,6 +35,9 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
         GoalBaselineSnapshot,
         GoalBaselineTestRecord,
         Outdoor5KPlanGeneration,
+        Road10KBaselineConfirmation,
+        Road10KBaselineSnapshot,
+        Road10KPlanGeneration,
         RecoveryData,
         PlanProposal,
         TrainingPlan,
@@ -208,6 +211,70 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 constraint_snapshot={"available_weekdays": [0, 2, 5]},
                 derived_history_statistics={"usable_completed_weeks": 3},
                 validation_results={"code": "ready"},
+            ),
+            Road10KBaselineConfirmation(
+                id="owner-road-10k-confirmation",
+                lineage_id="owner-road-10k-confirmation-lineage",
+                user_id=owner_id,
+                goal_signature="owner-road-10k-goal-signature",
+                goal_snapshot={"goal_kind": "performance_10k", "distance": "10k"},
+                version=1,
+                activity_id="owner-activity",
+                response="race",
+                measured_10k=True,
+                elapsed_timing_confirmed=True,
+                request_fingerprint="e" * 64,
+            ),
+            Road10KBaselineSnapshot(
+                id="owner-road-10k-snapshot",
+                lineage_id="owner-road-10k-snapshot-lineage",
+                user_id=owner_id,
+                goal_signature="owner-road-10k-goal-signature",
+                goal_snapshot={"goal_kind": "performance_10k", "distance": "10k"},
+                version=1,
+                source_kind="history_confirmation",
+                source_id="owner-activity",
+                provenance="race",
+                observed_date=date(2026, 8, 1),
+                distance_km=10.0,
+                elapsed_time_sec=2_520,
+                measured_10k=True,
+                elapsed_timing_confirmed=True,
+                qualification_status="direct_current",
+                change_comparability="not_assessed",
+                invalidators=[],
+            ),
+            Road10KPlanGeneration(
+                id="owner-road-10k-generation",
+                user_id=owner_id,
+                proposal_id="owner-proposal",
+                capability_id="outdoor_road_10k_performance_v1",
+                policy_version="road-10k-plan-generation-policy-v2",
+                generator_version="road-10k-deterministic-generator-v1",
+                science_decision_id="sdr-road-10k-plan-generation-policy-v2",
+                source_decision_digest="s" * 71,
+                contract_digest="t" * 71,
+                baseline_snapshot_id="owner-road-10k-snapshot",
+                baseline_source="race",
+                source_goal_id=None,
+                source_goal_revision=None,
+                history_cutoff_completed_days=56,
+                history_observation_ids=["owner-activity"],
+                training_pattern_snapshot_version="road-10k-training-pattern-v1",
+                event_context_snapshot_version="road-10k-event-context-v1",
+                active_zone_model_id=None,
+                active_zone_model_version=None,
+                normalized_constraints={"available_weekdays": [0, 2, 5]},
+                selected_template_ids=["road-10k-controlled-threshold-quality-v1"],
+                source_revision="e" * 64,
+                deterministic_input_hash="f" * 64,
+                request_kind="generate",
+                request_fingerprint="g" * 64,
+                predecessor_proposal_id=None,
+                predecessor_version=None,
+                observed_input_snapshot={"completed_running_history": []},
+                derived_history_statistics={"usable_completed_weeks": 8},
+                validation_results={"code": "eligible_rolling_proposal"},
             ),
             Activity(
                 user_id=owner_id,
@@ -445,6 +512,26 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
     }
     assert payload["outdoor_5k_plan_generation"]["records"][0]["id"] == (
         "owner-generation"
+    )
+    assert payload["road_10k_baseline"] == {
+        "schema_version": 1,
+        "exported_at": payload["road_10k_baseline"]["exported_at"],
+        "confirmations": [payload["road_10k_baseline"]["confirmations"][0]],
+        "snapshots": [payload["road_10k_baseline"]["snapshots"][0]],
+    }
+    assert payload["road_10k_baseline"]["confirmations"][0]["id"] == (
+        "owner-road-10k-confirmation"
+    )
+    assert payload["road_10k_baseline"]["snapshots"][0]["id"] == (
+        "owner-road-10k-snapshot"
+    )
+    assert payload["road_10k_plan_generation"] == {
+        "schema_version": 1,
+        "exported_at": payload["road_10k_plan_generation"]["exported_at"],
+        "records": [payload["road_10k_plan_generation"]["records"][0]],
+    }
+    assert payload["road_10k_plan_generation"]["records"][0]["id"] == (
+        "owner-road-10k-generation"
     )
     assert payload["personal_context"] == {
         "schema_version": 1,
