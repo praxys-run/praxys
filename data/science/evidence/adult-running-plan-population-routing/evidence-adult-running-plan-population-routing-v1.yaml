@@ -17,6 +17,7 @@ authors:
   - agent:github-copilot
 human_reviewers: []
 created_on: 2026-08-16
+reviewed_on: null
 intended_product_purpose: >
   Define the evidence boundary for population-aware adult running-plan
   routing without turning study cohort labels into permanent runner

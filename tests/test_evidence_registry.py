@@ -762,8 +762,9 @@ def test_adult_running_population_routing_is_draft_and_inactive() -> None:
         "evidence-adult-running-plan-population-routing-v1.yaml"
     )
     repository_bytes = evidence_path.read_bytes().replace(b"\r\n", b"\n")
+    assert b"\nreviewed_on: null\n" in repository_bytes
     assert hashlib.sha256(repository_bytes).hexdigest() == (
-        "8122c5fc6fc9571dca5e2f80b6ea7b94df8ed138880e31c60cdcbcb9f3b69f75"
+        "bb1927c40c29c000d1c20c8826cf967f59eb3128d9a7be541ed313d2b56ecaed"
     )
     assert evidence_review_digest(review) == (
         "sha256:2b64d44749b4318cade113134a599f3646cb25805abed0f56728d9959c2ef0c8"
