@@ -939,6 +939,43 @@ export interface PlanGenerationResolvedPurpose extends PlanGenerationPurposeSele
   };
 }
 
+export type PlanIntent =
+  | 'first_completion'
+  | 'performance'
+  | 'return_to_consistency';
+
+export type PlanRoutingState =
+  | 'plan_candidate'
+  | 'readiness_only'
+  | 'clarification_required'
+  | 'policy_unavailable';
+
+export interface PlanRoutingOption {
+  intent: PlanIntent;
+  state: PlanRoutingState;
+  reason_code:
+    | 'accepted_policy_with_sufficient_baseline'
+    | 'accepted_policy_requires_readiness'
+    | 'capability_context_confirmation_required'
+    | 'no_accepted_policy_for_intent';
+  capability_id: string | null;
+  purpose_source: PlanGenerationPurposeSource | null;
+  baseline_readiness: string | null;
+}
+
+export interface PlanRoutingResult
+  extends Omit<PlanRoutingOption, 'intent' | 'reason_code'> {
+  schema_version: 1;
+  policy_version: string;
+  science_boundary_id: string;
+  intent: PlanIntent | null;
+  intent_source: 'current_goal' | 'explicit' | 'unconfirmed';
+  reason_code:
+    | PlanRoutingOption['reason_code']
+    | 'intent_confirmation_required';
+  options: PlanRoutingOption[];
+}
+
 export interface PlanGenerationCapability {
   id: string;
   status: 'available';
@@ -950,6 +987,7 @@ export interface PlanGenerationCapability {
     distances: string[];
     surfaces: string[];
   };
+  intent: PlanIntent;
   constraint_schema_id: string;
   purpose: {
     schema_version: 1;
@@ -997,6 +1035,7 @@ export interface PlanGenerationCapabilitiesResponse {
       | 'legacy_unknown';
   } | null;
   goal_plan_impact: GoalPlanImpact | null;
+  routing: PlanRoutingResult;
   unsupported_reason: 'no_accepted_policy' | null;
 }
 

@@ -44,8 +44,7 @@
   text-align: center;
 }
 
-.plan-generation-badge--available,
-.plan-generation-badge--alternate_available {
+.plan-generation-badge--plan_candidate {
   border-color: var(--primary);
   color: var(--primary);
 }
@@ -54,6 +53,65 @@
 .plan-generation-badge--update_required {
   border-color: var(--destructive);
   color: var(--destructive);
+}
+
+.plan-generation-rule {
+  width: 100%;
+  height: 0;
+  border-top: 1rpx solid var(--border-subtle);
+}
+
+.plan-generation-section,
+.plan-intent-label,
+.plan-intent-detail,
+.plan-generation-reasoning,
+.plan-generation-reasoning-detail {
+  display: block;
+}
+
+.plan-generation-section {
+  color: var(--text);
+  font-size: 25rpx;
+  font-weight: 650;
+}
+
+.plan-intent-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.plan-intent-option {
+  display: flex;
+  min-height: 104rpx;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6rpx;
+  padding: 18rpx 20rpx;
+  border: 1rpx solid var(--border-subtle);
+  border-radius: 14rpx;
+  background: var(--surface-subtle);
+  transition: opacity 120ms ease;
+}
+
+.plan-intent-option--selected {
+  border-color: var(--primary);
+}
+
+.plan-intent-option--pressed {
+  opacity: 0.72;
+}
+
+.plan-intent-label {
+  color: var(--text);
+  font-size: 24rpx;
+  font-weight: 650;
+}
+
+.plan-intent-detail {
+  color: var(--text-muted);
+  font-size: 21rpx;
+  line-height: 1.5;
 }
 
 .plan-generation-action {
@@ -82,6 +140,24 @@
 
 .plan-generation-action--pressed {
   opacity: 0.72;
+}
+
+.plan-generation-reasoning {
+  min-height: 72rpx;
+  color: var(--accent-cobalt);
+  font-size: 22rpx;
+  line-height: 72rpx;
+  transition: opacity 120ms ease;
+}
+
+.plan-generation-reasoning--pressed {
+  opacity: 0.72;
+}
+
+.plan-generation-reasoning-detail {
+  color: var(--text-muted);
+  font-size: 21rpx;
+  line-height: 1.6;
 }
 
 .goal-edit-row {

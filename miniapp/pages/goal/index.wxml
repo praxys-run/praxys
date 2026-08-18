@@ -6,6 +6,8 @@
     refresher-enabled="{{true}}"
     refresher-triggered="{{refreshing}}"
     bindrefresherrefresh="onScrollRefresh"
+    scroll-into-view="{{planRoutingScrollTarget}}"
+    scroll-with-animation="{{true}}"
     class="goal-scroll"
   >
     <view class="goal-content">
@@ -26,20 +28,63 @@
           </view>
         </view>
 
-        <view class="ts-card plan-generation-goal-entry">
+        <view id="plan-routing" class="ts-card plan-generation-goal-entry">
           <view class="plan-generation-header">
             <text class="goal-section-title">{{tr.planStartTitle}}</text>
             <text class="plan-generation-badge plan-generation-badge--{{planCapabilityState}}">{{planCapabilityBadge}}</text>
           </view>
           <text class="goal-copy ts-muted">{{planCapabilityDescription}}</text>
+
+          <block wx:if="{{planCapabilityState !== 'error'}}">
+            <view class="plan-generation-rule"></view>
+            <text class="plan-generation-section">{{tr.planIntentQuestion}}</text>
+            <text class="goal-copy ts-muted">{{tr.planIntentDetail}}</text>
+            <view class="plan-intent-options">
+              <view
+                class="plan-intent-option {{planIntent === 'first_completion' ? 'plan-intent-option--selected' : ''}}"
+                data-intent="first_completion"
+                bindtap="onSelectPlanIntent"
+                hover-class="plan-intent-option--pressed"
+                aria-role="button"
+                aria-pressed="{{planIntent === 'first_completion'}}"
+              >
+                <text class="plan-intent-label">{{tr.finishDistance}}</text>
+                <text class="plan-intent-detail">{{tr.finishDistanceDetail}}</text>
+              </view>
+              <view
+                class="plan-intent-option {{planIntent === 'performance' ? 'plan-intent-option--selected' : ''}}"
+                data-intent="performance"
+                bindtap="onSelectPlanIntent"
+                hover-class="plan-intent-option--pressed"
+                aria-role="button"
+                aria-pressed="{{planIntent === 'performance'}}"
+              >
+                <text class="plan-intent-label">{{tr.improvePerformance}}</text>
+                <text class="plan-intent-detail">{{tr.improvePerformanceDetail}}</text>
+              </view>
+              <view
+                class="plan-intent-option {{planIntent === 'return_to_consistency' ? 'plan-intent-option--selected' : ''}}"
+                data-intent="return_to_consistency"
+                bindtap="onSelectPlanIntent"
+                hover-class="plan-intent-option--pressed"
+                aria-role="button"
+                aria-pressed="{{planIntent === 'return_to_consistency'}}"
+              >
+                <text class="plan-intent-label">{{tr.rebuildConsistency}}</text>
+                <text class="plan-intent-detail">{{tr.rebuildConsistencyDetail}}</text>
+              </view>
+            </view>
+          </block>
+
+          <view class="plan-generation-rule"></view>
           <text wx:if="{{planCapabilityDetail}}" class="goal-copy ts-muted">{{planCapabilityDetail}}</text>
           <view
-            wx:if="{{planCapabilityState === 'available' || planCapabilityState === 'alternate_available'}}"
+            wx:if="{{planCapabilityState === 'plan_candidate' || planCapabilityState === 'readiness_only'}}"
             class="plan-generation-action plan-generation-action--primary"
             bindtap="onOpenPlanManagement"
             hover-class="plan-generation-action--pressed"
             aria-role="button"
-          ><text>{{planCapabilityState === 'alternate_available' ? tr.choosePlanPurpose : tr.openPlanPreview}}</text></view>
+          ><text>{{planCapabilityState === 'readiness_only' ? tr.reviewReadiness : tr.openPlanPreview}}</text></view>
           <view
             wx:elif="{{planCapabilityState === 'error'}}"
             class="plan-generation-action plan-generation-action--secondary"
@@ -48,12 +93,21 @@
             aria-role="button"
           ><text>{{tr.retryPolicyCheck}}</text></view>
           <view
-            wx:elif="{{planCapabilityState === 'unavailable'}}"
+            wx:elif="{{planCapabilityState === 'policy_unavailable'}}"
             class="plan-generation-action plan-generation-action--secondary"
             bindtap="onOpenPlanManagement"
             hover-class="plan-generation-action--pressed"
             aria-role="button"
           ><text>{{tr.manageWorkouts}}</text></view>
+          <view
+            wx:if="{{planCapabilityState !== 'error'}}"
+            class="plan-generation-reasoning"
+            bindtap="onTogglePlanRoutingReasoning"
+            hover-class="plan-generation-reasoning--pressed"
+            aria-role="button"
+            aria-expanded="{{planRoutingReasoningOpen}}"
+          ><text>{{planRoutingReasoningOpen ? tr.hideRouteReasoning : tr.whyRoutesSeparate}}</text></view>
+          <text wx:if="{{planRoutingReasoningOpen && planCapabilityState !== 'error'}}" class="plan-generation-reasoning-detail">{{tr.routeScienceDetail}}</text>
         </view>
 
         <block wx:if="{{goalKind === 'performance_5k' && baseline}}">
