@@ -1139,7 +1139,7 @@ Page({
     const idx = Math.max(0, DISTANCE_CHOICES.findIndex((d) => d.key === distanceKey));
     const editorType: 'race' | 'continuous' | 'performance_5k' | 'performance_10k' = goal?.goal_kind === 'performance_5k'
       ? 'performance_5k'
-      : goal?.goal_kind === 'performance_10k'
+      : goal?.goal_kind === 'performance_10k' && this.data.performance10kEnabled
         ? 'performance_10k'
         : (goal?.race_date ? 'race' : 'continuous');
     const targetTimeSec =
@@ -1175,6 +1175,7 @@ Page({
   onPickEditorType(e: WechatMiniprogram.TouchEvent) {
     const type = e.currentTarget.dataset.type as 'race' | 'continuous' | 'performance_5k' | 'performance_10k' | undefined;
     if (!type) return;
+    if (type === 'performance_10k' && !this.data.performance10kEnabled) return;
     this.setData({
       editorType: type,
       ...(type === 'performance_5k'

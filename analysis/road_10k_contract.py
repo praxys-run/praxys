@@ -59,4 +59,3 @@ ROAD_10K_ACTIVATION = ROAD_10K_PARAMETER_VALUES[
     "road_10k_v2_activation_and_dependencies"
 ]
 ROAD_10K_AUDIT = ROAD_10K_PARAMETER_VALUES["road_10k_v2_privacy_and_audit"]
-

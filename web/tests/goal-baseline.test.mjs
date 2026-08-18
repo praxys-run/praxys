@@ -10,10 +10,14 @@ test('web goal page switches into the baseline pilot flow', async () => {
     read('../src/components/GoalBaselinePanel.tsx'),
   ]);
 
-  assert.match(page, /data\.goal_kind === 'performance_5k' \|\| data\.goal_kind === 'performance_10k'/);
+  assert.match(page, /data\.goal_kind === 'performance_5k'[\s\S]*enablePerformance10k && data\.goal_kind === 'performance_10k'/);
   assert.match(page, /<GoalBaselinePanel/);
+  assert.match(panel, /Road10KHistoryConfirmationRequest/);
   assert.match(panel, /\/api\/goal\/baseline\/history\/confirm|\/api\/plan\/road-10k\/baseline\/history\/confirm/);
   assert.match(panel, /\/api\/goal\/baseline\/test/);
+  assert.match(panel, /surface_or_protocol/);
+  assert.match(panel, /assistance_status/);
+  assert.match(panel, /measured_10k/);
   assert.match(panel, /no meaningful-change threshold/i);
   assert.match(panel, /maximal-effort|optional benchmark/i);
   assert.match(panel, /Arbitrary 5K segments|Passive fastest 10K splits/i);
@@ -27,18 +31,23 @@ test('miniapp ships the same baseline semantics and endpoints', async () => {
     read('../src/locales/zh/messages.po'),
   ]);
 
-  assert.match(page, /goalKind === 'performance_5k' \|\| goalKind === 'performance_10k'/);
+  assert.match(page, /goalKind === 'performance_5k'[\s\S]*performance10kEnabled && goalKind === 'performance_10k'/);
   assert.match(page, /<goal-baseline/);
   assert.match(page, /id="goal-baseline-panel"/);
+  assert.match(component, /Road10KHistoryConfirmationRequest/);
   assert.match(component, /\/api\/goal\/baseline\/history\/confirm/);
+  assert.match(component, /\/api\/plan\/road-10k\/baseline\/history\/confirm/);
   assert.match(component, /\/api\/goal\/baseline\/test/);
+  assert.match(component, /surface_or_protocol/);
+  assert.match(component, /assistance_status/);
+  assert.match(component, /measured_10k/);
   assert.match(component, /candidateHint: t\('Retrieval is never qualification/);
   assert.match(component, /hasCandidates: candidateRows\.length > 0/);
   assert.match(component, /maximal-effort/i);
   assert.match(zhCatalog, /检索到候选活动不代表其已合格/);
   assert.match(template, /wx:if="\{\{hasCandidates\}\}"/);
-  assert.match(template, /baseline\.test\.state === 'not_offered'/);
-  assert.match(template, /baseline\.test\.can_schedule && baseline\.test\.state !== 'not_offered' && baseline\.test\.state !== 'scheduled'/);
+  assert.match(template, /isRoad10K \? copy\.benchmarkTitle : copy\.testTitle/);
+  assert.match(template, /!isRoad10K && baseline\.test\.state === 'not_offered'/);
 });
 
 test('web and miniapp share the generated baseline contract', async () => {
@@ -50,6 +59,7 @@ test('web and miniapp share the generated baseline contract', async () => {
     'performance_10k',
     'interface GoalBaselineResponse',
     'interface GoalBaselineMutationResponse',
+    'interface Road10KHistoryConfirmationRequest',
     'goal_kind?: GoalKind',
     'baseline?: PerformanceGoalBaselineResponse',
     'optional_test_is_maximal_effort: true',

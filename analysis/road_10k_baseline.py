@@ -16,6 +16,20 @@ from analysis.road_10k_contract import (
 
 
 _HISTORY_RETRIEVAL_MAX_DISTANCE_DELTA_KM = 0.5
+ROAD_10K_RACE_SURFACE_OR_PROTOCOL = "organized_outdoor_road_10k_race"
+ROAD_10K_TIME_TRIAL_SURFACE_OR_PROTOCOLS = frozenset({
+    "standardized_outdoor_road_10k_time_trial",
+    "standardized_track_10k_time_trial",
+})
+ROAD_10K_ACCEPTED_SURFACE_OR_PROTOCOLS = frozenset(
+    {ROAD_10K_RACE_SURFACE_OR_PROTOCOL}
+    | ROAD_10K_TIME_TRIAL_SURFACE_OR_PROTOCOLS
+)
+ROAD_10K_ASSISTANCE_STATUSES = frozenset({
+    "unassisted",
+    "assisted",
+    "unknown_or_unreported",
+})
 
 
 @dataclass(frozen=True)
@@ -40,6 +54,7 @@ class Road10KBaselineActivity:
     duration_sec: float | None
     activity_type: str | None
     source: str | None
+    completed_at: datetime | None = None
     split_count: int = 0
     sample_observed_duration_sec: float | None = None
     timing_gap_count: int = 0
@@ -53,6 +68,12 @@ class Road10KBaselineConfirmation:
     response: str
     measured_10k: bool
     elapsed_timing_confirmed: bool
+    completed_at: datetime | None
+    elapsed_time_sec: float | None
+    surface_or_protocol: str | None
+    route_or_venue_identifier: str | None
+    assistance_status: str | None
+    source_provider: str | None
     created_at: datetime
 
 
@@ -65,10 +86,15 @@ class Road10KHistoryCandidate:
     distance_km: float | None
     duration_sec: float | None
     source: str | None
+    completed_at: datetime | None
     review_state: str
     confirmation_response: str | None
     measured_10k_confirmed: bool | None
     elapsed_timing_confirmed: bool | None
+    surface_or_protocol: str | None
+    route_or_venue_identifier: str | None
+    assistance_status: str | None
+    source_provider: str | None
     full_activity_only: bool
     split_count: int
     sample_observed_duration_sec: float | None
@@ -82,11 +108,16 @@ class Road10KBaselineEvidence:
     provenance: str
     observed_date: date
     age_days: int
+    completed_at: datetime | None
     distance_km: float | None
     elapsed_time_sec: float | None
     activity_id: str | None
     measured_10k_confirmed: bool
     elapsed_timing_confirmed: bool
+    surface_or_protocol: str | None
+    route_or_venue_identifier: str | None
+    assistance_status: str | None
+    source_provider: str | None
     change_comparability: str
 
 
@@ -186,10 +217,34 @@ def build_history_candidates(
                 distance_km=activity.distance_km,
                 duration_sec=activity.duration_sec,
                 source=activity.source,
+                completed_at=activity.completed_at,
                 review_state=review_state,
                 confirmation_response=response,
                 measured_10k_confirmed=measured,
                 elapsed_timing_confirmed=elapsed,
+                surface_or_protocol=(
+                    None
+                    if confirmation is None
+                    else confirmation.surface_or_protocol
+                ),
+                route_or_venue_identifier=(
+                    None
+                    if confirmation is None
+                    else confirmation.route_or_venue_identifier
+                ),
+                assistance_status=(
+                    None
+                    if confirmation is None
+                    else confirmation.assistance_status
+                ),
+                source_provider=(
+                    activity.source
+                    or (
+                        None
+                        if confirmation is None
+                        else confirmation.source_provider
+                    )
+                ),
                 full_activity_only=True,
                 split_count=activity.split_count,
                 sample_observed_duration_sec=activity.sample_observed_duration_sec,
@@ -287,7 +342,10 @@ def _candidate_review_state(
             confirmation.measured_10k,
             False,
         )
-    if confirmation.response in {"race", "intentional_all_out"}:
+    if (
+        confirmation.response in {"race", "intentional_all_out"}
+        and _has_direct_baseline_contract_metadata(confirmation)
+    ):
         return "qualified", confirmation.response, True, True
     return (
         "needs_confirmation",
@@ -313,11 +371,45 @@ def _select_direct_history_evidence(
         provenance=str(latest.confirmation_response or "race"),
         observed_date=latest.observed_date,
         age_days=(athlete_today - latest.observed_date).days,
+        completed_at=latest.completed_at,
         distance_km=latest.distance_km,
         elapsed_time_sec=latest.duration_sec,
         activity_id=latest.activity_id,
         measured_10k_confirmed=bool(latest.measured_10k_confirmed),
         elapsed_timing_confirmed=bool(latest.elapsed_timing_confirmed),
+        surface_or_protocol=latest.surface_or_protocol,
+        route_or_venue_identifier=latest.route_or_venue_identifier,
+        assistance_status=latest.assistance_status,
+        source_provider=latest.source_provider,
         change_comparability="not_assessed",
     )
 
+
+def _has_direct_baseline_contract_metadata(
+    confirmation: Road10KBaselineConfirmation,
+) -> bool:
+    if confirmation.completed_at is None:
+        return False
+    if confirmation.elapsed_time_sec is None or confirmation.elapsed_time_sec <= 0:
+        return False
+    if not _surface_or_protocol_matches_response(
+        confirmation.response,
+        confirmation.surface_or_protocol,
+    ):
+        return False
+    if not str(confirmation.route_or_venue_identifier or "").strip():
+        return False
+    if confirmation.assistance_status not in ROAD_10K_ASSISTANCE_STATUSES:
+        return False
+    return bool(str(confirmation.source_provider or "").strip())
+
+
+def _surface_or_protocol_matches_response(
+    response: str,
+    surface_or_protocol: str | None,
+) -> bool:
+    if response == "race":
+        return surface_or_protocol == ROAD_10K_RACE_SURFACE_OR_PROTOCOL
+    if response == "intentional_all_out":
+        return surface_or_protocol in ROAD_10K_TIME_TRIAL_SURFACE_OR_PROTOCOLS
+    return False

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 import hashlib
 import json
 from typing import Any, Mapping
@@ -16,6 +16,10 @@ from sqlalchemy.orm import Session
 from analysis.config import effective_athlete_date, load_config_from_db
 from analysis.data_loader import load_activity_sample_coverage, load_data_from_db
 from analysis.road_10k_baseline import (
+    ROAD_10K_ACCEPTED_SURFACE_OR_PROTOCOLS,
+    ROAD_10K_ASSISTANCE_STATUSES,
+    ROAD_10K_RACE_SURFACE_OR_PROTOCOL,
+    ROAD_10K_TIME_TRIAL_SURFACE_OR_PROTOCOLS,
     Road10KBaselineActivity,
     Road10KBaselineConfirmation,
     build_road_10k_goal,
@@ -128,12 +132,15 @@ def build_road_10k_baseline_view(
                 "name": "Direct 10K baseline",
                 "description": (
                     "Only current direct 10K race or explicit all-out 10K "
-                    "history can qualify. The 56-day freshness guardrail and "
-                    "the optional self-selected benchmark path are reviewed "
-                    "product boundaries, not universal physiological cutoffs."
-                ),
-                "citations": [
-                    {
+                        "history can qualify. Qualification keeps the accepted "
+                        "surface or protocol, route or venue, assistance status, "
+                        "provider, and authoritative completion time attached to "
+                        "the evidence. The 56-day freshness guardrail and the "
+                        "optional self-selected benchmark path are reviewed "
+                        "product boundaries, not universal physiological cutoffs."
+                    ),
+                    "citations": [
+                        {
                         "label": "Science Decision Record",
                         "url": "https://github.com/praxys-run/praxys/blob/main/data/science/decisions/sdr-road-10k-plan-generation-policy-v2.yaml",
                     },
@@ -151,6 +158,9 @@ def confirm_road_10k_history_candidate(
     response: str,
     measured_10k: bool,
     elapsed_timing_confirmed: bool,
+    surface_or_protocol: str | None,
+    route_or_venue_identifier: str | None,
+    assistance_status: str | None,
     idempotency_key: str,
     supersedes_confirmation_id: str | None = None,
     now: datetime | None = None,
@@ -178,12 +188,25 @@ def confirm_road_10k_history_candidate(
         raise Road10KBaselineNotFound(activity_id)
     if abs(float(activity.distance_km or 0.0) - 10.0) > 0.5:
         raise Road10KBaselineForbidden("ACTIVITY_OUTSIDE_10K_REVIEW_WINDOW")
+    metadata = _confirmation_metadata(
+        activity=activity,
+        response=response,
+        surface_or_protocol=surface_or_protocol,
+        route_or_venue_identifier=route_or_venue_identifier,
+        assistance_status=assistance_status,
+    )
 
     payload = {
         "activity_id": activity_id,
         "response": response,
         "measured_10k": measured_10k,
         "elapsed_timing_confirmed": elapsed_timing_confirmed,
+        "surface_or_protocol": metadata["surface_or_protocol"],
+        "route_or_venue_identifier": metadata["route_or_venue_identifier"],
+        "assistance_status": metadata["assistance_status"],
+        "completed_at": metadata["completed_at"].isoformat(),
+        "elapsed_time_sec": metadata["elapsed_time_sec"],
+        "source_provider": metadata["source_provider"],
         "supersedes_confirmation_id": supersedes_confirmation_id,
         "goal_signature": goal.goal_signature,
         "purpose": dict(purpose_selection) if purpose_selection is not None else None,
@@ -224,6 +247,12 @@ def confirm_road_10k_history_candidate(
         response=response,
         measured_10k=bool(measured_10k),
         elapsed_timing_confirmed=bool(elapsed_timing_confirmed),
+        completed_at=metadata["completed_at"],
+        elapsed_time_sec=metadata["elapsed_time_sec"],
+        surface_or_protocol=metadata["surface_or_protocol"],
+        route_or_venue_identifier=metadata["route_or_venue_identifier"],
+        assistance_status=metadata["assistance_status"],
+        source_provider=metadata["source_provider"],
         request_fingerprint=fingerprint,
         idempotency_key=idempotency_key,
         created_at=timestamp,
@@ -413,6 +442,10 @@ def _load_candidate_activities(
                 duration_sec=float(duration_sec),
                 activity_type=str(getattr(row, "activity_type", "") or "running"),
                 source=str(getattr(row, "source", "") or "") or None,
+                completed_at=_completed_at(
+                    getattr(row, "start_time", None),
+                    float(duration_sec),
+                ),
                 split_count=split_count_by_activity.get(activity_id, 0),
                 sample_observed_duration_sec=coverage_info.get("observed_duration_sec"),
                 timing_gap_count=int(coverage_info.get("gap_count", 0) or 0),
@@ -457,6 +490,32 @@ def _confirmation_inputs(
             response=str(row.response),
             measured_10k=bool(row.measured_10k),
             elapsed_timing_confirmed=bool(row.elapsed_timing_confirmed),
+            completed_at=row.completed_at,
+            elapsed_time_sec=(
+                None
+                if row.elapsed_time_sec is None
+                else float(row.elapsed_time_sec)
+            ),
+            surface_or_protocol=(
+                str(row.surface_or_protocol)
+                if row.surface_or_protocol is not None
+                else None
+            ),
+            route_or_venue_identifier=(
+                str(row.route_or_venue_identifier)
+                if row.route_or_venue_identifier is not None
+                else None
+            ),
+            assistance_status=(
+                str(row.assistance_status)
+                if row.assistance_status is not None
+                else None
+            ),
+            source_provider=(
+                str(row.source_provider)
+                if row.source_provider is not None
+                else None
+            ),
             created_at=row.created_at,
         )
         for row in rows
@@ -523,6 +582,8 @@ def _record_snapshot(
         confirmation.response in {"race", "intentional_all_out"}
         and confirmation.measured_10k
         and confirmation.elapsed_timing_confirmed
+        and confirmation.surface_or_protocol is not None
+        and confirmation.route_or_venue_identifier is not None
     )
     db.add(
         Road10KBaselineSnapshot(
@@ -542,12 +603,17 @@ def _record_snapshot(
                 confirmation.response if qualified else "unqualified"
             ),
             observed_date=activity.observed_date,
+            completed_at=confirmation.completed_at,
             distance_km=activity.distance_km,
-            elapsed_time_sec=activity.duration_sec,
+            elapsed_time_sec=confirmation.elapsed_time_sec,
             measured_10k=bool(confirmation.measured_10k),
             elapsed_timing_confirmed=bool(
                 confirmation.elapsed_timing_confirmed
             ),
+            surface_or_protocol=confirmation.surface_or_protocol,
+            route_or_venue_identifier=confirmation.route_or_venue_identifier,
+            assistance_status=confirmation.assistance_status,
+            source_provider=confirmation.source_provider,
             qualification_status=(
                 "direct_current" if qualified else "incomparable"
             ),
@@ -607,12 +673,22 @@ def _serialize_evidence(evidence) -> dict[str, Any] | None:
     return {
         **payload,
         "observed_date": evidence.observed_date.isoformat(),
+        "completed_at": (
+            evidence.completed_at.isoformat()
+            if evidence.completed_at is not None
+            else None
+        ),
     }
 
 
 def _serialize_candidate(candidate) -> dict[str, Any]:
     payload = asdict(candidate)
     payload["observed_date"] = candidate.observed_date.isoformat()
+    payload["completed_at"] = (
+        candidate.completed_at.isoformat()
+        if candidate.completed_at is not None
+        else None
+    )
     return payload
 
 
@@ -628,6 +704,16 @@ def _serialize_confirmation_row(
         "response": row.response,
         "measured_10k": bool(row.measured_10k),
         "elapsed_timing_confirmed": bool(row.elapsed_timing_confirmed),
+        "completed_at": row.completed_at.isoformat(),
+        "elapsed_time_sec": (
+            None
+            if row.elapsed_time_sec is None
+            else float(row.elapsed_time_sec)
+        ),
+        "surface_or_protocol": row.surface_or_protocol,
+        "route_or_venue_identifier": row.route_or_venue_identifier,
+        "assistance_status": row.assistance_status,
+        "source_provider": row.source_provider,
         "created_at": row.created_at.isoformat(),
     }
 
@@ -651,3 +737,111 @@ def _parse_date(value: object) -> date | None:
             return None
     return None
 
+
+def _confirmation_metadata(
+    *,
+    activity: Road10KBaselineActivity,
+    response: str,
+    surface_or_protocol: str | None,
+    route_or_venue_identifier: str | None,
+    assistance_status: str | None,
+) -> dict[str, Any]:
+    normalized_assistance_status = (
+        str(assistance_status or "").strip() or None
+    )
+    if normalized_assistance_status not in ROAD_10K_ASSISTANCE_STATUSES:
+        raise Road10KBaselineInvalid(
+            "assistance_status is required and must be one of "
+            "unassisted, assisted, or unknown_or_unreported."
+        )
+    completed_at = activity.completed_at
+    if completed_at is None:
+        raise Road10KBaselineInvalid(
+            "The synced activity does not expose an authoritative completed_at timestamp."
+        )
+    elapsed_time_sec = activity.duration_sec
+    if elapsed_time_sec is None or float(elapsed_time_sec) <= 0:
+        raise Road10KBaselineInvalid(
+            "The synced activity does not expose a positive elapsed time."
+        )
+    source_provider = str(activity.source or "").strip() or None
+    if source_provider is None:
+        raise Road10KBaselineInvalid(
+            "The synced activity does not expose its source provider."
+        )
+    normalized_surface_or_protocol = (
+        str(surface_or_protocol or "").strip() or None
+    )
+    normalized_route = (
+        str(route_or_venue_identifier or "").strip() or None
+    )
+    if normalized_surface_or_protocol is not None and (
+        normalized_surface_or_protocol
+        not in ROAD_10K_ACCEPTED_SURFACE_OR_PROTOCOLS
+    ):
+        raise Road10KBaselineInvalid(
+            "surface_or_protocol must be one of the accepted organized road race "
+            "or standardized road or track time-trial forms."
+        )
+    if response in {"race", "intentional_all_out"}:
+        if normalized_surface_or_protocol is None:
+            raise Road10KBaselineInvalid(
+                "surface_or_protocol is required before a direct 10K effort can qualify."
+            )
+        if response == "race" and (
+            normalized_surface_or_protocol != ROAD_10K_RACE_SURFACE_OR_PROTOCOL
+        ):
+            raise Road10KBaselineInvalid(
+                "Measured races must use the organized outdoor road 10K race protocol."
+            )
+        if response == "intentional_all_out" and (
+            normalized_surface_or_protocol
+            not in ROAD_10K_TIME_TRIAL_SURFACE_OR_PROTOCOLS
+        ):
+            raise Road10KBaselineInvalid(
+                "Intentional all-out efforts must use the standardized outdoor road "
+                "or track 10K time-trial protocols."
+            )
+        if normalized_route is None:
+            raise Road10KBaselineInvalid(
+                "route_or_venue_identifier is required before a direct 10K effort can qualify."
+            )
+    return {
+        "completed_at": completed_at,
+        "elapsed_time_sec": float(elapsed_time_sec),
+        "surface_or_protocol": normalized_surface_or_protocol,
+        "route_or_venue_identifier": normalized_route,
+        "assistance_status": normalized_assistance_status,
+        "source_provider": source_provider,
+    }
+
+
+def _completed_at(
+    start_time: object,
+    duration_sec: float | None,
+) -> datetime | None:
+    if duration_sec is None or duration_sec <= 0:
+        return None
+    started_at = _parse_datetime(start_time)
+    if started_at is None:
+        return None
+    return started_at + timedelta(seconds=float(duration_sec))
+
+
+def _parse_datetime(value: object) -> datetime | None:
+    if isinstance(value, datetime):
+        if value.tzinfo is not None:
+            return value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is not None:
+        return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    return parsed

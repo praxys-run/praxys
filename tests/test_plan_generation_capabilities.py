@@ -696,6 +696,48 @@ def test_inactive_road_10k_capability_stays_out_of_active_discovery(
     assert body["unsupported_reason"] == "no_accepted_policy"
 
 
+def test_inactive_road_10k_goal_page_falls_back_without_baseline_route(
+    proposal_client,
+    monkeypatch,
+) -> None:
+    """Inactive 10K goals stay readable without invoking the hidden baseline flow."""
+    from api.routes import goal as goal_route
+
+    client, db_session, current_user = proposal_client
+    _save_goal(
+        db_session,
+        user_id=current_user["value"],
+        goal={
+            "goal_kind": "performance_10k",
+            "distance": "10k",
+            "target_time_sec": 2_520,
+            "race_date": "2026-09-20",
+        },
+    )
+
+    monkeypatch.setattr(
+        goal_route,
+        "build_road_10k_baseline_view",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("inactive goals must not call the 10K baseline flow")
+        ),
+    )
+
+    response = client.get("/api/goal")
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["goal_kind"] == "race"
+    assert body["goal"] == {
+        "goal_kind": "race",
+        "distance": "10k",
+        "target_time_sec": 2520,
+        "race_date": "2026-09-20",
+        "eligible": False,
+    }
+    assert body["baseline"]["status"] == "not_required"
+
+
 def test_capability_discovery_uses_fresh_active_proposal_goal(
     proposal_client,
 ) -> None:

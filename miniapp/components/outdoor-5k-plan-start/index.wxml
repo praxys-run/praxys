@@ -12,7 +12,7 @@
 
   <block wx:else>
     <view class="ts-card plan-start-card">
-      <text class="plan-start-title">{{tr.title}}</text>
+      <text class="plan-start-title">{{road10kMode ? tr.road10kTitle : tr.title}}</text>
       <text class="plan-start-copy">{{tr.proposalNotPlan}}</text>
 
       <view class="plan-start-rule"></view>
@@ -40,50 +40,71 @@
       <block wx:if="{{selectedPurpose}}">
       <view class="plan-start-rule"></view>
       <text class="plan-start-section">{{tr.scope}}</text>
-      <text class="plan-start-copy">{{tr.scopeDetail}}</text>
+      <text class="plan-start-copy">{{road10kMode ? tr.road10kScopeDetail : tr.scopeDetail}}</text>
       <view class="plan-start-toggle {{adult ? 'plan-start-toggle--active' : ''}}" data-field="adult" bindtap="onToggleScope" aria-role="button" aria-pressed="{{adult}}"><text>{{tr.adult}}</text></view>
-      <view class="plan-start-toggle {{selfCoached ? 'plan-start-toggle--active' : ''}}" data-field="selfCoached" bindtap="onToggleScope" aria-role="button" aria-pressed="{{selfCoached}}"><text>{{tr.selfCoached}}</text></view>
-      <view class="plan-start-toggle {{canComplete ? 'plan-start-toggle--active' : ''}}" data-field="canComplete" bindtap="onToggleScope" aria-role="button" aria-pressed="{{canComplete}}"><text>{{tr.canComplete}}</text></view>
-      <view class="plan-start-toggle {{outdoorRoad ? 'plan-start-toggle--active' : ''}}" data-field="outdoorRoad" bindtap="onToggleScope" aria-role="button" aria-pressed="{{outdoorRoad}}"><text>{{tr.outdoorRoad}}</text></view>
+      <block wx:if="{{!road10kMode}}">
+        <view class="plan-start-toggle {{selfCoached ? 'plan-start-toggle--active' : ''}}" data-field="selfCoached" bindtap="onToggleScope" aria-role="button" aria-pressed="{{selfCoached}}"><text>{{tr.selfCoached}}</text></view>
+        <view class="plan-start-toggle {{canComplete ? 'plan-start-toggle--active' : ''}}" data-field="canComplete" bindtap="onToggleScope" aria-role="button" aria-pressed="{{canComplete}}"><text>{{tr.canComplete}}</text></view>
+        <view class="plan-start-toggle {{outdoorRoad ? 'plan-start-toggle--active' : ''}}" data-field="outdoorRoad" bindtap="onToggleScope" aria-role="button" aria-pressed="{{outdoorRoad}}"><text>{{tr.outdoorRoad}}</text></view>
+      </block>
 
       <view class="plan-start-rule"></view>
       <text class="plan-start-section">{{tr.safety}}</text>
-      <text class="plan-start-copy">{{tr.safetyDetail}}</text>
-      <view class="plan-start-toggle {{safetyStop ? 'plan-start-toggle--danger' : ''}}" bindtap="onToggleSafety" aria-role="button" aria-pressed="{{safetyStop}}"><text>{{safetyStop ? tr.safetyOn : tr.safetyOff}}</text></view>
+      <text class="plan-start-copy">{{road10kMode ? tr.road10kSafetyDetail : tr.safetyDetail}}</text>
+      <view class="plan-start-toggle {{safetyStop ? 'plan-start-toggle--danger' : ''}}" bindtap="onToggleSafety" aria-role="button" aria-pressed="{{safetyStop}}"><text>{{safetyStop ? (road10kMode ? tr.road10kSafetyOn : tr.safetyOn) : (road10kMode ? tr.road10kSafetyOff : tr.safetyOff)}}</text></view>
 
       <view class="plan-start-rule"></view>
       <text class="plan-start-section">{{tr.days}}</text>
-      <text class="plan-start-copy">{{tr.dayDetail}}</text>
+      <text class="plan-start-copy">{{road10kMode ? tr.road10kDayDetail : tr.dayDetail}}</text>
       <view class="plan-start-days">
         <view wx:for="{{dayOptions}}" wx:key="value" class="plan-start-day {{item.selected ? 'plan-start-day--active' : ''}}" data-day="{{item.value}}" bindtap="onToggleDay" aria-role="button" aria-pressed="{{item.selected}}"><text>{{item.label}}</text></view>
       </view>
 
-      <view wx:if="{{selectedDayRows.length}}" class="plan-start-limits">
+      <view wx:if="{{!road10kMode && selectedDayRows.length}}" class="plan-start-limits">
         <view wx:for="{{selectedDayRows}}" wx:key="value" class="plan-start-limit">
           <text class="plan-start-label">{{item.label}} · {{tr.timeLimit}}</text>
           <input class="plan-start-input ts-value" type="number" value="{{item.duration}}" data-day="{{item.value}}" bindinput="onDurationInput" />
         </view>
       </view>
 
+      <view wx:if="{{road10kMode}}" class="plan-start-limits">
+        <view class="plan-start-limit">
+          <text class="plan-start-label">{{tr.weeklyTimeLimit}}</text>
+          <input class="plan-start-input ts-value" type="number" value="{{weeklyTimeLimit}}" bindinput="onWeeklyTimeLimitInput" />
+        </view>
+        <view class="plan-start-limit">
+          <text class="plan-start-label">{{tr.singleSessionLimit}}</text>
+          <input class="plan-start-input ts-value" type="number" value="{{singleSessionLimit}}" bindinput="onSingleSessionLimitInput" />
+        </view>
+      </view>
+
       <view wx:if="{{selectedDayRows.length}}" class="plan-start-picker-wrap">
-        <text class="plan-start-label">{{tr.longDay}}</text>
+        <text class="plan-start-label">{{road10kMode ? tr.road10kLongDay : tr.longDay}}</text>
         <picker mode="selector" range="{{longDayOptions}}" value="{{longDayIndex}}" bindchange="onLongDayChange">
           <view class="plan-start-picker"><text>{{longDayOptions[longDayIndex]}}</text></view>
         </picker>
       </view>
 
-      <view class="plan-start-note">
+      <view wx:if="{{road10kMode}}" class="plan-start-picker-wrap">
+        <text class="plan-start-label">{{tr.benchmark}}</text>
+        <picker mode="date" value="{{benchmarkDate}}" bindchange="onBenchmarkDateChange">
+          <view class="plan-start-picker"><text>{{benchmarkDate || tr.benchmarkDetail}}</text></view>
+        </picker>
+        <text class="plan-start-copy">{{tr.benchmarkDetail}}</text>
+      </view>
+
+      <view wx:if="{{!road10kMode}}" class="plan-start-note">
         <text class="plan-start-note-title">{{tr.terrain}}</text>
         <text class="plan-start-copy">{{tr.terrainDetail}}</text>
       </view>
-      <view wx:if="{{perDayLimitConflict}}" class="plan-start-warning">
+      <view wx:if="{{!road10kMode && perDayLimitConflict}}" class="plan-start-warning">
         <text>{{tr.perDayUnsupported}}</text>
         <text class="plan-start-copy">{{tr.perDayUnsupportedDetail}}</text>
       </view>
 
       <text wx:if="{{errorMessage}}" class="plan-start-error">{{errorMessage}}</text>
       <view class="plan-start-primary" bindtap="onCheckReadiness" aria-role="button"><text>{{working === 'readiness' ? tr.checking : tr.check}}</text></view>
-      <view wx:if="{{readiness && readiness.result.code === 'ready' && (!proposal || proposalMatchesPurpose) && !proposal}}" class="plan-start-secondary" bindtap="onGenerate" aria-role="button"><text>{{working === 'generate' ? tr.creating : tr.create}}</text></view>
+      <view wx:if="{{readinessIsPlanReady && (!proposal || proposalMatchesPurpose) && !proposal}}" class="plan-start-secondary" bindtap="onGenerate" aria-role="button"><text>{{working === 'generate' ? tr.creating : tr.create}}</text></view>
       </block>
       <view wx:else class="plan-start-note">
         <text class="plan-start-copy">{{tr.purposeRequired}}</text>
@@ -100,7 +121,7 @@
     </view>
 
     <goal-baseline
-      wx:if="{{readiness && readiness.result.code === 'insufficient_or_stale_baseline'}}"
+      wx:if="{{readiness && showBaselineRefreshPanel}}"
       baseline="{{readiness.baseline}}"
       goal="{{readiness.purpose.goal}}"
       purpose="{{selectedPurpose}}"

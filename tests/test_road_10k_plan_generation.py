@@ -5,7 +5,7 @@ import importlib
 import os
 import tempfile
 from dataclasses import replace
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -34,11 +34,17 @@ def _history(today: date):
     return tuple(activities)
 
 
+def _intensity_sources(history) -> tuple[tuple[str, str], ...]:
+    return tuple((item.activity_id, "activity_splits") for item in history)
+
+
 def _input(
     *,
     baseline_current: bool = True,
     target_event_date: date | None = None,
     benchmark_date: date | None = None,
+    history=None,
+    intensity_sources: tuple[tuple[str, str], ...] | None = None,
 ):
     from analysis.road_10k_plan_generation import (
         ROAD_10K_CONTRACT_DIGEST,
@@ -52,6 +58,7 @@ def _input(
     )
 
     today = date(2026, 8, 18)
+    history_items = tuple(history or _history(today))
     return Road10KGenerationInput(
         policy_version=ROAD_10K_POLICY_VERSION,
         science_decision_id=ROAD_10K_SCIENCE_DECISION_ID,
@@ -73,7 +80,12 @@ def _input(
         baseline_evidence_date=(
             today - timedelta(days=6) if baseline_current else None
         ),
-        history=_history(today),
+        history=history_items,
+        intensity_sources=(
+            intensity_sources
+            if intensity_sources is not None
+            else _intensity_sources(history_items)
+        ),
         reserved_dates=(),
         training_pattern_snapshot_version=(
             ROAD_10K_TRAINING_PATTERN_SNAPSHOT_VERSION
@@ -172,6 +184,95 @@ def test_eight_to_fourteen_day_targets_produce_a_truncated_taper() -> None:
         workout.scheduled_date < target_date
         for week in result.plan.weeks
         for workout in week.workouts
+    )
+
+
+@pytest.mark.parametrize(
+    ("days_after_start", "expected_code", "expect_taper"),
+    [
+        (7, "limited_near_term_guidance", None),
+        (8, "eligible_taper_proposal", True),
+        (14, "eligible_taper_proposal", True),
+        (15, "eligible_rolling_proposal", False),
+        (21, "eligible_rolling_proposal", False),
+    ],
+)
+def test_taper_boundaries_anchor_only_to_block_start(
+    days_after_start: int,
+    expected_code: str,
+    expect_taper: bool | None,
+) -> None:
+    """Only targets 8-14 days after block start may enter the taper path."""
+    from analysis.road_10k_plan_generation import generate_road_10k_plan
+
+    block_start = _input().block_start
+    target_date = block_start + timedelta(days=days_after_start)
+
+    result = generate_road_10k_plan(
+        _input(target_event_date=target_date)
+    )
+
+    assert result.code == expected_code
+    if expect_taper is None:
+        assert result.plan is None
+        return
+    assert result.plan is not None
+    assert any(week.is_taper for week in result.plan.weeks) is expect_taper
+    if expect_taper:
+        assert all(week.is_taper for week in result.plan.weeks)
+        assert result.plan.horizon_end == target_date - timedelta(days=1)
+    else:
+        assert not any(week.is_taper for week in result.plan.weeks)
+        assert result.plan.horizon_end == block_start + timedelta(days=13)
+
+
+def test_distance_cap_is_required_and_preserved_per_workout() -> None:
+    """Every generated workout carries the recent session-distance ceiling."""
+    from analysis.road_10k_plan_generation import generate_road_10k_plan
+
+    base_input = _input()
+    missing_distance_cap = generate_road_10k_plan(
+        _input(
+            history=tuple(
+                replace(observation, distance_km=None)
+                for observation in base_input.history
+            )
+        )
+    )
+
+    assert missing_distance_cap.code == "insufficient_recent_history"
+    assert "distance" in (
+        missing_distance_cap.observed_or_stated_reason or ""
+    ).casefold()
+
+    result = generate_road_10k_plan(base_input)
+
+    assert result.plan is not None
+    recent_cap = result.history_statistics.recent_maximum_session_distance_km
+    assert recent_cap == pytest.approx(12.0)
+    for week in result.plan.weeks:
+        for workout in week.workouts:
+            assert workout.maximum_distance_ceiling_km == pytest.approx(
+                recent_cap
+            )
+            assert workout.maximum_distance_ceiling_km <= recent_cap
+
+
+def test_input_hash_tracks_intensity_source_provenance() -> None:
+    """Changing split/sample provenance must change the replay hash."""
+    from analysis.road_10k_plan_generation import deterministic_input_hash
+
+    base_input = _input()
+    changed_input = replace(
+        base_input,
+        intensity_sources=tuple(
+            (activity_id, "activity_samples")
+            for activity_id, _source in base_input.intensity_sources
+        ),
+    )
+
+    assert deterministic_input_hash(base_input) != deterministic_input_hash(
+        changed_input
     )
 
 
@@ -299,6 +400,7 @@ def _seed_road_10k_api_context(db_session, user_id: str) -> None:
             activity_type="running",
             distance_km=10.0,
             duration_sec=2_520,
+            start_time=f"{(today - timedelta(days=6)).isoformat()}T07:00:00Z",
             source="garmin",
         ))
         for split_num in range(1, 11):
@@ -327,6 +429,7 @@ def _seed_road_10k_api_context(db_session, user_id: str) -> None:
                     activity_type="running",
                     distance_km=distance,
                     duration_sec=duration * 60,
+                    start_time=f"{(week_start + timedelta(days=offset)).isoformat()}T06:30:00Z",
                     source="garmin",
                 ))
                 for split_num in range(1, 4):
@@ -351,6 +454,14 @@ def _seed_road_10k_api_context(db_session, user_id: str) -> None:
             response="race",
             measured_10k=True,
             elapsed_timing_confirmed=True,
+            completed_at=datetime.fromisoformat(
+                f"{(today - timedelta(days=6)).isoformat()}T07:42:00"
+            ),
+            elapsed_time_sec=2_520,
+            surface_or_protocol="organized_outdoor_road_10k_race",
+            route_or_venue_identifier="sample-road-10k-race",
+            assistance_status="unassisted",
+            source_provider="garmin",
             request_fingerprint="a" * 64,
         ))
         db.add(Road10KBaselineSnapshot(
@@ -364,10 +475,17 @@ def _seed_road_10k_api_context(db_session, user_id: str) -> None:
             source_id="road-10k-current-baseline",
             provenance="race",
             observed_date=today - timedelta(days=6),
+            completed_at=datetime.fromisoformat(
+                f"{(today - timedelta(days=6)).isoformat()}T07:42:00"
+            ),
             distance_km=10.0,
             elapsed_time_sec=2_520,
             measured_10k=True,
             elapsed_timing_confirmed=True,
+            surface_or_protocol="organized_outdoor_road_10k_race",
+            route_or_venue_identifier="sample-road-10k-race",
+            assistance_status="unassisted",
+            source_provider="garmin",
             qualification_status="direct_current",
             change_comparability="not_assessed",
             invalidators=[],
@@ -453,6 +571,9 @@ def test_history_confirmation_upgrades_missing_10k_readiness(
             "response": "race",
             "measured_10k": True,
             "elapsed_timing_confirmed": True,
+            "surface_or_protocol": "organized_outdoor_road_10k_race",
+            "route_or_venue_identifier": "sample-road-10k-race",
+            "assistance_status": "unassisted",
         },
     )
     assert confirmed.status_code == 201, confirmed.text
@@ -460,3 +581,223 @@ def test_history_confirmation_upgrades_missing_10k_readiness(
     refreshed = client.post("/api/plan/road-10k/readiness", json=_road_10k_api_request())
     assert refreshed.status_code == 200, refreshed.text
     assert refreshed.json()["result"]["code"] == "eligible_rolling_proposal"
+
+
+def test_history_confirmation_requires_contract_metadata_and_replays_idempotently(
+    road_10k_client,
+) -> None:
+    client, db_session = road_10k_client
+    _seed_road_10k_api_context(db_session, "road-10k-owner")
+
+    from db.models import Road10KBaselineConfirmation, Road10KBaselineSnapshot
+
+    with db_session.SessionLocal() as db:
+        db.query(Road10KBaselineSnapshot).delete()
+        db.query(Road10KBaselineConfirmation).delete()
+        db.commit()
+
+    missing_metadata = client.post(
+        "/api/plan/road-10k/baseline/history/confirm",
+        headers={"Idempotency-Key": "road-10k-baseline-missing-metadata"},
+        json={
+            "activity_id": "road-10k-current-baseline",
+            "response": "race",
+            "measured_10k": True,
+            "elapsed_timing_confirmed": True,
+            "assistance_status": "assisted",
+        },
+    )
+    assert missing_metadata.status_code == 400, missing_metadata.text
+    assert missing_metadata.json()["detail"]["code"] == (
+        "ROAD_10K_BASELINE_INVALID_REQUEST"
+    )
+
+    mismatched_protocol = client.post(
+        "/api/plan/road-10k/baseline/history/confirm",
+        headers={"Idempotency-Key": "road-10k-baseline-bad-protocol"},
+        json={
+            "activity_id": "road-10k-current-baseline",
+            "response": "intentional_all_out",
+            "measured_10k": True,
+            "elapsed_timing_confirmed": True,
+            "surface_or_protocol": "organized_outdoor_road_10k_race",
+            "route_or_venue_identifier": "sample-track-10k",
+            "assistance_status": "unknown_or_unreported",
+        },
+    )
+    assert mismatched_protocol.status_code == 400, mismatched_protocol.text
+    assert mismatched_protocol.json()["detail"]["code"] == (
+        "ROAD_10K_BASELINE_INVALID_REQUEST"
+    )
+
+    request = {
+        "activity_id": "road-10k-current-baseline",
+        "response": "race",
+        "measured_10k": True,
+        "elapsed_timing_confirmed": True,
+        "surface_or_protocol": "organized_outdoor_road_10k_race",
+        "route_or_venue_identifier": "sample-road-10k-race",
+        "assistance_status": "assisted",
+    }
+    created = client.post(
+        "/api/plan/road-10k/baseline/history/confirm",
+        headers={"Idempotency-Key": "road-10k-baseline-create"},
+        json=request,
+    )
+    assert created.status_code == 201, created.text
+    created_body = created.json()
+    assert created_body["confirmation"]["surface_or_protocol"] == (
+        "organized_outdoor_road_10k_race"
+    )
+    assert created_body["confirmation"]["route_or_venue_identifier"] == (
+        "sample-road-10k-race"
+    )
+    assert created_body["confirmation"]["assistance_status"] == "assisted"
+    assert created_body["confirmation"]["source_provider"] == "garmin"
+    assert created_body["confirmation"]["elapsed_time_sec"] == 2_520
+    assert created_body["confirmation"]["completed_at"].startswith(
+        str(date.today() - timedelta(days=6))
+    )
+    assert created_body["baseline"]["evidence"]["surface_or_protocol"] == (
+        "organized_outdoor_road_10k_race"
+    )
+    assert created_body["baseline"]["evidence"]["route_or_venue_identifier"] == (
+        "sample-road-10k-race"
+    )
+    assert created_body["baseline"]["evidence"]["assistance_status"] == (
+        "assisted"
+    )
+
+    replay = client.post(
+        "/api/plan/road-10k/baseline/history/confirm",
+        headers={"Idempotency-Key": "road-10k-baseline-create"},
+        json=request,
+    )
+    assert replay.status_code == 200, replay.text
+    assert replay.json()["replayed"] is True
+    assert replay.json()["confirmation"]["id"] == created_body["confirmation"]["id"]
+
+
+def test_generation_audit_tracks_intensity_sources_template_ids_and_distance_caps(
+    road_10k_client,
+) -> None:
+    from api.adaptive_plan_service import AdaptivePlanError
+    from api.road_10k_plan_generation import validate_road_10k_proposal_adoption
+    from db.models import ActivitySample, ActivitySplit, PlanProposal, Road10KPlanGeneration
+
+    client, db_session = road_10k_client
+    _seed_road_10k_api_context(db_session, "road-10k-owner")
+
+    readiness = client.post(
+        "/api/plan/road-10k/readiness",
+        json=_road_10k_api_request(),
+    )
+    assert readiness.status_code == 200, readiness.text
+
+    created = client.post(
+        "/api/plan/road-10k/generate",
+        json={
+            **_road_10k_api_request(),
+            "expected_source_revision": readiness.json()["source_revision"],
+            "idempotency_key": "road-10k-audit-generate",
+        },
+    )
+    assert created.status_code == 201, created.text
+    proposal_id = created.json()["proposal"]["id"]
+
+    with db_session.SessionLocal() as db:
+        audit = (
+            db.query(Road10KPlanGeneration)
+            .filter(Road10KPlanGeneration.proposal_id == proposal_id)
+            .one()
+        )
+        assert audit.selected_template_ids == [
+            "road-10k-controlled-threshold-quality-v1",
+            "road-10k-specific-interval-quality-v1",
+        ]
+        assert audit.observed_input_snapshot["intensity_sources"] == [
+            ["road-10k-current-baseline", "activity_splits"],
+            ["road-10k-history-1-0", "activity_splits"],
+            ["road-10k-history-1-2", "activity_splits"],
+            ["road-10k-history-1-5", "activity_splits"],
+            ["road-10k-history-2-0", "activity_splits"],
+            ["road-10k-history-2-2", "activity_splits"],
+            ["road-10k-history-2-5", "activity_splits"],
+            ["road-10k-history-3-0", "activity_splits"],
+            ["road-10k-history-3-2", "activity_splits"],
+            ["road-10k-history-3-5", "activity_splits"],
+            ["road-10k-history-4-0", "activity_splits"],
+            ["road-10k-history-4-2", "activity_splits"],
+            ["road-10k-history-4-5", "activity_splits"],
+            ["road-10k-history-5-0", "activity_splits"],
+            ["road-10k-history-5-2", "activity_splits"],
+            ["road-10k-history-5-5", "activity_splits"],
+            ["road-10k-history-6-0", "activity_splits"],
+            ["road-10k-history-6-2", "activity_splits"],
+            ["road-10k-history-6-5", "activity_splits"],
+            ["road-10k-history-7-0", "activity_splits"],
+            ["road-10k-history-7-2", "activity_splits"],
+            ["road-10k-history-7-5", "activity_splits"],
+            ["road-10k-history-8-0", "activity_splits"],
+            ["road-10k-history-8-2", "activity_splits"],
+            ["road-10k-history-8-5", "activity_splits"],
+        ]
+        proposal = (
+            db.query(PlanProposal)
+            .filter(PlanProposal.id == proposal_id)
+            .one()
+        )
+        assert all(
+            workout["planned_distance_km"] is None
+            for workout in proposal.workout_snapshot
+        )
+        assert all(
+            "distance cap" in workout["workout_description"].casefold()
+            for workout in proposal.workout_snapshot
+        )
+
+        db.query(ActivitySplit).filter(
+            ActivitySplit.user_id == "road-10k-owner",
+            ActivitySplit.activity_id == "road-10k-history-1-0",
+        ).delete()
+        db.add_all([
+            ActivitySample(
+                user_id="road-10k-owner",
+                activity_id="road-10k-history-1-0",
+                source="stryd",
+                t_sec=0,
+                power_watts=250,
+                distance_m=0,
+            ),
+            ActivitySample(
+                user_id="road-10k-owner",
+                activity_id="road-10k-history-1-0",
+                source="stryd",
+                t_sec=5,
+                power_watts=255,
+                distance_m=1000,
+            ),
+            ActivitySample(
+                user_id="road-10k-owner",
+                activity_id="road-10k-history-1-0",
+                source="stryd",
+                t_sec=10,
+                power_watts=260,
+                distance_m=2000,
+            ),
+        ])
+        db.commit()
+
+        with pytest.raises(AdaptivePlanError) as exc_info:
+            validate_road_10k_proposal_adoption(
+                db,
+                user_id="road-10k-owner",
+                proposal=proposal,
+            )
+
+        assert exc_info.value.detail["code"] == (
+            "ROAD_10K_PROPOSAL_REVALIDATION_FAILED"
+        )
+        assert exc_info.value.detail["current_source_revision"] != (
+            audit.source_revision
+        )

@@ -1326,6 +1326,12 @@ class Road10KBaselineConfirmation(Base):
     response = Column(String(24), nullable=False)
     measured_10k = Column(Boolean, nullable=False, default=False)
     elapsed_timing_confirmed = Column(Boolean, nullable=False, default=False)
+    completed_at = Column(DateTime, nullable=False)
+    elapsed_time_sec = Column(Float, nullable=False)
+    surface_or_protocol = Column(String(64), nullable=True)
+    route_or_venue_identifier = Column(String(200), nullable=True)
+    assistance_status = Column(String(32), nullable=False)
+    source_provider = Column(String(20), nullable=False)
     request_fingerprint = Column(String(64), nullable=False)
     idempotency_key = Column(String(128), nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -1349,6 +1355,23 @@ class Road10KBaselineConfirmation(Base):
         CheckConstraint(
             "response IN ('race','intentional_all_out','not_all_out','deleted')",
             name="ck_road_10k_baseline_confirmation_response",
+        ),
+        CheckConstraint(
+            "elapsed_time_sec > 0",
+            name="ck_road_10k_baseline_confirmation_elapsed_positive",
+        ),
+        CheckConstraint(
+            "surface_or_protocol IS NULL OR "
+            "surface_or_protocol IN "
+            "('organized_outdoor_road_10k_race',"
+            "'standardized_outdoor_road_10k_time_trial',"
+            "'standardized_track_10k_time_trial')",
+            name="ck_road_10k_baseline_confirmation_surface_protocol",
+        ),
+        CheckConstraint(
+            "assistance_status IN "
+            "('unassisted','assisted','unknown_or_unreported')",
+            name="ck_road_10k_baseline_confirmation_assistance_status",
         ),
         Index(
             "ix_road_10k_baseline_confirmation_user_goal_activity",
@@ -1385,10 +1408,15 @@ class Road10KBaselineSnapshot(Base):
     source_id = Column(String(100), nullable=True)
     provenance = Column(String(24), nullable=False)
     observed_date = Column(Date, nullable=True)
+    completed_at = Column(DateTime, nullable=False)
     distance_km = Column(Float, nullable=True)
     elapsed_time_sec = Column(Float, nullable=True)
     measured_10k = Column(Boolean, nullable=False, default=False)
     elapsed_timing_confirmed = Column(Boolean, nullable=False, default=False)
+    surface_or_protocol = Column(String(64), nullable=True)
+    route_or_venue_identifier = Column(String(200), nullable=True)
+    assistance_status = Column(String(32), nullable=False)
+    source_provider = Column(String(20), nullable=False)
     qualification_status = Column(String(24), nullable=False)
     change_comparability = Column(
         String(24),
@@ -1416,6 +1444,19 @@ class Road10KBaselineSnapshot(Base):
         CheckConstraint(
             "provenance IN ('race','intentional_all_out','unqualified')",
             name="ck_road_10k_baseline_snapshot_provenance",
+        ),
+        CheckConstraint(
+            "surface_or_protocol IS NULL OR "
+            "surface_or_protocol IN "
+            "('organized_outdoor_road_10k_race',"
+            "'standardized_outdoor_road_10k_time_trial',"
+            "'standardized_track_10k_time_trial')",
+            name="ck_road_10k_baseline_snapshot_surface_protocol",
+        ),
+        CheckConstraint(
+            "assistance_status IN "
+            "('unassisted','assisted','unknown_or_unreported')",
+            name="ck_road_10k_baseline_snapshot_assistance_status",
         ),
         CheckConstraint(
             "qualification_status IN ('direct_current','incomparable','deleted')",

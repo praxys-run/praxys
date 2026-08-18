@@ -30,6 +30,12 @@ def upgrade() -> None:
         sa.Column("response", sa.String(length=24), nullable=False),
         sa.Column("measured_10k", sa.Boolean(), nullable=False),
         sa.Column("elapsed_timing_confirmed", sa.Boolean(), nullable=False),
+        sa.Column("completed_at", sa.DateTime(), nullable=False),
+        sa.Column("elapsed_time_sec", sa.Float(), nullable=False),
+        sa.Column("surface_or_protocol", sa.String(length=64), nullable=True),
+        sa.Column("route_or_venue_identifier", sa.String(length=200), nullable=True),
+        sa.Column("assistance_status", sa.String(length=32), nullable=False),
+        sa.Column("source_provider", sa.String(length=20), nullable=False),
         sa.Column("request_fingerprint", sa.String(length=64), nullable=False),
         sa.Column("idempotency_key", sa.String(length=128), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
@@ -59,6 +65,23 @@ def upgrade() -> None:
             "response IN ('race','intentional_all_out','not_all_out','deleted')",
             name="ck_road_10k_baseline_confirmation_response",
         ),
+        sa.CheckConstraint(
+            "elapsed_time_sec > 0",
+            name="ck_road_10k_baseline_confirmation_elapsed_positive",
+        ),
+        sa.CheckConstraint(
+            "surface_or_protocol IS NULL OR "
+            "surface_or_protocol IN "
+            "('organized_outdoor_road_10k_race',"
+            "'standardized_outdoor_road_10k_time_trial',"
+            "'standardized_track_10k_time_trial')",
+            name="ck_road_10k_baseline_confirmation_surface_protocol",
+        ),
+        sa.CheckConstraint(
+            "assistance_status IN "
+            "('unassisted','assisted','unknown_or_unreported')",
+            name="ck_road_10k_baseline_confirmation_assistance_status",
+        ),
     )
     op.create_index(
         op.f("ix_road_10k_baseline_confirmations_user_id"),
@@ -86,10 +109,15 @@ def upgrade() -> None:
         sa.Column("source_id", sa.String(length=100), nullable=True),
         sa.Column("provenance", sa.String(length=24), nullable=False),
         sa.Column("observed_date", sa.Date(), nullable=True),
+        sa.Column("completed_at", sa.DateTime(), nullable=False),
         sa.Column("distance_km", sa.Float(), nullable=True),
         sa.Column("elapsed_time_sec", sa.Float(), nullable=True),
         sa.Column("measured_10k", sa.Boolean(), nullable=False),
         sa.Column("elapsed_timing_confirmed", sa.Boolean(), nullable=False),
+        sa.Column("surface_or_protocol", sa.String(length=64), nullable=True),
+        sa.Column("route_or_venue_identifier", sa.String(length=200), nullable=True),
+        sa.Column("assistance_status", sa.String(length=32), nullable=False),
+        sa.Column("source_provider", sa.String(length=20), nullable=False),
         sa.Column("qualification_status", sa.String(length=24), nullable=False),
         sa.Column("change_comparability", sa.String(length=24), nullable=False),
         sa.Column("invalidators", sa.JSON(), nullable=False),
@@ -118,6 +146,19 @@ def upgrade() -> None:
         sa.CheckConstraint(
             "provenance IN ('race','intentional_all_out','unqualified')",
             name="ck_road_10k_baseline_snapshot_provenance",
+        ),
+        sa.CheckConstraint(
+            "surface_or_protocol IS NULL OR "
+            "surface_or_protocol IN "
+            "('organized_outdoor_road_10k_race',"
+            "'standardized_outdoor_road_10k_time_trial',"
+            "'standardized_track_10k_time_trial')",
+            name="ck_road_10k_baseline_snapshot_surface_protocol",
+        ),
+        sa.CheckConstraint(
+            "assistance_status IN "
+            "('unassisted','assisted','unknown_or_unreported')",
+            name="ck_road_10k_baseline_snapshot_assistance_status",
         ),
         sa.CheckConstraint(
             "qualification_status IN ('direct_current','incomparable','deleted')",

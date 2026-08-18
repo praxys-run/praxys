@@ -150,11 +150,12 @@ class WorkoutStep:
 class GeneratedWorkout:
     """One deterministic planned workout."""
 
-    template_id: str
+    template_id: str | None
     scheduled_date: date
     workout_type: str
     intensity_bucket: Literal["low", "quality"]
     planned_duration_min: int
+    maximum_distance_ceiling_km: float
     steps: tuple[WorkoutStep, ...]
 
 
@@ -198,6 +199,7 @@ class Road10KGenerationInput:
     baseline_source: str | None
     baseline_evidence_date: date | None
     history: tuple[RunningHistoryObservation, ...]
+    intensity_sources: tuple[tuple[str, str], ...]
     reserved_dates: tuple[date, ...]
     training_pattern_snapshot_version: str
     constraints: Road10KPlanGenerationConstraints
@@ -653,6 +655,13 @@ def deterministic_input_hash(
                 ),
             )
         ],
+        "intensity_sources": [
+            {"activity_id": activity_id, "source": source}
+            for activity_id, source in sorted(
+                generation_input.intensity_sources,
+                key=lambda item: (item[0], item[1]),
+            )
+        ],
         "reserved_dates": sorted(
             item.isoformat() for item in generation_input.reserved_dates
         ),
@@ -760,6 +769,14 @@ def _history_error(
         return "No completed recent running observation is available."
     if (athlete_today - statistics.latest_run_date).days > _LATEST_RUN_DAYS:
         return "The latest completed run is more than ten days old."
+    if (
+        statistics.recent_maximum_session_distance_km is None
+        or statistics.recent_maximum_session_distance_km <= 0
+    ):
+        return (
+            "Usable recent session distance is unavailable, so Praxys cannot "
+            "set the reviewed maximum-distance ceiling."
+        )
     return None
 
 
@@ -839,12 +856,8 @@ def _taper_start(
     event_date = event_context.target_date
     if event_date is None:
         return None
-    for index in range(2):
-        unit_start = block_start + timedelta(days=7 * index)
-        delta = (event_date - unit_start).days
-        if 8 <= delta <= 14:
-            return unit_start
-    return None
+    delta = (event_date - block_start).days
+    return block_start if 8 <= delta <= 14 else None
 
 
 def _schedule_end_exclusive(
@@ -873,7 +886,10 @@ def _build_schedule(
         generation_input.constraints.maximum_session_duration_min,
         statistics.recent_maximum_session_minutes,
     )
+    session_distance_cap = statistics.recent_maximum_session_distance_km
     if session_cap <= 0:
+        return None
+    if session_distance_cap is None or session_distance_cap <= 0:
         return None
     weekly_target = min(
         statistics.recent_median_usable_weekly_minutes,
@@ -948,6 +964,7 @@ def _build_schedule(
                 dates=selected_dates,
                 total_target=weekly_target,
                 session_cap=session_cap,
+                maximum_distance_ceiling_km=session_distance_cap,
                 preferred_longest_easy_weekday=(
                     generation_input.constraints.preferred_longest_easy_weekday
                 ),
@@ -964,6 +981,7 @@ def _build_schedule(
                 dates=selected_dates,
                 total_target=target_total,
                 session_cap=session_cap,
+                maximum_distance_ceiling_km=session_distance_cap,
                 preferred_longest_easy_weekday=(
                     generation_input.constraints.preferred_longest_easy_weekday
                 ),
@@ -975,6 +993,7 @@ def _build_schedule(
                 dates=selected_dates,
                 total_target=weekly_target,
                 session_cap=session_cap,
+                maximum_distance_ceiling_km=session_distance_cap,
                 preferred_longest_easy_weekday=(
                     generation_input.constraints.preferred_longest_easy_weekday
                 ),
@@ -1004,11 +1023,14 @@ def _normal_week_workouts(
     dates: Sequence[date],
     total_target: int,
     session_cap: int,
+    maximum_distance_ceiling_km: float,
     preferred_longest_easy_weekday: int | None,
     week_index: int,
     external_quality_date: date | None,
 ) -> _WeekBuild | None:
     if not dates:
+        return None
+    if maximum_distance_ceiling_km <= 0:
         return None
     quality_template = _quality_template(week_index)
     quality_date = (
@@ -1061,6 +1083,7 @@ def _normal_week_workouts(
                     workout_type=quality_template.workout_type,
                     intensity_bucket="quality",
                     planned_duration_min=quality_minutes,
+                    maximum_distance_ceiling_km=maximum_distance_ceiling_km,
                     steps=quality_template.steps,
                 )
             )
@@ -1076,15 +1099,12 @@ def _normal_week_workouts(
         )
         workouts.append(
             GeneratedWorkout(
-                template_id=(
-                    "road-10k-longest-easy-v1"
-                    if workout_type == "longest_easy"
-                    else "road-10k-easy-v1"
-                ),
+                template_id=None,
                 scheduled_date=scheduled_date,
                 workout_type=workout_type,
                 intensity_bucket="low",
                 planned_duration_min=duration,
+                maximum_distance_ceiling_km=maximum_distance_ceiling_km,
                 steps=(
                     WorkoutStep(
                         kind="step",
@@ -1217,6 +1237,7 @@ def _validate_schedule(
         generation_input.constraints.maximum_session_duration_min,
         statistics.recent_maximum_session_minutes,
     )
+    distance_cap = statistics.recent_maximum_session_distance_km
     weekly_cap = min(
         statistics.recent_maximum_usable_weekly_minutes,
         generation_input.constraints.weekly_time_limit_min,
@@ -1250,6 +1271,21 @@ def _validate_schedule(
                 "validation_failed",
                 "session_cap",
                 "A generated session exceeded the reviewed single-session cap.",
+            )
+        if distance_cap is None or distance_cap <= 0:
+            return (
+                "validation_failed",
+                "session_distance_cap_missing",
+                "The reviewed session-distance cap was unavailable.",
+            )
+        if any(
+            item.maximum_distance_ceiling_km > distance_cap
+            for item in workouts
+        ):
+            return (
+                "validation_failed",
+                "session_distance_cap",
+                "A generated session exceeded the reviewed distance ceiling.",
             )
         if total_minutes > weekly_cap:
             return (

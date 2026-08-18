@@ -51,6 +51,16 @@ Road10KResultCode = Literal[
     "no_schedule_within_envelope",
     "validation_failed",
 ]
+Road10KSurfaceOrProtocol = Literal[
+    "organized_outdoor_road_10k_race",
+    "standardized_outdoor_road_10k_time_trial",
+    "standardized_track_10k_time_trial",
+]
+Road10KAssistanceStatus = Literal[
+    "unassisted",
+    "assisted",
+    "unknown_or_unreported",
+]
 
 
 class PlanGenerationPurposeRequest(BaseModel):
@@ -131,6 +141,13 @@ class Road10KHistoryConfirmationRequest(BaseModel):
     response: Literal["race", "intentional_all_out", "not_all_out", "deleted"]
     measured_10k: bool
     elapsed_timing_confirmed: bool
+    surface_or_protocol: Road10KSurfaceOrProtocol | None = None
+    route_or_venue_identifier: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=200,
+    )
+    assistance_status: Road10KAssistanceStatus
     supersedes_confirmation_id: str | None = None
     purpose: PlanGenerationPurposeRequest | None = None
 
@@ -423,6 +440,9 @@ def post_road_10k_history_confirmation(
             response=body.response,
             measured_10k=body.measured_10k,
             elapsed_timing_confirmed=body.elapsed_timing_confirmed,
+            surface_or_protocol=body.surface_or_protocol,
+            route_or_venue_identifier=body.route_or_venue_identifier,
+            assistance_status=body.assistance_status,
             idempotency_key=idempotency_key,
             supersedes_confirmation_id=body.supersedes_confirmation_id,
             purpose_selection=_purpose(body),

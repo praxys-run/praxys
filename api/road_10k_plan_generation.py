@@ -510,6 +510,7 @@ def _evaluate(
             )
             for item in generation_data.activities
         ),
+        intensity_sources=generation_data.intensity_sources,
         reserved_dates=generation_data.reserved_dates,
         training_pattern_snapshot_version=ROAD_10K_TRAINING_PATTERN_SNAPSHOT_VERSION,
         constraints=constraints,
@@ -590,10 +591,7 @@ def _proposal_input(
             {"history_cutoff_completed_days": 56},
             {"event_state": result.event_context.state},
             {
-                "template_versions": [
-                    "road-10k-controlled-threshold-quality-v1",
-                    "road-10k-specific-interval-quality-v1",
-                ]
+                "template_versions": _selected_template_ids(result.plan),
             },
         ),
         unknowns=(
@@ -623,7 +621,8 @@ def _proposal_workouts(
                                 (
                                     ROAD_10K_GENERATOR_VERSION,
                                     input_hash,
-                                    workout.template_id,
+                                    workout.template_id
+                                    or f"duration-only:{workout.workout_type}",
                                     workout.scheduled_date.isoformat(),
                                 )
                             ),
@@ -650,7 +649,9 @@ def _workout_description(workout: GeneratedWorkout) -> str:
     }
     return (
         f"{labels.get(workout.workout_type, workout.workout_type)}. "
-        "Deterministic road 10K guardrail; do not add catch-up work."
+        "Deterministic road 10K guardrail; do not add catch-up work. "
+        f"Keep the full session at or below the recent distance cap of "
+        f"{_format_distance_km(workout.maximum_distance_ceiling_km)} km."
     )
 
 
@@ -698,6 +699,10 @@ def _record_generation(
             }
             for item in generation_input.history
         ],
+        "intensity_sources": [
+            [activity_id, source]
+            for activity_id, source in generation_input.intensity_sources
+        ],
         "reserved_dates": [
             item.isoformat() for item in generation_input.reserved_dates
         ],
@@ -738,13 +743,7 @@ def _record_generation(
                 purpose=purpose.selection_payload(),
             ),
             selected_template_ids=(
-                sorted(
-                    {
-                        workout.template_id
-                        for week in result.plan.weeks
-                        for workout in week.workouts
-                    }
-                )
+                _selected_template_ids(result.plan)
                 if result.plan is not None
                 else []
             ),
@@ -842,12 +841,10 @@ def _proposal_envelope(
         "purpose": purpose.public_payload(),
         "event_context": _json_safe(asdict(result.event_context)),
         "history_cutoff_completed_days": 56,
-        "template_ids": sorted(
-            {
-                workout.template_id
-                for week in (result.plan.weeks if result.plan else ())
-                for workout in week.workouts
-            }
+        "template_ids": (
+            _selected_template_ids(result.plan)
+            if result.plan is not None
+            else []
         ),
         "result": _result_without_plan(result),
         "proposal": proposal,
@@ -881,10 +878,11 @@ def _readiness_envelope(
         "block_start": generation_input.block_start.isoformat(),
         "event_context": _json_safe(asdict(result.event_context)),
         "history_cutoff_completed_days": 56,
-        "template_ids": [
-            "road-10k-controlled-threshold-quality-v1",
-            "road-10k-specific-interval-quality-v1",
-        ],
+        "template_ids": (
+            _selected_template_ids(result.plan)
+            if result.plan is not None
+            else []
+        ),
         "result": _result_without_plan(result),
     }
 
@@ -1100,6 +1098,21 @@ def _persisted_reassessment_dates(proposal: dict[str, Any]) -> list[str]:
         return []
     reassessment = horizon_start + timedelta(days=7)
     return [reassessment.isoformat()] if reassessment <= horizon_end else []
+
+
+def _selected_template_ids(plan: GeneratedRoad10KPlan) -> list[str]:
+    return sorted(
+        {
+            workout.template_id
+            for week in plan.weeks
+            for workout in week.workouts
+            if workout.template_id is not None
+        }
+    )
+
+
+def _format_distance_km(value: float) -> str:
+    return f"{value:.1f}".rstrip("0").rstrip(".")
 
 
 def _json_safe(value: Any) -> Any:

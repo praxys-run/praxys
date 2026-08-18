@@ -35,9 +35,12 @@ import type {
   GoalBaselineCandidate,
   GoalBaselineResponse,
   PlanGenerationPurposeSelection,
+  Road10KAssistanceStatus,
   Road10KBaselineCandidate,
   Road10KBaselineMutationResponse,
   Road10KBaselineResponse,
+  Road10KHistoryConfirmationRequest,
+  Road10KSurfaceOrProtocol,
 } from '@/types/api';
 
 interface GoalBaselinePanelProps {
@@ -50,6 +53,8 @@ interface GoalBaselinePanelProps {
 
 type ConfirmResponse = 'race' | 'intentional_all_out' | 'not_all_out' | 'unset';
 type DialogMode = 'confirm' | 'offer' | 'schedule' | 'complete' | 'stop' | null;
+type SurfaceOrProtocolValue = Road10KSurfaceOrProtocol | 'unset';
+type AssistanceStatusValue = Road10KAssistanceStatus | 'unset';
 
 const SAFETY_REASONS = [
   'acute_illness',
@@ -116,8 +121,11 @@ function Road10KBaselinePanel({
     target: t`Goal`,
     evidence: t`Current evidence`,
     age: t`Evidence age`,
+    protocol: t`Accepted surface or protocol`,
+    routeOrVenue: t`Route or venue`,
+    assistance: t`Assistance status`,
     candidateTitle: t`History candidates`,
-    candidateHint: t`Retrieval is never qualification; only a full activity with explicit distance, timing, and all-out or race confirmation can become a direct 10K baseline.`,
+    candidateHint: t`Retrieval is never qualification; only a full activity with explicit distance, timing, accepted protocol, route or venue, and all-out or race confirmation can become a direct 10K baseline.`,
     reviewCandidate: t`Review this effort`,
     changeCandidate: t`Change confirmation`,
     fullActivityOnly: t`Full activity only`,
@@ -125,11 +133,17 @@ function Road10KBaselinePanel({
     cutoff: t`The 56-day rule is a reviewed guardrail, not a physiological cutoff.`,
     benchmarkTitle: t`Optional 10K benchmark`,
     benchmarkHint: t`Choose and date an optional benchmark in the Training plan preview if you want one. Praxys never auto-schedules it.`,
-    scienceDescription: t`Only current direct 10K race or explicit all-out 10K history can qualify. The 56-day freshness guardrail and the optional benchmark path are reviewed product boundaries, not published universal cutoffs.`,
+    scienceDescription: t`Only current direct 10K race or explicit all-out 10K history can qualify. Qualification keeps the accepted protocol, route or venue, assistance status, provider, and authoritative completion time attached to the evidence. The 56-day freshness guardrail and the optional benchmark path are reviewed product boundaries, not published universal cutoffs.`,
     options: {
       race: t`Measured 10K race`,
       intentional_all_out: t`Intentional all-out complete 10K`,
       not_all_out: t`Not a direct 10K baseline`,
+      organized_outdoor_road_10k_race: t`Organized outdoor road 10K race`,
+      standardized_outdoor_road_10k_time_trial: t`Standardized outdoor road 10K time trial`,
+      standardized_track_10k_time_trial: t`Standardized track 10K time trial`,
+      unassisted: t`Unassisted`,
+      assisted: t`Assisted`,
+      unknown_or_unreported: t`Unknown or unreported`,
       yes: t`Yes`,
       no: t`No`,
     },
@@ -146,10 +160,13 @@ function Road10KBaselinePanel({
     },
     dialog: {
       confirmTitle: t`Review this activity`,
-      confirmDescription: t`Only explicit distance, timing, and intent confirmation can turn history into a direct 10K baseline.`,
+      confirmDescription: t`Only explicit distance, timing, protocol, route or venue, and intent confirmation can turn history into a direct 10K baseline.`,
       effortLabel: t`What was this full activity?`,
       measuredLabel: t`Was the full effort a measured 10K?`,
       timingLabel: t`Did the recorded time reflect elapsed timing with no unresolved pauses?`,
+      protocolLabel: t`Which accepted surface or protocol matched this effort?`,
+      routeLabel: t`Route or venue identifier`,
+      assistanceLabel: t`Assistance status`,
       save: t`Save`,
       cancel: t`Cancel`,
     },
@@ -168,12 +185,15 @@ function Road10KBaselinePanel({
   const [response, setResponse] = useState<ConfirmResponse>('unset');
   const [measured, setMeasured] = useState<'yes' | 'no' | 'unset'>('unset');
   const [timing, setTiming] = useState<'yes' | 'no' | 'unset'>('unset');
+  const [surfaceOrProtocol, setSurfaceOrProtocol] = useState<SurfaceOrProtocolValue>('unset');
+  const [routeOrVenue, setRouteOrVenue] = useState('');
+  const [assistanceStatus, setAssistanceStatus] = useState<AssistanceStatusValue>('unset');
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const mutate = async (body: Record<string, unknown>) => {
+  const mutate = async (body: Road10KHistoryConfirmationRequest) => {
     setSaving(true);
     setError(null);
     setNotice(null);
@@ -202,17 +222,37 @@ function Road10KBaselinePanel({
 
   const handleConfirm = async () => {
     if (!activeCandidate) return;
-    if (response === 'unset' || measured === 'unset' || timing === 'unset') {
+    const directQualificationClaim = response === 'race' || response === 'intentional_all_out';
+    if (
+      response === 'unset'
+      || measured === 'unset'
+      || timing === 'unset'
+      || assistanceStatus === 'unset'
+      || (
+        directQualificationClaim
+        && (
+          surfaceOrProtocol === 'unset'
+          || routeOrVenue.trim().length === 0
+        )
+      )
+    ) {
       setError(copy.choose);
       return;
     }
-    await mutate({
+    const body: Road10KHistoryConfirmationRequest = {
       activity_id: activeCandidate.activity_id,
       response,
       measured_10k: measured === 'yes',
       elapsed_timing_confirmed: timing === 'yes',
-    });
+      assistance_status: assistanceStatus,
+    };
+    if (directQualificationClaim) {
+      body.surface_or_protocol = surfaceOrProtocol as Road10KSurfaceOrProtocol;
+      body.route_or_venue_identifier = routeOrVenue.trim();
+    }
+    await mutate(body);
   };
+  const requiresDirectQualificationMetadata = response === 'race' || response === 'intentional_all_out';
 
   return (
     <div className="space-y-5">
@@ -248,6 +288,28 @@ function Road10KBaselinePanel({
                 <span className="font-medium">{formatDate(baseline.evidence.observed_date, locale)}</span>
                 <span className="font-data"> · {baseline.evidence.distance_km?.toFixed(2)} km · {baseline.evidence.elapsed_time_sec ? formatTime(Math.round(baseline.evidence.elapsed_time_sec)) : '—'}</span>
               </p>
+              <div className="mt-3 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
+                <p>
+                  <span className="font-medium text-foreground">{copy.protocol}:</span>{' '}
+                  {baseline.evidence.surface_or_protocol
+                    ? copy.options[baseline.evidence.surface_or_protocol]
+                    : '—'}
+                </p>
+                <p>
+                  <span className="font-medium text-foreground">{copy.assistance}:</span>{' '}
+                  {baseline.evidence.assistance_status
+                    ? copy.options[baseline.evidence.assistance_status]
+                    : '—'}
+                </p>
+                <p>
+                  <span className="font-medium text-foreground">{copy.routeOrVenue}:</span>{' '}
+                  {baseline.evidence.route_or_venue_identifier ?? '—'}
+                </p>
+                <p>
+                  <span className="font-medium text-foreground"><Trans>Provider</Trans>:</span>{' '}
+                  {baseline.evidence.source_provider ?? '—'}
+                </p>
+              </div>
               <p className="mt-2 text-sm text-muted-foreground">{copy.cutoff}</p>
             </div>
           )}
@@ -285,6 +347,9 @@ function Road10KBaselinePanel({
                   setResponse((candidate.confirmation_response ?? 'unset') as ConfirmResponse);
                   setMeasured(candidate.measured_10k_confirmed == null ? 'unset' : candidate.measured_10k_confirmed ? 'yes' : 'no');
                   setTiming(candidate.elapsed_timing_confirmed == null ? 'unset' : candidate.elapsed_timing_confirmed ? 'yes' : 'no');
+                  setSurfaceOrProtocol((candidate.surface_or_protocol ?? 'unset') as SurfaceOrProtocolValue);
+                  setRouteOrVenue(candidate.route_or_venue_identifier ?? '');
+                  setAssistanceStatus((candidate.assistance_status ?? 'unset') as AssistanceStatusValue);
                   setOpen(true);
                   setError(null);
                 }}
@@ -344,6 +409,47 @@ function Road10KBaselinePanel({
                 <SelectContent>
                   <SelectItem value="yes">{copy.options.yes}</SelectItem>
                   <SelectItem value="no">{copy.options.no}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {requiresDirectQualificationMetadata && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="road-10k-confirm-protocol">{copy.dialog.protocolLabel}</Label>
+                  <Select
+                    value={surfaceOrProtocol === 'unset' ? null : surfaceOrProtocol}
+                    onValueChange={(value) => setSurfaceOrProtocol((value ?? 'unset') as SurfaceOrProtocolValue)}
+                  >
+                    <SelectTrigger id="road-10k-confirm-protocol" className="w-full"><SelectValue placeholder={copy.choose} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="organized_outdoor_road_10k_race">{copy.options.organized_outdoor_road_10k_race}</SelectItem>
+                      <SelectItem value="standardized_outdoor_road_10k_time_trial">{copy.options.standardized_outdoor_road_10k_time_trial}</SelectItem>
+                      <SelectItem value="standardized_track_10k_time_trial">{copy.options.standardized_track_10k_time_trial}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="road-10k-route-venue">{copy.dialog.routeLabel}</Label>
+                  <Input
+                    id="road-10k-route-venue"
+                    value={routeOrVenue}
+                    onChange={(event) => setRouteOrVenue(event.target.value)}
+                    maxLength={200}
+                  />
+                </div>
+              </>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="road-10k-assistance-status">{copy.dialog.assistanceLabel}</Label>
+              <Select
+                value={assistanceStatus === 'unset' ? null : assistanceStatus}
+                onValueChange={(value) => setAssistanceStatus((value ?? 'unset') as AssistanceStatusValue)}
+              >
+                <SelectTrigger id="road-10k-assistance-status" className="w-full"><SelectValue placeholder={copy.choose} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassisted">{copy.options.unassisted}</SelectItem>
+                  <SelectItem value="assisted">{copy.options.assisted}</SelectItem>
+                  <SelectItem value="unknown_or_unreported">{copy.options.unknown_or_unreported}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

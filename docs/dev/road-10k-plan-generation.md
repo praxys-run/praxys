@@ -1,0 +1,139 @@
+# Road 10K plan generation implementation
+
+## Accepted runtime contract
+
+- Capability id: `outdoor_road_10k_performance_v1`
+- Policy version: `road-10k-plan-generation-policy-v2`
+- Generator version: `road-10k-deterministic-generator-v1`
+- Science decision id: `sdr-road-10k-plan-generation-policy-v2`
+- Contract digest: `sha256:2d0d25d994bc0a623e3c7fed6e538bb992f66313cefd7f8314aed2c5b1d3e496`
+- Source decision digest: `sha256:aa420e4c8b24ca6e0ce0340cc78934edca29c4cda70876dbf46d0a0ca2bee1ad`
+- Runtime state: **inactive by default** until a separate rollout decision explicitly moves the capability into `PLAN_GENERATION_CAPABILITIES`
+
+## Machine-contract mapping
+
+| Contract concern | Runtime owner |
+| --- | --- |
+| Capability registration / discovery | `api/plan_generation_capabilities.py` |
+| Direct 10K baseline qualification | `analysis/road_10k_baseline.py` + `api/road_10k_baseline.py` |
+| Deterministic schedule generation | `analysis/road_10k_plan_generation.py` |
+| Proposal persistence / replay / adoption revalidation | `api/road_10k_plan_generation.py` |
+| Append-only audit tables | `db/models.py` + `alembic/versions/a7f3c2d1e9b4_add_road_10k_generation_and_baseline.py` |
+| Canonical client request / response types | `web/src/types/api.ts` |
+| Miniapp generated copy of canonical types | `miniapp/types/api.ts` via `miniapp/scripts/sync-types.cjs` |
+
+## Inactive gate and safe fallback behavior
+
+While the capability stays inactive:
+
+- `PUT /api/settings` rejects new `performance_10k` goal writes with `GOAL_KIND_UNAVAILABLE`.
+- Existing stored `performance_10k` config is preserved in the database, but `/api/goal` falls back to generic race/continuous presentation instead of invoking the hidden direct-10K baseline flow.
+- Web and miniapp only expose the 10K editor / baseline panel when discovery advertises the 10K constraint schema.
+- Plan-start discovery still reports honest `policy_unavailable` / `readiness_only` states instead of 404s.
+
+When tests or a future rollout mock the capability active, the 10K settings, goal page, baseline flow, readiness flow, and proposal flow all continue to work on the same code path.
+
+## Required inputs and accepted baseline metadata
+
+Direct 10K qualification keeps these persisted fields attached to the confirmation and snapshot rows:
+
+- authoritative `completed_at` from the synced activity
+- authoritative `elapsed_time_sec` from the synced activity
+- exact accepted `surface_or_protocol`
+- exact `route_or_venue_identifier`
+- explicit race / all-out intent (`response`)
+- `assistance_status` (`unassisted | assisted | unknown_or_unreported`)
+- `source_provider`
+
+Qualification fails closed unless the response, timing, measured-distance confirmation, and accepted protocol line up with one of the reviewed direct-baseline forms:
+
+1. `organized_outdoor_road_10k_race`
+2. `standardized_outdoor_road_10k_time_trial`
+3. `standardized_track_10k_time_trial`
+
+`assistance_status` is required persisted metadata but is **not** an accept/reject policy by value.
+
+## Inputs used by deterministic generation
+
+Generation binds the reviewed input set into `Road10KGenerationInput`:
+
+- policy / decision / digest identifiers
+- current-goal or separate-purpose selection
+- direct-baseline snapshot id, source, and evidence date
+- eight completed weeks of running history
+- split/sample `intensity_sources` provenance per activity
+- reserved dates and athlete-stated constraints
+- reviewed training-pattern and event-context snapshot versions
+
+The generator never uses activity `avg_power` for intensity provenance.
+
+## Outputs, typed failures, and schedule rules
+
+Success responses use the existing typed codes:
+
+- `eligible_rolling_proposal`
+- `eligible_taper_proposal`
+
+Fail-closed readiness outcomes remain typed, including:
+
+- `missing_or_stale_direct_baseline`
+- `insufficient_recent_history`
+- `limited_near_term_guidance`
+- `limited_guidance_event_conflict`
+- `adult_scope_or_constraints_unconfirmed`
+- `contradictory_input`
+- `no_schedule_within_envelope`
+- `validation_failed`
+
+Notable reviewed implementation details:
+
+- taper eligibility is anchored only to `(target_date - block_start).days`
+- targets 8-14 days after block start produce taper proposals truncated to event eve
+- targets >14 days remain normal rolling proposals
+- every generated workout carries a truthful maximum-distance ceiling derived from `recent_maximum_session_distance_km`
+- the proposal stays duration-based; it does **not** invent pace, power, or distance targets for easy / longest-easy / quality sessions
+- `template_ids` only expose contract-backed quality template ids actually used in the generated block
+
+## Provenance, audit, replay, and adoption revalidation
+
+Append-only audit rows keep the reviewed replay surface:
+
+- selected purpose and goal revision fence
+- baseline snapshot id + source
+- completed-history observation ids
+- split/sample `intensity_sources`
+- normalized constraints
+- selected quality template ids
+- deterministic input hash / source revision
+
+Replay and adoption revalidation re-run the generator from current inputs. Any change to split/sample provenance, baseline evidence, history, event context, or constraints changes the source revision and blocks stale generation or adoption.
+
+## Web and miniapp semantics
+
+- Web is the canonical API-type source: `web/src/types/api.ts`
+- Miniapp types are generated; do not hand-edit `miniapp/types/api.ts`
+- The direct-10K confirm UI collects protocol, route/venue, assistance, timing, and measured-distance confirmation
+- The 10K path exposes an optional benchmark note only; it does not reuse the 5K pilot-test UI
+- Miniapp plan-start constructs the exact `Road10KConstraintsRequest` shape (`adult_confirmed`, `current_symptom_stop`, weekdays, weekly limit, max-session limit, unavailable dates, preferred longest-easy day, benchmark date`) and accepts `eligible_*` readiness / proposal unions
+
+## Privacy-safe runtime and meta-eval signals
+
+Allowed stable telemetry remains limited to:
+
+- readiness / generation result codes
+- validation reason codes
+- policy / generator / decision versions
+- proposal adoption / rejection / successor events
+
+Do **not** add raw athlete text, workout payload bodies, target values, personal-context contents, or identifying cohort slices to telemetry.
+
+## Explicit non-goals
+
+This implementation intentionally does **not**:
+
+- activate or roll out the road 10K capability
+- add runtime config or ops changes
+- change accepted science artifacts, digests, or SDR decisions
+- auto-schedule the optional benchmark
+- add pace / power / distance targets to duration-only workouts
+- broaden accepted direct-baseline protocols beyond the reviewed organized road-race and standardized road/track time-trial forms

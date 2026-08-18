@@ -945,6 +945,26 @@ def _update_settings(
                 "target_event_date"
             )
             config.goal.pop("target_event_date", None)
+        candidate_goal = {**config.goal, **goal_update}
+        if (
+            str(candidate_goal.get("goal_kind") or "").strip().casefold()
+            == "performance_10k"
+        ):
+            from api.plan_generation_capabilities import (
+                road_10k_capability_available,
+            )
+
+            if not road_10k_capability_available():
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "GOAL_KIND_UNAVAILABLE",
+                        "message": (
+                            "The reviewed 10K performance goal is not active yet. "
+                            "Keep a race or continuous goal until this capability is activated."
+                        ),
+                    },
+                )
         config.goal.update(goal_update)
     if body.source_options is not None:
         source_options_update = dict(body.source_options)

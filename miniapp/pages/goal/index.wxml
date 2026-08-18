@@ -110,7 +110,7 @@
           <text wx:if="{{planRoutingReasoningOpen && planCapabilityState !== 'error'}}" class="plan-generation-reasoning-detail">{{tr.routeScienceDetail}}</text>
         </view>
 
-        <block wx:if="{{(goalKind === 'performance_5k' || goalKind === 'performance_10k') && baseline}}">
+        <block wx:if="{{(goalKind === 'performance_5k' || (performance10kEnabled && goalKind === 'performance_10k')) && baseline}}">
           <goal-baseline
             id="goal-baseline-panel"
             baseline="{{baseline}}"
@@ -343,7 +343,7 @@
           <text class="goal-editor-toggle-desc ts-muted">{{tr.performanceGoalDesc}}</text>
         </view>
         <view
-          wx:if="{{performance10kEnabled || goalKind === 'performance_10k' || editorType === 'performance_10k'}}"
+          wx:if="{{performance10kEnabled}}"
           class="goal-editor-toggle-item {{editorType === 'performance_10k' ? 'goal-editor-toggle-item--active' : ''}}"
           data-type="performance_10k"
           bindtap="onPickEditorType"

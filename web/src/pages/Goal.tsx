@@ -421,6 +421,11 @@ export default function Goal() {
   const { isDemo } = useAuth();
   const { config, updateSettings } = useSettings();
   const [isEditing, setIsEditing] = useState(false);
+  const enablePerformance10k = Boolean(
+    capabilityDiscovery?.capabilities.some(
+      (item) => item.constraint_schema_id === 'outdoor_road_10k_constraints_v1',
+    ),
+  );
 
   const currentRaceDate = config?.goal?.race_date ? String(config.goal.race_date) : '';
   const currentDistance = config?.goal?.distance ? String(config.goal.distance) : 'marathon';
@@ -434,18 +439,14 @@ export default function Goal() {
       configured === 'race'
       || configured === 'continuous'
       || configured === 'performance_5k'
-      || configured === 'performance_10k'
     ) {
       return configured as GoalType;
     }
+    if (configured === 'performance_10k' && enablePerformance10k) {
+      return 'performance_10k';
+    }
     return currentRaceDate ? 'race' : 'continuous';
   })();
-  const enablePerformance10k = currentGoalType === 'performance_10k'
-    || Boolean(
-      capabilityDiscovery?.capabilities.some(
-        (item) => item.constraint_schema_id === 'outdoor_road_10k_constraints_v1',
-      ),
-    );
 
   const handleSaveGoal = async (goal: { goal_kind: GoalKind; race_date: string; distance: string; target_time_sec: number }) => {
     await updateSettings({ goal });
@@ -495,7 +496,10 @@ export default function Goal() {
 
       {data && <PlanStartGoalEntry />}
 
-      {data && (data.goal_kind === 'performance_5k' || data.goal_kind === 'performance_10k') && data.baseline ? (
+      {data && (
+        data.goal_kind === 'performance_5k'
+        || (enablePerformance10k && data.goal_kind === 'performance_10k')
+      ) && data.baseline ? (
         <GoalBaselinePanel
           baseline={data.baseline}
           goal={data.goal}

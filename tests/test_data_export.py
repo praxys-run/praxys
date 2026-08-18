@@ -1,5 +1,5 @@
 """Integration coverage for the authenticated self-service data export."""
-from datetime import date
+from datetime import date, datetime
 import json
 
 from tests.test_settings_api import api_client
@@ -223,6 +223,12 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 response="race",
                 measured_10k=True,
                 elapsed_timing_confirmed=True,
+                completed_at=datetime(2026, 8, 1, 8, 42),
+                elapsed_time_sec=2_520,
+                surface_or_protocol="organized_outdoor_road_10k_race",
+                route_or_venue_identifier="owner-road-10k-race",
+                assistance_status="unknown_or_unreported",
+                source_provider="garmin",
                 request_fingerprint="e" * 64,
             ),
             Road10KBaselineSnapshot(
@@ -236,10 +242,15 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 source_id="owner-activity",
                 provenance="race",
                 observed_date=date(2026, 8, 1),
+                completed_at=datetime(2026, 8, 1, 8, 42),
                 distance_km=10.0,
                 elapsed_time_sec=2_520,
                 measured_10k=True,
                 elapsed_timing_confirmed=True,
+                surface_or_protocol="organized_outdoor_road_10k_race",
+                route_or_venue_identifier="owner-road-10k-race",
+                assistance_status="unknown_or_unreported",
+                source_provider="garmin",
                 qualification_status="direct_current",
                 change_comparability="not_assessed",
                 invalidators=[],
@@ -272,7 +283,10 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 request_fingerprint="g" * 64,
                 predecessor_proposal_id=None,
                 predecessor_version=None,
-                observed_input_snapshot={"completed_running_history": []},
+                observed_input_snapshot={
+                    "completed_running_history": [],
+                    "intensity_sources": [["owner-activity", "activity_splits"]],
+                },
                 derived_history_statistics={"usable_completed_weeks": 8},
                 validation_results={"code": "eligible_rolling_proposal"},
             ),
@@ -522,8 +536,20 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
     assert payload["road_10k_baseline"]["confirmations"][0]["id"] == (
         "owner-road-10k-confirmation"
     )
+    assert payload["road_10k_baseline"]["confirmations"][0][
+        "surface_or_protocol"
+    ] == "organized_outdoor_road_10k_race"
+    assert payload["road_10k_baseline"]["confirmations"][0][
+        "route_or_venue_identifier"
+    ] == "owner-road-10k-race"
+    assert payload["road_10k_baseline"]["confirmations"][0][
+        "assistance_status"
+    ] == "unknown_or_unreported"
     assert payload["road_10k_baseline"]["snapshots"][0]["id"] == (
         "owner-road-10k-snapshot"
+    )
+    assert payload["road_10k_baseline"]["snapshots"][0]["completed_at"] == (
+        "2026-08-01T08:42:00+00:00"
     )
     assert payload["road_10k_plan_generation"] == {
         "schema_version": 1,
@@ -533,6 +559,9 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
     assert payload["road_10k_plan_generation"]["records"][0]["id"] == (
         "owner-road-10k-generation"
     )
+    assert payload["road_10k_plan_generation"]["records"][0][
+        "observed_input_snapshot"
+    ]["intensity_sources"] == [["owner-activity", "activity_splits"]]
     assert payload["personal_context"] == {
         "schema_version": 1,
         "exported_at": payload["personal_context"]["exported_at"],

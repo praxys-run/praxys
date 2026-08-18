@@ -14,6 +14,11 @@ import type {
   PlanGenerationCapabilitiesResponse,
   PlanGenerationCapability,
   PlanGenerationPurposeSelection,
+  Road10KConstraintsRequest,
+  Road10KGenerateResponse,
+  Road10KOutcomeResponse,
+  Road10KReadinessResponse,
+  Road10KRegenerateResponse,
 } from '../../types/api';
 
 interface DayOption {
@@ -67,27 +72,35 @@ function copy() {
     separatePurpose: t('Separate plan purpose'),
     unlinkedPurpose: t('Unlinked base plan'),
     currentGoalUnavailable: t('The current Goal has no accepted automatic policy. Keep it unchanged, or choose an accepted separate purpose.'),
-    separatePurposeDetail: t('This proposal uses an accepted 5K goal contract without changing or linking to the Goal page.'),
+    separatePurposeDetail: t('This proposal uses an accepted goal contract without changing or linking to the Goal page.'),
     reassessmentTitle: t('Plan purpose needs reassessment'),
     reassessmentDetail: t('The current Goal changed after this plan purpose was captured. Check readiness again and create a fresh proposal before adoption.'),
     conflictingPurpose: t('A draft exists for another plan purpose. Return to that purpose to review or reject it first.'),
     updateRequired: t('This client does not recognize the selected policy input contract and will not guess how to create a plan.'),
     scope: t('Scope and guardrails'),
     scopeDetail: t('For adult, self-coached recreational outdoor-road 5K runners. This is not a diagnosis, clearance, or performance guarantee.'),
+    road10kScopeDetail: t('This reviewed 10K performance capability uses adult confirmation, direct 10K evidence, and history-anchored load caps. It does not diagnose, clear, or guarantee a performance outcome.'),
     adult: t('I am 18 or older.'),
     selfCoached: t('I am self-coached for recreational road running.'),
     canComplete: t('I can currently complete 5 km.'),
     outdoorRoad: t('My goal is an outdoor road 5K.'),
     safety: t('Safety stop'),
     safetyDetail: t('Tell Praxys if a safety stop applies. The policy will stop this path and show its bounded alternatives.'),
+    road10kSafetyDetail: t('Tell Praxys if a current symptom stop applies. The policy will stop this plan path and return only bounded guidance.'),
     safetyOff: t('No safety stop'),
     safetyOn: t('Safety stop applies'),
+    road10kSafetyOff: t('No symptom stop'),
+    road10kSafetyOn: t('Symptom stop applies'),
     days: t('Available run days'),
     dayDetail: t('Select availability, then give the same supported session limit for every selected day.'),
+    road10kDayDetail: t('Choose three to six days you can actually keep. Praxys anchors load to your recent median rather than your target-time gap.'),
     timeLimit: t('Time limit (minutes)'),
+    weeklyTimeLimit: t('Weekly time limit (minutes)'),
+    singleSessionLimit: t('Single-session limit (minutes)'),
     perDayUnsupported: t('Per-day limits are unsupported'),
     perDayUnsupportedDetail: t('The accepted deterministic policy has one shared maximum-session field. Praxys will not invent a per-day rule or silently reduce your schedule; use one limit for all selected days.'),
     longDay: t('Preferred longest-run day'),
+    road10kLongDay: t('Preferred longest-easy day'),
     noPreference: t('No preference'),
     terrain: t('Terrain and equipment'),
     terrainDetail: t('This policy supports outdoor road running only. Terrain, treadmill, trail, and equipment preferences are unsupported inputs and are not inferred.'),
@@ -117,8 +130,11 @@ function copy() {
     ready: t('ready'),
     failed: t('Plan-start action did not complete'),
     scopeRequired: t('Confirm the supported athlete and goal scope first.'),
+    road10kScopeRequired: t('Confirm the reviewed adult scope first.'),
     daysRequired: t('Choose the days you are available to run.'),
     durationRequired: t('Enter one whole-minute limit for every selected day.'),
+    weeklyLimitRequired: t('Enter a whole-number weekly time limit.'),
+    singleSessionRequired: t('Enter a whole-number single-session limit.'),
     requestFailed: t('Could not assess this plan start.'),
     noExplanation: t('The deterministic policy returned no additional explanation.'),
     noProposal: t('Proposal created. It has not changed your canonical plan.'),
@@ -137,15 +153,46 @@ function uuid(): string {
 }
 
 function proposalResponse(
-  response: Outdoor5KGenerateResponse | Outdoor5KRegenerateResponse,
-): response is Extract<Outdoor5KGenerateResponse, { proposal: AdaptivePlanProposal | null }> {
+  response:
+    | Outdoor5KGenerateResponse
+    | Outdoor5KRegenerateResponse
+    | Road10KGenerateResponse
+    | Road10KRegenerateResponse,
+): response is Extract<
+  Outdoor5KGenerateResponse | Road10KGenerateResponse,
+  { proposal: AdaptivePlanProposal | null }
+> {
   return 'proposal' in response;
 }
 
-function reason(result: Outdoor5KOutcomeResponse, fallback: string): string {
+function reason(
+  result: Outdoor5KOutcomeResponse | Road10KOutcomeResponse,
+  fallback: string,
+): string {
   return result.observed_or_stated_reason
     ?? result.uncertainty_or_missing_field
     ?? fallback;
+}
+
+function isRoad10KCapability(
+  capability: PlanGenerationCapability | null | undefined,
+): boolean {
+  return capability?.constraint_schema_id === 'outdoor_road_10k_constraints_v1';
+}
+
+function isPlanReadyCode(
+  code: Outdoor5KOutcomeResponse['code'] | Road10KOutcomeResponse['code'],
+): boolean {
+  return code === 'ready' || code.startsWith('eligible_');
+}
+
+function needsBaselineReview(
+  code: Outdoor5KOutcomeResponse['code'] | Road10KOutcomeResponse['code'],
+): boolean {
+  return (
+    code === 'insufficient_or_stale_baseline'
+    || code === 'missing_or_stale_direct_baseline'
+  );
 }
 
 function dayOptions(existing: DayOption[] = []): DayOption[] {
@@ -173,6 +220,7 @@ Component({
     capabilityAvailable: false,
     capabilities: [] as PlanGenerationCapability[],
     capability: null as PlanGenerationCapability | null,
+    road10kMode: false,
     capabilityMessage: copy().supportedGoal,
     purposeOptions: [] as PurposeOption[],
     purposeIndex: 0,
@@ -194,8 +242,21 @@ Component({
     perDayLimitConflict: false,
     longDayOptions: [copy().noPreference],
     longDayIndex: 0,
-    readiness: null as Outdoor5KReadinessResponse | Outdoor5KGenerateResponse | Outdoor5KRegenerateResponse | null,
+    weeklyTimeLimit: '',
+    singleSessionLimit: '',
+    benchmarkDate: '',
+    readiness: null as (
+      | Outdoor5KReadinessResponse
+      | Outdoor5KGenerateResponse
+      | Outdoor5KRegenerateResponse
+      | Road10KReadinessResponse
+      | Road10KGenerateResponse
+      | Road10KRegenerateResponse
+      | null
+    ),
     readinessReason: '',
+    readinessIsPlanReady: false,
+    showBaselineRefreshPanel: false,
     proposal: null as AdaptivePlanProposal | null,
     working: '',
     operationKeys: {} as Partial<Record<LifecycleOperation, string>>,
@@ -244,6 +305,7 @@ Component({
         loading: true,
         capabilities: [],
         capability: null,
+        road10kMode: false,
         capabilityAvailable: false,
         capabilityMessage: this.data.tr.supportedGoal,
         purposeOptions: [],
@@ -259,6 +321,8 @@ Component({
         proposal: null,
         readiness: null,
         readinessReason: '',
+        readinessIsPlanReady: false,
+        showBaselineRefreshPanel: false,
         errorMessage: '',
         notice: '',
       });
@@ -394,6 +458,7 @@ Component({
               : null,
           } as PlanGenerationPurposeSelection
           : null;
+        const road10kMode = isRoad10KCapability(capability);
         const proposalMatchesPurpose = !proposal || Boolean(
           proposalCapability
           && proposalValue
@@ -403,6 +468,7 @@ Component({
           loading: false,
           capabilities,
           capability,
+          road10kMode,
           capabilityAvailable,
           capabilityMessage: discovery.capabilities.length > 0
             && !capabilityAvailable
@@ -433,6 +499,7 @@ Component({
                 ? this.data.tr.unlinkedPurpose
                 : '',
           errorMessage: proposalError,
+          benchmarkDate: road10kMode ? this.data.benchmarkDate : '',
         });
       } catch (error) {
         if (componentState._loadRequestId !== requestId) return;
@@ -441,6 +508,7 @@ Component({
           loading: false,
           capabilities: [],
           capability: null,
+          road10kMode: false,
           capabilityAvailable: false,
           purposeOptions: [],
           selectedPurpose: null,
@@ -478,6 +546,7 @@ Component({
             : null,
         } as PlanGenerationPurposeSelection
         : null;
+      const road10kMode = isRoad10KCapability(capability);
       const proposal = this.data.proposal;
       const proposalCapability = this.data.capabilities.find(
         (item) => item.policy_version === proposal?.policy_version,
@@ -491,6 +560,7 @@ Component({
         purposeIndex,
         selectedPurpose,
         capability,
+        road10kMode,
         purposeIsSeparate: Boolean(
           selectedPurpose
           && selectedPurpose.source !== 'current_goal',
@@ -502,6 +572,8 @@ Component({
         ),
         readiness: null,
         readinessReason: '',
+        readinessIsPlanReady: false,
+        showBaselineRefreshPanel: false,
         errorMessage: '',
         notice: '',
       });
@@ -510,10 +582,10 @@ Component({
       const field = String(e.currentTarget.dataset.field);
       if (!['adult', 'selfCoached', 'canComplete', 'outdoorRoad'].includes(field)) return;
       this.setData({ [field]: !this.data[field as keyof typeof this.data] } as WechatMiniprogram.IAnyObject);
-      this.setData({ readiness: null, errorMessage: '' });
+      this.setData({ readiness: null, readinessIsPlanReady: false, showBaselineRefreshPanel: false, errorMessage: '' });
     },
     onToggleSafety() {
-      this.setData({ safetyStop: !this.data.safetyStop, readiness: null, errorMessage: '' });
+      this.setData({ safetyStop: !this.data.safetyStop, readiness: null, readinessIsPlanReady: false, showBaselineRefreshPanel: false, errorMessage: '' });
     },
     onToggleDay(e: WechatMiniprogram.TouchEvent) {
       const day = Number(e.currentTarget.dataset.day);
@@ -532,6 +604,8 @@ Component({
         longDayOptions: [this.data.tr.noPreference, ...selectedDayRows.map((option) => option.label)],
         longDayIndex: 0,
         readiness: null,
+        readinessIsPlanReady: false,
+        showBaselineRefreshPanel: false,
         errorMessage: '',
       });
     },
@@ -551,17 +625,81 @@ Component({
             .filter(Boolean),
         ).size > 1,
         readiness: null,
+        readinessIsPlanReady: false,
+        showBaselineRefreshPanel: false,
         errorMessage: '',
       });
     },
     onLongDayChange(e: WechatMiniprogram.PickerChange) {
-      this.setData({ longDayIndex: Number(e.detail.value), readiness: null, errorMessage: '' });
+      this.setData({ longDayIndex: Number(e.detail.value), readiness: null, readinessIsPlanReady: false, showBaselineRefreshPanel: false, errorMessage: '' });
     },
-    constraints(): Outdoor5KConstraintsRequest | null {
+    onWeeklyTimeLimitInput(e: WechatMiniprogram.Input) {
+      this.setData({
+        weeklyTimeLimit: String(e.detail.value ?? ''),
+        readiness: null,
+        readinessIsPlanReady: false,
+        showBaselineRefreshPanel: false,
+        errorMessage: '',
+      });
+    },
+    onSingleSessionLimitInput(e: WechatMiniprogram.Input) {
+      this.setData({
+        singleSessionLimit: String(e.detail.value ?? ''),
+        readiness: null,
+        readinessIsPlanReady: false,
+        showBaselineRefreshPanel: false,
+        errorMessage: '',
+      });
+    },
+    onBenchmarkDateChange(e: WechatMiniprogram.PickerChange) {
+      this.setData({
+        benchmarkDate: String(e.detail.value ?? ''),
+        readiness: null,
+        readinessIsPlanReady: false,
+        showBaselineRefreshPanel: false,
+        errorMessage: '',
+      });
+    },
+    constraints(): Outdoor5KConstraintsRequest | Road10KConstraintsRequest | null {
       const purpose = this.data.selectedPurpose;
       if (!purpose) {
         this.setData({ errorMessage: this.data.tr.purposeRequired });
         return null;
+      }
+      const road10kMode = this.data.road10kMode;
+      if (road10kMode) {
+        const days = this.data.dayOptions.filter((option) => option.selected);
+        const weeklyTimeLimit = Number(this.data.weeklyTimeLimit);
+        const singleSessionLimit = Number(this.data.singleSessionLimit);
+        if (!this.data.adult) {
+          this.setData({ errorMessage: this.data.tr.road10kScopeRequired });
+          return null;
+        }
+        if (days.length === 0) {
+          this.setData({ errorMessage: this.data.tr.daysRequired });
+          return null;
+        }
+        if (!Number.isInteger(weeklyTimeLimit) || weeklyTimeLimit <= 0) {
+          this.setData({ errorMessage: this.data.tr.weeklyLimitRequired });
+          return null;
+        }
+        if (!Number.isInteger(singleSessionLimit) || singleSessionLimit <= 0) {
+          this.setData({ errorMessage: this.data.tr.singleSessionRequired });
+          return null;
+        }
+        return {
+          purpose,
+          adult_confirmed: this.data.adult,
+          current_symptom_stop: this.data.safetyStop,
+          available_weekdays: days.map((option) => option.value),
+          weekly_time_limit_min: weeklyTimeLimit,
+          maximum_session_duration_min: singleSessionLimit,
+          unavailable_dates: [],
+          preferred_longest_easy_weekday: this.data.longDayIndex === 0
+            ? null
+            : days[this.data.longDayIndex - 1]?.value ?? null,
+          benchmark_date: this.data.benchmarkDate || null,
+        };
       }
       const scopeComplete = this.data.adult
         && this.data.selfCoached
@@ -604,19 +742,21 @@ Component({
         preferred_longest_run_weekday: preferredIndex === 0 ? null : days[preferredIndex - 1]?.value ?? null,
       };
     },
-    async checkReadiness(): Promise<Outdoor5KReadinessResponse | null> {
+    async checkReadiness(): Promise<Outdoor5KReadinessResponse | Road10KReadinessResponse | null> {
       const constraints = this.constraints();
       const capability = this.data.capability;
       if (!constraints || !capability) return null;
       this.setData({ working: 'readiness', errorMessage: '', notice: '' });
       try {
-        const readiness = await apiPost<Outdoor5KReadinessResponse>(
+        const readiness = await apiPost<Outdoor5KReadinessResponse | Road10KReadinessResponse>(
           capability.actions.readiness_href,
           constraints,
         );
         this.setData({
           readiness,
           readinessReason: reason(readiness.result, this.data.tr.noExplanation),
+          readinessIsPlanReady: isPlanReadyCode(readiness.result.code),
+          showBaselineRefreshPanel: needsBaselineReview(readiness.result.code),
           working: '',
         });
         return readiness;
@@ -643,11 +783,11 @@ Component({
       const readiness = await this.checkReadiness();
       const constraints = this.constraints();
       const capability = this.data.capability;
-      if (!readiness || !constraints || !capability || readiness.result.code !== 'ready') return;
+      if (!readiness || !constraints || !capability || !isPlanReadyCode(readiness.result.code)) return;
       const requestPurpose = constraints.purpose;
       this.setData({ working: 'generate', errorMessage: '' });
       try {
-        const response = await apiPost<Outdoor5KGenerateResponse>(capability.actions.generate_href, {
+        const response = await apiPost<Outdoor5KGenerateResponse | Road10KGenerateResponse>(capability.actions.generate_href, {
           ...constraints,
           expected_source_revision: readiness.source_revision,
           idempotency_key: this.operationKey('generate'),
@@ -673,7 +813,12 @@ Component({
             notice: this.data.tr.noProposal,
           });
         } else {
-          this.setData({ readiness: response, readinessReason: reason(response.result, this.data.tr.noExplanation) });
+          this.setData({
+            readiness: response,
+            readinessReason: reason(response.result, this.data.tr.noExplanation),
+            readinessIsPlanReady: isPlanReadyCode(response.result.code),
+            showBaselineRefreshPanel: needsBaselineReview(response.result.code),
+          });
         }
         this.clearOperationKey('generate');
       } catch (error) {
@@ -693,11 +838,11 @@ Component({
       const readiness = await this.checkReadiness();
       const constraints = this.constraints();
       const capability = this.data.capability;
-      if (!proposal || !readiness || !constraints || !capability || readiness.result.code !== 'ready') return;
+      if (!proposal || !readiness || !constraints || !capability || !isPlanReadyCode(readiness.result.code)) return;
       const requestPurpose = constraints.purpose;
       this.setData({ working: 'regenerate', errorMessage: '' });
       try {
-        const response = await apiPost<Outdoor5KRegenerateResponse>(
+        const response = await apiPost<Outdoor5KRegenerateResponse | Road10KRegenerateResponse>(
           capability.actions.regenerate_href_template.replace(
             '{proposal_id}',
             encodeURIComponent(proposal.id),
@@ -733,7 +878,12 @@ Component({
             notice: this.data.tr.successor,
           });
         } else {
-          this.setData({ readiness: response, readinessReason: reason(response.result, this.data.tr.noExplanation) });
+          this.setData({
+            readiness: response,
+            readinessReason: reason(response.result, this.data.tr.noExplanation),
+            readinessIsPlanReady: isPlanReadyCode(response.result.code),
+            showBaselineRefreshPanel: needsBaselineReview(response.result.code),
+          });
         }
         this.clearOperationKey('regenerate');
       } catch (error) {

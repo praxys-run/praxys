@@ -135,6 +135,13 @@ const EN_GOAL = {
   'Optional benchmark': 'Optional benchmark',
   'Choose and date an optional benchmark only if you want one. Praxys never auto-schedules it.':
     'Choose and date an optional benchmark only if you want one. Praxys never auto-schedules it.',
+  'This proposal uses an accepted goal contract without changing or linking to the Goal page.':
+    'This proposal uses an accepted goal contract without changing or linking to the Goal page.',
+  'Tell Praxys if a current symptom stop applies. The policy will stop this plan path and return only bounded guidance.':
+    'Tell Praxys if a current symptom stop applies. The policy will stop this plan path and return only bounded guidance.',
+  'Only current direct 10K race or explicit all-out 10K history can qualify.':
+    'Only current direct 10K race or explicit all-out 10K history can qualify.',
+  'Full activity only.': 'Full activity only.',
   Distance: 'Distance',
   'Race Date': 'Race Date',
   'Pick a date': 'Pick a date',
@@ -585,6 +592,13 @@ const ZH_GOAL = {
   'Optional benchmark': '可选基准测试',
   'Choose and date an optional benchmark only if you want one. Praxys never auto-schedules it.':
     '仅在你确实需要时才选择并填写可选基准日期。Praxys 绝不会自动安排。',
+  'This proposal uses an accepted goal contract without changing or linking to the Goal page.':
+    '这个提案使用已接受的目标合同，不会修改或绑定 Goal 页面。',
+  'Tell Praxys if a current symptom stop applies. The policy will stop this plan path and return only bounded guidance.':
+    '如果当前存在症状停止条件，请告诉 Praxys。该策略会停止这条计划路径，只返回有边界的指导。',
+  'Only current direct 10K race or explicit all-out 10K history can qualify.':
+    '只有当前有效的 10K 比赛成绩或明确的全力 10K 历史，才能合格。',
+  'Full activity only.': '仅限完整活动。',
   Distance: '距离',
   'Race Date': '比赛日期',
   'Pick a date': '选择日期',

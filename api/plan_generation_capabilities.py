@@ -225,6 +225,19 @@ OUTDOOR_ROAD_5K_CAPABILITY = PLAN_GENERATION_CAPABILITY_CATALOG[0]
 OUTDOOR_ROAD_10K_CAPABILITY = PLAN_GENERATION_CAPABILITY_CATALOG[1]
 
 
+def capability_is_available(capability_id: str) -> bool:
+    """Return whether the capability currently participates in active routing."""
+    return any(
+        capability.capability_id == capability_id
+        for capability in PLAN_GENERATION_CAPABILITIES
+    )
+
+
+def road_10k_capability_available() -> bool:
+    """Return whether the reviewed road 10K capability is active."""
+    return capability_is_available(OUTDOOR_ROAD_10K_CAPABILITY.capability_id)
+
+
 def canonical_goal_plan_contract(
     goal: Mapping[str, Any] | None,
 ) -> dict[str, Any]:

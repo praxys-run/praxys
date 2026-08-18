@@ -1140,6 +1140,14 @@ export type Outdoor5KRegenerateResponse = Outdoor5KGenerateResponse;
 
 export type Road10KWeekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 export type Road10KConstraintSchemaId = 'outdoor_road_10k_constraints_v1';
+export type Road10KSurfaceOrProtocol =
+  | 'organized_outdoor_road_10k_race'
+  | 'standardized_outdoor_road_10k_time_trial'
+  | 'standardized_track_10k_time_trial';
+export type Road10KAssistanceStatus =
+  | 'unassisted'
+  | 'assisted'
+  | 'unknown_or_unreported';
 
 export type Road10KResultCode =
   | 'eligible_rolling_proposal'
@@ -1176,6 +1184,18 @@ export interface Road10KGenerateRequest extends Road10KConstraintsRequest {
 
 export interface Road10KRegenerateRequest extends Road10KGenerateRequest {
   expected_proposal_version: number;
+}
+
+export interface Road10KHistoryConfirmationRequest {
+  activity_id: string;
+  response: 'race' | 'intentional_all_out' | 'not_all_out' | 'deleted';
+  measured_10k: boolean;
+  elapsed_timing_confirmed: boolean;
+  surface_or_protocol?: Road10KSurfaceOrProtocol | null;
+  route_or_venue_identifier?: string | null;
+  assistance_status: Road10KAssistanceStatus;
+  supersedes_confirmation_id?: string | null;
+  purpose?: PlanGenerationPurposeSelection;
 }
 
 export interface Road10KHistoryStatistics {
@@ -2756,11 +2776,16 @@ export interface Road10KBaselineEvidence {
   provenance: 'race' | 'intentional_all_out';
   observed_date: string;
   age_days: number;
+  completed_at: string | null;
   distance_km: number | null;
   elapsed_time_sec: number | null;
   activity_id: string | null;
   measured_10k_confirmed: boolean;
   elapsed_timing_confirmed: boolean;
+  surface_or_protocol: Road10KSurfaceOrProtocol | null;
+  route_or_venue_identifier: string | null;
+  assistance_status: Road10KAssistanceStatus | null;
+  source_provider: string | null;
   change_comparability:
     | 'not_assessed'
     | 'supporting'
@@ -2773,6 +2798,7 @@ export interface Road10KBaselineCandidate {
   distance_km: number | null;
   duration_sec: number | null;
   source: string | null;
+  completed_at: string | null;
   review_state:
     | 'needs_confirmation'
     | 'qualified'
@@ -2782,6 +2808,10 @@ export interface Road10KBaselineCandidate {
   confirmation_response: 'race' | 'intentional_all_out' | 'not_all_out' | null;
   measured_10k_confirmed: boolean | null;
   elapsed_timing_confirmed: boolean | null;
+  surface_or_protocol: Road10KSurfaceOrProtocol | null;
+  route_or_venue_identifier: string | null;
+  assistance_status: Road10KAssistanceStatus | null;
+  source_provider: string | null;
   full_activity_only: true;
   split_count: number;
   sample_observed_duration_sec: number | null;
@@ -2816,6 +2846,12 @@ export interface Road10KBaselineConfirmationRecord {
   response: 'race' | 'intentional_all_out' | 'not_all_out' | 'deleted';
   measured_10k: boolean;
   elapsed_timing_confirmed: boolean;
+  completed_at: string;
+  elapsed_time_sec: number | null;
+  surface_or_protocol: Road10KSurfaceOrProtocol | null;
+  route_or_venue_identifier: string | null;
+  assistance_status: Road10KAssistanceStatus;
+  source_provider: string;
   created_at: string;
 }
 export interface Road10KBaselineMutationResponse {
