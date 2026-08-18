@@ -49,6 +49,11 @@ class PlanGenerationCapabilityResponse(BaseModel):
     discipline: Literal["running", "trail_running"]
     activity_types: list[str]
     goal_match: PlanGenerationGoalMatchResponse
+    intent: Literal[
+        "first_completion",
+        "performance",
+        "return_to_consistency",
+    ]
     constraint_schema_id: str
     purpose: dict[str, Any]
     policy_version: str
@@ -114,6 +119,59 @@ class GoalPlanImpactResponse(BaseModel):
     unsupported_reason: Literal["no_accepted_policy"] | None
 
 
+class PlanGenerationRoutingOptionResponse(BaseModel):
+    """One intent-specific route resolved from active policy and evidence."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    intent: Literal[
+        "first_completion",
+        "performance",
+        "return_to_consistency",
+    ]
+    state: Literal[
+        "plan_candidate",
+        "readiness_only",
+        "clarification_required",
+        "policy_unavailable",
+    ]
+    reason_code: Literal[
+        "accepted_policy_with_sufficient_baseline",
+        "accepted_policy_requires_readiness",
+        "capability_context_confirmation_required",
+        "no_accepted_policy_for_intent",
+    ]
+    capability_id: str | None
+    purpose_source: Literal[
+        "current_goal",
+        "capability",
+        "unlinked",
+    ] | None
+    baseline_readiness: str | None
+
+
+class PlanGenerationRoutingResponse(PlanGenerationRoutingOptionResponse):
+    """Current route plus every explicit intent correction option."""
+
+    schema_version: Literal[1]
+    policy_version: str
+    science_boundary_id: str
+    intent: Literal[
+        "first_completion",
+        "performance",
+        "return_to_consistency",
+    ] | None
+    intent_source: Literal["current_goal", "explicit", "unconfirmed"]
+    reason_code: Literal[
+        "intent_confirmation_required",
+        "accepted_policy_with_sufficient_baseline",
+        "accepted_policy_requires_readiness",
+        "capability_context_confirmation_required",
+        "no_accepted_policy_for_intent",
+    ]
+    options: list[PlanGenerationRoutingOptionResponse]
+
+
 class PlanGenerationCapabilityDiscoveryResponse(BaseModel):
     """Versioned owner-scoped capability discovery response."""
 
@@ -127,6 +185,7 @@ class PlanGenerationCapabilityDiscoveryResponse(BaseModel):
     capabilities: list[PlanGenerationCapabilityResponse]
     active_plan_goal: ActivePlanGoalResponse | None
     goal_plan_impact: GoalPlanImpactResponse | None
+    routing: PlanGenerationRoutingResponse
     unsupported_reason: Literal["no_accepted_policy"] | None
 
 
@@ -135,8 +194,17 @@ class PlanGenerationCapabilityDiscoveryResponse(BaseModel):
     response_model=PlanGenerationCapabilityDiscoveryResponse,
 )
 def get_plan_generation_capabilities(
+    intent: Literal[
+        "first_completion",
+        "performance",
+        "return_to_consistency",
+    ] | None = None,
     user_id: str = Depends(get_data_user_id),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Return accepted policies and the match for the caller's current goal."""
-    return build_plan_generation_capability_discovery(db, user_id=user_id)
+    return build_plan_generation_capability_discovery(
+        db,
+        user_id=user_id,
+        intent=intent,
+    )

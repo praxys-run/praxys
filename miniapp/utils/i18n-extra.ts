@@ -119,6 +119,9 @@ const EN_AUTH = {
 };
 
 const EN_GOAL = {
+  'Hide routing explanation': 'Hide routing explanation',
+  'This client does not recognize the selected policy input contract and will not guess how to create a plan.':
+    'This client does not recognize the selected policy input contract and will not guess how to create a plan.',
   'Use this': 'Use this',
   'Failed to switch theory': 'Failed to switch theory',
   'Change Goal': 'Change Goal',
@@ -562,6 +565,9 @@ const ZH_AUTH = {
 };
 
 const ZH_GOAL = {
+  'Hide routing explanation': '收起路径说明',
+  'This client does not recognize the selected policy input contract and will not guess how to create a plan.':
+    '此客户端无法识别所选政策的输入约定，因此不会猜测如何创建计划。',
   'Use this': '使用此理论',
   'Failed to switch theory': '切换理论失败',
   'Change Goal': '调整目标',

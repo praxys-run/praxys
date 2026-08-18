@@ -1358,8 +1358,13 @@ web, miniapp, plugin, MCP, and agent clients. It returns:
 - every currently accepted generation capability in deterministic order;
 - the one `selected_capability` matching that goal, or `null` with
   `unsupported_reason: "no_accepted_policy"`;
-- each capability's accepted purpose contract, including whether it may be
-  selected independently from the Goal page;
+- each capability's plan intent (`first_completion`, `performance`, or
+  `return_to_consistency`) and accepted purpose contract, including whether it
+  may be selected independently from the Goal page;
+- a versioned `routing` result with one of `plan_candidate`,
+  `readiness_only`, `clarification_required`, or `policy_unavailable`, plus
+  the intent-specific correction options, matched capability and purpose
+  source, reason code, and capability-owned baseline readiness when applicable;
 - the active adaptive plan's purpose provenance and link state (`current`,
   `independent`, `reassessment_required`, or `legacy_unknown`), when present;
 - any outstanding `goal_plan_impact`, including the exact immutable plan-goal
@@ -1373,6 +1378,24 @@ The registry does not expose draft or roadmap policies. A client that does not
 recognize the returned `constraint_schema_id` must fail closed rather than
 guessing the required inputs. The accepted outdoor-road 5K capability is
 currently the only entry; its existing endpoints remain backward compatible.
+Clients may pass `?intent=first_completion`, `?intent=performance`, or
+`?intent=return_to_consistency` to resolve an explicit route. Without that
+query, the legacy `performance_5k` Goal kind counts as an explicit performance
+intent; other Goal kinds return `clarification_required`. The response always
+includes all three resolved intent options, so interactive clients can offer a
+correction without persisting a speculative preference.
+
+Routing selects only an active capability with the same intent and distance.
+It never maps first-completion or return-to-consistency intent onto the
+performance policy, never maps an unsupported distance onto 5K, and returns
+`clarification_required` instead of guessing if multiple future capabilities
+or allowed separate-purpose sources need additional context. An accepted
+capability may route through `current_goal`, `capability`, or `unlinked` only
+when its registered purpose metadata allows that source. `readiness_only` is
+derived from the capability's already accepted readiness evaluator; this
+contract adds no schedule, threshold, restart dose, demographic cutoff, or
+profile inference.
+
 The current Goal is the default purpose only when it matches that accepted
 capability. A client may instead select a capability-owned purpose when
 `purpose.allows_capability_goal` is true; doing so does not change or link the
@@ -2167,9 +2190,12 @@ the successful response includes `goal_plan_impact`. It is
 `null` when no linked active plan or draft needs a decision. Otherwise it
 reports `reassessment_required`, the affected adaptive-plan ID and lifecycle,
 the exact linked plan-goal snapshot and new Goal ID/revision, whether an
-accepted successor policy exists, whether an adopted current plan can be
-retained independently, whether a stale proposal is open, and
-`unsupported_reason`. Goal metadata-only updates return
+unambiguous accepted successor route exists for any intent and allowed purpose
+source, whether an adopted current plan can be retained independently, whether
+a stale proposal is open, and `unsupported_reason`. A generic Goal may
+therefore report successor availability while still requiring the athlete to
+choose an intent in the Goal router; the reconciliation flow does not infer
+that choice. Goal metadata-only updates return
 `goal_plan_impact: null`. `GET /api/settings` and capability discovery also
 return the currently outstanding impact, so a lost update response, reload, or
 later return to the Goal surface does not remove the decision.

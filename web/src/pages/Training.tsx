@@ -2,11 +2,14 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { Trans } from '@lingui/react/macro';
 
 import PersonalContextPanel from '@/components/PersonalContextPanel';
-import PlanStart from '@/components/PlanStart';
+import PlanStart, {
+  type PlanStartNavigationState,
+} from '@/components/PlanStart';
 import UpcomingPlanCard from '@/components/UpcomingPlanCard';
 
 export default function Training() {
   const location = useLocation();
+  const navigationState = location.state as PlanStartNavigationState | null;
 
   if (location.hash === '#heat-adaptation') {
     return <Navigate to="/analysis#heat-adaptation" replace />;
@@ -22,7 +25,7 @@ export default function Training() {
       </p>
 
       <div className="mt-8 space-y-12">
-        <PlanStart />
+        <PlanStart initialPurpose={navigationState?.planPurpose ?? null} />
         <UpcomingPlanCard />
       </div>
 

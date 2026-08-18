@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import hashlib
 import json
-from typing import Any, Mapping
+from typing import Any, Literal, Mapping
 from uuid import NAMESPACE_URL, uuid5
 
 from sqlalchemy import select
@@ -27,6 +27,27 @@ PLAN_PURPOSE_SCHEMA_VERSION = 1
 PLAN_PURPOSE_SOURCES = ("current_goal", "capability", "unlinked")
 PLAN_GENERATION_CAPABILITY_SCHEMA_VERSION = 1
 NO_ACCEPTED_PLAN_GENERATION_POLICY = "no_accepted_policy"
+PLAN_ROUTING_SCHEMA_VERSION = 1
+PLAN_ROUTING_POLICY_VERSION = "adult-running-plan-routing-v1"
+PLAN_ROUTING_SCIENCE_BOUNDARY_ID = (
+    "sdr-adult-running-plan-population-routing-v1"
+)
+PLAN_INTENTS = (
+    "first_completion",
+    "performance",
+    "return_to_consistency",
+)
+PlanIntent = Literal[
+    "first_completion",
+    "performance",
+    "return_to_consistency",
+]
+PlanRoutingState = Literal[
+    "plan_candidate",
+    "readiness_only",
+    "clarification_required",
+    "policy_unavailable",
+]
 
 
 class PlanPurposeError(RuntimeError):
@@ -55,6 +76,7 @@ class PlanGenerationCapability:
     goal_kinds: tuple[str, ...]
     distances: tuple[str, ...]
     surfaces: tuple[str, ...]
+    plan_intent: PlanIntent
     constraint_schema_id: str
     policy_status: str
     policy_version: str
@@ -70,6 +92,7 @@ class PlanGenerationCapability:
     purpose_distance: str | None
     allows_capability_goal: bool
     allows_unlinked: bool
+    routing_readiness_strategy: str | None
 
     def matches(self, goal: Mapping[str, Any]) -> bool:
         """Return whether a normalized user goal maps to this policy."""
@@ -133,6 +156,7 @@ PLAN_GENERATION_CAPABILITIES = (
         goal_kinds=("performance_5k",),
         distances=("5k",),
         surfaces=("outdoor_road",),
+        plan_intent="performance",
         constraint_schema_id="outdoor_road_5k_constraints_v1",
         policy_status="accepted",
         policy_version=OUTDOOR_5K_POLICY_VERSION,
@@ -150,6 +174,7 @@ PLAN_GENERATION_CAPABILITIES = (
         purpose_distance="5k",
         allows_capability_goal=True,
         allows_unlinked=False,
+        routing_readiness_strategy="goal_baseline_v1",
     ),
 )
 OUTDOOR_ROAD_5K_CAPABILITY = PLAN_GENERATION_CAPABILITIES[0]
@@ -344,6 +369,7 @@ def discover_plan_generation_capabilities(
     db: Session,
     *,
     user_id: str,
+    intent: PlanIntent | None = None,
 ) -> dict[str, Any]:
     """Return the owner-scoped current Goal and all accepted policies."""
     config = load_config_from_db(user_id, db)
@@ -381,6 +407,14 @@ def discover_plan_generation_capabilities(
             db,
             user_id=user_id,
         ),
+        "routing": _build_plan_routing(
+            db,
+            user_id=user_id,
+            raw_goal=raw_goal,
+            current_goal=current_goal,
+            selected_capability=selected,
+            explicit_intent=intent,
+        ),
         "unsupported_reason": (
             None if selected is not None else NO_ACCEPTED_PLAN_GENERATION_POLICY
         ),
@@ -391,9 +425,14 @@ def build_plan_generation_capability_discovery(
     db: Session,
     *,
     user_id: str,
+    intent: PlanIntent | None = None,
 ) -> dict[str, Any]:
     """Backward-compatible capability discovery entry point."""
-    return discover_plan_generation_capabilities(db, user_id=user_id)
+    return discover_plan_generation_capabilities(
+        db,
+        user_id=user_id,
+        intent=intent,
+    )
 
 
 def list_plan_generation_capabilities(
@@ -550,6 +589,19 @@ def goal_plan_reconciliation_impact(
     )
     if not stale_proposal and not stale_adopted_plan:
         return None
+    normalized_goal = _normalize_goal(raw_goal)
+    can_generate_successor = any(
+        len(
+            _routing_purpose_candidates(
+                intent=intent,
+                goal=normalized_goal,
+                current_goal=current_goal,
+                selected_capability=selected,
+            )
+        )
+        == 1
+        for intent in PLAN_INTENTS
+    )
 
     return {
         "status": "reassessment_required",
@@ -558,7 +610,7 @@ def goal_plan_reconciliation_impact(
         "plan_goal_snapshot_id": adopted_goal.id,
         "current_goal_id": current_goal.goal_id,
         "current_goal_revision": current_goal.revision,
-        "can_generate_successor": selected is not None,
+        "can_generate_successor": can_generate_successor,
         "can_keep_current_plan": (
             plan.lifecycle == "active"
             and adopted_status == "reassessment_required"
@@ -566,7 +618,7 @@ def goal_plan_reconciliation_impact(
         "has_stale_proposal": stale_proposal,
         "unsupported_reason": (
             None
-            if selected is not None
+            if can_generate_successor
             else NO_ACCEPTED_PLAN_GENERATION_POLICY
         ),
     }
@@ -658,6 +710,217 @@ def _normalize_goal(goal: Mapping[str, Any]) -> dict[str, str | None]:
     }
 
 
+def _build_plan_routing(
+    db: Session,
+    *,
+    user_id: str,
+    raw_goal: Mapping[str, Any],
+    current_goal: CurrentGoalReference | None,
+    selected_capability: PlanGenerationCapability | None,
+    explicit_intent: PlanIntent | None,
+) -> dict[str, Any]:
+    normalized_goal = _normalize_goal(raw_goal)
+    readiness_cache: dict[tuple[str, str], str | None] = {}
+    options = [
+        _build_plan_routing_option(
+            db,
+            user_id=user_id,
+            intent=intent,
+            goal=normalized_goal,
+            current_goal=current_goal,
+            selected_capability=selected_capability,
+            readiness_cache=readiness_cache,
+        )
+        for intent in PLAN_INTENTS
+    ]
+    inferred_intent: PlanIntent | None = (
+        "performance"
+        if normalized_goal["goal_kind"] == "performance_5k"
+        else None
+    )
+    selected_intent = explicit_intent or inferred_intent
+    if selected_intent is None:
+        return {
+            "schema_version": PLAN_ROUTING_SCHEMA_VERSION,
+            "policy_version": PLAN_ROUTING_POLICY_VERSION,
+            "science_boundary_id": PLAN_ROUTING_SCIENCE_BOUNDARY_ID,
+            "state": "clarification_required",
+            "intent": None,
+            "intent_source": "unconfirmed",
+            "reason_code": "intent_confirmation_required",
+            "capability_id": None,
+            "purpose_source": None,
+            "baseline_readiness": None,
+            "options": options,
+        }
+
+    selected_option = next(
+        option
+        for option in options
+        if option["intent"] == selected_intent
+    )
+    return {
+        "schema_version": PLAN_ROUTING_SCHEMA_VERSION,
+        "policy_version": PLAN_ROUTING_POLICY_VERSION,
+        "science_boundary_id": PLAN_ROUTING_SCIENCE_BOUNDARY_ID,
+        **selected_option,
+        "intent_source": (
+            "explicit" if explicit_intent is not None else "current_goal"
+        ),
+        "options": options,
+    }
+
+
+def _build_plan_routing_option(
+    db: Session,
+    *,
+    user_id: str,
+    intent: str,
+    goal: Mapping[str, str | None],
+    current_goal: CurrentGoalReference | None,
+    selected_capability: PlanGenerationCapability | None,
+    readiness_cache: dict[tuple[str, str], str | None],
+) -> dict[str, Any]:
+    purpose_candidates = _routing_purpose_candidates(
+        intent=intent,
+        goal=goal,
+        current_goal=current_goal,
+        selected_capability=selected_capability,
+    )
+    if len(purpose_candidates) > 1:
+        return _routing_option_payload(
+            intent=intent,
+            state="clarification_required",
+            reason_code="capability_context_confirmation_required",
+        )
+    if not purpose_candidates:
+        return _routing_option_payload(
+            intent=intent,
+            state="policy_unavailable",
+            reason_code="no_accepted_policy_for_intent",
+        )
+
+    capability, purpose_source = purpose_candidates[0]
+    cache_key = (capability.capability_id, purpose_source)
+    if cache_key not in readiness_cache:
+        readiness_cache[cache_key] = _routing_baseline_readiness(
+            db,
+            user_id=user_id,
+            capability=capability,
+            purpose_source=purpose_source,
+            current_goal=current_goal,
+        )
+    baseline_readiness = readiness_cache[cache_key]
+    if baseline_readiness == "sufficient_baseline":
+        return _routing_option_payload(
+            intent=intent,
+            state="plan_candidate",
+            reason_code="accepted_policy_with_sufficient_baseline",
+            capability=capability,
+            purpose_source=purpose_source,
+            baseline_readiness=baseline_readiness,
+        )
+    return _routing_option_payload(
+        intent=intent,
+        state="readiness_only",
+        reason_code="accepted_policy_requires_readiness",
+        capability=capability,
+        purpose_source=purpose_source,
+        baseline_readiness=baseline_readiness,
+    )
+
+
+def _routing_purpose_candidates(
+    *,
+    intent: str,
+    goal: Mapping[str, str | None],
+    current_goal: CurrentGoalReference | None,
+    selected_capability: PlanGenerationCapability | None,
+) -> list[tuple[PlanGenerationCapability, str]]:
+    distance = goal.get("distance")
+    candidates = [
+        capability
+        for capability in PLAN_GENERATION_CAPABILITIES
+        if capability.policy_status == "accepted"
+        and capability.plan_intent == intent
+        and distance is not None
+        and distance in capability.distances
+    ]
+    if (
+        selected_capability is not None
+        and selected_capability in candidates
+        and current_goal is not None
+    ):
+        return [(selected_capability, "current_goal")]
+    return [
+        (item, source)
+        for item in candidates
+        for source, allowed in (
+            ("capability", item.allows_capability_goal),
+            ("unlinked", item.allows_unlinked),
+        )
+        if allowed
+    ]
+
+
+def _routing_baseline_readiness(
+    db: Session,
+    *,
+    user_id: str,
+    capability: PlanGenerationCapability,
+    purpose_source: str,
+    current_goal: CurrentGoalReference | None,
+) -> str | None:
+    if capability.routing_readiness_strategy is None:
+        return "sufficient_baseline"
+    if capability.routing_readiness_strategy != "goal_baseline_v1":
+        raise RuntimeError(
+            "Unsupported plan-routing readiness strategy: "
+            f"{capability.routing_readiness_strategy}"
+        )
+    from api.goal_baseline import build_goal_baseline_view
+
+    purpose_selection = {
+        "capability_id": capability.capability_id,
+        "source": purpose_source,
+        "expected_goal_id": (
+            current_goal.goal_id if purpose_source == "current_goal" else None
+        ),
+        "expected_goal_revision": (
+            current_goal.revision
+            if purpose_source == "current_goal"
+            else None
+        ),
+    }
+    baseline = build_goal_baseline_view(
+        db,
+        user_id=user_id,
+        purpose_selection=purpose_selection,
+    )["baseline"]
+    return str(baseline["readiness"])
+
+
+def _routing_option_payload(
+    *,
+    intent: str,
+    state: PlanRoutingState,
+    reason_code: str,
+    capability: PlanGenerationCapability | None = None,
+    purpose_source: str | None = None,
+    baseline_readiness: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "intent": intent,
+        "state": state,
+        "reason_code": reason_code,
+        "capability_id": (
+            capability.capability_id if capability is not None else None
+        ),
+        "purpose_source": purpose_source,
+        "baseline_readiness": baseline_readiness,
+    }
+
+
 def _serialize_purpose_goal(
     goal: Mapping[str, Any],
 ) -> dict[str, Any]:
@@ -690,6 +953,7 @@ def _serialize_capability(
             "distances": list(capability.distances),
             "surfaces": list(capability.surfaces),
         },
+        "intent": capability.plan_intent,
         "constraint_schema_id": capability.constraint_schema_id,
         "purpose": _serialize_purpose(capability),
         "policy_version": capability.policy_version,

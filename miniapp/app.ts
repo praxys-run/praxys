@@ -2,6 +2,7 @@ import { themeClassName, getThemePreference } from './utils/theme';
 import { detectLocale } from './utils/i18n';
 import { getToken } from './utils/auth';
 import { recordProductEvent } from './utils/product-events';
+import type { PlanGenerationPurposeSelection } from './types/api';
 
 /**
  * Shape of getApp<IAppOption>().globalData.
@@ -13,6 +14,8 @@ export interface IAppOption {
     /** Active locale ('en' | 'zh'). Updated on language change so pages
      *  can detect drift without a storage read in their onShow guard. */
     locale: string;
+    /** One-shot Goal-to-Training plan-purpose handoff. */
+    pendingPlanStartPurpose: PlanGenerationPurposeSelection | null;
   };
 }
 
@@ -20,6 +23,7 @@ App<IAppOption>({
   globalData: {
     themeClass: 'theme-light',
     locale: 'zh',
+    pendingPlanStartPurpose: null,
   },
 
   onLaunch() {

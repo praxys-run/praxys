@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 
 import ManagedPlanSettingsCard from '@/components/ManagedPlanSettingsCard';
 import GoalBaselinePanel from '@/components/GoalBaselinePanel';
+import ScienceNote from '@/components/ScienceNote';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from '@/components/ui/toggle-group';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useAuth } from '@/hooks/useAuth';
 import { apiFetch, useApi } from '@/hooks/useApi';
@@ -43,7 +48,9 @@ import type {
   Outdoor5KRegenerateResponse,
   Outdoor5KWeekday,
   PlanGenerationCapabilitiesResponse,
+  PlanIntent,
   PlanGenerationPurposeSelection,
+  PlanRoutingOption,
 } from '@/types/api';
 
 const DAYS: Outdoor5KWeekday[] = [0, 1, 2, 3, 4, 5, 6];
@@ -63,6 +70,14 @@ interface PlanStartErrorState {
 interface PlanStartRequestError extends Error {
   status: number;
   code?: string;
+}
+
+export interface PlanStartNavigationState {
+  planPurpose: PlanGenerationPurposeSelection;
+}
+
+interface PlanStartProps {
+  initialPurpose?: PlanGenerationPurposeSelection | null;
 }
 
 const PLAN_CONTEXT_RECOVERY_CODES = new Set([
@@ -165,13 +180,13 @@ function needsPlanContextRecovery(
   );
 }
 
-export function PlanStartGoalEntry({
-  baseline,
-}: {
-  baseline: GoalBaselineResponse | undefined;
-}) {
+export function PlanStartGoalEntry() {
   const { t } = useLingui();
   const navigate = useNavigate();
+  const [intentSelection, setIntentSelection] = useState<{
+    goalRevision: string | null;
+    intent: PlanIntent;
+  } | null>(null);
   const {
     data: discovery,
     loading,
@@ -181,25 +196,129 @@ export function PlanStartGoalEntry({
     '/api/plan/generation/capabilities',
     { timeoutMs: 12_000 },
   );
-  const capability = discovery?.selected_capability ?? null;
-  const capabilitySupported = capability?.constraint_schema_id
-    === SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_ID;
-  const supportedCapabilities = discovery?.capabilities.filter(
-    (item) => item.constraint_schema_id
-      === SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_ID,
-  ) ?? [];
-  const capabilityUpdateRequired = capability != null && !capabilitySupported;
-  const canStart = capabilitySupported
-    && baseline?.readiness === 'sufficient_baseline';
-  const canChoosePurpose = supportedCapabilities.some(
-    (item) => item.purpose.allows_capability_goal
-      || item.purpose.allows_unlinked,
-  );
+  const routing = discovery?.routing ?? null;
+  const currentGoalRevision = discovery?.current_goal?.revision ?? null;
+  const selectedIntent = intentSelection?.goalRevision === currentGoalRevision
+    ? intentSelection.intent
+    : null;
+  const effectiveIntent = selectedIntent ?? routing?.intent ?? null;
+  const selectedRoute = useMemo<
+    PlanRoutingOption | PlanGenerationCapabilitiesResponse['routing'] | null
+  >(() => {
+    if (!routing) return null;
+    if (!selectedIntent) return routing;
+    return routing.options.find(
+      (option) => option.intent === selectedIntent,
+    ) ?? null;
+  }, [routing, selectedIntent]);
+  const routedCapability = discovery?.capabilities.find(
+    (item) => item.id === selectedRoute?.capability_id,
+  ) ?? null;
+  const routedPurpose = useMemo<PlanGenerationPurposeSelection | null>(() => {
+    if (!selectedRoute?.capability_id || !selectedRoute.purpose_source) {
+      return null;
+    }
+    if (
+      selectedRoute.purpose_source === 'current_goal'
+      && !discovery?.current_goal
+    ) {
+      return null;
+    }
+    return {
+      capability_id: selectedRoute.capability_id,
+      source: selectedRoute.purpose_source,
+      expected_goal_id: selectedRoute.purpose_source === 'current_goal'
+        ? discovery?.current_goal?.id ?? null
+        : null,
+      expected_goal_revision: selectedRoute.purpose_source === 'current_goal'
+        ? discovery?.current_goal?.revision ?? null
+        : null,
+    };
+  }, [discovery?.current_goal, selectedRoute]);
+  const capabilityUpdateRequired = routedCapability != null
+    && routedCapability.constraint_schema_id
+      !== SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_ID;
+  const intentOptions: Array<{
+    intent: PlanIntent;
+    label: string;
+    description: string;
+  }> = [
+    {
+      intent: 'first_completion',
+      label: t`Finish this distance`,
+      description: t`Prepare to complete the selected distance.`,
+    },
+    {
+      intent: 'performance',
+      label: t`Improve performance`,
+      description: t`Use current evidence to work toward a faster result.`,
+    },
+    {
+      intent: 'return_to_consistency',
+      label: t`Rebuild consistency`,
+      description: t`Return to regular training without guessing what missing records mean.`,
+    },
+  ];
+  const routeCopy = (() => {
+    if (error) {
+      return {
+        badge: t`Policy check failed`,
+        description: t`Could not load the accepted plan-generation policies.`,
+        detail: t`Retry the policy check before choosing a route. Praxys will not infer availability from the current Goal alone.`,
+      };
+    }
+    if (capabilityUpdateRequired) {
+      return {
+        badge: t`Update required`,
+        description: t`This plan route uses an accepted policy that this client does not recognize yet.`,
+        detail: t`Update the client before opening a preview. Praxys will not guess how to collect or submit policy inputs.`,
+      };
+    }
+    switch (selectedRoute?.state) {
+      case 'plan_candidate':
+        return {
+          badge: t`Plan candidate`,
+          description: t`An active policy matches this intent and distance.`,
+          detail: selectedRoute.purpose_source !== 'current_goal'
+            ? t`This candidate uses a separate plan purpose and does not change your current Goal. Scope and safety still need confirmation before Praxys creates a proposal.`
+            : t`This candidate uses the intent already stated by your current Goal. Scope and safety still need confirmation before Praxys creates a proposal.`,
+        };
+      case 'readiness_only':
+        return {
+          badge: t`Readiness first`,
+          description: t`An active policy matches, but current evidence is not sufficient or fresh enough for a proposal.`,
+          detail: selectedRoute.purpose_source !== 'current_goal'
+            ? t`Open the readiness path for this separate plan purpose. Your current Goal remains unchanged.`
+            : t`Review the existing history-first readiness path before asking Praxys to create a proposal.`,
+        };
+      case 'policy_unavailable':
+        return {
+          badge: t`Policy unavailable`,
+          description: t`No active automatic policy matches this intent and distance yet.`,
+          detail: t`Keep the Goal, choose another intent, or manage workouts manually. Praxys will not borrow a policy from another distance or population.`,
+        };
+      case 'clarification_required':
+      default:
+        return {
+          badge: t`Choose intent`,
+          description: t`Goal distance alone does not tell Praxys which outcome matters.`,
+          detail: t`Choose whether this plan should support completion, performance, or a return to consistency. You can correct the choice at any time.`,
+        };
+    }
+  })();
   const badgeVariant = error || capabilityUpdateRequired
     ? 'destructive'
-    : canStart
+    : selectedRoute?.state === 'plan_candidate'
       ? 'default'
       : 'outline';
+  const openSelectedRoute = () => {
+    if (!routedPurpose) return;
+    navigate('/training#plan-start', {
+      state: {
+        planPurpose: routedPurpose,
+      } satisfies PlanStartNavigationState,
+    });
+  };
 
   if (loading) {
     return (
@@ -213,94 +332,108 @@ export function PlanStartGoalEntry({
   }
 
   return (
-    <Card className="mb-5">
+    <Card id="plan-routing" className="mb-5">
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="max-w-2xl">
             <CardTitle><Trans>Start a training plan</Trans></CardTitle>
             <CardDescription className="mt-2">
-              {error ? (
-                <Trans>Could not load the accepted plan-generation policies.</Trans>
-              ) : capabilityUpdateRequired ? (
-                <Trans>Update required for this plan policy</Trans>
-              ) : capability ? (
-                <Trans>
-                  Praxys has an accepted <span className="font-data">{capability.horizon_days}</span>-day outdoor-road 5K policy for this goal.
-                </Trans>
-              ) : canChoosePurpose ? (
-                <Trans>
-                  The current Goal stays unchanged, and an accepted separate 5K plan purpose is available to preview.
-                </Trans>
-              ) : (
-                <Trans>
-                  Automatic generation is not available for this goal yet. Praxys will not reuse another policy outside its accepted scope.
-                </Trans>
-              )}
+              {routeCopy.description}
             </CardDescription>
           </div>
           <Badge variant={badgeVariant}>
-            {error
-              ? t`Policy check failed`
-              : capabilityUpdateRequired
-                ? t`Update required for this plan policy`
-                : capability
-                  ? baselineCopy(
-                    baseline,
-                    t`Baseline ready`,
-                    t`Review baseline`,
-                  )
-                  : canChoosePurpose
-                    ? t`Other plan purpose available`
-                  : t`No accepted policy`}
+            {routeCopy.badge}
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-          {error ? (
-            <Trans>
-              Retry the policy check before opening a preview. Praxys will not infer availability from the current goal alone.
-            </Trans>
-          ) : capabilityUpdateRequired ? (
-            <Trans>
-              This client does not recognize the selected policy input contract and will not guess how to create a plan.
-            </Trans>
-          ) : capability ? (
-            <Trans>
-              A preview is a proposal, not yet your plan. Praxys checks the current evidence and constraints again before it creates one.
-            </Trans>
-          ) : canChoosePurpose ? (
-            <Trans>
-              Choose the accepted 5K purpose in Training. It remains independent from the current Goal unless you explicitly link it.
-            </Trans>
-          ) : (
-            <Trans>
-              You can keep this goal and manage workouts manually while separate road and trail policies go through science review.
-            </Trans>
+      <CardContent className="space-y-5 border-t border-border pt-4">
+        {!error && routing && (
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold">
+                <Trans>What should this plan help you do?</Trans>
+              </h3>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                <Trans>
+                  Choose explicitly. Praxys combines that intent with the current distance, active policies, and available evidence.
+                </Trans>
+              </p>
+            </div>
+            <ToggleGroup
+              spacing={2}
+              value={effectiveIntent ? [effectiveIntent] : []}
+              onValueChange={(values) => {
+                if (values.length > 0) {
+                  setIntentSelection({
+                    goalRevision: currentGoalRevision,
+                    intent: values[values.length - 1] as PlanIntent,
+                  });
+                }
+              }}
+              className="grid grid-cols-1 gap-2 sm:grid-cols-3"
+              aria-label={t`Plan intent`}
+            >
+              {intentOptions.map((option) => (
+                <ToggleGroupItem
+                  key={option.intent}
+                  value={option.intent}
+                  className="h-auto min-h-20 min-w-0 w-full whitespace-normal border border-border flex-col items-start gap-1 px-4 py-3 text-left aria-pressed:border-primary aria-pressed:bg-primary/10"
+                >
+                  <span className="w-full text-sm font-semibold">{option.label}</span>
+                  <span className="w-full text-xs leading-relaxed text-muted-foreground">
+                  {option.description}
+                  </span>
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+        )}
+
+        <div className="border-t border-border pt-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
+              {routeCopy.detail}
+            </p>
+            {error ? (
+              <Button variant="outline" onClick={() => void refetch()} className="min-h-11 shrink-0">
+                <Trans>Retry policy check</Trans>
+              </Button>
+            ) : capabilityUpdateRequired ? null : selectedRoute?.state === 'plan_candidate' && routedPurpose ? (
+              <Button
+                onClick={openSelectedRoute}
+                className="min-h-11 shrink-0"
+              >
+                <Trans>Open plan preview</Trans>
+                <ChevronRight aria-hidden="true" />
+              </Button>
+            ) : selectedRoute?.state === 'readiness_only' && routedPurpose ? (
+              <Button
+                onClick={openSelectedRoute}
+                className="min-h-11 shrink-0"
+              >
+                <Trans>Review readiness</Trans>
+                <ChevronRight aria-hidden="true" />
+              </Button>
+            ) : selectedRoute?.state === 'policy_unavailable' ? (
+              <Button
+                variant="outline"
+                onClick={() => navigate('/training')}
+                className="min-h-11 shrink-0"
+              >
+                <Trans>Manage workouts</Trans>
+                <ChevronRight aria-hidden="true" />
+              </Button>
+            ) : null}
+          </div>
+          {!error && routing && (
+            <ScienceNote
+              label={<Trans>Why these routes stay separate</Trans>}
+              text={t`First completion, performance improvement, and return to consistency use different evidence boundaries. Praxys does not treat missing records as proof of detraining or use one universal beginner or restart schedule.`}
+              sourceUrl="https://github.com/praxys-run/praxys/blob/main/data/science/decisions/sdr-adult-running-plan-population-routing-v1.yaml"
+              sourceLabel={t`Population evidence boundary`}
+            />
           )}
-        </p>
-        {error ? (
-          <Button variant="outline" onClick={() => void refetch()} className="min-h-11 shrink-0">
-            <Trans>Retry policy check</Trans>
-          </Button>
-        ) : capabilitySupported || canChoosePurpose || !capability ? (
-          <Button
-            variant={capabilitySupported || canChoosePurpose ? 'default' : 'outline'}
-            onClick={() => navigate(
-              capabilitySupported || canChoosePurpose
-                ? '/training#plan-start'
-                : '/training',
-            )}
-            className="min-h-11 shrink-0"
-          >
-            {capabilitySupported
-              ? <Trans>Open plan preview</Trans>
-              : canChoosePurpose
-                ? <Trans>Choose plan purpose</Trans>
-                : <Trans>Manage workouts</Trans>}
-            <ChevronRight aria-hidden="true" />
-          </Button>
-        ) : null}
+        </div>
       </CardContent>
     </Card>
   );
@@ -369,7 +502,9 @@ function ProposalRecoveryCard({
   );
 }
 
-export default function PlanStart() {
+export default function PlanStart({
+  initialPurpose = null,
+}: PlanStartProps) {
   const { t } = useLingui();
   const { locale } = useLocale();
   const { isDemo } = useAuth();
@@ -408,8 +543,14 @@ export default function PlanStart() {
     (item) => item.purpose.allows_capability_goal
       || item.purpose.allows_unlinked,
   );
-  const [selectedPurposeKey, setSelectedPurposeKey] = useState('');
-  const [selectedPurposeTouched, setSelectedPurposeTouched] = useState(false);
+  const [selectedPurposeKey, setSelectedPurposeKey] = useState(
+    () => initialPurpose
+      ? purposeKey(initialPurpose.source, initialPurpose.capability_id)
+      : '',
+  );
+  const [selectedPurposeTouched, setSelectedPurposeTouched] = useState(
+    Boolean(initialPurpose),
+  );
   const [, selectedCapabilityId = ''] = selectedPurposeKey.split(':', 2);
   const selectedPurposeSource = selectedPurposeKey.split(':', 1)[0] as PurposeOptionSource | '';
   const capability = supportedCapabilities.find(

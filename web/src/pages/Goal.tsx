@@ -473,7 +473,7 @@ export default function Goal() {
         />
       )}
 
-      {data && <PlanStartGoalEntry baseline={data.baseline} />}
+      {data && <PlanStartGoalEntry />}
 
       {data && data.goal_kind === 'performance_5k' && data.baseline ? (
         <GoalBaselinePanel

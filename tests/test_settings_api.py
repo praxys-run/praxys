@@ -273,6 +273,46 @@ def test_goal_update_reports_when_no_successor_policy_is_accepted(
     assert impact["unsupported_reason"] == "no_accepted_policy"
 
 
+def test_goal_update_reports_separate_purpose_successor_route(
+    api_client,
+) -> None:
+    """A generic 5K Goal can route to the accepted performance purpose."""
+    client, user_id = api_client
+    goal = {
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+        "target_time_sec": 1_500,
+        "race_date": "",
+    }
+    saved = client.put("/api/settings", json={"goal": goal})
+    assert saved.status_code == 200, saved.text
+    _adopt_linked_goal_plan(
+        client,
+        user_id=user_id,
+        goal=goal,
+        key="settings-separate-purpose-impact",
+    )
+
+    changed = client.put(
+        "/api/settings",
+        json={
+            "goal": {
+                "goal_kind": "race",
+                "distance": "5k",
+                "target_time_sec": 1_440,
+                "race_date": "2027-04-18",
+            },
+        },
+    )
+
+    assert changed.status_code == 200, changed.text
+    impact = changed.json()["goal_plan_impact"]
+    assert impact["status"] == "reassessment_required"
+    assert impact["can_generate_successor"] is True
+    assert impact["can_keep_current_plan"] is True
+    assert impact["unsupported_reason"] is None
+
+
 def test_goal_update_explicit_clear_removes_legacy_aliases(
     api_client,
 ) -> None:

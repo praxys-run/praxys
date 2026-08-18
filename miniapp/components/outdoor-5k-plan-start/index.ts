@@ -1,5 +1,6 @@
 import { apiGet, apiPost } from '../../utils/api-client';
 import type { ApiError } from '../../utils/api-client';
+import type { IAppOption } from '../../app';
 import { t } from '../../utils/i18n';
 import type {
   AdaptivePlanProposal,
@@ -335,15 +336,41 @@ Component({
         const proposalValue = proposalCapability && proposalSource
           ? purposeValue(proposalSource, proposalCapability.id)
           : '';
+        const pendingPurpose = getApp<IAppOption>().globalData
+          .pendingPlanStartPurpose;
+        const pendingValue = pendingPurpose
+          ? purposeValue(
+            pendingPurpose.source,
+            pendingPurpose.capability_id,
+          )
+          : '';
+        const pendingPurposeIndex = pendingValue
+          && (
+            pendingPurpose?.source !== 'current_goal'
+            || (
+              pendingPurpose.expected_goal_id === discovery.current_goal?.id
+              && pendingPurpose.expected_goal_revision
+                === discovery.current_goal?.revision
+            )
+          )
+          ? purposeOptions.findIndex(
+            (option) => option.value === pendingValue,
+          )
+          : -1;
         let purposeIndex = proposalValue
           ? purposeOptions.findIndex((option) => option.value === proposalValue)
-          : currentCapability
-            ? purposeOptions.findIndex(
-              (option) => option.value
-                === purposeValue('current_goal', currentCapability.id),
-            )
-            : 0;
+          : pendingPurposeIndex >= 0
+            ? pendingPurposeIndex
+            : currentCapability
+              ? purposeOptions.findIndex(
+                (option) => option.value
+                  === purposeValue('current_goal', currentCapability.id),
+              )
+              : 0;
         if (purposeIndex < 0) purposeIndex = 0;
+        if (pendingPurpose) {
+          getApp<IAppOption>().globalData.pendingPlanStartPurpose = null;
+        }
         const selectedOption = purposeOptions[purposeIndex];
         const capability = capabilities.find(
           (item) => item.id === selectedOption?.capabilityId,
@@ -382,7 +409,10 @@ Component({
           currentGoalUnavailable: Boolean(
             discovery.current_goal && !currentCapability,
           ),
-          purposeIsSeparate: selectedPurpose?.source === 'capability',
+          purposeIsSeparate: Boolean(
+            selectedPurpose
+            && selectedPurpose.source !== 'current_goal',
+          ),
           activePlanNeedsReassessment:
             discovery.active_plan_goal?.link_status
               === 'reassessment_required',
@@ -454,7 +484,10 @@ Component({
         purposeIndex,
         selectedPurpose,
         capability,
-        purposeIsSeparate: selectedPurpose?.source === 'capability',
+        purposeIsSeparate: Boolean(
+          selectedPurpose
+          && selectedPurpose.source !== 'current_goal',
+        ),
         proposalMatchesPurpose: !proposal || Boolean(
           proposalCapability
           && proposalValue
