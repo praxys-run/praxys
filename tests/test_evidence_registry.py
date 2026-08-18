@@ -15,6 +15,7 @@ from analysis.evidence_registry import (
     ApprovalMode,
     ArtifactRuntimeState,
     CitationSource,
+    DecisionReviewDisposition,
     EffectEstimate,
     EvidenceReview,
     ParameterProvenance,
@@ -25,6 +26,7 @@ from analysis.evidence_registry import (
 )
 from analysis.metrics import compute_heat_adaptation
 from analysis.science import load_theory
+from analysis.science_artifacts import evidence_review_digest
 
 
 def _assert_exact_verification_notes(review: EvidenceReview) -> None:
@@ -49,6 +51,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     registry = load_science_registry()
 
     assert set(registry.evidence_reviews) == {
+        "evidence-adult-running-plan-population-routing-v1",
         "evidence-adaptive-training-load-v1",
         "evidence-environmental-performance-v1",
         "evidence-environmental-response-workload-support-v1",
@@ -67,6 +70,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "evidence-short-interruption-detraining-v1",
     }
     assert set(registry.decisions) == {
+        "sdr-adult-running-plan-population-routing-v1",
         "sdr-adaptive-plan-feasibility-and-adjustment-v1",
         "sdr-environmental-performance-v1",
         "sdr-environmental-performance-v2",
@@ -735,6 +739,199 @@ def test_plan_generation_eligibility_policy_is_accepted_but_inactive_and_cross_c
         "Human acceptance for issue #685" in note
         for note in decision.decision_notes
     )
+
+
+def test_adult_running_population_routing_is_accepted_and_inactive() -> None:
+    registry = load_science_registry()
+    review = registry.evidence_reviews[
+        "evidence-adult-running-plan-population-routing-v1"
+    ]
+    decision = registry.decisions[
+        "sdr-adult-running-plan-population-routing-v1"
+    ]
+
+    assert review.status == RecordStatus.ACCEPTED
+    assert review.approval_mode == ApprovalMode.ARTIFACT
+    assert review.human_reviewers == []
+    assert review.reviewed_on == date(2026, 8, 17)
+    assert review.created_on == date(2026, 8, 16)
+    assert review.method.review_type.value == "rigorous"
+    assert len(review.citations) == 21
+    evidence_path = Path(
+        "data/science/evidence/adult-running-plan-population-routing/"
+        "evidence-adult-running-plan-population-routing-v1.yaml"
+    )
+    repository_bytes = evidence_path.read_bytes().replace(b"\r\n", b"\n")
+    assert b"\nreviewed_on: 2026-08-17\n" in repository_bytes
+    assert hashlib.sha256(repository_bytes).hexdigest() == (
+        "752bae9d1ca058865e8031585037912ab0997359d93b08032677a6a94d465083"
+    )
+    assert evidence_review_digest(review) == (
+        "sha256:2b64d44749b4318cade113134a599f3646cb25805abed0f56728d9959c2ef0c8"
+    )
+    assert {
+        "population.beginner-evidence-family-not-permanent-identity",
+        "population.no-universal-beginner-schedule",
+        "population.sparse-history-not-detraining-proof",
+        "population.no-universal-returning-dose",
+        "population.masters-context-not-age-exclusion",
+        "population.masters-recovery-not-fixed-delay",
+        "population.strength-and-cross-training-bounded-support",
+        "population.sex-effects-are-construct-specific",
+        "population.no-general-sex-or-gender-plan-family",
+    } == {claim.id for claim in review.claims}
+    _assert_exact_verification_notes(review)
+
+    assert decision.status == RecordStatus.ACCEPTED
+    assert decision.approval_mode == ApprovalMode.ARTIFACT
+    assert decision.human_reviewers == []
+    assert decision.decision_date == date(2026, 8, 16)
+    assert decision.artifact_policy is not None
+    assert (
+        decision.artifact_policy.runtime_state
+        == ArtifactRuntimeState.INACTIVE
+    )
+    assert decision.evidence_review_ids == [
+        "evidence-plan-generation-eligibility-safety-v1",
+        review.id,
+    ]
+    assert {claim.id for claim in review.claims} <= set(
+        decision.evidence_claim_ids
+    )
+
+    parameters = {
+        parameter.name: parameter.value
+        for parameter in decision.model_parameters
+    }
+    assert set(parameters) == {
+        "first_completion_applicability",
+        "history_and_detraining_inference",
+        "masters_applicability",
+        "construct_specific_profile_evidence",
+        "strength_and_cross_training_evidence",
+        "adult_nonclinical_scope",
+        "exact_values",
+        "non_science_authority_boundary",
+    }
+
+    completion = parameters["first_completion_applicability"]
+    assert completion[
+        "novice_and_first_completion_distinct_from_history_rich_performance"
+    ] is True
+    assert completion["universal_schedule_established"] is False
+    assert completion["permanent_identity_established"] is False
+
+    history = parameters["history_and_detraining_inference"]
+    assert history[
+        "sparse_or_missing_records_establish_cessation"
+    ] is False
+    assert history[
+        "sparse_or_missing_records_establish_detraining"
+    ] is False
+    assert history[
+        "detraining_evidence_establishes_universal_restart_dose"
+    ] is False
+
+    masters = parameters["masters_applicability"]
+    assert masters["age_is_relevant_context"] is True
+    assert masters["universal_age_exclusion_established"] is False
+    assert masters["universal_age_cutoff_established"] is False
+    assert masters["fixed_age_based_recovery_delay_established"] is False
+
+    profile = parameters["construct_specific_profile_evidence"]
+    assert profile["evidence_is_construct_specific"] is True
+    assert profile["general_plan_family_validated"] is False
+    assert profile["universal_dose_rule_validated"] is False
+    assert profile["constructs"] == [
+        "physiological_sex",
+        "reproductive_context",
+        "menopause",
+        "transgender_and_nonbinary",
+        "gender_identity",
+    ]
+
+    support = parameters["strength_and_cross_training_evidence"]
+    assert support["strength_evidence_is_bounded"] is True
+    assert support["cycling_evidence_is_bounded"] is True
+    assert support["injury_prevention_established"] is False
+    assert support["running_equivalence_established"] is False
+    assert support["universal_dose_established"] is False
+
+    safety = parameters["adult_nonclinical_scope"]
+    assert safety["adult_nonclinical_scope_only"] is True
+    assert safety["pediatric_planning_within_scope"] is False
+    assert safety["medical_or_rehabilitation_prescription_within_scope"] is False
+    assert safety["pregnancy_specific_prescription_within_scope"] is False
+    assert safety["activity_average_power_valid_for_intensity"] is False
+    assert safety["valid_intensity_evidence_sources"] == [
+        "activity_splits",
+        "activity_samples",
+    ]
+
+    exact_values = parameters["exact_values"]
+    assert set(exact_values.values()) == {"not_accepted"}
+    assert set(exact_values) == {
+        "first_completion_schedule",
+        "history_sufficiency_thresholds",
+        "restart_dose",
+        "age_cutoff",
+        "age_based_recovery_delay",
+        "sex_reproductive_menopause_or_gender_dose_rule",
+        "strength_dose",
+        "cycling_substitution_ratio",
+    }
+
+    authority = parameters["non_science_authority_boundary"]
+    assert authority["science_authority"] == [
+        "evidence_applicability",
+        "uncertainty",
+        "claim_limits",
+        "safety_scope",
+    ]
+    assert set(authority["required_future_handoffs"]) == {
+        "product",
+        "design",
+        "trust",
+        "architecture",
+        "delivery",
+    }
+    decision_payload = decision.model_dump_json()
+    for forbidden_product_contract_term in (
+        "goal_capture_independent_from_plan_availability",
+        "prior_goal_distance_completion_required",
+        "completion_policy_unavailable",
+        "automatic_intent_coercion",
+        "returning_state_requires_athlete_confirmation",
+        "provider_profile_requires_source_label_and_user_confirmation",
+        "shared_adaptive_dependency",
+        "shared_policy_runtime_state",
+        "profile_collection_and_privacy_operations",
+        "primary_and_guardrail_metrics",
+        "implementation_pilot_and_activation",
+    ):
+        assert forbidden_product_contract_term not in decision_payload
+
+    assert decision.decision_review is not None
+    assert [
+        item.id
+        for item in decision.decision_review.items
+        if item.disposition == DecisionReviewDisposition.APPROVE
+    ] == [
+        "first-completion-applicability",
+        "history-detraining-inference",
+        "masters-applicability",
+        "construct-specific-profile-evidence",
+        "strength-cross-training-evidence",
+        "adult-nonclinical-scope",
+    ]
+    assert [
+        item.id
+        for item in decision.decision_review.items
+        if item.disposition == DecisionReviewDisposition.DEFER
+    ] == [
+        "all-exact-values",
+        "all-non-science-decisions",
+    ]
 
 
 def test_road_10k_policy_is_accepted_distance_specific_and_inactive() -> None:
@@ -1817,6 +2014,13 @@ def test_road_marathon_search_manifest_is_complete_and_bound() -> None:
                 "search-manifest-plan-outcome-interpretation-v1.json"
             ),
         ),
+        (
+            "evidence-adult-running-plan-population-routing-v1",
+            Path(
+                "data/science/evidence/adult-running-plan-population-routing/"
+                "search-manifest-adult-running-plan-population-routing-v1.json"
+            ),
+        ),
     ],
 )
 def test_adaptive_search_manifests_are_complete_and_bound(
@@ -1927,6 +2131,28 @@ def test_adaptive_search_manifests_are_complete_and_bound(
             "42588124",
             "42600781",
         }
+
+    if review_id == "evidence-adult-running-plan-population-routing-v1":
+        assert {
+            "menopause-running-reviews",
+            "gender-diverse-running-training",
+        } <= set(queries)
+        summaries = {
+            summary["query_id"]: summary
+            for summary in manifest["gap_query_screening_summaries"]
+        }
+        assert summaries["menopause-running-reviews"][
+            "included_pmids"
+        ] == ["42072980"]
+        assert summaries["menopause-running-reviews"][
+            "direct_plan_family_or_dose_pmids"
+        ] == []
+        assert summaries["gender-diverse-running-training"][
+            "included_pmids"
+        ] == ["40804607", "38143718"]
+        assert summaries["gender-diverse-running-training"][
+            "direct_plan_family_or_dose_pmids"
+        ] == []
 
 
 def test_environmental_performance_decision_preserves_product_boundaries() -> None:
