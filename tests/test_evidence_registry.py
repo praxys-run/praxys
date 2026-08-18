@@ -741,7 +741,7 @@ def test_plan_generation_eligibility_policy_is_accepted_but_inactive_and_cross_c
     )
 
 
-def test_adult_running_population_routing_is_draft_and_inactive() -> None:
+def test_adult_running_population_routing_is_accepted_and_inactive() -> None:
     registry = load_science_registry()
     review = registry.evidence_reviews[
         "evidence-adult-running-plan-population-routing-v1"
@@ -750,10 +750,10 @@ def test_adult_running_population_routing_is_draft_and_inactive() -> None:
         "sdr-adult-running-plan-population-routing-v1"
     ]
 
-    assert review.status == RecordStatus.DRAFT
+    assert review.status == RecordStatus.ACCEPTED
     assert review.approval_mode == ApprovalMode.ARTIFACT
     assert review.human_reviewers == []
-    assert review.reviewed_on is None
+    assert review.reviewed_on == date(2026, 8, 17)
     assert review.created_on == date(2026, 8, 16)
     assert review.method.review_type.value == "rigorous"
     assert len(review.citations) == 21
@@ -762,9 +762,9 @@ def test_adult_running_population_routing_is_draft_and_inactive() -> None:
         "evidence-adult-running-plan-population-routing-v1.yaml"
     )
     repository_bytes = evidence_path.read_bytes().replace(b"\r\n", b"\n")
-    assert b"\nreviewed_on: null\n" in repository_bytes
+    assert b"\nreviewed_on: 2026-08-17\n" in repository_bytes
     assert hashlib.sha256(repository_bytes).hexdigest() == (
-        "bb1927c40c29c000d1c20c8826cf967f59eb3128d9a7be541ed313d2b56ecaed"
+        "752bae9d1ca058865e8031585037912ab0997359d93b08032677a6a94d465083"
     )
     assert evidence_review_digest(review) == (
         "sha256:2b64d44749b4318cade113134a599f3646cb25805abed0f56728d9959c2ef0c8"
@@ -782,7 +782,7 @@ def test_adult_running_population_routing_is_draft_and_inactive() -> None:
     } == {claim.id for claim in review.claims}
     _assert_exact_verification_notes(review)
 
-    assert decision.status == RecordStatus.DRAFT
+    assert decision.status == RecordStatus.ACCEPTED
     assert decision.approval_mode == ApprovalMode.ARTIFACT
     assert decision.human_reviewers == []
     assert decision.decision_date == date(2026, 8, 16)

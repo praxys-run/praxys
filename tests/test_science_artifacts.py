@@ -648,7 +648,7 @@ def test_adaptive_plan_packet_contains_exact_accepted_inactive_contract() -> Non
         assert evidence_review_digest(review) in evidence_packet
 
 
-def test_population_routing_packet_contains_exact_draft_inactive_contract() -> None:
+def test_population_routing_packet_contains_exact_accepted_inactive_contract() -> None:
     registry = load_science_registry()
     expected = expected_science_artifacts(registry)
     evidence_id = "evidence-adult-running-plan-population-routing-v1"
@@ -674,7 +674,7 @@ def test_population_routing_packet_contains_exact_draft_inactive_contract() -> N
         + "\n```"
     )
 
-    assert contract.decision_status == RecordStatus.DRAFT
+    assert contract.decision_status == RecordStatus.ACCEPTED
     assert contract.runtime_state == ArtifactRuntimeState.INACTIVE
     assert contract.linked_evidence_digests[evidence_id] == (
         "sha256:2b64d44749b4318cade113134a599f3646cb25805abed0f56728d9959c2ef0c8"
@@ -779,7 +779,10 @@ def test_population_routing_packet_contains_exact_draft_inactive_contract() -> N
     ]
 
     assert exact_contract_block in packet
-    assert "**Decision approval:** _Pending_" in packet
+    assert (
+        "**Decision approval:** `github:dddtc2005` on `2026-08-18`"
+        in packet
+    )
     assert "**Implementation approval:** _Pending_" in packet
     assert packet.index("## Your task") < packet.index("## Decision sheet")
     assert packet.index("## Decision sheet") < packet.index(
@@ -793,7 +796,10 @@ def test_population_routing_packet_contains_exact_draft_inactive_contract() -> N
     assert "does not establish injury prevention" in packet
     assert "outside Science authority" in packet
     assert "Review this packet, not the raw YAML" in evidence_packet
-    assert "- **Approval:** _Pending_" in evidence_packet
+    assert (
+        "- **Approval:** `github:dddtc2005` on `2026-08-17`"
+        in evidence_packet
+    )
     assert evidence_review_digest(
         registry.evidence_reviews[evidence_id]
     ) in evidence_packet
